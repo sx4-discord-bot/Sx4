@@ -3,6 +3,7 @@ package com.sx4.modules;
 import static com.rethinkdb.RethinkDB.r;
 
 import java.awt.Color;
+import java.awt.Image;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
@@ -60,12 +61,12 @@ import com.sx4.utils.ArgumentUtils;
 import com.sx4.utils.FunUtils;
 import com.sx4.utils.GeneralUtils;
 import com.sx4.utils.HelpUtils;
+import com.sx4.utils.ImageUtils;
 import com.sx4.utils.PagedUtils;
+import com.sx4.utils.PagedUtils.PagedResult;
 import com.sx4.utils.TimeUtils;
 import com.sx4.utils.TokenUtils;
-import com.sx4.utils.PagedUtils.PagedResult;
 
-import net.dv8tion.jda.core.utils.tuple.Pair;
 import net.dv8tion.jda.core.EmbedBuilder;
 import net.dv8tion.jda.core.Permission;
 import net.dv8tion.jda.core.entities.Member;
@@ -73,6 +74,7 @@ import net.dv8tion.jda.core.entities.Message.Attachment;
 import net.dv8tion.jda.core.entities.MessageEmbed;
 import net.dv8tion.jda.core.entities.Role;
 import net.dv8tion.jda.core.entities.User;
+import net.dv8tion.jda.core.utils.tuple.Pair;
 import okhttp3.MediaType;
 import okhttp3.Request;
 import okhttp3.RequestBody;
@@ -423,6 +425,7 @@ public class FunModule {
 		
 		@Command(value="banner", aliases={"background"}, description="Set your background for you profile", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@Cooldown(value=30)
+		@Async
 		public void banner(CommandEvent event, @Argument(value="banner", nullDefault=true) String banner) {
 			URL url = null;
 			if (banner == null && !event.getMessage().getAttachments().isEmpty()) {
@@ -491,6 +494,8 @@ public class FunModule {
 					event.reply("That is not an image :no_entry:").queue();
 					return;
 				}
+				
+				image = ImageUtils.asBufferedImage(image.getScaledInstance(2560, 1440, Image.SCALE_DEFAULT));
 				
 				try {
 					ImageIO.write(image, "png", path);
