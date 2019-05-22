@@ -3,10 +3,10 @@ package com.sx4.modules;
 import static com.rethinkdb.RethinkDB.r;
 
 import java.awt.Color;
-import java.awt.Image;
-import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLDecoder;
@@ -61,7 +61,6 @@ import com.sx4.utils.ArgumentUtils;
 import com.sx4.utils.FunUtils;
 import com.sx4.utils.GeneralUtils;
 import com.sx4.utils.HelpUtils;
-import com.sx4.utils.ImageUtils;
 import com.sx4.utils.PagedUtils;
 import com.sx4.utils.PagedUtils.PagedResult;
 import com.sx4.utils.TimeUtils;
@@ -425,7 +424,6 @@ public class FunModule {
 		
 		@Command(value="banner", aliases={"background"}, description="Set your background for you profile", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@Cooldown(value=30)
-		@Async
 		public void banner(CommandEvent event, @Argument(value="banner", nullDefault=true) String banner) {
 			URL url = null;
 			if (banner == null && !event.getMessage().getAttachments().isEmpty()) {
@@ -467,10 +465,10 @@ public class FunModule {
 				}
 			}
 			
-			File path = new File("profile-images/" + event.getAuthor().getId() + ".png").getAbsoluteFile();
+			File file = new File("profile-images/" + event.getAuthor().getId() + ".png").getAbsoluteFile();
 			if (url == null) {
-				if (path.exists()) {
-					path.delete();
+				if (file.exists()) {
+					file.delete();
 					event.reply("Your profile background has been reset <:done:403285928233402378>").queue();
 				} else { 
 					event.reply("You don't have a profile background set :no_entry:").queue();
@@ -482,29 +480,20 @@ public class FunModule {
 					} catch (MalformedURLException e) {}
 				}
 				
-				BufferedImage image;
-				try {
-					image = ImageIO.read(url);
-				} catch (IOException e) {
-					event.reply("Oops something went wrong there, try again :no_entry:").queue();
-					return;
-				}
+				Request request = new Request.Builder().url("http://" + Settings.LOCAL_HOST + ":8443/api/resize?image=" + url + "&width=2560&height=1440").build();
 				
-				if (image == null) {
-					event.reply("That is not an image :no_entry:").queue();
-					return;
-				}
-				
-				image = ImageUtils.asBufferedImage(image.getScaledInstance(2560, 1440, Image.SCALE_DEFAULT));
-				
-				try {
-					ImageIO.write(image, "png", path);
-				} catch (IOException e) {
-					event.reply("Oops something went wrong there, try again :no_entry:").queue();
-					return;
-				}
-				
-				event.reply("Your profile background has been updated <:done:403285928233402378>").queue();
+				ImageModule.client.newCall(request).enqueue((Sx4Callback) response -> {
+					InputStream stream = new ByteArrayInputStream(response.body().bytes());
+					
+					try {
+						ImageIO.write(ImageIO.read(stream), "png", file);
+					} catch (IOException e) {
+						event.reply("Oops something went wrong there, try again :no_entry:").queue();
+						return;
+					}
+					
+					event.reply("Your profile background has been updated <:done:403285928233402378>").queue();
+				});
 			}
 		}	
 	}
