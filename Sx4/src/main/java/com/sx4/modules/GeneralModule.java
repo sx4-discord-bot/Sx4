@@ -60,7 +60,6 @@ import com.sx4.utils.PagedUtils.PagedResult;
 import com.sx4.utils.TimeUtils;
 import com.sx4.utils.TokenUtils;
 
-import net.dv8tion.jda.core.utils.tuple.Pair;
 import net.dv8tion.jda.core.EmbedBuilder;
 import net.dv8tion.jda.core.JDA;
 import net.dv8tion.jda.core.JDAInfo;
@@ -84,6 +83,7 @@ import net.dv8tion.jda.core.entities.User;
 import net.dv8tion.jda.core.entities.VoiceChannel;
 import net.dv8tion.jda.core.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.core.exceptions.ErrorResponseException;
+import net.dv8tion.jda.core.utils.tuple.Pair;
 import okhttp3.Request;
 
 @Module

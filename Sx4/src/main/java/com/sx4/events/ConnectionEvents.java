@@ -28,6 +28,7 @@ public class ConnectionEvents extends ListenerAdapter {
 		
 		DatabaseUtils.ensureTableData();
 		StatusEvents.initialize();
+		ServerPostEvents.initializePosting();
 		MuteEvents.ensureMuteRoles();
 		StatsEvents.initializeBotLogs();
 		ReminderEvents.ensureReminders();

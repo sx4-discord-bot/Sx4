@@ -57,7 +57,6 @@ import net.dv8tion.jda.core.Permission;
 import net.dv8tion.jda.core.entities.Guild;
 import net.dv8tion.jda.core.entities.Member;
 import net.dv8tion.jda.core.entities.Role;
-import net.dv8tion.jda.core.entities.User;
 import okhttp3.OkHttpClient;
 
 public class Sx4Bot {
@@ -112,7 +111,7 @@ public class Sx4Bot {
 		
 		connection.use(Settings.DATABASE_NAME);
 		
-		Sx4Bot.eventHandler = new EventHandler(connection);
+		eventHandler = new EventHandler(connection);
 		
 		DatabaseUtils.ensureTables("antiad", "antilink", "auction", "autorole", "await", "bank", "blacklist", 
 				"botstats", "fakeperms", "giveaway", "imagemode", "logs", "marriage", "modlogs", "mute", 
@@ -173,17 +172,16 @@ public class Sx4Bot {
 					if (command instanceof Sx4Command) {
 						Sx4Command sx4Command = ((Sx4Command) command);
 						if (sx4Command.isDonator()) {
-							Role donatorRole = event.getShardManager().getGuildById(Settings.SUPPORT_SERVER_ID).getRoleById(Settings.DONATOR_ONE_ROLE_ID);
-							List<Member> donatorMembers = event.getGuild().getMembersWithRoles(donatorRole);
-							
-							List<User> donators = new ArrayList<>();
-							for (Member donatorMember : donatorMembers) {
-								donators.add(donatorMember.getUser());
-							}
-							
-							if (!donators.contains(event.getAuthor())) {
-								event.reply("You need to be a donator to execute this command :no_entry:").queue();
-								return false;
+							Guild guild = event.getShardManager().getGuildById(Settings.SUPPORT_SERVER_ID);
+							Role donatorRole = guild.getRoleById(Settings.DONATOR_ONE_ROLE_ID);
+				
+							Member member = guild.getMemberById(event.getAuthor().getIdLong());
+				
+							if (member != null) {
+							    if (!event.getGuild().getMembersWithRoles(donatorRole).contains(member)) {
+							    	event.reply("You need to be a donator to execute this command :no_entry:").queue();
+							    	return false;
+							    }
 							}
 						}
 					}
@@ -287,7 +285,7 @@ public class Sx4Bot {
 	}
 	
 	public static EventHandler getEventHandler() {
-		return Sx4Bot.eventHandler;
+		return eventHandler;
 	}
 	
 	public static DateTimeFormatter getTimeFormatter() {
