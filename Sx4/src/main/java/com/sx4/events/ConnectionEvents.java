@@ -16,13 +16,9 @@ import net.dv8tion.jda.core.events.ResumedEvent;
 import net.dv8tion.jda.core.hooks.ListenerAdapter;
 
 public class ConnectionEvents extends ListenerAdapter {
-	
-	private TextChannel eventsChannel = null;
 
 	public void onReady(ReadyEvent event) {
 		ShardManager shardManager = Sx4Bot.getShardManager();
-		
-		eventsChannel = shardManager.getGuildById(Settings.SUPPORT_SERVER_ID).getTextChannelById(Settings.EVENTS_CHANNEL_ID);
 		
 		System.out.println("Connected to " + shardManager.getApplicationInfo().getJDA().getSelfUser().getAsTag() + String.format(" with %,d/%,d available servers and %,d users", event.getGuildAvailableCount(), event.getGuildTotalCount(), shardManager.getUsers().size()));
 		
@@ -38,6 +34,8 @@ public class ConnectionEvents extends ListenerAdapter {
 	}
 	
 	public void onDisconnect(DisconnectEvent event) {
+		TextChannel eventsChannel = Sx4Bot.getShardManager().getGuildById(Settings.SUPPORT_SERVER_ID).getTextChannelById(Settings.EVENTS_CHANNEL_ID);
+		
 		EmbedBuilder embed = new EmbedBuilder();
 		embed.setAuthor(event.getJDA().getSelfUser().getAsTag(), null, event.getJDA().getSelfUser().getEffectiveAvatarUrl());
 		embed.setTimestamp(event.getDisconnectTime());
@@ -51,6 +49,8 @@ public class ConnectionEvents extends ListenerAdapter {
 	}
 	
 	public void onResume(ResumedEvent event) {
+		TextChannel eventsChannel = Sx4Bot.getShardManager().getGuildById(Settings.SUPPORT_SERVER_ID).getTextChannelById(Settings.EVENTS_CHANNEL_ID);
+		
 		EmbedBuilder embed = new EmbedBuilder();
 		embed.setAuthor(event.getJDA().getSelfUser().getAsTag(), null, event.getJDA().getSelfUser().getEffectiveAvatarUrl());
 		embed.setTimestamp(Instant.now());
@@ -61,6 +61,8 @@ public class ConnectionEvents extends ListenerAdapter {
 	}
 	
 	public void onReconnect(ReconnectedEvent event) {
+		TextChannel eventsChannel = Sx4Bot.getShardManager().getGuildById(Settings.SUPPORT_SERVER_ID).getTextChannelById(Settings.EVENTS_CHANNEL_ID);
+		
 		EmbedBuilder embed = new EmbedBuilder();
 		embed.setAuthor(event.getJDA().getSelfUser().getAsTag(), null, event.getJDA().getSelfUser().getEffectiveAvatarUrl());
 		embed.setTimestamp(Instant.now());
