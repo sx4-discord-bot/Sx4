@@ -9,7 +9,7 @@ repositories {
 }
 
 dependencies {
-    implementation('com.github.21Joakim:Jockie-Utils:1.32') {
+    implementation('com.github.21Joakim:Jockie-Utils:1.+') {
         exclude group: 'net.dv8tion', module: 'JDA'
     }
 

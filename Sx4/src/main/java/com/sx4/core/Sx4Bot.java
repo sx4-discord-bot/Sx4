@@ -16,6 +16,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import com.jagrosh.jdautilities.commons.waiter.EventWaiter;
+import com.jockie.bot.core.command.factory.impl.MethodCommandFactory;
 import com.jockie.bot.core.command.impl.CommandListener;
 import com.jockie.bot.core.command.impl.CommandStore;
 import com.jockie.bot.core.command.manager.impl.ContextManagerFactory;
@@ -55,6 +56,8 @@ import net.dv8tion.jda.core.OnlineStatus;
 import net.dv8tion.jda.core.Permission;
 import net.dv8tion.jda.core.entities.Guild;
 import net.dv8tion.jda.core.entities.Member;
+import net.dv8tion.jda.core.entities.Role;
+import net.dv8tion.jda.core.entities.User;
 import okhttp3.OkHttpClient;
 
 public class Sx4Bot {
@@ -118,6 +121,8 @@ public class Sx4Bot {
 		
 		ContextManagerFactory.getDefault().registerContext(Connection.class, (event, type) -> connection);
 		
+		MethodCommandFactory.setDefault(new Sx4CommandFactory());
+		
 		listener = new Sx4CommandListener()
 				.addCommandStore(CommandStore.of("com.sx4.modules"))
 				.addDevelopers(402557516728369153L, 190551803669118976L)
@@ -164,6 +169,27 @@ public class Sx4Bot {
 					
 					return true;
 				})
+				.addPreExecuteCheck((event, command) -> {
+					if (command instanceof Sx4Command) {
+						Sx4Command sx4Command = ((Sx4Command) command);
+						if (sx4Command.isDonator()) {
+							Role donatorRole = event.getShardManager().getGuildById(Settings.SUPPORT_SERVER_ID).getRoleById(Settings.DONATOR_ONE_ROLE_ID);
+							List<Member> donatorMembers = event.getGuild().getMembersWithRoles(donatorRole);
+							
+							List<User> donators = new ArrayList<>();
+							for (Member donatorMember : donatorMembers) {
+								donators.add(donatorMember.getUser());
+							}
+							
+							if (!donators.contains(event.getAuthor())) {
+								event.reply("You need to be a donator to execute this command :no_entry:").queue();
+								return false;
+							}
+						}
+					}
+					
+					return true;
+				})
 				.addPreExecuteCheck(listener.defaultBotPermissionCheck)
 				.addPreExecuteCheck(listener.defaultNsfwCheck)
 				.addPreExecuteCheck((event, command) -> {
@@ -182,6 +208,8 @@ public class Sx4Bot {
 			System.err.println("[Uncaught]");
 			
 			exception.printStackTrace();
+			
+			Sx4CommandEventListener.sendErrorMessage(bot.getGuildById(Settings.SUPPORT_SERVER_ID).getTextChannelById(Settings.ERRORS_CHANNEL_ID), exception, new Object[0]);
 		});
 		
 		System.gc();

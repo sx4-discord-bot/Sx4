@@ -21,6 +21,11 @@ public interface Sx4Callback extends Callback {
     }
     
     public default void onResponse(Call call, Response response) throws IOException {
-    	this.onResponse(response);
+    	try {
+    		this.onResponse(response);
+    	} catch (Exception e) {
+    		e.printStackTrace();
+    		Sx4CommandEventListener.sendErrorMessage(Sx4Bot.getShardManager().getGuildById(Settings.SUPPORT_SERVER_ID).getTextChannelById(Settings.ERRORS_CHANNEL_ID), e, new Object[0]);
+    	}
     }
 }

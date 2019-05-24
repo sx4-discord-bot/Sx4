@@ -67,6 +67,7 @@ public class AutoroleModule {
 			Role role = ArgumentUtils.getRole(event.getGuild(), roleArgument);
 			if (role == null) {
 				event.reply("I could not find that role :no_entry:").queue();
+				return;
 			}
 			
 			if (role.isManaged()) {
@@ -114,6 +115,7 @@ public class AutoroleModule {
 			Role role = ArgumentUtils.getRole(event.getGuild(), roleArgument);
 			if (role == null) {
 				event.reply("I could not find that role :no_entry:").queue();
+				return;
 			}
 			
 			if (role.isManaged()) {

@@ -1059,14 +1059,18 @@ public class GeneralModule {
 				event.reply(onReturn.getObject().getRight()).queue();
 			});
 		} else {
-			for (Pair<String, String> message : messages) {
-				if (message.getRight().startsWith("Version: " + version)) {
-					event.reply(message.getRight()).queue();
-					return;
+			if (version.toLowerCase().equals("latest")) {
+				event.reply(messages.get(0).getRight()).queue();
+			} else {
+				for (Pair<String, String> message : messages) {
+					if (message.getRight().startsWith("Version: " + version)) {
+						event.reply(message.getRight()).queue();
+						return;
+					}
 				}
+				
+				event.reply("I could not find that change log :no_entry:").queue();
 			}
-			
-			event.reply("I could not find that change log :no_entry:").queue();
 		}
 	}
 	

@@ -657,7 +657,7 @@ public class EconomyModule {
 				    	referredContent = referredContent.substring(0, referredContent.length() - 2);
 				    }
 				    
-				    int totalVotes = sx4Votes.length() + jockieMusicVotes.length();
+				    int totalVotes = (sx4Votes == null ? 0 : sx4Votes.length()) + (jockieMusicVotes == null ? 0 : jockieMusicVotes.length());
 				    event.reply(String.format("You have voted for the bot **%,d** time%s since you last used the command gathering you a total of **$%,d**, Vote for the bots again in 12 hours for more money."
 				    		+ " Referred users: %s", totalVotes, totalVotes == 1 ? "" : "s", money, referredContent == "" ? "No one" : referredContent)).queue();
 					 
@@ -858,6 +858,7 @@ public class EconomyModule {
 			member = ArgumentUtils.getMember(event.getGuild(), userArgument);
 			if (member == null) {
 				event.reply("I could not find that user :no_entry:").queue();
+				return;
 			}
 		}
 		
@@ -2191,7 +2192,7 @@ public class EconomyModule {
 		Map<String, Object> taxDataRan = taxData.run(connection);
 		
 		long authorBalance = (long) dataRan.get("balance") - fullAmount;
-		long userBalance = taxBot ? (long) taxDataRan.get("tax") + tax : userDataRan == null ? 0 : (long) userDataRan.get("balance") + amount;
+		long userBalance = taxBot ? (long) taxDataRan.get("tax") + tax : (long) userDataRan.get("balance") + amount;
 		EmbedBuilder embed = new EmbedBuilder();
 		embed.setAuthor(event.getAuthor().getName() + " → " + member.getUser().getName(), null, "https://cdn0.iconfinder.com/data/icons/social-messaging-ui-color-shapes/128/money-circle-green-3-512.png");
 		embed.setColor(event.getMember().getColor());
