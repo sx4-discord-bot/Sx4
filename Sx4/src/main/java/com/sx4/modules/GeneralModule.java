@@ -48,6 +48,7 @@ import com.sun.management.OperatingSystemMXBean;
 import com.sx4.cache.ChangesMessageCache;
 import com.sx4.categories.Categories;
 import com.sx4.core.Sx4Bot;
+import com.sx4.core.Sx4Command;
 import com.sx4.core.Sx4CommandEventListener;
 import com.sx4.events.ReminderEvents;
 import com.sx4.interfaces.Sx4Callback;
@@ -107,7 +108,7 @@ public class GeneralModule {
 		return "<https://discordapp.com/channels/" + event.getGuild().getId() + "/" + channel.getId() + ">";
 	}
 	
-	public class ReminderCommand extends CommandImpl {
+	public class ReminderCommand extends Sx4Command {
 		
 		private Pattern reminderTimeRegex = Pattern.compile("(.*) in (?: *|)((?:[0-9]+(?: |)(?:[a-zA-Z]+|){1}(?: |){1}){1,})");
 		private Pattern reminderDateRegex = Pattern.compile("(.*) at (" + TimeUtils.dateRegex.pattern() + ")");
@@ -311,7 +312,7 @@ public class GeneralModule {
 		event.reply("Your suggestion has been sent to " + channel.getAsMention()).queue();
 	}
 	
-	public class SuggestionCommand extends CommandImpl {
+	public class SuggestionCommand extends Sx4Command {
 		
 		public SuggestionCommand() {
 			super("suggestion");
@@ -782,7 +783,7 @@ public class GeneralModule {
 		}
 	}
 	
-	public class ImageModeCommand extends CommandImpl {
+	public class ImageModeCommand extends Sx4Command {
 		
 		private List<String> nullStrings = List.of("off", "none", "null");
 		
@@ -1787,7 +1788,7 @@ public class GeneralModule {
 		event.reply(embed.build()).queue();
 	}
 	
-	public class TriggerCommand extends CommandImpl {
+	public class TriggerCommand extends Sx4Command {
 		
 		public TriggerCommand() {
 			super("trigger");

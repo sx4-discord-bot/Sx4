@@ -55,6 +55,7 @@ import com.rethinkdb.net.Cursor;
 import com.sx4.cache.SteamCache;
 import com.sx4.categories.Categories;
 import com.sx4.core.Sx4Bot;
+import com.sx4.core.Sx4Command;
 import com.sx4.interfaces.Sx4Callback;
 import com.sx4.settings.Settings;
 import com.sx4.utils.ArgumentUtils;
@@ -253,7 +254,7 @@ public class FunModule {
 		event.reply(embed.build()).queue();
 	}
 	
-	public class SetCommand extends CommandImpl {
+	public class SetCommand extends Sx4Command {
 		
 		public SetCommand() {
 			super("set");

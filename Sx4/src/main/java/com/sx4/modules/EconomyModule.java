@@ -42,6 +42,7 @@ import com.rethinkdb.net.Connection;
 import com.rethinkdb.net.Cursor;
 import com.sx4.categories.Categories;
 import com.sx4.core.Sx4Bot;
+import com.sx4.core.Sx4Command;
 import com.sx4.economy.AuctionItem;
 import com.sx4.economy.Item;
 import com.sx4.economy.ItemStack;
@@ -61,21 +62,21 @@ import com.sx4.interfaces.Sx4Callback;
 import com.sx4.settings.Settings;
 import com.sx4.utils.ArgumentUtils;
 import com.sx4.utils.EconomyUtils;
+import com.sx4.utils.EconomyUtils.Slot;
 import com.sx4.utils.GeneralUtils;
 import com.sx4.utils.HelpUtils;
 import com.sx4.utils.PagedUtils;
+import com.sx4.utils.PagedUtils.PagedResult;
 import com.sx4.utils.TimeUtils;
 import com.sx4.utils.TokenUtils;
-import com.sx4.utils.EconomyUtils.Slot;
-import com.sx4.utils.PagedUtils.PagedResult;
 
-import net.dv8tion.jda.core.utils.tuple.Pair;
 import net.dv8tion.jda.core.EmbedBuilder;
 import net.dv8tion.jda.core.MessageBuilder;
 import net.dv8tion.jda.core.Permission;
 import net.dv8tion.jda.core.entities.Member;
 import net.dv8tion.jda.core.entities.User;
 import net.dv8tion.jda.core.utils.cache.SnowflakeCacheView;
+import net.dv8tion.jda.core.utils.tuple.Pair;
 import okhttp3.Request;
 
 @Module
@@ -83,7 +84,7 @@ public class EconomyModule {
 	
 	Random random = new Random();
 
-	public class CrateCommand extends CommandImpl {
+	public class CrateCommand extends Sx4Command {
 		
 		public CrateCommand() {
 			super("crate");
@@ -436,7 +437,7 @@ public class EconomyModule {
 		
 	}
 	
-	public class BoosterCommand extends CommandImpl {
+	public class BoosterCommand extends Sx4Command {
 		
 		public BoosterCommand() {
 			super("booster");
@@ -936,7 +937,7 @@ public class EconomyModule {
 		});
 	}
 	
-	public class MinerCommand extends CommandImpl {
+	public class MinerCommand extends Sx4Command {
 		
 		public MinerCommand() {
 			super("miner");
@@ -1146,7 +1147,7 @@ public class EconomyModule {
 		
 	}
 	
-	public class PickaxeCommand extends CommandImpl {
+	public class PickaxeCommand extends Sx4Command {
 		
 		public PickaxeCommand() {
 			super("pickaxe");
@@ -1477,7 +1478,7 @@ public class EconomyModule {
 		
 	}
 	
-	public class FishingRodCommand extends CommandImpl {
+	public class FishingRodCommand extends Sx4Command {
 		
 		public FishingRodCommand() {
 			super("fishing rod");
@@ -1803,7 +1804,7 @@ public class EconomyModule {
 		}
 	}
 	
-	public class AxeCommand extends CommandImpl {
+	public class AxeCommand extends Sx4Command {
 		
 		public AxeCommand() {
 			super("axe");
@@ -2341,7 +2342,7 @@ public class EconomyModule {
 		}
 	}
 	
-	public class FactoryCommand extends CommandImpl {
+	public class FactoryCommand extends Sx4Command {
 		
 		public FactoryCommand() {
 			super("factory");
@@ -2540,7 +2541,7 @@ public class EconomyModule {
 		
 	}
 	
-	public class AuctionCommand extends CommandImpl {
+	public class AuctionCommand extends Sx4Command {
 		
 		public AuctionCommand() {
 			super("auction");
@@ -3394,7 +3395,7 @@ public class EconomyModule {
 		event.reply(embed.build()).queue();
 	}
 	
-	public class LeaderboardCommand extends CommandImpl {
+	public class LeaderboardCommand extends Sx4Command {
 		
 		public LeaderboardCommand() {
 			super("leaderboard");

@@ -9,6 +9,7 @@ import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
 import com.jockie.bot.core.command.Command.AuthorPermissions;
 import com.jockie.bot.core.command.Command.BotPermissions;
+import com.jockie.bot.core.command.ICommand.ContentOverflowPolicy;
 import com.jockie.bot.core.command.Initialize;
 import com.jockie.bot.core.command.impl.CommandEvent;
 import com.jockie.bot.core.command.impl.CommandImpl;
@@ -17,6 +18,7 @@ import com.rethinkdb.gen.ast.Get;
 import com.rethinkdb.model.OptArgs;
 import com.rethinkdb.net.Connection;
 import com.sx4.categories.Categories;
+import com.sx4.core.Sx4Command;
 import com.sx4.utils.ArgumentUtils;
 import com.sx4.utils.HelpUtils;
 
@@ -27,7 +29,7 @@ import net.dv8tion.jda.core.entities.Role;
 @Module
 public class AutoroleModule {
 	
-	public class AutoRoleCommand extends CommandImpl {
+	public class AutoRoleCommand extends Sx4Command {
 		
 		public AutoRoleCommand() {
 			super("auto role");

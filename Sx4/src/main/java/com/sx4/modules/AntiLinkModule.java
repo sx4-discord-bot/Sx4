@@ -11,6 +11,7 @@ import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
 import com.jockie.bot.core.command.Command.AuthorPermissions;
 import com.jockie.bot.core.command.Command.BotPermissions;
+import com.jockie.bot.core.command.ICommand.ContentOverflowPolicy;
 import com.jockie.bot.core.command.Initialize;
 import com.jockie.bot.core.command.impl.CommandEvent;
 import com.jockie.bot.core.command.impl.CommandImpl;
@@ -19,6 +20,7 @@ import com.rethinkdb.gen.ast.Get;
 import com.rethinkdb.model.OptArgs;
 import com.rethinkdb.net.Connection;
 import com.sx4.categories.Categories;
+import com.sx4.core.Sx4Command;
 import com.sx4.settings.Settings;
 import com.sx4.utils.AntiLinkUtils;
 import com.sx4.utils.ArgumentUtils;
@@ -38,7 +40,7 @@ import net.dv8tion.jda.core.entities.TextChannel;
 @Module
 public class AntiLinkModule {
 
-	public class AntilinkCommand extends CommandImpl {
+	public class AntilinkCommand extends Sx4Command {
 		
 		private final List<String> actions = List.of("mute", "kick", "ban");
 		private final List<String> nullStrings = List.of("null", "none", "off", "reset");
@@ -297,7 +299,7 @@ public class AntiLinkModule {
 			}
 		}
 		
-		public class WhitelistedCommand extends CommandImpl {
+		public class WhitelistedCommand extends Sx4Command {
 			
 			public WhitelistedCommand() {
 				super("whitelisted");

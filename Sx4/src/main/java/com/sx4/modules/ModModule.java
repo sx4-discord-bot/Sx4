@@ -38,6 +38,7 @@ import com.rethinkdb.model.OptArgs;
 import com.rethinkdb.net.Connection;
 import com.sx4.categories.Categories;
 import com.sx4.core.Sx4Bot;
+import com.sx4.core.Sx4Command;
 import com.sx4.events.MuteEvents;
 import com.sx4.utils.ArgumentUtils;
 import com.sx4.utils.GeneralUtils;
@@ -230,7 +231,7 @@ public class ModModule {
 		}
 	}
 	
-	public class CreateChannelCommand extends CommandImpl {
+	public class CreateChannelCommand extends Sx4Command {
 		
 		public CreateChannelCommand() {
 			super("create channel");
@@ -272,7 +273,7 @@ public class ModModule {
 		
 	}
 	
-	public class DeleteChannelCommand extends CommandImpl {
+	public class DeleteChannelCommand extends Sx4Command {
 		
 		public DeleteChannelCommand() {
 			super("delete channel");
@@ -361,7 +362,7 @@ public class ModModule {
 		}
 	}
 	
-	public class BlacklistCommand extends CommandImpl {
+	public class BlacklistCommand extends Sx4Command {
 		
 		public BlacklistCommand() {
 			super("blacklist");
@@ -810,7 +811,7 @@ public class ModModule {
 		
 	}
 	
-	public class WhitelistCommand extends CommandImpl {
+	public class WhitelistCommand extends Sx4Command {
 		
 		public WhitelistCommand() {
 			super ("whitelist");
@@ -1196,7 +1197,7 @@ public class ModModule {
 		
 	}
 	
-	public class FakePermissionsCommand extends CommandImpl {
+	public class FakePermissionsCommand extends Sx4Command {
 		
 		public FakePermissionsCommand() {
 			super("fake permissions");
@@ -1661,7 +1662,7 @@ public class ModModule {
 		role.getManager().setColor(colour).queue();
 	}
 	
-	public class PrefixCommand extends CommandImpl {
+	public class PrefixCommand extends Sx4Command {
 		
 		public PrefixCommand() {
 			super("prefix");
@@ -1688,7 +1689,7 @@ public class ModModule {
 			event.reply(new MessageBuilder().setEmbed(embed.build()).setContent("For help on setting the prefix use `" + event.getPrefix() + "help prefix`").build()).queue();
 		}
 		
-		public class SelfCommand extends CommandImpl {
+		public class SelfCommand extends Sx4Command {
 			
 			public SelfCommand() {
 				super("self");
@@ -1797,7 +1798,7 @@ public class ModModule {
 			
 		}
 		
-		public class ServerCommand extends CommandImpl {
+		public class ServerCommand extends Sx4Command {
 			
 			public ServerCommand() {
 				super("server");
@@ -2064,7 +2065,7 @@ public class ModModule {
 		event.getGuild().getController().setNickname(member, nickname).queue();
 	}
 	
-	public class PruneCommand extends CommandImpl {
+	public class PruneCommand extends Sx4Command {
 		
 		public PruneCommand() {
 			super("prune");
@@ -2223,7 +2224,7 @@ public class ModModule {
 		});
 	}
 	
-	public class ModLogCommand extends CommandImpl {
+	public class ModLogCommand extends Sx4Command {
 		
 		public ModLogCommand() {  
 			super("modlog");
@@ -3113,7 +3114,7 @@ public class ModModule {
 		PagedUtils.getPagedResult(event, paged, 300, null);
 	}
 	
-	/*public static class templates extends CommandImpl {
+	/*public static class templates extends Sx4Command {
 		
 		public static String getReason(Guild guild, Connection connection, String template) {
 			List<Map<String, Object>> templates = r.table("warn").get(guild.getId()).g("templates").run(connection);
@@ -3150,7 +3151,7 @@ public class ModModule {
 		
 	}*/
 	
-	public class WarnConfigurationCommand extends CommandImpl {
+	public class WarnConfigurationCommand extends Sx4Command {
 		
 		public WarnConfigurationCommand() {
 			super("warn configuration");

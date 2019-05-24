@@ -14,6 +14,7 @@ import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
 import com.jockie.bot.core.command.Command.AuthorPermissions;
 import com.jockie.bot.core.command.Command.BotPermissions;
+import com.jockie.bot.core.command.ICommand.ContentOverflowPolicy;
 import com.jockie.bot.core.command.Initialize;
 import com.jockie.bot.core.command.impl.CommandEvent;
 import com.jockie.bot.core.command.impl.CommandImpl;
@@ -22,6 +23,7 @@ import com.rethinkdb.gen.ast.Get;
 import com.rethinkdb.model.OptArgs;
 import com.rethinkdb.net.Connection;
 import com.sx4.categories.Categories;
+import com.sx4.core.Sx4Command;
 import com.sx4.settings.Settings;
 import com.sx4.utils.ArgumentUtils;
 import com.sx4.utils.GeneralUtils;
@@ -37,7 +39,7 @@ import net.dv8tion.jda.core.entities.TextChannel;
 @Module
 public class WelcomerModule {
 	
-	public class WelcomerCommand extends CommandImpl {
+	public class WelcomerCommand extends Sx4Command {
 		
 		private static final String MESSAGE = "{user.mention}, Welcome to **{server}**. Enjoy your time here! The server now has {server.members} members.";
 		
@@ -297,7 +299,7 @@ public class WelcomerModule {
 		
 	}
 	
-	public class LeaverCommand extends CommandImpl {
+	public class LeaverCommand extends Sx4Command {
 		
 		private static final String MESSAGE = "**{user.name}** has just left **{server}**. Bye **{user.name}**!";
 		
@@ -507,7 +509,7 @@ public class WelcomerModule {
 		
 	}
 	
-	public class ImageWelcomerCommand extends CommandImpl {
+	public class ImageWelcomerCommand extends Sx4Command {
 		
 		List<String> supportedTypes = List.of("WEBP", "PNG", "GIF", "JPG", "JPEG");
 		
