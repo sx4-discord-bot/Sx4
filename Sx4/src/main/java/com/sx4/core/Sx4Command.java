@@ -7,7 +7,7 @@ import com.sx4.interfaces.Donator;
 
 public class Sx4Command extends CommandImpl {
 
-	private boolean donator = false;
+	private boolean donator;
 	
 	public Sx4Command(String name) {
 		super(name, true);
