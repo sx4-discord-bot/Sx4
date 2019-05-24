@@ -28,25 +28,25 @@ public class AutoroleEvents extends ListenerAdapter {
 		if (roleData != null && botRoleData == null) {
 			Role role = event.getGuild().getRoleById(roleData);
 			if (role != null) {
-				event.getGuild().getController().addSingleRoleToMember(event.getMember(), role);
+				event.getGuild().getController().addSingleRoleToMember(event.getMember(), role).queue();
 			}
 		} else if (roleData == null && botRoleData != null) {
 			if (event.getMember().getUser().isBot()) {
 				Role role = event.getGuild().getRoleById(botRoleData);
 				if (role != null) {
-					event.getGuild().getController().addSingleRoleToMember(event.getMember(), role);
+					event.getGuild().getController().addSingleRoleToMember(event.getMember(), role).queue();
 				}
 			}
 		} else {
 			if (event.getMember().getUser().isBot()) {
 				Role role = event.getGuild().getRoleById(botRoleData);
 				if (role != null) {
-					event.getGuild().getController().addSingleRoleToMember(event.getMember(), role);
+					event.getGuild().getController().addSingleRoleToMember(event.getMember(), role).queue();
 				}
 			} else {
 				Role role = event.getGuild().getRoleById(roleData);
 				if (role != null) {
-					event.getGuild().getController().addSingleRoleToMember(event.getMember(), role);
+					event.getGuild().getController().addSingleRoleToMember(event.getMember(), role).queue();
 				}
 			}
 		}
@@ -82,22 +82,22 @@ public class AutoroleEvents extends ListenerAdapter {
 				for (Member member : guild.getMembers()) {
 					if (roleData != null && botRoleData == null) {
 						if (role != null) {
-							guild.getController().addSingleRoleToMember(member, role);
+							guild.getController().addSingleRoleToMember(member, role).queue();
 						}
 					} else if (roleData == null && botRoleData != null) {
 						if (member.getUser().isBot()) {
 							if (botRole != null) {
-								guild.getController().addSingleRoleToMember(member, botRole);
+								guild.getController().addSingleRoleToMember(member, botRole).queue();
 							}
 						}
 					} else {
 						if (member.getUser().isBot()) {
 							if (botRole != null) {
-								guild.getController().addSingleRoleToMember(member, botRole);
+								guild.getController().addSingleRoleToMember(member, botRole).queue();
 							}
 						} else {
 							if (role != null) {
-								guild.getController().addSingleRoleToMember(member, role);
+								guild.getController().addSingleRoleToMember(member, role).queue();
 							}
 						}
 					}
