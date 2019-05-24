@@ -5,7 +5,7 @@ import com.sx4.economy.Item;
 public class Crate extends Item {
 
 	public static final Crate PRESENT = new Crate("Present Crate", null, 5200D, false);
-	public static final Crate SHOE = new Crate("Shoe Crate", 175L, true);
+	public static final Crate SHOE = new Crate("Shoe Crate", 225L, true);
 	public static final Crate COAL = new Crate("Coal Crate", 340L, true);
 	public static final Crate COPPER = new Crate("Copper Crate", 600L, true);
 	public static final Crate BRONZE = new Crate("Bronze Crate", 1750L, true);

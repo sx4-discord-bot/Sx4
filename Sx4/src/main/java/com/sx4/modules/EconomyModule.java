@@ -195,7 +195,7 @@ public class EconomyModule {
 			if (BigInteger.valueOf(userItem.getAmount()).compareTo(crateAmount) != -1) {
 				for (int i = 0; i < crateAmount.longValue(); i++) { 
 					for (Item item : winnableItems) {
-						int equation = (int) Math.ceil((1 / ((1 / (double) item.getPrice()) * (double) crate.getPrice())) * 35);
+						int equation = (int) Math.ceil((1 / ((1 / (double) item.getPrice()) * (double) crate.getPrice())) * 38);
 						if (random.nextInt(equation + 1) == 0) {
 							itemsWon.add(item);
 						}
@@ -3333,6 +3333,11 @@ public class EconomyModule {
 				bet = EconomyUtils.convertMoneyArgument((long) dataRan.get("balance"), betArgument);
 			} catch(IllegalArgumentException e) {
 				event.reply(e.getMessage()).queue();
+				return;
+			}
+			
+			if (bet > (long) dataRan.get("balance")) {
+				event.reply("You do not have that much money to bet :no_entry:").queue();
 				return;
 			}
 		}
