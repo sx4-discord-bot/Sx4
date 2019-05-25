@@ -43,7 +43,7 @@ public class HelpUtils {
 			embed.appendDescription("Required permissions: Developer\n");
 		}
 		
-		embed.appendDescription("Command description: " + (command.getDescription() == null || command.getDescription().equals("")  ? "None" : command.getDescription()) + "\n" + (command.getShortDescription() == null ? "" : command.getShortDescription()) + "\n");
+		embed.appendDescription("Command description: " + (command.getDescription() == null || command.getDescription().equals("")  ? "None" : command.getDescription()) + (command.getShortDescription() == null ? "" : command.getShortDescription()) + "\n");
 		String[] subCommandNames = null;
 		if (!command.getSubCommands().isEmpty()) {
 			subCommandNames = new String[command.getSubCommands().size()];

@@ -15,6 +15,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 import com.rethinkdb.gen.ast.Insert;
+import com.rethinkdb.model.MapObject;
 import com.sx4.core.Sx4Bot;
 import com.sx4.exceptions.ImageProcessingException;
 import com.sx4.interfaces.Sx4Callback;
@@ -30,21 +31,25 @@ import okhttp3.Response;
 
 public class WelcomerUtils {
 
+	public static MapObject getMapData(Guild guild) {
+		return r.hashMap("id", guild.getId())
+		.with("toggle", false)
+		.with("leavetoggle", false)
+		.with("imgwelcomertog", false)
+		.with("channel", null)
+		.with("leavechannel", null)
+		.with("message", "{user.mention}, Welcome to **{server}**. Enjoy your time here! The server now has {server.members} members.")
+		.with("leave-message", "**{user.name}** has just left **{server}**. Bye **{user.name}**!")
+		.with("dm", false)
+		.with("banner", null)
+		.with("embed", false)
+		.with("leaveembed", false)
+		.with("embedcolour", null)
+		.with("leaveembedcolour", null);
+	}
+	
 	public static Insert insertData(Guild guild) {
-		return r.table("welcomer").insert(r.hashMap("id", guild.getId())
-				.with("toggle", false)
-				.with("leavetoggle", false)
-				.with("imgwelcomertog", false)
-				.with("channel", null)
-				.with("leavechannel", null)
-				.with("message", "{user.mention}, Welcome to **{server}**. Enjoy your time here! The server now has {server.members} members.")
-				.with("leave-message", "**{user.name}** has just left **{server}**. Bye **{user.name}**!")
-				.with("dm", false)
-				.with("banner", null)
-				.with("embed", false)
-				.with("leaveembed", false)
-				.with("embedcolour", null)
-				.with("leaveembedcolour", null));
+		return r.table("welcomer").insert(WelcomerUtils.getMapData(guild));
 	}
 	
 	public static String getLeaverMessage(Guild guild, Member user, String message) {

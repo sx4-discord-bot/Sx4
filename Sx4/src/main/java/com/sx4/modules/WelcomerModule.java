@@ -11,6 +11,7 @@ import java.util.Map;
 
 import com.jockie.bot.core.Context;
 import com.jockie.bot.core.argument.Argument;
+import com.jockie.bot.core.module.Module;
 import com.jockie.bot.core.command.Command;
 import com.jockie.bot.core.command.Command.AuthorPermissions;
 import com.jockie.bot.core.command.Command.BotPermissions;
@@ -18,7 +19,6 @@ import com.jockie.bot.core.command.ICommand.ContentOverflowPolicy;
 import com.jockie.bot.core.command.Initialize;
 import com.jockie.bot.core.command.impl.CommandEvent;
 import com.jockie.bot.core.command.impl.CommandImpl;
-import com.jockie.bot.core.module.Module;
 import com.rethinkdb.gen.ast.Get;
 import com.rethinkdb.model.OptArgs;
 import com.rethinkdb.net.Connection;
@@ -202,6 +202,7 @@ public class WelcomerModule {
 			event.reply(embed.build()).queue();
 		}
 		
+		@SuppressWarnings("unchecked")
 		@Command(value="preview", description="View a preview of what your welcomer message will look like, the bot will also warn you about any possible issues", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS, Permission.MESSAGE_ATTACH_FILES})
 		public void preview(CommandEvent event, @Context Connection connection) {
@@ -214,6 +215,7 @@ public class WelcomerModule {
 			}
 			
 			if (data == null) {
+				data = (Map<String, Object>) WelcomerUtils.getMapData(event.getGuild());
 				warningMessage.append(":warning: The welcomer channel is not set, use `" + event.getPrefix() + "welcomer channel <channel>` to enable it\n");
 				warningMessage.append(":warning: Welcomer is currently disabled, use `" + event.getPrefix() + "welcomer toggle` to enable it\n");
 			} else {
@@ -446,6 +448,7 @@ public class WelcomerModule {
 			event.reply(embed.build()).queue();
 		}
 		
+		@SuppressWarnings("unchecked")
 		@Command(value="preview", description="View a preview of what your leaver message will look like, the bot will also warn you about any possible issues", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS, Permission.MESSAGE_ATTACH_FILES})
 		public void preview(CommandEvent event, @Context Connection connection) {
@@ -458,6 +461,7 @@ public class WelcomerModule {
 			}
 			
 			if (data == null) {
+				data = (Map<String, Object>) WelcomerUtils.getMapData(event.getGuild());
 				warningMessage.append(":warning: The leaver channel is not set, use `" + event.getPrefix() + "leaver channel <channel>` to enable it\n");
 				warningMessage.append(":warning: Leaver is currently disabled, use `" + event.getPrefix() + "leaver toggle` to enable it\n");
 			} else {
