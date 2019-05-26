@@ -76,7 +76,7 @@ public class HelpModule {
 						.setAutoSelect(true)
 						.setSelectableByIndex(true)
 						.setAuthor(GeneralUtils.title(commands.get(0).getCommandTrigger()), null, event.getSelfUser().getEffectiveAvatarUrl())
-						.setFunction(command -> "`" + command.getCommandTrigger() + " " + command.toString() + "`");
+						.setFunction(command -> "`" + command.toString() + "`");
 				
 				PagedUtils.getPagedResult(event, paged, 60, pagedReturn -> {
 					event.reply(HelpUtils.getHelpMessage(pagedReturn.getObject())).queue();

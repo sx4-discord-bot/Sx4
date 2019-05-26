@@ -32,8 +32,10 @@ public class Sx4Command extends CommandImpl {
 	}
 	
 	private void doAnnotations() {
-		if (this.method.isAnnotationPresent(Donator.class)) {
-			this.donator = this.method.getAnnotation(Donator.class).value();
+		if (this.method != null) {
+			if (this.method.isAnnotationPresent(Donator.class)) {
+				this.donator = this.method.getAnnotation(Donator.class).value();
+			}
 		}
 	}
 }
