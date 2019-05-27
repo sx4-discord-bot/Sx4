@@ -157,14 +157,18 @@ public class ArgumentUtils {
 		return null;
 	}
 	
-	public static CategoryImpl getModule(String module) {
-		for (CategoryImpl category : Categories.ALL) {
+	public static CategoryImpl getModule(String module, boolean includeHidden) {
+		for (CategoryImpl category : includeHidden ? Categories.ALL : Categories.ALL_PUBLIC) {
 			if (category.getName().equals(module)) {
 				return category;
 			}
 		}
 		
 		return null;
+	}
+	
+	public static CategoryImpl getModule(String module) {
+		return ArgumentUtils.getModule(module, true);
 	}
 	
 	public static ICommand getCommand(String command) {

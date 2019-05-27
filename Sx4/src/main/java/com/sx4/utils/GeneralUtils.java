@@ -18,7 +18,7 @@ public class GeneralUtils {
 		for (int i = 0; i < characterArray.length; i++) {
 			char character = characterArray[i];
 			
-			if (i == 0 && character == '-') {
+			if (i == 0 && (character == '-' || character == '+')) {
 				continue;
 			}
 			

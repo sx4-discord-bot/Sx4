@@ -1402,9 +1402,16 @@ public class FunModule {
 			return;
 		}
 		
+		String languageISO;
+		if (language.getLanguage().equals("zh")) {
+			languageISO = language.getLanguage() + "-CN";
+		} else {
+			languageISO = language.getLanguage();
+		}
+		
 		Request request;
 		try {
-			request = new Request.Builder().url(new URL("http://" + Settings.LOCAL_HOST + ":8080/translate/" + language.getLanguage() + "?q=" + text)).build();
+			request = new Request.Builder().url(new URL("http://" + Settings.LOCAL_HOST + ":8080/translate/" + languageISO + "?q=" + text)).build();
 		} catch (MalformedURLException e) {
 			event.reply("Oops something went wrong there, try again :no_entry:").queue();
 			return;
@@ -1420,9 +1427,11 @@ public class FunModule {
 				return;
 			}
 			
-			if (json.has("message")) {
-				event.reply(json.getString("message").replace("'", "`") + ":no_entry:").queue();
-				return;
+			if (json.getBoolean("success") == false) {
+				if (json.has("response")) {
+					event.reply(json.getJSONObject("response").getString("message").replace("'", "`") + " :no_entry:").queue();
+					return;
+				}
 			}
 			
 			String inputText = json.getJSONObject("from").getJSONObject("language").getString("iso");

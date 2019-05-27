@@ -30,6 +30,7 @@ import net.dv8tion.jda.core.entities.Role;
 import net.dv8tion.jda.core.entities.TextChannel;
 import net.dv8tion.jda.core.entities.User;
 import net.dv8tion.jda.core.entities.VoiceChannel;
+import net.dv8tion.jda.core.exceptions.InsufficientPermissionException;
 import net.dv8tion.jda.core.utils.PermissionUtil;
 
 public class ModUtils {
@@ -64,7 +65,11 @@ public class ModUtils {
 				List<Permission> deniedPermissions = roleOverrides == null ? new ArrayList<>() : new ArrayList<>(roleOverrides.getDenied());
 				if (!deniedPermissions.contains(Permission.MESSAGE_WRITE)) {
 					deniedPermissions.add(Permission.MESSAGE_WRITE);
-					channel.putPermissionOverride(role).setPermissions(roleOverrides == null ? null : roleOverrides.getAllowed(), deniedPermissions).queue();
+					try {
+						channel.putPermissionOverride(role).setPermissions(roleOverrides == null ? null : roleOverrides.getAllowed(), deniedPermissions).queue();
+					} catch(InsufficientPermissionException e) {
+						continue;
+					}
 				}
 			}
 
@@ -84,7 +89,11 @@ public class ModUtils {
 					List<Permission> deniedPermissions = roleOverrides == null ? new ArrayList<>() : new ArrayList<>(roleOverrides.getDenied());
 					if (!deniedPermissions.contains(Permission.MESSAGE_WRITE)) {
 						deniedPermissions.add(Permission.MESSAGE_WRITE);
-						channel.putPermissionOverride(newRole).setPermissions(roleOverrides == null ? null : roleOverrides.getAllowed(), deniedPermissions).queue();
+						try {
+							channel.putPermissionOverride(newRole).setPermissions(roleOverrides == null ? null : roleOverrides.getAllowed(), deniedPermissions).queue();
+						} catch(InsufficientPermissionException e) {
+							continue;
+						}
 					}
 				}
 				

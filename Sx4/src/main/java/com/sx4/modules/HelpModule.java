@@ -62,7 +62,7 @@ public class HelpModule {
 				});
 			});
 		} else {
-			CategoryImpl module = ArgumentUtils.getModule(commandName);
+			CategoryImpl module = ArgumentUtils.getModule(commandName, event.isDeveloper());
 			List<ICommand> commands = ArgumentUtils.getCommands(commandName);
 			if (commands.isEmpty() && module == null) {
 				event.reply("I could not find that command/module :no_entry:").queue();
