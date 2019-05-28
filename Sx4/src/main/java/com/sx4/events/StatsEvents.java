@@ -46,7 +46,7 @@ public class StatsEvents extends ListenerAdapter {
 			embed.setTimestamp(Instant.now());
 			embed.setAuthor("Bot Logs", null, shardManager.getShards().get(0).getSelfUser().getEffectiveAvatarUrl());
 			embed.addField("Average Command Usage", String.format("1 every %.2f seconds (%,d)", (double) 86400 / (long) dataRan.get("commands"), (long) dataRan.get("commands")), false);
-			embed.addField("Servers", String.format("%,d", shardManager.getGuilds().size()) + " (" + (servers < 0 ? "-" : "+") + String.format("%,d)", servers), false);
+			embed.addField("Servers", String.format("%,d", shardManager.getGuilds().size()) + " (" + (servers < 0 ? "" : "+") + String.format("%,d)", servers), false);
 			embed.addField("Users", String.format("%,d", shardManager.getUsers().size()), false);
 			shardManager.getGuildById(Settings.SUPPORT_SERVER_ID).getTextChannelById(Settings.BOT_LOGS_ID).sendMessage(embed.build()).queue();
 			
