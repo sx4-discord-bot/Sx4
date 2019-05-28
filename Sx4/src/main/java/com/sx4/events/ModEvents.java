@@ -96,10 +96,10 @@ public class ModEvents extends ListenerAdapter {
 		if (data != null) {
 			List<Map<String, Object>> users = (List<Map<String, Object>>) data.get("users");
 			for (Map<String, Object> userData : users) {
-				if (userData.get("amount") != null) {
-					long timeLeft = ((long) userData.get("time") + (long) userData.get("amount")) - Clock.systemUTC().instant().getEpochSecond();
-					if (timeLeft > 0) {
-						if (userData.get("id").equals(event.getMember().getUser().getId())) {
+				if (userData.get("id").equals(event.getMember().getUser().getId())) {
+					if (userData.get("amount") != null) {
+						long timeLeft = ((long) userData.get("time") + (long) userData.get("amount")) - Clock.systemUTC().instant().getEpochSecond();
+						if (timeLeft > 0) {
 							Role mutedRole = null;
 							for (Role role : event.getGuild().getRoles()) {
 								if (role.getName().equals("Muted - " + event.getJDA().getSelfUser().getName())) {
@@ -110,9 +110,12 @@ public class ModEvents extends ListenerAdapter {
 							if (mutedRole != null) {
 								event.getGuild().getController().addSingleRoleToMember(event.getMember(), mutedRole).queue();
 							}
+							
+							return;
+						} else {
+							MuteEvents.removeUserMute(event.getMember());
+							return;
 						}
-					} else {
-						MuteEvents.removeUserMute(event.getMember());
 					}
 				}
 			}

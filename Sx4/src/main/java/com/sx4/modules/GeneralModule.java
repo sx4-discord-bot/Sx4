@@ -2130,11 +2130,12 @@ public class GeneralModule {
 	@SuppressWarnings("unchecked")
 	@Command(value="stats", description="Views Sx4s current stats", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
+	@Async
 	public void stats(CommandEvent event, @Context Connection connection) {
 		Map<String, Object> botData = r.table("botstats").get("stats").run(connection);
 		
 		List<Guild> guilds = event.getShardManager().getGuilds();
-		List<Member> members = ArgumentUtils.getAllMembers();
+		List<Member> members = ArgumentUtils.getAllUniqueMembers();
 		List<Member> onlineMembers = members.stream().filter(m -> !m.getOnlineStatus().equals(OnlineStatus.OFFLINE)).collect(Collectors.toList());
 		
 		Runtime runtime = Runtime.getRuntime();

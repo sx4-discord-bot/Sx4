@@ -41,7 +41,7 @@ public class ServerLogEvents extends ListenerAdapter {
 		
 		if (event.getGuild().getSystemChannel() != null) {
 			if (event.getGuild().getSystemChannel().canTalk()) {
-				event.getGuild().getSystemChannel().sendMessage(String.format("Thanks for adding me (I'm now in {:,} servers, Thank you for contributing)!\nMy prefix is `s?`\nAll my info and commands can be found in `s?help`\nIf you "
+				event.getGuild().getSystemChannel().sendMessage(String.format("Thanks for adding me (I'm now in %,d servers, Thank you for contributing)!\nMy prefix is `s?`\nAll my info and commands can be found in `s?help`\nIf you "
 						+ "need any help feel free to join the support server: https://discord.gg/PqJNcfB", shardManager.getGuilds().size())).queue();
 			}
 		}
