@@ -74,6 +74,28 @@ public class ModUtils {
 			}
 
 		} else {
+			for (Role guildRole : guild.getRoles()) {
+				if (guildRole.getName().equals(roleName)) {
+					muteRole.accept(guildRole);
+					MuteEvents.putMuteRole(guild.getId(), guildRole.getId());
+					
+					for (TextChannel channel : guild.getTextChannels()) {
+						PermissionOverride roleOverrides = channel.getPermissionOverride(guildRole);
+						List<Permission> deniedPermissions = roleOverrides == null ? new ArrayList<>() : new ArrayList<>(roleOverrides.getDenied());
+						if (!deniedPermissions.contains(Permission.MESSAGE_WRITE)) {
+							deniedPermissions.add(Permission.MESSAGE_WRITE);
+							try {
+								channel.putPermissionOverride(guildRole).setPermissions(roleOverrides == null ? null : roleOverrides.getAllowed(), deniedPermissions).queue();
+							} catch(InsufficientPermissionException e) {
+								continue;
+							}
+						}
+					}
+					
+					return;
+				}
+			}
+			
 			if (guild.getRoles().size() >= 250) {
 				error.accept("I cannot create the mute role because the server has the max amount of roles (250) :no_entry:");		
 				muteRole.accept(null);

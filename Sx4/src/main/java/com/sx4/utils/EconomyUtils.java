@@ -378,7 +378,7 @@ public class EconomyUtils {
 			String itemName = (String) itemData.get("name");
 			if (itemName.equals(item.getName())) {
 				if (itemData.containsKey("price")) {
-					return new ItemStack(new Item(itemName, (long) itemData.get("price")), (long) itemData.get("amount"));
+					return new ItemStack(new Item(itemName, itemData.get("price") instanceof Double ? (long) (double) itemData.get("price") : (long) itemData.get("price")), (long) itemData.get("amount"));
 				} else {
 					return new ItemStack(item, (long) itemData.get("amount"));
 				}

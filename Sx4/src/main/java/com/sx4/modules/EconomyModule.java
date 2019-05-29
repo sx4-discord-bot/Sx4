@@ -3746,7 +3746,7 @@ public class EconomyModule {
 				compressedData.add(dataMap);
 			}
 			
-			compressedData.sort((a, b) -> Long.compare((long) b.get("balance"), (long) a.get("balance")));
+			compressedData.sort((a, b) -> Long.compare((long) b.get("streak"), (long) a.get("streak")));
 			
 			PagedResult<Map<String, Object>> paged = new PagedResult<>(compressedData)
 					.setDeleteMessage(false)

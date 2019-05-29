@@ -1599,7 +1599,7 @@ public class ModModule {
 		}
 		
 		PermissionOverride channelOverrides = channel.getPermissionOverride(event.getGuild().getPublicRole()); 
-		if (channelOverrides.getAllowed().contains(Permission.MESSAGE_WRITE) || channelOverrides.getInherit().contains(Permission.MESSAGE_WRITE)) {
+		if ((channelOverrides.getAllowed() != null && channelOverrides.getAllowed().contains(Permission.MESSAGE_WRITE)) || (channelOverrides.getInherit() != null && channelOverrides.getInherit().contains(Permission.MESSAGE_WRITE))) {
 			event.reply(channel.getAsMention() + " has been locked down <:done:403285928233402378>").queue();
 			List<Permission> channelDeniedPermissions = new ArrayList<>(channelOverrides.getDenied());
 			channelDeniedPermissions.add(Permission.MESSAGE_WRITE);
@@ -1657,7 +1657,7 @@ public class ModModule {
 			return;
 		}
 		
-		if (role.getColor().equals(colour)) {
+		if (role.getColor() != null && role.getColor().equals(colour)) {
 			event.reply("The role colour is already set to that colour :no_entry:").queue();
 			return;
 		}
@@ -2158,15 +2158,26 @@ public class ModModule {
 	@AuthorPermissions({Permission.MESSAGE_MANAGE})
 	@BotPermissions({Permission.MESSAGE_MANAGE, Permission.MESSAGE_HISTORY})
 	public void prune(CommandEvent event, @Argument(value="user | amount") String argument, @Argument(value="amount", nullDefault=true) Integer amount) {
-		if (GeneralUtils.isNumber(argument) && Integer.parseInt(argument) <= 100) {
-			int limit = Integer.parseInt(argument);
+		boolean isNumber = GeneralUtils.isNumber(argument);
+		long limit = amount == null ? 100L : amount > 100L ? 100L : amount;
+		if (isNumber) {
+			try {
+				limit = Long.parseLong(argument);
+			} catch(NumberFormatException e) {
+				event.reply("I could not find that user :no_entry:").queue();
+				return;
+			}
+		}
+		
+		if (isNumber && limit <= 100) {
 			if (limit < 1) {
 				event.reply("You have to delete at least 1 message :no_entry:").queue();
 				return;
 			}
 			
+			int pruneLimit = (int) limit;
 			event.getMessage().delete().queue($ -> {
-				event.getTextChannel().getHistory().retrievePast(limit).queue(messages -> {
+				event.getTextChannel().getHistory().retrievePast(pruneLimit).queue(messages -> {
 					long secondsNow = Clock.systemUTC().instant().getEpochSecond();
 					for (Message message : new ArrayList<>(messages)) {
 						if (secondsNow - message.getCreationTime().toEpochSecond() > 1209600) {
@@ -2175,7 +2186,7 @@ public class ModModule {
 					}
 					
 					if (messages.size() == 0) {
-						event.reply("All the **" + limit + "** messages were 14 days or older :no_entry:").queue();
+						event.reply("All the **" + pruneLimit + "** messages were 14 days or older :no_entry:").queue();
 						return;
 					}
 					
@@ -2187,12 +2198,12 @@ public class ModModule {
 				});
 			});
 		} else {
-			int limit = amount == null ? 100 : amount > 100 ? 100 : amount;
 			if (limit < 1) {
 				event.reply("You have to delete at least 1 message :no_entry:").queue();
 				return;
 			}
 			
+			int pruneLimit = (int) limit;
 			Member member = ArgumentUtils.getMember(event.getGuild(), argument);
 			if (member == null) {
 				event.reply("I could not find that user :no_entry:").queue();
@@ -2215,7 +2226,7 @@ public class ModModule {
 						return;
 					}
 					
-					messages = messages.subList(0, Math.min(limit, messages.size()));
+					messages = messages.subList(0, Math.min(pruneLimit, messages.size()));
 					
 					if (messages.size() == 1) {
 						messages.get(0).delete().queue();
@@ -2762,6 +2773,7 @@ public class ModModule {
 		Member member = ArgumentUtils.getMember(event.getGuild(), userArgument);
 		if (member == null) {
 			event.reply("I could not find that user :no_entry:").queue();
+			return;
 		}
 		
 		if (member.equals(event.getSelfMember())) {
@@ -3490,7 +3502,7 @@ public class ModModule {
 					return;
 				}
 				
-				long muteLength = (long) userWarning.get("time");
+				long muteLength = userWarning.get("time") instanceof Integer ? (int) userWarning.get("time") : (long) userWarning.get("time");
 				ModUtils.setupMuteRole(event.getGuild(), role -> {
 					if (role == null) {
 						return;

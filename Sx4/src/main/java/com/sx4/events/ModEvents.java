@@ -110,11 +110,8 @@ public class ModEvents extends ListenerAdapter {
 							if (mutedRole != null) {
 								event.getGuild().getController().addSingleRoleToMember(event.getMember(), mutedRole).queue();
 							}
-							
-							return;
 						} else {
 							MuteEvents.removeUserMute(event.getMember());
-							return;
 						}
 					}
 				}

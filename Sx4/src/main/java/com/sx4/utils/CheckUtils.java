@@ -22,7 +22,7 @@ public class CheckUtils {
 		Map<String, Object> dataRan = data.run(connection);
 		long rolePerms = 0;
 		long userPerms = 0;
-		if (event.getCommandListener().isDeveloper(event.getAuthor().getIdLong())) {
+		if (event.isDeveloper()) {
 			return true;
 		} else if (event.getGuild().getOwner().equals(event.getMember())) {
 			return true;
@@ -133,7 +133,7 @@ public class CheckUtils {
 	
 	@SuppressWarnings("unchecked")
 	public static boolean checkBlacklist(CommandEvent event, Connection connection) {
-		if (!event.getCommandListener().isDeveloper(event.getMember().getUser().getIdLong())) {
+		if (!event.isDeveloper()) {
 			List<String> botBlacklistData = r.table("blacklist").get("owner").g("users").run(connection);			
 			if (botBlacklistData.contains(event.getMember().getUser().getId()) && !event.getCommand().getCommand().equals("support")) {
 				event.reply("You are blacklisted from using the bot, to appeal make sure to join the bots support server which can be found in `" + event.getPrefix() + "support`").queue();

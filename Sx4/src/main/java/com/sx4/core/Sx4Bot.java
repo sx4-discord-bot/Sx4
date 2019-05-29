@@ -129,16 +129,16 @@ public class Sx4Bot {
 				.setHelpFunction((event, prefix, failures) -> {
 					Member self = event.getGuild().getMember(event.getJDA().getSelfUser());
 					if (self.hasPermission(Permission.MESSAGE_EMBED_LINKS)) {
-						event.getTextChannel().sendMessage((HelpUtils.getHelpMessage(failures.get(0).getCommand()))).queue();
+						event.getTextChannel().sendMessage(HelpUtils.getHelpMessage(failures.get(0).getCommand())).queue();
 					} else {
 						event.getTextChannel().sendMessage("I am missing the permission `Embed Links`, therefore I cannot show you the help menu for `" + failures.get(0).getCommand().getCommandTrigger() + "` :no_entry:").queue();
 					}
 				})
 				.setCooldownFunction((event, cooldown) -> {
-					event.reply("Slow down there! You can execute this command again in " + TimeUtils.toTimeString(cooldown.getTimeRemainingMillis(), ChronoUnit.MILLIS)).queue(); 
+					event.reply("Slow down there! You can execute this command again in " + TimeUtils.toTimeString(cooldown.getTimeRemainingMillis(), ChronoUnit.MILLIS) + " :stopwatch:").queue(); 
 				})
 				.setMissingPermissionExceptionFunction((event, permission) -> {
-					event.reply("I am missing the permission `" + permission.getName() + "`, therefore I cannot execute this command :no_entry:").queue();
+					event.reply("I am missing the permission `" + permission.getName() + "`, therefore I cannot execute that command :no_entry:").queue();
 				})
 				.setMissingPermissionFunction((event, permissions) -> {
 					List<String> permissionNames = new ArrayList<String>();
@@ -146,7 +146,7 @@ public class Sx4Bot {
 						permissionNames.add(permission.getName());
 					}
 					
-					event.reply("I am missing the permission" + (permissions.size() == 1 ? "" : "s") + " `" + String.join("`, `", permissionNames) + "`, therefore I cannot execute this command :no_entry:").queue();
+					event.reply("I am missing the permission" + (permissions.size() == 1 ? "" : "s") + " `" + String.join("`, `", permissionNames) + "`, therefore I cannot execute that command :no_entry:").queue();
 				});
 		
 		listener.removeDefaultPreExecuteChecks()
@@ -156,13 +156,11 @@ public class Sx4Bot {
 				.addPreExecuteCheck((event, command) -> {
 					if (!Settings.CANARY) {
 						List<String> canaryPrefixes = ModUtils.getPrefixes(event.getGuild(), event.getAuthor(), Settings.CANARY_DATABASE_NAME);
-						if (!canaryPrefixes.contains(event.getPrefix())) {
-							return true;
-						}
-						
-						Member canaryBot = event.getGuild().getMemberById(Settings.CANARY_BOT_ID);
-						if (canaryBot != null && !event.isPrefixMention() && event.getTextChannel().canTalk(canaryBot) && !canaryBot.getOnlineStatus().equals(OnlineStatus.OFFLINE)) {
-							return false;
+						if (canaryPrefixes.contains(event.getPrefix())) {
+							Member canaryBot = event.getGuild().getMemberById(Settings.CANARY_BOT_ID);
+							if (canaryBot != null && !event.isPrefixMention() && event.getTextChannel().canTalk(canaryBot) && !canaryBot.getOnlineStatus().equals(OnlineStatus.OFFLINE)) {
+								return false;
+							}
 						}
 					}
 					
@@ -213,7 +211,7 @@ public class Sx4Bot {
 		System.gc();
 		
 		/* Used for debugging */
-		try(Scanner scanner = new Scanner(System.in)) {
+		try (Scanner scanner = new Scanner(System.in)) {
 			String line;
 			while((line = scanner.nextLine()) != null) {
 				if(line.startsWith("help")) {
@@ -254,13 +252,13 @@ public class Sx4Bot {
 					continue;
 				}
 				
-				if(line.equalsIgnoreCase("stats")) {
+				if (line.equalsIgnoreCase("stats")) {
 					Statistics.printStatistics();
 					
 					continue;
 				}
 				
-				if(line.equalsIgnoreCase("clear")) {
+				if (line.equalsIgnoreCase("clear")) {
 				    System.out.print("\033[H\033[2J");
 				    System.out.flush();
 				    

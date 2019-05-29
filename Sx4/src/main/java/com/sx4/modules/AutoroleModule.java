@@ -24,6 +24,7 @@ import com.sx4.utils.HelpUtils;
 
 import net.dv8tion.jda.core.EmbedBuilder;
 import net.dv8tion.jda.core.Permission;
+import net.dv8tion.jda.core.entities.Member;
 import net.dv8tion.jda.core.entities.Role;
 
 @Module
@@ -173,6 +174,60 @@ public class AutoroleModule {
 			embed.addField("Bot Role", botRole == null ? "Not Set" : botRole.getAsMention(), true);
 			
 			event.reply(embed.build()).queue();
+		}
+		
+		@Command(value="fix", description="Allows you to give all the current members in your server the auto role", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@AuthorPermissions({Permission.MANAGE_ROLES})
+		public void fix(CommandEvent event, @Context Connection connection) {
+			Map<String, Object> data = r.table("autorole").get(event.getGuild().getId()).run(connection);
+			
+			String roleData = (String) data.get("role");
+			String botRoleData = (String) data.get("botrole");
+			
+			Role role = null, botRole = null;
+			if (roleData != null) {
+				role = event.getGuild().getRoleById(roleData);
+			} 
+			
+			if (botRoleData != null) {
+				botRole = event.getGuild().getRoleById(botRoleData);
+			}
+			
+			if (botRole == null && role == null) {
+				event.reply("The auto role has not been set up in this server :no_entry:").queue();
+				return;
+			}
+			
+			int users = 0, bots = 0;
+			for (Member member : event.getGuild().getMembers()) {
+				if (roleData != null && botRoleData == null) {
+					if (role != null) {
+						event.getGuild().getController().addSingleRoleToMember(member, role).queue();
+						users += 1;
+					}
+				} else if (roleData == null && botRoleData != null) {
+					if (member.getUser().isBot()) {
+						if (botRole != null) {
+							event.getGuild().getController().addSingleRoleToMember(member, botRole).queue();
+							bots += 1;
+						}
+					}
+				} else {
+					if (member.getUser().isBot()) {
+						if (botRole != null) {
+							event.getGuild().getController().addSingleRoleToMember(member, botRole).queue();
+							bots += 0;
+						}
+					} else {
+						if (role != null) {
+							event.getGuild().getController().addSingleRoleToMember(member, role).queue();
+							users += 0;
+						}
+					}
+				}
+			}
+			
+			event.reply("**" + users + "** users will be given the `" + role.getName() + "`" + (bots == 0 ? "" : " and **" + bots + "** bots will be given the `" + botRole.getName() + "`") + " <:done:403285928233402378>").queue();
 		}
 		
 	}

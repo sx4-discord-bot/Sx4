@@ -83,7 +83,7 @@ import okhttp3.OkHttpClient;;
 public class EventHandler extends ListenerAdapter {
 	
 	private static final Color COLOR_GREEN = Settings.COLOR_GREEN;
-	private static final Color COLOR_ORANGE = Settings.COLOR_RED;
+	private static final Color COLOR_ORANGE = Settings.COLOR_ORANGE;
 	private static final Color COLOR_RED = Settings.COLOR_RED;
 	
 	/* It can some times get stuck in an infinite loop and these are used to prevent it */
