@@ -216,18 +216,23 @@ public class AutoroleModule {
 					if (member.getUser().isBot()) {
 						if (botRole != null) {
 							event.getGuild().getController().addSingleRoleToMember(member, botRole).queue();
-							bots += 0;
+							bots += 1;
 						}
 					} else {
 						if (role != null) {
 							event.getGuild().getController().addSingleRoleToMember(member, role).queue();
-							users += 0;
+							users += 1;
 						}
 					}
 				}
 			}
 			
-			event.reply("**" + users + "** users will be given the `" + role.getName() + "`" + (bots == 0 ? "" : " and **" + bots + "** bots will be given the `" + botRole.getName() + "`") + " <:done:403285928233402378>").queue();
+			if (users == 0 && bots == 0) {
+				event.reply("The autorole is already applied to every member in the server :no_entry:").queue();
+				return;
+			}
+			
+			event.reply((users == 0 ? "" : "**" + users + "** users will be given the `" + role.getName() + "` role") + (bots != 0 && users != 0 ? " and " : "") + (bots == 0 ? "" : "**" + bots + "** bots will be given the `" + botRole.getName() + "` role") + " <:done:403285928233402378>").queue();
 		}
 		
 	}

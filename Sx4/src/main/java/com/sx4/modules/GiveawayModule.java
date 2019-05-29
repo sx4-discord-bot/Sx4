@@ -300,7 +300,7 @@ public class GiveawayModule {
 					return;
 				}
 				
-				int durationLength = TimeUtils.convertToSeconds(duration);
+				long durationLength = TimeUtils.convertToSeconds(duration);
 				if (durationLength <= 0) {
 					event.reply("Invalid time format, make sure it's formatted with a numerical value then a letter representing the time (d for days, h for hours, m for minutes, s for seconds) and make sure it's in order :no_entry:").queue();
 					return;
@@ -477,7 +477,7 @@ public class GiveawayModule {
 						return;
 					}
 					
-					int durationLength = TimeUtils.convertToSeconds(durationString.get());
+					long durationLength = TimeUtils.convertToSeconds(durationString.get());
 					if (durationLength <= 0) {
 						event.reply("Invalid time format, make sure it's formatted with a numerical value then a letter representing the time (d for days, h for hours, m for minutes, s for seconds) and make sure it's in order :no_entry:").queue();
 						return;

@@ -9,12 +9,34 @@ import java.util.Map;
 import com.jockie.bot.core.command.impl.CommandEvent;
 import com.rethinkdb.gen.ast.Get;
 import com.rethinkdb.net.Connection;
+import com.sx4.core.Sx4Bot;
+import com.sx4.settings.Settings;
 
+import net.dv8tion.jda.core.OnlineStatus;
 import net.dv8tion.jda.core.Permission;
+import net.dv8tion.jda.core.entities.Member;
+import net.dv8tion.jda.core.entities.Message;
 import net.dv8tion.jda.core.entities.PermissionOverride;
 import net.dv8tion.jda.core.entities.Role;
 
 public class CheckUtils {
+	
+	public static boolean canReply(Message message, String prefix) {
+		if (!Settings.CANARY) {
+			String botId = message.getJDA().getSelfUser().getId();
+			boolean mentionPrefix = prefix.equals("<@" + botId + ">") || prefix.equals("<@!" + botId + ">");
+			
+			List<String> canaryPrefixes = ModUtils.getPrefixes(message.getGuild(), message.getAuthor(), Settings.CANARY_DATABASE_NAME);
+			if (canaryPrefixes.contains(prefix)) {
+				Member canaryBot = message.getGuild().getMemberById(Settings.CANARY_BOT_ID);
+				if (canaryBot != null && !mentionPrefix && message.getTextChannel().canTalk(canaryBot) && !canaryBot.getOnlineStatus().equals(OnlineStatus.OFFLINE)) {
+					return false;
+				}
+			}
+		}
+		
+		return true;
+	}
 
 	@SuppressWarnings("unchecked")
 	public static boolean checkPermissions(CommandEvent event, Connection connection, Permission[] permissions, boolean reply) {

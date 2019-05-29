@@ -288,7 +288,7 @@ public class FunModule {
 				return;
 			}
 			
-			r.table("userprofile").insert(r.hashMap("colour", null).with("description", null).with("height", null).with("birthday", null)).run(connection, OptArgs.of("durability", "soft"));
+			r.table("userprofile").insert(r.hashMap("colour", null).with("description", null).with("height", null).with("birthday", null).with("id", event.getAuthor().getId())).run(connection, OptArgs.of("durability", "soft"));
 			Get data = r.table("userprofile").get(event.getAuthor().getId());
 			Map<String, Object> dataRan = data.run(connection);
 			
@@ -315,7 +315,7 @@ public class FunModule {
 				return;
 			}
 			
-			r.table("userprofile").insert(r.hashMap("colour", null).with("description", null).with("height", null).with("birthday", null)).run(connection, OptArgs.of("durability", "soft"));
+			r.table("userprofile").insert(r.hashMap("colour", null).with("description", null).with("height", null).with("birthday", null).with("id", event.getAuthor().getId())).run(connection, OptArgs.of("durability", "soft"));
 			Get data = r.table("userprofile").get(event.getAuthor().getId());
 			Map<String, Object> dataRan = data.run(connection);
 			
@@ -373,7 +373,7 @@ public class FunModule {
 			
 			String heightDisplay = feet + "'" + inches + " (" + centimetres + "cm)";
 			
-			r.table("userprofile").insert(r.hashMap("colour", null).with("description", null).with("height", null).with("birthday", null)).run(connection, OptArgs.of("durability", "soft"));
+			r.table("userprofile").insert(r.hashMap("colour", null).with("description", null).with("height", null).with("birthday", null).with("id", event.getAuthor().getId())).run(connection, OptArgs.of("durability", "soft"));
 			Get data = r.table("userprofile").get(event.getAuthor().getId());
 			Map<String, Object> dataRan = data.run(connection);
 			
@@ -399,7 +399,7 @@ public class FunModule {
 				}
 			}
 			
-			r.table("userprofile").insert(r.hashMap("colour", null).with("description", null).with("height", null).with("birthday", null)).run(connection, OptArgs.of("durability", "soft"));
+			r.table("userprofile").insert(r.hashMap("colour", null).with("description", null).with("height", null).with("birthday", null).with("id", event.getAuthor().getId())).run(connection, OptArgs.of("durability", "soft"));
 			Get data = r.table("userprofile").get(event.getAuthor().getId());
 			Map<String, Object> dataRan = data.run(connection);
 			

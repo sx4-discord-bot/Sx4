@@ -158,7 +158,7 @@ public class ModUtils {
 		return embed.build();
 	}
 	
-	public static MessageEmbed getMuteEmbed(Guild guild, TextChannel channel, User moderator, int length, String reason) {
+	public static MessageEmbed getMuteEmbed(Guild guild, TextChannel channel, User moderator, long length, String reason) {
 		EmbedBuilder embed = new EmbedBuilder();
 		embed.setAuthor("You have been muted in " + guild.getName(), null, guild.getIconUrl());
 		embed.setTimestamp(Instant.now());
@@ -243,7 +243,7 @@ public class ModUtils {
 		return maxWarning;
 	}
 	
-	public static List<Map<String, Object>> getMuteData(String memberId, List<Map<String, Object>> users, int muteLength) {
+	public static List<Map<String, Object>> getMuteData(String memberId, List<Map<String, Object>> users, long muteLength) {
 		long timestamp = Clock.systemUTC().instant().getEpochSecond();
 		for (Map<String, Object> userData : users) {
 			if (userData.get("id").equals(memberId)) {

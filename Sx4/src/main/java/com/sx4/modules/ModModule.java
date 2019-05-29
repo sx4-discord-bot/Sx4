@@ -1538,7 +1538,7 @@ public class ModModule {
 	@AuthorPermissions({Permission.MANAGE_CHANNEL})
 	@BotPermissions({Permission.MANAGE_CHANNEL})
 	public void slowmode(CommandEvent event, @Argument(value="time", nullDefault=true) String seconds, @Argument(value="channel", nullDefault=true, endless=true) String channelArgument) {
-		int slowmodeSeconds;
+		long slowmodeSeconds;
 		
 		TextChannel channel;
 		if (channelArgument == null) {
@@ -1580,7 +1580,7 @@ public class ModModule {
 		} else {
 			event.reply("Turned off the slowmode in the channel " + channel.getAsMention() + " <:done:403285928233402378>").queue();
 		}
-		channel.getManager().setSlowmode(slowmodeSeconds).queue();
+		channel.getManager().setSlowmode((int) slowmodeSeconds).queue();
 	}
 	
 	@Command(value="lockdown", description="Makes it so anyone who doesn't override the @everyone roles permissions in the specified channel, can no longer speak in the channel")
@@ -3035,7 +3035,7 @@ public class ModModule {
 		Map<String, Object> dataRan = data.run(connection);
 		
 		String muteString;
-		int muteLength;
+		long muteLength;
 		if (muteLengthArgument == null) {
 			muteLength = 1800;
 			muteString = "30 minutes";
@@ -3181,7 +3181,7 @@ public class ModModule {
 			return;
 		}
 		
-		mutedUsers.sort((a, b) -> Long.compare((long) a.get("time") - timestamp + (long) a.get("amount"), (long) b.get("time") - timestamp + (long) b.get("amount")));
+		mutedUsers.sort((a, b) -> Long.compare((a.get("time") instanceof Double ? (long) (double) a.get("time") : (long) a.get("time")) - timestamp + (long) a.get("amount"), (b.get("time") instanceof Double ? (long) (double) b.get("time") : (long) b.get("time")) - timestamp + (long) b.get("amount")));
 		PagedResult<Map<String, Object>> paged = new PagedResult<>(mutedUsers)
 				.setAuthor("Muted Users", null, event.getGuild().getIconUrl())
 				.setIndexed(false)
@@ -3194,7 +3194,7 @@ public class ModModule {
 					if (user.get("amount") == null) {
 						timeTillUnmute = -1;
 					} else {
-						timeTillUnmute = (long) user.get("time") - timestamp + (long) user.get("amount");
+						timeTillUnmute = (user.get("time") instanceof Double ? (long) (double) user.get("time") : (long) user.get("time")) - timestamp + (long) user.get("amount");
 					}
 					
 					return member.getUser().getAsTag() + " - " + (timeTillUnmute <= 0 ? "Infinite" : TimeUtils.toTimeString(timeTillUnmute, ChronoUnit.SECONDS));
@@ -3299,7 +3299,7 @@ public class ModModule {
 					configuration.put("time", 1800);
 				} else if (action.contains("mute")) {
 					String timeString = action.split(" ", 2)[1];
-					int muteLength = TimeUtils.convertToSeconds(timeString);
+					long muteLength = TimeUtils.convertToSeconds(timeString);
 					if (muteLength <= 0) {
 						event.reply("Invalid time format, make sure it's formatted with a numerical value then a letter representing the time (d for days, h for hours, m for minutes, s for seconds) and make sure it's in order :no_entry:").queue();
 						return;

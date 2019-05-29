@@ -840,7 +840,7 @@ public class GeneralModule {
 		@SuppressWarnings("unchecked")
 		@Command(value="slowmode", aliases={"slow mode", "sm"}, description="Add a slowmode to the current channel (Providing image mode is turned on in the current channel) so users can only send an image every however long you choose")
 		public void slowmode(CommandEvent event, @Context Connection connection, @Argument(value="time", endless=true) String timeString) {
-			int slowmode = 0;
+			long slowmode = 0;
 			if (!nullStrings.contains(timeString)) {
 				try {
 					slowmode = TimeUtils.convertToSeconds(timeString);

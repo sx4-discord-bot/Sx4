@@ -45,7 +45,7 @@ public class ServerPostEvents {
 						.addHeader("Content-Type", "application/json")
 						.build();
 				
-				Sx4Bot.client.newCall(request).enqueue((Sx4Callback) response -> {});
+				Sx4Bot.client.newCall(request).enqueue((Sx4Callback) response -> response.body());
 				
 				request = new Request.Builder()
 						.post(RequestBody.create(MediaType.parse("application/json; charset=utf-8"), bodyDiscordBotList))
@@ -54,7 +54,7 @@ public class ServerPostEvents {
 						.addHeader("Content-Type", "application/json")
 						.build();
 				
-				Sx4Bot.client.newCall(request).enqueue((Sx4Callback) response -> {});
+				Sx4Bot.client.newCall(request).enqueue((Sx4Callback) response -> response.body());
 				
 				request = new Request.Builder()
 						.post(RequestBody.create(MediaType.parse("application/json; charset=utf-8"), bodyBotListSpace))
@@ -63,7 +63,7 @@ public class ServerPostEvents {
 						.addHeader("Content-Type", "application/json")
 						.build();
 				
-				Sx4Bot.client.newCall(request).enqueue((Sx4Callback) response -> {});
+				Sx4Bot.client.newCall(request).enqueue((Sx4Callback) response -> response.body());
 			}, 0, 5, TimeUnit.MINUTES);
 		}
 	}

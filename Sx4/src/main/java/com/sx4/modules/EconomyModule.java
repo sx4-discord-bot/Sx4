@@ -2579,7 +2579,7 @@ public class EconomyModule {
 				shownData = cursor.toList();
 			}
 			
-			shownData.sort((a, b) -> Double.compare((long) a.get("price") / (long) ((Map<String, Object>) a.get("item")).get("amount"), (long) b.get("price") / (long) ((Map<String, Object>) a.get("item")).get("amount")));
+			shownData.sort((a, b) -> Double.compare((a.get("price") instanceof Double ? (long) (double) a.get("price") : (long) a.get("price")) / (long) ((Map<String, Object>) a.get("item")).get("amount"), (b.get("price") instanceof Double ? (long) (double) b.get("price") : (long) b.get("price")) / (long) ((Map<String, Object>) b.get("item")).get("amount")));
 			
 			PagedResult<Map<String, Object>> paged = new PagedResult<>(shownData)
 					.setPerPage(6)
@@ -2715,7 +2715,7 @@ public class EconomyModule {
 				shownData = cursor.toList();
 			}
 			
-			shownData.sort((a, b) -> Double.compare((long) a.get("price") / (long) ((Map<String, Object>) a.get("item")).get("amount"), (long) b.get("price") / (long) ((Map<String, Object>) a.get("item")).get("amount")));
+			shownData.sort((a, b) -> Double.compare((a.get("price") instanceof Double ? (long) (double) a.get("price") : (long) a.get("price")) / (long) ((Map<String, Object>) a.get("item")).get("amount"), (b.get("price") instanceof Double ? (long) (double) b.get("price") : (long) b.get("price")) / (long) ((Map<String, Object>) b.get("item")).get("amount")));
 			
 			PagedResult<Map<String, Object>> paged = new PagedResult<>(shownData)
 					.setIncreasedIndex(true)

@@ -6,6 +6,7 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.TimeUnit;
 
 import org.json.JSONObject;
 
@@ -37,7 +38,12 @@ import okhttp3.RequestBody;
 @Module
 public class ImageModule {
 	
-	public static OkHttpClient client = new OkHttpClient.Builder().build();
+	public static OkHttpClient client = new OkHttpClient.Builder()
+			.connectTimeout(60, TimeUnit.SECONDS)
+			.callTimeout(60, TimeUnit.SECONDS)
+			.writeTimeout(60, TimeUnit.SECONDS)
+			.readTimeout(60, TimeUnit.SECONDS)
+			.build();
 	
 	private static Random random = new Random();
 	

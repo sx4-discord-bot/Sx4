@@ -24,19 +24,19 @@ public class TimeUtils {
 		}
 	}
 
-	public static int convertToSeconds(String time) {
+	public static long convertToSeconds(String time) {
 		try {
-			return Integer.parseInt(time);
+			return Long.parseLong(time);
 		} catch(NumberFormatException e) {
 			Matcher timeGroups = timeRegex.matcher(time);
 			if (!timeGroups.matches()) {
-				return 0;
+				return 0L;
 			} else {
-				int days = timeGroups.group(1) == null ? 0 : Integer.parseInt(timeGroups.group(1));
-				int hours = timeGroups.group(2) == null ? 0 : Integer.parseInt(timeGroups.group(2));
-				int minutes = timeGroups.group(3) == null ? 0 : Integer.parseInt(timeGroups.group(3));
-				int seconds = timeGroups.group(4) == null ? 0 : Integer.parseInt(timeGroups.group(4));
-				return (days * 86400) + (hours * 3600) + (minutes * 60) + seconds; 
+				long days = timeGroups.group(1) == null ? 0L : Long.parseLong(timeGroups.group(1));
+				long hours = timeGroups.group(2) == null ? 0L : Long.parseLong(timeGroups.group(2));
+				long minutes = timeGroups.group(3) == null ? 0L : Long.parseLong(timeGroups.group(3));
+				long seconds = timeGroups.group(4) == null ? 0L : Long.parseLong(timeGroups.group(4));
+				return (days * 86400L) + (hours * 3600L) + (minutes * 60L) + seconds; 
 			}
 		}
 	}

@@ -9,7 +9,6 @@ import com.sx4.settings.Settings;
 import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.Response;
-import okhttp3.ResponseBody;
 
 @FunctionalInterface
 public interface Sx4Callback extends Callback {
@@ -22,13 +21,11 @@ public interface Sx4Callback extends Callback {
     }
     
     public default void onResponse(Call call, Response response) throws IOException {
-        try (ResponseBody responseBody = response.body()) {
-            try {
-                this.onResponse(response);
-            } catch (Exception e) {
-                e.printStackTrace();
-                Sx4CommandEventListener.sendErrorMessage(Sx4Bot.getShardManager().getGuildById(Settings.SUPPORT_SERVER_ID).getTextChannelById(Settings.ERRORS_CHANNEL_ID), e, new Object[0]);
-            }
+        try {
+            this.onResponse(response);
+        } catch (Exception e) {
+            e.printStackTrace();
+            Sx4CommandEventListener.sendErrorMessage(Sx4Bot.getShardManager().getGuildById(Settings.SUPPORT_SERVER_ID).getTextChannelById(Settings.ERRORS_CHANNEL_ID), e, new Object[0]);
         }
     }
 }
