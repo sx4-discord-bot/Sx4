@@ -1599,7 +1599,7 @@ public class ModModule {
 		}
 		
 		PermissionOverride channelOverrides = channel.getPermissionOverride(event.getGuild().getPublicRole()); 
-		if ((channelOverrides.getAllowed() != null && channelOverrides.getAllowed().contains(Permission.MESSAGE_WRITE)) || (channelOverrides.getInherit() != null && channelOverrides.getInherit().contains(Permission.MESSAGE_WRITE))) {
+		if (channelOverrides != null && ((channelOverrides.getAllowed() != null && channelOverrides.getAllowed().contains(Permission.MESSAGE_WRITE)) || (channelOverrides.getInherit() != null && channelOverrides.getInherit().contains(Permission.MESSAGE_WRITE)))) {
 			event.reply(channel.getAsMention() + " has been locked down <:done:403285928233402378>").queue();
 			List<Permission> channelDeniedPermissions = new ArrayList<>(channelOverrides.getDenied());
 			channelDeniedPermissions.add(Permission.MESSAGE_WRITE);
@@ -2042,6 +2042,7 @@ public class ModModule {
 		Member member = ArgumentUtils.getMember(event.getGuild(), userArgument);
 		if (member == null) {
 			event.reply("I could not find that user :no_entry:").queue();
+			return;
 		}
 		
 		if (!event.getSelfMember().canInteract(member)) {
@@ -2816,7 +2817,7 @@ public class ModModule {
 		if (member == null) {
 			User user = ArgumentUtils.getUser(event.getGuild(), userArgument);
 			if (user == null) {
-				ArgumentUtils.getUserInfo(event.getGuild(), userArgument, userObject -> {
+				ArgumentUtils.getUserInfo(userArgument, userObject -> {
 					if (userObject == null) {
 						event.reply("I could not find that user :no_entry:").queue();
 						return;
@@ -2893,7 +2894,7 @@ public class ModModule {
 	public void unban(CommandEvent event, @Context Connection connection, @Argument(value="user") String userArgument, @Argument(value="reason", endless=true, nullDefault=true) String reason) {
 		User user = ArgumentUtils.getUser(event.getGuild(), userArgument);
 		if (user == null) {
-			ArgumentUtils.getUserInfo(event.getGuild(), userArgument, userObject -> {
+			ArgumentUtils.getUserInfo(userArgument, userObject -> {
 				event.getGuild().getBan(userObject).queue($ -> {
 					event.reply("**" + userObject.getAsTag() + "** has been unbanned <:done:403285928233402378>:ok_hand:").queue();
 					event.getGuild().getController().unban(userObject).queue();
@@ -3181,7 +3182,7 @@ public class ModModule {
 			return;
 		}
 		
-		mutedUsers.sort((a, b) -> Long.compare((a.get("time") instanceof Double ? (long) (double) a.get("time") : (long) a.get("time")) - timestamp + (long) a.get("amount"), (b.get("time") instanceof Double ? (long) (double) b.get("time") : (long) b.get("time")) - timestamp + (long) b.get("amount")));
+		mutedUsers.sort((a, b) -> Long.compare((a.get("time") instanceof Double ? (long) (double) a.get("time") : (long) a.get("time")) - timestamp + (a.get("amount") instanceof Double ? (long) (double) a.get("amount") : (long) a.get("amount")), (b.get("time") instanceof Double ? (long) (double) b.get("time") : (long) b.get("time")) - timestamp + (b.get("amount") instanceof Double ? (long) (double) b.get("amount") : (long) b.get("amount"))));
 		PagedResult<Map<String, Object>> paged = new PagedResult<>(mutedUsers)
 				.setAuthor("Muted Users", null, event.getGuild().getIconUrl())
 				.setIndexed(false)
@@ -3194,7 +3195,7 @@ public class ModModule {
 					if (user.get("amount") == null) {
 						timeTillUnmute = -1;
 					} else {
-						timeTillUnmute = (user.get("time") instanceof Double ? (long) (double) user.get("time") : (long) user.get("time")) - timestamp + (long) user.get("amount");
+						timeTillUnmute = (user.get("time") instanceof Double ? (long) (double) user.get("time") : (long) user.get("time")) - timestamp + (user.get("amount") instanceof Double ? (long) (double) user.get("amount") : (long) user.get("amount"));
 					}
 					
 					return member.getUser().getAsTag() + " - " + (timeTillUnmute <= 0 ? "Infinite" : TimeUtils.toTimeString(timeTillUnmute, ChronoUnit.SECONDS));
@@ -3296,7 +3297,7 @@ public class ModModule {
 				if (action.equals("mute")) {
 					configuration.put("warning", warningNumber);
 					configuration.put("action", action);
-					configuration.put("time", 1800);
+					configuration.put("time", 1800L);
 				} else if (action.contains("mute")) {
 					String timeString = action.split(" ", 2)[1];
 					long muteLength = TimeUtils.convertToSeconds(timeString);
@@ -3693,7 +3694,7 @@ public class ModModule {
 						nextAction = "Warn";
 					} else {
 						if (warning.containsKey("time")) {
-							nextAction = GeneralUtils.title((String) warning.get("action")) + " (" + TimeUtils.toTimeString((long) warning.get("time"), ChronoUnit.SECONDS) + ")";
+							nextAction = GeneralUtils.title((String) warning.get("action")) + " (" + TimeUtils.toTimeString(warning.get("time") instanceof Integer ? (int) warning.get("time") : (long) warning.get("time"), ChronoUnit.SECONDS) + ")";
 						} else {
 							nextAction = GeneralUtils.title((String) warning.get("action"));
 						}

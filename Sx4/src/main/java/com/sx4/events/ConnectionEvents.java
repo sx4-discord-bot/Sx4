@@ -27,6 +27,7 @@ public class ConnectionEvents extends ListenerAdapter {
 		ServerPostEvents.initializePosting();
 		MuteEvents.ensureMuteRoles();
 		StatsEvents.initializeBotLogs();
+		StatsEvents.initializeGuildStats();
 		ReminderEvents.ensureReminders();
 		GiveawayEvents.ensureGiveaways();
 		MuteEvents.ensureMutes();

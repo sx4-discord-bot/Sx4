@@ -6,6 +6,7 @@ import com.sx4.logger.handler.GuildMessageCache;
 import net.dv8tion.jda.core.entities.Message;
 import net.dv8tion.jda.core.events.Event;
 import net.dv8tion.jda.core.events.message.MessageUpdateEvent;
+import net.dv8tion.jda.core.events.message.guild.GuildMessageReceivedEvent;
 
 public class Sx4CommandListener extends CommandListener {
 
@@ -24,7 +25,9 @@ public class Sx4CommandListener extends CommandListener {
         		return;
         	}
         	
+        	System.out.println("Message is about to be parsed with context (Id: " + editedMessage.getId() + ", Content: " + editedMessage.getContentRaw());
         	this.parse(editedMessage);
+        	System.out.println("Message has been parsed with context (Id: " + editedMessage.getId() + ", Content: " + editedMessage.getContentRaw());
         }
     }
 	

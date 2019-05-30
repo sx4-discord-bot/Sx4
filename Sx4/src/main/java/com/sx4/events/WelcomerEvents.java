@@ -120,7 +120,7 @@ public class WelcomerEvents extends ListenerAdapter {
 
 	public void onGuildMemberJoin(GuildMemberJoinEvent event) {
 		Map<String, Object> data = r.table("welcomer").get(event.getGuild().getId()).run(Sx4Bot.getConnection());
-		if (data == null || (boolean) data.get("toggle") == false || data.get("channel") == null) {
+		if (data == null || ((boolean) data.get("toggle") == false && (boolean) data.get("imgwelcomertog") == false) || data.get("channel") == null) {
 			return;
 		}
 		

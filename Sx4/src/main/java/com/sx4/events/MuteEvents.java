@@ -182,7 +182,7 @@ public class MuteEvents extends ListenerAdapter {
 					if (userData.get("amount") != null) {
 						Member member = guild.getMemberById((String) userData.get("id"));
 						if (member != null) {
-							long timeLeft = ((long) userData.get("time") + (long) userData.get("amount")) - timestampNow;
+							long timeLeft = ((userData.get("time") instanceof Double ? (long) (double) userData.get("time") : (long) userData.get("time")) + (userData.get("amount") instanceof Double ? (long) (double) userData.get("amount") : (long) userData.get("amount"))) - timestampNow;
 							if (timeLeft <= 0) {
 								MuteEvents.removeUserMute(member);
 							} else {

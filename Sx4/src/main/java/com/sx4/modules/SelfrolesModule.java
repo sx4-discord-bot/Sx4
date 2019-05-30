@@ -750,10 +750,13 @@ public class SelfrolesModule {
 			
 			for (Map<String, Object> messageData : messages) {
 				if (messageData.get("id").equals(messageId)) {
-					long maxRolesData = (long) messageData.get("max_roles");
-					if (maxRolesInt > ((List<Map<String, Object>>) messageData.get("roles")).size()) {
-						event.reply("The max roles cannot be more than the amount of roles on the reaction role (" + maxRolesData + ") :no_entry:").queue();
-						return;
+					long maxRolesData = 0;
+					if (messageData.containsKey("max_roles")) {
+						maxRolesData = (long) messageData.get("max_roles");
+						if (maxRolesInt > ((List<Map<String, Object>>) messageData.get("roles")).size()) {
+							event.reply("The max roles cannot be more than the amount of roles on the reaction role (" + maxRolesData + ") :no_entry:").queue();
+							return;
+						}
 					}
 					
 					if (maxRolesInt == maxRolesData) {

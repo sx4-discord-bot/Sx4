@@ -684,14 +684,25 @@ public class EconomyModule {
 								JSONObject latestJsonSx4 = new JSONObject(latestSx4Response.body().string());
 								JSONObject latestJsonJockieMusic = new JSONObject(latestJockieMusicResponse.body().string());
 								
-								long timestamp = Clock.systemUTC().instant().getEpochSecond();
-								long timestampSx4 = latestJsonSx4.getJSONObject("vote").getLong("time") - timestamp + EconomyUtils.VOTE_COOLDOWN;
-								long timestampJockieMusic = latestJsonJockieMusic.getJSONObject("vote").getLong("time") - timestamp + EconomyUtils.VOTE_COOLDOWN; 
-								String timeSx4 = latestJsonSx4.getBoolean("success") ? TimeUtils.toTimeString(timestampSx4, ChronoUnit.SECONDS) : null;
-								String timeJockieMusic = latestJsonJockieMusic.getBoolean("success") ? TimeUtils.toTimeString(timestampJockieMusic, ChronoUnit.SECONDS) : null;
-								
 								EmbedBuilder embed = new EmbedBuilder();
 								embed.setAuthor("Vote Bonus", null, event.getAuthor().getEffectiveAvatarUrl());
+								
+								long timestamp = Clock.systemUTC().instant().getEpochSecond();
+								
+								long timestampSx4 = 0;
+								String timeSx4 = null;
+								if (latestJsonSx4.has("vote")) {
+									timestampSx4 = latestJsonSx4.getJSONObject("vote").getLong("time") - timestamp + EconomyUtils.VOTE_COOLDOWN;
+									timeSx4 = latestJsonSx4.getBoolean("success") ? TimeUtils.toTimeString(timestampSx4, ChronoUnit.SECONDS) : null;
+								}
+								
+								long timestampJockieMusic = 0;
+								String timeJockieMusic = null;
+								if (latestJsonJockieMusic.has("vote")) {
+									timestampJockieMusic = latestJsonJockieMusic.getJSONObject("vote").getLong("time") - timestamp + EconomyUtils.VOTE_COOLDOWN; 
+									timeJockieMusic = latestJsonJockieMusic.getBoolean("success") ? TimeUtils.toTimeString(timestampJockieMusic, ChronoUnit.SECONDS) : null;
+								}
+				
 								if (timeSx4 != null && timestampSx4 >= 0) {
 									embed.addField("Sx4", "**[You have voted recently you can vote for the bot again in " + timeSx4 + "](https://discordbots.org/bot/440996323156819968/vote)**", false);
 								} else {
@@ -724,8 +735,8 @@ public class EconomyModule {
 		Map<String, Object> dataRan = data.run(connection);
 		
 		long money;
-		double timestampNow = (double) Clock.systemUTC().instant().toEpochMilli() / 1000;
-		Double streakTime = (Double) dataRan.get("streaktime");
+		long timestampNow = Clock.systemUTC().instant().getEpochSecond();
+		Long streakTime = (Long) dataRan.get("streaktime");
 		
 		EmbedBuilder embed = new EmbedBuilder();
 		if (streakTime == null) {
@@ -738,7 +749,7 @@ public class EconomyModule {
 			
 			data.update(row -> r.hashMap("streaktime", timestampNow).with("balance", row.g("balance").add(money)).with("streak", 0)).runNoReply(connection);
 		} else if (timestampNow - streakTime <= EconomyUtils.DAILY_COOLDOWN) {
-			event.reply("Slow down! You can collect your daily in " + TimeUtils.toTimeString((long) (streakTime - timestampNow + EconomyUtils.DAILY_COOLDOWN), ChronoUnit.SECONDS) + " :stopwatch:").queue();
+			event.reply("Slow down! You can collect your daily in " + TimeUtils.toTimeString(streakTime - timestampNow + EconomyUtils.DAILY_COOLDOWN, ChronoUnit.SECONDS) + " :stopwatch:").queue();
 		} else if (timestampNow - streakTime <= EconomyUtils.DAILY_COOLDOWN * 2) {
 			long currentStreak = (long) dataRan.get("streak") + 1;
 			money = currentStreak >= 5 ? 250 : currentStreak == 4 ? 200 : currentStreak == 3 ? 170 : currentStreak == 2 ? 145 : currentStreak == 1 ? 120 : 100;
@@ -884,15 +895,15 @@ public class EconomyModule {
 			Get authorData = r.table("bank").get(event.getAuthor().getId());
 			Map<String, Object> authorDataRan = authorData.run(connection);
 			
-			double timestampNow = (double) Clock.systemUTC().instant().toEpochMilli() / 1000;
-			Double repTime = (Double) authorDataRan.get("reptime");
+			long timestampNow = Clock.systemUTC().instant().getEpochSecond();
+			Long repTime = (Long) authorDataRan.get("reptime");
 			
 			if (repTime == null) {
 				event.reply("**+1**, " + member.getUser().getName() + " has gained reputation").queue();
 				authorData.update(r.hashMap("reptime", timestampNow)).runNoReply(connection);
 				userData.update(row -> r.hashMap("rep", row.g("rep").add(1))).runNoReply(connection);
 			} else if (timestampNow - repTime <= EconomyUtils.REPUTATION_COOLDOWN) {
-				event.reply("Slow down! You can give out reputation in " + TimeUtils.toTimeString((long) (repTime - timestampNow + EconomyUtils.REPUTATION_COOLDOWN), ChronoUnit.SECONDS) + " :stopwatch:").queue();
+				event.reply("Slow down! You can give out reputation in " + TimeUtils.toTimeString(repTime - timestampNow + EconomyUtils.REPUTATION_COOLDOWN, ChronoUnit.SECONDS) + " :stopwatch:").queue();
 			} else {
 				event.reply("**+1**, " + member.getUser().getName() + " has gained reputation").queue();
 				authorData.update(r.hashMap("reptime", timestampNow)).runNoReply(connection);
@@ -1036,8 +1047,8 @@ public class EconomyModule {
 				return;
 			}
 			
-			double timestampNow = (double) Clock.systemUTC().instant().toEpochMilli() / 1000;
-			Double minerTime = (Double) dataRan.get("minertime");
+			long timestampNow = Clock.systemUTC().instant().getEpochSecond();
+			Long minerTime = (Long) dataRan.get("minertime");
 			
 			EmbedBuilder embed = new EmbedBuilder();
 			if (minerTime == null) {
@@ -1091,7 +1102,7 @@ public class EconomyModule {
 				
 				data.update(r.hashMap("items", userItems).with("minertime", timestampNow)).runNoReply(connection);
 			} else if (timestampNow - minerTime <= EconomyUtils.MINER_COOLDOWN) {
-				event.reply("Slow down! You can collect from your miner in " + TimeUtils.toTimeString((long) (minerTime - timestampNow + EconomyUtils.MINER_COOLDOWN), ChronoUnit.SECONDS) + " :stopwatch:").queue();
+				event.reply("Slow down! You can collect from your miner in " + TimeUtils.toTimeString(minerTime - timestampNow + EconomyUtils.MINER_COOLDOWN, ChronoUnit.SECONDS) + " :stopwatch:").queue();
 			} else {
 				Map<Material, Long> materials = new HashMap<>();
 				for (Miner userMiner : userMiners.keySet()) {
@@ -1418,6 +1429,11 @@ public class EconomyModule {
 			}
 			
 			Pickaxe pickaxe = EconomyUtils.getUserPickaxe(dataRan);
+			if (!pickaxe.isRepairable()) {
+				event.reply("Your pickaxe is not repairable :no_entry:").queue();
+				return;
+			}
+			
 			if (pickaxe.getDurability() <= pickaxe.getCurrentDurability()) {
 				event.reply("Your pickaxe is already at full durability :no_entry:").queue();
 				return;
@@ -1745,6 +1761,11 @@ public class EconomyModule {
 			}
 			
 			Rod rod = EconomyUtils.getUserRod(dataRan);
+			if (!rod.isRepairable()) {
+				event.reply("Your fishing rod is not repairable :no_entry:").queue();
+				return;
+			}
+			
 			if (rod.getDurability() <= rod.getCurrentDurability()) {
 				event.reply("Your fishing rod is already at full durability :no_entry:").queue();
 				return;
@@ -2068,6 +2089,11 @@ public class EconomyModule {
 			}
 			
 			Axe axe = EconomyUtils.getUserAxe(dataRan);
+			if (!axe.isRepairable()) {
+				event.reply("Your axe is not repairable :no_entry:").queue();
+				return;
+			}
+			
 			if (axe.getDurability() <= axe.getCurrentDurability()) {
 				event.reply("Your axe is already at full durability :no_entry:").queue();
 				return;
@@ -2473,8 +2499,8 @@ public class EconomyModule {
 				return;
 			}
 			
-			double timestampNow = (double) Clock.systemUTC().instant().toEpochMilli() / 1000;
-			Double factoryTime = (Double) dataRan.get("factorytime");
+			long timestampNow = Clock.systemUTC().instant().getEpochSecond();
+			Long factoryTime = (Long) dataRan.get("factorytime");
 			
 			if (factoryTime == null) {
 				long moneyGained = 0;
@@ -2506,7 +2532,7 @@ public class EconomyModule {
 				long moneyGainedData = moneyGained;
 				data.update(row -> r.hashMap("balance", row.g("balance").add(moneyGainedData)).with("factorytime", timestampNow)).runNoReply(connection);
 			} else if (timestampNow - factoryTime <= EconomyUtils.FACTORY_COOLDOWN) {
-				event.reply("Slow down! You can collect from your factory in " + TimeUtils.toTimeString((long) (factoryTime - timestampNow + EconomyUtils.FACTORY_COOLDOWN), ChronoUnit.SECONDS) + " :stopwatch:").queue();
+				event.reply("Slow down! You can collect from your factory in " + TimeUtils.toTimeString(factoryTime - timestampNow + EconomyUtils.FACTORY_COOLDOWN, ChronoUnit.SECONDS) + " :stopwatch:").queue();
 			} else {
 				long moneyGained = 0;
 				StringBuilder factoryContent = new StringBuilder();
@@ -2941,8 +2967,8 @@ public class EconomyModule {
 		Map<String, Object> dataRan = data.run(connection);
 		List<Map<String, Object>> items = (List<Map<String, Object>>) dataRan.get("items");
 		
-		double timestampNow = (double) Clock.systemUTC().instant().toEpochMilli() / 1000;
-		Double fishTime = (Double) dataRan.get("fishtime");
+		long timestampNow = Clock.systemUTC().instant().getEpochSecond();
+		Long fishTime = (Long) dataRan.get("fishtime");
 		
 		if (fishTime == null) {
 			String extra = "";
@@ -2972,7 +2998,7 @@ public class EconomyModule {
 			List<Map<String, Object>> itemsData = items;
 			data.update(row -> r.hashMap("balance", row.g("balance").add(money)).with("items", itemsData).with("roddur", hasRod ? row.g("roddur").sub(1) : row.g("roddur")).with("fishtime", timestampNow)).runNoReply(connection);
 		} else if (timestampNow - fishTime <= EconomyUtils.FISH_COOLDOWN) {
-			event.reply("Slow down! You can go fishing in " + TimeUtils.toTimeString((long) (fishTime - timestampNow + EconomyUtils.FISH_COOLDOWN), ChronoUnit.SECONDS) + " :stopwatch:").queue();
+			event.reply("Slow down! You can go fishing in " + TimeUtils.toTimeString(fishTime - timestampNow + EconomyUtils.FISH_COOLDOWN, ChronoUnit.SECONDS) + " :stopwatch:").queue();
 		} else {
 			String extra = "";
 			long money;
@@ -3021,8 +3047,8 @@ public class EconomyModule {
 			return;
 		}
 		
-		double timestampNow = (double) Clock.systemUTC().instant().toEpochMilli() / 1000;
-		Double axeTime = (Double) dataRan.get("axetime");
+		long timestampNow = Clock.systemUTC().instant().getEpochSecond();
+		Long axeTime = (Long) dataRan.get("axetime");
 		
 		if (axeTime == null) {
 			Axe userAxe = EconomyUtils.getUserAxe(dataRan);
@@ -3078,7 +3104,7 @@ public class EconomyModule {
 			List<Map<String, Object>> itemsData = items;
 			data.update(row -> r.hashMap("items", itemsData).with("axedur", row.g("axedur").sub(1)).with("axetime", timestampNow)).runNoReply(connection);
 		} else if (timestampNow - axeTime <= EconomyUtils.CHOP_COOLDOWN) {
-			event.reply("Slow down! You can chop down trees in " + TimeUtils.toTimeString((long) (axeTime - timestampNow + EconomyUtils.CHOP_COOLDOWN), ChronoUnit.SECONDS) + " :stopwatch:").queue();
+			event.reply("Slow down! You can chop down trees in " + TimeUtils.toTimeString(axeTime - timestampNow + EconomyUtils.CHOP_COOLDOWN, ChronoUnit.SECONDS) + " :stopwatch:").queue();
 		} else {
 			Axe userAxe = EconomyUtils.getUserAxe(dataRan);
 			String extra = "";
@@ -3153,8 +3179,8 @@ public class EconomyModule {
 			return;
 		}
 		
-		double timestampNow = (double) Clock.systemUTC().instant().toEpochMilli() / 1000;
-		Double pickTime = (Double) dataRan.get("picktime");
+		long timestampNow = (long) Clock.systemUTC().instant().getEpochSecond();
+		Long pickTime = (Long) dataRan.get("picktime");
 		
 		if (pickTime == null) {
 			Pickaxe userPickaxe = EconomyUtils.getUserPickaxe(dataRan);
@@ -3194,7 +3220,7 @@ public class EconomyModule {
 			List<Map<String, Object>> itemsData = items;
 			data.update(row -> r.hashMap("items", itemsData).with("pickdur", row.g("pickdur").sub(1)).with("balance", row.g("balance").add(money)).with("picktime", timestampNow)).runNoReply(connection);
 		} else if (timestampNow - pickTime <= EconomyUtils.MINE_COOLDOWN) {
-			event.reply("Slow down! You can go mining in " + TimeUtils.toTimeString((long) (pickTime - timestampNow + EconomyUtils.MINE_COOLDOWN), ChronoUnit.SECONDS) + " :stopwatch:").queue();
+			event.reply("Slow down! You can go mining in " + TimeUtils.toTimeString(pickTime - timestampNow + EconomyUtils.MINE_COOLDOWN, ChronoUnit.SECONDS) + " :stopwatch:").queue();
 		} else {
 			Pickaxe userPickaxe = EconomyUtils.getUserPickaxe(dataRan);
 			
@@ -3665,7 +3691,7 @@ public class EconomyModule {
 		@Command(value="reputation", aliases={"rep", "reps"}, description="View the leaderboard for people with the highest reputation", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void reputation(CommandEvent event, @Context Connection connection, @Option(value="server", aliases={"guild"}) boolean guild) {
-			Cursor<Map<String, Object>> cursor = r.table("bank").withFields("id", "rep").filter(row -> row.g("reputation").ne(0)).run(connection);
+			Cursor<Map<String, Object>> cursor = r.table("bank").withFields("id", "rep").filter(row -> row.g("rep").ne(0)).run(connection);
 			List<Map<String, Object>> data = cursor.toList();
 			
 			List<Map<String, Object>> compressedData = new ArrayList<>();

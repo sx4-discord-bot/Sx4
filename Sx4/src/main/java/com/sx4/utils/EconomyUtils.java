@@ -338,9 +338,6 @@ public class EconomyUtils {
 		List<Map<String, Object>> items = (List<Map<String, Object>>) data.get("items");
 		for (Map<String, Object> itemData : items) {
 			Item item = EconomyUtils.getItem((String) itemData.get("name"));
-			if (item == null) {
-				System.out.println((String) itemData.get("name") + "-" + (String) data.get("id"));
-			}
 			ItemStack userItem = EconomyUtils.getUserItem(items, item);
 			if (item.isBuyable()) {
 				networth += userItem.getItem().getPrice() * userItem.getAmount();

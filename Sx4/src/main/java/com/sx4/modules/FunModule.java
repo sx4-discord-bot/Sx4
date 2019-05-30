@@ -1852,10 +1852,10 @@ public class FunModule {
 			String pronunciationLink = data.getJSONArray("lexicalEntries").getJSONObject(0).getJSONArray("pronunciations").getJSONObject(0).getString("audioFile");	
 			JSONObject sense = data.getJSONArray("lexicalEntries").getJSONObject(0).getJSONArray("entries").getJSONObject(0).getJSONArray("senses").getJSONObject(0);
 			String definition = sense.getJSONArray("definitions").getString(0);
-			String example = sense.getJSONArray("examples").getJSONObject(0).getString("text");
+			String example = "\n\n" + (sense.has("examples") ? "*" + sense.getJSONArray("examples").getJSONObject(0).getString("text") + "*" : "");
 			EmbedBuilder embed = new EmbedBuilder();
 			embed.setAuthor(GeneralUtils.title(data.getString("id")), "https://en.oxforddictionaries.com/definition/" + word.toLowerCase());
-			embed.addField("Definition", definition + "\n\n*" + example + "*", false);
+			embed.addField("Definition", definition + example , false);
 			embed.addField("Pronunciation", "[Download Here](" + pronunciationLink + ")", false);
 			
 			event.reply(embed.build()).queue();
@@ -2037,7 +2037,8 @@ public class FunModule {
 	
 	@Command(value="say", description="The bot will repeat whatever you say")
 	public void say(CommandEvent event, @Argument(value="text", endless=true) String text) {
-		event.reply(FunUtils.escapeMentions(event.getGuild(), text).substring(0, Math.min(text.length(), 2000))).queue();
+		text = FunUtils.escapeMentions(event.getGuild(), text);
+		event.reply(text.substring(0, Math.min(text.length(), 2000))).queue();
 	}
 	
 	@Command(value="spoilerfy", description="The bot will return your specified text into a spoiler per character")
@@ -2051,7 +2052,8 @@ public class FunModule {
 			}
 		}
 		
-		event.reply(FunUtils.escapeMentions(event.getGuild(), content).substring(0, Math.min(content.length(), 2000))).queue();
+		text = FunUtils.escapeMentions(event.getGuild(), content);
+		event.reply(text.substring(0, Math.min(text.length(), 2000))).queue();
 	}
 	
 	@Command(value="embed", aliases={"esay"}, description="The bot will repeat whatever you say in an embed")
@@ -2192,14 +2194,14 @@ public class FunModule {
 	
 	@Command(value="clapify", description="The bot will return your text with a clap emote in between each word")
 	public void clapify(CommandEvent event, @Argument(value="text", endless=true) String text) {
-		text = text.replace(" ", " :clap: ");
-		event.reply(FunUtils.escapeMentions(event.getGuild(), text).substring(0, Math.min(text.length(), 2000))).queue();
+		text = FunUtils.escapeMentions(event.getGuild(), text.replace(" ", " :clap: "));
+		event.reply(text.substring(0, Math.min(text.length(), 2000))).queue();
 	}
 	
 	@Command(value="ascend", description="The bot will return your text with a space in between each character")
 	public void ascend(CommandEvent event, @Argument(value="text", endless=true) String text) {
-		text = text.replace("", " ");
-		event.reply(FunUtils.escapeMentions(event.getGuild(), text).substring(0, Math.min(text.length(), 2000))).queue();
+		text = FunUtils.escapeMentions(event.getGuild(), text.replace("", " "));
+		event.reply(text.substring(0, Math.min(text.length(), 2000))).queue();
 	}
 	
 	@Command(value="backwards", aliases={"reverse"}, description="The bot will return your text reversed")
@@ -2209,7 +2211,8 @@ public class FunModule {
 			content += text.charAt(i);
 		}
 		
-		event.reply(FunUtils.escapeMentions(event.getGuild(), content).substring(0, Math.min(content.length(), 2000))).queue();
+		text = FunUtils.escapeMentions(event.getGuild(), content);
+		event.reply(text.substring(0, Math.min(text.length(), 2000))).queue();
 	}
 	
 	@Command(value="random caps", aliases={"randomcaps", "rand caps", "randcaps"}, description="The bot will return your text with the characters randomly being lower case or upper case")
@@ -2224,7 +2227,8 @@ public class FunModule {
 			}
 		}
 		
-		event.reply(FunUtils.escapeMentions(event.getGuild(), content).substring(0, Math.min(content.length(), 2000))).queue();
+		text = FunUtils.escapeMentions(event.getGuild(), content);
+		event.reply(content.substring(0, Math.min(text.length(), 2000))).queue();
 	}
 	
 	@Command(value="alternate caps", aliases={"alt caps", "altcaps", "alternatecaps"}, description="The bot will return your text with the characters alternating between being lower case or upper case")
@@ -2238,7 +2242,8 @@ public class FunModule {
 			}
 		}
 		
-		event.reply(FunUtils.escapeMentions(event.getGuild(), content).substring(0, Math.min(content.length(), 2000))).queue();
+		text = FunUtils.escapeMentions(event.getGuild(), content);
+		event.reply(text.substring(0, Math.min(text.length(), 2000))).queue();
 	}
 	
 	private static List<String> rockChoices = List.of("r", "rock");

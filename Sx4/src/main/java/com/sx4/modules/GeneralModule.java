@@ -302,7 +302,7 @@ public class GeneralModule {
 		embed.setFooter("This suggestion is currently pending", null);
 		channel.sendMessage(embed.build()).queue(message -> {
 			message.addReaction("✅").queue();
-			message.addReaction("�?�").queue();
+			message.addReaction("❌").queue();
 			data.update(row -> {
 				return r.hashMap("suggestions", row.g("suggestions").append(r.hashMap("id", message.getId())
 						.with("user", event.getAuthor().getId())
@@ -442,7 +442,10 @@ public class GeneralModule {
 		        		});
 	        		} catch(IllegalArgumentException e) {
 	    				event.reply("I could not find that message :no_entry:").queue();
+	    				return;
 	    			}
+	        		
+	        		return;
 	        	}
 	        }
 	        
@@ -523,7 +526,10 @@ public class GeneralModule {
 		        		});
 	        		} catch(IllegalArgumentException e) {
 	    				event.reply("I could not find that message :no_entry:").queue();
+	    				return;
 	    			}
+	        		
+	        		return;
 	        	}
 	        }
 	        
@@ -601,7 +607,10 @@ public class GeneralModule {
 		        		});
 	        		} catch(IllegalArgumentException e) {
 	    				event.reply("I could not find that message :no_entry:").queue();
+	    				return;
 	    			}
+	        		
+	        		return;
 	        	}
 	        }
 	        
@@ -667,7 +676,10 @@ public class GeneralModule {
 		        		});	
 	        		} catch(IllegalArgumentException e) {
 	    				event.reply("I could not find that message :no_entry:").queue();
+	    				return;
 	    			}
+	        		
+	        		return;
 	        	}
 	        }
 	        
@@ -699,11 +711,7 @@ public class GeneralModule {
 						event.reply("Cancelled <:done:403285928233402378>").queue();
 					}
 					
-					try {
-						message.delete().queue();
-					} catch(Exception e) {
-						e.getMessage();
-					}
+					message.delete().queue(null, e -> {});
 				});
 			});
 		}
@@ -1297,7 +1305,10 @@ public class GeneralModule {
 		
         if (event.getSelfMember().hasPermission(Permission.MANAGE_EMOTES)) {
 			emote.getGuild().retrieveEmote(emote).queue(e -> {
-				embed.addField("Uploader", e.getUser().getAsTag(), false);
+				if (e.hasUser()) {
+					embed.addField("Uploader", e.getUser().getAsTag(), false);
+				}
+				
 				event.reply(embed.build()).queue();
 			});
         } else {
@@ -1985,7 +1996,7 @@ public class GeneralModule {
 		} else {
 			member = ArgumentUtils.getMemberInfo(event.getGuild(), argument);
 			if (member == null) {
-				ArgumentUtils.getUserInfo(event.getGuild(), argument, user -> {
+				ArgumentUtils.getUserInfo(argument, user -> {
 					if (user == null) {
 						event.reply("I could not find that user :no_entry:").queue();
 						return;

@@ -9,7 +9,6 @@ import java.util.Map;
 import com.jockie.bot.core.command.impl.CommandEvent;
 import com.rethinkdb.gen.ast.Get;
 import com.rethinkdb.net.Connection;
-import com.sx4.core.Sx4Bot;
 import com.sx4.settings.Settings;
 
 import net.dv8tion.jda.core.OnlineStatus;
@@ -165,7 +164,6 @@ public class CheckUtils {
 				if (checkPermissions(event, connection, administrator, false) == false) {
 					Map<String, Object> blacklistData = r.table("blacklist").get(event.getGuild().getId()).run(connection);
 					if (blacklistData != null) {
-						List<String> disabledCommands = (List<String>) blacklistData.get("disabled");
 						List<Map<String, Object>> commands = (List<Map<String, Object>>) blacklistData.get("commands");					
 						for (Map<String, Object> command : commands) {
 							if (event.getCommand().getTopParent().getCategory().getName().equals(command.get("id")) || event.getCommand().getCommandTrigger().equals(command.get("id")) || event.getCommand().getTopParent().getCommandTrigger().equals(command.get("id"))) {
@@ -209,12 +207,13 @@ public class CheckUtils {
 										}
 									}
 								}
-							
-								if (disabledCommands.contains(command.get("id"))) {
-									event.reply("This command is disabled in this server :no_entry:").queue();
-									return false;
-								}
 							}
+						}
+						
+						List<String> disabledCommands = (List<String>) blacklistData.get("disabled");
+						if (disabledCommands.contains(event.getCommand().getCommandTrigger())) {
+							event.reply("That command is disabled in this server :no_entry:").queue();
+							return false;
 						}
 					}
 				}

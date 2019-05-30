@@ -55,12 +55,14 @@ public class StatsEvents extends ListenerAdapter {
 		},  Duration.between(now, ZonedDateTime.of(now.getYear(), now.getMonthValue(), now.getDayOfMonth(), 0, 0, 0, 0, ZoneOffset.UTC).plusDays(1)).toSeconds(), 86400, TimeUnit.SECONDS);
 	}
 	
-	{	
+	private static Map<String, Map<String, Integer>> guildStats = new HashMap<>();
+	
+	public static void initializeGuildStats() {
 		Sx4Bot.scheduledExectuor.scheduleAtFixedRate(() -> {
 			Table table = r.table("stats");
 			Connection connection = Sx4Bot.getConnection();
 			
-			Set<String> guildKeys = this.guildStats.keySet();
+			Set<String> guildKeys = guildStats.keySet();
 			
 			List<MapObject> massData = new ArrayList<>();
 			for (String guildId : guildKeys) {
@@ -70,7 +72,7 @@ public class StatsEvents extends ListenerAdapter {
 			table.insert(massData).run(connection, OptArgs.of("durability", "soft"));
 			
 			for (String guildId : guildKeys) {
-				Map<String, Integer> guildData = this.guildStats.get(guildId);
+				Map<String, Integer> guildData = guildStats.get(guildId);
 				
 				boolean proceed = false;
 				for (Integer value : guildData.values()) {
@@ -85,12 +87,10 @@ public class StatsEvents extends ListenerAdapter {
 				}
 				
 				table.get(guildId).update(row -> r.hashMap("messages", row.g("messages").add(guildData.get("messages"))).with("members", row.g("members").add(guildData.get("members")))).runNoReply(connection);
-				this.guildStats.clear();
+				guildStats.clear();
 			}
 		}, 3, 3, TimeUnit.MINUTES);
 	}
-	
-	private Map<String, Map<String, Integer>> guildStats = new HashMap<>();
 	
 	public void onGuildMessageReceived(GuildMessageReceivedEvent event) {
 		if (event.getAuthor().equals(event.getJDA().getSelfUser())) {
@@ -102,41 +102,41 @@ public class StatsEvents extends ListenerAdapter {
 			return;
 		}
 		
-		if (this.guildStats.containsKey(event.getGuild().getId())) {
-			Map<String, Integer> guildData = this.guildStats.get(event.getGuild().getId());
+		if (guildStats.containsKey(event.getGuild().getId())) {
+			Map<String, Integer> guildData = guildStats.get(event.getGuild().getId());
 			guildData.put("messages", guildData.get("messages") + 1);
-			this.guildStats.put(event.getGuild().getId(), guildData);
+			guildStats.put(event.getGuild().getId(), guildData);
 		} else {
 			Map<String, Integer> guildData = new HashMap<>();
 			guildData.put("messages", 1);
 			guildData.put("members", 0);
-			this.guildStats.put(event.getGuild().getId(), guildData);
+			guildStats.put(event.getGuild().getId(), guildData);
 		}
 	}
 	
 	public void onGuildMemberJoin(GuildMemberJoinEvent event) {
-		if (this.guildStats.containsKey(event.getGuild().getId())) {
-			Map<String, Integer> guildData = this.guildStats.get(event.getGuild().getId());
+		if (guildStats.containsKey(event.getGuild().getId())) {
+			Map<String, Integer> guildData = guildStats.get(event.getGuild().getId());
 			guildData.put("members", guildData.get("members") + 1);
-			this.guildStats.put(event.getGuild().getId(), guildData);
+			guildStats.put(event.getGuild().getId(), guildData);
 		} else {
 			Map<String, Integer> guildData = new HashMap<>();
 			guildData.put("messages", 0);
 			guildData.put("members", 1);
-			this.guildStats.put(event.getGuild().getId(), guildData);
+			guildStats.put(event.getGuild().getId(), guildData);
 		}
 	}
 	
 	public void onGuildMemberLeave(GuildMemberLeaveEvent event) {
-		if (this.guildStats.containsKey(event.getGuild().getId())) {
-			Map<String, Integer> guildData = this.guildStats.get(event.getGuild().getId());
+		if (guildStats.containsKey(event.getGuild().getId())) {
+			Map<String, Integer> guildData = guildStats.get(event.getGuild().getId());
 			guildData.put("members", guildData.get("members") - 1);
-			this.guildStats.put(event.getGuild().getId(), guildData);
+			guildStats.put(event.getGuild().getId(), guildData);
 		} else {
 			Map<String, Integer> guildData = new HashMap<>();
 			guildData.put("messages", 0);
 			guildData.put("members", -1);
-			this.guildStats.put(event.getGuild().getId(), guildData);
+			guildStats.put(event.getGuild().getId(), guildData);
 		}
 	}
 

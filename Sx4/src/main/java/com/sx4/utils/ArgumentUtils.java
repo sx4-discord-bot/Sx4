@@ -487,18 +487,11 @@ public class ArgumentUtils {
 		return null;
 	}
 	
-	public static void getUserInfo(Guild guild, String user, Consumer<User> userObject) {
+	public static void getUserInfo(String user, Consumer<User> userObject) {
 		Matcher mention = userMentionRegex.matcher(user);
 		if (IdRegex.matcher(user).matches()) {
 			try {
-				Sx4Bot.getShardManager().retrieveUserById(user).queue(u -> userObject.accept(u), e -> {
-					if (e instanceof ErrorResponseException) {
-						ErrorResponseException exception = (ErrorResponseException) e;
-						if (exception.getErrorCode() == 10013) {
-							userObject.accept(null);
-						}
-					}
-				});
+				Sx4Bot.getShardManager().retrieveUserById(user).queue(u -> userObject.accept(u), e -> userObject.accept(null));
 			} catch(NumberFormatException e) {
 				userObject.accept(null);
 			}
@@ -506,19 +499,14 @@ public class ArgumentUtils {
 			return;
 		} else if (mention.matches()) {
 			try {
-				Sx4Bot.getShardManager().retrieveUserById(mention.group(1)).queue(u -> userObject.accept(u), e -> {
-					if (e instanceof ErrorResponseException) {
-						ErrorResponseException exception = (ErrorResponseException) e;
-						if (exception.getErrorCode() == 10013) {
-							userObject.accept(null);
-						}
-					}
-				});
+				Sx4Bot.getShardManager().retrieveUserById(mention.group(1)).queue(u -> userObject.accept(u), e -> userObject.accept(null));
 			} catch(NumberFormatException e) {
 				userObject.accept(null);
 			}
 			
 			return;
+		} else {
+			userObject.accept(null);
 		}
 	}
 	

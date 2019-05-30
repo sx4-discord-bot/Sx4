@@ -186,7 +186,7 @@ public class ModUtils {
 			if (nextAction != null) {
 				String actionData = (String) nextAction.get("action");
 				if (nextAction.containsKey("time")) {
-					nextActionString = GeneralUtils.title(actionData) + " (" + TimeUtils.toTimeString((long) nextAction.get("time"), ChronoUnit.SECONDS) + ")";
+					nextActionString = GeneralUtils.title(actionData) + " (" + TimeUtils.toTimeString(nextAction.get("time") instanceof Integer ? (int) nextAction.get("time") : (long) nextAction.get("time"), ChronoUnit.SECONDS) + ")";
 				} else {
 					nextActionString = GeneralUtils.title(actionData);
 				}
@@ -302,7 +302,7 @@ public class ModUtils {
 		embed.addField("Reason", reason == null ? defaultReason : reason, false);
 		
 		Map<String, Object> newCase = new HashMap<String, Object>();
-		if (guild.getSelfMember().hasPermission(Permission.MESSAGE_EMBED_LINKS)) {
+		if (guild.getSelfMember().hasPermission(channel, Permission.MESSAGE_EMBED_LINKS, Permission.MESSAGE_WRITE, Permission.MESSAGE_READ)) {
 			channel.sendMessage(embed.build()).queue(message -> {	
 				newCase.put("id", caseNumber);
 				newCase.put("action", action);
