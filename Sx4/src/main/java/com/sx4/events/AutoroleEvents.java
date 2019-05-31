@@ -9,6 +9,7 @@ import com.rethinkdb.net.Cursor;
 import com.sx4.core.Sx4Bot;
 
 import net.dv8tion.jda.bot.sharding.ShardManager;
+import net.dv8tion.jda.core.Permission;
 import net.dv8tion.jda.core.entities.Guild;
 import net.dv8tion.jda.core.entities.Member;
 import net.dv8tion.jda.core.entities.Role;
@@ -54,6 +55,7 @@ public class AutoroleEvents extends ListenerAdapter {
 	
 	public static void ensureAutoroles() {
 		ShardManager shardManager = Sx4Bot.getShardManager();
+		
 		Cursor<Map<String, Object>> cursor = r.table("autorole").run(Sx4Bot.getConnection());
 		List<Map<String, Object>> data = cursor.toList();
 		for (Map<String, Object> guildData : data) {
@@ -63,6 +65,11 @@ public class AutoroleEvents extends ListenerAdapter {
 			
 			Guild guild = shardManager.getGuildById((String) guildData.get("id"));
 			if (guild != null) {
+				Member self = guild.getSelfMember();
+				if (!self.hasPermission(Permission.MANAGE_ROLES)) {
+					continue;
+				}
+				
 				String roleData = (String) guildData.get("role");
 				String botRoleData = (String) guildData.get("botrole");
 				
@@ -82,22 +89,30 @@ public class AutoroleEvents extends ListenerAdapter {
 				for (Member member : guild.getMembers()) {
 					if (roleData != null && botRoleData == null) {
 						if (role != null) {
-							guild.getController().addSingleRoleToMember(member, role).queue();
+							if (self.canInteract(role)) {
+								guild.getController().addSingleRoleToMember(member, role).queue();
+							}
 						}
 					} else if (roleData == null && botRoleData != null) {
 						if (member.getUser().isBot()) {
 							if (botRole != null) {
-								guild.getController().addSingleRoleToMember(member, botRole).queue();
+								if (self.canInteract(botRole)) {
+									guild.getController().addSingleRoleToMember(member, botRole).queue();
+								}
 							}
 						}
 					} else {
 						if (member.getUser().isBot()) {
 							if (botRole != null) {
-								guild.getController().addSingleRoleToMember(member, botRole).queue();
+								if (self.canInteract(botRole)) {
+									guild.getController().addSingleRoleToMember(member, botRole).queue();
+								}
 							}
 						} else {
 							if (role != null) {
-								guild.getController().addSingleRoleToMember(member, role).queue();
+								if (self.canInteract(role)) {
+									guild.getController().addSingleRoleToMember(member, role).queue();
+								}
 							}
 						}
 					}

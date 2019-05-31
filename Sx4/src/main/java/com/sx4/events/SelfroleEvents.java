@@ -82,7 +82,7 @@ public class SelfroleEvents extends ListenerAdapter {
 								}
 								
 								long maxRoles = (long) messageData.get("max_roles");
-								if (memberRoles >= maxRoles) {
+								if (maxRoles != 0 && memberRoles >= maxRoles) {
 									event.getMember().getUser().openPrivateChannel().queue(channel -> channel.sendMessage("You already have the max amount of roles from this reaction role menu, the max amount is **" + maxRoles + "** role" + (maxRoles == 1 ? "" : "s") + " :no_entry:").queue(), e -> {});
 									return;
 								}
@@ -163,7 +163,7 @@ public class SelfroleEvents extends ListenerAdapter {
 								}
 								
 								long maxRoles = (long) messageData.get("max_roles");
-								if (memberRoles >= maxRoles) {
+								if (maxRoles != 0 && memberRoles >= maxRoles) {
 									event.getMember().getUser().openPrivateChannel().queue(channel -> channel.sendMessage("You already have the max amount of roles from this reaction role menu, the max amount is **" + maxRoles + "** role" + (maxRoles == 1 ? "" : "s") + " :no_entry:").queue(), e -> {});
 									return;
 								}

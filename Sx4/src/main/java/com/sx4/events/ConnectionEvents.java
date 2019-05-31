@@ -16,23 +16,6 @@ import net.dv8tion.jda.core.events.ResumedEvent;
 import net.dv8tion.jda.core.hooks.ListenerAdapter;
 
 public class ConnectionEvents extends ListenerAdapter {
-
-	public void onReady(ReadyEvent event) {
-		ShardManager shardManager = Sx4Bot.getShardManager();
-		
-		System.out.println("Connected to " + shardManager.getApplicationInfo().getJDA().getSelfUser().getAsTag() + String.format(" with %,d/%,d available servers and %,d users", event.getGuildAvailableCount(), event.getGuildTotalCount(), shardManager.getUsers().size()));
-		
-		DatabaseUtils.ensureTableData();
-		StatusEvents.initialize();
-		ServerPostEvents.initializePosting();
-		MuteEvents.ensureMuteRoles();
-		StatsEvents.initializeBotLogs();
-		StatsEvents.initializeGuildStats();
-		ReminderEvents.ensureReminders();
-		GiveawayEvents.ensureGiveaways();
-		MuteEvents.ensureMutes();
-		AutoroleEvents.ensureAutoroles();
-	}
 	
 	public void onDisconnect(DisconnectEvent event) {
 		TextChannel eventsChannel = Sx4Bot.getShardManager().getGuildById(Settings.SUPPORT_SERVER_ID).getTextChannelById(Settings.EVENTS_CHANNEL_ID);

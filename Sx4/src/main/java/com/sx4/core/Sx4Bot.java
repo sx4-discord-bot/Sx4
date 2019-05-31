@@ -30,12 +30,16 @@ import com.sx4.events.AntiLinkEvents;
 import com.sx4.events.AutoroleEvents;
 import com.sx4.events.AwaitEvents;
 import com.sx4.events.ConnectionEvents;
+import com.sx4.events.GiveawayEvents;
 import com.sx4.events.ImageModeEvents;
 import com.sx4.events.ModEvents;
 import com.sx4.events.MuteEvents;
+import com.sx4.events.ReminderEvents;
 import com.sx4.events.SelfroleEvents;
 import com.sx4.events.ServerLogEvents;
+import com.sx4.events.ServerPostEvents;
 import com.sx4.events.StatsEvents;
+import com.sx4.events.StatusEvents;
 import com.sx4.events.TriggerEvents;
 import com.sx4.events.WelcomerEvents;
 import com.sx4.logger.Statistics;
@@ -52,11 +56,13 @@ import com.sx4.utils.TimeUtils;
 
 import net.dv8tion.jda.bot.sharding.DefaultShardManagerBuilder;
 import net.dv8tion.jda.bot.sharding.ShardManager;
-import net.dv8tion.jda.core.OnlineStatus;
+import net.dv8tion.jda.core.JDA;
 import net.dv8tion.jda.core.Permission;
 import net.dv8tion.jda.core.entities.Guild;
 import net.dv8tion.jda.core.entities.Member;
 import net.dv8tion.jda.core.entities.Role;
+import net.dv8tion.jda.core.entities.impl.JDAImpl;
+import net.dv8tion.jda.core.handle.GuildSetupController;
 import okhttp3.OkHttpClient;
 
 public class Sx4Bot {
@@ -203,6 +209,28 @@ public class Sx4Bot {
 			
 			Sx4CommandEventListener.sendErrorMessage(bot.getGuildById(Settings.SUPPORT_SERVER_ID).getTextChannelById(Settings.ERRORS_CHANNEL_ID), exception, new Object[0]);
 		});
+		
+		for(JDA shard : bot.getShards()) {
+		    shard.awaitReady();
+		}
+
+		int availableGuilds = bot.getGuilds().size();
+		int unavailableGuilds = bot.getShards().stream()
+		        .mapToInt(jda -> ((JDAImpl) jda).getGuildSetupController().getSetupNodes(GuildSetupController.Status.UNAVAILABLE).size())
+		        .sum();
+
+		System.out.println(String.format("Connected to %s with %,d/%,d available servers and %,d users", bot.getApplicationInfo().getJDA().getSelfUser().getAsTag(), availableGuilds, availableGuilds + unavailableGuilds, bot.getUsers().size()));
+
+		DatabaseUtils.ensureTableData();
+		StatusEvents.initialize();
+		ServerPostEvents.initializePosting();
+		MuteEvents.ensureMuteRoles();
+		StatsEvents.initializeBotLogs();
+		StatsEvents.initializeGuildStats();
+		ReminderEvents.ensureReminders();
+		GiveawayEvents.ensureGiveaways();
+		MuteEvents.ensureMutes();
+		AutoroleEvents.ensureAutoroles();
 		
 		System.gc();
 		

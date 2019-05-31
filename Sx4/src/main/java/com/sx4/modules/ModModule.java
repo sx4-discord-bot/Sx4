@@ -114,7 +114,6 @@ public class ModModule {
 				} else if (argument.matches("<(?:a|):(.{2,32}):(\\d+)>")) {
 					id = argument.split(":")[2];
 					id = id.substring(0, id.length() - 1);	
-					System.out.println(id);
 				} else if (argument.matches("\\d+")) {
 					id = argument;
 				} else {
@@ -2895,6 +2894,11 @@ public class ModModule {
 		User user = ArgumentUtils.getUser(event.getGuild(), userArgument);
 		if (user == null) {
 			ArgumentUtils.getUserInfo(userArgument, userObject -> {
+				if (userObject == null) {
+					event.reply("I could not find that user :no_entry:").queue();
+					return;
+				}
+				
 				event.getGuild().getBan(userObject).queue($ -> {
 					event.reply("**" + userObject.getAsTag() + "** has been unbanned <:done:403285928233402378>:ok_hand:").queue();
 					event.getGuild().getController().unban(userObject).queue();
@@ -3316,7 +3320,7 @@ public class ModModule {
 				}
 				
 				event.reply(String.format("Warning #%s will now %s the user %s <:done:403285928233402378>", warningNumber, action, 
-						configuration.containsKey("time") ? "for " + TimeUtils.toTimeString((int) configuration.get("time"), ChronoUnit.SECONDS) : "")).queue();
+						configuration.containsKey("time") ? "for " + TimeUtils.toTimeString(configuration.get("time") instanceof Long ? (long) configuration.get("time") : (int) configuration.get("time"), ChronoUnit.SECONDS) : "")).queue();
 				
 				List<Map<String, Object>> warnConfig = (List<Map<String, Object>>) dataRan.get("config");
 				for (Map<String, Object> warning : warnConfig) {

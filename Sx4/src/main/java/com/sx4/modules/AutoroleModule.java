@@ -180,6 +180,10 @@ public class AutoroleModule {
 		@AuthorPermissions({Permission.MANAGE_ROLES})
 		public void fix(CommandEvent event, @Context Connection connection) {
 			Map<String, Object> data = r.table("autorole").get(event.getGuild().getId()).run(connection);
+			if (data == null) {
+				event.reply("The auto role has not been set up in this server :no_entry:").queue();
+				return;
+			}
 			
 			String roleData = (String) data.get("role");
 			String botRoleData = (String) data.get("botrole");

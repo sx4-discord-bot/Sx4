@@ -18,6 +18,7 @@ import com.sx4.core.Sx4Bot;
 import com.sx4.utils.ModUtils;
 
 import net.dv8tion.jda.bot.sharding.ShardManager;
+import net.dv8tion.jda.core.Permission;
 import net.dv8tion.jda.core.entities.Guild;
 import net.dv8tion.jda.core.entities.Member;
 import net.dv8tion.jda.core.entities.Role;
@@ -99,9 +100,11 @@ public class MuteEvents extends ListenerAdapter {
 							continue;
 						} else {
 							Member unmutedMember = guild.getMemberById((String) userData.get("id"));
-							MuteEvents.cancelExecutor(guild.getId(), unmutedMember.getUser().getId());
-							r.table("mute").get(guild.getId()).update(row -> r.hashMap("users", row.g("users").filter(d -> d.g("id").ne(unmutedMember.getUser().getId())))).runNoReply(connection);
-							ModUtils.createModLog(guild, connection, selfUser, unmutedMember.getUser(), "Unmute", "Mute role was removed while the bot was offline");
+							if (unmutedMember != null) {
+								MuteEvents.cancelExecutor(guild.getId(), unmutedMember.getUser().getId());
+								r.table("mute").get(guild.getId()).update(row -> r.hashMap("users", row.g("users").filter(d -> d.g("id").ne(unmutedMember.getUser().getId())))).runNoReply(connection);
+								ModUtils.createModLog(guild, connection, selfUser, unmutedMember.getUser(), "Unmute", "Mute role was removed while the bot was offline");
+							}
 						}
 					}
 				} else {
@@ -152,7 +155,11 @@ public class MuteEvents extends ListenerAdapter {
 		
 		if (muteRole != null) {
 			if (member.getRoles().contains(muteRole)) {
-				guild.getController().removeSingleRoleFromMember(member, muteRole).queue();
+				if (guild.getSelfMember().hasPermission(Permission.MANAGE_ROLES) && guild.getSelfMember().canInteract(muteRole)) {
+					guild.getController().removeSingleRoleFromMember(member, muteRole).queue();
+				} else {
+					return;
+				}
 			}
 		}
 		

@@ -34,24 +34,28 @@ public class StatsEvents extends ListenerAdapter {
 		ZonedDateTime now = ZonedDateTime.now(ZoneOffset.UTC);
 		
 		Sx4Bot.scheduledExectuor.scheduleAtFixedRate(() -> {
-			ShardManager shardManager = Sx4Bot.getShardManager();
-			Connection connection = Sx4Bot.getConnection();
-			
-			Get data = r.table("botstats").get("stats");
-			Map<String, Object> dataRan = data.run(connection);
-			int servers = (int) (shardManager.getGuilds().size() - (long) dataRan.get("servercountbefore"));
-			
-			EmbedBuilder embed = new EmbedBuilder();
-			embed.setColor(Settings.EMBED_COLOUR);
-			embed.setTimestamp(Instant.now());
-			embed.setAuthor("Bot Logs", null, shardManager.getShards().get(0).getSelfUser().getEffectiveAvatarUrl());
-			embed.addField("Average Command Usage", String.format("1 every %.2f seconds (%,d)", (double) 86400 / (long) dataRan.get("commands"), (long) dataRan.get("commands")), false);
-			embed.addField("Servers", String.format("%,d", shardManager.getGuilds().size()) + " (" + (servers < 0 ? "" : "+") + String.format("%,d)", servers), false);
-			embed.addField("Users", String.format("%,d", shardManager.getUsers().size()), false);
-			shardManager.getGuildById(Settings.SUPPORT_SERVER_ID).getTextChannelById(Settings.BOT_LOGS_ID).sendMessage(embed.build()).queue();
-			
-			data.update(r.hashMap("commands", 0).with("servercountbefore", shardManager.getGuilds().size()).with("messages", 0)).runNoReply(connection);
-			r.table("stats").forEach(table -> r.table("stats").get(table.g("id")).update(r.hashMap("messages", 0).with("members", 0))).runNoReply(connection);
+			try {
+				ShardManager shardManager = Sx4Bot.getShardManager();
+				Connection connection = Sx4Bot.getConnection();
+				
+				Get data = r.table("botstats").get("stats");
+				Map<String, Object> dataRan = data.run(connection);
+				int servers = (int) (shardManager.getGuilds().size() - (long) dataRan.get("servercountbefore"));
+				
+				EmbedBuilder embed = new EmbedBuilder();
+				embed.setColor(Settings.EMBED_COLOUR);
+				embed.setTimestamp(Instant.now());
+				embed.setAuthor("Bot Logs", null, shardManager.getShards().get(0).getSelfUser().getEffectiveAvatarUrl());
+				embed.addField("Average Command Usage", String.format("1 every %.2f seconds (%,d)", (double) 86400 / (long) dataRan.get("commands"), (long) dataRan.get("commands")), false);
+				embed.addField("Servers", String.format("%,d", shardManager.getGuilds().size()) + " (" + (servers < 0 ? "" : "+") + String.format("%,d)", servers), false);
+				embed.addField("Users", String.format("%,d", shardManager.getUsers().size()), false);
+				shardManager.getGuildById(Settings.SUPPORT_SERVER_ID).getTextChannelById(Settings.BOT_LOGS_ID).sendMessage(embed.build()).queue();
+				
+				data.update(r.hashMap("commands", 0).with("servercountbefore", shardManager.getGuilds().size()).with("messages", 0)).runNoReply(connection);
+				r.table("stats").forEach(table -> r.table("stats").get(table.g("id")).update(r.hashMap("messages", 0).with("members", 0))).runNoReply(connection);
+			} catch(Exception e) {
+				e.printStackTrace();
+			}
 		},  Duration.between(now, ZonedDateTime.of(now.getYear(), now.getMonthValue(), now.getDayOfMonth(), 0, 0, 0, 0, ZoneOffset.UTC).plusDays(1)).toSeconds(), 86400, TimeUnit.SECONDS);
 	}
 	
@@ -87,8 +91,9 @@ public class StatsEvents extends ListenerAdapter {
 				}
 				
 				table.get(guildId).update(row -> r.hashMap("messages", row.g("messages").add(guildData.get("messages"))).with("members", row.g("members").add(guildData.get("members")))).runNoReply(connection);
-				guildStats.clear();
 			}
+			
+			guildStats.clear();
 		}, 3, 3, TimeUnit.MINUTES);
 	}
 	

@@ -757,8 +757,6 @@ public class EconomyModule {
 			List<Crate> crates = new ArrayList<>();
 			for (Crate crate : Crate.ALL) {
 				if (crate.isBuyable()) {
-					System.out.println(currentStreak);
-					System.out.println((int) Math.ceil((crate.getChance() / currentStreak) * 4) + 1);
 					if (random.nextInt((int) Math.ceil((crate.getChance() / currentStreak) * 4) + 1) == 0) {
 						crates.add(crate);
 					}

@@ -1072,7 +1072,8 @@ public class GeneralModule {
 				event.reply(messages.get(0).getRight()).queue();
 			} else {
 				for (Pair<String, String> message : messages) {
-					if (message.getRight().startsWith("Version: " + version)) {
+					String messageVersion = message.getRight().split("\n")[0];
+					if (messageVersion.equals("Version: " + version)) {
 						event.reply(message.getRight()).queue();
 						return;
 					}

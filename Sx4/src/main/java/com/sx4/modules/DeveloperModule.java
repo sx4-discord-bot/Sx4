@@ -100,7 +100,7 @@ public class DeveloperModule {
 		
 	@Command(value="parse", allowedArgumentParsingTypes=ArgumentParsingType.POSITIONAL, description="Execute some code, nothing will be sent unless said to")
 	@Developer
-	public void parse(CommandEvent event, @Context Connection connection, @Argument(value="code", endless=true) String parsableString) {
+	public void parse(CommandEvent event, @Context Connection connection, @Argument(value="code", endless=true, nullDefault=true) String parsableString) {
 		if (parsableString == null) {
 			if (event.getMessage().getAttachments().size() > 0) {
 				try {
