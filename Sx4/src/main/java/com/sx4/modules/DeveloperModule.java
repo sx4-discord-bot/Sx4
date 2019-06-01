@@ -7,7 +7,9 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.BlockingDeque;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import org.codehaus.groovy.control.CompilerConfiguration;
 import org.codehaus.groovy.control.customizers.ImportCustomizer;
@@ -19,6 +21,7 @@ import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
 import com.jockie.bot.core.command.Command.Developer;
 import com.jockie.bot.core.command.ICommand.ArgumentParsingType;
+import com.jockie.bot.core.command.ICommand.ContentOverflowPolicy;
 import com.jockie.bot.core.command.Initialize;
 import com.jockie.bot.core.command.impl.CommandEvent;
 import com.jockie.bot.core.command.impl.CommandImpl;
@@ -29,6 +32,9 @@ import com.rethinkdb.model.OptArgs;
 import com.rethinkdb.net.Connection;
 import com.sx4.categories.Categories;
 import com.sx4.core.Sx4Bot;
+import com.sx4.logger.Statistics;
+import com.sx4.logger.handler.EventHandler;
+import com.sx4.logger.util.Utils;
 import com.sx4.settings.Settings;
 import com.sx4.utils.ArgumentUtils;
 import com.sx4.utils.EconomyUtils;
@@ -39,6 +45,7 @@ import com.sx4.utils.TimeUtils;
 import com.sx4.utils.TokenUtils;
 
 import groovy.lang.GroovyShell;
+import net.dv8tion.jda.core.entities.Guild;
 import net.dv8tion.jda.core.entities.Member;
 import net.dv8tion.jda.core.entities.Message;
 import net.dv8tion.jda.core.entities.MessageEmbed;
@@ -198,6 +205,41 @@ public class DeveloperModule {
 		taxData.update(r.hashMap("tax", 0)).runNoReply(connection);
 		
 		event.reply("**" + member.getUser().getAsTag() + "** has received " + String.format("**$%,d** in tax <:done:403285928233402378>", tax)).queue();
+	}
+	
+	@Command(value="logger stats", description="Sends logger stats", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+	@Developer
+	public void loggerStats(CommandEvent event) {
+		event.reply(Statistics.getStatistics()).queue();
+	}
+	
+	@Command(value="logger queue", description="Sends logger queues", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+	@Developer
+	public void loggerQueue(CommandEvent event) {
+		StringBuilder message = new StringBuilder();
+		
+		Map<Long, BlockingDeque<EventHandler.Request>> queue = Sx4Bot.getEventHandler().getQueue();
+		
+		List<Long> mostQueued = queue.keySet().stream()
+			.sorted((key, key2) -> -Integer.compare(queue.get(key).size(), queue.get(key2).size()))
+			.limit(10)
+			.collect(Collectors.toList());
+		
+		for(long guildId : mostQueued) {
+			int queued = queue.get(guildId).size();
+			if(queued > 0) {
+				Guild guild = Sx4Bot.getShardManager().getGuildById(guildId);
+				if(guild != null) {
+					message.append('\n').append(guild.getName() + " (" + guildId + ") - " + queued);
+				}else{
+					message.append('\n').append("Unknown guild (" + guildId + ") - " + queued);
+				}
+			}
+		}
+		
+		message.append('\n').append("Total queued requests: " + Sx4Bot.getEventHandler().getTotalRequestsQueued());
+
+		event.reply(Utils.getMessageSeperated(message)).queue();
 	}
 	
 	@Initialize(all=true)

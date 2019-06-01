@@ -7,13 +7,9 @@ import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.Scanner;
-import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 import com.jagrosh.jdautilities.commons.waiter.EventWaiter;
 import com.jockie.bot.core.command.factory.impl.MethodCommandFactory;
@@ -42,11 +38,9 @@ import com.sx4.events.StatsEvents;
 import com.sx4.events.StatusEvents;
 import com.sx4.events.TriggerEvents;
 import com.sx4.events.WelcomerEvents;
-import com.sx4.logger.Statistics;
 import com.sx4.logger.handler.EventHandler;
 import com.sx4.logger.handler.ExceptionHandler;
 import com.sx4.logger.handler.GuildMessageCache;
-import com.sx4.logger.util.Utils;
 import com.sx4.settings.Settings;
 import com.sx4.utils.CheckUtils;
 import com.sx4.utils.DatabaseUtils;
@@ -233,65 +227,6 @@ public class Sx4Bot {
 		AutoroleEvents.ensureAutoroles();
 		
 		System.gc();
-		
-		/* Used for debugging */
-		try (Scanner scanner = new Scanner(System.in)) {
-			String line;
-			while((line = scanner.nextLine()) != null) {
-				if(line.startsWith("help")) {
-					System.out.println(Utils.getMessageSeperated(new StringBuilder()
-						.append("\nqueued - sends information about the queued requests")
-						.append("\nstats - sends the statistics")
-						.append("\nclear - clears the console")));
-					
-					continue;
-				}
-				
-				if(line.equalsIgnoreCase("queued")) {
-					StringBuilder message = new StringBuilder();
-					
-					Map<Long, BlockingDeque<EventHandler.Request>> queue = Sx4Bot.getEventHandler().getQueue();
-					
-					List<Long> mostQueued = queue.keySet().stream()
-						.sorted((key, key2) -> -Integer.compare(queue.get(key).size(), queue.get(key2).size()))
-						.limit(10)
-						.collect(Collectors.toList());
-					
-					for(long guildId : mostQueued) {
-						int queued = queue.get(guildId).size();
-						if(queued > 0) {
-							Guild guild = Sx4Bot.getShardManager().getGuildById(guildId);
-							if(guild != null) {
-								message.append('\n').append(guild.getName() + " (" + guildId + ") - " + queued);
-							}else{
-								message.append('\n').append("Unknown guild (" + guildId + ") - " + queued);
-							}
-						}
-					}
-					
-					message.append('\n').append("Total queued requests: " + Sx4Bot.getEventHandler().getTotalRequestsQueued());
-
-					System.out.println(Utils.getMessageSeperated(message));
-					
-					continue;
-				}
-				
-				if (line.equalsIgnoreCase("stats")) {
-					Statistics.printStatistics();
-					
-					continue;
-				}
-				
-				if (line.equalsIgnoreCase("clear")) {
-				    System.out.print("\033[H\033[2J");
-				    System.out.flush();
-				    
-				    continue;
-				}
-				
-				System.out.println(Utils.getMessageSeperated("\nUnknown command"));
-			}
-		}
 	}
 	
 	public static Connection getConnection() {

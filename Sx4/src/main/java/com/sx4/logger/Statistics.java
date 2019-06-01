@@ -46,7 +46,7 @@ public class Statistics {
 		Statistics.skippedLogs.incrementAndGet();
 	}
 	
-	public static void printStatistics() {
+	public static String getStatistics() {
 		StringBuilder message = new StringBuilder();
 		
 		{
@@ -72,18 +72,6 @@ public class Statistics {
 		message.append('\n').append(String.format(WEBHOOK_MESSAGE, Sx4Bot.getEventHandler().getRegisteredWebhooks().size()));
 		message.append('\n').append(String.format(QUEUED_LOGS_MESSAGE, Sx4Bot.getEventHandler().getTotalRequestsQueued()));
 		
-		System.out.println(Utils.getMessageSeperated(message));
-	}
-	
-	static {
-		new Thread(() -> {
-			while(true) {
-				Statistics.printStatistics();
-				
-				try {
-					Thread.sleep(TimeUnit.MINUTES.toMillis(5));
-				}catch(InterruptedException e) {}
-			}
-		}).start();
+		return message.toString();
 	}
 }
