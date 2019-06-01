@@ -1386,7 +1386,7 @@ public class GeneralModule {
 			EmbedBuilder embed = new EmbedBuilder()
 					.setAuthor(botData.getString("username") + "#" + botData.getString("discriminator"), null, botAvatarUrl)
 					.setThumbnail(botAvatarUrl)
-					.setDescription((botData.getBoolean("certifiedBot") == true ? "<:dblCertified:392249976639455232> | " : "") + botData.getString("shortdesc"))
+					.setDescription((botData.getBoolean("certifiedBot") == true ? "<:certified:438392214545235978> | " : "") + botData.getString("shortdesc"))
 					.addField("Guilds", guildCount, true)
 					.addField("Prefix", botData.getString("prefix"), true)
 					.addField("Library", botData.getString("lib"), true)

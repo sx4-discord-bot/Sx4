@@ -127,6 +127,7 @@ public class ImageModule {
 		Member member = ArgumentUtils.getMember(event.getGuild(), userArgument);
 		if (member == null) {
 			event.reply("I could not find that user :no_entry:").queue();
+			return;
 		}
 		
 		String url = String.format("http://%s:8443/api/discord?image=%s&theme=%s&text=%s&colour=%s&name=%s&bot=%s", Settings.LOCAL_HOST, member.getUser().getEffectiveAvatarUrl(), white ? "white" : "dark",

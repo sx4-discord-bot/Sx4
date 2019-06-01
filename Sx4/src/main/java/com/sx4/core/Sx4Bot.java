@@ -198,7 +198,7 @@ public class Sx4Bot {
 		listener.addCommandEventListener(new Sx4CommandEventListener());
 		
 		bot = new DefaultShardManagerBuilder().setToken(Settings.BOT_OATH).build();
-		bot.addEventListener(waiter, listener);
+		bot.addEventListener(listener, waiter);
 		bot.addEventListener(new ChangesMessageCache(), new SelfroleEvents(), new ModEvents(), new ConnectionEvents(), new AwaitEvents(), new StatsEvents(), new WelcomerEvents(), new AutoroleEvents(), 
 				new TriggerEvents(), new ImageModeEvents(), new MuteEvents(), new AntiInviteEvents(), new AntiLinkEvents(), new ServerLogEvents(), Sx4Bot.eventHandler, new ExceptionHandler(), GuildMessageCache.INSTANCE);
 		
@@ -219,7 +219,7 @@ public class Sx4Bot {
 		        .mapToInt(jda -> ((JDAImpl) jda).getGuildSetupController().getSetupNodes(GuildSetupController.Status.UNAVAILABLE).size())
 		        .sum();
 
-		System.out.println(String.format("Connected to %s with %,d/%,d available servers and %,d users", bot.getApplicationInfo().getJDA().getSelfUser().getAsTag(), availableGuilds, availableGuilds + unavailableGuilds, bot.getUsers().size()));
+		System.out.println(String.format("Connected to %s with %,d/%,d available servers and %,d users", bot.getShards().get(0).getSelfUser().getAsTag(), availableGuilds, availableGuilds + unavailableGuilds, bot.getUsers().size()));
 
 		DatabaseUtils.ensureTableData();
 		StatusEvents.initialize();

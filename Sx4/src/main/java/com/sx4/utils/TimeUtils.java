@@ -32,11 +32,15 @@ public class TimeUtils {
 			if (!timeGroups.matches()) {
 				return 0L;
 			} else {
-				long days = timeGroups.group(1) == null ? 0L : Long.parseLong(timeGroups.group(1));
-				long hours = timeGroups.group(2) == null ? 0L : Long.parseLong(timeGroups.group(2));
-				long minutes = timeGroups.group(3) == null ? 0L : Long.parseLong(timeGroups.group(3));
-				long seconds = timeGroups.group(4) == null ? 0L : Long.parseLong(timeGroups.group(4));
-				return (days * 86400L) + (hours * 3600L) + (minutes * 60L) + seconds; 
+				try {
+					long days = timeGroups.group(1) == null ? 0L : Long.parseLong(timeGroups.group(1));
+					long hours = timeGroups.group(2) == null ? 0L : Long.parseLong(timeGroups.group(2));
+					long minutes = timeGroups.group(3) == null ? 0L : Long.parseLong(timeGroups.group(3));
+					long seconds = timeGroups.group(4) == null ? 0L : Long.parseLong(timeGroups.group(4));
+					return (days * 86400L) + (hours * 3600L) + (minutes * 60L) + seconds; 
+				} catch(NumberFormatException ex) {
+					return Long.MAX_VALUE;
+				}
 			}
 		}
 	}

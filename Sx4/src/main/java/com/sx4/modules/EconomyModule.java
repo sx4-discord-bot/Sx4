@@ -196,7 +196,7 @@ public class EconomyModule {
 			if (BigInteger.valueOf(userItem.getAmount()).compareTo(crateAmount) != -1) {
 				for (int i = 0; i < crateAmount.longValue(); i++) { 
 					for (Item item : winnableItems) {
-						int equation = (int) Math.ceil((1 / ((1 / (double) item.getPrice()) * (double) crate.getPrice())) * 38);
+						int equation = (int) Math.ceil((double) (38 * item.getPrice()) / crate.getPrice());
 						if (random.nextInt(equation + 1) == 0) {
 							itemsWon.add(item);
 						}

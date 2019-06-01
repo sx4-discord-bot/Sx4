@@ -1598,16 +1598,16 @@ public class ModModule {
 		}
 		
 		PermissionOverride channelOverrides = channel.getPermissionOverride(event.getGuild().getPublicRole()); 
-		if (channelOverrides != null && ((channelOverrides.getAllowed() != null && channelOverrides.getAllowed().contains(Permission.MESSAGE_WRITE)) || (channelOverrides.getInherit() != null && channelOverrides.getInherit().contains(Permission.MESSAGE_WRITE)))) {
+		if (channelOverrides != null && (channelOverrides.getAllowed().contains(Permission.MESSAGE_WRITE) || channelOverrides.getInherit().contains(Permission.MESSAGE_WRITE))) {
 			event.reply(channel.getAsMention() + " has been locked down <:done:403285928233402378>").queue();
 			List<Permission> channelDeniedPermissions = new ArrayList<>(channelOverrides.getDenied());
 			channelDeniedPermissions.add(Permission.MESSAGE_WRITE);
 			channel.putPermissionOverride(event.getGuild().getPublicRole()).setPermissions(channelOverrides.getAllowed(), channelDeniedPermissions).queue();
 		} else {
 			event.reply(channel.getAsMention() + " is no longer locked down <:done:403285928233402378>").queue();
-			List<Permission> channelDeniedPermissions = new ArrayList<>(channelOverrides.getDenied());
+			List<Permission> channelDeniedPermissions = channelOverrides == null ? new ArrayList<>() : new ArrayList<>(channelOverrides.getDenied());
 			channelDeniedPermissions.remove(Permission.MESSAGE_WRITE);
-			channel.putPermissionOverride(event.getGuild().getPublicRole()).setPermissions(channelOverrides.getAllowed(), channelDeniedPermissions).queue();
+			channel.putPermissionOverride(event.getGuild().getPublicRole()).setPermissions(channelOverrides == null ? new ArrayList<>() : channelOverrides.getAllowed(), channelDeniedPermissions).queue();
 		}
 	}
 	
@@ -3084,7 +3084,7 @@ public class ModModule {
 				return;
 			}
 			
-			if (role.getPosition() >= event.getSelfMember().getRoles().get(0).getPosition()) {
+			if (!event.getSelfMember().canInteract(role)) {
 				event.reply("I am unable to mute that user as the mute role is higher or equal than my top role :no_entry:").queue();
 				return;
 			}
@@ -3097,11 +3097,9 @@ public class ModModule {
 			event.reply("**" + member.getUser().getAsTag() + "** has been muted for " + muteString + " <:done:403285928233402378>:ok_hand:").queue();
 			event.getGuild().getController().addSingleRoleToMember(member, role).queue();
 			
-			if (!member.getUser().isBot()) {
-				member.getUser().openPrivateChannel().queue(channel -> {
-					channel.sendMessage(ModUtils.getMuteEmbed(event.getGuild(), null, event.getAuthor(), muteLength, reason)).queue();
-				}, e -> {});
-			}
+			member.getUser().openPrivateChannel().queue(channel -> {
+				channel.sendMessage(ModUtils.getMuteEmbed(event.getGuild(), null, event.getAuthor(), muteLength, reason)).queue();
+			}, e -> {});
 			
 			ModUtils.createModLogAndOffence(event.getGuild(), connection, event.getAuthor(), member.getUser(), "Mute (" + muteString + ")", reason);
 			
@@ -3186,7 +3184,7 @@ public class ModModule {
 			return;
 		}
 		
-		mutedUsers.sort((a, b) -> Long.compare((a.get("time") instanceof Double ? (long) (double) a.get("time") : (long) a.get("time")) - timestamp + (a.get("amount") instanceof Double ? (long) (double) a.get("amount") : (long) a.get("amount")), (b.get("time") instanceof Double ? (long) (double) b.get("time") : (long) b.get("time")) - timestamp + (b.get("amount") instanceof Double ? (long) (double) b.get("amount") : (long) b.get("amount"))));
+		mutedUsers.sort((a, b) -> Long.compare(a.get("time") instanceof Double ? (long) (double) a.get("time") : (long) a.get("time"), b.get("time") instanceof Double ? (long) (double) b.get("time") : (long) b.get("time")));
 		PagedResult<Map<String, Object>> paged = new PagedResult<>(mutedUsers)
 				.setAuthor("Muted Users", null, event.getGuild().getIconUrl())
 				.setIndexed(false)
@@ -3548,6 +3546,9 @@ public class ModModule {
 					
 					List<Map<String, Object>> muteUsers = (List<Map<String, Object>>) muteDataRan.get("users");
 					muteData.update(r.hashMap("users", ModUtils.getMuteData(member.getUser().getId(), muteUsers, Math.toIntExact(muteLength)))).runNoReply(connection);
+					
+					ScheduledFuture<?> executor = MuteEvents.scheduledExectuor.schedule(() -> MuteEvents.removeUserMute(member, role), muteLength, TimeUnit.SECONDS);
+					MuteEvents.putExecutor(event.getGuild().getId(), member.getUser().getId(), executor);
 				}, error -> {
 					event.reply(error).queue();
 					return;

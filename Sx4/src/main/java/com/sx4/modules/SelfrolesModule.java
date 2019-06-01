@@ -786,7 +786,7 @@ public class SelfrolesModule {
 	@SuppressWarnings("unchecked")
 	@Command(value="role", description="Assign a self role to yourself, view all self roles in `self roles list`")
 	@BotPermissions({Permission.MANAGE_ROLES})
-	public void role(CommandEvent event, @Context Connection connection, @Argument(value="role") String roleArgument) {
+	public void role(CommandEvent event, @Context Connection connection, @Argument(value="role", endless=true) String roleArgument) {
 		Map<String, Object> data = r.table("selfroles").get(event.getGuild().getId()).run(connection);
 		
 		Role role = ArgumentUtils.getRole(event.getGuild(), roleArgument);

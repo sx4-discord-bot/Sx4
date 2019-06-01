@@ -7,6 +7,8 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Consumer;
 
 import com.sx4.core.Sx4Bot;
@@ -20,27 +22,40 @@ import net.dv8tion.jda.core.entities.Webhook;
 import net.dv8tion.jda.core.events.guild.member.GuildMemberJoinEvent;
 import net.dv8tion.jda.core.events.guild.member.GuildMemberLeaveEvent;
 import net.dv8tion.jda.core.hooks.ListenerAdapter;
+import net.dv8tion.jda.core.utils.tuple.Pair;
+import net.dv8tion.jda.webhook.WebhookClient;
+import net.dv8tion.jda.webhook.WebhookClientBuilder;
 import net.dv8tion.jda.webhook.WebhookMessage;
 import net.dv8tion.jda.webhook.WebhookMessageBuilder;
+import okhttp3.OkHttpClient;
 
 public class WelcomerEvents extends ListenerAdapter {
 	
-	private Map<String, Webhook> welcomerWebhooks = new HashMap<>();
-	private Map<String, Webhook> leaverWebhooks = new HashMap<>();
+	private OkHttpClient client = new OkHttpClient.Builder().build();
 	
-	private void getWelcomerWebhook(Guild guild, Map<String, Object> data, Consumer<Webhook> webhook) throws MalformedURLException, IOException {
+	private ScheduledExecutorService scheduledExectuor = Executors.newSingleThreadScheduledExecutor();
+	
+	private Map<String, Pair<Webhook, WebhookClient>> welcomerWebhooks = new HashMap<>();
+	private Map<String, Pair<Webhook, WebhookClient>> leaverWebhooks = new HashMap<>();
+	
+	private void getWelcomerWebhook(Guild guild, Map<String, Object> data, Consumer<WebhookClient> webhook) throws MalformedURLException, IOException {
 		TextChannel channel = guild.getTextChannelById((String) data.get("channel")); 
 		User selfUser = guild.getSelfMember().getUser();
 		if (this.welcomerWebhooks.containsKey(guild.getId())) {
-			Webhook currentWebhook = this.welcomerWebhooks.get(guild.getId());
+			Webhook currentWebhook = this.welcomerWebhooks.get(guild.getId()).getLeft();
 			if (!currentWebhook.getChannel().equals(channel)) {
 				currentWebhook.delete().queue();
 				channel.createWebhook(selfUser.getName() + " - Welcomer").setAvatar(Icon.from(new URL(selfUser.getEffectiveAvatarUrl()).openStream())).queue(newWebhook -> {
-					this.welcomerWebhooks.put(guild.getId(), newWebhook);
-					webhook.accept(newWebhook);
+					WebhookClient webhookClient = new WebhookClientBuilder(newWebhook.getUrl())
+							.setHttpClient(this.client)
+							.setExecutorService(this.scheduledExectuor)
+							.build();
+					this.welcomerWebhooks.put(guild.getId(), Pair.of(newWebhook, webhookClient));
+					webhook.accept(webhookClient);
 				});
 			} else {
-				webhook.accept(currentWebhook);
+				WebhookClient webhookClient = this.welcomerWebhooks.get(guild.getId()).getRight();
+				webhook.accept(webhookClient);
 			}
 		} else {
 			channel.getWebhooks().queue(webhooks -> {
@@ -50,13 +65,21 @@ public class WelcomerEvents extends ListenerAdapter {
 							channelWebhook.delete().queue();
 							try {
 								channel.createWebhook(selfUser.getName() + " - Welcomer").setAvatar(Icon.from(new URL(selfUser.getEffectiveAvatarUrl()).openStream())).queue(newWebhook -> {
-									this.welcomerWebhooks.put(guild.getId(), newWebhook);
-									webhook.accept(newWebhook);
+									WebhookClient webhookClient = new WebhookClientBuilder(newWebhook.getUrl())
+											.setHttpClient(this.client)
+											.setExecutorService(this.scheduledExectuor)
+											.build();
+									this.welcomerWebhooks.put(guild.getId(), Pair.of(newWebhook, webhookClient));
+									webhook.accept(webhookClient);
 								});
 							} catch (IOException e) {}
 						} else {
-							this.welcomerWebhooks.put(guild.getId(), channelWebhook);
-							webhook.accept(channelWebhook);
+							WebhookClient webhookClient = new WebhookClientBuilder(channelWebhook.getUrl())
+									.setHttpClient(this.client)
+									.setExecutorService(this.scheduledExectuor)
+									.build();
+							this.welcomerWebhooks.put(guild.getId(), Pair.of(channelWebhook, webhookClient));
+							webhook.accept(webhookClient);
 						}
 						
 						return;
@@ -65,27 +88,36 @@ public class WelcomerEvents extends ListenerAdapter {
 				
 				try {
 					channel.createWebhook(selfUser.getName() + " - Welcomer").setAvatar(Icon.from(new URL(selfUser.getEffectiveAvatarUrl()).openStream())).queue(newWebhook -> {
-						this.welcomerWebhooks.put(guild.getId(), newWebhook);
-						webhook.accept(newWebhook);
+						WebhookClient webhookClient = new WebhookClientBuilder(newWebhook.getUrl())
+								.setHttpClient(this.client)
+								.setExecutorService(this.scheduledExectuor)
+								.build();
+						this.welcomerWebhooks.put(guild.getId(), Pair.of(newWebhook, webhookClient));
+						webhook.accept(webhookClient);
 					});
 				} catch (IOException e) {}
 			});
 		}
 	}
 	
-	private void getLeaverWebhook(Guild guild, Map<String, Object> data, Consumer<Webhook> webhook) throws MalformedURLException, IOException {
+	private void getLeaverWebhook(Guild guild, Map<String, Object> data, Consumer<WebhookClient> webhook) throws MalformedURLException, IOException {
 		TextChannel channel = guild.getTextChannelById((String) data.get("leavechannel")); 
 		User selfUser = guild.getSelfMember().getUser();
 		if (this.leaverWebhooks.containsKey(guild.getId())) {
-			Webhook currentWebhook = this.leaverWebhooks.get(guild.getId());
+			Webhook currentWebhook = this.leaverWebhooks.get(guild.getId()).getLeft();
 			if (!currentWebhook.getChannel().equals(channel)) {
 				currentWebhook.delete().queue();
 				channel.createWebhook(selfUser.getName() + " - Leaver").setAvatar(Icon.from(new URL(selfUser.getEffectiveAvatarUrl()).openStream())).queue(newWebhook -> {
-					this.leaverWebhooks.put(guild.getId(), newWebhook);
-					webhook.accept(newWebhook);
+					WebhookClient webhookClient = new WebhookClientBuilder(newWebhook.getUrl())
+							.setHttpClient(this.client)
+							.setExecutorService(this.scheduledExectuor)
+							.build();
+					this.welcomerWebhooks.put(guild.getId(), Pair.of(newWebhook, webhookClient));
+					webhook.accept(webhookClient);
 				});
 			} else {
-				webhook.accept(currentWebhook);
+				WebhookClient webhookClient = this.leaverWebhooks.get(guild.getId()).getRight();
+				webhook.accept(webhookClient);
 			}
 		} else {
 			channel.getWebhooks().queue(webhooks -> {
@@ -95,13 +127,21 @@ public class WelcomerEvents extends ListenerAdapter {
 							channelWebhook.delete().queue();
 							try {
 								channel.createWebhook(selfUser.getName() + " - Leaver").setAvatar(Icon.from(new URL(selfUser.getEffectiveAvatarUrl()).openStream())).queue(newWebhook -> {
-									this.leaverWebhooks.put(guild.getId(), newWebhook);
-									webhook.accept(newWebhook);
+									WebhookClient webhookClient = new WebhookClientBuilder(newWebhook.getUrl())
+											.setHttpClient(this.client)
+											.setExecutorService(this.scheduledExectuor)
+											.build();
+									this.welcomerWebhooks.put(guild.getId(), Pair.of(newWebhook, webhookClient));
+									webhook.accept(webhookClient);
 								});
 							} catch (IOException e) {}
 						} else {
-							this.leaverWebhooks.put(guild.getId(), channelWebhook);
-							webhook.accept(channelWebhook);
+							WebhookClient webhookClient = new WebhookClientBuilder(channelWebhook.getUrl())
+									.setHttpClient(this.client)
+									.setExecutorService(this.scheduledExectuor)
+									.build();
+							this.welcomerWebhooks.put(guild.getId(), Pair.of(channelWebhook, webhookClient));
+							webhook.accept(webhookClient);
 						}
 						
 						return;
@@ -110,8 +150,12 @@ public class WelcomerEvents extends ListenerAdapter {
 				
 				try {
 					channel.createWebhook(selfUser.getName() + " - Leaver").setAvatar(Icon.from(new URL(selfUser.getEffectiveAvatarUrl()).openStream())).queue(newWebhook -> {
-						this.leaverWebhooks.put(guild.getId(), newWebhook);
-						webhook.accept(newWebhook);
+						WebhookClient webhookClient = new WebhookClientBuilder(newWebhook.getUrl())
+								.setHttpClient(this.client)
+								.setExecutorService(this.scheduledExectuor)
+								.build();
+						this.welcomerWebhooks.put(guild.getId(), Pair.of(newWebhook, webhookClient));
+						webhook.accept(webhookClient);
 					});
 				} catch (IOException e) {}
 			});
@@ -136,10 +180,10 @@ public class WelcomerEvents extends ListenerAdapter {
 						}
 						
 						try {
-							webhook.newClient().build().send(bytes, "welcomer." + response.headers().get("Content-Type").split("/")[1]);
+							webhook.send(bytes, "welcomer." + response.headers().get("Content-Type").split("/")[1]);
 						} catch (IllegalArgumentException e) {}
 					} else if (!message.isEmpty() && response == null) {
-						webhook.newClient().build().send(message.build());
+						webhook.send(message.build());
 					} else {
 						byte[] bytes;
 						try {
@@ -150,7 +194,7 @@ public class WelcomerEvents extends ListenerAdapter {
 						
 						try {
 							WebhookMessage webhookMessage = new WebhookMessageBuilder(message.build()).addFile("welcomer." + response.headers().get("Content-Type").split("/")[1], bytes).build();
-							webhook.newClient().build().send(webhookMessage);
+							webhook.send(webhookMessage);
 						} catch (IllegalArgumentException e) {}
 					}
 				});
@@ -163,10 +207,10 @@ public class WelcomerEvents extends ListenerAdapter {
 		if (data == null || (boolean) data.get("leavetoggle") == false || data.get("leavechannel") == null) {
 			return;
 		}
-		
+
 		try {
 			this.getLeaverWebhook(event.getGuild(), data, webhook -> {
-				webhook.newClient().build().send(WelcomerUtils.getLeaver(event.getMember(), event.getGuild(), data).build());
+				webhook.send(WelcomerUtils.getLeaver(event.getMember(), event.getGuild(), data).build());
 			});
 		} catch (IOException e) {}
 	}

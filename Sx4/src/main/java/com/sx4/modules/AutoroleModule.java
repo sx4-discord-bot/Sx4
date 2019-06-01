@@ -178,6 +178,7 @@ public class AutoroleModule {
 		
 		@Command(value="fix", description="Allows you to give all the current members in your server the auto role", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@AuthorPermissions({Permission.MANAGE_ROLES})
+		@BotPermissions({Permission.MANAGE_ROLES})
 		public void fix(CommandEvent event, @Context Connection connection) {
 			Map<String, Object> data = r.table("autorole").get(event.getGuild().getId()).run(connection);
 			if (data == null) {
@@ -202,28 +203,33 @@ public class AutoroleModule {
 				return;
 			}
 			
+			if ((role != null && !event.getGuild().getSelfMember().canInteract(role)) || (botRole != null && !event.getGuild().getSelfMember().canInteract(botRole))) {
+				event.reply("The autorole or botrole is above my highest role so I cannot give it to any users :no_entry:").queue();
+				return;
+			}
+			
 			int users = 0, bots = 0;
 			for (Member member : event.getGuild().getMembers()) {
 				if (roleData != null && botRoleData == null) {
-					if (role != null) {
+					if (role != null && !member.getRoles().contains(role)) {
 						event.getGuild().getController().addSingleRoleToMember(member, role).queue();
 						users += 1;
 					}
 				} else if (roleData == null && botRoleData != null) {
 					if (member.getUser().isBot()) {
-						if (botRole != null) {
+						if (botRole != null && !member.getRoles().contains(botRole)) {
 							event.getGuild().getController().addSingleRoleToMember(member, botRole).queue();
 							bots += 1;
 						}
 					}
 				} else {
 					if (member.getUser().isBot()) {
-						if (botRole != null) {
+						if (botRole != null && !member.getRoles().contains(botRole)) {
 							event.getGuild().getController().addSingleRoleToMember(member, botRole).queue();
 							bots += 1;
 						}
 					} else {
-						if (role != null) {
+						if (role != null && !member.getRoles().contains(role)) {
 							event.getGuild().getController().addSingleRoleToMember(member, role).queue();
 							users += 1;
 						}
@@ -232,11 +238,11 @@ public class AutoroleModule {
 			}
 			
 			if (users == 0 && bots == 0) {
-				event.reply("The autorole is already applied to every member in the server :no_entry:").queue();
+				event.reply("The autorole is already applied to every user in the server :no_entry:").queue();
 				return;
 			}
 			
-			event.reply((users == 0 ? "" : "**" + users + "** users will be given the `" + role.getName() + "` role") + (bots != 0 && users != 0 ? " and " : "") + (bots == 0 ? "" : "**" + bots + "** bots will be given the `" + botRole.getName() + "` role") + " <:done:403285928233402378>").queue();
+			event.reply((users == 0 ? "" : "**" + users + "** user" + (users == 1 ? "" : "s") +  " will be given the `" + role.getName() + "` role") + (bots != 0 && users != 0 ? " and " : "") + (bots == 0 ? "" : "**" + bots + "** bot" + (bots == 1 ? "" : "s") + " will be given the `" + botRole.getName() + "` role") + " <:done:403285928233402378>").queue();
 		}
 		
 	}

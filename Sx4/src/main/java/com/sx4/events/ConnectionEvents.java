@@ -4,9 +4,7 @@ import java.time.Instant;
 
 import com.sx4.core.Sx4Bot;
 import com.sx4.settings.Settings;
-import com.sx4.utils.DatabaseUtils;
 
-import net.dv8tion.jda.bot.sharding.ShardManager;
 import net.dv8tion.jda.core.EmbedBuilder;
 import net.dv8tion.jda.core.entities.TextChannel;
 import net.dv8tion.jda.core.events.DisconnectEvent;
