@@ -1384,7 +1384,7 @@ public class GeneralModule {
 			String guildCount = botData.has("server_count") ? String.format("%,d", botData.getInt("server_count")) : "N/A";
 			User owner = event.getShardManager().getUserById(botData.getJSONArray("owners").getString(0));
 			EmbedBuilder embed = new EmbedBuilder()
-					.setAuthor(botData.getString("username") + "#" + botData.getString("discriminator"), null, botAvatarUrl)
+					.setAuthor(botData.getString("username") + "#" + botData.getString("discriminator"), "https://discordbots.org/bot/" + botData.getString("id"), botAvatarUrl)
 					.setThumbnail(botAvatarUrl)
 					.setDescription((botData.getBoolean("certifiedBot") == true ? "<:certified:438392214545235978> | " : "") + botData.getString("shortdesc"))
 					.addField("Guilds", guildCount, true)
@@ -2052,11 +2052,7 @@ public class GeneralModule {
 				
 				List<String> memberRoles = new ArrayList<String>();
 				for (Role role : member.getRoles()) {
-					if (role.isPublicRole()) {
-						continue;
-					} else {
-						memberRoles.add(role.getAsMention());
-					}
+					memberRoles.add(role.getAsMention());
 				}
 				
 				embed.setColor(member.getColor());
@@ -2070,12 +2066,13 @@ public class GeneralModule {
 				embed.addField("User Colour", "#" + Integer.toHexString(member.getColorRaw()).toUpperCase(), true);
 				embed.addField("User ID", member.getUser().getId(), true);
 				embed.addField("Highest Role", member.getRoles().isEmpty() ? event.getGuild().getPublicRole().getAsMention() : member.getRoles().get(0).getAsMention(), true);
-				embed.addField("Number of Roles", String.valueOf(member.getRoles().size() - 1), true);
+				embed.addField("Number of Roles", String.valueOf(member.getRoles().size()), true);
 				if (!member.getRoles().isEmpty()) {
-					if (member.getRoles().size() - 1 <= 10) {
+					if (member.getRoles().size() <= 10) {
 						embed.addField("Roles", String.join(", ", memberRoles), false);
 					} else {
-						embed.addField("Roles", String.join(", ", memberRoles.subList(0, 10)) + " and " + (member.getRoles().size() - 11) + " more roles", false);
+						int extraRoles = member.getRoles().size() - 10;
+						embed.addField("Roles", String.join(", ", memberRoles.subList(0, 10)) + " and " + (extraRoles) + " more role" + (extraRoles == 1 ? "" : "s"), false);
 					}
 				} else {
 					embed.addField("Roles", "No Roles", false);

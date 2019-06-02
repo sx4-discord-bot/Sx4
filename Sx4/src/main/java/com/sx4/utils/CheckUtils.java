@@ -95,8 +95,8 @@ public class CheckUtils {
 							stringPermissions = missingPermissions.get(0).getName();
 						} else {
 							for (int i = 0; i < missingPermissions.size(); i++) {
-								if (i != missingPermissions.size()) {
-									stringPermissions += missingPermissions.get(i).getName() + (i != missingPermissions.size() - 1 ? ", " : " ");
+								if (i != missingPermissions.size() - 1) {
+									stringPermissions += missingPermissions.get(i).getName() + (i != missingPermissions.size() - 2 ? ", " : " ");
 								} else {
 									stringPermissions += "and " + missingPermissions.get(i).getName();
 								}
@@ -136,8 +136,8 @@ public class CheckUtils {
 							stringPermissions = missingPermissions.get(0).getName();
 						} else {
 							for (int i = 0; i < missingPermissions.size(); i++) {
-								if (i != missingPermissions.size()) {
-									stringPermissions += missingPermissions.get(i).getName() + (i != missingPermissions.size() - 1 ? ", " : " ");
+								if (i != missingPermissions.size() - 1) {
+									stringPermissions += missingPermissions.get(i).getName() + (i != missingPermissions.size() - 2 ? ", " : " ");
 								} else {
 									stringPermissions += "and " + missingPermissions.get(i).getName();
 								}

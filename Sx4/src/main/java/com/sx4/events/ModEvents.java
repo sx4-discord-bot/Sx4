@@ -94,19 +94,15 @@ public class ModEvents extends ListenerAdapter {
 	public void onGuildMemberJoin(GuildMemberJoinEvent event) {
 		Map<String, Object> data = r.table("mute").get(event.getGuild().getId()).run(Sx4Bot.getConnection());
 		if (data != null) {
+			long timestampNow = Clock.systemUTC().instant().getEpochSecond();
+			
 			List<Map<String, Object>> users = (List<Map<String, Object>>) data.get("users");
 			for (Map<String, Object> userData : users) {
 				if (userData.get("id").equals(event.getMember().getUser().getId())) {
 					if (userData.get("amount") != null) {
-						long timeLeft = ((long) userData.get("time") + (long) userData.get("amount")) - Clock.systemUTC().instant().getEpochSecond();
+						long timeLeft = ((long) userData.get("time") + (userData.get("amount") instanceof Double ? (long) (double) userData.get("amount") : (long) userData.get("amount"))) - timestampNow;
 						if (timeLeft > 0) {
-							Role mutedRole = null;
-							for (Role role : event.getGuild().getRoles()) {
-								if (role.getName().equals("Muted - " + event.getJDA().getSelfUser().getName())) {
-									mutedRole = role;
-								}
-							}
-							
+							Role mutedRole = MuteEvents.getMuteRole(event.getGuild());
 							if (mutedRole != null) {
 								event.getGuild().getController().addSingleRoleToMember(event.getMember(), mutedRole).queue();
 							}
@@ -199,26 +195,14 @@ public class ModEvents extends ListenerAdapter {
 	}
 	
 	public void onTextChannelCreate(TextChannelCreateEvent event) {
-		Role mutedRole = null;
-		for (Role role : event.getGuild().getRoles()) {
-			if (role.getName().equals("Muted - " + event.getJDA().getSelfUser().getName())) {
-				mutedRole = role;
-			}
-		}
-		
+		Role mutedRole = MuteEvents.getMuteRole(event.getGuild());
 		if (mutedRole != null) {
 			event.getChannel().putPermissionOverride(mutedRole).setDeny(Permission.MESSAGE_WRITE).queue();
 		}
 	}
 	
 	public void onVoiceChannelCreate(VoiceChannelCreateEvent event) {
-		Role mutedRole = null;
-		for (Role role : event.getGuild().getRoles()) {
-			if (role.getName().equals("Muted - " + event.getJDA().getSelfUser().getName())) {
-				mutedRole = role;
-			}
-		}
-		
+		Role mutedRole = MuteEvents.getMuteRole(event.getGuild());
 		if (mutedRole != null) {
 			event.getChannel().putPermissionOverride(mutedRole).setDeny(Permission.VOICE_SPEAK).queue();
 		}

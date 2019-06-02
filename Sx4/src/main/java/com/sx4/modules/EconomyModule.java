@@ -506,7 +506,7 @@ public class EconomyModule {
 		
 		@SuppressWarnings("unchecked")
 		@Command(value="activate", description="Activates a booster which is activatable")
-		public void activate(CommandEvent event, @Context Connection connection, @Argument(value="booster name") String boosterName) {
+		public void activate(CommandEvent event, @Context Connection connection, @Argument(value="booster name", endless=true) String boosterName) {
 			Get data = r.table("bank").get(event.getAuthor().getId());
 			Map<String, Object> dataRan = data.run(connection);
 			
@@ -534,7 +534,7 @@ public class EconomyModule {
 					return;
 				}
 				
-				if ((Double) dataRan.get("picktime") == null || Clock.systemUTC().instant().getEpochSecond() - (Double) dataRan.get("picktime") >= EconomyUtils.MINE_COOLDOWN) {
+				if ((Long) dataRan.get("picktime") == null || Clock.systemUTC().instant().getEpochSecond() - (Long) dataRan.get("picktime") >= EconomyUtils.MINE_COOLDOWN) {
 					event.reply("You currently do not have a cooldown on your mine :no_entry:").queue();
 					return;
 				}
@@ -1456,7 +1456,7 @@ public class EconomyModule {
 			int cost = pickaxe.getAmountOfMaterialsForRepair(durabilityNeeded);
 			if (userItem.getAmount() < cost) {
 				long fixBy = pickaxe.getEstimateOfDurability(userItem.getAmount());
-				event.reply("You do not have enough materials to fix your pickaxe by **" + durabilityNeeded + "** durability, you would need " + cost + " " + repairItem.getName() + "`. You can fix your pickaxe by **" + fixBy + "** durability with your current amount of `" + repairItem.getName() + "` :no_entry:").queue();
+				event.reply("You do not have enough materials to fix your pickaxe by **" + durabilityNeeded + "** durability, you would need `" + cost + " " + repairItem.getName() + "`. You can fix your pickaxe by **" + fixBy + "** durability with your current amount of `" + repairItem.getName() + "` :no_entry:").queue();
 				return;
 			}
 			
@@ -1476,7 +1476,7 @@ public class EconomyModule {
 						ItemStack userItemNew = EconomyUtils.getUserItem(itemsNew, repairItem);
 						if (userItemNew.getAmount() < cost) {
 							long fixBy = pickaxe.getEstimateOfDurability(userItemNew.getAmount());
-							event.reply("You do not have enough materials to fix your pickaxe by **" + durabilityNeeded + "** durability, you would need " + cost + " " + repairItem.getName() + "`. You can fix your pickaxe by **" + fixBy + "** durability with your current amount of `" + repairItem.getName() + "` :no_entry:").queue();
+							event.reply("You do not have enough materials to fix your pickaxe by **" + durabilityNeeded + "** durability, you would need `" + cost + " " + repairItem.getName() + "`. You can fix your pickaxe by **" + fixBy + "** durability with your current amount of `" + repairItem.getName() + "` :no_entry:").queue();
 							return;
 						}
 						
@@ -1788,7 +1788,7 @@ public class EconomyModule {
 			int cost = rod.getAmountOfMaterialsForRepair(durabilityNeeded);
 			if (userItem.getAmount() < cost) {
 				long fixBy = rod.getEstimateOfDurability(userItem.getAmount());
-				event.reply("You do not have enough materials to fix your fishing rod by **" + durabilityNeeded + "** durability, you would need " + cost + " " + repairItem.getName() + "`. You can fix your fishing rod by **" + fixBy + "** durability with your current amount of `" + repairItem.getName() + "` :no_entry:").queue();
+				event.reply("You do not have enough materials to fix your fishing rod by **" + durabilityNeeded + "** durability, you would need `" + cost + " " + repairItem.getName() + "`. You can fix your fishing rod by **" + fixBy + "** durability with your current amount of `" + repairItem.getName() + "` :no_entry:").queue();
 				return;
 			}
 			
@@ -1808,7 +1808,7 @@ public class EconomyModule {
 						ItemStack userItemNew = EconomyUtils.getUserItem(itemsNew, repairItem);
 						if (userItemNew.getAmount() < cost) {
 							long fixBy = rod.getEstimateOfDurability(userItemNew.getAmount());
-							event.reply("You do not have enough materials to fix your fishing rod by **" + durabilityNeeded + "** durability, you would need " + cost + " " + repairItem.getName() + "`. You can fix your fishing rod by **" + fixBy + "** durability with your current amount of `" + repairItem.getName() + "` :no_entry:").queue();
+							event.reply("You do not have enough materials to fix your fishing rod by **" + durabilityNeeded + "** durability, you would need `" + cost + " " + repairItem.getName() + "`. You can fix your fishing rod by **" + fixBy + "** durability with your current amount of `" + repairItem.getName() + "` :no_entry:").queue();
 							return;
 						}
 						
@@ -2116,7 +2116,7 @@ public class EconomyModule {
 			int cost = axe.getAmountOfMaterialsForRepair(durabilityNeeded);
 			if (userItem.getAmount() < cost) {
 				long fixBy = axe.getEstimateOfDurability(userItem.getAmount());
-				event.reply("You do not have enough materials to fix your axe by **" + durabilityNeeded + "** durability, you would need " + cost + " " + repairItem.getName() + "`. You can fix your axe by **" + fixBy + "** durability with your current amount of `" + repairItem.getName() + "` :no_entry:").queue();
+				event.reply("You do not have enough materials to fix your axe by **" + durabilityNeeded + "** durability, you would need `" + cost + " " + repairItem.getName() + "`. You can fix your axe by **" + fixBy + "** durability with your current amount of `" + repairItem.getName() + "` :no_entry:").queue();
 				return;
 			}
 			
@@ -2136,7 +2136,7 @@ public class EconomyModule {
 						ItemStack userItemNew = EconomyUtils.getUserItem(itemsNew, repairItem);
 						if (userItemNew.getAmount() < cost) {
 							long fixBy = axe.getEstimateOfDurability(userItemNew.getAmount());
-							event.reply("You do not have enough materials to fix your axe by **" + durabilityNeeded + "** durability, you would need " + cost + " " + repairItem.getName() + "`. You can fix your axe by **" + fixBy + "** durability with your current amount of `" + repairItem.getName() + "` :no_entry:").queue();
+							event.reply("You do not have enough materials to fix your axe by **" + durabilityNeeded + "** durability, you would need `" + cost + " " + repairItem.getName() + "`. You can fix your axe by **" + fixBy + "** durability with your current amount of `" + repairItem.getName() + "` :no_entry:").queue();
 							return;
 						}
 						
@@ -3807,7 +3807,6 @@ public class EconomyModule {
 		@Command(value="votes", aliases={"vote"}, description="View the leaderboard for the highest votes of the month/all time")
 		public void votes(CommandEvent event, @Argument(value="month", nullDefault=true) String monthArgument, @Option(value="all") boolean all, @Option(value="server", aliases={"guild"}) boolean guild) {
 			LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
-			int year = now.getYear();
 			Month month;
 			if (monthArgument == null) {
 				month = now.getMonth();
@@ -3819,6 +3818,8 @@ public class EconomyModule {
 					return;
 				}
 			}
+			
+			int year = month.getValue() > now.getMonthValue() ? now.getYear() - 1 : now.getYear();
 			
 			Request requestSx4 = new Request.Builder().url("http://" + Settings.LOCAL_HOST + ":8080/440996323156819968/votes" + (all ? "?ids=true" : "")).build();
 			Request requestJockie = new Request.Builder().url("http://" + Settings.LOCAL_HOST + ":8080/411916947773587456/votes" + (all ? "?ids=true" : "")).build();
@@ -3918,7 +3919,7 @@ public class EconomyModule {
 								
 								EmbedBuilder embed = new EmbedBuilder();
 								embed.setColor(Settings.EMBED_COLOUR);
-								embed.setTitle("Votes Leaderboard" + (all ? "" : " for " + month.getDisplayName(TextStyle.FULL, Locale.UK)));
+								embed.setTitle("Votes Leaderboard" + (all ? "" : " for " + month.getDisplayName(TextStyle.FULL, Locale.UK) + " " + year));
 								embed.setFooter(event.getAuthor().getName() + "'s Rank: " + (index == null ? "Unranked" : GeneralUtils.getNumberSuffix(index)) + " | Page " + page.getCurrentPage() + "/" + page.getMaxPage(), event.getAuthor().getEffectiveAvatarUrl());
 								
 								for (int i = page.getCurrentPage() * page.getPerPage() - page.getPerPage(); i < page.getCurrentPage() * page.getPerPage(); i++) {

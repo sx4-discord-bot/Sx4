@@ -1748,6 +1748,11 @@ public class FunModule {
 				event.reply("Oops something went wrong there, try again :no_entry:").queue();
 				return;
 			}
+			
+			if (!json.has("items")) {
+				event.reply("I could not find any results :no_entry:").queue();
+				return;
+			}
 		
 			if (json.getJSONArray("items").toList().isEmpty()) {
 				event.reply("I could not find any results :no_entry:").queue();
@@ -1794,6 +1799,11 @@ public class FunModule {
 				json = new JSONObject(response.body().string());
 			} catch (JSONException | IOException e) {
 				event.reply("Oops something went wrong there, try again :no_entry:").queue();
+				return;
+			}
+			
+			if (!json.has("items")) {
+				event.reply("I could not find any results :no_entry:").queue();
 				return;
 			}
 			

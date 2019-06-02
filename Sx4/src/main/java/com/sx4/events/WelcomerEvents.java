@@ -46,7 +46,7 @@ public class WelcomerEvents extends ListenerAdapter {
 			if (!currentWebhook.getChannel().equals(channel)) {
 				currentWebhook.delete().queue();
 				channel.createWebhook(selfUser.getName() + " - Welcomer").setAvatar(Icon.from(new URL(selfUser.getEffectiveAvatarUrl()).openStream())).queue(newWebhook -> {
-					WebhookClient webhookClient = new WebhookClientBuilder(newWebhook.getUrl())
+					WebhookClient webhookClient = newWebhook.newClient()
 							.setHttpClient(this.client)
 							.setExecutorService(this.scheduledExectuor)
 							.build();
@@ -65,7 +65,7 @@ public class WelcomerEvents extends ListenerAdapter {
 							channelWebhook.delete().queue();
 							try {
 								channel.createWebhook(selfUser.getName() + " - Welcomer").setAvatar(Icon.from(new URL(selfUser.getEffectiveAvatarUrl()).openStream())).queue(newWebhook -> {
-									WebhookClient webhookClient = new WebhookClientBuilder(newWebhook.getUrl())
+									WebhookClient webhookClient = newWebhook.newClient()
 											.setHttpClient(this.client)
 											.setExecutorService(this.scheduledExectuor)
 											.build();
@@ -74,7 +74,7 @@ public class WelcomerEvents extends ListenerAdapter {
 								});
 							} catch (IOException e) {}
 						} else {
-							WebhookClient webhookClient = new WebhookClientBuilder(channelWebhook.getUrl())
+							WebhookClient webhookClient = channelWebhook.newClient()
 									.setHttpClient(this.client)
 									.setExecutorService(this.scheduledExectuor)
 									.build();
@@ -88,7 +88,7 @@ public class WelcomerEvents extends ListenerAdapter {
 				
 				try {
 					channel.createWebhook(selfUser.getName() + " - Welcomer").setAvatar(Icon.from(new URL(selfUser.getEffectiveAvatarUrl()).openStream())).queue(newWebhook -> {
-						WebhookClient webhookClient = new WebhookClientBuilder(newWebhook.getUrl())
+						WebhookClient webhookClient = newWebhook.newClient()
 								.setHttpClient(this.client)
 								.setExecutorService(this.scheduledExectuor)
 								.build();
@@ -108,7 +108,7 @@ public class WelcomerEvents extends ListenerAdapter {
 			if (!currentWebhook.getChannel().equals(channel)) {
 				currentWebhook.delete().queue();
 				channel.createWebhook(selfUser.getName() + " - Leaver").setAvatar(Icon.from(new URL(selfUser.getEffectiveAvatarUrl()).openStream())).queue(newWebhook -> {
-					WebhookClient webhookClient = new WebhookClientBuilder(newWebhook.getUrl())
+					WebhookClient webhookClient = newWebhook.newClient()
 							.setHttpClient(this.client)
 							.setExecutorService(this.scheduledExectuor)
 							.build();
@@ -127,7 +127,7 @@ public class WelcomerEvents extends ListenerAdapter {
 							channelWebhook.delete().queue();
 							try {
 								channel.createWebhook(selfUser.getName() + " - Leaver").setAvatar(Icon.from(new URL(selfUser.getEffectiveAvatarUrl()).openStream())).queue(newWebhook -> {
-									WebhookClient webhookClient = new WebhookClientBuilder(newWebhook.getUrl())
+									WebhookClient webhookClient = newWebhook.newClient()
 											.setHttpClient(this.client)
 											.setExecutorService(this.scheduledExectuor)
 											.build();
@@ -136,7 +136,7 @@ public class WelcomerEvents extends ListenerAdapter {
 								});
 							} catch (IOException e) {}
 						} else {
-							WebhookClient webhookClient = new WebhookClientBuilder(channelWebhook.getUrl())
+							WebhookClient webhookClient = channelWebhook.newClient()
 									.setHttpClient(this.client)
 									.setExecutorService(this.scheduledExectuor)
 									.build();
@@ -150,7 +150,7 @@ public class WelcomerEvents extends ListenerAdapter {
 				
 				try {
 					channel.createWebhook(selfUser.getName() + " - Leaver").setAvatar(Icon.from(new URL(selfUser.getEffectiveAvatarUrl()).openStream())).queue(newWebhook -> {
-						WebhookClient webhookClient = new WebhookClientBuilder(newWebhook.getUrl())
+						WebhookClient webhookClient = newWebhook.newClient()
 								.setHttpClient(this.client)
 								.setExecutorService(this.scheduledExectuor)
 								.build();

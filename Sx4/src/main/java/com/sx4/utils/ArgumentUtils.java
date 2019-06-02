@@ -1,13 +1,9 @@
 package com.sx4.utils;
 
 import java.awt.Color;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.time.Month;
-import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
@@ -32,7 +28,6 @@ import net.dv8tion.jda.core.entities.Role;
 import net.dv8tion.jda.core.entities.TextChannel;
 import net.dv8tion.jda.core.entities.User;
 import net.dv8tion.jda.core.entities.VoiceChannel;
-import net.dv8tion.jda.core.exceptions.ErrorResponseException;
 
 public class ArgumentUtils {
 	
@@ -80,8 +75,8 @@ public class ArgumentUtils {
 			throw new IllegalArgumentException("The month value has to be between 1 and 12 :no_entry:");
 		} catch(NumberFormatException e) {
 			try {
-				monthValue = new SimpleDateFormat("MMMM", Locale.UK).parse(monthArgument).toInstant().atZone(ZoneOffset.UTC).getMonth();
-			} catch(ParseException ex) {
+				monthValue = Month.valueOf(monthArgument.toUpperCase());
+			} catch(IllegalArgumentException ex) {
 				throw new IllegalArgumentException("I could not find that month :no_entry:");
 			}
 		}
