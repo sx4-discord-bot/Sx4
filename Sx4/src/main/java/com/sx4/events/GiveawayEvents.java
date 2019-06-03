@@ -124,21 +124,22 @@ public class GiveawayEvents {
 	@SuppressWarnings("unchecked")
 	public static void ensureGiveaways() {
 		ShardManager shardManager = Sx4Bot.getShardManager();
-		Cursor<Map<String, Object>> cursor = r.table("giveaway").run(Sx4Bot.getConnection());
-		List<Map<String, Object>> data = cursor.toList();
-		
-		long timestampNow = Clock.systemUTC().instant().getEpochSecond();
-		for (Map<String, Object> guildData : data) {
-			Guild guild = shardManager.getGuildById((String) guildData.get("id"));
-			if (guild != null) {
-				List<Map<String, Object>> giveaways = (List<Map<String, Object>>) guildData.get("giveaways");
-				for (Map<String, Object> giveaway : giveaways) {
-					long timeLeft = (long) giveaway.get("endtime") - timestampNow;
-					if (timeLeft <= 0) {
-						GiveawayEvents.removeGiveaway(guild, giveaway);
-					} else {
-						ScheduledFuture<?> executor = GiveawayEvents.scheduledExectuor.schedule(() -> GiveawayEvents.removeGiveaway(guild, giveaway), timeLeft, TimeUnit.SECONDS);
-						GiveawayEvents.putExecutor(guild.getId(), (long) giveaway.get("id"), executor);
+		try (Cursor<Map<String, Object>> cursor = r.table("giveaway").run(Sx4Bot.getConnection())) {
+			List<Map<String, Object>> data = cursor.toList();
+			
+			long timestampNow = Clock.systemUTC().instant().getEpochSecond();
+			for (Map<String, Object> guildData : data) {
+				Guild guild = shardManager.getGuildById((String) guildData.get("id"));
+				if (guild != null) {
+					List<Map<String, Object>> giveaways = (List<Map<String, Object>>) guildData.get("giveaways");
+					for (Map<String, Object> giveaway : giveaways) {
+						long timeLeft = (long) giveaway.get("endtime") - timestampNow;
+						if (timeLeft <= 0) {
+							GiveawayEvents.removeGiveaway(guild, giveaway);
+						} else {
+							ScheduledFuture<?> executor = GiveawayEvents.scheduledExectuor.schedule(() -> GiveawayEvents.removeGiveaway(guild, giveaway), timeLeft, TimeUnit.SECONDS);
+							GiveawayEvents.putExecutor(guild.getId(), (long) giveaway.get("id"), executor);
+						}
 					}
 				}
 			}

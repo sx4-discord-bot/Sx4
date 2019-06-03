@@ -50,6 +50,7 @@ import com.sx4.categories.Categories;
 import com.sx4.core.Sx4Bot;
 import com.sx4.core.Sx4Command;
 import com.sx4.core.Sx4CommandEventListener;
+import com.sx4.events.AwaitEvents;
 import com.sx4.events.ReminderEvents;
 import com.sx4.interfaces.Sx4Callback;
 import com.sx4.settings.Settings;
@@ -1217,8 +1218,7 @@ public class GeneralModule {
 	@SuppressWarnings("unchecked")
 	@Command(value="await", description="Notifies you when a user comes online")
 	public void await(CommandEvent event, @Context Connection connection, @Argument(value="user(s)") String[] users) {
-		List<String> memberIds = new ArrayList<String>();
-		List<String> memberTags = new ArrayList<String>();
+		List<String> memberIds = new ArrayList<>(), memberTags = new ArrayList<>();
 		for (String user : users) {
 			Member member = ArgumentUtils.getMember(event.getGuild(), user);
 			if (member == null) {
@@ -1247,6 +1247,8 @@ public class GeneralModule {
 				return;
 			}
 		}
+		
+		AwaitEvents.addUsers(event.getAuthor().getId(), memberIds);
 		userData.update(row -> r.hashMap("users", row.g("users").and(memberIds))).runNoReply(connection);
 		event.reply("You will be notified when `" + String.join(", ", memberTags) + "` comes online <:done:403285928233402378>").queue();
 	}
@@ -1513,11 +1515,15 @@ public class GeneralModule {
 	@Command(value="info", description="View some info about Sx4 and how it has become what it is now", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void info(CommandEvent event) {
-		String description = String.format("Sx4 is a multipurpose all in one bot to make your discord experience easier yet fun, its purposes include Moderation, Utility, Economy, Music, Welcomer, Logs and "
-				+ "Sx4 began as a red bot to just help one server but then people requested if it could also be in their server, so from there it became public. Sx4 was then rewrote from all the modules it"
-				+ "much more. used in red to a bot fully coded in python using discord.py, as the bot got bigger and bigger the older code took a toll on Sx4 and caused it to become slow and eat "
-				+ "a lot of recources so steps were made like making the image manipulation section of the bot into java and general code improvements. Because there was a lot of poor code in the python version "
-				+ "of Sx4 it was fully rewrote into java using JDA as a library to improve every command to be more efficient and eat less recourses and now Sx4 is 100%% java and is now serving %,d servers",
+		String description = String.format("Sx4 is a multipurpose all in one bot made to make your discord experience easier yet fun [to use]. Its features include Moderation, Utility, Economy, Music, Welcomer, and Logs.\r\n" + 
+				"\r\n" + 
+				"Sx4 began as a RED bot for the use in a single server. The users in the server were interested in the various features Sx4 offered and eventually requested if they could use Sx4 in their server as well. So, it was made public due to the demand.\r\n" + 
+				"\r\n" + 
+				"As a result, Sx4 was rewritten from scratch. All the modules and the base of the bot was rewritten in Python using Discord.py. \r\n" + 
+				"\r\n" + 
+				"As the bot grew, the older code took a toll on Sx4 and caused it to become slow and eat a lot of resources, so steps were taken make the image manipulation section of the bot into Java and improve certain sections of the general code.\r\n" + 
+				"\r\n" + 
+				"Since there was a lot of poor code in the Python version of Sx4, it was eventually fully rewritten into Java using JDA in order to make every command more efficient and eat fewer resources. Sx4 is currently 100% Java and is in over %,d servers.",
 				event.getShardManager().getGuilds().size());
 		
 		List<String> developers = new ArrayList<String>();

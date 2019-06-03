@@ -68,21 +68,22 @@ public class ReminderEvents {
 	@SuppressWarnings("unchecked")
 	public static void ensureReminders() {
 		ShardManager shardManager = Sx4Bot.getShardManager();
-		Cursor<Map<String, Object>> cursor = r.table("reminders").run(Sx4Bot.getConnection());
-		List<Map<String, Object>> data = cursor.toList();
-		
-		long timestampNow = Clock.systemUTC().instant().getEpochSecond();
-		for (Map<String, Object> userData : data) {
-			User user = shardManager.getUserById((String) userData.get("id")); 
-			if (user != null) {
-				List<Map<String, Object>> reminders = (List<Map<String, Object>>) userData.get("reminders");
-				for (Map<String, Object> reminder : reminders) {
-					long timeLeft = (long) reminder.get("remind_at") - timestampNow;
-					if (timeLeft <= 0) {
-						ReminderEvents.removeUserReminder(user, reminder);
-					} else {
-						ScheduledFuture<?> executor = ReminderEvents.scheduledExectuor.schedule(() -> ReminderEvents.removeUserReminder(user, reminder), timeLeft, TimeUnit.SECONDS);
-						ReminderEvents.putExecutor(user.getId(), (long) reminder.get("id"), executor);
+		try (Cursor<Map<String, Object>> cursor = r.table("reminders").run(Sx4Bot.getConnection())) {
+			List<Map<String, Object>> data = cursor.toList();
+			
+			long timestampNow = Clock.systemUTC().instant().getEpochSecond();
+			for (Map<String, Object> userData : data) {
+				User user = shardManager.getUserById((String) userData.get("id")); 
+				if (user != null) {
+					List<Map<String, Object>> reminders = (List<Map<String, Object>>) userData.get("reminders");
+					for (Map<String, Object> reminder : reminders) {
+						long timeLeft = (long) reminder.get("remind_at") - timestampNow;
+						if (timeLeft <= 0) {
+							ReminderEvents.removeUserReminder(user, reminder);
+						} else {
+							ScheduledFuture<?> executor = ReminderEvents.scheduledExectuor.schedule(() -> ReminderEvents.removeUserReminder(user, reminder), timeLeft, TimeUnit.SECONDS);
+							ReminderEvents.putExecutor(user.getId(), (long) reminder.get("id"), executor);
+						}
 					}
 				}
 			}

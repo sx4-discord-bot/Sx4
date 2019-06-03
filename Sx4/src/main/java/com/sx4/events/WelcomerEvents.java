@@ -112,7 +112,7 @@ public class WelcomerEvents extends ListenerAdapter {
 							.setHttpClient(this.client)
 							.setExecutorService(this.scheduledExectuor)
 							.build();
-					this.welcomerWebhooks.put(guild.getId(), Pair.of(newWebhook, webhookClient));
+					this.leaverWebhooks.put(guild.getId(), Pair.of(newWebhook, webhookClient));
 					webhook.accept(webhookClient);
 				});
 			} else {
@@ -131,7 +131,7 @@ public class WelcomerEvents extends ListenerAdapter {
 											.setHttpClient(this.client)
 											.setExecutorService(this.scheduledExectuor)
 											.build();
-									this.welcomerWebhooks.put(guild.getId(), Pair.of(newWebhook, webhookClient));
+									this.leaverWebhooks.put(guild.getId(), Pair.of(newWebhook, webhookClient));
 									webhook.accept(webhookClient);
 								});
 							} catch (IOException e) {}
@@ -140,7 +140,7 @@ public class WelcomerEvents extends ListenerAdapter {
 									.setHttpClient(this.client)
 									.setExecutorService(this.scheduledExectuor)
 									.build();
-							this.welcomerWebhooks.put(guild.getId(), Pair.of(channelWebhook, webhookClient));
+							this.leaverWebhooks.put(guild.getId(), Pair.of(channelWebhook, webhookClient));
 							webhook.accept(webhookClient);
 						}
 						
@@ -154,7 +154,7 @@ public class WelcomerEvents extends ListenerAdapter {
 								.setHttpClient(this.client)
 								.setExecutorService(this.scheduledExectuor)
 								.build();
-						this.welcomerWebhooks.put(guild.getId(), Pair.of(newWebhook, webhookClient));
+						this.leaverWebhooks.put(guild.getId(), Pair.of(newWebhook, webhookClient));
 						webhook.accept(webhookClient);
 					});
 				} catch (IOException e) {}

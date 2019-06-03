@@ -456,8 +456,10 @@ public class ArgumentUtils {
 			
 			return guild.getMembersByName(name, true).stream().filter(it -> it.getUser().getDiscriminator().equals(discriminator)).findFirst().orElse(null);
 		} else if (userName.matches()) {
-			if (guild.getMembersByEffectiveName(user, true).stream().findFirst().orElse(null) == null) {
-				if (guild.getMembersByName(user, true).stream().findFirst().orElse(null) == null) {	
+			Member memberEffectiveName = guild.getMembersByEffectiveName(user, true).stream().findFirst().orElse(null);
+			if (memberEffectiveName == null) {
+				Member memberName = guild.getMembersByName(user, true).stream().findFirst().orElse(null);
+				if (memberName == null) {	
 					
 					for (Member member : guild.getMembers()) {
 						if (member.getEffectiveName().toLowerCase().startsWith(user.toLowerCase())) {
@@ -472,10 +474,10 @@ public class ArgumentUtils {
 					}
 					
 				} else {
-					return guild.getMembersByName(user, true).get(0);
+					return memberName;
 				}
 			} else {
-				return guild.getMembersByEffectiveName(user, true).get(0);
+				return memberEffectiveName;
 			}
 		}
 		

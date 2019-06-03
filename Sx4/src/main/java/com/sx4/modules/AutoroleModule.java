@@ -47,7 +47,7 @@ public class AutoroleModule {
 		@Command(value="toggle", description="Enabled/disable autorole in the current server", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@AuthorPermissions({Permission.MANAGE_ROLES})
 		public void toggle(CommandEvent event, @Context Connection connection) {
-			r.table("autorole").insert(r.hashMap("id", event.getGuild().getId()).with("role", null).with("botrole", null).with("toggle", false)).run(connection, OptArgs.of("durability", "soft"));
+			r.table("autorole").insert(r.hashMap("id", event.getGuild().getId()).with("role", null).with("botrole", null).with("toggle", false).with("auto_update", true)).run(connection, OptArgs.of("durability", "soft"));
 			Get data = r.table("autorole").get(event.getGuild().getId());
 			Map<String, Object> dataRan = data.run(connection);
 			
@@ -63,7 +63,7 @@ public class AutoroleModule {
 		@Command(value="role", aliases={"user role", "userrole"}, description="Set the auto role, this role will be given to every user which joins the server if a bot role is not set otherwise it'll give it to ever non bot user who joins")
 		@AuthorPermissions({Permission.MANAGE_ROLES})
 		public void role(CommandEvent event, @Context Connection connection, @Argument(value="role", endless=true) String roleArgument) {
-			r.table("autorole").insert(r.hashMap("id", event.getGuild().getId()).with("role", null).with("botrole", null).with("toggle", false)).run(connection, OptArgs.of("durability", "soft"));
+			r.table("autorole").insert(r.hashMap("id", event.getGuild().getId()).with("role", null).with("botrole", null).with("toggle", false).with("auto_update", true)).run(connection, OptArgs.of("durability", "soft"));
 			Get data = r.table("autorole").get(event.getGuild().getId());
 			Map<String, Object> dataRan = data.run(connection);
 			
@@ -111,7 +111,7 @@ public class AutoroleModule {
 		@Command(value="bot role", aliases={"botrole"}, description="Set the bot role, this role will be given to every bot which joins the server")
 		@AuthorPermissions({Permission.MANAGE_ROLES})
 		public void botRole(CommandEvent event, @Context Connection connection, @Argument(value="role", endless=true) String roleArgument) {
-			r.table("autorole").insert(r.hashMap("id", event.getGuild().getId()).with("role", null).with("botrole", null).with("toggle", false)).run(connection, OptArgs.of("durability", "soft"));
+			r.table("autorole").insert(r.hashMap("id", event.getGuild().getId()).with("role", null).with("botrole", null).with("toggle", false).with("auto_update", true)).run(connection, OptArgs.of("durability", "soft"));
 			Get data = r.table("autorole").get(event.getGuild().getId());
 			Map<String, Object> dataRan = data.run(connection);
 			
@@ -170,10 +170,27 @@ public class AutoroleModule {
 			EmbedBuilder embed = new EmbedBuilder();
 			embed.setAuthor("Auto Role Settings", null, event.getGuild().getIconUrl());
 			embed.addField("Status", data == null ? "Disabled" : (boolean) data.get("toggle") == true ? "Enabled" : "Disabled", true); 
+			embed.addField("Auto Update", data == null ? "Disabled" : (boolean) data.get("auto_update") == true ? "Enabled" : "Disabled", true);
 			embed.addField("Role", autoRole == null ? "Not Set" : autoRole.getAsMention(), true);
 			embed.addField("Bot Role", botRole == null ? "Not Set" : botRole.getAsMention(), true);
 			
 			event.reply(embed.build()).queue();
+		}
+		
+		@Command(value="auto update", aliases={"toggle auto update", "autoupdate", "toggle autoupdate"}, description="Enables/disables whether the bot should give members the autorole when it comes online in case it missed anyone while it was offline", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@AuthorPermissions({Permission.MANAGE_ROLES})
+		public void autoUpdate(CommandEvent event, @Context Connection connection) {
+			r.table("autorole").insert(r.hashMap("id", event.getGuild().getId()).with("role", null).with("botrole", null).with("toggle", false).with("auto_update", true)).run(connection, OptArgs.of("durability", "soft"));
+			Get data = r.table("autorole").get(event.getGuild().getId());
+			Map<String, Object> dataRan = data.run(connection);
+			
+			if ((boolean) dataRan.get("auto_update") == true) {
+				event.reply("Auto updating for auto role is now disabled <:done:403285928233402378>").queue();
+				data.update(r.hashMap("auto_update", false)).runNoReply(connection);
+			} else {
+				event.reply("Auto updating for auto role is now enabled <:done:403285928233402378>").queue();
+				data.update(r.hashMap("auto_update", true)).runNoReply(connection);
+			}
 		}
 		
 		@Command(value="fix", description="Allows you to give all the current members in your server the auto role", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)

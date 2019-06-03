@@ -59,56 +59,57 @@ public class MuteEvents extends ListenerAdapter {
 	public static void ensureMuteRoles() {
 		ShardManager shardManager = Sx4Bot.getShardManager();
 		Connection connection = Sx4Bot.getConnection();
-		Cursor<Map<String, Object>> cursor = r.table("mute").run(connection);
-		List<Map<String, Object>> data = cursor.toList();
-		
-		User selfUser = shardManager.getApplicationInfo().getJDA().getSelfUser();
-		long timestampNow = Clock.systemUTC().instant().getEpochSecond();
-		for (Map<String, Object> guildData : data) {
-			Guild guild = shardManager.getGuildById((String) guildData.get("id"));
-			if (guild != null) {
-				Role muteRole = null;
-				for (Role role : guild.getRoles()) {
-					if (role.getName().equals("Muted - " + selfUser.getName())) {
-						MuteEvents.putMuteRole(guild.getId(), role.getId());
-						muteRole = role;
-						break;
-					}
-				}
-				
-				if (muteRole != null) {
-					List<Map<String, Object>> users = (List<Map<String, Object>>) guildData.get("users");
-					List<String> userIds = new ArrayList<>();
-					for (Map<String, Object> userData : users) {
-						userIds.add((String) userData.get("id"));
-					}
-					
-					List<Member> mutedMembers = guild.getMembersWithRoles(muteRole);
-					List<String> mutedMemberIds = new ArrayList<>();
-					for (Member member : mutedMembers) {
-						mutedMemberIds.add(member.getUser().getId());
-						if (userIds.contains(member.getUser().getId())) {
-							continue;
-						} else {
-							r.table("mute").get(guild.getId()).update(row -> r.hashMap("users", row.g("users").append(r.hashMap("id", member.getUser().getId()).with("time", timestampNow).with("amount", null)))).runNoReply(connection);
-							ModUtils.createModLogAndOffence(guild, connection, selfUser, member.getUser(), "Mute (Infinite)", "Mute role was added while the bot was offline");
+		try (Cursor<Map<String, Object>> cursor = r.table("mute").run(connection)) {
+			List<Map<String, Object>> data = cursor.toList();
+			
+			User selfUser = shardManager.getApplicationInfo().getJDA().getSelfUser();
+			long timestampNow = Clock.systemUTC().instant().getEpochSecond();
+			for (Map<String, Object> guildData : data) {
+				Guild guild = shardManager.getGuildById((String) guildData.get("id"));
+				if (guild != null) {
+					Role muteRole = null;
+					for (Role role : guild.getRoles()) {
+						if (role.getName().equals("Muted - " + selfUser.getName())) {
+							MuteEvents.putMuteRole(guild.getId(), role.getId());
+							muteRole = role;
+							break;
 						}
 					}
 					
-					for (Map<String, Object> userData : users) {
-						if (mutedMemberIds.contains(userData.get("id"))) {
-							continue;
-						} else {
-							Member unmutedMember = guild.getMemberById((String) userData.get("id"));
-							if (unmutedMember != null) {
-								MuteEvents.cancelExecutor(guild.getId(), unmutedMember.getUser().getId());
-								r.table("mute").get(guild.getId()).update(row -> r.hashMap("users", row.g("users").filter(d -> d.g("id").ne(unmutedMember.getUser().getId())))).runNoReply(connection);
-								ModUtils.createModLog(guild, connection, selfUser, unmutedMember.getUser(), "Unmute", "Mute role was removed while the bot was offline");
+					if (muteRole != null) {
+						List<Map<String, Object>> users = (List<Map<String, Object>>) guildData.get("users");
+						List<String> userIds = new ArrayList<>();
+						for (Map<String, Object> userData : users) {
+							userIds.add((String) userData.get("id"));
+						}
+						
+						List<Member> mutedMembers = guild.getMembersWithRoles(muteRole);
+						List<String> mutedMemberIds = new ArrayList<>();
+						for (Member member : mutedMembers) {
+							mutedMemberIds.add(member.getUser().getId());
+							if (userIds.contains(member.getUser().getId())) {
+								continue;
+							} else {
+								r.table("mute").get(guild.getId()).update(row -> r.hashMap("users", row.g("users").append(r.hashMap("id", member.getUser().getId()).with("time", timestampNow).with("amount", null)))).runNoReply(connection);
+								ModUtils.createModLogAndOffence(guild, connection, selfUser, member.getUser(), "Mute (Infinite)", "Mute role was added while the bot was offline");
 							}
 						}
+						
+						for (Map<String, Object> userData : users) {
+							if (mutedMemberIds.contains(userData.get("id"))) {
+								continue;
+							} else {
+								Member unmutedMember = guild.getMemberById((String) userData.get("id"));
+								if (unmutedMember != null) {
+									MuteEvents.cancelExecutor(guild.getId(), unmutedMember.getUser().getId());
+									r.table("mute").get(guild.getId()).update(row -> r.hashMap("users", row.g("users").filter(d -> d.g("id").ne(unmutedMember.getUser().getId())))).runNoReply(connection);
+									ModUtils.createModLog(guild, connection, selfUser, unmutedMember.getUser(), "Unmute", "Mute role was removed while the bot was offline");
+								}
+							}
+						}
+					} else {
+						r.table("mute").get(guild.getId()).update(r.hashMap("users", new Object[0])).runNoReply(connection);
 					}
-				} else {
-					r.table("mute").get(guild.getId()).update(r.hashMap("users", new Object[0])).runNoReply(connection);
 				}
 			}
 		}
@@ -177,26 +178,27 @@ public class MuteEvents extends ListenerAdapter {
 	@SuppressWarnings("unchecked")
 	public static void ensureMutes() {
 		ShardManager shardManager = Sx4Bot.getShardManager();
-		Cursor<Map<String, Object>> cursor = r.table("mute").run(Sx4Bot.getConnection());
-		List<Map<String, Object>> data = cursor.toList();
-		
-		long timestampNow = Clock.systemUTC().instant().getEpochSecond();
-		for (Map<String, Object> guildData : data) {
-			Guild guild = shardManager.getGuildById((String) guildData.get("id"));
-			if (guild != null) {
-				List<Map<String, Object>> users = (List<Map<String, Object>>) guildData.get("users");
-				for (Map<String, Object> userData : users) {
-					if (userData.get("amount") != null) {
-						Member member = guild.getMemberById((String) userData.get("id"));
-						if (member != null) {
-							long timeLeft = (long) userData.get("time") + (userData.get("amount") instanceof Double ? (long) (double) userData.get("amount") : (long) userData.get("amount")) - timestampNow;
-							if (timeLeft <= 0) {
-								MuteEvents.removeUserMute(member);
-							} else {
-								ScheduledFuture<?> executor = MuteEvents.scheduledExectuor.schedule(() -> MuteEvents.removeUserMute(member), timeLeft, TimeUnit.SECONDS);
-								MuteEvents.putExecutor(guild.getId(), member.getUser().getId(), executor);
+		try (Cursor<Map<String, Object>> cursor = r.table("mute").run(Sx4Bot.getConnection())) {
+			List<Map<String, Object>> data = cursor.toList();
+			
+			long timestampNow = Clock.systemUTC().instant().getEpochSecond();
+			for (Map<String, Object> guildData : data) {
+				Guild guild = shardManager.getGuildById((String) guildData.get("id"));
+				if (guild != null) {
+					List<Map<String, Object>> users = (List<Map<String, Object>>) guildData.get("users");
+					for (Map<String, Object> userData : users) {
+						if (userData.get("amount") != null) {
+							Member member = guild.getMemberById((String) userData.get("id"));
+							if (member != null) {
+								long timeLeft = (long) userData.get("time") + (userData.get("amount") instanceof Double ? (long) (double) userData.get("amount") : (long) userData.get("amount")) - timestampNow;
+								if (timeLeft <= 0) {
+									MuteEvents.removeUserMute(member);
+								} else {
+									ScheduledFuture<?> executor = MuteEvents.scheduledExectuor.schedule(() -> MuteEvents.removeUserMute(member), timeLeft, TimeUnit.SECONDS);
+									MuteEvents.putExecutor(guild.getId(), member.getUser().getId(), executor);
+								}
+					
 							}
-				
 						}
 					}
 				}

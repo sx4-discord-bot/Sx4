@@ -502,52 +502,53 @@ public class FunModule {
 	@Command(value="birthdays", description="View all the birthdays which are upcoming in the next 30 days (Set your birthday with `set birthday`)", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void birthdays(CommandEvent event, @Context Connection connection, @Option(value="server", aliases={"guild"}) boolean guild) {
-		Cursor<Map<String, Object>> cursor = r.table("userprofile").withFields("id", "birthday").filter(row -> row.g("birthday").ne(null)).run(connection);
-		List<Map<String, Object>> data = cursor.toList();
-		
-		LocalDate now = LocalDate.now(ZoneOffset.UTC);
-		
-		List<Pair<User, LocalDate>> birthDates = new ArrayList<>();
-		for (Map<String, Object> userData : data) {
-			User user = event.getShardManager().getUserById((String) userData.get("id"));
-			if (user != null) {
-				if (guild) {
-					if (!event.getGuild().isMember(user)) {
-						continue;
+		try (Cursor<Map<String, Object>> cursor = r.table("userprofile").withFields("id", "birthday").filter(row -> row.g("birthday").ne(null)).run(connection)) {
+			List<Map<String, Object>> data = cursor.toList();
+			
+			LocalDate now = LocalDate.now(ZoneOffset.UTC);
+			
+			List<Pair<User, LocalDate>> birthDates = new ArrayList<>();
+			for (Map<String, Object> userData : data) {
+				User user = event.getShardManager().getUserById((String) userData.get("id"));
+				if (user != null) {
+					if (guild) {
+						if (!event.getGuild().isMember(user)) {
+							continue;
+						}
+					}
+					
+					String[] birthdaySplit = ((String) userData.get("birthday")).split("/");
+					LocalDate birthday = LocalDate.of(now.getYear(), Integer.parseInt(birthdaySplit[1]), Integer.parseInt(birthdaySplit[0]));
+					if (birthday.compareTo(now) < 0) {
+						birthday = birthday.plusYears(1);
+					}
+					
+					int daysApart = TimeUtils.getActualDaysApart(birthday.getDayOfYear() - now.getDayOfYear());
+					if (daysApart >= 0 && daysApart < 31) {
+						birthDates.add(Pair.of(user, birthday));
 					}
 				}
-				
-				String[] birthdaySplit = ((String) userData.get("birthday")).split("/");
-				LocalDate birthday = LocalDate.of(now.getYear(), Integer.parseInt(birthdaySplit[1]), Integer.parseInt(birthdaySplit[0]));
-				if (birthday.compareTo(now) < 0) {
-					birthday = birthday.plusYears(1);
-				}
-				
-				int daysApart = TimeUtils.getActualDaysApart(birthday.getDayOfYear() - now.getDayOfYear());
-				if (daysApart >= 0 && daysApart < 31) {
-					birthDates.add(Pair.of(user, birthday));
-				}
 			}
+			
+			if (birthDates.isEmpty()) {
+				event.reply("There are no upcoming birthdays :no_entry:").queue();
+				return;
+			}
+			
+			birthDates.sort((a, b) -> Integer.compare(TimeUtils.getActualDaysApart(a.getRight().getDayOfYear() - now.getDayOfYear()), TimeUtils.getActualDaysApart(b.getRight().getDayOfYear() - now.getDayOfYear())));
+			PagedResult<Pair<User, LocalDate>> paged = new PagedResult<>(birthDates)
+					.setDeleteMessage(false)
+					.setIndexed(false)
+					.setPerPage(20)
+					.setEmbedColour(Settings.EMBED_COLOUR)
+					.setAuthor("Upcoming Birthdays 🎂", null, null)
+					.setFunction(userBirthday -> {
+						LocalDate birthday = userBirthday.getRight();
+						return userBirthday.getLeft().getAsTag() + " - " + GeneralUtils.getNumberSuffix(birthday.getDayOfMonth()) + " " + birthday.getMonth().getDisplayName(TextStyle.FULL, Locale.UK) + (birthday.equals(now) ? " :cake:" : "");
+					});
+			
+			PagedUtils.getPagedResult(event, paged, 300, null);
 		}
-		
-		if (birthDates.isEmpty()) {
-			event.reply("There are no upcoming birthdays :no_entry:").queue();
-			return;
-		}
-		
-		birthDates.sort((a, b) -> Integer.compare(TimeUtils.getActualDaysApart(a.getRight().getDayOfYear() - now.getDayOfYear()), TimeUtils.getActualDaysApart(b.getRight().getDayOfYear() - now.getDayOfYear())));
-		PagedResult<Pair<User, LocalDate>> paged = new PagedResult<>(birthDates)
-				.setDeleteMessage(false)
-				.setIndexed(false)
-				.setPerPage(20)
-				.setEmbedColour(Settings.EMBED_COLOUR)
-				.setAuthor("Upcoming Birthdays 🎂", null, null)
-				.setFunction(userBirthday -> {
-					LocalDate birthday = userBirthday.getRight();
-					return userBirthday.getLeft().getAsTag() + " - " + GeneralUtils.getNumberSuffix(birthday.getDayOfMonth()) + " " + birthday.getMonth().getDisplayName(TextStyle.FULL, Locale.UK) + (birthday.equals(now) ? " :cake:" : "");
-				});
-		
-		PagedUtils.getPagedResult(event, paged, 300, null);
 	}
 	
 	@SuppressWarnings("unchecked")

@@ -122,7 +122,7 @@ public class Sx4Bot {
 		
 		MethodCommandFactory.setDefault(new Sx4CommandFactory());
 		
-		listener = new CommandListener()
+		listener = new Sx4CommandListener()
 				.addCommandStore(CommandStore.of("com.sx4.modules"))
 				.addDevelopers(402557516728369153L, 190551803669118976L)
 				.setDefaultPrefixes("s?", "sx4 ", "S?")
@@ -223,6 +223,7 @@ public class Sx4Bot {
 		StatsEvents.initializeGuildStats();
 		ReminderEvents.ensureReminders();
 		GiveawayEvents.ensureGiveaways();
+		AwaitEvents.ensureAwaitData();
 		MuteEvents.ensureMutes();
 		AutoroleEvents.ensureAutoroles();
 		

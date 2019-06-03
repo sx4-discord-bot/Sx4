@@ -56,55 +56,56 @@ public class AutoroleEvents extends ListenerAdapter {
 	public static void ensureAutoroles() {
 		ShardManager shardManager = Sx4Bot.getShardManager();
 		
-		Cursor<Map<String, Object>> cursor = r.table("autorole").run(Sx4Bot.getConnection());
-		List<Map<String, Object>> data = cursor.toList();
-		for (Map<String, Object> guildData : data) {
-			if ((boolean) guildData.get("toggle") == false) {
-				continue;
-			}
-			
-			Guild guild = shardManager.getGuildById((String) guildData.get("id"));
-			if (guild != null) {
-				Member self = guild.getSelfMember();
-				if (!self.hasPermission(Permission.MANAGE_ROLES)) {
+		try (Cursor<Map<String, Object>> cursor = r.table("autorole").run(Sx4Bot.getConnection())) {
+			List<Map<String, Object>> data = cursor.toList();
+			for (Map<String, Object> guildData : data) {
+				if ((boolean) guildData.get("toggle") == false || (boolean) guildData.get("auto_update") == false) {
 					continue;
 				}
 				
-				String roleData = (String) guildData.get("role");
-				String botRoleData = (String) guildData.get("botrole");
-				
-				Role role = null, botRole = null;
-				if (roleData != null) {
-					role = guild.getRoleById(roleData);
-				} 
-				
-				if (botRoleData != null) {
-					botRole = guild.getRoleById(botRoleData);
-				}
-				
-				if (botRole == null && role == null) {
-					continue;
-				}
-				
-				for (Member member : guild.getMembers()) {
-					if (roleData != null && botRoleData == null) {
-						if (role != null && self.canInteract(role) && !member.getRoles().contains(role)) {
-							guild.getController().addSingleRoleToMember(member, role).queue();
-						}
-					} else if (roleData == null && botRoleData != null) {
-						if (member.getUser().isBot()) {
-							if (botRole != null && self.canInteract(botRole) && !member.getRoles().contains(botRole)) {
-								guild.getController().addSingleRoleToMember(member, botRole).queue();
-							}
-						}
-					} else {
-						if (member.getUser().isBot()) {
-							if (botRole != null && self.canInteract(botRole) && !member.getRoles().contains(botRole)) {
-								guild.getController().addSingleRoleToMember(member, botRole).queue();
-							}
-						} else {
+				Guild guild = shardManager.getGuildById((String) guildData.get("id"));
+				if (guild != null) {
+					Member self = guild.getSelfMember();
+					if (!self.hasPermission(Permission.MANAGE_ROLES)) {
+						continue;
+					}
+					
+					String roleData = (String) guildData.get("role");
+					String botRoleData = (String) guildData.get("botrole");
+					
+					Role role = null, botRole = null;
+					if (roleData != null) {
+						role = guild.getRoleById(roleData);
+					} 
+					
+					if (botRoleData != null) {
+						botRole = guild.getRoleById(botRoleData);
+					}
+					
+					if (botRole == null && role == null) {
+						continue;
+					}
+					
+					for (Member member : guild.getMembers()) {
+						if (roleData != null && botRoleData == null) {
 							if (role != null && self.canInteract(role) && !member.getRoles().contains(role)) {
 								guild.getController().addSingleRoleToMember(member, role).queue();
+							}
+						} else if (roleData == null && botRoleData != null) {
+							if (member.getUser().isBot()) {
+								if (botRole != null && self.canInteract(botRole) && !member.getRoles().contains(botRole)) {
+									guild.getController().addSingleRoleToMember(member, botRole).queue();
+								}
+							}
+						} else {
+							if (member.getUser().isBot()) {
+								if (botRole != null && self.canInteract(botRole) && !member.getRoles().contains(botRole)) {
+									guild.getController().addSingleRoleToMember(member, botRole).queue();
+								}
+							} else {
+								if (role != null && self.canInteract(role) && !member.getRoles().contains(role)) {
+									guild.getController().addSingleRoleToMember(member, role).queue();
+								}
 							}
 						}
 					}

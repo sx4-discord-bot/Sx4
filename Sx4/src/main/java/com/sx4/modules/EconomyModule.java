@@ -2591,16 +2591,18 @@ public class EconomyModule {
 					return;
 				}
 				
-				Cursor<Map<String, Object>> cursor = r.table("auction").filter(d -> d.g("item").g("name").eq(item.getName())).run(connection);
-				shownData = cursor.toList();
-				
-				if (shownData.isEmpty()) {
-					event.reply("I could not find any auctions for `" + item.getName() + "` :no_entry:").queue();
-					return;
+				try (Cursor<Map<String, Object>> cursor = r.table("auction").filter(d -> d.g("item").g("name").eq(item.getName())).run(connection)) {
+					shownData = cursor.toList();
+					
+					if (shownData.isEmpty()) {
+						event.reply("I could not find any auctions for `" + item.getName() + "` :no_entry:").queue();
+						return;
+					}
 				}
 			} else {
-				Cursor<Map<String, Object>> cursor = r.table("auction").run(connection);
-				shownData = cursor.toList();
+				try (Cursor<Map<String, Object>> cursor = r.table("auction").run(connection)) {
+					shownData = cursor.toList();
+				}
 			}
 			
 			shownData.sort((a, b) -> Double.compare((a.get("price") instanceof Double ? (long) (double) a.get("price") : (long) a.get("price")) / (long) ((Map<String, Object>) a.get("item")).get("amount"), (b.get("price") instanceof Double ? (long) (double) b.get("price") : (long) b.get("price")) / (long) ((Map<String, Object>) b.get("item")).get("amount")));
@@ -2727,16 +2729,18 @@ public class EconomyModule {
 					return;
 				}
 				
-				Cursor<Map<String, Object>> cursor = r.table("auction").filter(d -> d.g("item").g("name").eq(item.getName())).run(connection);
-				shownData = cursor.toList();
-				
-				if (shownData.isEmpty()) {
-					event.reply("I could not find any auctions for `" + item.getName() + "` :no_entry:").queue();
-					return;
+				try (Cursor<Map<String, Object>> cursor = r.table("auction").filter(d -> d.g("item").g("name").eq(item.getName())).run(connection)) {
+					shownData = cursor.toList();
+					
+					if (shownData.isEmpty()) {
+						event.reply("I could not find any auctions for `" + item.getName() + "` :no_entry:").queue();
+						return;
+					}
 				}
 			} else {
-				Cursor<Map<String, Object>> cursor = r.table("auction").run(connection);
-				shownData = cursor.toList();
+				try (Cursor<Map<String, Object>> cursor = r.table("auction").run(connection)) {
+					shownData = cursor.toList();
+				}
 			}
 			
 			shownData.sort((a, b) -> Double.compare((a.get("price") instanceof Double ? (long) (double) a.get("price") : (long) a.get("price")) / (long) ((Map<String, Object>) a.get("item")).get("amount"), (b.get("price") instanceof Double ? (long) (double) b.get("price") : (long) b.get("price")) / (long) ((Map<String, Object>) b.get("item")).get("amount")));
@@ -2776,63 +2780,64 @@ public class EconomyModule {
 			
 			PagedUtils.getPagedResult(event, paged, 60, pagedReturn -> {
 				Table auctionTable = r.table("auction");
-				Cursor<Map<String, Object>> cursor = auctionTable.run(connection);
-				List<Map<String, Object>> auctionData = cursor.toList();
-				Map<String, Object> auction = pagedReturn.getObject();
-				AuctionItem auctionItem = new AuctionItem(auction);
-				
-				if (!auctionData.contains(auction)) {
-					event.reply("That item has already been bought off the auction :no_entry:").queue();
-					return;
-				}
-				
-				User owner = auctionItem.getOwner(event.getShardManager());
-				if (owner != null) {
-					if (owner.equals(event.getAuthor())) {
-						event.reply("You cannot buy your own items, however you can refund them using `" + event.getPrefix() + "auction refund` :no_entry:").queue();
+				try (Cursor<Map<String, Object>> cursor = auctionTable.run(connection)) {
+					List<Map<String, Object>> auctionData = cursor.toList();
+					Map<String, Object> auction = pagedReturn.getObject();
+					AuctionItem auctionItem = new AuctionItem(auction);
+					
+					if (!auctionData.contains(auction)) {
+						event.reply("That item has already been bought off the auction :no_entry:").queue();
 						return;
 					}
-				}
-				
-				if (balance < auctionItem.getPrice()) {
-					event.reply("You do not have enough money to purchase that auction :no_entry:").queue();
-					return;
-				}
-				
-				Map<String, Object> auctionItemRaw = (Map<String, Object>) auction.get("item");
-				List<Map<String, Object>> items = (List<Map<String, Object>>) dataRan.get("items");
-				if (auctionItem.isAxe()) {
-					if (EconomyUtils.hasAxe(items)) {
-						event.reply("You already own an axe :no_entry:").queue();
+					
+					User owner = auctionItem.getOwner(event.getShardManager());
+					if (owner != null) {
+						if (owner.equals(event.getAuthor())) {
+							event.reply("You cannot buy your own items, however you can refund them using `" + event.getPrefix() + "auction refund` :no_entry:").queue();
+							return;
+						}
+					}
+					
+					if (balance < auctionItem.getPrice()) {
+						event.reply("You do not have enough money to purchase that auction :no_entry:").queue();
 						return;
+					}
+					
+					Map<String, Object> auctionItemRaw = (Map<String, Object>) auction.get("item");
+					List<Map<String, Object>> items = (List<Map<String, Object>>) dataRan.get("items");
+					if (auctionItem.isAxe()) {
+						if (EconomyUtils.hasAxe(items)) {
+							event.reply("You already own an axe :no_entry:").queue();
+							return;
+						} else {
+							data.update(row -> r.hashMap("items", EconomyUtils.addItemsFromRaw(items, auctionItemRaw)).with("balance", row.g("balance").sub(auctionItem.getPrice())).with("axedur", auctionItem.getDurability())).runNoReply(connection);
+						}
+					} else if (auctionItem.isRod()) {
+						if (EconomyUtils.hasRod(items)) {
+							event.reply("You already own a fishing rod :no_entry:").queue();
+							return;
+						} else {
+							data.update(row -> r.hashMap("items", EconomyUtils.addItemsFromRaw(items, auctionItemRaw)).with("balance", row.g("balance").sub(auctionItem.getPrice())).with("roddur", auctionItem.getDurability())).runNoReply(connection);
+						}
+					} else if (auctionItem.isPickaxe()) {
+						if (EconomyUtils.hasPickaxe(items)) {
+							event.reply("You already own a pickaxe :no_entry:").queue();
+							return;
+						} else {
+							data.update(row -> r.hashMap("items", EconomyUtils.addItemsFromRaw(items, auctionItemRaw)).with("balance", row.g("balance").sub(auctionItem.getPrice())).with("pickdur", auctionItem.getDurability())).runNoReply(connection);
+						}
 					} else {
-						data.update(row -> r.hashMap("items", EconomyUtils.addItemsFromRaw(items, auctionItemRaw)).with("balance", row.g("balance").sub(auctionItem.getPrice())).with("axedur", auctionItem.getDurability())).runNoReply(connection);
+						data.update(row -> r.hashMap("items", EconomyUtils.addItemsFromRaw(items, auctionItemRaw)).with("balance", row.g("balance").sub(auctionItem.getPrice()))).runNoReply(connection);
 					}
-				} else if (auctionItem.isRod()) {
-					if (EconomyUtils.hasRod(items)) {
-						event.reply("You already own a fishing rod :no_entry:").queue();
-						return;
-					} else {
-						data.update(row -> r.hashMap("items", EconomyUtils.addItemsFromRaw(items, auctionItemRaw)).with("balance", row.g("balance").sub(auctionItem.getPrice())).with("roddur", auctionItem.getDurability())).runNoReply(connection);
-					}
-				} else if (auctionItem.isPickaxe()) {
-					if (EconomyUtils.hasPickaxe(items)) {
-						event.reply("You already own a pickaxe :no_entry:").queue();
-						return;
-					} else {
-						data.update(row -> r.hashMap("items", EconomyUtils.addItemsFromRaw(items, auctionItemRaw)).with("balance", row.g("balance").sub(auctionItem.getPrice())).with("pickdur", auctionItem.getDurability())).runNoReply(connection);
-					}
-				} else {
-					data.update(row -> r.hashMap("items", EconomyUtils.addItemsFromRaw(items, auctionItemRaw)).with("balance", row.g("balance").sub(auctionItem.getPrice()))).runNoReply(connection);
+					
+					event.reply(String.format("You just bought `%,d %s` for **$%,d** :ok_hand:", auctionItem.getAmount(), auctionItem.getItem().getName(), auctionItem.getPrice())).queue();
+					
+					auctionTable.get(auctionItem.getId()).delete().runNoReply(connection);
+					r.table("bank").get(owner.getId()).update(row -> r.hashMap("balance", row.g("balance").add(auctionItem.getPrice()))).runNoReply(connection);
+					owner.openPrivateChannel().queue(channel -> {
+						channel.sendMessage(String.format("Your `%,d %s` was just bought for **$%,d** :tada:", auctionItem.getAmount(), auctionItem.getItem().getName(), auctionItem.getPrice())).queue();
+					}, e -> {});
 				}
-				
-				event.reply(String.format("You just bought `%,d %s` for **$%,d** :ok_hand:", auctionItem.getAmount(), auctionItem.getItem().getName(), auctionItem.getPrice())).queue();
-				
-				auctionTable.get(auctionItem.getId()).delete().runNoReply(connection);
-				r.table("bank").get(owner.getId()).update(row -> r.hashMap("balance", row.g("balance").add(auctionItem.getPrice()))).runNoReply(connection);
-				owner.openPrivateChannel().queue(channel -> {
-					channel.sendMessage(String.format("Your `%,d %s` was just bought for **$%,d** :tada:", auctionItem.getAmount(), auctionItem.getItem().getName(), auctionItem.getPrice())).queue();
-				}, e -> {});
 			});
 		}
 
@@ -2857,16 +2862,18 @@ public class EconomyModule {
 					return;
 				}
 				
-				Cursor<Map<String, Object>> cursor = r.table("auction").filter(d -> d.g("item").g("name").eq(item.getName()).and(d.g("ownerid").eq(event.getAuthor().getId()))).run(connection);
-				shownData = cursor.toList();
-				
-				if (shownData.isEmpty()) {
-					event.reply("You do not have any `" + item.getName() + "` on the auction :no_entry:").queue();
-					return;
+				try (Cursor<Map<String, Object>> cursor = r.table("auction").filter(d -> d.g("item").g("name").eq(item.getName()).and(d.g("ownerid").eq(event.getAuthor().getId()))).run(connection)) {
+					shownData = cursor.toList();
+					
+					if (shownData.isEmpty()) {
+						event.reply("You do not have any `" + item.getName() + "` on the auction :no_entry:").queue();
+						return;
+					}
 				}
 			} else {
-				Cursor<Map<String, Object>> cursor = r.table("auction").filter(d -> d.g("ownerid").eq(event.getAuthor().getId())).run(connection);
-				shownData = cursor.toList();
+				try (Cursor<Map<String, Object>> cursor = r.table("auction").filter(d -> d.g("ownerid").eq(event.getAuthor().getId())).run(connection)) {
+					shownData = cursor.toList();
+				}
 			}
 			
 			if (shownData.isEmpty()) {
@@ -2911,46 +2918,47 @@ public class EconomyModule {
 			
 			PagedUtils.getPagedResult(event, paged, 60, pagedReturn -> {
 				Table auctionTable = r.table("auction");
-				Cursor<Map<String, Object>> cursor = auctionTable.run(connection);
-				List<Map<String, Object>> auctionData = cursor.toList();
-				Map<String, Object> auction = pagedReturn.getObject();
-				AuctionItem auctionItem = new AuctionItem(auction);
-				
-				if (!auctionData.contains(auction)) {
-					event.reply("You have already refunded that item :no_entry:").queue();
-					return;
+				try (Cursor<Map<String, Object>> cursor = auctionTable.run(connection)) {
+					List<Map<String, Object>> auctionData = cursor.toList();
+					Map<String, Object> auction = pagedReturn.getObject();
+					AuctionItem auctionItem = new AuctionItem(auction);
+					
+					if (!auctionData.contains(auction)) {
+						event.reply("You have already refunded that item :no_entry:").queue();
+						return;
+					}
+					
+					Map<String, Object> auctionItemRaw = (Map<String, Object>) auction.get("item");
+					List<Map<String, Object>> items = (List<Map<String, Object>>) dataRan.get("items");
+					if (auctionItem.isAxe()) {
+						if (EconomyUtils.hasAxe(items)) {
+							event.reply("You already own an axe :no_entry:").queue();
+							return;
+						} else {
+							data.update(row -> r.hashMap("items", EconomyUtils.addItemsFromRaw(items, auctionItemRaw)).with("axedur", auctionItem.getDurability())).runNoReply(connection);
+						}
+					} else if (auctionItem.isRod()) {
+						if (EconomyUtils.hasRod(items)) {
+							event.reply("You already own a fishing rod :no_entry:").queue();
+							return;
+						} else {
+							data.update(row -> r.hashMap("items", EconomyUtils.addItemsFromRaw(items, auctionItemRaw)).with("roddur", auctionItem.getDurability())).runNoReply(connection);
+						}
+					} else if (auctionItem.isPickaxe()) {
+						if (EconomyUtils.hasPickaxe(items)) {
+							event.reply("You already own a pickaxe :no_entry:").queue();
+							return;
+						} else {
+							data.update(row -> r.hashMap("items", EconomyUtils.addItemsFromRaw(items, auctionItemRaw)).with("pickdur", auctionItem.getDurability())).runNoReply(connection);
+						}
+					} else {
+						data.update(row -> r.hashMap("items", EconomyUtils.addItemsFromRaw(items, auctionItemRaw))).runNoReply(connection);
+					}
+					
+					event.reply(String.format("You just refunded your `%,d %s` :ok_hand:", auctionItem.getAmount(), auctionItem.getItem().getName())).queue();
+					
+					auctionTable.get(auctionItem.getId()).delete().runNoReply(connection);
 				}
-				
-				Map<String, Object> auctionItemRaw = (Map<String, Object>) auction.get("item");
-				List<Map<String, Object>> items = (List<Map<String, Object>>) dataRan.get("items");
-				if (auctionItem.isAxe()) {
-					if (EconomyUtils.hasAxe(items)) {
-						event.reply("You already own an axe :no_entry:").queue();
-						return;
-					} else {
-						data.update(row -> r.hashMap("items", EconomyUtils.addItemsFromRaw(items, auctionItemRaw)).with("axedur", auctionItem.getDurability())).runNoReply(connection);
-					}
-				} else if (auctionItem.isRod()) {
-					if (EconomyUtils.hasRod(items)) {
-						event.reply("You already own a fishing rod :no_entry:").queue();
-						return;
-					} else {
-						data.update(row -> r.hashMap("items", EconomyUtils.addItemsFromRaw(items, auctionItemRaw)).with("roddur", auctionItem.getDurability())).runNoReply(connection);
-					}
-				} else if (auctionItem.isPickaxe()) {
-					if (EconomyUtils.hasPickaxe(items)) {
-						event.reply("You already own a pickaxe :no_entry:").queue();
-						return;
-					} else {
-						data.update(row -> r.hashMap("items", EconomyUtils.addItemsFromRaw(items, auctionItemRaw)).with("pickdur", auctionItem.getDurability())).runNoReply(connection);
-					}
-				} else {
-					data.update(row -> r.hashMap("items", EconomyUtils.addItemsFromRaw(items, auctionItemRaw))).runNoReply(connection);
-				}
-				
-				event.reply(String.format("You just refunded your `%,d %s` :ok_hand:", auctionItem.getAmount(), auctionItem.getItem().getName())).queue();
-				
-				auctionTable.get(auctionItem.getId()).delete().runNoReply(connection);
 			});
 		}
 		
@@ -3436,183 +3444,186 @@ public class EconomyModule {
 		@Command(value="bank", aliases={"money", "balance"}, description="View the leaderboard for people with the most money in their balance", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void bank(CommandEvent event, @Context Connection connection, @Option(value="server", aliases={"guild"}) boolean guild) {
-			Cursor<Map<String, Object>> cursor = r.table("bank").withFields("id", "balance").filter(row -> row.g("balance").ne(0)).run(connection);
-			List<Map<String, Object>> data = cursor.toList();
-			
-			List<Map<String, Object>> compressedData = new ArrayList<>();
-			for (Map<String, Object> dataObject : data) {		
-				User user = event.getShardManager().getUserById((String) dataObject.get("id"));
-				if (user == null) {
-					continue;
-				}
+			try (Cursor<Map<String, Object>> cursor = r.table("bank").withFields("id", "balance").filter(row -> row.g("balance").ne(0)).run(connection)) {
+				List<Map<String, Object>> data = cursor.toList();
 				
-				if (guild) {
-					if (!event.getGuild().isMember(user)) {
+				List<Map<String, Object>> compressedData = new ArrayList<>();
+				for (Map<String, Object> dataObject : data) {		
+					User user = event.getShardManager().getUserById((String) dataObject.get("id"));
+					if (user == null) {
 						continue;
 					}
+					
+					if (guild) {
+						if (!event.getGuild().isMember(user)) {
+							continue;
+						}
+					}
+					
+					Map<String, Object> dataMap = new HashMap<>();
+					dataMap.put("user", user);
+					dataMap.put("balance", (long) dataObject.get("balance"));
+					compressedData.add(dataMap);
 				}
 				
-				Map<String, Object> dataMap = new HashMap<>();
-				dataMap.put("user", user);
-				dataMap.put("balance", (long) dataObject.get("balance"));
-				compressedData.add(dataMap);
-			}
-			
-			compressedData.sort((a, b) -> Long.compare((long) b.get("balance"), (long) a.get("balance")));
-			
-			PagedResult<Map<String, Object>> paged = new PagedResult<>(compressedData)
-					.setDeleteMessage(false)
-					.setCustom(true)
-					.setCustomFunction(page -> {
-						Integer index = null;
-						for (int i = 0; i < compressedData.size(); i++) {
-							Map<String, Object> userData = compressedData.get(i);
-							if (((User) userData.get("user")).equals(event.getAuthor())) {
-								index = i + 1;
-							}
-						}
-						
-						EmbedBuilder embed = new EmbedBuilder();
-						embed.setColor(Settings.EMBED_COLOUR);
-						embed.setTitle("Bank Leaderboard");
-						embed.setFooter(event.getAuthor().getName() + "'s Rank: " + (index == null ? "Unranked" : GeneralUtils.getNumberSuffix(index)) + " | Page " + page.getCurrentPage() + "/" + page.getMaxPage(), event.getAuthor().getEffectiveAvatarUrl());
-						
-						for (int i = page.getCurrentPage() * page.getPerPage() - page.getPerPage(); i < page.getCurrentPage() * page.getPerPage(); i++) {
-							try {
+				compressedData.sort((a, b) -> Long.compare((long) b.get("balance"), (long) a.get("balance")));
+				
+				PagedResult<Map<String, Object>> paged = new PagedResult<>(compressedData)
+						.setDeleteMessage(false)
+						.setCustom(true)
+						.setCustomFunction(page -> {
+							Integer index = null;
+							for (int i = 0; i < compressedData.size(); i++) {
 								Map<String, Object> userData = compressedData.get(i);
-								embed.appendDescription(String.format("%d. `%s` - $%,d\n", i + 1, ((User) userData.get("user")).getAsTag(), (long) userData.get("balance")));
-							} catch (IndexOutOfBoundsException e) {
-								break;
+								if (((User) userData.get("user")).equals(event.getAuthor())) {
+									index = i + 1;
+								}
 							}
-						}
-						
-						return embed.build();
-					});
-			
-			PagedUtils.getPagedResult(event, paged, 300, null);
+							
+							EmbedBuilder embed = new EmbedBuilder();
+							embed.setColor(Settings.EMBED_COLOUR);
+							embed.setTitle("Bank Leaderboard");
+							embed.setFooter(event.getAuthor().getName() + "'s Rank: " + (index == null ? "Unranked" : GeneralUtils.getNumberSuffix(index)) + " | Page " + page.getCurrentPage() + "/" + page.getMaxPage(), event.getAuthor().getEffectiveAvatarUrl());
+							
+							for (int i = page.getCurrentPage() * page.getPerPage() - page.getPerPage(); i < page.getCurrentPage() * page.getPerPage(); i++) {
+								try {
+									Map<String, Object> userData = compressedData.get(i);
+									embed.appendDescription(String.format("%d. `%s` - $%,d\n", i + 1, ((User) userData.get("user")).getAsTag(), (long) userData.get("balance")));
+								} catch (IndexOutOfBoundsException e) {
+									break;
+								}
+							}
+							
+							return embed.build();
+						});
+				
+				PagedUtils.getPagedResult(event, paged, 300, null);
+			}
 		}
 		
 		@Command(value="networth", description="View the leaderboard for people with the most networth (All items worth + their balance)", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void networth(CommandEvent event, @Context Connection connection, @Option(value="server", aliases={"guild"}) boolean guild) {
-			Cursor<Map<String, Object>> cursor = r.table("bank").withFields("id", "items", "balance").run(connection);
-			List<Map<String, Object>> data = cursor.toList();
-			
-			List<Map<String, Object>> compressedData = new ArrayList<>();
-			for (Map<String, Object> dataObject : data) {		
-				long networth = EconomyUtils.getUserNetworth(dataObject);
-				if (networth == 0) {
-					continue;
-				}
+			try (Cursor<Map<String, Object>> cursor = r.table("bank").withFields("id", "items", "balance").run(connection)) {
+				List<Map<String, Object>> data = cursor.toList();
 				
-				User user = event.getShardManager().getUserById((String) dataObject.get("id"));
-				if (user == null) {
-					continue;
-				}
-				
-				if (guild) {
-					if (!event.getGuild().isMember(user)) {
+				List<Map<String, Object>> compressedData = new ArrayList<>();
+				for (Map<String, Object> dataObject : data) {		
+					long networth = EconomyUtils.getUserNetworth(dataObject);
+					if (networth == 0) {
 						continue;
 					}
+					
+					User user = event.getShardManager().getUserById((String) dataObject.get("id"));
+					if (user == null) {
+						continue;
+					}
+					
+					if (guild) {
+						if (!event.getGuild().isMember(user)) {
+							continue;
+						}
+					}
+					
+					Map<String, Object> dataMap = new HashMap<>();
+					dataMap.put("user", user);
+					dataMap.put("networth", networth);
+					compressedData.add(dataMap);
 				}
 				
-				Map<String, Object> dataMap = new HashMap<>();
-				dataMap.put("user", user);
-				dataMap.put("networth", networth);
-				compressedData.add(dataMap);
-			}
-			
-			compressedData.sort((a, b) -> Long.compare((long) b.get("networth"), (long) a.get("networth")));
-			
-			PagedResult<Map<String, Object>> paged = new PagedResult<>(compressedData)
-					.setDeleteMessage(false)
-					.setCustom(true)
-					.setCustomFunction(page -> {
-						Integer index = null;
-						for (int i = 0; i < compressedData.size(); i++) {
-							Map<String, Object> userData = compressedData.get(i);
-							if (((User) userData.get("user")).equals(event.getAuthor())) {
-								index = i + 1;
-							}
-						}
-						
-						EmbedBuilder embed = new EmbedBuilder();
-						embed.setColor(Settings.EMBED_COLOUR);
-						embed.setTitle("Networth Leaderboard");
-						embed.setFooter(event.getAuthor().getName() + "'s Rank: " + (index == null ? "Unranked" : GeneralUtils.getNumberSuffix(index)) + " | Page " + page.getCurrentPage() + "/" + page.getMaxPage(), event.getAuthor().getEffectiveAvatarUrl());
-						
-						for (int i = page.getCurrentPage() * page.getPerPage() - page.getPerPage(); i < page.getCurrentPage() * page.getPerPage(); i++) {
-							try {
+				compressedData.sort((a, b) -> Long.compare((long) b.get("networth"), (long) a.get("networth")));
+				
+				PagedResult<Map<String, Object>> paged = new PagedResult<>(compressedData)
+						.setDeleteMessage(false)
+						.setCustom(true)
+						.setCustomFunction(page -> {
+							Integer index = null;
+							for (int i = 0; i < compressedData.size(); i++) {
 								Map<String, Object> userData = compressedData.get(i);
-								embed.appendDescription(String.format("%d. `%s` - $%,d\n", i + 1, ((User) userData.get("user")).getAsTag(), (long) userData.get("networth")));
-							} catch (IndexOutOfBoundsException e) {
-								break;
+								if (((User) userData.get("user")).equals(event.getAuthor())) {
+									index = i + 1;
+								}
 							}
-						}
-						
-						return embed.build();
-					});
-			
-			PagedUtils.getPagedResult(event, paged, 300, null);
+							
+							EmbedBuilder embed = new EmbedBuilder();
+							embed.setColor(Settings.EMBED_COLOUR);
+							embed.setTitle("Networth Leaderboard");
+							embed.setFooter(event.getAuthor().getName() + "'s Rank: " + (index == null ? "Unranked" : GeneralUtils.getNumberSuffix(index)) + " | Page " + page.getCurrentPage() + "/" + page.getMaxPage(), event.getAuthor().getEffectiveAvatarUrl());
+							
+							for (int i = page.getCurrentPage() * page.getPerPage() - page.getPerPage(); i < page.getCurrentPage() * page.getPerPage(); i++) {
+								try {
+									Map<String, Object> userData = compressedData.get(i);
+									embed.appendDescription(String.format("%d. `%s` - $%,d\n", i + 1, ((User) userData.get("user")).getAsTag(), (long) userData.get("networth")));
+								} catch (IndexOutOfBoundsException e) {
+									break;
+								}
+							}
+							
+							return embed.build();
+						});
+				
+				PagedUtils.getPagedResult(event, paged, 300, null);
+			}
 		}
 		
 		@Command(value="winnings", description="View the leaderboard for people with the highest winnings", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void winnings(CommandEvent event, @Context Connection connection, @Option(value="server", aliases={"guild"}) boolean guild) {
-			Cursor<Map<String, Object>> cursor = r.table("bank").withFields("id", "winnings").filter(row -> row.g("winnings").ne(0)).run(connection);
-			List<Map<String, Object>> data = cursor.toList();
-			
-			List<Map<String, Object>> compressedData = new ArrayList<>();
-			for (Map<String, Object> dataObject : data) {						
-				User user = event.getShardManager().getUserById((String) dataObject.get("id"));
-				if (user == null) {
-					continue;
-				}
+			try (Cursor<Map<String, Object>> cursor = r.table("bank").withFields("id", "winnings").filter(row -> row.g("winnings").ne(0)).run(connection)) {
+				List<Map<String, Object>> data = cursor.toList();
 				
-				if (guild) {
-					if (!event.getGuild().isMember(user)) {
+				List<Map<String, Object>> compressedData = new ArrayList<>();
+				for (Map<String, Object> dataObject : data) {						
+					User user = event.getShardManager().getUserById((String) dataObject.get("id"));
+					if (user == null) {
 						continue;
 					}
+					
+					if (guild) {
+						if (!event.getGuild().isMember(user)) {
+							continue;
+						}
+					}
+					
+					Map<String, Object> dataMap = new HashMap<>();
+					dataMap.put("user", user);
+					dataMap.put("winnings", (long) dataObject.get("winnings"));
+					compressedData.add(dataMap);
 				}
 				
-				Map<String, Object> dataMap = new HashMap<>();
-				dataMap.put("user", user);
-				dataMap.put("winnings", (long) dataObject.get("winnings"));
-				compressedData.add(dataMap);
-			}
-			
-			compressedData.sort((a, b) -> Long.compare((long) b.get("winnings"), (long) a.get("winnings")));
-			
-			PagedResult<Map<String, Object>> paged = new PagedResult<>(compressedData)
-					.setDeleteMessage(false)
-					.setCustom(true)
-					.setCustomFunction(page -> {
-						Integer index = null;
-						for (int i = 0; i < compressedData.size(); i++) {
-							Map<String, Object> userData = compressedData.get(i);
-							if (((User) userData.get("user")).equals(event.getAuthor())) {
-								index = i + 1;
-							}
-						}
-						
-						EmbedBuilder embed = new EmbedBuilder();
-						embed.setColor(Settings.EMBED_COLOUR);
-						embed.setTitle("Winnings Leaderboard");
-						embed.setFooter(event.getAuthor().getName() + "'s Rank: " + (index == null ? "Unranked" : GeneralUtils.getNumberSuffix(index)) + " | Page " + page.getCurrentPage() + "/" + page.getMaxPage(), event.getAuthor().getEffectiveAvatarUrl());
-						
-						for (int i = page.getCurrentPage() * page.getPerPage() - page.getPerPage(); i < page.getCurrentPage() * page.getPerPage(); i++) {
-							try {
+				compressedData.sort((a, b) -> Long.compare((long) b.get("winnings"), (long) a.get("winnings")));
+				
+				PagedResult<Map<String, Object>> paged = new PagedResult<>(compressedData)
+						.setDeleteMessage(false)
+						.setCustom(true)
+						.setCustomFunction(page -> {
+							Integer index = null;
+							for (int i = 0; i < compressedData.size(); i++) {
 								Map<String, Object> userData = compressedData.get(i);
-								embed.appendDescription(String.format("%d. `%s` - $%,d\n", i + 1, ((User) userData.get("user")).getAsTag(), (long) userData.get("winnings")));
-							} catch (IndexOutOfBoundsException e) {
-								break;
+								if (((User) userData.get("user")).equals(event.getAuthor())) {
+									index = i + 1;
+								}
 							}
-						}
-						
-						return embed.build();
-					});
-			
-			PagedUtils.getPagedResult(event, paged, 300, null);
+							
+							EmbedBuilder embed = new EmbedBuilder();
+							embed.setColor(Settings.EMBED_COLOUR);
+							embed.setTitle("Winnings Leaderboard");
+							embed.setFooter(event.getAuthor().getName() + "'s Rank: " + (index == null ? "Unranked" : GeneralUtils.getNumberSuffix(index)) + " | Page " + page.getCurrentPage() + "/" + page.getMaxPage(), event.getAuthor().getEffectiveAvatarUrl());
+							
+							for (int i = page.getCurrentPage() * page.getPerPage() - page.getPerPage(); i < page.getCurrentPage() * page.getPerPage(); i++) {
+								try {
+									Map<String, Object> userData = compressedData.get(i);
+									embed.appendDescription(String.format("%d. `%s` - $%,d\n", i + 1, ((User) userData.get("user")).getAsTag(), (long) userData.get("winnings")));
+								} catch (IndexOutOfBoundsException e) {
+									break;
+								}
+							}
+							
+							return embed.build();
+						});
+				
+				PagedUtils.getPagedResult(event, paged, 300, null);
+			}
 		}
 		
 		@SuppressWarnings("unchecked")
@@ -3625,183 +3636,186 @@ public class EconomyModule {
 				return;
 			}
 			
-			Cursor<Map<String, Object>> cursor = r.table("bank").withFields("id", "items").run(connection);
-			List<Map<String, Object>> data = cursor.toList();
-			
-			List<Map<String, Object>> compressedData = new ArrayList<>();
-			for (Map<String, Object> dataObject : data) {		
-				ItemStack userItem = EconomyUtils.getUserItem((List<Map<String, Object>>) dataObject.get("items"), item);
-				if (userItem.getAmount() == 0) {
-					continue;
-				}
+			try (Cursor<Map<String, Object>> cursor = r.table("bank").withFields("id", "items").run(connection)) {
+				List<Map<String, Object>> data = cursor.toList();
 				
-				User user = event.getShardManager().getUserById((String) dataObject.get("id"));
-				if (user == null) {
-					continue;
-				}
-				
-				if (guild) {
-					if (!event.getGuild().isMember(user)) {
+				List<Map<String, Object>> compressedData = new ArrayList<>();
+				for (Map<String, Object> dataObject : data) {		
+					ItemStack userItem = EconomyUtils.getUserItem((List<Map<String, Object>>) dataObject.get("items"), item);
+					if (userItem.getAmount() == 0) {
 						continue;
 					}
+					
+					User user = event.getShardManager().getUserById((String) dataObject.get("id"));
+					if (user == null) {
+						continue;
+					}
+					
+					if (guild) {
+						if (!event.getGuild().isMember(user)) {
+							continue;
+						}
+					}
+					
+					Map<String, Object> dataMap = new HashMap<>();
+					dataMap.put("user", user);
+					dataMap.put("itemAmount", userItem.getAmount());
+					compressedData.add(dataMap);
 				}
 				
-				Map<String, Object> dataMap = new HashMap<>();
-				dataMap.put("user", user);
-				dataMap.put("itemAmount", userItem.getAmount());
-				compressedData.add(dataMap);
-			}
-			
-			compressedData.sort((a, b) -> Long.compare((long) b.get("itemAmount"), (long) a.get("itemAmount")));
-			
-			PagedResult<Map<String, Object>> paged = new PagedResult<>(compressedData)
-					.setDeleteMessage(false)
-					.setCustom(true)
-					.setCustomFunction(page -> {
-						Integer index = null;
-						for (int i = 0; i < compressedData.size(); i++) {
-							Map<String, Object> userData = compressedData.get(i);
-							if (((User) userData.get("user")).equals(event.getAuthor())) {
-								index = i + 1;
-							}
-						}
-						
-						EmbedBuilder embed = new EmbedBuilder();
-						embed.setColor(Settings.EMBED_COLOUR);
-						embed.setTitle(item.getName() + " Leaderboard");
-						embed.setFooter(event.getAuthor().getName() + "'s Rank: " + (index == null ? "Unranked" : GeneralUtils.getNumberSuffix(index)) + " | Page " + page.getCurrentPage() + "/" + page.getMaxPage(), event.getAuthor().getEffectiveAvatarUrl());
-						
-						for (int i = page.getCurrentPage() * page.getPerPage() - page.getPerPage(); i < page.getCurrentPage() * page.getPerPage(); i++) {
-							try {
+				compressedData.sort((a, b) -> Long.compare((long) b.get("itemAmount"), (long) a.get("itemAmount")));
+				
+				PagedResult<Map<String, Object>> paged = new PagedResult<>(compressedData)
+						.setDeleteMessage(false)
+						.setCustom(true)
+						.setCustomFunction(page -> {
+							Integer index = null;
+							for (int i = 0; i < compressedData.size(); i++) {
 								Map<String, Object> userData = compressedData.get(i);
-								embed.appendDescription(String.format("%d. `%s` - %,d %s\n", i + 1, ((User) userData.get("user")).getAsTag(), (long) userData.get("itemAmount"), item.getName()));
-							} catch (IndexOutOfBoundsException e) {
-								break;
+								if (((User) userData.get("user")).equals(event.getAuthor())) {
+									index = i + 1;
+								}
 							}
-						}
-						
-						return embed.build();
-					});
-			
-			PagedUtils.getPagedResult(event, paged, 300, null);
+							
+							EmbedBuilder embed = new EmbedBuilder();
+							embed.setColor(Settings.EMBED_COLOUR);
+							embed.setTitle(item.getName() + " Leaderboard");
+							embed.setFooter(event.getAuthor().getName() + "'s Rank: " + (index == null ? "Unranked" : GeneralUtils.getNumberSuffix(index)) + " | Page " + page.getCurrentPage() + "/" + page.getMaxPage(), event.getAuthor().getEffectiveAvatarUrl());
+							
+							for (int i = page.getCurrentPage() * page.getPerPage() - page.getPerPage(); i < page.getCurrentPage() * page.getPerPage(); i++) {
+								try {
+									Map<String, Object> userData = compressedData.get(i);
+									embed.appendDescription(String.format("%d. `%s` - %,d %s\n", i + 1, ((User) userData.get("user")).getAsTag(), (long) userData.get("itemAmount"), item.getName()));
+								} catch (IndexOutOfBoundsException e) {
+									break;
+								}
+							}
+							
+							return embed.build();
+						});
+				
+				PagedUtils.getPagedResult(event, paged, 300, null);
+			}
 		}
 		
 		@Command(value="reputation", aliases={"rep", "reps"}, description="View the leaderboard for people with the highest reputation", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void reputation(CommandEvent event, @Context Connection connection, @Option(value="server", aliases={"guild"}) boolean guild) {
-			Cursor<Map<String, Object>> cursor = r.table("bank").withFields("id", "rep").filter(row -> row.g("rep").ne(0)).run(connection);
-			List<Map<String, Object>> data = cursor.toList();
-			
-			List<Map<String, Object>> compressedData = new ArrayList<>();
-			for (Map<String, Object> dataObject : data) {		
-				User user = event.getShardManager().getUserById((String) dataObject.get("id"));
-				if (user == null) {
-					continue;
-				}
+			try (Cursor<Map<String, Object>> cursor = r.table("bank").withFields("id", "rep").filter(row -> row.g("rep").ne(0)).run(connection)) {
+				List<Map<String, Object>> data = cursor.toList();
 				
-				if (guild) {
-					if (!event.getGuild().isMember(user)) {
+				List<Map<String, Object>> compressedData = new ArrayList<>();
+				for (Map<String, Object> dataObject : data) {		
+					User user = event.getShardManager().getUserById((String) dataObject.get("id"));
+					if (user == null) {
 						continue;
 					}
+					
+					if (guild) {
+						if (!event.getGuild().isMember(user)) {
+							continue;
+						}
+					}
+					
+					Map<String, Object> dataMap = new HashMap<>();
+					dataMap.put("user", user);
+					dataMap.put("reputation", (long) dataObject.get("rep"));
+					compressedData.add(dataMap);
 				}
 				
-				Map<String, Object> dataMap = new HashMap<>();
-				dataMap.put("user", user);
-				dataMap.put("reputation", (long) dataObject.get("rep"));
-				compressedData.add(dataMap);
-			}
-			
-			compressedData.sort((a, b) -> Long.compare((long) b.get("reputation"), (long) a.get("reputation")));
-			
-			PagedResult<Map<String, Object>> paged = new PagedResult<>(compressedData)
-					.setDeleteMessage(false)
-					.setCustom(true)
-					.setCustomFunction(page -> {
-						Integer index = null;
-						for (int i = 0; i < compressedData.size(); i++) {
-							Map<String, Object> userData = compressedData.get(i);
-							if (((User) userData.get("user")).equals(event.getAuthor())) {
-								index = i + 1;
-							}
-						}
-						
-						EmbedBuilder embed = new EmbedBuilder();
-						embed.setColor(Settings.EMBED_COLOUR);
-						embed.setTitle("Reputation Leaderboard");
-						embed.setFooter(event.getAuthor().getName() + "'s Rank: " + (index == null ? "Unranked" : GeneralUtils.getNumberSuffix(index)) + " | Page " + page.getCurrentPage() + "/" + page.getMaxPage(), event.getAuthor().getEffectiveAvatarUrl());
-						
-						for (int i = page.getCurrentPage() * page.getPerPage() - page.getPerPage(); i < page.getCurrentPage() * page.getPerPage(); i++) {
-							try {
+				compressedData.sort((a, b) -> Long.compare((long) b.get("reputation"), (long) a.get("reputation")));
+				
+				PagedResult<Map<String, Object>> paged = new PagedResult<>(compressedData)
+						.setDeleteMessage(false)
+						.setCustom(true)
+						.setCustomFunction(page -> {
+							Integer index = null;
+							for (int i = 0; i < compressedData.size(); i++) {
 								Map<String, Object> userData = compressedData.get(i);
-								embed.appendDescription(String.format("%d. `%s` - %,d reputation\n", i + 1, ((User) userData.get("user")).getAsTag(), (long) userData.get("reputation")));
-							} catch (IndexOutOfBoundsException e) {
-								break;
+								if (((User) userData.get("user")).equals(event.getAuthor())) {
+									index = i + 1;
+								}
 							}
-						}
-						
-						return embed.build();
-					});
-			
-			PagedUtils.getPagedResult(event, paged, 300, null);
+							
+							EmbedBuilder embed = new EmbedBuilder();
+							embed.setColor(Settings.EMBED_COLOUR);
+							embed.setTitle("Reputation Leaderboard");
+							embed.setFooter(event.getAuthor().getName() + "'s Rank: " + (index == null ? "Unranked" : GeneralUtils.getNumberSuffix(index)) + " | Page " + page.getCurrentPage() + "/" + page.getMaxPage(), event.getAuthor().getEffectiveAvatarUrl());
+							
+							for (int i = page.getCurrentPage() * page.getPerPage() - page.getPerPage(); i < page.getCurrentPage() * page.getPerPage(); i++) {
+								try {
+									Map<String, Object> userData = compressedData.get(i);
+									embed.appendDescription(String.format("%d. `%s` - %,d reputation\n", i + 1, ((User) userData.get("user")).getAsTag(), (long) userData.get("reputation")));
+								} catch (IndexOutOfBoundsException e) {
+									break;
+								}
+							}
+							
+							return embed.build();
+						});
+				
+				PagedUtils.getPagedResult(event, paged, 300, null);
+			}
 		}
 		
 		@Command(value="streak", description="View the leaderboard for people who have the highest streak for using `daily`", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void streak(CommandEvent event, @Context Connection connection, @Option(value="server", aliases={"guild"}) boolean guild) {
-			Cursor<Map<String, Object>> cursor = r.table("bank").withFields("id", "streak").filter(row -> row.g("streak").ne(0)).run(connection);
-			List<Map<String, Object>> data = cursor.toList();
-			
-			List<Map<String, Object>> compressedData = new ArrayList<>();
-			for (Map<String, Object> dataObject : data) {		
-				User user = event.getShardManager().getUserById((String) dataObject.get("id"));
-				if (user == null) {
-					continue;
-				}
+			try (Cursor<Map<String, Object>> cursor = r.table("bank").withFields("id", "streak").filter(row -> row.g("streak").ne(0)).run(connection)) {
+				List<Map<String, Object>> data = cursor.toList();
 				
-				if (guild) {
-					if (!event.getGuild().isMember(user)) {
+				List<Map<String, Object>> compressedData = new ArrayList<>();
+				for (Map<String, Object> dataObject : data) {		
+					User user = event.getShardManager().getUserById((String) dataObject.get("id"));
+					if (user == null) {
 						continue;
 					}
+					
+					if (guild) {
+						if (!event.getGuild().isMember(user)) {
+							continue;
+						}
+					}
+					
+					Map<String, Object> dataMap = new HashMap<>();
+					dataMap.put("user", user);
+					dataMap.put("streak", (long) dataObject.get("streak"));
+					compressedData.add(dataMap);
 				}
 				
-				Map<String, Object> dataMap = new HashMap<>();
-				dataMap.put("user", user);
-				dataMap.put("streak", (long) dataObject.get("streak"));
-				compressedData.add(dataMap);
-			}
-			
-			compressedData.sort((a, b) -> Long.compare((long) b.get("streak"), (long) a.get("streak")));
-			
-			PagedResult<Map<String, Object>> paged = new PagedResult<>(compressedData)
-					.setDeleteMessage(false)
-					.setCustom(true)
-					.setCustomFunction(page -> {
-						Integer index = null;
-						for (int i = 0; i < compressedData.size(); i++) {
-							Map<String, Object> userData = compressedData.get(i);
-							if (((User) userData.get("user")).equals(event.getAuthor())) {
-								index = i + 1;
-							}
-						}
-						
-						EmbedBuilder embed = new EmbedBuilder();
-						embed.setColor(Settings.EMBED_COLOUR);
-						embed.setTitle("Streak Leaderboard");
-						embed.setFooter(event.getAuthor().getName() + "'s Rank: " + (index == null ? "Unranked" : GeneralUtils.getNumberSuffix(index)) + " | Page " + page.getCurrentPage() + "/" + page.getMaxPage(), event.getAuthor().getEffectiveAvatarUrl());
-						
-						for (int i = page.getCurrentPage() * page.getPerPage() - page.getPerPage(); i < page.getCurrentPage() * page.getPerPage(); i++) {
-							try {
+				compressedData.sort((a, b) -> Long.compare((long) b.get("streak"), (long) a.get("streak")));
+				
+				PagedResult<Map<String, Object>> paged = new PagedResult<>(compressedData)
+						.setDeleteMessage(false)
+						.setCustom(true)
+						.setCustomFunction(page -> {
+							Integer index = null;
+							for (int i = 0; i < compressedData.size(); i++) {
 								Map<String, Object> userData = compressedData.get(i);
-								embed.appendDescription(String.format("%d. `%s` - %,d day streak\n", i + 1, ((User) userData.get("user")).getAsTag(), (long) userData.get("streak")));
-							} catch (IndexOutOfBoundsException e) {
-								break;
+								if (((User) userData.get("user")).equals(event.getAuthor())) {
+									index = i + 1;
+								}
 							}
-						}
-						
-						return embed.build();
-					});
-			
-			PagedUtils.getPagedResult(event, paged, 300, null);
+							
+							EmbedBuilder embed = new EmbedBuilder();
+							embed.setColor(Settings.EMBED_COLOUR);
+							embed.setTitle("Streak Leaderboard");
+							embed.setFooter(event.getAuthor().getName() + "'s Rank: " + (index == null ? "Unranked" : GeneralUtils.getNumberSuffix(index)) + " | Page " + page.getCurrentPage() + "/" + page.getMaxPage(), event.getAuthor().getEffectiveAvatarUrl());
+							
+							for (int i = page.getCurrentPage() * page.getPerPage() - page.getPerPage(); i < page.getCurrentPage() * page.getPerPage(); i++) {
+								try {
+									Map<String, Object> userData = compressedData.get(i);
+									embed.appendDescription(String.format("%d. `%s` - %,d day streak\n", i + 1, ((User) userData.get("user")).getAsTag(), (long) userData.get("streak")));
+								} catch (IndexOutOfBoundsException e) {
+									break;
+								}
+							}
+							
+							return embed.build();
+						});
+				
+				PagedUtils.getPagedResult(event, paged, 300, null);
+			}
 		}
 		
 		@Command(value="votes", aliases={"vote"}, description="View the leaderboard for the highest votes of the month/all time")

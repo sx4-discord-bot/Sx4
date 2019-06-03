@@ -17,7 +17,7 @@ public class Categories {
 	public static final CategoryImpl AUTO_ROLE = new CategoryImpl("Autorole", null);
 	public static final CategoryImpl ECONOMY = new CategoryImpl("Economy", null);
 	public static final CategoryImpl WELCOMER = new CategoryImpl("Welcomer", null);
-	public static final CategoryImpl ANTI_INVITE = new CategoryImpl("Antiinivte", null);
+	public static final CategoryImpl ANTI_INVITE = new CategoryImpl("Antiinvite", null);
 	public static final CategoryImpl ANTI_LINK = new CategoryImpl("Antilink", null);
 	
 	public static final CategoryImpl[] ALL = {GENERAL, MOD, HELP, DEVELOPER, FUN, IMAGE, LOGS, ANIMALS, GIVEAWAY, SELF_ROLES, AUTO_ROLE, ECONOMY, WELCOMER, ANTI_INVITE, ANTI_LINK};
