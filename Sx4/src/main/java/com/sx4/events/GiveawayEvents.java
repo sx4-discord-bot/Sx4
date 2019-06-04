@@ -71,12 +71,12 @@ public class GiveawayEvents {
 					if (reaction.getReactionEmote().getName().equals("🎉")) {
 						List<Member> members = new ArrayList<>();
 						RequestFuture<?> future = reaction.getUsers().forEachAsync((user) -> {
-						    Member reactionMember = guild.getMember(user);
-						    if (reactionMember != null && !members.contains(reactionMember) && reactionMember != guild.getSelfMember()) {
-						    	members.add(reactionMember);
-						    }
-						    
-						    return true;
+							Member reactionMember = guild.getMember(user);
+							if (reactionMember != null && !members.contains(reactionMember) && reactionMember != guild.getSelfMember()) {
+								members.add(reactionMember);
+							}
+							
+							return true;
 						});
 							
 						future.thenRun(() -> {
@@ -111,11 +111,11 @@ public class GiveawayEvents {
 				}
 			}, e -> {
 				if (e instanceof ErrorResponseException) {
-    				ErrorResponseException exception = (ErrorResponseException) e;
-    				if (exception.getErrorCode() == 10008) {
-    					r.table("giveaway").get(guild.getId()).update(row -> r.hashMap("giveaways", row.g("giveaways").filter(d -> d.g("id").ne(giveawayId)))).runNoReply(connection);
-    					GiveawayEvents.cancelExecutor(guild.getId(), giveawayId);
-    				}
+					ErrorResponseException exception = (ErrorResponseException) e;
+					if (exception.getErrorCode() == 10008) {
+						r.table("giveaway").get(guild.getId()).update(row -> r.hashMap("giveaways", row.g("giveaways").filter(d -> d.g("id").ne(giveawayId)))).runNoReply(connection);
+						GiveawayEvents.cancelExecutor(guild.getId(), giveawayId);
+					}
 				}
 			});
 		}

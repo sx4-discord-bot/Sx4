@@ -124,24 +124,25 @@ public class ModModule {
 						return;
 					}
 					try {
-						Response response = Sx4Bot.client.newCall(request).execute();
-						if (response.code() == 200) {
-							String type;
-							if (response.header("Content-Type") != null && response.header("Content-Type").contains("/")) {
-								type = response.header("Content-Type").split("/")[1];
+						try (Response response = Sx4Bot.client.newCall(request).execute()) {
+							if (response.code() == 200) {
+								String type;
+								if (response.header("Content-Type") != null && response.header("Content-Type").contains("/")) {
+									type = response.header("Content-Type").split("/")[1];
+								} else {
+									event.reply("The url you provided wasn't an image or a gif :no_entry:").queue();
+									return;
+								}
+								if (type.equals("gif") || type.equals("png") || type.equals("jpg") || type.equals("jpeg")) {
+									url = argument;
+								} else {
+									event.reply("The url you provided wasn't an image or a gif :no_entry:").queue();
+									return;
+								}
 							} else {
-								event.reply("The url you provided wasn't an image or a gif :no_entry:").queue();
+								event.reply("The url you provided was invalid :no_entry:").queue();
 								return;
 							}
-							if (type.equals("gif") || type.equals("png") || type.equals("jpg") || type.equals("jpeg")) {
-								url = argument;
-							} else {
-								event.reply("The url you provided wasn't an image or a gif :no_entry:").queue();
-								return;
-							}
-						} else {
-							event.reply("The url you provided was invalid :no_entry:").queue();
-							return;
 						}
 					} catch (IOException e) {
 						event.reply("Oops something went wrong there, try again :no_entry:").queue();
@@ -157,14 +158,15 @@ public class ModModule {
 						return;
 					}
 					try {
-						Response response = Sx4Bot.client.newCall(request).execute();
-						if (response.code() == 415) {
-							url = "https://cdn.discordapp.com/emojis/" + id + ".png";
-						} else if (response.code() == 200) {
-							url = "https://cdn.discordapp.com/emojis/" + id + ".gif";
-						} else {
-							event.reply("I could not find that emote :no_entry:").queue();
-							return;
+						try (Response response = Sx4Bot.client.newCall(request).execute()) {
+							if (response.code() == 415) {
+								url = "https://cdn.discordapp.com/emojis/" + id + ".png";
+							} else if (response.code() == 200) {
+								url = "https://cdn.discordapp.com/emojis/" + id + ".gif";
+							} else {
+								event.reply("I could not find that emote :no_entry:").queue();
+								return;
+							}
 						}
 					} catch (IOException e) {
 						event.reply("Oops something went wrong there, try again :no_entry:").queue();
@@ -353,12 +355,12 @@ public class ModModule {
 				event.reply("Cleared all reactions from that message <:done:403285928233402378>").queue();
 			}, e -> {
 				if (e instanceof ErrorResponseException) {
-	    			ErrorResponseException exception = (ErrorResponseException) e;
-	    			if (exception.getErrorCode() == 10008) {
-	    				event.reply("I could not find that message within this channel :no_entry:").queue();
-	    				return;
-	    			}
-			    }
+					ErrorResponseException exception = (ErrorResponseException) e;
+					if (exception.getErrorCode() == 10008) {
+						event.reply("I could not find that message within this channel :no_entry:").queue();
+						return;
+					}
+				}
 			});
 		} catch(IllegalArgumentException e) {
 			event.reply("I could not find that message within this channel :no_entry:").queue();
@@ -786,7 +788,7 @@ public class ModModule {
 								viewedBlacklisted.add(role.getAsMention());
 							}
 						} else if (blacklist.get("type").equals("user")) {
-							member = event.getGuild().getMemberById(blacklist.get("id"));       
+							member = event.getGuild().getMemberById(blacklist.get("id"));	   
 							if (member != null) {
 								viewedBlacklisted.add(member.getUser().getAsTag());
 							}
@@ -1172,7 +1174,7 @@ public class ModModule {
 								viewedWhitelisted.add(role.getAsMention());
 							}
 						} else if (whitelist.get("type").equals("user")) {
-							member = event.getGuild().getMemberById(whitelist.get("id"));       
+							member = event.getGuild().getMemberById(whitelist.get("id"));	   
 							if (member != null) {
 								viewedWhitelisted.add(member.getUser().getAsTag());
 							}
@@ -2069,7 +2071,7 @@ public class ModModule {
 		event.getGuild().getController().setNickname(member, nickname).queue();
 	}
 	
-	/*public class PruneCommand extends Sx4Command {
+	public class PruneCommand extends Sx4Command {
 		
 		public PruneCommand() {
 			super("prune");
@@ -2099,7 +2101,7 @@ public class ModModule {
 				event.getTextChannel().getHistory().retrievePast(100).queue(messages -> {
 					long secondsNow = Clock.systemUTC().instant().getEpochSecond();
 					for (Message message : new ArrayList<>(messages)) {
-						if (!message.getMember().equals(member)) {
+						if (!message.getAuthor().equals(member.getUser())) {
 							messages.remove(message);
 						} else if (secondsNow - message.getCreationTime().toEpochSecond() > 1209600) {
 							messages.remove(message);
@@ -2142,91 +2144,6 @@ public class ModModule {
 						event.reply("All the **" + limit + "** messages were 14 days or older :no_entry:").queue();
 						return;
 					}
-					
-					if (messages.size() == 1) {
-						messages.get(0).delete().queue();
-					} else {
-						event.getTextChannel().deleteMessages(messages).queue();
-					}
-				});
-			});
-		}
-		
-	}*/
-	
-	@Command(value="prune", aliases={"clear", "c", "purge"}, description="Clear a certain amount of messages in the current channel or clear a certain amount of messages from a specified user", argumentInfo="<user> [amount] | [amount]", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
-	@AuthorPermissions({Permission.MESSAGE_MANAGE})
-	@BotPermissions({Permission.MESSAGE_MANAGE, Permission.MESSAGE_HISTORY})
-	public void prune(CommandEvent event, @Argument(value="user | amount") String argument, @Argument(value="amount", nullDefault=true) Integer amount) {
-		boolean isNumber = GeneralUtils.isNumber(argument);
-		long limit = amount == null ? 100L : amount > 100L ? 100L : amount;
-		if (isNumber) {
-			try {
-				limit = Long.parseLong(argument);
-			} catch(NumberFormatException e) {
-				event.reply("I could not find that user :no_entry:").queue();
-				return;
-			}
-		}
-		
-		if (isNumber && limit <= 100) {
-			if (limit < 1) {
-				event.reply("You have to delete at least 1 message :no_entry:").queue();
-				return;
-			}
-			
-			int pruneLimit = (int) limit;
-			event.getMessage().delete().queue($ -> {
-				event.getTextChannel().getHistory().retrievePast(pruneLimit).queue(messages -> {
-					long secondsNow = Clock.systemUTC().instant().getEpochSecond();
-					for (Message message : new ArrayList<>(messages)) {
-						if (secondsNow - message.getCreationTime().toEpochSecond() > 1209600) {
-							messages.remove(message);
-						}
-					}
-					
-					if (messages.size() == 0) {
-						event.reply("All the **" + pruneLimit + "** messages were 14 days or older :no_entry:").queue();
-						return;
-					}
-					
-					if (messages.size() == 1) {
-						messages.get(0).delete().queue();
-					} else {
-						event.getTextChannel().deleteMessages(messages).queue();
-					}
-				});
-			});
-		} else {
-			if (limit < 1) {
-				event.reply("You have to delete at least 1 message :no_entry:").queue();
-				return;
-			}
-			
-			int pruneLimit = (int) limit;
-			Member member = ArgumentUtils.getMember(event.getGuild(), argument);
-			if (member == null) {
-				event.reply("I could not find that user :no_entry:").queue();
-				return;
-			}
-			
-			event.getMessage().delete().queue($ -> {
-				event.getTextChannel().getHistory().retrievePast(100).queue(messages -> {
-					long secondsNow = Clock.systemUTC().instant().getEpochSecond();
-					for (Message message : new ArrayList<>(messages)) {
-						if (!message.getMember().equals(member)) {
-							messages.remove(message);
-						} else if (secondsNow - message.getCreationTime().toEpochSecond() > 1209600) {
-							messages.remove(message);
-						}
-					}
-					
-					if (messages.size() == 0) {
-						event.reply("No messages in the last 100 were from that user or they were 14 days or older :no_entry:").queue();
-						return;
-					}
-					
-					messages = messages.subList(0, Math.min(pruneLimit, messages.size()));
 					
 					if (messages.size() == 1) {
 						messages.get(0).delete().queue();
@@ -3942,7 +3859,7 @@ public class ModModule {
 	
 	@Initialize(all=true)
 	public void initialize(CommandImpl command) {
-	    command.setCategory(Categories.MOD);
+		command.setCategory(Categories.MOD);
 	}
 	
 }

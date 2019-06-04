@@ -830,7 +830,7 @@ public class ImageModule {
 
 	@Initialize(all=true)
 	public void initialize(CommandImpl command) {
-	    command.setCategory(Categories.IMAGE);
+		command.setCategory(Categories.IMAGE);
 	}
 	
 }

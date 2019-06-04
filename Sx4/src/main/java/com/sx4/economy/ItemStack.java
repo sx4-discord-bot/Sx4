@@ -1,13 +1,13 @@
 package com.sx4.economy;
 
 public class ItemStack {
-	    
+		
 	private Item item;
 	private long amount;
 
 	public ItemStack(Item item, long amount) {
-	    this.item = item;
-	    this.amount = amount;
+		this.item = item;
+		this.amount = amount;
 	}
 	
 	public String toString() {

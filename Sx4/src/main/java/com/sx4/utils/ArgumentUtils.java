@@ -45,16 +45,16 @@ public class ArgumentUtils {
 	public static Pattern rangeOfNumbersRegex = Pattern.compile("(\\d+)-(\\d+)(?: |,|, |)");
 	
 	private static <T> Predicate<T> distinctByKey(Function<? super T, ?> keyExtractor) {
-	    Set<Object> seen = ConcurrentHashMap.newKeySet();
-	    return t -> seen.add(keyExtractor.apply(t));
+		Set<Object> seen = ConcurrentHashMap.newKeySet();
+		return t -> seen.add(keyExtractor.apply(t));
 	}
 
 	public static List<Member> getAllUniqueMembers() {
-	    return Sx4Bot.getShardManager().getGuilds().stream()
-	        .map(guild -> guild.getMembers())
-	        .flatMap(List::stream)
-	        .filter(distinctByKey(member -> member.getUser().getIdLong()))
-	        .collect(Collectors.toList());
+		return Sx4Bot.getShardManager().getGuilds().stream()
+			.map(guild -> guild.getMembers())
+			.flatMap(List::stream)
+			.filter(distinctByKey(member -> member.getUser().getIdLong()))
+			.collect(Collectors.toList());
 	}
 
 	public static List<Member> getAllMembers() {

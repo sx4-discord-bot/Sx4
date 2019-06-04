@@ -92,7 +92,7 @@ public class HelpModule {
 	
 	@Initialize(all=true)
 	public void initialize(CommandImpl command) {
-	    command.setCategory(Categories.HELP);
+		command.setCategory(Categories.HELP);
 	}
 	
 }

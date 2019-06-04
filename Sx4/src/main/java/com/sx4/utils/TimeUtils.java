@@ -75,43 +75,43 @@ public class TimeUtils {
 		ChronoUnit[] chronoUnits = { ChronoUnit.DAYS, ChronoUnit.SECONDS, ChronoUnit.MINUTES, 
 				ChronoUnit.HOURS, ChronoUnit.WEEKS, ChronoUnit.MONTHS, ChronoUnit.YEARS
 		};
-	    if (from.getDuration().toMillis() < 1) {
-	        throw new IllegalArgumentException("Millis is the smallest supported unit");
-	    }
-	    
-	    for(ChronoUnit unit : chronoUnits) {
-	        if (unit.getDuration().toMillis() < 1) {
-	            throw new IllegalArgumentException("Millis is the smallest supported unit");
-	        }
-	    }
-	    
-	    time = (time * from.getDuration().toMillis());
-	    
-	    List<ChronoUnit> units = List.of(chronoUnits).stream()
-	        .distinct()
-	        .sorted((a, b) -> Long.compare(b.getDuration().toMillis(), a.getDuration().toMillis()))
-	        .collect(Collectors.toList());
-	    
-	    long[] unitValue = new long[units.size()];
-	    if (time > 0 && (time % units.get(units.size() - 1).getDuration().toMillis() != time)) {
-	        String str = "";
-	        for (int i = 0; i < units.size(); i++) {
-	            long duration = units.get(i).getDuration().toMillis();
-	            
-	            unitValue[i] = time/duration;
-	            time = time % duration;
-	            
-	            long value = unitValue[i];
-	            if (value > 0) {
-	                String name = units.get(i).toString().toLowerCase();
-	                str += (unitValue[i] + " " + name.substring(0, name.length() - 1) + (unitValue[i] != 1 ? "s" : "") + " ");
-	            }
-	        }
-	        
-	        return str.trim();
-	    } else {
-	        return "0 " + units.get(units.size() - 1).toString().toLowerCase();
-	    }
+		if (from.getDuration().toMillis() < 1) {
+			throw new IllegalArgumentException("Millis is the smallest supported unit");
+		}
+		
+		for(ChronoUnit unit : chronoUnits) {
+			if (unit.getDuration().toMillis() < 1) {
+				throw new IllegalArgumentException("Millis is the smallest supported unit");
+			}
+		}
+		
+		time = (time * from.getDuration().toMillis());
+		
+		List<ChronoUnit> units = List.of(chronoUnits).stream()
+			.distinct()
+			.sorted((a, b) -> Long.compare(b.getDuration().toMillis(), a.getDuration().toMillis()))
+			.collect(Collectors.toList());
+		
+		long[] unitValue = new long[units.size()];
+		if (time > 0 && (time % units.get(units.size() - 1).getDuration().toMillis() != time)) {
+			String str = "";
+			for (int i = 0; i < units.size(); i++) {
+				long duration = units.get(i).getDuration().toMillis();
+				
+				unitValue[i] = time/duration;
+				time = time % duration;
+				
+				long value = unitValue[i];
+				if (value > 0) {
+					String name = units.get(i).toString().toLowerCase();
+					str += (unitValue[i] + " " + name.substring(0, name.length() - 1) + (unitValue[i] != 1 ? "s" : "") + " ");
+				}
+			}
+			
+			return str.trim();
+		} else {
+			return "0 " + units.get(units.size() - 1).toString().toLowerCase();
+		}
 	}
 	
 	public static String getTimeFormat(long seconds) {

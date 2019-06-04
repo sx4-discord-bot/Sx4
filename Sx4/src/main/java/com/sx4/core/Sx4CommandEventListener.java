@@ -44,7 +44,7 @@ public class Sx4CommandEventListener extends CommandEventListener {
 		}
 		
 		for (StackTraceElement element : throwable.getStackTrace()) {
-			String toAppend = "\n-      at " + element.toString();
+			String toAppend = "\n-	  at " + element.toString();
 			
 			if (message.length() + toAppend.length() > 1997) {
 				messages.add(message.append("```").toString());
@@ -129,7 +129,7 @@ public class Sx4CommandEventListener extends CommandEventListener {
 		
 		EmbedBuilder embed = new EmbedBuilder();
 		embed.setTitle("Error");
-		embed.setDescription("You have came across an error! [Support Server](https://discord.gg/PqJNcfB)\n```diff\n- " + throwable.toString());
+		embed.setDescription("You have come across an error! [Support Server](https://discord.gg/PqJNcfB)\n```diff\n- " + throwable.toString());
 		
 		for (int i = 0; i < throwable.getStackTrace().length; i++) {
 			StackTraceElement element = throwable.getStackTrace()[i];

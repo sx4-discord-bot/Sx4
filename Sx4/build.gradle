@@ -3,25 +3,25 @@ plugins {
 }
 
 repositories {
-    maven { url 'https://jitpack.io' }
-    
-    jcenter()
+	maven { url 'https://jitpack.io' }
+	
+	jcenter()
 }
 
 dependencies {
-    implementation('com.github.21Joakim:Jockie-Utils:1.+') {
-        exclude group: 'net.dv8tion', module: 'JDA'
-    }
+	implementation('com.github.21Joakim:Jockie-Utils:1.+') {
+		exclude group: 'net.dv8tion', module: 'JDA'
+	}
 
-    implementation 'net.dv8tion:JDA:3+'
-    
-    compile group: 'com.rethinkdb', name: 'rethinkdb-driver', version: '2.3.3'
-    
-    compile group: 'org.codehaus.groovy', name: 'groovy', version: '2.5.2'
-    
-    compile group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.9.8'
-    
-    compile 'com.jagrosh:jda-utilities-commons:2.1.5'
-    
-    compile group: 'org.codehaus.groovy', name: 'groovy', version: '3.0.0-beta-1', ext: 'pom'
+	implementation 'net.dv8tion:JDA:3+'
+	
+	compile group: 'com.rethinkdb', name: 'rethinkdb-driver', version: '2.3.3'
+	
+	compile group: 'org.codehaus.groovy', name: 'groovy', version: '2.5.2'
+	
+	compile group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.9.8'
+	
+	compile 'com.jagrosh:jda-utilities-commons:2.1.5'
+	
+	compile group: 'org.codehaus.groovy', name: 'groovy', version: '3.0.0-beta-1', ext: 'pom'
 }

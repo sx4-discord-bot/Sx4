@@ -248,8 +248,8 @@ public class EconomyModule {
 				
 				event.reply(embed.build()).queue();
 				
-			    userItems = EconomyUtils.removeItems(userItems, crate, crateAmount.longValue());
-			    data.update(r.hashMap("items", userItems)).runNoReply(connection);
+				userItems = EconomyUtils.removeItems(userItems, crate, crateAmount.longValue());
+				data.update(r.hashMap("items", userItems)).runNoReply(connection);
 			} else {
 				event.reply(String.format("You do not have `%,d %s` :no_entry:", crateAmount, crate.getName())).queue();
 				return;
@@ -518,7 +518,7 @@ public class EconomyModule {
 			
 			if (!booster.isActivatable()) {
 				event.reply("That booster is not activatable :no_entry:").queue();
-                return;
+				return;
 			}
 			
 			if (dataRan == null) {
@@ -588,86 +588,86 @@ public class EconomyModule {
 					JSONArray sx4Votes = null;
 					JSONArray jockieMusicVotes = null;
 					long money = 0;
-				    if (jsonSx4.has("votes")) {
-				    	sx4Votes = jsonSx4.getJSONArray("votes");
-				    }
-				    
-				    if (jsonJockieMusic.has("votes")) {
-				    	jockieMusicVotes = jsonJockieMusic.getJSONArray("votes");
-				    }
+					if (jsonSx4.has("votes")) {
+						sx4Votes = jsonSx4.getJSONArray("votes");
+					}
+					
+					if (jsonJockieMusic.has("votes")) {
+						jockieMusicVotes = jsonJockieMusic.getJSONArray("votes");
+					}
 					 
-				    Map<User, Integer> referredUsers = new HashMap<>();
-				    if (sx4Votes != null) {
-					    for (Object sx4VoteObject : sx4Votes) {
-					    	JSONObject sx4Vote = (JSONObject) sx4VoteObject;
-					    	
-					    	money += sx4Vote.getBoolean("weekend") ? 1000 : 500;
-					    	
-					    	if (sx4Vote.getJSONObject("query").has("referral")) {
-					    		User referredUser;
-					    		if (sx4Vote.getJSONObject("query").get("referral") instanceof String[]) {
-					    			referredUser = event.getShardManager().getUserById(sx4Vote.getJSONObject("query").getJSONArray("referral").getString(0));
-					    		} else {
-					    			referredUser = event.getShardManager().getUserById(sx4Vote.getJSONObject("query").getString("referral"));
-					    		}
-					    		
-					    		if (referredUser != null) {
-				    				if (referredUsers.containsKey(referredUser)) {
-				    					referredUsers.put(referredUser, referredUsers.get(referredUser) + (sx4Vote.getBoolean("weekend") ? 500 : 250));
-				    				} else {
-				    					referredUsers.put(referredUser, sx4Vote.getBoolean("weekend") ? 500 : 250);
-				    				}
-				    			}
-					    	}
-					    }
-				    }
-				    
-				    if (jockieMusicVotes != null) {
-					    for (Object jockieMusicVoteObject : jockieMusicVotes) {
-					    	JSONObject jockieMusicVote = (JSONObject) jockieMusicVoteObject;
-					    	
-					    	money += jockieMusicVote.getBoolean("weekend") ? 600 : 300;
-					    	
-					    	if (jockieMusicVote.getJSONObject("query").has("referral")) {
-					    		User referredUser;
-					    		if (jockieMusicVote.getJSONObject("query").get("referral") instanceof String[]) {
-					    			referredUser = event.getShardManager().getUserById(jockieMusicVote.getJSONObject("query").getJSONArray("referral").getString(0));
-					    		} else {
-					    			referredUser = event.getShardManager().getUserById(jockieMusicVote.getJSONObject("query").getString("referral"));
-					    		}
-					    		
-					    		if (referredUser != null) {
-				    				if (referredUsers.containsKey(referredUser)) {
-				    					referredUsers.put(referredUser, referredUsers.get(referredUser) + (jockieMusicVote.getBoolean("weekend") ? 300 : 150));
-				    				} else {
-				    					referredUsers.put(referredUser, jockieMusicVote.getBoolean("weekend") ? 300 : 150);
-				    				}
-				    			}
-					    	}
-					    }
-				    }
-				    
-				    String referredContent = "";
-				    for (User key : referredUsers.keySet()) {
-				    	Get userData = r.table("bank").get(key.getId());
-				    	userData.update(row -> r.hashMap("balance", row.g("balance").add(referredUsers.get(key)))).runNoReply(connection);
-				    	referredContent += key.getAsTag() + " (**$" + referredUsers.get(key) + "**), ";
-				    }
-				    
-				    if (referredContent != "") {
-				    	referredContent = referredContent.substring(0, referredContent.length() - 2);
-				    }
-				    
-				    int totalVotes = (sx4Votes == null ? 0 : sx4Votes.length()) + (jockieMusicVotes == null ? 0 : jockieMusicVotes.length());
-				    event.reply(String.format("You have voted for the bot **%,d** time%s since you last used the command gathering you a total of **$%,d**, Vote for the bots again in 12 hours for more money."
-				    		+ " Referred users: %s", totalVotes, totalVotes == 1 ? "" : "s", money, referredContent == "" ? "No one" : referredContent)).queue();
+					Map<User, Integer> referredUsers = new HashMap<>();
+					if (sx4Votes != null) {
+						for (Object sx4VoteObject : sx4Votes) {
+							JSONObject sx4Vote = (JSONObject) sx4VoteObject;
+							
+							money += sx4Vote.getBoolean("weekend") ? 1000 : 500;
+							
+							if (sx4Vote.getJSONObject("query").has("referral")) {
+								User referredUser;
+								if (sx4Vote.getJSONObject("query").get("referral") instanceof String[]) {
+									referredUser = event.getShardManager().getUserById(sx4Vote.getJSONObject("query").getJSONArray("referral").getString(0));
+								} else {
+									referredUser = event.getShardManager().getUserById(sx4Vote.getJSONObject("query").getString("referral"));
+								}
+								
+								if (referredUser != null) {
+									if (referredUsers.containsKey(referredUser)) {
+										referredUsers.put(referredUser, referredUsers.get(referredUser) + (sx4Vote.getBoolean("weekend") ? 500 : 250));
+									} else {
+										referredUsers.put(referredUser, sx4Vote.getBoolean("weekend") ? 500 : 250);
+									}
+								}
+							}
+						}
+					}
+					
+					if (jockieMusicVotes != null) {
+						for (Object jockieMusicVoteObject : jockieMusicVotes) {
+							JSONObject jockieMusicVote = (JSONObject) jockieMusicVoteObject;
+							
+							money += jockieMusicVote.getBoolean("weekend") ? 600 : 300;
+							
+							if (jockieMusicVote.getJSONObject("query").has("referral")) {
+								User referredUser;
+								if (jockieMusicVote.getJSONObject("query").get("referral") instanceof String[]) {
+									referredUser = event.getShardManager().getUserById(jockieMusicVote.getJSONObject("query").getJSONArray("referral").getString(0));
+								} else {
+									referredUser = event.getShardManager().getUserById(jockieMusicVote.getJSONObject("query").getString("referral"));
+								}
+								
+								if (referredUser != null) {
+									if (referredUsers.containsKey(referredUser)) {
+										referredUsers.put(referredUser, referredUsers.get(referredUser) + (jockieMusicVote.getBoolean("weekend") ? 300 : 150));
+									} else {
+										referredUsers.put(referredUser, jockieMusicVote.getBoolean("weekend") ? 300 : 150);
+									}
+								}
+							}
+						}
+					}
+					
+					String referredContent = "";
+					for (User key : referredUsers.keySet()) {
+						Get userData = r.table("bank").get(key.getId());
+						userData.update(row -> r.hashMap("balance", row.g("balance").add(referredUsers.get(key)))).runNoReply(connection);
+						referredContent += key.getAsTag() + " (**$" + referredUsers.get(key) + "**), ";
+					}
+					
+					if (referredContent != "") {
+						referredContent = referredContent.substring(0, referredContent.length() - 2);
+					}
+					
+					int totalVotes = (sx4Votes == null ? 0 : sx4Votes.length()) + (jockieMusicVotes == null ? 0 : jockieMusicVotes.length());
+					event.reply(String.format("You have voted for the bot **%,d** time%s since you last used the command gathering you a total of **$%,d**, Vote for the bots again in 12 hours for more money."
+							+ " Referred users: %s", totalVotes, totalVotes == 1 ? "" : "s", money, referredContent == "" ? "No one" : referredContent)).queue();
 					 
-				    EconomyUtils.insertData(event.getAuthor()).run(connection, OptArgs.of("durability", "soft"));
-				    Get data = r.table("bank").get(event.getAuthor().getId());
-				    
-				    long dataMoney = money;
-				    data.update(row -> r.hashMap("balance", row.g("balance").add(dataMoney))).runNoReply(connection);
-			    } else {
+					EconomyUtils.insertData(event.getAuthor()).run(connection, OptArgs.of("durability", "soft"));
+					Get data = r.table("bank").get(event.getAuthor().getId());
+					
+					long dataMoney = money;
+					data.update(row -> r.hashMap("balance", row.g("balance").add(dataMoney))).runNoReply(connection);
+				} else {
 					if (jsonSx4.getString("error").equals("This user has no unused votes") && jsonJockieMusic.getString("error").equals("This user has no unused votes")) {
 						Request latestSx4 = new Request.Builder()
 									.url("http://" + Settings.LOCAL_HOST + ":8080/440996323156819968/votes/user/" + event.getAuthor().getId() + "/latest")
@@ -821,6 +821,7 @@ public class EconomyModule {
 			member = ArgumentUtils.getMember(event.getGuild(), userArgument);
 			if (member == null) {
 				event.reply("I could not find that user :no_entry:").queue();
+				return;
 			}
 		}
 		
@@ -842,6 +843,7 @@ public class EconomyModule {
 			member = ArgumentUtils.getMember(event.getGuild(), userArgument);
 			if (member == null) {
 				event.reply("I could not find that user :no_entry:").queue();
+				return;
 			}
 		}
 		

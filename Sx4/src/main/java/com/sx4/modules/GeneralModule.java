@@ -28,6 +28,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import com.jockie.bot.core.Context;
+import com.jockie.bot.core.JockieUtils;
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
 import com.jockie.bot.core.command.Command.Async;
@@ -189,13 +190,13 @@ public class GeneralModule {
 			event.reply(String.format("I have added your reminder, you will be reminded about it in `%s` (Reminder ID: **%s**)", TimeUtils.toTimeString(reminderLength, ChronoUnit.SECONDS), reminderCount + 1)).queue();
 			
 			userData.update(data -> {
-			    return r.hashMap("reminders", data.g("reminders").append(
-			        r.hashMap("id", data.g("reminder_count").add(1))
-			            .with("reminder", reminderName)
-			            .with("remind_at", remindAt)
-			            .with("reminder_length", reminderLength)
-			            .with("repeat", repeat)
-			    )).with("reminder_count", data.g("reminder_count").add(1));
+				return r.hashMap("reminders", data.g("reminders").append(
+					r.hashMap("id", data.g("reminder_count").add(1))
+						.with("reminder", reminderName)
+						.with("remind_at", remindAt)
+						.with("reminder_length", reminderLength)
+						.with("repeat", repeat)
+				)).with("reminder_count", data.g("reminder_count").add(1));
 			}).runNoReply(connection);
 			
 			ScheduledFuture<?> executor = ReminderEvents.scheduledExectuor.schedule(() -> ReminderEvents.removeUserReminder(event.getAuthor(), reminderCount + 1, reminderName, reminderLength, repeat), reminderLength, TimeUnit.SECONDS);
@@ -376,81 +377,81 @@ public class GeneralModule {
 		public void accept(CommandEvent event, @Context Connection connection, @Argument(value="message id") String messageId, @Argument(value="reason", endless=true, nullDefault=true) String reason) {
 			Get data = r.table("suggestions").get(event.getGuild().getId());
 			Map<String, Object> dataRan = data.run(connection);
-	        if (dataRan == null) {
-	        	event.reply("Suggestions have not been setup in this server :no_entry:").queue();
+			if (dataRan == null) {
+				event.reply("Suggestions have not been setup in this server :no_entry:").queue();
 				return;
-	        }
-	        if ((boolean) dataRan.get("toggle") == false) {
-	        	event.reply("Suggestions are disabled in this server :no_entry:").queue();
+			}
+			if ((boolean) dataRan.get("toggle") == false) {
+				event.reply("Suggestions are disabled in this server :no_entry:").queue();
 				return;
-	        }
-	        if (dataRan.get("channel") == null) {
-	        	event.reply("Suggestions have not been setup in this server :no_entry:").queue();
+			}
+			if (dataRan.get("channel") == null) {
+				event.reply("Suggestions have not been setup in this server :no_entry:").queue();
 				return;
-	        }
-	        
-	        List<Map<String, Object>> suggestions = (List<Map<String, Object>>) dataRan.get("suggestions");
-	        for (Map<String, Object> suggestion : suggestions) {
-	        	if (messageId.equals(suggestion.get("id"))) {
-	        		TextChannel channel = event.getGuild().getTextChannelById((String) dataRan.get("channel"));
-	        		if (channel == null) {
-	        			event.reply("The suggestion channel set no longer exists :no_entry").queue();
-	        			data.update(row -> {
-	        				return r.hashMap("suggestions", row.g("suggestions").filter(d -> d.g("id").ne(messageId)));
-	        			}).runNoReply(connection);
-	        			return;
-	        		}
-	        		
-	        		try {
-		        		channel.getMessageById(messageId).queue(message -> {
-		        		    if (suggestion.get("accepted") != null) {
-		    	        		event.reply("This suggestion already has a verdict :no_entry:").queue();
-		    	                return;
-		    	        	}
-		    	        		
-		    	        	MessageEmbed oldEmbed = message.getEmbeds().get(0);
-		    	        	EmbedBuilder embed = new EmbedBuilder();
-		    	        	embed.setAuthor(oldEmbed.getAuthor().getName(), null, oldEmbed.getAuthor().getIconUrl());
-		    	        	embed.setDescription(oldEmbed.getDescription());
-		    	        	embed.addField("Moderator", event.getAuthor().getAsTag(), true);
-		    	        	embed.addField("Reason", reason == null ? "Not given" : reason, true);
-		    	        	embed.setFooter("Suggestion Accepted", null);
-		    	        	embed.setColor(Color.decode("#5fe468"));
-		    	        	message.editMessage(embed.build()).queue();
-		    	        	    
-		    	        	event.reply("That suggestion has been accepted <:done:403285928233402378>").queue();
-		    	        	User user = event.getShardManager().getUserById((String) suggestion.get("user"));
-		    	        	user.openPrivateChannel().queue(u -> {
-		    	        	    u.sendMessage("Your suggestion below has been accepted\n" + message.getJumpUrl()).queue();
-		    	        	}, $ -> {});
-		    	        	    
-		    	        	suggestions.remove(suggestion);
-		    	        	suggestion.put("accepted", true);
-		    	        	suggestions.add(suggestion);
-		    	        	data.update(r.hashMap("suggestions", suggestions)).runNoReply(connection);
-		    	        	return;
-		        		}, e -> {
-		        			if (e instanceof ErrorResponseException) {
-		        				ErrorResponseException exception = (ErrorResponseException) e;
-		        				if (exception.getErrorCode() == 10008) {
-		        					event.reply("I could not find that message :no_entry:").queue();
-		        					data.update(row -> {
-		    	        				return r.hashMap("suggestions", row.g("suggestions").filter(d -> d.g("id").ne(messageId)));
-		    	        			}).runNoReply(connection);
-		        					return;
-		        				}
-		        			}
-		        		});
-	        		} catch(IllegalArgumentException e) {
-	    				event.reply("I could not find that message :no_entry:").queue();
-	    				return;
-	    			}
-	        		
-	        		return;
-	        	}
-	        }
-	        
-	        event.reply("That message is not a suggestion message :no_entry:").queue();	        
+			}
+			
+			List<Map<String, Object>> suggestions = (List<Map<String, Object>>) dataRan.get("suggestions");
+			for (Map<String, Object> suggestion : suggestions) {
+				if (messageId.equals(suggestion.get("id"))) {
+					TextChannel channel = event.getGuild().getTextChannelById((String) dataRan.get("channel"));
+					if (channel == null) {
+						event.reply("The suggestion channel set no longer exists :no_entry").queue();
+						data.update(row -> {
+							return r.hashMap("suggestions", row.g("suggestions").filter(d -> d.g("id").ne(messageId)));
+						}).runNoReply(connection);
+						return;
+					}
+					
+					try {
+						channel.getMessageById(messageId).queue(message -> {
+							if (suggestion.get("accepted") != null) {
+								event.reply("This suggestion already has a verdict :no_entry:").queue();
+								return;
+							}
+								
+							MessageEmbed oldEmbed = message.getEmbeds().get(0);
+							EmbedBuilder embed = new EmbedBuilder();
+							embed.setAuthor(oldEmbed.getAuthor().getName(), null, oldEmbed.getAuthor().getIconUrl());
+							embed.setDescription(oldEmbed.getDescription());
+							embed.addField("Moderator", event.getAuthor().getAsTag(), true);
+							embed.addField("Reason", reason == null ? "Not given" : reason, true);
+							embed.setFooter("Suggestion Accepted", null);
+							embed.setColor(Color.decode("#5fe468"));
+							message.editMessage(embed.build()).queue();
+								
+							event.reply("That suggestion has been accepted <:done:403285928233402378>").queue();
+							User user = event.getShardManager().getUserById((String) suggestion.get("user"));
+							user.openPrivateChannel().queue(u -> {
+								u.sendMessage("Your suggestion below has been accepted\n" + message.getJumpUrl()).queue();
+							}, $ -> {});
+								
+							suggestions.remove(suggestion);
+							suggestion.put("accepted", true);
+							suggestions.add(suggestion);
+							data.update(r.hashMap("suggestions", suggestions)).runNoReply(connection);
+							return;
+						}, e -> {
+							if (e instanceof ErrorResponseException) {
+								ErrorResponseException exception = (ErrorResponseException) e;
+								if (exception.getErrorCode() == 10008) {
+									event.reply("I could not find that message :no_entry:").queue();
+									data.update(row -> {
+										return r.hashMap("suggestions", row.g("suggestions").filter(d -> d.g("id").ne(messageId)));
+									}).runNoReply(connection);
+									return;
+								}
+							}
+						});
+					} catch(IllegalArgumentException e) {
+						event.reply("I could not find that message :no_entry:").queue();
+						return;
+					}
+					
+					return;
+				}
+			}
+			
+			event.reply("That message is not a suggestion message :no_entry:").queue();			
 		}
 		
 		@SuppressWarnings("unchecked")
@@ -460,81 +461,81 @@ public class GeneralModule {
 		public void deny(CommandEvent event, @Context Connection connection, @Argument(value="message id") String messageId, @Argument(value="reason", endless=true, nullDefault=true) String reason) {
 			Get data = r.table("suggestions").get(event.getGuild().getId());
 			Map<String, Object> dataRan = data.run(connection);
-	        if (dataRan == null) {
-	        	event.reply("Suggestions have not been setup in this server :no_entry:").queue();
+			if (dataRan == null) {
+				event.reply("Suggestions have not been setup in this server :no_entry:").queue();
 				return;
-	        }
-	        if ((boolean) dataRan.get("toggle") == false) {
-	        	event.reply("Suggestions are disabled in this server :no_entry:").queue();
+			}
+			if ((boolean) dataRan.get("toggle") == false) {
+				event.reply("Suggestions are disabled in this server :no_entry:").queue();
 				return;
-	        }
-	        if (dataRan.get("channel") == null) {
-	        	event.reply("Suggestions have not been setup in this server :no_entry:").queue();
+			}
+			if (dataRan.get("channel") == null) {
+				event.reply("Suggestions have not been setup in this server :no_entry:").queue();
 				return;
-	        }
-	        
-	        List<Map<String, Object>> suggestions = (List<Map<String, Object>>) dataRan.get("suggestions");
-	        for (Map<String, Object> suggestion : suggestions) {
-	        	if (messageId.equals(suggestion.get("id"))) {
-	        		TextChannel channel = event.getGuild().getTextChannelById((String) dataRan.get("channel"));
-	        		if (channel == null) {
-	        			event.reply("The suggestion channel set no longer exists :no_entry").queue();
-	        			data.update(row -> {
-	        				return r.hashMap("suggestions", row.g("suggestions").filter(d -> d.g("id").ne(messageId)));
-	        			}).runNoReply(connection);
-	        			return;
-	        		}
-	        		
-	        		try {
-		        		channel.getMessageById(messageId).queue(message -> {
-		        			if (suggestion.get("accepted") != null) {
-		    	        		event.reply("This suggestion already has a verdict :no_entry:").queue();
-		    	                return;
-		        			}
-		    	        		
-		    	        	MessageEmbed oldEmbed = message.getEmbeds().get(0);
-		    	        	EmbedBuilder embed = new EmbedBuilder();
-		    	        	embed.setAuthor(oldEmbed.getAuthor().getName(), null, oldEmbed.getAuthor().getIconUrl());
-		    	        	embed.setDescription(oldEmbed.getDescription());
-		    	        	embed.addField("Moderator", event.getAuthor().getAsTag(), true);
-		    	        	embed.addField("Reason", reason == null ? "Not given" : reason, true);
-		    	        	embed.setFooter("Suggestion Denied", null);
-		    	        	embed.setColor(Color.decode("#f84b50"));
-		    	        	message.editMessage(embed.build()).queue();
-		    	        	    
-		    	        	event.reply("That suggestion has been denied <:done:403285928233402378>").queue();
-		    	        	User user = event.getJDA().getUserById((String) suggestion.get("user"));
-		    	        	user.openPrivateChannel().queue(u -> {
-		    	        	    u.sendMessage("Your suggestion below has been denied\n" + message.getJumpUrl()).queue();
-		    	        	}, $ -> {});
-		    	        	    
-		    	        	suggestions.remove(suggestion);
-		    	        	suggestion.put("accepted", false);
-		    	        	suggestions.add(suggestion);
-		    	        	data.update(r.hashMap("suggestions", suggestions)).runNoReply(connection);
-		    	        	return;
-		        		}, e -> {
-		        			if (e instanceof ErrorResponseException) {
-			        			ErrorResponseException exception = (ErrorResponseException) e;
-			        			if (exception.getErrorCode() == 10008) {
-			        				event.reply("I could not find that message :no_entry:").queue();
-			        				data.update(row -> {
-			    	        			return r.hashMap("suggestions", row.g("suggestions").filter(d -> d.g("id").ne(messageId)));
-			    	        		}).runNoReply(connection);
-			        				return;
-			        			}
-		        		    }
-		        		});
-	        		} catch(IllegalArgumentException e) {
-	    				event.reply("I could not find that message :no_entry:").queue();
-	    				return;
-	    			}
-	        		
-	        		return;
-	        	}
-	        }
-	        
-	        event.reply("That message is not a suggestion message :no_entry:").queue();	        
+			}
+			
+			List<Map<String, Object>> suggestions = (List<Map<String, Object>>) dataRan.get("suggestions");
+			for (Map<String, Object> suggestion : suggestions) {
+				if (messageId.equals(suggestion.get("id"))) {
+					TextChannel channel = event.getGuild().getTextChannelById((String) dataRan.get("channel"));
+					if (channel == null) {
+						event.reply("The suggestion channel set no longer exists :no_entry").queue();
+						data.update(row -> {
+							return r.hashMap("suggestions", row.g("suggestions").filter(d -> d.g("id").ne(messageId)));
+						}).runNoReply(connection);
+						return;
+					}
+					
+					try {
+						channel.getMessageById(messageId).queue(message -> {
+							if (suggestion.get("accepted") != null) {
+								event.reply("This suggestion already has a verdict :no_entry:").queue();
+								return;
+							}
+								
+							MessageEmbed oldEmbed = message.getEmbeds().get(0);
+							EmbedBuilder embed = new EmbedBuilder();
+							embed.setAuthor(oldEmbed.getAuthor().getName(), null, oldEmbed.getAuthor().getIconUrl());
+							embed.setDescription(oldEmbed.getDescription());
+							embed.addField("Moderator", event.getAuthor().getAsTag(), true);
+							embed.addField("Reason", reason == null ? "Not given" : reason, true);
+							embed.setFooter("Suggestion Denied", null);
+							embed.setColor(Color.decode("#f84b50"));
+							message.editMessage(embed.build()).queue();
+								
+							event.reply("That suggestion has been denied <:done:403285928233402378>").queue();
+							User user = event.getJDA().getUserById((String) suggestion.get("user"));
+							user.openPrivateChannel().queue(u -> {
+								u.sendMessage("Your suggestion below has been denied\n" + message.getJumpUrl()).queue();
+							}, $ -> {});
+								
+							suggestions.remove(suggestion);
+							suggestion.put("accepted", false);
+							suggestions.add(suggestion);
+							data.update(r.hashMap("suggestions", suggestions)).runNoReply(connection);
+							return;
+						}, e -> {
+							if (e instanceof ErrorResponseException) {
+								ErrorResponseException exception = (ErrorResponseException) e;
+								if (exception.getErrorCode() == 10008) {
+									event.reply("I could not find that message :no_entry:").queue();
+									data.update(row -> {
+										return r.hashMap("suggestions", row.g("suggestions").filter(d -> d.g("id").ne(messageId)));
+									}).runNoReply(connection);
+									return;
+								}
+							}
+						});
+					} catch(IllegalArgumentException e) {
+						event.reply("I could not find that message :no_entry:").queue();
+						return;
+					}
+					
+					return;
+				}
+			}
+			
+			event.reply("That message is not a suggestion message :no_entry:").queue();			
 		}
 		
 		@SuppressWarnings("unchecked")
@@ -544,78 +545,78 @@ public class GeneralModule {
 		public void undo(CommandEvent event, @Context Connection connection, @Argument(value="message ID") String messageId) {
 			Get data = r.table("suggestions").get(event.getGuild().getId());
 			Map<String, Object> dataRan = data.run(connection);
-	        if (dataRan == null) {
-	        	event.reply("Suggestions have not been setup in this server :no_entry:").queue();
+			if (dataRan == null) {
+				event.reply("Suggestions have not been setup in this server :no_entry:").queue();
 				return;
-	        }
-	        if ((boolean) dataRan.get("toggle") == false) {
-	        	event.reply("Suggestions are disabled in this server :no_entry:").queue();
+			}
+			if ((boolean) dataRan.get("toggle") == false) {
+				event.reply("Suggestions are disabled in this server :no_entry:").queue();
 				return;
-	        }
-	        if (dataRan.get("channel") == null) {
-	        	event.reply("Suggestions have not been setup in this server :no_entry:").queue();
+			}
+			if (dataRan.get("channel") == null) {
+				event.reply("Suggestions have not been setup in this server :no_entry:").queue();
 				return;
-	        }
-	        
-	        List<Map<String, Object>> suggestions = (List<Map<String, Object>>) dataRan.get("suggestions");
-	        for (Map<String, Object> suggestion : suggestions) {
-	        	if (messageId.equals(suggestion.get("id"))) {
-	        		TextChannel channel = event.getGuild().getTextChannelById((String) dataRan.get("channel"));
-	        		if (channel == null) {
-	        			event.reply("The suggestion channel set no longer exists :no_entry").queue();
-	        			data.update(row -> {
-	        				return r.hashMap("suggestions", row.g("suggestions").filter(d -> d.g("id").ne(messageId)));
-	        			}).runNoReply(connection);
-	        			return;
-	        		}
-	        		
-	        		try {
-		        		channel.getMessageById(messageId).queue(message -> {
-		        		    if (suggestion.get("accepted") == null) {
-		    	        		event.reply("This suggestion is already pending :no_entry:").queue();
-		    	                return;
-		    	        	}
-		    	        		
-		    	        	MessageEmbed oldEmbed = message.getEmbeds().get(0);
-		    	        	EmbedBuilder embed = new EmbedBuilder();
-		    	        	embed.setAuthor(oldEmbed.getAuthor().getName(), null, oldEmbed.getAuthor().getIconUrl());
-		    	        	embed.setDescription(oldEmbed.getDescription());
-		    	        	embed.setFooter("This suggestion is currently pending", null);
-		    	        	message.editMessage(embed.build()).queue();
-		    	        	    
-		    	        	event.reply("That suggestion is now pending <:done:403285928233402378>").queue();
-		    	        	User user = event.getJDA().getUserById((String) suggestion.get("user"));
-		    	        	user.openPrivateChannel().queue(u -> {
-		    	        	    u.sendMessage("Your suggestion below has been undone this means it is back to its pending state\n" + message.getJumpUrl()).queue();
-		    	        	});
-		    	        	    
-		    	        	suggestions.remove(suggestion);
-		    	        	suggestion.put("accepted", null);
-		    	        	suggestions.add(suggestion);
-		    	        	data.update(r.hashMap("suggestions", suggestions)).runNoReply(connection);
-		    	        	return;
-		        		}, e -> {
-		        			if (e instanceof ErrorResponseException) {
-			        			ErrorResponseException exception = (ErrorResponseException) e;
-			        			if (exception.getErrorCode() == 10008) {
-			        				event.reply("I could not find that message :no_entry:").queue();
-			        				data.update(row -> {
-			    	        			return r.hashMap("suggestions", row.g("suggestions").filter(d -> d.g("id").ne(messageId)));
-			    	        		}).runNoReply(connection);
-			        				return;
-			        			}
-		        		    }
-		        		});
-	        		} catch(IllegalArgumentException e) {
-	    				event.reply("I could not find that message :no_entry:").queue();
-	    				return;
-	    			}
-	        		
-	        		return;
-	        	}
-	        }
-	        
-	        event.reply("That message is not a suggestion message :no_entry:").queue();	        
+			}
+			
+			List<Map<String, Object>> suggestions = (List<Map<String, Object>>) dataRan.get("suggestions");
+			for (Map<String, Object> suggestion : suggestions) {
+				if (messageId.equals(suggestion.get("id"))) {
+					TextChannel channel = event.getGuild().getTextChannelById((String) dataRan.get("channel"));
+					if (channel == null) {
+						event.reply("The suggestion channel set no longer exists :no_entry").queue();
+						data.update(row -> {
+							return r.hashMap("suggestions", row.g("suggestions").filter(d -> d.g("id").ne(messageId)));
+						}).runNoReply(connection);
+						return;
+					}
+					
+					try {
+						channel.getMessageById(messageId).queue(message -> {
+							if (suggestion.get("accepted") == null) {
+								event.reply("This suggestion is already pending :no_entry:").queue();
+								return;
+							}
+								
+							MessageEmbed oldEmbed = message.getEmbeds().get(0);
+							EmbedBuilder embed = new EmbedBuilder();
+							embed.setAuthor(oldEmbed.getAuthor().getName(), null, oldEmbed.getAuthor().getIconUrl());
+							embed.setDescription(oldEmbed.getDescription());
+							embed.setFooter("This suggestion is currently pending", null);
+							message.editMessage(embed.build()).queue();
+								
+							event.reply("That suggestion is now pending <:done:403285928233402378>").queue();
+							User user = event.getJDA().getUserById((String) suggestion.get("user"));
+							user.openPrivateChannel().queue(u -> {
+								u.sendMessage("Your suggestion below has been undone this means it is back to its pending state\n" + message.getJumpUrl()).queue();
+							});
+								
+							suggestions.remove(suggestion);
+							suggestion.put("accepted", null);
+							suggestions.add(suggestion);
+							data.update(r.hashMap("suggestions", suggestions)).runNoReply(connection);
+							return;
+						}, e -> {
+							if (e instanceof ErrorResponseException) {
+								ErrorResponseException exception = (ErrorResponseException) e;
+								if (exception.getErrorCode() == 10008) {
+									event.reply("I could not find that message :no_entry:").queue();
+									data.update(row -> {
+										return r.hashMap("suggestions", row.g("suggestions").filter(d -> d.g("id").ne(messageId)));
+									}).runNoReply(connection);
+									return;
+								}
+							}
+						});
+					} catch(IllegalArgumentException e) {
+						event.reply("I could not find that message :no_entry:").queue();
+						return;
+					}
+					
+					return;
+				}
+			}
+			
+			event.reply("That message is not a suggestion message :no_entry:").queue();			
 		}
 		
 		@SuppressWarnings("unchecked")
@@ -630,61 +631,61 @@ public class GeneralModule {
 				return;
 			}
 			if ((boolean) dataRan.get("toggle") == false) {
-	        	event.reply("Suggestions are disabled in this server :no_entry:").queue();
+				event.reply("Suggestions are disabled in this server :no_entry:").queue();
 				return;
-	        }
-	        if (dataRan.get("channel") == null) {
-	        	event.reply("Suggestions have not been setup in this server :no_entry:").queue();
+			}
+			if (dataRan.get("channel") == null) {
+				event.reply("Suggestions have not been setup in this server :no_entry:").queue();
 				return;
-	        }
-	        
-	        List<Map<String, Object>> suggestions = (List<Map<String, Object>>) dataRan.get("suggestions");
+			}
+			
+			List<Map<String, Object>> suggestions = (List<Map<String, Object>>) dataRan.get("suggestions");
 			if (suggestions.isEmpty()) {
 				event.reply("No suggestions have been sent yet :no_entry:").queue();
 				return;
 			}
 			
-	        for (Map<String, Object> suggestion : suggestions) {
-	        	if (messageId.equals(suggestion.get("id"))) {
-	        		TextChannel channel = event.getGuild().getTextChannelById((String) dataRan.get("channel"));
-	        		if (channel == null) {
-	        			event.reply("The suggestion channel set no longer exists :no_entry").queue();
-	        			data.update(row -> {
-	        				return r.hashMap("suggestions", row.g("suggestions").filter(d -> d.g("id").ne(messageId)));
-	        			}).runNoReply(connection);
-	        			return;
-	        		}
-	        		
-	        		try {
-		        		channel.getMessageById(messageId).queue(message -> {
-		        			message.delete().queue();
-		        		    event.reply("That suggestion has been deleted <:done:403285928233402378>").queue();
-		        		    data.update(row -> {
-		    	    			return r.hashMap("suggestions", row.g("suggestions").filter(d -> d.g("id").ne(messageId)));
-		    	    		}).runNoReply(connection);
-		    	        	return;
-		        		}, e -> {
-		        			if (e instanceof ErrorResponseException) {
-			        			ErrorResponseException exception = (ErrorResponseException) e;
-			        			if (exception.getErrorCode() == 10008) {
-			        				event.reply("I could not find that message :no_entry:").queue();
-			        				data.update(row -> {
-			    	        			return r.hashMap("suggestions", row.g("suggestions").filter(d -> d.g("id").ne(messageId)));
-			    	        		}).runNoReply(connection);
-			        				return;
-			        			}
-		        		    }
-		        		});	
-	        		} catch(IllegalArgumentException e) {
-	    				event.reply("I could not find that message :no_entry:").queue();
-	    				return;
-	    			}
-	        		
-	        		return;
-	        	}
-	        }
-	        
-	        event.reply("That message is not a suggestion message :no_entry:").queue();	      
+			for (Map<String, Object> suggestion : suggestions) {
+				if (messageId.equals(suggestion.get("id"))) {
+					TextChannel channel = event.getGuild().getTextChannelById((String) dataRan.get("channel"));
+					if (channel == null) {
+						event.reply("The suggestion channel set no longer exists :no_entry").queue();
+						data.update(row -> {
+							return r.hashMap("suggestions", row.g("suggestions").filter(d -> d.g("id").ne(messageId)));
+						}).runNoReply(connection);
+						return;
+					}
+					
+					try {
+						channel.getMessageById(messageId).queue(message -> {
+							message.delete().queue();
+							event.reply("That suggestion has been deleted <:done:403285928233402378>").queue();
+							data.update(row -> {
+								return r.hashMap("suggestions", row.g("suggestions").filter(d -> d.g("id").ne(messageId)));
+							}).runNoReply(connection);
+							return;
+						}, e -> {
+							if (e instanceof ErrorResponseException) {
+								ErrorResponseException exception = (ErrorResponseException) e;
+								if (exception.getErrorCode() == 10008) {
+									event.reply("I could not find that message :no_entry:").queue();
+									data.update(row -> {
+										return r.hashMap("suggestions", row.g("suggestions").filter(d -> d.g("id").ne(messageId)));
+									}).runNoReply(connection);
+									return;
+								}
+							}
+						});	
+					} catch(IllegalArgumentException e) {
+						event.reply("I could not find that message :no_entry:").queue();
+						return;
+					}
+					
+					return;
+				}
+			}
+			
+			event.reply("That message is not a suggestion message :no_entry:").queue();		  
 		}
 		
 		@SuppressWarnings("unchecked")
@@ -696,7 +697,7 @@ public class GeneralModule {
 			if (dataRan == null) {
 				event.reply("There are no suggestions in this server :no_entry:").queue();
 				return;
-			}        
+			}		
 			List<Map<String, Object>> suggestions = (List<Map<String, Object>>) dataRan.get("suggestions");
 			if (suggestions.isEmpty()) {
 				event.reply("There are no suggestions in this server :no_entry:").queue();
@@ -727,15 +728,15 @@ public class GeneralModule {
 				return;
 			}
 			if ((boolean) data.get("toggle") == false) {
-	        	event.reply("Suggestions are disabled in this server :no_entry:").queue();
+				event.reply("Suggestions are disabled in this server :no_entry:").queue();
 				return;
-	        }
-	        if (data.get("channel") == null) {
-	        	event.reply("Suggestions have not been setup in this server :no_entry:").queue();
+			}
+			if (data.get("channel") == null) {
+				event.reply("Suggestions have not been setup in this server :no_entry:").queue();
 				return;
-	        }
-	        
-	        List<Map<String, Object>> suggestions = (List<Map<String, Object>>) data.get("suggestions");
+			}
+			
+			List<Map<String, Object>> suggestions = (List<Map<String, Object>>) data.get("suggestions");
 			if (suggestions.isEmpty()) {
 				event.reply("No suggestions have been sent yet :no_entry:").queue();
 				return;
@@ -777,7 +778,7 @@ public class GeneralModule {
 			
 			TextChannel channel = null;
 			if ((String) data.get("channel") != null) {
-			    channel = event.getGuild().getTextChannelById((String) data.get("channel"));
+				channel = event.getGuild().getTextChannelById((String) data.get("channel"));
 			}
 			
 			EmbedBuilder embed = new EmbedBuilder()
@@ -1306,7 +1307,7 @@ public class GeneralModule {
 				.addField("ID", emote.getId(), false)
 				.addField("Server", emote.getGuild().getName() + " (" + emote.getGuild().getId() + ")", false);
 		
-        if (event.getSelfMember().hasPermission(Permission.MANAGE_EMOTES)) {
+		if (event.getSelfMember().hasPermission(Permission.MANAGE_EMOTES)) {
 			emote.getGuild().retrieveEmote(emote).queue(e -> {
 				if (e.hasUser()) {
 					embed.addField("Uploader", e.getUser().getAsTag(), false);
@@ -1314,9 +1315,9 @@ public class GeneralModule {
 				
 				event.reply(embed.build()).queue();
 			});
-        } else {
-        	event.reply(embed.build()).queue();
-        }
+		} else {
+			event.reply(embed.build()).queue();
+		}
 	}
 	
 	@Command(value="server emotes", aliases={"guild emotes", "serveremojis", "guildemojis", "guild emojis", "server emojis", "emote list", "emoji list", "emotelist", "emojilist"}, 
@@ -1523,7 +1524,7 @@ public class GeneralModule {
 				"\r\n" + 
 				"As the bot grew, the older code took a toll on Sx4 and caused it to become slow and eat a lot of resources, so steps were taken make the image manipulation section of the bot into Java and improve certain sections of the general code.\r\n" + 
 				"\r\n" + 
-				"Since there was a lot of poor code in the Python version of Sx4, it was eventually fully rewritten into Java using JDA in order to make every command more efficient and eat fewer resources. Sx4 is currently 100% Java and is in over %,d servers.",
+				"Since there was a lot of poor code in the Python version of Sx4, it was eventually fully rewritten into Java using JDA in order to make every command more efficient and eat fewer resources. Sx4 is currently 100%% Java and is in over %,d servers.",
 				event.getShardManager().getGuilds().size());
 		
 		List<String> developers = new ArrayList<String>();
@@ -2038,7 +2039,7 @@ public class GeneralModule {
 					description = String.format("Streaming [%s](%s)", game.getName(), member.getGame().getUrl());
 				} else {
 					description = GeneralUtils.title(game.getType().equals(GameType.DEFAULT) ? "Playing" : game.getType().toString()) + game.getName() + (game.getTimestamps() != null ? " for " + 
-							TimeUtils.toTimeString(Clock.systemUTC().instant().getEpochSecond() - (game.getTimestamps().getStart()/1000), ChronoUnit.SECONDS) : "");                                                                                                                            
+							TimeUtils.toTimeString(Clock.systemUTC().instant().getEpochSecond() - (game.getTimestamps().getStart()/1000), ChronoUnit.SECONDS) : "");																															
 				}
 			}
 			
@@ -2181,7 +2182,7 @@ public class GeneralModule {
 		embed.setThumbnail(event.getSelfUser().getEffectiveAvatarUrl());
 		embed.setAuthor(event.getSelfUser().getName() + " Stats", null, event.getSelfUser().getEffectiveAvatarUrl());
 		embed.setFooter("Uptime: " + TimeUtils.toTimeString(ManagementFactory.getRuntimeMXBean().getUptime(), ChronoUnit.MILLIS) + " | Java " + System.getProperty("java.version"), null);
-		embed.addField("Library", "JDA " + JDAInfo.VERSION, true);
+		embed.addField("Library", "JDA " + JDAInfo.VERSION + "\nJockie Utils " + JockieUtils.VERSION, true);
 		embed.addField("Memory Usage", memoryString.toString(), true);
 		embed.addField("CPU Usage", String.format("%.1f%%", cpuUsage), true);
 		embed.addField("Threads", String.valueOf(Thread.activeCount()), true);
@@ -2199,7 +2200,7 @@ public class GeneralModule {
 
 	@Initialize(all=true)
 	public void initialize(CommandImpl command) {
-	    command.setCategory(Categories.GENERAL);
+		command.setCategory(Categories.GENERAL);
 	}
 
 }

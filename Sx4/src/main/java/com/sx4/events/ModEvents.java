@@ -43,7 +43,7 @@ public class ModEvents extends ListenerAdapter {
 					}
 				}
 				
-				if (moderator != null && !moderator.equals(event.getJDA().getSelfUser())) {
+				if (moderator == null || !moderator.equals(event.getJDA().getSelfUser())) {
 					ModUtils.createModLogAndOffence(event.getGuild(), Sx4Bot.getConnection(), moderator, event.getUser(), "Ban", reason);
 				}
 			});
@@ -63,7 +63,7 @@ public class ModEvents extends ListenerAdapter {
 					}
 				}
 				
-				if (moderator != null && !moderator.equals(event.getJDA().getSelfUser())) {
+				if (moderator == null || !moderator.equals(event.getJDA().getSelfUser())) {
 					ModUtils.createModLog(event.getGuild(), Sx4Bot.getConnection(), moderator, event.getUser(), "Unban", reason);
 				}
 			});
@@ -144,7 +144,7 @@ public class ModEvents extends ListenerAdapter {
 							}
 						}
 						
-						if (moderator != null && !moderator.equals(event.getJDA().getSelfUser())) {
+						if (moderator == null || !moderator.equals(event.getJDA().getSelfUser())) {
 							ModUtils.createModLogAndOffence(event.getGuild(), Sx4Bot.getConnection(), moderator, event.getUser(), "Mute (Infinite)", reason);
 							data.update(row -> r.hashMap("users", row.g("users").append(r.hashMap("id", event.getUser().getId()).with("amount", null).with("time", timestampNow)))).runNoReply(Sx4Bot.getConnection());
 						}

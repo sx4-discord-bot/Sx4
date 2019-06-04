@@ -87,47 +87,47 @@ public class FunModule {
 	private static Random random = new Random();
 	
 	public enum Direction {
-	    NORTH(0),
-	    NORTH_EAST(45),
+		NORTH(0),
+		NORTH_EAST(45),
 		EAST(90),
 		SOUTH_EAST(135),
 		SOUTH(180),
 		SOUTH_WEST(225),
 		WEST(270),
 		NORTH_WEST(315);
-	    
-	    private int degrees;
-	    
-	    private Direction(int degrees) {
-	        this.degrees = degrees;
-	    }
-	    
-	    public String getName() {
-	    	return GeneralUtils.title(this.name()).replace("_", " ").trim();
-	    }
+		
+		private int degrees;
+		
+		private Direction(int degrees) {
+			this.degrees = degrees;
+		}
+		
+		public String getName() {
+			return GeneralUtils.title(this.name()).replace("_", " ").trim();
+		}
 
-	    public int getDegrees() {
-	        return this.degrees;
-	    }
+		public int getDegrees() {
+			return this.degrees;
+		}
 
-	    public static Direction getDirection(int degrees) {
-	    	Direction closest = null;
-	    	int closestInt = 360;
-	        for (Direction direction : Direction.values()) {
-	        	int difference = Math.abs(direction.getDegrees() - degrees);
-	        	if (closest == null) {
-	        		closest = direction;
-	        		closestInt = difference;
-	        	} else {
-		            if (closestInt > difference) {
-		            	closest = direction;
-		            	closestInt = difference;
-		            }
-	        	}
-	        }
+		public static Direction getDirection(int degrees) {
+			Direction closest = null;
+			int closestInt = 360;
+			for (Direction direction : Direction.values()) {
+				int difference = Math.abs(direction.getDegrees() - degrees);
+				if (closest == null) {
+					closest = direction;
+					closestInt = difference;
+				} else {
+					if (closestInt > difference) {
+						closest = direction;
+						closestInt = difference;
+					}
+				}
+			}
 
-	        return closest;
-	    }
+			return closest;
+		}
 	}
 	
 	@SuppressWarnings("unchecked")
@@ -246,10 +246,10 @@ public class FunModule {
 		EmbedBuilder embed = new EmbedBuilder();
 		embed.setTitle("Badges");
 		embed.setDescription("<:server_owner:441255213450526730> - Be an owner of a server in which Sx4 is in\n" +
-        "<:developer:441255213068845056> - Be a developer of Sx4\n<:helper:441255213131628554> - You have at some point contributed to the bot\n" +
-        "<:donator:441255213224034325> - Donate to Sx4 either through PayPal or Patreon\n<:profile_editor:441255213207126016> - Edit your profile" +
-        "\n<:married:441255213106593803> - Be married to someone on the bot\n<:playing:441255213513572358> - Have a playing status\n<:streaming:441255213106724865> - Have a streaming status" +
-        "\n<:insx4server:472895584856965132> - Be in the Sx4 Support Server");
+		"<:developer:441255213068845056> - Be a developer of Sx4\n<:helper:441255213131628554> - You have at some point contributed to the bot\n" +
+		"<:donator:441255213224034325> - Donate to Sx4 either through PayPal or Patreon\n<:profile_editor:441255213207126016> - Edit your profile" +
+		"\n<:married:441255213106593803> - Be married to someone on the bot\n<:playing:441255213513572358> - Have a playing status\n<:streaming:441255213106724865> - Have a streaming status" +
+		"\n<:insx4server:472895584856965132> - Be in the Sx4 Support Server");
 		
 		event.reply(embed.build()).queue();
 	}
@@ -2079,29 +2079,29 @@ public class FunModule {
 	}
 	
 	@Command(value="developer embed", aliases={"developerembed", "dev embed", "devembed"}, description="Create more in depth embeds if you know the syntax of json", shortDescription="Example format: ```json\n{\r\n" + 
-		"    \"title\": \"text here\",\r\n" + 
-		"    \"description\": \"text here\",\r\n" + 
-		"    \"colour\": \"hex code here\",\r\n" + 
-		"    \"author\": {\r\n" + 
-		"        \"name\": \"text here\",\r\n" + 
-		"        \"icon_url\": \"image url here\",\r\n" + 
-		"        \"url\": \"url here\"\r\n" + 
-		"    },\r\n" + 
-		"    \"footer\": {\r\n" + 
-		"        \"text\": \"text here\",\r\n" + 
-		"        \"icon_url\": \"image url here\"\r\n" + 
-		"    },\r\n" + 
-		"    \"fields\": [{\r\n" + 
-		"        \"name\": \"title here\",\r\n" + 
-		"        \"value\": \"description here\",\r\n" + 
-		"        \"inline\": true\r\n" + 
-		"    }, {\r\n" + 
-		"        \"name\": \"title here\",\r\n" + 
-		"        \"value\": \"description here\",\r\n" + 
-		"        \"inline\": false\r\n" + 
-		"    }],\r\n" + 
-		"    \"image\": \"image url here\",\r\n" + 
-		"    \"thumbnail\": \"url here\"\r\n" + 
+		"	\"title\": \"text here\",\r\n" + 
+		"	\"description\": \"text here\",\r\n" + 
+		"	\"colour\": \"hex code here\",\r\n" + 
+		"	\"author\": {\r\n" + 
+		"		\"name\": \"text here\",\r\n" + 
+		"		\"icon_url\": \"image url here\",\r\n" + 
+		"		\"url\": \"url here\"\r\n" + 
+		"	},\r\n" + 
+		"	\"footer\": {\r\n" + 
+		"		\"text\": \"text here\",\r\n" + 
+		"		\"icon_url\": \"image url here\"\r\n" + 
+		"	},\r\n" + 
+		"	\"fields\": [{\r\n" + 
+		"		\"name\": \"title here\",\r\n" + 
+		"		\"value\": \"description here\",\r\n" + 
+		"		\"inline\": true\r\n" + 
+		"	}, {\r\n" + 
+		"		\"name\": \"title here\",\r\n" + 
+		"		\"value\": \"description here\",\r\n" + 
+		"		\"inline\": false\r\n" + 
+		"	}],\r\n" + 
+		"	\"image\": \"image url here\",\r\n" + 
+		"	\"thumbnail\": \"url here\"\r\n" + 
 		"}```")
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void developerEmbed(CommandEvent event, @Argument(value="json", endless=true) JSONObject json) {
@@ -2336,7 +2336,7 @@ public class FunModule {
 
 	@Initialize(all=true)
 	public void initialize(CommandImpl command) {
-	    command.setCategory(Categories.FUN);
+		command.setCategory(Categories.FUN);
 	}
 	
 }

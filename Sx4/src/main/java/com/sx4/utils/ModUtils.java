@@ -125,19 +125,19 @@ public class ModUtils {
 	}
 	
 	public static boolean canConnect(Member member, VoiceChannel voiceChannel) {
-	    EnumSet<Permission> perms = Permission.toEnumSet(PermissionUtil.getEffectivePermission(voiceChannel, member));
-	    if (!perms.contains(Permission.VOICE_CONNECT)) {
-	        return false;
-	    }
-	    
-	    final int userLimit = voiceChannel.getUserLimit();
-	    if (userLimit > 0 && !perms.contains(Permission.ADMINISTRATOR)) {
-	        if (userLimit <= voiceChannel.getMembers().size() && !perms.contains(Permission.VOICE_MOVE_OTHERS)) {
-	            return false;
-	        }
-	    }
-	    
-	    return true;
+		EnumSet<Permission> perms = Permission.toEnumSet(PermissionUtil.getEffectivePermission(voiceChannel, member));
+		if (!perms.contains(Permission.VOICE_CONNECT)) {
+			return false;
+		}
+		
+		final int userLimit = voiceChannel.getUserLimit();
+		if (userLimit > 0 && !perms.contains(Permission.ADMINISTRATOR)) {
+			if (userLimit <= voiceChannel.getMembers().size() && !perms.contains(Permission.VOICE_MOVE_OTHERS)) {
+				return false;
+			}
+		}
+		
+		return true;
 	}
 	
 	public static MessageEmbed getKickEmbed(Guild guild, User moderator, String reason) {

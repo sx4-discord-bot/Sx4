@@ -102,8 +102,8 @@ public class Sx4Bot {
 		SteamCache.getGames();
 		
 		connection = RethinkDB.r
-			    .connection()
-			    .connect();
+				.connection()
+				.connect();
 		
 		try {
 			RethinkDB.r.dbCreate(Settings.DATABASE_NAME).run(connection);
@@ -172,10 +172,10 @@ public class Sx4Bot {
 							Member member = guild.getMemberById(event.getAuthor().getIdLong());
 				
 							if (member != null) {
-							    if (!event.getGuild().getMembersWithRoles(donatorRole).contains(member)) {
-							    	event.reply("You need to be a donator to execute this command :no_entry:").queue();
-							    	return false;
-							    }
+								if (!event.getGuild().getMembersWithRoles(donatorRole).contains(member)) {
+									event.reply("You need to be a donator to execute this command :no_entry:").queue();
+									return false;
+								}
 							}
 						}
 					}
@@ -205,13 +205,13 @@ public class Sx4Bot {
 		});
 		
 		for(JDA shard : bot.getShards()) {
-		    shard.awaitReady();
+			shard.awaitReady();
 		}
 
 		int availableGuilds = bot.getGuilds().size();
 		int unavailableGuilds = bot.getShards().stream()
-		        .mapToInt(jda -> ((JDAImpl) jda).getGuildSetupController().getSetupNodes(GuildSetupController.Status.UNAVAILABLE).size())
-		        .sum();
+				.mapToInt(jda -> ((JDAImpl) jda).getGuildSetupController().getSetupNodes(GuildSetupController.Status.UNAVAILABLE).size())
+				.sum();
 
 		System.out.println(String.format("Connected to %s with %,d/%,d available servers and %,d users", bot.getShards().get(0).getSelfUser().getAsTag(), availableGuilds, availableGuilds + unavailableGuilds, bot.getUsers().size()));
 

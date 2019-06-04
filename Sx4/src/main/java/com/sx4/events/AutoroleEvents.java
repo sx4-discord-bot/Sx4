@@ -24,29 +24,34 @@ public class AutoroleEvents extends ListenerAdapter {
 			return;
 		}
 		
+		Member self = event.getGuild().getSelfMember();
+		if (!self.hasPermission(Permission.MANAGE_ROLES)) {
+			return;
+		}
+		
 		String roleData = (String) data.get("role");
 		String botRoleData = (String) data.get("botrole");
 		if (roleData != null && botRoleData == null) {
 			Role role = event.getGuild().getRoleById(roleData);
-			if (role != null) {
+			if (role != null && self.canInteract(role)) {
 				event.getGuild().getController().addSingleRoleToMember(event.getMember(), role).queue();
 			}
 		} else if (roleData == null && botRoleData != null) {
 			if (event.getMember().getUser().isBot()) {
 				Role role = event.getGuild().getRoleById(botRoleData);
-				if (role != null) {
+				if (role != null && self.canInteract(role)) {
 					event.getGuild().getController().addSingleRoleToMember(event.getMember(), role).queue();
 				}
 			}
 		} else {
 			if (event.getMember().getUser().isBot()) {
 				Role role = event.getGuild().getRoleById(botRoleData);
-				if (role != null) {
+				if (role != null && self.canInteract(role)) {
 					event.getGuild().getController().addSingleRoleToMember(event.getMember(), role).queue();
 				}
 			} else {
 				Role role = event.getGuild().getRoleById(roleData);
-				if (role != null) {
+				if (role != null && self.canInteract(role)) {
 					event.getGuild().getController().addSingleRoleToMember(event.getMember(), role).queue();
 				}
 			}

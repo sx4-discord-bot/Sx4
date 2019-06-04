@@ -372,9 +372,9 @@ public class PagedUtils {
 			};
 			
 			Consumer<MessageReceivedEvent> handle = new Consumer<MessageReceivedEvent>() {
-			    public void accept(MessageReceivedEvent e) {
-			    	String messageContent = e.getMessage().getContentRaw().toLowerCase();
-			    	boolean edit = true;
+				public void accept(MessageReceivedEvent e) {
+					String messageContent = e.getMessage().getContentRaw().toLowerCase();
+					boolean edit = true;
 					if (cancel.contains(messageContent)) {
 						message.delete().queue(null, $ -> {});
 						e.getMessage().delete().queue(null, $ -> {});
@@ -435,9 +435,9 @@ public class PagedUtils {
 					if (edit == true) {
 						message.editMessage(paged.getEmbed()).queue();
 					}
-			        
-			        Sx4Bot.waiter.waitForEvent(MessageReceivedEvent.class, check, this, timeout, TimeUnit.SECONDS, paged.deleteMessage() == true ? () -> message.delete().queue() : null);
-			    }
+					
+					Sx4Bot.waiter.waitForEvent(MessageReceivedEvent.class, check, this, timeout, TimeUnit.SECONDS, paged.deleteMessage() == true ? () -> message.delete().queue() : null);
+				}
 			};
 			Sx4Bot.waiter.waitForEvent(MessageReceivedEvent.class, check, handle, timeout, TimeUnit.SECONDS, paged.deleteMessage() == true ? () -> message.delete().queue() : null);
 		});

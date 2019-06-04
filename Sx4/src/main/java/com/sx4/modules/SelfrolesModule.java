@@ -246,13 +246,13 @@ public class SelfrolesModule {
 						data.update(r.hashMap("messages", messages)).runNoReply(connection);
 					}, e -> {
 						if (e instanceof ErrorResponseException) {
-	        				ErrorResponseException exception = (ErrorResponseException) e;
-	        				if (exception.getErrorCode() == 10008) {
-	        					event.reply("I could not find that message :no_entry:").queue();
-	        					data.update(row -> r.hashMap("messages", row.g("messages").filter(d -> d.g("id").ne(messageId)))).runNoReply(connection);
-	        					return;
-	        				}
-	        			}
+							ErrorResponseException exception = (ErrorResponseException) e;
+							if (exception.getErrorCode() == 10008) {
+								event.reply("I could not find that message :no_entry:").queue();
+								data.update(row -> r.hashMap("messages", row.g("messages").filter(d -> d.g("id").ne(messageId)))).runNoReply(connection);
+								return;
+							}
+						}
 					});
 					
 					return;
@@ -436,13 +436,13 @@ public class SelfrolesModule {
 						event.reply("That role is not on that reaction role :no_entry:").queue();
 					}, e -> {
 						if (e instanceof ErrorResponseException) {
-	        				ErrorResponseException exception = (ErrorResponseException) e;
-	        				if (exception.getErrorCode() == 10008) {
-	        					event.reply("I could not find that message :no_entry:").queue();
-	        					data.update(row -> r.hashMap("messages", row.g("messages").filter(d -> d.g("id").ne(messageId)))).runNoReply(connection);
-	        					return;
-	        				}
-	        			}
+							ErrorResponseException exception = (ErrorResponseException) e;
+							if (exception.getErrorCode() == 10008) {
+								event.reply("I could not find that message :no_entry:").queue();
+								data.update(row -> r.hashMap("messages", row.g("messages").filter(d -> d.g("id").ne(messageId)))).runNoReply(connection);
+								return;
+							}
+						}
 					});
 					
 					return;
@@ -575,13 +575,13 @@ public class SelfrolesModule {
 						data.update(r.hashMap("messages", messages)).runNoReply(connection);
 					}, e -> {
 						if (e instanceof ErrorResponseException) {
-	        				ErrorResponseException exception = (ErrorResponseException) e;
-	        				if (exception.getErrorCode() == 10008) {
-	        					event.reply("I could not find that message :no_entry:").queue();
-	        					data.update(row -> r.hashMap("messages", row.g("messages").filter(d -> d.g("id").ne(messageId)))).runNoReply(connection);
-	        					return;
-	        				}
-	        			}
+							ErrorResponseException exception = (ErrorResponseException) e;
+							if (exception.getErrorCode() == 10008) {
+								event.reply("I could not find that message :no_entry:").queue();
+								data.update(row -> r.hashMap("messages", row.g("messages").filter(d -> d.g("id").ne(messageId)))).runNoReply(connection);
+								return;
+							}
+						}
 					});
 					
 					return;
@@ -628,13 +628,13 @@ public class SelfrolesModule {
 						}
 					}, e -> {
 						if (e instanceof ErrorResponseException) {
-	        				ErrorResponseException exception = (ErrorResponseException) e;
-	        				if (exception.getErrorCode() == 10008) {
-	        					event.reply("I could not find that message :no_entry:").queue();
-	        					data.update(row -> r.hashMap("messages", row.g("messages").filter(d -> d.g("id").ne(messageId)))).runNoReply(connection);
-	        					return;
-	        				}
-	        			}
+							ErrorResponseException exception = (ErrorResponseException) e;
+							if (exception.getErrorCode() == 10008) {
+								event.reply("I could not find that message :no_entry:").queue();
+								data.update(row -> r.hashMap("messages", row.g("messages").filter(d -> d.g("id").ne(messageId)))).runNoReply(connection);
+								return;
+							}
+						}
 					});
 					
 					return;
@@ -681,13 +681,13 @@ public class SelfrolesModule {
 						data.update(row -> r.hashMap("messages", row.g("messages").filter(d -> d.g("id").ne(messageId)))).runNoReply(connection);
 					}, e -> {
 						if (e instanceof ErrorResponseException) {
-	        				ErrorResponseException exception = (ErrorResponseException) e;
-	        				if (exception.getErrorCode() == 10008) {
-	        					event.reply("I could not find that message :no_entry:").queue();
-	        					data.update(row -> r.hashMap("messages", row.g("messages").filter(d -> d.g("id").ne(messageId)))).runNoReply(connection);
-	        					return;
-	        				}
-	        			}
+							ErrorResponseException exception = (ErrorResponseException) e;
+							if (exception.getErrorCode() == 10008) {
+								event.reply("I could not find that message :no_entry:").queue();
+								data.update(row -> r.hashMap("messages", row.g("messages").filter(d -> d.g("id").ne(messageId)))).runNoReply(connection);
+								return;
+							}
+						}
 					});
 					
 					return;

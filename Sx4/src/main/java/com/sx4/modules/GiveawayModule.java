@@ -98,12 +98,12 @@ public class GiveawayModule {
 							if (reaction.getReactionEmote().getName().equals("🎉")) {
 								List<Member> members = new ArrayList<>();
 								RequestFuture<?> future = reaction.getUsers().forEachAsync((user) -> {
-								    Member reactionMember = event.getGuild().getMember(user);
-								    if (reactionMember != null && !members.contains(reactionMember) && reactionMember != event.getSelfMember()) {
-								    	members.add(reactionMember);
-								    }
-								    
-								    return true;
+									Member reactionMember = event.getGuild().getMember(user);
+									if (reactionMember != null && !members.contains(reactionMember) && reactionMember != event.getSelfMember()) {
+										members.add(reactionMember);
+									}
+									
+									return true;
 								});
 									
 								future.thenRun(() -> {
@@ -134,13 +134,13 @@ public class GiveawayModule {
 						}
 					}, e -> {
 						if (e instanceof ErrorResponseException) {
-	        				ErrorResponseException exception = (ErrorResponseException) e;
-	        				if (exception.getErrorCode() == 10008) {
-	        					event.reply("That giveaway message has been deleted :no_entry:").queue();
-	        					data.update(row -> r.hashMap("giveaways", row.g("giveaways").filter(d -> d.g("id").ne(giveawayId)))).runNoReply(connection);
+							ErrorResponseException exception = (ErrorResponseException) e;
+							if (exception.getErrorCode() == 10008) {
+								event.reply("That giveaway message has been deleted :no_entry:").queue();
+								data.update(row -> r.hashMap("giveaways", row.g("giveaways").filter(d -> d.g("id").ne(giveawayId)))).runNoReply(connection);
 								GiveawayEvents.cancelExecutor(event.getGuild().getId(), giveawayId);
-	        				}
-	        			}
+							}
+						}
 					});
 					
 					return;
@@ -196,27 +196,27 @@ public class GiveawayModule {
 										for (MessageReaction reaction : message.getReactions()) {
 											if (reaction.getReactionEmote().getName().equals("🎉")) {
 												RequestFuture<?> future = reaction.getUsers().forEachAsync((user) -> {
-												    Member reactionMember = event.getGuild().getMember(user);
-												    if (!members.contains(reactionMember) && reactionMember != event.getSelfMember()) {
-												        possibleWinners.add(reactionMember);
-												    }
-												    
-												    return true;
+													Member reactionMember = event.getGuild().getMember(user);
+													if (!members.contains(reactionMember) && reactionMember != event.getSelfMember()) {
+														possibleWinners.add(reactionMember);
+													}
+													
+													return true;
 												});
 
 												future.thenRun(() -> {
-												    if (possibleWinners.size() == 0) {
-												        event.reply("No one has reacted to that giveaway :no_entry:").queue();
-												        return;
-												    }
-												    
-												    Set<Member> actualWinners = GiveawayUtils.getRandomSample(possibleWinners, Math.min(winnersAmount, possibleWinners.size()));
-												    List<String> winnerMentions = new ArrayList<>();
-												    for (Member member : actualWinners) {
-												        winnerMentions.add(member.getAsMention());
-												    }
-												    
-												    event.reply("The new " + (actualWinners.size() == 1 ? "winner is" : "winners are") + " " + String.join(", ", winnerMentions) + ", congratulations :tada:").queue();
+													if (possibleWinners.size() == 0) {
+														event.reply("No one has reacted to that giveaway :no_entry:").queue();
+														return;
+													}
+													
+													Set<Member> actualWinners = GiveawayUtils.getRandomSample(possibleWinners, Math.min(winnersAmount, possibleWinners.size()));
+													List<String> winnerMentions = new ArrayList<>();
+													for (Member member : actualWinners) {
+														winnerMentions.add(member.getAsMention());
+													}
+													
+													event.reply("The new " + (actualWinners.size() == 1 ? "winner is" : "winners are") + " " + String.join(", ", winnerMentions) + ", congratulations :tada:").queue();
 												});
 											}
 										}
@@ -233,11 +233,11 @@ public class GiveawayModule {
 					}
 				}, e -> {
 					if (e instanceof ErrorResponseException) {
-	    				ErrorResponseException exception = (ErrorResponseException) e;
-	    				if (exception.getErrorCode() == 10008) {
-	    					event.reply("I could not find that message within this channel :no_entry:").queue();
-	    				}
-	    			}
+						ErrorResponseException exception = (ErrorResponseException) e;
+						if (exception.getErrorCode() == 10008) {
+							event.reply("I could not find that message within this channel :no_entry:").queue();
+						}
+					}
 				});
 			} catch(IllegalArgumentException e) {
 				event.reply("I could not find that message within this channel :no_entry:").queue();
@@ -335,11 +335,11 @@ public class GiveawayModule {
 				});
 			} else {
 				CompletableFuture.completedFuture(true).thenCompose(($) -> {
-				    CompletableFuture<Boolean> future = new CompletableFuture<>();
-				    
-				    if (channelArgument == null) {
-				        event.reply("What channel would you like me to start this giveaway in? Type \"cancel\" at anytime to cancel the creation (Respond below)").queue(message -> {
-				        	PagedUtils.getResponse(event, 60, (e) -> {
+					CompletableFuture<Boolean> future = new CompletableFuture<>();
+					
+					if (channelArgument == null) {
+						event.reply("What channel would you like me to start this giveaway in? Type \"cancel\" at anytime to cancel the creation (Respond below)").queue(message -> {
+							PagedUtils.getResponse(event, 60, (e) -> {
 								if (e.getTextChannel().equals(event.getTextChannel()) && e.getAuthor().equals(event.getAuthor())) {
 									if (e.getMessage().getContentRaw().toLowerCase().equals("cancel")) {
 										return true;
@@ -359,24 +359,24 @@ public class GiveawayModule {
 									channelString.set(channelMessage.getContentRaw());
 									future.complete(true);
 								}
-							});	   			           
-				        });
-				    } else {
-				    	channelString.set(channelArgument);
-				    	future.complete(true);
-				    }
-				    
-				    return future;
+							});	   					   
+						});
+					} else {
+						channelString.set(channelArgument);
+						future.complete(true);
+					}
+					
+					return future;
 				}).thenCompose((success) -> {
-				    if (!success) {
-				    	return CompletableFuture.completedFuture(success);
-				    }
-				    
-				    CompletableFuture<Boolean> future = new CompletableFuture<>();
-				    
-				    if (winnersAmount == null) {
-				    	event.reply("How many winners would you like? (Respond below)").queue(message -> {
-				        	PagedUtils.getResponse(event, 60, (e) -> {
+					if (!success) {
+						return CompletableFuture.completedFuture(success);
+					}
+					
+					CompletableFuture<Boolean> future = new CompletableFuture<>();
+					
+					if (winnersAmount == null) {
+						event.reply("How many winners would you like? (Respond below)").queue(message -> {
+							PagedUtils.getResponse(event, 60, (e) -> {
 								if (e.getTextChannel().equals(event.getTextChannel()) && e.getAuthor().equals(event.getAuthor())) {
 									if (e.getMessage().getContentRaw().toLowerCase().equals("cancel")) {
 										return true;
@@ -398,24 +398,24 @@ public class GiveawayModule {
 									winnersTotal.set(Long.parseLong(winnersMessage.getContentRaw()));
 									future.complete(true);
 								}
-							});	   			           
-				        });
-				    } else {
-				    	winnersTotal.set(winnersAmount);
-				    	future.complete(true);
-				    }
-				    
-				    return future;
+							});	   					   
+						});
+					} else {
+						winnersTotal.set(winnersAmount);
+						future.complete(true);
+					}
+					
+					return future;
 				}).thenCompose((success) -> {
-				    if (!success) {
-				    	return CompletableFuture.completedFuture(success);
-				    }
-				    
-				    CompletableFuture<Boolean> future = new CompletableFuture<>();
-				    
-				    if (duration == null) {
-				    	event.reply("How long do you want your giveaway to last? (After the numerical value add 'd' for days, 'h' for hours, 'm' for minutes, 's' for seconds), Respond below.").queue(message -> {
-				        	PagedUtils.getResponse(event, 60, (e) -> {
+					if (!success) {
+						return CompletableFuture.completedFuture(success);
+					}
+					
+					CompletableFuture<Boolean> future = new CompletableFuture<>();
+					
+					if (duration == null) {
+						event.reply("How long do you want your giveaway to last? (After the numerical value add 'd' for days, 'h' for hours, 'm' for minutes, 's' for seconds), Respond below.").queue(message -> {
+							PagedUtils.getResponse(event, 60, (e) -> {
 								if (e.getTextChannel().equals(event.getTextChannel()) && e.getAuthor().equals(event.getAuthor())) {
 									if (e.getMessage().getContentRaw().toLowerCase().equals("cancel")) {
 										return true;
@@ -436,24 +436,24 @@ public class GiveawayModule {
 									durationString.set(durationMessage.getContentRaw());
 									future.complete(true);
 								}
-							});	   			           
-				        });
-				    } else {
-				    	durationString.set(duration);
-				    	future.complete(true);
-				    }
-				    
-				    return future;
+							});	   					   
+						});
+					} else {
+						durationString.set(duration);
+						future.complete(true);
+					}
+					
+					return future;
 				}).thenCompose((success) -> {
-				    if (!success) {
-				    	return CompletableFuture.completedFuture(success);
-				    }
-				    
-				    CompletableFuture<Boolean> future = new CompletableFuture<>();
-				    
-				    if (giveawayItem == null) {
-				    	event.reply("What are you giving away? (Respond below)").queue(message -> {
-				        	PagedUtils.getResponse(event, 60, (e) -> {
+					if (!success) {
+						return CompletableFuture.completedFuture(success);
+					}
+					
+					CompletableFuture<Boolean> future = new CompletableFuture<>();
+					
+					if (giveawayItem == null) {
+						event.reply("What are you giving away? (Respond below)").queue(message -> {
+							PagedUtils.getResponse(event, 60, (e) -> {
 								return e.getTextChannel().equals(event.getTextChannel()) && e.getAuthor().equals(event.getAuthor());
 							}, () -> event.reply("Response timed out :stopwatch:").queue(a -> future.complete(false)), durationMessage -> {
 								if (durationMessage.getContentRaw().toLowerCase().equals("cancel")) {
@@ -462,14 +462,14 @@ public class GiveawayModule {
 									itemString.set(durationMessage.getContentRaw());
 									future.complete(true);
 								}
-							});	   			           
-				        });
-				    } else {
-				    	itemString.set(giveawayItem);
-				    	future.complete(true);
-				    }
-				    
-				    return future;
+							});	   					   
+						});
+					} else {
+						itemString.set(giveawayItem);
+						future.complete(true);
+					}
+					
+					return future;
 				}).thenAccept((success) -> {
 					TextChannel channel = ArgumentUtils.getTextChannel(event.getGuild(), channelString.get());
 					if (channel == null) {

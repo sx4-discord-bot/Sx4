@@ -15,13 +15,13 @@ public class GiveawayUtils {
 	}
 	
 	public static <Type> Set<Type> getRandomSample(List<Type> list, int amount) {
-	    Set<Type> returnSet = new HashSet<>();
+		Set<Type> returnSet = new HashSet<>();
 
-	    while (returnSet.size() != amount) {
-	        returnSet.add(list.get(random.nextInt(list.size())));
-	    }
-	        
-	    return returnSet;
+		while (returnSet.size() != amount) {
+			returnSet.add(list.get(random.nextInt(list.size())));
+		}
+			
+		return returnSet;
 	}
 	
 }

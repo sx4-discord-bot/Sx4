@@ -149,7 +149,7 @@ public class LogsModule {
 	
 	@Initialize(all=true)
 	public void initialize(CommandImpl command) {
-	    command.setCategory(Categories.LOGS);
+		command.setCategory(Categories.LOGS);
 	}
 	
 }

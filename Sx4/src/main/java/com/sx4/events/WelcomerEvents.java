@@ -14,6 +14,7 @@ import java.util.function.Consumer;
 import com.sx4.core.Sx4Bot;
 import com.sx4.utils.WelcomerUtils;
 
+import net.dv8tion.jda.core.Permission;
 import net.dv8tion.jda.core.entities.Guild;
 import net.dv8tion.jda.core.entities.Icon;
 import net.dv8tion.jda.core.entities.TextChannel;
@@ -40,6 +41,10 @@ public class WelcomerEvents extends ListenerAdapter {
 	private void getWelcomerWebhook(Guild guild, Map<String, Object> data, Consumer<WebhookClient> webhook) throws MalformedURLException, IOException {
 		TextChannel channel = guild.getTextChannelById((String) data.get("channel"));
 		if (channel == null) {
+			return;
+		}
+		
+		if (!guild.getSelfMember().hasPermission(Permission.MANAGE_WEBHOOKS)) {
 			return;
 		}
 		
@@ -106,6 +111,10 @@ public class WelcomerEvents extends ListenerAdapter {
 	private void getLeaverWebhook(Guild guild, Map<String, Object> data, Consumer<WebhookClient> webhook) throws MalformedURLException, IOException {
 		TextChannel channel = guild.getTextChannelById((String) data.get("leavechannel"));
 		if (channel == null) {
+			return;
+		}
+		
+		if (!guild.getSelfMember().hasPermission(Permission.MANAGE_WEBHOOKS)) {
 			return;
 		}
 		

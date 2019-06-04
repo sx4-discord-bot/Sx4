@@ -92,17 +92,17 @@ public class DeveloperModule {
 	}
 	
 	static {
-	    ObjectWriter prettyWriter = new ObjectMapper().writerWithDefaultPrettyPrinter();
-	    
-	    String substringBound = "String.metaClass.substringBound = {int start, int end -> delegate.substring(start, Math.min(delegate.length(), end))}";
-	    String toJson = "Object.metaClass.toJson = {-> '```json\\n' + prettyWriter.writeValueAsString(delegate).substringBound(0, 1985) + '```'}";
-	    String toJsonCusor = "com.rethinkdb.net.Cursor.metaClass.toJson = {-> delegate.toList().toJson()}";
-	    
-	    GroovyShell initialize = new GroovyShell(configuration);
-	    initialize.setProperty("prettyWriter", prettyWriter);
-	    initialize.evaluate(substringBound);
-	    initialize.evaluate(toJson);
-	    initialize.evaluate(toJsonCusor);
+		ObjectWriter prettyWriter = new ObjectMapper().writerWithDefaultPrettyPrinter();
+		
+		String substringBound = "String.metaClass.substringBound = {int start, int end -> delegate.substring(start, Math.min(delegate.length(), end))}";
+		String toJson = "Object.metaClass.toJson = {-> '```json\\n' + prettyWriter.writeValueAsString(delegate).substringBound(0, 1985) + '```'}";
+		String toJsonCusor = "com.rethinkdb.net.Cursor.metaClass.toJson = {-> delegate.toList().toJson()}";
+		
+		GroovyShell initialize = new GroovyShell(configuration);
+		initialize.setProperty("prettyWriter", prettyWriter);
+		initialize.evaluate(substringBound);
+		initialize.evaluate(toJson);
+		initialize.evaluate(toJsonCusor);
 	}
 		
 	@Command(value="parse", allowedArgumentParsingTypes=ArgumentParsingType.POSITIONAL, description="Execute some code, nothing will be sent unless said to")
@@ -140,29 +140,29 @@ public class DeveloperModule {
 	@Developer
 	public void eval(CommandEvent event, @Context Connection connection, @Argument(value="code", endless=true) String evaluableString) {
 		try {
-		    GroovyShell shell = new GroovyShell(configuration);
-		    
-		    shell.setProperty("event", event);
-		    shell.setProperty("JDA", event.getJDA());
-		    shell.setProperty("connection", connection);
-		    
-		    Object object = shell.evaluate(evaluableString);
-		    
-		    if (object == null) {
-		        event.reply("null").queue();
-		    } else if (object instanceof Message) {
-		        event.reply((Message) object).queue();
-		    } else if (object instanceof MessageEmbed) {
-		        event.reply((MessageEmbed) object).queue();
-		    } else {
-		        event.reply(object.toString()).queue();
-		    }
+			GroovyShell shell = new GroovyShell(configuration);
+			
+			shell.setProperty("event", event);
+			shell.setProperty("JDA", event.getJDA());
+			shell.setProperty("connection", connection);
+			
+			Object object = shell.evaluate(evaluableString);
+			
+			if (object == null) {
+				event.reply("null").queue();
+			} else if (object instanceof Message) {
+				event.reply((Message) object).queue();
+			} else if (object instanceof MessageEmbed) {
+				event.reply((MessageEmbed) object).queue();
+			} else {
+				event.reply(object.toString()).queue();
+			}
 		} catch(Exception e) {
-		    if (e.getMessage() != null) {
-		    	event.reply(e.toString()).queue();
-		    } else {
-		        event.reply(e.getClass().getName() + " [No error message]").queue();
-		    }
+			if (e.getMessage() != null) {
+				event.reply(e.toString()).queue();
+			} else {
+				event.reply(e.getClass().getName() + " [No error message]").queue();
+			}
 		}
 	}
 	
@@ -244,7 +244,7 @@ public class DeveloperModule {
 	
 	@Initialize(all=true)
 	public void initialize(CommandImpl command) {
-	    command.setCategory(Categories.DEVELOPER);
+		command.setCategory(Categories.DEVELOPER);
 	}
 	
 }

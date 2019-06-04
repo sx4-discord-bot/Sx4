@@ -21,45 +21,45 @@ public class FunUtils {
 
 	public static String escapeMentions(Guild guild, String text) {
 		text = text.replace("@everyone", "@\u200beveryone");
-        text = text.replace("@here", "@\u200bhere");
-        
-        Matcher userMentionMatch = userMentionRegex.matcher(text);
-        List<String> userMentions = new ArrayList<>(), userNames = new ArrayList<>();
-        while (userMentionMatch.find()) {
-        	userMentions.add(userMentionMatch.group(1));
-        	Member member = guild.getMemberById(userMentionMatch.group(2));
-        	userNames.add(member.getEffectiveName());
-        }
-        
-        for (int i = 0; i < userMentions.size(); i++) {
-        	text = text.replace(userMentions.get(i), "@" + userNames.get(i));
-        }
-        
-        Matcher channelMentionMatch = channelMentionRegex.matcher(text);
-        List<String> channelMentions = new ArrayList<>(), channelNames = new ArrayList<>();
-        while (channelMentionMatch.find()) {
-        	channelMentions.add(channelMentionMatch.group(1));
-        	Channel channel = guild.getTextChannelById(channelMentionMatch.group(2));
-        	channelNames.add(channel.getName());
-        }
-        
-        for (int i = 0; i < channelMentions.size(); i++) {
-        	text = text.replace(channelMentions.get(i), "#" + channelNames.get(i));
-        }
-        
-        Matcher roleMentionMatch = roleMentionRegex.matcher(text);
-        List<String> roleMentions = new ArrayList<>(), roleNames = new ArrayList<>();
-        while (roleMentionMatch.find()) {
-        	roleMentions.add(roleMentionMatch.group(1));
-        	Role role = guild.getRoleById(roleMentionMatch.group(2));
-        	roleNames.add(role.getName());
-        }
-        
-        for (int i = 0; i < roleMentions.size(); i++) {
-        	text = text.replace(roleMentions.get(i), "@" + roleNames.get(i));
-        }
-        
-        return text;
+		text = text.replace("@here", "@\u200bhere");
+		
+		Matcher userMentionMatch = userMentionRegex.matcher(text);
+		List<String> userMentions = new ArrayList<>(), userNames = new ArrayList<>();
+		while (userMentionMatch.find()) {
+			userMentions.add(userMentionMatch.group(1));
+			Member member = guild.getMemberById(userMentionMatch.group(2));
+			userNames.add(member.getEffectiveName());
+		}
+		
+		for (int i = 0; i < userMentions.size(); i++) {
+			text = text.replace(userMentions.get(i), "@" + userNames.get(i));
+		}
+		
+		Matcher channelMentionMatch = channelMentionRegex.matcher(text);
+		List<String> channelMentions = new ArrayList<>(), channelNames = new ArrayList<>();
+		while (channelMentionMatch.find()) {
+			channelMentions.add(channelMentionMatch.group(1));
+			Channel channel = guild.getTextChannelById(channelMentionMatch.group(2));
+			channelNames.add(channel.getName());
+		}
+		
+		for (int i = 0; i < channelMentions.size(); i++) {
+			text = text.replace(channelMentions.get(i), "#" + channelNames.get(i));
+		}
+		
+		Matcher roleMentionMatch = roleMentionRegex.matcher(text);
+		List<String> roleMentions = new ArrayList<>(), roleNames = new ArrayList<>();
+		while (roleMentionMatch.find()) {
+			roleMentions.add(roleMentionMatch.group(1));
+			Role role = guild.getRoleById(roleMentionMatch.group(2));
+			roleNames.add(role.getName());
+		}
+		
+		for (int i = 0; i < roleMentions.size(); i++) {
+			text = text.replace(roleMentions.get(i), "@" + roleNames.get(i));
+		}
+		
+		return text;
 	}
 	
 	public static List<String> getMemberBadges(Member member) {

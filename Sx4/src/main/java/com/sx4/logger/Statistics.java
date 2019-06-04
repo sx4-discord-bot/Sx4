@@ -1,10 +1,8 @@
 package com.sx4.logger;
 
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import com.sx4.core.Sx4Bot;
-import com.sx4.logger.util.Utils;
 
 public class Statistics {
 	
