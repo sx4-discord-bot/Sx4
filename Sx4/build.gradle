@@ -23,7 +23,5 @@ dependencies {
     
     compile 'com.jagrosh:jda-utilities-commons:2.1.5'
     
-    compile group: 'org.slf4j', name: 'slf4j-nop', version: '1.7.26'
-    
     compile group: 'org.codehaus.groovy', name: 'groovy', version: '3.0.0-beta-1', ext: 'pom'
 }

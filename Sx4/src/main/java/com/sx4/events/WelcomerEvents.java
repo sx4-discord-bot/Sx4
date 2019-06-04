@@ -24,7 +24,6 @@ import net.dv8tion.jda.core.events.guild.member.GuildMemberLeaveEvent;
 import net.dv8tion.jda.core.hooks.ListenerAdapter;
 import net.dv8tion.jda.core.utils.tuple.Pair;
 import net.dv8tion.jda.webhook.WebhookClient;
-import net.dv8tion.jda.webhook.WebhookClientBuilder;
 import net.dv8tion.jda.webhook.WebhookMessage;
 import net.dv8tion.jda.webhook.WebhookMessageBuilder;
 import okhttp3.OkHttpClient;
@@ -39,7 +38,11 @@ public class WelcomerEvents extends ListenerAdapter {
 	private Map<String, Pair<Webhook, WebhookClient>> leaverWebhooks = new HashMap<>();
 	
 	private void getWelcomerWebhook(Guild guild, Map<String, Object> data, Consumer<WebhookClient> webhook) throws MalformedURLException, IOException {
-		TextChannel channel = guild.getTextChannelById((String) data.get("channel")); 
+		TextChannel channel = guild.getTextChannelById((String) data.get("channel"));
+		if (channel == null) {
+			return;
+		}
+		
 		User selfUser = guild.getSelfMember().getUser();
 		if (this.welcomerWebhooks.containsKey(guild.getId())) {
 			Webhook currentWebhook = this.welcomerWebhooks.get(guild.getId()).getLeft();
@@ -101,7 +104,11 @@ public class WelcomerEvents extends ListenerAdapter {
 	}
 	
 	private void getLeaverWebhook(Guild guild, Map<String, Object> data, Consumer<WebhookClient> webhook) throws MalformedURLException, IOException {
-		TextChannel channel = guild.getTextChannelById((String) data.get("leavechannel")); 
+		TextChannel channel = guild.getTextChannelById((String) data.get("leavechannel"));
+		if (channel == null) {
+			return;
+		}
+		
 		User selfUser = guild.getSelfMember().getUser();
 		if (this.leaverWebhooks.containsKey(guild.getId())) {
 			Webhook currentWebhook = this.leaverWebhooks.get(guild.getId()).getLeft();

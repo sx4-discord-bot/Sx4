@@ -53,7 +53,7 @@ public class HelpUtils {
 		}
 		
 		embed.appendDescription("\nSub commands: " + (subCommandNames != null ? String.join(", ", subCommandNames) : "None"));
-		embed.setAuthor(command.getCommandTrigger(), null, Sx4Bot.getShardManager().getApplicationInfo().getJDA().getSelfUser().getEffectiveAvatarUrl());
+		embed.setAuthor(command.getCommandTrigger(), null, Sx4Bot.getShardManager().getShards().get(0).getSelfUser().getEffectiveAvatarUrl());
 		
 		return embed.build();
 	}

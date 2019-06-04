@@ -5,6 +5,7 @@ import java.util.List;
 
 import com.sx4.settings.Settings;
 
+import net.dv8tion.jda.core.entities.Guild;
 import net.dv8tion.jda.core.entities.Message;
 import net.dv8tion.jda.core.entities.TextChannel;
 import net.dv8tion.jda.core.events.message.guild.GuildMessageDeleteEvent;
@@ -22,7 +23,12 @@ public class ChangesMessageCache extends ListenerAdapter {
 	}
 
 	public void onGuildMessageReceived(GuildMessageReceivedEvent event) {
-		TextChannel channel = event.getJDA().asBot().getShardManager().getGuildById(Settings.SUPPORT_SERVER_ID).getTextChannelById(Settings.CHANGES_CHANNEL_ID);
+		Guild guild = event.getJDA().asBot().getShardManager().getGuildById(Settings.SUPPORT_SERVER_ID);
+		if (guild == null) {
+			return;
+		}
+		
+		TextChannel channel = guild.getTextChannelById(Settings.CHANGES_CHANNEL_ID);
 		
 		if (messages.isEmpty()) {
 			channel.getHistory().retrievePast(100).queue(channelMessages -> {
@@ -44,7 +50,12 @@ public class ChangesMessageCache extends ListenerAdapter {
 	}
 	
 	public void onGuildMessageUpdate(GuildMessageUpdateEvent event) {
-		TextChannel channel = event.getJDA().asBot().getShardManager().getGuildById(Settings.SUPPORT_SERVER_ID).getTextChannelById(Settings.CHANGES_CHANNEL_ID);
+		Guild guild = event.getJDA().asBot().getShardManager().getGuildById(Settings.SUPPORT_SERVER_ID);
+		if (guild == null) {
+			return;
+		}
+		
+		TextChannel channel = guild.getTextChannelById(Settings.CHANGES_CHANNEL_ID);
 		
 		if (messages.isEmpty()) {
 			channel.getHistory().retrievePast(100).queue(channelMessages -> {
@@ -69,7 +80,12 @@ public class ChangesMessageCache extends ListenerAdapter {
 	}
 	
 	public void onGuildMessageDelete(GuildMessageDeleteEvent event) {
-		TextChannel channel = event.getJDA().asBot().getShardManager().getGuildById(Settings.SUPPORT_SERVER_ID).getTextChannelById(Settings.CHANGES_CHANNEL_ID);
+		Guild guild = event.getJDA().asBot().getShardManager().getGuildById(Settings.SUPPORT_SERVER_ID);
+		if (guild == null) {
+			return;
+		}
+		
+		TextChannel channel = guild.getTextChannelById(Settings.CHANGES_CHANNEL_ID);
 		
 		if (messages.isEmpty()) {
 			channel.getHistory().retrievePast(100).queue(channelMessages -> {
