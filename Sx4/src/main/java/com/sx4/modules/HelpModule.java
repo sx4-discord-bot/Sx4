@@ -25,6 +25,12 @@ import net.dv8tion.jda.core.Permission;
 
 @Module
 public class HelpModule {
+	
+	private final String defaultSponsorMessage = "This sponsor spot is up for grabs. What do you get with being the sponsor? Well you get this embed field with a direct link to your product/service and 300 characters to briefly "
+			+ "explain your product/service as well as the banner spot below which is 1000x200. Statistics wise Sx4s help menu gets around 3500 impressions per month and this number will continue to increase. More "
+			+ "information will be provided if you contact Shea#6653 (Easiest way to contact is joining the bots support server).";
+			
+	private final String defaultSponsorImage = "https://cdn.discordapp.com/attachments/344091594972069888/563072607667093504/unknown.png";
 
 	@Command(value="help", aliases={"h", "commands", "commandlist", "command list"}, description="Lists commands on the bot and gives you info on specific commands")
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
@@ -44,10 +50,8 @@ public class HelpModule {
 			embed.setDescription("All commands are put in a set category also known as a module, use `" + event.getPrefix() + "help <module>` on the module of your choice, The bot will then "
 			+ "list all the commands in that module. If you need further help feel free to join the [support server](https://discord.gg/PqJNcfB).");
 			embed.addField("Modules", "`" + String.join("`, `", moduleNames) + "`", false);
-			embed.addField("Sponsor", "This sponsor spot is up for grabs. What do you get with being the sponsor? Well you get this embed field with a direct link to your product/service and 300 characters to breifly "
-					+ "explain your product/service as well as the banner spot below which is 1000x200. Statistics wise Sx4s help menu gets around 3500 impressions per month and this number will continue to increase. More "
-					+ "information will be provided if you contact Shea#6653 (Easiest way to contact is joining the bots support server).", false);
-			embed.setImage("https://cdn.discordapp.com/attachments/344091594972069888/563072607667093504/unknown.png");
+			embed.addField("Sponsor", this.defaultSponsorMessage, false);
+			embed.setImage(this.defaultSponsorImage);
 			event.reply(embed.build()).queue(message -> {
 				PagedUtils.getResponse(event, 300, e -> {
 					return event.getChannel().equals(e.getChannel()) && event.getAuthor().equals(e.getAuthor()) && moduleNames.contains(e.getMessage().getContentRaw());

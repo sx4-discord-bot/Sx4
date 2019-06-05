@@ -12,6 +12,7 @@ import com.jockie.bot.core.command.impl.CommandEvent;
 import com.sx4.core.Sx4Bot;
 
 import net.dv8tion.jda.core.EmbedBuilder;
+import net.dv8tion.jda.core.Permission;
 import net.dv8tion.jda.core.entities.Message;
 import net.dv8tion.jda.core.entities.MessageEmbed;
 import net.dv8tion.jda.core.entities.User;
@@ -374,10 +375,13 @@ public class PagedUtils {
 			Consumer<MessageReceivedEvent> handle = new Consumer<MessageReceivedEvent>() {
 				public void accept(MessageReceivedEvent e) {
 					String messageContent = e.getMessage().getContentRaw().toLowerCase();
+					boolean canDelete = e.getGuild().getSelfMember().hasPermission(Permission.MESSAGE_MANAGE);
 					boolean edit = true;
 					if (cancel.contains(messageContent)) {
-						message.delete().queue(null, $ -> {});
-						e.getMessage().delete().queue(null, $ -> {});
+						if (canDelete) {
+							message.delete().queue(null, $ -> {});
+							e.getMessage().delete().queue(null, $ -> {});
+						}
 						return;
 					} else if (next.contains(messageContent)) {
 						if (paged.getNextPage() != paged.getCurrentPage()) {
@@ -385,14 +389,20 @@ public class PagedUtils {
 						} else {
 							edit = false;
 						}
-						e.getMessage().delete().queue(null, $ -> {});
+						
+						if (canDelete) {
+							e.getMessage().delete().queue(null, $ -> {});
+						}
 					} else if (previous.contains(messageContent)) {
 						if (paged.getPreviousPage() != paged.getCurrentPage()) {
 							paged.previousPage();
 						} else {
 							edit = false;
 						}
-						e.getMessage().delete().queue(null, $ -> {});
+						
+						if (canDelete) {
+							e.getMessage().delete().queue(null, $ -> {});
+						}
 					} else if (messageContent.startsWith("go to ")) {
 						int requestedPage;
 						try {
@@ -404,8 +414,11 @@ public class PagedUtils {
 							}
 						} catch (Exception ex) {
 							ex.getMessage();
-						}		
-						e.getMessage().delete().queue(null, $ -> {});
+						}	
+						
+						if (canDelete) {
+							e.getMessage().delete().queue(null, $ -> {});
+						}
 					} else if (messageContent.matches("[0-9]+")) {
 						int selectedIndex = Integer.parseInt(messageContent);
 						int index;
@@ -416,8 +429,11 @@ public class PagedUtils {
 						}
 						PagedReturn<T> page = new PagedReturn<>(paged.getArray().get(index), paged.getCurrentPage(), index, selectedIndex);
 						returnFunction.accept(page);
-						message.delete().queue(null, $ -> {});
-						e.getMessage().delete().queue(null, $ -> {});
+						
+						if (canDelete) {
+							message.delete().queue(null, $ -> {});
+							e.getMessage().delete().queue(null, $ -> {});
+						}
 						return;
 					} else {
 						for (int i = paged.getCurrentPage() * paged.getPerPage() - paged.getPerPage(); i < paged.getCurrentPage() * paged.getPerPage(); i++) {
@@ -425,8 +441,11 @@ public class PagedUtils {
 								int index = i;
 								PagedReturn<T> page = new PagedReturn<>(paged.getArray().get(index), paged.getCurrentPage(), index, index);
 								returnFunction.accept(page);
-								message.delete().queue(null, $ -> {});
-								e.getMessage().delete().queue(null, $ -> {});
+								
+								if (canDelete) {
+									message.delete().queue(null, $ -> {});
+									e.getMessage().delete().queue(null, $ -> {});
+								}
 								return;
 							}
 						}

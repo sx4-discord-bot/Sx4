@@ -44,7 +44,7 @@ public class Sx4CommandEventListener extends CommandEventListener {
 		}
 		
 		for (StackTraceElement element : throwable.getStackTrace()) {
-			String toAppend = "\n-	  at " + element.toString();
+			String toAppend = "\n-      at " + element.toString();
 			
 			if (message.length() + toAppend.length() > 1997) {
 				messages.add(message.append("```").toString());

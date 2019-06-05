@@ -6,6 +6,7 @@ import java.util.List;
 import com.jockie.bot.core.category.impl.CategoryImpl;
 import com.jockie.bot.core.command.ICommand;
 import com.sx4.core.Sx4Bot;
+import com.sx4.core.Sx4Command;
 import com.sx4.settings.Settings;
 import com.sx4.utils.PagedUtils.PagedResult;
 
@@ -15,7 +16,8 @@ import net.dv8tion.jda.core.entities.User;
 
 public class HelpUtils {
 
-	public static MessageEmbed getHelpMessage(ICommand command) {
+	public static MessageEmbed getHelpMessage(ICommand initialCommand) {
+		Sx4Command command = (Sx4Command) initialCommand;
 		String usage = command.getSubCommands().isEmpty() ? command.getUsage() : command.getUsage().trim().equals(command.getCommandTrigger()) ? command.getUsage() + " <sub command>" : command.getUsage() + " | <sub command>";
 		EmbedBuilder embed = new EmbedBuilder();
 		embed.appendDescription("Usage: " + usage + "\n");
@@ -43,7 +45,7 @@ public class HelpUtils {
 			embed.appendDescription("Required permissions: Developer\n");
 		}
 		
-		embed.appendDescription("Command description: " + (command.getDescription() == null || command.getDescription().equals("")  ? "None" : command.getDescription()) + (command.getShortDescription() == null ? "" : command.getShortDescription()) + "\n");
+		embed.appendDescription("Command description: " + (command.getDescription() == null || command.getDescription().equals("")  ? "None" : command.getDescription()) + "\n" + (command.getExample() == null || command.getExample().equals("") ? "" : command.getExample()));
 		String[] subCommandNames = null;
 		if (!command.getSubCommands().isEmpty()) {
 			subCommandNames = new String[command.getSubCommands().size()];

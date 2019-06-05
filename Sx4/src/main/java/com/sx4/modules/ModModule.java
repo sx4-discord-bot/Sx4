@@ -2071,7 +2071,7 @@ public class ModModule {
 		event.getGuild().getController().setNickname(member, nickname).queue();
 	}
 	
-	public class PruneCommand extends Sx4Command {
+	/*public class PruneCommand extends Sx4Command {
 		
 		public PruneCommand() {
 			super("prune");
@@ -2144,6 +2144,79 @@ public class ModModule {
 						event.reply("All the **" + limit + "** messages were 14 days or older :no_entry:").queue();
 						return;
 					}
+					
+					if (messages.size() == 1) {
+						messages.get(0).delete().queue();
+					} else {
+						event.getTextChannel().deleteMessages(messages).queue();
+					}
+				});
+			});
+		}
+	}*/
+	
+	@Command(value="prune", aliases={"clear", "c", "purge"}, description="Clear a certain amount of messages in the current channel or clear a certain amount of messages from a specified user", argumentInfo="<user> [amount] | [amount]", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+	@AuthorPermissions({Permission.MESSAGE_MANAGE})
+	@BotPermissions({Permission.MESSAGE_MANAGE, Permission.MESSAGE_HISTORY})
+	public void prune(CommandEvent event, @Argument(value="user | amount") String argument, @Argument(value="amount", nullDefault=true) Integer amount) {
+		try {
+			int limit = Integer.parseInt(argument);
+			if (limit < 1) {
+				event.reply("You have to delete at least 1 message :no_entry:").queue();
+				return;
+			}
+			
+			event.getMessage().delete().queue($ -> {
+				event.getTextChannel().getHistory().retrievePast(limit).queue(messages -> {
+					long secondsNow = Clock.systemUTC().instant().getEpochSecond();
+					for (Message message : new ArrayList<>(messages)) {
+						if (secondsNow - message.getCreationTime().toEpochSecond() > 1209600) {
+							messages.remove(message);
+						}
+					}
+					
+					if (messages.size() == 0) {
+						event.reply("All the **" + limit + "** messages were 14 days or older :no_entry:").queue();
+						return;
+					}
+					
+					if (messages.size() == 1) {
+						messages.get(0).delete().queue();
+					} else {
+						event.getTextChannel().deleteMessages(messages).queue();
+					}
+				});
+			});
+		} catch(NumberFormatException e) {
+			int limit = amount == null ? 100 : amount > 100 ? 100 : amount;
+			if (limit < 1) {
+				event.reply("You have to delete at least 1 message :no_entry:").queue();
+				return;
+			}
+			
+			Member member = ArgumentUtils.getMember(event.getGuild(), argument);
+			if (member == null) {
+				event.reply("I could not find that user :no_entry:").queue();
+				return;
+			}
+			
+			event.getMessage().delete().queue($ -> {
+				event.getTextChannel().getHistory().retrievePast(100).queue(messages -> {
+					long secondsNow = Clock.systemUTC().instant().getEpochSecond();
+					for (Message message : new ArrayList<>(messages)) {
+						if (!message.getMember().equals(member)) {
+							messages.remove(message);
+						} else if (secondsNow - message.getCreationTime().toEpochSecond() > 1209600) {
+							messages.remove(message);
+						}
+					}
+					
+					if (messages.size() == 0) {
+						event.reply("No messages in the last 100 were from that user or they were 14 days or older :no_entry:").queue();
+						return;
+					}
+					
+					messages = messages.subList(0, Math.min(limit, messages.size()));
 					
 					if (messages.size() == 1) {
 						messages.get(0).delete().queue();

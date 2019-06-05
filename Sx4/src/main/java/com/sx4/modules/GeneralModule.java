@@ -1516,7 +1516,7 @@ public class GeneralModule {
 	@Command(value="info", description="View some info about Sx4 and how it has become what it is now", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void info(CommandEvent event) {
-		String description = String.format("Sx4 is a multipurpose all in one bot made to make your discord experience easier yet fun [to use]. Its features include Moderation, Utility, Economy, Music, Welcomer, and Logs.\r\n" + 
+		String description = String.format("Sx4 is a multipurpose all in one bot made to make your discord experience easier yet fun. Its features include Moderation, Utility, Economy, Music, Welcomer, and Logs.\r\n" + 
 				"\r\n" + 
 				"Sx4 began as a RED bot for the use in a single server. The users in the server were interested in the various features Sx4 offered and eventually requested if they could use Sx4 in their server as well. So, it was made public due to the demand.\r\n" + 
 				"\r\n" + 

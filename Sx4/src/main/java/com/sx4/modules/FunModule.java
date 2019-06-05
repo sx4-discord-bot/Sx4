@@ -56,6 +56,7 @@ import com.sx4.cache.SteamCache;
 import com.sx4.categories.Categories;
 import com.sx4.core.Sx4Bot;
 import com.sx4.core.Sx4Command;
+import com.sx4.interfaces.Example;
 import com.sx4.interfaces.Sx4Callback;
 import com.sx4.settings.Settings;
 import com.sx4.utils.ArgumentUtils;
@@ -2078,7 +2079,8 @@ public class FunModule {
 		event.reply(embed.build()).queue();
 	}
 	
-	@Command(value="developer embed", aliases={"developerembed", "dev embed", "devembed"}, description="Create more in depth embeds if you know the syntax of json", shortDescription="Example format: ```json\n{\r\n" + 
+	@Command(value="developer embed", aliases={"developerembed", "dev embed", "devembed"}, description="Create more in depth embeds if you know the syntax of json")
+	@Example("Example format: ```json\n{\r\n" + 
 		"	\"title\": \"text here\",\r\n" + 
 		"	\"description\": \"text here\",\r\n" + 
 		"	\"colour\": \"hex code here\",\r\n" + 
