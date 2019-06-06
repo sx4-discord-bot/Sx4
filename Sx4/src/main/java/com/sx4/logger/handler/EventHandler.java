@@ -93,18 +93,24 @@ public class EventHandler extends ListenerAdapter {
 	/* Used to ensure that the audit-log has come through */
 	private static final int AUDIT_LOG_DELAY = 500;
 	
+	public static final Request EMPTY_REQUEST = new Request(null, 0L, null, null);
+	
 	public static class Request {
 		
 		public final JDA bot;
-		public final Guild guild;
+		public final long guildId;
 		public final Map<String, Object> data;
 		public final List<MessageEmbed> embeds;
 		
-		public Request(JDA bot, Guild guild, Map<String, Object> data, List<MessageEmbed> embeds) {
+		public Request(JDA bot, long guildId, Map<String, Object> data, List<MessageEmbed> embeds) {
 			this.bot = bot;
-			this.guild = guild;
+			this.guildId = guildId;
 			this.data = data;
 			this.embeds = embeds;
+		}
+		
+		public Guild getGuild() {
+			return this.bot.getGuildById(this.guildId);
 		}
 	}
 	
@@ -148,7 +154,7 @@ public class EventHandler extends ListenerAdapter {
 					int length = 0, requests = 0;
 					
 					Request request;
-					while((request = blockingDeque.take()) != null) {
+					while((request = blockingDeque.take()) != EMPTY_REQUEST) {
 						int lengthToSend = request.embeds.stream()
 							.mapToInt(MessageEmbed::getLength)
 							.sum();
@@ -165,7 +171,7 @@ public class EventHandler extends ListenerAdapter {
 						}
 						
 						if(!hasSpace || embeds.size() == 10 || blockingDeque.isEmpty()) {
-							this._send(request.bot, request.guild, request.data, embeds, requests, 0);
+							this._send(request.bot, request.getGuild(), request.data, embeds, requests, 0);
 							
 							embeds.clear();
 							requests = 0;
@@ -176,7 +182,7 @@ public class EventHandler extends ListenerAdapter {
 			});
 		}
 		
-		this.queue.get(guild.getIdLong()).offer(new Request(bot, guild, data, requestEmbeds));
+		this.queue.get(guild.getIdLong()).offer(new Request(bot, guild.getIdLong(), data, requestEmbeds));
 	}
 	
 	private void _send(JDA bot, Guild guild, Map<String, Object> data, List<MessageEmbed> embeds, int requestAmount, int attempts) {
@@ -288,7 +294,9 @@ public class EventHandler extends ListenerAdapter {
 		BlockingDeque<Request> queue = this.queue.get(event.getGuild().getIdLong());
 		if(queue != null) {
 			queue.clear();
-			queue.offer(null);
+			
+			/* Tell the thread that it is time to stop blocking */
+			queue.offer(EMPTY_REQUEST);
 		}
 		
 		this.queue.remove(event.getGuild().getIdLong());
