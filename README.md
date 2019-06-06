@@ -1,6 +1,6 @@
 # <u>__Sx4__</u>
 
-Sx4 is a mutlipurpose bot, this means it can be used for many different purposes making it easier for you to focus your whole server around a few bots. It also has over 210 commands (Over 500 including sub commands) for many different purposes
+Sx4 is a mutlipurpose bot, this means it can be used for many different purposes making it easier for you to focus your whole server around a few bots. It also has over 300 commands for many different purposes
 
 <u>__Moderation__</u>
 
