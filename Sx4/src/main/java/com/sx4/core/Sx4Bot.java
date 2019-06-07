@@ -215,6 +215,7 @@ public class Sx4Bot {
 
 		System.out.println(String.format("Connected to %s with %,d/%,d available servers and %,d users", bot.getShards().get(0).getSelfUser().getAsTag(), availableGuilds, availableGuilds + unavailableGuilds, bot.getUsers().size()));
 
+		HelpUtils.ensureAdvertisement();
 		DatabaseUtils.ensureTableData();
 		StatusEvents.initialize();
 		ServerPostEvents.initializePosting();

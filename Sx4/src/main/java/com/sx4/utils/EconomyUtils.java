@@ -15,6 +15,7 @@ import com.sx4.economy.items.Booster;
 import com.sx4.economy.items.Crate;
 import com.sx4.economy.items.Factory;
 import com.sx4.economy.items.Miner;
+import com.sx4.economy.items.Sawmill;
 import com.sx4.economy.materials.Material;
 import com.sx4.economy.materials.Wood;
 import com.sx4.economy.tools.Axe;
@@ -44,6 +45,12 @@ public class EconomyUtils {
 			WINNABLE_ITEMS.add(miner);
 			ALL_ITEMS.add(miner);
 			TRADEABLE_ITEMS.add(miner);
+		}
+		
+		for (Sawmill sawmill : Sawmill.ALL) {
+			WINNABLE_ITEMS.add(sawmill);
+			ALL_ITEMS.add(sawmill);
+			TRADEABLE_ITEMS.add(sawmill);
 		}
 		
 		for (Material material : Material.ALL) {

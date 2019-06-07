@@ -11,12 +11,14 @@ import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
 import com.jockie.bot.core.command.Command.AuthorPermissions;
 import com.jockie.bot.core.command.Command.BotPermissions;
-import com.jockie.bot.core.command.ICommand.ContentOverflowPolicy;
+import com.jockie.bot.core.command.Initialize;
 import com.jockie.bot.core.command.impl.CommandEvent;
+import com.jockie.bot.core.command.impl.CommandImpl;
 import com.jockie.bot.core.module.Module;
 import com.rethinkdb.gen.ast.Get;
 import com.rethinkdb.model.OptArgs;
 import com.rethinkdb.net.Connection;
+import com.sx4.categories.Categories;
 import com.sx4.core.Sx4Command;
 import com.sx4.settings.Settings;
 import com.sx4.utils.AntiInviteUtils;
@@ -436,6 +438,11 @@ public class AntiInviteModule {
 			event.reply(embed.build()).queue();
 		}
 		
+	}
+	
+	@Initialize(all=true)
+	public void initialize(CommandImpl command) {
+		command.setCategory(Categories.ANTI_INVITE);
 	}
 	
 }

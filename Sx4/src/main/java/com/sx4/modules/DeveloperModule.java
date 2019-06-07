@@ -3,6 +3,7 @@ package com.sx4.modules;
 import static com.rethinkdb.RethinkDB.r;
 
 import java.awt.Color;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -13,6 +14,7 @@ import java.util.stream.Collectors;
 
 import org.codehaus.groovy.control.CompilerConfiguration;
 import org.codehaus.groovy.control.customizers.ImportCustomizer;
+import org.json.JSONObject;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
@@ -39,6 +41,7 @@ import com.sx4.settings.Settings;
 import com.sx4.utils.ArgumentUtils;
 import com.sx4.utils.EconomyUtils;
 import com.sx4.utils.GeneralUtils;
+import com.sx4.utils.HelpUtils;
 import com.sx4.utils.ModUtils;
 import com.sx4.utils.PagedUtils;
 import com.sx4.utils.TimeUtils;
@@ -240,6 +243,46 @@ public class DeveloperModule {
 		message.append('\n').append("Total queued requests: " + Sx4Bot.getEventHandler().getTotalRequestsQueued());
 
 		event.reply(Utils.getMessageSeperated(message)).queue();
+	}
+	
+	@Command(value="advertisement description", aliases={"ad description"}, description="Updates the description for the sponsor on the help menu")
+	@Developer
+	public void advertisementDescription(CommandEvent event, @Argument(value="description", endless=true) String description) {
+		JSONObject updatedData;
+		if (description.toLowerCase().equals("default")) {
+			updatedData = HelpUtils.updateAdvertisementDescription(JSONObject.NULL);
+		} else {
+			updatedData = HelpUtils.updateAdvertisementDescription(description);
+		}
+		
+		try (FileWriter file = new FileWriter("advertisement.json")) { 
+            file.write(updatedData.toString());
+            file.flush();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+		
+		event.reply("Done").queue();
+	}
+	
+	@Command(value="advertisement banner", aliases={"ad banner"}, description="Updates the banner for the sponsor on the help menu")
+	@Developer
+	public void advertisementBanner(CommandEvent event, @Argument(value="banner", endless=true) String banner) {
+		JSONObject updatedData;
+		if (banner.toLowerCase().equals("default")) {
+			updatedData = HelpUtils.updateAdvertisementImage(JSONObject.NULL);
+		} else {
+			updatedData = HelpUtils.updateAdvertisementImage(banner);
+		}
+		
+		try (FileWriter file = new FileWriter("advertisement.json")) { 
+            file.write(updatedData.toString());
+            file.flush();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+		
+		event.reply("Done").queue();
 	}
 	
 	@Initialize(all=true)

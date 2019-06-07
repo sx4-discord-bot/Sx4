@@ -1,7 +1,12 @@
 package com.sx4.utils;
 
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+
+import org.json.JSONObject;
 
 import com.jockie.bot.core.category.impl.CategoryImpl;
 import com.jockie.bot.core.command.ICommand;
@@ -15,6 +20,37 @@ import net.dv8tion.jda.core.entities.MessageEmbed;
 import net.dv8tion.jda.core.entities.User;
 
 public class HelpUtils {
+	
+	private static JSONObject advertisement = new JSONObject();
+	
+	public static JSONObject updateAdvertisementDescription(Object description) {
+		advertisement.put("description", description);
+		
+		return advertisement;
+	}
+	
+	public static JSONObject updateAdvertisementImage(Object imageUrl) {
+		advertisement.put("image", imageUrl);
+		
+		return advertisement;
+	}
+	
+	public static JSONObject getAdvertisement() {
+		return advertisement;
+	}
+	
+	public static void ensureAdvertisement() {
+		try (FileReader reader = new FileReader("advertisement.json")) {
+	        try (BufferedReader bufferedReader = new BufferedReader(reader)) {
+	        	String line = null;
+		        while ((line = bufferedReader.readLine()) != null) {
+		        	advertisement = new JSONObject(line);
+		        }  
+	        }
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
 
 	public static MessageEmbed getHelpMessage(ICommand initialCommand) {
 		Sx4Command command = (Sx4Command) initialCommand;

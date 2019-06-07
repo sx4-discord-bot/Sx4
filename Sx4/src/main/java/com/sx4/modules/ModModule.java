@@ -227,7 +227,7 @@ public class ModModule {
 				
 				event.reply("None of the attachments you supplied were images or gifs :no_entry:").queue();
 			} else {
-				event.reply(HelpUtils.getHelpMessage(event.getCommand())).queue();
+				event.reply(HelpUtils.getHelpMessage(event.getActualCommand())).queue();
 			}
 		}
 	}
@@ -2867,7 +2867,7 @@ public class ModModule {
 	
 	@Command(value="Ban", description="A ban which doesn't ban, please don't expose", caseSensitive=true)
 	@AuthorPermissions({Permission.BAN_MEMBERS})
-	public void fakeBan(CommandEvent event, @Argument(value="user", endless=true) String userArgument) {
+	public void fakeBan(CommandEvent event, @Argument(value="user") String userArgument) {
 		Member member = ArgumentUtils.getMember(event.getGuild(), userArgument);
 		if (member == null) {
 			event.reply("I could not find that user :no_entry:").queue();

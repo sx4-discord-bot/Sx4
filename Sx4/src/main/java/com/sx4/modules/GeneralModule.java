@@ -1448,9 +1448,9 @@ public class GeneralModule {
 	@Command(value="ping", description="Shows the bots heartbeat and message response times", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void ping(CommandEvent event) {
-		long timestampBefore = (event.getMessage().isEdited() ? event.getMessage().getEditedTime().toEpochSecond() : event.getMessage().getCreationTime().toEpochSecond()) * 1000;
+		long timestamp = System.currentTimeMillis();
 		event.getChannel().sendTyping().queue(q -> {
-			event.reply(String.format("Pong! :ping_pong:\n\n:stopwatch: **%dms**\n:heartbeat: **%dms**", Clock.systemUTC().millis() - timestampBefore, event.getJDA().getPing())).queue();
+			event.reply(String.format("Pong! :ping_pong:\n\n:stopwatch: **%dms**\n:heartbeat: **%dms**", System.currentTimeMillis() - timestamp, event.getJDA().getPing())).queue();
 		});
 	}
 	

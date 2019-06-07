@@ -3,6 +3,8 @@ package com.sx4.modules;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.json.JSONObject;
+
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.category.impl.CategoryImpl;
 import com.jockie.bot.core.command.Command;
@@ -36,6 +38,10 @@ public class HelpModule {
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void help(CommandEvent event, @Argument(value="command | module", endless=true, nullDefault=true) String commandName) {
 		if (commandName == null) {
+			JSONObject advertisement = HelpUtils.getAdvertisement();
+			String description = advertisement.get("description") == null ? null : advertisement.getString("description");
+			String imageUrl = advertisement.get("image") == null ? null : advertisement.getString("image");
+			
 			List<String> moduleNames = new ArrayList<>();
 			for (CategoryImpl category : event.isDeveloper() ? Categories.ALL : Categories.ALL_PUBLIC) {
 				moduleNames.add(category.getName());
@@ -50,8 +56,8 @@ public class HelpModule {
 			embed.setDescription("All commands are put in a set category also known as a module, use `" + event.getPrefix() + "help <module>` on the module of your choice, The bot will then "
 			+ "list all the commands in that module. If you need further help feel free to join the [support server](https://discord.gg/PqJNcfB).");
 			embed.addField("Modules", "`" + String.join("`, `", moduleNames) + "`", false);
-			embed.addField("Sponsor", this.defaultSponsorMessage, false);
-			embed.setImage(this.defaultSponsorImage);
+			embed.addField("Sponsor", description == null ? this.defaultSponsorMessage : description, false);
+			embed.setImage(imageUrl == null ? this.defaultSponsorImage : imageUrl);
 			event.reply(embed.build()).queue(message -> {
 				PagedUtils.getResponse(event, 300, e -> {
 					return event.getChannel().equals(e.getChannel()) && event.getAuthor().equals(e.getAuthor()) && moduleNames.contains(e.getMessage().getContentRaw());
