@@ -11,6 +11,7 @@ import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
 import com.jockie.bot.core.command.Command.AuthorPermissions;
 import com.jockie.bot.core.command.Command.BotPermissions;
+import com.jockie.bot.core.command.ICommand.ContentOverflowPolicy;
 import com.jockie.bot.core.command.Initialize;
 import com.jockie.bot.core.command.impl.CommandEvent;
 import com.jockie.bot.core.command.impl.CommandImpl;
@@ -27,7 +28,6 @@ import com.sx4.utils.GeneralUtils;
 import com.sx4.utils.HelpUtils;
 import com.sx4.utils.PagedUtils;
 import com.sx4.utils.PagedUtils.PagedResult;
-
 import net.dv8tion.jda.core.EmbedBuilder;
 import net.dv8tion.jda.core.Permission;
 import net.dv8tion.jda.core.entities.Category;
