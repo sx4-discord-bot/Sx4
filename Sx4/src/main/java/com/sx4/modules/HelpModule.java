@@ -39,8 +39,8 @@ public class HelpModule {
 	public void help(CommandEvent event, @Argument(value="command | module", endless=true, nullDefault=true) String commandName) {
 		if (commandName == null) {
 			JSONObject advertisement = HelpUtils.getAdvertisement();
-			String description = advertisement.get("description") == null ? null : advertisement.getString("description");
-			String imageUrl = advertisement.get("image") == null ? null : advertisement.getString("image");
+			String description = advertisement.get("description").equals(JSONObject.NULL) ? null : advertisement.getString("description");
+			String imageUrl = advertisement.get("image").equals(JSONObject.NULL) ? null : advertisement.getString("image");
 			
 			List<String> moduleNames = new ArrayList<>();
 			for (CategoryImpl category : event.isDeveloper() ? Categories.ALL : Categories.ALL_PUBLIC) {

@@ -1,7 +1,7 @@
 package com.sx4.utils;
 
-import java.io.BufferedReader;
-import java.io.FileReader;
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -40,13 +40,8 @@ public class HelpUtils {
 	}
 	
 	public static void ensureAdvertisement() {
-		try (FileReader reader = new FileReader("advertisement.json")) {
-	        try (BufferedReader bufferedReader = new BufferedReader(reader)) {
-	        	String line = null;
-		        while ((line = bufferedReader.readLine()) != null) {
-		        	advertisement = new JSONObject(line);
-		        }  
-	        }
+		try (FileInputStream stream = new FileInputStream(new File("advertisement.json"))) {
+			advertisement = new JSONObject(new String(stream.readAllBytes()));
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
