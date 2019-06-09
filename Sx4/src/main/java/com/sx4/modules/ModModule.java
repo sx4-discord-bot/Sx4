@@ -1729,7 +1729,7 @@ public class ModModule {
 				r.table("prefix").insert(r.hashMap("id", event.getAuthor().getId()).with("prefixes", new Object[0])).run(connection, OptArgs.of("durability", "soft"));
 				Get data = r.table("prefix").get(event.getAuthor().getId());
 				Map<String, Object> dataRan = data.run(connection);
-				
+
 				List<String> cleanPrefixes = new ArrayList<String>();
 				for (String prefix : prefixes) {
 					if (!prefix.equals("") && !prefix.equals(" ")) {
@@ -1809,7 +1809,7 @@ public class ModModule {
 				super("server");
 				
 				super.setDescription("Set server prefixes which users will have to use unless they have personal ones");
-				super.setBotDiscordPermissions(Permission.MANAGE_SERVER);
+				super.setAuthorDiscordPermissions(Permission.MANAGE_SERVER);
 				super.setAliases("guild");
 			}
 			
@@ -1835,7 +1835,7 @@ public class ModModule {
 			
 			@SuppressWarnings("unchecked")
 			@Command(value="add", description="Adds specified prefixes to the current servers prefixes")
-			@BotPermissions({Permission.MANAGE_SERVER})
+			@AuthorPermissions({Permission.MANAGE_SERVER})
 			public void add(CommandEvent event, @Context Connection connection, @Argument(value="prefixes") String[] prefixes) {
 				r.table("prefix").insert(r.hashMap("id", event.getGuild().getId()).with("prefixes", new Object[0])).run(connection, OptArgs.of("durability", "soft"));
 				Get data = r.table("prefix").get(event.getGuild().getId());
@@ -1864,7 +1864,7 @@ public class ModModule {
 			
 			@SuppressWarnings("unchecked")
 			@Command(value="remove", description="Removes specified prefixes from the current servers prefixes")
-			@BotPermissions({Permission.MANAGE_SERVER})
+			@AuthorPermissions({Permission.MANAGE_SERVER})
 			public void remove(CommandEvent event, @Context Connection connection, @Argument(value="prefixes") String[] prefixes) {
 				Get data = r.table("prefix").get(event.getGuild().getId());
 				Map<String, Object> dataRan = data.run(connection);
@@ -1893,7 +1893,7 @@ public class ModModule {
 			
 			@SuppressWarnings("unchecked")
 			@Command(value="reset", description="Reset the servers prefixes, without server prefixes you will default to the bots default prefixes", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
-			@BotPermissions({Permission.MANAGE_SERVER})
+			@AuthorPermissions({Permission.MANAGE_SERVER})
 			public void reset(CommandEvent event, @Context Connection connection) {
 				Get data = r.table("prefix").get(event.getGuild().getId());
 				Map<String, Object> dataRan = data.run(connection);
