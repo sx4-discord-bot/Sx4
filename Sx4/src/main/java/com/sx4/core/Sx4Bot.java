@@ -155,8 +155,16 @@ public class Sx4Bot {
 					}
 				});
 		
+		listener.addPreParseCheck(message -> {
+			if (!message.getGuild().getSelfMember().hasPermission(message.getTextChannel(), Permission.MESSAGE_WRITE)) {
+				return false;
+			}
+			
+			return true;
+		});
+		
 		listener.removeDefaultPreExecuteChecks()
-				.addPreExecuteCheck((event, command) -> CheckUtils.checkBlacklist(event, connection))
+				.addPreExecuteCheck((event, command) -> CheckUtils.checkBlacklist(event))
 				.addPreExecuteCheck((event, command) -> CheckUtils.canReply(event.getMessage(), event.getPrefix()))
 				.addPreExecuteCheck((event, command) -> {
 					if (command instanceof Sx4Command) {
@@ -196,9 +204,7 @@ public class Sx4Bot {
 				})
 				.addPreExecuteCheck(listener.defaultBotPermissionCheck)
 				.addPreExecuteCheck(listener.defaultNsfwCheck)
-				.addPreExecuteCheck((event, command) -> {
-					return CheckUtils.checkPermissions(event, connection, command.getAuthorDiscordPermissions().toArray(new Permission[0]), true);
-				});
+				.addPreExecuteCheck((event, command) -> CheckUtils.checkPermissions(event, command.getAuthorDiscordPermissions().toArray(new Permission[0]), true));
 		
 		listener.setPrefixesFunction(event -> ModUtils.getPrefixes(event.getGuild(), event.getAuthor()));
 		listener.addCommandEventListener(new Sx4CommandEventListener());

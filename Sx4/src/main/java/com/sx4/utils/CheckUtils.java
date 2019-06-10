@@ -9,6 +9,7 @@ import java.util.Map;
 import com.jockie.bot.core.command.impl.CommandEvent;
 import com.rethinkdb.gen.ast.Get;
 import com.rethinkdb.net.Connection;
+import com.sx4.core.Sx4Bot;
 import com.sx4.settings.Settings;
 
 import net.dv8tion.jda.core.OnlineStatus;
@@ -38,7 +39,8 @@ public class CheckUtils {
 	}
 
 	@SuppressWarnings("unchecked")
-	public static boolean checkPermissions(CommandEvent event, Connection connection, Permission[] permissions, boolean reply) {
+	public static boolean checkPermissions(CommandEvent event, Permission[] permissions, boolean reply) {
+		Connection connection = Sx4Bot.getConnection();
 		Get data = r.table("fakeperms").get(event.getGuild().getId());
 		Map<String, Object> dataRan = data.run(connection);
 		long rolePerms = 0;
@@ -153,15 +155,16 @@ public class CheckUtils {
 	}
 	
 	@SuppressWarnings("unchecked")
-	public static boolean checkBlacklist(CommandEvent event, Connection connection) {
+	public static boolean checkBlacklist(CommandEvent event) {
 		if (!event.isDeveloper()) {
+			Connection connection = Sx4Bot.getConnection();
 			List<String> botBlacklistData = r.table("blacklist").get("owner").g("users").run(connection);			
 			if (botBlacklistData.contains(event.getMember().getUser().getId()) && !event.getCommand().getCommand().equals("support")) {
 				event.reply("You are blacklisted from using the bot, to appeal make sure to join the bots support server which can be found in `" + event.getPrefix() + "support`").queue();
 				return false;
 			} else {
 				Permission[] administrator = {Permission.ADMINISTRATOR};
-				if (checkPermissions(event, connection, administrator, false) == false) {
+				if (CheckUtils.checkPermissions(event, administrator, false) == false) {
 					Map<String, Object> blacklistData = r.table("blacklist").get(event.getGuild().getId()).run(connection);
 					if (blacklistData != null) {
 						List<Map<String, Object>> commands = (List<Map<String, Object>>) blacklistData.get("commands");					

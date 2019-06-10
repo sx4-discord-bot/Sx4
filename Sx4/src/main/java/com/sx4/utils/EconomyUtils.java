@@ -134,7 +134,7 @@ public class EconomyUtils {
 		}
 		
 		public double getMultiplier() {
-			return (1 / Math.pow((double) this.chance / Slot.getTotal(), 3)) * 0.30;
+			return (1 / Math.pow((double) this.chance / Slot.getTotal(), 3)) * 0.16;
 		}
 		
 		public Slot getAbove() {

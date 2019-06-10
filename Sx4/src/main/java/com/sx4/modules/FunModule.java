@@ -1455,7 +1455,7 @@ public class FunModule {
 			EmbedBuilder embed = new EmbedBuilder();
 			embed.setColor(0x4285f4);
 			embed.setAuthor("Google Translate", null, "https://upload.wikimedia.org/wikipedia/commons/d/db/Google_Translate_Icon.png");
-			embed.addField("Input Text (" + inputLanguage == null ? "Unknown" : inputLanguage.getDisplayLanguage() + ")", json.getJSONObject("from").getJSONObject("text").getString("value").equals("") ? text : json.getJSONObject("from").getJSONObject("text").getString("value"), false);
+			embed.addField("Input Text (" + (inputLanguage == null ? "Unknown" : inputLanguage.getDisplayLanguage()) + ")", json.getJSONObject("from").getJSONObject("text").getString("value").equals("") ? text : json.getJSONObject("from").getJSONObject("text").getString("value"), false);
 			embed.addField("Output Text (" + displayLanguage + ")", json.getString("text"), false);
 			event.reply(embed.build()).queue();
 		});
