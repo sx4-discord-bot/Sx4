@@ -27,6 +27,11 @@ public class Sx4Command extends CommandImpl {
 		this.doAnnotations();
 	}
 	
+	public void enable() {
+		this.disabled = true;
+		this.disabledMessage = null;
+	}
+	
 	public void disable() {
 		this.disable(null);
 	}

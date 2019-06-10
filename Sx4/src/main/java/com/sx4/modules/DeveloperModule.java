@@ -286,7 +286,7 @@ public class DeveloperModule {
 		event.reply("Done").queue();
 	}
 	
-	@Command(value="disable command", description="Disables a command from being used")
+	@Command(value="disable command", aliases={"disable"}, description="Disables a command from being used")
 	@Developer
 	public void disableCommand(CommandEvent event, @Argument(value="command") String commandName, @Argument(value="message", endless=true, nullDefault=true) String message) {
 		Sx4Command command = ArgumentUtils.getCommand(commandName);
@@ -295,8 +295,13 @@ public class DeveloperModule {
 			return;
 		}
 		
-		command.disable(message);
-		event.reply("`" + command.getCommandTrigger() + "` has been disabled <:done:403285928233402378>").queue();
+		if (!command.isDisabled()) {
+			command.disable(message);
+			event.reply("`" + command.getCommandTrigger() + "` has been disabled <:done:403285928233402378>").queue();
+		} else {
+			command.enable();
+			event.reply("`" + command.getCommandTrigger() + "` has been enabled <:done:403285928233402378>").queue();
+		}
 	}
 	
 	@Initialize(all=true)
