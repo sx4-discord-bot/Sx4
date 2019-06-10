@@ -28,7 +28,7 @@ public class Sx4Command extends CommandImpl {
 	}
 	
 	public void enable() {
-		this.disabled = true;
+		this.disabled = false;
 		this.disabledMessage = null;
 	}
 	
@@ -37,7 +37,7 @@ public class Sx4Command extends CommandImpl {
 	}
 	
 	public void disable(String message) {
-		this.disabled = false;
+		this.disabled = true;
 		this.disabledMessage = message;
 	}
 	
