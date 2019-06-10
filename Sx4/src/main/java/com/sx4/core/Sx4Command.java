@@ -8,8 +8,12 @@ import com.sx4.interfaces.Example;
 
 public class Sx4Command extends CommandImpl {
 	
-	public boolean donator = false;
-	public String example = null;
+	protected boolean donator = false;
+	
+	protected String example = null;
+	
+	protected boolean disabled = false;
+	protected String disabledMessage = null;
 	
 	public Sx4Command(String name) {
 		super(name, true);
@@ -21,6 +25,27 @@ public class Sx4Command extends CommandImpl {
 		super(name, method, invoker);
 		
 		this.doAnnotations();
+	}
+	
+	public void disable() {
+		this.disable(null);
+	}
+	
+	public void disable(String message) {
+		this.disabled = false;
+		this.disabledMessage = message;
+	}
+	
+	public boolean isDisabled() {
+		return this.disabled;
+	}
+	
+	public boolean hasDisabledMessage() {
+		return this.disabledMessage != null;
+	}
+	
+	public String getDisabledMessage() {
+		return this.disabledMessage;
 	}
 	
 	public String getExample() {

@@ -167,7 +167,7 @@ public class AntiLinkEvents extends ListenerAdapter {
 		Matcher linkMatch = this.linkRegex.matcher(event.getMessage().getContentRaw());
 		if (linkMatch.matches()) {
 			Connection connection = Sx4Bot.getConnection();
-			Get data = r.table("antiad").get(event.getGuild().getId());
+			Get data = r.table("antilink").get(event.getGuild().getId());
 			Map<String, Object> dataRan = data.run(connection);
 			if (dataRan == null || (boolean) dataRan.get("toggle") == false) {
 				return;

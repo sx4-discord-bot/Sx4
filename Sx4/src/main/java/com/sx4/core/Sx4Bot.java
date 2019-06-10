@@ -99,8 +99,6 @@ public class Sx4Bot {
 	private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("uuuu-MM-dd HH:mm:ss");
 
 	public static void main(String[] args) throws Exception {	
-		SteamCache.getGames();
-		
 		connection = RethinkDB.r
 				.connection()
 				.connect();
@@ -158,13 +156,11 @@ public class Sx4Bot {
 				});
 		
 		listener.removeDefaultPreExecuteChecks()
-				.addPreExecuteCheck((event, command) -> {
-					return CheckUtils.checkBlacklist(event, connection);
-				})
+				.addPreExecuteCheck((event, command) -> CheckUtils.checkBlacklist(event, connection))
 				.addPreExecuteCheck((event, command) -> CheckUtils.canReply(event.getMessage(), event.getPrefix()))
 				.addPreExecuteCheck((event, command) -> {
 					if (command instanceof Sx4Command) {
-						Sx4Command sx4Command = ((Sx4Command) command);
+						Sx4Command sx4Command = (Sx4Command) command;
 						if (sx4Command.isDonator()) {
 							Guild guild = event.getShardManager().getGuildById(Settings.SUPPORT_SERVER_ID);
 							Role donatorRole = guild.getRoleById(Settings.DONATOR_ONE_ROLE_ID);
@@ -178,6 +174,22 @@ public class Sx4Bot {
 								}
 							}
 						}
+					}
+					
+					return true;
+				})
+				.addPreExecuteCheck((event, command) -> {
+					if (command instanceof Sx4Command) {
+						Sx4Command sx4Command = (Sx4Command) command;
+						if (sx4Command.isDisabled()) {
+							if (sx4Command.hasDisabledMessage()) {
+								event.reply(sx4Command.getDisabledMessage()).queue();
+							} else {
+								event.reply("That command is currently disabled :no_entry:").queue();
+							}
+							
+							return false;
+						} 
 					}
 					
 					return true;
@@ -215,6 +227,7 @@ public class Sx4Bot {
 
 		System.out.println(String.format("Connected to %s with %,d/%,d available servers and %,d users", bot.getShards().get(0).getSelfUser().getAsTag(), availableGuilds, availableGuilds + unavailableGuilds, bot.getUsers().size()));
 
+		SteamCache.getGames();
 		HelpUtils.ensureAdvertisement();
 		DatabaseUtils.ensureTableData();
 		StatusEvents.initialize();

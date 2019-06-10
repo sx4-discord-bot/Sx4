@@ -69,7 +69,7 @@ public class AntiInviteEvents extends ListenerAdapter {
 				
 				event.getMessage().delete().queue();
 				if (dataRan.get("action") == null) {
-					event.getChannel().sendMessage(event.getAuthor().getAsMention() + ", You are not allowed to send invites here :no_entry:").queue();
+					event.getChannel().sendMessage(event.getAuthor().getAsMention() + ", You are not allowed to send invite links here :no_entry:").queue();
 					return;
 				} else {
 					List<Map<String, Object>> users = (List<Map<String, Object>>) dataRan.get("users");
@@ -202,7 +202,7 @@ public class AntiInviteEvents extends ListenerAdapter {
 				
 				event.getMessage().delete().queue();
 				if (dataRan.get("action") == null) {
-					event.getChannel().sendMessage(event.getAuthor().getAsMention() + ", You are not allowed to send invites here :no_entry:").queue();
+					event.getChannel().sendMessage(event.getAuthor().getAsMention() + ", You are not allowed to send invite links here :no_entry:").queue();
 					return;
 				} else {
 					List<Map<String, Object>> users = (List<Map<String, Object>>) dataRan.get("users");

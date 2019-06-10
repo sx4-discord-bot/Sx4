@@ -17,6 +17,7 @@ import com.jockie.bot.core.category.impl.CategoryImpl;
 import com.jockie.bot.core.command.ICommand;
 import com.sx4.categories.Categories;
 import com.sx4.core.Sx4Bot;
+import com.sx4.core.Sx4Command;
 
 import net.dv8tion.jda.core.Region;
 import net.dv8tion.jda.core.entities.Category;
@@ -166,8 +167,8 @@ public class ArgumentUtils {
 		return ArgumentUtils.getModule(module, true);
 	}
 	
-	public static ICommand getCommand(String command) {
-		List<ICommand> commands = ArgumentUtils.getCommands(command);
+	public static Sx4Command getCommand(String command) {
+		List<Sx4Command> commands = ArgumentUtils.getCommands(command);
 		if (commands.isEmpty()) {
 			return null;
 		} else {
@@ -175,14 +176,15 @@ public class ArgumentUtils {
 		}
 	}
 	
-	public static List<ICommand> getCommands(String command) {
-		List<ICommand> commands = new ArrayList<>();
+	public static List<Sx4Command> getCommands(String commandName) {
+		List<Sx4Command> commands = new ArrayList<>();
 		for (ICommand commandObject : Sx4Bot.getCommandListener().getAllCommands()) {
-			if (commandObject.getCommandTrigger().equals(command)) {
-				commands.add(commandObject);
+			Sx4Command command = (Sx4Command) commandObject;
+			if (command.getCommandTrigger().equals(commandName)) {
+				commands.add(command);
 			} else {
 				List<String> allAliases = new ArrayList<>();
-				ICommand parent = commandObject;
+				ICommand parent = command;
 				List<String> parentAliases = new ArrayList<>(parent.getAliases());
 				parentAliases.add(parent.getCommand());
 				for (String alias : parentAliases) {
@@ -201,9 +203,9 @@ public class ArgumentUtils {
 					}
 				}
 				
-				for (String commandName : allAliases) {
-					if (command.equals(commandName)) {
-						commands.add(commandObject);
+				for (String commandAlias : allAliases) {
+					if (commandName.equals(commandAlias)) {
+						commands.add(command);
 					}
 				}
 			}

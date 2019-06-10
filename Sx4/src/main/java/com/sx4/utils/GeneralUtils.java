@@ -31,24 +31,7 @@ public class GeneralUtils {
 	}
 	
 	public static String getNumberSuffix(int number) {
-		int remainderTens = number % 100;
-		String suffix;
-		if (remainderTens >= 11 && remainderTens <= 13) {
-			suffix = "th";
-		} else {
-			int remainderOnes = number % 10;
-			if (remainderOnes == 1) {
-				suffix = "st";
-			} else if (remainderOnes == 2) {
-				suffix = "nd";
-			} else if (remainderOnes == 3) {
-				suffix = "rd";
-			} else {
-				suffix = "th";
-			}
-		}
-		
-		return number + suffix;
+		return number + GeneralUtils.getNumberSuffixRaw(number);
 	}
 	
 	public static String getNumberSuffixRaw(int number) {

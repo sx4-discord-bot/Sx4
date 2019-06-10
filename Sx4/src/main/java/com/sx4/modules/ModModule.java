@@ -1602,9 +1602,14 @@ public class ModModule {
 		PermissionOverride channelOverrides = channel.getPermissionOverride(event.getGuild().getPublicRole()); 
 		if (channelOverrides != null && (channelOverrides.getAllowed().contains(Permission.MESSAGE_WRITE) || channelOverrides.getInherit().contains(Permission.MESSAGE_WRITE))) {
 			event.reply(channel.getAsMention() + " has been locked down <:done:403285928233402378>").queue();
+			List<Permission> channelAllowedPermissions = new ArrayList<>(channelOverrides.getAllowed());
+			if (channelAllowedPermissions.contains(Permission.MESSAGE_WRITE)) {
+				channelAllowedPermissions.remove(Permission.MESSAGE_WRITE);
+			}
+			
 			List<Permission> channelDeniedPermissions = new ArrayList<>(channelOverrides.getDenied());
 			channelDeniedPermissions.add(Permission.MESSAGE_WRITE);
-			channel.putPermissionOverride(event.getGuild().getPublicRole()).setPermissions(channelOverrides.getAllowed(), channelDeniedPermissions).queue();
+			channel.putPermissionOverride(event.getGuild().getPublicRole()).setPermissions(channelAllowedPermissions, channelDeniedPermissions).queue();
 		} else {
 			event.reply(channel.getAsMention() + " is no longer locked down <:done:403285928233402378>").queue();
 			List<Permission> channelDeniedPermissions = channelOverrides == null ? new ArrayList<>() : new ArrayList<>(channelOverrides.getDenied());

@@ -34,6 +34,7 @@ import com.rethinkdb.model.OptArgs;
 import com.rethinkdb.net.Connection;
 import com.sx4.categories.Categories;
 import com.sx4.core.Sx4Bot;
+import com.sx4.core.Sx4Command;
 import com.sx4.logger.Statistics;
 import com.sx4.logger.handler.EventHandler;
 import com.sx4.logger.util.Utils;
@@ -283,6 +284,19 @@ public class DeveloperModule {
         }
 		
 		event.reply("Done").queue();
+	}
+	
+	@Command(value="disable command", description="Disables a command from being used")
+	@Developer
+	public void disableCommand(CommandEvent event, @Argument(value="command") String commandName, @Argument(value="message", endless=true, nullDefault=true) String message) {
+		Sx4Command command = ArgumentUtils.getCommand(commandName);
+		if (command == null) {
+			event.reply("I could not find that command :no_entry:").queue();
+			return;
+		}
+		
+		command.disable(message);
+		event.reply("`" + command.getCommandTrigger() + "` has been disabled <:done:403285928233402378>").queue();
 	}
 	
 	@Initialize(all=true)

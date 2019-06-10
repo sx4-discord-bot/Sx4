@@ -15,6 +15,7 @@ import com.jockie.bot.core.command.impl.CommandEvent;
 import com.jockie.bot.core.command.impl.CommandImpl;
 import com.jockie.bot.core.module.Module;
 import com.sx4.categories.Categories;
+import com.sx4.core.Sx4Command;
 import com.sx4.settings.Settings;
 import com.sx4.utils.ArgumentUtils;
 import com.sx4.utils.GeneralUtils;
@@ -73,14 +74,14 @@ public class HelpModule {
 			});
 		} else {
 			CategoryImpl module = ArgumentUtils.getModule(commandName, event.isDeveloper());
-			List<ICommand> commands = ArgumentUtils.getCommands(commandName);
+			List<Sx4Command> commands = ArgumentUtils.getCommands(commandName);
 			if (commands.isEmpty() && module == null) {
 				event.reply("I could not find that command/module :no_entry:").queue();
 				return;
 			}
 			
 			if (!commands.isEmpty()) {
-				PagedResult<ICommand> paged = new PagedResult<>(commands)
+				PagedResult<Sx4Command> paged = new PagedResult<>(commands)
 						.setDeleteMessage(true)
 						.setIncreasedIndex(true)
 						.setAutoSelect(true)
