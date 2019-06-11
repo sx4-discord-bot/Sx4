@@ -3,30 +3,40 @@ package com.sx4.translations;
 import java.util.HashMap;
 import java.util.Map;
 
-import com.sx4.core.Sx4Command;
-
 public class CommandTranslation {
 	
-	private Sx4Command command = null;
 	private String description = null;
+	private TranslationType translationType = null;
 	private Map<String, String> strings = new HashMap<>();
 
-	public CommandTranslation(Sx4Command command, String description, Map<String, String> strings) {
-		this.command = command;
+	public CommandTranslation(TranslationType translationType, String description, Map<String, String> strings) {
+		this.translationType = translationType;
 		this.description = description;
 		this.strings = strings;
-	}
-	
-	public Sx4Command getCommand() {
-		return this.command;
 	}
 	
 	public String getDescription() {
 		return this.description;
 	}
 	
+	public CommandTranslation setDescription(String description) {
+		this.description = description;
+		
+		return this;
+	}
+	
 	public Map<String, String> getStrings() {
 		return this.strings;
+	}
+	
+	public CommandTranslation setStrings(Map<String, String> strings) {
+		this.strings = strings;
+		
+		return this;
+	}
+	
+	public TranslationType getTranslationType() {
+		return this.translationType;
 	}
 	
 }

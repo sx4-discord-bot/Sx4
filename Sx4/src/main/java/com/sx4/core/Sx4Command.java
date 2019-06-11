@@ -1,11 +1,13 @@
 package com.sx4.core;
 
 import java.lang.reflect.Method;
+import java.util.List;
 import java.util.Map;
 
 import com.jockie.bot.core.command.impl.CommandImpl;
 import com.sx4.interfaces.Donator;
 import com.sx4.interfaces.Example;
+import com.sx4.translations.CommandTranslation;
 import com.sx4.translations.TranslationType;
 
 public class Sx4Command extends CommandImpl {
@@ -13,7 +15,8 @@ public class Sx4Command extends CommandImpl {
 	protected boolean donator = false;
 	
 	protected String example = null;
-	protected Map<TranslationType, String> descriptions = null;
+	
+	protected List<CommandTranslation> commandTranslations = null;
 	
 	protected boolean disabled = false;
 	protected String disabledMessage = null;
@@ -30,16 +33,28 @@ public class Sx4Command extends CommandImpl {
 		this.doAnnotations();
 	}
 	
+	public CommandTranslation getCommandTranslation() {
+		return this.getCommandTranslation(TranslationType.UK);
+	}
+	
+	public CommandTranslation getCommandTranslation(TranslationType translationType) {
+		for (CommandTranslation commandTranslation : this.commandTranslations) {
+			if (commandTranslation.getTranslationType().equals(translationType)) {
+				return commandTranslation;
+			}
+		}
+		
+		return null;
+	}
+	
 	public String getDescription() {
 		return this.getDescription(TranslationType.UK);
 	}
 	
 	public String getDescription(TranslationType translationType) {
-		if (this.descriptions.containsKey(translationType)) {
-			return this.descriptions.get(translationType);
-		} else {
-			return this.descriptions.get(TranslationType.UK);
-		}
+		CommandTranslation commandTranslation = this.getCommandTranslation(translationType);
+		
+		return commandTranslation == null ? null : commandTranslation.getDescription();
 	}
 	
 	public Sx4Command setDescription(String description) {
@@ -47,7 +62,47 @@ public class Sx4Command extends CommandImpl {
 	}
 	
 	public Sx4Command setDescription(TranslationType translationType, String description) {
-		this.descriptions.put(translationType, description);
+		for (CommandTranslation commandTranslation : this.commandTranslations) {
+			if (commandTranslation.getTranslationType().equals(translationType)) {
+				this.commandTranslations.remove(commandTranslation);
+				commandTranslation.setDescription(description);
+				this.commandTranslations.add(commandTranslation);
+				
+				return this;
+			}
+		}
+		
+		this.commandTranslations.add(new CommandTranslation(translationType, description, null));
+		
+		return this;
+	}
+	
+	public Map<String, String> getStrings() {
+		return this.getStrings(TranslationType.UK);
+	}
+	
+	public Map<String, String> getStrings(TranslationType translationType) {
+		CommandTranslation commandTranslation = this.getCommandTranslation(translationType);
+		
+		return commandTranslation == null ? null : commandTranslation.getStrings();
+	}
+	
+	public Sx4Command setStrings(Map<String, String> strings) {
+		return this.setStrings(TranslationType.UK, strings);
+	}
+	
+	public Sx4Command setStrings(TranslationType translationType, Map<String, String> strings) {
+		for (CommandTranslation commandTranslation : this.commandTranslations) {
+			if (commandTranslation.getTranslationType().equals(translationType)) {
+				this.commandTranslations.remove(commandTranslation);
+				commandTranslation.setStrings(strings);
+				this.commandTranslations.add(commandTranslation);
+				
+				return this;
+			}
+		}
+		
+		this.commandTranslations.add(new CommandTranslation(translationType, null, strings));
 		
 		return this;
 	}

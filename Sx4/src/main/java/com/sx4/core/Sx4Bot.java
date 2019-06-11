@@ -7,6 +7,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -116,7 +117,9 @@ public class Sx4Bot {
 				"offence", "prefix", "reactionrole", "reminders", "rps", "selfroles", "stats", "suggestions", 
 				"tax", "triggers", "userprofile", "warn", "welcomer");
 		
-		ContextManagerFactory.getDefault().registerContext(Connection.class, (event, type) -> connection);
+		ContextManagerFactory.getDefault()
+			.registerContext(Connection.class, (event, type) -> connection)
+			.registerContext(Map.class, (event, type) -> ((Sx4Command) event.getCommand()).getStrings());
 		
 		MethodCommandFactory.setDefault(new Sx4CommandFactory());
 		
