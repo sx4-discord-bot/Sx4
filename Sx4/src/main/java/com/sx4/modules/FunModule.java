@@ -731,9 +731,14 @@ public class FunModule {
 					return;
 				}
 			} else {
-				event.reply("You are no longer married to **" + user.getAsTag() + "** <:done:403285928233402378>").queue();
-				data.update(row -> r.hashMap("marriedto", row.g("marriedto").filter(d -> d.ne(user.getId())))).runNoReply(connection);
-				table.get(user.getId()).update(row -> r.hashMap("marriedto", row.g("marriedto").filter(d -> d.ne(event.getAuthor().getId())))).runNoReply(connection);
+				if (marriedTo.contains(user.getId())) {
+					event.reply("You are no longer married to **" + user.getAsTag() + "** <:done:403285928233402378>").queue();
+					data.update(row -> r.hashMap("marriedto", row.g("marriedto").filter(d -> d.ne(user.getId())))).runNoReply(connection);
+					table.get(user.getId()).update(row -> r.hashMap("marriedto", row.g("marriedto").filter(d -> d.ne(event.getAuthor().getId())))).runNoReply(connection);
+				} else {
+					event.reply("You are not married to that user :no_entry:").queue();
+					return;
+				}
 			}
 		}
 	}

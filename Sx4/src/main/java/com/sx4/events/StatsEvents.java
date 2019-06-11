@@ -59,37 +59,41 @@ public class StatsEvents extends ListenerAdapter {
 	
 	public static void initializeGuildStats() {
 		Sx4Bot.scheduledExectuor.scheduleAtFixedRate(() -> {
-			Table table = r.table("stats");
-			Connection connection = Sx4Bot.getConnection();
-			
-			Set<String> guildKeys = guildStats.keySet();
-			
-			List<MapObject> massData = new ArrayList<>();
-			for (String guildId : guildKeys) {
-				massData.add(r.hashMap("id", guildId).with("members", 0).with("messages", 0));
-			}
-			
-			table.insert(massData).run(connection, OptArgs.of("durability", "soft"));
-			
-			for (String guildId : guildKeys) {
-				Map<String, Integer> guildData = guildStats.get(guildId);
+			try {
+				Table table = r.table("stats");
+				Connection connection = Sx4Bot.getConnection();
 				
-				boolean proceed = false;
-				for (Integer value : guildData.values()) {
-					if (value != 0) {
-						proceed = true;
+				Set<String> guildKeys = guildStats.keySet();
+				
+				List<MapObject> massData = new ArrayList<>();
+				for (String guildId : guildKeys) {
+					massData.add(r.hashMap("id", guildId).with("members", 0).with("messages", 0));
+				}
+				
+				table.insert(massData).run(connection, OptArgs.of("durability", "soft"));
+				
+				for (String guildId : guildKeys) {
+					Map<String, Integer> guildData = guildStats.get(guildId);
+					
+					boolean proceed = false;
+					for (Integer value : guildData.values()) {
+						if (value != 0) {
+							proceed = true;
+							break;
+						}
+					}
+					
+					if (proceed == false) {
 						break;
 					}
+					
+					table.get(guildId).update(row -> r.hashMap("messages", row.g("messages").add(guildData.get("messages"))).with("members", row.g("members").add(guildData.get("members")))).runNoReply(connection);
 				}
 				
-				if (proceed == false) {
-					break;
-				}
-				
-				table.get(guildId).update(row -> r.hashMap("messages", row.g("messages").add(guildData.get("messages"))).with("members", row.g("members").add(guildData.get("members")))).runNoReply(connection);
+				guildStats.clear();
+			} catch(Exception e) {
+				e.printStackTrace();
 			}
-			
-			guildStats.clear();
 		}, 3, 3, TimeUnit.MINUTES);
 	}
 	
