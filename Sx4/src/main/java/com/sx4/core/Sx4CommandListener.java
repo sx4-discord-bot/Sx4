@@ -1,7 +1,7 @@
 package com.sx4.core;
 
 import com.jockie.bot.core.command.impl.CommandListener;
-import com.sx4.logger.handler.GuildMessageCache;
+import com.sx4.cache.GuildMessageCache;
 
 import net.dv8tion.jda.core.entities.Message;
 import net.dv8tion.jda.core.events.Event;
