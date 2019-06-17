@@ -1724,7 +1724,7 @@ public class GeneralModule {
 				.setTimestamp(role.getCreationTime())
 				.setThumbnail(event.getGuild().getIconUrl())
 				.addField("Role ID", role.getId(), true)
-				.addField("Role Colour", String.format("Hex: #%s\nRGB: %s", Integer.toHexString(role.getColorRaw()).toUpperCase(), GeneralUtils.getRGB(role.getColorRaw())), true)
+				.addField("Role Colour", String.format("Hex: #%s\nRGB: %s", GeneralUtils.getHex(role.getColorRaw()), GeneralUtils.getRGB(role.getColorRaw())), true)
 				.addField("Role Position", String.format("%s (Bottom to Top)\n%s (Top to Bottom)", GeneralUtils.getNumberSuffix(role.getPosition() + 2), GeneralUtils.getNumberSuffix(event.getGuild().getRoles().size() - 1 - role.getPosition())), true)
 				.addField("Members In Role", String.valueOf(event.getGuild().getMembersWithRoles(role).size()), true)
 				.addField("Hoisted Role", role.isHoisted() == true ? "Yes" : "No", true)
@@ -2070,7 +2070,7 @@ public class GeneralModule {
 				embed.addField("Discriminator", member.getUser().getDiscriminator(), true);
 				embed.addField("Bot", member.getUser().isBot() ? "Yes" : "No", true);
 				embed.addField("Status", statuses.get(member.getOnlineStatus()), true);
-				embed.addField("User Colour", "#" + Integer.toHexString(member.getColorRaw()).toUpperCase(), true);
+				embed.addField("User Colour", "#" + GeneralUtils.getHex(member.getColorRaw()), true);
 				embed.addField("User ID", member.getUser().getId(), true);
 				embed.addField("Highest Role", member.getRoles().isEmpty() ? event.getGuild().getPublicRole().getAsMention() : member.getRoles().get(0).getAsMention(), true);
 				embed.addField("Number of Roles", String.valueOf(member.getRoles().size()), true);

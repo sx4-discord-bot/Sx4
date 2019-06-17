@@ -2124,7 +2124,7 @@ public class FunModule {
 		
 		if (json.has("description")) {
 			if (json.getString("description").length() > 2048) {
-				event.reply("Embed descriptions cannot be longer than 2040 characters :no_entry:").queue();
+				event.reply("Embed descriptions cannot be longer than 2048 characters :no_entry:").queue();
 				return;
 			}
 			
@@ -2132,11 +2132,17 @@ public class FunModule {
 		}
 		
 		if (json.has("colour")) {
-			Matcher hexMatch = ArgumentUtils.hexRegex.matcher(json.getString("colour"));
+			String colour = json.getString("colour");
+			Matcher hexMatch = ArgumentUtils.hexRegex.matcher(colour);
 			if (hexMatch.matches()) {
 				embed.setColor(Color.decode("#" + hexMatch.group(1)));
 			} else {
-				event.reply("Invalid hex was given for the embed colour :no_entry:").queue();
+				if (GeneralUtils.isNumber(colour)) {
+					embed.setColor(new Color(Integer.parseInt(colour)));
+				} else {
+					event.reply("Invalid hex was given for the embed colour :no_entry:").queue();
+					return;
+				}
 			}
 		}
 		
@@ -2205,6 +2211,7 @@ public class FunModule {
 		
 		if (embed.isEmpty()) {
 			event.reply("The embed has to contain at least something :no_entry:").queue();
+			return;
 		}
 		
 		event.reply(embed.build()).queue();

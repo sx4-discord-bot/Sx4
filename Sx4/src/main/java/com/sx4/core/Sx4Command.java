@@ -1,6 +1,7 @@
 package com.sx4.core;
 
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -16,7 +17,7 @@ public class Sx4Command extends CommandImpl {
 	
 	protected String example = null;
 	
-	protected List<CommandTranslation> commandTranslations = null;
+	protected List<CommandTranslation> commandTranslations;
 	
 	protected boolean disabled = false;
 	protected String disabledMessage = null;
@@ -25,19 +26,31 @@ public class Sx4Command extends CommandImpl {
 		super(name, true);
 		
 		this.doAnnotations();
+		
+		if (this.commandTranslations == null) {
+			this.commandTranslations = new ArrayList<>();
+		}
 	}
 	
 	public Sx4Command(String name, Method method, Object invoker) {
 		super(name, method, invoker);
 		
 		this.doAnnotations();
+		
+		if (this.commandTranslations == null) {
+			this.commandTranslations = new ArrayList<>();
+		}
 	}
 	
 	public CommandTranslation getCommandTranslation() {
-		return this.getCommandTranslation(TranslationType.UK);
+		return this.getCommandTranslation(TranslationType.EN_GB);
 	}
 	
 	public CommandTranslation getCommandTranslation(TranslationType translationType) {
+		if (this.commandTranslations == null) {
+			this.commandTranslations = new ArrayList<>();
+		}
+		
 		for (CommandTranslation commandTranslation : this.commandTranslations) {
 			if (commandTranslation.getTranslationType().equals(translationType)) {
 				return commandTranslation;
@@ -48,25 +61,30 @@ public class Sx4Command extends CommandImpl {
 	}
 	
 	public String getDescription() {
-		return this.getDescription(TranslationType.UK);
+		return this.getDescription(TranslationType.EN_GB);
 	}
 	
 	public String getDescription(TranslationType translationType) {
 		CommandTranslation commandTranslation = this.getCommandTranslation(translationType);
+		if (commandTranslation == null) {
+			commandTranslation = this.getCommandTranslation();
+		}
 		
 		return commandTranslation == null ? null : commandTranslation.getDescription();
 	}
 	
 	public Sx4Command setDescription(String description) {
-		return this.setDescription(TranslationType.UK, description);
+		return this.setDescription(TranslationType.EN_GB, description);
 	}
 	
 	public Sx4Command setDescription(TranslationType translationType, String description) {
+		if (this.commandTranslations == null) {
+			this.commandTranslations = new ArrayList<>();
+		}
+		
 		for (CommandTranslation commandTranslation : this.commandTranslations) {
 			if (commandTranslation.getTranslationType().equals(translationType)) {
-				this.commandTranslations.remove(commandTranslation);
 				commandTranslation.setDescription(description);
-				this.commandTranslations.add(commandTranslation);
 				
 				return this;
 			}
@@ -78,25 +96,26 @@ public class Sx4Command extends CommandImpl {
 	}
 	
 	public Map<String, String> getStrings() {
-		return this.getStrings(TranslationType.UK);
+		return this.getStrings(TranslationType.EN_GB);
 	}
 	
 	public Map<String, String> getStrings(TranslationType translationType) {
 		CommandTranslation commandTranslation = this.getCommandTranslation(translationType);
+		if (commandTranslation == null) {
+			commandTranslation = this.getCommandTranslation();
+		}
 		
 		return commandTranslation == null ? null : commandTranslation.getStrings();
 	}
 	
 	public Sx4Command setStrings(Map<String, String> strings) {
-		return this.setStrings(TranslationType.UK, strings);
+		return this.setStrings(TranslationType.EN_GB, strings);
 	}
 	
 	public Sx4Command setStrings(TranslationType translationType, Map<String, String> strings) {
 		for (CommandTranslation commandTranslation : this.commandTranslations) {
 			if (commandTranslation.getTranslationType().equals(translationType)) {
-				this.commandTranslations.remove(commandTranslation);
 				commandTranslation.setStrings(strings);
-				this.commandTranslations.add(commandTranslation);
 				
 				return this;
 			}

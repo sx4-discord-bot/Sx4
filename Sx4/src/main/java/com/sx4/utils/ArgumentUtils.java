@@ -49,7 +49,7 @@ public class ArgumentUtils {
 		Set<Object> seen = ConcurrentHashMap.newKeySet();
 		return t -> seen.add(keyExtractor.apply(t));
 	}
-
+	
 	public static List<Member> getAllUniqueMembers() {
 		return Sx4Bot.getShardManager().getGuilds().stream()
 			.map(guild -> guild.getMembers())

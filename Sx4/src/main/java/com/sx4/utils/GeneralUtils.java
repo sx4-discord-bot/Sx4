@@ -1,5 +1,6 @@
 package com.sx4.utils;
 
+import java.awt.Color;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -55,8 +56,12 @@ public class GeneralUtils {
 		return suffix;
 	}
 	
+	public static String getHex(int colourRaw) {
+		return String.format("#%06X", (0xFFFFFF & colourRaw));
+	}
+	
 	public static String getRGB(int colourRaw) {
-		return String.format("(%d, %d, %d)", (colourRaw>>16)&0xFF, (colourRaw>>8)&0xFF, colourRaw&0xFF);
+		return String.format("(%d, %d, %d)", (colourRaw >> 16) & 0xFF, (colourRaw >> 8) & 0xFF, colourRaw & 0xFF);
 	}
 	
 	public static String title(String text) {

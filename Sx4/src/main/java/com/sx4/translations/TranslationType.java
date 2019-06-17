@@ -2,7 +2,7 @@ package com.sx4.translations;
 
 public enum TranslationType {
 	
-	UK("en-GB", ":flag_gb:");
+	EN_GB("en-GB", ":flag_gb:");
 
 	private String ISOCode = null;
 	private String flag = null;

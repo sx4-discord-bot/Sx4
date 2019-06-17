@@ -1,8 +1,5 @@
 package com.sx4.modules;
 
-import java.io.IOException;
-
-import org.json.JSONException;
 import org.json.JSONObject;
 
 import com.jockie.bot.core.command.Command;
@@ -29,13 +26,7 @@ public class AnimalsModule {
 		Request request = new Request.Builder().url("https://catfact.ninja/fact").build();
 		
 		Sx4Bot.client.newCall(request).enqueue((Sx4Callback) response -> {
-			JSONObject json;
-			try {
-				json = new JSONObject(response.body().string());
-			} catch (JSONException | IOException e) {
-				event.reply("Oops something went wrong there, try again :no_entry:").queue();
-				return;
-			}
+			JSONObject json = new JSONObject(response.body().string());
 			
 			EmbedBuilder embed = new EmbedBuilder();
 			embed.setTitle("Did you know?");
@@ -53,13 +44,7 @@ public class AnimalsModule {
 		Request request = new Request.Builder().url("https://dog.ceo/api/breeds/image/random").addHeader("User-Agent", "Mozilla/5.0").build();
 		
 		Sx4Bot.client.newCall(request).enqueue((Sx4Callback) response -> {
-			JSONObject json;
-			try {
-				json = new JSONObject(response.body().string());
-			} catch (JSONException | IOException e) {
-				event.reply("Oops something went wrong there, try again :no_entry:").queue();
-				return;
-			}
+			JSONObject json = new JSONObject(response.body().string());
 			
 			EmbedBuilder embed = new EmbedBuilder();
 			embed.setDescription(":dog:");
@@ -76,13 +61,7 @@ public class AnimalsModule {
 		Request request = new Request.Builder().url("https://api.alexflipnote.xyz/birb").addHeader("User-Agent", "Mozilla/5.0").build();
 		
 		Sx4Bot.client.newCall(request).enqueue((Sx4Callback) response -> {
-			JSONObject json;
-			try {
-				json = new JSONObject(response.body().string());
-			} catch (JSONException | IOException e) {
-				event.reply("Oops something went wrong there, try again :no_entry:").queue();
-				return;
-			}
+			JSONObject json = new JSONObject(response.body().string());
 			
 			EmbedBuilder embed = new EmbedBuilder();
 			embed.setDescription(":bird:");
@@ -99,13 +78,7 @@ public class AnimalsModule {
 		Request request = new Request.Builder().url("https://random-d.uk/api/v1/random").addHeader("User-Agent", "Mozilla/5.0").build();
 		
 		Sx4Bot.client.newCall(request).enqueue((Sx4Callback) response -> {
-			JSONObject json;
-			try {
-				json = new JSONObject(response.body().string());
-			} catch (JSONException | IOException e) {
-				event.reply("Oops something went wrong there, try again :no_entry:").queue();
-				return;
-			}
+			JSONObject json = new JSONObject(response.body().string());
 			
 			EmbedBuilder embed = new EmbedBuilder();
 			embed.setDescription(":duck:");
@@ -123,13 +96,7 @@ public class AnimalsModule {
 		Request request = new Request.Builder().url("http://aws.random.cat/meow").addHeader("User-Agent", "Mozilla/5.0").build();
 		
 		Sx4Bot.client.newCall(request).enqueue((Sx4Callback) response -> {
-			JSONObject json;
-			try {
-				json = new JSONObject(response.body().string());
-			} catch (JSONException | IOException e) {
-				event.reply("Oops something went wrong there, try again :no_entry:").queue();
-				return;
-			}
+			JSONObject json = new JSONObject(response.body().string());
 			
 			EmbedBuilder embed = new EmbedBuilder();
 			embed.setDescription(":cat:");
@@ -146,13 +113,7 @@ public class AnimalsModule {
 		Request request = new Request.Builder().url("https://randomfox.ca/floof/").addHeader("User-Agent", "Mozilla/5.0").build();
 		
 		Sx4Bot.client.newCall(request).enqueue((Sx4Callback) response -> {
-			JSONObject json;
-			try {
-				json = new JSONObject(response.body().string());
-			} catch (JSONException | IOException e) {
-				event.reply("Oops something went wrong there, try again :no_entry:").queue();
-				return;
-			}
+			JSONObject json = new JSONObject(response.body().string());
 			
 			EmbedBuilder embed = new EmbedBuilder();
 			embed.setDescription(":fox:");

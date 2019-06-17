@@ -2582,14 +2582,15 @@ public class ModModule {
 				return;
 			}
 			
-			event.reply(event.getAuthor().getName() + ", are you sure you want to delete all modlog cases? (Yes or No)").queue();
-			PagedUtils.getConfirmation(event, 30, event.getAuthor(), confirmation -> {
-				if (confirmation == true) {
-					event.reply("All modlog cases have been deleted <:done:403285928233402378>").queue();
-					data.update(r.hashMap("cases", new Object[0]).with("case#", 0)).runNoReply(connection);
-				} else if (confirmation == false) {
-					event.reply("Cancelled <:done:403285928233402378>").queue();
-				}
+			event.reply(event.getAuthor().getName() + ", are you sure you want to delete all modlog cases? (Yes or No)").queue(message -> {
+				PagedUtils.getConfirmation(event, 30, event.getAuthor(), confirmation -> {
+					if (confirmation == true) {
+						event.reply("All modlog cases have been deleted <:done:403285928233402378>").queue();
+						data.update(r.hashMap("cases", new Object[0]).with("case#", 0)).runNoReply(connection);
+					} else if (confirmation == false) {
+						event.reply("Cancelled <:done:403285928233402378>").queue();
+					}
+				});
 			});
 		}
 		
@@ -2658,6 +2659,11 @@ public class ModModule {
 		
 		if (role.isPublicRole()) {
 			event.reply("I cannot delete the `@everyone` role :no_entry:").queue();
+			return;
+		}
+		
+		if (role.isManaged()) {
+			event.reply("I cannot deleted managed roles :no_entry:").queue();
 			return;
 		}
 		
