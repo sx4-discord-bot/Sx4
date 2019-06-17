@@ -159,8 +159,10 @@ public class Sx4Bot {
 				});
 		
 		listener.addPreParseCheck(message -> {
-			if (!message.getGuild().getSelfMember().hasPermission(message.getTextChannel(), Permission.MESSAGE_WRITE)) {
-				return false;
+			if (message.getGuild() != null) {
+				if (!message.getGuild().getSelfMember().hasPermission(message.getTextChannel(), Permission.MESSAGE_WRITE)) {
+					return false;
+				}
 			}
 			
 			return true;
