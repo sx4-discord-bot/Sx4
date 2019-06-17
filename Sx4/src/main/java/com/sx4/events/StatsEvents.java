@@ -79,12 +79,12 @@ public class StatsEvents extends ListenerAdapter {
 					for (Integer value : guildData.values()) {
 						if (value != 0) {
 							proceed = true;
-							break;
+							continue;
 						}
 					}
 					
 					if (proceed == false) {
-						break;
+						continue;
 					}
 					
 					table.get(guildId).update(row -> r.hashMap("messages", row.g("messages").add(guildData.get("messages"))).with("members", row.g("members").add(guildData.get("members")))).runNoReply(connection);
