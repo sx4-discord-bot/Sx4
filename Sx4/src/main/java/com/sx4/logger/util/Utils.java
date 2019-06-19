@@ -1,8 +1,10 @@
 package com.sx4.logger.util;
 
-import net.dv8tion.jda.core.entities.Channel;
-import net.dv8tion.jda.core.entities.ChannelType;
-import net.dv8tion.jda.core.entities.MessageEmbed;
+import club.minnced.discord.webhook.send.WebhookEmbed;
+import club.minnced.discord.webhook.send.WebhookEmbed.EmbedField;
+import net.dv8tion.jda.api.entities.ChannelType;
+import net.dv8tion.jda.api.entities.GuildChannel;
+import net.dv8tion.jda.api.entities.MessageEmbed;
 
 public class Utils {
 	
@@ -16,7 +18,7 @@ public class Utils {
 		return value;
 	}
 	
-	public static String getChannelTypeReadable(Channel channel) {
+	public static String getChannelTypeReadable(GuildChannel channel) {
 		String type;
 		if(channel.getType().equals(ChannelType.TEXT) || channel.getType().equals(ChannelType.VOICE)) {
 			type = channel.getType().toString().toLowerCase() + " channel";
@@ -37,4 +39,32 @@ public class Utils {
 		
 		return builder;
 	}
+	
+	public static int getLength(WebhookEmbed embed) {
+        int length = 0;
+
+        if (embed.getTitle() != null) {
+            length += embed.getTitle().getText().length();
+        }
+        
+        if (embed.getDescription() != null) {
+            length += embed.getDescription().length();
+        }
+        
+        if (embed.getAuthor() != null) {
+            length += embed.getAuthor().getName().length();
+		}
+        
+        if (embed.getFooter() != null) {
+            length += embed.getFooter().getText().length();
+        }
+        
+        if (embed.getFields() != null) {
+            for (EmbedField f : embed.getFields()) {
+                length += f.getName().length() + f.getValue().length();
+            }
+        }
+
+        return length;
+    }
 }

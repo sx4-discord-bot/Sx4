@@ -11,11 +11,11 @@ import com.rethinkdb.net.Connection;
 import com.rethinkdb.net.Cursor;
 import com.sx4.core.Sx4Bot;
 
-import net.dv8tion.jda.bot.sharding.ShardManager;
-import net.dv8tion.jda.core.OnlineStatus;
-import net.dv8tion.jda.core.entities.User;
-import net.dv8tion.jda.core.events.user.update.UserUpdateOnlineStatusEvent;
-import net.dv8tion.jda.core.hooks.ListenerAdapter;
+import net.dv8tion.jda.api.OnlineStatus;
+import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.events.user.update.UserUpdateOnlineStatusEvent;
+import net.dv8tion.jda.api.hooks.ListenerAdapter;
+import net.dv8tion.jda.api.sharding.ShardManager;
 
 public class AwaitEvents extends ListenerAdapter {
 	

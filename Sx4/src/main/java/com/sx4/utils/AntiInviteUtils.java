@@ -4,7 +4,7 @@ import static com.rethinkdb.RethinkDB.r;
 
 import com.rethinkdb.gen.ast.Insert;
 
-import net.dv8tion.jda.core.entities.Guild;
+import net.dv8tion.jda.api.entities.Guild;
 
 public class AntiInviteUtils {
 

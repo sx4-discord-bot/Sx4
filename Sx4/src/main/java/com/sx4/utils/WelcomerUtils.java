@@ -2,7 +2,7 @@ package com.sx4.utils;
 
 import static com.rethinkdb.RethinkDB.r;
 
-import java.awt.Color;
+import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLEncoder;
@@ -10,6 +10,8 @@ import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -22,10 +24,20 @@ import com.sx4.interfaces.Sx4Callback;
 import com.sx4.modules.ImageModule;
 import com.sx4.settings.Settings;
 
-import net.dv8tion.jda.core.EmbedBuilder;
-import net.dv8tion.jda.core.MessageBuilder;
-import net.dv8tion.jda.core.entities.Guild;
-import net.dv8tion.jda.core.entities.Member;
+import club.minnced.discord.webhook.send.WebhookEmbed;
+import club.minnced.discord.webhook.send.WebhookEmbed.EmbedAuthor;
+import club.minnced.discord.webhook.send.WebhookEmbed.EmbedField;
+import club.minnced.discord.webhook.send.WebhookEmbed.EmbedFooter;
+import club.minnced.discord.webhook.send.WebhookEmbed.EmbedTitle;
+import club.minnced.discord.webhook.send.WebhookEmbedBuilder;
+import club.minnced.discord.webhook.send.WebhookMessageBuilder;
+import net.dv8tion.jda.api.EmbedBuilder;
+import net.dv8tion.jda.api.MessageBuilder;
+import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.entities.Member;
+import net.dv8tion.jda.api.entities.Message;
+import net.dv8tion.jda.api.entities.MessageEmbed;
+import net.dv8tion.jda.api.entities.MessageEmbed.Field;
 import okhttp3.Request;
 import okhttp3.Response;
 
@@ -60,16 +72,33 @@ public class WelcomerUtils {
 		message = message.replace("{user}", user.getUser().getAsTag());
 		message = message.replace("{server.members}", String.format("%,d", guildMemberCount));
 		message = message.replace("{server.members.prefix}", String.format("%,d", guildMemberCount) + GeneralUtils.getNumberSuffixRaw(guildMemberCount)); 
-		message = message.replace("{user.stayed.length}", TimeUtils.toTimeString(Clock.systemUTC().instant().getEpochSecond() - user.getJoinDate().toEpochSecond(), ChronoUnit.SECONDS));
+		message = message.replace("{user.stayed.length}", TimeUtils.toTimeString(Clock.systemUTC().instant().getEpochSecond() - user.getTimeJoined().toEpochSecond(), ChronoUnit.SECONDS));
 		
 		return message;
 	}
 	
-	public static MessageBuilder getLeaver(Member user, Guild guild, Map<String, Object> data) {
+	public static WebhookMessageBuilder getLeaver(Member user, Guild guild, Map<String, Object> data) {
+		MessageBuilder messageBuilder = WelcomerUtils.getLeaverPreview(user, guild, data);
+		
+		WebhookMessageBuilder webhookMessageBuilder = new WebhookMessageBuilder();
+		
+		Message previewMessage = messageBuilder.build();
+		
+		List<WebhookEmbed> embeds = new ArrayList<>();
+		for (MessageEmbed embed : previewMessage.getEmbeds()) {
+			embeds.add(WelcomerUtils.toWebhookEmbedBuilder(embed).build());
+		}
+		
+		webhookMessageBuilder.setContent(previewMessage.getContentRaw()).addEmbeds(embeds);
+		
+		return webhookMessageBuilder;
+	}
+	
+	public static MessageBuilder getLeaverPreview(Member user, Guild guild, Map<String, Object> data) {
 		MessageBuilder message = new MessageBuilder();
 		String messageString = WelcomerUtils.getLeaverMessage(guild, user, (String) data.get("leave-message"));
 		if ((boolean) data.get("leaveembed")) {
-			return message.setEmbed(WelcomerUtils.getEmbed(user, messageString, (Long) data.get("leaveembedcolour")).build());
+			return message.setEmbed(WelcomerUtils.getPreviewEmbed(user, messageString, (Long) data.get("leaveembedcolour")).build());
 		} else {
 			return message.setContent(messageString);
 		}
@@ -83,15 +112,25 @@ public class WelcomerUtils {
 		message = message.replace("{user}", user.getUser().getAsTag());
 		message = message.replace("{server.members}", String.format("%,d", guildMemberCount));
 		message = message.replace("{server.members.prefix}", String.format("%,d", guildMemberCount) + GeneralUtils.getNumberSuffixRaw(guildMemberCount)); 
-		message = message.replace("{user.created.length}", TimeUtils.toTimeString(Clock.systemUTC().instant().getEpochSecond() - user.getUser().getCreationTime().toEpochSecond(), ChronoUnit.SECONDS));
+		message = message.replace("{user.created.length}", TimeUtils.toTimeString(Clock.systemUTC().instant().getEpochSecond() - user.getUser().getTimeCreated().toEpochSecond(), ChronoUnit.SECONDS));
 		
 		return message;
 	}
 	
-	public static EmbedBuilder getEmbed(Member user, String message, Long colour) {
+	public static WebhookEmbedBuilder getEmbed(Member user, String message, Long colour) {
+		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
+		embed.setAuthor(new EmbedAuthor(user.getUser().getAsTag(), null, user.getUser().getEffectiveAvatarUrl()));
+		embed.setColor(colour.intValue());
+		embed.setDescription(message);
+		embed.setTimestamp(Instant.now());
+		
+		return embed;
+	}
+	
+	public static EmbedBuilder getPreviewEmbed(Member user, String message, Long colour) {
 		EmbedBuilder embed = new EmbedBuilder();
 		embed.setAuthor(user.getUser().getAsTag(), null, user.getUser().getEffectiveAvatarUrl());
-		embed.setColor(colour == null ? null : new Color(colour.intValue()));
+		embed.setColor(colour.intValue());
 		embed.setDescription(message);
 		embed.setTimestamp(Instant.now());
 		
@@ -115,7 +154,36 @@ public class WelcomerUtils {
 		});
 	}
 	
-	public static void getWelcomerMessage(Member user, Guild guild, Map<String, Object> data, BiConsumer<MessageBuilder, Response> message) {
+	public static void getWelcomerMessage(Member user, Guild guild, Map<String, Object> data, Consumer<WebhookMessageBuilder> message) {
+		WelcomerUtils.getWelcomerPreviewMessage(user, guild, data, (messageBuilder, response) -> {
+			WebhookMessageBuilder webhookMessageBuilder = new WebhookMessageBuilder();
+			
+			if (messageBuilder != null) {
+				Message previewMessage = messageBuilder.build();
+				
+				List<WebhookEmbed> embeds = new ArrayList<>();
+				for (MessageEmbed embed : previewMessage.getEmbeds()) {
+					embeds.add(WelcomerUtils.toWebhookEmbedBuilder(embed).build());
+				}
+				
+				webhookMessageBuilder.setContent(previewMessage.getContentRaw()).addEmbeds(embeds);
+			}
+			
+			if (response != null) {
+				String fileName = "welcomer." + response.headers().get("Content-Type").split("/")[1];
+				
+				try {
+					webhookMessageBuilder.addFile(fileName, response.body().bytes());
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+			
+			message.accept(webhookMessageBuilder);
+		});
+	}
+	
+	public static void getWelcomerPreviewMessage(Member user, Guild guild, Map<String, Object> data, BiConsumer<MessageBuilder, Response> message) {
 		MessageBuilder messageBuilder = new MessageBuilder();
 		
 		if ((boolean) data.get("toggle") == false && (boolean) data.get("imgwelcomertog") == true) {
@@ -124,7 +192,7 @@ public class WelcomerUtils {
 					String fileName = "welcomer." + response.headers().get("Content-Type").split("/")[1];
 					
 					if ((boolean) data.get("embed")) {
-						EmbedBuilder embed = WelcomerUtils.getEmbed(user, "", (Long) data.get("embedcolour"));
+						EmbedBuilder embed = WelcomerUtils.getPreviewEmbed(user, "", (Long) data.get("embedcolour"));
 						embed.setImage("attachment://" + fileName);
 						
 						message.accept(messageBuilder.setEmbed(embed.build()), response);
@@ -144,7 +212,7 @@ public class WelcomerUtils {
 		} else {
 			String messageString = WelcomerUtils.getWelcomerMessage(guild, user, (String) data.get("message"));
 			if ((boolean) data.get("embed")) {
-				EmbedBuilder embed = WelcomerUtils.getEmbed(user, messageString, (Long) data.get("embedcolour"));
+				EmbedBuilder embed = WelcomerUtils.getPreviewEmbed(user, messageString, (Long) data.get("embedcolour"));
 				if ((boolean) data.get("imgwelcomertog")) {
 					WelcomerUtils.getImageWelcomer(user, (String) data.get("banner"), response -> {
 						if (response != null) {
@@ -186,6 +254,48 @@ public class WelcomerUtils {
 				}
 			}
 		}
+	}
+	
+	public static WebhookEmbedBuilder toWebhookEmbedBuilder(MessageEmbed embed) {
+		WebhookEmbedBuilder webhookEmbed = new WebhookEmbedBuilder();
+		
+		if (embed.getAuthor() != null) {
+			webhookEmbed.setAuthor(new EmbedAuthor(embed.getAuthor().getName(), embed.getAuthor().getUrl(), embed.getAuthor().getIconUrl()));
+		}
+		
+		if (embed.getColor() != null) {
+			webhookEmbed.setColor(embed.getColorRaw());
+		}
+		
+		if (embed.getDescription() != null) {
+			webhookEmbed.setDescription(embed.getDescription());
+		}
+		
+		if (embed.getFooter() != null) {
+			webhookEmbed.setFooter(new EmbedFooter(embed.getFooter().getText(), embed.getFooter().getIconUrl()));
+		}
+		
+		if (embed.getImage() != null) {
+			webhookEmbed.setImageUrl(embed.getImage().getUrl());
+		}
+		
+		if (embed.getThumbnail() != null) {
+			webhookEmbed.setThumbnailUrl(embed.getThumbnail().getUrl());
+		}
+		
+		if (embed.getTimestamp() != null) {
+			webhookEmbed.setTimestamp(embed.getTimestamp());
+		}
+		
+		if (embed.getTitle() != null) {
+			webhookEmbed.setTitle(new EmbedTitle(embed.getTitle(), null));
+		}
+		
+		for (Field field : embed.getFields()) {
+			webhookEmbed.addField(new EmbedField(field.isInline(), field.getName(), field.getValue()));
+		}
+		
+		return webhookEmbed;
 	}
 	
 }

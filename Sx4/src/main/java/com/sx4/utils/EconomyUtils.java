@@ -23,8 +23,8 @@ import com.sx4.economy.tools.Pickaxe;
 import com.sx4.economy.tools.Rod;
 import com.sx4.settings.Settings;
 
-import net.dv8tion.jda.core.utils.tuple.Pair;
-import net.dv8tion.jda.core.entities.User;
+import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.internal.utils.tuple.Pair;
 
 public class EconomyUtils {
 	

@@ -9,16 +9,16 @@ import java.net.URL;
 import java.util.List;
 import java.util.Map;
 
-import com.jockie.bot.core.Context;
 import com.jockie.bot.core.argument.Argument;
-import com.jockie.bot.core.module.Module;
 import com.jockie.bot.core.command.Command;
 import com.jockie.bot.core.command.Command.AuthorPermissions;
 import com.jockie.bot.core.command.Command.BotPermissions;
-import com.jockie.bot.core.command.ICommand.ContentOverflowPolicy;
+import com.jockie.bot.core.command.Context;
 import com.jockie.bot.core.command.Initialize;
 import com.jockie.bot.core.command.impl.CommandEvent;
 import com.jockie.bot.core.command.impl.CommandImpl;
+import com.jockie.bot.core.command.ICommand.ContentOverflowPolicy;
+import com.jockie.bot.core.module.Module;
 import com.rethinkdb.gen.ast.Get;
 import com.rethinkdb.model.OptArgs;
 import com.rethinkdb.net.Connection;
@@ -30,11 +30,11 @@ import com.sx4.utils.GeneralUtils;
 import com.sx4.utils.HelpUtils;
 import com.sx4.utils.WelcomerUtils;
 
-import net.dv8tion.jda.core.EmbedBuilder;
-import net.dv8tion.jda.core.Permission;
-import net.dv8tion.jda.core.entities.Message.Attachment;
-import net.dv8tion.jda.core.entities.MessageEmbed;
-import net.dv8tion.jda.core.entities.TextChannel;
+import net.dv8tion.jda.api.EmbedBuilder;
+import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.Message.Attachment;
+import net.dv8tion.jda.api.entities.MessageEmbed;
+import net.dv8tion.jda.api.entities.TextChannel;
 
 @Module
 public class WelcomerModule {
@@ -235,7 +235,7 @@ public class WelcomerModule {
 				}
 			}
 			
-			WelcomerUtils.getWelcomerMessage(event.getMember(), event.getGuild(), data, (message, response) -> {
+			WelcomerUtils.getWelcomerPreviewMessage(event.getMember(), event.getGuild(), data, (message, response) -> {
 				if (message.isEmpty() && response != null) {
 					byte[] bytes;
 					try {
@@ -481,7 +481,7 @@ public class WelcomerModule {
 				}
 			}
 			
-			event.reply(WelcomerUtils.getLeaver(event.getMember(), event.getGuild(), data).build()).queue();
+			event.reply(WelcomerUtils.getLeaverPreview(event.getMember(), event.getGuild(), data).build()).queue();
 			
 			if (warningMessage.length() != 0) {
 				event.reply(warningMessage.toString()).queue();

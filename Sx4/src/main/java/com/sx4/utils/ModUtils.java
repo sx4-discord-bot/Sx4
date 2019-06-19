@@ -20,18 +20,18 @@ import com.sx4.core.Sx4Bot;
 import com.sx4.events.MuteEvents;
 import com.sx4.settings.Settings;
 
-import net.dv8tion.jda.core.EmbedBuilder;
-import net.dv8tion.jda.core.Permission;
-import net.dv8tion.jda.core.entities.Guild;
-import net.dv8tion.jda.core.entities.Member;
-import net.dv8tion.jda.core.entities.MessageEmbed;
-import net.dv8tion.jda.core.entities.PermissionOverride;
-import net.dv8tion.jda.core.entities.Role;
-import net.dv8tion.jda.core.entities.TextChannel;
-import net.dv8tion.jda.core.entities.User;
-import net.dv8tion.jda.core.entities.VoiceChannel;
-import net.dv8tion.jda.core.exceptions.InsufficientPermissionException;
-import net.dv8tion.jda.core.utils.PermissionUtil;
+import net.dv8tion.jda.api.EmbedBuilder;
+import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.entities.Member;
+import net.dv8tion.jda.api.entities.MessageEmbed;
+import net.dv8tion.jda.api.entities.PermissionOverride;
+import net.dv8tion.jda.api.entities.Role;
+import net.dv8tion.jda.api.entities.TextChannel;
+import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.entities.VoiceChannel;
+import net.dv8tion.jda.api.exceptions.InsufficientPermissionException;
+import net.dv8tion.jda.internal.utils.PermissionUtil;
 
 public class ModUtils {
 	
@@ -102,7 +102,7 @@ public class ModUtils {
 				return;
 			}
 			
-			guild.getController().createRole().setName(roleName).queue(newRole -> {
+			guild.createRole().setName(roleName).queue(newRole -> {
 				muteRole.accept(newRole);
 				MuteEvents.putMuteRole(guild.getId(), newRole.getId());
 				
@@ -125,7 +125,7 @@ public class ModUtils {
 	}
 	
 	public static boolean canConnect(Member member, VoiceChannel voiceChannel) {
-		EnumSet<Permission> perms = Permission.toEnumSet(PermissionUtil.getEffectivePermission(voiceChannel, member));
+		EnumSet<Permission> perms = Permission.getPermissions(PermissionUtil.getEffectivePermission(voiceChannel, member));
 		if (!perms.contains(Permission.VOICE_CONNECT)) {
 			return false;
 		}

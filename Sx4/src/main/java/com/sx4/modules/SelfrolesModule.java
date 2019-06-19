@@ -8,12 +8,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.jockie.bot.core.Context;
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
 import com.jockie.bot.core.command.Command.AuthorPermissions;
 import com.jockie.bot.core.command.Command.BotPermissions;
-import com.jockie.bot.core.command.ICommand.ContentOverflowPolicy;
+import com.jockie.bot.core.command.Context;
 import com.jockie.bot.core.command.Initialize;
 import com.jockie.bot.core.command.impl.CommandEvent;
 import com.jockie.bot.core.command.impl.CommandImpl;
@@ -28,15 +27,15 @@ import com.sx4.utils.HelpUtils;
 import com.sx4.utils.PagedUtils;
 import com.sx4.utils.PagedUtils.PagedResult;
 
-import net.dv8tion.jda.core.EmbedBuilder;
-import net.dv8tion.jda.core.Permission;
-import net.dv8tion.jda.core.entities.Emote;
-import net.dv8tion.jda.core.entities.Message;
-import net.dv8tion.jda.core.entities.MessageEmbed;
-import net.dv8tion.jda.core.entities.MessageReaction;
-import net.dv8tion.jda.core.entities.Role;
-import net.dv8tion.jda.core.entities.TextChannel;
-import net.dv8tion.jda.core.exceptions.ErrorResponseException;
+import net.dv8tion.jda.api.EmbedBuilder;
+import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.Emote;
+import net.dv8tion.jda.api.entities.Message;
+import net.dv8tion.jda.api.entities.MessageEmbed;
+import net.dv8tion.jda.api.entities.MessageReaction;
+import net.dv8tion.jda.api.entities.Role;
+import net.dv8tion.jda.api.entities.TextChannel;
+import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 
 @Module
 public class SelfrolesModule {
@@ -109,7 +108,7 @@ public class SelfrolesModule {
 		@SuppressWarnings("unchecked")
 		@Command(value="add", description="Add a reaction to give a role to a user when reacted on")
 		@AuthorPermissions({Permission.MANAGE_ROLES})
-		@BotPermissions({Permission.MESSAGE_EMBED_LINKS, Permission.MESSAGE_ADD_REACTION})
+		@BotPermissions({Permission.MESSAGE_EMBED_LINKS, Permission.MESSAGE_ADD_REACTION, Permission.MESSAGE_HISTORY})
 		public void add(CommandEvent event, @Context Connection connection, @Argument(value="message id") String messageId, @Argument(value="emote") String emoteArgument, @Argument(value="role", endless=true) String roleArgument) throws UnsupportedEncodingException {
 			r.table("reactionrole").insert(r.hashMap("id", event.getGuild().getId()).with("dm", true).with("messages", new Object[0])).run(connection, OptArgs.of("durability", "soft"));
 			Get data = r.table("reactionrole").get(event.getGuild().getId());
@@ -155,7 +154,7 @@ public class SelfrolesModule {
 						return;
 					}
 					
-					channel.getMessageById(messageId).queue(message -> {
+					channel.retrieveMessageById(messageId).queue(message -> {
 						if (message.getReactions().size() >= 20) {
 							event.reply("That message is at the max amount of reactions (20) :no_entry:").queue();
 							return;
@@ -259,67 +258,72 @@ public class SelfrolesModule {
 				}
 			}
 			
-			try {
-				event.getTextChannel().getMessageById(messageId).queue(message -> {
-					if (message.getReactions().size() >= 20) {
-						event.reply("That message is at the max amount of reactions (20) :no_entry:").queue();
-						return;
-					}
-					
-					if (emote == null) {
-						message.addReaction(unicodeEmote).queue($ -> {
-							event.reply("The role `" + role.getName() + "` will now be given when reacting to " + (emote == null ? unicodeEmote : emote.getAsMention()) + " <:done:403285928233402378>").queue();
-							
-							List<Map<String, Object>> roles = new ArrayList<>();
-							Map<String, Object> newRoleData = new HashMap<>();
-							newRoleData.put("id", role.getId());
-							newRoleData.put("emote", emoteStore);
-							roles.add(newRoleData);
-							
-							List<Map<String, Object>> newData = new ArrayList<>();
-							Map<String, Object> messageData = new HashMap<>();
-							messageData.put("id", message.getId());
-							messageData.put("channel", event.getTextChannel().getId());
-							messageData.put("bot_menu", false);
-							messageData.put("roles", roles);
-							newData.add(messageData);
-							
-							data.update(r.hashMap("messages", newData)).runNoReply(connection);
-						}, e -> {
-							if (e instanceof ErrorResponseException) {
-								ErrorResponseException exception = (ErrorResponseException) e;
-								if (exception.getErrorCode() == 10014) {
-									event.reply("I could not find that emote :no_entry:").queue();
-								}
-							}
-						});
+			event.getTextChannel().retrieveMessageById(messageId).queue(message -> {
+				if (message.getReactions().size() >= 20) {
+					event.reply("That message is at the max amount of reactions (20) :no_entry:").queue();
+					return;
+				}
+				
+				if (emote == null) {
+					message.addReaction(unicodeEmote).queue($ -> {
+						event.reply("The role `" + role.getName() + "` will now be given when reacting to " + (emote == null ? unicodeEmote : emote.getAsMention()) + " <:done:403285928233402378>").queue();
 						
+						List<Map<String, Object>> roles = new ArrayList<>();
+						Map<String, Object> newRoleData = new HashMap<>();
+						newRoleData.put("id", role.getId());
+						newRoleData.put("emote", emoteStore);
+						roles.add(newRoleData);
+						
+						List<Map<String, Object>> newData = new ArrayList<>();
+						Map<String, Object> messageData = new HashMap<>();
+						messageData.put("id", message.getId());
+						messageData.put("channel", event.getTextChannel().getId());
+						messageData.put("bot_menu", false);
+						messageData.put("roles", roles);
+						newData.add(messageData);
+						
+						data.update(r.hashMap("messages", newData)).runNoReply(connection);
+					}, e -> {
+						if (e instanceof ErrorResponseException) {
+							ErrorResponseException exception = (ErrorResponseException) e;
+							if (exception.getErrorCode() == 10014) {
+								event.reply("I could not find that emote :no_entry:").queue();
+							}
+						}
+					});
+					
+					return;
+				} else {
+					message.addReaction(emote).queue();
+				}
+				
+				event.reply("The role `" + role.getName() + "` will now be given when reacting to " + (emote == null ? unicodeEmote : emote.getAsMention()) + " <:done:403285928233402378>").queue();
+				
+				List<Map<String, Object>> roles = new ArrayList<>();
+				Map<String, Object> newRoleData = new HashMap<>();
+				newRoleData.put("id", role.getId());
+				newRoleData.put("emote", emoteStore);
+				roles.add(newRoleData);
+				
+				Map<String, Object> messageData = new HashMap<>();
+				messageData.put("id", message.getId());
+				messageData.put("channel", event.getTextChannel().getId());
+				messageData.put("bot_menu", false);
+				messageData.put("max_roles", 0);
+				messageData.put("roles", roles);
+				messages.add(messageData);
+				
+				data.update(r.hashMap("messages", messages)).runNoReply(connection);
+			}, e -> {
+				if (e instanceof ErrorResponseException) {
+					ErrorResponseException exception = (ErrorResponseException) e;
+					if (exception.getErrorCode() == 10008) {
+						event.reply("I could not find that message within this channel :no_entry:").queue();
+						data.update(row -> r.hashMap("messages", row.g("messages").filter(d -> d.g("id").ne(messageId)))).runNoReply(connection);
 						return;
-					} else {
-						message.addReaction(emote).queue();
 					}
-					
-					event.reply("The role `" + role.getName() + "` will now be given when reacting to " + (emote == null ? unicodeEmote : emote.getAsMention()) + " <:done:403285928233402378>").queue();
-					
-					List<Map<String, Object>> roles = new ArrayList<>();
-					Map<String, Object> newRoleData = new HashMap<>();
-					newRoleData.put("id", role.getId());
-					newRoleData.put("emote", emoteStore);
-					roles.add(newRoleData);
-					
-					Map<String, Object> messageData = new HashMap<>();
-					messageData.put("id", message.getId());
-					messageData.put("channel", event.getTextChannel().getId());
-					messageData.put("bot_menu", false);
-					messageData.put("max_roles", 0);
-					messageData.put("roles", roles);
-					messages.add(messageData);
-					
-					data.update(r.hashMap("messages", messages)).runNoReply(connection);
-				});
-			} catch(IllegalArgumentException e) {
-				event.reply("I could not find that message within this channel :no_entry:").queue();
-			}
+				}
+			});
 		}
 		
 		@SuppressWarnings("unchecked")
@@ -355,7 +359,7 @@ public class SelfrolesModule {
 						return;
 					}
 					
-					channel.getMessageById(messageId).queue(message -> {
+					channel.retrieveMessageById(messageId).queue(message -> {
 						List<Map<String, Object>> roles = (List<Map<String, Object>>) messageData.get("roles");
 						for (Map<String, Object> roleData : roles) {
 							if (roleData.get("id").equals(role.getId())) {
@@ -480,7 +484,7 @@ public class SelfrolesModule {
 						return;
 					}
 					
-					channel.getMessageById(messageId).queue(message -> {
+					channel.retrieveMessageById(messageId).queue(message -> {
 						boolean isBotMenu = isBotMenu(message, messageData);
 						MessageEmbed reactionRole = null;
 						String newDescription = null;
@@ -618,7 +622,7 @@ public class SelfrolesModule {
 						return;
 					}
 					
-					channel.getMessageById(messageId).queue(message -> {
+					channel.retrieveMessageById(messageId).queue(message -> {
 						if (isBotMenu(message, messageData)) {
 							MessageEmbed reactionRole = message.getEmbeds().get(0);
 							message.editMessage(reactionRole).queue();
@@ -671,7 +675,7 @@ public class SelfrolesModule {
 						return;
 					}
 					
-					channel.getMessageById(messageId).queue(message -> {
+					channel.retrieveMessageById(messageId).queue(message -> {
 						if (isBotMenu(message, messageData)) {
 							message.delete().queue();
 						}
@@ -805,10 +809,10 @@ public class SelfrolesModule {
 			if (roleId.equals(role.getId())) {
 				if (event.getMember().getRoles().contains(role)) {
 					event.reply("You no longer have the role **" + role.getName() + "** <:done:403285928233402378>").queue();
-					event.getGuild().getController().removeSingleRoleFromMember(event.getMember(), role).queue();
+					event.getGuild().removeRoleFromMember(event.getMember(), role).queue();
 				} else {
 					event.reply("You now have the role **" + role.getName() + "** <:done:403285928233402378>").queue();
-					event.getGuild().getController().addSingleRoleToMember(event.getMember(), role).queue();
+					event.getGuild().addRoleToMember(event.getMember(), role).queue();
 				}
 				
 				return;

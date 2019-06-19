@@ -6,8 +6,9 @@ import java.util.List;
 import java.util.Map;
 
 import com.sx4.core.Sx4Bot;
-import net.dv8tion.jda.core.events.message.guild.GuildMessageReceivedEvent;
-import net.dv8tion.jda.core.hooks.ListenerAdapter;
+
+import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent;
+import net.dv8tion.jda.api.hooks.ListenerAdapter;
 
 public class TriggerEvents extends ListenerAdapter {
 	

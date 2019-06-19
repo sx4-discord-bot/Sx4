@@ -13,8 +13,8 @@ import com.sx4.categories.Categories;
 import com.sx4.core.Sx4Bot;
 import com.sx4.interfaces.Sx4Callback;
 
-import net.dv8tion.jda.core.EmbedBuilder;
-import net.dv8tion.jda.core.Permission;
+import net.dv8tion.jda.api.EmbedBuilder;
+import net.dv8tion.jda.api.Permission;
 import okhttp3.Request;
 
 @Module

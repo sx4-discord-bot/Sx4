@@ -6,11 +6,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import com.jockie.bot.core.Context;
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
 import com.jockie.bot.core.command.Command.AuthorPermissions;
 import com.jockie.bot.core.command.Command.BotPermissions;
+import com.jockie.bot.core.command.Context;
 import com.jockie.bot.core.command.ICommand.ContentOverflowPolicy;
 import com.jockie.bot.core.command.Initialize;
 import com.jockie.bot.core.command.impl.CommandEvent;
@@ -28,13 +28,14 @@ import com.sx4.utils.GeneralUtils;
 import com.sx4.utils.HelpUtils;
 import com.sx4.utils.PagedUtils;
 import com.sx4.utils.PagedUtils.PagedResult;
-import net.dv8tion.jda.core.EmbedBuilder;
-import net.dv8tion.jda.core.Permission;
-import net.dv8tion.jda.core.entities.Category;
-import net.dv8tion.jda.core.entities.Channel;
-import net.dv8tion.jda.core.entities.Member;
-import net.dv8tion.jda.core.entities.Role;
-import net.dv8tion.jda.core.entities.TextChannel;
+
+import net.dv8tion.jda.api.EmbedBuilder;
+import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.Category;
+import net.dv8tion.jda.api.entities.GuildChannel;
+import net.dv8tion.jda.api.entities.Member;
+import net.dv8tion.jda.api.entities.Role;
+import net.dv8tion.jda.api.entities.TextChannel;
 
 @Module
 public class AntiInviteModule {
@@ -185,7 +186,7 @@ public class AntiInviteModule {
 		@AuthorPermissions({Permission.MANAGE_SERVER})
 		public void whitelist(CommandEvent event, @Context Connection connection, @Argument(value="user | role | channel", endless=true) String argument) {
 			Member member = ArgumentUtils.getMember(event.getGuild(), argument);
-			Channel channel = ArgumentUtils.getTextChannelOrParent(event.getGuild(), argument);
+			GuildChannel channel = ArgumentUtils.getTextChannelOrParent(event.getGuild(), argument);
 			Role role = ArgumentUtils.getRole(event.getGuild(), argument);
 			
 			if (role == null && member == null && channel == null) {
@@ -258,7 +259,7 @@ public class AntiInviteModule {
 			}
 			
 			Member member = ArgumentUtils.getMember(event.getGuild(), argument);
-			Channel channel = ArgumentUtils.getTextChannelOrParent(event.getGuild(), argument);
+			GuildChannel channel = ArgumentUtils.getTextChannelOrParent(event.getGuild(), argument);
 			Role role = ArgumentUtils.getRole(event.getGuild(), argument);
 			
 			if (role == null && member == null && channel == null) {
@@ -332,7 +333,7 @@ public class AntiInviteModule {
 			public void channels(CommandEvent event, @Context Connection connection) {
 				List<String> channelIds = r.table("antiad").get(event.getGuild().getId()).g("whitelist").g("channels").run(connection);
 				
-				List<Channel> channels = new ArrayList<>();
+				List<GuildChannel> channels = new ArrayList<>();
 				for (String channelId : channelIds) {
 					TextChannel textChannel = event.getGuild().getTextChannelById(channelId);
 					if (textChannel == null) {
@@ -350,7 +351,7 @@ public class AntiInviteModule {
 					return;
 				}
 				
-				PagedResult<Channel> paged = new PagedResult<>(channels)
+				PagedResult<GuildChannel> paged = new PagedResult<>(channels)
 						.setAuthor("Whitelisted Channels", null, event.getGuild().getIconUrl())
 						.setPerPage(15)
 						.setDeleteMessage(false)

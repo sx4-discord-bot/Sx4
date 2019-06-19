@@ -10,12 +10,12 @@ import com.sx4.core.Sx4Bot;
 import com.sx4.settings.Settings;
 import com.sx4.utils.TimeUtils;
 
-import net.dv8tion.jda.bot.sharding.ShardManager;
-import net.dv8tion.jda.core.EmbedBuilder;
-import net.dv8tion.jda.core.entities.Guild;
-import net.dv8tion.jda.core.events.guild.GuildJoinEvent;
-import net.dv8tion.jda.core.events.guild.GuildLeaveEvent;
-import net.dv8tion.jda.core.hooks.ListenerAdapter;
+import net.dv8tion.jda.api.EmbedBuilder;
+import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.events.guild.GuildJoinEvent;
+import net.dv8tion.jda.api.events.guild.GuildLeaveEvent;
+import net.dv8tion.jda.api.hooks.ListenerAdapter;
+import net.dv8tion.jda.api.sharding.ShardManager;
 
 public class ServerLogEvents extends ListenerAdapter {
 	
@@ -70,7 +70,7 @@ public class ServerLogEvents extends ListenerAdapter {
 		embed.addField("Server ID", event.getGuild().getId(), true);
 		embed.addField("Server Owner", event.getGuild().getOwner().getUser().getAsTag() + "\n" + event.getGuild().getOwnerId(), true);
 		embed.addField("Server Members", String.format("%,d member%s", event.getGuild().getMembers().size(), event.getGuild().getMembers().size() == 1 ? "" : "s"), true);
-		embed.addField("Stayed for", TimeUtils.toTimeString(Duration.between(event.getGuild().getSelfMember().getJoinDate(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds(), ChronoUnit.SECONDS), false);
+		embed.addField("Stayed for", TimeUtils.toTimeString(Duration.between(event.getGuild().getSelfMember().getTimeJoined(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds(), ChronoUnit.SECONDS), false);
 		
 		supportServer.getTextChannelById(Settings.SERVER_LOGS_ID).sendMessage(embed.build()).queue();
 		

@@ -4,11 +4,11 @@ import static com.rethinkdb.RethinkDB.r;
 
 import java.util.Map;
 
-import com.jockie.bot.core.Context;
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
 import com.jockie.bot.core.command.Command.AuthorPermissions;
 import com.jockie.bot.core.command.Command.BotPermissions;
+import com.jockie.bot.core.command.Context;
 import com.jockie.bot.core.command.ICommand.ContentOverflowPolicy;
 import com.jockie.bot.core.command.Initialize;
 import com.jockie.bot.core.command.impl.CommandEvent;
@@ -22,10 +22,10 @@ import com.sx4.core.Sx4Command;
 import com.sx4.utils.ArgumentUtils;
 import com.sx4.utils.HelpUtils;
 
-import net.dv8tion.jda.core.EmbedBuilder;
-import net.dv8tion.jda.core.Permission;
-import net.dv8tion.jda.core.entities.TextChannel;
-import net.dv8tion.jda.core.entities.Webhook;
+import net.dv8tion.jda.api.EmbedBuilder;
+import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.TextChannel;
+import net.dv8tion.jda.api.entities.Webhook;
 
 @Module
 public class LogsModule {
@@ -103,7 +103,7 @@ public class LogsModule {
 			if (oldChannel != null) {
 				if (dataRan.containsKey("webhook_id") && dataRan.containsKey("webhook_token")) {
 					if (dataRan.get("webhook_id") != null && dataRan.get("webhook_token") != null) {
-						oldChannel.getWebhooks().queue(webhooks -> {
+						oldChannel.retrieveWebhooks().queue(webhooks -> {
 							for (Webhook webhook : webhooks) {
 								if (webhook.getId().equals((String) dataRan.get("webhook_id")) && webhook.getToken().equals((String) dataRan.get("webhook_token"))) {
 									webhook.delete().queue();

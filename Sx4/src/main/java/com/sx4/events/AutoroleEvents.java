@@ -8,13 +8,13 @@ import java.util.Map;
 import com.rethinkdb.net.Cursor;
 import com.sx4.core.Sx4Bot;
 
-import net.dv8tion.jda.bot.sharding.ShardManager;
-import net.dv8tion.jda.core.Permission;
-import net.dv8tion.jda.core.entities.Guild;
-import net.dv8tion.jda.core.entities.Member;
-import net.dv8tion.jda.core.entities.Role;
-import net.dv8tion.jda.core.events.guild.member.GuildMemberJoinEvent;
-import net.dv8tion.jda.core.hooks.ListenerAdapter;
+import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.entities.Member;
+import net.dv8tion.jda.api.entities.Role;
+import net.dv8tion.jda.api.events.guild.member.GuildMemberJoinEvent;
+import net.dv8tion.jda.api.hooks.ListenerAdapter;
+import net.dv8tion.jda.api.sharding.ShardManager;
 
 public class AutoroleEvents extends ListenerAdapter {
 
@@ -34,25 +34,25 @@ public class AutoroleEvents extends ListenerAdapter {
 		if (roleData != null && botRoleData == null) {
 			Role role = event.getGuild().getRoleById(roleData);
 			if (role != null && self.canInteract(role)) {
-				event.getGuild().getController().addSingleRoleToMember(event.getMember(), role).queue();
+				event.getGuild().addRoleToMember(event.getMember(), role).queue();
 			}
 		} else if (roleData == null && botRoleData != null) {
 			if (event.getMember().getUser().isBot()) {
 				Role role = event.getGuild().getRoleById(botRoleData);
 				if (role != null && self.canInteract(role)) {
-					event.getGuild().getController().addSingleRoleToMember(event.getMember(), role).queue();
+					event.getGuild().addRoleToMember(event.getMember(), role).queue();
 				}
 			}
 		} else {
 			if (event.getMember().getUser().isBot()) {
 				Role role = event.getGuild().getRoleById(botRoleData);
 				if (role != null && self.canInteract(role)) {
-					event.getGuild().getController().addSingleRoleToMember(event.getMember(), role).queue();
+					event.getGuild().addRoleToMember(event.getMember(), role).queue();
 				}
 			} else {
 				Role role = event.getGuild().getRoleById(roleData);
 				if (role != null && self.canInteract(role)) {
-					event.getGuild().getController().addSingleRoleToMember(event.getMember(), role).queue();
+					event.getGuild().addRoleToMember(event.getMember(), role).queue();
 				}
 			}
 		}
@@ -94,22 +94,22 @@ public class AutoroleEvents extends ListenerAdapter {
 					for (Member member : guild.getMembers()) {
 						if (roleData != null && botRoleData == null) {
 							if (role != null && self.canInteract(role) && !member.getRoles().contains(role)) {
-								guild.getController().addSingleRoleToMember(member, role).queue();
+								guild.addRoleToMember(member, role).queue();
 							}
 						} else if (roleData == null && botRoleData != null) {
 							if (member.getUser().isBot()) {
 								if (botRole != null && self.canInteract(botRole) && !member.getRoles().contains(botRole)) {
-									guild.getController().addSingleRoleToMember(member, botRole).queue();
+									guild.addRoleToMember(member, botRole).queue();
 								}
 							}
 						} else {
 							if (member.getUser().isBot()) {
 								if (botRole != null && self.canInteract(botRole) && !member.getRoles().contains(botRole)) {
-									guild.getController().addSingleRoleToMember(member, botRole).queue();
+									guild.addRoleToMember(member, botRole).queue();
 								}
 							} else {
 								if (role != null && self.canInteract(role) && !member.getRoles().contains(role)) {
-									guild.getController().addSingleRoleToMember(member, role).queue();
+									guild.addRoleToMember(member, role).queue();
 								}
 							}
 						}

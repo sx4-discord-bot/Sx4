@@ -8,6 +8,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -20,14 +21,13 @@ import com.sx4.core.Sx4CommandEventListener;
 import com.sx4.settings.Settings;
 import com.sx4.utils.GiveawayUtils;
 
-import net.dv8tion.jda.bot.sharding.ShardManager;
-import net.dv8tion.jda.core.EmbedBuilder;
-import net.dv8tion.jda.core.entities.Guild;
-import net.dv8tion.jda.core.entities.Member;
-import net.dv8tion.jda.core.entities.MessageReaction;
-import net.dv8tion.jda.core.entities.TextChannel;
-import net.dv8tion.jda.core.exceptions.ErrorResponseException;
-import net.dv8tion.jda.core.requests.RequestFuture;
+import net.dv8tion.jda.api.EmbedBuilder;
+import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.entities.Member;
+import net.dv8tion.jda.api.entities.MessageReaction;
+import net.dv8tion.jda.api.entities.TextChannel;
+import net.dv8tion.jda.api.exceptions.ErrorResponseException;
+import net.dv8tion.jda.api.sharding.ShardManager;
 
 public class GiveawayEvents {
 
@@ -66,11 +66,11 @@ public class GiveawayEvents {
 		TextChannel channel = guild.getTextChannelById((String) data.get("channel"));
 		
 		if (channel != null) {
-			channel.getMessageById((String) data.get("message")).queue(message -> {
+			channel.retrieveMessageById((String) data.get("message")).queue(message -> {
 				for (MessageReaction reaction : message.getReactions()) {
 					if (reaction.getReactionEmote().getName().equals("🎉")) {
 						List<Member> members = new ArrayList<>();
-						RequestFuture<?> future = reaction.getUsers().forEachAsync((user) -> {
+						CompletableFuture<?> future = reaction.retrieveUsers().forEachAsync((user) -> {
 							Member reactionMember = guild.getMember(user);
 							if (reactionMember != null && !members.contains(reactionMember) && reactionMember != guild.getSelfMember()) {
 								members.add(reactionMember);

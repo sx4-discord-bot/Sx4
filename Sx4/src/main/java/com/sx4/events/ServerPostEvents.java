@@ -9,7 +9,7 @@ import com.sx4.interfaces.Sx4Callback;
 import com.sx4.settings.Settings;
 import com.sx4.utils.TokenUtils;
 
-import net.dv8tion.jda.bot.sharding.ShardManager;
+import net.dv8tion.jda.api.sharding.ShardManager;
 import okhttp3.MediaType;
 import okhttp3.Request;
 import okhttp3.RequestBody;
@@ -20,7 +20,7 @@ public class ServerPostEvents {
 		if (!Settings.CANARY) {
 			Sx4Bot.scheduledExectuor.scheduleAtFixedRate(() -> {
 				ShardManager shardManager = Sx4Bot.getShardManager();
-				String botId = shardManager.getApplicationInfo().getJDA().getSelfUser().getId();
+				String botId = shardManager.getShardById(0).getSelfUser().getId();
 				int guildCount = shardManager.getGuilds().size();
 				int shardCount = shardManager.getShardsTotal();
 				

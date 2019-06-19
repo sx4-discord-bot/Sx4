@@ -9,11 +9,13 @@ repositories {
 }
 
 dependencies {
-	implementation('com.github.21Joakim:Jockie-Utils:1.+') {
+	implementation('com.github.21Joakim:Jockie-Utils:jda-v4-SNAPSHOT') {
 		exclude group: 'net.dv8tion', module: 'JDA'
 	}
+	
+	compile 'club.minnced:discord-webhooks:0.1.7'
 
-	implementation 'net.dv8tion:JDA:3+'
+	implementation 'net.dv8tion:JDA:4+'
 	
 	compile group: 'com.rethinkdb', name: 'rethinkdb-driver', version: '2.3.3'
 	
@@ -21,7 +23,7 @@ dependencies {
 	
 	compile group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.9.8'
 	
-	compile 'com.jagrosh:jda-utilities-commons:2.1.5'
+	compile 'com.jagrosh:jda-utilities-commons:2+'
 	
 	compile group: 'org.codehaus.groovy', name: 'groovy', version: '3.0.0-beta-1', ext: 'pom'
 }

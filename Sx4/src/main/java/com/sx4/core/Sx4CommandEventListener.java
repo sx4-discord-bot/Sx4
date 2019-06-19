@@ -16,17 +16,19 @@ import com.rethinkdb.gen.ast.Get;
 import com.sx4.pair.CustomPair;
 import com.sx4.settings.Settings;
 
-import net.dv8tion.jda.core.EmbedBuilder;
-import net.dv8tion.jda.core.entities.Message.Attachment;
-import net.dv8tion.jda.core.entities.MessageEmbed;
-import net.dv8tion.jda.core.entities.TextChannel;
-import net.dv8tion.jda.webhook.WebhookClient;
-import net.dv8tion.jda.webhook.WebhookClientBuilder;
+import club.minnced.discord.webhook.WebhookClient;
+import club.minnced.discord.webhook.WebhookClientBuilder;
+import club.minnced.discord.webhook.send.WebhookEmbed;
+import club.minnced.discord.webhook.send.WebhookEmbed.EmbedField;
+import club.minnced.discord.webhook.send.WebhookEmbedBuilder;
+import net.dv8tion.jda.api.EmbedBuilder;
+import net.dv8tion.jda.api.entities.Message.Attachment;
+import net.dv8tion.jda.api.entities.TextChannel;
 
 public class Sx4CommandEventListener extends CommandEventListener {
 	
 	private WebhookClient commandWebhook = new WebhookClientBuilder(Long.valueOf(Settings.COMMANDS_WEBHOOK_ID), Settings.COMMANDS_WEBHOOK_TOKEN).build();
-	private List<MessageEmbed> commandStore = new ArrayList<>();
+	private List<WebhookEmbed> commandStore = new ArrayList<>();
 	private static CustomPair<Long, Long> averageExecutionTime = new CustomPair<>(0L, 0L);
 	
 	public static long getAverageExecutionTime() {
@@ -66,26 +68,26 @@ public class Sx4CommandEventListener extends CommandEventListener {
 
 	@SuppressWarnings("unchecked")
 	public void onCommandExecuted(ICommand command, CommandEvent event) {
-		if (event.isDeveloper()) {
+		if (event.isAuthorDeveloper()) {
 			event.removeCooldown();
 		}
 		
 		averageExecutionTime.setPair(averageExecutionTime.getKey() + event.getTimeSinceStarted(), averageExecutionTime.getValue() + 1);
 		
-		EmbedBuilder embed = new EmbedBuilder();
+		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
 		embed.setTimestamp(Instant.now());
-		embed.addField("Message", String.format("Content: %s\nID: %s", event.getMessage().getContentRaw(), event.getMessage().getId()), false);
-		embed.addField("Channel", String.format("Name: %s\nID: %s", event.getChannel().getName(), event.getChannel().getId()), false);
-		embed.addField("Guild", String.format("Name: %s\nID: %s\nShard: %d\nMember Count: %,d", event.getGuild().getName(), event.getGuild().getId(), event.getJDA().getShardInfo().getShardId(), event.getGuild().getMembers().size()), false);
-		embed.addField("Author", String.format("Tag: %s\nID: %s", event.getAuthor().getAsTag(), event.getAuthor().getId()), false);
-		embed.addField("Command", String.format("Prefix: %s\nCommand: %s\nUnparsed Argument: %s", event.getPrefix(), command.getCommandTrigger(), event.getMessage().getContentRaw().substring(event.getPrefix().length() + event.getCommandTrigger().length())), false);
+		embed.addField(new EmbedField(false, "Message", String.format("Content: %s\nID: %s", event.getMessage().getContentRaw(), event.getMessage().getId())));
+		embed.addField(new EmbedField(false, "Channel", String.format("Name: %s\nID: %s", event.getChannel().getName(), event.getChannel().getId())));
+		embed.addField(new EmbedField(false, "Guild", String.format("Name: %s\nID: %s\nShard: %d\nMember Count: %,d", event.getGuild().getName(), event.getGuild().getId(), event.getJDA().getShardInfo().getShardId(), event.getGuild().getMembers().size())));
+		embed.addField(new EmbedField(false, "Author", String.format("Tag: %s\nID: %s", event.getAuthor().getAsTag(), event.getAuthor().getId())));
+		embed.addField(new EmbedField(false, "Command", String.format("Prefix: %s\nCommand: %s\nUnparsed Argument: %s", event.getPrefix(), command.getCommandTrigger(), event.getMessage().getContentRaw().substring(event.getPrefix().length() + event.getCommandTrigger().length()))));
 
 		List<String> attachments = new ArrayList<>();
 		for (Attachment attachment : event.getMessage().getAttachments()) {
 			attachments.add(attachment.getUrl());
 		}
 		
-		embed.addField("Attachments", attachments.isEmpty() ? "None" : String.join("\n", attachments), false);
+		embed.addField(new EmbedField(false, "Attachments", attachments.isEmpty() ? "None" : String.join("\n", attachments)));
 		
 		if (this.commandStore.size() == 10) {
 			this.commandWebhook.send(this.commandStore);

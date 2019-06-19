@@ -8,13 +8,13 @@ import java.util.Map;
 import com.rethinkdb.gen.ast.Get;
 import com.sx4.core.Sx4Bot;
 
-import net.dv8tion.jda.core.Permission;
-import net.dv8tion.jda.core.entities.Role;
-import net.dv8tion.jda.core.events.message.guild.GuildMessageDeleteEvent;
-import net.dv8tion.jda.core.events.message.guild.react.GuildMessageReactionAddEvent;
-import net.dv8tion.jda.core.events.message.guild.react.GuildMessageReactionRemoveEvent;
-import net.dv8tion.jda.core.events.role.RoleDeleteEvent;
-import net.dv8tion.jda.core.hooks.ListenerAdapter;
+import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.Role;
+import net.dv8tion.jda.api.events.message.guild.GuildMessageDeleteEvent;
+import net.dv8tion.jda.api.events.message.guild.react.GuildMessageReactionAddEvent;
+import net.dv8tion.jda.api.events.message.guild.react.GuildMessageReactionRemoveEvent;
+import net.dv8tion.jda.api.events.role.RoleDeleteEvent;
+import net.dv8tion.jda.api.hooks.ListenerAdapter;
 
 public class SelfroleEvents extends ListenerAdapter {
 
@@ -66,7 +66,7 @@ public class SelfroleEvents extends ListenerAdapter {
 						}
 						
 						if (event.getMember().getRoles().contains(role)) {
-							event.getGuild().getController().removeSingleRoleFromMember(event.getMember(), role).queue();
+							event.getGuild().removeRoleFromMember(event.getMember(), role).queue();
 							if ((boolean) data.get("dm")) {
 								event.getMember().getUser().openPrivateChannel().queue(channel -> channel.sendMessage("You no longer have the role **" + role.getName() + "** <:done:403285928233402378>").queue(), e -> {});
 							}
@@ -88,7 +88,7 @@ public class SelfroleEvents extends ListenerAdapter {
 								}
 							}
 							
-							event.getGuild().getController().addSingleRoleToMember(event.getMember(), role).queue();
+							event.getGuild().addRoleToMember(event.getMember(), role).queue();
 							if ((boolean) data.get("dm")) {
 								event.getMember().getUser().openPrivateChannel().queue(channel -> channel.sendMessage("You now have the role **" + role.getName() + "** <:done:403285928233402378>").queue(), e -> {});
 							}
@@ -147,7 +147,7 @@ public class SelfroleEvents extends ListenerAdapter {
 						}
 						
 						if (event.getMember().getRoles().contains(role)) {
-							event.getGuild().getController().removeSingleRoleFromMember(event.getMember(), role).queue();
+							event.getGuild().removeRoleFromMember(event.getMember(), role).queue();
 							if ((boolean) data.get("dm")) {
 								event.getMember().getUser().openPrivateChannel().queue(channel -> channel.sendMessage("You no longer have the role **" + role.getName() + "** <:done:403285928233402378>").queue(), e -> {});
 							}
@@ -169,7 +169,7 @@ public class SelfroleEvents extends ListenerAdapter {
 								}
 							}
 							
-							event.getGuild().getController().addSingleRoleToMember(event.getMember(), role).queue();
+							event.getGuild().addRoleToMember(event.getMember(), role).queue();
 							if ((boolean) data.get("dm")) {
 								event.getMember().getUser().openPrivateChannel().queue(channel -> channel.sendMessage("You now have the role **" + role.getName() + "** <:done:403285928233402378>").queue(), e -> {});
 							}

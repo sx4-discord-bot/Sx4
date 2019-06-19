@@ -8,10 +8,11 @@ import java.util.regex.Pattern;
 import com.sx4.core.Sx4Bot;
 import com.sx4.settings.Settings;
 
-import net.dv8tion.jda.core.entities.Channel;
-import net.dv8tion.jda.core.entities.Guild;
-import net.dv8tion.jda.core.entities.Member;
-import net.dv8tion.jda.core.entities.Role;
+import net.dv8tion.jda.api.entities.Activity;
+import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.entities.GuildChannel;
+import net.dv8tion.jda.api.entities.Member;
+import net.dv8tion.jda.api.entities.Role;
 
 public class FunUtils {
 	
@@ -39,7 +40,7 @@ public class FunUtils {
 		List<String> channelMentions = new ArrayList<>(), channelNames = new ArrayList<>();
 		while (channelMentionMatch.find()) {
 			channelMentions.add(channelMentionMatch.group(1));
-			Channel channel = guild.getTextChannelById(channelMentionMatch.group(2));
+			GuildChannel channel = guild.getTextChannelById(channelMentionMatch.group(2));
 			channelNames.add(channel.getName());
 		}
 		
@@ -87,11 +88,13 @@ public class FunUtils {
 			}
 		}
 		
-		if (member.getGame() != null) {
+		if (!member.getActivities().isEmpty()) {
 			badges.add("playing.png");
 			
-			if (member.getGame().getUrl() != null) {
-				badges.add("steaming.png");
+			for (Activity activity : member.getActivities()) {
+				if (activity.getUrl() != null) {
+					badges.add("steaming.png");
+				}
 			}
 		}
 		

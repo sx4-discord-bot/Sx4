@@ -6,6 +6,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executors;
@@ -49,15 +50,16 @@ import com.sx4.utils.HelpUtils;
 import com.sx4.utils.ModUtils;
 import com.sx4.utils.TimeUtils;
 
-import net.dv8tion.jda.bot.sharding.DefaultShardManagerBuilder;
-import net.dv8tion.jda.bot.sharding.ShardManager;
-import net.dv8tion.jda.core.JDA;
-import net.dv8tion.jda.core.Permission;
-import net.dv8tion.jda.core.entities.Guild;
-import net.dv8tion.jda.core.entities.Member;
-import net.dv8tion.jda.core.entities.Role;
-import net.dv8tion.jda.core.entities.impl.JDAImpl;
-import net.dv8tion.jda.core.handle.GuildSetupController;
+import net.dv8tion.jda.api.JDA;
+import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.entities.Member;
+import net.dv8tion.jda.api.entities.Role;
+import net.dv8tion.jda.api.hooks.InterfacedEventManager;
+import net.dv8tion.jda.api.sharding.DefaultShardManagerBuilder;
+import net.dv8tion.jda.api.sharding.ShardManager;
+import net.dv8tion.jda.internal.JDAImpl;
+import net.dv8tion.jda.internal.handle.GuildSetupController;
 import okhttp3.OkHttpClient;
 
 public class Sx4Bot {
@@ -209,15 +211,41 @@ public class Sx4Bot {
 				})
 				.addPreExecuteCheck(listener.defaultBotPermissionCheck)
 				.addPreExecuteCheck(listener.defaultNsfwCheck)
-				.addPreExecuteCheck((event, command) -> CheckUtils.checkPermissions(event, command.getAuthorDiscordPermissions().toArray(new Permission[0]), true));
+				.addPreExecuteCheck((event, command) -> CheckUtils.checkPermissions(event, EnumSet.copyOf(command.getAuthorDiscordPermissions()), true));
 		
 		listener.setPrefixesFunction(event -> ModUtils.getPrefixes(event.getGuild(), event.getAuthor()));
 		listener.addCommandEventListener(new Sx4CommandEventListener());
 		
-		bot = new DefaultShardManagerBuilder().setToken(Settings.BOT_OATH).build();
-		bot.addEventListener(listener, waiter);
-		bot.addEventListener(new ChangesMessageCache(), new SelfroleEvents(), new ModEvents(), new ConnectionEvents(), new AwaitEvents(), new StatsEvents(), new WelcomerEvents(), new AutoroleEvents(), 
-				new TriggerEvents(), new ImageModeEvents(), new MuteEvents(), new AntiInviteEvents(), new AntiLinkEvents(), new ServerLogEvents(), Sx4Bot.eventHandler, new ExceptionHandler(), GuildMessageCache.INSTANCE);
+		InterfacedEventManager eventManager = new InterfacedEventManager();
+
+		eventManager.register(Sx4Bot.listener);
+		eventManager.register(Sx4Bot.waiter);
+
+		eventManager.register(new ChangesMessageCache());
+		eventManager.register(GuildMessageCache.INSTANCE);
+
+		eventManager.register(new SelfroleEvents());
+		eventManager.register(new ModEvents());
+		eventManager.register(new ConnectionEvents());
+		eventManager.register(new AwaitEvents());
+		eventManager.register(new StatsEvents());
+		eventManager.register(new WelcomerEvents());
+		eventManager.register(new AutoroleEvents());
+		eventManager.register(new TriggerEvents());
+		eventManager.register(new ImageModeEvents());
+		eventManager.register(new MuteEvents());
+		eventManager.register(new AntiInviteEvents());
+		eventManager.register(new AntiLinkEvents());
+		eventManager.register(new ServerLogEvents());
+
+		eventManager.register(Sx4Bot.eventHandler);
+		eventManager.register(new ExceptionHandler());
+		eventManager.register(new ServerLogEvents());
+		
+		bot = new DefaultShardManagerBuilder()
+				.setToken(Settings.BOT_OAUTH)
+				.setEventManagerProvider(shardId -> eventManager)
+				.build();
 		
 		Thread.setDefaultUncaughtExceptionHandler((thread, exception) -> {
 			System.err.println("[Uncaught]");

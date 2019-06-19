@@ -3,6 +3,7 @@ package com.sx4.utils;
 import static com.rethinkdb.RethinkDB.r;
 
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 
@@ -12,12 +13,12 @@ import com.rethinkdb.net.Connection;
 import com.sx4.core.Sx4Bot;
 import com.sx4.settings.Settings;
 
-import net.dv8tion.jda.core.OnlineStatus;
-import net.dv8tion.jda.core.Permission;
-import net.dv8tion.jda.core.entities.Member;
-import net.dv8tion.jda.core.entities.Message;
-import net.dv8tion.jda.core.entities.PermissionOverride;
-import net.dv8tion.jda.core.entities.Role;
+import net.dv8tion.jda.api.OnlineStatus;
+import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.Member;
+import net.dv8tion.jda.api.entities.Message;
+import net.dv8tion.jda.api.entities.PermissionOverride;
+import net.dv8tion.jda.api.entities.Role;
 
 public class CheckUtils {
 	
@@ -39,13 +40,13 @@ public class CheckUtils {
 	}
 
 	@SuppressWarnings("unchecked")
-	public static boolean checkPermissions(CommandEvent event, Permission[] permissions, boolean reply) {
+	public static boolean checkPermissions(CommandEvent event, EnumSet<Permission> permissions, boolean reply) {
 		Connection connection = Sx4Bot.getConnection();
 		Get data = r.table("fakeperms").get(event.getGuild().getId());
 		Map<String, Object> dataRan = data.run(connection);
 		long rolePerms = 0;
 		long userPerms = 0;
-		if (event.isDeveloper()) {
+		if (event.isAuthorDeveloper()) {
 			return true;
 		} else if (event.getGuild().getOwner().equals(event.getMember())) {
 			return true;
@@ -78,7 +79,7 @@ public class CheckUtils {
 			PermissionOverride userOverrides = event.getTextChannel().getPermissionOverride(event.getMember());
 			long totalPerms = rolePerms | userPerms | Permission.getRaw(event.getMember().getPermissions()) | (userOverrides == null ? 0 : userOverrides.getAllowedRaw());
 			
-			List<Permission> userPermissions = Permission.getPermissions(totalPerms);
+			EnumSet<Permission> userPermissions = Permission.getPermissions(totalPerms);
 			List<Permission> missingPermissions = new ArrayList<Permission>();
 			if (userPermissions.contains(Permission.ADMINISTRATOR)) {
 				return true;
@@ -88,6 +89,7 @@ public class CheckUtils {
 						missingPermissions.add(permission);
 					}
 				}
+				
 				if (missingPermissions.isEmpty()) {
 					return true;
 				} else {
@@ -119,7 +121,8 @@ public class CheckUtils {
 					rolePerms |= event.getTextChannel().getPermissionOverride(role).getAllowedRaw();
 				}
 			}
-			List<Permission> userPermissions = Permission.getPermissions(Permission.getRaw(event.getMember().getPermissions()) | (userOverrides == null ? 0 : userOverrides.getAllowedRaw()) | rolePerms);
+			
+			EnumSet<Permission> userPermissions = Permission.getPermissions(Permission.getRaw(event.getMember().getPermissions()) | (userOverrides == null ? 0 : userOverrides.getAllowedRaw()) | rolePerms);
 			List<Permission> missingPermissions = new ArrayList<Permission>();
 			if (userPermissions.contains(Permission.ADMINISTRATOR)) {
 				return true;
@@ -156,15 +159,14 @@ public class CheckUtils {
 	
 	@SuppressWarnings("unchecked")
 	public static boolean checkBlacklist(CommandEvent event) {
-		if (!event.isDeveloper()) {
+		if (!event.isAuthorDeveloper()) {
 			Connection connection = Sx4Bot.getConnection();
 			List<String> botBlacklistData = r.table("blacklist").get("owner").g("users").run(connection);			
 			if (botBlacklistData.contains(event.getMember().getUser().getId()) && !event.getCommand().getCommand().equals("support")) {
 				event.reply("You are blacklisted from using the bot, to appeal make sure to join the bots support server which can be found in `" + event.getPrefix() + "support`").queue();
 				return false;
 			} else {
-				Permission[] administrator = {Permission.ADMINISTRATOR};
-				if (CheckUtils.checkPermissions(event, administrator, false) == false) {
+				if (CheckUtils.checkPermissions(event, EnumSet.of(Permission.ADMINISTRATOR), false) == false) {
 					Map<String, Object> blacklistData = r.table("blacklist").get(event.getGuild().getId()).run(connection);
 					if (blacklistData != null) {
 						List<Map<String, Object>> commands = (List<Map<String, Object>>) blacklistData.get("commands");					

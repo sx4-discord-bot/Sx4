@@ -27,7 +27,6 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import com.jockie.bot.core.Context;
 import com.jockie.bot.core.JockieUtils;
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
@@ -35,6 +34,7 @@ import com.jockie.bot.core.command.Command.Async;
 import com.jockie.bot.core.command.Command.AuthorPermissions;
 import com.jockie.bot.core.command.Command.BotPermissions;
 import com.jockie.bot.core.command.Command.Cooldown;
+import com.jockie.bot.core.command.Context;
 import com.jockie.bot.core.command.ICommand;
 import com.jockie.bot.core.command.ICommand.ContentOverflowPolicy;
 import com.jockie.bot.core.command.Initialize;
@@ -63,34 +63,36 @@ import com.sx4.utils.PagedUtils.PagedResult;
 import com.sx4.utils.TimeUtils;
 import com.sx4.utils.TokenUtils;
 
-import net.dv8tion.jda.core.EmbedBuilder;
-import net.dv8tion.jda.core.JDA;
-import net.dv8tion.jda.core.JDAInfo;
-import net.dv8tion.jda.core.OnlineStatus;
-import net.dv8tion.jda.core.Permission;
-import net.dv8tion.jda.core.entities.Category;
-import net.dv8tion.jda.core.entities.Channel;
-import net.dv8tion.jda.core.entities.ChannelType;
-import net.dv8tion.jda.core.entities.Emote;
-import net.dv8tion.jda.core.entities.Game;
-import net.dv8tion.jda.core.entities.Game.GameType;
-import net.dv8tion.jda.core.entities.Guild;
-import net.dv8tion.jda.core.entities.Guild.ExplicitContentLevel;
-import net.dv8tion.jda.core.entities.Invite;
-import net.dv8tion.jda.core.entities.Member;
-import net.dv8tion.jda.core.entities.Message.Attachment;
-import net.dv8tion.jda.core.entities.MessageEmbed;
-import net.dv8tion.jda.core.entities.Role;
-import net.dv8tion.jda.core.entities.TextChannel;
-import net.dv8tion.jda.core.entities.User;
-import net.dv8tion.jda.core.entities.VoiceChannel;
-import net.dv8tion.jda.core.events.message.MessageReceivedEvent;
-import net.dv8tion.jda.core.exceptions.ErrorResponseException;
-import net.dv8tion.jda.core.utils.tuple.Pair;
+import net.dv8tion.jda.api.EmbedBuilder;
+import net.dv8tion.jda.api.JDA;
+import net.dv8tion.jda.api.JDAInfo;
+import net.dv8tion.jda.api.OnlineStatus;
+import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.Activity;
+import net.dv8tion.jda.api.entities.Activity.ActivityType;
+import net.dv8tion.jda.api.entities.Category;
+import net.dv8tion.jda.api.entities.ChannelType;
+import net.dv8tion.jda.api.entities.ClientType;
+import net.dv8tion.jda.api.entities.Emote;
+import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.entities.Guild.ExplicitContentLevel;
+import net.dv8tion.jda.api.entities.GuildChannel;
+import net.dv8tion.jda.api.entities.Invite;
+import net.dv8tion.jda.api.entities.Member;
+import net.dv8tion.jda.api.entities.Message.Attachment;
+import net.dv8tion.jda.api.entities.MessageEmbed;
+import net.dv8tion.jda.api.entities.Role;
+import net.dv8tion.jda.api.entities.TextChannel;
+import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.entities.VoiceChannel;
+import net.dv8tion.jda.api.exceptions.ErrorResponseException;
+import net.dv8tion.jda.internal.utils.tuple.Pair;
 import okhttp3.Request;
 
 @Module
 public class GeneralModule {
+	
+	private final DateTimeFormatter formatter = this.formatter;
 	
 	@Command(value="voice link", aliases={"voicelink", "vclink", "vc link", "screenshare"}, description="Gives you a link which allows you to screenshare in the current or specified voice channel")
 	public String voiceLink(CommandEvent event, @Argument(value="voice channel", nullDefault=true, endless=true) String voiceChannel) {
@@ -403,7 +405,7 @@ public class GeneralModule {
 					}
 					
 					try {
-						channel.getMessageById(messageId).queue(message -> {
+						channel.retrieveMessageById(messageId).queue(message -> {
 							if (suggestion.get("accepted") != null) {
 								event.reply("This suggestion already has a verdict :no_entry:").queue();
 								return;
@@ -487,7 +489,7 @@ public class GeneralModule {
 					}
 					
 					try {
-						channel.getMessageById(messageId).queue(message -> {
+						channel.retrieveMessageById(messageId).queue(message -> {
 							if (suggestion.get("accepted") != null) {
 								event.reply("This suggestion already has a verdict :no_entry:").queue();
 								return;
@@ -571,7 +573,7 @@ public class GeneralModule {
 					}
 					
 					try {
-						channel.getMessageById(messageId).queue(message -> {
+						channel.retrieveMessageById(messageId).queue(message -> {
 							if (suggestion.get("accepted") == null) {
 								event.reply("This suggestion is already pending :no_entry:").queue();
 								return;
@@ -657,7 +659,7 @@ public class GeneralModule {
 					}
 					
 					try {
-						channel.getMessageById(messageId).queue(message -> {
+						channel.retrieveMessageById(messageId).queue(message -> {
 							message.delete().queue();
 							event.reply("That suggestion has been deleted <:done:403285928233402378>").queue();
 							data.update(row -> {
@@ -970,15 +972,15 @@ public class GeneralModule {
 			if (!attachment.isImage()) {
 				int indexOfPeriod = attachment.getUrl().lastIndexOf(".");
 				String fileType = attachment.getUrl().substring(indexOfPeriod + 1);
-				try {
-					attachment.withInputStream(file -> {
-						String fileContent = new String(file.readAllBytes());						
+				attachment.retrieveInputStream().thenAcceptAsync(file -> {
+					String fileContent;
+					try {
+						fileContent = new String(file.readAllBytes());
 						event.reply(("```" + fileType + "\n" + fileContent).substring(0, Math.min(1997, fileContent.length())) + "```").queue();
-					});
-				} catch (IOException e) {
-					event.reply("Failed to decode the file :no_entry:").queue();
-					return;
-				}
+					} catch (IOException e) {
+						event.reply("Oops, something went wrong there, try again :no_entry:").queue();
+					}	
+				});
 				
 				return;
 			}
@@ -1021,7 +1023,7 @@ public class GeneralModule {
 			embed.addField("Bitrate", voiceChannel.getBitrate()/1000 + " kbps", true);
 		} else if (category != null) {	
 			List<String> channels = new ArrayList<String>();
-			for (Channel channel : category.getChannels()) {
+			for (GuildChannel channel : category.getChannels()) {
 				if (channel.getType() == ChannelType.VOICE) {
 					channels.add(channel.getName());
 				} else if (channel.getType() == ChannelType.TEXT) {
@@ -1086,24 +1088,24 @@ public class GeneralModule {
 		}
 	}
 	
-	@Command(value="reaction", description="Test your reaction speed using this command", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+	/*Command(value="reaction", description="Test your reaction speed using this command", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 	@Cooldown(value=70)
 	public void reaction(CommandEvent event) {
 		event.reply("In the next 2-10 seconds i'm going to send a message this is when you type whatever you want in the chat from there i will work out the time between me sending the message and you sending your message and that'll be your reaction time :stopwatch:").queue();
 		event.reply("**GO!**").queueAfter(GeneralUtils.getRandomNumber(2, 10), TimeUnit.SECONDS, message -> {
-			long beforeResponse = Clock.systemUTC().millis();
+			long beforeResponse = System.currentTimeMillis();
 			
 			Sx4Bot.waiter.waitForEvent(MessageReceivedEvent.class, e -> {
 				return e.getChannel().equals(event.getChannel()) && e.getAuthor().equals(event.getAuthor());
 			}, e -> {
-				long afterResponse = Clock.systemUTC().millis();
+				long afterResponse = System.currentTimeMillis();
 				long responseTime = (afterResponse - beforeResponse - event.getJDA().getPing());
 				event.reply("It took you **" + responseTime + "ms** to respond.").queue();
 				event.removeCooldown();
 			}, 60, TimeUnit.SECONDS, () -> event.reply("Response timed out :stopwatch:").queue());
 			
 		});
-	}
+	}*/
 	
 	@Command(value="invites", aliases={"inv"}, description="View how many invites a user has in a server and where they are ranked in the whole server", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 	@BotPermissions({Permission.MANAGE_SERVER})
@@ -1112,14 +1114,14 @@ public class GeneralModule {
 		if (userArgument == null) {
 			user = event.getAuthor();
 		} else {
-			user = ArgumentUtils.getUser(event.getGuild(), userArgument);
+			user = ArgumentUtils.getUser(userArgument);
 			if (user == null) {
 				event.reply("I could not find that user :no_entry:").queue();
 				return;
 			}
 		}
 		
-		event.getGuild().getInvites().queue(invites -> {
+		event.getGuild().retrieveInvites().queue(invites -> {
 			if (invites.isEmpty()) {
 				event.reply("No invites have been created in this server :no_entry:").queue();
 				return;
@@ -1170,7 +1172,7 @@ public class GeneralModule {
 	@Command(value="leaderboard invites", aliases={"lb invites", "invites lb", "inviteslb", "lbinvites", "invites leaderboard"}, description="View a leaderboard of users with the most invites", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 	@BotPermissions({Permission.MANAGE_SERVER, Permission.MESSAGE_EMBED_LINKS})
 	public void leaderboardInvites(CommandEvent event) {
-		event.getGuild().getInvites().queue(invites -> {
+		event.getGuild().retrieveInvites().queue(invites -> {
 			int totalInvites = 0;
 			List<Pair<String, Integer>> entriesList = new ArrayList<Pair<String, Integer>>();
 			for (Invite invite : invites) {
@@ -1278,7 +1280,7 @@ public class GeneralModule {
 			} 
 		}
 		
-		guildMembers.sort((a, b) -> a.getJoinDate().compareTo(b.getJoinDate()));
+		guildMembers.sort((a, b) -> a.getTimeJoined().compareTo(b.getTimeJoined()));
 		if (joinPosition != null) {
 			member = guildMembers.get(joinPosition - 1);
 			
@@ -1302,7 +1304,7 @@ public class GeneralModule {
 		EmbedBuilder embed = new EmbedBuilder()
 				.setAuthor(emote.getName(), emote.getImageUrl(), emote.getImageUrl())
 				.setThumbnail(emote.getImageUrl())
-				.setTimestamp(emote.getCreationTime())
+				.setTimestamp(emote.getTimeCreated())
 				.setFooter("Created", null)
 				.addField("ID", emote.getId(), false)
 				.addField("Server", emote.getGuild().getName() + " (" + emote.getGuild().getId() + ")", false);
@@ -1450,7 +1452,7 @@ public class GeneralModule {
 	public void ping(CommandEvent event) {
 		long timestamp = System.currentTimeMillis();
 		event.getChannel().sendTyping().queue(q -> {
-			event.reply(String.format("Pong! :ping_pong:\n\n:stopwatch: **%dms**\n:heartbeat: **%dms**", System.currentTimeMillis() - timestamp, event.getJDA().getPing())).queue();
+			event.reply(String.format("Pong! :ping_pong:\n\n:stopwatch: **%dms**\n:heartbeat: **%dms**", System.currentTimeMillis() - timestamp, event.getJDA().getGatewayPing())).queue();
 		});
 	}
 	
@@ -1545,7 +1547,7 @@ public class GeneralModule {
 				.setDescription(description)
 				.setAuthor("Info!", null, event.getSelfUser().getEffectiveAvatarUrl())
 				.setColor(Settings.EMBED_COLOUR)
-				.addField("Stats", String.format("Ping: %dms\nServers: %,d\nUsers: %,d\nCommands: %d", event.getJDA().getPing(), event.getShardManager().getGuilds().size(), event.getShardManager().getUsers().size(), event.getCommandListener().getAllCommands().size()), true)
+				.addField("Stats", String.format("Ping: %dms\nServers: %,d\nUsers: %,d\nCommands: %d", event.getJDA().getGatewayPing(), event.getShardManager().getGuilds().size(), event.getShardManager().getUsers().size(), event.getCommandListener().getAllCommands().size()), true)
 				.addField("Credits", "[Taiitoo#7419 (Host)](https://taiitoo.tk)\n[Victor#6359 (Ex Host)](https://vjserver.ddns.net)\n[ETLegacy](https://discord.gg/MqQsmF7)\n[Nexus](https://discord.gg/BEdrSaW)\n[RethinkDB]"
 						+ "(https://www.rethinkdb.com/api/java/)\n[JDA](https://github.com/DV8FromTheWorld/JDA)\n[Jockie Utils](https://github.com/21Joakim/Jockie-Utils)", true)
 				.addField("Sx4", "Developers: " + String.join(", ", developers) + "\nInvite: [Click Here](https://discordapp.com/oauth2/authorize?client_id=440996323156819968&permissions=8&scope=bot)\nSupport: "
@@ -1559,7 +1561,7 @@ public class GeneralModule {
 	public void shardInfo(CommandEvent event) {
 		int totalShards = event.getJDA().getShardInfo().getShardTotal();
 		EmbedBuilder embed = new EmbedBuilder();
-		embed.setDescription(String.format("```prolog\nTotal Shards: %d\nTotal Servers: %,d\nTotal Users: %,d\nAverage Ping: %.0fms```", totalShards, event.getShardManager().getGuilds().size(), event.getShardManager().getUsers().size(), event.getShardManager().getAveragePing()));
+		embed.setDescription(String.format("```prolog\nTotal Shards: %d\nTotal Servers: %,d\nTotal Users: %,d\nAverage Ping: %.0fms```", totalShards, event.getShardManager().getGuilds().size(), event.getShardManager().getUsers().size(), event.getShardManager().getAverageGatewayPing()));
 		embed.setAuthor("Shard Info!", null, event.getSelfUser().getEffectiveAvatarUrl());
 		embed.setFooter("> Indicates what shard your server is in", event.getAuthor().getEffectiveAvatarUrl());
 		embed.setColor(Settings.EMBED_COLOUR);
@@ -1567,7 +1569,7 @@ public class GeneralModule {
 		for (int i = 0; i < totalShards; i++) {
 			JDA shard = event.getShardManager().getShardById(i);
 			String currentShard = event.getJDA().getShardInfo().getShardId() == i ? "> " : "";
-			embed.addField(currentShard + "Shard " + (i + 1), String.format("%,d servers\n%,d users\n%dms", shard.getGuilds().size(), shard.getUsers().size(), shard.getPing()), true);
+			embed.addField(currentShard + "Shard " + (i + 1), String.format("%,d servers\n%,d users\n%dms", shard.getGuilds().size(), shard.getUsers().size(), shard.getGatewayPing()), true);
 		}
 		
 		event.reply(embed.build()).queue();
@@ -1721,7 +1723,7 @@ public class GeneralModule {
 				.setAuthor(role.getName() + " Role Info", null, event.getGuild().getIconUrl())
 				.setColor(role.getColor())
 				.setFooter("Created", null)
-				.setTimestamp(role.getCreationTime())
+				.setTimestamp(role.getTimeCreated())
 				.setThumbnail(event.getGuild().getIconUrl())
 				.addField("Role ID", role.getId(), true)
 				.addField("Role Colour", String.format("Hex: #%s\nRGB: %s", GeneralUtils.getHex(role.getColorRaw()), GeneralUtils.getRGB(role.getColorRaw())), true)
@@ -2013,7 +2015,7 @@ public class GeneralModule {
 					embed.setAuthor(user.getAsTag(), null, user.getEffectiveAvatarUrl());
 					embed.setThumbnail(user.getEffectiveAvatarUrl());
 					embed.addField("User ID", user.getId(), true);
-					embed.addField("Joined Discord", user.getCreationTime().format(DateTimeFormatter.ofPattern("dd LLL yyyy HH:mm")), true);
+					embed.addField("Joined Discord", user.getTimeCreated().format(this.formatter), true);
 					embed.addField("Bot", user.isBot() ? "Yes" : "No", true);
 					event.reply(embed.build()).queue();
 				});
@@ -2024,37 +2026,37 @@ public class GeneralModule {
 
 		if (member != null) {
 			String description = "";
-			if (member.getGame() != null) {
-				Game game = member.getGame();
-				if (game.isRich()) {
-					if (game.getName().equals("Spotify")) {
-						String currentTime = TimeUtils.getTimeFormat(game.getTimestamps().getElapsedTime(ChronoUnit.SECONDS));
-						String totalTime = TimeUtils.getTimeFormat((game.getTimestamps().getEnd()/1000) - (game.getTimestamps().getStart()/1000));
-						description = String.format("Listening to [%s by %s](https://open.spotify.com/track/%s) `[%s/%s]`", game.asRichPresence().getDetails(), game.asRichPresence().getState().split(";")[0], game.asRichPresence().getSyncId(), currentTime, totalTime);
+			if (member.getActivities() != null) {
+				Activity activity = member.getActivities().get(0);
+				if (activity.isRich()) {
+					if (activity.getName().equals("Spotify")) {
+						String currentTime = TimeUtils.getTimeFormat(activity.getTimestamps().getElapsedTime(ChronoUnit.SECONDS));
+						String totalTime = TimeUtils.getTimeFormat((activity.getTimestamps().getEnd()/1000) - (activity.getTimestamps().getStart()/1000));
+						description = String.format("Listening to [%s by %s](https://open.spotify.com/track/%s) `[%s/%s]`", activity.asRichPresence().getDetails(), activity.asRichPresence().getState().split(";")[0], activity.asRichPresence().getSyncId(), currentTime, totalTime);
 					} else {
-						description = GeneralUtils.title(game.getType().equals(GameType.DEFAULT) ? "Playing" : game.getType().toString()) + game.getName() + (game.getTimestamps() != null ? " for " + 
-								TimeUtils.toTimeString(Clock.systemUTC().instant().getEpochSecond() - (game.getTimestamps().getStart()/1000), ChronoUnit.SECONDS) : "");  
+						description = GeneralUtils.title(activity.getType().equals(ActivityType.DEFAULT) ? "Playing" : activity.getType().toString()) + activity.getName() + (activity.getTimestamps() != null ? " for " + 
+								TimeUtils.toTimeString(Clock.systemUTC().instant().getEpochSecond() - (activity.getTimestamps().getStart()/1000), ChronoUnit.SECONDS) : "");  
 					}
-				} else if (game.getType().equals(GameType.STREAMING)) {
-					description = String.format("Streaming [%s](%s)", game.getName(), member.getGame().getUrl());
+				} else if (activity.getType().equals(ActivityType.STREAMING)) {
+					description = String.format("Streaming [%s](%s)", activity.getName(), activity.getUrl());
 				} else {
-					description = GeneralUtils.title(game.getType().equals(GameType.DEFAULT) ? "Playing" : game.getType().toString()) + game.getName() + (game.getTimestamps() != null ? " for " + 
-							TimeUtils.toTimeString(Clock.systemUTC().instant().getEpochSecond() - (game.getTimestamps().getStart()/1000), ChronoUnit.SECONDS) : "");																															
+					description = GeneralUtils.title(activity.getType().equals(ActivityType.DEFAULT) ? "Playing" : activity.getType().toString()) + activity.getName() + (activity.getTimestamps() != null ? " for " + 
+							TimeUtils.toTimeString(Clock.systemUTC().instant().getEpochSecond() - (activity.getTimestamps().getStart()/1000), ChronoUnit.SECONDS) : "");																															
 				}
 			}
 			
 			embed.setAuthor(member.getUser().getAsTag(), null, member.getUser().getEffectiveAvatarUrl());
 			embed.setThumbnail(member.getUser().getEffectiveAvatarUrl());
-			embed.setDescription(description);
+			embed.setDescription(description + (!member.getOnlineStatus(ClientType.MOBILE).equals(OnlineStatus.OFFLINE) ? " 📱" : ""));
 			
 			if (!event.getGuild().getMembers().contains(member)) {
 				embed.addField("User ID", member.getUser().getId(), true);
-				embed.addField("Joined Discord", member.getUser().getCreationTime().format(DateTimeFormatter.ofPattern("dd LLL yyyy HH:mm")), true);
+				embed.addField("Joined Discord", member.getUser().getTimeCreated().format(this.formatter), true);
 				embed.addField("Status", statuses.get(member.getOnlineStatus()), true);
 				embed.addField("Bot", member.getUser().isBot() ? "Yes" : "No", true);
 			} else { 
 				List<Member> guildMembers = new ArrayList<Member>(event.getGuild().getMembers());
-				guildMembers.sort((a, b) -> a.getJoinDate().compareTo(b.getJoinDate()));
+				guildMembers.sort((a, b) -> a.getTimeJoined().compareTo(b.getTimeJoined()));
 				int joinPosition = guildMembers.indexOf(member) + 1;
 				
 				List<String> memberRoles = new ArrayList<String>();
@@ -2064,8 +2066,9 @@ public class GeneralModule {
 				
 				embed.setColor(member.getColor());
 				embed.setFooter("Join Position: " + GeneralUtils.getNumberSuffix(joinPosition), null);
-				embed.addField("Joined Discord", member.getUser().getCreationTime().format(DateTimeFormatter.ofPattern("dd LLL yyyy HH:mm")), true);
-				embed.addField("Joined " + event.getGuild().getName(), member.getJoinDate().format(DateTimeFormatter.ofPattern("dd LLL yyyy HH:mm")), true);
+				embed.addField("Joined Discord", member.getUser().getTimeCreated().format(this.formatter), true);
+				embed.addField("Joined " + event.getGuild().getName(), member.getTimeJoined().format(this.formatter), true);
+				embed.addField("Boosting Since", event.getGuild().getBoosters().contains(member) ? member.getTimeBoosted().format(this.formatter) : "Not Boosting", true);
 				embed.addField("Nickname", member.getNickname() == null ? "None" : member.getNickname(), true);
 				embed.addField("Discriminator", member.getUser().getDiscriminator(), true);
 				embed.addField("Bot", member.getUser().isBot() ? "Yes" : "No", true);
@@ -2110,11 +2113,12 @@ public class GeneralModule {
 		EmbedBuilder embed = new EmbedBuilder();
 		embed.setAuthor(event.getGuild().getName(), null, event.getGuild().getIconUrl());
 		embed.setThumbnail(event.getGuild().getIconUrl());
-		embed.setDescription(event.getGuild().getName() + " was created on " + event.getGuild().getCreationTime().format(DateTimeFormatter.ofPattern("dd LLL yyyy HH:mm")));
+		embed.setDescription(event.getGuild().getName() + " was created on " + event.getGuild().getTimeCreated().format(this.formatter));
 		embed.addField("Region", event.getGuild().getRegion().getName() + " " + (event.getGuild().getRegion().getEmoji() == null ? "" : event.getGuild().getRegion().getEmoji()), true);
 		embed.addField("Total users/bots",  totalMembersSize + " user" + (totalMembersSize == 1 ? "" : "s") + "/bot" + (totalMembersSize == 1 ? "" : "s"), true);
 		embed.addField("Users", members.size() + " user" + (members.size() == 1 ? "" : "s") + " (" + onlineMembers.size() + " Online)", true);
 		embed.addField("Bots", bots.size() + " user" + (bots.size() == 1 ? "" : "s") + " (" + onlineBots.size() + " Online)", true);
+		embed.addField("Boosts", event.getGuild().getBoostCount() + " booster" + (event.getGuild().getBoostCount() == 1 ? "" : "s") + " (Tier " + event.getGuild().getBoostTier().getKey() + ")", true);
 		embed.addField("Text Channels", String.valueOf(event.getGuild().getTextChannels().size()), true);
 		embed.addField("Voice Channels", String.valueOf(event.getGuild().getVoiceChannels().size()), true);
 		embed.addField("Categories", String.valueOf(event.getGuild().getCategories().size()), true);

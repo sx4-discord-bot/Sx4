@@ -8,8 +8,8 @@ import com.sx4.economy.tools.Rod;
 import com.sx4.economy.tools.Tool;
 import com.sx4.utils.EconomyUtils;
 
-import net.dv8tion.jda.bot.sharding.ShardManager;
-import net.dv8tion.jda.core.entities.User;
+import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.sharding.ShardManager;
 
 public class AuctionItem {
 	

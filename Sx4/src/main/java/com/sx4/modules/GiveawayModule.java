@@ -17,15 +17,15 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 
-import com.jockie.bot.core.Context;
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
 import com.jockie.bot.core.command.Command.AuthorPermissions;
 import com.jockie.bot.core.command.Command.BotPermissions;
-import com.jockie.bot.core.command.ICommand.ContentOverflowPolicy;
+import com.jockie.bot.core.command.Context;
 import com.jockie.bot.core.command.Initialize;
 import com.jockie.bot.core.command.impl.CommandEvent;
 import com.jockie.bot.core.command.impl.CommandImpl;
+import com.jockie.bot.core.command.ICommand.ContentOverflowPolicy;
 import com.jockie.bot.core.module.Module;
 import com.rethinkdb.gen.ast.Get;
 import com.rethinkdb.model.OptArgs;
@@ -39,14 +39,13 @@ import com.sx4.utils.HelpUtils;
 import com.sx4.utils.PagedUtils;
 import com.sx4.utils.TimeUtils;
 
-import net.dv8tion.jda.core.EmbedBuilder;
-import net.dv8tion.jda.core.Permission;
-import net.dv8tion.jda.core.entities.Member;
-import net.dv8tion.jda.core.entities.MessageEmbed;
-import net.dv8tion.jda.core.entities.MessageReaction;
-import net.dv8tion.jda.core.entities.TextChannel;
-import net.dv8tion.jda.core.exceptions.ErrorResponseException;
-import net.dv8tion.jda.core.requests.RequestFuture;
+import net.dv8tion.jda.api.EmbedBuilder;
+import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.Member;
+import net.dv8tion.jda.api.entities.MessageEmbed;
+import net.dv8tion.jda.api.entities.MessageReaction;
+import net.dv8tion.jda.api.entities.TextChannel;
+import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 
 @Module
 public class GiveawayModule {
@@ -93,11 +92,11 @@ public class GiveawayModule {
 						return;
 					}
 					
-					channel.getMessageById((String) giveaway.get("message")).queue(message -> {
+					channel.retrieveMessageById((String) giveaway.get("message")).queue(message -> {
 						for (MessageReaction reaction : message.getReactions()) {
 							if (reaction.getReactionEmote().getName().equals("🎉")) {
 								List<Member> members = new ArrayList<>();
-								RequestFuture<?> future = reaction.getUsers().forEachAsync((user) -> {
+								CompletableFuture<?> future = reaction.retrieveUsers().forEachAsync((user) -> {
 									Member reactionMember = event.getGuild().getMember(user);
 									if (reactionMember != null && !members.contains(reactionMember) && reactionMember != event.getSelfMember()) {
 										members.add(reactionMember);
@@ -159,7 +158,7 @@ public class GiveawayModule {
 			
 			//very hacky
 			try {
-				event.getTextChannel().getMessageById(messageId).queue(message -> {
+				event.getTextChannel().retrieveMessageById(messageId).queue(message -> {
 					if (!message.getAuthor().equals(event.getSelfUser())) {
 						event.reply("That message is not a giveaway message :no_entry:").queue();
 						return;
@@ -195,7 +194,7 @@ public class GiveawayModule {
 										List<Member> possibleWinners = new ArrayList<>();
 										for (MessageReaction reaction : message.getReactions()) {
 											if (reaction.getReactionEmote().getName().equals("🎉")) {
-												RequestFuture<?> future = reaction.getUsers().forEachAsync((user) -> {
+												CompletableFuture<?> future = reaction.retrieveUsers().forEachAsync((user) -> {
 													Member reactionMember = event.getGuild().getMember(user);
 													if (!members.contains(reactionMember) && reactionMember != event.getSelfMember()) {
 														possibleWinners.add(reactionMember);
@@ -270,7 +269,7 @@ public class GiveawayModule {
 					String channelData = (String) giveaway.get("channel");
 					TextChannel channel = event.getGuild().getTextChannelById(channelData);
 					if (channel != null) {
-						channel.getMessageById((String) giveaway.get("message")).queue(message -> message.delete().queue(null, e -> {}), e -> {});
+						channel.retrieveMessageById((String) giveaway.get("message")).queue(message -> message.delete().queue(null, e -> {}), e -> {});
 					}
 					
 					data.update(row -> r.hashMap("giveaways", row.g("giveaways").filter(d -> d.g("id").ne(giveawayId)))).runNoReply(connection);

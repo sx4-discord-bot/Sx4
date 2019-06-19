@@ -3,9 +3,9 @@ package com.sx4.core;
 import com.jockie.bot.core.command.impl.CommandListener;
 import com.sx4.cache.GuildMessageCache;
 
-import net.dv8tion.jda.core.entities.Message;
-import net.dv8tion.jda.core.events.Event;
-import net.dv8tion.jda.core.events.message.MessageUpdateEvent;
+import net.dv8tion.jda.api.entities.Message;
+import net.dv8tion.jda.api.events.Event;
+import net.dv8tion.jda.api.events.message.MessageUpdateEvent;
 
 public class Sx4CommandListener extends CommandListener {
 

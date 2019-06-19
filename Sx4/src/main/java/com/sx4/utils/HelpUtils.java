@@ -15,9 +15,9 @@ import com.sx4.core.Sx4Command;
 import com.sx4.settings.Settings;
 import com.sx4.utils.PagedUtils.PagedResult;
 
-import net.dv8tion.jda.core.EmbedBuilder;
-import net.dv8tion.jda.core.entities.MessageEmbed;
-import net.dv8tion.jda.core.entities.User;
+import net.dv8tion.jda.api.EmbedBuilder;
+import net.dv8tion.jda.api.entities.MessageEmbed;
+import net.dv8tion.jda.api.entities.User;
 
 public class HelpUtils {
 	

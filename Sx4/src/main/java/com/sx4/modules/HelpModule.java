@@ -23,8 +23,8 @@ import com.sx4.utils.HelpUtils;
 import com.sx4.utils.PagedUtils;
 import com.sx4.utils.PagedUtils.PagedResult;
 
-import net.dv8tion.jda.core.EmbedBuilder;
-import net.dv8tion.jda.core.Permission;
+import net.dv8tion.jda.api.EmbedBuilder;
+import net.dv8tion.jda.api.Permission;
 
 @Module
 public class HelpModule {
@@ -44,7 +44,7 @@ public class HelpModule {
 			String imageUrl = advertisement.get("image").equals(JSONObject.NULL) ? null : advertisement.getString("image");
 			
 			List<String> moduleNames = new ArrayList<>();
-			for (CategoryImpl category : event.isDeveloper() ? Categories.ALL : Categories.ALL_PUBLIC) {
+			for (CategoryImpl category : event.isAuthorDeveloper() ? Categories.ALL : Categories.ALL_PUBLIC) {
 				moduleNames.add(category.getName());
 			}
 			
@@ -73,7 +73,7 @@ public class HelpModule {
 				});
 			});
 		} else {
-			CategoryImpl module = ArgumentUtils.getModule(commandName, event.isDeveloper());
+			CategoryImpl module = ArgumentUtils.getModule(commandName, event.isAuthorDeveloper());
 			List<Sx4Command> commands = ArgumentUtils.getCommands(commandName);
 			if (commands.isEmpty() && module == null) {
 				event.reply("I could not find that command/module :no_entry:").queue();

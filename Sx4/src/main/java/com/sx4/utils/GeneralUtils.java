@@ -57,7 +57,7 @@ public class GeneralUtils {
 	}
 	
 	public static String getHex(int colourRaw) {
-		return String.format("#%06X", (0xFFFFFF & colourRaw));
+		return String.format("%06X", (0xFFFFFF & colourRaw));
 	}
 	
 	public static String getRGB(int colourRaw) {

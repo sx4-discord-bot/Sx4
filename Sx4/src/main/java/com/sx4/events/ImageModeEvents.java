@@ -2,6 +2,7 @@ package com.sx4.events;
 
 import static com.rethinkdb.RethinkDB.r;
 
+import java.time.OffsetDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.List;
@@ -13,11 +14,11 @@ import com.rethinkdb.net.Connection;
 import com.sx4.core.Sx4Bot;
 import com.sx4.utils.TimeUtils;
 
-import net.dv8tion.jda.core.entities.EmbedType;
-import net.dv8tion.jda.core.entities.Message.Attachment;
-import net.dv8tion.jda.core.entities.MessageEmbed;
-import net.dv8tion.jda.core.events.message.guild.GuildMessageReceivedEvent;
-import net.dv8tion.jda.core.hooks.ListenerAdapter;
+import net.dv8tion.jda.api.entities.EmbedType;
+import net.dv8tion.jda.api.entities.Message.Attachment;
+import net.dv8tion.jda.api.entities.MessageEmbed;
+import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent;
+import net.dv8tion.jda.api.hooks.ListenerAdapter;
 
 public class ImageModeEvents extends ListenerAdapter {
 
@@ -100,10 +101,11 @@ public class ImageModeEvents extends ListenerAdapter {
 				long slowmode = Long.parseLong((String) channelData.get("slowmode"));
 				if (slowmode != 0) {
 					List<Map<String, Object>> users = (List<Map<String, Object>>) channelData.get("users");
+					OffsetDateTime timeCreated = event.getMessage().getTimeCreated();
 					for (Map<String, Object> userData : users) {
 						if (userData.get("id").equals(event.getAuthor().getId())) {
-							if (event.getMessage().getCreationTime().toEpochSecond() - (double) userData.get("timestamp") < slowmode) {
-								long timeTill = (long) ((double) userData.get("timestamp") - event.getMessage().getCreationTime().toEpochSecond() + slowmode);
+							if (timeCreated.toEpochSecond() - (double) userData.get("timestamp") < slowmode) {
+								long timeTill = (long) ((double) userData.get("timestamp") - timeCreated.toEpochSecond() + slowmode);
 								event.getMessage().delete().queue(null, e -> {});
 								event.getChannel().sendMessage(event.getAuthor().getAsMention() + ", You can send another image in " + TimeUtils.toTimeString(timeTill, ChronoUnit.SECONDS) + " :stopwatch:").queue(message -> {
 									message.delete().queueAfter(10, TimeUnit.SECONDS, null, e -> {});
@@ -111,7 +113,7 @@ public class ImageModeEvents extends ListenerAdapter {
 							} else {
 								channels.remove(channelData);
 								users.remove(userData);
-								userData.put("timestamp", (double) event.getMessage().getCreationTime().toInstant().toEpochMilli() / 1000);
+								userData.put("timestamp", (double) timeCreated.toInstant().toEpochMilli() / 1000);
 								users.add(userData);
 								channelData.put("users", users);
 								channels.add(channelData);
@@ -126,7 +128,7 @@ public class ImageModeEvents extends ListenerAdapter {
 					channels.remove(channelData);
 					Map<String, Object> userData = new HashMap<>();
 					userData.put("id", event.getAuthor().getId());
-					userData.put("timestamp", (double) event.getMessage().getCreationTime().toInstant().toEpochMilli() / 1000);
+					userData.put("timestamp", (double) timeCreated.toInstant().toEpochMilli() / 1000);
 					users.add(userData);
 					channelData.put("users", users);
 					channels.add(channelData);

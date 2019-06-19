@@ -13,6 +13,7 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -20,13 +21,13 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-import com.jockie.bot.core.Context;
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.category.impl.CategoryImpl;
 import com.jockie.bot.core.command.Command;
 import com.jockie.bot.core.command.Command.Async;
 import com.jockie.bot.core.command.Command.AuthorPermissions;
 import com.jockie.bot.core.command.Command.BotPermissions;
+import com.jockie.bot.core.command.Context;
 import com.jockie.bot.core.command.ICommand;
 import com.jockie.bot.core.command.ICommand.ContentOverflowPolicy;
 import com.jockie.bot.core.command.Initialize;
@@ -48,23 +49,24 @@ import com.sx4.utils.PagedUtils;
 import com.sx4.utils.PagedUtils.PagedResult;
 import com.sx4.utils.TimeUtils;
 
-import net.dv8tion.jda.core.EmbedBuilder;
-import net.dv8tion.jda.core.MessageBuilder;
-import net.dv8tion.jda.core.Permission;
-import net.dv8tion.jda.core.Region;
-import net.dv8tion.jda.core.entities.Channel;
-import net.dv8tion.jda.core.entities.Emote;
-import net.dv8tion.jda.core.entities.Icon;
-import net.dv8tion.jda.core.entities.Member;
-import net.dv8tion.jda.core.entities.Message;
-import net.dv8tion.jda.core.entities.Message.Attachment;
-import net.dv8tion.jda.core.entities.MessageEmbed;
-import net.dv8tion.jda.core.entities.PermissionOverride;
-import net.dv8tion.jda.core.entities.Role;
-import net.dv8tion.jda.core.entities.TextChannel;
-import net.dv8tion.jda.core.entities.User;
-import net.dv8tion.jda.core.entities.VoiceChannel;
-import net.dv8tion.jda.core.exceptions.ErrorResponseException;
+import net.dv8tion.jda.api.EmbedBuilder;
+import net.dv8tion.jda.api.MessageBuilder;
+import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.Region;
+import net.dv8tion.jda.api.entities.Emote;
+import net.dv8tion.jda.api.entities.Guild.Ban;
+import net.dv8tion.jda.api.entities.GuildChannel;
+import net.dv8tion.jda.api.entities.Icon;
+import net.dv8tion.jda.api.entities.Member;
+import net.dv8tion.jda.api.entities.Message;
+import net.dv8tion.jda.api.entities.Message.Attachment;
+import net.dv8tion.jda.api.entities.MessageEmbed;
+import net.dv8tion.jda.api.entities.PermissionOverride;
+import net.dv8tion.jda.api.entities.Role;
+import net.dv8tion.jda.api.entities.TextChannel;
+import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.entities.VoiceChannel;
+import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import okhttp3.Request;
 import okhttp3.Response;
 
@@ -80,7 +82,7 @@ public class ModModule {
 			Emote emote = ArgumentUtils.getEmote(event.getGuild(), argument);
 			if (emote != null) {
 				try {
-					event.getGuild().getController().createEmote(emote.getName(), Icon.from(new URL(emote.getImageUrl()).openStream())).queue(e -> {
+					event.getGuild().createEmote(emote.getName(), Icon.from(new URL(emote.getImageUrl()).openStream())).queue(e -> {
 						event.reply(e.getAsMention() + " has been created <:done:403285928233402378>").queue();
 					}, e -> {
 						if (e instanceof ErrorResponseException) {
@@ -180,7 +182,7 @@ public class ModModule {
 				}
 				
 				try {
-					event.getGuild().getController().createEmote(name == null ? "Unnamed_Emote" : name, Icon.from(new URL(url).openStream())).queue(e -> {
+					event.getGuild().createEmote(name == null ? "Unnamed_Emote" : name, Icon.from(new URL(url).openStream())).queue(e -> {
 						event.reply(e.getAsMention() + " has been created <:done:403285928233402378>").queue();
 					}, e -> {
 						if (e instanceof ErrorResponseException) {
@@ -202,11 +204,11 @@ public class ModModule {
 			if (!event.getMessage().getAttachments().isEmpty()) {
 				for (Attachment attachment : event.getMessage().getAttachments()) {
 					if (attachment.isImage()) {
-						try {
-							String name = attachment.getFileName().replace("-", "_").replace(" ", "_");
-							int periodIndex = name.lastIndexOf(".");
-							name = name.substring(0, periodIndex);
-							event.getGuild().getController().createEmote(name, attachment.getAsIcon()).queue(e -> {
+						String fileName = attachment.getFileName().replace("-", "_").replace(" ", "_");
+						int periodIndex = fileName.lastIndexOf(".");
+						String emoteName = fileName.substring(0, periodIndex);
+						attachment.retrieveAsIcon().thenAcceptAsync(stream -> {
+							event.getGuild().createEmote(emoteName, stream).queue(e -> {
 								event.reply(e.getAsMention() + " has been created <:done:403285928233402378>").queue();
 							}, e -> {
 								if (e instanceof ErrorResponseException) {
@@ -217,17 +219,15 @@ public class ModModule {
 									}
 								}
 							});
-						} catch (IOException e) {
-							event.reply("Oops something went wrong there, try again :no_entry:").queue();
-							return;
-						} 
+						}); 
+						
 						return;
 					}
 				}
 				
 				event.reply("None of the attachments you supplied were images or gifs :no_entry:").queue();
 			} else {
-				event.reply(HelpUtils.getHelpMessage(event.getActualCommand())).queue();
+				event.reply(HelpUtils.getHelpMessage(event.getCommand())).queue();
 			}
 		}
 	}
@@ -254,7 +254,7 @@ public class ModModule {
 				event.reply("Text channel names can not be longer than 100 characters :no_entry:").queue();
 				return;
 			}
-			event.getGuild().getController().createTextChannel(textChannelName).queue(channel -> {
+			event.getGuild().createTextChannel(textChannelName).queue(channel -> {
 				event.reply("Created the text channel <#" + channel.getId() + "> <:done:403285928233402378>").queue();
 			});
 		}
@@ -267,7 +267,7 @@ public class ModModule {
 				event.reply("Voice channel names can not be longer than 100 characters :no_entry:").queue();
 				return;
 			}
-			event.getGuild().getController().createVoiceChannel(voiceChannelName).queue(channel -> {
+			event.getGuild().createVoiceChannel(voiceChannelName).queue(channel -> {
 				event.reply("Created the voice channel `" + channel.getName() + "` <:done:403285928233402378>").queue();
 			});
 		}
@@ -337,8 +337,8 @@ public class ModModule {
 			return;
 		}
 		
-		event.getGuild().getController().createVoiceChannel("Temporary Voice Kick Channel").queue(channel -> {
-			event.getGuild().getController().moveVoiceMember(member, (VoiceChannel) channel).queue($ -> {
+		event.getGuild().createVoiceChannel("Temporary Voice Kick Channel").queue(channel -> {
+			event.getGuild().moveVoiceMember(member, (VoiceChannel) channel).queue($ -> {
 				channel.delete().queue();
 				event.reply("**" + member.getUser().getAsTag() + "** has been voice kicked <:done:403285928233402378>:ok_hand:").queue();
 			});
@@ -350,7 +350,7 @@ public class ModModule {
 	@BotPermissions({Permission.MESSAGE_MANAGE})
 	public void clearReactions(CommandEvent event, @Argument(value="message id") String messageId) {
 		try {
-			event.getTextChannel().getMessageById(messageId).queue(message -> {
+			event.getTextChannel().retrieveMessageById(messageId).queue(message -> {
 				message.clearReactions().queue();
 				event.reply("Cleared all reactions from that message <:done:403285928233402378>").queue();
 			}, e -> {
@@ -398,7 +398,7 @@ public class ModModule {
 			
 			Role role = ArgumentUtils.getRole(event.getGuild(), argument);
 			Member member = ArgumentUtils.getMember(event.getGuild(), argument);
-			Channel channel = ArgumentUtils.getTextChannelOrParent(event.getGuild(), argument);
+			GuildChannel channel = ArgumentUtils.getTextChannelOrParent(event.getGuild(), argument);
 			if (channel == null && role == null && member == null) {
 				event.reply("I could not find that user/role/channel :no_entry:").queue();
 				return;
@@ -526,7 +526,7 @@ public class ModModule {
 			
 			Role role = ArgumentUtils.getRole(event.getGuild(), argument);
 			Member member = ArgumentUtils.getMember(event.getGuild(), argument);
-			Channel channel = ArgumentUtils.getTextChannelOrParent(event.getGuild(), argument);
+			GuildChannel channel = ArgumentUtils.getTextChannelOrParent(event.getGuild(), argument);
 			if (channel == null && role == null && member == null) {
 				event.reply("I could not find that user/role/channel :no_entry:").queue();
 				return;
@@ -847,7 +847,7 @@ public class ModModule {
 			
 			Role role = ArgumentUtils.getRole(event.getGuild(), argument);
 			Member member = ArgumentUtils.getMember(event.getGuild(), argument);
-			Channel channel = ArgumentUtils.getTextChannelOrParent(event.getGuild(), argument);
+			GuildChannel channel = ArgumentUtils.getTextChannelOrParent(event.getGuild(), argument);
 			if (channel == null && role == null && member == null) {
 				event.reply("I could not find that user/role/channel :no_entry:").queue();
 				return;
@@ -975,7 +975,7 @@ public class ModModule {
 			
 			Role role = ArgumentUtils.getRole(event.getGuild(), argument);
 			Member member = ArgumentUtils.getMember(event.getGuild(), argument);
-			Channel channel = ArgumentUtils.getTextChannelOrParent(event.getGuild(), argument);
+			GuildChannel channel = ArgumentUtils.getTextChannelOrParent(event.getGuild(), argument);
 			if (channel == null && role == null && member == null) {
 				event.reply("I could not find that user/role/channel :no_entry:").queue();
 				return;
@@ -1321,7 +1321,7 @@ public class ModModule {
 					return;
 				}
 				
-				List<Permission> rolePermissions = Permission.getPermissions((long) roleObject.get("perms"));
+				EnumSet<Permission> rolePermissions = Permission.getPermissions((long) roleObject.get("perms"));
 				
 				int permissionValue = 0;
 				for (String permission : permissions) {
@@ -1372,7 +1372,7 @@ public class ModModule {
 					return;
 				}
 				
-				List<Permission> userPermissions = Permission.getPermissions((long) userObject.get("perms"));
+				EnumSet<Permission> userPermissions = Permission.getPermissions((long) userObject.get("perms"));
 				
 				int permissionValue = 0;
 				for (String permission : permissions) {
@@ -1433,7 +1433,7 @@ public class ModModule {
 			if (role != null) {
 				for (Map<String, Object> roleData : (List<Map<String, Object>>) data.get("roles")) {
 					if (roleData.get("id").equals(role.getId())) {
-						List<Permission> permissions = Permission.getPermissions((long) roleData.get("perms"));
+						EnumSet<Permission> permissions = Permission.getPermissions((long) roleData.get("perms"));
 						if (permissions.isEmpty()) {
 							event.reply("That role doesn't have any fake permissions :no_entry:").queue();
 							return;
@@ -1453,7 +1453,7 @@ public class ModModule {
 			} else if (member != null) {
 				for (Map<String, Object> userData : (List<Map<String, Object>>) data.get("users")) {
 					if (userData.get("id").equals(member.getUser().getId())) {
-						List<Permission> permissions = Permission.getPermissions((long) userData.get("perms"));
+						EnumSet<Permission> permissions = Permission.getPermissions((long) userData.get("perms"));
 						if (permissions.isEmpty()) {
 							event.reply("That user doesn't have any fake permissions :no_entry:").queue();
 							return;
@@ -1994,7 +1994,7 @@ public class ModModule {
 		
 		int membersMoved;
 		for (membersMoved = 0; membersMoved < fromVoiceChannel.getMembers().size(); membersMoved++) {
-			event.getGuild().getController().moveVoiceMember(fromVoiceChannel.getMembers().get(membersMoved), toVoiceChannel).queue();
+			event.getGuild().moveVoiceMember(fromVoiceChannel.getMembers().get(membersMoved), toVoiceChannel).queue();
 		}
 		
 		event.reply("Moved **" + membersMoved + "** member" + (membersMoved == 1 ? "" : "s") + " from `" + fromVoiceChannel.getName() + "` to `" + toVoiceChannel.getName() + "` <:done:403285928233402378>").queue();
@@ -2042,7 +2042,7 @@ public class ModModule {
 		}
 		
 		event.reply("Moved **" + member.getUser().getAsTag() + "** to `" + voiceChannel.getName() + "` <:done:403285928233402378>").queue();
-		event.getGuild().getController().moveVoiceMember(member, voiceChannel).queue();
+		event.getGuild().moveVoiceMember(member, voiceChannel).queue();
 	}
 	
 	@Command(value="rename", aliases={"nick", "nickname"}, description="Set a users nickname in the current server")
@@ -2077,7 +2077,7 @@ public class ModModule {
 		}
 		
 		event.reply("Renamed **" + member.getUser().getAsTag() + "** to `" + nickname + "` <:done:403285928233402378>:ok_hand:").queue();
-		event.getGuild().getController().setNickname(member, nickname).queue();
+		event.getGuild().modifyNickname(member, nickname).queue();
 	}
 	
 	/*public class PruneCommand extends Sx4Command {
@@ -2179,7 +2179,7 @@ public class ModModule {
 				event.getTextChannel().getHistory().retrievePast(limit).queue(messages -> {
 					long secondsNow = Clock.systemUTC().instant().getEpochSecond();
 					for (Message message : new ArrayList<>(messages)) {
-						if (secondsNow - message.getCreationTime().toEpochSecond() > 1209600) {
+						if (secondsNow - message.getTimeCreated().toEpochSecond() > 1209600) {
 							messages.remove(message);
 						}
 					}
@@ -2215,7 +2215,7 @@ public class ModModule {
 					for (Message message : new ArrayList<>(messages)) {
 						if (!message.getMember().equals(member)) {
 							messages.remove(message);
-						} else if (secondsNow - message.getCreationTime().toEpochSecond() > 1209600) {
+						} else if (secondsNow - message.getTimeCreated().toEpochSecond() > 1209600) {
 							messages.remove(message);
 						}
 					}
@@ -2253,7 +2253,7 @@ public class ModModule {
 				for (Message message : new ArrayList<>(messages)) {
 					if (!message.getAuthor().isBot()) {
 						messages.remove(message);
-					} else if (secondsNow - message.getCreationTime().toEpochSecond() > 1209600) {
+					} else if (secondsNow - message.getTimeCreated().toEpochSecond() > 1209600) {
 						messages.remove(message);
 					}
 				}
@@ -2290,7 +2290,7 @@ public class ModModule {
 				for (Message message : new ArrayList<>(messages)) {
 					if (!message.getContentRaw().toLowerCase().contains(text.toLowerCase())) {
 						messages.remove(message);
-					} else if (secondsNow - message.getCreationTime().toEpochSecond() > 1209600) {
+					} else if (secondsNow - message.getTimeCreated().toEpochSecond() > 1209600) {
 						messages.remove(message);
 					}
 				}
@@ -2433,7 +2433,7 @@ public class ModModule {
 							caseObject.put("reason", reason);
 							cases.add(caseObject);
 						} else {
-							channel.getMessageById((String) caseObject.get("message")).queue(message -> {
+							channel.retrieveMessageById((String) caseObject.get("message")).queue(message -> {
 								MessageEmbed oldEmbed = message.getEmbeds().get(0);
 								EmbedBuilder embed = new EmbedBuilder();
 								embed.setTitle(oldEmbed.getTitle());
@@ -2527,7 +2527,7 @@ public class ModModule {
 						embed.addField("Reason", reason, false);
 						event.reply(embed.build()).queue();
 					} else {
-						channel.getMessageById((String) caseObject.get("message")).queue(message -> {
+						channel.retrieveMessageById((String) caseObject.get("message")).queue(message -> {
 							event.reply(message.getEmbeds().get(0)).queue();
 						}, e -> {
 							if (e instanceof ErrorResponseException) {
@@ -2642,7 +2642,7 @@ public class ModModule {
 			}
 		}
 		
-		event.getGuild().getController().createRole().setName(roleName).setColor(colour).queue(role -> {
+		event.getGuild().createRole().setName(roleName).setColor(colour).queue(role -> {
 			event.reply("I have created the role **" + role.getName() + "** <:done:403285928233402378>:ok_hand:").queue();
 		});
 	}
@@ -2723,7 +2723,7 @@ public class ModModule {
 		}
 		
 		event.reply("**" + role.getName() + "** has been added to **" + member.getUser().getAsTag() + "** <:done:403285928233402378>:ok_hand:").queue();
-		event.getGuild().getController().addSingleRoleToMember(member, role).queue();
+		event.getGuild().addRoleToMember(member, role).queue();
 	}
 	
 	@Command(value="remove role", aliases={"removerole", "rr"}, description="Remove a specified role from any user")
@@ -2768,7 +2768,7 @@ public class ModModule {
 		}
 		
 		event.reply("**" + role.getName() + "** has been removed from **" + member.getUser().getAsTag() + "** <:done:403285928233402378>:ok_hand:").queue();
-		event.getGuild().getController().removeSingleRoleFromMember(member, role).queue();
+		event.getGuild().removeRoleFromMember(member, role).queue();
 	}
 	
 	@Command(value="kick", description="Kick a user from the current server")
@@ -2809,7 +2809,7 @@ public class ModModule {
 			}, e -> {});
 		}
 		
-		event.getGuild().getController().kick(member, (reason == null ? "" : reason) + " [" + event.getAuthor().getAsTag() + "]").queue();
+		event.getGuild().kick(member, (reason == null ? "" : reason) + " [" + event.getAuthor().getAsTag() + "]").queue();
 		ModUtils.createModLogAndOffence(event.getGuild(), connection, event.getAuthor(), member.getUser(), "Kick", reason);
 	}
 	
@@ -2819,30 +2819,38 @@ public class ModModule {
 	public void ban(CommandEvent event, @Context Connection connection, @Argument(value="user") String userArgument, @Argument(value="reason", endless=true, nullDefault=true) String reason) {
 		Member member = ArgumentUtils.getMember(event.getGuild(), userArgument);
 		if (member == null) {
-			User user = ArgumentUtils.getUser(event.getGuild(), userArgument);
+			User user = ArgumentUtils.getUser(userArgument);
 			if (user == null) {
 				ArgumentUtils.getUserInfo(userArgument, userObject -> {
 					if (userObject == null) {
 						event.reply("I could not find that user :no_entry:").queue();
 						return;
 					} else {
-						event.getGuild().getBan(userObject).queue($ -> {
-							event.reply("That user is already banned :no_entry:").queue();
-						}, e -> {
+						event.getGuild().retrieveBanList().queue(bans -> {
+							for (Ban ban : bans) {
+								if (ban.getUser().equals(userObject)) {
+									event.reply("That user is already banned :no_entry:").queue();
+									return;
+								}
+							}
+							
 							event.reply("**" + userObject.getAsTag() + "** has been banned <:done:403285928233402378>:ok_hand:").queue();
-							event.getGuild().getController().ban(userObject, 1, (reason == null ? "" : reason) + " [" + event.getAuthor().getAsTag() + "]").queue();
+							event.getGuild().ban(userObject, 1, (reason == null ? "" : reason) + " [" + event.getAuthor().getAsTag() + "]").queue();
 							ModUtils.createModLogAndOffence(event.getGuild(), connection, event.getAuthor(), userObject, "Ban", reason);
 						});
 					}
 				});
-				
-				return;
 			} else {
-				event.getGuild().getBan(user).queue($ -> {
-					event.reply("That user is already banned :no_entry:").queue();
-				}, e -> {
+				event.getGuild().retrieveBanList().queue(bans -> {
+					for (Ban ban : bans) {
+						if (ban.getUser().equals(user)) {
+							event.reply("That user is already banned :no_entry:").queue();
+							return;
+						}
+					}
+					
 					event.reply("**" + user.getAsTag() + "** has been banned <:done:403285928233402378>:ok_hand:").queue();
-					event.getGuild().getController().ban(user, 1, (reason == null ? "" : reason) + " [" + event.getAuthor().getAsTag() + "]").queue();
+					event.getGuild().ban(user, 1, (reason == null ? "" : reason) + " [" + event.getAuthor().getAsTag() + "]").queue();
 					ModUtils.createModLogAndOffence(event.getGuild(), connection, event.getAuthor(), user, "Ban", reason);
 				});
 			}
@@ -2875,7 +2883,7 @@ public class ModModule {
 				}, e -> {});
 			}
 			
-			event.getGuild().getController().ban(member, 1, (reason == null ? "" : reason) + " [" + event.getAuthor().getAsTag() + "]").queue();
+			event.getGuild().ban(member, 1, (reason == null ? "" : reason) + " [" + event.getAuthor().getAsTag() + "]").queue();
 			ModUtils.createModLogAndOffence(event.getGuild(), connection, event.getAuthor(), member.getUser(), "Ban", reason);
 		}
 	}
@@ -2896,7 +2904,7 @@ public class ModModule {
 	@AuthorPermissions({Permission.BAN_MEMBERS})
 	@BotPermissions({Permission.BAN_MEMBERS})
 	public void unban(CommandEvent event, @Context Connection connection, @Argument(value="user") String userArgument, @Argument(value="reason", endless=true, nullDefault=true) String reason) {
-		User user = ArgumentUtils.getUser(event.getGuild(), userArgument);
+		User user = ArgumentUtils.getUser(userArgument);
 		if (user == null) {
 			ArgumentUtils.getUserInfo(userArgument, userObject -> {
 				if (userObject == null) {
@@ -2904,28 +2912,31 @@ public class ModModule {
 					return;
 				}
 				
-				event.getGuild().getBan(userObject).queue($ -> {
-					event.reply("**" + userObject.getAsTag() + "** has been unbanned <:done:403285928233402378>:ok_hand:").queue();
-					event.getGuild().getController().unban(userObject).queue();
-					ModUtils.createModLog(event.getGuild(), connection, event.getAuthor(), userObject, "Unban", reason);
-				}, e -> {
+				event.getGuild().retrieveBanList().queue(bans -> {
+					for (Ban ban : bans) {
+						if (ban.getUser().equals(userObject)) {
+							event.reply("**" + userObject.getAsTag() + "** has been unbanned <:done:403285928233402378>:ok_hand:").queue();
+							event.getGuild().unban(userObject).queue();
+							ModUtils.createModLog(event.getGuild(), connection, event.getAuthor(), userObject, "Unban", reason);
+							return;
+						}
+					}
+					
 					event.reply("That user is not banned :no_entry:").queue();
-					return;
 				});
 			});
 		} else {
-			if (event.getGuild().isMember(user)) {
+			event.getGuild().retrieveBanList().queue(bans -> {
+				for (Ban ban : bans) {
+					if (ban.getUser().equals(user)) {
+						event.reply("**" + user.getAsTag() + "** has been unbanned <:done:403285928233402378>:ok_hand:").queue();
+						event.getGuild().unban(user).queue();
+						ModUtils.createModLog(event.getGuild(), connection, event.getAuthor(), user, "Unban", reason);
+						return;
+					}
+				}
+				
 				event.reply("That user is not banned :no_entry:").queue();
-				return;
-			}
-			
-			event.getGuild().getBan(user).queue($ -> {
-				event.reply("**" + user.getAsTag() + "** has been unbanned <:done:403285928233402378>:ok_hand:").queue();
-				event.getGuild().getController().unban(user).queue();
-				ModUtils.createModLog(event.getGuild(), connection, event.getAuthor(), user, "Unban", reason);
-			}, e -> {
-				event.reply("That user is not banned :no_entry:").queue();
-				return;
 			});
 		}
 	}
@@ -3100,7 +3111,7 @@ public class ModModule {
 			}
 			
 			event.reply("**" + member.getUser().getAsTag() + "** has been muted for " + muteString + " <:done:403285928233402378>:ok_hand:").queue();
-			event.getGuild().getController().addSingleRoleToMember(member, role).queue();
+			event.getGuild().addRoleToMember(member, role).queue();
 			
 			member.getUser().openPrivateChannel().queue(channel -> {
 				channel.sendMessage(ModUtils.getMuteEmbed(event.getGuild(), null, event.getAuthor(), muteLength, reason)).queue();
@@ -3149,7 +3160,7 @@ public class ModModule {
 				}
 				
 				event.reply("**" + member.getUser().getAsTag() + "** has been unmuted <:done:403285928233402378>:ok_hand:").queue();
-				event.getGuild().getController().removeSingleRoleFromMember(member, role).queue();
+				event.getGuild().removeRoleFromMember(member, role).queue();
 				
 				if (!member.getUser().isBot()) {
 					member.getUser().openPrivateChannel().queue(channel -> {
@@ -3527,7 +3538,7 @@ public class ModModule {
 					}
 					
 					event.reply("**" + member.getUser().getAsTag() + "** has been muted for " + TimeUtils.toTimeString(muteLength, ChronoUnit.SECONDS) + " (" + suffixWarning + " Warning) <:done:403285928233402378>").queue();
-					event.getGuild().getController().addSingleRoleToMember(member, role).queue();
+					event.getGuild().addRoleToMember(member, role).queue();
 					
 					member.getUser().openPrivateChannel().queue(channel -> {
 						channel.sendMessage(ModUtils.getWarnEmbed(event.getGuild(), event.getAuthor(), warnConfig, userWarnings, true, "muted", reason)).queue();
@@ -3562,7 +3573,7 @@ public class ModModule {
 				return;
 			} else if (action.equals("kick")) {
 				event.reply("**" + member.getUser().getAsTag() + "** has been kicked (" + suffixWarning + " Warning) <:done:403285928233402378>").queue();
-				event.getGuild().getController().kick(member, (reason == null ? "" : reason) + " [" + event.getAuthor().getAsTag() + "]").queue();
+				event.getGuild().kick(member, (reason == null ? "" : reason) + " [" + event.getAuthor().getAsTag() + "]").queue();
 				
 				member.getUser().openPrivateChannel().queue(channel -> {
 					channel.sendMessage(ModUtils.getWarnEmbed(event.getGuild(), event.getAuthor(), warnConfig, userWarnings, true, "kicked", reason)).queue();
@@ -3571,7 +3582,7 @@ public class ModModule {
 				ModUtils.createModLogAndOffence(event.getGuild(), connection, event.getAuthor(), member.getUser(), "Kick (" + suffixWarning + " Warning)", reason);
 			} else if (action.equals("ban")) {
 				event.reply("**" + member.getUser().getAsTag() + "** has been banned (" + suffixWarning + " Warning) <:done:403285928233402378>").queue();
-				event.getGuild().getController().ban(member, 1, (reason == null ? "" : reason) + " [" + event.getAuthor().getAsTag() + "]").queue();
+				event.getGuild().ban(member, 1, (reason == null ? "" : reason) + " [" + event.getAuthor().getAsTag() + "]").queue();
 				
 				member.getUser().openPrivateChannel().queue(channel -> {
 					channel.sendMessage(ModUtils.getWarnEmbed(event.getGuild(), event.getAuthor(), warnConfig, userWarnings, true, "banned", reason)).queue();
@@ -3644,7 +3655,7 @@ public class ModModule {
 		Member member;
 		for (Map<String, Object> user : new ArrayList<>(users)) {
 			member = event.getGuild().getMemberById((String) user.get("id")); 
-			if (member == null) {
+			if (member == null || (long) user.get("warnings") == 0) {
 				users.remove(user);
 			}
 		}
@@ -3735,6 +3746,12 @@ public class ModModule {
 		
 		if (warningAmount < 1) {
 			event.reply("The warning amount has to be at least 1 :no_entry:").queue();
+			return;
+		}
+		
+		long maxWarning = ModUtils.getMaxWarning((List<Map<String, Object>>) dataRan.get("config"));
+		if (warningAmount > maxWarning) {
+			event.reply("The max amount of warnings you can give is **" + maxWarning + "** :no_entry:").queue();
 			return;
 		}
 		

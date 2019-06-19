@@ -17,14 +17,14 @@ import com.rethinkdb.net.Cursor;
 import com.sx4.core.Sx4Bot;
 import com.sx4.utils.ModUtils;
 
-import net.dv8tion.jda.bot.sharding.ShardManager;
-import net.dv8tion.jda.core.Permission;
-import net.dv8tion.jda.core.entities.Guild;
-import net.dv8tion.jda.core.entities.Member;
-import net.dv8tion.jda.core.entities.Role;
-import net.dv8tion.jda.core.entities.User;
-import net.dv8tion.jda.core.events.role.RoleDeleteEvent;
-import net.dv8tion.jda.core.hooks.ListenerAdapter;
+import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.entities.Member;
+import net.dv8tion.jda.api.entities.Role;
+import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.events.role.RoleDeleteEvent;
+import net.dv8tion.jda.api.hooks.ListenerAdapter;
+import net.dv8tion.jda.api.sharding.ShardManager;
 
 public class MuteEvents extends ListenerAdapter {
 	
@@ -62,7 +62,7 @@ public class MuteEvents extends ListenerAdapter {
 		try (Cursor<Map<String, Object>> cursor = r.table("mute").run(connection)) {
 			List<Map<String, Object>> data = cursor.toList();
 			
-			User selfUser = shardManager.getApplicationInfo().getJDA().getSelfUser();
+			User selfUser = shardManager.getShardById(0).getSelfUser();
 			long timestampNow = Clock.systemUTC().instant().getEpochSecond();
 			for (Map<String, Object> guildData : data) {
 				Guild guild = shardManager.getGuildById((String) guildData.get("id"));
@@ -157,7 +157,7 @@ public class MuteEvents extends ListenerAdapter {
 		if (muteRole != null) {
 			if (member.getRoles().contains(muteRole)) {
 				if (guild.getSelfMember().hasPermission(Permission.MANAGE_ROLES) && guild.getSelfMember().canInteract(muteRole)) {
-					guild.getController().removeSingleRoleFromMember(member, muteRole).queue();
+					guild.removeRoleFromMember(member, muteRole).queue();
 				} else {
 					return;
 				}

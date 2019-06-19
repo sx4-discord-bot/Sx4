@@ -19,16 +19,16 @@ import com.sx4.categories.Categories;
 import com.sx4.core.Sx4Bot;
 import com.sx4.core.Sx4Command;
 
-import net.dv8tion.jda.core.Region;
-import net.dv8tion.jda.core.entities.Category;
-import net.dv8tion.jda.core.entities.Channel;
-import net.dv8tion.jda.core.entities.Emote;
-import net.dv8tion.jda.core.entities.Guild;
-import net.dv8tion.jda.core.entities.Member;
-import net.dv8tion.jda.core.entities.Role;
-import net.dv8tion.jda.core.entities.TextChannel;
-import net.dv8tion.jda.core.entities.User;
-import net.dv8tion.jda.core.entities.VoiceChannel;
+import net.dv8tion.jda.api.Region;
+import net.dv8tion.jda.api.entities.Category;
+import net.dv8tion.jda.api.entities.Emote;
+import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.entities.GuildChannel;
+import net.dv8tion.jda.api.entities.Member;
+import net.dv8tion.jda.api.entities.Role;
+import net.dv8tion.jda.api.entities.TextChannel;
+import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.entities.VoiceChannel;
 
 public class ArgumentUtils {
 	
@@ -266,7 +266,7 @@ public class ArgumentUtils {
 			try {
 				emoteObject = guild.getEmoteById(emoteMention.group(2));
 				if (emoteObject == null) {
-					return guild.getJDA().asBot().getShardManager().getEmoteById(emoteMention.group(2));
+					return guild.getJDA().getShardManager().getEmoteById(emoteMention.group(2));
 				} else {
 					return emoteObject;
 				}
@@ -277,7 +277,7 @@ public class ArgumentUtils {
 			try {
 				emoteObject = guild.getEmoteById(emote);
 				if (emoteObject == null) {
-					return guild.getJDA().asBot().getShardManager().getEmoteById(emote);
+					return guild.getJDA().getShardManager().getEmoteById(emote);
 				} else {
 					return emoteObject;
 				}
@@ -287,7 +287,7 @@ public class ArgumentUtils {
 		} else if (emoteName.matches()) {
 			emoteObject = guild.getEmotesByName(emote, true).stream().findFirst().orElse(null);
 			if (emoteObject == null) {
-				return guild.getJDA().asBot().getShardManager().getEmotesByName(emote, true).stream().findFirst().orElse(null);
+				return guild.getJDA().getShardManager().getEmotesByName(emote, true).stream().findFirst().orElse(null);
 			} else {
 				return emoteObject;
 			}
@@ -324,10 +324,10 @@ public class ArgumentUtils {
 		return null;
 	}
 	
-	public static Channel getTextChannelOrParent(Guild guild, String channelArgument) {
-		Channel channel = getTextChannel(guild, channelArgument);
+	public static GuildChannel getTextChannelOrParent(Guild guild, String channelArgument) {
+		GuildChannel channel = ArgumentUtils.getTextChannel(guild, channelArgument);
 		if (channel == null) {
-			return getCategory(guild, channelArgument);
+			return ArgumentUtils.getCategory(guild, channelArgument);
 		} else {
 			return channel;
 		}
@@ -387,19 +387,19 @@ public class ArgumentUtils {
 		return null;
 	}
 	
-	public static User getUser(Guild guild, String user) {
+	public static User getUser(String user) {
 		Matcher mention = userMentionRegex.matcher(user);
 		Matcher nameTag = userTagRegex.matcher(user);
 		Matcher userName = smallNameRegex.matcher(user);
 		if (IdRegex.matcher(user).matches()) {
 			try { 
-				return guild.getJDA().asBot().getShardManager().getUserById(user);
+				return Sx4Bot.getShardManager().getUserById(user);
 			} catch(NumberFormatException e) {
 				return null;
 			}
 		} else if (mention.matches()) {
 			try {
-				return guild.getJDA().asBot().getShardManager().getUserById(mention.group(1));
+				return Sx4Bot.getShardManager().getUserById(mention.group(1));
 			} catch(NumberFormatException e) {
 				return null;
 			}
@@ -407,26 +407,26 @@ public class ArgumentUtils {
 			String name = nameTag.group(1);
 			String discriminator = nameTag.group(2);
 			
-			for (User u : guild.getJDA().asBot().getShardManager().getUsers()) {
+			for (User u : Sx4Bot.getShardManager().getUsers()) {
 				if (u.getName().toLowerCase().equals(name.toLowerCase()) && u.getDiscriminator().equals(discriminator)) {
 					return u;
 				}
 			}
 		} else if (userName.matches()) {
-			
-			for (User u : guild.getJDA().asBot().getShardManager().getUsers()) {
+			List<User> users = Sx4Bot.getShardManager().getUsers();
+			for (User u : users) {
 				if (u.getName().toLowerCase().equals(user.toLowerCase())) {
 					return u;
 				}
 			}
 
-			for (User u : guild.getJDA().asBot().getShardManager().getUsers()) {
+			for (User u : users) {
 				if (u.getName().toLowerCase().startsWith(user.toLowerCase())) {
 					return u;
 				}
 			}
 				
-			for (User u : guild.getJDA().asBot().getShardManager().getUsers()) {
+			for (User u : users) {
 				if (u.getName().toLowerCase().contains(user.toLowerCase())) {
 					return u;
 				}

@@ -13,13 +13,13 @@ import com.rethinkdb.net.Connection;
 import com.sx4.core.Sx4Bot;
 import com.sx4.utils.ModUtils;
 
-import net.dv8tion.jda.core.Permission;
-import net.dv8tion.jda.core.entities.Invite;
-import net.dv8tion.jda.core.entities.Role;
-import net.dv8tion.jda.core.events.guild.member.GuildMemberJoinEvent;
-import net.dv8tion.jda.core.events.message.guild.GuildMessageReceivedEvent;
-import net.dv8tion.jda.core.events.message.guild.GuildMessageUpdateEvent;
-import net.dv8tion.jda.core.hooks.ListenerAdapter;
+import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.Invite;
+import net.dv8tion.jda.api.entities.Role;
+import net.dv8tion.jda.api.events.guild.member.GuildMemberJoinEvent;
+import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent;
+import net.dv8tion.jda.api.events.message.guild.GuildMessageUpdateEvent;
+import net.dv8tion.jda.api.hooks.ListenerAdapter;
 
 public class AntiInviteEvents extends ListenerAdapter {
 
@@ -95,7 +95,7 @@ public class AntiInviteEvents extends ListenerAdapter {
 							} else {
 								event.getChannel().sendMessage("**" + event.getAuthor().getAsTag() + "** has been banned for sending **" + dataAttempts + "** invite" + (dataAttempts == 1 ? "" : "s") + " <:done:403285928233402378>").queue();
 								event.getAuthor().openPrivateChannel().queue(channel -> channel.sendMessage(ModUtils.getBanEmbed(event.getGuild(), event.getJDA().getSelfUser(), reason)).queue(), e -> {});
-								event.getGuild().getController().ban(event.getMember(), 1, reason).queue();
+								event.getGuild().ban(event.getMember(), 1, reason).queue();
 								ModUtils.createModLogAndOffence(event.getGuild(), connection, event.getJDA().getSelfUser(), event.getAuthor(), "Ban (Automatic)", reason);
 								
 								data.update(row -> r.hashMap("users", row.g("users").filter(d -> d.g("id").ne(event.getAuthor().getId())))).runNoReply(connection);
@@ -110,7 +110,7 @@ public class AntiInviteEvents extends ListenerAdapter {
 							} else {
 								event.getChannel().sendMessage("**" + event.getAuthor().getAsTag() + "** has been kicked for sending **" + dataAttempts + "** invite" + (dataAttempts == 1 ? "" : "s") + " <:done:403285928233402378>").queue();
 								event.getAuthor().openPrivateChannel().queue(channel -> channel.sendMessage(ModUtils.getKickEmbed(event.getGuild(), event.getJDA().getSelfUser(), reason)).queue(), e -> {});
-								event.getGuild().getController().kick(event.getMember(), reason).queue();
+								event.getGuild().kick(event.getMember(), reason).queue();
 								ModUtils.createModLogAndOffence(event.getGuild(), connection, event.getJDA().getSelfUser(), event.getAuthor(), "Kick (Automatic)", reason);
 								
 								data.update(row -> r.hashMap("users", row.g("users").filter(d -> d.g("id").ne(event.getAuthor().getId())))).runNoReply(connection);
@@ -133,7 +133,7 @@ public class AntiInviteEvents extends ListenerAdapter {
 								
 								event.getChannel().sendMessage("**" + event.getAuthor().getAsTag() + "** has been muted for sending **" + dataAttempts + "** invite" + (dataAttempts == 1 ? "" : "s") + " <:done:403285928233402378>").queue();
 								event.getAuthor().openPrivateChannel().queue(channel -> channel.sendMessage(ModUtils.getMuteEmbed(event.getGuild(), null,  event.getJDA().getSelfUser(), 0, reason)).queue(), e -> {});
-								event.getGuild().getController().addSingleRoleToMember(event.getMember(), role).queue();
+								event.getGuild().addRoleToMember(event.getMember(), role).queue();
 								ModUtils.createModLogAndOffence(event.getGuild(), connection, event.getJDA().getSelfUser(), event.getAuthor(), "Mute (Automatic)", reason);
 								
 								r.table("mute").insert(r.hashMap("id", event.getGuild().getId()).with("users", new Object[0])).run(connection, OptArgs.of("durability", "soft"));
@@ -228,7 +228,7 @@ public class AntiInviteEvents extends ListenerAdapter {
 							} else {
 								event.getChannel().sendMessage("**" + event.getAuthor().getAsTag() + "** has been banned for sending **" + dataAttempts + "** invite" + (dataAttempts == 1 ? "" : "s") + " <:done:403285928233402378>").queue();
 								event.getAuthor().openPrivateChannel().queue(channel -> channel.sendMessage(ModUtils.getBanEmbed(event.getGuild(), event.getJDA().getSelfUser(), reason)).queue(), e -> {});
-								event.getGuild().getController().ban(event.getMember(), 1, reason).queue();
+								event.getGuild().ban(event.getMember(), 1, reason).queue();
 								ModUtils.createModLogAndOffence(event.getGuild(), connection, event.getJDA().getSelfUser(), event.getAuthor(), "Ban (Automatic)", reason);
 								
 								data.update(row -> r.hashMap("users", row.g("users").filter(d -> d.g("id").ne(event.getAuthor().getId())))).runNoReply(connection);
@@ -243,7 +243,7 @@ public class AntiInviteEvents extends ListenerAdapter {
 							} else {
 								event.getChannel().sendMessage("**" + event.getAuthor().getAsTag() + "** has been kicked for sending **" + dataAttempts + "** invite" + (dataAttempts == 1 ? "" : "s") + " <:done:403285928233402378>").queue();
 								event.getAuthor().openPrivateChannel().queue(channel -> channel.sendMessage(ModUtils.getKickEmbed(event.getGuild(), event.getJDA().getSelfUser(), reason)).queue(), e -> {});
-								event.getGuild().getController().kick(event.getMember(), reason).queue();
+								event.getGuild().kick(event.getMember(), reason).queue();
 								ModUtils.createModLogAndOffence(event.getGuild(), connection, event.getJDA().getSelfUser(), event.getAuthor(), "Kick (Automatic)", reason);
 								
 								data.update(row -> r.hashMap("users", row.g("users").filter(d -> d.g("id").ne(event.getAuthor().getId())))).runNoReply(connection);
@@ -266,7 +266,7 @@ public class AntiInviteEvents extends ListenerAdapter {
 								
 								event.getChannel().sendMessage("**" + event.getAuthor().getAsTag() + "** has been muted for sending **" + dataAttempts + "** invite" + (dataAttempts == 1 ? "" : "s") + " <:done:403285928233402378>").queue();
 								event.getAuthor().openPrivateChannel().queue(channel -> channel.sendMessage(ModUtils.getMuteEmbed(event.getGuild(), null,  event.getJDA().getSelfUser(), 0, reason)).queue(), e -> {});
-								event.getGuild().getController().addSingleRoleToMember(event.getMember(), role).queue();
+								event.getGuild().addRoleToMember(event.getMember(), role).queue();
 								ModUtils.createModLogAndOffence(event.getGuild(), connection, event.getJDA().getSelfUser(), event.getAuthor(), "Mute (Automatic)", reason);
 								
 								r.table("mute").insert(r.hashMap("id", event.getGuild().getId()).with("users", new Object[0])).run(connection, OptArgs.of("durability", "soft"));
@@ -311,7 +311,7 @@ public class AntiInviteEvents extends ListenerAdapter {
 				
 				String reason = "Discord invite in username";
 				event.getMember().getUser().openPrivateChannel().queue(channel -> channel.sendMessage(ModUtils.getMuteEmbed(event.getGuild(), null,  event.getJDA().getSelfUser(), 0, reason)).queue(), e -> {});
-				event.getGuild().getController().ban(event.getMember(), 1, reason).queue();
+				event.getGuild().ban(event.getMember(), 1, reason).queue();
 				ModUtils.createModLogAndOffence(event.getGuild(), Sx4Bot.getConnection(), event.getJDA().getSelfUser(), event.getMember().getUser(), "Ban (Automatic)", reason);
 			});
 		}

@@ -3,6 +3,7 @@ package com.sx4.modules;
 import static com.rethinkdb.RethinkDB.r;
 
 import java.awt.Color;
+import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
@@ -35,12 +36,12 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import com.jockie.bot.core.Context;
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
 import com.jockie.bot.core.command.Command.Async;
 import com.jockie.bot.core.command.Command.BotPermissions;
 import com.jockie.bot.core.command.Command.Cooldown;
+import com.jockie.bot.core.command.Context;
 import com.jockie.bot.core.command.ICommand.ContentOverflowPolicy;
 import com.jockie.bot.core.command.Initialize;
 import com.jockie.bot.core.command.impl.CommandEvent;
@@ -68,14 +69,14 @@ import com.sx4.utils.PagedUtils.PagedResult;
 import com.sx4.utils.TimeUtils;
 import com.sx4.utils.TokenUtils;
 
-import net.dv8tion.jda.core.EmbedBuilder;
-import net.dv8tion.jda.core.Permission;
-import net.dv8tion.jda.core.entities.Member;
-import net.dv8tion.jda.core.entities.Message.Attachment;
-import net.dv8tion.jda.core.entities.MessageEmbed;
-import net.dv8tion.jda.core.entities.Role;
-import net.dv8tion.jda.core.entities.User;
-import net.dv8tion.jda.core.utils.tuple.Pair;
+import net.dv8tion.jda.api.EmbedBuilder;
+import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.Member;
+import net.dv8tion.jda.api.entities.Message.Attachment;
+import net.dv8tion.jda.api.entities.MessageEmbed;
+import net.dv8tion.jda.api.entities.Role;
+import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.internal.utils.tuple.Pair;
 import okhttp3.MediaType;
 import okhttp3.Request;
 import okhttp3.RequestBody;
@@ -487,8 +488,14 @@ public class FunModule {
 				ImageModule.client.newCall(request).enqueue((Sx4Callback) response -> {
 					InputStream stream = new ByteArrayInputStream(response.body().bytes());
 					
+					BufferedImage image = ImageIO.read(stream);
+					if (image == null) {
+						event.reply("The url provided is not a valid image :no_entry:").queue();
+						return;
+					}
+					
 					try {
-						ImageIO.write(ImageIO.read(stream), "png", file);
+						ImageIO.write(image, "png", file);
 					} catch (IOException e) {
 						event.reply("Oops something went wrong there, try again :no_entry:").queue();
 						return;
@@ -715,7 +722,7 @@ public class FunModule {
 				});
 			});
 		} else {
-			User user = ArgumentUtils.getUser(event.getGuild(), userArgument);
+			User user = ArgumentUtils.getUser(userArgument);
 			if (user == null) {
 				if (GeneralUtils.isNumber(userArgument)) {
 					if (marriedTo.contains(userArgument)) {
@@ -1727,6 +1734,7 @@ public class FunModule {
 		});
 	}
 	
+	@SuppressWarnings("unchecked")
 	@Command(value="google", description="Returns the first 5 google search results from your query")
 	@Async
 	@Cooldown(value=3)
@@ -1760,26 +1768,29 @@ public class FunModule {
 				event.reply("I could not find any results :no_entry:").queue();
 				return;
 			}
-		
-			if (json.getJSONArray("items").toList().isEmpty()) {
+			
+			List<Object> results = json.getJSONArray("items").toList();
+			if (results.isEmpty()) {
 				event.reply("I could not find any results :no_entry:").queue();
 				return;
 			}
 			
-			String description = "";
-			for (int i = 0; i < Math.min(5, json.getJSONArray("items").length()); i++) {
-				JSONObject data = json.getJSONArray("items").getJSONObject(i);
-				description += String.format("**[%s](%s)**\n%s\n\n", data.getString("title"), data.getString("link"), data.getString("snippet"));
-			}
 			
-			EmbedBuilder embed = new EmbedBuilder();
-			embed.setDescription(description);
-			embed.setAuthor("Google", "https://www.google.co.uk/search?q=" + URLEncoder.encode(query, StandardCharsets.UTF_8), "http://i.imgur.com/G46fm8J.png");
+			PagedResult<Object> paged = new PagedResult<>(results)
+					.setDeleteMessage(false)
+					.setIndexed(false)
+					.setPerPage(5)
+					.setAuthor("Google", "https://www.google.co.uk/search?q=" + URLEncoder.encode(query, StandardCharsets.UTF_8), "http://i.imgur.com/G46fm8J.png")
+					.setFunction(result -> {
+						Map<String, String> data = (Map<String, String>) result;
+						return String.format("**[%s](%s)**\n%s\n", data.get("title"), data.get("link"), data.get("snippet"));
+					});
 			
-			event.reply(embed.build()).queue();
+			PagedUtils.getPagedResult(event, paged, 300, null);
 		});
 	}
 	
+	@SuppressWarnings("unchecked")
 	@Command(value="google image", aliases={"googleimage"}, description="Returns an image from google based on your query")
 	@Async
 	@Cooldown(value=3)
@@ -1814,16 +1825,37 @@ public class FunModule {
 				return;
 			}
 			
-			if (json.getJSONArray("items").toList().isEmpty()) {
+			List<Object> results = json.getJSONArray("items").toList();
+			if (results.isEmpty()) {
 				event.reply("I could not find any results :no_entry:").queue();
 				return;
 			}
 			
-			EmbedBuilder embed = new EmbedBuilder();
-			embed.setImage(json.getJSONArray("items").getJSONObject(0).getJSONObject("image").getString("thumbnailLink"));
-			embed.setAuthor("Google", "https://www.google.co.uk/search?q=" + URLEncoder.encode(query, StandardCharsets.UTF_8) + "&tbm=isch", "http://i.imgur.com/G46fm8J.png");
+			System.out.println(results.size());
 			
-			event.reply(embed.build()).queue();
+			PagedResult<Object> paged = new PagedResult<>(results)
+					.setDeleteMessage(false)
+					.setPerPage(1)
+					.setCustom(true)
+					.setCustomFunction(page -> {
+						EmbedBuilder embed = new EmbedBuilder();
+						embed.setAuthor("Google", "https://www.google.co.uk/search?q=" + URLEncoder.encode(query, StandardCharsets.UTF_8) + "&tbm=isch", "http://i.imgur.com/G46fm8J.png");
+						embed.setTitle("Image " + page.getCurrentPage() + "/" + page.getMaxPage());
+						embed.setFooter("next | previous | go to <page_number> | cancel", null);
+						
+						List<Object> data = page.getArray();
+						for (int i = page.getCurrentPage() * page.getPerPage() - page.getPerPage(); i < page.getCurrentPage() * page.getPerPage(); i++) {
+							try {
+								embed.setImage(((Map<String, String>) data.get(i)).get("link"));
+							} catch (IndexOutOfBoundsException e) {
+								break;
+							}
+						}
+						
+						return embed.build();
+					});
+			
+			PagedUtils.getPagedResult(event, paged, 300, null);
 		});
 	}
 	
@@ -2132,14 +2164,15 @@ public class FunModule {
 		}
 		
 		if (json.has("colour")) {
-			String colour = json.getString("colour");
-			Matcher hexMatch = ArgumentUtils.hexRegex.matcher(colour);
+			Object colour = json.get("colour");
+			Matcher hexMatch = ArgumentUtils.hexRegex.matcher(String.valueOf(colour));
 			if (hexMatch.matches()) {
 				embed.setColor(Color.decode("#" + hexMatch.group(1)));
 			} else {
-				if (GeneralUtils.isNumber(colour)) {
-					embed.setColor(new Color(Integer.parseInt(colour)));
-				} else {
+				try {
+					int colourInt = (int) colour;
+					embed.setColor(new Color(colourInt));
+				} catch(ClassCastException e) {
 					event.reply("Invalid hex was given for the embed colour :no_entry:").queue();
 					return;
 				}

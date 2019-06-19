@@ -4,8 +4,8 @@ import java.time.LocalDateTime;
 
 import com.sx4.core.Sx4Bot;
 
-import net.dv8tion.jda.core.events.ExceptionEvent;
-import net.dv8tion.jda.core.hooks.ListenerAdapter;
+import net.dv8tion.jda.api.events.ExceptionEvent;
+import net.dv8tion.jda.api.hooks.ListenerAdapter;
 
 public class ExceptionHandler extends ListenerAdapter {
 	

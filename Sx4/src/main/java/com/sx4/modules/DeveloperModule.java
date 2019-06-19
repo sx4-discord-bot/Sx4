@@ -9,6 +9,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingDeque;
+import java.util.concurrent.ExecutionException;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -18,10 +19,10 @@ import org.json.JSONObject;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
-import com.jockie.bot.core.Context;
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
 import com.jockie.bot.core.command.Command.Developer;
+import com.jockie.bot.core.command.Context;
 import com.jockie.bot.core.command.ICommand.ArgumentParsingType;
 import com.jockie.bot.core.command.ICommand.ContentOverflowPolicy;
 import com.jockie.bot.core.command.Initialize;
@@ -49,11 +50,11 @@ import com.sx4.utils.TimeUtils;
 import com.sx4.utils.TokenUtils;
 
 import groovy.lang.GroovyShell;
-import net.dv8tion.jda.core.entities.Guild;
-import net.dv8tion.jda.core.entities.Member;
-import net.dv8tion.jda.core.entities.Message;
-import net.dv8tion.jda.core.entities.MessageEmbed;
-import net.dv8tion.jda.core.entities.User;
+import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.entities.Member;
+import net.dv8tion.jda.api.entities.Message;
+import net.dv8tion.jda.api.entities.MessageEmbed;
+import net.dv8tion.jda.api.entities.User;
 
 @Module
 public class DeveloperModule {
@@ -111,11 +112,11 @@ public class DeveloperModule {
 		
 	@Command(value="parse", allowedArgumentParsingTypes=ArgumentParsingType.POSITIONAL, description="Execute some code, nothing will be sent unless said to")
 	@Developer
-	public void parse(CommandEvent event, @Context Connection connection, @Argument(value="code", endless=true, nullDefault=true) String parsableString) {
+	public void parse(CommandEvent event, @Context Connection connection, @Argument(value="code", endless=true, nullDefault=true) String parsableString) throws InterruptedException, ExecutionException {
 		if (parsableString == null) {
 			if (event.getMessage().getAttachments().size() > 0) {
 				try {
-					parsableString = new String(event.getMessage().getAttachments().get(0).getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+					parsableString = new String(event.getMessage().getAttachments().get(0).retrieveInputStream().get().readAllBytes(), StandardCharsets.UTF_8);
 				} catch(IOException e) {
 					event.reply("Failed to download file").queue();
 				}
@@ -173,7 +174,7 @@ public class DeveloperModule {
 	@Command(value="blacklist user", description="Blacklist a user from the bot")
 	@Developer 
 	public void blacklistUser(CommandEvent event, @Context Connection connection, @Argument(value="user", endless=true) String userArgument) {
-		User user = ArgumentUtils.getUser(event.getGuild(), userArgument);
+		User user = ArgumentUtils.getUser(userArgument);
 		if (user == null) {
 			event.reply("I could not find that user :no_entry:").queue();
 			return;

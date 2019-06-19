@@ -2,12 +2,12 @@ package com.sx4.logger.handler;
 
 import static com.rethinkdb.RethinkDB.r;
 
-import java.awt.Color;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -27,65 +27,69 @@ import com.sx4.logger.Statistics;
 import com.sx4.logger.util.Utils;
 import com.sx4.settings.Settings;
 
-import net.dv8tion.jda.core.EmbedBuilder;
-import net.dv8tion.jda.core.JDA;
-import net.dv8tion.jda.core.Permission;
-import net.dv8tion.jda.core.audit.ActionType;
-import net.dv8tion.jda.core.audit.AuditLogEntry;
-import net.dv8tion.jda.core.audit.AuditLogKey;
-import net.dv8tion.jda.core.entities.Channel;
-import net.dv8tion.jda.core.entities.ChannelType;
-import net.dv8tion.jda.core.entities.Guild;
-import net.dv8tion.jda.core.entities.Member;
-import net.dv8tion.jda.core.entities.Message;
-import net.dv8tion.jda.core.entities.MessageEmbed;
-import net.dv8tion.jda.core.entities.Role;
-import net.dv8tion.jda.core.entities.TextChannel;
-import net.dv8tion.jda.core.entities.User;
-import net.dv8tion.jda.core.entities.VoiceChannel;
-import net.dv8tion.jda.core.entities.Webhook;
-import net.dv8tion.jda.core.events.channel.category.CategoryCreateEvent;
-import net.dv8tion.jda.core.events.channel.category.CategoryDeleteEvent;
-import net.dv8tion.jda.core.events.channel.category.update.CategoryUpdateNameEvent;
-import net.dv8tion.jda.core.events.channel.text.TextChannelCreateEvent;
-import net.dv8tion.jda.core.events.channel.text.TextChannelDeleteEvent;
-import net.dv8tion.jda.core.events.channel.text.update.TextChannelUpdateNameEvent;
-import net.dv8tion.jda.core.events.channel.voice.VoiceChannelCreateEvent;
-import net.dv8tion.jda.core.events.channel.voice.VoiceChannelDeleteEvent;
-import net.dv8tion.jda.core.events.channel.voice.update.VoiceChannelUpdateNameEvent;
-import net.dv8tion.jda.core.events.guild.GuildBanEvent;
-import net.dv8tion.jda.core.events.guild.GuildLeaveEvent;
-import net.dv8tion.jda.core.events.guild.GuildUnbanEvent;
-import net.dv8tion.jda.core.events.guild.member.GuildMemberJoinEvent;
-import net.dv8tion.jda.core.events.guild.member.GuildMemberLeaveEvent;
-import net.dv8tion.jda.core.events.guild.member.GuildMemberNickChangeEvent;
-import net.dv8tion.jda.core.events.guild.member.GuildMemberRoleAddEvent;
-import net.dv8tion.jda.core.events.guild.member.GuildMemberRoleRemoveEvent;
-import net.dv8tion.jda.core.events.guild.voice.GuildVoiceGuildDeafenEvent;
-import net.dv8tion.jda.core.events.guild.voice.GuildVoiceGuildMuteEvent;
-import net.dv8tion.jda.core.events.guild.voice.GuildVoiceJoinEvent;
-import net.dv8tion.jda.core.events.guild.voice.GuildVoiceLeaveEvent;
-import net.dv8tion.jda.core.events.guild.voice.GuildVoiceMoveEvent;
-import net.dv8tion.jda.core.events.message.guild.GuildMessageDeleteEvent;
-import net.dv8tion.jda.core.events.message.guild.GuildMessageUpdateEvent;
-import net.dv8tion.jda.core.events.role.RoleCreateEvent;
-import net.dv8tion.jda.core.events.role.RoleDeleteEvent;
-import net.dv8tion.jda.core.events.role.update.RoleUpdateNameEvent;
-import net.dv8tion.jda.core.events.role.update.RoleUpdatePermissionsEvent;
-import net.dv8tion.jda.core.exceptions.HttpException;
-import net.dv8tion.jda.core.hooks.ListenerAdapter;
-import net.dv8tion.jda.core.requests.restaction.AuditableRestAction.EmptyRestAction;
-import net.dv8tion.jda.webhook.WebhookClient;
-import net.dv8tion.jda.webhook.WebhookClientBuilder;
-import net.dv8tion.jda.webhook.WebhookMessage;
-import net.dv8tion.jda.webhook.WebhookMessageBuilder;
+import club.minnced.discord.webhook.WebhookClient;
+import club.minnced.discord.webhook.WebhookClientBuilder;
+import club.minnced.discord.webhook.exception.HttpException;
+import club.minnced.discord.webhook.send.WebhookEmbed;
+import club.minnced.discord.webhook.send.WebhookEmbed.EmbedAuthor;
+import club.minnced.discord.webhook.send.WebhookEmbed.EmbedField;
+import club.minnced.discord.webhook.send.WebhookEmbed.EmbedFooter;
+import club.minnced.discord.webhook.send.WebhookEmbedBuilder;
+import club.minnced.discord.webhook.send.WebhookMessage;
+import club.minnced.discord.webhook.send.WebhookMessageBuilder;
+import net.dv8tion.jda.api.JDA;
+import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.audit.ActionType;
+import net.dv8tion.jda.api.audit.AuditLogEntry;
+import net.dv8tion.jda.api.audit.AuditLogKey;
+import net.dv8tion.jda.api.entities.ChannelType;
+import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.entities.GuildChannel;
+import net.dv8tion.jda.api.entities.Member;
+import net.dv8tion.jda.api.entities.Message;
+import net.dv8tion.jda.api.entities.MessageEmbed;
+import net.dv8tion.jda.api.entities.Role;
+import net.dv8tion.jda.api.entities.TextChannel;
+import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.entities.VoiceChannel;
+import net.dv8tion.jda.api.entities.Webhook;
+import net.dv8tion.jda.api.events.channel.category.CategoryCreateEvent;
+import net.dv8tion.jda.api.events.channel.category.CategoryDeleteEvent;
+import net.dv8tion.jda.api.events.channel.category.update.CategoryUpdateNameEvent;
+import net.dv8tion.jda.api.events.channel.text.TextChannelCreateEvent;
+import net.dv8tion.jda.api.events.channel.text.TextChannelDeleteEvent;
+import net.dv8tion.jda.api.events.channel.text.update.TextChannelUpdateNameEvent;
+import net.dv8tion.jda.api.events.channel.voice.VoiceChannelCreateEvent;
+import net.dv8tion.jda.api.events.channel.voice.VoiceChannelDeleteEvent;
+import net.dv8tion.jda.api.events.channel.voice.update.VoiceChannelUpdateNameEvent;
+import net.dv8tion.jda.api.events.guild.GuildBanEvent;
+import net.dv8tion.jda.api.events.guild.GuildLeaveEvent;
+import net.dv8tion.jda.api.events.guild.GuildUnbanEvent;
+import net.dv8tion.jda.api.events.guild.member.GuildMemberJoinEvent;
+import net.dv8tion.jda.api.events.guild.member.GuildMemberLeaveEvent;
+import net.dv8tion.jda.api.events.guild.member.GuildMemberRoleAddEvent;
+import net.dv8tion.jda.api.events.guild.member.GuildMemberRoleRemoveEvent;
+import net.dv8tion.jda.api.events.guild.member.update.GuildMemberUpdateNicknameEvent;
+import net.dv8tion.jda.api.events.guild.voice.GuildVoiceGuildDeafenEvent;
+import net.dv8tion.jda.api.events.guild.voice.GuildVoiceGuildMuteEvent;
+import net.dv8tion.jda.api.events.guild.voice.GuildVoiceJoinEvent;
+import net.dv8tion.jda.api.events.guild.voice.GuildVoiceLeaveEvent;
+import net.dv8tion.jda.api.events.guild.voice.GuildVoiceMoveEvent;
+import net.dv8tion.jda.api.events.message.guild.GuildMessageDeleteEvent;
+import net.dv8tion.jda.api.events.message.guild.GuildMessageUpdateEvent;
+import net.dv8tion.jda.api.events.role.RoleCreateEvent;
+import net.dv8tion.jda.api.events.role.RoleDeleteEvent;
+import net.dv8tion.jda.api.events.role.update.RoleUpdateNameEvent;
+import net.dv8tion.jda.api.events.role.update.RoleUpdatePermissionsEvent;
+import net.dv8tion.jda.api.hooks.ListenerAdapter;
+import net.dv8tion.jda.internal.requests.EmptyRestAction;
 import okhttp3.OkHttpClient;;
 
 public class EventHandler extends ListenerAdapter {
 	
-	private static final Color COLOR_GREEN = Settings.COLOR_GREEN;
-	private static final Color COLOR_ORANGE = Settings.COLOR_ORANGE;
-	private static final Color COLOR_RED = Settings.COLOR_RED;
+	private static final int COLOR_GREEN = Settings.COLOR_GREEN.hashCode();
+	private static final int COLOR_ORANGE = Settings.COLOR_ORANGE.hashCode();
+	private static final int COLOR_RED = Settings.COLOR_RED.hashCode();
 	
 	/* It can some times get stuck in an infinite loop and these are used to prevent it */
 	private static final int MAX_ATTEMPTS = 3;
@@ -101,9 +105,9 @@ public class EventHandler extends ListenerAdapter {
 		public final JDA bot;
 		public final long guildId;
 		public final Map<String, Object> data;
-		public final List<MessageEmbed> embeds;
+		public final List<WebhookEmbed> embeds;
 		
-		public Request(JDA bot, long guildId, Map<String, Object> data, List<MessageEmbed> embeds) {
+		public Request(JDA bot, long guildId, Map<String, Object> data, List<WebhookEmbed> embeds) {
 			this.bot = bot;
 			this.guildId = guildId;
 			this.data = data;
@@ -144,20 +148,20 @@ public class EventHandler extends ListenerAdapter {
 			.sum();
 	}
 	
-	private void handleRequest(JDA bot, Guild guild, Map<String, Object> data, List<MessageEmbed> requestEmbeds) {
+	private void handleRequest(JDA bot, Guild guild, Map<String, Object> data, List<WebhookEmbed> requestEmbeds) {
 		if(!this.queue.containsKey(guild.getIdLong())) {
 			BlockingDeque<Request> blockingDeque = new LinkedBlockingDeque<>();
 			this.queue.put(guild.getIdLong(), blockingDeque);
 			
 			this.executor.submit(() -> {
 				try {
-					List<MessageEmbed> embeds = new ArrayList<>();
+					List<WebhookEmbed> embeds = new ArrayList<>();
 					int length = 0, requests = 0;
 					
 					Request request;
 					while((request = blockingDeque.take()) != EMPTY_REQUEST) {
 						int lengthToSend = request.embeds.stream()
-							.mapToInt(MessageEmbed::getLength)
+							.mapToInt(embed -> Utils.getLength(embed))
 							.sum();
 						
 						/* Bulk the requests if there is more than one queued up */
@@ -186,7 +190,7 @@ public class EventHandler extends ListenerAdapter {
 		this.queue.get(guild.getIdLong()).offer(new Request(bot, guild.getIdLong(), data, requestEmbeds));
 	}
 	
-	private void _send(JDA bot, Guild guild, Map<String, Object> data, List<MessageEmbed> embeds, int requestAmount, int attempts) {
+	private void _send(JDA bot, Guild guild, Map<String, Object> data, List<WebhookEmbed> embeds, int requestAmount, int attempts) {
 		if(attempts >= MAX_ATTEMPTS) {
 			Statistics.increaseSkippedLogs();
 			
@@ -216,12 +220,12 @@ public class EventHandler extends ListenerAdapter {
 					.with("webhook_token", webhook.getToken()))
 				.runNoReply(this.connection);
 			
-			client = webhook.newClient()
+			client = new WebhookClientBuilder(webhook.getUrl())
 				.setExecutorService(this.scheduledExecutorService)
 				.setHttpClient(this.client)
 				.build();
 			
-			this.webhooks.put(client.getId(), client);
+			this.webhooks.put(String.valueOf(client.getId()), client);
 		}else{
 			String webhookId = (String) data.get("webhook_id");
 			String webhookToken = (String) data.get("webhook_token");
@@ -260,7 +264,7 @@ public class EventHandler extends ListenerAdapter {
 						 * this.webhooks.remove(client.getId()).close(); 
 						 */
 						
-						this.webhooks.remove(client.getId());
+						this.webhooks.remove(String.valueOf(client.getId()));
 						
 						r.table("logs")
 							.get(guild.getId())
@@ -281,13 +285,13 @@ public class EventHandler extends ListenerAdapter {
 		}
 	}
 	
-	public void send(JDA bot, Guild guild, Map<String, Object> data, List<MessageEmbed> embeds) {
+	public void send(JDA bot, Guild guild, Map<String, Object> data, List<WebhookEmbed> embeds) {
 		this.executor.submit(() -> {
 			this.handleRequest(bot, guild, data, embeds);
 		});
 	}
 	
-	public void send(JDA bot, Guild guild, Map<String, Object> data, MessageEmbed... embeds) {
+	public void send(JDA bot, Guild guild, Map<String, Object> data, WebhookEmbed... embeds) {
 		this.send(bot, guild, data, List.of(embeds));
 	}
 	
@@ -312,13 +316,13 @@ public class EventHandler extends ListenerAdapter {
 			return;
 		}
 		
-		EmbedBuilder embed = new EmbedBuilder();
+		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
 		embed.setDescription(String.format("`%s` just joined the server", member.getEffectiveName()));
 		embed.setColor(COLOR_GREEN);
 		embed.setTimestamp(ZonedDateTime.now());
-		embed.setAuthor(member.getUser().getAsTag(), null, member.getUser().getEffectiveAvatarUrl());
+		embed.setAuthor(new EmbedAuthor(member.getUser().getAsTag(), null, member.getUser().getEffectiveAvatarUrl()));
 		
-		embed.setFooter(String.format("User ID: %s", member.getUser().getId()), null);
+		embed.setFooter(new EmbedFooter(String.format("User ID: %s", member.getUser().getId()), null));
 		
 		this.send(event.getJDA(), guild, data, embed.build());
 	}
@@ -332,22 +336,22 @@ public class EventHandler extends ListenerAdapter {
 			return;
 		}
 		
-		List<MessageEmbed> embeds = new ArrayList<>();
+		List<WebhookEmbed> embeds = new ArrayList<>();
 		
-		EmbedBuilder embed = new EmbedBuilder();
+		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
 		embed.setDescription(String.format("`%s` just left the server", member.getEffectiveName()));
 		embed.setColor(COLOR_RED);
 		embed.setTimestamp(ZonedDateTime.now());
-		embed.setAuthor(member.getUser().getAsTag(), null, member.getUser().getEffectiveAvatarUrl());
-		embed.setFooter(String.format("User ID: %s", member.getUser().getId()), null);
+		embed.setAuthor(new EmbedAuthor(member.getUser().getAsTag(), null, member.getUser().getEffectiveAvatarUrl()));
+		embed.setFooter(new EmbedFooter(String.format("User ID: %s", member.getUser().getId()), null));
 		
 		embeds.add(embed.build());
 		
 		if(guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-			guild.getAuditLogs().type(ActionType.KICK).queueAfter(AUDIT_LOG_DELAY, TimeUnit.MILLISECONDS, logs -> {
+			guild.retrieveAuditLogs().type(ActionType.KICK).queueAfter(AUDIT_LOG_DELAY, TimeUnit.MILLISECONDS, logs -> {
 				AuditLogEntry entry = logs.stream()
 					.filter(e -> e.getTargetIdLong() == member.getUser().getIdLong())
-					.filter(e -> Duration.between(e.getCreationTime(), ZonedDateTime.now()).toSeconds() < 10)
+					.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now()).toSeconds() < 10)
 					.findFirst()
 					.orElse(null);
 				
@@ -373,15 +377,15 @@ public class EventHandler extends ListenerAdapter {
 			return;
 		}
 		
-		EmbedBuilder embed = new EmbedBuilder();
+		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
 		embed.setDescription(String.format("`%s` has been banned", user.getName()));
 		embed.setColor(COLOR_RED);
 		embed.setTimestamp(ZonedDateTime.now());
-		embed.setAuthor(user.getAsTag(), null, user.getEffectiveAvatarUrl());
-		embed.setFooter(String.format("User ID: %s", user.getId()), null);
+		embed.setAuthor(new EmbedAuthor(user.getAsTag(), null, user.getEffectiveAvatarUrl()));
+		embed.setFooter(new EmbedFooter(String.format("User ID: %s", user.getId()), null));
 		
 		if(guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-			guild.getAuditLogs().type(ActionType.BAN).queueAfter(AUDIT_LOG_DELAY, TimeUnit.MILLISECONDS, logs -> {
+			guild.retrieveAuditLogs().type(ActionType.BAN).queueAfter(AUDIT_LOG_DELAY, TimeUnit.MILLISECONDS, logs -> {
 				AuditLogEntry entry = logs.stream()
 					.filter(e -> e.getTargetIdLong() == user.getIdLong())
 					.findFirst()
@@ -413,15 +417,15 @@ public class EventHandler extends ListenerAdapter {
 			return;
 		}
 		
-		EmbedBuilder embed = new EmbedBuilder();
+		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
 		embed.setDescription(String.format("`%s` has been unbanned", user.getName()));
 		embed.setColor(COLOR_GREEN);
 		embed.setTimestamp(ZonedDateTime.now());
-		embed.setAuthor(user.getAsTag(), null, user.getEffectiveAvatarUrl());
-		embed.setFooter(String.format("User ID: %s", user.getId()), null);
+		embed.setAuthor(new EmbedAuthor(user.getAsTag(), null, user.getEffectiveAvatarUrl()));
+		embed.setFooter(new EmbedFooter(String.format("User ID: %s", user.getId()), null));
 		
 		if(guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-			guild.getAuditLogs().type(ActionType.UNBAN).queueAfter(AUDIT_LOG_DELAY, TimeUnit.MILLISECONDS, logs -> {
+			guild.retrieveAuditLogs().type(ActionType.UNBAN).queueAfter(AUDIT_LOG_DELAY, TimeUnit.MILLISECONDS, logs -> {
 				AuditLogEntry entry = logs.stream()
 					.filter(e -> e.getTargetIdLong() == user.getIdLong())
 					.findFirst()
@@ -454,29 +458,29 @@ public class EventHandler extends ListenerAdapter {
 			return;
 		}
 		
-		EmbedBuilder embed = new EmbedBuilder();
+		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
 		if(message.getMember() != null) {
 			Member member = event.getMember();
 			
 			embed.setDescription(String.format("`%s` edited their [message](%s) in %s", member.getEffectiveName(), message.getJumpUrl(), channel.getAsMention()));
-			embed.setAuthor(member.getUser().getAsTag(), null, member.getUser().getEffectiveAvatarUrl());
+			embed.setAuthor(new EmbedAuthor(member.getUser().getAsTag(), null, member.getUser().getEffectiveAvatarUrl()));
 		}else{
 			User user = event.getAuthor();
 			
 			embed.setDescription(String.format("`%s` edited their [message](%s) in %s", user.getName(), message.getJumpUrl(), channel.getAsMention()));
-			embed.setAuthor(user.getAsTag(), null, user.getEffectiveAvatarUrl());
+			embed.setAuthor(new EmbedAuthor(user.getAsTag(), null, user.getEffectiveAvatarUrl()));
 		}
 		
 		embed.setColor(COLOR_ORANGE);
 		embed.setTimestamp(ZonedDateTime.now());
-		embed.setFooter(String.format("Message ID: %s", message.getId()), null);		
+		embed.setFooter(new EmbedFooter(String.format("Message ID: %s", message.getId()), null));		
 		
 		if(previousMessage != null && previousMessage.getContentRaw().length() > 0) {
-			embed.addField("Before", Utils.limitField(previousMessage.getContentRaw()), false);
+			embed.addField(new EmbedField(false, "Before", Utils.limitField(previousMessage.getContentRaw())));
 		}
 		
 		if(message.getContentRaw().length() > 0) {
-			embed.addField("After", Utils.limitField(message.getContentRaw()), false);
+			embed.addField(new EmbedField(false, "After", Utils.limitField(message.getContentRaw())));
 		}
 		
 		this.send(event.getJDA(), guild, data, embed.build());
@@ -491,10 +495,10 @@ public class EventHandler extends ListenerAdapter {
 			return;
 		}
 		
-		EmbedBuilder embed = new EmbedBuilder();
+		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
 		embed.setColor(COLOR_RED);
 		embed.setTimestamp(ZonedDateTime.now());
-		embed.setFooter(String.format("Message ID: %s", event.getMessageId()), null);
+		embed.setFooter(new EmbedFooter(String.format("Message ID: %s", event.getMessageId()), null));
 		
 		Message message = GuildMessageCache.INSTANCE.getMessageById(event.getMessageIdLong());
 		if(message != null) {
@@ -506,26 +510,26 @@ public class EventHandler extends ListenerAdapter {
 				Member member = message.getMember();
 				
 				embed.setDescription(String.format("The message sent by `%s` in %s was deleted", member.getEffectiveName(), channel.getAsMention()));
-				embed.setAuthor(member.getUser().getAsTag(), null, member.getUser().getEffectiveAvatarUrl());
+				embed.setAuthor(new EmbedAuthor(member.getUser().getAsTag(), null, member.getUser().getEffectiveAvatarUrl()));
 			}else{
 				User user = message.getAuthor();
 				
 				embed.setDescription(String.format("The message sent by `%s` in %s was deleted", user.getName(), channel.getAsMention()));
-				embed.setAuthor(user.getAsTag(), null, user.getEffectiveAvatarUrl());
+				embed.setAuthor(new EmbedAuthor(user.getAsTag(), null, user.getEffectiveAvatarUrl()));
 			}
 			
-			embed.addField("Message", Utils.limitField(message.getContentRaw()), false);
+			embed.addField(new EmbedField(false, "Message", Utils.limitField(message.getContentRaw())));
 			
 			this.send(event.getJDA(), guild, data, embed.build());
 		}else{
 			embed.setDescription(String.format("A message sent in %s was deleted", channel.getAsMention()));
-			embed.setAuthor(guild.getName(), null, guild.getIconUrl());
+			embed.setAuthor(new EmbedAuthor(guild.getName(), null, guild.getIconUrl()));
 			
 			this.send(event.getJDA(), guild, data, embed.build());
 		}
 	}
 	
-	public void onChannelDelete(Channel channel) {
+	public void onChannelDelete(GuildChannel channel) {
 		Guild guild = channel.getGuild();
 		
 		Map<String, Object> data = r.table("logs").get(guild.getId()).run(this.connection);
@@ -538,15 +542,15 @@ public class EventHandler extends ListenerAdapter {
 			return;
 		}
 		
-		EmbedBuilder embed = new EmbedBuilder();
+		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
 		embed.setDescription(String.format("The %s `%s` has just been deleted", type, channel.getName()));
 		embed.setColor(COLOR_RED);
 		embed.setTimestamp(ZonedDateTime.now());
-		embed.setAuthor(guild.getName(), null, guild.getIconUrl());
-		embed.setFooter(String.format("%s ID: %s", channel.getType().equals(ChannelType.CATEGORY) ? "Category" : "Channel", channel.getId()), null);
+		embed.setAuthor(new EmbedAuthor(guild.getName(), null, guild.getIconUrl()));
+		embed.setFooter(new EmbedFooter(String.format("%s ID: %s", channel.getType().equals(ChannelType.CATEGORY) ? "Category" : "Channel", channel.getId()), null));
 		
 		if(guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-			guild.getAuditLogs().type(ActionType.CHANNEL_DELETE).limit(100).queueAfter(AUDIT_LOG_DELAY, TimeUnit.MILLISECONDS, logs -> {
+			guild.retrieveAuditLogs().type(ActionType.CHANNEL_DELETE).limit(100).queueAfter(AUDIT_LOG_DELAY, TimeUnit.MILLISECONDS, logs -> {
 				AuditLogEntry entry = logs.stream()
 					.filter(e -> e.getTargetIdLong() == channel.getIdLong())
 					.findFirst()
@@ -581,7 +585,7 @@ public class EventHandler extends ListenerAdapter {
 		onChannelDelete(event.getCategory());
 	}
 	
-	public void onChannelCreate(Channel channel) {
+	public void onChannelCreate(GuildChannel channel) {
 		Guild guild = channel.getGuild();
 		
 		Map<String, Object> data = r.table("logs").get(guild.getId()).run(this.connection);
@@ -594,15 +598,15 @@ public class EventHandler extends ListenerAdapter {
 			return;
 		}
 		
-		EmbedBuilder embed = new EmbedBuilder();
+		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
 		embed.setDescription(String.format("The %s %s has just been created", type, channel.getType().equals(ChannelType.TEXT) ? ((TextChannel) channel).getAsMention() : "`" + channel.getName() + "`"));
 		embed.setColor(COLOR_GREEN);
 		embed.setTimestamp(ZonedDateTime.now());
-		embed.setAuthor(guild.getName(), null, guild.getIconUrl());
-		embed.setFooter(String.format("%s ID: %s", channel.getType().equals(ChannelType.CATEGORY) ? "Category" : "Channel", channel.getId()), null);
+		embed.setAuthor(new EmbedAuthor(guild.getName(), null, guild.getIconUrl()));
+		embed.setFooter(new EmbedFooter(String.format("%s ID: %s", channel.getType().equals(ChannelType.CATEGORY) ? "Category" : "Channel", channel.getId()), null));
 		
 		if(guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-			guild.getAuditLogs().type(ActionType.CHANNEL_CREATE).limit(100).queueAfter(AUDIT_LOG_DELAY, TimeUnit.MILLISECONDS, logs -> {
+			guild.retrieveAuditLogs().type(ActionType.CHANNEL_CREATE).limit(100).queueAfter(AUDIT_LOG_DELAY, TimeUnit.MILLISECONDS, logs -> {
 				AuditLogEntry entry = logs.stream()
 					.filter(e -> e.getTargetIdLong() == channel.getIdLong())
 					.findFirst()
@@ -637,7 +641,7 @@ public class EventHandler extends ListenerAdapter {
 		onChannelCreate(event.getCategory());
 	}
 	
-	public void onChannelUpdateName(Channel channel, String previous, String current) {
+	public void onChannelUpdateName(GuildChannel channel, String previous, String current) {
 		Guild guild = channel.getGuild();
 		
 		Map<String, Object> data = r.table("logs").get(guild.getId()).run(this.connection);
@@ -650,18 +654,18 @@ public class EventHandler extends ListenerAdapter {
 			return;
 		}
 		
-		EmbedBuilder embed = new EmbedBuilder();
+		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
 		embed.setDescription(String.format("The %s **%s** has been renamed", type, channel.getType().equals(ChannelType.TEXT) ? ((TextChannel) channel).getAsMention() : "`" + channel.getName() + "`"));
 		embed.setColor(COLOR_ORANGE);
 		embed.setTimestamp(ZonedDateTime.now());
-		embed.setAuthor(guild.getName(), null, guild.getIconUrl());
-		embed.setFooter(String.format("%s ID: %s", channel.getType().equals(ChannelType.CATEGORY) ? "Category" : "Channel", channel.getId()), null);
+		embed.setAuthor(new EmbedAuthor(guild.getName(), null, guild.getIconUrl()));
+		embed.setFooter(new EmbedFooter(String.format("%s ID: %s", channel.getType().equals(ChannelType.CATEGORY) ? "Category" : "Channel", channel.getId()), null));
 		
-		embed.addField("Before", String.format("`%s`", previous), false);
-		embed.addField("After", String.format("`%s`", current), false);
+		embed.addField(new EmbedField(false, "Before", String.format("`%s`", previous)));
+		embed.addField(new EmbedField(false, "After", String.format("`%s`", current)));
 		
 		if(guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-			guild.getAuditLogs().type(ActionType.CHANNEL_UPDATE).limit(100).queueAfter(AUDIT_LOG_DELAY, TimeUnit.MILLISECONDS, logs -> {
+			guild.retrieveAuditLogs().type(ActionType.CHANNEL_UPDATE).limit(100).queueAfter(AUDIT_LOG_DELAY, TimeUnit.MILLISECONDS, logs -> {
 				AuditLogEntry entry = logs.stream()
 					.filter(e -> e.getTargetIdLong() == channel.getIdLong())
 					.filter(e -> e.getChangeByKey(AuditLogKey.CHANNEL_NAME) != null)
@@ -706,15 +710,15 @@ public class EventHandler extends ListenerAdapter {
 			return;
 		}
 		
-		EmbedBuilder embed = new EmbedBuilder();
+		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
 		embed.setDescription(String.format("The role %s has been created", role.getAsMention()));
 		embed.setColor(COLOR_GREEN);
 		embed.setTimestamp(ZonedDateTime.now());
-		embed.setAuthor(guild.getName(), null, guild.getIconUrl());
-		embed.setFooter(String.format("Role ID: %s", role.getId()), null);
+		embed.setAuthor(new EmbedAuthor(guild.getName(), null, guild.getIconUrl()));
+		embed.setFooter(new EmbedFooter(String.format("Role ID: %s", role.getId()), null));
 		
 		if(!role.isManaged() && guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-			guild.getAuditLogs().type(ActionType.ROLE_CREATE).limit(100).queueAfter(AUDIT_LOG_DELAY, TimeUnit.MILLISECONDS, logs -> {
+			guild.retrieveAuditLogs().type(ActionType.ROLE_CREATE).limit(100).queueAfter(AUDIT_LOG_DELAY, TimeUnit.MILLISECONDS, logs -> {
 				AuditLogEntry entry = logs.stream()
 					.filter(e -> e.getTargetIdLong() == event.getRole().getIdLong())
 					.findFirst()
@@ -746,15 +750,15 @@ public class EventHandler extends ListenerAdapter {
 			return;
 		}
 		
-		EmbedBuilder embed = new EmbedBuilder();
+		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
 		embed.setDescription(String.format("The role `%s` has been deleted", role.getName()));
 		embed.setColor(COLOR_RED);
 		embed.setTimestamp(ZonedDateTime.now());
-		embed.setAuthor(guild.getName(), null, guild.getIconUrl());
-		embed.setFooter(String.format("Role ID: %s", role.getId()), null);
+		embed.setAuthor(new EmbedAuthor(guild.getName(), null, guild.getIconUrl()));
+		embed.setFooter(new EmbedFooter(String.format("Role ID: %s", role.getId()), null));
 		
 		if(!role.isManaged() && guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-			guild.getAuditLogs().type(ActionType.ROLE_DELETE).limit(100).queueAfter(AUDIT_LOG_DELAY, TimeUnit.MILLISECONDS, logs -> {
+			guild.retrieveAuditLogs().type(ActionType.ROLE_DELETE).limit(100).queueAfter(AUDIT_LOG_DELAY, TimeUnit.MILLISECONDS, logs -> {
 				AuditLogEntry entry = logs.stream()
 					.filter(e -> e.getTargetIdLong() == event.getRole().getIdLong())
 					.findFirst()
@@ -786,18 +790,18 @@ public class EventHandler extends ListenerAdapter {
 			return;
 		}
 		
-		EmbedBuilder embed = new EmbedBuilder();
+		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
 		embed.setDescription(String.format("The role %s has been renamed", role.getAsMention()));
 		embed.setColor(COLOR_ORANGE);
 		embed.setTimestamp(ZonedDateTime.now());
-		embed.setAuthor(guild.getName(), null, guild.getIconUrl());
-		embed.setFooter(String.format("Role ID: %s", role.getId()), null);
+		embed.setAuthor(new EmbedAuthor(guild.getName(), null, guild.getIconUrl()));
+		embed.setFooter(new EmbedFooter(String.format("Role ID: %s", role.getId()), null));
 		
-		embed.addField("Before", String.format("`%s`", event.getOldName()), false);
-		embed.addField("After", String.format("`%s`", event.getNewName()), false);
+		embed.addField(new EmbedField(false, "Before", String.format("`%s`", event.getOldName())));
+		embed.addField(new EmbedField(false, "After", String.format("`%s`", event.getNewName())));
 		
 		if(guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-			guild.getAuditLogs().type(ActionType.ROLE_UPDATE).limit(100).queueAfter(AUDIT_LOG_DELAY, TimeUnit.MILLISECONDS, logs -> {
+			guild.retrieveAuditLogs().type(ActionType.ROLE_UPDATE).limit(100).queueAfter(AUDIT_LOG_DELAY, TimeUnit.MILLISECONDS, logs -> {
 				AuditLogEntry entry = logs.stream()
 					.filter(e -> e.getTargetIdLong() == event.getRole().getIdLong())
 					.filter(e -> e.getChangeByKey(AuditLogKey.ROLE_NAME) != null)
@@ -826,8 +830,8 @@ public class EventHandler extends ListenerAdapter {
 		
 		long permissions = permissionsBefore ^ permissionsAfter;
 		
-		List<Permission> permissionsAdded = Permission.getPermissions(permissionsAfter & permissions);
-		List<Permission> permissionsRemoved = Permission.getPermissions(permissionsBefore & permissions);
+		EnumSet<Permission> permissionsAdded = Permission.getPermissions(permissionsAfter & permissions);
+		EnumSet<Permission> permissionsRemoved = Permission.getPermissions(permissionsBefore & permissions);
 		
 		if(permissionsAdded.size() + permissionsRemoved.size() != 0) {
 			builder.append("\n```diff");
@@ -857,15 +861,17 @@ public class EventHandler extends ListenerAdapter {
 		
 		String message = this.getPermissionDifference(event.getOldPermissionsRaw(), event.getNewPermissionsRaw());
 		if(message.length() > 0) {
-			EmbedBuilder embed = new EmbedBuilder();
-			embed.setDescription(String.format("The role %s has had permission changes made", role.getAsMention()));
+			StringBuilder embedDescription = new StringBuilder();
+			embedDescription.append(String.format("The role %s has had permission changes made", role.getAsMention()));
+			
+			WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
 			embed.setColor(COLOR_ORANGE);
 			embed.setTimestamp(ZonedDateTime.now());
-			embed.setAuthor(guild.getName(), null, guild.getIconUrl());
-			embed.setFooter(String.format("Role ID: %s", role.getId()), null);
+			embed.setAuthor(new EmbedAuthor(guild.getName(), null, guild.getIconUrl()));
+			embed.setFooter(new EmbedFooter(String.format("Role ID: %s", role.getId()), null));
 			
 			if(guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-				guild.getAuditLogs().type(ActionType.ROLE_UPDATE).limit(100).queueAfter(AUDIT_LOG_DELAY, TimeUnit.MILLISECONDS, logs -> {
+				guild.retrieveAuditLogs().type(ActionType.ROLE_UPDATE).limit(100).queueAfter(AUDIT_LOG_DELAY, TimeUnit.MILLISECONDS, logs -> {
 					AuditLogEntry entry = logs.stream()
 						.filter(e -> e.getTargetIdLong() == event.getRole().getIdLong())
 						.filter(e -> e.getChangeByKey(AuditLogKey.ROLE_PERMISSIONS) != null)
@@ -875,19 +881,23 @@ public class EventHandler extends ListenerAdapter {
 					if(entry != null) {
 						Statistics.increaseSuccessfulAuditLogs();
 						
-						embed.setDescription(String.format("The role %s has had permission changes made by **%s**", role.getAsMention(), entry.getUser().getAsTag()));
+						embedDescription.append(String.format(" by **%s**", entry.getUser().getAsTag()));
 					}else{
 						Statistics.increaseFailedAuditLogs();
 						
 						System.err.println(String.format("[onRoleUpdatePermissions] Could not find audit log for %s (%s) %s (%s)", guild.getName(), guild.getId(), role.getName(), role.getId()));
 					}
 					
-					embed.appendDescription(message);
+					embedDescription.append(message);
+					
+					embed.setDescription(embedDescription.toString());
 					
 					this.send(event.getJDA(), guild, data, embed.build());
 				});
 			}else{
-				embed.appendDescription(message);
+				embedDescription.append(message);
+				
+				embed.setDescription(embedDescription.toString());
 				
 				this.send(event.getJDA(), guild, data, embed.build());
 			}
@@ -906,10 +916,12 @@ public class EventHandler extends ListenerAdapter {
 			return;
 		}
 		
-		EmbedBuilder embed = new EmbedBuilder();
+		StringBuilder embedDescription = new StringBuilder();
+		
+		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
 		embed.setColor(COLOR_GREEN);
 		embed.setTimestamp(ZonedDateTime.now());
-		embed.setAuthor(member.getUser().getAsTag(), null, member.getUser().getEffectiveAvatarUrl());
+		embed.setAuthor(new EmbedAuthor(member.getUser().getAsTag(), null, member.getUser().getEffectiveAvatarUrl()));
 		
 		if(roles.size() > 1) {
 			StringBuilder builder = new StringBuilder();
@@ -934,14 +946,14 @@ public class EventHandler extends ListenerAdapter {
 				}
 			}
 			
-			embed.setDescription(String.format("The roles %s have been added to `%s`", builder.toString(), member.getEffectiveName()));
+			embedDescription.append(String.format("The roles %s have been added to `%s`", builder.toString(), member.getEffectiveName()));
 		}else{
-			embed.setDescription(String.format("The role %s has been added to `%s`", firstRole.getAsMention(), member.getEffectiveName()));
-			embed.setFooter(String.format("Role ID: %s", firstRole.getId()), null);
+			embedDescription.append(String.format("The role %s has been added to `%s`", firstRole.getAsMention(), member.getEffectiveName()));
+			embed.setFooter(new EmbedFooter(String.format("Role ID: %s", firstRole.getId()), null));
 		}
 		
 		if(!firstRole.isManaged() && guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-			guild.getAuditLogs().type(ActionType.MEMBER_ROLE_UPDATE).limit(100).queueAfter(AUDIT_LOG_DELAY, TimeUnit.MILLISECONDS, logs -> {
+			guild.retrieveAuditLogs().type(ActionType.MEMBER_ROLE_UPDATE).limit(100).queueAfter(AUDIT_LOG_DELAY, TimeUnit.MILLISECONDS, logs -> {
 				AuditLogEntry entry = logs.stream()
 					.filter(e -> e.getTargetIdLong() == member.getUser().getIdLong())
 					.filter(e -> e.getChangeByKey(AuditLogKey.MEMBER_ROLES_ADD) != null)
@@ -963,16 +975,20 @@ public class EventHandler extends ListenerAdapter {
 				if(entry != null) {
 					Statistics.increaseSuccessfulAuditLogs();
 					
-					embed.appendDescription(String.format(" by **%s**", entry.getUser().getAsTag()));
+					embedDescription.append(String.format(" by **%s**", entry.getUser().getAsTag()));
 				}else{
 					Statistics.increaseFailedAuditLogs();
 					
 					System.err.println(String.format("[onGuildMemberRoleAdd] Could not find audit log for %s (%s) (%s) (%s)", guild.getName(), guild.getId(), member, roles));
 				}
 				
+				embed.setDescription(embedDescription.toString());
+				
 				this.send(event.getJDA(), guild, data, embed.build());
 			});
 		}else{
+			embed.setDescription(embedDescription.toString());
+			
 			this.send(event.getJDA(), guild, data, embed.build());
 		}
 	}
@@ -991,14 +1007,16 @@ public class EventHandler extends ListenerAdapter {
 		
 		/* Wait AUDIT_LOG_DELAY milliseconds to ensure that the role-deletion event has come through */
 		new EmptyRestAction<Void>(event.getJDA()).queueAfter(AUDIT_LOG_DELAY, TimeUnit.MILLISECONDS, ($) -> {
-			EmbedBuilder embed = new EmbedBuilder();
+			StringBuilder embedDescription = new StringBuilder();
+			
+			WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
 			embed.setColor(COLOR_RED);
 			embed.setTimestamp(ZonedDateTime.now());
-			embed.setAuthor(member.getUser().getAsTag(), null, member.getUser().getEffectiveAvatarUrl());
+			embed.setAuthor(new EmbedAuthor(member.getUser().getAsTag(), null, member.getUser().getEffectiveAvatarUrl()));
 			
 			if(roles.size() == 1 && guild.getRoleById(firstRole.getIdLong()) == null) {
 				embed.setDescription(String.format("The role `%s` has been removed from `%s` by **role deletion**", firstRole.getName(), member.getEffectiveName()));
-				embed.setFooter(String.format("Role ID: %s", firstRole.getId()), null);
+				embed.setFooter(new EmbedFooter(String.format("Role ID: %s", firstRole.getId()), null));
 				
 				this.send(event.getJDA(), guild, data, embed.build());
 			}else{
@@ -1025,14 +1043,14 @@ public class EventHandler extends ListenerAdapter {
 						}
 					}
 					
-					embed.setDescription(String.format("The roles %s have been removed from `%s`", builder, member.getEffectiveName()));
+					embedDescription.append(String.format("The roles %s have been removed from `%s`", builder, member.getEffectiveName()));
 				}else{
-					embed.setDescription(String.format("The role %s has been removed from `%s`", firstRole.getAsMention(), member.getEffectiveName()));
-					embed.setFooter(String.format("Role ID: %s", firstRole.getId()), null);
+					embedDescription.append(String.format("The role %s has been removed from `%s`", firstRole.getAsMention(), member.getEffectiveName()));
+					embed.setFooter(new EmbedFooter(String.format("Role ID: %s", firstRole.getId()), null));
 				}
 				
 				if(!firstRole.isManaged() && guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-					guild.getAuditLogs().type(ActionType.MEMBER_ROLE_UPDATE).limit(100).queue(logs -> {
+					guild.retrieveAuditLogs().type(ActionType.MEMBER_ROLE_UPDATE).limit(100).queue(logs -> {
 						AuditLogEntry entry = logs.stream()
 							.filter(e -> e.getTargetIdLong() == member.getUser().getIdLong())
 							.filter(e -> e.getChangeByKey(AuditLogKey.MEMBER_ROLES_REMOVE) != null)
@@ -1054,23 +1072,27 @@ public class EventHandler extends ListenerAdapter {
 						if(entry != null) {
 							Statistics.increaseSuccessfulAuditLogs();
 							
-							embed.appendDescription(String.format(" by **%s**", entry.getUser().getAsTag()));
+							embedDescription.append(String.format(" by **%s**", entry.getUser().getAsTag()));
 						}else{
 							Statistics.increaseFailedAuditLogs();
 							
 							System.err.println(String.format("[onGuildMemberRoleRemove] Could not find audit log for %s (%s) (%s) (%s)", guild.getName(), guild.getId(), member, roles));
 						}
 						
+						embed.setDescription(embedDescription.toString());
+						
 						this.send(event.getJDA(), guild, data, embed.build());
 					});
 				}else{
+					embed.setDescription(embedDescription.toString());
+					
 					this.send(event.getJDA(), guild, data, embed.build());
 				}
 			}
 		});
 	}
 	
-	public void onGuildMemberNickChange(GuildMemberNickChangeEvent event) {
+	public void onGuildMemberUpdateNickname(GuildMemberUpdateNicknameEvent event) {
 		Guild guild = event.getGuild();
 		Member member = event.getMember();
 		
@@ -1079,17 +1101,17 @@ public class EventHandler extends ListenerAdapter {
 			return;
 		}
 		
-		EmbedBuilder embed = new EmbedBuilder();
+		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
 		embed.setDescription(String.format("`%s` has had their nickname changed", member.getEffectiveName()));
 		embed.setColor(COLOR_ORANGE);
 		embed.setTimestamp(ZonedDateTime.now());
-		embed.setAuthor(member.getUser().getAsTag(), null, member.getUser().getEffectiveAvatarUrl());
+		embed.setAuthor(new EmbedAuthor(member.getUser().getAsTag(), null, member.getUser().getEffectiveAvatarUrl()));
 		
-		embed.addField("Before", String.format("`%s`", event.getPrevNick() != null ? event.getPrevNick() : member.getUser().getName()), false);
-		embed.addField("After", String.format("`%s`", event.getNewNick() != null ? event.getNewNick() : member.getUser().getName()), false);
+		embed.addField(new EmbedField(false, "Before", String.format("`%s`", event.getOldNickname() != null ? event.getOldNickname() : member.getUser().getName())));
+		embed.addField(new EmbedField(false, "After", String.format("`%s`", event.getNewNickname() != null ? event.getNewNickname() : member.getUser().getName())));
 		
 		if(guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-			guild.getAuditLogs().type(ActionType.MEMBER_UPDATE).limit(100).queueAfter(AUDIT_LOG_DELAY, TimeUnit.MILLISECONDS, logs -> {
+			guild.retrieveAuditLogs().type(ActionType.MEMBER_UPDATE).limit(100).queueAfter(AUDIT_LOG_DELAY, TimeUnit.MILLISECONDS, logs -> {
 				AuditLogEntry entry = logs.stream()
 					.filter(e -> e.getTargetIdLong() == member.getUser().getIdLong())
 					.filter(e -> e.getChangeByKey(AuditLogKey.MEMBER_NICK) != null)
@@ -1124,10 +1146,10 @@ public class EventHandler extends ListenerAdapter {
 		
 		boolean muted = event.getVoiceState().isGuildMuted();
 		
-		EmbedBuilder embed = new EmbedBuilder();
+		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
 		embed.setDescription(String.format("`%s` has been %s", member.getEffectiveName(), muted ? "muted" : "unmuted"));
 		embed.setTimestamp(ZonedDateTime.now());
-		embed.setAuthor(member.getUser().getAsTag(), null, member.getUser().getEffectiveAvatarUrl());
+		embed.setAuthor(new EmbedAuthor(member.getUser().getAsTag(), null, member.getUser().getEffectiveAvatarUrl()));
 		
 		if(muted) {
 			embed.setColor(COLOR_RED);
@@ -1136,7 +1158,7 @@ public class EventHandler extends ListenerAdapter {
 		}
 		
 		if(guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-			guild.getAuditLogs().type(ActionType.MEMBER_UPDATE).limit(100).queueAfter(AUDIT_LOG_DELAY, TimeUnit.MILLISECONDS, logs -> {
+			guild.retrieveAuditLogs().type(ActionType.MEMBER_UPDATE).limit(100).queueAfter(AUDIT_LOG_DELAY, TimeUnit.MILLISECONDS, logs -> {
 				AuditLogEntry entry = logs.stream()
 					.filter(e -> e.getTargetIdLong() == member.getUser().getIdLong())
 					.filter(e -> e.getChangeByKey(AuditLogKey.MEMBER_MUTE) != null)
@@ -1171,10 +1193,10 @@ public class EventHandler extends ListenerAdapter {
 		
 		boolean deafened = event.getVoiceState().isGuildDeafened();
 		
-		EmbedBuilder embed = new EmbedBuilder();
+		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
 		embed.setDescription(String.format("`%s` has been %s", member.getEffectiveName(), deafened ? "deafened" : "undefeaned"));		
 		embed.setTimestamp(ZonedDateTime.now());
-		embed.setAuthor(member.getUser().getAsTag(), null, member.getUser().getEffectiveAvatarUrl());
+		embed.setAuthor(new EmbedAuthor(member.getUser().getAsTag(), null, member.getUser().getEffectiveAvatarUrl()));
 		
 		if(deafened) {
 			embed.setColor(COLOR_RED);
@@ -1183,7 +1205,7 @@ public class EventHandler extends ListenerAdapter {
 		}
 		
 		if(guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-			guild.getAuditLogs().type(ActionType.MEMBER_UPDATE).limit(100).queueAfter(AUDIT_LOG_DELAY, TimeUnit.MILLISECONDS, logs -> {
+			guild.retrieveAuditLogs().type(ActionType.MEMBER_UPDATE).limit(100).queueAfter(AUDIT_LOG_DELAY, TimeUnit.MILLISECONDS, logs -> {
 				AuditLogEntry entry = logs.stream()
 					.filter(e -> e.getTargetIdLong() == member.getUser().getIdLong())
 					.filter(e -> e.getChangeByKey(AuditLogKey.MEMBER_DEAF) != null)
@@ -1217,11 +1239,11 @@ public class EventHandler extends ListenerAdapter {
 			return;
 		}
 		
-		EmbedBuilder embed = new EmbedBuilder();
+		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
 		embed.setDescription(String.format("`%s` just joined the voice channel `%s`", member.getEffectiveName(), channel.getName()));
 		embed.setColor(COLOR_GREEN);
 		embed.setTimestamp(ZonedDateTime.now());
-		embed.setAuthor(member.getUser().getAsTag(), null, member.getUser().getEffectiveAvatarUrl());
+		embed.setAuthor(new EmbedAuthor(member.getUser().getAsTag(), null, member.getUser().getEffectiveAvatarUrl()));
 		
 		this.send(event.getJDA(), guild, data, embed.build());
 	}
@@ -1236,11 +1258,11 @@ public class EventHandler extends ListenerAdapter {
 			return;
 		}
 		
-		EmbedBuilder embed = new EmbedBuilder();
+		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
 		embed.setDescription(String.format("`%s` just left the voice channel `%s`", member.getEffectiveName(), channel.getName()));
 		embed.setColor(COLOR_RED);
 		embed.setTimestamp(ZonedDateTime.now());
-		embed.setAuthor(member.getUser().getAsTag(), null, member.getUser().getEffectiveAvatarUrl());
+		embed.setAuthor(new EmbedAuthor(member.getUser().getAsTag(), null, member.getUser().getEffectiveAvatarUrl()));
 		
 		this.send(event.getJDA(), guild, data, embed.build());
 	}
@@ -1256,14 +1278,14 @@ public class EventHandler extends ListenerAdapter {
 			return;
 		}
 		
-		EmbedBuilder embed = new EmbedBuilder();
+		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
 		embed.setDescription(String.format("`%s` just changed voice channel", member.getEffectiveName()));
 		embed.setColor(COLOR_ORANGE);
 		embed.setTimestamp(ZonedDateTime.now());
-		embed.setAuthor(member.getUser().getAsTag(), null, member.getUser().getEffectiveAvatarUrl());
+		embed.setAuthor(new EmbedAuthor(member.getUser().getAsTag(), null, member.getUser().getEffectiveAvatarUrl()));
 		
-		embed.addField("Before", String.format("`%s`", left.getName()), false);
-		embed.addField("After", String.format("`%s`", joined.getName()), false);
+		embed.addField(new EmbedField(false, "Before", String.format("`%s`", left.getName())));
+		embed.addField(new EmbedField(false, "After", String.format("`%s`", joined.getName())));
 		
 		this.send(event.getJDA(), guild, data, embed.build());
 	}

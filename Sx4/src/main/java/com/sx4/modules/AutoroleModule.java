@@ -4,15 +4,15 @@ import static com.rethinkdb.RethinkDB.r;
 
 import java.util.Map;
 
-import com.jockie.bot.core.Context;
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
 import com.jockie.bot.core.command.Command.AuthorPermissions;
 import com.jockie.bot.core.command.Command.BotPermissions;
-import com.jockie.bot.core.command.ICommand.ContentOverflowPolicy;
+import com.jockie.bot.core.command.Context;
 import com.jockie.bot.core.command.Initialize;
 import com.jockie.bot.core.command.impl.CommandEvent;
 import com.jockie.bot.core.command.impl.CommandImpl;
+import com.jockie.bot.core.command.ICommand.ContentOverflowPolicy;
 import com.jockie.bot.core.module.Module;
 import com.rethinkdb.gen.ast.Get;
 import com.rethinkdb.model.OptArgs;
@@ -22,10 +22,10 @@ import com.sx4.core.Sx4Command;
 import com.sx4.utils.ArgumentUtils;
 import com.sx4.utils.HelpUtils;
 
-import net.dv8tion.jda.core.EmbedBuilder;
-import net.dv8tion.jda.core.Permission;
-import net.dv8tion.jda.core.entities.Member;
-import net.dv8tion.jda.core.entities.Role;
+import net.dv8tion.jda.api.EmbedBuilder;
+import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.Member;
+import net.dv8tion.jda.api.entities.Role;
 
 @Module
 public class AutoroleModule {
@@ -229,25 +229,25 @@ public class AutoroleModule {
 			for (Member member : event.getGuild().getMembers()) {
 				if (roleData != null && botRoleData == null) {
 					if (role != null && !member.getRoles().contains(role)) {
-						event.getGuild().getController().addSingleRoleToMember(member, role).queue();
+						event.getGuild().addRoleToMember(member, role).queue();
 						users += 1;
 					}
 				} else if (roleData == null && botRoleData != null) {
 					if (member.getUser().isBot()) {
 						if (botRole != null && !member.getRoles().contains(botRole)) {
-							event.getGuild().getController().addSingleRoleToMember(member, botRole).queue();
+							event.getGuild().addRoleToMember(member, botRole).queue();
 							bots += 1;
 						}
 					}
 				} else {
 					if (member.getUser().isBot()) {
 						if (botRole != null && !member.getRoles().contains(botRole)) {
-							event.getGuild().getController().addSingleRoleToMember(member, botRole).queue();
+							event.getGuild().addRoleToMember(member, botRole).queue();
 							bots += 1;
 						}
 					} else {
 						if (role != null && !member.getRoles().contains(role)) {
-							event.getGuild().getController().addSingleRoleToMember(member, role).queue();
+							event.getGuild().addRoleToMember(member, role).queue();
 							users += 1;
 						}
 					}

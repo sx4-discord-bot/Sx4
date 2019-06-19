@@ -13,26 +13,26 @@ import com.rethinkdb.gen.ast.Get;
 import com.sx4.core.Sx4Bot;
 import com.sx4.utils.ModUtils;
 
-import net.dv8tion.jda.core.Permission;
-import net.dv8tion.jda.core.audit.ActionType;
-import net.dv8tion.jda.core.audit.AuditLogEntry;
-import net.dv8tion.jda.core.entities.Role;
-import net.dv8tion.jda.core.entities.User;
-import net.dv8tion.jda.core.events.channel.text.TextChannelCreateEvent;
-import net.dv8tion.jda.core.events.channel.voice.VoiceChannelCreateEvent;
-import net.dv8tion.jda.core.events.guild.GuildBanEvent;
-import net.dv8tion.jda.core.events.guild.GuildUnbanEvent;
-import net.dv8tion.jda.core.events.guild.member.GuildMemberJoinEvent;
-import net.dv8tion.jda.core.events.guild.member.GuildMemberLeaveEvent;
-import net.dv8tion.jda.core.events.guild.member.GuildMemberRoleAddEvent;
-import net.dv8tion.jda.core.events.guild.member.GuildMemberRoleRemoveEvent;
-import net.dv8tion.jda.core.hooks.ListenerAdapter;
+import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.audit.ActionType;
+import net.dv8tion.jda.api.audit.AuditLogEntry;
+import net.dv8tion.jda.api.entities.Role;
+import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.events.channel.text.TextChannelCreateEvent;
+import net.dv8tion.jda.api.events.channel.voice.VoiceChannelCreateEvent;
+import net.dv8tion.jda.api.events.guild.GuildBanEvent;
+import net.dv8tion.jda.api.events.guild.GuildUnbanEvent;
+import net.dv8tion.jda.api.events.guild.member.GuildMemberJoinEvent;
+import net.dv8tion.jda.api.events.guild.member.GuildMemberLeaveEvent;
+import net.dv8tion.jda.api.events.guild.member.GuildMemberRoleAddEvent;
+import net.dv8tion.jda.api.events.guild.member.GuildMemberRoleRemoveEvent;
+import net.dv8tion.jda.api.hooks.ListenerAdapter;
 
 public class ModEvents extends ListenerAdapter {
 
 	public void onGuildBan(GuildBanEvent event) {
 		if (event.getGuild().getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-			event.getGuild().getAuditLogs().type(ActionType.BAN).queueAfter(500, TimeUnit.MILLISECONDS, auditLogs -> {
+			event.getGuild().retrieveAuditLogs().type(ActionType.BAN).queueAfter(500, TimeUnit.MILLISECONDS, auditLogs -> {
 				User moderator = null;
 				String reason = null;
 				for (AuditLogEntry auditLog : auditLogs) {
@@ -52,7 +52,7 @@ public class ModEvents extends ListenerAdapter {
 	
 	public void onGuildUnban(GuildUnbanEvent event) {
 		if (event.getGuild().getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-			event.getGuild().getAuditLogs().type(ActionType.UNBAN).queueAfter(500, TimeUnit.MILLISECONDS, auditLogs -> {
+			event.getGuild().retrieveAuditLogs().type(ActionType.UNBAN).queueAfter(500, TimeUnit.MILLISECONDS, auditLogs -> {
 				User moderator = null;
 				String reason = null;
 				for (AuditLogEntry auditLog : auditLogs) {
@@ -72,11 +72,11 @@ public class ModEvents extends ListenerAdapter {
 	
 	public void onGuildMemberLeave(GuildMemberLeaveEvent event) {
 		if (event.getGuild().getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-			event.getGuild().getAuditLogs().type(ActionType.KICK).queueAfter(500, TimeUnit.MILLISECONDS, auditLogs -> {
+			event.getGuild().retrieveAuditLogs().type(ActionType.KICK).queueAfter(500, TimeUnit.MILLISECONDS, auditLogs -> {
 				User moderator = null;
 				String reason = null;
 				for (AuditLogEntry auditLog : auditLogs) {
-					if (auditLog.getTargetId().equals(event.getUser().getId()) && LocalDateTime.now(ZoneOffset.UTC).toEpochSecond(ZoneOffset.UTC) - auditLog.getCreationTime().toEpochSecond() <= 10) {
+					if (auditLog.getTargetId().equals(event.getUser().getId()) && LocalDateTime.now(ZoneOffset.UTC).toEpochSecond(ZoneOffset.UTC) - auditLog.getTimeCreated().toEpochSecond() <= 10) {
 						moderator = auditLog.getUser();
 						reason = auditLog.getReason();
 						break;
@@ -104,7 +104,7 @@ public class ModEvents extends ListenerAdapter {
 						if (timeLeft > 0) {
 							Role mutedRole = MuteEvents.getMuteRole(event.getGuild());
 							if (mutedRole != null) {
-								event.getGuild().getController().addSingleRoleToMember(event.getMember(), mutedRole).queue();
+								event.getGuild().addRoleToMember(event.getMember(), mutedRole).queue();
 							}
 						} else {
 							MuteEvents.removeUserMute(event.getMember());
@@ -132,12 +132,12 @@ public class ModEvents extends ListenerAdapter {
 		if (mutedRole != null) {
 			if (event.getRoles().get(0).equals(mutedRole)) {
 				if (event.getGuild().getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-					event.getGuild().getAuditLogs().type(ActionType.MEMBER_ROLE_UPDATE).queueAfter(500, TimeUnit.MILLISECONDS, auditLogs -> {
+					event.getGuild().retrieveAuditLogs().type(ActionType.MEMBER_ROLE_UPDATE).queueAfter(500, TimeUnit.MILLISECONDS, auditLogs -> {
 						long timestampNow = LocalDateTime.now(ZoneOffset.UTC).toEpochSecond(ZoneOffset.UTC);
 						User moderator = null;
 						String reason = null;
 						for (AuditLogEntry auditLog : auditLogs) {
-							if (auditLog.getTargetId().equals(event.getUser().getId()) && timestampNow - auditLog.getCreationTime().toEpochSecond() <= 5) {
+							if (auditLog.getTargetId().equals(event.getUser().getId()) && timestampNow - auditLog.getTimeCreated().toEpochSecond() <= 5) {
 								moderator = auditLog.getUser();
 								reason = auditLog.getReason();
 								break;
@@ -171,12 +171,12 @@ public class ModEvents extends ListenerAdapter {
 		if (mutedRole != null) {
 			if (event.getRoles().get(0).equals(mutedRole)) {
 				if (event.getGuild().getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-					event.getGuild().getAuditLogs().type(ActionType.MEMBER_ROLE_UPDATE).queueAfter(500, TimeUnit.MILLISECONDS, auditLogs -> {
+					event.getGuild().retrieveAuditLogs().type(ActionType.MEMBER_ROLE_UPDATE).queueAfter(500, TimeUnit.MILLISECONDS, auditLogs -> {
 						long timestampNow = LocalDateTime.now(ZoneOffset.UTC).toEpochSecond(ZoneOffset.UTC);
 						User moderator = null;
 						String reason = null;
 						for (AuditLogEntry auditLog : auditLogs) {
-							if (auditLog.getTargetId().equals(event.getUser().getId()) && timestampNow - auditLog.getCreationTime().toEpochSecond() <= 5) {
+							if (auditLog.getTargetId().equals(event.getUser().getId()) && timestampNow - auditLog.getTimeCreated().toEpochSecond() <= 5) {
 								moderator = auditLog.getUser();
 								reason = auditLog.getReason();
 								break;

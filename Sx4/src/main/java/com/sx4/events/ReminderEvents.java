@@ -14,8 +14,8 @@ import java.util.concurrent.TimeUnit;
 import com.rethinkdb.net.Cursor;
 import com.sx4.core.Sx4Bot;
 
-import net.dv8tion.jda.bot.sharding.ShardManager;
-import net.dv8tion.jda.core.entities.User;
+import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.sharding.ShardManager;
 
 public class ReminderEvents {
 	

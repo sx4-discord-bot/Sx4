@@ -5,14 +5,14 @@ import java.util.List;
 
 import com.sx4.settings.Settings;
 
-import net.dv8tion.jda.core.entities.Guild;
-import net.dv8tion.jda.core.entities.Message;
-import net.dv8tion.jda.core.entities.TextChannel;
-import net.dv8tion.jda.core.events.message.guild.GuildMessageDeleteEvent;
-import net.dv8tion.jda.core.events.message.guild.GuildMessageReceivedEvent;
-import net.dv8tion.jda.core.events.message.guild.GuildMessageUpdateEvent;
-import net.dv8tion.jda.core.hooks.ListenerAdapter;
-import net.dv8tion.jda.core.utils.tuple.Pair;
+import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.entities.Message;
+import net.dv8tion.jda.api.entities.TextChannel;
+import net.dv8tion.jda.api.events.message.guild.GuildMessageDeleteEvent;
+import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent;
+import net.dv8tion.jda.api.events.message.guild.GuildMessageUpdateEvent;
+import net.dv8tion.jda.api.hooks.ListenerAdapter;
+import net.dv8tion.jda.internal.utils.tuple.Pair;
 
 public class ChangesMessageCache extends ListenerAdapter {
 	
@@ -23,7 +23,7 @@ public class ChangesMessageCache extends ListenerAdapter {
 	}
 
 	public void onGuildMessageReceived(GuildMessageReceivedEvent event) {
-		Guild guild = event.getJDA().asBot().getShardManager().getGuildById(Settings.SUPPORT_SERVER_ID);
+		Guild guild = event.getJDA().getShardManager().getGuildById(Settings.SUPPORT_SERVER_ID);
 		if (guild == null) {
 			return;
 		}
@@ -50,7 +50,7 @@ public class ChangesMessageCache extends ListenerAdapter {
 	}
 	
 	public void onGuildMessageUpdate(GuildMessageUpdateEvent event) {
-		Guild guild = event.getJDA().asBot().getShardManager().getGuildById(Settings.SUPPORT_SERVER_ID);
+		Guild guild = event.getJDA().getShardManager().getGuildById(Settings.SUPPORT_SERVER_ID);
 		if (guild == null) {
 			return;
 		}
@@ -80,7 +80,7 @@ public class ChangesMessageCache extends ListenerAdapter {
 	}
 	
 	public void onGuildMessageDelete(GuildMessageDeleteEvent event) {
-		Guild guild = event.getJDA().asBot().getShardManager().getGuildById(Settings.SUPPORT_SERVER_ID);
+		Guild guild = event.getJDA().getShardManager().getGuildById(Settings.SUPPORT_SERVER_ID);
 		if (guild == null) {
 			return;
 		}
