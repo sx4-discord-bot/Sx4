@@ -91,20 +91,29 @@ public class HelpUtils {
 		return embed.build();
 	}
 	
-	public static PagedResult<ICommand> getModuleMessage(CategoryImpl module, User author) {
-		List<ICommand> commands = new ArrayList<>(module.getCommands());
-		commands.sort((a, b) -> a.getCommandTrigger().compareTo(b.getCommandTrigger()));
-		PagedResult<ICommand> paged = new PagedResult<>(commands)
+	public static PagedResult<Sx4Command> getCommandPagedResult(List<Sx4Command> commands) {
+		return new PagedResult<>(commands)
 				.setDeleteMessage(false)
 				.setPerPage(20)
 				.setIndexed(false)
 				.setSelectableByObject(true)
 				.setSelectableObject(object -> object.getCommandTrigger()) 
 				.setEmbedColour(Settings.EMBED_COLOUR)
-				.setAuthor("Commands in " + module.getName(), null, author.getEffectiveAvatarUrl())
 				.setFunction(commandObject -> {
 					return "`" + commandObject.getCommandTrigger() + "` - " + commandObject.getDescription();
 				});
+	}
+	
+	public static PagedResult<Sx4Command> getModuleMessage(CategoryImpl module, User author) {
+		List<Sx4Command> commands = new ArrayList<>();
+		for (ICommand command : module.getCommands()) {
+			commands.add((Sx4Command) command);
+		}
+		
+		commands.sort((a, b) -> a.getCommandTrigger().compareTo(b.getCommandTrigger()));
+		
+		PagedResult<Sx4Command> paged = HelpUtils.getCommandPagedResult(commands);
+		paged.setAuthor("Commands in " + module.getName(), null, author.getEffectiveAvatarUrl());
 		
 		return paged;
 	}

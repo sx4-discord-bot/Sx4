@@ -14,6 +14,7 @@ import com.jockie.bot.core.command.Initialize;
 import com.jockie.bot.core.command.impl.CommandEvent;
 import com.jockie.bot.core.command.impl.CommandImpl;
 import com.jockie.bot.core.module.Module;
+import com.jockie.bot.core.option.Option;
 import com.sx4.categories.Categories;
 import com.sx4.core.Sx4Command;
 import com.sx4.settings.Settings;
@@ -37,41 +38,61 @@ public class HelpModule {
 
 	@Command(value="help", aliases={"h", "commands", "commandlist", "command list"}, description="Lists commands on the bot and gives you info on specific commands")
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-	public void help(CommandEvent event, @Argument(value="command | module", endless=true, nullDefault=true) String commandName) {
+	public void help(CommandEvent event, @Argument(value="command | module", endless=true, nullDefault=true) String commandName, @Option(value="all") boolean all) {
 		if (commandName == null) {
-			JSONObject advertisement = HelpUtils.getAdvertisement();
-			String description = advertisement.get("description").equals(JSONObject.NULL) ? null : advertisement.getString("description");
-			String imageUrl = advertisement.get("image").equals(JSONObject.NULL) ? null : advertisement.getString("image");
-			
-			List<String> moduleNames = new ArrayList<>();
-			for (CategoryImpl category : event.isAuthorDeveloper() ? Categories.ALL : Categories.ALL_PUBLIC) {
-				moduleNames.add(category.getName());
-			}
-			
-			moduleNames.sort((a, b) -> a.compareTo(b));
-			
-			EmbedBuilder embed = new EmbedBuilder();
-			embed.setAuthor("Help", null, event.getSelfUser().getEffectiveAvatarUrl());
-			embed.setColor(Settings.EMBED_COLOUR);
-			embed.setFooter(event.getPrefix() + "help <module> or respond below with a name of a module", event.getAuthor().getEffectiveAvatarUrl());
-			embed.setDescription("All commands are put in a set category also known as a module, use `" + event.getPrefix() + "help <module>` on the module of your choice, The bot will then "
-			+ "list all the commands in that module. If you need further help feel free to join the [support server](https://discord.gg/PqJNcfB).");
-			embed.addField("Modules", "`" + String.join("`, `", moduleNames) + "`", false);
-			embed.addField("Sponsor", description == null ? this.defaultSponsorMessage : description, false);
-			embed.setImage(imageUrl == null ? this.defaultSponsorImage : imageUrl);
-			event.reply(embed.build()).queue(message -> {
-				PagedUtils.getResponse(event, 300, e -> {
-					return event.getChannel().equals(e.getChannel()) && event.getAuthor().equals(e.getAuthor()) && moduleNames.contains(e.getMessage().getContentRaw());
-				}, null, response -> {
-					PagedResult<ICommand> paged = HelpUtils.getModuleMessage(ArgumentUtils.getModule(response.getContentRaw()), event.getAuthor());
-					PagedUtils.getPagedResult(event, paged, 300, pagedReturn -> {
-						event.reply(HelpUtils.getHelpMessage(pagedReturn.getObject())).queue();
-					});
-					
-					response.delete().queue(null, e -> {});
-					message.delete().queue(null, e -> {});
+			if (all) {
+				List<Sx4Command> allCommands = new ArrayList<>();
+				for (ICommand command : event.getCommandListener().getAllCommands()) {
+					if (command.isDeveloperCommand() && !event.isAuthorDeveloper()) {
+						continue;
+					} else {
+						allCommands.add((Sx4Command) command);
+					}
+				}
+				
+				allCommands.sort((a, b) -> a.getCommandTrigger().compareTo(b.getCommandTrigger()));
+				
+				PagedResult<Sx4Command> paged = HelpUtils.getCommandPagedResult(allCommands);
+				paged.setAuthor("All Commands", null, event.getAuthor().getEffectiveAvatarUrl());
+				
+				PagedUtils.getPagedResult(event, paged, 300, pagedReturn -> {
+					event.reply(HelpUtils.getHelpMessage(pagedReturn.getObject())).queue();
 				});
-			});
+			} else {
+				JSONObject advertisement = HelpUtils.getAdvertisement();
+				String description = advertisement.get("description").equals(JSONObject.NULL) ? null : advertisement.getString("description");
+				String imageUrl = advertisement.get("image").equals(JSONObject.NULL) ? null : advertisement.getString("image");
+				
+				List<String> moduleNames = new ArrayList<>();
+				for (CategoryImpl category : event.isAuthorDeveloper() ? Categories.ALL : Categories.ALL_PUBLIC) {
+					moduleNames.add(category.getName());
+				}
+				
+				moduleNames.sort((a, b) -> a.compareTo(b));
+				
+				EmbedBuilder embed = new EmbedBuilder();
+				embed.setAuthor("Help", null, event.getSelfUser().getEffectiveAvatarUrl());
+				embed.setColor(Settings.EMBED_COLOUR);
+				embed.setFooter(event.getPrefix() + "help <module> or respond below with a name of a module", event.getAuthor().getEffectiveAvatarUrl());
+				embed.setDescription("All commands are put in a set category also known as a module, use `" + event.getPrefix() + "help <module>` on the module of your choice, The bot will then "
+				+ "list all the commands in that module. If you need further help feel free to join the [support server](https://discord.gg/PqJNcfB).");
+				embed.addField("Modules", "`" + String.join("`, `", moduleNames) + "`", false);
+				embed.addField("Sponsor", description == null ? this.defaultSponsorMessage : description, false);
+				embed.setImage(imageUrl == null ? this.defaultSponsorImage : imageUrl);
+				event.reply(embed.build()).queue(message -> {
+					PagedUtils.getResponse(event, 300, e -> {
+						return event.getChannel().equals(e.getChannel()) && event.getAuthor().equals(e.getAuthor()) && moduleNames.contains(e.getMessage().getContentRaw());
+					}, null, response -> {
+						PagedResult<Sx4Command> paged = HelpUtils.getModuleMessage(ArgumentUtils.getModule(response.getContentRaw()), event.getAuthor());
+						PagedUtils.getPagedResult(event, paged, 300, pagedReturn -> {
+							event.reply(HelpUtils.getHelpMessage(pagedReturn.getObject())).queue();
+						});
+						
+						response.delete().queue(null, e -> {});
+						message.delete().queue(null, e -> {});
+					});
+				});
+			}
 		} else {
 			CategoryImpl module = ArgumentUtils.getModule(commandName, event.isAuthorDeveloper());
 			List<Sx4Command> commands = ArgumentUtils.getCommands(commandName);
@@ -93,7 +114,7 @@ public class HelpModule {
 					event.reply(HelpUtils.getHelpMessage(pagedReturn.getObject())).queue();
 				});
 			} else if (module != null) {
-				PagedResult<ICommand> paged = HelpUtils.getModuleMessage(module, event.getAuthor());
+				PagedResult<Sx4Command> paged = HelpUtils.getModuleMessage(module, event.getAuthor());
 				PagedUtils.getPagedResult(event, paged, 300, pagedReturn -> {
 					event.reply(HelpUtils.getHelpMessage(pagedReturn.getObject())).queue();
 				});
