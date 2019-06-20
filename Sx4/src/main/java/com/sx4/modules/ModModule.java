@@ -337,11 +337,8 @@ public class ModModule {
 			return;
 		}
 		
-		event.getGuild().createVoiceChannel("Temporary Voice Kick Channel").queue(channel -> {
-			event.getGuild().moveVoiceMember(member, (VoiceChannel) channel).queue($ -> {
-				channel.delete().queue();
-				event.reply("**" + member.getUser().getAsTag() + "** has been voice kicked <:done:403285928233402378>:ok_hand:").queue();
-			});
+		event.getGuild().moveVoiceMember(member, null).queue($ -> {
+			event.reply("**" + member.getUser().getAsTag() + "** has been voice kicked <:done:403285928233402378>:ok_hand:").queue();
 		});
 	}
 	

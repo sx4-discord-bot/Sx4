@@ -1450,9 +1450,8 @@ public class GeneralModule {
 	@Command(value="ping", description="Shows the bots heartbeat and message response times", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void ping(CommandEvent event) {
-		long timestamp = System.currentTimeMillis();
-		event.getChannel().sendTyping().queue(q -> {
-			event.reply(String.format("Pong! :ping_pong:\n\n:stopwatch: **%dms**\n:heartbeat: **%dms**", System.currentTimeMillis() - timestamp, event.getJDA().getGatewayPing())).queue();
+		event.getJDA().getRestPing().queue(time -> {
+			event.reply(String.format("Pong! :ping_pong:\n\n:stopwatch: **%dms**\n:heartbeat: **%dms**", time, event.getJDA().getGatewayPing())).queue();
 		});
 	}
 	
@@ -2026,7 +2025,7 @@ public class GeneralModule {
 
 		if (member != null) {
 			String description = "";
-			if (member.getActivities() != null) {
+			if (!member.getActivities().isEmpty()) {
 				Activity activity = member.getActivities().get(0);
 				if (activity.isRich()) {
 					if (activity.getName().equals("Spotify")) {
@@ -2045,9 +2044,9 @@ public class GeneralModule {
 				}
 			}
 			
-			embed.setAuthor(member.getUser().getAsTag(), null, member.getUser().getEffectiveAvatarUrl());
+			embed.setAuthor(member.getUser().getAsTag() + (!member.getOnlineStatus(ClientType.MOBILE).equals(OnlineStatus.OFFLINE) ? " 📱" : ""), null, member.getUser().getEffectiveAvatarUrl());
 			embed.setThumbnail(member.getUser().getEffectiveAvatarUrl());
-			embed.setDescription(description + (!member.getOnlineStatus(ClientType.MOBILE).equals(OnlineStatus.OFFLINE) ? " 📱" : ""));
+			embed.setDescription(description);
 			
 			if (!event.getGuild().getMembers().contains(member)) {
 				embed.addField("User ID", member.getUser().getId(), true);
@@ -2138,8 +2137,8 @@ public class GeneralModule {
 		Map<String, Object> data = r.table("stats").get(event.getGuild().getId()).run(connection);
 		EmbedBuilder embed = new EmbedBuilder()
 				.setAuthor(event.getGuild().getName() + " Stats", null, event.getGuild().getIconUrl())
-				.addField("Users Joined Today", data == null ? "0" : String.valueOf((long) data.get("members")), true)
-				.addField("Messages Sent Today", data == null ? "0" : String.valueOf((long) data.get("messages")), true);
+				.addField("Users Joined Today", String.format("%,d", data == null ? 0 : (long) data.get("members")), true)
+				.addField("Messages Sent Today", String.format("%,d", data == null ? 0 : (long) data.get("messages")), true);
 		
 		event.reply(embed.build()).queue();
 	}
