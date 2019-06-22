@@ -1,15 +1,15 @@
 package com.sx4.cache;
 
-import java.util.EventListener;
 import java.util.Objects;
 
 import gnu.trove.impl.sync.TSynchronizedLongObjectMap;
 import gnu.trove.map.TLongObjectMap;
 import gnu.trove.map.hash.TLongObjectHashMap;
 import net.dv8tion.jda.api.entities.Message;
-import net.dv8tion.jda.api.events.Event;
+import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent;
 import net.dv8tion.jda.api.events.message.guild.GuildMessageUpdateEvent;
+import net.dv8tion.jda.api.hooks.EventListener;
 
 public class GuildMessageCache implements EventListener {
 	
@@ -66,7 +66,7 @@ public class GuildMessageCache implements EventListener {
 		return message;
 	}
 	
-	public void onEvent(Event event) {
+	public void onEvent(GenericEvent event) {
 		if(event instanceof GuildMessageReceivedEvent) {
 			Message message = ((GuildMessageReceivedEvent) event).getMessage();
 			
