@@ -202,11 +202,7 @@ public class WelcomerUtils {
 				}
 			}, error -> {
 				if (error != null) {
-					Sx4Bot.getShardManager()
-						.getGuildById(Settings.SUPPORT_SERVER_ID)
-						.getTextChannelById(Settings.ERRORS_CHANNEL_ID)
-						.sendMessage("Image welcomer failed to create (Status code: " + error.getStatusCode() + ")\n```diff\n- " + String.join("\n- ", error.getMessage().split("\n")) + "```")
-						.queue();
+					message.accept(new MessageBuilder().setContent("Image welcomer failed to create (Status code: " + error.getStatusCode() + ")\n```diff\n- " + String.join("\n- ", error.getMessage().split("\n")) + "```"), null);
 				}
 			});
 		} else {
@@ -224,11 +220,7 @@ public class WelcomerUtils {
 						}
 					}, error -> {
 						if (error != null) {
-							Sx4Bot.getShardManager()
-								.getGuildById(Settings.SUPPORT_SERVER_ID)
-								.getTextChannelById(Settings.ERRORS_CHANNEL_ID)
-								.sendMessage("Image welcomer failed to create (Status code: " + error.getStatusCode() + ")\n```diff\n- " + String.join("\n- ", error.getMessage().split("\n")) + "```")
-								.queue();
+							message.accept(new MessageBuilder().setContent("Image welcomer failed to create (Status code: " + error.getStatusCode() + ")\n```diff\n- " + String.join("\n- ", error.getMessage().split("\n")) + "```"), null);
 						}
 					});
 				} else {
@@ -242,11 +234,7 @@ public class WelcomerUtils {
 						}
 					}, error -> {
 						if (error != null) {
-							Sx4Bot.getShardManager()
-							.getGuildById(Settings.SUPPORT_SERVER_ID)
-							.getTextChannelById(Settings.ERRORS_CHANNEL_ID)
-							.sendMessage("Image welcomer failed to create (Status code: " + error.getStatusCode() + ")\n```diff\n- " + String.join("\n- ", error.getMessage().split("\n")) + "```")
-							.queue();
+							message.accept(new MessageBuilder().setContent("Image welcomer failed to create (Status code: " + error.getStatusCode() + ")\n```diff\n- " + String.join("\n- ", error.getMessage().split("\n")) + "```"), null);
 						}
 					});
 				} else {
