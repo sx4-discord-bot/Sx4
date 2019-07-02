@@ -119,7 +119,7 @@ public class WelcomerUtils {
 	
 	public static WebhookEmbedBuilder getEmbed(Member user, String message, Long colour) {
 		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
-		embed.setAuthor(new EmbedAuthor(user.getUser().getAsTag(), null, user.getUser().getEffectiveAvatarUrl()));
+		embed.setAuthor(new EmbedAuthor(user.getUser().getAsTag(), user.getUser().getEffectiveAvatarUrl(), null));
 		embed.setColor(colour.intValue());
 		embed.setDescription(message);
 		embed.setTimestamp(Instant.now());
@@ -202,7 +202,11 @@ public class WelcomerUtils {
 				}
 			}, error -> {
 				if (error != null) {
-					message.accept(new MessageBuilder().setContent("Image welcomer failed to create (Status code: " + error.getStatusCode() + ")\n```diff\n- " + String.join("\n- ", error.getMessage().split("\n")) + "```"), null);
+					Sx4Bot.getShardManager()
+						.getGuildById(Settings.SUPPORT_SERVER_ID)
+						.getTextChannelById(Settings.ERRORS_CHANNEL_ID)
+						.sendMessage("Image welcomer failed to create (Status code: " + error.getStatusCode() + ")\n```diff\n- " + String.join("\n- ", error.getMessage().split("\n")) + "```")
+						.queue();
 				}
 			});
 		} else {
@@ -220,7 +224,11 @@ public class WelcomerUtils {
 						}
 					}, error -> {
 						if (error != null) {
-							message.accept(new MessageBuilder().setContent("Image welcomer failed to create (Status code: " + error.getStatusCode() + ")\n```diff\n- " + String.join("\n- ", error.getMessage().split("\n")) + "```"), null);
+							Sx4Bot.getShardManager()
+								.getGuildById(Settings.SUPPORT_SERVER_ID)
+								.getTextChannelById(Settings.ERRORS_CHANNEL_ID)
+								.sendMessage("Image welcomer failed to create (Status code: " + error.getStatusCode() + ")\n```diff\n- " + String.join("\n- ", error.getMessage().split("\n")) + "```")
+								.queue();
 						}
 					});
 				} else {
@@ -234,7 +242,11 @@ public class WelcomerUtils {
 						}
 					}, error -> {
 						if (error != null) {
-							message.accept(new MessageBuilder().setContent("Image welcomer failed to create (Status code: " + error.getStatusCode() + ")\n```diff\n- " + String.join("\n- ", error.getMessage().split("\n")) + "```"), null);
+							Sx4Bot.getShardManager()
+							.getGuildById(Settings.SUPPORT_SERVER_ID)
+							.getTextChannelById(Settings.ERRORS_CHANNEL_ID)
+							.sendMessage("Image welcomer failed to create (Status code: " + error.getStatusCode() + ")\n```diff\n- " + String.join("\n- ", error.getMessage().split("\n")) + "```")
+							.queue();
 						}
 					});
 				} else {
@@ -248,7 +260,7 @@ public class WelcomerUtils {
 		WebhookEmbedBuilder webhookEmbed = new WebhookEmbedBuilder();
 		
 		if (embed.getAuthor() != null) {
-			webhookEmbed.setAuthor(new EmbedAuthor(embed.getAuthor().getName(), embed.getAuthor().getUrl(), embed.getAuthor().getIconUrl()));
+			webhookEmbed.setAuthor(new EmbedAuthor(embed.getAuthor().getName(), embed.getAuthor().getIconUrl(), embed.getAuthor().getUrl()));
 		}
 		
 		if (embed.getColor() != null) {

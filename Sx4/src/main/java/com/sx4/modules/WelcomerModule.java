@@ -432,7 +432,7 @@ public class WelcomerModule {
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void format(CommandEvent event) {
 			EmbedBuilder embed = new EmbedBuilder();
-			embed.setAuthor("Welcomer Formatting", null, event.getSelfUser().getEffectiveAvatarUrl());
+			embed.setAuthor("Leaver Formatting", null, event.getSelfUser().getEffectiveAvatarUrl());
 			embed.setColor(Settings.EMBED_COLOUR);
 			embed.setDescription("{server} = The current servers name\r\n" + 
 					"{user.mention} = The mention of the user which joins\r\n" + 
@@ -505,7 +505,7 @@ public class WelcomerModule {
 			embed.setColor(Settings.EMBED_COLOUR);
 			embed.addField("Status", data == null ? "Disabled" : (boolean) data.get("leavetoggle") == false ? "Disabled" : "Enabled", true);
 			embed.addField("Channel", channel == null ? "Not Set" : channel.getAsMention(), true);
-			embed.addField("Embed", String.format("Message: %s\nColour: %s", data == null ? "Disabled" : (boolean) data.get("leaveembed") == false ? "Disabled" : "Enabled", data == null ? "Default" : data.get("leaveembedcolour") == null ? "Default" : "#" + Integer.toHexString((int) ((long) data.get("leaveembedcolour"))).substring(2).toUpperCase()), true);
+			embed.addField("Embed", String.format("Message: %s\nColour: %s", data == null ? "Disabled" : (boolean) data.get("leaveembed") == false ? "Disabled" : "Enabled", data == null ? "Default" : data.get("leaveembedcolour") == null ? "Default" : "#" + GeneralUtils.getHex((int) ((long) data.get("leaveembedcolour")))), true);
 			embed.addField("Message", String.format("`%s`", data == null ? MESSAGE : (String) data.get("leave-message")), false);
 			
 			event.reply(embed.build()).queue();

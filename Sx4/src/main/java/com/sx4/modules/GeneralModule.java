@@ -1088,7 +1088,7 @@ public class GeneralModule {
 		}
 	}
 	
-	/*Command(value="reaction", description="Test your reaction speed using this command", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+	/*Command(value="reaction", description="Test your reaction speed using this command")
 	@Cooldown(value=70)
 	public void reaction(CommandEvent event) {
 		event.reply("In the next 2-10 seconds i'm going to send a message this is when you type whatever you want in the chat from there i will work out the time between me sending the message and you sending your message and that'll be your reaction time :stopwatch:").queue();

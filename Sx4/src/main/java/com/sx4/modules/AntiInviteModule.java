@@ -331,7 +331,7 @@ public class AntiInviteModule {
 			@Command(value="channels", aliases={"channel"}, description="View all the channels which are whitelisted to send invites while antiinvite is active", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 			@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 			public void channels(CommandEvent event, @Context Connection connection) {
-				List<String> channelIds = r.table("antiad").get(event.getGuild().getId()).g("whitelist").g("channels").run(connection);
+				List<String> channelIds = r.table("antiad").get(event.getGuild().getId()).g("whitelist").g("channels").default_(new Object[0]).run(connection);
 				
 				List<GuildChannel> channels = new ArrayList<>();
 				for (String channelId : channelIds) {
@@ -366,7 +366,7 @@ public class AntiInviteModule {
 			@Command(value="roles", aliases={"roles"}, description="View all the roles which are whitelisted to send invites while antiinvite is active", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 			@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 			public void roles(CommandEvent event, @Context Connection connection) {
-				List<String> roleIds = r.table("antiad").get(event.getGuild().getId()).g("whitelist").g("roles").run(connection);
+				List<String> roleIds = r.table("antiad").get(event.getGuild().getId()).g("whitelist").g("roles").default_(new Object[0]).run(connection);
 				
 				List<Role> roles = new ArrayList<>();
 				for (String roleId : roleIds) {
@@ -396,7 +396,7 @@ public class AntiInviteModule {
 			@Command(value="users", aliases={"user", "member", "members"}, description="View all the users which are whitelisted to send invites while antiinvite is active", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 			@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 			public void users(CommandEvent event, @Context Connection connection) {
-				List<String> userIds = r.table("antiad").get(event.getGuild().getId()).g("whitelist").g("users").run(connection);
+				List<String> userIds = r.table("antiad").get(event.getGuild().getId()).g("whitelist").g("users").default_(new Object[0]).run(connection);
 				
 				List<Member> members = new ArrayList<>();
 				for (String userId : userIds) {

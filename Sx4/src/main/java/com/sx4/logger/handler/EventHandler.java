@@ -320,7 +320,7 @@ public class EventHandler extends ListenerAdapter {
 		embed.setDescription(String.format("`%s` just joined the server", member.getEffectiveName()));
 		embed.setColor(COLOR_GREEN);
 		embed.setTimestamp(ZonedDateTime.now());
-		embed.setAuthor(new EmbedAuthor(member.getUser().getAsTag(), null, member.getUser().getEffectiveAvatarUrl()));
+		embed.setAuthor(new EmbedAuthor(member.getUser().getAsTag(), member.getUser().getEffectiveAvatarUrl(), null));
 		
 		embed.setFooter(new EmbedFooter(String.format("User ID: %s", member.getUser().getId()), null));
 		
@@ -342,7 +342,7 @@ public class EventHandler extends ListenerAdapter {
 		embed.setDescription(String.format("`%s` just left the server", member.getEffectiveName()));
 		embed.setColor(COLOR_RED);
 		embed.setTimestamp(ZonedDateTime.now());
-		embed.setAuthor(new EmbedAuthor(member.getUser().getAsTag(), null, member.getUser().getEffectiveAvatarUrl()));
+		embed.setAuthor(new EmbedAuthor(member.getUser().getAsTag(), member.getUser().getEffectiveAvatarUrl(), null));
 		embed.setFooter(new EmbedFooter(String.format("User ID: %s", member.getUser().getId()), null));
 		
 		embeds.add(embed.build());
@@ -381,7 +381,7 @@ public class EventHandler extends ListenerAdapter {
 		embed.setDescription(String.format("`%s` has been banned", user.getName()));
 		embed.setColor(COLOR_RED);
 		embed.setTimestamp(ZonedDateTime.now());
-		embed.setAuthor(new EmbedAuthor(user.getAsTag(), null, user.getEffectiveAvatarUrl()));
+		embed.setAuthor(new EmbedAuthor(user.getAsTag(), user.getEffectiveAvatarUrl(), null));
 		embed.setFooter(new EmbedFooter(String.format("User ID: %s", user.getId()), null));
 		
 		if(guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
@@ -421,7 +421,7 @@ public class EventHandler extends ListenerAdapter {
 		embed.setDescription(String.format("`%s` has been unbanned", user.getName()));
 		embed.setColor(COLOR_GREEN);
 		embed.setTimestamp(ZonedDateTime.now());
-		embed.setAuthor(new EmbedAuthor(user.getAsTag(), null, user.getEffectiveAvatarUrl()));
+		embed.setAuthor(new EmbedAuthor(user.getAsTag(), user.getEffectiveAvatarUrl(), null));
 		embed.setFooter(new EmbedFooter(String.format("User ID: %s", user.getId()), null));
 		
 		if(guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
@@ -463,12 +463,12 @@ public class EventHandler extends ListenerAdapter {
 			Member member = event.getMember();
 			
 			embed.setDescription(String.format("`%s` edited their [message](%s) in %s", member.getEffectiveName(), message.getJumpUrl(), channel.getAsMention()));
-			embed.setAuthor(new EmbedAuthor(member.getUser().getAsTag(), null, member.getUser().getEffectiveAvatarUrl()));
+			embed.setAuthor(new EmbedAuthor(member.getUser().getAsTag(), member.getUser().getEffectiveAvatarUrl(), null));
 		}else{
 			User user = event.getAuthor();
 			
 			embed.setDescription(String.format("`%s` edited their [message](%s) in %s", user.getName(), message.getJumpUrl(), channel.getAsMention()));
-			embed.setAuthor(new EmbedAuthor(user.getAsTag(), null, user.getEffectiveAvatarUrl()));
+			embed.setAuthor(new EmbedAuthor(user.getAsTag(), user.getEffectiveAvatarUrl(), null));
 		}
 		
 		embed.setColor(COLOR_ORANGE);
@@ -515,7 +515,7 @@ public class EventHandler extends ListenerAdapter {
 				User user = message.getAuthor();
 				
 				embed.setDescription(String.format("The message sent by `%s` in %s was deleted", user.getName(), channel.getAsMention()));
-				embed.setAuthor(new EmbedAuthor(user.getAsTag(), null, user.getEffectiveAvatarUrl()));
+				embed.setAuthor(new EmbedAuthor(user.getAsTag(), user.getEffectiveAvatarUrl(), null));
 			}
 			
 			embed.addField(new EmbedField(false, "Message", Utils.limitField(message.getContentRaw())));
@@ -523,7 +523,7 @@ public class EventHandler extends ListenerAdapter {
 			this.send(event.getJDA(), guild, data, embed.build());
 		}else{
 			embed.setDescription(String.format("A message sent in %s was deleted", channel.getAsMention()));
-			embed.setAuthor(new EmbedAuthor(guild.getName(), null, guild.getIconUrl()));
+			embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
 			
 			this.send(event.getJDA(), guild, data, embed.build());
 		}
@@ -546,7 +546,7 @@ public class EventHandler extends ListenerAdapter {
 		embed.setDescription(String.format("The %s `%s` has just been deleted", type, channel.getName()));
 		embed.setColor(COLOR_RED);
 		embed.setTimestamp(ZonedDateTime.now());
-		embed.setAuthor(new EmbedAuthor(guild.getName(), null, guild.getIconUrl()));
+		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
 		embed.setFooter(new EmbedFooter(String.format("%s ID: %s", channel.getType().equals(ChannelType.CATEGORY) ? "Category" : "Channel", channel.getId()), null));
 		
 		if(guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
@@ -602,7 +602,7 @@ public class EventHandler extends ListenerAdapter {
 		embed.setDescription(String.format("The %s %s has just been created", type, channel.getType().equals(ChannelType.TEXT) ? ((TextChannel) channel).getAsMention() : "`" + channel.getName() + "`"));
 		embed.setColor(COLOR_GREEN);
 		embed.setTimestamp(ZonedDateTime.now());
-		embed.setAuthor(new EmbedAuthor(guild.getName(), null, guild.getIconUrl()));
+		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
 		embed.setFooter(new EmbedFooter(String.format("%s ID: %s", channel.getType().equals(ChannelType.CATEGORY) ? "Category" : "Channel", channel.getId()), null));
 		
 		if(guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
@@ -658,7 +658,7 @@ public class EventHandler extends ListenerAdapter {
 		embed.setDescription(String.format("The %s **%s** has been renamed", type, channel.getType().equals(ChannelType.TEXT) ? ((TextChannel) channel).getAsMention() : "`" + channel.getName() + "`"));
 		embed.setColor(COLOR_ORANGE);
 		embed.setTimestamp(ZonedDateTime.now());
-		embed.setAuthor(new EmbedAuthor(guild.getName(), null, guild.getIconUrl()));
+		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
 		embed.setFooter(new EmbedFooter(String.format("%s ID: %s", channel.getType().equals(ChannelType.CATEGORY) ? "Category" : "Channel", channel.getId()), null));
 		
 		embed.addField(new EmbedField(false, "Before", String.format("`%s`", previous)));
@@ -714,7 +714,7 @@ public class EventHandler extends ListenerAdapter {
 		embed.setDescription(String.format("The role %s has been created", role.getAsMention()));
 		embed.setColor(COLOR_GREEN);
 		embed.setTimestamp(ZonedDateTime.now());
-		embed.setAuthor(new EmbedAuthor(guild.getName(), null, guild.getIconUrl()));
+		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
 		embed.setFooter(new EmbedFooter(String.format("Role ID: %s", role.getId()), null));
 		
 		if(!role.isManaged() && guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
@@ -754,7 +754,7 @@ public class EventHandler extends ListenerAdapter {
 		embed.setDescription(String.format("The role `%s` has been deleted", role.getName()));
 		embed.setColor(COLOR_RED);
 		embed.setTimestamp(ZonedDateTime.now());
-		embed.setAuthor(new EmbedAuthor(guild.getName(), null, guild.getIconUrl()));
+		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
 		embed.setFooter(new EmbedFooter(String.format("Role ID: %s", role.getId()), null));
 		
 		if(!role.isManaged() && guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
@@ -794,7 +794,7 @@ public class EventHandler extends ListenerAdapter {
 		embed.setDescription(String.format("The role %s has been renamed", role.getAsMention()));
 		embed.setColor(COLOR_ORANGE);
 		embed.setTimestamp(ZonedDateTime.now());
-		embed.setAuthor(new EmbedAuthor(guild.getName(), null, guild.getIconUrl()));
+		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
 		embed.setFooter(new EmbedFooter(String.format("Role ID: %s", role.getId()), null));
 		
 		embed.addField(new EmbedField(false, "Before", String.format("`%s`", event.getOldName())));
@@ -867,7 +867,7 @@ public class EventHandler extends ListenerAdapter {
 			WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
 			embed.setColor(COLOR_ORANGE);
 			embed.setTimestamp(ZonedDateTime.now());
-			embed.setAuthor(new EmbedAuthor(guild.getName(), null, guild.getIconUrl()));
+			embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
 			embed.setFooter(new EmbedFooter(String.format("Role ID: %s", role.getId()), null));
 			
 			if(guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
@@ -921,7 +921,7 @@ public class EventHandler extends ListenerAdapter {
 		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
 		embed.setColor(COLOR_GREEN);
 		embed.setTimestamp(ZonedDateTime.now());
-		embed.setAuthor(new EmbedAuthor(member.getUser().getAsTag(), null, member.getUser().getEffectiveAvatarUrl()));
+		embed.setAuthor(new EmbedAuthor(member.getUser().getAsTag(), member.getUser().getEffectiveAvatarUrl(), null));
 		
 		if(roles.size() > 1) {
 			StringBuilder builder = new StringBuilder();
@@ -1012,7 +1012,7 @@ public class EventHandler extends ListenerAdapter {
 			WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
 			embed.setColor(COLOR_RED);
 			embed.setTimestamp(ZonedDateTime.now());
-			embed.setAuthor(new EmbedAuthor(member.getUser().getAsTag(), null, member.getUser().getEffectiveAvatarUrl()));
+			embed.setAuthor(new EmbedAuthor(member.getUser().getAsTag(), member.getUser().getEffectiveAvatarUrl(), null));
 			
 			if(roles.size() == 1 && guild.getRoleById(firstRole.getIdLong()) == null) {
 				embed.setDescription(String.format("The role `%s` has been removed from `%s` by **role deletion**", firstRole.getName(), member.getEffectiveName()));
@@ -1105,7 +1105,7 @@ public class EventHandler extends ListenerAdapter {
 		embed.setDescription(String.format("`%s` has had their nickname changed", member.getEffectiveName()));
 		embed.setColor(COLOR_ORANGE);
 		embed.setTimestamp(ZonedDateTime.now());
-		embed.setAuthor(new EmbedAuthor(member.getUser().getAsTag(), null, member.getUser().getEffectiveAvatarUrl()));
+		embed.setAuthor(new EmbedAuthor(member.getUser().getAsTag(), member.getUser().getEffectiveAvatarUrl(), null));
 		
 		embed.addField(new EmbedField(false, "Before", String.format("`%s`", event.getOldNickname() != null ? event.getOldNickname() : member.getUser().getName())));
 		embed.addField(new EmbedField(false, "After", String.format("`%s`", event.getNewNickname() != null ? event.getNewNickname() : member.getUser().getName())));
@@ -1149,7 +1149,7 @@ public class EventHandler extends ListenerAdapter {
 		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
 		embed.setDescription(String.format("`%s` has been %s", member.getEffectiveName(), muted ? "muted" : "unmuted"));
 		embed.setTimestamp(ZonedDateTime.now());
-		embed.setAuthor(new EmbedAuthor(member.getUser().getAsTag(), null, member.getUser().getEffectiveAvatarUrl()));
+		embed.setAuthor(new EmbedAuthor(member.getUser().getAsTag(), member.getUser().getEffectiveAvatarUrl(), null));
 		
 		if(muted) {
 			embed.setColor(COLOR_RED);
@@ -1196,7 +1196,7 @@ public class EventHandler extends ListenerAdapter {
 		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
 		embed.setDescription(String.format("`%s` has been %s", member.getEffectiveName(), deafened ? "deafened" : "undefeaned"));		
 		embed.setTimestamp(ZonedDateTime.now());
-		embed.setAuthor(new EmbedAuthor(member.getUser().getAsTag(), null, member.getUser().getEffectiveAvatarUrl()));
+		embed.setAuthor(new EmbedAuthor(member.getUser().getAsTag(), member.getUser().getEffectiveAvatarUrl(), null));
 		
 		if(deafened) {
 			embed.setColor(COLOR_RED);
@@ -1243,7 +1243,7 @@ public class EventHandler extends ListenerAdapter {
 		embed.setDescription(String.format("`%s` just joined the voice channel `%s`", member.getEffectiveName(), channel.getName()));
 		embed.setColor(COLOR_GREEN);
 		embed.setTimestamp(ZonedDateTime.now());
-		embed.setAuthor(new EmbedAuthor(member.getUser().getAsTag(), null, member.getUser().getEffectiveAvatarUrl()));
+		embed.setAuthor(new EmbedAuthor(member.getUser().getAsTag(), member.getUser().getEffectiveAvatarUrl(), null));
 		
 		this.send(event.getJDA(), guild, data, embed.build());
 	}
@@ -1262,7 +1262,7 @@ public class EventHandler extends ListenerAdapter {
 		embed.setDescription(String.format("`%s` just left the voice channel `%s`", member.getEffectiveName(), channel.getName()));
 		embed.setColor(COLOR_RED);
 		embed.setTimestamp(ZonedDateTime.now());
-		embed.setAuthor(new EmbedAuthor(member.getUser().getAsTag(), null, member.getUser().getEffectiveAvatarUrl()));
+		embed.setAuthor(new EmbedAuthor(member.getUser().getAsTag(), member.getUser().getEffectiveAvatarUrl(), null));
 		
 		this.send(event.getJDA(), guild, data, embed.build());
 	}
@@ -1282,7 +1282,7 @@ public class EventHandler extends ListenerAdapter {
 		embed.setDescription(String.format("`%s` just changed voice channel", member.getEffectiveName()));
 		embed.setColor(COLOR_ORANGE);
 		embed.setTimestamp(ZonedDateTime.now());
-		embed.setAuthor(new EmbedAuthor(member.getUser().getAsTag(), null, member.getUser().getEffectiveAvatarUrl()));
+		embed.setAuthor(new EmbedAuthor(member.getUser().getAsTag(), member.getUser().getEffectiveAvatarUrl(), null));
 		
 		embed.addField(new EmbedField(false, "Before", String.format("`%s`", left.getName())));
 		embed.addField(new EmbedField(false, "After", String.format("`%s`", joined.getName())));

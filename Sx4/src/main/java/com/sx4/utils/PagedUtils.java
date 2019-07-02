@@ -376,7 +376,7 @@ public class PagedUtils {
 			Consumer<MessageReceivedEvent> handle = new Consumer<MessageReceivedEvent>() {
 				public void accept(MessageReceivedEvent e) {
 					String messageContent = e.getMessage().getContentRaw().toLowerCase();
-					boolean canDelete = e.getGuild().getSelfMember().hasPermission(Permission.MESSAGE_MANAGE);
+					boolean canDelete = e.getGuild().getSelfMember().hasPermission(e.getTextChannel(), Permission.MESSAGE_MANAGE);
 					boolean edit = true;
 					if (cancel.contains(messageContent)) {
 						if (canDelete) {
