@@ -12,14 +12,14 @@ import net.dv8tion.jda.api.entities.User;
 public class Player {
 
 	private List<UnoCard> cards = new ArrayList<>();
-	private long playerId;
+	private long userId;
 	
 	public Player(Member member) {
-		this.playerId = member.getIdLong();
+		this.userId = member.getIdLong();
 	}
 	
 	public Player(Member member, List<UnoCard> cards) {
-		this.playerId = member.getIdLong();
+		this.userId = member.getIdLong();
 		this.cards = cards;
 	}
 	
@@ -39,12 +39,12 @@ public class Player {
 		return this;
 	}
 	
-	public long getPlayerId() {
-		return this.playerId;
+	public long getUserId() {
+		return this.userId;
 	}
 	
-	public User getPlayer() {
-		return Sx4Bot.getShardManager().getUserById(this.playerId);
+	public User getUser() {
+		return Sx4Bot.getShardManager().getUserById(this.userId);
 	}
 	
 }
