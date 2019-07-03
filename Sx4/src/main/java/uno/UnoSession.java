@@ -187,7 +187,7 @@ public class UnoSession {
 			
 			List<UnoCard> cards = GiveawayUtils.getRandomSampleAndRemove(this.deck, 7);
 			for (UnoCard card : cards) {
-				//startingDeck.append(card.getEmote());
+				startingDeck.append(card.getEmote());
 			}
 			
 			player.addCards(cards);
