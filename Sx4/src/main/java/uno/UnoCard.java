@@ -14,6 +14,7 @@ public enum UnoCard {
 	RED_NINE(Colour.RED, 9, CardType.NUMBER),
 	RED_PLUS_TWO(Colour.RED, 10, CardType.PLUS_TWO),
 	RED_REVERSE(Colour.RED, 10, CardType.REVERSE),
+	RED_SKIP(Colour.RED, 10, CardType.SKIP),
 	
 	YELLOW_ZERO(Colour.YELLOW, 0, CardType.NUMBER),
 	YELLOW_ONE(Colour.YELLOW, 1, CardType.NUMBER),
@@ -27,6 +28,7 @@ public enum UnoCard {
 	YELLOW_NINE(Colour.YELLOW, 9, CardType.NUMBER),
 	YELLOW_PLUS_TWO(Colour.YELLOW, 10, CardType.PLUS_TWO),
 	YELLOW_REVERSE(Colour.YELLOW, 10, CardType.REVERSE),
+	YELLOW_SKIP(Colour.YELLOW, 10, CardType.SKIP),
 	
 	GREEN_ZERO(Colour.GREEN, 0, CardType.NUMBER),
 	GREEN_ONE(Colour.GREEN, 1, CardType.NUMBER),
@@ -40,6 +42,7 @@ public enum UnoCard {
 	GREEN_NINE(Colour.GREEN, 9, CardType.NUMBER),
 	GREEN_PLUS_TWO(Colour.GREEN, 10, CardType.PLUS_TWO),
 	GREEN_REVERSE(Colour.GREEN, 10, CardType.REVERSE),
+	GREEN_SKIP(Colour.GREEN, 10, CardType.SKIP),
 	
 	BLUE_ZERO(Colour.BLUE, 0, CardType.NUMBER),
 	BLUE_ONE(Colour.BLUE, 1, CardType.NUMBER),
@@ -53,6 +56,7 @@ public enum UnoCard {
 	BLUE_NINE(Colour.BLUE, 9, CardType.NUMBER),
 	BLUE_PLUS_TWO(Colour.BLUE, 10, CardType.PLUS_TWO),
 	BLUE_REVERSE(Colour.BLUE, 10, CardType.REVERSE),
+	BLUE_SKIP(Colour.BLUE, 10, CardType.SKIP),
 	
 	PLUS_FOUR(Colour.BLACK, 10, CardType.PLUS_FOUR),
 	COLOUR_CHANGE(Colour.BLACK, 10, CardType.COLOUR_CHANGE);

@@ -44,6 +44,12 @@ public class UnoSession {
 		return guild == null ? null : guild.getTextChannelById(this.channelId);
 	}
 	
+	public UnoSession setChannel(TextChannel channel) {
+		this.channelId = channel.getIdLong();
+		
+		return this;
+	}
+	
 	public List<UnoCard> getDeck() {
 		return this.deck;
 	}
@@ -52,35 +58,44 @@ public class UnoSession {
 		return this.deck.get(this.deck.size() - 1);
 	}
 	
+	public List<Player> getPlayers() {
+		return this.players;
+	}
+	
 	public Player getCurrentPlayer() {
 		return this.currentPlayer;
 	}
 	
-	private Player getNextPlayerByIncrement() {
+	private Player getNextPlayerByIncrement(int turns) {
 		int index = this.players.indexOf(this.currentPlayer);
 		
 		if (this.incremental) {
-			if (index == this.players.size() - 1) {
-				return this.players.get(0);
+			index += turns;
+			if (index > this.players.size() - 1) {
+				return this.players.get(index - this.players.size());
 			} else {
-				return this.players.get(index + 1);
+				return this.players.get(index);
 			}
 		} else {
-			if (index == 0) {
-				return this.players.get(this.players.size() - 1);
+			index -= turns;
+			if (index < 0) {
+				return this.players.get(index + this.players.size());
 			} else {
-				return this.players.get(index - 1);
+				return this.players.get(index);
 			}
 		}
 	}
 	
 	public UnoSession nextPlayer() {
-		if (this.getLastCard().getCardType().equals(CardType.REVERSE)) {
+		CardType lastCardType = this.getLastCard().getCardType(); 
+		if (lastCardType.equals(CardType.REVERSE)) {
 			this.incremental = !this.incremental;
 			
-			this.currentPlayer = this.getNextPlayerByIncrement();
+			this.currentPlayer = this.getNextPlayerByIncrement(1);
+		} else if (lastCardType.equals(CardType.SKIP)){
+			this.currentPlayer = this.getNextPlayerByIncrement(2);
 		} else {
-			this.currentPlayer = this.getNextPlayerByIncrement();
+			this.currentPlayer = this.getNextPlayerByIncrement(1);
 		}
 		
 		return this;
