@@ -1,5 +1,6 @@
 package com.sx4.utils;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
@@ -22,6 +23,18 @@ public class GiveawayUtils {
 		}
 			
 		return returnSet;
+	}
+	
+	public static <Type> List<Type> getRandomSampleAndRemove(List<Type> list, int amount) {
+		List<Type> returnList = new ArrayList<>();
+
+		while (returnList.size() != amount) {
+			Type item = list.get(random.nextInt(list.size()));
+			list.remove(item);
+			returnList.add(item);
+		}
+			
+		return returnList;
 	}
 	
 }
