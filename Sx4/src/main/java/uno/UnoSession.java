@@ -1,5 +1,7 @@
 package uno;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 import com.sx4.core.Sx4Bot;
@@ -66,24 +68,26 @@ public class UnoSession {
 		return this.currentPlayer;
 	}
 	
-	private Player getNextPlayerByIncrement(int turns) {
+	public Player getNextPlayer(int turns) {
 		int index = this.players.indexOf(this.currentPlayer);
 		
 		if (this.incremental) {
 			index += turns;
 			if (index > this.players.size() - 1) {
 				return this.players.get(index - this.players.size());
-			} else {
-				return this.players.get(index);
 			}
 		} else {
 			index -= turns;
 			if (index < 0) {
 				return this.players.get(index + this.players.size());
-			} else {
-				return this.players.get(index);
 			}
 		}
+		
+		return this.players.get(index);
+	}
+	
+	public Player getNextPlayer() {
+		return this.getNextPlayer(1);
 	}
 	
 	public UnoSession nextPlayer() {
@@ -91,12 +95,60 @@ public class UnoSession {
 		if (lastCardType.equals(CardType.REVERSE)) {
 			this.incremental = !this.incremental;
 			
-			this.currentPlayer = this.getNextPlayerByIncrement(1);
-		} else if (lastCardType.equals(CardType.SKIP)){
-			this.currentPlayer = this.getNextPlayerByIncrement(2);
+			this.currentPlayer = this.getNextPlayer();
+		} else if (lastCardType.equals(CardType.SKIP)) {
+			this.currentPlayer = this.getNextPlayer(2);
 		} else {
-			this.currentPlayer = this.getNextPlayerByIncrement(1);
+			this.currentPlayer = this.getNextPlayer();
 		}
+		
+		return this;
+	}
+	
+	public UnoSession removeCardsFromDeck(Collection<UnoCard> cards) {
+		this.deck.removeAll(cards);
+		
+		return this;
+	}
+	
+	public UnoSession removeCardFromDeck(UnoCard card) {
+		this.deck.remove(card);
+		
+		return this;
+	}
+	
+	public UnoSession addCardsToDeck(Collection<UnoCard> cards) {
+		this.deck.addAll(cards);
+		
+		return this;
+	}
+	
+	public UnoSession addCardToDeck(UnoCard card) {
+		this.deck.add(card);
+		
+		return this;
+	}
+	
+	public UnoSession addCardsFromDeck(Player player, int amount) {
+		List<UnoCard> cards = this.deck.subList(0, amount);
+		
+		this.removeCardsFromDeck(cards);
+		player.addCards(cards);
+		
+		return this;
+	}
+	
+	public UnoSession drawCardsFromDeck(Player player) {
+		List<UnoCard> cards = new ArrayList<>();
+		for (UnoCard card : this.deck) {
+			cards.add(card);
+			if (card.isPlayable(this.getLastCard())) {
+				break;
+			}
+		}
+		
+		this.removeCardsFromDeck(cards);
+		player.addCards(cards);
 		
 		return this;
 	}
