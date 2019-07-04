@@ -9,7 +9,7 @@ repositories {
 }
 
 dependencies {
-	implementation('com.github.21Joakim:Jockie-Utils:jda-v4-SNAPSHOT') {
+	implementation('com.github.21Joakim:Jockie-Utils:36df7416428f8c2659a8e4684f1a4775430de8d9') {
 		exclude group: 'net.dv8tion', module: 'JDA'
 	}
 	
@@ -22,8 +22,6 @@ dependencies {
 	compile group: 'org.codehaus.groovy', name: 'groovy', version: '2.5.2'
 	
 	compile group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.9.8'
-	
-	compile 'com.jagrosh:jda-utilities-commons:2+'
 	
 	compile group: 'org.codehaus.groovy', name: 'groovy', version: '3.0.0-beta-1', ext: 'pom'
 }

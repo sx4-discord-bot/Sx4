@@ -13,7 +13,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import com.jagrosh.jdautilities.commons.waiter.EventWaiter;
 import com.jockie.bot.core.command.factory.impl.MethodCommandFactory;
 import com.jockie.bot.core.command.impl.CommandListener;
 import com.jockie.bot.core.command.impl.CommandStore;
@@ -29,6 +28,7 @@ import com.sx4.events.AntiLinkEvents;
 import com.sx4.events.AutoroleEvents;
 import com.sx4.events.AwaitEvents;
 import com.sx4.events.ConnectionEvents;
+import com.sx4.events.EventWaiterEvents;
 import com.sx4.events.GiveawayEvents;
 import com.sx4.events.ImageModeEvents;
 import com.sx4.events.ModEvents;
@@ -82,7 +82,7 @@ public class Sx4Bot {
 		}
 	}
 	
-	public static final EventWaiter waiter = new EventWaiter();
+	public static final EventWaiterEvents waiter = new EventWaiterEvents();
 	
 	public static OkHttpClient client = new OkHttpClient.Builder()
 			.connectTimeout(5, TimeUnit.SECONDS)
@@ -211,7 +211,11 @@ public class Sx4Bot {
 				})
 				.addPreExecuteCheck(listener.defaultBotPermissionCheck)
 				.addPreExecuteCheck(listener.defaultNsfwCheck)
-				.addPreExecuteCheck((event, command) -> CheckUtils.checkPermissions(event, EnumSet.copyOf(command.getAuthorDiscordPermissions()), true));
+				.addPreExecuteCheck((event, command) -> {
+					List<Permission> permissions = command.getAuthorDiscordPermissions();
+					
+					return CheckUtils.checkPermissions(event, permissions.isEmpty() ? EnumSet.noneOf(Permission.class) : EnumSet.copyOf(permissions), true);
+				});
 		
 		listener.setPrefixesFunction(event -> ModUtils.getPrefixes(event.getGuild(), event.getAuthor()));
 		listener.addCommandEventListener(new Sx4CommandEventListener());

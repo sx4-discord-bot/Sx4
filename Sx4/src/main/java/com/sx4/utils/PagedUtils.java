@@ -10,8 +10,6 @@ import java.util.function.Predicate;
 
 import com.jockie.bot.core.command.impl.CommandEvent;
 import com.sx4.core.Sx4Bot;
-import com.sx4.utils.PagedUtils.PagedReturn;
-
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Message;

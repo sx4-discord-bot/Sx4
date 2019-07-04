@@ -1,4 +1,7 @@
-package uno;
+package com.sx4.uno;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public enum UnoCard {
 
@@ -73,6 +76,21 @@ public enum UnoCard {
 	private Colour colour;
 	private CardType cardType;
 	private String emote;
+	
+	public static final List<UnoCard> DECK = new ArrayList<>();
+	static {
+		for (UnoCard card : UnoCard.values()) {
+			if (card.getCardType().equals(CardType.PLUS_FOUR) || card.getCardType().equals(CardType.COLOUR_CHANGE)) {
+				for (int i = 0; i < 4; i++) {
+					DECK.add(card);
+				}
+			} else {
+				for (int i = 0; i < 2; i++) {
+					DECK.add(card);
+				}
+			}
+		}
+	}
 	
 	private UnoCard(Colour colour, int number, CardType cardType, String emote) {
 		this.number = number;

@@ -1,4 +1,4 @@
-package uno;
+package com.sx4.uno;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -14,7 +14,7 @@ import net.dv8tion.jda.api.entities.User;
 
 public class UnoSession {
 	
-	private List<UnoCard> deck;
+	private List<UnoCard> deck = UnoCard.DECK;
 	private List<Player> players; 
 	private Player currentPlayer;
 	private boolean incremental = true;

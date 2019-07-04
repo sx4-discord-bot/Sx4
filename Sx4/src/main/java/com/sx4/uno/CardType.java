@@ -1,4 +1,4 @@
-package uno;
+package com.sx4.uno;
 
 public enum CardType {
 	NUMBER,

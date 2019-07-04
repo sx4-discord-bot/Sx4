@@ -85,6 +85,7 @@ import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.VoiceChannel;
+import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.internal.utils.tuple.Pair;
 import okhttp3.Request;
@@ -92,7 +93,7 @@ import okhttp3.Request;
 @Module
 public class GeneralModule {
 	
-	private final DateTimeFormatter formatter = this.formatter;
+	private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd LLL yyyy HH:mm");
 	
 	@Command(value="voice link", aliases={"voicelink", "vclink", "vc link", "screenshare"}, description="Gives you a link which allows you to screenshare in the current or specified voice channel")
 	public String voiceLink(CommandEvent event, @Argument(value="voice channel", nullDefault=true, endless=true) String voiceChannel) {
@@ -1088,7 +1089,7 @@ public class GeneralModule {
 		}
 	}
 	
-	/*Command(value="reaction", description="Test your reaction speed using this command")
+	@Command(value="reaction", description="Test your reaction speed using this command")
 	@Cooldown(value=70)
 	public void reaction(CommandEvent event) {
 		event.reply("In the next 2-10 seconds i'm going to send a message this is when you type whatever you want in the chat from there i will work out the time between me sending the message and you sending your message and that'll be your reaction time :stopwatch:").queue();
@@ -1099,13 +1100,13 @@ public class GeneralModule {
 				return e.getChannel().equals(event.getChannel()) && e.getAuthor().equals(event.getAuthor());
 			}, e -> {
 				long afterResponse = System.currentTimeMillis();
-				long responseTime = (afterResponse - beforeResponse - event.getJDA().getPing());
+				long responseTime = (afterResponse - beforeResponse - event.getJDA().getGatewayPing());
 				event.reply("It took you **" + responseTime + "ms** to respond.").queue();
 				event.removeCooldown();
 			}, 60, TimeUnit.SECONDS, () -> event.reply("Response timed out :stopwatch:").queue());
 			
 		});
-	}*/
+	}
 	
 	@Command(value="invites", aliases={"inv"}, description="View how many invites a user has in a server and where they are ranked in the whole server", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 	@BotPermissions({Permission.MANAGE_SERVER})

@@ -1,4 +1,4 @@
-package uno;
+package com.sx4.uno;
 
 import java.util.ArrayList;
 import java.util.Collection;

@@ -37,6 +37,7 @@ import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.MessageEmbed;
+import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.MessageEmbed.Field;
 import okhttp3.Request;
 import okhttp3.Response;
@@ -120,7 +121,7 @@ public class WelcomerUtils {
 	public static WebhookEmbedBuilder getEmbed(Member user, String message, Long colour) {
 		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
 		embed.setAuthor(new EmbedAuthor(user.getUser().getAsTag(), user.getUser().getEffectiveAvatarUrl(), null));
-		embed.setColor(colour.intValue());
+		embed.setColor(colour == null ? Role.DEFAULT_COLOR_RAW : colour.intValue());
 		embed.setDescription(message);
 		embed.setTimestamp(Instant.now());
 		
@@ -130,7 +131,7 @@ public class WelcomerUtils {
 	public static EmbedBuilder getPreviewEmbed(Member user, String message, Long colour) {
 		EmbedBuilder embed = new EmbedBuilder();
 		embed.setAuthor(user.getUser().getAsTag(), null, user.getUser().getEffectiveAvatarUrl());
-		embed.setColor(colour.intValue());
+		embed.setColor(colour == null ? Role.DEFAULT_COLOR_RAW : colour.intValue());
 		embed.setDescription(message);
 		embed.setTimestamp(Instant.now());
 		
