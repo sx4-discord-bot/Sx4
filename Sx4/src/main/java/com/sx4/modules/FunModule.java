@@ -1610,7 +1610,7 @@ public class FunModule {
 	public void calculator(CommandEvent event, @Argument(value="equation", endless=true) String equation) {
 		String eq;
 		try {
-			eq = new String(Runtime.getRuntime().exec("./calc " + equation.replace(" ", "").replace("l", "(").replace("r", ")")).getInputStream().readAllBytes());
+			eq = new String(Runtime.getRuntime().exec("./calc " + equation.replace(" ", "").replace("(", "l").replace(")", "r")).getInputStream().readAllBytes());
 		} catch (IOException e) {
 			event.reply("Oops something went wrong there, try again :no_entry:").queue();
 			return;
