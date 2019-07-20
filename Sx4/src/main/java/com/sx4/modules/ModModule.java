@@ -3110,9 +3110,11 @@ public class ModModule {
 			event.reply("**" + member.getUser().getAsTag() + "** has been muted for " + muteString + " <:done:403285928233402378>:ok_hand:").queue();
 			event.getGuild().addRoleToMember(member, role).queue();
 			
-			member.getUser().openPrivateChannel().queue(channel -> {
-				channel.sendMessage(ModUtils.getMuteEmbed(event.getGuild(), null, event.getAuthor(), muteLength, reason)).queue();
-			}, e -> {});
+			if (!member.getUser().isBot()) {
+				member.getUser().openPrivateChannel().queue(channel -> {
+					channel.sendMessage(ModUtils.getMuteEmbed(event.getGuild(), null, event.getAuthor(), muteLength, reason)).queue();
+				}, e -> {});
+			}
 			
 			ModUtils.createModLogAndOffence(event.getGuild(), connection, event.getAuthor(), member.getUser(), "Mute (" + muteString + ")", reason);
 			
@@ -3149,31 +3151,30 @@ public class ModModule {
 			return;
 		}
 		
-		for (Role role : event.getGuild().getRoles()) {
-			if (role.getName().equals("Muted - " + event.getSelfUser().getName())) {
-				if (!member.getRoles().contains(role)) {
-					event.reply("**" + member.getUser().getAsTag() + "** is not muted :no_entry:").queue();
-					return;
-				}
-				
-				event.reply("**" + member.getUser().getAsTag() + "** has been unmuted <:done:403285928233402378>:ok_hand:").queue();
-				event.getGuild().removeRoleFromMember(member, role).queue();
-				
-				if (!member.getUser().isBot()) {
-					member.getUser().openPrivateChannel().queue(channel -> {
-						channel.sendMessage(ModUtils.getUnmuteEmbed(event.getGuild(), null, event.getAuthor(), reason)).queue();
-					}, e -> {});
-				}
-				
-				ModUtils.createModLog(event.getGuild(), connection, event.getAuthor(), member.getUser(), "Unmute", reason);
-				
-				data.update(row -> r.hashMap("users", row.g("users").filter(d -> d.g("id").ne(member.getUser().getId())))).runNoReply(connection);
-				MuteEvents.cancelExecutor(event.getGuild().getId(), member.getUser().getId());
-				return;
-			}
+		Role role = MuteEvents.getMuteRole(event.getGuild());
+		if (role == null) {
+			event.reply("**" + member.getUser().getAsTag() + "** is not muted :no_entry:").queue();
+			return;
 		}
 		
-		event.reply("**" + member.getUser().getAsTag() + "** is not muted :no_entry:").queue();
+		if (!member.getRoles().contains(role)) {
+			event.reply("**" + member.getUser().getAsTag() + "** is not muted :no_entry:").queue();
+			return;
+		}
+		
+		event.reply("**" + member.getUser().getAsTag() + "** has been unmuted <:done:403285928233402378>:ok_hand:").queue();
+		event.getGuild().removeRoleFromMember(member, role).queue();
+		
+		if (!member.getUser().isBot()) {
+			member.getUser().openPrivateChannel().queue(channel -> {
+				channel.sendMessage(ModUtils.getUnmuteEmbed(event.getGuild(), null, event.getAuthor(), reason)).queue();
+			}, e -> {});
+		}
+		
+		ModUtils.createModLog(event.getGuild(), connection, event.getAuthor(), member.getUser(), "Unmute", reason);
+		
+		data.update(row -> r.hashMap("users", row.g("users").filter(d -> d.g("id").ne(member.getUser().getId())))).runNoReply(connection);
+		MuteEvents.cancelExecutor(event.getGuild().getId(), member.getUser().getId());
 	}
 	
 	@SuppressWarnings("unchecked")
@@ -3197,7 +3198,7 @@ public class ModModule {
 			return;
 		}
 		
-		mutedUsers.sort((a, b) -> Long.compare(a.get("time") instanceof Double ? (long) (double) a.get("time") : (long) a.get("time"), b.get("time") instanceof Double ? (long) (double) b.get("time") : (long) b.get("time")));
+		mutedUsers.sort((a, b) -> Long.compare((long) a.get("time"), (long) b.get("time")));
 		PagedResult<Map<String, Object>> paged = new PagedResult<>(mutedUsers)
 				.setAuthor("Muted Users", null, event.getGuild().getIconUrl())
 				.setIndexed(false)
@@ -3213,7 +3214,7 @@ public class ModModule {
 						timeTillUnmute = (user.get("time") instanceof Double ? (long) (double) user.get("time") : (long) user.get("time")) - timestamp + (user.get("amount") instanceof Double ? (long) (double) user.get("amount") : (long) user.get("amount"));
 					}
 					
-					return member.getUser().getAsTag() + " - " + (timeTillUnmute <= 0 ? "Infinite" : TimeUtils.toTimeString(timeTillUnmute, ChronoUnit.SECONDS));
+					return member.getUser().getAsTag() + " - " + (timeTillUnmute == -1 ? "Infinite" : TimeUtils.toTimeString(timeTillUnmute, ChronoUnit.SECONDS));
 				});
 		
 		PagedUtils.getPagedResult(event, paged, 300, null);
@@ -3308,12 +3309,12 @@ public class ModModule {
 			}
 			
 			Map<String, Object> configuration = new HashMap<>();
-			if (actions.contains(action) || action.contains("mute")) {
+			if (actions.contains(action) || action.startsWith("mute")) {
 				if (action.equals("mute")) {
 					configuration.put("warning", warningNumber);
 					configuration.put("action", action);
 					configuration.put("time", 1800L);
-				} else if (action.contains("mute")) {
+				} else if (action.startsWith("mute")) {
 					String timeString = action.split(" ", 2)[1];
 					long muteLength = TimeUtils.convertToSeconds(timeString);
 					if (muteLength <= 0) {
@@ -3537,9 +3538,11 @@ public class ModModule {
 					event.reply("**" + member.getUser().getAsTag() + "** has been muted for " + TimeUtils.toTimeString(muteLength, ChronoUnit.SECONDS) + " (" + suffixWarning + " Warning) <:done:403285928233402378>").queue();
 					event.getGuild().addRoleToMember(member, role).queue();
 					
-					member.getUser().openPrivateChannel().queue(channel -> {
-						channel.sendMessage(ModUtils.getWarnEmbed(event.getGuild(), event.getAuthor(), warnConfig, userWarnings, true, "muted", reason)).queue();
-					}, e -> {});
+					if (!member.getUser().isBot()) {
+						member.getUser().openPrivateChannel().queue(channel -> {
+							channel.sendMessage(ModUtils.getWarnEmbed(event.getGuild(), event.getAuthor(), warnConfig, userWarnings, true, "muted", reason)).queue();
+						}, e -> {});
+					}
 					
 					ModUtils.createModLogAndOffence(event.getGuild(), connection, event.getAuthor(), member.getUser(), "Mute " +
 							TimeUtils.toTimeString(muteLength, ChronoUnit.SECONDS) + " (" + suffixWarning + " Warning)", reason);
@@ -3572,26 +3575,32 @@ public class ModModule {
 				event.reply("**" + member.getUser().getAsTag() + "** has been kicked (" + suffixWarning + " Warning) <:done:403285928233402378>").queue();
 				event.getGuild().kick(member, (reason == null ? "" : reason) + " [" + event.getAuthor().getAsTag() + "]").queue();
 				
-				member.getUser().openPrivateChannel().queue(channel -> {
-					channel.sendMessage(ModUtils.getWarnEmbed(event.getGuild(), event.getAuthor(), warnConfig, userWarnings, true, "kicked", reason)).queue();
-				}, e -> {});
+				if (!member.getUser().isBot()) {
+					member.getUser().openPrivateChannel().queue(channel -> {
+						channel.sendMessage(ModUtils.getWarnEmbed(event.getGuild(), event.getAuthor(), warnConfig, userWarnings, true, "kicked", reason)).queue();
+					}, e -> {});
+				}
 				
 				ModUtils.createModLogAndOffence(event.getGuild(), connection, event.getAuthor(), member.getUser(), "Kick (" + suffixWarning + " Warning)", reason);
 			} else if (action.equals("ban")) {
 				event.reply("**" + member.getUser().getAsTag() + "** has been banned (" + suffixWarning + " Warning) <:done:403285928233402378>").queue();
 				event.getGuild().ban(member, 1, (reason == null ? "" : reason) + " [" + event.getAuthor().getAsTag() + "]").queue();
 				
-				member.getUser().openPrivateChannel().queue(channel -> {
-					channel.sendMessage(ModUtils.getWarnEmbed(event.getGuild(), event.getAuthor(), warnConfig, userWarnings, true, "banned", reason)).queue();
-				}, e -> {});
+				if (!member.getUser().isBot()) {
+					member.getUser().openPrivateChannel().queue(channel -> {
+						channel.sendMessage(ModUtils.getWarnEmbed(event.getGuild(), event.getAuthor(), warnConfig, userWarnings, true, "banned", reason)).queue();
+					}, e -> {});
+				}
 				
 				ModUtils.createModLogAndOffence(event.getGuild(), connection, event.getAuthor(), member.getUser(), "Ban (" + suffixWarning + " Warning)", reason);
 			} else if (action.equals("warn")) {
 				event.reply("**" + member.getUser().getAsTag() + "** has been warned (" + suffixWarning + " Warning) :warning:").queue();
 				
-				member.getUser().openPrivateChannel().queue(channel -> {
-					channel.sendMessage(ModUtils.getWarnEmbed(event.getGuild(), event.getAuthor(), warnConfig, userWarnings, true, "warned", reason)).queue();
-				}, e -> {});
+				if (!member.getUser().isBot()) {
+					member.getUser().openPrivateChannel().queue(channel -> {
+						channel.sendMessage(ModUtils.getWarnEmbed(event.getGuild(), event.getAuthor(), warnConfig, userWarnings, true, "warned", reason)).queue();
+					}, e -> {});
+				}
 				
 				ModUtils.createModLogAndOffence(event.getGuild(), connection, event.getAuthor(), member.getUser(), "Warn (" + suffixWarning + " Warning)", reason);
 			}

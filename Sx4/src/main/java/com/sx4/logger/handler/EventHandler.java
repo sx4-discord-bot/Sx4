@@ -510,7 +510,7 @@ public class EventHandler extends ListenerAdapter {
 				Member member = message.getMember();
 				
 				embed.setDescription(String.format("The message sent by `%s` in %s was deleted", member.getEffectiveName(), channel.getAsMention()));
-				embed.setAuthor(new EmbedAuthor(member.getUser().getAsTag(), null, member.getUser().getEffectiveAvatarUrl()));
+				embed.setAuthor(new EmbedAuthor(member.getUser().getAsTag(), member.getUser().getEffectiveAvatarUrl(), null));
 			}else{
 				User user = message.getAuthor();
 				

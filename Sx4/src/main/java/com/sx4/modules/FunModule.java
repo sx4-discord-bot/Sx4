@@ -60,6 +60,7 @@ import com.sx4.core.Sx4Command;
 import com.sx4.interfaces.Example;
 import com.sx4.interfaces.Sx4Callback;
 import com.sx4.settings.Settings;
+import com.sx4.uno.UnoSession;
 import com.sx4.utils.ArgumentUtils;
 import com.sx4.utils.FunUtils;
 import com.sx4.utils.GeneralUtils;
@@ -75,6 +76,7 @@ import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Message.Attachment;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.entities.Role;
+import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.internal.utils.tuple.Pair;
 import okhttp3.MediaType;
@@ -131,6 +133,131 @@ public class FunModule {
 			return closest;
 		}
 	}
+	
+	/*public class UnoCommand extends Sx4Command {
+		
+		private List<UnoSession> unoSessions = new ArrayList<>();
+		
+		public UnoSession getUnoSession(TextChannel channel) {
+			for (UnoSession unoSession : this.unoSessions) {
+				if (unoSession.getChannelId() == channel.getIdLong()) {
+					return unoSession;
+				}
+			}
+			
+			return null;
+		}
+		
+		public UnoCommand() {
+			super("uno");
+			
+			super.setDescription("Play uno against your friends, players: 2-4");
+			super.setContentOverflowPolicy(ContentOverflowPolicy.IGNORE);
+		}
+		
+		public void onCommand(CommandEvent event, @Argument(value="invite only", nullDefault=true) Boolean inviteOnly) {
+			UnoSession currentUnoSession = this.getUnoSession(event.getTextChannel());
+			if (currentUnoSession == null) {
+				UnoSession unoSession = new UnoSession(event.getTextChannel(), event.getMember(), inviteOnly == null ? false : inviteOnly);
+				unoSessions.add(unoSession);
+				
+				StringBuilder reply = new StringBuilder("I have created your uno game <:done:403285928233402378>\n\n");
+				if (inviteOnly) {
+					reply.append("Invite friends to your uno game with `" + event.getPrefix() + "uno invite <user | role>` then they can use `" + event.getPrefix() + "uno join` to join.");
+				} else {
+					reply.append("Anyone can use `" + event.getPrefix() + "uno join` to join.");
+				}
+				
+				event.reply(reply.toString()).queue();
+			} else {
+				event.reply("An uno game is already set up in this channel :no_entry:").queue();
+			}
+		}
+		
+		@Command(value="invite", description="Invite a user/role to your uno game")
+		public void invite(CommandEvent event, @Argument(value="user | role", endless=true) String argument) {
+			UnoSession unoSession = this.getUnoSession(event.getTextChannel());
+			if (unoSession == null) {
+				event.reply("An uno game isn't set up in this channel :no_entry:").queue();
+				return;
+			}
+			
+			if (unoSession.getOwnerId() != event.getAuthor().getIdLong()) {
+				event.reply("You are not the owner of the uno game in this channel :no_entry:").queue();
+				return;
+			}
+			
+			if (!unoSession.isInviteOnly()) {
+				event.reply("The uno game is not invite only :no_entry:").queue();
+				return;
+			}
+			
+			Role role = ArgumentUtils.getRole(event.getGuild(), argument);
+			Member member = ArgumentUtils.getMember(event.getGuild(), argument);
+			
+			if (role != null) {
+				unoSession.invite(role);
+				event.reply("I have invited every user within the role `" + role.getName() + "` <:done:403285928233402378>").queue();
+			} else if (member != null) {
+				unoSession.invite(member);
+				event.reply("I have invited **" + member.getUser().getAsTag() + "** <:done:403285928233402378>").queue();
+			} else {
+				event.reply("I could not find that user or role :no_entry:").queue();
+			}
+		}
+		
+		@Command(value="join", description="Join an uno game which has not started in the current channel", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		public void join(CommandEvent event) {
+			UnoSession unoSession = this.getUnoSession(event.getTextChannel());
+			if (unoSession == null) {
+				event.reply("An uno game isn't set up in this channel :no_entry:").queue();
+				return;
+			}
+			
+			if (unoSession.isInviteOnly() && !unoSession.isInvited(event.getMember())) {
+				event.reply("You have not been invited to the uno game in this channel :no_entry:").queue();
+				return;
+			}
+			
+			if (unoSession.getPlayers().size() == 4) {
+				event.reply("The uno game in this channel is currently full :no_entry:").queue();
+				return;
+			}
+			
+			unoSession.addPlayer(event.getMember());
+			event.reply("You have joined the uno game in this channel, wait for the owner to start the game <:done:403285928233402378>").queue();
+		}
+		
+		@Command(value="start", description="Start the uno game in the current channel", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		public void start(CommandEvent event) {
+			UnoSession unoSession = this.getUnoSession(event.getTextChannel());
+			if (unoSession == null) {
+				event.reply("An uno game isn't set up in this channel :no_entry:").queue();
+				return;
+			}
+			
+			if (unoSession.getOwnerId() != event.getAuthor().getIdLong()) {
+				event.reply("You do not own the uno game in the current channel :no_entry:").queue();
+				return;
+			}
+			
+			if (unoSession.getPlayers().size() < 2) {
+				event.reply("You need at least 2 players to start an uno game :no_entry:").queue();
+				return;
+			}
+			
+			event.reply("The uno game will now start, everyone will be messaged with their starting cards. Good luck!").queue(message -> {
+				try {
+					unoSession.start(event);
+				} catch(IllegalArgumentException e) {
+					e.printStackTrace();
+					event.reply("Too many players left, the game has been cancelled :no_entry:").queue();
+					this.unoSessions.remove(unoSession);
+				}
+			});
+		}
+		
+	}*/
 	
 	@SuppressWarnings("unchecked")
 	@Command(value="profile", description="View a users or your profile")
@@ -526,7 +653,13 @@ public class FunModule {
 					}
 					
 					String[] birthdaySplit = ((String) userData.get("birthday")).split("/");
-					LocalDate birthday = LocalDate.of(now.getYear(), Integer.parseInt(birthdaySplit[1]), Integer.parseInt(birthdaySplit[0]));
+					int day = Integer.parseInt(birthdaySplit[0]);
+					int month = Integer.parseInt(birthdaySplit[1]);
+					if (month == 2 && day == 29 && now.getYear() % 4 != 0) {
+						continue;
+					}
+					
+					LocalDate birthday = LocalDate.of(now.getYear(), month, day);
 					if (birthday.compareTo(now) < 0) {
 						birthday = birthday.plusYears(1);
 					}

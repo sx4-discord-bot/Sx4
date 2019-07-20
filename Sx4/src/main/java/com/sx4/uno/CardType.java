@@ -6,5 +6,6 @@ public enum CardType {
 	SKIP,
 	PLUS_TWO,
 	PLUS_FOUR, 
-	COLOUR_CHANGE;
+	COLOUR_CHANGE,
+	UNKNOWN;
 }

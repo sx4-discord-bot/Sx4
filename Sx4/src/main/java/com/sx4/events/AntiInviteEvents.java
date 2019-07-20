@@ -23,7 +23,7 @@ import net.dv8tion.jda.api.hooks.ListenerAdapter;
 
 public class AntiInviteEvents extends ListenerAdapter {
 
-	private Pattern inviteRegex = Pattern.compile(".*(?:https?://)?(?:www.)?(?:discord.gg|(?:canary.)?discordapp.com/invite)/((?:[a-zA-Z0-9]){2,32}).*", Pattern.CASE_INSENSITIVE);	
+	private Pattern inviteRegex = Pattern.compile("(?:.|\n)*(?:https?://)?(?:www.)?(?:discord.gg|(?:canary.)?discordapp.com/invite)/((?:[a-zA-Z0-9]){2,32})(?:.|\n)*", Pattern.CASE_INSENSITIVE);	
 	
 	@SuppressWarnings("unchecked")
 	public void onGuildMessageReceived(GuildMessageReceivedEvent event) {

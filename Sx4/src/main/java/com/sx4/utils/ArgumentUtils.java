@@ -349,7 +349,8 @@ public class ArgumentUtils {
 				return null;
 			}
 		} else if (bigNameRegex.matcher(textChannel).matches()) {
-			if (guild.getVoiceChannelsByName(textChannel, true).stream().findFirst().orElse(null) == null) {
+			TextChannel channelByName = guild.getTextChannelsByName(textChannel, true).stream().findFirst().orElse(null);
+			if (channelByName == null) {
 				for (TextChannel channel : guild.getTextChannels()) {
 					if (channel.getName().toLowerCase().startsWith(textChannel.toLowerCase())) {
 						return channel;
@@ -362,7 +363,7 @@ public class ArgumentUtils {
 					}
 				}
 			} else {
-				return guild.getTextChannelsByName(textChannel, true).get(0);
+				return channelByName;
 			}		
 		}
 		

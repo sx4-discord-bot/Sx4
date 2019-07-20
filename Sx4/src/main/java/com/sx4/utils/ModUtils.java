@@ -145,7 +145,7 @@ public class ModUtils {
 		embed.setAuthor("You have been kicked from " + guild.getName(), null, guild.getIconUrl());
 		embed.setTimestamp(Instant.now());
 		embed.addField("Moderator", moderator.getAsTag() + " (" + moderator.getId() + ")", false);
-		embed.addField("Reason", reason == null ? "None Given" : reason, false);
+		embed.addField("Reason", reason == null ? "None Given" : GeneralUtils.limitString(reason, MessageEmbed.VALUE_MAX_LENGTH), false);
 		return embed.build();
 	}
 	
@@ -154,7 +154,7 @@ public class ModUtils {
 		embed.setAuthor("You have been banned from " + guild.getName(), null, guild.getIconUrl());
 		embed.setTimestamp(Instant.now());
 		embed.addField("Moderator", moderator.getAsTag() + " (" + moderator.getId() + ")", false);
-		embed.addField("Reason", reason == null ? "None Given" : reason, false);
+		embed.addField("Reason", reason == null ? "None Given" : GeneralUtils.limitString(reason, MessageEmbed.VALUE_MAX_LENGTH), false);
 		return embed.build();
 	}
 	
@@ -165,7 +165,7 @@ public class ModUtils {
 		embed.addField("Channel", channel == null ? "All" : channel.getAsMention(), false);
 		embed.addField("Length", length == 0 ? "Infinite" : TimeUtils.toTimeString(length, ChronoUnit.SECONDS), false);
 		embed.addField("Moderator", moderator.getAsTag() + " (" + moderator.getId() + ")", false);
-		embed.addField("Reason", reason == null ? "None Given" : reason, false);
+		embed.addField("Reason", reason == null ? "None Given" : GeneralUtils.limitString(reason, MessageEmbed.VALUE_MAX_LENGTH), false);
 		return embed.build();
 	}
 	
@@ -175,7 +175,7 @@ public class ModUtils {
 		embed.setTimestamp(Instant.now());
 		embed.addField("Channel", channel == null ? "All" : channel.getAsMention(), false);
 		embed.addField("Moderator", moderator.getAsTag() + " (" + moderator.getId() + ")", false);
-		embed.addField("Reason", reason == null ? "None Given" : reason, false);
+		embed.addField("Reason", reason == null ? "None Given" : GeneralUtils.limitString(reason, MessageEmbed.VALUE_MAX_LENGTH), false);
 		return embed.build();
 	}
 	
@@ -197,7 +197,7 @@ public class ModUtils {
 		embed.setAuthor("You have been " + action + " in " + guild.getName() + " (" + GeneralUtils.getNumberSuffix(Math.toIntExact(warning)) + " Warning)", null, guild.getIconUrl());
 		embed.setTimestamp(Instant.now());
 		embed.addField("Moderator", moderator.getAsTag() + " (" + moderator.getId() + ")", false);
-		embed.addField("Reason", reason == null ? "None Given" : reason, false);
+		embed.addField("Reason", reason == null ? "None Given" : GeneralUtils.limitString(reason, MessageEmbed.VALUE_MAX_LENGTH), false);
 		embed.addField("Next Action", nextActionString, false);
 		return embed.build();
 	}

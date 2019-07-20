@@ -10,9 +10,12 @@ import java.util.function.Predicate;
 
 import com.jockie.bot.core.command.impl.CommandEvent;
 import com.sx4.core.Sx4Bot;
+
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.ChannelType;
 import net.dv8tion.jda.api.entities.Message;
+import net.dv8tion.jda.api.entities.MessageChannel;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
@@ -23,13 +26,11 @@ public class PagedUtils {
 		Type object;
 		int page;
 		int index;
-		int indexOnPage;
 		
-		public PagedReturn(Type object, int page, int index, int indexOnPage) {
+		public PagedReturn(Type object, int page, int index) {
 			this.object = object;
 			this.page = page;
 			this.index = index;
-			this.indexOnPage = indexOnPage;
 		}
 		
 		public Type getObject() {
@@ -42,10 +43,6 @@ public class PagedUtils {
 		
 		public int getIndex() {
 			return this.index;
-		}
-		
-		public int getIndexOnPage() {
-			return this.indexOnPage;
 		}
 		
 	}
@@ -65,6 +62,7 @@ public class PagedUtils {
 		private boolean deleteMessage = true;
 		private boolean selectableByIndex = false;
 		private boolean selectableByObject = false;
+		private boolean returnFirstOnTimeout = false;
 		private Function<Type, String> selectableObject = (e) -> e.toString();
 		private Function<Integer, String> indexString = (e) -> e + ".";
 		private boolean custom = false;
@@ -72,6 +70,16 @@ public class PagedUtils {
 		
 		public PagedResult(List<Type> array) {
 			this.array = array;
+		}
+		
+		public PagedResult<Type> setReturnFirstOnTimeout(boolean returnFirstOnTimeout) {
+			this.returnFirstOnTimeout = returnFirstOnTimeout;
+			
+			return this;
+		}
+		
+		public boolean returnFirstOnTimeout() {
+			return this.returnFirstOnTimeout;
 		}
 		
 		public int getNextPage() {
@@ -278,6 +286,10 @@ public class PagedUtils {
 			return this;
 		}
 		
+		public PagedReturn<Type> select(int index) {
+			return new PagedReturn<>(this.array.get(index), this.currentPage, index);
+		}
+		
 		public MessageEmbed getEmbed() {
 			if (this.custom == false) {
 				int maxPage = this.getMaxPage();
@@ -315,17 +327,17 @@ public class PagedUtils {
 		allAliases.addAll(cancel);
 	}
 	
-	public static <T> void getPagedResult(CommandEvent event, PagedResult<T> paged, int timeout, Consumer<PagedReturn<T>> returnFunction) {
+	public static <T> void getPagedResult(CommandEvent event, MessageChannel channel, PagedResult<T> paged, int timeout, Consumer<PagedReturn<T>> returnFunction) {
 		if (paged.isAutoSelected() && paged.isSelectable() && paged.getArray().size() == 1) {
-			PagedReturn<T> page = new PagedReturn<>(paged.getArray().get(0), paged.getCurrentPage(), (paged.getPerPage() * paged.getCurrentPage()) - paged.getPerPage(), 1);
+			PagedReturn<T> page = paged.select(0);
 			returnFunction.accept(page);
 			return;
 		}
 		
-		event.reply(paged.getEmbed()).queue(message -> {
+		channel.sendMessage(paged.getEmbed()).queue(message -> {
 			Predicate<MessageReceivedEvent> check = (e) -> {
 				String messageContent = e.getMessage().getContentRaw().toLowerCase();
-				if (e.getChannel().equals(event.getChannel()) && e.getAuthor().equals(event.getAuthor())) {
+				if (e.getChannel().equals(channel) && e.getAuthor().equals(event.getAuthor())) {
 					if (messageContent.startsWith("go to ")) {
 						int requestedPage;
 						try {
@@ -374,13 +386,14 @@ public class PagedUtils {
 			Consumer<MessageReceivedEvent> handle = new Consumer<MessageReceivedEvent>() {
 				public void accept(MessageReceivedEvent e) {
 					String messageContent = e.getMessage().getContentRaw().toLowerCase();
-					boolean canDelete = e.getGuild().getSelfMember().hasPermission(e.getTextChannel(), Permission.MESSAGE_MANAGE);
+					boolean canDelete = e.isFromType(ChannelType.TEXT) ? e.getGuild().getSelfMember().hasPermission(e.getTextChannel(), Permission.MESSAGE_MANAGE) : false;
 					boolean edit = true;
 					if (cancel.contains(messageContent)) {
 						if (canDelete) {
-							message.delete().queue(null, $ -> {});
 							e.getMessage().delete().queue(null, $ -> {});
 						}
+						
+						message.delete().queue(null, $ -> {});
 						return;
 					} else if (next.contains(messageContent)) {
 						if (paged.getNextPage() != paged.getCurrentPage()) {
@@ -426,19 +439,20 @@ public class PagedUtils {
 						} else {
 							index = (paged.getCurrentPage() * paged.getPerPage() - paged.getPerPage()) + (selectedIndex - 1);
 						}
-						PagedReturn<T> page = new PagedReturn<>(paged.getArray().get(index), paged.getCurrentPage(), index, selectedIndex);
+						PagedReturn<T> page = paged.select(index);
 						returnFunction.accept(page);
 						
 						if (canDelete) {
-							message.delete().queue(null, $ -> {});
 							e.getMessage().delete().queue(null, $ -> {});
 						}
+						
+						message.delete().queue(null, $ -> {});
 						return;
 					} else {
 						for (int i = paged.getCurrentPage() * paged.getPerPage() - paged.getPerPage(); i < paged.getCurrentPage() * paged.getPerPage(); i++) {
 							if (paged.getSelectableObject(paged.getArray().get(i)).equals(messageContent)) {
 								int index = i;
-								PagedReturn<T> page = new PagedReturn<>(paged.getArray().get(index), paged.getCurrentPage(), index, index);
+								PagedReturn<T> page = paged.select(index);
 								returnFunction.accept(page);
 								
 								if (canDelete) {
@@ -457,8 +471,12 @@ public class PagedUtils {
 					Sx4Bot.waiter.waitForEvent(MessageReceivedEvent.class, check, this, timeout, TimeUnit.SECONDS, paged.deleteMessage() == true ? () -> message.delete().queue() : null);
 				}
 			};
-			Sx4Bot.waiter.waitForEvent(MessageReceivedEvent.class, check, handle, timeout, TimeUnit.SECONDS, paged.deleteMessage() == true ? () -> message.delete().queue() : null);
+			Sx4Bot.waiter.waitForEvent(MessageReceivedEvent.class, check, handle, timeout, TimeUnit.SECONDS, paged.deleteMessage() == true ? paged.returnFirstOnTimeout() ? () -> returnFunction.accept(paged.select(0)) : () -> message.delete().queue() : null);
 		});
+	}
+	
+	public static <T> void getPagedResult(CommandEvent event, PagedResult<T> paged, int timeout, Consumer<PagedReturn<T>> returnFunction) {
+		PagedUtils.getPagedResult(event, event.getChannel(), paged, timeout, returnFunction);
 	}
 	
 	public static void getConfirmation(CommandEvent event, int timeout, User responder, Consumer<Boolean> returnFunction) {

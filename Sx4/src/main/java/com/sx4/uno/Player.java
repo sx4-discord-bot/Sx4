@@ -39,6 +39,39 @@ public class Player {
 		return this;
 	}
 	
+	public Player removeCards(UnoCard... cards) {
+		this.cards.removeAll(List.of(cards));
+		
+		return this;
+	}
+	
+	public Player removeCards(Collection<UnoCard> cards) {
+		this.cards.removeAll(cards);
+		
+		return this;
+	}
+	
+	public List<UnoCard> getPlayableCards(UnoCard lastCard) {
+		List<UnoCard> playableCards = new ArrayList<>();
+		for (UnoCard card : this.cards) {
+			if (card.isPlayable(lastCard)) {
+				playableCards.add(card);
+			}
+		}
+		
+		return playableCards;
+	}
+	
+	public boolean canPlay(UnoCard lastCard) {
+		for (UnoCard card : this.cards) {
+			if (card.isPlayable(lastCard)) {
+				return true;
+			}
+		}
+		
+		return false;
+	}
+	
 	public long getUserId() {
 		return this.userId;
 	}

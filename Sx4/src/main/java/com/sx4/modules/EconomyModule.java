@@ -139,6 +139,11 @@ public class EconomyModule {
 				return;
 			}
 			
+			if (!crate.isBuyable()) {
+				event.reply("That crate is not buyable :no_entry:").queue();
+				return;
+			}
+			
 			if (dataRan == null) {
 				event.reply(String.format("You do not have enough money to purchase `%,d %s` :no_entry:", crateAmount, crate.getName())).queue();
 				return;

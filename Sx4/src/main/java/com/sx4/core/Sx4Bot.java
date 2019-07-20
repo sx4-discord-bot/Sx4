@@ -161,7 +161,7 @@ public class Sx4Bot {
 				});
 		
 		listener.addPreParseCheck(message -> {
-			if (message.getGuild() != null) {
+			if (message.isFromGuild()) {
 				if (!message.getGuild().getSelfMember().hasPermission(message.getTextChannel(), Permission.MESSAGE_WRITE)) {
 					return false;
 				}
@@ -217,7 +217,7 @@ public class Sx4Bot {
 					return CheckUtils.checkPermissions(event, permissions.isEmpty() ? EnumSet.noneOf(Permission.class) : EnumSet.copyOf(permissions), true);
 				});
 		
-		listener.setPrefixesFunction(event -> ModUtils.getPrefixes(event.getGuild(), event.getAuthor()));
+		listener.setPrefixesFunction(event -> ModUtils.getPrefixes(event.isFromGuild() ? event.getGuild() : null, event.getAuthor()));
 		listener.addCommandEventListener(new Sx4CommandEventListener());
 		
 		InterfacedEventManager eventManager = new InterfacedEventManager();

@@ -37,4 +37,14 @@ public class GiveawayUtils {
 		return returnList;
 	}
 	
+	public static <Type> List<Type> shuffle(List<Type> list) {
+		List<Type> shuffledList = new ArrayList<>();
+		for (int i = 0; i < list.size(); i++) {
+			Type object = list.get(i);
+			shuffledList.add(random.nextInt(i + 1), object);
+		}
+		
+		return shuffledList;
+	}
+	
 }

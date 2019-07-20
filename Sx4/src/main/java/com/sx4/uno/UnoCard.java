@@ -61,15 +61,18 @@ public enum UnoCard {
 	BLUE_REVERSE(Colour.BLUE, 10, CardType.REVERSE, "<:blue_reverse:595959595672010762>"),
 	BLUE_SKIP(Colour.BLUE, 10, CardType.SKIP, "<:blue_skip:595959595936251904>"),
 	
-	PLUS_FOUR(Colour.BLACK, 10, CardType.PLUS_FOUR, "<:wild_pick_four:595959596359614492>"),
-	COLOUR_CHANGE(Colour.BLACK, 10, CardType.COLOUR_CHANGE, "<:wild_colour_changer:595959596150030347>");
+	//PLUS_FOUR(Colour.BLACK, 10, CardType.PLUS_FOUR, "<:wild_pick_four:595959596359614492>"),
+	//COLOUR_CHANGE(Colour.BLACK, 10, CardType.COLOUR_CHANGE, "<:wild_colour_changer:595959596150030347>"),
+	
+	DRAW_CARD(Colour.UNKNOWN, -1, CardType.UNKNOWN, "<:draw_card:596413651632783401>");
 	
 	public enum Colour {
 		RED,
 		YELLOW, 
 		GREEN, 
 		BLUE, 
-		BLACK;
+		BLACK, 
+		UNKNOWN;
 	}
 	
 	private int number;
@@ -80,7 +83,9 @@ public enum UnoCard {
 	public static final List<UnoCard> DECK = new ArrayList<>();
 	static {
 		for (UnoCard card : UnoCard.values()) {
-			if (card.getCardType().equals(CardType.PLUS_FOUR) || card.getCardType().equals(CardType.COLOUR_CHANGE)) {
+			if (card.getCardType().equals(CardType.UNKNOWN)) {
+				continue;
+			} else if (card.getCardType().equals(CardType.PLUS_FOUR) || card.getCardType().equals(CardType.COLOUR_CHANGE)) {
 				for (int i = 0; i < 4; i++) {
 					DECK.add(card);
 				}
