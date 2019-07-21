@@ -94,7 +94,7 @@ public class HelpUtils {
 	public static PagedResult<Sx4Command> getCommandPagedResult(List<Sx4Command> commands) {
 		return new PagedResult<>(commands)
 				.setDeleteMessage(false)
-				.setPerPage(20)
+				.setPerPage(15)
 				.setIndexed(false)
 				.setSelectableByObject(true)
 				.setSelectableObject(object -> object.getCommandTrigger()) 

@@ -202,7 +202,7 @@ public class GeneralModule {
 				)).with("reminder_count", data.g("reminder_count").add(1));
 			}).runNoReply(connection);
 			
-			ScheduledFuture<?> executor = ReminderEvents.scheduledExectuor.schedule(() -> ReminderEvents.removeUserReminder(event.getAuthor(), reminderCount + 1, reminderName, reminderLength, repeat), reminderLength, TimeUnit.SECONDS);
+			ScheduledFuture<?> executor = ReminderEvents.scheduledExectuor.schedule(() -> ReminderEvents.removeUserReminder(event.getAuthor().getId(), reminderCount + 1, reminderName, reminderLength, repeat), reminderLength, TimeUnit.SECONDS);
 			ReminderEvents.putExecutor(event.getAuthor().getId(), reminderCount + 1, executor);
 		}
 		
@@ -1347,14 +1347,15 @@ public class GeneralModule {
 	public void discordBotList(CommandEvent event, @Argument(value="bot", endless=true, nullDefault=true) String argument) {
 		String url;
 		if (argument != null) {
-			if (argument.matches("^\\d+$")) {
+			Matcher mentionMatch = ArgumentUtils.userMentionRegex.matcher(argument);
+			Matcher tagMatch = ArgumentUtils.userTagRegex.matcher(argument);
+			if (argument.matches("\\d+")) {
 				url = "https://discordbots.org/api/bots?search=id:" + argument + "&sort=points";
-			} else if (argument.matches("<@(?:!|)(\\d+)>")) {
-				url = "https://discordbots.org/api/bots?search=id:" + ArgumentUtils.userMentionRegex.matcher(argument).group(1) + "&sort=points";
-			} else if (argument.matches("(.{2,32})#(\\d{4})")) {
-				Matcher mentionMatch = ArgumentUtils.userTagRegex.matcher(argument);
-				url = "https://discordbots.org/api/bots?search=username:" + mentionMatch.group(1) + "&discriminator:" + mentionMatch.group(2) + "&sort=points";
-			} else if (argument.matches("(.{1,32})")) {
+			} else if (mentionMatch.matches()) {
+				url = "https://discordbots.org/api/bots?search=id:" + mentionMatch.group(1) + "&sort=points";
+			} else if (tagMatch.matches()) {
+				url = "https://discordbots.org/api/bots?search=username:" + tagMatch.group(1) + "&discriminator:" + tagMatch.group(2) + "&sort=points";
+			} else if (argument.length() <= 32) {
 				url = "https://discordbots.org/api/bots?search=username:" + argument + "&sort=points";
 			} else {
 				event.reply("I could not find that bot :no_entry:").queue();
@@ -1370,13 +1371,7 @@ public class GeneralModule {
 				.build();
 		
 		Sx4Bot.client.newCall(request).enqueue((Sx4Callback) response -> {
-			JSONObject json;
-			try {
-				json = new JSONObject(response.body().string());
-			} catch (JSONException | IOException e) {
-				event.reply("Oops something went wrong there, try again :no_entry:").queue();
-				return;
-			}
+			JSONObject json = new JSONObject(response.body().string());
 			
 			JSONArray results = json.getJSONArray("results");
 			if (results.length() == 0) {

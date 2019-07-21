@@ -48,21 +48,27 @@ public class ReminderEvents {
 		return false;
 	}
 	
-	public static void removeUserReminder(User user, long id, String reminder, long reminderLength, boolean repeat) {
-		user.openPrivateChannel().queue(channel -> channel.sendMessage("You wanted me to remind you about **" + reminder + "**").queue(), e -> {});
-		if (repeat) {
-			long timestampNow = Clock.systemUTC().instant().getEpochSecond();
-			r.table("reminders").get(user.getId()).update(row -> r.hashMap("reminders", row.g("reminders").map(d -> d.without("remind_at").merge(r.hashMap("remind_at", d.g("reminder_length").add(timestampNow)))))).runNoReply(Sx4Bot.getConnection());
-			ScheduledFuture<?> executor = ReminderEvents.scheduledExectuor.schedule(() -> ReminderEvents.removeUserReminder(user, id, reminder, reminderLength, repeat), reminderLength, TimeUnit.SECONDS);
-			ReminderEvents.putExecutor(user.getId(), id, executor);
+	public static void removeUserReminder(String userId, long id, String reminder, long reminderLength, boolean repeat) {
+		User user = Sx4Bot.getShardManager().getUserById(userId);
+		if (user != null) {
+			user.openPrivateChannel().queue(channel -> channel.sendMessage("You wanted me to remind you about **" + reminder + "**").queue(), e -> {});
+			if (repeat) {
+				long timestampNow = Clock.systemUTC().instant().getEpochSecond();
+				r.table("reminders").get(user.getId()).update(row -> r.hashMap("reminders", row.g("reminders").map(d -> d.without("remind_at").merge(r.hashMap("remind_at", d.g("reminder_length").add(timestampNow)))))).runNoReply(Sx4Bot.getConnection());
+				ScheduledFuture<?> executor = ReminderEvents.scheduledExectuor.schedule(() -> ReminderEvents.removeUserReminder(userId, id, reminder, reminderLength, repeat), reminderLength, TimeUnit.SECONDS);
+				ReminderEvents.putExecutor(user.getId(), id, executor);
+			} else {
+				r.table("reminders").get(user.getId()).update(row -> r.hashMap("reminders", row.g("reminders").filter(d -> d.g("id").ne(id)))).runNoReply(Sx4Bot.getConnection());
+				ReminderEvents.cancelExecutor(user.getId(), id);
+			}
 		} else {
-			r.table("reminders").get(user.getId()).update(row -> r.hashMap("reminders", row.g("reminders").filter(d -> d.g("id").ne(id)))).runNoReply(Sx4Bot.getConnection());
-			ReminderEvents.cancelExecutor(user.getId(), id);
+			r.table("reminders").get(userId).update(row -> r.hashMap("reminders", row.g("reminders").filter(d -> d.g("id").ne(id)))).runNoReply(Sx4Bot.getConnection());
+			ReminderEvents.cancelExecutor(userId, id);
 		}
 	}
 
-	public static void removeUserReminder(User user, Map<String, Object> data) {
-		ReminderEvents.removeUserReminder(user, (long) data.get("id"), (String) data.get("reminder"), (long) data.get("reminder_length"), (boolean) data.get("repeat"));
+	public static void removeUserReminder(String userId, Map<String, Object> data) {
+		ReminderEvents.removeUserReminder(userId, (long) data.get("id"), (String) data.get("reminder"), (long) data.get("reminder_length"), (boolean) data.get("repeat"));
 	}
 	
 	@SuppressWarnings("unchecked")
@@ -79,9 +85,9 @@ public class ReminderEvents {
 					for (Map<String, Object> reminder : reminders) {
 						long timeLeft = (long) reminder.get("remind_at") - timestampNow;
 						if (timeLeft <= 0) {
-							ReminderEvents.removeUserReminder(user, reminder);
+							ReminderEvents.removeUserReminder(user.getId(), reminder);
 						} else {
-							ScheduledFuture<?> executor = ReminderEvents.scheduledExectuor.schedule(() -> ReminderEvents.removeUserReminder(user, reminder), timeLeft, TimeUnit.SECONDS);
+							ScheduledFuture<?> executor = ReminderEvents.scheduledExectuor.schedule(() -> ReminderEvents.removeUserReminder(user.getId(), reminder), timeLeft, TimeUnit.SECONDS);
 							ReminderEvents.putExecutor(user.getId(), (long) reminder.get("id"), executor);
 						}
 					}

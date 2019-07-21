@@ -329,7 +329,7 @@ public class GiveawayModule {
 					
 					data.update(row -> r.hashMap("giveaways", row.g("giveaways").append(giveaway)).with("giveaway#", row.g("giveaway#").add(1))).runNoReply(connection);
 					
-					ScheduledFuture<?> executor = GiveawayEvents.scheduledExectuor.schedule(() -> GiveawayEvents.removeGiveaway(event.getGuild(), giveaway), durationLength, TimeUnit.SECONDS);
+					ScheduledFuture<?> executor = GiveawayEvents.scheduledExectuor.schedule(() -> GiveawayEvents.removeGiveaway(event.getGuild().getId(), giveaway), durationLength, TimeUnit.SECONDS);
 					GiveawayEvents.putExecutor(event.getGuild().getId(), id, executor);
 				});
 			} else {
@@ -506,7 +506,7 @@ public class GiveawayModule {
 						
 						data.update(row -> r.hashMap("giveaways", row.g("giveaways").append(giveaway)).with("giveaway#", row.g("giveaway#").add(1))).runNoReply(connection);
 						
-						ScheduledFuture<?> executor = GiveawayEvents.scheduledExectuor.schedule(() -> GiveawayEvents.removeGiveaway(event.getGuild(), giveaway), durationLength, TimeUnit.SECONDS);
+						ScheduledFuture<?> executor = GiveawayEvents.scheduledExectuor.schedule(() -> GiveawayEvents.removeGiveaway(event.getGuild().getId(), giveaway), durationLength, TimeUnit.SECONDS);
 						GiveawayEvents.putExecutor(event.getGuild().getId(), id, executor);
 					});
 				});

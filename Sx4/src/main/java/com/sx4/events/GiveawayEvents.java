@@ -60,64 +60,69 @@ public class GiveawayEvents {
 		return false;
 	}
 	
-	public static void removeGiveaway(Guild guild, Map<String, Object> data) {
-		Connection connection = Sx4Bot.getConnection();
+	public static void removeGiveaway(String guildId, Map<String, Object> data) {
+		Guild guild = Sx4Bot.getShardManager().getGuildById(guildId);
 		long giveawayId = (long) data.get("id");
-		TextChannel channel = guild.getTextChannelById((String) data.get("channel"));
-		
-		if (channel != null) {
-			channel.retrieveMessageById((String) data.get("message")).queue(message -> {
-				for (MessageReaction reaction : message.getReactions()) {
-					if (reaction.getReactionEmote().getName().equals("🎉")) {
-						List<Member> members = new ArrayList<>();
-						CompletableFuture<?> future = reaction.retrieveUsers().forEachAsync((user) -> {
-							Member reactionMember = guild.getMember(user);
-							if (reactionMember != null && !members.contains(reactionMember) && reactionMember != guild.getSelfMember()) {
-								members.add(reactionMember);
-							}
-							
-							return true;
-						});
-							
-						future.thenRun(() -> {
-							if (members.size() == 0) {
-								channel.sendMessage("No one entered the giveaway, the giveaway has been cancelled :no_entry:").queue();
-								message.delete().queue(null, e -> {});
-							} else {
-								Set<Member> winners = GiveawayUtils.getRandomSample(members, Math.min(members.size(), Math.toIntExact((long) data.get("winners"))));
-								List<String> winnerMentions = new ArrayList<>(), winnerTags = new ArrayList<>();
-								for (Member winner : winners) {
-									winnerMentions.add(winner.getAsMention());
-									winnerTags.add(winner.getUser().getAsTag());
+		Connection connection = Sx4Bot.getConnection();
+		if (guild != null) {
+			TextChannel channel = guild.getTextChannelById((String) data.get("channel"));
+			if (channel != null) {
+				channel.retrieveMessageById((String) data.get("message")).queue(message -> {
+					for (MessageReaction reaction : message.getReactions()) {
+						if (reaction.getReactionEmote().getName().equals("🎉")) {
+							List<Member> members = new ArrayList<>();
+							CompletableFuture<?> future = reaction.retrieveUsers().forEachAsync((user) -> {
+								Member reactionMember = guild.getMember(user);
+								if (reactionMember != null && !members.contains(reactionMember) && reactionMember != guild.getSelfMember()) {
+									members.add(reactionMember);
 								}
 								
-								channel.sendMessage(String.join(", ", winnerMentions) + ", Congratulations you have won the giveaway for **" + ((String) data.get("item")) + "**").queue();
+								return true;
+							});
 								
-								EmbedBuilder embed = new EmbedBuilder();
-								embed.setTitle("Giveaway");
-								embed.setDescription("**" + String.join(", ", winnerTags) + "** has won **" + ((String) data.get("item")) + "**");
-								embed.setFooter("Giveaway Ended", null);
-								message.editMessage(embed.build()).queue();
-							}
-								
+							future.thenRun(() -> {
+								if (members.size() == 0) {
+									channel.sendMessage("No one entered the giveaway, the giveaway has been cancelled :no_entry:").queue();
+									message.delete().queue(null, e -> {});
+								} else {
+									Set<Member> winners = GiveawayUtils.getRandomSample(members, Math.min(members.size(), Math.toIntExact((long) data.get("winners"))));
+									List<String> winnerMentions = new ArrayList<>(), winnerTags = new ArrayList<>();
+									for (Member winner : winners) {
+										winnerMentions.add(winner.getAsMention());
+										winnerTags.add(winner.getUser().getAsTag());
+									}
+									
+									channel.sendMessage(String.join(", ", winnerMentions) + ", Congratulations you have won the giveaway for **" + ((String) data.get("item")) + "**").queue();
+									
+									EmbedBuilder embed = new EmbedBuilder();
+									embed.setTitle("Giveaway");
+									embed.setDescription("**" + String.join(", ", winnerTags) + "** has won **" + ((String) data.get("item")) + "**");
+									embed.setFooter("Giveaway Ended", null);
+									message.editMessage(embed.build()).queue();
+								}
+									
+								r.table("giveaway").get(guild.getId()).update(row -> r.hashMap("giveaways", row.g("giveaways").filter(d -> d.g("id").ne(giveawayId)))).runNoReply(connection);
+								GiveawayEvents.cancelExecutor(guild.getId(), giveawayId);
+							}).exceptionally(e -> {
+								e.printStackTrace();
+								Sx4CommandEventListener.sendErrorMessage(Sx4Bot.getShardManager().getGuildById(Settings.SUPPORT_SERVER_ID).getTextChannelById(Settings.ERRORS_CHANNEL_ID), e, new Object[0]);
+								return null;
+							});
+						}
+					}
+				}, e -> {
+					if (e instanceof ErrorResponseException) {
+						ErrorResponseException exception = (ErrorResponseException) e;
+						if (exception.getErrorCode() == 10008) {
 							r.table("giveaway").get(guild.getId()).update(row -> r.hashMap("giveaways", row.g("giveaways").filter(d -> d.g("id").ne(giveawayId)))).runNoReply(connection);
 							GiveawayEvents.cancelExecutor(guild.getId(), giveawayId);
-						}).exceptionally(e -> {
-							e.printStackTrace();
-							Sx4CommandEventListener.sendErrorMessage(Sx4Bot.getShardManager().getGuildById(Settings.SUPPORT_SERVER_ID).getTextChannelById(Settings.ERRORS_CHANNEL_ID), e, new Object[0]);
-							return null;
-						});
+						}
 					}
-				}
-			}, e -> {
-				if (e instanceof ErrorResponseException) {
-					ErrorResponseException exception = (ErrorResponseException) e;
-					if (exception.getErrorCode() == 10008) {
-						r.table("giveaway").get(guild.getId()).update(row -> r.hashMap("giveaways", row.g("giveaways").filter(d -> d.g("id").ne(giveawayId)))).runNoReply(connection);
-						GiveawayEvents.cancelExecutor(guild.getId(), giveawayId);
-					}
-				}
-			});
+				});
+			}
+		} else {
+			r.table("giveaway").get(guildId).update(row -> r.hashMap("giveaways", row.g("giveaways").filter(d -> d.g("id").ne(giveawayId)))).runNoReply(connection);
+			GiveawayEvents.cancelExecutor(guildId, giveawayId);
 		}
 	}
 	
@@ -135,9 +140,9 @@ public class GiveawayEvents {
 					for (Map<String, Object> giveaway : giveaways) {
 						long timeLeft = (long) giveaway.get("endtime") - timestampNow;
 						if (timeLeft <= 0) {
-							GiveawayEvents.removeGiveaway(guild, giveaway);
+							GiveawayEvents.removeGiveaway(guild.getId(), giveaway);
 						} else {
-							ScheduledFuture<?> executor = GiveawayEvents.scheduledExectuor.schedule(() -> GiveawayEvents.removeGiveaway(guild, giveaway), timeLeft, TimeUnit.SECONDS);
+							ScheduledFuture<?> executor = GiveawayEvents.scheduledExectuor.schedule(() -> GiveawayEvents.removeGiveaway(guild.getId(), giveaway), timeLeft, TimeUnit.SECONDS);
 							GiveawayEvents.putExecutor(guild.getId(), (long) giveaway.get("id"), executor);
 						}
 					}

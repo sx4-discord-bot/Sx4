@@ -107,7 +107,7 @@ public class ModEvents extends ListenerAdapter {
 								event.getGuild().addRoleToMember(event.getMember(), mutedRole).queue();
 							}
 						} else {
-							MuteEvents.removeUserMute(event.getMember());
+							MuteEvents.removeUserMute(event.getGuild().getId(), event.getMember().getId());
 						}
 					}
 				}

@@ -697,7 +697,7 @@ public class ImageModule {
 			}
 		}
 		
-		String hex = Integer.toHexString(colour.hashCode()).toUpperCase().substring(2);
+		String hex = GeneralUtils.getHex(colour.hashCode());
 		
 		Request request = new Request.Builder().url("http://" + Settings.LOCAL_HOST + ":8443/api/colour?hex=" + hex).build();
 		
@@ -754,7 +754,7 @@ public class ImageModule {
 					embed.setThumbnail(newUrl);
 					embed.setColor(colourRaw);
 					embed.setTitle("Most Common Colour");
-					embed.setDescription("Hex: #" + Integer.toHexString(colourRaw).substring(2).toUpperCase() + "\nRGB: " + GeneralUtils.getRGB(colourRaw));		
+					embed.setDescription("Hex: #" + GeneralUtils.getHex(colourRaw) + "\nRGB: " + GeneralUtils.getRGB(colourRaw));		
 					event.reply(embed.build()).queue();
 				} else if (response.code() == 400) {
 					event.reply(response.body().string()).queue();
@@ -826,6 +826,45 @@ public class ImageModule {
 				}	
 			});
 		});
+	}
+	
+	private final List<String> statuses = List.of("online", "idle", "dnd", "offline", "invisible", "streaming");
+	
+	@Command(value="status", description="Returns the status image of a users profile picture")
+	@Cooldown(value=5)
+	@BotPermissions({Permission.MESSAGE_ATTACH_FILES})
+	public void status(CommandEvent event, @Argument(value="user", nullDefault=true) String userArgument, @Argument(value="status", nullDefault=true) String status) {
+		Member member;
+		if (userArgument == null) {
+			member = event.getMember();
+		} else {
+			member = ArgumentUtils.getMember(event.getGuild(), userArgument);
+			if (member == null) {
+				event.reply("I could not find that user :no_entry:").queue();
+				return;
+			}
+		}
+		
+		status = status == null ? member.getOnlineStatus().getKey() : status;
+		if (!this.statuses.contains(status)) {
+			event.reply("I could not find that status, valid statuses are " + GeneralUtils.joinGrammatical(this.statuses) + " :no_entry:").queue();
+			return;
+		}
+		
+		Request request = new Request.Builder().url("http://" + Settings.LOCAL_HOST + ":8443/api/status?image=" + member.getUser().getEffectiveAvatarUrl() + "?size=1024&status=" + status).build();
+		
+		event.getTextChannel().sendTyping().queue($ -> {
+			client.newCall(request).enqueue((Sx4Callback) response -> {
+				if (response.code() == 200) {
+					event.getTextChannel().sendFile(response.body().bytes(), "status." + response.headers().get("Content-Type").split("/")[1]).queue();
+				} else if (response.code() == 400) {
+					event.reply(response.body().string()).queue();
+				} else {
+					event.reply("Oops something went wrong there! Status code: " + response.code() +  " :no_entry:\n```java\n" + response.body().string() + "```").queue();
+				}	
+			});
+		});
+		
 	}
 
 	@Initialize(all=true)

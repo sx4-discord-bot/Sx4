@@ -3121,7 +3121,7 @@ public class ModModule {
 			List<Map<String, Object>> users = (List<Map<String, Object>>) dataRan.get("users");
 			data.update(r.hashMap("users", ModUtils.getMuteData(member.getUser().getId(), users, muteLength))).runNoReply(connection);
 			
-			ScheduledFuture<?> executor = MuteEvents.scheduledExectuor.schedule(() -> MuteEvents.removeUserMute(member, role), muteLength, TimeUnit.SECONDS);
+			ScheduledFuture<?> executor = MuteEvents.scheduledExectuor.schedule(() -> MuteEvents.removeUserMute(event.getGuild().getId(), member.getId(), role.getId()), muteLength, TimeUnit.SECONDS);
 			MuteEvents.putExecutor(event.getGuild().getId(), member.getUser().getId(), executor);
 		}, error -> {
 			event.reply(error).queue();
@@ -3563,7 +3563,7 @@ public class ModModule {
 					List<Map<String, Object>> muteUsers = (List<Map<String, Object>>) muteDataRan.get("users");
 					muteData.update(r.hashMap("users", ModUtils.getMuteData(member.getUser().getId(), muteUsers, Math.toIntExact(muteLength)))).runNoReply(connection);
 					
-					ScheduledFuture<?> executor = MuteEvents.scheduledExectuor.schedule(() -> MuteEvents.removeUserMute(member, role), muteLength, TimeUnit.SECONDS);
+					ScheduledFuture<?> executor = MuteEvents.scheduledExectuor.schedule(() -> MuteEvents.removeUserMute(event.getGuild().getId(), member.getId(), role.getId()), muteLength, TimeUnit.SECONDS);
 					MuteEvents.putExecutor(event.getGuild().getId(), member.getUser().getId(), executor);
 				}, error -> {
 					event.reply(error).queue();

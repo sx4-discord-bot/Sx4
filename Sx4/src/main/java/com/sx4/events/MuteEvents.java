@@ -141,38 +141,46 @@ public class MuteEvents extends ListenerAdapter {
 	}
 	
 	
-	public static void removeUserMute(Member member, Role muteRole) {
+	public static void removeUserMute(String guildId, String userId, String roleId) {
 		Connection connection = Sx4Bot.getConnection();
-		Guild guild = member.getGuild();
-		User selfUser = guild.getSelfMember().getUser();
-		
-		if (guild.getMember(member.getUser()) == null) {
-			return;
-		}
-		
-		if (muteRole == null) {
-			muteRole = MuteEvents.getMuteRole(guild);
-		}
-		
-		if (muteRole != null) {
-			if (member.getRoles().contains(muteRole)) {
-				if (guild.getSelfMember().hasPermission(Permission.MANAGE_ROLES) && guild.getSelfMember().canInteract(muteRole)) {
-					guild.removeRoleFromMember(member, muteRole).queue();
-				} else {
-					return;
+		Guild guild = Sx4Bot.getShardManager().getGuildById(guildId);
+		if (guild != null) {
+			Role muteRole = roleId == null ? null : guild.getRoleById(roleId);
+			Member member = guild.getMemberById(userId);
+			if (member == null) {
+				return;
+			}
+			
+			User selfUser = guild.getSelfMember().getUser();
+			
+			if (guild.getMember(member.getUser()) == null) {
+				return;
+			}
+			
+			if (muteRole == null) {
+				muteRole = MuteEvents.getMuteRole(guild);
+			}
+			
+			if (muteRole != null) {
+				if (member.getRoles().contains(muteRole)) {
+					if (guild.getSelfMember().hasPermission(Permission.MANAGE_ROLES) && guild.getSelfMember().canInteract(muteRole)) {
+						guild.removeRoleFromMember(member, muteRole).queue();
+					} else {
+						return;
+					}
 				}
 			}
+			
+			r.table("mute").get(guild.getId()).update(row -> r.hashMap("users", row.g("users").filter(d -> d.g("id").ne(member.getUser().getId())))).runNoReply(connection);
+			ModUtils.createModLog(guild, connection, selfUser, member.getUser(), "Unmute (Automatic)", "Time Limit Served");
+			member.getUser().openPrivateChannel().queue(channel -> channel.sendMessage(ModUtils.getUnmuteEmbed(guild, null, selfUser, "Time Limit Served")).queue(), e -> {});
+			
+			MuteEvents.cancelExecutor(guild.getId(), member.getUser().getId());
 		}
-		
-		r.table("mute").get(guild.getId()).update(row -> r.hashMap("users", row.g("users").filter(d -> d.g("id").ne(member.getUser().getId())))).runNoReply(connection);
-		ModUtils.createModLog(guild, connection, selfUser, member.getUser(), "Unmute (Automatic)", "Time Limit Served");
-		member.getUser().openPrivateChannel().queue(channel -> channel.sendMessage(ModUtils.getUnmuteEmbed(guild, null, selfUser, "Time Limit Served")).queue(), e -> {});
-		
-		MuteEvents.cancelExecutor(guild.getId(), member.getUser().getId());
 	}
 	
-	public static void removeUserMute(Member member) {
-		MuteEvents.removeUserMute(member, null);
+	public static void removeUserMute(String guildId, String userId) {
+		MuteEvents.removeUserMute(guildId, userId, null);
 	}
 	
 	@SuppressWarnings("unchecked")
@@ -192,9 +200,9 @@ public class MuteEvents extends ListenerAdapter {
 							if (member != null) {
 								long timeLeft = (long) userData.get("time") + (userData.get("amount") instanceof Double ? (long) (double) userData.get("amount") : (long) userData.get("amount")) - timestampNow;
 								if (timeLeft <= 0) {
-									MuteEvents.removeUserMute(member);
+									MuteEvents.removeUserMute(guild.getId(), member.getId());
 								} else {
-									ScheduledFuture<?> executor = MuteEvents.scheduledExectuor.schedule(() -> MuteEvents.removeUserMute(member), timeLeft, TimeUnit.SECONDS);
+									ScheduledFuture<?> executor = MuteEvents.scheduledExectuor.schedule(() -> MuteEvents.removeUserMute(guild.getId(), member.getId()), timeLeft, TimeUnit.SECONDS);
 									MuteEvents.putExecutor(guild.getId(), member.getUser().getId(), executor);
 								}
 					

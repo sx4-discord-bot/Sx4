@@ -86,8 +86,8 @@ public class DeveloperModule {
 		
 		importCustomizer.addStarImports("java.util.stream");
 		
-		importCustomizer.addStarImports("net.dv8tion.jda.core");
-		importCustomizer.addStarImports("net.dv8tion.jda.core.entities");
+		importCustomizer.addStarImports("net.dv8tion.jda.api");
+		importCustomizer.addStarImports("net.dv8tion.jda.api.entities");
 		
 		importCustomizer.addStaticImport("com.rethinkdb.RethinkDB", "r");
 		

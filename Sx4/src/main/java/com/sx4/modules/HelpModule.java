@@ -50,7 +50,7 @@ public class HelpModule {
 					}
 				}
 				
-				allCommands.sort((a, b) -> a.getCommandTrigger().compareTo(b.getCommandTrigger()));
+				allCommands.sort((a, b) -> a.getCommandTrigger().toLowerCase().compareTo(b.getCommandTrigger().toLowerCase()));
 				
 				PagedResult<Sx4Command> paged = HelpUtils.getCommandPagedResult(allCommands);
 				paged.setAuthor("All Commands", null, event.getAuthor().getEffectiveAvatarUrl());
