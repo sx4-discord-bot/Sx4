@@ -50,7 +50,7 @@ public class ServerPostEvents {
 				request = new Request.Builder()
 						.post(RequestBody.create(MediaType.parse("application/json; charset=utf-8"), bodyDiscordBotList))
 						.url("https://discordbots.org/api/bots/" + botId + "/stats")
-						.addHeader("Authorization", TokenUtils.DISCORD_BOT_LIST)
+						.addHeader("Authorization", TokenUtils.DISCORD_BOT_LIST_ORG)
 						.addHeader("Content-Type", "application/json")
 						.build();
 				

@@ -258,33 +258,6 @@ public class Sx4Bot {
 			
 			Sx4CommandEventListener.sendErrorMessage(bot.getGuildById(Settings.SUPPORT_SERVER_ID).getTextChannelById(Settings.ERRORS_CHANNEL_ID), exception, new Object[0]);
 		});
-		
-		for(JDA shard : bot.getShards()) {
-			shard.awaitReady();
-		}
-
-		int availableGuilds = bot.getGuilds().size();
-		int unavailableGuilds = bot.getShards().stream()
-				.mapToInt(jda -> ((JDAImpl) jda).getGuildSetupController().getSetupNodes(GuildSetupController.Status.UNAVAILABLE).size())
-				.sum();
-
-		System.out.println(String.format("Connected to %s with %,d/%,d available servers and %,d users", bot.getShards().get(0).getSelfUser().getAsTag(), availableGuilds, availableGuilds + unavailableGuilds, bot.getUsers().size()));
-
-		SteamCache.getGames();
-		HelpUtils.ensureAdvertisement();
-		DatabaseUtils.ensureTableData();
-		StatusEvents.initialize();
-		ServerPostEvents.initializePosting();
-		MuteEvents.ensureMuteRoles();
-		StatsEvents.initializeBotLogs();
-		StatsEvents.initializeGuildStats();
-		ReminderEvents.ensureReminders();
-		GiveawayEvents.ensureGiveaways();
-		AwaitEvents.ensureAwaitData();
-		MuteEvents.ensureMutes();
-		AutoroleEvents.ensureAutoroles();
-		
-		System.gc();
 	}
 	
 	public static Connection getConnection() {

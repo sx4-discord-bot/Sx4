@@ -1367,7 +1367,7 @@ public class GeneralModule {
 		
 		Request request = new Request.Builder()
 				.url(url)
-				.addHeader("Authorization", TokenUtils.DISCORD_BOT_LIST)
+				.addHeader("Authorization", TokenUtils.DISCORD_BOT_LIST_ORG)
 				.build();
 		
 		Sx4Bot.client.newCall(request).enqueue((Sx4Callback) response -> {
@@ -1417,7 +1417,7 @@ public class GeneralModule {
 		
 		Request request = new Request.Builder()
 				.url("https://discordbots.org/api/bots?sort=server_count&limit=500&fields=username,server_count,id")
-				.addHeader("Authorization", TokenUtils.DISCORD_BOT_LIST)
+				.addHeader("Authorization", TokenUtils.DISCORD_BOT_LIST_ORG)
 				.build();
 		
 		Sx4Bot.client.newCall(request).enqueue((Sx4Callback) response -> {
