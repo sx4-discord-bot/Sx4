@@ -190,6 +190,8 @@ public class SelfrolesModule {
 									message.editMessage(embed.build()).queue();
 										
 									messageData.put("bot_menu", true);
+								} else {
+									messageData.put("bot_menu", false);
 								}
 								
 								event.reply("The role `" + role.getName() + "` will now be given when reacting to " + (emote == null ? unicodeEmote : emote.getAsMention()) + " <:done:403285928233402378>").queue();
@@ -231,8 +233,10 @@ public class SelfrolesModule {
 							message.editMessage(embed.build()).queue();
 								
 							messageData.put("bot_menu", true);
+						} else {
+							messageData.put("bot_menu", false);
 						}
-						
+					
 						event.reply("The role `" + role.getName() + "` will now be given when reacting to " + (emote == null ? unicodeEmote : emote.getAsMention()) + " <:done:403285928233402378>").queue();
 						
 						Map<String, Object> newData = new HashMap<>();
@@ -274,15 +278,14 @@ public class SelfrolesModule {
 						newRoleData.put("emote", emoteStore);
 						roles.add(newRoleData);
 						
-						List<Map<String, Object>> newData = new ArrayList<>();
 						Map<String, Object> messageData = new HashMap<>();
 						messageData.put("id", message.getId());
 						messageData.put("channel", event.getTextChannel().getId());
 						messageData.put("bot_menu", false);
 						messageData.put("roles", roles);
-						newData.add(messageData);
+						messages.add(messageData);
 						
-						data.update(r.hashMap("messages", newData)).runNoReply(connection);
+						data.update(r.hashMap("messages", messages)).runNoReply(connection);
 					}, e -> {
 						if (e instanceof ErrorResponseException) {
 							ErrorResponseException exception = (ErrorResponseException) e;

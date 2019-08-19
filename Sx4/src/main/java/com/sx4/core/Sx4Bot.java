@@ -224,6 +224,7 @@ public class Sx4Bot {
 
 		eventManager.register(Sx4Bot.listener);
 		eventManager.register(Sx4Bot.waiter);
+		eventManager.register(Sx4Bot.eventHandler);
 
 		eventManager.register(new ChangesMessageCache());
 		eventManager.register(GuildMessageCache.INSTANCE);
@@ -242,9 +243,7 @@ public class Sx4Bot {
 		eventManager.register(new AntiLinkEvents());
 		eventManager.register(new ServerLogEvents());
 
-		eventManager.register(Sx4Bot.eventHandler);
 		eventManager.register(new ExceptionHandler());
-		eventManager.register(new ServerLogEvents());
 		
 		bot = new DefaultShardManagerBuilder()
 				.setToken(Settings.BOT_OAUTH)
