@@ -1,11 +1,14 @@
-package com.sx4.uno;
+package com.sx4.games.uno;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
+import java.util.function.Consumer;
 
 import com.jockie.bot.core.command.impl.CommandEvent;
 import com.sx4.core.Sx4Bot;
+import com.sx4.games.uno.UnoCard.Colour;
 import com.sx4.utils.GeneralUtils;
 import com.sx4.utils.GiveawayUtils;
 import com.sx4.utils.PagedUtils;
@@ -14,6 +17,7 @@ import com.sx4.utils.PagedUtils.PagedResult;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.MessageChannel;
+import net.dv8tion.jda.api.entities.PrivateChannel;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.entities.User;
@@ -21,8 +25,8 @@ import net.dv8tion.jda.api.entities.User;
 public class UnoSession {
 	
 	private List<UnoCard> deck = UnoCard.DECK;
-	private List<Player> players = new ArrayList<>(); 
-	private Player currentPlayer;
+	private List<UnoPlayer> players = new ArrayList<>(); 
+	private UnoPlayer currentPlayer;
 	
 	private List<Long> whitelistedRoles = new ArrayList<>();
 	private List<Long> whitelistedMembers = new ArrayList<>();
@@ -37,6 +41,9 @@ public class UnoSession {
 	
 	private int twoStack = 0;
 	private int fourStack = 0;
+	
+	//Used when a plus four or colour change has been played
+	private Colour lastColour;
 	
 	public UnoSession(TextChannel channel, Member owner) {
 		this.ownerId = owner.getIdLong();
@@ -109,6 +116,10 @@ public class UnoSession {
 		return false;
 	}
 	
+	public void finish() {
+		this.done = true;
+	}
+	
 	public boolean hasFinished() {
 		return this.done;
 	}
@@ -127,19 +138,27 @@ public class UnoSession {
 		return this.deck;
 	}
 	
+	public Colour getLastColour() {
+		if (this.lastColour == null) {
+			return this.getLastCard().getColour();
+		} else {
+			return this.lastColour;
+		}
+	}
+	
 	public UnoCard getLastCard() {
 		return this.deck.get(this.deck.size() - 1);
 	}
 	
-	public List<Player> getPlayers() {
+	public List<UnoPlayer> getPlayers() {
 		return this.players;
 	}
 	
-	public Player getCurrentPlayer() {
+	public UnoPlayer getCurrentPlayer() {
 		return this.currentPlayer;
 	}
 	
-	public Player getNextPlayer(int turns) {
+	public UnoPlayer getNextPlayer(int turns) {
 		int index = this.players.indexOf(this.currentPlayer);
 		
 		if (this.incremental) {
@@ -157,7 +176,7 @@ public class UnoSession {
 		return this.players.get(index);
 	}
 	
-	public Player getNextPlayer() {
+	public UnoPlayer getNextPlayer() {
 		return this.getNextPlayer(1);
 	}
 	
@@ -206,7 +225,7 @@ public class UnoSession {
 		return this;
 	}
 	
-	public List<UnoCard> addCardsFromDeck(Player player, int amount) {
+	public List<UnoCard> addCardsFromDeck(UnoPlayer player, int amount) {
 		List<UnoCard> cards = this.deck.subList(0, amount);
 		
 		this.removeCardsFromDeck(cards);
@@ -215,11 +234,11 @@ public class UnoSession {
 		return cards;
 	}
 	
-	public List<UnoCard> drawCardsFromDeck(Player player) {
+	public List<UnoCard> drawCardsFromDeck(UnoPlayer player) {
 		List<UnoCard> cards = new ArrayList<>();
 		for (UnoCard card : this.deck) {
 			cards.add(card);
-			if (card.isPlayable(this.getLastCard())) {
+			if (card.isPlayable(this)) {
 				break;
 			}
 		}
@@ -235,7 +254,7 @@ public class UnoSession {
 			throw new IllegalArgumentException("The session already has max players");
 		}
 		
-		this.players.add(new Player(member));
+		this.players.add(new UnoPlayer(member));
 
 		return this;
 	}
@@ -245,7 +264,7 @@ public class UnoSession {
 	}
 	
 	public UnoSession removePlayer(long userId) {
-		for (Player player : this.players) {
+		for (UnoPlayer player : this.players) {
 			if (player.getUserId() == userId) {
 				this.players.remove(player);
 				this.deck.addAll(player.getCards());
@@ -259,14 +278,17 @@ public class UnoSession {
 
 	public void start(CommandEvent event) {
 		StringBuilder errors = new StringBuilder();
-		for (Player player : this.players) {
+		
+		Collections.shuffle(this.deck);
+		for (UnoPlayer player : this.players) {
 			StringBuilder startingDeck = new StringBuilder("Here is your starting deck: ");
 			
-			List<UnoCard> cards = GiveawayUtils.getRandomSampleAndRemove(this.deck, 7);
+			Collection<UnoCard> cards = this.deck.subList(0, 7);
 			for (UnoCard card : cards) {
 				startingDeck.append(card.getEmote());
 			}
 			
+			this.deck.removeAll(cards);
 			player.addCards(cards);
 			
 			User user = player.getUser();
@@ -282,8 +304,6 @@ public class UnoSession {
 				this.removePlayer(player.getUserId());
 			}
 		}
-		
-		//this.deck = GiveawayUtils.shuffle(this.deck);
 		
 		if (!errors.toString().isEmpty()) {
 			event.getTextChannel().sendMessage(errors.toString()).queue();
@@ -301,7 +321,7 @@ public class UnoSession {
 	}
 	
 	public void playerGo(CommandEvent event) {
-		List<UnoCard> playableCards = this.currentPlayer.getPlayableCards(this.getLastCard());
+		List<UnoCard> playableCards = this.currentPlayer.getPlayableCards(this);
 		if (playableCards.isEmpty()) {
 			this.drawCards(event, () -> {
 				if (this.players.size() < 2) {
@@ -331,6 +351,11 @@ public class UnoSession {
 	
 	private void playCards(CommandEvent event, List<UnoCard> playableCards, Runnable runnable) {
 		StringBuilder errors = new StringBuilder();
+		TextChannel textChannel = this.getChannel();
+		if (textChannel == null) {
+			this.finish();
+			return;
+		}
 		
 		playableCards.add(UnoCard.DRAW_CARD);
 		
@@ -342,21 +367,32 @@ public class UnoSession {
 						.setSelectableByIndex(true)
 						.setReturnFirstOnTimeout(true)
 						.setAuthor("Reply with the number of what card you want to play", null, null)
-						.setFunction(playableCard -> playableCard.getEmote());
+						.setFunction(playableCard -> playableCard.getEmote() + " - " + playableCard.getName());
 				
 				PagedUtils.getPagedResult(event, channel, paged, 30, pagedReturn -> {
 					UnoCard card = pagedReturn.getObject();
 					if (card.equals(UnoCard.DRAW_CARD)) {
 						this.drawCards(event, () -> runnable.run());
 					} else {
-						this.currentPlayer.removeCards(card);
-						this.addCardToDeck(card);
-						
-						int cardSize = this.currentPlayer.getCards().size();
-						event.getTextChannel().sendMessage((this.currentPlayer.getCards().size() == 1 ? "**UNO!**, " : "") + " **" + currentPlayer.getAsTag() + "** played a " + card.getEmote() + " they now have " + cardSize + " card" + (cardSize == 1 ? "" : "s")).queue();
+						this.handleColourChange(event, channel, card, colour -> {
+							this.currentPlayer.removeCards(card);
+							this.addCardToDeck(card);
+							
+							int cardSize = this.currentPlayer.getCards().size();
+							
+							textChannel.sendMessageFormat(
+									"%s**%s** played a %s and they now have %d card%s%s", 
+									this.currentPlayer.getCards().size() == 1 ? "**UNO!**, " : "", 
+									currentPlayer.getAsTag(), 
+									card.getEmote(), 
+									cardSize, 
+									cardSize == 1 ? "" : "s", 
+									colour.equals(card.getColour()) ? "" : ", the colour has been changed to " + GeneralUtils.title(colour.toString())		
+							).queue();
+							
+							runnable.run();
+						});
 					}
-					
-					runnable.run();
 				});
 			}, e -> {
 				errors.append("**" + currentPlayer.getAsTag() + "** has been removed from the game due to having dms closed.\n");
@@ -372,12 +408,17 @@ public class UnoSession {
 		}
 		
 		if (!errors.toString().isEmpty()) {
-			event.getTextChannel().sendMessage(errors.toString()).queue();
+			textChannel.sendMessage(errors.toString()).queue();
 		}
 	}
 	
 	private void drawCards(CommandEvent event, Runnable runnable) {
 		StringBuilder errors = new StringBuilder();
+		TextChannel textChannel = this.getChannel();
+		if (textChannel == null) {
+			this.finish();
+			return;
+		}
 		
 		List<UnoCard> drawnCards = this.drawCardsFromDeck(this.currentPlayer);
 		UnoCard playableCard = drawnCards.get(drawnCards.size() - 1);
@@ -392,33 +433,21 @@ public class UnoSession {
 		User currentPlayer = this.currentPlayer.getUser();
 		if (currentPlayer != null) {
 			currentPlayer.openPrivateChannel().queue(channel -> {
-				StringBuilder announcement = new StringBuilder("**" + currentPlayer.getAsTag() + "** drew **" + drawnCards.size() + "** card" + (drawnCards.size() == 1 ? "" : "s"));
-				PagedUtils.getResponse(event, 30, messageEvent -> {
-					MessageChannel privateChannel = messageEvent.getChannel();
-					String content = messageEvent.getMessage().getContentRaw();
-					if (channel != null) {
-						if (GeneralUtils.isNumber(content) && privateChannel.equals(channel)) {
-							int number = Integer.parseInt(content);
-							return number == 1 || number == 2;
+				channel.sendMessage(message.toString()).queue(m -> {
+					StringBuilder announcement = new StringBuilder("**" + currentPlayer.getAsTag() + "** drew **" + drawnCards.size() + "** card" + (drawnCards.size() == 1 ? "" : "s"));
+					PagedUtils.getResponse(event, 30, messageEvent -> {
+						MessageChannel privateChannel = messageEvent.getChannel();
+						String content = messageEvent.getMessage().getContentRaw();
+						if (channel != null) {
+							if (GeneralUtils.isNumber(content) && privateChannel.equals(channel)) {
+								int number = Integer.parseInt(content);
+								return number == 1 || number == 2;
+							}
 						}
-					}
-					
-					return false;
-				}, () -> {
-					channel.sendMessage("You took too long to play, so I played the card for you").queue();
-					this.currentPlayer.removeCards(playableCard);
-					this.addCardToDeck(playableCard);
-					
-					if (this.currentPlayer.getCards().size() == 1) {
-						announcement.insert(0, "**UNO!**, ");
-					}
-					
-					event.getTextChannel().sendMessage(announcement.append(" (" + this.currentPlayer.getCards().size() + " total) and played a " + playableCard.getEmote()).toString()).queue();
-					
-					runnable.run();
-				}, reply -> {
-					int number = Integer.parseInt(reply.getContentRaw());
-					if (number == 2) {
+						
+						return false;
+					}, () -> {
+						channel.sendMessage("You took too long to play, so I played the card for you").queue();
 						this.currentPlayer.removeCards(playableCard);
 						this.addCardToDeck(playableCard);
 						
@@ -426,19 +455,37 @@ public class UnoSession {
 							announcement.insert(0, "**UNO!**, ");
 						}
 						
-						event.getTextChannel().sendMessage(announcement.append(" (" + this.currentPlayer.getCards().size() + " total) and played a " + playableCard.getEmote()).toString()).queue();
-					} else {
-						if (this.currentPlayer.getCards().size() == 1) {
-							announcement.insert(0, "**UNO!**, ");
-						}
+						textChannel.sendMessage(announcement.append(" (" + this.currentPlayer.getCards().size() + " total) and played a " + playableCard.getEmote()).toString()).queue();
 						
-						event.getTextChannel().sendMessage(announcement.append(" (" + this.currentPlayer.getCards().size() + " total) and kept their card").toString());
-					}
-					
-					runnable.run();
+						runnable.run();
+					}, reply -> {
+						int number = Integer.parseInt(reply.getContentRaw());
+						if (number == 2) {
+							this.handleColourChange(event, channel, playableCard, colour -> {
+								this.currentPlayer.removeCards(playableCard);
+								this.addCardToDeck(playableCard);
+								
+								if (this.currentPlayer.getCards().size() == 1) {
+									announcement.insert(0, "**UNO!**, ");
+								}
+								
+								announcement.append(" (" + this.currentPlayer.getCards().size() + " total) and played a " + playableCard.getEmote() + (colour.equals(playableCard.getColour()) ? "" : ", the colour has been changed to " + GeneralUtils.title(colour.toString())));
+								
+								textChannel.sendMessage(announcement.toString()).queue();
+								
+								runnable.run();
+							});
+						} else {
+							if (this.currentPlayer.getCards().size() == 1) {
+								announcement.insert(0, "**UNO!**, ");
+							}
+							
+							textChannel.sendMessage(announcement.append(" (" + this.currentPlayer.getCards().size() + " total) and kept their card").toString());
+							
+							runnable.run();
+						}
+					});
 				});
-				
-				channel.sendMessage(message.toString()).queue();
 			}, e -> {
 				errors.append("**" + currentPlayer.getAsTag() + "** has been removed from the game due to having dms closed.\n");
 				this.removePlayer(currentPlayer);
@@ -453,7 +500,26 @@ public class UnoSession {
 		}
 		
 		if (!errors.toString().isEmpty()) {
-			event.getTextChannel().sendMessage(errors.toString()).queue();
+			textChannel.sendMessage(errors.toString()).queue();
+		}
+	}
+	
+	public void handleColourChange(CommandEvent event, PrivateChannel channel, UnoCard lastCard, Consumer<Colour> colour) {
+		if (lastCard.equals(UnoCard.PLUS_FOUR) || lastCard.equals(UnoCard.COLOUR_CHANGE)) {
+			PagedResult<Colour> paged = new PagedResult<>(Colour.getChooseableColours())
+					.setSelectableByIndex(true)
+					.setReturnFirstOnTimeout(true)
+					.setAuthor("Reply with the number of what colour you want to change to", null, null)
+					.setFunction(c -> GeneralUtils.title(c.toString()));
+			
+			PagedUtils.getPagedResult(event, channel, paged, 30, pagedReturn -> {
+				Colour newColour = pagedReturn.getObject();
+				this.lastColour = newColour;
+				colour.accept(newColour);
+			});
+		} else {
+			this.lastColour = lastCard.getColour();
+			colour.accept(this.lastColour);
 		}
 	}
 

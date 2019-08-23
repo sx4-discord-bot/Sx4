@@ -1,4 +1,4 @@
-package com.sx4.uno;
+package com.sx4.games.uno;
 
 public enum CardType {
 	NUMBER,
