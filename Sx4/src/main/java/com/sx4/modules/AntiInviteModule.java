@@ -1,28 +1,29 @@
 package com.sx4.modules;
 
-import static com.rethinkdb.RethinkDB.r;
-
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
-import java.util.Map;
+
+import org.bson.Document;
+import org.bson.conversions.Bson;
 
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
 import com.jockie.bot.core.command.Command.AuthorPermissions;
 import com.jockie.bot.core.command.Command.BotPermissions;
 import com.jockie.bot.core.command.Context;
-import com.jockie.bot.core.command.ICommand.ContentOverflowPolicy;
 import com.jockie.bot.core.command.Initialize;
 import com.jockie.bot.core.command.impl.CommandEvent;
 import com.jockie.bot.core.command.impl.CommandImpl;
 import com.jockie.bot.core.module.Module;
-import com.rethinkdb.gen.ast.Get;
-import com.rethinkdb.model.OptArgs;
-import com.rethinkdb.net.Connection;
+import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.Projections;
+import com.mongodb.client.model.Updates;
 import com.sx4.categories.Categories;
 import com.sx4.core.Sx4Command;
+import com.sx4.core.Sx4CommandEventListener;
+import com.sx4.database.Database;
 import com.sx4.settings.Settings;
-import com.sx4.utils.AntiInviteUtils;
 import com.sx4.utils.ArgumentUtils;
 import com.sx4.utils.GeneralUtils;
 import com.sx4.utils.HelpUtils;
@@ -59,65 +60,68 @@ public class AntiInviteModule {
 		
 		@Command(value="toggle", aliases={"enable", "disable"}, description="Enable/disable anti-invite for the current server", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@AuthorPermissions({Permission.MESSAGE_MANAGE})
-		public void toggle(CommandEvent event, @Context Connection connection) {
-			AntiInviteUtils.insertData(event.getGuild()).run(connection, OptArgs.of("durability", "soft"));
-			Get data = r.table("antiad").get(event.getGuild().getId());
-			Map<String, Object> dataRan = data.run(connection);
-			
-			if ((boolean) dataRan.get("toggle") == false) {
-				event.reply("Anti-Invite is now enabled <:done:403285928233402378>").queue();
-				data.update(r.hashMap("toggle", true)).runNoReply(connection);
-			} else {
-				event.reply("Anti-Invite is now disabled <:done:403285928233402378>").queue();
-				data.update(r.hashMap("toggle", false)).runNoReply(connection);
-			}
+		public void toggle(CommandEvent event, @Context Database database) {
+			boolean enabled = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("antiinvite.enabled")).getEmbedded(List.of("antiinvite", "enabled"), false);
+			database.updateGuildById(event.getGuild().getIdLong(), Updates.set("antiinvite.enabled", !enabled), (result, exception) -> {
+				if (exception != null) {
+					exception.printStackTrace();
+					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+				} else {
+					event.reply("Anti-Invite is now " + (enabled ? "disabled" : "enabled") + " <:done:403285928233402378>").queue();
+				}
+			});
 		}
 		
 		@Command(value="ban names", aliases={"ban user names", "banusernames", "bannames"}, description="Enable/disable whether the bot should ban users who join with an invite in their name", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@AuthorPermissions({Permission.BAN_MEMBERS})
-		public void banNames(CommandEvent event, @Context Connection connection) {
-			AntiInviteUtils.insertData(event.getGuild()).run(connection, OptArgs.of("durability", "soft"));
-			Get data = r.table("antiad").get(event.getGuild().getId());
-			Map<String, Object> dataRan = data.run(connection);
-			
-			if ((boolean) dataRan.get("baninvites") == false) {
-				event.reply("Users who join with invites in their names will now be banned <:done:403285928233402378>").queue();
-				data.update(r.hashMap("baninvites", true)).runNoReply(connection);
-			} else {
-				event.reply("Users who join with invites in their names will no longer be banned <:done:403285928233402378>").queue();
-				data.update(r.hashMap("baninvites", false)).runNoReply(connection);
-			}
+		public void banNames(CommandEvent event, @Context Database database) {
+			boolean enabled = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("antiinvite.banInvites")).getEmbedded(List.of("antiinvite", "banInvites"), false);
+			database.updateGuildById(event.getGuild().getIdLong(), Updates.set("antiinvite.banInvites", !enabled), (result, exception) -> {
+				if (exception != null) {
+					exception.printStackTrace();
+					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+				} else {
+					event.reply("Users who join with invites in their names will " + (enabled ? "no longer" : "now") + " be banned <:done:403285928233402378>").queue();
+				}
+			});
 		}
 		
 		@Command(value="action", aliases={"set action", "setaction"}, description="Set the action which will happen when a user posts a certain amount of invites (Set with antiinvite attempts), use off as an argument to turn this feature off", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@AuthorPermissions({Permission.BAN_MEMBERS})
-		public void action(CommandEvent event, @Context Connection connection, @Argument(value="action") String action) {
-			action = action.toLowerCase();
+		public void action(CommandEvent event, @Context Database database, @Argument(value="action") String actionArgument) {
+			String action = actionArgument.toLowerCase();
+			
+			Document data = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("antiinvite.action", "antiinvite.attempts")).get("antiinvite", Database.EMPTY_DOCUMENT);
 			if (nullStrings.contains(action)) {
-				Get data = r.table("antiad").get(event.getGuild().getId());
-				Map<String, Object> dataRan = data.run(connection);
-				
-				if (dataRan == null || dataRan.get("action") == null) {
+				if (data.getString("action") == null) {
 					event.reply("You don't have an action set :no_entry:").queue();
 					return;
 				}
 				
-				long attempts = (long) dataRan.get("attempts");
-				event.reply("An action will no longer occur when a user sends " + attempts + " invite" + (attempts == 1 ? "" : "s") + " <:done:403285928233402378>").queue();
-				data.update(r.hashMap("action", null)).runNoReply(connection);
+				int attempts = data.getInteger("attempts", 3);
+				database.updateGuildById(event.getGuild().getIdLong(), Updates.unset("antiinvite.action"), (result, exception) -> {
+					if (exception != null) {
+						exception.printStackTrace();
+						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+					} else {
+						event.reply("An action will no longer occur when a user sends " + attempts + " invite" + (attempts == 1 ? "" : "s") + " <:done:403285928233402378>").queue();
+					}
+				});
 			} else if (actions.contains(action)) {
-				AntiInviteUtils.insertData(event.getGuild()).run(connection, OptArgs.of("durability", "soft"));
-				Get data = r.table("antiad").get(event.getGuild().getId());
-				Map<String, Object> dataRan = data.run(connection);
-				
-				if (dataRan != null && dataRan.get("action") != null && dataRan.get("action").equals(action)) {
+				if (data.getString("action") != null && data.getString("action").equals(action)) {
 					event.reply("The action is already set to `" + action + "` :no_entry:").queue();
 					return;
 				}
 				
-				long attempts = (long) dataRan.get("attempts");
-				event.reply("Users will now receive a `" + action + "` when sending **" + attempts + "** invite" + (attempts == 1 ? "" : "s") + " <:done:403285928233402378>").queue();
-				data.update(r.hashMap("action", action)).runNoReply(connection);
+				int attempts = data.getInteger("attempts", 3);
+				database.updateGuildById(event.getGuild().getIdLong(), Updates.set("antiinvite.action", action), (result, exception) -> {
+					if (exception != null) {
+						exception.printStackTrace();
+						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+					} else {
+						event.reply("Users will now receive a `" + action + "` when sending **" + attempts + "** invite" + (attempts == 1 ? "" : "s") + " <:done:403285928233402378>").queue();
+					}
+				});
 			} else {
 				event.reply("Invalid action, `" + GeneralUtils.joinGrammatical(actions) + "` are the valid actions :no_entry:").queue();
 			}
@@ -125,55 +129,49 @@ public class AntiInviteModule {
 		
 		@Command(value="attempts", description="Set the amount of times a user can send an invite before an action occurs to them set through `antiinvite action`", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@AuthorPermissions({Permission.MESSAGE_MANAGE})
-		public void attempts(CommandEvent event, @Context Connection connection, @Argument(value="attempts") int attempts) {
+		public void attempts(CommandEvent event, @Context Database database, @Argument(value="attempts") int attempts) {
 			if (attempts < 1) {
 				event.reply("The attempts cannot be any lower than 1 :no_entry:").queue();
 				return;
 			}
 			
-			AntiInviteUtils.insertData(event.getGuild()).run(connection, OptArgs.of("durability", "soft"));
-			Get data = r.table("antiad").get(event.getGuild().getId());
-			Map<String, Object> dataRan = data.run(connection);
-			
-			if ((long) dataRan.get("attempts") == attempts) {
+			int dataAttempts = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("antiinvite.attempts")).getEmbedded(List.of("antiinvite", "attempts"), 3);
+			if (dataAttempts == attempts) {
 				event.reply("Attempts is already set to **" + attempts + "** :no_entry:").queue();
 				return;
 			}
 			
-			event.reply("When a user sends **" + attempts + "** invite" + (attempts == 1 ? "" : "s") + " an action will occur to them <:done:403285928233402378>").queue();
-			data.update(r.hashMap("attempts", attempts)).runNoReply(connection);
+			database.updateGuildById(event.getGuild().getIdLong(), Updates.set("antiinvite.attempts", attempts), (result, exception) -> {
+				if (exception != null) {
+					exception.printStackTrace();
+					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+				} else {
+					event.reply("When a user sends **" + attempts + "** invite" + (attempts == 1 ? "" : "s") + " an action will occur to them <:done:403285928233402378>").queue();
+				}
+			});
 		}
 		
-		@SuppressWarnings("unchecked")
 		@Command(value="reset attempts", aliases={"resetattempts"}, description="Resets a users attempts of sending invites to 0", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@AuthorPermissions({Permission.MESSAGE_MANAGE})
-		public void resetAttempts(CommandEvent event, @Context Connection connection, @Argument(value="user", endless=true) String userArgument) {
+		public void resetAttempts(CommandEvent event, @Context Database database, @Argument(value="user", endless=true) String userArgument) {
 			Member member = ArgumentUtils.getMember(event.getGuild(), userArgument);
 			if (member == null) {
 				event.reply("I could not find that user :no_entry:").queue();
 				return;
 			}
 			
-			Get data = r.table("antiad").get(event.getGuild().getId());
-			Map<String, Object> dataRan = data.run(connection);
-			
-			if (dataRan == null) {
-				event.reply("**" + member.getUser().getAsTag() + "** does not have any attempts :no_entry:").queue();
-				return;
-			}
-			
-			List<Map<String, Object>> users = (List<Map<String, Object>>) dataRan.get("users");
-			if (users.isEmpty()) {
-				event.reply("**" + member.getUser().getAsTag() + "** does not have any attempts :no_entry:").queue();
-				return;
-			}
-			
-			for (Map<String, Object> userData : users) {
-				if (userData.get("id").equals(member.getUser().getId())) {
-					event.reply("Attempts for **" + member.getUser().getAsTag() + "** have been reset <:done:403285928233402378>").queue();
-						
-					users.remove(userData);
-					data.update(r.hashMap("users", users)).runNoReply(connection);
+			List<Document> users = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("antiinvite.users")).getEmbedded(List.of("antiinvite", "users"), Collections.emptyList());
+			for (Document userData : users) {
+				if (userData.getLong("id") == member.getIdLong()) {
+					database.updateGuildById(event.getGuild().getIdLong(), Updates.pull("antiinvite.users", Filters.eq("id", member.getIdLong())), (result, exception) -> {
+						if (exception != null) {
+							exception.printStackTrace();
+							event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+						} else {
+							event.reply("Attempts for **" + member.getUser().getAsTag() + "** have been reset <:done:403285928233402378>").queue();
+						}
+					});
+					
 					return;
 				}
 			}
@@ -181,12 +179,11 @@ public class AntiInviteModule {
 			event.reply("**" + member.getUser().getAsTag() + "** does not have any attempts :no_entry:").queue();
 		}
 		
-		@SuppressWarnings("unchecked")
 		@Command(value="whitelist", description="Whitelists a user/channel/role to be able to send invites")
 		@AuthorPermissions({Permission.MANAGE_SERVER})
-		public void whitelist(CommandEvent event, @Context Connection connection, @Argument(value="user | role | channel", endless=true) String argument) {
+		public void whitelist(CommandEvent event, @Context Database database, @Argument(value="user | role | channel", endless=true) String argument) {
 			Member member = ArgumentUtils.getMember(event.getGuild(), argument);
-			GuildChannel channel = ArgumentUtils.getTextChannelOrParent(event.getGuild(), argument);
+			GuildChannel channel = ArgumentUtils.getGuildChannel(event.getGuild(), argument);
 			Role role = ArgumentUtils.getRole(event.getGuild(), argument);
 			
 			if (role == null && member == null && channel == null) {
@@ -194,72 +191,74 @@ public class AntiInviteModule {
 				return;
 			}
 			
-			AntiInviteUtils.insertData(event.getGuild()).run(connection, OptArgs.of("durability", "soft"));
-			Get data = r.table("antiad").get(event.getGuild().getId());
-			Map<String, Object> dataRan = data.run(connection);
-			
-			Map<String, List<String>> whitelist = (Map<String, List<String>>) dataRan.get("whitelist");
+			Document whitelist = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("antiinvite.whitelist")).getEmbedded(List.of("antiinvite", "whitelist"), Database.EMPTY_DOCUMENT);
 			if (channel != null) {
 				String displayChannel = channel instanceof TextChannel ? ((TextChannel) channel).getAsMention() : channel.getName();
 				
-				List<String> channels = whitelist.get("channels");
-				for (String channelId : channels) {
-					if (channelId.equals(channel.getId())) {
+				List<Long> channels = whitelist.getList("channels", Long.class, Collections.emptyList());
+				for (long channelId : channels) {
+					if (channelId == channel.getIdLong()) {
 						event.reply("That channel is already whitelisted :no_entry:").queue();
 						return;
 					}
 				}
 				
-				event.reply("Invites sent in the channel " + displayChannel + " will no longer be deleted <:done:403285928233402378>").queue();
-				
-				channels.add(channel.getId());
-				whitelist.put("channels", channels);
-				data.update(r.hashMap("whitelist", whitelist)).runNoReply(connection);
+				database.updateGuildById(event.getGuild().getIdLong(), Updates.push("antiinvite.whitelist.channels", channel.getIdLong()), (result, exception) -> {
+					if (exception != null) {
+						exception.printStackTrace();
+						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+					} else {
+						event.reply("Invites sent in the channel " + displayChannel + " will no longer be deleted <:done:403285928233402378>").queue();
+					}
+				});
 			} else if (member != null) {
-				List<String> users = whitelist.get("users");
-				for (String userId : users) {
-					if (userId.equals(member.getUser().getId())) {
+				List<Long> users = whitelist.getList("users", Long.class, Collections.emptyList());
+				for (long userId : users) {
+					if (userId == member.getIdLong()) {
 						event.reply("That user is already whitelisted :no_entry:").queue();
 						return;
 					}
 				}
 				
-				event.reply("Invites sent by **" + member.getUser().getAsTag() + "** will no longer be deleted <:done:403285928233402378>").queue();
-				
-				users.add(member.getUser().getId());
-				whitelist.put("users", users);
-				data.update(r.hashMap("whitelist", whitelist)).runNoReply(connection);
+				database.updateGuildById(event.getGuild().getIdLong(), Updates.push("antiinvite.whitelist.users", member.getIdLong()), (result, exception) -> {
+					if (exception != null) {
+						exception.printStackTrace();
+						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+					} else {
+						event.reply("Invites sent by **" + member.getUser().getAsTag() + "** will no longer be deleted <:done:403285928233402378>").queue();
+					}
+				});
 			} else if (role != null) {
-				List<String> roles = whitelist.get("roles");
-				for (String roleId : roles) {
-					if (roleId.equals(role.getId())) {
+				List<Long> roles = whitelist.getList("roles", Long.class, Collections.emptyList());
+				for (long roleId : roles) {
+					if (roleId == role.getIdLong()) {
 						event.reply("That role is already whitelisted :no_entry:").queue();
 						return;
 					}
 				}
 				
-				event.reply("Invites sent by users in the role `" + role.getName() + "` will no longer be deleted <:done:403285928233402378>").queue();
-				
-				roles.add(role.getId());
-				whitelist.put("roles", roles);
-				data.update(r.hashMap("whitelist", whitelist)).runNoReply(connection);
+				database.updateGuildById(event.getGuild().getIdLong(), Updates.push("antiinvite.whitelist.roles", role.getIdLong()), (result, exception) -> {
+					if (exception != null) {
+						exception.printStackTrace();
+						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+					} else {
+						event.reply("Invites sent by users in the role `" + role.getName() + "` will no longer be deleted <:done:403285928233402378>").queue();
+					}
+				});
 			}
 		}
 		
-		@SuppressWarnings("unchecked")
 		@Command(value="blacklist", aliases={"unwhitelist", "removewhitelist", "remove whitelist"}, description="Removes a whitelist from a specific user/role/channel")
 		@AuthorPermissions({Permission.MANAGE_SERVER})
-		public void blacklist(CommandEvent event, @Context Connection connection, @Argument(value="user | role | channel", endless=true) String argument) {
-			Get data = r.table("antiad").get(event.getGuild().getId());
-			Map<String, Object> dataRan = data.run(connection);
-			
-			if (dataRan == null) {
+		public void blacklist(CommandEvent event, @Context Database database, @Argument(value="user | role | channel", endless=true) String argument) {
+			Document whitelist = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("antiinvite.whitelist")).getEmbedded(List.of("antiinvite", "whitelist"), Database.EMPTY_DOCUMENT);
+			if (whitelist.isEmpty()) {
 				event.reply("Nothing is whitelisted to send invites in this server :no_entry:").queue();
 				return;
 			}
 			
 			Member member = ArgumentUtils.getMember(event.getGuild(), argument);
-			GuildChannel channel = ArgumentUtils.getTextChannelOrParent(event.getGuild(), argument);
+			GuildChannel channel = ArgumentUtils.getGuildChannel(event.getGuild(), argument);
 			Role role = ArgumentUtils.getRole(event.getGuild(), argument);
 			
 			if (role == null && member == null && channel == null) {
@@ -267,46 +266,57 @@ public class AntiInviteModule {
 				return;
 			}
 			
-			Map<String, List<String>> whitelist = (Map<String, List<String>>) dataRan.get("whitelist");
 			if (channel != null) {
 				String displayChannel = channel instanceof TextChannel ? ((TextChannel) channel).getAsMention() : channel.getName();
 				
-				List<String> channels = whitelist.get("channels");
-				for (String channelId : channels) {
-					if (channelId.equals(channel.getId())) {
-						event.reply("Invites sent in the channel " + displayChannel + " will now be deleted <:done:403285928233402378>").queue();
+				List<Long> channels = whitelist.getList("channels", Long.class, Collections.emptyList());
+				for (long channelId : channels) {
+					if (channelId == channel.getIdLong()) {
+						database.updateGuildById(event.getGuild().getIdLong(), Updates.pull("antiinvite.whitelist.channels", channel.getIdLong()), (result, exception) -> {
+							if (exception != null) {
+								exception.printStackTrace();
+								event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+							} else {
+								event.reply("Invites sent in the channel " + displayChannel + " will now be deleted <:done:403285928233402378>").queue();
+							}
+						});
 						
-						channels.remove(channel.getId());
-						whitelist.put("channels", channels);
-						data.update(r.hashMap("whitelist", whitelist)).runNoReply(connection);
 						return;
 					}
 				}
 				
 				event.reply("That channel isn't whitelisted :no_entry:").queue();
 			} else if (member != null) {
-				List<String> users = whitelist.get("users");
-				for (String userId : users) {
-					if (userId.equals(member.getUser().getId())) {
-						event.reply("Invites sent by **" + member.getUser().getAsTag() + "** will now be deleted <:done:403285928233402378>").queue();
+				List<Long> users = whitelist.getList("users", Long.class, Collections.emptyList());
+				for (long userId : users) {
+					if (userId == member.getIdLong()) {
+						database.updateGuildById(event.getGuild().getIdLong(), Updates.pull("antiinvite.whitelist.users", member.getIdLong()), (result, exception) -> {
+							if (exception != null) {
+								exception.printStackTrace();
+								event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+							} else {
+								event.reply("Invites sent by **" + member.getUser().getAsTag() + "** will now be deleted <:done:403285928233402378>").queue();
+							}
+						});
 						
-						users.remove(member.getUser().getId());
-						whitelist.put("users", users);
-						data.update(r.hashMap("whitelist", whitelist)).runNoReply(connection);
 						return;
 					}
 				}
 				
 				event.reply("That user isn't whitelisted :no_entry:").queue();
 			} else if (role != null) {
-				List<String> roles = whitelist.get("roles");
-				for (String roleId : roles) {
-					if (roleId.equals(role.getId())) {
-						event.reply("Invites sent by users in the role `" + role.getName() + "` will now be deleted <:done:403285928233402378>").queue();
+				List<Long> roles = whitelist.getList("roles", Long.class, Collections.emptyList());
+				for (long roleId : roles) {
+					if (roleId == role.getIdLong()) {
+						database.updateGuildById(event.getGuild().getIdLong(), Updates.pull("antiinvite.whitelist.roles", role.getIdLong()), (result, exception) -> {
+							if (exception != null) {
+								exception.printStackTrace();
+								event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+							} else {
+								event.reply("Invites sent by users in the role `" + role.getName() + "` will now be deleted <:done:403285928233402378>").queue();
+							}
+						});
 						
-						roles.remove(role.getId());
-						whitelist.put("roles", roles);
-						data.update(r.hashMap("whitelist", whitelist)).runNoReply(connection);
 						return;
 					}
 				}
@@ -330,11 +340,11 @@ public class AntiInviteModule {
 			
 			@Command(value="channels", aliases={"channel"}, description="View all the channels which are whitelisted to send invites while antiinvite is active", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 			@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-			public void channels(CommandEvent event, @Context Connection connection) {
-				List<String> channelIds = r.table("antiad").get(event.getGuild().getId()).g("whitelist").g("channels").default_(new Object[0]).run(connection);
+			public void channels(CommandEvent event, @Context Database database) {
+				List<Long> channelIds = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("antiinvite.whitelist.channels")).getEmbedded(List.of("antiinvite", "whitelist", "channels"), Collections.emptyList());
 				
 				List<GuildChannel> channels = new ArrayList<>();
-				for (String channelId : channelIds) {
+				for (long channelId : channelIds) {
 					TextChannel textChannel = event.getGuild().getTextChannelById(channelId);
 					if (textChannel == null) {
 						Category category = event.getGuild().getCategoryById(channelId);
@@ -365,11 +375,11 @@ public class AntiInviteModule {
 			
 			@Command(value="roles", aliases={"roles"}, description="View all the roles which are whitelisted to send invites while antiinvite is active", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 			@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-			public void roles(CommandEvent event, @Context Connection connection) {
-				List<String> roleIds = r.table("antiad").get(event.getGuild().getId()).g("whitelist").g("roles").default_(new Object[0]).run(connection);
+			public void roles(CommandEvent event, @Context Database database) {
+				List<Long> roleIds = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("antiinvite.whitelist.roles")).getEmbedded(List.of("antiinvite", "whitelist", "roles"), Collections.emptyList());
 				
 				List<Role> roles = new ArrayList<>();
-				for (String roleId : roleIds) {
+				for (long roleId : roleIds) {
 					Role role = event.getGuild().getRoleById(roleId);
 					if (role != null) {
 						roles.add(role);
@@ -395,11 +405,11 @@ public class AntiInviteModule {
 			
 			@Command(value="users", aliases={"user", "member", "members"}, description="View all the users which are whitelisted to send invites while antiinvite is active", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 			@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-			public void users(CommandEvent event, @Context Connection connection) {
-				List<String> userIds = r.table("antiad").get(event.getGuild().getId()).g("whitelist").g("users").default_(new Object[0]).run(connection);
+			public void users(CommandEvent event, @Context Database database) {
+				List<Long> userIds = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("antiinvite.whitelist.users")).getEmbedded(List.of("antiinvite", "whitelist", "users"), Collections.emptyList());
 				
 				List<Member> members = new ArrayList<>();
-				for (String userId : userIds) {
+				for (long userId : userIds) {
 					Member member = event.getGuild().getMemberById(userId);
 					if (member != null) {
 						members.add(member);
@@ -427,15 +437,16 @@ public class AntiInviteModule {
 		
 		@Command(value="stats", aliases={"setting", "settings"}, description="View all the settings for antiinvite in the current server", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-		public void stats(CommandEvent event, @Context Connection connection) {
-			Map<String, Object> data = r.table("antiad").get(event.getGuild().getId()).run(connection);
+		public void stats(CommandEvent event, @Context Database database) {
+			Bson projection = Projections.include("antiinvite.enabled", "antiinvite.action", "antiinvite.attempts", "antiinvite.banInvites");
+			Document data = database.getGuildById(event.getGuild().getIdLong(), null, projection);
 			
 			EmbedBuilder embed = new EmbedBuilder();
 			embed.setAuthor("Anti Invite Settings", null, event.getSelfUser().getEffectiveAvatarUrl());
 			embed.setColor(Settings.EMBED_COLOUR);
-			embed.addField("Status", data == null ? "Disabled" : (boolean) data.get("toggle") == false ? "Disabled" : "Enabled", true);
-			embed.addField("Auto Moderation", data == null ? "Disabled" : data.get("action") == null ? "Disabled" : "Sending " + (long) data.get("attempts") + " invite" + ((long) data.get("attempts") == 1 ? "" : "s") + " will result in a `" + (String) data.get("action") + "`", true);
-			embed.addField("Ban Invite Names", data == null ? "Disabled" : (boolean) data.get("baninvites") == false ? "Disabled" : "Enabled", true);
+			embed.addField("Status", !data.getBoolean("enabled", false) ? "Disabled" : "Enabled", true);
+			embed.addField("Auto Moderation", data.getString("action") == null ? "Disabled" : "Sending " + data.getInteger("attempts", 3) + " invite" + (data.getInteger("attempts", 3) == 1 ? "" : "s") + " will result in a `" + data.getString("action") + "`", true);
+			embed.addField("Ban Invite Names", !data.getBoolean("baninvites", false) ? "Disabled" : "Enabled", true);
 			event.reply(embed.build()).queue();
 		}
 		

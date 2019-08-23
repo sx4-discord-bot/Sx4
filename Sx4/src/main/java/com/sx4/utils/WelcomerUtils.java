@@ -1,7 +1,5 @@
 package com.sx4.utils;
 
-import static com.rethinkdb.RethinkDB.r;
-
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -12,16 +10,18 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
-import com.rethinkdb.gen.ast.Insert;
-import com.rethinkdb.model.MapObject;
+import org.bson.Document;
+
 import com.sx4.core.Sx4Bot;
+import com.sx4.database.Database;
 import com.sx4.exceptions.ImageProcessingException;
 import com.sx4.interfaces.Sx4Callback;
 import com.sx4.modules.ImageModule;
+import com.sx4.modules.WelcomerModule.LeaverCommand;
+import com.sx4.modules.WelcomerModule.WelcomerCommand;
 import com.sx4.settings.Settings;
 
 import club.minnced.discord.webhook.send.WebhookEmbed;
@@ -37,33 +37,12 @@ import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.MessageEmbed;
-import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.MessageEmbed.Field;
+import net.dv8tion.jda.api.entities.Role;
 import okhttp3.Request;
 import okhttp3.Response;
 
 public class WelcomerUtils {
-
-	public static MapObject getMapData(Guild guild) {
-		return r.hashMap("id", guild.getId())
-		.with("toggle", false)
-		.with("leavetoggle", false)
-		.with("imgwelcomertog", false)
-		.with("channel", null)
-		.with("leavechannel", null)
-		.with("message", "{user.mention}, Welcome to **{server}**. Enjoy your time here! The server now has {server.members} members.")
-		.with("leave-message", "**{user.name}** has just left **{server}**. Bye **{user.name}**!")
-		.with("dm", false)
-		.with("banner", null)
-		.with("embed", false)
-		.with("leaveembed", false)
-		.with("embedcolour", null)
-		.with("leaveembedcolour", null);
-	}
-	
-	public static Insert insertData(Guild guild) {
-		return r.table("welcomer").insert(WelcomerUtils.getMapData(guild));
-	}
 	
 	public static String getLeaverMessage(Guild guild, Member user, String message) {
 		int guildMemberCount = guild.getMembers().size();
@@ -78,7 +57,7 @@ public class WelcomerUtils {
 		return message;
 	}
 	
-	public static WebhookMessageBuilder getLeaver(Member user, Guild guild, Map<String, Object> data) {
+	public static WebhookMessageBuilder getLeaver(Member user, Guild guild, Document data) {
 		MessageBuilder messageBuilder = WelcomerUtils.getLeaverPreview(user, guild, data);
 		
 		WebhookMessageBuilder webhookMessageBuilder = new WebhookMessageBuilder();
@@ -95,11 +74,14 @@ public class WelcomerUtils {
 		return webhookMessageBuilder;
 	}
 	
-	public static MessageBuilder getLeaverPreview(Member user, Guild guild, Map<String, Object> data) {
+	public static MessageBuilder getLeaverPreview(Member user, Guild guild, Document data) {
 		MessageBuilder message = new MessageBuilder();
-		String messageString = WelcomerUtils.getLeaverMessage(guild, user, (String) data.get("leave-message"));
-		if ((boolean) data.get("leaveembed")) {
-			return message.setEmbed(WelcomerUtils.getPreviewEmbed(user, messageString, (Long) data.get("leaveembedcolour")).build());
+		
+		String messageString = WelcomerUtils.getLeaverMessage(guild, user, data.get("message", LeaverCommand.DEFAULT_MESSAGE));
+		
+		Document embedData = data.get("embed", Database.EMPTY_DOCUMENT);
+		if (embedData.getBoolean("enabled", false)) {
+			return message.setEmbed(WelcomerUtils.getPreviewEmbed(user, messageString, embedData.getInteger("colour")).build());
 		} else {
 			return message.setContent(messageString);
 		}
@@ -128,10 +110,10 @@ public class WelcomerUtils {
 		return embed;
 	}
 	
-	public static EmbedBuilder getPreviewEmbed(Member user, String message, Long colour) {
+	public static EmbedBuilder getPreviewEmbed(Member user, String message, Integer colour) {
 		EmbedBuilder embed = new EmbedBuilder();
 		embed.setAuthor(user.getUser().getAsTag(), null, user.getUser().getEffectiveAvatarUrl());
-		embed.setColor(colour == null ? Role.DEFAULT_COLOR_RAW : colour.intValue());
+		embed.setColor(colour == null ? Role.DEFAULT_COLOR_RAW : colour);
 		embed.setDescription(message);
 		embed.setTimestamp(Instant.now());
 		
@@ -155,8 +137,8 @@ public class WelcomerUtils {
 		});
 	}
 	
-	public static void getWelcomerMessage(Member user, Guild guild, Map<String, Object> data, Consumer<WebhookMessageBuilder> message) {
-		WelcomerUtils.getWelcomerPreviewMessage(user, guild, data, (messageBuilder, response) -> {
+	public static void getWelcomerMessage(Member user, Guild guild, Document data, Consumer<WebhookMessageBuilder> message) {
+		WelcomerUtils.getWelcomerPreview(user, guild, data, (messageBuilder, response) -> {
 			WebhookMessageBuilder webhookMessageBuilder = new WebhookMessageBuilder();
 			
 			if (messageBuilder != null) {
@@ -184,16 +166,18 @@ public class WelcomerUtils {
 		});
 	}
 	
-	public static void getWelcomerPreviewMessage(Member user, Guild guild, Map<String, Object> data, BiConsumer<MessageBuilder, Response> message) {
+	public static void getWelcomerPreview(Member user, Guild guild, Document data, BiConsumer<MessageBuilder, Response> message) {
 		MessageBuilder messageBuilder = new MessageBuilder();
 		
-		if ((boolean) data.get("toggle") == false && (boolean) data.get("imgwelcomertog") == true) {
-			WelcomerUtils.getImageWelcomer(user, (String) data.get("banner"), response -> {
+		Document welcomerData = data.get("welcomer", Database.EMPTY_DOCUMENT), imageWelcomerData = data.get("imageWelcomer", Database.EMPTY_DOCUMENT);
+		if (!welcomerData.getBoolean("enabled", false) && imageWelcomerData.getBoolean("enabled", false)) {
+			WelcomerUtils.getImageWelcomer(user, imageWelcomerData.getString("banner"), response -> {
 				if (response != null) {
 					String fileName = "welcomer." + response.headers().get("Content-Type").split("/")[1];
 					
-					if ((boolean) data.get("embed")) {
-						EmbedBuilder embed = WelcomerUtils.getPreviewEmbed(user, "", (Long) data.get("embedcolour"));
+					Document embedData = welcomerData.get("embed", Database.EMPTY_DOCUMENT);
+					if (embedData.getBoolean("enabled", false)) {
+						EmbedBuilder embed = WelcomerUtils.getPreviewEmbed(user, "", embedData.getInteger("colour"));
 						embed.setImage("attachment://" + fileName);
 						
 						message.accept(messageBuilder.setEmbed(embed.build()), response);
@@ -211,11 +195,13 @@ public class WelcomerUtils {
 				}
 			});
 		} else {
-			String messageString = WelcomerUtils.getWelcomerMessage(guild, user, (String) data.get("message"));
-			if ((boolean) data.get("embed")) {
-				EmbedBuilder embed = WelcomerUtils.getPreviewEmbed(user, messageString, (Long) data.get("embedcolour"));
-				if ((boolean) data.get("imgwelcomertog")) {
-					WelcomerUtils.getImageWelcomer(user, (String) data.get("banner"), response -> {
+			String messageString = WelcomerUtils.getWelcomerMessage(guild, user, welcomerData.get("message", WelcomerCommand.DEFAULT_MESSAGE));
+			
+			Document embedData = welcomerData.get("embed", Database.EMPTY_DOCUMENT);
+			if (embedData.getBoolean("enabled", false)) {
+				EmbedBuilder embed = WelcomerUtils.getPreviewEmbed(user, messageString, embedData.getInteger("colour"));
+				if (imageWelcomerData.getBoolean("enabled", false)) {
+					WelcomerUtils.getImageWelcomer(user, imageWelcomerData.getString("banner"), response -> {
 						if (response != null) {
 							String fileName = "welcomer." + response.headers().get("Content-Type").split("/")[1];
 							
@@ -236,8 +222,8 @@ public class WelcomerUtils {
 					message.accept(messageBuilder.setEmbed(embed.build()), null);
 				}
 			} else {
-				if ((boolean) data.get("imgwelcomertog")) {
-					WelcomerUtils.getImageWelcomer(user, (String) data.get("banner"), response -> {
+				if (imageWelcomerData.getBoolean("enabled", false)) {
+					WelcomerUtils.getImageWelcomer(user, imageWelcomerData.getString("banner"), response -> {
 						if (response != null) {						
 							message.accept(messageBuilder.setContent(messageString), response);
 						}

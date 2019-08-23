@@ -16,15 +16,15 @@ import net.dv8tion.jda.api.entities.Role;
 
 public class FunUtils {
 	
-	private static Pattern userMentionRegex = Pattern.compile("(" + ArgumentUtils.userMentionRegex.pattern() + ")");
-	private static Pattern channelMentionRegex = Pattern.compile("(" + ArgumentUtils.channelMentionRegex.pattern() + ")");
-	private static Pattern roleMentionRegex = Pattern.compile("(" + ArgumentUtils.roleMentionRegex.pattern() + ")");
+	private static final Pattern USER_MENTION_REGEX = Pattern.compile("(" + ArgumentUtils.USER_MENTION_REGEX.pattern() + ")");
+	private static final Pattern CHANNEL_MENTION_REGEX = Pattern.compile("(" + ArgumentUtils.CHANNEL_MENTION_REGEX.pattern() + ")");
+	private static final Pattern ROLE_MENTION_REGEX = Pattern.compile("(" + ArgumentUtils.ROLE_MENTION_REGEX.pattern() + ")");
 
 	public static String escapeMentions(Guild guild, String text) {
 		text = text.replace("@everyone", "@\u200beveryone");
 		text = text.replace("@here", "@\u200bhere");
 		
-		Matcher userMentionMatch = userMentionRegex.matcher(text);
+		Matcher userMentionMatch = USER_MENTION_REGEX.matcher(text);
 		List<String> userMentions = new ArrayList<>(), userNames = new ArrayList<>();
 		while (userMentionMatch.find()) {
 			userMentions.add(userMentionMatch.group(1));
@@ -36,7 +36,7 @@ public class FunUtils {
 			text = text.replace(userMentions.get(i), "@" + userNames.get(i));
 		}
 		
-		Matcher channelMentionMatch = channelMentionRegex.matcher(text);
+		Matcher channelMentionMatch = CHANNEL_MENTION_REGEX.matcher(text);
 		List<String> channelMentions = new ArrayList<>(), channelNames = new ArrayList<>();
 		while (channelMentionMatch.find()) {
 			channelMentions.add(channelMentionMatch.group(1));
@@ -48,7 +48,7 @@ public class FunUtils {
 			text = text.replace(channelMentions.get(i), "#" + channelNames.get(i));
 		}
 		
-		Matcher roleMentionMatch = roleMentionRegex.matcher(text);
+		Matcher roleMentionMatch = ROLE_MENTION_REGEX.matcher(text);
 		List<String> roleMentions = new ArrayList<>(), roleNames = new ArrayList<>();
 		while (roleMentionMatch.find()) {
 			roleMentions.add(roleMentionMatch.group(1));
@@ -67,18 +67,18 @@ public class FunUtils {
 		List<String> badges = new ArrayList<>();
 		
 		Guild supportServer = Sx4Bot.getShardManager().getGuildById(Settings.SUPPORT_SERVER_ID);
-		if (supportServer.isMember(member.getUser())) {
-			Member guildMember = supportServer.getMember(member.getUser());
-			
-			if (Sx4Bot.getCommandListener().getDevelopers().contains(member.getUser().getIdLong())) {
-				badges.add("developer.png");
-			}
-			
+		Member guildMember = supportServer.getMember(member.getUser());
+		
+		if (guildMember != null) {
 			if (guildMember.getRoles().contains(supportServer.getRoleById(Settings.DONATOR_ONE_ROLE_ID))) {
 				badges.add("donator.png");
 			}
 			
 			badges.add("sx4-circle.png");
+		}
+		
+		if (Sx4Bot.getCommandListener().getDevelopers().contains(member.getIdLong())) {
+			badges.add("developer.png");
 		}
 		
 		for (Guild guild : Sx4Bot.getShardManager().getGuilds()) {

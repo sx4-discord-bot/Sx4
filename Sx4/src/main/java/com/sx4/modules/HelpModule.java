@@ -38,12 +38,12 @@ public class HelpModule {
 
 	@Command(value="help", aliases={"h", "commands", "commandlist", "command list"}, description="Lists commands on the bot and gives you info on specific commands")
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-	public void help(CommandEvent event, @Argument(value="command | module", endless=true, nullDefault=true) String commandName, @Option(value="all") boolean all) {
+	public void help(CommandEvent event, @Argument(value="command | module", endless=true, nullDefault=true) String commandName, @Option(value="all") boolean all, @Option(value="module") boolean moduleChoice, @Option(value="command") boolean commandChoice) {
 		if (commandName == null) {
 			if (all) {
 				List<Sx4Command> allCommands = new ArrayList<>();
-				for (ICommand command : event.getCommandListener().getAllCommands()) {
-					if (command.isDeveloperCommand() && !event.isAuthorDeveloper()) {
+				for (ICommand command : event.getCommandListener().getAllCommands(true, true)) {
+					if ((command.isDeveloperCommand() || command.isHidden()) && !event.isAuthorDeveloper()) {
 						continue;
 					} else {
 						allCommands.add((Sx4Command) command);
@@ -60,8 +60,8 @@ public class HelpModule {
 				});
 			} else {
 				JSONObject advertisement = HelpUtils.getAdvertisement();
-				String description = advertisement.get("description").equals(JSONObject.NULL) ? null : advertisement.getString("description");
-				String imageUrl = advertisement.get("image").equals(JSONObject.NULL) ? null : advertisement.getString("image");
+				String description = advertisement.isNull("description") ? null : advertisement.getString("description");
+				String imageUrl = advertisement.isNull("image") ? null : advertisement.getString("image");
 				
 				List<String> moduleNames = new ArrayList<>();
 				for (CategoryImpl category : event.isAuthorDeveloper() ? Categories.ALL : Categories.ALL_PUBLIC) {
@@ -83,7 +83,7 @@ public class HelpModule {
 					PagedUtils.getResponse(event, 300, e -> {
 						return event.getChannel().equals(e.getChannel()) && event.getAuthor().equals(e.getAuthor()) && moduleNames.contains(e.getMessage().getContentRaw());
 					}, null, response -> {
-						PagedResult<Sx4Command> paged = HelpUtils.getModuleMessage(ArgumentUtils.getModule(response.getContentRaw()), event.getAuthor());
+						PagedResult<Sx4Command> paged = HelpUtils.getModulePagedResult(ArgumentUtils.getModule(response.getContentRaw(), false, event.isAuthorDeveloper()), event.getAuthor());
 						PagedUtils.getPagedResult(event, paged, 300, pagedReturn -> {
 							event.reply(HelpUtils.getHelpMessage(pagedReturn.getObject())).queue();
 						});
@@ -94,30 +94,43 @@ public class HelpModule {
 				});
 			}
 		} else {
-			CategoryImpl module = ArgumentUtils.getModule(commandName, event.isAuthorDeveloper());
-			List<Sx4Command> commands = ArgumentUtils.getCommands(commandName);
-			if (commands.isEmpty() && module == null) {
+			CategoryImpl module = ArgumentUtils.getModule(commandName, false, event.isAuthorDeveloper());
+			List<Sx4Command> commands = ArgumentUtils.getCommands(commandName, false, event.isAuthorDeveloper(), event.isAuthorDeveloper());
+			if (module == null && moduleChoice) {
+				event.reply("I could not find that module :no_entry:").queue();
+				return;
+			} else if (commands.isEmpty() && commandChoice) {
+				event.reply("I could not find that command :no_entry:").queue();
+				return;
+			} else if (commands.isEmpty() && module == null) {
 				event.reply("I could not find that command/module :no_entry:").queue();
 				return;
 			}
 			
-			if (!commands.isEmpty()) {
-				PagedResult<Sx4Command> paged = new PagedResult<>(commands)
-						.setDeleteMessage(true)
-						.setIncreasedIndex(true)
-						.setAutoSelect(true)
-						.setSelectableByIndex(true)
-						.setAuthor(GeneralUtils.title(commands.get(0).getCommandTrigger()), null, event.getSelfUser().getEffectiveAvatarUrl())
-						.setFunction(command -> "`" + command.toString() + "`");
-				
-				PagedUtils.getPagedResult(event, paged, 60, pagedReturn -> {
-					event.reply(HelpUtils.getHelpMessage(pagedReturn.getObject())).queue();
-				});
-			} else if (module != null) {
-				PagedResult<Sx4Command> paged = HelpUtils.getModuleMessage(module, event.getAuthor());
+			if (moduleChoice) {
+				PagedResult<Sx4Command> paged = HelpUtils.getModulePagedResult(module, event.getAuthor());
 				PagedUtils.getPagedResult(event, paged, 300, pagedReturn -> {
 					event.reply(HelpUtils.getHelpMessage(pagedReturn.getObject())).queue();
 				});
+			} else if (commandChoice) {
+				PagedResult<Sx4Command> paged = HelpUtils.getCommandPagedResult(commands);
+				paged.setAuthor(GeneralUtils.title(commands.get(0).getCommandTrigger()), null, event.getSelfUser().getEffectiveAvatarUrl());
+				PagedUtils.getPagedResult(event, paged, 60, pagedReturn -> {
+					event.reply(HelpUtils.getHelpMessage(pagedReturn.getObject())).queue();
+				});
+			} else {
+				if (module != null) {
+					PagedResult<Sx4Command> paged = HelpUtils.getModulePagedResult(module, event.getAuthor());
+					PagedUtils.getPagedResult(event, paged, 300, pagedReturn -> {
+						event.reply(HelpUtils.getHelpMessage(pagedReturn.getObject())).queue();
+					});
+				} else if (!commands.isEmpty()) {
+					PagedResult<Sx4Command> paged = HelpUtils.getCommandPagedResult(commands);
+					paged.setAuthor(GeneralUtils.title(commands.get(0).getCommandTrigger()), null, event.getSelfUser().getEffectiveAvatarUrl());
+					PagedUtils.getPagedResult(event, paged, 60, pagedReturn -> {
+						event.reply(HelpUtils.getHelpMessage(pagedReturn.getObject())).queue();
+					});
+				}
 			}
 		}
 	}

@@ -16,6 +16,7 @@ import com.sx4.settings.Settings;
 import com.sx4.utils.PagedUtils.PagedResult;
 
 import net.dv8tion.jda.api.EmbedBuilder;
+import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.entities.User;
 
@@ -66,10 +67,11 @@ public class HelpUtils {
 		
 		if (!command.isDeveloperCommand()) {
 			if (command.getAuthorDiscordPermissions().size() != 0) {
-				String[] permissionNames = new String[command.getAuthorDiscordPermissions().size()];
-				for (int i = 0; i < command.getAuthorDiscordPermissions().size(); i++) {
-					permissionNames[i] = command.getAuthorDiscordPermissions().get(i).getName();
+				List<String> permissionNames = new ArrayList<>();
+				for (Permission permission : command.getAuthorDiscordPermissions()) {
+					permissionNames.add(permission.getName());
 				}
+				
 				embed.appendDescription("Required permissions: " + GeneralUtils.joinGrammatical(permissionNames) + "\n");
 			}
 		} else {
@@ -104,7 +106,7 @@ public class HelpUtils {
 				});
 	}
 	
-	public static PagedResult<Sx4Command> getModuleMessage(CategoryImpl module, User author) {
+	public static PagedResult<Sx4Command> getModulePagedResult(CategoryImpl module, User author) {
 		List<Sx4Command> commands = new ArrayList<>();
 		for (ICommand command : module.getCommands()) {
 			commands.add((Sx4Command) command);

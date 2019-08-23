@@ -1,7 +1,5 @@
 package com.sx4.modules;
 
-import static com.rethinkdb.RethinkDB.r;
-
 import java.awt.Color;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
@@ -21,6 +19,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.time.format.TextStyle;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
@@ -32,6 +31,9 @@ import java.util.regex.Pattern;
 
 import javax.imageio.ImageIO;
 
+import org.bson.BsonDocument;
+import org.bson.Document;
+import org.bson.conversions.Bson;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -48,20 +50,24 @@ import com.jockie.bot.core.command.impl.CommandEvent;
 import com.jockie.bot.core.command.impl.CommandImpl;
 import com.jockie.bot.core.module.Module;
 import com.jockie.bot.core.option.Option;
-import com.rethinkdb.gen.ast.Get;
-import com.rethinkdb.gen.ast.Table;
-import com.rethinkdb.model.OptArgs;
-import com.rethinkdb.net.Connection;
-import com.rethinkdb.net.Cursor;
+import com.mongodb.client.FindIterable;
+import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.Projections;
+import com.mongodb.client.model.UpdateOneModel;
+import com.mongodb.client.model.UpdateOptions;
+import com.mongodb.client.model.Updates;
+import com.mongodb.client.model.WriteModel;
 import com.sx4.cache.SteamCache;
 import com.sx4.categories.Categories;
 import com.sx4.core.Sx4Bot;
 import com.sx4.core.Sx4Command;
+import com.sx4.core.Sx4CommandEventListener;
+import com.sx4.database.Database;
 import com.sx4.interfaces.Example;
 import com.sx4.interfaces.Sx4Callback;
 import com.sx4.settings.Settings;
-import com.sx4.uno.UnoSession;
 import com.sx4.utils.ArgumentUtils;
+import com.sx4.utils.EconomyUtils;
 import com.sx4.utils.FunUtils;
 import com.sx4.utils.GeneralUtils;
 import com.sx4.utils.HelpUtils;
@@ -76,7 +82,6 @@ import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Message.Attachment;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.entities.Role;
-import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.internal.utils.tuple.Pair;
 import okhttp3.MediaType;
@@ -88,7 +93,7 @@ import okhttp3.Response;
 @Module
 public class FunModule {
 	
-	private static Random random = new Random();
+	private static final Random RANDOM = new Random();
 	
 	public enum Direction {
 		NORTH(0),
@@ -259,10 +264,9 @@ public class FunModule {
 		
 	}*/
 	
-	@SuppressWarnings("unchecked")
 	@Command(value="profile", description="View a users or your profile")
 	@BotPermissions({Permission.MESSAGE_ATTACH_FILES})
-	public void profile(CommandEvent event, @Context Connection connection, @Argument(value="user", endless=true, nullDefault=true) String userArgument) {
+	public void profile(CommandEvent event, @Context Database database, @Argument(value="user", endless=true, nullDefault=true) String userArgument) {
 		Member member;
 		if (userArgument == null) {
 			member = event.getMember();
@@ -274,80 +278,41 @@ public class FunModule {
 			}
 		}
 		
-		Map<String, Object> userBank = r.table("bank").get(member.getUser().getId()).run(connection);
-		Map<String, Object> userMarriage = r.table("marriage").get(member.getUser().getId()).run(connection);
-		Map<String, Object> userProfile = r.table("userprofile").get(member.getUser().getId()).run(connection);
+		Bson projection = Projections.include("economy.balance", "profile.birthday", "profile.description", "profile.height", "profile.colour", "profile.marriedUsers", "reputation.amount");
+		Document data = database.getUserById(member.getIdLong(), null, projection);
 		
+		Document profile = data.get("profile", Database.EMPTY_DOCUMENT);
+		
+		long reputation = data.getEmbedded(List.of("reputation", "amount"), 0);
+		long balance = data.getEmbedded(List.of("economy", "balance"), 0);
+		
+		List<Long> marriedUsers = profile.getList("marriedUsers", Long.class, Collections.emptyList());
+		String colour = profile.getString("colour");
+		String birthday = profile.getString("birthday");
+		String height = profile.getString("height");
+		String description = profile.getString("description");
 		String backgroundPath = "file://" + new File("profile-images/" + member.getUser().getId() + ".png").getAbsolutePath();
-		
 		List<String> badges = FunUtils.getMemberBadges(member);
 		
-		long balance = 0, reputation = 0;
-		List<String> marriedTo = new ArrayList<>();
-		String colour = "#ffffff", birthday = "Not Set", height = "Not Set", description = "Not Set";
-		if (userBank != null) {
-			balance = (long) userBank.get("balance");
-			reputation = (long) userBank.get("rep");
-		} 
-		
-		if (userMarriage != null) {
-			for (String userId : (List<String>) userMarriage.get("marriedto")) {
-				User user = event.getShardManager().getUserById(userId);
-				if (user != null) {
-					marriedTo.add(user.getAsTag());
-				}
-			}
-		} 
-		
-		if (userProfile != null) {
-			if (userProfile.get("colour") != null) {
-				colour = (String) userProfile.get("colour");
-				
-				if (!badges.contains("profile_editor.png")) {
-					badges.add("profile_editor.png");
-				}
-			}
-			
-			if (userProfile.get("birthday") != null) {
-				birthday = (String) userProfile.get("birthday");
-				
-				if (!badges.contains("profile_editor.png")) {
-					badges.add("profile_editor.png");
-				}
-			}
-			
-			if (userProfile.get("height") != null) {
-				height = (String) userProfile.get("height");
-				
-				if (!badges.contains("profile_editor.png")) {
-					badges.add("profile_editor.png");
-				}
-			}
-			
-			if (userProfile.get("description") != null) {
-				description = (String) userProfile.get("description");
-				
-				if (!badges.contains("profile_editor.png")) {
-					badges.add("profile_editor.png");
-				}
-			}
+		if (colour != null || birthday != null || height != null || description != null) {
+			badges.add("profile_editor.png");
 		}
 		
-		if (!marriedTo.isEmpty()) {
+		if (!marriedUsers.isEmpty()) {
 			badges.add("married.png");
 		}
 		
 		String body = new JSONObject()
 				.put("user_name", member.getUser().getAsTag())
 				.put("background_path", backgroundPath)
-				.put("colour", colour)
+				.put("colour", colour == null ? "#ffffff" : colour)
 				.put("balance", String.format("%,d", balance))
 				.put("reputation", reputation)
-				.put("description", description)
-				.put("birthday", birthday)
-				.put("height", height)
+				.put("description", description == null ? "Not set" : description)
+				.put("birthday", birthday == null ? "Not set" : birthday)
+				.put("height", height == null ? "Not set" : height)
 				.put("badges", badges)
-				.put("married_users", marriedTo)
+				.put("married_users", marriedUsers)
 				.put("user_avatar_url", member.getUser().getEffectiveAvatarUrl())
 				.toString();
 		
@@ -397,7 +362,7 @@ public class FunModule {
 		}
 		
 		@Command(value="birthday", description="Set your birthday for your profile (EU Format)", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
-		public void birthday(CommandEvent event, @Context Connection connection, @Argument(value="birth date") String birthDateString) {
+		public void birthday(CommandEvent event, @Context Database database, @Argument(value="birth date") String birthDateString) {
 			LocalDate birthDateTime;
 			boolean displayYear = true;
 			try {
@@ -417,11 +382,8 @@ public class FunModule {
 				return;
 			}
 			
-			r.table("userprofile").insert(r.hashMap("colour", null).with("description", null).with("height", null).with("birthday", null).with("id", event.getAuthor().getId())).run(connection, OptArgs.of("durability", "soft"));
-			Get data = r.table("userprofile").get(event.getAuthor().getId());
-			Map<String, Object> dataRan = data.run(connection);
-			
-			if (dataRan.get("birthday") != null && dataRan.get("birthday").equals(birthDateString)) {
+			String birthday = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("profile.birthday")).getEmbedded(List.of("profile", "birthday"), String.class);
+			if (birthday != null && birthday.equals(birthDateString)) {
 				event.reply("Your birth date is already set to that :no_entry:").queue();
 				return;
 			}
@@ -433,32 +395,42 @@ public class FunModule {
 				format = DateTimeFormatter.ofPattern("dd/MM");
 			}
 			
-			event.reply("Your birth date has been updated to the **" + GeneralUtils.getNumberSuffix(birthDateTime.getDayOfMonth()) + " " + birthDateTime.getMonth().getDisplayName(TextStyle.FULL, Locale.UK) + "** <:done:403285928233402378>").queue();
-			data.update(r.hashMap("birthday", birthDateTime.format(format))).runNoReply(connection);
+			String birthdayString = GeneralUtils.getNumberSuffix(birthDateTime.getDayOfMonth()) + " " + birthDateTime.getMonth().getDisplayName(TextStyle.FULL, Locale.UK);
+			database.updateUserById(event.getAuthor().getIdLong(), Updates.set("profile.birthday", birthDateTime.format(format)), (result, exception) -> {
+				if (exception != null) {
+					exception.printStackTrace();
+					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+				} else {
+					event.reply("Your birth date has been updated to the **" + birthdayString + "** <:done:403285928233402378>").queue();
+				}
+			});
 		}
 		
 		@Command(value="description", aliases={"bio"}, description="Set your description for your profile")
-		public void description(CommandEvent event, @Context Connection connection, @Argument(value="description", endless=true) String description) {
+		public void description(CommandEvent event, @Context Database database, @Argument(value="description", endless=true) String description) {
 			if (description.length() > 300) {
 				event.reply("Your description can be no longer than 300 characters :no_entry:").queue();
 				return;
 			}
 			
-			r.table("userprofile").insert(r.hashMap("colour", null).with("description", null).with("height", null).with("birthday", null).with("id", event.getAuthor().getId())).run(connection, OptArgs.of("durability", "soft"));
-			Get data = r.table("userprofile").get(event.getAuthor().getId());
-			Map<String, Object> dataRan = data.run(connection);
-			
-			if (dataRan.get("description") != null && dataRan.get("description").equals(description)) {
+			String currentDescription = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("profile.description")).getEmbedded(List.of("profile", "description"), String.class);
+			if (currentDescription != null && currentDescription.equals(description)) {
 				event.reply("Your description is already set to that :no_entry:").queue();
 				return;
 			}
 			
-			event.reply("Your description has been updated <:done:403285928233402378>").queue();
-			data.update(r.hashMap("description", description)).runNoReply(connection);
+			database.updateUserById(event.getAuthor().getIdLong(), Updates.set("profile.description", description), (result, exception) -> {
+				if (exception != null) {
+					exception.printStackTrace();
+					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+				} else {
+					event.reply("Your description has been updated <:done:403285928233402378>").queue();
+				} 
+			});
 		}
 		
 		@Command(value="height", description="Set your height for your profile", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
-		public void height(CommandEvent event, @Context Connection connection, @Argument(value="feet and inches | centimetres") String height) { 
+		public void height(CommandEvent event, @Context Database database, @Argument(value="feet and inches | centimetres") String height) { 
 			int centimetres, feet, inches;
 			if (GeneralUtils.isNumber(height)) {
 				centimetres = Integer.parseInt(height);			
@@ -502,21 +474,24 @@ public class FunModule {
 			
 			String heightDisplay = feet + "'" + inches + " (" + centimetres + "cm)";
 			
-			r.table("userprofile").insert(r.hashMap("colour", null).with("description", null).with("height", null).with("birthday", null).with("id", event.getAuthor().getId())).run(connection, OptArgs.of("durability", "soft"));
-			Get data = r.table("userprofile").get(event.getAuthor().getId());
-			Map<String, Object> dataRan = data.run(connection);
-			
-			if (dataRan.get("height") != null && dataRan.get("height").equals(heightDisplay)) {
+			String currentHeight = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("profile.height")).getEmbedded(List.of("profile", "height"), String.class);
+			if (currentHeight != null && currentHeight.equals(heightDisplay)) {
 				event.reply("Your height is already set to " + heightDisplay + " :no_entry:").queue();
 				return;
 			}
 			
-			event.reply("Your height has been set to " + heightDisplay + " <:done:403285928233402378>").queue();
-			data.update(r.hashMap("height", heightDisplay)).runNoReply(connection);
+			database.updateUserById(event.getAuthor().getIdLong(), Updates.set("profile.height", heightDisplay), (result, exception) -> {
+				if (exception != null) {
+					exception.printStackTrace();
+					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+				} else {
+					event.reply("Your height has been set to " + heightDisplay + " <:done:403285928233402378>").queue();
+				}
+			});
 		}
 		
 		@Command(value="colour", aliases={"color"}, description="Set the colour accenting for you profile")
-		public void colour(CommandEvent event, @Context Connection connection, @Argument(value="hex | rgb", endless=true) String colourArgument) {
+		public void colour(CommandEvent event, @Context Database database, @Argument(value="hex | rgb", endless=true) String colourArgument) {
 			Color colour;
 			if (colourArgument.toLowerCase().equals("reset") || colourArgument.toLowerCase().equals("default")) {
 				colour = null;
@@ -528,27 +503,36 @@ public class FunModule {
 				}
 			}
 			
-			r.table("userprofile").insert(r.hashMap("colour", null).with("description", null).with("height", null).with("birthday", null).with("id", event.getAuthor().getId())).run(connection, OptArgs.of("durability", "soft"));
-			Get data = r.table("userprofile").get(event.getAuthor().getId());
-			Map<String, Object> dataRan = data.run(connection);
-			
+			String currentColour = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("profile.colour")).getEmbedded(List.of("profile", "colour"), String.class);
 			if (colour == null) {
-				if (dataRan.get("colour") == null) {
+				if (currentColour == null) {
 					event.reply("You don't have a colour set for your profile :no_entry:").queue();
 					return;
 				}
 				
-				event.reply("The colour for your profile has been reset <:done:403285928233402378>").queue();
-				data.update(r.hashMap("colour", null)).runNoReply(connection);
+				database.updateUserById(event.getAuthor().getIdLong(), Updates.unset("profile.colour"), (result, exception) -> {
+					if (exception != null) {
+						exception.printStackTrace();
+						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+					} else {
+						event.reply("The colour for your profile has been reset <:done:403285928233402378>").queue();
+					}
+				});
 			} else {
 				String hex = "#" + Integer.toHexString(colour.hashCode()).substring(2);
-				if (dataRan.get("colour") != null && dataRan.get("colour").equals(hex)) {
+				if (currentColour != null && currentColour.equals(hex)) {
 					event.reply("The colour for your profile is already set to **" + hex.toUpperCase() + "** :no_entry:").queue();
 					return;
 				}
 				
-				event.reply("The colour for your profile has been updated to **" + hex.toUpperCase() + "** <:done:403285928233402378>").queue();
-				data.update(r.hashMap("colour", hex)).runNoReply(connection);
+				database.updateUserById(event.getAuthor().getIdLong(), Updates.set("profile.colour", hex), (result, exception) -> {
+					if (exception != null) {
+						exception.printStackTrace();
+						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+					} else {
+						event.reply("The colour for your profile has been updated to **" + hex.toUpperCase() + "** <:done:403285928233402378>").queue();
+					}
+				});
 			}
 		}
 		
@@ -636,65 +620,63 @@ public class FunModule {
 	
 	@Command(value="birthdays", description="View all the birthdays which are upcoming in the next 30 days (Set your birthday with `set birthday`)", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-	public void birthdays(CommandEvent event, @Context Connection connection, @Option(value="server", aliases={"guild"}) boolean guild) {
-		try (Cursor<Map<String, Object>> cursor = r.table("userprofile").withFields("id", "birthday").filter(row -> row.g("birthday").ne(null)).run(connection)) {
-			List<Map<String, Object>> data = cursor.toList();
+	public void birthdays(CommandEvent event, @Context Database database, @Option(value="server", aliases={"guild"}) boolean guild) {
+		FindIterable<Document> data = database.getUsers().find(Filters.exists("profile.birthday")).projection(Projections.include("profile.birthday"));
+		
+		LocalDate now = LocalDate.now(ZoneOffset.UTC);
+		
+		List<Pair<User, LocalDate>> birthDates = new ArrayList<>();
+		for (Document userData : data) {
+			User user;
+			if (guild) {
+				Member member = event.getGuild().getMemberById(userData.getLong("_id"));
+				user = member == null ? null : member.getUser();
+			} else {
+				user = event.getShardManager().getUserById(userData.getLong("_id"));
+			}
 			
-			LocalDate now = LocalDate.now(ZoneOffset.UTC);
-			
-			List<Pair<User, LocalDate>> birthDates = new ArrayList<>();
-			for (Map<String, Object> userData : data) {
-				User user = event.getShardManager().getUserById((String) userData.get("id"));
-				if (user != null) {
-					if (guild) {
-						if (!event.getGuild().isMember(user)) {
-							continue;
-						}
-					}
-					
-					String[] birthdaySplit = ((String) userData.get("birthday")).split("/");
-					int day = Integer.parseInt(birthdaySplit[0]);
-					int month = Integer.parseInt(birthdaySplit[1]);
-					if (month == 2 && day == 29 && now.getYear() % 4 != 0) {
-						continue;
-					}
-					
-					LocalDate birthday = LocalDate.of(now.getYear(), month, day);
-					if (birthday.compareTo(now) < 0) {
-						birthday = birthday.plusYears(1);
-					}
-					
-					int daysApart = TimeUtils.getActualDaysApart(birthday.getDayOfYear() - now.getDayOfYear());
-					if (daysApart >= 0 && daysApart < 31) {
-						birthDates.add(Pair.of(user, birthday));
-					}
+			if (user != null) {
+				String[] birthdaySplit = userData.getEmbedded(List.of("profile", "birthday"), String.class).split("/");
+				int day = Integer.parseInt(birthdaySplit[0]);
+				int month = Integer.parseInt(birthdaySplit[1]);
+				if (month == 2 && day == 29 && now.getYear() % 4 != 0) {
+					continue;
+				}
+				
+				LocalDate birthday = LocalDate.of(now.getYear(), month, day);
+				if (birthday.compareTo(now) < 0) {
+					birthday = birthday.plusYears(1);
+				}
+				
+				int daysApart = TimeUtils.getActualDaysApart(birthday.getDayOfYear() - now.getDayOfYear());
+				if (daysApart >= 0 && daysApart < 31) {
+					birthDates.add(Pair.of(user, birthday));
 				}
 			}
-			
-			if (birthDates.isEmpty()) {
-				event.reply("There are no upcoming birthdays :no_entry:").queue();
-				return;
-			}
-			
-			birthDates.sort((a, b) -> Integer.compare(TimeUtils.getActualDaysApart(a.getRight().getDayOfYear() - now.getDayOfYear()), TimeUtils.getActualDaysApart(b.getRight().getDayOfYear() - now.getDayOfYear())));
-			PagedResult<Pair<User, LocalDate>> paged = new PagedResult<>(birthDates)
-					.setDeleteMessage(false)
-					.setIndexed(false)
-					.setPerPage(20)
-					.setEmbedColour(Settings.EMBED_COLOUR)
-					.setAuthor("Upcoming Birthdays 🎂", null, null)
-					.setFunction(userBirthday -> {
-						LocalDate birthday = userBirthday.getRight();
-						return userBirthday.getLeft().getAsTag() + " - " + GeneralUtils.getNumberSuffix(birthday.getDayOfMonth()) + " " + birthday.getMonth().getDisplayName(TextStyle.FULL, Locale.UK) + (birthday.equals(now) ? " :cake:" : "");
-					});
-			
-			PagedUtils.getPagedResult(event, paged, 300, null);
 		}
+		
+		if (birthDates.isEmpty()) {
+			event.reply("There are no upcoming birthdays :no_entry:").queue();
+			return;
+		}
+		
+		birthDates.sort((a, b) -> Integer.compare(TimeUtils.getActualDaysApart(a.getRight().getDayOfYear() - now.getDayOfYear()), TimeUtils.getActualDaysApart(b.getRight().getDayOfYear() - now.getDayOfYear())));
+		PagedResult<Pair<User, LocalDate>> paged = new PagedResult<>(birthDates)
+				.setDeleteMessage(false)
+				.setIndexed(false)
+				.setPerPage(20)
+				.setEmbedColour(Settings.EMBED_COLOUR)
+				.setAuthor("Upcoming Birthdays 🎂", null, null)
+				.setFunction(userBirthday -> {
+					LocalDate birthday = userBirthday.getRight();
+					return userBirthday.getLeft().getAsTag() + " - " + GeneralUtils.getNumberSuffix(birthday.getDayOfMonth()) + " " + birthday.getMonth().getDisplayName(TextStyle.FULL, Locale.UK) + (birthday.equals(now) ? " :cake:" : "");
+				});
+		
+		PagedUtils.getPagedResult(event, paged, 300, null);
 	}
 	
-	@SuppressWarnings("unchecked")
 	@Command(value="marry", description="Marry other users or yourself, you can have up to 5 partners")
-	public void marry(CommandEvent event, @Context Connection connection, @Argument(value="user", endless=true) String userArgument) {
+	public void marry(CommandEvent event, @Context Database database, @Argument(value="user", endless=true) String userArgument) {
 		Member member = ArgumentUtils.getMember(event.getGuild(), userArgument);
 		if (member == null) {
 			event.reply("I could not find that user :no_entry:").queue();
@@ -706,101 +688,74 @@ public class FunModule {
 			return;
 		}
 		
-		if (member.getUser().equals(event.getAuthor())) {
-			Get data = r.table("marriage").get(event.getAuthor().getId());
-			Map<String, Object> dataRan = data.run(connection);
-			List<String> marriedTo = dataRan == null ? new ArrayList<>() : (List<String>) dataRan.get("marriedto");
-			
-			if (marriedTo.contains(event.getAuthor().getId())) {
-				event.reply("You are already married to yourself :no_entry:").queue();
-				return;
-			}
-			
-			if (marriedTo.size() >= 5) {
-				event.reply("You are already married to the max amount of people (5) :no_entry:").queue();
-				return;
-			}
+		boolean isAuthor = event.getMember().equals(member);
+		
+		List<Long> authorMarriedUsers = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("profile.marriedUsers")).getEmbedded(List.of("profile", "marriedUsers"), Collections.emptyList());
+		List<Long> userMarriedUsers;
+		if (!isAuthor) {
+			userMarriedUsers = database.getUserById(member.getIdLong(), null, Projections.include("profile.marriedUsers")).getEmbedded(List.of("profile", "marriedUsers"), Collections.emptyList());
 		} else {
-			Get authorData = r.table("marriage").get(event.getAuthor().getId());
-			Map<String, Object> authorDataRan = authorData.run(connection);
-			List<String> authorMarriedTo = authorDataRan == null ? new ArrayList<>() : (List<String>) authorDataRan.get("marriedto");
-			
-			Get userData = r.table("marriage").get(member.getUser().getId());
-			Map<String, Object> userDataRan = userData.run(connection);
-			List<String> userMarriedTo = userDataRan == null ? new ArrayList<>() : (List<String>) userDataRan.get("marriedto");
-			
-			if (userMarriedTo.contains(event.getAuthor().getId()) && authorMarriedTo.contains(member.getUser().getId())) {
-				event.reply("You are already married to that user :no_entry:").queue();
-				return;
-			}
-			
-			if (authorMarriedTo.size() >= 5) {
-				event.reply("You are already married to the max amount of people (5) :no_entry:").queue();
-				return;
-			}
-			
-			if (userMarriedTo.size() >= 5) {
-				event.reply("**" + member.getUser().getAsTag() + "** is already married to the max amount of people (5) :no_entry:").queue();
-				return;
-			}
+			userMarriedUsers = authorMarriedUsers;
+		}
+		
+		if (userMarriedUsers.contains(event.getAuthor().getIdLong()) && authorMarriedUsers.contains(member.getIdLong())) {
+			event.reply("You are already married to " + (isAuthor ? "yourself" : "that user") + " :no_entry:").queue();
+			return;
+		}
+		
+		if (authorMarriedUsers.size() >= 5) {
+			event.reply("You are already married to the max amount of people (5) :no_entry:").queue();
+			return;
+		}
+		
+		if (userMarriedUsers.size() >= 5) {
+			event.reply("**" + member.getUser().getAsTag() + "** is already married to the max amount of people (5) :no_entry:").queue();
+			return;
 		}
 		
 		event.reply(member.getAsMention() + ", **" + event.getAuthor().getName() + "** would like to marry you!\n**Do you accept?**\nType **yes** or **no** to choose.").queue(message -> {
 			PagedUtils.getConfirmation(event, 60, member.getUser(), confirmation -> {
-				if (confirmation == true) {
-					if (member.getUser().equals(event.getAuthor())) {
-						r.table("marriage").insert(r.hashMap("id", event.getAuthor().getId()).with("marriedto", new Object[0])).run(connection, OptArgs.of("durability", "soft"));
-						Get data = r.table("marriage").get(event.getAuthor().getId());
-						Map<String, Object> dataRan = data.run(connection);
-						List<String> marriedTo = (List<String>) dataRan.get("marriedto");
-						
-						if (marriedTo.contains(event.getAuthor().getId())) {
-							event.reply("You are already married to yourself :no_entry:").queue();
-							return;
-						}
-						
-						if (marriedTo.size() >= 5) {
-							event.reply("You are already married to the max amount of people (5) :no_entry:").queue();
-							return;
-						}
-						
-						message.delete().queue();
-						event.reply("Congratulations on marrying yourself :heart: :tada:").queue();
-						
-						
-						data.update(row -> r.hashMap("marriedto", row.g("marriedto").append(event.getAuthor().getId()))).runNoReply(connection);
+				if (confirmation) {
+					List<WriteModel<Document>> bulkData = new ArrayList<>();
+					
+					List<Long> authorMarriedUsersUpdated = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("profile.marriedUsers")).getEmbedded(List.of("profile", "marriedUsers"), Collections.emptyList());
+					List<Long> userMarriedUsersUpdated;
+					if (!isAuthor) {
+						userMarriedUsersUpdated = database.getUserById(member.getIdLong(), null, Projections.include("profile.marriedUsers")).getEmbedded(List.of("profile", "marriedUsers"), Collections.emptyList());
 					} else {
-						r.table("marriage").insert(r.hashMap("id", event.getAuthor().getId()).with("marriedto", new Object[0])).run(connection, OptArgs.of("durability", "soft"));
-						Get authorData = r.table("marriage").get(event.getAuthor().getId());
-						Map<String, Object> authorDataRan = authorData.run(connection);
-						List<String> authorMarriedTo = (List<String>) authorDataRan.get("marriedto");
-						
-						r.table("marriage").insert(r.hashMap("id", member.getUser().getId()).with("marriedto", new Object[0])).run(connection, OptArgs.of("durability", "soft"));
-						Get userData = r.table("marriage").get(member.getUser().getId());
-						Map<String, Object> userDataRan = userData.run(connection);
-						List<String> userMarriedTo = (List<String>) userDataRan.get("marriedto");
-						
-						if (userMarriedTo.contains(event.getAuthor().getId()) && authorMarriedTo.contains(member.getUser().getId())) {
-							event.reply("You are already married to that user :no_entry:").queue();
-							return;
-						}
-						
-						if (userMarriedTo.size() >= 5) {
-							event.reply("You are already married to the max amount of people (5) :no_entry:").queue();
-							return;
-						}
-						
-						if (authorMarriedTo.size() >= 5) {
-							event.reply("**" + event.getAuthor().getAsTag() + "** is already married to the max amount of people (5) :no_entry:").queue();
-							return;
-						}
-						
-						message.delete().queue();
-						event.reply("Congratulations **" + event.getAuthor().getName() + "** and **" + member.getUser().getName() + "** :heart: :tada:").queue();
-						
-						authorData.update(row -> r.hashMap("marriedto", row.g("marriedto").append(member.getUser().getId()))).runNoReply(connection);
-						userData.update(row -> r.hashMap("marriedto", row.g("marriedto").append(event.getAuthor().getId()))).runNoReply(connection);
+						userMarriedUsersUpdated = authorMarriedUsers;
 					}
+					
+					if (userMarriedUsersUpdated.contains(event.getAuthor().getIdLong()) && authorMarriedUsersUpdated.contains(member.getIdLong())) {
+						event.reply("You are already married to " + (isAuthor ? "yourself" : "that user") + " :no_entry:").queue();
+						return;
+					}
+					
+					if (authorMarriedUsersUpdated.size() >= 5) {
+						event.reply("You are already married to the max amount of people (5) :no_entry:").queue();
+						return;
+					}
+					
+					if (userMarriedUsersUpdated.size() >= 5) {
+						event.reply("**" + member.getUser().getAsTag() + "** is already married to the max amount of people (5) :no_entry:").queue();
+						return;
+					}
+					
+					UpdateOptions updateOptions = new UpdateOptions().upsert(true);
+					bulkData.add(new UpdateOneModel<>(Filters.eq("_id", event.getAuthor().getIdLong()), Updates.push("profile.marriedUsers", member.getIdLong()), updateOptions));
+					if (!isAuthor) {
+						bulkData.add(new UpdateOneModel<>(Filters.eq("_id", member.getIdLong()), Updates.push("profile.marriedUsers", event.getAuthor().getIdLong()), updateOptions));
+					}
+					
+					database.bulkWriteUsers(bulkData, (result, exception) -> {
+						if (exception != null) {
+							exception.printStackTrace();
+							event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+						} else {
+							message.delete().queue();
+							event.reply("Congratulations " + (isAuthor ? "on marrying yourself" : "**" + event.getAuthor().getName() + "** and **" + member.getUser().getName() + "**") + " :heart: :tada:").queue();
+						}
+					});
 				} else {
 					message.delete().queue();
 					event.reply("**" + event.getAuthor().getName() + "**, you can always try someone else.").queue();
@@ -809,21 +764,11 @@ public class FunModule {
 		});
 	}
 	
-	@SuppressWarnings("unchecked")
 	@Command(value="divorce", description="Divorce a user you are married to or put an argument of all to divorce everyone")
 	@Cooldown(value=5)
-	public void divorce(CommandEvent event, @Context Connection connection, @Argument(value="user | all", endless=true) String userArgument) {
-		Table table = r.table("marriage");
-		Get data = table.get(event.getAuthor().getId());
-		Map<String, Object> dataRan = data.run(connection);
-		
-		if (dataRan == null) {
-			event.reply("You are not married to anyone :no_entry:").queue();
-			return;
-		}
-		
-		List<String> marriedTo = (List<String>) dataRan.get("marriedto");
-		if (marriedTo.isEmpty()) {
+	public void divorce(CommandEvent event, @Context Database database, @Argument(value="user | all", endless=true) String userArgument) {
+		List<Long> marriedUsers = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("profile.marriedUsers")).getEmbedded(List.of("profile", "marriedUsers"), Collections.emptyList());
+		if (marriedUsers.isEmpty()) {
 			event.reply("You are not married to anyone :no_entry:").queue();
 			return;
 		}
@@ -831,23 +776,23 @@ public class FunModule {
 		if (userArgument.toLowerCase().equals("all")) {
 			event.reply(event.getAuthor().getName() + ", are you sure you want to divorce everyone you are currently married to? (Yes or No)").queue(message -> {
 				PagedUtils.getConfirmation(event, 60, event.getAuthor(), confirmation -> {
-					if (confirmation == true) {
-						Get updatedData = table.get(event.getAuthor().getId());
-						Map<String, Object> updatedDataRan = updatedData.run(connection);
+					if (confirmation) {
+						List<Long> marriedUsersUpdated = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("profile.marriedUsers")).getEmbedded(List.of("profile", "marriedUsers"), Collections.emptyList());
 						
-						List<String> updatedMarriedTo = (List<String>) updatedDataRan.get("marriedto");
-						if (updatedMarriedTo.isEmpty()) {
-							event.reply("You are no longer married to anyone :no_entry:").queue();
-							return;
+						List<WriteModel<Document>> bulkData = new ArrayList<>();
+						for (long userId : marriedUsersUpdated) {
+							bulkData.add(new UpdateOneModel<>(Filters.eq("_id", userId), Updates.pull("profile.marriedUsers", event.getAuthor().getIdLong())));
 						}
 						
-						event.reply("You are no longer married to anyone <:done:403285928233402378>").queue();
-						
-						for (String userId : updatedMarriedTo) {
-							table.get(userId).update(row -> r.hashMap("marriedto", row.g("marriedto").filter(d -> d.ne(event.getAuthor().getId())))).runNoReply(connection);
-						}
-						
-						updatedData.update(r.hashMap("marriedto", new Object[0])).runNoReply(connection);
+						bulkData.add(new UpdateOneModel<>(Filters.eq("_id", event.getAuthor().getIdLong()), Updates.unset("profile.marriedUsers")));
+						database.bulkWriteUsers(bulkData, (result, exception) -> {
+							if (exception != null) {
+								exception.printStackTrace();
+								event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+							} else {
+								event.reply("You are no longer married to anyone <:done:403285928233402378>").queue();
+							}
+						});
 					} else {
 						event.reply("Cancelled <:done:403285928233402378>").queue();
 						return;
@@ -856,12 +801,13 @@ public class FunModule {
 			});
 		} else {
 			User user = ArgumentUtils.getUser(userArgument);
+			List<WriteModel<Document>> bulkData = new ArrayList<>();
 			if (user == null) {
 				if (GeneralUtils.isNumber(userArgument)) {
-					if (marriedTo.contains(userArgument)) {
-						event.reply("You are no longer married to the user with the ID of **" + userArgument + "** <:done:403285928233402378>").queue();
-						data.update(row -> r.hashMap("marriedto", row.g("marriedto").filter(d -> d.ne(userArgument)))).runNoReply(connection);
-						table.get(userArgument).update(row -> r.hashMap("marriedto", row.g("marriedto").filter(d -> d.ne(event.getAuthor().getId())))).runNoReply(connection);
+					long userId = Long.parseLong(userArgument);
+					if (marriedUsers.contains(userId)) {
+						bulkData.add(new UpdateOneModel<>(Filters.eq("_id", event.getAuthor().getIdLong()), Updates.pull("profile.marriedUsers", userId)));
+						bulkData.add(new UpdateOneModel<>(Filters.eq("_id", userId), Updates.pull("profile.marriedUsers", event.getAuthor().getIdLong())));
 					} else {
 						event.reply("You are not married to that user :no_entry:").queue();
 						return;
@@ -871,22 +817,29 @@ public class FunModule {
 					return;
 				}
 			} else {
-				if (marriedTo.contains(user.getId())) {
-					event.reply("You are no longer married to **" + user.getAsTag() + "** <:done:403285928233402378>").queue();
-					data.update(row -> r.hashMap("marriedto", row.g("marriedto").filter(d -> d.ne(user.getId())))).runNoReply(connection);
-					table.get(user.getId()).update(row -> r.hashMap("marriedto", row.g("marriedto").filter(d -> d.ne(event.getAuthor().getId())))).runNoReply(connection);
+				if (marriedUsers.contains(user.getIdLong())) {
+					bulkData.add(new UpdateOneModel<>(Filters.eq("_id", event.getAuthor().getIdLong()), Updates.pull("profile.marriedUsers", user.getIdLong())));
+					bulkData.add(new UpdateOneModel<>(Filters.eq("_id", user.getIdLong()), Updates.pull("profile.marriedUsers", event.getAuthor().getIdLong())));
 				} else {
 					event.reply("You are not married to that user :no_entry:").queue();
 					return;
 				}
 			}
+			
+			database.bulkWriteUsers(bulkData, (result, exception) -> {
+				if (exception != null) {
+					exception.printStackTrace();
+					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+				} else {
+					event.reply("You are no longer married to " + (user == null ? "the user with the ID of **" + userArgument + "**" : "**" + user.getAsTag() + "**") + " <:done:403285928233402378>").queue();
+				}
+			});
 		}
 	}
 	
-	@SuppressWarnings("unchecked")
 	@Command(value="married", aliases={"married list", "marriedlist"}, description="View the users you or another user are married to")
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-	public void married(CommandEvent event, @Context Connection connection, @Argument(value="user", endless=true, nullDefault=true) String userArgument) {
+	public void married(CommandEvent event, @Context Database database, @Argument(value="user", endless=true, nullDefault=true) String userArgument) {
 		Member member;
 		if (userArgument == null) {
 			member = event.getMember();
@@ -898,16 +851,8 @@ public class FunModule {
 			}
 		}
 		
-		Get data = r.table("marriage").get(member.getUser().getId());
-		Map<String, Object> dataRan = data.run(connection);
-		
-		if (dataRan == null) {
-			event.reply("You are not married to anyone :no_entry:").queue();
-			return;
-		}
-		
-		List<String> marriedTo = (List<String>) dataRan.get("marriedto");
-		if (marriedTo.isEmpty()) {
+		List<Long> marriedUsers = database.getUserById(member.getIdLong(), null, Projections.include("profile.marriedUsers")).getEmbedded(List.of("profile", "marriedUsers"), Collections.emptyList());
+		if (marriedUsers.isEmpty()) {
 			event.reply("You are not married to anyone :no_entry:").queue();
 			return;
 		}
@@ -916,7 +861,7 @@ public class FunModule {
 		embed.setAuthor(member.getUser().getName() + "'s Partners", null, member.getUser().getEffectiveAvatarUrl());
 		embed.setColor(member.getColor());
 		
-		for (String userId : marriedTo) {
+		for (long userId : marriedUsers) {
 			User user = event.getShardManager().getUserById(userId);
 			if (user == null) {
 				embed.appendDescription("Unknown user (" + userId + ")\n");
@@ -1014,7 +959,7 @@ public class FunModule {
 		}
 		
 		AtomicInteger attempts = new AtomicInteger(0);
-		Map<String, Object> steamGame = steamGames.get(random.nextInt(steamGames.size()));
+		Map<String, Object> steamGame = steamGames.get(RANDOM.nextInt(steamGames.size()));
 		
 		Request request = new Request.Builder().url("https://store.steampowered.com/api/appdetails?appids=" + (int) steamGame.get("appid")).addHeader("Accept-Language", "en-GB").build();
 		
@@ -1237,9 +1182,9 @@ public class FunModule {
 		
 		List<List<Integer>> bombs = new ArrayList<>();
 		for (int bomb = 0; bomb < bombAmount; bomb++) {
-			List<Integer> bombPosition = List.of(random.nextInt(gridX), random.nextInt(gridY), 10);
+			List<Integer> bombPosition = List.of(RANDOM.nextInt(gridX), RANDOM.nextInt(gridY), 10);
 			while (bombs.contains(bombPosition)) {
-				bombPosition = List.of(random.nextInt(gridX), random.nextInt(gridY), 10);
+				bombPosition = List.of(RANDOM.nextInt(gridX), RANDOM.nextInt(gridY), 10);
 			}
 			
 			bombs.add(bombPosition);
@@ -1355,7 +1300,7 @@ public class FunModule {
 		
 		int teamNumber = 0;
 		while (!newPlayers.isEmpty()) {
-			String chosenPlayer = newPlayers.get(random.nextInt(newPlayers.size()));
+			String chosenPlayer = newPlayers.get(RANDOM.nextInt(newPlayers.size()));
 			newPlayers.remove(chosenPlayer);
 			team[teamNumber].add(chosenPlayer);
 			if (teamNumber == teams - 1) {
@@ -1380,7 +1325,7 @@ public class FunModule {
 	
 	@Command(value="guess the number", aliases={"guessthenumber", "gtn"}, description="You and another use will have to guess a number between 1 and 50 whoever is closest wins, winner gets the other users bet if one is placed", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 	@Cooldown(value=120)
-	public void guessTheNumber(CommandEvent event, @Context Connection connection, @Argument(value="user") String userArgument, @Argument(value="bet", nullDefault=true) Long bet) {
+	public void guessTheNumber(CommandEvent event, @Context Database database, @Argument(value="user") String userArgument, @Argument(value="bet", nullDefault=true) String betArgument) {
 		Member member = ArgumentUtils.getMember(event.getGuild(), userArgument);
 		if (member == null) {
 			event.reply("I could not find that user :no_entry:").queue();
@@ -1394,36 +1339,32 @@ public class FunModule {
 			return;
 		}
 		
-		Get authorData = null, userData = null;
-		Map<String, Object> authorDataRan = null, userDataRan = null;
-		if (bet != null) {
+		long authorBalance = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance")).getEmbedded(List.of("economy", "balance"), 0);
+		long bet = betArgument == null ? 0 : EconomyUtils.convertMoneyArgument(authorBalance, betArgument);
+		if (bet != 0) {
 			if (bet < 1) {
 				event.reply("The bet must be at least **$1** :no_entry:").queue();
 				event.removeCooldown();
 				return;
-			} else {
-				authorData = r.table("bank").get(event.getAuthor().getId());
-				authorDataRan = authorData.run(connection);
-				userData = r.table("bank").get(member.getUser().getId());
-				userDataRan = userData.run(connection);
-				
-				if (authorDataRan == null || (long) authorDataRan.get("balance") < bet) {
-					event.reply("**" + event.getAuthor().getAsTag() + "** doesn't have enough money :no_entry:").queue();
-					event.removeCooldown();
-					return;
-				} else if (userDataRan == null || (long) userDataRan.get("balance") < bet) {
-					event.reply("**" + member.getUser().getAsTag() + "** doesn't have enough money :no_entry:").queue();
-					event.removeCooldown();
-					return;
-				}
+			}
+			
+			if (authorBalance < bet) {
+				event.reply("**" + event.getAuthor().getAsTag() + "** doesn't have enough money :no_entry:").queue();
+				event.removeCooldown();
+				return;
+			}
+			
+			long userBalance = database.getUserById(member.getIdLong(), null, Projections.include("economy.balance")).getEmbedded(List.of("economy", "balance"), 0);
+			if (userBalance < bet) {
+				event.reply("**" + member.getUser().getAsTag() + "** doesn't have enough money :no_entry:").queue();
+				event.removeCooldown();
+				return;
 			}
 		}
 		
-		Get newAuthorData = authorData, newUserData = userData;
-		Map<String, Object> newAuthorDataRan = authorDataRan, newUserDataRan = userDataRan;
-		event.reply(member.getUser().getName() + ", Type `accept` or `yes` if you would like to play guess the number" + (bet == null ? "." : String.format(" for **$%,d**", bet))).queue($ -> {
+		event.reply(member.getUser().getName() + ", Type `accept` or `yes` if you would like to play guess the number" + (betArgument == null ? "." : String.format(" for **$%,d**", betArgument))).queue($ -> {
 			PagedUtils.getConfirmation(event, 60, member.getUser(), confirmed -> {
-				if (confirmed == true) {
+				if (confirmed) {
 					event.reply("I will send a message to **" + member.getUser().getAsTag() + "**, once they've responded I will send a message to **" + event.getAuthor().getAsTag() + "**").queue();
 					
 					member.getUser().openPrivateChannel().queue(userChannel -> {
@@ -1468,35 +1409,45 @@ public class FunModule {
 											int authorDifference = Math.abs(authorNumber - myNumber);
 											int userDifference = Math.abs(userNumber - myNumber);
 											Member winner = null;
-											String content = "My number was **" + myNumber + "**\n" + member.getUser().getName() + "s number was **" + userNumber + "**\n" + event.getAuthor().getName() + "s number was **" + authorNumber + "**\n\n";
+											StringBuilder content = new StringBuilder("My number was **" + myNumber + "**\n" + member.getUser().getName() + "s number was **" + userNumber + "**\n" + event.getAuthor().getName() + "s number was **" + authorNumber + "**\n\n");
 											if (userDifference == authorDifference) {
-												content += "You both guessed the same number, It was a draw!";
+												content.append("You both guessed the same number, It was a draw!");
 											} else if (userDifference < authorDifference) {
-												content += member.getUser().getName() + " won! They were the closest to " + myNumber;
+												content.append(member.getUser().getName() + " won! They were the closest to " + myNumber);
 												winner = member;
 											} else {
-												content += event.getAuthor().getName() + " won! They were the closest to " + myNumber;
+												content.append(event.getAuthor().getName() + " won! They were the closest to " + myNumber);
 												winner = event.getMember();
 											}
 											
-											if (winner != null && bet != null) {
-												if ((long) newAuthorDataRan.get("balance") < bet) {
-													content += "\n**" + event.getAuthor().getAsTag() + "** no longer has enough money, bet has been cancelled.";
-												} else if ((long) newUserDataRan.get("balance") < bet) {
-													content += "\n**" + member.getUser().getAsTag() + "** no longer has enough money, bet has been cancelled.";
+											if (winner != null && betArgument != null) {
+												long authorBalanceUpdated = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance")).getEmbedded(List.of("economy", "balance"), 0);
+												long userBalanceUpdated = database.getUserById(member.getIdLong(), null, Projections.include("economy.balance")).getEmbedded(List.of("economy", "balance"), 0);
+												if (authorBalanceUpdated < bet) {
+													content.append("\n**" + event.getAuthor().getAsTag() + "** no longer has enough money, bet has been cancelled.");
+												} else if (userBalanceUpdated < bet) {
+													content.append("\n**" + member.getUser().getAsTag() + "** no longer has enough money, bet has been cancelled.");
 												} else {
-													content += String.format("\nThey have been rewarded **$%,d**", bet * 2);
-													if (winner.equals(event.getMember())) {
-														newAuthorData.update(row -> r.hashMap("balance", row.g("balance").add(bet))).runNoReply(connection);
-														newUserData.update(row -> r.hashMap("balance", row.g("balance").sub(bet))).runNoReply(connection);
-													} else {
-														newUserData.update(row -> r.hashMap("balance", row.g("balance").add(bet))).runNoReply(connection);
-														newAuthorData.update(row -> r.hashMap("balance", row.g("balance").sub(bet))).runNoReply(connection);
-													}
+													content.append(String.format("\nThey have been rewarded **$%,d**", bet * 2));
+													
+													List<WriteModel<Document>> bulkData = new ArrayList<>();
+													bulkData.add(new UpdateOneModel<>(Filters.eq("_id", event.getAuthor().getIdLong()), Updates.inc("economy.balance", winner.equals(event.getMember()) ? bet : -bet)));
+													bulkData.add(new UpdateOneModel<>(Filters.eq("_id", member.getIdLong()), Updates.inc("economy.balance", winner.equals(member) ? bet : -bet)));
+													
+													database.bulkWriteUsers(bulkData, (result, exception) -> {
+														if (exception != null) {
+															exception.printStackTrace();
+															event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+														} else {
+															event.reply(content.toString()).queue();
+														}
+													});
+													
+													return;
 												}
 											}
 											
-											event.reply(content).queue();
+											event.reply(content.toString()).queue();
 											event.removeCooldown();
 										});
 									});
@@ -1624,7 +1575,7 @@ public class FunModule {
 		event.reply(eq).queue();
 	}
 	
-	private static final List<String> regions = List.of("cn", "na", "eu", "sa", "ea", "sg");
+	private static final List<String> REGIONS = List.of("cn", "na", "eu", "sa", "ea", "sg");
 	
 	@Command(value="vain glory", aliases={"vain", "vg", "vainglory"}, description="Get statitstics about a specified player in the game vain glory", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 	@Async
@@ -1635,8 +1586,8 @@ public class FunModule {
 			region = "na";
 		}
 		
-		if (!regions.contains(region)) {
-			event.reply("I could not find that region, valid regions are `" + String.join("`, `", regions) + "` :no_entry:").queue();
+		if (!REGIONS.contains(region)) {
+			event.reply("I could not find that region, valid regions are `" + String.join("`, `", REGIONS) + "` :no_entry:").queue();
 			return;
 		}
 		
@@ -1816,7 +1767,7 @@ public class FunModule {
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void meme(CommandEvent event) {
 		String[] urls = {"https://www.reddit.com/r/dankmemes.json?sort=new&limit=100", "https://www.reddit.com/r/memeeconomy.json?sort=new&limit=100"};
-		String url = urls[random.nextInt(urls.length)];
+		String url = urls[RANDOM.nextInt(urls.length)];
 		
 		Request request = new Request.Builder().url(url).build();
 		
@@ -1829,7 +1780,7 @@ public class FunModule {
 				return;
 			}
 			
-			JSONObject data = json.getJSONObject("data").getJSONArray("children").getJSONObject(random.nextInt(100)).getJSONObject("data");
+			JSONObject data = json.getJSONObject("data").getJSONArray("children").getJSONObject(RANDOM.nextInt(100)).getJSONObject("data");
 			EmbedBuilder embed = new EmbedBuilder();
 			embed.setAuthor(data.getString("title"), "https://www.reddit.com" + data.getString("permalink"), "http://i.imgur.com/sdO8tAw.png");
 			embed.setImage(data.getString("url"));
@@ -2298,7 +2249,7 @@ public class FunModule {
 		
 		if (json.has("colour")) {
 			Object colour = json.get("colour");
-			Matcher hexMatch = ArgumentUtils.hexRegex.matcher(String.valueOf(colour));
+			Matcher hexMatch = ArgumentUtils.HEX_REGEX.matcher(String.valueOf(colour));
 			if (hexMatch.matches()) {
 				embed.setColor(Color.decode("#" + hexMatch.group(1)));
 			} else {
@@ -2410,7 +2361,7 @@ public class FunModule {
 	public void randomCaps(CommandEvent event, @Argument(value="text", endless=true) String text) {
 		String content = "";
 		for (char character : text.toCharArray()) {
-			int number = random.nextInt(2);
+			int number = RANDOM.nextInt(2);
 			if (number == 1) {
 				content += Character.toUpperCase(character);
 			} else if (number == 0) {
@@ -2437,50 +2388,57 @@ public class FunModule {
 		event.reply(text.substring(0, Math.min(text.length(), 2000))).queue();
 	}
 	
-	private static List<String> rockChoices = List.of("r", "rock");
-	private static List<String> paperChoices = List.of("p", "paper");
-	private static List<String> scissorsChoices = List.of("s", "scissors", "scissor");
-	private static List<String> rpsEmotes = List.of("Rock :moyai:", "Paper :page_facing_up:", "Scissors :scissors:");
+	private final List<String> rockChoices = List.of("r", "rock");
+	private final List<String> paperChoices = List.of("p", "paper");
+	private final List<String> scissorsChoices = List.of("s", "scissors", "scissor");
+	private final List<String> rpsEmotes = List.of("Rock :moyai:", "Paper :page_facing_up:", "Scissors :scissors:");
 	
 	@Command(value="rps", aliases={"rock paper scissors", "rockpaperscissors"}, description="Play rock paper scissors again the bot")
-	public void rps(CommandEvent event, @Context Connection connection, @Argument(value="rock | paper | scissors") String choice) {
+	public void rps(CommandEvent event, @Context Database database, @Argument(value="rock | paper | scissors") String choice) {
 		int choiceInt;
-		if (rockChoices.contains(choice)) {
+		if (this.rockChoices.contains(choice)) {
 			choiceInt = 0;
-		} else if (paperChoices.contains(choice)) {
+		} else if (this.paperChoices.contains(choice)) {
 			choiceInt = 1;
-		} else if (scissorsChoices.contains(choice)) {
+		} else if (this.scissorsChoices.contains(choice)) {
 			choiceInt = 2;
 		} else {
 			event.reply("Your choice has to be `rock`, `paper` or `scissors` :no_entry:").queue();
 			return;
 		}
 		
-		r.table("rps").insert(r.hashMap("id", event.getAuthor().getId()).with("rps_losses", 0).with("rps_wins", 0).with("rps_draws", 0)).run(connection, OptArgs.of("durability", "soft"));
-		Get data = r.table("rps").get(event.getAuthor().getId());
-		Map<String, Object> dataRan = data.run(connection);
-		
-		int botChoice = random.nextInt(3);
-		String outcome = event.getAuthor().getName() + ": " + rpsEmotes.get(choiceInt) + "\n" + event.getSelfUser().getName() + ": " + rpsEmotes.get(botChoice);
+		int botChoice = RANDOM.nextInt(3);
+		Bson update = new BsonDocument(), projection = Projections.include("rps");
+		String key;
+		StringBuilder outcome = new StringBuilder(event.getAuthor().getName() + ": " + this.rpsEmotes.get(choiceInt) + "\n" + event.getSelfUser().getName() + ": " + this.rpsEmotes.get(botChoice));
 		if (choiceInt == botChoice) {
-			int draws = Math.toIntExact(((long) dataRan.get("rps_draws")) + 1);
-			event.reply(outcome + "\n\nDraw, let's go again! Your **" + GeneralUtils.getNumberSuffix(draws) + "** draw!").queue();
-			data.update(row -> r.hashMap("rps_draws", row.g("rps_draws").add(1))).runNoReply(connection);
+			update = Updates.inc("rps.draws", 1);
+			key = "draws";
+			outcome.append("\n\nDraw, let's go again! Your **%s** draw!");
 		} else if ((botChoice == 2 && choiceInt == 0) || choiceInt - 1 == botChoice) {
-			int wins = Math.toIntExact(((long) dataRan.get("rps_wins")) + 1);
-			event.reply(outcome + "\n\nYou win, Your **" + GeneralUtils.getNumberSuffix(wins) + "** win! :trophy:").queue();
-			data.update(row -> r.hashMap("rps_wins", row.g("rps_wins").add(1))).runNoReply(connection);
+			update = Updates.inc("rps.wins", 1);
+			key = "wins";
+			outcome.append("\n\nYou win, Your **%s** win! :trophy:");
 		} else {
-			int losses = Math.toIntExact(((long) dataRan.get("rps_losses")) + 1);
-			event.reply(outcome + "\n\nYou lose, better luck next time. Your **" + GeneralUtils.getNumberSuffix(losses) + "** loss!").queue();
-			data.update(row -> r.hashMap("rps_losses", row.g("rps_losses").add(1))).runNoReply(connection);
+			update = Updates.inc("rps.losses", 1);
+			key = "losses";
+			outcome.append("\n\nYou lose, better luck next time. Your **%s** loss!");
 		}
 	
+		database.getUserByIdAndUpdate(event.getAuthor().getIdLong(), update, projection, (result, exception) -> {
+			if (exception != null) {
+				exception.printStackTrace();
+				event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+			} else {
+				String amount = GeneralUtils.getNumberSuffix(result.getEmbedded(List.of("rps", key), Integer.class));
+				event.replyFormat(outcome.toString(), amount).queue();
+			}
+		});
 	}
 	
 	@Command(value="rps stats", aliases={"rpsstats", "rpss", "rock paper scissors stats", "rockpaperscissorsstats"}, description="View your rock paper scissors stats")
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-	public void rpsStats(CommandEvent event, @Context Connection connection, @Argument(value="user", endless=true, nullDefault=true) String userArgument) {
+	public void rpsStats(CommandEvent event, @Context Database database, @Argument(value="user", endless=true, nullDefault=true) String userArgument) {
 		Member member;
 		if (userArgument == null) {
 			member = event.getMember();
@@ -2492,24 +2450,14 @@ public class FunModule {
 			}
 		}
 		
-		Map<String, Object> data = r.table("rps").get(member.getUser().getId()).run(connection);
-		int losses, draws, wins;
-		if (data == null) {
-			losses = 0;
-			wins = 0;
-			draws = 0;
-		} else {
-			losses = Math.toIntExact((long) data.get("rps_losses"));
-			draws = Math.toIntExact((long) data.get("rps_draws"));
-			wins = Math.toIntExact((long) data.get("rps_wins"));
-		}
-		
+		Document data = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("rps")).get("rps", Database.EMPTY_DOCUMENT);
+		int losses = data.getInteger("losses", 0), draws = data.getInteger("draws", 0), wins = data.getInteger("wins", 0);
 		int allGames = losses + wins + draws;
 		
 		EmbedBuilder embed = new EmbedBuilder();
 		embed.setColor(member.getColor());
 		embed.setAuthor(member.getUser().getAsTag(), null, member.getUser().getEffectiveAvatarUrl());
-		embed.setDescription(String.format("Wins: %,d\nDraws: %,d\nLosses: %,d\n\nWin Percentage: %.2f%%", wins, draws, losses, allGames == 0 && wins == 0 ? 0 : (((float) wins / (allGames)) * 100)));
+		embed.setDescription(String.format("Wins: %,d\nDraws: %,d\nLosses: %,d\n\nWin Percentage: %.2f%%", wins, draws, losses, allGames == 0 ? 0 : (((float) wins / allGames) * 100)));
 		
 		event.reply(embed.build()).queue();
 	}

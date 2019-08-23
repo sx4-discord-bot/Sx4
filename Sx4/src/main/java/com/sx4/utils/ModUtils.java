@@ -1,24 +1,28 @@
 package com.sx4.utils;
 
 
-import static com.rethinkdb.RethinkDB.r;
-
 import java.time.Clock;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.EnumSet;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.function.Consumer;
+import java.util.function.BiConsumer;
 
-import com.rethinkdb.gen.ast.Get;
-import com.rethinkdb.model.OptArgs;
-import com.rethinkdb.net.Connection;
+import org.bson.Document;
+import org.bson.conversions.Bson;
+
+import com.mongodb.client.MongoCollection;
+import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.Projections;
+import com.mongodb.client.model.UpdateOneModel;
+import com.mongodb.client.model.UpdateOptions;
+import com.mongodb.client.model.Updates;
 import com.sx4.core.Sx4Bot;
+import com.sx4.database.Database;
 import com.sx4.events.MuteEvents;
-import com.sx4.settings.Settings;
+import com.sx4.utils.WarnUtils.Warning;
 
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
@@ -35,30 +39,25 @@ import net.dv8tion.jda.internal.utils.PermissionUtil;
 
 public class ModUtils {
 	
-	public static final List<Map<String, Object>> DEFAULT_WARN_CONFIG = new ArrayList<>();
+	public static List<Document> defaultWarnConfiguration = new ArrayList<>();
 	
 	static {
-		Map<String, Object> secondWarning = new HashMap<>();
-		secondWarning.put("action", "mute");
-		secondWarning.put("warning", 2);
-		secondWarning.put("time", 1800);
-		DEFAULT_WARN_CONFIG.add(secondWarning);
-		Map<String, Object> thirdWarning = new HashMap<>();
-		thirdWarning.put("action", "kick");
-		thirdWarning.put("warning", 3);
-		DEFAULT_WARN_CONFIG.add(thirdWarning);
-		Map<String, Object> fourthWarning = new HashMap<>();
-		fourthWarning.put("action", "ban");
-		fourthWarning.put("warning", 4);
-		DEFAULT_WARN_CONFIG.add(fourthWarning);
+		Document secondWarning = new Document().append("action", "mute").append("warning", 2).append("time", 1800);
+		defaultWarnConfiguration.add(secondWarning);
+		
+		Document thirdWarning = new Document().append("action", "kick").append("warning", 3);
+		defaultWarnConfiguration.add(thirdWarning);
+		
+		Document fourthWarning = new Document().append("action", "ban").append("warning", 4);
+		defaultWarnConfiguration.add(fourthWarning);
 	}
 	
-	public static void setupMuteRole(Guild guild, Consumer<Role> muteRole, Consumer<String> error) {
+	public static void getOrCreateMuteRole(Guild guild, BiConsumer<Role, String> muteRole) {
 		String roleName = "Muted - " + guild.getSelfMember().getUser().getName();
 		
 		Role role = MuteEvents.getMuteRole(guild);
 		if (role != null) {
-			muteRole.accept(role);
+			muteRole.accept(role, null);
 
 			for (TextChannel channel : guild.getTextChannels()) {
 				PermissionOverride roleOverrides = channel.getPermissionOverride(role);
@@ -76,8 +75,8 @@ public class ModUtils {
 		} else {
 			for (Role guildRole : guild.getRoles()) {
 				if (guildRole.getName().equals(roleName)) {
-					muteRole.accept(guildRole);
-					MuteEvents.putMuteRole(guild.getId(), guildRole.getId());
+					muteRole.accept(guildRole, null);
+					MuteEvents.putMuteRole(guild.getIdLong(), guildRole.getIdLong());
 					
 					for (TextChannel channel : guild.getTextChannels()) {
 						PermissionOverride roleOverrides = channel.getPermissionOverride(guildRole);
@@ -96,15 +95,14 @@ public class ModUtils {
 				}
 			}
 			
-			if (guild.getRoles().size() >= 250) {
-				error.accept("I cannot create the mute role because the server has the max amount of roles (250) :no_entry:");		
-				muteRole.accept(null);
+			if (guild.getRoles().size() >= 250) {		
+				muteRole.accept(null, "I cannot create the mute role because the server has the max amount of roles (250)");
 				return;
 			}
 			
 			guild.createRole().setName(roleName).queue(newRole -> {
-				muteRole.accept(newRole);
-				MuteEvents.putMuteRole(guild.getId(), newRole.getId());
+				muteRole.accept(newRole, null);
+				MuteEvents.putMuteRole(guild.getIdLong(), newRole.getIdLong());
 				
 				for (TextChannel channel : guild.getTextChannels()) {
 					PermissionOverride roleOverrides = channel.getPermissionOverride(newRole);
@@ -179,14 +177,14 @@ public class ModUtils {
 		return embed.build();
 	}
 	
-	public static MessageEmbed getWarnEmbed(Guild guild, User moderator, List<Map<String, Object>> warnConfig, long warning, boolean punishments, String action, String reason) {
+	public static MessageEmbed getWarnEmbed(Guild guild, User moderator, boolean punishments, List<Document> warnConfiguration, Warning warning, String reason) {
 		String nextActionString = "Warn";
-		if (punishments == true) {
-			Map<String, Object> nextAction = getWarning(warnConfig, warning + 1);
+		if (punishments) {
+			Warning nextAction = WarnUtils.getWarning(warnConfiguration, warning.getWarning() + 1);
 			if (nextAction != null) {
-				String actionData = (String) nextAction.get("action");
-				if (nextAction.containsKey("time")) {
-					nextActionString = GeneralUtils.title(actionData) + " (" + TimeUtils.toTimeString(nextAction.get("time") instanceof Integer ? (int) nextAction.get("time") : (long) nextAction.get("time"), ChronoUnit.SECONDS) + ")";
+				String actionData = nextAction.getAction();
+				if (nextAction.hasDuration()) {
+					nextActionString = GeneralUtils.title(actionData) + " (" + TimeUtils.toTimeString(nextAction.getDuration(), ChronoUnit.SECONDS) + ")";
 				} else {
 					nextActionString = GeneralUtils.title(actionData);
 				}
@@ -194,7 +192,7 @@ public class ModUtils {
 		}
 		
 		EmbedBuilder embed = new EmbedBuilder();
-		embed.setAuthor("You have been " + action + " in " + guild.getName() + " (" + GeneralUtils.getNumberSuffix(Math.toIntExact(warning)) + " Warning)", null, guild.getIconUrl());
+		embed.setAuthor("You have been " + WarnUtils.getSuffixedAction(warning.getAction()) + " in " + guild.getName() + " (" + GeneralUtils.getNumberSuffix(warning.getWarning()) + " Warning)", null, guild.getIconUrl());
 		embed.setTimestamp(Instant.now());
 		embed.addField("Moderator", moderator.getAsTag() + " (" + moderator.getId() + ")", false);
 		embed.addField("Reason", reason == null ? "None Given" : GeneralUtils.limitString(reason, MessageEmbed.VALUE_MAX_LENGTH), false);
@@ -202,95 +200,37 @@ public class ModUtils {
 		return embed.build();
 	}
 	
-	public static Map<String, Object> getWarning(List<Map<String, Object>> warnConfig, long warning) {
-		if (warnConfig.isEmpty()) {
-			warnConfig = DEFAULT_WARN_CONFIG;
-		}
-		
-		if (getMaxWarning(warnConfig) + 1 <= warning) {
-			return getWarning(warnConfig, 1);
-		}
-		
-		long warningNumber;
-		for (Map<String, Object> warn : warnConfig) {
-			warningNumber = warn.get("warning") instanceof Integer ? (int) warn.get("warning") : (long) warn.get("warning");
-			if (warningNumber == warning) {
-				return warn;
-			}
-		}
-		
-		return null; //should only happen when the warning is a warn
-	}
-	
-	public static long getMaxWarning(List<Map<String, Object>> warnConfig) {
-		if (warnConfig.isEmpty()) {
-			warnConfig = DEFAULT_WARN_CONFIG;
-		}
-		
-		long maxWarning = 0;
-		long warningNumber;
-		for (Map<String, Object> warn : warnConfig) {
-			warningNumber = warn.get("warning") instanceof Integer ? (int) warn.get("warning") : (long) warn.get("warning");
-			if (maxWarning == 0) {
-				maxWarning = warningNumber;
-			} else {
-				if (warningNumber > maxWarning) {
-					maxWarning = warningNumber;
-				}
-			}
-		}
-		
-		return maxWarning;
-	}
-	
-	public static List<Map<String, Object>> getMuteData(String memberId, List<Map<String, Object>> users, long muteLength) {
+	public static UpdateOneModel<Document> getMuteUpdate(long guildId, long memberId, List<Document> users, Long muteLength) {
 		long timestamp = Clock.systemUTC().instant().getEpochSecond();
-		for (Map<String, Object> userData : users) {
-			if (userData.get("id").equals(memberId)) {
-				users.remove(userData);
-				userData.put("id", memberId);
-				userData.put("time", timestamp);
-				userData.put("amount", muteLength);
-				users.add(userData);
-				
-				return users;
+		for (Document userData : users) {
+			if (userData.getLong("id") == memberId) {
+				Bson update = Updates.combine(Updates.set("mute.users.$[user].timestamp", timestamp), Updates.set("mute.users.$[user].duration", muteLength));
+				UpdateOptions updateOptions = new UpdateOptions().arrayFilters(List.of(Filters.eq("user.id", memberId)));
+				return new UpdateOneModel<>(Filters.eq("_id", guildId), update, updateOptions);
 			}
 		}
 		
-		Map<String, Object> userData = new HashMap<>();
-		userData.put("id", memberId);
-		userData.put("time", timestamp);
-		userData.put("amount", muteLength);
-		users.add(userData);
-		
-		return users;
+		Document userData = new Document("id", memberId)
+				.append("duration", muteLength)
+				.append("timestamp", timestamp);
+
+		return new UpdateOneModel<>(Filters.eq("_id", guildId), Updates.push("mute.users", userData), new UpdateOptions().upsert(true));
 	}
 	
-	public static void createModLog(Guild guild, Connection connection, User moderator, User user, String action, String reason) {
-		Get data = r.table("modlogs").get(guild.getId()); 
-		Map<String, Object> dataRan = data.run(connection);
-		
-		if (dataRan == null) {
+	public static void createModLog(Guild guild, User moderator, User user, String action, String reason) {
+		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("modlog.enabled", "modlog.channel", "modlog.caseAmount")).get("modlog", Document.class);
+		if (data.isEmpty() || data.getBoolean("enabled", false) == false) {
 			return;
 		}
 		
-		if ((boolean) dataRan.get("toggle") == false) {
-			return;
-		}
-		
-		TextChannel channel;
-		String channelData = (String) dataRan.get("channel");
-		if (channelData == null) {
-			channel = null;
-		} else {
-			channel = guild.getTextChannelById(channelData);
-		}
-		
+		Long channelId = data.getLong("channelId");
+		TextChannel channel = channelId == null ? null : guild.getTextChannelById(channelId);
 		if (channel == null) {
 			return;
 		}
 		
-		long caseNumber = ((long) dataRan.get("case#")) + 1;
+		Integer caseNumber = data.getInteger("caseAmount", 0) + 1;
+		
 		String defaultMod = "Unknown (Update using `modlog case " + caseNumber + " <reason>`)";
 		String defaultReason = "None (Update using `modlog case " + caseNumber + " <reason>`)";
 		
@@ -301,63 +241,87 @@ public class ModUtils {
 		embed.addField("Moderator", moderator == null ? defaultMod : moderator.getAsTag(), false);
 		embed.addField("Reason", reason == null ? defaultReason : reason, false);
 		
-		Map<String, Object> newCase = new HashMap<String, Object>();
+		Document modlogData = new Document("id", caseNumber)
+				.append("action", action)
+				.append("reason", reason)
+				.append("moderatorId", moderator == null ? null : moderator.getIdLong())
+				.append("userId", user.getIdLong())
+				.append("timestamp", Clock.systemUTC().instant().getEpochSecond());
+		
 		if (guild.getSelfMember().hasPermission(channel, Permission.MESSAGE_EMBED_LINKS, Permission.MESSAGE_WRITE, Permission.MESSAGE_READ)) {
 			channel.sendMessage(embed.build()).queue(message -> {	
-				newCase.put("id", caseNumber);
-				newCase.put("action", action);
-				newCase.put("reason", reason);
-				newCase.put("mod", moderator == null ? null : moderator.getId());
-				newCase.put("user", user.getId());
-				newCase.put("time", Clock.systemUTC().instant().getEpochSecond());
-				newCase.put("message", message.getId());
+				modlogData.append("messageId", message.getIdLong());
 				
-				data.update(row -> r.hashMap("case", row.g("case").append(newCase)).with("case#", row.g("case#").add(1))).runNoReply(connection);
+				Database.get().insertModLogCase(modlogData, (result, exception) -> {
+					if (exception != null) {
+						exception.printStackTrace();
+					}
+				});
+
+				Database.get().updateGuildById(guild.getIdLong(), Updates.inc("modlog.caseAmount", 1), (result, exception) -> {
+					if (exception != null) {
+						exception.printStackTrace();
+					}
+				});
 			});
 		} else {
-			newCase.put("id", caseNumber);
-			newCase.put("action", action);
-			newCase.put("reason", reason);
-			newCase.put("mod", moderator == null ? null : moderator.getId());
-			newCase.put("user", user.getId());
-			newCase.put("time", Clock.systemUTC().instant().getEpochSecond());
-			newCase.put("message", null);
+			modlogData.append("messageId", null);
 			
-			data.update(row -> r.hashMap("case", row.g("case").append(newCase)).with("case#", row.g("case#").add(1))).runNoReply(connection);
+			Database.get().insertModLogCase(modlogData, (result, exception) -> {
+				if (exception != null) {
+					exception.printStackTrace();
+				}
+			});
+
+			Database.get().updateGuildById(guild.getIdLong(), Updates.inc("modlog.caseAmount", 1), (result, exception) -> {
+				if (exception != null) {
+					exception.printStackTrace();
+				}
+			});
 		}
 	}
 	
-	public static void createOffence(Guild guild, Connection connection, User moderator, User user, String action, String reason) {
-		r.table("offence").insert(r.hashMap("id", user.getId()).with("offences", new Object[0])).run(connection, OptArgs.of("durability", "soft"));
-		Get data = r.table("offence").get(user.getId());
-		
-		Map<String, Object> newOffence = new HashMap<String, Object>();
-		newOffence.put("mod", moderator == null ? null : moderator.getId());
-		newOffence.put("time", Clock.systemUTC().instant().getEpochSecond());
-		newOffence.put("proof", null);
-		newOffence.put("server", guild.getId());
-		newOffence.put("action", action.replace("(Automatic)", ""));
-		newOffence.put("reason", reason);
-		
-		data.update(row -> r.hashMap("offences", row.g("offences").append(newOffence))).runNoReply(connection);
+	public static void createOffence(Guild guild, User moderator, User user, String action, String reason) {
+		Document offenceData = new Document("moderatorId", moderator == null ? null : moderator.getIdLong())
+				.append("timestamp", Clock.systemUTC().instant().getEpochSecond())
+				.append("guildId", guild.getIdLong())
+				.append("action", action.replace("(Automatic)", ""))
+				.append("reason", reason);
+				
+		Database.get().updateUserById(user.getIdLong(), Updates.push("offences", offenceData), (result, exception) -> {
+			if (exception != null) {
+				exception.printStackTrace();
+			}
+		});
 	}
 	
-	public static void createModLogAndOffence(Guild guild, Connection connection, User moderator, User user, String action, String reason) {
-		createModLog(guild, connection, moderator, user, action, reason);
-		createOffence(guild, connection, moderator, user, action, reason);
+	public static void createModLogAndOffence(Guild guild, User moderator, User user, String action, String reason) {
+		ModUtils.createModLog(guild, moderator, user, action, reason);
+		ModUtils.createOffence(guild, moderator, user, action, reason);
 	}
 	
 	public static List<String> getPrefixes(Guild guild, User user) {
-		return ModUtils.getPrefixes(guild, user, Settings.DATABASE_NAME);
+		return ModUtils.getPrefixes(guild, user, true);
 	}
 	
-	public static List<String> getPrefixes(Guild guild, User user, String databaseName) {
-		List<String> userPrefixes = r.db(databaseName).table("prefix").get(user.getId()).getField("prefixes").default_(new String[0]).run(Sx4Bot.getConnection());
-		List<String> serverPrefixes = guild == null ? new ArrayList<>() : r.db(databaseName).table("prefix").get(guild.getId()).getField("prefixes").default_(new String[0]).run(Sx4Bot.getConnection());
+	public static List<String> getPrefixes(Guild guild, User user, boolean current) {
+		Database database = Database.get();
 		
-		if (userPrefixes.isEmpty() && serverPrefixes.isEmpty()) {
-			return Sx4Bot.getCommandListener().getDefaultPrefixes();
-		} else if (!userPrefixes.isEmpty()) {
+		MongoCollection<Document> currentUserCollection = current ? database.getUsers() : database.getOtherUsers();
+		MongoCollection<Document> currentGuildCollection = current ? database.getGuilds() : database.getOtherGuilds();
+		
+		Bson projection = Projections.include("prefixes");
+		
+		Document userPrefixesData = currentUserCollection.find(Filters.eq("_id", user.getIdLong())).projection(projection).first();
+		Document serverPrefixesData = null;
+		if (guild != null) {
+			serverPrefixesData = currentGuildCollection.find(Filters.eq("_id", guild.getIdLong())).projection(projection).first();
+		}
+		
+		List<String> userPrefixes = userPrefixesData == null ? Collections.emptyList() : userPrefixesData.getList("prefixes", String.class, Collections.emptyList());
+		List<String> serverPrefixes = serverPrefixesData == null ? Collections.emptyList() : serverPrefixesData.getList("prefixes", String.class, Collections.emptyList());
+		
+		if (!userPrefixes.isEmpty()) {
 			return userPrefixes;
 		} else if (!serverPrefixes.isEmpty()) {
 			return serverPrefixes;

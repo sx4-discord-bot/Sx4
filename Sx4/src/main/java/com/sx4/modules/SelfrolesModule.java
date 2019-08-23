@@ -1,27 +1,31 @@
 package com.sx4.modules;
 
-import static com.rethinkdb.RethinkDB.r;
-
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.Collections;
 import java.util.List;
-import java.util.Map;
+
+import org.bson.Document;
+import org.bson.conversions.Bson;
 
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
 import com.jockie.bot.core.command.Command.AuthorPermissions;
 import com.jockie.bot.core.command.Command.BotPermissions;
+import com.jockie.bot.core.command.ICommand.ContentOverflowPolicy;
 import com.jockie.bot.core.command.Context;
 import com.jockie.bot.core.command.Initialize;
 import com.jockie.bot.core.command.impl.CommandEvent;
 import com.jockie.bot.core.command.impl.CommandImpl;
 import com.jockie.bot.core.module.Module;
-import com.rethinkdb.gen.ast.Get;
-import com.rethinkdb.model.OptArgs;
-import com.rethinkdb.net.Connection;
+import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.Projections;
+import com.mongodb.client.model.UpdateOptions;
+import com.mongodb.client.model.Updates;
 import com.sx4.categories.Categories;
 import com.sx4.core.Sx4Command;
+import com.sx4.core.Sx4CommandEventListener;
+import com.sx4.database.Database;
 import com.sx4.utils.ArgumentUtils;
 import com.sx4.utils.HelpUtils;
 import com.sx4.utils.PagedUtils;
@@ -30,7 +34,6 @@ import com.sx4.utils.PagedUtils.PagedResult;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Emote;
-import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.entities.MessageReaction;
 import net.dv8tion.jda.api.entities.Role;
@@ -44,16 +47,19 @@ public class SelfrolesModule {
 		
 		private List<String> nullStrings = List.of("off", "none", "null", "reset");
 		
-		private boolean isBotMenu(Message message, Map<String, Object> data) {
-			if (data.containsKey("bot_menu")) {
-				return (boolean) data.get("bot_menu");
+		private MessageEmbed getUpdatedEmbed(MessageEmbed oldEmbed, List<Document> roles, String emoteDisplay, Role role) {
+			EmbedBuilder embed = new EmbedBuilder();
+			MessageEmbed reactionRoleEmbed = oldEmbed;
+			if (roles.isEmpty()) {
+				embed.setDescription(emoteDisplay + ": " + role.getAsMention());
 			} else {
-				if (message.getAuthor().equals(message.getJDA().getSelfUser()) && !message.getEmbeds().isEmpty()) {
-					return true;
-				}
+				embed.setDescription(reactionRoleEmbed.getDescription() + "\n\n" + emoteDisplay + ": " + role.getAsMention());
 			}
+				
+			embed.setTitle(reactionRoleEmbed.getTitle());
+			embed.setFooter(reactionRoleEmbed.getFooter().getText(), null);
 			
-			return false;
+			return embed.build();
 		}
 		
 		public ReactionRoleCommand() {
@@ -71,10 +77,7 @@ public class SelfrolesModule {
 		@Command(value="create", description="Create a base menu for the reaction role, this is used if you don't have a custom message to use")
 		@AuthorPermissions({Permission.MANAGE_ROLES})
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-		public void create(CommandEvent event, @Context Connection connection, @Argument(value="channel") String channelArgument, @Argument(value="title", endless=true, nullDefault=true) String title) {
-			r.table("reactionrole").insert(r.hashMap("id", event.getGuild().getId()).with("dm", true).with("messages", new Object[0])).run(connection, OptArgs.of("durability", "soft"));
-			Get data = r.table("reactionrole").get(event.getGuild().getId());
-			
+		public void create(CommandEvent event, @Context Database database, @Argument(value="channel") String channelArgument, @Argument(value="title", endless=true, nullDefault=true) String title) {
 			TextChannel channel = ArgumentUtils.getTextChannel(event.getGuild(), channelArgument);
 			if (channel == null) {
 				event.reply("I could not find that channel :no_entry:").queue();
@@ -94,26 +97,22 @@ public class SelfrolesModule {
 			embed.setFooter("React to the corresponding emote to get the desired role", null);
 			
 			channel.sendMessage(embed.build()).queue(message -> {
-				event.reply("Your base reaction role menu has been created in " + channel.getAsMention() + " <:done:403285928233402378>").queue();
-				
-				data.update(row -> r.hashMap("messages", row.g("messages")
-						.append(r.hashMap("id", message.getId())
-								.with("channel", channel.getId())
-								.with("roles", new Object[0])
-								.with("bot_menu", true)
-								.with("max_roles", 0)))).runNoReply(connection);
+				Document reactionRole = new Document("id", message.getIdLong()).append("channelId", channel.getIdLong()).append("botMenu", true);
+				database.updateGuildById(event.getGuild().getIdLong(), Updates.push("reactionRole.reactionRoles", reactionRole), (result, exception) -> {
+					if (exception != null) {
+						exception.printStackTrace();
+						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+					} else {
+						event.reply("Your base reaction role menu has been created in " + channel.getAsMention() + " <:done:403285928233402378>").queue();
+					}
+				});
 			});
 		}
 		
-		@SuppressWarnings("unchecked")
 		@Command(value="add", description="Add a reaction to give a role to a user when reacted on")
 		@AuthorPermissions({Permission.MANAGE_ROLES})
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS, Permission.MESSAGE_ADD_REACTION, Permission.MESSAGE_HISTORY})
-		public void add(CommandEvent event, @Context Connection connection, @Argument(value="message id") String messageId, @Argument(value="emote") String emoteArgument, @Argument(value="role", endless=true) String roleArgument) throws UnsupportedEncodingException {
-			r.table("reactionrole").insert(r.hashMap("id", event.getGuild().getId()).with("dm", true).with("messages", new Object[0])).run(connection, OptArgs.of("durability", "soft"));
-			Get data = r.table("reactionrole").get(event.getGuild().getId());
-			Map<String, Object> dataRan = data.run(connection);
-			
+		public void add(CommandEvent event, @Context Database database, @Argument(value="message id") long messageId, @Argument(value="emote") String emoteArgument, @Argument(value="role", endless=true) String roleArgument) throws UnsupportedEncodingException {
 			Role role = ArgumentUtils.getRole(event.getGuild(), roleArgument);
 			if (role == null) {
 				event.reply("I could not find that role :no_entry:").queue();
@@ -142,15 +141,22 @@ public class SelfrolesModule {
 			
 			String unicodeEmote = emoteArgument;
 			Emote emote = ArgumentUtils.getEmote(event.getGuild(), emoteArgument);
-			String emoteStore = emote == null ? unicodeEmote : emote.getId();
+			boolean unicode = emote == null;
 			
-			List<Map<String, Object>> messages = (List<Map<String, Object>>) dataRan.get("messages");
-			for (Map<String, Object> messageData : messages) {
-				if (messageData.get("id").equals(messageId)) {
-					TextChannel channel = event.getGuild().getTextChannelById((String) messageData.get("channel"));
+			List<Document> reactionRoles = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("reactionRole.reactionRoles")).getEmbedded(List.of("reactionRole.reactionRoles"), Collections.emptyList());
+			for (Document reactionRole : reactionRoles) {
+				if (reactionRole.getLong("id") == messageId) {
+					TextChannel channel = event.getGuild().getTextChannelById(reactionRole.getLong("channelId"));
 					if (channel == null) {
-						event.reply("The channel which the reaction role was in has been deleted :no_entry:").queue();
-						data.update(row -> r.hashMap("messages", row.g("messages").filter(d -> d.g("id").ne(messageId)))).runNoReply(connection);
+						database.updateGuildById(event.getGuild().getIdLong(), Updates.pull("reactionRole.reactionRoles", Filters.eq("channelId", reactionRole.getLong("channelId"))), (result, exception) -> {
+							if (exception != null) {
+								exception.printStackTrace();
+								event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+							} else {
+								event.reply("The channel which the reaction role was in has been deleted :no_entry:").queue();
+							}
+						});
+						
 						return;
 					}
 					
@@ -160,48 +166,46 @@ public class SelfrolesModule {
 							return;
 						}
 						
-						List<Map<String, Object>> roles = (List<Map<String, Object>>) messageData.get("roles");
-						for (Map<String, Object> roleData : roles) {
+						List<Document> roles = reactionRole.getList("roles", Document.class, Collections.emptyList());
+						for (Document roleData : roles) {
 							if (roleData.get("id").equals(role.getId())) {
 								event.reply("That role is already on the reaction role :no_entry:").queue();
 								return;
 							}
 							
-							if (roleData.get("emote").equals(emoteStore)) {
-								event.reply("That emote is already on the reaction role :no_entry:").queue();
-								return;
+							if (unicode) {
+								String emoteName = roleData.getEmbedded(List.of("emote", "name"), String.class);
+								if (emoteName != null && emoteName.equals(unicodeEmote)) {
+									event.reply("That emote is already on the reaction role :no_entry:").queue();
+									return;
+								}
+							} else {
+								Long emoteId = roleData.getEmbedded(List.of("emote", "id"), Long.class);
+								if (emoteId != null && emoteId == emote.getIdLong()) {
+									event.reply("That emote is already on the reaction role :no_entry:").queue();
+									return;
+								}
 							}
+							
 						}
 						
-						if (emote == null) {
+						if (!unicode) {
 							message.addReaction(unicodeEmote).queue($ -> {
-								if (isBotMenu(message, messageData)) {
-									EmbedBuilder embed = new EmbedBuilder();
-									MessageEmbed reactionRole = message.getEmbeds().get(0);
-									if (roles.isEmpty()) {
-										embed.setDescription((emote != null ? emote.getAsMention() : unicodeEmote) + ": " + role.getAsMention());
-									} else {
-										embed.setDescription(reactionRole.getDescription() + "\n\n" + (emote != null ? emote.getAsMention() : unicodeEmote) + ": " + role.getAsMention());
-									}
-										
-									embed.setTitle(reactionRole.getTitle());
-									embed.setFooter(reactionRole.getFooter().getText(), null);
-										
-									message.editMessage(embed.build()).queue();
-										
-									messageData.put("bot_menu", true);
+								if (reactionRole.getBoolean("botMenu")) {
+									message.editMessage(this.getUpdatedEmbed(message.getEmbeds().get(0), roles, unicode ? unicodeEmote : emote.getAsMention(), role)).queue();
 								}
 								
-								event.reply("The role `" + role.getName() + "` will now be given when reacting to " + (emote == null ? unicodeEmote : emote.getAsMention()) + " <:done:403285928233402378>").queue();
+								Document roleData = new Document("id", role.getIdLong()).append("emote", new Document("id", emote.getIdLong()));
 								
-								Map<String, Object> newData = new HashMap<>();
-								newData.put("id", role.getId());
-								newData.put("emote", emoteStore);
-								roles.add(newData);
-								messages.remove(messageData);
-								messageData.put("roles", roles);
-								messages.add(messageData);
-								data.update(r.hashMap("messages", messages)).runNoReply(connection);
+								UpdateOptions updateOptions = new UpdateOptions().arrayFilters(List.of(Filters.eq("reactionRole.id", messageId))).upsert(true);
+								database.updateGuildById(event.getGuild().getIdLong(), null, Updates.push("reactionRole.reactionRoles.$[reactionRole].roles", roleData), updateOptions, (result, exception) -> {
+									if (exception != null) {
+										exception.printStackTrace();
+										event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+									} else {
+										event.reply("The role `" + role.getName() + "` will now be given when reacting to " + (unicode ? unicodeEmote : emote.getAsMention()) + " <:done:403285928233402378>").queue();
+									}
+								});
 							}, e -> {
 								if (e instanceof ErrorResponseException) {
 									ErrorResponseException exception = (ErrorResponseException) e;
@@ -214,41 +218,36 @@ public class SelfrolesModule {
 							return;
 						} else {
 							message.addReaction(emote).queue();
-						}
-						
-						if (isBotMenu(message, messageData)) {
-							EmbedBuilder embed = new EmbedBuilder();
-							MessageEmbed reactionRole = message.getEmbeds().get(0);
-							if (roles.isEmpty()) {
-								embed.setDescription((emote != null ? emote.getAsMention() : unicodeEmote) + ": " + role.getAsMention());
-							} else {
-								embed.setDescription(reactionRole.getDescription() + "\n\n" + (emote != null ? emote.getAsMention() : unicodeEmote) + ": " + role.getAsMention());
+							
+							if (reactionRole.getBoolean("botMenu")) {
+								message.editMessage(this.getUpdatedEmbed(message.getEmbeds().get(0), roles, unicode ? unicodeEmote : emote.getAsMention(), role)).queue();
 							}
-								
-							embed.setTitle(reactionRole.getTitle());
-							embed.setFooter(reactionRole.getFooter().getText(), null);
-								
-							message.editMessage(embed.build()).queue();
-								
-							messageData.put("bot_menu", true);
+							
+							Document roleData = new Document("id", role.getIdLong()).append("emote", new Document("name", unicodeEmote));
+							
+							UpdateOptions updateOptions = new UpdateOptions().arrayFilters(List.of(Filters.eq("reactionRole.id", messageId))).upsert(true);
+							database.updateGuildById(event.getGuild().getIdLong(), null, Updates.push("reactionRole.reactionRoles.$[reactionRole].roles", roleData), updateOptions, (result, exception) -> {
+								if (exception != null) {
+									exception.printStackTrace();
+									event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+								} else {
+									event.reply("The role `" + role.getName() + "` will now be given when reacting to " + (unicode ? unicodeEmote : emote.getAsMention()) + " <:done:403285928233402378>").queue();
+								}
+							});
 						}
-						
-						event.reply("The role `" + role.getName() + "` will now be given when reacting to " + (emote == null ? unicodeEmote : emote.getAsMention()) + " <:done:403285928233402378>").queue();
-						
-						Map<String, Object> newData = new HashMap<>();
-						newData.put("id", role.getId());
-						newData.put("emote", emoteStore);
-						roles.add(newData);
-						messages.remove(messageData);
-						messageData.put("roles", roles);
-						messages.add(messageData);
-						data.update(r.hashMap("messages", messages)).runNoReply(connection);
 					}, e -> {
 						if (e instanceof ErrorResponseException) {
 							ErrorResponseException exception = (ErrorResponseException) e;
 							if (exception.getErrorCode() == 10008) {
-								event.reply("I could not find that message :no_entry:").queue();
-								data.update(row -> r.hashMap("messages", row.g("messages").filter(d -> d.g("id").ne(messageId)))).runNoReply(connection);
+								database.updateGuildById(event.getGuild().getIdLong(), Updates.pull("reactionRole.reactionRoles", Filters.eq("id", messageId)), (result, messageException) -> {
+									if (messageException != null) {
+										messageException.printStackTrace();
+										event.reply(Sx4CommandEventListener.getUserErrorMessage(messageException)).queue();
+									} else {
+										event.reply("I could not find that message :no_entry:").queue();
+									}
+								});
+								
 								return;
 							}
 						}
@@ -264,25 +263,19 @@ public class SelfrolesModule {
 					return;
 				}
 				
-				if (emote == null) {
+				if (!unicode) {
 					message.addReaction(unicodeEmote).queue($ -> {
-						event.reply("The role `" + role.getName() + "` will now be given when reacting to " + (emote == null ? unicodeEmote : emote.getAsMention()) + " <:done:403285928233402378>").queue();
+						Document roleData = new Document("id", role.getIdLong()).append("emote", new Document("id", emote.getIdLong()));
+						Document reactionRole = new Document("id", message.getIdLong()).append("channelId", event.getChannel().getIdLong()).append("botMenu", false).append("roles", List.of(roleData));
 						
-						List<Map<String, Object>> roles = new ArrayList<>();
-						Map<String, Object> newRoleData = new HashMap<>();
-						newRoleData.put("id", role.getId());
-						newRoleData.put("emote", emoteStore);
-						roles.add(newRoleData);
-						
-						List<Map<String, Object>> newData = new ArrayList<>();
-						Map<String, Object> messageData = new HashMap<>();
-						messageData.put("id", message.getId());
-						messageData.put("channel", event.getTextChannel().getId());
-						messageData.put("bot_menu", false);
-						messageData.put("roles", roles);
-						newData.add(messageData);
-						
-						data.update(r.hashMap("messages", newData)).runNoReply(connection);
+						database.updateGuildById(event.getGuild().getIdLong(), Updates.push("reactionRole.reactionRoles", reactionRole), (result, exception) -> {
+							if (exception != null) {
+								exception.printStackTrace();
+								event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+							} else {
+								event.reply("The role `" + role.getName() + "` will now be given when reacting to " + (emote == null ? unicodeEmote : emote.getAsMention()) + " <:done:403285928233402378>").queue();
+							}
+						});
 					}, e -> {
 						if (e instanceof ErrorResponseException) {
 							ErrorResponseException exception = (ErrorResponseException) e;
@@ -295,94 +288,77 @@ public class SelfrolesModule {
 					return;
 				} else {
 					message.addReaction(emote).queue();
+					
+					Document roleData = new Document("id", role.getIdLong()).append("emote", new Document("name", unicodeEmote));
+					Document reactionRole = new Document("id", message.getIdLong()).append("channelId", event.getChannel().getIdLong()).append("botMenu", false).append("roles", List.of(roleData));
+					
+					database.updateGuildById(event.getGuild().getIdLong(), Updates.push("reactionRole.reactionRoles", reactionRole), (result, exception) -> {
+						if (exception != null) {
+							exception.printStackTrace();
+							event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+						} else {
+							event.reply("The role `" + role.getName() + "` will now be given when reacting to " + (emote == null ? unicodeEmote : emote.getAsMention()) + " <:done:403285928233402378>").queue();
+						}
+					});
 				}
-				
-				event.reply("The role `" + role.getName() + "` will now be given when reacting to " + (emote == null ? unicodeEmote : emote.getAsMention()) + " <:done:403285928233402378>").queue();
-				
-				List<Map<String, Object>> roles = new ArrayList<>();
-				Map<String, Object> newRoleData = new HashMap<>();
-				newRoleData.put("id", role.getId());
-				newRoleData.put("emote", emoteStore);
-				roles.add(newRoleData);
-				
-				Map<String, Object> messageData = new HashMap<>();
-				messageData.put("id", message.getId());
-				messageData.put("channel", event.getTextChannel().getId());
-				messageData.put("bot_menu", false);
-				messageData.put("max_roles", 0);
-				messageData.put("roles", roles);
-				messages.add(messageData);
-				
-				data.update(r.hashMap("messages", messages)).runNoReply(connection);
 			}, e -> {
 				if (e instanceof ErrorResponseException) {
 					ErrorResponseException exception = (ErrorResponseException) e;
 					if (exception.getErrorCode() == 10008) {
 						event.reply("I could not find that message within this channel :no_entry:").queue();
-						data.update(row -> r.hashMap("messages", row.g("messages").filter(d -> d.g("id").ne(messageId)))).runNoReply(connection);
 						return;
 					}
 				}
 			});
 		}
 		
-		@SuppressWarnings("unchecked")
 		@Command(value="remove", description="Remove a reaction from the reaction role so it can no longer be used")
 		@AuthorPermissions({Permission.MANAGE_ROLES})
 		@BotPermissions({Permission.MESSAGE_MANAGE})
-		public void remove(CommandEvent event, @Context Connection connection, @Argument(value="message id") String messageId, @Argument(value="role", endless=true) String roleArgument) {
-			Get data = r.table("reactionrole").get(event.getGuild().getId());
-			Map<String, Object> dataRan = data.run(connection);
-			
-			if (dataRan == null) {
-				event.reply("There are no reaction roles in this server :no_entry:").queue();
-				return;
-			}
-			
-			List<Map<String, Object>> messages = (List<Map<String, Object>>) dataRan.get("messages");
-			if (messages.isEmpty()) {
-				event.reply("There are no reaction roles in this server :no_entry:").queue();
-				return;
-			}
-			
+		public void remove(CommandEvent event, @Context Database database, @Argument(value="message id") long messageId, @Argument(value="role", endless=true) String roleArgument) {			
 			Role role = ArgumentUtils.getRole(event.getGuild(), roleArgument);
 			if (role == null) {
 				event.reply("I could not find that role :no_entry:").queue();
+				return;
 			}
 			
-			for (Map<String, Object> messageData : messages) {
-				if (messageData.get("id").equals(messageId)) {
-					TextChannel channel = event.getGuild().getTextChannelById((String) messageData.get("channel"));
+			List<Document> reactionRoles = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("reactionRole.reactionRoles")).getEmbedded(List.of("reactionRole", "reactionRoles"), Collections.emptyList());
+			for (Document reactionRole : reactionRoles) {
+				if (reactionRole.getLong("id") == messageId) {
+					TextChannel channel = event.getGuild().getTextChannelById(reactionRole.getLong("channelId"));
 					if (channel == null) {
-						event.reply("The channel which the reaction role was in has been deleted :no_entry:").queue();
-						data.update(row -> r.hashMap("messages", row.g("messages").filter(d -> d.g("id").ne(messageId)))).runNoReply(connection);
+						database.updateGuildById(event.getGuild().getIdLong(), Updates.pull("reactionRole.reactionRoles", Filters.eq("channelId", reactionRole.getLong("channelId"))), (result, exception) -> {
+							if (exception != null) {
+								exception.printStackTrace();
+								event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+							} else {
+								event.reply("The channel which the reaction role was in has been deleted :no_entry:").queue();
+							}
+						});
+						
 						return;
 					}
 					
 					channel.retrieveMessageById(messageId).queue(message -> {
-						List<Map<String, Object>> roles = (List<Map<String, Object>>) messageData.get("roles");
-						for (Map<String, Object> roleData : roles) {
-							if (roleData.get("id").equals(role.getId())) {
-								String emoteDisplay;
-								Emote emote = null;
-								try {
-									emote = event.getShardManager().getEmoteById((String) roleData.get("emote"));
-									if (emote == null) {
-										emoteDisplay = (String) roleData.get("emote");
-									} else {
-										emoteDisplay = emote.getAsMention();
-									}
-								} catch(NumberFormatException e) {
-									emoteDisplay = (String) roleData.get("emote");
-								}
+						List<Document> roles = reactionRole.getList("roles", Document.class, Collections.emptyList());
+						for (Document roleData : roles) {
+							if (roleData.getLong("id") == role.getIdLong()) {
+								Document emoteData = roleData.get("emote", Document.class);
+								String emoteName = emoteData.getString("name");
+								Long emoteId = emoteData.getLong("id");
 								
-								if (isBotMenu(message, messageData)) {
-									MessageEmbed reactionRole = message.getEmbeds().get(0);
+								if (reactionRole.getBoolean("botMenu")) {
+									MessageEmbed reactionRoleEmbed = message.getEmbeds().get(0);
 									
-									String content = emoteDisplay + ": " + role.getAsMention();
+									Emote emote = null;
+									if (emoteId != null) {
+										emote = event.getShardManager().getEmoteById(emoteId);
+									}
 									
-									String newDescription = reactionRole.getDescription();
-									String[] descriptionSplit = reactionRole.getDescription().split("\n\n");
+									String content = (emote == null ? emoteName : emote.getAsMention()) + ": " + role.getAsMention();
+									
+									String newDescription = reactionRoleEmbed.getDescription();
+									String[] descriptionSplit = reactionRoleEmbed.getDescription().split("\n\n");
 									if (descriptionSplit.length != 1) {
 										for (int i = 0; i < descriptionSplit.length; i++) {
 											if (descriptionSplit[i].equals(content)) {
@@ -396,44 +372,48 @@ public class SelfrolesModule {
 										
 										EmbedBuilder embed = new EmbedBuilder();
 										embed.setDescription(newDescription);
-										embed.setTitle(reactionRole.getTitle());
-										embed.setFooter(reactionRole.getFooter().getText(), null);
+										embed.setTitle(reactionRoleEmbed.getTitle());
+										embed.setFooter(reactionRoleEmbed.getFooter().getText(), null);
 											
 										message.editMessage(embed.build()).queue();
-										
-										messageData.put("bot_menu", true);
 									} else {
-										message.delete().queue();
-										event.reply("I have deleted that reaction role <:done:403285928233402378>").queue();
-										data.update(row -> r.hashMap("messages", row.g("messages").filter(d -> d.g("id").ne(messageId)))).runNoReply(connection);
+										database.updateGuildById(event.getGuild().getIdLong(), Updates.pull("reactionRole.reactionRoles", Filters.eq("id", messageId)), (result, exception) -> {
+											if (exception != null) {
+												exception.printStackTrace();
+												event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+											} else {
+												message.delete().queue();
+												event.reply("I have deleted that reaction role <:done:403285928233402378>").queue();
+											}
+										});
+										
 										return;
 									}
 								}
 								
-								if (emote == null) {
+								if (emoteId == null) {
 									for (MessageReaction reaction : message.getReactions()) {
-										if (reaction.getReactionEmote().getName().equals(emoteDisplay)) {
+										if (reaction.getReactionEmote().getName().equals(emoteName)) {
 											reaction.removeReaction(event.getSelfUser()).queue();
 										}
 									}
 								} else {
 									for (MessageReaction reaction : message.getReactions()) {
-										if (reaction.getReactionEmote().getEmote() != null) {
-											if (reaction.getReactionEmote().getEmote().equals(emote)) {
-												reaction.removeReaction(event.getSelfUser()).queue();
-											}
+										if (reaction.getReactionEmote().getIdLong() == emoteId) {
+											reaction.removeReaction(event.getSelfUser()).queue();
 										}
 									}
 								}
 									
-								event.reply("The role `" + role.getName() + "` has been removed from that reaction role <:done:403285928233402378>").queue();
-								
-								roles.remove(roleData);
-								messages.remove(messageData);
-								messageData.put("roles", roles);
-								messages.add(messageData);
-									
-								data.update(r.hashMap("messages", messages)).runNoReply(connection);
+								UpdateOptions updateOptions = new UpdateOptions().arrayFilters(List.of(Filters.eq("reactionRole.id", messageId)));
+								database.updateGuildById(event.getGuild().getIdLong(), null, Updates.pull("reactionRole.reactionRoles.$[reactionRole].roles", Filters.eq("id", role.getIdLong())), updateOptions, (result, exception) -> {
+									if (exception != null) {
+										exception.printStackTrace();
+										event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+									} else {
+										event.reply("The role `" + role.getName() + "` has been removed from that reaction role <:done:403285928233402378>").queue();
+									}
+								});
 							}
 						}
 						
@@ -442,8 +422,15 @@ public class SelfrolesModule {
 						if (e instanceof ErrorResponseException) {
 							ErrorResponseException exception = (ErrorResponseException) e;
 							if (exception.getErrorCode() == 10008) {
-								event.reply("I could not find that message :no_entry:").queue();
-								data.update(row -> r.hashMap("messages", row.g("messages").filter(d -> d.g("id").ne(messageId)))).runNoReply(connection);
+								database.updateGuildById(event.getGuild().getIdLong(), Updates.pull("reactionRole.reactionRoles", Filters.eq("id", messageId)), (result, writeException) -> {
+									if (writeException != null) {
+										writeException.printStackTrace();
+										event.reply(Sx4CommandEventListener.getUserErrorMessage(writeException)).queue();
+									} else {
+										event.reply("I could not find that message :no_entry:").queue();
+									}
+								});
+								
 								return;
 							}
 						}
@@ -456,66 +443,51 @@ public class SelfrolesModule {
 			event.reply("I could not find that reaction role :no_entry:").queue();
 		}
 		
-		@SuppressWarnings("unchecked")
 		@Command(value="force remove", aliases={"forceremove"}, description="Removes all reactions which link to a deleted role", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@AuthorPermissions({Permission.MANAGE_ROLES})
 		@BotPermissions({Permission.MESSAGE_MANAGE})
-		public void forceRemove(CommandEvent event, @Context Connection connection, @Argument(value="message id") String messageId) {
-			Get data = r.table("reactionrole").get(event.getGuild().getId());
-			Map<String, Object> dataRan = data.run(connection);
-			
-			if (dataRan == null) {
-				event.reply("There are no reaction roles in this server :no_entry:").queue();
-				return;
-			}
-			
-			List<Map<String, Object>> messages = (List<Map<String, Object>>) dataRan.get("messages");
-			if (messages.isEmpty()) {
-				event.reply("There are no reaction roles in this server :no_entry:").queue();
-				return;
-			}
-			
-			for (Map<String, Object> messageData : messages) {
-				if (messageData.get("id").equals(messageId)) {
-					TextChannel channel = event.getGuild().getTextChannelById((String) messageData.get("channel"));
+		public void forceRemove(CommandEvent event, @Context Database database, @Argument(value="message id") long messageId) {
+			List<Document> reactionRoles = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("reactionRole.reactionRoles")).getEmbedded(List.of("reactionRole", "reactionRoles"), Collections.emptyList());
+			for (Document reactionRole : reactionRoles) {
+				if (reactionRole.getLong("id") == messageId) {
+					TextChannel channel = event.getGuild().getTextChannelById(reactionRole.getLong("channelId"));
 					if (channel == null) {
-						event.reply("The channel which the reaction role was in has been deleted :no_entry:").queue();
-						data.update(row -> r.hashMap("messages", row.g("messages").filter(d -> d.g("id").ne(messageId)))).runNoReply(connection);
+						database.updateGuildById(event.getGuild().getIdLong(), Updates.pull("reactionRole.reactionRoles", Filters.eq("channelId", reactionRole.getLong("channelId"))), (result, exception) -> {
+							if (exception != null) {
+								exception.printStackTrace();
+								event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+							} else {
+								event.reply("The channel which the reaction role was in has been deleted :no_entry:").queue();
+							}
+						});
+						
 						return;
 					}
 					
 					channel.retrieveMessageById(messageId).queue(message -> {
-						boolean isBotMenu = isBotMenu(message, messageData);
-						MessageEmbed reactionRole = null;
+						boolean botMenu = reactionRole.getBoolean("botMenu");
+						MessageEmbed reactionRoleEmbed = null;
 						String newDescription = null;
-						if (isBotMenu) {	
-							reactionRole = message.getEmbeds().get(0);
-							newDescription = reactionRole.getDescription();
+						if (botMenu) {	
+							reactionRoleEmbed = message.getEmbeds().get(0);
+							newDescription = reactionRoleEmbed.getDescription();
 						}
 						
-						List<Map<String, Object>> roles = (List<Map<String, Object>>) messageData.get("roles");
-						List<Map<String, Object>> newRoles = new ArrayList<>(roles);
-						for (Map<String, Object> roleData : roles) {
-							String roleId = (String) roleData.get("id");
+						List<Document> roles = reactionRole.getList("roles", Document.class);
+						Bson filter = null;
+						for (Document roleData : roles) {
+							long roleId = roleData.getLong("id");
 							Role role = event.getGuild().getRoleById(roleId);
 							if (role == null) {
-								String emoteDisplay;
-								Emote emote = null;
-								try {
-									emote = event.getShardManager().getEmoteById((String) roleData.get("emote"));
-									if (emote == null) {
-										emoteDisplay = (String) roleData.get("emote");
-									} else {
-										emoteDisplay = emote.getAsMention();
-									}
-								} catch(NumberFormatException e) {
-									emoteDisplay = (String) roleData.get("emote");
-								}
+								Document emoteData = roleData.get("emote", Document.class);
+								Long emoteId = emoteData.getLong("id");
+								String emoteName = emoteData.getString("name");				
+								Emote emote = emoteId != null ? event.getShardManager().getEmoteById(emoteId) : null;
 								
-								if (isBotMenu) {						
-									String content = emoteDisplay + ": <@&" + roleId + ">";
+								if (botMenu) {						
+									String content = (emote == null ? emoteName : emote.getAsMention()) + ": <@&" + roleId + ">";
 									
-									String[] descriptionSplit = reactionRole.getDescription().split("\n\n");
+									String[] descriptionSplit = reactionRoleEmbed.getDescription().split("\n\n");
 									if (descriptionSplit.length != 1) {
 										for (int i = 0; i < descriptionSplit.length; i++) {
 											if (descriptionSplit[i].equals(content)) {
@@ -527,62 +499,74 @@ public class SelfrolesModule {
 											}
 										}
 									} else {
-										message.delete().queue();
-										event.reply("I have deleted that reaction role <:done:403285928233402378>").queue();
-										data.update(row -> r.hashMap("messages", row.g("messages").filter(d -> d.g("id").ne(messageId)))).runNoReply(connection);
+										database.updateGuildById(event.getGuild().getIdLong(), Updates.pull("reactionRole.reactionRoles", Filters.eq("id", messageId)), (result, exception) -> {
+											if (exception != null) {
+												exception.printStackTrace();
+												event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+											} else {
+												message.delete().queue();
+												event.reply("I have deleted that reaction role <:done:403285928233402378>").queue();
+											}
+										});
+										
 										return;
 									}
 								}
 								
-								newRoles.remove(roleData);
+								filter = filter == null ? Filters.eq("id", roleId) : Filters.or(filter, Filters.eq("id", roleId));
 								
-								if (emote == null) {
+								if (emoteId == null) {
 									for (MessageReaction reaction : message.getReactions()) {
-										if (reaction.getReactionEmote().getName().equals(emoteDisplay)) {
+										if (reaction.getReactionEmote().getName().equals(emoteName)) {
 											reaction.removeReaction(event.getSelfUser()).queue();
 										}
 									}
 								} else {
 									for (MessageReaction reaction : message.getReactions()) {
-										if (reaction.getReactionEmote().getEmote() != null) {
-											if (reaction.getReactionEmote().getEmote().equals(emote)) {
-												reaction.removeReaction(event.getSelfUser()).queue();
-											}
+										if (reaction.getReactionEmote().getIdLong() == emoteId) {
+											reaction.removeReaction(event.getSelfUser()).queue();
 										}
 									}
 								}
 							}
 						}
 						
-						if (newRoles.equals(roles)) {
+						if (filter == null) {
 							event.reply("There were no deleted roles on that reaction role :no_entry:").queue();
 							return;
 						}
 						
-						if (isBotMenu) {
+						if (botMenu) {
 							EmbedBuilder embed = new EmbedBuilder();
 							embed.setDescription(newDescription);
-							embed.setTitle(reactionRole.getTitle());
-							embed.setFooter(reactionRole.getFooter().getText(), null);
+							embed.setTitle(reactionRoleEmbed.getTitle());
+							embed.setFooter(reactionRoleEmbed.getFooter().getText(), null);
 								
 							message.editMessage(embed.build()).queue();
-							
-							messageData.put("bot_menu", true);
 						}
 						
-						event.reply("All deleted roles have been removed from that reaction role <:done:403285928233402378>").queue();
-						
-						messages.remove(messageData);
-						messageData.put("roles", newRoles);
-						messages.add(messageData);
-						
-						data.update(r.hashMap("messages", messages)).runNoReply(connection);
+						UpdateOptions updateOptions = new UpdateOptions().arrayFilters(List.of(Filters.eq("reactionRole.id", messageId)));
+						database.updateGuildById(event.getGuild().getIdLong(), null, Updates.pull("reactionRole.reactionRoles.$[reactionRole].roles", filter), updateOptions, (result, exception) -> {
+							if (exception != null) {
+								exception.printStackTrace();
+								event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+							} else {
+								event.reply("All deleted roles have been removed from that reaction role <:done:403285928233402378>").queue();
+							}
+						});
 					}, e -> {
 						if (e instanceof ErrorResponseException) {
 							ErrorResponseException exception = (ErrorResponseException) e;
 							if (exception.getErrorCode() == 10008) {
-								event.reply("I could not find that message :no_entry:").queue();
-								data.update(row -> r.hashMap("messages", row.g("messages").filter(d -> d.g("id").ne(messageId)))).runNoReply(connection);
+								database.updateGuildById(event.getGuild().getIdLong(), Updates.pull("reactionRole.reactionRoles", Filters.eq("id", messageId)), (result, writeException) -> {
+									if (writeException != null) {
+										writeException.printStackTrace();
+										event.reply(Sx4CommandEventListener.getUserErrorMessage(writeException)).queue();
+									} else {
+										event.reply("I could not find that message :no_entry:").queue();
+									}
+								});
+								
 								return;
 							}
 						}
@@ -595,37 +579,29 @@ public class SelfrolesModule {
 			event.reply("I could not find that reaction role :no_entry:").queue();
 		}
 		
-		@SuppressWarnings("unchecked")
 		@Command(value="refresh", description="Edits the reaction role message so the role mentions displayed change to their according colour/name", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@AuthorPermissions({Permission.MANAGE_ROLES})
-		public void refresh(CommandEvent event, @Context Connection connection, @Argument(value="message id") String messageId) {
-			Get data = r.table("reactionrole").get(event.getGuild().getId());
-			Map<String, Object> dataRan = data.run(connection);
-			
-			if (dataRan == null) {
-				event.reply("There are no reaction roles in this server :no_entry:").queue();
-				return;
-			}
-			
-			List<Map<String, Object>> messages = (List<Map<String, Object>>) dataRan.get("messages");
-			if (messages.isEmpty()) {
-				event.reply("There are no reaction roles in this server :no_entry:").queue();
-				return;
-			}
-			
-			for (Map<String, Object> messageData : messages) {
-				if (messageData.get("id").equals(messageId)) {
-					TextChannel channel = event.getGuild().getTextChannelById((String) messageData.get("channel"));
+		public void refresh(CommandEvent event, @Context Database database, @Argument(value="message id") long messageId) {			
+			List<Document> reactionRoles = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("reactionRole.reactionRoles")).getEmbedded(List.of("reactionRole", "reactionRoles"), Collections.emptyList());
+			for (Document reactionRole : reactionRoles) {
+				if (reactionRole.getLong("id") == messageId) {
+					TextChannel channel = event.getGuild().getTextChannelById(reactionRole.getLong("channelId"));
 					if (channel == null) {
-						event.reply("The channel which the reaction role was in has been deleted :no_entry:").queue();
-						data.update(row -> r.hashMap("messages", row.g("messages").filter(d -> d.g("id").ne(messageId)))).runNoReply(connection);
+						database.updateGuildById(event.getGuild().getIdLong(), Updates.pull("reactionRole.reactionRoles", Filters.eq("channelId", reactionRole.getLong("channelId"))), (result, exception) -> {
+							if (exception != null) {
+								exception.printStackTrace();
+								event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+							} else {
+								event.reply("The channel which the reaction role was in has been deleted :no_entry:").queue();
+							}
+						});
+						
 						return;
 					}
 					
 					channel.retrieveMessageById(messageId).queue(message -> {
-						if (isBotMenu(message, messageData)) {
-							MessageEmbed reactionRole = message.getEmbeds().get(0);
-							message.editMessage(reactionRole).queue();
+						if (reactionRole.getBoolean("botMenu")) {
+							message.editMessage(message.getEmbeds().get(0)).queue();
 							event.reply("Refreshed the reaction role menu <:done:403285928233402378>").queue();
 						} else {
 							event.reply("You can only refresh reaction roles made by the bot :no_entry:").queue();
@@ -634,8 +610,15 @@ public class SelfrolesModule {
 						if (e instanceof ErrorResponseException) {
 							ErrorResponseException exception = (ErrorResponseException) e;
 							if (exception.getErrorCode() == 10008) {
-								event.reply("I could not find that message :no_entry:").queue();
-								data.update(row -> r.hashMap("messages", row.g("messages").filter(d -> d.g("id").ne(messageId)))).runNoReply(connection);
+								database.updateGuildById(event.getGuild().getIdLong(), Updates.pull("reactionRole.reactionRoles", Filters.eq("id", messageId)), (result, writeException) -> {
+									if (writeException != null) {
+										writeException.printStackTrace();
+										event.reply(Sx4CommandEventListener.getUserErrorMessage(writeException)).queue();
+									} else {
+										event.reply("I could not find that message :no_entry:").queue();
+									}
+								});
+								
 								return;
 							}
 						}
@@ -648,47 +631,52 @@ public class SelfrolesModule {
 			event.reply("I could not find that reaction role :no_entry:").queue();
 		}
 		
-		@SuppressWarnings("unchecked")
 		@Command(value="delete", description="Deletes a reaction roles data and message if it's a menu made by the bot", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@AuthorPermissions({Permission.MANAGE_ROLES})
-		public void delete(CommandEvent event, @Context Connection connection, @Argument(value="message id") String messageId) {
-			Get data = r.table("reactionrole").get(event.getGuild().getId());
-			Map<String, Object> dataRan = data.run(connection);
-			
-			if (dataRan == null) {
-				event.reply("There are no reaction roles in this server :no_entry:").queue();
-				return;
-			}
-			
-			List<Map<String, Object>> messages = (List<Map<String, Object>>) dataRan.get("messages");
-			if (messages.isEmpty()) {
-				event.reply("There are no reaction roles in this server :no_entry:").queue();
-				return;
-			}
-			
-			for (Map<String, Object> messageData : messages) {
-				if (messageData.get("id").equals(messageId)) {
-					TextChannel channel = event.getGuild().getTextChannelById((String) messageData.get("channel"));
+		public void delete(CommandEvent event, @Context Database database, @Argument(value="message id") String messageId) {
+			List<Document> reactionRoles = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("reactionRole.reactionRoles")).getEmbedded(List.of("reactionRole", "reactionRoles"), Collections.emptyList());
+			for (Document reactionRole : reactionRoles) {
+				if (reactionRole.get("id").equals(messageId)) {
+					TextChannel channel = event.getGuild().getTextChannelById((String) reactionRole.get("channel"));
 					if (channel == null) {
-						event.reply("The channel which the reaction role was in has been deleted :no_entry:").queue();
-						data.update(row -> r.hashMap("messages", row.g("messages").filter(d -> d.g("id").ne(messageId)))).runNoReply(connection);
+						database.updateGuildById(event.getGuild().getIdLong(), Updates.pull("reactionRole.reactionRoles", Filters.eq("channelId", reactionRole.getLong("channelId"))), (result, exception) -> {
+							if (exception != null) {
+								exception.printStackTrace();
+								event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+							} else {
+								event.reply("The channel which the reaction role was in has been deleted :no_entry:").queue();
+							}
+						});
+						
 						return;
 					}
 					
 					channel.retrieveMessageById(messageId).queue(message -> {
-						if (isBotMenu(message, messageData)) {
+						if (reactionRole.getBoolean("botMenu")) {
 							message.delete().queue();
 						}
 						
-						event.reply("That reaction role has been deleted <:done:403285928233402378>").queue();
-						
-						data.update(row -> r.hashMap("messages", row.g("messages").filter(d -> d.g("id").ne(messageId)))).runNoReply(connection);
+						database.updateGuildById(event.getGuild().getIdLong(), Updates.pull("reactionRole.reactionRoles", Filters.eq("id", messageId)), (result, exception) -> {
+							if (exception != null) {
+								exception.printStackTrace();
+								event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+							} else {
+								event.reply("That reaction role has been deleted <:done:403285928233402378>").queue();
+							}
+						});
 					}, e -> {
 						if (e instanceof ErrorResponseException) {
 							ErrorResponseException exception = (ErrorResponseException) e;
 							if (exception.getErrorCode() == 10008) {
-								event.reply("I could not find that message :no_entry:").queue();
-								data.update(row -> r.hashMap("messages", row.g("messages").filter(d -> d.g("id").ne(messageId)))).runNoReply(connection);
+								database.updateGuildById(event.getGuild().getIdLong(), Updates.pull("reactionRole.reactionRoles", Filters.eq("id", messageId)), (result, writeException) -> {
+									if (writeException != null) {
+										writeException.printStackTrace();
+										event.reply(Sx4CommandEventListener.getUserErrorMessage(writeException)).queue();
+									} else {
+										event.reply("I could not find that message :no_entry:").queue();
+									}
+								});
+								
 								return;
 							}
 						}
@@ -703,81 +691,61 @@ public class SelfrolesModule {
 		
 		@Command(value="dm toggle", aliases={"dmtoggle", "toggledm", "toggle dm", "dm"}, description="Enables/disables whether the bot should send a dm to the user when they react to a reaction role", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@AuthorPermissions({Permission.MANAGE_ROLES})
-		public void dmToggle(CommandEvent event, @Context Connection connection) {
-			r.table("reactionrole").insert(r.hashMap("id", event.getGuild().getId()).with("dm", true).with("messages", new Object[0])).run(connection, OptArgs.of("durability", "soft"));
-			Get data = r.table("reactionrole").get(event.getGuild().getId());
-			Map<String, Object> dataRan = data.run(connection);
-			
-			if ((boolean) dataRan.get("dm") == true) {
-				event.reply("I will no longer dm users when they are given a role <:done:403285928233402378>").queue();
-				data.update(r.hashMap("dm", false)).runNoReply(connection);
-			} else {
-				event.reply("I will now dm users when they are given a role <:done:403285928233402378>").queue();
-				data.update(r.hashMap("dm", true)).runNoReply(connection);
-			}
+		public void dmToggle(CommandEvent event, @Context Database database) {
+			boolean dm = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("reactionRole.dm")).getEmbedded(List.of("reactionRole", "dm"), true);
+			database.updateGuildById(event.getGuild().getIdLong(), Updates.set("reactionRole.dm", !dm), (result, exception) -> {
+				if (exception != null) {
+					exception.printStackTrace();
+					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+				} else {
+					event.reply("I will " + (dm ? "no longer" : "now") + " dm users when they are given a role <:done:403285928233402378>").queue();
+				}
+			});
 		}
 		
-		@SuppressWarnings("unchecked")
 		@Command(value="max roles", aliases={"maxroles"}, description="Set the maximum amount of roles a user can have from a reaction role (0 turns it off)", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@AuthorPermissions({Permission.MANAGE_ROLES})
-		public void maxRoles(CommandEvent event, @Context Connection connection, @Argument(value="message id") String messageId, @Argument(value="max roles") String maxRoles) {
-			Get data = r.table("reactionrole").get(event.getGuild().getId());
-			Map<String, Object> dataRan = data.run(connection);
-			
-			if (dataRan == null) {
-				event.reply("There are no reaction roles in this server :no_entry:").queue();
-				return;
-			}
-			
-			List<Map<String, Object>> messages = (List<Map<String, Object>>) dataRan.get("messages");
-			if (messages.isEmpty()) {
-				event.reply("There are no reaction roles in this server :no_entry:").queue();
-				return;
-			}
-			
-			int maxRolesInt;
-			if (nullStrings.contains(maxRoles)) {
-				maxRolesInt = 0;
+		public void maxRoles(CommandEvent event, @Context Database database, @Argument(value="message id") long messageId, @Argument(value="max roles") String maxRolesArgument) {
+			int maxRoles;
+			if (nullStrings.contains(maxRolesArgument)) {
+				maxRoles = 0;
 			} else {
 				try {
-					maxRolesInt = Integer.parseInt(maxRoles);
+					maxRoles = Integer.parseInt(maxRolesArgument);
 				} catch(NumberFormatException e) {
-					event.reply("Make sure that `max roles` is a number :no_entry:").queue();
+					event.reply("Make sure that the max roles argument is a number :no_entry:").queue();
 					return;
 				}
 				
-				if (maxRolesInt < 0) {
+				if (maxRoles < 0) {
 					event.reply("Max roles cannot be less than 0 :no_entry:").queue();
 					return;
 				}
 			}
 			
-			for (Map<String, Object> messageData : messages) {
-				if (messageData.get("id").equals(messageId)) {
-					long maxRolesData = 0;
-					if (messageData.containsKey("max_roles")) {
-						maxRolesData = (long) messageData.get("max_roles");
-						if (maxRolesInt > ((List<Map<String, Object>>) messageData.get("roles")).size()) {
-							event.reply("The max roles cannot be more than the amount of roles on the reaction role (" + maxRolesData + ") :no_entry:").queue();
-							return;
-						}
-					}
-					
-					if (maxRolesInt == maxRolesData) {
-						event.reply("The max roles for that reaction role is already set to **" + maxRolesData + "** :no_entry:").queue();
+			List<Document> reactionRoles = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("reactionRole.reactionRoles")).getEmbedded(List.of("reactionRole", "reactionRoles"), Collections.emptyList());
+			for (Document reactionRole : reactionRoles) {
+				if (reactionRole.getLong("id") == messageId) {
+					int currentMaxRoles = reactionRole.getInteger("maxRoles", 0);
+					if (maxRoles == currentMaxRoles) {
+						event.reply("The max roles for that reaction role is already set to **" + currentMaxRoles + "** :no_entry:").queue();
 						return;
 					}
 					
-					if (maxRolesInt != 0) {
-						event.reply("The max roles for that reaction role is now **" + maxRolesInt + "** <:done:403285928233402378>").queue();
-					} else {
-						event.reply("There is no longer a limit to the amount of roles a user can have on that reaction role <:done:403285928233402378>").queue();
-					}
+					UpdateOptions updateOptions = new UpdateOptions().arrayFilters(List.of(Filters.eq("reactionRole.id", messageId)));
+					database.updateGuildById(event.getGuild().getIdLong(), null, Updates.set("reactionRole.reactionRoles.$[reactionRole].maxRoles", maxRoles), updateOptions, (result, exception) -> {
+						if (exception != null) {
+							exception.printStackTrace();
+							event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+						} else {
+							if (maxRoles != 0) {
+								event.reply("The max roles for that reaction role is now **" + maxRoles + "** <:done:403285928233402378>").queue();
+							} else {
+								event.reply("There is no longer a limit to the amount of roles a user can have on that reaction role <:done:403285928233402378>").queue();
+							}
+						}
+					});
 					
-					messages.remove(messageData);
-					messageData.put("max_roles", maxRolesInt);
-					messages.add(messageData);
-					data.update(r.hashMap("messages", messages)).runNoReply(connection);	
 					return;
 				}
 			}
@@ -787,26 +755,18 @@ public class SelfrolesModule {
 		
 	}
 	
-	@SuppressWarnings("unchecked")
 	@Command(value="role", description="Assign a self role to yourself, view all self roles in `self roles list`")
 	@BotPermissions({Permission.MANAGE_ROLES})
-	public void role(CommandEvent event, @Context Connection connection, @Argument(value="role", endless=true) String roleArgument) {
-		Map<String, Object> data = r.table("selfroles").get(event.getGuild().getId()).run(connection);
-		
+	public void role(CommandEvent event, @Context Database database, @Argument(value="role", endless=true) String roleArgument) {
 		Role role = ArgumentUtils.getRole(event.getGuild(), roleArgument);
 		if (role == null) {
 			event.reply("I could not find that role :no_entry:").queue();
 			return;
 		}
 		
-		if (data == null) {
-			event.reply("That role is not a self role :no_entry:").queue();
-			return;
-		}
-		
-		List<String> roles = (List<String>) data.get("roles");
-		for (String roleId : roles) {
-			if (roleId.equals(role.getId())) {
+		List<Long> roles = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("selfRoles")).getList("selfRoles", Long.class, Collections.emptyList());
+		for (long roleId : roles) {
+			if (roleId == role.getIdLong()) {
 				if (event.getMember().getRoles().contains(role)) {
 					event.reply("You no longer have the role **" + role.getName() + "** <:done:403285928233402378>").queue();
 					event.getGuild().removeRoleFromMember(event.getMember(), role).queue();
@@ -836,14 +796,9 @@ public class SelfrolesModule {
 			event.reply(HelpUtils.getHelpMessage(event.getCommand())).queue();
 		}
 		
-		@SuppressWarnings("unchecked")
 		@Command(value="add", description="Add a role which can be gained by any user by simply using the `role` command")
 		@AuthorPermissions({Permission.MANAGE_ROLES})
-		public void add(CommandEvent event, @Context Connection connection, @Argument(value="role", endless=true) String roleArgument) {
-			r.table("selfroles").insert(r.hashMap("id", event.getGuild().getId()).with("roles", new Object[0])).run(connection, OptArgs.of("durability", "soft"));
-			Get data = r.table("selfroles").get(event.getGuild().getId());
-			Map<String, Object> dataRan = data.run(connection);
-			
+		public void add(CommandEvent event, @Context Database database, @Argument(value="role", endless=true) String roleArgument) {
 			Role role = ArgumentUtils.getRole(event.getGuild(), roleArgument);
 			if (role == null) {
 				event.reply("I could not find that role :no_entry:").queue();
@@ -870,46 +825,45 @@ public class SelfrolesModule {
 				return;
 			}
 			
-			List<String> roles = (List<String>) dataRan.get("roles");
-			for (String roleId : roles) {
-				if (roleId.equals(role.getId())) {
+			List<Long> roles = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("selfRoles")).getList("selfRoles", Long.class, Collections.emptyList());
+			for (long roleId : roles) {
+				if (roleId == role.getIdLong()) {
 					event.reply("That role is already a self role :no_entry:").queue();
 					return;
 				}
 			}
 			
-			event.reply("Added `" + role.getName() + "` as a self role <:done:403285928233402378>").queue();
-			data.update(row -> r.hashMap("roles", row.g("roles").append(role.getId()))).runNoReply(connection);
+			database.updateGuildById(event.getGuild().getIdLong(), Updates.push("selfRoles", role.getIdLong()), (result, exception) -> {
+				if (exception != null) {
+					exception.printStackTrace();
+					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+				} else {
+					event.reply("Added `" + role.getName() + "` as a self role <:done:403285928233402378>").queue();
+				}
+			});
 		}
 		
-		@SuppressWarnings("unchecked")
 		@Command(value="remove", description="Remove a role from the self roles in the current server")
 		@AuthorPermissions({Permission.MANAGE_ROLES})
-		public void remove(CommandEvent event, @Context Connection connection, @Argument(value="roles", endless=true) String roleArgument) {
-			Get data = r.table("selfroles").get(event.getGuild().getId());
-			Map<String, Object> dataRan = data.run(connection);
-			
-			if (dataRan == null) {
-				event.reply("There are no self roles in this server :no_entry:").queue();
-				return;
-			}
-			
-			List<String> roles = (List<String>) dataRan.get("roles");
-			if (roles.isEmpty()) {
-				event.reply("There are no self roles in this server :no_entry:").queue();
-				return;
-			}
-			
+		public void remove(CommandEvent event, @Context Database database, @Argument(value="roles", endless=true) String roleArgument) {
 			Role role = ArgumentUtils.getRole(event.getGuild(), roleArgument);
 			if (role == null) {
 				event.reply("I could not find that role :no_entry:").queue();
 				return;
 			}
 			
-			for (String roleId : roles) {
-				if (roleId.equals(role.getId())) {
-					event.reply("Removed `" + role.getName() + "` from the self roles <:done:403285928233402378>").queue();
-					data.update(row -> r.hashMap("roles", row.g("roles").filter(d -> d.ne(roleId)))).runNoReply(connection);
+			List<Long> roles = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("selfRoles")).getList("selfRoles", Long.class, Collections.emptyList());
+			for (long roleId : roles) {
+				if (roleId == role.getIdLong()) {
+					database.updateGuildById(event.getGuild().getIdLong(), Updates.pull("selfRoles", role.getIdLong()), (result, exception) -> {
+						if (exception != null) {
+							exception.printStackTrace();
+							event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+						} else {
+							event.reply("Removed `" + role.getName() + "` from the self roles <:done:403285928233402378>").queue();
+						}
+					});
+					
 					return;
 				}
 			}
@@ -917,29 +871,26 @@ public class SelfrolesModule {
 			event.reply("That role is not a self role :no_entry:").queue();
 		}
 		
-		@SuppressWarnings("unchecked")
 		@Command(value="reset", aliases={"delete", "wipe"}, description="Deletes all self roles which are currently set", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@AuthorPermissions({Permission.MANAGE_ROLES})
-		public void reset(CommandEvent event, @Context Connection connection) {
-			Get data = r.table("selfroles").get(event.getGuild().getId());
-			Map<String, Object> dataRan = data.run(connection);
-			
-			if (dataRan == null) {
-				event.reply("There are no self roles in this server :no_entry:").queue();
-				return;
-			}
-			
-			List<String> roles = (List<String>) dataRan.get("roles");
-			if (roles.isEmpty()) {
-				event.reply("There are no self roles in this server :no_entry:").queue();
-				return;
-			}
-			
+		public void reset(CommandEvent event, @Context Database database) {
 			event.reply(event.getAuthor().getName() + ", are you sure you want to reset all data for self roles? (Yes or No)").queue(message -> {
 				PagedUtils.getConfirmation(event, 60, event.getAuthor(), confirmation -> {
-					if (confirmation == true) {
-						event.reply("All self roles have been deleted <:done:403285928233402378>").queue();
-						data.update(r.hashMap("roles", new Object[0])).runNoReply(connection);
+					if (confirmation) {
+						List<Long> roles = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("selfRoles")).getList("selfRoles", Long.class, Collections.emptyList());
+						if (roles.isEmpty()) {
+							event.reply("There are no self roles in this server :no_entry:").queue();
+							return;
+						}
+						
+						database.updateGuildById(event.getGuild().getIdLong(), Updates.unset("selfRoles"), (result, exception) -> {
+							if (exception != null) {
+								exception.printStackTrace();
+								event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+							} else {
+								event.reply("All self roles have been deleted <:done:403285928233402378>").queue();
+							}
+						});
 					} else {
 						event.reply("Cancelled <:done:403285928233402378>").queue();
 					}
@@ -947,42 +898,30 @@ public class SelfrolesModule {
 			});
 		}
 		
-		@SuppressWarnings("unchecked")
 		@Command(value="list", description="Lists all the self roles in the current server")
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-		public void list(CommandEvent event, @Context Connection connection) {
-			Map<String, Object> data = r.table("selfroles").get(event.getGuild().getId()).run(connection);
+		public void list(CommandEvent event, @Context Database database) {
+			List<Long> roles = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("selfRoles")).getList("selfRoles", Long.class, Collections.emptyList());
 			
-			if (data == null) {
-				event.reply("There are no self roles in this server :no_entry:").queue();
-				return;
-			}
-			
-			List<String> rolesData = (List<String>) data.get("roles");
-			if (rolesData.isEmpty()) {
-				event.reply("There are no self roles in this server :no_entry:").queue();
-				return;
-			}
-			
-			List<Role> roles = new ArrayList<>();
-			for (String roleId : rolesData) {
+			List<Role> selfRoles = new ArrayList<>();
+			for (long roleId : roles) {
 				Role role = event.getGuild().getRoleById(roleId);
 				if (role != null) {
-					roles.add(role);
+					selfRoles.add(role);
 				}
 			}
 			
-			if (roles.isEmpty()) {
-				event.reply("There are no self roles in this server :no_entry:").queue();
+			if (selfRoles.isEmpty()) {
+				event.reply("There are no self roles on this server :no_entry:").queue();
 				return;
 			}
 			
-			roles.sort((a, b) -> Integer.compare(b.getPosition(), a.getPosition()));
-			PagedResult<Role> paged = new PagedResult<>(roles)
+			selfRoles.sort((a, b) -> Integer.compare(b.getPosition(), a.getPosition()));
+			PagedResult<Role> paged = new PagedResult<>(selfRoles)
 					.setDeleteMessage(false)
 					.setPerPage(15)
 					.setIncreasedIndex(true)
-					.setAuthor("Self Roles (" + roles.size() + ")", null, event.getGuild().getIconUrl())
+					.setAuthor("Self Roles (" + selfRoles.size() + ")", null, event.getGuild().getIconUrl())
 					.setFunction(role -> role.getAsMention());
 			
 			PagedUtils.getPagedResult(event, paged, 300, null);

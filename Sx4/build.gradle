@@ -9,7 +9,7 @@ repositories {
 }
 
 dependencies {
-	implementation('com.github.21Joakim:Jockie-Utils:36df7416428f8c2659a8e4684f1a4775430de8d9') {
+	implementation('com.github.21Joakim:Jockie-Utils:jda-v4-SNAPSHOT') {
 		exclude group: 'net.dv8tion', module: 'JDA'
 	}
 	
@@ -17,7 +17,7 @@ dependencies {
 
 	implementation 'net.dv8tion:JDA:4+'
 	
-	compile group: 'com.rethinkdb', name: 'rethinkdb-driver', version: '2.3.3'
+	implementation 'org.mongodb:mongodb-driver-sync:3.11.0-rc0'
 	
 	compile group: 'org.codehaus.groovy', name: 'groovy', version: '2.5.2'
 	

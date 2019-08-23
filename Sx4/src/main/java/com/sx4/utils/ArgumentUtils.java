@@ -32,18 +32,18 @@ import net.dv8tion.jda.api.entities.VoiceChannel;
 
 public class ArgumentUtils {
 	
-	public static Pattern IdRegex = Pattern.compile("(^\\d+$)");
-	public static Pattern bigNameRegex = Pattern.compile("(.{1,100})");
-	public static Pattern userTagRegex = Pattern.compile("(.{2,32})#(\\d{4})");
-	public static Pattern smallNameRegex = Pattern.compile("(.{1,32})");
-	public static Pattern userMentionRegex = Pattern.compile("<@(?:!|)(\\d+)>");
-	public static Pattern channelMentionRegex = Pattern.compile("<#(\\d+)>");
-	public static Pattern emoteRegex = Pattern.compile("<(?:a|):(.{2,32}):(\\d+)>");
-	public static Pattern roleMentionRegex = Pattern.compile("<@&(\\d+)>");
-	public static Pattern hexRegex = Pattern.compile("(?:#|)([A-Za-z|\\d]{6})");
-	public static Pattern RGBRegex = Pattern.compile("(?:\\(|)(\\d{1,3})(?: |,|, )(\\d{1,3})(?: |,|, )(\\d{1,3})(?:\\)|)");
-	public static Pattern listOfNumbersRegex = Pattern.compile("(\\d+)(?: |, |,|)");
-	public static Pattern rangeOfNumbersRegex = Pattern.compile("(\\d+)-(\\d+)(?: |,|, |)");
+	public static final Pattern ID_REGEX = Pattern.compile("(^\\d+$)");
+	public static final Pattern BIG_NAME_REGEX = Pattern.compile("(.{1,100})");
+	public static final Pattern USER_TAG_REGEX = Pattern.compile("(.{2,32})#(\\d{4})");
+	public static final Pattern SMALL_NAME_REGEX = Pattern.compile("(.{1,32})");
+	public static final Pattern USER_MENTION_REGEX = Pattern.compile("<@(?:!|)(\\d+)>");
+	public static final Pattern CHANNEL_MENTION_REGEX = Pattern.compile("<#(\\d+)>");
+	public static final Pattern EMOTE_REGEX = Pattern.compile("<(?:a|):(.{2,32}):(\\d+)>");
+	public static final Pattern ROLE_MENTION_REGEX = Pattern.compile("<@&(\\d+)>");
+	public static final Pattern HEX_REGEX = Pattern.compile("(?:#|)([A-Fa-f|\\d]{6})");
+	public static final Pattern RGB_REGEX = Pattern.compile("(?:\\(|)(\\d{1,3})(?: |,|, )(\\d{1,3})(?: |,|, )(\\d{1,3})(?:\\)|)");
+	public static final Pattern LIST_OF_NUMBERS_REGEX = Pattern.compile("(\\d+)(?: |, |,|)");
+	public static final Pattern RANGE_OF_NUMBERS_REGEX = Pattern.compile("(\\d+)-(\\d+)(?: |,|, |)");
 	
 	private static <T> Predicate<T> distinctByKey(Function<? super T, ?> keyExtractor) {
 		Set<Object> seen = ConcurrentHashMap.newKeySet();
@@ -54,7 +54,7 @@ public class ArgumentUtils {
 		return Sx4Bot.getShardManager().getGuilds().stream()
 			.map(guild -> guild.getMembers())
 			.flatMap(List::stream)
-			.filter(distinctByKey(member -> member.getUser().getIdLong()))
+			.filter(ArgumentUtils.distinctByKey(member -> member.getUser().getIdLong()))
 			.collect(Collectors.toList());
 	}
 
@@ -86,8 +86,8 @@ public class ArgumentUtils {
 	}
 	
 	public static List<Integer> getRange(String rangeArgument) {
-		Matcher listOfNumbers = listOfNumbersRegex.matcher(rangeArgument);
-		Matcher rangeOfNumbers = rangeOfNumbersRegex.matcher(rangeArgument);
+		Matcher listOfNumbers = LIST_OF_NUMBERS_REGEX.matcher(rangeArgument);
+		Matcher rangeOfNumbers = RANGE_OF_NUMBERS_REGEX.matcher(rangeArgument);
 		
 		List<Integer> numbers = new ArrayList<>();
 		while (rangeOfNumbers.find()) {
@@ -119,8 +119,8 @@ public class ArgumentUtils {
 	}
 	
 	public static Color getColourFromString(String colourString) {
-		Matcher RGBMatch = RGBRegex.matcher(colourString);
-		Matcher hexMatch = hexRegex.matcher(colourString);
+		Matcher RGBMatch = RGB_REGEX.matcher(colourString);
+		Matcher hexMatch = HEX_REGEX.matcher(colourString);
 		
 		if (hexMatch.matches()) {
 			try {
@@ -142,6 +142,38 @@ public class ArgumentUtils {
 		}
 	}
 	
+	public static Guild getGuild(String guildArgument) {
+		guildArgument = guildArgument.toLowerCase();
+		
+		Matcher guildId = ID_REGEX.matcher(guildArgument);
+		Matcher guildName = BIG_NAME_REGEX.matcher(guildArgument);
+		
+		if (guildId.matches()) {
+			return Sx4Bot.getShardManager().getGuildById(guildId.group(1));
+		} else if (guildName.matches()) {
+			List<Guild> guilds = Sx4Bot.getShardManager().getGuilds();
+			for (Guild guild : guilds) {
+				if (guild.getName().toLowerCase().equals(guildArgument)) {
+					return guild;
+				}
+			}
+			
+			for (Guild guild : guilds) {
+				if (guild.getName().toLowerCase().startsWith(guildArgument)) {
+					return guild;
+				}
+			}
+			
+			for (Guild guild : guilds) {
+				if (guild.getName().toLowerCase().contains(guildArgument)) {
+					return guild;
+				}
+			}
+		}
+		
+		return null;
+	}
+	
 	public static Region getGuildRegion(String region) {
 		region = region.toLowerCase();
 		for (Region regionObject : Region.values()) {
@@ -153,9 +185,11 @@ public class ArgumentUtils {
 		return null;
 	}
 	
-	public static CategoryImpl getModule(String module, boolean includeHidden) {
+	public static CategoryImpl getModule(String module, boolean caseSensitive, boolean includeHidden) {
+		module = caseSensitive ? module : module.toLowerCase();
 		for (CategoryImpl category : includeHidden ? Categories.ALL : Categories.ALL_PUBLIC) {
-			if (category.getName().equals(module)) {
+			String categoryName = caseSensitive ? category.getName() : category.getName().toLowerCase();
+			if (categoryName.equals(module)) {
 				return category;
 			}
 		}
@@ -164,11 +198,23 @@ public class ArgumentUtils {
 	}
 	
 	public static CategoryImpl getModule(String module) {
-		return ArgumentUtils.getModule(module, true);
+		return ArgumentUtils.getModule(module, false, false);
+	}
+	
+	public static CategoryImpl getModule(String module, boolean caseSensitive) {
+		return ArgumentUtils.getModule(module, caseSensitive, false);
 	}
 	
 	public static Sx4Command getCommand(String command) {
-		List<Sx4Command> commands = ArgumentUtils.getCommands(command);
+		return ArgumentUtils.getCommand(command, false);
+	}
+	
+	public static Sx4Command getCommand(String command, boolean caseSensitive) {
+		return ArgumentUtils.getCommand(command, caseSensitive, false, false);
+	}
+	
+	public static Sx4Command getCommand(String command, boolean caseSensitive, boolean includeDeveloper, boolean includeHidden) {
+		List<Sx4Command> commands = ArgumentUtils.getCommands(command, caseSensitive, includeDeveloper, includeHidden);
 		if (commands.isEmpty()) {
 			return null;
 		} else {
@@ -177,10 +223,21 @@ public class ArgumentUtils {
 	}
 	
 	public static List<Sx4Command> getCommands(String commandName) {
+		return ArgumentUtils.getCommands(commandName, false, false, false);
+	}
+	
+	public static List<Sx4Command> getCommands(String commandName, boolean caseSensitive) {
+		return ArgumentUtils.getCommands(commandName, caseSensitive, false, false);
+	}
+	
+	public static List<Sx4Command> getCommands(String commandName, boolean caseSensitive, boolean includeDeveloper, boolean includeHidden) {
+		commandName = caseSensitive ? commandName.trim() : commandName.toLowerCase().trim();
+		
 		List<Sx4Command> commands = new ArrayList<>();
-		for (ICommand commandObject : Sx4Bot.getCommandListener().getAllCommands()) {
+		for (ICommand commandObject : Sx4Bot.getCommandListener().getAllCommands(includeDeveloper, includeHidden)) {
 			Sx4Command command = (Sx4Command) commandObject;
-			if (command.getCommandTrigger().equals(commandName)) {
+			String commandTrigger = caseSensitive ? command.getCommandTrigger() : command.getCommandTrigger().toLowerCase();
+			if (commandTrigger.equals(commandName)) {
 				commands.add(command);
 			} else {
 				List<String> allAliases = new ArrayList<>();
@@ -204,6 +261,7 @@ public class ArgumentUtils {
 				}
 				
 				for (String commandAlias : allAliases) {
+					commandAlias = caseSensitive ? commandAlias : commandAlias.toLowerCase();
 					if (commandName.equals(commandAlias)) {
 						commands.add(command);
 					}
@@ -215,9 +273,11 @@ public class ArgumentUtils {
 	}
 	
 	public static Role getRole(Guild guild, String role) {
-		Matcher roleMention = roleMentionRegex.matcher(role);
-		Matcher roleName = bigNameRegex.matcher(role);
-		Matcher roleId = IdRegex.matcher(role);
+		role = role.toLowerCase().trim();
+		
+		Matcher roleMention = ROLE_MENTION_REGEX.matcher(role);
+		Matcher roleName = BIG_NAME_REGEX.matcher(role);
+		Matcher roleId = ID_REGEX.matcher(role);
 		
 		Role roleObject;
 		if (roleId.matches()) {
@@ -233,16 +293,16 @@ public class ArgumentUtils {
 				return null;
 			}
 		} else if (roleName.matches()) {
-			roleObject = guild.getRolesByName(roleName.group(1), true).stream().findFirst().orElse(null);
+			roleObject = guild.getRolesByName(role, true).stream().findFirst().orElse(null);
 			if (roleObject == null) {
 				for (Role guildRole : guild.getRoles()) {
-					if (guildRole.getName().toLowerCase().startsWith(roleName.group(1).toLowerCase())) {
+					if (guildRole.getName().toLowerCase().startsWith(role)) {
 						return guildRole;
 					}
 				}
 				
 				for (Role guildRole : guild.getRoles()) {
-					if (guildRole.getName().toLowerCase().contains(roleName.group(1).toLowerCase())) {
+					if (guildRole.getName().toLowerCase().contains(role)) {
 						return guildRole;
 					}
 				}
@@ -257,16 +317,18 @@ public class ArgumentUtils {
 	}
 	
 	public static Emote getEmote(Guild guild, String emote) {
-		Matcher emoteMention = emoteRegex.matcher(emote);
-		Matcher emoteId = IdRegex.matcher(emote);
-		Matcher emoteName = smallNameRegex.matcher(emote);
+		emote = emote.trim();
+		
+		Matcher emoteMention = EMOTE_REGEX.matcher(emote);
+		Matcher emoteId = ID_REGEX.matcher(emote);
+		Matcher emoteName = SMALL_NAME_REGEX.matcher(emote);
 		
 		Emote emoteObject;
 		if (emoteMention.matches()) {
 			try {
 				emoteObject = guild.getEmoteById(emoteMention.group(2));
 				if (emoteObject == null) {
-					return guild.getJDA().getShardManager().getEmoteById(emoteMention.group(2));
+					return Sx4Bot.getShardManager().getEmoteById(emoteMention.group(2));
 				} else {
 					return emoteObject;
 				}
@@ -277,7 +339,7 @@ public class ArgumentUtils {
 			try {
 				emoteObject = guild.getEmoteById(emote);
 				if (emoteObject == null) {
-					return guild.getJDA().getShardManager().getEmoteById(emote);
+					return Sx4Bot.getShardManager().getEmoteById(emote);
 				} else {
 					return emoteObject;
 				}
@@ -287,7 +349,7 @@ public class ArgumentUtils {
 		} else if (emoteName.matches()) {
 			emoteObject = guild.getEmotesByName(emote, true).stream().findFirst().orElse(null);
 			if (emoteObject == null) {
-				return guild.getJDA().getShardManager().getEmotesByName(emote, true).stream().findFirst().orElse(null);
+				return Sx4Bot.getShardManager().getEmotesByName(emote, true).stream().findFirst().orElse(null);
 			} else {
 				return emoteObject;
 			}
@@ -297,46 +359,88 @@ public class ArgumentUtils {
 	}
 	
 	public static Category getCategory(Guild guild, String category) {
-		if (IdRegex.matcher(category).matches()) {
+		category = category.toLowerCase().trim();
+		if (ID_REGEX.matcher(category).matches()) {
 			try {
 				return guild.getCategoryById(category);
 			} catch (NumberFormatException e) {
 				return null;
 			}
-		} else if (bigNameRegex.matcher(category).matches()) {
-			if (guild.getCategoriesByName(category, true).stream().findFirst().orElse(null) == null) {
+		} else if (BIG_NAME_REGEX.matcher(category).matches()) {
+			Category categoryMatch = guild.getCategoriesByName(category, true).stream().findFirst().orElse(null);
+			if (categoryMatch == null) {
 				for (Category channel : guild.getCategories()) {
-					if (channel.getName().toLowerCase().startsWith(category.toLowerCase())) {
+					if (channel.getName().toLowerCase().startsWith(category)) {
 						return channel;
 					}
 				} 
 				
 				for (Category channel : guild.getCategories()) {
-					if (channel.getName().toLowerCase().contains(category.toLowerCase())) {
+					if (channel.getName().toLowerCase().contains(category)) {
 						return channel;
 					}
 				}
 			} else {
-				return guild.getCategoriesByName(category, true).get(0);
+				return categoryMatch;
 			}		
 		}
 		
 		return null;
 	}
 	
-	public static GuildChannel getTextChannelOrParent(Guild guild, String channelArgument) {
-		GuildChannel channel = ArgumentUtils.getTextChannel(guild, channelArgument);
-		if (channel == null) {
-			return ArgumentUtils.getCategory(guild, channelArgument);
-		} else {
-			return channel;
+	public static GuildChannel getGuildChannel(Guild guild, String channelArgument) {
+		channelArgument = channelArgument.toLowerCase().trim();
+		
+		Matcher channelId = ID_REGEX.matcher(channelArgument);
+		Matcher channelName = BIG_NAME_REGEX.matcher(channelArgument);
+		Matcher channelMention = CHANNEL_MENTION_REGEX.matcher(channelArgument);
+		
+		if (channelId.matches()) {
+			try {
+				return guild.getGuildChannelById(channelArgument);
+			} catch(NumberFormatException e) {
+				return null;
+			}
+		} else if (channelMention.matches()) {
+			try {
+				return guild.getGuildChannelById(channelMention.group(1));
+			} catch(NumberFormatException e) {
+				return null;
+			}
+		} else if (channelName.matches()) {
+			List<GuildChannel> guildChannels = new ArrayList<>(guild.getTextChannels());
+			guildChannels.addAll(guild.getStoreChannels());
+			guildChannels.addAll(guild.getCategories());
+			guildChannels.addAll(guild.getVoiceChannels());
+			
+			for (GuildChannel channel : guildChannels) {
+				if (channel.getName().toLowerCase().equals(channelArgument)) {
+					return channel;
+				}
+			}
+			
+			for (GuildChannel channel : guildChannels) {
+				if (channel.getName().toLowerCase().startsWith(channelArgument)) {
+					return channel;
+				}
+			} 
+			
+			for (GuildChannel channel : guildChannels) {
+				if (channel.getName().toLowerCase().contains(channelArgument)) {
+					return channel;
+				}
+			}
 		}
+		
+		return null;
 	}
 	
 	public static TextChannel getTextChannel(Guild guild, String textChannel) {
-		Matcher mention = channelMentionRegex.matcher(textChannel);
+		textChannel = textChannel.toLowerCase().trim();
 		
-		if (IdRegex.matcher(textChannel).matches()) {
+		Matcher mention = CHANNEL_MENTION_REGEX.matcher(textChannel);
+		
+		if (ID_REGEX.matcher(textChannel).matches()) {
 			try {
 				return guild.getTextChannelById(textChannel);
 			} catch(NumberFormatException e) {
@@ -348,17 +452,17 @@ public class ArgumentUtils {
 			} catch(NumberFormatException e) {
 				return null;
 			}
-		} else if (bigNameRegex.matcher(textChannel).matches()) {
+		} else if (BIG_NAME_REGEX.matcher(textChannel).matches()) {
 			TextChannel channelByName = guild.getTextChannelsByName(textChannel, true).stream().findFirst().orElse(null);
 			if (channelByName == null) {
 				for (TextChannel channel : guild.getTextChannels()) {
-					if (channel.getName().toLowerCase().startsWith(textChannel.toLowerCase())) {
+					if (channel.getName().toLowerCase().startsWith(textChannel)) {
 						return channel;
 					}
 				} 
 				
 				for (TextChannel channel : guild.getTextChannels()) {
-					if (channel.getName().toLowerCase().contains(textChannel.toLowerCase())) {
+					if (channel.getName().toLowerCase().contains(textChannel)) {
 						return channel;
 					}
 				}
@@ -389,10 +493,10 @@ public class ArgumentUtils {
 	}
 	
 	public static User getUser(String user) {
-		Matcher mention = userMentionRegex.matcher(user);
-		Matcher nameTag = userTagRegex.matcher(user);
-		Matcher userName = smallNameRegex.matcher(user);
-		if (IdRegex.matcher(user).matches()) {
+		Matcher mention = USER_MENTION_REGEX.matcher(user);
+		Matcher nameTag = USER_TAG_REGEX.matcher(user);
+		Matcher userName = SMALL_NAME_REGEX.matcher(user);
+		if (ID_REGEX.matcher(user).matches()) {
 			try { 
 				return Sx4Bot.getShardManager().getUserById(user);
 			} catch(NumberFormatException e) {
@@ -438,10 +542,12 @@ public class ArgumentUtils {
 	}
 	
 	public static Member getMember(Guild guild, String user) {
-		Matcher mention = userMentionRegex.matcher(user);
-		Matcher nameTag = userTagRegex.matcher(user);
-		Matcher userName = smallNameRegex.matcher(user);
-		if (IdRegex.matcher(user).matches()) {
+		user = user.toLowerCase().trim();
+		
+		Matcher mention = USER_MENTION_REGEX.matcher(user);
+		Matcher nameTag = USER_TAG_REGEX.matcher(user);
+		Matcher userName = SMALL_NAME_REGEX.matcher(user);
+		if (ID_REGEX.matcher(user).matches()) {
 			try { 
 				return guild.getMemberById(user);
 			} catch(NumberFormatException e) {
@@ -465,13 +571,13 @@ public class ArgumentUtils {
 				if (memberName == null) {	
 					
 					for (Member member : guild.getMembers()) {
-						if (member.getEffectiveName().toLowerCase().startsWith(user.toLowerCase())) {
+						if (member.getEffectiveName().toLowerCase().startsWith(user)) {
 							return member;
 						}
 					}
 					
 					for (Member member : guild.getMembers()) {
-						if (member.getEffectiveName().toLowerCase().contains(user.toLowerCase())) {
+						if (member.getEffectiveName().toLowerCase().contains(user)) {
 							return member;
 						}
 					}
@@ -488,8 +594,8 @@ public class ArgumentUtils {
 	}
 	
 	public static void getUserInfo(String user, Consumer<User> userObject) {
-		Matcher mention = userMentionRegex.matcher(user);
-		if (IdRegex.matcher(user).matches()) {
+		Matcher mention = USER_MENTION_REGEX.matcher(user);
+		if (ID_REGEX.matcher(user).matches()) {
 			try {
 				Sx4Bot.getShardManager().retrieveUserById(user).queue(u -> userObject.accept(u), e -> userObject.accept(null));
 			} catch(NumberFormatException e) {
@@ -511,10 +617,10 @@ public class ArgumentUtils {
 	}
 	
 	public static Member getMemberInfo(Guild guild, String user) {
-		Matcher mention = userMentionRegex.matcher(user);
-		Matcher nameTag = userTagRegex.matcher(user);
-		Matcher userName = smallNameRegex.matcher(user);
-		if (IdRegex.matcher(user).matches()) {
+		Matcher mention = USER_MENTION_REGEX.matcher(user);
+		Matcher nameTag = USER_TAG_REGEX.matcher(user);
+		Matcher userName = SMALL_NAME_REGEX.matcher(user);
+		if (ID_REGEX.matcher(user).matches()) {
 			try {
 				return getMemberInfoFromId(guild, user);
 			} catch(NumberFormatException e) {
@@ -563,9 +669,11 @@ public class ArgumentUtils {
 	}
 
 	public static VoiceChannel getVoiceChannel(Guild guild, String voiceChannel) {	
-		Matcher mentionRegex = channelMentionRegex.matcher(voiceChannel);
+		voiceChannel = voiceChannel.toLowerCase().trim();
+	
+		Matcher mentionRegex = CHANNEL_MENTION_REGEX.matcher(voiceChannel);
 		
-		if (IdRegex.matcher(voiceChannel).matches()) {
+		if (ID_REGEX.matcher(voiceChannel).matches()) {
 			try { 
 				return guild.getVoiceChannelById(voiceChannel);
 			} catch(NumberFormatException e) {
@@ -577,21 +685,22 @@ public class ArgumentUtils {
 			} catch(NumberFormatException e) {
 				return null;
 			}
-		} else if (bigNameRegex.matcher(voiceChannel).matches()) {
-			if (guild.getVoiceChannelsByName(voiceChannel, true).stream().findFirst().orElse(null) == null) {
+		} else if (BIG_NAME_REGEX.matcher(voiceChannel).matches()) {
+			VoiceChannel voiceChannelName = guild.getVoiceChannelsByName(voiceChannel, true).stream().findFirst().orElse(null);
+			if (voiceChannelName == null) {
 				for (VoiceChannel channel : guild.getVoiceChannels()) {
-					if (channel.getName().toLowerCase().startsWith(voiceChannel.toLowerCase())) {
+					if (channel.getName().toLowerCase().startsWith(voiceChannel)) {
 						return channel;
 					}
 				} 
 				
 				for (VoiceChannel channel : guild.getVoiceChannels()) {
-					if (channel.getName().toLowerCase().contains(voiceChannel.toLowerCase())) {
+					if (channel.getName().toLowerCase().contains(voiceChannel)) {
 						return channel;
 					}
 				}
 			} else {
-				return guild.getVoiceChannelsByName(voiceChannel, true).get(0);
+				return voiceChannelName;
 			}		
 		}
 		

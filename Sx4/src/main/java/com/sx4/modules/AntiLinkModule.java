@@ -1,10 +1,11 @@
 package com.sx4.modules;
 
-import static com.rethinkdb.RethinkDB.r;
-
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
-import java.util.Map;
+
+import org.bson.Document;
+import org.bson.conversions.Bson;
 
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
@@ -14,15 +15,15 @@ import com.jockie.bot.core.command.Context;
 import com.jockie.bot.core.command.Initialize;
 import com.jockie.bot.core.command.impl.CommandEvent;
 import com.jockie.bot.core.command.impl.CommandImpl;
-import com.jockie.bot.core.command.ICommand.ContentOverflowPolicy;
 import com.jockie.bot.core.module.Module;
-import com.rethinkdb.gen.ast.Get;
-import com.rethinkdb.model.OptArgs;
-import com.rethinkdb.net.Connection;
+import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.Projections;
+import com.mongodb.client.model.Updates;
 import com.sx4.categories.Categories;
 import com.sx4.core.Sx4Command;
+import com.sx4.core.Sx4CommandEventListener;
+import com.sx4.database.Database;
 import com.sx4.settings.Settings;
-import com.sx4.utils.AntiLinkUtils;
 import com.sx4.utils.ArgumentUtils;
 import com.sx4.utils.GeneralUtils;
 import com.sx4.utils.HelpUtils;
@@ -40,17 +41,17 @@ import net.dv8tion.jda.api.entities.TextChannel;
 @Module
 public class AntiLinkModule {
 
-	public class AntilinkCommand extends Sx4Command {
+	public class AntiLinkCommand extends Sx4Command {
 		
 		private final List<String> actions = List.of("mute", "kick", "ban");
 		private final List<String> nullStrings = List.of("null", "none", "off", "reset");
 		
-		public AntilinkCommand() {
+		public AntiLinkCommand() {
 			super("antilink");
 			
-			super.setDescription("Antilink will delete any links sent in any channel or by any user unless it is whitelisted");
-			super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
 			super.setAliases("anti link", "anti-link");
+			super.setDescription("Set up antilink to automatically delete any active discord links which are sent in the server");
+			super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
 		}
 		
 		public void onCommand(CommandEvent event) {
@@ -59,49 +60,54 @@ public class AntiLinkModule {
 		
 		@Command(value="toggle", aliases={"enable", "disable"}, description="Enable/disable anti-link for the current server", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@AuthorPermissions({Permission.MESSAGE_MANAGE})
-		public void toggle(CommandEvent event, @Context Connection connection) {
-			AntiLinkUtils.insertData(event.getGuild()).run(connection, OptArgs.of("durability", "soft"));
-			Get data = r.table("antilink").get(event.getGuild().getId());
-			Map<String, Object> dataRan = data.run(connection);
-			
-			if ((boolean) dataRan.get("toggle") == false) {
-				event.reply("Anti-Link is now enabled <:done:403285928233402378>").queue();
-				data.update(r.hashMap("toggle", true)).runNoReply(connection);
-			} else {
-				event.reply("Anti-Link is now disabled <:done:403285928233402378>").queue();
-				data.update(r.hashMap("toggle", false)).runNoReply(connection);
-			}
+		public void toggle(CommandEvent event, @Context Database database) {
+			boolean enabled = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("antilink.enabled")).getEmbedded(List.of("antilink", "enabled"), false);
+			database.updateGuildById(event.getGuild().getIdLong(), Updates.set("antilink.enabled", !enabled), (result, exception) -> {
+				if (exception != null) {
+					exception.printStackTrace();
+					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+				} else {
+					event.reply("Anti-Link is now " + (enabled ? "disabled" : "enabled") + " <:done:403285928233402378>").queue();
+				}
+			});
 		}
 		
 		@Command(value="action", aliases={"set action", "setaction"}, description="Set the action which will happen when a user posts a certain amount of links (Set with antilink attempts), use off as an argument to turn this feature off", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@AuthorPermissions({Permission.BAN_MEMBERS})
-		public void action(CommandEvent event, @Context Connection connection, @Argument(value="action") String action) {
-			action = action.toLowerCase();
+		public void action(CommandEvent event, @Context Database database, @Argument(value="action") String actionArgument) {
+			String action = actionArgument.toLowerCase();
+			
+			Document data = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("antilink.action", "antilink.attempts")).get("antilink", Database.EMPTY_DOCUMENT);
 			if (nullStrings.contains(action)) {
-				Get data = r.table("antilink").get(event.getGuild().getId());
-				Map<String, Object> dataRan = data.run(connection);
-				
-				if (dataRan == null || dataRan.get("action") == null) {
+				if (data.getString("action") == null) {
 					event.reply("You don't have an action set :no_entry:").queue();
 					return;
 				}
 				
-				long attempts = (long) dataRan.get("attempts");
-				event.reply("An action will no longer occur when a user sends " + attempts + " link" + (attempts == 1 ? "" : "s") + " <:done:403285928233402378>").queue();
-				data.update(r.hashMap("action", null)).runNoReply(connection);
+				int attempts = data.getInteger("attempts", 3);
+				database.updateGuildById(event.getGuild().getIdLong(), Updates.unset("antilink.action"), (result, exception) -> {
+					if (exception != null) {
+						exception.printStackTrace();
+						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+					} else {
+						event.reply("An action will no longer occur when a user sends " + attempts + " link" + (attempts == 1 ? "" : "s") + " <:done:403285928233402378>").queue();
+					}
+				});
 			} else if (actions.contains(action)) {
-				AntiLinkUtils.insertData(event.getGuild()).run(connection, OptArgs.of("durability", "soft"));
-				Get data = r.table("antilink").get(event.getGuild().getId());
-				Map<String, Object> dataRan = data.run(connection);
-				
-				if (dataRan != null && dataRan.get("action") != null && dataRan.get("action").equals(action)) {
+				if (data.getString("action") != null && data.getString("action").equals(action)) {
 					event.reply("The action is already set to `" + action + "` :no_entry:").queue();
 					return;
 				}
 				
-				long attempts = (long) dataRan.get("attempts");
-				event.reply("Users will now receive a `" + action + "` when sending **" + attempts + "** link" + (attempts == 1 ? "" : "s") + " <:done:403285928233402378>").queue();
-				data.update(r.hashMap("action", action)).runNoReply(connection);
+				int attempts = data.getInteger("attempts", 3);
+				database.updateGuildById(event.getGuild().getIdLong(), Updates.set("antilink.action", action), (result, exception) -> {
+					if (exception != null) {
+						exception.printStackTrace();
+						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+					} else {
+						event.reply("Users will now receive a `" + action + "` when sending **" + attempts + "** link" + (attempts == 1 ? "" : "s") + " <:done:403285928233402378>").queue();
+					}
+				});
 			} else {
 				event.reply("Invalid action, `" + GeneralUtils.joinGrammatical(actions) + "` are the valid actions :no_entry:").queue();
 			}
@@ -109,55 +115,49 @@ public class AntiLinkModule {
 		
 		@Command(value="attempts", description="Set the amount of times a user can send an link before an action occurs to them set through `antilink action`", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@AuthorPermissions({Permission.MESSAGE_MANAGE})
-		public void attempts(CommandEvent event, @Context Connection connection, @Argument(value="attempts") int attempts) {
+		public void attempts(CommandEvent event, @Context Database database, @Argument(value="attempts") int attempts) {
 			if (attempts < 1) {
 				event.reply("The attempts cannot be any lower than 1 :no_entry:").queue();
 				return;
 			}
 			
-			AntiLinkUtils.insertData(event.getGuild()).run(connection, OptArgs.of("durability", "soft"));
-			Get data = r.table("antilink").get(event.getGuild().getId());
-			Map<String, Object> dataRan = data.run(connection);
-			
-			if ((long) dataRan.get("attempts") == attempts) {
+			int dataAttempts = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("antilink.attempts")).getEmbedded(List.of("antilink", "attempts"), 3);
+			if (dataAttempts == attempts) {
 				event.reply("Attempts is already set to **" + attempts + "** :no_entry:").queue();
 				return;
 			}
 			
-			event.reply("When a user sends **" + attempts + "** link" + (attempts == 1 ? "" : "s") + " an action will occur to them <:done:403285928233402378>").queue();
-			data.update(r.hashMap("attempts", attempts)).runNoReply(connection);
+			database.updateGuildById(event.getGuild().getIdLong(), Updates.set("antilink.attempts", attempts), (result, exception) -> {
+				if (exception != null) {
+					exception.printStackTrace();
+					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+				} else {
+					event.reply("When a user sends **" + attempts + "** link" + (attempts == 1 ? "" : "s") + " an action will occur to them <:done:403285928233402378>").queue();
+				}
+			});
 		}
 		
-		@SuppressWarnings("unchecked")
 		@Command(value="reset attempts", aliases={"resetattempts"}, description="Resets a users attempts of sending links to 0", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@AuthorPermissions({Permission.MESSAGE_MANAGE})
-		public void resetAttempts(CommandEvent event, @Context Connection connection, @Argument(value="user", endless=true) String userArgument) {
+		public void resetAttempts(CommandEvent event, @Context Database database, @Argument(value="user", endless=true) String userArgument) {
 			Member member = ArgumentUtils.getMember(event.getGuild(), userArgument);
 			if (member == null) {
 				event.reply("I could not find that user :no_entry:").queue();
 				return;
 			}
 			
-			Get data = r.table("antilink").get(event.getGuild().getId());
-			Map<String, Object> dataRan = data.run(connection);
-			
-			if (dataRan == null) {
-				event.reply("**" + member.getUser().getAsTag() + "** does not have any attempts :no_entry:").queue();
-				return;
-			}
-			
-			List<Map<String, Object>> users = (List<Map<String, Object>>) dataRan.get("users");
-			if (users.isEmpty()) {
-				event.reply("**" + member.getUser().getAsTag() + "** does not have any attempts :no_entry:").queue();
-				return;
-			}
-			
-			for (Map<String, Object> userData : users) {
-				if (userData.get("id").equals(member.getUser().getId())) {
-					event.reply("Attempts for **" + member.getUser().getAsTag() + "** have been reset <:done:403285928233402378>").queue();
-						
-					users.remove(userData);
-					data.update(r.hashMap("users", users)).runNoReply(connection);
+			List<Document> users = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("antilink.users")).getEmbedded(List.of("antilink", "users"), Collections.emptyList());
+			for (Document userData : users) {
+				if (userData.getLong("id") == member.getIdLong()) {
+					database.updateGuildById(event.getGuild().getIdLong(), Updates.pull("antilink.users", Filters.eq("id", member.getIdLong())), (result, exception) -> {
+						if (exception != null) {
+							exception.printStackTrace();
+							event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+						} else {
+							event.reply("Attempts for **" + member.getUser().getAsTag() + "** have been reset <:done:403285928233402378>").queue();
+						}
+					});
+					
 					return;
 				}
 			}
@@ -165,12 +165,11 @@ public class AntiLinkModule {
 			event.reply("**" + member.getUser().getAsTag() + "** does not have any attempts :no_entry:").queue();
 		}
 		
-		@SuppressWarnings("unchecked")
 		@Command(value="whitelist", description="Whitelists a user/channel/role to be able to send links")
 		@AuthorPermissions({Permission.MANAGE_SERVER})
-		public void whitelist(CommandEvent event, @Context Connection connection, @Argument(value="user | role | channel", endless=true) String argument) {
+		public void whitelist(CommandEvent event, @Context Database database, @Argument(value="user | role | channel", endless=true) String argument) {
 			Member member = ArgumentUtils.getMember(event.getGuild(), argument);
-			GuildChannel channel = ArgumentUtils.getTextChannelOrParent(event.getGuild(), argument);
+			GuildChannel channel = ArgumentUtils.getGuildChannel(event.getGuild(), argument);
 			Role role = ArgumentUtils.getRole(event.getGuild(), argument);
 			
 			if (role == null && member == null && channel == null) {
@@ -178,72 +177,74 @@ public class AntiLinkModule {
 				return;
 			}
 			
-			AntiLinkUtils.insertData(event.getGuild()).run(connection, OptArgs.of("durability", "soft"));
-			Get data = r.table("antilink").get(event.getGuild().getId());
-			Map<String, Object> dataRan = data.run(connection);
-			
-			Map<String, Object> whitelist = (Map<String, Object>) dataRan.get("whitelist");
+			Document whitelist = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("antilink.whitelist")).getEmbedded(List.of("antilink", "whitelist"), Database.EMPTY_DOCUMENT);
 			if (channel != null) {
 				String displayChannel = channel instanceof TextChannel ? ((TextChannel) channel).getAsMention() : channel.getName();
 				
-				List<String> channels = (List<String>) whitelist.get("channels");
-				for (String channelId : channels) {
-					if (channelId.equals(channel.getId())) {
+				List<Long> channels = whitelist.getList("channels", Long.class, Collections.emptyList());
+				for (long channelId : channels) {
+					if (channelId == channel.getIdLong()) {
 						event.reply("That channel is already whitelisted :no_entry:").queue();
 						return;
 					}
 				}
 				
-				event.reply("Links sent in the channel " + displayChannel + " will no longer be deleted <:done:403285928233402378>").queue();
-				
-				channels.add(channel.getId());
-				whitelist.put("channels", channels);
-				data.update(r.hashMap("whitelist", whitelist)).runNoReply(connection);
+				database.updateGuildById(event.getGuild().getIdLong(), Updates.push("antilink.whitelist.channels", channel.getIdLong()), (result, exception) -> {
+					if (exception != null) {
+						exception.printStackTrace();
+						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+					} else {
+						event.reply("Links sent in the channel " + displayChannel + " will no longer be deleted <:done:403285928233402378>").queue();
+					}
+				});
 			} else if (member != null) {
-				List<String> users = (List<String>) whitelist.get("users");
-				for (String userId : users) {
-					if (userId.equals(member.getUser().getId())) {
+				List<Long> users = whitelist.getList("users", Long.class, Collections.emptyList());
+				for (long userId : users) {
+					if (userId == member.getIdLong()) {
 						event.reply("That user is already whitelisted :no_entry:").queue();
 						return;
 					}
 				}
 				
-				event.reply("Links sent by **" + member.getUser().getAsTag() + "** will no longer be deleted <:done:403285928233402378>").queue();
-				
-				users.add(member.getUser().getId());
-				whitelist.put("users", users);
-				data.update(r.hashMap("whitelist", whitelist)).runNoReply(connection);
+				database.updateGuildById(event.getGuild().getIdLong(), Updates.push("antilink.whitelist.users", member.getIdLong()), (result, exception) -> {
+					if (exception != null) {
+						exception.printStackTrace();
+						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+					} else {
+						event.reply("Links sent by **" + member.getUser().getAsTag() + "** will no longer be deleted <:done:403285928233402378>").queue();
+					}
+				});
 			} else if (role != null) {
-				List<String> roles = (List<String>) whitelist.get("roles");
-				for (String roleId : roles) {
-					if (roleId.equals(role.getId())) {
+				List<Long> roles = whitelist.getList("roles", Long.class, Collections.emptyList());
+				for (long roleId : roles) {
+					if (roleId == role.getIdLong()) {
 						event.reply("That role is already whitelisted :no_entry:").queue();
 						return;
 					}
 				}
 				
-				event.reply("Links sent by users in the role `" + role.getName() + "` will no longer be deleted <:done:403285928233402378>").queue();
-				
-				roles.add(role.getId());
-				whitelist.put("roles", roles);
-				data.update(r.hashMap("whitelist", whitelist)).runNoReply(connection);
+				database.updateGuildById(event.getGuild().getIdLong(), Updates.push("antilink.whitelist.roles", role.getIdLong()), (result, exception) -> {
+					if (exception != null) {
+						exception.printStackTrace();
+						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+					} else {
+						event.reply("Links sent by users in the role `" + role.getName() + "` will no longer be deleted <:done:403285928233402378>").queue();
+					}
+				});
 			}
 		}
 		
-		@SuppressWarnings("unchecked")
 		@Command(value="blacklist", aliases={"unwhitelist", "removewhitelist", "remove whitelist"}, description="Removes a whitelist from a specific user/role/channel")
 		@AuthorPermissions({Permission.MANAGE_SERVER})
-		public void blacklist(CommandEvent event, @Context Connection connection, @Argument(value="user | role | channel", endless=true) String argument) {
-			Get data = r.table("antilink").get(event.getGuild().getId());
-			Map<String, Object> dataRan = data.run(connection);
-			
-			if (dataRan == null) {
+		public void blacklist(CommandEvent event, @Context Database database, @Argument(value="user | role | channel", endless=true) String argument) {
+			Document whitelist = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("antilink.whitelist")).getEmbedded(List.of("antilink", "whitelist"), Database.EMPTY_DOCUMENT);
+			if (whitelist.isEmpty()) {
 				event.reply("Nothing is whitelisted to send links in this server :no_entry:").queue();
 				return;
 			}
 			
 			Member member = ArgumentUtils.getMember(event.getGuild(), argument);
-			GuildChannel channel = ArgumentUtils.getTextChannelOrParent(event.getGuild(), argument);
+			GuildChannel channel = ArgumentUtils.getGuildChannel(event.getGuild(), argument);
 			Role role = ArgumentUtils.getRole(event.getGuild(), argument);
 			
 			if (role == null && member == null && channel == null) {
@@ -251,46 +252,57 @@ public class AntiLinkModule {
 				return;
 			}
 			
-			Map<String, Object> whitelist = (Map<String, Object>) dataRan.get("whitelist");
 			if (channel != null) {
 				String displayChannel = channel instanceof TextChannel ? ((TextChannel) channel).getAsMention() : channel.getName();
 				
-				List<String> channels = (List<String>) whitelist.get("channels");
-				for (String channelId : channels) {
-					if (channelId.equals(channel.getId())) {
-						event.reply("Links sent in the channel " + displayChannel + " will now be deleted <:done:403285928233402378>").queue();
+				List<Long> channels = whitelist.getList("channels", Long.class, Collections.emptyList());
+				for (long channelId : channels) {
+					if (channelId == channel.getIdLong()) {
+						database.updateGuildById(event.getGuild().getIdLong(), Updates.pull("antilink.whitelist.channels", channel.getIdLong()), (result, exception) -> {
+							if (exception != null) {
+								exception.printStackTrace();
+								event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+							} else {
+								event.reply("Links sent in the channel " + displayChannel + " will now be deleted <:done:403285928233402378>").queue();
+							}
+						});
 						
-						channels.remove(channel.getId());
-						whitelist.put("channels", channels);
-						data.update(r.hashMap("whitelist", whitelist)).runNoReply(connection);
 						return;
 					}
 				}
 				
 				event.reply("That channel isn't whitelisted :no_entry:").queue();
 			} else if (member != null) {
-				List<String> users = (List<String>) whitelist.get("users");
-				for (String userId : users) {
-					if (userId.equals(member.getUser().getId())) {
-						event.reply("Links sent by **" + member.getUser().getAsTag() + "** will now be deleted <:done:403285928233402378>").queue();
+				List<Long> users = whitelist.getList("users", Long.class, Collections.emptyList());
+				for (long userId : users) {
+					if (userId == member.getIdLong()) {
+						database.updateGuildById(event.getGuild().getIdLong(), Updates.pull("antilink.whitelist.users", member.getIdLong()), (result, exception) -> {
+							if (exception != null) {
+								exception.printStackTrace();
+								event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+							} else {
+								event.reply("Links sent by **" + member.getUser().getAsTag() + "** will now be deleted <:done:403285928233402378>").queue();
+							}
+						});
 						
-						users.remove(member.getUser().getId());
-						whitelist.put("users", users);
-						data.update(r.hashMap("whitelist", whitelist)).runNoReply(connection);
 						return;
 					}
 				}
 				
 				event.reply("That user isn't whitelisted :no_entry:").queue();
 			} else if (role != null) {
-				List<String> roles = (List<String>) whitelist.get("roles");
-				for (String roleId : roles) {
-					if (roleId.equals(role.getId())) {
-						event.reply("Links sent by users in the role `" + role.getName() + "` will now be deleted <:done:403285928233402378>").queue();
+				List<Long> roles = whitelist.getList("roles", Long.class, Collections.emptyList());
+				for (long roleId : roles) {
+					if (roleId == role.getIdLong()) {
+						database.updateGuildById(event.getGuild().getIdLong(), Updates.pull("antilink.whitelist.roles", role.getIdLong()), (result, exception) -> {
+							if (exception != null) {
+								exception.printStackTrace();
+								event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+							} else {
+								event.reply("Links sent by users in the role `" + role.getName() + "` will now be deleted <:done:403285928233402378>").queue();
+							}
+						});
 						
-						roles.remove(role.getId());
-						whitelist.put("roles", roles);
-						data.update(r.hashMap("whitelist", whitelist)).runNoReply(connection);
 						return;
 					}
 				}
@@ -314,11 +326,11 @@ public class AntiLinkModule {
 			
 			@Command(value="channels", aliases={"channel"}, description="View all the channels which are whitelisted to send links while antilink is active", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 			@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-			public void channels(CommandEvent event, @Context Connection connection) {
-				List<String> channelIds = r.table("antilink").get(event.getGuild().getId()).g("whitelist").g("channels").run(connection);
+			public void channels(CommandEvent event, @Context Database database) {
+				List<Long> channelIds = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("antilink.whitelist.channels")).getEmbedded(List.of("antilink", "whitelist", "channels"), Collections.emptyList());
 				
 				List<GuildChannel> channels = new ArrayList<>();
-				for (String channelId : channelIds) {
+				for (long channelId : channelIds) {
 					TextChannel textChannel = event.getGuild().getTextChannelById(channelId);
 					if (textChannel == null) {
 						Category category = event.getGuild().getCategoryById(channelId);
@@ -349,11 +361,11 @@ public class AntiLinkModule {
 			
 			@Command(value="roles", aliases={"roles"}, description="View all the roles which are whitelisted to send links while antilink is active", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 			@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-			public void roles(CommandEvent event, @Context Connection connection) {
-				List<String> roleIds = r.table("antilink").get(event.getGuild().getId()).g("whitelist").g("roles").run(connection);
+			public void roles(CommandEvent event, @Context Database database) {
+				List<Long> roleIds = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("antilink.whitelist.roles")).getEmbedded(List.of("antilink", "whitelist", "roles"), Collections.emptyList());
 				
 				List<Role> roles = new ArrayList<>();
-				for (String roleId : roleIds) {
+				for (long roleId : roleIds) {
 					Role role = event.getGuild().getRoleById(roleId);
 					if (role != null) {
 						roles.add(role);
@@ -379,11 +391,11 @@ public class AntiLinkModule {
 			
 			@Command(value="users", aliases={"user", "member", "members"}, description="View all the users which are whitelisted to send links while antilink is active", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 			@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-			public void users(CommandEvent event, @Context Connection connection) {
-				List<String> userIds = r.table("antilink").get(event.getGuild().getId()).g("whitelist").g("users").run(connection);
+			public void users(CommandEvent event, @Context Database database) {
+				List<Long> userIds = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("antilink.whitelist.users")).getEmbedded(List.of("antilink", "whitelist", "users"), Collections.emptyList());
 				
 				List<Member> members = new ArrayList<>();
-				for (String userId : userIds) {
+				for (long userId : userIds) {
 					Member member = event.getGuild().getMemberById(userId);
 					if (member != null) {
 						members.add(member);
@@ -411,14 +423,15 @@ public class AntiLinkModule {
 		
 		@Command(value="stats", aliases={"setting", "settings"}, description="View all the settings for antilink in the current server", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-		public void stats(CommandEvent event, @Context Connection connection) {
-			Map<String, Object> data = r.table("antilink").get(event.getGuild().getId()).run(connection);
+		public void stats(CommandEvent event, @Context Database database) {
+			Bson projection = Projections.include("antilink.enabled", "antilink.action", "antilink.attempts");
+			Document data = database.getGuildById(event.getGuild().getIdLong(), null, projection);
 			
 			EmbedBuilder embed = new EmbedBuilder();
 			embed.setAuthor("Anti Link Settings", null, event.getSelfUser().getEffectiveAvatarUrl());
 			embed.setColor(Settings.EMBED_COLOUR);
-			embed.addField("Status", data == null ? "Disabled" : (boolean) data.get("toggle") == false ? "Disabled" : "Enabled", true);
-			embed.addField("Auto Moderation", data == null ? "Disabled" : data.get("action") == null ? "Disabled" : "Sending " + (long) data.get("attempts") + " link" + ((long) data.get("attempts") == 1 ? "" : "s") + " will result in a `" + (String) data.get("action") + "`", true);
+			embed.addField("Status", !data.getBoolean("enabled", false) ? "Disabled" : "Enabled", true);
+			embed.addField("Auto Moderation", data.getString("action") == null ? "Disabled" : "Sending " + data.getInteger("attempts", 3) + " link" + (data.getInteger("attempts", 3) == 1 ? "" : "s") + " will result in a `" + data.getString("action") + "`", true);
 			event.reply(embed.build()).queue();
 		}
 		
@@ -426,7 +439,7 @@ public class AntiLinkModule {
 	
 	@Initialize(all=true)
 	public void initialize(CommandImpl command) {
-		command.setCategory(Categories.ANTI_LINK);
+		command.setCategory(Categories.ANTI_INVITE);
 	}
 	
 }

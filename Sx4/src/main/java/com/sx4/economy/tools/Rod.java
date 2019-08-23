@@ -33,7 +33,7 @@ public class Rod extends Tool {
 	}
 	
 	public Rod(String name, Long price, CraftingRecipe craft, Material repairItem, int minimumYield, int maximumYield, int durability) {
-		super(name, price, craft, repairItem, durability);
+		super(name, price, craft, repairItem, durability, durability);
 		
 		this.minimumYield = minimumYield;
 		this.maximumYield = maximumYield;

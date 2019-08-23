@@ -1,7 +1,5 @@
 package com.sx4.logger.handler;
 
-import static com.rethinkdb.RethinkDB.r;
-
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
@@ -20,9 +18,14 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-import com.rethinkdb.net.Connection;
+import org.bson.Document;
+import org.bson.conversions.Bson;
+
+import com.mongodb.client.model.Projections;
+import com.mongodb.client.model.Updates;
 import com.sx4.cache.GuildMessageCache;
 import com.sx4.core.Sx4Bot;
+import com.sx4.database.Database;
 import com.sx4.logger.Statistics;
 import com.sx4.logger.util.Utils;
 import com.sx4.settings.Settings;
@@ -104,10 +107,10 @@ public class EventHandler extends ListenerAdapter {
 		
 		public final JDA bot;
 		public final long guildId;
-		public final Map<String, Object> data;
+		public final Document data;
 		public final List<WebhookEmbed> embeds;
 		
-		public Request(JDA bot, long guildId, Map<String, Object> data, List<WebhookEmbed> embeds) {
+		public Request(JDA bot, long guildId, Document data, List<WebhookEmbed> embeds) {
 			this.bot = bot;
 			this.guildId = guildId;
 			this.data = data;
@@ -119,9 +122,7 @@ public class EventHandler extends ListenerAdapter {
 		}
 	}
 	
-	private Connection connection;
-	
-	private Map<String, WebhookClient> webhooks = new HashMap<>();
+	private Map<Long, WebhookClient> webhooks = new HashMap<>();
 	
 	private Map<Long, BlockingDeque<Request>> queue = new HashMap<>();
 	
@@ -130,9 +131,7 @@ public class EventHandler extends ListenerAdapter {
 	
 	private OkHttpClient client = new OkHttpClient.Builder().build();
 	
-	public EventHandler(Connection connection) {
-		this.connection = connection;
-	}
+	public EventHandler() {}
 	
 	public Collection<WebhookClient> getRegisteredWebhooks() {
 		return this.webhooks.values();
@@ -148,7 +147,7 @@ public class EventHandler extends ListenerAdapter {
 			.sum();
 	}
 	
-	private void handleRequest(JDA bot, Guild guild, Map<String, Object> data, List<WebhookEmbed> requestEmbeds) {
+	private void handleRequest(JDA bot, Guild guild, Document data, List<WebhookEmbed> requestEmbeds) {
 		if(!this.queue.containsKey(guild.getIdLong())) {
 			BlockingDeque<Request> blockingDeque = new LinkedBlockingDeque<>();
 			this.queue.put(guild.getIdLong(), blockingDeque);
@@ -190,7 +189,7 @@ public class EventHandler extends ListenerAdapter {
 		this.queue.get(guild.getIdLong()).offer(new Request(bot, guild.getIdLong(), data, requestEmbeds));
 	}
 	
-	private void _send(JDA bot, Guild guild, Map<String, Object> data, List<WebhookEmbed> embeds, int requestAmount, int attempts) {
+	private void _send(JDA bot, Guild guild, Document data, List<WebhookEmbed> embeds, int requestAmount, int attempts) {
 		if(attempts >= MAX_ATTEMPTS) {
 			Statistics.increaseSkippedLogs();
 			
@@ -198,40 +197,40 @@ public class EventHandler extends ListenerAdapter {
 		}
 		
 		if(attempts >= ATTEMPTS_BEFORE_REFETCH) {
-			data = r.table("logs").get(guild.getId()).run(this.connection);
+			data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Document.class);
 		}
 		
-		TextChannel channel = guild.getTextChannelById((String) data.get("channel"));
-		if(channel == null) {
+		TextChannel channel = guild.getTextChannelById(data.getLong("channelId"));
+		if (channel == null) {
 			return;
 		}
 		
 		WebhookClient client;
-		if(data.get("webhook_id") == null || data.get("webhook_token") == null) {
+		if(data.getLong("webhookId") == null || data.getString("webhookToken") == null) {
 			Webhook webhook = channel.createWebhook("Sx4 - Logs").complete();
 			
-			data.put("webhook_id", webhook.getId());
-			data.put("webhook_token", webhook.getToken());
+			data.put("webhookId", webhook.getId());
+			data.put("webhookToken", webhook.getToken());
 			
-			r.table("logs")
-				.get(guild.getId())
-				.update(r.hashMap()
-					.with("webhook_id", webhook.getId())
-					.with("webhook_token", webhook.getToken()))
-				.runNoReply(this.connection);
+			Bson update = Updates.combine(Updates.set("logger.webhookId", webhook.getId()), Updates.set("logger.webhookToken", webhook.getToken()));
+			Database.get().updateGuildById(guild.getIdLong(), update, (result, exception) -> {
+				if (exception != null) {
+					exception.printStackTrace();
+				}
+			});
 			
 			client = new WebhookClientBuilder(webhook.getUrl())
 				.setExecutorService(this.scheduledExecutorService)
 				.setHttpClient(this.client)
 				.build();
 			
-			this.webhooks.put(String.valueOf(client.getId()), client);
+			this.webhooks.put(client.getId(), client);
 		}else{
-			String webhookId = (String) data.get("webhook_id");
-			String webhookToken = (String) data.get("webhook_token");
+			Long webhookId = data.getLong("webhookId");
+			String webhookToken = data.getString("webhookToken");
 			
 			client = this.webhooks.computeIfAbsent(webhookId, ($) -> 
-				new WebhookClientBuilder(Long.valueOf(webhookId), webhookToken)
+				new WebhookClientBuilder(webhookId, webhookToken)
 					.setExecutorService(this.scheduledExecutorService)
 					.setHttpClient(this.client)
 					.build());
@@ -254,8 +253,8 @@ public class EventHandler extends ListenerAdapter {
 				if(e.getCause() instanceof HttpException) {
 					/* Ugly catch, blame JDA */
 					if(e.getCause().getMessage().startsWith("Request returned failure 404")) {
-						data.put("webhook_id", null);
-						data.put("wehook_token", null);
+						data.put("webhookId", null);
+						data.put("wehookToken", null);
 						
 						/* 
 						 * Calling close would close the scheduled executor service we are using,
@@ -264,14 +263,14 @@ public class EventHandler extends ListenerAdapter {
 						 * this.webhooks.remove(client.getId()).close(); 
 						 */
 						
-						this.webhooks.remove(String.valueOf(client.getId()));
+						this.webhooks.remove(client.getId());
 						
-						r.table("logs")
-							.get(guild.getId())
-							.update(r.hashMap()
-								.with("webhook_id", null)
-								.with("webhook_token", null))
-							.runNoReply(this.connection);
+						Bson update = Updates.combine(Updates.set("logger.webhookId", null), Updates.set("logger.webhookToken", null));
+						Database.get().updateGuildById(guild.getIdLong(), update, (result, exception) -> {
+							if (exception != null) {
+								exception.printStackTrace();
+							}
+						});
 						
 						this._send(bot, guild, data, embeds, requestAmount, attempts + 1);
 						
@@ -285,13 +284,13 @@ public class EventHandler extends ListenerAdapter {
 		}
 	}
 	
-	public void send(JDA bot, Guild guild, Map<String, Object> data, List<WebhookEmbed> embeds) {
+	public void send(JDA bot, Guild guild, Document data, List<WebhookEmbed> embeds) {
 		this.executor.submit(() -> {
 			this.handleRequest(bot, guild, data, embeds);
 		});
 	}
 	
-	public void send(JDA bot, Guild guild, Map<String, Object> data, WebhookEmbed... embeds) {
+	public void send(JDA bot, Guild guild, Document data, WebhookEmbed... embeds) {
 		this.send(bot, guild, data, List.of(embeds));
 	}
 	
@@ -311,8 +310,8 @@ public class EventHandler extends ListenerAdapter {
 		Guild guild = event.getGuild();
 		Member member = event.getMember();
 		
-		Map<String, Object> data = r.table("logs").get(guild.getId()).run(this.connection);
-		if(data == null || !((boolean) data.getOrDefault("toggle", false)) || data.get("channel") == null) {
+		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Document.class);
+		if (!data.getBoolean("enabled", false) || data.getLong("channelId") == null) {
 			return;
 		}
 		
@@ -324,20 +323,20 @@ public class EventHandler extends ListenerAdapter {
 		
 		embed.setFooter(new EmbedFooter(String.format("User ID: %s", member.getUser().getId()), null));
 		
-		this.send(event.getJDA(), guild, data, embed.build());
+		this.send(event.getJDA(), guild, data, embed.build());		
 	}
 	
 	public void onGuildMemberLeave(GuildMemberLeaveEvent event) {
 		Guild guild = event.getGuild();
 		Member member = event.getMember();
 		
-		Map<String, Object> data = r.table("logs").get(guild.getId()).run(this.connection);
-		if(data == null || !((boolean) data.getOrDefault("toggle", false)) || data.get("channel") == null) {
+		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Document.class);
+		if (!data.getBoolean("enabled", false) || data.getLong("channelId") == null) {
 			return;
 		}
-		
+	
 		List<WebhookEmbed> embeds = new ArrayList<>();
-		
+	
 		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
 		embed.setDescription(String.format("`%s` just left the server", member.getEffectiveName()));
 		embed.setColor(COLOR_RED);
@@ -372,11 +371,11 @@ public class EventHandler extends ListenerAdapter {
 		Guild guild = event.getGuild();
 		User user = event.getUser();
 		
-		Map<String, Object> data = r.table("logs").get(guild.getId()).run(this.connection);
-		if(data == null || !((boolean) data.getOrDefault("toggle", false)) || data.get("channel") == null) {
+		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Document.class);
+		if (!data.getBoolean("enabled", false) || data.getLong("channelId") == null) {
 			return;
 		}
-		
+	
 		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
 		embed.setDescription(String.format("`%s` has been banned", user.getName()));
 		embed.setColor(COLOR_RED);
@@ -412,11 +411,11 @@ public class EventHandler extends ListenerAdapter {
 		Guild guild = event.getGuild();
 		User user = event.getUser();
 		
-		Map<String, Object> data = r.table("logs").get(guild.getId()).run(this.connection);
-		if(data == null || !((boolean) data.getOrDefault("toggle", false)) || data.get("channel") == null) {
+		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Document.class);
+		if (!data.getBoolean("enabled", false) || data.getLong("channelId") == null) {
 			return;
 		}
-		
+	
 		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
 		embed.setDescription(String.format("`%s` has been unbanned", user.getName()));
 		embed.setColor(COLOR_GREEN);
@@ -453,11 +452,11 @@ public class EventHandler extends ListenerAdapter {
 		TextChannel channel = event.getChannel();
 		Message message = event.getMessage(), previousMessage = GuildMessageCache.INSTANCE.getMessageById(message.getIdLong());
 		
-		Map<String, Object> data = r.table("logs").get(guild.getId()).run(this.connection);
-		if(data == null || !((boolean) data.getOrDefault("toggle", false)) || data.get("channel") == null) {
+		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Document.class);
+		if (!data.getBoolean("enabled", false) || data.getLong("channelId") == null) {
 			return;
 		}
-		
+
 		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
 		if(message.getMember() != null) {
 			Member member = event.getMember();
@@ -490,11 +489,11 @@ public class EventHandler extends ListenerAdapter {
 		Guild guild = event.getGuild();
 		TextChannel channel = event.getChannel();
 		
-		Map<String, Object> data = r.table("logs").get(guild.getId()).run(this.connection);
-		if(data == null || !((boolean) data.getOrDefault("toggle", false)) || data.get("channel") == null) {
+		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Document.class);
+		if (!data.getBoolean("enabled", false) || data.getLong("channelId") == null) {
 			return;
 		}
-		
+
 		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
 		embed.setColor(COLOR_RED);
 		embed.setTimestamp(ZonedDateTime.now());
@@ -532,11 +531,11 @@ public class EventHandler extends ListenerAdapter {
 	public void onChannelDelete(GuildChannel channel) {
 		Guild guild = channel.getGuild();
 		
-		Map<String, Object> data = r.table("logs").get(guild.getId()).run(this.connection);
-		if(data == null || !((boolean) data.getOrDefault("toggle", false)) || data.get("channel") == null) {
+		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Document.class);
+		if (!data.getBoolean("enabled", false) || data.getLong("channelId") == null) {
 			return;
 		}
-		
+
 		String type = Utils.getChannelTypeReadable(channel);
 		if(type == null) {
 			return;
@@ -588,11 +587,11 @@ public class EventHandler extends ListenerAdapter {
 	public void onChannelCreate(GuildChannel channel) {
 		Guild guild = channel.getGuild();
 		
-		Map<String, Object> data = r.table("logs").get(guild.getId()).run(this.connection);
-		if(data == null || !((boolean) data.getOrDefault("toggle", false)) || data.get("channel") == null) {
+		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Document.class);
+		if (!data.getBoolean("enabled", false) || data.getLong("channelId") == null) {
 			return;
 		}
-		
+
 		String type = Utils.getChannelTypeReadable(channel);
 		if(type == null) {
 			return;
@@ -644,11 +643,11 @@ public class EventHandler extends ListenerAdapter {
 	public void onChannelUpdateName(GuildChannel channel, String previous, String current) {
 		Guild guild = channel.getGuild();
 		
-		Map<String, Object> data = r.table("logs").get(guild.getId()).run(this.connection);
-		if(data == null || !((boolean) data.getOrDefault("toggle", false)) || data.get("channel") == null) {
+		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Document.class);
+		if (!data.getBoolean("enabled", false) || data.getLong("channelId") == null) {
 			return;
 		}
-		
+
 		String type = Utils.getChannelTypeReadable(channel);
 		if(type == null) {
 			return;
@@ -705,11 +704,11 @@ public class EventHandler extends ListenerAdapter {
 		Guild guild = event.getGuild();
 		Role role = event.getRole();
 		
-		Map<String, Object> data = r.table("logs").get(guild.getId()).run(this.connection);
-		if(data == null || !((boolean) data.getOrDefault("toggle", false)) || data.get("channel") == null) {
+		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Document.class);
+		if (!data.getBoolean("enabled", false) || data.getLong("channelId") == null) {
 			return;
 		}
-		
+
 		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
 		embed.setDescription(String.format("The role %s has been created", role.getAsMention()));
 		embed.setColor(COLOR_GREEN);
@@ -745,11 +744,11 @@ public class EventHandler extends ListenerAdapter {
 		Guild guild = event.getGuild();
 		Role role = event.getRole();
 		
-		Map<String, Object> data = r.table("logs").get(guild.getId()).run(this.connection);
-		if(data == null || !((boolean) data.getOrDefault("toggle", false)) || data.get("channel") == null) {
+		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Document.class);
+		if (!data.getBoolean("enabled", false) || data.getLong("channelId") == null) {
 			return;
 		}
-		
+
 		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
 		embed.setDescription(String.format("The role `%s` has been deleted", role.getName()));
 		embed.setColor(COLOR_RED);
@@ -785,11 +784,11 @@ public class EventHandler extends ListenerAdapter {
 		Guild guild = event.getGuild();
 		Role role = event.getRole();
 		
-		Map<String, Object> data = r.table("logs").get(guild.getId()).run(this.connection);
-		if(data == null || !((boolean) data.getOrDefault("toggle", false)) || data.get("channel") == null) {
+		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Document.class);
+		if (!data.getBoolean("enabled", false) || data.getLong("channelId") == null) {
 			return;
 		}
-		
+
 		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
 		embed.setDescription(String.format("The role %s has been renamed", role.getAsMention()));
 		embed.setColor(COLOR_ORANGE);
@@ -854,11 +853,11 @@ public class EventHandler extends ListenerAdapter {
 		Guild guild = event.getGuild();
 		Role role = event.getRole();
 		
-		Map<String, Object> data = r.table("logs").get(guild.getId()).run(this.connection);
-		if(data == null || !((boolean) data.getOrDefault("toggle", false)) || data.get("channel") == null) {
+		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Document.class);
+		if (!data.getBoolean("enabled", false) || data.getLong("channelId") == null) {
 			return;
 		}
-		
+
 		String message = this.getPermissionDifference(event.getOldPermissionsRaw(), event.getNewPermissionsRaw());
 		if(message.length() > 0) {
 			StringBuilder embedDescription = new StringBuilder();
@@ -911,11 +910,11 @@ public class EventHandler extends ListenerAdapter {
 		List<Role> roles = event.getRoles();
 		Role firstRole = roles.get(0);
 		
-		Map<String, Object> data = r.table("logs").get(guild.getId()).run(this.connection);
-		if(data == null || !((boolean) data.getOrDefault("toggle", false)) || data.get("channel") == null) {
+		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Document.class);
+		if (!data.getBoolean("enabled", false) || data.getLong("channelId") == null) {
 			return;
 		}
-		
+
 		StringBuilder embedDescription = new StringBuilder();
 		
 		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
@@ -1000,11 +999,11 @@ public class EventHandler extends ListenerAdapter {
 		List<Role> roles = event.getRoles();
 		Role firstRole = roles.get(0);
 		
-		Map<String, Object> data = r.table("logs").get(guild.getId()).run(this.connection);
-		if(data == null || !((boolean) data.getOrDefault("toggle", false)) || data.get("channel") == null) {
+		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Document.class);
+		if (!data.getBoolean("enabled", false) || data.getLong("channelId") == null) {
 			return;
 		}
-		
+
 		/* Wait AUDIT_LOG_DELAY milliseconds to ensure that the role-deletion event has come through */
 		new EmptyRestAction<Void>(event.getJDA()).queueAfter(AUDIT_LOG_DELAY, TimeUnit.MILLISECONDS, ($) -> {
 			StringBuilder embedDescription = new StringBuilder();
@@ -1096,11 +1095,11 @@ public class EventHandler extends ListenerAdapter {
 		Guild guild = event.getGuild();
 		Member member = event.getMember();
 		
-		Map<String, Object> data = r.table("logs").get(guild.getId()).run(this.connection);
-		if(data == null || !((boolean) data.getOrDefault("toggle", false)) || data.get("channel") == null) {
+		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Document.class);
+		if (!data.getBoolean("enabled", false) || data.getLong("channelId") == null) {
 			return;
 		}
-		
+
 		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
 		embed.setDescription(String.format("`%s` has had their nickname changed", member.getEffectiveName()));
 		embed.setColor(COLOR_ORANGE);
@@ -1139,11 +1138,11 @@ public class EventHandler extends ListenerAdapter {
 		Guild guild = event.getGuild();
 		Member member = event.getMember();
 		
-		Map<String, Object> data = r.table("logs").get(guild.getId()).run(this.connection);
-		if(data == null || !((boolean) data.getOrDefault("toggle", false)) || data.get("channel") == null) {
+		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Document.class);
+		if (!data.getBoolean("enabled", false) || data.getLong("channelId") == null) {
 			return;
 		}
-		
+
 		boolean muted = event.getVoiceState().isGuildMuted();
 		
 		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
@@ -1186,11 +1185,11 @@ public class EventHandler extends ListenerAdapter {
 		Guild guild = event.getGuild();
 		Member member = event.getMember();
 		
-		Map<String, Object> data = r.table("logs").get(guild.getId()).run(this.connection);
-		if(data == null || !((boolean) data.getOrDefault("toggle", false)) || data.get("channel") == null) {
+		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Document.class);
+		if (!data.getBoolean("enabled", false) || data.getLong("channelId") == null) {
 			return;
 		}
-		
+
 		boolean deafened = event.getVoiceState().isGuildDeafened();
 		
 		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
@@ -1234,11 +1233,11 @@ public class EventHandler extends ListenerAdapter {
 		Member member = event.getMember();
 		VoiceChannel channel = event.getChannelJoined();
 		
-		Map<String, Object> data = r.table("logs").get(guild.getId()).run(this.connection);
-		if(data == null || !((boolean) data.getOrDefault("toggle", false)) || data.get("channel") == null) {
+		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Document.class);
+		if (!data.getBoolean("enabled", false) || data.getLong("channelId") == null) {
 			return;
 		}
-		
+
 		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
 		embed.setDescription(String.format("`%s` just joined the voice channel `%s`", member.getEffectiveName(), channel.getName()));
 		embed.setColor(COLOR_GREEN);
@@ -1253,11 +1252,11 @@ public class EventHandler extends ListenerAdapter {
 		Member member = event.getMember();
 		VoiceChannel channel = event.getChannelLeft();
 		
-		Map<String, Object> data = r.table("logs").get(guild.getId()).run(this.connection);
-		if(data == null || !((boolean) data.getOrDefault("toggle", false)) || data.get("channel") == null) {
+		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Document.class);
+		if (!data.getBoolean("enabled", false) || data.getLong("channelId") == null) {
 			return;
 		}
-		
+
 		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
 		embed.setDescription(String.format("`%s` just left the voice channel `%s`", member.getEffectiveName(), channel.getName()));
 		embed.setColor(COLOR_RED);
@@ -1273,11 +1272,11 @@ public class EventHandler extends ListenerAdapter {
 		
 		VoiceChannel left = event.getChannelLeft(), joined = event.getChannelJoined();
 		
-		Map<String, Object> data = r.table("logs").get(guild.getId()).run(this.connection);
-		if(data == null || !((boolean) data.getOrDefault("toggle", false)) || data.get("channel") == null) {
+		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Document.class);
+		if (!data.getBoolean("enabled", false) || data.getLong("channelId") == null) {
 			return;
 		}
-		
+
 		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
 		embed.setDescription(String.format("`%s` just changed voice channel", member.getEffectiveName()));
 		embed.setColor(COLOR_ORANGE);

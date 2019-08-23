@@ -1,8 +1,5 @@
 package com.sx4.economy.tools;
 
-import java.util.HashMap;
-import java.util.Map;
-
 import com.sx4.economy.CraftingRecipe;
 import com.sx4.economy.materials.Material;
 import com.sx4.economy.materials.Wood;
@@ -36,7 +33,7 @@ public class Pickaxe extends Tool {
 	}
 	
 	public Pickaxe(String name, Long price, CraftingRecipe craft, Material repairItem, int minimumYield, int maximumYield, int durability, double multiplier) {
-		super(name, price, craft, repairItem, durability);
+		super(name, price, craft, repairItem, durability, durability);
 		
 		this.minimumYield = minimumYield;
 		this.maximumYield = maximumYield;
@@ -63,18 +60,6 @@ public class Pickaxe extends Tool {
 		}
 		
 		return null;
-	}
-	
-	public Map<String, Object> getStoreInfo() {
-		Map<String, Object> pickaxeInfo = new HashMap<>();
-		pickaxeInfo.put("upgrades", this.getUpgrades());
-		pickaxeInfo.put("durability", this.getDurability());
-		pickaxeInfo.put("price", this.getPrice());
-		pickaxeInfo.put("multiplier", this.multiplier);
-		pickaxeInfo.put("rand_min", this.minimumYield);
-		pickaxeInfo.put("rand_max", this.maximumYield);
-		
-		return pickaxeInfo;
 	}
 	
 	public static Pickaxe getPickaxeByName(String pickaxeName) {

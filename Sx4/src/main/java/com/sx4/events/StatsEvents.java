@@ -1,7 +1,6 @@
 package com.sx4.events;
 
-import static com.rethinkdb.RethinkDB.r;
-
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -13,73 +12,79 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
-import com.rethinkdb.gen.ast.Get;
-import com.rethinkdb.gen.ast.Table;
-import com.rethinkdb.model.MapObject;
-import com.rethinkdb.model.OptArgs;
-import com.rethinkdb.net.Connection;
+import org.bson.Document;
+import org.bson.conversions.Bson;
+
+import com.mongodb.client.FindIterable;
+import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.Projections;
+import com.mongodb.client.model.UpdateOneModel;
+import com.mongodb.client.model.UpdateOptions;
+import com.mongodb.client.model.Updates;
+import com.mongodb.client.model.WriteModel;
 import com.sx4.core.Sx4Bot;
+import com.sx4.database.Database;
 import com.sx4.settings.Settings;
 
 import net.dv8tion.jda.api.EmbedBuilder;
+import net.dv8tion.jda.api.events.guild.GuildJoinEvent;
+import net.dv8tion.jda.api.events.guild.GuildLeaveEvent;
 import net.dv8tion.jda.api.events.guild.member.GuildMemberJoinEvent;
 import net.dv8tion.jda.api.events.guild.member.GuildMemberLeaveEvent;
 import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent;
+import net.dv8tion.jda.api.events.message.guild.GuildMessageUpdateEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.dv8tion.jda.api.sharding.ShardManager;
 
 public class StatsEvents extends ListenerAdapter {
+	
+	public static final int DAY_IN_SECONDS = 86400;
 	
 	public static void initializeBotLogs() {
 		ZonedDateTime now = ZonedDateTime.now(ZoneOffset.UTC);
 		
 		Sx4Bot.scheduledExectuor.scheduleAtFixedRate(() -> {
 			ShardManager shardManager = Sx4Bot.getShardManager();
-			Connection connection = Sx4Bot.getConnection();
+			long timestampNow = Clock.systemUTC().instant().getEpochSecond();
 			
-			Get data = r.table("botstats").get("stats");
-			Map<String, Object> dataRan = data.run(connection);
-			int servers = (int) (shardManager.getGuilds().size() - (long) dataRan.get("servercountbefore"));
+			Bson filter = Filters.gte("timestamp", timestampNow - StatsEvents.DAY_IN_SECONDS);
+			
+			int guildsGained = Database.get().getGuildsGained(filter);
+			long commandsUsed = Database.get().getCommandLogs().countDocuments(filter);
 			
 			EmbedBuilder embed = new EmbedBuilder();
 			embed.setColor(Settings.EMBED_COLOUR);
 			embed.setTimestamp(Instant.now());
 			embed.setAuthor("Bot Logs", null, shardManager.getShards().get(0).getSelfUser().getEffectiveAvatarUrl());
-			embed.addField("Average Command Usage", String.format("1 every %.2f seconds (%,d)", (double) 86400 / (long) dataRan.get("commands"), (long) dataRan.get("commands")), false);
-			embed.addField("Servers", String.format("%,d", shardManager.getGuilds().size()) + " (" + (servers < 0 ? "" : "+") + String.format("%,d)", servers), false);
+			embed.addField("Average Command Usage", String.format("1 every %.2f seconds (%,d)", (double) StatsEvents.DAY_IN_SECONDS / commandsUsed, commandsUsed), false);
+			embed.addField("Servers", String.format("%,d", shardManager.getGuilds().size()) + " (" + (guildsGained < 0 ? "" : "+") + String.format("%,d)", guildsGained), false);
 			embed.addField("Users", String.format("%,d", shardManager.getUsers().size()), false);
 			shardManager.getGuildById(Settings.SUPPORT_SERVER_ID).getTextChannelById(Settings.BOT_LOGS_ID).sendMessage(embed.build()).queue();
 			
-			data.update(r.hashMap("commands", 0).with("servercountbefore", shardManager.getGuilds().size()).with("messages", 0)).runNoReply(connection);
-			r.table("stats").forEach(table -> r.table("stats").get(table.g("id")).update(r.hashMap("messages", 0).with("members", 0))).runNoReply(connection);
-		},  Duration.between(now, ZonedDateTime.of(now.getYear(), now.getMonthValue(), now.getDayOfMonth(), 0, 0, 0, 0, ZoneOffset.UTC).plusDays(1)).toSeconds(), 86400, TimeUnit.SECONDS);
+			Database.get().updateManyGuilds(Updates.unset("stats"), (result, exception) -> {
+				if (exception != null) {
+					exception.printStackTrace();
+				}
+			});
+			
+		},  Duration.between(now, ZonedDateTime.of(now.getYear(), now.getMonthValue(), now.getDayOfMonth(), 0, 0, 0, 0, ZoneOffset.UTC).plusDays(1)).toSeconds(), StatsEvents.DAY_IN_SECONDS, TimeUnit.SECONDS);
 	}
 	
-	private static Map<String, Map<String, Integer>> guildStats = new HashMap<>();
+	private static Map<Long, Map<String, Integer>> guildStats = new HashMap<>();
 	
 	public static void initializeGuildStats() {
 		Sx4Bot.scheduledExectuor.scheduleAtFixedRate(() -> {
 			try {
-				Table table = r.table("stats");
-				Connection connection = Sx4Bot.getConnection();
-				
-				Set<String> guildKeys = guildStats.keySet();
-				
-				List<MapObject> massData = new ArrayList<>();
-				for (String guildId : guildKeys) {
-					massData.add(r.hashMap("id", guildId).with("members", 0).with("messages", 0));
-				}
-				
-				table.insert(massData).run(connection, OptArgs.of("durability", "soft"));
-				
-				for (String guildId : guildKeys) {
+				List<WriteModel<Document>> bulkData = new ArrayList<>();
+				Set<Long> guildKeys = guildStats.keySet();
+				for (long guildId : guildKeys) {
 					Map<String, Integer> guildData = guildStats.get(guildId);
 					
 					boolean proceed = false;
 					for (Integer value : guildData.values()) {
 						if (value != 0) {
 							proceed = true;
-							continue;
+							break;
 						}
 					}
 					
@@ -87,7 +92,20 @@ public class StatsEvents extends ListenerAdapter {
 						continue;
 					}
 					
-					table.get(guildId).update(row -> r.hashMap("messages", row.g("messages").add(guildData.get("messages"))).with("members", row.g("members").add(guildData.get("members")))).runNoReply(connection);
+					Bson update = Updates.combine(
+							Updates.inc("stats.messages", guildData.get("messages")),
+							Updates.inc("stats.members", guildData.get("members"))
+					);
+		
+					bulkData.add(new UpdateOneModel<>(Filters.eq("_id", guildId), update, new UpdateOptions().upsert(true)));
+				}
+				
+				if (!bulkData.isEmpty()) {
+					Database.get().bulkWriteGuilds(bulkData, (result, exception) -> {
+						if (exception != null) {
+							exception.printStackTrace();
+						}
+					});
 				}
 				
 				guildStats.clear();
@@ -98,51 +116,99 @@ public class StatsEvents extends ListenerAdapter {
 	}
 	
 	public void onGuildMessageReceived(GuildMessageReceivedEvent event) {
-		if (event.getAuthor().equals(event.getJDA().getSelfUser())) {
-			r.table("botstats").get("stats").update(row -> r.hashMap("messages", row.g("messages").add(1))).runNoReply(Sx4Bot.getConnection());
-			return;
-		}
+		Document messageLog = new Document("_id", event.getMessageIdLong())
+				.append("guildId", event.getGuild().getIdLong())
+				.append("channelId", event.getChannel().getIdLong())
+				.append("shard", event.getJDA().getShardInfo().getShardId())
+				.append("authorId", event.getAuthor().getIdLong())
+				.append("edited", false)
+				.append("timestamp", Clock.systemUTC().instant().getEpochSecond())
+				.append("content", event.getMessage().getContentRaw())
+				.append("attachments", !event.getMessage().getAttachments().isEmpty());
 		
-		if (event.getAuthor().isBot()) {
-			return;
-		}
+		Database.get().insertMessageLog(messageLog, (result, exception) -> {
+			if (exception != null) {
+				exception.printStackTrace();
+			}
+		});
 		
-		if (guildStats.containsKey(event.getGuild().getId())) {
-			Map<String, Integer> guildData = guildStats.get(event.getGuild().getId());
-			guildData.put("messages", guildData.get("messages") + 1);
-			guildStats.put(event.getGuild().getId(), guildData);
-		} else {
-			Map<String, Integer> guildData = new HashMap<>();
-			guildData.put("messages", 1);
-			guildData.put("members", 0);
-			guildStats.put(event.getGuild().getId(), guildData);
+		if (!event.getAuthor().isBot()) {
+			if (guildStats.containsKey(event.getGuild().getIdLong())) {
+				Map<String, Integer> guildData = guildStats.get(event.getGuild().getIdLong());
+				guildData.put("messages", guildData.get("messages") + 1);
+				guildStats.put(event.getGuild().getIdLong(), guildData);
+			} else {
+				Map<String, Integer> guildData = new HashMap<>();
+				guildData.put("messages", 1);
+				guildData.put("members", 0);
+				guildStats.put(event.getGuild().getIdLong(), guildData);
+			}
 		}
 	}
 	
+	public void onGuildMessageUpdate(GuildMessageUpdateEvent event) {
+		Bson update = Updates.combine(
+				Updates.set("edited", true),
+				Updates.set("attachments", !event.getMessage().getAttachments().isEmpty())
+		);
+				
+		Database.get().updateMessageLog(event.getMessageIdLong(), update, (result, exception) -> {
+			if (exception != null) {
+				exception.printStackTrace();
+			}
+		});
+	}
+	
 	public void onGuildMemberJoin(GuildMemberJoinEvent event) {
-		if (guildStats.containsKey(event.getGuild().getId())) {
-			Map<String, Integer> guildData = guildStats.get(event.getGuild().getId());
+		if (guildStats.containsKey(event.getGuild().getIdLong())) {
+			Map<String, Integer> guildData = guildStats.get(event.getGuild().getIdLong());
 			guildData.put("members", guildData.get("members") + 1);
-			guildStats.put(event.getGuild().getId(), guildData);
+			guildStats.put(event.getGuild().getIdLong(), guildData);
 		} else {
 			Map<String, Integer> guildData = new HashMap<>();
 			guildData.put("messages", 0);
 			guildData.put("members", 1);
-			guildStats.put(event.getGuild().getId(), guildData);
+			guildStats.put(event.getGuild().getIdLong(), guildData);
 		}
 	}
 	
 	public void onGuildMemberLeave(GuildMemberLeaveEvent event) {
-		if (guildStats.containsKey(event.getGuild().getId())) {
-			Map<String, Integer> guildData = guildStats.get(event.getGuild().getId());
+		if (guildStats.containsKey(event.getGuild().getIdLong())) {
+			Map<String, Integer> guildData = guildStats.get(event.getGuild().getIdLong());
 			guildData.put("members", guildData.get("members") - 1);
-			guildStats.put(event.getGuild().getId(), guildData);
+			guildStats.put(event.getGuild().getIdLong(), guildData);
 		} else {
 			Map<String, Integer> guildData = new HashMap<>();
 			guildData.put("messages", 0);
 			guildData.put("members", -1);
-			guildStats.put(event.getGuild().getId(), guildData);
+			guildStats.put(event.getGuild().getIdLong(), guildData);
 		}
+	}
+	
+	public void onGuildJoin(GuildJoinEvent event) {
+		Document guildLog = new Document("guildId", event.getGuild().getIdLong())
+				.append("joined", true)
+				.append("guildCount", Sx4Bot.getShardManager().getGuilds().size())
+				.append("timestamp", Clock.systemUTC().instant().getEpochSecond());
+		
+		Database.get().insertGuildLog(guildLog, (result, exception) -> {
+			if (exception != null) {
+				exception.printStackTrace();
+			}
+		});
+	}
+	
+	public void onGuildLeave(GuildLeaveEvent event) {
+		Document guildLog = new Document("guildId", event.getGuild().getIdLong())
+				.append("joined", false)
+				.append("guildCount", Sx4Bot.getShardManager().getGuilds().size())
+				.append("timestamp", Clock.systemUTC().instant().getEpochSecond());
+		
+		Database.get().insertGuildLog(guildLog, (result, exception) -> {
+			if (exception != null) {
+				exception.printStackTrace();
+			}
+		});
 	}
 
 }

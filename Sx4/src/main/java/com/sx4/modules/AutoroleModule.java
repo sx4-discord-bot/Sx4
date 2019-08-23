@@ -1,8 +1,8 @@
 package com.sx4.modules;
 
-import static com.rethinkdb.RethinkDB.r;
+import java.util.List;
 
-import java.util.Map;
+import org.bson.Document;
 
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
@@ -14,11 +14,12 @@ import com.jockie.bot.core.command.impl.CommandEvent;
 import com.jockie.bot.core.command.impl.CommandImpl;
 import com.jockie.bot.core.command.ICommand.ContentOverflowPolicy;
 import com.jockie.bot.core.module.Module;
-import com.rethinkdb.gen.ast.Get;
-import com.rethinkdb.model.OptArgs;
-import com.rethinkdb.net.Connection;
+import com.mongodb.client.model.Projections;
+import com.mongodb.client.model.Updates;
 import com.sx4.categories.Categories;
 import com.sx4.core.Sx4Command;
+import com.sx4.core.Sx4CommandEventListener;
+import com.sx4.database.Database;
 import com.sx4.utils.ArgumentUtils;
 import com.sx4.utils.HelpUtils;
 
@@ -46,27 +47,21 @@ public class AutoroleModule {
 		
 		@Command(value="toggle", description="Enabled/disable autorole in the current server", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@AuthorPermissions({Permission.MANAGE_ROLES})
-		public void toggle(CommandEvent event, @Context Connection connection) {
-			r.table("autorole").insert(r.hashMap("id", event.getGuild().getId()).with("role", null).with("botrole", null).with("toggle", false).with("auto_update", true)).run(connection, OptArgs.of("durability", "soft"));
-			Get data = r.table("autorole").get(event.getGuild().getId());
-			Map<String, Object> dataRan = data.run(connection);
-			
-			if ((boolean) dataRan.get("toggle") == true) {
-				event.reply("Auto role is now disabled <:done:403285928233402378>").queue();
-				data.update(r.hashMap("toggle", false)).runNoReply(connection);
-			} else {
-				event.reply("Auto role is now enabled <:done:403285928233402378>").queue();
-				data.update(r.hashMap("toggle", true)).runNoReply(connection);
-			}
+		public void toggle(CommandEvent event, @Context Database database) {
+			boolean enabled = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("autorole.enabled")).getEmbedded(List.of("autorole", "enabled"), false);
+			database.updateGuildById(event.getGuild().getIdLong(), Updates.set("autorole.enabled", !enabled), (result, exception) -> {
+				if (exception != null) {
+					exception.printStackTrace();
+					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+				} else {
+					event.reply("Auto role is now " + (enabled ? "disabled" : "enabled") + " <:done:403285928233402378>").queue();
+				}
+			});
 		}
 		
 		@Command(value="role", aliases={"user role", "userrole"}, description="Set the auto role, this role will be given to every user which joins the server if a bot role is not set otherwise it'll give it to ever non bot user who joins")
 		@AuthorPermissions({Permission.MANAGE_ROLES})
-		public void role(CommandEvent event, @Context Connection connection, @Argument(value="role", endless=true) String roleArgument) {
-			r.table("autorole").insert(r.hashMap("id", event.getGuild().getId()).with("role", null).with("botrole", null).with("toggle", false).with("auto_update", true)).run(connection, OptArgs.of("durability", "soft"));
-			Get data = r.table("autorole").get(event.getGuild().getId());
-			Map<String, Object> dataRan = data.run(connection);
-			
+		public void role(CommandEvent event, @Context Database database, @Argument(value="role", endless=true) String roleArgument) {
 			Role role = ArgumentUtils.getRole(event.getGuild(), roleArgument);
 			if (role == null) {
 				event.reply("I could not find that role :no_entry:").queue();
@@ -93,10 +88,10 @@ public class AutoroleModule {
 				return;
 			}
 			
+			Long roleId = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("autorole.roleId")).getEmbedded(List.of("autorole", "roleId"), Long.class);
 			Role currentRole = null;
-			String roleData = (String) dataRan.get("role");
-			if (roleData != null) {
-				currentRole = event.getGuild().getRoleById(roleData);
+			if (roleId != null) {
+				currentRole = event.getGuild().getRoleById(roleId);
 			}
 			
 			if (role.equals(currentRole)) {
@@ -104,17 +99,19 @@ public class AutoroleModule {
 				return;
 			}
 			
-			event.reply("The autorole role has been set to **" + role.getName() + "** <:done:403285928233402378>").queue();
-			data.update(r.hashMap("role", role.getId())).runNoReply(connection);
+			database.updateGuildById(event.getGuild().getIdLong(), Updates.set("autorole.roleId", role.getIdLong()), (result, exception) -> {
+				if (exception != null) {
+					exception.printStackTrace();
+					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+				} else {
+					event.reply("The autorole role has been set to **" + role.getName() + "** <:done:403285928233402378>").queue();
+				}
+			});
 		}
 		
 		@Command(value="bot role", aliases={"botrole"}, description="Set the bot role, this role will be given to every bot which joins the server")
 		@AuthorPermissions({Permission.MANAGE_ROLES})
-		public void botRole(CommandEvent event, @Context Connection connection, @Argument(value="role", endless=true) String roleArgument) {
-			r.table("autorole").insert(r.hashMap("id", event.getGuild().getId()).with("role", null).with("botrole", null).with("toggle", false).with("auto_update", true)).run(connection, OptArgs.of("durability", "soft"));
-			Get data = r.table("autorole").get(event.getGuild().getId());
-			Map<String, Object> dataRan = data.run(connection);
-			
+		public void botRole(CommandEvent event, @Context Database database, @Argument(value="role", endless=true) String roleArgument) {
 			Role role = ArgumentUtils.getRole(event.getGuild(), roleArgument);
 			if (role == null) {
 				event.reply("I could not find that role :no_entry:").queue();
@@ -141,10 +138,10 @@ public class AutoroleModule {
 				return;
 			}
 			
+			Long roleId = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("autorole.botRoleId")).getEmbedded(List.of("autorole", "botRoleId"), Long.class);
 			Role currentRole = null;
-			String roleData = (String) dataRan.get("botrole");
-			if (roleData != null) {
-				currentRole = event.getGuild().getRoleById(roleData);
+			if (roleId != null) {
+				currentRole = event.getGuild().getRoleById(roleId);
 			}
 			
 			if (role.equals(currentRole)) {
@@ -152,25 +149,29 @@ public class AutoroleModule {
 				return;
 			}
 			
-			event.reply("The autorole bot role has been set to **" + role.getName() + "** <:done:403285928233402378>").queue();
-			data.update(r.hashMap("botrole", role.getId())).runNoReply(connection);
+			database.updateGuildById(event.getGuild().getIdLong(), Updates.set("autorole.botRoleId", role.getIdLong()), (result, exception) -> {
+				if (exception != null) {
+					exception.printStackTrace();
+					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+				} else {
+					event.reply("The autorole bot role has been set to **" + role.getName() + "** <:done:403285928233402378>").queue();
+				}
+			});
 		}
 		
 		@Command(value="stats", aliases={"settings", "setting"}, description="View the current settings of auto role in this server", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-		public void stats(CommandEvent event, @Context Connection connection) {
-			Map<String, Object> data = r.table("autorole").get(event.getGuild().getId()).run(connection);
+		public void stats(CommandEvent event, @Context Database database) {
+			Document data = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("autorole.enabled", "autorole.roleId", "autorole.botRoleId", "autorole.autoUpdate")).get("autorole", Database.EMPTY_DOCUMENT);
 			
-			Role autoRole = null, botRole = null;
-			if (data != null) {
-				autoRole = (String) data.get("role") == null ? null : event.getGuild().getRoleById((String) data.get("role"));
-				botRole = (String) data.get("botrole") == null ? null : event.getGuild().getRoleById((String) data.get("botrole"));
-			}
+			Long autoRoleId = data.getLong("roleId"), botRoleId = data.getLong("botRoleId");
+			Role autoRole = autoRoleId == null ? null : event.getGuild().getRoleById(autoRoleId);
+			Role botRole = botRoleId == null ? null : event.getGuild().getRoleById(botRoleId);
 			
 			EmbedBuilder embed = new EmbedBuilder();
 			embed.setAuthor("Auto Role Settings", null, event.getGuild().getIconUrl());
-			embed.addField("Status", data == null ? "Disabled" : (boolean) data.get("toggle") == true ? "Enabled" : "Disabled", true); 
-			embed.addField("Auto Update", data == null ? "Disabled" : (boolean) data.get("auto_update") == true ? "Enabled" : "Disabled", true);
+			embed.addField("Status", data.getBoolean("enabled", false) ? "Enabled" : "Disabled", true); 
+			embed.addField("Auto Update", data.getBoolean("autoUpdate", true) ? "Enabled" : "Disabled", true);
 			embed.addField("Role", autoRole == null ? "Not Set" : autoRole.getAsMention(), true);
 			embed.addField("Bot Role", botRole == null ? "Not Set" : botRole.getAsMention(), true);
 			
@@ -179,42 +180,29 @@ public class AutoroleModule {
 		
 		@Command(value="auto update", aliases={"toggle auto update", "autoupdate", "toggle autoupdate"}, description="Enables/disables whether the bot should give members the autorole when it comes online in case it missed anyone while it was offline", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@AuthorPermissions({Permission.MANAGE_ROLES})
-		public void autoUpdate(CommandEvent event, @Context Connection connection) {
-			r.table("autorole").insert(r.hashMap("id", event.getGuild().getId()).with("role", null).with("botrole", null).with("toggle", false).with("auto_update", true)).run(connection, OptArgs.of("durability", "soft"));
-			Get data = r.table("autorole").get(event.getGuild().getId());
-			Map<String, Object> dataRan = data.run(connection);
-			
-			if ((boolean) dataRan.get("auto_update") == true) {
-				event.reply("Auto updating for auto role is now disabled <:done:403285928233402378>").queue();
-				data.update(r.hashMap("auto_update", false)).runNoReply(connection);
-			} else {
-				event.reply("Auto updating for auto role is now enabled <:done:403285928233402378>").queue();
-				data.update(r.hashMap("auto_update", true)).runNoReply(connection);
-			}
+		public void autoUpdate(CommandEvent event, @Context Database database) {
+			boolean enabled = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("autorole.autoUpdate")).getEmbedded(List.of("autorole", "autoUpdate"), false);
+			database.updateGuildById(event.getGuild().getIdLong(), Updates.set("autorole.autoUpdate", !enabled), (result, exception) -> {
+				if (exception != null) {
+					exception.printStackTrace();
+					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+				} else {
+					event.reply("Auto updating for auto role is now " + (enabled ? "disabled" : "enabled") + " <:done:403285928233402378>").queue();
+				}
+			});
 		}
 		
 		@Command(value="fix", description="Allows you to give all the current members in your server the auto role", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@AuthorPermissions({Permission.MANAGE_ROLES})
 		@BotPermissions({Permission.MANAGE_ROLES})
-		public void fix(CommandEvent event, @Context Connection connection) {
-			Map<String, Object> data = r.table("autorole").get(event.getGuild().getId()).run(connection);
-			if (data == null) {
-				event.reply("The auto role has not been set up in this server :no_entry:").queue();
-				return;
-			}
+		public void fix(CommandEvent event, @Context Database database) {
+			Document data = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("autorole.roleId", "autorole.botRoleId")).get("autorole", Database.EMPTY_DOCUMENT);
 			
-			String roleData = (String) data.get("role");
-			String botRoleData = (String) data.get("botrole");
+			Long roleId = data.getLong("roleId");
+			Long botRoleId = data.getLong("botRoleId");
 			
-			Role role = null, botRole = null;
-			if (roleData != null) {
-				role = event.getGuild().getRoleById(roleData);
-			} 
-			
-			if (botRoleData != null) {
-				botRole = event.getGuild().getRoleById(botRoleData);
-			}
-			
+			Role role = roleId == null ? null : event.getGuild().getRoleById(roleId);
+			Role botRole = botRoleId == null ? null : event.getGuild().getRoleById(botRoleId);
 			if (botRole == null && role == null) {
 				event.reply("The auto role has not been set up in this server :no_entry:").queue();
 				return;
@@ -227,28 +215,28 @@ public class AutoroleModule {
 			
 			int users = 0, bots = 0;
 			for (Member member : event.getGuild().getMembers()) {
-				if (roleData != null && botRoleData == null) {
+				if (roleId != null && botRoleId == null) {
 					if (role != null && !member.getRoles().contains(role)) {
 						event.getGuild().addRoleToMember(member, role).queue();
-						users += 1;
+						users++;
 					}
-				} else if (roleData == null && botRoleData != null) {
+				} else if (roleId == null && botRoleId != null) {
 					if (member.getUser().isBot()) {
 						if (botRole != null && !member.getRoles().contains(botRole)) {
 							event.getGuild().addRoleToMember(member, botRole).queue();
-							bots += 1;
+							bots++;
 						}
 					}
 				} else {
 					if (member.getUser().isBot()) {
 						if (botRole != null && !member.getRoles().contains(botRole)) {
 							event.getGuild().addRoleToMember(member, botRole).queue();
-							bots += 1;
+							bots++;
 						}
 					} else {
 						if (role != null && !member.getRoles().contains(role)) {
 							event.getGuild().addRoleToMember(member, role).queue();
-							users += 1;
+							users++;
 						}
 					}
 				}

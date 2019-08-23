@@ -11,17 +11,18 @@ public class Tool extends Item {
 	private int durability;
 	private Material repairItem;
 	private int upgrades = 0;
-	private Integer currentDurability = null;
+	private int currentDurability;
 	
-	public Tool(String name, long price, CraftingRecipe craft, Material repairItem, int durability) {
+	public Tool(String name, long price, CraftingRecipe craft, Material repairItem, int currentDurability, int durability) {
 		super(name, price);
 
 		this.craft = craft;
 		this.durability = durability;
 		this.repairItem = repairItem;
+		this.currentDurability = currentDurability;
 	}
 
-	public Tool(String name, long price, CraftingRecipe craft, Material repairItem, Integer currentDurability, int durability, int upgrades) {
+	public Tool(String name, long price, CraftingRecipe craft, Material repairItem, int currentDurability, int durability, int upgrades) {
 		super(name, price);
 
 		this.craft = craft;
@@ -31,11 +32,7 @@ public class Tool extends Item {
 		this.currentDurability = currentDurability;
 	}
 	
-	public boolean isUserTool() {
-		return this.currentDurability != null;
-	}
-	
-	public Integer getCurrentDurability() {
+	public int getCurrentDurability() {
 		return this.currentDurability;
 	}
 	
@@ -51,7 +48,7 @@ public class Tool extends Item {
 		return this.craft;
 	}
 	
-	public Long getEstimatePrice() {
+	public long getEstimatePrice() {
 		if (!this.isBuyable()) {
 			long price = 0;
 			for (ItemStack itemStack : this.craft.getCraftingItems()) {

@@ -19,10 +19,10 @@ public class StatusEvents {
 		
 		Sx4Bot.scheduledExectuor.scheduleAtFixedRate(() -> {
 			if (servers) {
-				shardManager.setGame(Activity.of(ActivityType.WATCHING, String.format("%,d servers", shardManager.getGuilds().size())));
+				shardManager.setActivity(Activity.of(ActivityType.WATCHING, String.format("%,d servers", shardManager.getGuilds().size())));
 				servers = false;
 			} else {
-				shardManager.setGame(Activity.of(ActivityType.WATCHING, String.format("%,d users", shardManager.getUsers().size())));
+				shardManager.setActivity(Activity.of(ActivityType.WATCHING, String.format("%,d users", shardManager.getUsers().size())));
 				servers = true;
 			}
 		}, 0, 5, TimeUnit.MINUTES);

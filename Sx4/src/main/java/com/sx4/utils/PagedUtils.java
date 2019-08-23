@@ -2,6 +2,7 @@ package com.sx4.utils;
 
 import java.awt.Color;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
@@ -70,6 +71,10 @@ public class PagedUtils {
 		
 		public PagedResult(List<Type> array) {
 			this.array = array;
+		}
+		
+		public PagedResult(Type[] array) {
+			this.array = Arrays.asList(array);
 		}
 		
 		public PagedResult<Type> setReturnFirstOnTimeout(boolean returnFirstOnTimeout) {
@@ -300,12 +305,8 @@ public class PagedUtils {
 				embed.setTitle("Page " + this.currentPage + "/" + maxPage);
 				embed.setColor(this.colour);
 				embed.setFooter("next | previous | go to <page_number> | cancel", null);
-				for (int i = this.currentPage * this.perPage - this.perPage; i < this.currentPage * this.perPage; i++) {
-					try {
-						embed.appendDescription((increasedIndex == true ? this.getIndexString(i + 1) : (indexed == true ? (this.getIndexString(i + 1 - ((this.currentPage - 1) * this.perPage))) : "")) + " " + this.function.apply(this.array.get(i)) + "\n");
-					} catch (IndexOutOfBoundsException e) {
-						break;
-					}
+				for (int i = this.currentPage * this.perPage - this.perPage; i < (this.currentPage == this.getMaxPage() ? this.array.size() : this.currentPage * this.perPage); i++) {
+					embed.appendDescription((increasedIndex == true ? this.getIndexString(i + 1) : (indexed == true ? (this.getIndexString(i + 1 - ((this.currentPage - 1) * this.perPage))) : "")) + " " + this.function.apply(this.array.get(i)) + "\n");
 				}
 				
 				return embed.build();

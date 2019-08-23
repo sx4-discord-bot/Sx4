@@ -1,12 +1,14 @@
 package com.sx4.events;
 
-import static com.rethinkdb.RethinkDB.r;
-
+import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 
-import com.rethinkdb.gen.ast.Get;
-import com.sx4.core.Sx4Bot;
+import org.bson.Document;
+
+import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.Projections;
+import com.mongodb.client.model.Updates;
+import com.sx4.database.Database;
 
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Role;
@@ -18,33 +20,30 @@ import net.dv8tion.jda.api.hooks.ListenerAdapter;
 
 public class SelfroleEvents extends ListenerAdapter {
 
-	@SuppressWarnings("unchecked")
 	public void onGuildMessageReactionAdd(GuildMessageReactionAddEvent event) {
 		if (event.getMember().getUser().isBot()) {
 			return;
 		}
 		
-		Map<String, Object> data = r.table("reactionrole").get(event.getGuild().getId()).run(Sx4Bot.getConnection());	
-		if (data == null) {
-			return;
-		}
-		
-		List<Map<String, Object>> messages = (List<Map<String, Object>>) data.get("messages");
-		for (Map<String, Object> messageData : messages) {
-			if (event.getMessageId().equals(messageData.get("id"))) {
-				List<Map<String, Object>> roles = (List<Map<String, Object>>) messageData.get("roles");
+		Document data = Database.get().getGuildById(event.getGuild().getIdLong(), null, Projections.include("reactionRole.reactionRoles", "reactionRole.dm")).get("reactionRoles", Database.EMPTY_DOCUMENT);
+		List<Document> reactionRoles = data.getList("reactionRoles", Document.class, Collections.emptyList()); 
+		for (Document reactionRole : reactionRoles) {
+			if (event.getMessageIdLong() == reactionRole.getLong("id")) {
+				List<Document> roles = reactionRole.getList("roles", Document.class, Collections.emptyList());
 				
-				String roleId = null;
+				Long roleId = null;
 				if (event.getReactionEmote().isEmote()) {
-					for (Map<String, Object> roleData : roles) {
-						if (roleData.get("emote").equals(event.getReactionEmote().getId())) {
-							roleId = (String) roleData.get("id");
+					for (Document roleData : roles) {
+						Long emoteId = roleData.getEmbedded(List.of("emote", "id"), Long.class);
+						if (emoteId != null && emoteId == event.getReactionEmote().getIdLong()) {
+							roleId = roleData.getLong("id");
 						}
 					}
 				} else {
-					for (Map<String, Object> roleData : roles) {
-						if (roleData.get("emote").equals(event.getReactionEmote().getName())) {
-							roleId = (String) roleData.get("id");
+					for (Document roleData : roles) {
+						String emoteName = roleData.getEmbedded(List.of("emote", "name"), String.class);
+						if (emoteName != null && emoteName.equals(event.getReactionEmote().getName())) {
+							roleId = roleData.getLong("id");
 						}
 					}
 				}
@@ -60,36 +59,34 @@ public class SelfroleEvents extends ListenerAdapter {
 							return;
 						}
 						
-						if (role.getPosition() >= event.getGuild().getSelfMember().getRoles().get(0).getPosition()) {
+						if (!event.getGuild().getSelfMember().canInteract(role)) {
 							event.getMember().getUser().openPrivateChannel().queue(channel -> channel.sendMessage("That role is higher or equal to my top role so I am unable to give it to you :no_entry:").queue(), e -> {});
 							return;
 						}
 						
 						if (event.getMember().getRoles().contains(role)) {
 							event.getGuild().removeRoleFromMember(event.getMember(), role).queue();
-							if ((boolean) data.get("dm")) {
+							if (data.getBoolean("dm", true)) {
 								event.getMember().getUser().openPrivateChannel().queue(channel -> channel.sendMessage("You no longer have the role **" + role.getName() + "** <:done:403285928233402378>").queue(), e -> {});
 							}
 						} else {
-							if (messageData.containsKey("max_roles")) {
-								int memberRoles = 0;
-								for (Role memberRole : event.getMember().getRoles()) {
-									for (Map<String, Object> roleData : roles) {
-										if (memberRole.getId().equals(roleData.get("id"))) {
-											memberRoles += 1;
-										}
+							int memberRoles = 0;
+							for (Role memberRole : event.getMember().getRoles()) {
+								for (Document roleData : roles) {
+									if (memberRole.getIdLong() == roleData.getLong("id")) {
+										memberRoles++;
 									}
-								}
-								
-								long maxRoles = (long) messageData.get("max_roles");
-								if (maxRoles != 0 && memberRoles >= maxRoles) {
-									event.getMember().getUser().openPrivateChannel().queue(channel -> channel.sendMessage("You already have the max amount of roles from this reaction role menu, the max amount is **" + maxRoles + "** role" + (maxRoles == 1 ? "" : "s") + " :no_entry:").queue(), e -> {});
-									return;
 								}
 							}
 							
+							long maxRoles = reactionRole.getInteger("maxRoles", 0);
+							if (maxRoles != 0 && memberRoles >= maxRoles) {
+								event.getMember().getUser().openPrivateChannel().queue(channel -> channel.sendMessage("You already have the max amount of roles from this reaction role menu, the max amount is **" + maxRoles + "** role" + (maxRoles == 1 ? "" : "s") + " :no_entry:").queue(), e -> {});
+								return;
+							}
+							
 							event.getGuild().addRoleToMember(event.getMember(), role).queue();
-							if ((boolean) data.get("dm")) {
+							if (data.getBoolean("dm", true)) {
 								event.getMember().getUser().openPrivateChannel().queue(channel -> channel.sendMessage("You now have the role **" + role.getName() + "** <:done:403285928233402378>").queue(), e -> {});
 							}
 						}
@@ -99,33 +96,30 @@ public class SelfroleEvents extends ListenerAdapter {
 		}
 	}
 	
-	@SuppressWarnings("unchecked")
 	public void onGuildMessageReactionRemove(GuildMessageReactionRemoveEvent event) {
 		if (event.getMember().getUser().isBot()) {
 			return;
 		}
 		
-		Map<String, Object> data = r.table("reactionrole").get(event.getGuild().getId()).run(Sx4Bot.getConnection());	
-		if (data == null) {
-			return;
-		}
-		
-		List<Map<String, Object>> messages = (List<Map<String, Object>>) data.get("messages");
-		for (Map<String, Object> messageData : messages) {
-			if (event.getMessageId().equals(messageData.get("id"))) {
-				List<Map<String, Object>> roles = (List<Map<String, Object>>) messageData.get("roles");
+		Document data = Database.get().getGuildById(event.getGuild().getIdLong(), null, Projections.include("reactionRole.reactionRoles", "reactionRole.dm")).get("reactionRoles", Database.EMPTY_DOCUMENT);
+		List<Document> reactionRoles = data.getList("reactionRoles", Document.class, Collections.emptyList()); 
+		for (Document reactionRole : reactionRoles) {
+			if (event.getMessageIdLong() == reactionRole.getLong("id")) {
+				List<Document> roles = reactionRole.getList("roles", Document.class, Collections.emptyList());
 				
-				String roleId = null;
+				Long roleId = null;
 				if (event.getReactionEmote().isEmote()) {
-					for (Map<String, Object> roleData : roles) {
-						if (roleData.get("emote").equals(event.getReactionEmote().getId())) {
-							roleId = (String) roleData.get("id");
+					for (Document roleData : roles) {
+						Long emoteId = roleData.getEmbedded(List.of("emote", "id"), Long.class);
+						if (emoteId != null && emoteId == event.getReactionEmote().getIdLong()) {
+							roleId = roleData.getLong("id");
 						}
 					}
 				} else {
-					for (Map<String, Object> roleData : roles) {
-						if (roleData.get("emote").equals(event.getReactionEmote().getName())) {
-							roleId = (String) roleData.get("id");
+					for (Document roleData : roles) {
+						String emoteName = roleData.getEmbedded(List.of("emote", "name"), String.class);
+						if (emoteName != null && emoteName.equals(event.getReactionEmote().getName())) {
+							roleId = roleData.getLong("id");
 						}
 					}
 				}
@@ -141,36 +135,34 @@ public class SelfroleEvents extends ListenerAdapter {
 							return;
 						}
 						
-						if (role.getPosition() >= event.getGuild().getSelfMember().getRoles().get(0).getPosition()) {
+						if (!event.getGuild().getSelfMember().canInteract(role)) {
 							event.getMember().getUser().openPrivateChannel().queue(channel -> channel.sendMessage("That role is higher or equal to my top role so I am unable to give it to you :no_entry:").queue(), e -> {});
 							return;
 						}
 						
 						if (event.getMember().getRoles().contains(role)) {
 							event.getGuild().removeRoleFromMember(event.getMember(), role).queue();
-							if ((boolean) data.get("dm")) {
+							if (data.getBoolean("dm", true)) {
 								event.getMember().getUser().openPrivateChannel().queue(channel -> channel.sendMessage("You no longer have the role **" + role.getName() + "** <:done:403285928233402378>").queue(), e -> {});
 							}
 						} else {
-							if (messageData.containsKey("max_roles")) {
-								int memberRoles = 0;
-								for (Role memberRole : event.getMember().getRoles()) {
-									for (Map<String, Object> roleData : roles) {
-										if (memberRole.getId().equals(roleData.get("id"))) {
-											memberRoles += 1;
-										}
+							int memberRoles = 0;
+							for (Role memberRole : event.getMember().getRoles()) {
+								for (Document roleData : roles) {
+									if (memberRole.getIdLong() == roleData.getLong("id")) {
+										memberRoles++;
 									}
-								}
-								
-								long maxRoles = (long) messageData.get("max_roles");
-								if (maxRoles != 0 && memberRoles >= maxRoles) {
-									event.getMember().getUser().openPrivateChannel().queue(channel -> channel.sendMessage("You already have the max amount of roles from this reaction role menu, the max amount is **" + maxRoles + "** role" + (maxRoles == 1 ? "" : "s") + " :no_entry:").queue(), e -> {});
-									return;
 								}
 							}
 							
+							long maxRoles = reactionRole.getInteger("maxRoles", 0);
+							if (maxRoles != 0 && memberRoles >= maxRoles) {
+								event.getMember().getUser().openPrivateChannel().queue(channel -> channel.sendMessage("You already have the max amount of roles from this reaction role menu, the max amount is **" + maxRoles + "** role" + (maxRoles == 1 ? "" : "s") + " :no_entry:").queue(), e -> {});
+								return;
+							}
+							
 							event.getGuild().addRoleToMember(event.getMember(), role).queue();
-							if ((boolean) data.get("dm")) {
+							if (data.getBoolean("dm", true)) {
 								event.getMember().getUser().openPrivateChannel().queue(channel -> channel.sendMessage("You now have the role **" + role.getName() + "** <:done:403285928233402378>").queue(), e -> {});
 							}
 						}
@@ -180,34 +172,28 @@ public class SelfroleEvents extends ListenerAdapter {
 		}
 	}
 	
-	@SuppressWarnings("unchecked")
 	public void onGuildMessageDelete(GuildMessageDeleteEvent event) {
-		Get data = r.table("reactionrole").get(event.getGuild().getId());
-		Map<String, Object> dataRan = data.run(Sx4Bot.getConnection());
-		if (dataRan == null) {
-			return;
-		}
-		
-		List<Map<String, Object>> messages = (List<Map<String, Object>>) dataRan.get("messages");
-		for (Map<String, Object> messageData : messages) {
-			if (event.getMessageId().equals(messageData.get("id"))) {
-				data.update(row -> r.hashMap("messages", row.g("messages").filter(d -> d.g("id").ne(event.getMessageId())))).runNoReply(Sx4Bot.getConnection());
+		List<Document> reactionRoles = Database.get().getGuildById(event.getGuild().getIdLong(), null, Projections.include("reactionRole.reactionRoles")).getEmbedded(List.of("reactionRole", "reactionRoles"), Collections.emptyList());
+		for (Document reactionRole : reactionRoles) {
+			if (event.getMessageIdLong() == reactionRole.getLong("id")) {
+				Database.get().updateGuildById(event.getGuild().getIdLong(), Updates.pull("reactionRole.reactionRoles", Filters.eq("id", event.getMessageIdLong())), (result, exception) -> {
+					if (exception != null) {
+						exception.printStackTrace();
+					}
+				});
 			}
 		}
 	}
 	
-	@SuppressWarnings("unchecked")
 	public void onRoleDelete(RoleDeleteEvent event) {
-		Get data = r.table("selfroles").get(event.getGuild().getId());
-		Map<String, Object> dataRan = data.run(Sx4Bot.getConnection());
-		if (dataRan == null) {
-			return;
-		}
-		
-		List<String> roles = (List<String>) dataRan.get("roles");
-		for (String roleId : roles) {
-			if (roleId.equals(event.getRole().getId())) {
-				data.update(row -> r.hashMap("roles", row.g("roles").filter(d -> d.ne(roleId)))).runNoReply(Sx4Bot.getConnection());
+		List<Long> selfRoles = Database.get().getGuildById(event.getGuild().getIdLong(), null, Projections.include("selfRoles")).getList("selfRoles", Long.class, Collections.emptyList());
+		for (Long selfRoleId : selfRoles) {
+			if (selfRoleId == event.getRole().getIdLong()) {
+				Database.get().updateGuildById(event.getGuild().getIdLong(), Updates.pull("selfRoles", selfRoleId), (result, exception) -> {
+					if (exception != null) {
+						exception.printStackTrace();
+					}
+				});
 			}
 		}
 	}

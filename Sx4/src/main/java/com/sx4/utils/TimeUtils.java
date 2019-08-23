@@ -2,7 +2,6 @@ package com.sx4.utils;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -13,8 +12,8 @@ import java.util.stream.Collectors;
 
 public class TimeUtils {
 	
-	public static Pattern timeRegex = Pattern.compile("(?:(\\d+)(?: |)(?:days|day|d)|)(?: |)(?:(\\d+)(?: |)(?:hours|hour|h)|)(?: |)(?:(\\d+)(?: |)(?:minutes|minute|mins|min|m)|)(?: |)(?:(\\d+)(?: |)(?:seconds|second|secs|sec|s)|)");
-	public static Pattern dateRegex = Pattern.compile("(?:(\\d{1,2})(?:/|-)(\\d{1,2})(?:/|-)(\\d{1,2})|)(?: |)(?:(\\d{1,2}):(\\d{1,2})|)(?: |)(?:([A-Za-z]+)(\\+\\d+|-\\d+|)|)");
+	public static final Pattern TIME_REGEX = Pattern.compile("(?:(\\d+)(?: |)(?:days|day|d)|)(?: |)(?:(\\d+)(?: |)(?:hours|hour|h)|)(?: |)(?:(\\d+)(?: |)(?:minutes|minute|mins|min|m)|)(?: |)(?:(\\d+)(?: |)(?:seconds|second|secs|sec|s)|)");
+	public static final Pattern DATE_REGEX = Pattern.compile("(?:(\\d{1,2})(?:/|-)(\\d{1,2})(?:/|-)(\\d{1,2})|)(?: |)(?:(\\d{1,2}):(\\d{1,2})|)(?: |)(?:([A-Za-z]+)(\\+\\d+|-\\d+|)|)");
 	
 	public static int getActualDaysApart(int value) {
 		if (value < 0) {
@@ -28,7 +27,7 @@ public class TimeUtils {
 		try {
 			return Long.parseLong(time);
 		} catch(NumberFormatException e) {
-			Matcher timeGroups = timeRegex.matcher(time);
+			Matcher timeGroups = TIME_REGEX.matcher(time);
 			if (!timeGroups.matches()) {
 				return 0L;
 			} else {
@@ -46,18 +45,19 @@ public class TimeUtils {
 	}
 	
 	public static long dateTimeToDuration(String date) {
-		Matcher dateMatch = dateRegex.matcher(date);
+		Matcher dateMatch = DATE_REGEX.matcher(date);
 		if (dateMatch.matches()) {
-			LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
+			String timeZoneString = dateMatch.group(6) == null ? "UTC" : dateMatch.group(6);
+			TimeZone timeZone = TimeZone.getTimeZone(timeZoneString);
+			
+			LocalDateTime now = LocalDateTime.now(timeZone.toZoneId());
 			int day = dateMatch.group(1) == null ? now.getDayOfMonth() : Integer.parseInt(dateMatch.group(1));
 			int month = dateMatch.group(2) == null ? now.getMonthValue() : Integer.parseInt(dateMatch.group(2));
 			int year = dateMatch.group(3) == null ? now.getYear() : Integer.parseInt(dateMatch.group(3)) + ((now.getYear() / 1000) * 1000);
 			int hour = dateMatch.group(4) == null ? 0 : Integer.parseInt(dateMatch.group(4));
 			int minute = dateMatch.group(5) == null ? 0 : Integer.parseInt(dateMatch.group(5));
-			String timeZoneString = dateMatch.group(6) == null ? "UTC" : dateMatch.group(6);
 			int plusHours = dateMatch.group(7) == null ? 0 : Integer.parseInt(dateMatch.group(7));
 			
-			TimeZone timeZone = TimeZone.getTimeZone(timeZoneString);
 			ZonedDateTime dateTime = ZonedDateTime.of(year, month, day, hour, minute, 0, 0, timeZone.toZoneId()).plusHours(plusHours);
 			
 			long timeTill = Duration.between(ZonedDateTime.now(), dateTime).toSeconds();

@@ -1,16 +1,19 @@
 package com.sx4.events;
 
-import static com.rethinkdb.RethinkDB.r;
-
+import java.time.Clock;
+import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import com.rethinkdb.gen.ast.Get;
-import com.rethinkdb.model.OptArgs;
-import com.rethinkdb.net.Connection;
-import com.sx4.core.Sx4Bot;
+import org.bson.Document;
+import org.bson.conversions.Bson;
+
+import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.Projections;
+import com.mongodb.client.model.UpdateOptions;
+import com.mongodb.client.model.Updates;
+import com.sx4.database.Database;
 import com.sx4.utils.ModUtils;
 
 import net.dv8tion.jda.api.Permission;
@@ -23,59 +26,53 @@ public class AntiLinkEvents extends ListenerAdapter {
 
 	private Pattern linkRegex = Pattern.compile(".*(https?|ftp|file)://[-a-zA-Z0-9+&@#/%?=~_|!:,.;]*[-a-zA-Z0-9+&@#/%=~_|].*");
 	
-	@SuppressWarnings("unchecked")
-	public void onGuildMessageReceived(GuildMessageReceivedEvent event) {
-		if (event.isWebhookMessage()) {
-			return;
-		}
-		
-		if (event.getJDA().getSelfUser().equals(event.getAuthor())) {
-			return;
-		}
-		
-		if (event.getMember().hasPermission(Permission.ADMINISTRATOR)) {
+	public void onGuildMessageReceived(GuildMessageReceivedEvent event) {		
+		if (event.getJDA().getSelfUser().equals(event.getAuthor()) || event.isWebhookMessage() || event.getMember().hasPermission(Permission.ADMINISTRATOR)) {
 			return;
 		}
 		
 		Matcher linkMatch = this.linkRegex.matcher(event.getMessage().getContentRaw());
 		if (linkMatch.matches()) {
-			Connection connection = Sx4Bot.getConnection();
-			Get data = r.table("antilink").get(event.getGuild().getId());
-			Map<String, Object> dataRan = data.run(connection);
-			if (dataRan == null || (boolean) dataRan.get("toggle") == false) {
+			Bson projection = Projections.include("antilink.enabled", "antilink.whitelist", "antilink.users", "antilink.action", "antilink.attempts");
+			Document data = Database.get().getGuildById(event.getGuild().getIdLong(), null, projection).get("antilink", Database.EMPTY_DOCUMENT);
+			if (data.isEmpty() || data.getBoolean("enabled", false) == false) {
 				return;
 			}
 			
-			Map<String, List<String>> whitelist = (Map<String, List<String>>) dataRan.get("whitelist");
-			List<String> channelsData = whitelist.get("channels"), rolesData = whitelist.get("roles"), usersData = whitelist.get("users");
-			if (channelsData.contains(event.getChannel().getId()) || channelsData.contains(event.getChannel().getParent().getId())) {
+			Document whitelist = data.get("whitelist", Database.EMPTY_DOCUMENT);
+			List<Long> channelsData = whitelist.getList("channels", Long.class, Collections.emptyList()), 
+					rolesData = whitelist.getList("roles", Long.class, Collections.emptyList()), 
+					usersData = whitelist.getList("users", Long.class, Collections.emptyList());
+			
+			if (channelsData.contains(event.getChannel().getIdLong()) || channelsData.contains(event.getChannel().getParent().getIdLong())) {
 				return;
-			} else if (usersData.contains(event.getAuthor().getId())) {
+			} else if (usersData.contains(event.getAuthor().getIdLong())) {
 				return;
 			} else {
 				for (Role role : event.getMember().getRoles()) {
-					if (rolesData.contains(role.getId())) {
+					if (rolesData.contains(role.getIdLong())) {
 						return;
 					}
 				}
 			}
+			
+			String action = data.getString("action");
 				
 			event.getMessage().delete().queue();
-			if (dataRan.get("action") == null) {
+			if (action == null) {
 				event.getChannel().sendMessage(event.getAuthor().getAsMention() + ", You are not allowed to send links here :no_entry:").queue();
 				return;
 			} else {
-				List<Map<String, Object>> users = (List<Map<String, Object>>) dataRan.get("users");
-				Map<String, Object> user = null;
-				for (Map<String, Object> userData : users) {
-					if (userData.get("id").equals(event.getAuthor().getId())) {
+				List<Document> users = data.getList("users", Document.class, Collections.emptyList());
+				Document user = null;
+				for (Document userData : users) {
+					if (userData.getLong("id") == event.getAuthor().getIdLong()) {
 						user = userData;
 					}
 				}
 				
-				long currentAttempts = user == null ? 0 : (long) user.get("attempts");
-				long dataAttempts = (long) dataRan.get("attempts");
-				String action = (String) dataRan.get("action");
+				int currentAttempts = user == null ? 0 : user.getInteger("attempts", 0);
+				int dataAttempts = data.getInteger("attempts", 3);
 				if (currentAttempts + 1 >= dataAttempts) {
 					String reason = "Sent " + dataAttempts + " link" + (dataAttempts == 1 ? "" : "s");
 					if (action.equals("ban")) {
@@ -89,9 +86,13 @@ public class AntiLinkEvents extends ListenerAdapter {
 							event.getChannel().sendMessage("**" + event.getAuthor().getAsTag() + "** has been banned for sending **" + dataAttempts + "** link" + (dataAttempts == 1 ? "" : "s") + " <:done:403285928233402378>").queue();
 							event.getAuthor().openPrivateChannel().queue(channel -> channel.sendMessage(ModUtils.getBanEmbed(event.getGuild(), event.getJDA().getSelfUser(), reason)).queue(), e -> {});
 							event.getGuild().ban(event.getMember(), 1, reason).queue();
-							ModUtils.createModLogAndOffence(event.getGuild(), connection, event.getJDA().getSelfUser(), event.getAuthor(), "Ban (Automatic)", reason);
+							ModUtils.createModLogAndOffence(event.getGuild(), event.getJDA().getSelfUser(), event.getAuthor(), "Ban (Automatic)", reason);
 							
-							data.update(row -> r.hashMap("users", row.g("users").filter(d -> d.g("id").ne(event.getAuthor().getId())))).runNoReply(connection);
+							Database.get().updateGuildById(event.getGuild().getIdLong(), Updates.pull("antilink.users", Filters.eq("id", event.getAuthor().getIdLong())), (result, exception) -> {
+								if (exception != null) {
+									exception.printStackTrace();
+								}
+							});
 						}
 					} else if (action.equals("kick")) {
 						if (!event.getGuild().getSelfMember().hasPermission(Permission.KICK_MEMBERS)) {
@@ -104,9 +105,13 @@ public class AntiLinkEvents extends ListenerAdapter {
 							event.getChannel().sendMessage("**" + event.getAuthor().getAsTag() + "** has been kicked for sending **" + dataAttempts + "** link" + (dataAttempts == 1 ? "" : "s") + " <:done:403285928233402378>").queue();
 							event.getAuthor().openPrivateChannel().queue(channel -> channel.sendMessage(ModUtils.getKickEmbed(event.getGuild(), event.getJDA().getSelfUser(), reason)).queue(), e -> {});
 							event.getGuild().kick(event.getMember(), reason).queue();
-							ModUtils.createModLogAndOffence(event.getGuild(), connection, event.getJDA().getSelfUser(), event.getAuthor(), "Kick (Automatic)", reason);
+							ModUtils.createModLogAndOffence(event.getGuild(), event.getJDA().getSelfUser(), event.getAuthor(), "Kick (Automatic)", reason);
 							
-							data.update(row -> r.hashMap("users", row.g("users").filter(d -> d.g("id").ne(event.getAuthor().getId())))).runNoReply(connection);
+							Database.get().updateGuildById(event.getGuild().getIdLong(), Updates.pull("antilink.users", Filters.eq("id", event.getAuthor().getIdLong())), (result, exception) -> {
+								if (exception != null) {
+									exception.printStackTrace();
+								}
+							});
 						}
 					} else if (action.equals("mute")) {
 						if (!event.getGuild().getSelfMember().hasPermission(Permission.MANAGE_ROLES)) {
@@ -114,8 +119,9 @@ public class AntiLinkEvents extends ListenerAdapter {
 							return;
 						}
 						
-						ModUtils.setupMuteRole(event.getGuild(), role -> {
-							if (role == null) {
+						ModUtils.getOrCreateMuteRole(event.getGuild(), (role, error) -> {
+							if (error != null) {
+								event.getChannel().sendMessage("I was unable to mute **" + event.getAuthor().getAsTag() + "** as " + error + " :no_entry:").queue();
 								return;
 							}
 							
@@ -127,82 +133,85 @@ public class AntiLinkEvents extends ListenerAdapter {
 							event.getChannel().sendMessage("**" + event.getAuthor().getAsTag() + "** has been muted for sending **" + dataAttempts + "** link" + (dataAttempts == 1 ? "" : "s") + " <:done:403285928233402378>").queue();
 							event.getAuthor().openPrivateChannel().queue(channel -> channel.sendMessage(ModUtils.getMuteEmbed(event.getGuild(), null,  event.getJDA().getSelfUser(), 0, reason)).queue(), e -> {});
 							event.getGuild().addRoleToMember(event.getMember(), role).queue();
-							ModUtils.createModLogAndOffence(event.getGuild(), connection, event.getJDA().getSelfUser(), event.getAuthor(), "Mute (Automatic)", reason);
+							ModUtils.createModLogAndOffence(event.getGuild(), event.getJDA().getSelfUser(), event.getAuthor(), "Mute (Automatic)", reason);
 							
-							r.table("mute").insert(r.hashMap("id", event.getGuild().getId()).with("users", new Object[0])).run(connection, OptArgs.of("durability", "soft"));
-							r.table("mute").get(event.getGuild().getId()).update(row -> r.hashMap("users", row.g("users").append(r.hashMap("id", event.getAuthor().getId()).with("time", r.now().toEpochTime().round()).with("amount", null)))).runNoReply(connection);
+							Bson update = Updates.combine(
+									Updates.set("mute.users.$[user].duration", null),
+									Updates.set("mute.users.$[user].timestamp", Clock.systemUTC().instant().getEpochSecond()),
+									Updates.pull("antiinvite.users", Filters.eq("id", event.getAuthor().getIdLong()))
+							);
 							
-							data.update(row -> r.hashMap("users", row.g("users").filter(d -> d.g("id").ne(event.getAuthor().getId())))).runNoReply(connection);
-						}, error -> {
-							event.getChannel().sendMessage("I was unable to mute **" + event.getAuthor().getAsTag() + "** as " + error).queue();
-							return;
+							UpdateOptions updateOptions = new UpdateOptions().arrayFilters(List.of(Filters.eq("user.id", event.getAuthor().getIdLong()))).upsert(true);
+							
+							Database.get().updateGuildById(event.getGuild().getIdLong(), null, update, updateOptions, (result, exception) -> {
+								if (exception != null) {
+									exception.printStackTrace();
+								}
+							});
 						});
 					}
 				} else {
 					event.getChannel().sendMessage(String.format("%s, You are not allowed to send links here. If you continue you will receive a %s. **(%d/%d)** :no_entry:", event.getAuthor().getAsMention(), action, currentAttempts + 1, dataAttempts)).queue();
 					
-					if (user != null) {
-						users.remove(user);
-						user.put("attempts", currentAttempts + 1);
-						users.add(user);
-						data.update(row -> r.hashMap("users", users)).runNoReply(connection);
-					} else {
-						data.update(row -> r.hashMap("users", row.g("users").append(r.hashMap("id", event.getAuthor().getId()).with("attempts", 1)))).runNoReply(connection);
-					}
+					Bson update = Updates.inc("antilink.users.$[user].attempts", 1);
+					UpdateOptions updateOptions = new UpdateOptions().arrayFilters(List.of(Filters.eq("user.id", event.getAuthor().getIdLong()))).upsert(true);
+					Database.get().updateGuildById(event.getGuild().getIdLong(), null, update, updateOptions, (result, exception) -> {
+						if (exception != null) {
+							exception.printStackTrace();
+						}
+					});
 				}
 			}
 		}
 	}
 	
-	@SuppressWarnings("unchecked")
 	public void onGuildMessageUpdate(GuildMessageUpdateEvent event) {	
-		if (event.getJDA().getSelfUser().equals(event.getAuthor())) {
-			return;
-		}
-		
-		if (event.getMember().hasPermission(Permission.ADMINISTRATOR)) {
+		if (event.getJDA().getSelfUser().equals(event.getAuthor()) || event.getMember().hasPermission(Permission.ADMINISTRATOR)) {
 			return;
 		}
 		
 		Matcher linkMatch = this.linkRegex.matcher(event.getMessage().getContentRaw());
 		if (linkMatch.matches()) {
-			Connection connection = Sx4Bot.getConnection();
-			Get data = r.table("antilink").get(event.getGuild().getId());
-			Map<String, Object> dataRan = data.run(connection);
-			if (dataRan == null || (boolean) dataRan.get("toggle") == false) {
+			Bson projection = Projections.include("antilink.enabled", "antilink.whitelist", "antilink.users", "antilink.action", "antilink.attempts");
+			Document data = Database.get().getGuildById(event.getGuild().getIdLong(), null, projection).get("antilink", Database.EMPTY_DOCUMENT);
+			if (data.isEmpty() || data.getBoolean("enabled", false) == false) {
 				return;
 			}
 			
-			Map<String, List<String>> whitelist = (Map<String, List<String>>) dataRan.get("whitelist");
-			List<String> channelsData = whitelist.get("channels"), rolesData = whitelist.get("roles"), usersData = whitelist.get("users");
-			if (channelsData.contains(event.getChannel().getId()) || channelsData.contains(event.getChannel().getParent().getId())) {
+			Document whitelist = data.get("whitelist", Database.EMPTY_DOCUMENT);
+			List<Long> channelsData = whitelist.getList("channels", Long.class, Collections.emptyList()), 
+					rolesData = whitelist.getList("roles", Long.class, Collections.emptyList()), 
+					usersData = whitelist.getList("users", Long.class, Collections.emptyList());
+			
+			if (channelsData.contains(event.getChannel().getIdLong()) || channelsData.contains(event.getChannel().getParent().getIdLong())) {
 				return;
-			} else if (usersData.contains(event.getAuthor().getId())) {
+			} else if (usersData.contains(event.getAuthor().getIdLong())) {
 				return;
 			} else {
 				for (Role role : event.getMember().getRoles()) {
-					if (rolesData.contains(role.getId())) {
+					if (rolesData.contains(role.getIdLong())) {
 						return;
 					}
 				}
 			}
 			
+			String action = data.getString("action");
+				
 			event.getMessage().delete().queue();
-			if (dataRan.get("action") == null) {
+			if (action == null) {
 				event.getChannel().sendMessage(event.getAuthor().getAsMention() + ", You are not allowed to send links here :no_entry:").queue();
 				return;
 			} else {
-				List<Map<String, Object>> users = (List<Map<String, Object>>) dataRan.get("users");
-				Map<String, Object> user = null;
-				for (Map<String, Object> userData : users) {
-					if (userData.get("id").equals(event.getAuthor().getId())) {
+				List<Document> users = data.getList("users", Document.class, Collections.emptyList());
+				Document user = null;
+				for (Document userData : users) {
+					if (userData.getLong("id") == event.getAuthor().getIdLong()) {
 						user = userData;
 					}
 				}
 				
-				long currentAttempts = user == null ? 0 : (long) user.get("attempts");
-				long dataAttempts = (long) dataRan.get("attempts");
-				String action = (String) dataRan.get("action");
+				int currentAttempts = user == null ? 0 : user.getInteger("attempts", 0);
+				int dataAttempts = data.getInteger("attempts", 3);
 				if (currentAttempts + 1 >= dataAttempts) {
 					String reason = "Sent " + dataAttempts + " link" + (dataAttempts == 1 ? "" : "s");
 					if (action.equals("ban")) {
@@ -216,9 +225,13 @@ public class AntiLinkEvents extends ListenerAdapter {
 							event.getChannel().sendMessage("**" + event.getAuthor().getAsTag() + "** has been banned for sending **" + dataAttempts + "** link" + (dataAttempts == 1 ? "" : "s") + " <:done:403285928233402378>").queue();
 							event.getAuthor().openPrivateChannel().queue(channel -> channel.sendMessage(ModUtils.getBanEmbed(event.getGuild(), event.getJDA().getSelfUser(), reason)).queue(), e -> {});
 							event.getGuild().ban(event.getMember(), 1, reason).queue();
-							ModUtils.createModLogAndOffence(event.getGuild(), connection, event.getJDA().getSelfUser(), event.getAuthor(), "Ban (Automatic)", reason);
+							ModUtils.createModLogAndOffence(event.getGuild(), event.getJDA().getSelfUser(), event.getAuthor(), "Ban (Automatic)", reason);
 							
-							data.update(row -> r.hashMap("users", row.g("users").filter(d -> d.g("id").ne(event.getAuthor().getId())))).runNoReply(connection);
+							Database.get().updateGuildById(event.getGuild().getIdLong(), Updates.pull("antilink.users", Filters.eq("id", event.getAuthor().getIdLong())), (result, exception) -> {
+								if (exception != null) {
+									exception.printStackTrace();
+								}
+							});
 						}
 					} else if (action.equals("kick")) {
 						if (!event.getGuild().getSelfMember().hasPermission(Permission.KICK_MEMBERS)) {
@@ -231,9 +244,13 @@ public class AntiLinkEvents extends ListenerAdapter {
 							event.getChannel().sendMessage("**" + event.getAuthor().getAsTag() + "** has been kicked for sending **" + dataAttempts + "** link" + (dataAttempts == 1 ? "" : "s") + " <:done:403285928233402378>").queue();
 							event.getAuthor().openPrivateChannel().queue(channel -> channel.sendMessage(ModUtils.getKickEmbed(event.getGuild(), event.getJDA().getSelfUser(), reason)).queue(), e -> {});
 							event.getGuild().kick(event.getMember(), reason).queue();
-							ModUtils.createModLogAndOffence(event.getGuild(), connection, event.getJDA().getSelfUser(), event.getAuthor(), "Kick (Automatic)", reason);
+							ModUtils.createModLogAndOffence(event.getGuild(), event.getJDA().getSelfUser(), event.getAuthor(), "Kick (Automatic)", reason);
 							
-							data.update(row -> r.hashMap("users", row.g("users").filter(d -> d.g("id").ne(event.getAuthor().getId())))).runNoReply(connection);
+							Database.get().updateGuildById(event.getGuild().getIdLong(), Updates.pull("antilink.users", Filters.eq("id", event.getAuthor().getIdLong())), (result, exception) -> {
+								if (exception != null) {
+									exception.printStackTrace();
+								}
+							});
 						}
 					} else if (action.equals("mute")) {
 						if (!event.getGuild().getSelfMember().hasPermission(Permission.MANAGE_ROLES)) {
@@ -241,8 +258,9 @@ public class AntiLinkEvents extends ListenerAdapter {
 							return;
 						}
 						
-						ModUtils.setupMuteRole(event.getGuild(), role -> {
-							if (role == null) {
+						ModUtils.getOrCreateMuteRole(event.getGuild(), (role, error) -> {
+							if (error != null) {
+								event.getChannel().sendMessage("I was unable to mute **" + event.getAuthor().getAsTag() + "** as " + error + " :no_entry:").queue();
 								return;
 							}
 							
@@ -254,28 +272,33 @@ public class AntiLinkEvents extends ListenerAdapter {
 							event.getChannel().sendMessage("**" + event.getAuthor().getAsTag() + "** has been muted for sending **" + dataAttempts + "** link" + (dataAttempts == 1 ? "" : "s") + " <:done:403285928233402378>").queue();
 							event.getAuthor().openPrivateChannel().queue(channel -> channel.sendMessage(ModUtils.getMuteEmbed(event.getGuild(), null,  event.getJDA().getSelfUser(), 0, reason)).queue(), e -> {});
 							event.getGuild().addRoleToMember(event.getMember(), role).queue();
-							ModUtils.createModLogAndOffence(event.getGuild(), connection, event.getJDA().getSelfUser(), event.getAuthor(), "Mute (Automatic)", reason);
+							ModUtils.createModLogAndOffence(event.getGuild(), event.getJDA().getSelfUser(), event.getAuthor(), "Mute (Automatic)", reason);
 							
-							r.table("mute").insert(r.hashMap("id", event.getGuild().getId()).with("users", new Object[0])).run(connection, OptArgs.of("durability", "soft"));
-							r.table("mute").get(event.getGuild().getId()).update(row -> r.hashMap("users", row.g("users").append(r.hashMap("id", event.getAuthor().getId()).with("time", r.now().toEpochTime().round()).with("amount", null)))).runNoReply(connection);
+							Bson update = Updates.combine(
+									Updates.set("mute.users.$[user].duration", null),
+									Updates.set("mute.users.$[user].timestamp", Clock.systemUTC().instant().getEpochSecond()),
+									Updates.pull("antiinvite.users", Filters.eq("id", event.getAuthor().getIdLong()))
+							);
 							
-							data.update(row -> r.hashMap("users", row.g("users").filter(d -> d.g("id").ne(event.getAuthor().getId())))).runNoReply(connection);
-						}, error -> {
-							event.getChannel().sendMessage("I was unable to mute **" + event.getAuthor().getAsTag() + "** as " + error).queue();
-							return;
+							UpdateOptions updateOptions = new UpdateOptions().arrayFilters(List.of(Filters.eq("user.id", event.getAuthor().getIdLong()))).upsert(true);
+							
+							Database.get().updateGuildById(event.getGuild().getIdLong(), null, update, updateOptions, (result, exception) -> {
+								if (exception != null) {
+									exception.printStackTrace();
+								}
+							});
 						});
 					}
 				} else {
 					event.getChannel().sendMessage(String.format("%s, You are not allowed to send links here. If you continue you will receive a %s. **(%d/%d)** :no_entry:", event.getAuthor().getAsMention(), action, currentAttempts + 1, dataAttempts)).queue();
 					
-					if (user != null) {
-						users.remove(user);
-						user.put("attempts", currentAttempts + 1);
-						users.add(user);
-						data.update(row -> r.hashMap("users", users)).runNoReply(connection);
-					} else {
-						data.update(row -> r.hashMap("users", row.g("users").append(r.hashMap("id", event.getAuthor().getId()).with("attempts", 1)))).runNoReply(connection);
-					}
+					Bson update = Updates.inc("antilink.users.$[user].attempts", 1);
+					UpdateOptions updateOptions = new UpdateOptions().arrayFilters(List.of(Filters.eq("user.id", event.getAuthor().getIdLong()))).upsert(true);
+					Database.get().updateGuildById(event.getGuild().getIdLong(), null, update, updateOptions, (result, exception) -> {
+						if (exception != null) {
+							exception.printStackTrace();
+						}
+					});
 				}
 			}
 		}

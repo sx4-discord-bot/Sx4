@@ -1,21 +1,20 @@
 package com.sx4.modules;
 
-import static com.rethinkdb.RethinkDB.r;
-
 import java.time.Clock;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
+
+import org.bson.Document;
 
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
@@ -27,11 +26,13 @@ import com.jockie.bot.core.command.impl.CommandEvent;
 import com.jockie.bot.core.command.impl.CommandImpl;
 import com.jockie.bot.core.command.ICommand.ContentOverflowPolicy;
 import com.jockie.bot.core.module.Module;
-import com.rethinkdb.gen.ast.Get;
-import com.rethinkdb.model.OptArgs;
-import com.rethinkdb.net.Connection;
+import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.Projections;
+import com.mongodb.client.model.Updates;
 import com.sx4.categories.Categories;
 import com.sx4.core.Sx4Command;
+import com.sx4.core.Sx4CommandEventListener;
+import com.sx4.database.Database;
 import com.sx4.events.GiveawayEvents;
 import com.sx4.utils.ArgumentUtils;
 import com.sx4.utils.GiveawayUtils;
@@ -65,38 +66,29 @@ public class GiveawayModule {
 			event.reply(HelpUtils.getHelpMessage(event.getCommand())).queue();
 		}
 		
-		@SuppressWarnings("unchecked")
 		@Command(value="end", description="End a giveaway while it is active", contentOverflowPolicy=ContentOverflowPolicy.IGNORE) 
 		@AuthorPermissions({Permission.MANAGE_ROLES})
 		@BotPermissions({Permission.MESSAGE_HISTORY})
-		public void end(CommandEvent event, @Context Connection connection, @Argument(value="giveaway id") int giveawayId) {
-			Get data = r.table("giveaway").get(event.getGuild().getId());
-			Map<String, Object> dataRan = data.run(connection);
-			
-			if (dataRan == null) {
-				event.reply("There are currently no active giveaways :no_entry:").queue();
-				return;
-			}
-			
-			List<Map<String, Object>> giveaways = (List<Map<String, Object>>) dataRan.get("giveaways");
+		public void end(CommandEvent event, @Context Database database, @Argument(value="giveaway id") int giveawayId) {
+			List<Document> giveaways = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("giveaway.giveaways")).getEmbedded(List.of("giveaway", "giveaways"), Collections.emptyList());
 			if (giveaways.isEmpty()) {
 				event.reply("There are currently no active giveaways :no_entry:").queue();
 				return;
 			}
 			
-			for (Map<String, Object> giveaway : giveaways) {
-				if ((long) giveaway.get("id") == giveawayId) {
-					TextChannel channel = event.getGuild().getTextChannelById((String) giveaway.get("channel"));
+			for (Document giveaway : giveaways) {
+				if (giveaway.getInteger("id") == giveawayId) {
+					TextChannel channel = event.getGuild().getTextChannelById(giveaway.getLong("channelId"));
 					if (channel == null) {
 						event.reply("The channel where that giveaway was hosted has been deleted :no_entry:").queue();
 						return;
 					}
 					
-					channel.retrieveMessageById((String) giveaway.get("message")).queue(message -> {
+					channel.retrieveMessageById(giveaway.getLong("messageId")).queue(message -> {
 						for (MessageReaction reaction : message.getReactions()) {
 							if (reaction.getReactionEmote().getName().equals("🎉")) {
 								List<Member> members = new ArrayList<>();
-								CompletableFuture<?> future = reaction.retrieveUsers().forEachAsync((user) -> {
+								CompletableFuture<?> future = reaction.retrieveUsers().forEachAsync(user -> {
 									Member reactionMember = event.getGuild().getMember(user);
 									if (reactionMember != null && !members.contains(reactionMember) && reactionMember != event.getSelfMember()) {
 										members.add(reactionMember);
@@ -110,24 +102,30 @@ public class GiveawayModule {
 										channel.sendMessage("No one entered the giveaway, the giveaway has been deleted anyway :no_entry:").queue();
 										message.delete().queue(null, e -> {});
 									} else {
-										Set<Member> winners = GiveawayUtils.getRandomSample(members, Math.min(members.size(), Math.toIntExact((long) giveaway.get("winners"))));
+										Set<Member> winners = GiveawayUtils.getRandomSample(members, Math.min(members.size(), giveaway.getInteger("winnersAmount")));
 										List<String> winnerMentions = new ArrayList<>(), winnerTags = new ArrayList<>();
 										for (Member winner : winners) {
 											winnerMentions.add(winner.getAsMention());
 											winnerTags.add(winner.getUser().getAsTag());
 										}
 										
-										channel.sendMessage(String.join(", ", winnerMentions) + ", Congratulations you have won the giveaway for **" + ((String) giveaway.get("item")) + "**").queue();
+										channel.sendMessage(String.join(", ", winnerMentions) + ", Congratulations you have won the giveaway for **" + giveaway.getString("item") + "**").queue();
 										
 										EmbedBuilder embed = new EmbedBuilder();
 										embed.setTitle("Giveaway");
-										embed.setDescription("**" + String.join(", ", winnerTags) + "** has won **" + ((String) giveaway.get("item")) + "**");
+										embed.setDescription("**" + String.join(", ", winnerTags) + "** has won **" + giveaway.getString("item") + "**");
 										embed.setFooter("Giveaway Ended", null);
 										message.editMessage(embed.build()).queue();
 									}
 									
-									data.update(row -> r.hashMap("giveaways", row.g("giveaways").filter(d -> d.g("id").ne(giveawayId)))).runNoReply(connection);
-									GiveawayEvents.cancelExecutor(event.getGuild().getId(), giveawayId);
+									database.updateGuildById(event.getGuild().getIdLong(), Updates.pull("giveaway.giveaways", Filters.eq("id", giveawayId)), (result, exception) -> {
+										if (exception != null) {
+											exception.printStackTrace();
+											event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+										} else {
+											GiveawayEvents.cancelExecutor(event.getGuild().getIdLong(), giveawayId);
+										}
+									});
 								});
 							}
 						}
@@ -135,9 +133,15 @@ public class GiveawayModule {
 						if (e instanceof ErrorResponseException) {
 							ErrorResponseException exception = (ErrorResponseException) e;
 							if (exception.getErrorCode() == 10008) {
-								event.reply("That giveaway message has been deleted :no_entry:").queue();
-								data.update(row -> r.hashMap("giveaways", row.g("giveaways").filter(d -> d.g("id").ne(giveawayId)))).runNoReply(connection);
-								GiveawayEvents.cancelExecutor(event.getGuild().getId(), giveawayId);
+								database.updateGuildById(event.getGuild().getIdLong(), Updates.pull("giveaway.giveaways", Filters.eq("id", giveawayId)), (removeResult, removeException) -> {
+									if (removeException != null) {
+										removeException.printStackTrace();
+										event.reply(Sx4CommandEventListener.getUserErrorMessage(removeException)).queue();
+									} else {
+										event.reply("That giveaway message has been deleted :no_entry:").queue();
+										GiveawayEvents.cancelExecutor(event.getGuild().getIdLong(), giveawayId);
+									}
+								});
 							}
 						}
 					});
@@ -153,127 +157,119 @@ public class GiveawayModule {
 		@Command(value="reroll", description="Reroll a giveaway which has ended", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@AuthorPermissions({Permission.MANAGE_ROLES})
 		@BotPermissions({Permission.MESSAGE_HISTORY})
-		public void reroll(CommandEvent event, @Argument(value="message id") String messageId, @Argument(value="winners", nullDefault=true) Integer winnersAmountArgument) {
+		public void reroll(CommandEvent event, @Argument(value="message id") long messageId, @Argument(value="winners", nullDefault=true) Integer winnersAmountArgument) {
 			int winnersAmount = winnersAmountArgument == null ? 1 : winnersAmountArgument;
 			
-			//very hacky
-			try {
-				event.getTextChannel().retrieveMessageById(messageId).queue(message -> {
-					if (!message.getAuthor().equals(event.getSelfUser())) {
-						event.reply("That message is not a giveaway message :no_entry:").queue();
-						return;
-					}
-					
-					if (message.getEmbeds().isEmpty()) {
-						event.reply("That message is not a giveaway message :no_entry:").queue();
-						return;
-					}
-					
-					MessageEmbed embed = message.getEmbeds().get(0);	
-					if (embed.getFooter() == null) {
+			event.getTextChannel().retrieveMessageById(messageId).queue(message -> {
+				if (!message.getAuthor().equals(event.getSelfUser())) {
+					event.reply("That message is not a giveaway message :no_entry:").queue();
+					return;
+				}
+				
+				if (message.getEmbeds().isEmpty()) {
+					event.reply("That message is not a giveaway message :no_entry:").queue();
+					return;
+				}
+				
+				MessageEmbed embed = message.getEmbeds().get(0);	
+				if (embed.getFooter() == null) {
+					event.reply("That message is not a giveaway message :no_entry:").queue();
+					return;
+				} else {
+					if (embed.getFooter().getText() == null) {
 						event.reply("That message is not a giveaway message :no_entry:").queue();
 						return;
 					} else {
-						if (embed.getFooter().getText() == null) {
-							event.reply("That message is not a giveaway message :no_entry:").queue();
-							return;
-						} else {
-							if (embed.getFooter().getText().equals("Giveaway Ended")) {
-								if (embed.getDescription() == null) {
+						if (embed.getFooter().getText().equals("Giveaway Ended")) {
+							if (embed.getDescription() == null) {
+								event.reply("That message is not a giveaway message :no_entry:").queue();
+								return;
+							} else {
+								if (winnerRegex.matcher(embed.getDescription()).matches()) {
+									String[] winners = embed.getDescription().split("\\*\\*")[1].split(", ");
+									Set<Member> members = new HashSet<>();
+									for (String winner : winners) {
+										Member member = event.getGuild().getMembersByName(winner.split("#")[0], false).stream().filter(it -> it.getUser().getDiscriminator().equals(winner.split("#")[1])).findFirst().orElse(null);
+										members.add(member);
+									}
+										
+									List<Member> possibleWinners = new ArrayList<>();
+									for (MessageReaction reaction : message.getReactions()) {
+										if (reaction.getReactionEmote().getName().equals("🎉")) {
+											CompletableFuture<?> future = reaction.retrieveUsers().forEachAsync((user) -> {
+												Member reactionMember = event.getGuild().getMember(user);
+												if (!members.contains(reactionMember) && reactionMember != event.getSelfMember()) {
+													possibleWinners.add(reactionMember);
+												}
+												
+												return true;
+											});
+
+											future.thenRun(() -> {
+												if (possibleWinners.size() == 0) {
+													event.reply("No one has reacted to that giveaway :no_entry:").queue();
+													return;
+												}
+												
+												Set<Member> actualWinners = GiveawayUtils.getRandomSample(possibleWinners, Math.min(winnersAmount, possibleWinners.size()));
+												List<String> winnerMentions = new ArrayList<>();
+												for (Member member : actualWinners) {
+													winnerMentions.add(member.getAsMention());
+												}
+												
+												event.reply("The new " + (actualWinners.size() == 1 ? "winner is" : "winners are") + " " + String.join(", ", winnerMentions) + ", congratulations :tada:").queue();
+											});
+										}
+									}
+								} else {
 									event.reply("That message is not a giveaway message :no_entry:").queue();
 									return;
-								} else {
-									if (winnerRegex.matcher(embed.getDescription()).matches()) {
-										String[] winners = embed.getDescription().split("\\*\\*")[1].split(", ");
-										Set<Member> members = new HashSet<>();
-										for (String winner : winners) {
-											Member member = event.getGuild().getMembersByName(winner.split("#")[0], false).stream().filter(it -> it.getUser().getDiscriminator().equals(winner.split("#")[1])).findFirst().orElse(null);
-											members.add(member);
-										}
-											
-										List<Member> possibleWinners = new ArrayList<>();
-										for (MessageReaction reaction : message.getReactions()) {
-											if (reaction.getReactionEmote().getName().equals("🎉")) {
-												CompletableFuture<?> future = reaction.retrieveUsers().forEachAsync((user) -> {
-													Member reactionMember = event.getGuild().getMember(user);
-													if (!members.contains(reactionMember) && reactionMember != event.getSelfMember()) {
-														possibleWinners.add(reactionMember);
-													}
-													
-													return true;
-												});
-
-												future.thenRun(() -> {
-													if (possibleWinners.size() == 0) {
-														event.reply("No one has reacted to that giveaway :no_entry:").queue();
-														return;
-													}
-													
-													Set<Member> actualWinners = GiveawayUtils.getRandomSample(possibleWinners, Math.min(winnersAmount, possibleWinners.size()));
-													List<String> winnerMentions = new ArrayList<>();
-													for (Member member : actualWinners) {
-														winnerMentions.add(member.getAsMention());
-													}
-													
-													event.reply("The new " + (actualWinners.size() == 1 ? "winner is" : "winners are") + " " + String.join(", ", winnerMentions) + ", congratulations :tada:").queue();
-												});
-											}
-										}
-									} else {
-										event.reply("That message is not a giveaway message :no_entry:").queue();
-										return;
-									}
 								}
-							} else {
-								event.reply("That giveaway has not ended yet :no_entry:").queue();
-								return;
 							}
+						} else {
+							event.reply("That giveaway has not ended yet :no_entry:").queue();
+							return;
 						}
 					}
-				}, e -> {
-					if (e instanceof ErrorResponseException) {
-						ErrorResponseException exception = (ErrorResponseException) e;
-						if (exception.getErrorCode() == 10008) {
-							event.reply("I could not find that message within this channel :no_entry:").queue();
-						}
+				}
+			}, e -> {
+				if (e instanceof ErrorResponseException) {
+					ErrorResponseException exception = (ErrorResponseException) e;
+					if (exception.getErrorCode() == 10008) {
+						event.reply("I could not find that message within this channel :no_entry:").queue();
 					}
-				});
-			} catch(IllegalArgumentException e) {
-				event.reply("I could not find that message within this channel :no_entry:").queue();
-			}
+				}
+			});
 		}
 		
-		@SuppressWarnings("unchecked")
 		@Command(value="delete", description="Delete a specific giveaway which is currently running with its giveaway id", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@AuthorPermissions({Permission.MANAGE_ROLES})
 		@BotPermissions({Permission.MESSAGE_HISTORY})
-		public void delete(CommandEvent event, @Context Connection connection, @Argument(value="giveaway id") int giveawayId) {
-			Get data = r.table("giveaway").get(event.getGuild().getId());
-			Map<String, Object> dataRan = data.run(connection);
-			
-			if (dataRan == null) {
-				event.reply("There are currently no active giveaways :no_entry:").queue();
-				return;
-			}
-			
-			List<Map<String, Object>> giveaways = (List<Map<String, Object>>) dataRan.get("giveaways");
+		public void delete(CommandEvent event, @Context Database database, @Argument(value="giveaway id") int giveawayId) {
+			List<Document> giveaways = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("giveaway.giveaways")).getEmbedded(List.of("giveaway", "giveaways"), Collections.emptyList());
 			if (giveaways.isEmpty()) {
 				event.reply("There are currently no active giveaways :no_entry:").queue();
 				return;
 			}
 			
-			for (Map<String, Object> giveaway : giveaways) {
-				if ((long) giveaway.get("id") == giveawayId) {
-					event.reply("That giveaway has been deleted <:done:403285928233402378>").queue();
-					
-					String channelData = (String) giveaway.get("channel");
-					TextChannel channel = event.getGuild().getTextChannelById(channelData);
+			for (Document giveaway : giveaways) {
+				if (giveaway.getInteger("id") == giveawayId) {
+					long channelId = giveaway.getLong("channelId");
+					TextChannel channel = event.getGuild().getTextChannelById(channelId);
 					if (channel != null) {
-						channel.retrieveMessageById((String) giveaway.get("message")).queue(message -> message.delete().queue(null, e -> {}), e -> {});
+						channel.retrieveMessageById(giveaway.getLong("messageId")).queue(message -> message.delete().queue(null, e -> {}), e -> {});
 					}
 					
-					data.update(row -> r.hashMap("giveaways", row.g("giveaways").filter(d -> d.g("id").ne(giveawayId)))).runNoReply(connection);
-					GiveawayEvents.cancelExecutor(event.getGuild().getId(), giveawayId);
+					database.updateGuildById(event.getGuild().getIdLong(), Updates.pull("giveaway.giveaways", Filters.eq("id", giveawayId)), (result, exception) -> {
+						if (exception != null) {
+							exception.printStackTrace();
+							event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+						} else {
+							event.reply("That giveaway has been deleted <:done:403285928233402378>").queue();
+							GiveawayEvents.cancelExecutor(event.getGuild().getIdLong(), giveawayId);
+						}
+					});
+
 					return;
 				}
 			}
@@ -284,11 +280,8 @@ public class GiveawayModule {
 		@Command(value="setup", description="Set up a giveaway in the current server")
 		@AuthorPermissions({Permission.MANAGE_ROLES})
 		@BotPermissions({Permission.MESSAGE_HISTORY, Permission.MESSAGE_EMBED_LINKS, Permission.MESSAGE_ADD_REACTION})
-		public void setup(CommandEvent event, @Context Connection connection, @Argument(value="channel", nullDefault=true) String channelArgument, @Argument(value="winners", nullDefault=true) Long winnersAmount,
-				@Argument(value="duration", nullDefault=true) String duration, @Argument(value="item", endless=true, nullDefault=true) String giveawayItem) {
-			r.table("giveaway").insert(r.hashMap("id", event.getGuild().getId()).with("giveaway#", 0).with("giveaways", new Object[0])).run(connection, OptArgs.of("durability", "soft"));
-			Get data = r.table("giveaway").get(event.getGuild().getId());
-			Map<String, Object> dataRan = data.run(connection);
+		public void setup(CommandEvent event, @Context Database database, @Argument(value="channel", nullDefault=true) String channelArgument, @Argument(value="winners", nullDefault=true) Long winnersAmount, @Argument(value="duration", nullDefault=true) String duration, @Argument(value="item", endless=true, nullDefault=true) String giveawayItem) {
+			Document data = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("giveaway.giveawayAmount")).get("giveaway", Database.EMPTY_DOCUMENT);
 			
 			AtomicReference<String> channelString = new AtomicReference<>(), durationString = new AtomicReference<>(), itemString = new AtomicReference<>();
 			AtomicReference<Long> winnersTotal = new AtomicReference<>();
@@ -315,22 +308,27 @@ public class GiveawayModule {
 				channel.sendMessage(embed.build()).queue(message -> {
 					message.addReaction("🎉").queue();
 					
-					long id = ((long) dataRan.get("giveaway#")) + 1;
-					event.reply("Your giveaway has been created in " + channel.getAsMention() + " :tada:\nGiveaway ID: `" + id + "`").queue();
+					int id = data.getInteger("giveawayAmount") + 1;
 					
-					Map<String, Object> giveaway = new HashMap<>();
-					giveaway.put("id", id);
-					giveaway.put("message", message.getId());
-					giveaway.put("endtime", endTime);
-					giveaway.put("length", durationLength);
-					giveaway.put("item", giveawayItem);
-					giveaway.put("channel", channel.getId());
-					giveaway.put("winners", winnersAmount);
+					Document giveaway = new Document().append("id", id)
+							.append("messageId", message.getIdLong())
+							.append("endTimestamp", endTime)
+							.append("duration", durationLength)
+							.append("item", giveawayItem)
+							.append("channelId", channel.getIdLong())
+							.append("winnersAmount", winnersAmount);
 					
-					data.update(row -> r.hashMap("giveaways", row.g("giveaways").append(giveaway)).with("giveaway#", row.g("giveaway#").add(1))).runNoReply(connection);
-					
-					ScheduledFuture<?> executor = GiveawayEvents.scheduledExectuor.schedule(() -> GiveawayEvents.removeGiveaway(event.getGuild().getId(), giveaway), durationLength, TimeUnit.SECONDS);
-					GiveawayEvents.putExecutor(event.getGuild().getId(), id, executor);
+					database.updateGuildById(event.getGuild().getIdLong(), Updates.combine(Updates.inc("giveaway.giveawayAmount", 1), Updates.push("giveaway.giveaways", giveaway)), (result, exception) -> {
+						if (exception != null) {
+							exception.printStackTrace();
+							event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+						} else {
+							event.reply("Your giveaway has been created in " + channel.getAsMention() + " :tada:\nGiveaway ID: `" + id + "`").queue();
+							
+							ScheduledFuture<?> executor = GiveawayEvents.scheduledExectuor.schedule(() -> GiveawayEvents.removeGiveaway(event.getGuild().getIdLong(), giveaway), durationLength, TimeUnit.SECONDS);
+							GiveawayEvents.putExecutor(event.getGuild().getIdLong(), id, executor);
+						}
+					});
 				});
 			} else {
 				CompletableFuture.completedFuture(true).thenCompose(($) -> {
@@ -492,22 +490,27 @@ public class GiveawayModule {
 					channel.sendMessage(embed.build()).queue(message -> {
 						message.addReaction("🎉").queue();
 						
-						long id = ((long) dataRan.get("giveaway#")) + 1;
-						event.reply("Your giveaway has been created in " + channel.getAsMention() + " :tada:\nGiveaway ID: `" + id + "`").queue();
+						int id = data.getInteger("winnersAmount") + 1;
 						
-						Map<String, Object> giveaway = new HashMap<>();
-						giveaway.put("id", id);
-						giveaway.put("message", message.getId());
-						giveaway.put("endtime", endTime);
-						giveaway.put("length", durationLength);
-						giveaway.put("item", itemString.get());
-						giveaway.put("channel", channel.getId());
-						giveaway.put("winners", winnersTotal.get());
+						Document giveaway = new Document().append("id", id)
+								.append("messageId", message.getIdLong())
+								.append("endTimestamp", endTime)
+								.append("duration", durationLength)
+								.append("item", giveawayItem)
+								.append("channelId", channel.getIdLong())
+								.append("winnersAmount", winnersAmount);
 						
-						data.update(row -> r.hashMap("giveaways", row.g("giveaways").append(giveaway)).with("giveaway#", row.g("giveaway#").add(1))).runNoReply(connection);
-						
-						ScheduledFuture<?> executor = GiveawayEvents.scheduledExectuor.schedule(() -> GiveawayEvents.removeGiveaway(event.getGuild().getId(), giveaway), durationLength, TimeUnit.SECONDS);
-						GiveawayEvents.putExecutor(event.getGuild().getId(), id, executor);
+						database.updateGuildById(event.getGuild().getIdLong(), Updates.combine(Updates.inc("giveaway.giveawayAmount", 1), Updates.push("giveaway.giveaways", giveaway)), (result, exception) -> {
+							if (exception != null) {
+								exception.printStackTrace();
+								event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+							} else {
+								event.reply("Your giveaway has been created in " + channel.getAsMention() + " :tada:\nGiveaway ID: `" + id + "`").queue();
+								
+								ScheduledFuture<?> executor = GiveawayEvents.scheduledExectuor.schedule(() -> GiveawayEvents.removeGiveaway(event.getGuild().getIdLong(), giveaway), durationLength, TimeUnit.SECONDS);
+								GiveawayEvents.putExecutor(event.getGuild().getIdLong(), id, executor);
+							}
+						});
 					});
 				});
 			}

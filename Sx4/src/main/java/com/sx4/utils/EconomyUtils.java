@@ -1,14 +1,20 @@
 package com.sx4.utils;
 
-import static com.rethinkdb.RethinkDB.r;
-
 import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.rethinkdb.gen.ast.Insert;
+import org.bson.Document;
+import org.bson.conversions.Bson;
+
+import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.UpdateOneModel;
+import com.mongodb.client.model.UpdateOptions;
+import com.mongodb.client.model.Updates;
+import com.sx4.database.Database;
 import com.sx4.economy.Item;
 import com.sx4.economy.ItemStack;
 import com.sx4.economy.items.Booster;
@@ -21,9 +27,7 @@ import com.sx4.economy.materials.Wood;
 import com.sx4.economy.tools.Axe;
 import com.sx4.economy.tools.Pickaxe;
 import com.sx4.economy.tools.Rod;
-import com.sx4.settings.Settings;
 
-import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.internal.utils.tuple.Pair;
 
 public class EconomyUtils {
@@ -187,10 +191,10 @@ public class EconomyUtils {
 		}
 	}
 	
-	public static boolean hasAxe(List<Map<String, Object>> items) {
-		for (Map<String, Object> item : items) {
+	public static boolean hasAxe(List<Document> items) {
+		for (Document item : items) {
 			for (Axe axe : Axe.ALL) {
-				if (item.get("name").equals(axe.getName())) {
+				if (item.getString("name").equals(axe.getName())) {
 					return true;
 				}
 			}
@@ -199,21 +203,21 @@ public class EconomyUtils {
 		return false;
 	}
 	
-	@SuppressWarnings("unchecked")
-	public static Axe getUserAxe(Map<String, Object> data) {
-		List<Map<String, Object>> items = (List<Map<String, Object>>) data.get("items");
-		for (Map<String, Object> item : items) {
+	public static Axe getUserAxe(List<Document> items) {
+		for (Document item : items) {
 			for (Axe axe : Axe.ALL) {
-				if (item.get("name").equals(axe.getName())) {
-					return new Axe(axe.getName(), 
-							item.containsKey("price") ? (long) item.get("price") : axe.getPrice(), 
+				if (item.getString("name").equals(axe.getName())) {
+					return new Axe(
+							axe.getName(), 
+							item.get("price", axe.getPrice()), 
 							axe.getCraftingRecipe(), 
 							axe.getRepairItem(), 
-							item.containsKey("max_mats") ? Math.toIntExact((long) item.get("max_mats")) : axe.getMaximumMaterials(), 
-							Math.toIntExact((long) data.get("axedur")),
-							item.containsKey("durability") ? Math.toIntExact((long) item.get("durability")) : axe.getDurability(), 
-							item.containsKey("multiplier") ? (double) item.get("multiplier") : axe.getMultiplier(),
-							item.containsKey("upgrades") ? Math.toIntExact((long) item.get("upgrades")) : axe.getUpgrades());
+							item.getInteger("maximumMaterials", axe.getMaximumMaterials()),
+							item.getInteger("currentDurability"),
+							item.getInteger("maximumDurability", axe.getDurability()), 
+							item.get("multiplier", axe.getMultiplier()),
+							item.getInteger("upgrades", axe.getUpgrades())
+					);
 				}
 			}
 		}
@@ -221,10 +225,10 @@ public class EconomyUtils {
 		return null;
 	}
 	
-	public static boolean hasRod(List<Map<String, Object>> items) {
-		for (Map<String, Object> item : items) {
+	public static boolean hasRod(List<Document> items) {
+		for (Document item : items) {
 			for (Rod rod : Rod.ALL) {
-				if (item.get("name").equals(rod.getName())) {
+				if (item.getString("name").equals(rod.getName())) {
 					return true;
 				}
 			}
@@ -233,21 +237,21 @@ public class EconomyUtils {
 		return false;
 	}
 	
-	@SuppressWarnings("unchecked")
-	public static Rod getUserRod(Map<String, Object> data) {
-		List<Map<String, Object>> items = (List<Map<String, Object>>) data.get("items");
-		for (Map<String, Object> item : items) {
+	public static Rod getUserRod(List<Document> items) {
+		for (Document item : items) {
 			for (Rod rod : Rod.ALL) {
-				if (item.get("name").equals(rod.getName())) {
-					return new Rod(rod.getName(), 
-							item.containsKey("price") ? (long) item.get("price") : rod.getPrice(), 
+				if (item.getString("name").equals(rod.getName())) {
+					return new Rod(
+							rod.getName(), 
+							item.get("price", rod.getPrice()), 
 							rod.getCraftingRecipe(), 
 							rod.getRepairItem(), 
-							item.containsKey("rand_min") ? Math.toIntExact((long) item.get("rand_min")) : rod.getMinimumYield(), 
-							item.containsKey("rand_max") ? Math.toIntExact((long) item.get("rand_max")) : rod.getMaximumYield(),
-							Math.toIntExact((long) data.get("roddur")),
-							item.containsKey("durability") ? Math.toIntExact((long) item.get("durability")) : rod.getDurability(), 
-							item.containsKey("upgrades") ? Math.toIntExact((long) item.get("upgrades")) : rod.getUpgrades());
+							item.getInteger("minimumYield", rod.getMinimumYield()), 
+							item.getInteger("maximumYield", rod.getMaximumYield()), 
+							item.getInteger("currentDurability"),
+							item.getInteger("maximumDurability", rod.getDurability()), 
+							item.getInteger("upgrades", rod.getUpgrades())
+					);
 				}
 			}
 		}
@@ -255,10 +259,10 @@ public class EconomyUtils {
 		return null;
 	}
 	
-	public static boolean hasPickaxe(List<Map<String, Object>> items) {
-		for (Map<String, Object> item : items) {
+	public static boolean hasPickaxe(List<Document> items) {
+		for (Document item : items) {
 			for (Pickaxe pickaxe : Pickaxe.ALL) {
-				if (item.get("name").equals(pickaxe.getName())) {
+				if (item.getString("name").equals(pickaxe.getName())) {
 					return true;
 				}
 			}
@@ -267,22 +271,22 @@ public class EconomyUtils {
 		return false;
 	}
 	
-	@SuppressWarnings("unchecked")
-	public static Pickaxe getUserPickaxe(Map<String, Object> data) {
-		List<Map<String, Object>> items = (List<Map<String, Object>>) data.get("items");
-		for (Map<String, Object> item : items) {
+	public static Pickaxe getUserPickaxe(List<Document> items) {
+		for (Document item : items) {
 			for (Pickaxe pickaxe : Pickaxe.ALL) {
-				if (item.get("name").equals(pickaxe.getName())) {
-					return new Pickaxe(pickaxe.getName(), 
-							item.containsKey("price") ? (long) item.get("price") : pickaxe.getPrice(), 
+				if (item.getString("name").equals(pickaxe.getName())) {
+					return new Pickaxe(
+							pickaxe.getName(), 
+							item.get("price", pickaxe.getPrice()), 
 							pickaxe.getCraftingRecipe(), 
 							pickaxe.getRepairItem(), 
-							item.containsKey("rand_min") ? Math.toIntExact((long) item.get("rand_min")) : pickaxe.getMinimumYield(), 
-							item.containsKey("rand_max") ? Math.toIntExact((long) item.get("rand_max")) : pickaxe.getMaximumYield(),
-							Math.toIntExact((long) data.get("pickdur")),
-							item.containsKey("durability") ? Math.toIntExact((long) item.get("durability")) : pickaxe.getDurability(), 
-							item.containsKey("multiplier") ? (item.get("multiplier") instanceof Long ? (double) (long) item.get("multiplier") : (double) item.get("multiplier")) : pickaxe.getMultiplier(),
-							item.containsKey("upgrades") ? Math.toIntExact((long) item.get("upgrades")) : pickaxe.getUpgrades());
+							item.getInteger("minimumYield", pickaxe.getMinimumYield()), 
+							item.getInteger("maximumYield", pickaxe.getMaximumYield()),
+							item.getInteger("currentDurability"),
+							item.getInteger("maximumDurability", pickaxe.getDurability()), 
+							item.get("multiplier", pickaxe.getMultiplier()),
+							item.getInteger("upgrades", pickaxe.getUpgrades())
+					);
 				}
 			}
 		}
@@ -328,6 +332,88 @@ public class EconomyUtils {
 		return Pair.of(money, itemStacks);
 	}
 	
+	public static UpdateOneModel<Document> getAddItemModel(Long userId, List<Document> items, String name, long amount, Document extraFields) {
+		Bson filter = userId != null ? Filters.eq("_id", userId) : null;
+		for (Document itemData : items) {
+			if (itemData.getString("name").equals(name)) {
+				Bson update = Updates.inc("economy.items.$[" + name + "].amount", amount);
+				for (String key : extraFields.keySet()) {
+					update = Updates.combine(update, Updates.set("economy.items.$[" + name + "]." + key, extraFields.get(key)));
+				}
+				
+				UpdateOptions updateOptions = new UpdateOptions().arrayFilters(List.of(Filters.eq(name + ".name", name))).upsert(true);
+				return new UpdateOneModel<>(filter, update, updateOptions);
+			}
+		}
+		
+		Document newItem = new Document("name", name).append("amount", amount);
+		newItem.putAll(extraFields);
+		return new UpdateOneModel<>(filter, Updates.push("economy.items", newItem), new UpdateOptions().upsert(true));
+	}
+	
+	public static UpdateOneModel<Document> getAddItemModel(List<Document> items, String name, long amount, Document extraFields) {
+		return EconomyUtils.getAddItemModel(null, items, name, amount, extraFields);
+	}
+	
+	public static UpdateOneModel<Document> getAddItemModel(Long userId, List<Document> items, Document item) {
+		Document extraFields = item;
+		extraFields.remove("name");
+		extraFields.remove("amount");
+		return EconomyUtils.getAddItemModel(userId, items, item.getString("name"), item.getLong("amount"), extraFields);
+	}
+	
+	public static UpdateOneModel<Document> getAddItemModel(List<Document> items, Document item) {
+		return EconomyUtils.getAddItemModel(null, items, item);
+	}
+	
+	public static UpdateOneModel<Document> getAddItemModel(Long userId, List<Document> items, Item item, long amount, Document extraFields) {
+		return EconomyUtils.getAddItemModel(userId, items, item.getName(), amount, extraFields);
+	}
+	
+	public static UpdateOneModel<Document> getAddItemModel(Long userId, List<Document> items, Item item, long amount) {
+		return EconomyUtils.getAddItemModel(userId, items, item, amount, Database.EMPTY_DOCUMENT);
+	}
+	
+	public static UpdateOneModel<Document> getAddItemModel(List<Document> items, Item item, long amount, Document extraFields) {
+		return EconomyUtils.getAddItemModel(null, items, item, amount, extraFields);
+	}
+	
+	public static UpdateOneModel<Document> getAddItemModel(List<Document> items, Item item, long amount) {
+		return EconomyUtils.getAddItemModel(null, items, item, amount, Database.EMPTY_DOCUMENT);
+	}
+	
+	public static UpdateOneModel<Document> getAddItemModel(List<Document> items, ItemStack itemStack) {
+		return EconomyUtils.getAddItemModel(items, itemStack.getItem(), itemStack.getAmount());
+	}
+	
+	public static UpdateOneModel<Document> getRemoveItemModel(Long userId, List<Document> items, Item item, long amount) {
+		Bson filter = userId != null ? Filters.eq("_id", userId) : null;
+		for (Document itemData : items) {
+			if (itemData.getString("name").equals(item.getName())) {
+				UpdateOptions updateOptions = new UpdateOptions().upsert(true);
+				long amountLeft = itemData.getLong("amount") - amount;
+				if (amountLeft > 0) {
+					updateOptions = updateOptions.arrayFilters(List.of(Filters.eq(item.getName() + ".name", item.getName())));
+					return new UpdateOneModel<>(filter, Updates.inc("economy.items.$[" + item.getName() + "].amount", -amount), updateOptions);
+				} else if (amountLeft == 0) {
+					return new UpdateOneModel<>(filter, Updates.pull("economy.items", Filters.eq("name", item.getName())), updateOptions);
+				} else {
+					throw new IllegalArgumentException("Removal amount is more than the amount of items the user has");
+				}
+			}
+		}
+		
+		throw new IllegalArgumentException("User doesn't have that item");
+	}
+	
+	public static UpdateOneModel<Document> getRemoveItemModel(List<Document> items, Item item, long amount) {
+		return EconomyUtils.getRemoveItemModel(null, items, item, amount);
+	}
+	
+	public static UpdateOneModel<Document> getRemoveItemModel(List<Document> items, ItemStack itemStack) {
+		return EconomyUtils.getRemoveItemModel(items, itemStack.getItem(), itemStack.getAmount());
+	}
+	
 	public static Item getTradeableItem(String itemName) {
 		itemName = itemName.toLowerCase();
 		for (Item item : TRADEABLE_ITEMS) {
@@ -339,19 +425,18 @@ public class EconomyUtils {
 		return null;
 	}
 	
-	@SuppressWarnings("unchecked")
-	public static long getUserNetworth(Map<String, Object> data) {
+	public static long getUserNetworth(Document data) {
 		long networth = 0;
-		List<Map<String, Object>> items = (List<Map<String, Object>>) data.get("items");
-		for (Map<String, Object> itemData : items) {
-			Item item = EconomyUtils.getItem((String) itemData.get("name"));
+		List<Document> items = data.getList("items", Document.class, Collections.emptyList());
+		for (Document itemData : items) {
+			Item item = EconomyUtils.getItem(itemData.getString("name"));
 			ItemStack userItem = EconomyUtils.getUserItem(items, item);
 			if (item.isBuyable()) {
 				networth += userItem.getItem().getPrice() * userItem.getAmount();
 			}
 		}
 		
-		networth += (long) data.get("balance");
+		networth += data.get("balance", 0);
 		
 		return networth;
 	}
@@ -367,9 +452,9 @@ public class EconomyUtils {
 		return null;
 	}
 	
-	public static Map<String, Object> getUserItemRaw(List<Map<String, Object>> items, Item item) {
-		for (Map<String, Object> itemData : items) {
-			if (itemData.get("name").equals(item.getName())) {
+	public static Document getUserItemRaw(List<Document> items, Item item) {
+		for (Document itemData : items) {
+			if (itemData.getString("name").equals(item.getName())) {
 				return itemData;
 			}
 		}
@@ -377,119 +462,19 @@ public class EconomyUtils {
 		return null;
 	}
 	
-	public static ItemStack getUserItem(List<Map<String, Object>> items, Item item) {
-		for (Map<String, Object> itemData : items) {
-			String itemName = (String) itemData.get("name");
+	public static ItemStack getUserItem(List<Document> items, Item item) {
+		for (Document itemData : items) {
+			String itemName = itemData.getString("name");
 			if (itemName.equals(item.getName())) {
 				if (itemData.containsKey("price")) {
-					return new ItemStack(new Item(itemName, itemData.get("price") instanceof Double ? (long) (double) itemData.get("price") : (long) itemData.get("price")), (long) itemData.get("amount"));
+					return new ItemStack(new Item(itemName, itemData.getLong("price")), itemData.getLong("amount"));
 				} else {
-					return new ItemStack(item, (long) itemData.get("amount"));
+					return new ItemStack(item, itemData.getLong("amount"));
 				}
 			}
 		}
 		
 		return new ItemStack(item, 0L);
-	}
-	
-	public static List<Map<String, Object>> editItem(List<Map<String, Object>> currentItems, Item item, Map<String, Object> extra) {
-		List<Map<String, Object>> items = new ArrayList<>(currentItems);
-		for (Map<String, Object> itemData : items) {
-			if (itemData.get("name").equals(item.getName())) {
-				items.remove(itemData);
-				itemData.putAll(extra);
-				items.add(itemData);
-				
-				return items;
-			}
-		}
-		
-		return items;
-	}
-	
-	public static List<Map<String, Object>> addItemsFromRaw(List<Map<String, Object>> currentItems, Map<String, Object> rawData) {
-		List<Map<String, Object>> items = new ArrayList<>(currentItems);
-		for (Map<String, Object> itemData : items) {
-			if (itemData.get("name").equals(rawData.get("name"))) {
-				items.remove(itemData);
-				rawData.put("amount", ((long) itemData.get("amount")) + (long) rawData.get("amount"));
-				items.add(rawData);
-				
-				return items;
-			}
-		}
-		
-		items.add(rawData);
-		
-		return items;
-	}
-	
-	public static List<Map<String, Object>> addItem(List<Map<String, Object>> currentItems, Item item, Map<String, Object> extra) {
-		List<Map<String, Object>> items = new ArrayList<>(currentItems);
-		for (Map<String, Object> itemData : items) {
-			if (itemData.get("name").equals(item.getName())) {
-				items.remove(itemData);
-				itemData.put("amount", ((long) itemData.get("amount")) + 1);
-				itemData.putAll(extra);
-				items.add(itemData);
-				
-				return items;
-			}
-		}
-		
-		Map<String, Object> newItem = new HashMap<>();
-		newItem.put("name", item.getName());
-		newItem.put("amount", 1);
-		newItem.putAll(extra);
-		items.add(newItem);
-		
-		return items;
-	}
-	
-	public static List<Map<String, Object>> addItem(List<Map<String, Object>> currentItems, Item item) {
-		return addItems(currentItems, item, 1);
-	}
-	
-	public static List<Map<String, Object>> addItems(List<Map<String, Object>> currentItems, Item item, long amount) {
-		List<Map<String, Object>> items = new ArrayList<>(currentItems);
-		for (Map<String, Object> itemData : items) {
-			if (itemData.get("name").equals(item.getName())) {
-				items.remove(itemData);
-				itemData.put("amount", ((long) itemData.get("amount")) + amount);
-				items.add(itemData);
-				
-				return items;
-			}
-		}
-		
-		Map<String, Object> newItem = new HashMap<>();
-		newItem.put("name", item.getName());
-		newItem.put("amount", amount);
-		items.add(newItem);
-		
-		return items;
-	}
-	
-	public static List<Map<String, Object>> removeItem(List<Map<String, Object>> currentItems, Item item) {
-		return removeItems(currentItems, item, 1);
-	}
-	
-	public static List<Map<String, Object>> removeItems(List<Map<String, Object>> currentItems, Item item, long amount) {
-		List<Map<String, Object>> items = new ArrayList<>(currentItems);
-		for (Map<String, Object> itemData : items) {
-			if (itemData.get("name").equals(item.getName())) {
-				int newAmount = (int) (((long) itemData.get("amount")) - amount);
-				items.remove(itemData);
-				if (newAmount != 0) {
-					itemData.put("amount", newAmount);
-					items.add(itemData);
-				}
-				
-				return items;
-			}
-		}
-		
-		return items;
 	}
 	
 	private static Map<String, Double> stringValues = new HashMap<>();
@@ -531,25 +516,6 @@ public class EconomyUtils {
 		}
 		
 		return amount;
-	}
-	
-	public static Insert insertData(User user) {
-		 return r.table("bank").insert(r.hashMap("id", user.getId())
-				.with("rep", 0)
-				.with("balance", Settings.STARTING_BALANCE)
-				.with("streak", 0)
-				.with("streaktime", null)
-				.with("reptime", null)
-				.with("items", new Object[0])
-				.with("pickdur", null)
-				.with("roddur", null)
-				.with("axedur", null)
-				.with("axetime", null)
-				.with("minertime", null)
-				.with("winnings", 0)
-				.with("fishtime", null)
-				.with("factorytime", null)
-				.with("picktime", null));
 	}
 	
 	public static Pair<String, BigInteger> getItemAndAmount(String argument) {

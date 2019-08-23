@@ -1,9 +1,8 @@
 package com.sx4.events;
 
-import static com.rethinkdb.RethinkDB.r;
-
 import java.time.Clock;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -14,10 +13,15 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
-import com.rethinkdb.net.Connection;
-import com.rethinkdb.net.Cursor;
+import org.bson.Document;
+
+import com.mongodb.client.FindIterable;
+import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.Projections;
+import com.mongodb.client.model.Updates;
 import com.sx4.core.Sx4Bot;
 import com.sx4.core.Sx4CommandEventListener;
+import com.sx4.database.Database;
 import com.sx4.settings.Settings;
 import com.sx4.utils.GiveawayUtils;
 
@@ -31,19 +35,19 @@ import net.dv8tion.jda.api.sharding.ShardManager;
 
 public class GiveawayEvents {
 
-	public static Map<String, Map<Long, ScheduledFuture<?>>> executors = new HashMap<>();
+	public static Map<Long, Map<Integer, ScheduledFuture<?>>> executors = new HashMap<>();
 	
 	public static ScheduledExecutorService scheduledExectuor = Executors.newSingleThreadScheduledExecutor();
 	
-	public static void putExecutor(String guildId, long id, ScheduledFuture<?> executor) {
-		Map<Long, ScheduledFuture<?>> userExecutors = executors.containsKey(guildId) ? executors.get(guildId) : new HashMap<>();
+	public static void putExecutor(long guildId, int id, ScheduledFuture<?> executor) {
+		Map<Integer, ScheduledFuture<?>> userExecutors = executors.containsKey(guildId) ? executors.get(guildId) : new HashMap<>();
 		userExecutors.put(id, executor);
 		executors.put(guildId, userExecutors);
 	}
 	
-	public static boolean cancelExecutor(String guildId, long id) {
+	public static boolean cancelExecutor(long guildId, int id) {
 		if (executors.containsKey(guildId)) {
-			Map<Long, ScheduledFuture<?>> userExecutors = executors.get(guildId);
+			Map<Integer, ScheduledFuture<?>> userExecutors = executors.get(guildId);
 			if (userExecutors.containsKey(id)) {
 				ScheduledFuture<?> executor = userExecutors.get(id);
 				if (!executor.isDone()) {
@@ -60,14 +64,13 @@ public class GiveawayEvents {
 		return false;
 	}
 	
-	public static void removeGiveaway(String guildId, Map<String, Object> data) {
+	public static void removeGiveaway(long guildId, Document data) {
 		Guild guild = Sx4Bot.getShardManager().getGuildById(guildId);
-		long giveawayId = (long) data.get("id");
-		Connection connection = Sx4Bot.getConnection();
+		int giveawayId = data.getInteger("id");
 		if (guild != null) {
-			TextChannel channel = guild.getTextChannelById((String) data.get("channel"));
+			TextChannel channel = guild.getTextChannelById(data.getLong("channelId"));
 			if (channel != null) {
-				channel.retrieveMessageById((String) data.get("message")).queue(message -> {
+				channel.retrieveMessageById(data.getLong("messageId")).queue(message -> {
 					for (MessageReaction reaction : message.getReactions()) {
 						if (reaction.getReactionEmote().getName().equals("🎉")) {
 							List<Member> members = new ArrayList<>();
@@ -85,24 +88,29 @@ public class GiveawayEvents {
 									channel.sendMessage("No one entered the giveaway, the giveaway has been cancelled :no_entry:").queue();
 									message.delete().queue(null, e -> {});
 								} else {
-									Set<Member> winners = GiveawayUtils.getRandomSample(members, Math.min(members.size(), Math.toIntExact((long) data.get("winners"))));
+									Set<Member> winners = GiveawayUtils.getRandomSample(members, Math.min(members.size(), data.getInteger("winnersAmount")));
 									List<String> winnerMentions = new ArrayList<>(), winnerTags = new ArrayList<>();
 									for (Member winner : winners) {
 										winnerMentions.add(winner.getAsMention());
 										winnerTags.add(winner.getUser().getAsTag());
 									}
 									
-									channel.sendMessage(String.join(", ", winnerMentions) + ", Congratulations you have won the giveaway for **" + ((String) data.get("item")) + "**").queue();
+									channel.sendMessage(String.join(", ", winnerMentions) + ", Congratulations you have won the giveaway for **" + data.getString("item") + "**").queue();
 									
 									EmbedBuilder embed = new EmbedBuilder();
 									embed.setTitle("Giveaway");
-									embed.setDescription("**" + String.join(", ", winnerTags) + "** has won **" + ((String) data.get("item")) + "**");
+									embed.setDescription("**" + String.join(", ", winnerTags) + "** has won **" + data.getString("item") + "**");
 									embed.setFooter("Giveaway Ended", null);
 									message.editMessage(embed.build()).queue();
 								}
 									
-								r.table("giveaway").get(guild.getId()).update(row -> r.hashMap("giveaways", row.g("giveaways").filter(d -> d.g("id").ne(giveawayId)))).runNoReply(connection);
-								GiveawayEvents.cancelExecutor(guild.getId(), giveawayId);
+								Database.get().updateGuildById(guild.getIdLong(), Updates.pull("giveaway.giveaways", Filters.eq("id", giveawayId)), (result, exception) -> {
+									if (exception != null) {
+										exception.printStackTrace();
+									}
+								});
+								
+								GiveawayEvents.cancelExecutor(guild.getIdLong(), giveawayId);
 							}).exceptionally(e -> {
 								e.printStackTrace();
 								Sx4CommandEventListener.sendErrorMessage(Sx4Bot.getShardManager().getGuildById(Settings.SUPPORT_SERVER_ID).getTextChannelById(Settings.ERRORS_CHANNEL_ID), e, new Object[0]);
@@ -112,43 +120,50 @@ public class GiveawayEvents {
 					}
 				}, e -> {
 					if (e instanceof ErrorResponseException) {
-						ErrorResponseException exception = (ErrorResponseException) e;
-						if (exception.getErrorCode() == 10008) {
-							r.table("giveaway").get(guild.getId()).update(row -> r.hashMap("giveaways", row.g("giveaways").filter(d -> d.g("id").ne(giveawayId)))).runNoReply(connection);
-							GiveawayEvents.cancelExecutor(guild.getId(), giveawayId);
+						ErrorResponseException errorResponse = (ErrorResponseException) e;
+						if (errorResponse.getErrorCode() == 10008) {
+							Database.get().updateGuildById(guild.getIdLong(), Updates.pull("giveaway.giveaways", Filters.eq("id", giveawayId)), (result, exception) -> {
+								if (exception != null) {
+									exception.printStackTrace();
+								}
+							});
+							
+							GiveawayEvents.cancelExecutor(guild.getIdLong(), giveawayId);
 						}
 					}
 				});
 			}
 		} else {
-			r.table("giveaway").get(guildId).update(row -> r.hashMap("giveaways", row.g("giveaways").filter(d -> d.g("id").ne(giveawayId)))).runNoReply(connection);
+			Database.get().updateGuildById(guildId, Updates.pull("giveaway.giveaways", Filters.eq("id", giveawayId)), (result, exception) -> {
+				if (exception != null) {
+					exception.printStackTrace();
+				}
+			});
+			
 			GiveawayEvents.cancelExecutor(guildId, giveawayId);
 		}
 	}
 	
-	@SuppressWarnings("unchecked")
 	public static void ensureGiveaways() {
 		ShardManager shardManager = Sx4Bot.getShardManager();
-		try (Cursor<Map<String, Object>> cursor = r.table("giveaway").run(Sx4Bot.getConnection())) {
-			List<Map<String, Object>> data = cursor.toList();
-			
+		FindIterable<Document> allData = Database.get().getGuilds().find().projection(Projections.include("giveaway.giveaways"));
+		allData.forEach((Document data) -> {
+			Document giveawayData = data.get("giveaway", Database.EMPTY_DOCUMENT);
 			long timestampNow = Clock.systemUTC().instant().getEpochSecond();
-			for (Map<String, Object> guildData : data) {
-				Guild guild = shardManager.getGuildById((String) guildData.get("id"));
-				if (guild != null) {
-					List<Map<String, Object>> giveaways = (List<Map<String, Object>>) guildData.get("giveaways");
-					for (Map<String, Object> giveaway : giveaways) {
-						long timeLeft = (long) giveaway.get("endtime") - timestampNow;
-						if (timeLeft <= 0) {
-							GiveawayEvents.removeGiveaway(guild.getId(), giveaway);
-						} else {
-							ScheduledFuture<?> executor = GiveawayEvents.scheduledExectuor.schedule(() -> GiveawayEvents.removeGiveaway(guild.getId(), giveaway), timeLeft, TimeUnit.SECONDS);
-							GiveawayEvents.putExecutor(guild.getId(), (long) giveaway.get("id"), executor);
-						}
+			Guild guild = shardManager.getGuildById(data.getLong("_id"));
+			if (guild != null) {
+				List<Document> giveaways = giveawayData.getList("giveaways", Document.class, Collections.emptyList());
+				for (Document giveaway : giveaways) {
+					long timeLeft = giveaway.getLong("endTimestamp") - timestampNow;
+					if (timeLeft <= 0) {
+						GiveawayEvents.removeGiveaway(guild.getIdLong(), giveaway);
+					} else {
+						ScheduledFuture<?> executor = GiveawayEvents.scheduledExectuor.schedule(() -> GiveawayEvents.removeGiveaway(guild.getIdLong(), giveaway), timeLeft, TimeUnit.SECONDS);
+						GiveawayEvents.putExecutor(guild.getIdLong(), giveaway.getInteger("id"), executor);
 					}
 				}
 			}
-		}
+		});
 	}
 	
 }

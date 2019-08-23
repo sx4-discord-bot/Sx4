@@ -1,16 +1,20 @@
 package com.sx4.events;
 
-import static com.rethinkdb.RethinkDB.r;
-
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-import com.rethinkdb.gen.ast.Get;
-import com.sx4.core.Sx4Bot;
+import org.bson.Document;
+import org.bson.conversions.Bson;
+
+import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.Projections;
+import com.mongodb.client.model.UpdateOptions;
+import com.mongodb.client.model.Updates;
+import com.sx4.database.Database;
 import com.sx4.utils.ModUtils;
 
 import net.dv8tion.jda.api.Permission;
@@ -36,7 +40,7 @@ public class ModEvents extends ListenerAdapter {
 				User moderator = null;
 				String reason = null;
 				for (AuditLogEntry auditLog : auditLogs) {
-					if (auditLog.getTargetId().equals(event.getUser().getId())) {
+					if (auditLog.getTargetIdLong() == event.getUser().getIdLong()) {
 						moderator = auditLog.getUser();
 						reason = auditLog.getReason();
 						break;
@@ -44,7 +48,7 @@ public class ModEvents extends ListenerAdapter {
 				}
 				
 				if (moderator == null || !moderator.equals(event.getJDA().getSelfUser())) {
-					ModUtils.createModLogAndOffence(event.getGuild(), Sx4Bot.getConnection(), moderator, event.getUser(), "Ban", reason);
+					ModUtils.createModLogAndOffence(event.getGuild(), moderator, event.getUser(), "Ban", reason);
 				}
 			});
 		}
@@ -56,7 +60,7 @@ public class ModEvents extends ListenerAdapter {
 				User moderator = null;
 				String reason = null;
 				for (AuditLogEntry auditLog : auditLogs) {
-					if (auditLog.getTargetId().equals(event.getUser().getId())) {
+					if (auditLog.getTargetIdLong() == event.getUser().getIdLong()) {
 						moderator = auditLog.getUser();
 						reason = auditLog.getReason();
 						break;
@@ -64,7 +68,7 @@ public class ModEvents extends ListenerAdapter {
 				}
 				
 				if (moderator == null || !moderator.equals(event.getJDA().getSelfUser())) {
-					ModUtils.createModLog(event.getGuild(), Sx4Bot.getConnection(), moderator, event.getUser(), "Unban", reason);
+					ModUtils.createModLog(event.getGuild(), moderator, event.getUser(), "Unban", reason);
 				}
 			});
 		}
@@ -76,7 +80,7 @@ public class ModEvents extends ListenerAdapter {
 				User moderator = null;
 				String reason = null;
 				for (AuditLogEntry auditLog : auditLogs) {
-					if (auditLog.getTargetId().equals(event.getUser().getId()) && LocalDateTime.now(ZoneOffset.UTC).toEpochSecond(ZoneOffset.UTC) - auditLog.getTimeCreated().toEpochSecond() <= 10) {
+					if (auditLog.getTargetIdLong() == event.getUser().getIdLong() && LocalDateTime.now(ZoneOffset.UTC).toEpochSecond(ZoneOffset.UTC) - auditLog.getTimeCreated().toEpochSecond() <= 10) {
 						moderator = auditLog.getUser();
 						reason = auditLog.getReason();
 						break;
@@ -84,30 +88,30 @@ public class ModEvents extends ListenerAdapter {
 				}
 				
 				if (moderator != null && !moderator.equals(event.getJDA().getSelfUser())) {
-					ModUtils.createModLogAndOffence(event.getGuild(), Sx4Bot.getConnection(), moderator, event.getUser(), "Kick", reason);
+					ModUtils.createModLogAndOffence(event.getGuild(), moderator, event.getUser(), "Kick", reason);
 				}
 			});
 		}
 	}
 	
-	@SuppressWarnings("unchecked")
 	public void onGuildMemberJoin(GuildMemberJoinEvent event) {
-		Map<String, Object> data = r.table("mute").get(event.getGuild().getId()).run(Sx4Bot.getConnection());
-		if (data != null) {
+		Document data = Database.get().getGuildById(event.getGuild().getIdLong(), null, Projections.include("mute.users")).get("mute", Database.EMPTY_DOCUMENT);
+		if (!data.isEmpty()) {
 			long timestampNow = Clock.systemUTC().instant().getEpochSecond();
 			
-			List<Map<String, Object>> users = (List<Map<String, Object>>) data.get("users");
-			for (Map<String, Object> userData : users) {
-				if (userData.get("id").equals(event.getMember().getUser().getId())) {
-					if (userData.get("amount") != null) {
-						long timeLeft = ((long) userData.get("time") + (userData.get("amount") instanceof Double ? (long) (double) userData.get("amount") : (long) userData.get("amount"))) - timestampNow;
+			List<Document> users = data.getList("users", Document.class, Collections.emptyList());
+			for (Document userData : users) {
+				if (userData.getLong("id") == event.getMember().getUser().getIdLong()) {
+					Long duration = userData.getLong("duration");
+					if (duration != null) {
+						long timeLeft = userData.getLong("timestamp") + duration - timestampNow;
 						if (timeLeft > 0) {
 							Role mutedRole = MuteEvents.getMuteRole(event.getGuild());
 							if (mutedRole != null) {
 								event.getGuild().addRoleToMember(event.getMember(), mutedRole).queue();
 							}
 						} else {
-							MuteEvents.removeUserMute(event.getGuild().getId(), event.getMember().getId());
+							MuteEvents.removeUserMute(event.getGuild().getIdLong(), event.getMember().getIdLong());
 						}
 					}
 				}
@@ -116,28 +120,16 @@ public class ModEvents extends ListenerAdapter {
 	}
 	
 	public void onGuildMemberRoleAdd(GuildMemberRoleAddEvent event) {
-		Get data = r.table("mute").get(event.getGuild().getId());
-		Map<String, Object> dataRan = data.run(Sx4Bot.getConnection());
-		if (dataRan == null) {
-			return;
-		}
-		
-		Role mutedRole = null;
-		for (Role role : event.getGuild().getRoles()) {
-			if (role.getName().equals("Muted - " + event.getJDA().getSelfUser().getName())) {
-				mutedRole = role;
-			}
-		}
-		
+		Role mutedRole = MuteEvents.getMuteRole(event.getGuild());
 		if (mutedRole != null) {
-			if (event.getRoles().get(0).equals(mutedRole)) {
+			if (event.getRoles().contains(mutedRole)) {
 				if (event.getGuild().getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
 					event.getGuild().retrieveAuditLogs().type(ActionType.MEMBER_ROLE_UPDATE).queueAfter(500, TimeUnit.MILLISECONDS, auditLogs -> {
 						long timestampNow = LocalDateTime.now(ZoneOffset.UTC).toEpochSecond(ZoneOffset.UTC);
 						User moderator = null;
 						String reason = null;
 						for (AuditLogEntry auditLog : auditLogs) {
-							if (auditLog.getTargetId().equals(event.getUser().getId()) && timestampNow - auditLog.getTimeCreated().toEpochSecond() <= 5) {
+							if (auditLog.getTargetIdLong() == event.getUser().getIdLong() && timestampNow - auditLog.getTimeCreated().toEpochSecond() <= 5) {
 								moderator = auditLog.getUser();
 								reason = auditLog.getReason();
 								break;
@@ -145,8 +137,20 @@ public class ModEvents extends ListenerAdapter {
 						}
 						
 						if (moderator == null || !moderator.equals(event.getJDA().getSelfUser())) {
-							ModUtils.createModLogAndOffence(event.getGuild(), Sx4Bot.getConnection(), moderator, event.getUser(), "Mute (Infinite)", reason);
-							data.update(row -> r.hashMap("users", row.g("users").append(r.hashMap("id", event.getUser().getId()).with("amount", null).with("time", timestampNow)))).runNoReply(Sx4Bot.getConnection());
+							ModUtils.createModLogAndOffence(event.getGuild(), moderator, event.getUser(), "Mute (Infinite)", reason);
+							
+							Bson update = Updates.combine(
+								Updates.set("mute.users.$[user].duration", null),
+								Updates.set("mute.users.$[user].timestamp", timestampNow)
+							);
+							
+							UpdateOptions updateOptions = new UpdateOptions().arrayFilters(List.of(Filters.eq("user.id", event.getUser().getIdLong()))).upsert(true);
+							
+							Database.get().updateGuildById(event.getGuild().getIdLong(), null, update, updateOptions, (result, exception) -> {
+								if (exception != null) {
+									exception.printStackTrace();
+								}
+							});
 						}
 					});
 				}
@@ -155,28 +159,16 @@ public class ModEvents extends ListenerAdapter {
 	}
 	
 	public void onGuildMemberRoleRemove(GuildMemberRoleRemoveEvent event) {
-		Get data = r.table("mute").get(event.getGuild().getId());
-		Map<String, Object> dataRan = data.run(Sx4Bot.getConnection());
-		if (dataRan == null) {
-			return;
-		}
-		
-		Role mutedRole = null;
-		for (Role role : event.getGuild().getRoles()) {
-			if (role.getName().equals("Muted - " + event.getJDA().getSelfUser().getName())) {
-				mutedRole = role;
-			}
-		}
-		
+		Role mutedRole = MuteEvents.getMuteRole(event.getGuild());
 		if (mutedRole != null) {
-			if (event.getRoles().get(0).equals(mutedRole)) {
+			if (event.getRoles().contains(mutedRole)) {
 				if (event.getGuild().getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
 					event.getGuild().retrieveAuditLogs().type(ActionType.MEMBER_ROLE_UPDATE).queueAfter(500, TimeUnit.MILLISECONDS, auditLogs -> {
 						long timestampNow = LocalDateTime.now(ZoneOffset.UTC).toEpochSecond(ZoneOffset.UTC);
 						User moderator = null;
 						String reason = null;
 						for (AuditLogEntry auditLog : auditLogs) {
-							if (auditLog.getTargetId().equals(event.getUser().getId()) && timestampNow - auditLog.getTimeCreated().toEpochSecond() <= 5) {
+							if (auditLog.getTargetIdLong() == event.getUser().getIdLong() && timestampNow - auditLog.getTimeCreated().toEpochSecond() <= 5) {
 								moderator = auditLog.getUser();
 								reason = auditLog.getReason();
 								break;
@@ -184,9 +176,15 @@ public class ModEvents extends ListenerAdapter {
 						}
 						
 						if (moderator != null && !moderator.equals(event.getJDA().getSelfUser())) {
-							ModUtils.createModLog(event.getGuild(), Sx4Bot.getConnection(), moderator, event.getUser(), "Unmute", reason);
-							data.update(row -> r.hashMap("users", row.g("users").filter(d -> d.g("id").ne(event.getUser().getId())))).runNoReply(Sx4Bot.getConnection());
-							MuteEvents.cancelExecutor(event.getGuild().getId(), event.getMember().getUser().getId());
+							ModUtils.createModLog(event.getGuild(), moderator, event.getUser(), "Unmute", reason);
+
+							Database.get().updateGuildById(event.getGuild().getIdLong(), Updates.pull("mute.users", Filters.eq("id", event.getUser().getIdLong())), (result, exception) -> {
+								if (exception != null) {
+									exception.printStackTrace();
+								}
+							});
+							
+							MuteEvents.cancelExecutor(event.getGuild().getIdLong(), event.getMember().getUser().getIdLong());
 						}
 					});
 				}

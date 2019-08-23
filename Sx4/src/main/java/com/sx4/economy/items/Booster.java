@@ -5,9 +5,8 @@ import com.sx4.economy.Item;
 public class Booster extends Item {
 	
 	public static final Booster LENDED_PICKAXE = new Booster("Lended Pickaxe", 2000, "Removes the cooldown on your pickaxe", true); 
-	public static final Booster TAX_AVOIDER = new Booster("Tax Avoider", 3000, "Avoids tax when transferring money to another user", false);
 	
-	public static final Booster[] ALL = {LENDED_PICKAXE, TAX_AVOIDER};
+	public static final Booster[] ALL = {LENDED_PICKAXE};
 	
 	private String description;
 	private boolean activatable;

@@ -1,7 +1,10 @@
 package com.sx4.economy;
+	
 
-import java.util.Map;
+import org.bson.Document;
+import org.bson.types.ObjectId;
 
+import com.sx4.core.Sx4Bot;
 import com.sx4.economy.tools.Axe;
 import com.sx4.economy.tools.Pickaxe;
 import com.sx4.economy.tools.Rod;
@@ -9,49 +12,35 @@ import com.sx4.economy.tools.Tool;
 import com.sx4.utils.EconomyUtils;
 
 import net.dv8tion.jda.api.entities.User;
-import net.dv8tion.jda.api.sharding.ShardManager;
 
 public class AuctionItem {
 	
-	private Map<String, Object> itemData;
+	private Document itemData;
 	private Item item;
 	private long amount;
-	private Long durability;
 	private long price;
-	private String ownerId;
-	private String id;
+	private long ownerId;
+	private ObjectId id;
 
-	@SuppressWarnings("unchecked")
-	public AuctionItem(Map<String, Object> auctionData) {
-		this.itemData = (Map<String, Object>) auctionData.get("item");
-		this.item = EconomyUtils.getItem((String) this.itemData.get("name"));
-		this.amount = (long) itemData.get("amount");
-		this.durability = (Long) auctionData.get("durability");
-		this.ownerId = (String) auctionData.get("ownerid");
-		this.id = (String) auctionData.get("id");
-		
-		Object priceObject = auctionData.get("price");
-		if (priceObject instanceof Double) {
-			this.price = (long) ((double) priceObject);
-		} else {
-			this.price = (long) priceObject;
-		}
+	public AuctionItem(Document auctionData) {
+		this.itemData = auctionData.get("item", Document.class);
+		this.item = EconomyUtils.getItem(this.itemData.getString("name"));
+		this.amount = itemData.getLong("amount");
+		this.ownerId = auctionData.getLong("ownerId");
+		this.id = auctionData.getObjectId("_id");
+		this.price = auctionData.getLong("price");
 	}
 	
-	public String getId() {
+	public ObjectId getId() {
 		return this.id;
 	}
 	
-	public Long getDurability() {
-		return this.durability;
-	}
-	
-	public String getOwnerId() {
+	public long getOwnerId() {
 		return this.ownerId;
 	}
 	
-	public User getOwner(ShardManager shardManager) {
-		return shardManager.getUserById(this.ownerId);
+	public User getOwner() {
+		return Sx4Bot.getShardManager().getUserById(this.ownerId);
 	}
 	
 	public Item getItem() {
@@ -70,19 +59,25 @@ public class AuctionItem {
 		return (double) this.price / this.amount;
 	}
 	
+	public ItemStack getItemStack() {
+		return new ItemStack(this.item, this.amount);
+	}
+	
 	public boolean isTool() {
 		return this.item instanceof Tool;
 	}
 	
 	public Tool getTool() {
 		Tool tool = (Tool) this.item;
-		return new Tool(tool.getName(), 
-				this.itemData.containsKey("price") ? Math.toIntExact((long) this.itemData.get("price")) : tool.getPrice(), 
+		return new Tool(
+				tool.getName(), 
+				this.itemData.get("price", tool.getPrice()), 
 				tool.getCraftingRecipe(), 
 				tool.getRepairItem(), 
-				Math.toIntExact(this.durability),
-				this.itemData.containsKey("durability") ? Math.toIntExact((long) this.itemData.get("durability")) : tool.getDurability(), 
-				this.itemData.containsKey("upgrades") ? Math.toIntExact((long) this.itemData.get("upgrades")) : tool.getUpgrades());
+				this.itemData.getInteger("currentDurability"),
+				this.itemData.getInteger("durability", tool.getDurability()), 
+				this.itemData.getInteger("upgrades", tool.getUpgrades())
+		);
 	}
 	
 	public boolean isPickaxe() {
@@ -91,16 +86,18 @@ public class AuctionItem {
 	
 	public Pickaxe getPickaxe() {
 		Pickaxe pickaxe = (Pickaxe) this.item;
-		return new Pickaxe(pickaxe.getName(), 
-				this.itemData.containsKey("price") ? (long) this.itemData.get("price") : pickaxe.getPrice(), 
+		return new Pickaxe(
+				pickaxe.getName(), 
+				this.itemData.get("price", pickaxe.getPrice()), 
 				pickaxe.getCraftingRecipe(), 
 				pickaxe.getRepairItem(), 
-				this.itemData.containsKey("rand_min") ? Math.toIntExact((long) this.itemData.get("rand_min")) : pickaxe.getMinimumYield(), 
-				this.itemData.containsKey("rand_max") ? Math.toIntExact((long) this.itemData.get("rand_max")) : pickaxe.getMaximumYield(),
-				Math.toIntExact(this.durability),
-				this.itemData.containsKey("durability") ? Math.toIntExact((long) this.itemData.get("durability")) : pickaxe.getDurability(), 
-				this.itemData.containsKey("multiplier") ? (double) this.itemData.get("multiplier") : pickaxe.getMultiplier(),
-				this.itemData.containsKey("upgrades") ? Math.toIntExact((long) this.itemData.get("upgrades")) : pickaxe.getUpgrades());
+				this.itemData.getInteger("minimumYeild", pickaxe.getMinimumYield()), 
+				this.itemData.getInteger("maximumYeild", pickaxe.getMaximumYield()),
+				this.itemData.getInteger("currentDurability"),
+				this.itemData.getInteger("durability", pickaxe.getDurability()), 
+				this.itemData.get("multiplier", pickaxe.getMultiplier()),
+				this.itemData.getInteger("upgrades", pickaxe.getUpgrades())
+		);
 	}
 	
 	public boolean isRod() {
@@ -109,15 +106,17 @@ public class AuctionItem {
 	
 	public Rod getRod() {
 		Rod rod = (Rod) this.item;
-		return new Rod(rod.getName(), 
-				this.itemData.containsKey("price") ? (long) this.itemData.get("price") : rod.getPrice(), 
+		return new Rod(
+				rod.getName(), 
+				this.itemData.get("price", rod.getPrice()), 
 				rod.getCraftingRecipe(), 
 				rod.getRepairItem(), 
-				this.itemData.containsKey("rand_min") ? Math.toIntExact((long) this.itemData.get("rand_min")) : rod.getMinimumYield(), 
-				this.itemData.containsKey("rand_max") ? Math.toIntExact((long) this.itemData.get("rand_max")) : rod.getMaximumYield(),
-				Math.toIntExact(this.durability),
-				this.itemData.containsKey("durability") ? Math.toIntExact((long) this.itemData.get("durability")) : rod.getDurability(), 
-				this.itemData.containsKey("upgrades") ? Math.toIntExact((long) this.itemData.get("upgrades")) : rod.getUpgrades());
+				this.itemData.getInteger("minimumYeild", rod.getMinimumYield()),
+				this.itemData.getInteger("maximumYeild", rod.getMaximumYield()),
+				this.itemData.getInteger("currentDurability"),
+				this.itemData.getInteger("durability", rod.getDurability()), 
+				this.itemData.getInteger("upgrades", rod.getUpgrades())
+		);
 	}
 	
 	public boolean isAxe() {
@@ -126,15 +125,17 @@ public class AuctionItem {
 	
 	public Axe getAxe() {
 		Axe axe = (Axe) this.item;
-		return new Axe(axe.getName(), 
-				this.itemData.containsKey("price") ? (long) this.itemData.get("price") : axe.getPrice(), 
+		return new Axe(
+				axe.getName(), 
+				this.itemData.get("price", axe.getPrice()), 
 				axe.getCraftingRecipe(), 
 				axe.getRepairItem(), 
-				this.itemData.containsKey("max_mats") ? Math.toIntExact((long) this.itemData.get("max_mats")) : axe.getMaximumMaterials(), 
-				Math.toIntExact(this.durability),
-				this.itemData.containsKey("durability") ? Math.toIntExact((long) this.itemData.get("durability")) : axe.getDurability(), 
-				this.itemData.containsKey("multiplier") ? (double) this.itemData.get("multiplier") : axe.getMultiplier(),
-				this.itemData.containsKey("upgrades") ? Math.toIntExact((long) this.itemData.get("upgrades")) : axe.getUpgrades());
+				this.itemData.getInteger("maximumMaterials", axe.getMaximumMaterials()),
+				this.itemData.getInteger("currentDurability"),
+				this.itemData.getInteger("durability", axe.getDurability()), 
+				this.itemData.get("multiplier", axe.getMultiplier()),
+				this.itemData.getInteger("upgrades", axe.getUpgrades())
+		);
 	}
 	
 }

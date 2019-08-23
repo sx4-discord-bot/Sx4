@@ -1,9 +1,8 @@
 package com.sx4.modules;
 
-import static com.rethinkdb.RethinkDB.r;
-
 import java.awt.Color;
-import java.io.FileWriter;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -29,13 +28,13 @@ import com.jockie.bot.core.command.Initialize;
 import com.jockie.bot.core.command.impl.CommandEvent;
 import com.jockie.bot.core.command.impl.CommandImpl;
 import com.jockie.bot.core.module.Module;
-import com.rethinkdb.RethinkDB;
-import com.rethinkdb.gen.ast.Get;
-import com.rethinkdb.model.OptArgs;
-import com.rethinkdb.net.Connection;
+import com.mongodb.client.model.Projections;
+import com.mongodb.client.model.Updates;
 import com.sx4.categories.Categories;
 import com.sx4.core.Sx4Bot;
 import com.sx4.core.Sx4Command;
+import com.sx4.core.Sx4CommandEventListener;
+import com.sx4.database.Database;
 import com.sx4.logger.Statistics;
 import com.sx4.logger.handler.EventHandler;
 import com.sx4.logger.util.Utils;
@@ -72,11 +71,11 @@ public class DeveloperModule {
 		TokenUtils.class.getName(),
 		EconomyUtils.class.getName(),
 		Settings.class.getName(),
+		Database.class.getName(),
 		
 		/* Java */
 		Color.class.getName(),
-		Pattern.class.getName(),
-		RethinkDB.class.getName()
+		Pattern.class.getName()
 	};
 	
 	static {
@@ -88,8 +87,6 @@ public class DeveloperModule {
 		
 		importCustomizer.addStarImports("net.dv8tion.jda.api");
 		importCustomizer.addStarImports("net.dv8tion.jda.api.entities");
-		
-		importCustomizer.addStaticImport("com.rethinkdb.RethinkDB", "r");
 		
 		parseConfiguration.addCompilationCustomizers(importCustomizer);
 		
@@ -112,7 +109,7 @@ public class DeveloperModule {
 		
 	@Command(value="parse", allowedArgumentParsingTypes=ArgumentParsingType.POSITIONAL, description="Execute some code, nothing will be sent unless said to")
 	@Developer
-	public void parse(CommandEvent event, @Context Connection connection, @Argument(value="code", endless=true, nullDefault=true) String parsableString) throws InterruptedException, ExecutionException {
+	public void parse(CommandEvent event, @Context Database database, @Argument(value="code", endless=true, nullDefault=true) String parsableString) throws InterruptedException, ExecutionException {
 		if (parsableString == null) {
 			if (event.getMessage().getAttachments().size() > 0) {
 				try {
@@ -131,7 +128,7 @@ public class DeveloperModule {
 			GroovyShell shell = new GroovyShell(configuration);
 			shell.setProperty("event", event);
 			shell.setProperty("JDA", event.getJDA());
-			shell.setProperty("connection", connection);
+			shell.setProperty("database", database);
 				
 			shell.evaluate(parsableString);
 				
@@ -143,13 +140,13 @@ public class DeveloperModule {
 	
 	@Command(value="eval", allowedArgumentParsingTypes=ArgumentParsingType.POSITIONAL, description="Execute some code, last line will be sent")
 	@Developer
-	public void eval(CommandEvent event, @Context Connection connection, @Argument(value="code", endless=true) String evaluableString) {
+	public void eval(CommandEvent event, @Context Database database, @Argument(value="code", endless=true) String evaluableString) {
 		try {
 			GroovyShell shell = new GroovyShell(configuration);
 			
 			shell.setProperty("event", event);
 			shell.setProperty("JDA", event.getJDA());
-			shell.setProperty("connection", connection);
+			shell.setProperty("database", database);
 			
 			Object object = shell.evaluate(evaluableString);
 			
@@ -173,43 +170,42 @@ public class DeveloperModule {
 	
 	@Command(value="blacklist user", description="Blacklist a user from the bot")
 	@Developer 
-	public void blacklistUser(CommandEvent event, @Context Connection connection, @Argument(value="user", endless=true) String userArgument) {
+	public void blacklistUser(CommandEvent event, @Context Database database, @Argument(value="user", endless=true) String userArgument) {
 		User user = ArgumentUtils.getUser(userArgument);
 		if (user == null) {
 			event.reply("I could not find that user :no_entry:").queue();
 			return;
 		}
 		
-		Get data = r.table("blacklist").get("owner");
-		Map<String, List<String>> dataRan = data.run(connection);
-		List<String> users = dataRan.get("users");
-		if (users.contains(user.getId())) {
-			event.reply("That user is no longer blacklisted <:done:403285928233402378>").queue();
-			data.update(row -> r.hashMap("users", row.g("users").filter(d -> d.ne(user.getId())))).runNoReply(connection);
-		} else {
-			event.reply("That user is now blacklisted <:done:403285928233402378>").queue();
-			data.update(row -> r.hashMap("users", row.g("users").append(user.getId()))).runNoReply(connection);
-		}
+		boolean blacklisted = database.getUserById(user.getIdLong(), null, Projections.include("blacklisted")).getBoolean("blacklisted", false);	
+		database.updateUserById(user.getIdLong(), Updates.set("blacklisted", !blacklisted), (result, exception) -> {
+			if (exception != null) {
+				exception.printStackTrace();
+				event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+			} else {
+				event.reply("That user is " + (blacklisted ? "no longer" : "now") + " blacklisted <:done:403285928233402378>").queue();
+			}
+		});
 	}
 	
 	@Command(value="transfer tax", description="Transfer the tax money to a user")
 	@Developer
-	public void transferTax(CommandEvent event, @Context Connection connection, @Argument(value="user", endless=true) String userArgument) {
+	public void transferTax(CommandEvent event, @Context Database database, @Argument(value="user", endless=true) String userArgument) {
 		Member member = ArgumentUtils.getMember(event.getGuild(), userArgument);
 		if (member == null) {
 			event.reply("I could not find that user :no_entry:").queue();
 			return;
 		}
 		
-		EconomyUtils.insertData(member.getUser()).run(connection, OptArgs.of("durability", "soft"));
-		Get taxData = r.table("tax").get("tax");
-		long tax = taxData.g("tax").run(connection);
-		Get data = r.table("bank").get(member.getUser().getId());
-		
-		data.update(row -> r.hashMap("balance", row.g("balance").add(tax))).runNoReply(connection);
-		taxData.update(r.hashMap("tax", 0)).runNoReply(connection);
-		
-		event.reply("**" + member.getUser().getAsTag() + "** has received " + String.format("**$%,d** in tax <:done:403285928233402378>", tax)).queue();
+		long tax = database.getUserById(event.getSelfUser().getIdLong(), null, Projections.include("economy.balance")).getEmbedded(List.of("economy", "balance"), 0);
+		database.updateUserById(member.getIdLong(), Updates.inc("economy.balance", tax), (result, exception) -> {
+			if (exception != null) {
+				exception.printStackTrace();
+				event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+			} else {
+				event.reply("**" + member.getUser().getAsTag() + "** has received " + String.format("**$%,d** in tax <:done:403285928233402378>", tax)).queue();
+			}
+		});
 	}
 	
 	@Command(value="logger stats", description="Sends logger stats", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
@@ -218,7 +214,7 @@ public class DeveloperModule {
 		event.reply(Statistics.getStatistics()).queue();
 	}
 	
-	@Command(value="logger queue", description="Sends logger queues", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+	@Command(value="logger queue", description="Send the logger queue", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 	@Developer
 	public void loggerQueue(CommandEvent event) {
 		StringBuilder message = new StringBuilder();
@@ -257,9 +253,8 @@ public class DeveloperModule {
 			updatedData = HelpUtils.updateAdvertisementDescription(description);
 		}
 		
-		try (FileWriter file = new FileWriter("advertisement.json")) { 
-            file.write(updatedData.toString());
-            file.flush();
+		try (FileOutputStream file = new FileOutputStream(new File("./advertisement.json"))) { 
+            file.write(updatedData.toString().getBytes());
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -277,9 +272,8 @@ public class DeveloperModule {
 			updatedData = HelpUtils.updateAdvertisementImage(banner);
 		}
 		
-		try (FileWriter file = new FileWriter("advertisement.json")) { 
-            file.write(updatedData.toString());
-            file.flush();
+		try (FileOutputStream file = new FileOutputStream(new File("./advertisement.json"))) { 
+            file.write(updatedData.toString().getBytes());
         } catch (IOException e) {
             e.printStackTrace();
         }

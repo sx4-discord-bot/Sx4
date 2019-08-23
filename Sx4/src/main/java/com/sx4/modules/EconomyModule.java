@@ -1,7 +1,5 @@
 package com.sx4.modules;
 
-import static com.rethinkdb.RethinkDB.r;
-
 import java.math.BigInteger;
 import java.time.Clock;
 import java.time.DayOfWeek;
@@ -12,6 +10,7 @@ import java.time.format.TextStyle;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -20,6 +19,9 @@ import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
+import org.bson.BsonDocument;
+import org.bson.Document;
+import org.bson.conversions.Bson;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -35,14 +37,18 @@ import com.jockie.bot.core.command.impl.CommandEvent;
 import com.jockie.bot.core.command.impl.CommandImpl;
 import com.jockie.bot.core.module.Module;
 import com.jockie.bot.core.option.Option;
-import com.rethinkdb.gen.ast.Get;
-import com.rethinkdb.gen.ast.Table;
-import com.rethinkdb.model.OptArgs;
-import com.rethinkdb.net.Connection;
-import com.rethinkdb.net.Cursor;
+import com.mongodb.client.FindIterable;
+import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.Projections;
+import com.mongodb.client.model.UpdateOneModel;
+import com.mongodb.client.model.UpdateOptions;
+import com.mongodb.client.model.Updates;
+import com.mongodb.client.model.WriteModel;
 import com.sx4.categories.Categories;
 import com.sx4.core.Sx4Bot;
 import com.sx4.core.Sx4Command;
+import com.sx4.core.Sx4CommandEventListener;
+import com.sx4.database.Database;
 import com.sx4.economy.AuctionItem;
 import com.sx4.economy.Item;
 import com.sx4.economy.ItemStack;
@@ -100,14 +106,14 @@ public class EconomyModule {
 		
 		@Command(value="shop", aliases={"list"}, description="View all the crates you can buy", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-		public void shop(CommandEvent event, @Context Connection connection) {
-			Map<String, Object> data = r.table("bank").get(event.getAuthor().getId()).run(connection);
+		public void shop(CommandEvent event, @Context Database database) {
+			long balance = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance")).getEmbedded(List.of("economy", "balance"), 0);
 			
 			EmbedBuilder embed = new EmbedBuilder();
 			embed.setColor(Settings.EMBED_COLOUR);
 			embed.setAuthor("Crate Shop", null, event.getSelfUser().getEffectiveAvatarUrl());
 			embed.setDescription("Crates give you a random item, the better the crate the better the chance of a better item");
-			embed.setFooter(String.format("Use %scrate buy <crate> to buy a crate | Balance: $%,d", event.getPrefix(), data == null ? 0 : (long) data.get("balance")), event.getAuthor().getEffectiveAvatarUrl());
+			embed.setFooter(String.format("Use %scrate buy <crate> to buy a crate | Balance: $%,d", event.getPrefix(), balance), event.getAuthor().getEffectiveAvatarUrl());
 			
 			for (Crate crate : Crate.ALL) {
 				if (crate.isBuyable()) {
@@ -118,11 +124,11 @@ public class EconomyModule {
 			event.reply(embed.build()).queue();
 		}
 		
-		@SuppressWarnings("unchecked")
 		@Command(value="buy", description="Buy a crate displayed in the crate shop")
-		public void buy(CommandEvent event, @Context Connection connection, @Argument(value="crate name", endless=true) String crateArgument) {
-			Get data = r.table("bank").get(event.getAuthor().getId());
-			Map<String, Object> dataRan = data.run(connection);
+		public void buy(CommandEvent event, @Context Database database, @Argument(value="crate name", endless=true) String crateArgument) {
+			Document data = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance", "economy.items")).get("economy", Database.EMPTY_DOCUMENT);
+			List<Document> items = data.getList("items", Document.class, Collections.emptyList());
+			long balance = data.get("balance", 0);
 			
 			Pair<String, BigInteger> cratePair = EconomyUtils.getItemAndAmount(crateArgument);
 			String crateName = cratePair.getLeft();
@@ -144,27 +150,33 @@ public class EconomyModule {
 				return;
 			}
 			
-			if (dataRan == null) {
-				event.reply(String.format("You do not have enough money to purchase `%,d %s` :no_entry:", crateAmount, crate.getName())).queue();
-				return;
-			}
-			
-			BigInteger price = BigInteger.valueOf((long) crate.getPrice()).multiply(crateAmount);
-			if (BigInteger.valueOf((long) dataRan.get("balance")).compareTo(price) != -1) {
-				event.reply(String.format("You just bought `%,d %s` for **$%,d** :ok_hand:", crateAmount, crate.getName(), price.longValue())).queue();
-				data.update(row -> r.hashMap("items", EconomyUtils.addItems((List<Map<String, Object>>) dataRan.get("items"), crate, crateAmount.longValue())).with("balance", row.g("balance").sub(price.longValue()))).runNoReply(connection);
+			BigInteger price = BigInteger.valueOf(crate.getPrice()).multiply(crateAmount);
+			if (BigInteger.valueOf(balance).compareTo(price) != -1) {
+				UpdateOneModel<Document> updateModel = EconomyUtils.getAddItemModel(items, crate, crateAmount.longValue());
+				UpdateOptions updateOptions = new UpdateOptions().arrayFilters(updateModel.getOptions().getArrayFilters()).upsert(true);
+				Bson update = Updates.combine(
+						updateModel.getUpdate(),
+						Updates.inc("economy.balance", -price.longValue())
+				);
+				
+				database.updateUserById(event.getAuthor().getIdLong(), null, update, updateOptions, (result, exception) -> {
+					if (exception != null) {
+						exception.printStackTrace();
+						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+					} else {
+						event.reply(String.format("You just bought `%,d %s` for **$%,d** :ok_hand:", crateAmount, crate.getName(), price)).queue();
+					}
+				});
 			} else {
 				event.reply(String.format("You do not have enough money to purchase `%,d %s` :no_entry:", crateAmount, crate.getName())).queue();
 			}
 		}
 		
-		@SuppressWarnings("unchecked")
 		@Command(value="open", description="Open a crate you have in your items")
 		@Async
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-		public void open(CommandEvent event, @Context Connection connection, @Argument(value="crate name", endless=true) String crateArgument) {
-			Get data = r.table("bank").get(event.getAuthor().getId());
-			Map<String, Object> dataRan = data.run(connection);
+		public void open(CommandEvent event, @Context Database database, @Argument(value="crate name", endless=true) String crateArgument) {
+			Document data = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items")).get("economy", Database.EMPTY_DOCUMENT);
 			
 			Pair<String, BigInteger> cratePair = EconomyUtils.getItemAndAmount(crateArgument);
 			String crateName = cratePair.getLeft();
@@ -186,12 +198,7 @@ public class EconomyModule {
 				return;
 			}
 			
-			if (dataRan == null) {
-				event.reply(String.format("You do not have `%,d %s` :no_entry:", crateAmount, crate.getName())).queue();
-				return;
-			}
-			
-			List<Map<String, Object>> userItems = (List<Map<String, Object>>) dataRan.get("items");
+			List<Document> userItems =  data.getList("items", Document.class, Collections.emptyList());
 			
 			List<Item> itemsWon = new ArrayList<>();
 			List<ItemStack> finalItems = new ArrayList<>();
@@ -231,6 +238,11 @@ public class EconomyModule {
 					}
 				}
 				
+				UpdateOneModel<Document> updateModel = EconomyUtils.getRemoveItemModel(userItems, crate, crateAmount.longValue());
+				Bson userUpdate = updateModel.getUpdate();
+				List<Bson> arrayFilters = new ArrayList<>();
+				arrayFilters.addAll(updateModel.getOptions().getArrayFilters());
+				
 				EmbedBuilder embed = new EmbedBuilder();
 				embed.setAuthor(event.getAuthor().getName(), null, event.getAuthor().getEffectiveAvatarUrl());
 				embed.setColor(event.getMember().getColor());
@@ -245,16 +257,23 @@ public class EconomyModule {
 							content += ", ";
 						}
 						
-						userItems = EconomyUtils.addItems(userItems, finalItem.getItem(), finalItem.getAmount());
+						UpdateOneModel<Document> itemUpdateModel = EconomyUtils.getAddItemModel(userItems, finalItem);
+						userUpdate = Updates.combine(userUpdate, itemUpdateModel.getUpdate());
+						arrayFilters.addAll(itemUpdateModel.getOptions().getArrayFilters());
 					}
 					
 					embed.setDescription(String.format("You opened `%,d %s` and won **%s** :tada:", crateAmount, crate.getName(), content));
 				}
 				
-				event.reply(embed.build()).queue();
-				
-				userItems = EconomyUtils.removeItems(userItems, crate, crateAmount.longValue());
-				data.update(r.hashMap("items", userItems)).runNoReply(connection);
+				UpdateOptions updateOptions = new UpdateOptions().arrayFilters(arrayFilters).upsert(true);
+				database.updateUserById(event.getAuthor().getIdLong(), null, userUpdate, updateOptions, (result, exception) -> {
+					if (exception != null) {
+						exception.printStackTrace();
+						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+					} else {
+						event.reply(embed.build()).queue();
+					}
+				});
 			} else {
 				event.reply(String.format("You do not have `%,d %s` :no_entry:", crateAmount, crate.getName())).queue();
 				return;
@@ -265,28 +284,20 @@ public class EconomyModule {
 	
 	@Command(value="tax", description="View the amount of tax the bot currently has (This is given away every friday in the support server)", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-	public void tax(CommandEvent event, @Context Connection connection) {
+	public void tax(CommandEvent event, @Context Database database) {
+		long tax = database.getUserById(event.getSelfUser().getIdLong(), null, Projections.include("economy.balance")).getEmbedded(List.of("economy", "balance"), 0);
 		EmbedBuilder embed = new EmbedBuilder();
 		embed.setAuthor(event.getSelfUser().getAsTag(), null, event.getSelfUser().getEffectiveAvatarUrl());
-		embed.setDescription(String.format("Their balance: **$%,d**", (long) r.table("tax").get("tax").g("tax").run(connection)));
+		embed.setDescription(String.format("Their balance: **$%,d**", tax));
 		embed.setColor(Settings.EMBED_COLOUR);
 		
 		event.reply(embed.build()).queue();
 	}
 	
-	@SuppressWarnings("unchecked")
 	@Command(value="trade", description="Trade items and money with another user")
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	@Cooldown(value=10)
-	public void trade(CommandEvent event, @Context Connection connection, @Argument(value="user", endless=true) String userArgument) {
-		Get authorData = r.table("bank").get(event.getAuthor().getId());
-		Map<String, Object> authorDataRan = authorData.run(connection);
-		
-		if (authorDataRan == null) {
-			event.reply("You do not have anything to trade :no_entry:").queue();
-			return;
-		}
-		
+	public void trade(CommandEvent event, @Context Database database, @Argument(value="user", endless=true) String userArgument) {
 		Member member = ArgumentUtils.getMember(event.getGuild(), userArgument);
 		if (member == null) {
 			event.reply("I could not find that user :no_entry:").queue();
@@ -303,10 +314,16 @@ public class EconomyModule {
 			return;
 		}
 		
-		Get userData = r.table("bank").get(member.getUser().getId());
-		Map<String, Object> userDataRan = userData.run(connection);
+		Bson projection = Projections.include("economy.balance", "economy.items");
+		Document authorData = database.getUserById(event.getAuthor().getIdLong(), null, projection).get("economy", Database.EMPTY_DOCUMENT);
+		Document userData = database.getUserById(member.getIdLong(), null, projection).get("economy", Database.EMPTY_DOCUMENT);
 		
-		if (userDataRan == null) {
+		if (authorData.isEmpty()) {
+			event.reply("You do not have have anything to trade :no_entry:").queue();
+			return;
+		}
+		
+		if (userData.isEmpty()) {
 			event.reply("**" + member.getUser().getAsTag() + "** does not have anything to trade :no_entry:").queue();
 			return;
 		}
@@ -374,25 +391,28 @@ public class EconomyModule {
 						
 						event.reply(embed.build()).queue(€ -> {
 							PagedUtils.getConfirmation(event, 60, member.getUser(), confirmation -> {
-								if (confirmation == true) {
-									Map<String, Object> newAuthorData = authorData.run(connection);
-									Map<String, Object> newUserData = userData.run(connection);
+								if (confirmation) {
+									Document newAuthorData = database.getUserById(event.getAuthor().getIdLong(), null, projection).get("economy", Database.EMPTY_DOCUMENT);
+									Document newUserData = database.getUserById(member.getIdLong(), null, projection).get("economy", Database.EMPTY_DOCUMENT);
 									
 									long totalAuthorWorth = authorMoney;
 									long totalUserWorth = userMoney;
 									
-									if ((long) newAuthorData.get("balance") < authorMoney) {
+									if (newAuthorData.get("balance", 0) < authorMoney) {
 										event.reply("**" + event.getAuthor().getAsTag() + "** does not have $" + authorMoney + " :no_entry:").queue();
 										return;
 									}
 									
-									if ((long) newUserData.get("balance") < userMoney) {
+									if (newUserData.get("balance", 0) < userMoney) {
 										event.reply("**" + member.getUser().getAsTag() + "** does not have $" + userMoney + " :no_entry:").queue();
 										return;
 									}
 									
-									List<Map<String, Object>> authorItemsData = (List<Map<String, Object>>) newAuthorData.get("items");
-									List<Map<String, Object>> userItemsData = (List<Map<String, Object>>) newUserData.get("items");
+									List<Document> authorItemsData = newAuthorData.getList("items", Document.class, Collections.emptyList());
+									List<Document> userItemsData = newUserData.getList("items", Document.class, Collections.emptyList());
+									
+									Bson authorUpdate = Updates.inc("economy.balance", userMoney - authorMoney), userUpdate = Updates.inc("economy.balance", authorMoney - userMoney);
+									List<Bson> arrayFilters = new ArrayList<>();
 									
 									for (ItemStack itemStack : authorItems) {
 										ItemStack authorItem = EconomyUtils.getUserItem(authorItemsData, itemStack.getItem());
@@ -401,10 +421,18 @@ public class EconomyModule {
 											return;
 										}
 										
-										totalAuthorWorth += itemStack.getItem().getPrice() == null ? 0 : itemStack.getItem().getPrice();
+										totalAuthorWorth += !itemStack.getItem().isBuyable() ? 0 : itemStack.getItem().getPrice();
 										
-										authorItemsData = EconomyUtils.removeItems(authorItemsData, itemStack.getItem(), itemStack.getAmount());
-										userItemsData = EconomyUtils.addItems(userItemsData, itemStack.getItem(), itemStack.getAmount());
+										UpdateOneModel<Document> authorUpdateModel = EconomyUtils.getRemoveItemModel(authorItemsData, itemStack);
+										UpdateOneModel<Document> userUpdateModel = EconomyUtils.getAddItemModel(userItemsData, itemStack);
+										List<? extends Bson> itemArrayFilters = authorUpdateModel.getOptions().getArrayFilters();
+										
+										if (!arrayFilters.containsAll(itemArrayFilters)) {
+											arrayFilters.addAll(itemArrayFilters);
+										}
+										
+										authorUpdate = Updates.combine(authorUpdate, authorUpdateModel.getUpdate());
+										userUpdate = Updates.combine(userUpdate, userUpdateModel.getUpdate());
 									}
 									
 									for (ItemStack itemStack : userItems) {
@@ -414,10 +442,18 @@ public class EconomyModule {
 											return;
 										}
 										
-										totalUserWorth += itemStack.getItem().getPrice() == null ? 0 : itemStack.getItem().getPrice();
+										totalUserWorth += !itemStack.getItem().isBuyable() ? 0 : itemStack.getItem().getPrice();
 										
-										authorItemsData = EconomyUtils.addItems(authorItemsData, itemStack.getItem(), itemStack.getAmount());
-										userItemsData = EconomyUtils.removeItems(userItemsData, itemStack.getItem(), itemStack.getAmount());
+										UpdateOneModel<Document> authorUpdateModel = EconomyUtils.getAddItemModel(authorItemsData, itemStack);
+										UpdateOneModel<Document> userUpdateModel = EconomyUtils.getRemoveItemModel(userItemsData, itemStack);
+										List<? extends Bson> itemArrayFilters = authorUpdateModel.getOptions().getArrayFilters();
+										
+										if (!arrayFilters.containsAll(itemArrayFilters)) {
+											arrayFilters.addAll(itemArrayFilters);
+										}
+										
+										authorUpdate = Updates.combine(authorUpdate, authorUpdateModel.getUpdate());
+										userUpdate = Updates.combine(userUpdate, userUpdateModel.getUpdate());
 									}
 									
 									if (totalUserWorth / totalAuthorWorth > 20 || totalAuthorWorth / totalUserWorth > 20) {
@@ -425,10 +461,20 @@ public class EconomyModule {
 										return;
 									}
 									
-									event.reply("All items and money have been transferred <:done:403285928233402378>").queue();
-									
-									authorData.update(r.hashMap("items", authorItemsData).with("balance", (long) newAuthorData.get("balance") + (userMoney - authorMoney))).runNoReply(connection);
-									userData.update(r.hashMap("items", userItemsData).with("balance", (long) newUserData.get("balance") + (authorMoney - userMoney))).runNoReply(connection);
+									UpdateOptions updateOptions = new UpdateOptions().arrayFilters(arrayFilters).upsert(true);
+									List<WriteModel<Document>> bulkData = List.of(
+											new UpdateOneModel<>(Filters.eq("_id", event.getAuthor().getIdLong()), authorUpdate, updateOptions),
+											new UpdateOneModel<>(Filters.eq("_id", member.getIdLong()), userUpdate, updateOptions)
+									);
+
+									database.bulkWriteUsers(bulkData, (result, exception) -> {
+										if (exception != null) {
+											exception.printStackTrace();
+											event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+										} else {
+											event.reply("All items and money have been transferred <:done:403285928233402378>").queue();
+										}
+									});
 								} else {
 									event.reply("Trade declined <:done:403285928233402378>").queue();
 									return;
@@ -458,14 +504,14 @@ public class EconomyModule {
 		
 		@Command(value="shop", aliases={"list"}, description="View all the boosters in the economy system", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-		public void shop(CommandEvent event, @Context Connection connection) {
-			Map<String, Object> data = r.table("bank").get(event.getAuthor().getId()).run(connection);
+		public void shop(CommandEvent event, @Context Database database) {
+			long balance = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance")).getEmbedded(List.of("economy", "balance"), 0);
 			
 			EmbedBuilder embed = new EmbedBuilder();
 			embed.setDescription("Buy boosters to be given benefits at a cost");
 			embed.setColor(Settings.EMBED_COLOUR);
 			embed.setAuthor("Booster Shop", null, event.getSelfUser().getEffectiveAvatarUrl());
-			embed.setFooter(String.format("Use %sbooster buy <booster> to buy a booster | Balance: $%,d", event.getPrefix(), data == null ? 0 : (long) data.get("balance")), event.getAuthor().getEffectiveAvatarUrl());
+			embed.setFooter(String.format("Use %sbooster buy <booster> to buy a booster | Balance: $%,d", event.getPrefix(), balance, event.getAuthor().getEffectiveAvatarUrl()));
 			
 			for (Booster booster : Booster.ALL) {
 				embed.addField(booster.getName(), String.format("Price: $%,d\nDescription: %s %s", booster.getPrice(), booster.getDescription(), booster.isActivatable() ? "[Activatable]" : ""), false);
@@ -474,11 +520,11 @@ public class EconomyModule {
 			event.reply(embed.build()).queue();
 		}
 		
-		@SuppressWarnings("unchecked")
 		@Command(value="buy", description="Buy a booster listed in the booster shop")
-		public void buy(CommandEvent event, @Context Connection connection, @Argument(value="booster name", endless=true) String boosterArgument) {
-			Get data = r.table("bank").get(event.getAuthor().getId());
-			Map<String, Object> dataRan = data.run(connection);
+		public void buy(CommandEvent event, @Context Database database, @Argument(value="booster name", endless=true) String boosterArgument) {
+			Document data = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance")).get("economy", Database.EMPTY_DOCUMENT);
+			List<Document> items = data.getList("items", Document.class, Collections.emptyList());
+			long balance = data.get("balance", 0);
 			
 			Pair<String, BigInteger> boosterPair = EconomyUtils.getItemAndAmount(boosterArgument);
 			String boosterName = boosterPair.getLeft();
@@ -495,25 +541,31 @@ public class EconomyModule {
 				return;
 			}
 			
-			if (dataRan == null) {
-				event.reply(String.format("You do not have enough money to purchase `%,d %s` :no_entry:", boosterAmount, booster.getName())).queue();
-				return;
-			}
-			
-			BigInteger price = BigInteger.valueOf((long) booster.getPrice()).multiply(boosterAmount);
-			if (BigInteger.valueOf((long) dataRan.get("balance")).compareTo(price) != -1) {
-				event.reply(String.format("You just bought `%,d %s` for **$%,d** :ok_hand:", boosterAmount, booster.getName(), price.longValue())).queue();
-				data.update(row -> r.hashMap("items", EconomyUtils.addItems((List<Map<String, Object>>) dataRan.get("items"), booster, boosterAmount.longValue())).with("balance", row.g("balance").sub(price.longValue()))).runNoReply(connection);
+			BigInteger price = BigInteger.valueOf(booster.getPrice()).multiply(boosterAmount);
+			if (BigInteger.valueOf(balance).compareTo(price) != -1) {
+				UpdateOneModel<Document> updateModel = EconomyUtils.getAddItemModel(items, booster, boosterAmount.longValue());
+				UpdateOptions updateOptions = new UpdateOptions().arrayFilters(updateModel.getOptions().getArrayFilters()).upsert(true);
+				Bson update = Updates.combine(
+						updateModel.getUpdate(),
+						Updates.inc("economy.balance", -price.longValue())
+				);
+				
+				database.updateUserById(event.getAuthor().getIdLong(), null, update, updateOptions, (result, exception) -> {
+					if (exception != null) {
+						exception.printStackTrace();
+						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+					} else {
+						event.reply(String.format("You just bought `%,d %s` for **$%,d** :ok_hand:", boosterAmount, booster.getName(), price.longValue())).queue();
+					}
+				});
 			} else {
 				event.reply(String.format("You do not have enough money to purchase `%,d %s` :no_entry:", boosterAmount, booster.getName())).queue();
 			}
 		}
 		
-		@SuppressWarnings("unchecked")
 		@Command(value="activate", description="Activates a booster which is activatable")
-		public void activate(CommandEvent event, @Context Connection connection, @Argument(value="booster name", endless=true) String boosterName) {
-			Get data = r.table("bank").get(event.getAuthor().getId());
-			Map<String, Object> dataRan = data.run(connection);
+		public void activate(CommandEvent event, @Context Database database, @Argument(value="booster name", endless=true) String boosterName) {
+			Document data = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items", "economy.pickaxeCooldown")).get("economy", Database.EMPTY_DOCUMENT);
 			
 			Booster booster = Booster.getBoosterByName(boosterName);
 			if (booster == null) {
@@ -526,26 +578,36 @@ public class EconomyModule {
 				return;
 			}
 			
-			if (dataRan == null) {
-				event.reply(String.format("You do not have a `%s` :no_entry:", booster.getName())).queue();
-				return;
-			}
-			
-			List<Map<String, Object>> userItems = (List<Map<String, Object>>) dataRan.get("items");
+			List<Document> userItems = data.getList("items", Document.class, Collections.emptyList());
 			if (booster.equals(Booster.LENDED_PICKAXE)) {
-				Pickaxe userPickaxe = EconomyUtils.getUserPickaxe(dataRan);
+				ItemStack userBooster = EconomyUtils.getUserItem(userItems, booster);
+				if (userBooster.getAmount() == 0) {
+					event.reply("You do not own any `" + booster.getName() + "` :no_entry:").queue();
+					return;
+				}
+				
+				Pickaxe userPickaxe = EconomyUtils.getUserPickaxe(userItems);
 				if (userPickaxe == null) {
 					event.reply("You do not own a pickaxe :no_entry:").queue();
 					return;
 				}
 				
-				if ((Long) dataRan.get("picktime") == null || Clock.systemUTC().instant().getEpochSecond() - (Long) dataRan.get("picktime") >= EconomyUtils.MINE_COOLDOWN) {
+				Long pickaxeCooldown = data.getLong("mineCooldown");
+				if (pickaxeCooldown == null || Clock.systemUTC().instant().getEpochSecond() - pickaxeCooldown >= EconomyUtils.MINE_COOLDOWN) {
 					event.reply("You currently do not have a cooldown on your mine :no_entry:").queue();
 					return;
 				}
 				
-				event.reply("Your booster `" + booster.getName() + "` has been activated :ok_hand:").queue();
-				data.update(r.hashMap("items", EconomyUtils.removeItem(userItems, booster)).with("picktime", null)).runNoReply(connection);
+				UpdateOneModel<Document> updateModel = EconomyUtils.getRemoveItemModel(userItems, booster, 1);
+				UpdateOptions updateOptions = new UpdateOptions().arrayFilters(updateModel.getOptions().getArrayFilters()).upsert(true);
+				database.updateUserById(event.getAuthor().getIdLong(), null, updateModel.getUpdate(), updateOptions, (result, exception) -> {
+					if (exception != null) {
+						exception.printStackTrace();
+						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+					} else {
+						event.reply("Your booster `" + booster.getName() + "` has been activated :ok_hand:").queue();
+					}
+				});
 			}
 		}
 		
@@ -570,7 +632,7 @@ public class EconomyModule {
 	
 	@Command(value="vote", aliases={"vote bonus", "votebonus", "upvote"}, description="Upvote the bot on discord bot list to get some free money in the economy", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-	public void vote(CommandEvent event, @Context Connection connection) {
+	public void vote(CommandEvent event, @Context Database database) {
 		LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
 		boolean weekend = now.getDayOfWeek().equals(DayOfWeek.FRIDAY) || now.getDayOfWeek().equals(DayOfWeek.SATURDAY) || now.getDayOfWeek().equals(DayOfWeek.SUNDAY) ? true : false;
 		
@@ -590,8 +652,8 @@ public class EconomyModule {
 				JSONObject jsonJockieMusic = new JSONObject(jockieMusicResponse.body().string());
 				 
 				if (jsonSx4.getBoolean("success") || jsonJockieMusic.getBoolean("success")) {
-					JSONArray sx4Votes = null;
-					JSONArray jockieMusicVotes = null;
+					JSONArray sx4Votes = new JSONArray();
+					JSONArray jockieMusicVotes = new JSONArray();
 					long money = 0;
 					if (jsonSx4.has("votes")) {
 						sx4Votes = jsonSx4.getJSONArray("votes");
@@ -602,76 +664,76 @@ public class EconomyModule {
 					}
 					 
 					Map<User, Integer> referredUsers = new HashMap<>();
-					if (sx4Votes != null) {
-						for (Object sx4VoteObject : sx4Votes) {
-							JSONObject sx4Vote = (JSONObject) sx4VoteObject;
+					for (Object sx4VoteObject : sx4Votes) {
+						JSONObject sx4Vote = (JSONObject) sx4VoteObject;
+						
+						money += sx4Vote.getBoolean("weekend") ? 1000 : 500;
+						
+						if (sx4Vote.getJSONObject("query").has("referral")) {
+							User referredUser;
+							if (sx4Vote.getJSONObject("query").get("referral") instanceof String[]) {
+								referredUser = event.getShardManager().getUserById(sx4Vote.getJSONObject("query").getJSONArray("referral").getString(0));
+							} else {
+								referredUser = event.getShardManager().getUserById(sx4Vote.getJSONObject("query").getString("referral"));
+							}
 							
-							money += sx4Vote.getBoolean("weekend") ? 1000 : 500;
-							
-							if (sx4Vote.getJSONObject("query").has("referral")) {
-								User referredUser;
-								if (sx4Vote.getJSONObject("query").get("referral") instanceof String[]) {
-									referredUser = event.getShardManager().getUserById(sx4Vote.getJSONObject("query").getJSONArray("referral").getString(0));
+							if (referredUser != null) {
+								if (referredUsers.containsKey(referredUser)) {
+									referredUsers.put(referredUser, referredUsers.get(referredUser) + (sx4Vote.getBoolean("weekend") ? 500 : 250));
 								} else {
-									referredUser = event.getShardManager().getUserById(sx4Vote.getJSONObject("query").getString("referral"));
-								}
-								
-								if (referredUser != null) {
-									if (referredUsers.containsKey(referredUser)) {
-										referredUsers.put(referredUser, referredUsers.get(referredUser) + (sx4Vote.getBoolean("weekend") ? 500 : 250));
-									} else {
-										referredUsers.put(referredUser, sx4Vote.getBoolean("weekend") ? 500 : 250);
-									}
+									referredUsers.put(referredUser, sx4Vote.getBoolean("weekend") ? 500 : 250);
 								}
 							}
 						}
+						
 					}
 					
-					if (jockieMusicVotes != null) {
-						for (Object jockieMusicVoteObject : jockieMusicVotes) {
-							JSONObject jockieMusicVote = (JSONObject) jockieMusicVoteObject;
+					for (Object jockieMusicVoteObject : jockieMusicVotes) {
+						JSONObject jockieMusicVote = (JSONObject) jockieMusicVoteObject;
+						
+						money += jockieMusicVote.getBoolean("weekend") ? 600 : 300;
+						
+						if (jockieMusicVote.getJSONObject("query").has("referral")) {
+							User referredUser;
+							if (jockieMusicVote.getJSONObject("query").get("referral") instanceof String[]) {
+								referredUser = event.getShardManager().getUserById(jockieMusicVote.getJSONObject("query").getJSONArray("referral").getString(0));
+							} else {
+								referredUser = event.getShardManager().getUserById(jockieMusicVote.getJSONObject("query").getString("referral"));
+							}
 							
-							money += jockieMusicVote.getBoolean("weekend") ? 600 : 300;
-							
-							if (jockieMusicVote.getJSONObject("query").has("referral")) {
-								User referredUser;
-								if (jockieMusicVote.getJSONObject("query").get("referral") instanceof String[]) {
-									referredUser = event.getShardManager().getUserById(jockieMusicVote.getJSONObject("query").getJSONArray("referral").getString(0));
+							if (referredUser != null) {
+								if (referredUsers.containsKey(referredUser)) {
+									referredUsers.put(referredUser, referredUsers.get(referredUser) + (jockieMusicVote.getBoolean("weekend") ? 300 : 150));
 								} else {
-									referredUser = event.getShardManager().getUserById(jockieMusicVote.getJSONObject("query").getString("referral"));
-								}
-								
-								if (referredUser != null) {
-									if (referredUsers.containsKey(referredUser)) {
-										referredUsers.put(referredUser, referredUsers.get(referredUser) + (jockieMusicVote.getBoolean("weekend") ? 300 : 150));
-									} else {
-										referredUsers.put(referredUser, jockieMusicVote.getBoolean("weekend") ? 300 : 150);
-									}
+									referredUsers.put(referredUser, jockieMusicVote.getBoolean("weekend") ? 300 : 150);
 								}
 							}
 						}
+				
 					}
 					
-					String referredContent = "";
-					for (User key : referredUsers.keySet()) {
-						Get userData = r.table("bank").get(key.getId());
-						userData.update(row -> r.hashMap("balance", row.g("balance").add(referredUsers.get(key)))).runNoReply(connection);
-						referredContent += key.getAsTag() + " (**$" + referredUsers.get(key) + "**), ";
+					UpdateOptions updateOptions = new UpdateOptions().upsert(true);
+					List<WriteModel<Document>> updates = new ArrayList<>();
+					StringBuilder referredBuilder = new StringBuilder();
+					for (User key : referredUsers.keySet()) {						
+						updates.add(new UpdateOneModel<>(Filters.eq("_id", key.getIdLong()), Updates.inc("economy.balance", referredUsers.get(key)), updateOptions));
+						referredBuilder.append(key.getAsTag() + " (**$" + referredUsers.get(key) + "**), ");
 					}
 					
-					if (referredContent != "") {
-						referredContent = referredContent.substring(0, referredContent.length() - 2);
-					}
+					String referredContent = referredBuilder.length() != 0 ? referredBuilder.substring(0, referredBuilder.length() - 2) : "No one";
+					int totalVotes = sx4Votes.length() + jockieMusicVotes.length();	
+					String message = String.format("You have voted for the bot **%,d** time%s since you last used the command gathering you a total of **$%,d**, Vote for the bots again in 12 hours for more money."
+							+ " Referred users: %s", totalVotes, totalVotes == 1 ? "" : "s", money, referredContent);
 					
-					int totalVotes = (sx4Votes == null ? 0 : sx4Votes.length()) + (jockieMusicVotes == null ? 0 : jockieMusicVotes.length());
-					event.reply(String.format("You have voted for the bot **%,d** time%s since you last used the command gathering you a total of **$%,d**, Vote for the bots again in 12 hours for more money."
-							+ " Referred users: %s", totalVotes, totalVotes == 1 ? "" : "s", money, referredContent == "" ? "No one" : referredContent)).queue();
-					 
-					EconomyUtils.insertData(event.getAuthor()).run(connection, OptArgs.of("durability", "soft"));
-					Get data = r.table("bank").get(event.getAuthor().getId());
-					
-					long dataMoney = money;
-					data.update(row -> r.hashMap("balance", row.g("balance").add(dataMoney))).runNoReply(connection);
+					updates.add(new UpdateOneModel<>(Filters.eq("_id", event.getAuthor().getIdLong()), Updates.inc("economy.balance", money), updateOptions));
+					database.bulkWriteUsers(updates, (result, exception) -> {
+						if (exception != null) {
+							exception.printStackTrace();
+							event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+						} else {
+							event.reply(message).queue();
+						}
+					});
 				} else {
 					if (jsonSx4.getString("error").equals("This user has no unused votes") && jsonJockieMusic.getString("error").equals("This user has no unused votes")) {
 						Request latestSx4 = new Request.Builder()
@@ -731,32 +793,20 @@ public class EconomyModule {
 		});
 	}
 	
-	@SuppressWarnings("unchecked")
 	@Command(value="daily", aliases={"pd", "payday"}, description="Collect your daily money, repeatedly collect it everyday to get streaks the higher your streaks the better chance of getting a higher tier crate", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-	public void daily(CommandEvent event, @Context Connection connection) {
-		EconomyUtils.insertData(event.getAuthor()).run(connection, OptArgs.of("durability", "soft"));
-		Get data = r.table("bank").get(event.getAuthor().getId());
-		Map<String, Object> dataRan = data.run(connection);
+	public void daily(CommandEvent event, @Context Database database) {
+		Document data = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.streakCooldown", "economy.streak", "economy.items")).get("economy", Database.EMPTY_DOCUMENT);
 		
 		long money;
 		long timestampNow = Clock.systemUTC().instant().getEpochSecond();
-		Long streakTime = (Long) dataRan.get("streaktime");
+		Long streakTime = data.getLong("streakCooldown");
 		
 		EmbedBuilder embed = new EmbedBuilder();
-		if (streakTime == null) {
-			money = 100;
-			
-			embed.setAuthor(event.getAuthor().getName(), null, event.getAuthor().getEffectiveAvatarUrl());
-			embed.setDescription("You have collected your daily money! (**+$" + money + "**)");
-			embed.setColor(event.getMember().getColor());
-			event.reply(embed.build()).queue();
-			
-			data.update(row -> r.hashMap("streaktime", timestampNow).with("balance", row.g("balance").add(money)).with("streak", 0)).runNoReply(connection);
-		} else if (timestampNow - streakTime <= EconomyUtils.DAILY_COOLDOWN) {
+		if (streakTime != null && timestampNow - streakTime <= EconomyUtils.DAILY_COOLDOWN) {
 			event.reply("Slow down! You can collect your daily in " + TimeUtils.toTimeString(streakTime - timestampNow + EconomyUtils.DAILY_COOLDOWN, ChronoUnit.SECONDS) + " :stopwatch:").queue();
 		} else if (timestampNow - streakTime <= EconomyUtils.DAILY_COOLDOWN * 2) {
-			long currentStreak = (long) dataRan.get("streak") + 1;
+			int currentStreak = data.getInteger("streak") + 1;
 			money = currentStreak >= 5 ? 250 : currentStreak == 4 ? 200 : currentStreak == 3 ? 170 : currentStreak == 2 ? 145 : currentStreak == 1 ? 120 : 100;
 			
 			List<Crate> crates = new ArrayList<>();
@@ -776,27 +826,57 @@ public class EconomyModule {
 			embed.setAuthor(event.getAuthor().getName(), null, event.getAuthor().getEffectiveAvatarUrl());
 			embed.setColor(event.getMember().getColor());
 			embed.setDescription("You have collected your daily money! (**+$" + money + "**)\nYou had a bonus of $" + (money - 100) + " for having a " + currentStreak + " day streak\n\n" + crateContent);
-			event.reply(embed.build()).queue();
+
+			List<Bson> arrayFilters = new ArrayList<>();
+			Bson update = Updates.combine(
+					Updates.set("economy.streakCooldown", timestampNow),
+					Updates.inc("economy.balance", money),
+					Updates.inc("economy.streak", 1)
+			);
 			
-			data.update(row -> r.hashMap("streaktime", timestampNow)
-					.with("balance", row.g("balance").add(money))
-					.with("streak", currentStreak)
-					.with("items", crateWon == null ? row.g("items") : EconomyUtils.addItem((List<Map<String, Object>>) dataRan.get("items"), crateWon))).runNoReply(connection);
+			if (crateWon != null) {
+				List<Document> items = data.getList("items", Document.class, Collections.emptyList());
+				UpdateOneModel<Document> updateModel = EconomyUtils.getAddItemModel(items, crateWon, 1);
+				update = Updates.combine(update, updateModel.getUpdate());
+				arrayFilters.addAll(updateModel.getOptions().getArrayFilters());
+			}
+			
+			UpdateOptions updateOptions = new UpdateOptions().arrayFilters(arrayFilters).upsert(true);
+			database.updateUserById(event.getAuthor().getIdLong(), null, update, updateOptions, (result, exception) -> {
+				if (exception != null) {
+					exception.printStackTrace();
+					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+				} else {
+					event.reply(embed.build()).queue();
+				}
+			});
 		} else {
 			money = 100;
 			
 			embed.setAuthor(event.getAuthor().getName(), null, event.getAuthor().getEffectiveAvatarUrl());
 			embed.setDescription("You have collected your daily money! (**+$" + money + "**)\n\nIt has been over 2 days since you last used the command, your streak has been reset");
 			embed.setColor(event.getMember().getColor());
-			event.reply(embed.build()).queue();
 			
-			data.update(row -> r.hashMap("streaktime", timestampNow).with("balance", row.g("balance").add(money)).with("streak", 0)).runNoReply(connection);
+			Bson update = Updates.combine(
+					Updates.set("economy.streakCooldown", timestampNow),
+					Updates.inc("economy.balance", money),
+					Updates.set("economy.streak", 0)
+			);
+			
+			database.updateUserById(event.getAuthor().getIdLong(), update, (result, exception) -> {
+				if (exception != null) {
+					exception.printStackTrace();
+					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+				} else {
+					event.reply(embed.build()).queue();
+				}
+			});
 		}
 	}
 	
 	@Command(value="balance", aliases={"bal"}, description="Check the amount of money a user currently has")
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-	public void balance(CommandEvent event, @Context Connection connection, @Argument(value="user", endless=true, nullDefault=true) String userArgument) {
+	public void balance(CommandEvent event, @Context Database database, @Argument(value="user", endless=true, nullDefault=true) String userArgument) {
 		Member member;
 		if (userArgument == null) {
 			member = event.getMember();
@@ -808,17 +888,18 @@ public class EconomyModule {
 			}
 		}
 		
-		Map<String, Object> data = r.table("bank").get(member.getUser().getId()).run(connection);
+		long balance = database.getUserById(member.getIdLong(), null, Projections.include("economy.balance")).getEmbedded(List.of("economy", "balance"), 0);
+		
 		EmbedBuilder embed = new EmbedBuilder();
 		embed.setColor(member.getColor());
 		embed.setAuthor(member.getUser().getName(), null, member.getUser().getEffectiveAvatarUrl());
-		embed.setDescription((member.equals(event.getMember()) ? "Your" : "Their") + " balance: " + String.format("**$%,d**", data == null ? 0 : (long) data.get("balance")));
+		embed.setDescription((member.equals(event.getMember()) ? "Your" : "Their") + " balance: " + String.format("**$%,d**", balance));
 		event.reply(embed.build()).queue();
 	}
 	
 	@Command(value="winnings", description="Check the amount of money a user has won/lost through betting")
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-	public void winnings(CommandEvent event, @Context Connection connection, @Argument(value="user", endless=true, nullDefault=true) String userArgument) {
+	public void winnings(CommandEvent event, @Context Database database, @Argument(value="user", endless=true, nullDefault=true) String userArgument) {
 		Member member;
 		if (userArgument == null) {
 			member = event.getMember();
@@ -830,17 +911,18 @@ public class EconomyModule {
 			}
 		}
 		
-		Map<String, Object> data = r.table("bank").get(member.getUser().getId()).run(connection);
+		long winnings = database.getUserById(member.getIdLong(), null, Projections.include("economy.winnings")).getEmbedded(List.of("economy", "winnings"), 0);
+		
 		EmbedBuilder embed = new EmbedBuilder();
 		embed.setColor(member.getColor());
 		embed.setAuthor(member.getUser().getName(), null, member.getUser().getEffectiveAvatarUrl());
-		embed.setDescription((member.equals(event.getMember()) ? "Your" : "Their") + " winnings: " + String.format("**$%,d**", data == null ? 0 : (long) data.get("winnings")));
+		embed.setDescription((member.equals(event.getMember()) ? "Your" : "Their") + " winnings: " + String.format("**$%,d**", winnings));
 		event.reply(embed.build()).queue();
 	}
 	
 	@Command(value="networth", description="Check the networth of a user")
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-	public void networth(CommandEvent event, @Context Connection connection, @Argument(value="user", endless=true, nullDefault=true) String userArgument) {
+	public void networth(CommandEvent event, @Context Database database, @Argument(value="user", endless=true, nullDefault=true) String userArgument) {
 		Member member;
 		if (userArgument == null) {
 			member = event.getMember();
@@ -852,12 +934,8 @@ public class EconomyModule {
 			}
 		}
 		
-		Map<String, Object> data = r.table("bank").get(member.getUser().getId()).run(connection);
-		
-		long networth = 0;
-		if (data != null) {
-			networth = EconomyUtils.getUserNetworth(data);
-		}
+		Document data = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance", "economy.items")).get("economy", Database.EMPTY_DOCUMENT);
+		long networth = EconomyUtils.getUserNetworth(data);
 		
 		EmbedBuilder embed = new EmbedBuilder();
 		embed.setColor(member.getColor());
@@ -867,7 +945,7 @@ public class EconomyModule {
 	}
 	
 	@Command(value="rep", description="Give another user some reputation")
-	public void reputation(CommandEvent event, @Context Connection connection, @Argument(value="user", endless=true, nullDefault=true) String userArgument, @Option(value="amount") boolean amountOption) {
+	public void reputation(CommandEvent event, @Context Database database, @Argument(value="user", endless=true, nullDefault=true) String userArgument, @Option(value="amount") boolean amountOption) {
 		Member member;
 		if (userArgument == null) {
 			member = event.getMember();
@@ -879,75 +957,98 @@ public class EconomyModule {
 			}
 		}
 		
-		if (member.equals(event.getMember())) {
-			event.reply("You cannot give reputation yourself :no_entry:").queue();
-			return;
-		}
-		
-		if (member.getUser().isBot()) {
-			event.reply("You cannot give repuation to bots :no_entry:").queue();
-			return;
-		}
-		
 		if (amountOption) {
-			Map<String, Object> data = r.table("bank").get(member.getUser().getId()).run(connection);
-			event.reply(String.format("%s currently %s **%,d** repuatation", member.equals(event.getMember()) ? "You" : member.getUser().getAsTag(), member.equals(event.getMember()) ? "have" : "has", 
-					data == null ? 0 : (long) data.get("rep"))).queue();
+			int reputation = database.getUserById(member.getIdLong(), null, Projections.include("reputation.amount")).getEmbedded(List.of("reputation", "amount"), 0);
+			event.reply(String.format("%s currently %s **%,d** repuatation", member.equals(event.getMember()) ? "You" : member.getUser().getAsTag(), member.equals(event.getMember()) ? "have" : "has", reputation)).queue();
 		} else {
-			EconomyUtils.insertData(member.getUser()).run(connection, OptArgs.of("durability", "soft"));
-			EconomyUtils.insertData(event.getAuthor()).run(connection, OptArgs.of("durability", "soft"));
-			Get userData = r.table("bank").get(member.getUser().getId());
-			Get authorData = r.table("bank").get(event.getAuthor().getId());
-			Map<String, Object> authorDataRan = authorData.run(connection);
+			if (member.equals(event.getMember())) {
+				event.reply("You cannot give reputation yourself :no_entry:").queue();
+				return;
+			}
 			
+			if (member.getUser().isBot()) {
+				event.reply("You cannot give repuation to bots :no_entry:").queue();
+				return;
+			}
+			
+			Long reputationCooldown = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("reputation.cooldown")).getEmbedded(List.of("reputation", "cooldown"), Long.class);
 			long timestampNow = Clock.systemUTC().instant().getEpochSecond();
-			Long repTime = (Long) authorDataRan.get("reptime");
 			
-			if (repTime == null) {
-				event.reply("**+1**, " + member.getUser().getName() + " has gained reputation").queue();
-				authorData.update(r.hashMap("reptime", timestampNow)).runNoReply(connection);
-				userData.update(row -> r.hashMap("rep", row.g("rep").add(1))).runNoReply(connection);
-			} else if (timestampNow - repTime <= EconomyUtils.REPUTATION_COOLDOWN) {
-				event.reply("Slow down! You can give out reputation in " + TimeUtils.toTimeString(repTime - timestampNow + EconomyUtils.REPUTATION_COOLDOWN, ChronoUnit.SECONDS) + " :stopwatch:").queue();
+			if (reputationCooldown != null && timestampNow - reputationCooldown <= EconomyUtils.REPUTATION_COOLDOWN) {
+				event.reply("Slow down! You can give out reputation in " + TimeUtils.toTimeString(reputationCooldown - timestampNow + EconomyUtils.REPUTATION_COOLDOWN, ChronoUnit.SECONDS) + " :stopwatch:").queue();
 			} else {
-				event.reply("**+1**, " + member.getUser().getName() + " has gained reputation").queue();
-				authorData.update(r.hashMap("reptime", timestampNow)).runNoReply(connection);
-				userData.update(row -> r.hashMap("rep", row.g("rep").add(1))).runNoReply(connection);
+				UpdateOptions updateOptions = new UpdateOptions().upsert(true);
+				List<WriteModel<Document>> bulkData = List.of(
+					new UpdateOneModel<>(Filters.eq("_id", event.getAuthor().getIdLong()), Updates.set("reputation.cooldown", timestampNow), updateOptions),
+					new UpdateOneModel<>(Filters.eq("_id", member.getIdLong()), Updates.inc("reputation.amount", 1), updateOptions)
+				);
+				
+				database.bulkWriteUsers(bulkData, (result, exception) -> {
+					if (exception != null) {
+						exception.printStackTrace();
+						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+					} else {
+						event.reply("**+1**, " + member.getUser().getName() + " has gained reputation").queue();
+					}
+				});
 			}
 		}
 	}
 	
 	@Command(value="double or nothing", aliases={"don", "doubleornothing", "allin", "all in", "dn"}, description="Risk it all in the hope of doubling your money or losing it all", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 	@Cooldown(value=40)
-	public void doubleOrNothing(CommandEvent event, @Context Connection connection) {
-		Get data = r.table("bank").get(event.getAuthor().getId());
-		Map<String, Object> dataRan = data.run(connection);
-		
-		if (dataRan == null || (long) dataRan.get("balance") < 1) {
+	public void doubleOrNothing(CommandEvent event, @Context Database database) {
+		long balance = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance")).getEmbedded(List.of("economy", "balance"), 0);
+		if (balance < 1) {
 			event.reply("You do not have any money to bet :no_entry:").queue();
 			event.removeCooldown();
 			return;
 		}
 
-		long balance = (long) dataRan.get("balance");
 		event.reply(String.format(event.getAuthor().getName() + ", this will bet **$%,d** are you sure you want to bet this (Yes or No)", balance)).queue(originalMessage -> {
 			PagedUtils.getConfirmation(event, 30, event.getAuthor(), confirmation -> {
-				if (confirmation == true) {
-					originalMessage.delete().queue(null, e -> {});
-					event.reply(String.format("You just put **$%,d** on the line and...", balance)).queue(message -> {
-						if (random.nextInt(2) == 0) {
-							message.editMessage(String.format("You double your money! **+$%,d**", balance)).queueAfter(2, TimeUnit.SECONDS);
-							data.update(row -> r.hashMap("winnings", row.g("winnings").add(row.g("balance"))).with("balance", row.g("balance").mul(2))).runNoReply(connection);
-						} else {
-							message.editMessage(String.format("You lost it all! **-$%,d**", balance)).queueAfter(2, TimeUnit.SECONDS);
-							data.update(row -> r.hashMap("winnings", row.g("winnings").sub(row.g("balance"))).with("balance", 0)).runNoReply(connection);
-						}
-							
-						event.removeCooldown();
-					});
-				} else {
-					event.reply("Cancelled <:done:403285928233402378>").queue();
+				long balanceUpdated = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance")).getEmbedded(List.of("economy", "balance"), 0);
+				if (balanceUpdated < 1) {
+					event.reply("You do not have any money to bet :no_entry:").queue();
 					event.removeCooldown();
+					return;
+				} else {
+					if (confirmation) {
+						originalMessage.delete().queue(null, e -> {});
+						event.reply(String.format("You just put **$%,d** on the line and...", balanceUpdated)).queue(message -> {
+							Bson update;
+							String messageString;
+							if (random.nextBoolean()) {
+								update = Updates.combine(
+									Updates.mul("economy.balance", 2),
+									Updates.inc("economy.winnings", balanceUpdated)
+								);
+								
+								messageString = String.format("You double your money! **+$%,d**", balanceUpdated);
+							} else {
+								update = Updates.combine(
+										Updates.set("economy.balance", 0),
+										Updates.inc("economy.winnings", -balanceUpdated)
+								);
+									
+								messageString = String.format("You lost it all! **-$%,d**", balanceUpdated);
+							}
+							
+							database.updateUserById(event.getAuthor().getIdLong(), update, (result, exception) -> {
+								if (exception != null) {
+									exception.printStackTrace();
+									event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+								} else {
+									message.editMessage(messageString).queueAfter(2, TimeUnit.SECONDS);
+								}
+							});
+								
+							event.removeCooldown();
+						});
+					} else {
+						event.reply("Cancelled <:done:403285928233402378>").queue();
+						event.removeCooldown();
+					}
 				}
 			});
 		});
@@ -968,14 +1069,14 @@ public class EconomyModule {
 		
 		@Command(value="shop", aliases={"list"}, description="View all the miners you can buy", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-		public void shop(CommandEvent event, @Context Connection connection) {
-			Map<String, Object> data = r.table("bank").get(event.getAuthor().getId()).run(connection);
+		public void shop(CommandEvent event, @Context Database database) {
+			long balance = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance")).getEmbedded(List.of("economy", "balance"), 0);
 			
 			EmbedBuilder embed = new EmbedBuilder();
 			embed.setAuthor("Miner Shop", null, event.getSelfUser().getEffectiveAvatarUrl());
 			embed.setDescription("Miners are a good way to easily gather materials");
 			embed.setColor(Settings.EMBED_COLOUR);
-			embed.setFooter(String.format("Use %sminer buy <miner> to buy a miner | Balance: $%,d", event.getPrefix(), data == null ? 0 : (long) data.get("balance")), event.getAuthor().getEffectiveAvatarUrl());
+			embed.setFooter(String.format("Use %sminer buy <miner> to buy a miner | Balance: $%,d", event.getPrefix(), balance), event.getAuthor().getEffectiveAvatarUrl());
 			
 			for (Miner miner : Miner.ALL) {
 				if (miner.isBuyable()) {
@@ -986,11 +1087,11 @@ public class EconomyModule {
 			event.reply(embed.build()).queue();
 		}
 		
-		@SuppressWarnings("unchecked")
 		@Command(value="buy", description="Buy a miner which is displayed in the miner shop")
-		public void buy(CommandEvent event, @Context Connection connection, @Argument(value="miner name", endless=true) String minerArgument) {
-			Get data = r.table("bank").get(event.getAuthor().getId());
-			Map<String, Object> dataRan = data.run(connection);
+		public void buy(CommandEvent event, @Context Database database, @Argument(value="miner name", endless=true) String minerArgument) {
+			Document data = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance", "economy.items")).get("economy", Database.EMPTY_DOCUMENT);
+			List<Document> items = data.getList("items", Document.class, Collections.emptyList());
+			long balance = data.get("balance", 0);
 			
 			Pair<String, BigInteger> minerPair = EconomyUtils.getItemAndAmount(minerArgument);
 			String minerName = minerPair.getLeft();
@@ -1007,42 +1108,39 @@ public class EconomyModule {
 				return;
 			}
 			
-			if (dataRan == null) {
-				event.reply(String.format("You do not have enough money to purchase `%,d %s` :no_entry:", minerAmount, miner.getName())).queue();
-				return;
-			}
-			
 			BigInteger price = BigInteger.valueOf(miner.getPrice()).multiply(minerAmount);
-			if (BigInteger.valueOf((long) dataRan.get("balance")).compareTo(price) != -1) {
-				event.reply(String.format("You just bought `%,d %s` for **$%,d** :ok_hand:", minerAmount, miner.getName(), price.longValue())).queue();
-				data.update(row -> r.hashMap("items", EconomyUtils.addItems((List<Map<String, Object>>) dataRan.get("items"), miner, minerAmount.longValue())).with("balance", row.g("balance").sub(price.longValue()))).runNoReply(connection);
+			if (BigInteger.valueOf(balance).compareTo(price) != -1) {
+				UpdateOneModel<Document> updateModel = EconomyUtils.getAddItemModel(items, miner, minerAmount.longValue());
+				UpdateOptions updateOptions = new UpdateOptions().arrayFilters(updateModel.getOptions().getArrayFilters()).upsert(true);
+				Bson update = Updates.combine(
+					Updates.inc("economy.balance", -price.longValue()),
+					updateModel.getUpdate()
+				);
+				
+				database.updateUserById(event.getAuthor().getIdLong(), null, update, updateOptions, (result, exception) -> {
+					if (exception != null) {
+						exception.printStackTrace();
+						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+					} else {
+						event.reply(String.format("You just bought `%,d %s` for **$%,d** :ok_hand:", minerAmount, miner.getName(), price.longValue())).queue();
+					}
+				});
 			} else {
 				event.reply(String.format("You do not have enough money to purchase `%,d %s` :no_entry:", minerAmount, miner.getName())).queue();
 			}
 		}
 		
-		@SuppressWarnings("unchecked")
 		@Command(value="collect", description="Collect your materials from all the miners you own", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-		public void collect(CommandEvent event, @Context Connection connection) {
-			Get data = r.table("bank").get(event.getAuthor().getId());
-			Map<String, Object> dataRan = data.run(connection);
+		public void collect(CommandEvent event, @Context Database database) {
+			Document data = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items", "economy.minerCooldown")).get("economy", Database.EMPTY_DOCUMENT);
 			
-			if (dataRan == null) {
-				event.reply("You do not own any miners :no_entry:").queue();
-				return;
-			}
-			
+			List<Document> items = data.getList("items", Document.class, Collections.emptyList());
 			Map<Miner, Long> userMiners = new HashMap<>();
-			List<Map<String, Object>> userItems = (List<Map<String, Object>>) dataRan.get("items");
-			for (Map<String, Object> userItem : userItems) {
+			for (Document item : items) {
 				for (Miner miner : Miner.ALL) {
-					if (miner.getName().equals((String) userItem.get("name"))) {
-						if (userMiners.containsKey(miner)) {
-							userMiners.put(miner, userMiners.get(miner) + (long) userItem.get("amount"));
-						} else {
-							userMiners.put(miner, (long) userItem.get("amount"));
-						}
+					if (miner.getName().equals(item.getString("name"))) {
+						userMiners.put(miner, item.getLong("amount"));
 					}
 				}
 			}
@@ -1053,60 +1151,10 @@ public class EconomyModule {
 			}
 			
 			long timestampNow = Clock.systemUTC().instant().getEpochSecond();
-			Long minerTime = (Long) dataRan.get("minertime");
+			Long minerTime = data.getLong("minerCooldown");
 			
 			EmbedBuilder embed = new EmbedBuilder();
-			if (minerTime == null) {
-				Map<Material, Long> materials = new HashMap<>();
-				for (Miner userMiner : userMiners.keySet()) {
-					for (Material material : Material.ALL) {
-						if (!material.isHidden()) {
-							double randomFloat = 0.85D + Math.random() * (1D - 0.85D);
-							long materialAmount = (long) Math.round((userMiners.get(userMiner) / Math.ceil(material.getChance() * userMiner.getMultiplier())) * userMiner.getMaximumMaterials() * randomFloat);
-							if (materialAmount != 0) {
-								if (materials.containsKey(material)) {
-									materials.put(material, materials.get(material) + materialAmount);
-								} else {
-									materials.put(material, materialAmount);
-								}
-							} else {
-								if (random.nextInt((int) Math.ceil(material.getChance() * userMiner.getMultiplier()) + 1) == 0) {
-									if (materials.containsKey(material)) {
-										materials.put(material, materials.get(material) + 1);
-									} else {
-										materials.put(material, 1L);
-									}
-								}
-							}
-						}
-					}
-				}
-				
-				String content = "";
-				if (!materials.isEmpty()) {
-					List<Material> materialKeys = GeneralUtils.convertSetToList(materials.keySet());
-					materialKeys.sort((a, b) -> Long.compare(materials.get(b), materials.get(a)));
-					for (Material key : materialKeys) {
-						long value = materials.get(key);
-						
-						userItems = EconomyUtils.addItems(userItems, key, value);
-						
-						content += key.getName() + " x" + String.format("%,d", value) + key.getEmote();
-						if (materialKeys.indexOf(key) != materialKeys.size() - 1) {
-							content += ", ";
-						}
-					}
-				} else {
-					content = "Absolutely nothing";
-				}
-				
-				embed.setAuthor(event.getAuthor().getName(), null, event.getAuthor().getEffectiveAvatarUrl());
-				embed.setDescription("You used your miners and gathered these materials: " + content);
-				embed.setColor(event.getMember().getColor());
-				event.reply(embed.build()).queue();
-				
-				data.update(r.hashMap("items", userItems).with("minertime", timestampNow)).runNoReply(connection);
-			} else if (timestampNow - minerTime <= EconomyUtils.MINER_COOLDOWN) {
+			if (minerTime != null && timestampNow - minerTime <= EconomyUtils.MINER_COOLDOWN) {
 				event.reply("Slow down! You can collect from your miner in " + TimeUtils.toTimeString(minerTime - timestampNow + EconomyUtils.MINER_COOLDOWN, ChronoUnit.SECONDS) + " :stopwatch:").queue();
 			} else {
 				Map<Material, Long> materials = new HashMap<>();
@@ -1134,30 +1182,43 @@ public class EconomyModule {
 					}
 				}
 				
-				String content = "";
+				List<Bson> arrayFilters = new ArrayList<>();
+				Bson update = new BsonDocument();
+				
+				StringBuilder contentBuilder = new StringBuilder();
 				if (!materials.isEmpty()) {
 					List<Material> materialKeys = GeneralUtils.convertSetToList(materials.keySet());
 					materialKeys.sort((a, b) -> Long.compare(materials.get(b), materials.get(a)));
-					for (Material key : materialKeys) {
+					for (int i = 0; i < materialKeys.size(); i++) {
+						Material key = materialKeys.get(i);
 						long value = materials.get(key);
 						
-						userItems = EconomyUtils.addItems(userItems, key, value);
+						UpdateOneModel<Document> updateModel = EconomyUtils.getAddItemModel(items, key, value);
+						update = Updates.combine(update, updateModel.getUpdate());
+						arrayFilters.addAll(updateModel.getOptions().getArrayFilters());
 						
-						content += key.getName() + " x" + String.format("%,d", value) + key.getEmote();
-						if (materialKeys.indexOf(key) != materialKeys.size() - 1) {
-							content += ", ";
+						contentBuilder.append(key.getName() + " x" + String.format("%,d", value) + key.getEmote());
+						if (i != materialKeys.size() - 1) {
+							contentBuilder.append(", ");
 						}
 					}
 				} else {
-					content = "Absolutely nothing";
+					contentBuilder = new StringBuilder("Absolutely nothing");
 				}
 				
 				embed.setAuthor(event.getAuthor().getName(), null, event.getAuthor().getEffectiveAvatarUrl());
-				embed.setDescription("You used your miners and gathered these materials: " + content);
+				embed.setDescription("You used your miners and gathered these materials: " + contentBuilder.toString());
 				embed.setColor(event.getMember().getColor());
-				event.reply(embed.build()).queue();
 				
-				data.update(r.hashMap("items", userItems).with("minertime", timestampNow)).runNoReply(connection);
+				UpdateOptions updateOptions = new UpdateOptions().arrayFilters(arrayFilters).upsert(true);
+				database.updateUserById(event.getAuthor().getIdLong(), null, update, updateOptions, (result, exception) -> {
+					if (exception != null) {
+						exception.printStackTrace();
+						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+					} else {
+						event.reply(embed.build()).queue();
+					}
+				});
 			}
 		}
 		
@@ -1179,44 +1240,43 @@ public class EconomyModule {
 		
 		@Command(value="shop", aliases={"list"}, description="View all the pickaxes you can buy/craft", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-		public void shop(CommandEvent event, @Context Connection connection) {
-			Map<String, Object> data = r.table("bank").get(event.getAuthor().getId()).run(connection);
+		public void shop(CommandEvent event, @Context Database database) {
+			long balance = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance")).getEmbedded(List.of("economy", "balance"), 0);
 			
 			EmbedBuilder embed = new EmbedBuilder();
 			embed.setAuthor("Pickaxe Shop", null, event.getSelfUser().getEffectiveAvatarUrl());
 			embed.setColor(Settings.EMBED_COLOUR);
 			embed.setDescription("Pickaxes are a good way to gain some extra money aswell as some materials");
-			embed.setFooter(String.format("Use %spickaxe buy <pickaxe> to buy a pickaxe | Balance: $%,d", event.getPrefix(), data == null ? 0 : (long) data.get("balance")), event.getAuthor().getEffectiveAvatarUrl());
+			embed.setFooter(String.format("Use %spickaxe buy <pickaxe> to buy a pickaxe | Balance: $%,d", event.getPrefix(), balance), event.getAuthor().getEffectiveAvatarUrl());
 			
 			for (Pickaxe pickaxe : Pickaxe.ALL) {
 				if (pickaxe.isBuyable() || pickaxe.isCraftable()) {
-					String craftContent = "";
+					StringBuilder craftContent = new StringBuilder();
 					if (pickaxe.isCraftable()) {
 						List<ItemStack> craftingItems = pickaxe.getCraftingRecipe().getCraftingItems();
-						for (ItemStack itemStack : craftingItems) {
-							craftContent += itemStack.getAmount() + " " + itemStack.getItem().getName();
-							if (craftingItems.indexOf(itemStack) != craftingItems.size() - 1) {
-								craftContent += "\n";
+						for (int i = 0; i < craftingItems.size(); i++) {
+							ItemStack itemStack = craftingItems.get(i);
+							craftContent.append(itemStack.getAmount() + " " + itemStack.getItem().getName());
+							if (i != craftingItems.size() - 1) {
+								craftContent.append("\n");
 							}
 						}
 					}
 					
-					if (craftContent.equals("")) {
-						craftContent = "Not Craftable";
+					if (craftContent.length() == 0) {
+						craftContent = new StringBuilder("Not Craftable");
 					}
 					
-					embed.addField(pickaxe.getName(), "Price: " + (pickaxe.isBuyable() ? String.format("$%,d", pickaxe.getPrice()) : "Not Buyable") + "\nCraft: " + craftContent + "\nDurability: " + pickaxe.getDurability(), true);
+					embed.addField(pickaxe.getName(), "Price: " + (pickaxe.isBuyable() ? String.format("$%,d", pickaxe.getPrice()) : "Not Buyable") + "\nCraft: " + craftContent.toString() + "\nDurability: " + pickaxe.getDurability(), true);
 				}
 			}
 			
 			event.reply(embed.build()).queue();
 		}
 		
-		@SuppressWarnings("unchecked")
 		@Command(value="buy", description="Buy a pickaxe which is listed in the pickaxe shop")
-		public void buy(CommandEvent event, @Context Connection connection, @Argument(value="pickaxe name", endless=true) String pickaxeName) {
-			Get data = r.table("bank").get(event.getAuthor().getId());
-			Map<String, Object> dataRan = data.run(connection);
+		public void buy(CommandEvent event, @Context Database database, @Argument(value="pickaxe name", endless=true) String pickaxeName) {
+			Document data = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance", "economy.items")).get("economy", Database.EMPTY_DOCUMENT);
 			
 			Pickaxe pickaxe = Pickaxe.getPickaxeByName(pickaxeName);
 			if (pickaxe == null) {
@@ -1229,20 +1289,29 @@ public class EconomyModule {
 				return;
 			}
 			
-			if (dataRan == null) {
-				event.reply("You do not have enough money to purchase a `" + pickaxe.getName() + "` :no_entry:").queue();
-				return;
-			}
-			
-			List<Map<String, Object>> userItems = (List<Map<String, Object>>) dataRan.get("items");
+			List<Document> userItems = data.getList("items", Document.class, Collections.emptyList());
 			if (EconomyUtils.hasPickaxe(userItems)) {
 				event.reply("You already own a pickaxe :no_entry:").queue();
 				return;
 			}
 			
-			if ((long) dataRan.get("balance") >= pickaxe.getPrice()) {
-				event.reply("You just bought a `" + pickaxe.getName() + "` for " + String.format("**$%,d**", pickaxe.getPrice()) + " :ok_hand:").queue();
-				data.update(row -> r.hashMap("items", EconomyUtils.addItem(userItems, pickaxe, pickaxe.getStoreInfo())).with("balance", row.g("balance").sub(pickaxe.getPrice())).with("pickdur", pickaxe.getDurability())).runNoReply(connection);
+			long balance = data.get("balance", 0);
+			if (balance >= pickaxe.getPrice()) {
+				UpdateOneModel<Document> updateModel = EconomyUtils.getAddItemModel(userItems, pickaxe, 1, new Document("currentDurability", pickaxe.getDurability()));
+				UpdateOptions updateOptions = new UpdateOptions().arrayFilters(updateModel.getOptions().getArrayFilters()).upsert(true);
+				Bson update = Updates.combine(
+						updateModel.getUpdate(),
+						Updates.inc("economy.balance", -pickaxe.getPrice())
+				);
+				
+				database.updateUserById(event.getAuthor().getIdLong(), null, update, updateOptions, (result, exception) -> {
+					if (exception != null) {
+						exception.printStackTrace();
+						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+					} else {
+						event.reply("You just bought a `" + pickaxe.getName() + "` for " + String.format("**$%,d**", pickaxe.getPrice()) + " :ok_hand:").queue();
+					}
+				});
 			} else {
 				event.reply("You do not have enough money to purchase a `" + pickaxe.getName() + "` :no_entry:").queue();
 			}
@@ -1250,7 +1319,7 @@ public class EconomyModule {
 		
 		@Command(value="info", description="Gives info of yours or another users pickaxe")
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-		public void info(CommandEvent event, @Context Connection connection, @Argument(value="user", endless=true, nullDefault=true) String userArgument) {
+		public void info(CommandEvent event, @Context Database database, @Argument(value="user", endless=true, nullDefault=true) String userArgument) {
 			Member member;
 			if (userArgument == null) {
 				member = event.getMember();
@@ -1262,13 +1331,9 @@ public class EconomyModule {
 				}
 			}
 			
-			Map<String, Object> data = r.table("bank").get(member.getUser().getId()).run(connection);
-			if (data == null) {
-				event.reply((member.equals(event.getMember()) ? "You do" : "That user does") + " not have a pickaxe :no_entry:").queue();
-				return;
-			}
 			
-			Pickaxe pickaxe = EconomyUtils.getUserPickaxe(data);
+			List<Document> items = database.getUserById(member.getIdLong(), null, Projections.include("economy.items")).getEmbedded(List.of("economy", "items"), Collections.emptyList());
+			Pickaxe pickaxe = EconomyUtils.getUserPickaxe(items);
 			if (pickaxe == null) {
 				event.reply((member.equals(event.getMember()) ? "You do" : "That user does") + " not have a pickaxe :no_entry:").queue();
 				return;
@@ -1288,12 +1353,8 @@ public class EconomyModule {
 			event.reply(embed.build()).queue();
 		}
 		
-		@SuppressWarnings("unchecked")
 		@Command(value="craft", description="Craft a pickaxe which is in the pickaxe shop aslong as it displays as craftable")
-		public void craft(CommandEvent event, @Context Connection connection, @Argument(value="pickaxe name", endless=true) String pickaxeName) {
-			Get data = r.table("bank").get(event.getAuthor().getId());
-			Map<String, Object> dataRan = data.run(connection);
-			
+		public void craft(CommandEvent event, @Context Database database, @Argument(value="pickaxe name", endless=true) String pickaxeName) {
 			Pickaxe pickaxe = Pickaxe.getPickaxeByName(pickaxeName);
 			if (pickaxe == null) {
 				event.reply("I could not find that pickaxe :no_entry:").queue();
@@ -1305,17 +1366,16 @@ public class EconomyModule {
 				return;
 			}
 			
-			if (dataRan == null) {
-				event.reply("You do not have enough money to purchase a `" + pickaxe.getName() + "` :no_entry:").queue();
-				return;
-			}
-			
-			List<Map<String, Object>> userItems = (List<Map<String, Object>>) dataRan.get("items");
+			List<Document> userItems = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items")).getEmbedded(List.of("economy", "items"), Collections.emptyList());
 			if (EconomyUtils.hasPickaxe(userItems)) {
 				event.reply("You already own a pickaxe :no_entry:").queue();
 				return;
 			}
 			
+			UpdateOneModel<Document> updateModel = EconomyUtils.getAddItemModel(userItems, pickaxe, 1, new Document("currentDurability", pickaxe.getDurability()));
+			List<Bson> arrayFilters = new ArrayList<>();
+			Bson update = updateModel.getUpdate();
+			arrayFilters.addAll(updateModel.getOptions().getArrayFilters());
 			for (ItemStack craftItem : pickaxe.getCraftingRecipe().getCraftingItems()) {
 				ItemStack userItem = EconomyUtils.getUserItem(userItems, craftItem.getItem());
 				if (userItem.getAmount() < craftItem.getAmount()) {
@@ -1323,27 +1383,27 @@ public class EconomyModule {
 					return;
 				}
 				
-				userItems = EconomyUtils.removeItems(userItems, craftItem.getItem(), craftItem.getAmount());
+				UpdateOneModel<Document> craftUpdateModel = EconomyUtils.getRemoveItemModel(userItems, craftItem);
+				update = Updates.combine(update, craftUpdateModel.getUpdate());
+				arrayFilters.addAll(craftUpdateModel.getOptions().getArrayFilters());
 			}
 			
-			event.reply("You just crafted a `" + pickaxe.getName() + "` with " + GeneralUtils.joinGrammatical(pickaxe.getCraftingRecipe().getCraftingItems()) + " :ok_hand:").queue();
-			
-			userItems = EconomyUtils.addItem(userItems, pickaxe);
-			data.update(r.hashMap("items", userItems).with("pickdur", pickaxe.getDurability())).runNoReply(connection);
+			UpdateOptions updateOptions = new UpdateOptions().arrayFilters(arrayFilters).upsert(true);
+			database.updateUserById(event.getAuthor().getIdLong(), null, update, updateOptions, (result, exception) -> {
+				if (exception != null) {
+					exception.printStackTrace();
+					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+				} else {
+					event.reply("You just crafted a `" + pickaxe.getName() + "` with " + GeneralUtils.joinGrammatical(pickaxe.getCraftingRecipe().getCraftingItems()) + " :ok_hand:").queue();
+				}
+			});
 		}
 		
-		@SuppressWarnings("unchecked")
 		@Command(value="upgrade", description="Upgrade your current pickaxe, you can view the upgrades you can use pickaxe upgrades")
-		public void upgrade(CommandEvent event, @Context Connection connection, @Argument(value="upgrade name") String upgradeName) {
-			Get data = r.table("bank").get(event.getAuthor().getId());
-			Map<String, Object> dataRan = data.run(connection);
+		public void upgrade(CommandEvent event, @Context Database database, @Argument(value="upgrade name") String upgradeName) {
+			Document data = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance", "economy.items")).get("economy", Database.EMPTY_DOCUMENT);
 			
-			if (dataRan == null) {
-				event.reply("You do not own a pickaxe :no_entry:").queue();
-				return;
-			}
-			
-			List<Map<String, Object>> items = (List<Map<String, Object>>) dataRan.get("items");
+			List<Document> items = data.getList("items", Document.class, Collections.emptyList());
 			if (!EconomyUtils.hasPickaxe(items)) {
 				event.reply("You do not own a pickaxe :no_entry:").queue();
 				return;
@@ -1355,7 +1415,7 @@ public class EconomyModule {
 				return;
 			}
 			
-			Pickaxe pickaxe = EconomyUtils.getUserPickaxe(dataRan);
+			Pickaxe pickaxe = EconomyUtils.getUserPickaxe(items);
 			Pickaxe defaultPickaxe = pickaxe.getDefaultPickaxe();
 			
 			if (!pickaxe.isBuyable()) {
@@ -1363,29 +1423,44 @@ public class EconomyModule {
 				return;
 			}
 			
+			long balance = data.get("price", 0);
 			long price = Math.round((defaultPickaxe.getPrice() * 0.025D) + (pickaxe.getUpgrades() * (defaultPickaxe.getPrice() * 0.015D)));
-			if ((long) dataRan.get("balance") >= price) {
-				Map<String, Object> storeInfo = pickaxe.getStoreInfo();
-				storeInfo.put("upgrades", pickaxe.getUpgrades() + 1);
-				storeInfo.put("price", pickaxe.getPrice() + Math.round(defaultPickaxe.getPrice() * 0.015D));
+			if (balance >= price) {
+				Bson update = Updates.combine(
+						Updates.inc("economy.items.$[pickaxe].upgrades", 1),
+						Updates.set("economy.items.$[pickaxe].price", pickaxe.getPrice() + Math.round(defaultPickaxe.getPrice() * 0.015D)),
+						Updates.inc("economy.balance", -price)
+				);
 				
 				if (upgrade.equals(PickaxeUpgrade.MONEY)) {
 					long increase = Math.round(defaultPickaxe.getMinimumYield() * upgrade.getIncreasePerUpgrade());
-					storeInfo.put("rand_min", pickaxe.getMinimumYield() + increase);
-					storeInfo.put("rand_max", pickaxe.getMaximumYield() + increase);
-					
-					data.update(row -> r.hashMap("items", EconomyUtils.editItem(items, pickaxe, storeInfo)).with("balance", row.g("balance").sub(price))).runNoReply(connection);
+					update = Updates.combine(
+							update,
+							Updates.set("economy.items.$[pickaxe].minimumYield", pickaxe.getMinimumYield() + increase),
+							Updates.set("economy.items.$[pickaxe].maximumYeild", pickaxe.getMaximumYield() + increase)
+					);
 				} else if (upgrade.equals(PickaxeUpgrade.DURABILITY)) {
-					storeInfo.put("durability", pickaxe.getDurability() + upgrade.getIncreasePerUpgrade());
-					
-					data.update(row -> r.hashMap("items", EconomyUtils.editItem(items, pickaxe, storeInfo)).with("balance", row.g("balance").sub(price)).with("pickdur", row.g("pickdur").add(upgrade.getIncreasePerUpgrade()))).runNoReply(connection);
+					update = Updates.combine(
+							update, 
+							Updates.set("economy.items.$[pickaxe].maximumDurability", pickaxe.getDurability() + upgrade.getIncreasePerUpgrade()),
+							Updates.inc("economy.items.$[pickaxe].currentDurability", upgrade.getIncreasePerUpgrade())
+					);
 				} else if (upgrade.equals(PickaxeUpgrade.MULTIPLIER)) {
-					storeInfo.put("multiplier", pickaxe.getMultiplier() + (pickaxe.getMultiplier() * upgrade.getIncreasePerUpgrade()));
-					
-					data.update(row -> r.hashMap("items", EconomyUtils.editItem(items, pickaxe, storeInfo)).with("balance", row.g("balance").sub(price))).runNoReply(connection);
+					update = Updates.combine(
+							update,
+							Updates.set("economy.items.$[pickaxe].multiplier", pickaxe.getMultiplier() * upgrade.getIncreasePerUpgrade())
+					);
 				}
 				
-				event.reply("You just upgraded your " + upgrade.getName().toLowerCase() + " for your `" + pickaxe.getName() + "` for " + String.format("**$%,d**", price) + " :ok_hand:").queue();
+				UpdateOptions updateOptions = new UpdateOptions().arrayFilters(List.of(Filters.eq("pickaxe.name", pickaxe.getName()))).upsert(true);
+				database.updateUserById(event.getAuthor().getIdLong(), null, update, updateOptions, (result, exception) -> {
+					if (exception != null) {
+						exception.printStackTrace();
+						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+					} else {
+						event.reply("You just upgraded your " + upgrade.getName().toLowerCase() + " for your `" + pickaxe.getName() + "` for " + String.format("**$%,d**", price) + " :ok_hand:").queue();
+					}
+				});
 			} else {
 				event.reply("You cannot afford your pickaxes next upgrade it will cost you " + String.format("**$%,d**", price) + " :no_entry:").queue();
 			}
@@ -1393,19 +1468,19 @@ public class EconomyModule {
 		
 		@Command(value="upgrades", description="View all the upgrades you can put on your pickaxe and their current cost", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-		public void upgrades(CommandEvent event, @Context Connection connection) {
-			Map<String, Object> data = r.table("bank").get(event.getAuthor().getId()).run(connection);
+		public void upgrades(CommandEvent event, @Context Database database) {
+			Document data = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items", "economy.balance")).get("economy", Database.EMPTY_DOCUMENT);
+			long balance = data.get("balance", 0);
+			List<Document> items = data.getList("items", Document.class, Collections.emptyList());
 			
-			Pickaxe pickaxe = null, defaultPickaxe = null;
-			if (data != null) {
-				pickaxe = EconomyUtils.getUserPickaxe(data);
-				if (pickaxe != null) {
-					defaultPickaxe = pickaxe.getDefaultPickaxe();
-				}
+			Pickaxe defaultPickaxe = null;
+			Pickaxe pickaxe = EconomyUtils.getUserPickaxe(items);
+			if (pickaxe != null) {
+				defaultPickaxe = pickaxe.getDefaultPickaxe();
 			}
 			
 			EmbedBuilder embed = new EmbedBuilder();
-			embed.setFooter("Use pickaxe upgrade <upgrade> to apply an upgrade to your pickaxe | Balance: " + String.format("$%,d", data != null ? (long) data.get("balance") : 0), event.getAuthor().getEffectiveAvatarUrl());
+			embed.setFooter("Use pickaxe upgrade <upgrade> to apply an upgrade to your pickaxe | Balance: " + String.format("$%,d", balance), event.getAuthor().getEffectiveAvatarUrl());
 			embed.setAuthor("Pickaxe Upgrades", null, event.getSelfUser().getEffectiveAvatarUrl());
 			embed.setColor(event.getMember().getColor());
 			
@@ -1416,24 +1491,16 @@ public class EconomyModule {
 			event.reply(embed.build()).queue();
 		}
 		
-		@SuppressWarnings("unchecked")
 		@Command(value="repair", description="Repair your current pickaxe with its deticated material if it has one", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
-		public void repair(CommandEvent event, @Context Connection connection, @Argument(value="durability", nullDefault=true) Integer durabilityAmount) {
-			Get data = r.table("bank").get(event.getAuthor().getId());
-			Map<String, Object> dataRan = data.run(connection);
+		public void repair(CommandEvent event, @Context Database database, @Argument(value="durability", nullDefault=true) Integer durabilityAmount) {
+			List<Document> items = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items")).getEmbedded(List.of("economy", "items"), Collections.emptyList());
 			
-			if (dataRan == null) {
+			Pickaxe pickaxe = EconomyUtils.getUserPickaxe(items);
+			if (pickaxe == null) {
 				event.reply("You do not own a pickaxe :no_entry:").queue();
 				return;
 			}
 			
-			List<Map<String, Object>> items = (List<Map<String, Object>>) dataRan.get("items");
-			if (!EconomyUtils.hasPickaxe(items)) {
-				event.reply("You do not own a pickaxe :no_entry:").queue();
-				return;
-			}
-			
-			Pickaxe pickaxe = EconomyUtils.getUserPickaxe(dataRan);
 			if (!pickaxe.isRepairable()) {
 				event.reply("Your pickaxe is not repairable :no_entry:").queue();
 				return;
@@ -1472,31 +1539,53 @@ public class EconomyModule {
 					if (confirmation) {
 						message.delete().queue();
 						
-						Map<String, Object> dataRanNew = data.run(connection);
+						List<Document> itemsNew = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items")).getEmbedded(List.of("economy", "items"), Collections.emptyList());
 						
-						if ((long) dataRanNew.get("pickdur") != pickaxe.getCurrentDurability()) {
+						Pickaxe pickaxeNew = EconomyUtils.getUserPickaxe(itemsNew);
+						if (pickaxeNew == null) {
+							event.reply("You no longer own a pickaxe :no_entry:").queue();
+						}
+						
+						if (!pickaxeNew.getName().equals(pickaxe.getName())) {
+							event.reply("You have changed pickaxe since you answered :no_entry:").queue();
+						}
+						
+						if (pickaxeNew.getCurrentDurability() != pickaxe.getCurrentDurability()) {
 							event.reply("Your pickaxe durability has changed since answering :no_entry:").queue();
 							return;
 						}
 						
-						List<Map<String, Object>> itemsNew = (List<Map<String, Object>>) dataRanNew.get("items");
 						ItemStack userItemNew = EconomyUtils.getUserItem(itemsNew, repairItem);
 						if (userItemNew.getAmount() < cost) {
 							long fixBy = pickaxe.getEstimateOfDurability(userItemNew.getAmount());
 							event.reply("You do not have enough materials to fix your pickaxe by **" + durabilityNeeded + "** durability, you would need `" + cost + " " + repairItem.getName() + "`. You can fix your pickaxe by **" + fixBy + "** durability with your current amount of `" + repairItem.getName() + "` :no_entry:").queue();
 							return;
 						}
+					
+						UpdateOneModel<Document> updateModel = EconomyUtils.getRemoveItemModel(items, repairItem, cost);
+						List<Bson> arrayFilters = new ArrayList<>();
+						arrayFilters.add(Filters.eq("pickaxe.name", pickaxe.getName()));
+						arrayFilters.addAll(updateModel.getOptions().getArrayFilters());
+						UpdateOptions updateOptions = new UpdateOptions().arrayFilters(arrayFilters).upsert(true);
+						Bson update = Updates.combine(
+								updateModel.getUpdate(),
+								Updates.inc("economy.items.$[pickaxe].currentDurability", durabilityNeeded)
+						);
 						
-						event.reply("You just repaired your pickaxe by **" + durabilityNeeded + "** durability :ok_hand:").queue();
-						
-						data.update(row -> r.hashMap("items", EconomyUtils.removeItems(itemsNew, repairItem, cost)).with("pickdur", row.g("pickdur").add(durabilityNeeded))).runNoReply(connection);
+						database.updateUserById(event.getAuthor().getIdLong(), null, update, updateOptions, (result, exception) -> {
+							if (exception != null) {
+								exception.printStackTrace();
+								event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+							} else {
+								event.reply("You just repaired your pickaxe by **" + durabilityNeeded + "** durability :ok_hand:").queue();
+							}
+						});
 					} else {
 						event.reply("Cancelled <:done:403285928233402378>").queue();
 					}
 				});
 			});
 		}
-		
 	}
 	
 	public class FishingRodCommand extends Sx4Command {
@@ -1515,44 +1604,43 @@ public class EconomyModule {
 		
 		@Command(value="shop", aliases={"list"}, description="View all the rods you can buy/craft")
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-		public void shop(CommandEvent event, @Context Connection connection) {
-			Map<String, Object> data = r.table("bank").get(event.getAuthor().getId()).run(connection);
+		public void shop(CommandEvent event, @Context Database database) {
+			long balance = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance")).getEmbedded(List.of("economy", "balance"), 0);
 			
 			EmbedBuilder embed = new EmbedBuilder();
 			embed.setAuthor("Fishing Rod Shop", null, event.getSelfUser().getEffectiveAvatarUrl());
 			embed.setColor(Settings.EMBED_COLOUR);
 			embed.setDescription("Fishing rods are a good way to gain some extra money from each fish");
-			embed.setFooter(String.format("Use %sfishing rod buy <fishing rod> to buy a fishing rod | Balance: $%,d", event.getPrefix(), data == null ? 0 : (long) data.get("balance")), event.getAuthor().getEffectiveAvatarUrl());
+			embed.setFooter(String.format("Use %sfishing rod buy <fishing rod> to buy a fishing rod | Balance: $%,d", event.getPrefix(), balance), event.getAuthor().getEffectiveAvatarUrl());
 			
 			for (Rod rod : Rod.ALL) {
 				if (rod.isBuyable() || rod.isCraftable()) {
-					String craftContent = "";
+					StringBuilder craftContent = new StringBuilder();
 					if (rod.isCraftable()) {
 						List<ItemStack> craftingItems = rod.getCraftingRecipe().getCraftingItems();
-						for (ItemStack itemStack : craftingItems) {
-							craftContent += itemStack.getAmount() + " " + itemStack.getItem().getName();
-							if (craftingItems.indexOf(itemStack) != craftingItems.size() - 1) {
-								craftContent += "\n";
+						for (int i = 0; i < craftingItems.size(); i++) {
+							ItemStack itemStack = craftingItems.get(i);
+							craftContent.append(itemStack.getAmount() + " " + itemStack.getItem().getName());
+							if (i != craftingItems.size() - 1) {
+								craftContent.append("\n");
 							}
 						}
 					}
 					
-					if (craftContent.equals("")) {
-						craftContent = "Not Craftable";
+					if (craftContent.length() == 0) {
+						craftContent = new StringBuilder("Not Craftable");
 					}
 					
-					embed.addField(rod.getName(), "Price: " + (rod.isBuyable() ? String.format("$%,d", rod.getPrice()) : "Not Buyable") + "\nCraft: " + craftContent + "\nDurability: " + rod.getDurability(), true);
+					embed.addField(rod.getName(), "Price: " + (rod.isBuyable() ? String.format("$%,d", rod.getPrice()) : "Not Buyable") + "\nCraft: " + craftContent.toString() + "\nDurability: " + rod.getDurability(), true);
 				}
 			}
 			
 			event.reply(embed.build()).queue();
 		}
 		
-		@SuppressWarnings("unchecked")
 		@Command(value="buy", description="Buy a fishing rod which is listed in the fishing rod shop")
-		public void buy(CommandEvent event, @Context Connection connection, @Argument(value="fishing rod name", endless=true) String rodName) {
-			Get data = r.table("bank").get(event.getAuthor().getId());
-			Map<String, Object> dataRan = data.run(connection);
+		public void buy(CommandEvent event, @Context Database database, @Argument(value="fishing rod name", endless=true) String rodName) {
+			Document data = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance", "economy.items")).get("economy", Database.EMPTY_DOCUMENT);
 			
 			Rod rod = Rod.getRodByName(rodName);
 			if (rod == null) {
@@ -1565,20 +1653,29 @@ public class EconomyModule {
 				return;
 			}
 			
-			if (dataRan == null) {
-				event.reply("You do not have enough money to purchase a `" + rod.getName() + "` :no_entry:").queue();
-				return;
-			}
-			
-			List<Map<String, Object>> userItems = (List<Map<String, Object>>) dataRan.get("items");
+			List<Document> userItems = data.getList("items", Document.class, Collections.emptyList());
 			if (EconomyUtils.hasRod(userItems)) {
 				event.reply("You already own a fishing rod :no_entry:").queue();
 				return;
 			}
 			
-			if ((long) dataRan.get("balance") >= rod.getPrice()) {
-				event.reply("You just bought a `" + rod.getName() + "` for " + String.format("**$%,d**", rod.getPrice()) + " :ok_hand:").queue();
-				data.update(row -> r.hashMap("items", EconomyUtils.addItem(userItems, rod, rod.getStoreInfo())).with("balance", row.g("balance").sub(rod.getPrice())).with("roddur", rod.getDurability())).runNoReply(connection);
+			long balance = data.get("balance", 0);
+			if (balance >= rod.getPrice()) {
+				UpdateOneModel<Document> updateModel = EconomyUtils.getAddItemModel(userItems, rod, 1, new Document("currentDurability", rod.getDurability()));
+				UpdateOptions updateOptions = new UpdateOptions().arrayFilters(updateModel.getOptions().getArrayFilters()).upsert(true);
+				Bson update = Updates.combine(
+						updateModel.getUpdate(),
+						Updates.inc("economy.balance", -rod.getPrice())
+				);
+	
+				database.updateUserById(event.getAuthor().getIdLong(), null, update, updateOptions, (result, exception) -> {
+					if (exception != null) {
+						exception.printStackTrace();
+						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+					} else {
+						event.reply("You just bought a `" + rod.getName() + "` for " + String.format("**$%,d**", rod.getPrice()) + " :ok_hand:").queue();
+					}
+				});
 			} else {
 				event.reply("You do not have enough money to purchase a `" + rod.getName() + "` :no_entry:").queue();
 			}
@@ -1586,7 +1683,7 @@ public class EconomyModule {
 		
 		@Command(value="info", description="Gives info of yours or another users fishing rod")
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-		public void info(CommandEvent event, @Context Connection connection, @Argument(value="user", endless=true, nullDefault=true) String userArgument) {
+		public void info(CommandEvent event, @Context Database database, @Argument(value="user", endless=true, nullDefault=true) String userArgument) {
 			Member member;
 			if (userArgument == null) {
 				member = event.getMember();
@@ -1598,13 +1695,8 @@ public class EconomyModule {
 				}
 			}
 			
-			Map<String, Object> data = r.table("bank").get(member.getUser().getId()).run(connection);
-			if (data == null) {
-				event.reply((member.equals(event.getMember()) ? "You do" : "That user does") + " not have a fishing rod :no_entry:").queue();
-				return;
-			}
-			
-			Rod rod = EconomyUtils.getUserRod(data);
+			List<Document> items = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items")).getEmbedded(List.of("economy", "items"), Collections.emptyList());
+			Rod rod = EconomyUtils.getUserRod(items);
 			if (rod == null) {
 				event.reply((member.equals(event.getMember()) ? "You do" : "That user does") + " not have a fishing rod :no_entry:").queue();
 				return;
@@ -1624,12 +1716,8 @@ public class EconomyModule {
 			event.reply(embed.build()).queue();
 		}
 		
-		@SuppressWarnings("unchecked")
 		@Command(value="craft", description="Craft a fishing rod which is in the fishing rod shop aslong as it displays as craftable")
-		public void craft(CommandEvent event, @Context Connection connection, @Argument(value="fishing rod name", endless=true) String rodName) {
-			Get data = r.table("bank").get(event.getAuthor().getId());
-			Map<String, Object> dataRan = data.run(connection);
-			
+		public void craft(CommandEvent event, @Context Database database, @Argument(value="fishing rod name", endless=true) String rodName) {
 			Rod rod = Rod.getRodByName(rodName);
 			if (rod == null) {
 				event.reply("I could not find that fishing rod :no_entry:").queue();
@@ -1641,17 +1729,16 @@ public class EconomyModule {
 				return;
 			}
 			
-			if (dataRan == null) {
-				event.reply("You do not have enough money to purchase a `" + rod.getName() + "` :no_entry:").queue();
-				return;
-			}
-			
-			List<Map<String, Object>> userItems = (List<Map<String, Object>>) dataRan.get("items");
+			List<Document> userItems = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items")).getEmbedded(List.of("economy", "items"), Collections.emptyList());
 			if (EconomyUtils.hasRod(userItems)) {
 				event.reply("You already own a fishing rod :no_entry:").queue();
 				return;
 			}
 			
+			UpdateOneModel<Document> updateModel = EconomyUtils.getAddItemModel(userItems, rod, 1, new Document("currentDurability", rod.getDurability()));
+			List<Bson> arrayFilters = new ArrayList<>();
+			Bson update = updateModel.getUpdate();
+			arrayFilters.addAll(updateModel.getOptions().getArrayFilters());
 			for (ItemStack craftItem : rod.getCraftingRecipe().getCraftingItems()) {
 				ItemStack userItem = EconomyUtils.getUserItem(userItems, craftItem.getItem());
 				if (userItem.getAmount() < craftItem.getAmount()) {
@@ -1659,27 +1746,27 @@ public class EconomyModule {
 					return;
 				}
 				
-				userItems = EconomyUtils.removeItems(userItems, craftItem.getItem(), craftItem.getAmount());
+				UpdateOneModel<Document> craftUpdateModel = EconomyUtils.getRemoveItemModel(userItems, craftItem);
+				update = Updates.combine(update, craftUpdateModel.getUpdate());
+				arrayFilters.addAll(craftUpdateModel.getOptions().getArrayFilters());
 			}
 			
-			event.reply("You just crafted a `" + rod.getName() + "` with " + GeneralUtils.joinGrammatical(rod.getCraftingRecipe().getCraftingItems()) + " :ok_hand:").queue();
-			
-			userItems = EconomyUtils.addItem(userItems, rod);
-			data.update(r.hashMap("items", userItems).with("roddur", rod.getDurability())).runNoReply(connection);
+			UpdateOptions updateOptions = new UpdateOptions().arrayFilters(arrayFilters).upsert(true);
+			database.updateUserById(event.getAuthor().getIdLong(), null, update, updateOptions, (result, exception) -> {
+				if (exception != null) {
+					exception.printStackTrace();
+					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+				} else {
+					event.reply("You just crafted a `" + rod.getName() + "` with " + GeneralUtils.joinGrammatical(rod.getCraftingRecipe().getCraftingItems()) + " :ok_hand:").queue();
+				}
+			});
 		}
 		
-		@SuppressWarnings("unchecked")
 		@Command(value="upgrade", description="Upgrade your current fishing rod, you can view the upgrades you can use fishing rod upgrades")
-		public void upgrade(CommandEvent event, @Context Connection connection, @Argument(value="upgrade name") String upgradeName) {
-			Get data = r.table("bank").get(event.getAuthor().getId());
-			Map<String, Object> dataRan = data.run(connection);
+		public void upgrade(CommandEvent event, @Context Database database, @Argument(value="upgrade name") String upgradeName) {
+			Document data = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items", "economy.balance")).get("economy", Database.EMPTY_DOCUMENT);
 			
-			if (dataRan == null) {
-				event.reply("You do not own a fishing rod :no_entry:").queue();
-				return;
-			}
-			
-			List<Map<String, Object>> items = (List<Map<String, Object>>) dataRan.get("items");
+			List<Document> items = data.getList("items", Document.class, Collections.emptyList());
 			if (!EconomyUtils.hasRod(items)) {
 				event.reply("You do not own a fishing rod :no_entry:").queue();
 				return;
@@ -1691,7 +1778,7 @@ public class EconomyModule {
 				return;
 			}
 			
-			Rod rod = EconomyUtils.getUserRod(dataRan);
+			Rod rod = EconomyUtils.getUserRod(items);
 			Rod defaultRod = rod.getDefaultRod();
 			
 			if (!rod.isBuyable()) {
@@ -1699,25 +1786,39 @@ public class EconomyModule {
 				return;
 			}
 			
+			long balance = data.get("balance", 0);
 			long price = Math.round((defaultRod.getPrice() * 0.025D) + (rod.getUpgrades() * (defaultRod.getPrice() * 0.015D)));
-			if ((long) dataRan.get("balance") >= price) {
-				Map<String, Object> storeInfo = rod.getStoreInfo();
-				storeInfo.put("upgrades", rod.getUpgrades() + 1);
-				storeInfo.put("price", rod.getPrice() + Math.round(defaultRod.getPrice() * 0.015D));
-				
+			if (balance >= price) {
+				Bson update = Updates.combine(
+						Updates.inc("economy.items.$[rod].upgrades", 1),
+						Updates.set("economy.items.$[rod].price", rod.getPrice() + Math.round(defaultRod.getPrice() * 0.015D)),
+						Updates.inc("economy.balance", -price)
+				);
+
 				if (upgrade.equals(RodUpgrade.MONEY)) {
 					long increase = Math.round(defaultRod.getMinimumYield() * upgrade.getIncreasePerUpgrade());
-					storeInfo.put("rand_min", rod.getMinimumYield() + increase);
-					storeInfo.put("rand_max", rod.getMaximumYield() + increase);
-					
-					data.update(row -> r.hashMap("items", EconomyUtils.editItem(items, rod, storeInfo)).with("balance", row.g("balance").sub(price))).runNoReply(connection);
+					update = Updates.combine(
+							update, 
+							Updates.set("economy.items.$[rod].minimumYield", rod.getMinimumYield() + increase),
+							Updates.set("economy.items.$[rod].maximumYield", rod.getMaximumYield() + increase)
+					);
 				} else if (upgrade.equals(RodUpgrade.DURABILITY)) {
-					storeInfo.put("durability", rod.getDurability() + upgrade.getIncreasePerUpgrade());
-					
-					data.update(row -> r.hashMap("items", EconomyUtils.editItem(items, rod, storeInfo)).with("balance", row.g("balance").sub(price)).with("roddur", row.g("roddur").add(upgrade.getIncreasePerUpgrade()))).runNoReply(connection);
+					update = Updates.combine(
+							update, 
+							Updates.set("economy.items.$[rod].maximumDurability", rod.getDurability() + upgrade.getIncreasePerUpgrade()),
+							Updates.inc("economy.items.$[rod].currentDurability", upgrade.getIncreasePerUpgrade())
+					);
 				}
 				
-				event.reply("You just upgraded your " + upgrade.getName().toLowerCase() + " for your `" + rod.getName() + "` for " + String.format("**$%,d**", price) + " :ok_hand:").queue();
+				UpdateOptions updateOptions = new UpdateOptions().arrayFilters(List.of(Filters.eq("rod.name", rod.getName()))).upsert(true);
+				database.updateUserById(event.getAuthor().getIdLong(), null, update, updateOptions, (result, exception) -> {
+					if (exception != null) {
+						exception.printStackTrace();
+						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+					} else {
+						event.reply("You just upgraded your " + upgrade.getName().toLowerCase() + " for your `" + rod.getName() + "` for " + String.format("**$%,d**", price) + " :ok_hand:").queue();
+					}
+				});
 			} else {
 				event.reply("You cannot afford your fishing rods next upgrade it will cost you " + String.format("**$%,d**", price) + " :no_entry:").queue();
 			}
@@ -1725,19 +1826,19 @@ public class EconomyModule {
 		
 		@Command(value="upgrades", description="View all the upgrades you can put on your fishing rod and their current cost", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-		public void upgrades(CommandEvent event, @Context Connection connection) {
-			Map<String, Object> data = r.table("bank").get(event.getAuthor().getId()).run(connection);
+		public void upgrades(CommandEvent event, @Context Database database) {
+			Document data = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items", "economy.balance")).get("economy", Database.EMPTY_DOCUMENT);
+			List<Document> items = data.getList("items", Document.class, Collections.emptyList());
+			long balance = data.get("balance", 0);
 			
-			Rod rod = null, defaultRod = null;
-			if (data != null) {
-				rod = EconomyUtils.getUserRod(data);
-				if (rod != null) {
-					defaultRod = rod.getDefaultRod();
-				}
+			Rod defaultRod = null;
+			Rod rod = EconomyUtils.getUserRod(items);
+			if (rod != null) {
+				defaultRod = rod.getDefaultRod();
 			}
 			
 			EmbedBuilder embed = new EmbedBuilder();
-			embed.setFooter("Use fishing rod upgrade <upgrade> to apply an upgrade to your fishing rod | Balance: " + String.format("$%,d", data != null ? (long) data.get("balance") : 0), event.getAuthor().getEffectiveAvatarUrl());
+			embed.setFooter("Use fishing rod upgrade <upgrade> to apply an upgrade to your fishing rod | Balance: " + String.format("$%,d", balance), event.getAuthor().getEffectiveAvatarUrl());
 			embed.setAuthor("Fishing Rod Upgrades", null, event.getSelfUser().getEffectiveAvatarUrl());
 			embed.setColor(event.getMember().getColor());
 			
@@ -1748,24 +1849,16 @@ public class EconomyModule {
 			event.reply(embed.build()).queue();
 		}
 		
-		@SuppressWarnings("unchecked")
 		@Command(value="repair", description="Repair your current fishing rod with its deticated material if it has one", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
-		public void repair(CommandEvent event, @Context Connection connection, @Argument(value="durability", nullDefault=true) Integer durabilityAmount) {
-			Get data = r.table("bank").get(event.getAuthor().getId());
-			Map<String, Object> dataRan = data.run(connection);
+		public void repair(CommandEvent event, @Context Database database, @Argument(value="durability", nullDefault=true) Integer durabilityAmount) {
+			List<Document> items = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items")).getEmbedded(List.of("economy", "items"), Collections.emptyList());
 			
-			if (dataRan == null) {
+			Rod rod = EconomyUtils.getUserRod(items);
+			if (rod == null) {
 				event.reply("You do not own a fishing rod :no_entry:").queue();
 				return;
 			}
 			
-			List<Map<String, Object>> items = (List<Map<String, Object>>) dataRan.get("items");
-			if (!EconomyUtils.hasRod(items)) {
-				event.reply("You do not own a fishing rod :no_entry:").queue();
-				return;
-			}
-			
-			Rod rod = EconomyUtils.getUserRod(dataRan);
 			if (!rod.isRepairable()) {
 				event.reply("Your fishing rod is not repairable :no_entry:").queue();
 				return;
@@ -1804,24 +1897,47 @@ public class EconomyModule {
 					if (confirmation) {
 						message.delete().queue();
 						
-						Map<String, Object> dataRanNew = data.run(connection);
+						List<Document> itemsNew = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items")).getEmbedded(List.of("economy", "items"), Collections.emptyList());
 						
-						if ((long) dataRanNew.get("roddur") != rod.getCurrentDurability()) {
+						Pickaxe pickaxeNew = EconomyUtils.getUserPickaxe(itemsNew);
+						if (pickaxeNew == null) {
+							event.reply("You no longer own a fishing rod :no_entry:").queue();
+						}
+						
+						if (!pickaxeNew.getName().equals(rod.getName())) {
+							event.reply("You have changed fishing rod since you answered :no_entry:").queue();
+						}
+						
+						if (pickaxeNew.getCurrentDurability() != rod.getCurrentDurability()) {
 							event.reply("Your fishing rod durability has changed since answering :no_entry:").queue();
 							return;
 						}
 						
-						List<Map<String, Object>> itemsNew = (List<Map<String, Object>>) dataRanNew.get("items");
 						ItemStack userItemNew = EconomyUtils.getUserItem(itemsNew, repairItem);
 						if (userItemNew.getAmount() < cost) {
 							long fixBy = rod.getEstimateOfDurability(userItemNew.getAmount());
 							event.reply("You do not have enough materials to fix your fishing rod by **" + durabilityNeeded + "** durability, you would need `" + cost + " " + repairItem.getName() + "`. You can fix your fishing rod by **" + fixBy + "** durability with your current amount of `" + repairItem.getName() + "` :no_entry:").queue();
 							return;
 						}
+					
+						UpdateOneModel<Document> updateModel = EconomyUtils.getRemoveItemModel(items, repairItem, cost);
+						List<Bson> arrayFilters = new ArrayList<>();
+						arrayFilters.add(Filters.eq("rod.name", rod.getName()));
+						arrayFilters.addAll(updateModel.getOptions().getArrayFilters());
+						UpdateOptions updateOptions = new UpdateOptions().arrayFilters(arrayFilters).upsert(true);
+						Bson update = Updates.combine(
+								updateModel.getUpdate(),
+								Updates.inc("economy.items.$[rod].currentDurability", durabilityNeeded)
+						);
 						
-						event.reply("You just repaired your fishing rod by **" + durabilityNeeded + "** durability :ok_hand:").queue();
-						
-						data.update(row -> r.hashMap("items", EconomyUtils.removeItems(itemsNew, repairItem, cost)).with("roddur", row.g("roddur").add(durabilityNeeded))).runNoReply(connection);
+						database.updateUserById(event.getAuthor().getIdLong(), null, update, updateOptions, (result, exception) -> {
+							if (exception != null) {
+								exception.printStackTrace();
+								event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+							} else {
+								event.reply("You just repaired your fishing rod by **" + durabilityNeeded + "** durability :ok_hand:").queue();
+							}
+						});
 					} else {
 						event.reply("Cancelled <:done:403285928233402378>").queue();
 					}
@@ -1845,44 +1961,43 @@ public class EconomyModule {
 		
 		@Command(value="shop", aliases={"list"}, description="View all the axes you can buy/craft", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-		public void shop(CommandEvent event, @Context Connection connection) {
-			Map<String, Object> data = r.table("bank").get(event.getAuthor().getId()).run(connection);
+		public void shop(CommandEvent event, @Context Database database) {
+			long balance = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance")).getEmbedded(List.of("economy", "balance"), 0);
 			
 			EmbedBuilder embed = new EmbedBuilder();
 			embed.setAuthor("Axe Shop", null, event.getSelfUser().getEffectiveAvatarUrl());
 			embed.setColor(Settings.EMBED_COLOUR);
 			embed.setDescription("Axes are a quick and easy way to gain some wood so you can craft");
-			embed.setFooter(String.format("Use %saxe buy <axe> to buy a axe | Balance: $%,d", event.getPrefix(), data == null ? 0 : (long) data.get("balance")), event.getAuthor().getEffectiveAvatarUrl());
+			embed.setFooter(String.format("Use %saxe buy <axe> to buy a axe | Balance: $%,d", event.getPrefix(), balance), event.getAuthor().getEffectiveAvatarUrl());
 			
 			for (Axe axe : Axe.ALL) {
 				if (axe.isBuyable() || axe.isCraftable()) {
-					String craftContent = "";
+					StringBuilder craftContent = new StringBuilder();
 					if (axe.isCraftable()) {
 						List<ItemStack> craftingItems = axe.getCraftingRecipe().getCraftingItems();
-						for (ItemStack itemStack : craftingItems) {
-							craftContent += itemStack.getAmount() + " " + itemStack.getItem().getName();
-							if (craftingItems.indexOf(itemStack) != craftingItems.size() - 1) {
-								craftContent += "\n";
+						for (int i = 0; i < craftingItems.size(); i++) {
+							ItemStack itemStack = craftingItems.get(i);
+							craftContent.append(itemStack.getAmount() + " " + itemStack.getItem().getName());
+							if (i != craftingItems.size() - 1) {
+								craftContent.append("\n");
 							}
 						}
 					}
 					
-					if (craftContent.equals("")) {
-						craftContent = "Not Craftable";
+					if (craftContent.length() == 0) {
+						craftContent = new StringBuilder("Not Craftable");
 					}
 					
-					embed.addField(axe.getName(), "Price: " + (axe.isBuyable() ? String.format("$%,d", axe.getPrice()) : "Not Buyable") + "\nCraft: " + craftContent + "\nDurability: " + axe.getDurability(), true);
+					embed.addField(axe.getName(), "Price: " + (axe.isBuyable() ? String.format("$%,d", axe.getPrice()) : "Not Buyable") + "\nCraft: " + craftContent.toString() + "\nDurability: " + axe.getDurability(), true);
 				}
 			}
 			
 			event.reply(embed.build()).queue();
 		}
 		
-		@SuppressWarnings("unchecked")
 		@Command(value="buy", description="Buy a axe which is listed in the axe shop")
-		public void buy(CommandEvent event, @Context Connection connection, @Argument(value="axe name", endless=true) String axeName) {
-			Get data = r.table("bank").get(event.getAuthor().getId());
-			Map<String, Object> dataRan = data.run(connection);
+		public void buy(CommandEvent event, @Context Database database, @Argument(value="axe name", endless=true) String axeName) {
+			Document data = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance", "economy.items")).get("economy", Database.EMPTY_DOCUMENT);
 			
 			Axe axe = Axe.getAxeByName(axeName);
 			if (axe == null) {
@@ -1895,20 +2010,24 @@ public class EconomyModule {
 				return;
 			}
 			
-			if (dataRan == null) {
-				event.reply("You do not have enough money to purchase a `" + axe.getName() + "` :no_entry:").queue();
-				return;
-			}
-			
-			List<Map<String, Object>> userItems = (List<Map<String, Object>>) dataRan.get("items");
+			List<Document> userItems = data.getList("items", Document.class, Collections.emptyList());
 			if (EconomyUtils.hasAxe(userItems)) {
 				event.reply("You already own an axe :no_entry:").queue();
 				return;
 			}
 			
-			if ((long) dataRan.get("balance") >= axe.getPrice()) {
-				event.reply("You just bought a `" + axe.getName() + "` for " + String.format("**$%,d**", axe.getPrice()) + " :ok_hand:").queue();
-				data.update(row -> r.hashMap("items", EconomyUtils.addItem(userItems, axe, axe.getStoreInfo())).with("balance", row.g("balance").sub(axe.getPrice())).with("axedur", axe.getDurability())).runNoReply(connection);
+			long balance = data.get("balance", 0);
+			if (balance >= axe.getPrice()) {
+				UpdateOneModel<Document> updateModel = EconomyUtils.getAddItemModel(userItems, axe, 1, new Document("currentDurability", axe.getDurability()));
+				UpdateOptions updateOptions = new UpdateOptions().arrayFilters(updateModel.getOptions().getArrayFilters()).upsert(true);
+				database.updateUserById(event.getAuthor().getIdLong(), null, updateModel.getUpdate(), updateOptions, (result, exception) -> {
+					if (exception != null) {
+						exception.printStackTrace();
+						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+					} else {
+						event.reply("You just bought a `" + axe.getName() + "` for " + String.format("**$%,d**", axe.getPrice()) + " :ok_hand:").queue();
+					}
+				});
 			} else {
 				event.reply("You do not have enough money to purchase a `" + axe.getName() + "` :no_entry:").queue();
 			}
@@ -1916,7 +2035,7 @@ public class EconomyModule {
 		
 		@Command(value="info", description="Gives info of yours or another users axe")
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-		public void info(CommandEvent event, @Context Connection connection, @Argument(value="user", endless=true, nullDefault=true) String userArgument) {
+		public void info(CommandEvent event, @Context Database database, @Argument(value="user", endless=true, nullDefault=true) String userArgument) {
 			Member member;
 			if (userArgument == null) {
 				member = event.getMember();
@@ -1928,13 +2047,9 @@ public class EconomyModule {
 				}
 			}
 			
-			Map<String, Object> data = r.table("bank").get(member.getUser().getId()).run(connection);
-			if (data == null) {
-				event.reply((member.equals(event.getMember()) ? "You do" : "That user does") + " not have an axe :no_entry:").queue();
-				return;
-			}
+			List<Document> items = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items")).getEmbedded(List.of("economy", "items"), Collections.emptyList());
 			
-			Axe axe = EconomyUtils.getUserAxe(data);
+			Axe axe = EconomyUtils.getUserAxe(items);
 			if (axe == null) {
 				event.reply((member.equals(event.getMember()) ? "You do" : "That user does") + " not have an axe :no_entry:").queue();
 				return;
@@ -1954,12 +2069,8 @@ public class EconomyModule {
 			event.reply(embed.build()).queue();
 		}
 		
-		@SuppressWarnings("unchecked")
 		@Command(value="craft", description="Craft a axe which is in the axe shop aslong as it displays as craftable")
-		public void craft(CommandEvent event, @Context Connection connection, @Argument(value="axe name", endless=true) String axeName) {
-			Get data = r.table("bank").get(event.getAuthor().getId());
-			Map<String, Object> dataRan = data.run(connection);
-			
+		public void craft(CommandEvent event, @Context Database database, @Argument(value="axe name", endless=true) String axeName) {	
 			Axe axe = Axe.getAxeByName(axeName);
 			if (axe == null) {
 				event.reply("I could not find that axe :no_entry:").queue();
@@ -1971,45 +2082,44 @@ public class EconomyModule {
 				return;
 			}
 			
-			if (dataRan == null) {
-				event.reply("You do not have enough money to purchase a `" + axe.getName() + "` :no_entry:").queue();
-				return;
-			}
-			
-			List<Map<String, Object>> userItems = (List<Map<String, Object>>) dataRan.get("items");
-			if (EconomyUtils.hasAxe(userItems)) {
+			List<Document> items = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items")).getEmbedded(List.of("economy", "items"), Collections.emptyList());
+			if (EconomyUtils.hasAxe(items)) {
 				event.reply("You already own an axe :no_entry:").queue();
 				return;
 			}
 			
+			UpdateOneModel<Document> updateModel = EconomyUtils.getAddItemModel(items, axe, 1, new Document("currentDurability", axe.getDurability()));
+			List<Bson> arrayFilters = new ArrayList<>();
+			arrayFilters.addAll(updateModel.getOptions().getArrayFilters());
+			Bson update = updateModel.getUpdate();
 			for (ItemStack craftItem : axe.getCraftingRecipe().getCraftingItems()) {
-				ItemStack userItem = EconomyUtils.getUserItem(userItems, craftItem.getItem());
+				ItemStack userItem = EconomyUtils.getUserItem(items, craftItem.getItem());
 				if (userItem.getAmount() < craftItem.getAmount()) {
 					event.reply(String.format("You do not have `%,d %s` :no_entry:", craftItem.getAmount(), craftItem.getItem().getName())).queue();
 					return;
 				}
 				
-				userItems = EconomyUtils.removeItems(userItems, craftItem.getItem(), craftItem.getAmount());
+				UpdateOneModel<Document> craftUpdateModel = EconomyUtils.getRemoveItemModel(items, craftItem);
+				update = Updates.combine(update, craftUpdateModel.getUpdate());
+				arrayFilters.addAll(updateModel.getOptions().getArrayFilters());
 			}
 			
-			event.reply("You just crafted a `" + axe.getName() + "` with " + GeneralUtils.joinGrammatical(axe.getCraftingRecipe().getCraftingItems()) + " :ok_hand:").queue();
-			
-			userItems = EconomyUtils.addItem(userItems, axe);
-			data.update(r.hashMap("items", userItems).with("axedur", axe.getDurability())).runNoReply(connection);
+			UpdateOptions updateOptions = new UpdateOptions().arrayFilters(arrayFilters).upsert(true);
+			database.updateUserById(event.getAuthor().getIdLong(), null, update, updateOptions, (result, exception) -> {
+				if (exception != null) {
+					exception.printStackTrace();
+					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+				} else {
+					event.reply("You just crafted a `" + axe.getName() + "` with " + GeneralUtils.joinGrammatical(axe.getCraftingRecipe().getCraftingItems()) + " :ok_hand:").queue();
+				}
+			});
 		}
 		
-		@SuppressWarnings("unchecked")
 		@Command(value="upgrade", description="Upgrade your current axe, you can view the upgrades you can use axe upgrades")
-		public void upgrade(CommandEvent event, @Context Connection connection, @Argument(value="upgrade name") String upgradeName) {
-			Get data = r.table("bank").get(event.getAuthor().getId());
-			Map<String, Object> dataRan = data.run(connection);
+		public void upgrade(CommandEvent event, @Context Database database, @Argument(value="upgrade name") String upgradeName) {
+			Document data = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items", "economy.balance")).get("economy", Database.EMPTY_DOCUMENT);
 			
-			if (dataRan == null) {
-				event.reply("You do not own an axe :no_entry:").queue();
-				return;
-			}
-			
-			List<Map<String, Object>> items = (List<Map<String, Object>>) dataRan.get("items");
+			List<Document> items = data.getList("items", Document.class, Collections.emptyList());
 			if (!EconomyUtils.hasAxe(items)) {
 				event.reply("You do not own an axe :no_entry:").queue();
 				return;
@@ -2021,7 +2131,7 @@ public class EconomyModule {
 				return;
 			}
 			
-			Axe axe = EconomyUtils.getUserAxe(dataRan);
+			Axe axe = EconomyUtils.getUserAxe(items);
 			Axe defaultAxe = axe.getDefaultAxe();
 			
 			if (!axe.isBuyable()) {
@@ -2029,23 +2139,37 @@ public class EconomyModule {
 				return;
 			}
 			
+			long balance = data.get("balance", 0);
 			long price = Math.round((defaultAxe.getPrice() * 0.025D) + (axe.getUpgrades() * (defaultAxe.getPrice() * 0.015D)));
-			if ((long) dataRan.get("balance") >= price) {
-				Map<String, Object> storeInfo = axe.getStoreInfo();
-				storeInfo.put("upgrades", axe.getUpgrades() + 1);
-				storeInfo.put("price", axe.getPrice() + Math.round(defaultAxe.getPrice() * 0.015D));
+			if (balance >= price) {
+				Bson update = Updates.combine(
+						Updates.inc("economy.items.$[axe].upgrades", 1),
+						Updates.set("economy.items.$[axe].price", axe.getPrice() + Math.round(defaultAxe.getPrice() * 0.015D)),
+						Updates.inc("economy.balance", -price)
+				);
 				
 				if (upgrade.equals(AxeUpgrade.MULTIPLIER)) {
-					storeInfo.put("multiplier", axe.getMultiplier() + (axe.getMultiplier() * upgrade.getIncreasePerUpgrade()));
-					
-					data.update(row -> r.hashMap("items", EconomyUtils.editItem(items, axe, storeInfo)).with("balance", row.g("balance").sub(price))).runNoReply(connection);
+					update = Updates.combine(
+							update, 
+							Updates.set("economy.items.$[axe].multiplier", axe.getMultiplier() * upgrade.getIncreasePerUpgrade())
+					);
 				} else if (upgrade.equals(AxeUpgrade.DURABILITY)) {
-					storeInfo.put("durability", axe.getDurability() + upgrade.getIncreasePerUpgrade());
-					
-					data.update(row -> r.hashMap("items", EconomyUtils.editItem(items, axe, storeInfo)).with("balance", row.g("balance").sub(price)).with("axedur", row.g("axedur").add(upgrade.getIncreasePerUpgrade()))).runNoReply(connection);
+					update = Updates.combine(
+							update,
+							Updates.set("economy.items.$[axe].maximumDurability", axe.getDurability() + upgrade.getIncreasePerUpgrade()),
+							Updates.inc("economy.items.$[axe].currentDurability", upgrade.getIncreasePerUpgrade())
+					);
 				}
 				
-				event.reply("You just upgraded your " + upgrade.getName().toLowerCase() + " for your `" + axe.getName() + "` for " + String.format("**$%,d**", price) + " :ok_hand:").queue();
+				UpdateOptions updateOptions = new UpdateOptions().arrayFilters(List.of(Filters.eq("axe.name", axe.getName()))).upsert(true);
+				database.updateUserById(event.getAuthor().getIdLong(), null, update, updateOptions, (result, exception) -> {
+					if (exception != null) {
+						exception.printStackTrace();
+						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+					} else {
+						event.reply("You just upgraded your " + upgrade.getName().toLowerCase() + " for your `" + axe.getName() + "` for " + String.format("**$%,d**", price) + " :ok_hand:").queue();
+					}
+				});
 			} else {
 				event.reply("You cannot afford your axes next upgrade it will cost you " + String.format("**$%,d**", price) + " :no_entry:").queue();
 			}
@@ -2053,19 +2177,18 @@ public class EconomyModule {
 		
 		@Command(value="upgrades", description="View all the upgrades you can put on your axe and their current cost", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-		public void upgrades(CommandEvent event, @Context Connection connection) {
-			Map<String, Object> data = r.table("bank").get(event.getAuthor().getId()).run(connection);
+		public void upgrades(CommandEvent event, @Context Database database) {
+			Document data = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items", "economy.balance")).get("economy", Database.EMPTY_DOCUMENT);
+			long balance = data.get("balance", 0);
 			
-			Axe axe = null, defaultAxe = null;
-			if (data != null) {
-				axe = EconomyUtils.getUserAxe(data);
-				if (axe != null) {
-					defaultAxe = axe.getDefaultAxe();
-				}
+			List<Document> items = data.getList("items", Document.class, Collections.emptyList());
+			Axe axe = EconomyUtils.getUserAxe(items), defaultAxe = null;
+			if (axe != null) {
+				defaultAxe = axe.getDefaultAxe();
 			}
 			
 			EmbedBuilder embed = new EmbedBuilder();
-			embed.setFooter("Use axe upgrade <upgrade> to apply an upgrade to your axe | Balance: " + String.format("$%,d", data != null ? (long) data.get("balance") : 0), event.getAuthor().getEffectiveAvatarUrl());
+			embed.setFooter("Use axe upgrade <upgrade> to apply an upgrade to your axe | Balance: " + String.format("$%,d", balance), event.getAuthor().getEffectiveAvatarUrl());
 			embed.setAuthor("Axe Upgrades", null, event.getSelfUser().getEffectiveAvatarUrl());
 			embed.setColor(event.getMember().getColor());
 			
@@ -2076,24 +2199,15 @@ public class EconomyModule {
 			event.reply(embed.build()).queue();
 		}
 		
-		@SuppressWarnings("unchecked")
 		@Command(value="repair", description="Repair your current axe with its deticated material if it has one", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
-		public void repair(CommandEvent event, @Context Connection connection, @Argument(value="durability", nullDefault=true) Integer durabilityAmount) {
-			Get data = r.table("bank").get(event.getAuthor().getId());
-			Map<String, Object> dataRan = data.run(connection);
-			
-			if (dataRan == null) {
+		public void repair(CommandEvent event, @Context Database database, @Argument(value="durability", nullDefault=true) Integer durabilityAmount) {
+			List<Document> items = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items")).getEmbedded(List.of("economy", "items"), Collections.emptyList());
+			Axe axe = EconomyUtils.getUserAxe(items);
+			if (axe == null) {
 				event.reply("You do not own an axe :no_entry:").queue();
 				return;
 			}
 			
-			List<Map<String, Object>> items = (List<Map<String, Object>>) dataRan.get("items");
-			if (!EconomyUtils.hasAxe(items)) {
-				event.reply("You do not own an axe :no_entry:").queue();
-				return;
-			}
-			
-			Axe axe = EconomyUtils.getUserAxe(dataRan);
 			if (!axe.isRepairable()) {
 				event.reply("Your axe is not repairable :no_entry:").queue();
 				return;
@@ -2132,24 +2246,47 @@ public class EconomyModule {
 					if (confirmation) {
 						message.delete().queue();
 						
-						Map<String, Object> dataRanNew = data.run(connection);
+						List<Document> itemsNew = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items")).getEmbedded(List.of("economy", "items"), Collections.emptyList());
 						
-						if ((long) dataRanNew.get("axedur") != axe.getCurrentDurability()) {
+						Axe axeNew = EconomyUtils.getUserAxe(itemsNew);
+						if (axeNew == null) {
+							event.reply("You no longer own a axe :no_entry:").queue();
+						}
+						
+						if (!axeNew.getName().equals(axe.getName())) {
+							event.reply("You have changed axe since you answered :no_entry:").queue();
+						}
+						
+						if (axeNew.getCurrentDurability() != axe.getCurrentDurability()) {
 							event.reply("Your axe durability has changed since answering :no_entry:").queue();
 							return;
 						}
 						
-						List<Map<String, Object>> itemsNew = (List<Map<String, Object>>) dataRanNew.get("items");
 						ItemStack userItemNew = EconomyUtils.getUserItem(itemsNew, repairItem);
 						if (userItemNew.getAmount() < cost) {
 							long fixBy = axe.getEstimateOfDurability(userItemNew.getAmount());
 							event.reply("You do not have enough materials to fix your axe by **" + durabilityNeeded + "** durability, you would need `" + cost + " " + repairItem.getName() + "`. You can fix your axe by **" + fixBy + "** durability with your current amount of `" + repairItem.getName() + "` :no_entry:").queue();
 							return;
 						}
+					
+						UpdateOneModel<Document> updateModel = EconomyUtils.getRemoveItemModel(items, repairItem, cost);
+						List<Bson> arrayFilters = new ArrayList<>();
+						arrayFilters.add(Filters.eq("axe.name", axe.getName()));
+						arrayFilters.addAll(updateModel.getOptions().getArrayFilters());
+						UpdateOptions updateOptions = new UpdateOptions().arrayFilters(arrayFilters).upsert(true);
+						Bson update = Updates.combine(
+								updateModel.getUpdate(),
+								Updates.inc("economy.items.$[axe].currentDurability", durabilityNeeded)
+						);
 						
-						event.reply("You just repaired your axe by **" + durabilityNeeded + "** durability :ok_hand:").queue();
-						
-						data.update(row -> r.hashMap("items", EconomyUtils.removeItems(itemsNew, repairItem, cost)).with("axedur", row.g("axedur").add(durabilityNeeded))).runNoReply(connection);
+						database.updateUserById(event.getAuthor().getIdLong(), null, update, updateOptions, (result, exception) -> {
+							if (exception != null) {
+								exception.printStackTrace();
+								event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+							} else {
+								event.reply("You just repaired your axe by **" + durabilityNeeded + "** durability :ok_hand:").queue();
+							}
+						});
 					} else {
 						event.reply("Cancelled <:done:403285928233402378>").queue();
 					}
@@ -2158,10 +2295,9 @@ public class EconomyModule {
 		}
 	}
 	
-	@SuppressWarnings("unchecked")
-	@Command(value="give", aliases={"gift"}, description="Give money to others users, there is a 5% tax if you do not own a tax avoider", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+	@Command(value="give", aliases={"gift"}, description="Give money to others users, there is a 5% tax per transaction", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-	public void give(CommandEvent event, @Context Connection connection, @Argument(value="user") String userArgument, @Argument(value="amount") String amountArgument) {
+	public void give(CommandEvent event, @Context Database database, @Argument(value="user") String userArgument, @Argument(value="amount") String amountArgument) {
 		Member member = ArgumentUtils.getMember(event.getGuild(), userArgument);
 		if (member == null) {
 			event.reply("I could not find that user :no_entry:").queue();
@@ -2180,74 +2316,59 @@ public class EconomyModule {
 			return;
 		}
 		
-		Get data = r.table("bank").get(event.getAuthor().getId());
-		Map<String, Object> dataRan = data.run(connection);
-		
-		if (dataRan == null) {
-			event.reply("You do not have any money :no_entry:").queue();
-			return;
-		}
-		
-		long fullAmount, tax, amount, balance = (long) dataRan.get("balance");
+		Bson projection = Projections.include("economy.balance");
+		long authorBalance = database.getUserById(event.getAuthor().getIdLong(), null, projection).getEmbedded(List.of("economy", "balance"), 0);
+		long userBalance = database.getUserById(member.getIdLong(), null, projection).getEmbedded(List.of("economy", "balance"), 0);
+		long fullAmount, tax, amount;
 		try {
-			fullAmount = EconomyUtils.convertMoneyArgument(balance, amountArgument);
+			fullAmount = EconomyUtils.convertMoneyArgument(authorBalance, amountArgument);
 		} catch(IllegalArgumentException e) {
 			event.reply(e.getMessage()).queue();
 			return;
 		}
 		
-		if (fullAmount > balance) {
+		if (fullAmount > authorBalance) {
 			event.reply("You do not have enough to money give " + String.format("**$%,d**", fullAmount) + " to " + member.getUser().getAsTag() + " :no_entry:").queue();
 			return;
 		}
 		
-		List<Map<String, Object>> items = (List<Map<String, Object>>) dataRan.get("items");
-		ItemStack taxAvoiders = EconomyUtils.getUserItem(items, Booster.TAX_AVOIDER);
 		if (taxBot) {
 			tax = fullAmount;
-			amount = 0;
-		} else if (taxAvoiders.getAmount() > 0) {
-			tax = 0;
 			amount = fullAmount;
 		} else {
 			tax = (long) (fullAmount * 0.05D);
 			amount = (long) (fullAmount * 0.95D);
 		}
-	
-		if (amount > 0) {
-			EconomyUtils.insertData(member.getUser()).run(connection, OptArgs.of("durability", "soft"));
-		}
 		
-		Get userData = r.table("bank").get(member.getUser().getId());
-		Map<String, Object> userDataRan = userData.run(connection);
-		Get taxData = r.table("tax").get("tax");
-		Map<String, Object> taxDataRan = taxData.run(connection);
-		
-		long authorBalance = (long) dataRan.get("balance") - fullAmount;
-		long userBalance = taxBot ? (long) taxDataRan.get("tax") + tax : (long) userDataRan.get("balance") + amount;
+		long newAuthorBalance = authorBalance - fullAmount;
+		long newUserBalance = userBalance + amount;
 		EmbedBuilder embed = new EmbedBuilder();
 		embed.setAuthor(event.getAuthor().getName() + " → " + member.getUser().getName(), null, "https://cdn0.iconfinder.com/data/icons/social-messaging-ui-color-shapes/128/money-circle-green-3-512.png");
 		embed.setColor(event.getMember().getColor());
-		embed.setDescription(String.format("You have gifted **$%,d** to **%s**\n\n%s's new balance: **$%,d**\n%s's new balance: **$%,d**", taxBot ? tax : amount, member.getUser().getName(), event.getAuthor().getName(), authorBalance, member.getUser().getName(), userBalance));
+		embed.setDescription(String.format("You have gifted **$%,d** to **%s**\n\n%s's new balance: **$%,d**\n%s's new balance: **$%,d**", amount, member.getUser().getName(), event.getAuthor().getName(), newAuthorBalance, member.getUser().getName(), newUserBalance));
 		embed.setFooter(String.format("$%,d (%d%%) tax was taken", tax, Math.round((double) tax / fullAmount * 100)), null);
 		
-		event.reply(embed.build()).queue();
-		
-		if (amount > 0) {
-			userData.update(row -> r.hashMap("balance", row.g("balance").add(amount))).runNoReply(connection);
+		UpdateOptions updateOptions = new UpdateOptions().upsert(true);
+		List<WriteModel<Document>> bulkData = new ArrayList<>();
+		bulkData.add(new UpdateOneModel<>(Filters.eq("_id", event.getAuthor().getIdLong()), Updates.inc("economy.balance", -fullAmount), updateOptions));
+		bulkData.add(new UpdateOneModel<>(Filters.eq("_id", member.getIdLong()), Updates.inc("economy.balance", amount), updateOptions));
+		if (!taxBot) {
+			bulkData.add(new UpdateOneModel<>(Filters.eq("_id", event.getSelfUser().getIdLong()), Updates.inc("economy.balance", tax), updateOptions));
 		}
 		
-		if (tax > 0) {
-			taxData.update(row -> r.hashMap("tax", row.g("tax").add(tax))).runNoReply(connection);
-		}
-		
-		data.update(row -> r.hashMap("balance", row.g("balance").sub(fullAmount)).with("items", tax == 0 ? EconomyUtils.removeItem(items, taxAvoiders.getItem()) : row.g("items"))).runNoReply(connection);
+		database.bulkWriteUsers(bulkData, (result, exception) -> {
+			if (exception != null) {
+				exception.printStackTrace();
+				event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+			} else {
+				event.reply(embed.build()).queue();
+			}
+		});
 	}
 	
-	@SuppressWarnings("unchecked")
 	@Command(value="give materials", aliases={"givematerials", "give mats", "givemats"}, description="Give another user some materials you have, 5% the price of the materials will be taxed")
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-	public void giveMaterials(CommandEvent event, @Context Connection connection, @Argument(value="user") String userArgument, @Argument(value="item", endless=true) String itemArgument) {
+	public void giveMaterials(CommandEvent event, @Context Database database, @Argument(value="user") String userArgument, @Argument(value="item", endless=true) String itemArgument) {
 		Member member = ArgumentUtils.getMember(event.getGuild(), userArgument);
 		if (member == null) {
 			event.reply("I could not find that user :no_entry:").queue();
@@ -2263,16 +2384,9 @@ public class EconomyModule {
 			event.reply("You cannot give materials to yourself :no_entry:").queue();
 			return;
 		}
+
+		Document data = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items", "economy.balance")).get("economy", Database.EMPTY_DOCUMENT);
 		
-		Get data = r.table("bank").get(event.getAuthor().getId());
-		Map<String, Object> dataRan = data.run(connection);
-		
-		if (dataRan == null) {
-			event.reply("You do not have any items :no_entry:").queue();
-			return;
-		}
-		
-		List<Map<String, Object>> items = (List<Map<String, Object>>) dataRan.get("items");
 		Pair<String, BigInteger> itemPair = EconomyUtils.getItemAndAmount(itemArgument);
 		String itemName = itemPair.getLeft();
 		BigInteger itemAmount = itemPair.getRight();
@@ -2288,55 +2402,62 @@ public class EconomyModule {
 			return;
 		}
 		
+		List<Document> authorItems = data.getList("items", Document.class, Collections.emptyList());
 		String itemString = String.format("%,d %s", itemAmount, item.getName());
-		ItemStack userItem = EconomyUtils.getUserItem(items, item);
-		if (BigInteger.valueOf(userItem.getAmount()).compareTo(itemAmount) != -1) {
-			EconomyUtils.insertData(member.getUser()).run(connection, OptArgs.of("durability", "soft"));
-			Get userData = r.table("bank").get(member.getUser().getId());
-			Map<String, Object> userDataRan = userData.run(connection);
+		ItemStack authorItem = EconomyUtils.getUserItem(authorItems, item);
+		if (BigInteger.valueOf(authorItem.getAmount()).compareTo(itemAmount) != -1) {
+			List<Document> userItems = database.getUserById(member.getIdLong(), null, Projections.include("economy.items")).getEmbedded(List.of("economy", "items"), Collections.emptyList());
 			
 			long itemAmountLong = itemAmount.longValue();
-			List<Map<String, Object>> userItems = (List<Map<String, Object>>) userDataRan.get("items");
-			ItemStack memberItem = EconomyUtils.getUserItem(userItems, item);
+			ItemStack userItem = EconomyUtils.getUserItem(userItems, item);
 			
 			long fullPrice = item.getPrice() * itemAmountLong;
 			long tax = (long) (fullPrice * 0.05D);
-			long newAuthorAmount = userItem.getAmount() - itemAmountLong;
-			long newUserAmount = memberItem.getAmount() + itemAmountLong;
+			if (data.get("balance", 0) < tax) {
+				event.replyFormat("You cannot afford the tax for giving `%s`, you need **$%,d** :no_entry:", itemString, tax).queue();
+				return;
+			}
+			
+			long newAuthorAmount = authorItem.getAmount() - itemAmountLong;
+			long newUserAmount = userItem.getAmount() + itemAmountLong;
 			EmbedBuilder embed = new EmbedBuilder();
 			embed.setColor(event.getMember().getColor());
 			embed.setAuthor(event.getAuthor().getName() + " → " + member.getUser().getName(), null, "https://cdn0.iconfinder.com/data/icons/social-messaging-ui-color-shapes/128/money-circle-green-3-512.png");
 			embed.setDescription(String.format("You have gifted **%s** to **%s**\n\n%s's new %s amount: **%,d %s**\n%s's new %s amount: **%,d %s**", itemString, member.getUser().getName(), event.getAuthor().getName(), item.getName(), newAuthorAmount, item.getName(), member.getUser().getName(), item.getName(), newUserAmount, item.getName()));
 			embed.setFooter(String.format("$%,d (%d%%) tax was taken", tax, Math.round((double) tax / fullPrice * 100)), null);
-			event.reply(embed.build()).queue();
 			
-			if (tax > 0) {
-				r.table("tax").get("tax").update(row -> r.hashMap("tax", row.g("tax").add(tax))).runNoReply(connection);
-			}
+			UpdateOneModel<Document> authorItemModel = EconomyUtils.getRemoveItemModel(authorItems, item, itemAmountLong);
+			Bson authorUpdate = Updates.combine(authorItemModel.getUpdate(), Updates.inc("economy.balance", -tax));
 			
-			userData.update(r.hashMap("items", EconomyUtils.addItems(userItems, item, itemAmountLong))).runNoReply(connection);
-			data.update(row -> r.hashMap("balance", row.g("balance").sub(tax)).with("items", EconomyUtils.removeItems(items, item, itemAmountLong))).runNoReply(connection);
+			List<WriteModel<Document>> bulkData = List.of(
+					new UpdateOneModel<>(Filters.eq("_id", event.getAuthor().getIdLong()), authorUpdate, authorItemModel.getOptions()),
+					EconomyUtils.getAddItemModel(member.getIdLong(), userItems, item, itemAmountLong),
+					new UpdateOneModel<>(Filters.eq("_id", event.getSelfUser().getIdLong()), Updates.inc("economy.balance", tax), new UpdateOptions().upsert(true))
+			);
+			
+			database.bulkWriteUsers(bulkData, (result, exception) -> {
+				if (exception != null) {
+					exception.printStackTrace();
+					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+				} else {
+					event.reply(embed.build()).queue();
+				}
+			});
 		} else {
 			event.reply("You do not have `" + itemString + "` to give to " + member.getUser().getAsTag() + " :no_entry:").queue();
 		}
 	}
 	
-	@Command(value="russain roulette", aliases={"rusr", "russianroulette", "roulette"}, description="Put a gun to your head and choose how many bullets go in the chanber if you're shot you lose your bet if you win you gain your winnings and cartain amount depending on how many bullets you put in the chanmber")
+	@Command(value="russian roulette", aliases={"rusr", "russianroulette", "roulette"}, description="Put a gun to your head and choose how many bullets go in the chamber if you're shot you lose your bet if you win you gain your winnings and cartain amount depending on how many bullets you put in the chanmber")
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-	public void russianRoulette(CommandEvent event, @Context Connection connection, @Argument(value="bullets") int bullets, @Argument(value="bet", endless=true) String betArgument) {
+	public void russianRoulette(CommandEvent event, @Context Database database, @Argument(value="bullets") int bullets, @Argument(value="bet", endless=true) String betArgument) {
 		if (bullets < 1 || bullets > 5) {
 			event.reply("The bullet amount has to be a number between 1 and 5 :no_entry:").queue();
-		}
-		
-		Get data = r.table("bank").get(event.getAuthor().getId());
-		Map<String, Object> dataRan = data.run(connection);
-		
-		if (dataRan == null) {
-			event.reply("You do not have any money to bet :no_entry:").queue();
 			return;
 		}
 		
-		long bet, balance = (long) dataRan.get("balance");
+		long balance = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance")).getEmbedded(List.of("economy", "balance"), 0);
+		long bet;
 		try {
 			bet = EconomyUtils.convertMoneyArgument(balance, betArgument);
 		} catch(IllegalArgumentException e) {
@@ -2357,20 +2478,27 @@ public class EconomyModule {
 		EmbedBuilder embed = new EmbedBuilder();
 		embed.setAuthor(event.getAuthor().getName(), null, event.getAuthor().getEffectiveAvatarUrl());
 		embed.setColor(event.getMember().getColor());
+		
 		int randomNumber = random.nextInt(6);
+		long amountWon;
 		if (bullets - 1 < randomNumber) {
 			long winnings = (long) Math.ceil((5.7D * bet) / (6 - bullets));
 			embed.setDescription(String.format("You're lucky, you get to live another day.\nYou won **$%,d**", winnings));
-			event.reply(embed.build()).queue();
-			
-			long actualWinnings = winnings - bet;
-			data.update(row -> r.hashMap("balance", row.g("balance").add(actualWinnings)).with("winnings", row.g("winnings").add(actualWinnings))).runNoReply(connection);
+			amountWon = winnings - bet;
 		} else {
 			embed.setDescription(String.format("You were shot :gun:\nYou lost your bet of **$%,d**", bet));
-			event.reply(embed.build()).queue();
-			
-			data.update(row -> r.hashMap("balance", row.g("balance").sub(bet)).with("winnings", row.g("winnings").sub(bet))).runNoReply(connection);
+			amountWon = -bet;
 		}
+		
+		Bson update = Updates.combine(Updates.inc("economy.winnings", amountWon), Updates.inc("economy.balance", amountWon));
+		database.updateUserById(event.getAuthor().getIdLong(), update, (result, exception) -> {
+			if (exception != null) {
+				exception.printStackTrace();
+				event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+			} else {
+				event.reply(embed.build()).queue();
+			}
+		});
 	}
 	
 	public class FactoryCommand extends Sx4Command {
@@ -2389,8 +2517,8 @@ public class EconomyModule {
 		
 		@Command(value="shop", aliases={"list"}, description="View all the factories you can buy with your current materials", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-		public void shop(CommandEvent event, @Context Connection connection) {
-			List<Map<String, Object>> items = r.table("bank").get(event.getAuthor().getId()).g("items").default_(new Object[0]).run(connection);
+		public void shop(CommandEvent event, @Context Database database) {
+			List<Document> items = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items")).getEmbedded(List.of("economy", "items"), Collections.emptyList());
 			
 			EmbedBuilder embed = new EmbedBuilder();
 			embed.setColor(Settings.EMBED_COLOUR);
@@ -2408,20 +2536,19 @@ public class EconomyModule {
 			event.reply(embed.build()).queue();
 		}
 		
-		@SuppressWarnings("unchecked")
 		@Command(value="buy", description="Buy a factory which is listed in factory shop")
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-		public void buy(CommandEvent event, @Context Connection connection, @Argument(value="factory name", endless=true) String factoryArgument) {
-			Get data = r.table("bank").get(event.getAuthor().getId());
-			Map<String, Object> dataRan = data.run(connection);
+		public void buy(CommandEvent event, @Context Database database, @Argument(value="factory name", endless=true) String factoryArgument) {
+			List<Document> items = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items")).getEmbedded(List.of("economy", "items"), Collections.emptyList());
 			
 			if (factoryArgument.toLowerCase().equals("all")) {
-				if (dataRan == null) {
+				if (items.isEmpty()) {
 					event.reply("You do not have enough materials to buy any factories :no_entry:").queue();
 					return;
 				}
 				
-				List<Map<String, Object>> items = (List<Map<String, Object>>) dataRan.get("items");
+				Bson update = new BsonDocument();
+				List<Bson> arrayFilters = new ArrayList<>();
 				List<ItemStack> factoriesBought = new ArrayList<>();
 				for (Factory factory : Factory.ALL) {
 					if (!factory.isHidden()) {
@@ -2429,8 +2556,17 @@ public class EconomyModule {
 						long buyableAmount = (long) Math.floor((double) userItem.getAmount() / factory.getMaterialAmount());
 						if (buyableAmount > 0) {
 							factoriesBought.add(new ItemStack(factory, buyableAmount));
-							items = EconomyUtils.removeItems(items, factory.getMaterial(), factory.getMaterialAmount() * buyableAmount);
-							items = EconomyUtils.addItems(items, factory, buyableAmount);
+							
+							UpdateOneModel<Document> itemModel = EconomyUtils.getRemoveItemModel(items, factory.getMaterial(), factory.getMaterialAmount() * buyableAmount);
+							UpdateOneModel<Document> factoryModel = EconomyUtils.getAddItemModel(items, factory, buyableAmount);
+							update = Updates.combine(
+								update,
+								itemModel.getUpdate(),
+								factoryModel.getUpdate()
+							);
+							
+							arrayFilters.addAll(itemModel.getOptions().getArrayFilters());
+							arrayFilters.addAll(factoryModel.getOptions().getArrayFilters());
 						}
 					}
 				}
@@ -2446,9 +2582,16 @@ public class EconomyModule {
 				embed.setColor(event.getMember().getColor());
 				embed.setAuthor(event.getAuthor().getName(), null, event.getAuthor().getEffectiveAvatarUrl());
 				embed.setDescription("With all your materials you have bought the following factories\n\n• " + GeneralUtils.join(factoriesBought, "\n• "));
-				event.reply(embed.build()).queue();
 				
-				data.update(r.hashMap("items", items)).runNoReply(connection);
+				UpdateOptions updateOptions = new UpdateOptions().arrayFilters(arrayFilters).upsert(true);
+				database.updateUserById(event.getAuthor().getIdLong(), null, update, updateOptions, (result, exception) -> {
+					if (exception != null) {
+						exception.printStackTrace();
+						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+					} else {
+						event.reply(embed.build()).queue();
+					}
+				});
 			} else {
 				Pair<String, BigInteger> factoryPair = EconomyUtils.getItemAndAmount(factoryArgument);
 				String factoryName = factoryPair.getLeft();
@@ -2470,21 +2613,26 @@ public class EconomyModule {
 					return;
 				}
 				
-				if (dataRan == null) {
-					event.reply(String.format("You do not have enough `%s` to buy `%,d %s` :no_entry:", factory.getMaterial().getName(), factoryAmount, factory.getName())).queue();
-					return;
-				}
-				
-				List<Map<String, Object>> items = (List<Map<String, Object>>) dataRan.get("items");
 				ItemStack userItem = EconomyUtils.getUserItem(items, factory.getMaterial());
 				
 				BigInteger price = factoryAmount.multiply(BigInteger.valueOf(factory.getMaterialAmount()));
-				if (BigInteger.valueOf(userItem.getAmount()).compareTo(price) != -1) {
-					event.reply(String.format("You just bought `%,d %s` :ok_hand:", factoryAmount, factory.getName())).queue();
+				if (BigInteger.valueOf(userItem.getAmount()).compareTo(price) != -1) {					
+					UpdateOneModel<Document> itemModel = EconomyUtils.getRemoveItemModel(items, factory.getMaterial(), price.longValue());
+					UpdateOneModel<Document> factoryModel = EconomyUtils.getAddItemModel(items, factory, factoryAmount.longValue());
 					
-					items = EconomyUtils.removeItems(items, factory.getMaterial(), price.longValue());
-					items = EconomyUtils.addItems(items, factory, factoryAmount.longValue());
-					data.update(r.hashMap("items", items)).runNoReply(connection);
+					List<Bson> arrayFilters = new ArrayList<>();
+					arrayFilters.addAll(itemModel.getOptions().getArrayFilters());
+					arrayFilters.addAll(factoryModel.getOptions().getArrayFilters());
+					
+					UpdateOptions updateOptions = new UpdateOptions().arrayFilters(arrayFilters).upsert(true);
+					database.updateUserById(event.getAuthor().getIdLong(), null, Updates.combine(itemModel.getUpdate(), factoryModel.getUpdate()), updateOptions, (result, exception) -> {
+						if (exception != null) {
+							exception.printStackTrace();
+							event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+						} else {
+							event.replyFormat("You just bought `%,d %s` :ok_hand:", factoryAmount, factory.getName()).queue();
+						}
+					});
 				} else {
 					event.reply(String.format("You do not have enough `%s` to buy `%,d %s` :no_entry:", factory.getMaterial().getName(), factoryAmount, factory.getName())).queue();
 					return;
@@ -2492,60 +2640,23 @@ public class EconomyModule {
 			}
 		}
 		
-		@SuppressWarnings("unchecked")
 		@Command(value="collect", description="Collect all the money from your factories you own", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-		public void collect(CommandEvent event, @Context Connection connection) {
-			Get data = r.table("bank").get(event.getAuthor().getId());
-			Map<String, Object> dataRan = data.run(connection);
-			
-			if (dataRan == null) {
-				event.reply("You do not own any factories :no_entry:").queue();
-				return;
-			}
+		public void collect(CommandEvent event, @Context Database database) {
+			Document data = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items", "economy.factoryCooldown")).get("economy", Database.EMPTY_DOCUMENT);
 			
 			long timestampNow = Clock.systemUTC().instant().getEpochSecond();
-			Long factoryTime = (Long) dataRan.get("factorytime");
-			
-			if (factoryTime == null) {
-				long moneyGained = 0;
-				StringBuilder factoryContent = new StringBuilder();
-				List<Map<String, Object>> items = (List<Map<String, Object>>) dataRan.get("items");
-				for (Map<String, Object> item : items) {
-					for (Factory factory : Factory.ALL) {
-						if (item.get("name").equals(factory.getName())) {
-							long amount = (long) item.get("amount");
-							long moneyGainedFactory = GeneralUtils.getRandomNumber(factory.getMinimumYield(), factory.getMaximumYield()) * amount;
-							moneyGained += moneyGainedFactory;
-							
-							factoryContent.append(String.format("• %,d %s: $%,d\n", amount, factory.getName(), moneyGainedFactory));
-						}
-					}
-				}
-				
-				if (moneyGained == 0) {
-					event.reply("You do not own any factories :no_entry:").queue();
-					return;
-				}
-				
-				EmbedBuilder embed = new EmbedBuilder();
-				embed.setAuthor(event.getAuthor().getName(), null, event.getAuthor().getEffectiveAvatarUrl());
-				embed.setColor(event.getMember().getColor());
-				embed.setDescription(String.format("Your factories made you **$%,d**\n\n%s", moneyGained, factoryContent.toString()));
-				event.reply(embed.build()).queue();
-				
-				long moneyGainedData = moneyGained;
-				data.update(row -> r.hashMap("balance", row.g("balance").add(moneyGainedData)).with("factorytime", timestampNow)).runNoReply(connection);
-			} else if (timestampNow - factoryTime <= EconomyUtils.FACTORY_COOLDOWN) {
+			Long factoryTime = data.getLong("factoryCooldown");
+			if (factoryTime != null && timestampNow - factoryTime <= EconomyUtils.FACTORY_COOLDOWN) {
 				event.reply("Slow down! You can collect from your factory in " + TimeUtils.toTimeString(factoryTime - timestampNow + EconomyUtils.FACTORY_COOLDOWN, ChronoUnit.SECONDS) + " :stopwatch:").queue();
 			} else {
 				long moneyGained = 0;
 				StringBuilder factoryContent = new StringBuilder();
-				List<Map<String, Object>> items = (List<Map<String, Object>>) dataRan.get("items");
-				for (Map<String, Object> item : items) {
+				List<Document> items = data.getList("items", Document.class, Collections.emptyList());
+				for (Document item : items) {
 					for (Factory factory : Factory.ALL) {
-						if (item.get("name").equals(factory.getName())) {
-							long amount = (long) item.get("amount");
+						if (item.getString("name").equals(factory.getName())) {
+							long amount = item.getLong("amount");
 							long moneyGainedFactory = GeneralUtils.getRandomNumber(factory.getMinimumYield(), factory.getMaximumYield()) * amount;
 							moneyGained += moneyGainedFactory;
 							
@@ -2563,10 +2674,15 @@ public class EconomyModule {
 				embed.setAuthor(event.getAuthor().getName(), null, event.getAuthor().getEffectiveAvatarUrl());
 				embed.setColor(event.getMember().getColor());
 				embed.setDescription(String.format("Your factories made you **$%,d**\n\n%s", moneyGained, factoryContent.toString()));
-				event.reply(embed.build()).queue();
-				
-				long moneyGainedData = moneyGained;
-				data.update(row -> r.hashMap("balance", row.g("balance").add(moneyGainedData)).with("factorytime", timestampNow)).runNoReply(connection);
+
+				database.updateUserById(event.getAuthor().getIdLong(), Updates.inc("economy.balance", moneyGained), (result, exception) -> {
+					if (exception != null) {
+						exception.printStackTrace();
+						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+					} else {
+						event.reply(embed.build()).queue();
+					}
+				});
 			}
 		}
 		
@@ -2586,11 +2702,10 @@ public class EconomyModule {
 			event.reply(HelpUtils.getHelpMessage(event.getCommand())).queue();
 		}
 	
-		@SuppressWarnings("unchecked")
 		@Command(value="list", description="View a list of all the items or a specified item on the auction house")
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-		public void list(CommandEvent event, @Context Connection connection, @Argument(value="item name", endless=true, nullDefault=true) String itemName) {
-			List<Map<String, Object>> shownData;
+		public void list(CommandEvent event, @Context Database database, @Argument(value="item name", endless=true, nullDefault=true) String itemName, @Option(value="sort") String sort, @Option(value="reverse") boolean reverse) {
+			List<Document> shownData;
 			if (itemName != null) {
 				Item item = EconomyUtils.getItem(itemName);
 				if (item == null) {
@@ -2598,28 +2713,34 @@ public class EconomyModule {
 					return;
 				}
 				
-				try (Cursor<Map<String, Object>> cursor = r.table("auction").filter(d -> d.g("item").g("name").eq(item.getName())).run(connection)) {
-					shownData = cursor.toList();
-					
-					if (shownData.isEmpty()) {
-						event.reply("I could not find any auctions for `" + item.getName() + "` :no_entry:").queue();
-						return;
-					}
-				}
+				shownData = database.getAuction().find(Filters.eq("item.name", item.getName())).into(new ArrayList<>());
 			} else {
-				try (Cursor<Map<String, Object>> cursor = r.table("auction").run(connection)) {
-					shownData = cursor.toList();
-				}
+				shownData = database.getAuction().find().into(new ArrayList<>());
 			}
 			
-			shownData.sort((a, b) -> Double.compare((a.get("price") instanceof Double ? (long) (double) a.get("price") : (long) a.get("price")) / (long) ((Map<String, Object>) a.get("item")).get("amount"), (b.get("price") instanceof Double ? (long) (double) b.get("price") : (long) b.get("price")) / (long) ((Map<String, Object>) b.get("item")).get("amount")));
+			if (shownData.isEmpty()) {
+				event.reply("There are no items on the auction house :no_entry:").queue();
+				return;
+			}
 			
-			PagedResult<Map<String, Object>> paged = new PagedResult<>(shownData)
+			List<String> itemNameEmbed = List.of("item", "name"), itemAmountEmbed = List.of("item", "amount");
+			switch (sort.toLowerCase()) {
+				case "item":
+					shownData.sort((a, b) -> (reverse ? 1 : -1) * a.getEmbedded(itemNameEmbed, String.class).toLowerCase().compareTo(b.getEmbedded(itemNameEmbed, String.class).toLowerCase()));
+				case "amount":
+					shownData.sort((a, b) -> (reverse ? 1 : -1) * Long.compare(a.getEmbedded(itemAmountEmbed, Long.class), b.getEmbedded(itemAmountEmbed, Long.class)));
+				case "price": 
+					shownData.sort((a, b) -> (reverse ? 1 : -1) * Long.compare(a.getLong("price"), b.getLong("price")));
+				default:
+					shownData.sort((a, b) -> (reverse ? 1 : -1) * Double.compare(a.getLong("price") / a.getEmbedded(itemAmountEmbed, Long.class), b.getLong("price") / b.getEmbedded(itemAmountEmbed, Long.class)));
+			}
+			
+			PagedResult<Document> paged = new PagedResult<>(shownData)
 					.setPerPage(6)
 					.setDeleteMessage(false)
 					.setCustom(true)
 					.setCustomFunction(page -> {
-						List<Map<String, Object>> list = page.getArray();
+						List<Document> list = page.getArray();
 						
 						EmbedBuilder embed = new EmbedBuilder();
 						embed.setAuthor("Auction List", null, event.getSelfUser().getEffectiveAvatarUrl());
@@ -2627,20 +2748,16 @@ public class EconomyModule {
 						embed.setFooter("next | previous | go to <page_number> | cancel", null);
 						embed.setColor(Settings.EMBED_COLOUR);
 						
-						for (int i = page.getCurrentPage() * page.getPerPage() - page.getPerPage(); i < page.getCurrentPage() * page.getPerPage(); i++) {
-							try {
-								Map<String, Object> auctionData = list.get(i);
-								AuctionItem item = new AuctionItem(auctionData);
-								
-								String extra = "";
-								if (item.isTool()) {
-									extra = "\nDurability: " + item.getTool().getCurrentDurability() + "/" + item.getTool().getDurability() + "\nUpgrades: " + item.getTool().getUpgrades();
-								}
-								
-								embed.addField(item.getItem().getName(), String.format("Price: $%,d\nPrice Per Item: $%,.2f\nAmount: %,d", item.getPrice(), item.getPricePerItem(), item.getAmount())  + extra, true);
-							} catch(IndexOutOfBoundsException e) {
-								break;
+						for (int i = page.getCurrentPage() * page.getPerPage() - page.getPerPage(); i < (page.getCurrentPage() == page.getMaxPage() ? list.size() : page.getCurrentPage() * page.getPerPage()); i++) {
+							Document auctionData = list.get(i);
+							AuctionItem item = new AuctionItem(auctionData);
+							
+							String extra = "";
+							if (item.isTool()) {
+								extra = "\nDurability: " + item.getTool().getCurrentDurability() + "/" + item.getTool().getDurability() + "\nUpgrades: " + item.getTool().getUpgrades();
 							}
+							
+							embed.addField(item.getItem().getName(), String.format("Price: $%,d\nPrice Per Item: $%,.2f\nAmount: %,d", item.getPrice(), item.getPricePerItem(), item.getAmount())  + extra, true);
 						}
 						
 						return embed.build();
@@ -2649,12 +2766,8 @@ public class EconomyModule {
 			PagedUtils.getPagedResult(event, paged, 300, null);
 		}
 		
-		@SuppressWarnings("unchecked")
 		@Command(value="sell", description="Put an item on the auction for the chance of it being bought by someone else")
-		public void sell(CommandEvent event, @Context Connection connection, @Argument(value="price") long price, @Argument(value="item", endless=true) String itemArgument) {
-			Get data = r.table("bank").get(event.getAuthor().getId());
-			Map<String, Object> dataRan = data.run(connection);
-			
+		public void sell(CommandEvent event, @Context Database database, @Argument(value="price") long price, @Argument(value="item", endless=true) String itemArgument) {
 			Pair<String, BigInteger> itemPair = EconomyUtils.getItemAndAmount(itemArgument);
 			String itemName = itemPair.getLeft();
 			BigInteger itemAmount = itemPair.getRight();
@@ -2670,21 +2783,7 @@ public class EconomyModule {
 				return;
 			}
 			
-			Long durability = null;
-			if (item instanceof Pickaxe) {
-				durability = (long) dataRan.get("pickdur");
-			} else if (item instanceof Rod) {
-				durability = (long) dataRan.get("roddur");
-			} else if (item instanceof Axe) {
-				durability = (long) dataRan.get("axedur");
-			}
-			
-			if (dataRan == null) {
-				event.reply(String.format("You do not have `%,d %s` :no_entry:", itemAmount, item.getName())).queue();
-				return;
-			}
-			
-			List<Map<String, Object>> items = (List<Map<String, Object>>) dataRan.get("items");
+			List<Document> items = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items")).getEmbedded(List.of("economy", "items"), Collections.emptyList());
 			ItemStack userItem = EconomyUtils.getUserItem(items, item);
 			
 			if (item.isBuyable()) {
@@ -2695,70 +2794,68 @@ public class EconomyModule {
 				}
 			}
 	
-			if (BigInteger.valueOf(userItem.getAmount()).compareTo(itemAmount) != -1) {
-				event.reply(String.format("Your `%,d %s` has been put on the auction house for **$%,d** :ok_hand:", itemAmount, item.getName(), price)).queue();
+			if (BigInteger.valueOf(userItem.getAmount()).compareTo(itemAmount) != -1) {				
+				UpdateOneModel<Document> updateModel = EconomyUtils.getRemoveItemModel(event.getAuthor().getIdLong(), items, item, itemAmount.longValue());
 				
-				data.update(r.hashMap("items", EconomyUtils.removeItems(items, item, itemAmount.longValue()))).runNoReply(connection);
-				
-				Map<String, Object> rawItem = EconomyUtils.getUserItemRaw(items, item);
+				Document rawItem = EconomyUtils.getUserItemRaw(items, item);
 				rawItem.put("amount", itemAmount.longValue());
-				r.table("auction").insert(r.hashMap("ownerid", event.getAuthor().getId()).with("price", price).with("item", rawItem).with("durability", durability)).runNoReply(connection);
+				
+				database.updateUserById(updateModel, (userResult, userException) -> {
+					if (userException != null) {
+						userException.printStackTrace();
+						event.reply(Sx4CommandEventListener.getUserErrorMessage(userException)).queue();
+					} else {
+						database.insertAuction(event.getAuthor().getIdLong(), price, rawItem, (auctionResult, auctionException) -> {
+							if (auctionException != null) {
+								auctionException.printStackTrace();
+								event.reply(Sx4CommandEventListener.getUserErrorMessage(auctionException)).queue();
+							} else {
+								event.reply(String.format("Your `%,d %s` has been put on the auction house for **$%,d** :ok_hand:", itemAmount, item.getName(), price)).queue();
+							}
+						});
+					}
+				});
 			} else {
 				event.reply(String.format("You do not have `%,d %s` :no_entry:", itemAmount, item.getName())).queue();
 				return;
 			}
 		}
 		
-		@SuppressWarnings("unchecked")
 		@Command(value="buy", description="Buy an item off the auction, look up by item name or look through all items from lowest to highest price per item")
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-		public void buy(CommandEvent event, @Context Connection connection, @Argument(value="item name", endless=true, nullDefault=true) String itemName) {
-			Get data = r.table("bank").get(event.getAuthor().getId());
-			Map<String, Object> dataRan = data.run(connection);
-			
-			if (dataRan == null) {
-				event.reply("You do not have enough money to buy anything on the auction :no_entry:").queue();
-				return;
-			}
-			
-			long balance = (long) dataRan.get("balance");
-			if (balance == 0) {
-				event.reply("You do not have enough money to buy anything on the auction :no_entry:").queue();
-				return;
-			}
-			
-			Item item;
-			List<Map<String, Object>> shownData;
+		public void buy(CommandEvent event, @Context Database database, @Argument(value="item name", endless=true, nullDefault=true) String itemName) {
+			List<Document> shownData;
 			if (itemName != null) {
-				item = EconomyUtils.getItem(itemName);
+				Item item = EconomyUtils.getItem(itemName);
 				if (item == null) {
 					event.reply("I could not find that item :no_entry:").queue();
 					return;
 				}
 				
-				try (Cursor<Map<String, Object>> cursor = r.table("auction").filter(d -> d.g("item").g("name").eq(item.getName())).run(connection)) {
-					shownData = cursor.toList();
-					
-					if (shownData.isEmpty()) {
-						event.reply("I could not find any auctions for `" + item.getName() + "` :no_entry:").queue();
-						return;
-					}
+				shownData = database.getAuction().find(Filters.eq("item.name", item.getName())).into(new ArrayList<>());
+				
+				if (shownData.isEmpty()) {
+					event.replyFormat("There is no `%s` on the auction house :no_entry:", item.getName()).queue();
+					return;
 				}
 			} else {
-				try (Cursor<Map<String, Object>> cursor = r.table("auction").run(connection)) {
-					shownData = cursor.toList();
+				shownData = database.getAuction().find().into(new ArrayList<>());
+				
+				if (shownData.isEmpty()) {
+					event.reply("There are not items on the auction house :no_entry:").queue();
+					return;
 				}
 			}
 			
-			shownData.sort((a, b) -> Double.compare((a.get("price") instanceof Double ? (long) (double) a.get("price") : (long) a.get("price")) / (long) ((Map<String, Object>) a.get("item")).get("amount"), (b.get("price") instanceof Double ? (long) (double) b.get("price") : (long) b.get("price")) / (long) ((Map<String, Object>) b.get("item")).get("amount")));
+			shownData.sort((a, b) -> Double.compare(b.getLong("price") / b.getEmbedded(List.of("item", "amount"), Long.class), a.getLong("price") / a.getEmbedded(List.of("item", "amount"), Long.class)));
 			
-			PagedResult<Map<String, Object>> paged = new PagedResult<>(shownData)
+			PagedResult<Document> paged = new PagedResult<>(shownData)
 					.setIncreasedIndex(true)
 					.setPerPage(6)
 					.setSelectableByIndex(true)
 					.setCustom(true)
 					.setCustomFunction(page -> {
-						List<Map<String, Object>> list = page.getArray();
+						List<Document> list = page.getArray();
 						
 						EmbedBuilder embed = new EmbedBuilder();
 						embed.setAuthor("Auction List", null, event.getSelfUser().getEffectiveAvatarUrl());
@@ -2766,137 +2863,125 @@ public class EconomyModule {
 						embed.setFooter("next | previous | go to <page_number> | cancel", null);
 						embed.setColor(Settings.EMBED_COLOUR);
 						
-						for (int i = page.getCurrentPage() * page.getPerPage() - page.getPerPage(); i < page.getCurrentPage() * page.getPerPage(); i++) {
-							try {
-								Map<String, Object> auctionData = list.get(i);
-								AuctionItem auctionItem = new AuctionItem(auctionData);
-								
-								String extra = "";
-								if (auctionItem.isTool()) {
-									extra = "\nDurability: " + auctionItem.getTool().getCurrentDurability() + "/" + auctionItem.getTool().getDurability() + "\nUpgrades: " + auctionItem.getTool().getUpgrades();
-								}
-								
-								embed.addField((i + 1) + ": " + auctionItem.getItem().getName(), String.format("Price: $%,d\nPrice Per Item: $%,.2f\nAmount: %,d", auctionItem.getPrice(), auctionItem.getPricePerItem(), auctionItem.getAmount())  + extra, true);
-							} catch(IndexOutOfBoundsException e) {
-								break;
+						for (int i = page.getCurrentPage() * page.getPerPage() - page.getPerPage(); i < (page.getCurrentPage() == page.getMaxPage() ? list.size() : page.getCurrentPage() * page.getPerPage()); i++) {
+							Document auctionData = list.get(i);
+							AuctionItem auctionItem = new AuctionItem(auctionData);
+							
+							String extra = "";
+							if (auctionItem.isTool()) {
+								extra = "\nDurability: " + auctionItem.getTool().getCurrentDurability() + "/" + auctionItem.getTool().getDurability() + "\nUpgrades: " + auctionItem.getTool().getUpgrades();
 							}
+							
+							embed.addField((i + 1) + ": " + auctionItem.getItem().getName(), String.format("Price: $%,d\nPrice Per Item: $%,.2f\nAmount: %,d", auctionItem.getPrice(), auctionItem.getPricePerItem(), auctionItem.getAmount())  + extra, true);      
 						}
 						
 						return embed.build();
 					});
 			
 			PagedUtils.getPagedResult(event, paged, 60, pagedReturn -> {
-				Table auctionTable = r.table("auction");
-				try (Cursor<Map<String, Object>> cursor = auctionTable.run(connection)) {
-					List<Map<String, Object>> auctionData = cursor.toList();
-					Map<String, Object> auction = pagedReturn.getObject();
-					AuctionItem auctionItem = new AuctionItem(auction);
-					
-					if (!auctionData.contains(auction)) {
-						event.reply("That item has already been bought off the auction :no_entry:").queue();
-						return;
-					}
-					
-					User owner = auctionItem.getOwner(event.getShardManager());
-					if (owner != null) {
-						if (owner.equals(event.getAuthor())) {
-							event.reply("You cannot buy your own items, however you can refund them using `" + event.getPrefix() + "auction refund` :no_entry:").queue();
-							return;
-						}
-					}
-					
-					if (balance < auctionItem.getPrice()) {
-						event.reply("You do not have enough money to purchase that auction :no_entry:").queue();
-						return;
-					}
-					
-					Map<String, Object> auctionItemRaw = (Map<String, Object>) auction.get("item");
-					List<Map<String, Object>> items = (List<Map<String, Object>>) dataRan.get("items");
-					if (auctionItem.isAxe()) {
-						if (EconomyUtils.hasAxe(items)) {
-							event.reply("You already own an axe :no_entry:").queue();
-							return;
-						} else {
-							data.update(row -> r.hashMap("items", EconomyUtils.addItemsFromRaw(items, auctionItemRaw)).with("balance", row.g("balance").sub(auctionItem.getPrice())).with("axedur", auctionItem.getDurability())).runNoReply(connection);
-						}
-					} else if (auctionItem.isRod()) {
-						if (EconomyUtils.hasRod(items)) {
-							event.reply("You already own a fishing rod :no_entry:").queue();
-							return;
-						} else {
-							data.update(row -> r.hashMap("items", EconomyUtils.addItemsFromRaw(items, auctionItemRaw)).with("balance", row.g("balance").sub(auctionItem.getPrice())).with("roddur", auctionItem.getDurability())).runNoReply(connection);
-						}
-					} else if (auctionItem.isPickaxe()) {
-						if (EconomyUtils.hasPickaxe(items)) {
-							event.reply("You already own a pickaxe :no_entry:").queue();
-							return;
-						} else {
-							data.update(row -> r.hashMap("items", EconomyUtils.addItemsFromRaw(items, auctionItemRaw)).with("balance", row.g("balance").sub(auctionItem.getPrice())).with("pickdur", auctionItem.getDurability())).runNoReply(connection);
-						}
-					} else {
-						data.update(row -> r.hashMap("items", EconomyUtils.addItemsFromRaw(items, auctionItemRaw)).with("balance", row.g("balance").sub(auctionItem.getPrice()))).runNoReply(connection);
-					}
-					
-					event.reply(String.format("You just bought `%,d %s` for **$%,d** :ok_hand:", auctionItem.getAmount(), auctionItem.getItem().getName(), auctionItem.getPrice())).queue();
-					
-					auctionTable.get(auctionItem.getId()).delete().runNoReply(connection);
-					r.table("bank").get(owner.getId()).update(row -> r.hashMap("balance", row.g("balance").add(auctionItem.getPrice()))).runNoReply(connection);
-					owner.openPrivateChannel().queue(channel -> {
-						channel.sendMessage(String.format("Your `%,d %s` was just bought for **$%,d** :tada:", auctionItem.getAmount(), auctionItem.getItem().getName(), auctionItem.getPrice())).queue();
-					}, e -> {});
+				Document auction = pagedReturn.getObject();
+				AuctionItem auctionItem = new AuctionItem(auction);
+				Document data = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items", "economy.balance")).get("economy", Database.EMPTY_DOCUMENT);
+				
+				Document auctionData = database.getAuction().find(Filters.eq("_id", auctionItem.getId())).first();
+				if (auctionData == null) {
+					event.reply("That item has already been bought off the auction :no_entry:").queue();
+					return;
 				}
+				
+				User owner = auctionItem.getOwner();
+				if (owner != null) {
+					if (owner.equals(event.getAuthor())) {
+						event.reply("You cannot buy your own items, however you can refund them using `" + event.getPrefix() + "auction refund` :no_entry:").queue();
+						return;
+					}
+				}
+				
+				if (data.get("balance", 0) < auctionItem.getPrice()) {
+					event.reply("You do not have enough money to purchase that auction :no_entry:").queue();
+					return;
+				}
+				
+				List<Document> items = data.getList("items", Document.class, Collections.emptyList());
+				if (auctionItem.isAxe()) {
+					if (EconomyUtils.hasAxe(items)) {
+						event.reply("You already own an axe :no_entry:").queue();
+						return;
+					}
+				} else if (auctionItem.isRod()) {
+					if (EconomyUtils.hasRod(items)) {
+						event.reply("You already own a fishing rod :no_entry:").queue();
+						return;
+					}
+				} else if (auctionItem.isPickaxe()) {
+					if (EconomyUtils.hasPickaxe(items)) {
+						event.reply("You already own a pickaxe :no_entry:").queue();
+						return;
+					} 
+				}
+				
+				database.removeAuction(auctionItem.getId(), (auctionResult, auctionException) -> {
+					if (auctionException != null) {
+						auctionException.printStackTrace();
+						event.reply(Sx4CommandEventListener.getUserErrorMessage(auctionException)).queue();
+					} else {
+						List<WriteModel<Document>> bulkData = List.of(
+								EconomyUtils.getAddItemModel(event.getAuthor().getIdLong(), items, auction.get("item", Document.class)),
+								new UpdateOneModel<>(Filters.eq("_id", owner.getIdLong()), Updates.inc("economy.balance", auctionItem.getPrice()), new UpdateOptions().upsert(true))
+						);
+						
+						database.bulkWriteUsers(bulkData, (userResult, userException) -> {
+							if (userException != null) {
+								userException.printStackTrace();
+								event.reply(Sx4CommandEventListener.getUserErrorMessage(userException)).queue();
+							} else {
+								event.replyFormat("You just bought `%,d %s` for **$%,d** :ok_hand:", auctionItem.getAmount(), auctionItem.getItem().getName(), auctionItem.getPrice()).queue();
+								owner.openPrivateChannel().queue(channel -> {
+									channel.sendMessageFormat("Your `%,d %s` was just bought for **$%,d** :tada:", auctionItem.getAmount(), auctionItem.getItem().getName(), auctionItem.getPrice()).queue();
+								}, e -> {});
+							}
+						});
+					}
+				});
 			});
 		}
 
-		@SuppressWarnings("unchecked")
 		@Command(value="refund", description="Refund an item you have put on the auction")
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-		public void refund(CommandEvent event, @Context Connection connection, @Argument(value="item name", endless=true, nullDefault=true) String itemName) {
-			Get data = r.table("bank").get(event.getAuthor().getId());
-			Map<String, Object> dataRan = data.run(connection);
-			
-			if (dataRan == null) {
-				event.reply("You do not have any items listed on the auction :no_entry:").queue();
-				return;
-			}
-			
-			Item item;
-			List<Map<String, Object>> shownData;
+		public void refund(CommandEvent event, @Context Database database, @Argument(value="item name", endless=true, nullDefault=true) String itemName) {
+			Bson ownerFilter = Filters.eq("_id", event.getAuthor().getIdLong());
+			List<Document> shownData;
 			if (itemName != null) {
-				item = EconomyUtils.getItem(itemName);
+				Item item = EconomyUtils.getItem(itemName);
 				if (item == null) {
 					event.reply("I could not find that item :no_entry:").queue();
 					return;
 				}
 				
-				try (Cursor<Map<String, Object>> cursor = r.table("auction").filter(d -> d.g("item").g("name").eq(item.getName()).and(d.g("ownerid").eq(event.getAuthor().getId()))).run(connection)) {
-					shownData = cursor.toList();
-					
-					if (shownData.isEmpty()) {
-						event.reply("You do not have any `" + item.getName() + "` on the auction :no_entry:").queue();
-						return;
-					}
+				shownData = database.getAuction().find(Filters.and(Filters.eq("item.name", item.getName()), ownerFilter)).into(new ArrayList<>());
+				
+				if (shownData.isEmpty()) {
+					event.replyFormat("You do not have any `%s` on the auction house", item.getName()).queue();
+					return;
 				}
 			} else {
-				try (Cursor<Map<String, Object>> cursor = r.table("auction").filter(d -> d.g("ownerid").eq(event.getAuthor().getId())).run(connection)) {
-					shownData = cursor.toList();
+				shownData = database.getAuction().find(ownerFilter).into(new ArrayList<>());
+				
+				if (shownData.isEmpty()) {
+					event.reply("You do not have any items listed on the auction house :no_entry:").queue();
+					return;
 				}
 			}
 			
-			if (shownData.isEmpty()) {
-				event.reply("You do not have any items listed on the auction :no_entry:").queue();
-				return;
-			}
+			shownData.sort((a, b) -> Double.compare(b.getLong("price") / b.getEmbedded(List.of("item", "amount"), Long.class), a.getLong("price") / a.getEmbedded(List.of("item", "amount"), Long.class)));
 			
-			shownData.sort((a, b) -> Double.compare((long) a.get("price") / (long) ((Map<String, Object>) a.get("item")).get("amount"), (long) b.get("price") / (long) ((Map<String, Object>) a.get("item")).get("amount")));
-			
-			PagedResult<Map<String, Object>> paged = new PagedResult<>(shownData)
+			PagedResult<Document> paged = new PagedResult<>(shownData)
 					.setIncreasedIndex(true)
 					.setPerPage(6)
 					.setSelectableByIndex(true)
 					.setCustom(true)
 					.setCustomFunction(page -> {
-						List<Map<String, Object>> list = page.getArray();
+						List<Document> list = page.getArray();
 						
 						EmbedBuilder embed = new EmbedBuilder();
 						embed.setAuthor("Auction List", null, event.getSelfUser().getEffectiveAvatarUrl());
@@ -2904,128 +2989,93 @@ public class EconomyModule {
 						embed.setFooter("next | previous | go to <page_number> | cancel", null);
 						embed.setColor(Settings.EMBED_COLOUR);
 						
-						for (int i = page.getCurrentPage() * page.getPerPage() - page.getPerPage(); i < page.getCurrentPage() * page.getPerPage(); i++) {
-							try {
-								Map<String, Object> auctionData = list.get(i);
-								AuctionItem auctionItem = new AuctionItem(auctionData);
-								
-								String extra = "";
-								if (auctionItem.isTool()) {
-									extra = "\nDurability: " + auctionItem.getTool().getCurrentDurability() + "/" + auctionItem.getTool().getDurability() + "\nUpgrades: " + auctionItem.getTool().getUpgrades();
-								}
-								
-								embed.addField((i + 1) + ": " + auctionItem.getItem().getName(), String.format("Price: $%,d\nPrice Per Item: $%,.2f\nAmount: %,d", auctionItem.getPrice(), auctionItem.getPricePerItem(), auctionItem.getAmount())  + extra, true);
-							} catch(IndexOutOfBoundsException e) {
-								break;
+						for (int i = page.getCurrentPage() * page.getPerPage() - page.getPerPage(); i < (page.getCurrentPage() == page.getMaxPage() ? list.size() : page.getCurrentPage() * page.getPerPage()); i++) {
+							Document auctionData = list.get(i);
+							AuctionItem auctionItem = new AuctionItem(auctionData);
+							
+							String extra = "";
+							if (auctionItem.isTool()) {
+								extra = "\nDurability: " + auctionItem.getTool().getCurrentDurability() + "/" + auctionItem.getTool().getDurability() + "\nUpgrades: " + auctionItem.getTool().getUpgrades();
 							}
+							
+							embed.addField((i + 1) + ": " + auctionItem.getItem().getName(), String.format("Price: $%,d\nPrice Per Item: $%,.2f\nAmount: %,d", auctionItem.getPrice(), auctionItem.getPricePerItem(), auctionItem.getAmount())  + extra, true);
 						}
 						
 						return embed.build();
 					});
 			
 			PagedUtils.getPagedResult(event, paged, 60, pagedReturn -> {
-				Table auctionTable = r.table("auction");
-				try (Cursor<Map<String, Object>> cursor = auctionTable.run(connection)) {
-					List<Map<String, Object>> auctionData = cursor.toList();
-					Map<String, Object> auction = pagedReturn.getObject();
-					AuctionItem auctionItem = new AuctionItem(auction);
-					
-					if (!auctionData.contains(auction)) {
-						event.reply("You have already refunded that item :no_entry:").queue();
+				Document auction = pagedReturn.getObject();
+				AuctionItem auctionItem = new AuctionItem(auction);
+				
+				Document auctionData = database.getAuction().find(Filters.eq("_id", auctionItem.getId())).first();
+				if (auctionData == null) {
+					event.reply("You have already refunded that item :no_entry:").queue();
+					return;
+				}
+				
+				List<Document> items = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items")).getEmbedded(List.of("economy", "items"), Collections.emptyList());
+				if (auctionItem.isAxe()) {
+					if (EconomyUtils.hasAxe(items)) {
+						event.reply("You already own an axe :no_entry:").queue();
 						return;
 					}
-					
-					Map<String, Object> auctionItemRaw = (Map<String, Object>) auction.get("item");
-					List<Map<String, Object>> items = (List<Map<String, Object>>) dataRan.get("items");
-					if (auctionItem.isAxe()) {
-						if (EconomyUtils.hasAxe(items)) {
-							event.reply("You already own an axe :no_entry:").queue();
-							return;
-						} else {
-							data.update(row -> r.hashMap("items", EconomyUtils.addItemsFromRaw(items, auctionItemRaw)).with("axedur", auctionItem.getDurability())).runNoReply(connection);
-						}
-					} else if (auctionItem.isRod()) {
-						if (EconomyUtils.hasRod(items)) {
-							event.reply("You already own a fishing rod :no_entry:").queue();
-							return;
-						} else {
-							data.update(row -> r.hashMap("items", EconomyUtils.addItemsFromRaw(items, auctionItemRaw)).with("roddur", auctionItem.getDurability())).runNoReply(connection);
-						}
-					} else if (auctionItem.isPickaxe()) {
-						if (EconomyUtils.hasPickaxe(items)) {
-							event.reply("You already own a pickaxe :no_entry:").queue();
-							return;
-						} else {
-							data.update(row -> r.hashMap("items", EconomyUtils.addItemsFromRaw(items, auctionItemRaw)).with("pickdur", auctionItem.getDurability())).runNoReply(connection);
-						}
-					} else {
-						data.update(row -> r.hashMap("items", EconomyUtils.addItemsFromRaw(items, auctionItemRaw))).runNoReply(connection);
+				} else if (auctionItem.isRod()) {
+					if (EconomyUtils.hasRod(items)) {
+						event.reply("You already own a fishing rod :no_entry:").queue();
+						return;
 					}
-					
-					event.reply(String.format("You just refunded your `%,d %s` :ok_hand:", auctionItem.getAmount(), auctionItem.getItem().getName())).queue();
-					
-					auctionTable.get(auctionItem.getId()).delete().runNoReply(connection);
+				} else if (auctionItem.isPickaxe()) {
+					if (EconomyUtils.hasPickaxe(items)) {
+						event.reply("You already own a pickaxe :no_entry:").queue();
+						return;
+					}
 				}
+				
+				database.removeAuction(auctionItem.getId(), (auctionResult, auctionException) -> {
+					if (auctionException != null) {
+						auctionException.printStackTrace();
+						event.reply(Sx4CommandEventListener.getUserErrorMessage(auctionException)).queue();
+					} else {
+						database.updateUserById(EconomyUtils.getAddItemModel(event.getAuthor().getIdLong(), items, auction.get("items", Document.class)), (userResult, userException) -> {
+							if (userException != null) {
+								userException.printStackTrace();
+								event.reply(Sx4CommandEventListener.getUserErrorMessage(userException)).queue();
+							} else {
+								event.reply(String.format("You just refunded your `%,d %s` :ok_hand:", auctionItem.getAmount(), auctionItem.getItem().getName())).queue();
+							}
+						});
+					}
+				});
 			});
 		}
 		
 	}
 	
-	@SuppressWarnings("unchecked")
 	@Command(value="fish", description="An easy way to start making money every 5 minutes, buy fishing rods to increase your yield per fish", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-	public void fish(CommandEvent event, @Context Connection connection) {
-		EconomyUtils.insertData(event.getAuthor()).run(connection, OptArgs.of("durability", "soft"));
-		Get data = r.table("bank").get(event.getAuthor().getId());
-		Map<String, Object> dataRan = data.run(connection);
-		List<Map<String, Object>> items = (List<Map<String, Object>>) dataRan.get("items");
+	public void fish(CommandEvent event, @Context Database database) {
+		Document data = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items", "economy.fishCooldown")).get("economy", Database.EMPTY_DOCUMENT);
 		
 		long timestampNow = Clock.systemUTC().instant().getEpochSecond();
-		Long fishTime = (Long) dataRan.get("fishtime");
-		
-		if (fishTime == null) {
-			String extra = "";
-			long money;
-			boolean hasRod = EconomyUtils.hasRod(items);
-			Rod userRod;
-			if (hasRod) {
-				userRod = EconomyUtils.getUserRod(dataRan);
-				money = GeneralUtils.getRandomNumber(userRod.getMinimumYield(), userRod.getMaximumYield());
-				
-				if (userRod.getCurrentDurability() == 2) {
-					extra = "Your fishing rod will break the next time you use it :warning:";
-				} else if (userRod.getCurrentDurability() == 1) {
-					extra = "Your fishing rod broke in the process";
-					items = EconomyUtils.removeItem(items, userRod);
-				}
-			} else {
-				money = GeneralUtils.getRandomNumber(2, 10);
-			}
-			
-			EmbedBuilder embed = new EmbedBuilder();
-			embed.setColor(event.getMember().getColor());
-			embed.setAuthor(event.getAuthor().getName(), null, event.getAuthor().getEffectiveAvatarUrl());
-			embed.setDescription("You fish for 5 minutes and sell your fish! " + String.format("(**$%,d**)", money) + " :fish:\n\n" + extra);
-			event.reply(embed.build()).queue();
-			
-			List<Map<String, Object>> itemsData = items;
-			data.update(row -> r.hashMap("balance", row.g("balance").add(money)).with("items", itemsData).with("roddur", hasRod ? row.g("roddur").sub(1) : row.g("roddur")).with("fishtime", timestampNow)).runNoReply(connection);
-		} else if (timestampNow - fishTime <= EconomyUtils.FISH_COOLDOWN) {
+		Long fishTime = data.getLong("fishCooldown");
+		if (fishTime != null && timestampNow - fishTime <= EconomyUtils.FISH_COOLDOWN) {
 			event.reply("Slow down! You can go fishing in " + TimeUtils.toTimeString(fishTime - timestampNow + EconomyUtils.FISH_COOLDOWN, ChronoUnit.SECONDS) + " :stopwatch:").queue();
 		} else {
-			String extra = "";
+			List<Document> items = data.getList("items", Document.class, Collections.emptyList());
+			
 			long money;
-			boolean hasRod = EconomyUtils.hasRod(items);
-			Rod userRod;
-			if (hasRod) {
-				userRod = EconomyUtils.getUserRod(dataRan);
+			boolean brokenRod = false;
+			String warning = "";
+			Rod userRod = EconomyUtils.getUserRod(items);
+			if (userRod != null) {
 				money = GeneralUtils.getRandomNumber(userRod.getMinimumYield(), userRod.getMaximumYield());
 				
 				if (userRod.getCurrentDurability() == 2) {
-					extra = "Your fishing rod will break the next time you use it :warning:";
+					warning = "Your fishing rod will break the next time you use it :warning:";
 				} else if (userRod.getCurrentDurability() == 1) {
-					extra = "Your fishing rod broke in the process";
-					items = EconomyUtils.removeItem(items, userRod);
+					warning = "Your fishing rod broke in the process";
+					brokenRod = true;
 				}
 			} else {
 				money = GeneralUtils.getRandomNumber(2, 10);
@@ -3034,98 +3084,58 @@ public class EconomyModule {
 			EmbedBuilder embed = new EmbedBuilder();
 			embed.setColor(event.getMember().getColor());
 			embed.setAuthor(event.getAuthor().getName(), null, event.getAuthor().getEffectiveAvatarUrl());
-			embed.setDescription("You fish for 5 minutes and sell your fish! " + String.format("(**$%,d**)", money) + " :fish:\n\n" + extra);
-			event.reply(embed.build()).queue();
+			embed.setDescription("You fish for 5 minutes and sell your fish! " + String.format("(**$%,d**)", money) + " :fish:\n\n" + warning);
 			
-			List<Map<String, Object>> itemsData = items;
-			data.update(row -> r.hashMap("balance", row.g("balance").add(money)).with("items", itemsData).with("roddur", hasRod ? row.g("roddur").sub(1) : row.g("roddur")).with("fishtime", timestampNow)).runNoReply(connection);
+			List<Bson> arrayFilters = new ArrayList<>();
+			Bson update = Updates.combine(
+					Updates.set("economy.fishCooldown", timestampNow),
+					Updates.inc("economy.balance", money)
+			);
+			
+			if (brokenRod) {
+				update = Updates.combine(update, Updates.pull("economy.items", Filters.eq("name", userRod.getName())));
+			} else {
+				update = Updates.combine(update, Updates.inc("economy.items.$[rod].currentDurability", -1));
+				arrayFilters.add(Filters.eq("rod.name", userRod.getName()));
+			}
+			
+			UpdateOptions updateOptions = new UpdateOptions().arrayFilters(arrayFilters).upsert(true);
+			database.updateUserById(event.getAuthor().getIdLong(), null, update, updateOptions, (result, exception) -> {
+				if (exception != null) {
+					exception.printStackTrace();
+					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+				} else {
+					event.reply(embed.build()).queue();
+				}
+			});
 		}
 	}
 	
-	@SuppressWarnings("unchecked")
 	@Command(value="chop", description="Use your axe to chop some trees down to gather wood for crafting", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-	public void chop(CommandEvent event, @Context Connection connection) {
-		Get data = r.table("bank").get(event.getAuthor().getId());
-		Map<String, Object> dataRan = data.run(connection);
+	public void chop(CommandEvent event, @Context Database database) {
+		Document data = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items", "economy.chopCooldown")).get("economy", Database.EMPTY_DOCUMENT);
 		
-		if (dataRan == null) {
-			event.reply("You do not have an axe :no_entry:").queue();
-			return;
-		}
-		
-		List<Map<String, Object>> items = (List<Map<String, Object>>) dataRan.get("items");
+		List<Document> items = data.getList("items", Document.class, Collections.emptyList());
 		if (!EconomyUtils.hasAxe(items)) {
 			event.reply("You do not have an axe :no_entry:").queue();
 			return;
 		}
 		
 		long timestampNow = Clock.systemUTC().instant().getEpochSecond();
-		Long axeTime = (Long) dataRan.get("axetime");
+		Long chopTime = data.getLong("chopCooldown");
 		
-		if (axeTime == null) {
-			Axe userAxe = EconomyUtils.getUserAxe(dataRan);
-			String extra = "";
-			if (userAxe.getCurrentDurability() == 2) {
-				extra = "Your axe will break the next time you use it :warning:";
-			} else if (userAxe.getCurrentDurability() == 1) {
-				extra = "Your axe broke in the process";
-				items = EconomyUtils.removeItem(items, userAxe);
-			}
-			
-			Map<Wood, Long> woodGathered = new HashMap<>();
-			for (Wood wood : Wood.ALL) {
-				for (int i = 0; i < userAxe.getMaximumMaterials(); i++) {
-					int randomInt = random.nextInt((int) Math.ceil(wood.getChance() / userAxe.getMultiplier()) + 1);
-					if (randomInt == 0) {
-						if (woodGathered.containsKey(wood)) {
-							woodGathered.put(wood, woodGathered.get(wood) + 1L);
-						} else {
-							woodGathered.put(wood, 1L);
-						}
-					}
-				}
-			}
-			
-			EmbedBuilder embed = new EmbedBuilder();
-			embed.setDescription("You chopped down some trees and found the following wood: ");
-			embed.setColor(event.getMember().getColor());
-			embed.setAuthor(event.getAuthor().getName(), null, event.getAuthor().getEffectiveAvatarUrl());
-			if (!woodGathered.isEmpty()) {
-				List<Wood> keys = GeneralUtils.convertSetToList(woodGathered.keySet());
-				keys.sort((a, b) -> Long.compare(woodGathered.get(b), woodGathered.get(a)));
-				for (Wood key : keys) {
-					long amount = woodGathered.get(key);
-					
-					embed.appendDescription(String.format("%,dx %s", amount, key.getName()));
-					if (keys.indexOf(key) != keys.size() - 1) {
-						embed.appendDescription(", ");
-					} else {
-						embed.appendDescription("\n\n");
-					}
-					
-					items = EconomyUtils.addItems(items, key, amount);
-				}
-			} else {
-				embed.appendDescription("Absolutely nothing\n\n");
-			}
-			
-			embed.appendDescription(extra);
-			
-			event.reply(embed.build()).queue();
-			
-			List<Map<String, Object>> itemsData = items;
-			data.update(row -> r.hashMap("items", itemsData).with("axedur", row.g("axedur").sub(1)).with("axetime", timestampNow)).runNoReply(connection);
-		} else if (timestampNow - axeTime <= EconomyUtils.CHOP_COOLDOWN) {
-			event.reply("Slow down! You can chop down trees in " + TimeUtils.toTimeString(axeTime - timestampNow + EconomyUtils.CHOP_COOLDOWN, ChronoUnit.SECONDS) + " :stopwatch:").queue();
+		if (chopTime != null && timestampNow - chopTime <= EconomyUtils.CHOP_COOLDOWN) {
+			event.reply("Slow down! You can chop down trees in " + TimeUtils.toTimeString(chopTime - timestampNow + EconomyUtils.CHOP_COOLDOWN, ChronoUnit.SECONDS) + " :stopwatch:").queue();
 		} else {
-			Axe userAxe = EconomyUtils.getUserAxe(dataRan);
-			String extra = "";
+			Axe userAxe = EconomyUtils.getUserAxe(items);
+			String warning = "";
+			boolean brokenAxe = false;
 			if (userAxe.getCurrentDurability() == 2) {
-				extra = "Your axe will break the next time you use it :warning:";
+				warning = "Your axe will break the next time you use it :warning:";
 			} else if (userAxe.getCurrentDurability() == 1) {
-				extra = "Your axe broke in the process";
-				items = EconomyUtils.removeItem(items, userAxe);
+				warning = "Your axe broke in the process";
+				brokenAxe = true;
 			}
 			
 			Map<Wood, Long> woodGathered = new HashMap<>();
@@ -3142,6 +3152,15 @@ public class EconomyModule {
 				}
 			}
 			
+			List<Bson> arrayFilters = new ArrayList<>();
+			Bson update = Updates.set("chopCooldown", timestampNow);
+			if (brokenAxe) {
+				update = Updates.combine(update, Updates.pull("economy.items", Filters.eq("name", userAxe.getName())));
+			} else {
+				update = Updates.combine(update, Updates.inc("economy.items.$[axe].currentDurability", -1));
+				arrayFilters.add(Filters.eq("axe.name", userAxe.getName()));
+			}
+			
 			EmbedBuilder embed = new EmbedBuilder();
 			embed.setDescription("You chopped down some trees and found the following wood: ");
 			embed.setColor(event.getMember().getColor());
@@ -3149,110 +3168,87 @@ public class EconomyModule {
 			if (!woodGathered.isEmpty()) {
 				List<Wood> keys = GeneralUtils.convertSetToList(woodGathered.keySet());
 				keys.sort((a, b) -> Long.compare(woodGathered.get(b), woodGathered.get(a)));
-				for (Wood key : keys) {
+				for (int i = 0; i < keys.size(); i++) {
+					Wood key = keys.get(i);
 					long amount = woodGathered.get(key);
 					
 					embed.appendDescription(String.format("%,dx %s", amount, key.getName()));
-					if (keys.indexOf(key) != keys.size() - 1) {
+					if (i != keys.size() - 1) {
 						embed.appendDescription(", ");
 					} else {
 						embed.appendDescription("\n\n");
 					}
 					
-					items = EconomyUtils.addItems(items, key, amount);
+					UpdateOneModel<Document> updateModel = EconomyUtils.getAddItemModel(items, key, amount);
+					update = Updates.combine(update, updateModel.getUpdate());
+					arrayFilters.addAll(updateModel.getOptions().getArrayFilters());
 				}
 			} else {
 				embed.appendDescription("Absolutely nothing\n\n");
 			}
 			
-			embed.appendDescription(extra);
+			embed.appendDescription(warning);
 			
-			event.reply(embed.build()).queue();
-			
-			List<Map<String, Object>> itemsData = items;
-			data.update(row -> r.hashMap("items", itemsData).with("axedur", row.g("axedur").sub(1)).with("axetime", timestampNow)).runNoReply(connection);
+			UpdateOptions updateOptions = new UpdateOptions().arrayFilters(arrayFilters).upsert(true);
+			database.updateUserById(event.getAuthor().getIdLong(), null, update, updateOptions, (result, exception) -> {
+				if (exception != null) {
+					exception.printStackTrace();
+					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+				} else {
+					event.reply(embed.build()).queue();
+				}
+			});
 		}
 	}
 	
-	@SuppressWarnings("unchecked")
 	@Command(value="mine", description="Use your pickaxe to mine, mining will gather money aswell as the chance to get some materials", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-	public void mine(CommandEvent event, @Context Connection connection) {
-		Get data = r.table("bank").get(event.getAuthor().getId());
-		Map<String, Object> dataRan = data.run(connection);
+	public void mine(CommandEvent event, @Context Database database) {
+		Document data = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items", "economy.mineCooldown")).get("economy", Database.EMPTY_DOCUMENT);
 		
-		if (dataRan == null) {
-			event.reply("You do not have a pickaxe :no_entry:").queue();
-			return;
-		}
-		
-		List<Map<String, Object>> items = (List<Map<String, Object>>) dataRan.get("items");
+		List<Document> items = data.getList("items", Document.class, Collections.emptyList());
 		if (!EconomyUtils.hasPickaxe(items)) {
 			event.reply("You do not have a pickaxe :no_entry:").queue();
 			return;
 		}
 		
-		long timestampNow = (long) Clock.systemUTC().instant().getEpochSecond();
-		Long pickTime = (Long) dataRan.get("picktime");
+		long timestampNow = Clock.systemUTC().instant().getEpochSecond();
+		Long mineTime = data.getLong("mineCooldown");
 		
-		if (pickTime == null) {
-			Pickaxe userPickaxe = EconomyUtils.getUserPickaxe(dataRan);
-			
-			String extra = "";
-			if (userPickaxe.getCurrentDurability() == 2) {
-				extra = "Your pickaxe will break the next time you use it :warning:";
-			} else if (userPickaxe.getCurrentDurability() == 1) {
-				extra = "Your pickaxe broke in the process";
-				items = EconomyUtils.removeItem(items, userPickaxe);
-			}
-			
-			long money = GeneralUtils.getRandomNumber(userPickaxe.getMinimumYield(), userPickaxe.getMaximumYield());
-			StringBuilder materialContent = new StringBuilder();
-			for (Material material : Material.ALL) {
-				if (!material.isHidden()) {
-					if (random.nextInt((int) Math.ceil(material.getChance() / userPickaxe.getMultiplier()) + 1) == 0) {
-						materialContent.append(material.getName() + material.getEmote() + ", ");
-						
-						items = EconomyUtils.addItem(items, material);
-					}
-				}
-			}
-			
-			if (materialContent.length() > 0) {
-				materialContent.setLength(materialContent.length() - 2);
-			} else {
-				materialContent.append("Absolutely nothing");
-			}
-			
-			EmbedBuilder embed = new EmbedBuilder();
-			embed.setColor(event.getMember().getColor());
-			embed.setAuthor(event.getAuthor().getName(), null, event.getAuthor().getEffectiveAvatarUrl());
-			embed.setDescription(String.format("You mined resources and made **$%,d** :pick:\nMaterials found: %s\n\n%s", money, materialContent.toString(), extra));
-			event.reply(embed.build()).queue();
-			
-			List<Map<String, Object>> itemsData = items;
-			data.update(row -> r.hashMap("items", itemsData).with("pickdur", row.g("pickdur").sub(1)).with("balance", row.g("balance").add(money)).with("picktime", timestampNow)).runNoReply(connection);
-		} else if (timestampNow - pickTime <= EconomyUtils.MINE_COOLDOWN) {
-			event.reply("Slow down! You can go mining in " + TimeUtils.toTimeString(pickTime - timestampNow + EconomyUtils.MINE_COOLDOWN, ChronoUnit.SECONDS) + " :stopwatch:").queue();
+		if (mineTime != null && timestampNow - mineTime <= EconomyUtils.MINE_COOLDOWN) {
+			event.reply("Slow down! You can go mining in " + TimeUtils.toTimeString(mineTime - timestampNow + EconomyUtils.MINE_COOLDOWN, ChronoUnit.SECONDS) + " :stopwatch:").queue();
 		} else {
-			Pickaxe userPickaxe = EconomyUtils.getUserPickaxe(dataRan);
+			Pickaxe userPickaxe = EconomyUtils.getUserPickaxe(items);
 			
-			String extra = "";
+			String warning = "";
+			boolean brokenPickaxe = false;
 			if (userPickaxe.getCurrentDurability() == 2) {
-				extra = "Your pickaxe will break the next time you use it :warning:";
+				warning = "Your pickaxe will break the next time you use it :warning:";
 			} else if (userPickaxe.getCurrentDurability() == 1) {
-				extra = "Your pickaxe broke in the process";
-				items = EconomyUtils.removeItem(items, userPickaxe);
+				warning = "Your pickaxe broke in the process";
+				brokenPickaxe = true;
 			}
 			
 			long money = GeneralUtils.getRandomNumber(userPickaxe.getMinimumYield(), userPickaxe.getMaximumYield());
+			
+			Bson update = Updates.combine(Updates.set("mineCooldown", timestampNow), Updates.inc("economy.balance", money));
+			List<Bson> arrayFilters = new ArrayList<>();
+			if (brokenPickaxe) {
+				update = Updates.combine(update, Updates.pull("economy.items", Filters.eq("name", userPickaxe.getName())));
+			} else {
+				update = Updates.combine(update, Updates.inc("economy.items.$[pickaxe].currentDurability", -1));
+				arrayFilters.add(Filters.eq("pickaxe.name", userPickaxe.getName()));
+			}
+			
 			StringBuilder materialContent = new StringBuilder();
 			for (Material material : Material.ALL) {
 				if (!material.isHidden()) {
 					if (random.nextInt((int) Math.ceil(material.getChance() / userPickaxe.getMultiplier()) + 1) == 0) {
 						materialContent.append(material.getName() + material.getEmote() + ", ");
 						
-						items = EconomyUtils.addItem(items, material);
+						UpdateOneModel<Document> updateModel = EconomyUtils.getAddItemModel(items, material, 1);
+						update = Updates.combine(update, updateModel.getUpdate());
+						arrayFilters.addAll(updateModel.getOptions().getArrayFilters());
 					}
 				}
 			}
@@ -3266,18 +3262,23 @@ public class EconomyModule {
 			EmbedBuilder embed = new EmbedBuilder();
 			embed.setColor(event.getMember().getColor());
 			embed.setAuthor(event.getAuthor().getName(), null, event.getAuthor().getEffectiveAvatarUrl());
-			embed.setDescription(String.format("You mined resources and made **$%,d** :pick:\nMaterials found: %s\n\n%s", money, materialContent.toString(), extra));
-			event.reply(embed.build()).queue();
+			embed.setDescription(String.format("You mined resources and made **$%,d** :pick:\nMaterials found: %s\n\n%s", money, materialContent.toString(), warning));
 			
-			List<Map<String, Object>> itemsData = items;
-			data.update(row -> r.hashMap("items", itemsData).with("pickdur", row.g("pickdur").sub(1)).with("balance", row.g("balance").add(money)).with("picktime", timestampNow)).runNoReply(connection);
+			UpdateOptions updateOptions = new UpdateOptions().arrayFilters(arrayFilters).upsert(true);
+			database.updateUserById(event.getAuthor().getIdLong(), null, update, updateOptions, (result, exception) -> {
+				if (exception != null) {
+					exception.printStackTrace();
+					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+				} else {
+					event.reply(embed.build()).queue();
+				}
+			});
 		}
 	}
 	
-	@SuppressWarnings("unchecked")
 	@Command(value="items", aliases={"inventory", "inv"}, description="View all the items you currently have")
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-	public void items(CommandEvent event, @Context Connection connection, @Argument(value="user", endless=true, nullDefault=true) String userArgument) {
+	public void items(CommandEvent event, @Context Database database, @Argument(value="user", endless=true, nullDefault=true) String userArgument) {
 		Member member;
 		if (userArgument == null) {
 			member = event.getMember();
@@ -3289,20 +3290,15 @@ public class EconomyModule {
 			}
 		}
 		
-		Map<String, Object> data = r.table("bank").get(member.getUser().getId()).run(connection);
+		Document data = database.getUserById(member.getIdLong(), null, Projections.include("economy.items", "economy.balance")).get("economy", Database.EMPTY_DOCUMENT);
 		
-		if (data == null) {
-			event.reply((member.equals(event.getMember()) ? "You do not" : "That user does not") + " have any items :no_entry:").queue();
-			return;
-		}
-		
-		List<Map<String, Object>> items = (List<Map<String, Object>>) data.get("items");
+		List<Document> items = data.getList("items", Document.class, Collections.emptyList());
 		if (items.isEmpty()) {
 			event.reply((member.equals(event.getMember()) ? "You do not" : "That user does not") + " have any items :no_entry:").queue();
 			return;
 		}
 		
-		items.sort((a, b) -> Long.compare((long) b.get("amount"), (long) a.get("amount"))); 
+		items.sort((a, b) -> Long.compare(b.getLong("amount"), a.getLong("amount"))); 
 
 		
 		Map<String, List<String>> userItems = new HashMap<>();
@@ -3313,16 +3309,16 @@ public class EconomyModule {
 		userItems.put("Factories", new ArrayList<>());
 		userItems.put("Crates", new ArrayList<>());
 		userItems.put("Wood", new ArrayList<>());
-		for (Map<String, Object> item : items) {
-			Item actualItem = EconomyUtils.getItem((String) item.get("name"));
-			ItemStack userItem = new ItemStack(actualItem, (long) item.get("amount"));
+		for (Document item : items) {
+			Item actualItem = EconomyUtils.getItem(item.getString("name"));
+			ItemStack userItem = new ItemStack(actualItem, item.getLong("amount"));
 			
 			if (actualItem instanceof Pickaxe) {
-				userItems.get("Tools").add(String.format("%s x%,d (%,d Durability)", actualItem.getName(), userItem.getAmount(), (long) data.get("pickdur")));
+				userItems.get("Tools").add(String.format("%s x%,d (%,d Durability)", actualItem.getName(), userItem.getAmount(), item.getInteger("currentDurability")));
 			} else if (actualItem instanceof Rod) {
-				userItems.get("Tools").add(String.format("%s x%,d (%,d Durability)", actualItem.getName(), userItem.getAmount(), (long) data.get("roddur")));
+				userItems.get("Tools").add(String.format("%s x%,d (%,d Durability)", actualItem.getName(), userItem.getAmount(), item.getInteger("currentDurability")));
 			} else if (actualItem instanceof Axe) {
-				userItems.get("Tools").add(String.format("%s x%,d (%,d Durability)", actualItem.getName(), userItem.getAmount(), (long) data.get("axedur")));
+				userItems.get("Tools").add(String.format("%s x%,d (%,d Durability)", actualItem.getName(), userItem.getAmount(), item.getInteger("currentDurability")));
 			} else if (actualItem instanceof Miner) {
 				userItems.get("Miners").add(String.format("%s x%,d", actualItem.getName(), userItem.getAmount()));
 			} else if (actualItem instanceof Booster) {
@@ -3344,7 +3340,7 @@ public class EconomyModule {
 		EmbedBuilder embed = new EmbedBuilder();
 		embed.setAuthor(member.getUser().getName() + "'s Items", null, member.getUser().getEffectiveAvatarUrl());
 		embed.setColor(member.getColor());
-		embed.setFooter("If a category isn't shown it means you have no items in that category | Balance: " + String.format("$%,d", (long) data.get("balance")), null);
+		embed.setFooter("If a category isn't shown it means you have no items in that category | Balance: " + String.format("$%,d", data.get("balance", 0)), null);
 		for (String key : keys) {
 			List<String> list = userItems.get(key);
 			if (!list.isEmpty()) {
@@ -3357,26 +3353,19 @@ public class EconomyModule {
 	
 	@Command(value="slot", aliases={"slots"}, description="Bet your money on the slots if you get 3 in a row you win, the rarer the 3 items the more the payout")
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-	public void slot(CommandEvent event, @Context Connection connection, @Argument(value="bet", endless=true, nullDefault=true) String betArgument) {
+	public void slot(CommandEvent event, @Context Database database, @Argument(value="bet", endless=true, nullDefault=true) String betArgument) {
 		long bet = 0;
-		Get data = null;
 		if (betArgument != null) {
-			data = r.table("bank").get(event.getAuthor().getId());
-			Map<String, Object> dataRan = data.run(connection);
-			
-			if (dataRan == null) {
-				event.reply("You do not have any money to bet :no_entry:").queue();
-				return;
-			}
-			
+			long balance = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance")).getEmbedded(List.of("economy", "balance"), 0);
+
 			try {
-				bet = EconomyUtils.convertMoneyArgument((long) dataRan.get("balance"), betArgument);
+				bet = EconomyUtils.convertMoneyArgument(balance, betArgument);
 			} catch(IllegalArgumentException e) {
 				event.reply(e.getMessage()).queue();
 				return;
 			}
 			
-			if (bet > (long) dataRan.get("balance")) {
+			if (bet > balance) {
 				event.reply("You do not have that much money to bet :no_entry:").queue();
 				return;
 			}
@@ -3409,29 +3398,39 @@ public class EconomyModule {
 				firstSlot.getMaterial().getEmote() + secondSlot.getMaterial().getEmote() + thirdSlot.getMaterial().getEmote() + "\n" +
 				firstSlot.getBelow().getMaterial().getEmote() + secondSlot.getBelow().getMaterial().getEmote() + thirdSlot.getBelow().getMaterial().getEmote() + "\n\n");
 		
+		long actualWinnings = 0;
 		if (firstSlot.equals(secondSlot) && firstSlot.equals(thirdSlot)) {
 			if (betArgument == null) {
 				embed.appendDescription(String.format("You would have won **x%,.2f** your bet!", firstSlot.getMultiplier()));
 			} else {
 				long winnings = (long) Math.round(bet * firstSlot.getMultiplier());
-				long actualWinnings = winnings - bet;
+				actualWinnings = winnings - bet;
 				
 				embed.appendDescription(String.format("You won **$%,d**", winnings));
-				
-				data.update(row -> r.hashMap("winnings", row.g("winnings").add(actualWinnings)).with("balance", row.g("balance").add(actualWinnings))).runNoReply(connection);
 			}
 		} else {
 			if (betArgument == null) {
 				embed.appendDescription("You would have won nothing!");
 			} else {
-				embed.appendDescription(String.format("You lost **$%,d**!", bet));
+				actualWinnings = -bet;
 				
-				long dataBet = bet;
-				data.update(row -> r.hashMap("winnings", row.g("winnings").sub(dataBet)).with("balance", row.g("balance").sub(dataBet))).runNoReply(connection);
+				embed.appendDescription(String.format("You lost **$%,d**!", bet));
 			}
 		}
 		
-		event.reply(embed.build()).queue();
+		if (actualWinnings != 0) {
+			Bson update = Updates.combine(Updates.inc("economy.winnings", actualWinnings), Updates.inc("economy.balance", actualWinnings));
+			database.updateUserById(event.getAuthor().getIdLong(), update, (result, exception) -> {
+				if (exception != null) {
+					exception.printStackTrace();
+					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+				} else {
+					event.reply(embed.build()).queue();
+				}
+			});
+		} else {
+			event.reply(embed.build()).queue();
+		}
 	}
 	
 	public class LeaderboardCommand extends Sx4Command {
@@ -3450,379 +3449,380 @@ public class EconomyModule {
 		
 		@Command(value="bank", aliases={"money", "balance"}, description="View the leaderboard for people with the most money in their balance", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-		public void bank(CommandEvent event, @Context Connection connection, @Option(value="server", aliases={"guild"}) boolean guild) {
-			try (Cursor<Map<String, Object>> cursor = r.table("bank").withFields("id", "balance").filter(row -> row.g("balance").ne(0)).run(connection)) {
-				List<Map<String, Object>> data = cursor.toList();
-				
-				List<Map<String, Object>> compressedData = new ArrayList<>();
-				for (Map<String, Object> dataObject : data) {		
-					User user = event.getShardManager().getUserById((String) dataObject.get("id"));
-					if (user == null) {
-						continue;
-					}
-					
-					if (guild) {
-						if (!event.getGuild().isMember(user)) {
-							continue;
-						}
-					}
-					
-					Map<String, Object> dataMap = new HashMap<>();
-					dataMap.put("user", user);
-					dataMap.put("balance", (long) dataObject.get("balance"));
-					compressedData.add(dataMap);
+		public void bank(CommandEvent event, @Context Database database, @Option(value="server", aliases={"guild"}) boolean guild, @Option(value="sort") String sort, @Option(value="reverse") boolean reverse) {
+			FindIterable<Document> data = database.getUsers().find(Filters.ne("economy.balance", 0)).projection(Projections.include("economy.balance"));
+			
+			List<Document> compressedData = new ArrayList<>();
+			for (Document dataObject : data) {
+				User user;
+				if (guild) {
+					Member member = event.getGuild().getMemberById(dataObject.getLong("_id"));
+					user = member == null ? null : member.getUser();
+				} else {
+					user = event.getShardManager().getUserById(dataObject.getLong("_id"));
 				}
 				
-				compressedData.sort((a, b) -> Long.compare((long) b.get("balance"), (long) a.get("balance")));
+				if (user == null) {
+					continue;
+				}
 				
-				PagedResult<Map<String, Object>> paged = new PagedResult<>(compressedData)
-						.setDeleteMessage(false)
-						.setCustom(true)
-						.setCustomFunction(page -> {
-							Integer index = null;
-							for (int i = 0; i < compressedData.size(); i++) {
-								Map<String, Object> userData = compressedData.get(i);
-								if (((User) userData.get("user")).equals(event.getAuthor())) {
-									index = i + 1;
-								}
-							}
-							
-							EmbedBuilder embed = new EmbedBuilder();
-							embed.setColor(Settings.EMBED_COLOUR);
-							embed.setTitle("Bank Leaderboard");
-							embed.setFooter(event.getAuthor().getName() + "'s Rank: " + (index == null ? "Unranked" : GeneralUtils.getNumberSuffix(index)) + " | Page " + page.getCurrentPage() + "/" + page.getMaxPage(), event.getAuthor().getEffectiveAvatarUrl());
-							
-							for (int i = page.getCurrentPage() * page.getPerPage() - page.getPerPage(); i < page.getCurrentPage() * page.getPerPage(); i++) {
-								try {
-									Map<String, Object> userData = compressedData.get(i);
-									embed.appendDescription(String.format("%d. `%s` - $%,d\n", i + 1, ((User) userData.get("user")).getAsTag(), (long) userData.get("balance")));
-								} catch (IndexOutOfBoundsException e) {
-									break;
-								}
-							}
-							
-							return embed.build();
-						});
-				
-				PagedUtils.getPagedResult(event, paged, 300, null);
+				Document dataDocument = new Document("user", user)
+						.append("balance", dataObject.getEmbedded(List.of("economy", "balance"), Long.class));
+
+				compressedData.add(dataDocument);
 			}
+			
+			switch (sort.toLowerCase()) {
+				case "name":
+					compressedData.sort((a, b) -> (reverse ? 1 : -1) * a.get("user", User.class).getName().compareTo(b.get("user", User.class).getName()));
+				default:
+					compressedData.sort((a, b) -> (reverse ? 1 : -1) * Long.compare(a.getLong("balance"), b.getLong("balance")));
+			}
+			
+			PagedResult<Document> paged = new PagedResult<>(compressedData)
+					.setDeleteMessage(false)
+					.setCustom(true)
+					.setCustomFunction(page -> {
+						Integer index = null;
+						for (int i = 0; i < compressedData.size(); i++) {
+							Document userData = compressedData.get(i);
+							if (userData.get("user", User.class).equals(event.getAuthor())) {
+								index = i + 1;
+							}
+						}
+						
+						EmbedBuilder embed = new EmbedBuilder();
+						embed.setColor(Settings.EMBED_COLOUR);
+						embed.setTitle("Bank Leaderboard");
+						embed.setFooter(event.getAuthor().getName() + "'s Rank: " + (index == null ? "Unranked" : GeneralUtils.getNumberSuffix(index)) + " | Page " + page.getCurrentPage() + "/" + page.getMaxPage(), event.getAuthor().getEffectiveAvatarUrl());
+						
+						for (int i = page.getCurrentPage() * page.getPerPage() - page.getPerPage(); i < (page.getCurrentPage() == page.getMaxPage() ? compressedData.size() : page.getCurrentPage() * page.getPerPage()); i++) {
+							Document userData = compressedData.get(i);
+							embed.appendDescription(String.format("%d. `%s` - $%,d\n", i + 1, userData.get("user", User.class).getAsTag(), userData.getLong("balance")));
+						}
+						
+						return embed.build();
+					});
+			
+			PagedUtils.getPagedResult(event, paged, 300, null);
 		}
 		
 		@Command(value="networth", description="View the leaderboard for people with the most networth (All items worth + their balance)", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-		public void networth(CommandEvent event, @Context Connection connection, @Option(value="server", aliases={"guild"}) boolean guild) {
-			try (Cursor<Map<String, Object>> cursor = r.table("bank").withFields("id", "items", "balance").run(connection)) {
-				List<Map<String, Object>> data = cursor.toList();
-				
-				List<Map<String, Object>> compressedData = new ArrayList<>();
-				for (Map<String, Object> dataObject : data) {		
-					long networth = EconomyUtils.getUserNetworth(dataObject);
-					if (networth == 0) {
-						continue;
-					}
-					
-					User user = event.getShardManager().getUserById((String) dataObject.get("id"));
-					if (user == null) {
-						continue;
-					}
-					
-					if (guild) {
-						if (!event.getGuild().isMember(user)) {
-							continue;
-						}
-					}
-					
-					Map<String, Object> dataMap = new HashMap<>();
-					dataMap.put("user", user);
-					dataMap.put("networth", networth);
-					compressedData.add(dataMap);
+		public void networth(CommandEvent event, @Context Database database, @Option(value="server", aliases={"guild"}) boolean guild, @Option(value="sort") String sort, @Option(value="reverse") boolean reverse) {
+			FindIterable<Document> data = database.getUsers().find().projection(Projections.include("economy.balance", "economy.items"));
+			
+			List<Document> compressedData = new ArrayList<>();
+			for (Document dataObject : data) {		
+				long networth = EconomyUtils.getUserNetworth(dataObject.get("economy", Database.EMPTY_DOCUMENT));
+				if (networth == 0) {
+					continue;
 				}
 				
-				compressedData.sort((a, b) -> Long.compare((long) b.get("networth"), (long) a.get("networth")));
+				User user;
+				if (guild) {
+					Member member = event.getGuild().getMemberById(dataObject.getLong("_id"));
+					user = member == null ? null : member.getUser();
+				} else {
+					user = event.getShardManager().getUserById(dataObject.getLong("_id"));
+				}
 				
-				PagedResult<Map<String, Object>> paged = new PagedResult<>(compressedData)
-						.setDeleteMessage(false)
-						.setCustom(true)
-						.setCustomFunction(page -> {
-							Integer index = null;
-							for (int i = 0; i < compressedData.size(); i++) {
-								Map<String, Object> userData = compressedData.get(i);
-								if (((User) userData.get("user")).equals(event.getAuthor())) {
-									index = i + 1;
-								}
-							}
-							
-							EmbedBuilder embed = new EmbedBuilder();
-							embed.setColor(Settings.EMBED_COLOUR);
-							embed.setTitle("Networth Leaderboard");
-							embed.setFooter(event.getAuthor().getName() + "'s Rank: " + (index == null ? "Unranked" : GeneralUtils.getNumberSuffix(index)) + " | Page " + page.getCurrentPage() + "/" + page.getMaxPage(), event.getAuthor().getEffectiveAvatarUrl());
-							
-							for (int i = page.getCurrentPage() * page.getPerPage() - page.getPerPage(); i < page.getCurrentPage() * page.getPerPage(); i++) {
-								try {
-									Map<String, Object> userData = compressedData.get(i);
-									embed.appendDescription(String.format("%d. `%s` - $%,d\n", i + 1, ((User) userData.get("user")).getAsTag(), (long) userData.get("networth")));
-								} catch (IndexOutOfBoundsException e) {
-									break;
-								}
-							}
-							
-							return embed.build();
-						});
+				if (user == null) {
+					continue;
+				}
 				
-				PagedUtils.getPagedResult(event, paged, 300, null);
+				Document dataDocument = new Document("user", user)
+						.append("networth", networth);
+				
+				compressedData.add(dataDocument);
 			}
+			
+			switch (sort.toLowerCase()) {
+				case "name":
+					compressedData.sort((a, b) -> (reverse ? 1 : -1) * a.get("user", User.class).getName().compareTo(b.get("user", User.class).getName()));
+				default:
+					compressedData.sort((a, b) -> (reverse ? 1 : -1) * Long.compare(a.getLong("networth"), b.getLong("networth")));
+			}
+			
+			PagedResult<Document> paged = new PagedResult<>(compressedData)
+					.setDeleteMessage(false)
+					.setCustom(true)
+					.setCustomFunction(page -> {
+						Integer index = null;
+						for (int i = 0; i < compressedData.size(); i++) {
+							Document userData = compressedData.get(i);
+							if (userData.get("user", User.class).equals(event.getAuthor())) {
+								index = i + 1;
+							}
+						}
+						
+						EmbedBuilder embed = new EmbedBuilder();
+						embed.setColor(Settings.EMBED_COLOUR);
+						embed.setTitle("Networth Leaderboard");
+						embed.setFooter(event.getAuthor().getName() + "'s Rank: " + (index == null ? "Unranked" : GeneralUtils.getNumberSuffix(index)) + " | Page " + page.getCurrentPage() + "/" + page.getMaxPage(), event.getAuthor().getEffectiveAvatarUrl());
+						
+						for (int i = page.getCurrentPage() * page.getPerPage() - page.getPerPage(); i < (page.getCurrentPage() == page.getMaxPage() ? compressedData.size() : page.getCurrentPage() * page.getPerPage()); i++) {
+							Document userData = compressedData.get(i);
+							embed.appendDescription(String.format("%d. `%s` - $%,d\n", i + 1, userData.get("user", User.class).getAsTag(), userData.getLong("networth")));
+						}
+						
+						return embed.build();
+					});
+			
+			PagedUtils.getPagedResult(event, paged, 300, null);
 		}
 		
 		@Command(value="winnings", description="View the leaderboard for people with the highest winnings", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-		public void winnings(CommandEvent event, @Context Connection connection, @Option(value="server", aliases={"guild"}) boolean guild) {
-			try (Cursor<Map<String, Object>> cursor = r.table("bank").withFields("id", "winnings").filter(row -> row.g("winnings").ne(0)).run(connection)) {
-				List<Map<String, Object>> data = cursor.toList();
-				
-				List<Map<String, Object>> compressedData = new ArrayList<>();
-				for (Map<String, Object> dataObject : data) {						
-					User user = event.getShardManager().getUserById((String) dataObject.get("id"));
-					if (user == null) {
-						continue;
-					}
-					
-					if (guild) {
-						if (!event.getGuild().isMember(user)) {
-							continue;
-						}
-					}
-					
-					Map<String, Object> dataMap = new HashMap<>();
-					dataMap.put("user", user);
-					dataMap.put("winnings", (long) dataObject.get("winnings"));
-					compressedData.add(dataMap);
+		public void winnings(CommandEvent event, @Context Database database, @Option(value="server", aliases={"guild"}) boolean guild, @Option(value="sort") String sort, @Option(value="reverse") boolean reverse) {
+			FindIterable<Document> data = database.getUsers().find(Filters.ne("economy.winnings", 0)).projection(Projections.include("economy.winnings"));
+			
+			List<Document> compressedData = new ArrayList<>();
+			for (Document dataObject : data) {
+				User user;
+				if (guild) {
+					Member member = event.getGuild().getMemberById(dataObject.getLong("_id"));
+					user = member == null ? null : member.getUser();
+				} else {
+					user = event.getShardManager().getUserById(dataObject.getLong("_id"));
 				}
 				
-				compressedData.sort((a, b) -> Long.compare((long) b.get("winnings"), (long) a.get("winnings")));
+				if (user == null) {
+					continue;
+				}
 				
-				PagedResult<Map<String, Object>> paged = new PagedResult<>(compressedData)
-						.setDeleteMessage(false)
-						.setCustom(true)
-						.setCustomFunction(page -> {
-							Integer index = null;
-							for (int i = 0; i < compressedData.size(); i++) {
-								Map<String, Object> userData = compressedData.get(i);
-								if (((User) userData.get("user")).equals(event.getAuthor())) {
-									index = i + 1;
-								}
-							}
-							
-							EmbedBuilder embed = new EmbedBuilder();
-							embed.setColor(Settings.EMBED_COLOUR);
-							embed.setTitle("Winnings Leaderboard");
-							embed.setFooter(event.getAuthor().getName() + "'s Rank: " + (index == null ? "Unranked" : GeneralUtils.getNumberSuffix(index)) + " | Page " + page.getCurrentPage() + "/" + page.getMaxPage(), event.getAuthor().getEffectiveAvatarUrl());
-							
-							for (int i = page.getCurrentPage() * page.getPerPage() - page.getPerPage(); i < page.getCurrentPage() * page.getPerPage(); i++) {
-								try {
-									Map<String, Object> userData = compressedData.get(i);
-									embed.appendDescription(String.format("%d. `%s` - $%,d\n", i + 1, ((User) userData.get("user")).getAsTag(), (long) userData.get("winnings")));
-								} catch (IndexOutOfBoundsException e) {
-									break;
-								}
-							}
-							
-							return embed.build();
-						});
+				Document dataDocument = new Document("user", user)
+						.append("winnings", dataObject.getEmbedded(List.of("economy", "winnings"), Long.class));
 				
-				PagedUtils.getPagedResult(event, paged, 300, null);
+				compressedData.add(dataDocument);
 			}
+			
+			switch (sort.toLowerCase()) {
+				case "name":
+					compressedData.sort((a, b) -> (reverse ? 1 : -1) * a.get("user", User.class).getName().compareTo(b.get("user", User.class).getName()));
+				default:
+					compressedData.sort((a, b) -> (reverse ? 1 : -1) * Long.compare(a.getLong("winnings"), b.getLong("winnings")));
+			}
+			
+			PagedResult<Document> paged = new PagedResult<>(compressedData)
+					.setDeleteMessage(false)
+					.setCustom(true)
+					.setCustomFunction(page -> {
+						Integer index = null;
+						for (int i = 0; i < compressedData.size(); i++) {
+							Document userData = compressedData.get(i);
+							if (userData.get("user", User.class).equals(event.getAuthor())) {
+								index = i + 1;
+							}
+						}
+						
+						EmbedBuilder embed = new EmbedBuilder();
+						embed.setColor(Settings.EMBED_COLOUR);
+						embed.setTitle("Winnings Leaderboard");
+						embed.setFooter(event.getAuthor().getName() + "'s Rank: " + (index == null ? "Unranked" : GeneralUtils.getNumberSuffix(index)) + " | Page " + page.getCurrentPage() + "/" + page.getMaxPage(), event.getAuthor().getEffectiveAvatarUrl());
+						
+						for (int i = page.getCurrentPage() * page.getPerPage() - page.getPerPage(); i < (page.getCurrentPage() == page.getMaxPage() ? compressedData.size() : page.getCurrentPage() * page.getPerPage()); i++) {
+							Document userData = compressedData.get(i);
+							embed.appendDescription(String.format("%d. `%s` - $%,d\n", i + 1, userData.get("user", User.class).getAsTag(), userData.getLong("winnings")));
+						}
+						
+						return embed.build();
+					});
+			
+			PagedUtils.getPagedResult(event, paged, 300, null);
 		}
 		
-		@SuppressWarnings("unchecked")
 		@Command(value="items", aliases={"item"}, description="View the leaderboard for the people with the most of a specific item")
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-		public void items(CommandEvent event, @Context Connection connection, @Argument(value="item name", endless=true) String itemName, @Option(value="server", aliases={"guild"}) boolean guild) {
+		public void items(CommandEvent event, @Context Database database, @Argument(value="item name", endless=true) String itemName, @Option(value="server", aliases={"guild"}) boolean guild, @Option(value="sort") String sort, @Option(value="reverse") boolean reverse) {
 			Item item = EconomyUtils.getItem(itemName);
 			if (item == null) {
 				event.reply("I could not find that item :no_entry:").queue();
 				return;
 			}
 			
-			try (Cursor<Map<String, Object>> cursor = r.table("bank").withFields("id", "items").run(connection)) {
-				List<Map<String, Object>> data = cursor.toList();
+			FindIterable<Document> data = database.getUsers().find().projection(Projections.include("economy.items"));
+			
+			List<Document> compressedData = new ArrayList<>();
+			for (Document dataObject : data) {	
+				List<Document> userItems = dataObject.getEmbedded(List.of("economy", "items"), Collections.emptyList());
 				
-				List<Map<String, Object>> compressedData = new ArrayList<>();
-				for (Map<String, Object> dataObject : data) {		
-					ItemStack userItem = EconomyUtils.getUserItem((List<Map<String, Object>>) dataObject.get("items"), item);
-					if (userItem.getAmount() == 0) {
-						continue;
-					}
-					
-					User user = event.getShardManager().getUserById((String) dataObject.get("id"));
-					if (user == null) {
-						continue;
-					}
-					
-					if (guild) {
-						if (!event.getGuild().isMember(user)) {
-							continue;
-						}
-					}
-					
-					Map<String, Object> dataMap = new HashMap<>();
-					dataMap.put("user", user);
-					dataMap.put("itemAmount", userItem.getAmount());
-					compressedData.add(dataMap);
+				ItemStack userItem = EconomyUtils.getUserItem(userItems, item);
+				if (userItem.getAmount() == 0) {
+					continue;
 				}
 				
-				compressedData.sort((a, b) -> Long.compare((long) b.get("itemAmount"), (long) a.get("itemAmount")));
+				User user;
+				if (guild) {
+					Member member = event.getGuild().getMemberById(dataObject.getLong("_id"));
+					user = member == null ? null : member.getUser();
+				} else {
+					user = event.getShardManager().getUserById(dataObject.getLong("_id"));
+				}
 				
-				PagedResult<Map<String, Object>> paged = new PagedResult<>(compressedData)
-						.setDeleteMessage(false)
-						.setCustom(true)
-						.setCustomFunction(page -> {
-							Integer index = null;
-							for (int i = 0; i < compressedData.size(); i++) {
-								Map<String, Object> userData = compressedData.get(i);
-								if (((User) userData.get("user")).equals(event.getAuthor())) {
-									index = i + 1;
-								}
-							}
-							
-							EmbedBuilder embed = new EmbedBuilder();
-							embed.setColor(Settings.EMBED_COLOUR);
-							embed.setTitle(item.getName() + " Leaderboard");
-							embed.setFooter(event.getAuthor().getName() + "'s Rank: " + (index == null ? "Unranked" : GeneralUtils.getNumberSuffix(index)) + " | Page " + page.getCurrentPage() + "/" + page.getMaxPage(), event.getAuthor().getEffectiveAvatarUrl());
-							
-							for (int i = page.getCurrentPage() * page.getPerPage() - page.getPerPage(); i < page.getCurrentPage() * page.getPerPage(); i++) {
-								try {
-									Map<String, Object> userData = compressedData.get(i);
-									embed.appendDescription(String.format("%d. `%s` - %,d %s\n", i + 1, ((User) userData.get("user")).getAsTag(), (long) userData.get("itemAmount"), item.getName()));
-								} catch (IndexOutOfBoundsException e) {
-									break;
-								}
-							}
-							
-							return embed.build();
-						});
+				if (user == null) {
+					continue;
+				}
 				
-				PagedUtils.getPagedResult(event, paged, 300, null);
+				Document dataDocument = new Document("user", user)
+						.append("itemAmount", userItem.getAmount());
+				
+				compressedData.add(dataDocument);
 			}
+			
+			switch (sort.toLowerCase()) {
+				case "name":
+					compressedData.sort((a, b) -> (reverse ? 1 : -1) * a.get("user", User.class).getName().compareTo(b.get("user", User.class).getName()));
+				default:
+					compressedData.sort((a, b) -> (reverse ? 1 : -1) * Long.compare(a.getLong("itemAmount"), b.getLong("itemAmount")));
+			}
+			
+			PagedResult<Document> paged = new PagedResult<>(compressedData)
+					.setDeleteMessage(false)
+					.setCustom(true)
+					.setCustomFunction(page -> {
+						Integer index = null;
+						for (int i = 0; i < compressedData.size(); i++) {
+							Document userData = compressedData.get(i);
+							if (userData.get("user", User.class).equals(event.getAuthor())) {
+								index = i + 1;
+							}
+						}
+						
+						EmbedBuilder embed = new EmbedBuilder();
+						embed.setColor(Settings.EMBED_COLOUR);
+						embed.setTitle(item.getName() + " Leaderboard");
+						embed.setFooter(event.getAuthor().getName() + "'s Rank: " + (index == null ? "Unranked" : GeneralUtils.getNumberSuffix(index)) + " | Page " + page.getCurrentPage() + "/" + page.getMaxPage(), event.getAuthor().getEffectiveAvatarUrl());
+						
+						for (int i = page.getCurrentPage() * page.getPerPage() - page.getPerPage(); i < (page.getCurrentPage() == page.getMaxPage() ? compressedData.size() : page.getCurrentPage() * page.getPerPage()); i++) {
+							Document userData = compressedData.get(i);
+							embed.appendDescription(String.format("%d. `%s` - %,d %s\n", i + 1, userData.get("user", User.class).getAsTag(), userData.getLong("itemAmount"), item.getName()));
+						}
+						
+						return embed.build();
+					});
+			
+			PagedUtils.getPagedResult(event, paged, 300, null);
 		}
 		
 		@Command(value="reputation", aliases={"rep", "reps"}, description="View the leaderboard for people with the highest reputation", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-		public void reputation(CommandEvent event, @Context Connection connection, @Option(value="server", aliases={"guild"}) boolean guild) {
-			try (Cursor<Map<String, Object>> cursor = r.table("bank").withFields("id", "rep").filter(row -> row.g("rep").ne(0)).run(connection)) {
-				List<Map<String, Object>> data = cursor.toList();
-				
-				List<Map<String, Object>> compressedData = new ArrayList<>();
-				for (Map<String, Object> dataObject : data) {		
-					User user = event.getShardManager().getUserById((String) dataObject.get("id"));
-					if (user == null) {
-						continue;
-					}
-					
-					if (guild) {
-						if (!event.getGuild().isMember(user)) {
-							continue;
-						}
-					}
-					
-					Map<String, Object> dataMap = new HashMap<>();
-					dataMap.put("user", user);
-					dataMap.put("reputation", (long) dataObject.get("rep"));
-					compressedData.add(dataMap);
+		public void reputation(CommandEvent event, @Context Database database, @Option(value="server", aliases={"guild"}) boolean guild, @Option(value="sort") String sort, @Option(value="reverse") boolean reverse) {
+			FindIterable<Document> data = database.getUsers().find(Filters.ne("reputation.amount", 0)).projection(Projections.include("reputation.amount"));
+			
+			List<Document> compressedData = new ArrayList<>();
+			for (Document dataObject : data) {	
+				User user;
+				if (guild) {
+					Member member = event.getGuild().getMemberById(dataObject.getLong("_id"));
+					user = member == null ? null : member.getUser();
+				} else {
+					user = event.getShardManager().getUserById(dataObject.getLong("_id"));
 				}
 				
-				compressedData.sort((a, b) -> Long.compare((long) b.get("reputation"), (long) a.get("reputation")));
+				if (user == null) {
+					continue;
+				}
 				
-				PagedResult<Map<String, Object>> paged = new PagedResult<>(compressedData)
-						.setDeleteMessage(false)
-						.setCustom(true)
-						.setCustomFunction(page -> {
-							Integer index = null;
-							for (int i = 0; i < compressedData.size(); i++) {
-								Map<String, Object> userData = compressedData.get(i);
-								if (((User) userData.get("user")).equals(event.getAuthor())) {
-									index = i + 1;
-								}
-							}
-							
-							EmbedBuilder embed = new EmbedBuilder();
-							embed.setColor(Settings.EMBED_COLOUR);
-							embed.setTitle("Reputation Leaderboard");
-							embed.setFooter(event.getAuthor().getName() + "'s Rank: " + (index == null ? "Unranked" : GeneralUtils.getNumberSuffix(index)) + " | Page " + page.getCurrentPage() + "/" + page.getMaxPage(), event.getAuthor().getEffectiveAvatarUrl());
-							
-							for (int i = page.getCurrentPage() * page.getPerPage() - page.getPerPage(); i < page.getCurrentPage() * page.getPerPage(); i++) {
-								try {
-									Map<String, Object> userData = compressedData.get(i);
-									embed.appendDescription(String.format("%d. `%s` - %,d reputation\n", i + 1, ((User) userData.get("user")).getAsTag(), (long) userData.get("reputation")));
-								} catch (IndexOutOfBoundsException e) {
-									break;
-								}
-							}
-							
-							return embed.build();
-						});
+				Document dataDocument = new Document("user", user)
+						.append("reputation", dataObject.getEmbedded(List.of("reputation.amount"), Long.class));
 				
-				PagedUtils.getPagedResult(event, paged, 300, null);
+				compressedData.add(dataDocument);
 			}
+			
+			switch (sort.toLowerCase()) {
+				case "name":
+					compressedData.sort((a, b) -> (reverse ? 1 : -1) * a.get("user", User.class).getName().compareTo(b.get("user", User.class).getName()));
+				default:
+					compressedData.sort((a, b) -> (reverse ? 1 : -1) * Long.compare(a.getLong("reputation"), b.getLong("reputation")));
+			}
+			
+			PagedResult<Document> paged = new PagedResult<>(compressedData)
+					.setDeleteMessage(false)
+					.setCustom(true)
+					.setCustomFunction(page -> {
+						Integer index = null;
+						for (int i = 0; i < compressedData.size(); i++) {
+							Document userData = compressedData.get(i);
+							if (userData.get("user", User.class).equals(event.getAuthor())) {
+								index = i + 1;
+							}
+						}
+						
+						EmbedBuilder embed = new EmbedBuilder();
+						embed.setColor(Settings.EMBED_COLOUR);
+						embed.setTitle("Reputation Leaderboard");
+						embed.setFooter(event.getAuthor().getName() + "'s Rank: " + (index == null ? "Unranked" : GeneralUtils.getNumberSuffix(index)) + " | Page " + page.getCurrentPage() + "/" + page.getMaxPage(), event.getAuthor().getEffectiveAvatarUrl());
+						
+						for (int i = page.getCurrentPage() * page.getPerPage() - page.getPerPage(); i < (page.getCurrentPage() == page.getMaxPage() ? compressedData.size() : page.getCurrentPage() * page.getPerPage()); i++) {
+							Document userData = compressedData.get(i);
+							embed.appendDescription(String.format("%d. `%s` - %,d reputation\n", i + 1, userData.get("user", User.class).getAsTag(), userData.getLong("reputation")));
+						}
+						
+						return embed.build();
+					});
+			
+			PagedUtils.getPagedResult(event, paged, 300, null);
 		}
 		
 		@Command(value="streak", description="View the leaderboard for people who have the highest streak for using `daily`", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-		public void streak(CommandEvent event, @Context Connection connection, @Option(value="server", aliases={"guild"}) boolean guild) {
-			try (Cursor<Map<String, Object>> cursor = r.table("bank").withFields("id", "streak").filter(row -> row.g("streak").ne(0)).run(connection)) {
-				List<Map<String, Object>> data = cursor.toList();
-				
-				List<Map<String, Object>> compressedData = new ArrayList<>();
-				for (Map<String, Object> dataObject : data) {		
-					User user = event.getShardManager().getUserById((String) dataObject.get("id"));
-					if (user == null) {
-						continue;
-					}
-					
-					if (guild) {
-						if (!event.getGuild().isMember(user)) {
-							continue;
-						}
-					}
-					
-					Map<String, Object> dataMap = new HashMap<>();
-					dataMap.put("user", user);
-					dataMap.put("streak", (long) dataObject.get("streak"));
-					compressedData.add(dataMap);
+		public void streak(CommandEvent event, @Context Database database, @Option(value="server", aliases={"guild"}) boolean guild, @Option(value="sort") String sort, @Option(value="reverse") boolean reverse) {
+			FindIterable<Document> data = database.getUsers().find(Filters.ne("economy.streak", 0)).projection(Projections.include("economy.streak"));
+			
+			List<Document> compressedData = new ArrayList<>();
+			for (Document dataObject : data) {	
+				User user;
+				if (guild) {
+					Member member = event.getGuild().getMemberById(dataObject.getLong("_id"));
+					user = member == null ? null : member.getUser();
+				} else {
+					user = event.getShardManager().getUserById(dataObject.getLong("_id"));
 				}
 				
-				compressedData.sort((a, b) -> Long.compare((long) b.get("streak"), (long) a.get("streak")));
+				if (user == null) {
+					continue;
+				}
 				
-				PagedResult<Map<String, Object>> paged = new PagedResult<>(compressedData)
-						.setDeleteMessage(false)
-						.setCustom(true)
-						.setCustomFunction(page -> {
-							Integer index = null;
-							for (int i = 0; i < compressedData.size(); i++) {
-								Map<String, Object> userData = compressedData.get(i);
-								if (((User) userData.get("user")).equals(event.getAuthor())) {
-									index = i + 1;
-								}
-							}
-							
-							EmbedBuilder embed = new EmbedBuilder();
-							embed.setColor(Settings.EMBED_COLOUR);
-							embed.setTitle("Streak Leaderboard");
-							embed.setFooter(event.getAuthor().getName() + "'s Rank: " + (index == null ? "Unranked" : GeneralUtils.getNumberSuffix(index)) + " | Page " + page.getCurrentPage() + "/" + page.getMaxPage(), event.getAuthor().getEffectiveAvatarUrl());
-							
-							for (int i = page.getCurrentPage() * page.getPerPage() - page.getPerPage(); i < page.getCurrentPage() * page.getPerPage(); i++) {
-								try {
-									Map<String, Object> userData = compressedData.get(i);
-									embed.appendDescription(String.format("%d. `%s` - %,d day streak\n", i + 1, ((User) userData.get("user")).getAsTag(), (long) userData.get("streak")));
-								} catch (IndexOutOfBoundsException e) {
-									break;
-								}
-							}
-							
-							return embed.build();
-						});
+				Document dataDocument = new Document("user", user)
+						.append("streak", dataObject.getEmbedded(List.of("economy.streak"), Long.class));
 				
-				PagedUtils.getPagedResult(event, paged, 300, null);
+				compressedData.add(dataDocument);
 			}
+			
+			switch (sort.toLowerCase()) {
+				case "name":
+					compressedData.sort((a, b) -> (reverse ? 1 : -1) * a.get("user", User.class).getName().compareTo(b.get("user", User.class).getName()));
+				default:
+					compressedData.sort((a, b) -> (reverse ? 1 : -1) * Long.compare(a.getLong("reputation"), b.getLong("reputation")));
+			}
+			
+			PagedResult<Document> paged = new PagedResult<>(compressedData)
+					.setDeleteMessage(false)
+					.setCustom(true)
+					.setCustomFunction(page -> {
+						Integer index = null;
+						for (int i = 0; i < compressedData.size(); i++) {
+							Document userData = compressedData.get(i);
+							if (userData.get("user", User.class).equals(event.getAuthor())) {
+								index = i + 1;
+							}
+						}
+						
+						EmbedBuilder embed = new EmbedBuilder();
+						embed.setColor(Settings.EMBED_COLOUR);
+						embed.setTitle("Streak Leaderboard");
+						embed.setFooter(event.getAuthor().getName() + "'s Rank: " + (index == null ? "Unranked" : GeneralUtils.getNumberSuffix(index)) + " | Page " + page.getCurrentPage() + "/" + page.getMaxPage(), event.getAuthor().getEffectiveAvatarUrl());
+						
+						for (int i = page.getCurrentPage() * page.getPerPage() - page.getPerPage(); i < (page.getCurrentPage() == page.getMaxPage() ? compressedData.size() : page.getCurrentPage() * page.getPerPage()); i++) {
+							Document userData = compressedData.get(i);
+							embed.appendDescription(String.format("%d. `%s` - %,d day streak\n", i + 1, userData.get("user", User.class).getAsTag(), userData.getLong("streak")));
+						}
+						
+						return embed.build();
+					});
+			
+			PagedUtils.getPagedResult(event, paged, 300, null);
 		}
 		
 		@Command(value="votes", aliases={"vote"}, description="View the leaderboard for the highest votes of the month/all time")

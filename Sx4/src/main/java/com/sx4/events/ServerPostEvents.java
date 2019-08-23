@@ -21,20 +21,25 @@ public class ServerPostEvents {
 			Sx4Bot.scheduledExectuor.scheduleAtFixedRate(() -> {
 				ShardManager shardManager = Sx4Bot.getShardManager();
 				String botId = shardManager.getShardById(0).getSelfUser().getId();
-				int guildCount = shardManager.getGuilds().size();
+				long guildCount = shardManager.getGuildCache().size();
+				long userCount = shardManager.getUserCache().size();
 				int shardCount = shardManager.getShardsTotal();
 				
 				String bodyDiscordBots = new JSONObject()
 						.put("guildCount", guildCount)
 						.put("shardCount", shardCount)
 						.toString();
-				String bodyDiscordBotList = new JSONObject()
+				String bodyDiscordBotListOrg = new JSONObject()
 						.put("server_count", guildCount)
 						.put("shard_count", shardCount)
 						.toString();
 				String bodyBotListSpace = new JSONObject()
 						.put("server_count", guildCount)
 						.put("shards", shardCount)
+						.toString();
+				String bodyDiscordBotListCom = new JSONObject()
+						.put("guilds", guildCount)
+						.put("users", userCount)
 						.toString();
 				
 				Request request;			
@@ -48,9 +53,9 @@ public class ServerPostEvents {
 				Sx4Bot.client.newCall(request).enqueue((Sx4Callback) response -> response.close());
 				
 				request = new Request.Builder()
-						.post(RequestBody.create(MediaType.parse("application/json; charset=utf-8"), bodyDiscordBotList))
+						.post(RequestBody.create(MediaType.parse("application/json; charset=utf-8"), bodyDiscordBotListOrg))
 						.url("https://discordbots.org/api/bots/" + botId + "/stats")
-						.addHeader("Authorization", TokenUtils.DISCORD_BOT_LIST)
+						.addHeader("Authorization", TokenUtils.DISCORD_BOT_LIST_ORG)
 						.addHeader("Content-Type", "application/json")
 						.build();
 				
@@ -60,6 +65,15 @@ public class ServerPostEvents {
 						.post(RequestBody.create(MediaType.parse("application/json; charset=utf-8"), bodyBotListSpace))
 						.url("https://api.botlist.space/v1/bots/" + botId + "/")
 						.addHeader("Authorization", TokenUtils.BOT_LIST_SPACE)
+						.addHeader("Content-Type", "application/json")
+						.build();
+				
+				Sx4Bot.client.newCall(request).enqueue((Sx4Callback) response -> response.close());
+				
+				request = new Request.Builder()
+						.post(RequestBody.create(MediaType.parse("application/json; charset=utf-8"), bodyDiscordBotListCom))
+						.url("https://discordbotlist.com/api/bots/" + botId + "/stats")
+						.addHeader("Authorization", TokenUtils.DISCORD_BOT_LIST_COM)
 						.addHeader("Content-Type", "application/json")
 						.build();
 				

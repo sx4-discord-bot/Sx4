@@ -3,7 +3,7 @@ package com.sx4.economy.upgrades;
 public class PickaxeUpgrade extends Upgrade {
 	
 	public static final PickaxeUpgrade MONEY = new PickaxeUpgrade("Money", "Money upgrades increase your minimum and maximum yield of money from your pickaxe by 2% the worth of the original minimum yield", 0.02); 
-	public static final PickaxeUpgrade MULTIPLIER = new PickaxeUpgrade("Multiplier", "Multiplier upgrades increase your chance to get better materials per mine", 0.01);
+	public static final PickaxeUpgrade MULTIPLIER = new PickaxeUpgrade("Multiplier", "Multiplier upgrades increase your chance to get better materials per mine", 1.01);
 	public static final PickaxeUpgrade DURABILITY = new PickaxeUpgrade("Durability", "Durability upgrades increase your max durability by 2", 2);
 	
 	public static final PickaxeUpgrade[] ALL = {MONEY, MULTIPLIER, DURABILITY};

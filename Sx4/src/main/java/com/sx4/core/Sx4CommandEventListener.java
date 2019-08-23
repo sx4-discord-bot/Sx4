@@ -1,18 +1,17 @@
 package com.sx4.core;
 
-import static com.rethinkdb.RethinkDB.r;
-
+import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
+
+import org.bson.Document;
 
 import com.jockie.bot.core.command.ICommand;
 import com.jockie.bot.core.command.impl.CommandEvent;
 import com.jockie.bot.core.command.impl.CommandEventListener;
-import com.rethinkdb.gen.ast.Get;
+import com.sx4.database.Database;
 import com.sx4.pair.CustomPair;
 import com.sx4.settings.Settings;
 
@@ -23,6 +22,7 @@ import club.minnced.discord.webhook.send.WebhookEmbed.EmbedField;
 import club.minnced.discord.webhook.send.WebhookEmbedBuilder;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.Message.Attachment;
+import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.entities.TextChannel;
 
 public class Sx4CommandEventListener extends CommandEventListener {
@@ -33,6 +33,22 @@ public class Sx4CommandEventListener extends CommandEventListener {
 	
 	public static long getAverageExecutionTime() {
 		return averageExecutionTime.getValue() == 0 ? 0 : averageExecutionTime.getKey() / averageExecutionTime.getValue();
+	}
+	
+	public static MessageEmbed getUserErrorMessage(Throwable throwable) {
+		EmbedBuilder embed = new EmbedBuilder();
+		embed.setTitle("Error");
+		embed.setDescription("You have come across an error! [Support Server](https://discord.gg/PqJNcfB)\n```diff\n- " + throwable.toString());
+		
+		for (int i = 0; i < throwable.getStackTrace().length; i++) {
+			StackTraceElement element = throwable.getStackTrace()[i];
+			if (element.toString().contains("sx4")) {
+				embed.appendDescription("\n- " + element.toString() + "```");
+				break;
+			}
+		}
+		
+		return embed.build();
 	}
 	
 	public static void sendErrorMessage(TextChannel channel, Throwable throwable, Object[] arguments) {
@@ -66,7 +82,6 @@ public class Sx4CommandEventListener extends CommandEventListener {
 		}
 	}
 
-	@SuppressWarnings("unchecked")
 	public void onCommandExecuted(ICommand command, CommandEvent event) {
 		if (event.isAuthorDeveloper()) {
 			event.removeCooldown();
@@ -96,51 +111,30 @@ public class Sx4CommandEventListener extends CommandEventListener {
 			this.commandStore.add(embed.build());
 		}
 		
-		Get data = r.table("botstats").get("stats");
-		Map<String, Object> dataRan = data.run(Sx4Bot.getConnection());
+		Document commandData = new Document("_id", event.getMessage().getIdLong())
+				.append("command", command.getCommandTrigger())
+				.append("module", command.getCategory().getName())
+				.append("aliasUsed", event.getCommandTrigger())
+				.append("authorId", event.getAuthor().getIdLong())
+				.append("channelId", event.getChannel().getIdLong())
+				.append("guildId", event.getGuild().getIdLong())
+				.append("arguments", event.getRawArguments())
+				.append("prefix", event.getPrefix())
+				.append("attachments", attachments)
+				.append("shard", event.getJDA().getShardInfo().getShardId())
+				.append("executionDuration", event.getTimeSinceStarted())
+				.append("timestamp", Clock.systemUTC().instant().getEpochSecond());
 		
-		List<String> users = (List<String>) dataRan.get("users");
-		if (!users.contains(event.getAuthor().getId())) {
-			users.add(event.getAuthor().getId());
-		}
-		
-		List<Map<String, Object>> commandCounter = (List<Map<String, Object>>) dataRan.get("commandcounter");
-		boolean updated = false;
-		for (Map<String, Object> commandData : commandCounter) {
-			if (event.getCommand().getCommandTrigger().equals(commandData.get("name"))) {
-				commandCounter.remove(commandData);
-				commandData.put("amount", ((long) commandData.get("amount")) + 1);
-				commandCounter.add(commandData);
-				updated = true;
-				break;
+		Database.get().insertCommandData(commandData, (result, exception) -> {
+			if (exception != null) {
+				exception.printStackTrace();
 			}
-		}
-		
-		if (updated == false) {
-			Map<String, Object> commandData = new HashMap<>();
-			commandData.put("amount", 1);
-			commandData.put("name", event.getCommand().getCommandTrigger());
-			commandCounter.add(commandData);
-		}
-		
-		data.update(row -> r.hashMap("commands", row.g("commands").add(1)).with("users", users).with("commandcounter", commandCounter)).runNoReply(Sx4Bot.getConnection());
+		});
 	}
 	
 	public void onCommandExecutionException(ICommand command, CommandEvent event, Throwable throwable) {
 		Sx4CommandEventListener.sendErrorMessage(event.getShardManager().getGuildById(Settings.SUPPORT_SERVER_ID).getTextChannelById(Settings.ERRORS_CHANNEL_ID), throwable, event.getArguments());
 		
-		EmbedBuilder embed = new EmbedBuilder();
-		embed.setTitle("Error");
-		embed.setDescription("You have come across an error! [Support Server](https://discord.gg/PqJNcfB)\n```diff\n- " + throwable.toString());
-		
-		for (int i = 0; i < throwable.getStackTrace().length; i++) {
-			StackTraceElement element = throwable.getStackTrace()[i];
-			if (element.toString().contains("sx4")) {
-				embed.appendDescription("\n- " + element.toString() + "```");
-				break;
-			}
-		}
-		
-		event.reply(embed.build()).queue();
+		event.reply(Sx4CommandEventListener.getUserErrorMessage(throwable)).queue();
 	}
 }

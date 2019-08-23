@@ -101,7 +101,7 @@ public class GeneralUtils {
 		} else {
 			StringBuilder output = new StringBuilder();
 			for (int i = 0; i < array.length; i++) {
-				output.append(array[i].toString());
+				output.append(array[i]);
 				
 				if (i == array.length - 2) {
 					output.append(" and ");

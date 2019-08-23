@@ -1,11 +1,12 @@
 package com.sx4.events;
 
-import static com.rethinkdb.RethinkDB.r;
-
+import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 
-import com.sx4.core.Sx4Bot;
+import org.bson.Document;
+
+import com.mongodb.client.model.Projections;
+import com.sx4.database.Database;
 
 import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
@@ -22,39 +23,24 @@ public class TriggerEvents extends ListenerAdapter {
 		return text;
 	}
 
-	@SuppressWarnings("unchecked")
 	public void onGuildMessageReceived(GuildMessageReceivedEvent event) {
 		if (event.getMessage().getAuthor().equals(event.getJDA().getSelfUser())) {
 			return;
 		}
 		
-		Map<String, Object> data = r.table("triggers").get(event.getGuild().getId()).run(Sx4Bot.getConnection());	
-		if (data == null || (boolean) data.get("toggle") == false) {
+		Document data = Database.get().getGuildById(event.getGuild().getIdLong(), null, Projections.include("trigger.enabled", "trigger.triggers", "trigger.case")).get("trigger", Database.EMPTY_DOCUMENT);	
+		if (data.isEmpty() || !data.getBoolean("toggle", true)) {
 			return;
 		}
 		
-		boolean isCaseSensitive = (boolean) data.get("case");
-		List<Map<String, Object>> triggers = (List<Map<String, Object>>) data.get("triggers");
-		for (Map<String, Object> trigger : triggers) {
-			String triggerText;
-			if (trigger.get("trigger") instanceof byte[]) {
-				triggerText = new String((byte[]) trigger.get("trigger"));
-			} else {
-				triggerText = (String) trigger.get("trigger");
-			}
-			
+		boolean isCaseSensitive = data.getBoolean("case", true);
+		List<Document> triggers = data.getList("triggers", Document.class, Collections.emptyList());
+		for (Document triggerData : triggers) {
+			String triggerText = triggerData.getString("trigger");
 			triggerText = isCaseSensitive ? triggerText : triggerText.toLowerCase();
 			String messageContent = isCaseSensitive ? event.getMessage().getContentRaw() : event.getMessage().getContentRaw().toLowerCase();
-
 			if (messageContent.equals(triggerText)) {
-				String response;
-				if (trigger.get("response") instanceof byte[]) {
-					response = new String((byte[]) trigger.get("response"));
-				} else {
-					response = (String) trigger.get("response");
-				}
-				
-				event.getChannel().sendMessage(this.getTriggerText(event, response)).queue();
+				event.getChannel().sendMessage(this.getTriggerText(event, triggerData.getString("response"))).queue();
 			}
 		}
 	}

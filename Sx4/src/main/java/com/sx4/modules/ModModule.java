@@ -1,7 +1,5 @@
 package com.sx4.modules;
 
-import static com.rethinkdb.RethinkDB.r;
-
 import java.awt.Color;
 import java.io.IOException;
 import java.net.MalformedURLException;
@@ -13,13 +11,16 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.EnumSet;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+
+import org.bson.Document;
+import org.bson.conversions.Bson;
 
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.category.impl.CategoryImpl;
@@ -34,12 +35,18 @@ import com.jockie.bot.core.command.Initialize;
 import com.jockie.bot.core.command.impl.CommandEvent;
 import com.jockie.bot.core.command.impl.CommandImpl;
 import com.jockie.bot.core.module.Module;
-import com.rethinkdb.gen.ast.Get;
-import com.rethinkdb.model.OptArgs;
-import com.rethinkdb.net.Connection;
+import com.jockie.bot.core.option.Option;
+import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.Projections;
+import com.mongodb.client.model.UpdateOneModel;
+import com.mongodb.client.model.UpdateOptions;
+import com.mongodb.client.model.Updates;
+import com.mongodb.client.model.WriteModel;
 import com.sx4.categories.Categories;
 import com.sx4.core.Sx4Bot;
 import com.sx4.core.Sx4Command;
+import com.sx4.core.Sx4CommandEventListener;
+import com.sx4.database.Database;
 import com.sx4.events.MuteEvents;
 import com.sx4.utils.ArgumentUtils;
 import com.sx4.utils.GeneralUtils;
@@ -48,6 +55,9 @@ import com.sx4.utils.ModUtils;
 import com.sx4.utils.PagedUtils;
 import com.sx4.utils.PagedUtils.PagedResult;
 import com.sx4.utils.TimeUtils;
+import com.sx4.utils.WarnUtils;
+import com.sx4.utils.WarnUtils.UserWarning;
+import com.sx4.utils.WarnUtils.Warning;
 
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.MessageBuilder;
@@ -345,23 +355,19 @@ public class ModModule {
 	@Command(value="clear reactions", aliases={"remove reactions", "removereactions", "clearreactions"}, description="Clears all the reactions off a message, has to be executed in the same channel as the message to work", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 	@AuthorPermissions({Permission.MESSAGE_MANAGE})
 	@BotPermissions({Permission.MESSAGE_MANAGE})
-	public void clearReactions(CommandEvent event, @Argument(value="message id") String messageId) {
-		try {
-			event.getTextChannel().retrieveMessageById(messageId).queue(message -> {
-				message.clearReactions().queue();
-				event.reply("Cleared all reactions from that message <:done:403285928233402378>").queue();
-			}, e -> {
-				if (e instanceof ErrorResponseException) {
-					ErrorResponseException exception = (ErrorResponseException) e;
-					if (exception.getErrorCode() == 10008) {
-						event.reply("I could not find that message within this channel :no_entry:").queue();
-						return;
-					}
+	public void clearReactions(CommandEvent event, @Argument(value="message id") long messageId) {
+		event.getTextChannel().retrieveMessageById(messageId).queue(message -> {
+			message.clearReactions().queue();
+			event.reply("Cleared all reactions from that message <:done:403285928233402378>").queue();
+		}, e -> {
+			if (e instanceof ErrorResponseException) {
+				ErrorResponseException exception = (ErrorResponseException) e;
+				if (exception.getErrorCode() == 10008) {
+					event.reply("I could not find that message within this channel :no_entry:").queue();
+					return;
 				}
-			});
-		} catch(IllegalArgumentException e) {
-			event.reply("I could not find that message within this channel :no_entry:").queue();
-		}
+			}
+		});
 	}
 	
 	public class BlacklistCommand extends Sx4Command {
@@ -377,369 +383,301 @@ public class ModModule {
 			event.reply(HelpUtils.getHelpMessage(event.getCommand())).queue();
 		}
 		
-		@SuppressWarnings("unchecked")
 		@Command(value="add", description="Add a role/user/channel to be blacklisted from a specified command/module")
 		@AuthorPermissions({Permission.MANAGE_SERVER})
-		public void add(CommandEvent event, @Context Connection connection, @Argument(value="user | role | channel") String argument, @Argument(value="command | module", endless=true) String commandArgument) {
-			r.table("blacklist").insert(r.hashMap("id", event.getGuild().getId()).with("commands", new Object[0]).with("disabled", new Object[0])).run(connection, OptArgs.of("durability", "soft"));
-			Get data = r.table("blacklist").get(event.getGuild().getId());
-			Map<String, Object> dataRan = data.run(connection);
-			
-			CategoryImpl module = ArgumentUtils.getModule(commandArgument);
-			ICommand command = ArgumentUtils.getCommand(commandArgument);
+		public void add(CommandEvent event, @Context Database database, @Argument(value="user | role | channel") String argument, @Argument(value="command | module", endless=true) String commandArgument) {
+			CategoryImpl module = ArgumentUtils.getModule(commandArgument, true);
+			ICommand command = ArgumentUtils.getCommand(commandArgument, true);
 			if (command == null && module == null) {
 				event.reply("I could not find that command/module :no_entry:").queue();
 				return;
 			}
+			
 			String commandName = command == null ? module.getName() : command.getCommandTrigger(); 
 			
 			Role role = ArgumentUtils.getRole(event.getGuild(), argument);
 			Member member = ArgumentUtils.getMember(event.getGuild(), argument);
-			GuildChannel channel = ArgumentUtils.getTextChannelOrParent(event.getGuild(), argument);
+			GuildChannel channel = ArgumentUtils.getGuildChannel(event.getGuild(), argument);
 			if (channel == null && role == null && member == null) {
 				event.reply("I could not find that user/role/channel :no_entry:").queue();
 				return;
 			}
 			
-			List<Map<String, Object>> commands = (List<Map<String, Object>>) dataRan.get("commands");
-			if (channel != null) {
-				String channelDisplay = channel instanceof TextChannel ? ((TextChannel) channel).getAsMention() : channel.getName();
-				for (Map<String, Object> commandData : commands) {
-					if (commandData.get("id").equals(commandName)) {
-						List<Map<String, String>> blacklisted = (List<Map<String, String>>) commandData.get("blacklisted");					
-						for (Map<String, String> blacklist : blacklisted) {
-							if (blacklist.get("type").equals("channel")) {
-								if (channel.getId().equals(blacklist.get("id"))) {
-									event.reply("The channel " + channelDisplay + " is already blacklisted from using that " + (command == null ? "module" : "command") + " :no_entry:").queue();
-									return;
-								}
+			Bson update = null;
+			List<Bson> arrayFilters = null;
+			String channelDisplay = channel == null ? null : channel instanceof TextChannel ? ((TextChannel) channel).getAsMention() : channel.getName();
+			
+			List<Document> commands = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("blacklist.commands")).getEmbedded(List.of("blacklist.commands"), Collections.emptyList());
+			for (Document commandData : commands) {
+				if (commandData.getString("id").equals(commandName)) {
+					arrayFilters = List.of(Filters.eq("command.id", commandName));
+					if (channel != null) {
+						List<Long> channels = commandData.getEmbedded(List.of("blacklisted", "channels"), Collections.emptyList());					
+						for (long channelId : channels) {
+							if (channel.getIdLong() == channelId) {
+								event.reply("The channel " + channelDisplay + " is already blacklisted from using that " + (command == null ? "module" : "command") + " :no_entry:").queue();
+								return;
 							}
 						}
 						
-						event.reply("The " + (command == null ? "module" : "command") + " `" + commandName + "` is now blacklisted in " + channelDisplay + " <:done:403285928233402378>").queue();
-						Map<String, String> newMap = new HashMap<String, String>();
-						newMap.put("type", "channel");
-						newMap.put("id", channel.getId());
-						blacklisted.add(newMap);
-						commands.remove(commandData);
-						commandData.put("blacklisted", blacklisted);
-						commands.add(commandData);
-						data.update(r.hashMap("commands", commands)).runNoReply(connection);
-						return;
-					}
-				}
-				
-				event.reply("The " + (command == null ? "module" : "command") + " `" + commandName + "` is now blacklisted in " + channelDisplay + " <:done:403285928233402378>").queue();
-				data.update(row -> {
-					return r.hashMap("commands", row.g("commands").append(r.hashMap("id", commandName)
-							.with("blacklisted", List.of(r.hashMap("id", channel.getId()).with("type", "channel")))
-							.with("whitelisted", new Object[0])));
-				}).runNoReply(connection);
-			} else if (role != null) {
-				for (Map<String, Object> commandData : commands) {
-					if (commandData.get("id").equals(commandName)) {
-						List<Map<String, String>> blacklisted = (List<Map<String, String>>) commandData.get("blacklisted");					
-						for (Map<String, String> blacklist : blacklisted) {
-							if (blacklist.get("type").equals("role")) {
-								if (role.getId().equals(blacklist.get("id"))) {
-									event.reply("The role `" + role.getName() + "` is already blacklisted from using that " + (command == null ? "module" : "command") + " :no_entry:").queue();
-									return;
-								}
+						update = Updates.push("blacklist.commands.$[command].blacklisted.channels", channel.getIdLong());
+					} else if (role != null) {
+						List<Long> roles = commandData.getEmbedded(List.of("blacklisted", "roles"), Collections.emptyList());				
+						for (long roleId : roles) {
+							if (role.getIdLong() == roleId) {
+								event.reply("The role `" + role.getName() + "` is already blacklisted from using that " + (command == null ? "module" : "command") + " :no_entry:").queue();
+								return;
 							}
 						}
 						
-						event.reply("The " + (command == null ? "module" : "command") + " `" + commandName + "` is now blacklisted for anyone with the role `" + role.getName() + "` <:done:403285928233402378>").queue();
-						Map<String, String> newMap = new HashMap<String, String>();
-						newMap.put("type", "role");
-						newMap.put("id", role.getId());
-						blacklisted.add(newMap);
-						commands.remove(commandData);
-						commandData.put("blacklisted", blacklisted);
-						commands.add(commandData);
-						data.update(r.hashMap("commands", commands)).runNoReply(connection);
-						return;
-					}
-				}
-				
-				event.reply("The " + (command == null ? "module" : "command") + " `" + commandName + "` is now blacklisted for anyone with the role `" + role.getName() + "` <:done:403285928233402378>").queue();
-				data.update(row -> {
-					return r.hashMap("commands", row.g("commands").append(r.hashMap("id", commandName)
-							.with("blacklisted", List.of(r.hashMap("id", role.getId()).with("type", "role")))
-							.with("whitelisted", new Object[0])));
-				}).runNoReply(connection);
-			} else if (member != null) {
-				for (Map<String, Object> commandData : commands) {
-					if (commandData.get("id").equals(commandName)) {
-						List<Map<String, String>> blacklisted = (List<Map<String, String>>) commandData.get("blacklisted");					
-						for (Map<String, String> blacklist : blacklisted) {
-							if (blacklist.get("type").equals("user")) {
-								if (member.getUser().getId().equals(blacklist.get("id"))) {
-									event.reply("The user `" + member.getUser().getAsTag() + "` is already blacklisted from using that " + (command == null ? "module" : "command") + " :no_entry:").queue();
-									return;
-								}
+						update = Updates.push("blacklist.commands.$[command].blacklisted.roles", role.getIdLong());
+					} else if (member != null) {
+						List<Long> users = commandData.getEmbedded(List.of("blacklisted", "users"), Collections.emptyList());				
+						for (long userId : users) {
+							if (member.getIdLong() == userId) {
+								event.reply("The user `" + member.getUser().getAsTag() + "` is already blacklisted from using that " + (command == null ? "module" : "command") + " :no_entry:").queue();
+								return;
 							}
 						}
 						
-						event.reply("**" + member.getUser().getAsTag() + "** is now blacklisted from using `" + commandName + "` in this server <:done:403285928233402378>").queue();
-						Map<String, String> newMap = new HashMap<String, String>();
-						newMap.put("type", "user");
-						newMap.put("id", member.getUser().getId());
-						blacklisted.add(newMap);
-						commands.remove(commandData);
-						commandData.put("blacklisted", blacklisted);
-						commands.add(commandData);
-						data.update(r.hashMap("commands", commands)).runNoReply(connection);
-						return;
+						update = Updates.push("blacklist.commands.$[command].blacklisted.users", member.getIdLong());
 					}
 				}
-				
-				event.reply("**" + member.getUser().getAsTag() + "** is now blacklisted from using `" + commandName + "` in this server <:done:403285928233402378>").queue();
-				data.update(row -> {
-					return r.hashMap("commands", row.g("commands").append(r.hashMap("id", commandName)
-							.with("blacklisted", List.of(r.hashMap("id", member.getUser().getId()).with("type", "user")))
-							.with("whitelisted", new Object[0])));
-				}).runNoReply(connection);
 			}
+			
+			if (update == null) {
+				Document blacklistData = member != null ? new Document("users", List.of(member.getIdLong())) : role != null ? new Document("roles", List.of(role.getIdLong())) : new Document("channels", List.of(channel.getIdLong()));
+				Document commandData = new Document("id", commandName).append("blacklisted", blacklistData);
+				
+				update = Updates.push("blacklist.commands", commandData);
+			}
+			
+			UpdateOptions updateOptions = new UpdateOptions().arrayFilters(arrayFilters).upsert(true);
+			database.updateGuildById(event.getGuild().getIdLong(), null, update, updateOptions, (result, exception) -> {
+				if (exception != null) {
+					exception.printStackTrace();
+					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+				} else {
+					String type = member != null ? "for **" + member.getUser().getAsTag() + "**" : role != null ? "for anyone in the role `" + role.getName() + "`" : "in " + channelDisplay;
+					event.reply("The " + (command == null ? "module" : "command") + " `" + commandName + "` is now blacklisted " + type + " <:done:403285928233402378>").queue();
+				}
+			});
 		}
 		
-		@SuppressWarnings("unchecked")
 		@Command(value="remove", description="Remove a blacklist from a user/role/channel from a specified command/module")
 		@AuthorPermissions({Permission.MANAGE_SERVER})
-		public void remove(CommandEvent event, @Context Connection connection, @Argument(value="user | role | channel") String argument, @Argument(value="command | module", endless=true) String commandArgument) {
-			Get data = r.table("blacklist").get(event.getGuild().getId());
-			Map<String, Object> dataRan = data.run(connection);
-			if (dataRan == null) {
-				event.reply("No blacklist data has been created for this server, so there is nothing to remove :no_entry:").queue();
-				return;
-			}
-			
-			CategoryImpl module = ArgumentUtils.getModule(commandArgument);
-			ICommand command = ArgumentUtils.getCommand(commandArgument);
+		public void remove(CommandEvent event, @Context Database database, @Argument(value="user | role | channel") String argument, @Argument(value="command | module", endless=true) String commandArgument) {
+			CategoryImpl module = ArgumentUtils.getModule(commandArgument, true);
+			ICommand command = ArgumentUtils.getCommand(commandArgument, true);
 			if (command == null && module == null) {
 				event.reply("I could not find that command/module :no_entry:").queue();
 				return;
 			}
+			
 			String commandName = command == null ? module.getName() : command.getCommandTrigger(); 
 			
 			Role role = ArgumentUtils.getRole(event.getGuild(), argument);
 			Member member = ArgumentUtils.getMember(event.getGuild(), argument);
-			GuildChannel channel = ArgumentUtils.getTextChannelOrParent(event.getGuild(), argument);
+			GuildChannel channel = ArgumentUtils.getGuildChannel(event.getGuild(), argument);
 			if (channel == null && role == null && member == null) {
 				event.reply("I could not find that user/role/channel :no_entry:").queue();
 				return;
 			}
 			
-			List<Map<String, Object>> commands = (List<Map<String, Object>>) dataRan.get("commands");
-			if (channel != null) {
-				String channelDisplay = channel instanceof TextChannel ? ((TextChannel) channel).getAsMention() : channel.getName();
-				for (Map<String, Object> commandData : commands) {
-					if (commandData.get("id").equals(commandName)) {
-						List<Map<String, String>> blacklisted = (List<Map<String, String>>) commandData.get("blacklisted"), whitelisted = (List<Map<String, String>>) commandData.getOrDefault("whitelisted", List.of());	
-						for (Map<String, String> blacklist : blacklisted) {
-							if (blacklist.get("type").equals("channel")) {
-								if (channel.getId().equals(blacklist.get("id"))) {
-									event.reply("The " + (command == null ? "module" : "command") + " `" + commandName + "` is no longer blacklisted in " + channelDisplay + " <:done:403285928233402378>").queue();
-									blacklisted.remove(blacklist);
-									commands.remove(commandData);
-									if (!blacklisted.isEmpty() || !whitelisted.isEmpty()) {
-										commandData.put("blacklisted", blacklisted);
-										commands.add(commandData);
-									}
-									data.update(r.hashMap("commands", commands)).runNoReply(connection);
-									return;
+			List<Document> commands = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("blacklist.commands")).getEmbedded(List.of("blacklist.commands"), Collections.emptyList());
+			for (Document commandData : commands) {
+				if (commandData.getString("id").equals(commandName)) {
+					Bson update = null;
+					String channelDisplay = channel == null ? null : channel instanceof TextChannel ? ((TextChannel) channel).getAsMention() : channel.getName();
+					if (channel != null) {
+						List<Long> channels = commandData.getEmbedded(List.of("blacklisted", "channels"), Collections.emptyList());					
+						for (long channelId : channels) {
+							if (channel.getIdLong() == channelId) {
+								if (channels.size() == 1) {
+									update = Updates.unset("blacklist.commands.$[command].blacklisted.channels");
+								} else {
+									update = Updates.pull("blacklist.commands.$[command].blacklisted.channels", channel.getIdLong());
 								}
 							}
 						}
-					}
-				}
-				
-				event.reply("The channel " + channelDisplay + " is not blacklisted from using that " + (command == null ? "module" : "command") + " :no_entry:").queue();
-			} else if (role != null) {
-				for (Map<String, Object> commandData : commands) {
-					if (commandData.get("id").equals(commandName)) {
-						List<Map<String, String>> blacklisted = (List<Map<String, String>>) commandData.get("blacklisted"), whitelisted = (List<Map<String, String>>) commandData.getOrDefault("whitelisted", List.of());	
-						for (Map<String, String> blacklist : blacklisted) {
-							if (blacklist.get("type").equals("role")) {
-								if (role.getId().equals(blacklist.get("id"))) {
-									event.reply("The " + (command == null ? "module" : "command") + " `" + commandName + "` is no longer blacklisted if a user has the role `" + role.getName() + "` <:done:403285928233402378>").queue();
-									blacklisted.remove(blacklist);
-									commands.remove(commandData);
-									if (!blacklisted.isEmpty() || !whitelisted.isEmpty()) {
-										commandData.put("blacklisted", blacklisted);
-										commands.add(commandData);
-									}
-									data.update(r.hashMap("commands", commands)).runNoReply(connection);
-									return;
+						
+						event.reply("The role `" + role.getName() + "` is not blacklisted from using that " + (command == null ? "module" : "command") + " :no_entry:").queue();
+					} else if (role != null) {
+						List<Long> roles = commandData.getEmbedded(List.of("blacklisted", "roles"), Collections.emptyList());				
+						for (long roleId : roles) {
+							if (role.getIdLong() == roleId) {
+								if (roles.size() == 1) {
+									update = Updates.unset("blacklist.commands.$[command].blacklisted.roles");
+								} else {
+									update = Updates.pull("blacklist.commands.$[command].blacklisted.roles", role.getIdLong());
 								}
 							}
 						}
-					}
-				}
-				
-				event.reply("The role `" + role.getName() + "` is not blacklisted from using that " + (command == null ? "module" : "command") + " :no_entry:").queue();
-			} else if (member != null) {
-				for (Map<String, Object> commandData : commands) {
-					if (commandData.get("id").equals(commandName)) {
-						List<Map<String, String>> blacklisted = (List<Map<String, String>>) commandData.get("blacklisted"), whitelisted = (List<Map<String, String>>) commandData.getOrDefault("whitelisted", List.of());	
-						for (Map<String, String> blacklist : blacklisted) {
-							if (blacklist.get("type").equals("user")) {
-								if (member.getUser().getId().equals(blacklist.get("id"))) {
-									event.reply("**" + member.getUser().getAsTag() + "** is no longer blacklisted from using `" + commandName + "` in this server <:done:403285928233402378>").queue();
-									blacklisted.remove(blacklist);
-									commands.remove(commandData);
-									if (!blacklisted.isEmpty() || !whitelisted.isEmpty()) {
-										commandData.put("blacklisted", blacklisted);
-										commands.add(commandData);
-									}
-									data.update(r.hashMap("commands", commands)).runNoReply(connection);
-									return;
+						
+						event.reply("The role `" + role.getName() + "` is not blacklisted from using that " + (command == null ? "module" : "command") + " :no_entry:").queue();
+					} else if (member != null) {
+						List<Long> users = commandData.getEmbedded(List.of("blacklisted", "users"), Collections.emptyList());				
+						for (long userId : users) {
+							if (member.getIdLong() == userId) {
+								if (users.size() == 1) {
+									update = Updates.unset("blacklist.commands.$[command].blacklisted.users");
+								} else {
+									update = Updates.pull("blacklist.commands.$[command].blacklisted.users", member.getIdLong());
 								}
 							}
 						}
+						
+						event.reply("The user `" + member.getUser().getAsTag() + "` is not blacklisted from using that " + (command == null ? "module" : "command") + " :no_entry:").queue();
 					}
+					
+					UpdateOptions updateOptions = new UpdateOptions().arrayFilters(List.of(Filters.eq("command.id", commandName)));
+					database.updateGuildById(event.getGuild().getIdLong(), null, update, updateOptions, (result, exception) -> {
+						if (exception != null) {
+							exception.printStackTrace();
+							event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+						} else {
+							String type = member != null ? "for **" + member.getUser().getAsTag() + "**" : role != null ? "for anyone in the role `" + role.getName() + "`" : "in " + channelDisplay;
+							event.reply("The " + (command == null ? "module" : "command") + " `" + commandName + "` is no longer blacklisted " + type + " <:done:403285928233402378>").queue();
+						}
+					});
 				}
-				
-				event.reply("The user `" + member.getUser().getAsTag() + "` is not blacklisted from using that " + (command == null ? "module" : "command") + " :no_entry:").queue();
-			}
-		}
-		
-		@SuppressWarnings("unchecked")
-		@Command(value="delete", aliases={"del"}, description="Deletes all the blacklist data for a specified command or module")
-		@AuthorPermissions({Permission.MANAGE_SERVER})
-		public void delete(CommandEvent event, @Context Connection connection, @Argument(value="command | module", endless=true) String commandArgument) {
-			Get data = r.table("blacklist").get(event.getGuild().getId());
-			Map<String, Object> dataRan = data.run(connection);
-			if (dataRan == null) {
-				event.reply("No blacklist data has been created for this server, so there is nothing to delete :no_entry:").queue();
-				return;
 			}
 			
-			CategoryImpl module = ArgumentUtils.getModule(commandArgument);
-			ICommand command = ArgumentUtils.getCommand(commandArgument);
+			event.reply("Nothing is blacklisted from that command/module :no_entry:").queue();
+		}
+		
+		@Command(value="delete", aliases={"del"}, description="Deletes all the blacklist data for a specified command or module")
+		@AuthorPermissions({Permission.MANAGE_SERVER})
+		public void delete(CommandEvent event, @Context Database database, @Argument(value="command | module", endless=true) String commandArgument) {
+			CategoryImpl module = ArgumentUtils.getModule(commandArgument, true);
+			ICommand command = ArgumentUtils.getCommand(commandArgument, true);
 			if (command == null && module == null) {
 				event.reply("I could not find that command/module :no_entry:").queue();
 				return;
 			}
+			
 			String commandName = command == null ? module.getName() : command.getCommandTrigger();
 			
-			List<Map<String, Object>> commands = (List<Map<String, Object>>) dataRan.get("commands");
-			for (Map<String, Object> commandData : commands) {
-				if (commandData.get("id").equals(commandName)) {
-					List<Map<String, String>> blacklisted = (List<Map<String, String>>) commandData.get("blacklisted"), whitelisted = (List<Map<String, String>>) commandData.getOrDefault("whitelisted", List.of());
+			List<Document> commands = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("blacklist.commands")).getEmbedded(List.of("blacklist", "commands"), Collections.emptyList());
+			for (Document commandData : commands) {
+				if (commandData.getString("id").equals(commandName)) {
+					List<Document> blacklisted = commandData.getList("blacklisted", Document.class, Collections.emptyList());
 					if (blacklisted.isEmpty()) {
-						event.reply("Nothing is blacklisted for that " + (command == null ? "module" : "command") + " :no_entry:").queue();
+						event.reply("Nothing is blacklisted from that " + (command == null ? "module" : "command") + " :no_entry:").queue();
 						return;
 					}
 					
-					event.reply("All blacklist data for `" + commandName + "` has been deleted <:done:403285928233402378>").queue();
-					commands.remove(commandData);
-					if (!whitelisted.isEmpty()) {
-						commandData.put("blacklisted", new Object[0]);
-						commands.add(commandData);
-					}
-					data.update(r.hashMap("commands", commands)).runNoReply(connection);
+					UpdateOptions updateOptions = new UpdateOptions().arrayFilters(List.of(Filters.eq("command.id", commandName)));
+					database.updateGuildById(event.getGuild().getIdLong(), null, Updates.unset("blacklist.commands.$[command].blacklisted"), updateOptions, (result, exception) -> {
+						if (exception != null) {
+							exception.printStackTrace();
+							event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+						} else {
+							event.reply("All blacklist data for `" + commandName + "` has been deleted <:done:403285928233402378>").queue();
+						}
+					});
+					
 					return;
 				}
 			}
 			
-			event.reply("Nothing is blacklisted for that " + (command == null ? "module" : "command") + " :no_entry:").queue();
+			event.reply("Nothing is blacklisted from that " + (command == null ? "module" : "command") + " :no_entry:").queue();
 		}
 		
-		@SuppressWarnings("unchecked")
 		@Command(value="reset", aliases={"wipe"}, description="Wipes all blacklist data set in the server, it will give you a prompt to confirm this decision", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@AuthorPermissions({Permission.MANAGE_SERVER})
-		public void reset(CommandEvent event, @Context Connection connection) {
-			Get data = r.table("blacklist").get(event.getGuild().getId());
-			Map<String, Object> dataRan = data.run(connection);
-			if (dataRan == null) {
-				event.reply("No blacklist data has been created for this server, so there is nothing to reset :no_entry:").queue();
-				return;
-			}
-			
+		public void reset(CommandEvent event, @Context Database database) {
 			event.reply(event.getAuthor().getName() + ", are you sure you want to wipe all blacklist data? (Yes or No)").queue(message -> {
 				PagedUtils.getConfirmation(event, 60, event.getAuthor(), confirmed -> {
 					if (confirmed == true) {
-						event.reply("All blacklist data has been deleted <:done:403285928233402378>").queue();
-						message.delete().queue();
-						
-						List<Map<String, Object>> commands = (List<Map<String, Object>>) dataRan.get("commands");
-						for (Map<String, Object> commandData : new ArrayList<>(commands)) {
-							List<Map<String, String>> whitelisted = (List<Map<String, String>>) commandData.getOrDefault("whitelisted", List.of());
-							
-							commands.remove(commandData);
-							if (!whitelisted.isEmpty()) {
-								commandData.put("blacklisted", new Object[0]);
-								commands.add(commandData);
-							}
+						List<Document> commands = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("blacklist.commands")).getEmbedded(List.of("blacklist", "commands"), Collections.emptyList());
+						if (commands.isEmpty()) {
+							event.reply("There is nothing blacklisted in this server :no_entry:").queue();
+							return;
 						}
 						
-						data.update(r.hashMap("commands", commands)).runNoReply(connection);
+						database.updateGuildById(event.getGuild().getIdLong(), Updates.unset("blacklist.commands.$[].blacklisted"), (result, exception) -> {
+							if (exception != null) {
+								exception.printStackTrace();
+								event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+							} else {
+								message.delete().queue();
+								event.reply("All blacklist data has been deleted <:done:403285928233402378>").queue();
+							}
+						});
 					} else {
 						event.reply("Cancelled <:done:403285928233402378>").queue();
 						message.delete().queue();
 					}
 				});
 			});
-			
 		}
 		
-		@SuppressWarnings("unchecked")
 		@Command(value="toggle", aliases={"enable", "disable"}, description="Enable or disable a command or module in the current server")
 		@AuthorPermissions({Permission.MANAGE_SERVER})
-		public void toggle(CommandEvent event, @Context Connection connection, @Argument(value="command | module", endless=true) String argument) {
-			r.table("blacklist").insert(r.hashMap("id", event.getGuild().getId()).with("commands", new Object[0]).with("disabled", new Object[0])).run(connection, OptArgs.of("durability", "soft"));
-			Get data = r.table("blacklist").get(event.getGuild().getId());
-			Map<String, Object> dataRan = data.run(connection);
-			
-			CategoryImpl module = ArgumentUtils.getModule(argument);
-			ICommand command = ArgumentUtils.getCommand(argument);
+		public void toggle(CommandEvent event, @Context Database database, @Argument(value="command | module", endless=true) String argument) {
+			CategoryImpl module = ArgumentUtils.getModule(argument, true);
+			ICommand command = ArgumentUtils.getCommand(argument, true);
 			if (command == null && module == null) {
 				event.reply("I could not find that command/module :no_entry:").queue();
 				return;
 			}
+			
 			String commandName = command == null ? module.getName() : command.getCommandTrigger();
 			
-			for (String disabledCommand : (List<String>) dataRan.get("disabled")) {
-				if (disabledCommand.equals(commandName)) {
-					event.reply("The " + (command == null ? "module" : "command") + " `" + commandName + "` is no longer disabled in this server <:done:403285928233402378>").queue();
-					data.update(row -> r.hashMap("disabled", row.g("disabled").filter(d -> d.ne(commandName)))).runNoReply(connection);
+			List<String> disabledCommands = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("blacklist.disabled")).getEmbedded(List.of("blacklist", "disabled"), Collections.emptyList());
+			for (String disabledCommand : disabledCommands) {
+				if (disabledCommand.equals(commandName)) {	
+					database.updateGuildById(event.getGuild().getIdLong(), Updates.pull("blacklist.disabled", commandName), (result, exception) -> {
+						if (exception != null) {
+							exception.printStackTrace();
+							event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+						} else {
+							event.reply("The " + (command == null ? "module" : "command") + " `" + commandName + "` is no longer disabled in this server <:done:403285928233402378>").queue();
+						}
+					});
+					
 					return;
 				}
 			}
 			
-			event.reply("The " + (command == null ? "module" : "command") + " `" + commandName + "` is now disabled in this server <:done:403285928233402378>").queue();
-			data.update(row -> r.hashMap("disabled", row.g("disabled").append(commandName))).runNoReply(connection);
+			database.updateGuildById(event.getGuild().getIdLong(), Updates.push("blacklist.disabled", commandName), (result, exception) -> {
+				if (exception != null) {
+					exception.printStackTrace();
+					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+				} else {
+					event.reply("The " + (command == null ? "module" : "command") + " `" + commandName + "` is now disabled in this server <:done:403285928233402378>").queue();
+				}
+			});
 		}
 		
-		@SuppressWarnings("unchecked")
 		@Command(value="disabled", aliases={"disabled commands", "disabledcommands", "disabled modules", "disabledmodules"}, description="View all the disabled commands on the current server", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
-		public void disabledCommands(CommandEvent event, @Context Connection connection) {
-			Map<String, Object> data = r.table("blacklist").get(event.getGuild().getId()).run(connection);
-			if (data == null) {
-				event.reply("There are no disabled commands or modules in this server :no_entry:").queue();
-				return;
-			}
-			
-			List<String> disabled = (List<String>) data.get("disabled");
-			List<String> disabledCommands = new ArrayList<String>();
-			
-			CategoryImpl module;
-			ICommand command;
-			for (String disabledCommand : disabled) {
-				module = ArgumentUtils.getModule(disabledCommand);
-				command = ArgumentUtils.getCommand(disabledCommand);
-				if (command != null || module != null) {
-					disabledCommands.add(disabledCommand + " (" + (command == null ? "Module" : "Command") + ")");
-				}
-			}
-			
+		public void disabledCommands(CommandEvent event, @Context Database database, @Option(value="module") boolean moduleOption, @Option(value="command") boolean commandOption) {
+			List<String> disabledCommands = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("blacklist.disabled")).getEmbedded(List.of("blacklist", "disabled"), Collections.emptyList());
 			if (disabledCommands.isEmpty()) {
 				event.reply("There are no disabled commands or modules in this server :no_entry:").queue();
 				return;
 			}
 			
+			if (moduleOption || commandOption) {
+				for (String disabledCommand : disabledCommands) {
+					if (commandOption) {
+						Sx4Command command = ArgumentUtils.getCommand(disabledCommand, true);
+						if (command == null) {
+							disabledCommands.remove(disabledCommand);
+						}
+					} else {
+						CategoryImpl module = ArgumentUtils.getModule(disabledCommand, true);
+						if (module == null) {
+							disabledCommands.remove(disabledCommand);
+						}
+					}
+				}
+			}
+			
+			String type = moduleOption == commandOption ? "Commands/Modules" : moduleOption ? "Modules" : "Commands";
 			PagedResult<String> paged = new PagedResult<>(disabledCommands)
-					.setAuthor("Disabled Commands/Modules", null, event.getGuild().getIconUrl())
+					.setAuthor("Disabled " + type, null, event.getGuild().getIconUrl())
 					.setDeleteMessage(false)
 					.setIndexed(false)
 					.setPerPage(15);
@@ -747,57 +685,54 @@ public class ModModule {
 			PagedUtils.getPagedResult(event, paged, 300, null);
 		}
 		
-		@SuppressWarnings("unchecked")
 		@Command(value="info", description="View all the users, roles and channels which are blacklisted from using a specified command or module")
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-		public void info(CommandEvent event, @Context Connection connection, @Argument(value="command | module", endless=true) String argument) {
-			Map<String, Object> data = r.table("blacklist").get(event.getGuild().getId()).run(connection);
-			if (data == null) {
-				event.reply("There is no blacklist data for this server, so no one is blacklisted from using that command/module :no_entry:").queue();
-				return;
-			}
-			
+		public void info(CommandEvent event, @Context Database database, @Argument(value="command | module", endless=true) String argument) {
 			CategoryImpl module = ArgumentUtils.getModule(argument);
 			ICommand command = ArgumentUtils.getCommand(argument);
 			if (command == null && module == null) {
 				event.reply("I could not find that command/module :no_entry:").queue();
 				return;
 			}
+			
 			String commandName = command == null ? module.getName() : command.getCommandTrigger();
 			
-			for (Map<String, Object> commandData : (List<Map<String, Object>>) data.get("commands")) {
-				if (commandData.get("id").equals(commandName)) {
-					List<Map<String, String>> blacklisted = (List<Map<String, String>>) commandData.get("blacklisted");
-					List<String> viewedBlacklisted = new ArrayList<String>();
+			List<Document> commands = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("blacklist.commands")).getEmbedded(List.of("blacklist", "commands"), Collections.emptyList());
+			for (Document commandData : commands) {
+				if (commandData.getString("id").equals(commandName)) {
+					List<String> blacklistedString = new ArrayList<>();
 					
-					TextChannel channel;
-					Role role;
-					Member member;
-					for (Map<String, String> blacklist : blacklisted) {
-						if (blacklist.get("type").equals("channel")) {
-							channel = event.getGuild().getTextChannelById(blacklist.get("id"));
-							if (channel != null) {
-								viewedBlacklisted.add(channel.getAsMention());
-							} 
-						} else if (blacklist.get("type").equals("role")) {
-							role = event.getGuild().getRoleById(blacklist.get("id"));
-							if (role != null) {
-								viewedBlacklisted.add(role.getAsMention());
-							}
-						} else if (blacklist.get("type").equals("user")) {
-							member = event.getGuild().getMemberById(blacklist.get("id"));	   
-							if (member != null) {
-								viewedBlacklisted.add(member.getUser().getAsTag());
-							}
-						}
-					}
-					
-					if (viewedBlacklisted.isEmpty()) {
+					Document blacklisted = commandData.get("blacklisted", Database.EMPTY_DOCUMENT);
+					if (blacklisted.isEmpty()) {
 						event.reply("Nothing is blacklisted from using that " + (command == null ? "module" : "command") + " :no_entry:").queue();
 						return;
 					}
 					
-					PagedResult<String> paged = new PagedResult<>(viewedBlacklisted)
+					List<Long> channels = blacklisted.getList("channels", Long.class, Collections.emptyList());
+					for (long channelId : channels) {
+						GuildChannel channel = event.getGuild().getGuildChannelById(channelId);
+						if (channel != null) {
+							blacklistedString.add(channel instanceof TextChannel ? ((TextChannel) channel).getAsMention() : channel.getName());
+						}
+					}
+					
+					List<Long> roles = blacklisted.getList("roles", Long.class, Collections.emptyList());
+					for (long roleId : roles) {
+						Role role = event.getGuild().getRoleById(roleId);
+						if (role != null) {
+							blacklistedString.add(role.getAsMention());
+						}
+					}
+					
+					List<Long> users = blacklisted.getList("users", Long.class, Collections.emptyList());
+					for (long userId : users) {
+						Member member = event.getGuild().getMemberById(userId);
+						if (member != null) {
+							blacklistedString.add(member.getUser().getAsTag());
+						}
+					}
+					
+					PagedResult<String> paged = new PagedResult<>(blacklistedString)
 							.setDeleteMessage(false)
 							.setIncreasedIndex(true)
 							.setPerPage(15)
@@ -809,8 +744,7 @@ public class ModModule {
 			}
 			
 			event.reply("Nothing is blacklisted from using that " + (command == null ? "module" : "command") + " :no_entry:").queue();
-		}
-		
+		}	
 	}
 	
 	public class WhitelistCommand extends Sx4Command {
@@ -826,377 +760,296 @@ public class ModModule {
 			event.reply(HelpUtils.getHelpMessage(event.getCommand())).queue();
 		}
 		
-		@SuppressWarnings("unchecked")
 		@Command(value="add", description="Add a role/user/channel to be whitelisted to use a specified command/module")
 		@AuthorPermissions({Permission.MANAGE_SERVER})
-		public void add(CommandEvent event, @Context Connection connection, @Argument(value="user | role | channel") String argument, @Argument(value="command | module", endless=true) String commandArgument) {
-			r.table("blacklist").insert(r.hashMap("id", event.getGuild().getId()).with("commands", new Object[0]).with("disabled", new Object[0])).run(connection, OptArgs.of("durability", "soft"));
-			Get data = r.table("blacklist").get(event.getGuild().getId());
-			Map<String, Object> dataRan = data.run(connection);
-			
-			CategoryImpl module = ArgumentUtils.getModule(commandArgument);
-			ICommand command = ArgumentUtils.getCommand(commandArgument);
+		public void add(CommandEvent event, @Context Database database, @Argument(value="user | role | channel") String argument, @Argument(value="command | module", endless=true) String commandArgument) {
+			CategoryImpl module = ArgumentUtils.getModule(commandArgument, true);
+			ICommand command = ArgumentUtils.getCommand(commandArgument, true);
 			if (command == null && module == null) {
 				event.reply("I could not find that command/module :no_entry:").queue();
 				return;
 			}
+			
 			String commandName = command == null ? module.getName() : command.getCommandTrigger(); 
 			
 			Role role = ArgumentUtils.getRole(event.getGuild(), argument);
 			Member member = ArgumentUtils.getMember(event.getGuild(), argument);
-			GuildChannel channel = ArgumentUtils.getTextChannelOrParent(event.getGuild(), argument);
+			GuildChannel channel = ArgumentUtils.getGuildChannel(event.getGuild(), argument);
 			if (channel == null && role == null && member == null) {
 				event.reply("I could not find that user/role/channel :no_entry:").queue();
 				return;
 			}
 			
-			List<Map<String, Object>> commands = (List<Map<String, Object>>) dataRan.get("commands");
-			if (channel != null) {
-				String channelDisplay = channel instanceof TextChannel ? ((TextChannel) channel).getAsMention() : channel.getName();
-				for (Map<String, Object> commandData : commands) {
-					if (commandData.get("id").equals(commandName)) {
-						List<Map<String, String>> whitelisted = (List<Map<String, String>>) commandData.getOrDefault("whitelisted", List.of());
-						for (Map<String, String> whitelist : whitelisted) {
-							if (whitelist.get("type").equals("channel")) {
-								if (channel.getId().equals(whitelist.get("id"))) {
-									event.reply("The channel " + channelDisplay + " is already whitelisted to use that " + (command == null ? "module" : "command") + " :no_entry:").queue();
-									return;
-								}
+			Bson update = null;
+			List<Bson> arrayFilters = null;
+			String channelDisplay = channel == null ? null : channel instanceof TextChannel ? ((TextChannel) channel).getAsMention() : channel.getName();
+			
+			List<Document> commands = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("blacklist.commands")).getEmbedded(List.of("blacklist.commands"), Collections.emptyList());
+			for (Document commandData : commands) {
+				if (commandData.getString("id").equals(commandName)) {
+					arrayFilters = List.of(Filters.eq("command.id", commandName));
+					if (channel != null) {
+						List<Long> channels = commandData.getEmbedded(List.of("whitelisted", "channels"), Collections.emptyList());					
+						for (long channelId : channels) {
+							if (channel.getIdLong() == channelId) {
+								event.reply("The channel " + channelDisplay + " is already whitelisted from using that " + (command == null ? "module" : "command") + " :no_entry:").queue();
+								return;
 							}
 						}
 						
-						event.reply("The " + (command == null ? "module" : "command") + " `" + commandName + "` is now whitelisted in " + channelDisplay + " <:done:403285928233402378>").queue();
-						Map<String, String> newMap = new HashMap<String, String>();
-						newMap.put("type", "channel");
-						newMap.put("id", channel.getId());
-						whitelisted.add(newMap);
-						commands.remove(commandData);
-						commandData.put("whitelisted", whitelisted);
-						commands.add(commandData);
-						data.update(r.hashMap("commands", commands)).runNoReply(connection);
-						return;
-					}
-				}
-				
-				event.reply("The " + (command == null ? "module" : "command") + " `" + commandName + "` is now whitelisted in " + channelDisplay + " <:done:403285928233402378>").queue();
-				data.update(row -> {
-					return r.hashMap("commands", row.g("commands").append(r.hashMap("id", commandName)
-							.with("whitelisted", List.of(r.hashMap("id", channel.getId()).with("type", "channel")))
-							.with("blacklisted", new Object[0])));
-				}).runNoReply(connection);
-			} else if (role != null) {
-				for (Map<String, Object> commandData : commands) {
-					if (commandData.get("id").equals(commandName)) {
-						List<Map<String, String>> whitelisted = (List<Map<String, String>>) commandData.getOrDefault("whitelisted", List.of());		
-						for (Map<String, String> whitelist : whitelisted) {
-							if (whitelist.get("type").equals("role")) {
-								if (role.getId().equals(whitelist.get("id"))) {
-									event.reply("The role `" + role.getName() + "` is already whitelisted to use that " + (command == null ? "module" : "command") + " :no_entry:").queue();
-									return;
-								}
+						update = Updates.push("blacklist.commands.$[command].whitelisted.channels", channel.getIdLong());
+					} else if (role != null) {
+						List<Long> roles = commandData.getEmbedded(List.of("whitelisted", "roles"), Collections.emptyList());				
+						for (long roleId : roles) {
+							if (role.getIdLong() == roleId) {
+								event.reply("The role `" + role.getName() + "` is already whitelisted from using that " + (command == null ? "module" : "command") + " :no_entry:").queue();
+								return;
 							}
 						}
 						
-						event.reply("The " + (command == null ? "module" : "command") + " `" + commandName + "` is now whitelisted for anyone with the role `" + role.getName() + "` <:done:403285928233402378>").queue();
-						Map<String, String> newMap = new HashMap<String, String>();
-						newMap.put("type", "role");
-						newMap.put("id", role.getId());
-						whitelisted.add(newMap);
-						commands.remove(commandData);
-						commandData.put("whitelisted", whitelisted);
-						commands.add(commandData);
-						data.update(r.hashMap("commands", commands)).runNoReply(connection);
-						return;
-					}
-				}
-				
-				event.reply("The " + (command == null ? "module" : "command") + " `" + commandName + "` is now whitelisted for anyone with the role `" + role.getName() + "` <:done:403285928233402378>").queue();
-				data.update(row -> {
-					return r.hashMap("commands", row.g("commands").append(r.hashMap("id", commandName)
-							.with("whitelisted", List.of(r.hashMap("id", role.getId()).with("type", "role")))
-							.with("blacklisted", new Object[0])));
-				}).runNoReply(connection);
-			} else if (member != null) {
-				for (Map<String, Object> commandData : commands) {
-					if (commandData.get("id").equals(commandName)) {
-						List<Map<String, String>> whitelisted = (List<Map<String, String>>) commandData.getOrDefault("whitelisted", List.of());			
-						for (Map<String, String> whitelist : whitelisted) {
-							if (whitelist.get("type").equals("user")) {
-								if (member.getUser().getId().equals(whitelist.get("id"))) {
-									event.reply("The user `" + member.getUser().getAsTag() + "` is already whitelisted to use that " + (command == null ? "module" : "command") + " :no_entry:").queue();
-									return;
-								}
+						update = Updates.push("blacklist.commands.$[command].whitelisted.roles", role.getIdLong());
+					} else if (member != null) {
+						List<Long> users = commandData.getEmbedded(List.of("whitelisted", "users"), Collections.emptyList());				
+						for (long userId : users) {
+							if (member.getIdLong() == userId) {
+								event.reply("The user `" + member.getUser().getAsTag() + "` is already whitelisted from using that " + (command == null ? "module" : "command") + " :no_entry:").queue();
+								return;
 							}
 						}
 						
-						event.reply("**" + member.getUser().getAsTag() + "** is now whitelisted to use `" + commandName + "` in this server <:done:403285928233402378>").queue();
-						Map<String, String> newMap = new HashMap<String, String>();
-						newMap.put("type", "user");
-						newMap.put("id", member.getUser().getId());
-						whitelisted.add(newMap);
-						commands.remove(commandData);
-						commandData.put("whitelisted", whitelisted);
-						commands.add(commandData);
-						data.update(r.hashMap("commands", commands)).runNoReply(connection);
-						return;
+						update = Updates.push("blacklist.commands.$[command].whitelisted.users", member.getIdLong());
 					}
 				}
-				
-				event.reply("**" + member.getUser().getAsTag() + "** is now whitelisted to use `" + commandName + "` in this server <:done:403285928233402378>").queue();
-				data.update(row -> {
-					return r.hashMap("commands", row.g("commands").append(r.hashMap("id", commandName)
-							.with("whitelisted", List.of(r.hashMap("id", member.getUser().getId()).with("type", "user")))
-							.with("blacklisted", new Object[0])));
-				}).runNoReply(connection);
 			}
+			
+			if (update == null) {
+				Document blacklistData = member != null ? new Document("users", List.of(member.getIdLong())) : role != null ? new Document("roles", List.of(role.getIdLong())) : new Document("channels", List.of(channel.getIdLong()));
+				Document commandData = new Document("id", commandName).append("whitelisted", blacklistData);
+				
+				update = Updates.push("blacklist.commands", commandData);
+			}
+			
+			UpdateOptions updateOptions = new UpdateOptions().arrayFilters(arrayFilters).upsert(true);
+			database.updateGuildById(event.getGuild().getIdLong(), null, update, updateOptions, (result, exception) -> {
+				if (exception != null) {
+					exception.printStackTrace();
+					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+				} else {
+					String type = member != null ? "for **" + member.getUser().getAsTag() + "**" : role != null ? "for anyone in the role `" + role.getName() + "`" : "in " + channelDisplay;
+					event.reply("The " + (command == null ? "module" : "command") + " `" + commandName + "` is now whitelisted " + type + " <:done:403285928233402378>").queue();
+				}
+			});
 		}
 		
-		@SuppressWarnings("unchecked")
 		@Command(value="remove", description="Remove a whitelist from a user/role/channel from a specified command/module")
 		@AuthorPermissions({Permission.MANAGE_SERVER})
-		public void remove(CommandEvent event, @Context Connection connection, @Argument(value="user | role | channel") String argument, @Argument(value="command | module", endless=true) String commandArgument) {
-			Get data = r.table("blacklist").get(event.getGuild().getId());
-			Map<String, Object> dataRan = data.run(connection);
-			if (dataRan == null) {
-				event.reply("No whitelist data has been created for this server, so there is nothing to remove :no_entry:").queue();
-				return;
-			}
-			
-			CategoryImpl module = ArgumentUtils.getModule(commandArgument);
-			ICommand command = ArgumentUtils.getCommand(commandArgument);
+		public void remove(CommandEvent event, @Context Database database, @Argument(value="user | role | channel") String argument, @Argument(value="command | module", endless=true) String commandArgument) {
+			CategoryImpl module = ArgumentUtils.getModule(commandArgument, true);
+			ICommand command = ArgumentUtils.getCommand(commandArgument, true);
 			if (command == null && module == null) {
 				event.reply("I could not find that command/module :no_entry:").queue();
 				return;
 			}
+			
 			String commandName = command == null ? module.getName() : command.getCommandTrigger(); 
 			
 			Role role = ArgumentUtils.getRole(event.getGuild(), argument);
 			Member member = ArgumentUtils.getMember(event.getGuild(), argument);
-			GuildChannel channel = ArgumentUtils.getTextChannelOrParent(event.getGuild(), argument);
+			GuildChannel channel = ArgumentUtils.getGuildChannel(event.getGuild(), argument);
 			if (channel == null && role == null && member == null) {
 				event.reply("I could not find that user/role/channel :no_entry:").queue();
 				return;
 			}
 			
-			List<Map<String, Object>> commands = (List<Map<String, Object>>) dataRan.get("commands");
-			if (channel != null) {
-				String channelDisplay = channel instanceof TextChannel ? ((TextChannel) channel).getAsMention() : channel.getName();
-				for (Map<String, Object> commandData : commands) {
-					if (commandData.get("id").equals(commandName)) {
-						List<Map<String, String>> blacklisted = (List<Map<String, String>>) commandData.get("blacklisted"), whitelisted = (List<Map<String, String>>) commandData.getOrDefault("whitelisted", List.of());	
-						for (Map<String, String> whitelist : whitelisted) {
-							if (whitelist.get("type").equals("channel")) {
-								if (channel.getId().equals(whitelist.get("id"))) {
-									event.reply("The " + (command == null ? "module" : "command") + " `" + commandName + "` is no longer whitelisted in " + channelDisplay + " <:done:403285928233402378>").queue();
-									whitelisted.remove(whitelist);
-									commands.remove(commandData);
-									if (!blacklisted.isEmpty() || !whitelisted.isEmpty()) {
-										commandData.put("whitelisted", whitelisted);
-										commands.add(commandData);
-									}
-									data.update(r.hashMap("commands", commands)).runNoReply(connection);
-									return;
+			List<Document> commands = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("blacklist.commands")).getEmbedded(List.of("blacklist.commands"), Collections.emptyList());
+			for (Document commandData : commands) {
+				if (commandData.getString("id").equals(commandName)) {
+					Bson update = null;
+					String channelDisplay = channel == null ? null : channel instanceof TextChannel ? ((TextChannel) channel).getAsMention() : channel.getName();
+					if (channel != null) {
+						List<Long> channels = commandData.getEmbedded(List.of("whitelisted", "channels"), Collections.emptyList());					
+						for (long channelId : channels) {
+							if (channel.getIdLong() == channelId) {
+								if (channels.size() == 1) {
+									update = Updates.unset("blacklist.commands.$[command].whitelisted.channels");
+								} else {
+									update = Updates.pull("blacklist.commands.$[command].whitelisted.channels", channel.getIdLong());
 								}
 							}
 						}
-					}
-				}
-				
-				event.reply("The channel " + channelDisplay + " is not whitelisted to use that " + (command == null ? "module" : "command") + " :no_entry:").queue();
-			} else if (role != null) {
-				for (Map<String, Object> commandData : commands) {
-					if (commandData.get("id").equals(commandName)) {
-						List<Map<String, String>> blacklisted = (List<Map<String, String>>) commandData.get("blacklisted"), whitelisted = (List<Map<String, String>>) commandData.getOrDefault("whitelisted", List.of());	
-						for (Map<String, String> whitelist : whitelisted) {
-							if (whitelist.get("type").equals("role")) {
-								if (role.getId().equals(whitelist.get("id"))) {
-									event.reply("The " + (command == null ? "module" : "command") + " `" + commandName + "` is no longer whitelisted if a user has the role `" + role.getName() + "` <:done:403285928233402378>").queue();
-									whitelisted.remove(whitelist);
-									commands.remove(commandData);
-									if (!blacklisted.isEmpty() || !whitelisted.isEmpty()) {
-										commandData.put("whitelisted", whitelisted);
-										commands.add(commandData);
-									}
-									data.update(r.hashMap("commands", commands)).runNoReply(connection);
-									return;
+						
+						event.reply("The role `" + role.getName() + "` is not whitelisted from using that " + (command == null ? "module" : "command") + " :no_entry:").queue();
+					} else if (role != null) {
+						List<Long> roles = commandData.getEmbedded(List.of("whitelisted", "roles"), Collections.emptyList());				
+						for (long roleId : roles) {
+							if (role.getIdLong() == roleId) {
+								if (roles.size() == 1) {
+									update = Updates.unset("blacklist.commands.$[command].whitelisted.roles");
+								} else {
+									update = Updates.pull("blacklist.commands.$[command].whitelisted.roles", role.getIdLong());
 								}
 							}
 						}
-					}
-				}
-				
-				event.reply("The role `" + role.getName() + "` is not whitelisted to use that " + (command == null ? "module" : "command") + " :no_entry:").queue();
-			} else if (member != null) {
-				for (Map<String, Object> commandData : commands) {
-					if (commandData.get("id").equals(commandName)) {
-						List<Map<String, String>> blacklisted = (List<Map<String, String>>) commandData.get("blacklisted"), whitelisted = (List<Map<String, String>>) commandData.getOrDefault("whitelisted", List.of());	
-						for (Map<String, String> whitelist : whitelisted) {
-							if (whitelist.get("type").equals("user")) {
-								if (member.getUser().getId().equals(whitelist.get("id"))) {
-									event.reply("**" + member.getUser().getAsTag() + "** is no longer whitelisted to use `" + commandName + "` in this server <:done:403285928233402378>").queue();
-									whitelisted.remove(whitelist);
-									commands.remove(commandData);
-									if (!blacklisted.isEmpty() || !whitelisted.isEmpty()) {
-										commandData.put("whitelisted", whitelisted);
-										commands.add(commandData);
-									}
-									data.update(r.hashMap("commands", commands)).runNoReply(connection);
-									return;
+						
+						event.reply("The role `" + role.getName() + "` is not whitelisted from using that " + (command == null ? "module" : "command") + " :no_entry:").queue();
+					} else if (member != null) {
+						List<Long> users = commandData.getEmbedded(List.of("whitelisted", "users"), Collections.emptyList());				
+						for (long userId : users) {
+							if (member.getIdLong() == userId) {
+								if (users.size() == 1) {
+									update = Updates.unset("blacklist.commands.$[command].whitelisted.users");
+								} else {
+									update = Updates.pull("blacklist.commands.$[command].whitelisted.users", member.getIdLong());
 								}
 							}
 						}
+						
+						event.reply("The user `" + member.getUser().getAsTag() + "` is not whitelisted from using that " + (command == null ? "module" : "command") + " :no_entry:").queue();
 					}
+					
+					UpdateOptions updateOptions = new UpdateOptions().arrayFilters(List.of(Filters.eq("command.id", commandName)));
+					database.updateGuildById(event.getGuild().getIdLong(), null, update, updateOptions, (result, exception) -> {
+						if (exception != null) {
+							exception.printStackTrace();
+							event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+						} else {
+							String type = member != null ? "for **" + member.getUser().getAsTag() + "**" : role != null ? "for anyone in the role `" + role.getName() + "`" : "in " + channelDisplay;
+							event.reply("The " + (command == null ? "module" : "command") + " `" + commandName + "` is no longer whitelisted " + type + " <:done:403285928233402378>").queue();
+						}
+					});
 				}
-				
-				event.reply("The user `" + member.getUser().getAsTag() + "` is not whitelisted to use that " + (command == null ? "module" : "command") + " :no_entry:").queue();
-			}
-		}
-		
-		@SuppressWarnings("unchecked")
-		@Command(value="delete", aliases={"del"}, description="Deletes all the whitelist data for a specified command or module")
-		@AuthorPermissions({Permission.MANAGE_SERVER})
-		public void delete(CommandEvent event, @Context Connection connection, @Argument(value="command | module", endless=true) String commandArgument) {
-			Get data = r.table("blacklist").get(event.getGuild().getId());
-			Map<String, Object> dataRan = data.run(connection);
-			if (dataRan == null) {
-				event.reply("No whitelist data has been created for this server, so there is nothing to delete :no_entry:").queue();
-				return;
 			}
 			
-			CategoryImpl module = ArgumentUtils.getModule(commandArgument);
-			ICommand command = ArgumentUtils.getCommand(commandArgument);
+			event.reply("Nothing is whitelisted from that command/module :no_entry:").queue();
+		}
+		
+		@Command(value="delete", aliases={"del"}, description="Deletes all the whitelist data for a specified command or module")
+		@AuthorPermissions({Permission.MANAGE_SERVER})
+		public void delete(CommandEvent event, @Context Database database, @Argument(value="command | module", endless=true) String commandArgument) {
+			CategoryImpl module = ArgumentUtils.getModule(commandArgument, true);
+			ICommand command = ArgumentUtils.getCommand(commandArgument, true);
 			if (command == null && module == null) {
 				event.reply("I could not find that command/module :no_entry:").queue();
 				return;
 			}
+			
 			String commandName = command == null ? module.getName() : command.getCommandTrigger();
 			
-			List<Map<String, Object>> commands = (List<Map<String, Object>>) dataRan.get("commands");
-			for (Map<String, Object> commandData : commands) {
-				if (commandData.get("id").equals(commandName)) {
-					List<Map<String, String>> blacklisted = (List<Map<String, String>>) commandData.get("blacklisted"), whitelisted = (List<Map<String, String>>) commandData.getOrDefault("whitelisted", List.of());
-					
+			List<Document> commands = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("blacklist.commands")).getEmbedded(List.of("blacklist", "commands"), Collections.emptyList());
+			for (Document commandData : commands) {
+				if (commandData.getString("id").equals(commandName)) {
+					List<Document> whitelisted = commandData.getList("whitelisted", Document.class, Collections.emptyList());
 					if (whitelisted.isEmpty()) {
-						event.reply("Nothing is whitelisted for that " + (command == null ? "module" : "command") + " :no_entry:").queue();
+						event.reply("Nothing is whitelisted from that " + (command == null ? "module" : "command") + " :no_entry:").queue();
 						return;
 					}
 					
-					event.reply("All whitelist data for `" + commandName + "` has been deleted <:done:403285928233402378>").queue();
-					commands.remove(commandData);
-					if (!blacklisted.isEmpty()) {
-						commandData.put("whitelisted", new Object[0]);
-						commands.add(commandData);
-					}
-					data.update(r.hashMap("commands", commands)).runNoReply(connection);
+					UpdateOptions updateOptions = new UpdateOptions().arrayFilters(List.of(Filters.eq("command.id", commandName)));
+					database.updateGuildById(event.getGuild().getIdLong(), null, Updates.unset("blacklist.commands.$[command].whitelisted"), updateOptions, (result, exception) -> {
+						if (exception != null) {
+							exception.printStackTrace();
+							event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+						} else {
+							event.reply("All blacklist data for `" + commandName + "` has been deleted <:done:403285928233402378>").queue();
+						}
+					});
+					
 					return;
 				}
 			}
 			
-			event.reply("Nothing is whitelisted for that " + (command == null ? "module" : "command") + " :no_entry:").queue();
+			event.reply("Nothing is whitelisted from that " + (command == null ? "module" : "command") + " :no_entry:").queue();
 		}
 		
-		@SuppressWarnings("unchecked")
 		@Command(value="reset", aliases={"wipe"}, description="Wipes all whitelist data set in the server, it will give you a prompt to confirm this decision", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@AuthorPermissions({Permission.MANAGE_SERVER})
-		public void reset(CommandEvent event, @Context Connection connection) {
-			Get data = r.table("blacklist").get(event.getGuild().getId());
-			Map<String, Object> dataRan = data.run(connection);
-			if (dataRan == null) {
-				event.reply("No whitelist data has been created for this server, so there is nothing to reset :no_entry:").queue();
-				return;
-			}
-			
-			event.reply(event.getAuthor().getName() + ", are you sure you want to wipe all whitelist data? (Yes or No)").queue(message -> {
+		public void reset(CommandEvent event, @Context Database database) {
+			event.reply(event.getAuthor().getName() + ", are you sure you want to wipe all blacklist data? (Yes or No)").queue(message -> {
 				PagedUtils.getConfirmation(event, 60, event.getAuthor(), confirmed -> {
 					if (confirmed == true) {
-						event.reply("All whitelist data has been deleted <:done:403285928233402378>").queue();
-						message.delete().queue();
-						
-						List<Map<String, Object>> commands = (List<Map<String, Object>>) dataRan.get("commands");
-						for (Map<String, Object> commandData : new ArrayList<>(commands)) {
-							List<Map<String, String>> blacklisted = (List<Map<String, String>>) commandData.get("blacklisted");
-							
-							commands.remove(commandData);
-							if (!blacklisted.isEmpty()) {
-								commandData.put("whitelisted", new Object[0]);
-								commands.add(commandData);
-							}
+						List<Document> commands = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("blacklist.commands")).getEmbedded(List.of("blacklist", "commands"), Collections.emptyList());
+						if (commands.isEmpty()) {
+							event.reply("There is nothing whitelisted in this server :no_entry:").queue();
+							return;
 						}
 						
-						data.update(r.hashMap("commands", commands)).runNoReply(connection);
+						database.updateGuildById(event.getGuild().getIdLong(), Updates.unset("blacklist.commands.$[].whitelisted"), (result, exception) -> {
+							if (exception != null) {
+								exception.printStackTrace();
+								event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+							} else {
+								message.delete().queue();
+								event.reply("All blacklist data has been deleted <:done:403285928233402378>").queue();
+							}
+						});
 					} else {
 						event.reply("Cancelled <:done:403285928233402378>").queue();
 						message.delete().queue();
 					}
 				});
 			});
-			
 		}
 		
-		@SuppressWarnings("unchecked")
 		@Command(value="info", description="View all the users, roles and channels which are whitelisted from using a specified command or module")
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-		public void info(CommandEvent event, @Context Connection connection, @Argument(value="command | module", endless=true) String argument) {
-			Map<String, Object> data = r.table("blacklist").get(event.getGuild().getId()).run(connection);
-			if (data == null) {
-				event.reply("There is no whitelist data for this server, so no one is whitelisted from using that command/module :no_entry:").queue();
-				return;
-			}
-			
+		public void info(CommandEvent event, @Context Database database, @Argument(value="command | module", endless=true) String argument) {
 			CategoryImpl module = ArgumentUtils.getModule(argument);
 			ICommand command = ArgumentUtils.getCommand(argument);
 			if (command == null && module == null) {
 				event.reply("I could not find that command/module :no_entry:").queue();
 				return;
 			}
+			
 			String commandName = command == null ? module.getName() : command.getCommandTrigger();
 			
-			for (Map<String, Object> commandData : (List<Map<String, Object>>) data.get("commands")) {
-				if (commandData.get("id").equals(commandName)) {
-					List<Map<String, String>> whitelisted = (List<Map<String, String>>) commandData.getOrDefault("whitelisted", List.of());
-					List<String> viewedWhitelisted = new ArrayList<String>();
+			List<Document> commands = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("blacklist.commands")).getEmbedded(List.of("blacklist", "commands"), Collections.emptyList());
+			for (Document commandData : commands) {
+				if (commandData.getString("id").equals(commandName)) {
+					List<String> whitelistedString = new ArrayList<>();
 					
-					TextChannel channel;
-					Role role;
-					Member member;
-					for (Map<String, String> whitelist : whitelisted) {
-						if (whitelist.get("type").equals("channel")) {
-							channel = event.getGuild().getTextChannelById(whitelist.get("id"));
-							if (channel != null) {
-								viewedWhitelisted.add(channel.getAsMention());
-							} 
-						} else if (whitelist.get("type").equals("role")) {
-							role = event.getGuild().getRoleById(whitelist.get("id"));
-							if (role != null) {
-								viewedWhitelisted.add(role.getAsMention());
-							}
-						} else if (whitelist.get("type").equals("user")) {
-							member = event.getGuild().getMemberById(whitelist.get("id"));	   
-							if (member != null) {
-								viewedWhitelisted.add(member.getUser().getAsTag());
-							}
-						}
-					}
-					
-					if (viewedWhitelisted.isEmpty()) {
-						event.reply("Nothing is whitelisted to use that " + (command == null ? "module" : "command") + " :no_entry:").queue();
+					Document whitelisted = commandData.get("whitelisted", Database.EMPTY_DOCUMENT);
+					if (whitelisted.isEmpty()) {
+						event.reply("Nothing is whitelisted from using that " + (command == null ? "module" : "command") + " :no_entry:").queue();
 						return;
 					}
 					
-					PagedResult<String> paged = new PagedResult<>(viewedWhitelisted)
+					List<Long> channels = whitelisted.getList("channels", Long.class, Collections.emptyList());
+					for (long channelId : channels) {
+						GuildChannel channel = event.getGuild().getGuildChannelById(channelId);
+						if (channel != null) {
+							whitelistedString.add(channel instanceof TextChannel ? ((TextChannel) channel).getAsMention() : channel.getName());
+						}
+					}
+					
+					List<Long> roles = whitelisted.getList("roles", Long.class, Collections.emptyList());
+					for (long roleId : roles) {
+						Role role = event.getGuild().getRoleById(roleId);
+						if (role != null) {
+							whitelistedString.add(role.getAsMention());
+						}
+					}
+					
+					List<Long> users = whitelisted.getList("users", Long.class, Collections.emptyList());
+					for (long userId : users) {
+						Member member = event.getGuild().getMemberById(userId);
+						if (member != null) {
+							whitelistedString.add(member.getUser().getAsTag());
+						}
+					}
+					
+					PagedResult<String> paged = new PagedResult<>(whitelistedString)
 							.setDeleteMessage(false)
 							.setIncreasedIndex(true)
 							.setPerPage(15)
-							.setAuthor("Whitelisted to use " + commandName, null, event.getGuild().getIconUrl());
+							.setAuthor("Whitelisted from " + commandName, null, event.getGuild().getIconUrl());
 				
 					PagedUtils.getPagedResult(event, paged, 300, null);
 					return;
 				}
 			}
 			
-			event.reply("Nothing is whitelisted to use that " + (command == null ? "module" : "command") + " :no_entry:").queue();
+			event.reply("Nothing is whitelisted from using that " + (command == null ? "module" : "command") + " :no_entry:").queue();
 		}
-		
 	}
 	
 	public class FakePermissionsCommand extends Sx4Command {
@@ -1213,14 +1066,9 @@ public class ModModule {
 			event.reply(HelpUtils.getHelpMessage(event.getCommand())).queue();
 		}
 		
-		@SuppressWarnings("unchecked")
 		@Command(value="add", description="Add permissions to a specified user or role which will only be appicable on the bot")
 		@AuthorPermissions({Permission.ADMINISTRATOR})
-		public void add(CommandEvent event, @Context Connection connection, @Argument("user | role") String argument, @Argument(value="permission(s)") String[] permissions) {
-			r.table("fakeperms").insert(r.hashMap("id", event.getGuild().getId()).with("roles", new Object[0]).with("users", new Object[0])).run(connection, OptArgs.of("durability", "soft"));
-			Get data = r.table("fakeperms").get(event.getGuild().getId());
-			Map<String, Object> dataRan = data.run(connection);
-			
+		public void add(CommandEvent event, @Context Database database, @Argument("user | role") String argument, @Argument(value="permission(s)") String[] permissions) {
 			Role role = ArgumentUtils.getRole(event.getGuild(), argument);
 			Member member = ArgumentUtils.getMember(event.getGuild(), argument);
 			if (member == null && role == null) {
@@ -1242,55 +1090,56 @@ public class ModModule {
 				return;
 			}
 			
-			List<String> permissionNames = new ArrayList<String>();
+			List<String> permissionNames = new ArrayList<>();
 			for (Permission finalPermission : Permission.getPermissions(permissionValue)) {
 				permissionNames.add(finalPermission.getName());
 			}
 			
+			Bson update = null;
+			UpdateOptions updateOptions = null;
 			if (role != null) {
-				event.reply("`" + role.getName() + "` can now use commands with the required permissions of " + String.join(", ", permissionNames) + " <:done:403285928233402378>").queue();
-				List<Map<String, Object>> roles = (List<Map<String, Object>>) dataRan.get("roles");
-				for (Map<String, Object> roleData : roles) {
-					if (roleData.get("id").equals(role.getId())) {
-						roles.remove(roleData);
-						roleData.put("perms", (long) roleData.get("perms") | permissionValue);
-						roles.add(roleData);
-						data.update(r.hashMap("roles", roles)).runNoReply(connection);
-						return;
+				List<Document> roles = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("fakePermissions.roles")).getEmbedded(List.of("fakePermissions", "roles"), Collections.emptyList());
+				for (Document roleData : roles) {
+					if (roleData.getLong("id") == role.getIdLong()) {
+						update = Updates.bitwiseOr("fakePermissions.roles.$[role].permissions", permissionValue);
+						updateOptions = new UpdateOptions().arrayFilters(List.of(Filters.eq("role.id", role.getIdLong())));
+						
+						break;
 					}
 				}
 				
-				int permissionValueData = permissionValue;
-				data.update(row -> r.hashMap("roles", row.g("roles").append(r.hashMap("id", role.getId()).with("perms", permissionValueData)))).runNoReply(connection);
+				if (update == null) {
+					update = Updates.push("fakePermissions.roles", new Document("id", role.getIdLong()).append("permissions", permissionValue));
+				}
 			} else if (member != null) {		
-				event.reply("**" + member.getUser().getAsTag() + "** can now use commands with the required permissions of " + String.join(", ", permissionNames) + " <:done:403285928233402378>").queue();
-				List<Map<String, Object>> users = (List<Map<String, Object>>) dataRan.get("users");
-				for (Map<String, Object> userData : users) {
-					if (userData.get("id").equals(member.getUser().getId())) {
-						users.remove(userData);
-						userData.put("perms", (long) userData.get("perms") | permissionValue);
-						users.add(userData);
-						data.update(r.hashMap("users", users)).runNoReply(connection);
-						return;
+				List<Document> users = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("fakePermissions.users")).getEmbedded(List.of("fakePermissions", "users"), Collections.emptyList());
+				for (Document userData : users) {
+					if (userData.getLong("id") == member.getIdLong()) {
+						update = Updates.bitwiseOr("fakePermissions.users.$[user].permissions", permissionValue);
+						updateOptions = new UpdateOptions().arrayFilters(List.of(Filters.eq("user.id", member.getIdLong())));
+						
+						break;
 					}
 				}
 				
-				int permissionValueData = permissionValue;
-				data.update(row -> r.hashMap("users", row.g("users").append(r.hashMap("id", member.getUser().getId()).with("perms", permissionValueData)))).runNoReply(connection);
-			}
-		}
-		
-		@SuppressWarnings("unchecked")
-		@Command(value="remove", description="Remove fake permission(s) from a user/role that have been added to them previously")
-		@AuthorPermissions({Permission.ADMINISTRATOR})
-		public void remove(CommandEvent event, @Context Connection connection, @Argument(value="user | role") String argument, @Argument(value="permissions") String[] permissions) {
-			Get data = r.table("fakeperms").get(event.getGuild().getId());
-			Map<String, Object> dataRan = data.run(connection);
-			if (dataRan == null) {
-				event.reply("No fake permissions data has been created in this server, so there is nothing to remove :no_entry:").queue();
-				return;
+				if (update == null) {
+					update = Updates.push("fakePermissions.users", new Document("id", member.getIdLong()).append("permissions", permissionValue));
+				}
 			}
 			
+			database.updateGuildById(event.getGuild().getIdLong(), null, update, updateOptions, (result, exception) -> {
+				if (exception != null) {
+					exception.printStackTrace();
+					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+				} else {
+					event.reply((member != null ? "**" + member.getUser().getAsTag() + "**" : "`" + role.getName() + "`") + " can now use commands with the required permissions of " + String.join(", ", permissionNames) + " <:done:403285928233402378>").queue();
+				}
+			});
+		}
+		
+		@Command(value="remove", description="Remove fake permission(s) from a user/role that have been added to them previously")
+		@AuthorPermissions({Permission.ADMINISTRATOR})
+		public void remove(CommandEvent event, @Context Database database, @Argument(value="user | role") String argument, @Argument(value="permissions") String[] permissions) {
 			Role role = ArgumentUtils.getRole(event.getGuild(), argument);
 			Member member = ArgumentUtils.getMember(event.getGuild(), argument);
 			if (member == null && role == null) {
@@ -1298,121 +1147,118 @@ public class ModModule {
 				return;
 			}
 			
+			Bson update = null;
+			UpdateOptions updateOptions = null;
+			List<String> permissionNames = new ArrayList<>();
 			if (role != null) {
-				Map<String, Object> roleObject = null;
-				List<Map<String, Object>> roles = (List<Map<String, Object>>) dataRan.get("roles");
-				for (Map<String, Object> roleData : roles) {
-					if (roleData.get("id").equals(role.getId())) {
-						roleObject = roleData;
+				List<Document> roles = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("fakePermissions.roles")).getEmbedded(List.of("fakePermissions", "roles"), Collections.emptyList());
+				for (Document roleData : roles) {
+					if (roleData.getLong("id") == role.getIdLong()) {
+						long currentPermissionValue = roleData.getLong("permissions");
+						if (currentPermissionValue == 0) {
+							event.reply("That role doesn't have any permissions :no_entry:").queue();
+							return;
+						}
+						
+						EnumSet<Permission> rolePermissions = Permission.getPermissions(currentPermissionValue);
+						
+						int permissionValue = 0;
+						for (String permission : permissions) {
+							for (Permission permissionObject : Permission.values()) {
+								if (permission.toLowerCase().equals(permissionObject.getName().replace(" ", "_").replace("&", "and").toLowerCase())) {
+									if (rolePermissions.contains(permissionObject)) {
+										permissionValue |= permissionObject.getRawValue();
+									}
+								}
+							}
+						}
+						
+						if (permissionValue == 0) {
+							event.reply("The role didn't have any of those permissions, check `" + event.getPrefix() + "fake permissions info " + role.getId() + "` for a full list of permissions the role has :no_entry:").queue();
+							return;
+						}
+					
+						for (Permission finalPermission : Permission.getPermissions(permissionValue)) {
+							permissionNames.add(finalPermission.getName());
+						}
+						
+						if (currentPermissionValue - permissionValue == 0) {
+							update = Updates.pull("fakePermissions.roles", Filters.eq("id", role.getIdLong()));
+						} else {
+							update = Updates.inc("fakePermissions.roles.$[role].permissions", -permissionValue);
+							updateOptions = new UpdateOptions().arrayFilters(List.of(Filters.eq("role.id", role.getIdLong())));
+						}
+						
 						break;
 					}
 				}
 				
-				if (roleObject == null) {
+				if (update == null) {
 					event.reply("That role doesn't have any permissions :no_entry:").queue();
 					return;
 				}
-				
-				if ((long) roleObject.get("perms") == 0) {
-					event.reply("That role doesn't have any permissions :no_entry:").queue();
-					return;
-				}
-				
-				EnumSet<Permission> rolePermissions = Permission.getPermissions((long) roleObject.get("perms"));
-				
-				int permissionValue = 0;
-				for (String permission : permissions) {
-					for (Permission permissionObject : Permission.values()) {
-						if (permission.toLowerCase().equals(permissionObject.getName().replace(" ", "_").replace("&", "and").toLowerCase())) {
-							if (rolePermissions.contains(permissionObject)) {
-								permissionValue |= permissionObject.getRawValue();
-							}
-						}
-					}
-				}
-				
-				if (permissionValue == 0) {
-					event.reply("The role didn't have any of those permissions, check `" + event.getPrefix() + "fake permissions info " + role.getId() + "` for a full list of permissions the role has :no_entry:").queue();
-					return;
-				}
-				
-				List<String> permissionNames = new ArrayList<String>();
-				for (Permission finalPermission : Permission.getPermissions(permissionValue)) {
-					permissionNames.add(finalPermission.getName());
-				}
-				
-				event.reply("`" + role.getName() + "` can no longer use commands with the required permissions of " + String.join(", ", permissionNames) + " <:done:403285928233402378>").queue();
-				roles.remove(roleObject);
-				long permissionsAfter = (long) roleObject.get("perms") - permissionValue;
-				if (permissionsAfter != 0) {
-					roleObject.put("perms", (long) roleObject.get("perms") - permissionValue);
-					roles.add(roleObject);
-				}
-				data.update(r.hashMap("roles", roles)).runNoReply(connection);
 			} else if (member != null) {
-				Map<String, Object> userObject = null;
-				List<Map<String, Object>> users = (List<Map<String, Object>>) dataRan.get("users");
-				for (Map<String, Object> userData : users) {
-					if (userData.get("id").equals(member.getUser().getId())) {
-						userObject = userData;
+				List<Document> users = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("fakePermissions.users")).getEmbedded(List.of("fakePermissions", "users"), Collections.emptyList());
+				for (Document userData : users) {
+					if (userData.getLong("id") == member.getIdLong()) {
+						long currentPermissionValue = userData.getLong("permissions");
+						if (currentPermissionValue == 0) {
+							event.reply("That role doesn't have any permissions :no_entry:").queue();
+							return;
+						}
+						
+						EnumSet<Permission> rolePermissions = Permission.getPermissions(currentPermissionValue);
+						
+						int permissionValue = 0;
+						for (String permission : permissions) {
+							for (Permission permissionObject : Permission.values()) {
+								if (permission.toLowerCase().equals(permissionObject.getName().replace(" ", "_").replace("&", "and").toLowerCase())) {
+									if (rolePermissions.contains(permissionObject)) {
+										permissionValue |= permissionObject.getRawValue();
+									}
+								}
+							}
+						}
+						
+						if (permissionValue == 0) {
+							event.reply("The user didn't have any of those permissions, check `" + event.getPrefix() + "fake permissions info " + member.getId() + "` for a full list of permissions the role has :no_entry:").queue();
+							return;
+						}
+					
+						for (Permission finalPermission : Permission.getPermissions(permissionValue)) {
+							permissionNames.add(finalPermission.getName());
+						}
+						
+						if (currentPermissionValue - permissionValue == 0) {
+							update = Updates.pull("fakePermissions.users", Filters.eq("id", member.getIdLong()));
+						} else {
+							update = Updates.inc("fakePermissions.users.$[user].permissions", -permissionValue);
+							updateOptions = new UpdateOptions().arrayFilters(List.of(Filters.eq("user.id", member.getIdLong())));
+						}
+						
 						break;
 					}
 				}
 				
-				if (userObject == null) {
-					event.reply("That user doesn't have any permissions :no_entry:").queue();
+				if (update == null) {
+					event.reply("That role doesn't have any permissions :no_entry:").queue();
 					return;
 				}
-				
-				if ((long) userObject.get("perms") == 0) {
-					event.reply("That user doesn't have any permissions :no_entry:").queue();
-					return;
-				}
-				
-				EnumSet<Permission> userPermissions = Permission.getPermissions((long) userObject.get("perms"));
-				
-				int permissionValue = 0;
-				for (String permission : permissions) {
-					for (Permission permissionObject : Permission.values()) {
-						if (permission.toLowerCase().equals(permissionObject.getName().replace(" ", "_").replace("&", "and").toLowerCase())) {
-							if (userPermissions.contains(permissionObject)) {
-								permissionValue |= permissionObject.getRawValue();
-							}
-						}
-					}
-				}
-				
-				if (permissionValue == 0) {
-					event.reply("The user didn't have any of those permissions, check `" + event.getPrefix() + "fake permissions info " + member.getUser().getId() + "` for a full list of permissions the user has :no_entry:").queue();
-					return;
-				}
-				
-				List<String> permissionNames = new ArrayList<String>();
-				for (Permission finalPermission : Permission.getPermissions(permissionValue)) {
-					permissionNames.add(finalPermission.getName());
-				}
-				
-				event.reply("**" + member.getUser().getAsTag() + "** can no longer use commands with the required permissions of " + String.join(", ", permissionNames) + " <:done:403285928233402378>").queue();
-				users.remove(userObject);
-				long permissionsAfter = (long) userObject.get("perms") - permissionValue;
-				if (permissionsAfter != 0) {
-					userObject.put("perms", permissionsAfter);
-					users.add(userObject);
-				}
-				data.update(r.hashMap("users", users)).runNoReply(connection);
-			}
-		}
-		
-		@SuppressWarnings("unchecked")
-		@Command(value="info", description="Shows you what fake permissions a user/role has")
-		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-		public void info(CommandEvent event, @Context Connection connection, @Argument(value="user | role", endless=true, nullDefault=true) String argument) {
-			Map<String, Object> data = r.table("fakeperms").get(event.getGuild().getId()).run(connection);
-			if (data == null) {
-				event.reply("No roles/users in this server have any fake permissions :no_entry:").queue();
-				return;
 			}
 			
+			database.updateGuildById(event.getGuild().getIdLong(), null, update, updateOptions, (result, exception) -> {
+				if (exception != null) {
+					exception.printStackTrace();
+					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+				} else {
+					event.reply((member != null ? "**" + member.getUser().getAsTag() + "**" : "`" + role.getName() + "`") + " can no longer use commands with the required permissions of " + String.join(", ", permissionNames) + " <:done:403285928233402378>").queue();
+				}
+			});
+		}
+		
+		@Command(value="info", description="Shows you what fake permissions a user/role has")
+		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
+		public void info(CommandEvent event, @Context Database database, @Argument(value="user | role", endless=true, nullDefault=true) String argument) {
 			Member member = null;
 			Role role = null;
 			if (argument == null) {
@@ -1427,89 +1273,86 @@ public class ModModule {
 				return;
 			}
 			
+			EnumSet<Permission> permissions = null;
 			if (role != null) {
-				for (Map<String, Object> roleData : (List<Map<String, Object>>) data.get("roles")) {
-					if (roleData.get("id").equals(role.getId())) {
-						EnumSet<Permission> permissions = Permission.getPermissions((long) roleData.get("perms"));
-						if (permissions.isEmpty()) {
+				List<Document> roles = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("fakePermissions.roles")).getEmbedded(List.of("fakePermissions", "roles"), Collections.emptyList());
+				for (Document roleData : roles) {
+					if (roleData.getLong("id") == role.getIdLong()) {
+						long permissionValue = roleData.getLong("permissions");
+						if (permissionValue == 0) {
 							event.reply("That role doesn't have any fake permissions :no_entry:").queue();
 							return;
 						}
 						
-						EmbedBuilder embed = new EmbedBuilder();
-						embed.setAuthor(role.getName() + " Fake Permissions", null, event.getGuild().getIconUrl());
-						embed.setColor(role.getColor());
-						embed.setDescription(String.join("\n", permissions.stream().map(permission -> permission.getName().replace(" ", "_").replace("&", "and").toLowerCase()).collect(Collectors.toList())));
-						
-						event.reply(embed.build()).queue();
-						return;
+						permissions = Permission.getPermissions(permissionValue);
 					}
 				}
 				
 				event.reply("That role doesn't have any fake permissions :no_entry:").queue();
 			} else if (member != null) {
-				for (Map<String, Object> userData : (List<Map<String, Object>>) data.get("users")) {
+				List<Document> users = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("fakePermissions.users")).getEmbedded(List.of("fakePermissions", "users"), Collections.emptyList());
+				for (Document userData : users) {
 					if (userData.get("id").equals(member.getUser().getId())) {
-						EnumSet<Permission> permissions = Permission.getPermissions((long) userData.get("perms"));
-						if (permissions.isEmpty()) {
+						long permissionValue = userData.getLong("permissions");
+						if (permissionValue == 0) {
 							event.reply("That user doesn't have any fake permissions :no_entry:").queue();
 							return;
 						}
 						
-						EmbedBuilder embed = new EmbedBuilder();
-						embed.setAuthor(member.getUser().getAsTag() + " Fake Permissions", null, member.getUser().getEffectiveAvatarUrl());
-						embed.setColor(member.getColor());
-						embed.setDescription(String.join("\n", permissions.stream().map(permission -> permission.getName().replace(" ", "_").replace("&", "and").toLowerCase()).collect(Collectors.toList())));
-						
-						event.reply(embed.build()).queue();
-						return;
+						permissions = Permission.getPermissions(permissionValue);
 					}
 				}
 				
+			}
+			
+			if (permissions == null) {
 				event.reply("That user doesn't have any fake permissions :no_entry:").queue();
+				return;
+			} else {
+				EmbedBuilder embed = new EmbedBuilder();
+				embed.setAuthor((member != null ? member.getUser().getAsTag() : role.getName()) + " Fake Permissions", null, member != null ? member.getUser().getEffectiveAvatarUrl() : event.getGuild().getIconUrl());
+				embed.setColor(member != null ? member.getColor() : role.getColor());
+				embed.setDescription(String.join("\n", permissions.stream().map(permission -> permission.getName().replace(" ", "_").replace("&", "and").toLowerCase()).collect(Collectors.toList())));
+				
+				event.reply(embed.build()).queue();
 			}
 		}
 		
-		@SuppressWarnings("unchecked")
 		@Command(value="in permission", aliases={"inpermission"}, description="Shows you all the users and roles in a certain permission", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-		public void inPermission(CommandEvent event, @Context Connection connection, @Argument(value="permission") String permission) {
-			Map<String, Object> data = r.table("fakeperms").get(event.getGuild().getId()).run(connection);
-			if (data == null) {
-				event.reply("No roles/users in this server have any fake permissions :no_entry:").queue();
-				return;
-			}
-			
-			Permission permissionObject = null;
-			for (Permission p : Permission.values()) {
-				if (permission.toLowerCase().equals(p.getName().replace(" ", "_").replace("&", "and").toLowerCase())) {
-					permissionObject = p;
+		public void inPermission(CommandEvent event, @Context Database database, @Argument(value="permission") String permissionName) {
+			Permission permission = null;
+			for (Permission permissionObject : Permission.values()) {
+				if (permissionName.toLowerCase().equals(permissionObject.getName().replace(" ", "_").replace("&", "and").toLowerCase())) {
+					permission = permissionObject;
 				}
 			}
 			
-			if (permissionObject == null) {
+			if (permission == null) {
 				event.reply("I could not find that permission :no_entry:").queue();
 				return;
 			}
 			
-			List<String> rolesAndUsers = new ArrayList<String>();
-			for (Map<String, Object> userData : (List<Map<String, Object>>) data.get("users")) {
-				if (Permission.getPermissions((long) userData.get("perms")).contains(permissionObject)) {
-					Member member = event.getGuild().getMemberById((String) userData.get("id")); 
-					rolesAndUsers.add(member == null ? (String) userData.get("id") + " (Left Guild)" : member.getUser().getAsTag());
+			Document data = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("fakePermissions")).get("fakePermissions", Database.EMPTY_DOCUMENT);
+			
+			List<String> rolesAndUsers = new ArrayList<>();
+			for (Document userData : data.getList("users", Document.class, Collections.emptyList())) {
+				if (Permission.getPermissions(userData.getLong("permissions")).contains(permission)) {
+					Member member = event.getGuild().getMemberById(userData.getLong("id")); 
+					rolesAndUsers.add(member == null ? userData.getLong("id") + " (Left Guild)" : member.getUser().getAsTag());
 				}
 			}
 			
-			for (Map<String, Object> roleData : (List<Map<String, Object>>) data.get("roles")) {
-				if (Permission.getPermissions((long) roleData.get("perms")).contains(permissionObject)) {
-					Role role = event.getGuild().getRoleById((String) roleData.get("id")); 
-					rolesAndUsers.add(role == null ? (String) roleData.get("id") + " (Deleted Role)" : role.getAsMention());
+			for (Document roleData : data.getList("roles", Document.class, Collections.emptyList())) {
+				if (Permission.getPermissions(roleData.getLong("permissions")).contains(permission)) {
+					Role role = event.getGuild().getRoleById(roleData.getLong("id")); 
+					rolesAndUsers.add(role == null ? roleData.getLong("id") + " (Deleted Role)" : role.getAsMention());
 				}
 			}
 			
 			PagedResult<String> paged = new PagedResult<>(rolesAndUsers)
 					.setDeleteMessage(false)
-					.setAuthor("Users and Roles In " + permissionObject.getName(), null, event.getGuild().getIconUrl())
+					.setAuthor("Users and Roles In " + permission.getName(), null, event.getGuild().getIconUrl())
 					.setPerPage(15)
 					.setIndexed(false);
 			
@@ -1578,6 +1421,7 @@ public class ModModule {
 		} else {
 			event.reply("Turned off the slowmode in the channel " + channel.getAsMention() + " <:done:403285928233402378>").queue();
 		}
+		
 		channel.getManager().setSlowmode((int) slowmodeSeconds).queue();
 	}
 	
@@ -1665,7 +1509,7 @@ public class ModModule {
 			return;
 		}
 		
-		event.reply("The role `" + role.getName() + "` now has a hex of **#" + Integer.toHexString(colour.hashCode()).substring(2) + "** <:done:403285928233402378>").queue();
+		event.reply("The role `" + role.getName() + "` now has a hex of **#" + GeneralUtils.getHex(colour.hashCode()) + "** <:done:403285928233402378>").queue();
 		role.getManager().setColor(colour).queue();
 	}
 	
@@ -1679,19 +1523,16 @@ public class ModModule {
 			super.setContentOverflowPolicy(ContentOverflowPolicy.IGNORE);
 		}
 		
-		@SuppressWarnings("unchecked")
-		public void onCommand(CommandEvent event, @Context Connection connection) {
-			Map<String, Object> serverData = r.table("prefix").get(event.getGuild().getId()).run(connection);
-			Map<String, Object> userData = r.table("prefix").get(event.getAuthor().getId()).run(connection);
-			String serverPrefixes = serverData == null ? "None" : ((List<String>) serverData.get("prefixes")).isEmpty() ? "None" : String.join(", ", (List<String>) serverData.get("prefixes"));
-			String userPrefixes = userData == null ? "None" : ((List<String>) userData.get("prefixes")).isEmpty() ? "None" : String.join(", ", (List<String>) userData.get("prefixes"));
+		public void onCommand(CommandEvent event, @Context Database database) {
+			List<String> guildPrefixes = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("prefixes")).getList("prefixes", String.class, Collections.emptyList());
+			List<String> userPrefixes = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("prefixes")).getList("prefixes", String.class, Collections.emptyList());
 			
 			EmbedBuilder embed = new EmbedBuilder();
 			embed.setAuthor("Prefix Settings", null, event.getAuthor().getEffectiveAvatarUrl());
 			embed.setColor(event.getMember().getColor());
 			embed.addField("Default Prefixes", String.join(", ", event.getCommandListener().getDefaultPrefixes()), false);
-			embed.addField("Server Prefixes", serverPrefixes, false);
-			embed.addField(event.getAuthor().getName() + "'s Prefixes", userPrefixes, false);
+			embed.addField("Server Prefixes", String.join(", ", guildPrefixes), false);
+			embed.addField(event.getAuthor().getName() + "'s Prefixes", String.join(", ", userPrefixes), false);
 			
 			event.reply(new MessageBuilder().setEmbed(embed.build()).setContent("For help on setting the prefix use `" + event.getPrefix() + "help prefix`").build()).queue();
 		}
@@ -1705,37 +1546,37 @@ public class ModModule {
 				super.setAliases("personal");
 			}
 			
-			public void onCommand(CommandEvent event, @Context Connection connection, @Argument(value="prefixes") String[] prefixes) {
-				r.table("prefix").insert(r.hashMap("id", event.getAuthor().getId()).with("prefixes", new Object[0])).run(connection, OptArgs.of("durability", "soft"));
-				Get data = r.table("prefix").get(event.getAuthor().getId());
-				
-				List<String> cleanPrefixes = new ArrayList<String>();
+			public void onCommand(CommandEvent event, @Context Database database, @Argument(value="prefixes") String[] prefixes) {
+				List<String> cleanPrefixes = new ArrayList<>();
 				for (String prefix : prefixes) {
-					if (!prefix.equals("") && !prefix.equals(" ")) {
+					if (!prefix.equals("")) {
 						cleanPrefixes.add(prefix);
 					}
 				}
 				
 				if (cleanPrefixes.isEmpty()) {
-					event.reply("You cannot have spaces and/or an empty character as a prefix :no_entry:").queue();
+					event.reply("You cannot have an empty character as a prefix :no_entry:").queue();
 					return;
 				}
 				
-				event.reply("Your prefixes have been set to `" + String.join("`,  `", cleanPrefixes) + "` <:done:403285928233402378>").queue();
-				data.update(r.hashMap("prefixes", cleanPrefixes)).runNoReply(connection);
+				database.updateUserById(event.getAuthor().getIdLong(), Updates.set("prefixes", cleanPrefixes), (result, exception) -> {
+					if (exception != null) {
+						exception.printStackTrace();
+						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+					} else {
+						event.reply("Your prefixes have been set to `" + String.join("`,  `", cleanPrefixes) + "` <:done:403285928233402378>").queue();
+					}
+				});
 			}
 			
-			@SuppressWarnings("unchecked")
 			@Command(value="add", description="Adds specified prefixes to your current personal prefixes")
-			public void add(CommandEvent event, @Context Connection connection, @Argument(value="prefixes") String[] prefixes) {
-				r.table("prefix").insert(r.hashMap("id", event.getAuthor().getId()).with("prefixes", new Object[0])).run(connection, OptArgs.of("durability", "soft"));
-				Get data = r.table("prefix").get(event.getAuthor().getId());
-				Map<String, Object> dataRan = data.run(connection);
+			public void add(CommandEvent event, @Context Database database, @Argument(value="prefixes") String[] prefixes) {
+				List<String> currentPrefixes = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("prefixes")).getList("prefixes", String.class, Collections.emptyList());
 
-				List<String> cleanPrefixes = new ArrayList<String>();
+				List<String> cleanPrefixes = new ArrayList<>();
 				for (String prefix : prefixes) {
-					if (!prefix.equals("") && !prefix.equals(" ")) {
-						if (((List<String>) dataRan.get("prefixes")).contains(prefix)) {
+					if (!prefix.equals("")) {
+						if (currentPrefixes.contains(prefix)) {
 							event.reply("You already have `" + prefix + "` as a prefix :no_entry:").queue();
 							return;
 						}
@@ -1745,62 +1586,61 @@ public class ModModule {
 				}
 				
 				if (cleanPrefixes.isEmpty()) {
-					event.reply("You cannot have spaces and/or an empty character as a prefix :no_entry:").queue();
+					event.reply("You cannot have an empty character as a prefix :no_entry:").queue();
 					return;
 				}
 				
-				event.reply("The prefixes `" + String.join("`, `", cleanPrefixes) + "` have been added to your personal prefixes <:done:403285928233402378>").queue();
-				data.update(row -> r.hashMap("prefixes", row.g("prefixes").add(cleanPrefixes))).runNoReply(connection);
+				database.updateUserById(event.getAuthor().getIdLong(), Updates.addEachToSet("prefixes", cleanPrefixes), (result, exception) -> {
+					if (exception != null) {
+						exception.printStackTrace();
+						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+					} else {
+						event.reply("The prefixes `" + String.join("`, `", cleanPrefixes) + "` have been added to your personal prefixes <:done:403285928233402378>").queue();
+					}
+				});
 			}
 			
-			@SuppressWarnings("unchecked")
 			@Command(value="remove", description="Removes specified prefixes from your current personal prefixes")
-			public void remove(CommandEvent event, @Context Connection connection, @Argument(value="prefixes") String[] prefixes) {
-				Get data = r.table("prefix").get(event.getAuthor().getId());
-				Map<String, Object> dataRan = data.run(connection);
-				if (dataRan == null) {
-					event.reply("You have no prefixes to remove :no_entry:").queue();
-					return;
-				}
-				
-				List<String> userPrefixes = (List<String>) dataRan.get("prefixes");
-				
-				if (userPrefixes.isEmpty()) {
+			public void remove(CommandEvent event, @Context Database database, @Argument(value="prefixes") String[] prefixes) {
+				List<String> currentPrefixes = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("prefixes")).getList("prefixes", String.class, Collections.emptyList());
+				if (currentPrefixes.isEmpty()) {
 					event.reply("You have no prefixes to remove :no_entry:").queue();
 					return;
 				}
 				
 				for (String prefix : prefixes) {
-					if (!userPrefixes.contains(prefix)) {
+					if (!currentPrefixes.contains(prefix)) {
 						event.reply("You don't have `" + prefix + "` as a prefix :no_entry:").queue();
 						return;
 					}				
 				}
 				
-				event.reply("The prefixes `" + String.join("`, `", prefixes) + "` have been removed from your personal prefixes <:done:403285928233402378>").queue();
-				data.update(row -> r.hashMap("prefixes", row.g("prefixes").difference(prefixes))).runNoReply(connection);
+				database.updateUserById(event.getAuthor().getIdLong(), Updates.pullAll("prefixes", Arrays.asList(prefixes)), (result, exception) -> {
+					if (exception != null) {
+						exception.printStackTrace();
+						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+					} else {
+						event.reply("The prefixes `" + String.join("`, `", prefixes) + "` have been removed from your personal prefixes <:done:403285928233402378>").queue();
+					}
+				});
 			}
 			
-			@SuppressWarnings("unchecked")
 			@Command(value="reset", description="Reset your personal prefixes, without personal prefixes you will default to server prefixes if any are set or else default prefixes", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
-			public void reset(CommandEvent event, @Context Connection connection) {
-				Get data = r.table("prefix").get(event.getAuthor().getId());
-				Map<String, Object> dataRan = data.run(connection);
-				
-				if (dataRan == null) {
+			public void reset(CommandEvent event, @Context Database database) {
+				List<String> currentPrefixes = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("prefixes")).getList("prefixes", String.class, Collections.emptyList());
+				if (currentPrefixes.isEmpty()) {
 					event.reply("You have no prefixes to reset :no_entry:").queue();
 					return;
 				}
 				
-				List<String> userPrefixes = (List<String>) dataRan.get("prefixes");
-				
-				if (userPrefixes.isEmpty()) {
-					event.reply("You have no prefixes to reset :no_entry:").queue();
-					return;
-				}
-				
-				event.reply("Your prefixes have been reset <:done:403285928233402378>").queue();
-				data.update(r.hashMap("prefixes", new Object[0])).runNoReply(connection);
+				database.updateUserById(event.getAuthor().getIdLong(), Updates.unset("prefixes"), (result, exception) -> {
+					if (exception != null) {
+						exception.printStackTrace();
+						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+					} else {
+						event.reply("Your prefixes have been reset <:done:403285928233402378>").queue();
+					}
+				});
 			}
 			
 		}
@@ -1815,38 +1655,38 @@ public class ModModule {
 				super.setAliases("guild");
 			}
 			
-			public void onCommand(CommandEvent event, @Context Connection connection, @Argument(value="prefixes") String[] prefixes) {
-				r.table("prefix").insert(r.hashMap("id", event.getGuild().getId()).with("prefixes", new Object[0])).run(connection, OptArgs.of("durability", "soft"));
-				Get data = r.table("prefix").get(event.getGuild().getId());
-				
-				List<String> cleanPrefixes = new ArrayList<String>();
+			public void onCommand(CommandEvent event, @Context Database database, @Argument(value="prefixes") String[] prefixes) {
+				List<String> cleanPrefixes = new ArrayList<>();
 				for (String prefix : prefixes) {
-					if (!prefix.equals("") && !prefix.equals(" ")) {
+					if (!prefix.equals("")) {
 						cleanPrefixes.add(prefix);
 					}
 				}
 				
 				if (cleanPrefixes.isEmpty()) {
-					event.reply("You cannot have spaces and/or an empty character as a prefix :no_entry:").queue();
+					event.reply("You cannot have an empty character as a prefix :no_entry:").queue();
 					return;
 				}
 				
-				event.reply("The servers prefixes have been set to `" + String.join("`, `", cleanPrefixes) + "` <:done:403285928233402378>").queue();
-				data.update(r.hashMap("prefixes", cleanPrefixes)).runNoReply(connection);
+				database.updateGuildById(event.getGuild().getIdLong(), Updates.set("prefixes", cleanPrefixes), (result, exception) -> {
+					if (exception != null) {
+						exception.printStackTrace();
+						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+					} else {
+						event.reply("The servers prefixes have been set to `" + String.join("`, `", cleanPrefixes) + "` <:done:403285928233402378>").queue();
+					}
+				});
 			}
 			
-			@SuppressWarnings("unchecked")
 			@Command(value="add", description="Adds specified prefixes to the current servers prefixes")
 			@AuthorPermissions({Permission.MANAGE_SERVER})
-			public void add(CommandEvent event, @Context Connection connection, @Argument(value="prefixes") String[] prefixes) {
-				r.table("prefix").insert(r.hashMap("id", event.getGuild().getId()).with("prefixes", new Object[0])).run(connection, OptArgs.of("durability", "soft"));
-				Get data = r.table("prefix").get(event.getGuild().getId());
-				Map<String, Object> dataRan = data.run(connection);
+			public void add(CommandEvent event, @Context Database database, @Argument(value="prefixes") String[] prefixes) {
+				List<String> currentPrefixes = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("prefixes")).getList("prefixes", String.class, Collections.emptyList());
 				
-				List<String> cleanPrefixes = new ArrayList<String>();
+				List<String> cleanPrefixes = new ArrayList<>();
 				for (String prefix : prefixes) {
-					if (!prefix.equals("") && !prefix.equals(" ")) {
-						if (((List<String>) dataRan.get("prefixes")).contains(prefix)) {
+					if (!prefix.equals("")) {
+						if (currentPrefixes.contains(prefix)) {
 							event.reply("The server already has `" + prefix + "` as a prefix :no_entry:").queue();
 							return;
 						}
@@ -1856,64 +1696,63 @@ public class ModModule {
 				}
 				
 				if (cleanPrefixes.isEmpty()) {
-					event.reply("You cannot have spaces and/or an empty character as a prefix :no_entry:").queue();
+					event.reply("You cannot have an empty character as a prefix :no_entry:").queue();
 					return;
 				}
 				
-				event.reply("The prefixes `" + String.join("`, `", cleanPrefixes) + "` have been added to the server prefixes <:done:403285928233402378>").queue();
-				data.update(row -> r.hashMap("prefixes", row.g("prefixes").add(cleanPrefixes))).runNoReply(connection);
+				database.updateGuildById(event.getGuild().getIdLong(), Updates.addEachToSet("prefixes", cleanPrefixes), (result, exception) -> {
+					if (exception != null) {
+						exception.printStackTrace();
+						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+					} else {
+						event.reply("The prefixes `" + String.join("`, `", cleanPrefixes) + "` have been added to the server prefixes <:done:403285928233402378>").queue();
+					}
+				});
 			}
 			
-			@SuppressWarnings("unchecked")
 			@Command(value="remove", description="Removes specified prefixes from the current servers prefixes")
 			@AuthorPermissions({Permission.MANAGE_SERVER})
-			public void remove(CommandEvent event, @Context Connection connection, @Argument(value="prefixes") String[] prefixes) {
-				Get data = r.table("prefix").get(event.getGuild().getId());
-				Map<String, Object> dataRan = data.run(connection);
-				if (dataRan == null) {
-					event.reply("The server has no prefixes to remove :no_entry:").queue();
-					return;
-				}
-				
-				List<String> userPrefixes = (List<String>) dataRan.get("prefixes");
-				
-				if (userPrefixes.isEmpty()) {
+			public void remove(CommandEvent event, @Context Database database, @Argument(value="prefixes") String[] prefixes) {
+				List<String> currentPrefixes = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("prefixes")).getList("prefixes", String.class, Collections.emptyList());
+				if (currentPrefixes.isEmpty()) {
 					event.reply("The server has no prefixes to remove :no_entry:").queue();
 					return;
 				}
 				
 				for (String prefix : prefixes) {
-					if (!userPrefixes.contains(prefix)) {
+					if (!currentPrefixes.contains(prefix)) {
 						event.reply("The server doesn't have `" + prefix + "` as a prefix :no_entry:").queue();
 						return;
 					}				
 				}
 				
-				event.reply("The prefixes `" + String.join("`, `", prefixes) + "` have been removed from the servers prefixes <:done:403285928233402378>").queue();
-				data.update(row -> r.hashMap("prefixes", row.g("prefixes").difference(prefixes))).runNoReply(connection);
+				database.updateGuildById(event.getGuild().getIdLong(), Updates.pullAll("prefixes", Arrays.asList(prefixes)), (result, exception) -> {
+					if (exception != null) {
+						exception.printStackTrace();
+						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+					} else {
+						event.reply("The prefixes `" + String.join("`, `", prefixes) + "` have been removed from the servers prefixes <:done:403285928233402378>").queue();
+					}
+				});
 			}
 			
-			@SuppressWarnings("unchecked")
 			@Command(value="reset", description="Reset the servers prefixes, without server prefixes you will default to the bots default prefixes", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 			@AuthorPermissions({Permission.MANAGE_SERVER})
-			public void reset(CommandEvent event, @Context Connection connection) {
-				Get data = r.table("prefix").get(event.getGuild().getId());
-				Map<String, Object> dataRan = data.run(connection);
-				
-				if (dataRan == null) {
-					event.reply("The server has no prefixes to reset :no_entry:").queue();
+			public void reset(CommandEvent event, @Context Database database) {
+				List<String> currentPrefixes = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("prefixes")).getList("prefixes", String.class, Collections.emptyList());
+				if (currentPrefixes.isEmpty()) {
+					event.reply("The server has no prefixes to remove :no_entry:").queue();
 					return;
 				}
 				
-				List<String> userPrefixes = (List<String>) dataRan.get("prefixes");
-				
-				if (userPrefixes.isEmpty()) {
-					event.reply("The server has no prefixes to reset :no_entry:").queue();
-					return;
-				}
-				
-				event.reply("The servers prefixes have been reset <:done:403285928233402378>").queue();
-				data.update(r.hashMap("prefixes", new Object[0])).runNoReply(connection);
+				database.updateGuildById(event.getGuild().getIdLong(), Updates.unset("prefixes"), (result, exception) -> {
+					if (exception != null) {
+						exception.printStackTrace();
+						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+					} else {
+						event.reply("The servers prefixes have been reset <:done:403285928233402378>").queue();
+					}
+				});
 			}
 			
 		}
@@ -2324,27 +2163,21 @@ public class ModModule {
 		
 		@Command(value="toggle", aliases={"enable", "disable"}, description="Enable/disable modlogs in the current server", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@AuthorPermissions({Permission.MANAGE_SERVER})
-		public void toggle(CommandEvent event, @Context Connection connection) {
-			r.table("modlogs").insert(r.hashMap("id", event.getGuild().getId()).with("channel", null).with("toggle", false).with("case#", 0).with("case", new Object[0])).run(connection, OptArgs.of("durability", "soft"));
-			Get data = r.table("modlogs").get(event.getGuild().getId());
-			Map<String, Object> dataRan = data.run(connection);
-			
-			if ((boolean) dataRan.get("toggle") == false) {
-				event.reply("Modlogs are now enabled <:done:403285928233402378>").queue();
-				data.update(r.hashMap("toggle", true)).runNoReply(connection);
-			} else if ((boolean) dataRan.get("toggle") == true) {
-				event.reply("Modlogs are now disabled <:done:403285928233402378>").queue();
-				data.update(r.hashMap("toggle", false)).runNoReply(connection);
-			}
+		public void toggle(CommandEvent event, @Context Database database) {
+			boolean enabled = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("modlog.enabled")).getEmbedded(List.of("modlog", "enabled"), false);
+			database.updateGuildById(event.getGuild().getIdLong(), Updates.set("modlog.enabled", !enabled), (result, exception) -> {
+				if (exception != null) {
+					exception.printStackTrace();
+					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+				} else {
+					event.reply("Modlogs are now " + (enabled ? "disabled" : "enabled")  + " <:done:403285928233402378>").queue();
+				}
+			});
 		}
 		
 		@Command(value="channel", description="Sets the modlog channel, this is where modlogs will be sent to")
 		@AuthorPermissions({Permission.MANAGE_SERVER})
-		public void channel(CommandEvent event, @Context Connection connection, @Argument(value="channel", endless=true, nullDefault=true) String channelArgument) {
-			r.table("modlogs").insert(r.hashMap("id", event.getGuild().getId()).with("channel", null).with("toggle", false).with("case#", 0).with("case", new Object[0])).run(connection, OptArgs.of("durability", "soft"));
-			Get data = r.table("modlogs").get(event.getGuild().getId());
-			Map<String, Object> dataRan = data.run(connection);
-			
+		public void channel(CommandEvent event, @Context Database database, @Argument(value="channel", endless=true, nullDefault=true) String channelArgument) {
 			TextChannel channel;
 			if (channelArgument == null) {
 				channel = event.getTextChannel();
@@ -2356,39 +2189,34 @@ public class ModModule {
 				}
 			}
 			
-			if (dataRan.get("channel") != null && dataRan.get("channel").equals(channel.getId())) {
+			Long channelId = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("modlog.channelId")).getEmbedded(List.of("modlog", "channelId"), Long.class);
+			if (channelId != null && channelId == channel.getIdLong()) {
 				event.reply("The modlog channel is already set to that channel :no_entry:").queue();
 				return;
 			}
 			
-			event.reply("The modlog channel has been set to " + channel.getAsMention() + " <:done:403285928233402378>").queue();
-			data.update(r.hashMap("channel", channel.getId())).runNoReply(connection);
+			database.updateGuildById(event.getGuild().getIdLong(), Updates.set("channelId", channel.getIdLong()), (result, exception) -> {
+				if (exception != null) {
+					exception.printStackTrace();
+					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+				} else {
+					event.reply("The modlog channel has been set to " + channel.getAsMention() + " <:done:403285928233402378>").queue();
+				}
+			});
 		}
 		
-		@SuppressWarnings("unchecked")
 		@Command(value="case", description="Edit a modlog case reason providing the moderator is unknown or you are the moderator of the case")
 		@AuthorPermissions({Permission.MESSAGE_MANAGE})
 		@BotPermissions({Permission.MESSAGE_HISTORY})
-		public void case_(CommandEvent event, @Context Connection connection, @Argument(value="case numbers") String rangeArgument, @Argument(value="reason", endless=true) String reason) {
-			Get data = r.table("modlogs").get(event.getGuild().getId());
-			Map<String, Object> dataRan = data.run(connection);
-			if (dataRan == null) {
-				event.reply("There are no cases to edit in this server :no_entry:").queue();
-				return;
-			}
-			
-			List<Map<String, Object>> cases = (List<Map<String, Object>>) dataRan.get("case");
-			if (cases.isEmpty()) {
-				event.reply("There are no cases to edit in this server :no_entry:").queue();
-				return;
-			}
+		public void case_(CommandEvent event, @Context Database database, @Argument(value="case numbers") String rangeArgument, @Argument(value="reason", endless=true) String reason) {
+			Long channelId = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("modlog.channelId")).getEmbedded(List.of("modlog", "channelId"), Long.class);
 			
 			TextChannel channel;
-			if (dataRan.get("channel") == null) {
+			if (channelId == null) {
 				event.reply("The modlog channel isn't set :no_entry:").queue();
 				return;
 			} else {
-				channel = event.getGuild().getTextChannelById((String) dataRan.get("channel"));
+				channel = event.getGuild().getTextChannelById(channelId);
 				if (channel == null) {
 					event.reply("The modlog channel no longer exists :no_entry:").queue();
 					return;
@@ -2412,179 +2240,116 @@ public class ModModule {
 				event.reply("You can only edit up to 100 cases at one time :no_entry:").queue();
 			}
 			
-			List<String> updatedCases = new ArrayList<>();
+			List<Document> cases = database.getModLogs().find(Filters.eq("guildId", event.getGuild().getIdLong())).into(new ArrayList<>());
+			if (cases.isEmpty()) {
+				event.reply("There are no cases to edit in this server :no_entry:").queue();
+				return;
+			}
+			
+			List<WriteModel<Document>> bulkData = new ArrayList<>();
 			for (Integer caseNumber : caseNumbers) {
-				for (Map<String, Object> caseObject : new ArrayList<>(cases)) {
-					if ((long) caseObject.get("id") == caseNumber) {
-						if (caseObject.get("mod") != null) {
-							if (!caseObject.get("mod").equals(event.getAuthor().getId())) {
-								continue;
-							}
+				for (Document caseObject : cases) {
+					if (caseObject.getInteger("id") == caseNumber) {
+						Long moderatorId = caseObject.getLong("moderatorId");
+						Long messageId = caseObject.getLong("messageId");
+						
+						if (!event.getMember().hasPermission(Permission.ADMINISTRATOR) && moderatorId != null && moderatorId != event.getAuthor().getIdLong()) {
+							continue;
 						}
 						
-						if ((String) caseObject.get("message") == null) {
-							cases.remove(caseObject);
-							if (caseObject.get("mod") == null) {
-								caseObject.put("mod", event.getAuthor().getId());
-							}		
-							caseObject.put("reason", reason);
-							cases.add(caseObject);
-						} else {
-							channel.retrieveMessageById((String) caseObject.get("message")).queue(message -> {
+						if (messageId != null) {
+							channel.retrieveMessageById(messageId).queue(message -> {
 								MessageEmbed oldEmbed = message.getEmbeds().get(0);
 								EmbedBuilder embed = new EmbedBuilder();
 								embed.setTitle(oldEmbed.getTitle());
 								embed.setTimestamp(oldEmbed.getTimestamp());
 								embed.addField(oldEmbed.getFields().get(0));
-								if (caseObject.get("mod") == null) {
-									embed.addField("Moderator", event.getAuthor().getAsTag(), false);
-								} else {
-									embed.addField(oldEmbed.getFields().get(1));
-								}
+								embed.addField("Moderator", event.getAuthor().getAsTag(), false);
 								embed.addField("Reason", reason, false);
 									
 								message.editMessage(embed.build()).queue(null, e -> {});
-									
-								cases.remove(caseObject);
-								if (caseObject.get("mod") == null) {
-									caseObject.put("mod", event.getAuthor().getId());
-								}		
-								caseObject.put("reason", reason);
-								cases.add(caseObject);
-									
 							}, e -> {});
 						}
 						
-						updatedCases.add("#" + caseNumber);
+						Bson update = Updates.set("reason", reason);
+						if (moderatorId == null || moderatorId != event.getAuthor().getIdLong()) {
+							update = Updates.combine(update, Updates.set("moderatorId", event.getAuthor().getIdLong()));
+						}
+						
+						bulkData.add(new UpdateOneModel<>(Filters.eq("_id", caseObject.getObjectId("_id")), update));
 					}
 				}
 			}
 			
-			if (updatedCases.isEmpty()) {
+			if (bulkData.isEmpty()) {
 				event.reply("None of those modlog cases existed and/or you did not have ownership to them :no_entry:").queue();
 				return;
 			}
 			
-			event.reply("Case" + (updatedCases.size() == 1 ? "" : "s") + " `" + String.join(", ", updatedCases) + "` " + (updatedCases.size() == 1 ? "has" : "have") + " been updated <:done:403285928233402378>").queue(message -> {
-				data.update(r.hashMap("case", cases)).runNoReply(connection);
+			database.updateModLogCases(bulkData, (result, exception) -> {
+				if (exception != null) {
+					exception.printStackTrace();
+					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+				} else {
+					event.reply("**" + result.getModifiedCount() + "/" + caseNumbers.size() + "** cases have been updated <:done:403285928233402378>").queue();
+				}
 			});
 		}
 		
-		@SuppressWarnings("unchecked")
 		@Command(value="view case", aliases={"viewcase"}, description="View any case from the modlogs even if it's been deleted", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@AuthorPermissions({Permission.MESSAGE_MANAGE})
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-		public void viewCase(CommandEvent event, @Context Connection connection, @Argument(value="case number") int caseNumber) {
-			Get data = r.table("modlogs").get(event.getGuild().getId());
-			Map<String, Object> dataRan = data.run(connection);
-			if (dataRan == null) {
-				event.reply("There are no cases to view in this server :no_entry:").queue();
+		public void viewCase(CommandEvent event, @Context Database database, @Argument(value="case number") int caseNumber) {
+			Document modlogCase = database.getModLogs().find(Filters.and(Filters.eq("id", caseNumber), Filters.eq("guildId", event.getGuild().getIdLong()))).first();
+			if (modlogCase == null) {
+				event.reply("I could not find that modlog case :no_entry:").queue();
 				return;
 			}
 			
-			List<Map<String, Object>> cases = (List<Map<String, Object>>) dataRan.get("case");
-			if (cases.isEmpty()) {
-				event.reply("There are no cases to view in this server :no_entry:").queue();
-				return;
-			}
+			long userId = modlogCase.getLong("userId");
+			Long moderatorId = modlogCase.getLong("moderatorId");
+			String reason = modlogCase.getString("reason");
 			
-			TextChannel channel;
-			if (dataRan.get("channel") == null) {
-				event.reply("The modlog channel isn't set :no_entry:").queue();
-				return;
+			User user = event.getShardManager().getUserById(userId);
+			
+			String modString;
+			if (moderatorId == null) {
+				modString = "Unknown (Update using `" + event.getPrefix() + "modlog case " + caseNumber + " <reason>`)";
 			} else {
-				channel = event.getGuild().getTextChannelById((String) dataRan.get("channel"));
-				if (channel == null) {
-					event.reply("The modlog channel no longer exists :no_entry:").queue();
-					return;
-				}
+				User moderator = event.getShardManager().getUserById(moderatorId);
+				modString = moderator == null ? "Unknown Mod (" + moderatorId + ")" : moderator.getAsTag();
 			}
 			
-			for (Map<String, Object> caseObject : cases) {
-				if ((long) caseObject.get("id") == caseNumber) {
-					if ((String) caseObject.get("message") == null) {
-						User user = event.getShardManager().getUserById((String) caseObject.get("user"));
-						String userString = user == null ? "Unknown User (" + (String) caseObject.get("user") + ")" : user.getAsTag();
-						String reason = caseObject.get("reason") == null ? "None (Update using `" + event.getPrefix() + "modlog case " + caseNumber + " <reason>`)" : (String) caseObject.get("reason");
-						
-						String modString;
-						String modData = (String) caseObject.get("mod");
-						if (modData == null) {
-							modString = "Unknown (Update using `" + event.getPrefix() + "modlog case " + caseNumber + " <reason>`)";
-						} else {
-							User mod = event.getShardManager().getUserById(modData);
-							modString = mod == null ? "Unknown Mod (" + modData + ")" : mod.getAsTag();
-						}
-						
-						EmbedBuilder embed = new EmbedBuilder();
-						embed.setTitle("Case " + caseNumber + " | " + (String) caseObject.get("action"));
-						embed.setTimestamp(Instant.ofEpochSecond((long) caseObject.get("time")));
-						embed.addField("User", userString, false);
-						embed.addField("Moderator", modString, false);
-						embed.addField("Reason", reason, false);
-						event.reply(embed.build()).queue();
-					} else {
-						channel.retrieveMessageById((String) caseObject.get("message")).queue(message -> {
-							event.reply(message.getEmbeds().get(0)).queue();
-						}, e -> {
-							if (e instanceof ErrorResponseException) {
-								ErrorResponseException exception = (ErrorResponseException) e;
-								if (exception.getErrorCode() == 10008) {
-									User user = event.getShardManager().getUserById((String) caseObject.get("user"));
-									String userString = user == null ? "Unknown User (" + (String) caseObject.get("user") + ")" : user.getAsTag();
-									String reason = caseObject.get("reason") == null ? "None (Update using `" + event.getPrefix() + "modlog case " + caseNumber + " <reason>`)" : (String) caseObject.get("reason");
-									
-									String modString;
-									String modData = (String) caseObject.get("mod");
-									if (modData == null) {
-										modString = "Unknown (Update using `" + event.getPrefix() + "modlog case " + caseNumber + " <reason>`)";
-									} else {
-										User mod = event.getShardManager().getUserById(modData);
-										modString = mod == null ? "Unknown Mod (" + modData + ")" : mod.getAsTag();
-									}
-									
-									EmbedBuilder embed = new EmbedBuilder();
-									embed.setTitle("Case " + caseNumber + " | " + (String) caseObject.get("action"));
-									embed.setTimestamp(Instant.ofEpochSecond((long) caseObject.get("time")));
-									embed.addField("User", userString, false);
-									embed.addField("Moderator", modString, false);
-									embed.addField("Reason", reason, false);
-									event.reply(embed.build()).queue();
-								}
-							}
-						});
-					}
-					
-					return;
-				}
-			}
-			
-			event.reply("I could not find that modlog case :no_entry:").queue();
+			EmbedBuilder embed = new EmbedBuilder();
+			embed.setTitle("Case " + caseNumber + " | " + modlogCase.getString("action"));
+			embed.setTimestamp(Instant.ofEpochSecond(modlogCase.getLong("timestamp")));
+			embed.addField("User", user == null ? "Unknown User (" + userId + ")" : user.getAsTag(), false);
+			embed.addField("Moderator", modString, false);
+			embed.addField("Reason", reason == null ? "None (Update using `" + event.getPrefix() + "modlog case " + caseNumber + " <reason>`)" : reason, false);
+			event.reply(embed.build()).queue();
 		}
 		
-		@SuppressWarnings("unchecked")
 		@Command(value="reset", aliases={"resetcases", "reset cases", "wipe"}, description="This will delete all modlog data and cases will start from 1 again", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@AuthorPermissions({Permission.MANAGE_SERVER})
-		public void reset(CommandEvent event, @Context Connection connection) {
-			Get data = r.table("modlogs").get(event.getGuild().getId());
-			Map<String, Object> dataRan = data.run(connection);
-			if (dataRan == null) {
-				event.reply("There are no cases to delete in this server :no_entry:").queue();
-				return;
-			}
-			
-			List<Map<String, Object>> cases = (List<Map<String, Object>>) dataRan.get("case");
-			if (cases.isEmpty()) {
+		public void reset(CommandEvent event, @Context Database database) {
+			int caseAmount = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("modlog.caseAmount")).getEmbedded(List.of("modlog", "caseAmount"), 0);
+			if (caseAmount == 0) {
 				event.reply("There are no cases to delete in this server :no_entry:").queue();
 				return;
 			}
 			
 			event.reply(event.getAuthor().getName() + ", are you sure you want to delete all modlog cases? (Yes or No)").queue(message -> {
 				PagedUtils.getConfirmation(event, 30, event.getAuthor(), confirmation -> {
-					if (confirmation == true) {
-						event.reply("All modlog cases have been deleted <:done:403285928233402378>").queue();
-						data.update(r.hashMap("cases", new Object[0]).with("case#", 0)).runNoReply(connection);
-					} else if (confirmation == false) {
+					if (confirmation) {
+						database.deleteModLogCases(Filters.eq("guildId", event.getGuild().getIdLong()), (result, exception) -> {
+							if (exception != null) {
+								exception.printStackTrace();
+								event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+							} else {
+								event.reply("All modlog cases have been deleted <:done:403285928233402378>").queue();
+							}
+						});
+					} else {
 						event.reply("Cancelled <:done:403285928233402378>").queue();
 					}
 				});
@@ -2593,22 +2358,17 @@ public class ModModule {
 		
 		@Command(value="stats", aliases={"settings", "setting"}, description="View the settings for modlogs in the current server", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-		public void stats(CommandEvent event, @Context Connection connection) {
-			Map<String, Object> data = r.table("modlogs").get(event.getGuild().getId()).run(connection);
+		public void stats(CommandEvent event, @Context Database database) {
+			Document data = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("modlog.caseAmount", "modlog.channelId", "modlog.enabled")).get("modlog", Database.EMPTY_DOCUMENT);
 			
-			TextChannel channel;
-			String channelData = (String) data.get("channel");
-			if (channelData == null) {
-				channel = null;
-			} else {
-				channel = event.getGuild().getTextChannelById(channelData);
-			}
+			Long channelId = data.getLong("channelId");
+			TextChannel channel = channelId == null ? null : event.getGuild().getTextChannelById(channelId);
 			
 			EmbedBuilder embed = new EmbedBuilder();
 			embed.setAuthor("ModLog Settings", null, event.getGuild().getIconUrl());
-			embed.addField("Status", (boolean) data.get("toggle") ? "Enabled" : "Disabled", true);
+			embed.addField("Status", data.getBoolean("enabled", false) ? "Enabled" : "Disabled", true);
 			embed.addField("Channel", channel == null ? "Not Set" : channel.getAsMention(), true);
-			embed.addField("Number of Cases", String.valueOf((long) data.get("case#")), true);
+			embed.addField("Number of Cases", String.valueOf(data.getInteger("caseAmount", 0)), true);
 			event.reply(embed.build()).queue();
 		}
 		
@@ -2771,7 +2531,7 @@ public class ModModule {
 	@Command(value="kick", description="Kick a user from the current server")
 	@AuthorPermissions({Permission.KICK_MEMBERS})
 	@BotPermissions({Permission.KICK_MEMBERS})
-	public void kick(CommandEvent event, @Context Connection connection, @Argument(value="user") String userArgument, @Argument(value="reason", endless=true, nullDefault=true) String reason) {
+	public void kick(CommandEvent event, @Argument(value="user") String userArgument, @Argument(value="reason", endless=true, nullDefault=true) String reason) {
 		Member member = ArgumentUtils.getMember(event.getGuild(), userArgument);
 		if (member == null) {
 			event.reply("I could not find that user :no_entry:").queue();
@@ -2807,13 +2567,13 @@ public class ModModule {
 		}
 		
 		event.getGuild().kick(member, (reason == null ? "" : reason) + " [" + event.getAuthor().getAsTag() + "]").queue();
-		ModUtils.createModLogAndOffence(event.getGuild(), connection, event.getAuthor(), member.getUser(), "Kick", reason);
+		ModUtils.createModLogAndOffence(event.getGuild(), event.getAuthor(), member.getUser(), "Kick", reason);
 	}
 	
 	@Command(value="ban", description="Ban a user from the current server", caseSensitive=true)
 	@AuthorPermissions({Permission.BAN_MEMBERS})
 	@BotPermissions({Permission.BAN_MEMBERS})
-	public void ban(CommandEvent event, @Context Connection connection, @Argument(value="user") String userArgument, @Argument(value="reason", endless=true, nullDefault=true) String reason) {
+	public void ban(CommandEvent event, @Argument(value="user") String userArgument, @Argument(value="reason", endless=true, nullDefault=true) String reason) {
 		Member member = ArgumentUtils.getMember(event.getGuild(), userArgument);
 		if (member == null) {
 			User user = ArgumentUtils.getUser(userArgument);
@@ -2833,7 +2593,7 @@ public class ModModule {
 							
 							event.reply("**" + userObject.getAsTag() + "** has been banned <:done:403285928233402378>:ok_hand:").queue();
 							event.getGuild().ban(userObject, 1, (reason == null ? "" : reason) + " [" + event.getAuthor().getAsTag() + "]").queue();
-							ModUtils.createModLogAndOffence(event.getGuild(), connection, event.getAuthor(), userObject, "Ban", reason);
+							ModUtils.createModLogAndOffence(event.getGuild(), event.getAuthor(), userObject, "Ban", reason);
 						});
 					}
 				});
@@ -2848,7 +2608,7 @@ public class ModModule {
 					
 					event.reply("**" + user.getAsTag() + "** has been banned <:done:403285928233402378>:ok_hand:").queue();
 					event.getGuild().ban(user, 1, (reason == null ? "" : reason) + " [" + event.getAuthor().getAsTag() + "]").queue();
-					ModUtils.createModLogAndOffence(event.getGuild(), connection, event.getAuthor(), user, "Ban", reason);
+					ModUtils.createModLogAndOffence(event.getGuild(), event.getAuthor(), user, "Ban", reason);
 				});
 			}
 		} else {
@@ -2881,7 +2641,7 @@ public class ModModule {
 			}
 			
 			event.getGuild().ban(member, 1, (reason == null ? "" : reason) + " [" + event.getAuthor().getAsTag() + "]").queue();
-			ModUtils.createModLogAndOffence(event.getGuild(), connection, event.getAuthor(), member.getUser(), "Ban", reason);
+			ModUtils.createModLogAndOffence(event.getGuild(), event.getAuthor(), member.getUser(), "Ban", reason);
 		}
 	}
 	
@@ -2900,7 +2660,7 @@ public class ModModule {
 	@Command(value="unban", description="Unban a user who is banned from the current server")
 	@AuthorPermissions({Permission.BAN_MEMBERS})
 	@BotPermissions({Permission.BAN_MEMBERS})
-	public void unban(CommandEvent event, @Context Connection connection, @Argument(value="user") String userArgument, @Argument(value="reason", endless=true, nullDefault=true) String reason) {
+	public void unban(CommandEvent event, @Argument(value="user") String userArgument, @Argument(value="reason", endless=true, nullDefault=true) String reason) {
 		User user = ArgumentUtils.getUser(userArgument);
 		if (user == null) {
 			ArgumentUtils.getUserInfo(userArgument, userObject -> {
@@ -2914,7 +2674,7 @@ public class ModModule {
 						if (ban.getUser().equals(userObject)) {
 							event.reply("**" + userObject.getAsTag() + "** has been unbanned <:done:403285928233402378>:ok_hand:").queue();
 							event.getGuild().unban(userObject).queue();
-							ModUtils.createModLog(event.getGuild(), connection, event.getAuthor(), userObject, "Unban", reason);
+							ModUtils.createModLog(event.getGuild(), event.getAuthor(), userObject, "Unban", reason);
 							return;
 						}
 					}
@@ -2928,7 +2688,7 @@ public class ModModule {
 					if (ban.getUser().equals(user)) {
 						event.reply("**" + user.getAsTag() + "** has been unbanned <:done:403285928233402378>:ok_hand:").queue();
 						event.getGuild().unban(user).queue();
-						ModUtils.createModLog(event.getGuild(), connection, event.getAuthor(), user, "Unban", reason);
+						ModUtils.createModLog(event.getGuild(), event.getAuthor(), user, "Unban", reason);
 						return;
 					}
 				}
@@ -2941,7 +2701,7 @@ public class ModModule {
 	@Command(value="channel mute", aliases={"cmute", "channelmute"}, description="Mute a user in the current channel")
 	@AuthorPermissions({Permission.MESSAGE_MANAGE})
 	@BotPermissions({Permission.MANAGE_PERMISSIONS})
-	public void channelMute(CommandEvent event, @Context Connection connection, @Argument(value="user") String userArgument, @Argument(value="reason", endless=true, nullDefault=true) String reason) {
+	public void channelMute(CommandEvent event, @Argument(value="user") String userArgument, @Argument(value="reason", endless=true, nullDefault=true) String reason) {
 		Member member = ArgumentUtils.getMember(event.getGuild(), userArgument);
 		if (member == null) {
 			event.reply("I could not find that user :no_entry:").queue();
@@ -2990,13 +2750,13 @@ public class ModModule {
 			}, e -> {});
 		} 
 		
-		ModUtils.createModLogAndOffence(event.getGuild(), connection, event.getAuthor(), member.getUser(), "Mute", reason);
+		ModUtils.createModLogAndOffence(event.getGuild(), event.getAuthor(), member.getUser(), "Mute", reason);
 	}
 	
 	@Command(value="channel unmute", aliases={"cunmute", "channelunmute"}, description="Unmute a user in the current channel")
 	@AuthorPermissions({Permission.MESSAGE_MANAGE})
 	@BotPermissions({Permission.MANAGE_PERMISSIONS})
-	public void channelUnmute(CommandEvent event, @Context Connection connection, @Argument(value="user") String userArgument, @Argument(value="reason", endless=true, nullDefault=true) String reason) {
+	public void channelUnmute(CommandEvent event, @Argument(value="user") String userArgument, @Argument(value="reason", endless=true, nullDefault=true) String reason) {
 		Member member = ArgumentUtils.getMember(event.getGuild(), userArgument);
 		if (member == null) {
 			event.reply("I could not find that user :no_entry:").queue();
@@ -3040,18 +2800,13 @@ public class ModModule {
 			}, e -> {});
 		}
 		
-		ModUtils.createModLog(event.getGuild(), connection, event.getAuthor(), member.getUser(), "Unmute", reason);
+		ModUtils.createModLog(event.getGuild(), event.getAuthor(), member.getUser(), "Unmute", reason);
 	}
 	
-	@SuppressWarnings("unchecked")
 	@Command(value="mute", description="Mute a user server wide for a specified amount of time")
 	@AuthorPermissions({Permission.MESSAGE_MANAGE})
 	@BotPermissions({Permission.MANAGE_ROLES, Permission.MANAGE_PERMISSIONS})
-	public void mute(CommandEvent event, @Context Connection connection, @Argument(value="user") String userArgument, @Argument(value="time and unit", nullDefault=true) String muteLengthArgument, @Argument(value="reason", endless=true, nullDefault=true) String reason) {
-		r.table("mute").insert(r.hashMap("id", event.getGuild().getId()).with("users", new Object[0])).run(connection, OptArgs.of("durability", "soft"));
-		Get data = r.table("mute").get(event.getGuild().getId());
-		Map<String, Object> dataRan = data.run(connection);
-		
+	public void mute(CommandEvent event, @Context Database database, @Argument(value="user") String userArgument, @Argument(value="time and unit", nullDefault=true) String muteLengthArgument, @Argument(value="reason", endless=true, nullDefault=true) String reason) {
 		String muteString;
 		long muteLength;
 		if (muteLengthArgument == null) {
@@ -3092,8 +2847,9 @@ public class ModModule {
 			return;
 		}
 		
-		ModUtils.setupMuteRole(event.getGuild(), role -> {
-			if (role == null) {
+		ModUtils.getOrCreateMuteRole(event.getGuild(), (role, error) -> {
+			if (error != null) {
+				event.reply(error + " :no_entry:").queue();
 				return;
 			}
 			
@@ -3107,34 +2863,34 @@ public class ModModule {
 				return;
 			}
 			
-			event.reply("**" + member.getUser().getAsTag() + "** has been muted for " + muteString + " <:done:403285928233402378>:ok_hand:").queue();
-			event.getGuild().addRoleToMember(member, role).queue();
-			
-			if (!member.getUser().isBot()) {
-				member.getUser().openPrivateChannel().queue(channel -> {
-					channel.sendMessage(ModUtils.getMuteEmbed(event.getGuild(), null, event.getAuthor(), muteLength, reason)).queue();
-				}, e -> {});
-			}
-			
-			ModUtils.createModLogAndOffence(event.getGuild(), connection, event.getAuthor(), member.getUser(), "Mute (" + muteString + ")", reason);
-			
-			List<Map<String, Object>> users = (List<Map<String, Object>>) dataRan.get("users");
-			data.update(r.hashMap("users", ModUtils.getMuteData(member.getUser().getId(), users, muteLength))).runNoReply(connection);
-			
-			ScheduledFuture<?> executor = MuteEvents.scheduledExectuor.schedule(() -> MuteEvents.removeUserMute(event.getGuild().getId(), member.getId(), role.getId()), muteLength, TimeUnit.SECONDS);
-			MuteEvents.putExecutor(event.getGuild().getId(), member.getUser().getId(), executor);
-		}, error -> {
-			event.reply(error).queue();
-			return;
+			List<Document> users = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("mute.users")).getEmbedded(List.of("mute", "users"), Collections.emptyList());
+			database.updateGuildById(ModUtils.getMuteUpdate(event.getGuild().getIdLong(), member.getUser().getIdLong(), users, muteLength), (result, exception) -> {
+				if (exception != null) {
+					exception.printStackTrace();
+					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+				} else {
+					event.reply("**" + member.getUser().getAsTag() + "** has been muted for " + muteString + " <:done:403285928233402378>:ok_hand:").queue();
+					event.getGuild().addRoleToMember(member, role).queue();
+					
+					if (!member.getUser().isBot()) {
+						member.getUser().openPrivateChannel().queue(channel -> {
+							channel.sendMessage(ModUtils.getMuteEmbed(event.getGuild(), null, event.getAuthor(), muteLength, reason)).queue();
+						}, e -> {});
+					}
+					
+					ModUtils.createModLogAndOffence(event.getGuild(), event.getAuthor(), member.getUser(), "Mute (" + muteString + ")", reason);
+					
+					ScheduledFuture<?> executor = MuteEvents.scheduledExectuor.schedule(() -> MuteEvents.removeUserMute(event.getGuild().getIdLong(), member.getIdLong(), role.getIdLong()), muteLength, TimeUnit.SECONDS);
+					MuteEvents.putExecutor(event.getGuild().getIdLong(), member.getUser().getIdLong(), executor);
+				}	
+			});
 		});
 	}
 	
 	@Command(value="unmute", description="Unmute a user early who is currently muted in the server")
 	@AuthorPermissions({Permission.MESSAGE_MANAGE})
 	@BotPermissions({Permission.MANAGE_ROLES})
-	public void unmute(CommandEvent event, @Context Connection connection, @Argument(value="user") String userArgument, @Argument(value="reason", endless=true, nullDefault=true) String reason) {
-		Get data = r.table("mute").get(event.getGuild().getId());
-		
+	public void unmute(CommandEvent event, @Context Database database, @Argument(value="user") String userArgument, @Argument(value="reason", endless=true, nullDefault=true) String reason) {
 		Member member = ArgumentUtils.getMember(event.getGuild(), userArgument);
 		if (member == null) {
 			event.reply("I could not find that user :no_entry:").queue();
@@ -3162,32 +2918,34 @@ public class ModModule {
 			return;
 		}
 		
-		event.reply("**" + member.getUser().getAsTag() + "** has been unmuted <:done:403285928233402378>:ok_hand:").queue();
-		event.getGuild().removeRoleFromMember(member, role).queue();
-		
-		if (!member.getUser().isBot()) {
-			member.getUser().openPrivateChannel().queue(channel -> {
-				channel.sendMessage(ModUtils.getUnmuteEmbed(event.getGuild(), null, event.getAuthor(), reason)).queue();
-			}, e -> {});
-		}
-		
-		ModUtils.createModLog(event.getGuild(), connection, event.getAuthor(), member.getUser(), "Unmute", reason);
-		
-		data.update(row -> r.hashMap("users", row.g("users").filter(d -> d.g("id").ne(member.getUser().getId())))).runNoReply(connection);
-		MuteEvents.cancelExecutor(event.getGuild().getId(), member.getUser().getId());
+		database.updateGuildById(event.getGuild().getIdLong(), Updates.pull("mute.users", Filters.eq("id", member.getIdLong())), (result, exception) -> {
+			if (exception != null) {
+				exception.printStackTrace();
+				event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+			} else {
+				event.reply("**" + member.getUser().getAsTag() + "** has been unmuted <:done:403285928233402378>:ok_hand:").queue();
+				event.getGuild().removeRoleFromMember(member, role).queue();
+				
+				if (!member.getUser().isBot()) {
+					member.getUser().openPrivateChannel().queue(channel -> {
+						channel.sendMessage(ModUtils.getUnmuteEmbed(event.getGuild(), null, event.getAuthor(), reason)).queue();
+					}, e -> {});
+				}
+				
+				ModUtils.createModLog(event.getGuild(), event.getAuthor(), member.getUser(), "Unmute", reason);
+				MuteEvents.cancelExecutor(event.getGuild().getIdLong(), member.getUser().getIdLong());
+			}
+		});
 	}
 	
-	@SuppressWarnings("unchecked")
 	@Command(value="muted list", aliases={"mutedlist", "muted"}, description="Gives a list of all the current users who are muted and the time they have left", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-	public void mutedList(CommandEvent event, @Context Connection connection) {
-		Map<String, Object> data = r.table("mute").get(event.getGuild().getId()).run(connection);
-		
+	public void mutedList(CommandEvent event, @Context Database database) {
 		long timestamp = Clock.systemUTC().instant().getEpochSecond();
 		
-		List<Map<String, Object>> mutedUsers = (List<Map<String, Object>>) data.get("users");
-		for (Map<String, Object> userData : new ArrayList<>(mutedUsers)) {
-			Member member = event.getGuild().getMemberById((String) userData.get("id"));
+		List<Document> mutedUsers = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("mute.users")).getEmbedded(List.of("mute", "users"), Collections.emptyList());
+		for (Document userData : new ArrayList<>(mutedUsers)) {
+			Member member = event.getGuild().getMemberById(userData.getLong("id"));
 			if (member == null) {
 				mutedUsers.remove(userData);
 			}
@@ -3198,20 +2956,22 @@ public class ModModule {
 			return;
 		}
 		
-		mutedUsers.sort((a, b) -> Long.compare((long) a.get("time"), (long) b.get("time")));
-		PagedResult<Map<String, Object>> paged = new PagedResult<>(mutedUsers)
+		mutedUsers.sort((a, b) -> Long.compare(a.getLong("timestamp"), b.getLong("timestamp")));
+		PagedResult<Document> paged = new PagedResult<>(mutedUsers)
 				.setAuthor("Muted Users", null, event.getGuild().getIconUrl())
 				.setIndexed(false)
 				.setDeleteMessage(false)
 				.setPerPage(20)
 				.setFunction(user -> {
 					Member member = event.getGuild().getMemberById((String) user.get("id"));
+					Long duration = user.getLong("duration");
+					long timestampOfMute = user.getLong("timestamp");
 					
 					long timeTillUnmute;
-					if (user.get("amount") == null) {
+					if (duration == null) {
 						timeTillUnmute = -1;
 					} else {
-						timeTillUnmute = (user.get("time") instanceof Double ? (long) (double) user.get("time") : (long) user.get("time")) - timestamp + (user.get("amount") instanceof Double ? (long) (double) user.get("amount") : (long) user.get("amount"));
+						timeTillUnmute = timestampOfMute - timestamp + timestampOfMute;
 					}
 					
 					return member.getUser().getAsTag() + " - " + (timeTillUnmute == -1 ? "Infinite" : TimeUtils.toTimeString(timeTillUnmute, ChronoUnit.SECONDS));
@@ -3273,106 +3033,96 @@ public class ModModule {
 		
 		@Command(value="punishments", aliases={"punish"}, description="Enables/disables punishments for warnings, this changes whether warns have actions depending on the amount of warns a user has", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@AuthorPermissions({Permission.MANAGE_SERVER})
-		public void punishments(CommandEvent event, @Context Connection connection) {
-			r.table("warn").insert(r.hashMap("id", event.getGuild().getId()).with("users", new Object[0]).with("punishments", true).with("config", new Object[0]).with("templates", new Object[0])).run(connection, OptArgs.of("durability", "soft"));
-			Get data = r.table("warn").get(event.getGuild().getId());
-			Map<String, Object> dataRan = data.run(connection);
-			
-			if ((boolean) dataRan.get("punishments") == true) {
-				event.reply("Punishments for warnings have been disabled <:done:403285928233402378>").queue();
-				data.update(r.hashMap("punishments", false)).runNoReply(connection);
-			} else if ((boolean) dataRan.get("punishments") == false) {
-				event.reply("Punishments for warnings have been enabled <:done:403285928233402378>").queue();
-				data.update(r.hashMap("punishments", true)).runNoReply(connection);
-			}
+		public void punishments(CommandEvent event, @Context Database database) {
+			boolean punishments = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("warn.punishments")).getEmbedded(List.of("warn", "punishments"), true);
+			database.updateGuildById(event.getGuild().getIdLong(), Updates.set("warn.punishments", !punishments), (result, exception) -> {
+				if (exception != null) {
+					exception.printStackTrace();
+					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+				} else {
+					event.reply("Punishments for warnings have been " + (punishments ? "disabled" : "enabled") + " <:done:403285928233402378>").queue();
+				}
+			});
 		}
 		
-		private List<String> actions = new ArrayList<>();
-		{
-			actions.add("mute");
-			actions.add("kick");
-			actions.add("ban");
-		}
+		private final List<String> actions = List.of("ban", "mute", "kick");
 		
-		@SuppressWarnings("unchecked")
 		@Command(value="set", aliases={"add"}, description="Set a certain warning to a specified action to happen when a user reaches that warning")
 		@AuthorPermissions({Permission.MANAGE_SERVER})
-		public void set(CommandEvent event, @Context Connection connection, @Argument(value="warning number") int warningNumber, @Argument(value="action", endless=true) String action) {
-			r.table("warn").insert(r.hashMap("id", event.getGuild().getId()).with("users", new Object[0]).with("punishments", true).with("config", new Object[0]).with("templates", new Object[0])).run(connection, OptArgs.of("durability", "soft"));
-			Get data = r.table("warn").get(event.getGuild().getId());
-			Map<String, Object> dataRan = data.run(connection);
-			action = action.toLowerCase();
+		public void set(CommandEvent event, @Context Database database, @Argument(value="warning number") int warningNumber, @Argument(value="action", endless=true) String action) {
+			String actionLower = action.toLowerCase();
 			
 			if (warningNumber <= 0 || warningNumber > 50) {
 				event.reply("Warnings start at 1 and have a max warning of 50 :no_entry:").queue();
 				return;
 			}
 			
-			Map<String, Object> configuration = new HashMap<>();
-			if (actions.contains(action) || action.startsWith("mute")) {
-				if (action.equals("mute")) {
-					configuration.put("warning", warningNumber);
-					configuration.put("action", action);
-					configuration.put("time", 1800L);
-				} else if (action.startsWith("mute")) {
-					String timeString = action.split(" ", 2)[1];
+			Document configuration = new Document("warning", warningNumber);
+			if (actions.contains(actionLower) || actionLower.startsWith("mute")) {
+				if (actionLower.equals("mute")) {
+					configuration.append("action", actionLower).append("durtation", 1800L);
+				} else if (actionLower.startsWith("mute")) {
+					String timeString = actionLower.split(" ", 2)[1];
 					long muteLength = TimeUtils.convertToSeconds(timeString);
 					if (muteLength <= 0) {
 						event.reply("Invalid time format, make sure it's formatted with a numerical value then a letter representing the time (d for days, h for hours, m for minutes, s for seconds) and make sure it's in order :no_entry:").queue();
 						return;
 					}
 					
-					action = "mute";
-					configuration.put("warning", warningNumber);
-					configuration.put("action", action);
-					configuration.put("time", muteLength);
+					configuration.append("action", "mute").append("duration", muteLength);
 				} else {
-					configuration.put("warning", warningNumber);
-					configuration.put("action", action);
+					configuration.append("action", actionLower);
 				}
 				
-				event.reply(String.format("Warning #%s will now %s the user %s <:done:403285928233402378>", warningNumber, action, 
-						configuration.containsKey("time") ? "for " + TimeUtils.toTimeString(configuration.get("time") instanceof Long ? (long) configuration.get("time") : (int) configuration.get("time"), ChronoUnit.SECONDS) : "")).queue();
+				Bson update = null;
+				UpdateOptions updateOptions = null;
 				
-				List<Map<String, Object>> warnConfig = (List<Map<String, Object>>) dataRan.get("config");
-				for (Map<String, Object> warning : warnConfig) {
-					if ((long) warning.get("warning") == warningNumber) {
-						warnConfig.remove(warning);
+				List<Document> warnConfiguration = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("warn.configuration")).getEmbedded(List.of("warn", "configuration"), Collections.emptyList());
+				for (Document warning : warnConfiguration) {
+					if (warning.getInteger("warning") == warningNumber) {
+						update = Updates.set("warn.configuration.$[warning]", configuration);
+						updateOptions = new UpdateOptions().arrayFilters(List.of(Filters.eq("warning.warning", warningNumber)));
 						break;
 					}
 				}
 				
-				warnConfig.add(configuration);
-				data.update(r.hashMap("config", warnConfig)).runNoReply(connection);
+				if (update == null) {
+					update = Updates.push("warn.configuration", configuration);
+				}
+				
+				database.updateGuildById(event.getGuild().getIdLong(), null, update, updateOptions, (result, exception) -> {
+					if (exception != null) {
+						exception.printStackTrace();
+						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+					} else {
+						event.replyFormat("Warning #%d will now %s the user %s <:done:403285928233402378>", warningNumber, actionLower, configuration.containsKey("time") ? "for " + TimeUtils.toTimeString(configuration.getLong("duration"), ChronoUnit.SECONDS) : "").queue();
+					}
+				});
 			} else {
 				event.reply("Invalid action, make sure it is either mute, kick or ban :no_entry:").queue();
 			}
 		}
 		
-		@SuppressWarnings("unchecked")
 		@Command(value="remove", description="Removes a warning which is set in the server, to view the configuration use `warn configuration list`", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@AuthorPermissions({Permission.MANAGE_SERVER})
-		public void remove(CommandEvent event, @Context Connection connection, @Argument(value="warning number") int warningNumber) {
-			Get data = r.table("warn").get(event.getGuild().getId());
-			Map<String, Object> dataRan = data.run(connection);
-			
-			if (dataRan == null) {
+		public void remove(CommandEvent event, @Context Database database, @Argument(value="warning number") int warningNumber) {
+			List<Document> warnConfiguration = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("warn.configuration")).getEmbedded(List.of("warn", "configuration"), Collections.emptyList());
+			if (warnConfiguration.isEmpty()) {
 				event.reply("Warn configuration has not been set up in this server :no_entry:").queue();
 				return;
 			}
 			
-			List<Map<String, Object>> warnConfig = (List<Map<String, Object>>) dataRan.get("config");
-			if (warnConfig.isEmpty()) {
-				event.reply("Warn configuration has not been set up in this server :no_entry:").queue();
-				return;
-			}
-			
-			long warningNumberData;
-			for (Map<String, Object> warning : warnConfig) {
-				warningNumberData = (long) warning.get("warning");
-				if (warningNumberData == warningNumber) { 
-					event.reply("Warning #" + warningNumber + " has been removed <:done:403285928233402378>").queue();
-					data.update(row -> r.hashMap("config", row.g("config").filter(d -> d.g("warning").ne(warningNumber)))).runNoReply(connection);
+			for (Document warning : warnConfiguration) {
+				if (warning.getInteger("warning") == warningNumber) { 
+					database.updateGuildById(event.getGuild().getIdLong(), Updates.pull("warn.configuration", Filters.eq("warning", warningNumber)), (result, exception) -> {
+						if (exception != null) {
+							exception.printStackTrace();
+							event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+						} else {
+							event.reply("Warning #" + warningNumber + " has been removed <:done:403285928233402378>").queue();
+						}
+					});
+					
 					return;
 				}
 			}
@@ -3380,64 +3130,49 @@ public class ModModule {
 			event.reply("That warning is not set up to an action :no_entry:").queue();
 		}
 		
-		@SuppressWarnings("unchecked")
 		@Command(value="reset", aliases={"wipe", "delete"}, description="Reset all warn configuration data set up in the server", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@AuthorPermissions({Permission.MANAGE_SERVER})
-		public void reset(CommandEvent event, @Context Connection connection) {
-			Get data = r.table("warn").get(event.getGuild().getId());
-			Map<String, Object> dataRan = data.run(connection);
-			
-			if (dataRan == null) {
-				event.reply("Warn configuration has not been set up in this server :no_entry:").queue();
-				return;
-			}
-			
-			List<Map<String, Object>> warnConfig = (List<Map<String, Object>>) dataRan.get("config");
-			if (warnConfig.isEmpty()) {
-				event.reply("Warn configuration has not been set up in this server :no_entry:").queue();
-				return;
-			}
-			
-			event.reply(event.getAuthor().getName() + ", are you sure you want to reset **all** warn configuration data? (Yes or No)").queue();
-			PagedUtils.getConfirmation(event, 300, event.getAuthor(), confirmation -> {
-				if (confirmation == true) {
-					event.reply("All warning configuration data has been reset <:done:403285928233402378>").queue();
-					data.update(r.hashMap("config", new Object[0])).runNoReply(connection);
-				} else {
-					event.reply("Cancelled <:done:403285928233402378>").queue();
-				}
+		public void reset(CommandEvent event, @Context Database database) {
+			event.reply(event.getAuthor().getName() + ", are you sure you want to reset **all** warn configuration data? (Yes or No)").queue(message -> {
+				PagedUtils.getConfirmation(event, 300, event.getAuthor(), confirmation -> {
+					if (confirmation) {
+						List<Document> warnConfiguration = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("warn.configuration")).getEmbedded(List.of("warn", "configuration"), Collections.emptyList());
+						if (warnConfiguration.isEmpty()) {
+							event.reply("Warn configuration has not been set up in this server :no_entry:").queue();
+							return;
+						}
+						
+						database.updateGuildById(event.getGuild().getIdLong(), Updates.unset("warn.configuration"), (result, exception) -> {
+							if (exception != null) {
+								exception.printStackTrace();
+								event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+							} else {
+								event.reply("All warning configuration data has been reset <:done:403285928233402378>").queue();
+							}
+						});
+					} else {
+						event.reply("Cancelled <:done:403285928233402378>").queue();
+					}
+				});
 			});
 		}
 		
-		@SuppressWarnings("unchecked")
 		@Command(value="list", description="Shows the current configuration for warnings in the current server", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-		public void list(CommandEvent event, @Context Connection connection) {
-			Get data = r.table("warn").get(event.getGuild().getId());
-			Map<String, Object> dataRan = data.run(connection);
+		public void list(CommandEvent event, @Context Database database) {
+			List<Document> warnConfiguration = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("warn.configuration")).getEmbedded(List.of("warn", "configuration"), ModUtils.defaultWarnConfiguration);
 			
-			if (dataRan == null) {
-				event.reply("Warn configuration has not been set up in this server :no_entry:").queue();
-				return;
-			}
-			
-			List<Map<String, Object>> warnConfig = (List<Map<String, Object>>) dataRan.get("config");
-			if (warnConfig.isEmpty()) {
-				event.reply("Warn configuration has not been set up in this server :no_entry:").queue();
-				return;
-			}
-			
-			warnConfig.sort((a, b) -> Long.compare((long) a.get("warning"), (long) b.get("warning")));
-			PagedResult<Map<String, Object>> paged = new PagedResult<>(warnConfig)
+			warnConfiguration.sort((a, b) -> Integer.compare(a.getInteger("warning"), b.getInteger("warning")));
+			PagedResult<Document> paged = new PagedResult<>(warnConfiguration)
 					.setDeleteMessage(false)
 					.setPerPage(20)
 					.setIndexed(false)
 					.setAuthor("Warn Configuration", null, event.getGuild().getIconUrl())
 					.setFunction(warning -> {
 						if (warning.containsKey("time")) {
-							return "Warning #" + warning.get("warning") + ": " + GeneralUtils.title((String) warning.get("action")) + " (" + TimeUtils.toTimeString((long) warning.get("time"), ChronoUnit.SECONDS) + ")";
+							return "Warning #" + warning.getInteger("warning") + ": " + GeneralUtils.title(warning.getString("action")) + " (" + TimeUtils.toTimeString(warning.getLong("duration"), ChronoUnit.SECONDS) + ")";
 						} else {
-							return "Warning #" + warning.get("warning") + ": " + GeneralUtils.title((String) warning.get("action"));
+							return "Warning #" + warning.getInteger("warning") + ": " + GeneralUtils.title(warning.getString("action"));
 						}
 					});
 			
@@ -3446,14 +3181,9 @@ public class ModModule {
 		
 	}
 	
-	@SuppressWarnings("unchecked")
 	@Command(value="warn", description="Warn a user in the current server")
 	@AuthorPermissions({Permission.MESSAGE_MANAGE})
-	public void warn(CommandEvent event, @Context Connection connection, @Argument(value="user") String userArgument, @Argument(value="reason", endless=true, nullDefault=true) String reason) {
-		r.table("warn").insert(r.hashMap("id", event.getGuild().getId()).with("users", new Object[0]).with("punishments", true).with("config", new Object[0]).with("templates", new Object[0])).run(connection, OptArgs.of("durability", "soft"));
-		Get data = r.table("warn").get(event.getGuild().getId());
-		Map<String, Object> dataRan = data.run(connection);
-		
+	public void warn(CommandEvent event, @Context Database database, @Argument(value="user") String userArgument, @Argument(value="reason", endless=true, nullDefault=true) String reason) {
 		Member member = ArgumentUtils.getMember(event.getGuild(), userArgument);
 		if (member == null) {
 			event.reply("I could not find that user :no_entry:").queue();
@@ -3475,217 +3205,70 @@ public class ModModule {
 			return;
 		}
 		
-		if (!event.getSelfMember().canInteract(member)) {
-			event.reply("I cannot warn someone higher or equal than my top role :no_entry:").queue();
-			return;
-		}
-		
-		List<Map<String, Object>> users = (List<Map<String, Object>>) dataRan.get("users");
-		List<Map<String, Object>> warnConfig = (List<Map<String, Object>>) dataRan.get("config");
-		boolean punishments = (boolean) dataRan.get("punishments");
-		long maxWarning = ModUtils.getMaxWarning(warnConfig);
-		long userWarningsData = 0;
-		List<String> reasons = new ArrayList<>();
-		for (Map<String, Object> user : users) {
-			if (user.get("id").equals(member.getUser().getId())) {
-				users.remove(user);
-				reasons.addAll((List<String>) user.get("reasons"));
-				
-				if (punishments == true) {
-					userWarningsData = (long) user.get("warnings") >= maxWarning ? 1 : (long) user.get("warnings") + 1;	
-				} else {
-					userWarningsData = (long) user.get("warnings") + 1;
-				}
-				break;
-			}
-		}
-		
-		if (userWarningsData == 0) {
-			userWarningsData = 1;
-		}
-		
-		long userWarnings = userWarningsData;
-		String suffixWarning = GeneralUtils.getNumberSuffix(Math.toIntExact(userWarnings));
-		if (punishments == true) {
-			Map<String, Object> userWarning = ModUtils.getWarning(warnConfig, userWarnings);
-			String action = userWarning == null ? "warn" : (String) userWarning.get("action");	
-			if (action.equals("mute")) {
-				r.table("mute").insert(r.hashMap("id", event.getGuild().getId()).with("users", new Object[0])).run(connection, OptArgs.of("durability", "soft"));
-				Get muteData = r.table("mute").get(event.getGuild().getId());
-				Map<String, Object> muteDataRan = muteData.run(connection);
-				
-				if (member.hasPermission(Permission.ADMINISTRATOR)) {
-					event.reply("I cannot mute someone with administrator permissions :no_entry:").queue();
-					return;
-				}
-				
-				long muteLength = userWarning.get("time") instanceof Integer ? (int) userWarning.get("time") : (long) userWarning.get("time");
-				ModUtils.setupMuteRole(event.getGuild(), role -> {
-					if (role == null) {
-						return;
-					}
-					
-					if (role.getPosition() >= event.getSelfMember().getRoles().get(0).getPosition()) {
-						event.reply("I am unable to mute that user as the mute role is higher or equal than my top role :no_entry:").queue();
-						return;
-					}
-					
-					if (member.getRoles().contains(role)) {
-						event.reply("That user is already muted :no_entry:").queue();
-						return;
-					}
-					
-					event.reply("**" + member.getUser().getAsTag() + "** has been muted for " + TimeUtils.toTimeString(muteLength, ChronoUnit.SECONDS) + " (" + suffixWarning + " Warning) <:done:403285928233402378>").queue();
-					event.getGuild().addRoleToMember(member, role).queue();
-					
-					if (!member.getUser().isBot()) {
-						member.getUser().openPrivateChannel().queue(channel -> {
-							channel.sendMessage(ModUtils.getWarnEmbed(event.getGuild(), event.getAuthor(), warnConfig, userWarnings, true, "muted", reason)).queue();
-						}, e -> {});
-					}
-					
-					ModUtils.createModLogAndOffence(event.getGuild(), connection, event.getAuthor(), member.getUser(), "Mute " +
-							TimeUtils.toTimeString(muteLength, ChronoUnit.SECONDS) + " (" + suffixWarning + " Warning)", reason);
-					
-					
-					if (reason != null) {
-						reasons.add(reason);
-					}
-					
-					Map<String, Object> userData = new HashMap<>();
-					userData.put("warnings", userWarnings);
-					userData.put("reasons", reasons);
-					userData.put("id", member.getUser().getId());
-					users.add(userData);
-					
-					data.update(r.hashMap("users", users)).runNoReply(connection);
-					
-					List<Map<String, Object>> muteUsers = (List<Map<String, Object>>) muteDataRan.get("users");
-					muteData.update(r.hashMap("users", ModUtils.getMuteData(member.getUser().getId(), muteUsers, Math.toIntExact(muteLength)))).runNoReply(connection);
-					
-					ScheduledFuture<?> executor = MuteEvents.scheduledExectuor.schedule(() -> MuteEvents.removeUserMute(event.getGuild().getId(), member.getId(), role.getId()), muteLength, TimeUnit.SECONDS);
-					MuteEvents.putExecutor(event.getGuild().getId(), member.getUser().getId(), executor);
-				}, error -> {
-					event.reply(error).queue();
-					return;
-				});
-				
+		WarnUtils.handleWarning(event.getGuild(), member, event.getMember(), reason, (warning, exception) -> {
+			if (exception != null) {
+				event.reply(exception.getMessage() + " :no_entry:").queue();
 				return;
-			} else if (action.equals("kick")) {
-				event.reply("**" + member.getUser().getAsTag() + "** has been kicked (" + suffixWarning + " Warning) <:done:403285928233402378>").queue();
-				event.getGuild().kick(member, (reason == null ? "" : reason) + " [" + event.getAuthor().getAsTag() + "]").queue();
+			} else {
+				Document data = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("mute.users", "warn.users"));
+				List<Document> mutedUsers = data.getEmbedded(List.of("mute", "users"), Collections.emptyList());
+				List<Document> warnedUsers = data.getEmbedded(List.of("warn", "users"), Collections.emptyList());
 				
-				if (!member.getUser().isBot()) {
-					member.getUser().openPrivateChannel().queue(channel -> {
-						channel.sendMessage(ModUtils.getWarnEmbed(event.getGuild(), event.getAuthor(), warnConfig, userWarnings, true, "kicked", reason)).queue();
-					}, e -> {});
+				Long duration = warning.getDuration();
+				
+				List<WriteModel<Document>> bulkData = new ArrayList<>();
+				if (warning.getAction().equals("mute")) {
+					bulkData.add(ModUtils.getMuteUpdate(event.getGuild().getIdLong(), member.getIdLong(), mutedUsers, duration));
 				}
 				
-				ModUtils.createModLogAndOffence(event.getGuild(), connection, event.getAuthor(), member.getUser(), "Kick (" + suffixWarning + " Warning)", reason);
-			} else if (action.equals("ban")) {
-				event.reply("**" + member.getUser().getAsTag() + "** has been banned (" + suffixWarning + " Warning) <:done:403285928233402378>").queue();
-				event.getGuild().ban(member, 1, (reason == null ? "" : reason) + " [" + event.getAuthor().getAsTag() + "]").queue();
+				bulkData.add(WarnUtils.getUserUpdate(warnedUsers, event.getGuild().getIdLong(), member.getIdLong(), reason));
 				
-				if (!member.getUser().isBot()) {
-					member.getUser().openPrivateChannel().queue(channel -> {
-						channel.sendMessage(ModUtils.getWarnEmbed(event.getGuild(), event.getAuthor(), warnConfig, userWarnings, true, "banned", reason)).queue();
-					}, e -> {});
-				}
-				
-				ModUtils.createModLogAndOffence(event.getGuild(), connection, event.getAuthor(), member.getUser(), "Ban (" + suffixWarning + " Warning)", reason);
-			} else if (action.equals("warn")) {
-				event.reply("**" + member.getUser().getAsTag() + "** has been warned (" + suffixWarning + " Warning) :warning:").queue();
-				
-				if (!member.getUser().isBot()) {
-					member.getUser().openPrivateChannel().queue(channel -> {
-						channel.sendMessage(ModUtils.getWarnEmbed(event.getGuild(), event.getAuthor(), warnConfig, userWarnings, true, "warned", reason)).queue();
-					}, e -> {});
-				}
-				
-				ModUtils.createModLogAndOffence(event.getGuild(), connection, event.getAuthor(), member.getUser(), "Warn (" + suffixWarning + " Warning)", reason);
+				database.bulkWriteGuilds(bulkData, (result, writeException) -> {
+					if (writeException != null) {
+						writeException.printStackTrace();
+						event.reply(Sx4CommandEventListener.getUserErrorMessage(writeException)).queue();
+					} else {
+						event.replyFormat("**%s** has been %s%s (%s warning) <:done:403285928233402378>", member.getUser().getAsTag(), WarnUtils.getSuffixedAction(warning.getAction()), duration != null ? " for" + TimeUtils.toTimeString(duration, ChronoUnit.SECONDS) : "", warning.getWarning()).queue();
+					}
+				});
 			}
-			
-			if (reason != null) {
-				reasons.add(reason);
-			}
-			
-			Map<String, Object> userData = new HashMap<>();
-			userData.put("warnings", userWarnings);
-			userData.put("reasons", reasons);
-			userData.put("id", member.getUser().getId());
-			users.add(userData);
-			
-			data.update(r.hashMap("users", users)).runNoReply(connection);
-		} else {
-			event.reply("**" + member.getUser().getAsTag() + "** has been warned (" + suffixWarning + " Warning) :warning:").queue();
-			
-			if (!member.getUser().isBot()) {
-				member.getUser().openPrivateChannel().queue(channel -> {
-					channel.sendMessage(ModUtils.getWarnEmbed(event.getGuild(), event.getAuthor(), warnConfig, userWarnings, false, "warned", reason)).queue();
-				}, e -> {});
-			}
-			
-			ModUtils.createModLogAndOffence(event.getGuild(), connection, event.getAuthor(), member.getUser(), "Warn (" + suffixWarning + " Warning)", reason);
-			
-			if (reason != null) {
-				reasons.add(reason);
-			}
-			
-			Map<String, Object> userData = new HashMap<>();
-			userData.put("warnings", userWarnings);
-			userData.put("reasons", reasons);
-			userData.put("id", member.getUser().getId());
-			users.add(userData);
-			
-			data.update(r.hashMap("users", users)).runNoReply(connection);
-		}
+		});
 	}
 	
-	@SuppressWarnings("unchecked")
 	@Command(value="warn list", aliases={"warnlist", "warns"}, description="Gets a list of users who are warned in the current server", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-	public void warnList(CommandEvent event, @Context Connection connection) {
-		Map<String, Object> data = r.table("warn").get(event.getGuild().getId()).run(connection);
-		
-		if (data == null) {
-			event.reply("No one has been warned in this server :no_entry:").queue();
-			return;
-		}
-		
-		List<Map<String, Object>> users = (List<Map<String, Object>>) data.get("users");
+	public void warnList(CommandEvent event, @Context Database database) {
+		List<Document> users = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("warn.users")).getEmbedded(List.of("warn", "users"), Collections.emptyList());
 		if (users.isEmpty()) {
 			event.reply("No one has been warned in this server :no_entry:").queue();
 			return;
 		}
 		
 		Member member;
-		for (Map<String, Object> user : new ArrayList<>(users)) {
-			member = event.getGuild().getMemberById((String) user.get("id")); 
-			if (member == null || (long) user.get("warnings") == 0) {
+		for (Document user : new ArrayList<>(users)) {
+			member = event.getGuild().getMemberById(user.getLong("id")); 
+			if (member == null || user.getInteger("warnings") == 0) {
 				users.remove(user);
 			}
 		}
 		
-		users.sort((a, b) -> Long.compare((long) b.get("warnings"), (long) a.get("warnings"))); 
-		PagedResult<Map<String, Object>> paged = new PagedResult<>(users)
+		users.sort((a, b) -> Long.compare(b.getInteger("warnings"), a.getInteger("warnings"))); 
+		PagedResult<Document> paged = new PagedResult<>(users)
 				.setAuthor("Warned Users", null, event.getGuild().getIconUrl())
 				.setPerPage(15)
 				.setDeleteMessage(false)
 				.setIndexed(false)
 				.setFunction(userData -> {
-					Member user = event.getGuild().getMemberById((String) userData.get("id")); 
-					return "`" + user.getUser().getAsTag() + "` - Warning **#" + (long) userData.get("warnings") + "**";
+					Member user = event.getGuild().getMemberById(userData.getLong("id")); 
+					return "`" + user.getUser().getAsTag() + "` - Warning **#" + userData.getInteger("warnings") + "**";
 				});
 		
 		PagedUtils.getPagedResult(event, paged, 300, null);
 	}
 	
-	@SuppressWarnings("unchecked")
 	@Command(value="warnings", description="Displays how many warnings a specified user has", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-	public void warnings(CommandEvent event, @Context Connection connection, @Argument(value="user", endless=true, nullDefault=true) String userArgument) {
-		Map<String, Object> data = r.table("warn").get(event.getGuild().getId()).run(connection);
-		
+	public void warnings(CommandEvent event, @Context Database database, @Argument(value="user", endless=true, nullDefault=true) String userArgument) {
 		Member member;
 		if (userArgument == null) {
 			member = event.getMember();
@@ -3697,65 +3280,41 @@ public class ModModule {
 			}
 		}
 		
-		if (data == null) {
-			event.reply("That user has no warnings :no_entry:").queue();
-			return;
-		}
+		Document data = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("warn.users", "warn.punishments", "warn.configuration")).get("warn", Database.EMPTY_DOCUMENT);
 		
-		List<Map<String, Object>> users = (List<Map<String, Object>>) data.get("users");
-		if (users.isEmpty()) {
-			event.reply("That user has no warnings :no_entry:").queue();
-			return;
-		}
+		List<Document> users = data.getList("users", Document.class, Collections.emptyList());
+		List<Document> configuration = data.getList("configuration", Document.class, Collections.emptyList());
+		boolean punishments = data.getBoolean("punishments", true);
 		
-		for (Map<String, Object> user : users) {
-			if (user.get("id").equals(member.getUser().getId())) {
-				long warnings = (long) user.get("warnings");
-				List<String> reasons = (List<String>) user.get("reasons");
-				String nextAction;
-				if ((boolean) data.get("punishments") == false) {
-					nextAction = "Warn";
-				} else {
-					Map<String, Object> warning = ModUtils.getWarning((List<Map<String, Object>>) data.get("config"), warnings + 1);
-					if (warning == null) {
-						nextAction = "Warn";
-					} else {
-						if (warning.containsKey("time")) {
-							nextAction = GeneralUtils.title((String) warning.get("action")) + " (" + TimeUtils.toTimeString(warning.get("time") instanceof Integer ? (int) warning.get("time") : (long) warning.get("time"), ChronoUnit.SECONDS) + ")";
-						} else {
-							nextAction = GeneralUtils.title((String) warning.get("action"));
-						}
-					}
-				}
+		UserWarning userWarning = WarnUtils.getUserWarning(users, member.getIdLong());
+		Warning nextWarning;
+		if (punishments) {
+			nextWarning = WarnUtils.getWarning(configuration, userWarning.getWarning() + 1);
+		} else {
+			nextWarning = new Warning(userWarning.getWarning() + 1, "warn");
+		}
 				
-				EmbedBuilder embed = new EmbedBuilder();
-				embed.setColor(member.getColor());
-				embed.setAuthor(member.getUser().getAsTag(), null, member.getUser().getEffectiveAvatarUrl());
-				embed.setDescription(member.getUser().getName() + " is on " + warnings + " warning" + (warnings == 1 ? "" : "s"));
-				embed.addField("Next Action", nextAction, false);
-				embed.addField("Reasons", reasons.isEmpty() ? "None" : "`" + String.join("`, `", reasons) + "`", false);
-				event.reply(embed.build()).queue();
-				return;
-			}
-		}
-		
-		event.reply("That user has no warnings :no_entry:").queue();
+		EmbedBuilder embed = new EmbedBuilder();
+		embed.setColor(member.getColor());
+		embed.setAuthor(member.getUser().getAsTag(), null, member.getUser().getEffectiveAvatarUrl());
+		embed.setDescription(member.getUser().getName() + " is on " + userWarning.getWarning() + " warning" + (userWarning.getWarning() == 1 ? "" : "s"));
+		embed.addField("Next Action", GeneralUtils.title(nextWarning.getAction()), false);
+		embed.addField("Reasons", userWarning.getReasons().isEmpty() ? "None" : "`" + String.join("`, `", userWarning.getReasons()) + "`", false);
+		event.reply(embed.build()).queue();
 	}
 	
-	@SuppressWarnings("unchecked")
 	@Command(value="set warnings", aliases={"setwarnings", "set warns", "setwarns"}, description="Set the warning amount for a specified user", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 	@AuthorPermissions({Permission.MESSAGE_MANAGE})
-	public void setWarnings(CommandEvent event, @Context Connection connection, @Argument(value="user") String userArgument, @Argument(value="warning amount") int warningAmount) {
-		r.table("warn").insert(r.hashMap("id", event.getGuild().getId()).with("users", new Object[0]).with("punishments", true).with("config", new Object[0]).with("templates", new Object[0])).run(connection, OptArgs.of("durability", "soft"));
-		Get data = r.table("warn").get(event.getGuild().getId());
-		Map<String, Object> dataRan = data.run(connection);
-		
+	public void setWarnings(CommandEvent event, @Context Database database, @Argument(value="user") String userArgument, @Argument(value="warning amount") int warningAmount) {
 		if (warningAmount < 1) {
 			event.reply("The warning amount has to be at least 1 :no_entry:").queue();
 			return;
 		}
 		
-		long maxWarning = ModUtils.getMaxWarning((List<Map<String, Object>>) dataRan.get("config"));
+		Document data = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("warn.configuration", "warn.users")).get("warn", Database.EMPTY_DOCUMENT);
+		List<Document> configuration = data.getList("configuration", Document.class, Collections.emptyList());
+		
+		int maxWarning = WarnUtils.getMaxWarning(configuration);
 		if (warningAmount > maxWarning) {
 			event.reply("The max amount of warnings you can give is **" + maxWarning + "** :no_entry:").queue();
 			return;
@@ -3772,42 +3331,36 @@ public class ModModule {
 			return;
 		}
 		
-		List<Map<String, Object>> users = (List<Map<String, Object>>) dataRan.get("users");
-		for (Map<String, Object> user : users) {
-			if (user.get("id").equals(member.getUser().getId())) {
-				event.reply("**" + member.getUser().getAsTag() + "** has had their warnings set to **" + warningAmount + "** <:done:403285928233402378>").queue();
-				users.remove(user);
-				user.put("warnings", warningAmount);
-				users.add(user);
-				data.update(r.hashMap("users", users)).runNoReply(connection);
-				return;
+		Bson update = null;
+		UpdateOptions updateOptions = null;
+		
+		List<Document> users = data.getList("users", Document.class, Collections.emptyList());
+		for (Document user : users) {
+			if (user.getLong("id") == member.getIdLong()) {
+				updateOptions = new UpdateOptions().arrayFilters(List.of(Filters.eq("user.id", member.getIdLong())));
+				update = Updates.set("warn.users.$[user].warnings", warningAmount);
+				
+				break;
 			}
 		}
 		
-		event.reply("**" + member.getUser().getAsTag() + "** has had their warnings set to **" + warningAmount + "** <:done:403285928233402378>").queue();
-		data.update(row -> r.hashMap("users", row.g("users").append(r.hashMap("id", member.getUser().getId())
-				.with("warnings", warningAmount)
-				.with("reasons", new Object[0])))).runNoReply(connection);
+		if (update == null) {
+			update = Updates.push("warn.users", new Document("id", member.getIdLong()).append("warnings", warningAmount));
+		}
+		
+		database.updateGuildById(event.getGuild().getIdLong(), null, update, updateOptions, (result, exception) -> {
+			if (exception != null) {
+				exception.printStackTrace();
+				event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+			} else {
+				event.reply("**" + member.getUser().getAsTag() + "** has had their warnings set to **" + warningAmount + "** <:done:403285928233402378>").queue();
+			}
+		});
 	}
 	
-	@SuppressWarnings("unchecked")
 	@Command(value="reset warnings", aliases={"resetwarnings", "resetwarns", "reset warns"}, description="Reset warnings for a specified user, this'll set their warning amount of 0 and get rid of their reasons")
 	@AuthorPermissions({Permission.MESSAGE_MANAGE})
-	public void resetWarnings(CommandEvent event, @Context Connection connection, @Argument(value="user", endless=true) String userArgument) {
-		Get data = r.table("warn").get(event.getGuild().getId());
-		Map<String, Object> dataRan = data.run(connection);
-		
-		if (dataRan == null) {
-			event.reply("That user has no warnings :no_entry:").queue();
-			return;
-		}
-		
-		List<Map<String, Object>> users = (List<Map<String, Object>>) dataRan.get("users");
-		if (users.isEmpty()) {
-			event.reply("That user has no warnings :no_entry:").queue();
-			return;
-		}
-		
+	public void resetWarnings(CommandEvent event, @Context Database database, @Argument(value="user", endless=true) String userArgument) {
 		Member member = ArgumentUtils.getMember(event.getGuild(), userArgument);
 		if (member == null) {
 			event.reply("I could not find that user :no_entry:").queue();
@@ -3819,11 +3372,18 @@ public class ModModule {
 			return;
 		}
 		
-		for (Map<String, Object> user : users) {
-			if (user.get("id").equals(member.getUser().getId())) {
-				event.reply("**" + member.getUser().getAsTag() + "** has had their warnings reset <:done:403285928233402378>").queue();
-				users.remove(user);
-				data.update(r.hashMap("users", users)).runNoReply(connection);
+		List<Document> users = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("warn.users")).getEmbedded(List.of("warn", "users"), Collections.emptyList());
+		for (Document user : users) {
+			if (user.getLong("id") == member.getIdLong()) {
+				database.updateGuildById(event.getGuild().getIdLong(), Updates.pull("warn.users", Filters.eq("id", member.getIdLong())), (result, exception) -> {
+					if (exception != null) {
+						exception.printStackTrace();
+						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+					} else {
+						event.reply("**" + member.getUser().getAsTag() + "** has had their warnings reset <:done:403285928233402378>").queue();
+					}
+				});
+				
 				return;
 			}
 		}
@@ -3831,10 +3391,9 @@ public class ModModule {
 		event.reply("That user has no warnings :no_entry:").queue();
 	}
 	
-	@SuppressWarnings("unchecked")
 	@Command(value="offences", description="View the offences of a user in the current server")
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-	public void offences(CommandEvent event, @Context Connection connection, @Argument(value="user", endless=true, nullDefault=true) String userArgument) {
+	public void offences(CommandEvent event, @Context Database database, @Argument(value="user", endless=true, nullDefault=true) String userArgument) {
 		Member member;
 		if (userArgument == null) {
 			member = event.getMember();
@@ -3846,15 +3405,9 @@ public class ModModule {
 			}
 		}
 		
-		Map<String, Object> data = r.table("offence").get(member.getUser().getId()).run(connection);
-		if (data == null) {
-			event.reply("That user doesn't have any offences :no_entry:").queue();
-			return;
-		}
-		
-		List<Map<String, Object>> offences = (List<Map<String, Object>>) data.get("offences");
-		for (Map<String, Object> offence : new ArrayList<>(offences)) {
-			if (!event.getGuild().getId().equals(offence.get("server"))) {
+		List<Document> offences = database.getUserById(member.getIdLong(), null, Projections.include("offences")).getList("offences", Document.class, Collections.emptyList());
+		for (Document offence : new ArrayList<>(offences)) {
+			if (event.getGuild().getIdLong() != offence.getLong("guildId")) {
 				offences.remove(offence);
 			}
 		}
@@ -3864,37 +3417,35 @@ public class ModModule {
 			return;
 		}
 		
-		PagedResult<Map<String, Object>> paged = new PagedResult<>(offences)
+		PagedResult<Document> paged = new PagedResult<>(offences)
 				.setPerPage(5)
 				.setCustom(true)
 				.setCustomFunction(page -> {
-					List<Map<String, Object>> userOffences = page.getArray();
-					userOffences.sort((a, b) -> Long.compare((long) a.get("time"), (long) b.get("time")));
+					List<Document> userOffences = page.getArray();
 					
 					EmbedBuilder embed = new EmbedBuilder();
 					embed.setTitle("Page " + page.getCurrentPage() + "/" + page.getMaxPage());
 					embed.setAuthor(member.getUser().getAsTag() + " Offences", null, member.getUser().getEffectiveAvatarUrl());
 					embed.setFooter("next | previous | go to <page_number> | cancel", null);
 					
-					for (int i = page.getCurrentPage() * page.getPerPage() - page.getPerPage(); i < page.getCurrentPage() * page.getPerPage(); i++) {
-						Map<String, Object> userOffence;
-						try {
-							userOffence = userOffences.get(i);
-						} catch(IndexOutOfBoundsException e) {
-							continue;
-						}
+					for (int i = page.getCurrentPage() * page.getPerPage() - page.getPerPage(); i < (page.getCurrentPage() == page.getMaxPage() ? userOffences.size() : page.getCurrentPage() * page.getPerPage()); i++) {
+						Document userOffence = userOffences.get(i);
+						Long moderatorId = userOffence.getLong("moderatorId");
+						String reason = userOffence.getString("reason");
+						String proof = userOffence.getString("proof");
 						
 						String moderatorString;
-						if ((String) userOffence.get("mod") != null) {
-							Member moderator = event.getGuild().getMemberById((String) userOffence.get("mod"));
-							moderatorString = moderator == null ? (String) userOffence.get("mod") : moderator.getUser().getAsTag() + " (" + moderator.getUser().getId() + ")";
+						if (moderatorId != null) {
+							Member moderator = event.getGuild().getMemberById(moderatorId);
+							moderatorString = moderator == null ? "Unknown (" + moderatorId + ")" : moderator.getUser().getAsTag() + " (" + moderator.getUser().getId() + ")";
 						} else {
-							moderatorString = "Unknown";
+							moderatorString = "Unknown (" + moderatorId + ")";
 						}
-						String reason = (String) userOffence.get("reason") == null ? "None Given" : (String) userOffence.get("reason");
-						String proof = (String) userOffence.get("proof") == null ? "None Given" : (String) userOffence.get("proof");
-						LocalDateTime date = LocalDateTime.ofEpochSecond((long) userOffence.get("time"), 0, ZoneOffset.UTC);
-						String value = String.format("Action: %s\nReason: %s\nModerator: %s\nProof: %s\nTime: %s", (String) userOffence.get("action"), reason, moderatorString, proof, date.format(DateTimeFormatter.ofPattern("dd/MM/yy HH:mm")));
+						
+						reason = reason == null ? "None Given" : reason;
+						proof = proof == null ? "None Given" : proof;
+						LocalDateTime date = LocalDateTime.ofEpochSecond(userOffence.getLong("timestamp"), 0, ZoneOffset.UTC);
+						String value = String.format("Action: %s\nReason: %s\nModerator: %s\nProof: %s\nTime: %s", userOffence.getString("action"), reason, moderatorString, proof, date.format(DateTimeFormatter.ofPattern("dd/MM/yy HH:mm")));
 								
 						embed.addField("Offence #" + (i + 1), value, false);
 					}
@@ -3905,10 +3456,9 @@ public class ModModule {
 		PagedUtils.getPagedResult(event, paged, 300, null);
 	}
 	
-	@SuppressWarnings("unchecked")
 	@Command(value="proof", description="Update the proof of a specified users offence") 
 	@AuthorPermissions({Permission.MESSAGE_MANAGE})
-	public void proof(CommandEvent event, @Context Connection connection, @Argument(value="user") String userArgument, @Argument(value="offence number") int offenceNumber, @Argument(value="proof", endless=true) String proof) {
+	public void proof(CommandEvent event, @Context Database database, @Argument(value="user") String userArgument, @Argument(value="offence number") int offenceNumber, @Argument(value="proof", endless=true) String proof) {
 		Member member = ArgumentUtils.getMember(event.getGuild(), userArgument);
 		if (member == null) {
 			event.reply("I could not find that user :no_entry:").queue();
@@ -3925,17 +3475,11 @@ public class ModModule {
 			return;
 		}
 		
-		Get data = r.table("offence").get(member.getUser().getId());
-		Map<String, Object> dataRan = data.run(connection);
 		
-		if (dataRan == null) {
-			event.reply("That user doesn't have any offences :no_entry:").queue();
-		}
 		
-		List<Map<String, Object>> offences = (List<Map<String, Object>>) dataRan.get("offences");
-		offences.sort((a, b) -> Long.compare((long) a.get("time"), (long) b.get("time")));
-		for (Map<String, Object> offence : new ArrayList<>(offences)) {
-			if (!event.getGuild().getId().equals(offence.get("server"))) {
+		List<Document> offences = database.getUserById(member.getIdLong(), null, Projections.include("offences")).getList("offences", Document.class, Collections.emptyList());
+		for (Document offence : new ArrayList<>(offences)) {
+			if (event.getGuild().getIdLong() != offence.getLong("guildId")) {
 				offences.remove(offence);
 			}
 		}
@@ -3950,22 +3494,25 @@ public class ModModule {
 			return;
 		}
 		
-		Map<String, Object> selectedOffence = offences.get(offenceNumber - 1);
+		Document offence = offences.get(offenceNumber - 1);
+		Long moderatorId = offence.getLong("moderatorId");
 		
-		if ((String) selectedOffence.get("mod") != null) {
-			Member moderator = event.getGuild().getMemberById((String) selectedOffence.get("mod"));
-			if (!moderator.equals(event.getMember())) {
+		if (moderatorId != null) {
+			Member moderator = event.getGuild().getMemberById(moderatorId);
+			if (moderator != null && !moderator.equals(event.getMember())) {
 				event.reply("You don't have ownership to that offence :no_entry:").queue();
 				return;
 			}
 		}
 		
-		event.reply("Proof has been updated for offence **#" + offenceNumber + "** <:done:403285928233402378>").queue();
-		
-		offences.remove(selectedOffence);
-		selectedOffence.put("proof", proof);
-		offences.add(selectedOffence);
-		data.update(r.hashMap("offences", offences)).runNoReply(connection);
+		database.updateUserById(member.getIdLong(), Updates.set("offences." + (offenceNumber - 1) + ".proof", proof), (result, exception) -> {
+			if (exception != null) {
+				exception.printStackTrace();
+				event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+			} else {
+				event.reply("Proof has been updated for offence **#" + offenceNumber + "** <:done:403285928233402378>").queue();
+			}
+		});
 	}
 	
 	@Initialize(all=true)

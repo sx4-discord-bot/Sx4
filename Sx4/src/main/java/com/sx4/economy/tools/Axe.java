@@ -34,7 +34,7 @@ public class Axe extends Tool {
 	}
 	
 	public Axe(String name, Long price, CraftingRecipe craft, Material repairItem, int maximumMaterials, int durability, double multiplier) {
-		super(name, price, craft, repairItem, durability);
+		super(name, price, craft, repairItem, durability, durability);
 		
 		this.maximumMaterials = maximumMaterials;
 		this.multiplier = multiplier;

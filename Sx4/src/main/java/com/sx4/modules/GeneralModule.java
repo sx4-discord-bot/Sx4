@@ -1,7 +1,5 @@
 package com.sx4.modules;
 
-import static com.rethinkdb.RethinkDB.r;
-
 import java.awt.Color;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
@@ -23,6 +21,9 @@ import java.util.regex.Pattern;
 import java.util.stream.Collector;
 import java.util.stream.Collectors;
 
+import org.bson.BsonDocument;
+import org.bson.Document;
+import org.bson.conversions.Bson;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -35,24 +36,28 @@ import com.jockie.bot.core.command.Command.AuthorPermissions;
 import com.jockie.bot.core.command.Command.BotPermissions;
 import com.jockie.bot.core.command.Command.Cooldown;
 import com.jockie.bot.core.command.Context;
-import com.jockie.bot.core.command.ICommand;
 import com.jockie.bot.core.command.ICommand.ContentOverflowPolicy;
 import com.jockie.bot.core.command.Initialize;
 import com.jockie.bot.core.command.impl.CommandEvent;
 import com.jockie.bot.core.command.impl.CommandImpl;
 import com.jockie.bot.core.module.Module;
 import com.jockie.bot.core.option.Option;
-import com.rethinkdb.gen.ast.Get;
-import com.rethinkdb.model.OptArgs;
-import com.rethinkdb.net.Connection;
+import com.mongodb.client.FindIterable;
+import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.Projections;
+import com.mongodb.client.model.UpdateOptions;
+import com.mongodb.client.model.Updates;
 import com.sun.management.OperatingSystemMXBean;
 import com.sx4.cache.ChangesMessageCache;
 import com.sx4.categories.Categories;
 import com.sx4.core.Sx4Bot;
 import com.sx4.core.Sx4Command;
 import com.sx4.core.Sx4CommandEventListener;
+import com.sx4.database.Database;
 import com.sx4.events.AwaitEvents;
+import com.sx4.events.ConnectionEvents;
 import com.sx4.events.ReminderEvents;
+import com.sx4.events.StatsEvents;
 import com.sx4.interfaces.Sx4Callback;
 import com.sx4.settings.Settings;
 import com.sx4.utils.ArgumentUtils;
@@ -65,6 +70,7 @@ import com.sx4.utils.TokenUtils;
 
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.JDA;
+import net.dv8tion.jda.api.JDA.ShardInfo;
 import net.dv8tion.jda.api.JDAInfo;
 import net.dv8tion.jda.api.OnlineStatus;
 import net.dv8tion.jda.api.Permission;
@@ -115,8 +121,8 @@ public class GeneralModule {
 	
 	public class ReminderCommand extends Sx4Command {
 		
-		private Pattern reminderTimeRegex = Pattern.compile("(.*) in (?: *|)((?:[0-9]+(?: |)(?:[a-zA-Z]+|){1}(?: |){1}){1,})");
-		private Pattern reminderDateRegex = Pattern.compile("(.*) at (" + TimeUtils.dateRegex.pattern() + ")");
+		private final Pattern reminderTimeRegex = Pattern.compile("(.*) in (?: *|)((?:[0-9]+(?: |)(?:[a-zA-Z]+|){1}(?: |){1}){1,})");
+		private final Pattern reminderDateRegex = Pattern.compile("(.*) at (" + TimeUtils.DATE_REGEX.pattern() + ")");
 		
 		public ReminderCommand() {
 			super("reminder");
@@ -130,14 +136,11 @@ public class GeneralModule {
 		}
 		
 		@Command(value="add", description="Add a reminder so that the bot can remind you about it rather than you having to remember", argumentInfo="<reminder> in <time>")
-		public void add(CommandEvent event, @Context Connection connection, 
-				@Argument(value="reminder", endless=true) String reminder, 
-				@Option(value="repeat", aliases={"reoccur"}, description="Repeats your reminder so once it finishes it recreates one for you") boolean repeat) {
+		public void add(CommandEvent event, @Context Database database, @Argument(value="reminder", endless=true) String reminder, @Option(value="repeat", aliases={"reoccur"}, description="Repeats your reminder so once it finishes it recreates one for you") boolean repeat) {
 			Matcher timeRegex = this.reminderTimeRegex.matcher(reminder);
 			Matcher dateRegex = this.reminderDateRegex.matcher(reminder);
 			String reminderName;
-			long reminderLength;
-			long remindAt;
+			long reminderLength, remindAt;
 			long timestampNow = Clock.systemUTC().instant().getEpochSecond();
 			if (timeRegex.matches()) {
 				reminderName = timeRegex.group(1);
@@ -185,94 +188,88 @@ public class GeneralModule {
 				event.reply("Your reminder can be no longer than 1500 characters :no_entry:").queue();
 				return;
 			}
+			
+			int reminderCount = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("reminder.amount")).getEmbedded(List.of("reminder", "amount"), 0);
+			
+			Document reminderData = new Document("id", reminderCount + 1)
+					.append("reminder", reminderName)
+					.append("remindAt", remindAt)
+					.append("reminderLength", reminderLength)
+					.append("repeat", repeat);
+			
+			Bson update = Updates.combine(
+					Updates.push("reminder.reminders", reminderData),
+					Updates.inc("reminder.amount", 1)
+			);
 
-			r.table("reminders").insert(r.hashMap("id", event.getAuthor().getId()).with("reminders", new Object[0]).with("reminder_count", 0)).run(connection, OptArgs.of("durability", "soft"));
-			Get userData = r.table("reminders").get(event.getAuthor().getId());
-			long reminderCount = userData.getField("reminder_count").run(connection);
-			
-			event.reply(String.format("I have added your reminder, you will be reminded about it in `%s` (Reminder ID: **%s**)", TimeUtils.toTimeString(reminderLength, ChronoUnit.SECONDS), reminderCount + 1)).queue();
-			
-			userData.update(data -> {
-				return r.hashMap("reminders", data.g("reminders").append(
-					r.hashMap("id", data.g("reminder_count").add(1))
-						.with("reminder", reminderName)
-						.with("remind_at", remindAt)
-						.with("reminder_length", reminderLength)
-						.with("repeat", repeat)
-				)).with("reminder_count", data.g("reminder_count").add(1));
-			}).runNoReply(connection);
-			
-			ScheduledFuture<?> executor = ReminderEvents.scheduledExectuor.schedule(() -> ReminderEvents.removeUserReminder(event.getAuthor().getId(), reminderCount + 1, reminderName, reminderLength, repeat), reminderLength, TimeUnit.SECONDS);
-			ReminderEvents.putExecutor(event.getAuthor().getId(), reminderCount + 1, executor);
+			database.updateUserById(event.getAuthor().getIdLong(), update, (result, exception) -> {
+				if (exception != null) {
+					exception.printStackTrace();
+					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+				} else {
+					event.reply(String.format("I have added your reminder, you will be reminded about it in `%s` (Reminder ID: **%s**)", TimeUtils.toTimeString(reminderLength, ChronoUnit.SECONDS), reminderCount + 1)).queue();
+					ScheduledFuture<?> executor = ReminderEvents.scheduledExectuor.schedule(() -> ReminderEvents.removeUserReminder(event.getAuthor().getIdLong(), reminderCount + 1, reminderName, reminderLength, repeat), reminderLength, TimeUnit.SECONDS);
+					ReminderEvents.putExecutor(event.getAuthor().getIdLong(), reminderCount + 1, executor);
+				}
+			});
 		}
 		
-		@SuppressWarnings("unchecked")
 		@Command(value="remove", description="Remove a reminder you no longer need to be notified about")
-		public void remove(CommandEvent event, @Context Connection connection, @Argument("reminder id") long reminderId) {
-			Map<String, Object> userDataRan = r.table("reminders").get(event.getAuthor().getId()).run(connection);
-			Get userData = r.table("reminders").get(event.getAuthor().getId());
-			if (userDataRan == null) {
-				event.reply("You have not created any reminders :no_entry:").queue();
-				return;
-			} 
-			
-			List<Map<String, Object>> reminders = (List<Map<String, Object>>) userDataRan.get("reminders");
+		public void remove(CommandEvent event, @Context Database database, @Argument("reminder id") int reminderId) {
+			List<Document> reminders = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("reminder.reminders")).getEmbedded(List.of("reminder", "reminders"), Collections.emptyList());
 			if (reminders.isEmpty()) {
 				event.reply("You do not have any active reminders :no_entry:").queue();
 				return;
 			}
 			
-			Map<String, Object> reminder = userData.g("reminders").filter(data -> data.g("id").eq(reminderId)).nth(0).default_((Object) null).run(connection);
-			if (reminder == null) {
-				event.reply("I could not find that reminder :no_entry:").queue();
-				return;
+			for (Document reminder : reminders) {
+				if (reminder.getInteger("id") == reminderId) {
+					database.updateUserById(event.getAuthor().getIdLong(), Updates.pull("reminder.reminders", Filters.eq("id", reminderId)), (result, exception) -> {
+						if (exception != null) {
+							exception.printStackTrace();
+							event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+						} else {
+							event.reply("I have removed that reminder, you will no longer be reminded about it <:done:403285928233402378>").queue();
+							ReminderEvents.cancelExecutor(event.getAuthor().getIdLong(), reminderId);
+						}
+					});
+					
+					return;
+				}
 			}
 			
-			event.reply("I have removed that reminder, you will no longer be reminded about it <:done:403285928233402378>").queue();
-			userData.update(data -> {
-				return r.hashMap("reminders", data.g("reminders").filter(r -> r.g("id").ne(reminderId)));
-			}).runNoReply(connection);
-			
-			ReminderEvents.cancelExecutor(event.getAuthor().getId(), reminderId);
+			event.reply("I could not find that reminder :no_entry:").queue();
 		}
 		
-		@SuppressWarnings("unchecked")
 		@Command(value="list", description="Lists all the current reminders you have and how long left till you'll be notified about them", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-		public void list(CommandEvent event, @Context Connection connection) {
-			Map<String, Object> userData = r.table("reminders").get(event.getAuthor().getId()).run(connection);
-			if (userData == null) {
-				event.reply("You have not created any reminders :no_entry:").queue();
-				return;
-			}
-			if (((List<Map<String, Object>>) userData.get("reminders")).isEmpty()) {
+		public void list(CommandEvent event, @Context Database database) {
+			List<Document> reminders = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("reminder.reminders")).getEmbedded(List.of("reminder", "reminders"), Collections.emptyList());
+			if (reminders.isEmpty()) {
 				event.reply("You do not have any active reminders :no_entry:").queue();
 				return;
 			}
 			
-			List<Map<String, Object>> reminders = (List<Map<String, Object>>) userData.get("reminders");
-			Collections.sort(reminders, (a, b) -> Long.compare((long) a.get("id"), (long) b.get("id")));
+			reminders.sort((a, b) -> Integer.compare(a.getInteger("id"), b.getInteger("id")));
 
-			PagedResult<Map<String, Object>> paged = new PagedResult<>(reminders)
+			PagedResult<Document> paged = new PagedResult<>(reminders)
 					.setAuthor("Reminder List", null, event.getAuthor().getEffectiveAvatarUrl())
 					.setFunction(data -> {
-						String reminder;
-						if (((String) data.get("reminder")).length() > 100) {
-							reminder = ((String) data.get("reminder")).substring(0, 97) + "...";
-						} else {
-							reminder = (String) data.get("reminder");
+						String reminder = data.getString("reminder");
+						if (reminder.length() > 100) {
+							reminder = reminder.substring(0, 97) + "...";
 						}
 						
-						String time = TimeUtils.toTimeString(((long) data.get("remind_at")) - Clock.systemUTC().instant().getEpochSecond(), ChronoUnit.SECONDS);
-						return reminder + " in `" + time + "` (ID: " + data.get("id") + ")";
+						String time = TimeUtils.toTimeString(data.getLong("remindAt") - Clock.systemUTC().instant().getEpochSecond(), ChronoUnit.SECONDS);
+						return reminder + " in `" + time + "` (ID: " + data.getInteger("id") + ")";
 					})
 					.setSelectableByIndex(true)
 					.setIncreasedIndex(true);
 				
 			PagedUtils.getPagedResult(event, paged, 300, returnResult -> {
-				Map<String, Object> requestedReminder = returnResult.getObject();
-				String remindAt = TimeUtils.toTimeString(((long) requestedReminder.get("remind_at")) - Clock.systemUTC().instant().getEpochSecond(), ChronoUnit.SECONDS);
-				event.reply("ID: `" + requestedReminder.get("id") + "`\nReminder: `" + requestedReminder.get("reminder") + "`\nRemind in: `" + remindAt + "`").queue();
+				Document requestedReminder = returnResult.getObject();
+				String remindAt = TimeUtils.toTimeString(requestedReminder.getLong("remindAt") - Clock.systemUTC().instant().getEpochSecond(), ChronoUnit.SECONDS);
+				event.reply("ID: `" + requestedReminder.getInteger("id") + "`\nReminder: `" + requestedReminder.getString("reminder") + "`\nRemind in: `" + remindAt + "`").queue();
 			});
 			
 		}
@@ -281,40 +278,46 @@ public class GeneralModule {
 	
 	@Command(value="suggest", description="If suggestions are set up in the current server send in a suggestion for the chance of it being implemented and get notified when it's accpeted/declined")
 	@BotPermissions({Permission.MESSAGE_ADD_REACTION, Permission.MESSAGE_EMBED_LINKS})
-	public void suggest(CommandEvent event, @Context Connection connection, @Argument(value="suggestion", endless=true) String suggestion) {
-		Map<String, Object> dataRan = r.table("suggestions").get(event.getGuild().getId()).run(connection);
-		Get data = r.table("suggestions").get(event.getGuild().getId());
-		if (dataRan == null) {
+	public void suggest(CommandEvent event, @Context Database database, @Argument(value="suggestion", endless=true) String suggestion) {
+		Document data = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("suggestion.enabled", "suggestion.channelId")).get("suggestion", Database.EMPTY_DOCUMENT);
+		Long channelId = data.getLong("channelId");
+		
+		if (channelId == null) {
 			event.reply("Suggestions have not been setup in this server :no_entry:").queue();
 			return;
 		}
-		if (dataRan.get("channel") == null) {
-			event.reply("Suggestions have not been setup in this server :no_entry:").queue();
-			return;
-		}
-		if ((boolean) dataRan.get("toggle") == false) {
+		
+		if (!data.getBoolean("enabled", false)) {
 			event.reply("Suggestions are disabled on this server :no_entry:").queue();
 			return;
 		}
-		TextChannel channel = event.getGuild().getTextChannelById((String) dataRan.get("channel"));
+		
+		TextChannel channel = event.getGuild().getTextChannelById(channelId);
 		if (channel == null) {
 			event.reply("The set channel for suggestions no longer exists :no_entry:").queue();
 			return;
 		}
+		
 		EmbedBuilder embed = new EmbedBuilder();
 		embed.setDescription(suggestion);
 		embed.setAuthor(event.getAuthor().getAsTag(), null, event.getAuthor().getEffectiveAvatarUrl());
 		embed.setFooter("This suggestion is currently pending", null);
 		channel.sendMessage(embed.build()).queue(message -> {
-			message.addReaction("✅").queue();
-			message.addReaction("❌").queue();
-			data.update(row -> {
-				return r.hashMap("suggestions", row.g("suggestions").append(r.hashMap("id", message.getId())
-						.with("user", event.getAuthor().getId())
-						.with("accepted", null)));
-			}).runNoReply(connection);
+			Document suggestionData = new Document("id", message.getIdLong())
+					.append("userId", event.getAuthor().getIdLong())
+					.append("accepted", null);
+			
+			database.updateGuildById(event.getGuild().getIdLong(), Updates.push("suggestion.suggestions", suggestionData), (result, exception) -> {
+				if (exception != null) {
+					exception.printStackTrace();
+					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+				} else {
+					event.reply("Your suggestion has been sent to " + channel.getAsMention()).queue();
+					message.addReaction("✅").queue();
+					message.addReaction("❌").queue();
+				}
+			});
 		});	
-		event.reply("Your suggestion has been sent to " + channel.getAsMention()).queue();
 	}
 	
 	public class SuggestionCommand extends Sx4Command {
@@ -332,123 +335,123 @@ public class GeneralModule {
 		
 		@Command(value="toggle", aliases={"enable", "disable"}, description="Enables/disables suggestions in the server depending on its current state", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@AuthorPermissions({Permission.MESSAGE_MANAGE})
-		public void toggle(CommandEvent event, @Context Connection connection) {
-			r.table("suggestions").insert(r.hashMap("id", event.getGuild().getId())
-					.with("suggestions", new Object[0])
-					.with("toggle", false)
-					.with("channel", null)).run(connection, OptArgs.of("durability", "soft"));
-			Get data = r.table("suggestions").get(event.getGuild().getId());
-			boolean toggled = data.g("toggle").run(connection);
-			
-			if (toggled == true) {
-				event.reply("Suggestions are now disabled <:done:403285928233402378>").queue();
-				data.update(r.hashMap("toggle", false)).runNoReply(connection);
-			} else {
-				event.reply("Suggestions are now enabled providing you have the suggestion channel set <:done:403285928233402378>").queue();
-				data.update(r.hashMap("toggle", true)).runNoReply(connection);
-			}
+		public void toggle(CommandEvent event, @Context Database database) {
+			boolean enabled = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("suggestion.enabled")).getEmbedded(List.of("suggestion", "enabled"), false);			
+			database.updateGuildById(event.getGuild().getIdLong(), Updates.set("enabled", !enabled), (result, exception) -> {
+				if (exception != null) {
+					exception.printStackTrace();
+					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+				} else {
+					event.reply("Suggestions are now " + (enabled ? "disabled" : "enabled") + " <:done:403285928233402378>").queue();
+				}
+			});
 		}
 		
 		@Command(value="channel", description="Sets the suggestion channel for suggestions in your server")
 		@AuthorPermissions({Permission.MESSAGE_MANAGE})
-		public void channel(CommandEvent event, @Context Connection connection, @Argument(value="channel", endless=true) String channelArgument) {
-			r.table("suggestions").insert(r.hashMap("id", event.getGuild().getId())
-					.with("suggestions", new Object[0])
-					.with("toggle", false)
-					.with("channel", null)).run(connection, OptArgs.of("durability", "soft"));
-			Get data = r.table("suggestions").get(event.getGuild().getId());
-			Map<String, Object> dataRan = data.run(connection);
+		public void channel(CommandEvent event, @Context Database database, @Argument(value="channel", endless=true) String channelArgument) {
 			TextChannel channel = ArgumentUtils.getTextChannel(event.getGuild(), channelArgument);
 			if (channel == null) {
 				event.reply("I could not find that text channel :no_entry").queue();
 				return;
 			}
-			if (dataRan.get("channel") != null) {
-				if (dataRan.get("channel").equals(channel.getId())) {
-					event.reply(channel.getAsMention() + " is already the suggestion channel :no_entry:").queue();
-					return;
-				}
+			
+			long channelId = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("suggestion.channelId")).getEmbedded(List.of("suggestion", "channelId"),  0);
+			if (channelId == channel.getIdLong()) {
+				event.reply(channel.getAsMention() + " is already the suggestion channel :no_entry:").queue();
+				return;
 			}
-			event.reply("The suggestion channel is now " + channel.getAsMention() + " <:done:403285928233402378>").queue();
-			data.update(r.hashMap("channel", channel.getId())).runNoReply(connection);
+			
+			database.updateGuildById(event.getGuild().getIdLong(), Updates.set("channelId", channel.getIdLong()), (result, exception) -> {
+				if (exception != null) {
+					exception.printStackTrace();
+					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+				} else {
+					event.reply("The suggestion channel is now " + channel.getAsMention() + " <:done:403285928233402378>").queue();
+				}
+			});
 		}
 		
-		@SuppressWarnings("unchecked")
 		@Command(value="accept", description="Accepts a suggestion that a user has created this lets the user know it's been accepted and shows it's accepted in the suggestion channel")
 		@AuthorPermissions({Permission.MESSAGE_MANAGE})
 		@BotPermissions({Permission.MESSAGE_HISTORY})
-		public void accept(CommandEvent event, @Context Connection connection, @Argument(value="message id") String messageId, @Argument(value="reason", endless=true, nullDefault=true) String reason) {
-			Get data = r.table("suggestions").get(event.getGuild().getId());
-			Map<String, Object> dataRan = data.run(connection);
-			if (dataRan == null) {
-				event.reply("Suggestions have not been setup in this server :no_entry:").queue();
-				return;
-			}
-			if ((boolean) dataRan.get("toggle") == false) {
-				event.reply("Suggestions are disabled in this server :no_entry:").queue();
-				return;
-			}
-			if (dataRan.get("channel") == null) {
+		public void accept(CommandEvent event, @Context Database database, @Argument(value="message id") long messageId, @Argument(value="reason", endless=true, nullDefault=true) String reason) {
+			Document data = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("suggestion.channelId", "suggestion.suggestions")).get("suggestion", Database.EMPTY_DOCUMENT);
+			
+			Long channelId = data.getLong("channelId");
+			if (channelId == null) {
 				event.reply("Suggestions have not been setup in this server :no_entry:").queue();
 				return;
 			}
 			
-			List<Map<String, Object>> suggestions = (List<Map<String, Object>>) dataRan.get("suggestions");
-			for (Map<String, Object> suggestion : suggestions) {
-				if (messageId.equals(suggestion.get("id"))) {
-					TextChannel channel = event.getGuild().getTextChannelById((String) dataRan.get("channel"));
+			List<Document> suggestions = data.getList("suggestions", Document.class, Collections.emptyList());
+			for (Document suggestion : suggestions) {
+				if (messageId == suggestion.getLong("id")) {
+					TextChannel channel = event.getGuild().getTextChannelById(channelId);
 					if (channel == null) {
-						event.reply("The suggestion channel set no longer exists :no_entry").queue();
-						data.update(row -> {
-							return r.hashMap("suggestions", row.g("suggestions").filter(d -> d.g("id").ne(messageId)));
-						}).runNoReply(connection);
+						database.updateGuildById(event.getGuild().getIdLong(), Updates.pull("suggestion.suggestions", Filters.eq("id", messageId)), (result, exception) -> {
+							if (exception != null) {
+								exception.printStackTrace();
+								event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+							} else {
+								event.reply("The suggestion channel set no longer exists :no_entry").queue();
+							}
+						});
+						
 						return;
 					}
 					
-					try {
-						channel.retrieveMessageById(messageId).queue(message -> {
-							if (suggestion.get("accepted") != null) {
-								event.reply("This suggestion already has a verdict :no_entry:").queue();
-								return;
-							}
-								
-							MessageEmbed oldEmbed = message.getEmbeds().get(0);
-							EmbedBuilder embed = new EmbedBuilder();
-							embed.setAuthor(oldEmbed.getAuthor().getName(), null, oldEmbed.getAuthor().getIconUrl());
-							embed.setDescription(oldEmbed.getDescription());
-							embed.addField("Moderator", event.getAuthor().getAsTag(), true);
-							embed.addField("Reason", reason == null ? "Not given" : reason, true);
-							embed.setFooter("Suggestion Accepted", null);
-							embed.setColor(Color.decode("#5fe468"));
-							message.editMessage(embed.build()).queue();
-								
-							event.reply("That suggestion has been accepted <:done:403285928233402378>").queue();
-							User user = event.getShardManager().getUserById((String) suggestion.get("user"));
-							user.openPrivateChannel().queue(u -> {
-								u.sendMessage("Your suggestion below has been accepted\n" + message.getJumpUrl()).queue();
-							}, $ -> {});
-								
-							suggestions.remove(suggestion);
-							suggestion.put("accepted", true);
-							suggestions.add(suggestion);
-							data.update(r.hashMap("suggestions", suggestions)).runNoReply(connection);
+					channel.retrieveMessageById(messageId).queue(message -> {
+						if (suggestion.getBoolean("accepted") != null) {
+							event.reply("This suggestion already has a verdict :no_entry:").queue();
 							return;
-						}, e -> {
-							if (e instanceof ErrorResponseException) {
-								ErrorResponseException exception = (ErrorResponseException) e;
-								if (exception.getErrorCode() == 10008) {
-									event.reply("I could not find that message :no_entry:").queue();
-									data.update(row -> {
-										return r.hashMap("suggestions", row.g("suggestions").filter(d -> d.g("id").ne(messageId)));
-									}).runNoReply(connection);
-									return;
+						}
+							
+						MessageEmbed oldEmbed = message.getEmbeds().get(0);
+						EmbedBuilder embed = new EmbedBuilder();
+						embed.setAuthor(oldEmbed.getAuthor().getName(), null, oldEmbed.getAuthor().getIconUrl());
+						embed.setDescription(oldEmbed.getDescription());
+						embed.addField("Moderator", event.getAuthor().getAsTag(), true);
+						embed.addField("Reason", reason == null ? "Not given" : reason, true);
+						embed.setFooter("Suggestion Accepted", null);
+						embed.setColor(Color.decode("#5fe468"));
+							
+						UpdateOptions updateOptions = new UpdateOptions().arrayFilters(List.of(Filters.eq("suggestion.id", messageId)));
+						database.updateGuildById(event.getGuild().getIdLong(), null, Updates.set("suggestion.suggestions.$[suggestion].accepted", true), updateOptions, (result, exception) -> {
+							if (exception != null) {
+								exception.printStackTrace();
+								event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+							} else {
+								message.editMessage(embed.build()).queue();
+								
+								event.reply("That suggestion has been accepted <:done:403285928233402378>").queue();
+								
+								Member member = event.getGuild().getMemberById(suggestion.getLong("userId"));
+								
+								if (member != null) {
+									member.getUser().openPrivateChannel().queue(u -> u.sendMessage("Your suggestion below has been accepted\n" + message.getJumpUrl()).queue(), $ -> {});
 								}
 							}
 						});
-					} catch(IllegalArgumentException e) {
-						event.reply("I could not find that message :no_entry:").queue();
+
 						return;
-					}
+					}, e -> {
+						if (e instanceof ErrorResponseException) {
+							ErrorResponseException exception = (ErrorResponseException) e;
+							if (exception.getErrorCode() == 10008) {
+								database.updateGuildById(event.getGuild().getIdLong(), Updates.pull("suggestion.suggestions", Filters.eq("id", messageId)), (removeResult, removeException) -> {
+									if (removeException != null) {
+										removeException.printStackTrace();
+										event.reply(Sx4CommandEventListener.getUserErrorMessage(removeException)).queue();
+									} else {
+										event.reply("I could not find that message :no_entry:").queue();
+									}
+								});
+
+								return;
+							}
+						}
+					});
 					
 					return;
 				}
@@ -457,82 +460,88 @@ public class GeneralModule {
 			event.reply("That message is not a suggestion message :no_entry:").queue();			
 		}
 		
-		@SuppressWarnings("unchecked")
 		@Command(value="deny", description="Denies a suggestion that a user has created this lets the user know it's been declined and shows it's declined in the suggestion channel")
 		@AuthorPermissions({Permission.MESSAGE_MANAGE})
 		@BotPermissions({Permission.MESSAGE_HISTORY})
-		public void deny(CommandEvent event, @Context Connection connection, @Argument(value="message id") String messageId, @Argument(value="reason", endless=true, nullDefault=true) String reason) {
-			Get data = r.table("suggestions").get(event.getGuild().getId());
-			Map<String, Object> dataRan = data.run(connection);
-			if (dataRan == null) {
-				event.reply("Suggestions have not been setup in this server :no_entry:").queue();
-				return;
-			}
-			if ((boolean) dataRan.get("toggle") == false) {
-				event.reply("Suggestions are disabled in this server :no_entry:").queue();
-				return;
-			}
-			if (dataRan.get("channel") == null) {
+		public void deny(CommandEvent event, @Context Database database, @Argument(value="message id") long messageId, @Argument(value="reason", endless=true, nullDefault=true) String reason) {
+			Document data = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("suggestion.channelId", "suggestion.suggestions")).get("suggestion", Database.EMPTY_DOCUMENT);
+			
+			Long channelId = data.getLong("channelId");
+			if (channelId == null) {
 				event.reply("Suggestions have not been setup in this server :no_entry:").queue();
 				return;
 			}
 			
-			List<Map<String, Object>> suggestions = (List<Map<String, Object>>) dataRan.get("suggestions");
-			for (Map<String, Object> suggestion : suggestions) {
-				if (messageId.equals(suggestion.get("id"))) {
-					TextChannel channel = event.getGuild().getTextChannelById((String) dataRan.get("channel"));
+			List<Document> suggestions = data.getList("suggestions", Document.class, Collections.emptyList());
+			for (Document suggestion : suggestions) {
+				if (messageId == suggestion.getLong("id")) {
+					TextChannel channel = event.getGuild().getTextChannelById(channelId);
 					if (channel == null) {
-						event.reply("The suggestion channel set no longer exists :no_entry").queue();
-						data.update(row -> {
-							return r.hashMap("suggestions", row.g("suggestions").filter(d -> d.g("id").ne(messageId)));
-						}).runNoReply(connection);
+						database.updateGuildById(event.getGuild().getIdLong(), Updates.pull("suggestion.suggestions", Filters.eq("id", messageId)), (result, exception) -> {
+							if (exception != null) {
+								exception.printStackTrace();
+								event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+							} else {
+								event.reply("The suggestion channel set no longer exists :no_entry").queue();
+							}
+						});
+						
 						return;
 					}
 					
-					try {
-						channel.retrieveMessageById(messageId).queue(message -> {
-							if (suggestion.get("accepted") != null) {
-								event.reply("This suggestion already has a verdict :no_entry:").queue();
-								return;
-							}
-								
-							MessageEmbed oldEmbed = message.getEmbeds().get(0);
-							EmbedBuilder embed = new EmbedBuilder();
-							embed.setAuthor(oldEmbed.getAuthor().getName(), null, oldEmbed.getAuthor().getIconUrl());
-							embed.setDescription(oldEmbed.getDescription());
-							embed.addField("Moderator", event.getAuthor().getAsTag(), true);
-							embed.addField("Reason", reason == null ? "Not given" : reason, true);
-							embed.setFooter("Suggestion Denied", null);
-							embed.setColor(Color.decode("#f84b50"));
-							message.editMessage(embed.build()).queue();
-								
-							event.reply("That suggestion has been denied <:done:403285928233402378>").queue();
-							User user = event.getJDA().getUserById((String) suggestion.get("user"));
-							user.openPrivateChannel().queue(u -> {
-								u.sendMessage("Your suggestion below has been denied\n" + message.getJumpUrl()).queue();
-							}, $ -> {});
-								
-							suggestions.remove(suggestion);
-							suggestion.put("accepted", false);
-							suggestions.add(suggestion);
-							data.update(r.hashMap("suggestions", suggestions)).runNoReply(connection);
+					channel.retrieveMessageById(messageId).queue(message -> {
+						if (suggestion.getBoolean("accepted") != null) {
+							event.reply("This suggestion already has a verdict :no_entry:").queue();
 							return;
-						}, e -> {
-							if (e instanceof ErrorResponseException) {
-								ErrorResponseException exception = (ErrorResponseException) e;
-								if (exception.getErrorCode() == 10008) {
-									event.reply("I could not find that message :no_entry:").queue();
-									data.update(row -> {
-										return r.hashMap("suggestions", row.g("suggestions").filter(d -> d.g("id").ne(messageId)));
-									}).runNoReply(connection);
-									return;
+						}
+							
+						MessageEmbed oldEmbed = message.getEmbeds().get(0);
+						EmbedBuilder embed = new EmbedBuilder();
+						embed.setAuthor(oldEmbed.getAuthor().getName(), null, oldEmbed.getAuthor().getIconUrl());
+						embed.setDescription(oldEmbed.getDescription());
+						embed.addField("Moderator", event.getAuthor().getAsTag(), true);
+						embed.addField("Reason", reason == null ? "Not given" : reason, true);
+						embed.setFooter("Suggestion Denied", null);
+						embed.setColor(Color.decode("#f84b50"));
+							
+						UpdateOptions updateOptions = new UpdateOptions().arrayFilters(List.of(Filters.eq("suggestion.id", messageId)));
+						database.updateGuildById(event.getGuild().getIdLong(), null, Updates.set("suggestion.suggestions.$[suggestion].accepted", false), updateOptions, (result, exception) -> {
+							if (exception != null) {
+								exception.printStackTrace();
+								event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+							} else {
+								message.editMessage(embed.build()).queue();
+								
+								event.reply("That suggestion has been denied <:done:403285928233402378>").queue();
+								
+								Member member = event.getGuild().getMemberById(suggestion.getLong("userId"));
+								
+								if (member != null) {
+									member.getUser().openPrivateChannel().queue(u -> {
+										u.sendMessage("Your suggestion below has been denied\n" + message.getJumpUrl()).queue();
+									}, $ -> {});
 								}
 							}
 						});
-					} catch(IllegalArgumentException e) {
-						event.reply("I could not find that message :no_entry:").queue();
+						
 						return;
-					}
+					}, e -> {
+						if (e instanceof ErrorResponseException) {
+							ErrorResponseException exception = (ErrorResponseException) e;
+							if (exception.getErrorCode() == 10008) {
+								database.updateGuildById(event.getGuild().getIdLong(), Updates.pull("suggestion.suggestions", Filters.eq("id", messageId)), (removeResult, removeException) -> {
+									if (removeException != null) {
+										removeException.printStackTrace();
+										event.reply(Sx4CommandEventListener.getUserErrorMessage(removeException)).queue();
+									} else {
+										event.reply("I could not find that message :no_entry:").queue();
+									}
+								});
+								
+								return;
+							}
+						}
+					});
 					
 					return;
 				}
@@ -541,79 +550,83 @@ public class GeneralModule {
 			event.reply("That message is not a suggestion message :no_entry:").queue();			
 		}
 		
-		@SuppressWarnings("unchecked")
 		@Command(value="undo", description="Undoes a decision made on a suggestion to put it back to it's pending state", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@AuthorPermissions({Permission.MESSAGE_MANAGE})
 		@BotPermissions({Permission.MESSAGE_HISTORY})
-		public void undo(CommandEvent event, @Context Connection connection, @Argument(value="message ID") String messageId) {
-			Get data = r.table("suggestions").get(event.getGuild().getId());
-			Map<String, Object> dataRan = data.run(connection);
-			if (dataRan == null) {
-				event.reply("Suggestions have not been setup in this server :no_entry:").queue();
-				return;
-			}
-			if ((boolean) dataRan.get("toggle") == false) {
-				event.reply("Suggestions are disabled in this server :no_entry:").queue();
-				return;
-			}
-			if (dataRan.get("channel") == null) {
+		public void undo(CommandEvent event, @Context Database database, @Argument(value="message ID") long messageId) {
+			Document data = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("suggestion.channelId", "suggestion.suggestions")).get("suggestion", Database.EMPTY_DOCUMENT);
+			
+			Long channelId = data.getLong("channelId");
+			if (channelId == null) {
 				event.reply("Suggestions have not been setup in this server :no_entry:").queue();
 				return;
 			}
 			
-			List<Map<String, Object>> suggestions = (List<Map<String, Object>>) dataRan.get("suggestions");
-			for (Map<String, Object> suggestion : suggestions) {
-				if (messageId.equals(suggestion.get("id"))) {
-					TextChannel channel = event.getGuild().getTextChannelById((String) dataRan.get("channel"));
+			List<Document> suggestions = data.getList("suggestions", Document.class, Collections.emptyList());
+			for (Document suggestion : suggestions) {
+				if (messageId == suggestion.getLong("id")) {
+					TextChannel channel = event.getGuild().getTextChannelById(channelId);
 					if (channel == null) {
-						event.reply("The suggestion channel set no longer exists :no_entry").queue();
-						data.update(row -> {
-							return r.hashMap("suggestions", row.g("suggestions").filter(d -> d.g("id").ne(messageId)));
-						}).runNoReply(connection);
+						database.updateGuildById(event.getGuild().getIdLong(), Updates.pull("suggestion.suggestions", Filters.eq("id", messageId)), (result, exception) -> {
+							if (exception != null) {
+								exception.printStackTrace();
+								event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+							} else {
+								event.reply("The suggestion channel set no longer exists :no_entry").queue();
+							}
+						});
+						
 						return;
 					}
 					
-					try {
-						channel.retrieveMessageById(messageId).queue(message -> {
-							if (suggestion.get("accepted") == null) {
-								event.reply("This suggestion is already pending :no_entry:").queue();
-								return;
-							}
-								
-							MessageEmbed oldEmbed = message.getEmbeds().get(0);
-							EmbedBuilder embed = new EmbedBuilder();
-							embed.setAuthor(oldEmbed.getAuthor().getName(), null, oldEmbed.getAuthor().getIconUrl());
-							embed.setDescription(oldEmbed.getDescription());
-							embed.setFooter("This suggestion is currently pending", null);
-							message.editMessage(embed.build()).queue();
-								
-							event.reply("That suggestion is now pending <:done:403285928233402378>").queue();
-							User user = event.getJDA().getUserById((String) suggestion.get("user"));
-							user.openPrivateChannel().queue(u -> {
-								u.sendMessage("Your suggestion below has been undone this means it is back to its pending state\n" + message.getJumpUrl()).queue();
-							});
-								
-							suggestions.remove(suggestion);
-							suggestion.put("accepted", null);
-							suggestions.add(suggestion);
-							data.update(r.hashMap("suggestions", suggestions)).runNoReply(connection);
+					channel.retrieveMessageById(messageId).queue(message -> {
+						if (suggestion.getBoolean("accepted") == null) {
+							event.reply("This suggestion is already pending :no_entry:").queue();
 							return;
-						}, e -> {
-							if (e instanceof ErrorResponseException) {
-								ErrorResponseException exception = (ErrorResponseException) e;
-								if (exception.getErrorCode() == 10008) {
-									event.reply("I could not find that message :no_entry:").queue();
-									data.update(row -> {
-										return r.hashMap("suggestions", row.g("suggestions").filter(d -> d.g("id").ne(messageId)));
-									}).runNoReply(connection);
-									return;
+						}
+							
+						MessageEmbed oldEmbed = message.getEmbeds().get(0);
+						EmbedBuilder embed = new EmbedBuilder();
+						embed.setAuthor(oldEmbed.getAuthor().getName(), null, oldEmbed.getAuthor().getIconUrl());
+						embed.setDescription(oldEmbed.getDescription());
+						embed.setFooter("This suggestion is currently pending", null);
+							
+						UpdateOptions updateOptions = new UpdateOptions().arrayFilters(List.of(Filters.eq("suggestion.id", messageId)));
+						database.updateGuildById(event.getGuild().getIdLong(), null, Updates.set("suggestion.suggestions.$[suggestion].accepted", null), updateOptions, (result, exception) -> {
+							if (exception != null) {
+								exception.printStackTrace();
+								event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+							} else {
+								message.editMessage(embed.build()).queue();
+								
+								event.reply("That suggestion is now pending <:done:403285928233402378>").queue();
+								
+								Member member = event.getGuild().getMemberById(suggestion.getLong("userId"));
+								
+								if (member != null) {
+									member.getUser().openPrivateChannel().queue(u -> u.sendMessage("Your suggestion below has been undone this means it is back to its pending state\n" + message.getJumpUrl()).queue(), $ -> {});
 								}
 							}
 						});
-					} catch(IllegalArgumentException e) {
-						event.reply("I could not find that message :no_entry:").queue();
+						
 						return;
-					}
+					}, e -> {
+						if (e instanceof ErrorResponseException) {
+							ErrorResponseException exception = (ErrorResponseException) e;
+							if (exception.getErrorCode() == 10008) {
+								database.updateGuildById(event.getGuild().getIdLong(), Updates.pull("suggestion.suggestions", Filters.eq("id", messageId)), (removeResult, removeException) -> {
+									if (removeException != null) {
+										removeException.printStackTrace();
+										event.reply(Sx4CommandEventListener.getUserErrorMessage(removeException)).queue();
+									} else {
+										event.reply("I could not find that message :no_entry:").queue();
+									}
+								});
+								
+								return;
+							}
+						}
+					});
 					
 					return;
 				}
@@ -622,67 +635,64 @@ public class GeneralModule {
 			event.reply("That message is not a suggestion message :no_entry:").queue();			
 		}
 		
-		@SuppressWarnings("unchecked")
-		@Command(value="remove", description="Deletes a suggestion from the suggestions list, also deletes the message if it can", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Command(value="remove", aliases={"delete"}, description="Deletes a suggestion from the suggestions list, also deletes the message if it can", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@AuthorPermissions({Permission.MESSAGE_MANAGE})
 		@BotPermissions({Permission.MESSAGE_HISTORY})
-		public void remove(CommandEvent event, @Context Connection connection, @Argument(value="message ID") String messageId) {
-			Get data = r.table("suggestions").get(event.getGuild().getId());
-			Map<String, Object> dataRan = data.run(connection);
-			if (dataRan == null) {
-				event.reply("Suggestions are not set up in this server :no_entry:").queue();
-				return;
-			}
-			if ((boolean) dataRan.get("toggle") == false) {
-				event.reply("Suggestions are disabled in this server :no_entry:").queue();
-				return;
-			}
-			if (dataRan.get("channel") == null) {
+		public void remove(CommandEvent event, @Context Database database, @Argument(value="message ID") long messageId) {
+			Document data = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("suggestion.channelId", "suggestion.suggestions")).get("suggestion", Database.EMPTY_DOCUMENT);
+			
+			Long channelId = data.getLong("channelId");
+			if (channelId == null) {
 				event.reply("Suggestions have not been setup in this server :no_entry:").queue();
 				return;
 			}
 			
-			List<Map<String, Object>> suggestions = (List<Map<String, Object>>) dataRan.get("suggestions");
-			if (suggestions.isEmpty()) {
-				event.reply("No suggestions have been sent yet :no_entry:").queue();
-				return;
-			}
-			
-			for (Map<String, Object> suggestion : suggestions) {
-				if (messageId.equals(suggestion.get("id"))) {
-					TextChannel channel = event.getGuild().getTextChannelById((String) dataRan.get("channel"));
+			List<Document> suggestions = data.getList("suggestions", Document.class, Collections.emptyList());
+			for (Document suggestion : suggestions) {
+				if (messageId == suggestion.getLong("id")) {
+					TextChannel channel = event.getGuild().getTextChannelById(channelId);
 					if (channel == null) {
-						event.reply("The suggestion channel set no longer exists :no_entry").queue();
-						data.update(row -> {
-							return r.hashMap("suggestions", row.g("suggestions").filter(d -> d.g("id").ne(messageId)));
-						}).runNoReply(connection);
+						database.updateGuildById(event.getGuild().getIdLong(), Updates.pull("suggestion.suggestions", Filters.eq("id", messageId)), (result, exception) -> {
+							if (exception != null) {
+								exception.printStackTrace();
+								event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+							} else {
+								event.reply("The suggestion channel set no longer exists :no_entry").queue();
+							}
+						});
+						
 						return;
 					}
 					
-					try {
-						channel.retrieveMessageById(messageId).queue(message -> {
-							message.delete().queue();
-							event.reply("That suggestion has been deleted <:done:403285928233402378>").queue();
-							data.update(row -> {
-								return r.hashMap("suggestions", row.g("suggestions").filter(d -> d.g("id").ne(messageId)));
-							}).runNoReply(connection);
-							return;
-						}, e -> {
-							if (e instanceof ErrorResponseException) {
-								ErrorResponseException exception = (ErrorResponseException) e;
-								if (exception.getErrorCode() == 10008) {
-									event.reply("I could not find that message :no_entry:").queue();
-									data.update(row -> {
-										return r.hashMap("suggestions", row.g("suggestions").filter(d -> d.g("id").ne(messageId)));
-									}).runNoReply(connection);
-									return;
-								}
+					channel.retrieveMessageById(messageId).queue(message -> {
+						database.updateGuildById(event.getGuild().getIdLong(), Updates.pull("suggestion.suggestions", Filters.eq("id", messageId)), (result, exception) -> {
+							if (exception != null) {
+								exception.printStackTrace();
+								event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+							} else {
+								message.delete().queue();
+								event.reply("That suggestion has been deleted <:done:403285928233402378>").queue();
 							}
-						});	
-					} catch(IllegalArgumentException e) {
-						event.reply("I could not find that message :no_entry:").queue();
+						});
+
 						return;
-					}
+					}, e -> {
+						if (e instanceof ErrorResponseException) {
+							ErrorResponseException exception = (ErrorResponseException) e;
+							if (exception.getErrorCode() == 10008) {
+								database.updateGuildById(event.getGuild().getIdLong(), Updates.pull("suggestion.suggestions", Filters.eq("id", messageId)), (removeResult, removeException) -> {
+									if (removeException != null) {
+										removeException.printStackTrace();
+										event.reply(Sx4CommandEventListener.getUserErrorMessage(removeException)).queue();
+									} else {
+										event.reply("I could not find that message :no_entry:").queue();
+									}
+								});
+								
+								return;
+							}
+						}
+					});	
 					
 					return;
 				}
@@ -691,28 +701,27 @@ public class GeneralModule {
 			event.reply("That message is not a suggestion message :no_entry:").queue();		  
 		}
 		
-		@SuppressWarnings("unchecked")
-		@Command(value="delete", aliases={"wipe"}, description="Wipes all of the suggestions in the server", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Command(value="reset", aliases={"wipe"}, description="Wipes all of the suggestions in the server", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@AuthorPermissions({Permission.MESSAGE_MANAGE})
-		public void delete(CommandEvent event, @Context Connection connection) {
-			Get data = r.table("suggestions").get(event.getGuild().getId());
-			Map<String, Object> dataRan = data.run(connection);
-			if (dataRan == null) {
-				event.reply("There are no suggestions in this server :no_entry:").queue();
-				return;
-			}		
-			List<Map<String, Object>> suggestions = (List<Map<String, Object>>) dataRan.get("suggestions");
+		public void reset(CommandEvent event, @Context Database database) {
+			List<Document> suggestions = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("suggestion.suggestions")).getEmbedded(List.of("suggestion", "suggestions"), Collections.emptyList());
 			if (suggestions.isEmpty()) {
 				event.reply("There are no suggestions in this server :no_entry:").queue();
 				return;
 			}
 			
 			event.reply("**" + event.getAuthor().getName() + "**, are you sure you want to delete all the suggestions in the server?").queue(message -> {
-				PagedUtils.getConfirmation(event, 30, event.getAuthor(), onReturn -> {
-					if (onReturn == true) {
-						event.reply("All suggestions have been deleted <:done:403285928233402378>").queue();
-						data.update(r.hashMap("suggestions", new Object[0])).runNoReply(connection);
-					} else if (onReturn == false) {
+				PagedUtils.getConfirmation(event, 30, event.getAuthor(), confirmation -> {
+					if (confirmation) {
+						database.updateGuildById(event.getGuild().getIdLong(), Updates.unset("suggestion.suggestions"), (result, exception) -> {
+							if (exception != null) {
+								exception.printStackTrace();
+								event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+							} else {
+								event.reply("All suggestions have been deleted <:done:403285928233402378>").queue();
+							}
+						});
+					} else {
 						event.reply("Cancelled <:done:403285928233402378>").queue();
 					}
 					
@@ -721,75 +730,59 @@ public class GeneralModule {
 			});
 		}
 		
-		@SuppressWarnings("unchecked")
 		@Command(value="list", description="View all the suggestions which have been sent in, shows whether they have been declined/accepted and provides a jump link", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-		public void list(CommandEvent event, @Context Connection connection) {
-			Map<String, Object> data = r.table("suggestions").get(event.getGuild().getId()).run(connection);
-			if (data == null) {
-				event.reply("Suggestions are not set up in this server :no_entry:").queue();
-				return;
-			}
-			if ((boolean) data.get("toggle") == false) {
-				event.reply("Suggestions are disabled in this server :no_entry:").queue();
-				return;
-			}
-			if (data.get("channel") == null) {
+		public void list(CommandEvent event, @Context Database database) {
+			Document data = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("suggestion.channelId", "suggestion.suggestions")).get("suggestion", Database.EMPTY_DOCUMENT);
+			
+			Long channelId = data.getLong("channelId");
+			if (channelId == null) {
 				event.reply("Suggestions have not been setup in this server :no_entry:").queue();
 				return;
 			}
 			
-			List<Map<String, Object>> suggestions = (List<Map<String, Object>>) data.get("suggestions");
+			List<Document> suggestions = data.getList("suggestions", Document.class, Collections.emptyList());
 			if (suggestions.isEmpty()) {
 				event.reply("No suggestions have been sent yet :no_entry:").queue();
 				return;
 			}
 			
-			PagedResult<Map<String, Object>> paged = new PagedResult<>(suggestions)
+			PagedResult<Document> paged = new PagedResult<>(suggestions)
 					.setIndexed(false)
 					.setAuthor("Suggestions", null, event.getGuild().getIconUrl())
 					.setFunction(d -> {
 						String accepted;
-						if (d.get("accepted") == null) {
+						if (d.getBoolean("accepted") == null) {
 							accepted = "Pending";
-						} else if ((boolean) d.get("accepted") == false) {
-							accepted = "Denied";
-						} else {
+						} else if (d.getBoolean("accepted")) {
 							accepted = "Accepted";
+						} else {
+							accepted = "Denied";
 						}
 						
-						User user = event.getShardManager().getUserById((String) d.get("user"));
-						return "[" + (user != null ? user.getName() + "'s" : d.get("user")) + " Suggestion - " + accepted + "](https://discordapp.com/channels/" + 
-								event.getGuild().getId() + "/" + data.get("channel") + "/" + d.get("id") + ")";
+						User user = event.getShardManager().getUserById(d.getLong("userId"));
+						return "[" + (user != null ? user.getName() + "'s" : d.getLong("userId")) + " Suggestion - " + accepted + "](https://discordapp.com/channels/" + 
+								event.getGuild().getId() + "/" + channelId + "/" + d.getLong("id") + ")";
 					});
 			
 			PagedUtils.getPagedResult(event, paged, 300, null);
 		}
 		
-		@SuppressWarnings("unchecked")
 		@Command(value="stats", aliases={"settings", "setting"}, description="View the settings for suggestions in the current server", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-		public void stats(CommandEvent event, @Context Connection connection) {
-			Map<String, Object> data = r.table("suggestions").get(event.getGuild().getId()).run(connection);
-			if (data == null) {
-				event.reply("Suggestions are not set up in this server :no_entry:").queue();
-				return;
-			}
+		public void stats(CommandEvent event, @Context Database database) {
+			Document data = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("suggestion.channelId", "suggestion.suggestions", "suggestion.enabled")).get("suggestion", Database.EMPTY_DOCUMENT);
 			
-			boolean toggled = (boolean) data.get("toggle");
-			int suggestions = ((List<Map<String, Object>>) data.get("suggestions")).size();
-			
-			TextChannel channel = null;
-			if ((String) data.get("channel") != null) {
-				channel = event.getGuild().getTextChannelById((String) data.get("channel"));
-			}
+			List<Document> suggestions = data.getList("suggestions", Document.class, Collections.emptyList());
+			Long channelId = data.getLong("channelId");
+			TextChannel channel = channelId == null ? null : event.getGuild().getTextChannelById(channelId);
 			
 			EmbedBuilder embed = new EmbedBuilder()
 					.setAuthor("Suggestion Settings", null, event.getGuild().getIconUrl())
 					.setColor(Settings.EMBED_COLOUR)
-					.addField("Status", toggled == false ? "Disabled" : "Enabled", true)
+					.addField("Status", data.getBoolean("enabled", false) ? "Enabled" : "Disabled", true)
 					.addField("Channel", channel == null ? "Not Set" : channel.getAsMention(), true)
-					.addField("Suggestions", suggestions + "", true);
+					.addField("Suggestions", String.valueOf(suggestions.size()), true);
 			
 			event.reply(embed.build()).queue();
 			
@@ -812,10 +805,9 @@ public class GeneralModule {
 			event.reply(HelpUtils.getHelpMessage(event.getCommand())).queue();
 		}
 		
-		@SuppressWarnings("unchecked")
 		@Command(value="channel", aliases={"toggle"}, description="Toggle image mode on/off in a certain channel")
 		@AuthorPermissions({Permission.MESSAGE_MANAGE})
-		public void channel(CommandEvent event, @Context Connection connection, @Argument(value="channel", endless=true, nullDefault=true) String channelArgument) {
+		public void channel(CommandEvent event, @Context Database database, @Argument(value="channel", endless=true, nullDefault=true) String channelArgument) {
 			TextChannel channel;
 			if (channelArgument == null) {
 				channel = event.getTextChannel();
@@ -827,32 +819,39 @@ public class GeneralModule {
 				}
 			}
 			
-			r.table("imagemode").insert(r.hashMap("id", event.getGuild().getId()).with("channels", new Object[0])).run(connection, OptArgs.of("durability", "soft"));
-			Get data = r.table("imagemode").get(event.getGuild().getId());
-			Map<String, Object> dataRan = data.run(connection);
 			
-			for (Map<String, Object> channelData : (List<Map<String, Object>>) dataRan.get("channels")) {
-				if (channelData.get("id").equals(channel.getId())) {
-					event.reply("Image mode in " + channel.getAsMention() + " is now disabled <:done:403285928233402378>").queue();
-					data.update(row -> {
-						return r.hashMap("channels", row.g("channels").filter(d -> d.g("id").ne(channel.getId())));
-					}).runNoReply(connection);
+			List<Document> channels = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("imageMode.channels")).getEmbedded(List.of("imageMode", "channels"), Collections.emptyList());
+			for (Document channelData : channels) {
+				if (channelData.getLong("id") == channel.getIdLong()) {
+					database.updateGuildById(event.getGuild().getIdLong(), Updates.pull("imageMode.channels", Filters.eq("id", channel.getIdLong())), (result, exception) -> {
+						if (exception != null) {
+							exception.printStackTrace();
+							event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+						} else {
+							event.reply("Image mode in " + channel.getAsMention() + " is now disabled <:done:403285928233402378>").queue();
+						}
+					});
 					
 					return;
 				}
 			}
 			
-			event.reply("Image mode in " + channel.getAsMention() + " is now enabled <:done:403285928233402378>").queue();
-			data.update(row -> {
-				return r.hashMap("channels", row.g("channels").append(r.hashMap("id", channel.getId())
-						.with("slowmode", "0")
-						.with("users", new Object[0])));
-			}).runNoReply(connection);
+			Document imageMode = new Document("id", channel.getIdLong())
+					.append("slowmode", 0)
+					.append("users", Collections.emptyList());
+			
+			database.updateGuildById(event.getGuild().getIdLong(), Updates.push("imageMode.channels", imageMode), (result, exception) -> {
+				if (exception != null) {
+					exception.printStackTrace();
+					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+				} else {
+					event.reply("Image mode in " + channel.getAsMention() + " is now enabled <:done:403285928233402378>").queue();
+				}
+			});
 		}
 		
-		@SuppressWarnings("unchecked")
 		@Command(value="slowmode", aliases={"slow mode", "sm"}, description="Add a slowmode to the current channel (Providing image mode is turned on in the current channel) so users can only send an image every however long you choose")
-		public void slowmode(CommandEvent event, @Context Connection connection, @Argument(value="time", endless=true) String timeString) {
+		public void slowmode(CommandEvent event, @Context Database database, @Argument(value="time", endless=true) String timeString) {
 			long slowmode = 0;
 			if (!nullStrings.contains(timeString)) {
 				try {
@@ -863,22 +862,21 @@ public class GeneralModule {
 				}
 			}
 			
-			r.table("imagemode").insert(r.hashMap("id", event.getGuild().getId()).with("channels", new Object[0])).run(connection, OptArgs.of("durability", "soft"));
-			Get data = r.table("imagemode").get(event.getGuild().getId());
-			Map<String, Object> dataRan = data.run(connection);
-			
-			List<Map<String, Object>> channels = (List<Map<String, Object>>) dataRan.get("channels");
-			for (Map<String, Object> channelData : channels) {
-				if (event.getTextChannel().getId().equals(channelData.get("id"))) {
-					if (slowmode == 0) {
-						event.reply("Slowmode has been turned off for image mode in this channel <:done:403285928233402378>").queue();
-					} else {
-						event.reply("Slowmode has been set to " + TimeUtils.toTimeString(slowmode, ChronoUnit.SECONDS) + " for image mode in this channel <:done:403285928233402378>").queue();
-					}
-					channels.remove(channelData);
-					channelData.put("slowmode", String.valueOf(slowmode));
-					channels.add(channelData);
-					data.update(r.hashMap("channels", channels)).runNoReply(connection);
+			List<Document> channels = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("imageMode.channels")).getEmbedded(List.of("imageMode", "channels"), Collections.emptyList());
+			for (Document channelData : channels) {
+				if (event.getChannel().getIdLong() == channelData.getLong("id")) {
+					String reply = "Slowmode has been " + (slowmode == 0 ? "turned off" : "set to " + TimeUtils.toTimeString(slowmode, ChronoUnit.SECONDS)) + " for image mode in this channel <:done:403285928233402378>";
+					
+					UpdateOptions updateOptions = new UpdateOptions().arrayFilters(List.of(Filters.eq("channel.id", event.getChannel().getIdLong())));
+					database.updateGuildById(event.getGuild().getIdLong(), null, Updates.set("imageMode.channels.$[channel].slowmode", slowmode), updateOptions, (result, exception) -> {
+						if (exception != null) {
+							exception.printStackTrace();
+							event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+						} else {
+							event.reply(reply).queue();
+						}
+					});
+
 					return;
 				}
 			}
@@ -886,10 +884,9 @@ public class GeneralModule {
 			event.reply("Image mode needs to be enabled in this channel to be able to change the slowmode :no_entry:").queue();		
 		}
 		
-		@SuppressWarnings("unchecked")
 		@Command(value="stats", aliases={"settings", "setting"}, description="View settings for image mode in a specific channel")
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-		public void stats(CommandEvent event, @Context Connection connection, @Argument(value="channel", endless=true, nullDefault=true) String channelArgument) {
+		public void stats(CommandEvent event, @Context Database database, @Argument(value="channel", endless=true, nullDefault=true) String channelArgument) {
 			TextChannel channel;
 			if (channelArgument == null) {
 				channel = event.getTextChannel();
@@ -901,11 +898,10 @@ public class GeneralModule {
 				}
 			}
 			
-			Map<String, Object> data = r.table("imagemode").get(event.getGuild().getId()).run(connection);
-			
-			for (Map<String, Object> channelData : (List<Map<String, Object>>) data.get("channels")) {
-				if (channel.getId().equals(channelData.get("id"))) {
-					int slowmode = Integer.parseInt((String) channelData.get("slowmode"));
+			List<Document> channels = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("imageMode.channels")).getEmbedded(List.of("imageMode", "channels"), Collections.emptyList());
+			for (Document channelData : channels) {
+				if (channel.getIdLong() == channelData.getLong("id")) {
+					long slowmode = channelData.getLong("slowmode");
 					EmbedBuilder embed = new EmbedBuilder();
 					embed.setColor(Settings.EMBED_COLOUR);
 					embed.setAuthor("Image Mode Settings", null, event.getGuild().getIconUrl());
@@ -917,47 +913,103 @@ public class GeneralModule {
 				}
 			}
 			
-			event.reply("Image mode is not set up in this channel :no_entry:").queue();
+			event.reply("Image mode is not set up in " + (event.getTextChannel().equals(channel) ? "this" : "that") + " channel :no_entry:").queue();
 		}
 		
 	}
 	
 	@Command(value="usage", description="Shows you how much a specific command has been used on Sx4")
-	public void usage(CommandEvent event, @Context Connection connection, @Argument(value="command name", endless=true, nullDefault=true) String commandName) {
-		Get data = r.table("botstats").get("stats");
-		for (ICommand command : event.getCommandListener().getAllCommands()) {
-			if (command.getCommandTrigger().toLowerCase().equals(commandName.toLowerCase())) {
-				Map<String, Object> commandData = data.g("commandcounter").filter(d -> d.g("name").eq(command.getCommandTrigger())).nth(0).default_((Object) null).run(connection);
-				
-				if (commandData == null) {
-					event.reply("This command hasn't been used yet :no_entry:").queue();
-				} else {
-					long amount = (long) commandData.get("amount");
-					event.reply("`" + event.getCommandTrigger() + "` has been used **" + amount + "** time" + (amount == 1 ? "" : "s") + " since 14/10/18").queue();
-				}
-				
-				return;
+	public void usage(CommandEvent event, @Context Database database, @Argument(value="command name", endless=true, nullDefault=true) String commandName, @Option(value="server", aliases={"guild"}) String guildArgument, @Option(value="user") String userArgument, @Option(value="channel") String channelArgument) {
+		Sx4Command command = ArgumentUtils.getCommand(commandName);
+		if (command == null) {
+			event.reply("I could not find that command :no_entry:").queue();
+		}
+		
+		Bson filter = Filters.eq("command", command.getCommandTrigger());
+		if (guildArgument != null) {
+			Guild guild = ArgumentUtils.getGuild(guildArgument);
+			if (guild != null) {
+				filter = Filters.and(Filters.eq("guildId", guild.getIdLong()), filter);
+			}
+		} 
+		
+		if (userArgument != null) {
+			User user = ArgumentUtils.getUser(userArgument);
+			if (user != null) {
+				filter = Filters.and(Filters.eq("authorId", user.getIdLong()), filter);
 			}
 		}
 		
-		event.reply("I could not find that command :no_entry:").queue();
+		if (channelArgument != null) {
+			TextChannel channel = ArgumentUtils.getTextChannel(event.getGuild(), channelArgument);
+			if (channel != null) {
+				filter = Filters.and(Filters.eq("channelId", channel.getIdLong()), filter);
+			}
+		}
+		
+		long used = database.getCommandLogs().countDocuments(filter);
+		event.reply("`" + command.getCommandTrigger() + "` has been used **" + used + "** time" + (used == 1 ? "" : "s")).queue();
 	}
 	
-	@SuppressWarnings("unchecked")
 	@Command(value="top commands", aliases={"topcmds", "topcommands", "top cmds"}, description="View the top used commands on Sx4", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+	@Async
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-	public void topcommands(CommandEvent event, @Context Connection connection) {
-		Get data = r.table("botstats").get("stats");
-		List<Map<String, Object>> commands = (List<Map<String, Object>>) data.g("commandcounter").run(connection);
-		commands.sort((a, b) -> Long.compare((long) b.get("amount"), (long) a.get("amount")));
+	public void topcommands(CommandEvent event, @Context Database database, @Option(value="server", aliases={"guild"}) String guildArgument, @Option(value="user") String userArgument, @Option(value="channel") String channelArgument) {
+		Bson filter = new BsonDocument();
+		if (guildArgument != null) {
+			Guild guild = ArgumentUtils.getGuild(guildArgument);
+			if (guild != null) {
+				filter = Filters.and(Filters.eq("guildId", guild.getIdLong()), filter);
+			}
+		} 
 		
-		PagedResult<Map<String, Object>> paged = new PagedResult<>(commands)
-				.setFunction(d -> {
-					long amount = (long) d.get("amount");
-					return String.format("`%s` - %,d %s", d.get("name"), amount, amount == 1 ? "use" : "uses");
-				})
+		if (userArgument != null) {
+			User user = ArgumentUtils.getUser(userArgument);
+			if (user != null) {
+				filter = Filters.and(Filters.eq("authorId", user.getIdLong()), filter);
+			}
+		}
+		
+		if (channelArgument != null) {
+			TextChannel channel = ArgumentUtils.getTextChannel(event.getGuild(), channelArgument);
+			if (channel != null) {
+				filter = Filters.and(Filters.eq("channelId", channel.getIdLong()), filter);
+			}
+		}
+		
+		FindIterable<Document> commands = database.getCommandLogs().find(filter).projection(Projections.include("command"));
+		List<Pair<String, Long>> commandCounter = new ArrayList<>();
+		for (Document command : commands) {
+			if (commandCounter.isEmpty()) {
+				commandCounter.add(Pair.of(command.getString("command"), 1L));
+			} else {
+				boolean updated = false;
+				for (Pair<String, Long> commandData : commandCounter) {
+					if (commandData.getLeft().equals(command.getString("command"))) {
+						commandCounter.remove(commandData);
+						commandCounter.add(Pair.of(commandData.getLeft(), commandData.getRight() + 1L));
+						
+						updated = true;
+						break;
+					}
+				}
+				
+				if (!updated) {
+					commandCounter.add(Pair.of(command.getString("command"), 1L));
+				}
+			}
+		}
+		
+		if (commandCounter.isEmpty()) {
+			event.reply("I could not find any command usage with those parameters :no_entry:").queue();
+			return;
+		}
+		
+		PagedResult<Pair<String, Long>> paged = new PagedResult<>(commandCounter)
+				.setFunction(data -> String.format("`%s` - %,d %s", data.getLeft(), data.getRight(), data.getRight() == 1 ? "use" : "uses"))
 				.setAuthor("Top Commands", null, event.getSelfUser().getEffectiveAvatarUrl())
 				.setIncreasedIndex(true);
+		
 		PagedUtils.getPagedResult(event, paged, 300, null);
 	}
 	
@@ -1219,20 +1271,18 @@ public class GeneralModule {
 		});
 	}
 	
-	@SuppressWarnings("unchecked")
 	@Command(value="await", description="Notifies you when a user comes online")
-	public void await(CommandEvent event, @Context Connection connection, @Argument(value="user(s)") String[] users) {
-		List<String> memberIds = new ArrayList<>(), memberTags = new ArrayList<>();
+	public void await(CommandEvent event, @Context Database database, @Argument(value="user(s)") String[] users) {
+		List<Long> memberIds = new ArrayList<>();
+		List<String> memberTags = new ArrayList<>();
 		for (String user : users) {
 			Member member = ArgumentUtils.getMember(event.getGuild(), user);
-			if (member == null) {
-				continue;
-			} else {
+			if (member != null) {
 				if (!member.getOnlineStatus().equals(OnlineStatus.OFFLINE)) {
 					event.reply("**" + member.getUser().getAsTag() + "** is already online :no_entry:").queue();
 					return;
 				} else {
-					memberIds.add(member.getUser().getId());
+					memberIds.add(member.getUser().getIdLong());
 					memberTags.add(member.getUser().getAsTag());
 				}
 			}
@@ -1243,18 +1293,23 @@ public class GeneralModule {
 			return;
 		}
 		
-		r.table("await").insert(r.hashMap("id", event.getAuthor().getId()).with("users", new Object[0])).run(connection, OptArgs.of("durability", "soft"));
-		Get userData = r.table("await").get(event.getAuthor().getId());
-		for (String memberId : (List<String>) userData.g("users").run(connection)) {
+		List<Long> dataUsers = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("await.users")).getEmbedded(List.of("await", "users"), Collections.emptyList());
+		for (long memberId : dataUsers) {
 			if (memberIds.contains(memberId)) {
 				event.reply(event.getGuild().getMemberById(memberId).getUser().getAsTag() + " is already awaited :no_entry:").queue();
 				return;
 			}
 		}
 		
-		AwaitEvents.addUsers(event.getAuthor().getId(), memberIds);
-		userData.update(row -> r.hashMap("users", row.g("users").and(memberIds))).runNoReply(connection);
-		event.reply("You will be notified when `" + String.join(", ", memberTags) + "` comes online <:done:403285928233402378>").queue();
+		database.updateUserById(event.getAuthor().getIdLong(), Updates.pushEach("await.users", memberIds), (result, exception) -> {
+			if (exception != null) {
+				exception.printStackTrace();
+				event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+			} else {
+				AwaitEvents.addUsers(event.getAuthor().getIdLong(), memberIds);
+				event.reply("You will be notified when `" + String.join(", ", memberTags) + "` comes online <:done:403285928233402378>").queue();
+			}
+		});
 	}
 	
 	@Command(value="join position", aliases={"joinposition"}, description="Shows you when a user joined/what user joined in a certain position")
@@ -1347,8 +1402,8 @@ public class GeneralModule {
 	public void discordBotList(CommandEvent event, @Argument(value="bot", endless=true, nullDefault=true) String argument) {
 		String url;
 		if (argument != null) {
-			Matcher mentionMatch = ArgumentUtils.userMentionRegex.matcher(argument);
-			Matcher tagMatch = ArgumentUtils.userTagRegex.matcher(argument);
+			Matcher mentionMatch = ArgumentUtils.USER_MENTION_REGEX.matcher(argument);
+			Matcher tagMatch = ArgumentUtils.USER_TAG_REGEX.matcher(argument);
 			if (argument.matches("\\d+")) {
 				url = "https://discordbots.org/api/bots?search=id:" + argument + "&sort=points";
 			} else if (mentionMatch.matches()) {
@@ -1367,7 +1422,7 @@ public class GeneralModule {
 		
 		Request request = new Request.Builder()
 				.url(url)
-				.addHeader("Authorization", TokenUtils.DISCORD_BOT_LIST)
+				.addHeader("Authorization", TokenUtils.DISCORD_BOT_LIST_ORG)
 				.build();
 		
 		Sx4Bot.client.newCall(request).enqueue((Sx4Callback) response -> {
@@ -1417,7 +1472,7 @@ public class GeneralModule {
 		
 		Request request = new Request.Builder()
 				.url("https://discordbots.org/api/bots?sort=server_count&limit=500&fields=username,server_count,id")
-				.addHeader("Authorization", TokenUtils.DISCORD_BOT_LIST)
+				.addHeader("Authorization", TokenUtils.DISCORD_BOT_LIST_ORG)
 				.build();
 		
 		Sx4Bot.client.newCall(request).enqueue((Sx4Callback) response -> {
@@ -1447,7 +1502,10 @@ public class GeneralModule {
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void ping(CommandEvent event) {
 		event.getJDA().getRestPing().queue(time -> {
-			event.reply(String.format("Pong! :ping_pong:\n\n:stopwatch: **%dms**\n:heartbeat: **%dms**", time, event.getJDA().getGatewayPing())).queue();
+			long gatewayPing = event.getJDA().getGatewayPing();
+			long lastGatewayPing = ConnectionEvents.getLastGatewayPing();
+			long difference = gatewayPing - lastGatewayPing;
+			event.reply(String.format("Pong! :ping_pong:\n\n:stopwatch: **%dms**\n:heartbeat: **%dms**", time, gatewayPing) + (lastGatewayPing == -1 ? "" : String.format(" (%s%dms)", difference < 0 ? "" : "+", difference))).queue();
 		});
 	}
 	
@@ -1554,20 +1612,29 @@ public class GeneralModule {
 	@Command(value="shard info", aliases={"shards", "shardinfo"}, description="Views Sx4s shards and some basic stats on them", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void shardInfo(CommandEvent event) {
-		int totalShards = event.getJDA().getShardInfo().getShardTotal();
-		EmbedBuilder embed = new EmbedBuilder();
-		embed.setDescription(String.format("```prolog\nTotal Shards: %d\nTotal Servers: %,d\nTotal Users: %,d\nAverage Ping: %.0fms```", totalShards, event.getShardManager().getGuilds().size(), event.getShardManager().getUsers().size(), event.getShardManager().getAverageGatewayPing()));
-		embed.setAuthor("Shard Info!", null, event.getSelfUser().getEffectiveAvatarUrl());
-		embed.setFooter("> Indicates what shard your server is in", event.getAuthor().getEffectiveAvatarUrl());
-		embed.setColor(Settings.EMBED_COLOUR);
+		ShardInfo shardInfo = event.getJDA().getShardInfo();
+		PagedResult<JDA> paged = new PagedResult<>(event.getShardManager().getShards())
+				.setPerPage(9)
+				.setDeleteMessage(false)
+				.setCustom(true)
+				.setCustomFunction(page -> {
+					EmbedBuilder embed = new EmbedBuilder();
+					embed.setDescription(String.format("```prolog\nTotal Shards: %d\nTotal Servers: %,d\nTotal Users: %,d\nAverage Ping: %.0fms```", shardInfo.getShardTotal(), event.getShardManager().getGuilds().size(), event.getShardManager().getUsers().size(), event.getShardManager().getAverageGatewayPing()));
+					embed.setAuthor("Shard Info!", null, event.getSelfUser().getEffectiveAvatarUrl());
+					embed.setFooter("next | previous | go to <page> | cancel");
+					embed.setColor(Settings.EMBED_COLOUR);
+					
+					List<JDA> shards = page.getArray();
+					for (int i = page.getCurrentPage() * page.getPerPage() - page.getPerPage(); i < (page.getMaxPage() == page.getCurrentPage() ? shards.size() : page.getCurrentPage() * page.getPerPage()); i++) {
+						JDA shard = shards.get(i);
+						String currentShard = shardInfo.getShardId() == i ? "> " : "";
+						embed.addField(currentShard + "Shard " + (i + 1), String.format("%,d servers\n%,d users\n%dms\n%s", shard.getGuilds().size(), shard.getUsers().size(), shard.getGatewayPing(), shard.getStatus().toString()), true);
+					}
+					
+					return embed.build();
+				});
 		
-		for (int i = 0; i < totalShards; i++) {
-			JDA shard = event.getShardManager().getShardById(i);
-			String currentShard = event.getJDA().getShardInfo().getShardId() == i ? "> " : "";
-			embed.addField(currentShard + "Shard " + (i + 1), String.format("%,d servers\n%,d users\n%dms", shard.getGuilds().size(), shard.getUsers().size(), shard.getGatewayPing()), true);
-		}
-		
-		event.reply(embed.build()).queue();
+		PagedUtils.getPagedResult(event, paged, 300, null);
 	}
 	
 	@Command(value="mutual servers", aliases={"mutual guilds", "shared servers", "shared guilds", "sharedguilds", "sharedservers", "mutualguilds", "mutualservers"}, description="View the mutual guilds you have with Sx4")
@@ -1837,47 +1904,42 @@ public class GeneralModule {
 		
 		@Command(value="toggle", aliases={"enable", "disable"}, description="Toggle triggers on/off for the current server", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@AuthorPermissions({Permission.MESSAGE_MANAGE})
-		public void toggle(CommandEvent event, @Context Connection connection) {
-			r.table("triggers").insert(r.hashMap("id", event.getGuild().getId()).with("toggle", true).with("case", true).with("triggers", new Object[0])).run(connection, OptArgs.of("durability", "soft"));
-			Get data = r.table("triggers").get(event.getGuild().getId());
-			Map<String, Object> dataRan = data.run(connection);
-			
-			if ((boolean) dataRan.get("toggle") == true) {
-				event.reply("Triggers are now disabled in this server <:done:403285928233402378>").queue();
-				data.update(r.hashMap("toggle", false)).runNoReply(connection);
-			} else if ((boolean) dataRan.get("toggle") == false) {
-				event.reply("Triggers are now enabled in this server <:done:403285928233402378>").queue();
-				data.update(r.hashMap("toggle", true)).runNoReply(connection);
-			}
+		public void toggle(CommandEvent event, @Context Database database) {
+			boolean enabled = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("trigger.enabled")).getEmbedded(List.of("trigger", "enabled"), false);
+			database.updateGuildById(event.getGuild().getIdLong(), Updates.set("trigger.enabled", !enabled), (result, exception) -> {
+				if (exception != null) {
+					exception.printStackTrace();
+					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+				} else {
+					event.reply("Triggers are now " + (enabled ? "disabled" : "enabled") + " in this server <:done:403285928233402378>").queue();
+				}
+			});
 		}
 		
 		@Command(value="case", aliases={"case sensitive", "case toggle", "casesensitive", "casetoggle"}, description="Toggles whether you want your triggers in the server to be case sensitive or not", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@AuthorPermissions({Permission.MESSAGE_MANAGE})
-		public void caseSensitive(CommandEvent event, @Context Connection connection) {
-			r.table("triggers").insert(r.hashMap("id", event.getGuild().getId()).with("toggle", true).with("case", true).with("triggers", new Object[0])).run(connection, OptArgs.of("durability", "soft"));
-			Get data = r.table("triggers").get(event.getGuild().getId());
-			Map<String, Object> dataRan = data.run(connection);
-			
-			if ((boolean) dataRan.get("case") == true) {
-				event.reply("Triggers are no longer case sensitive in this server <:done:403285928233402378>").queue();
-				data.update(r.hashMap("case", false)).runNoReply(connection);
-			} else if ((boolean) dataRan.get("case") == false) {
-				event.reply("Triggers are now case sensitive in this server <:done:403285928233402378>").queue();
-				data.update(r.hashMap("case", true)).runNoReply(connection);
-			}
+		public void caseSensitive(CommandEvent event, @Context Database database) {
+			boolean caseSensitive = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("trigger.case")).getEmbedded(List.of("trigger", "case"), false);
+			database.updateGuildById(event.getGuild().getIdLong(), Updates.set("trigger.case", !caseSensitive), (result, exception) -> {
+				if (exception != null) {
+					exception.printStackTrace();
+					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+				} else {
+					event.reply("Triggers are " + (caseSensitive ? "no longer" : "now") + " case sensitive in this server <:done:403285928233402378>").queue();
+				}
+			});
 		}
 		
 		@Command(value="list", description="Shows a list of all the triggers which are in the server", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-		public void list(CommandEvent event, @Context Connection connection) {
-			List<Map<String, Object>> triggers = r.table("triggers").get(event.getGuild().getId()).g("triggers").default_(new Object[0]).run(connection);
-			
+		public void list(CommandEvent event, @Context Database database) {
+			List<Document> triggers = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("trigger.triggers")).getEmbedded(List.of("trigger", "triggers"),  Collections.emptyList());
 			if (triggers.isEmpty()) {
 				event.reply("This server has no triggers :no_entry:").queue();
 				return;
 			}
 			
-			PagedResult<Map<String, Object>> paged = new PagedResult<>(triggers)
+			PagedResult<Document> paged = new PagedResult<>(triggers)
 					.setIndexed(false)
 					.setPerPage(5)
 					.setDeleteMessage(false)
@@ -1886,20 +1948,9 @@ public class GeneralModule {
 						int extraChars = 9 //'Trigger: ' length
 								+ 10 //'Response: ' length
 								+ 3; //3 new lines
-						String triggerText, responseText;
-						if (trigger.get("trigger") instanceof byte[]) {
-							triggerText = new String((byte[]) trigger.get("trigger"));
-						} else {
-							triggerText = (String) trigger.get("trigger");
-						}
-
 						
-						if (trigger.get("response") instanceof byte[]) {
-							responseText = new String((byte[]) trigger.get("response"));
-						} else {
-							responseText = (String) trigger.get("response");
-						}
-						
+						String triggerText = trigger.getString("trigger");
+						String responseText = trigger.getString("response");
 						int maxResponseLength = (MessageEmbed.TEXT_MAX_LENGTH/5) - extraChars - triggerText.length();
 						return String.format("Trigger: %s\nResponse: %s\n", triggerText, responseText.substring(0, Math.min(maxResponseLength, responseText.length())));
 					});
@@ -1907,60 +1958,75 @@ public class GeneralModule {
 			PagedUtils.getPagedResult(event, paged, 300, null);
 		}
 		
-		@SuppressWarnings("unchecked")
 		@Command(value="add", description="Add a trigger to the server")
 		@AuthorPermissions({Permission.MESSAGE_MANAGE})
-		public void add(CommandEvent event, @Context Connection connection, @Argument(value="trigger") String triggerText, @Argument(value="response", endless=true) String responseText) {
-			r.table("triggers").insert(r.hashMap("id", event.getGuild().getId()).with("toggle", true).with("case", true).with("triggers", new Object[0])).run(connection, OptArgs.of("durability", "soft"));
-			Get data = r.table("triggers").get(event.getGuild().getId());
-			Map<String, Object> dataRan = data.run(connection);
-			
+		public void add(CommandEvent event, @Context Database database, @Argument(value="trigger") String triggerText, @Argument(value="response", endless=true) String responseText) {
 			if (triggerText.toLowerCase().equals(responseText.toLowerCase())) {
-				event.reply("You can't have a trigger be the same as the response :no_entry:").queue();
+				event.reply("You can't have a trigger with the same content as the response :no_entry:").queue();
 				return;
 			}
 			
-			for (Map<String, Object> triggerData : (List<Map<String, Object>>) dataRan.get("triggers")) {
-				String trigger;
-				if (triggerData.get("trigger") instanceof byte[]) {
-					trigger = new String((byte[]) triggerData.get("trigger"));
-				} else {
-					trigger = (String) triggerData.get("trigger");
-				}
-				
-				if (trigger.toLowerCase().equals(triggerText.toLowerCase())) {
+			List<Document> triggers = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("trigger.triggers")).getEmbedded(List.of("trigger", "triggers"),  Collections.emptyList());
+			for (Document triggerData : triggers) {
+				if (triggerData.getString("trigger").toLowerCase().equals(triggerText.toLowerCase())) {
 					event.reply("There is already a trigger with that name :no_entry:").queue();
 					return;
 				}
 			}
 			
-			event.reply("The trigger **" + triggerText + "** has been created <:done:403285928233402378>").queue();
-			data.update(row -> r.hashMap("triggers", row.g("triggers").append(r.hashMap("trigger", triggerText).with("response", responseText)))).runNoReply(connection);
+			Document triggerDocument = new Document("trigger", triggerText)
+					.append("response", responseText);
+			
+			database.updateGuildById(event.getGuild().getIdLong(), Updates.push("trigger.triggers", triggerDocument), (result, exception) -> {
+				if (exception != null) {
+					exception.printStackTrace();
+					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+				} else {
+					event.reply("The trigger **" + triggerText + "** has been created <:done:403285928233402378>").queue();
+				}
+			});
 		}
 		
-		@SuppressWarnings("unchecked")
-		@Command(value="remove", description="Remove a trigger from the server") 
+		@Command(value="edit", description="Edit a trigger on the server") 
 		@AuthorPermissions({Permission.MESSAGE_MANAGE})
-		public void remove(CommandEvent event, @Context Connection connection, @Argument(value="trigger", endless=true) String trigger) {
-			Get data = r.table("triggers").get(event.getGuild().getId());
-			Map<String, Object> dataRan = data.run(connection);
-			
-			if (dataRan == null) {
-				event.reply("This server has no triggers :no_entry:").queue();
-				return;
+		public void edit(CommandEvent event, @Context Database database, @Argument(value="trigger") String trigger, @Argument(value="response", endless=true) String response) {
+			List<Document> triggers = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("trigger.triggers")).getEmbedded(List.of("trigger", "triggers"),  Collections.emptyList());
+			for (Document triggerData : triggers) {
+				String triggerText = triggerData.getString("trigger");
+				if (trigger.toLowerCase().equals(triggerText.toLowerCase())) {
+					UpdateOptions updateOptions = new UpdateOptions().arrayFilters(List.of(Filters.eq("trigger.trigger", triggerText)));
+					database.updateGuildById(event.getGuild().getIdLong(), null, Updates.pull("trigger.triggers.$[trigger].response", response), updateOptions, (result, exception) -> {
+						if (exception != null) {
+							exception.printStackTrace();
+							event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+						} else {
+							event.reply("The trigger **" + triggerText + "** has been edited <:done:403285928233402378>").queue();
+						}
+					});
+					
+					return;
+				}
 			}
 			
-			for (Map<String, Object> triggerData : (List<Map<String, Object>>) dataRan.get("triggers")) {
-				String triggerText;
-				if (triggerData.get("trigger") instanceof byte[]) {
-					triggerText = new String((byte[]) triggerData.get("trigger"));
-				} else {
-					triggerText = (String) triggerData.get("trigger");
-				}
-				
+			event.reply("I could not find that trigger :no_entry:").queue();
+		}
+		
+		@Command(value="remove", description="Remove a trigger from the server") 
+		@AuthorPermissions({Permission.MESSAGE_MANAGE})
+		public void remove(CommandEvent event, @Context Database database, @Argument(value="trigger", endless=true) String trigger) {
+			List<Document> triggers = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("trigger.triggers")).getEmbedded(List.of("trigger", "triggers"),  Collections.emptyList());
+			for (Document triggerData : triggers) {
+				String triggerText = triggerData.getString("trigger");
 				if (trigger.toLowerCase().equals(triggerText.toLowerCase())) {
-					event.reply("The trigger **" + triggerText + "** has been removed <:done:403285928233402378>").queue();
-					data.update(row -> r.hashMap("triggers", row.g("triggers").filter(d -> d.g("trigger").ne(triggerText)))).runNoReply(connection);
+					database.updateGuildById(event.getGuild().getIdLong(), Updates.pull("trigger.triggers", Filters.eq("trigger", triggerText)), (result, exception) -> {
+						if (exception != null) {
+							exception.printStackTrace();
+							event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+						} else {
+							event.reply("The trigger **" + triggerText + "** has been removed <:done:403285928233402378>").queue();
+						}
+					});
+					
 					return;
 				}
 			}
@@ -1983,7 +2049,7 @@ public class GeneralModule {
 		PagedUtils.getPagedResult(event, paged, 300, null);
 	}
 	
-	private HashMap<OnlineStatus, String> statuses = new HashMap<>();
+	private Map<OnlineStatus, String> statuses = new HashMap<>();
 	{
 		statuses.put(OnlineStatus.ONLINE, "Online<:online:361440486998671381>");
 		statuses.put(OnlineStatus.IDLE, "Idle<:idle:361440487233814528>");
@@ -2129,25 +2195,28 @@ public class GeneralModule {
 	}
 	
 	@Command(value="server stats", aliases={"serverstats", "guildstats", "guild stats"}, description="View the stats of the current server, includes member joined and messages sent in the past 24h", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
-	public void serverStats(CommandEvent event, @Context Connection connection) {
-		Map<String, Object> data = r.table("stats").get(event.getGuild().getId()).run(connection);
+	public void serverStats(CommandEvent event, @Context Database database) {
+		Document data = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("stats")).get("stats", Database.EMPTY_DOCUMENT);
 		EmbedBuilder embed = new EmbedBuilder()
 				.setAuthor(event.getGuild().getName() + " Stats", null, event.getGuild().getIconUrl())
-				.addField("Users Joined Today", String.format("%,d", data == null ? 0 : (long) data.get("members")), true)
-				.addField("Messages Sent Today", String.format("%,d", data == null ? 0 : (long) data.get("messages")), true);
+				.addField("Users Joined Today", String.format("%,d", data.get("members", 0)), true)
+				.addField("Messages Sent Today", String.format("%,d", data.get("messages", 0)), true);
 		
 		event.reply(embed.build()).queue();
 	}
 	
-	private static final long  MEGABYTE = 1024L * 1024L;
-	private static final long GIGABYTE = MEGABYTE * 1024L;
+	private final long  megabyte = 1024L * 1024L;
+	private final long gigabyte = this.megabyte * 1024L;
 	
-	@SuppressWarnings("unchecked")
 	@Command(value="stats", description="Views Sx4s current stats", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	@Async
-	public void stats(CommandEvent event, @Context Connection connection) {
-		Map<String, Object> botData = r.table("botstats").get("stats").run(connection);
+	public void stats(CommandEvent event, @Context Database database) {
+		long timestampNow = Clock.systemUTC().instant().getEpochSecond();
+		Bson timeFilter = Filters.gte("timestamp", timestampNow - StatsEvents.DAY_IN_SECONDS);
+		long messagesSent = database.getMessageLogs().countDocuments(Filters.and(Filters.eq("authorId", event.getSelfUser().getIdLong()), timeFilter));
+		long commandsUsed = database.getCommandLogs().countDocuments(timeFilter);
+		int guildsGained = database.getGuildsGained(timeFilter);
 		
 		List<Guild> guilds = event.getShardManager().getGuilds();
 		List<Member> members = ArgumentUtils.getAllUniqueMembers();
@@ -2158,19 +2227,19 @@ public class GeneralModule {
 		long totalMemory = ((OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean()).getTotalPhysicalMemorySize();
 		long memoryUsed = runtime.totalMemory() - runtime.freeMemory();
 		StringBuilder memoryString = new StringBuilder();
-		if (memoryUsed >= GIGABYTE) {
-			double memoryUsedGb = (double) memoryUsed / GIGABYTE;
+		if (memoryUsed >= this.gigabyte) {
+			double memoryUsedGb = (double) memoryUsed / this.gigabyte;
 			memoryString.append(String.format("%.2fGiB/", memoryUsedGb));
 		} else {
-			double memoryUsedMb = (double) memoryUsed / MEGABYTE;
+			double memoryUsedMb = (double) memoryUsed / this.megabyte;
 			memoryString.append(String.format("%.0fMiB/", memoryUsedMb));
 		}
 		
-		if (totalMemory >= GIGABYTE) {
-			double totalMemoryGb = (double) totalMemory / GIGABYTE;
+		if (totalMemory >= this.gigabyte) {
+			double totalMemoryGb = (double) totalMemory / this.gigabyte;
 			memoryString.append(String.format("%.2fGiB ", totalMemoryGb));
 		} else {
-			double totalMemoryMb = (double) totalMemory / MEGABYTE;
+			double totalMemoryMb = (double) totalMemory / this.megabyte;
 			memoryString.append(String.format("%.0fMiB ", totalMemoryMb));
 		}
 		
@@ -2187,12 +2256,12 @@ public class GeneralModule {
 		embed.addField("Threads", String.valueOf(Thread.activeCount()), true);
 		embed.addField("Text Channels", String.valueOf(event.getShardManager().getTextChannels().size()), true);
 		embed.addField("Voice Channels", String.valueOf(event.getShardManager().getVoiceChannels().size()), true);
-		embed.addField("Servers Joined Today", String.valueOf(guilds.size() - (long) botData.get("servercountbefore")), true);
-		embed.addField("Commands Used Today", String.valueOf((long) botData.get("commands")), true);
-		embed.addField("Messages Sent Today", String.valueOf((long) botData.get("messages")), true);
+		embed.addField("Servers Joined (Last 24h)", String.valueOf(guildsGained), true);
+		embed.addField("Commands Used (Last 24h)", String.valueOf(commandsUsed), true);
+		embed.addField("Messages Sent (Last 24h)", String.valueOf(messagesSent), true);
 		embed.addField("Average Execution Time", String.format("%.2fms", (double) Sx4CommandEventListener.getAverageExecutionTime() / 1000000), true);
 		embed.addField("Servers", String.format("%,d", guilds.size()), true);
-		embed.addField(String.format("Users (%,d total)", members.size()), String.format("%,d Online\n%,d Offline\n%,d have used the bot", onlineMembers.size(), members.size() - onlineMembers.size(), ((List<String>) botData.get("users")).size()), true);
+		embed.addField(String.format("Users (%,d total)", members.size()), String.format("%,d Online\n%,d Offline", onlineMembers.size(), members.size() - onlineMembers.size()), true);
 		
 		event.reply(embed.build()).queue();
 	}

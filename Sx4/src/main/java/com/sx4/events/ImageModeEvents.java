@@ -1,17 +1,19 @@
 package com.sx4.events;
 
-import static com.rethinkdb.RethinkDB.r;
-
 import java.time.OffsetDateTime;
 import java.time.temporal.ChronoUnit;
-import java.util.HashMap;
+import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-import com.rethinkdb.gen.ast.Get;
-import com.rethinkdb.net.Connection;
-import com.sx4.core.Sx4Bot;
+import org.bson.Document;
+import org.bson.conversions.Bson;
+
+import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.Projections;
+import com.mongodb.client.model.UpdateOptions;
+import com.mongodb.client.model.Updates;
+import com.sx4.database.Database;
 import com.sx4.utils.TimeUtils;
 
 import net.dv8tion.jda.api.entities.EmbedType;
@@ -24,22 +26,14 @@ public class ImageModeEvents extends ListenerAdapter {
 
 	private List<String> supportedFileTypes = List.of("png", "jpg", "jpeg", "gif", "webp", "mp4", "gifv", "mov", "image");
 	
-	@SuppressWarnings("unchecked")
 	public void onGuildMessageReceived(GuildMessageReceivedEvent event) {
 		if (event.getAuthor().isBot()) {
 			return;
 		}
 		
-		Connection connection = Sx4Bot.getConnection();
-		Get data = r.table("imagemode").get(event.getGuild().getId());
-		Map<String, Object> dataRan = data.run(connection);
-		if (dataRan == null) {
-			return;
-		}
-		
-		List<Map<String, Object>> channels = (List<Map<String, Object>>) dataRan.get("channels");
-		for (Map<String, Object> channelData : channels) {
-			if (channelData.get("id").equals(event.getChannel().getId())) {
+		List<Document> channels = Database.get().getGuildById(event.getGuild().getIdLong(), null, Projections.include("imageMode.channels")).getEmbedded(List.of("imageMode", "channels"), Collections.emptyList());
+		for (Document channelData : channels) {
+			if (channelData.getLong("id") == event.getChannel().getIdLong()) {
 				if (event.getMessage().getAttachments().isEmpty()) {
 					if (event.getMessage().getEmbeds().isEmpty()) {
 						event.getMessage().delete().queue(null, e -> {});
@@ -98,42 +92,47 @@ public class ImageModeEvents extends ListenerAdapter {
 					}
 				}
 				
-				long slowmode = Long.parseLong((String) channelData.get("slowmode"));
-				if (slowmode != 0) {
-					List<Map<String, Object>> users = (List<Map<String, Object>>) channelData.get("users");
+				Long slowmode = channelData.getLong("slowmode");
+				if (slowmode != null && slowmode != 0) {
+					List<Document> users = channelData.getList("users", Document.class, Collections.emptyList());
 					OffsetDateTime timeCreated = event.getMessage().getTimeCreated();
-					for (Map<String, Object> userData : users) {
-						if (userData.get("id").equals(event.getAuthor().getId())) {
-							if (timeCreated.toEpochSecond() - (double) userData.get("timestamp") < slowmode) {
-								long timeTill = (long) ((double) userData.get("timestamp") - timeCreated.toEpochSecond() + slowmode);
+					for (Document userData : users) {
+						if (userData.getLong("id") == event.getAuthor().getIdLong()) {
+							if (timeCreated.toEpochSecond() - userData.getLong("timestamp") < slowmode) {
+								long timeTill = userData.getLong("timestamp") - timeCreated.toEpochSecond() + slowmode;
 								event.getMessage().delete().queue(null, e -> {});
 								event.getChannel().sendMessage(event.getAuthor().getAsMention() + ", You can send another image in " + TimeUtils.toTimeString(timeTill, ChronoUnit.SECONDS) + " :stopwatch:").queue(message -> {
 									message.delete().queueAfter(10, TimeUnit.SECONDS, null, e -> {});
 								});
 							} else {
-								channels.remove(channelData);
-								users.remove(userData);
-								userData.put("timestamp", (double) timeCreated.toInstant().toEpochMilli() / 1000);
-								users.add(userData);
-								channelData.put("users", users);
-								channels.add(channelData);
+								Bson update = Updates.set("imageMode.channels.$[channel].users.$[user].timestamp", timeCreated.toInstant().getEpochSecond());
 								
-								data.update(r.hashMap("channels", channels)).runNoReply(connection);
+								List<Bson> arrayFilters = List.of(Filters.eq("channel.id", event.getChannel().getIdLong()), Filters.eq("user.id", event.getAuthor().getIdLong()));
+								UpdateOptions updateOptions = new UpdateOptions().arrayFilters(arrayFilters).upsert(true);
+								
+								Database.get().updateGuildById(event.getGuild().getIdLong(), null, update, updateOptions, (result, exception) -> {
+									if (exception != null) {
+										exception.printStackTrace();
+									}
+								});
 							}
 							
 							return;
 						}
 					}
 					
-					channels.remove(channelData);
-					Map<String, Object> userData = new HashMap<>();
-					userData.put("id", event.getAuthor().getId());
-					userData.put("timestamp", (double) timeCreated.toInstant().toEpochMilli() / 1000);
-					users.add(userData);
-					channelData.put("users", users);
-					channels.add(channelData);
+					Document newUserData = new Document("id", event.getAuthor().getIdLong())
+							.append("timestamp", timeCreated.toInstant().getEpochSecond());
 					
-					data.update(r.hashMap("channels", channels)).runNoReply(connection);
+					Bson update = Updates.push("imageMode.channels.$[channel].users", newUserData);
+					
+					UpdateOptions updateOptions = new UpdateOptions().arrayFilters(List.of(Filters.eq("channel.id", event.getChannel().getIdLong())));
+					
+					Database.get().updateGuildById(event.getGuild().getIdLong(), null, update, updateOptions, (result, exception) -> {
+						if (exception != null) {
+							exception.printStackTrace();
+						}
+					});
 				}
 			}
 		}
