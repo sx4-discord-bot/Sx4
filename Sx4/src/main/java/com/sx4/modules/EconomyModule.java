@@ -19,7 +19,6 @@ import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
-import org.bson.BsonDocument;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.json.JSONArray;
@@ -37,7 +36,6 @@ import com.jockie.bot.core.command.impl.CommandEvent;
 import com.jockie.bot.core.command.impl.CommandImpl;
 import com.jockie.bot.core.module.Module;
 import com.jockie.bot.core.option.Option;
-import com.mongodb.MongoClientSettings;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Projections;
@@ -128,7 +126,7 @@ public class EconomyModule {
 		@Command(value="buy", description="Buy a crate displayed in the crate shop")
 		public void buy(CommandEvent event, @Context Database database, @Argument(value="crate name", endless=true) String crateArgument) {
 			Document data = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance", "economy.items")).get("economy", Database.EMPTY_DOCUMENT);
-			List<Document> items = data.getList("items", Document.class, Collections.emptyList());
+			List<Document> items = data.getList("items", Document.class, new ArrayList<>());
 			long balance = data.get("balance", 0L);
 			
 			Pair<String, BigInteger> cratePair = EconomyUtils.getItemAndAmount(crateArgument);
@@ -153,14 +151,14 @@ public class EconomyModule {
 			
 			BigInteger price = BigInteger.valueOf(crate.getPrice()).multiply(crateAmount);
 			if (BigInteger.valueOf(balance).compareTo(price) != -1) {
-				UpdateOneModel<Document> updateModel = EconomyUtils.getAddItemModel(items, crate, crateAmount.longValue());
-				UpdateOptions updateOptions = new UpdateOptions().arrayFilters(updateModel.getOptions().getArrayFilters()).upsert(true);
+				EconomyUtils.addItem(items, crate, crateAmount.longValue());
+				
 				Bson update = Updates.combine(
-						updateModel.getUpdate(),
+						Updates.set("economy.items", items),
 						Updates.inc("economy.balance", -price.longValue())
 				);
 				
-				database.updateUserById(event.getAuthor().getIdLong(), null, update, updateOptions, (result, exception) -> {
+				database.updateUserById(event.getAuthor().getIdLong(), update, (result, exception) -> {
 					if (exception != null) {
 						exception.printStackTrace();
 						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
@@ -199,7 +197,7 @@ public class EconomyModule {
 				return;
 			}
 			
-			List<Document> userItems =  data.getList("items", Document.class, Collections.emptyList());
+			List<Document> userItems =  data.getList("items", Document.class, new ArrayList<>());
 			
 			List<Item> itemsWon = new ArrayList<>();
 			List<ItemStack> finalItems = new ArrayList<>();
@@ -239,11 +237,6 @@ public class EconomyModule {
 					}
 				}
 				
-				UpdateOneModel<Document> updateModel = EconomyUtils.getRemoveItemModel(userItems, crate, crateAmount.longValue());
-				Bson userUpdate = updateModel.getUpdate();
-				List<Bson> arrayFilters = new ArrayList<>();
-				arrayFilters.addAll(updateModel.getOptions().getArrayFilters());
-				
 				EmbedBuilder embed = new EmbedBuilder();
 				embed.setAuthor(event.getAuthor().getName(), null, event.getAuthor().getEffectiveAvatarUrl());
 				embed.setColor(event.getMember().getColor());
@@ -258,16 +251,15 @@ public class EconomyModule {
 							content += ", ";
 						}
 						
-						UpdateOneModel<Document> itemUpdateModel = EconomyUtils.getAddItemModel(userItems, finalItem);
-						userUpdate = Updates.combine(userUpdate, itemUpdateModel.getUpdate());
-						arrayFilters.addAll(itemUpdateModel.getOptions().getArrayFilters());
+						EconomyUtils.addItem(userItems, finalItem);
 					}
 					
 					embed.setDescription(String.format("You opened `%,d %s` and won **%s** :tada:", crateAmount, crate.getName(), content));
 				}
 				
-				UpdateOptions updateOptions = new UpdateOptions().arrayFilters(arrayFilters).upsert(true);
-				database.updateUserById(event.getAuthor().getIdLong(), null, userUpdate, updateOptions, (result, exception) -> {
+				EconomyUtils.removeItem(userItems, crate, crateAmount.longValue());
+				
+				database.updateUserById(event.getAuthor().getIdLong(), Updates.set("economy.items", userItems), (result, exception) -> {
 					if (exception != null) {
 						exception.printStackTrace();
 						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
@@ -409,12 +401,8 @@ public class EconomyModule {
 										return;
 									}
 									
-									List<Document> authorItemsData = newAuthorData.getList("items", Document.class, Collections.emptyList());
-									List<Document> userItemsData = newUserData.getList("items", Document.class, Collections.emptyList());
-									
-									Bson authorUpdate = Updates.inc("economy.balance", userMoney - authorMoney), userUpdate = Updates.inc("economy.balance", authorMoney - userMoney);
-									List<Bson> arrayFilters = new ArrayList<>();
-									
+									List<Document> authorItemsData = newAuthorData.getList("items", Document.class, new ArrayList<>());
+									List<Document> userItemsData = newUserData.getList("items", Document.class, new ArrayList<>());									
 									for (ItemStack itemStack : authorItems) {
 										ItemStack authorItem = EconomyUtils.getUserItem(authorItemsData, itemStack.getItem());
 										if (authorItem.getAmount() < itemStack.getAmount()) {
@@ -424,16 +412,8 @@ public class EconomyModule {
 										
 										totalAuthorWorth += !itemStack.getItem().isBuyable() ? 0 : itemStack.getItem().getPrice();
 										
-										UpdateOneModel<Document> authorUpdateModel = EconomyUtils.getRemoveItemModel(authorItemsData, itemStack);
-										UpdateOneModel<Document> userUpdateModel = EconomyUtils.getAddItemModel(userItemsData, itemStack);
-										List<? extends Bson> itemArrayFilters = authorUpdateModel.getOptions().getArrayFilters();
-										
-										if (!arrayFilters.containsAll(itemArrayFilters)) {
-											arrayFilters.addAll(itemArrayFilters);
-										}
-										
-										authorUpdate = Updates.combine(authorUpdate, authorUpdateModel.getUpdate());
-										userUpdate = Updates.combine(userUpdate, userUpdateModel.getUpdate());
+										EconomyUtils.removeItem(authorItemsData, itemStack);
+										EconomyUtils.addItem(userItemsData, itemStack);
 									}
 									
 									for (ItemStack itemStack : userItems) {
@@ -445,16 +425,8 @@ public class EconomyModule {
 										
 										totalUserWorth += !itemStack.getItem().isBuyable() ? 0 : itemStack.getItem().getPrice();
 										
-										UpdateOneModel<Document> authorUpdateModel = EconomyUtils.getAddItemModel(authorItemsData, itemStack);
-										UpdateOneModel<Document> userUpdateModel = EconomyUtils.getRemoveItemModel(userItemsData, itemStack);
-										List<? extends Bson> itemArrayFilters = authorUpdateModel.getOptions().getArrayFilters();
-										
-										if (!arrayFilters.containsAll(itemArrayFilters)) {
-											arrayFilters.addAll(itemArrayFilters);
-										}
-										
-										authorUpdate = Updates.combine(authorUpdate, authorUpdateModel.getUpdate());
-										userUpdate = Updates.combine(userUpdate, userUpdateModel.getUpdate());
+										EconomyUtils.addItem(authorItemsData, itemStack);
+										EconomyUtils.removeItem(userItemsData, itemStack);
 									}
 									
 									if (totalUserWorth / totalAuthorWorth > 20 || totalAuthorWorth / totalUserWorth > 20) {
@@ -462,7 +434,10 @@ public class EconomyModule {
 										return;
 									}
 									
-									UpdateOptions updateOptions = new UpdateOptions().arrayFilters(arrayFilters).upsert(true);
+									Bson authorUpdate = Updates.combine(Updates.inc("economy.balance", userMoney - authorMoney), Updates.set("economy.items", authorItemsData));
+									Bson userUpdate = Updates.combine(Updates.inc("economy.balance", authorMoney - userMoney), Updates.set("economy.items", userItemsData));
+									
+									UpdateOptions updateOptions = new UpdateOptions().upsert(true);
 									List<WriteModel<Document>> bulkData = List.of(
 											new UpdateOneModel<>(Filters.eq("_id", event.getAuthor().getIdLong()), authorUpdate, updateOptions),
 											new UpdateOneModel<>(Filters.eq("_id", member.getIdLong()), userUpdate, updateOptions)
@@ -524,7 +499,7 @@ public class EconomyModule {
 		@Command(value="buy", description="Buy a booster listed in the booster shop")
 		public void buy(CommandEvent event, @Context Database database, @Argument(value="booster name", endless=true) String boosterArgument) {
 			Document data = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance")).get("economy", Database.EMPTY_DOCUMENT);
-			List<Document> items = data.getList("items", Document.class, Collections.emptyList());
+			List<Document> items = data.getList("items", Document.class, new ArrayList<>());
 			long balance = data.get("balance", 0L);
 			
 			Pair<String, BigInteger> boosterPair = EconomyUtils.getItemAndAmount(boosterArgument);
@@ -544,14 +519,14 @@ public class EconomyModule {
 			
 			BigInteger price = BigInteger.valueOf(booster.getPrice()).multiply(boosterAmount);
 			if (BigInteger.valueOf(balance).compareTo(price) != -1) {
-				UpdateOneModel<Document> updateModel = EconomyUtils.getAddItemModel(items, booster, boosterAmount.longValue());
-				UpdateOptions updateOptions = new UpdateOptions().arrayFilters(updateModel.getOptions().getArrayFilters()).upsert(true);
+				EconomyUtils.addItem(items, booster, boosterAmount.longValue());
+				
 				Bson update = Updates.combine(
-						updateModel.getUpdate(),
+						Updates.set("economy.items", items),
 						Updates.inc("economy.balance", -price.longValue())
 				);
 				
-				database.updateUserById(event.getAuthor().getIdLong(), null, update, updateOptions, (result, exception) -> {
+				database.updateUserById(event.getAuthor().getIdLong(), update, (result, exception) -> {
 					if (exception != null) {
 						exception.printStackTrace();
 						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
@@ -579,7 +554,7 @@ public class EconomyModule {
 				return;
 			}
 			
-			List<Document> userItems = data.getList("items", Document.class, Collections.emptyList());
+			List<Document> userItems = data.getList("items", Document.class, new ArrayList<>());
 			if (booster.equals(Booster.LENDED_PICKAXE)) {
 				ItemStack userBooster = EconomyUtils.getUserItem(userItems, booster);
 				if (userBooster.getAmount() == 0) {
@@ -599,9 +574,8 @@ public class EconomyModule {
 					return;
 				}
 				
-				UpdateOneModel<Document> updateModel = EconomyUtils.getRemoveItemModel(userItems, booster, 1);
-				UpdateOptions updateOptions = new UpdateOptions().arrayFilters(updateModel.getOptions().getArrayFilters()).upsert(true);
-				database.updateUserById(event.getAuthor().getIdLong(), null, updateModel.getUpdate(), updateOptions, (result, exception) -> {
+				EconomyUtils.removeItem(userItems, booster, 1);
+				database.updateUserById(event.getAuthor().getIdLong(), Updates.set("economy.items", userItems), (result, exception) -> {
 					if (exception != null) {
 						exception.printStackTrace();
 						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
@@ -828,7 +802,6 @@ public class EconomyModule {
 			embed.setColor(event.getMember().getColor());
 			embed.setDescription("You have collected your daily money! (**+$" + money + "**)\nYou had a bonus of $" + (money - 100) + " for having a " + currentStreak + " day streak\n\n" + crateContent);
 
-			List<Bson> arrayFilters = new ArrayList<>();
 			Bson update = Updates.combine(
 					Updates.set("economy.streakCooldown", timestampNow),
 					Updates.inc("economy.balance", money),
@@ -836,14 +809,13 @@ public class EconomyModule {
 			);
 			
 			if (crateWon != null) {
-				List<Document> items = data.getList("items", Document.class, Collections.emptyList());
-				UpdateOneModel<Document> updateModel = EconomyUtils.getAddItemModel(items, crateWon, 1);
-				update = Updates.combine(update, updateModel.getUpdate());
-				arrayFilters.addAll(updateModel.getOptions().getArrayFilters());
+				List<Document> items = data.getList("items", Document.class, new ArrayList<>());
+				EconomyUtils.addItem(items, crateWon, 1);
+				
+				update = Updates.combine(update, Updates.set("economy.items", items));
 			}
 			
-			UpdateOptions updateOptions = new UpdateOptions().arrayFilters(arrayFilters).upsert(true);
-			database.updateUserById(event.getAuthor().getIdLong(), null, update, updateOptions, (result, exception) -> {
+			database.updateUserById(event.getAuthor().getIdLong(), update, (result, exception) -> {
 				if (exception != null) {
 					exception.printStackTrace();
 					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
@@ -1091,7 +1063,7 @@ public class EconomyModule {
 		@Command(value="buy", description="Buy a miner which is displayed in the miner shop")
 		public void buy(CommandEvent event, @Context Database database, @Argument(value="miner name", endless=true) String minerArgument) {
 			Document data = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance", "economy.items")).get("economy", Database.EMPTY_DOCUMENT);
-			List<Document> items = data.getList("items", Document.class, Collections.emptyList());
+			List<Document> items = data.getList("items", Document.class, new ArrayList<>());
 			long balance = data.get("balance", 0L);
 			
 			Pair<String, BigInteger> minerPair = EconomyUtils.getItemAndAmount(minerArgument);
@@ -1111,14 +1083,14 @@ public class EconomyModule {
 			
 			BigInteger price = BigInteger.valueOf(miner.getPrice()).multiply(minerAmount);
 			if (BigInteger.valueOf(balance).compareTo(price) != -1) {
-				UpdateOneModel<Document> updateModel = EconomyUtils.getAddItemModel(items, miner, minerAmount.longValue());
-				UpdateOptions updateOptions = new UpdateOptions().arrayFilters(updateModel.getOptions().getArrayFilters()).upsert(true);
+				EconomyUtils.addItem(items, miner, minerAmount.longValue());
+				
 				Bson update = Updates.combine(
 					Updates.inc("economy.balance", -price.longValue()),
-					updateModel.getUpdate()
+					Updates.set("economy.items", items)
 				);
 				
-				database.updateUserById(event.getAuthor().getIdLong(), null, update, updateOptions, (result, exception) -> {
+				database.updateUserById(event.getAuthor().getIdLong(), update, (result, exception) -> {
 					if (exception != null) {
 						exception.printStackTrace();
 						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
@@ -1136,7 +1108,7 @@ public class EconomyModule {
 		public void collect(CommandEvent event, @Context Database database) {
 			Document data = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items", "economy.minerCooldown")).get("economy", Database.EMPTY_DOCUMENT);
 			
-			List<Document> items = data.getList("items", Document.class, Collections.emptyList());
+			List<Document> items = data.getList("items", Document.class, new ArrayList<>());
 			Map<Miner, Long> userMiners = new HashMap<>();
 			for (Document item : items) {
 				for (Miner miner : Miner.ALL) {
@@ -1183,9 +1155,6 @@ public class EconomyModule {
 					}
 				}
 				
-				List<Bson> arrayFilters = new ArrayList<>();
-				Bson update = Updates.set("economy.minerCooldown", timestampNow);
-				
 				StringBuilder contentBuilder = new StringBuilder();
 				if (!materials.isEmpty()) {
 					List<Material> materialKeys = GeneralUtils.convertSetToList(materials.keySet());
@@ -1194,9 +1163,7 @@ public class EconomyModule {
 						Material key = materialKeys.get(i);
 						long value = materials.get(key);
 						
-						UpdateOneModel<Document> updateModel = EconomyUtils.getAddItemModel(items, key, value);						
-						update = Updates.combine(update, updateModel.getUpdate());
-						arrayFilters.addAll(updateModel.getOptions().getArrayFilters());
+						EconomyUtils.addItem(items, key, value);
 						
 						contentBuilder.append(key.getName() + " x" + String.format("%,d", value) + key.getEmote());
 						if (i != materialKeys.size() - 1) {
@@ -1207,14 +1174,12 @@ public class EconomyModule {
 					contentBuilder = new StringBuilder("Absolutely nothing");
 				}
 				
-				event.reply(update.toBsonDocument(Document.class, MongoClientSettings.getDefaultCodecRegistry()).toJson()).queue();
-				
 				embed.setAuthor(event.getAuthor().getName(), null, event.getAuthor().getEffectiveAvatarUrl());
 				embed.setDescription("You used your miners and gathered these materials: " + contentBuilder.toString());
 				embed.setColor(event.getMember().getColor());
 				
-				UpdateOptions updateOptions = new UpdateOptions().arrayFilters(arrayFilters).upsert(true);
-				database.updateUserById(event.getAuthor().getIdLong(), null, update, updateOptions, (result, exception) -> {
+				Bson update = Updates.combine(Updates.set("economy.minerCooldown", timestampNow), Updates.set("economy.items", items));
+				database.updateUserById(event.getAuthor().getIdLong(), update, (result, exception) -> {
 					if (exception != null) {
 						exception.printStackTrace();
 						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
@@ -1292,7 +1257,7 @@ public class EconomyModule {
 				return;
 			}
 			
-			List<Document> userItems = data.getList("items", Document.class, Collections.emptyList());
+			List<Document> userItems = data.getList("items", Document.class, new ArrayList<>());
 			if (EconomyUtils.hasPickaxe(userItems)) {
 				event.reply("You already own a pickaxe :no_entry:").queue();
 				return;
@@ -1300,14 +1265,14 @@ public class EconomyModule {
 			
 			long balance = data.get("balance", 0L);
 			if (balance >= pickaxe.getPrice()) {
-				UpdateOneModel<Document> updateModel = EconomyUtils.getAddItemModel(userItems, pickaxe, 1, new Document("currentDurability", pickaxe.getDurability()));
-				UpdateOptions updateOptions = new UpdateOptions().arrayFilters(updateModel.getOptions().getArrayFilters()).upsert(true);
+				EconomyUtils.addItem(userItems, pickaxe, 1, new Document("currentDurability", pickaxe.getDurability()));
+				
 				Bson update = Updates.combine(
-						updateModel.getUpdate(),
+						Updates.set("economy.items", userItems),
 						Updates.inc("economy.balance", -pickaxe.getPrice())
 				);
 				
-				database.updateUserById(event.getAuthor().getIdLong(), null, update, updateOptions, (result, exception) -> {
+				database.updateUserById(event.getAuthor().getIdLong(), update, (result, exception) -> {
 					if (exception != null) {
 						exception.printStackTrace();
 						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
@@ -1369,16 +1334,12 @@ public class EconomyModule {
 				return;
 			}
 			
-			List<Document> userItems = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items")).getEmbedded(List.of("economy", "items"), Collections.emptyList());
+			List<Document> userItems = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items")).getEmbedded(List.of("economy", "items"), new ArrayList<>());
 			if (EconomyUtils.hasPickaxe(userItems)) {
 				event.reply("You already own a pickaxe :no_entry:").queue();
 				return;
 			}
 			
-			UpdateOneModel<Document> updateModel = EconomyUtils.getAddItemModel(userItems, pickaxe, 1, new Document("currentDurability", pickaxe.getDurability()));
-			List<Bson> arrayFilters = new ArrayList<>();
-			Bson update = updateModel.getUpdate();
-			arrayFilters.addAll(updateModel.getOptions().getArrayFilters());
 			for (ItemStack craftItem : pickaxe.getCraftingRecipe().getCraftingItems()) {
 				ItemStack userItem = EconomyUtils.getUserItem(userItems, craftItem.getItem());
 				if (userItem.getAmount() < craftItem.getAmount()) {
@@ -1386,13 +1347,12 @@ public class EconomyModule {
 					return;
 				}
 				
-				UpdateOneModel<Document> craftUpdateModel = EconomyUtils.getRemoveItemModel(userItems, craftItem);
-				update = Updates.combine(update, craftUpdateModel.getUpdate());
-				arrayFilters.addAll(craftUpdateModel.getOptions().getArrayFilters());
+				EconomyUtils.removeItem(userItems, craftItem);
 			}
 			
-			UpdateOptions updateOptions = new UpdateOptions().arrayFilters(arrayFilters).upsert(true);
-			database.updateUserById(event.getAuthor().getIdLong(), null, update, updateOptions, (result, exception) -> {
+			EconomyUtils.addItem(userItems, pickaxe, 1, new Document("currentDurability", pickaxe.getDurability()));
+			
+			database.updateUserById(event.getAuthor().getIdLong(), Updates.set("economy.items", userItems), (result, exception) -> {
 				if (exception != null) {
 					exception.printStackTrace();
 					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
@@ -1542,7 +1502,7 @@ public class EconomyModule {
 					if (confirmation) {
 						message.delete().queue();
 						
-						List<Document> itemsNew = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items")).getEmbedded(List.of("economy", "items"), Collections.emptyList());
+						List<Document> itemsNew = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items")).getEmbedded(List.of("economy", "items"), new ArrayList<>());
 						
 						Pickaxe pickaxeNew = EconomyUtils.getUserPickaxe(itemsNew);
 						if (pickaxeNew == null) {
@@ -1565,17 +1525,10 @@ public class EconomyModule {
 							return;
 						}
 					
-						UpdateOneModel<Document> updateModel = EconomyUtils.getRemoveItemModel(items, repairItem, cost);
-						List<Bson> arrayFilters = new ArrayList<>();
-						arrayFilters.add(Filters.eq("pickaxe.name", pickaxe.getName()));
-						arrayFilters.addAll(updateModel.getOptions().getArrayFilters());
-						UpdateOptions updateOptions = new UpdateOptions().arrayFilters(arrayFilters).upsert(true);
-						Bson update = Updates.combine(
-								updateModel.getUpdate(),
-								Updates.inc("economy.items.$[pickaxe].currentDurability", durabilityNeeded)
-						);
+						EconomyUtils.removeItem(itemsNew, repairItem, cost);
+						EconomyUtils.editItem(itemsNew, pickaxeNew, "currentDurability", pickaxeNew.getCurrentDurability() + durabilityNeeded);
 						
-						database.updateUserById(event.getAuthor().getIdLong(), null, update, updateOptions, (result, exception) -> {
+						database.updateUserById(event.getAuthor().getIdLong(), Updates.set("economy.items", itemsNew), (result, exception) -> {
 							if (exception != null) {
 								exception.printStackTrace();
 								event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
@@ -1656,7 +1609,7 @@ public class EconomyModule {
 				return;
 			}
 			
-			List<Document> userItems = data.getList("items", Document.class, Collections.emptyList());
+			List<Document> userItems = data.getList("items", Document.class, new ArrayList<>());
 			if (EconomyUtils.hasRod(userItems)) {
 				event.reply("You already own a fishing rod :no_entry:").queue();
 				return;
@@ -1664,14 +1617,14 @@ public class EconomyModule {
 			
 			long balance = data.get("balance", 0L);
 			if (balance >= rod.getPrice()) {
-				UpdateOneModel<Document> updateModel = EconomyUtils.getAddItemModel(userItems, rod, 1, new Document("currentDurability", rod.getDurability()));
-				UpdateOptions updateOptions = new UpdateOptions().arrayFilters(updateModel.getOptions().getArrayFilters()).upsert(true);
+				EconomyUtils.addItem(userItems, rod, 1, new Document("currentDurability", rod.getDurability()));
+
 				Bson update = Updates.combine(
-						updateModel.getUpdate(),
+						Updates.set("economy.items", userItems),
 						Updates.inc("economy.balance", -rod.getPrice())
 				);
 	
-				database.updateUserById(event.getAuthor().getIdLong(), null, update, updateOptions, (result, exception) -> {
+				database.updateUserById(event.getAuthor().getIdLong(), update, (result, exception) -> {
 					if (exception != null) {
 						exception.printStackTrace();
 						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
@@ -1732,16 +1685,12 @@ public class EconomyModule {
 				return;
 			}
 			
-			List<Document> userItems = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items")).getEmbedded(List.of("economy", "items"), Collections.emptyList());
+			List<Document> userItems = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items")).getEmbedded(List.of("economy", "items"), new ArrayList<>());
 			if (EconomyUtils.hasRod(userItems)) {
 				event.reply("You already own a fishing rod :no_entry:").queue();
 				return;
 			}
 			
-			UpdateOneModel<Document> updateModel = EconomyUtils.getAddItemModel(userItems, rod, 1, new Document("currentDurability", rod.getDurability()));
-			List<Bson> arrayFilters = new ArrayList<>();
-			Bson update = updateModel.getUpdate();
-			arrayFilters.addAll(updateModel.getOptions().getArrayFilters());
 			for (ItemStack craftItem : rod.getCraftingRecipe().getCraftingItems()) {
 				ItemStack userItem = EconomyUtils.getUserItem(userItems, craftItem.getItem());
 				if (userItem.getAmount() < craftItem.getAmount()) {
@@ -1749,13 +1698,12 @@ public class EconomyModule {
 					return;
 				}
 				
-				UpdateOneModel<Document> craftUpdateModel = EconomyUtils.getRemoveItemModel(userItems, craftItem);
-				update = Updates.combine(update, craftUpdateModel.getUpdate());
-				arrayFilters.addAll(craftUpdateModel.getOptions().getArrayFilters());
+				EconomyUtils.removeItem(userItems, craftItem);
 			}
 			
-			UpdateOptions updateOptions = new UpdateOptions().arrayFilters(arrayFilters).upsert(true);
-			database.updateUserById(event.getAuthor().getIdLong(), null, update, updateOptions, (result, exception) -> {
+			EconomyUtils.addItem(userItems, rod, 1, new Document("currentDurability", rod.getDurability()));
+			
+			database.updateUserById(event.getAuthor().getIdLong(), Updates.set("economy.items", userItems), (result, exception) -> {
 				if (exception != null) {
 					exception.printStackTrace();
 					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
@@ -1900,18 +1848,18 @@ public class EconomyModule {
 					if (confirmation) {
 						message.delete().queue();
 						
-						List<Document> itemsNew = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items")).getEmbedded(List.of("economy", "items"), Collections.emptyList());
+						List<Document> itemsNew = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items")).getEmbedded(List.of("economy", "items"), new ArrayList<>());
 						
-						Pickaxe pickaxeNew = EconomyUtils.getUserPickaxe(itemsNew);
-						if (pickaxeNew == null) {
+						Rod rodNew = EconomyUtils.getUserRod(itemsNew);
+						if (rodNew == null) {
 							event.reply("You no longer own a fishing rod :no_entry:").queue();
 						}
 						
-						if (!pickaxeNew.getName().equals(rod.getName())) {
+						if (!rodNew.getName().equals(rod.getName())) {
 							event.reply("You have changed fishing rod since you answered :no_entry:").queue();
 						}
 						
-						if (pickaxeNew.getCurrentDurability() != rod.getCurrentDurability()) {
+						if (rodNew.getCurrentDurability() != rod.getCurrentDurability()) {
 							event.reply("Your fishing rod durability has changed since answering :no_entry:").queue();
 							return;
 						}
@@ -1923,17 +1871,10 @@ public class EconomyModule {
 							return;
 						}
 					
-						UpdateOneModel<Document> updateModel = EconomyUtils.getRemoveItemModel(items, repairItem, cost);
-						List<Bson> arrayFilters = new ArrayList<>();
-						arrayFilters.add(Filters.eq("rod.name", rod.getName()));
-						arrayFilters.addAll(updateModel.getOptions().getArrayFilters());
-						UpdateOptions updateOptions = new UpdateOptions().arrayFilters(arrayFilters).upsert(true);
-						Bson update = Updates.combine(
-								updateModel.getUpdate(),
-								Updates.inc("economy.items.$[rod].currentDurability", durabilityNeeded)
-						);
-						
-						database.updateUserById(event.getAuthor().getIdLong(), null, update, updateOptions, (result, exception) -> {
+						EconomyUtils.removeItem(itemsNew, repairItem, cost);
+						EconomyUtils.editItem(itemsNew, rodNew, "currentDurability", rodNew.getCurrentDurability() + durabilityNeeded);
+
+						database.updateUserById(event.getAuthor().getIdLong(), Updates.set("economy.items", itemsNew), (result, exception) -> {
 							if (exception != null) {
 								exception.printStackTrace();
 								event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
@@ -2013,7 +1954,7 @@ public class EconomyModule {
 				return;
 			}
 			
-			List<Document> userItems = data.getList("items", Document.class, Collections.emptyList());
+			List<Document> userItems = data.getList("items", Document.class, new ArrayList<>());
 			if (EconomyUtils.hasAxe(userItems)) {
 				event.reply("You already own an axe :no_entry:").queue();
 				return;
@@ -2021,9 +1962,14 @@ public class EconomyModule {
 			
 			long balance = data.get("balance", 0L);
 			if (balance >= axe.getPrice()) {
-				UpdateOneModel<Document> updateModel = EconomyUtils.getAddItemModel(userItems, axe, 1, new Document("currentDurability", axe.getDurability()));
-				UpdateOptions updateOptions = new UpdateOptions().arrayFilters(updateModel.getOptions().getArrayFilters()).upsert(true);
-				database.updateUserById(event.getAuthor().getIdLong(), null, updateModel.getUpdate(), updateOptions, (result, exception) -> {
+				EconomyUtils.addItem(userItems, axe, 1, new Document("currentDurability", axe.getDurability()));
+
+				Bson update = Updates.combine(
+						Updates.set("economy.items", userItems),
+						Updates.inc("economy.balance", -axe.getPrice())
+				);
+				
+				database.updateUserById(event.getAuthor().getIdLong(), update, (result, exception) -> {
 					if (exception != null) {
 						exception.printStackTrace();
 						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
@@ -2085,16 +2031,12 @@ public class EconomyModule {
 				return;
 			}
 			
-			List<Document> items = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items")).getEmbedded(List.of("economy", "items"), Collections.emptyList());
+			List<Document> items = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items")).getEmbedded(List.of("economy", "items"), new ArrayList<>());
 			if (EconomyUtils.hasAxe(items)) {
 				event.reply("You already own an axe :no_entry:").queue();
 				return;
 			}
 			
-			UpdateOneModel<Document> updateModel = EconomyUtils.getAddItemModel(items, axe, 1, new Document("currentDurability", axe.getDurability()));
-			List<Bson> arrayFilters = new ArrayList<>();
-			arrayFilters.addAll(updateModel.getOptions().getArrayFilters());
-			Bson update = updateModel.getUpdate();
 			for (ItemStack craftItem : axe.getCraftingRecipe().getCraftingItems()) {
 				ItemStack userItem = EconomyUtils.getUserItem(items, craftItem.getItem());
 				if (userItem.getAmount() < craftItem.getAmount()) {
@@ -2102,13 +2044,12 @@ public class EconomyModule {
 					return;
 				}
 				
-				UpdateOneModel<Document> craftUpdateModel = EconomyUtils.getRemoveItemModel(items, craftItem);
-				update = Updates.combine(update, craftUpdateModel.getUpdate());
-				arrayFilters.addAll(updateModel.getOptions().getArrayFilters());
+				EconomyUtils.removeItem(items, craftItem);
 			}
 			
-			UpdateOptions updateOptions = new UpdateOptions().arrayFilters(arrayFilters).upsert(true);
-			database.updateUserById(event.getAuthor().getIdLong(), null, update, updateOptions, (result, exception) -> {
+			EconomyUtils.addItem(items, axe, 1, new Document("currentDurability", axe.getDurability()));
+			
+			database.updateUserById(event.getAuthor().getIdLong(), Updates.set("economy.items", items), (result, exception) -> {
 				if (exception != null) {
 					exception.printStackTrace();
 					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
@@ -2249,7 +2190,7 @@ public class EconomyModule {
 					if (confirmation) {
 						message.delete().queue();
 						
-						List<Document> itemsNew = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items")).getEmbedded(List.of("economy", "items"), Collections.emptyList());
+						List<Document> itemsNew = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items")).getEmbedded(List.of("economy", "items"), new ArrayList<>());
 						
 						Axe axeNew = EconomyUtils.getUserAxe(itemsNew);
 						if (axeNew == null) {
@@ -2272,17 +2213,10 @@ public class EconomyModule {
 							return;
 						}
 					
-						UpdateOneModel<Document> updateModel = EconomyUtils.getRemoveItemModel(items, repairItem, cost);
-						List<Bson> arrayFilters = new ArrayList<>();
-						arrayFilters.add(Filters.eq("axe.name", axe.getName()));
-						arrayFilters.addAll(updateModel.getOptions().getArrayFilters());
-						UpdateOptions updateOptions = new UpdateOptions().arrayFilters(arrayFilters).upsert(true);
-						Bson update = Updates.combine(
-								updateModel.getUpdate(),
-								Updates.inc("economy.items.$[axe].currentDurability", durabilityNeeded)
-						);
+						EconomyUtils.removeItem(itemsNew, repairItem, cost);
+						EconomyUtils.editItem(itemsNew, axeNew, "currentDurability", axeNew.getCurrentDurability() + durabilityNeeded);
 						
-						database.updateUserById(event.getAuthor().getIdLong(), null, update, updateOptions, (result, exception) -> {
+						database.updateUserById(event.getAuthor().getIdLong(), Updates.set("economy.items", itemsNew),(result, exception) -> {
 							if (exception != null) {
 								exception.printStackTrace();
 								event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
@@ -2405,11 +2339,11 @@ public class EconomyModule {
 			return;
 		}
 		
-		List<Document> authorItems = data.getList("items", Document.class, Collections.emptyList());
+		List<Document> authorItems = data.getList("items", Document.class, new ArrayList<>());
 		String itemString = String.format("%,d %s", itemAmount, item.getName());
 		ItemStack authorItem = EconomyUtils.getUserItem(authorItems, item);
 		if (BigInteger.valueOf(authorItem.getAmount()).compareTo(itemAmount) != -1) {
-			List<Document> userItems = database.getUserById(member.getIdLong(), null, Projections.include("economy.items")).getEmbedded(List.of("economy", "items"), Collections.emptyList());
+			List<Document> userItems = database.getUserById(member.getIdLong(), null, Projections.include("economy.items")).getEmbedded(List.of("economy", "items"), new ArrayList<>());
 			
 			long itemAmountLong = itemAmount.longValue();
 			ItemStack userItem = EconomyUtils.getUserItem(userItems, item);
@@ -2429,13 +2363,16 @@ public class EconomyModule {
 			embed.setDescription(String.format("You have gifted **%s** to **%s**\n\n%s's new %s amount: **%,d %s**\n%s's new %s amount: **%,d %s**", itemString, member.getUser().getName(), event.getAuthor().getName(), item.getName(), newAuthorAmount, item.getName(), member.getUser().getName(), item.getName(), newUserAmount, item.getName()));
 			embed.setFooter(String.format("$%,d (%d%%) tax was taken", tax, Math.round((double) tax / fullPrice * 100)), null);
 			
-			UpdateOneModel<Document> authorItemModel = EconomyUtils.getRemoveItemModel(authorItems, item, itemAmountLong);
-			Bson authorUpdate = Updates.combine(authorItemModel.getUpdate(), Updates.inc("economy.balance", -tax));
+			EconomyUtils.addItem(userItems, item, itemAmountLong);
+			EconomyUtils.removeItem(authorItems, item, itemAmountLong);
 			
+			Bson authorUpdate = Updates.combine(Updates.set("economy.items", authorItems), Updates.inc("economy.balance", -tax));
+			
+			UpdateOptions updateOptions = new UpdateOptions().upsert(true);
 			List<WriteModel<Document>> bulkData = List.of(
-					new UpdateOneModel<>(Filters.eq("_id", event.getAuthor().getIdLong()), authorUpdate, authorItemModel.getOptions()),
-					EconomyUtils.getAddItemModel(member.getIdLong(), userItems, item, itemAmountLong),
-					new UpdateOneModel<>(Filters.eq("_id", event.getSelfUser().getIdLong()), Updates.inc("economy.balance", tax), new UpdateOptions().upsert(true))
+					new UpdateOneModel<>(Filters.eq("_id", event.getAuthor().getIdLong()), authorUpdate, updateOptions),
+					new UpdateOneModel<>(Filters.eq("_id", member.getIdLong()), Updates.set("economy.items", userItems), updateOptions),
+					new UpdateOneModel<>(Filters.eq("_id", event.getSelfUser().getIdLong()), Updates.inc("economy.balance", tax), updateOptions)
 			);
 			
 			database.bulkWriteUsers(bulkData, (result, exception) -> {
@@ -2542,7 +2479,7 @@ public class EconomyModule {
 		@Command(value="buy", description="Buy a factory which is listed in factory shop")
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void buy(CommandEvent event, @Context Database database, @Argument(value="factory name", endless=true) String factoryArgument) {
-			List<Document> items = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items")).getEmbedded(List.of("economy", "items"), Collections.emptyList());
+			List<Document> items = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items")).getEmbedded(List.of("economy", "items"), new ArrayList<>());
 			
 			if (factoryArgument.toLowerCase().equals("all")) {
 				if (items.isEmpty()) {
@@ -2550,8 +2487,6 @@ public class EconomyModule {
 					return;
 				}
 				
-				Bson update = new BsonDocument();
-				List<Bson> arrayFilters = new ArrayList<>();
 				List<ItemStack> factoriesBought = new ArrayList<>();
 				for (Factory factory : Factory.ALL) {
 					if (!factory.isHidden()) {
@@ -2560,16 +2495,8 @@ public class EconomyModule {
 						if (buyableAmount > 0) {
 							factoriesBought.add(new ItemStack(factory, buyableAmount));
 							
-							UpdateOneModel<Document> itemModel = EconomyUtils.getRemoveItemModel(items, factory.getMaterial(), factory.getMaterialAmount() * buyableAmount);
-							UpdateOneModel<Document> factoryModel = EconomyUtils.getAddItemModel(items, factory, buyableAmount);
-							update = Updates.combine(
-								update,
-								itemModel.getUpdate(),
-								factoryModel.getUpdate()
-							);
-							
-							arrayFilters.addAll(itemModel.getOptions().getArrayFilters());
-							arrayFilters.addAll(factoryModel.getOptions().getArrayFilters());
+							EconomyUtils.removeItem(items, factory.getMaterial(), factory.getMaterialAmount() * buyableAmount);
+							EconomyUtils.addItem(items, factory, buyableAmount);
 						}
 					}
 				}
@@ -2586,8 +2513,7 @@ public class EconomyModule {
 				embed.setAuthor(event.getAuthor().getName(), null, event.getAuthor().getEffectiveAvatarUrl());
 				embed.setDescription("With all your materials you have bought the following factories\n\n• " + GeneralUtils.join(factoriesBought, "\n• "));
 				
-				UpdateOptions updateOptions = new UpdateOptions().arrayFilters(arrayFilters).upsert(true);
-				database.updateUserById(event.getAuthor().getIdLong(), null, update, updateOptions, (result, exception) -> {
+				database.updateUserById(event.getAuthor().getIdLong(), Updates.set("economy.items", items), (result, exception) -> {
 					if (exception != null) {
 						exception.printStackTrace();
 						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
@@ -2620,15 +2546,10 @@ public class EconomyModule {
 				
 				BigInteger price = factoryAmount.multiply(BigInteger.valueOf(factory.getMaterialAmount()));
 				if (BigInteger.valueOf(userItem.getAmount()).compareTo(price) != -1) {					
-					UpdateOneModel<Document> itemModel = EconomyUtils.getRemoveItemModel(items, factory.getMaterial(), price.longValue());
-					UpdateOneModel<Document> factoryModel = EconomyUtils.getAddItemModel(items, factory, factoryAmount.longValue());
+					EconomyUtils.removeItem(items, factory.getMaterial(), price.longValue());
+					EconomyUtils.addItem(items, factory, factoryAmount.longValue());
 					
-					List<Bson> arrayFilters = new ArrayList<>();
-					arrayFilters.addAll(itemModel.getOptions().getArrayFilters());
-					arrayFilters.addAll(factoryModel.getOptions().getArrayFilters());
-					
-					UpdateOptions updateOptions = new UpdateOptions().arrayFilters(arrayFilters).upsert(true);
-					database.updateUserById(event.getAuthor().getIdLong(), null, Updates.combine(itemModel.getUpdate(), factoryModel.getUpdate()), updateOptions, (result, exception) -> {
+					database.updateUserById(event.getAuthor().getIdLong(), Updates.set("economy.items", items), (result, exception) -> {
 						if (exception != null) {
 							exception.printStackTrace();
 							event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
@@ -2730,12 +2651,16 @@ public class EconomyModule {
 			switch (sort.toLowerCase()) {
 				case "item":
 					shownData.sort((a, b) -> (reverse ? 1 : -1) * a.getEmbedded(itemNameEmbed, String.class).toLowerCase().compareTo(b.getEmbedded(itemNameEmbed, String.class).toLowerCase()));
+					break;
 				case "amount":
 					shownData.sort((a, b) -> (reverse ? 1 : -1) * Long.compare(a.getEmbedded(itemAmountEmbed, Long.class), b.getEmbedded(itemAmountEmbed, Long.class)));
+					break;
 				case "price": 
 					shownData.sort((a, b) -> (reverse ? 1 : -1) * Long.compare(a.getLong("price"), b.getLong("price")));
+					break;
 				default:
 					shownData.sort((a, b) -> (reverse ? 1 : -1) * Double.compare(a.getLong("price") / a.getEmbedded(itemAmountEmbed, Long.class), b.getLong("price") / b.getEmbedded(itemAmountEmbed, Long.class)));
+					break;
 			}
 			
 			PagedResult<Document> paged = new PagedResult<>(shownData)
@@ -2786,7 +2711,7 @@ public class EconomyModule {
 				return;
 			}
 			
-			List<Document> items = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items")).getEmbedded(List.of("economy", "items"), Collections.emptyList());
+			List<Document> items = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items")).getEmbedded(List.of("economy", "items"), new ArrayList<>());
 			ItemStack userItem = EconomyUtils.getUserItem(items, item);
 			
 			if (item.isBuyable()) {
@@ -2798,12 +2723,12 @@ public class EconomyModule {
 			}
 	
 			if (BigInteger.valueOf(userItem.getAmount()).compareTo(itemAmount) != -1) {				
-				UpdateOneModel<Document> updateModel = EconomyUtils.getRemoveItemModel(event.getAuthor().getIdLong(), items, item, itemAmount.longValue());
+				EconomyUtils.removeItem(items, item, itemAmount.longValue());
 				
 				Document rawItem = EconomyUtils.getUserItemRaw(items, item);
 				rawItem.put("amount", itemAmount.longValue());
 				
-				database.updateUserById(updateModel, (userResult, userException) -> {
+				database.updateUserById(event.getAuthor().getIdLong(), Updates.set("economy.items", items), (userResult, userException) -> {
 					if (userException != null) {
 						userException.printStackTrace();
 						event.reply(Sx4CommandEventListener.getUserErrorMessage(userException)).queue();
@@ -2905,7 +2830,7 @@ public class EconomyModule {
 					return;
 				}
 				
-				List<Document> items = data.getList("items", Document.class, Collections.emptyList());
+				List<Document> items = data.getList("items", Document.class, new ArrayList<>());
 				if (auctionItem.isAxe()) {
 					if (EconomyUtils.hasAxe(items)) {
 						event.reply("You already own an axe :no_entry:").queue();
@@ -2928,9 +2853,13 @@ public class EconomyModule {
 						auctionException.printStackTrace();
 						event.reply(Sx4CommandEventListener.getUserErrorMessage(auctionException)).queue();
 					} else {
+						EconomyUtils.addItem(items, auction.get("item", Document.class));
+						
+						Bson authorUpdate = Updates.combine(Updates.inc("economy.balance", -auctionItem.getPrice()), Updates.set("economy.items", items));
+						UpdateOptions updateOptions = new UpdateOptions().upsert(true);
 						List<WriteModel<Document>> bulkData = List.of(
-								EconomyUtils.getAddItemModel(event.getAuthor().getIdLong(), items, auction.get("item", Document.class)),
-								new UpdateOneModel<>(Filters.eq("_id", owner.getIdLong()), Updates.inc("economy.balance", auctionItem.getPrice()), new UpdateOptions().upsert(true))
+								new UpdateOneModel<>(Filters.eq("_id", event.getAuthor().getIdLong()), authorUpdate, updateOptions),
+								new UpdateOneModel<>(Filters.eq("_id", owner.getIdLong()), Updates.inc("economy.balance", auctionItem.getPrice()), updateOptions)
 						);
 						
 						database.bulkWriteUsers(bulkData, (userResult, userException) -> {
@@ -3017,7 +2946,7 @@ public class EconomyModule {
 					return;
 				}
 				
-				List<Document> items = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items")).getEmbedded(List.of("economy", "items"), Collections.emptyList());
+				List<Document> items = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items")).getEmbedded(List.of("economy", "items"), new ArrayList<>());
 				if (auctionItem.isAxe()) {
 					if (EconomyUtils.hasAxe(items)) {
 						event.reply("You already own an axe :no_entry:").queue();
@@ -3040,7 +2969,8 @@ public class EconomyModule {
 						auctionException.printStackTrace();
 						event.reply(Sx4CommandEventListener.getUserErrorMessage(auctionException)).queue();
 					} else {
-						database.updateUserById(EconomyUtils.getAddItemModel(event.getAuthor().getIdLong(), items, auction.get("items", Document.class)), (userResult, userException) -> {
+						EconomyUtils.addItem(items, auction.get("item", Document.class));
+						database.updateUserById(event.getAuthor().getIdLong(), Updates.set("economy.items", items), (userResult, userException) -> {
 							if (userException != null) {
 								userException.printStackTrace();
 								event.reply(Sx4CommandEventListener.getUserErrorMessage(userException)).queue();
@@ -3121,7 +3051,7 @@ public class EconomyModule {
 	public void chop(CommandEvent event, @Context Database database) {
 		Document data = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items", "economy.chopCooldown")).get("economy", Database.EMPTY_DOCUMENT);
 		
-		List<Document> items = data.getList("items", Document.class, Collections.emptyList());
+		List<Document> items = data.getList("items", Document.class, new ArrayList<>());
 		if (!EconomyUtils.hasAxe(items)) {
 			event.reply("You do not have an axe :no_entry:").queue();
 			return;
@@ -3157,13 +3087,10 @@ public class EconomyModule {
 				}
 			}
 			
-			List<Bson> arrayFilters = new ArrayList<>();
-			Bson update = Updates.set("chopCooldown", timestampNow);
 			if (brokenAxe) {
-				update = Updates.combine(update, Updates.pull("economy.items", Filters.eq("name", userAxe.getName())));
+				EconomyUtils.removeItem(items, userAxe, 1);
 			} else {
-				update = Updates.combine(update, Updates.inc("economy.items.$[axe].currentDurability", -1));
-				arrayFilters.add(Filters.eq("axe.name", userAxe.getName()));
+				EconomyUtils.editItem(items, userAxe, "currentDurability", userAxe.getCurrentDurability() - 1);
 			}
 			
 			EmbedBuilder embed = new EmbedBuilder();
@@ -3184,9 +3111,7 @@ public class EconomyModule {
 						embed.appendDescription("\n\n");
 					}
 					
-					UpdateOneModel<Document> updateModel = EconomyUtils.getAddItemModel(items, key, amount);
-					update = Updates.combine(update, updateModel.getUpdate());
-					arrayFilters.addAll(updateModel.getOptions().getArrayFilters());
+					EconomyUtils.addItem(items, key, amount);
 				}
 			} else {
 				embed.appendDescription("Absolutely nothing\n\n");
@@ -3194,8 +3119,8 @@ public class EconomyModule {
 			
 			embed.appendDescription(warning);
 			
-			UpdateOptions updateOptions = new UpdateOptions().arrayFilters(arrayFilters).upsert(true);
-			database.updateUserById(event.getAuthor().getIdLong(), null, update, updateOptions, (result, exception) -> {
+			Bson update = Updates.combine(Updates.set("chopCooldown", timestampNow), Updates.set("economy.items", items));
+			database.updateUserById(event.getAuthor().getIdLong(), update, (result, exception) -> {
 				if (exception != null) {
 					exception.printStackTrace();
 					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
@@ -3211,7 +3136,7 @@ public class EconomyModule {
 	public void mine(CommandEvent event, @Context Database database) {
 		Document data = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items", "economy.mineCooldown")).get("economy", Database.EMPTY_DOCUMENT);
 		
-		List<Document> items = data.getList("items", Document.class, Collections.emptyList());
+		List<Document> items = data.getList("items", Document.class, new ArrayList<>());
 		if (!EconomyUtils.hasPickaxe(items)) {
 			event.reply("You do not have a pickaxe :no_entry:").queue();
 			return;
@@ -3236,13 +3161,10 @@ public class EconomyModule {
 			
 			long money = GeneralUtils.getRandomNumber(userPickaxe.getMinimumYield(), userPickaxe.getMaximumYield());
 			
-			Bson update = Updates.combine(Updates.set("mineCooldown", timestampNow), Updates.inc("economy.balance", money));
-			List<Bson> arrayFilters = new ArrayList<>();
 			if (brokenPickaxe) {
-				update = Updates.combine(update, Updates.pull("economy.items", Filters.eq("name", userPickaxe.getName())));
+				EconomyUtils.removeItem(items, userPickaxe, 1);
 			} else {
-				update = Updates.combine(update, Updates.inc("economy.items.$[pickaxe].currentDurability", -1));
-				arrayFilters.add(Filters.eq("pickaxe.name", userPickaxe.getName()));
+				EconomyUtils.editItem(items, userPickaxe, "currentDurability", userPickaxe.getCurrentDurability() - 1);
 			}
 			
 			StringBuilder materialContent = new StringBuilder();
@@ -3251,9 +3173,7 @@ public class EconomyModule {
 					if (random.nextInt((int) Math.ceil(material.getChance() / userPickaxe.getMultiplier()) + 1) == 0) {
 						materialContent.append(material.getName() + material.getEmote() + ", ");
 						
-						UpdateOneModel<Document> updateModel = EconomyUtils.getAddItemModel(items, material, 1);
-						update = Updates.combine(update, updateModel.getUpdate());
-						arrayFilters.addAll(updateModel.getOptions().getArrayFilters());
+						EconomyUtils.addItem(items, material, 1);
 					}
 				}
 			}
@@ -3269,8 +3189,8 @@ public class EconomyModule {
 			embed.setAuthor(event.getAuthor().getName(), null, event.getAuthor().getEffectiveAvatarUrl());
 			embed.setDescription(String.format("You mined resources and made **$%,d** :pick:\nMaterials found: %s\n\n%s", money, materialContent.toString(), warning));
 			
-			UpdateOptions updateOptions = new UpdateOptions().arrayFilters(arrayFilters).upsert(true);
-			database.updateUserById(event.getAuthor().getIdLong(), null, update, updateOptions, (result, exception) -> {
+			Bson update = Updates.combine(Updates.set("mineCooldown", timestampNow), Updates.inc("economy.balance", money), Updates.set("economy.items", items));
+			database.updateUserById(event.getAuthor().getIdLong(), update, (result, exception) -> {
 				if (exception != null) {
 					exception.printStackTrace();
 					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();

@@ -7,14 +7,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.bson.BsonDocument;
 import org.bson.Document;
-import org.bson.conversions.Bson;
 
-import com.mongodb.client.model.Filters;
-import com.mongodb.client.model.UpdateOneModel;
-import com.mongodb.client.model.UpdateOptions;
-import com.mongodb.client.model.Updates;
 import com.sx4.database.Database;
 import com.sx4.economy.Item;
 import com.sx4.economy.ItemStack;
@@ -333,88 +327,83 @@ public class EconomyUtils {
 		return Pair.of(money, itemStacks);
 	}
 	
-	public static UpdateOneModel<Document> getAddItemModel(Long userId, List<Document> items, String name, long amount, Document extraFields) {
-		Bson filter = userId != null ? Filters.eq("_id", userId) : new BsonDocument();
-		String arrayFilterString = name.toLowerCase().replace(" ", "");
-		
-		for (Document itemData : items) {
-			if (itemData.getString("name").equals(name)) {	
-				Bson update = Updates.inc("economy.items.$[" + arrayFilterString + "].amount", amount);
-				for (String key : extraFields.keySet()) {
-					update = Updates.combine(update, Updates.set("economy.items.$[" + arrayFilterString + "]." + key, extraFields.get(key)));
-				}
-				
-				UpdateOptions updateOptions = new UpdateOptions().arrayFilters(List.of(Filters.eq(arrayFilterString + ".name", name))).upsert(true);
-				return new UpdateOneModel<>(filter, update, updateOptions);
+	public static void addItem(List<Document> items, String name, long amount, Document extraFields) {
+		for (Document item : items) {
+			if (item.getString("name").equals(name)) {
+				item.put("amount", item.getLong("amount") + amount);
+				item.putAll(extraFields);
+				return;
 			}
 		}
 		
-		Document newItem = new Document("name", name).append("amount", amount);
-		newItem.putAll(extraFields);
-		return new UpdateOneModel<>(filter, Updates.push("economy.items", newItem), new UpdateOptions().arrayFilters(List.of()).upsert(true));
+		Document item = new Document("name", name).append("amount", amount);
+		item.putAll(extraFields);
+		
+		items.add(item);
 	}
 	
-	public static UpdateOneModel<Document> getAddItemModel(List<Document> items, String name, long amount, Document extraFields) {
-		return EconomyUtils.getAddItemModel(null, items, name, amount, extraFields);
+	public static void addItem(List<Document> items, Item item, long amount, Document extraFields) {
+		EconomyUtils.addItem(items, item.getName(), amount, extraFields);
 	}
 	
-	public static UpdateOneModel<Document> getAddItemModel(Long userId, List<Document> items, Document item) {
-		Document extraFields = item;
+	public static void addItem(List<Document> items, Document item) {
+		Document extraFields = new Document(item);
 		extraFields.remove("name");
 		extraFields.remove("amount");
-		return EconomyUtils.getAddItemModel(userId, items, item.getString("name"), item.getLong("amount"), extraFields);
+		
+		EconomyUtils.addItem(items, item.getString("name"), item.getLong("amount"), extraFields);
 	}
 	
-	public static UpdateOneModel<Document> getAddItemModel(List<Document> items, Document item) {
-		return EconomyUtils.getAddItemModel(null, items, item);
+	public static void addItem(List<Document> items, String name, long amount) {
+		EconomyUtils.addItem(items, name, amount, Database.EMPTY_DOCUMENT);
 	}
 	
-	public static UpdateOneModel<Document> getAddItemModel(Long userId, List<Document> items, Item item, long amount, Document extraFields) {
-		return EconomyUtils.getAddItemModel(userId, items, item.getName(), amount, extraFields);
+	public static void addItem(List<Document> items, Item item, long amount) {
+		EconomyUtils.addItem(items, item.getName(), amount);
 	}
 	
-	public static UpdateOneModel<Document> getAddItemModel(Long userId, List<Document> items, Item item, long amount) {
-		return EconomyUtils.getAddItemModel(userId, items, item, amount, Database.EMPTY_DOCUMENT);
+	public static void addItem(List<Document> items, ItemStack itemStack) {
+		EconomyUtils.addItem(items, itemStack.getItem(), itemStack.getAmount());
 	}
 	
-	public static UpdateOneModel<Document> getAddItemModel(List<Document> items, Item item, long amount, Document extraFields) {
-		return EconomyUtils.getAddItemModel(null, items, item, amount, extraFields);
-	}
-	
-	public static UpdateOneModel<Document> getAddItemModel(List<Document> items, Item item, long amount) {
-		return EconomyUtils.getAddItemModel(null, items, item, amount, Database.EMPTY_DOCUMENT);
-	}
-	
-	public static UpdateOneModel<Document> getAddItemModel(List<Document> items, ItemStack itemStack) {
-		return EconomyUtils.getAddItemModel(items, itemStack.getItem(), itemStack.getAmount());
-	}
-	
-	public static UpdateOneModel<Document> getRemoveItemModel(Long userId, List<Document> items, Item item, long amount) {
-		Bson filter = userId != null ? Filters.eq("_id", userId) : null;
-		for (Document itemData : items) {
-			if (itemData.getString("name").equals(item.getName())) {
-				UpdateOptions updateOptions = new UpdateOptions().upsert(true);
-				long amountLeft = itemData.getLong("amount") - amount;
-				if (amountLeft > 0) {
-					updateOptions = updateOptions.arrayFilters(List.of(Filters.eq(item.getName() + ".name", item.getName())));
-					return new UpdateOneModel<>(filter, Updates.inc("economy.items.$[" + item.getName() + "].amount", -amount), updateOptions);
-				} else if (amountLeft == 0) {
-					return new UpdateOneModel<>(filter, Updates.pull("economy.items", Filters.eq("name", item.getName())), updateOptions);
-				} else {
-					throw new IllegalArgumentException("Removal amount is more than the amount of items the user has");
-				}
+	public static void editItem(List<Document> items, String name, String key, Object value) {
+		for (Document item : items) {
+			if (item.getString("name").equals(name)) {
+				item.put(key, value);
+				return;
 			}
 		}
 		
-		throw new IllegalArgumentException("User doesn't have that item");
+		throw new IllegalArgumentException("That user doesn't have that item");
 	}
 	
-	public static UpdateOneModel<Document> getRemoveItemModel(List<Document> items, Item item, long amount) {
-		return EconomyUtils.getRemoveItemModel(null, items, item, amount);
+	public static void editItem(List<Document> items, Item item, String key, Object value) {
+		EconomyUtils.editItem(items, item.getName(), key, value);
 	}
 	
-	public static UpdateOneModel<Document> getRemoveItemModel(List<Document> items, ItemStack itemStack) {
-		return EconomyUtils.getRemoveItemModel(items, itemStack.getItem(), itemStack.getAmount());
+	public static void removeItem(List<Document> items, String name, long amount) {
+		for (Document item : items) {
+			if (item.getString("name").equals(name)) {
+				long newAmount = item.getLong("amount") - amount;
+				if (newAmount == 0) {
+					items.remove(item);
+				} else {
+					item.put("amount", newAmount);
+				}
+				
+				return;
+			}
+		}
+		
+		throw new IllegalArgumentException("That user doesn't have that item");
+	}
+	
+	public static void removeItem(List<Document> items, Item item, long amount) {
+		EconomyUtils.removeItem(items, item.getName(), amount);
+	}
+	
+	public static void removeItem(List<Document> items, ItemStack itemStack) {
+		EconomyUtils.removeItem(items, itemStack.getItem(), itemStack.getAmount());
 	}
 	
 	public static Item getTradeableItem(String itemName) {
