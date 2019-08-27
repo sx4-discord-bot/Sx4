@@ -67,7 +67,7 @@ public class GeneralUtils {
 		String[] splitText = text.split(" ");
 		String newText = "";
 		for (String word : splitText) {
-			newText += word.substring(0, 1).toUpperCase() + (word.length() == 1 ? " " : word.substring(1).toLowerCase());
+			newText += word.substring(0, 1).toUpperCase() + (word.length() == 1 ? "" : word.substring(1).toLowerCase());
 		}
 		
 		return newText;
