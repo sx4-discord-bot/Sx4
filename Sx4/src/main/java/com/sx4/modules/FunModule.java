@@ -284,7 +284,7 @@ public class FunModule {
 		Document profile = data.get("profile", Database.EMPTY_DOCUMENT);
 		
 		long reputation = data.getEmbedded(List.of("reputation", "amount"), 0);
-		long balance = data.getEmbedded(List.of("economy", "balance"), 0);
+		long balance = data.getEmbedded(List.of("economy", "balance"), 0L);
 		
 		List<Long> marriedUsers = profile.getList("marriedUsers", Long.class, Collections.emptyList());
 		String colour = profile.getString("colour");
@@ -1339,7 +1339,7 @@ public class FunModule {
 			return;
 		}
 		
-		long authorBalance = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance")).getEmbedded(List.of("economy", "balance"), 0);
+		long authorBalance = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance")).getEmbedded(List.of("economy", "balance"), 0L);
 		long bet = betArgument == null ? 0 : EconomyUtils.convertMoneyArgument(authorBalance, betArgument);
 		if (bet != 0) {
 			if (bet < 1) {
@@ -1354,7 +1354,7 @@ public class FunModule {
 				return;
 			}
 			
-			long userBalance = database.getUserById(member.getIdLong(), null, Projections.include("economy.balance")).getEmbedded(List.of("economy", "balance"), 0);
+			long userBalance = database.getUserById(member.getIdLong(), null, Projections.include("economy.balance")).getEmbedded(List.of("economy", "balance"), 0L);
 			if (userBalance < bet) {
 				event.reply("**" + member.getUser().getAsTag() + "** doesn't have enough money :no_entry:").queue();
 				event.removeCooldown();
@@ -1362,7 +1362,7 @@ public class FunModule {
 			}
 		}
 		
-		event.reply(member.getUser().getName() + ", Type `accept` or `yes` if you would like to play guess the number" + (betArgument == null ? "." : String.format(" for **$%,d**", betArgument))).queue($ -> {
+		event.reply(member.getUser().getName() + ", Type `accept` or `yes` if you would like to play guess the number" + (bet == 0 ? "." : String.format(" for **$%,d**", bet))).queue($ -> {
 			PagedUtils.getConfirmation(event, 60, member.getUser(), confirmed -> {
 				if (confirmed) {
 					event.reply("I will send a message to **" + member.getUser().getAsTag() + "**, once they've responded I will send a message to **" + event.getAuthor().getAsTag() + "**").queue();
@@ -1421,8 +1421,8 @@ public class FunModule {
 											}
 											
 											if (winner != null && betArgument != null) {
-												long authorBalanceUpdated = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance")).getEmbedded(List.of("economy", "balance"), 0);
-												long userBalanceUpdated = database.getUserById(member.getIdLong(), null, Projections.include("economy.balance")).getEmbedded(List.of("economy", "balance"), 0);
+												long authorBalanceUpdated = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance")).getEmbedded(List.of("economy", "balance"), 0L);
+												long userBalanceUpdated = database.getUserById(member.getIdLong(), null, Projections.include("economy.balance")).getEmbedded(List.of("economy", "balance"), 0L);
 												if (authorBalanceUpdated < bet) {
 													content.append("\n**" + event.getAuthor().getAsTag() + "** no longer has enough money, bet has been cancelled.");
 												} else if (userBalanceUpdated < bet) {
@@ -1629,7 +1629,7 @@ public class FunModule {
 			while (keysGamesPlayed.hasNext()) {
 				String keyGamesPlayed = keysGamesPlayed.next();
 				if (userData.getJSONObject("stats").getJSONObject("gamesPlayed").get(keyGamesPlayed) instanceof Integer) {
-					gamesPlayed += GeneralUtils.title(keyGamesPlayed.replace("_", " ")).trim() + String.format(": %,d\n", userData.getJSONObject("stats").getJSONObject("gamesPlayed").getInt(keyGamesPlayed));
+					gamesPlayed += GeneralUtils.title(keyGamesPlayed.replace("_", " ")) + String.format(": %,d\n", userData.getJSONObject("stats").getJSONObject("gamesPlayed").getInt(keyGamesPlayed));
 				}
 			}
 			
@@ -1640,7 +1640,7 @@ public class FunModule {
 			while (eloKeys.hasNext()) {
 				String eloKey = eloKeys.next();
 				if (eloKey.contains("season")) {
-					eloEarned += String.format("%s: %,d\n", GeneralUtils.title(eloKey.split("_", 3)[2].replace("_", " ")).trim(), userData.getJSONObject("stats").getInt(eloKey));
+					eloEarned += String.format("%s: %,d\n", GeneralUtils.title(eloKey.split("_", 3)[2].replace("_", " ")), userData.getJSONObject("stats").getInt(eloKey));
 				}
 			}
 			
@@ -1652,7 +1652,7 @@ public class FunModule {
 			Iterator<String> rankedKeys = userData.getJSONObject("stats").getJSONObject("rankPoints").keys();
 			while (rankedKeys.hasNext()) {
 				String rankedKey = rankedKeys.next();
-				rankedPoints += String.format("%s: %,d\n", GeneralUtils.title(rankedKey.replace("_", " ")).trim(), userData.getJSONObject("stats").getJSONObject("rankPoints").getInt(rankedKey));
+				rankedPoints += String.format("%s: %,d\n", GeneralUtils.title(rankedKey.replace("_", " ")), userData.getJSONObject("stats").getJSONObject("rankPoints").getInt(rankedKey));
 			}
 			
 			embed.addField("Ranked Points", rankedPoints, true);
@@ -1914,8 +1914,6 @@ public class FunModule {
 				event.reply("I could not find any results :no_entry:").queue();
 				return;
 			}
-			
-			System.out.println(results.size());
 			
 			PagedResult<Object> paged = new PagedResult<>(results)
 					.setDeleteMessage(false)

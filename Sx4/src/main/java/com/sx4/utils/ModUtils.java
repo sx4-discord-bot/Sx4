@@ -72,6 +72,7 @@ public class ModUtils {
 				}
 			}
 
+			return;
 		} else {
 			for (Role guildRole : guild.getRoles()) {
 				if (guildRole.getName().equals(roleName)) {
@@ -218,8 +219,8 @@ public class ModUtils {
 	}
 	
 	public static void createModLog(Guild guild, User moderator, User user, String action, String reason) {
-		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("modlog.enabled", "modlog.channel", "modlog.caseAmount")).get("modlog", Document.class);
-		if (data.isEmpty() || data.getBoolean("enabled", false) == false) {
+		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("modlog.enabled", "modlog.channelId", "modlog.caseAmount")).get("modlog", Database.EMPTY_DOCUMENT);
+		if (!data.getBoolean("enabled", false)) {
 			return;
 		}
 		
@@ -246,6 +247,7 @@ public class ModUtils {
 				.append("reason", reason)
 				.append("moderatorId", moderator == null ? null : moderator.getIdLong())
 				.append("userId", user.getIdLong())
+				.append("guildId", guild.getIdLong())
 				.append("timestamp", Clock.systemUTC().instant().getEpochSecond());
 		
 		if (guild.getSelfMember().hasPermission(channel, Permission.MESSAGE_EMBED_LINKS, Permission.MESSAGE_WRITE, Permission.MESSAGE_READ)) {

@@ -197,7 +197,7 @@ public class EventHandler extends ListenerAdapter {
 		}
 		
 		if(attempts >= ATTEMPTS_BEFORE_REFETCH) {
-			data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Document.class);
+			data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Database.EMPTY_DOCUMENT);
 		}
 		
 		TextChannel channel = guild.getTextChannelById(data.getLong("channelId"));
@@ -310,7 +310,7 @@ public class EventHandler extends ListenerAdapter {
 		Guild guild = event.getGuild();
 		Member member = event.getMember();
 		
-		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Document.class);
+		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Database.EMPTY_DOCUMENT);
 		if (!data.getBoolean("enabled", false) || data.getLong("channelId") == null) {
 			return;
 		}
@@ -330,7 +330,7 @@ public class EventHandler extends ListenerAdapter {
 		Guild guild = event.getGuild();
 		Member member = event.getMember();
 		
-		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Document.class);
+		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Database.EMPTY_DOCUMENT);
 		if (!data.getBoolean("enabled", false) || data.getLong("channelId") == null) {
 			return;
 		}
@@ -371,7 +371,7 @@ public class EventHandler extends ListenerAdapter {
 		Guild guild = event.getGuild();
 		User user = event.getUser();
 		
-		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Document.class);
+		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Database.EMPTY_DOCUMENT);
 		if (!data.getBoolean("enabled", false) || data.getLong("channelId") == null) {
 			return;
 		}
@@ -411,7 +411,7 @@ public class EventHandler extends ListenerAdapter {
 		Guild guild = event.getGuild();
 		User user = event.getUser();
 		
-		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Document.class);
+		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Database.EMPTY_DOCUMENT);
 		if (!data.getBoolean("enabled", false) || data.getLong("channelId") == null) {
 			return;
 		}
@@ -452,7 +452,7 @@ public class EventHandler extends ListenerAdapter {
 		TextChannel channel = event.getChannel();
 		Message message = event.getMessage(), previousMessage = GuildMessageCache.INSTANCE.getMessageById(message.getIdLong());
 		
-		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Document.class);
+		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Database.EMPTY_DOCUMENT);
 		if (!data.getBoolean("enabled", false) || data.getLong("channelId") == null) {
 			return;
 		}
@@ -489,7 +489,7 @@ public class EventHandler extends ListenerAdapter {
 		Guild guild = event.getGuild();
 		TextChannel channel = event.getChannel();
 		
-		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Document.class);
+		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Database.EMPTY_DOCUMENT);
 		if (!data.getBoolean("enabled", false) || data.getLong("channelId") == null) {
 			return;
 		}
@@ -531,7 +531,7 @@ public class EventHandler extends ListenerAdapter {
 	public void onChannelDelete(GuildChannel channel) {
 		Guild guild = channel.getGuild();
 		
-		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Document.class);
+		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Database.EMPTY_DOCUMENT);
 		if (!data.getBoolean("enabled", false) || data.getLong("channelId") == null) {
 			return;
 		}
@@ -587,7 +587,7 @@ public class EventHandler extends ListenerAdapter {
 	public void onChannelCreate(GuildChannel channel) {
 		Guild guild = channel.getGuild();
 		
-		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Document.class);
+		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Database.EMPTY_DOCUMENT);
 		if (!data.getBoolean("enabled", false) || data.getLong("channelId") == null) {
 			return;
 		}
@@ -643,7 +643,7 @@ public class EventHandler extends ListenerAdapter {
 	public void onChannelUpdateName(GuildChannel channel, String previous, String current) {
 		Guild guild = channel.getGuild();
 		
-		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Document.class);
+		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Database.EMPTY_DOCUMENT);
 		if (!data.getBoolean("enabled", false) || data.getLong("channelId") == null) {
 			return;
 		}
@@ -704,7 +704,7 @@ public class EventHandler extends ListenerAdapter {
 		Guild guild = event.getGuild();
 		Role role = event.getRole();
 		
-		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Document.class);
+		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Database.EMPTY_DOCUMENT);
 		if (!data.getBoolean("enabled", false) || data.getLong("channelId") == null) {
 			return;
 		}
@@ -744,7 +744,7 @@ public class EventHandler extends ListenerAdapter {
 		Guild guild = event.getGuild();
 		Role role = event.getRole();
 		
-		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Document.class);
+		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Database.EMPTY_DOCUMENT);
 		if (!data.getBoolean("enabled", false) || data.getLong("channelId") == null) {
 			return;
 		}
@@ -784,7 +784,7 @@ public class EventHandler extends ListenerAdapter {
 		Guild guild = event.getGuild();
 		Role role = event.getRole();
 		
-		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Document.class);
+		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Database.EMPTY_DOCUMENT);
 		if (!data.getBoolean("enabled", false) || data.getLong("channelId") == null) {
 			return;
 		}
@@ -853,7 +853,7 @@ public class EventHandler extends ListenerAdapter {
 		Guild guild = event.getGuild();
 		Role role = event.getRole();
 		
-		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Document.class);
+		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Database.EMPTY_DOCUMENT);
 		if (!data.getBoolean("enabled", false) || data.getLong("channelId") == null) {
 			return;
 		}
@@ -910,7 +910,7 @@ public class EventHandler extends ListenerAdapter {
 		List<Role> roles = event.getRoles();
 		Role firstRole = roles.get(0);
 		
-		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Document.class);
+		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Database.EMPTY_DOCUMENT);
 		if (!data.getBoolean("enabled", false) || data.getLong("channelId") == null) {
 			return;
 		}
@@ -999,7 +999,7 @@ public class EventHandler extends ListenerAdapter {
 		List<Role> roles = event.getRoles();
 		Role firstRole = roles.get(0);
 		
-		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Document.class);
+		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Database.EMPTY_DOCUMENT);
 		if (!data.getBoolean("enabled", false) || data.getLong("channelId") == null) {
 			return;
 		}
@@ -1095,7 +1095,7 @@ public class EventHandler extends ListenerAdapter {
 		Guild guild = event.getGuild();
 		Member member = event.getMember();
 		
-		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Document.class);
+		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Database.EMPTY_DOCUMENT);
 		if (!data.getBoolean("enabled", false) || data.getLong("channelId") == null) {
 			return;
 		}
@@ -1138,7 +1138,7 @@ public class EventHandler extends ListenerAdapter {
 		Guild guild = event.getGuild();
 		Member member = event.getMember();
 		
-		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Document.class);
+		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Database.EMPTY_DOCUMENT);
 		if (!data.getBoolean("enabled", false) || data.getLong("channelId") == null) {
 			return;
 		}
@@ -1185,7 +1185,7 @@ public class EventHandler extends ListenerAdapter {
 		Guild guild = event.getGuild();
 		Member member = event.getMember();
 		
-		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Document.class);
+		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Database.EMPTY_DOCUMENT);
 		if (!data.getBoolean("enabled", false) || data.getLong("channelId") == null) {
 			return;
 		}
@@ -1233,7 +1233,7 @@ public class EventHandler extends ListenerAdapter {
 		Member member = event.getMember();
 		VoiceChannel channel = event.getChannelJoined();
 		
-		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Document.class);
+		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Database.EMPTY_DOCUMENT);
 		if (!data.getBoolean("enabled", false) || data.getLong("channelId") == null) {
 			return;
 		}
@@ -1252,7 +1252,7 @@ public class EventHandler extends ListenerAdapter {
 		Member member = event.getMember();
 		VoiceChannel channel = event.getChannelLeft();
 		
-		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Document.class);
+		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Database.EMPTY_DOCUMENT);
 		if (!data.getBoolean("enabled", false) || data.getLong("channelId") == null) {
 			return;
 		}
@@ -1272,7 +1272,7 @@ public class EventHandler extends ListenerAdapter {
 		
 		VoiceChannel left = event.getChannelLeft(), joined = event.getChannelJoined();
 		
-		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Document.class);
+		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Database.EMPTY_DOCUMENT);
 		if (!data.getBoolean("enabled", false) || data.getLong("channelId") == null) {
 			return;
 		}

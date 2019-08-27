@@ -143,7 +143,7 @@ public class SelfrolesModule {
 			Emote emote = ArgumentUtils.getEmote(event.getGuild(), emoteArgument);
 			boolean unicode = emote == null;
 			
-			List<Document> reactionRoles = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("reactionRole.reactionRoles")).getEmbedded(List.of("reactionRole.reactionRoles"), Collections.emptyList());
+			List<Document> reactionRoles = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("reactionRole.reactionRoles")).getEmbedded(List.of("reactionRole", "reactionRoles"), Collections.emptyList());
 			for (Document reactionRole : reactionRoles) {
 				if (reactionRole.getLong("id") == messageId) {
 					TextChannel channel = event.getGuild().getTextChannelById(reactionRole.getLong("channelId"));
@@ -189,13 +189,13 @@ public class SelfrolesModule {
 							
 						}
 						
-						if (!unicode) {
+						if (unicode) {
 							message.addReaction(unicodeEmote).queue($ -> {
 								if (reactionRole.getBoolean("botMenu")) {
-									message.editMessage(this.getUpdatedEmbed(message.getEmbeds().get(0), roles, unicode ? unicodeEmote : emote.getAsMention(), role)).queue();
+									message.editMessage(this.getUpdatedEmbed(message.getEmbeds().get(0), roles, unicodeEmote, role)).queue();
 								}
 								
-								Document roleData = new Document("id", role.getIdLong()).append("emote", new Document("id", emote.getIdLong()));
+								Document roleData = new Document("id", role.getIdLong()).append("emote", new Document("name", unicodeEmote));
 								
 								UpdateOptions updateOptions = new UpdateOptions().arrayFilters(List.of(Filters.eq("reactionRole.id", messageId))).upsert(true);
 								database.updateGuildById(event.getGuild().getIdLong(), null, Updates.push("reactionRole.reactionRoles.$[reactionRole].roles", roleData), updateOptions, (result, exception) -> {
@@ -203,7 +203,7 @@ public class SelfrolesModule {
 										exception.printStackTrace();
 										event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
 									} else {
-										event.reply("The role `" + role.getName() + "` will now be given when reacting to " + (unicode ? unicodeEmote : emote.getAsMention()) + " <:done:403285928233402378>").queue();
+										event.reply("The role `" + role.getName() + "` will now be given when reacting to " + unicodeEmote + " <:done:403285928233402378>").queue();
 									}
 								});
 							}, e -> {
@@ -220,10 +220,10 @@ public class SelfrolesModule {
 							message.addReaction(emote).queue();
 							
 							if (reactionRole.getBoolean("botMenu")) {
-								message.editMessage(this.getUpdatedEmbed(message.getEmbeds().get(0), roles, unicode ? unicodeEmote : emote.getAsMention(), role)).queue();
+								message.editMessage(this.getUpdatedEmbed(message.getEmbeds().get(0), roles, emote.getAsMention(), role)).queue();
 							}
 							
-							Document roleData = new Document("id", role.getIdLong()).append("emote", new Document("name", unicodeEmote));
+							Document roleData = new Document("id", role.getIdLong()).append("emote", new Document("id", emote.getIdLong()));
 							
 							UpdateOptions updateOptions = new UpdateOptions().arrayFilters(List.of(Filters.eq("reactionRole.id", messageId))).upsert(true);
 							database.updateGuildById(event.getGuild().getIdLong(), null, Updates.push("reactionRole.reactionRoles.$[reactionRole].roles", roleData), updateOptions, (result, exception) -> {
@@ -231,7 +231,7 @@ public class SelfrolesModule {
 									exception.printStackTrace();
 									event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
 								} else {
-									event.reply("The role `" + role.getName() + "` will now be given when reacting to " + (unicode ? unicodeEmote : emote.getAsMention()) + " <:done:403285928233402378>").queue();
+									event.reply("The role `" + role.getName() + "` will now be given when reacting to " + emote.getAsMention() + " <:done:403285928233402378>").queue();
 								}
 							});
 						}
@@ -263,9 +263,9 @@ public class SelfrolesModule {
 					return;
 				}
 				
-				if (!unicode) {
+				if (unicode) {
 					message.addReaction(unicodeEmote).queue($ -> {
-						Document roleData = new Document("id", role.getIdLong()).append("emote", new Document("id", emote.getIdLong()));
+						Document roleData = new Document("id", role.getIdLong()).append("emote", new Document("name", unicodeEmote));
 						Document reactionRole = new Document("id", message.getIdLong()).append("channelId", event.getChannel().getIdLong()).append("botMenu", false).append("roles", List.of(roleData));
 						
 						database.updateGuildById(event.getGuild().getIdLong(), Updates.push("reactionRole.reactionRoles", reactionRole), (result, exception) -> {
@@ -273,7 +273,7 @@ public class SelfrolesModule {
 								exception.printStackTrace();
 								event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
 							} else {
-								event.reply("The role `" + role.getName() + "` will now be given when reacting to " + (emote == null ? unicodeEmote : emote.getAsMention()) + " <:done:403285928233402378>").queue();
+								event.reply("The role `" + role.getName() + "` will now be given when reacting to " + unicodeEmote + " <:done:403285928233402378>").queue();
 							}
 						});
 					}, e -> {
@@ -289,7 +289,7 @@ public class SelfrolesModule {
 				} else {
 					message.addReaction(emote).queue();
 					
-					Document roleData = new Document("id", role.getIdLong()).append("emote", new Document("name", unicodeEmote));
+					Document roleData = new Document("id", role.getIdLong()).append("emote", new Document("id", emote.getIdLong()));
 					Document reactionRole = new Document("id", message.getIdLong()).append("channelId", event.getChannel().getIdLong()).append("botMenu", false).append("roles", List.of(roleData));
 					
 					database.updateGuildById(event.getGuild().getIdLong(), Updates.push("reactionRole.reactionRoles", reactionRole), (result, exception) -> {
@@ -297,7 +297,7 @@ public class SelfrolesModule {
 							exception.printStackTrace();
 							event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
 						} else {
-							event.reply("The role `" + role.getName() + "` will now be given when reacting to " + (emote == null ? unicodeEmote : emote.getAsMention()) + " <:done:403285928233402378>").queue();
+							event.reply("The role `" + role.getName() + "` will now be given when reacting to " + emote.getAsMention() + " <:done:403285928233402378>").queue();
 						}
 					});
 				}
@@ -338,7 +338,7 @@ public class SelfrolesModule {
 						
 						return;
 					}
-					
+	
 					channel.retrieveMessageById(messageId).queue(message -> {
 						List<Document> roles = reactionRole.getList("roles", Document.class, Collections.emptyList());
 						for (Document roleData : roles) {
@@ -399,8 +399,10 @@ public class SelfrolesModule {
 									}
 								} else {
 									for (MessageReaction reaction : message.getReactions()) {
-										if (reaction.getReactionEmote().getIdLong() == emoteId) {
-											reaction.removeReaction(event.getSelfUser()).queue();
+										if (reaction.getReactionEmote().isEmote()) {
+											if (reaction.getReactionEmote().getIdLong() == emoteId) {
+												reaction.removeReaction(event.getSelfUser()).queue();
+											}
 										}
 									}
 								}
@@ -414,6 +416,8 @@ public class SelfrolesModule {
 										event.reply("The role `" + role.getName() + "` has been removed from that reaction role <:done:403285928233402378>").queue();
 									}
 								});
+								
+								return;
 							}
 						}
 						
@@ -523,8 +527,10 @@ public class SelfrolesModule {
 									}
 								} else {
 									for (MessageReaction reaction : message.getReactions()) {
-										if (reaction.getReactionEmote().getIdLong() == emoteId) {
-											reaction.removeReaction(event.getSelfUser()).queue();
+										if (reaction.getReactionEmote().isEmote()) {
+											if (reaction.getReactionEmote().getIdLong() == emoteId) {
+												reaction.removeReaction(event.getSelfUser()).queue();
+											}
 										}
 									}
 								}

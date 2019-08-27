@@ -7,8 +7,12 @@ import com.sx4.core.Sx4Bot;
 import com.sx4.settings.Settings;
 import com.sx4.utils.HelpUtils;
 
-import net.dv8tion.jda.api.EmbedBuilder;
-import net.dv8tion.jda.api.entities.TextChannel;
+import club.minnced.discord.webhook.WebhookClient;
+import club.minnced.discord.webhook.WebhookClientBuilder;
+import club.minnced.discord.webhook.send.WebhookEmbed.EmbedAuthor;
+import club.minnced.discord.webhook.send.WebhookEmbed.EmbedField;
+import club.minnced.discord.webhook.send.WebhookEmbed.EmbedFooter;
+import club.minnced.discord.webhook.send.WebhookEmbedBuilder;
 import net.dv8tion.jda.api.events.DisconnectEvent;
 import net.dv8tion.jda.api.events.GatewayPingEvent;
 import net.dv8tion.jda.api.events.ReadyEvent;
@@ -23,6 +27,8 @@ public class ConnectionEvents extends ListenerAdapter {
 	public static long getLastGatewayPing() {
 		return ConnectionEvents.lastGatewayPing;
 	}
+	
+	private WebhookClient webhook = new WebhookClientBuilder(Settings.EVENTS_WEBHOOK_ID, Settings.EVENTS_WEBHOOK_TOKEN).build();
 	
 	private int readyEventsCalled = 0;
 	
@@ -55,42 +61,42 @@ public class ConnectionEvents extends ListenerAdapter {
 	}
 	
 	public void onDisconnect(DisconnectEvent event) {
-		TextChannel eventsChannel = Sx4Bot.getShardManager().getGuildById(Settings.SUPPORT_SERVER_ID).getTextChannelById(Settings.EVENTS_CHANNEL_ID);
-		
-		EmbedBuilder embed = new EmbedBuilder();
-		embed.setAuthor(event.getJDA().getSelfUser().getAsTag(), null, event.getJDA().getSelfUser().getEffectiveAvatarUrl());
+		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
+		embed.setAuthor(new EmbedAuthor(event.getJDA().getSelfUser().getAsTag(), event.getJDA().getSelfUser().getEffectiveAvatarUrl(), null));
 		embed.setTimestamp(event.getTimeDisconnected());
-		embed.setColor(Settings.COLOR_RED);
-		embed.addField("Shard", (event.getJDA().getShardInfo().getShardId() + 1) + "/" + event.getJDA().getShardInfo().getShardTotal(), false);
+		embed.setColor(Settings.COLOR_RED.hashCode());
+		embed.addField(new EmbedField(false, "Shard", (event.getJDA().getShardInfo().getShardId() + 1) + "/" + event.getJDA().getShardInfo().getShardTotal()));
 		if (event.getCloseCode() != null) {
-			embed.addField("Reason", event.getCloseCode().getMeaning() + " [" + event.getCloseCode().getCode() + "]", false);
+			embed.addField(new EmbedField(false, "Reason", event.getCloseCode().getMeaning() + " [" + event.getCloseCode().getCode() + "]"));
 		}
-		embed.setFooter("Disconnect", null);
-		eventsChannel.sendMessage(embed.build()).queue();
+		
+		embed.setFooter(new EmbedFooter("Disconnect", null));
+		
+		this.webhook.send(embed.build());
 	}
 	
 	public void onResume(ResumedEvent event) {
-		TextChannel eventsChannel = Sx4Bot.getShardManager().getGuildById(Settings.SUPPORT_SERVER_ID).getTextChannelById(Settings.EVENTS_CHANNEL_ID);
-		
-		EmbedBuilder embed = new EmbedBuilder();
-		embed.setAuthor(event.getJDA().getSelfUser().getAsTag(), null, event.getJDA().getSelfUser().getEffectiveAvatarUrl());
+		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
+		embed.setAuthor(new EmbedAuthor(event.getJDA().getSelfUser().getAsTag(), event.getJDA().getSelfUser().getEffectiveAvatarUrl(), null));
 		embed.setTimestamp(Instant.now());
-		embed.setColor(Settings.COLOR_GREEN);
-		embed.addField("Shard", (event.getJDA().getShardInfo().getShardId() + 1) + "/" + event.getJDA().getShardInfo().getShardTotal(), true);
-		embed.setFooter("Resume", null);
-		eventsChannel.sendMessage(embed.build()).queue();
+		embed.setColor(Settings.COLOR_GREEN.hashCode());
+		embed.addField(new EmbedField(false, "Shard", (event.getJDA().getShardInfo().getShardId() + 1) + "/" + event.getJDA().getShardInfo().getShardTotal()));
+		
+		embed.setFooter(new EmbedFooter("Resume", null));
+		
+		this.webhook.send(embed.build());
 	}
 	
 	public void onReconnect(ReconnectedEvent event) {
-		TextChannel eventsChannel = Sx4Bot.getShardManager().getGuildById(Settings.SUPPORT_SERVER_ID).getTextChannelById(Settings.EVENTS_CHANNEL_ID);
-		
-		EmbedBuilder embed = new EmbedBuilder();
-		embed.setAuthor(event.getJDA().getSelfUser().getAsTag(), null, event.getJDA().getSelfUser().getEffectiveAvatarUrl());
+		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
+		embed.setAuthor(new EmbedAuthor(event.getJDA().getSelfUser().getAsTag(), event.getJDA().getSelfUser().getEffectiveAvatarUrl(), null));
 		embed.setTimestamp(Instant.now());
-		embed.setColor(Settings.COLOR_GREEN);
-		embed.addField("Shard", (event.getJDA().getShardInfo().getShardId() + 1) + "/" + event.getJDA().getShardInfo().getShardTotal(), true);
-		embed.setFooter("Reconnect", null);
-		eventsChannel.sendMessage(embed.build()).queue();
+		embed.setColor(Settings.COLOR_GREEN.hashCode());
+		embed.addField(new EmbedField(false, "Shard", (event.getJDA().getShardInfo().getShardId() + 1) + "/" + event.getJDA().getShardInfo().getShardTotal()));
+		
+		embed.setFooter(new EmbedFooter("Reconnect", null));
+
+		this.webhook.send(embed.build());
 	}
 	
 }

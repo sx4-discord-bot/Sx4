@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.bson.BsonDocument;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 
@@ -333,22 +334,24 @@ public class EconomyUtils {
 	}
 	
 	public static UpdateOneModel<Document> getAddItemModel(Long userId, List<Document> items, String name, long amount, Document extraFields) {
-		Bson filter = userId != null ? Filters.eq("_id", userId) : null;
+		Bson filter = userId != null ? Filters.eq("_id", userId) : new BsonDocument();
+		String arrayFilterString = name.toLowerCase().replace(" ", "");
+		
 		for (Document itemData : items) {
-			if (itemData.getString("name").equals(name)) {
-				Bson update = Updates.inc("economy.items.$[" + name + "].amount", amount);
+			if (itemData.getString("name").equals(name)) {	
+				Bson update = Updates.inc("economy.items.$[" + arrayFilterString + "].amount", amount);
 				for (String key : extraFields.keySet()) {
-					update = Updates.combine(update, Updates.set("economy.items.$[" + name + "]." + key, extraFields.get(key)));
+					update = Updates.combine(update, Updates.set("economy.items.$[" + arrayFilterString + "]." + key, extraFields.get(key)));
 				}
 				
-				UpdateOptions updateOptions = new UpdateOptions().arrayFilters(List.of(Filters.eq(name + ".name", name))).upsert(true);
+				UpdateOptions updateOptions = new UpdateOptions().arrayFilters(List.of(Filters.eq(arrayFilterString + ".name", name))).upsert(true);
 				return new UpdateOneModel<>(filter, update, updateOptions);
 			}
 		}
 		
 		Document newItem = new Document("name", name).append("amount", amount);
 		newItem.putAll(extraFields);
-		return new UpdateOneModel<>(filter, Updates.push("economy.items", newItem), new UpdateOptions().upsert(true));
+		return new UpdateOneModel<>(filter, Updates.push("economy.items", newItem), new UpdateOptions().arrayFilters(List.of()).upsert(true));
 	}
 	
 	public static UpdateOneModel<Document> getAddItemModel(List<Document> items, String name, long amount, Document extraFields) {

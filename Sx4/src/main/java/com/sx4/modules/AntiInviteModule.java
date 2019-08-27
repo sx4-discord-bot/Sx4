@@ -439,14 +439,14 @@ public class AntiInviteModule {
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void stats(CommandEvent event, @Context Database database) {
 			Bson projection = Projections.include("antiinvite.enabled", "antiinvite.action", "antiinvite.attempts", "antiinvite.banInvites");
-			Document data = database.getGuildById(event.getGuild().getIdLong(), null, projection);
+			Document data = database.getGuildById(event.getGuild().getIdLong(), null, projection).get("antiinvite", Database.EMPTY_DOCUMENT);
 			
 			EmbedBuilder embed = new EmbedBuilder();
 			embed.setAuthor("Anti Invite Settings", null, event.getSelfUser().getEffectiveAvatarUrl());
 			embed.setColor(Settings.EMBED_COLOUR);
-			embed.addField("Status", !data.getBoolean("enabled", false) ? "Disabled" : "Enabled", true);
+			embed.addField("Status", data.getBoolean("enabled", false) ? "Enabled" : "Disabled", true);
 			embed.addField("Auto Moderation", data.getString("action") == null ? "Disabled" : "Sending " + data.getInteger("attempts", 3) + " invite" + (data.getInteger("attempts", 3) == 1 ? "" : "s") + " will result in a `" + data.getString("action") + "`", true);
-			embed.addField("Ban Invite Names", !data.getBoolean("baninvites", false) ? "Disabled" : "Enabled", true);
+			embed.addField("Ban Invite Names", data.getBoolean("banInvites", false) ? "Enabled" : "Disabled", true);
 			event.reply(embed.build()).queue();
 		}
 		

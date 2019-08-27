@@ -113,11 +113,15 @@ public class HelpModule {
 					event.reply(HelpUtils.getHelpMessage(pagedReturn.getObject())).queue();
 				});
 			} else if (commandChoice) {
-				PagedResult<Sx4Command> paged = HelpUtils.getCommandPagedResult(commands);
-				paged.setAuthor(GeneralUtils.title(commands.get(0).getCommandTrigger()), null, event.getSelfUser().getEffectiveAvatarUrl());
-				PagedUtils.getPagedResult(event, paged, 60, pagedReturn -> {
-					event.reply(HelpUtils.getHelpMessage(pagedReturn.getObject())).queue();
-				});
+				if (commands.size() > 1) {
+					PagedResult<Sx4Command> paged = HelpUtils.getCommandPagedResult(commands);
+					paged.setAuthor(GeneralUtils.title(commands.get(0).getCommandTrigger()), null, event.getSelfUser().getEffectiveAvatarUrl());
+					PagedUtils.getPagedResult(event, paged, 60, pagedReturn -> {
+						event.reply(HelpUtils.getHelpMessage(pagedReturn.getObject())).queue();
+					});
+				} else {
+					event.reply(HelpUtils.getHelpMessage(commands.get(0))).queue();
+				}
 			} else {
 				if (module != null) {
 					PagedResult<Sx4Command> paged = HelpUtils.getModulePagedResult(module, event.getAuthor());
@@ -125,11 +129,15 @@ public class HelpModule {
 						event.reply(HelpUtils.getHelpMessage(pagedReturn.getObject())).queue();
 					});
 				} else if (!commands.isEmpty()) {
-					PagedResult<Sx4Command> paged = HelpUtils.getCommandPagedResult(commands);
-					paged.setAuthor(GeneralUtils.title(commands.get(0).getCommandTrigger()), null, event.getSelfUser().getEffectiveAvatarUrl());
-					PagedUtils.getPagedResult(event, paged, 60, pagedReturn -> {
-						event.reply(HelpUtils.getHelpMessage(pagedReturn.getObject())).queue();
-					});
+					if (commands.size() > 1) {
+						PagedResult<Sx4Command> paged = HelpUtils.getCommandPagedResult(commands);
+						paged.setAuthor(GeneralUtils.title(commands.get(0).getCommandTrigger()), null, event.getSelfUser().getEffectiveAvatarUrl());
+						PagedUtils.getPagedResult(event, paged, 60, pagedReturn -> {
+							event.reply(HelpUtils.getHelpMessage(pagedReturn.getObject())).queue();
+						});
+					} else {
+						event.reply(HelpUtils.getHelpMessage(commands.get(0))).queue();
+					}
 				}
 			}
 		}

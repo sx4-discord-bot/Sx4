@@ -15,9 +15,7 @@ import java.util.concurrent.TimeUnit;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 
-import com.mongodb.client.FindIterable;
 import com.mongodb.client.model.Filters;
-import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.UpdateOneModel;
 import com.mongodb.client.model.UpdateOptions;
 import com.mongodb.client.model.Updates;
@@ -149,7 +147,8 @@ public class StatsEvents extends ListenerAdapter {
 	public void onGuildMessageUpdate(GuildMessageUpdateEvent event) {
 		Bson update = Updates.combine(
 				Updates.set("edited", true),
-				Updates.set("attachments", !event.getMessage().getAttachments().isEmpty())
+				Updates.set("attachments", !event.getMessage().getAttachments().isEmpty()),
+				Updates.set("content", event.getMessage().getContentRaw())
 		);
 				
 		Database.get().updateMessageLog(event.getMessageIdLong(), update, (result, exception) -> {

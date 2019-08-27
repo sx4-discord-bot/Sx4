@@ -37,6 +37,7 @@ import com.jockie.bot.core.command.impl.CommandEvent;
 import com.jockie.bot.core.command.impl.CommandImpl;
 import com.jockie.bot.core.module.Module;
 import com.jockie.bot.core.option.Option;
+import com.mongodb.MongoClientSettings;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Projections;
@@ -107,7 +108,7 @@ public class EconomyModule {
 		@Command(value="shop", aliases={"list"}, description="View all the crates you can buy", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void shop(CommandEvent event, @Context Database database) {
-			long balance = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance")).getEmbedded(List.of("economy", "balance"), 0);
+			long balance = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance")).getEmbedded(List.of("economy", "balance"), 0L);
 			
 			EmbedBuilder embed = new EmbedBuilder();
 			embed.setColor(Settings.EMBED_COLOUR);
@@ -128,7 +129,7 @@ public class EconomyModule {
 		public void buy(CommandEvent event, @Context Database database, @Argument(value="crate name", endless=true) String crateArgument) {
 			Document data = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance", "economy.items")).get("economy", Database.EMPTY_DOCUMENT);
 			List<Document> items = data.getList("items", Document.class, Collections.emptyList());
-			long balance = data.get("balance", 0);
+			long balance = data.get("balance", 0L);
 			
 			Pair<String, BigInteger> cratePair = EconomyUtils.getItemAndAmount(crateArgument);
 			String crateName = cratePair.getLeft();
@@ -285,7 +286,7 @@ public class EconomyModule {
 	@Command(value="tax", description="View the amount of tax the bot currently has (This is given away every friday in the support server)", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void tax(CommandEvent event, @Context Database database) {
-		long tax = database.getUserById(event.getSelfUser().getIdLong(), null, Projections.include("economy.balance")).getEmbedded(List.of("economy", "balance"), 0);
+		long tax = database.getUserById(event.getSelfUser().getIdLong(), null, Projections.include("economy.balance")).getEmbedded(List.of("economy", "balance"), 0L);
 		EmbedBuilder embed = new EmbedBuilder();
 		embed.setAuthor(event.getSelfUser().getAsTag(), null, event.getSelfUser().getEffectiveAvatarUrl());
 		embed.setDescription(String.format("Their balance: **$%,d**", tax));
@@ -398,12 +399,12 @@ public class EconomyModule {
 									long totalAuthorWorth = authorMoney;
 									long totalUserWorth = userMoney;
 									
-									if (newAuthorData.get("balance", 0) < authorMoney) {
+									if (newAuthorData.get("balance", 0L) < authorMoney) {
 										event.reply("**" + event.getAuthor().getAsTag() + "** does not have $" + authorMoney + " :no_entry:").queue();
 										return;
 									}
 									
-									if (newUserData.get("balance", 0) < userMoney) {
+									if (newUserData.get("balance", 0L) < userMoney) {
 										event.reply("**" + member.getUser().getAsTag() + "** does not have $" + userMoney + " :no_entry:").queue();
 										return;
 									}
@@ -505,7 +506,7 @@ public class EconomyModule {
 		@Command(value="shop", aliases={"list"}, description="View all the boosters in the economy system", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void shop(CommandEvent event, @Context Database database) {
-			long balance = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance")).getEmbedded(List.of("economy", "balance"), 0);
+			long balance = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance")).getEmbedded(List.of("economy", "balance"), 0L);
 			
 			EmbedBuilder embed = new EmbedBuilder();
 			embed.setDescription("Buy boosters to be given benefits at a cost");
@@ -524,7 +525,7 @@ public class EconomyModule {
 		public void buy(CommandEvent event, @Context Database database, @Argument(value="booster name", endless=true) String boosterArgument) {
 			Document data = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance")).get("economy", Database.EMPTY_DOCUMENT);
 			List<Document> items = data.getList("items", Document.class, Collections.emptyList());
-			long balance = data.get("balance", 0);
+			long balance = data.get("balance", 0L);
 			
 			Pair<String, BigInteger> boosterPair = EconomyUtils.getItemAndAmount(boosterArgument);
 			String boosterName = boosterPair.getLeft();
@@ -805,7 +806,7 @@ public class EconomyModule {
 		EmbedBuilder embed = new EmbedBuilder();
 		if (streakTime != null && timestampNow - streakTime <= EconomyUtils.DAILY_COOLDOWN) {
 			event.reply("Slow down! You can collect your daily in " + TimeUtils.toTimeString(streakTime - timestampNow + EconomyUtils.DAILY_COOLDOWN, ChronoUnit.SECONDS) + " :stopwatch:").queue();
-		} else if (timestampNow - streakTime <= EconomyUtils.DAILY_COOLDOWN * 2) {
+		} else if (streakTime != null && timestampNow - streakTime <= EconomyUtils.DAILY_COOLDOWN * 2) {
 			int currentStreak = data.getInteger("streak") + 1;
 			money = currentStreak >= 5 ? 250 : currentStreak == 4 ? 200 : currentStreak == 3 ? 170 : currentStreak == 2 ? 145 : currentStreak == 1 ? 120 : 100;
 			
@@ -854,7 +855,7 @@ public class EconomyModule {
 			money = 100;
 			
 			embed.setAuthor(event.getAuthor().getName(), null, event.getAuthor().getEffectiveAvatarUrl());
-			embed.setDescription("You have collected your daily money! (**+$" + money + "**)\n\nIt has been over 2 days since you last used the command, your streak has been reset");
+			embed.setDescription("You have collected your daily money! (**+$" + money + "**)" + (data.getInteger("streak", 0) != 0 ? "\n\nIt has been over 2 days since you last used the command, your streak has been reset" : ""));
 			embed.setColor(event.getMember().getColor());
 			
 			Bson update = Updates.combine(
@@ -888,7 +889,7 @@ public class EconomyModule {
 			}
 		}
 		
-		long balance = database.getUserById(member.getIdLong(), null, Projections.include("economy.balance")).getEmbedded(List.of("economy", "balance"), 0);
+		long balance = database.getUserById(member.getIdLong(), null, Projections.include("economy.balance")).getEmbedded(List.of("economy", "balance"), 0L);
 		
 		EmbedBuilder embed = new EmbedBuilder();
 		embed.setColor(member.getColor());
@@ -998,7 +999,7 @@ public class EconomyModule {
 	@Command(value="double or nothing", aliases={"don", "doubleornothing", "allin", "all in", "dn"}, description="Risk it all in the hope of doubling your money or losing it all", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 	@Cooldown(value=40)
 	public void doubleOrNothing(CommandEvent event, @Context Database database) {
-		long balance = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance")).getEmbedded(List.of("economy", "balance"), 0);
+		long balance = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance")).getEmbedded(List.of("economy", "balance"), 0L);
 		if (balance < 1) {
 			event.reply("You do not have any money to bet :no_entry:").queue();
 			event.removeCooldown();
@@ -1007,7 +1008,7 @@ public class EconomyModule {
 
 		event.reply(String.format(event.getAuthor().getName() + ", this will bet **$%,d** are you sure you want to bet this (Yes or No)", balance)).queue(originalMessage -> {
 			PagedUtils.getConfirmation(event, 30, event.getAuthor(), confirmation -> {
-				long balanceUpdated = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance")).getEmbedded(List.of("economy", "balance"), 0);
+				long balanceUpdated = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance")).getEmbedded(List.of("economy", "balance"), 0L);
 				if (balanceUpdated < 1) {
 					event.reply("You do not have any money to bet :no_entry:").queue();
 					event.removeCooldown();
@@ -1070,7 +1071,7 @@ public class EconomyModule {
 		@Command(value="shop", aliases={"list"}, description="View all the miners you can buy", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void shop(CommandEvent event, @Context Database database) {
-			long balance = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance")).getEmbedded(List.of("economy", "balance"), 0);
+			long balance = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance")).getEmbedded(List.of("economy", "balance"), 0L);
 			
 			EmbedBuilder embed = new EmbedBuilder();
 			embed.setAuthor("Miner Shop", null, event.getSelfUser().getEffectiveAvatarUrl());
@@ -1091,7 +1092,7 @@ public class EconomyModule {
 		public void buy(CommandEvent event, @Context Database database, @Argument(value="miner name", endless=true) String minerArgument) {
 			Document data = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance", "economy.items")).get("economy", Database.EMPTY_DOCUMENT);
 			List<Document> items = data.getList("items", Document.class, Collections.emptyList());
-			long balance = data.get("balance", 0);
+			long balance = data.get("balance", 0L);
 			
 			Pair<String, BigInteger> minerPair = EconomyUtils.getItemAndAmount(minerArgument);
 			String minerName = minerPair.getLeft();
@@ -1183,7 +1184,7 @@ public class EconomyModule {
 				}
 				
 				List<Bson> arrayFilters = new ArrayList<>();
-				Bson update = new BsonDocument();
+				Bson update = Updates.set("economy.minerCooldown", timestampNow);
 				
 				StringBuilder contentBuilder = new StringBuilder();
 				if (!materials.isEmpty()) {
@@ -1193,7 +1194,7 @@ public class EconomyModule {
 						Material key = materialKeys.get(i);
 						long value = materials.get(key);
 						
-						UpdateOneModel<Document> updateModel = EconomyUtils.getAddItemModel(items, key, value);
+						UpdateOneModel<Document> updateModel = EconomyUtils.getAddItemModel(items, key, value);						
 						update = Updates.combine(update, updateModel.getUpdate());
 						arrayFilters.addAll(updateModel.getOptions().getArrayFilters());
 						
@@ -1205,6 +1206,8 @@ public class EconomyModule {
 				} else {
 					contentBuilder = new StringBuilder("Absolutely nothing");
 				}
+				
+				event.reply(update.toBsonDocument(Document.class, MongoClientSettings.getDefaultCodecRegistry()).toJson()).queue();
 				
 				embed.setAuthor(event.getAuthor().getName(), null, event.getAuthor().getEffectiveAvatarUrl());
 				embed.setDescription("You used your miners and gathered these materials: " + contentBuilder.toString());
@@ -1241,7 +1244,7 @@ public class EconomyModule {
 		@Command(value="shop", aliases={"list"}, description="View all the pickaxes you can buy/craft", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void shop(CommandEvent event, @Context Database database) {
-			long balance = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance")).getEmbedded(List.of("economy", "balance"), 0);
+			long balance = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance")).getEmbedded(List.of("economy", "balance"), 0L);
 			
 			EmbedBuilder embed = new EmbedBuilder();
 			embed.setAuthor("Pickaxe Shop", null, event.getSelfUser().getEffectiveAvatarUrl());
@@ -1295,7 +1298,7 @@ public class EconomyModule {
 				return;
 			}
 			
-			long balance = data.get("balance", 0);
+			long balance = data.get("balance", 0L);
 			if (balance >= pickaxe.getPrice()) {
 				UpdateOneModel<Document> updateModel = EconomyUtils.getAddItemModel(userItems, pickaxe, 1, new Document("currentDurability", pickaxe.getDurability()));
 				UpdateOptions updateOptions = new UpdateOptions().arrayFilters(updateModel.getOptions().getArrayFilters()).upsert(true);
@@ -1470,7 +1473,7 @@ public class EconomyModule {
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void upgrades(CommandEvent event, @Context Database database) {
 			Document data = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items", "economy.balance")).get("economy", Database.EMPTY_DOCUMENT);
-			long balance = data.get("balance", 0);
+			long balance = data.get("balance", 0L);
 			List<Document> items = data.getList("items", Document.class, Collections.emptyList());
 			
 			Pickaxe defaultPickaxe = null;
@@ -1605,7 +1608,7 @@ public class EconomyModule {
 		@Command(value="shop", aliases={"list"}, description="View all the rods you can buy/craft")
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void shop(CommandEvent event, @Context Database database) {
-			long balance = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance")).getEmbedded(List.of("economy", "balance"), 0);
+			long balance = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance")).getEmbedded(List.of("economy", "balance"), 0L);
 			
 			EmbedBuilder embed = new EmbedBuilder();
 			embed.setAuthor("Fishing Rod Shop", null, event.getSelfUser().getEffectiveAvatarUrl());
@@ -1659,7 +1662,7 @@ public class EconomyModule {
 				return;
 			}
 			
-			long balance = data.get("balance", 0);
+			long balance = data.get("balance", 0L);
 			if (balance >= rod.getPrice()) {
 				UpdateOneModel<Document> updateModel = EconomyUtils.getAddItemModel(userItems, rod, 1, new Document("currentDurability", rod.getDurability()));
 				UpdateOptions updateOptions = new UpdateOptions().arrayFilters(updateModel.getOptions().getArrayFilters()).upsert(true);
@@ -1786,7 +1789,7 @@ public class EconomyModule {
 				return;
 			}
 			
-			long balance = data.get("balance", 0);
+			long balance = data.get("balance", 0L);
 			long price = Math.round((defaultRod.getPrice() * 0.025D) + (rod.getUpgrades() * (defaultRod.getPrice() * 0.015D)));
 			if (balance >= price) {
 				Bson update = Updates.combine(
@@ -1829,7 +1832,7 @@ public class EconomyModule {
 		public void upgrades(CommandEvent event, @Context Database database) {
 			Document data = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items", "economy.balance")).get("economy", Database.EMPTY_DOCUMENT);
 			List<Document> items = data.getList("items", Document.class, Collections.emptyList());
-			long balance = data.get("balance", 0);
+			long balance = data.get("balance", 0L);
 			
 			Rod defaultRod = null;
 			Rod rod = EconomyUtils.getUserRod(items);
@@ -1962,7 +1965,7 @@ public class EconomyModule {
 		@Command(value="shop", aliases={"list"}, description="View all the axes you can buy/craft", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void shop(CommandEvent event, @Context Database database) {
-			long balance = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance")).getEmbedded(List.of("economy", "balance"), 0);
+			long balance = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance")).getEmbedded(List.of("economy", "balance"), 0L);
 			
 			EmbedBuilder embed = new EmbedBuilder();
 			embed.setAuthor("Axe Shop", null, event.getSelfUser().getEffectiveAvatarUrl());
@@ -2016,7 +2019,7 @@ public class EconomyModule {
 				return;
 			}
 			
-			long balance = data.get("balance", 0);
+			long balance = data.get("balance", 0L);
 			if (balance >= axe.getPrice()) {
 				UpdateOneModel<Document> updateModel = EconomyUtils.getAddItemModel(userItems, axe, 1, new Document("currentDurability", axe.getDurability()));
 				UpdateOptions updateOptions = new UpdateOptions().arrayFilters(updateModel.getOptions().getArrayFilters()).upsert(true);
@@ -2139,7 +2142,7 @@ public class EconomyModule {
 				return;
 			}
 			
-			long balance = data.get("balance", 0);
+			long balance = data.get("balance", 0L);
 			long price = Math.round((defaultAxe.getPrice() * 0.025D) + (axe.getUpgrades() * (defaultAxe.getPrice() * 0.015D)));
 			if (balance >= price) {
 				Bson update = Updates.combine(
@@ -2179,7 +2182,7 @@ public class EconomyModule {
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void upgrades(CommandEvent event, @Context Database database) {
 			Document data = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items", "economy.balance")).get("economy", Database.EMPTY_DOCUMENT);
-			long balance = data.get("balance", 0);
+			long balance = data.get("balance", 0L);
 			
 			List<Document> items = data.getList("items", Document.class, Collections.emptyList());
 			Axe axe = EconomyUtils.getUserAxe(items), defaultAxe = null;
@@ -2317,8 +2320,8 @@ public class EconomyModule {
 		}
 		
 		Bson projection = Projections.include("economy.balance");
-		long authorBalance = database.getUserById(event.getAuthor().getIdLong(), null, projection).getEmbedded(List.of("economy", "balance"), 0);
-		long userBalance = database.getUserById(member.getIdLong(), null, projection).getEmbedded(List.of("economy", "balance"), 0);
+		long authorBalance = database.getUserById(event.getAuthor().getIdLong(), null, projection).getEmbedded(List.of("economy", "balance"), 0L);
+		long userBalance = database.getUserById(member.getIdLong(), null, projection).getEmbedded(List.of("economy", "balance"), 0L);
 		long fullAmount, tax, amount;
 		try {
 			fullAmount = EconomyUtils.convertMoneyArgument(authorBalance, amountArgument);
@@ -2413,7 +2416,7 @@ public class EconomyModule {
 			
 			long fullPrice = item.getPrice() * itemAmountLong;
 			long tax = (long) (fullPrice * 0.05D);
-			if (data.get("balance", 0) < tax) {
+			if (data.get("balance", 0L) < tax) {
 				event.replyFormat("You cannot afford the tax for giving `%s`, you need **$%,d** :no_entry:", itemString, tax).queue();
 				return;
 			}
@@ -2456,7 +2459,7 @@ public class EconomyModule {
 			return;
 		}
 		
-		long balance = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance")).getEmbedded(List.of("economy", "balance"), 0);
+		long balance = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance")).getEmbedded(List.of("economy", "balance"), 0L);
 		long bet;
 		try {
 			bet = EconomyUtils.convertMoneyArgument(balance, betArgument);
@@ -2897,7 +2900,7 @@ public class EconomyModule {
 					}
 				}
 				
-				if (data.get("balance", 0) < auctionItem.getPrice()) {
+				if (data.get("balance", 0L) < auctionItem.getPrice()) {
 					event.reply("You do not have enough money to purchase that auction :no_entry:").queue();
 					return;
 				}
@@ -3095,8 +3098,10 @@ public class EconomyModule {
 			if (brokenRod) {
 				update = Updates.combine(update, Updates.pull("economy.items", Filters.eq("name", userRod.getName())));
 			} else {
-				update = Updates.combine(update, Updates.inc("economy.items.$[rod].currentDurability", -1));
-				arrayFilters.add(Filters.eq("rod.name", userRod.getName()));
+				if (userRod != null) {
+					update = Updates.combine(update, Updates.inc("economy.items.$[rod].currentDurability", -1));
+					arrayFilters.add(Filters.eq("rod.name", userRod.getName()));
+				}
 			}
 			
 			UpdateOptions updateOptions = new UpdateOptions().arrayFilters(arrayFilters).upsert(true);
@@ -3340,7 +3345,7 @@ public class EconomyModule {
 		EmbedBuilder embed = new EmbedBuilder();
 		embed.setAuthor(member.getUser().getName() + "'s Items", null, member.getUser().getEffectiveAvatarUrl());
 		embed.setColor(member.getColor());
-		embed.setFooter("If a category isn't shown it means you have no items in that category | Balance: " + String.format("$%,d", data.get("balance", 0)), null);
+		embed.setFooter("If a category isn't shown it means you have no items in that category | Balance: " + String.format("$%,d", data.get("balance", 0L)), null);
 		for (String key : keys) {
 			List<String> list = userItems.get(key);
 			if (!list.isEmpty()) {
@@ -3356,7 +3361,7 @@ public class EconomyModule {
 	public void slot(CommandEvent event, @Context Database database, @Argument(value="bet", endless=true, nullDefault=true) String betArgument) {
 		long bet = 0;
 		if (betArgument != null) {
-			long balance = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance")).getEmbedded(List.of("economy", "balance"), 0);
+			long balance = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance")).getEmbedded(List.of("economy", "balance"), 0L);
 
 			try {
 				bet = EconomyUtils.convertMoneyArgument(balance, betArgument);
@@ -3472,6 +3477,7 @@ public class EconomyModule {
 				compressedData.add(dataDocument);
 			}
 			
+			sort = sort == null ? "balance" : sort;
 			switch (sort.toLowerCase()) {
 				case "name":
 					compressedData.sort((a, b) -> (reverse ? 1 : -1) * a.get("user", User.class).getName().compareTo(b.get("user", User.class).getName()));
@@ -3537,6 +3543,7 @@ public class EconomyModule {
 				compressedData.add(dataDocument);
 			}
 			
+			sort = sort == null ? "balance" : sort;
 			switch (sort.toLowerCase()) {
 				case "name":
 					compressedData.sort((a, b) -> (reverse ? 1 : -1) * a.get("user", User.class).getName().compareTo(b.get("user", User.class).getName()));
@@ -3597,6 +3604,7 @@ public class EconomyModule {
 				compressedData.add(dataDocument);
 			}
 			
+			sort = sort == null ? "balance" : sort;
 			switch (sort.toLowerCase()) {
 				case "name":
 					compressedData.sort((a, b) -> (reverse ? 1 : -1) * a.get("user", User.class).getName().compareTo(b.get("user", User.class).getName()));
@@ -3670,6 +3678,7 @@ public class EconomyModule {
 				compressedData.add(dataDocument);
 			}
 			
+			sort = sort == null ? "balance" : sort;
 			switch (sort.toLowerCase()) {
 				case "name":
 					compressedData.sort((a, b) -> (reverse ? 1 : -1) * a.get("user", User.class).getName().compareTo(b.get("user", User.class).getName()));
@@ -3730,6 +3739,7 @@ public class EconomyModule {
 				compressedData.add(dataDocument);
 			}
 			
+			sort = sort == null ? "balance" : sort;
 			switch (sort.toLowerCase()) {
 				case "name":
 					compressedData.sort((a, b) -> (reverse ? 1 : -1) * a.get("user", User.class).getName().compareTo(b.get("user", User.class).getName()));
@@ -3790,6 +3800,7 @@ public class EconomyModule {
 				compressedData.add(dataDocument);
 			}
 			
+			sort = sort == null ? "balance" : sort;
 			switch (sort.toLowerCase()) {
 				case "name":
 					compressedData.sort((a, b) -> (reverse ? 1 : -1) * a.get("user", User.class).getName().compareTo(b.get("user", User.class).getName()));

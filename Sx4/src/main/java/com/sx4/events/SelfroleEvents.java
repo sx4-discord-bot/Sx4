@@ -25,8 +25,8 @@ public class SelfroleEvents extends ListenerAdapter {
 			return;
 		}
 		
-		Document data = Database.get().getGuildById(event.getGuild().getIdLong(), null, Projections.include("reactionRole.reactionRoles", "reactionRole.dm")).get("reactionRoles", Database.EMPTY_DOCUMENT);
-		List<Document> reactionRoles = data.getList("reactionRoles", Document.class, Collections.emptyList()); 
+		Document data = Database.get().getGuildById(event.getGuild().getIdLong(), null, Projections.include("reactionRole.reactionRoles", "reactionRole.dm")).get("reactionRole", Database.EMPTY_DOCUMENT);
+		List<Document> reactionRoles = data.getList("reactionRoles", Document.class, Collections.emptyList()); 		
 		for (Document reactionRole : reactionRoles) {
 			if (event.getMessageIdLong() == reactionRole.getLong("id")) {
 				List<Document> roles = reactionRole.getList("roles", Document.class, Collections.emptyList());
@@ -101,7 +101,7 @@ public class SelfroleEvents extends ListenerAdapter {
 			return;
 		}
 		
-		Document data = Database.get().getGuildById(event.getGuild().getIdLong(), null, Projections.include("reactionRole.reactionRoles", "reactionRole.dm")).get("reactionRoles", Database.EMPTY_DOCUMENT);
+		Document data = Database.get().getGuildById(event.getGuild().getIdLong(), null, Projections.include("reactionRole.reactionRoles", "reactionRole.dm")).get("reactionRole", Database.EMPTY_DOCUMENT);
 		List<Document> reactionRoles = data.getList("reactionRoles", Document.class, Collections.emptyList()); 
 		for (Document reactionRole : reactionRoles) {
 			if (event.getMessageIdLong() == reactionRole.getLong("id")) {

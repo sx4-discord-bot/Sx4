@@ -280,11 +280,11 @@ public class GiveawayModule {
 		@Command(value="setup", description="Set up a giveaway in the current server")
 		@AuthorPermissions({Permission.MANAGE_ROLES})
 		@BotPermissions({Permission.MESSAGE_HISTORY, Permission.MESSAGE_EMBED_LINKS, Permission.MESSAGE_ADD_REACTION})
-		public void setup(CommandEvent event, @Context Database database, @Argument(value="channel", nullDefault=true) String channelArgument, @Argument(value="winners", nullDefault=true) Long winnersAmount, @Argument(value="duration", nullDefault=true) String duration, @Argument(value="item", endless=true, nullDefault=true) String giveawayItem) {
-			Document data = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("giveaway.giveawayAmount")).get("giveaway", Database.EMPTY_DOCUMENT);
+		public void setup(CommandEvent event, @Context Database database, @Argument(value="channel", nullDefault=true) String channelArgument, @Argument(value="winners", nullDefault=true) Integer winnersAmount, @Argument(value="duration", nullDefault=true) String duration, @Argument(value="item", endless=true, nullDefault=true) String giveawayItem) {
+			int id = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("giveaway.giveawayAmount")).getEmbedded(List.of("giveaway", "giveawayAmount"), 0) + 1;
 			
 			AtomicReference<String> channelString = new AtomicReference<>(), durationString = new AtomicReference<>(), itemString = new AtomicReference<>();
-			AtomicReference<Long> winnersTotal = new AtomicReference<>();
+			AtomicReference<Integer> winnersTotal = new AtomicReference<>();
 			if (channelArgument != null && winnersAmount != null && duration != null && giveawayItem != null) {
 				TextChannel channel = ArgumentUtils.getTextChannel(event.getGuild(), channelArgument);
 				if (channel == null) {
@@ -307,8 +307,6 @@ public class GiveawayModule {
 				embed.setFooter("Ends", null);
 				channel.sendMessage(embed.build()).queue(message -> {
 					message.addReaction("🎉").queue();
-					
-					int id = data.getInteger("giveawayAmount") + 1;
 					
 					Document giveaway = new Document().append("id", id)
 							.append("messageId", message.getIdLong())
@@ -392,7 +390,7 @@ public class GiveawayModule {
 								if (winnersMessage.getContentRaw().toLowerCase().equals("cancel")) {
 									event.reply("Cancelled <:done:403285928233402378>").queue(a -> future.complete(false));
 								} else {
-									winnersTotal.set(Long.parseLong(winnersMessage.getContentRaw()));
+									winnersTotal.set(Integer.parseInt(winnersMessage.getContentRaw()));
 									future.complete(true);
 								}
 							});	   					   
@@ -489,8 +487,6 @@ public class GiveawayModule {
 					embed.setFooter("Ends", null);
 					channel.sendMessage(embed.build()).queue(message -> {
 						message.addReaction("🎉").queue();
-						
-						int id = data.getInteger("winnersAmount") + 1;
 						
 						Document giveaway = new Document().append("id", id)
 								.append("messageId", message.getIdLong())

@@ -4,6 +4,7 @@ import java.awt.Color;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.text.NumberFormat;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -88,20 +89,17 @@ public class ModModule {
 	@BotPermissions({Permission.MANAGE_EMOTES})
 	@Async
 	public void createEmote(CommandEvent event, @Argument(value="emote | image", nullDefault=true) String argument) {
+		if (event.getGuild().getEmotes().size() >= event.getGuild().getMaxEmotes()) {
+			event.reply("The server has reached the emote cap of **" + event.getGuild().getMaxEmotes() + "** :no_entry:").queue();
+			return;
+		}
+		
 		if (argument != null) {
 			Emote emote = ArgumentUtils.getEmote(event.getGuild(), argument);
 			if (emote != null) {
 				try {
 					event.getGuild().createEmote(emote.getName(), Icon.from(new URL(emote.getImageUrl()).openStream())).queue(e -> {
 						event.reply(e.getAsMention() + " has been created <:done:403285928233402378>").queue();
-					}, e -> {
-						if (e instanceof ErrorResponseException) {
-							ErrorResponseException exception = (ErrorResponseException) e;
-							if (exception.getErrorCode() == 30008) {
-								event.reply("The server has reached the maximum emotes it can have :no_entry:").queue();
-								return;
-							}
-						}
 					});
 				} catch (MalformedURLException e) {
 					e.getMessage();
@@ -194,14 +192,6 @@ public class ModModule {
 				try {
 					event.getGuild().createEmote(name == null ? "Unnamed_Emote" : name, Icon.from(new URL(url).openStream())).queue(e -> {
 						event.reply(e.getAsMention() + " has been created <:done:403285928233402378>").queue();
-					}, e -> {
-						if (e instanceof ErrorResponseException) {
-							ErrorResponseException exception = (ErrorResponseException) e;
-							if (exception.getErrorCode() == 30008) {
-								event.reply("The server has reached the maximum of 50 emotes :no_entry:").queue();
-								return;
-							}
-						}
 					});
 				} catch (MalformedURLException e) {
 					e.getMessage();
@@ -220,14 +210,6 @@ public class ModModule {
 						attachment.retrieveAsIcon().thenAcceptAsync(stream -> {
 							event.getGuild().createEmote(emoteName, stream).queue(e -> {
 								event.reply(e.getAsMention() + " has been created <:done:403285928233402378>").queue();
-							}, e -> {
-								if (e instanceof ErrorResponseException) {
-									ErrorResponseException exception = (ErrorResponseException) e;
-									if (exception.getErrorCode() == 30008) {
-										event.reply("The server has reached the maximum of 50 emotes :no_entry:").queue();
-										return;
-									}
-								}
 							});
 						}); 
 						
@@ -407,7 +389,7 @@ public class ModModule {
 			List<Bson> arrayFilters = null;
 			String channelDisplay = channel == null ? null : channel instanceof TextChannel ? ((TextChannel) channel).getAsMention() : channel.getName();
 			
-			List<Document> commands = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("blacklist.commands")).getEmbedded(List.of("blacklist.commands"), Collections.emptyList());
+			List<Document> commands = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("blacklist.commands")).getEmbedded(List.of("blacklist", "remove"), Collections.emptyList());
 			for (Document commandData : commands) {
 				if (commandData.getString("id").equals(commandName)) {
 					arrayFilters = List.of(Filters.eq("command.id", commandName));
@@ -484,7 +466,7 @@ public class ModModule {
 				return;
 			}
 			
-			List<Document> commands = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("blacklist.commands")).getEmbedded(List.of("blacklist.commands"), Collections.emptyList());
+			List<Document> commands = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("blacklist.commands")).getEmbedded(List.of("blacklist", "commands"), Collections.emptyList());
 			for (Document commandData : commands) {
 				if (commandData.getString("id").equals(commandName)) {
 					Bson update = null;
@@ -501,7 +483,10 @@ public class ModModule {
 							}
 						}
 						
-						event.reply("The role `" + role.getName() + "` is not blacklisted from using that " + (command == null ? "module" : "command") + " :no_entry:").queue();
+						if (update == null) {
+							event.reply("The role `" + role.getName() + "` is not blacklisted from using that " + (command == null ? "module" : "command") + " :no_entry:").queue();
+							return;
+						}
 					} else if (role != null) {
 						List<Long> roles = commandData.getEmbedded(List.of("blacklisted", "roles"), Collections.emptyList());				
 						for (long roleId : roles) {
@@ -514,7 +499,10 @@ public class ModModule {
 							}
 						}
 						
-						event.reply("The role `" + role.getName() + "` is not blacklisted from using that " + (command == null ? "module" : "command") + " :no_entry:").queue();
+						if (update == null) {
+							event.reply("The role `" + role.getName() + "` is not blacklisted from using that " + (command == null ? "module" : "command") + " :no_entry:").queue();
+							return;
+						}
 					} else if (member != null) {
 						List<Long> users = commandData.getEmbedded(List.of("blacklisted", "users"), Collections.emptyList());				
 						for (long userId : users) {
@@ -527,7 +515,10 @@ public class ModModule {
 							}
 						}
 						
-						event.reply("The user `" + member.getUser().getAsTag() + "` is not blacklisted from using that " + (command == null ? "module" : "command") + " :no_entry:").queue();
+						if (update == null) {
+							event.reply("The user `" + member.getUser().getAsTag() + "` is not blacklisted from using that " + (command == null ? "module" : "command") + " :no_entry:").queue();
+							return;
+						}
 					}
 					
 					UpdateOptions updateOptions = new UpdateOptions().arrayFilters(List.of(Filters.eq("command.id", commandName)));
@@ -540,6 +531,8 @@ public class ModModule {
 							event.reply("The " + (command == null ? "module" : "command") + " `" + commandName + "` is no longer blacklisted " + type + " <:done:403285928233402378>").queue();
 						}
 					});
+					
+					return;
 				}
 			}
 			
@@ -784,7 +777,7 @@ public class ModModule {
 			List<Bson> arrayFilters = null;
 			String channelDisplay = channel == null ? null : channel instanceof TextChannel ? ((TextChannel) channel).getAsMention() : channel.getName();
 			
-			List<Document> commands = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("blacklist.commands")).getEmbedded(List.of("blacklist.commands"), Collections.emptyList());
+			List<Document> commands = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("blacklist.commands")).getEmbedded(List.of("blacklist", "commands"), Collections.emptyList());
 			for (Document commandData : commands) {
 				if (commandData.getString("id").equals(commandName)) {
 					arrayFilters = List.of(Filters.eq("command.id", commandName));
@@ -861,7 +854,7 @@ public class ModModule {
 				return;
 			}
 			
-			List<Document> commands = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("blacklist.commands")).getEmbedded(List.of("blacklist.commands"), Collections.emptyList());
+			List<Document> commands = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("blacklist.commands")).getEmbedded(List.of("blacklist", "commands"), Collections.emptyList());
 			for (Document commandData : commands) {
 				if (commandData.getString("id").equals(commandName)) {
 					Bson update = null;
@@ -878,7 +871,10 @@ public class ModModule {
 							}
 						}
 						
-						event.reply("The role `" + role.getName() + "` is not whitelisted from using that " + (command == null ? "module" : "command") + " :no_entry:").queue();
+						if (update == null) {
+							event.reply("The role `" + role.getName() + "` is not whitelisted from using that " + (command == null ? "module" : "command") + " :no_entry:").queue();
+							return;
+						}
 					} else if (role != null) {
 						List<Long> roles = commandData.getEmbedded(List.of("whitelisted", "roles"), Collections.emptyList());				
 						for (long roleId : roles) {
@@ -891,7 +887,10 @@ public class ModModule {
 							}
 						}
 						
-						event.reply("The role `" + role.getName() + "` is not whitelisted from using that " + (command == null ? "module" : "command") + " :no_entry:").queue();
+						if (update == null) {
+							event.reply("The role `" + role.getName() + "` is not whitelisted from using that " + (command == null ? "module" : "command") + " :no_entry:").queue();
+							return;
+						}
 					} else if (member != null) {
 						List<Long> users = commandData.getEmbedded(List.of("whitelisted", "users"), Collections.emptyList());				
 						for (long userId : users) {
@@ -904,7 +903,10 @@ public class ModModule {
 							}
 						}
 						
-						event.reply("The user `" + member.getUser().getAsTag() + "` is not whitelisted from using that " + (command == null ? "module" : "command") + " :no_entry:").queue();
+						if (update == null) {
+							event.reply("The user `" + member.getUser().getAsTag() + "` is not whitelisted from using that " + (command == null ? "module" : "command") + " :no_entry:").queue();
+							return;
+						}
 					}
 					
 					UpdateOptions updateOptions = new UpdateOptions().arrayFilters(List.of(Filters.eq("command.id", commandName)));
@@ -917,6 +919,8 @@ public class ModModule {
 							event.reply("The " + (command == null ? "module" : "command") + " `" + commandName + "` is no longer whitelisted " + type + " <:done:403285928233402378>").queue();
 						}
 					});
+					
+					return;
 				}
 			}
 			
@@ -1076,7 +1080,7 @@ public class ModModule {
 				return;
 			}
 			
-			int permissionValue = 0;
+			long permissionValue = 0;
 			for (String permission : permissions) {
 				for (Permission permissionObject : Permission.values()) {
 					if (permission.toLowerCase().equals(permissionObject.getName().replace(" ", "_").replace("&", "and").toLowerCase())) {
@@ -1162,7 +1166,7 @@ public class ModModule {
 						
 						EnumSet<Permission> rolePermissions = Permission.getPermissions(currentPermissionValue);
 						
-						int permissionValue = 0;
+						long permissionValue = 0;
 						for (String permission : permissions) {
 							for (Permission permissionObject : Permission.values()) {
 								if (permission.toLowerCase().equals(permissionObject.getName().replace(" ", "_").replace("&", "and").toLowerCase())) {
@@ -1292,7 +1296,7 @@ public class ModModule {
 			} else if (member != null) {
 				List<Document> users = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("fakePermissions.users")).getEmbedded(List.of("fakePermissions", "users"), Collections.emptyList());
 				for (Document userData : users) {
-					if (userData.get("id").equals(member.getUser().getId())) {
+					if (userData.getLong("id") == member.getUser().getIdLong()) {
 						long permissionValue = userData.getLong("permissions");
 						if (permissionValue == 0) {
 							event.reply("That user doesn't have any fake permissions :no_entry:").queue();
@@ -2195,7 +2199,7 @@ public class ModModule {
 				return;
 			}
 			
-			database.updateGuildById(event.getGuild().getIdLong(), Updates.set("channelId", channel.getIdLong()), (result, exception) -> {
+			database.updateGuildById(event.getGuild().getIdLong(), Updates.set("modlog.channelId", channel.getIdLong()), (result, exception) -> {
 				if (exception != null) {
 					exception.printStackTrace();
 					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
@@ -3095,7 +3099,7 @@ public class ModModule {
 						exception.printStackTrace();
 						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
 					} else {
-						event.replyFormat("Warning #%d will now %s the user %s <:done:403285928233402378>", warningNumber, actionLower, configuration.containsKey("time") ? "for " + TimeUtils.toTimeString(configuration.getLong("duration"), ChronoUnit.SECONDS) : "").queue();
+						event.replyFormat("Warning #%d will now %s the user %s <:done:403285928233402378>", warningNumber, configuration.containsKey("duration") ? "mute" : actionLower, configuration.containsKey("duration") ? "for " + TimeUtils.toTimeString(configuration.getLong("duration"), ChronoUnit.SECONDS) : "").queue();
 					}
 				});
 			} else {
@@ -3169,7 +3173,7 @@ public class ModModule {
 					.setIndexed(false)
 					.setAuthor("Warn Configuration", null, event.getGuild().getIconUrl())
 					.setFunction(warning -> {
-						if (warning.containsKey("time")) {
+						if (warning.containsKey("duration")) {
 							return "Warning #" + warning.getInteger("warning") + ": " + GeneralUtils.title(warning.getString("action")) + " (" + TimeUtils.toTimeString(warning.getLong("duration"), ChronoUnit.SECONDS) + ")";
 						} else {
 							return "Warning #" + warning.getInteger("warning") + ": " + GeneralUtils.title(warning.getString("action"));
@@ -3210,9 +3214,10 @@ public class ModModule {
 				event.reply(exception.getMessage() + " :no_entry:").queue();
 				return;
 			} else {
-				Document data = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("mute.users", "warn.users"));
+				Document data = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("mute.users", "warn.users", "warn.configuration"));
 				List<Document> mutedUsers = data.getEmbedded(List.of("mute", "users"), Collections.emptyList());
 				List<Document> warnedUsers = data.getEmbedded(List.of("warn", "users"), Collections.emptyList());
+				List<Document> warnConfiguration = data.getEmbedded(List.of("warn", "configuration"), Collections.emptyList());
 				
 				Long duration = warning.getDuration();
 				
@@ -3221,14 +3226,14 @@ public class ModModule {
 					bulkData.add(ModUtils.getMuteUpdate(event.getGuild().getIdLong(), member.getIdLong(), mutedUsers, duration));
 				}
 				
-				bulkData.add(WarnUtils.getUserUpdate(warnedUsers, event.getGuild().getIdLong(), member.getIdLong(), reason));
+				bulkData.add(WarnUtils.getUserUpdate(warnedUsers, warnConfiguration, event.getGuild().getIdLong(), member.getIdLong(), reason));
 				
 				database.bulkWriteGuilds(bulkData, (result, writeException) -> {
 					if (writeException != null) {
 						writeException.printStackTrace();
 						event.reply(Sx4CommandEventListener.getUserErrorMessage(writeException)).queue();
 					} else {
-						event.replyFormat("**%s** has been %s%s (%s warning) <:done:403285928233402378>", member.getUser().getAsTag(), WarnUtils.getSuffixedAction(warning.getAction()), duration != null ? " for" + TimeUtils.toTimeString(duration, ChronoUnit.SECONDS) : "", warning.getWarning()).queue();
+						event.replyFormat("**%s** has been %s%s (%s warning) <:done:403285928233402378>", member.getUser().getAsTag(), WarnUtils.getSuffixedAction(warning.getAction()), duration != null ? " for " + TimeUtils.toTimeString(duration, ChronoUnit.SECONDS) : "", GeneralUtils.getNumberSuffix(warning.getWarning())).queue();
 					}
 				});
 			}

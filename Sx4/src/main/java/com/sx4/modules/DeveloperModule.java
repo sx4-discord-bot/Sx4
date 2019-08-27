@@ -28,7 +28,9 @@ import com.jockie.bot.core.command.Initialize;
 import com.jockie.bot.core.command.impl.CommandEvent;
 import com.jockie.bot.core.command.impl.CommandImpl;
 import com.jockie.bot.core.module.Module;
+import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Projections;
+import com.mongodb.client.model.UpdateOptions;
 import com.mongodb.client.model.Updates;
 import com.sx4.categories.Categories;
 import com.sx4.core.Sx4Bot;
@@ -72,6 +74,10 @@ public class DeveloperModule {
 		EconomyUtils.class.getName(),
 		Settings.class.getName(),
 		Database.class.getName(),
+		Updates.class.getName(),
+		Projections.class.getName(),
+		UpdateOptions.class.getName(),
+		Filters.class.getName(),
 		
 		/* Java */
 		Color.class.getName(),
@@ -98,13 +104,11 @@ public class DeveloperModule {
 		
 		String substringBound = "String.metaClass.substringBound = {int start, int end -> delegate.substring(start, Math.min(delegate.length(), end))}";
 		String toJson = "Object.metaClass.toJson = {-> '```json\\n' + prettyWriter.writeValueAsString(delegate).substringBound(0, 1985) + '```'}";
-		String toJsonCusor = "com.rethinkdb.net.Cursor.metaClass.toJson = {-> delegate.toList().toJson()}";
 		
 		GroovyShell initialize = new GroovyShell(configuration);
 		initialize.setProperty("prettyWriter", prettyWriter);
 		initialize.evaluate(substringBound);
 		initialize.evaluate(toJson);
-		initialize.evaluate(toJsonCusor);
 	}
 		
 	@Command(value="parse", allowedArgumentParsingTypes=ArgumentParsingType.POSITIONAL, description="Execute some code, nothing will be sent unless said to")

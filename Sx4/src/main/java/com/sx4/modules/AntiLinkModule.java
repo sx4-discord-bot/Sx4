@@ -425,12 +425,12 @@ public class AntiLinkModule {
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void stats(CommandEvent event, @Context Database database) {
 			Bson projection = Projections.include("antilink.enabled", "antilink.action", "antilink.attempts");
-			Document data = database.getGuildById(event.getGuild().getIdLong(), null, projection);
+			Document data = database.getGuildById(event.getGuild().getIdLong(), null, projection).get("antilink", Database.EMPTY_DOCUMENT);
 			
 			EmbedBuilder embed = new EmbedBuilder();
 			embed.setAuthor("Anti Link Settings", null, event.getSelfUser().getEffectiveAvatarUrl());
 			embed.setColor(Settings.EMBED_COLOUR);
-			embed.addField("Status", !data.getBoolean("enabled", false) ? "Disabled" : "Enabled", true);
+			embed.addField("Status", data.getBoolean("enabled", false) ? "Enabled" : "Disabled", true);
 			embed.addField("Auto Moderation", data.getString("action") == null ? "Disabled" : "Sending " + data.getInteger("attempts", 3) + " link" + (data.getInteger("attempts", 3) == 1 ? "" : "s") + " will result in a `" + data.getString("action") + "`", true);
 			event.reply(embed.build()).queue();
 		}

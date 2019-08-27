@@ -1,6 +1,5 @@
 package com.sx4.events;
 
-import java.time.Clock;
 import java.util.Collections;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -11,6 +10,7 @@ import org.bson.conversions.Bson;
 
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Projections;
+import com.mongodb.client.model.UpdateOneModel;
 import com.mongodb.client.model.UpdateOptions;
 import com.mongodb.client.model.Updates;
 import com.sx4.database.Database;
@@ -26,7 +26,7 @@ import net.dv8tion.jda.api.hooks.ListenerAdapter;
 
 public class AntiInviteEvents extends ListenerAdapter {
 
-	private Pattern inviteRegex = Pattern.compile("(?:.|\n)*(?:https?://)?(?:www.)?(?:discord.gg|(?:canary.)?discordapp.com/invite)/((?:[a-zA-Z0-9]){2,32})(?:.|\n)*", Pattern.CASE_INSENSITIVE);	
+	private Pattern inviteRegex = Pattern.compile("(?:.|\n)*(?:https?://)?(?:www.)?(?:discord.gg|(?:canary.)?discordapp.com/invite)/((?:[a-zA-Z0-9\\-]){2,32})(?:.|\n)*", Pattern.CASE_INSENSITIVE);	
 	
 	public void onGuildMessageReceived(GuildMessageReceivedEvent event) {		
 		if (event.getJDA().getSelfUser().equals(event.getAuthor()) || event.isWebhookMessage() || event.getMember().hasPermission(Permission.ADMINISTRATOR)) {
@@ -35,9 +35,11 @@ public class AntiInviteEvents extends ListenerAdapter {
 		
 		Matcher inviteMatch = this.inviteRegex.matcher(event.getMessage().getContentRaw());
 		if (inviteMatch.matches()) {
-			Bson projection = Projections.include("antiinvite.enabled", "antiinvite.whitelist", "antiinvite.users", "antiinvite.action", "antiinvite.attempts");
-			Document data = Database.get().getGuildById(event.getGuild().getIdLong(), null, projection).get("antiinvite", Database.EMPTY_DOCUMENT);
-			if (data.isEmpty() || data.getBoolean("enabled") == false) {
+			Bson projection = Projections.include("antiinvite.enabled", "antiinvite.whitelist", "antiinvite.users", "antiinvite.action", "antiinvite.attempts", "mute.users");
+			Document allData = Database.get().getGuildById(event.getGuild().getIdLong(), null, projection);
+			
+			Document data = allData.get("antiinvite", Database.EMPTY_DOCUMENT);
+			if (!data.getBoolean("enabled", false)) {
 				return;
 			}
 			
@@ -141,16 +143,15 @@ public class AntiInviteEvents extends ListenerAdapter {
 								event.getAuthor().openPrivateChannel().queue(channel -> channel.sendMessage(ModUtils.getMuteEmbed(event.getGuild(), null,  event.getJDA().getSelfUser(), 0, reason)).queue(), e -> {});
 								event.getGuild().addRoleToMember(event.getMember(), role).queue();
 								ModUtils.createModLogAndOffence(event.getGuild(), event.getJDA().getSelfUser(), event.getAuthor(), "Mute (Automatic)", reason);
-								
+
+								UpdateOneModel<Document> muteModel = ModUtils.getMuteUpdate(event.getGuild().getIdLong(), event.getAuthor().getIdLong(), allData.getEmbedded(List.of("mute", "users"), Collections.emptyList()), null);		
 								Bson update = Updates.combine(
-										Updates.set("mute.users.$[user].duration", null),
-										Updates.set("mute.users.$[user].timestamp", Clock.systemUTC().instant().getEpochSecond()),
+										muteModel.getUpdate(),
 										Updates.pull("antiinvite.users", Filters.eq("id", event.getAuthor().getIdLong()))
 								);
 								
-								UpdateOptions updateOptions = new UpdateOptions().arrayFilters(List.of(Filters.eq("user.id", event.getAuthor().getIdLong()))).upsert(true);
 								
-								Database.get().updateGuildById(event.getGuild().getIdLong(), null, update, updateOptions, (result, exception) -> {
+								Database.get().updateGuildById(event.getGuild().getIdLong(), null, update, muteModel.getOptions(), (result, exception) -> {
 									if (exception != null) {
 										exception.printStackTrace();
 									}
@@ -160,8 +161,20 @@ public class AntiInviteEvents extends ListenerAdapter {
 					} else {
 						event.getChannel().sendMessage(String.format("%s, You are not allowed to send invite links here. If you continue you will receive a %s. **(%d/%d)** :no_entry:", event.getAuthor().getAsMention(), action, currentAttempts + 1, dataAttempts)).queue();
 						
-						Bson update = Updates.inc("antiinvite.users.$[user].attempts", 1);
-						UpdateOptions updateOptions = new UpdateOptions().arrayFilters(List.of(Filters.eq("id", event.getAuthor().getIdLong()))).upsert(true);
+						Bson update = null;
+						List<Bson> arrayFilters = null;
+						for (Document userData : users) {
+							if (userData.getLong("id") == event.getAuthor().getIdLong()) {
+								update = Updates.inc("antiinvite.users.$[user].attempts", 1);
+								arrayFilters = List.of(Filters.eq("user.id", event.getAuthor().getIdLong()));
+							}
+						}
+						
+						if (update == null) {
+							update = Updates.push("antiinvite.users", new Document("id", event.getAuthor().getIdLong()).append("attempts", 1));
+						}
+						
+						UpdateOptions updateOptions = new UpdateOptions().arrayFilters(arrayFilters).upsert(true);
 						Database.get().updateGuildById(event.getGuild().getIdLong(), null, update, updateOptions, (result, exception) -> {
 							if (exception != null) {
 								exception.printStackTrace();
@@ -169,7 +182,7 @@ public class AntiInviteEvents extends ListenerAdapter {
 						});
 					}
 				}
-			}, e -> {});
+			}, e -> {e.printStackTrace();});
 		}
 	}
 
@@ -180,9 +193,11 @@ public class AntiInviteEvents extends ListenerAdapter {
 		
 		Matcher inviteMatch = this.inviteRegex.matcher(event.getMessage().getContentRaw());
 		if (inviteMatch.matches()) {
-			Bson projection = Projections.include("antiinvite.enabled", "antiinvite.whitelist", "antiinvite.users", "antiinvite.action", "antiinvite.attempts");
-			Document data = Database.get().getGuildById(event.getGuild().getIdLong(), null, projection).get("antiinvite", Database.EMPTY_DOCUMENT);
-			if (data.isEmpty() || data.getBoolean("enabled") == false) {
+			Bson projection = Projections.include("antiinvite.enabled", "antiinvite.whitelist", "antiinvite.users", "antiinvite.action", "antiinvite.attempts", "mute.users");
+			Document allData = Database.get().getGuildById(event.getGuild().getIdLong(), null, projection);
+			
+			Document data = allData.get("antiinvite", Database.EMPTY_DOCUMENT);
+			if (!data.getBoolean("enabled", false)) {
 				return;
 			}
 			
@@ -287,15 +302,14 @@ public class AntiInviteEvents extends ListenerAdapter {
 								event.getGuild().addRoleToMember(event.getMember(), role).queue();
 								ModUtils.createModLogAndOffence(event.getGuild(), event.getJDA().getSelfUser(), event.getAuthor(), "Mute (Automatic)", reason);
 								
+								UpdateOneModel<Document> muteModel = ModUtils.getMuteUpdate(event.getGuild().getIdLong(), event.getAuthor().getIdLong(), allData.getEmbedded(List.of("mute", "users"), Collections.emptyList()), null);		
 								Bson update = Updates.combine(
-										Updates.set("mute.users.$[user].duration", null),
-										Updates.set("mute.users.$[user].timestamp", Clock.systemUTC().instant().getEpochSecond()),
+										muteModel.getUpdate(),
 										Updates.pull("antiinvite.users", Filters.eq("id", event.getAuthor().getIdLong()))
 								);
 								
-								UpdateOptions updateOptions = new UpdateOptions().arrayFilters(List.of(Filters.eq("user.id", event.getAuthor().getIdLong()))).upsert(true);
 								
-								Database.get().updateGuildById(event.getGuild().getIdLong(), null, update, updateOptions, (result, exception) -> {
+								Database.get().updateGuildById(event.getGuild().getIdLong(), null, update, muteModel.getOptions(), (result, exception) -> {
 									if (exception != null) {
 										exception.printStackTrace();
 									}
@@ -304,8 +318,21 @@ public class AntiInviteEvents extends ListenerAdapter {
 						}
 					} else {
 						event.getChannel().sendMessage(String.format("%s, You are not allowed to send invite links here. If you continue you will receive a %s. **(%d/%d)** :no_entry:", event.getAuthor().getAsMention(), action, currentAttempts + 1, dataAttempts)).queue();
-						Bson update = Updates.inc("antiinvite.users.$[user].attempts", 1);
-						UpdateOptions updateOptions = new UpdateOptions().arrayFilters(List.of(Filters.eq("user.id", event.getAuthor().getIdLong()))).upsert(true);
+						
+						Bson update = null;
+						List<Bson> arrayFilters = null;
+						for (Document userData : users) {
+							if (userData.getLong("id") == event.getAuthor().getIdLong()) {
+								update = Updates.inc("antiinvite.users.$[user].attempts", 1);
+								arrayFilters = List.of(Filters.eq("user.id", event.getAuthor().getIdLong()));
+							}
+						}
+						
+						if (update == null) {
+							update = Updates.push("antiinvite.users", new Document("id", event.getAuthor().getIdLong()).append("attempts", 1));
+						}
+						
+						UpdateOptions updateOptions = new UpdateOptions().arrayFilters(arrayFilters).upsert(true);
 						Database.get().updateGuildById(event.getGuild().getIdLong(), null, update, updateOptions, (result, exception) -> {
 							if (exception != null) {
 								exception.printStackTrace();

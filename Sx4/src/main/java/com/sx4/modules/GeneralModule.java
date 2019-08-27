@@ -2095,13 +2095,13 @@ public class GeneralModule {
 						String totalTime = TimeUtils.getTimeFormat((activity.getTimestamps().getEnd()/1000) - (activity.getTimestamps().getStart()/1000));
 						description = String.format("Listening to [%s by %s](https://open.spotify.com/track/%s) `[%s/%s]`", activity.asRichPresence().getDetails(), activity.asRichPresence().getState().split(";")[0], activity.asRichPresence().getSyncId(), currentTime, totalTime);
 					} else {
-						description = GeneralUtils.title(activity.getType().equals(ActivityType.DEFAULT) ? "Playing" : activity.getType().toString()) + activity.getName() + (activity.getTimestamps() != null ? " for " + 
+						description = GeneralUtils.title(activity.getType().equals(ActivityType.DEFAULT) ? "Playing" : activity.getType().toString()) + " " + activity.getName() + (activity.getTimestamps() != null ? " for " + 
 								TimeUtils.toTimeString(Clock.systemUTC().instant().getEpochSecond() - (activity.getTimestamps().getStart()/1000), ChronoUnit.SECONDS) : "");  
 					}
 				} else if (activity.getType().equals(ActivityType.STREAMING)) {
 					description = String.format("Streaming [%s](%s)", activity.getName(), activity.getUrl());
 				} else {
-					description = GeneralUtils.title(activity.getType().equals(ActivityType.DEFAULT) ? "Playing" : activity.getType().toString()) + activity.getName() + (activity.getTimestamps() != null ? " for " + 
+					description = GeneralUtils.title(activity.getType().equals(ActivityType.DEFAULT) ? "Playing" : activity.getType().toString()) + " " + activity.getName() + (activity.getTimestamps() != null ? " for " + 
 							TimeUtils.toTimeString(Clock.systemUTC().instant().getEpochSecond() - (activity.getTimestamps().getStart()/1000), ChronoUnit.SECONDS) : "");																															
 				}
 			}
