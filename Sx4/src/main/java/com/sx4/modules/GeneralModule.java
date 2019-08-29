@@ -23,6 +23,8 @@ import java.util.regex.Pattern;
 import java.util.stream.Collector;
 import java.util.stream.Collectors;
 
+import javax.management.ObjectName;
+
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -45,7 +47,6 @@ import com.jockie.bot.core.option.Option;
 import com.rethinkdb.gen.ast.Get;
 import com.rethinkdb.model.OptArgs;
 import com.rethinkdb.net.Connection;
-import com.sun.management.OperatingSystemMXBean;
 import com.sx4.cache.ChangesMessageCache;
 import com.sx4.categories.Categories;
 import com.sx4.core.Sx4Bot;
@@ -2146,7 +2147,7 @@ public class GeneralModule {
 	@Command(value="stats", description="Views Sx4s current stats", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	@Async
-	public void stats(CommandEvent event, @Context Connection connection) {
+	public void stats(CommandEvent event, @Context Connection connection) throws Exception {
 		Map<String, Object> botData = r.table("botstats").get("stats").run(connection);
 		
 		List<Guild> guilds = event.getShardManager().getGuilds();
@@ -2155,7 +2156,7 @@ public class GeneralModule {
 		
 		Runtime runtime = Runtime.getRuntime();
 		double cpuUsage = ManagementFactory.getOperatingSystemMXBean().getSystemLoadAverage();
-		long totalMemory = ((OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean()).getTotalPhysicalMemorySize();
+		long totalMemory = Long.parseLong(ManagementFactory.getPlatformMBeanServer().getAttribute(new ObjectName("java.lang","type","OperatingSystem"), "TotalPhysicalMemorySize").toString());
 		long memoryUsed = runtime.totalMemory() - runtime.freeMemory();
 		StringBuilder memoryString = new StringBuilder();
 		if (memoryUsed >= GIGABYTE) {
