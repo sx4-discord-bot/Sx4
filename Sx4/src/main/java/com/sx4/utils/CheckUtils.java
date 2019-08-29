@@ -173,7 +173,6 @@ public class CheckUtils {
 						for (Map<String, Object> command : commands) {
 							if (event.getCommand().getTopParent().getCategory().getName().equals(command.get("id")) || event.getCommand().getCommandTrigger().equals(command.get("id")) || event.getCommand().getTopParent().getCommandTrigger().equals(command.get("id"))) {
 								List<Map<String, String>> whitelisted = (List<Map<String, String>>) command.get("whitelisted");	
-								List<Map<String, String>> blacklisted = (List<Map<String, String>>) command.get("blacklisted");	
 								for (Map<String, String> whitelist : whitelisted) {
 									if (whitelist.get("type").equals("channel")) {
 										if (whitelist.get("id").equals(event.getChannel().getId()) || whitelist.get("id").equals(event.getTextChannel().getParent().getId())) {
@@ -191,7 +190,12 @@ public class CheckUtils {
 										}
 									}
 								}
-								
+							}
+						}
+						
+						for (Map<String, Object> command : commands) {
+							if (event.getCommand().getTopParent().getCategory().getName().equals(command.get("id")) || event.getCommand().getCommandTrigger().equals(command.get("id")) || event.getCommand().getTopParent().getCommandTrigger().equals(command.get("id"))) {
+								List<Map<String, String>> blacklisted = (List<Map<String, String>>) command.get("blacklisted");
 								for (Map<String, String> blacklist : blacklisted) {
 									if (blacklist.get("type").equals("channel")) {
 										if (blacklist.get("id").equals(event.getChannel().getId()) || blacklist.get("id").equals(event.getTextChannel().getParent().getId())) {
