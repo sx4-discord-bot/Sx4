@@ -122,7 +122,7 @@ public class CheckUtils {
 					List<Document> commands = data.getList("commands", Document.class, Collections.emptyList());					
 					for (Document command : commands) {
 						if (event.getCommand().getTopParent().getCategory().getName().equals(command.getString("id")) || event.getCommand().getCommandTrigger().equals(command.getString("id")) || event.getCommand().getTopParent().getCommandTrigger().equals(command.getString("id"))) {
-							Document whitelisted = command.get("whitelisted", Database.EMPTY_DOCUMENT), blacklisted = command.get("blacklisted", Database.EMPTY_DOCUMENT);	
+							Document whitelisted = command.get("whitelisted", Database.EMPTY_DOCUMENT);
 							
 							List<Long> whitelistedChannels = whitelisted.getList("channels", Long.class, Collections.emptyList());
 							for (long channelId : whitelistedChannels) {
@@ -146,6 +146,12 @@ public class CheckUtils {
 									}
 								}
 							}
+						}
+					}
+					
+					for (Document command : commands) {
+						if (event.getCommand().getTopParent().getCategory().getName().equals(command.getString("id")) || event.getCommand().getCommandTrigger().equals(command.getString("id")) || event.getCommand().getTopParent().getCommandTrigger().equals(command.getString("id"))) {
+							Document blacklisted = command.get("blacklisted", Database.EMPTY_DOCUMENT);
 							
 							List<Long> blacklistedChannels = blacklisted.getList("channels", Long.class, Collections.emptyList());
 							for (long channelId : blacklistedChannels) {
