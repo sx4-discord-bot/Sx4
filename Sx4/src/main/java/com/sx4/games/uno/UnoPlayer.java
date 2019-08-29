@@ -1,6 +1,7 @@
 package com.sx4.games.uno;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
@@ -28,7 +29,7 @@ public class UnoPlayer {
 	}
 	
 	public UnoPlayer addCards(UnoCard... cards) {
-		this.cards.addAll(List.of(cards));
+		this.cards.addAll(Arrays.asList(cards));
 		
 		return this;
 	}

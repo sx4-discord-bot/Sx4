@@ -63,6 +63,7 @@ import com.sx4.core.Sx4Bot;
 import com.sx4.core.Sx4Command;
 import com.sx4.core.Sx4CommandEventListener;
 import com.sx4.database.Database;
+import com.sx4.games.uno.UnoSession;
 import com.sx4.interfaces.Example;
 import com.sx4.interfaces.Sx4Callback;
 import com.sx4.settings.Settings;
@@ -82,6 +83,7 @@ import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Message.Attachment;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.entities.Role;
+import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.internal.utils.tuple.Pair;
 import okhttp3.MediaType;
@@ -139,7 +141,7 @@ public class FunModule {
 		}
 	}
 	
-	/*public class UnoCommand extends Sx4Command {
+	public class UnoCommand extends Sx4Command {
 		
 		private List<UnoSession> unoSessions = new ArrayList<>();
 		
@@ -167,7 +169,7 @@ public class FunModule {
 				unoSessions.add(unoSession);
 				
 				StringBuilder reply = new StringBuilder("I have created your uno game <:done:403285928233402378>\n\n");
-				if (inviteOnly) {
+				if (inviteOnly != null && inviteOnly) {
 					reply.append("Invite friends to your uno game with `" + event.getPrefix() + "uno invite <user | role>` then they can use `" + event.getPrefix() + "uno join` to join.");
 				} else {
 					reply.append("Anyone can use `" + event.getPrefix() + "uno join` to join.");
@@ -262,7 +264,7 @@ public class FunModule {
 			});
 		}
 		
-	}*/
+	}
 	
 	@Command(value="profile", description="View a users or your profile")
 	@BotPermissions({Permission.MESSAGE_ATTACH_FILES})

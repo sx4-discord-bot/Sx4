@@ -1386,7 +1386,7 @@ public class EconomyModule {
 				return;
 			}
 			
-			long balance = data.get("price", 0);
+			long balance = data.get("balance", 0L);
 			long price = Math.round((defaultPickaxe.getPrice() * 0.025D) + (pickaxe.getUpgrades() * (defaultPickaxe.getPrice() * 0.015D)));
 			if (balance >= price) {
 				Bson update = Updates.combine(
@@ -1396,7 +1396,7 @@ public class EconomyModule {
 				);
 				
 				if (upgrade.equals(PickaxeUpgrade.MONEY)) {
-					long increase = Math.round(defaultPickaxe.getMinimumYield() * upgrade.getIncreasePerUpgrade());
+					int increase = (int) Math.round(defaultPickaxe.getMinimumYield() * upgrade.getIncreasePerUpgrade());
 					update = Updates.combine(
 							update,
 							Updates.set("economy.items.$[pickaxe].minimumYield", pickaxe.getMinimumYield() + increase),
@@ -1405,8 +1405,8 @@ public class EconomyModule {
 				} else if (upgrade.equals(PickaxeUpgrade.DURABILITY)) {
 					update = Updates.combine(
 							update, 
-							Updates.set("economy.items.$[pickaxe].maximumDurability", pickaxe.getDurability() + upgrade.getIncreasePerUpgrade()),
-							Updates.inc("economy.items.$[pickaxe].currentDurability", upgrade.getIncreasePerUpgrade())
+							Updates.set("economy.items.$[pickaxe].maximumDurability", (int) (pickaxe.getDurability() + upgrade.getIncreasePerUpgrade())),
+							Updates.inc("economy.items.$[pickaxe].currentDurability", (int) upgrade.getIncreasePerUpgrade())
 					);
 				} else if (upgrade.equals(PickaxeUpgrade.MULTIPLIER)) {
 					update = Updates.combine(
@@ -1747,7 +1747,7 @@ public class EconomyModule {
 				);
 
 				if (upgrade.equals(RodUpgrade.MONEY)) {
-					long increase = Math.round(defaultRod.getMinimumYield() * upgrade.getIncreasePerUpgrade());
+					int increase = (int) Math.round(defaultRod.getMinimumYield() * upgrade.getIncreasePerUpgrade());
 					update = Updates.combine(
 							update, 
 							Updates.set("economy.items.$[rod].minimumYield", rod.getMinimumYield() + increase),
@@ -1756,8 +1756,8 @@ public class EconomyModule {
 				} else if (upgrade.equals(RodUpgrade.DURABILITY)) {
 					update = Updates.combine(
 							update, 
-							Updates.set("economy.items.$[rod].maximumDurability", rod.getDurability() + upgrade.getIncreasePerUpgrade()),
-							Updates.inc("economy.items.$[rod].currentDurability", upgrade.getIncreasePerUpgrade())
+							Updates.set("economy.items.$[rod].maximumDurability", (int) (rod.getDurability() + upgrade.getIncreasePerUpgrade())),
+							Updates.inc("economy.items.$[rod].currentDurability", (int) upgrade.getIncreasePerUpgrade())
 					);
 				}
 				
@@ -2100,8 +2100,8 @@ public class EconomyModule {
 				} else if (upgrade.equals(AxeUpgrade.DURABILITY)) {
 					update = Updates.combine(
 							update,
-							Updates.set("economy.items.$[axe].maximumDurability", axe.getDurability() + upgrade.getIncreasePerUpgrade()),
-							Updates.inc("economy.items.$[axe].currentDurability", upgrade.getIncreasePerUpgrade())
+							Updates.set("economy.items.$[axe].maximumDurability", (int) (axe.getDurability() + upgrade.getIncreasePerUpgrade())),
+							Updates.inc("economy.items.$[axe].currentDurability", (int) upgrade.getIncreasePerUpgrade())
 					);
 				}
 				
@@ -2648,18 +2648,19 @@ public class EconomyModule {
 			}
 			
 			List<String> itemNameEmbed = List.of("item", "name"), itemAmountEmbed = List.of("item", "amount");
+			sort = sort == null ? "price-per-item" : sort;
 			switch (sort.toLowerCase()) {
-				case "item":
-					shownData.sort((a, b) -> (reverse ? 1 : -1) * a.getEmbedded(itemNameEmbed, String.class).toLowerCase().compareTo(b.getEmbedded(itemNameEmbed, String.class).toLowerCase()));
+				case "name":
+					shownData.sort((a, b) -> (reverse ? 1 : -1) * b.getEmbedded(itemNameEmbed, String.class).toLowerCase().compareTo(a.getEmbedded(itemNameEmbed, String.class).toLowerCase()));
 					break;
 				case "amount":
-					shownData.sort((a, b) -> (reverse ? 1 : -1) * Long.compare(a.getEmbedded(itemAmountEmbed, Long.class), b.getEmbedded(itemAmountEmbed, Long.class)));
+					shownData.sort((a, b) -> (reverse ? 1 : -1) * Long.compare(b.getEmbedded(itemAmountEmbed, Long.class), a.getEmbedded(itemAmountEmbed, Long.class)));
 					break;
 				case "price": 
-					shownData.sort((a, b) -> (reverse ? 1 : -1) * Long.compare(a.getLong("price"), b.getLong("price")));
+					shownData.sort((a, b) -> (reverse ? 1 : -1) * Long.compare(b.getLong("price"), a.getLong("price")));
 					break;
 				default:
-					shownData.sort((a, b) -> (reverse ? 1 : -1) * Double.compare(a.getLong("price") / a.getEmbedded(itemAmountEmbed, Long.class), b.getLong("price") / b.getEmbedded(itemAmountEmbed, Long.class)));
+					shownData.sort((a, b) -> (reverse ? 1 : -1) * Double.compare(b.getLong("price") / b.getEmbedded(itemAmountEmbed, Long.class), a.getLong("price") / a.getEmbedded(itemAmountEmbed, Long.class)));
 					break;
 			}
 			
@@ -2723,11 +2724,10 @@ public class EconomyModule {
 			}
 	
 			if (BigInteger.valueOf(userItem.getAmount()).compareTo(itemAmount) != -1) {				
-				EconomyUtils.removeItem(items, item, itemAmount.longValue());
-				
 				Document rawItem = EconomyUtils.getUserItemRaw(items, item);
 				rawItem.put("amount", itemAmount.longValue());
 				
+				EconomyUtils.removeItem(items, item, itemAmount.longValue());
 				database.updateUserById(event.getAuthor().getIdLong(), Updates.set("economy.items", items), (userResult, userException) -> {
 					if (userException != null) {
 						userException.printStackTrace();
@@ -3400,9 +3400,11 @@ public class EconomyModule {
 			sort = sort == null ? "balance" : sort;
 			switch (sort.toLowerCase()) {
 				case "name":
-					compressedData.sort((a, b) -> (reverse ? 1 : -1) * a.get("user", User.class).getName().compareTo(b.get("user", User.class).getName()));
+					compressedData.sort((a, b) -> (reverse ? 1 : -1) * b.get("user", User.class).getName().compareTo(a.get("user", User.class).getName()));
+					break;
 				default:
 					compressedData.sort((a, b) -> (reverse ? 1 : -1) * Long.compare(a.getLong("balance"), b.getLong("balance")));
+					break;
 			}
 			
 			PagedResult<Document> paged = new PagedResult<>(compressedData)
@@ -3466,9 +3468,11 @@ public class EconomyModule {
 			sort = sort == null ? "balance" : sort;
 			switch (sort.toLowerCase()) {
 				case "name":
-					compressedData.sort((a, b) -> (reverse ? 1 : -1) * a.get("user", User.class).getName().compareTo(b.get("user", User.class).getName()));
+					compressedData.sort((a, b) -> (reverse ? 1 : -1) * b.get("user", User.class).getName().compareTo(a.get("user", User.class).getName()));
+					break;
 				default:
 					compressedData.sort((a, b) -> (reverse ? 1 : -1) * Long.compare(a.getLong("networth"), b.getLong("networth")));
+					break;
 			}
 			
 			PagedResult<Document> paged = new PagedResult<>(compressedData)
@@ -3527,9 +3531,11 @@ public class EconomyModule {
 			sort = sort == null ? "balance" : sort;
 			switch (sort.toLowerCase()) {
 				case "name":
-					compressedData.sort((a, b) -> (reverse ? 1 : -1) * a.get("user", User.class).getName().compareTo(b.get("user", User.class).getName()));
+					compressedData.sort((a, b) -> (reverse ? 1 : -1) * b.get("user", User.class).getName().compareTo(a.get("user", User.class).getName()));
+					break;
 				default:
 					compressedData.sort((a, b) -> (reverse ? 1 : -1) * Long.compare(a.getLong("winnings"), b.getLong("winnings")));
+					break;
 			}
 			
 			PagedResult<Document> paged = new PagedResult<>(compressedData)
@@ -3601,9 +3607,11 @@ public class EconomyModule {
 			sort = sort == null ? "balance" : sort;
 			switch (sort.toLowerCase()) {
 				case "name":
-					compressedData.sort((a, b) -> (reverse ? 1 : -1) * a.get("user", User.class).getName().compareTo(b.get("user", User.class).getName()));
+					compressedData.sort((a, b) -> (reverse ? 1 : -1) * b.get("user", User.class).getName().compareTo(a.get("user", User.class).getName()));
+					break;
 				default:
 					compressedData.sort((a, b) -> (reverse ? 1 : -1) * Long.compare(a.getLong("itemAmount"), b.getLong("itemAmount")));
+					break;
 			}
 			
 			PagedResult<Document> paged = new PagedResult<>(compressedData)
@@ -3662,9 +3670,11 @@ public class EconomyModule {
 			sort = sort == null ? "balance" : sort;
 			switch (sort.toLowerCase()) {
 				case "name":
-					compressedData.sort((a, b) -> (reverse ? 1 : -1) * a.get("user", User.class).getName().compareTo(b.get("user", User.class).getName()));
+					compressedData.sort((a, b) -> (reverse ? 1 : -1) * b.get("user", User.class).getName().compareTo(a.get("user", User.class).getName()));
+					break;
 				default:
 					compressedData.sort((a, b) -> (reverse ? 1 : -1) * Long.compare(a.getLong("reputation"), b.getLong("reputation")));
+					break;
 			}
 			
 			PagedResult<Document> paged = new PagedResult<>(compressedData)
@@ -3723,9 +3733,11 @@ public class EconomyModule {
 			sort = sort == null ? "balance" : sort;
 			switch (sort.toLowerCase()) {
 				case "name":
-					compressedData.sort((a, b) -> (reverse ? 1 : -1) * a.get("user", User.class).getName().compareTo(b.get("user", User.class).getName()));
+					compressedData.sort((a, b) -> (reverse ? 1 : -1) * b.get("user", User.class).getName().compareTo(a.get("user", User.class).getName()));
+					break;
 				default:
 					compressedData.sort((a, b) -> (reverse ? 1 : -1) * Long.compare(a.getLong("reputation"), b.getLong("reputation")));
+					break;
 			}
 			
 			PagedResult<Document> paged = new PagedResult<>(compressedData)
