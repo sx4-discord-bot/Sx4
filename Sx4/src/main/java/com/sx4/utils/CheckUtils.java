@@ -182,7 +182,7 @@ public class CheckUtils {
 					}
 					
 					List<String> disabledCommands = data.getList("disabled", String.class, Collections.emptyList());
-					if (disabledCommands.contains(event.getCommand().getCommandTrigger())) {
+					if (disabledCommands.contains(event.getCommand().getCommandTrigger()) || disabledCommands.contains(event.getCommand().getTopParent().getCommandTrigger()) || disabledCommands.contains(event.getCommand().getTopParent().getCategory().getName())) {
 						event.reply("That command is disabled in this server :no_entry:").queue();
 						return false;
 					}

@@ -6,7 +6,6 @@ import java.util.List;
 
 import org.bson.Document;
 
-import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.Updates;
 import com.sx4.core.Sx4Bot;
@@ -31,13 +30,12 @@ public class AwaitEvents extends ListenerAdapter {
 			if (userData.getLong("_id") == authorId) {
 				List<Long> usersData = userData.getEmbedded(List.of("await", "users"), new ArrayList<>());
 				usersData.addAll(userIds);
-				userData.put("users", usersData);
 				return;
 			}
 		}
 		
-		Document userData = new Document("id", authorId)
-				.append("users", userIds);
+		Document userData = new Document("_id", authorId)
+				.append("await", new Document("users", userIds));
 		
 		awaitData.add(userData);
 	}
@@ -48,7 +46,7 @@ public class AwaitEvents extends ListenerAdapter {
 	
 	public static void removeUser(long authorId, long userId) {
 		for (Document userData : awaitData) {
-			if (userData.getLong("id") == authorId) {
+			if (userData.getLong("_id") == authorId) {
 				List<Long> usersData = userData.getEmbedded(List.of("await", "users"), new ArrayList<>());
 				usersData.remove(userId);
 				userData.put("users", usersData);
@@ -72,7 +70,7 @@ public class AwaitEvents extends ListenerAdapter {
 				if (users.contains(event.getUser().getIdLong())) {
 					AwaitEvents.removeUser(userData.getLong("_id"), event.getUser().getIdLong());
 					
-					Database.get().updateUserById(userData.getLong("_id"), Updates.pull("await.users", Filters.eq("id", event.getUser().getIdLong())), (result, exception) -> {
+					Database.get().updateUserById(userData.getLong("_id"), Updates.pull("await.users", event.getUser().getIdLong()), (result, exception) -> {
 						if (exception != null) {
 							exception.printStackTrace();
 						}
