@@ -47,6 +47,117 @@ public class ImageModule {
 	
 	private static Random random = new Random();
 	
+	@Command(value="canny", description="Returns an image with the canny effect")
+	@Cooldown(value=5)
+	@BotPermissions({Permission.MESSAGE_ATTACH_FILES})
+	public void canny(CommandEvent event, @Argument(value="url | user", endless=true, nullDefault=true) String argument) {
+		String url = null;
+		if (!event.getMessage().getAttachments().isEmpty() && argument == null) {
+			for (Attachment attachment : event.getMessage().getAttachments()) {
+				if (attachment.isImage()) {
+					url = attachment.getUrl();
+				}
+			}
+		} else if (event.getMessage().getAttachments().isEmpty() && argument == null) {
+			url = event.getAuthor().getEffectiveAvatarUrl();
+		} else {
+			Member member = ArgumentUtils.getMember(event.getGuild(), argument);
+			if (member == null) {
+				url = argument;
+			} else {
+				url = member.getUser().getEffectiveAvatarUrl();
+			}
+		}
+		
+		Request request = new Request.Builder().url("http://" + Settings.LOCAL_HOST + ":8443/api/canny?image=" + url).build();
+		
+		event.getTextChannel().sendTyping().queue($ -> {
+			ImageModule.client.newCall(request).enqueue((Sx4Callback) response -> {
+				if (response.code() == 200) {
+					event.getTextChannel().sendFile(response.body().bytes(), "canny." + response.headers().get("Content-Type").split("/")[1]).queue();
+				} else if (response.code() == 400) {
+					event.reply(response.body().string()).queue();
+				} else {
+					event.reply("Oops something went wrong there! Status code: " + response.code() +  " :no_entry:\n```java\n" + response.body().string() + "```").queue();
+				}	
+			});
+		});
+	}
+	
+	@Command(value="invert", description="Returns an image with inverted colours")
+	@Cooldown(value=5)
+	@BotPermissions({Permission.MESSAGE_ATTACH_FILES})
+	public void invert(CommandEvent event, @Argument(value="url | user", endless=true, nullDefault=true) String argument) {
+		String url = null;
+		if (!event.getMessage().getAttachments().isEmpty() && argument == null) {
+			for (Attachment attachment : event.getMessage().getAttachments()) {
+				if (attachment.isImage()) {
+					url = attachment.getUrl();
+				}
+			}
+		} else if (event.getMessage().getAttachments().isEmpty() && argument == null) {
+			url = event.getAuthor().getEffectiveAvatarUrl();
+		} else {
+			Member member = ArgumentUtils.getMember(event.getGuild(), argument);
+			if (member == null) {
+				url = argument;
+			} else {
+				url = member.getUser().getEffectiveAvatarUrl();
+			}
+		}
+		
+		Request request = new Request.Builder().url("http://" + Settings.LOCAL_HOST + ":8443/api/invert?image=" + url).build();
+		
+		event.getTextChannel().sendTyping().queue($ -> {
+			ImageModule.client.newCall(request).enqueue((Sx4Callback) response -> {
+				if (response.code() == 200) {
+					event.getTextChannel().sendFile(response.body().bytes(), "invert." + response.headers().get("Content-Type").split("/")[1]).queue();
+				} else if (response.code() == 400) {
+					event.reply(response.body().string()).queue();
+				} else {
+					event.reply("Oops something went wrong there! Status code: " + response.code() +  " :no_entry:\n```java\n" + response.body().string() + "```").queue();
+				}	
+			});
+		});
+	}
+	
+	@Command(value="edge", description="Returns an image with the edge effect")
+	@Cooldown(value=5)
+	@BotPermissions({Permission.MESSAGE_ATTACH_FILES})
+	public void edge(CommandEvent event, @Argument(value="url | user", endless=true, nullDefault=true) String argument) {
+		String url = null;
+		if (!event.getMessage().getAttachments().isEmpty() && argument == null) {
+			for (Attachment attachment : event.getMessage().getAttachments()) {
+				if (attachment.isImage()) {
+					url = attachment.getUrl();
+				}
+			}
+		} else if (event.getMessage().getAttachments().isEmpty() && argument == null) {
+			url = event.getAuthor().getEffectiveAvatarUrl();
+		} else {
+			Member member = ArgumentUtils.getMember(event.getGuild(), argument);
+			if (member == null) {
+				url = argument;
+			} else {
+				url = member.getUser().getEffectiveAvatarUrl();
+			}
+		}
+		
+		Request request = new Request.Builder().url("http://" + Settings.LOCAL_HOST + ":8443/api/edge?image=" + url).build();
+		
+		event.getTextChannel().sendTyping().queue($ -> {
+			ImageModule.client.newCall(request).enqueue((Sx4Callback) response -> {
+				if (response.code() == 200) {
+					event.getTextChannel().sendFile(response.body().bytes(), "edge." + response.headers().get("Content-Type").split("/")[1]).queue();
+				} else if (response.code() == 400) {
+					event.reply(response.body().string()).queue();
+				} else {
+					event.reply("Oops something went wrong there! Status code: " + response.code() +  " :no_entry:\n```java\n" + response.body().string() + "```").queue();
+				}	
+			});
+		});
+	}
+	
 	@Command(value="how to google", aliases={"htg", "howtogoogle"}, description="Returns a gif of your text being googled")
 	@Cooldown(value=10)
 	@BotPermissions({Permission.MESSAGE_ATTACH_FILES})
@@ -65,7 +176,7 @@ public class ImageModule {
 		}
 		
 		event.getTextChannel().sendTyping().queue($ -> {
-			client.newCall(request).enqueue((Sx4Callback) response -> {
+			ImageModule.client.newCall(request).enqueue((Sx4Callback) response -> {
 				if (response.code() == 200) {
 					event.getTextChannel().sendFile(response.body().bytes(), "google." + response.headers().get("Content-Type").split("/")[1]).queue();
 				} else if (response.code() == 400) {
@@ -108,7 +219,7 @@ public class ImageModule {
 		}
 		
 		event.getTextChannel().sendTyping().queue($ -> {
-			client.newCall(request).enqueue((Sx4Callback) response -> {
+			ImageModule.client.newCall(request).enqueue((Sx4Callback) response -> {
 				if (response.code() == 200) {
 					event.getTextChannel().sendFile(response.body().bytes(), "hot." + response.headers().get("Content-Type").split("/")[1]).queue();
 				} else if (response.code() == 400) {
@@ -142,7 +253,7 @@ public class ImageModule {
 		}
 		
 		event.getTextChannel().sendTyping().queue($ -> {
-			client.newCall(request).enqueue((Sx4Callback) response -> {
+			ImageModule.client.newCall(request).enqueue((Sx4Callback) response -> {
 				if (response.code() == 200) {
 					event.getTextChannel().sendFile(response.body().bytes(), "discord." + response.headers().get("Content-Type").split("/")[1]).queue();
 				} else if (response.code() == 400) {
@@ -172,7 +283,7 @@ public class ImageModule {
 		Request request = new Request.Builder().url("http://" + Settings.LOCAL_HOST + ":8443/api/flag?image=" + member.getUser().getEffectiveAvatarUrl() + "&flag=" + flag).build();
 		
 		event.getTextChannel().sendTyping().queue($ -> {
-			client.newCall(request).enqueue((Sx4Callback) response -> {
+			ImageModule.client.newCall(request).enqueue((Sx4Callback) response -> {
 				if (response.code() == 200) {
 					event.getTextChannel().sendFile(response.body().bytes(), "flag." + response.headers().get("Content-Type").split("/")[1]).queue();
 				} else if (response.code() == 400) {
@@ -209,7 +320,7 @@ public class ImageModule {
 		Request request = new Request.Builder().url("http://" + Settings.LOCAL_HOST + ":8443/api/christmas?image=" + url).build();
 		
 		event.getTextChannel().sendTyping().queue($ -> {
-			client.newCall(request).enqueue((Sx4Callback) response -> {
+			ImageModule.client.newCall(request).enqueue((Sx4Callback) response -> {
 				if (response.code() == 200) {
 					event.getTextChannel().sendFile(response.body().bytes(), "christmas." + response.headers().get("Content-Type").split("/")[1]).queue();
 				} else if (response.code() == 400) {
@@ -246,7 +357,7 @@ public class ImageModule {
 		Request request = new Request.Builder().url("http://" + Settings.LOCAL_HOST + ":8443/api/halloween?image=" + url).build();
 		
 		event.getTextChannel().sendTyping().queue($ -> {
-			client.newCall(request).enqueue((Sx4Callback) response -> {
+			ImageModule.client.newCall(request).enqueue((Sx4Callback) response -> {
 				if (response.code() == 200) {
 					event.getTextChannel().sendFile(response.body().bytes(), "halloween." + response.headers().get("Content-Type").split("/")[1]).queue();
 				} else if (response.code() == 400) {
@@ -283,7 +394,7 @@ public class ImageModule {
 		Request request = new Request.Builder().url("http://" + Settings.LOCAL_HOST + ":8443/api/trash?image=" + url).build();
 		
 		event.getTextChannel().sendTyping().queue($ -> {
-			client.newCall(request).enqueue((Sx4Callback) response -> {
+			ImageModule.client.newCall(request).enqueue((Sx4Callback) response -> {
 				if (response.code() == 200) {
 					event.getTextChannel().sendFile(response.body().bytes(), "trash." + response.headers().get("Content-Type").split("/")[1]).queue();
 				} else if (response.code() == 400) {
@@ -328,7 +439,7 @@ public class ImageModule {
 		Request request = new Request.Builder().url("http://" + Settings.LOCAL_HOST + ":8443/api/www?firstImage=" + firstUrl + "&secondImage=" + secondUrl).build();
 		
 		event.getTextChannel().sendTyping().queue($ -> {
-			client.newCall(request).enqueue((Sx4Callback) response -> {
+			ImageModule.client.newCall(request).enqueue((Sx4Callback) response -> {
 				if (response.code() == 200) {
 					event.getTextChannel().sendFile(response.body().bytes(), "www." + response.headers().get("Content-Type").split("/")[1]).queue();
 				} else if (response.code() == 400) {
@@ -365,7 +476,7 @@ public class ImageModule {
 		Request request = new Request.Builder().url("http://" + Settings.LOCAL_HOST + ":8443/api/fear?image=" + url).build();
 		
 		event.getTextChannel().sendTyping().queue($ -> {
-			client.newCall(request).enqueue((Sx4Callback) response -> {
+			ImageModule.client.newCall(request).enqueue((Sx4Callback) response -> {
 				if (response.code() == 200) {
 					event.getTextChannel().sendFile(response.body().bytes(), "fear." + response.headers().get("Content-Type").split("/")[1]).queue();
 				} else if (response.code() == 400) {
@@ -402,7 +513,7 @@ public class ImageModule {
 		Request request = new Request.Builder().url("http://" + Settings.LOCAL_HOST + ":8443/api/emboss?image=" + url).build();
 		
 		event.getTextChannel().sendTyping().queue($ -> {
-			client.newCall(request).enqueue((Sx4Callback) response -> {
+			ImageModule.client.newCall(request).enqueue((Sx4Callback) response -> {
 				if (response.code() == 200) {
 					event.getTextChannel().sendFile(response.body().bytes(), "emboss." + response.headers().get("Content-Type").split("/")[1]).queue();
 				} else if (response.code() == 400) {
@@ -438,7 +549,7 @@ public class ImageModule {
 		Request request = new Request.Builder().url("http://" + Settings.LOCAL_HOST + ":8443/api/ship?firstImage=" + firstMember.getUser().getEffectiveAvatarUrl() + "&secondImage=" + secondMember.getUser().getEffectiveAvatarUrl()).build();
 		
 		event.getTextChannel().sendTyping().queue($ -> {
-			client.newCall(request).enqueue((Sx4Callback) response -> {
+			ImageModule.client.newCall(request).enqueue((Sx4Callback) response -> {
 				if (response.code() == 200) {
 					random.setSeed(secondMember.getUser().getIdLong() + firstMember.getUser().getIdLong());
 					int shipPercentage = random.nextInt(100) + 1;
@@ -482,7 +593,7 @@ public class ImageModule {
 		Request request = new Request.Builder().url("http://" + Settings.LOCAL_HOST + ":8443/api/vr?image=" + url).build();
 		
 		event.getTextChannel().sendTyping().queue($ -> {
-			client.newCall(request).enqueue((Sx4Callback) response -> {
+			ImageModule.client.newCall(request).enqueue((Sx4Callback) response -> {
 				if (response.code() == 200) {
 					event.getTextChannel().sendFile(response.body().bytes(), "vr." + response.headers().get("Content-Type").split("/")[1]).queue();
 				} else if (response.code() == 400) {
@@ -519,7 +630,7 @@ public class ImageModule {
 		Request request = new Request.Builder().url("http://" + Settings.LOCAL_HOST + ":8443/api/shit?image=" + url).build();
 		
 		event.getTextChannel().sendTyping().queue($ -> {
-			client.newCall(request).enqueue((Sx4Callback) response -> {
+			ImageModule.client.newCall(request).enqueue((Sx4Callback) response -> {
 				if (response.code() == 200) {
 					event.getTextChannel().sendFile(response.body().bytes(), "shit." + response.headers().get("Content-Type").split("/")[1]).queue();
 				} else if (response.code() == 400) {
@@ -556,7 +667,7 @@ public class ImageModule {
 		Request request = new Request.Builder().url("http://" + Settings.LOCAL_HOST + ":8443/api/beautiful?image=" + url).build();
 		
 		event.getTextChannel().sendTyping().queue($ -> {
-			client.newCall(request).enqueue((Sx4Callback) response -> {
+			ImageModule.client.newCall(request).enqueue((Sx4Callback) response -> {
 				if (response.code() == 200) {
 					event.getTextChannel().sendFile(response.body().bytes(), "beautiful." + response.headers().get("Content-Type").split("/")[1]).queue();
 				} else if (response.code() == 400) {
@@ -593,7 +704,7 @@ public class ImageModule {
 		Request request = new Request.Builder().url("http://" + Settings.LOCAL_HOST + ":8443/api/gay?image=" + url).build();
 		
 		event.getTextChannel().sendTyping().queue($ -> {
-			client.newCall(request).enqueue((Sx4Callback) response -> {
+			ImageModule.client.newCall(request).enqueue((Sx4Callback) response -> {
 				if (response.code() == 200) {
 					event.getTextChannel().sendFile(response.body().bytes(), "gay." + response.headers().get("Content-Type").split("/")[1]).queue();
 				} else if (response.code() == 400) {
@@ -623,7 +734,7 @@ public class ImageModule {
 		}
 		
 		event.getTextChannel().sendTyping().queue($ -> {
-			client.newCall(request).enqueue((Sx4Callback) response -> {
+			ImageModule.client.newCall(request).enqueue((Sx4Callback) response -> {
 				if (response.code() == 200) {
 					event.getTextChannel().sendFile(response.body().bytes(), "trump." + response.headers().get("Content-Type").split("/")[1]).queue();
 				} else if (response.code() == 400) {
@@ -670,7 +781,7 @@ public class ImageModule {
 		Request request = new Request.Builder().url("http://" + Settings.LOCAL_HOST + ":8443/api/tweet").post(RequestBody.create(MediaType.parse("application/json; charset=utf-8"), json.toString())).build();
 		
 		event.getTextChannel().sendTyping().queue($ -> {
-			client.newCall(request).enqueue((Sx4Callback) response -> {
+			ImageModule.client.newCall(request).enqueue((Sx4Callback) response -> {
 				if (response.code() == 200) {
 					event.getTextChannel().sendFile(response.body().bytes(), "tweet." + response.headers().get("Content-Type").split("/")[1]).queue();
 				} else if (response.code() == 400) {
@@ -702,7 +813,7 @@ public class ImageModule {
 		Request request = new Request.Builder().url("http://" + Settings.LOCAL_HOST + ":8443/api/colour?hex=" + hex).build();
 		
 		event.getTextChannel().sendTyping().queue($ -> {
-			client.newCall(request).enqueue((Sx4Callback) response -> {
+			ImageModule.client.newCall(request).enqueue((Sx4Callback) response -> {
 				if (response.code() == 200) {
 					EmbedBuilder embed = new EmbedBuilder();
 					embed.setColor(colour);
@@ -745,7 +856,7 @@ public class ImageModule {
 		
 		String newUrl = url;
 		event.getTextChannel().sendTyping().queue($ -> {
-			client.newCall(request).enqueue((Sx4Callback) response -> {
+			ImageModule.client.newCall(request).enqueue((Sx4Callback) response -> {
 				if (response.code() == 200) {
 					int colourRaw;
 					colourRaw = Integer.parseInt(response.body().string());
@@ -777,7 +888,7 @@ public class ImageModule {
 		Request request = new Request.Builder().url("http://" + Settings.LOCAL_HOST + ":8443/api/scroll?text=" + text).build();
 		
 		event.getTextChannel().sendTyping().queue($ -> {
-			client.newCall(request).enqueue((Sx4Callback) response -> {
+			ImageModule.client.newCall(request).enqueue((Sx4Callback) response -> {
 				if (response.code() == 200) {
 					event.getTextChannel().sendFile(response.body().bytes(), "scroll.png").queue();
 				} else if (response.code() == 400) {
@@ -816,7 +927,7 @@ public class ImageModule {
 		Request request = new Request.Builder().url("http://" + Settings.LOCAL_HOST + ":8443/api/drift?leftText=" + leftText + "&image=" + url + (rightText == null ? "" : "&rightText=" + rightText)).build();
 		
 		event.getTextChannel().sendTyping().queue($ -> {
-			client.newCall(request).enqueue((Sx4Callback) response -> {
+			ImageModule.client.newCall(request).enqueue((Sx4Callback) response -> {
 				if (response.code() == 200) {
 					event.getTextChannel().sendFile(response.body().bytes(), "drift.png").queue();
 				} else if (response.code() == 400) {
@@ -854,7 +965,7 @@ public class ImageModule {
 		Request request = new Request.Builder().url("http://" + Settings.LOCAL_HOST + ":8443/api/status?image=" + member.getUser().getEffectiveAvatarUrl() + "?size=1024&status=" + status).build();
 		
 		event.getTextChannel().sendTyping().queue($ -> {
-			client.newCall(request).enqueue((Sx4Callback) response -> {
+			ImageModule.client.newCall(request).enqueue((Sx4Callback) response -> {
 				if (response.code() == 200) {
 					event.getTextChannel().sendFile(response.body().bytes(), "status." + response.headers().get("Content-Type").split("/")[1]).queue();
 				} else if (response.code() == 400) {
