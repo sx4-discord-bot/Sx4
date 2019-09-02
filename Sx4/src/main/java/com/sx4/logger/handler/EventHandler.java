@@ -501,7 +501,7 @@ public class EventHandler extends ListenerAdapter {
 		
 		Message message = GuildMessageCache.INSTANCE.getMessageById(event.getMessageIdLong());
 		if(message != null) {
-			if(message.getContentRaw().length() == 0) {
+			if(message.getContentRaw().length() == 0 && message.getAttachments().isEmpty()) {
 				return;
 			}
 			
@@ -517,7 +517,9 @@ public class EventHandler extends ListenerAdapter {
 				embed.setAuthor(new EmbedAuthor(user.getAsTag(), user.getEffectiveAvatarUrl(), null));
 			}
 			
-			embed.addField(new EmbedField(false, "Message", Utils.limitField(message.getContentRaw())));
+			if (message.getContentRaw().length() != 0) {
+				embed.addField(new EmbedField(false, "Message", Utils.limitField(message.getContentRaw())));
+			}
 			
 			this.send(event.getJDA(), guild, data, embed.build());
 		}else{
