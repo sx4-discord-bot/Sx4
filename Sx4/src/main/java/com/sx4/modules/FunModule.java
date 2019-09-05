@@ -1951,7 +1951,7 @@ public class FunModule {
 		Request request;
 		try {
 			request = new Request.Builder()
-					.url(new URL("https://od-api.oxforddictionaries.com:443/api/v1/entries/en/" + word.toLowerCase()))
+					.url(new URL("https://od-api.oxforddictionaries.com:443/api/v2/entries/en-gb/" + word.toLowerCase()))
 					.addHeader("Accept", "application/json")
 					.addHeader("app_id", "e01b354a")
 					.addHeader("app_key", TokenUtils.OXFORD_DICTIONARIES)
