@@ -56,6 +56,7 @@ import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.requests.RestAction;
 
 @Module
 public class DeveloperModule {
@@ -160,6 +161,8 @@ public class DeveloperModule {
 				event.reply((Message) object).queue();
 			} else if (object instanceof MessageEmbed) {
 				event.reply((MessageEmbed) object).queue();
+			} else if (object instanceof RestAction) {
+				((RestAction<?>) object).queue();
 			} else {
 				event.reply(object.toString()).queue();
 			}

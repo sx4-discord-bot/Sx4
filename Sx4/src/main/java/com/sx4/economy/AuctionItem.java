@@ -17,7 +17,6 @@ public class AuctionItem {
 	
 	private Document itemData;
 	private Item item;
-	private long amount;
 	private long price;
 	private long ownerId;
 	private ObjectId id;
@@ -25,7 +24,6 @@ public class AuctionItem {
 	public AuctionItem(Document auctionData) {
 		this.itemData = auctionData.get("item", Document.class);
 		this.item = EconomyUtils.getItem(this.itemData.getString("name"));
-		this.amount = itemData.getLong("amount");
 		this.ownerId = auctionData.getLong("ownerId");
 		this.id = auctionData.getObjectId("_id");
 		this.price = auctionData.getLong("price");
@@ -48,7 +46,7 @@ public class AuctionItem {
 	}
 	
 	public long getAmount() {
-		return this.amount;
+		return this.itemData.getLong("amount");
 	}
 	
 	public long getPrice() {
@@ -56,11 +54,11 @@ public class AuctionItem {
 	}
 	
 	public double getPricePerItem() {
-		return (double) this.price / this.amount;
+		return (double) this.price / this.getAmount();
 	}
 	
 	public ItemStack getItemStack() {
-		return new ItemStack(this.item, this.amount);
+		return new ItemStack(this.item, this.getAmount());
 	}
 	
 	public boolean isTool() {
