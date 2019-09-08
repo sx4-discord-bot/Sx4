@@ -541,7 +541,7 @@ public class EconomyModule {
 		
 		@Command(value="activate", description="Activates a booster which is activatable")
 		public void activate(CommandEvent event, @Context Database database, @Argument(value="booster name", endless=true) String boosterName) {
-			Document data = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items", "economy.pickaxeCooldown")).get("economy", Database.EMPTY_DOCUMENT);
+			Document data = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items", "economy.mineCooldown")).get("economy", Database.EMPTY_DOCUMENT);
 			
 			Booster booster = Booster.getBoosterByName(boosterName);
 			if (booster == null) {
@@ -568,8 +568,8 @@ public class EconomyModule {
 					return;
 				}
 				
-				Long pickaxeCooldown = data.getLong("mineCooldown");
-				if (pickaxeCooldown == null || Clock.systemUTC().instant().getEpochSecond() - pickaxeCooldown >= EconomyUtils.MINE_COOLDOWN) {
+				Long mineCooldown = data.getLong("mineCooldown");
+				if (mineCooldown == null || Clock.systemUTC().instant().getEpochSecond() - mineCooldown >= EconomyUtils.MINE_COOLDOWN) {
 					event.reply("You currently do not have a cooldown on your mine :no_entry:").queue();
 					return;
 				}
@@ -771,11 +771,11 @@ public class EconomyModule {
 	@Command(value="daily", aliases={"pd", "payday"}, description="Collect your daily money, repeatedly collect it everyday to get streaks the higher your streaks the better chance of getting a higher tier crate", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void daily(CommandEvent event, @Context Database database) {
-		Document data = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.streakCooldown", "economy.streak", "economy.items")).get("economy", Database.EMPTY_DOCUMENT);
+		Document data = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.dailyCooldown", "economy.streak", "economy.items")).get("economy", Database.EMPTY_DOCUMENT);
 		
 		long money;
 		long timestampNow = Clock.systemUTC().instant().getEpochSecond();
-		Long streakTime = data.getLong("streakCooldown");
+		Long streakTime = data.getLong("dailyCooldown");
 		
 		EmbedBuilder embed = new EmbedBuilder();
 		if (streakTime != null && timestampNow - streakTime <= EconomyUtils.DAILY_COOLDOWN) {
@@ -803,7 +803,7 @@ public class EconomyModule {
 			embed.setDescription("You have collected your daily money! (**+$" + money + "**)\nYou had a bonus of $" + (money - 100) + " for having a " + currentStreak + " day streak\n\n" + crateContent);
 
 			Bson update = Updates.combine(
-					Updates.set("economy.streakCooldown", timestampNow),
+					Updates.set("economy.dailyCooldown", timestampNow),
 					Updates.inc("economy.balance", money),
 					Updates.inc("economy.streak", 1)
 			);
@@ -831,7 +831,7 @@ public class EconomyModule {
 			embed.setColor(event.getMember().getColor());
 			
 			Bson update = Updates.combine(
-					Updates.set("economy.streakCooldown", timestampNow),
+					Updates.set("economy.dailyCooldown", timestampNow),
 					Updates.inc("economy.balance", money),
 					Updates.set("economy.streak", 0)
 			);

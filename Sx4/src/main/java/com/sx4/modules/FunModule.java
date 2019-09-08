@@ -285,7 +285,7 @@ public class FunModule {
 		
 		Document profile = data.get("profile", Database.EMPTY_DOCUMENT);
 		
-		long reputation = data.getEmbedded(List.of("reputation", "amount"), 0);
+		long reputation = data.getEmbedded(List.of("reputation", "amount"), 0L);
 		long balance = data.getEmbedded(List.of("economy", "balance"), 0L);
 		
 		List<Long> marriedUsers = profile.getList("marriedUsers", Long.class, Collections.emptyList());
@@ -1325,7 +1325,7 @@ public class FunModule {
 		event.reply(content).queue();
 	}
 	
-	@Command(value="guess the number", aliases={"guessthenumber", "gtn"}, description="You and another use will have to guess a number between 1 and 50 whoever is closest wins, winner gets the other users bet if one is placed", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+	@Command(value="guess the number", aliases={"guessthenumber", "gtn"}, description="You and another user will have to guess a number between 1 and 50 whoever is closest wins, winner gets the other users bet if one is placed", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 	@Cooldown(value=120)
 	public void guessTheNumber(CommandEvent event, @Context Database database, @Argument(value="user") String userArgument, @Argument(value="bet", nullDefault=true) String betArgument) {
 		Member member = ArgumentUtils.getMember(event.getGuild(), userArgument);
