@@ -39,7 +39,7 @@ public class ConnectionEvents extends ListenerAdapter {
 			int availableGuilds = event.getGuildAvailableCount();
 			int totalGuilds = event.getGuildTotalCount();
 			System.out.println(String.format("Connected to %s with %,d/%,d available servers and %,d users", event.getJDA().getSelfUser().getAsTag(), availableGuilds, totalGuilds, Sx4Bot.getShardManager().getUsers().size()));
-
+			
 			try {
 				Main.initiateWebserver();
 			} catch(Exception e) {

@@ -53,7 +53,6 @@ public class Main {
 		server.addConnector(connector);
 
 		server.start();
-		server.join();
 	}
 	
 }

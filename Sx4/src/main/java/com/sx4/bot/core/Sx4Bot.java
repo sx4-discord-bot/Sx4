@@ -101,13 +101,13 @@ public class Sx4Bot {
 		MethodCommandFactory.setDefault(new Sx4CommandFactory());
 		
 		listener = new Sx4CommandListener()
-				.addCommandStores(CommandStore.of("com.sx4.modules"))
+				.addCommandStores(CommandStore.of("com.sx4.bot.modules"))
 				.addDevelopers(402557516728369153L, 190551803669118976L)
 				.setDefaultPrefixes("s?", "sx4 ", "S?")
 				.setHelpFunction((event, prefix, failures) -> {
 					if (CheckUtils.canReply(event, prefix)) {
 						Member self = event.getGuild().getMember(event.getJDA().getSelfUser());
-						if (self.hasPermission(Permission.MESSAGE_EMBED_LINKS)) {
+						if (self.hasPermission(event.getTextChannel(), Permission.MESSAGE_EMBED_LINKS)) {
 							event.getTextChannel().sendMessage(HelpUtils.getHelpMessage(failures.get(0).getCommand())).queue();
 						} else {
 							event.getTextChannel().sendMessage("I am missing the permission `Embed Links`, therefore I cannot show you the help menu for `" + failures.get(0).getCommand().getCommandTrigger() + "` :no_entry:").queue();
@@ -126,7 +126,7 @@ public class Sx4Bot {
 				})
 				.setMissingPermissionFunction((event, permissions) -> {
 					if (CheckUtils.canReply(event.getMessage(), event.getPrefix())) {
-						List<String> permissionNames = new ArrayList<String>();
+						List<String> permissionNames = new ArrayList<>();
 						for (Permission permission : permissions) {
 							permissionNames.add(permission.getName());
 						}
