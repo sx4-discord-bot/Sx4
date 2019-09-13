@@ -209,10 +209,10 @@ public class EventHandler extends ListenerAdapter {
 		if(data.getLong("webhookId") == null || data.getString("webhookToken") == null) {
 			Webhook webhook = channel.createWebhook("Sx4 - Logs").complete();
 			
-			data.put("webhookId", webhook.getId());
+			data.put("webhookId", webhook.getIdLong());
 			data.put("webhookToken", webhook.getToken());
 			
-			Bson update = Updates.combine(Updates.set("logger.webhookId", webhook.getId()), Updates.set("logger.webhookToken", webhook.getToken()));
+			Bson update = Updates.combine(Updates.set("logger.webhookId", webhook.getIdLong()), Updates.set("logger.webhookToken", webhook.getToken()));
 			Database.get().updateGuildById(guild.getIdLong(), update, (result, exception) -> {
 				if (exception != null) {
 					exception.printStackTrace();

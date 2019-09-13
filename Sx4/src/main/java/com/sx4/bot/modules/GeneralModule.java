@@ -64,9 +64,9 @@ import com.sx4.bot.utils.ArgumentUtils;
 import com.sx4.bot.utils.GeneralUtils;
 import com.sx4.bot.utils.HelpUtils;
 import com.sx4.bot.utils.PagedUtils;
+import com.sx4.bot.utils.PagedUtils.PagedResult;
 import com.sx4.bot.utils.TimeUtils;
 import com.sx4.bot.utils.TokenUtils;
-import com.sx4.bot.utils.PagedUtils.PagedResult;
 
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.JDA;
@@ -140,25 +140,25 @@ public class GeneralModule {
 			Matcher timeRegex = this.reminderTimeRegex.matcher(reminder);
 			Matcher dateRegex = this.reminderDateRegex.matcher(reminder);
 			String reminderName;
-			long reminderLength, remindAt;
+			long duration, remindAt;
 			long timestampNow = Clock.systemUTC().instant().getEpochSecond();
 			if (timeRegex.matches()) {
 				reminderName = timeRegex.group(1);
 				String time = timeRegex.group(2).trim();
 				
-				reminderLength = TimeUtils.convertToSeconds(time);			
-				if (reminderLength <= 0) {
+				duration = TimeUtils.convertToSeconds(time);			
+				if (duration <= 0) {
 					event.reply("Invalid time format, make sure it's formatted with a numerical value then a letter representing the time (d for days, h for hours, m for minutes, s for seconds) and make sure it's in order :no_entry:").queue();
 					return;
 				}
 				
-				remindAt = Clock.systemUTC().instant().getEpochSecond() + reminderLength;
+				remindAt = Clock.systemUTC().instant().getEpochSecond() + duration;
 			} else if (dateRegex.matches()) {
 				reminderName = dateRegex.group(1);
 				String date = dateRegex.group(2).trim();
 				
 				try {
-					reminderLength = TimeUtils.dateTimeToDuration(date);
+					duration = TimeUtils.dateTimeToDuration(date);
 				} catch(ZoneRulesException e) {
 					event.reply("You provided an invalid time zone :no_entry:").queue();
 					return;
@@ -167,9 +167,9 @@ public class GeneralModule {
 					return;
 				}
 				
-				remindAt = timestampNow + reminderLength;
+				remindAt = timestampNow + duration;
 				
-				if (reminderLength == 0) {
+				if (duration == 0) {
 					event.reply("Invalid date format, make sure it's formated like so `dd/mm/yy hh:mm` :no_entry:").queue();
 					return;
 				}
@@ -179,7 +179,7 @@ public class GeneralModule {
 				return;
 			}
 			
-			if (reminderLength < 60 && repeat) {
+			if (duration < 60 && repeat) {
 				event.reply("Repeated reminders must be at least 1 minute long :no_entry:").queue();
 				return;
 			}
@@ -194,7 +194,7 @@ public class GeneralModule {
 			Document reminderData = new Document("id", reminderCount + 1)
 					.append("reminder", reminderName)
 					.append("remindAt", remindAt)
-					.append("reminderLength", reminderLength)
+					.append("duration", duration)
 					.append("repeat", repeat);
 			
 			Bson update = Updates.combine(
@@ -207,8 +207,8 @@ public class GeneralModule {
 					exception.printStackTrace();
 					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
 				} else {
-					event.reply(String.format("I have added your reminder, you will be reminded about it in `%s` (Reminder ID: **%s**)", TimeUtils.toTimeString(reminderLength, ChronoUnit.SECONDS), reminderCount + 1)).queue();
-					ScheduledFuture<?> executor = ReminderEvents.scheduledExectuor.schedule(() -> ReminderEvents.removeUserReminder(event.getAuthor().getIdLong(), reminderCount + 1, reminderName, reminderLength, repeat), reminderLength, TimeUnit.SECONDS);
+					event.reply(String.format("I have added your reminder, you will be reminded about it in `%s` (Reminder ID: **%s**)", TimeUtils.toTimeString(duration, ChronoUnit.SECONDS), reminderCount + 1)).queue();
+					ScheduledFuture<?> executor = ReminderEvents.scheduledExectuor.schedule(() -> ReminderEvents.removeUserReminder(event.getAuthor().getIdLong(), reminderCount + 1, reminderName, duration, repeat), duration, TimeUnit.SECONDS);
 					ReminderEvents.putExecutor(event.getAuthor().getIdLong(), reminderCount + 1, executor);
 				}
 			});
@@ -314,7 +314,7 @@ public class GeneralModule {
 				} else {
 					event.reply("Your suggestion has been sent to " + channel.getAsMention()).queue();
 					message.addReaction("✅").queue();
-					message.addReaction("�?�").queue();
+					message.addReaction("❌").queue();
 				}
 			});
 		});	
@@ -337,7 +337,7 @@ public class GeneralModule {
 		@AuthorPermissions({Permission.MESSAGE_MANAGE})
 		public void toggle(CommandEvent event, @Context Database database) {
 			boolean enabled = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("suggestion.enabled")).getEmbedded(List.of("suggestion", "enabled"), false);			
-			database.updateGuildById(event.getGuild().getIdLong(), Updates.set("enabled", !enabled), (result, exception) -> {
+			database.updateGuildById(event.getGuild().getIdLong(), Updates.set("suggestion.enabled", !enabled), (result, exception) -> {
 				if (exception != null) {
 					exception.printStackTrace();
 					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
@@ -362,7 +362,7 @@ public class GeneralModule {
 				return;
 			}
 			
-			database.updateGuildById(event.getGuild().getIdLong(), Updates.set("channelId", channel.getIdLong()), (result, exception) -> {
+			database.updateGuildById(event.getGuild().getIdLong(), Updates.set("suggestion.channelId", channel.getIdLong()), (result, exception) -> {
 				if (exception != null) {
 					exception.printStackTrace();
 					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
@@ -837,7 +837,7 @@ public class GeneralModule {
 			}
 			
 			Document imageMode = new Document("id", channel.getIdLong())
-					.append("slowmode", 0)
+					.append("slowmode", 0L)
 					.append("users", Collections.emptyList());
 			
 			database.updateGuildById(event.getGuild().getIdLong(), Updates.push("imageMode.channels", imageMode), (result, exception) -> {
@@ -1282,8 +1282,10 @@ public class GeneralModule {
 					event.reply("**" + member.getUser().getAsTag() + "** is already online :no_entry:").queue();
 					return;
 				} else {
-					memberIds.add(member.getUser().getIdLong());
-					memberTags.add(member.getUser().getAsTag());
+					if (!memberIds.contains(member.getIdLong())) {
+						memberIds.add(member.getUser().getIdLong());
+						memberTags.add(member.getUser().getAsTag());
+					}
 				}
 			}
 		}
@@ -1301,7 +1303,7 @@ public class GeneralModule {
 			}
 		}
 		
-		database.updateUserById(event.getAuthor().getIdLong(), Updates.pushEach("await.users", memberIds), (result, exception) -> {
+		database.updateUserById(event.getAuthor().getIdLong(), Updates.addEachToSet("await.users", memberIds), (result, exception) -> {
 			if (exception != null) {
 				exception.printStackTrace();
 				event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
@@ -1905,7 +1907,7 @@ public class GeneralModule {
 		@Command(value="toggle", aliases={"enable", "disable"}, description="Toggle triggers on/off for the current server", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@AuthorPermissions({Permission.MESSAGE_MANAGE})
 		public void toggle(CommandEvent event, @Context Database database) {
-			boolean enabled = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("trigger.enabled")).getEmbedded(List.of("trigger", "enabled"), false);
+			boolean enabled = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("trigger.enabled")).getEmbedded(List.of("trigger", "enabled"), true);
 			database.updateGuildById(event.getGuild().getIdLong(), Updates.set("trigger.enabled", !enabled), (result, exception) -> {
 				if (exception != null) {
 					exception.printStackTrace();
@@ -1919,7 +1921,7 @@ public class GeneralModule {
 		@Command(value="case", aliases={"case sensitive", "case toggle", "casesensitive", "casetoggle"}, description="Toggles whether you want your triggers in the server to be case sensitive or not", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@AuthorPermissions({Permission.MESSAGE_MANAGE})
 		public void caseSensitive(CommandEvent event, @Context Database database) {
-			boolean caseSensitive = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("trigger.case")).getEmbedded(List.of("trigger", "case"), false);
+			boolean caseSensitive = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("trigger.case")).getEmbedded(List.of("trigger", "case"), true);
 			database.updateGuildById(event.getGuild().getIdLong(), Updates.set("trigger.case", !caseSensitive), (result, exception) -> {
 				if (exception != null) {
 					exception.printStackTrace();

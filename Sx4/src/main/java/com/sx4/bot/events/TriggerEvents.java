@@ -29,7 +29,7 @@ public class TriggerEvents extends ListenerAdapter {
 		}
 		
 		Document data = Database.get().getGuildById(event.getGuild().getIdLong(), null, Projections.include("trigger.enabled", "trigger.triggers", "trigger.case")).get("trigger", Database.EMPTY_DOCUMENT);	
-		if (data.isEmpty() || !data.getBoolean("toggle", true)) {
+		if (data.isEmpty() || !data.getBoolean("enabled", true)) {
 			return;
 		}
 		

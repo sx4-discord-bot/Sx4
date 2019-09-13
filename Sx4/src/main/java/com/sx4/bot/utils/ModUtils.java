@@ -234,7 +234,7 @@ public class ModUtils {
 			return;
 		}
 		
-		Integer caseNumber = data.getInteger("caseAmount", 0) + 1;
+		int caseNumber = data.getInteger("caseAmount", 0) + 1;
 		
 		String defaultMod = "Unknown (Update using `modlog case " + caseNumber + " <reason>`)";
 		String defaultReason = "None (Update using `modlog case " + caseNumber + " <reason>`)";

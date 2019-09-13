@@ -54,20 +54,20 @@ public class ReminderEvents {
 		return false;
 	}
 	
-	public static void removeUserReminder(long userId, int id, String reminder, long reminderLength, boolean repeat) {
+	public static void removeUserReminder(long userId, int id, String reminder, long duration, boolean repeat) {
 		User user = Sx4Bot.getShardManager().getUserById(userId);
 		if (user != null) {
 			user.openPrivateChannel().queue(channel -> channel.sendMessage("You wanted me to remind you about **" + reminder + "**").queue(), e -> {});
 			if (repeat) {
 				UpdateOptions updateOptions = new UpdateOptions().arrayFilters(List.of(Filters.eq("reminder.id", id))).upsert(true);
 				
-				Database.get().updateUserById(user.getIdLong(), null, Updates.inc("reminder.reminders.$[reminder].remindAt", reminderLength), updateOptions, (result, exception) -> {
+				Database.get().updateUserById(user.getIdLong(), null, Updates.inc("reminder.reminders.$[reminder].remindAt", duration), updateOptions, (result, exception) -> {
 					if (exception != null) {
 						exception.printStackTrace();
 					}
 				});
 				
-				ScheduledFuture<?> executor = ReminderEvents.scheduledExectuor.schedule(() -> ReminderEvents.removeUserReminder(userId, id, reminder, reminderLength, repeat), reminderLength, TimeUnit.SECONDS);
+				ScheduledFuture<?> executor = ReminderEvents.scheduledExectuor.schedule(() -> ReminderEvents.removeUserReminder(userId, id, reminder, duration, repeat), duration, TimeUnit.SECONDS);
 				ReminderEvents.putExecutor(user.getIdLong(), id, executor);
 			} else {
 				Database.get().updateUserById(user.getIdLong(), Updates.pull("reminder.reminders", Filters.eq("id", id)), (result, exception) -> {
@@ -90,7 +90,7 @@ public class ReminderEvents {
 	}
 
 	public static void removeUserReminder(long userId, Document data) {
-		ReminderEvents.removeUserReminder(userId, data.getInteger("id"), data.getString("reminder"), data.getLong("reminderLength"), data.getBoolean("repeat"));
+		ReminderEvents.removeUserReminder(userId, data.getInteger("id"), data.getString("reminder"), data.getLong("duration"), data.getBoolean("repeat"));
 	}
 	
 	public static void ensureReminders() {

@@ -482,7 +482,7 @@ public class PagedUtils {
 	
 	public static void getConfirmation(CommandEvent event, int timeout, User responder, Consumer<Boolean> returnFunction) {
 		Sx4Bot.waiter.waitForEvent(MessageReceivedEvent.class, e -> {
-			return e.getChannel().equals(event.getChannel()) && e.getAuthor().equals(responder);
+			return e.getChannel().equals(event.getChannel()) && e.getAuthor().getIdLong() == responder.getIdLong();
 		}, e -> {
 			String messageContent = e.getMessage().getContentRaw().toLowerCase();
 			if (confirmation.contains(messageContent)) {

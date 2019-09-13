@@ -15,6 +15,7 @@ import org.glassfish.jersey.server.ServerProperties;
 import org.glassfish.jersey.servlet.ServletContainer;
 
 import com.sx4.api.exceptions.UncaughtExceptionHandler;
+import com.sx4.bot.settings.Settings;
 
 public class Main {
 	
@@ -37,7 +38,7 @@ public class Main {
 		Server server = new Server();
 
 		ServerConnector connector = new ServerConnector(server);
-		connector.setPort(8082);
+		connector.setPort(Settings.CANARY ? 8083 : 8082);
 		
 		server.setErrorHandler(new ErrorHandler() {
 			protected void handleErrorPage(HttpServletRequest request, Writer writer, int code, String message) throws IOException {

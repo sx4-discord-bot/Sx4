@@ -4,6 +4,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import javax.ws.rs.GET;
@@ -26,8 +27,10 @@ import net.dv8tion.jda.api.entities.Activity;
 import net.dv8tion.jda.api.entities.ClientType;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
+import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.requests.ErrorResponse;
+import net.dv8tion.jda.api.sharding.ShardManager;
 
 @Path("")
 public class Endpoints {
@@ -37,6 +40,63 @@ public class Endpoints {
 		
 		String[] typeSplit = typeName.split("\\.");
 		return typeSplit[typeSplit.length - 1];
+	}
+	
+	private JSONObject getGuildData(Guild guild) {
+		JSONObject data = new JSONObject();
+		data.put("id", guild.getIdLong());
+		data.put("name", guild.getName());
+		data.put("iconUrl", guild.getIconUrl());
+		data.put("createdAt", guild.getTimeCreated().toEpochSecond());
+		data.put("memberCount", guild.getMembers().size());
+		
+		return data;
+	}
+	
+	private JSONObject getUserData(User user) {
+		JSONObject data = new JSONObject(); 
+		data.put("id", user.getIdLong());
+		data.put("name", user.getName());
+		data.put("discriminator", user.getDiscriminator());
+		data.put("avatarUrl", user.getEffectiveAvatarUrl());
+		data.put("createdAt", user.getTimeCreated().toEpochSecond());
+		
+		return data;
+	}
+	
+	private JSONObject getMemberData(Member member) {
+		List<JSONObject> activities = new ArrayList<>();
+		for (Activity activity : member.getActivities()) {
+			JSONObject activityData = new JSONObject();
+			activityData.put("name", activity.getName());
+			activityData.put("type", activity.getType().getKey());
+			
+			String url = activity.getUrl();
+			if (url != null) {
+				activityData.put("url", url);
+			}
+			
+			activities.add(activityData);
+		}
+		
+		JSONObject onlineStatus = new JSONObject();
+		onlineStatus.put("desktop", member.getOnlineStatus(ClientType.DESKTOP).getKey());
+		onlineStatus.put("mobile", member.getOnlineStatus(ClientType.MOBILE).getKey());
+		onlineStatus.put("web", member.getOnlineStatus(ClientType.WEB).getKey());
+		
+		JSONObject data = new JSONObject();
+		data.put("id", member.getIdLong());
+		data.put("nickname", member.getNickname());
+		data.put("name", member.getUser().getName());
+		data.put("discriminator", member.getUser().getDiscriminator());
+		data.put("avatarUrl", member.getUser().getEffectiveAvatarUrl());
+		data.put("createdAt", member.getUser().getTimeCreated().toEpochSecond());
+		data.put("onlineStatus", onlineStatus);
+		data.put("joinedAt", member.getTimeJoined().toEpochSecond());
+		data.put("activities", activities);
+		data.put("permissionsRaw", Permission.getRaw(member.getPermissions()));
+		
+		return data;
 	}
 	
 	@GET
@@ -103,15 +163,8 @@ public class Endpoints {
 		JSONObject response = new JSONObject();
 		
 		Sx4Bot.getShardManager().retrieveUserById(userId).queue(user -> {
-			JSONObject data = new JSONObject(); 
-			data.put("id", user.getIdLong());
-			data.put("name", user.getName());
-			data.put("discriminator", user.getDiscriminator());
-			data.put("avatarUrl", user.getEffectiveAvatarUrl());
-			data.put("createdAt", user.getTimeCreated().toEpochSecond());
-			
 			response.put("status", 200);
-			response.put("data", data);
+			response.put("data", this.getUserData(user));
 			
 			asyncResponse.resume(Response.ok(response.toString()).build());
 		}, e -> {
@@ -134,6 +187,51 @@ public class Endpoints {
 	}
 	
 	@GET
+	@Path("/users/{userId}/guilds")
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response user(@PathParam("userId") final long userId) {
+		JSONObject response = new JSONObject();
+		
+		ShardManager shardManager = Sx4Bot.getShardManager();
+		
+		User user = shardManager.getUserById(userId);
+		List<Guild> mutualGuilds = user == null ? Collections.emptyList() : shardManager.getMutualGuilds(user);
+		
+		List<JSONObject> guilds = new ArrayList<>();
+		for (Guild mutualGuild : mutualGuilds) {
+			guilds.add(this.getGuildData(mutualGuild));
+		}
+		
+		JSONObject data = new JSONObject();
+		data.put("guilds", guilds);
+		
+		response.put("status", 200);
+		response.put("data", data);
+		
+		return Response.ok(response.toString()).build();
+	}
+	
+	@GET
+	@Path("/guilds")
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response guilds() {
+		List<JSONObject> guilds = new ArrayList<>();
+		for (Guild guild : Sx4Bot.getShardManager().getGuilds()) {
+			guilds.add(this.getGuildData(guild));
+		}
+		
+		JSONObject data = new JSONObject();
+		data.put("count", guilds.size());
+		data.put("guilds", guilds);
+		
+		JSONObject response = new JSONObject();
+		response.put("status", 200);
+		response.put("data", data);
+		
+		return Response.ok(response.toString()).build();
+	}
+	
+	@GET
 	@Path("/guilds/{guildId}")
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response guild(@PathParam("guildId") final long guildId) {
@@ -146,12 +244,34 @@ public class Endpoints {
 			
 			return Response.status(404).entity(response.toString()).build();
 		} else {
+			response.put("status", 200);
+			response.put("data", this.getGuildData(guild));
+			
+			return Response.ok(response.toString()).build();
+		}
+	}
+	
+	@GET
+	@Path("/guilds/{guildId}/members")
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response members(@PathParam("guildId") final long guildId) {
+		JSONObject response = new JSONObject();
+		
+		Guild guild = Sx4Bot.getShardManager().getGuildById(guildId);
+		if (guild == null) {
+			response.put("status", 404);
+			response.put("message", "Unknown guild");
+			
+			return Response.status(404).entity(response.toString()).build();
+		} else {
+			List<JSONObject> members = new ArrayList<>();
+			for (Member member : guild.getMembers()) {
+				members.add(this.getMemberData(member));
+			}
+			
 			JSONObject data = new JSONObject();
-			data.put("id", guild.getIdLong());
-			data.put("name", guild.getName());
-			data.put("iconUrl", guild.getIconUrl());
-			data.put("createdAt", guild.getTimeCreated().toEpochSecond());
-			data.put("memberCount", guild.getMembers().size());
+			data.put("count", members.size());
+			data.put("members", members);
 			
 			response.put("status", 200);
 			response.put("data", data);
@@ -180,39 +300,8 @@ public class Endpoints {
 				
 				return Response.status(404).entity(response.toString()).build();
 			} else {
-				List<JSONObject> activities = new ArrayList<>();
-				for (Activity activity : member.getActivities()) {
-					JSONObject activityData = new JSONObject();
-					activityData.put("name", activity.getName());
-					activityData.put("type", activity.getType().getKey());
-					
-					String url = activity.getUrl();
-					if (url != null) {
-						activityData.put("url", url);
-					}
-					
-					activities.add(activityData);
-				}
-				
-				JSONObject onlineStatus = new JSONObject();
-				onlineStatus.put("desktop", member.getOnlineStatus(ClientType.DESKTOP).getKey());
-				onlineStatus.put("mobile", member.getOnlineStatus(ClientType.MOBILE).getKey());
-				onlineStatus.put("web", member.getOnlineStatus(ClientType.WEB).getKey());
-				
-				JSONObject data = new JSONObject();
-				data.put("id", member.getIdLong());
-				data.put("nickname", member.getNickname());
-				data.put("name", member.getUser().getName());
-				data.put("discriminator", member.getUser().getDiscriminator());
-				data.put("avatarUrl", member.getUser().getEffectiveAvatarUrl());
-				data.put("createdAt", member.getUser().getTimeCreated().toEpochSecond());
-				data.put("onlineStatus", onlineStatus);
-				data.put("joinedAt", member.getTimeJoined().toEpochSecond());
-				data.put("activities", activities);
-				data.put("permissionsRaw", Permission.getRaw(member.getPermissions()));
-				
 				response.put("status", 200);
-				response.put("data", data);
+				response.put("data", this.getMemberData(member));
 	
 				return Response.ok(response.toString()).build();
 			}
