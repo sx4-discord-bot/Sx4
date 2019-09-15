@@ -34,6 +34,7 @@ import com.jockie.bot.core.command.ICommand.ContentOverflowPolicy;
 import com.jockie.bot.core.command.Initialize;
 import com.jockie.bot.core.command.impl.CommandEvent;
 import com.jockie.bot.core.command.impl.CommandImpl;
+import com.jockie.bot.core.command.parser.impl.CommandParserImpl;
 import com.jockie.bot.core.module.Module;
 import com.jockie.bot.core.option.Option;
 import com.mongodb.client.FindIterable;
@@ -884,7 +885,7 @@ public class EconomyModule {
 			}
 		}
 		
-		long winnings = database.getUserById(member.getIdLong(), null, Projections.include("economy.winnings")).getEmbedded(List.of("economy", "winnings"), 0);
+		long winnings = database.getUserById(member.getIdLong(), null, Projections.include("economy.winnings")).getEmbedded(List.of("economy", "winnings"), 0L);
 		
 		EmbedBuilder embed = new EmbedBuilder();
 		embed.setColor(member.getColor());
@@ -3375,7 +3376,7 @@ public class EconomyModule {
 		@Command(value="bank", aliases={"money", "balance"}, description="View the leaderboard for people with the most money in their balance", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void bank(CommandEvent event, @Context Database database, @Option(value="server", aliases={"guild"}) boolean guild, @Option(value="sort") String sort, @Option(value="reverse") boolean reverse) {
-			FindIterable<Document> data = database.getUsers().find(Filters.ne("economy.balance", 0)).projection(Projections.include("economy.balance"));
+			FindIterable<Document> data = database.getUsers().find(Filters.and(Filters.exists("economy.balance"), Filters.ne("economy.balance", 0))).projection(Projections.include("economy.balance"));
 			
 			List<Document> compressedData = new ArrayList<>();
 			for (Document dataObject : data) {
@@ -3506,7 +3507,7 @@ public class EconomyModule {
 		@Command(value="winnings", description="View the leaderboard for people with the highest winnings", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void winnings(CommandEvent event, @Context Database database, @Option(value="server", aliases={"guild"}) boolean guild, @Option(value="sort") String sort, @Option(value="reverse") boolean reverse) {
-			FindIterable<Document> data = database.getUsers().find(Filters.ne("economy.winnings", 0)).projection(Projections.include("economy.winnings"));
+			FindIterable<Document> data = database.getUsers().find(Filters.and(Filters.exists("economy.winnings"), Filters.ne("economy.winnings", 0))).projection(Projections.include("economy.winnings"));
 			
 			List<Document> compressedData = new ArrayList<>();
 			for (Document dataObject : data) {
@@ -3645,7 +3646,7 @@ public class EconomyModule {
 		@Command(value="reputation", aliases={"rep", "reps"}, description="View the leaderboard for people with the highest reputation", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void reputation(CommandEvent event, @Context Database database, @Option(value="server", aliases={"guild"}) boolean guild, @Option(value="sort") String sort, @Option(value="reverse") boolean reverse) {
-			FindIterable<Document> data = database.getUsers().find(Filters.ne("reputation.amount", 0)).projection(Projections.include("reputation.amount"));
+			FindIterable<Document> data = database.getUsers().find(Filters.and(Filters.exists("reputation.amount"), Filters.ne("reputation.amount", 0))).projection(Projections.include("reputation.amount"));
 			
 			List<Document> compressedData = new ArrayList<>();
 			for (Document dataObject : data) {	
@@ -3708,7 +3709,7 @@ public class EconomyModule {
 		@Command(value="streak", description="View the leaderboard for people who have the highest streak for using `daily`", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void streak(CommandEvent event, @Context Database database, @Option(value="server", aliases={"guild"}) boolean guild, @Option(value="sort") String sort, @Option(value="reverse") boolean reverse) {
-			FindIterable<Document> data = database.getUsers().find(Filters.ne("economy.streak", 0)).projection(Projections.include("economy.streak"));
+			FindIterable<Document> data = database.getUsers().find(Filters.and(Filters.exists("economy.streak"), Filters.ne("economy.streak", 0))).projection(Projections.include("economy.streak"));
 			
 			List<Document> compressedData = new ArrayList<>();
 			for (Document dataObject : data) {	

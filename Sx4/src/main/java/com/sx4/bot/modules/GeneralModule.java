@@ -1005,6 +1005,7 @@ public class GeneralModule {
 			return;
 		}
 		
+		commandCounter.sort((a, b) -> Long.compare(b.getRight(), a.getRight()));
 		PagedResult<Pair<String, Long>> paged = new PagedResult<>(commandCounter)
 				.setFunction(data -> String.format("`%s` - %,d %s", data.getLeft(), data.getRight(), data.getRight() == 1 ? "use" : "uses"))
 				.setAuthor("Top Commands", null, event.getSelfUser().getEffectiveAvatarUrl())
@@ -1603,8 +1604,8 @@ public class GeneralModule {
 				.setAuthor("Info!", null, event.getSelfUser().getEffectiveAvatarUrl())
 				.setColor(Settings.EMBED_COLOUR)
 				.addField("Stats", String.format("Ping: %dms\nServers: %,d\nUsers: %,d\nCommands: %d", event.getJDA().getGatewayPing(), event.getShardManager().getGuilds().size(), event.getShardManager().getUsers().size(), event.getCommandListener().getAllCommands().size()), true)
-				.addField("Credits", "[Taiitoo#7419 (Host)](https://taiitoo.tk)\n[Victor#6359 (Ex Host)](https://vjserver.ddns.net)\n[ETLegacy](https://discord.gg/MqQsmF7)\n[Nexus](https://discord.gg/BEdrSaW)\n[RethinkDB]"
-						+ "(https://www.rethinkdb.com/api/java/)\n[JDA](https://github.com/DV8FromTheWorld/JDA)\n[Jockie Utils](https://github.com/21Joakim/Jockie-Utils)", true)
+				.addField("Credits", "[Taiitoo#7419 (Host)](https://taiitoo.tk)\n[Victor#6359 (Ex Host)](https://vjserver.ddns.net)\n[ETLegacy](https://discord.gg/MqQsmF7)\n[Nexus](https://discord.gg/BEdrSaW)\n[MongoDB]"
+						+ "(https://www.mongodb.com/)\n[JDA](https://github.com/DV8FromTheWorld/JDA)\n[Jockie Utils](https://github.com/21Joakim/Jockie-Utils)", true)
 				.addField("Sx4", "Developers: " + String.join(", ", developers) + "\nInvite: [Click Here](https://discordapp.com/oauth2/authorize?client_id=440996323156819968&permissions=8&scope=bot)\nSupport: "
 						+ "[Click Here](https://discord.gg/PqJNcfB)\nDonate: [PayPal](https://paypal.me/SheaCartwright), [Patreon](https://www.patreon.com/Sx4)", true);
 				
@@ -1629,7 +1630,7 @@ public class GeneralModule {
 					List<JDA> shards = page.getArray();
 					for (int i = page.getCurrentPage() * page.getPerPage() - page.getPerPage(); i < (page.getMaxPage() == page.getCurrentPage() ? shards.size() : page.getCurrentPage() * page.getPerPage()); i++) {
 						JDA shard = shards.get(i);
-						String currentShard = shardInfo.getShardId() == i ? "> " : "";
+						String currentShard = shardInfo.getShardId() == i ? "\\> " : "";
 						embed.addField(currentShard + "Shard " + (i + 1), String.format("%,d servers\n%,d users\n%dms\n%s", shard.getGuilds().size(), shard.getUsers().size(), shard.getGatewayPing(), shard.getStatus().toString()), true);
 					}
 					

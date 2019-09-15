@@ -2158,7 +2158,8 @@ public class FunModule {
 						if (!data.getString("example").equals("")) {
 							embed.addField("Example", example.length() > 950 ? example.substring(0, 950) + "... [Read more](" + data.getString("permalink") + ")" : example, false);
 						}
-						embed.addField("Upvotes", data.getInt("thumbs_up") + " �?", true);
+						
+						embed.addField("Upvotes", data.getInt("thumbs_up") + " 👍", true);
 						embed.addField("Downvotes", data.getInt("thumbs_down") + " 👎", true);
 						
 						return embed.build();

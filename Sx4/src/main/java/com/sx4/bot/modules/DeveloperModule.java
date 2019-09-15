@@ -28,9 +28,7 @@ import com.jockie.bot.core.command.Initialize;
 import com.jockie.bot.core.command.impl.CommandEvent;
 import com.jockie.bot.core.command.impl.CommandImpl;
 import com.jockie.bot.core.module.Module;
-import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Projections;
-import com.mongodb.client.model.UpdateOptions;
 import com.mongodb.client.model.Updates;
 import com.sx4.bot.categories.Categories;
 import com.sx4.bot.core.Sx4Bot;
@@ -40,15 +38,8 @@ import com.sx4.bot.database.Database;
 import com.sx4.bot.logger.Statistics;
 import com.sx4.bot.logger.handler.EventHandler;
 import com.sx4.bot.logger.util.Utils;
-import com.sx4.bot.settings.Settings;
 import com.sx4.bot.utils.ArgumentUtils;
-import com.sx4.bot.utils.EconomyUtils;
-import com.sx4.bot.utils.GeneralUtils;
 import com.sx4.bot.utils.HelpUtils;
-import com.sx4.bot.utils.ModUtils;
-import com.sx4.bot.utils.PagedUtils;
-import com.sx4.bot.utils.TimeUtils;
-import com.sx4.bot.utils.TokenUtils;
 
 import groovy.lang.GroovyShell;
 import net.dv8tion.jda.api.entities.Guild;
@@ -64,23 +55,6 @@ public class DeveloperModule {
 	private static CompilerConfiguration configuration;
 	
 	private static String[] imports = {
-		/* Sx4 */
-		Sx4Bot.class.getName(),
-		ArgumentUtils.class.getName(),
-		GeneralUtils.class.getName(),
-		ModUtils.class.getName(),
-		PagedUtils.class.getName(),
-		TimeUtils.class.getName(),
-		TokenUtils.class.getName(),
-		EconomyUtils.class.getName(),
-		Settings.class.getName(),
-		Database.class.getName(),
-		Updates.class.getName(),
-		Projections.class.getName(),
-		UpdateOptions.class.getName(),
-		Filters.class.getName(),
-		
-		/* Java */
 		Color.class.getName(),
 		Pattern.class.getName()
 	};
@@ -94,6 +68,12 @@ public class DeveloperModule {
 		
 		importCustomizer.addStarImports("net.dv8tion.jda.api");
 		importCustomizer.addStarImports("net.dv8tion.jda.api.entities");
+		importCustomizer.addStarImports("com.sx4.bot.utils");
+		importCustomizer.addStarImports("com.sx4.bot.modules");
+		importCustomizer.addStarImports("com.sx4.bot.core");
+		importCustomizer.addStarImports("com.mongodb.client");
+		importCustomizer.addStarImports("com.mongodb.client.model");
+		importCustomizer.addStarImports("org.bson");
 		
 		parseConfiguration.addCompilationCustomizers(importCustomizer);
 		

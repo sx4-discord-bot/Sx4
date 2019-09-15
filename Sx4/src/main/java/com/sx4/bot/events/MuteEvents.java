@@ -110,11 +110,11 @@ public class MuteEvents extends ListenerAdapter {
 						}
 					}
 					
-					for (Map<String, Object> userData : users) {
-						if (mutedMemberIds.contains(userData.get("id"))) {
+					for (Document userData : users) {
+						if (mutedMemberIds.contains(userData.getLong("id"))) {
 							continue;
 						} else {
-							Member unmutedMember = guild.getMemberById((String) userData.get("id"));
+							Member unmutedMember = guild.getMemberById(userData.getLong("id"));
 							if (unmutedMember != null) {
 								MuteEvents.cancelExecutor(guild.getIdLong(), unmutedMember.getUser().getIdLong());
 								

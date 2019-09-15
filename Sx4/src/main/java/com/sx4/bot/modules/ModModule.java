@@ -309,7 +309,7 @@ public class ModModule {
 		
 	}
 	
-	@Command(value="voice kick", aliases={"kick voice", "kickvoice", "voicekick", "vk"}, description="Kicks a user from their current voice channel, It will disconnect the user")
+	@Command(value="voice kick", aliases={"kick voice", "kickvoice", "voicekick", "vk", "disconnect"}, description="Kicks a user from their current voice channel, It will disconnect the user")
 	@AuthorPermissions({Permission.VOICE_MOVE_OTHERS})
 	@BotPermissions({Permission.VOICE_MOVE_OTHERS, Permission.MANAGE_CHANNEL})
 	public void voiceKick(CommandEvent event, @Argument(value="user", endless=true) String argument) {
@@ -1535,8 +1535,8 @@ public class ModModule {
 			embed.setAuthor("Prefix Settings", null, event.getAuthor().getEffectiveAvatarUrl());
 			embed.setColor(event.getMember().getColor());
 			embed.addField("Default Prefixes", String.join(", ", event.getCommandListener().getDefaultPrefixes()), false);
-			embed.addField("Server Prefixes", String.join(", ", guildPrefixes), false);
-			embed.addField(event.getAuthor().getName() + "'s Prefixes", String.join(", ", userPrefixes), false);
+			embed.addField("Server Prefixes", guildPrefixes.isEmpty() ? "None" : String.join(", ", guildPrefixes), false);
+			embed.addField(event.getAuthor().getName() + "'s Prefixes", userPrefixes.isEmpty() ? "None" : String.join(", ", userPrefixes), false);
 			
 			event.reply(new MessageBuilder().setEmbed(embed.build()).setContent("For help on setting the prefix use `" + event.getPrefix() + "help prefix`").build()).queue();
 		}
@@ -2903,11 +2903,6 @@ public class ModModule {
 		
 		if (member.equals(event.getSelfMember())) {
 			event.reply("I am not muted :no_entry:").queue();
-			return;
-		}
-		
-		if (!event.getMember().canInteract(member)) {
-			event.reply("You cannot unmute someone higher or equal than your top role :no_entry:").queue();
 			return;
 		}
 		

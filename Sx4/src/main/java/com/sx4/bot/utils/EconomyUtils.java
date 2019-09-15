@@ -428,7 +428,7 @@ public class EconomyUtils {
 			}
 		}
 		
-		networth += data.get("balance", 0);
+		networth += data.get("balance", 0L);
 		
 		return networth;
 	}
