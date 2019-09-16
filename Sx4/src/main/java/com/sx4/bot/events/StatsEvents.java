@@ -3,6 +3,8 @@ package com.sx4.bot.events;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
@@ -30,7 +32,6 @@ import net.dv8tion.jda.api.events.guild.GuildLeaveEvent;
 import net.dv8tion.jda.api.events.guild.member.GuildMemberJoinEvent;
 import net.dv8tion.jda.api.events.guild.member.GuildMemberLeaveEvent;
 import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent;
-import net.dv8tion.jda.api.events.message.guild.GuildMessageUpdateEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.dv8tion.jda.api.sharding.ShardManager;
 
@@ -114,17 +115,18 @@ public class StatsEvents extends ListenerAdapter {
 	}
 	
 	public void onGuildMessageReceived(GuildMessageReceivedEvent event) {
-		Document messageLog = new Document("_id", event.getMessageIdLong())
-				.append("guildId", event.getGuild().getIdLong())
-				.append("channelId", event.getChannel().getIdLong())
-				.append("shard", event.getJDA().getShardInfo().getShardId())
-				.append("authorId", event.getAuthor().getIdLong())
-				.append("edited", false)
-				.append("timestamp", Clock.systemUTC().instant().getEpochSecond())
-				.append("content", event.getMessage().getContentRaw())
-				.append("attachments", !event.getMessage().getAttachments().isEmpty());
+		long id = LocalDate.now().atStartOfDay(ZoneId.of("UTC")).toEpochSecond();
+
+		String guildData = "guilds." + event.getGuild().getId(), channelData = "channels." + event.getChannel().getId(), userData = "users." + event.getAuthor().getId();
 		
-		Database.get().insertMessageLog(messageLog, (result, exception) -> {
+		Bson update = Updates.combine(
+			Updates.inc(guildData + ".total", 1),
+			Updates.inc(guildData + "." + channelData + ".total", 1), 
+			Updates.inc(guildData + "." + channelData + "." + userData, 1),
+			Updates.inc("total", 1)
+		);
+		
+		Database.get().updateMessageLogs(id, update, (result, exception) -> {
 			if (exception != null) {
 				exception.printStackTrace();
 			}
@@ -132,30 +134,16 @@ public class StatsEvents extends ListenerAdapter {
 		
 		if (!event.getAuthor().isBot()) {
 			if (guildStats.containsKey(event.getGuild().getIdLong())) {
-				Map<String, Integer> guildData = guildStats.get(event.getGuild().getIdLong());
-				guildData.put("messages", guildData.get("messages") + 1);
-				guildStats.put(event.getGuild().getIdLong(), guildData);
+				Map<String, Integer> guildStatsData = guildStats.get(event.getGuild().getIdLong());
+				guildStatsData.put("messages", guildStatsData.get("messages") + 1);
+				guildStats.put(event.getGuild().getIdLong(), guildStatsData);
 			} else {
-				Map<String, Integer> guildData = new HashMap<>();
-				guildData.put("messages", 1);
-				guildData.put("members", 0);
-				guildStats.put(event.getGuild().getIdLong(), guildData);
+				Map<String, Integer> guildStatsData = new HashMap<>();
+				guildStatsData.put("messages", 1);
+				guildStatsData.put("members", 0);
+				guildStats.put(event.getGuild().getIdLong(), guildStatsData);
 			}
 		}
-	}
-	
-	public void onGuildMessageUpdate(GuildMessageUpdateEvent event) {
-		Bson update = Updates.combine(
-				Updates.set("edited", true),
-				Updates.set("attachments", !event.getMessage().getAttachments().isEmpty()),
-				Updates.set("content", event.getMessage().getContentRaw())
-		);
-				
-		Database.get().updateMessageLog(event.getMessageIdLong(), update, (result, exception) -> {
-			if (exception != null) {
-				exception.printStackTrace();
-			}
-		});
 	}
 	
 	public void onGuildMemberJoin(GuildMemberJoinEvent event) {

@@ -74,6 +74,7 @@ public class DeveloperModule {
 		importCustomizer.addStarImports("com.mongodb.client");
 		importCustomizer.addStarImports("com.mongodb.client.model");
 		importCustomizer.addStarImports("org.bson");
+		importCustomizer.addStarImports("okhttp3");
 		
 		parseConfiguration.addCompilationCustomizers(importCustomizer);
 		

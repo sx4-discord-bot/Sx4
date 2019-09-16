@@ -34,7 +34,6 @@ import com.jockie.bot.core.command.ICommand.ContentOverflowPolicy;
 import com.jockie.bot.core.command.Initialize;
 import com.jockie.bot.core.command.impl.CommandEvent;
 import com.jockie.bot.core.command.impl.CommandImpl;
-import com.jockie.bot.core.command.parser.impl.CommandParserImpl;
 import com.jockie.bot.core.module.Module;
 import com.jockie.bot.core.option.Option;
 import com.mongodb.client.FindIterable;
@@ -68,13 +67,13 @@ import com.sx4.bot.interfaces.Sx4Callback;
 import com.sx4.bot.settings.Settings;
 import com.sx4.bot.utils.ArgumentUtils;
 import com.sx4.bot.utils.EconomyUtils;
+import com.sx4.bot.utils.EconomyUtils.Slot;
 import com.sx4.bot.utils.GeneralUtils;
 import com.sx4.bot.utils.HelpUtils;
 import com.sx4.bot.utils.PagedUtils;
+import com.sx4.bot.utils.PagedUtils.PagedResult;
 import com.sx4.bot.utils.TimeUtils;
 import com.sx4.bot.utils.TokenUtils;
-import com.sx4.bot.utils.EconomyUtils.Slot;
-import com.sx4.bot.utils.PagedUtils.PagedResult;
 
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.MessageBuilder;
@@ -1001,7 +1000,7 @@ public class EconomyModule {
 								messageString = String.format("You double your money! **+$%,d**", balanceUpdated);
 							} else {
 								update = Updates.combine(
-										Updates.set("economy.balance", 0),
+										Updates.set("economy.balance", 0L),
 										Updates.inc("economy.winnings", -balanceUpdated)
 								);
 									

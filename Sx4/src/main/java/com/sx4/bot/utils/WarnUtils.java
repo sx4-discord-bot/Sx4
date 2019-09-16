@@ -99,6 +99,10 @@ public class WarnUtils {
 		
 		List<Document> users = warnData.getList("users", Document.class, Collections.emptyList());
 		List<Document> configuration = warnData.getList("configuration", Document.class, Collections.emptyList());
+		if (configuration.isEmpty()) {
+			configuration = ModUtils.defaultWarnConfiguration;
+		}
+		
 		boolean punishments = warnData.getBoolean("punishments", true);
 		
 		UserWarning userNextWarning = WarnUtils.getUserWarning(users, user.getIdLong());
@@ -252,7 +256,7 @@ public class WarnUtils {
 
 	public static Warning getWarning(List<Document> warnConfiguration, int warning) {
 		if (WarnUtils.getMaxWarning(warnConfiguration) + 1 <= warning) {
-			return WarnUtils.getWarning(warnConfiguration, 1);
+			warning = 1;
 		}
 		
 		for (Document warn : warnConfiguration) {

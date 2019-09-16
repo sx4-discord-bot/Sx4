@@ -190,26 +190,37 @@ public class Database {
 		});
 	}
 	
-	public void insertMessageLog(Document document, DatabaseCallback<Void> callback) {
+	public void updateMessageLogs(long epochTime, Bson update, DatabaseCallback<UpdateResult> callback) {
 		this.queryExecutor.submit(() -> {
 			try {
-				this.messageLogs.insertOne(document);
-				
-				callback.onResult(null, null);
+				callback.onResult(this.messageLogs.updateOne(Filters.eq("_id", epochTime), update, this.defaultUpdateOptions), null);
 			} catch(Throwable e) {
 				callback.onResult(null, e);
 			}
 		});
 	}
 	
-	public void updateMessageLog(long messageId, Bson update, DatabaseCallback<UpdateResult> callback) {
-		this.queryExecutor.submit(() -> {
-			try {
-				callback.onResult(this.messageLogs.updateOne(Filters.eq("_id", messageId), update), null);
-			} catch(Throwable e) {
-				callback.onResult(null, e);
+	public int getMessageCountFromUserId(long epochTime, long authorId, Long guildId) {
+		Document data = this.messageLogs.find(Filters.eq("_id", epochTime)).projection(Projections.include("guilds")).first();
+		data = data == null ? Database.EMPTY_DOCUMENT : data;
+		
+		int messagesSent = 0;
+		
+		Document guilds = data.get("guilds", Database.EMPTY_DOCUMENT);
+		for (String guildKey : guilds.keySet()) {
+			if (guildId == null || String.valueOf(guildId).equals(guildKey)) {
+				Document channels = guilds.getEmbedded(List.of(guildKey, "channels"), Database.EMPTY_DOCUMENT);
+				for (String channelKey : channels.keySet()) {
+					messagesSent += channels.getEmbedded(List.of(channelKey, "users", String.valueOf(authorId)), 0);
+				}
 			}
-		});
+		}
+		
+		return messagesSent;
+	}
+	
+	public int getMessageCountFromUserId(long epochTime, long authorId) {
+		return this.getMessageCountFromUserId(epochTime, authorId, null);
 	}
 	
 	public void insertGuildLog(Document document, DatabaseCallback<Void> callback) {

@@ -4,6 +4,8 @@ import java.awt.Color;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.time.Clock;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
@@ -2217,7 +2219,7 @@ public class GeneralModule {
 	public void stats(CommandEvent event, @Context Database database) {
 		long timestampNow = Clock.systemUTC().instant().getEpochSecond();
 		Bson timeFilter = Filters.gte("timestamp", timestampNow - StatsEvents.DAY_IN_SECONDS);
-		long messagesSent = database.getMessageLogs().countDocuments(Filters.and(Filters.eq("authorId", event.getSelfUser().getIdLong()), timeFilter));
+		int messagesSent = database.getMessageCountFromUserId(LocalDate.now().atStartOfDay(ZoneId.of("UTC")).toEpochSecond(), event.getSelfUser().getIdLong());
 		long commandsUsed = database.getCommandLogs().countDocuments(timeFilter);
 		int guildsGained = database.getGuildsGained(timeFilter);
 		

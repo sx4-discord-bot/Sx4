@@ -42,7 +42,7 @@ public class ModUtils {
 	public static List<Document> defaultWarnConfiguration = new ArrayList<>();
 	
 	static {
-		Document secondWarning = new Document().append("action", "mute").append("warning", 2).append("time", 1800);
+		Document secondWarning = new Document().append("action", "mute").append("warning", 2).append("duration", 1800L);
 		defaultWarnConfiguration.add(secondWarning);
 		
 		Document thirdWarning = new Document().append("action", "kick").append("warning", 3);

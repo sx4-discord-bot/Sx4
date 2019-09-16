@@ -4,7 +4,6 @@ import java.awt.Color;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.text.NumberFormat;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -54,9 +53,9 @@ import com.sx4.bot.utils.GeneralUtils;
 import com.sx4.bot.utils.HelpUtils;
 import com.sx4.bot.utils.ModUtils;
 import com.sx4.bot.utils.PagedUtils;
+import com.sx4.bot.utils.PagedUtils.PagedResult;
 import com.sx4.bot.utils.TimeUtils;
 import com.sx4.bot.utils.WarnUtils;
-import com.sx4.bot.utils.PagedUtils.PagedResult;
 import com.sx4.bot.utils.WarnUtils.UserWarning;
 import com.sx4.bot.utils.WarnUtils.Warning;
 
@@ -2962,7 +2961,7 @@ public class ModModule {
 				.setDeleteMessage(false)
 				.setPerPage(20)
 				.setFunction(user -> {
-					Member member = event.getGuild().getMemberById((String) user.get("id"));
+					Member member = event.getGuild().getMemberById(user.getLong("id"));
 					Long duration = user.getLong("duration");
 					long timestampOfMute = user.getLong("timestamp");
 					
@@ -3159,7 +3158,10 @@ public class ModModule {
 		@Command(value="list", description="Shows the current configuration for warnings in the current server", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void list(CommandEvent event, @Context Database database) {
-			List<Document> warnConfiguration = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("warn.configuration")).getEmbedded(List.of("warn", "configuration"), ModUtils.defaultWarnConfiguration);
+			List<Document> warnConfiguration = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("warn.configuration")).getEmbedded(List.of("warn", "configuration"), Collections.emptyList());
+			if (warnConfiguration.isEmpty()) {
+				warnConfiguration = ModUtils.defaultWarnConfiguration;
+			}
 			
 			warnConfiguration.sort((a, b) -> Integer.compare(a.getInteger("warning"), b.getInteger("warning")));
 			PagedResult<Document> paged = new PagedResult<>(warnConfiguration)
@@ -3212,7 +3214,11 @@ public class ModModule {
 				Document data = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("mute.users", "warn.users", "warn.configuration"));
 				List<Document> mutedUsers = data.getEmbedded(List.of("mute", "users"), Collections.emptyList());
 				List<Document> warnedUsers = data.getEmbedded(List.of("warn", "users"), Collections.emptyList());
+				
 				List<Document> warnConfiguration = data.getEmbedded(List.of("warn", "configuration"), Collections.emptyList());
+				if (warnConfiguration.isEmpty()) {
+					warnConfiguration = ModUtils.defaultWarnConfiguration;
+				}
 				
 				Long duration = warning.getDuration();
 				

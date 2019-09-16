@@ -20,11 +20,13 @@ import java.time.format.DateTimeParseException;
 import java.time.format.TextStyle;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -886,7 +888,7 @@ public class FunModule {
 		
 		URL url;
 		try {
-			url = new URL("https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=en&q=" + text);
+			url = new URL("https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=en-gb&q=" + text);
 		} catch (MalformedURLException e) {
 			event.reply("Oops something went wrong there, try again :no_entry:").queue();
 			return;
@@ -895,12 +897,7 @@ public class FunModule {
 		Request request = new Request.Builder().url(url).build();
 		
 		Sx4Bot.client.newCall(request).enqueue((Sx4Callback) response -> {
-			try {
-				event.getTextChannel().sendFile(response.body().bytes(), text + ".mp3").queue();
-			} catch (IOException e) {
-				event.reply("Oops something went wrong there, try again :no_entry:").queue();
-				return;
-			}
+			event.getTextChannel().sendFile(response.body().bytes(), text + ".mp3").queue();
 		});
 	}
 	
@@ -2140,7 +2137,7 @@ public class FunModule {
 						
 						Matcher hyperLinkMatchExample = hyperLink.matcher(data.getString("example"));
 						String example = data.getString("example");
-						List<String> matchesExample = new ArrayList<>();
+						Set<String> matchesExample = new HashSet<>();
 						while (hyperLinkMatchExample.find()) {
 							matchesExample.add(hyperLinkMatchExample.group());
 						}
