@@ -202,7 +202,9 @@ public class Database {
 	
 	public int getMessageCountFromUserId(long epochTime, long authorId, Long guildId) {
 		Document data = this.messageLogs.find(Filters.eq("_id", epochTime)).projection(Projections.include("guilds")).first();
-		data = data == null ? Database.EMPTY_DOCUMENT : data;
+		if (data == null) {
+			return 0;
+		}
 		
 		int messagesSent = 0;
 		

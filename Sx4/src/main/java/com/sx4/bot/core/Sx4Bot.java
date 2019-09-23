@@ -186,7 +186,7 @@ public class Sx4Bot {
 		listener.addCommandEventListener(new Sx4CommandEventListener());
 		
 		InterfacedEventManager eventManager = new InterfacedEventManager();
-
+		
 		eventManager.register(Sx4Bot.listener);
 		eventManager.register(Sx4Bot.waiter);
 		eventManager.register(Sx4Bot.eventHandler);

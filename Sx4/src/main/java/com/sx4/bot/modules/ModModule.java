@@ -3058,7 +3058,7 @@ public class ModModule {
 			Document configuration = new Document("warning", warningNumber);
 			if (actions.contains(actionLower) || actionLower.startsWith("mute")) {
 				if (actionLower.equals("mute")) {
-					configuration.append("action", actionLower).append("durtation", 1800L);
+					configuration.append("action", actionLower).append("duration", 1800L);
 				} else if (actionLower.startsWith("mute")) {
 					String timeString = actionLower.split(" ", 2)[1];
 					long muteLength = TimeUtils.convertToSeconds(timeString);

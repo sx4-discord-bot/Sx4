@@ -14,7 +14,7 @@ public class Sx4CommandListener extends CommandListener {
 		
 		if (event instanceof MessageUpdateEvent) {
 			Message editedMessage = ((MessageUpdateEvent) event).getMessage();
-			Message oldMessage = GuildMessageCache.INSTANCE.getMessageById(editedMessage.getId());
+			Message oldMessage = GuildMessageCache.INSTANCE.getMessageById(editedMessage.getIdLong());
 			
 			if (oldMessage == null) {
 				return;

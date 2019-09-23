@@ -185,7 +185,7 @@ public class DeveloperModule {
 			return;
 		}
 		
-		long tax = database.getUserById(event.getSelfUser().getIdLong(), null, Projections.include("economy.balance")).getEmbedded(List.of("economy", "balance"), 0);
+		long tax = database.getUserById(event.getSelfUser().getIdLong(), null, Projections.include("economy.balance")).getEmbedded(List.of("economy", "balance"), 0L);
 		database.updateUserById(member.getIdLong(), Updates.inc("economy.balance", tax), (result, exception) -> {
 			if (exception != null) {
 				exception.printStackTrace();

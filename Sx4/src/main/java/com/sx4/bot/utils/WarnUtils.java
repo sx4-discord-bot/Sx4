@@ -89,7 +89,6 @@ public class WarnUtils {
 		
 		public List<String> getReasons() {
 			return this.reasons;
-			
 		}
 		
 	}

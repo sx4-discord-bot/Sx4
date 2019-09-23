@@ -32,4 +32,14 @@ public class ItemStack {
 		return this;
 	}
 	
+	public ItemStack decrementAmount() {
+		return this.removeAmount(1L);	
+	}
+	
+	public ItemStack removeAmount(long amount) {
+		this.amount -= amount;
+		
+		return this;
+	}
+	
 }

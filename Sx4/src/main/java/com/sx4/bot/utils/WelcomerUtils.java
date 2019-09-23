@@ -46,13 +46,49 @@ public class WelcomerUtils {
 	
 	public static String getLeaverMessage(Guild guild, Member user, String message) {
 		int guildMemberCount = guild.getMembers().size();
-		message = message.replace("{server}", guild.getName());
-		message = message.replace("{user.mention}", user.getAsMention());
-		message = message.replace("{user.name}", user.getUser().getName());
-		message = message.replace("{user}", user.getUser().getAsTag());
-		message = message.replace("{server.members}", String.format("%,d", guildMemberCount));
-		message = message.replace("{server.members.prefix}", String.format("%,d", guildMemberCount) + GeneralUtils.getNumberSuffixRaw(guildMemberCount)); 
-		message = message.replace("{user.stayed.length}", TimeUtils.toTimeString(Clock.systemUTC().instant().getEpochSecond() - user.getTimeJoined().toEpochSecond(), ChronoUnit.SECONDS));
+		
+		int index = -1;
+		while ((index = message.indexOf('{', index + 1)) != -1) {
+		    if (index > 0 && message.charAt(index - 1) == '\\') {
+		        message = message.substring(0, index - 1) + message.substring(index);
+		        continue;
+		    }
+
+		    int endIndex = message.indexOf('}', index + 1);
+		    if (endIndex != -1)  {
+		        if (message.charAt(endIndex - 1) == '\\') {
+		            message = message.substring(0, endIndex - 1) + message.substring(endIndex);
+		            continue;
+		        } else {
+		            String formatter = message.substring(index + 1, endIndex);
+		            String placeHolder = message.substring(0, index) + "%s" + message.substring(endIndex + 1);
+		            
+		            switch (formatter.trim().toLowerCase()) {
+		            	case "server":
+		            		message = String.format(placeHolder, guild.getName());
+		            		break;
+		            	case "user.mention":
+		            		message = String.format(placeHolder, user.getAsMention());
+		            		break;
+		            	case "user.name":
+		            		message = String.format(placeHolder, user.getUser().getName());
+		            		break;
+		            	case "user":
+		            		message = String.format(placeHolder, user.getUser().getAsTag());
+		            		break;
+		            	case "server.members":
+		            		message = String.format(placeHolder, String.format("%,d", guildMemberCount));
+		            		break;
+		            	case "server.members.prefix":
+		            		message = String.format(placeHolder, String.format("%,d", guildMemberCount) + GeneralUtils.getNumberSuffixRaw(guildMemberCount));
+		            		break;
+		            	case "user.stayed.length":
+		            		message = String.format(placeHolder, TimeUtils.toTimeString(Clock.systemUTC().instant().getEpochSecond() - user.getTimeJoined().toEpochSecond(), ChronoUnit.SECONDS));
+		            		break;
+		            }
+		        }
+		    }
+		}
 		
 		return message;
 	}
@@ -89,13 +125,49 @@ public class WelcomerUtils {
 	
 	public static String getWelcomerMessage(Guild guild, Member user, String message) {
 		int guildMemberCount = guild.getMembers().size();
-		message = message.replace("{server}", guild.getName());
-		message = message.replace("{user.mention}", user.getAsMention());
-		message = message.replace("{user.name}", user.getUser().getName());
-		message = message.replace("{user}", user.getUser().getAsTag());
-		message = message.replace("{server.members}", String.format("%,d", guildMemberCount));
-		message = message.replace("{server.members.prefix}", String.format("%,d", guildMemberCount) + GeneralUtils.getNumberSuffixRaw(guildMemberCount)); 
-		message = message.replace("{user.created.length}", TimeUtils.toTimeString(Clock.systemUTC().instant().getEpochSecond() - user.getUser().getTimeCreated().toEpochSecond(), ChronoUnit.SECONDS));
+		
+		int index = -1;
+		while ((index = message.indexOf('{', index + 1)) != -1) {
+		    if (index > 0 && message.charAt(index - 1) == '\\') {
+		        message = message.substring(0, index - 1) + message.substring(index);
+		        continue;
+		    }
+
+		    int endIndex = message.indexOf('}', index + 1);
+		    if (endIndex != -1)  {
+		        if (message.charAt(endIndex - 1) == '\\') {
+		            message = message.substring(0, endIndex - 1) + message.substring(endIndex);
+		            continue;
+		        } else {
+		            String formatter = message.substring(index + 1, endIndex);
+		            String placeHolder = message.substring(0, index) + "%s" + message.substring(endIndex + 1);
+		            
+		            switch (formatter.trim().toLowerCase()) {
+		            	case "server":
+		            		message = String.format(placeHolder, guild.getName());
+		            		break;
+		            	case "user.mention":
+		            		message = String.format(placeHolder, user.getAsMention());
+		            		break;
+		            	case "user.name":
+		            		message = String.format(placeHolder, user.getUser().getName());
+		            		break;
+		            	case "user":
+		            		message = String.format(placeHolder, user.getUser().getAsTag());
+		            		break;
+		            	case "server.members":
+		            		message = String.format(placeHolder, String.format("%,d", guildMemberCount));
+		            		break;
+		            	case "server.members.prefix":
+		            		message = String.format(placeHolder, String.format("%,d", guildMemberCount) + GeneralUtils.getNumberSuffixRaw(guildMemberCount));
+		            		break;
+		            	case "user.created.length":
+		            		message = String.format(placeHolder, TimeUtils.toTimeString(Clock.systemUTC().instant().getEpochSecond() - user.getUser().getTimeCreated().toEpochSecond(), ChronoUnit.SECONDS));
+		            		break;
+		            }
+		        }
+		    }
+		}
 		
 		return message;
 	}
