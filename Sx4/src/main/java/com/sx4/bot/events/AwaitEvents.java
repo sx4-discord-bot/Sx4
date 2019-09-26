@@ -6,6 +6,7 @@ import java.util.List;
 
 import org.bson.Document;
 
+import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.Updates;
 import com.sx4.bot.core.Sx4Bot;
@@ -58,7 +59,7 @@ public class AwaitEvents extends ListenerAdapter {
 	}
 	
 	public static void ensureAwaitData() {
-		awaitData = Database.get().getUsers().find().projection(Projections.include("await.users")).into(new ArrayList<>());
+		awaitData = Database.get().getUsers().find(Filters.exists("await.users")).projection(Projections.include("await.users")).into(new ArrayList<>());
 	}
 
 	public void onUserUpdateOnlineStatus(UserUpdateOnlineStatusEvent event) {

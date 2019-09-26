@@ -213,7 +213,7 @@ public class MuteEvents extends ListenerAdapter {
 	
 	public static void ensureMutes() {
 		ShardManager shardManager = Sx4Bot.getShardManager();
-		FindIterable<Document> allData = Database.get().getGuilds().find().projection(Projections.include("mute.users"));
+		FindIterable<Document> allData = Database.get().getGuilds().find(Filters.exists("mute.users")).projection(Projections.include("mute.users"));
 		allData.forEach((Document data) -> {
 			Document guildData = data.get("mute", Database.EMPTY_DOCUMENT);
 			long timestampNow = Clock.systemUTC().instant().getEpochSecond();

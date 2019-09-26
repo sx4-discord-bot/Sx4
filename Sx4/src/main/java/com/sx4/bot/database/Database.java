@@ -54,7 +54,6 @@ public class Database {
 	
 	private MongoCollection<Document> commandLogs;
 	private MongoCollection<Document> guildLogs;
-	private MongoCollection<Document> messageLogs;
 	private MongoCollection<Document> modLogs;
 	
 	private UpdateOptions defaultUpdateOptions = new UpdateOptions().upsert(true);
@@ -84,9 +83,6 @@ public class Database {
 		
 		this.guildLogs = this.database.getCollection("guildLogs");
 		this.guildLogs.createIndex(Indexes.descending("guildId", "timestamp"));
-		
-		this.messageLogs = this.database.getCollection("messageLogs");
-		this.messageLogs.createIndex(Indexes.descending("authorId", "guildId", "channelId", "shard", "edited", "attachments", "timestamp"));
 		
 		System.out.println("Connecting to MongoDB...");
 		
@@ -138,10 +134,6 @@ public class Database {
 		return this.modLogs;
 	}
 	
-	public MongoCollection<Document> getMessageLogs() {
-		return this.messageLogs;
-	}
-	
 	public MongoCollection<Document> getGuildLogs() {
 		return this.guildLogs;
 	}
@@ -188,41 +180,6 @@ public class Database {
 				callback.onResult(null, e);
 			}
 		});
-	}
-	
-	public void updateMessageLogs(long epochTime, Bson update, DatabaseCallback<UpdateResult> callback) {
-		this.queryExecutor.submit(() -> {
-			try {
-				callback.onResult(this.messageLogs.updateOne(Filters.eq("_id", epochTime), update, this.defaultUpdateOptions), null);
-			} catch(Throwable e) {
-				callback.onResult(null, e);
-			}
-		});
-	}
-	
-	public int getMessageCountFromUserId(long epochTime, long authorId, Long guildId) {
-		Document data = this.messageLogs.find(Filters.eq("_id", epochTime)).projection(Projections.include("guilds")).first();
-		if (data == null) {
-			return 0;
-		}
-		
-		int messagesSent = 0;
-		
-		Document guilds = data.get("guilds", Database.EMPTY_DOCUMENT);
-		for (String guildKey : guilds.keySet()) {
-			if (guildId == null || String.valueOf(guildId).equals(guildKey)) {
-				Document channels = guilds.getEmbedded(List.of(guildKey, "channels"), Database.EMPTY_DOCUMENT);
-				for (String channelKey : channels.keySet()) {
-					messagesSent += channels.getEmbedded(List.of(channelKey, "users", String.valueOf(authorId)), 0);
-				}
-			}
-		}
-		
-		return messagesSent;
-	}
-	
-	public int getMessageCountFromUserId(long epochTime, long authorId) {
-		return this.getMessageCountFromUserId(epochTime, authorId, null);
 	}
 	
 	public void insertGuildLog(Document document, DatabaseCallback<Void> callback) {

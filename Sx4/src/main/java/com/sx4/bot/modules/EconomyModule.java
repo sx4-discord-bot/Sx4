@@ -498,7 +498,7 @@ public class EconomyModule {
 		
 		@Command(value="buy", description="Buy a booster listed in the booster shop")
 		public void buy(CommandEvent event, @Context Database database, @Argument(value="booster name", endless=true) String boosterArgument) {
-			Document data = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance")).get("economy", Database.EMPTY_DOCUMENT);
+			Document data = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance", "economy.items")).get("economy", Database.EMPTY_DOCUMENT);
 			List<Document> items = data.getList("items", Document.class, new ArrayList<>());
 			long balance = data.get("balance", 0L);
 			
@@ -575,7 +575,7 @@ public class EconomyModule {
 				}
 				
 				EconomyUtils.removeItem(userItems, booster, 1);
-				database.updateUserById(event.getAuthor().getIdLong(), Updates.set("economy.items", userItems), (result, exception) -> {
+				database.updateUserById(event.getAuthor().getIdLong(), Updates.combine(Updates.set("economy.mineCooldown", null), Updates.set("economy.items", userItems)), (result, exception) -> {
 					if (exception != null) {
 						exception.printStackTrace();
 						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
@@ -2599,7 +2599,7 @@ public class EconomyModule {
 				embed.setColor(event.getMember().getColor());
 				embed.setDescription(String.format("Your factories made you **$%,d**\n\n%s", moneyGained, factoryContent.toString()));
 
-				database.updateUserById(event.getAuthor().getIdLong(), Updates.inc("economy.balance", moneyGained), (result, exception) -> {
+				database.updateUserById(event.getAuthor().getIdLong(), Updates.combine(Updates.set("economy.factoryCooldown", timestampNow), Updates.inc("economy.balance", moneyGained)), (result, exception) -> {
 					if (exception != null) {
 						exception.printStackTrace();
 						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
@@ -3119,7 +3119,7 @@ public class EconomyModule {
 			
 			embed.appendDescription(warning);
 			
-			Bson update = Updates.combine(Updates.set("chopCooldown", timestampNow), Updates.set("economy.items", items));
+			Bson update = Updates.combine(Updates.set("economy.chopCooldown", timestampNow), Updates.set("economy.items", items));
 			database.updateUserById(event.getAuthor().getIdLong(), update, (result, exception) -> {
 				if (exception != null) {
 					exception.printStackTrace();
@@ -3189,7 +3189,7 @@ public class EconomyModule {
 			embed.setAuthor(event.getAuthor().getName(), null, event.getAuthor().getEffectiveAvatarUrl());
 			embed.setDescription(String.format("You mined resources and made **$%,d** :pick:\nMaterials found: %s\n\n%s", money, materialContent.toString(), warning));
 			
-			Bson update = Updates.combine(Updates.set("mineCooldown", timestampNow), Updates.inc("economy.balance", money), Updates.set("economy.items", items));
+			Bson update = Updates.combine(Updates.set("economy.mineCooldown", timestampNow), Updates.inc("economy.balance", money), Updates.set("economy.items", items));
 			database.updateUserById(event.getAuthor().getIdLong(), update, (result, exception) -> {
 				if (exception != null) {
 					exception.printStackTrace();
@@ -3465,7 +3465,7 @@ public class EconomyModule {
 				compressedData.add(dataDocument);
 			}
 			
-			sort = sort == null ? "balance" : sort;
+			sort = sort == null ? "networth" : sort;
 			switch (sort.toLowerCase()) {
 				case "name":
 					compressedData.sort((a, b) -> (reverse ? 1 : -1) * b.get("user", User.class).getName().compareTo(a.get("user", User.class).getName()));
@@ -3528,7 +3528,7 @@ public class EconomyModule {
 				compressedData.add(dataDocument);
 			}
 			
-			sort = sort == null ? "balance" : sort;
+			sort = sort == null ? "winnings" : sort;
 			switch (sort.toLowerCase()) {
 				case "name":
 					compressedData.sort((a, b) -> (reverse ? 1 : -1) * b.get("user", User.class).getName().compareTo(a.get("user", User.class).getName()));
@@ -3604,7 +3604,7 @@ public class EconomyModule {
 				compressedData.add(dataDocument);
 			}
 			
-			sort = sort == null ? "balance" : sort;
+			sort = sort == null ? "items" : sort;
 			switch (sort.toLowerCase()) {
 				case "name":
 					compressedData.sort((a, b) -> (reverse ? 1 : -1) * b.get("user", User.class).getName().compareTo(a.get("user", User.class).getName()));
@@ -3667,7 +3667,7 @@ public class EconomyModule {
 				compressedData.add(dataDocument);
 			}
 			
-			sort = sort == null ? "balance" : sort;
+			sort = sort == null ? "reputation" : sort;
 			switch (sort.toLowerCase()) {
 				case "name":
 					compressedData.sort((a, b) -> (reverse ? 1 : -1) * b.get("user", User.class).getName().compareTo(a.get("user", User.class).getName()));
@@ -3725,18 +3725,18 @@ public class EconomyModule {
 				}
 				
 				Document dataDocument = new Document("user", user)
-						.append("streak", dataObject.getEmbedded(List.of("economy.streak"), Long.class));
+						.append("streak", dataObject.getEmbedded(List.of("economy", "streak"), Integer.class));
 				
 				compressedData.add(dataDocument);
 			}
 			
-			sort = sort == null ? "balance" : sort;
+			sort = sort == null ? "streak" : sort;
 			switch (sort.toLowerCase()) {
 				case "name":
 					compressedData.sort((a, b) -> (reverse ? 1 : -1) * b.get("user", User.class).getName().compareTo(a.get("user", User.class).getName()));
 					break;
 				default:
-					compressedData.sort((a, b) -> (reverse ? 1 : -1) * Long.compare(a.getLong("reputation"), b.getLong("reputation")));
+					compressedData.sort((a, b) -> (reverse ? 1 : -1) * Long.compare(a.getInteger("streak"), b.getInteger("streak")));
 					break;
 			}
 			
@@ -3759,7 +3759,7 @@ public class EconomyModule {
 						
 						for (int i = page.getCurrentPage() * page.getPerPage() - page.getPerPage(); i < (page.getCurrentPage() == page.getMaxPage() ? compressedData.size() : page.getCurrentPage() * page.getPerPage()); i++) {
 							Document userData = compressedData.get(i);
-							embed.appendDescription(String.format("%d. `%s` - %,d day streak\n", i + 1, userData.get("user", User.class).getAsTag(), userData.getLong("streak")));
+							embed.appendDescription(String.format("%d. `%s` - %,d day streak\n", i + 1, userData.get("user", User.class).getAsTag(), userData.getInteger("streak")));
 						}
 						
 						return embed.build();

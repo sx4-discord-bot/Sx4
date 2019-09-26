@@ -21,7 +21,7 @@ import net.dv8tion.jda.api.hooks.ListenerAdapter;
 public class SelfroleEvents extends ListenerAdapter {
 
 	public void onGuildMessageReactionAdd(GuildMessageReactionAddEvent event) {
-		if (event.getMember().getUser().isBot()) {
+		if (event.getUser().isBot()) {
 			return;
 		}
 		
@@ -97,7 +97,7 @@ public class SelfroleEvents extends ListenerAdapter {
 	}
 	
 	public void onGuildMessageReactionRemove(GuildMessageReactionRemoveEvent event) {
-		if (event.getMember().getUser().isBot()) {
+		if (event.getUser().isBot()) {
 			return;
 		}
 		

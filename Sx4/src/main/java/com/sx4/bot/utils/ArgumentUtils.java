@@ -476,14 +476,15 @@ public class ArgumentUtils {
 	
 	private static Member getMemberInfoFromId(Guild guild, String id) {
 		try {
-			if (guild.getMemberById(id) == null)  {
+			Member guildMember = guild.getMemberById(id);
+			if (guildMember == null)  {
 				for (Member member : getAllMembers()) {
 					if (member.getUser().getId().equals(id)) {
 						return member;
 					}
 				}
 			} else {
-				return guild.getMemberById(id);
+				return guildMember;
 			}
 		} catch(NumberFormatException e) {
 			return null;

@@ -2000,7 +2000,7 @@ public class GeneralModule {
 				String triggerText = triggerData.getString("trigger");
 				if (trigger.toLowerCase().equals(triggerText.toLowerCase())) {
 					UpdateOptions updateOptions = new UpdateOptions().arrayFilters(List.of(Filters.eq("trigger.trigger", triggerText)));
-					database.updateGuildById(event.getGuild().getIdLong(), null, Updates.pull("trigger.triggers.$[trigger].response", response), updateOptions, (result, exception) -> {
+					database.updateGuildById(event.getGuild().getIdLong(), null, Updates.set("trigger.triggers.$[trigger].response", response), updateOptions, (result, exception) -> {
 						if (exception != null) {
 							exception.printStackTrace();
 							event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
@@ -2111,7 +2111,20 @@ public class GeneralModule {
 				}
 			}
 			
-			embed.setAuthor(member.getUser().getAsTag() + (!member.getOnlineStatus(ClientType.MOBILE).equals(OnlineStatus.OFFLINE) ? " 📱" : ""), null, member.getUser().getEffectiveAvatarUrl());
+			StringBuilder onlineOn = new StringBuilder();
+			if (!member.getOnlineStatus(ClientType.MOBILE).equals(OnlineStatus.OFFLINE)) {
+				onlineOn.append("📱");
+			} 
+			
+			if (!member.getOnlineStatus(ClientType.DESKTOP).equals(OnlineStatus.OFFLINE)) {
+				onlineOn.append("💻");
+			} 
+			
+			if (!member.getOnlineStatus(ClientType.WEB).equals(OnlineStatus.OFFLINE)) {
+				onlineOn.append("🌐");
+			}
+			
+			embed.setAuthor(String.format("%s %s", member.getUser().getAsTag(), onlineOn.length() == 0 ? "" : onlineOn.toString()), null, member.getUser().getEffectiveAvatarUrl());
 			embed.setThumbnail(member.getUser().getEffectiveAvatarUrl());
 			embed.setDescription(description);
 			
@@ -2121,11 +2134,11 @@ public class GeneralModule {
 				embed.addField("Status", statuses.get(member.getOnlineStatus()), true);
 				embed.addField("Bot", member.getUser().isBot() ? "Yes" : "No", true);
 			} else { 
-				List<Member> guildMembers = new ArrayList<Member>(event.getGuild().getMembers());
+				List<Member> guildMembers = new ArrayList<>(event.getGuild().getMembers());
 				guildMembers.sort((a, b) -> a.getTimeJoined().compareTo(b.getTimeJoined()));
 				int joinPosition = guildMembers.indexOf(member) + 1;
 				
-				List<String> memberRoles = new ArrayList<String>();
+				List<String> memberRoles = new ArrayList<>();
 				for (Role role : member.getRoles()) {
 					memberRoles.add(role.getAsMention());
 				}
@@ -2219,7 +2232,7 @@ public class GeneralModule {
 	public void stats(CommandEvent event, @Context Database database) {
 		long timestampNow = Clock.systemUTC().instant().getEpochSecond();
 		Bson timeFilter = Filters.gte("timestamp", timestampNow - StatsEvents.DAY_IN_SECONDS);
-		int messagesSent = database.getMessageCountFromUserId(LocalDate.now().atStartOfDay(ZoneId.of("UTC")).toEpochSecond(), event.getSelfUser().getIdLong());
+		//int messagesSent = database.getMessageCountFromUserId(LocalDate.now().atStartOfDay(ZoneId.of("UTC")).toEpochSecond(), event.getSelfUser().getIdLong());
 		long commandsUsed = database.getCommandLogs().countDocuments(timeFilter);
 		int guildsGained = database.getGuildsGained(timeFilter);
 		
@@ -2263,7 +2276,7 @@ public class GeneralModule {
 		embed.addField("Voice Channels", String.valueOf(event.getShardManager().getVoiceChannels().size()), true);
 		embed.addField("Servers Joined (Last 24h)", String.valueOf(guildsGained), true);
 		embed.addField("Commands Used (Last 24h)", String.valueOf(commandsUsed), true);
-		embed.addField("Messages Sent (Last 24h)", String.valueOf(messagesSent), true);
+		//embed.addField("Messages Sent (Last 24h)", String.valueOf(messagesSent), true);
 		embed.addField("Average Execution Time", String.format("%.2fms", (double) Sx4CommandEventListener.getAverageExecutionTime() / 1000000), true);
 		embed.addField("Servers", String.format("%,d", guilds.size()), true);
 		embed.addField(String.format("Users (%,d total)", members.size()), String.format("%,d Online\n%,d Offline", onlineMembers.size(), members.size() - onlineMembers.size()), true);

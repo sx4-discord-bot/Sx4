@@ -287,10 +287,18 @@ public class FunModule {
 		
 		Document profile = data.get("profile", Database.EMPTY_DOCUMENT);
 		
-		long reputation = data.getEmbedded(List.of("reputation", "amount"), 0L);
+		int reputation = data.getEmbedded(List.of("reputation", "amount"), 0);
 		long balance = data.getEmbedded(List.of("economy", "balance"), 0L);
 		
 		List<Long> marriedUsers = profile.getList("marriedUsers", Long.class, Collections.emptyList());
+		List<String> marriedUserTags = new ArrayList<>();
+		for (long userId : marriedUsers) {
+			User user = event.getShardManager().getUserById(userId);
+			if (user != null) {
+				marriedUserTags.add(user.getAsTag());
+			}
+		}
+		
 		String colour = profile.getString("colour");
 		String birthday = profile.getString("birthday");
 		String height = profile.getString("height");
@@ -316,7 +324,7 @@ public class FunModule {
 				.put("birthday", birthday == null ? "Not set" : birthday)
 				.put("height", height == null ? "Not set" : height)
 				.put("badges", badges)
-				.put("married_users", marriedUsers)
+				.put("married_users", marriedUserTags)
 				.put("user_avatar_url", member.getUser().getEffectiveAvatarUrl())
 				.toString();
 		

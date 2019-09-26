@@ -19,6 +19,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import org.bson.BsonDocument;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 
@@ -36,6 +37,7 @@ import com.jockie.bot.core.command.impl.CommandEvent;
 import com.jockie.bot.core.command.impl.CommandImpl;
 import com.jockie.bot.core.module.Module;
 import com.jockie.bot.core.option.Option;
+import com.mongodb.MongoClientSettings;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.UpdateOneModel;
@@ -2052,7 +2054,7 @@ public class ModModule {
 				event.getTextChannel().getHistory().retrievePast(100).queue(messages -> {
 					long secondsNow = Clock.systemUTC().instant().getEpochSecond();
 					for (Message message : new ArrayList<>(messages)) {
-						if (!message.getMember().equals(member)) {
+						if (!message.getAuthor().equals(member.getUser())) {
 							messages.remove(message);
 						} else if (secondsNow - message.getTimeCreated().toEpochSecond() > 1209600) {
 							messages.remove(message);
@@ -2243,45 +2245,46 @@ public class ModModule {
 				event.reply("You can only edit up to 100 cases at one time :no_entry:").queue();
 			}
 			
-			List<Document> cases = database.getModLogs().find(Filters.eq("guildId", event.getGuild().getIdLong())).into(new ArrayList<>());
+			List<Bson> filters = new ArrayList<>();
+			for (Integer caseNumber : caseNumbers) {
+				filters.add(Filters.eq("id", caseNumber));
+			}
+			
+			List<Document> cases = database.getModLogs().find(Filters.and(Filters.eq("guildId", event.getGuild().getIdLong()), Filters.or(filters))).projection(Projections.include("moderatorId", "messageId", "id")).into(new ArrayList<>());
 			if (cases.isEmpty()) {
 				event.reply("There are no cases to edit in this server :no_entry:").queue();
 				return;
 			}
 			
 			List<WriteModel<Document>> bulkData = new ArrayList<>();
-			for (Integer caseNumber : caseNumbers) {
-				for (Document caseObject : cases) {
-					if (caseObject.getInteger("id") == caseNumber) {
-						Long moderatorId = caseObject.getLong("moderatorId");
-						Long messageId = caseObject.getLong("messageId");
-						
-						if (!event.getMember().hasPermission(Permission.ADMINISTRATOR) && moderatorId != null && moderatorId != event.getAuthor().getIdLong()) {
-							continue;
-						}
-						
-						if (messageId != null) {
-							channel.retrieveMessageById(messageId).queue(message -> {
-								MessageEmbed oldEmbed = message.getEmbeds().get(0);
-								EmbedBuilder embed = new EmbedBuilder();
-								embed.setTitle(oldEmbed.getTitle());
-								embed.setTimestamp(oldEmbed.getTimestamp());
-								embed.addField(oldEmbed.getFields().get(0));
-								embed.addField("Moderator", event.getAuthor().getAsTag(), false);
-								embed.addField("Reason", reason, false);
-									
-								message.editMessage(embed.build()).queue(null, e -> {});
-							}, e -> {});
-						}
-						
-						Bson update = Updates.set("reason", reason);
-						if (moderatorId == null || moderatorId != event.getAuthor().getIdLong()) {
-							update = Updates.combine(update, Updates.set("moderatorId", event.getAuthor().getIdLong()));
-						}
-						
-						bulkData.add(new UpdateOneModel<>(Filters.eq("_id", caseObject.getObjectId("_id")), update));
-					}
+			for (Document caseObject : cases) {
+				Long moderatorId = caseObject.getLong("moderatorId");
+				Long messageId = caseObject.getLong("messageId");
+				
+				if (!event.getMember().hasPermission(Permission.ADMINISTRATOR) && moderatorId != null && moderatorId != event.getAuthor().getIdLong()) {
+					continue;
 				}
+				
+				if (messageId != null) {
+					channel.retrieveMessageById(messageId).queue(message -> {
+						MessageEmbed oldEmbed = message.getEmbeds().get(0);
+						EmbedBuilder embed = new EmbedBuilder();
+						embed.setTitle(oldEmbed.getTitle());
+						embed.setTimestamp(oldEmbed.getTimestamp());
+						embed.addField(oldEmbed.getFields().get(0));
+						embed.addField("Moderator", event.getAuthor().getAsTag(), false);
+						embed.addField("Reason", reason, false);
+							
+						message.editMessage(embed.build()).queue(null, e -> {});
+					}, e -> {});
+				}
+				
+				Bson update = Updates.set("reason", reason);
+				if (moderatorId == null || moderatorId != event.getAuthor().getIdLong()) {
+					update = Updates.combine(update, Updates.set("moderatorId", event.getAuthor().getIdLong()));
+				}
+				
+				bulkData.add(new UpdateOneModel<>(Filters.eq("_id", caseObject.getObjectId("_id")), update));
 			}
 			
 			if (bulkData.isEmpty()) {
@@ -2964,13 +2967,7 @@ public class ModModule {
 					Member member = event.getGuild().getMemberById(user.getLong("id"));
 					Long duration = user.getLong("duration");
 					long timestampOfMute = user.getLong("timestamp");
-					
-					long timeTillUnmute;
-					if (duration == null) {
-						timeTillUnmute = -1;
-					} else {
-						timeTillUnmute = timestampOfMute - timestamp + timestampOfMute;
-					}
+					long timeTillUnmute = duration == null ? -1 : timestampOfMute - timestamp + duration;
 					
 					return member.getUser().getAsTag() + " - " + (timeTillUnmute == -1 ? "Infinite" : TimeUtils.toTimeString(timeTillUnmute, ChronoUnit.SECONDS));
 				});

@@ -58,7 +58,7 @@ public class WelcomerEvents extends ListenerAdapter {
 	}
 	
 	private void createNewLeaverWebhook(Guild guild, TextChannel channel, User selfUser, Consumer<WebhookClient> webhook) {
-		channel.createWebhook(selfUser.getName() + " - Welcomer").queue(newWebhook -> {
+		channel.createWebhook(selfUser.getName() + " - Leaver").queue(newWebhook -> {
 			WebhookClient newWebhookClient = new WebhookClientBuilder(newWebhook.getUrl())
 					.setHttpClient(this.client)
 					.setExecutorService(this.scheduledExectuor)
@@ -66,7 +66,7 @@ public class WelcomerEvents extends ListenerAdapter {
 			
 			this.leaverWebhooks.put(guild.getIdLong(), newWebhookClient);
 			
-			Bson update = Updates.combine(Updates.set("welcomer.webhookId", newWebhook.getIdLong()), Updates.set("welcomer.webhookToken", newWebhook.getToken()));
+			Bson update = Updates.combine(Updates.set("leaver.webhookId", newWebhook.getIdLong()), Updates.set("leaver.webhookToken", newWebhook.getToken()));
 			Database.get().updateGuildById(guild.getIdLong(), update, (result, exception) -> {
 				if (exception != null) {
 					exception.printStackTrace();
@@ -218,7 +218,7 @@ public class WelcomerEvents extends ListenerAdapter {
 	}
 
 	public void onGuildMemberJoin(GuildMemberJoinEvent event) {
-		Bson projection = Projections.include("welcomer.enabled", "welcomer.channelId", "welcomer.webhookId", "welcomer.webhookToken", "imageWelcomer.enabled", "imageWelcomer.banner", "welcomer.embed", "welcomer.dm");
+		Bson projection = Projections.include("welcomer.enabled", "welcomer.channelId", "welcomer.webhookId", "welcomer.webhookToken", "welcomer.message", "imageWelcomer.enabled", "imageWelcomer.banner", "welcomer.embed", "welcomer.dm");
 		Document data = Database.get().getGuildById(event.getGuild().getIdLong(), null, projection);
 		Document welcomerData = data.get("welcomer", Database.EMPTY_DOCUMENT), imageWelcomerData = data.get("imageWelcomer", Database.EMPTY_DOCUMENT);
 		if ((!welcomerData.getBoolean("enabled", false) && !imageWelcomerData.getBoolean("enabled", false)) || welcomerData.getLong("channelId") == null) {

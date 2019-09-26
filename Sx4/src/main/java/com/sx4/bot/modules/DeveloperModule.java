@@ -196,13 +196,13 @@ public class DeveloperModule {
 		});
 	}
 	
-	@Command(value="logger stats", description="Sends logger stats", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+	@Command(value="logging stats", description="Sends logger stats", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 	@Developer
 	public void loggerStats(CommandEvent event) {
 		event.reply(Statistics.getStatistics()).queue();
 	}
 	
-	@Command(value="logger queue", description="Send the logger queue", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+	@Command(value="logging queue", description="Send the logger queue", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 	@Developer
 	public void loggerQueue(CommandEvent event) {
 		StringBuilder message = new StringBuilder();

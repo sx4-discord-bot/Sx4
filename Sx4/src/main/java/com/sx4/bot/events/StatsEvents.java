@@ -3,8 +3,6 @@ package com.sx4.bot.events;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.LocalDate;
-import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
@@ -115,23 +113,6 @@ public class StatsEvents extends ListenerAdapter {
 	}
 	
 	public void onGuildMessageReceived(GuildMessageReceivedEvent event) {
-		long id = LocalDate.now().atStartOfDay(ZoneId.of("UTC")).toEpochSecond();
-
-		String guildData = "guilds." + event.getGuild().getId(), channelData = "channels." + event.getChannel().getId(), userData = "users." + event.getAuthor().getId();
-		
-		Bson update = Updates.combine(
-			Updates.inc(guildData + ".total", 1),
-			Updates.inc(guildData + "." + channelData + ".total", 1), 
-			Updates.inc(guildData + "." + channelData + "." + userData, 1),
-			Updates.inc("total", 1)
-		);
-		
-		Database.get().updateMessageLogs(id, update, (result, exception) -> {
-			if (exception != null) {
-				exception.printStackTrace();
-			}
-		});
-		
 		if (!event.getAuthor().isBot()) {
 			if (guildStats.containsKey(event.getGuild().getIdLong())) {
 				Map<String, Integer> guildStatsData = guildStats.get(event.getGuild().getIdLong());
@@ -175,7 +156,8 @@ public class StatsEvents extends ListenerAdapter {
 	public void onGuildJoin(GuildJoinEvent event) {
 		Document guildLog = new Document("guildId", event.getGuild().getIdLong())
 				.append("joined", true)
-				.append("guildCount", Sx4Bot.getShardManager().getGuilds().size())
+				.append("guildName", event.getGuild().getName())
+				.append("memberCount", event.getGuild().getMembers().size())
 				.append("timestamp", Clock.systemUTC().instant().getEpochSecond());
 		
 		Database.get().insertGuildLog(guildLog, (result, exception) -> {

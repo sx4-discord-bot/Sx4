@@ -37,25 +37,25 @@ public class AutoroleEvents extends ListenerAdapter {
 		if (roleData != null && botRoleData == null) {
 			Role role = event.getGuild().getRoleById(roleData);
 			if (role != null && self.canInteract(role)) {
-				event.getGuild().addRoleToMember(event.getMember(), role).queue();
+				event.getGuild().addRoleToMember(event.getMember(), role).setCheck(() -> event.getGuild().isMember(event.getUser())).queue();
 			}
 		} else if (roleData == null && botRoleData != null) {
 			if (event.getMember().getUser().isBot()) {
 				Role role = event.getGuild().getRoleById(botRoleData);
 				if (role != null && self.canInteract(role)) {
-					event.getGuild().addRoleToMember(event.getMember(), role).queue();
+					event.getGuild().addRoleToMember(event.getMember(), role).setCheck(() -> event.getGuild().isMember(event.getUser())).queue();
 				}
 			}
 		} else {
 			if (event.getMember().getUser().isBot()) {
 				Role role = event.getGuild().getRoleById(botRoleData);
 				if (role != null && self.canInteract(role)) {
-					event.getGuild().addRoleToMember(event.getMember(), role).queue();
+					event.getGuild().addRoleToMember(event.getMember(), role).setCheck(() -> event.getGuild().isMember(event.getUser())).queue();
 				}
 			} else {
 				Role role = event.getGuild().getRoleById(roleData);
 				if (role != null && self.canInteract(role)) {
-					event.getGuild().addRoleToMember(event.getMember(), role).queue();
+					event.getGuild().addRoleToMember(event.getMember(), role).setCheck(() -> event.getGuild().isMember(event.getUser())).queue();
 				}
 			}
 		}

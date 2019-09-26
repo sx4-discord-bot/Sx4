@@ -14,11 +14,42 @@ import net.dv8tion.jda.api.hooks.ListenerAdapter;
 public class TriggerEvents extends ListenerAdapter {
 	
 	private String getTriggerText(GuildMessageReceivedEvent event, String text) {
-		text = text.replace("{user}", event.getAuthor().getAsTag());
-		text = text.replace("{user.name}", event.getAuthor().getName());
-		text = text.replace("{user.mention}", event.getAuthor().getAsMention());
-		text = text.replace("{channel.name}", event.getChannel().getName());
-		text = text.replace("{channel.mention}", event.getChannel().getAsMention());
+		int index = -1;
+		while ((index = text.indexOf('{', index + 1)) != -1) {
+		    if (index > 0 && text.charAt(index - 1) == '\\') {
+		        text = text.substring(0, index - 1) + text.substring(index);
+		        continue;
+		    }
+
+		    int endIndex = text.indexOf('}', index + 1);
+		    if (endIndex != -1)  {
+		        if (text.charAt(endIndex - 1) == '\\') {
+		            text = text.substring(0, endIndex - 1) + text.substring(endIndex);
+		            continue;
+		        } else {
+		            String formatter = text.substring(index + 1, endIndex);
+		            String placeHolder = text.substring(0, index) + "%s" + text.substring(endIndex + 1);
+		            
+		            switch (formatter.trim().toLowerCase()) {
+		            	case "user":
+		            		text = String.format(placeHolder, event.getAuthor().getAsTag());
+		            		break;
+		            	case "user.mention":
+		            		text = String.format(placeHolder, event.getAuthor().getAsMention());
+		            		break;
+		            	case "user.name":
+		            		text = String.format(placeHolder, event.getAuthor().getName());
+		            		break;
+		            	case "channel.name":
+		            		text = String.format(placeHolder, event.getChannel().getName());
+		            		break;
+		            	case "channel.mention":
+		            		text = String.format(placeHolder, event.getChannel().getAsMention());
+		            		break;
+		            }
+		        }
+		    }
+		}
 		
 		return text;
 	}

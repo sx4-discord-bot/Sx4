@@ -213,7 +213,7 @@ public class WelcomerUtils {
 		WelcomerUtils.getWelcomerPreview(user, guild, data, (messageBuilder, response) -> {
 			WebhookMessageBuilder webhookMessageBuilder = new WebhookMessageBuilder();
 			
-			if (messageBuilder != null) {
+			if (!messageBuilder.isEmpty()) {
 				Message previewMessage = messageBuilder.build();
 				
 				List<WebhookEmbed> embeds = new ArrayList<>();

@@ -146,7 +146,7 @@ public class GiveawayEvents {
 	
 	public static void ensureGiveaways() {
 		ShardManager shardManager = Sx4Bot.getShardManager();
-		FindIterable<Document> allData = Database.get().getGuilds().find().projection(Projections.include("giveaway.giveaways"));
+		FindIterable<Document> allData = Database.get().getGuilds().find(Filters.exists("giveaway.giveaways")).projection(Projections.include("giveaway.giveaways"));
 		allData.forEach((Document data) -> {
 			Document giveawayData = data.get("giveaway", Database.EMPTY_DOCUMENT);
 			long timestampNow = Clock.systemUTC().instant().getEpochSecond();

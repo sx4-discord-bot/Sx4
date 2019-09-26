@@ -95,7 +95,7 @@ public class ReminderEvents {
 	
 	public static void ensureReminders() {
 		ShardManager shardManager = Sx4Bot.getShardManager();
-		FindIterable<Document> allData = Database.get().getUsers().find().projection(Projections.include("reminder.reminders"));
+		FindIterable<Document> allData = Database.get().getUsers().find(Filters.exists("reminder.reminders")).projection(Projections.include("reminder.reminders"));
 		allData.forEach((Document data) -> {
 			List<Document> reminders = data.getEmbedded(List.of("reminder", "reminders"), Collections.emptyList());
 			long timestampNow = Clock.systemUTC().instant().getEpochSecond();

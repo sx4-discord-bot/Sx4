@@ -439,7 +439,7 @@ public class AntiLinkModule {
 	
 	@Initialize(all=true)
 	public void initialize(CommandImpl command) {
-		command.setCategory(Categories.ANTI_INVITE);
+		command.setCategory(Categories.ANTI_LINK);
 	}
 	
 }
