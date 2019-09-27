@@ -65,12 +65,14 @@ public class GeneralUtils {
 	
 	public static String title(String text) {
 		String[] splitText = text.split(" ");
-		String newText = "";
-		for (String word : splitText) {
-			newText += word.substring(0, 1).toUpperCase() + (word.length() == 1 ? "" : word.substring(1).toLowerCase());
+		StringBuilder newText = new StringBuilder();
+		for (int i = 0; i < splitText.length; i++) {
+			String word = splitText[i];
+			
+			newText.append(word.substring(0, 1).toUpperCase() + (word.length() == 1 ? "" : word.substring(1).toLowerCase()) + (i == splitText.length - 1 ? "" : " "));
 		}
 		
-		return newText;
+		return newText.toString();
 	}
 	
 	public static <Type> List<Type> convertSetToList(Set<Type> set) {

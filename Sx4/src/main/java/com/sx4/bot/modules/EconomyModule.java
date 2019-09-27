@@ -3662,7 +3662,7 @@ public class EconomyModule {
 				}
 				
 				Document dataDocument = new Document("user", user)
-						.append("reputation", dataObject.getEmbedded(List.of("reputation.amount"), Long.class));
+						.append("reputation", dataObject.getEmbedded(List.of("reputation", "amount"), Long.class));
 				
 				compressedData.add(dataDocument);
 			}

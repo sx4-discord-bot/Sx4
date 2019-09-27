@@ -1,10 +1,12 @@
 package com.sx4.bot.logger.handler;
 
+import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
@@ -26,6 +28,7 @@ import com.mongodb.client.model.Updates;
 import com.sx4.bot.cache.GuildMessageCache;
 import com.sx4.bot.core.Sx4Bot;
 import com.sx4.bot.database.Database;
+import com.sx4.bot.logger.Event;
 import com.sx4.bot.logger.Statistics;
 import com.sx4.bot.logger.util.Utils;
 import com.sx4.bot.settings.Settings;
@@ -59,6 +62,7 @@ import net.dv8tion.jda.api.entities.Webhook;
 import net.dv8tion.jda.api.events.channel.category.CategoryCreateEvent;
 import net.dv8tion.jda.api.events.channel.category.CategoryDeleteEvent;
 import net.dv8tion.jda.api.events.channel.category.update.CategoryUpdateNameEvent;
+import net.dv8tion.jda.api.events.channel.store.StoreChannelDeleteEvent;
 import net.dv8tion.jda.api.events.channel.text.TextChannelCreateEvent;
 import net.dv8tion.jda.api.events.channel.text.TextChannelDeleteEvent;
 import net.dv8tion.jda.api.events.channel.text.update.TextChannelUpdateNameEvent;
@@ -101,19 +105,23 @@ public class EventHandler extends ListenerAdapter {
 	/* Used to ensure that the audit-log has come through */
 	private static final int AUDIT_LOG_DELAY = 500;
 	
-	public static final Request EMPTY_REQUEST = new Request(null, 0L, null, null);
+	private static final Bson DEFAULT_PROJECTION = Projections.include("logger");
+	
+	public static final Request EMPTY_REQUEST = new Request(null, 0L, null, 0L, null);
 	
 	public static class Request {
 		
 		public final JDA bot;
 		public final long guildId;
 		public final Document data;
+		public final long timestamp;
 		public final List<WebhookEmbed> embeds;
 		
-		public Request(JDA bot, long guildId, Document data, List<WebhookEmbed> embeds) {
+		public Request(JDA bot, long guildId, Document data, long timestamp, List<WebhookEmbed> embeds) {
 			this.bot = bot;
 			this.guildId = guildId;
 			this.data = data;
+			this.timestamp = timestamp;
 			this.embeds = embeds;
 		}
 		
@@ -186,7 +194,7 @@ public class EventHandler extends ListenerAdapter {
 			});
 		}
 		
-		this.queue.get(guild.getIdLong()).offer(new Request(bot, guild.getIdLong(), data, requestEmbeds));
+		this.queue.get(guild.getIdLong()).offer(new Request(bot, guild.getIdLong(), data, Clock.systemUTC().instant().getEpochSecond(), requestEmbeds));
 	}
 	
 	private void _send(JDA bot, Guild guild, Document data, List<WebhookEmbed> embeds, int requestAmount, int attempts) {
@@ -197,7 +205,7 @@ public class EventHandler extends ListenerAdapter {
 		}
 		
 		if(attempts >= ATTEMPTS_BEFORE_REFETCH) {
-			data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Database.EMPTY_DOCUMENT);
+			data = Database.get().getGuildById(guild.getIdLong(), null, DEFAULT_PROJECTION).get("logger", Database.EMPTY_DOCUMENT);
 		}
 		
 		TextChannel channel = guild.getTextChannelById(data.getLong("channelId"));
@@ -310,9 +318,25 @@ public class EventHandler extends ListenerAdapter {
 		Guild guild = event.getGuild();
 		Member member = event.getMember();
 		
-		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Database.EMPTY_DOCUMENT);
+		Document data = Database.get().getGuildById(guild.getIdLong(), null, DEFAULT_PROJECTION).get("logger", Database.EMPTY_DOCUMENT);
 		if (!data.getBoolean("enabled", false) || data.getLong("channelId") == null) {
 			return;
+		}
+		
+		EnumSet<Event> events = Event.getEvents(data.get("events", Event.ALL_EVENTS));
+		if (!events.contains(Event.MEMBER_JOIN)) {
+			return;
+		}
+		
+		List<Document> users = data.getEmbedded(List.of("blacklisted", "users"), Collections.emptyList());
+		for (Document userBlacklist : users) {
+			if (userBlacklist.getLong("id") == member.getIdLong()) {
+				if ((userBlacklist.getLong("events") & Event.MEMBER_JOIN.getRaw()) == Event.MEMBER_JOIN.getRaw()) {
+					return;
+				}
+				
+				break;
+			}
 		}
 		
 		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
@@ -330,9 +354,25 @@ public class EventHandler extends ListenerAdapter {
 		Guild guild = event.getGuild();
 		Member member = event.getMember();
 		
-		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Database.EMPTY_DOCUMENT);
+		Document data = Database.get().getGuildById(guild.getIdLong(), null, DEFAULT_PROJECTION).get("logger", Database.EMPTY_DOCUMENT);
 		if (!data.getBoolean("enabled", false) || data.getLong("channelId") == null) {
 			return;
+		}
+		
+		EnumSet<Event> events = Event.getEvents(data.get("events", Event.ALL_EVENTS));
+		if (!events.contains(Event.MEMBER_LEAVE)) {
+			return;
+		}
+		
+		List<Document> users = data.getEmbedded(List.of("blacklisted", "users"), Collections.emptyList());
+		for (Document userBlacklist : users) {
+			if (userBlacklist.getLong("id") == member.getIdLong()) {
+				if ((userBlacklist.getLong("events") & Event.MEMBER_LEAVE.getRaw()) == Event.MEMBER_LEAVE.getRaw()) {
+					return;
+				}
+				
+				break;
+			}
 		}
 	
 		List<WebhookEmbed> embeds = new ArrayList<>();
@@ -371,9 +411,25 @@ public class EventHandler extends ListenerAdapter {
 		Guild guild = event.getGuild();
 		User user = event.getUser();
 		
-		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Database.EMPTY_DOCUMENT);
+		Document data = Database.get().getGuildById(guild.getIdLong(), null, DEFAULT_PROJECTION).get("logger", Database.EMPTY_DOCUMENT);
 		if (!data.getBoolean("enabled", false) || data.getLong("channelId") == null) {
 			return;
+		}
+		
+		EnumSet<Event> events = Event.getEvents(data.get("events", Event.ALL_EVENTS));
+		if (!events.contains(Event.MEMBER_BANNED)) {
+			return;
+		}
+		
+		List<Document> users = data.getEmbedded(List.of("blacklisted", "users"), Collections.emptyList());
+		for (Document userBlacklist : users) {
+			if (userBlacklist.getLong("id") == user.getIdLong()) {
+				if ((userBlacklist.getLong("events") & Event.MEMBER_BANNED.getRaw()) == Event.MEMBER_BANNED.getRaw()) {
+					return;
+				}
+				
+				break;
+			}
 		}
 	
 		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
@@ -411,9 +467,25 @@ public class EventHandler extends ListenerAdapter {
 		Guild guild = event.getGuild();
 		User user = event.getUser();
 		
-		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Database.EMPTY_DOCUMENT);
+		Document data = Database.get().getGuildById(guild.getIdLong(), null, DEFAULT_PROJECTION).get("logger", Database.EMPTY_DOCUMENT);
 		if (!data.getBoolean("enabled", false) || data.getLong("channelId") == null) {
 			return;
+		}
+		
+		EnumSet<Event> events = Event.getEvents(data.get("events", Event.ALL_EVENTS));
+		if (!events.contains(Event.MEMBER_UNBANNED)) {
+			return;
+		}
+		
+		List<Document> users = data.getEmbedded(List.of("blacklisted", "users"), Collections.emptyList());
+		for (Document userBlacklist : users) {
+			if (userBlacklist.getLong("id") == event.getUser().getIdLong()) {
+				if ((userBlacklist.getLong("events") & Event.MEMBER_UNBANNED.getRaw()) == Event.MEMBER_UNBANNED.getRaw()) {
+					return;
+				}
+				
+				break;
+			}
 		}
 	
 		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
@@ -452,8 +524,17 @@ public class EventHandler extends ListenerAdapter {
 		TextChannel channel = event.getChannel();
 		Message message = event.getMessage(), previousMessage = GuildMessageCache.INSTANCE.getMessageById(message.getIdLong());
 		
-		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Database.EMPTY_DOCUMENT);
+		if ((previousMessage == null && message.getContentRaw().length() == 0) || (previousMessage != null && message.getContentRaw().length() == 0 && previousMessage.getContentRaw().length() == 0)) {
+			return;
+		}
+		
+		Document data = Database.get().getGuildById(guild.getIdLong(), null, DEFAULT_PROJECTION).get("logger", Database.EMPTY_DOCUMENT);
 		if (!data.getBoolean("enabled", false) || data.getLong("channelId") == null) {
+			return;
+		}
+		
+		EnumSet<Event> events = Event.getEvents(data.get("events", Event.ALL_EVENTS));
+		if (!events.contains(Event.MESSAGE_UPDATE)) {
 			return;
 		}
 
@@ -489,8 +570,13 @@ public class EventHandler extends ListenerAdapter {
 		Guild guild = event.getGuild();
 		TextChannel channel = event.getChannel();
 		
-		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Database.EMPTY_DOCUMENT);
+		Document data = Database.get().getGuildById(guild.getIdLong(), null, DEFAULT_PROJECTION).get("logger", Database.EMPTY_DOCUMENT);
 		if (!data.getBoolean("enabled", false) || data.getLong("channelId") == null) {
+			return;
+		}
+		
+		EnumSet<Event> events = Event.getEvents(data.get("events", Event.ALL_EVENTS));
+		if (!events.contains(Event.MESSAGE_DELETE)) {
 			return;
 		}
 
@@ -533,9 +619,29 @@ public class EventHandler extends ListenerAdapter {
 	public void onChannelDelete(GuildChannel channel) {
 		Guild guild = channel.getGuild();
 		
-		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Database.EMPTY_DOCUMENT);
+		Document data = Database.get().getGuildById(guild.getIdLong(), null, DEFAULT_PROJECTION).get("logger", Database.EMPTY_DOCUMENT);
 		if (!data.getBoolean("enabled", false) || data.getLong("channelId") == null) {
 			return;
+		}
+		
+		Event eventType = channel.getType().equals(ChannelType.TEXT) ? Event.TEXT_CHANNEL_DELETE : 
+			channel.getType().equals(ChannelType.VOICE) ? Event.VOICE_CHANNEL_DELETE : 
+			channel.getType().equals(ChannelType.STORE) ? Event.STORE_CHANNEL_DELETE : Event.CATEGORY_DELETE;
+		
+		EnumSet<Event> events = Event.getEvents(data.get("events", Event.ALL_EVENTS));
+		if (!events.contains(eventType)) {
+			return;
+		}
+		
+		List<Document> channels = data.getEmbedded(List.of("blacklisted", "channels"), Collections.emptyList());
+		for (Document channelBlacklist : channels) {
+			if (channelBlacklist.getLong("id") == channel.getIdLong()) {
+				if ((channelBlacklist.getLong("events") & eventType.getRaw()) == eventType.getRaw()) {
+					return;
+				}
+				
+				break;
+			}
 		}
 
 		String type = Utils.getChannelTypeReadable(channel);
@@ -586,12 +692,36 @@ public class EventHandler extends ListenerAdapter {
 		onChannelDelete(event.getCategory());
 	}
 	
+	public void onStoreChannelDelete(StoreChannelDeleteEvent event) {
+		onChannelDelete(event.getChannel());
+	}
+	
 	public void onChannelCreate(GuildChannel channel) {
 		Guild guild = channel.getGuild();
 		
-		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Database.EMPTY_DOCUMENT);
+		Document data = Database.get().getGuildById(guild.getIdLong(), null, DEFAULT_PROJECTION).get("logger", Database.EMPTY_DOCUMENT);
 		if (!data.getBoolean("enabled", false) || data.getLong("channelId") == null) {
 			return;
+		}
+		
+		Event eventType = channel.getType().equals(ChannelType.TEXT) ? Event.TEXT_CHANNEL_CREATE : 
+			channel.getType().equals(ChannelType.VOICE) ? Event.VOICE_CHANNEL_CREATE : 
+			channel.getType().equals(ChannelType.STORE) ? Event.STORE_CHANNEL_CREATE : Event.CATEGORY_CREATE;
+		
+		EnumSet<Event> events = Event.getEvents(data.get("events", Event.ALL_EVENTS));
+		if (!events.contains(eventType)) {
+			return;
+		}
+		
+		List<Document> channels = data.getEmbedded(List.of("blacklisted", "channels"), Collections.emptyList());
+		for (Document channelBlacklist : channels) {
+			if (channelBlacklist.getLong("id") == channel.getIdLong()) {
+				if ((channelBlacklist.getLong("events") & eventType.getRaw()) == eventType.getRaw()) {
+					return;
+				}
+				
+				break;
+			}
 		}
 
 		String type = Utils.getChannelTypeReadable(channel);
@@ -645,9 +775,29 @@ public class EventHandler extends ListenerAdapter {
 	public void onChannelUpdateName(GuildChannel channel, String previous, String current) {
 		Guild guild = channel.getGuild();
 		
-		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Database.EMPTY_DOCUMENT);
+		Document data = Database.get().getGuildById(guild.getIdLong(), null, DEFAULT_PROJECTION).get("logger", Database.EMPTY_DOCUMENT);
 		if (!data.getBoolean("enabled", false) || data.getLong("channelId") == null) {
 			return;
+		}
+		
+		Event eventType = channel.getType().equals(ChannelType.TEXT) ? Event.TEXT_CHANNEL_NAME_UPDATE : 
+			channel.getType().equals(ChannelType.VOICE) ? Event.VOICE_CHANNEL_NAME_UPDATE : 
+			channel.getType().equals(ChannelType.STORE) ? Event.STORE_CHANNEL_NAME_UPDATE : Event.CATEGORY_NAME_UPDATE;
+		
+		EnumSet<Event> events = Event.getEvents(data.get("events", Event.ALL_EVENTS));
+		if (!events.contains(eventType)) {
+			return;
+		}
+		
+		List<Document> channels = data.getEmbedded(List.of("blacklisted", "channels"), Collections.emptyList());
+		for (Document channelBlacklist : channels) {
+			if (channelBlacklist.getLong("id") == channel.getIdLong()) {
+				if ((channelBlacklist.getLong("events") & eventType.getRaw()) == eventType.getRaw()) {
+					return;
+				}
+				
+				break;
+			}
 		}
 
 		String type = Utils.getChannelTypeReadable(channel);
@@ -706,9 +856,25 @@ public class EventHandler extends ListenerAdapter {
 		Guild guild = event.getGuild();
 		Role role = event.getRole();
 		
-		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Database.EMPTY_DOCUMENT);
+		Document data = Database.get().getGuildById(guild.getIdLong(), null, DEFAULT_PROJECTION).get("logger", Database.EMPTY_DOCUMENT);
 		if (!data.getBoolean("enabled", false) || data.getLong("channelId") == null) {
 			return;
+		}
+		
+		EnumSet<Event> events = Event.getEvents(data.get("events", Event.ALL_EVENTS));
+		if (!events.contains(Event.ROLE_CREATE)) {
+			return;
+		}
+		
+		List<Document> roles = data.getEmbedded(List.of("blacklisted", "roles"), Collections.emptyList());
+		for (Document roleBlacklist : roles) {
+			if (roleBlacklist.getLong("id") == role.getIdLong()) {
+				if ((roleBlacklist.getLong("events") & Event.ROLE_CREATE.getRaw()) == Event.ROLE_CREATE.getRaw()) {
+					return;
+				}
+				
+				break;
+			}
 		}
 
 		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
@@ -746,9 +912,25 @@ public class EventHandler extends ListenerAdapter {
 		Guild guild = event.getGuild();
 		Role role = event.getRole();
 		
-		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Database.EMPTY_DOCUMENT);
+		Document data = Database.get().getGuildById(guild.getIdLong(), null, DEFAULT_PROJECTION).get("logger", Database.EMPTY_DOCUMENT);
 		if (!data.getBoolean("enabled", false) || data.getLong("channelId") == null) {
 			return;
+		}
+		
+		EnumSet<Event> events = Event.getEvents(data.get("events", Event.ALL_EVENTS));
+		if (!events.contains(Event.ROLE_DELETE)) {
+			return;
+		}
+		
+		List<Document> roles = data.getEmbedded(List.of("blacklisted", "roles"), Collections.emptyList());
+		for (Document roleBlacklist : roles) {
+			if (roleBlacklist.getLong("id") == role.getIdLong()) {
+				if ((roleBlacklist.getLong("events") & Event.ROLE_DELETE.getRaw()) == Event.ROLE_DELETE.getRaw()) {
+					return;
+				}
+				
+				break;
+			}
 		}
 
 		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
@@ -786,9 +968,25 @@ public class EventHandler extends ListenerAdapter {
 		Guild guild = event.getGuild();
 		Role role = event.getRole();
 		
-		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Database.EMPTY_DOCUMENT);
+		Document data = Database.get().getGuildById(guild.getIdLong(), null, DEFAULT_PROJECTION).get("logger", Database.EMPTY_DOCUMENT);
 		if (!data.getBoolean("enabled", false) || data.getLong("channelId") == null) {
 			return;
+		}
+		
+		EnumSet<Event> events = Event.getEvents(data.get("events", Event.ALL_EVENTS));
+		if (!events.contains(Event.ROLE_NAME_UPDATE)) {
+			return;
+		}
+		
+		List<Document> roles = data.getEmbedded(List.of("blacklisted", "roles"), Collections.emptyList());
+		for (Document roleBlacklist : roles) {
+			if (roleBlacklist.getLong("id") == role.getIdLong()) {
+				if ((roleBlacklist.getLong("events") & Event.ROLE_NAME_UPDATE.getRaw()) == Event.ROLE_NAME_UPDATE.getRaw()) {
+					return;
+				}
+				
+				break;
+			}
 		}
 
 		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
@@ -855,9 +1053,25 @@ public class EventHandler extends ListenerAdapter {
 		Guild guild = event.getGuild();
 		Role role = event.getRole();
 		
-		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Database.EMPTY_DOCUMENT);
+		Document data = Database.get().getGuildById(guild.getIdLong(), null, DEFAULT_PROJECTION).get("logger", Database.EMPTY_DOCUMENT);
 		if (!data.getBoolean("enabled", false) || data.getLong("channelId") == null) {
 			return;
+		}
+		
+		EnumSet<Event> events = Event.getEvents(data.get("events", Event.ALL_EVENTS));
+		if (!events.contains(Event.ROLE_PERMISSION_UPDATE)) {
+			return;
+		}
+		
+		List<Document> roles = data.getEmbedded(List.of("blacklisted", "roles"), Collections.emptyList());
+		for (Document roleBlacklist : roles) {
+			if (roleBlacklist.getLong("id") == role.getIdLong()) {
+				if ((roleBlacklist.getLong("events") & Event.ROLE_PERMISSION_UPDATE.getRaw()) == Event.ROLE_PERMISSION_UPDATE.getRaw()) {
+					return;
+				}
+				
+				break;
+			}
 		}
 
 		String message = this.getPermissionDifference(event.getOldPermissionsRaw(), event.getNewPermissionsRaw());
@@ -912,9 +1126,25 @@ public class EventHandler extends ListenerAdapter {
 		List<Role> roles = event.getRoles();
 		Role firstRole = roles.get(0);
 		
-		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Database.EMPTY_DOCUMENT);
+		Document data = Database.get().getGuildById(guild.getIdLong(), null, DEFAULT_PROJECTION).get("logger", Database.EMPTY_DOCUMENT);
 		if (!data.getBoolean("enabled", false) || data.getLong("channelId") == null) {
 			return;
+		}
+		
+		EnumSet<Event> events = Event.getEvents(data.get("events", Event.ALL_EVENTS));
+		if (!events.contains(Event.MEMBER_ROLE_ADD)) {
+			return;
+		}
+		
+		List<Document> users = data.getEmbedded(List.of("blacklisted", "users"), Collections.emptyList());
+		for (Document userBlacklist : users) {
+			if (userBlacklist.getLong("id") == member.getIdLong()) {
+				if ((userBlacklist.getLong("events") & Event.MEMBER_ROLE_ADD.getRaw()) == Event.MEMBER_ROLE_ADD.getRaw()) {
+					return;
+				}
+				
+				break;
+			}
 		}
 
 		StringBuilder embedDescription = new StringBuilder();
@@ -1001,9 +1231,25 @@ public class EventHandler extends ListenerAdapter {
 		List<Role> roles = event.getRoles();
 		Role firstRole = roles.get(0);
 		
-		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Database.EMPTY_DOCUMENT);
+		Document data = Database.get().getGuildById(guild.getIdLong(), null, DEFAULT_PROJECTION).get("logger", Database.EMPTY_DOCUMENT);
 		if (!data.getBoolean("enabled", false) || data.getLong("channelId") == null) {
 			return;
+		}
+		
+		EnumSet<Event> events = Event.getEvents(data.get("events", Event.ALL_EVENTS));
+		if (!events.contains(Event.MEMBER_ROLE_REMOVE)) {
+			return;
+		}
+		
+		List<Document> users = data.getEmbedded(List.of("blacklisted", "users"), Collections.emptyList());
+		for (Document userBlacklist : users) {
+			if (userBlacklist.getLong("id") == member.getIdLong()) {
+				if ((userBlacklist.getLong("events") & Event.MEMBER_ROLE_REMOVE.getRaw()) == Event.MEMBER_ROLE_REMOVE.getRaw()) {
+					return;
+				}
+				
+				break;
+			}
 		}
 
 		/* Wait AUDIT_LOG_DELAY milliseconds to ensure that the role-deletion event has come through */
@@ -1097,9 +1343,25 @@ public class EventHandler extends ListenerAdapter {
 		Guild guild = event.getGuild();
 		Member member = event.getMember();
 		
-		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Database.EMPTY_DOCUMENT);
+		Document data = Database.get().getGuildById(guild.getIdLong(), null, DEFAULT_PROJECTION).get("logger", Database.EMPTY_DOCUMENT);
 		if (!data.getBoolean("enabled", false) || data.getLong("channelId") == null) {
 			return;
+		}
+		
+		EnumSet<Event> events = Event.getEvents(data.get("events", Event.ALL_EVENTS));
+		if (!events.contains(Event.MEMBER_NICKNAME_UPDATE)) {
+			return;
+		}
+		
+		List<Document> users = data.getEmbedded(List.of("blacklisted", "users"), Collections.emptyList());
+		for (Document userBlacklist : users) {
+			if (userBlacklist.getLong("id") == member.getIdLong()) {
+				if ((userBlacklist.getLong("events") & Event.MEMBER_NICKNAME_UPDATE.getRaw()) == Event.MEMBER_NICKNAME_UPDATE.getRaw()) {
+					return;
+				}
+				
+				break;
+			}
 		}
 
 		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
@@ -1140,9 +1402,25 @@ public class EventHandler extends ListenerAdapter {
 		Guild guild = event.getGuild();
 		Member member = event.getMember();
 		
-		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Database.EMPTY_DOCUMENT);
+		Document data = Database.get().getGuildById(guild.getIdLong(), null, DEFAULT_PROJECTION).get("logger", Database.EMPTY_DOCUMENT);
 		if (!data.getBoolean("enabled", false) || data.getLong("channelId") == null) {
 			return;
+		}
+		
+		EnumSet<Event> events = Event.getEvents(data.get("events", Event.ALL_EVENTS));
+		if (!events.contains(Event.MEMBER_SERVER_VOICE_MUTE)) {
+			return;
+		}
+		
+		List<Document> users = data.getEmbedded(List.of("blacklisted", "users"), Collections.emptyList());
+		for (Document userBlacklist : users) {
+			if (userBlacklist.getLong("id") == member.getIdLong()) {
+				if ((userBlacklist.getLong("events") & Event.MEMBER_SERVER_VOICE_MUTE.getRaw()) == Event.MEMBER_SERVER_VOICE_MUTE.getRaw()) {
+					return;
+				}
+				
+				break;
+			}
 		}
 
 		boolean muted = event.getVoiceState().isGuildMuted();
@@ -1187,9 +1465,25 @@ public class EventHandler extends ListenerAdapter {
 		Guild guild = event.getGuild();
 		Member member = event.getMember();
 		
-		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Database.EMPTY_DOCUMENT);
+		Document data = Database.get().getGuildById(guild.getIdLong(), null, DEFAULT_PROJECTION).get("logger", Database.EMPTY_DOCUMENT);
 		if (!data.getBoolean("enabled", false) || data.getLong("channelId") == null) {
 			return;
+		}
+		
+		EnumSet<Event> events = Event.getEvents(data.get("events", Event.ALL_EVENTS));
+		if (!events.contains(Event.MEMBER_SERVER_VOICE_DEAFEN)) {
+			return;
+		}
+		
+		List<Document> users = data.getEmbedded(List.of("blacklisted", "users"), Collections.emptyList());
+		for (Document userBlacklist : users) {
+			if (userBlacklist.getLong("id") == member.getIdLong()) {
+				if ((userBlacklist.getLong("events") & Event.MEMBER_SERVER_VOICE_DEAFEN.getRaw()) == Event.MEMBER_SERVER_VOICE_DEAFEN.getRaw()) {
+					return;
+				}
+				
+				break;
+			}
 		}
 
 		boolean deafened = event.getVoiceState().isGuildDeafened();
@@ -1235,9 +1529,25 @@ public class EventHandler extends ListenerAdapter {
 		Member member = event.getMember();
 		VoiceChannel channel = event.getChannelJoined();
 		
-		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Database.EMPTY_DOCUMENT);
+		Document data = Database.get().getGuildById(guild.getIdLong(), null, DEFAULT_PROJECTION).get("logger", Database.EMPTY_DOCUMENT);
 		if (!data.getBoolean("enabled", false) || data.getLong("channelId") == null) {
 			return;
+		}
+		
+		EnumSet<Event> events = Event.getEvents(data.get("events", Event.ALL_EVENTS));
+		if (!events.contains(Event.MEMBER_VOICE_JOIN)) {
+			return;
+		}
+		
+		List<Document> users = data.getEmbedded(List.of("blacklisted", "users"), Collections.emptyList());
+		for (Document userBlacklist : users) {
+			if (userBlacklist.getLong("id") == member.getIdLong()) {
+				if ((userBlacklist.getLong("events") & Event.MEMBER_VOICE_JOIN.getRaw()) == Event.MEMBER_VOICE_JOIN.getRaw()) {
+					return;
+				}
+				
+				break;
+			}
 		}
 
 		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
@@ -1254,9 +1564,25 @@ public class EventHandler extends ListenerAdapter {
 		Member member = event.getMember();
 		VoiceChannel channel = event.getChannelLeft();
 		
-		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Database.EMPTY_DOCUMENT);
+		Document data = Database.get().getGuildById(guild.getIdLong(), null, DEFAULT_PROJECTION).get("logger", Database.EMPTY_DOCUMENT);
 		if (!data.getBoolean("enabled", false) || data.getLong("channelId") == null) {
 			return;
+		}
+		
+		EnumSet<Event> events = Event.getEvents(data.get("events", Event.ALL_EVENTS));
+		if (!events.contains(Event.MEMBER_VOICE_LEAVE)) {
+			return;
+		}
+		
+		List<Document> users = data.getEmbedded(List.of("blacklisted", "users"), Collections.emptyList());
+		for (Document userBlacklist : users) {
+			if (userBlacklist.getLong("id") == member.getIdLong()) {
+				if ((userBlacklist.getLong("events") & Event.MEMBER_VOICE_LEAVE.getRaw()) == Event.MEMBER_VOICE_LEAVE.getRaw()) {
+					return;
+				}
+				
+				break;
+			}
 		}
 
 		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
@@ -1274,9 +1600,25 @@ public class EventHandler extends ListenerAdapter {
 		
 		VoiceChannel left = event.getChannelLeft(), joined = event.getChannelJoined();
 		
-		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("logger")).get("logger", Database.EMPTY_DOCUMENT);
+		Document data = Database.get().getGuildById(guild.getIdLong(), null, DEFAULT_PROJECTION).get("logger", Database.EMPTY_DOCUMENT);
 		if (!data.getBoolean("enabled", false) || data.getLong("channelId") == null) {
 			return;
+		}
+		
+		EnumSet<Event> events = Event.getEvents(data.get("events", Event.ALL_EVENTS));
+		if (!events.contains(Event.MEMBER_VOICE_MOVE)) {
+			return;
+		}
+		
+		List<Document> users = data.getEmbedded(List.of("blacklisted", "users"), Collections.emptyList());
+		for (Document userBlacklist : users) {
+			if (userBlacklist.getLong("id") == member.getIdLong()) {
+				if ((userBlacklist.getLong("events") & Event.MEMBER_VOICE_MOVE.getRaw()) == Event.MEMBER_VOICE_MOVE.getRaw()) {
+					return;
+				}
+				
+				break;
+			}
 		}
 
 		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();

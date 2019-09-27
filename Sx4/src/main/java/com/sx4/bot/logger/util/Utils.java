@@ -1,5 +1,7 @@
 package com.sx4.bot.logger.util;
 
+import com.sx4.bot.logger.Event;
+
 import club.minnced.discord.webhook.send.WebhookEmbed;
 import club.minnced.discord.webhook.send.WebhookEmbed.EmbedField;
 import net.dv8tion.jda.api.entities.ChannelType;
@@ -20,7 +22,7 @@ public class Utils {
 	
 	public static String getChannelTypeReadable(GuildChannel channel) {
 		String type;
-		if(channel.getType().equals(ChannelType.TEXT) || channel.getType().equals(ChannelType.VOICE)) {
+		if(channel.getType().equals(ChannelType.TEXT) || channel.getType().equals(ChannelType.VOICE) || channel.getType().equals(ChannelType.STORE)) {
 			type = channel.getType().toString().toLowerCase() + " channel";
 		}else if(channel.getType().equals(ChannelType.CATEGORY)) {
 			type = "category";

@@ -225,7 +225,7 @@ public class WelcomerEvents extends ListenerAdapter {
 			return;
 		}
 		
-		if (welcomerData.getBoolean("dm", false)) {
+		if (welcomerData.getBoolean("dm", false) && !event.getUser().isBot()) {
 			WelcomerUtils.getWelcomerPreview(event.getMember(), event.getGuild(), data, (message, response) -> {
 				if (!message.isEmpty() && response == null) {
 					event.getUser().openPrivateChannel().queue(channel -> channel.sendMessage(message.build()).queue(), e -> {});
