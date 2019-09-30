@@ -212,7 +212,7 @@ public class LogsModule {
 					for (String stringEvent : eventsArgument) {
 						try {
 							Event newEvent = Event.valueOf(stringEvent.toUpperCase());
-							if (!newEvent.getCategory().equals(category)) {
+							if (!newEvent.containsCategory(category)) {
 								event.reply("You cannot blacklist a " + category.toString().toLowerCase() + " from the `" + newEvent.toString() + "` event :no_entry:").queue();
 								return;
 							}
@@ -276,7 +276,7 @@ public class LogsModule {
 				for (String stringEvent : eventsArgument) {
 					try {
 						Event newEvent = Event.valueOf(stringEvent.toUpperCase());
-						if (!newEvent.getCategory().equals(category)) {
+						if (!newEvent.containsCategory(category)) {
 							event.reply("You cannot blacklist a " + category.toString().toLowerCase() + " from the `" + newEvent.toString() + "` event :no_entry:").queue();
 							return;
 						}
@@ -376,6 +376,7 @@ public class LogsModule {
 			}
 			
 			@Command(value="list", description="Lists what users, channels and roles which are blacklisted from a specific event")
+			@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 			public void list(CommandEvent event, @Context Database database, @Argument(value="event") String eventArgument) {
 				Event loggerEvent;
 				try {
@@ -459,7 +460,7 @@ public class LogsModule {
 						case "role": 
 							eventsRaw = Event.ALL_ROLE_EVENTS;
 							break;
-						case "message": 
+						case "message":
 							eventsRaw = Event.ALL_MESSAGE_EVENTS;
 							break;
 						case "member":
@@ -555,6 +556,7 @@ public class LogsModule {
 			}
 			
 			@Command(value="list", description="Lists all the events the logger has")
+			@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 			public void list(CommandEvent event) {
 				StringBuilder eventList = new StringBuilder();
 				for (Event loggerEvent : Event.values()) {

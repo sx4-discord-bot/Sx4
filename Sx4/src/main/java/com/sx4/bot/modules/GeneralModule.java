@@ -921,99 +921,267 @@ public class GeneralModule {
 	}
 	
 	@Command(value="usage", description="Shows you how much a specific command has been used on Sx4")
-	public void usage(CommandEvent event, @Context Database database, @Argument(value="command name", endless=true, nullDefault=true) String commandName, @Option(value="server", aliases={"guild"}) String guildArgument, @Option(value="user") String userArgument, @Option(value="channel") String channelArgument) {
+	public void usage(CommandEvent event, @Context Database database, @Argument(value="command name", endless=true) String commandName, @Option(value="server", aliases={"guild"}) String guildArgument, @Option(value="user") String userArgument, @Option(value="channel") String channelArgument) {
 		Sx4Command command = ArgumentUtils.getCommand(commandName);
 		if (command == null) {
 			event.reply("I could not find that command :no_entry:").queue();
-		}
-		
-		Bson filter = Filters.eq("command", command.getCommandTrigger());
-		if (guildArgument != null) {
-			Guild guild = ArgumentUtils.getGuild(guildArgument);
-			if (guild != null) {
-				filter = Filters.and(Filters.eq("guildId", guild.getIdLong()), filter);
-			}
-		} 
-		
-		if (userArgument != null) {
-			User user = ArgumentUtils.getUser(userArgument);
-			if (user != null) {
-				filter = Filters.and(Filters.eq("authorId", user.getIdLong()), filter);
-			}
-		}
-		
-		if (channelArgument != null) {
-			TextChannel channel = ArgumentUtils.getTextChannel(event.getGuild(), channelArgument);
-			if (channel != null) {
-				filter = Filters.and(Filters.eq("channelId", channel.getIdLong()), filter);
-			}
-		}
-		
-		long used = database.getCommandLogs().countDocuments(filter);
-		event.reply("`" + command.getCommandTrigger() + "` has been used **" + used + "** time" + (used == 1 ? "" : "s")).queue();
-	}
-	
-	@Command(value="top commands", aliases={"topcmds", "topcommands", "top cmds"}, description="View the top used commands on Sx4", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
-	@Async
-	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-	public void topcommands(CommandEvent event, @Context Database database, @Option(value="server", aliases={"guild"}) String guildArgument, @Option(value="user") String userArgument, @Option(value="channel") String channelArgument) {
-		Bson filter = new BsonDocument();
-		if (guildArgument != null) {
-			Guild guild = ArgumentUtils.getGuild(guildArgument);
-			if (guild != null) {
-				filter = Filters.and(Filters.eq("guildId", guild.getIdLong()), filter);
-			}
-		} 
-		
-		if (userArgument != null) {
-			User user = ArgumentUtils.getUser(userArgument);
-			if (user != null) {
-				filter = Filters.and(Filters.eq("authorId", user.getIdLong()), filter);
-			}
-		}
-		
-		if (channelArgument != null) {
-			TextChannel channel = ArgumentUtils.getTextChannel(event.getGuild(), channelArgument);
-			if (channel != null) {
-				filter = Filters.and(Filters.eq("channelId", channel.getIdLong()), filter);
-			}
-		}
-		
-		FindIterable<Document> commands = database.getCommandLogs().find(filter).projection(Projections.include("command"));
-		List<Pair<String, Long>> commandCounter = new ArrayList<>();
-		for (Document command : commands) {
-			if (commandCounter.isEmpty()) {
-				commandCounter.add(Pair.of(command.getString("command"), 1L));
-			} else {
-				boolean updated = false;
-				for (Pair<String, Long> commandData : commandCounter) {
-					if (commandData.getLeft().equals(command.getString("command"))) {
-						commandCounter.remove(commandData);
-						commandCounter.add(Pair.of(commandData.getLeft(), commandData.getRight() + 1L));
-						
-						updated = true;
-						break;
-					}
-				}
-				
-				if (!updated) {
-					commandCounter.add(Pair.of(command.getString("command"), 1L));
-				}
-			}
-		}
-		
-		if (commandCounter.isEmpty()) {
-			event.reply("I could not find any command usage with those parameters :no_entry:").queue();
 			return;
 		}
 		
-		commandCounter.sort((a, b) -> Long.compare(b.getRight(), a.getRight()));
-		PagedResult<Pair<String, Long>> paged = new PagedResult<>(commandCounter)
-				.setFunction(data -> String.format("`%s` - %,d %s", data.getLeft(), data.getRight(), data.getRight() == 1 ? "use" : "uses"))
-				.setAuthor("Top Commands", null, event.getSelfUser().getEffectiveAvatarUrl())
-				.setIncreasedIndex(true);
+		List<Bson> filters = new ArrayList<>();
+		filters.add(Filters.eq("command", command.getCommandTrigger()));
+		if (guildArgument != null) {
+			Guild guild = ArgumentUtils.getGuild(guildArgument);
+			if (guild != null) {
+				filters.add(Filters.eq("guildId", guild.getIdLong()));
+			}
+		} 
 		
-		PagedUtils.getPagedResult(event, paged, 300, null);
+		if (userArgument != null) {
+			User user = ArgumentUtils.getUser(userArgument);
+			if (user != null) {
+				filters.add(Filters.eq("authorId", user.getIdLong()));
+			}
+		}
+		
+		if (channelArgument != null) {
+			TextChannel channel = ArgumentUtils.getTextChannel(event.getGuild(), channelArgument);
+			if (channel != null) {
+				filters.add(Filters.eq("channelId", channel.getIdLong()));
+			}
+		}
+		
+		long used = database.getCommandLogs().countDocuments(Filters.and(filters));
+		event.reply("`" + command.getCommandTrigger() + "` has been used **" + used + "** time" + (used == 1 ? "" : "s")).queue();
+	}
+	
+	public class CommandStatsCommand extends Sx4Command {
+		
+		public CommandStatsCommand() {
+			super("command stats");
+			
+			super.setAliases("commandstats");
+			super.setDescription("Shows some stats about command usage on the bot");
+			super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
+		}
+		
+		public void onCommand(CommandEvent event) {
+			event.reply(HelpUtils.getHelpMessage(event.getCommand())).queue();
+		}
+		
+		@Command(value="all", description="View the top used commands on Sx4", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Async
+		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
+		public void all(CommandEvent event, @Context Database database, @Option(value="server", aliases={"guild"}) String guildArgument, @Option(value="user") String userArgument, @Option(value="channel") String channelArgument) {
+			List<Bson> filters = new ArrayList<>();
+			if (guildArgument != null) {
+				Guild guild = ArgumentUtils.getGuild(guildArgument);
+				if (guild != null) {
+					filters.add(Filters.eq("guildId", guild.getIdLong()));
+				}
+			} 
+			
+			if (userArgument != null) {
+				User user = ArgumentUtils.getUser(userArgument);
+				if (user != null) {
+					filters.add(Filters.eq("authorId", user.getIdLong()));
+				}
+			}
+			
+			if (channelArgument != null) {
+				TextChannel channel = ArgumentUtils.getTextChannel(event.getGuild(), channelArgument);
+				if (channel != null) {
+					filters.add(Filters.eq("channelId", channel.getIdLong()));
+				}
+			}
+
+			FindIterable<Document> commands;
+			if (filters.isEmpty()) {
+				commands = database.getCommandLogs().find().projection(Projections.include("command"));
+			} else {
+				commands = database.getCommandLogs().find(Filters.and(filters)).projection(Projections.include("command"));
+			}
+			
+			List<Pair<String, Long>> commandCounter = new ArrayList<>();
+			for (Document command : commands) {
+				if (commandCounter.isEmpty()) {
+					commandCounter.add(Pair.of(command.getString("command"), 1L));
+				} else {
+					boolean updated = false;
+					for (Pair<String, Long> commandData : commandCounter) {
+						if (commandData.getLeft().equals(command.getString("command"))) {
+							commandCounter.remove(commandData);
+							commandCounter.add(Pair.of(commandData.getLeft(), commandData.getRight() + 1L));
+							
+							updated = true;
+							break;
+						}
+					}
+					
+					if (!updated) {
+						commandCounter.add(Pair.of(command.getString("command"), 1L));
+					}
+				}
+			}
+			
+			if (commandCounter.isEmpty()) {
+				event.reply("I could not find any command usage with those parameters :no_entry:").queue();
+				return;
+			}
+			
+			commandCounter.sort((a, b) -> Long.compare(b.getRight(), a.getRight()));
+			PagedResult<Pair<String, Long>> paged = new PagedResult<>(commandCounter)
+					.setFunction(data -> String.format("`%s` - %,d %s", data.getLeft(), data.getRight(), data.getRight() == 1 ? "use" : "uses"))
+					.setAuthor("Top Commands", null, event.getSelfUser().getEffectiveAvatarUrl())
+					.setIncreasedIndex(true);
+			
+			PagedUtils.getPagedResult(event, paged, 300, null);
+		}
+		
+		@Command(value="servers", aliases= {"guilds"}, description="Shows a list of servers in order of command usage")
+		@Async
+		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
+		public void guilds(CommandEvent event, @Context Database database, @Option(value="command") String commandArgument, @Option(value="user") String userArgument, @Option(value="channel") String channelArgument) {
+			List<Bson> filters = new ArrayList<>();
+			if (commandArgument != null) {
+				Sx4Command command = ArgumentUtils.getCommand(commandArgument, false, true, true);
+				if (command != null) {
+					filters.add(Filters.eq("command", command.getCommandTrigger()));
+				}
+			} 
+			
+			if (userArgument != null) {
+				User user = ArgumentUtils.getUser(userArgument);
+				if (user != null) {
+					filters.add(Filters.eq("authorId", user.getIdLong()));
+				}
+			}
+			
+			if (channelArgument != null) {
+				TextChannel channel = ArgumentUtils.getTextChannel(event.getGuild(), channelArgument);
+				if (channel != null) {
+					filters.add(Filters.eq("channelId", channel.getIdLong()));
+				}
+			}
+			
+			FindIterable<Document> commands;
+			if (filters.isEmpty()) {
+				commands = database.getCommandLogs().find().projection(Projections.include("guildId"));
+			} else {
+				commands = database.getCommandLogs().find(Filters.and(filters)).projection(Projections.include("guildId"));
+			}
+			
+			List<Pair<Long, Long>> commandCounter = new ArrayList<>();
+			for (Document command : commands) {
+				if (commandCounter.isEmpty()) {
+					commandCounter.add(Pair.of(command.getLong("guildId"), 1L));
+				} else {
+					boolean updated = false;
+					for (Pair<Long, Long> commandData : commandCounter) {
+						if (commandData.getLeft().equals(command.getLong("guildId"))) {
+							commandCounter.remove(commandData);
+							commandCounter.add(Pair.of(commandData.getLeft(), commandData.getRight() + 1L));
+							
+							updated = true;
+							break;
+						}
+					}
+					
+					if (!updated) {
+						commandCounter.add(Pair.of(command.getLong("guildId"), 1L));
+					}
+				}
+			}
+			
+			if (commandCounter.isEmpty()) {
+				event.reply("I could not find any command usage with those parameters :no_entry:").queue();
+				return;
+			}
+			
+			commandCounter.sort((a, b) -> Long.compare(b.getRight(), a.getRight()));
+			PagedResult<Pair<Long, Long>> paged = new PagedResult<>(commandCounter)
+					.setFunction(data -> {
+						Guild guild = event.getShardManager().getGuildById(data.getLeft());
+						return String.format("`%s` - %,d command%s used", guild == null ? "Unknown guild (" + data.getLeft() + ")" : guild.getName(), data.getRight(), data.getRight() == 1 ? "" : "s");
+					})
+					.setAuthor("Top Commands", null, event.getSelfUser().getEffectiveAvatarUrl())
+					.setIncreasedIndex(true);
+			
+			PagedUtils.getPagedResult(event, paged, 300, null);
+		}
+		
+		@Command(value="users", description="Shows a list of users in order of command usage")
+		@Async
+		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
+		public void users(CommandEvent event, @Context Database database, @Option(value="command") String commandArgument, @Option(value="server", aliases={"guild"}) String guildArgument, @Option(value="channel") String channelArgument) {
+			List<Bson> filters = new ArrayList<>();
+			if (commandArgument != null) {
+				Sx4Command command = ArgumentUtils.getCommand(commandArgument, false, true, true);
+				if (command != null) {
+					filters.add(Filters.eq("command", command.getCommandTrigger()));
+				}
+			} 
+			
+			if (guildArgument != null) {
+				Guild guild = ArgumentUtils.getGuild(guildArgument);
+				if (guild != null) {
+					filters.add(Filters.eq("guildId", guild.getIdLong()));
+				}
+			} 
+			
+			if (channelArgument != null) {
+				TextChannel channel = ArgumentUtils.getTextChannel(event.getGuild(), channelArgument);
+				if (channel != null) {
+					filters.add(Filters.eq("channelId", channel.getIdLong()));
+				}
+			}
+			
+			FindIterable<Document> commands;
+			if (filters.isEmpty()) {
+				commands = database.getCommandLogs().find().projection(Projections.include("authorId"));
+			} else {
+				commands = database.getCommandLogs().find(Filters.and(filters)).projection(Projections.include("authorId"));
+			}
+			
+			List<Pair<Long, Long>> commandCounter = new ArrayList<>();
+			for (Document command : commands) {
+				if (commandCounter.isEmpty()) {
+					commandCounter.add(Pair.of(command.getLong("authorId"), 1L));
+				} else {
+					boolean updated = false;
+					for (Pair<Long, Long> commandData : commandCounter) {
+						if (commandData.getLeft().equals(command.getLong("authorId"))) {
+							commandCounter.remove(commandData);
+							commandCounter.add(Pair.of(commandData.getLeft(), commandData.getRight() + 1L));
+							
+							updated = true;
+							break;
+						}
+					}
+					
+					if (!updated) {
+						commandCounter.add(Pair.of(command.getLong("authorId"), 1L));
+					}
+				}
+			}
+			
+			if (commandCounter.isEmpty()) {
+				event.reply("I could not find any command usage with those parameters :no_entry:").queue();
+				return;
+			}
+			
+			commandCounter.sort((a, b) -> Long.compare(b.getRight(), a.getRight()));
+			PagedResult<Pair<Long, Long>> paged = new PagedResult<>(commandCounter)
+					.setFunction(data -> {
+						User user = event.getShardManager().getUserById(data.getLeft());
+						return String.format("`%s` - %,d command%s used", user == null ? "Unknown user (" + data.getLeft() + ")" : user.getAsTag(), data.getRight(), data.getRight() == 1 ? "" : "s");
+					})
+					.setAuthor("Top Commands", null, event.getSelfUser().getEffectiveAvatarUrl())
+					.setIncreasedIndex(true);
+			
+			PagedUtils.getPagedResult(event, paged, 300, null);
+		}
+		
 	}
 	
 	@Command(value="decode", description="Decode any text files into discord markdown", argumentInfo="<attachment>", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)

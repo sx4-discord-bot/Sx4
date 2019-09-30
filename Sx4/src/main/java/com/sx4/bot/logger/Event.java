@@ -8,21 +8,21 @@ import java.util.stream.Collectors;
 public enum Event {
 	
 	// Messages
-	MESSAGE_DELETE(1, Category.MESSAGE),
-	MESSAGE_UPDATE(2, Category.MESSAGE),
+	MESSAGE_DELETE(1, Category.MESSAGE, Category.MEMBER, Category.CHANNEL),
+	MESSAGE_UPDATE(2, Category.MESSAGE, Category.MEMBER, Category.CHANNEL),
 	
 	// Members
 	MEMBER_JOIN(3, Category.MEMBER),
-	MEMBER_ROLE_ADD(4, Category.MEMBER),
-	MEMBER_ROLE_REMOVE(5, Category.MEMBER),
+	MEMBER_ROLE_ADD(4, Category.MEMBER, Category.ROLE),
+	MEMBER_ROLE_REMOVE(5, Category.MEMBER, Category.ROLE),
 	MEMBER_NICKNAME_UPDATE(6, Category.MEMBER),
 	MEMBER_LEAVE(7, Category.MEMBER),
 	MEMBER_BANNED(8, Category.MEMBER),
 	MEMBER_UNBANNED(9, Category.MEMBER),
-	MEMBER_SERVER_VOICE_MUTE(10, Category.MEMBER),
-	MEMBER_SERVER_VOICE_DEAFEN(11, Category.MEMBER),
-	MEMBER_VOICE_JOIN(12, Category.MEMBER),
-	MEMBER_VOICE_LEAVE(13, Category.MEMBER),
+	MEMBER_SERVER_VOICE_MUTE(10, Category.MEMBER, Category.CHANNEL),
+	MEMBER_SERVER_VOICE_DEAFEN(11, Category.MEMBER, Category.CHANNEL),
+	MEMBER_VOICE_JOIN(12, Category.MEMBER, Category.CHANNEL),
+	MEMBER_VOICE_LEAVE(13, Category.MEMBER, Category.CHANNEL),
 	MEMBER_VOICE_MOVE(14, Category.MEMBER),
 	
 	// Channels
@@ -50,39 +50,49 @@ public enum Event {
 	public static final long ALL_EVENTS = Event.getRaw(Event.values());
 	
 	public static final long ALL_CHANNEL_EVENTS = Event.getRaw(Arrays.stream(Event.values()).filter(Event::isChannel).collect(Collectors.toSet()));
-	public static final long ALL_MESSAGE_EVENTS = Event.getRaw(Arrays.stream(Event.values()).filter(Event::isMessage).collect(Collectors.toSet()));
 	public static final long ALL_MEMBER_EVENTS = Event.getRaw(Arrays.stream(Event.values()).filter(Event::isMember).collect(Collectors.toSet()));
+	public static final long ALL_MESSAGE_EVENTS = Event.getRaw(Arrays.stream(Event.values()).filter(Event::isMessage).collect(Collectors.toSet()));
 	public static final long ALL_ROLE_EVENTS = Event.getRaw(Arrays.stream(Event.values()).filter(Event::isRole).collect(Collectors.toSet()));
 	
-	private Category category;
+	private Category[] categories;
 	
 	private int offset;
 	private long raw;
 	
-	private Event(int offset, Category category) {
-		this.category = category;
+	private Event(int offset, Category... categories) {
+		this.categories = categories;
 		this.offset = offset;
 		this.raw = 1 << offset;
 	}
 	
-	public Category getCategory() {
-		return this.category;
+	public Category[] getCategories() {
+		return this.categories;
+	}
+	
+	public boolean containsCategory(Category category) {
+		for (Category eventCategory : this.categories) {
+			if (eventCategory.equals(category)) {
+				return true;
+			}
+		}
+		
+		return false;
 	}
 	
 	public boolean isChannel() {
-		return this.category.equals(Category.CHANNEL);
-	}
-	
-	public boolean isMessage() {
-		return this.category.equals(Category.MESSAGE);
+		return this.containsCategory(Category.CHANNEL);
 	}
 	
 	public boolean isMember() {
-		return this.category.equals(Category.MEMBER);
+		return this.containsCategory(Category.MEMBER);
+	}
+	
+	public boolean isMessage() {
+		return this.containsCategory(Category.MESSAGE);
 	}
 	
 	public boolean isRole() {
-		return this.category.equals(Category.ROLE);
+		return this.containsCategory(Category.ROLE);
 	}
 	
 	public int getOffset() {

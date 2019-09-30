@@ -1651,7 +1651,7 @@ public class EconomyModule {
 				}
 			}
 			
-			List<Document> items = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items")).getEmbedded(List.of("economy", "items"), Collections.emptyList());
+			List<Document> items = database.getUserById(member.getIdLong(), null, Projections.include("economy.items")).getEmbedded(List.of("economy", "items"), Collections.emptyList());
 			Rod rod = EconomyUtils.getUserRod(items);
 			if (rod == null) {
 				event.reply((member.equals(event.getMember()) ? "You do" : "That user does") + " not have a fishing rod :no_entry:").queue();
@@ -1996,7 +1996,7 @@ public class EconomyModule {
 				}
 			}
 			
-			List<Document> items = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items")).getEmbedded(List.of("economy", "items"), Collections.emptyList());
+			List<Document> items = database.getUserById(member.getIdLong(), null, Projections.include("economy.items")).getEmbedded(List.of("economy", "items"), Collections.emptyList());
 			
 			Axe axe = EconomyUtils.getUserAxe(items);
 			if (axe == null) {
@@ -3662,7 +3662,7 @@ public class EconomyModule {
 				}
 				
 				Document dataDocument = new Document("user", user)
-						.append("reputation", dataObject.getEmbedded(List.of("reputation", "amount"), Long.class));
+						.append("reputation", dataObject.getEmbedded(List.of("reputation", "amount"), Integer.class));
 				
 				compressedData.add(dataDocument);
 			}
@@ -3673,7 +3673,7 @@ public class EconomyModule {
 					compressedData.sort((a, b) -> (reverse ? 1 : -1) * b.get("user", User.class).getName().compareTo(a.get("user", User.class).getName()));
 					break;
 				default:
-					compressedData.sort((a, b) -> (reverse ? 1 : -1) * Long.compare(a.getLong("reputation"), b.getLong("reputation")));
+					compressedData.sort((a, b) -> (reverse ? 1 : -1) * Integer.compare(a.getInteger("reputation"), b.getInteger("reputation")));
 					break;
 			}
 			
@@ -3696,7 +3696,7 @@ public class EconomyModule {
 						
 						for (int i = page.getCurrentPage() * page.getPerPage() - page.getPerPage(); i < (page.getCurrentPage() == page.getMaxPage() ? compressedData.size() : page.getCurrentPage() * page.getPerPage()); i++) {
 							Document userData = compressedData.get(i);
-							embed.appendDescription(String.format("%d. `%s` - %,d reputation\n", i + 1, userData.get("user", User.class).getAsTag(), userData.getLong("reputation")));
+							embed.appendDescription(String.format("%d. `%s` - %,d reputation\n", i + 1, userData.get("user", User.class).getAsTag(), userData.getInteger("reputation")));
 						}
 						
 						return embed.build();

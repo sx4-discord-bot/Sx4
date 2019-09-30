@@ -58,17 +58,6 @@ public class Axe extends Tool {
 		return null;
 	}
 	
-	public Map<String, Object> getStoreInfo() {
-		Map<String, Object> axeInfo = new HashMap<>();
-		axeInfo.put("upgrades", this.getUpgrades());
-		axeInfo.put("durability", this.getDurability());
-		axeInfo.put("price", this.getPrice());
-		axeInfo.put("multiplier", this.multiplier);
-		axeInfo.put("max_mats", this.maximumMaterials);
-		
-		return axeInfo;
-	}
-	
 	public static Axe getAxeByName(String axeName) {
 		axeName = axeName.toLowerCase();
 		

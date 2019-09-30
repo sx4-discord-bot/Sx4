@@ -639,13 +639,14 @@ public class SelfrolesModule {
 		
 		@Command(value="delete", description="Deletes a reaction roles data and message if it's a menu made by the bot", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@AuthorPermissions({Permission.MANAGE_ROLES})
-		public void delete(CommandEvent event, @Context Database database, @Argument(value="message id") String messageId) {
+		public void delete(CommandEvent event, @Context Database database, @Argument(value="message id") long messageId) {
 			List<Document> reactionRoles = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("reactionRole.reactionRoles")).getEmbedded(List.of("reactionRole", "reactionRoles"), Collections.emptyList());
 			for (Document reactionRole : reactionRoles) {
-				if (reactionRole.get("id").equals(messageId)) {
-					TextChannel channel = event.getGuild().getTextChannelById((String) reactionRole.get("channel"));
+				if (reactionRole.getLong("id") == messageId) {
+					Long channelId = reactionRole.getLong("channelId");
+					TextChannel channel = channelId == null ? null : event.getGuild().getTextChannelById(channelId);
 					if (channel == null) {
-						database.updateGuildById(event.getGuild().getIdLong(), Updates.pull("reactionRole.reactionRoles", Filters.eq("channelId", reactionRole.getLong("channelId"))), (result, exception) -> {
+						database.updateGuildById(event.getGuild().getIdLong(), Updates.pull("reactionRole.reactionRoles", Filters.eq("channelId", channelId)), (result, exception) -> {
 							if (exception != null) {
 								exception.printStackTrace();
 								event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();

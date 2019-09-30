@@ -524,7 +524,7 @@ public class EventHandler extends ListenerAdapter {
 		TextChannel channel = event.getChannel();
 		Message message = event.getMessage(), previousMessage = GuildMessageCache.INSTANCE.getMessageById(message.getIdLong());
 		
-		if ((previousMessage == null && message.getContentRaw().length() == 0) || (previousMessage != null && message.getContentRaw().length() == 0 && previousMessage.getContentRaw().length() == 0)) {
+		if (previousMessage != null && message.getContentRaw().equals(previousMessage.getContentRaw())) {
 			return;
 		}
 		
@@ -536,6 +536,30 @@ public class EventHandler extends ListenerAdapter {
 		EnumSet<Event> events = Event.getEvents(data.get("events", Event.ALL_EVENTS));
 		if (!events.contains(Event.MESSAGE_UPDATE)) {
 			return;
+		}
+		
+		Document blacklisted = data.get("blacklisted", Database.EMPTY_DOCUMENT);
+		
+		List<Document> users = blacklisted.getList("users", Document.class, Collections.emptyList());
+		for (Document userBlacklist : users) {
+			if (userBlacklist.getLong("id") == event.getAuthor().getIdLong()) {
+				if ((userBlacklist.getLong("events") & Event.MESSAGE_UPDATE.getRaw()) == Event.MESSAGE_UPDATE.getRaw()) {
+					return;
+				}
+				
+				break;
+			}
+		}
+		
+		List<Document> channels = blacklisted.getList("channels", Document.class, Collections.emptyList());
+		for (Document channelBlacklist : channels) {
+			if (channelBlacklist.getLong("id") == channel.getIdLong() || (channel.getParent() != null && channelBlacklist.getLong("id") == channel.getParent().getIdLong())) {
+				if ((channelBlacklist.getLong("events") & Event.MESSAGE_UPDATE.getRaw()) == Event.MESSAGE_UPDATE.getRaw()) {
+					return;
+				}
+				
+				break;
+			}
 		}
 
 		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
@@ -569,6 +593,7 @@ public class EventHandler extends ListenerAdapter {
 	public void onGuildMessageDelete(GuildMessageDeleteEvent event) {
 		Guild guild = event.getGuild();
 		TextChannel channel = event.getChannel();
+		Message message = GuildMessageCache.INSTANCE.getMessageById(event.getMessageIdLong());
 		
 		Document data = Database.get().getGuildById(guild.getIdLong(), null, DEFAULT_PROJECTION).get("logger", Database.EMPTY_DOCUMENT);
 		if (!data.getBoolean("enabled", false) || data.getLong("channelId") == null) {
@@ -579,13 +604,38 @@ public class EventHandler extends ListenerAdapter {
 		if (!events.contains(Event.MESSAGE_DELETE)) {
 			return;
 		}
+		
+		Document blacklisted = data.get("blacklisted", Database.EMPTY_DOCUMENT);
+		
+		if (message != null) {
+			List<Document> users = blacklisted.getList("users", Document.class, Collections.emptyList());
+			for (Document userBlacklist : users) {
+				if (userBlacklist.getLong("id") == message.getAuthor().getIdLong()) {
+					if ((userBlacklist.getLong("events") & Event.MESSAGE_DELETE.getRaw()) == Event.MESSAGE_DELETE.getRaw()) {
+						return;
+					}
+					
+					break;
+				}
+			}
+		}
+		
+		List<Document> channels = blacklisted.getList("channels", Document.class, Collections.emptyList());
+		for (Document channelBlacklist : channels) {
+			if (channelBlacklist.getLong("id") == channel.getIdLong() || (channel.getParent() != null && channelBlacklist.getLong("id") == channel.getParent().getIdLong())) {
+				if ((channelBlacklist.getLong("events") & Event.MESSAGE_DELETE.getRaw()) == Event.MESSAGE_DELETE.getRaw()) {
+					return;
+				}
+				
+				break;
+			}
+		}
 
 		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
 		embed.setColor(COLOR_RED);
 		embed.setTimestamp(ZonedDateTime.now());
 		embed.setFooter(new EmbedFooter(String.format("Message ID: %s", event.getMessageId()), null));
 		
-		Message message = GuildMessageCache.INSTANCE.getMessageById(event.getMessageIdLong());
 		if(message != null) {
 			if(message.getContentRaw().length() == 0 && message.getAttachments().isEmpty()) {
 				return;
@@ -1136,7 +1186,9 @@ public class EventHandler extends ListenerAdapter {
 			return;
 		}
 		
-		List<Document> users = data.getEmbedded(List.of("blacklisted", "users"), Collections.emptyList());
+		Document blacklisted = data.get("blacklisted", Database.EMPTY_DOCUMENT);
+		
+		List<Document> users = blacklisted.getList("users", Document.class, Collections.emptyList());
 		for (Document userBlacklist : users) {
 			if (userBlacklist.getLong("id") == member.getIdLong()) {
 				if ((userBlacklist.getLong("events") & Event.MEMBER_ROLE_ADD.getRaw()) == Event.MEMBER_ROLE_ADD.getRaw()) {
@@ -1144,6 +1196,19 @@ public class EventHandler extends ListenerAdapter {
 				}
 				
 				break;
+			}
+		}
+		
+		List<Document> blacklistedRoles = blacklisted.getList("roles", Document.class, Collections.emptyList());
+		for (Document roleBlacklist : blacklistedRoles) {
+			for (Role role : roles) {
+				if (roleBlacklist.getLong("id") == role.getIdLong()) {
+					if ((roleBlacklist.getLong("events") & Event.MEMBER_ROLE_ADD.getRaw()) == Event.MEMBER_ROLE_ADD.getRaw()) {
+						return;
+					}
+					
+					break;
+				}
 			}
 		}
 
@@ -1241,7 +1306,9 @@ public class EventHandler extends ListenerAdapter {
 			return;
 		}
 		
-		List<Document> users = data.getEmbedded(List.of("blacklisted", "users"), Collections.emptyList());
+		Document blacklisted = data.get("blacklisted", Database.EMPTY_DOCUMENT);
+		
+		List<Document> users = blacklisted.getList("users", Document.class, Collections.emptyList());
 		for (Document userBlacklist : users) {
 			if (userBlacklist.getLong("id") == member.getIdLong()) {
 				if ((userBlacklist.getLong("events") & Event.MEMBER_ROLE_REMOVE.getRaw()) == Event.MEMBER_ROLE_REMOVE.getRaw()) {
@@ -1249,6 +1316,19 @@ public class EventHandler extends ListenerAdapter {
 				}
 				
 				break;
+			}
+		}
+		
+		List<Document> blacklistedRoles = blacklisted.getList("roles", Document.class, Collections.emptyList());
+		for (Document roleBlacklist : blacklistedRoles) {
+			for (Role role : roles) {
+				if (roleBlacklist.getLong("id") == role.getIdLong()) {
+					if ((roleBlacklist.getLong("events") & Event.MEMBER_ROLE_REMOVE.getRaw()) == Event.MEMBER_ROLE_REMOVE.getRaw()) {
+						return;
+					}
+					
+					break;
+				}
 			}
 		}
 
@@ -1401,6 +1481,7 @@ public class EventHandler extends ListenerAdapter {
 	public void onGuildVoiceGuildMute(GuildVoiceGuildMuteEvent event) {
 		Guild guild = event.getGuild();
 		Member member = event.getMember();
+		VoiceChannel channel = event.getVoiceState().getChannel();
 		
 		Document data = Database.get().getGuildById(guild.getIdLong(), null, DEFAULT_PROJECTION).get("logger", Database.EMPTY_DOCUMENT);
 		if (!data.getBoolean("enabled", false) || data.getLong("channelId") == null) {
@@ -1412,10 +1493,23 @@ public class EventHandler extends ListenerAdapter {
 			return;
 		}
 		
-		List<Document> users = data.getEmbedded(List.of("blacklisted", "users"), Collections.emptyList());
+		Document blacklisted = data.get("blacklisted", Database.EMPTY_DOCUMENT);
+		
+		List<Document> users = blacklisted.getList("users", Document.class, Collections.emptyList());
 		for (Document userBlacklist : users) {
 			if (userBlacklist.getLong("id") == member.getIdLong()) {
 				if ((userBlacklist.getLong("events") & Event.MEMBER_SERVER_VOICE_MUTE.getRaw()) == Event.MEMBER_SERVER_VOICE_MUTE.getRaw()) {
+					return;
+				}
+				
+				break;
+			}
+		}
+		
+		List<Document> channels = blacklisted.getList("channels", Document.class, Collections.emptyList());
+		for (Document channelBlacklist : channels) {
+			if (channelBlacklist.getLong("id") == channel.getIdLong() || (channel.getParent() != null && channelBlacklist.getLong("id") == channel.getParent().getIdLong())) {
+				if ((channelBlacklist.getLong("events") & Event.MEMBER_SERVER_VOICE_MUTE.getRaw()) == Event.MEMBER_SERVER_VOICE_MUTE.getRaw()) {
 					return;
 				}
 				
@@ -1463,7 +1557,8 @@ public class EventHandler extends ListenerAdapter {
 	
 	public void onGuildVoiceGuildDeafen(GuildVoiceGuildDeafenEvent event) {
 		Guild guild = event.getGuild();
-		Member member = event.getMember();
+		Member member = event.getMember();	
+		VoiceChannel channel = event.getVoiceState().getChannel();
 		
 		Document data = Database.get().getGuildById(guild.getIdLong(), null, DEFAULT_PROJECTION).get("logger", Database.EMPTY_DOCUMENT);
 		if (!data.getBoolean("enabled", false) || data.getLong("channelId") == null) {
@@ -1475,10 +1570,23 @@ public class EventHandler extends ListenerAdapter {
 			return;
 		}
 		
-		List<Document> users = data.getEmbedded(List.of("blacklisted", "users"), Collections.emptyList());
+		Document blacklisted = data.get("blacklisted", Database.EMPTY_DOCUMENT);
+		
+		List<Document> users = blacklisted.getList("users", Document.class, Collections.emptyList());
 		for (Document userBlacklist : users) {
 			if (userBlacklist.getLong("id") == member.getIdLong()) {
 				if ((userBlacklist.getLong("events") & Event.MEMBER_SERVER_VOICE_DEAFEN.getRaw()) == Event.MEMBER_SERVER_VOICE_DEAFEN.getRaw()) {
+					return;
+				}
+				
+				break;
+			}
+		}
+		
+		List<Document> channels = blacklisted.getList("channels", Document.class, Collections.emptyList());
+		for (Document channelBlacklist : channels) {
+			if (channelBlacklist.getLong("id") == channel.getIdLong() || (channel.getParent() != null && channelBlacklist.getLong("id") == channel.getParent().getIdLong())) {
+				if ((channelBlacklist.getLong("events") & Event.MEMBER_SERVER_VOICE_DEAFEN.getRaw()) == Event.MEMBER_SERVER_VOICE_DEAFEN.getRaw()) {
 					return;
 				}
 				
@@ -1539,10 +1647,23 @@ public class EventHandler extends ListenerAdapter {
 			return;
 		}
 		
-		List<Document> users = data.getEmbedded(List.of("blacklisted", "users"), Collections.emptyList());
+		Document blacklisted = data.get("blacklisted", Database.EMPTY_DOCUMENT);
+		
+		List<Document> users = blacklisted.getList("users", Document.class, Collections.emptyList());
 		for (Document userBlacklist : users) {
 			if (userBlacklist.getLong("id") == member.getIdLong()) {
 				if ((userBlacklist.getLong("events") & Event.MEMBER_VOICE_JOIN.getRaw()) == Event.MEMBER_VOICE_JOIN.getRaw()) {
+					return;
+				}
+				
+				break;
+			}
+		}
+		
+		List<Document> channels = blacklisted.getList("channels", Document.class, Collections.emptyList());
+		for (Document channelBlacklist : channels) {
+			if (channelBlacklist.getLong("id") == channel.getIdLong() || (channel.getParent() != null && channelBlacklist.getLong("id") == channel.getParent().getIdLong())) {
+				if ((channelBlacklist.getLong("events") & Event.MEMBER_VOICE_JOIN.getRaw()) == Event.MEMBER_VOICE_JOIN.getRaw()) {
 					return;
 				}
 				
@@ -1574,10 +1695,23 @@ public class EventHandler extends ListenerAdapter {
 			return;
 		}
 		
-		List<Document> users = data.getEmbedded(List.of("blacklisted", "users"), Collections.emptyList());
+		Document blacklisted = data.get("blacklisted", Database.EMPTY_DOCUMENT);
+		
+		List<Document> users = blacklisted.getList("users", Document.class, Collections.emptyList());
 		for (Document userBlacklist : users) {
 			if (userBlacklist.getLong("id") == member.getIdLong()) {
 				if ((userBlacklist.getLong("events") & Event.MEMBER_VOICE_LEAVE.getRaw()) == Event.MEMBER_VOICE_LEAVE.getRaw()) {
+					return;
+				}
+				
+				break;
+			}
+		}
+		
+		List<Document> channels = blacklisted.getList("channels", Document.class, Collections.emptyList());
+		for (Document channelBlacklist : channels) {
+			if (channelBlacklist.getLong("id") == channel.getIdLong() || (channel.getParent() != null && channelBlacklist.getLong("id") == channel.getParent().getIdLong())) {
+				if ((channelBlacklist.getLong("events") & Event.MEMBER_VOICE_LEAVE.getRaw()) == Event.MEMBER_VOICE_LEAVE.getRaw()) {
 					return;
 				}
 				

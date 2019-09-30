@@ -3,6 +3,7 @@ package com.sx4.bot.modules;
 import java.util.List;
 
 import org.bson.Document;
+import org.bson.conversions.Bson;
 
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
@@ -62,30 +63,35 @@ public class AutoroleModule {
 		@Command(value="role", aliases={"user role", "userrole"}, description="Set the auto role, this role will be given to every user which joins the server if a bot role is not set otherwise it'll give it to ever non bot user who joins")
 		@AuthorPermissions({Permission.MANAGE_ROLES})
 		public void role(CommandEvent event, @Context Database database, @Argument(value="role", endless=true) String roleArgument) {
-			Role role = ArgumentUtils.getRole(event.getGuild(), roleArgument);
-			if (role == null) {
-				event.reply("I could not find that role :no_entry:").queue();
-				return;
+			Role role = null;
+			if (!roleArgument.toLowerCase().equals("reset")) {
+				role = ArgumentUtils.getRole(event.getGuild(), roleArgument);
+				if (role == null) {
+					event.reply("I could not find that role :no_entry:").queue();
+					return;
+				}
 			}
 			
-			if (role.isManaged()) {
-				event.reply("I cannot give a role which is managed :no_entry:").queue();
-				return;
-			}
-			
-			if (role.isPublicRole()) {
-				event.reply("I cannot give users the `@everyone` role :no_entry:").queue();
-				return;
-			}
-			
-			if (!event.getMember().canInteract(role)) {
-				event.reply("You cannot set a role which is higher or equal than your top role :no_entry:").queue();
-				return;
-			}
-			
-			if (!event.getSelfMember().canInteract(role)) {
-				event.reply("I cannot give a role which is higher or equal than my top role :no_entry:").queue();
-				return;
+			if (role != null) {
+				if (role.isManaged()) {
+					event.reply("I cannot give a role which is managed :no_entry:").queue();
+					return;
+				}
+				
+				if (role.isPublicRole()) {
+					event.reply("I cannot give users the `@everyone` role :no_entry:").queue();
+					return;
+				}
+				
+				if (!event.getMember().canInteract(role)) {
+					event.reply("You cannot set a role which is higher or equal than your top role :no_entry:").queue();
+					return;
+				}
+				
+				if (!event.getSelfMember().canInteract(role)) {
+					event.reply("I cannot give a role which is higher or equal than my top role :no_entry:").queue();
+					return;
+				}
 			}
 			
 			Long roleId = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("autorole.roleId")).getEmbedded(List.of("autorole", "roleId"), Long.class);
@@ -94,17 +100,26 @@ public class AutoroleModule {
 				currentRole = event.getGuild().getRoleById(roleId);
 			}
 			
-			if (role.equals(currentRole)) {
-				event.reply("The autorole role is already set to `" + role.getName() + "` :no_entry:").queue();
-				return;
+			if (role != null && currentRole != null) {
+				if (role.equals(currentRole)) {
+					event.reply("The autorole role is already set to `" + role.getName() + "` :no_entry:").queue();
+					return;
+				}
+			} else {
+				if (role == null && currentRole == null) {
+					event.reply("The autorole role is already unset :no_entry:").queue();
+					return;
+				}
 			}
 			
-			database.updateGuildById(event.getGuild().getIdLong(), Updates.set("autorole.roleId", role.getIdLong()), (result, exception) -> {
+			String state = role == null ? "unset" : "set to **" + role.getName() + "**";
+			Bson update = role == null ? Updates.unset("autorole.roleId") : Updates.set("autorole.roleId", role.getIdLong());
+			database.updateGuildById(event.getGuild().getIdLong(), update, (result, exception) -> {
 				if (exception != null) {
 					exception.printStackTrace();
 					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
 				} else {
-					event.reply("The autorole role has been set to **" + role.getName() + "** <:done:403285928233402378>").queue();
+					event.reply("The autorole role has been " + state + " <:done:403285928233402378>").queue();
 				}
 			});
 		}
@@ -112,30 +127,35 @@ public class AutoroleModule {
 		@Command(value="bot role", aliases={"botrole"}, description="Set the bot role, this role will be given to every bot which joins the server")
 		@AuthorPermissions({Permission.MANAGE_ROLES})
 		public void botRole(CommandEvent event, @Context Database database, @Argument(value="role", endless=true) String roleArgument) {
-			Role role = ArgumentUtils.getRole(event.getGuild(), roleArgument);
-			if (role == null) {
-				event.reply("I could not find that role :no_entry:").queue();
-				return;
+			Role role = null;
+			if (!roleArgument.toLowerCase().equals("reset")) {
+				role = ArgumentUtils.getRole(event.getGuild(), roleArgument);
+				if (role == null) {
+					event.reply("I could not find that role :no_entry:").queue();
+					return;
+				}
 			}
 			
-			if (role.isManaged()) {
-				event.reply("I cannot give a role which is managed :no_entry:").queue();
-				return;
-			}
-			
-			if (role.isPublicRole()) {
-				event.reply("I cannot give users the `@everyone` role :no_entry:").queue();
-				return;
-			}
-			
-			if (!event.getMember().canInteract(role)) {
-				event.reply("You cannot set a role which is higher or equal than your top role :no_entry:").queue();
-				return;
-			}
-			
-			if (!event.getSelfMember().canInteract(role)) {
-				event.reply("I cannot give a role which is higher or equal than my top role :no_entry:").queue();
-				return;
+			if (role != null) {
+				if (role.isManaged()) {
+					event.reply("I cannot give a role which is managed :no_entry:").queue();
+					return;
+				}
+				
+				if (role.isPublicRole()) {
+					event.reply("I cannot give users the `@everyone` role :no_entry:").queue();
+					return;
+				}
+				
+				if (!event.getMember().canInteract(role)) {
+					event.reply("You cannot set a role which is higher or equal than your top role :no_entry:").queue();
+					return;
+				}
+				
+				if (!event.getSelfMember().canInteract(role)) {
+					event.reply("I cannot give a role which is higher or equal than my top role :no_entry:").queue();
+					return;
+				}
 			}
 			
 			Long roleId = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("autorole.botRoleId")).getEmbedded(List.of("autorole", "botRoleId"), Long.class);
@@ -144,17 +164,26 @@ public class AutoroleModule {
 				currentRole = event.getGuild().getRoleById(roleId);
 			}
 			
-			if (role.equals(currentRole)) {
-				event.reply("The autorole bot role is already set to `" + role.getName() + "` :no_entry:").queue();
-				return;
+			if (role != null && currentRole != null) {
+				if (role.equals(currentRole)) {
+					event.reply("The autorole bot role is already set to `" + role.getName() + "` :no_entry:").queue();
+					return;
+				}
+			} else {
+				if (role == null && currentRole == null) {
+					event.reply("The autorole bot role is already unset :no_entry:").queue();
+					return;
+				}
 			}
 			
-			database.updateGuildById(event.getGuild().getIdLong(), Updates.set("autorole.botRoleId", role.getIdLong()), (result, exception) -> {
+			String state = role == null ? "unset" : "set to **" + role.getName() + "**";
+			Bson update = role == null ? Updates.unset("autorole.botRoleId") : Updates.set("autorole.botRoleId", role.getIdLong());
+			database.updateGuildById(event.getGuild().getIdLong(), update, (result, exception) -> {
 				if (exception != null) {
 					exception.printStackTrace();
 					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
 				} else {
-					event.reply("The autorole bot role has been set to **" + role.getName() + "** <:done:403285928233402378>").queue();
+					event.reply("The autorole bot role has been " + state + " <:done:403285928233402378>").queue();
 				}
 			});
 		}

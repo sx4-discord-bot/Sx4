@@ -1,7 +1,5 @@
 package com.sx4.bot.logger.util;
 
-import com.sx4.bot.logger.Event;
-
 import club.minnced.discord.webhook.send.WebhookEmbed;
 import club.minnced.discord.webhook.send.WebhookEmbed.EmbedField;
 import net.dv8tion.jda.api.entities.ChannelType;

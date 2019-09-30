@@ -57,17 +57,6 @@ public class Rod extends Tool {
 		return null;
 	}
 	
-	public Map<String, Object> getStoreInfo() {
-		Map<String, Object> rodInfo = new HashMap<>();
-		rodInfo.put("upgrades", this.getUpgrades());
-		rodInfo.put("durability", this.getDurability());
-		rodInfo.put("price", this.getPrice());
-		rodInfo.put("rand_min", this.minimumYield);
-		rodInfo.put("rand_max", this.maximumYield);
-		
-		return rodInfo;
-	}
-	
 	public static Rod getRodByName(String rodName) {
 		rodName = rodName.toLowerCase();
 		

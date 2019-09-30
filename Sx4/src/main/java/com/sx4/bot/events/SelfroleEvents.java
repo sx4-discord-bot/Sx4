@@ -1,5 +1,6 @@
 package com.sx4.bot.events;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -70,22 +71,18 @@ public class SelfroleEvents extends ListenerAdapter {
 								event.getMember().getUser().openPrivateChannel().queue(channel -> channel.sendMessage("You no longer have the role **" + role.getName() + "** <:done:403285928233402378>").queue(), e -> {});
 							}
 						} else {
-							int memberRoles = 0;
+							List<Role> memberRoles = new ArrayList<>();
 							for (Role memberRole : event.getMember().getRoles()) {
 								for (Document roleData : roles) {
 									if (memberRole.getIdLong() == roleData.getLong("id")) {
-										memberRoles++;
+										memberRoles.add(memberRole);
 									}
 								}
 							}
 							
 							long maxRoles = reactionRole.getInteger("maxRoles", 0);
-							if (maxRoles != 0 && memberRoles >= maxRoles) {
-								event.getMember().getUser().openPrivateChannel().queue(channel -> channel.sendMessage("You already have the max amount of roles from this reaction role menu, the max amount is **" + maxRoles + "** role" + (maxRoles == 1 ? "" : "s") + " :no_entry:").queue(), e -> {});
-								return;
-							}
-							
-							event.getGuild().addRoleToMember(event.getMember(), role).queue();
+
+							event.getGuild().modifyMemberRoles(event.getMember(), List.of(role), maxRoles != 0 && memberRoles.size() >= maxRoles ? memberRoles : null).queue();
 							if (data.getBoolean("dm", true)) {
 								event.getMember().getUser().openPrivateChannel().queue(channel -> channel.sendMessage("You now have the role **" + role.getName() + "** <:done:403285928233402378>").queue(), e -> {});
 							}
@@ -146,22 +143,18 @@ public class SelfroleEvents extends ListenerAdapter {
 								event.getMember().getUser().openPrivateChannel().queue(channel -> channel.sendMessage("You no longer have the role **" + role.getName() + "** <:done:403285928233402378>").queue(), e -> {});
 							}
 						} else {
-							int memberRoles = 0;
+							List<Role> memberRoles = new ArrayList<>();
 							for (Role memberRole : event.getMember().getRoles()) {
 								for (Document roleData : roles) {
 									if (memberRole.getIdLong() == roleData.getLong("id")) {
-										memberRoles++;
+										memberRoles.add(memberRole);
 									}
 								}
 							}
 							
 							long maxRoles = reactionRole.getInteger("maxRoles", 0);
-							if (maxRoles != 0 && memberRoles >= maxRoles) {
-								event.getMember().getUser().openPrivateChannel().queue(channel -> channel.sendMessage("You already have the max amount of roles from this reaction role menu, the max amount is **" + maxRoles + "** role" + (maxRoles == 1 ? "" : "s") + " :no_entry:").queue(), e -> {});
-								return;
-							}
-							
-							event.getGuild().addRoleToMember(event.getMember(), role).queue();
+
+							event.getGuild().modifyMemberRoles(event.getMember(), List.of(role), maxRoles != 0 && memberRoles.size() >= maxRoles ? memberRoles : null).queue();
 							if (data.getBoolean("dm", true)) {
 								event.getMember().getUser().openPrivateChannel().queue(channel -> channel.sendMessage("You now have the role **" + role.getName() + "** <:done:403285928233402378>").queue(), e -> {});
 							}

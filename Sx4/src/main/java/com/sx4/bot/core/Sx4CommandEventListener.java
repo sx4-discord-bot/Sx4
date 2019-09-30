@@ -1,5 +1,8 @@
 package com.sx4.bot.core;
 
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -51,18 +54,24 @@ public class Sx4CommandEventListener extends CommandEventListener {
 		return embed.build();
 	}
 	
-	public static void sendErrorMessage(TextChannel channel, Throwable throwable, Object[] arguments) {
+	public static List<String> getErrorMessage(Throwable throwable, Object[] arguments) {
 		List<String> messages = new ArrayList<>();
 		
-		StringBuilder message = new StringBuilder();
-		message.append("```diff\n- ").append(throwable.toString());
+		ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+	    try (PrintStream stream = new PrintStream(outputStream)) {
+	        throwable.printStackTrace(stream);
+	    }
+	    
+	    String[] errorLines = new String(outputStream.toByteArray(), StandardCharsets.UTF_8).split("\n");
+		
+		StringBuilder message = new StringBuilder("```diff");
 		
 		if (arguments.length != 0) {
 			message.append(" with arguments " + Arrays.deepToString(arguments));
 		}
 		
-		for (StackTraceElement element : throwable.getStackTrace()) {
-			String toAppend = "\n-      at " + element.toString();
+		for (String errorLine : errorLines) {
+			String toAppend = "\n-      at " + errorLine;
 			
 			if (message.length() + toAppend.length() > 1997) {
 				messages.add(message.append("```").toString());
@@ -76,6 +85,12 @@ public class Sx4CommandEventListener extends CommandEventListener {
 		if (message.length() > 7) {
 			messages.add(message.append("```").toString());
 		}
+		
+		return messages;
+	}
+	
+	public static void sendErrorMessage(TextChannel channel, Throwable throwable, Object[] arguments) {
+		List<String> messages = Sx4CommandEventListener.getErrorMessage(throwable, arguments);
 		
 		for (String messageContent : messages) {
 			channel.sendMessage(messageContent).queue();
