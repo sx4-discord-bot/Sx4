@@ -1925,7 +1925,6 @@ public class FunModule {
 			PagedResult<Object> paged = new PagedResult<>(results)
 					.setDeleteMessage(false)
 					.setPerPage(1)
-					.setCustom(true)
 					.setCustomFunction(page -> {
 						EmbedBuilder embed = new EmbedBuilder();
 						embed.setAuthor("Google", "https://www.google.co.uk/search?q=" + URLEncoder.encode(query, StandardCharsets.UTF_8) + "&tbm=isch", "http://i.imgur.com/G46fm8J.png");
@@ -2127,7 +2126,6 @@ public class FunModule {
 			
 			PagedResult<Object> paged = new PagedResult<>(json.getJSONArray("list").toList())
 					.setPerPage(1)
-					.setCustom(true)
 					.setDeleteMessage(false)
 					.setCustomFunction(page -> {
 						JSONObject data = new JSONArray(page.getArray()).getJSONObject(page.getCurrentPage() - 1); 

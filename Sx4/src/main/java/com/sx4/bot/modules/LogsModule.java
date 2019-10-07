@@ -128,8 +128,15 @@ public class LogsModule {
 							}
 						});
 					});		
-				
-					return;
+				} else {
+					database.updateGuildById(event.getGuild().getIdLong(), Updates.set("logger.channelId", channel == null ? channel : channel.getIdLong()), (result, exception) -> {
+						if (exception != null) {
+							exception.printStackTrace();
+							event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+						} else {
+							event.reply("The logs channel has been " + (channel == null ? "reset" : "set to " + channel.getAsMention()) + " <:done:403285928233402378>").queue();
+						}
+					});
 				}
 			} else {
 				database.updateGuildById(event.getGuild().getIdLong(), update, (result, exception) -> {

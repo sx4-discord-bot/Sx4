@@ -24,9 +24,9 @@ import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 public class PagedUtils {
 	
 	public static class PagedReturn<Type> {
-		Type object;
-		int page;
-		int index;
+		private Type object;
+		private int page;
+		private int index;
 		
 		public PagedReturn(Type object, int page, int index) {
 			this.object = object;
@@ -66,7 +66,6 @@ public class PagedUtils {
 		private boolean returnFirstOnTimeout = false;
 		private Function<Type, String> selectableObject = (e) -> e.toString();
 		private Function<Integer, String> indexString = (e) -> e + ".";
-		private boolean custom = false;
 		private Function<PagedResult<Type>, MessageEmbed> customFunction = null;
 		
 		public PagedResult(List<Type> array) {
@@ -121,14 +120,8 @@ public class PagedUtils {
 			return this;
 		}
 		
-		public PagedResult<Type> setCustom(boolean custom) {
-			this.custom = custom;
-			
-			return this;
-		}
-		
 		public boolean isCustom() {
-			return this.custom;
+			return this.customFunction != null;
 		}
 		
 		public PagedResult<Type> setIndexString(Function<Integer, String> function) {
@@ -296,7 +289,7 @@ public class PagedUtils {
 		}
 		
 		public MessageEmbed getEmbed() {
-			if (this.custom == false) {
+			if (this.isCustom()) {
 				int maxPage = this.getMaxPage();
 				EmbedBuilder embed = new EmbedBuilder();
 				if (this.authorName != null || this.authorUrl != null || this.authorIconUrl != null) {

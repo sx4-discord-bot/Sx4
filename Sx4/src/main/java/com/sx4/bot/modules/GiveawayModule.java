@@ -492,9 +492,9 @@ public class GiveawayModule {
 								.append("messageId", message.getIdLong())
 								.append("endTimestamp", endTime)
 								.append("duration", durationLength)
-								.append("item", giveawayItem)
+								.append("item", itemString.get())
 								.append("channelId", channel.getIdLong())
-								.append("winnersAmount", winnersAmount);
+								.append("winnersAmount", winnersTotal.get());
 						
 						database.updateGuildById(event.getGuild().getIdLong(), Updates.combine(Updates.inc("giveaway.giveawayAmount", 1), Updates.push("giveaway.giveaways", giveaway)), (result, exception) -> {
 							if (exception != null) {

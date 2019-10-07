@@ -38,7 +38,7 @@ public class HelpModule {
 
 	@Command(value="help", aliases={"h", "commands", "commandlist", "command list"}, description="Lists commands on the bot and gives you info on specific commands")
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-	public void help(CommandEvent event, @Argument(value="command | module", endless=true, nullDefault=true) String commandName, @Option(value="all") boolean all, @Option(value="module") boolean moduleChoice, @Option(value="command") boolean commandChoice) {
+	public void help(CommandEvent event, @Argument(value="command | module", endless=true, nullDefault=true) String commandName, @Option(value="all", aliases={"a"}) boolean all, @Option(value="module") boolean moduleChoice, @Option(value="command") boolean commandChoice) {
 		if (commandName == null) {
 			if (all) {
 				List<Sx4Command> allCommands = new ArrayList<>();

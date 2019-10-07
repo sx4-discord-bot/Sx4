@@ -4,8 +4,6 @@ import java.awt.Color;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.time.Clock;
-import java.time.LocalDate;
-import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
@@ -16,6 +14,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
@@ -23,7 +22,6 @@ import java.util.regex.Pattern;
 import java.util.stream.Collector;
 import java.util.stream.Collectors;
 
-import org.bson.BsonDocument;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.json.JSONArray;
@@ -358,7 +356,7 @@ public class GeneralModule {
 				return;
 			}
 			
-			long channelId = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("suggestion.channelId")).getEmbedded(List.of("suggestion", "channelId"),  0);
+			long channelId = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("suggestion.channelId")).getEmbedded(List.of("suggestion", "channelId"), 0L);
 			if (channelId == channel.getIdLong()) {
 				event.reply(channel.getAsMention() + " is already the suggestion channel :no_entry:").queue();
 				return;
@@ -1002,38 +1000,23 @@ public class GeneralModule {
 				commands = database.getCommandLogs().find(Filters.and(filters)).projection(Projections.include("command"));
 			}
 			
-			List<Pair<String, Long>> commandCounter = new ArrayList<>();
+			Map<String, Long> commandMap = new HashMap<>();
 			for (Document command : commands) {
-				if (commandCounter.isEmpty()) {
-					commandCounter.add(Pair.of(command.getString("command"), 1L));
-				} else {
-					boolean updated = false;
-					for (Pair<String, Long> commandData : commandCounter) {
-						if (commandData.getLeft().equals(command.getString("command"))) {
-							commandCounter.remove(commandData);
-							commandCounter.add(Pair.of(commandData.getLeft(), commandData.getRight() + 1L));
-							
-							updated = true;
-							break;
-						}
-					}
-					
-					if (!updated) {
-						commandCounter.add(Pair.of(command.getString("command"), 1L));
-					}
-				}
+				commandMap.compute(command.getString("command"), (key, value) -> value != null ? value + 1L : 1L);
 			}
 			
-			if (commandCounter.isEmpty()) {
+			if (commandMap.isEmpty()) {
 				event.reply("I could not find any command usage with those parameters :no_entry:").queue();
 				return;
 			}
 			
-			commandCounter.sort((a, b) -> Long.compare(b.getRight(), a.getRight()));
-			PagedResult<Pair<String, Long>> paged = new PagedResult<>(commandCounter)
-					.setFunction(data -> String.format("`%s` - %,d %s", data.getLeft(), data.getRight(), data.getRight() == 1 ? "use" : "uses"))
+			List<Entry<String, Long>> commandCounter = new ArrayList<>(commandMap.entrySet());
+			commandCounter.sort((a, b) -> Long.compare(b.getValue(), a.getValue()));
+			PagedResult<Entry<String, Long>> paged = new PagedResult<>(commandCounter)
+					.setFunction(data -> String.format("`%s` - %,d %s", data.getKey(), data.getValue(), data.getValue() == 1 ? "use" : "uses"))
 					.setAuthor("Top Commands", null, event.getSelfUser().getEffectiveAvatarUrl())
-					.setIncreasedIndex(true);
+					.setIncreasedIndex(true)
+					.setDeleteMessage(false);
 			
 			PagedUtils.getPagedResult(event, paged, 300, null);
 		}
@@ -1071,41 +1054,26 @@ public class GeneralModule {
 				commands = database.getCommandLogs().find(Filters.and(filters)).projection(Projections.include("guildId"));
 			}
 			
-			List<Pair<Long, Long>> commandCounter = new ArrayList<>();
+			Map<Long, Long> commandMap = new HashMap<>();
 			for (Document command : commands) {
-				if (commandCounter.isEmpty()) {
-					commandCounter.add(Pair.of(command.getLong("guildId"), 1L));
-				} else {
-					boolean updated = false;
-					for (Pair<Long, Long> commandData : commandCounter) {
-						if (commandData.getLeft().equals(command.getLong("guildId"))) {
-							commandCounter.remove(commandData);
-							commandCounter.add(Pair.of(commandData.getLeft(), commandData.getRight() + 1L));
-							
-							updated = true;
-							break;
-						}
-					}
-					
-					if (!updated) {
-						commandCounter.add(Pair.of(command.getLong("guildId"), 1L));
-					}
-				}
+				commandMap.compute(command.getLong("guildId"), (key, value) -> value != null ? value + 1L : 1L);
 			}
 			
-			if (commandCounter.isEmpty()) {
+			if (commandMap.isEmpty()) {
 				event.reply("I could not find any command usage with those parameters :no_entry:").queue();
 				return;
 			}
 			
-			commandCounter.sort((a, b) -> Long.compare(b.getRight(), a.getRight()));
-			PagedResult<Pair<Long, Long>> paged = new PagedResult<>(commandCounter)
+			List<Entry<Long, Long>> commandCounter = new ArrayList<>(commandMap.entrySet());
+			commandCounter.sort((a, b) -> Long.compare(b.getValue(), a.getValue()));
+			PagedResult<Entry<Long, Long>> paged = new PagedResult<>(commandCounter)
 					.setFunction(data -> {
-						Guild guild = event.getShardManager().getGuildById(data.getLeft());
-						return String.format("`%s` - %,d command%s used", guild == null ? "Unknown guild (" + data.getLeft() + ")" : guild.getName(), data.getRight(), data.getRight() == 1 ? "" : "s");
+						Guild guild = event.getShardManager().getGuildById(data.getKey());
+						return String.format("`%s` - %,d command%s used", guild == null ? "Unknown guild (" + data.getKey() + ")" : guild.getName(), data.getValue(), data.getValue() == 1 ? "" : "s");
 					})
 					.setAuthor("Top Commands", null, event.getSelfUser().getEffectiveAvatarUrl())
-					.setIncreasedIndex(true);
+					.setIncreasedIndex(true)
+					.setDeleteMessage(false);
 			
 			PagedUtils.getPagedResult(event, paged, 300, null);
 		}
@@ -1143,41 +1111,26 @@ public class GeneralModule {
 				commands = database.getCommandLogs().find(Filters.and(filters)).projection(Projections.include("authorId"));
 			}
 			
-			List<Pair<Long, Long>> commandCounter = new ArrayList<>();
+			Map<Long, Long> commandMap = new HashMap<>();
 			for (Document command : commands) {
-				if (commandCounter.isEmpty()) {
-					commandCounter.add(Pair.of(command.getLong("authorId"), 1L));
-				} else {
-					boolean updated = false;
-					for (Pair<Long, Long> commandData : commandCounter) {
-						if (commandData.getLeft().equals(command.getLong("authorId"))) {
-							commandCounter.remove(commandData);
-							commandCounter.add(Pair.of(commandData.getLeft(), commandData.getRight() + 1L));
-							
-							updated = true;
-							break;
-						}
-					}
-					
-					if (!updated) {
-						commandCounter.add(Pair.of(command.getLong("authorId"), 1L));
-					}
-				}
+				commandMap.compute(command.getLong("authorId"), (key, value) -> value != null ? value + 1L : 1L);
 			}
 			
-			if (commandCounter.isEmpty()) {
+			if (commandMap.isEmpty()) {
 				event.reply("I could not find any command usage with those parameters :no_entry:").queue();
 				return;
 			}
 			
-			commandCounter.sort((a, b) -> Long.compare(b.getRight(), a.getRight()));
-			PagedResult<Pair<Long, Long>> paged = new PagedResult<>(commandCounter)
+			List<Entry<Long, Long>> commandCounter = new ArrayList<>(commandMap.entrySet());
+			commandCounter.sort((a, b) -> Long.compare(b.getValue(), a.getValue()));
+			PagedResult<Entry<Long, Long>> paged = new PagedResult<>(commandCounter)
 					.setFunction(data -> {
-						User user = event.getShardManager().getUserById(data.getLeft());
-						return String.format("`%s` - %,d command%s used", user == null ? "Unknown user (" + data.getLeft() + ")" : user.getAsTag(), data.getRight(), data.getRight() == 1 ? "" : "s");
+						User user = event.getShardManager().getUserById(data.getKey());
+						return String.format("`%s` - %,d command%s used", user == null ? "Unknown user (" + data.getKey() + ")" : user.getAsTag(), data.getValue(), data.getValue() == 1 ? "" : "s");
 					})
 					.setAuthor("Top Commands", null, event.getSelfUser().getEffectiveAvatarUrl())
-					.setIncreasedIndex(true);
+					.setIncreasedIndex(true)
+					.setDeleteMessage(false);
 			
 			PagedUtils.getPagedResult(event, paged, 300, null);
 		}
@@ -1789,7 +1742,6 @@ public class GeneralModule {
 		PagedResult<JDA> paged = new PagedResult<>(event.getShardManager().getShards())
 				.setPerPage(9)
 				.setDeleteMessage(false)
-				.setCustom(true)
 				.setCustomFunction(page -> {
 					EmbedBuilder embed = new EmbedBuilder();
 					embed.setDescription(String.format("```prolog\nTotal Shards: %d\nTotal Servers: %,d\nTotal Users: %,d\nAverage Ping: %.0fms```", shardInfo.getShardTotal(), event.getShardManager().getGuilds().size(), event.getShardManager().getUsers().size(), event.getShardManager().getAverageGatewayPing()));

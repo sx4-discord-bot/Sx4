@@ -3422,7 +3422,6 @@ public class ModModule {
 		
 		PagedResult<Document> paged = new PagedResult<>(offences)
 				.setPerPage(5)
-				.setCustom(true)
 				.setCustomFunction(page -> {
 					List<Document> userOffences = page.getArray();
 					

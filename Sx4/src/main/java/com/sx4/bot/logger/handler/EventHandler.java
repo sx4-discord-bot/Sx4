@@ -27,6 +27,7 @@ import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.Updates;
 import com.sx4.bot.cache.GuildMessageCache;
 import com.sx4.bot.core.Sx4Bot;
+import com.sx4.bot.core.Sx4CommandEventListener;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.logger.Event;
 import com.sx4.bot.logger.Statistics;
@@ -156,9 +157,10 @@ public class EventHandler extends ListenerAdapter {
 	}
 	
 	private void handleRequest(JDA bot, Guild guild, Document data, List<WebhookEmbed> requestEmbeds) {
-		if(!this.queue.containsKey(guild.getIdLong())) {
+		long guildId = guild.getIdLong();
+		if(!this.queue.containsKey(guildId)) {
 			BlockingDeque<Request> blockingDeque = new LinkedBlockingDeque<>();
-			this.queue.put(guild.getIdLong(), blockingDeque);
+			this.queue.put(guildId, blockingDeque);
 			
 			this.executor.submit(() -> {
 				try {
@@ -190,11 +192,14 @@ public class EventHandler extends ListenerAdapter {
 							length = 0;
 						}
 					}
-				}catch(InterruptedException e) {}
+				}catch(Throwable e) {
+					Sx4CommandEventListener.sendErrorMessage(Sx4Bot.getShardManager().getGuildById(Settings.SUPPORT_SERVER_ID).getTextChannelById(Settings.ERRORS_CHANNEL_ID), e, new Object[0]);
+					this.queue.remove(guildId);
+				}
 			});
 		}
 		
-		this.queue.get(guild.getIdLong()).offer(new Request(bot, guild.getIdLong(), data, Clock.systemUTC().instant().getEpochSecond(), requestEmbeds));
+		this.queue.get(guildId).offer(new Request(bot, guildId, data, Clock.systemUTC().instant().getEpochSecond(), requestEmbeds));
 	}
 	
 	private void _send(JDA bot, Guild guild, Document data, List<WebhookEmbed> embeds, int requestAmount, int attempts) {

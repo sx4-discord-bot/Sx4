@@ -16,11 +16,7 @@ public class TimeUtils {
 	public static final Pattern DATE_REGEX = Pattern.compile("(?:(\\d{1,2})(?:/|-)(\\d{1,2})(?:/|-)(\\d{1,2})|)(?: |)(?:(\\d{1,2}):(\\d{1,2})|)(?: |)(?:([A-Za-z]+)(\\+\\d+|-\\d+|)|)");
 	
 	public static int getActualDaysApart(int value) {
-		if (value < 0) {
-			return 365 + value;
-		} else {
-			return value;
-		}
+		return value < 0 ? 365 + value : value;
 	}
 
 	public static long convertToSeconds(String time) {

@@ -64,14 +64,14 @@ public class Sx4CommandEventListener extends CommandEventListener {
 	    
 	    String[] errorLines = new String(outputStream.toByteArray(), StandardCharsets.UTF_8).split("\n");
 		
-		StringBuilder message = new StringBuilder("```diff");
+		StringBuilder message = new StringBuilder("```diff\n");
 		
 		if (arguments.length != 0) {
 			message.append(" with arguments " + Arrays.deepToString(arguments));
 		}
 		
 		for (String errorLine : errorLines) {
-			String toAppend = "\n-      at " + errorLine;
+			String toAppend = "\n-      " + errorLine;
 			
 			if (message.length() + toAppend.length() > 1997) {
 				messages.add(message.append("```").toString());

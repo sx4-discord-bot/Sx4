@@ -13,6 +13,7 @@ import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.GuildChannel;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Role;
+import net.dv8tion.jda.api.entities.TextChannel;
 
 public class FunUtils {
 	
@@ -27,9 +28,11 @@ public class FunUtils {
 		Matcher userMentionMatch = USER_MENTION_REGEX.matcher(text);
 		List<String> userMentions = new ArrayList<>(), userNames = new ArrayList<>();
 		while (userMentionMatch.find()) {
-			userMentions.add(userMentionMatch.group(1));
 			Member member = guild.getMemberById(userMentionMatch.group(2));
-			userNames.add(member.getEffectiveName());
+			if (member != null) {
+				userMentions.add(userMentionMatch.group(1));
+				userNames.add(member.getEffectiveName());
+			}
 		}
 		
 		for (int i = 0; i < userMentions.size(); i++) {
@@ -39,9 +42,11 @@ public class FunUtils {
 		Matcher channelMentionMatch = CHANNEL_MENTION_REGEX.matcher(text);
 		List<String> channelMentions = new ArrayList<>(), channelNames = new ArrayList<>();
 		while (channelMentionMatch.find()) {
-			channelMentions.add(channelMentionMatch.group(1));
-			GuildChannel channel = guild.getTextChannelById(channelMentionMatch.group(2));
-			channelNames.add(channel.getName());
+			TextChannel channel = guild.getTextChannelById(channelMentionMatch.group(2));
+			if (channel != null) {
+				channelMentions.add(channelMentionMatch.group(1));
+			    channelNames.add(channel.getName());
+			}
 		}
 		
 		for (int i = 0; i < channelMentions.size(); i++) {
@@ -51,9 +56,11 @@ public class FunUtils {
 		Matcher roleMentionMatch = ROLE_MENTION_REGEX.matcher(text);
 		List<String> roleMentions = new ArrayList<>(), roleNames = new ArrayList<>();
 		while (roleMentionMatch.find()) {
-			roleMentions.add(roleMentionMatch.group(1));
 			Role role = guild.getRoleById(roleMentionMatch.group(2));
-			roleNames.add(role.getName());
+			if (role != null) {
+				roleMentions.add(roleMentionMatch.group(1));
+				roleNames.add(role.getName());
+			}
 		}
 		
 		for (int i = 0; i < roleMentions.size(); i++) {

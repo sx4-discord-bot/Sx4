@@ -15,6 +15,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -197,10 +198,10 @@ public class EconomyModule {
 				return;
 			}
 			
-			List<Document> userItems =  data.getList("items", Document.class, new ArrayList<>());
+			List<Document> userItems = data.getList("items", Document.class, new ArrayList<>());
 			
 			List<Item> itemsWon = new ArrayList<>();
-			List<ItemStack> finalItems = new ArrayList<>();
+			Map<Item, Long> finalItems = new HashMap<>();
 			List<Item> winnableItems = EconomyUtils.WINNABLE_ITEMS;
 			winnableItems.remove(crate);
 			ItemStack userItem = EconomyUtils.getUserItem(userItems, crate);
@@ -215,24 +216,8 @@ public class EconomyModule {
 					
 					itemsWon.sort((a, b) -> Long.compare(b.getPrice(), a.getPrice()));
 					if (!itemsWon.isEmpty()) {
-						if (finalItems.isEmpty()) {
-							finalItems.add(new ItemStack(itemsWon.get(0), 1L));
-						} else {
-							boolean updated = false;
-							for (ItemStack finalItem : new ArrayList<>(finalItems)) {
-								if (finalItem.getItem().equals(itemsWon.get(0))) {
-									finalItem.incrementAmount();
-									
-									updated = true;
-									break;
-								}
-							}
-							
-							if (updated == false) {
-								finalItems.add(new ItemStack(itemsWon.get(0), 1L));
-							}
-						}
-						
+						finalItems.compute(itemsWon.get(0), (key, value) -> value != null ? value + 1L : 1L);
+
 						itemsWon.clear();
 					}
 				}
@@ -244,14 +229,19 @@ public class EconomyModule {
 					embed.setDescription(String.format("You opened `%,d %s` and got scammed, there was nothing in the crate.", crateAmount, crate.getName()));
 				} else {
 					String content = "";
-					finalItems.sort((a, b) -> Long.compare(b.getAmount(), a.getAmount()));
-					for (ItemStack finalItem : finalItems) {
-						content += finalItem.getItem().getName() + " x" + finalItem.getAmount();
-						if (finalItems.indexOf(finalItem) != finalItems.size() - 1) {
+					
+					List<Entry<Item, Long>> newItems = new ArrayList<>(finalItems.entrySet());
+					newItems.sort((a, b) -> Long.compare(b.getValue(), a.getValue()));
+					
+					for (int i = 0; i < newItems.size(); i++) {
+						Entry<Item, Long> item = newItems.get(i);
+						
+						content += item.getKey().getName() + " x" + item.getValue();
+						if (i != finalItems.size() - 1) {
 							content += ", ";
 						}
 						
-						EconomyUtils.addItem(userItems, finalItem);
+						EconomyUtils.addItem(userItems, item.getKey(), item.getValue());
 					}
 					
 					embed.setDescription(String.format("You opened `%,d %s` and won **%s** :tada:", crateAmount, crate.getName(), content));
@@ -2667,7 +2657,6 @@ public class EconomyModule {
 			PagedResult<Document> paged = new PagedResult<>(shownData)
 					.setPerPage(6)
 					.setDeleteMessage(false)
-					.setCustom(true)
 					.setCustomFunction(page -> {
 						List<Document> list = page.getArray();
 						
@@ -2781,7 +2770,6 @@ public class EconomyModule {
 					.setIncreasedIndex(true)
 					.setPerPage(6)
 					.setSelectableByIndex(true)
-					.setCustom(true)
 					.setCustomFunction(page -> {
 						List<Document> list = page.getArray();
 						
@@ -2911,7 +2899,6 @@ public class EconomyModule {
 					.setIncreasedIndex(true)
 					.setPerPage(6)
 					.setSelectableByIndex(true)
-					.setCustom(true)
 					.setCustomFunction(page -> {
 						List<Document> list = page.getArray();
 						
@@ -3409,7 +3396,6 @@ public class EconomyModule {
 			
 			PagedResult<Document> paged = new PagedResult<>(compressedData)
 					.setDeleteMessage(false)
-					.setCustom(true)
 					.setCustomFunction(page -> {
 						Integer index = null;
 						for (int i = 0; i < compressedData.size(); i++) {
@@ -3477,7 +3463,6 @@ public class EconomyModule {
 			
 			PagedResult<Document> paged = new PagedResult<>(compressedData)
 					.setDeleteMessage(false)
-					.setCustom(true)
 					.setCustomFunction(page -> {
 						Integer index = null;
 						for (int i = 0; i < compressedData.size(); i++) {
@@ -3540,7 +3525,6 @@ public class EconomyModule {
 			
 			PagedResult<Document> paged = new PagedResult<>(compressedData)
 					.setDeleteMessage(false)
-					.setCustom(true)
 					.setCustomFunction(page -> {
 						Integer index = null;
 						for (int i = 0; i < compressedData.size(); i++) {
@@ -3616,7 +3600,6 @@ public class EconomyModule {
 			
 			PagedResult<Document> paged = new PagedResult<>(compressedData)
 					.setDeleteMessage(false)
-					.setCustom(true)
 					.setCustomFunction(page -> {
 						Integer index = null;
 						for (int i = 0; i < compressedData.size(); i++) {
@@ -3679,7 +3662,6 @@ public class EconomyModule {
 			
 			PagedResult<Document> paged = new PagedResult<>(compressedData)
 					.setDeleteMessage(false)
-					.setCustom(true)
 					.setCustomFunction(page -> {
 						Integer index = null;
 						for (int i = 0; i < compressedData.size(); i++) {
@@ -3742,7 +3724,6 @@ public class EconomyModule {
 			
 			PagedResult<Document> paged = new PagedResult<>(compressedData)
 					.setDeleteMessage(false)
-					.setCustom(true)
 					.setCustomFunction(page -> {
 						Integer index = null;
 						for (int i = 0; i < compressedData.size(); i++) {
@@ -3871,7 +3852,6 @@ public class EconomyModule {
 					
 					PagedResult<Pair<User, Integer>> paged = new PagedResult<>(votes)
 							.setDeleteMessage(false)
-							.setCustom(true)
 							.setCustomFunction(page -> {
 								Integer index = null;
 								for (int i = 0; i < votes.size(); i++) {
