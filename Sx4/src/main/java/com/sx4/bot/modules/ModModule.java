@@ -19,7 +19,6 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-import org.bson.BsonDocument;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 
@@ -37,7 +36,6 @@ import com.jockie.bot.core.command.impl.CommandEvent;
 import com.jockie.bot.core.command.impl.CommandImpl;
 import com.jockie.bot.core.module.Module;
 import com.jockie.bot.core.option.Option;
-import com.mongodb.MongoClientSettings;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.UpdateOneModel;
@@ -2213,7 +2211,7 @@ public class ModModule {
 		@Command(value="case", description="Edit a modlog case reason providing the moderator is unknown or you are the moderator of the case")
 		@AuthorPermissions({Permission.MESSAGE_MANAGE})
 		@BotPermissions({Permission.MESSAGE_HISTORY})
-		public void case_(CommandEvent event, @Context Database database, @Argument(value="case numbers") String rangeArgument, @Argument(value="reason", endless=true) String reason) {
+		public void case_(CommandEvent event, @Context Database database, @Argument(value="case numbers") String rangeArgument, @Argument(value="reason", endless=true) String reasonArgument) {
 			Long channelId = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("modlog.channelId")).getEmbedded(List.of("modlog", "channelId"), Long.class);
 			
 			TextChannel channel;
@@ -2227,6 +2225,8 @@ public class ModModule {
 					return;
 				}
 			}
+			
+			String reason = TemplatesCommand.getReason(event.getGuild().getIdLong(), reasonArgument);
 			
 			List<Integer> caseNumbers;
 			try {
@@ -2537,7 +2537,7 @@ public class ModModule {
 	@Command(value="kick", description="Kick a user from the current server")
 	@AuthorPermissions({Permission.KICK_MEMBERS})
 	@BotPermissions({Permission.KICK_MEMBERS})
-	public void kick(CommandEvent event, @Argument(value="user") String userArgument, @Argument(value="reason", endless=true, nullDefault=true) String reason) {
+	public void kick(CommandEvent event, @Argument(value="user") String userArgument, @Argument(value="reason", endless=true, nullDefault=true) String reasonArgument) {
 		Member member = ArgumentUtils.getMember(event.getGuild(), userArgument);
 		if (member == null) {
 			event.reply("I could not find that user :no_entry:").queue();
@@ -2564,22 +2564,26 @@ public class ModModule {
 			return;
 		}
 		
-		event.reply("**" + member.getUser().getAsTag() + "** has been kicked <:done:403285928233402378>:ok_hand:").queue();
+		String reason = TemplatesCommand.getReason(event.getGuild().getIdLong(), reasonArgument);
 		
-		if (member.getUser().isBot()) {
-			member.getUser().openPrivateChannel().queue(channel -> {
-				channel.sendMessage(ModUtils.getKickEmbed(event.getGuild(), event.getAuthor(), reason)).queue();
-			}, e -> {});
-		}
+		event.getGuild().kick(member, (reason == null ? "" : reason) + " [" + event.getAuthor().getAsTag() + "]").queue(kick -> {
+			if (!member.getUser().isBot()) {
+				member.getUser().openPrivateChannel().queue(channel -> {
+					channel.sendMessage(ModUtils.getKickEmbed(event.getGuild(), event.getAuthor(), reason)).queue();
+				}, e -> {});
+			}
+			
+			event.reply("**" + member.getUser().getAsTag() + "** has been kicked <:done:403285928233402378>:ok_hand:").queue();
+			ModUtils.createModLogAndOffence(event.getGuild(), event.getAuthor(), member.getUser(), "Kick", reason);
+		});
 		
-		event.getGuild().kick(member, (reason == null ? "" : reason) + " [" + event.getAuthor().getAsTag() + "]").queue();
-		ModUtils.createModLogAndOffence(event.getGuild(), event.getAuthor(), member.getUser(), "Kick", reason);
 	}
 	
 	@Command(value="ban", description="Ban a user from the current server", caseSensitive=true)
 	@AuthorPermissions({Permission.BAN_MEMBERS})
 	@BotPermissions({Permission.BAN_MEMBERS})
-	public void ban(CommandEvent event, @Argument(value="user") String userArgument, @Argument(value="reason", endless=true, nullDefault=true) String reason) {
+	public void ban(CommandEvent event, @Argument(value="user") String userArgument, @Argument(value="reason", endless=true, nullDefault=true) String reasonArgument) {
+		String reason = TemplatesCommand.getReason(event.getGuild().getIdLong(), reasonArgument);
 		Member member = ArgumentUtils.getMember(event.getGuild(), userArgument);
 		if (member == null) {
 			User user = ArgumentUtils.getUser(userArgument);
@@ -2597,9 +2601,11 @@ public class ModModule {
 								}
 							}
 							
-							event.reply("**" + userObject.getAsTag() + "** has been banned <:done:403285928233402378>:ok_hand:").queue();
-							event.getGuild().ban(userObject, 1, (reason == null ? "" : reason) + " [" + event.getAuthor().getAsTag() + "]").queue();
-							ModUtils.createModLogAndOffence(event.getGuild(), event.getAuthor(), userObject, "Ban", reason);
+							
+							event.getGuild().ban(userObject, 1, (reason == null ? "" : reason) + " [" + event.getAuthor().getAsTag() + "]").queue(ban -> {
+								event.reply("**" + userObject.getAsTag() + "** has been banned <:done:403285928233402378>:ok_hand:").queue();
+								ModUtils.createModLogAndOffence(event.getGuild(), event.getAuthor(), userObject, "Ban", reason);
+							});
 						});
 					}
 				});
@@ -2612,9 +2618,11 @@ public class ModModule {
 						}
 					}
 					
-					event.reply("**" + user.getAsTag() + "** has been banned <:done:403285928233402378>:ok_hand:").queue();
-					event.getGuild().ban(user, 1, (reason == null ? "" : reason) + " [" + event.getAuthor().getAsTag() + "]").queue();
-					ModUtils.createModLogAndOffence(event.getGuild(), event.getAuthor(), user, "Ban", reason);
+					
+					event.getGuild().ban(user, 1, (reason == null ? "" : reason) + " [" + event.getAuthor().getAsTag() + "]").queue(ban -> {
+						event.reply("**" + user.getAsTag() + "** has been banned <:done:403285928233402378>:ok_hand:").queue();
+						ModUtils.createModLogAndOffence(event.getGuild(), event.getAuthor(), user, "Ban", reason);
+					});
 				});
 			}
 		} else {
@@ -2638,16 +2646,17 @@ public class ModModule {
 				return;
 			}
 			
-			event.reply("**" + member.getUser().getAsTag() + "** has been banned <:done:403285928233402378>:ok_hand:").queue();
-			
-			if (!member.getUser().isBot()) {
-				member.getUser().openPrivateChannel().queue(channel -> {
-					channel.sendMessage(ModUtils.getBanEmbed(event.getGuild(), event.getAuthor(), reason)).queue();
-				}, e -> {});
-			}
-			
-			event.getGuild().ban(member, 1, (reason == null ? "" : reason) + " [" + event.getAuthor().getAsTag() + "]").queue();
-			ModUtils.createModLogAndOffence(event.getGuild(), event.getAuthor(), member.getUser(), "Ban", reason);
+			event.getGuild().ban(member, 1, (reason == null ? "" : reason + " ") + "[" + event.getAuthor().getAsTag() + "]").queue(ban -> {
+				event.reply("**" + member.getUser().getAsTag() + "** has been banned <:done:403285928233402378>:ok_hand:").queue();
+				
+				ModUtils.createModLogAndOffence(event.getGuild(), event.getAuthor(), member.getUser(), "Ban", reason);
+				
+				if (!member.getUser().isBot()) {
+					member.getUser().openPrivateChannel().queue(channel -> {
+						channel.sendMessage(ModUtils.getBanEmbed(event.getGuild(), event.getAuthor(), reason)).queue();
+					}, e -> {});
+				}
+			});
 		}
 	}
 	
@@ -2666,7 +2675,8 @@ public class ModModule {
 	@Command(value="unban", description="Unban a user who is banned from the current server")
 	@AuthorPermissions({Permission.BAN_MEMBERS})
 	@BotPermissions({Permission.BAN_MEMBERS})
-	public void unban(CommandEvent event, @Argument(value="user") String userArgument, @Argument(value="reason", endless=true, nullDefault=true) String reason) {
+	public void unban(CommandEvent event, @Argument(value="user") String userArgument, @Argument(value="reason", endless=true, nullDefault=true) String reasonArgument) {
+		String reason = TemplatesCommand.getReason(event.getGuild().getIdLong(), reasonArgument);
 		User user = ArgumentUtils.getUser(userArgument);
 		if (user == null) {
 			ArgumentUtils.getUserInfo(userArgument, userObject -> {
@@ -2678,9 +2688,11 @@ public class ModModule {
 				event.getGuild().retrieveBanList().queue(bans -> {
 					for (Ban ban : bans) {
 						if (ban.getUser().equals(userObject)) {
-							event.reply("**" + userObject.getAsTag() + "** has been unbanned <:done:403285928233402378>:ok_hand:").queue();
-							event.getGuild().unban(userObject).queue();
-							ModUtils.createModLog(event.getGuild(), event.getAuthor(), userObject, "Unban", reason);
+							event.getGuild().unban(userObject).queue(unban -> {
+								event.reply("**" + userObject.getAsTag() + "** has been unbanned <:done:403285928233402378>:ok_hand:").queue();
+								ModUtils.createModLog(event.getGuild(), event.getAuthor(), userObject, "Unban", reason);
+							});
+							
 							return;
 						}
 					}
@@ -2692,9 +2704,11 @@ public class ModModule {
 			event.getGuild().retrieveBanList().queue(bans -> {
 				for (Ban ban : bans) {
 					if (ban.getUser().equals(user)) {
-						event.reply("**" + user.getAsTag() + "** has been unbanned <:done:403285928233402378>:ok_hand:").queue();
-						event.getGuild().unban(user).queue();
-						ModUtils.createModLog(event.getGuild(), event.getAuthor(), user, "Unban", reason);
+						event.getGuild().unban(user).queue(unban -> {
+							event.reply("**" + user.getAsTag() + "** has been unbanned <:done:403285928233402378>:ok_hand:").queue();
+							ModUtils.createModLog(event.getGuild(), event.getAuthor(), user, "Unban", reason);
+						});
+						
 						return;
 					}
 				}
@@ -2707,7 +2721,7 @@ public class ModModule {
 	@Command(value="channel mute", aliases={"cmute", "channelmute"}, description="Mute a user in the current channel")
 	@AuthorPermissions({Permission.MESSAGE_MANAGE})
 	@BotPermissions({Permission.MANAGE_PERMISSIONS})
-	public void channelMute(CommandEvent event, @Argument(value="user") String userArgument, @Argument(value="reason", endless=true, nullDefault=true) String reason) {
+	public void channelMute(CommandEvent event, @Argument(value="user") String userArgument, @Argument(value="reason", endless=true, nullDefault=true) String reasonArgument) {
 		Member member = ArgumentUtils.getMember(event.getGuild(), userArgument);
 		if (member == null) {
 			event.reply("I could not find that user :no_entry:").queue();
@@ -2733,6 +2747,8 @@ public class ModModule {
 			event.reply("You cannot mute someone higher or equal than your top role :no_entry:").queue();
 			return;
 		}
+		
+		String reason = TemplatesCommand.getReason(event.getGuild().getIdLong(), reasonArgument);
 		
 		PermissionOverride userOverrides = event.getTextChannel().getPermissionOverride(member);
 		if (userOverrides != null) {
@@ -2762,7 +2778,7 @@ public class ModModule {
 	@Command(value="channel unmute", aliases={"cunmute", "channelunmute"}, description="Unmute a user in the current channel")
 	@AuthorPermissions({Permission.MESSAGE_MANAGE})
 	@BotPermissions({Permission.MANAGE_PERMISSIONS})
-	public void channelUnmute(CommandEvent event, @Argument(value="user") String userArgument, @Argument(value="reason", endless=true, nullDefault=true) String reason) {
+	public void channelUnmute(CommandEvent event, @Argument(value="user") String userArgument, @Argument(value="reason", endless=true, nullDefault=true) String reasonArgument) {
 		Member member = ArgumentUtils.getMember(event.getGuild(), userArgument);
 		if (member == null) {
 			event.reply("I could not find that user :no_entry:").queue();
@@ -2783,6 +2799,8 @@ public class ModModule {
 			event.reply("You cannot unmute someone higher or equal than your top role :no_entry:").queue();
 			return;
 		}
+		
+		String reason = TemplatesCommand.getReason(event.getGuild().getIdLong(), reasonArgument);
 		
 		PermissionOverride userOverrides = event.getTextChannel().getPermissionOverride(member);
 		if (userOverrides != null) {
@@ -2812,7 +2830,7 @@ public class ModModule {
 	@Command(value="mute", description="Mute a user server wide for a specified amount of time")
 	@AuthorPermissions({Permission.MESSAGE_MANAGE})
 	@BotPermissions({Permission.MANAGE_ROLES, Permission.MANAGE_PERMISSIONS})
-	public void mute(CommandEvent event, @Context Database database, @Argument(value="user") String userArgument, @Argument(value="time and unit", nullDefault=true) String muteLengthArgument, @Argument(value="reason", endless=true, nullDefault=true) String reason) {
+	public void mute(CommandEvent event, @Context Database database, @Argument(value="user") String userArgument, @Argument(value="time and unit", nullDefault=true) String muteLengthArgument, @Argument(value="reason", endless=true, nullDefault=true) String reasonArgument) {
 		String muteString;
 		long muteLength;
 		if (muteLengthArgument == null) {
@@ -2869,25 +2887,29 @@ public class ModModule {
 				return;
 			}
 			
-			List<Document> users = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("mute.users")).getEmbedded(List.of("mute", "users"), Collections.emptyList());
+			Document data = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("mute.users", "templates"));
+			List<Document> users = data.getEmbedded(List.of("mute", "users"), Collections.emptyList());
 			database.updateGuildById(ModUtils.getMuteUpdate(event.getGuild().getIdLong(), member.getUser().getIdLong(), users, muteLength), (result, exception) -> {
 				if (exception != null) {
 					exception.printStackTrace();
 					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
 				} else {
-					event.reply("**" + member.getUser().getAsTag() + "** has been muted for " + muteString + " <:done:403285928233402378>:ok_hand:").queue();
-					event.getGuild().addRoleToMember(member, role).queue();
+					String reason = TemplatesCommand.getReason(data.getList("templates", Document.class, Collections.emptyList()), reasonArgument);
 					
-					if (!member.getUser().isBot()) {
-						member.getUser().openPrivateChannel().queue(channel -> {
-							channel.sendMessage(ModUtils.getMuteEmbed(event.getGuild(), null, event.getAuthor(), muteLength, reason)).queue();
-						}, e -> {});
-					}
-					
-					ModUtils.createModLogAndOffence(event.getGuild(), event.getAuthor(), member.getUser(), "Mute (" + muteString + ")", reason);
-					
-					ScheduledFuture<?> executor = MuteEvents.scheduledExectuor.schedule(() -> MuteEvents.removeUserMute(event.getGuild().getIdLong(), member.getIdLong(), role.getIdLong()), muteLength, TimeUnit.SECONDS);
-					MuteEvents.putExecutor(event.getGuild().getIdLong(), member.getUser().getIdLong(), executor);
+					event.getGuild().addRoleToMember(member, role).queue(mute -> {
+						event.reply("**" + member.getUser().getAsTag() + "** has been muted for " + muteString + " <:done:403285928233402378>:ok_hand:").queue();
+						
+						if (!member.getUser().isBot()) {
+							member.getUser().openPrivateChannel().queue(channel -> {
+								channel.sendMessage(ModUtils.getMuteEmbed(event.getGuild(), null, event.getAuthor(), muteLength, reason)).queue();
+							}, e -> {});
+						}
+						
+						ModUtils.createModLogAndOffence(event.getGuild(), event.getAuthor(), member.getUser(), "Mute (" + muteString + ")", reason);
+						
+						ScheduledFuture<?> executor = MuteEvents.scheduledExectuor.schedule(() -> MuteEvents.removeUserMute(event.getGuild().getIdLong(), member.getIdLong(), role.getIdLong()), muteLength, TimeUnit.SECONDS);
+						MuteEvents.putExecutor(event.getGuild().getIdLong(), member.getUser().getIdLong(), executor);
+					});
 				}	
 			});
 		});
@@ -2896,7 +2918,7 @@ public class ModModule {
 	@Command(value="unmute", description="Unmute a user early who is currently muted in the server")
 	@AuthorPermissions({Permission.MESSAGE_MANAGE})
 	@BotPermissions({Permission.MANAGE_ROLES})
-	public void unmute(CommandEvent event, @Context Database database, @Argument(value="user") String userArgument, @Argument(value="reason", endless=true, nullDefault=true) String reason) {
+	public void unmute(CommandEvent event, @Context Database database, @Argument(value="user") String userArgument, @Argument(value="reason", endless=true, nullDefault=true) String reasonArgument) {
 		Member member = ArgumentUtils.getMember(event.getGuild(), userArgument);
 		if (member == null) {
 			event.reply("I could not find that user :no_entry:").queue();
@@ -2919,22 +2941,30 @@ public class ModModule {
 			return;
 		}
 		
+		if (!event.getSelfMember().canInteract(role)) {
+			event.reply("I am unable to unmute that user as the mute role is higher or equal than my top role :no_entry:").queue();
+			return;
+		}
+		
 		database.updateGuildById(event.getGuild().getIdLong(), Updates.pull("mute.users", Filters.eq("id", member.getIdLong())), (result, exception) -> {
 			if (exception != null) {
 				exception.printStackTrace();
 				event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
 			} else {
-				event.reply("**" + member.getUser().getAsTag() + "** has been unmuted <:done:403285928233402378>:ok_hand:").queue();
-				event.getGuild().removeRoleFromMember(member, role).queue();
+				String reason = TemplatesCommand.getReason(event.getGuild().getIdLong(), reasonArgument);
 				
-				if (!member.getUser().isBot()) {
-					member.getUser().openPrivateChannel().queue(channel -> {
-						channel.sendMessage(ModUtils.getUnmuteEmbed(event.getGuild(), null, event.getAuthor(), reason)).queue();
-					}, e -> {});
-				}
-				
-				ModUtils.createModLog(event.getGuild(), event.getAuthor(), member.getUser(), "Unmute", reason);
-				MuteEvents.cancelExecutor(event.getGuild().getIdLong(), member.getUser().getIdLong());
+				event.getGuild().removeRoleFromMember(member, role).queue(unmute -> {
+					event.reply("**" + member.getUser().getAsTag() + "** has been unmuted <:done:403285928233402378>:ok_hand:").queue();
+					
+					if (!member.getUser().isBot()) {
+						member.getUser().openPrivateChannel().queue(channel -> {
+							channel.sendMessage(ModUtils.getUnmuteEmbed(event.getGuild(), null, event.getAuthor(), reason)).queue();
+						}, e -> {});
+					}
+					
+					ModUtils.createModLog(event.getGuild(), event.getAuthor(), member.getUser(), "Unmute", reason);
+					MuteEvents.cancelExecutor(event.getGuild().getIdLong(), member.getUser().getIdLong());
+				});
 			}
 		});
 	}
@@ -2975,23 +3005,67 @@ public class ModModule {
 		PagedUtils.getPagedResult(event, paged, 300, null);
 	}
 	
-	/*public static class templates extends Sx4Command {
+	public static class TemplatesCommand extends Sx4Command {
 		
-		public static String getReason(Guild guild, Connection connection, String template) {
-			List<Map<String, Object>> templates = r.table("warn").get(guild.getId()).g("templates").run(connection);
-			for (Map<String, Object> templateData : templates) {
-				if (templateData.get("name").equals(template)) {
-					return (String) templateData.get("reason");
+		public static String getReason(long guildId, String reason) {
+			if (reason == null) {
+				return null;
+			}
+			
+			List<Document> templates = Database.get().getGuildById(guildId, null, Projections.include("templates")).getList("templates", Document.class, Collections.emptyList());
+			
+			return TemplatesCommand.getReason(templates, reason);
+		}
+		
+		public static String getReason(List<Document> templates, String reason) {
+			if (reason == null) {
+				return null;
+			}
+			
+			int index = 0;
+			while ((index = reason.indexOf(':', index + 1)) != -1) {
+				int prefixIndex = index;
+				StringBuilder prefix = new StringBuilder();
+				while (!prefix.toString().equalsIgnoreCase("t") && !prefix.toString().equalsIgnoreCase("template") && prefixIndex >= 0) {
+					prefix.insert(0, reason.charAt(--prefixIndex));
+				}
+				
+				if (prefixIndex >= 0) {
+					StringBuilder template = new StringBuilder();
+					
+					if (reason.charAt(index + 1) == '"' && reason.indexOf('"', index + 2) != -1) {
+						char character;
+						while ((character = reason.charAt(++index + 1)) != '"') {
+							template.append(character);
+						}
+						
+						index += 2;
+					} else {
+						char character;
+						while (index != reason.length() - 1 && (character = reason.charAt(++index)) != ' ') {
+							template.append(character);
+						}
+						
+						if (index == reason.length() - 1) {
+							index++;
+						}
+					}
+					
+					for (Document templateData : templates) {
+						if (templateData.getString("template").equalsIgnoreCase(template.toString())) {
+							reason = reason.substring(0, prefixIndex) + templateData.getString("reason") + reason.substring(index);
+						}
+					}
 				}
 			}
 			
-			return null;
+			return reason;
 		}
 		
-		public templates() {
+		public TemplatesCommand() {
 			super("templates");
 			
-			super.setDescription("Add preset templates which can be used with an option when using any moderation command");
+			super.setDescription("Add preset templates which can be used in reasons as shortcuts to common reasonings for using a mod command");
 			super.setAliases("template");
 			super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
 		}
@@ -3000,17 +3074,104 @@ public class ModModule {
 			event.reply(HelpUtils.getHelpMessage(event.getCommand())).queue();
 		}
 		
-		@Command(value="add", description="Add a template which can be used across all mod commands")
+		@Command(value="add", description="Add a template which can be used across all mod commands which can have a reason")
 		@AuthorPermissions({Permission.MANAGE_SERVER})
-		public void add(CommandEvent event, @Context Connection connection, @Argument(value="template name") String templateName, @Argument(value="reason", endless=true) String reason) {
-			r.table("warn").insert(r.hashMap("id", event.getGuild().getId()).with("users", new Object[0]).with("punishments", true).with("config", new Object[0]).with("templates", new Object[0])).run(connection, OptArgs.of("durability", "soft"));
-			Get data = r.table("warn").get(event.getGuild().getId());
-			Map<String, Object> dataRan = data.run(connection);
+		public void add(CommandEvent event, @Context Database database, @Argument(value="template name") String templateName, @Argument(value="reason", endless=true) String reason) {
+			List<Document> templates = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("templates")).getList("templates", Document.class, Collections.emptyList());
+			for (Document template : templates) {
+				if (template.getString("template").equalsIgnoreCase(templateName)) {
+					event.reply("There is already a template named `" + templateName.toLowerCase() + "` :no_entry:").queue();
+					return;
+				}
+			}
 			
-			
+			Document template = new Document("template", templateName.toLowerCase()).append("reason", reason);
+			database.updateGuildById(event.getGuild().getIdLong(), Updates.push("templates", template), (result, exception) -> {
+				if (exception != null) {
+					exception.printStackTrace();
+					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+				} else {
+					event.reply("`" + templateName.toLowerCase() + "` is now a template <:done:403285928233402378>").queue();
+				}
+			});
 		}
 		
-	}*/
+		@Command(value="edit", description="Edits a template from the templates in the current server")
+		@AuthorPermissions({Permission.MANAGE_SERVER})
+		public void edit(CommandEvent event, @Context Database database, @Argument(value="template name") String templateName, @Argument(value="reason", endless=true) String reason) {
+			List<Document> templates = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("templates")).getList("templates", Document.class, Collections.emptyList());
+			for (Document template : templates) {
+				if (template.getString("template").equalsIgnoreCase(templateName)) {
+					UpdateOptions updateOptions = new UpdateOptions().arrayFilters(List.of(Filters.eq("template.template", templateName.toLowerCase())));
+					database.updateGuildById(event.getGuild().getIdLong(), null, Updates.set("templates.$[template].reason", reason), updateOptions, (result, exception) -> {
+						if (exception != null) {
+							exception.printStackTrace();
+							event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+						} else {
+							event.reply("`" + templateName.toLowerCase() + "` is no longer a template <:done:403285928233402378>").queue();
+						}
+					});
+					
+					return;
+				}
+			}
+			
+			event.reply("There is no template named `" + templateName.toLowerCase() + "` :no_entry:").queue();
+		}
+		
+		@Command(value="remove", description="Remove a template from the templates in the current server")
+		@AuthorPermissions({Permission.MANAGE_SERVER})
+		public void remove(CommandEvent event, @Context Database database, @Argument(value="template name", endless=true) String templateName) {
+			List<Document> templates = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("templates")).getList("templates", Document.class, Collections.emptyList());
+			for (Document template : templates) {
+				if (template.getString("template").equalsIgnoreCase(templateName)) {
+					database.updateGuildById(event.getGuild().getIdLong(), Updates.pull("templates", Filters.eq("template", templateName.toLowerCase())), (result, exception) -> {
+						if (exception != null) {
+							exception.printStackTrace();
+							event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+						} else {
+							event.reply("`" + templateName.toLowerCase() + "` is no longer a template <:done:403285928233402378>").queue();
+						}
+					});
+					
+					return;
+				}
+			}
+			
+			event.reply("There is no template named `" + templateName.toLowerCase() + "` :no_entry:").queue();
+		}
+		
+		@Command(value="list", description="Lists all the templates in the current server", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		public void list(CommandEvent event, @Context Database database) {
+			List<Document> templates = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("templates")).getList("templates", Document.class, Collections.emptyList());
+			if (templates.isEmpty()) {
+				event.reply("This server has no templates :no_entry:").queue();
+				return;
+			}
+			
+			PagedResult<Document> paged = new PagedResult<>(templates)
+					.setDeleteMessage(false)
+					.setPerPage(5)
+					.setCustomFunction(page -> {
+						List<Document> templatesArray = page.getArray();
+						
+						EmbedBuilder embed = new EmbedBuilder();
+						embed.setTitle("Page " + page.getCurrentPage() + "/" + page.getMaxPage());
+						embed.setAuthor("Templates", null, event.getGuild().getIconUrl());
+						embed.setFooter("next | previous | go to <page_number> | cancel", null);
+						
+						for (int i = page.getCurrentPage() * page.getPerPage() - page.getPerPage(); i < (page.getCurrentPage() == page.getMaxPage() ? templatesArray.size() : page.getCurrentPage() * page.getPerPage()); i++) {
+							Document template = templatesArray.get(i);
+							
+							embed.addField(template.getString("template"), template.getString("reason"), false);
+						}
+						
+						return embed.build();
+					});
+			
+			PagedUtils.getPagedResult(event, paged, 300, null);
+		}
+	}
 	
 	public class WarnConfigurationCommand extends Sx4Command {
 		
@@ -3157,7 +3318,7 @@ public class ModModule {
 		public void list(CommandEvent event, @Context Database database) {
 			List<Document> warnConfiguration = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("warn.configuration")).getEmbedded(List.of("warn", "configuration"), Collections.emptyList());
 			if (warnConfiguration.isEmpty()) {
-				warnConfiguration = ModUtils.defaultWarnConfiguration;
+				warnConfiguration = ModUtils.DEFAULT_WARN_CONFIGURATION;
 			}
 			
 			warnConfiguration.sort((a, b) -> Integer.compare(a.getInteger("warning"), b.getInteger("warning")));
@@ -3181,7 +3342,7 @@ public class ModModule {
 	
 	@Command(value="warn", description="Warn a user in the current server")
 	@AuthorPermissions({Permission.MESSAGE_MANAGE})
-	public void warn(CommandEvent event, @Context Database database, @Argument(value="user") String userArgument, @Argument(value="reason", endless=true, nullDefault=true) String reason) {
+	public void warn(CommandEvent event, @Context Database database, @Argument(value="user") String userArgument, @Argument(value="reason", endless=true, nullDefault=true) String reasonArgument) {
 		Member member = ArgumentUtils.getMember(event.getGuild(), userArgument);
 		if (member == null) {
 			event.reply("I could not find that user :no_entry:").queue();
@@ -3203,6 +3364,8 @@ public class ModModule {
 			return;
 		}
 		
+		String reason = TemplatesCommand.getReason(event.getGuild().getIdLong(), reasonArgument);
+		
 		WarnUtils.handleWarning(event.getGuild(), member, event.getMember(), reason, (warning, exception) -> {
 			if (exception != null) {
 				event.reply(exception.getMessage() + " :no_entry:").queue();
@@ -3214,7 +3377,7 @@ public class ModModule {
 				
 				List<Document> warnConfiguration = data.getEmbedded(List.of("warn", "configuration"), Collections.emptyList());
 				if (warnConfiguration.isEmpty()) {
-					warnConfiguration = ModUtils.defaultWarnConfiguration;
+					warnConfiguration = ModUtils.DEFAULT_WARN_CONFIGURATION;
 				}
 				
 				Long duration = warning.getDuration();
@@ -3286,7 +3449,7 @@ public class ModModule {
 		Document data = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("warn.users", "warn.punishments", "warn.configuration")).get("warn", Database.EMPTY_DOCUMENT);
 		
 		List<Document> users = data.getList("users", Document.class, Collections.emptyList());
-		List<Document> configuration = data.getList("configuration", Document.class, Collections.emptyList());
+		List<Document> configuration = data.getList("configuration", Document.class, ModUtils.DEFAULT_WARN_CONFIGURATION);
 		boolean punishments = data.getBoolean("punishments", true);
 		
 		UserWarning userWarning = WarnUtils.getUserWarning(users, member.getIdLong());
@@ -3315,7 +3478,7 @@ public class ModModule {
 		}
 		
 		Document data = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("warn.configuration", "warn.users")).get("warn", Database.EMPTY_DOCUMENT);
-		List<Document> configuration = data.getList("configuration", Document.class, Collections.emptyList());
+		List<Document> configuration = data.getList("configuration", Document.class, ModUtils.DEFAULT_WARN_CONFIGURATION);
 		
 		int maxWarning = WarnUtils.getMaxWarning(configuration);
 		if (warningAmount > maxWarning) {

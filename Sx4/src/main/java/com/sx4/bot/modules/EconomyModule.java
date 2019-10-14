@@ -897,7 +897,7 @@ public class EconomyModule {
 			}
 		}
 		
-		Document data = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance", "economy.items")).get("economy", Database.EMPTY_DOCUMENT);
+		Document data = database.getUserById(member.getIdLong(), null, Projections.include("economy.balance", "economy.items")).get("economy", Database.EMPTY_DOCUMENT);
 		long networth = EconomyUtils.getUserNetworth(data);
 		
 		EmbedBuilder embed = new EmbedBuilder();
@@ -2263,7 +2263,7 @@ public class EconomyModule {
 			tax = fullAmount;
 			amount = fullAmount;
 		} else {
-			tax = (long) (fullAmount * 0.05D);
+			tax = (long) Math.ceil(fullAmount * 0.05D);
 			amount = (long) (fullAmount * 0.95D);
 		}
 		

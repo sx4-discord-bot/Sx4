@@ -13,7 +13,7 @@ import java.util.stream.Collectors;
 public class TimeUtils {
 	
 	public static final Pattern TIME_REGEX = Pattern.compile("(?:(\\d+)(?: |)(?:days|day|d)|)(?: |)(?:(\\d+)(?: |)(?:hours|hour|h)|)(?: |)(?:(\\d+)(?: |)(?:minutes|minute|mins|min|m)|)(?: |)(?:(\\d+)(?: |)(?:seconds|second|secs|sec|s)|)");
-	public static final Pattern DATE_REGEX = Pattern.compile("(?:(\\d{1,2})(?:/|-)(\\d{1,2})(?:/|-)(\\d{1,2})|)(?: |)(?:(\\d{1,2}):(\\d{1,2})|)(?: |)(?:([A-Za-z]+)(\\+\\d+|-\\d+|)|)");
+	public static final Pattern DATE_REGEX = Pattern.compile("(?:(\\d{1,2})(?:/|-)(\\d{1,2})(?:/|-)(\\d{1,2})|)(?: |)(?:(\\d{1,2}):(\\d{1,2})|)(?: |)(?:([A-Za-z]+)((?:\\+|-)\\d+|)|)");
 	
 	public static int getActualDaysApart(int value) {
 		return value < 0 ? 365 + value : value;
@@ -52,9 +52,9 @@ public class TimeUtils {
 			int year = dateMatch.group(3) == null ? now.getYear() : Integer.parseInt(dateMatch.group(3)) + ((now.getYear() / 1000) * 1000);
 			int hour = dateMatch.group(4) == null ? 0 : Integer.parseInt(dateMatch.group(4));
 			int minute = dateMatch.group(5) == null ? 0 : Integer.parseInt(dateMatch.group(5));
-			int plusHours = dateMatch.group(7) == null ? 0 : Integer.parseInt(dateMatch.group(7));
+			int plusHours = dateMatch.group(7) == null || dateMatch.group(7).length() == 0 ? 0 : Integer.parseInt(dateMatch.group(7));
 			
-			ZonedDateTime dateTime = ZonedDateTime.of(year, month, day, hour, minute, 0, 0, timeZone.toZoneId()).plusHours(plusHours);
+			ZonedDateTime dateTime = ZonedDateTime.of(year, month, day, hour, minute, 0, 0, timeZone.toZoneId()).plusHours(-plusHours);
 			
 			long timeTill = Duration.between(ZonedDateTime.now(), dateTime).toSeconds();
 			if (timeTill <= 0) {

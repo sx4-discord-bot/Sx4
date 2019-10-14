@@ -18,6 +18,7 @@ import com.sx4.bot.utils.WelcomerUtils;
 
 import club.minnced.discord.webhook.WebhookClient;
 import club.minnced.discord.webhook.WebhookClientBuilder;
+import club.minnced.discord.webhook.send.WebhookMessage;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.TextChannel;
@@ -250,7 +251,7 @@ public class WelcomerEvents extends ListenerAdapter {
 			try {
 				this.getWelcomerWebhook(event.getGuild(), welcomerData, webhook -> {
 					WelcomerUtils.getWelcomerMessage(event.getMember(), event.getGuild(), data, message -> {
-						webhook.send(message.build());
+						webhook.send(message.setAvatarUrl(event.getJDA().getSelfUser().getEffectiveAvatarUrl()).build());
 					});
 				});
 			} catch (IOException e) {}
@@ -266,7 +267,11 @@ public class WelcomerEvents extends ListenerAdapter {
 
 		try {
 			this.getLeaverWebhook(event.getGuild(), data, webhook -> {
-				webhook.send(WelcomerUtils.getLeaver(event.getMember(), event.getGuild(), data).build());
+				WebhookMessage message = WelcomerUtils.getLeaver(event.getMember(), event.getGuild(), data)
+						.setAvatarUrl(event.getJDA().getSelfUser().getEffectiveAvatarUrl())
+						.build();
+				
+				webhook.send(message);
 			});
 		} catch (IOException e) {}
 	}

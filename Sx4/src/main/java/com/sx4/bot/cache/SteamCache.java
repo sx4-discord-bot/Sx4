@@ -1,11 +1,9 @@
 package com.sx4.bot.cache;
 
-import java.io.IOException;
-import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-import org.json.JSONException;
 import org.json.JSONObject;
 
 import com.sx4.bot.core.Sx4Bot;
@@ -15,11 +13,12 @@ import com.sx4.bot.utils.TokenUtils;
 
 import okhttp3.Request;
 
+@SuppressWarnings("unchecked")
 public class SteamCache {
 	
-	private static Map<String, Object> games = new HashMap<>();
+	private static List<Map<String, Object>> games;
 	
-	public static Map<String, Object> getGames() {
+	public static List<Map<String, Object>> getGames() {
 		return games;
 	}
 
@@ -30,12 +29,10 @@ public class SteamCache {
 			Request request = new Request.Builder().url("http://api.steampowered.com/ISteamApps/GetAppList/v0002/?key=" + TokenUtils.STEAM + "&format=json").build();
 				
 			ImageModule.client.newCall(request).enqueue((Sx4Callback) response -> {
-				JSONObject json = null;
-				try {
-					json = new JSONObject(response.body().string());
-				} catch (JSONException | IOException e) {}
+				Map<String, Object> json = new JSONObject(response.body().string()).toMap();
+				Map<String, Object> appList = (Map<String, Object>) json.get("applist");
 						
-				games = json.toMap(); 
+				games = (List<Map<String, Object>>) appList.get("apps");
 			});
 		}, 0, 1, TimeUnit.HOURS);
 		

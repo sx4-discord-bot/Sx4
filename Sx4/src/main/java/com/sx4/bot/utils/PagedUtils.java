@@ -289,7 +289,7 @@ public class PagedUtils {
 		}
 		
 		public MessageEmbed getEmbed() {
-			if (this.isCustom()) {
+			if (!this.isCustom()) {
 				int maxPage = this.getMaxPage();
 				EmbedBuilder embed = new EmbedBuilder();
 				if (this.authorName != null || this.authorUrl != null || this.authorIconUrl != null) {

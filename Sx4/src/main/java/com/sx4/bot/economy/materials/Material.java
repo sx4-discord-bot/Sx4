@@ -32,6 +32,12 @@ public class Material extends Item {
 		this.emote = emote;
 		this.hidden = hidden;
 	}
+	
+	public Material setHidden(boolean hidden) {
+		this.hidden = hidden;
+		
+		return this;
+	}
 		
 	public boolean isHidden() {
 		return this.hidden;

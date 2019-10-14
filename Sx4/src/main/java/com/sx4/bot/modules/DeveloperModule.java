@@ -68,6 +68,13 @@ public class DeveloperModule {
 		
 		importCustomizer.addStarImports("net.dv8tion.jda.api");
 		importCustomizer.addStarImports("net.dv8tion.jda.api.entities");
+		importCustomizer.addStarImports("com.sx4.bot.events");
+		importCustomizer.addStarImports("com.sx4.bot.economy.materials");
+		importCustomizer.addStarImports("com.sx4.bot.economy.items");
+		importCustomizer.addStarImports("com.sx4.bot.economy.tools");
+		importCustomizer.addStarImports("com.sx4.bot.economy.upgrades");
+		importCustomizer.addStarImports("com.sx4.bot.economy");
+		importCustomizer.addStarImports("com.sx4.bot.logger");
 		importCustomizer.addStarImports("com.sx4.bot.utils");
 		importCustomizer.addStarImports("com.sx4.bot.modules");
 		importCustomizer.addStarImports("com.sx4.bot.core");
@@ -102,6 +109,7 @@ public class DeveloperModule {
 					parsableString = new String(event.getMessage().getAttachments().get(0).retrieveInputStream().get().readAllBytes(), StandardCharsets.UTF_8);
 				} catch(IOException e) {
 					event.reply("Failed to download file").queue();
+					return;
 				}
 			} else {
 				event.reply("No files attached").queue();

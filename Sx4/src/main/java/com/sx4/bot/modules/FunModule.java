@@ -950,19 +950,15 @@ public class FunModule {
 		});
 	}
 	
-	@SuppressWarnings("unchecked")
 	@Command(value="random steam game", aliases={"randomsteamgame", "randomsteam", "random steam", "randomgame", "random game"}, description="Gives you a random game from steam", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 	@Async
 	@Cooldown(value=5)
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void randomSteamGame(CommandEvent event) {
-		Map<String, Object> steamCache = SteamCache.getGames();
-		List<Map<String, Object>> steamGames;
-		if (steamCache.isEmpty()) {
+		List<Map<String, Object>> steamGames = SteamCache.getGames();
+		if (steamGames.isEmpty()) {
 			event.reply("The steam cache is currently empty, try again in 1 hour :no_entry:").queue();
 			return;
-		} else {
-			steamGames = (List<Map<String, Object>>) ((Map<String, Object>) steamCache.get("applist")).get("apps");
 		}
 		
 		AtomicInteger attempts = new AtomicInteger(0);
@@ -1023,19 +1019,15 @@ public class FunModule {
 		Sx4Bot.client.newCall(request).enqueue(sx4Callback);
 	}
 	
-	@SuppressWarnings("unchecked")
 	@Command(value="steam search", aliases={"steamsearch", "gamesearch", "game search", "steamgame", "steam game"}, description="Look up any game on steam")
 	@Async 
 	@Cooldown(value=5)
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void steamSearch(CommandEvent event, @Argument(value="game", endless=true, nullDefault=true) String gameName) {
-		Map<String, Object> steamCache = SteamCache.getGames();
-		List<Map<String, Object>> steamGames;
-		if (steamCache.isEmpty()) {
+		List<Map<String, Object>> steamGames = SteamCache.getGames();
+		if (steamGames.isEmpty()) {
 			event.reply("The steam cache is currently empty, try again in 1 hour :no_entry:").queue();
 			return;
-		} else {
-			steamGames = (List<Map<String, Object>>) ((Map<String, Object>) steamCache.get("applist")).get("apps");
 		}
 		
 		List<Map<String, Object>> games = new ArrayList<>();
@@ -1514,54 +1506,108 @@ public class FunModule {
 			languageISO = language.getLanguage();
 		}
 		
-		Request request;
-		try {
-			request = new Request.Builder().url(new URL("http://" + Settings.LOCAL_HOST + ":8080/translate/" + languageISO + "?q=" + text)).build();
-		} catch (MalformedURLException e) {
-			event.reply("Oops something went wrong there, try again :no_entry:").queue();
-			return;
-		}
-		
 		String displayLanguage = language.getDisplayLanguage();
-		Sx4Bot.client.newCall(request).enqueue((Sx4Callback) response -> {
-			JSONObject json;
+		if (GeneralUtils.isNumberUnsigned(text)) {
+			event.getTextChannel().retrieveMessageById(text).queue(message -> {
+				Request request;
+				try {
+					request = new Request.Builder().url(new URL("http://" + Settings.LOCAL_HOST + ":8080/translate/" + languageISO + "?q=" + message.getContentRaw())).build();
+				} catch (MalformedURLException e) {
+					event.reply("Oops something went wrong there, try again :no_entry:").queue();
+					return;
+				}
+				
+				Sx4Bot.client.newCall(request).enqueue((Sx4Callback) response -> {
+					JSONObject json;
+					try {
+						json = new JSONObject(response.body().string());
+					} catch (JSONException | IOException e) {
+						event.reply("Oops something went wrong there, try again :no_entry:").queue();
+						return;
+					}
+					
+					if (json.getBoolean("success") == false) {
+						if (json.has("response")) {
+							event.reply(json.getJSONObject("response").getString("message").replace("'", "`") + " :no_entry:").queue();
+							return;
+						}
+					}
+					
+					String inputText = json.getJSONObject("from").getJSONObject("language").getString("iso");
+					if (inputText.contains("-")) {
+						inputText = inputText.split("-")[0];
+					}
+					
+					Locale inputLanguage = null;
+					for (Locale localeLanguage : Locale.getAvailableLocales()) {
+						if (inputText.equals(localeLanguage.getLanguage().toLowerCase())) {
+							inputLanguage = localeLanguage;
+							break;
+						} else if (inputText.equals(localeLanguage.getISO3Language())) {
+							inputLanguage = localeLanguage;
+							break;
+						}
+					}
+					
+					EmbedBuilder embed = new EmbedBuilder();
+					embed.setColor(0x4285f4);
+					embed.setAuthor("Google Translate", null, "https://upload.wikimedia.org/wikipedia/commons/d/db/Google_Translate_Icon.png");
+					embed.addField("Input Text (" + (inputLanguage == null ? "Unknown" : inputLanguage.getDisplayLanguage()) + ")", json.getJSONObject("from").getJSONObject("text").getString("value").equals("") ? message.getContentRaw() : json.getJSONObject("from").getJSONObject("text").getString("value"), false);
+					embed.addField("Output Text (" + displayLanguage + ")", json.getString("text"), false);
+					event.reply(embed.build()).queue();
+				});
+			}, e -> {
+				event.reply("I could not find that message :no_entry:").queue();
+			});
+		} else {
+			Request request;
 			try {
-				json = new JSONObject(response.body().string());
-			} catch (JSONException | IOException e) {
+				request = new Request.Builder().url(new URL("http://" + Settings.LOCAL_HOST + ":8080/translate/" + languageISO + "?q=" + text)).build();
+			} catch (MalformedURLException e) {
 				event.reply("Oops something went wrong there, try again :no_entry:").queue();
 				return;
 			}
 			
-			if (json.getBoolean("success") == false) {
-				if (json.has("response")) {
-					event.reply(json.getJSONObject("response").getString("message").replace("'", "`") + " :no_entry:").queue();
+			Sx4Bot.client.newCall(request).enqueue((Sx4Callback) response -> {
+				JSONObject json;
+				try {
+					json = new JSONObject(response.body().string());
+				} catch (JSONException | IOException e) {
+					event.reply("Oops something went wrong there, try again :no_entry:").queue();
 					return;
 				}
-			}
-			
-			String inputText = json.getJSONObject("from").getJSONObject("language").getString("iso");
-			if (inputText.contains("-")) {
-				inputText = inputText.split("-")[0];
-			}
-			
-			Locale inputLanguage = null;
-			for (Locale localeLanguage : Locale.getAvailableLocales()) {
-				if (inputText.equals(localeLanguage.getLanguage().toLowerCase())) {
-					inputLanguage = localeLanguage;
-					break;
-				} else if (inputText.equals(localeLanguage.getISO3Language())) {
-					inputLanguage = localeLanguage;
-					break;
+				
+				if (json.getBoolean("success") == false) {
+					if (json.has("response")) {
+						event.reply(json.getJSONObject("response").getString("message").replace("'", "`") + " :no_entry:").queue();
+						return;
+					}
 				}
-			}
-			
-			EmbedBuilder embed = new EmbedBuilder();
-			embed.setColor(0x4285f4);
-			embed.setAuthor("Google Translate", null, "https://upload.wikimedia.org/wikipedia/commons/d/db/Google_Translate_Icon.png");
-			embed.addField("Input Text (" + (inputLanguage == null ? "Unknown" : inputLanguage.getDisplayLanguage()) + ")", json.getJSONObject("from").getJSONObject("text").getString("value").equals("") ? text : json.getJSONObject("from").getJSONObject("text").getString("value"), false);
-			embed.addField("Output Text (" + displayLanguage + ")", json.getString("text"), false);
-			event.reply(embed.build()).queue();
-		});
+				
+				String inputText = json.getJSONObject("from").getJSONObject("language").getString("iso");
+				if (inputText.contains("-")) {
+					inputText = inputText.split("-")[0];
+				}
+				
+				Locale inputLanguage = null;
+				for (Locale localeLanguage : Locale.getAvailableLocales()) {
+					if (inputText.equals(localeLanguage.getLanguage().toLowerCase())) {
+						inputLanguage = localeLanguage;
+						break;
+					} else if (inputText.equals(localeLanguage.getISO3Language())) {
+						inputLanguage = localeLanguage;
+						break;
+					}
+				}
+				
+				EmbedBuilder embed = new EmbedBuilder();
+				embed.setColor(0x4285f4);
+				embed.setAuthor("Google Translate", null, "https://upload.wikimedia.org/wikipedia/commons/d/db/Google_Translate_Icon.png");
+				embed.addField("Input Text (" + (inputLanguage == null ? "Unknown" : inputLanguage.getDisplayLanguage()) + ")", json.getJSONObject("from").getJSONObject("text").getString("value").equals("") ? text : json.getJSONObject("from").getJSONObject("text").getString("value"), false);
+				embed.addField("Output Text (" + displayLanguage + ")", json.getString("text"), false);
+				event.reply(embed.build()).queue();
+			});
+		}
 	}
 	
 	@Command(value="calculator", aliases={"calc"}, description="Calculate any equation with general mathmatic symbols")

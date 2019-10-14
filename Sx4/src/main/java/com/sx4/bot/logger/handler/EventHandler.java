@@ -83,6 +83,7 @@ import net.dv8tion.jda.api.events.guild.voice.GuildVoiceGuildMuteEvent;
 import net.dv8tion.jda.api.events.guild.voice.GuildVoiceJoinEvent;
 import net.dv8tion.jda.api.events.guild.voice.GuildVoiceLeaveEvent;
 import net.dv8tion.jda.api.events.guild.voice.GuildVoiceMoveEvent;
+import net.dv8tion.jda.api.events.message.MessageBulkDeleteEvent;
 import net.dv8tion.jda.api.events.message.guild.GuildMessageDeleteEvent;
 import net.dv8tion.jda.api.events.message.guild.GuildMessageUpdateEvent;
 import net.dv8tion.jda.api.events.role.RoleCreateEvent;
@@ -199,7 +200,11 @@ public class EventHandler extends ListenerAdapter {
 			});
 		}
 		
-		this.queue.get(guildId).offer(new Request(bot, guildId, data, Clock.systemUTC().instant().getEpochSecond(), requestEmbeds));
+		int requests = (int) Math.ceil((double) requestEmbeds.size() / 10);
+		for (int i = 1; i <= requests; i++) {
+			List<WebhookEmbed> embedsSplit = i == requests ? requestEmbeds.subList(i * 10 - 10, requestEmbeds.size()) : requestEmbeds.subList(i * 10 - 10, i * 10);
+			this.queue.get(guildId).offer(new Request(bot, guildId, data, Clock.systemUTC().instant().getEpochSecond(), embedsSplit));
+		}
 	}
 	
 	private void _send(JDA bot, Guild guild, Document data, List<WebhookEmbed> embeds, int requestAmount, int attempts) {
@@ -220,7 +225,14 @@ public class EventHandler extends ListenerAdapter {
 		
 		WebhookClient client;
 		if(data.getLong("webhookId") == null || data.getString("webhookToken") == null) {
-			Webhook webhook = channel.createWebhook("Sx4 - Logs").complete();
+			Webhook webhook;
+			if (guild.getSelfMember().hasPermission(Permission.MANAGE_WEBHOOKS)) {
+				webhook = channel.createWebhook("Sx4 - Logs").complete();
+			} else {
+				Statistics.increaseSkippedLogs();
+				
+				return;
+			}
 			
 			data.put("webhookId", webhook.getIdLong());
 			data.put("webhookToken", webhook.getToken());
@@ -595,10 +607,8 @@ public class EventHandler extends ListenerAdapter {
 		this.send(event.getJDA(), guild, data, embed.build());
 	}
 	
-	public void onGuildMessageDelete(GuildMessageDeleteEvent event) {
-		Guild guild = event.getGuild();
-		TextChannel channel = event.getChannel();
-		Message message = GuildMessageCache.INSTANCE.getMessageById(event.getMessageIdLong());
+	public void onMessageDelete(TextChannel channel, List<String> messages) {
+		Guild guild = channel.getGuild();
 		
 		Document data = Database.get().getGuildById(guild.getIdLong(), null, DEFAULT_PROJECTION).get("logger", Database.EMPTY_DOCUMENT);
 		if (!data.getBoolean("enabled", false) || data.getLong("channelId") == null) {
@@ -612,63 +622,80 @@ public class EventHandler extends ListenerAdapter {
 		
 		Document blacklisted = data.get("blacklisted", Database.EMPTY_DOCUMENT);
 		
-		if (message != null) {
-			List<Document> users = blacklisted.getList("users", Document.class, Collections.emptyList());
-			for (Document userBlacklist : users) {
-				if (userBlacklist.getLong("id") == message.getAuthor().getIdLong()) {
-					if ((userBlacklist.getLong("events") & Event.MESSAGE_DELETE.getRaw()) == Event.MESSAGE_DELETE.getRaw()) {
-						return;
+		List<WebhookEmbed> embeds = new ArrayList<>();
+		MessageTask : for (String messageId : messages) {
+			Message message = GuildMessageCache.INSTANCE.getMessageById(messageId);
+			
+			if (message != null) {
+				List<Document> users = blacklisted.getList("users", Document.class, Collections.emptyList());
+				for (Document userBlacklist : users) {
+					if (userBlacklist.getLong("id") == message.getAuthor().getIdLong()) {
+						if ((userBlacklist.getLong("events") & Event.MESSAGE_DELETE.getRaw()) == Event.MESSAGE_DELETE.getRaw()) {
+							continue MessageTask;
+						}
+						
+						break;
+					}
+				}
+			}
+			
+			List<Document> channels = blacklisted.getList("channels", Document.class, Collections.emptyList());
+			for (Document channelBlacklist : channels) {
+				if (channelBlacklist.getLong("id") == channel.getIdLong() || (channel.getParent() != null && channelBlacklist.getLong("id") == channel.getParent().getIdLong())) {
+					if ((channelBlacklist.getLong("events") & Event.MESSAGE_DELETE.getRaw()) == Event.MESSAGE_DELETE.getRaw()) {
+						continue MessageTask;
 					}
 					
 					break;
 				}
 			}
-		}
-		
-		List<Document> channels = blacklisted.getList("channels", Document.class, Collections.emptyList());
-		for (Document channelBlacklist : channels) {
-			if (channelBlacklist.getLong("id") == channel.getIdLong() || (channel.getParent() != null && channelBlacklist.getLong("id") == channel.getParent().getIdLong())) {
-				if ((channelBlacklist.getLong("events") & Event.MESSAGE_DELETE.getRaw()) == Event.MESSAGE_DELETE.getRaw()) {
+			
+			WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
+			embed.setColor(COLOR_RED);
+			embed.setTimestamp(ZonedDateTime.now());
+			embed.setFooter(new EmbedFooter(String.format("Message ID: %s", messageId), null));
+			
+			if(message != null) {
+				if(message.getContentRaw().length() == 0 && message.getAttachments().isEmpty() && message.getEmbeds().isEmpty()) {
 					return;
 				}
 				
-				break;
-			}
-		}
-
-		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
-		embed.setColor(COLOR_RED);
-		embed.setTimestamp(ZonedDateTime.now());
-		embed.setFooter(new EmbedFooter(String.format("Message ID: %s", event.getMessageId()), null));
-		
-		if(message != null) {
-			if(message.getContentRaw().length() == 0 && message.getAttachments().isEmpty()) {
-				return;
-			}
-			
-			if(message.getMember() != null) {
-				Member member = message.getMember();
+				if(message.getMember() != null) {
+					Member member = message.getMember();
+					
+					embed.setDescription(String.format("The message sent by `%s` in %s was deleted", member.getEffectiveName(), channel.getAsMention()));
+					embed.setAuthor(new EmbedAuthor(member.getUser().getAsTag(), member.getUser().getEffectiveAvatarUrl(), null));
+				}else{
+					User user = message.getAuthor();
+					
+					embed.setDescription(String.format("The message sent by `%s` in %s was deleted", user.getName(), channel.getAsMention()));
+					embed.setAuthor(new EmbedAuthor(user.getAsTag(), user.getEffectiveAvatarUrl(), null));
+				}
 				
-				embed.setDescription(String.format("The message sent by `%s` in %s was deleted", member.getEffectiveName(), channel.getAsMention()));
-				embed.setAuthor(new EmbedAuthor(member.getUser().getAsTag(), member.getUser().getEffectiveAvatarUrl(), null));
+				if (message.getContentRaw().length() != 0) {
+					embed.addField(new EmbedField(false, "Message", Utils.limitField(message.getContentRaw())));
+				}
+				
+				embeds.add(embed.build());
 			}else{
-				User user = message.getAuthor();
+				embed.setDescription(String.format("A message sent in %s was deleted", channel.getAsMention()));
+				embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
 				
-				embed.setDescription(String.format("The message sent by `%s` in %s was deleted", user.getName(), channel.getAsMention()));
-				embed.setAuthor(new EmbedAuthor(user.getAsTag(), user.getEffectiveAvatarUrl(), null));
+				embeds.add(embed.build());
 			}
-			
-			if (message.getContentRaw().length() != 0) {
-				embed.addField(new EmbedField(false, "Message", Utils.limitField(message.getContentRaw())));
-			}
-			
-			this.send(event.getJDA(), guild, data, embed.build());
-		}else{
-			embed.setDescription(String.format("A message sent in %s was deleted", channel.getAsMention()));
-			embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
-			
-			this.send(event.getJDA(), guild, data, embed.build());
 		}
+		
+		if (!embeds.isEmpty()) {
+			this.send(channel.getJDA(), guild, data, embeds);
+		}
+	}
+	
+	public void onMessageBulkDelete(MessageBulkDeleteEvent event) {
+		this.onMessageDelete(event.getChannel(), event.getMessageIds());
+	}
+	
+	public void onGuildMessageDelete(GuildMessageDeleteEvent event) {
+		this.onMessageDelete(event.getChannel(), List.of(event.getMessageId()));
 	}
 	
 	public void onChannelDelete(GuildChannel channel) {

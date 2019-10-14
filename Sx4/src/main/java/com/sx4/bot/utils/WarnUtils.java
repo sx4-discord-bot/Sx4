@@ -99,7 +99,7 @@ public class WarnUtils {
 		List<Document> users = warnData.getList("users", Document.class, Collections.emptyList());
 		List<Document> configuration = warnData.getList("configuration", Document.class, Collections.emptyList());
 		if (configuration.isEmpty()) {
-			configuration = ModUtils.defaultWarnConfiguration;
+			configuration = ModUtils.DEFAULT_WARN_CONFIGURATION;
 		}
 		
 		boolean punishments = warnData.getBoolean("punishments", true);

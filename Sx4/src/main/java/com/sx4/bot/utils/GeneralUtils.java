@@ -13,6 +13,17 @@ public class GeneralUtils {
 		return random.nextInt((max - min) + 1) + min;
 	}
 	
+	public static boolean isNumberUnsigned(String string) {
+		char[] characterArray = string.toCharArray();
+		for (int i = 0; i < characterArray.length; i++) {
+			if (!Character.isDigit(characterArray[i])) {
+				return false;
+			}
+		}
+		
+		return true;
+	}
+	
 	public static boolean isNumber(String string) {
 		char[] characterArray = string.toCharArray();
 		for (int i = 0; i < characterArray.length; i++) {

@@ -91,7 +91,7 @@ public class Sx4Bot {
 	
 	private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("uuuu-MM-dd HH:mm:ss");
 
-	public static void main(String[] args) throws Exception {	
+	public static void main(String[] args) throws Exception {
 		eventHandler = new EventHandler();
 		
 		ContextManagerFactory.getDefault()
@@ -213,6 +213,7 @@ public class Sx4Bot {
 		bot = new DefaultShardManagerBuilder()
 				.setToken(Settings.BOT_OAUTH)
 				.setEventManagerProvider(shardId -> eventManager)
+				.setBulkDeleteSplittingEnabled(false)
 				.build();
 		
 		Thread.setDefaultUncaughtExceptionHandler((thread, exception) -> {

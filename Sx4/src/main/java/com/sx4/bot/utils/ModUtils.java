@@ -39,17 +39,17 @@ import net.dv8tion.jda.internal.utils.PermissionUtil;
 
 public class ModUtils {
 	
-	public static List<Document> defaultWarnConfiguration = new ArrayList<>();
+	public static final List<Document> DEFAULT_WARN_CONFIGURATION = new ArrayList<>();
 	
 	static {
 		Document secondWarning = new Document().append("action", "mute").append("warning", 2).append("duration", 1800L);
-		defaultWarnConfiguration.add(secondWarning);
+		DEFAULT_WARN_CONFIGURATION.add(secondWarning);
 		
 		Document thirdWarning = new Document().append("action", "kick").append("warning", 3);
-		defaultWarnConfiguration.add(thirdWarning);
+		DEFAULT_WARN_CONFIGURATION.add(thirdWarning);
 		
 		Document fourthWarning = new Document().append("action", "ban").append("warning", 4);
-		defaultWarnConfiguration.add(fourthWarning);
+		DEFAULT_WARN_CONFIGURATION.add(fourthWarning);
 	}
 	
 	public static void getOrCreateMuteRole(Guild guild, BiConsumer<Role, String> muteRole) {
