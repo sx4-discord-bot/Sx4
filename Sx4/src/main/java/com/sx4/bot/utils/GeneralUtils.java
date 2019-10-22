@@ -1,6 +1,7 @@
 package com.sx4.bot.utils;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
 import java.util.Set;
@@ -95,15 +96,15 @@ public class GeneralUtils {
 		return returnList;
 	}
 	
-	public static String join(List<?> list, String joinBy) {
+	public static String join(Iterable<?> iterable, String joinBy) {
 		StringBuilder output = new StringBuilder();
-		for (int i = 0; i < list.size(); i++) {
-			output.append(list.get(i).toString());
-				
-			if (i != list.size() - 1) {
-				output.append(joinBy);
-			}	
+		
+		Iterator<?> iterator = iterable.iterator();
+		while (iterator.hasNext()) {
+			output.append(iterator.next().toString() + joinBy);
 		}
+		
+		output.setLength(output.length() - joinBy.length());
 			
 		return output.toString();
 	}

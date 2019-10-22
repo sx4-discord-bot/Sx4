@@ -45,7 +45,7 @@ public class ImageModule {
 			.readTimeout(60, TimeUnit.SECONDS)
 			.build();
 	
-	private static Random random = new Random();
+	private static final Random RANDOM = new Random();
 	
 	@Command(value="canny", description="Returns an image with the canny effect")
 	@Cooldown(value=5)
@@ -551,8 +551,8 @@ public class ImageModule {
 		event.getTextChannel().sendTyping().queue($ -> {
 			ImageModule.client.newCall(request).enqueue((Sx4Callback) response -> {
 				if (response.code() == 200) {
-					random.setSeed(secondMember.getUser().getIdLong() + firstMember.getUser().getIdLong());
-					int shipPercentage = random.nextInt(100) + 1;
+					RANDOM.setSeed(secondMember.getIdLong() + firstMember.getIdLong());
+					int shipPercentage = RANDOM.nextInt(100) + 1;
 					
 					String firstMemberName = firstMember.getUser().getName();
 					String secondMemberName = secondMember.getUser().getName();
@@ -756,8 +756,8 @@ public class ImageModule {
 			return;
 		}
 		
-		int likes = random.nextInt(event.getGuild().getMembers().size()) + 1;
-		int retweets = random.nextInt(event.getGuild().getMembers().size()) + 1;
+		int likes = RANDOM.nextInt(event.getGuild().getMembers().size()) + 1;
+		int retweets = RANDOM.nextInt(event.getGuild().getMembers().size()) + 1;
 		
 		List<String> avatarUrls = new ArrayList<>();
 		int minimumAmount = Math.min(Math.min(event.getGuild().getMembers().size(), likes), 10);
@@ -767,7 +767,7 @@ public class ImageModule {
 			}
 		} else {
 			while (avatarUrls.size() != minimumAmount) {
-				int randomInt = random.nextInt(event.getGuild().getMembers().size());
+				int randomInt = RANDOM.nextInt(event.getGuild().getMembers().size());
 				String avatarUrl = event.getGuild().getMembers().get(randomInt).getUser().getEffectiveAvatarUrl() + "?size=64";
 				if (!avatarUrls.contains(avatarUrl)) {
 					avatarUrls.add(avatarUrl);
@@ -799,7 +799,7 @@ public class ImageModule {
 	public void colour(CommandEvent event, @Argument(value="hex | rgb", endless=true, nullDefault=true) String argument) {
 		Color colour;
 		if (argument == null) {
-			colour = new Color(random.nextFloat(), random.nextFloat(), random.nextFloat());
+			colour = new Color(RANDOM.nextFloat(), RANDOM.nextFloat(), RANDOM.nextFloat());
 		} else {
 			colour = ArgumentUtils.getColourFromString(argument);
 			if (colour == null) {

@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
+import org.bson.BsonDocument;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 
@@ -67,15 +68,15 @@ public class StatsEvents extends ListenerAdapter {
 		},  Duration.between(now, ZonedDateTime.of(now.getYear(), now.getMonthValue(), now.getDayOfMonth(), 0, 0, 0, 0, ZoneOffset.UTC).plusDays(1)).toSeconds(), StatsEvents.DAY_IN_SECONDS, TimeUnit.SECONDS);
 	}
 	
-	private static Map<Long, Map<String, Integer>> guildStats = new HashMap<>();
+	private static final Map<Long, Map<String, Integer>> GUILD_STATS = new HashMap<>();
 	
 	public static void initializeGuildStats() {
 		Sx4Bot.scheduledExectuor.scheduleAtFixedRate(() -> {
 			try {
 				List<WriteModel<Document>> bulkData = new ArrayList<>();
-				Set<Long> guildKeys = guildStats.keySet();
+				Set<Long> guildKeys = GUILD_STATS.keySet();
 				for (long guildId : guildKeys) {
-					Map<String, Integer> guildData = guildStats.get(guildId);
+					Map<String, Integer> guildData = GUILD_STATS.get(guildId);
 					
 					boolean proceed = false;
 					for (Integer value : guildData.values()) {
@@ -85,14 +86,14 @@ public class StatsEvents extends ListenerAdapter {
 						}
 					}
 					
-					if (proceed == false) {
+					if (!proceed) {
 						continue;
 					}
 					
-					Bson update = Updates.combine(
-							Updates.inc("stats.messages", guildData.get("messages")),
-							Updates.inc("stats.members", guildData.get("members"))
-					);
+					Bson update = new BsonDocument();
+					for (String key : guildData.keySet()) {
+						update = Updates.combine(update, Updates.inc("stats." + key, guildData.get(key)));
+					}
 		
 					bulkData.add(new UpdateOneModel<>(Filters.eq("_id", guildId), update, new UpdateOptions().upsert(true)));
 				}
@@ -105,7 +106,7 @@ public class StatsEvents extends ListenerAdapter {
 					});
 				}
 				
-				guildStats.clear();
+				GUILD_STATS.clear();
 			} catch(Exception e) {
 				e.printStackTrace();
 			}
@@ -114,42 +115,39 @@ public class StatsEvents extends ListenerAdapter {
 	
 	public void onGuildMessageReceived(GuildMessageReceivedEvent event) {
 		if (!event.getAuthor().isBot()) {
-			if (guildStats.containsKey(event.getGuild().getIdLong())) {
-				Map<String, Integer> guildStatsData = guildStats.get(event.getGuild().getIdLong());
+			if (GUILD_STATS.containsKey(event.getGuild().getIdLong())) {
+				Map<String, Integer> guildStatsData = GUILD_STATS.get(event.getGuild().getIdLong());
 				guildStatsData.put("messages", guildStatsData.get("messages") + 1);
-				guildStats.put(event.getGuild().getIdLong(), guildStatsData);
 			} else {
 				Map<String, Integer> guildStatsData = new HashMap<>();
 				guildStatsData.put("messages", 1);
 				guildStatsData.put("members", 0);
-				guildStats.put(event.getGuild().getIdLong(), guildStatsData);
+				GUILD_STATS.put(event.getGuild().getIdLong(), guildStatsData);
 			}
 		}
 	}
 	
 	public void onGuildMemberJoin(GuildMemberJoinEvent event) {
-		if (guildStats.containsKey(event.getGuild().getIdLong())) {
-			Map<String, Integer> guildData = guildStats.get(event.getGuild().getIdLong());
+		if (GUILD_STATS.containsKey(event.getGuild().getIdLong())) {
+			Map<String, Integer> guildData = GUILD_STATS.get(event.getGuild().getIdLong());
 			guildData.put("members", guildData.get("members") + 1);
-			guildStats.put(event.getGuild().getIdLong(), guildData);
 		} else {
 			Map<String, Integer> guildData = new HashMap<>();
 			guildData.put("messages", 0);
 			guildData.put("members", 1);
-			guildStats.put(event.getGuild().getIdLong(), guildData);
+			GUILD_STATS.put(event.getGuild().getIdLong(), guildData);
 		}
 	}
 	
 	public void onGuildMemberLeave(GuildMemberLeaveEvent event) {
-		if (guildStats.containsKey(event.getGuild().getIdLong())) {
-			Map<String, Integer> guildData = guildStats.get(event.getGuild().getIdLong());
+		if (GUILD_STATS.containsKey(event.getGuild().getIdLong())) {
+			Map<String, Integer> guildData = GUILD_STATS.get(event.getGuild().getIdLong());
 			guildData.put("members", guildData.get("members") - 1);
-			guildStats.put(event.getGuild().getIdLong(), guildData);
 		} else {
 			Map<String, Integer> guildData = new HashMap<>();
 			guildData.put("messages", 0);
 			guildData.put("members", -1);
-			guildStats.put(event.getGuild().getIdLong(), guildData);
+			GUILD_STATS.put(event.getGuild().getIdLong(), guildData);
 		}
 	}
 	
@@ -169,8 +167,9 @@ public class StatsEvents extends ListenerAdapter {
 	
 	public void onGuildLeave(GuildLeaveEvent event) {
 		Document guildLog = new Document("guildId", event.getGuild().getIdLong())
-				.append("joined", false)
-				.append("guildCount", Sx4Bot.getShardManager().getGuilds().size())
+				.append("joined", true)
+				.append("guildName", event.getGuild().getName())
+				.append("memberCount", event.getGuild().getMembers().size())
 				.append("timestamp", Clock.systemUTC().instant().getEpochSecond());
 		
 		Database.get().insertGuildLog(guildLog, (result, exception) -> {

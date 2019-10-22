@@ -981,7 +981,9 @@ public class FunModule {
 					if (attempts.get() == 3) {
 						event.reply("Steam failed to get data for a random steam game, try again :no_entry:").queue();
 					} else {
-						Sx4Bot.client.newCall(request).enqueue(this);
+						Map<String, Object> newSteamGame = steamGames.get(RANDOM.nextInt(steamGames.size()));
+						
+						Sx4Bot.client.newCall(request.newBuilder().url("https://store.steampowered.com/api/appdetails?appids=" + (int) newSteamGame.get("appid")).build()).enqueue(this);
 					}
 					
 					return;
@@ -1056,7 +1058,7 @@ public class FunModule {
 				.setFunction(game -> (String) game.get("name"));
 		
 		PagedUtils.getPagedResult(event, paged, 60, returnedGame -> {
-			Map<String, Object> steamGame = returnedGame.getObject();
+			Map<String, Object> steamGame = returnedGame.getData();
 			
 			Request request = new Request.Builder().url("https://store.steampowered.com/api/appdetails?appids=" + (int) steamGame.get("appid")).addHeader("Accept-Language", "en-GB").build();
 			
@@ -1790,9 +1792,9 @@ public class FunModule {
 	@Cooldown(value=10)
 	public void shorten(CommandEvent event, @Argument(value="url", endless=true) String url) {
 		Request request = new Request.Builder()
-				.url("https://api.rebrandly.com/v1/links")
-				.post(RequestBody.create(MediaType.parse("application/json; charset=utf-8"), "{\"destination\":\"" + url + "\"}"))
-				.addHeader("apikey", TokenUtils.REBRANDLY)
+				.url("https://api-ssl.bitly.com/v4/bitlinks")
+				.post(RequestBody.create(MediaType.parse("application/json; charset=utf-8"), "{\"long_url\":\"" + url + "\"}"))
+				.addHeader("Authorization", "Bearer " + TokenUtils.BITLY)
 				.addHeader("Content-Type", "application/json")
 				.build();
 		
@@ -1810,7 +1812,7 @@ public class FunModule {
 				return;
 			}
 			
-			event.reply("<https://" + json.getString("shortUrl") + ">").queue();
+			event.reply("<" + json.getString("link") + ">").queue();
 		});
 	}
 	
@@ -2323,11 +2325,9 @@ public class FunModule {
 			for (int i = 0; i < fields.toList().size(); i++) {
 				JSONObject field = fields.getJSONObject(i);
 				if (field.has("name") && field.has("value")) {
-					boolean inline;
+					boolean inline = true;
 					if (field.has("inline")) {
 						inline = field.getBoolean("inline");
-					} else {
-						inline = true;
 					}
 					
 					embed.addField(field.getString("name"), field.getString("value"), inline);

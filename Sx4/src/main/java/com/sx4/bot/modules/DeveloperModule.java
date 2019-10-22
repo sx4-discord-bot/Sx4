@@ -4,6 +4,7 @@ import java.awt.Color;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
@@ -12,6 +13,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import org.bson.Document;
 import org.codehaus.groovy.control.CompilerConfiguration;
 import org.codehaus.groovy.control.customizers.ImportCustomizer;
 import org.json.JSONObject;
@@ -28,8 +30,12 @@ import com.jockie.bot.core.command.Initialize;
 import com.jockie.bot.core.command.impl.CommandEvent;
 import com.jockie.bot.core.command.impl.CommandImpl;
 import com.jockie.bot.core.module.Module;
+import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Projections;
+import com.mongodb.client.model.UpdateOneModel;
+import com.mongodb.client.model.UpdateOptions;
 import com.mongodb.client.model.Updates;
+import com.mongodb.client.model.WriteModel;
 import com.sx4.bot.categories.Categories;
 import com.sx4.bot.core.Sx4Bot;
 import com.sx4.bot.core.Sx4Command;
@@ -48,6 +54,8 @@ import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.requests.RestAction;
+import net.dv8tion.jda.internal.entities.AbstractMessage;
+import net.dv8tion.jda.internal.entities.ReceivedMessage;
 
 @Module
 public class DeveloperModule {
@@ -184,6 +192,52 @@ public class DeveloperModule {
 		});
 	}
 	
+	@Command(value="as", description="Execute a command as someone else")
+	@Developer
+	public void as(CommandEvent event, @Argument(value="user") String userArgument, @Argument(value="command and arguments", endless=true) String commandAndArguments) {
+		Member member = ArgumentUtils.getMember(event.getGuild(), userArgument);
+		if (member == null) {
+			event.reply("I could not find that user :no_entry:").queue();
+			return;
+		}
+		
+		Field user;
+		try {
+			user = ReceivedMessage.class.getDeclaredField("author");
+		} catch (NoSuchFieldException | SecurityException e) {
+			event.reply("Failed to get the author field in ReceivedMessage :no_entry:").queue();
+			return;
+		}
+		
+		user.setAccessible(true);
+		
+		try {
+			user.set(event.getMessage(), member.getUser());
+		} catch (IllegalArgumentException | IllegalAccessException e) {
+			event.reply("Failed to set the author field in the current message :no_entry:").queue();
+			return;
+		}
+		
+		Field content;
+		try {
+			content = AbstractMessage.class.getDeclaredField("content");
+		} catch (NoSuchFieldException | SecurityException e) {
+			event.reply("Failed to get the content field in AbstractMessage :no_entry:").queue();
+			return;
+		}
+		
+		content.setAccessible(true);
+		
+		try {
+			content.set(event.getMessage(), event.getSelfUser().getAsMention() + " " + commandAndArguments);
+		} catch (IllegalArgumentException | IllegalAccessException e) {
+			event.reply("Failed to set the content field in the current message :no_entry:").queue();
+			return;
+		}
+		
+		event.getCommandListener().parse(event.getMessage());
+	}
+	
 	@Command(value="transfer tax", description="Transfer the tax money to a user")
 	@Developer
 	public void transferTax(CommandEvent event, @Context Database database, @Argument(value="user", endless=true) String userArgument) {
@@ -194,7 +248,14 @@ public class DeveloperModule {
 		}
 		
 		long tax = database.getUserById(event.getSelfUser().getIdLong(), null, Projections.include("economy.balance")).getEmbedded(List.of("economy", "balance"), 0L);
-		database.updateUserById(member.getIdLong(), Updates.inc("economy.balance", tax), (result, exception) -> {
+		
+		UpdateOptions updateOptions = new UpdateOptions().upsert(true);
+		List<WriteModel<Document>> bulkData = List.of(
+				new UpdateOneModel<>(Filters.eq("_id", member.getIdLong()), Updates.inc("economy.balance", tax), updateOptions),
+				new UpdateOneModel<>(Filters.eq("_id", event.getSelfUser().getIdLong()), Updates.set("economy.balance", 0L), updateOptions)
+		);
+		
+		database.bulkWriteUsers(bulkData, (result, exception) -> {
 			if (exception != null) {
 				exception.printStackTrace();
 				event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
@@ -269,10 +330,10 @@ public class DeveloperModule {
 		}
 		
 		try (FileOutputStream file = new FileOutputStream(new File("./advertisement.json"))) { 
-            file.write(updatedData.toString().getBytes());
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+		    file.write(updatedData.toString().getBytes());
+		} catch (IOException e) {
+		    e.printStackTrace();
+		}
 		
 		event.reply("Done").queue();
 	}

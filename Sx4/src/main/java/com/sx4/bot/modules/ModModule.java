@@ -2,7 +2,6 @@ package com.sx4.bot.modules;
 
 import java.awt.Color;
 import java.io.IOException;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.time.Clock;
 import java.time.Instant;
@@ -17,6 +16,7 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
 import java.util.stream.Collectors;
 
 import org.bson.Document;
@@ -70,6 +70,7 @@ import net.dv8tion.jda.api.entities.Icon;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.Message.Attachment;
+import net.dv8tion.jda.api.entities.Message.MentionType;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.entities.PermissionOverride;
 import net.dv8tion.jda.api.entities.Role;
@@ -88,28 +89,32 @@ public class ModModule {
 	@BotPermissions({Permission.MANAGE_EMOTES})
 	@Async
 	public void createEmote(CommandEvent event, @Argument(value="emote | image", nullDefault=true) String argument) {
-		if (event.getGuild().getEmotes().size() >= event.getGuild().getMaxEmotes()) {
-			event.reply("The server has reached the emote cap of **" + event.getGuild().getMaxEmotes() + "** :no_entry:").queue();
-			return;
-		}
+		long animatedEmotes = event.getGuild().getEmotes().stream().filter(emote -> emote.isAnimated()).count();
+		long nonAnimatedEmotes = event.getGuild().getEmotes().stream().filter(emote -> !emote.isAnimated()).count();
+		int maxEmotes = event.getGuild().getMaxEmotes();
 		
 		if (argument != null) {
 			Emote emote = ArgumentUtils.getEmote(event.getGuild(), argument);
 			if (emote != null) {
 				try {
+					if ((emote.isAnimated() && animatedEmotes >= maxEmotes) || (!emote.isAnimated() && nonAnimatedEmotes >= maxEmotes)) {
+						event.reply("You already have the max" + (emote.isAnimated() ? "" : " non") + " animated emotes on this server :no_entry:").queue();
+						return;
+					}
+					
 					event.getGuild().createEmote(emote.getName(), Icon.from(new URL(emote.getImageUrl()).openStream())).queue(e -> {
 						event.reply(e.getAsMention() + " has been created <:done:403285928233402378>").queue();
 					});
-				} catch (MalformedURLException e) {
-					e.getMessage();
 				} catch (IOException e) {
 					event.reply("Oops something went wrong there, try again :no_entry:").queue();
 					return;
 				} 
 			} else {
+				Matcher emoteMention = MentionType.EMOTE.getPattern().matcher(argument);
 				String url = null, name = null;
 				Request request;
 				String id = null;
+				Boolean animated = null;
 				if (!event.getMessage().getAttachments().isEmpty()) {	
 					for (Attachment attachment : event.getMessage().getAttachments()) {
 						if (attachment.isImage()) {
@@ -120,10 +125,11 @@ public class ModModule {
 							break;
 						}
 					}
-				} else if (argument.matches("<(?:a|):(.{2,32}):(\\d+)>")) {
-					id = argument.split(":")[2];
-					id = id.substring(0, id.length() - 1);	
-				} else if (argument.matches("\\d+")) {
+				} else if (emoteMention.matches()) {
+					name = emoteMention.group(1);
+					id = emoteMention.group(2);
+					animated = argument.startsWith("<a");
+				} else if (GeneralUtils.isNumberUnsigned(argument)) {
 					id = argument;
 				} else {
 					try {
@@ -132,6 +138,7 @@ public class ModModule {
 						event.reply("You didn't provide a valid url :no_entry:").queue();
 						return;
 					}
+					
 					try {
 						try (Response response = Sx4Bot.client.newCall(request).execute()) {
 							if (response.code() == 200) {
@@ -142,8 +149,13 @@ public class ModModule {
 									event.reply("The url you provided wasn't an image or a gif :no_entry:").queue();
 									return;
 								}
-								if (type.equals("gif") || type.equals("png") || type.equals("jpg") || type.equals("jpeg")) {
+								
+								if (type.equals("gif")) {
 									url = argument;
+									animated = true;
+								} else if (type.equals("png") || type.equals("jpg") || type.equals("jpeg")) {
+									url = argument;
+									animated = false;
 								} else {
 									event.reply("The url you provided wasn't an image or a gif :no_entry:").queue();
 									return;
@@ -159,7 +171,9 @@ public class ModModule {
 					}
 				}
 				
-				if (id != null) {
+				if (id != null && animated != null) {
+					url = "https://cdn.discordapp.com/emojis/" + id + "." + (animated ? "gif" : "png");
+				} else if (id != null && animated == null) {
 					try {
 						request = new Request.Builder().url("https://cdn.discordapp.com/emojis/" + id + ".gif").build();
 					} catch(IllegalArgumentException e) {
@@ -170,8 +184,10 @@ public class ModModule {
 						try (Response response = Sx4Bot.client.newCall(request).execute()) {
 							if (response.code() == 415) {
 								url = "https://cdn.discordapp.com/emojis/" + id + ".png";
+								animated = false;
 							} else if (response.code() == 200) {
 								url = "https://cdn.discordapp.com/emojis/" + id + ".gif";
+								animated = true;
 							} else {
 								event.reply("I could not find that emote :no_entry:").queue();
 								return;
@@ -189,11 +205,14 @@ public class ModModule {
 				}
 				
 				try {
+					if ((animated && animatedEmotes >= maxEmotes) || (!animated && nonAnimatedEmotes >= maxEmotes)) {
+						event.reply("You already have the max" + (animated ? "" : " non") + " animated emotes on this server :no_entry:").queue();
+						return;
+					}
+					
 					event.getGuild().createEmote(name == null ? "Unnamed_Emote" : name, Icon.from(new URL(url).openStream())).queue(e -> {
 						event.reply(e.getAsMention() + " has been created <:done:403285928233402378>").queue();
 					});
-				} catch (MalformedURLException e) {
-					e.getMessage();
 				} catch (IOException e) {
 					event.reply("Oops something went wrong there, try again :no_entry:").queue();
 					return;
@@ -206,6 +225,13 @@ public class ModModule {
 						String fileName = attachment.getFileName().replace("-", "_").replace(" ", "_");
 						int periodIndex = fileName.lastIndexOf(".");
 						String emoteName = fileName.substring(0, periodIndex);
+						
+						boolean animated = fileName.substring(periodIndex + 1).equals("gif"); 
+						if ((animated && animatedEmotes >= maxEmotes) || (!animated && nonAnimatedEmotes >= maxEmotes)) {
+							event.reply("You already have the max" + (animated ? "" : " non") + " animated emotes on this server :no_entry:").queue();
+							return;
+						}
+						
 						attachment.retrieveAsIcon().thenAcceptAsync(stream -> {
 							event.getGuild().createEmote(emoteName, stream).queue(e -> {
 								event.reply(e.getAsMention() + " has been created <:done:403285928233402378>").queue();
@@ -3026,11 +3052,11 @@ public class ModModule {
 			while ((index = reason.indexOf(':', index + 1)) != -1) {
 				int prefixIndex = index;
 				StringBuilder prefix = new StringBuilder();
-				while (!prefix.toString().equalsIgnoreCase("t") && !prefix.toString().equalsIgnoreCase("template") && prefixIndex >= 0) {
+				while (!prefix.toString().equalsIgnoreCase("t") && !prefix.toString().equalsIgnoreCase("template") && prefixIndex > 0) {
 					prefix.insert(0, reason.charAt(--prefixIndex));
 				}
 				
-				if (prefixIndex >= 0) {
+				if (prefix.toString().equalsIgnoreCase("t") || prefix.toString().equalsIgnoreCase("template")) {
 					StringBuilder template = new StringBuilder();
 					
 					if (reason.charAt(index + 1) == '"' && reason.indexOf('"', index + 2) != -1) {

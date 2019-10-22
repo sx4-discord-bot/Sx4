@@ -2713,15 +2713,15 @@ public class EconomyModule {
 			}
 	
 			if (BigInteger.valueOf(userItem.getAmount()).compareTo(itemAmount) != -1) {				
-				Document rawItem = EconomyUtils.getUserItemRaw(items, item);
-				rawItem.put("amount", itemAmount.longValue());
-				
 				EconomyUtils.removeItem(items, item, itemAmount.longValue());
 				database.updateUserById(event.getAuthor().getIdLong(), Updates.set("economy.items", items), (userResult, userException) -> {
 					if (userException != null) {
 						userException.printStackTrace();
 						event.reply(Sx4CommandEventListener.getUserErrorMessage(userException)).queue();
 					} else {
+						Document rawItem = EconomyUtils.getUserItemRaw(items, item);
+						rawItem.put("amount", itemAmount.longValue());
+						
 						database.insertAuction(event.getAuthor().getIdLong(), price, rawItem, (auctionResult, auctionException) -> {
 							if (auctionException != null) {
 								auctionException.printStackTrace();
@@ -2795,7 +2795,7 @@ public class EconomyModule {
 					});
 			
 			PagedUtils.getPagedResult(event, paged, 60, pagedReturn -> {
-				Document auction = pagedReturn.getObject();
+				Document auction = pagedReturn.getData();
 				AuctionItem auctionItem = new AuctionItem(auction);
 				Document data = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items", "economy.balance")).get("economy", Database.EMPTY_DOCUMENT);
 				
@@ -2869,7 +2869,7 @@ public class EconomyModule {
 		@Command(value="refund", description="Refund an item you have put on the auction")
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void refund(CommandEvent event, @Context Database database, @Argument(value="item name", endless=true, nullDefault=true) String itemName) {
-			Bson ownerFilter = Filters.eq("_id", event.getAuthor().getIdLong());
+			Bson ownerFilter = Filters.eq("ownerId", event.getAuthor().getIdLong());
 			List<Document> shownData;
 			if (itemName != null) {
 				Item item = EconomyUtils.getItem(itemName);
@@ -2924,7 +2924,7 @@ public class EconomyModule {
 					});
 			
 			PagedUtils.getPagedResult(event, paged, 60, pagedReturn -> {
-				Document auction = pagedReturn.getObject();
+				Document auction = pagedReturn.getData();
 				AuctionItem auctionItem = new AuctionItem(auction);
 				
 				Document auctionData = database.getAuction().find(Filters.eq("_id", auctionItem.getId())).first();

@@ -259,7 +259,7 @@ public class WelcomerEvents extends ListenerAdapter {
 	}
 	
 	public void onGuildMemberLeave(GuildMemberLeaveEvent event) {
-		Bson projection = Projections.include("leaver.enabled", "leaver.channelId", "leaver.webhookId", "leaver.webhookToken");
+		Bson projection = Projections.include("leaver.enabled", "leaver.channelId", "leaver.webhookId", "leaver.webhookToken", "leaver.message");
 		Document data = Database.get().getGuildById(event.getGuild().getIdLong(), null, projection).get("leaver", Database.EMPTY_DOCUMENT);
 		if (!data.getBoolean("enabled", false) || data.getLong("channelId") == null) {
 			return;

@@ -34,7 +34,7 @@ public class HelpModule {
 			+ "explain your product/service as well as the banner spot below which is 1000x200. Statistics wise Sx4s help menu gets around 3500 impressions per month and this number will continue to increase. More "
 			+ "information will be provided if you contact Shea#6653 (Easiest way to contact is joining the bots support server).";
 			
-	private final String defaultSponsorImage = "https://cdn.discordapp.com/attachments/344091594972069888/563072607667093504/unknown.png";
+	private final String defaultSponsorImage = "https://cdn.discordapp.com/attachments/344091594972069888/634867715860987914/Sponsor.png";
 
 	@Command(value="help", aliases={"h", "commands", "commandlist", "command list"}, description="Lists commands on the bot and gives you info on specific commands")
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
@@ -56,7 +56,7 @@ public class HelpModule {
 				paged.setAuthor("All Commands", null, event.getAuthor().getEffectiveAvatarUrl());
 				
 				PagedUtils.getPagedResult(event, paged, 300, pagedReturn -> {
-					event.reply(HelpUtils.getHelpMessage(pagedReturn.getObject())).queue();
+					event.reply(HelpUtils.getHelpMessage(pagedReturn.getData())).queue();
 				});
 			} else {
 				JSONObject advertisement = HelpUtils.getAdvertisement();
@@ -85,7 +85,7 @@ public class HelpModule {
 					}, null, response -> {
 						PagedResult<Sx4Command> paged = HelpUtils.getModulePagedResult(ArgumentUtils.getModule(response.getContentRaw(), false, event.isAuthorDeveloper()), event.getAuthor());
 						PagedUtils.getPagedResult(event, paged, 300, pagedReturn -> {
-							event.reply(HelpUtils.getHelpMessage(pagedReturn.getObject())).queue();
+							event.reply(HelpUtils.getHelpMessage(pagedReturn.getData())).queue();
 						});
 						
 						response.delete().queue(null, e -> {});
@@ -110,14 +110,14 @@ public class HelpModule {
 			if (moduleChoice) {
 				PagedResult<Sx4Command> paged = HelpUtils.getModulePagedResult(module, event.getAuthor());
 				PagedUtils.getPagedResult(event, paged, 300, pagedReturn -> {
-					event.reply(HelpUtils.getHelpMessage(pagedReturn.getObject())).queue();
+					event.reply(HelpUtils.getHelpMessage(pagedReturn.getData())).queue();
 				});
 			} else if (commandChoice) {
 				if (commands.size() > 1) {
 					PagedResult<Sx4Command> paged = HelpUtils.getCommandPagedResult(commands);
 					paged.setAuthor(GeneralUtils.title(commands.get(0).getCommandTrigger()), null, event.getSelfUser().getEffectiveAvatarUrl());
 					PagedUtils.getPagedResult(event, paged, 60, pagedReturn -> {
-						event.reply(HelpUtils.getHelpMessage(pagedReturn.getObject())).queue();
+						event.reply(HelpUtils.getHelpMessage(pagedReturn.getData())).queue();
 					});
 				} else {
 					event.reply(HelpUtils.getHelpMessage(commands.get(0))).queue();
@@ -126,14 +126,14 @@ public class HelpModule {
 				if (module != null) {
 					PagedResult<Sx4Command> paged = HelpUtils.getModulePagedResult(module, event.getAuthor());
 					PagedUtils.getPagedResult(event, paged, 300, pagedReturn -> {
-						event.reply(HelpUtils.getHelpMessage(pagedReturn.getObject())).queue();
+						event.reply(HelpUtils.getHelpMessage(pagedReturn.getData())).queue();
 					});
 				} else if (!commands.isEmpty()) {
 					if (commands.size() > 1) {
 						PagedResult<Sx4Command> paged = HelpUtils.getCommandPagedResult(commands);
 						paged.setAuthor(GeneralUtils.title(commands.get(0).getCommandTrigger()), null, event.getSelfUser().getEffectiveAvatarUrl());
 						PagedUtils.getPagedResult(event, paged, 60, pagedReturn -> {
-							event.reply(HelpUtils.getHelpMessage(pagedReturn.getObject())).queue();
+							event.reply(HelpUtils.getHelpMessage(pagedReturn.getData())).queue();
 						});
 					} else {
 						event.reply(HelpUtils.getHelpMessage(commands.get(0))).queue();

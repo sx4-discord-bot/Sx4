@@ -370,7 +370,7 @@ public class UnoSession {
 						.setFunction(playableCard -> playableCard.getEmote() + " - " + playableCard.getName());
 				
 				PagedUtils.getPagedResult(event, channel, paged, 30, pagedReturn -> {
-					UnoCard card = pagedReturn.getObject();
+					UnoCard card = pagedReturn.getData();
 					if (card.equals(UnoCard.DRAW_CARD)) {
 						this.drawCards(event, () -> runnable.run());
 					} else {
@@ -513,7 +513,7 @@ public class UnoSession {
 					.setFunction(c -> GeneralUtils.title(c.toString()));
 			
 			PagedUtils.getPagedResult(event, channel, paged, 30, pagedReturn -> {
-				Colour newColour = pagedReturn.getObject();
+				Colour newColour = pagedReturn.getData();
 				this.lastColour = newColour;
 				colour.accept(newColour);
 			});

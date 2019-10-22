@@ -32,6 +32,9 @@ public class Sx4CommandEventListener extends CommandEventListener {
 	
 	private WebhookClient commandWebhook = new WebhookClientBuilder(Long.valueOf(Settings.COMMANDS_WEBHOOK_ID), Settings.COMMANDS_WEBHOOK_TOKEN).build();
 	private List<WebhookEmbed> commandStore = new ArrayList<>();
+	
+	private long lastCommandExecuted = -1;
+	
 	private static Pair<Long, Long> averageExecutionTime = Pair.of(0L, 0L);
 	
 	public static long getAverageExecutionTime() {
@@ -67,7 +70,7 @@ public class Sx4CommandEventListener extends CommandEventListener {
 		StringBuilder message = new StringBuilder("```diff\n");
 		
 		if (arguments.length != 0) {
-			message.append(" with arguments " + Arrays.deepToString(arguments));
+			message.append("+ Arguments: " + Arrays.deepToString(arguments));
 		}
 		
 		for (String errorLine : errorLines) {
@@ -102,6 +105,12 @@ public class Sx4CommandEventListener extends CommandEventListener {
 			event.removeCooldown();
 		}
 		
+		if (this.lastCommandExecuted == event.getMessage().getIdLong()) {
+			return;
+		} else {
+			this.lastCommandExecuted = event.getMessage().getIdLong();
+		}
+		
 		averageExecutionTime = Pair.of(averageExecutionTime.getLeft() + event.getTimeSinceStarted(), averageExecutionTime.getRight() + 1);
 		
 		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
@@ -127,6 +136,7 @@ public class Sx4CommandEventListener extends CommandEventListener {
 		}
 		
 		Document commandData = new Document("_id", event.getMessage().getIdLong())
+				.append("content", event.getMessage().getContentRaw())
 				.append("command", command.getCommandTrigger())
 				.append("module", command.getCategory() == null ? null : command.getCategory().getName())
 				.append("aliasUsed", event.getCommandTrigger())

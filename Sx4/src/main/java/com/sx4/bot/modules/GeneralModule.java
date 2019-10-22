@@ -267,7 +267,7 @@ public class GeneralModule {
 					.setIncreasedIndex(true);
 				
 			PagedUtils.getPagedResult(event, paged, 300, returnResult -> {
-				Document requestedReminder = returnResult.getObject();
+				Document requestedReminder = returnResult.getData();
 				String remindAt = TimeUtils.toTimeString(requestedReminder.getLong("remindAt") - Clock.systemUTC().instant().getEpochSecond(), ChronoUnit.SECONDS);
 				event.reply("ID: `" + requestedReminder.getInteger("id") + "`\nReminder: `" + requestedReminder.getString("reminder") + "`\nRemind in: `" + remindAt + "`").queue();
 			});
@@ -1246,7 +1246,7 @@ public class GeneralModule {
 					});
 			
 			PagedUtils.getPagedResult(event, paged, 60, onReturn -> {
-				event.reply(onReturn.getObject().getRight()).queue();
+				event.reply(onReturn.getData().getRight()).queue();
 			});
 		} else {
 			if (version.toLowerCase().equals("latest")) {

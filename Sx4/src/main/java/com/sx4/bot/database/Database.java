@@ -8,7 +8,6 @@ import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
 
-import com.mongodb.MongoClientSettings;
 import com.mongodb.bulk.BulkWriteResult;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoClient;
@@ -60,7 +59,7 @@ public class Database {
 	private FindOneAndUpdateOptions defaultFindOneAndUpdateOptions = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER).upsert(true);
 	
 	private Database() {
-		this.client = MongoClients.create(MongoClientSettings.builder().build());
+		this.client = MongoClients.create();
 		
 		this.otherDatabase = this.client.getDatabase(Settings.CANARY ? Settings.MAIN_DATABASE_NAME : Settings.CANARY_DATABASE_NAME);
 		

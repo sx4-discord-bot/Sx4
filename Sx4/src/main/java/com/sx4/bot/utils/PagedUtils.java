@@ -24,18 +24,18 @@ import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 public class PagedUtils {
 	
 	public static class PagedReturn<Type> {
-		private Type object;
+		private Type data;
 		private int page;
 		private int index;
 		
-		public PagedReturn(Type object, int page, int index) {
-			this.object = object;
+		public PagedReturn(Type data, int page, int index) {
+			this.data = data;
 			this.page = page;
 			this.index = index;
 		}
 		
-		public Type getObject() {
-			return this.object;
+		public Type getData() {
+			return this.data;
 		}
 		
 		public int getPage() {
@@ -353,7 +353,7 @@ public class PagedUtils {
 							if (messageContent.matches("[0-9]+")) {
 								int selectedIndex = Integer.parseInt(e.getMessage().getContentRaw().toLowerCase());
 								if (paged.isIncreasedIndex()) {
-									return selectedIndex > paged.getCurrentPage() * paged.getPerPage() - paged.getPerPage() && selectedIndex <= (paged.getCurrentPage() != paged.getMaxPage() ? paged.getCurrentPage() * paged.getPerPage() : paged.getCurrentPage() * paged.getPerPage() - (paged.getCurrentPage() - paged.getLastPageEntries()));
+									return selectedIndex > paged.getCurrentPage() * paged.getPerPage() - paged.getPerPage() && selectedIndex <= (paged.getCurrentPage() != paged.getMaxPage() ? paged.getCurrentPage() * paged.getPerPage() : paged.getArray().size());
 								} else {
 									return selectedIndex > 0 && selectedIndex <= (paged.getCurrentPage() != paged.getMaxPage() ? paged.getPerPage() : paged.getLastPageEntries());
 								}
@@ -433,6 +433,7 @@ public class PagedUtils {
 						} else {
 							index = (paged.getCurrentPage() * paged.getPerPage() - paged.getPerPage()) + (selectedIndex - 1);
 						}
+						
 						PagedReturn<T> page = paged.select(index);
 						returnFunction.accept(page);
 						
