@@ -414,7 +414,7 @@ public class ModModule {
 			List<Bson> arrayFilters = null;
 			String channelDisplay = channel == null ? null : channel instanceof TextChannel ? ((TextChannel) channel).getAsMention() : channel.getName();
 			
-			List<Document> commands = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("blacklist.commands")).getEmbedded(List.of("blacklist", "remove"), Collections.emptyList());
+			List<Document> commands = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("blacklist.commands")).getEmbedded(List.of("blacklist", "commands"), Collections.emptyList());
 			for (Document commandData : commands) {
 				if (commandData.getString("id").equals(commandName)) {
 					arrayFilters = List.of(Filters.eq("command.id", commandName));
@@ -750,6 +750,11 @@ public class ModModule {
 						}
 					}
 					
+					if (blacklistedString.isEmpty()) {
+						event.reply("Nothing is blacklisted from that " + (command == null ? "module" : "command") + " :no_entry:").queue();
+						return;
+					}
+					
 					PagedResult<String> paged = new PagedResult<>(blacklistedString)
 							.setDeleteMessage(false)
 							.setIncreasedIndex(true)
@@ -1066,6 +1071,11 @@ public class ModModule {
 						}
 					}
 					
+					if (whitelistedString.isEmpty()) {
+						event.reply("Nothing is blacklisted from that " + (command == null ? "module" : "command") + " :no_entry:").queue();
+						return;
+					}
+					
 					PagedResult<String> paged = new PagedResult<>(whitelistedString)
 							.setDeleteMessage(false)
 							.setIncreasedIndex(true)
@@ -1377,6 +1387,11 @@ public class ModModule {
 					Role role = event.getGuild().getRoleById(roleData.getLong("id")); 
 					rolesAndUsers.add(role == null ? roleData.getLong("id") + " (Deleted Role)" : role.getAsMention());
 				}
+			}
+			
+			if (rolesAndUsers.isEmpty()) {
+				event.reply("There are no roles/users in that permission :no_entry:").queue();
+				return;
 			}
 			
 			PagedResult<String> paged = new PagedResult<>(rolesAndUsers)
@@ -3229,6 +3244,7 @@ public class ModModule {
 		
 		private final List<String> actions = List.of("ban", "mute", "kick");
 		
+		@SuppressWarnings("unchecked")
 		@Command(value="set", aliases={"add"}, description="Set a certain warning to a specified action to happen when a user reaches that warning")
 		@AuthorPermissions({Permission.MANAGE_SERVER})
 		public void set(CommandEvent event, @Context Database database, @Argument(value="warning number") int warningNumber, @Argument(value="action", endless=true) String action) {
@@ -3259,17 +3275,47 @@ public class ModModule {
 				Bson update = null;
 				UpdateOptions updateOptions = null;
 				
-				List<Document> warnConfiguration = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("warn.configuration")).getEmbedded(List.of("warn", "configuration"), Collections.emptyList());
-				for (Document warning : warnConfiguration) {
-					if (warning.getInteger("warning") == warningNumber) {
-						update = Updates.set("warn.configuration.$[warning]", configuration);
-						updateOptions = new UpdateOptions().arrayFilters(List.of(Filters.eq("warning.warning", warningNumber)));
-						break;
+				List<Document> warnConfiguration = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("warn.configuration")).getEmbedded(List.of("warn", "configuration"), List.class);
+				if (warnConfiguration == null) {
+					List<Document> newWarnConfiguration = new ArrayList<>(ModUtils.DEFAULT_WARN_CONFIGURATION);
+					boolean updated = false;
+					for (Document warning : newWarnConfiguration) {
+						if (warning.getInteger("warning") == warningNumber) {
+							if (warning.equals(configuration)) {
+								event.reply("Warning #" + warningNumber + " already does that action :no_entry:").queue();
+								return;
+							}
+							
+							newWarnConfiguration.remove(warning);
+							newWarnConfiguration.add(configuration);
+							updated = true;
+							
+							break;
+						}
 					}
-				}
-				
-				if (update == null) {
-					update = Updates.push("warn.configuration", configuration);
+					
+					if (!updated) {
+						newWarnConfiguration.add(configuration);
+					}
+					
+					update = Updates.set("warn.configuration", newWarnConfiguration);
+				} else {	
+					for (Document warning : warnConfiguration) {
+						if (warning.getInteger("warning") == warningNumber) {
+							if (warning.equals(configuration)) {
+								event.reply("Warning #" + warningNumber + " already does that action :no_entry:").queue();
+								return;
+							}
+							
+							update = Updates.set("warn.configuration.$[warning]", configuration);
+							updateOptions = new UpdateOptions().arrayFilters(List.of(Filters.eq("warning.warning", warningNumber)));
+							break;
+						}
+					}
+					
+					if (update == null) {
+						update = Updates.push("warn.configuration", configuration);
+					}
 				}
 				
 				database.updateGuildById(event.getGuild().getIdLong(), null, update, updateOptions, (result, exception) -> {
@@ -3277,7 +3323,7 @@ public class ModModule {
 						exception.printStackTrace();
 						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
 					} else {
-						event.replyFormat("Warning #%d will now %s the user %s <:done:403285928233402378>", warningNumber, configuration.containsKey("duration") ? "mute" : actionLower, configuration.containsKey("duration") ? "for " + TimeUtils.toTimeString(configuration.getLong("duration"), ChronoUnit.SECONDS) : "").queue();
+						event.replyFormat("Warning #%d will now %s the user %s<:done:403285928233402378>", warningNumber, configuration.containsKey("duration") ? "mute" : actionLower, configuration.containsKey("duration") ? "for " + TimeUtils.toTimeString(configuration.getLong("duration"), ChronoUnit.SECONDS) + " " : "").queue();
 					}
 				});
 			} else {
@@ -3285,31 +3331,57 @@ public class ModModule {
 			}
 		}
 		
+		@SuppressWarnings("unchecked")
 		@Command(value="remove", description="Removes a warning which is set in the server, to view the configuration use `warn configuration list`", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@AuthorPermissions({Permission.MANAGE_SERVER})
 		public void remove(CommandEvent event, @Context Database database, @Argument(value="warning number") int warningNumber) {
-			List<Document> warnConfiguration = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("warn.configuration")).getEmbedded(List.of("warn", "configuration"), Collections.emptyList());
-			if (warnConfiguration.isEmpty()) {
-				event.reply("Warn configuration has not been set up in this server :no_entry:").queue();
-				return;
-			}
+			Bson update = null;
 			
-			for (Document warning : warnConfiguration) {
-				if (warning.getInteger("warning") == warningNumber) { 
-					database.updateGuildById(event.getGuild().getIdLong(), Updates.pull("warn.configuration", Filters.eq("warning", warningNumber)), (result, exception) -> {
-						if (exception != null) {
-							exception.printStackTrace();
-							event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
-						} else {
-							event.reply("Warning #" + warningNumber + " has been removed <:done:403285928233402378>").queue();
+			List<Document> warnConfiguration = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("warn.configuration")).getEmbedded(List.of("warn", "configuration"), List.class);
+			if (warnConfiguration == null) {
+				boolean updated = false;
+				
+				List<Document> newWarnConfiguration = new ArrayList<>(ModUtils.DEFAULT_WARN_CONFIGURATION);
+				for (Document warning : newWarnConfiguration) {
+					if (warning.getInteger("warning") == warningNumber) {
+						newWarnConfiguration.remove(warning);
+						updated = true;
+						break;
+					}
+				}
+				
+				if (!updated) {
+					event.reply("That warning is not set up to an action :no_entry:").queue();
+					return;
+				}
+				
+				update = Updates.set("warn.configuration", newWarnConfiguration);
+			} else {
+				for (Document warning : warnConfiguration) {
+					if (warning.getInteger("warning") == warningNumber) { 
+						if (warnConfiguration.size() == 1) {
+							event.reply("This is the last warning you have setup, if you want to go back to the default one use `" + event.getPrefix() + "warn configuration reset` :no_entry:").queue();
+							return;
 						}
-					});
-					
+						
+						update = Updates.pull("warn.configuration", Filters.eq("warning", warningNumber));
+					}
+				}
+				
+				if (update == null) {
+					event.reply("That warning is not set up to an action :no_entry:").queue();
 					return;
 				}
 			}
 			
-			event.reply("That warning is not set up to an action :no_entry:").queue();
+			database.updateGuildById(event.getGuild().getIdLong(), update, (result, exception) -> {
+				if (exception != null) {
+					exception.printStackTrace();
+					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+				} else {
+					event.reply("Warning #" + warningNumber + " has been removed <:done:403285928233402378>").queue();
+				}
+			});
 		}
 		
 		@Command(value="reset", aliases={"wipe", "delete"}, description="Reset all warn configuration data set up in the server", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
@@ -3342,10 +3414,7 @@ public class ModModule {
 		@Command(value="list", description="Shows the current configuration for warnings in the current server", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void list(CommandEvent event, @Context Database database) {
-			List<Document> warnConfiguration = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("warn.configuration")).getEmbedded(List.of("warn", "configuration"), Collections.emptyList());
-			if (warnConfiguration.isEmpty()) {
-				warnConfiguration = ModUtils.DEFAULT_WARN_CONFIGURATION;
-			}
+			List<Document> warnConfiguration = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("warn.configuration")).getEmbedded(List.of("warn", "configuration"), ModUtils.DEFAULT_WARN_CONFIGURATION);
 			
 			warnConfiguration.sort((a, b) -> Integer.compare(a.getInteger("warning"), b.getInteger("warning")));
 			PagedResult<Document> paged = new PagedResult<>(warnConfiguration)
@@ -3706,7 +3775,7 @@ public class ModModule {
 		});
 	}
 	
-	@Initialize(all=true)
+	@Initialize(all=true, subCommands=true, recursive=true)
 	public void initialize(CommandImpl command) {
 		command.setCategory(Categories.MOD);
 	}

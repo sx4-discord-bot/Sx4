@@ -1874,26 +1874,27 @@ public class GeneralModule {
 		Collector<Member, ?, List<Member>> toList = Collectors.toList();
 		List<Member> members = event.getGuild().getMembers().stream().filter(member -> !member.getUser().isBot()).collect(toList);
 		List<Member> bots = event.getGuild().getMembers().stream().filter(member -> member.getUser().isBot()).collect(toList);
-		List<Member> onlineMembers = members.stream().filter(member -> !member.getOnlineStatus().equals(OnlineStatus.OFFLINE)).collect(toList);
-		List<Member> onlineBots = bots.stream().filter(member -> !member.getOnlineStatus().equals(OnlineStatus.OFFLINE)).collect(toList);
-		List<Member> onlineStatusMembers = members.stream().filter(member -> member.getOnlineStatus().equals(OnlineStatus.ONLINE)).collect(toList);
-		List<Member> onlineStatusBots = bots.stream().filter(member -> member.getOnlineStatus().equals(OnlineStatus.ONLINE)).collect(toList);
-		List<Member> idleStatusMembers = members.stream().filter(member -> member.getOnlineStatus().equals(OnlineStatus.IDLE)).collect(toList);
-		List<Member> idleStatusBots = bots.stream().filter(member -> member.getOnlineStatus().equals(OnlineStatus.IDLE)).collect(toList);
-		List<Member> dndStatusMembers = members.stream().filter(member -> member.getOnlineStatus().equals(OnlineStatus.DO_NOT_DISTURB)).collect(toList);
-		List<Member> dndStatusBots = bots.stream().filter(member -> member.getOnlineStatus().equals(OnlineStatus.DO_NOT_DISTURB)).collect(toList);
-		List<Member> offlineStatusMembers = members.stream().filter(member -> member.getOnlineStatus().equals(OnlineStatus.OFFLINE)).collect(toList);
-		List<Member> offlineStatusBots = bots.stream().filter(member -> member.getOnlineStatus().equals(OnlineStatus.OFFLINE)).collect(toList);
+		
+		long onlineMembers = members.stream().filter(member -> !member.getOnlineStatus().equals(OnlineStatus.OFFLINE)).count();
+		long onlineBots = bots.stream().filter(member -> !member.getOnlineStatus().equals(OnlineStatus.OFFLINE)).count();
+		long onlineStatusMembers = members.stream().filter(member -> member.getOnlineStatus().equals(OnlineStatus.ONLINE)).count();
+		long onlineStatusBots = bots.stream().filter(member -> member.getOnlineStatus().equals(OnlineStatus.ONLINE)).count();
+		long idleStatusMembers = members.stream().filter(member -> member.getOnlineStatus().equals(OnlineStatus.IDLE)).count();
+		long idleStatusBots = bots.stream().filter(member -> member.getOnlineStatus().equals(OnlineStatus.IDLE)).count();
+		long dndStatusMembers = members.stream().filter(member -> member.getOnlineStatus().equals(OnlineStatus.DO_NOT_DISTURB)).count();
+		long dndStatusBots = bots.stream().filter(member -> member.getOnlineStatus().equals(OnlineStatus.DO_NOT_DISTURB)).count();
+		long offlineStatusMembers = members.stream().filter(member -> member.getOnlineStatus().equals(OnlineStatus.OFFLINE)).count();
+		long offlineStatusBots = bots.stream().filter(member -> member.getOnlineStatus().equals(OnlineStatus.OFFLINE)).count();
 		
 		EmbedBuilder embed = new EmbedBuilder();
 		embed.setThumbnail(event.getGuild().getIconUrl());
 		embed.setAuthor(event.getGuild().getName() + "'s Member Count", null, event.getGuild().getIconUrl());
 		embed.addField("Total Members (" + (members.size() + bots.size()) + ")", members.size() + " members\n" + bots.size() + " bots", true);
-		embed.addField("Total Online Members (" + (onlineMembers.size() + onlineBots.size()) + ")", onlineMembers.size() + " member" + (onlineMembers.size() == 1 ? "" : "s") + "\n" + onlineBots.size() + " bot" + (onlineBots.size() == 1 ? "" : "s"), true);
-		embed.addField("Members Online<:online:361440486998671381> (" + (onlineStatusMembers.size() + onlineStatusBots.size()) + ")", onlineStatusMembers.size() + " member" + (onlineStatusMembers.size() == 1 ? "" : "s") + "\n" + onlineStatusBots.size() + " bot" + (onlineStatusBots.size() == 1 ? "" : "s"), true);
-		embed.addField("Members Idle<:idle:361440487233814528> (" + (idleStatusMembers.size() + idleStatusBots.size()) + ")", idleStatusMembers.size() + " member" + (idleStatusMembers.size() == 1 ? "" : "s") + "\n" + idleStatusBots.size() + " bot" + (idleStatusBots.size() == 1 ? "" : "s"), true);
-		embed.addField("Members DND<:dnd:361440487179157505> (" + (dndStatusMembers.size() + dndStatusBots.size()) + ")", dndStatusMembers.size() + " member" + (dndStatusMembers.size() == 1 ? "" : "s") + "\n" + dndStatusBots.size() + " bot" + (dndStatusBots.size() == 1 ? "" : "s"), true);
-		embed.addField("Members Offline<:offline:361445086275567626> (" + (offlineStatusMembers.size() + offlineStatusBots.size()) + ")", offlineStatusMembers.size() + " member" + (offlineStatusMembers.size() == 1 ? "" : "s") + "\n" + offlineStatusBots.size() + " bot" + (offlineStatusBots.size() == 1 ? "" : "s"), true);
+		embed.addField("Total Online Members (" + (onlineMembers + onlineBots) + ")", onlineMembers + " member" + (onlineMembers == 1 ? "" : "s") + "\n" + onlineBots + " bot" + (onlineBots == 1 ? "" : "s"), true);
+		embed.addField("Members Online<:online:361440486998671381> (" + (onlineStatusMembers + onlineStatusBots) + ")", onlineStatusMembers + " member" + (onlineStatusMembers == 1 ? "" : "s") + "\n" + onlineStatusBots + " bot" + (onlineStatusBots == 1 ? "" : "s"), true);
+		embed.addField("Members Idle<:idle:361440487233814528> (" + (idleStatusMembers + idleStatusBots) + ")", idleStatusMembers + " member" + (idleStatusMembers == 1 ? "" : "s") + "\n" + idleStatusBots + " bot" + (idleStatusBots == 1 ? "" : "s"), true);
+		embed.addField("Members DND<:dnd:361440487179157505> (" + (dndStatusMembers + dndStatusBots) + ")", dndStatusMembers + " member" + (dndStatusMembers == 1 ? "" : "s") + "\n" + dndStatusBots + " bot" + (dndStatusBots == 1 ? "" : "s"), true);
+		embed.addField("Members Offline<:offline:361445086275567626> (" + (offlineStatusMembers + offlineStatusBots) + ")", offlineStatusMembers + " member" + (offlineStatusMembers == 1 ? "" : "s") + "\n" + offlineStatusBots + " bot" + (offlineStatusBots == 1 ? "" : "s"), true);
 		event.reply(embed.build()).queue();
 	}
 	
@@ -2404,7 +2405,7 @@ public class GeneralModule {
 		event.reply(embed.build()).queue();
 	}
 
-	@Initialize(all=true)
+	@Initialize(all=true, subCommands=true, recursive=true)
 	public void initialize(CommandImpl command) {
 		command.setCategory(Categories.GENERAL);
 	}

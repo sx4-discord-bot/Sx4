@@ -13,7 +13,7 @@ import java.util.stream.Collectors;
 public class TimeUtils {
 	
 	public static final Pattern TIME_REGEX = Pattern.compile("(?:(\\d+)(?: |)(?:days|day|d)|)(?: |)(?:(\\d+)(?: |)(?:hours|hour|h)|)(?: |)(?:(\\d+)(?: |)(?:minutes|minute|mins|min|m)|)(?: |)(?:(\\d+)(?: |)(?:seconds|second|secs|sec|s)|)");
-	public static final Pattern DATE_REGEX = Pattern.compile("(?:(\\d{1,2})(?:/|-)(\\d{1,2})(?:/|-)(\\d{1,2})|)(?: |)(?:(\\d{1,2}):(\\d{1,2})|)(?: |)(?:([A-Za-z]+)((?:\\+|-)\\d+|)|)");
+	public static final Pattern DATE_REGEX = Pattern.compile("(?:(\\d{1,2})(?:/|-)(\\d{1,2})(?:/|-|)((?:\\d{1,2}|))|)(?: |)(?:(\\d{1,2}):(\\d{1,2})|)(?: |)(?:([A-Za-z]+)((?:\\+|-)\\d+|)|)");
 	
 	public static int getActualDaysApart(int value) {
 		return value < 0 ? 365 + value : value;
@@ -47,16 +47,19 @@ public class TimeUtils {
 			TimeZone timeZone = TimeZone.getTimeZone(timeZoneString);
 			
 			LocalDateTime now = LocalDateTime.now(timeZone.toZoneId());
-			int day = dateMatch.group(1) == null ? now.getDayOfMonth() : Integer.parseInt(dateMatch.group(1));
-			int month = dateMatch.group(2) == null ? now.getMonthValue() : Integer.parseInt(dateMatch.group(2));
-			int year = dateMatch.group(3) == null ? now.getYear() : Integer.parseInt(dateMatch.group(3)) + ((now.getYear() / 1000) * 1000);
-			int hour = dateMatch.group(4) == null ? 0 : Integer.parseInt(dateMatch.group(4));
-			int minute = dateMatch.group(5) == null ? 0 : Integer.parseInt(dateMatch.group(5));
-			int plusHours = dateMatch.group(7) == null || dateMatch.group(7).length() == 0 ? 0 : Integer.parseInt(dateMatch.group(7));
+			String dayGroup = dateMatch.group(1), monthGroup = dateMatch.group(2), yearGroup = dateMatch.group(3), hourGroup = dateMatch.group(4), minuteGroup = dateMatch.group(5), offsetGroup = dateMatch.group(7);
 			
-			ZonedDateTime dateTime = ZonedDateTime.of(year, month, day, hour, minute, 0, 0, timeZone.toZoneId()).plusHours(-plusHours);
+			int day = dayGroup == null ? now.getDayOfMonth() : Integer.parseInt(dayGroup);
+			int month = monthGroup == null ? now.getMonthValue() : Integer.parseInt(monthGroup);
+			int year = yearGroup == null || yearGroup.length() == 0 ? now.getYear() : Integer.parseInt(yearGroup) + ((now.getYear() / 1000) * 1000);
+			int hour = hourGroup == null ? 0 : Integer.parseInt(hourGroup);
+			int minute = minuteGroup == null ? 0 : Integer.parseInt(minuteGroup);
+			int offset = offsetGroup == null || offsetGroup.length() == 0 ? 0 : Integer.parseInt(offsetGroup);
 			
-			long timeTill = Duration.between(ZonedDateTime.now(), dateTime).toSeconds();
+			ZonedDateTime dateTime = ZonedDateTime.of(year, month, day, hour, minute, 0, 0, timeZone.toZoneId()).minusHours(offset);
+			
+			Duration duration = Duration.between(now, dateTime);
+			long timeTill = duration.isNegative() && dayGroup == null && monthGroup == null && yearGroup == null ? duration.plusDays(1).toSeconds() : duration.toSeconds();
 			if (timeTill <= 0) {
 				throw new IllegalArgumentException("You cannot set a reminder in the past :no_entry:");
 			} else {

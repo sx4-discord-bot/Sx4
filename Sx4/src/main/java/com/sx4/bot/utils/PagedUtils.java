@@ -475,6 +475,10 @@ public class PagedUtils {
 	}
 	
 	public static void getConfirmation(CommandEvent event, int timeout, User responder, Consumer<Boolean> returnFunction) {
+		PagedUtils.getConfirmation(event, timeout, responder, returnFunction, () -> event.reply("Response timed out :stopwatch:").queue());
+	}
+	
+	public static void getConfirmation(CommandEvent event, int timeout, User responder, Consumer<Boolean> returnFunction, Runnable onTimeout) {
 		Sx4Bot.waiter.waitForEvent(MessageReceivedEvent.class, e -> {
 			return e.getChannel().equals(event.getChannel()) && e.getAuthor().getIdLong() == responder.getIdLong();
 		}, e -> {
@@ -486,9 +490,7 @@ public class PagedUtils {
 			}
 			
 			return;
-		}, timeout, TimeUnit.SECONDS, () -> {
-			event.reply("Response timed out :stopwatch:").queue();
-		});
+		}, timeout, TimeUnit.SECONDS, onTimeout);
 	}
 	
 	public static void getResponse(CommandEvent event, int timeout, Predicate<MessageReceivedEvent> check, Runnable onTimeout, Consumer<Message> returnFunction) {

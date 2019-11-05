@@ -2,7 +2,7 @@ package com.sx4.bot.economy.upgrades;
 
 public class AxeUpgrade extends Upgrade {
 
-	public static final AxeUpgrade MULTIPLIER = new AxeUpgrade("Multiplier", "Multiplier upgrades increase your chance to get better materials per chop", 1.01);
+	public static final AxeUpgrade MULTIPLIER = new AxeUpgrade("Multiplier", "Multiplier upgrades increase your chance to get better materials per chop", 1.02);
 	public static final AxeUpgrade DURABILITY = new AxeUpgrade("Durability", "Durability upgrades increase your max axe durability by 2", 2);
 	
 	public static final AxeUpgrade[] ALL = {MULTIPLIER, DURABILITY};

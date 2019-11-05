@@ -17,8 +17,10 @@ import org.bson.conversions.Bson;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Projections;
+import com.mongodb.client.model.UpdateOneModel;
 import com.mongodb.client.model.UpdateOptions;
 import com.mongodb.client.model.Updates;
+import com.mongodb.client.model.WriteModel;
 import com.sx4.bot.core.Sx4Bot;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.utils.ModUtils;
@@ -164,47 +166,50 @@ public class MuteEvents extends ListenerAdapter {
 		return false;
 	}
 	
-	
-	public static void removeUserMute(long guildId, long userId, Long roleId) {
+	public static UpdateOneModel<Document> removeUserMuteAndGet(long guildId, long userId, Long roleId) {
 		Guild guild = Sx4Bot.getShardManager().getGuildById(guildId);
 		if (guild != null) {
 			Role muteRole = roleId == null ? null : guild.getRoleById(roleId);
 			Member member = guild.getMemberById(userId);
-			if (member == null) {
-				return;
-			}
-			
-			User selfUser = guild.getSelfMember().getUser();
-			
-			if (guild.getMember(member.getUser()) == null) {
-				return;
-			}
-			
-			if (muteRole == null) {
-				muteRole = MuteEvents.getMuteRole(guild);
-			}
-			
-			if (muteRole != null) {
-				if (member.getRoles().contains(muteRole)) {
-					if (guild.getSelfMember().hasPermission(Permission.MANAGE_ROLES) && guild.getSelfMember().canInteract(muteRole)) {
-						guild.removeRoleFromMember(member, muteRole).queue();
-					} else {
-						return;
+			if (member != null) {
+				User selfUser = guild.getSelfMember().getUser();
+				
+				if (guild.getMember(member.getUser()) != null) {
+					if (muteRole == null) {
+						muteRole = MuteEvents.getMuteRole(guild);
 					}
+					
+					if (muteRole != null && member.getRoles().contains(muteRole)) {
+						if (guild.getSelfMember().hasPermission(Permission.MANAGE_ROLES) && guild.getSelfMember().canInteract(muteRole)) {
+							guild.removeRoleFromMember(member, muteRole).queue();
+						} else {
+							return null;
+						}
+					}
+					
+					ModUtils.createModLog(guild, selfUser, member.getUser(), "Unmute (Automatic)", "Time Limit Served");
+					member.getUser().openPrivateChannel().queue(channel -> channel.sendMessage(ModUtils.getUnmuteEmbed(guild, null, selfUser, "Time Limit Served")).queue(), e -> {});
+					
+					MuteEvents.cancelExecutor(guild.getIdLong(), member.getUser().getIdLong());
+					
+					return new UpdateOneModel<>(Filters.eq("_id", guild.getIdLong()), Updates.pull("mute.users", Filters.eq("id", member.getIdLong())));
 				}
 			}
-			
-			Database.get().updateGuildById(guild.getIdLong(), Updates.pull("mute.users", Filters.eq("id", member.getIdLong())), (result, exception) -> {
-				if (exception != null) {
-					exception.printStackTrace();
-				}
-			});
-			
-			ModUtils.createModLog(guild, selfUser, member.getUser(), "Unmute (Automatic)", "Time Limit Served");
-			member.getUser().openPrivateChannel().queue(channel -> channel.sendMessage(ModUtils.getUnmuteEmbed(guild, null, selfUser, "Time Limit Served")).queue(), e -> {});
-			
-			MuteEvents.cancelExecutor(guild.getIdLong(), member.getUser().getIdLong());
 		}
+		
+		return null;
+	}
+	
+	public static UpdateOneModel<Document> removeUserMuteAndGet(long guildId, long userId) {
+		return MuteEvents.removeUserMuteAndGet(guildId, userId, null);
+	}
+	
+	public static void removeUserMute(long guildId, long userId, Long roleId) {
+		Database.get().updateGuildById(MuteEvents.removeUserMuteAndGet(guildId, userId, roleId), (result, exception) -> {
+			if (exception != null) {
+				exception.printStackTrace();
+			}
+		});
 	}
 	
 	public static void removeUserMute(long guildId, long userId) {
@@ -214,30 +219,46 @@ public class MuteEvents extends ListenerAdapter {
 	public static void ensureMutes() {
 		ShardManager shardManager = Sx4Bot.getShardManager();
 		FindIterable<Document> allData = Database.get().getGuilds().find(Filters.exists("mute.users")).projection(Projections.include("mute.users"));
-		allData.forEach((Document data) -> {
-			Document guildData = data.get("mute", Database.EMPTY_DOCUMENT);
-			long timestampNow = Clock.systemUTC().instant().getEpochSecond();
-			Guild guild = shardManager.getGuildById(data.getLong("_id"));
-			if (guild != null) {
-				List<Document> users = guildData.getList("users", Document.class, Collections.emptyList());
-				for (Document userData : users) {
-					Long duration = userData.getLong("duration");
-					if (duration != null) {
-						Member member = guild.getMemberById(userData.getLong("id"));
-						if (member != null) {
-							long timeLeft = userData.getLong("timestamp") + duration - timestampNow;
-							if (timeLeft <= 0) {
-								MuteEvents.removeUserMute(guild.getIdLong(), member.getIdLong());
-							} else {
-								ScheduledFuture<?> executor = MuteEvents.scheduledExectuor.schedule(() -> MuteEvents.removeUserMute(guild.getIdLong(), member.getIdLong()), timeLeft, TimeUnit.SECONDS);
-								MuteEvents.putExecutor(guild.getIdLong(), member.getUser().getIdLong(), executor);
+		
+		List<WriteModel<Document>> bulkData = new ArrayList<>();
+		for (Document data : allData) {
+			try {
+				Document guildData = data.get("mute", Database.EMPTY_DOCUMENT);
+				long timestampNow = Clock.systemUTC().instant().getEpochSecond();
+				Guild guild = shardManager.getGuildById(data.getLong("_id"));
+				if (guild != null) {
+					List<Document> users = guildData.getList("users", Document.class, Collections.emptyList());
+					for (Document userData : users) {
+						Long duration = userData.getLong("duration");
+						if (duration != null) {
+							Member member = guild.getMemberById(userData.getLong("id"));
+							if (member != null) {
+								long timeLeft = userData.getLong("timestamp") + duration - timestampNow;
+								if (timeLeft <= 0) {
+									UpdateOneModel<Document> update = MuteEvents.removeUserMuteAndGet(guild.getIdLong(), member.getIdLong());
+									if (update != null) {
+										bulkData.add(update);
+									}
+								} else {
+									ScheduledFuture<?> executor = MuteEvents.scheduledExectuor.schedule(() -> MuteEvents.removeUserMute(guild.getIdLong(), member.getIdLong()), timeLeft, TimeUnit.SECONDS);
+									MuteEvents.putExecutor(guild.getIdLong(), member.getUser().getIdLong(), executor);
+								}
 							}
-				
 						}
 					}
 				}
+			} catch(Throwable e) {
+				e.printStackTrace();
 			}
-		});
+		}
+		
+		if (!bulkData.isEmpty()) {
+			Database.get().bulkWriteGuilds(bulkData, (result, exception) -> {
+				if (exception != null) {
+					exception.printStackTrace();
+				}
+			});
+		}
 	}
 	
 }

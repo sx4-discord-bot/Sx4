@@ -1,8 +1,5 @@
 package com.sx4.bot.economy.tools;
 
-import java.util.HashMap;
-import java.util.Map;
-
 import com.sx4.bot.economy.CraftingRecipe;
 import com.sx4.bot.economy.materials.Material;
 import com.sx4.bot.economy.materials.Wood;

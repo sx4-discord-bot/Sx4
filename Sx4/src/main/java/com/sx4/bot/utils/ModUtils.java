@@ -42,14 +42,9 @@ public class ModUtils {
 	public static final List<Document> DEFAULT_WARN_CONFIGURATION = new ArrayList<>();
 	
 	static {
-		Document secondWarning = new Document().append("action", "mute").append("warning", 2).append("duration", 1800L);
-		DEFAULT_WARN_CONFIGURATION.add(secondWarning);
-		
-		Document thirdWarning = new Document().append("action", "kick").append("warning", 3);
-		DEFAULT_WARN_CONFIGURATION.add(thirdWarning);
-		
-		Document fourthWarning = new Document().append("action", "ban").append("warning", 4);
-		DEFAULT_WARN_CONFIGURATION.add(fourthWarning);
+		DEFAULT_WARN_CONFIGURATION.add(new Document().append("action", "mute").append("warning", 2).append("duration", 1800L));
+		DEFAULT_WARN_CONFIGURATION.add(new Document().append("action", "kick").append("warning", 3));
+		DEFAULT_WARN_CONFIGURATION.add(new Document().append("action", "ban").append("warning", 4));
 	}
 	
 	public static void getOrCreateMuteRole(Guild guild, BiConsumer<Role, String> muteRole) {

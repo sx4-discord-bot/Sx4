@@ -452,7 +452,7 @@ public class AntiInviteModule {
 		
 	}
 	
-	@Initialize(all=true)
+	@Initialize(all=true, subCommands=true, recursive=true)
 	public void initialize(CommandImpl command) {
 		command.setCategory(Categories.ANTI_INVITE);
 	}

@@ -20,6 +20,7 @@ import java.time.format.DateTimeParseException;
 import java.time.format.TextStyle;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -43,6 +44,7 @@ import org.json.JSONObject;
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
 import com.jockie.bot.core.command.Command.Async;
+import com.jockie.bot.core.command.Command.AuthorPermissions;
 import com.jockie.bot.core.command.Command.BotPermissions;
 import com.jockie.bot.core.command.Command.Cooldown;
 import com.jockie.bot.core.command.Context;
@@ -65,19 +67,21 @@ import com.sx4.bot.core.Sx4Bot;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEventListener;
 import com.sx4.bot.database.Database;
-import com.sx4.bot.games.uno.UnoSession;
 import com.sx4.bot.interfaces.Example;
 import com.sx4.bot.interfaces.Sx4Callback;
 import com.sx4.bot.settings.Settings;
+import com.sx4.bot.starboard.Starboard;
+import com.sx4.bot.starboard.StarboardMessage;
 import com.sx4.bot.utils.ArgumentUtils;
 import com.sx4.bot.utils.EconomyUtils;
 import com.sx4.bot.utils.FunUtils;
 import com.sx4.bot.utils.GeneralUtils;
 import com.sx4.bot.utils.HelpUtils;
 import com.sx4.bot.utils.PagedUtils;
+import com.sx4.bot.utils.PagedUtils.PagedResult;
+import com.sx4.bot.utils.StarboardUtils;
 import com.sx4.bot.utils.TimeUtils;
 import com.sx4.bot.utils.TokenUtils;
-import com.sx4.bot.utils.PagedUtils.PagedResult;
 
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
@@ -143,7 +147,296 @@ public class FunModule {
 		}
 	}
 	
-	public class UnoCommand extends Sx4Command {
+	public class StarboardCommand extends Sx4Command {
+		
+		public StarboardCommand() {
+			super("starboard");
+			
+			super.setDescription("Set up a starboard in your server so you can star eachothers messages");
+		}
+		
+		@Command(value="toggle", aliases={"enable", "disable"}, description="enable/disable the starboard in the current server")
+		@AuthorPermissions({Permission.MANAGE_SERVER})
+		public void toggle(CommandEvent event, @Context Database database) {
+			boolean enabled = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("starboard.enabled")).getEmbedded(List.of("starboard", "enabled"), false);
+			database.updateGuildById(event.getGuild().getIdLong(), Updates.set("starboard.enabled", !enabled), (result, exception) -> {
+				if (exception != null) {
+					exception.printStackTrace();
+					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+				} else {
+					event.reply("Starboard is now " + (enabled ? "disabled" : "enabled") + " in this server <:done:403285928233402378>").queue();
+				}
+			});
+		}
+		
+		@Command(value="channel", description="Set the channel for the starboard messages to be sent to")
+		@AuthorPermissions(Permission.MANAGE_SERVER)
+		public void channel(CommandEvent event, @Context Database database, @Argument(value="channel", endless=true) String channelArgument) {
+			TextChannel channel = ArgumentUtils.getTextChannel(event.getGuild(), channelArgument);
+			if (channel == null) {
+				event.reply("I could not find that channel :no_entry:").queue();
+				return;
+			}
+			
+			Long channelId = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("starboard.channelId")).getEmbedded(List.of("starboard", "channelId"), Long.class);
+			if (channelId != null && channelId == channel.getIdLong()) {
+				event.reply("The starboard channel is already set to " + channel.getAsMention() + " :no_entry:").queue();
+				return;
+			}
+			
+			database.updateGuildById(event.getGuild().getIdLong(), Updates.set("starboard.channelId", channel.getIdLong()), (result, exception) -> {
+				if (exception != null) {
+					exception.printStackTrace();
+					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+				} else {
+					event.reply("The starboard channel has been set to " + channel.getAsMention() + " <:done:403285928233402378>").queue();
+				}
+			});
+		}
+		
+		@SuppressWarnings("unchecked")
+		@Command(value="set", description="Set a specific message to be changed to when a message reaches a certain amount of stars", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@AuthorPermissions({Permission.MANAGE_SERVER})
+		public void set(CommandEvent event, @Context Database database, @Argument(value="stars") int stars, @Argument(value="message", endless=true) String message) {
+			Bson update = null;
+			List<Bson> arrayFilters = null;
+			
+			List<Document> configuration = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("starboard.configuration")).getEmbedded(List.of("starboard", "configuration"), List.class);
+			if (configuration == null) {
+				boolean updated = false;
+				Document newData = new Document("id", stars).append("message", message);
+				
+				List<Document> newConfiguration = new ArrayList<>(StarboardUtils.DEFAULT_STARBOARD_CONFIGURATION);
+				for (Document star : newConfiguration) {
+					if (star.getInteger("id") == stars) {
+						if (message.equals(star.getString("message"))) {
+							event.reply("The message for " + stars + " star" + (stars == 1 ? "" : "s") + " is already set to that message :no_entry:").queue();
+							return;
+						}
+						
+						newConfiguration.remove(star);
+						newConfiguration.add(newData);
+						updated = true;
+						
+						break;
+					}
+				}
+				
+				if (!updated) {
+					newConfiguration.add(newData);
+				}
+				
+				update = Updates.set("starboard.configuration", newConfiguration);
+			} else {
+				for (Document star : configuration) {
+					if (star.getInteger("id") == stars) {
+						if (message.equals(star.getString("message"))) {
+							event.reply("The message for " + stars + " star" + (stars == 1 ? "" : "s") + " is already set to that message :no_entry:").queue();
+							return;
+						}
+						
+						update = Updates.set("starboard.configuration.$[star].message", message);
+						arrayFilters = List.of(Filters.eq("star.id", stars));
+					}
+				}
+				
+				if (update == null) {
+					update = Updates.push("starboard.configuration", new Document("id", stars).append("message", message));
+				}
+			}
+			
+			UpdateOptions updateOptions = new UpdateOptions().arrayFilters(arrayFilters).upsert(true);
+			database.updateGuildById(event.getGuild().getIdLong(), null, update, updateOptions, (result, exception) -> {
+				if (exception != null) {
+					exception.printStackTrace();
+					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+				} else {
+					event.reply("After a message gets **" + stars + "** star" + (stars == 1 ? "" : "s") + " it will now display that message <:done:403285928233402378>").queue();
+				}
+			});
+		}
+		
+		@SuppressWarnings("unchecked")
+		@Command(value="remove", description="Removes a starboard message when you reaching a sepecific amount of stars", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@AuthorPermissions({Permission.MANAGE_SERVER})
+		public void remove(CommandEvent event, @Context Database database, @Argument(value="stars") int stars) {
+			Bson update = null;
+			
+			List<Document> configuration = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("starboard.configuration")).getEmbedded(List.of("starboard", "configuration"), List.class);
+			if (configuration == null) {
+				boolean updated = false;
+				
+				List<Document> newConfiguration = new ArrayList<>(StarboardUtils.DEFAULT_STARBOARD_CONFIGURATION);
+				for (Document star : newConfiguration) {
+					if (star.getInteger("id") == stars) {
+						newConfiguration.remove(star);
+						updated = true;
+						break;
+					}
+				}
+				
+				if (!updated) {
+					event.reply("There is no message set when a message reaches that amount of stars :no_entry:").queue();
+					return;
+				}
+				
+				update = Updates.set("starboard.configuration", newConfiguration);
+			} else {
+				for (Document star : configuration) {
+					if (star.getInteger("id") == stars) { 
+						if (configuration.size() == 1) {
+							event.reply("This is the last message you have setup for the starboard, if you want to go back to the default one use `" + event.getPrefix() + "starboard reset` :no_entry:").queue();
+							return;
+						}
+						
+						update = Updates.pull("starboard.configuration", Filters.eq("id", stars));
+					}
+				}
+				
+				if (update == null) {
+					event.reply("There is no message set when a message reaches that amount of stars :no_entry:").queue();
+					return;
+				}
+			}
+			
+			database.updateGuildById(event.getGuild().getIdLong(), update, (result, exception) -> {
+				if (exception != null) {
+					exception.printStackTrace();
+					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+				} else {
+					event.reply("After a message gets **" + stars + "** star" + (stars == 1 ? "" : "s") + " it will no longer display that message <:done:403285928233402378>").queue();
+				}
+			});
+		}
+		
+		@Command(value="reset", description="Resets your configuration for the starboard messages and puts them back to the default", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@AuthorPermissions({Permission.MANAGE_SERVER})
+		public void reset(CommandEvent event, @Context Database database) {
+			event.reply(event.getAuthor().getName() + ", are you sure you want to reset your starboard configuration back to the default?").queue($ -> {
+				PagedUtils.getConfirmation(event, 60, event.getAuthor(), confirmation -> {
+					if (confirmation) {
+						List<Document> configuration = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("starboard.configuration")).getEmbedded(List.of("starboard", "configuration"), Collections.emptyList());
+						if (configuration.isEmpty()) {
+							event.reply("Your starboard messages are already set to the default :no_entry:").queue();
+							return;
+						} else {
+							database.updateGuildById(event.getGuild().getIdLong(), Updates.unset("starboard.configuration"), (result, exception) -> {
+								if (exception != null) {
+									exception.printStackTrace();
+									event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+								} else {
+									event.reply("Your starboard configuration has been reset <:done:403285928233402378>").queue();
+								}
+							});
+						}
+					} else {
+						event.reply("Cancelled <:done:403285928233402378>").queue();
+					}
+				});
+			});
+		}
+		
+		@Command(value="delete", description="Deletes a starboard message and blacklists it from reappearing as a starred message", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@AuthorPermissions({Permission.MANAGE_SERVER})
+		public void delete(CommandEvent event, @Context Database database, @Argument(value="message id") long messageId) {
+			Document data = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("starboard.deleted", "starboard.messages")).get("starboard", Database.EMPTY_DOCUMENT);
+			Starboard starboard = new Starboard(data);
+
+			if (starboard.isDeletedMessage(messageId)) {
+				event.reply("That message has already been deleted and blacklisted :no_entry:").queue();
+				return;
+			}
+			
+			StarboardMessage message = starboard.getMessageById(messageId);
+			if (message != null) {
+				database.updateGuildById(event.getGuild().getIdLong(), Updates.combine(Updates.pull("starboard.messages", Filters.eq("id", message.getMessageId())), Updates.addToSet("starboard.deleted", message.getMessageId())), (result, exception) -> {
+					if (exception != null) {
+						exception.printStackTrace();
+						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+					} else {
+						if (message.hasStarboard()) {
+							TextChannel channel = message.getChannel(event.getGuild());
+							if (channel != null) {
+								channel.deleteMessageById(message.getStarboardId()).queue(null, e -> {});
+							}
+						}
+						
+						event.reply("That message has been deleted and blacklisted <:done:403285928233402378>").queue();
+					}
+				});
+			} else {
+				event.reply("That message has not been starred :no_entry:").queue();
+			}
+		}
+		
+		@Command(value="top", description="View the top starred messages in this server", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		public void top(CommandEvent event, @Context Database database) {
+			List<Document> messages = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("starboard.messages")).getEmbedded(List.of("starboard", "messages"), Collections.emptyList());
+			if (messages.isEmpty()) {
+				event.reply("No messages have been starred in this server :no_entry:").queue();
+				return;
+			}
+			
+			messages.sort((a, b) -> -Integer.compare(a.getList("stars", Long.class).size(), b.getList("stars", Long.class).size()));
+			PagedResult<Document> paged = new PagedResult<>(messages)
+					.setDeleteMessage(false)
+					.setEmbedColour(StarboardUtils.STARBOARD_COLOUR)
+					.setAuthor("Top Stars", null, event.getGuild().getIconUrl())
+					.setFunction(data -> {
+						List<Long> stars = data.getList("stars", Long.class);
+						User author = event.getShardManager().getUserById(data.getLong("authorId"));
+						return String.format("[%s - **%d :star:**](https://discordapp.com/channels/%s/%d/%d)", author == null ? data.getLong("authorId") : author.getAsTag(), stars.size(), event.getGuild().getId(), data.getLong("channelId"), data.getLong("id"));
+					});
+			
+			PagedUtils.getPagedResult(event, paged, 300, null);
+		}
+		
+		@Command(value="list", description="Lists your starboard messages you have per star milestone", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		public void list(CommandEvent event, @Context Database database) {
+			List<Document> configuration = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("starboard.configuration")).getEmbedded(List.of("starboard", "configuration"), StarboardUtils.DEFAULT_STARBOARD_CONFIGURATION);
+			configuration.sort((a, b) -> Integer.compare(a.getInteger("id"), b.getInteger("id")));
+			
+			PagedResult<Document> paged = new PagedResult<>(configuration)
+					.setAuthor("Starboard Configuration", null, event.getGuild().getIconUrl())
+					.setDeleteMessage(false)
+					.setIndexed(false)
+					.setPerPage(5)
+					.setFunction(data -> "Star #" + data.getInteger("id") + ": `" + data.getString("message") + "`");
+			
+			PagedUtils.getPagedResult(event, paged, 300, null);
+		}
+		
+		@Command(value="formatting", aliases={"format", "formats"}, description="View the formats you can use for your your starboard messages", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		public void formatting(CommandEvent event) {
+			EmbedBuilder embed = new EmbedBuilder();
+			embed.setAuthor("Starboard Formatting", null, event.getGuild().getIconUrl());
+			embed.setColor(Settings.EMBED_COLOUR);
+			embed.setDescription(
+					"{stars} = The amount of stars the message currently has\n" +
+					"{stars.string} = \"star\" if {stars} is 1 else \"stars\"\n" +
+					"{stars.suffix} = The suffixed version of {stars} for example 2nd or 5th\n" +
+					"{stars.next} = The amount of stars of the next milestone, 0 if there isn't one\n" +
+					"{stars.next.string} = \"star\" if {stars.next} is 1 else \"stars\"\n" +
+					"{stars.next.suffix} = The suffixed version of {stars.next} for example 2nd or 5th\n" +
+					"{stars.next.until} = The amount of stars needed till the next milestone\n" +
+					"{stars.next.until.string} = \"star\" if {stars.next.until} is 1 else \"stars\"\n" +
+					"{stars.next.until.suffix} = The suffixed version of {stars.next.until} for example 2nd or 5th\n" +
+					"{channel.name} = The name of the channel the message is from\n" +
+					"{channel.mention} = The mention of the channel the message is from\n" +
+					"{message.id} = The id of the message being starred\n" +
+					"{user} = The user tag of the latest user which reacted to the message\n" +
+					"{user.name} = The user name of the latest user which reacted to the message\n" +
+					"{user.mention} = The user mention of the latest user which reacted to the message\n" +
+					"**Make sure you keep the {} brackets in the message**\n\n" +
+					"Example: `" + event.getPrefix() + "starboard set 1 We reached **{star}** :star:, we only need **{stars.next.until}** more :star: until our next milestone.`"
+			);
+			
+			event.reply(embed.build()).queue();
+		}
+		
+	}
+	
+	/*public class UnoCommand extends Sx4Command {
 		
 		private List<UnoSession> unoSessions = new ArrayList<>();
 		
@@ -266,7 +559,7 @@ public class FunModule {
 			});
 		}
 		
-	}
+	}*/
 	
 	@Command(value="profile", description="View a users or your profile")
 	@BotPermissions({Permission.MESSAGE_ATTACH_FILES})
@@ -451,9 +744,9 @@ public class FunModule {
 			} else {
 				String[] splitHeight;
 				if (height.contains("\"")) {
-					splitHeight = height.split("\"");
+					splitHeight = height.split("\"", 2);
 				} else if (height.contains("'")) {
-					splitHeight = height.split("'");
+					splitHeight = height.split("'", 2);
 				} else {
 					event.reply("Invalid height format, make sure to supply a number in centimetres or feet and inches formatted like `f'i` :no_entry:").queue();
 					return;
@@ -465,7 +758,7 @@ public class FunModule {
 				}
 				
 				feet = Integer.parseInt(splitHeight[0]);
-				inches = Integer.parseInt(splitHeight[1]);
+				inches = splitHeight[1].equals("") ? 0 : Integer.parseInt(splitHeight[1]);
 				centimetres = (int) Math.round((feet * 30.48) + (inches * 2.54));
 				
 				if (inches < 0 || inches > 12) {
@@ -687,6 +980,8 @@ public class FunModule {
 		PagedUtils.getPagedResult(event, paged, 300, null);
 	}
 	
+	private final Map<Long, List<Long>> marriages = new HashMap<>();
+	
 	@Command(value="marry", description="Marry other users or yourself, you can have up to 5 partners")
 	public void marry(CommandEvent event, @Context Database database, @Argument(value="user", endless=true) String userArgument) {
 		Member member = ArgumentUtils.getMember(event.getGuild(), userArgument);
@@ -725,8 +1020,25 @@ public class FunModule {
 			return;
 		}
 		
+		List<Long> pendingMarriages = this.marriages.get(event.getAuthor().getIdLong());
+		if (pendingMarriages != null && pendingMarriages.contains(member.getIdLong())) {
+			event.reply("You already have a pending marriage with this user :no_entry:").queue();
+			return;
+		} else {
+			if (pendingMarriages == null) {
+				List<Long> users = new ArrayList<>();
+				users.add(member.getIdLong());
+				this.marriages.put(event.getAuthor().getIdLong(), users);
+			} else {
+				pendingMarriages.add(member.getIdLong());
+			}
+		}
+		
 		event.reply(member.getAsMention() + ", **" + event.getAuthor().getName() + "** would like to marry you!\n**Do you accept?**\nType **yes** or **no** to choose.").queue(message -> {
 			PagedUtils.getConfirmation(event, 60, member.getUser(), confirmation -> {
+				List<Long> newPendingMarriages = this.marriages.get(event.getAuthor().getIdLong());
+				newPendingMarriages.remove(member.getIdLong());
+				
 				if (confirmation) {
 					List<WriteModel<Document>> bulkData = new ArrayList<>();
 					
@@ -754,9 +1066,9 @@ public class FunModule {
 					}
 					
 					UpdateOptions updateOptions = new UpdateOptions().upsert(true);
-					bulkData.add(new UpdateOneModel<>(Filters.eq("_id", event.getAuthor().getIdLong()), Updates.push("profile.marriedUsers", member.getIdLong()), updateOptions));
+					bulkData.add(new UpdateOneModel<>(Filters.eq("_id", event.getAuthor().getIdLong()), Updates.addToSet("profile.marriedUsers", member.getIdLong()), updateOptions));
 					if (!isAuthor) {
-						bulkData.add(new UpdateOneModel<>(Filters.eq("_id", member.getIdLong()), Updates.push("profile.marriedUsers", event.getAuthor().getIdLong()), updateOptions));
+						bulkData.add(new UpdateOneModel<>(Filters.eq("_id", member.getIdLong()), Updates.addToSet("profile.marriedUsers", event.getAuthor().getIdLong()), updateOptions));
 					}
 					
 					database.bulkWriteUsers(bulkData, (result, exception) -> {
@@ -772,6 +1084,11 @@ public class FunModule {
 					message.delete().queue();
 					event.reply("**" + event.getAuthor().getName() + "**, you can always try someone else.").queue();
 				}
+			}, () -> {
+				event.reply("Response timed out :stopwatch:").queue();
+				
+				List<Long> newPendingMarriages = this.marriages.get(event.getAuthor().getIdLong());
+				newPendingMarriages.remove(member.getIdLong());
 			});
 		});
 	}
@@ -815,8 +1132,8 @@ public class FunModule {
 			User user = ArgumentUtils.getUser(userArgument);
 			List<WriteModel<Document>> bulkData = new ArrayList<>();
 			if (user == null) {
-				if (GeneralUtils.isNumber(userArgument)) {
-					long userId = Long.parseLong(userArgument);
+				try { 
+					long userId = Long.parseUnsignedLong(userArgument);
 					if (marriedUsers.contains(userId)) {
 						bulkData.add(new UpdateOneModel<>(Filters.eq("_id", event.getAuthor().getIdLong()), Updates.pull("profile.marriedUsers", userId)));
 						bulkData.add(new UpdateOneModel<>(Filters.eq("_id", userId), Updates.pull("profile.marriedUsers", event.getAuthor().getIdLong())));
@@ -824,7 +1141,7 @@ public class FunModule {
 						event.reply("You are not married to that user :no_entry:").queue();
 						return;
 					}
-				} else {
+				} catch (NumberFormatException e) {
 					event.reply("I could not find that user, provide their ID displayed in `" + event.getPrefix() + "married` if you are married to them :no_entry:").queue();
 					return;
 				}
@@ -1340,8 +1657,15 @@ public class FunModule {
 			return;
 		}
 		
-		long authorBalance = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance")).getEmbedded(List.of("economy", "balance"), 0L);
-		long bet = betArgument == null ? 0 : EconomyUtils.convertMoneyArgument(authorBalance, betArgument);
+		long authorBalance = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance")).getEmbedded(List.of("economy", "balance"), 0L), moneyArgument;
+		try {
+			moneyArgument = EconomyUtils.convertMoneyArgument(authorBalance, betArgument);
+		} catch(IllegalArgumentException e) {
+			event.reply(e.getMessage()).queue();
+			return;
+		}
+		
+		long bet = betArgument == null ? 0 : moneyArgument;
 		if (bet != 0) {
 			if (bet < 1) {
 				event.reply("The bet must be at least **$1** :no_entry:").queue();
@@ -2512,7 +2836,7 @@ public class FunModule {
 		event.reply(embed.build()).queue();
 	}
 
-	@Initialize(all=true)
+	@Initialize(all=true, subCommands=true, recursive=true)
 	public void initialize(CommandImpl command) {
 		command.setCategory(Categories.FUN);
 	}

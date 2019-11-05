@@ -604,7 +604,7 @@ public class WelcomerModule {
 		
 	}
 
-	@Initialize(all=true)
+	@Initialize(all=true, subCommands=true, recursive=true)
 	public void initialize(CommandImpl command) {
 		command.setCategory(Categories.WELCOMER);
 	}

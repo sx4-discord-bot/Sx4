@@ -55,8 +55,8 @@ public class Database {
 	private MongoCollection<Document> guildLogs;
 	private MongoCollection<Document> modLogs;
 	
-	private UpdateOptions defaultUpdateOptions = new UpdateOptions().upsert(true);
-	private FindOneAndUpdateOptions defaultFindOneAndUpdateOptions = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER).upsert(true);
+	private final UpdateOptions defaultUpdateOptions = new UpdateOptions().upsert(true);
+	private final FindOneAndUpdateOptions defaultFindOneAndUpdateOptions = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER).upsert(true);
 	
 	private Database() {
 		this.client = MongoClients.create();

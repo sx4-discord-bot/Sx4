@@ -64,6 +64,7 @@ import com.sx4.bot.economy.tools.Rod;
 import com.sx4.bot.economy.upgrades.AxeUpgrade;
 import com.sx4.bot.economy.upgrades.PickaxeUpgrade;
 import com.sx4.bot.economy.upgrades.RodUpgrade;
+import com.sx4.bot.interfaces.Canary;
 import com.sx4.bot.interfaces.Sx4Callback;
 import com.sx4.bot.settings.Settings;
 import com.sx4.bot.utils.ArgumentUtils;
@@ -88,7 +89,25 @@ import okhttp3.Request;
 @Module
 public class EconomyModule {
 	
-	Random random = new Random();
+	private final Random random = new Random();
+	
+	@Command(value="claim", description="Claim your free 1 billion dollars to play with (Only works on Canary version)")
+	@Canary
+	public void claim(CommandEvent event, @Context Database database) {
+		boolean claimed = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.claimed")).getEmbedded(List.of("economy", "claimed"), false);
+		if (claimed) {
+			event.reply("You have already claimed your free money :no_entry:").queue();
+		} else {
+			database.updateUserById(event.getAuthor().getIdLong(), Updates.combine(Updates.inc("economy.balance", 1_000_000_000L), Updates.set("economy.claimed", true)), (result, exception) -> {
+				if (exception != null) {
+					exception.printStackTrace();
+					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+				} else {
+					event.replyFormat("You have been given your free **$%,d** :tada:", 1_000_000_000).queue();
+				}
+			});
+		}
+	}
 
 	public class CrateCommand extends Sx4Command {
 		
@@ -1352,9 +1371,20 @@ public class EconomyModule {
 			});
 		}
 		
-		@Command(value="upgrade", description="Upgrade your current pickaxe, you can view the upgrades you can use pickaxe upgrades")
-		public void upgrade(CommandEvent event, @Context Database database, @Argument(value="upgrade name") String upgradeName) {
+		@Command(value="upgrade", description="Upgrade your current pickaxe, you can view the upgrades in `pickaxe upgrades`")
+		public void upgrade(CommandEvent event, @Context Database database, @Argument(value="upgrade name") String upgradeName, @Argument(value="upgrades", nullDefault=true) Integer upgradesArgument) {
 			Document data = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance", "economy.items")).get("economy", Database.EMPTY_DOCUMENT);
+			
+			int upgrades = upgradesArgument == null ? 1 : upgradesArgument;
+			if (upgrades < 1) {
+				event.reply("You need to buy the upgrade at least once :no_entry:").queue();
+				return;
+			}
+			
+			if (upgrades > 1000) {
+				event.reply("You cannot buy anymore than 1000 upgrades at one time :no_entry:").queue();
+				return;
+			}
 			
 			List<Document> items = data.getList("items", Document.class, Collections.emptyList());
 			if (!EconomyUtils.hasPickaxe(items)) {
@@ -1377,33 +1407,41 @@ public class EconomyModule {
 			}
 			
 			long balance = data.get("balance", 0L);
-			long price = Math.round((defaultPickaxe.getPrice() * 0.025D) + (pickaxe.getUpgrades() * (defaultPickaxe.getPrice() * 0.015D)));
+			
+			int currentUpgrades = pickaxe.getUpgrades();
+			long price = 0;
+			for (int i = 0; i < upgrades; i++) {
+			    price += Math.round(0.015D * defaultPickaxe.getPrice() * currentUpgrades++ + 0.025D * defaultPickaxe.getPrice());
+			}
+			
 			if (balance >= price) {
 				Bson update = Updates.combine(
-						Updates.inc("economy.items.$[pickaxe].upgrades", 1),
-						Updates.set("economy.items.$[pickaxe].price", pickaxe.getPrice() + Math.round(defaultPickaxe.getPrice() * 0.015D)),
+						Updates.inc("economy.items.$[pickaxe].upgrades", upgrades),
+						Updates.set("economy.items.$[pickaxe].price", pickaxe.getPrice() + (Math.round(defaultPickaxe.getPrice() * 0.015D) * upgrades)),
 						Updates.inc("economy.balance", -price)
 				);
 				
 				if (upgrade.equals(PickaxeUpgrade.MONEY)) {
-					int increase = (int) Math.round(defaultPickaxe.getMinimumYield() * upgrade.getIncreasePerUpgrade());
+					int increase = (int) Math.round(defaultPickaxe.getMinimumYield() * upgrade.getIncreasePerUpgrade()) * upgrades;
 					update = Updates.combine(
 							update,
 							Updates.set("economy.items.$[pickaxe].minimumYield", pickaxe.getMinimumYield() + increase),
-							Updates.set("economy.items.$[pickaxe].maximumYeild", pickaxe.getMaximumYield() + increase)
+							Updates.set("economy.items.$[pickaxe].maximumYield", pickaxe.getMaximumYield() + increase)
 					);
 				} else if (upgrade.equals(PickaxeUpgrade.DURABILITY)) {
 					update = Updates.combine(
 							update, 
-							Updates.set("economy.items.$[pickaxe].maximumDurability", (int) (pickaxe.getDurability() + upgrade.getIncreasePerUpgrade())),
-							Updates.inc("economy.items.$[pickaxe].currentDurability", (int) upgrade.getIncreasePerUpgrade())
+							Updates.set("economy.items.$[pickaxe].maximumDurability", (int) (pickaxe.getDurability() + (upgrade.getIncreasePerUpgrade() * upgrades))),
+							Updates.inc("economy.items.$[pickaxe].currentDurability", (int) (upgrade.getIncreasePerUpgrade() * upgrades))
 					);
 				} else if (upgrade.equals(PickaxeUpgrade.MULTIPLIER)) {
 					update = Updates.combine(
 							update,
-							Updates.set("economy.items.$[pickaxe].multiplier", pickaxe.getMultiplier() * upgrade.getIncreasePerUpgrade())
+							Updates.set("economy.items.$[pickaxe].multiplier", pickaxe.getMultiplier() * Math.pow(upgrade.getIncreasePerUpgrade(), upgrades))
 					);
 				}
+				
+				String message = String.format("You just upgraded %s %d time%s for your `%s` for **$%,d** :ok_hand:", upgrade.getName().toLowerCase(), upgrades, (upgrades == 1 ? "" : "s"), pickaxe.getName(), price);
 				
 				UpdateOptions updateOptions = new UpdateOptions().arrayFilters(List.of(Filters.eq("pickaxe.name", pickaxe.getName()))).upsert(true);
 				database.updateUserById(event.getAuthor().getIdLong(), null, update, updateOptions, (result, exception) -> {
@@ -1411,11 +1449,11 @@ public class EconomyModule {
 						exception.printStackTrace();
 						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
 					} else {
-						event.reply("You just upgraded your " + upgrade.getName().toLowerCase() + " for your `" + pickaxe.getName() + "` for " + String.format("**$%,d**", price) + " :ok_hand:").queue();
+						event.reply(message).queue();
 					}
 				});
 			} else {
-				event.reply("You cannot afford your pickaxes next upgrade it will cost you " + String.format("**$%,d**", price) + " :no_entry:").queue();
+				event.reply("You cannot afford " + upgrades + " for your pickaxe it will cost you " + String.format("**$%,d**", price) + " :no_entry:").queue();
 			}
 		}
 		
@@ -1703,9 +1741,20 @@ public class EconomyModule {
 			});
 		}
 		
-		@Command(value="upgrade", description="Upgrade your current fishing rod, you can view the upgrades you can use fishing rod upgrades")
-		public void upgrade(CommandEvent event, @Context Database database, @Argument(value="upgrade name") String upgradeName) {
+		@Command(value="upgrade", description="Upgrade your current fishing rod, you can view the upgrades in `fishing rod upgrades`")
+		public void upgrade(CommandEvent event, @Context Database database, @Argument(value="upgrade name") String upgradeName, @Argument(value="upgrades", nullDefault=true) Integer upgradesArgument) {
 			Document data = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items", "economy.balance")).get("economy", Database.EMPTY_DOCUMENT);
+			
+			int upgrades = upgradesArgument == null ? 1 : upgradesArgument;
+			if (upgrades < 1) {
+				event.reply("You need to buy the upgrade at least once :no_entry:").queue();
+				return;
+			}
+			
+			if (upgrades > 1000) {
+				event.reply("You cannot buy anymore than 1000 upgrades at one time :no_entry:").queue();
+				return;
+			}
 			
 			List<Document> items = data.getList("items", Document.class, Collections.emptyList());
 			if (!EconomyUtils.hasRod(items)) {
@@ -1728,28 +1777,36 @@ public class EconomyModule {
 			}
 			
 			long balance = data.get("balance", 0L);
-			long price = Math.round((defaultRod.getPrice() * 0.025D) + (rod.getUpgrades() * (defaultRod.getPrice() * 0.015D)));
+			
+			int currentUpgrades = rod.getUpgrades();
+			long price = 0;
+			for (int i = 0; i < upgrades; i++) {
+			    price += Math.round(0.015D * defaultRod.getPrice() * currentUpgrades++ + 0.025D * defaultRod.getPrice());
+			}
+			
 			if (balance >= price) {
 				Bson update = Updates.combine(
-						Updates.inc("economy.items.$[rod].upgrades", 1),
-						Updates.set("economy.items.$[rod].price", rod.getPrice() + Math.round(defaultRod.getPrice() * 0.015D)),
+						Updates.inc("economy.items.$[rod].upgrades", upgrades),
+						Updates.set("economy.items.$[rod].price", rod.getPrice() + (Math.round(defaultRod.getPrice() * 0.015D) * upgrades)),
 						Updates.inc("economy.balance", -price)
 				);
 
 				if (upgrade.equals(RodUpgrade.MONEY)) {
-					int increase = (int) Math.round(defaultRod.getMinimumYield() * upgrade.getIncreasePerUpgrade());
+					int increase = (int) Math.round(defaultRod.getMinimumYield() * upgrade.getIncreasePerUpgrade()) * upgrades;
 					update = Updates.combine(
-							update, 
+							update,
 							Updates.set("economy.items.$[rod].minimumYield", rod.getMinimumYield() + increase),
 							Updates.set("economy.items.$[rod].maximumYield", rod.getMaximumYield() + increase)
 					);
 				} else if (upgrade.equals(RodUpgrade.DURABILITY)) {
 					update = Updates.combine(
 							update, 
-							Updates.set("economy.items.$[rod].maximumDurability", (int) (rod.getDurability() + upgrade.getIncreasePerUpgrade())),
-							Updates.inc("economy.items.$[rod].currentDurability", (int) upgrade.getIncreasePerUpgrade())
+							Updates.set("economy.items.$[rod].maximumDurability", (int) (rod.getDurability() + (upgrade.getIncreasePerUpgrade() * upgrades))),
+							Updates.inc("economy.items.$[rod].currentDurability", (int) (upgrade.getIncreasePerUpgrade() * upgrades))
 					);
 				}
+				
+				String message = String.format("You just upgraded %s %d time%s for your `%s` for **$%,d** :ok_hand:", upgrade.getName().toLowerCase(), upgrades, (upgrades == 1 ? "" : "s"), rod.getName(), price);
 				
 				UpdateOptions updateOptions = new UpdateOptions().arrayFilters(List.of(Filters.eq("rod.name", rod.getName()))).upsert(true);
 				database.updateUserById(event.getAuthor().getIdLong(), null, update, updateOptions, (result, exception) -> {
@@ -1757,11 +1814,11 @@ public class EconomyModule {
 						exception.printStackTrace();
 						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
 					} else {
-						event.reply("You just upgraded your " + upgrade.getName().toLowerCase() + " for your `" + rod.getName() + "` for " + String.format("**$%,d**", price) + " :ok_hand:").queue();
+						event.reply(message).queue();
 					}
 				});
 			} else {
-				event.reply("You cannot afford your fishing rods next upgrade it will cost you " + String.format("**$%,d**", price) + " :no_entry:").queue();
+				event.reply("You cannot afford " + upgrades + " for your pickaxe it will cost you " + String.format("**$%,d**", price) + " :no_entry:").queue();
 			}
 		}
 		
@@ -2049,9 +2106,20 @@ public class EconomyModule {
 			});
 		}
 		
-		@Command(value="upgrade", description="Upgrade your current axe, you can view the upgrades you can use axe upgrades")
-		public void upgrade(CommandEvent event, @Context Database database, @Argument(value="upgrade name") String upgradeName) {
-			Document data = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items", "economy.balance")).get("economy", Database.EMPTY_DOCUMENT);
+		@Command(value="upgrade", description="Upgrade your current axe, you can view the upgrades in `axe upgrades`")
+		public void upgrade(CommandEvent event, @Context Database database, @Argument(value="upgrade name") String upgradeName, @Argument(value="upgrades", nullDefault=true) Integer upgradesArgument) {
+			Document data = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance", "economy.items")).get("economy", Database.EMPTY_DOCUMENT);
+			
+			int upgrades = upgradesArgument == null ? 1 : upgradesArgument;
+			if (upgrades < 1) {
+				event.reply("You need to buy the upgrade at least once :no_entry:").queue();
+				return;
+			}
+			
+			if (upgrades > 1000) {
+				event.reply("You cannot buy anymore than 1000 upgrades at one time :no_entry:").queue();
+				return;
+			}
 			
 			List<Document> items = data.getList("items", Document.class, Collections.emptyList());
 			if (!EconomyUtils.hasAxe(items)) {
@@ -2074,26 +2142,34 @@ public class EconomyModule {
 			}
 			
 			long balance = data.get("balance", 0L);
-			long price = Math.round((defaultAxe.getPrice() * 0.025D) + (axe.getUpgrades() * (defaultAxe.getPrice() * 0.015D)));
+			
+			int currentUpgrades = axe.getUpgrades();
+			long price = 0;
+			for (int i = 0; i < upgrades; i++) {
+			    price += Math.round(0.015D * defaultAxe.getPrice() * currentUpgrades++ + 0.025D * defaultAxe.getPrice());
+			}
+			
 			if (balance >= price) {
 				Bson update = Updates.combine(
-						Updates.inc("economy.items.$[axe].upgrades", 1),
-						Updates.set("economy.items.$[axe].price", axe.getPrice() + Math.round(defaultAxe.getPrice() * 0.015D)),
+						Updates.inc("economy.items.$[axe].upgrades", upgrades),
+						Updates.set("economy.items.$[axe].price", axe.getPrice() + (Math.round(defaultAxe.getPrice() * 0.015D) * upgrades)),
 						Updates.inc("economy.balance", -price)
 				);
 				
-				if (upgrade.equals(AxeUpgrade.MULTIPLIER)) {
+				if (upgrade.equals(AxeUpgrade.DURABILITY)) {
 					update = Updates.combine(
 							update, 
-							Updates.set("economy.items.$[axe].multiplier", axe.getMultiplier() * upgrade.getIncreasePerUpgrade())
+							Updates.set("economy.items.$[axe].maximumDurability", (int) (axe.getDurability() + (upgrade.getIncreasePerUpgrade() * upgrades))),
+							Updates.inc("economy.items.$[axe].currentDurability", (int) (upgrade.getIncreasePerUpgrade() * upgrades))
 					);
-				} else if (upgrade.equals(AxeUpgrade.DURABILITY)) {
+				} else if (upgrade.equals(AxeUpgrade.MULTIPLIER)) {
 					update = Updates.combine(
 							update,
-							Updates.set("economy.items.$[axe].maximumDurability", (int) (axe.getDurability() + upgrade.getIncreasePerUpgrade())),
-							Updates.inc("economy.items.$[axe].currentDurability", (int) upgrade.getIncreasePerUpgrade())
+							Updates.set("economy.items.$[axe].multiplier", axe.getMultiplier() * Math.pow(upgrade.getIncreasePerUpgrade(), upgrades))
 					);
 				}
+				
+				String message = String.format("You just upgraded %s %d time%s for your `%s` for **$%,d** :ok_hand:", upgrade.getName().toLowerCase(), upgrades, (upgrades == 1 ? "" : "s"), axe.getName(), price);
 				
 				UpdateOptions updateOptions = new UpdateOptions().arrayFilters(List.of(Filters.eq("axe.name", axe.getName()))).upsert(true);
 				database.updateUserById(event.getAuthor().getIdLong(), null, update, updateOptions, (result, exception) -> {
@@ -2101,11 +2177,11 @@ public class EconomyModule {
 						exception.printStackTrace();
 						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
 					} else {
-						event.reply("You just upgraded your " + upgrade.getName().toLowerCase() + " for your `" + axe.getName() + "` for " + String.format("**$%,d**", price) + " :ok_hand:").queue();
+						event.reply(message).queue();
 					}
 				});
 			} else {
-				event.reply("You cannot afford your axes next upgrade it will cost you " + String.format("**$%,d**", price) + " :no_entry:").queue();
+				event.reply("You cannot afford " + upgrades + " for your pickaxe it will cost you " + String.format("**$%,d**", price) + " :no_entry:").queue();
 			}
 		}
 		
@@ -3782,22 +3858,14 @@ public class EconomyModule {
 						for (String keySx4 : keysSx4) {
 							User user = cache.getElementById(keySx4);
 							if (user != null) {
-								if (votesMap.containsKey(user)) {
-									votesMap.put(user, votesMap.get(user) + jsonSx4.getJSONObject(keySx4).getJSONArray("votes").length());
-								} else {
-									votesMap.put(user, jsonSx4.getJSONObject(keySx4).getJSONArray("votes").length());
-								}
+								votesMap.compute(user, (key, value) -> value != null ? value + jsonSx4.getJSONObject(keySx4).getJSONArray("votes").length() : jsonSx4.getJSONObject(keySx4).getJSONArray("votes").length());
 							}
 						}
 						
 						for (String keyJockie : keysJockie) {
 							User user = cache.getElementById(keyJockie);
 							if (user != null) {
-								if (votesMap.containsKey(user)) {
-									votesMap.put(user, votesMap.get(user) + jsonJockie.getJSONObject(keyJockie).getJSONArray("votes").length());
-								} else {
-									votesMap.put(user, jsonJockie.getJSONObject(keyJockie).getJSONArray("votes").length());
-								}
+								votesMap.compute(user, (key, value) -> value != null ? value + jsonJockie.getJSONObject(keyJockie).getJSONArray("votes").length() : jsonJockie.getJSONObject(keyJockie).getJSONArray("votes").length());
 							}
 						}
 					} else {
@@ -3808,11 +3876,7 @@ public class EconomyModule {
 									JSONObject vote = (JSONObject) voteObject;
 									LocalDateTime voteTime = LocalDateTime.ofEpochSecond(vote.getLong("time"), 0, ZoneOffset.UTC);
 									if (voteTime.getMonth() == month && voteTime.getYear() == year) {
-										if (votesMap.containsKey(user)) {
-											votesMap.put(user, votesMap.get(user) + 1);
-										} else {
-											votesMap.put(user, 1);
-										}
+										votesMap.compute(user, (key, value) -> value != null ? value + 1 : 1);
 									}
 								}
 							}
@@ -3825,38 +3889,23 @@ public class EconomyModule {
 									JSONObject vote = (JSONObject) voteObject;
 									LocalDateTime voteTime = LocalDateTime.ofEpochSecond(vote.getLong("time"), 0, ZoneOffset.UTC);
 									if (voteTime.getMonth() == month && voteTime.getYear() == year) {
-										if (votesMap.containsKey(user)) {
-											votesMap.put(user, votesMap.get(user) + 1);
-										} else {
-											votesMap.put(user, 1);
-										}
+										votesMap.compute(user, (key, value) -> value != null ? value + 1 : 1);
 									}
 								}
 							}
 						}
 					}
 					
-					List<Pair<User, Integer>> votes = new ArrayList<>();
-					for (User key : votesMap.keySet()) {
-						if (guild) {
-							if (!event.getGuild().isMember(key)) {
-								continue;
-							}
-						}
-						
-						Pair<User, Integer> userData = Pair.of(key, votesMap.get(key));
-						votes.add(userData);
-					}
+					List<Entry<User, Integer>> votes = new ArrayList<>(votesMap.entrySet());
+					votes.sort((a, b) -> Integer.compare(b.getValue(), a.getValue()));
 					
-					votes.sort((a, b) -> Integer.compare(b.getRight(), a.getRight()));
-					
-					PagedResult<Pair<User, Integer>> paged = new PagedResult<>(votes)
+					PagedResult<Entry<User, Integer>> paged = new PagedResult<>(votes)
 							.setDeleteMessage(false)
 							.setCustomFunction(page -> {
 								Integer index = null;
 								for (int i = 0; i < votes.size(); i++) {
-									Pair<User, Integer> userData = votes.get(i);
-									if (userData.getLeft().equals(event.getAuthor())) {
+									Entry<User, Integer> userData = votes.get(i);
+									if (userData.getKey().equals(event.getAuthor())) {
 										index = i + 1;
 									}
 								}
@@ -3868,9 +3917,9 @@ public class EconomyModule {
 								
 								for (int i = page.getCurrentPage() * page.getPerPage() - page.getPerPage(); i < page.getCurrentPage() * page.getPerPage(); i++) {
 									try {
-										Pair<User, Integer> userData = votes.get(i);
-										int votesAmount = userData.getRight();
-										embed.appendDescription(String.format("%d. `%s` - %,d vote%s\n", i + 1, userData.getLeft().getAsTag(), votesAmount, votesAmount == 1 ? "" : "s"));
+										Entry<User, Integer> userData = votes.get(i);
+										int votesAmount = userData.getValue();
+										embed.appendDescription(String.format("%d. `%s` - %,d vote%s\n", i + 1, userData.getKey().getAsTag(), votesAmount, votesAmount == 1 ? "" : "s"));
 									} catch (IndexOutOfBoundsException e) {
 										break;
 									}
@@ -3886,7 +3935,7 @@ public class EconomyModule {
 		
 	}
 	
-	@Initialize(all=true)
+	@Initialize(all=true, subCommands=true, recursive=true)
 	public void initialize(CommandImpl command) {
 		command.setCategory(Categories.ECONOMY);
 	}

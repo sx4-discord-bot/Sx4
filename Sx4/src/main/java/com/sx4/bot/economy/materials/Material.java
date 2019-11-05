@@ -13,7 +13,7 @@ public class Material extends Item {
 	public static final Material OIL = new Material("Oil", 300, "<:oil:441006064243179531>", false);
 	public static final Material GOLD = new Material("Gold", 500, "<:gold:441006068328300551>", false);
 	public static final Material SNOWFLAKE = new Material("Snowflake", 750, ":snowflake:", true);
-	public static final Material PUMPKIN = new Material("Pumpkin", 750, ":jack_o_lantern:", false);
+	public static final Material PUMPKIN = new Material("Pumpkin", 750, ":jack_o_lantern:", true);
 	public static final Material TITANIUM = new Material("Titanium", 1000, "<:titanium:441006065639751683>", false);
 	public static final Material URANIUM = new Material("Uranium", 5500, "<:uranium:441006059348295680>", false);
 	public static final Material BITCOIN = new Material("Bitcoin", 17500, "<:bitcoin:441006066273353750>", false);
@@ -24,7 +24,7 @@ public class Material extends Item {
 
 	private String emote;
 	private boolean hidden;
-	private int multiplier = 12; 
+	private final int multiplier = 12; 
 		
 	public Material(String name, long price, String emote, boolean hidden) {
 		super(name, price);

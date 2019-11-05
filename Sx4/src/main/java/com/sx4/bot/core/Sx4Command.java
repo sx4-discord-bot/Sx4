@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.jockie.bot.core.command.impl.CommandImpl;
+import com.sx4.bot.interfaces.Canary;
 import com.sx4.bot.interfaces.Donator;
 import com.sx4.bot.interfaces.Example;
 import com.sx4.bot.translations.CommandTranslation;
@@ -21,6 +22,8 @@ public class Sx4Command extends CommandImpl {
 	
 	protected boolean disabled = false;
 	protected String disabledMessage = null;
+	
+	protected boolean canaryCommand = false;
 	
 	public Sx4Command(String name) {
 		super(name, true);
@@ -40,6 +43,16 @@ public class Sx4Command extends CommandImpl {
 		if (this.commandTranslations == null) {
 			this.commandTranslations = new ArrayList<>();
 		}
+	}
+	
+	public Sx4Command setCanaryCommand(boolean canaryCommand) {
+		this.canaryCommand = canaryCommand;
+		
+		return this;
+	}
+	
+	public boolean isCanaryCommand() {
+		return this.canaryCommand;
 	}
 	
 	public CommandTranslation getCommandTranslation() {
@@ -180,6 +193,10 @@ public class Sx4Command extends CommandImpl {
 			
 			if (this.method.isAnnotationPresent(Example.class)) {
 				this.example = this.method.getAnnotation(Example.class).value();
+			}
+			
+			if (this.method.isAnnotationPresent(Canary.class)) {
+				this.canaryCommand = this.method.getAnnotation(Canary.class).value();
 			}
 		}
 	}

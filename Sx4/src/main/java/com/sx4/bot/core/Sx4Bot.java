@@ -32,6 +32,7 @@ import com.sx4.bot.events.ModEvents;
 import com.sx4.bot.events.MuteEvents;
 import com.sx4.bot.events.SelfroleEvents;
 import com.sx4.bot.events.ServerLogEvents;
+import com.sx4.bot.events.StarboardEvents;
 import com.sx4.bot.events.StatsEvents;
 import com.sx4.bot.events.TriggerEvents;
 import com.sx4.bot.events.WelcomerEvents;
@@ -141,6 +142,16 @@ public class Sx4Bot {
 				.addPreExecuteCheck((event, command) -> {
 					if (command instanceof Sx4Command) {
 						Sx4Command sx4Command = (Sx4Command) command;
+						if (sx4Command.isDisabled()) {
+							if (sx4Command.hasDisabledMessage()) {
+								event.reply(sx4Command.getDisabledMessage()).queue();
+							} else {
+								event.reply("That command is currently disabled :no_entry:").queue();
+							}
+							
+							return false;
+						} 
+						
 						if (sx4Command.isDonator()) {
 							Guild guild = event.getShardManager().getGuildById(Settings.SUPPORT_SERVER_ID);
 							Role donatorRole = guild.getRoleById(Settings.DONATOR_ONE_ROLE_ID);
@@ -154,22 +165,13 @@ public class Sx4Bot {
 								}
 							}
 						}
-					}
-					
-					return true;
-				})
-				.addPreExecuteCheck((event, command) -> {
-					if (command instanceof Sx4Command) {
-						Sx4Command sx4Command = (Sx4Command) command;
-						if (sx4Command.isDisabled()) {
-							if (sx4Command.hasDisabledMessage()) {
-								event.reply(sx4Command.getDisabledMessage()).queue();
-							} else {
-								event.reply("That command is currently disabled :no_entry:").queue();
+						
+						if (!Settings.CANARY) {
+							if (sx4Command.isCanaryCommand()) {
+								event.reply("This command can only be used on the canary version of the bot :no_entry:").queue();
+								return false;
 							}
-							
-							return false;
-						} 
+						}
 					}
 					
 					return true;
@@ -194,6 +196,7 @@ public class Sx4Bot {
 		eventManager.register(new ChangesMessageCache());
 		eventManager.register(GuildMessageCache.INSTANCE);
 
+		eventManager.register(new StarboardEvents());
 		eventManager.register(new SelfroleEvents());
 		eventManager.register(new ModEvents());
 		eventManager.register(new ConnectionEvents());

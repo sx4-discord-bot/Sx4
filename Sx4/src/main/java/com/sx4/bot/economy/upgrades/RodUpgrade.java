@@ -2,7 +2,7 @@ package com.sx4.bot.economy.upgrades;
 
 public class RodUpgrade extends Upgrade {
 
-	public static final RodUpgrade MONEY = new RodUpgrade("Money", "Money upgrades increase your minimum yield and maximum yield of money from your fishing rod by 2% the worth of the original minimum yield", 0.02);
+	public static final RodUpgrade MONEY = new RodUpgrade("Money", "Money upgrades increase your minimum yield and maximum yield of money from your fishing rod by 5% the worth of the original minimum yield", 0.05);
 	public static final RodUpgrade DURABILITY = new RodUpgrade("Durability", "Durability upgrades increase your max fishing rod durability by 2", 2);
 	
 	public static final RodUpgrade[] ALL = {MONEY, DURABILITY};

@@ -1,8 +1,10 @@
 eclipse.preferences.version=1
 encoding//src/main/java/com/sx4/bot/events/GiveawayEvents.java=UTF-8
+encoding//src/main/java/com/sx4/bot/events/StarboardEvents.java=UTF-8
 encoding//src/main/java/com/sx4/bot/modules/AnimalsModule.java=UTF-8
 encoding//src/main/java/com/sx4/bot/modules/DeveloperModule.java=UTF-8
 encoding//src/main/java/com/sx4/bot/modules/EconomyModule.java=UTF-8
 encoding//src/main/java/com/sx4/bot/modules/FunModule.java=UTF-8
 encoding//src/main/java/com/sx4/bot/modules/GeneralModule.java=UTF-8
 encoding//src/main/java/com/sx4/bot/modules/GiveawayModule.java=UTF-8
+encoding//src/main/java/com/sx4/bot/utils/StarboardUtils.java=UTF-8

@@ -15,10 +15,11 @@ import java.util.concurrent.TimeUnit;
 
 import org.bson.Document;
 
-import com.mongodb.client.FindIterable;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Projections;
+import com.mongodb.client.model.UpdateOneModel;
 import com.mongodb.client.model.Updates;
+import com.mongodb.client.model.WriteModel;
 import com.sx4.bot.core.Sx4Bot;
 import com.sx4.bot.core.Sx4CommandEventListener;
 import com.sx4.bot.database.Database;
@@ -30,7 +31,6 @@ import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.MessageReaction;
 import net.dv8tion.jda.api.entities.TextChannel;
-import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.sharding.ShardManager;
 
 public class GiveawayEvents {
@@ -64,7 +64,7 @@ public class GiveawayEvents {
 		return false;
 	}
 	
-	public static void removeGiveaway(long guildId, Document data) {
+	public static UpdateOneModel<Document> removeGiveawayAndGet(long guildId, Document data) {
 		Guild guild = Sx4Bot.getShardManager().getGuildById(guildId);
 		int giveawayId = data.getInteger("id");
 		if (guild != null) {
@@ -103,14 +103,6 @@ public class GiveawayEvents {
 									embed.setFooter("Giveaway Ended", null);
 									message.editMessage(embed.build()).queue();
 								}
-									
-								Database.get().updateGuildById(guild.getIdLong(), Updates.pull("giveaway.giveaways", Filters.eq("id", giveawayId)), (result, exception) -> {
-									if (exception != null) {
-										exception.printStackTrace();
-									}
-								});
-								
-								GiveawayEvents.cancelExecutor(guild.getIdLong(), giveawayId);
 							}).exceptionally(e -> {
 								e.printStackTrace();
 								Sx4CommandEventListener.sendErrorMessage(Sx4Bot.getShardManager().getGuildById(Settings.SUPPORT_SERVER_ID).getTextChannelById(Settings.ERRORS_CHANNEL_ID), e, new Object[0]);
@@ -118,52 +110,57 @@ public class GiveawayEvents {
 							});
 						}
 					}
-				}, e -> {
-					if (e instanceof ErrorResponseException) {
-						ErrorResponseException errorResponse = (ErrorResponseException) e;
-						if (errorResponse.getErrorCode() == 10008) {
-							Database.get().updateGuildById(guild.getIdLong(), Updates.pull("giveaway.giveaways", Filters.eq("id", giveawayId)), (result, exception) -> {
-								if (exception != null) {
-									exception.printStackTrace();
-								}
-							});
-							
-							GiveawayEvents.cancelExecutor(guild.getIdLong(), giveawayId);
-						}
-					}
-				});
+				}, e -> {});
 			}
-		} else {
-			Database.get().updateGuildById(guildId, Updates.pull("giveaway.giveaways", Filters.eq("id", giveawayId)), (result, exception) -> {
-				if (exception != null) {
-					exception.printStackTrace();
-				}
-			});
-			
-			GiveawayEvents.cancelExecutor(guildId, giveawayId);
 		}
+		
+		GiveawayEvents.cancelExecutor(guildId, giveawayId);
+		
+		return new UpdateOneModel<>(Filters.eq("_id", guildId), Updates.pull("giveaway.giveaways", Filters.eq("id", giveawayId)));
+	}
+	
+	public static void removeGiveaway(long guildId, Document data) {
+		Database.get().updateGuildById(GiveawayEvents.removeGiveawayAndGet(guildId, data), (result, exception) -> {
+			if (exception != null) {
+				exception.printStackTrace();
+			}
+		});
 	}
 	
 	public static void ensureGiveaways() {
 		ShardManager shardManager = Sx4Bot.getShardManager();
-		FindIterable<Document> allData = Database.get().getGuilds().find(Filters.exists("giveaway.giveaways")).projection(Projections.include("giveaway.giveaways"));
-		allData.forEach((Document data) -> {
-			Document giveawayData = data.get("giveaway", Database.EMPTY_DOCUMENT);
-			long timestampNow = Clock.systemUTC().instant().getEpochSecond();
-			Guild guild = shardManager.getGuildById(data.getLong("_id"));
-			if (guild != null) {
-				List<Document> giveaways = giveawayData.getList("giveaways", Document.class, Collections.emptyList());
-				for (Document giveaway : giveaways) {
-					long timeLeft = giveaway.getLong("endTimestamp") - timestampNow;
-					if (timeLeft <= 0) {
-						GiveawayEvents.removeGiveaway(guild.getIdLong(), giveaway);
-					} else {
-						ScheduledFuture<?> executor = GiveawayEvents.scheduledExectuor.schedule(() -> GiveawayEvents.removeGiveaway(guild.getIdLong(), giveaway), timeLeft, TimeUnit.SECONDS);
-						GiveawayEvents.putExecutor(guild.getIdLong(), giveaway.getInteger("id"), executor);
+		List<Document> allData = Database.get().getGuilds().find(Filters.exists("giveaway.giveaways")).projection(Projections.include("giveaway.giveaways")).into(new ArrayList<>());
+		
+		List<WriteModel<Document>> bulkData = new ArrayList<>();
+		for (Document data : allData) {
+			try {
+				Document giveawayData = data.get("giveaway", Database.EMPTY_DOCUMENT);
+				long timestampNow = Clock.systemUTC().instant().getEpochSecond();
+				Guild guild = shardManager.getGuildById(data.getLong("_id"));
+				if (guild != null) {
+					List<Document> giveaways = giveawayData.getList("giveaways", Document.class, Collections.emptyList());
+					for (Document giveaway : giveaways) {
+						long timeLeft = giveaway.getLong("endTimestamp") - timestampNow;
+						if (timeLeft <= 0) {
+							bulkData.add(GiveawayEvents.removeGiveawayAndGet(guild.getIdLong(), giveaway));
+						} else {
+							ScheduledFuture<?> executor = GiveawayEvents.scheduledExectuor.schedule(() -> GiveawayEvents.removeGiveaway(guild.getIdLong(), giveaway), timeLeft, TimeUnit.SECONDS);
+							GiveawayEvents.putExecutor(guild.getIdLong(), giveaway.getInteger("id"), executor);
+						}
 					}
 				}
+			} catch(Throwable e) {
+				e.printStackTrace();
 			}
-		});
+		}
+		
+		if (!bulkData.isEmpty()) {
+			Database.get().bulkWriteGuilds(bulkData, (result, exception) -> {
+				if (exception != null) {
+					exception.printStackTrace();
+				}
+			});
+		}
 	}
 	
 }
