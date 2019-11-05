@@ -3554,13 +3554,27 @@ public class ModModule {
 		} else {
 			nextWarning = new Warning(userWarning.getWarning() + 1, "warn");
 		}
+		
+		StringBuilder reasons = new StringBuilder();
+		for (int i = 0; i < userWarning.getReasons().size(); i++) {
+			String reason = userWarning.getReasons().get(i);
+			if (reasons.length() + reason.length() >= MessageEmbed.VALUE_MAX_LENGTH) {
+				continue;
+			}
+			
+			reasons.append("`" + reason + "`, ");
+		}
+		
+		if (reasons.length() != 0) {
+			reasons.setLength(reasons.length() - 2);
+		}
 				
 		EmbedBuilder embed = new EmbedBuilder();
 		embed.setColor(member.getColor());
 		embed.setAuthor(member.getUser().getAsTag(), null, member.getUser().getEffectiveAvatarUrl());
 		embed.setDescription(member.getUser().getName() + " is on " + userWarning.getWarning() + " warning" + (userWarning.getWarning() == 1 ? "" : "s"));
 		embed.addField("Next Action", GeneralUtils.title(nextWarning.getAction()), false);
-		embed.addField("Reasons", userWarning.getReasons().isEmpty() ? "None" : "`" + String.join("`, `", userWarning.getReasons()) + "`", false);
+		embed.addField("Reasons", reasons.length() == 0 ? "None" : reasons.toString(), false);
 		event.reply(embed.build()).queue();
 	}
 	
