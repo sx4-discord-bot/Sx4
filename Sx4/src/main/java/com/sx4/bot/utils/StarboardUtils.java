@@ -117,15 +117,17 @@ public class StarboardUtils {
 	}
 	
 	public static String getCurrentMessage(User user, TextChannel channel, long messageId, List<StarboardConfiguration> configuration, int stars) {
-		int currentDisplayIndex = 0;
-		for (StarboardConfiguration star : configuration) {
+		int highestStar = 0, index = -1;
+		for (int i = 0; i < configuration.size(); i++) {
+			StarboardConfiguration star = configuration.get(i);
 			int id = star.getId();
-			if (id <= stars && currentDisplayIndex < id) {
-				currentDisplayIndex = id;
+			if (id <= stars && highestStar < id) {
+				highestStar = id;
+				index = i;
 			}
 		}
 		
-		return StarboardUtils.formatMessage(user, channel, messageId, configuration, stars, configuration.get(currentDisplayIndex - 1).getMessage());
+		return StarboardUtils.formatMessage(user, channel, messageId, configuration, stars, configuration.get(index).getMessage());
 	}
 	
 	public static Message getStarboard(User author, long messageId, String content, String image, int stars, TextChannel channel, User user, List<StarboardConfiguration> configuration, String message) {

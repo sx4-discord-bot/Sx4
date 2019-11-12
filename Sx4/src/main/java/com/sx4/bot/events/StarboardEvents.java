@@ -61,7 +61,7 @@ public class StarboardEvents extends ListenerAdapter {
 							String display = star.getMessage();
 							
 							if (starboardId == null) {
-								Message starboardMessageRaw = StarboardUtils.getStarboard(message, event.getChannel(), event.getUser(), starboard.getConfiguration(), display);
+								Message starboardMessageRaw = StarboardUtils.getStarboard(message, message.getChannel(event.getGuild()), event.getUser(), starboard.getConfiguration(), display);
 								
 								channel.sendMessage(starboardMessageRaw).queue(starboardMessage -> {
 									starboardMessage.addReaction("⭐").queue();
@@ -82,7 +82,9 @@ public class StarboardEvents extends ListenerAdapter {
 							} 
 						}
 						
-						channel.editMessageById(starboardId, StarboardUtils.getCurrentMessage(event.getUser(), event.getChannel(), event.getMessageIdLong(), starboard.getConfiguration(), newSize)).queue();
+						if (starboardId != null) {
+							channel.editMessageById(starboardId, StarboardUtils.getCurrentMessage(event.getUser(), message.getChannel(event.getGuild()), event.getMessageIdLong(), starboard.getConfiguration(), newSize)).queue();
+						}
 						
 						Bson update = Updates.addToSet("starboard.messages.$[message].stars", event.getUser().getIdLong());
 						
@@ -165,21 +167,22 @@ public class StarboardEvents extends ListenerAdapter {
 					List<Long> stars = message.getStars();
 					if (stars.contains(event.getUser().getIdLong())) {
 						int newSize = stars.size() - 1;
+						StarboardConfiguration configuration = starboard.getConfigurationById(newSize);
 						
 						Bson update;
 						List<Bson> arrayFilters = null;
+						if (configuration == null && starboardId != null) {
+							channel.deleteMessageById(starboardId).queue();
+						} 
+						
 						if (newSize == 0) {
 							update = Updates.pull("starboard.messages", Filters.eq("id", message.getMessageId()));
-							
-							if (starboardId != null) {
-								channel.deleteMessageById(starboardId).queue();
-							}
 						} else {
 							update = Updates.pull("starboard.messages.$[message].stars", event.getUser().getIdLong());
 							arrayFilters = List.of(Filters.eq("message.id", message.getMessageId()));
 							
-							if (starboardId != null) {
-								channel.editMessageById(starboardId, StarboardUtils.getCurrentMessage(event.getUser(), event.getChannel(), event.getMessageIdLong(), starboard.getConfiguration(), newSize)).queue();
+							if (configuration != null && starboardId != null) {
+								channel.editMessageById(starboardId, StarboardUtils.getCurrentMessage(event.getUser(), message.getChannel(event.getGuild()), event.getMessageIdLong(), starboard.getConfiguration(), newSize)).queue();
 							}
 						}
 						

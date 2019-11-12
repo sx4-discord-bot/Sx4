@@ -67,7 +67,7 @@ import com.sx4.bot.core.Sx4Bot;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEventListener;
 import com.sx4.bot.database.Database;
-import com.sx4.bot.interfaces.Example;
+import com.sx4.bot.interfaces.Examples;
 import com.sx4.bot.interfaces.Sx4Callback;
 import com.sx4.bot.settings.Settings;
 import com.sx4.bot.starboard.Starboard;
@@ -153,9 +153,16 @@ public class FunModule {
 			super("starboard");
 			
 			super.setDescription("Set up a starboard in your server so you can star eachothers messages");
+			super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
+			super.setExamples("starboard toggle", "starboard channel", "starboard top");
+		}
+		
+		public void onCommand(CommandEvent event) {
+			event.reply(HelpUtils.getHelpMessage(event.getCommand())).queue();
 		}
 		
 		@Command(value="toggle", aliases={"enable", "disable"}, description="enable/disable the starboard in the current server")
+		@Examples({"starboard toggle"})
 		@AuthorPermissions({Permission.MANAGE_SERVER})
 		public void toggle(CommandEvent event, @Context Database database) {
 			boolean enabled = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("starboard.enabled")).getEmbedded(List.of("starboard", "enabled"), false);
@@ -170,12 +177,18 @@ public class FunModule {
 		}
 		
 		@Command(value="channel", description="Set the channel for the starboard messages to be sent to")
+		@Examples({"starboard channel", "starboard channel #general", "starboard channel general", "starboard channel 344091594972069888"})
 		@AuthorPermissions(Permission.MANAGE_SERVER)
-		public void channel(CommandEvent event, @Context Database database, @Argument(value="channel", endless=true) String channelArgument) {
-			TextChannel channel = ArgumentUtils.getTextChannel(event.getGuild(), channelArgument);
-			if (channel == null) {
-				event.reply("I could not find that channel :no_entry:").queue();
-				return;
+		public void channel(CommandEvent event, @Context Database database, @Argument(value="channel", endless=true, nullDefault=true) String channelArgument) {
+			TextChannel channel;
+			if (channelArgument == null) {
+				channel = event.getTextChannel();
+			} else {
+				channel = ArgumentUtils.getTextChannel(event.getGuild(), channelArgument);
+				if (channel == null) {
+					event.reply("I could not find that channel :no_entry:").queue();
+					return;
+				}
 			}
 			
 			Long channelId = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("starboard.channelId")).getEmbedded(List.of("starboard", "channelId"), Long.class);
@@ -196,6 +209,7 @@ public class FunModule {
 		
 		@SuppressWarnings("unchecked")
 		@Command(value="set", description="Set a specific message to be changed to when a message reaches a certain amount of stars", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"starboard set 5 **{star}** :fireworks:", "starboard set 1 We reached **{star}** :star:, we only need **{stars.next.until}** more :star: until our next milestone"})
 		@AuthorPermissions({Permission.MANAGE_SERVER})
 		public void set(CommandEvent event, @Context Database database, @Argument(value="stars") int stars, @Argument(value="message", endless=true) String message) {
 			Bson update = null;
@@ -258,6 +272,7 @@ public class FunModule {
 		
 		@SuppressWarnings("unchecked")
 		@Command(value="remove", description="Removes a starboard message when you reaching a sepecific amount of stars", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"starboard remove 5", "starboard remove 1"})
 		@AuthorPermissions({Permission.MANAGE_SERVER})
 		public void remove(CommandEvent event, @Context Database database, @Argument(value="stars") int stars) {
 			Bson update = null;
@@ -310,6 +325,7 @@ public class FunModule {
 		}
 		
 		@Command(value="reset", description="Resets your configuration for the starboard messages and puts them back to the default", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"starboard reset"})
 		@AuthorPermissions({Permission.MANAGE_SERVER})
 		public void reset(CommandEvent event, @Context Database database) {
 			event.reply(event.getAuthor().getName() + ", are you sure you want to reset your starboard configuration back to the default?").queue($ -> {
@@ -337,6 +353,7 @@ public class FunModule {
 		}
 		
 		@Command(value="delete", description="Deletes a starboard message and blacklists it from reappearing as a starred message", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"starboard delete 643110427487633418"})
 		@AuthorPermissions({Permission.MANAGE_SERVER})
 		public void delete(CommandEvent event, @Context Database database, @Argument(value="message id") long messageId) {
 			Document data = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("starboard.deleted", "starboard.messages")).get("starboard", Database.EMPTY_DOCUMENT);
@@ -370,6 +387,7 @@ public class FunModule {
 		}
 		
 		@Command(value="top", description="View the top starred messages in this server", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"starboard top"})
 		public void top(CommandEvent event, @Context Database database) {
 			List<Document> messages = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("starboard.messages")).getEmbedded(List.of("starboard", "messages"), Collections.emptyList());
 			if (messages.isEmpty()) {
@@ -392,6 +410,7 @@ public class FunModule {
 		}
 		
 		@Command(value="list", description="Lists your starboard messages you have per star milestone", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"starboard list"})
 		public void list(CommandEvent event, @Context Database database) {
 			List<Document> configuration = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("starboard.configuration")).getEmbedded(List.of("starboard", "configuration"), StarboardUtils.DEFAULT_STARBOARD_CONFIGURATION);
 			configuration.sort((a, b) -> Integer.compare(a.getInteger("id"), b.getInteger("id")));
@@ -407,6 +426,7 @@ public class FunModule {
 		}
 		
 		@Command(value="formatting", aliases={"format", "formats"}, description="View the formats you can use for your your starboard messages", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"starboard formatting"})
 		public void formatting(CommandEvent event) {
 			EmbedBuilder embed = new EmbedBuilder();
 			embed.setAuthor("Starboard Formatting", null, event.getGuild().getIconUrl());
@@ -562,6 +582,7 @@ public class FunModule {
 	}*/
 	
 	@Command(value="profile", description="View a users or your profile")
+	@Examples({"profile", "profile @Shea#6653", "profile 402557516728369153", "profile Shea"})
 	@BotPermissions({Permission.MESSAGE_ATTACH_FILES})
 	public void profile(CommandEvent event, @Context Database database, @Argument(value="user", endless=true, nullDefault=true) String userArgument) {
 		Member member;
@@ -640,6 +661,7 @@ public class FunModule {
 	}
 	
 	@Command(value="badges", description="Shows you all the badges you can get on your profile", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+	@Examples({"badges"})
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void badges(CommandEvent event) {
 		EmbedBuilder embed = new EmbedBuilder();
@@ -660,6 +682,7 @@ public class FunModule {
 			
 			super.setDescription("Set aspects of your profile to display on your profile");
 			super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
+			super.setExamples("set description", "set height", "set birthday");
 		}
 		
 		public void onCommand(CommandEvent event) {
@@ -667,6 +690,7 @@ public class FunModule {
 		}
 		
 		@Command(value="birthday", description="Set your birthday for your profile (EU Format)", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"set birthday 01/07", "set birthday 01/07/2002"})
 		public void birthday(CommandEvent event, @Context Database database, @Argument(value="birth date") String birthDateString) {
 			LocalDate birthDateTime;
 			boolean displayYear = true;
@@ -712,6 +736,7 @@ public class FunModule {
 		}
 		
 		@Command(value="description", aliases={"bio"}, description="Set your description for your profile")
+		@Examples({"set description Hello", "set description Breif description about myself"})
 		public void description(CommandEvent event, @Context Database database, @Argument(value="description", endless=true) String description) {
 			if (description.length() > 300) {
 				event.reply("Your description can be no longer than 300 characters :no_entry:").queue();
@@ -735,6 +760,7 @@ public class FunModule {
 		}
 		
 		@Command(value="height", description="Set your height for your profile", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"set height 175", "set height 5'9", "set height 6'"})
 		public void height(CommandEvent event, @Context Database database, @Argument(value="feet and inches | centimetres") String height) { 
 			int centimetres, feet, inches;
 			if (GeneralUtils.isNumber(height)) {
@@ -796,6 +822,7 @@ public class FunModule {
 		}
 		
 		@Command(value="colour", aliases={"color"}, description="Set the colour accenting for you profile")
+		@Examples({"set colour 255, 0, 0", "set colour #ff0000", "set colour ff0000"})
 		public void colour(CommandEvent event, @Context Database database, @Argument(value="hex | rgb", endless=true) String colourArgument) {
 			Color colour;
 			if (colourArgument.toLowerCase().equals("reset") || colourArgument.toLowerCase().equals("default")) {
@@ -842,6 +869,8 @@ public class FunModule {
 		}
 		
 		@Command(value="banner", aliases={"background"}, description="Set your background for you profile", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"set banner", "set banner https://i.imgur.com/EqaQ9wo.png"})
+		@Async
 		@Cooldown(value=30)
 		public void banner(CommandEvent event, @Argument(value="banner", nullDefault=true) String banner) {
 			URL url = null;
@@ -924,8 +953,9 @@ public class FunModule {
 	}
 	
 	@Command(value="birthdays", description="View all the birthdays which are upcoming in the next 30 days (Set your birthday with `set birthday`)", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+	@Examples({"birthdays", "birthdays --server"})
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-	public void birthdays(CommandEvent event, @Context Database database, @Option(value="server", aliases={"guild"}) boolean guild) {
+	public void birthdays(CommandEvent event, @Context Database database, @Option(value="server", aliases={"guild"}, description="Filters all birthdays so only peoples birthdays from the current server are shown") boolean guild) {
 		FindIterable<Document> data = database.getUsers().find(Filters.exists("profile.birthday")).projection(Projections.include("profile.birthday"));
 		
 		LocalDate now = LocalDate.now(ZoneOffset.UTC);
@@ -983,6 +1013,7 @@ public class FunModule {
 	private final Map<Long, List<Long>> marriages = new HashMap<>();
 	
 	@Command(value="marry", description="Marry other users or yourself, you can have up to 5 partners")
+	@Examples({"marry @Shea#6653", "marry 402557516728369153", "marry Shea"})
 	public void marry(CommandEvent event, @Context Database database, @Argument(value="user", endless=true) String userArgument) {
 		Member member = ArgumentUtils.getMember(event.getGuild(), userArgument);
 		if (member == null) {
@@ -1094,6 +1125,7 @@ public class FunModule {
 	}
 	
 	@Command(value="divorce", description="Divorce a user you are married to or put an argument of all to divorce everyone")
+	@Examples({"divorce all", "divorce @Shea#6653", "divorce 402557516728369153", "divorce Shea"})
 	@Cooldown(value=5)
 	public void divorce(CommandEvent event, @Context Database database, @Argument(value="user | all", endless=true) String userArgument) {
 		List<Long> marriedUsers = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("profile.marriedUsers")).getEmbedded(List.of("profile", "marriedUsers"), Collections.emptyList());
@@ -1167,6 +1199,7 @@ public class FunModule {
 	}
 	
 	@Command(value="married", aliases={"married list", "marriedlist"}, description="View the users you or another user are married to")
+	@Examples({"married", "married @Shea#6653", "married 402557516728369153", "married Shea"})
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void married(CommandEvent event, @Context Database database, @Argument(value="user", endless=true, nullDefault=true) String userArgument) {
 		Member member;
@@ -1203,7 +1236,7 @@ public class FunModule {
 	}
 	
 	@Command(value="tts", aliases={"text to speech", "texttospeech"}, description="Give some text to be returned as text to speech in an mp3 file")
-	@Async
+	@Examples({"tts Hello there", "tts Robot voices are cool"})
 	@Cooldown(value=3)
 	@BotPermissions({Permission.MESSAGE_ATTACH_FILES})
 	public void tts(CommandEvent event, @Argument(value="text", endless=true) String text) {
@@ -1227,7 +1260,7 @@ public class FunModule {
 	}
 	
 	@Command(value="weather", description="Gives you weather information about a specified city")
-	@Async
+	@Examples({"weather gb london", "weather se stockholm"})
 	@Cooldown(value=3)
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void weather(CommandEvent event, @Argument(value="country code") String country, @Argument(value="city", endless=true) String city) {
@@ -1268,7 +1301,7 @@ public class FunModule {
 	}
 	
 	@Command(value="random steam game", aliases={"randomsteamgame", "randomsteam", "random steam", "randomgame", "random game"}, description="Gives you a random game from steam", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
-	@Async
+	@Examples({"random steam game"})
 	@Cooldown(value=5)
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void randomSteamGame(CommandEvent event) {
@@ -1339,7 +1372,7 @@ public class FunModule {
 	}
 	
 	@Command(value="steam search", aliases={"steamsearch", "gamesearch", "game search", "steamgame", "steam game"}, description="Look up any game on steam")
-	@Async 
+	@Examples({"steam search grand theft auto", "steam search uno", "steam search human fall flat"})
 	@Cooldown(value=5)
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void steamSearch(CommandEvent event, @Argument(value="game", endless=true, nullDefault=true) String gameName) {
@@ -1464,6 +1497,7 @@ public class FunModule {
 	}
 	
 	@Command(value="minesweeper", description="The bot will generate a minesweeper grid for you to play with discords spoilers", contentOverflowPolicy=ContentOverflowPolicy.IGNORE) 
+	@Examples({"minesweeper", "minesweeper 10", "minesweeper 5 5x5"})
 	public void minesweeper(CommandEvent event, @Argument(value="bombs", nullDefault=true) Integer bombAmount, @Argument(value="grid size", nullDefault=true) String gridSize) {
 		int gridX, gridY;
 		if (gridSize != null) {
@@ -1552,7 +1586,7 @@ public class FunModule {
 	}
 	
 	@Command(value="convert", description="Convert one currency to another", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
-	@Async
+	@Examples({"convert 10 gbp usd", "convert 5 eur usd", "convert 500 sek gbp"})
 	@Cooldown(value=3)
 	public void convert(CommandEvent event, @Argument(value="amount") double amount, @Argument(value="currency from") String currencyFrom, @Argument(value="currency to") String currencyTo) {
 		String from = currencyFrom.toUpperCase(), to = currencyTo.toUpperCase();
@@ -1579,6 +1613,7 @@ public class FunModule {
 	
 	@SuppressWarnings("unchecked")
 	@Command(value="teams", description="Split users/users of a role into a specified amount of teams")
+	@Examples({"teams 5 @everyone", "teams 2 @Shea#6653 190551803669118976 Adriaan οοοοοο#7518", "teams 3 dog cat fox bear hamster monkey"})
 	public void teams(CommandEvent event, @Argument(value="amount of teams") int teams, @Argument(value="players") String[] players) {
 		if (teams < 2) {
 			event.reply("There has to be at least 2 teams :no_entry:").queue();
@@ -1642,6 +1677,7 @@ public class FunModule {
 	}
 	
 	@Command(value="guess the number", aliases={"guessthenumber", "gtn"}, description="You and another user will have to guess a number between 1 and 50 whoever is closest wins, winner gets the other users bet if one is placed", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+	@Examples({"guess the number @Shea#6653", "guess the number Shea 5000", "guess the number 402557516728369153 all", "guess the number Shea#6653 10%"})
 	@Cooldown(value=120)
 	public void guessTheNumber(CommandEvent event, @Context Database database, @Argument(value="user") String userArgument, @Argument(value="bet", nullDefault=true) String betArgument) {
 		Member member = ArgumentUtils.getMember(event.getGuild(), userArgument);
@@ -1657,12 +1693,14 @@ public class FunModule {
 			return;
 		}
 		
-		long authorBalance = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance")).getEmbedded(List.of("economy", "balance"), 0L), moneyArgument;
-		try {
-			moneyArgument = EconomyUtils.convertMoneyArgument(authorBalance, betArgument);
-		} catch(IllegalArgumentException e) {
-			event.reply(e.getMessage()).queue();
-			return;
+		long authorBalance = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance")).getEmbedded(List.of("economy", "balance"), 0L), moneyArgument = 0;
+		if (betArgument != null) {
+			try {
+				moneyArgument = EconomyUtils.convertMoneyArgument(authorBalance, betArgument);
+			} catch(IllegalArgumentException e) {
+				event.reply(e.getMessage()).queue();
+				return;
+			}
 		}
 		
 		long bet = betArgument == null ? 0 : moneyArgument;
@@ -1797,7 +1835,7 @@ public class FunModule {
 	}
 	
 	@Command(value="translate", aliases={"tr"}, description="Translate the text provided into a specified language")
-	@Async
+	@Examples({"translate english bonjour", "translate de hello there"})
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void translate(CommandEvent event, @Argument(value="language") String languageName, @Argument(value="text", endless=true) String text) {
 		if (text.length() > MessageEmbed.VALUE_MAX_LENGTH) {
@@ -1937,6 +1975,7 @@ public class FunModule {
 	}
 	
 	@Command(value="calculator", aliases={"calc"}, description="Calculate any equation with general mathmatic symbols")
+	@Examples({"calculator (10 * 10) / 5", "calculator 1 + 1"})
 	public void calculator(CommandEvent event, @Argument(value="equation", endless=true) String equation) {
 		String eq;
 		try {
@@ -1954,10 +1993,10 @@ public class FunModule {
 		event.reply(eq).queue();
 	}
 	
-	private static final List<String> REGIONS = List.of("cn", "na", "eu", "sa", "ea", "sg");
+	private final List<String> regions = List.of("cn", "na", "eu", "sa", "ea", "sg");
 	
 	@Command(value="vain glory", aliases={"vain", "vg", "vainglory"}, description="Get statitstics about a specified player in the game vain glory", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
-	@Async
+	@Examples({"vain glory dog", "vain glory cat eu"})
 	@Cooldown(value=5)
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void vainGlory(CommandEvent event, @Argument(value="player name") String playerName, @Argument(value="region", nullDefault=true) String region) {
@@ -1965,8 +2004,8 @@ public class FunModule {
 			region = "na";
 		}
 		
-		if (!REGIONS.contains(region)) {
-			event.reply("I could not find that region, valid regions are `" + String.join("`, `", REGIONS) + "` :no_entry:").queue();
+		if (!this.regions.contains(region)) {
+			event.reply("I could not find that region, valid regions are `" + String.join("`, `", this.regions) + "` :no_entry:").queue();
 			return;
 		}
 		
@@ -2042,7 +2081,7 @@ public class FunModule {
 	}
 	
 	@Command(value="quote", description="Gives you a random quote", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
-	@Async
+	@Examples({"quote"})
 	@Cooldown(value=5)
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void quote(CommandEvent event) {
@@ -2073,7 +2112,7 @@ public class FunModule {
 	}
 	
 	@Command(value="youtube", aliases={"yt"}, description="Search up any video/channel/playlist on youtube")
-	@Async
+	@Examples({"youtube pewdiepie", "youtube youtube rewind 2018", "youtube top charts"})
 	@Cooldown(value=3)
 	public void youtube(CommandEvent event, @Argument(value="query", endless=true) String query) {
 		Request request;
@@ -2112,7 +2151,7 @@ public class FunModule {
 	}
 	
 	@Command(value="shorten", description="Shortens a specified url")
-	@Async
+	@Examples({"shorten https://patreon.com/Sx4", "shorten https://youtube.com/user/PewDiePie"})
 	@Cooldown(value=10)
 	public void shorten(CommandEvent event, @Argument(value="url", endless=true) String url) {
 		Request request = new Request.Builder()
@@ -2141,7 +2180,7 @@ public class FunModule {
 	}
 	
 	@Command(value="meme", description="Gives you a random meme from reddit", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
-	@Async
+	@Examples({"meme"})
 	@Cooldown(value=7)
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void meme(CommandEvent event) {
@@ -2170,7 +2209,7 @@ public class FunModule {
 	}
 	
 	@Command(value="discord meme", aliases={"discordmeme"}, description="Gives you a random discord meme", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
-	@Async
+	@Examples({"discord meme"})
 	@Cooldown(value=3)
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void discordMeme(CommandEvent event) {
@@ -2199,7 +2238,7 @@ public class FunModule {
 	
 	@SuppressWarnings("unchecked")
 	@Command(value="google", description="Returns the first 5 google search results from your query")
-	@Async
+	@Examples({"google Sx4 discord bot", "google youtube"})
 	@Cooldown(value=3)
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void google(CommandEvent event, @Argument(value="query", endless=true) String query) {
@@ -2255,7 +2294,7 @@ public class FunModule {
 	
 	@SuppressWarnings("unchecked")
 	@Command(value="google image", aliases={"googleimage"}, description="Returns an image from google based on your query")
-	@Async
+	@Examples({"google image car", "google image doggo", "google image cat"})
 	@Cooldown(value=3)
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void googleImage(CommandEvent event, @Argument(value="query", endless=true) String query) {
@@ -2320,7 +2359,7 @@ public class FunModule {
 	}
 	
 	@Command(value="dictionary", aliases={"define"}, description="Look up any word to see its definition")
-	@Async
+	@Examples({"dictionary phenomenal", "dictionary antidisestablishmentarianism"})
 	@Cooldown(value=5)
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void dictionary(CommandEvent event, @Argument(value="word", endless=true) String word) {
@@ -2372,7 +2411,7 @@ public class FunModule {
 	}
 	
 	@Command(value="steam", aliases={"steam profile", "steamprofile"}, description="Look up any users steam profile", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
-	@Async 
+	@Examples({"steam dog", "steam https://steamcommunity.com/id/dog"})
 	@Cooldown(value=10)
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void steam(CommandEvent event, @Argument(value="vanity url", endless=true) String vanityUrl) {
@@ -2465,7 +2504,7 @@ public class FunModule {
 	Pattern hyperLink = Pattern.compile("\\[(.*?)\\]");
 	
 	@Command(value="urban dictionary", aliases={"urban", "urbandictionary", "ud"}, description="Look up definitions on the urban dictionary")
-	@Async
+	@Examples({"urban dictionary hello", "urban dictionary dog"})
 	@Cooldown(value=3)
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void urbanDictionary(CommandEvent event, @Argument(value="word", endless=true) String word) {
@@ -2545,12 +2584,14 @@ public class FunModule {
 	}
 	
 	@Command(value="say", description="The bot will repeat whatever you say")
+	@Examples({"say hello there"})
 	public void say(CommandEvent event, @Argument(value="text", endless=true) String text) {
 		text = FunUtils.escapeMentions(event.getGuild(), text);
 		event.reply(text.substring(0, Math.min(text.length(), 2000))).queue();
 	}
 	
 	@Command(value="spoilerfy", description="The bot will return your specified text into a spoiler per character")
+	@Examples({"spoilerfy hidden message"})
 	public void spoilerfy(CommandEvent event, @Argument(value="text", endless=true) String text) {
 		String content = "";
 		for (char character : text.toCharArray()) {
@@ -2566,6 +2607,7 @@ public class FunModule {
 	}
 	
 	@Command(value="embed", aliases={"esay"}, description="The bot will repeat whatever you say in an embed")
+	@Examples({"embed hello there"})
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void embed(CommandEvent event, @Argument(value="text", endless=true) String text) {
 		EmbedBuilder embed = new EmbedBuilder();
@@ -2577,31 +2619,11 @@ public class FunModule {
 	}
 	
 	@Command(value="developer embed", aliases={"developerembed", "dev embed", "devembed"}, description="Create more in depth embeds if you know the syntax of json")
-	@Example("Example format: ```json\n{\r\n" + 
-		"	\"title\": \"text here\",\r\n" + 
-		"	\"description\": \"text here\",\r\n" + 
-		"	\"colour\": \"hex code here\",\r\n" + 
-		"	\"author\": {\r\n" + 
-		"		\"name\": \"text here\",\r\n" + 
-		"		\"icon_url\": \"image url here\",\r\n" + 
-		"		\"url\": \"url here\"\r\n" + 
-		"	},\r\n" + 
-		"	\"footer\": {\r\n" + 
-		"		\"text\": \"text here\",\r\n" + 
-		"		\"icon_url\": \"image url here\"\r\n" + 
-		"	},\r\n" + 
-		"	\"fields\": [{\r\n" + 
-		"		\"name\": \"title here\",\r\n" + 
-		"		\"value\": \"description here\",\r\n" + 
-		"		\"inline\": true\r\n" + 
-		"	}, {\r\n" + 
-		"		\"name\": \"title here\",\r\n" + 
-		"		\"value\": \"description here\",\r\n" + 
-		"		\"inline\": false\r\n" + 
-		"	}],\r\n" + 
-		"	\"image\": \"image url here\",\r\n" + 
-		"	\"thumbnail\": \"url here\"\r\n" + 
-		"}```")
+	@Examples({
+		"developer embed {\"title\": \"My title\", \"description\": \"My description\"}", 
+		"developer embed {\"author\": {\"name\": \"My author name\", \"icon_url\": \"url here\"}, \"description\": \"My description\"}", 
+		"developer embed {\"fields\": [{\"name\": \"My field name\", \"value\": \"My field value\"}, {\"name\": \"My field name\", \"value\": \"My field value\", \"inline\": false}]}"
+	})
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void developerEmbed(CommandEvent event, @Argument(value="json", endless=true) JSONObject json) {
 		EmbedBuilder embed = new EmbedBuilder();
@@ -2709,18 +2731,21 @@ public class FunModule {
 	}
 	
 	@Command(value="clapify", description="The bot will return your text with a clap emote in between each word")
+	@Examples({"clapify some angry message"})
 	public void clapify(CommandEvent event, @Argument(value="text", endless=true) String text) {
 		text = FunUtils.escapeMentions(event.getGuild(), text.replace(" ", " :clap: "));
 		event.reply(text.substring(0, Math.min(text.length(), 2000))).queue();
 	}
 	
 	@Command(value="ascend", description="The bot will return your text with a space in between each character")
+	@Examples({"ascend hello there"})
 	public void ascend(CommandEvent event, @Argument(value="text", endless=true) String text) {
 		text = FunUtils.escapeMentions(event.getGuild(), text.replace("", " "));
 		event.reply(text.substring(0, Math.min(text.length(), 2000))).queue();
 	}
 	
 	@Command(value="backwards", aliases={"reverse"}, description="The bot will return your text reversed")
+	@Examples({"backwards hello there"})
 	public void backwards(CommandEvent event, @Argument(value="text", endless=true) String text) {
 		String content = "";
 		for (int i = text.length() - 1; i >= 0; i--) {
@@ -2732,6 +2757,7 @@ public class FunModule {
 	}
 	
 	@Command(value="random caps", aliases={"randomcaps", "rand caps", "randcaps"}, description="The bot will return your text with the characters randomly being lower case or upper case")
+	@Examples({"random caps hello there"})
 	public void randomCaps(CommandEvent event, @Argument(value="text", endless=true) String text) {
 		String content = "";
 		for (char character : text.toCharArray()) {
@@ -2748,6 +2774,7 @@ public class FunModule {
 	}
 	
 	@Command(value="alternate caps", aliases={"alt caps", "altcaps", "alternatecaps"}, description="The bot will return your text with the characters alternating between being lower case or upper case")
+	@Examples({"alternate caps hello there"})
 	public void alternateCaps(CommandEvent event, @Argument(value="text", endless=true) String text) {
 		String content = "";
 		for (int i = 0; i < text.length(); i++) {
@@ -2768,6 +2795,7 @@ public class FunModule {
 	private final List<String> rpsEmotes = List.of("Rock :moyai:", "Paper :page_facing_up:", "Scissors :scissors:");
 	
 	@Command(value="rps", aliases={"rock paper scissors", "rockpaperscissors"}, description="Play rock paper scissors again the bot")
+	@Examples({"rps rock", "rps paper", "rps scissors"})
 	public void rps(CommandEvent event, @Context Database database, @Argument(value="rock | paper | scissors") String choice) {
 		int choiceInt;
 		if (this.rockChoices.contains(choice)) {
@@ -2811,6 +2839,7 @@ public class FunModule {
 	}
 	
 	@Command(value="rps stats", aliases={"rpsstats", "rpss", "rock paper scissors stats", "rockpaperscissorsstats"}, description="View your rock paper scissors stats")
+	@Examples({"rps stats", "rps stats @Shea#6653", "rps stats 402557516728369153", "rps stats Shea"})
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void rpsStats(CommandEvent event, @Context Database database, @Argument(value="user", endless=true, nullDefault=true) String userArgument) {
 		Member member;

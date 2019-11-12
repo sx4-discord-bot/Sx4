@@ -20,11 +20,13 @@ import com.jockie.bot.core.command.impl.CommandImpl;
 import com.jockie.bot.core.module.Module;
 import com.jockie.bot.core.option.Option;
 import com.sx4.bot.categories.Categories;
+import com.sx4.bot.interfaces.Examples;
 import com.sx4.bot.interfaces.Sx4Callback;
 import com.sx4.bot.settings.Settings;
 import com.sx4.bot.utils.ArgumentUtils;
 import com.sx4.bot.utils.FunUtils;
 import com.sx4.bot.utils.GeneralUtils;
+import com.sx4.bot.utils.ImageUtils;
 
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
@@ -48,6 +50,7 @@ public class ImageModule {
 	private static final Random RANDOM = new Random();
 	
 	@Command(value="canny", description="Returns an image with the canny effect")
+	@Examples({"canny", "canny https://i.imgur.com/i87lyNO.png", "canny @Shea#6653"})
 	@Cooldown(value=5)
 	@BotPermissions({Permission.MESSAGE_ATTACH_FILES})
 	public void canny(CommandEvent event, @Argument(value="url | user", endless=true, nullDefault=true) String argument) {
@@ -85,6 +88,7 @@ public class ImageModule {
 	}
 	
 	@Command(value="invert", description="Returns an image with inverted colours")
+	@Examples({"invert", "invert https://i.imgur.com/i87lyNO.png", "invert @Shea#6653"})
 	@Cooldown(value=5)
 	@BotPermissions({Permission.MESSAGE_ATTACH_FILES})
 	public void invert(CommandEvent event, @Argument(value="url | user", endless=true, nullDefault=true) String argument) {
@@ -122,6 +126,7 @@ public class ImageModule {
 	}
 	
 	@Command(value="edge", description="Returns an image with the edge effect")
+	@Examples({"edge", "edge https://i.imgur.com/i87lyNO.png", "edge @Shea#6653"})
 	@Cooldown(value=5)
 	@BotPermissions({Permission.MESSAGE_ATTACH_FILES})
 	public void edge(CommandEvent event, @Argument(value="url | user", endless=true, nullDefault=true) String argument) {
@@ -159,6 +164,7 @@ public class ImageModule {
 	}
 	
 	@Command(value="how to google", aliases={"htg", "howtogoogle"}, description="Returns a gif of your text being googled")
+	@Examples({"how to google How do you use Sx4?"})
 	@Cooldown(value=10)
 	@BotPermissions({Permission.MESSAGE_ATTACH_FILES})
 	public void howToGoogle(CommandEvent event, @Argument(value="text", endless=true) String text) {
@@ -189,6 +195,7 @@ public class ImageModule {
 	}
 	
 	@Command(value="hot", description="Returns Will Smith saying the specified image is hot")
+	@Examples({"hot", "hot https://i.imgur.com/i87lyNO.png", "hot @Shea#6653"})
 	@Cooldown(value=5)
 	@BotPermissions({Permission.MESSAGE_ATTACH_FILES})
 	public void hot(CommandEvent event, @Argument(value="url | user", endless=true, nullDefault=true) String argument) {
@@ -232,6 +239,7 @@ public class ImageModule {
 	}
 	
 	@Command(value="discord", description="Mimick something said in discord")
+	@Examples({"discord Shea hello there", "discord Sx4 User has been banned"})
 	@Cooldown(value=5)
 	@BotPermissions({Permission.MESSAGE_ATTACH_FILES})
 	public void discord(CommandEvent event, @Argument(value="user") String userArgument, @Argument(value="text", endless=true) String text, @Option(value="white") boolean white) {
@@ -241,16 +249,23 @@ public class ImageModule {
 			return;
 		}
 		
-		String url = String.format("http://%s:8443/api/discord?image=%s&theme=%s&text=%s&colour=%s&name=%s&bot=%s", Settings.LOCAL_HOST, member.getUser().getEffectiveAvatarUrl(), white ? "white" : "dark",
-				text, Integer.toHexString(member.getColorRaw()), member.getEffectiveName(), member.getUser().isBot());
+		JSONObject body = new JSONObject()
+				.put("avatarUrl", member.getUser().getEffectiveAvatarUrl())
+				.put("userName", member.getEffectiveName())
+				.put("colour", GeneralUtils.getHex(member.getColorRaw()))
+				.put("text", text)
+				.put("darkTheme", !white)
+				.put("bot", member.getUser().isBot());
 		
-		Request request;
-		try {
-			request = new Request.Builder().url(new URL(url)).build();
-		} catch (MalformedURLException e) {
-			event.reply("Oops something went wrong there, try again :no_entry:").queue();
-			return;
+		JSONObject mentions = ImageUtils.getMentions(event.getGuild(), text);
+		for (String key : mentions.keySet()) {
+			body.put(key, mentions.get(key));
 		}
+		
+		Request request = new Request.Builder()
+				.url("http://" + Settings.LOCAL_HOST + ":8443/api/discord")
+				.post(RequestBody.create(MediaType.parse("application/json; charset=utf-8"), body.toString()))
+				.build();
 		
 		event.getTextChannel().sendTyping().queue($ -> {
 			ImageModule.client.newCall(request).enqueue((Sx4Callback) response -> {
@@ -266,6 +281,7 @@ public class ImageModule {
 	}
 	
 	@Command(value="flag", description="Puts a specified flag over a users avatar")
+	@Examples({"flag fr", "flag gb Shea", "flag se Joakim"})
 	@Cooldown(value=5)
 	@BotPermissions({Permission.MESSAGE_ATTACH_FILES})
 	public void flag(CommandEvent event, @Argument(value="flag code") String flag, @Argument(value="user", endless=true, nullDefault=true) String userArgument) {
@@ -296,6 +312,7 @@ public class ImageModule {
 	}
 	
 	@Command(value="christmas", description="Turn an image into a christmas themed one")
+	@Examples({"christmas", "christmas https://i.imgur.com/i87lyNO.png", "christmas @Shea#6653"})
 	@Cooldown(value=7)
 	@BotPermissions({Permission.MESSAGE_ATTACH_FILES})
 	public void christmas(CommandEvent event, @Argument(value="url | user", endless=true, nullDefault=true) String argument) {
@@ -333,6 +350,7 @@ public class ImageModule {
 	}
 	
 	@Command(value="halloween", description="Turn an image into a halloween themed one")
+	@Examples({"halloween", "halloween https://i.imgur.com/i87lyNO.png", "halloween @Shea#6653"})
 	@Cooldown(value=7)
 	@BotPermissions({Permission.MESSAGE_ATTACH_FILES})
 	public void halloween(CommandEvent event, @Argument(value="url | user", endless=true, nullDefault=true) String argument) {
@@ -370,6 +388,7 @@ public class ImageModule {
 	}
 	
 	@Command(value="trash", description="Make an image look like trash")
+	@Examples({"trash", "trash https://i.imgur.com/i87lyNO.png", "trash @Shea#6653"})
 	@Cooldown(value=3)
 	@BotPermissions({Permission.MESSAGE_ATTACH_FILES})
 	public void trash(CommandEvent event, @Argument(value="url | user", endless=true, nullDefault=true) String argument) {
@@ -407,6 +426,7 @@ public class ImageModule {
 	}
 	
 	@Command(value="who would win", aliases={"www", "whowouldwin"}, description="Returns the 2 images provided in an image questioning who would win")
+	@Examples({"who would win @Sx4#1617", "who would win Dyno Sx4"})
 	@Cooldown(value=3)
 	@BotPermissions({Permission.MESSAGE_ATTACH_FILES})
 	public void whoWouldWin(CommandEvent event, @Argument(value="first url | user") String firstArgument, @Argument(value="second url | user", endless=true, nullDefault=true) String secondArgument) {
@@ -452,6 +472,7 @@ public class ImageModule {
 	}
 	
 	@Command(value="fear", description="Returns an image where someone fears the user/image provided")
+	@Examples({"fear", "fear https://i.imgur.com/i87lyNO.png", "fear @Shea#6653"})
 	@Cooldown(value=10)
 	@BotPermissions({Permission.MESSAGE_ATTACH_FILES})
 	public void fear(CommandEvent event, @Argument(value="url | user", endless=true, nullDefault=true) String argument) {
@@ -489,6 +510,7 @@ public class ImageModule {
 	}
 	
 	@Command(value="emboss", description="Returns the image with an emboss effect")
+	@Examples({"emboss", "emboss https://i.imgur.com/i87lyNO.png", "emboss @Shea#6653"})
 	@Cooldown(value=5)
 	@BotPermissions({Permission.MESSAGE_ATTACH_FILES})
 	public void emboss(CommandEvent event, @Argument(value="url | user", endless=true, nullDefault=true) String argument) {
@@ -526,6 +548,7 @@ public class ImageModule {
 	}
 	
 	@Command(value="ship", description="Ship 2 users together to see their love percentage and their ship name")
+	@Examples({"ship @Sx4#1617", "ship Shea 203421890637856768"})
 	@Cooldown(value=3)
 	@BotPermissions({Permission.MESSAGE_ATTACH_FILES})
 	public void ship(CommandEvent event, @Argument(value="first user") String firstUserArgument, @Argument(value="second user", endless=true, nullDefault=true) String secondUserArgument) {
@@ -569,6 +592,7 @@ public class ImageModule {
 	}
 	
 	@Command(value="vr", aliases={"virtualreality", "virtual reality"}, description="Makes someone emotional over the image/user provided in vr")
+	@Examples({"vr", "vr https://i.imgur.com/i87lyNO.png", "vr @Shea#6653"})
 	@Cooldown(value=5)
 	@BotPermissions({Permission.MESSAGE_ATTACH_FILES})
 	public void vr(CommandEvent event, @Argument(value="url | user", endless=true, nullDefault=true) String argument) {
@@ -606,6 +630,7 @@ public class ImageModule {
 	}
 	
 	@Command(value="shit", description="A man steps in the provided user/image and calls it shit")
+	@Examples({"shit", "shit https://i.imgur.com/i87lyNO.png", "shit @Shea#6653"})
 	@Cooldown(value=10)
 	@BotPermissions({Permission.MESSAGE_ATTACH_FILES})
 	public void shit(CommandEvent event, @Argument(value="url | user", endless=true, nullDefault=true) String argument) {
@@ -643,6 +668,7 @@ public class ImageModule {
 	}
 	
 	@Command(value="beautiful", description="A man calls the provided user/image beautiful")
+	@Examples({"beautiful", "beautiful https://i.imgur.com/i87lyNO.png", "beautiful @Shea#6653"})
 	@Cooldown(value=10)
 	@BotPermissions({Permission.MESSAGE_ATTACH_FILES})
 	public void beautiful(CommandEvent event, @Argument(value="url | user", endless=true, nullDefault=true) String argument) {
@@ -680,6 +706,7 @@ public class ImageModule {
 	}
 	
 	@Command(value="gay", description="Puts the gay pride flag over the specified user/image")
+	@Examples({"gay", "gay https://i.imgur.com/i87lyNO.png", "gay @Shea#6653"})
 	@Cooldown(value=5)
 	@BotPermissions({Permission.MESSAGE_ATTACH_FILES})
 	public void gay(CommandEvent event, @Argument(value="url | user", endless=true, nullDefault=true) String argument) {
@@ -717,6 +744,7 @@ public class ImageModule {
 	}
 	
 	@Command(value="trump tweet", aliases={"trumptweet"}, description="Tweet anything from trumps twitter")
+	@Examples({"trump tweet something trump would say"})
 	@Cooldown(value=3)
 	@BotPermissions({Permission.MESSAGE_ATTACH_FILES})
 	public void trumpTweet(CommandEvent event, @Argument(value="text", endless=true) String text) {
@@ -747,6 +775,7 @@ public class ImageModule {
 	}
 	
 	@Command(value="tweet", description="Create a fake tweet from a users discord account")
+	@Examples({"tweet @Shea#6653 Sx4 is kind of cool", "tweet Shea hello"})
 	@Cooldown(value=7)
 	@BotPermissions({Permission.MESSAGE_ATTACH_FILES})
 	public void tweet(CommandEvent event, @Argument(value="user") String userArgument, @Argument(value="text", endless=true) String text) {
@@ -794,6 +823,7 @@ public class ImageModule {
 	}
 	
 	@Command(value="colour", aliases={"color", "hex", "rgb"}, description="View the colour of a hex or rgb value")
+	@Examples({"colour", "colour #ffff00", "colour ffff00", "colour 255, 255, 0"})
 	@Cooldown(value=3)
 	@BotPermissions({Permission.MESSAGE_ATTACH_FILES, Permission.MESSAGE_EMBED_LINKS})
 	public void colour(CommandEvent event, @Argument(value="hex | rgb", endless=true, nullDefault=true) String argument) {
@@ -831,6 +861,7 @@ public class ImageModule {
 	}
 	
 	@Command(value="most common colour", aliases={"mostcommoncolour", "common colour", "commoncolour", "commoncolor", "common color", "mostcommoncolor", "most common color"}, description="Returns the most common colour in an image")
+	@Examples({"most common colour", "most common colour @Shea#6653", "most common colour Shea", "most common colour 402557516728369153"})
 	@Cooldown(value=3)
 	@BotPermissions({Permission.MESSAGE_ATTACH_FILES, Permission.MESSAGE_EMBED_LINKS})
 	public void mostCommonColour(CommandEvent event, @Argument(value="url | user", endless=true, nullDefault=true) String argument) {
@@ -877,6 +908,7 @@ public class ImageModule {
 	}
 	
 	@Command(value="scroll", description="A scroll which has been lost for 15 years has just been found your specified text shows what it says")
+	@Examples({"scroll I've ran out of ideas", "scroll help me"})
 	@Cooldown(value=3)
 	@BotPermissions({Permission.MESSAGE_ATTACH_FILES})
 	public void scroll(CommandEvent event, @Argument(value="text", endless=true) String text) {
@@ -901,6 +933,7 @@ public class ImageModule {
 	}
 	
 	@Command(value="drift", description="A car quickly drifts into a different intersection to avoid going straight, you specify what is on the left and right sign")
+	@Examples({"drift Shea healthy", "drift @Shea#6653 Dyno Sx4"})
 	@Cooldown(value=3)
 	@BotPermissions({Permission.MESSAGE_ATTACH_FILES})
 	public void drift(CommandEvent event, @Argument(value="user") String userArgument, @Argument(value="left sign") String leftText, @Argument(value="right sign", endless=true, nullDefault=true) String rightText) {
@@ -942,6 +975,7 @@ public class ImageModule {
 	private final List<String> statuses = List.of("online", "idle", "dnd", "offline", "invisible", "streaming");
 	
 	@Command(value="status", description="Returns the status image of a users profile picture")
+	@Examples({"status", "status @Shea#6653", "status Shea idle"})
 	@Cooldown(value=5)
 	@BotPermissions({Permission.MESSAGE_ATTACH_FILES})
 	public void status(CommandEvent event, @Argument(value="user", nullDefault=true) String userArgument, @Argument(value="status", nullDefault=true) String status) {

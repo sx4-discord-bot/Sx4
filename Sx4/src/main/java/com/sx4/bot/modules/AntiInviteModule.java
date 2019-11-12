@@ -23,6 +23,7 @@ import com.sx4.bot.categories.Categories;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEventListener;
 import com.sx4.bot.database.Database;
+import com.sx4.bot.interfaces.Examples;
 import com.sx4.bot.settings.Settings;
 import com.sx4.bot.utils.ArgumentUtils;
 import com.sx4.bot.utils.GeneralUtils;
@@ -52,6 +53,7 @@ public class AntiInviteModule {
 			super.setAliases("anti invite", "anti-invite", "antiinv", "anti inv", "anti-inv");
 			super.setDescription("Set up antiinvite to automatically delete any active discord invites which are sent in the server");
 			super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
+			super.setExamples("antiinvite toggle", "antiinvite action", "antiinvite stats");
 		}
 		
 		public void onCommand(CommandEvent event) {
@@ -59,6 +61,7 @@ public class AntiInviteModule {
 		}
 		
 		@Command(value="toggle", aliases={"enable", "disable"}, description="Enable/disable anti-invite for the current server", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"antiinvite toggle"})
 		@AuthorPermissions({Permission.MESSAGE_MANAGE})
 		public void toggle(CommandEvent event, @Context Database database) {
 			boolean enabled = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("antiinvite.enabled")).getEmbedded(List.of("antiinvite", "enabled"), false);
@@ -73,6 +76,7 @@ public class AntiInviteModule {
 		}
 		
 		@Command(value="ban names", aliases={"ban user names", "banusernames", "bannames"}, description="Enable/disable whether the bot should ban users who join with an invite in their name", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"antiinvite ban names"})
 		@AuthorPermissions({Permission.BAN_MEMBERS})
 		public void banNames(CommandEvent event, @Context Database database) {
 			boolean enabled = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("antiinvite.banInvites")).getEmbedded(List.of("antiinvite", "banInvites"), false);
@@ -87,6 +91,7 @@ public class AntiInviteModule {
 		}
 		
 		@Command(value="action", aliases={"set action", "setaction"}, description="Set the action which will happen when a user posts a certain amount of invites (Set with antiinvite attempts), use off as an argument to turn this feature off", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"antiinvite action ban", "antiinvite action mute", "antiinvite action none"})
 		@AuthorPermissions({Permission.BAN_MEMBERS})
 		public void action(CommandEvent event, @Context Database database, @Argument(value="action") String actionArgument) {
 			String action = actionArgument.toLowerCase();
@@ -128,6 +133,7 @@ public class AntiInviteModule {
 		}
 		
 		@Command(value="attempts", description="Set the amount of times a user can send an invite before an action occurs to them set through `antiinvite action`", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"antiinvite attempts 5", "antiinvite attempts 2"})
 		@AuthorPermissions({Permission.MESSAGE_MANAGE})
 		public void attempts(CommandEvent event, @Context Database database, @Argument(value="attempts") int attempts) {
 			if (attempts < 1) {
@@ -152,6 +158,7 @@ public class AntiInviteModule {
 		}
 		
 		@Command(value="reset attempts", aliases={"resetattempts"}, description="Resets a users attempts of sending invites to 0", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"antiinvite reset attempts @Shea#6653", "antiinvite reset attempts 402557516728369153", "antiinvite reset attempts Shea"})
 		@AuthorPermissions({Permission.MESSAGE_MANAGE})
 		public void resetAttempts(CommandEvent event, @Context Database database, @Argument(value="user", endless=true) String userArgument) {
 			Member member = ArgumentUtils.getMember(event.getGuild(), userArgument);
@@ -180,6 +187,7 @@ public class AntiInviteModule {
 		}
 		
 		@Command(value="whitelist", description="Whitelists a user/channel/role to be able to send invites")
+		@Examples({"antiinvite whitelist @Shea#6653", "antiinvite whitelist #general", "antiinvite whitelist @everyone"})
 		@AuthorPermissions({Permission.MANAGE_SERVER})
 		public void whitelist(CommandEvent event, @Context Database database, @Argument(value="user | role | channel", endless=true) String argument) {
 			Member member = ArgumentUtils.getMember(event.getGuild(), argument);
@@ -249,6 +257,7 @@ public class AntiInviteModule {
 		}
 		
 		@Command(value="blacklist", aliases={"unwhitelist", "removewhitelist", "remove whitelist"}, description="Removes a whitelist from a specific user/role/channel")
+		@Examples({"antiinvite blacklist @Shea#6653", "antiinvite blacklist #general", "antiinvite blacklist @everyone"})
 		@AuthorPermissions({Permission.MANAGE_SERVER})
 		public void blacklist(CommandEvent event, @Context Database database, @Argument(value="user | role | channel", endless=true) String argument) {
 			Document whitelist = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("antiinvite.whitelist")).getEmbedded(List.of("antiinvite", "whitelist"), Database.EMPTY_DOCUMENT);
@@ -332,6 +341,7 @@ public class AntiInviteModule {
 				
 				super.setDescription("View everything which is whitelisted to send invites while antiinvite is active");
 				super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
+				super.setExamples("antiinvite whitelisted channels", "antiinvite whitelisted roles", "antiinvite whitelisted users");
 			}
 			
 			public void onCommand(CommandEvent event) {
@@ -339,6 +349,7 @@ public class AntiInviteModule {
 			}
 			
 			@Command(value="channels", aliases={"channel"}, description="View all the channels which are whitelisted to send invites while antiinvite is active", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+			@Examples({"antiinvite whitelisted channels"})
 			@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 			public void channels(CommandEvent event, @Context Database database) {
 				List<Long> channelIds = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("antiinvite.whitelist.channels")).getEmbedded(List.of("antiinvite", "whitelist", "channels"), Collections.emptyList());
@@ -374,6 +385,7 @@ public class AntiInviteModule {
 			}
 			
 			@Command(value="roles", aliases={"roles"}, description="View all the roles which are whitelisted to send invites while antiinvite is active", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+			@Examples({"antiinvite whitelisted roles"})
 			@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 			public void roles(CommandEvent event, @Context Database database) {
 				List<Long> roleIds = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("antiinvite.whitelist.roles")).getEmbedded(List.of("antiinvite", "whitelist", "roles"), Collections.emptyList());
@@ -404,6 +416,7 @@ public class AntiInviteModule {
 			}
 			
 			@Command(value="users", aliases={"user", "member", "members"}, description="View all the users which are whitelisted to send invites while antiinvite is active", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+			@Examples({"antiinvite whitelisted users"})
 			@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 			public void users(CommandEvent event, @Context Database database) {
 				List<Long> userIds = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("antiinvite.whitelist.users")).getEmbedded(List.of("antiinvite", "whitelist", "users"), Collections.emptyList());
@@ -436,6 +449,7 @@ public class AntiInviteModule {
 		}
 		
 		@Command(value="stats", aliases={"setting", "settings"}, description="View all the settings for antiinvite in the current server", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"antiinvite stats"})
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void stats(CommandEvent event, @Context Database database) {
 			Bson projection = Projections.include("antiinvite.enabled", "antiinvite.action", "antiinvite.attempts", "antiinvite.banInvites");

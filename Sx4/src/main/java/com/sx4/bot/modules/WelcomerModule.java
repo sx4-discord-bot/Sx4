@@ -17,7 +17,6 @@ import com.jockie.bot.core.command.Context;
 import com.jockie.bot.core.command.Initialize;
 import com.jockie.bot.core.command.impl.CommandEvent;
 import com.jockie.bot.core.command.impl.CommandImpl;
-import com.jockie.bot.core.command.ICommand.ContentOverflowPolicy;
 import com.jockie.bot.core.module.Module;
 import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.Updates;
@@ -25,6 +24,7 @@ import com.sx4.bot.categories.Categories;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEventListener;
 import com.sx4.bot.database.Database;
+import com.sx4.bot.interfaces.Examples;
 import com.sx4.bot.settings.Settings;
 import com.sx4.bot.utils.ArgumentUtils;
 import com.sx4.bot.utils.GeneralUtils;
@@ -51,6 +51,7 @@ public class WelcomerModule {
 			super.setAliases("welcome");
 			super.setDescription("Set up a welcomer to send welcome messages everytime someone joins the server");
 			super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
+			super.setExamples("welcomer toggle", "welcomer channel", "welcomer stats");
 		}
 		
 		public void onCommand(CommandEvent event) {
@@ -58,6 +59,7 @@ public class WelcomerModule {
 		}
 		
 		@Command(value="toggle", aliases={"enable", "disable"}, description="Enable/disable the welcomer for the current server", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"welcomer toggle"})
 		@AuthorPermissions({Permission.MESSAGE_MANAGE})
 		public void toggle(CommandEvent event, @Context Database database) {
 			boolean enabled = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("welcomer.enabled")).getEmbedded(List.of("welcomer", "enabled"), false);
@@ -72,6 +74,7 @@ public class WelcomerModule {
 		}
 		
 		@Command(value="channel", description="Set the channel where you would want the welcomer messages to be sent")
+		@Examples({"welcomer channel", "welcomer channel #welcome", "welcomer channel welcome", "welcomer channel 478916836940054538"})
 		@AuthorPermissions({Permission.MESSAGE_MANAGE})
 		public void channel(CommandEvent event, @Context Database database, @Argument(value="channel", endless=true, nullDefault=true) String channelArgument) {
 			TextChannel channel;
@@ -102,6 +105,7 @@ public class WelcomerModule {
 		}
 		
 		@Command(value="embed", aliases={"toggle embed", "toggleembed", "embedtoggle", "embed toggle"}, description="Enable/disable whether the welcomer messages should be embedded", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"welcomer embed"})
 		public void embed(CommandEvent event, @Context Database database) {
 			boolean embedded = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("welcomer.embed.enabled")).getEmbedded(List.of("welcomer", "embed", "enabled"), false);
 			database.updateGuildById(event.getGuild().getIdLong(), Updates.set("welcomer.embed.enabled", !embedded), (result, exception) -> {
@@ -115,6 +119,7 @@ public class WelcomerModule {
 		}
 		
 		@Command(value="embed colour", aliases={"embedcolour", "embed color", "embedcolor"}, description="Set the embed colour for your welcomer, this only works when the welcomer message is set to an embed")
+		@Examples({"welcomer embed colour reset", "welcomer embed colour #ffff00", "welcomer embed colour ffff00", "welcomer embed colour 255, 255, 0"})
 		@AuthorPermissions({Permission.MESSAGE_MANAGE})
 		public void embedColour(CommandEvent event, @Context Database database, @Argument(value="hex | rgb", endless=true) String colourArgument) {
 			Color colour;
@@ -151,6 +156,7 @@ public class WelcomerModule {
 		}
 		
 		@Command(value="dm toggle", aliases={"dm", "dmtoggle", "toggle dm", "toggledm"}, description="Enable/disable whether the welcomer message should be sent straight to the users dms when they join", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"welcomer dm toggle"})
 		@AuthorPermissions({Permission.MESSAGE_MANAGE})
 		public void dmToggle(CommandEvent event, @Context Database database) {
 			boolean dm = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("welcomer.dm")).getEmbedded(List.of("welcomer", "dm"), false);
@@ -165,6 +171,7 @@ public class WelcomerModule {
 		}
 		
 		@Command(value="message", aliases={"join message", "joinmessage", "join msg", "joinmsg", "msg"}, description="Set the message which will be sent for your welcomer, you can use different variables which can be found in `welcomer format`")
+		@Examples({"welcomer message A new person has joined", "welcomer message Welcome {user.mention}!"})
 		@AuthorPermissions({Permission.MESSAGE_MANAGE})
 		public void message(CommandEvent event, @Context Database database, @Argument(value="message", endless=true) String message) {
 			if (message.length() > MessageEmbed.VALUE_MAX_LENGTH) {
@@ -189,6 +196,7 @@ public class WelcomerModule {
 		}
 		
 		@Command(value="format", aliases={"formatting", "formats", "variable", "variables"}, description="View the variables you can use when settings your welcomer message", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"welcomer format"})
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void format(CommandEvent event) {
 			EmbedBuilder embed = new EmbedBuilder();
@@ -209,6 +217,7 @@ public class WelcomerModule {
 		}
 		
 		@Command(value="preview", description="View a preview of what your welcomer message will look like, the bot will also warn you about any possible issues", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"welcomer preview"})
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS, Permission.MESSAGE_ATTACH_FILES})
 		public void preview(CommandEvent event, @Context Database database) {
 			Bson projection = Projections.include("welcomer.embed", "welcomer.message", "welcomer.enabled", "welcomer.channelId", "imageWelcomer.enabled", "imageWelcomer.banner");
@@ -264,6 +273,7 @@ public class WelcomerModule {
 		}
 		
 		@Command(value="stats", aliases={"settings", "setting"}, description="View the welcomer settings for the current server", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"welcomer stats"})
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void stats(CommandEvent event, @Context Database database) {
 			Document data = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("imageWelcomer.enabled", "welcomer.channelId", "welcomer.message", "welcomer.enabled", "welcomer.dm", "welcomer.embed"));
@@ -298,6 +308,7 @@ public class WelcomerModule {
 			super.setAliases("leave");
 			super.setDescription("Set up a leaver to send leave messages everytime someone leaves the server");
 			super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
+			super.setExamples("leaver toggle", "leaver channel", "leaver stats");
 		}
 		
 		public void onCommand(CommandEvent event) {
@@ -305,6 +316,7 @@ public class WelcomerModule {
 		}
 		
 		@Command(value="toggle", aliases={"enable", "disable"}, description="Enable/disable the leaver for the current server", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"leaver toggle"})
 		@AuthorPermissions({Permission.MESSAGE_MANAGE})
 		public void toggle(CommandEvent event, @Context Database database) {
 			boolean enabled = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("leaver.enabled")).getEmbedded(List.of("leaver", "enabled"), false);
@@ -319,6 +331,7 @@ public class WelcomerModule {
 		}
 		
 		@Command(value="channel", description="Set the channel where you would want the leaver messages to be sent")
+		@Examples({"leaver channel", "leaver channel #goodbye", "leaver channel goodbye", "leaver channel 439745234285625355"})
 		@AuthorPermissions({Permission.MESSAGE_MANAGE})
 		public void channel(CommandEvent event, @Context Database database, @Argument(value="channel", endless=true, nullDefault=true) String channelArgument) {
 			TextChannel channel;
@@ -349,6 +362,7 @@ public class WelcomerModule {
 		}
 		
 		@Command(value="embed", aliases={"toggle embed", "toggleembed", "embedtoggle", "embed toggle"}, description="Enable/disable whether the leaver messages should be embedded", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"leaver embed"})
 		public void embed(CommandEvent event, @Context Database database) {
 			boolean embedded = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("leaver.embed.enabled")).getEmbedded(List.of("leaver", "embed", "enabled"), false);
 			database.updateGuildById(event.getGuild().getIdLong(), Updates.set("leaver.embed.enabled", !embedded), (result, exception) -> {
@@ -362,6 +376,7 @@ public class WelcomerModule {
 		}
 		
 		@Command(value="embed colour", aliases={"embedcolour", "embed color", "embedcolor"}, description="Set the embed colour for your leaver, this only works when the leaver message is set to an embed")
+		@Examples({"leaver embed colour reset", "leaver embed colour #ffff00", "leaver embed colour ffff00", "leaver embed colour 255, 255, 0"})
 		@AuthorPermissions({Permission.MESSAGE_MANAGE})
 		public void embedColour(CommandEvent event, @Context Database database, @Argument(value="hex | rgb", endless=true) String colourArgument) {
 			Color colour;
@@ -398,6 +413,7 @@ public class WelcomerModule {
 		}
 		
 		@Command(value="message", aliases={"leave message", "leavemessage", "leave msg", "leavemsg", "msg"}, description="Set the message which will be sent for the leaver, you can use different variables which can be found in `leaver format`")
+		@Examples({"leaver message Someone has left, goodbye", "leaver message Goodbye **{user.name}** 👋"})
 		@AuthorPermissions({Permission.MESSAGE_MANAGE})
 		public void message(CommandEvent event, @Context Database database, @Argument(value="message", endless=true) String message) {
 			if (message.length() > MessageEmbed.VALUE_MAX_LENGTH) {
@@ -422,6 +438,7 @@ public class WelcomerModule {
 		}
 		
 		@Command(value="format", aliases={"formatting", "formats", "variable", "variables"}, description="View the variables you can use when settings your leaver message", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"leaver format"})
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void format(CommandEvent event) {
 			EmbedBuilder embed = new EmbedBuilder();
@@ -442,6 +459,7 @@ public class WelcomerModule {
 		}
 		
 		@Command(value="preview", description="View a preview of what your leaver message will look like, the bot will also warn you about any possible issues", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"leaver preview"})
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS, Permission.MESSAGE_ATTACH_FILES})
 		public void preview(CommandEvent event, @Context Database database) {
 			Document data = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("leaver.channelId", "leaver.enabled", "leaver.message", "leaver.embed")).get("leaver", Database.EMPTY_DOCUMENT);
@@ -470,6 +488,7 @@ public class WelcomerModule {
 		}
 		
 		@Command(value="stats", aliases={"settings", "setting"}, description="View the leaver settings for the current server", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"leaver stats"})
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void stats(CommandEvent event, @Context Database database) {
 			Document data = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("leaver.channelId", "leaver.enabled", "leaver.message", "leaver.embed")).get("leaver", Database.EMPTY_DOCUMENT);
@@ -501,6 +520,7 @@ public class WelcomerModule {
 			super.setAliases("imagewelcomer", "imgwelcomer", "img welcomer", "imgwelcome", "img welcome");
 			super.setDescription("Set up an image welcomer to send an image with a greeting and the users name everytime someone joins the server");
 			super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
+			super.setExamples("image welcomer toggle", "image welcomer banner");
 		}
 		
 		public void onCommand(CommandEvent event) {
@@ -508,6 +528,7 @@ public class WelcomerModule {
 		}
 		
 		@Command(value="toggle", aliases={"enable", "disable"}, description="Enable/disable the image welcomer for the current server", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"image welcomer toggle"})
 		@AuthorPermissions({Permission.MESSAGE_MANAGE})
 		public void toggle(CommandEvent event, @Context Database database) {
 			boolean enabled = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("imageWelcomer.enabled")).getEmbedded(List.of("imageWelcomer", "enabled"), false);
@@ -522,6 +543,7 @@ public class WelcomerModule {
 		}
 		
 		@Command(value="banner", aliases={"background"}, description="Set or reset the banner for your image welcomer", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"image welcomer banner", "image welcomer banner https://i.imgur.com/i87lyNO.png"})
 		public void banner(CommandEvent event, @Context Database database, @Argument(value="banner", nullDefault=true) String banner) {
 			URL url = null;
 			if (banner == null && !event.getMessage().getAttachments().isEmpty()) {
@@ -552,9 +574,9 @@ public class WelcomerModule {
 					String urlString = url.toString();
 					int periodIndex = urlString.lastIndexOf(".");
 					
-					if (!supportedTypes.contains(urlString.substring(periodIndex + 1).toUpperCase())) {
+					if (!this.supportedTypes.contains(urlString.substring(periodIndex + 1).toUpperCase())) {
 						if (event.getMessage().getEmbeds().isEmpty()) {
-							event.reply("That image type is not supported, the supported types are " + GeneralUtils.joinGrammatical(supportedTypes) + " :no_entry:").queue();
+							event.reply("That image type is not supported, the supported types are " + GeneralUtils.joinGrammatical(this.supportedTypes) + " :no_entry:").queue();
 							return;
 						} else {
 							MessageEmbed imageEmbed = event.getMessage().getEmbeds().get(0);
@@ -562,8 +584,8 @@ public class WelcomerModule {
 								String embedUrl = imageEmbed.getThumbnail().getUrl();
 								int periodIndexEmbed = embedUrl.lastIndexOf(".");
 								
-								if (!supportedTypes.contains(embedUrl.substring(periodIndexEmbed + 1).toUpperCase())) {
-									event.reply("That image type is not supported, the supported types are " + GeneralUtils.joinGrammatical(supportedTypes) + " :no_entry:").queue();
+								if (!this.supportedTypes.contains(embedUrl.substring(periodIndexEmbed + 1).toUpperCase())) {
+									event.reply("That image type is not supported, the supported types are " + GeneralUtils.joinGrammatical(this.supportedTypes) + " :no_entry:").queue();
 									return;
 								} else {
 									try {
@@ -571,7 +593,7 @@ public class WelcomerModule {
 									} catch (MalformedURLException e) {}
 								}
 							} else {
-								event.reply("That image type is not supported, the supported types are " + GeneralUtils.joinGrammatical(supportedTypes) + " :no_entry:").queue();
+								event.reply("That image type is not supported, the supported types are " + GeneralUtils.joinGrammatical(this.supportedTypes) + " :no_entry:").queue();
 								return;
 							}
 						}

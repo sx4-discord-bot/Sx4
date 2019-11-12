@@ -24,7 +24,6 @@ import com.jockie.bot.core.command.Context;
 import com.jockie.bot.core.command.Initialize;
 import com.jockie.bot.core.command.impl.CommandEvent;
 import com.jockie.bot.core.command.impl.CommandImpl;
-import com.jockie.bot.core.command.ICommand.ContentOverflowPolicy;
 import com.jockie.bot.core.module.Module;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Projections;
@@ -34,6 +33,7 @@ import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEventListener;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.events.GiveawayEvents;
+import com.sx4.bot.interfaces.Examples;
 import com.sx4.bot.utils.ArgumentUtils;
 import com.sx4.bot.utils.GiveawayUtils;
 import com.sx4.bot.utils.HelpUtils;
@@ -60,13 +60,15 @@ public class GiveawayModule {
 			
 			super.setDescription("Set up giveaways in a certain channel which will be decided randomly through reactions");
 			super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
+			super.setExamples("giveaway setup", "giveaway end", "giveaway reroll");
 		}
 		
 		public void onCommand(CommandEvent event) {
 			event.reply(HelpUtils.getHelpMessage(event.getCommand())).queue();
 		}
 		
-		@Command(value="end", description="End a giveaway while it is active", contentOverflowPolicy=ContentOverflowPolicy.IGNORE) 
+		@Command(value="end", description="End a giveaway while it is active", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"giveaway end 1", "giveaway end 5"})
 		@AuthorPermissions({Permission.MANAGE_ROLES})
 		@BotPermissions({Permission.MESSAGE_HISTORY})
 		public void end(CommandEvent event, @Context Database database, @Argument(value="giveaway id") int giveawayId) {
@@ -155,6 +157,7 @@ public class GiveawayModule {
 		
 		
 		@Command(value="reroll", description="Reroll a giveaway which has ended", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"giveaway reroll 643442741795225601"})
 		@AuthorPermissions({Permission.MANAGE_ROLES})
 		@BotPermissions({Permission.MESSAGE_HISTORY})
 		public void reroll(CommandEvent event, @Argument(value="message id") long messageId, @Argument(value="winners", nullDefault=true) Integer winnersAmountArgument) {
@@ -243,6 +246,7 @@ public class GiveawayModule {
 		}
 		
 		@Command(value="delete", description="Delete a specific giveaway which is currently running with its giveaway id", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"giveaway delete 1", "giveaway delete 5"})
 		@AuthorPermissions({Permission.MANAGE_ROLES})
 		@BotPermissions({Permission.MESSAGE_HISTORY})
 		public void delete(CommandEvent event, @Context Database database, @Argument(value="giveaway id") int giveawayId) {
@@ -278,6 +282,7 @@ public class GiveawayModule {
 		}
 		
 		@Command(value="setup", description="Set up a giveaway in the current server")
+		@Examples({"giveaway setup", "giveaway setup #giveaways 2 7d $10 Paypal"})
 		@AuthorPermissions({Permission.MANAGE_ROLES})
 		@BotPermissions({Permission.MESSAGE_HISTORY, Permission.MESSAGE_EMBED_LINKS, Permission.MESSAGE_ADD_REACTION})
 		public void setup(CommandEvent event, @Context Database database, @Argument(value="channel", nullDefault=true) String channelArgument, @Argument(value="winners", nullDefault=true) Integer winnersAmount, @Argument(value="duration", nullDefault=true) String duration, @Argument(value="item", endless=true, nullDefault=true) String giveawayItem) {

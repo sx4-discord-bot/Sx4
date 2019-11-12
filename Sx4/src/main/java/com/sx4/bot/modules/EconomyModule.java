@@ -61,10 +61,12 @@ import com.sx4.bot.economy.materials.Wood;
 import com.sx4.bot.economy.tools.Axe;
 import com.sx4.bot.economy.tools.Pickaxe;
 import com.sx4.bot.economy.tools.Rod;
+import com.sx4.bot.economy.tools.Tool;
 import com.sx4.bot.economy.upgrades.AxeUpgrade;
 import com.sx4.bot.economy.upgrades.PickaxeUpgrade;
 import com.sx4.bot.economy.upgrades.RodUpgrade;
 import com.sx4.bot.interfaces.Canary;
+import com.sx4.bot.interfaces.Examples;
 import com.sx4.bot.interfaces.Sx4Callback;
 import com.sx4.bot.settings.Settings;
 import com.sx4.bot.utils.ArgumentUtils;
@@ -92,6 +94,7 @@ public class EconomyModule {
 	private final Random random = new Random();
 	
 	@Command(value="claim", description="Claim your free 1 billion dollars to play with (Only works on Canary version)")
+	@Examples({"claim"})
 	@Canary
 	public void claim(CommandEvent event, @Context Database database) {
 		boolean claimed = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.claimed")).getEmbedded(List.of("economy", "claimed"), false);
@@ -117,6 +120,7 @@ public class EconomyModule {
 			super.setAliases("crates");
 			super.setDescription("Open crates to get random items in the economy");
 			super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
+			super.setExamples("create open", "crate buy", "crate shop");
 		}
 		
 		public void onCommand(CommandEvent event) {
@@ -124,6 +128,7 @@ public class EconomyModule {
 		}
 		
 		@Command(value="shop", aliases={"list"}, description="View all the crates you can buy", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"crate shop"})
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void shop(CommandEvent event, @Context Database database) {
 			long balance = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance")).getEmbedded(List.of("economy", "balance"), 0L);
@@ -144,6 +149,7 @@ public class EconomyModule {
 		}
 		
 		@Command(value="buy", description="Buy a crate displayed in the crate shop")
+		@Examples({"crate buy Shoe Crate 50", "crate buy Platinum Crate", "crate buy Gold 2"})
 		public void buy(CommandEvent event, @Context Database database, @Argument(value="crate name", endless=true) String crateArgument) {
 			Document data = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance", "economy.items")).get("economy", Database.EMPTY_DOCUMENT);
 			List<Document> items = data.getList("items", Document.class, new ArrayList<>());
@@ -192,6 +198,7 @@ public class EconomyModule {
 		}
 		
 		@Command(value="open", description="Open a crate you have in your items")
+		@Examples({"crate open Shoe Crate 50", "crate open Platinum Crate", "crate open Gold 2"})
 		@Async
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void open(CommandEvent event, @Context Database database, @Argument(value="crate name", endless=true) String crateArgument) {
@@ -285,6 +292,7 @@ public class EconomyModule {
 	}
 	
 	@Command(value="tax", description="View the amount of tax the bot currently has (This is given away every friday in the support server)", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+	@Examples({"tax"})
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void tax(CommandEvent event, @Context Database database) {
 		long tax = database.getUserById(event.getSelfUser().getIdLong(), null, Projections.include("economy.balance")).getEmbedded(List.of("economy", "balance"), 0L);
@@ -297,6 +305,7 @@ public class EconomyModule {
 	}
 	
 	@Command(value="trade", description="Trade items and money with another user")
+	@Examples({"trade @Shea#6653", "trade 402557516728369153", "trade Shea"})
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	@Cooldown(value=10)
 	public void trade(CommandEvent event, @Context Database database, @Argument(value="user", endless=true) String userArgument) {
@@ -481,6 +490,7 @@ public class EconomyModule {
 			super.setAliases("boosters");
 			super.setDescription("Buy boosters to be given an advantage at a cost");
 			super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
+			super.setExamples("booster shop", "booster buy", "booster activate");
 		}
 		
 		public void onCommand(CommandEvent event) {
@@ -488,6 +498,7 @@ public class EconomyModule {
 		}
 		
 		@Command(value="shop", aliases={"list"}, description="View all the boosters in the economy system", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"booster shop"})
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void shop(CommandEvent event, @Context Database database) {
 			long balance = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance")).getEmbedded(List.of("economy", "balance"), 0L);
@@ -506,6 +517,7 @@ public class EconomyModule {
 		}
 		
 		@Command(value="buy", description="Buy a booster listed in the booster shop")
+		@Examples({"booster buy Lended Pickaxe", "booster buy Lended"})
 		public void buy(CommandEvent event, @Context Database database, @Argument(value="booster name", endless=true) String boosterArgument) {
 			Document data = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance", "economy.items")).get("economy", Database.EMPTY_DOCUMENT);
 			List<Document> items = data.getList("items", Document.class, new ArrayList<>());
@@ -549,6 +561,7 @@ public class EconomyModule {
 		}
 		
 		@Command(value="activate", description="Activates a booster which is activatable")
+		@Examples({"booster activate Lended Pickaxe", "booster activate Lended"})
 		public void activate(CommandEvent event, @Context Database database, @Argument(value="booster name", endless=true) String boosterName) {
 			Document data = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items", "economy.mineCooldown")).get("economy", Database.EMPTY_DOCUMENT);
 			
@@ -598,6 +611,7 @@ public class EconomyModule {
 	}
 	
 	@Command(value="referral", aliases={"referral link", "referrallink"}, description="Gives you a users referral links these can be used to give the user bonus money when you vote")
+	@Examples({"referral", "referral @Shea#6653", "referral Shea", "referral 402557516728369153"})
 	public void referral(CommandEvent event, @Argument(value="user", endless=true, nullDefault=true) String userArgument) {
 		Member member;
 		if (userArgument == null) {
@@ -615,6 +629,7 @@ public class EconomyModule {
 	}
 	
 	@Command(value="vote", aliases={"vote bonus", "votebonus", "upvote"}, description="Upvote the bot on discord bot list to get some free money in the economy", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+	@Examples({"vote"})
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void vote(CommandEvent event, @Context Database database) {
 		LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
@@ -778,6 +793,7 @@ public class EconomyModule {
 	}
 	
 	@Command(value="daily", aliases={"pd", "payday"}, description="Collect your daily money, repeatedly collect it everyday to get streaks the higher your streaks the better chance of getting a higher tier crate", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+	@Examples({"daily"})
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void daily(CommandEvent event, @Context Database database) {
 		Document data = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.dailyCooldown", "economy.streak", "economy.items")).get("economy", Database.EMPTY_DOCUMENT);
@@ -857,6 +873,7 @@ public class EconomyModule {
 	}
 	
 	@Command(value="balance", aliases={"bal"}, description="Check the amount of money a user currently has")
+	@Examples({"balance", "balance @Shea#6653", "balance 402557516728369153", "balance Shea"})
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void balance(CommandEvent event, @Context Database database, @Argument(value="user", endless=true, nullDefault=true) String userArgument) {
 		Member member;
@@ -880,6 +897,7 @@ public class EconomyModule {
 	}
 	
 	@Command(value="winnings", description="Check the amount of money a user has won/lost through betting")
+	@Examples({"winnings", "winnings @Shea#6653", "winnings 402557516728369153", "winnings Shea"})
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void winnings(CommandEvent event, @Context Database database, @Argument(value="user", endless=true, nullDefault=true) String userArgument) {
 		Member member;
@@ -903,6 +921,7 @@ public class EconomyModule {
 	}
 	
 	@Command(value="networth", description="Check the networth of a user")
+	@Examples({"networth", "networth @Shea#6653", "networth 402557516728369153", "networth Shea"})
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void networth(CommandEvent event, @Context Database database, @Argument(value="user", endless=true, nullDefault=true) String userArgument) {
 		Member member;
@@ -927,7 +946,8 @@ public class EconomyModule {
 	}
 	
 	@Command(value="rep", description="Give another user some reputation")
-	public void reputation(CommandEvent event, @Context Database database, @Argument(value="user", endless=true, nullDefault=true) String userArgument, @Option(value="amount") boolean amountOption) {
+	@Examples({"rep Shea", "rep @Shea#6653 --amount", "rep --amount"})
+	public void reputation(CommandEvent event, @Context Database database, @Argument(value="user", endless=true, nullDefault=true) String userArgument, @Option(value="amount", description="Shows the amount of reputation the user has rather than giving them reputation") boolean amountOption) {
 		Member member;
 		if (userArgument == null) {
 			member = event.getMember();
@@ -978,6 +998,7 @@ public class EconomyModule {
 	}
 	
 	@Command(value="double or nothing", aliases={"don", "doubleornothing", "allin", "all in", "dn"}, description="Risk it all in the hope of doubling your money or losing it all", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+	@Examples({"double or nothing"})
 	@Cooldown(value=40)
 	public void doubleOrNothing(CommandEvent event, @Context Database database) {
 		long balance = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance")).getEmbedded(List.of("economy", "balance"), 0L);
@@ -1043,6 +1064,7 @@ public class EconomyModule {
 			
 			super.setDescription("You can buy miners so that you can gain recources every 2 hours");
 			super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
+			super.setExamples("miner shop", "miner buy", "miner collect");
 		}
 		
 		public void onCommand(CommandEvent event) {
@@ -1050,6 +1072,7 @@ public class EconomyModule {
 		}
 		
 		@Command(value="shop", aliases={"list"}, description="View all the miners you can buy", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"miner shop"})
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void shop(CommandEvent event, @Context Database database) {
 			long balance = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance")).getEmbedded(List.of("economy", "balance"), 0L);
@@ -1070,6 +1093,7 @@ public class EconomyModule {
 		}
 		
 		@Command(value="buy", description="Buy a miner which is displayed in the miner shop")
+		@Examples({"miner buy Gold Miner 10", "miner buy Platinum Miner", "miner buy Iron 5"})
 		public void buy(CommandEvent event, @Context Database database, @Argument(value="miner name", endless=true) String minerArgument) {
 			Document data = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance", "economy.items")).get("economy", Database.EMPTY_DOCUMENT);
 			List<Document> items = data.getList("items", Document.class, new ArrayList<>());
@@ -1113,6 +1137,7 @@ public class EconomyModule {
 		}
 		
 		@Command(value="collect", description="Collect your materials from all the miners you own", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"miner collect"})
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void collect(CommandEvent event, @Context Database database) {
 			Document data = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items", "economy.minerCooldown")).get("economy", Database.EMPTY_DOCUMENT);
@@ -1209,6 +1234,7 @@ public class EconomyModule {
 			super.setAliases("pick");
 			super.setDescription("Pickaxes allow you to gain some extra money and gain some materials");
 			super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
+			super.setExamples("pickaxe shop", "pickaxe buy", "pickaxe info");
 		}
 		
 		public void onCommand(CommandEvent event) {
@@ -1216,6 +1242,7 @@ public class EconomyModule {
 		}
 		
 		@Command(value="shop", aliases={"list"}, description="View all the pickaxes you can buy/craft", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"pickaxe shop"})
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void shop(CommandEvent event, @Context Database database) {
 			long balance = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance")).getEmbedded(List.of("economy", "balance"), 0L);
@@ -1252,6 +1279,7 @@ public class EconomyModule {
 		}
 		
 		@Command(value="buy", description="Buy a pickaxe which is listed in the pickaxe shop")
+		@Examples({"pickaxe buy Sx4 Pickaxe", "pickaxe buy Platinum"})
 		public void buy(CommandEvent event, @Context Database database, @Argument(value="pickaxe name", endless=true) String pickaxeName) {
 			Document data = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance", "economy.items")).get("economy", Database.EMPTY_DOCUMENT);
 			
@@ -1295,6 +1323,7 @@ public class EconomyModule {
 		}
 		
 		@Command(value="info", description="Gives info of yours or another users pickaxe")
+		@Examples({"pickaxe info", "pickaxe info @Shea#6653", "pickaxe info 402557516728369153", "pickaxe info Shea"})
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void info(CommandEvent event, @Context Database database, @Argument(value="user", endless=true, nullDefault=true) String userArgument) {
 			Member member;
@@ -1331,6 +1360,7 @@ public class EconomyModule {
 		}
 		
 		@Command(value="craft", description="Craft a pickaxe which is in the pickaxe shop aslong as it displays as craftable")
+		@Examples({"pickaxe craft Platinum Pickaxe", "pickaxe craft Gold"})
 		public void craft(CommandEvent event, @Context Database database, @Argument(value="pickaxe name", endless=true) String pickaxeName) {
 			Pickaxe pickaxe = Pickaxe.getPickaxeByName(pickaxeName);
 			if (pickaxe == null) {
@@ -1372,6 +1402,7 @@ public class EconomyModule {
 		}
 		
 		@Command(value="upgrade", description="Upgrade your current pickaxe, you can view the upgrades in `pickaxe upgrades`")
+		@Examples({"pickaxe upgrade money", "pickaxe upgrade durability", "pickaxe upgrade multiplier"})
 		public void upgrade(CommandEvent event, @Context Database database, @Argument(value="upgrade name") String upgradeName, @Argument(value="upgrades", nullDefault=true) Integer upgradesArgument) {
 			Document data = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance", "economy.items")).get("economy", Database.EMPTY_DOCUMENT);
 			
@@ -1458,6 +1489,7 @@ public class EconomyModule {
 		}
 		
 		@Command(value="upgrades", description="View all the upgrades you can put on your pickaxe and their current cost", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"pickaxe upgrades"})
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void upgrades(CommandEvent event, @Context Database database) {
 			Document data = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items", "economy.balance")).get("economy", Database.EMPTY_DOCUMENT);
@@ -1483,6 +1515,7 @@ public class EconomyModule {
 		}
 		
 		@Command(value="repair", description="Repair your current pickaxe with its deticated material if it has one", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"pickaxe repair 50", "pickaxe repair"})
 		public void repair(CommandEvent event, @Context Database database, @Argument(value="durability", nullDefault=true) Integer durabilityAmount) {
 			List<Document> items = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items")).getEmbedded(List.of("economy", "items"), Collections.emptyList());
 			
@@ -1580,6 +1613,7 @@ public class EconomyModule {
 			super.setAliases("fishingrod", "rod");
 			super.setDescription("Fishing rods increase your yield of money per fish");
 			super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
+			super.setExamples("fishing rod shop", "fishing rod buy", "fishing rod info");
 		}
 		
 		public void onCommand(CommandEvent event) {
@@ -1587,6 +1621,7 @@ public class EconomyModule {
 		}
 		
 		@Command(value="shop", aliases={"list"}, description="View all the rods you can buy/craft")
+		@Examples({"fishing rod shop"})
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void shop(CommandEvent event, @Context Database database) {
 			long balance = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance")).getEmbedded(List.of("economy", "balance"), 0L);
@@ -1623,6 +1658,7 @@ public class EconomyModule {
 		}
 		
 		@Command(value="buy", description="Buy a fishing rod which is listed in the fishing rod shop")
+		@Examples({"fishing rod buy Platinum Rod", "fishing rod buy Gold"})
 		public void buy(CommandEvent event, @Context Database database, @Argument(value="fishing rod name", endless=true) String rodName) {
 			Document data = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance", "economy.items")).get("economy", Database.EMPTY_DOCUMENT);
 			
@@ -1666,6 +1702,7 @@ public class EconomyModule {
 		}
 		
 		@Command(value="info", description="Gives info of yours or another users fishing rod")
+		@Examples({"fishing rod info", "fishing rod info @Shea#6653", "fishing rod info 402557516728369153", "fishing rod info Shea"})
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void info(CommandEvent event, @Context Database database, @Argument(value="user", endless=true, nullDefault=true) String userArgument) {
 			Member member;
@@ -1701,6 +1738,7 @@ public class EconomyModule {
 		}
 		
 		@Command(value="craft", description="Craft a fishing rod which is in the fishing rod shop aslong as it displays as craftable")
+		@Examples({"fishing rod craft Platinum Rod", "fishing rod craft Gold"})
 		public void craft(CommandEvent event, @Context Database database, @Argument(value="fishing rod name", endless=true) String rodName) {
 			Rod rod = Rod.getRodByName(rodName);
 			if (rod == null) {
@@ -1742,6 +1780,7 @@ public class EconomyModule {
 		}
 		
 		@Command(value="upgrade", description="Upgrade your current fishing rod, you can view the upgrades in `fishing rod upgrades`")
+		@Examples({"fishing rod upgrade money", "fishing rod upgrade durability"})
 		public void upgrade(CommandEvent event, @Context Database database, @Argument(value="upgrade name") String upgradeName, @Argument(value="upgrades", nullDefault=true) Integer upgradesArgument) {
 			Document data = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items", "economy.balance")).get("economy", Database.EMPTY_DOCUMENT);
 			
@@ -1823,6 +1862,7 @@ public class EconomyModule {
 		}
 		
 		@Command(value="upgrades", description="View all the upgrades you can put on your fishing rod and their current cost", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"fishing rod upgrades"})
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void upgrades(CommandEvent event, @Context Database database) {
 			Document data = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items", "economy.balance")).get("economy", Database.EMPTY_DOCUMENT);
@@ -1848,6 +1888,7 @@ public class EconomyModule {
 		}
 		
 		@Command(value="repair", description="Repair your current fishing rod with its deticated material if it has one", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"fishing rod repair 50", "fishing rod repair"})
 		public void repair(CommandEvent event, @Context Database database, @Argument(value="durability", nullDefault=true) Integer durabilityAmount) {
 			List<Document> items = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items")).getEmbedded(List.of("economy", "items"), Collections.emptyList());
 			
@@ -1944,6 +1985,7 @@ public class EconomyModule {
 			
 			super.setDescription("Axes allow you to gain wood by using the chop command");
 			super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
+			super.setExamples("axe shop", "axe buy", "axe info");
 		}
 		
 		public void onCommand(CommandEvent event) {
@@ -1951,6 +1993,7 @@ public class EconomyModule {
 		}
 		
 		@Command(value="shop", aliases={"list"}, description="View all the axes you can buy/craft", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"axe shop"})
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void shop(CommandEvent event, @Context Database database) {
 			long balance = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance")).getEmbedded(List.of("economy", "balance"), 0L);
@@ -1987,6 +2030,7 @@ public class EconomyModule {
 		}
 		
 		@Command(value="buy", description="Buy a axe which is listed in the axe shop")
+		@Examples({"axe buy Platinum Axe", "axe buy Gold"})
 		public void buy(CommandEvent event, @Context Database database, @Argument(value="axe name", endless=true) String axeName) {
 			Document data = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance", "economy.items")).get("economy", Database.EMPTY_DOCUMENT);
 			
@@ -2030,6 +2074,7 @@ public class EconomyModule {
 		}
 		
 		@Command(value="info", description="Gives info of yours or another users axe")
+		@Examples({"axe info", "axe info @Shea#6653", "axe info 402557516728369153", "axe info Shea"})
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void info(CommandEvent event, @Context Database database, @Argument(value="user", endless=true, nullDefault=true) String userArgument) {
 			Member member;
@@ -2066,6 +2111,7 @@ public class EconomyModule {
 		}
 		
 		@Command(value="craft", description="Craft a axe which is in the axe shop aslong as it displays as craftable")
+		@Examples({"axe craft Platinum Axe", "axe craft Gold"})
 		public void craft(CommandEvent event, @Context Database database, @Argument(value="axe name", endless=true) String axeName) {	
 			Axe axe = Axe.getAxeByName(axeName);
 			if (axe == null) {
@@ -2107,6 +2153,7 @@ public class EconomyModule {
 		}
 		
 		@Command(value="upgrade", description="Upgrade your current axe, you can view the upgrades in `axe upgrades`")
+		@Examples({"axe upgrade multiplier", "axe upgrade durability"})
 		public void upgrade(CommandEvent event, @Context Database database, @Argument(value="upgrade name") String upgradeName, @Argument(value="upgrades", nullDefault=true) Integer upgradesArgument) {
 			Document data = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance", "economy.items")).get("economy", Database.EMPTY_DOCUMENT);
 			
@@ -2186,6 +2233,7 @@ public class EconomyModule {
 		}
 		
 		@Command(value="upgrades", description="View all the upgrades you can put on your axe and their current cost", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"axe upgrades"})
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void upgrades(CommandEvent event, @Context Database database) {
 			Document data = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items", "economy.balance")).get("economy", Database.EMPTY_DOCUMENT);
@@ -2210,6 +2258,7 @@ public class EconomyModule {
 		}
 		
 		@Command(value="repair", description="Repair your current axe with its deticated material if it has one", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"axe repair 50", "axe repair"})
 		public void repair(CommandEvent event, @Context Database database, @Argument(value="durability", nullDefault=true) Integer durabilityAmount) {
 			List<Document> items = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items")).getEmbedded(List.of("economy", "items"), Collections.emptyList());
 			Axe axe = EconomyUtils.getUserAxe(items);
@@ -2299,6 +2348,7 @@ public class EconomyModule {
 	}
 	
 	@Command(value="give", aliases={"gift"}, description="Give money to others users, there is a 5% tax per transaction", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+	@Examples({"give @Shea#6653 50000", "give Shea all", "give 402557516728369153 23%"})
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void give(CommandEvent event, @Context Database database, @Argument(value="user") String userArgument, @Argument(value="amount") String amountArgument) {
 		Member member = ArgumentUtils.getMember(event.getGuild(), userArgument);
@@ -2370,6 +2420,7 @@ public class EconomyModule {
 	}
 	
 	@Command(value="give materials", aliases={"givematerials", "give mats", "givemats"}, description="Give another user some materials you have, 5% the price of the materials will be taxed")
+	@Examples({"give materials @Shea#6653 Coal 10", "give materials Shea Platinum"})
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void giveMaterials(CommandEvent event, @Context Database database, @Argument(value="user") String userArgument, @Argument(value="item", endless=true) String itemArgument) {
 		Member member = ArgumentUtils.getMember(event.getGuild(), userArgument);
@@ -2455,6 +2506,7 @@ public class EconomyModule {
 	}
 	
 	@Command(value="russian roulette", aliases={"rusr", "russianroulette", "roulette"}, description="Put a gun to your head and choose how many bullets go in the chamber if you're shot you lose your bet if you win you gain your winnings and cartain amount depending on how many bullets you put in the chanmber")
+	@Examples({"russian roulette 3 5000", "russian roulette 2 all", "russian roulette 5 10%"})
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void russianRoulette(CommandEvent event, @Context Database database, @Argument(value="bullets") int bullets, @Argument(value="bet", endless=true) String betArgument) {
 		if (bullets < 1 || bullets > 5) {
@@ -2515,6 +2567,7 @@ public class EconomyModule {
 			super.setAliases("factories");
 			super.setDescription("Buy factories with materials, factories yield you money every 12 hours the more factories the more money");
 			super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
+			super.setExamples("factory shop", "factory buy", "factory collect");
 		}
 		
 		public void onCommand(CommandEvent event) {
@@ -2522,6 +2575,7 @@ public class EconomyModule {
 		}
 		
 		@Command(value="shop", aliases={"list"}, description="View all the factories you can buy with your current materials", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"factory shop"})
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void shop(CommandEvent event, @Context Database database) {
 			List<Document> items = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items")).getEmbedded(List.of("economy", "items"), Collections.emptyList());
@@ -2543,6 +2597,7 @@ public class EconomyModule {
 		}
 		
 		@Command(value="buy", description="Buy a factory which is listed in factory shop")
+		@Examples({"factory buy Iron Factory 10", "factory buy Platinum", "factory buy all"})
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void buy(CommandEvent event, @Context Database database, @Argument(value="factory name", endless=true) String factoryArgument) {
 			List<Document> items = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items")).getEmbedded(List.of("economy", "items"), new ArrayList<>());
@@ -2631,6 +2686,7 @@ public class EconomyModule {
 		}
 		
 		@Command(value="collect", description="Collect all the money from your factories you own", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"factory collect"})
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void collect(CommandEvent event, @Context Database database) {
 			Document data = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items", "economy.factoryCooldown")).get("economy", Database.EMPTY_DOCUMENT);
@@ -2686,6 +2742,7 @@ public class EconomyModule {
 			super.setDescription("Put your items on the auction house for other users to buy");
 			super.setAliases("auction house", "auctionhouse");
 			super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
+			super.setExamples("auction list", "auction sell", "auction buy");
 		}
 		
 		public void onCommand(CommandEvent event) {
@@ -2693,8 +2750,9 @@ public class EconomyModule {
 		}
 	
 		@Command(value="list", description="View a list of all the items or a specified item on the auction house")
+		@Examples({"auction list", "auction list Gold", "auction list Platinum --sort=price", "auction list --sort=name --reverse"})
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-		public void list(CommandEvent event, @Context Database database, @Argument(value="item name", endless=true, nullDefault=true) String itemName, @Option(value="sort") String sort, @Option(value="reverse") boolean reverse) {
+		public void list(CommandEvent event, @Context Database database, @Argument(value="item name", endless=true, nullDefault=true) String itemName, @Option(value="sort", description="Sort by the `name`, `amount`, `price` or `price-per-item` (default)") String sort, @Option(value="reverse", description="Reverses the order the items are shown in") boolean reverse) {
 			List<Document> shownData;
 			if (itemName != null) {
 				Item item = EconomyUtils.getItem(itemName);
@@ -2761,6 +2819,7 @@ public class EconomyModule {
 		}
 		
 		@Command(value="sell", description="Put an item on the auction for the chance of it being bought by someone else")
+		@Examples({"auction sell Coal 20", "auction sell Platinum Pickaxe"})
 		public void sell(CommandEvent event, @Context Database database, @Argument(value="price") long price, @Argument(value="item", endless=true) String itemArgument) {
 			Pair<String, BigInteger> itemPair = EconomyUtils.getItemAndAmount(itemArgument);
 			String itemName = itemPair.getLeft();
@@ -2788,16 +2847,16 @@ public class EconomyModule {
 				}
 			}
 	
-			if (BigInteger.valueOf(userItem.getAmount()).compareTo(itemAmount) != -1) {				
+			if (BigInteger.valueOf(userItem.getAmount()).compareTo(itemAmount) != -1) {		
+				Document rawItem = EconomyUtils.getUserItemRaw(items, item);
+				rawItem.put("amount", itemAmount.longValue());
+				
 				EconomyUtils.removeItem(items, item, itemAmount.longValue());
 				database.updateUserById(event.getAuthor().getIdLong(), Updates.set("economy.items", items), (userResult, userException) -> {
 					if (userException != null) {
 						userException.printStackTrace();
 						event.reply(Sx4CommandEventListener.getUserErrorMessage(userException)).queue();
 					} else {
-						Document rawItem = EconomyUtils.getUserItemRaw(items, item);
-						rawItem.put("amount", itemAmount.longValue());
-						
 						database.insertAuction(event.getAuthor().getIdLong(), price, rawItem, (auctionResult, auctionException) -> {
 							if (auctionException != null) {
 								auctionException.printStackTrace();
@@ -2815,6 +2874,7 @@ public class EconomyModule {
 		}
 		
 		@Command(value="buy", description="Buy an item off the auction, look up by item name or look through all items from lowest to highest price per item")
+		@Examples({"auction buy", "auction buy Platinum"})
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void buy(CommandEvent event, @Context Database database, @Argument(value="item name", endless=true, nullDefault=true) String itemName) {
 			List<Document> shownData;
@@ -2943,6 +3003,7 @@ public class EconomyModule {
 		}
 
 		@Command(value="refund", description="Refund an item you have put on the auction")
+		@Examples({"auction refund", "auction refund Platinum"})
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void refund(CommandEvent event, @Context Database database, @Argument(value="item name", endless=true, nullDefault=true) String itemName) {
 			Bson ownerFilter = Filters.eq("ownerId", event.getAuthor().getIdLong());
@@ -3049,6 +3110,7 @@ public class EconomyModule {
 	}
 	
 	@Command(value="fish", description="An easy way to start making money every 5 minutes, buy fishing rods to increase your yield per fish", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+	@Examples({"fish"})
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void fish(CommandEvent event, @Context Database database) {
 		Document data = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items", "economy.fishCooldown")).get("economy", Database.EMPTY_DOCUMENT);
@@ -3110,6 +3172,7 @@ public class EconomyModule {
 	}
 	
 	@Command(value="chop", description="Use your axe to chop some trees down to gather wood for crafting", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+	@Examples({"chop"})
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void chop(CommandEvent event, @Context Database database) {
 		Document data = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items", "economy.chopCooldown")).get("economy", Database.EMPTY_DOCUMENT);
@@ -3195,6 +3258,7 @@ public class EconomyModule {
 	}
 	
 	@Command(value="mine", description="Use your pickaxe to mine, mining will gather money aswell as the chance to get some materials", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+	@Examples({"mine"})
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void mine(CommandEvent event, @Context Database database) {
 		Document data = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items", "economy.mineCooldown")).get("economy", Database.EMPTY_DOCUMENT);
@@ -3265,6 +3329,7 @@ public class EconomyModule {
 	}
 	
 	@Command(value="items", aliases={"inventory", "inv"}, description="View all the items you currently have")
+	@Examples({"items", "items @Shea#6653", "items 402557516728369153", "items Shea"})
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void items(CommandEvent event, @Context Database database, @Argument(value="user", endless=true, nullDefault=true) String userArgument) {
 		Member member;
@@ -3301,11 +3366,7 @@ public class EconomyModule {
 			Item actualItem = EconomyUtils.getItem(item.getString("name"));
 			ItemStack userItem = new ItemStack(actualItem, item.getLong("amount"));
 			
-			if (actualItem instanceof Pickaxe) {
-				userItems.get("Tools").add(String.format("%s x%,d (%,d Durability)", actualItem.getName(), userItem.getAmount(), item.getInteger("currentDurability")));
-			} else if (actualItem instanceof Rod) {
-				userItems.get("Tools").add(String.format("%s x%,d (%,d Durability)", actualItem.getName(), userItem.getAmount(), item.getInteger("currentDurability")));
-			} else if (actualItem instanceof Axe) {
+			if (actualItem instanceof Tool) {
 				userItems.get("Tools").add(String.format("%s x%,d (%,d Durability)", actualItem.getName(), userItem.getAmount(), item.getInteger("currentDurability")));
 			} else if (actualItem instanceof Miner) {
 				userItems.get("Miners").add(String.format("%s x%,d", actualItem.getName(), userItem.getAmount()));
@@ -3340,6 +3401,7 @@ public class EconomyModule {
 	}
 	
 	@Command(value="slot", aliases={"slots"}, description="Bet your money on the slots if you get 3 in a row you win, the rarer the 3 items the more the payout")
+	@Examples({"slot", "slot 5000", "slot all", "slot 12%"})
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void slot(CommandEvent event, @Context Database database, @Argument(value="bet", endless=true, nullDefault=true) String betArgument) {
 		long bet = 0;
@@ -3429,6 +3491,7 @@ public class EconomyModule {
 			super.setAliases("lb", "ranks", "rank");
 			super.setDescription("View the leaderboards for the economy");
 			super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
+			super.setExamples("leaderboard bank", "leaderboard networth", "leaderboard winnings");
 		}
 		
 		public void onCommand(CommandEvent event) {
@@ -3436,8 +3499,9 @@ public class EconomyModule {
 		}
 		
 		@Command(value="bank", aliases={"money", "balance"}, description="View the leaderboard for people with the most money in their balance", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"leaderboard bank", "leaderboard bank --server", "leaderboard bank --reverse", "leaderboard bank --sort=name --reverse"})
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-		public void bank(CommandEvent event, @Context Database database, @Option(value="server", aliases={"guild"}) boolean guild, @Option(value="sort") String sort, @Option(value="reverse") boolean reverse) {
+		public void bank(CommandEvent event, @Context Database database, @Option(value="server", aliases={"guild"}, description="Filters the leaderboard so only people in the current server are shown") boolean guild, @Option(value="sort", description="Sort the leaderboard by `name` or `balance` (default)") String sort, @Option(value="reverse", description="Reverses the sorting order") boolean reverse) {
 			FindIterable<Document> data = database.getUsers().find(Filters.and(Filters.exists("economy.balance"), Filters.ne("economy.balance", 0))).projection(Projections.include("economy.balance"));
 			
 			List<Document> compressedData = new ArrayList<>();
@@ -3498,8 +3562,9 @@ public class EconomyModule {
 		}
 		
 		@Command(value="networth", description="View the leaderboard for people with the most networth (All items worth + their balance)", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"leaderboard networth", "leaderboard networth --server", "leaderboard networth --reverse", "leaderboard networth --sort=name --reverse"})
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-		public void networth(CommandEvent event, @Context Database database, @Option(value="server", aliases={"guild"}) boolean guild, @Option(value="sort") String sort, @Option(value="reverse") boolean reverse) {
+		public void networth(CommandEvent event, @Context Database database, @Option(value="server", aliases={"guild"}, description="Filters the leaderboard so only people in the current server are shown") boolean guild, @Option(value="sort", description="Sort the leaderboard by `name` or `networth` (default)") String sort, @Option(value="reverse", description="Reverses the sorting order") boolean reverse) {
 			FindIterable<Document> data = database.getUsers().find().projection(Projections.include("economy.balance", "economy.items"));
 			
 			List<Document> compressedData = new ArrayList<>();
@@ -3565,8 +3630,9 @@ public class EconomyModule {
 		}
 		
 		@Command(value="winnings", description="View the leaderboard for people with the highest winnings", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"leaderboard winnings", "leaderboard winnings --server", "leaderboard winnings --reverse", "leaderboard winnings --sort=name --reverse"})
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-		public void winnings(CommandEvent event, @Context Database database, @Option(value="server", aliases={"guild"}) boolean guild, @Option(value="sort") String sort, @Option(value="reverse") boolean reverse) {
+		public void winnings(CommandEvent event, @Context Database database, @Option(value="server", aliases={"guild"}, description="Filters the leaderboard so only people in the current server are shown") boolean guild, @Option(value="sort", description="Sort the leaderboard by `name` or `winnings` (default)") String sort, @Option(value="reverse", description="Reverses the sorting order") boolean reverse) {
 			FindIterable<Document> data = database.getUsers().find(Filters.and(Filters.exists("economy.winnings"), Filters.ne("economy.winnings", 0))).projection(Projections.include("economy.winnings"));
 			
 			List<Document> compressedData = new ArrayList<>();
@@ -3627,8 +3693,9 @@ public class EconomyModule {
 		}
 		
 		@Command(value="items", aliases={"item"}, description="View the leaderboard for the people with the most of a specific item")
+		@Examples({"leaderboard items Platinum", "leaderboard items Diamond --server", "leaderboard items Gold --reverse", "leaderboard items Shoe --sort=name --reverse"})
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-		public void items(CommandEvent event, @Context Database database, @Argument(value="item name", endless=true) String itemName, @Option(value="server", aliases={"guild"}) boolean guild, @Option(value="sort") String sort, @Option(value="reverse") boolean reverse) {
+		public void items(CommandEvent event, @Context Database database, @Argument(value="item name", endless=true) String itemName, @Option(value="server", aliases={"guild"}, description="Filters the leaderboard so only people in the current server are shown") boolean guild, @Option(value="sort", description="Sort the leaderboard by `name` or `items` (default)") String sort, @Option(value="reverse", description="Reverses the sorting order") boolean reverse) {
 			Item item = EconomyUtils.getItem(itemName);
 			if (item == null) {
 				event.reply("I could not find that item :no_entry:").queue();
@@ -3702,8 +3769,9 @@ public class EconomyModule {
 		}
 		
 		@Command(value="reputation", aliases={"rep", "reps"}, description="View the leaderboard for people with the highest reputation", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"leaderboard reputation", "leaderboard repuatation --server", "leaderboard reputation --reverse", "leaderboard reputation --sort=name --reverse"})
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-		public void reputation(CommandEvent event, @Context Database database, @Option(value="server", aliases={"guild"}) boolean guild, @Option(value="sort") String sort, @Option(value="reverse") boolean reverse) {
+		public void reputation(CommandEvent event, @Context Database database, @Option(value="server", aliases={"guild"}, description="Filters the leaderboard so only people in the current server are shown") boolean guild, @Option(value="sort", description="Sort the leaderboard by `name` or `reputation` (default)") String sort, @Option(value="reverse", description="Reverses the sorting order") boolean reverse) {
 			FindIterable<Document> data = database.getUsers().find(Filters.and(Filters.exists("reputation.amount"), Filters.ne("reputation.amount", 0))).projection(Projections.include("reputation.amount"));
 			
 			List<Document> compressedData = new ArrayList<>();
@@ -3764,8 +3832,9 @@ public class EconomyModule {
 		}
 		
 		@Command(value="streak", description="View the leaderboard for people who have the highest streak for using `daily`", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"leaderboard streak", "leaderboard streak --server", "leaderboard streak --reverse", "leaderboard streak --sort=name --reverse"})
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-		public void streak(CommandEvent event, @Context Database database, @Option(value="server", aliases={"guild"}) boolean guild, @Option(value="sort") String sort, @Option(value="reverse") boolean reverse) {
+		public void streak(CommandEvent event, @Context Database database, @Option(value="server", aliases={"guild"}, description="Filters the leaderboard so only people in the current server are shown") boolean guild, @Option(value="sort", description="Sort the leaderboard by `name` or `streak` (default)") String sort, @Option(value="reverse", description="Reverses the sorting order") boolean reverse) {
 			FindIterable<Document> data = database.getUsers().find(Filters.and(Filters.exists("economy.streak"), Filters.ne("economy.streak", 0))).projection(Projections.include("economy.streak"));
 			
 			List<Document> compressedData = new ArrayList<>();
@@ -3826,7 +3895,8 @@ public class EconomyModule {
 		}
 		
 		@Command(value="votes", aliases={"vote"}, description="View the leaderboard for the highest votes of the month/all time")
-		public void votes(CommandEvent event, @Argument(value="month", nullDefault=true) String monthArgument, @Option(value="all") boolean all, @Option(value="server", aliases={"guild"}) boolean guild) {
+		@Examples({"leaderboard votes", "leaderboard votes --all", "leaderboard votes --all --server"})
+		public void votes(CommandEvent event, @Argument(value="month", nullDefault=true) String monthArgument, @Option(value="all", description="Displays the leaderboard for votes all time") boolean all, @Option(value="server", aliases={"guild"}, description="Filters the leaderboard so only people in the current server are shown") boolean guild) {
 			LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
 			Month month;
 			if (monthArgument == null) {
@@ -3858,14 +3928,18 @@ public class EconomyModule {
 						for (String keySx4 : keysSx4) {
 							User user = cache.getElementById(keySx4);
 							if (user != null) {
-								votesMap.compute(user, (key, value) -> value != null ? value + jsonSx4.getJSONObject(keySx4).getJSONArray("votes").length() : jsonSx4.getJSONObject(keySx4).getJSONArray("votes").length());
+								if (!guild || event.getGuild().isMember(user)) {
+									votesMap.compute(user, (key, value) -> value != null ? value + jsonSx4.getJSONObject(keySx4).getJSONArray("votes").length() : jsonSx4.getJSONObject(keySx4).getJSONArray("votes").length());
+								}
 							}
 						}
 						
 						for (String keyJockie : keysJockie) {
 							User user = cache.getElementById(keyJockie);
 							if (user != null) {
-								votesMap.compute(user, (key, value) -> value != null ? value + jsonJockie.getJSONObject(keyJockie).getJSONArray("votes").length() : jsonJockie.getJSONObject(keyJockie).getJSONArray("votes").length());
+								if (!guild || event.getGuild().isMember(user)) {
+									votesMap.compute(user, (key, value) -> value != null ? value + jsonJockie.getJSONObject(keyJockie).getJSONArray("votes").length() : jsonJockie.getJSONObject(keyJockie).getJSONArray("votes").length());
+								}
 							}
 						}
 					} else {
@@ -3876,7 +3950,9 @@ public class EconomyModule {
 									JSONObject vote = (JSONObject) voteObject;
 									LocalDateTime voteTime = LocalDateTime.ofEpochSecond(vote.getLong("time"), 0, ZoneOffset.UTC);
 									if (voteTime.getMonth() == month && voteTime.getYear() == year) {
-										votesMap.compute(user, (key, value) -> value != null ? value + 1 : 1);
+										if (!guild || event.getGuild().isMember(user)) {
+											votesMap.compute(user, (key, value) -> value != null ? ++value : 1);
+										}
 									}
 								}
 							}
@@ -3889,7 +3965,9 @@ public class EconomyModule {
 									JSONObject vote = (JSONObject) voteObject;
 									LocalDateTime voteTime = LocalDateTime.ofEpochSecond(vote.getLong("time"), 0, ZoneOffset.UTC);
 									if (voteTime.getMonth() == month && voteTime.getYear() == year) {
-										votesMap.compute(user, (key, value) -> value != null ? value + 1 : 1);
+										if (!guild || event.getGuild().isMember(user)) {
+											votesMap.compute(user, (key, value) -> value != null ? ++value : 1);
+										}
 									}
 								}
 							}

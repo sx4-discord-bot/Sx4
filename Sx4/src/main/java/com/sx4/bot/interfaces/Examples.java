@@ -7,9 +7,9 @@ import java.lang.annotation.Target;
 
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
-public @interface Example {
+public @interface Examples {
 	
-	public String value() default "";
+	public String[] value() default {};
 	
 }
 

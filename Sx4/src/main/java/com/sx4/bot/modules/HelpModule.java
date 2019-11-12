@@ -17,6 +17,7 @@ import com.jockie.bot.core.module.Module;
 import com.jockie.bot.core.option.Option;
 import com.sx4.bot.categories.Categories;
 import com.sx4.bot.core.Sx4Command;
+import com.sx4.bot.interfaces.Examples;
 import com.sx4.bot.settings.Settings;
 import com.sx4.bot.utils.ArgumentUtils;
 import com.sx4.bot.utils.GeneralUtils;
@@ -37,8 +38,9 @@ public class HelpModule {
 	private final String defaultSponsorImage = "https://cdn.discordapp.com/attachments/344091594972069888/634867715860987914/Sponsor.png";
 
 	@Command(value="help", aliases={"h", "commands", "commandlist", "command list"}, description="Lists commands on the bot and gives you info on specific commands")
+	@Examples({"help", "help logs", "help --all", "help logs --command"})
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-	public void help(CommandEvent event, @Argument(value="command | module", endless=true, nullDefault=true) String commandName, @Option(value="all", aliases={"a"}) boolean all, @Option(value="module") boolean moduleChoice, @Option(value="command") boolean commandChoice) {
+	public void help(CommandEvent event, @Argument(value="command | module", endless=true, nullDefault=true) String commandName, @Option(value="all", aliases={"a"}, description="Shows every command on the bot") boolean all, @Option(value="module", description="Filters your query to only search for modules") boolean moduleChoice, @Option(value="command", description="Filters your query to only search for commands") boolean commandChoice) {
 		if (commandName == null) {
 			if (all) {
 				List<Sx4Command> allCommands = new ArrayList<>();

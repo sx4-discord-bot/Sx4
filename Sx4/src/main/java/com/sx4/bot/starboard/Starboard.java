@@ -55,13 +55,17 @@ public class Starboard {
 	}
 	
 	public StarboardConfiguration getConfigurationById(long id) {
-		for (StarboardConfiguration star : this.configuration) {
-			if (star.getId() == id) {
-				return star;
+		int highestStar = 0, index = -1;
+		for (int i = 0; i < this.configuration.size(); i++) {
+			StarboardConfiguration star = this.configuration.get(i);
+			int stars = star.getId();
+			if (stars <= id && highestStar < stars) {
+				highestStar = stars;
+				index = i;
 			}
 		}
 		
-		return null;
+		return index == -1 ? null : this.configuration.get(index);
 	}
 	
 	public List<StarboardMessage> getMessages() {

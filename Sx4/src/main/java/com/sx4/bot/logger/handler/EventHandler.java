@@ -54,7 +54,6 @@ import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.GuildChannel;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Message;
-import net.dv8tion.jda.api.entities.Message.Attachment;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.TextChannel;
@@ -660,8 +659,6 @@ public class EventHandler extends ListenerAdapter {
 				if(message.getContentRaw().length() == 0 && message.getAttachments().isEmpty() && message.getEmbeds().isEmpty()) {
 					return;
 				}
-				
-				embed.setImageUrl(message.getAttachments().stream().filter(Attachment::isImage).map(Attachment::getUrl).findFirst().orElse(null));
 				
 				if(message.getMember() != null) {
 					Member member = message.getMember();

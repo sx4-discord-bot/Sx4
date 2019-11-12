@@ -11,7 +11,6 @@ import java.time.zone.ZoneRulesException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -58,6 +57,7 @@ import com.sx4.bot.events.AwaitEvents;
 import com.sx4.bot.events.ConnectionEvents;
 import com.sx4.bot.events.ReminderEvents;
 import com.sx4.bot.events.StatsEvents;
+import com.sx4.bot.interfaces.Examples;
 import com.sx4.bot.interfaces.Sx4Callback;
 import com.sx4.bot.settings.Settings;
 import com.sx4.bot.utils.ArgumentUtils;
@@ -102,6 +102,7 @@ public class GeneralModule {
 	private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd LLL yyyy HH:mm");
 	
 	@Command(value="voice link", aliases={"voicelink", "vclink", "vc link", "screenshare"}, description="Gives you a link which allows you to screenshare in the current or specified voice channel")
+	@Examples({"voice link", "voice link #general", "voice link 344091594972069888", "voice link general"})
 	public String voiceLink(CommandEvent event, @Argument(value="voice channel", nullDefault=true, endless=true) String voiceChannel) {
 		VoiceChannel channel = null;
 		if (voiceChannel == null) {
@@ -129,13 +130,15 @@ public class GeneralModule {
 			
 			super.setDescription("Create reminders to keep up to date with tasks");
 			super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
+			super.setExamples("reminder add", "reminder remove", "reminder list");
 		}
 		
 		public void onCommand(CommandEvent event) {
 			event.reply(HelpUtils.getHelpMessage(event.getCommand())).queue();
 		}
 		
-		@Command(value="add", description="Add a reminder so that the bot can remind you about it rather than you having to remember", argumentInfo="<reminder> in <time>")
+		@Command(value="add", description="Add a reminder so that the bot can remind you about it rather than you having to remember", argumentInfo="<reminder> in <time>\nreminder add <reminder> at <date>")
+		@Examples({"reminder add Football game in 4 hours", "reminder add Party at 01/07/20 15:00 UTC+1", "reminder add Finish coursework at 12:00", "reminder add fish in 5 minutes --repeat"})
 		public void add(CommandEvent event, @Context Database database, @Argument(value="reminder", endless=true) String reminder, @Option(value="repeat", aliases={"reoccur"}, description="Repeats your reminder so once it finishes it recreates one for you") boolean repeat) {
 			Matcher timeRegex = this.reminderTimeRegex.matcher(reminder);
 			Matcher dateRegex = this.reminderDateRegex.matcher(reminder);
@@ -215,6 +218,7 @@ public class GeneralModule {
 		}
 		
 		@Command(value="remove", description="Remove a reminder you no longer need to be notified about")
+		@Examples({"reminder remove 1", "reminder remove 10"})
 		public void remove(CommandEvent event, @Context Database database, @Argument("reminder id") int reminderId) {
 			List<Document> reminders = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("reminder.reminders")).getEmbedded(List.of("reminder", "reminders"), Collections.emptyList());
 			if (reminders.isEmpty()) {
@@ -242,6 +246,7 @@ public class GeneralModule {
 		}
 		
 		@Command(value="list", description="Lists all the current reminders you have and how long left till you'll be notified about them", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"reminder list"})
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void list(CommandEvent event, @Context Database database) {
 			List<Document> reminders = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("reminder.reminders")).getEmbedded(List.of("reminder", "reminders"), Collections.emptyList());
@@ -277,6 +282,7 @@ public class GeneralModule {
 	}
 	
 	@Command(value="suggest", description="If suggestions are set up in the current server send in a suggestion for the chance of it being implemented and get notified when it's accpeted/declined")
+	@Examples({"suggest Add the dog emote", "suggest Create a channel for people looking to play games"})
 	@BotPermissions({Permission.MESSAGE_ADD_REACTION, Permission.MESSAGE_EMBED_LINKS})
 	public void suggest(CommandEvent event, @Context Database database, @Argument(value="suggestion", endless=true) String suggestion) {
 		Document data = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("suggestion.enabled", "suggestion.channelId")).get("suggestion", Database.EMPTY_DOCUMENT);
@@ -327,6 +333,7 @@ public class GeneralModule {
 			
 			super.setDescription("Create a suggestion channel where suggestions can be sent in and voted on in your server");
 			super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
+			super.setExamples("suggestion accept", "suggestion deny", "suggestion toggle");
 		}
 		
 		public void onCommand(CommandEvent event) {
@@ -334,6 +341,7 @@ public class GeneralModule {
 		}
 		
 		@Command(value="toggle", aliases={"enable", "disable"}, description="Enables/disables suggestions in the server depending on its current state", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"suggestion toggle"})
 		@AuthorPermissions({Permission.MESSAGE_MANAGE})
 		public void toggle(CommandEvent event, @Context Database database) {
 			boolean enabled = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("suggestion.enabled")).getEmbedded(List.of("suggestion", "enabled"), false);			
@@ -348,6 +356,7 @@ public class GeneralModule {
 		}
 		
 		@Command(value="channel", description="Sets the suggestion channel for suggestions in your server")
+		@Examples({"suggestion channel #suggestions", "suggestion channel 447080313944801291", "suggestion channel suggestions"})
 		@AuthorPermissions({Permission.MESSAGE_MANAGE})
 		public void channel(CommandEvent event, @Context Database database, @Argument(value="channel", endless=true) String channelArgument) {
 			TextChannel channel = ArgumentUtils.getTextChannel(event.getGuild(), channelArgument);
@@ -373,6 +382,7 @@ public class GeneralModule {
 		}
 		
 		@Command(value="accept", description="Accepts a suggestion that a user has created this lets the user know it's been accepted and shows it's accepted in the suggestion channel")
+		@Examples({"suggestion accept 643130228465467413"})
 		@AuthorPermissions({Permission.MESSAGE_MANAGE})
 		@BotPermissions({Permission.MESSAGE_HISTORY})
 		public void accept(CommandEvent event, @Context Database database, @Argument(value="message id") long messageId, @Argument(value="reason", endless=true, nullDefault=true) String reason) {
@@ -461,6 +471,7 @@ public class GeneralModule {
 		}
 		
 		@Command(value="deny", description="Denies a suggestion that a user has created this lets the user know it's been declined and shows it's declined in the suggestion channel")
+		@Examples({"suggestion deny 643130228465467413"})
 		@AuthorPermissions({Permission.MESSAGE_MANAGE})
 		@BotPermissions({Permission.MESSAGE_HISTORY})
 		public void deny(CommandEvent event, @Context Database database, @Argument(value="message id") long messageId, @Argument(value="reason", endless=true, nullDefault=true) String reason) {
@@ -551,6 +562,7 @@ public class GeneralModule {
 		}
 		
 		@Command(value="undo", description="Undoes a decision made on a suggestion to put it back to it's pending state", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"suggestion undo 643130228465467413"})
 		@AuthorPermissions({Permission.MESSAGE_MANAGE})
 		@BotPermissions({Permission.MESSAGE_HISTORY})
 		public void undo(CommandEvent event, @Context Database database, @Argument(value="message ID") long messageId) {
@@ -636,6 +648,7 @@ public class GeneralModule {
 		}
 		
 		@Command(value="remove", aliases={"delete"}, description="Deletes a suggestion from the suggestions list, also deletes the message if it can", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"suggestion remove 643130228465467413"})
 		@AuthorPermissions({Permission.MESSAGE_MANAGE})
 		@BotPermissions({Permission.MESSAGE_HISTORY})
 		public void remove(CommandEvent event, @Context Database database, @Argument(value="message ID") long messageId) {
@@ -702,6 +715,7 @@ public class GeneralModule {
 		}
 		
 		@Command(value="reset", aliases={"wipe"}, description="Wipes all of the suggestions in the server", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"suggestion reset"})
 		@AuthorPermissions({Permission.MESSAGE_MANAGE})
 		public void reset(CommandEvent event, @Context Database database) {
 			List<Document> suggestions = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("suggestion.suggestions")).getEmbedded(List.of("suggestion", "suggestions"), Collections.emptyList());
@@ -731,6 +745,7 @@ public class GeneralModule {
 		}
 		
 		@Command(value="list", description="View all the suggestions which have been sent in, shows whether they have been declined/accepted and provides a jump link", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"suggestion list"})
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void list(CommandEvent event, @Context Database database) {
 			Document data = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("suggestion.channelId", "suggestion.suggestions")).get("suggestion", Database.EMPTY_DOCUMENT);
@@ -769,6 +784,7 @@ public class GeneralModule {
 		}
 		
 		@Command(value="stats", aliases={"settings", "setting"}, description="View the settings for suggestions in the current server", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"suggestion stats"})
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void stats(CommandEvent event, @Context Database database) {
 			Document data = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("suggestion.channelId", "suggestion.suggestions", "suggestion.enabled")).get("suggestion", Database.EMPTY_DOCUMENT);
@@ -799,6 +815,7 @@ public class GeneralModule {
 			super.setAliases("imagemode", "imgmode", "img mode");
 			super.setDescription("Set up image mode in a channel so that only images can be sent in that channel anything else will be deleted");
 			super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
+			super.setExamples("image mode channel", "image mode slowmode", "image mode stats");
 		}
 		
 		public void onCommand(CommandEvent event) {
@@ -806,6 +823,7 @@ public class GeneralModule {
 		}
 		
 		@Command(value="channel", aliases={"toggle"}, description="Toggle image mode on/off in a certain channel")
+		@Examples({"image mode channel", "image mode channel #images", "image mode channel 344091594972069888", "image mode channel images"})
 		@AuthorPermissions({Permission.MESSAGE_MANAGE})
 		public void channel(CommandEvent event, @Context Database database, @Argument(value="channel", endless=true, nullDefault=true) String channelArgument) {
 			TextChannel channel;
@@ -851,6 +869,8 @@ public class GeneralModule {
 		}
 		
 		@Command(value="slowmode", aliases={"slow mode", "sm"}, description="Add a slowmode to the current channel (Providing image mode is turned on in the current channel) so users can only send an image every however long you choose")
+		@Examples({"image mode slowmode 10 minutes", "image mode slowmode none"})
+		@AuthorPermissions({Permission.MESSAGE_MANAGE})
 		public void slowmode(CommandEvent event, @Context Database database, @Argument(value="time", endless=true) String timeString) {
 			long slowmode = 0;
 			if (!nullStrings.contains(timeString)) {
@@ -885,6 +905,7 @@ public class GeneralModule {
 		}
 		
 		@Command(value="stats", aliases={"settings", "setting"}, description="View settings for image mode in a specific channel")
+		@Examples({"image mode stats", "image mode stats #images", "image mode stats 344091594972069888", "image mode stats images"})
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void stats(CommandEvent event, @Context Database database, @Argument(value="channel", endless=true, nullDefault=true) String channelArgument) {
 			TextChannel channel;
@@ -919,7 +940,8 @@ public class GeneralModule {
 	}
 	
 	@Command(value="usage", description="Shows you how much a specific command has been used on Sx4")
-	public void usage(CommandEvent event, @Context Database database, @Argument(value="command name", endless=true) String commandName, @Option(value="server", aliases={"guild"}) String guildArgument, @Option(value="user") String userArgument, @Option(value="channel") String channelArgument) {
+	@Examples({"usage fish", "usage ship --server=330399610273136641", "usage ban --channel=#general", "usage userinfo --server=330399610273136641 --user=Shea#6653"})
+	public void usage(CommandEvent event, @Context Database database, @Argument(value="command name", endless=true) String commandName, @Option(value="server", aliases={"guild"}, description="Provide a server name or id to filter the usage by") String guildArgument, @Option(value="user", description="Provide a user name, tag, mention or id to filter the usage by") String userArgument, @Option(value="channel", description="Provide a channel name, mention or id to filter the usage by") String channelArgument) {
 		Sx4Command command = ArgumentUtils.getCommand(commandName);
 		if (command == null) {
 			event.reply("I could not find that command :no_entry:").queue();
@@ -961,6 +983,7 @@ public class GeneralModule {
 			super.setAliases("commandstats");
 			super.setDescription("Shows some stats about command usage on the bot");
 			super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
+			super.setExamples("command stats all", "command stats servers", "command stats users");
 		}
 		
 		public void onCommand(CommandEvent event) {
@@ -968,9 +991,10 @@ public class GeneralModule {
 		}
 		
 		@Command(value="all", description="View the top used commands on Sx4", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"command stats all", "command stats all --server=330399610273136641", "command stats all --channel=#general", "command stats all --server=330399610273136641 --user=Shea#6653"})
 		@Async
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-		public void all(CommandEvent event, @Context Database database, @Option(value="server", aliases={"guild"}) String guildArgument, @Option(value="user") String userArgument, @Option(value="channel") String channelArgument) {
+		public void all(CommandEvent event, @Context Database database, @Option(value="server", aliases={"guild"}, description="Provide a server name or id to filter the usage by") String guildArgument, @Option(value="user", description="Provide a user name, tag, mention or id to filter the usage by") String userArgument, @Option(value="channel", description="Provide a channel name, mention or id to filter the usage by") String channelArgument) {
 			List<Bson> filters = new ArrayList<>();
 			if (guildArgument != null) {
 				Guild guild = ArgumentUtils.getGuild(guildArgument);
@@ -1022,9 +1046,10 @@ public class GeneralModule {
 		}
 		
 		@Command(value="servers", aliases= {"guilds"}, description="Shows a list of servers in order of command usage")
+		@Examples({"command stats servers", "command stats servers --command=ship", "command stats servers --command=fish --user=Shea#6653"})
 		@Async
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-		public void guilds(CommandEvent event, @Context Database database, @Option(value="command") String commandArgument, @Option(value="user") String userArgument, @Option(value="channel") String channelArgument) {
+		public void guilds(CommandEvent event, @Context Database database, @Option(value="command", description="Provide a command name to filter the usage by") String commandArgument, @Option(value="user", description="Provide a user name, tag, mention or id to filter the usage by") String userArgument) {
 			List<Bson> filters = new ArrayList<>();
 			if (commandArgument != null) {
 				Sx4Command command = ArgumentUtils.getCommand(commandArgument, false, true, true);
@@ -1037,13 +1062,6 @@ public class GeneralModule {
 				User user = ArgumentUtils.getUser(userArgument);
 				if (user != null) {
 					filters.add(Filters.eq("authorId", user.getIdLong()));
-				}
-			}
-			
-			if (channelArgument != null) {
-				TextChannel channel = ArgumentUtils.getTextChannel(event.getGuild(), channelArgument);
-				if (channel != null) {
-					filters.add(Filters.eq("channelId", channel.getIdLong()));
 				}
 			}
 			
@@ -1079,9 +1097,10 @@ public class GeneralModule {
 		}
 		
 		@Command(value="users", description="Shows a list of users in order of command usage")
+		@Examples({"command stats users", "command stats users --command=ship", "command stats users --channel=#general", "command stats users --command=fish --server=330399610273136641"})
 		@Async
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-		public void users(CommandEvent event, @Context Database database, @Option(value="command") String commandArgument, @Option(value="server", aliases={"guild"}) String guildArgument, @Option(value="channel") String channelArgument) {
+		public void users(CommandEvent event, @Context Database database, @Option(value="command", description="Provide a command name to filter the usage by") String commandArgument, @Option(value="server", aliases={"guild"}, description="Provide a server name or id to filter the usage by") String guildArgument, @Option(value="channel", description="Provide a channel name, mention or id to filter the usage by") String channelArgument) {
 			List<Bson> filters = new ArrayList<>();
 			if (commandArgument != null) {
 				Sx4Command command = ArgumentUtils.getCommand(commandArgument, false, true, true);
@@ -1138,6 +1157,7 @@ public class GeneralModule {
 	}
 	
 	@Command(value="decode", description="Decode any text files into discord markdown", argumentInfo="<attachment>", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+	@Examples({"decode"})
 	public void decode(CommandEvent event) {
 		List<Attachment> attachments = event.getMessage().getAttachments();
 		if (attachments.isEmpty()) {
@@ -1167,6 +1187,7 @@ public class GeneralModule {
 	}
 	
 	@Command(value="channelinfo", aliases={"ci", "channel info", "cinfo", "c info"}, description="Gives you information about a specific text channel/category or voice channels")
+	@Examples({"channelinfo", "channelinfo #general", "channelinfo 344091594972069888", "channelinfo general"})
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void channelInfo(CommandEvent event, @Argument(value="text channel | category | voice channel", endless=true, nullDefault=true) String channelArgument) {
 		TextChannel textChannel = null;
@@ -1221,7 +1242,8 @@ public class GeneralModule {
 		
 	}
 	
-	@Command(value="changes", aliases={"changelog", "change log", "updates"}, argumentInfo="<dd>/<mm>/[yy]", description="Allows you to view recent changes which have occured on the bot", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+	@Command(value="changes", aliases={"changelog", "change log", "updates"}, description="Allows you to view recent changes which have occured on the bot", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+	@Examples({"changes", "changes 2.2.0", "changes latest"})
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void changes(CommandEvent event, @Argument(value="version", nullDefault=true) String version) {
 		List<Pair<String, String>> messages = ChangesMessageCache.getMessages();
@@ -1266,6 +1288,7 @@ public class GeneralModule {
 	}
 	
 	@Command(value="reaction", description="Test your reaction speed using this command")
+	@Examples({"reaction"})
 	@Cooldown(value=70)
 	public void reaction(CommandEvent event) {
 		event.reply("In the next 2-10 seconds i'm going to send a message this is when you type whatever you want in the chat from there i will work out the time between me sending the message and you sending your message and that'll be your reaction time :stopwatch:").queue();
@@ -1279,12 +1302,12 @@ public class GeneralModule {
 				long responseTime = (afterResponse - beforeResponse - event.getJDA().getGatewayPing());
 				event.reply("It took you **" + responseTime + "ms** to respond.").queue();
 				event.removeCooldown();
-			}, 60, TimeUnit.SECONDS, () -> event.reply("Response timed out :stopwatch:").queue());
-			
+			}, 60, TimeUnit.SECONDS, () -> event.reply("Response timed out :stopwatch:").queue());	
 		});
 	}
 	
 	@Command(value="invites", aliases={"inv"}, description="View how many invites a user has in a server and where they are ranked in the whole server", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+	@Examples({"invites", "invites @Shea#6653", "invites 402557516728369153", "invites Shea"})
 	@BotPermissions({Permission.MANAGE_SERVER})
 	public void invites(CommandEvent event, @Argument(value="user", nullDefault=true, endless=true) String userArgument) {
 		User user;
@@ -1304,98 +1327,75 @@ public class GeneralModule {
 				return;
 			}
 			
-			Map<String, Integer> entries = new HashMap<String, Integer>();
+			Map<Long, Integer> entries = new HashMap<>();
 			int totalInvites = 0;
 			for (Invite invite : invites) {
 				if (invite.getInviter() != null) {
-					if (!entries.containsKey(invite.getInviter().getId())) {
-						entries.put(invite.getInviter().getId(), invite.getUses());
-					} else {
-						entries.put(invite.getInviter().getId(), entries.get(invite.getInviter().getId()) + invite.getUses());
-					}
+					entries.compute(invite.getInviter().getIdLong(), (key, value) -> value != null ? value + invite.getUses() : invite.getUses());
 				} 
 				
 				totalInvites += invite.getUses();
 			}
 
-			if (!entries.containsKey(user.getId())) {
+			if (!entries.containsKey(user.getIdLong())) {
 				event.reply("**" + user.getAsTag() + "** has no invites :no_entry:").queue();
 				return;
 			}
 			
-			LinkedHashMap<String, Integer> sortedEntries = new LinkedHashMap<String, Integer>();
-			entries.entrySet().stream()
-				.sorted(Collections.reverseOrder(Map.Entry.comparingByValue()))
-				.forEachOrdered(map -> sortedEntries.put(map.getKey(), map.getValue()));
+			List<Entry<Long, Integer>> sortedEntries = new ArrayList<>(entries.entrySet());
+			sortedEntries.sort((a, b) -> Integer.compare(b.getValue(), a.getValue()));
 			
-			int percentInvited = Math.round((((float) entries.get(user.getId())/totalInvites) * 100));
+			int percentInvited = Math.round((((float) entries.get(user.getIdLong()) / totalInvites) * 100));
 			String percent = percentInvited >= 1 ? String.valueOf(percentInvited) : "<1";
-			int i = 1;
-			Integer place = null;
-			for (Map.Entry<String, Integer> entry : sortedEntries.entrySet()) {
-				if (entry.getKey().equals(user.getId())) {
-					place = i;
-					break;
+			for (int i = 0; i < sortedEntries.size(); i++) {
+				Entry<Long, Integer> entry = sortedEntries.get(i);
+				if (entry.getKey() == user.getIdLong()) {
+					event.reply(String.format("%s has **%d** invites which means they have the **%s** most invites. They have invited **%s%%** of all users.",
+							user.getAsTag(), entries.get(user.getIdLong()), GeneralUtils.getNumberSuffix(i + 1), percent)).queue();
+					
+					return;
 				}
-				
-				i += 1;
 			}
-		
-			event.reply(String.format("%s has **%d** invites which means they have the **%s** most invites. They have invited **%s%%** of all users.",
-					user.getAsTag(), entries.get(user.getId()), GeneralUtils.getNumberSuffix(place), percent)).queue();
 		});
 	}
 	
 	@Command(value="leaderboard invites", aliases={"lb invites", "invites lb", "inviteslb", "lbinvites", "invites leaderboard"}, description="View a leaderboard of users with the most invites", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+	@Examples({"leaderboard invites"})
 	@BotPermissions({Permission.MANAGE_SERVER, Permission.MESSAGE_EMBED_LINKS})
 	public void leaderboardInvites(CommandEvent event) {
 		event.getGuild().retrieveInvites().queue(invites -> {
 			int totalInvites = 0;
-			List<Pair<String, Integer>> entriesList = new ArrayList<Pair<String, Integer>>();
+			Map<Long, Integer> entries = new HashMap<>();
 			for (Invite invite : invites) {
-				boolean contains = false;
-				for (Pair<String, Integer> entry : entriesList) {
-					if (invite.getInviter() != null) {
-						if (invite.getInviter().getId().equals(entry.getLeft())) {
-							entriesList.remove(entry);
-							Pair<String, Integer> entries = Pair.of(invite.getInviter().getId(), invite.getUses() + entry.getRight());
-							entriesList.add(entries);
-							contains = true;
-							break;
-						} else {
-							contains = false;
-						}
-					}
-				}
-				
-				if (contains == false) {
-					if (invite.getInviter() != null) {
-						Pair<String, Integer> entries = Pair.of(invite.getInviter().getId(), invite.getUses());
-						entriesList.add(entries);
-					}
+				if (invite.getInviter() != null) {
+					entries.compute(invite.getInviter().getIdLong(), (key, value) -> value != null ? value + invite.getUses() : invite.getUses());
 				}
 				
 				totalInvites += invite.getUses();
 			}
 			
 			int newTotalInvites = totalInvites;
-			Collections.sort(entriesList, (a, b) -> Integer.compare(b.getRight(), a.getRight()));
-			PagedResult<Pair<String, Integer>> paged = new PagedResult<>(entriesList)
+			
+			List<Entry<Long, Integer>> entriesList = new ArrayList<>(entries.entrySet());
+			entriesList.sort((a, b) -> Integer.compare(b.getValue(), a.getValue()));
+			PagedResult<Entry<Long, Integer>> paged = new PagedResult<>(entriesList)
 					.setIncreasedIndex(true)
 					.setAuthor("Invites Leaderboard", null, event.getGuild().getIconUrl())
 					.setDeleteMessage(false)
 					.setFunction(data -> {
-						int percentInvited = Math.round(((float) data.getRight()/newTotalInvites) * 100);
+						int percentInvited = Math.round(((float) data.getValue() / newTotalInvites) * 100);
 						String percent = percentInvited >= 1 ? String.valueOf(percentInvited) : "<1";
-						Member member = event.getGuild().getMemberById(data.getLeft());
-						String memberString = member == null ? data.getLeft() : member.getUser().getAsTag();
-						return String.format("`%s` - %,d %s (%s%%)", memberString, data.getRight(), data.getRight() == 1 ? "invite" : "invites", percent);
+						Member member = event.getGuild().getMemberById(data.getKey());
+						String memberString = member == null ? String.valueOf(data.getKey()) : member.getUser().getAsTag();
+						return String.format("`%s` - %,d %s (%s%%)", memberString, data.getValue(), data.getValue() == 1 ? "invite" : "invites", percent);
 					});
+			
 			PagedUtils.getPagedResult(event, paged, 300, null);
 		});
 	}
 	
 	@Command(value="await", description="Notifies you when a user comes online")
+	@Examples({"await @Shea#6653", "await Shea Joakim", "await 440996323156819968"})
 	public void await(CommandEvent event, @Context Database database, @Argument(value="user(s)") String[] users) {
 		List<Long> memberIds = new ArrayList<>();
 		List<String> memberTags = new ArrayList<>();
@@ -1439,6 +1439,7 @@ public class GeneralModule {
 	}
 	
 	@Command(value="join position", aliases={"joinposition"}, description="Shows you when a user joined/what user joined in a certain position")
+	@Examples({"join position", "join position 5", "join position @Shea#6653"})
 	public void joinPosition(CommandEvent event, @Argument(value="user | join position", endless=true, nullDefault=true) String argument) {
 		Member member;
 		Integer joinPosition = null;	
@@ -1475,6 +1476,7 @@ public class GeneralModule {
 	}
 	
 	@Command(value="emote info", aliases={"emote", "emoji", "emoteinfo", "emoji info", "emojiinfo"}, description="Search up any emote that the bot can see and it'll return information on the desired emote", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+	@Examples({"emote info doggo", "emote info :doggo:"})
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void emoteInfo(CommandEvent event, @Argument(value="emote") String argument) {
 		Emote emote = ArgumentUtils.getEmote(event.getGuild(), argument);
@@ -1505,7 +1507,8 @@ public class GeneralModule {
 	}
 	
 	@Command(value="server emotes", aliases={"guild emotes", "serveremojis", "guildemojis", "guild emojis", "server emojis", "emote list", "emoji list", "emotelist", "emojilist"}, 
-			description="View all the emotes within the current server", contentOverflowPolicy=ContentOverflowPolicy.IGNORE) 
+			description="View all the emotes within the current server", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+	@Examples({"server emotes"})
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void serverEmotes(CommandEvent event) {
 		List<Emote> emotes = new ArrayList<Emote>(event.getGuild().getEmotes());
@@ -1523,7 +1526,7 @@ public class GeneralModule {
 	}
 	
 	@Command(value="dbl search", aliases={"dbl", "dblsearch"}, description="Search up any bot on [discord bot list](https://discordbots.org)")
-	@Async
+	@Examples({"dbl search Sx4", "dbl search 440996323156819968", "dbl search @Sx4#1617"})
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void discordBotList(CommandEvent event, @Argument(value="bot", endless=true, nullDefault=true) String argument) {
 		String url;
@@ -1589,8 +1592,8 @@ public class GeneralModule {
 	
 	@SuppressWarnings("unchecked")
 	@Command(value="bot list", aliases={"botlist", "dbl bot list", "dblbotlist"}, description="Returns a list of bots in order of server count from [discord bot list](https://discordbots.org)", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+	@Examples({"bot list", "bot list 5"})
 	@Cooldown(value=5)
-	@Async
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void botList(CommandEvent event, @Argument(value="page", nullDefault=true) Integer pageNumber) {
 		pageNumber = pageNumber == null ? 1 : pageNumber > 50 ? 50 : pageNumber < 1 ? 1 : pageNumber;
@@ -1625,6 +1628,7 @@ public class GeneralModule {
 	}
 	
 	@Command(value="ping", description="Shows the bots heartbeat and message response times", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+	@Examples({"ping"})
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void ping(CommandEvent event) {
 		event.getJDA().getRestPing().queue(time -> {
@@ -1636,6 +1640,7 @@ public class GeneralModule {
 	}
 	
 	@Command(value="bots", aliases={"server bots", "guild bots"}, description="View all the bots in the current server", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+	@Examples({"bots"})
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void bots(CommandEvent event) {
 		List<Member> bots = new ArrayList<Member>();
@@ -1659,6 +1664,7 @@ public class GeneralModule {
 	}
 	
 	@Command(value="donate", description="Get Sx4s donation link", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+	@Examples({"donate"})
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void donate(CommandEvent event) {
 		EmbedBuilder embed = new EmbedBuilder()
@@ -1671,6 +1677,7 @@ public class GeneralModule {
 	}
 	
 	@Command(value="support", aliases={"support server", "support guild"}, description="Get Sx4s support server invite link", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+	@Examples({"support"})
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void support(CommandEvent event) {
 		EmbedBuilder embed = new EmbedBuilder()
@@ -1683,6 +1690,7 @@ public class GeneralModule {
 	}
 	
 	@Command(value="invite", aliases={"inv"}, description="Get Sx4s invite link", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+	@Examples({"invite"})
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void invite(CommandEvent event) {
 		EmbedBuilder embed = new EmbedBuilder()
@@ -1695,6 +1703,7 @@ public class GeneralModule {
 	}
 	
 	@Command(value="info", description="View some info about Sx4 and how it has become what it is now", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+	@Examples({"info"})
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void info(CommandEvent event) {
 		String description = String.format("Sx4 is a multipurpose all in one bot made to make your discord experience easier yet fun. Its features include Moderation, Utility, Economy, Music, Welcomer, and Logs.\r\n" + 
@@ -1736,6 +1745,7 @@ public class GeneralModule {
 	}
 	
 	@Command(value="shard info", aliases={"shards", "shardinfo"}, description="Views Sx4s shards and some basic stats on them", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+	@Examples({"shard info"})
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void shardInfo(CommandEvent event) {
 		ShardInfo shardInfo = event.getJDA().getShardInfo();
@@ -1763,6 +1773,7 @@ public class GeneralModule {
 	}
 	
 	@Command(value="mutual servers", aliases={"mutual guilds", "shared servers", "shared guilds", "sharedguilds", "sharedservers", "mutualguilds", "mutualservers"}, description="View the mutual guilds you have with Sx4")
+	@Examples({"mutual servers", "mutual servers @Shea#6653", "mutual servers 402557516728369153", "mutual servers Shea"})
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void mutualGuilds(CommandEvent event, @Argument(value="user", endless=true, nullDefault=true) String argument) {
 		User user;
@@ -1790,6 +1801,7 @@ public class GeneralModule {
 	}
 	
 	@Command(value="servers", aliases={"guilds"}, description="View all the guilds Sx4 is in", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+	@Examples({"servers"})
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void guilds(CommandEvent event) {
 		List<Guild> guilds = new ArrayList<>(event.getShardManager().getGuilds());
@@ -1805,6 +1817,7 @@ public class GeneralModule {
 	}
 	
 	@Command(value="permissions", aliases={"perms"}, description="Gets the permissions of a role or user in the current server")
+	@Examples({"permissions @Members", "permissions @Shea#6653"})
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void permissions(CommandEvent event, @Argument(value="role | user", endless=true, nullDefault=true) String argument) {
 		Role role = null;
@@ -1841,6 +1854,7 @@ public class GeneralModule {
 	}
 	
 	@Command(value="in role", aliases={"inrole"}, description="Shows a list of members in a specified role")
+	@Examples({"in role Nitro Boosters", "in role @Nitro Boosters", "in role 611710855335247893"})
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void inRole(CommandEvent event, @Argument(value="role", endless=true) String argument) {
 		Role role = ArgumentUtils.getRole(event.getGuild(), argument);
@@ -1869,6 +1883,7 @@ public class GeneralModule {
 	}
 	
 	@Command(value="member count", aliases={"membercount", "members", "mc"}, description="View statistics of different member counts depending on members statuses or if they're a bot or not", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+	@Examples({"member count"})
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void memberCount(CommandEvent event) {
 		Collector<Member, ?, List<Member>> toList = Collectors.toList();
@@ -1899,6 +1914,7 @@ public class GeneralModule {
 	}
 	
 	@Command(value="role info", aliases={"roleinfo", "ri", "rinfo"}, description="Returns info on a specified role in the current server")
+	@Examples({"role info @Members", "role info Members", "role info 345718366373150720"})
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void roleInfo(CommandEvent event, @Argument(value="role", endless=true) String argument) {
 		Role role = ArgumentUtils.getRole(event.getGuild(), argument);
@@ -1920,12 +1936,13 @@ public class GeneralModule {
 				.addField("Hoisted Role", role.isHoisted() == true ? "Yes" : "No", true)
 				.addField("Mentionable Role", role.isMentionable() == true ? "Yes" : "No", true)
 				.addField("Managed Role", role.isManaged() == true ? "Yes" : "No", true)
-				.addField("Role Permissions", String.join("\n", role.getPermissions().stream().map(permission -> permission.getName()).collect(Collectors.toList())), true);
+				.addField("Role Permissions", role.getPermissions().isEmpty() ? "None" : String.join("\n", role.getPermissions().stream().map(Permission::getName).collect(Collectors.toList())), true);
 		
 		event.reply(embed.build()).queue();
 	}
 	
 	@Command(value="discriminator", aliases={"discrim"}, description="Search through all the users Sx4 can see by discriminator", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+	@Examples({"discriminator", "discriminator 6653", "discriminator 0001"})
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void discriminator(CommandEvent event, @Argument(value="discriminator", nullDefault=true) String discriminator) {
 		if (discriminator == null) {
@@ -1964,6 +1981,7 @@ public class GeneralModule {
 	}
 	
 	@Command(value="avatar", aliases={"av"}, description="Gives you a specified users avatar")
+	@Examples({"avatar", "avatar @Shea#6653", "avatar 402557516728369153", "avatar Shea"})
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void avatar(CommandEvent event, @Argument(value="user", endless=true, nullDefault=true) String argument) {
 		Member member;
@@ -1986,6 +2004,7 @@ public class GeneralModule {
 	}
 	
 	@Command(value="server avatar", aliases={"server av", "guild av", "guild avatar", "guildav", "serverav", "guildavatar", "guildicon", "guild icon", "servericon", "server icon", "sav", "gav"}, description="View the current servers icon", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+	@Examples({"server avatar"})
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void serverIcon(CommandEvent event) {
 		String url = event.getGuild().getIconUrl() == null ? null : event.getGuild().getIconUrl() + "?size=1024";
@@ -2004,6 +2023,7 @@ public class GeneralModule {
 			
 			super.setDescription("Triggers make it so you can say a certain word and/or phrase and the bot will repeat something back of your choice");
 			super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
+			super.setExamples("trigger toggle", "trigger case", "trigger stats");
 		}
 		
 		public void onCommand(CommandEvent event) {
@@ -2011,6 +2031,7 @@ public class GeneralModule {
 		}
 		
 		@Command(value="formatting", aliases={"format", "formats"}, description="View the formats you are able to use to customize your triggers", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"trigger formatting"})
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void formatting(CommandEvent event) {
 			String example = String.format("{user} - The users name + discriminator which executed the trigger (Shea#6653)\n"
@@ -2029,6 +2050,7 @@ public class GeneralModule {
 		}
 		
 		@Command(value="toggle", aliases={"enable", "disable"}, description="Toggle triggers on/off for the current server", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"trigger toggle"})
 		@AuthorPermissions({Permission.MESSAGE_MANAGE})
 		public void toggle(CommandEvent event, @Context Database database) {
 			boolean enabled = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("trigger.enabled")).getEmbedded(List.of("trigger", "enabled"), true);
@@ -2043,6 +2065,7 @@ public class GeneralModule {
 		}
 		
 		@Command(value="case", aliases={"case sensitive", "case toggle", "casesensitive", "casetoggle"}, description="Toggles whether you want your triggers in the server to be case sensitive or not", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"trigger case"})
 		@AuthorPermissions({Permission.MESSAGE_MANAGE})
 		public void caseSensitive(CommandEvent event, @Context Database database) {
 			boolean caseSensitive = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("trigger.case")).getEmbedded(List.of("trigger", "case"), true);
@@ -2057,6 +2080,7 @@ public class GeneralModule {
 		}
 		
 		@Command(value="list", description="Shows a list of all the triggers which are in the server", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"trigger list"})
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void list(CommandEvent event, @Context Database database) {
 			List<Document> triggers = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("trigger.triggers")).getEmbedded(List.of("trigger", "triggers"),  Collections.emptyList());
@@ -2085,6 +2109,7 @@ public class GeneralModule {
 		}
 		
 		@Command(value="add", description="Add a trigger to the server")
+		@Examples({"trigger add hi Hello there!", "trigger add bye Goodbye **{user.name}** :wave:"})
 		@AuthorPermissions({Permission.MESSAGE_MANAGE})
 		public void add(CommandEvent event, @Context Database database, @Argument(value="trigger") String triggerText, @Argument(value="response", endless=true) String responseText) {
 			if (triggerText.toLowerCase().equals(responseText.toLowerCase())) {
@@ -2113,7 +2138,8 @@ public class GeneralModule {
 			});
 		}
 		
-		@Command(value="edit", description="Edit a trigger on the server") 
+		@Command(value="edit", description="Edit a trigger on the server")
+		@Examples({"trigger edit hi Hello there {user.name}!", "trigger edit bye Goodbye **{user.name}** have a good day :wave:"})
 		@AuthorPermissions({Permission.MESSAGE_MANAGE})
 		public void edit(CommandEvent event, @Context Database database, @Argument(value="trigger") String trigger, @Argument(value="response", endless=true) String response) {
 			List<Document> triggers = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("trigger.triggers")).getEmbedded(List.of("trigger", "triggers"),  Collections.emptyList());
@@ -2137,7 +2163,8 @@ public class GeneralModule {
 			event.reply("I could not find that trigger :no_entry:").queue();
 		}
 		
-		@Command(value="remove", description="Remove a trigger from the server") 
+		@Command(value="remove", description="Remove a trigger from the server")
+		@Examples({"trigger remove hi", "trigger remove bye"})
 		@AuthorPermissions({Permission.MESSAGE_MANAGE})
 		public void remove(CommandEvent event, @Context Database database, @Argument(value="trigger", endless=true) String trigger) {
 			List<Document> triggers = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("trigger.triggers")).getEmbedded(List.of("trigger", "triggers"),  Collections.emptyList());
@@ -2162,7 +2189,8 @@ public class GeneralModule {
 		
 	}
 	
-	@Command(value="server roles", aliases={"serverroles", "guild roles", "guildroles"}, description="Shows a list of all of the current servers roles", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+	@Command(value="server roles", aliases={"serverroles", "guild roles", "guildroles", "roles"}, description="Shows a list of all of the current servers roles", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+	@Examples({"server roles"})
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void serverRoles(CommandEvent event) {
 		PagedResult<Role> paged = new PagedResult<>(event.getGuild().getRoles())
@@ -2175,7 +2203,7 @@ public class GeneralModule {
 		PagedUtils.getPagedResult(event, paged, 300, null);
 	}
 	
-	private Map<OnlineStatus, String> statuses = new HashMap<>();
+	private final Map<OnlineStatus, String> statuses = new HashMap<>();
 	{
 		statuses.put(OnlineStatus.ONLINE, "Online<:online:361440486998671381>");
 		statuses.put(OnlineStatus.IDLE, "Idle<:idle:361440487233814528>");
@@ -2183,7 +2211,8 @@ public class GeneralModule {
 		statuses.put(OnlineStatus.OFFLINE, "Offline<:offline:361445086275567626>");
 	}
 	
-	@Command(value="user info", aliases={"userinfo", "ui", "uinfo"}, description="Returns info about a specified user") 
+	@Command(value="user info", aliases={"userinfo", "ui", "uinfo"}, description="Returns info about a specified user")
+	@Examples({"user info", "user info @Shea#6653", "user info 402557516728369153", "user info Shea"})
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void userInfo(CommandEvent event, @Argument(value="user", endless=true, nullDefault=true) String argument) {
 		Member member = null;
@@ -2233,16 +2262,14 @@ public class GeneralModule {
 			}
 			
 			StringBuilder onlineOn = new StringBuilder();
-			if (!member.getOnlineStatus(ClientType.MOBILE).equals(OnlineStatus.OFFLINE)) {
-				onlineOn.append("📱");
-			} 
-			
-			if (!member.getOnlineStatus(ClientType.DESKTOP).equals(OnlineStatus.OFFLINE)) {
-				onlineOn.append("💻");
-			} 
-			
-			if (!member.getOnlineStatus(ClientType.WEB).equals(OnlineStatus.OFFLINE)) {
-				onlineOn.append("🌐");
+			for (ClientType client : member.getActiveClients()) {
+				if (client.equals(ClientType.MOBILE)) {
+					onlineOn.append("📱");
+				} else if (client.equals(ClientType.DESKTOP)) {
+					onlineOn.append("💻");
+				} else if (client.equals(ClientType.WEB)) {
+					onlineOn.append("🌐");
+				}
 			}
 			
 			embed.setAuthor(String.format("%s %s", member.getUser().getAsTag(), onlineOn.length() == 0 ? "" : onlineOn.toString()), null, member.getUser().getEffectiveAvatarUrl());
@@ -2294,6 +2321,7 @@ public class GeneralModule {
 	}
 	
 	@Command(value="server info", aliases={"serverinfo", "si", "sinfo"}, description="Returns info about the current server", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+	@Examples({"server info"})
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void serverInfo(CommandEvent event) {
 		Collector<Member, ?, List<Member>> toList = Collectors.toList();
@@ -2334,6 +2362,7 @@ public class GeneralModule {
 	}
 	
 	@Command(value="server stats", aliases={"serverstats", "guildstats", "guild stats"}, description="View the stats of the current server, includes member joined and messages sent in the past 24h", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+	@Examples({"server stats"})
 	public void serverStats(CommandEvent event, @Context Database database) {
 		Document data = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("stats")).get("stats", Database.EMPTY_DOCUMENT);
 		EmbedBuilder embed = new EmbedBuilder()
@@ -2347,23 +2376,23 @@ public class GeneralModule {
 	private final long  megabyte = 1024L * 1024L;
 	private final long gigabyte = this.megabyte * 1024L;
 	
-	@Command(value="stats", description="Views Sx4s current stats", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+	@Command(value="stats", description="Shows you Sx4s current stats", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+	@Examples({"stats"})
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	@Async
 	public void stats(CommandEvent event, @Context Database database) {
 		long timestampNow = Clock.systemUTC().instant().getEpochSecond();
 		Bson timeFilter = Filters.gte("timestamp", timestampNow - StatsEvents.DAY_IN_SECONDS);
-		//int messagesSent = database.getMessageCountFromUserId(LocalDate.now().atStartOfDay(ZoneId.of("UTC")).toEpochSecond(), event.getSelfUser().getIdLong());
 		long commandsUsed = database.getCommandLogs().countDocuments(timeFilter);
 		int guildsGained = database.getGuildsGained(timeFilter);
 		
-		List<Guild> guilds = event.getShardManager().getGuilds();
 		List<Member> members = ArgumentUtils.getAllUniqueMembers();
-		List<Member> onlineMembers = members.stream().filter(m -> !m.getOnlineStatus().equals(OnlineStatus.OFFLINE)).collect(Collectors.toList());
+		long onlineMembers = members.stream().filter(m -> !m.getOnlineStatus().equals(OnlineStatus.OFFLINE)).count();
 		
 		Runtime runtime = Runtime.getRuntime();
-		double cpuUsage = ManagementFactory.getOperatingSystemMXBean().getSystemLoadAverage();
-		long totalMemory = ((OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean()).getTotalPhysicalMemorySize();
+		OperatingSystemMXBean os = (OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean();
+		double cpuUsage = os.getProcessCpuLoad();
+		long totalMemory = os.getTotalPhysicalMemorySize();
 		long memoryUsed = runtime.totalMemory() - runtime.freeMemory();
 		StringBuilder memoryString = new StringBuilder();
 		if (memoryUsed >= this.gigabyte) {
@@ -2384,6 +2413,11 @@ public class GeneralModule {
 		
 		memoryString.append(String.format("(%.1f%%)", ((double) memoryUsed / totalMemory) * 100));
 		
+		Document mongoData = database.getDatabase().runCommand(new Document("serverStatus", 1));
+		double mongoUptime = mongoData.getDouble("uptime");
+		Document latencies = mongoData.get("opLatencies", Document.class);
+		Document reads = latencies.get("reads", Document.class), writes = latencies.get("writes", Document.class);
+		
 		EmbedBuilder embed = new EmbedBuilder();
 		embed.setDescription("Bot ID: " + event.getSelfUser().getId());
 		embed.setThumbnail(event.getSelfUser().getEffectiveAvatarUrl());
@@ -2393,14 +2427,14 @@ public class GeneralModule {
 		embed.addField("Memory Usage", memoryString.toString(), true);
 		embed.addField("CPU Usage", String.format("%.1f%%", cpuUsage), true);
 		embed.addField("Threads", String.valueOf(Thread.activeCount()), true);
-		embed.addField("Text Channels", String.valueOf(event.getShardManager().getTextChannels().size()), true);
-		embed.addField("Voice Channels", String.valueOf(event.getShardManager().getVoiceChannels().size()), true);
+		embed.addField("Text Channels", String.valueOf(event.getShardManager().getTextChannelCache().size()), true);
+		embed.addField("Voice Channels", String.valueOf(event.getShardManager().getVoiceChannelCache().size()), true);
 		embed.addField("Servers Joined (Last 24h)", String.valueOf(guildsGained), true);
 		embed.addField("Commands Used (Last 24h)", String.valueOf(commandsUsed), true);
-		//embed.addField("Messages Sent (Last 24h)", String.valueOf(messagesSent), true);
 		embed.addField("Average Execution Time", String.format("%.2fms", (double) Sx4CommandEventListener.getAverageExecutionTime() / 1000000), true);
-		embed.addField("Servers", String.format("%,d", guilds.size()), true);
-		embed.addField(String.format("Users (%,d total)", members.size()), String.format("%,d Online\n%,d Offline", onlineMembers.size(), members.size() - onlineMembers.size()), true);
+		embed.addField("Database Queries", String.format("Average Reads Per Second: %,.2f\nAverage Writes Per Second: %,.2f", reads.getLong("ops") / mongoUptime, writes.getLong("ops") / mongoUptime), true);
+		embed.addField("Servers", String.format("%,d", event.getShardManager().getGuildCache().size()), true);
+		embed.addField(String.format("Users (%,d total)", members.size()), String.format("%,d Online\n%,d Offline", onlineMembers, members.size() - onlineMembers), true);
 		
 		event.reply(embed.build()).queue();
 	}

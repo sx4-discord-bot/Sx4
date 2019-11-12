@@ -447,7 +447,7 @@ public class EconomyUtils {
 	public static Document getUserItemRaw(List<Document> items, Item item) {
 		for (Document itemData : items) {
 			if (itemData.getString("name").equals(item.getName())) {
-				return itemData;
+				return new Document(itemData);
 			}
 		}
 		

@@ -41,6 +41,7 @@ import com.sx4.bot.core.Sx4Bot;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEventListener;
 import com.sx4.bot.database.Database;
+import com.sx4.bot.interfaces.Examples;
 import com.sx4.bot.logger.Statistics;
 import com.sx4.bot.logger.handler.EventHandler;
 import com.sx4.bot.logger.util.Utils;
@@ -100,7 +101,7 @@ public class DeveloperModule {
 		ObjectWriter prettyWriter = new ObjectMapper().writerWithDefaultPrettyPrinter();
 		
 		String substringBound = "String.metaClass.substringBound = {int start, int end -> delegate.substring(start, Math.min(delegate.length(), end))}";
-		String toJson = "Object.metaClass.toJson = {-> '```json\\n' + prettyWriter.writeValueAsString(delegate).substringBound(0, 1985) + '```'}";
+		String toJson = "Object.metaClass.toJSON = {int page = 1 -> '```json\\n' + prettyWriter.writeValueAsString(delegate).substringBound(1985 * (page - 1), 1985 * page) + '```'}";
 		
 		GroovyShell initialize = new GroovyShell(configuration);
 		initialize.setProperty("prettyWriter", prettyWriter);
@@ -109,6 +110,7 @@ public class DeveloperModule {
 	}
 		
 	@Command(value="parse", allowedArgumentParsingTypes=ArgumentParsingType.POSITIONAL, description="Execute some code, nothing will be sent unless said to")
+	@Examples({"parse event.getTextChannel().sendMessage(\"hi\").queue();", "parse database.updateUserById(402557516728369153, Updates.set(\"economy.balance\", 0L));"})
 	@Developer
 	public void parse(CommandEvent event, @Context Database database, @Argument(value="code", endless=true, nullDefault=true) String parsableString) throws InterruptedException, ExecutionException {
 		if (parsableString == null) {
@@ -141,6 +143,7 @@ public class DeveloperModule {
 	}
 	
 	@Command(value="eval", allowedArgumentParsingTypes=ArgumentParsingType.POSITIONAL, description="Execute some code, last line will be sent")
+	@Examples({"eval \"hi\"", "eval new EmbedBuilder().setDescription(\"hi\").build();"})
 	@Developer
 	public void eval(CommandEvent event, @Context Database database, @Argument(value="code", endless=true) String evaluableString) {
 		try {
@@ -173,6 +176,7 @@ public class DeveloperModule {
 	}
 	
 	@Command(value="blacklist user", description="Blacklist a user from the bot")
+	@Examples({"blacklist user @Shea#6653", "blacklist user 402557516728369153", "blacklist user Shea"})
 	@Developer 
 	public void blacklistUser(CommandEvent event, @Context Database database, @Argument(value="user", endless=true) String userArgument) {
 		User user = ArgumentUtils.getUser(userArgument);
@@ -193,6 +197,7 @@ public class DeveloperModule {
 	}
 	
 	@Command(value="as", description="Execute a command as someone else")
+	@Examples({"as Joakim fish", "as Joakim#9814 reminder add something in 10 minutes"})
 	@Developer
 	public void as(CommandEvent event, @Argument(value="user") String userArgument, @Argument(value="command and arguments", endless=true) String commandAndArguments) {
 		Member member = ArgumentUtils.getMember(event.getGuild(), userArgument);
@@ -239,6 +244,7 @@ public class DeveloperModule {
 	}
 	
 	@Command(value="transfer tax", description="Transfer the tax money to a user")
+	@Examples({"transfer tax"})
 	@Developer
 	public void transferTax(CommandEvent event, @Context Database database, @Argument(value="user", endless=true) String userArgument) {
 		Member member = ArgumentUtils.getMember(event.getGuild(), userArgument);
@@ -266,12 +272,14 @@ public class DeveloperModule {
 	}
 	
 	@Command(value="logging stats", description="Sends logger stats", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+	@Examples({"logging stats"})
 	@Developer
 	public void loggerStats(CommandEvent event) {
 		event.reply(Statistics.getStatistics()).queue();
 	}
 	
 	@Command(value="logging queue", description="Send the logger queue", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+	@Examples({"logging queue"})
 	@Developer
 	public void loggerQueue(CommandEvent event) {
 		StringBuilder message = new StringBuilder();
@@ -301,6 +309,7 @@ public class DeveloperModule {
 	}
 	
 	@Command(value="advertisement description", aliases={"ad description"}, description="Updates the description for the sponsor on the help menu")
+	@Examples({"advertisement description Check out said sponsor here"})
 	@Developer
 	public void advertisementDescription(CommandEvent event, @Argument(value="description", endless=true) String description) {
 		JSONObject updatedData;
@@ -320,6 +329,7 @@ public class DeveloperModule {
 	}
 	
 	@Command(value="advertisement banner", aliases={"ad banner"}, description="Updates the banner for the sponsor on the help menu")
+	@Examples({"advertisement banner https://cdn.discordapp.com/attachments/344091594972069888/634867715860987914/Sponsor.png"})
 	@Developer
 	public void advertisementBanner(CommandEvent event, @Argument(value="banner", endless=true) String banner) {
 		JSONObject updatedData;
@@ -339,6 +349,7 @@ public class DeveloperModule {
 	}
 	
 	@Command(value="disable command", aliases={"disable"}, description="Disables a command from being used")
+	@Examples({"disable command fish", "disable command fish Fish has temporarily been disabled due to an exploitable bug :no_entry:"})
 	@Developer
 	public void disableCommand(CommandEvent event, @Argument(value="command") String commandName, @Argument(value="message", endless=true, nullDefault=true) String message) {
 		Sx4Command command = ArgumentUtils.getCommand(commandName);

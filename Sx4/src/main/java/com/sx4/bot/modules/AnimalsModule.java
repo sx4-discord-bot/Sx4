@@ -11,6 +11,7 @@ import com.jockie.bot.core.command.impl.CommandImpl;
 import com.jockie.bot.core.module.Module;
 import com.sx4.bot.categories.Categories;
 import com.sx4.bot.core.Sx4Bot;
+import com.sx4.bot.interfaces.Examples;
 import com.sx4.bot.interfaces.Sx4Callback;
 
 import net.dv8tion.jda.api.EmbedBuilder;
@@ -21,6 +22,7 @@ import okhttp3.Request;
 public class AnimalsModule {
 	
 	@Command(value="cat fact", aliases={"catfact"}, description="Gives you a random cat fact", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+	@Examples({"cat fact"})
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void catFact(CommandEvent event) {
 		Request request = new Request.Builder().url("https://catfact.ninja/fact").build();
@@ -39,6 +41,7 @@ public class AnimalsModule {
 	}
 	
 	@Command(value="dog", description="Gives you a random picture of a dog", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+	@Examples({"dog"})
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void dog(CommandEvent event) {
 		Request request = new Request.Builder().url("https://dog.ceo/api/breeds/image/random").addHeader("User-Agent", "Mozilla/5.0").build();
@@ -56,6 +59,7 @@ public class AnimalsModule {
 	}
 	
 	@Command(value="birb", aliases={"bird"}, description="Gives you a random picture of a bird", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+	@Examples({"birb"})
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void birb(CommandEvent event) {
 		Request request = new Request.Builder().url("https://api.alexflipnote.xyz/birb").addHeader("User-Agent", "Mozilla/5.0").build();
@@ -73,6 +77,7 @@ public class AnimalsModule {
 	}
 	
 	@Command(value="duck", description="Gives you a random picture of a duck", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+	@Examples({"duck"})
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void duck(CommandEvent event) {
 		Request request = new Request.Builder().url("https://random-d.uk/api/v1/random").addHeader("User-Agent", "Mozilla/5.0").build();
@@ -91,6 +96,7 @@ public class AnimalsModule {
 	}
 	
 	@Command(value="cat", description="Gives you a random picture of a cat", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+	@Examples({"cat"})
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void cat(CommandEvent event) {
 		Request request = new Request.Builder().url("http://aws.random.cat/meow").addHeader("User-Agent", "Mozilla/5.0").build();
@@ -108,6 +114,7 @@ public class AnimalsModule {
 	}
 	
 	@Command(value="fox", description="Gives you a random picture of a fox", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+	@Examples({"fox"})
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void fox(CommandEvent event) {
 		Request request = new Request.Builder().url("https://randomfox.ca/floof/").addHeader("User-Agent", "Mozilla/5.0").build();

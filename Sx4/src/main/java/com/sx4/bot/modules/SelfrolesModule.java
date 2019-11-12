@@ -12,7 +12,6 @@ import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
 import com.jockie.bot.core.command.Command.AuthorPermissions;
 import com.jockie.bot.core.command.Command.BotPermissions;
-import com.jockie.bot.core.command.ICommand.ContentOverflowPolicy;
 import com.jockie.bot.core.command.Context;
 import com.jockie.bot.core.command.Initialize;
 import com.jockie.bot.core.command.impl.CommandEvent;
@@ -26,6 +25,7 @@ import com.sx4.bot.categories.Categories;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEventListener;
 import com.sx4.bot.database.Database;
+import com.sx4.bot.interfaces.Examples;
 import com.sx4.bot.utils.ArgumentUtils;
 import com.sx4.bot.utils.HelpUtils;
 import com.sx4.bot.utils.PagedUtils;
@@ -39,6 +39,7 @@ import net.dv8tion.jda.api.entities.MessageReaction;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
+import net.dv8tion.jda.api.requests.ErrorResponse;
 
 @Module
 public class SelfrolesModule {
@@ -49,15 +50,14 @@ public class SelfrolesModule {
 		
 		private MessageEmbed getUpdatedEmbed(MessageEmbed oldEmbed, List<Document> roles, String emoteDisplay, Role role) {
 			EmbedBuilder embed = new EmbedBuilder();
-			MessageEmbed reactionRoleEmbed = oldEmbed;
 			if (roles.isEmpty()) {
 				embed.setDescription(emoteDisplay + ": " + role.getAsMention());
 			} else {
-				embed.setDescription(reactionRoleEmbed.getDescription() + "\n\n" + emoteDisplay + ": " + role.getAsMention());
+				embed.setDescription(oldEmbed.getDescription() + "\n\n" + emoteDisplay + ": " + role.getAsMention());
 			}
 				
-			embed.setTitle(reactionRoleEmbed.getTitle());
-			embed.setFooter(reactionRoleEmbed.getFooter().getText(), null);
+			embed.setTitle(oldEmbed.getTitle());
+			embed.setFooter(oldEmbed.getFooter().getText(), null);
 			
 			return embed.build();
 		}
@@ -68,6 +68,7 @@ public class SelfrolesModule {
 			super.setDescription("Set up a reaction role so users can simply react to an emote and get a specified role");
 			super.setAliases("reactionrole");
 			super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
+			super.setExamples("reaction role create", "reaction role add", "reaction role remove");
 		}
 		
 		public void onCommand(CommandEvent event) {
@@ -75,6 +76,7 @@ public class SelfrolesModule {
 		}
 		
 		@Command(value="create", description="Create a base menu for the reaction role, this is used if you don't have a custom message to use")
+		@Examples({"reaction role create #reaction-roles", "reactions role create reaction-roles Colour roles"})
 		@AuthorPermissions({Permission.MANAGE_ROLES})
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void create(CommandEvent event, @Context Database database, @Argument(value="channel") String channelArgument, @Argument(value="title", endless=true, nullDefault=true) String title) {
@@ -110,6 +112,7 @@ public class SelfrolesModule {
 		}
 		
 		@Command(value="add", description="Add a reaction to give a role to a user when reacted on")
+		@Examples({"reaction role add 643945552865919002 🐝 @Yellow", "reaction role add 643945552865919002 :doggo: Dog person"})
 		@AuthorPermissions({Permission.MANAGE_ROLES})
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS, Permission.MESSAGE_ADD_REACTION, Permission.MESSAGE_HISTORY})
 		public void add(CommandEvent event, @Context Database database, @Argument(value="message id") long messageId, @Argument(value="emote") String emoteArgument, @Argument(value="role", endless=true) String roleArgument) throws UnsupportedEncodingException {
@@ -209,7 +212,7 @@ public class SelfrolesModule {
 							}, e -> {
 								if (e instanceof ErrorResponseException) {
 									ErrorResponseException exception = (ErrorResponseException) e;
-									if (exception.getErrorCode() == 10014) {
+									if (exception.getErrorResponse().equals(ErrorResponse.UNKNOWN_EMOJI)) {
 										event.reply("I could not find that emote :no_entry:").queue();
 									}
 								}
@@ -279,7 +282,7 @@ public class SelfrolesModule {
 					}, e -> {
 						if (e instanceof ErrorResponseException) {
 							ErrorResponseException exception = (ErrorResponseException) e;
-							if (exception.getErrorCode() == 10014) {
+							if (exception.getErrorResponse().equals(ErrorResponse.UNKNOWN_EMOJI)) {
 								event.reply("I could not find that emote :no_entry:").queue();
 							}
 						}
@@ -313,6 +316,7 @@ public class SelfrolesModule {
 		}
 		
 		@Command(value="remove", description="Remove a reaction from the reaction role so it can no longer be used")
+		@Examples({"reaction role remove 643945552865919002 @Yellow", "reaction role remove 643945552865919002 Dog person"})
 		@AuthorPermissions({Permission.MANAGE_ROLES})
 		@BotPermissions({Permission.MESSAGE_MANAGE})
 		public void remove(CommandEvent event, @Context Database database, @Argument(value="message id") long messageId, @Argument(value="role", endless=true) String roleArgument) {			
@@ -448,6 +452,7 @@ public class SelfrolesModule {
 		}
 		
 		@Command(value="force remove", aliases={"forceremove"}, description="Removes all reactions which link to a deleted role", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"reaction role force remove 643945552865919002"})
 		@AuthorPermissions({Permission.MANAGE_ROLES})
 		@BotPermissions({Permission.MESSAGE_MANAGE})
 		public void forceRemove(CommandEvent event, @Context Database database, @Argument(value="message id") long messageId) {
@@ -586,6 +591,7 @@ public class SelfrolesModule {
 		}
 		
 		@Command(value="refresh", description="Edits the reaction role message so the role mentions displayed change to their according colour/name", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"reaction role refresh 643945552865919002"})
 		@AuthorPermissions({Permission.MANAGE_ROLES})
 		public void refresh(CommandEvent event, @Context Database database, @Argument(value="message id") long messageId) {			
 			List<Document> reactionRoles = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("reactionRole.reactionRoles")).getEmbedded(List.of("reactionRole", "reactionRoles"), Collections.emptyList());
@@ -638,6 +644,7 @@ public class SelfrolesModule {
 		}
 		
 		@Command(value="delete", description="Deletes a reaction roles data and message if it's a menu made by the bot", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"reaction role delete 643945552865919002"})
 		@AuthorPermissions({Permission.MANAGE_ROLES})
 		public void delete(CommandEvent event, @Context Database database, @Argument(value="message id") long messageId) {
 			List<Document> reactionRoles = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("reactionRole.reactionRoles")).getEmbedded(List.of("reactionRole", "reactionRoles"), Collections.emptyList());
@@ -697,6 +704,7 @@ public class SelfrolesModule {
 		}
 		
 		@Command(value="dm toggle", aliases={"dmtoggle", "toggledm", "toggle dm", "dm"}, description="Enables/disables whether the bot should send a dm to the user when they react to a reaction role", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"reaction role dm toggle"})
 		@AuthorPermissions({Permission.MANAGE_ROLES})
 		public void dmToggle(CommandEvent event, @Context Database database) {
 			boolean dm = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("reactionRole.dm")).getEmbedded(List.of("reactionRole", "dm"), true);
@@ -711,6 +719,7 @@ public class SelfrolesModule {
 		}
 		
 		@Command(value="max roles", aliases={"maxroles"}, description="Set the maximum amount of roles a user can have from a reaction role (0 turns it off)", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"reaction role max roles 643945552865919002 2", "reaction role max roles 643945552865919002 off"})
 		@AuthorPermissions({Permission.MANAGE_ROLES})
 		public void maxRoles(CommandEvent event, @Context Database database, @Argument(value="message id") long messageId, @Argument(value="max roles") String maxRolesArgument) {
 			int maxRoles;
@@ -763,6 +772,7 @@ public class SelfrolesModule {
 	}
 	
 	@Command(value="role", description="Assign a self role to yourself, view all self roles in `self roles list`")
+	@Examples({"role @Yellow", "role Dog person", "role 345718366373150720"})
 	@BotPermissions({Permission.MANAGE_ROLES})
 	public void role(CommandEvent event, @Context Database database, @Argument(value="role", endless=true) String roleArgument) {
 		Role role = ArgumentUtils.getRole(event.getGuild(), roleArgument);
@@ -797,6 +807,7 @@ public class SelfrolesModule {
 			super.setDescription("Set up selfroles so users can simply use a command to be given a role");
 			super.setAliases("selfrole", "selfroles", "self role");
 			super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
+			super.setExamples("self roles add", "self roles remove", "self roles list");
 		}
 		
 		public void onCommand(CommandEvent event) {
@@ -804,6 +815,7 @@ public class SelfrolesModule {
 		}
 		
 		@Command(value="add", description="Add a role which can be gained by any user by simply using the `role` command")
+		@Examples({"self roles add @Yellow", "self roles add Dog person", "self roles add 345718366373150720"})
 		@AuthorPermissions({Permission.MANAGE_ROLES})
 		public void add(CommandEvent event, @Context Database database, @Argument(value="role", endless=true) String roleArgument) {
 			Role role = ArgumentUtils.getRole(event.getGuild(), roleArgument);
@@ -851,8 +863,9 @@ public class SelfrolesModule {
 		}
 		
 		@Command(value="remove", description="Remove a role from the self roles in the current server")
+		@Examples({"self roles remove @Yellow", "self roles remove Dog person", "self roles remove 345718366373150720"})
 		@AuthorPermissions({Permission.MANAGE_ROLES})
-		public void remove(CommandEvent event, @Context Database database, @Argument(value="roles", endless=true) String roleArgument) {
+		public void remove(CommandEvent event, @Context Database database, @Argument(value="role", endless=true) String roleArgument) {
 			Role role = ArgumentUtils.getRole(event.getGuild(), roleArgument);
 			if (role == null) {
 				event.reply("I could not find that role :no_entry:").queue();
@@ -879,6 +892,7 @@ public class SelfrolesModule {
 		}
 		
 		@Command(value="reset", aliases={"delete", "wipe"}, description="Deletes all self roles which are currently set", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"self roles reset"})
 		@AuthorPermissions({Permission.MANAGE_ROLES})
 		public void reset(CommandEvent event, @Context Database database) {
 			event.reply(event.getAuthor().getName() + ", are you sure you want to reset all data for self roles? (Yes or No)").queue(message -> {
@@ -906,6 +920,7 @@ public class SelfrolesModule {
 		}
 		
 		@Command(value="list", description="Lists all the self roles in the current server")
+		@Examples({"self roles list"})
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void list(CommandEvent event, @Context Database database) {
 			List<Long> roles = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("selfRoles")).getList("selfRoles", Long.class, Collections.emptyList());

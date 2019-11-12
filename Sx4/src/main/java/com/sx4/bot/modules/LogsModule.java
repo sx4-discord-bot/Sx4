@@ -25,6 +25,7 @@ import com.sx4.bot.categories.Categories;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEventListener;
 import com.sx4.bot.database.Database;
+import com.sx4.bot.interfaces.Examples;
 import com.sx4.bot.logger.Category;
 import com.sx4.bot.logger.Event;
 import com.sx4.bot.logger.util.Utils;
@@ -53,6 +54,7 @@ public class LogsModule {
 			super.setAliases("log", "logger");
 			super.setDescription("Set up logs in your server to log a variety of actions which happen within the server");
 			super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
+			super.setExamples("logs toggle", "logs events", "logs stats");
 		}
 		
 		public void onCommand(CommandEvent event) {
@@ -60,6 +62,7 @@ public class LogsModule {
 		}
 		
 		@Command(value="toggle", aliases={"enable", "disable"}, description="Enable/disable the logs in the current server", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"logs toggle"})
 		@AuthorPermissions({Permission.MANAGE_SERVER})
 		public void toggle(CommandEvent event, @Context Database database) {
 			boolean enabled = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("logger.enabled")).getEmbedded(List.of("logger", "enabled"), false);
@@ -74,6 +77,7 @@ public class LogsModule {
 		}
 		
 		@Command(value="channel", description="Set the channel for all the logs to be sent to")
+		@Examples({"logs channel", "logs channel #general", "logs channel reset"})
 		@AuthorPermissions({Permission.MANAGE_SERVER})
 		public void channel(CommandEvent event, @Context Database database, @Argument(value="channel", endless=true, nullDefault=true) String channelArgument) {
 			Document data = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("logger.webhookId", "logger.webhookToken", "logger.channelId")).get("logger", Database.EMPTY_DOCUMENT);
@@ -151,6 +155,7 @@ public class LogsModule {
 		}
 		
 		@Command(value="stats", aliases={"settings", "setting"}, description="View the current setup of logs in this server", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"logs stats"})
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void stats(CommandEvent event, @Context Database database) {
 			Document data = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("logger.enabled", "logger.channelId", "logger.events")).get("logger", Database.EMPTY_DOCUMENT);
@@ -180,6 +185,7 @@ public class LogsModule {
 				
 				super.setDescription("Blacklists a user, channel or role from being logged in the logger");
 				super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
+				super.setExamples("logs blacklist set", "logs blacklist remove", "logs blacklist list");
 			}
 			
 			public void onCommand(CommandEvent event) {
@@ -187,6 +193,7 @@ public class LogsModule {
 			}
 			
 			@Command(value="set", description="Sets the blacklist for a specific user, channel or role on events")
+			@Examples({"logs blacklist set #general MESSAGE_UPDATE", "logs blacklist set @Shea#6653 MESSAGE_UPDATE MESSAGE_DELETE", "logs blacklist set @Owners MEMBER_ROLE_ADD"})
 			@AuthorPermissions({Permission.MANAGE_SERVER})
 			public void set(CommandEvent event, @Context Database database, @Argument(value="user | channel | role") String argument, @Argument(value="events", nullDefault=true) String[] eventsArgument) {
 				Member member = ArgumentUtils.getMember(event.getGuild(), argument);
@@ -254,6 +261,7 @@ public class LogsModule {
 			}
 			
 			@Command(value="add", description="Adds a blacklist for a specific user, channel or role on events")
+			@Examples({"logs blacklist add #general MESSAGE_UPDATE", "logs blacklist add @Shea#6653 MESSAGE_UPDATE MESSAGE_DELETE", "logs blacklist add @Owners MEMBER_ROLE_ADD"})
 			@AuthorPermissions({Permission.MANAGE_SERVER})
 			public void add(CommandEvent event, @Context Database database, @Argument(value="user | channel | role") String argument, @Argument(value="events", nullDefault=true) String[] eventsArgument) {
 				Member member = ArgumentUtils.getMember(event.getGuild(), argument);
@@ -322,6 +330,7 @@ public class LogsModule {
 			}
 			
 			@Command(value="remove", description="Removes a blacklist for a specific user, channel or role on events")
+			@Examples({"logs blacklist remove #general MESSAGE_UPDATE", "logs blacklist remove @Shea#6653 MESSAGE_UPDATE MESSAGE_DELETE", "logs blacklist remove @Owners MEMBER_ROLE_ADD"})
 			@AuthorPermissions({Permission.MANAGE_SERVER})
 			public void remove(CommandEvent event, @Context Database database, @Argument(value="user | channel | role") String argument, @Argument(value="events", nullDefault=true) String[] eventsArgument) {
 				Member member = ArgumentUtils.getMember(event.getGuild(), argument);
@@ -383,6 +392,7 @@ public class LogsModule {
 			}
 			
 			@Command(value="list", description="Lists what users, channels and roles which are blacklisted from a specific event")
+			@Examples({"logs blacklist list"})
 			@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 			public void list(CommandEvent event, @Context Database database, @Argument(value="event") String eventArgument) {
 				Event loggerEvent;
@@ -444,6 +454,7 @@ public class LogsModule {
 				super.setAliases("event");
 				super.setDescription("Enable/disable specific events in the logger");
 				super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
+				super.setExamples("logs events set", "logs events remove", "logs events list");
 			}
 			
 			public void onCommand(CommandEvent event) {
@@ -451,6 +462,7 @@ public class LogsModule {
 			}
 			
 			@Command(value="set", description="Set what events you want the logger to use, events are listed in `logs events list`")
+			@Examples({"logs events set MESSAGE_UPDATE", "logs events set MEMBER_ROLE_ADD MEMBER_ROLE_REMOVE"})
 			@AuthorPermissions({Permission.MANAGE_SERVER})
 			public void set(CommandEvent event, @Context Database database, @Argument(value="events") String[] eventsArgument) {
 				long currentEventsRaw = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("logger.events")).getEmbedded(List.of("logger", "events"), Event.ALL_EVENTS);
@@ -502,6 +514,7 @@ public class LogsModule {
 			}
 			
 			@Command(value="add", description="Add events to the current events set for the logger to use, events are listed in `logs events list`")
+			@Examples({"logs events add MESSAGE_UPDATE", "logs events add MEMBER_ROLE_ADD MEMBER_ROLE_REMOVE"})
 			@AuthorPermissions({Permission.MANAGE_SERVER})
 			public void add(CommandEvent event, @Context Database database, @Argument(value="events") String[] eventsArgument) {
 				long currentEventsRaw = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("logger.events")).getEmbedded(List.of("logger", "events"), Event.ALL_EVENTS);
@@ -533,6 +546,7 @@ public class LogsModule {
 			}
 			
 			@Command(value="remove", description="Remove events to the current events set for the logger to use, events are listed in `logs events list`")
+			@Examples({"logs events remove MESSAGE_UPDATE", "logs events remove MEMBER_ROLE_ADD MEMBER_ROLE_REMOVE"})
 			@AuthorPermissions({Permission.MANAGE_SERVER})
 			public void remove(CommandEvent event, @Context Database database, @Argument(value="events") String[] eventsArgument) {
 				long eventsRaw = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("logger.events")).getEmbedded(List.of("logger", "events"), Event.ALL_EVENTS);
@@ -563,6 +577,7 @@ public class LogsModule {
 			}
 			
 			@Command(value="list", description="Lists all the events the logger has")
+			@Examples({"logs events list"})
 			@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 			public void list(CommandEvent event) {
 				StringBuilder eventList = new StringBuilder();

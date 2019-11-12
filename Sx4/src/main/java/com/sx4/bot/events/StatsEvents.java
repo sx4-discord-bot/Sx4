@@ -167,7 +167,7 @@ public class StatsEvents extends ListenerAdapter {
 	
 	public void onGuildLeave(GuildLeaveEvent event) {
 		Document guildLog = new Document("guildId", event.getGuild().getIdLong())
-				.append("joined", true)
+				.append("joined", false)
 				.append("guildName", event.getGuild().getName())
 				.append("memberCount", event.getGuild().getMembers().size())
 				.append("timestamp", Clock.systemUTC().instant().getEpochSecond());

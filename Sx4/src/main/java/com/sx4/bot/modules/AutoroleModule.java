@@ -13,7 +13,6 @@ import com.jockie.bot.core.command.Context;
 import com.jockie.bot.core.command.Initialize;
 import com.jockie.bot.core.command.impl.CommandEvent;
 import com.jockie.bot.core.command.impl.CommandImpl;
-import com.jockie.bot.core.command.ICommand.ContentOverflowPolicy;
 import com.jockie.bot.core.module.Module;
 import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.Updates;
@@ -21,6 +20,7 @@ import com.sx4.bot.categories.Categories;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEventListener;
 import com.sx4.bot.database.Database;
+import com.sx4.bot.interfaces.Examples;
 import com.sx4.bot.utils.ArgumentUtils;
 import com.sx4.bot.utils.HelpUtils;
 
@@ -40,6 +40,7 @@ public class AutoroleModule {
 			super.setDescription("Set an auto role to be given to every new member that joins the server, you can also set a bot role to seperate bots and users in different roles");
 			super.setAliases("autorole");
 			super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
+			super.setExamples("autorole toggle", "autorole role", "autorole stats");
 		}
 		
 		public void onCommand(CommandEvent event) {
@@ -47,6 +48,7 @@ public class AutoroleModule {
 		}
 		
 		@Command(value="toggle", description="Enabled/disable autorole in the current server", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"autorole toggle"})
 		@AuthorPermissions({Permission.MANAGE_ROLES})
 		public void toggle(CommandEvent event, @Context Database database) {
 			boolean enabled = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("autorole.enabled")).getEmbedded(List.of("autorole", "enabled"), false);
@@ -61,6 +63,7 @@ public class AutoroleModule {
 		}
 		
 		@Command(value="role", aliases={"user role", "userrole"}, description="Set the auto role, this role will be given to every user which joins the server if a bot role is not set otherwise it'll give it to ever non bot user who joins")
+		@Examples({"autorole role @Guests", "autorole role 34571836637315072", "autorole role Guests"})
 		@AuthorPermissions({Permission.MANAGE_ROLES})
 		public void role(CommandEvent event, @Context Database database, @Argument(value="role", endless=true) String roleArgument) {
 			Role role = null;
@@ -125,6 +128,7 @@ public class AutoroleModule {
 		}
 		
 		@Command(value="bot role", aliases={"botrole"}, description="Set the bot role, this role will be given to every bot which joins the server")
+		@Examples({"autorole bot role @Bots", "autorole bot role 4564201841782947", "autorole bot role Bots"})
 		@AuthorPermissions({Permission.MANAGE_ROLES})
 		public void botRole(CommandEvent event, @Context Database database, @Argument(value="role", endless=true) String roleArgument) {
 			Role role = null;
@@ -189,6 +193,7 @@ public class AutoroleModule {
 		}
 		
 		@Command(value="stats", aliases={"settings", "setting"}, description="View the current settings of auto role in this server", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"autorole stats"})
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void stats(CommandEvent event, @Context Database database) {
 			Document data = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("autorole.enabled", "autorole.roleId", "autorole.botRoleId", "autorole.autoUpdate")).get("autorole", Database.EMPTY_DOCUMENT);
@@ -208,6 +213,7 @@ public class AutoroleModule {
 		}
 		
 		@Command(value="auto update", aliases={"toggle auto update", "autoupdate", "toggle autoupdate"}, description="Enables/disables whether the bot should give members the autorole when it comes online in case it missed anyone while it was offline", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"autorole auto update"})
 		@AuthorPermissions({Permission.MANAGE_ROLES})
 		public void autoUpdate(CommandEvent event, @Context Database database) {
 			boolean enabled = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("autorole.autoUpdate")).getEmbedded(List.of("autorole", "autoUpdate"), false);
@@ -222,6 +228,7 @@ public class AutoroleModule {
 		}
 		
 		@Command(value="fix", description="Allows you to give all the current members in your server the auto role", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"autorole fix"})
 		@AuthorPermissions({Permission.MANAGE_ROLES})
 		@BotPermissions({Permission.MANAGE_ROLES})
 		public void fix(CommandEvent event, @Context Database database) {

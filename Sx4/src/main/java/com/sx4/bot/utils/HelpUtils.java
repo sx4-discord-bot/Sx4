@@ -5,12 +5,13 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.json.JSONObject;
 
 import com.jockie.bot.core.category.impl.CategoryImpl;
 import com.jockie.bot.core.command.ICommand;
-import com.sx4.bot.core.Sx4Bot;
+import com.jockie.bot.core.option.IOption;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.settings.Settings;
 import com.sx4.bot.utils.PagedUtils.PagedResult;
@@ -51,45 +52,39 @@ public class HelpUtils {
 	public static MessageEmbed getHelpMessage(ICommand initialCommand) {
 		Sx4Command command = (Sx4Command) initialCommand;
 		String usage = command.getSubCommands().isEmpty() ? command.getUsage() : command.getUsage().trim().equals(command.getCommandTrigger()) ? command.getUsage() + " <sub command>" : command.getUsage() + " | <sub command>";
+		
 		EmbedBuilder embed = new EmbedBuilder();
-		embed.appendDescription("Usage: " + usage + "\n");
-		if (command.getAliases().size() != 0) {
-			embed.appendDescription("Command aliases: " + String.join(", ", command.getAliases()) + "\n");
+		embed.setTitle(command.getCommandTrigger());
+		embed.addField("Description", command.getDescription(), false);
+		embed.addField("Usage", usage, false);
+		
+		StringBuilder options = new StringBuilder();
+		for (IOption<?> option : command.getOptions()) {
+			options.append("`" + option.getName() + (option.getType().equals(String.class) ? "=<value>" : "") + "` - " + option.getDescription() + "\n");
 		}
 		
-		if (command.getOptions().size() != 0) {
-			String[] optionNames = new String[command.getOptions().size()];
-			for (int i = 0; i < command.getOptions().size(); i++) {
-				optionNames[i] = command.getOptions().get(i).getName();
-			}
-			embed.appendDescription("Command options: " + String.join(", ", optionNames) + "\n");
+		if (!command.getOptions().isEmpty()) {
+			embed.addField("Options", options.toString(), false);
 		}
 		
-		if (!command.isDeveloperCommand()) {
-			if (command.getAuthorDiscordPermissions().size() != 0) {
-				List<String> permissionNames = new ArrayList<>();
-				for (Permission permission : command.getAuthorDiscordPermissions()) {
-					permissionNames.add(permission.getName());
-				}
-				
-				embed.appendDescription("Required permissions: " + GeneralUtils.joinGrammatical(permissionNames) + "\n");
-			}
-		} else {
-			embed.appendDescription("Required permissions: Developer\n");
+		if (command.getExamples().length != 0) {
+			embed.addField("Examples", "`" + String.join("`\n`", command.getExamples()) + "`", false);
 		}
 		
-		embed.appendDescription("Command description: " + (command.getDescription() == null || command.getDescription().equals("")  ? "None" : command.getDescription()) + "\n" + (command.getExample() == null || command.getExample().equals("") ? "" : command.getExample()));
-		String[] subCommandNames = null;
+		if (command.isDeveloperCommand()) {
+			embed.addField("Required Permissions", "Developer", false);
+		} else if (!command.getAuthorDiscordPermissions().isEmpty()) {
+			embed.addField("Required Permissions", GeneralUtils.joinGrammatical(command.getAuthorDiscordPermissions().stream().map(Permission::getName).collect(Collectors.toList())), false);
+		}
+		
+		if (!command.getAliases().isEmpty()) {
+			embed.addField("Aliases", String.join(", ", command.getAliases()), false);
+		}
+		
 		if (!command.getSubCommands().isEmpty()) {
-			subCommandNames = new String[command.getSubCommands().size()];
-			for (int i = 0; i < command.getSubCommands().size(); i++) {
-				subCommandNames[i] = command.getSubCommands().get(i).getCommand();
-			}
+			embed.addField("Sub Commands", String.join(", ", command.getSubCommands().stream().map(ICommand::getCommand).collect(Collectors.toList())), false);
 		}
-		
-		embed.appendDescription("\nSub commands: " + (subCommandNames != null ? String.join(", ", subCommandNames) : "None"));
-		embed.setAuthor(command.getCommandTrigger(), null, Sx4Bot.getShardManager().getShards().get(0).getSelfUser().getEffectiveAvatarUrl());
-		
+
 		return embed.build();
 	}
 	

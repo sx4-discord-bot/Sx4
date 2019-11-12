@@ -8,7 +8,7 @@ import java.util.Map;
 import com.jockie.bot.core.command.impl.CommandImpl;
 import com.sx4.bot.interfaces.Canary;
 import com.sx4.bot.interfaces.Donator;
-import com.sx4.bot.interfaces.Example;
+import com.sx4.bot.interfaces.Examples;
 import com.sx4.bot.translations.CommandTranslation;
 import com.sx4.bot.translations.TranslationType;
 
@@ -16,7 +16,7 @@ public class Sx4Command extends CommandImpl {
 	
 	protected boolean donator = false;
 	
-	protected String example = null;
+	protected String[] examples = {};
 	
 	protected List<CommandTranslation> commandTranslations;
 	
@@ -165,12 +165,12 @@ public class Sx4Command extends CommandImpl {
 		return this.disabledMessage;
 	}
 	
-	public String getExample() {
-		return this.example;
+	public String[] getExamples() {
+		return this.examples;
 	}
 	
-	public Sx4Command setExample(String example) {
-		this.example = example;
+	public Sx4Command setExamples(String... examples) {
+		this.examples = examples;
 		
 		return this;
 	}
@@ -191,8 +191,8 @@ public class Sx4Command extends CommandImpl {
 				this.donator = this.method.getAnnotation(Donator.class).value();
 			} 
 			
-			if (this.method.isAnnotationPresent(Example.class)) {
-				this.example = this.method.getAnnotation(Example.class).value();
+			if (this.method.isAnnotationPresent(Examples.class)) {
+				this.examples = this.method.getAnnotation(Examples.class).value();
 			}
 			
 			if (this.method.isAnnotationPresent(Canary.class)) {

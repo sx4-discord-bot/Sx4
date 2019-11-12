@@ -16,6 +16,7 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.stream.Collectors;
 
@@ -48,6 +49,7 @@ import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEventListener;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.events.MuteEvents;
+import com.sx4.bot.interfaces.Examples;
 import com.sx4.bot.utils.ArgumentUtils;
 import com.sx4.bot.utils.GeneralUtils;
 import com.sx4.bot.utils.HelpUtils;
@@ -78,6 +80,7 @@ import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.VoiceChannel;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
+import net.dv8tion.jda.api.requests.ErrorResponse;
 import okhttp3.Request;
 import okhttp3.Response;
 
@@ -85,12 +88,13 @@ import okhttp3.Response;
 public class ModModule {
 
 	@Command(value="create emote", aliases={"createemote", "create emoji", "createemoji"}, description="Allows you to create an emote in your server by providing an emote name/id/mention, attachment or image url", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+	@Examples({"create emote", "create emote https://i.imgur.com/i87lyNO.png", "create emote :doggo:"})
 	@AuthorPermissions({Permission.MANAGE_EMOTES})
 	@BotPermissions({Permission.MANAGE_EMOTES})
 	@Async
 	public void createEmote(CommandEvent event, @Argument(value="emote | image", nullDefault=true) String argument) {
-		long animatedEmotes = event.getGuild().getEmotes().stream().filter(emote -> emote.isAnimated()).count();
-		long nonAnimatedEmotes = event.getGuild().getEmotes().stream().filter(emote -> !emote.isAnimated()).count();
+		long animatedEmotes = event.getGuild().getEmoteCache().stream().filter(Emote::isAnimated).count();
+		long nonAnimatedEmotes = event.getGuild().getEmoteCache().stream().filter(Predicate.not(Emote::isAnimated)).count();
 		int maxEmotes = event.getGuild().getMaxEmotes();
 		
 		if (argument != null) {
@@ -257,6 +261,7 @@ public class ModModule {
 			super.setDescription("Create a voice or text channel");
 			super.setAliases("createchannel", "cc");
 			super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
+			super.setExamples("create channel voice", "create channel text");
 		}
 		
 		public void onCommand(CommandEvent event) {
@@ -264,6 +269,7 @@ public class ModModule {
 		}
 		
 		@Command(value="text", description="Create a text channel in the current server")
+		@Examples({"create channel text general"})
 		@AuthorPermissions({Permission.MANAGE_CHANNEL})
 		@BotPermissions({Permission.MANAGE_CHANNEL})
 		public void text(CommandEvent event, @Argument(value="channel name", endless=true) String textChannelName) {
@@ -277,6 +283,7 @@ public class ModModule {
 		}
 		
 		@Command(value="voice", description="Create a voice channel in the current server")
+		@Examples({"create channel voice music lounge"})
 		@AuthorPermissions({Permission.MANAGE_CHANNEL})
 		@BotPermissions({Permission.MANAGE_CHANNEL})
 		public void voice(CommandEvent event, @Argument(value="channel name", endless=true) String voiceChannelName) {
@@ -298,6 +305,8 @@ public class ModModule {
 			
 			super.setDescription("Delete a voice or text channel");
 			super.setAliases("deletechannel", "dc");
+			super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
+			super.setExamples("delete channel voice", "delete channel text");
 		}
 		
 		public void onCommand(CommandEvent event) {
@@ -305,6 +314,7 @@ public class ModModule {
 		}
 		
 		@Command(value="text", description="Delete a specified text channel")
+		@Examples({"delete channel text #general", "delete channel text general", "delete channel text 344091594972069888"})
 		@AuthorPermissions({Permission.MANAGE_CHANNEL})
 		@BotPermissions({Permission.MANAGE_CHANNEL})
 		public void text(CommandEvent event, @Argument(value="channel", endless=true) String argument) {
@@ -319,6 +329,7 @@ public class ModModule {
 		}
 		
 		@Command(value="voice", description="Delete a specified voice channel")
+		@Examples({"delete channel voice music lounge", "delete channel voice 632981422889500673"})
 		@AuthorPermissions({Permission.MANAGE_CHANNEL})
 		@BotPermissions({Permission.MANAGE_CHANNEL})
 		public void voice(CommandEvent event, @Argument(value="channel", endless=true) String argument) {
@@ -335,6 +346,7 @@ public class ModModule {
 	}
 	
 	@Command(value="voice kick", aliases={"kick voice", "kickvoice", "voicekick", "vk", "disconnect"}, description="Kicks a user from their current voice channel, It will disconnect the user")
+	@Examples({"voice kick @Shea#6653", "voice kick Shea", "voice kick 402557516728369153"})
 	@AuthorPermissions({Permission.VOICE_MOVE_OTHERS})
 	@BotPermissions({Permission.VOICE_MOVE_OTHERS, Permission.MANAGE_CHANNEL})
 	public void voiceKick(CommandEvent event, @Argument(value="user", endless=true) String argument) {
@@ -360,16 +372,16 @@ public class ModModule {
 	}
 	
 	@Command(value="clear reactions", aliases={"remove reactions", "removereactions", "clearreactions"}, description="Clears all the reactions off a message, has to be executed in the same channel as the message to work", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+	@Examples({"clear reactions 643798756604772367"})
 	@AuthorPermissions({Permission.MESSAGE_MANAGE})
 	@BotPermissions({Permission.MESSAGE_MANAGE})
 	public void clearReactions(CommandEvent event, @Argument(value="message id") long messageId) {
-		event.getTextChannel().retrieveMessageById(messageId).queue(message -> {
-			message.clearReactions().queue();
+		event.getTextChannel().clearReactionsById(messageId).queue($ -> {
 			event.reply("Cleared all reactions from that message <:done:403285928233402378>").queue();
 		}, e -> {
 			if (e instanceof ErrorResponseException) {
 				ErrorResponseException exception = (ErrorResponseException) e;
-				if (exception.getErrorCode() == 10008) {
+				if (exception.getErrorResponse().equals(ErrorResponse.UNKNOWN_MESSAGE)) {
 					event.reply("I could not find that message within this channel :no_entry:").queue();
 					return;
 				}
@@ -384,6 +396,7 @@ public class ModModule {
 			
 			super.setDescription("Blacklist roles/users/channels from being able to use specific commands/modules");
 			super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
+			super.setExamples("blacklist add", "blacklist remove", "blacklist info");
 		}
 		
 		public void onCommand(CommandEvent event) {
@@ -391,6 +404,7 @@ public class ModModule {
 		}
 		
 		@Command(value="add", description="Add a role/user/channel to be blacklisted from a specified command/module")
+		@Examples({"blacklist add @Shea#6653 fish", "blacklist add #general ship", "blacklist add @Members Mod"})
 		@AuthorPermissions({Permission.MANAGE_SERVER})
 		public void add(CommandEvent event, @Context Database database, @Argument(value="user | role | channel") String argument, @Argument(value="command | module", endless=true) String commandArgument) {
 			CategoryImpl module = ArgumentUtils.getModule(commandArgument, true);
@@ -472,6 +486,7 @@ public class ModModule {
 		}
 		
 		@Command(value="remove", description="Remove a blacklist from a user/role/channel from a specified command/module")
+		@Examples({"blacklist remove @Shea#6653 fish", "blacklist remove #general ship", "blacklist remove @Members Mod"})
 		@AuthorPermissions({Permission.MANAGE_SERVER})
 		public void remove(CommandEvent event, @Context Database database, @Argument(value="user | role | channel") String argument, @Argument(value="command | module", endless=true) String commandArgument) {
 			CategoryImpl module = ArgumentUtils.getModule(commandArgument, true);
@@ -565,6 +580,7 @@ public class ModModule {
 		}
 		
 		@Command(value="delete", aliases={"del"}, description="Deletes all the blacklist data for a specified command or module")
+		@Examples({"blacklist delete fish", "blacklist delete ship", "blacklist delete Mod"})
 		@AuthorPermissions({Permission.MANAGE_SERVER})
 		public void delete(CommandEvent event, @Context Database database, @Argument(value="command | module", endless=true) String commandArgument) {
 			CategoryImpl module = ArgumentUtils.getModule(commandArgument, true);
@@ -603,6 +619,7 @@ public class ModModule {
 		}
 		
 		@Command(value="reset", aliases={"wipe"}, description="Wipes all blacklist data set in the server, it will give you a prompt to confirm this decision", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"blacklist reset"})
 		@AuthorPermissions({Permission.MANAGE_SERVER})
 		public void reset(CommandEvent event, @Context Database database) {
 			event.reply(event.getAuthor().getName() + ", are you sure you want to wipe all blacklist data? (Yes or No)").queue(message -> {
@@ -632,6 +649,7 @@ public class ModModule {
 		}
 		
 		@Command(value="toggle", aliases={"enable", "disable"}, description="Enable or disable a command or module in the current server")
+		@Examples({"blacklist toggle fish", "blacklist toggle ship", "blacklist toggle Mod"})
 		@AuthorPermissions({Permission.MANAGE_SERVER})
 		public void toggle(CommandEvent event, @Context Database database, @Argument(value="command | module", endless=true) String argument) {
 			CategoryImpl module = ArgumentUtils.getModule(argument, true);
@@ -670,7 +688,8 @@ public class ModModule {
 		}
 		
 		@Command(value="disabled", aliases={"disabled commands", "disabledcommands", "disabled modules", "disabledmodules"}, description="View all the disabled commands on the current server", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
-		public void disabledCommands(CommandEvent event, @Context Database database, @Option(value="module") boolean moduleOption, @Option(value="command") boolean commandOption) {
+		@Examples({"blacklist disabled", "blacklist disabled --command", "blacklist disabled --module"})
+		public void disabledCommands(CommandEvent event, @Context Database database, @Option(value="module", description="Filters it so it only shows blacklisted modules") boolean moduleOption, @Option(value="command", description="Filters it so it only shows blacklisted commands") boolean commandOption) {
 			List<String> disabledCommands = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("blacklist.disabled")).getEmbedded(List.of("blacklist", "disabled"), Collections.emptyList());
 			if (disabledCommands.isEmpty()) {
 				event.reply("There are no disabled commands or modules in this server :no_entry:").queue();
@@ -704,6 +723,7 @@ public class ModModule {
 		}
 		
 		@Command(value="info", description="View all the users, roles and channels which are blacklisted from using a specified command or module")
+		@Examples({"blacklist info fish", "blacklist info ship", "blacklist info Mod"})
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void info(CommandEvent event, @Context Database database, @Argument(value="command | module", endless=true) String argument) {
 			CategoryImpl module = ArgumentUtils.getModule(argument);
@@ -777,6 +797,7 @@ public class ModModule {
 			
 			super.setDescription("Whitelist roles/users/channels so they can use specific commands/modules, whitelists override blacklists");
 			super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
+			super.setExamples("whitelist add", "whitelist remove", "whitelist info");
 		}
 		
 		public void onCommand(CommandEvent event) {
@@ -784,6 +805,7 @@ public class ModModule {
 		}
 		
 		@Command(value="add", description="Add a role/user/channel to be whitelisted to use a specified command/module")
+		@Examples({"whitelist add @Shea#6653 fish", "whitelist add #general ship", "whitelist add @Members Mod"})
 		@AuthorPermissions({Permission.MANAGE_SERVER})
 		public void add(CommandEvent event, @Context Database database, @Argument(value="user | role | channel") String argument, @Argument(value="command | module", endless=true) String commandArgument) {
 			CategoryImpl module = ArgumentUtils.getModule(commandArgument, true);
@@ -865,6 +887,7 @@ public class ModModule {
 		}
 		
 		@Command(value="remove", description="Remove a whitelist from a user/role/channel from a specified command/module")
+		@Examples({"whitelist remove @Shea#6653 fish", "whitelist remove #general ship", "whitelist remove @Members Mod"})
 		@AuthorPermissions({Permission.MANAGE_SERVER})
 		public void remove(CommandEvent event, @Context Database database, @Argument(value="user | role | channel") String argument, @Argument(value="command | module", endless=true) String commandArgument) {
 			CategoryImpl module = ArgumentUtils.getModule(commandArgument, true);
@@ -958,6 +981,7 @@ public class ModModule {
 		}
 		
 		@Command(value="delete", aliases={"del"}, description="Deletes all the whitelist data for a specified command or module")
+		@Examples({"whitelist delete fish", "whitelist delete ship", "whitelist delete Mod"})
 		@AuthorPermissions({Permission.MANAGE_SERVER})
 		public void delete(CommandEvent event, @Context Database database, @Argument(value="command | module", endless=true) String commandArgument) {
 			CategoryImpl module = ArgumentUtils.getModule(commandArgument, true);
@@ -996,6 +1020,7 @@ public class ModModule {
 		}
 		
 		@Command(value="reset", aliases={"wipe"}, description="Wipes all whitelist data set in the server, it will give you a prompt to confirm this decision", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"whitelist reset"})
 		@AuthorPermissions({Permission.MANAGE_SERVER})
 		public void reset(CommandEvent event, @Context Database database) {
 			event.reply(event.getAuthor().getName() + ", are you sure you want to wipe all blacklist data? (Yes or No)").queue(message -> {
@@ -1025,6 +1050,7 @@ public class ModModule {
 		}
 		
 		@Command(value="info", description="View all the users, roles and channels which are whitelisted from using a specified command or module")
+		@Examples({"whitelist info fish", "whitelist info ship", "whitelist info Mod"})
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void info(CommandEvent event, @Context Database database, @Argument(value="command | module", endless=true) String argument) {
 			CategoryImpl module = ArgumentUtils.getModule(argument);
@@ -1099,6 +1125,7 @@ public class ModModule {
 			super.setAliases("fake perms", "fakeperms", "fakepermissions", "imaginary permissions", "imaginarypermissions", "img permissions", "imgpermissions", "img perms", "imaginary perms");
 			super.setDescription("Allows you to give a role/user permissions which will only work on the bot");
 			super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
+			super.setExamples("fake permissions add", "fake permissions remove", "fake permissions info");
 		}
 		
 		public void onCommand(CommandEvent event) {
@@ -1106,6 +1133,7 @@ public class ModModule {
 		}
 		
 		@Command(value="add", description="Add permissions to a specified user or role which will only be appicable on the bot")
+		@Examples({"fake permissions add @Shea#6653 manage_messages", "fake permissions add @Mods kick_members ban_members"})
 		@AuthorPermissions({Permission.ADMINISTRATOR})
 		public void add(CommandEvent event, @Context Database database, @Argument("user | role") String argument, @Argument(value="permission(s)") String[] permissions) {
 			Role role = ArgumentUtils.getRole(event.getGuild(), argument);
@@ -1177,6 +1205,7 @@ public class ModModule {
 		}
 		
 		@Command(value="remove", description="Remove fake permission(s) from a user/role that have been added to them previously")
+		@Examples({"fake permissions remove @Shea#6653 manage_messages", "fake permissions remove @Mods kick_members ban_members"})
 		@AuthorPermissions({Permission.ADMINISTRATOR})
 		public void remove(CommandEvent event, @Context Database database, @Argument(value="user | role") String argument, @Argument(value="permissions") String[] permissions) {
 			Role role = ArgumentUtils.getRole(event.getGuild(), argument);
@@ -1296,6 +1325,7 @@ public class ModModule {
 		}
 		
 		@Command(value="info", description="Shows you what fake permissions a user/role has")
+		@Examples({"fake permissions info @Shea#6653", "fake permissions info @Mods"})
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void info(CommandEvent event, @Context Database database, @Argument(value="user | role", endless=true, nullDefault=true) String argument) {
 			Member member = null;
@@ -1358,6 +1388,7 @@ public class ModModule {
 		}
 		
 		@Command(value="in permission", aliases={"inpermission"}, description="Shows you all the users and roles in a certain permission", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"fake permissions in permission manage_messages", "fake permissions in permission ban_members"})
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void inPermission(CommandEvent event, @Context Database database, @Argument(value="permission") String permissionName) {
 			Permission permission = null;
@@ -1404,6 +1435,7 @@ public class ModModule {
 		}
 		
 		@Command(value="list", description="Gives a list of permissions you can use when using fake permissions", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"fake permissions list"})
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void list(CommandEvent event) {
 			List<String> permissionNames = new ArrayList<String>();
@@ -1420,9 +1452,10 @@ public class ModModule {
 	}
 	
 	@Command(value="slowmode", aliases={"slow", "sm"}, description="Set the slowmode for the current channel or a specified channel", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+	@Examples({"slowmode 5m", "slowmode 10m #general", "slowmode off"})
 	@AuthorPermissions({Permission.MANAGE_CHANNEL})
 	@BotPermissions({Permission.MANAGE_CHANNEL})
-	public void slowmode(CommandEvent event, @Argument(value="time", nullDefault=true) String seconds, @Argument(value="channel", nullDefault=true, endless=true) String channelArgument) {
+	public void slowmode(CommandEvent event, @Argument(value="time", nullDefault=true) String timeArgument, @Argument(value="channel", nullDefault=true, endless=true) String channelArgument) {
 		long slowmodeSeconds;
 		
 		TextChannel channel;
@@ -1436,13 +1469,13 @@ public class ModModule {
 			}
 		}
 		
-		if (seconds == null) {
+		if (timeArgument == null) {
 			slowmodeSeconds = 0;
 		} else {
-			if (seconds.toLowerCase().equals("off") || seconds.toLowerCase().equals("none")) {
+			if (timeArgument.toLowerCase().equals("off") || timeArgument.toLowerCase().equals("none")) {
 				slowmodeSeconds = 0;
 			} else {
-				slowmodeSeconds = TimeUtils.convertToSeconds(seconds);
+				slowmodeSeconds = TimeUtils.convertToSeconds(timeArgument);
 				if (slowmodeSeconds == 0) {
 					event.reply("Invalid time and unit :no_entry:").queue();
 					return;
@@ -1470,6 +1503,7 @@ public class ModModule {
 	}
 	
 	@Command(value="lockdown", description="Makes it so anyone who doesn't override the @everyone roles permissions in the specified channel, can no longer speak in the channel")
+	@Examples({"lockdown", "lockdown #general"})
 	@AuthorPermissions({Permission.MANAGE_PERMISSIONS})
 	@BotPermissions({Permission.MANAGE_PERMISSIONS})
 	public void lockdown(CommandEvent event, @Argument(value="channel", endless=true, nullDefault=true) String channelArgument) {
@@ -1504,6 +1538,7 @@ public class ModModule {
 	}
 	
 	@Command(value="region", description="Set the current servers voice region")
+	@Examples({"region europe", "region us west", "region india"})
 	@AuthorPermissions({Permission.MANAGE_SERVER})
 	@BotPermissions({Permission.MANAGE_SERVER})
 	public void region(CommandEvent event, @Argument(value="region", endless=true) String regionName) {
@@ -1528,6 +1563,7 @@ public class ModModule {
 	}
 	
 	@Command(value="colour role", aliases={"colourrole", "colorrole", "color role", "role colour", "rolecolour", "rolecolor", "role color"}, description="Edit the colour of a role in the current server")
+	@Examples({"colour role @Members #ffff00", "colour role Members ffff00", "colour role 345718366373150720 255, 255, 0"})
 	@AuthorPermissions({Permission.MANAGE_ROLES})
 	@BotPermissions({Permission.MANAGE_ROLES})
 	public void colourRole(CommandEvent event, @Argument(value="role") String roleArgument, @Argument(value="hex | rgb", endless=true) String colourArgument) {
@@ -1565,6 +1601,7 @@ public class ModModule {
 			super.setDescription("Set prefixes for either the current server or your own personal ones, Personal prefixes > server prefixes > default prefixes");
 			super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
 			super.setContentOverflowPolicy(ContentOverflowPolicy.IGNORE);
+			super.setExamples("prefix", "prefix self", "prefix server");
 		}
 		
 		public void onCommand(CommandEvent event, @Context Database database) {
@@ -1588,6 +1625,7 @@ public class ModModule {
 				
 				super.setDescription("Set personal prefixes that you can use in any server");
 				super.setAliases("personal");
+				super.setExamples("prefix self", "prefix self add", "prefix self remove");
 			}
 			
 			public void onCommand(CommandEvent event, @Context Database database, @Argument(value="prefixes") String[] prefixes) {
@@ -1614,6 +1652,7 @@ public class ModModule {
 			}
 			
 			@Command(value="add", description="Adds specified prefixes to your current personal prefixes")
+			@Examples({"prefix self add ?", "prefix self add ? a? \"bot \""})
 			public void add(CommandEvent event, @Context Database database, @Argument(value="prefixes") String[] prefixes) {
 				List<String> currentPrefixes = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("prefixes")).getList("prefixes", String.class, Collections.emptyList());
 
@@ -1645,6 +1684,7 @@ public class ModModule {
 			}
 			
 			@Command(value="remove", description="Removes specified prefixes from your current personal prefixes")
+			@Examples({"prefix self remove ?", "prefix self remove ? a? \"bot \""})
 			public void remove(CommandEvent event, @Context Database database, @Argument(value="prefixes") String[] prefixes) {
 				List<String> currentPrefixes = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("prefixes")).getList("prefixes", String.class, Collections.emptyList());
 				if (currentPrefixes.isEmpty()) {
@@ -1670,6 +1710,7 @@ public class ModModule {
 			}
 			
 			@Command(value="reset", description="Reset your personal prefixes, without personal prefixes you will default to server prefixes if any are set or else default prefixes", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+			@Examples({"prefix self reset"})
 			public void reset(CommandEvent event, @Context Database database) {
 				List<String> currentPrefixes = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("prefixes")).getList("prefixes", String.class, Collections.emptyList());
 				if (currentPrefixes.isEmpty()) {
@@ -1697,6 +1738,7 @@ public class ModModule {
 				super.setDescription("Set server prefixes which users will have to use unless they have personal ones");
 				super.setAuthorDiscordPermissions(Permission.MANAGE_SERVER);
 				super.setAliases("guild");
+				super.setExamples("prefix server", "prefix server add", "prefix server remove");
 			}
 			
 			public void onCommand(CommandEvent event, @Context Database database, @Argument(value="prefixes") String[] prefixes) {
@@ -1723,6 +1765,7 @@ public class ModModule {
 			}
 			
 			@Command(value="add", description="Adds specified prefixes to the current servers prefixes")
+			@Examples({"prefix server add ?", "prefix server add ? a? \"bot \""})
 			@AuthorPermissions({Permission.MANAGE_SERVER})
 			public void add(CommandEvent event, @Context Database database, @Argument(value="prefixes") String[] prefixes) {
 				List<String> currentPrefixes = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("prefixes")).getList("prefixes", String.class, Collections.emptyList());
@@ -1755,6 +1798,7 @@ public class ModModule {
 			}
 			
 			@Command(value="remove", description="Removes specified prefixes from the current servers prefixes")
+			@Examples({"prefix server remove ?", "prefix server remove ? a? \"bot \""})
 			@AuthorPermissions({Permission.MANAGE_SERVER})
 			public void remove(CommandEvent event, @Context Database database, @Argument(value="prefixes") String[] prefixes) {
 				List<String> currentPrefixes = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("prefixes")).getList("prefixes", String.class, Collections.emptyList());
@@ -1781,6 +1825,7 @@ public class ModModule {
 			}
 			
 			@Command(value="reset", description="Reset the servers prefixes, without server prefixes you will default to the bots default prefixes", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+			@Examples({"prefix server reset"})
 			@AuthorPermissions({Permission.MANAGE_SERVER})
 			public void reset(CommandEvent event, @Context Database database) {
 				List<String> currentPrefixes = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("prefixes")).getList("prefixes", String.class, Collections.emptyList());
@@ -1804,6 +1849,7 @@ public class ModModule {
 	}
 	
 	@Command(value="announce", description="Announces anything you input with a mention of a role (If the role isn't mentionable the bot will make it mentionable, ping the role, then make it unmentionable again)")
+	@Examples({"announce @Giveaways", "announce Giveaway We are hosting a giveaway in #giveaways"})
 	@AuthorPermissions({Permission.MANAGE_ROLES, Permission.MESSAGE_MENTION_EVERYONE})
 	@BotPermissions({Permission.MANAGE_ROLES, Permission.MESSAGE_MANAGE})
 	public void announce(CommandEvent event, @Argument(value="role") String roleArgument, @Argument(value="text", endless=true, nullDefault=true) String text) {
@@ -1832,6 +1878,7 @@ public class ModModule {
 	}
 	
 	@Command(value="mass move", aliases={"massmove", "mm"}, description="Moves everyone from one voice channel to a specified voice channel")
+	@Examples({"mass move General", "mass move Music General"})
 	@AuthorPermissions({Permission.VOICE_MOVE_OTHERS})
 	@BotPermissions({Permission.VOICE_MOVE_OTHERS})
 	public void massMove(CommandEvent event, @Argument(value="from voice channel") String fromChannel, @Argument(value="to voice channel", endless=true, nullDefault=true) String toChannel) {
@@ -1881,6 +1928,7 @@ public class ModModule {
 	}
 	
 	@Command(value="move", aliases={"move member", "movemember", "moveuser", "move user"}, description="Move a specific user to a specified voice channel")
+	@Examples({"move Shea", "move @Shea#6653 General"})
 	@AuthorPermissions({Permission.VOICE_MOVE_OTHERS})
 	@BotPermissions({Permission.VOICE_MOVE_OTHERS})
 	public void move(CommandEvent event, @Argument(value="user") String userArgument, @Argument(value="voice channel", endless=true, nullDefault=true) String channelArgument) {
@@ -1926,6 +1974,7 @@ public class ModModule {
 	}
 	
 	@Command(value="rename", aliases={"nick", "nickname"}, description="Set a users nickname in the current server")
+	@Examples({"rename Shea", "rename @Shea#6653 Sheaa"})
 	@AuthorPermissions({Permission.NICKNAME_MANAGE})
 	@BotPermissions({Permission.NICKNAME_MANAGE})
 	public void rename(CommandEvent event, @Argument(value="user") String userArgument, @Argument(value="nickname", endless=true, nullDefault=true) String nickname) {
@@ -1960,91 +2009,8 @@ public class ModModule {
 		event.getGuild().modifyNickname(member, nickname).queue();
 	}
 	
-	/*public class PruneCommand extends Sx4Command {
-		
-		public PruneCommand() {
-			super("prune");
-			
-			super.setDescription("Clear a certain amount of messages in the current channel or clear a certain amount of messages from a specified user");
-			super.setAliases("purge", "c", "clear");
-			super.setArgumentInfo("<user>* <amount> | <amount>*");
-			super.setContentOverflowPolicy(ContentOverflowPolicy.IGNORE);
-			super.setBotDiscordPermissions(Permission.MESSAGE_MANAGE, Permission.MESSAGE_HISTORY);
-			super.setAuthorDiscordPermissions(Permission.MESSAGE_MANAGE);
-		}
-		
-		public void onCommand(CommandEvent event, @Argument(value="user") String userArgument, @Argument(value="amount", nullDefault=true) Integer amount) {
-			int limit = amount == null ? 100 : amount > 100 ? 100 : amount;
-			if (limit < 1) {
-				event.reply("You have to delete at least 1 message :no_entry:").queue();
-				return;
-			}
-			
-			Member member = ArgumentUtils.getMember(event.getGuild(), userArgument);
-			if (member == null) {
-				event.reply("I could not find that user :no_entry:").queue();
-				return;
-			}
-			
-			event.getMessage().delete().queue($ -> {
-				event.getTextChannel().getHistory().retrievePast(100).queue(messages -> {
-					long secondsNow = Clock.systemUTC().instant().getEpochSecond();
-					for (Message message : new ArrayList<>(messages)) {
-						if (!message.getAuthor().equals(member.getUser())) {
-							messages.remove(message);
-						} else if (secondsNow - message.getCreationTime().toEpochSecond() > 1209600) {
-							messages.remove(message);
-						}
-					}
-					
-					if (messages.size() == 0) {
-						event.reply("No messages in the last 100 were from that user or they were 14 days or older :no_entry:").queue();
-						return;
-					}
-					
-					messages = messages.subList(0, Math.min(limit, messages.size()));
-					
-					if (messages.size() == 1) {
-						messages.get(0).delete().queue();
-					} else {
-						event.getTextChannel().deleteMessages(messages).queue();
-					}
-				});
-			});
-		}
-		
-		public void onCommand(CommandEvent event, @Argument(value="amount") int amount) {
-			int limit = amount > 100 ? 100 : amount;
-			if (limit < 1) {
-				event.reply("You have to delete at least 1 message :no_entry:").queue();
-				return;
-			}
-			
-			event.getMessage().delete().queue($ -> {
-				event.getTextChannel().getHistory().retrievePast(limit).queue(messages -> {
-					long secondsNow = Clock.systemUTC().instant().getEpochSecond();
-					for (Message message : new ArrayList<>(messages)) {
-						if (secondsNow - message.getCreationTime().toEpochSecond() > 1209600) {
-							messages.remove(message);
-						}
-					}
-					
-					if (messages.size() == 0) {
-						event.reply("All the **" + limit + "** messages were 14 days or older :no_entry:").queue();
-						return;
-					}
-					
-					if (messages.size() == 1) {
-						messages.get(0).delete().queue();
-					} else {
-						event.getTextChannel().deleteMessages(messages).queue();
-					}
-				});
-			});
-		}
-	}*/
-	
-	@Command(value="prune", aliases={"clear", "c", "purge"}, description="Clear a certain amount of messages in the current channel or clear a certain amount of messages from a specified user", argumentInfo="<user> [amount] | [amount]", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+	@Command(value="prune", aliases={"clear", "c", "purge"}, description="Clear a certain amount of messages in the current channel or clear a certain amount of messages from a specified user", argumentInfo="<user>* <amount> | <amount>", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+	@Examples({"prune", "prune 10", "prune @Shea#6653", "prune Shea 10"})
 	@AuthorPermissions({Permission.MESSAGE_MANAGE})
 	@BotPermissions({Permission.MESSAGE_MANAGE, Permission.MESSAGE_HISTORY})
 	public void prune(CommandEvent event, @Argument(value="user | amount") String argument, @Argument(value="amount", nullDefault=true) Integer amount) {
@@ -2118,6 +2084,7 @@ public class ModModule {
 	}
 	
 	@Command(value="bot clean", aliases={"bc", "botclean"}, description="Removed a certain amount of bot messages in the current channel", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+	@Examples({"bot clean", "bot clean 10"})
 	@AuthorPermissions({Permission.MESSAGE_MANAGE})
 	@BotPermissions({Permission.MESSAGE_MANAGE, Permission.MESSAGE_HISTORY})
 	public void botClean(CommandEvent event, @Argument(value="amount", nullDefault=true) Integer amount) {
@@ -2155,6 +2122,7 @@ public class ModModule {
 	}
 	
 	@Command(value="contains", description="Mass purge messages which contain a specified phrase/word", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+	@Examples({"contains hello", "contains hello 10"})
 	@AuthorPermissions({Permission.MESSAGE_MANAGE})
 	@BotPermissions({Permission.MESSAGE_MANAGE, Permission.MESSAGE_HISTORY})
 	public void contains(CommandEvent event, @Argument(value="text") String text, @Argument(value="amount", nullDefault=true) Integer amount) {
@@ -2199,6 +2167,7 @@ public class ModModule {
 			super.setAliases("modlogs", "mod log", "mod logs");
 			super.setDescription("Log all mod actions which occur in your server");
 			super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
+			super.setExamples("modlog toggle", "modlog channel", "modlog stats");
 		}
 		
 		public void onCommand(CommandEvent event) {
@@ -2206,6 +2175,7 @@ public class ModModule {
 		}
 		
 		@Command(value="toggle", aliases={"enable", "disable"}, description="Enable/disable modlogs in the current server", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"modlog toggle"})
 		@AuthorPermissions({Permission.MANAGE_SERVER})
 		public void toggle(CommandEvent event, @Context Database database) {
 			boolean enabled = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("modlog.enabled")).getEmbedded(List.of("modlog", "enabled"), false);
@@ -2220,6 +2190,7 @@ public class ModModule {
 		}
 		
 		@Command(value="channel", description="Sets the modlog channel, this is where modlogs will be sent to")
+		@Examples({"modlog channel", "modlog channel #modlogs", "modlog channel modlogs", "modlog channel 432898619943813132"})
 		@AuthorPermissions({Permission.MANAGE_SERVER})
 		public void channel(CommandEvent event, @Context Database database, @Argument(value="channel", endless=true, nullDefault=true) String channelArgument) {
 			TextChannel channel;
@@ -2250,6 +2221,7 @@ public class ModModule {
 		}
 		
 		@Command(value="case", description="Edit a modlog case reason providing the moderator is unknown or you are the moderator of the case")
+		@Examples({"modlog case 1 Broke ToS", "modlog case 5 Unbanned read case 6"})
 		@AuthorPermissions({Permission.MESSAGE_MANAGE})
 		@BotPermissions({Permission.MESSAGE_HISTORY})
 		public void case_(CommandEvent event, @Context Database database, @Argument(value="case numbers") String rangeArgument, @Argument(value="reason", endless=true) String reasonArgument) {
@@ -2344,6 +2316,7 @@ public class ModModule {
 		}
 		
 		@Command(value="view case", aliases={"viewcase"}, description="View any case from the modlogs even if it's been deleted", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"modlog view case 1", "modlog view case 5"})
 		@AuthorPermissions({Permission.MESSAGE_MANAGE})
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void viewCase(CommandEvent event, @Context Database database, @Argument(value="case number") int caseNumber) {
@@ -2377,6 +2350,7 @@ public class ModModule {
 		}
 		
 		@Command(value="reset", aliases={"resetcases", "reset cases", "wipe"}, description="This will delete all modlog data and cases will start from 1 again", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"modlog reset"})
 		@AuthorPermissions({Permission.MANAGE_SERVER})
 		public void reset(CommandEvent event, @Context Database database) {
 			int caseAmount = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("modlog.caseAmount")).getEmbedded(List.of("modlog", "caseAmount"), 0);
@@ -2404,6 +2378,7 @@ public class ModModule {
 		}
 		
 		@Command(value="stats", aliases={"settings", "setting"}, description="View the settings for modlogs in the current server", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"modlog stats"})
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void stats(CommandEvent event, @Context Database database) {
 			Document data = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("modlog.caseAmount", "modlog.channelId", "modlog.enabled")).get("modlog", Database.EMPTY_DOCUMENT);
@@ -2422,6 +2397,7 @@ public class ModModule {
 	}
 	
 	@Command(value="create role", aliases={"createrole", "cr"}, description="Create a role in the current server with an optional colour")
+	@Examples({"create role Members", "create role Members #ffff00", "create role Members 255, 255, 0"})
 	@AuthorPermissions({Permission.MANAGE_ROLES})
 	@BotPermissions({Permission.MANAGE_ROLES})
 	public void createRole(CommandEvent event, @Argument(value="role name") String roleName, @Argument(value="hex | rgb", endless=true, nullDefault=true) String colourArgument) {
@@ -2452,6 +2428,7 @@ public class ModModule {
 	}
 	
 	@Command(value="delete role", aliases={"deleterole", "dr"}, description="Delete a role in the current server")
+	@Examples({"delete role @Members", "delete role Members", "delete role 345718366373150720"})
 	@AuthorPermissions({Permission.MANAGE_ROLES})
 	@BotPermissions({Permission.MANAGE_ROLES})
 	public void deleteRole(CommandEvent event, @Argument(value="role", endless=true) String roleArgument) {
@@ -2486,6 +2463,7 @@ public class ModModule {
 	}
 	
 	@Command(value="add role", aliases={"addrole", "ar"}, description="Add a specified role to any user")
+	@Examples({"add role @Shea#6653 Members", "add role Shea 345718366373150720", "add role 402557516728369153 @Members"})
 	@AuthorPermissions({Permission.MANAGE_ROLES})
 	@BotPermissions({Permission.MANAGE_ROLES})
 	public void addRole(CommandEvent event, @Argument(value="user") String userArgument, @Argument(value="role", endless=true) String roleArgument) {
@@ -2531,6 +2509,7 @@ public class ModModule {
 	}
 	
 	@Command(value="remove role", aliases={"removerole", "rr"}, description="Remove a specified role from any user")
+	@Examples({"remove role @Shea#6653 Members", "remove role Shea 345718366373150720", "remove role 402557516728369153 @Members"})
 	@AuthorPermissions({Permission.MANAGE_ROLES})
 	@BotPermissions({Permission.MANAGE_ROLES})
 	public void removeRole(CommandEvent event, @Argument(value="user") String userArgument, @Argument(value="role", endless=true) String roleArgument) {
@@ -2576,6 +2555,7 @@ public class ModModule {
 	}
 	
 	@Command(value="kick", description="Kick a user from the current server")
+	@Examples({"kick @Shea#6653", "kick Shea Spamming", "kick 402557516728369153 template:tos & Spamming"})
 	@AuthorPermissions({Permission.KICK_MEMBERS})
 	@BotPermissions({Permission.KICK_MEMBERS})
 	public void kick(CommandEvent event, @Argument(value="user") String userArgument, @Argument(value="reason", endless=true, nullDefault=true) String reasonArgument) {
@@ -2621,6 +2601,7 @@ public class ModModule {
 	}
 	
 	@Command(value="ban", description="Ban a user from the current server", caseSensitive=true)
+	@Examples({"ban @Shea#6653", "ban Shea Spamming", "ban 402557516728369153 template:tos & Spamming"})
 	@AuthorPermissions({Permission.BAN_MEMBERS})
 	@BotPermissions({Permission.BAN_MEMBERS})
 	public void ban(CommandEvent event, @Argument(value="user") String userArgument, @Argument(value="reason", endless=true, nullDefault=true) String reasonArgument) {
@@ -2702,6 +2683,7 @@ public class ModModule {
 	}
 	
 	@Command(value="Ban", description="A ban which doesn't ban, please don't expose", caseSensitive=true)
+	@Examples({"Ban @Shea#6653", "Ban Shea", "Ban 402557516728369153"})
 	@AuthorPermissions({Permission.BAN_MEMBERS})
 	public void fakeBan(CommandEvent event, @Argument(value="user") String userArgument) {
 		Member member = ArgumentUtils.getMember(event.getGuild(), userArgument);
@@ -2714,6 +2696,7 @@ public class ModModule {
 	}
 	
 	@Command(value="unban", description="Unban a user who is banned from the current server")
+	@Examples({"unban @Shea#6653", "unban Shea Appealed", "unban 402557516728369153 template:mistake"})
 	@AuthorPermissions({Permission.BAN_MEMBERS})
 	@BotPermissions({Permission.BAN_MEMBERS})
 	public void unban(CommandEvent event, @Argument(value="user") String userArgument, @Argument(value="reason", endless=true, nullDefault=true) String reasonArgument) {
@@ -2760,6 +2743,7 @@ public class ModModule {
 	}
 	
 	@Command(value="channel mute", aliases={"cmute", "channelmute"}, description="Mute a user in the current channel")
+	@Examples({"channel mute @Shea#6653", "channel mute Shea Spamming", "channel mute template:emotes & Spamming"})
 	@AuthorPermissions({Permission.MESSAGE_MANAGE})
 	@BotPermissions({Permission.MANAGE_PERMISSIONS})
 	public void channelMute(CommandEvent event, @Argument(value="user") String userArgument, @Argument(value="reason", endless=true, nullDefault=true) String reasonArgument) {
@@ -2817,6 +2801,7 @@ public class ModModule {
 	}
 	
 	@Command(value="channel unmute", aliases={"cunmute", "channelunmute"}, description="Unmute a user in the current channel")
+	@Examples({"channel unmute @Shea#6653", "channel unmute Shea Times up", "channel unmute 402557516728369153 template:wrong-person, sorry"})
 	@AuthorPermissions({Permission.MESSAGE_MANAGE})
 	@BotPermissions({Permission.MANAGE_PERMISSIONS})
 	public void channelUnmute(CommandEvent event, @Argument(value="user") String userArgument, @Argument(value="reason", endless=true, nullDefault=true) String reasonArgument) {
@@ -2869,6 +2854,7 @@ public class ModModule {
 	}
 	
 	@Command(value="mute", description="Mute a user server wide for a specified amount of time")
+	@Examples({"mute @Shea#6653 20m", "mute Shea 30m Spamming", "mute 402557516728369153 12h template:offensive & Spamming"})
 	@AuthorPermissions({Permission.MESSAGE_MANAGE})
 	@BotPermissions({Permission.MANAGE_ROLES, Permission.MANAGE_PERMISSIONS})
 	public void mute(CommandEvent event, @Context Database database, @Argument(value="user") String userArgument, @Argument(value="time and unit", nullDefault=true) String muteLengthArgument, @Argument(value="reason", endless=true, nullDefault=true) String reasonArgument) {
@@ -2957,6 +2943,7 @@ public class ModModule {
 	}
 	
 	@Command(value="unmute", description="Unmute a user early who is currently muted in the server")
+	@Examples({"unmute @Shea#6653", "unmute Shea Misunderstanding", "unmute 402557516728369153 template:wrong-person"})
 	@AuthorPermissions({Permission.MESSAGE_MANAGE})
 	@BotPermissions({Permission.MANAGE_ROLES})
 	public void unmute(CommandEvent event, @Context Database database, @Argument(value="user") String userArgument, @Argument(value="reason", endless=true, nullDefault=true) String reasonArgument) {
@@ -3011,6 +2998,7 @@ public class ModModule {
 	}
 	
 	@Command(value="muted list", aliases={"mutedlist", "muted"}, description="Gives a list of all the current users who are muted and the time they have left", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+	@Examples({"muted list"})
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void mutedList(CommandEvent event, @Context Database database) {
 		long timestamp = Clock.systemUTC().instant().getEpochSecond();
@@ -3109,6 +3097,7 @@ public class ModModule {
 			super.setDescription("Add preset templates which can be used in reasons as shortcuts to common reasonings for using a mod command");
 			super.setAliases("template");
 			super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
+			super.setExamples("templates add", "templates remove", "templates list");
 		}
 		
 		public void onCommand(CommandEvent event) {
@@ -3116,6 +3105,7 @@ public class ModModule {
 		}
 		
 		@Command(value="add", description="Add a template which can be used across all mod commands which can have a reason")
+		@Examples({"templates add tos Broke ToS", "templates add spam Too much spamming"})
 		@AuthorPermissions({Permission.MANAGE_SERVER})
 		public void add(CommandEvent event, @Context Database database, @Argument(value="template name") String templateName, @Argument(value="reason", endless=true) String reason) {
 			List<Document> templates = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("templates")).getList("templates", Document.class, Collections.emptyList());
@@ -3138,6 +3128,7 @@ public class ModModule {
 		}
 		
 		@Command(value="edit", description="Edits a template from the templates in the current server")
+		@Examples({"templates edit tos Broke discord ToS", "templates edit spam Continuous spamming"})
 		@AuthorPermissions({Permission.MANAGE_SERVER})
 		public void edit(CommandEvent event, @Context Database database, @Argument(value="template name") String templateName, @Argument(value="reason", endless=true) String reason) {
 			List<Document> templates = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("templates")).getList("templates", Document.class, Collections.emptyList());
@@ -3161,6 +3152,7 @@ public class ModModule {
 		}
 		
 		@Command(value="remove", description="Remove a template from the templates in the current server")
+		@Examples({"templates remove tos", "templates remove spam"})
 		@AuthorPermissions({Permission.MANAGE_SERVER})
 		public void remove(CommandEvent event, @Context Database database, @Argument(value="template name", endless=true) String templateName) {
 			List<Document> templates = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("templates")).getList("templates", Document.class, Collections.emptyList());
@@ -3183,6 +3175,7 @@ public class ModModule {
 		}
 		
 		@Command(value="list", description="Lists all the templates in the current server", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"templates list"})
 		public void list(CommandEvent event, @Context Database database) {
 			List<Document> templates = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("templates")).getList("templates", Document.class, Collections.emptyList());
 			if (templates.isEmpty()) {
@@ -3222,6 +3215,7 @@ public class ModModule {
 			super.setDescription("Configure your warn system to have different stages per warn you can choose between mute of any duration, kick, ban and just warn");
 			super.setAliases("warn config", "warnconfig", "warnconfiguration");
 			super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
+			super.setExamples("warn configuration set", "warn configuration punishments", "warn configuration list");
 		}
 		
 		public void onCommand(CommandEvent event) {
@@ -3229,6 +3223,7 @@ public class ModModule {
 		}
 		
 		@Command(value="punishments", aliases={"punish"}, description="Enables/disables punishments for warnings, this changes whether warns have actions depending on the amount of warns a user has", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"warn configuration punishments"})
 		@AuthorPermissions({Permission.MANAGE_SERVER})
 		public void punishments(CommandEvent event, @Context Database database) {
 			boolean punishments = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("warn.punishments")).getEmbedded(List.of("warn", "punishments"), true);
@@ -3246,6 +3241,7 @@ public class ModModule {
 		
 		@SuppressWarnings("unchecked")
 		@Command(value="set", aliases={"add"}, description="Set a certain warning to a specified action to happen when a user reaches that warning")
+		@Examples({"warn configuration set 5 ban", "warn configuration set 2 mute", "warn configuration set 3 mute 2 hours"})
 		@AuthorPermissions({Permission.MANAGE_SERVER})
 		public void set(CommandEvent event, @Context Database database, @Argument(value="warning number") int warningNumber, @Argument(value="action", endless=true) String action) {
 			String actionLower = action.toLowerCase();
@@ -3333,6 +3329,7 @@ public class ModModule {
 		
 		@SuppressWarnings("unchecked")
 		@Command(value="remove", description="Removes a warning which is set in the server, to view the configuration use `warn configuration list`", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"warn configuration remove 5", "warn configuration remove 2", "warn configuration remove 3"})
 		@AuthorPermissions({Permission.MANAGE_SERVER})
 		public void remove(CommandEvent event, @Context Database database, @Argument(value="warning number") int warningNumber) {
 			Bson update = null;
@@ -3385,6 +3382,7 @@ public class ModModule {
 		}
 		
 		@Command(value="reset", aliases={"wipe", "delete"}, description="Reset all warn configuration data set up in the server", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"warn configuration reset"})
 		@AuthorPermissions({Permission.MANAGE_SERVER})
 		public void reset(CommandEvent event, @Context Database database) {
 			event.reply(event.getAuthor().getName() + ", are you sure you want to reset **all** warn configuration data? (Yes or No)").queue(message -> {
@@ -3412,6 +3410,7 @@ public class ModModule {
 		}
 		
 		@Command(value="list", description="Shows the current configuration for warnings in the current server", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"warn configuration list"})
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void list(CommandEvent event, @Context Database database) {
 			List<Document> warnConfiguration = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("warn.configuration")).getEmbedded(List.of("warn", "configuration"), ModUtils.DEFAULT_WARN_CONFIGURATION);
@@ -3436,6 +3435,7 @@ public class ModModule {
 	}
 	
 	@Command(value="warn", description="Warn a user in the current server")
+	@Examples({"warn @Shea#6653", "warn Shea Ads", "warn 402557516728369153 template:tos & Spamming"})
 	@AuthorPermissions({Permission.MESSAGE_MANAGE})
 	public void warn(CommandEvent event, @Context Database database, @Argument(value="user") String userArgument, @Argument(value="reason", endless=true, nullDefault=true) String reasonArgument) {
 		Member member = ArgumentUtils.getMember(event.getGuild(), userArgument);
@@ -3497,6 +3497,7 @@ public class ModModule {
 	}
 	
 	@Command(value="warn list", aliases={"warnlist", "warns"}, description="Gets a list of users who are warned in the current server", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+	@Examples({"warn list"})
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void warnList(CommandEvent event, @Context Database database) {
 		List<Document> users = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("warn.users")).getEmbedded(List.of("warn", "users"), Collections.emptyList());
@@ -3528,6 +3529,7 @@ public class ModModule {
 	}
 	
 	@Command(value="warnings", description="Displays how many warnings a specified user has", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+	@Examples({"warnings", "warnings @Shea#6653", "warnings Shea", "warnings 402557516728369153"})
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void warnings(CommandEvent event, @Context Database database, @Argument(value="user", endless=true, nullDefault=true) String userArgument) {
 		Member member;
@@ -3579,6 +3581,7 @@ public class ModModule {
 	}
 	
 	@Command(value="set warnings", aliases={"setwarnings", "set warns", "setwarns"}, description="Set the warning amount for a specified user", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+	@Examples({"set warnings @Shea#6653 1", "set warnings Shea 3", "set warnings 402557516728369153 4"})
 	@AuthorPermissions({Permission.MESSAGE_MANAGE})
 	public void setWarnings(CommandEvent event, @Context Database database, @Argument(value="user") String userArgument, @Argument(value="warning amount") int warningAmount) {
 		if (warningAmount < 1) {
@@ -3634,6 +3637,7 @@ public class ModModule {
 	}
 	
 	@Command(value="reset warnings", aliases={"resetwarnings", "resetwarns", "reset warns"}, description="Reset warnings for a specified user, this'll set their warning amount of 0 and get rid of their reasons")
+	@Examples({"reset warnings @Shea#6653", "reset warnings Shea", "reset warnings 402557516728369153"})
 	@AuthorPermissions({Permission.MESSAGE_MANAGE})
 	public void resetWarnings(CommandEvent event, @Context Database database, @Argument(value="user", endless=true) String userArgument) {
 		Member member = ArgumentUtils.getMember(event.getGuild(), userArgument);
@@ -3667,6 +3671,7 @@ public class ModModule {
 	}
 	
 	@Command(value="offences", description="View the offences of a user in the current server")
+	@Examples({"offences", "offences @Shea#6653", "offences Shea", "offences 402557516728369153"})
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void offences(CommandEvent event, @Context Database database, @Argument(value="user", endless=true, nullDefault=true) String userArgument) {
 		Member member;
@@ -3731,6 +3736,7 @@ public class ModModule {
 	}
 	
 	@Command(value="proof", description="Update the proof of a specified users offence") 
+	@Examples({"proof @Shea#6653 1 https://i.imgur.com/i87lyNO.png", "proof Shea 4 https://i.imgur.com/i87lyNO.png", "proof 402557516728369153 10 https://i.imgur.com/i87lyNO.png"})
 	@AuthorPermissions({Permission.MESSAGE_MANAGE})
 	public void proof(CommandEvent event, @Context Database database, @Argument(value="user") String userArgument, @Argument(value="offence number") int offenceNumber, @Argument(value="proof", endless=true) String proof) {
 		Member member = ArgumentUtils.getMember(event.getGuild(), userArgument);

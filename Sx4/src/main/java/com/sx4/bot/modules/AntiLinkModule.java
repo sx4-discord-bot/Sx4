@@ -23,6 +23,7 @@ import com.sx4.bot.categories.Categories;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEventListener;
 import com.sx4.bot.database.Database;
+import com.sx4.bot.interfaces.Examples;
 import com.sx4.bot.settings.Settings;
 import com.sx4.bot.utils.ArgumentUtils;
 import com.sx4.bot.utils.GeneralUtils;
@@ -52,6 +53,7 @@ public class AntiLinkModule {
 			super.setAliases("anti link", "anti-link");
 			super.setDescription("Set up antilink to automatically delete any active discord links which are sent in the server");
 			super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
+			super.setExamples("antilink toggle", "antilink action", "antilink stats");
 		}
 		
 		public void onCommand(CommandEvent event) {
@@ -59,6 +61,7 @@ public class AntiLinkModule {
 		}
 		
 		@Command(value="toggle", aliases={"enable", "disable"}, description="Enable/disable anti-link for the current server", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"antilink toggle"})
 		@AuthorPermissions({Permission.MESSAGE_MANAGE})
 		public void toggle(CommandEvent event, @Context Database database) {
 			boolean enabled = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("antilink.enabled")).getEmbedded(List.of("antilink", "enabled"), false);
@@ -73,6 +76,7 @@ public class AntiLinkModule {
 		}
 		
 		@Command(value="action", aliases={"set action", "setaction"}, description="Set the action which will happen when a user posts a certain amount of links (Set with antilink attempts), use off as an argument to turn this feature off", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"antilink action ban", "antilink action mute", "antilink action none"})
 		@AuthorPermissions({Permission.BAN_MEMBERS})
 		public void action(CommandEvent event, @Context Database database, @Argument(value="action") String actionArgument) {
 			String action = actionArgument.toLowerCase();
@@ -114,6 +118,7 @@ public class AntiLinkModule {
 		}
 		
 		@Command(value="attempts", description="Set the amount of times a user can send an link before an action occurs to them set through `antilink action`", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"antilink attempts 5", "antilink attempts 2"})
 		@AuthorPermissions({Permission.MESSAGE_MANAGE})
 		public void attempts(CommandEvent event, @Context Database database, @Argument(value="attempts") int attempts) {
 			if (attempts < 1) {
@@ -138,6 +143,7 @@ public class AntiLinkModule {
 		}
 		
 		@Command(value="reset attempts", aliases={"resetattempts"}, description="Resets a users attempts of sending links to 0", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"antilink reset attempts @Shea#6653", "antilink reset attempts 402557516728369153", "antilink reset attempts Shea"})
 		@AuthorPermissions({Permission.MESSAGE_MANAGE})
 		public void resetAttempts(CommandEvent event, @Context Database database, @Argument(value="user", endless=true) String userArgument) {
 			Member member = ArgumentUtils.getMember(event.getGuild(), userArgument);
@@ -166,6 +172,7 @@ public class AntiLinkModule {
 		}
 		
 		@Command(value="whitelist", description="Whitelists a user/channel/role to be able to send links")
+		@Examples({"antilink whitelist @Shea#6653", "antilink whitelist #general", "antilink whitelist @everyone"})
 		@AuthorPermissions({Permission.MANAGE_SERVER})
 		public void whitelist(CommandEvent event, @Context Database database, @Argument(value="user | role | channel", endless=true) String argument) {
 			Member member = ArgumentUtils.getMember(event.getGuild(), argument);
@@ -235,6 +242,7 @@ public class AntiLinkModule {
 		}
 		
 		@Command(value="blacklist", aliases={"unwhitelist", "removewhitelist", "remove whitelist"}, description="Removes a whitelist from a specific user/role/channel")
+		@Examples({"antilink blacklist @Shea#6653", "antilink blacklist #general", "antilink blacklist @everyone"})
 		@AuthorPermissions({Permission.MANAGE_SERVER})
 		public void blacklist(CommandEvent event, @Context Database database, @Argument(value="user | role | channel", endless=true) String argument) {
 			Document whitelist = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("antilink.whitelist")).getEmbedded(List.of("antilink", "whitelist"), Database.EMPTY_DOCUMENT);
@@ -318,6 +326,7 @@ public class AntiLinkModule {
 				
 				super.setDescription("View everything which is whitelisted to send links while antilink is active");
 				super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
+				super.setExamples("antilink whitelisted channels", "antilink whitelisted roles", "antilink whitelisted users");
 			}
 			
 			public void onCommand(CommandEvent event) {
@@ -325,6 +334,7 @@ public class AntiLinkModule {
 			}
 			
 			@Command(value="channels", aliases={"channel"}, description="View all the channels which are whitelisted to send links while antilink is active", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+			@Examples({"antilink whitelisted channels"})
 			@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 			public void channels(CommandEvent event, @Context Database database) {
 				List<Long> channelIds = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("antilink.whitelist.channels")).getEmbedded(List.of("antilink", "whitelist", "channels"), Collections.emptyList());
@@ -360,6 +370,7 @@ public class AntiLinkModule {
 			}
 			
 			@Command(value="roles", aliases={"roles"}, description="View all the roles which are whitelisted to send links while antilink is active", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+			@Examples({"antilink whitelisted roles"})
 			@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 			public void roles(CommandEvent event, @Context Database database) {
 				List<Long> roleIds = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("antilink.whitelist.roles")).getEmbedded(List.of("antilink", "whitelist", "roles"), Collections.emptyList());
@@ -390,6 +401,7 @@ public class AntiLinkModule {
 			}
 			
 			@Command(value="users", aliases={"user", "member", "members"}, description="View all the users which are whitelisted to send links while antilink is active", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+			@Examples({"antilink whitelisted users"})
 			@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 			public void users(CommandEvent event, @Context Database database) {
 				List<Long> userIds = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("antilink.whitelist.users")).getEmbedded(List.of("antilink", "whitelist", "users"), Collections.emptyList());
@@ -422,6 +434,7 @@ public class AntiLinkModule {
 		}
 		
 		@Command(value="stats", aliases={"setting", "settings"}, description="View all the settings for antilink in the current server", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"antilink stats"})
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void stats(CommandEvent event, @Context Database database) {
 			Bson projection = Projections.include("antilink.enabled", "antilink.action", "antilink.attempts");
