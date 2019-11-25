@@ -479,7 +479,7 @@ public class ModModule {
 					exception.printStackTrace();
 					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
 				} else {
-					String type = member != null ? "for **" + member.getUser().getAsTag() + "**" : role != null ? "for anyone in the role `" + role.getName() + "`" : "in " + channelDisplay;
+					String type = channel != null ? "in " + channelDisplay : role != null ? "for anyone in the role `" + role.getName() + "`" : "for **" + member.getUser().getAsTag() + "**";
 					event.reply("The " + (command == null ? "module" : "command") + " `" + commandName + "` is now blacklisted " + type + " <:done:403285928233402378>").queue();
 				}
 			});
@@ -567,7 +567,7 @@ public class ModModule {
 							exception.printStackTrace();
 							event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
 						} else {
-							String type = member != null ? "for **" + member.getUser().getAsTag() + "**" : role != null ? "for anyone in the role `" + role.getName() + "`" : "in " + channelDisplay;
+							String type = channel != null ? "in " + channelDisplay : role != null ? "for anyone in the role `" + role.getName() + "`" : "for **" + member.getUser().getAsTag() + "**";
 							event.reply("The " + (command == null ? "module" : "command") + " `" + commandName + "` is no longer blacklisted " + type + " <:done:403285928233402378>").queue();
 						}
 					});
@@ -880,7 +880,7 @@ public class ModModule {
 					exception.printStackTrace();
 					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
 				} else {
-					String type = member != null ? "for **" + member.getUser().getAsTag() + "**" : role != null ? "for anyone in the role `" + role.getName() + "`" : "in " + channelDisplay;
+					String type = channel != null ? "in " + channelDisplay : role != null ? "for anyone in the role `" + role.getName() + "`" : "for **" + member.getUser().getAsTag() + "**";
 					event.reply("The " + (command == null ? "module" : "command") + " `" + commandName + "` is now whitelisted " + type + " <:done:403285928233402378>").queue();
 				}
 			});
@@ -968,7 +968,7 @@ public class ModModule {
 							exception.printStackTrace();
 							event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
 						} else {
-							String type = member != null ? "for **" + member.getUser().getAsTag() + "**" : role != null ? "for anyone in the role `" + role.getName() + "`" : "in " + channelDisplay;
+							String type = channel != null ? "in " + channelDisplay : role != null ? "for anyone in the role `" + role.getName() + "`" : "for **" + member.getUser().getAsTag() + "**";
 							event.reply("The " + (command == null ? "module" : "command") + " `" + commandName + "` is no longer whitelisted " + type + " <:done:403285928233402378>").queue();
 						}
 					});

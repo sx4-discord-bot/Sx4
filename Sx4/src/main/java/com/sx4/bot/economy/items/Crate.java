@@ -4,7 +4,7 @@ import com.sx4.bot.economy.Item;
 
 public class Crate extends Item {
 
-	public static final Crate PRESENT = new Crate("Present Crate", null, 5200D, false);
+	public static final Crate PRESENT = new Crate("Present Crate", null, 10000D, true);
 	public static final Crate SHOE = new Crate("Shoe Crate", 225L, true);
 	public static final Crate COAL = new Crate("Coal Crate", 340L, true);
 	public static final Crate COPPER = new Crate("Copper Crate", 600L, true);
@@ -34,6 +34,12 @@ public class Crate extends Item {
 		
 		this.chance = chance;
 		this.openable = openable;
+	}
+	
+	public Crate setOpenable(boolean openable) {
+		this.openable = openable;
+		
+		return this;
 	}
 	
 	public boolean isOpenable() {

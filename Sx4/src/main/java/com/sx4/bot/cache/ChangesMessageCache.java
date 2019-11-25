@@ -16,10 +16,10 @@ import net.dv8tion.jda.internal.utils.tuple.Pair;
 
 public class ChangesMessageCache extends ListenerAdapter {
 	
-	private static List<Pair<String, String>> messages = new ArrayList<>();
+	private static final List<Pair<Long, String>> MESSAGES = new ArrayList<>();
 	
-	public static List<Pair<String, String>> getMessages() {
-		return messages;
+	public static List<Pair<Long, String>> getMessages() {
+		return MESSAGES;
 	}
 
 	public void onGuildMessageReceived(GuildMessageReceivedEvent event) {
@@ -30,21 +30,21 @@ public class ChangesMessageCache extends ListenerAdapter {
 		
 		TextChannel channel = guild.getTextChannelById(Settings.CHANGES_CHANNEL_ID);
 		
-		if (messages.isEmpty()) {
+		if (MESSAGES.isEmpty()) {
 			channel.getHistory().retrievePast(100).queue(channelMessages -> {
-				if (messages.isEmpty()) {
+				if (MESSAGES.isEmpty()) {
 					for (Message channelMessage : channelMessages) {
-						messages.add(Pair.of(channelMessage.getId(), channelMessage.getContentRaw()));
+						MESSAGES.add(Pair.of(channelMessage.getIdLong(), channelMessage.getContentRaw()));
 					}
 				}
 			});
 		} else {
 			if (event.getChannel().equals(channel)) {
-				if (messages.size() == 100) {
-					messages.remove(99);
+				if (MESSAGES.size() == 100) {
+					MESSAGES.remove(99);
 				}
 				
-				messages.add(0, Pair.of(event.getMessage().getId(), event.getMessage().getContentRaw()));
+				MESSAGES.add(0, Pair.of(event.getMessage().getIdLong(), event.getMessage().getContentRaw()));
 			}
 		}
 	}
@@ -57,21 +57,21 @@ public class ChangesMessageCache extends ListenerAdapter {
 		
 		TextChannel channel = guild.getTextChannelById(Settings.CHANGES_CHANNEL_ID);
 		
-		if (messages.isEmpty()) {
+		if (MESSAGES.isEmpty()) {
 			channel.getHistory().retrievePast(100).queue(channelMessages -> {
-				if (messages.isEmpty()) {
+				if (MESSAGES.isEmpty()) {
 					for (Message channelMessage : channelMessages) {
-						messages.add(Pair.of(channelMessage.getId(), channelMessage.getContentRaw()));
+						MESSAGES.add(Pair.of(channelMessage.getIdLong(), channelMessage.getContentRaw()));
 					}
 				}
 			});
 		} else {
 			if (event.getChannel().equals(channel)) {
-				for (Pair<String, String> message : messages) {
-					if (message.getLeft().equals(event.getMessageId())) {
-						int index = messages.indexOf(message);
-						messages.remove(message);
-						messages.add(index, Pair.of(event.getMessage().getId(), event.getMessage().getContentRaw()));
+				for (Pair<Long, String> message : MESSAGES) {
+					if (message.getLeft() == event.getMessageIdLong()) {
+						int index = MESSAGES.indexOf(message);
+						MESSAGES.remove(message);
+						MESSAGES.add(index, Pair.of(event.getMessage().getIdLong(), event.getMessage().getContentRaw()));
 						return;
 					}
 				}
@@ -87,19 +87,19 @@ public class ChangesMessageCache extends ListenerAdapter {
 		
 		TextChannel channel = guild.getTextChannelById(Settings.CHANGES_CHANNEL_ID);
 		
-		if (messages.isEmpty()) {
+		if (MESSAGES.isEmpty()) {
 			channel.getHistory().retrievePast(100).queue(channelMessages -> {
-				if (messages.isEmpty()) {
+				if (MESSAGES.isEmpty()) {
 					for (Message channelMessage : channelMessages) {
-						messages.add(Pair.of(channelMessage.getId(), channelMessage.getContentRaw()));
+						MESSAGES.add(Pair.of(channelMessage.getIdLong(), channelMessage.getContentRaw()));
 					}
 				}
 			});
 		} else {
 			if (event.getChannel().equals(channel)) {
-				for (Pair<String, String> message : messages) {
-					if (message.getLeft().equals(event.getMessageId())) {
-						messages.remove(message);
+				for (Pair<Long, String> message : MESSAGES) {
+					if (message.getLeft() == event.getMessageIdLong()) {
+						MESSAGES.remove(message);
 						return;
 					}
 				}

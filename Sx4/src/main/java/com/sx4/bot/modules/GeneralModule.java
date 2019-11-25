@@ -41,9 +41,13 @@ import com.jockie.bot.core.command.impl.CommandEvent;
 import com.jockie.bot.core.command.impl.CommandImpl;
 import com.jockie.bot.core.module.Module;
 import com.jockie.bot.core.option.Option;
-import com.mongodb.client.FindIterable;
+import com.mongodb.client.AggregateIterable;
+import com.mongodb.client.model.Accumulators;
+import com.mongodb.client.model.Aggregates;
+import com.mongodb.client.model.BsonField;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Projections;
+import com.mongodb.client.model.Sorts;
 import com.mongodb.client.model.UpdateOptions;
 import com.mongodb.client.model.Updates;
 import com.sun.management.OperatingSystemMXBean;
@@ -83,6 +87,7 @@ import net.dv8tion.jda.api.entities.Emote;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Guild.ExplicitContentLevel;
 import net.dv8tion.jda.api.entities.GuildChannel;
+import net.dv8tion.jda.api.entities.IPermissionHolder;
 import net.dv8tion.jda.api.entities.Invite;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Message.Attachment;
@@ -281,7 +286,7 @@ public class GeneralModule {
 		
 	}
 	
-	@Command(value="suggest", description="If suggestions are set up in the current server send in a suggestion for the chance of it being implemented and get notified when it's accpeted/declined")
+	@Command(value="suggest", description="If suggestions are set up in the current server send in a suggestion for the chance of it being implemented and get notified when it's accepted/declined")
 	@Examples({"suggest Add the dog emote", "suggest Create a channel for people looking to play games"})
 	@BotPermissions({Permission.MESSAGE_ADD_REACTION, Permission.MESSAGE_EMBED_LINKS})
 	public void suggest(CommandEvent event, @Context Database database, @Argument(value="suggestion", endless=true) String suggestion) {
@@ -995,10 +1000,11 @@ public class GeneralModule {
 		@Async
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void all(CommandEvent event, @Context Database database, @Option(value="server", aliases={"guild"}, description="Provide a server name or id to filter the usage by") String guildArgument, @Option(value="user", description="Provide a user name, tag, mention or id to filter the usage by") String userArgument, @Option(value="channel", description="Provide a channel name, mention or id to filter the usage by") String channelArgument) {
-			List<Bson> filters = new ArrayList<>();
+			List<Bson> filters = new ArrayList<>(), projections = new ArrayList<>();
 			if (guildArgument != null) {
 				Guild guild = ArgumentUtils.getGuild(guildArgument);
 				if (guild != null) {
+					projections.add(Projections.include("guildId"));
 					filters.add(Filters.eq("guildId", guild.getIdLong()));
 				}
 			} 
@@ -1006,6 +1012,7 @@ public class GeneralModule {
 			if (userArgument != null) {
 				User user = ArgumentUtils.getUser(userArgument);
 				if (user != null) {
+					projections.add(Projections.include("authorId"));
 					filters.add(Filters.eq("authorId", user.getIdLong()));
 				}
 			}
@@ -1013,31 +1020,43 @@ public class GeneralModule {
 			if (channelArgument != null) {
 				TextChannel channel = ArgumentUtils.getTextChannel(event.getGuild(), channelArgument);
 				if (channel != null) {
+					projections.add(Projections.include("channelId"));
 					filters.add(Filters.eq("channelId", channel.getIdLong()));
 				}
 			}
-
-			FindIterable<Document> commands;
+			
+			projections.add(Projections.include("command", "executionDuration", "timestamp"));
+			projections.add(Projections.exclude("_id"));
+			
+			List<BsonField> accumulators = List.of(
+					Accumulators.sum("count", 1L), 
+					Accumulators.avg("executionAverage", "$executionDuration"),
+					Accumulators.max("executionMaximum", "$executionDuration"),
+					Accumulators.min("executionMinimum", "$executionDuration"),
+					Accumulators.max("lastUsed", "$timestamp")	
+			);
+			
+			List<Bson> aggregates;
 			if (filters.isEmpty()) {
-				commands = database.getCommandLogs().find().projection(Projections.include("command"));
+				aggregates = List.of(
+						Aggregates.project(Projections.fields(projections)),
+						Aggregates.group("$command", accumulators),
+						Aggregates.sort(Sorts.descending("count"))
+				);
 			} else {
-				commands = database.getCommandLogs().find(Filters.and(filters)).projection(Projections.include("command"));
+				aggregates = List.of(
+						Aggregates.project(Projections.fields(projections)),
+						Aggregates.match(Filters.and(filters)),
+						Aggregates.group("$command", accumulators),
+						Aggregates.sort(Sorts.descending("count"))
+				);
 			}
+
+			AggregateIterable<Document> commands = database.getCommandLogs().aggregate(aggregates);
 			
-			Map<String, Long> commandMap = new HashMap<>();
-			for (Document command : commands) {
-				commandMap.compute(command.getString("command"), (key, value) -> value != null ? value + 1L : 1L);
-			}
-			
-			if (commandMap.isEmpty()) {
-				event.reply("I could not find any command usage with those parameters :no_entry:").queue();
-				return;
-			}
-			
-			List<Entry<String, Long>> commandCounter = new ArrayList<>(commandMap.entrySet());
-			commandCounter.sort((a, b) -> Long.compare(b.getValue(), a.getValue()));
-			PagedResult<Entry<String, Long>> paged = new PagedResult<>(commandCounter)
-					.setFunction(data -> String.format("`%s` - %,d %s", data.getKey(), data.getValue(), data.getValue() == 1 ? "use" : "uses"))
+			List<Document> commandCounter = commands.into(new ArrayList<>());
+			PagedResult<Document> paged = new PagedResult<>(commandCounter)
+					.setFunction(data -> String.format("`%s` - %,d %s", data.getString("_id"), data.getLong("count"), data.getLong("count") == 1 ? "use" : "uses"))
 					.setAuthor("Top Commands", null, event.getSelfUser().getEffectiveAvatarUrl())
 					.setIncreasedIndex(true)
 					.setDeleteMessage(false);
@@ -1050,10 +1069,11 @@ public class GeneralModule {
 		@Async
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void guilds(CommandEvent event, @Context Database database, @Option(value="command", description="Provide a command name to filter the usage by") String commandArgument, @Option(value="user", description="Provide a user name, tag, mention or id to filter the usage by") String userArgument) {
-			List<Bson> filters = new ArrayList<>();
+			List<Bson> filters = new ArrayList<>(), projections = new ArrayList<>();
 			if (commandArgument != null) {
 				Sx4Command command = ArgumentUtils.getCommand(commandArgument, false, true, true);
 				if (command != null) {
+					projections.add(Projections.include("command"));
 					filters.add(Filters.eq("command", command.getCommandTrigger()));
 				}
 			} 
@@ -1061,33 +1081,37 @@ public class GeneralModule {
 			if (userArgument != null) {
 				User user = ArgumentUtils.getUser(userArgument);
 				if (user != null) {
+					projections.add(Projections.include("authorId"));
 					filters.add(Filters.eq("authorId", user.getIdLong()));
 				}
 			}
 			
-			FindIterable<Document> commands;
+			projections.add(Projections.include("guildId"));
+			projections.add(Projections.exclude("_id"));
+			
+			List<Bson> aggregates;
 			if (filters.isEmpty()) {
-				commands = database.getCommandLogs().find().projection(Projections.include("guildId"));
+				aggregates = List.of(
+						Aggregates.project(Projections.fields(projections)),
+						Aggregates.group("$guildId", Accumulators.sum("count", 1L)),
+						Aggregates.sort(Sorts.descending("count"))
+				);
 			} else {
-				commands = database.getCommandLogs().find(Filters.and(filters)).projection(Projections.include("guildId"));
+				aggregates = List.of(
+						Aggregates.project(Projections.fields(projections)),
+						Aggregates.match(Filters.and(filters)),
+						Aggregates.group("$guildId", Accumulators.sum("count", 1L)),
+						Aggregates.sort(Sorts.descending("count"))
+				);
 			}
 			
-			Map<Long, Long> commandMap = new HashMap<>();
-			for (Document command : commands) {
-				commandMap.compute(command.getLong("guildId"), (key, value) -> value != null ? value + 1L : 1L);
-			}
-			
-			if (commandMap.isEmpty()) {
-				event.reply("I could not find any command usage with those parameters :no_entry:").queue();
-				return;
-			}
-			
-			List<Entry<Long, Long>> commandCounter = new ArrayList<>(commandMap.entrySet());
-			commandCounter.sort((a, b) -> Long.compare(b.getValue(), a.getValue()));
-			PagedResult<Entry<Long, Long>> paged = new PagedResult<>(commandCounter)
+			AggregateIterable<Document> commands = database.getCommandLogs().aggregate(aggregates);
+
+			List<Document> commandCounter = commands.into(new ArrayList<>());
+			PagedResult<Document> paged = new PagedResult<>(commandCounter)
 					.setFunction(data -> {
-						Guild guild = event.getShardManager().getGuildById(data.getKey());
-						return String.format("`%s` - %,d command%s used", guild == null ? "Unknown guild (" + data.getKey() + ")" : guild.getName(), data.getValue(), data.getValue() == 1 ? "" : "s");
+						Guild guild = event.getShardManager().getGuildById(data.getLong("_id"));
+						return String.format("`%s` - %,d command%s used", guild == null ? "Unknown guild (" + data.getLong("_id") + ")" : guild.getName(), data.getLong("count"), data.getLong("count") == 1 ? "" : "s");
 					})
 					.setAuthor("Top Commands", null, event.getSelfUser().getEffectiveAvatarUrl())
 					.setIncreasedIndex(true)
@@ -1101,10 +1125,11 @@ public class GeneralModule {
 		@Async
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void users(CommandEvent event, @Context Database database, @Option(value="command", description="Provide a command name to filter the usage by") String commandArgument, @Option(value="server", aliases={"guild"}, description="Provide a server name or id to filter the usage by") String guildArgument, @Option(value="channel", description="Provide a channel name, mention or id to filter the usage by") String channelArgument) {
-			List<Bson> filters = new ArrayList<>();
+			List<Bson> filters = new ArrayList<>(), projections = new ArrayList<>();
 			if (commandArgument != null) {
 				Sx4Command command = ArgumentUtils.getCommand(commandArgument, false, true, true);
 				if (command != null) {
+					projections.add(Projections.include("command"));
 					filters.add(Filters.eq("command", command.getCommandTrigger()));
 				}
 			} 
@@ -1112,6 +1137,7 @@ public class GeneralModule {
 			if (guildArgument != null) {
 				Guild guild = ArgumentUtils.getGuild(guildArgument);
 				if (guild != null) {
+					projections.add(Projections.include("guildId"));
 					filters.add(Filters.eq("guildId", guild.getIdLong()));
 				}
 			} 
@@ -1119,33 +1145,37 @@ public class GeneralModule {
 			if (channelArgument != null) {
 				TextChannel channel = ArgumentUtils.getTextChannel(event.getGuild(), channelArgument);
 				if (channel != null) {
+					projections.add(Projections.include("channelId"));
 					filters.add(Filters.eq("channelId", channel.getIdLong()));
 				}
 			}
 			
-			FindIterable<Document> commands;
+			projections.add(Projections.include("authorId"));
+			projections.add(Projections.exclude("_id"));
+			
+			List<Bson> aggregates;
 			if (filters.isEmpty()) {
-				commands = database.getCommandLogs().find().projection(Projections.include("authorId"));
+				aggregates = List.of(
+						Aggregates.project(Projections.fields(projections)),
+						Aggregates.group("$authorId", Accumulators.sum("count", 1L)),
+						Aggregates.sort(Sorts.descending("count"))
+				);
 			} else {
-				commands = database.getCommandLogs().find(Filters.and(filters)).projection(Projections.include("authorId"));
+				aggregates = List.of(
+						Aggregates.project(Projections.fields(projections)),
+						Aggregates.match(Filters.and(filters)),
+						Aggregates.group("$authorId", Accumulators.sum("count", 1L)),
+						Aggregates.sort(Sorts.descending("count"))
+				);
 			}
 			
-			Map<Long, Long> commandMap = new HashMap<>();
-			for (Document command : commands) {
-				commandMap.compute(command.getLong("authorId"), (key, value) -> value != null ? value + 1L : 1L);
-			}
-			
-			if (commandMap.isEmpty()) {
-				event.reply("I could not find any command usage with those parameters :no_entry:").queue();
-				return;
-			}
-			
-			List<Entry<Long, Long>> commandCounter = new ArrayList<>(commandMap.entrySet());
-			commandCounter.sort((a, b) -> Long.compare(b.getValue(), a.getValue()));
-			PagedResult<Entry<Long, Long>> paged = new PagedResult<>(commandCounter)
+			AggregateIterable<Document> commands = database.getCommandLogs().aggregate(aggregates);
+
+			List<Document> commandCounter = commands.into(new ArrayList<>());
+			PagedResult<Document> paged = new PagedResult<>(commandCounter)
 					.setFunction(data -> {
-						User user = event.getShardManager().getUserById(data.getKey());
-						return String.format("`%s` - %,d command%s used", user == null ? "Unknown user (" + data.getKey() + ")" : user.getAsTag(), data.getValue(), data.getValue() == 1 ? "" : "s");
+						User user = event.getShardManager().getUserById(data.getLong("_id"));
+						return String.format("`%s` - %,d command%s used", user == null ? "Unknown user (" + data.getLong("_id") + ")" : user.getAsTag(), data.getLong("count"), data.getLong("count") == 1 ? "" : "s");
 					})
 					.setAuthor("Top Commands", null, event.getSelfUser().getEffectiveAvatarUrl())
 					.setIncreasedIndex(true)
@@ -1190,52 +1220,51 @@ public class GeneralModule {
 	@Examples({"channelinfo", "channelinfo #general", "channelinfo 344091594972069888", "channelinfo general"})
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void channelInfo(CommandEvent event, @Argument(value="text channel | category | voice channel", endless=true, nullDefault=true) String channelArgument) {
-		TextChannel textChannel = null;
-		VoiceChannel voiceChannel = null;
-		Category category = null;
+		GuildChannel channel = null;
 		if (channelArgument == null) {
-			textChannel = event.getTextChannel();
+			channel = event.getTextChannel();
 		} else {
-			textChannel = ArgumentUtils.getTextChannel(event.getGuild(), channelArgument);
-			voiceChannel = ArgumentUtils.getVoiceChannel(event.getGuild(), channelArgument);
-			category = ArgumentUtils.getCategory(event.getGuild(), channelArgument);
+			channel = ArgumentUtils.getTextChannel(event.getGuild(), channelArgument);
+			channel = ArgumentUtils.getVoiceChannel(event.getGuild(), channelArgument);
+			channel = ArgumentUtils.getCategory(event.getGuild(), channelArgument);
+		}
+		
+		if (channel == null) {
+			event.reply("I could not find that channel/category :no_entry:").queue();
+			return;
 		}
 		
 		EmbedBuilder embed = new EmbedBuilder();
 		embed.setColor(event.getMember().getColor());
-		if (textChannel != null) {			
-			embed.setAuthor(textChannel.getName(), null, event.getGuild().getIconUrl());
-			embed.addField("Channel ID", textChannel.getId(), true);
+		embed.setAuthor(channel.getName(), null, event.getGuild().getIconUrl());
+		embed.addField("Created", channel.getTimeCreated().format(this.formatter), true);
+		embed.addField("Channel ID", channel.getId(), true);
+		embed.addField("Channel Position", String.valueOf(channel.getPosition() + 1), true);
+		embed.addField("Members", String.valueOf(channel.getMembers().size()), true);
+		
+		if (channel instanceof TextChannel) {
+			TextChannel textChannel = (TextChannel) channel;
 			embed.addField("NSFW Channel", textChannel.isNSFW() == true ? "Yes" : "No", true);
-			embed.addField("Channel Position", String.valueOf(textChannel.getPosition() + 1), true);
 			embed.addField("Slowmode", textChannel.getSlowmode() != 0 ? textChannel.getSlowmode() + (textChannel.getSlowmode() == 1 ? " second" : " seconds") : "No Slowmode Set", true);
 			embed.addField("Channel Category", textChannel.getParent() == null ? "Not in a Category" : textChannel.getParent().getName(), true);
-			embed.addField("Members", String.valueOf(textChannel.getMembers().size()), true);
-		} else if (voiceChannel != null) {
-			embed.setAuthor(voiceChannel.getName(), null, event.getGuild().getIconUrl());
-			embed.addField("Channel ID", voiceChannel.getId(), true);
-			embed.addField("Channel Position", String.valueOf(voiceChannel.getPosition() + 1), true);
+		} else if (channel instanceof VoiceChannel) {
+			VoiceChannel voiceChannel = (VoiceChannel) channel;
 			embed.addField("Channel Category", voiceChannel.getParent() == null ? "Not in a Category" : voiceChannel.getParent().getName(), true);
-			embed.addField("Members Inside", String.valueOf(voiceChannel.getMembers().size()), true);
 			embed.addField("User Limit", voiceChannel.getUserLimit() == 0 ? "Unlimited" : String.valueOf(voiceChannel.getUserLimit()), true);
 			embed.addField("Bitrate", voiceChannel.getBitrate()/1000 + " kbps", true);
-		} else if (category != null) {	
-			List<String> channels = new ArrayList<String>();
-			for (GuildChannel channel : category.getChannels()) {
-				if (channel.getType() == ChannelType.VOICE) {
-					channels.add(channel.getName());
-				} else if (channel.getType() == ChannelType.TEXT) {
-					channels.add("<#" + channel.getId() + ">");
+		} else {
+			Category category = (Category) channel;
+			
+			List<String> channels = new ArrayList<>();
+			for (GuildChannel guildChannel : category.getChannels()) {
+				if (guildChannel.getType() == ChannelType.VOICE) {
+					channels.add(guildChannel.getName());
+				} else if (guildChannel.getType() == ChannelType.TEXT) {
+					channels.add("<#" + guildChannel.getId() + ">");
 				}
 			}
 			
-			embed.setAuthor(category.getName(), null, event.getGuild().getIconUrl());
-			embed.addField("Category ID", category.getId(), true);
-			embed.addField("Category Position", String.valueOf(category.getPosition() + 1), true);
 			embed.addField("Category Channels", channels.isEmpty() ? "No Channels are in this Category" : String.join("\n", channels), false);
-		} else {
-			event.reply("I could not find that channel/category :no_entry:").queue();
-			return;
 		}
 		
 		event.reply(embed.build()).queue();
@@ -1246,21 +1275,14 @@ public class GeneralModule {
 	@Examples({"changes", "changes 2.2.0", "changes latest"})
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void changes(CommandEvent event, @Argument(value="version", nullDefault=true) String version) {
-		List<Pair<String, String>> messages = ChangesMessageCache.getMessages();
+		List<Pair<Long, String>> messages = ChangesMessageCache.getMessages();
 		if (version == null) {
-			List<Pair<String, String>> changeLogMessages = new ArrayList<>();
-			for (Pair<String, String> message : messages) {
-				if (message.getRight().startsWith("Version: ")) {
-					changeLogMessages.add(message);
-				}
-			}
-			
-			if (changeLogMessages.isEmpty()) {
+			if (messages.isEmpty()) {
 				event.reply("I could not find any change logs :no_entry:").queue();
 				return;
 			}
 			
-			PagedResult<Pair<String, String>> paged = new PagedResult<>(changeLogMessages)
+			PagedResult<Pair<Long, String>> paged = new PagedResult<>(messages)
 					.setIncreasedIndex(true)
 					.setSelectableByIndex(true)
 					.setFunction(changeLogMessage -> {
@@ -1274,7 +1296,7 @@ public class GeneralModule {
 			if (version.toLowerCase().equals("latest")) {
 				event.reply(messages.get(0).getRight()).queue();
 			} else {
-				for (Pair<String, String> message : messages) {
+				for (Pair<Long, String> message : messages) {
 					String messageVersion = message.getRight().split("\n")[0];
 					if (messageVersion.equals("Version: " + version)) {
 						event.reply(message.getRight()).queue();
@@ -1551,7 +1573,7 @@ public class GeneralModule {
 		
 		Request request = new Request.Builder()
 				.url(url)
-				.addHeader("Authorization", TokenUtils.DISCORD_BOT_LIST_ORG)
+				.addHeader("Authorization", TokenUtils.TOP_GG)
 				.build();
 		
 		Sx4Bot.client.newCall(request).enqueue((Sx4Callback) response -> {
@@ -1601,7 +1623,7 @@ public class GeneralModule {
 		
 		Request request = new Request.Builder()
 				.url("https://discordbots.org/api/bots?sort=server_count&limit=500&fields=username,server_count,id")
-				.addHeader("Authorization", TokenUtils.DISCORD_BOT_LIST_ORG)
+				.addHeader("Authorization", TokenUtils.TOP_GG)
 				.build();
 		
 		Sx4Bot.client.newCall(request).enqueue((Sx4Callback) response -> {
@@ -1820,35 +1842,40 @@ public class GeneralModule {
 	@Examples({"permissions @Members", "permissions @Shea#6653"})
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void permissions(CommandEvent event, @Argument(value="role | user", endless=true, nullDefault=true) String argument) {
-		Role role = null;
-		Member member = null;
+		IPermissionHolder permissionHolder = null;
 		if (argument == null) {
-			member = event.getMember();
+			permissionHolder = event.getMember();
 		} else {
-			member = ArgumentUtils.getMember(event.getGuild(), argument);
-			if (member == null) {
-				role = ArgumentUtils.getRole(event.getGuild(), argument);
+			permissionHolder = ArgumentUtils.getMember(event.getGuild(), argument);
+			if (permissionHolder == null) {
+				permissionHolder = ArgumentUtils.getRole(event.getGuild(), argument);
 			}
 		}
 		
-		if (member == null && role == null) {
+		if (permissionHolder == null) {
 			event.reply("I could not find that user/role :no_entry:").queue();
 			return;
 		}
 		
+		if (permissionHolder.getPermissions().isEmpty()) {
+			event.reply("That user/role doesn't have any permissions :no_entry:").queue();
+			return;
+		}
+		
 		EmbedBuilder embed = new EmbedBuilder();
-		List<String> permissions;
-		if (member != null) {
+		if (permissionHolder instanceof Member) {
+			Member member = (Member) permissionHolder;
+			
 			embed.setColor(member.getColor());
 			embed.setAuthor(member.getUser().getName() + "'s Permissions", null, member.getUser().getEffectiveAvatarUrl());
-			permissions = member.getPermissions().stream().map(permission -> permission.getName()).collect(Collectors.toList());
-			embed.setDescription(String.join("\n", permissions));
-		} else if (role != null) {
+		} else {
+			Role role = (Role) permissionHolder;
+			
 			embed.setColor(role.getColor());
 			embed.setAuthor(role.getName() + "'s Permissions", null, event.getGuild().getIconUrl());
-			permissions = role.getPermissions().stream().map(permission -> permission.getName()).collect(Collectors.toList());
-			embed.setDescription(String.join("\n", permissions));
 		}
+		
+		embed.setDescription(String.join("\n", permissionHolder.getPermissions().stream().map(Permission::getName).collect(Collectors.toList())));
 		
 		event.reply(embed.build()).queue();
 	}
@@ -1924,19 +1951,18 @@ public class GeneralModule {
 		}
 		
 		EmbedBuilder embed = new EmbedBuilder()
-				.setAuthor(role.getName() + " Role Info", null, event.getGuild().getIconUrl())
+				.setAuthor(role.getName(), null, event.getGuild().getIconUrl())
 				.setColor(role.getColor())
-				.setFooter("Created", null)
-				.setTimestamp(role.getTimeCreated())
 				.setThumbnail(event.getGuild().getIconUrl())
-				.addField("Role ID", role.getId(), true)
+				.addField("Created", role.getTimeCreated().format(this.formatter), true)
 				.addField("Role Colour", String.format("Hex: #%s\nRGB: %s", GeneralUtils.getHex(role.getColorRaw()), GeneralUtils.getRGB(role.getColorRaw())), true)
 				.addField("Role Position", String.format("%s (Bottom to Top)\n%s (Top to Bottom)", GeneralUtils.getNumberSuffix(role.getPosition() + 2), GeneralUtils.getNumberSuffix(event.getGuild().getRoles().size() - 1 - role.getPosition())), true)
 				.addField("Members In Role", String.valueOf(event.getGuild().getMembersWithRoles(role).size()), true)
-				.addField("Hoisted Role", role.isHoisted() == true ? "Yes" : "No", true)
-				.addField("Mentionable Role", role.isMentionable() == true ? "Yes" : "No", true)
-				.addField("Managed Role", role.isManaged() == true ? "Yes" : "No", true)
-				.addField("Role Permissions", role.getPermissions().isEmpty() ? "None" : String.join("\n", role.getPermissions().stream().map(Permission::getName).collect(Collectors.toList())), true);
+				.addField("Hoisted Role", role.isHoisted() ? "Yes" : "No", true)
+				.addField("Mentionable Role", role.isMentionable() ? "Yes" : "No", true)
+				.addField("Managed Role", role.isManaged() ? "Yes" : "No", true)
+				.addField("Role ID", role.getId(), true)
+				.addField("Role Permissions", role.getPermissions().isEmpty() ? "None" : String.join("\n", role.getPermissions().stream().map(Permission::getName).collect(Collectors.toList())), false);
 		
 		event.reply(embed.build()).queue();
 	}
@@ -2294,7 +2320,7 @@ public class GeneralModule {
 				embed.setColor(member.getColor());
 				embed.setFooter("Join Position: " + GeneralUtils.getNumberSuffix(joinPosition), null);
 				embed.addField("Joined Discord", member.getUser().getTimeCreated().format(this.formatter), true);
-				embed.addField("Joined " + event.getGuild().getName(), member.getTimeJoined().format(this.formatter), true);
+				embed.addField("Joined Server", member.getTimeJoined().format(this.formatter), true);
 				embed.addField("Boosting Since", event.getGuild().getBoosters().contains(member) ? member.getTimeBoosted().format(this.formatter) : "Not Boosting", true);
 				embed.addField("Nickname", member.getNickname() == null ? "None" : member.getNickname(), true);
 				embed.addField("Discriminator", member.getUser().getDiscriminator(), true);
@@ -2390,9 +2416,8 @@ public class GeneralModule {
 		long onlineMembers = members.stream().filter(m -> !m.getOnlineStatus().equals(OnlineStatus.OFFLINE)).count();
 		
 		Runtime runtime = Runtime.getRuntime();
-		OperatingSystemMXBean os = (OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean();
-		double cpuUsage = os.getProcessCpuLoad();
-		long totalMemory = os.getTotalPhysicalMemorySize();
+		double cpuUsage = ManagementFactory.getOperatingSystemMXBean().getSystemLoadAverage();
+		long totalMemory = ((OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean()).getTotalPhysicalMemorySize();
 		long memoryUsed = runtime.totalMemory() - runtime.freeMemory();
 		StringBuilder memoryString = new StringBuilder();
 		if (memoryUsed >= this.gigabyte) {

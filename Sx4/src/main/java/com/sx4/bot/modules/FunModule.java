@@ -31,8 +31,10 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import javax.imageio.ImageIO;
+import javax.ws.rs.ForbiddenException;
 
 import org.bson.BsonDocument;
 import org.bson.Document;
@@ -61,6 +63,9 @@ import com.mongodb.client.model.UpdateOneModel;
 import com.mongodb.client.model.UpdateOptions;
 import com.mongodb.client.model.Updates;
 import com.mongodb.client.model.WriteModel;
+import com.sx4.bot.cache.DictionaryCache;
+import com.sx4.bot.cache.GoogleSearchCache;
+import com.sx4.bot.cache.GoogleSearchCache.GoogleSearchResult;
 import com.sx4.bot.cache.SteamCache;
 import com.sx4.bot.categories.Categories;
 import com.sx4.bot.core.Sx4Bot;
@@ -102,6 +107,8 @@ import okhttp3.Response;
 public class FunModule {
 	
 	private static final Random RANDOM = new Random();
+	
+	private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd LLL yyyy HH:mm");
 	
 	public enum Direction {
 		NORTH(0),
@@ -2236,125 +2243,213 @@ public class FunModule {
 		});
 	}
 	
-	@SuppressWarnings("unchecked")
 	@Command(value="google", description="Returns the first 5 google search results from your query")
 	@Examples({"google Sx4 discord bot", "google youtube"})
 	@Cooldown(value=3)
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void google(CommandEvent event, @Argument(value="query", endless=true) String query) {
-		Request request;
-		try {
-			request = new Request.Builder()
-					.url(new URL("https://www.googleapis.com/customsearch/v1?key=" + TokenUtils.GOOGLE + "&cx=014023765838117903829:mm334tqd3kg&safe=" + (event.getTextChannel().isNSFW() ? "off" : "active") + "&q=" + query))
-					.build();
-		} catch (MalformedURLException e) {
-			event.reply("Oops something went wrong there, try again :no_entry:").queue();
-			return;
-		}
-		
-		Sx4Bot.client.newCall(request).enqueue((Sx4Callback) response -> {
-			if (response.code() == 403) {
-				event.reply("Daily quota reached (100) :no_entry:").queue();
-				return;
+		GoogleSearchCache.INSTANCE.retrieveResultsByQuery(query.toLowerCase(), event.getTextChannel().isNSFW(), (results, exception) -> {
+			if (exception != null) {
+				if (exception instanceof ForbiddenException) {
+					event.reply(exception.getMessage() + " :no_entry:").queue();
+				} else {
+					exception.printStackTrace();
+					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+				}
+			} else {
+				if (results.isEmpty()) {
+					event.reply("I could not find any results :no_entry:").queue();
+					return;
+				}
+				
+				PagedResult<GoogleSearchResult> paged = new PagedResult<>(results)
+						.setDeleteMessage(false)
+						.setIndexed(false)
+						.setPerPage(5)
+						.setAuthor("Google", "https://www.google.co.uk/search?q=" + URLEncoder.encode(query, StandardCharsets.UTF_8), "http://i.imgur.com/G46fm8J.png")
+						.setFunction(result -> {
+							return String.format("**[%s](%s)**\n%s\n", result.getTitle(), result.getLink(), result.getSnippet());
+						});
+				
+				PagedUtils.getPagedResult(event, paged, 300, null);
 			}
-			
-			JSONObject json;
-			try {
-				json = new JSONObject(response.body().string());
-			} catch (JSONException | IOException e) {
-				event.reply("Oops something went wrong there, try again :no_entry:").queue();
-				return;
-			}
-			
-			if (!json.has("items")) {
-				event.reply("I could not find any results :no_entry:").queue();
-				return;
-			}
-			
-			List<Object> results = json.getJSONArray("items").toList();
-			if (results.isEmpty()) {
-				event.reply("I could not find any results :no_entry:").queue();
-				return;
-			}
-			
-			
-			PagedResult<Object> paged = new PagedResult<>(results)
-					.setDeleteMessage(false)
-					.setIndexed(false)
-					.setPerPage(5)
-					.setAuthor("Google", "https://www.google.co.uk/search?q=" + URLEncoder.encode(query, StandardCharsets.UTF_8), "http://i.imgur.com/G46fm8J.png")
-					.setFunction(result -> {
-						Map<String, String> data = (Map<String, String>) result;
-						return String.format("**[%s](%s)**\n%s\n", data.get("title"), data.get("link"), data.get("snippet"));
-					});
-			
-			PagedUtils.getPagedResult(event, paged, 300, null);
 		});
 	}
 	
-	@SuppressWarnings("unchecked")
 	@Command(value="google image", aliases={"googleimage"}, description="Returns an image from google based on your query")
 	@Examples({"google image car", "google image doggo", "google image cat"})
 	@Cooldown(value=3)
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void googleImage(CommandEvent event, @Argument(value="query", endless=true) String query) {
-		Request request;
-		try {
-			request = new Request.Builder()
-					.url(new URL("https://www.googleapis.com/customsearch/v1?key=" + TokenUtils.GOOGLE + "&searchType=image&cx=014023765838117903829:klo2euskkae&safe=" + (event.getTextChannel().isNSFW() ? "off" : "active") + "&q=" + query))
-					.build();
-		} catch (MalformedURLException e) {
-			event.reply("Oops something went wrong there, try again :no_entry:").queue();
-			return;
+		GoogleSearchCache.INSTANCE.retrieveResultsByQuery(query.toLowerCase(), true, event.getTextChannel().isNSFW(), (results, exception) -> {
+			if (exception != null) {
+				if (exception instanceof ForbiddenException) {
+					event.reply(exception.getMessage() + " :no_entry:").queue();
+				} else {
+					exception.printStackTrace();
+					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+				}
+			} else {
+				if (results.isEmpty()) {
+					event.reply("I could not find any results :no_entry:").queue();
+					return;
+				}
+				
+				PagedResult<GoogleSearchResult> paged = new PagedResult<>(results)
+						.setDeleteMessage(false)
+						.setPerPage(1)
+						.setCustomFunction(page -> {
+							EmbedBuilder embed = new EmbedBuilder();
+							embed.setAuthor("Google", "https://www.google.co.uk/search?q=" + URLEncoder.encode(query, StandardCharsets.UTF_8) + "&tbm=isch", "http://i.imgur.com/G46fm8J.png");
+							embed.setTitle("Image " + page.getCurrentPage() + "/" + page.getMaxPage());
+							embed.setFooter("next | previous | go to <page_number> | cancel", null);
+							
+							List<GoogleSearchResult> data = page.getArray();
+							for (int i = page.getCurrentPage() * page.getPerPage() - page.getPerPage(); i < page.getCurrentPage() * page.getPerPage(); i++) {
+								try {
+									embed.setImage(data.get(i).getLink());
+								} catch (IndexOutOfBoundsException e) {
+									break;
+								}
+							}
+							
+							return embed.build();
+						});
+				
+				PagedUtils.getPagedResult(event, paged, 300, null);
+			}
+		});
+	}
+	
+	@SuppressWarnings("unchecked")
+	@Command(value="igdb", description="Search up any game on IGDB")
+	@Examples({"igdb human fall", "igdb uno --sort=release --reverse", "igdb grand theft auto --sort=rating --rating=>80"})
+	@Cooldown(value=3)
+	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
+	public void igdb(CommandEvent event, @Argument(value="game", endless=true, nullDefault=true) String game, @Option(value="rating", description="Filters results based on their rating") String rating, @Option(value="sort", description="Sort results by `name` (default), `rating`, `popularity` and `release`") String sort, @Option(value="reverse", description="Reverses sorting order") boolean reverse) {
+		StringBuilder filters = new StringBuilder(";where category = 0");
+		StringBuilder query = new StringBuilder("fields name,total_rating,total_rating_count,first_release_date,genres.name,url,summary,cover.image_id,platforms.name,popularity;limit 500");
+		if (game != null && sort == null && !reverse) {
+			query.append(";search \"" + game + "\"");
+		} else {
+			sort = sort == null ? "name" : sort;
+			String sortingOrder = reverse ? ":asc" : ":desc";
+			switch (sort) {
+				case "release":
+					query.append(";sort first_release_date" + sortingOrder);
+					filters.append("& first_release_date != n");
+					break;
+				case "rating":
+					query.append(";sort total_rating" + sortingOrder);
+					filters.append("& total_rating != n");
+					break;
+				case "popularity":
+					query.append(";sort popularity" + sortingOrder);
+					break;
+				default:
+					query.append(";sort name" + sortingOrder);
+					break;
+			}
+			
+			if (game != null) {
+				filters.append("& name ~ \"" + game + "\"*");
+			}
 		}
 		
-		Sx4Bot.client.newCall(request).enqueue((Sx4Callback) response -> {
-			if (response.code() == 403) {
-				event.reply("Daily quota reached (100) :no_entry:").queue();
-				return;
-			}
-			
-			JSONObject json;
-			try {
-				json = new JSONObject(response.body().string());
-			} catch (JSONException | IOException e) {
-				event.reply("Oops something went wrong there, try again :no_entry:").queue();
-				return;
-			}
-			
-			if (!json.has("items")) {
-				event.reply("I could not find any results :no_entry:").queue();
-				return;
-			}
-			
-			List<Object> results = json.getJSONArray("items").toList();
-			if (results.isEmpty()) {
-				event.reply("I could not find any results :no_entry:").queue();
-				return;
-			}
-			
-			PagedResult<Object> paged = new PagedResult<>(results)
-					.setDeleteMessage(false)
-					.setPerPage(1)
-					.setCustomFunction(page -> {
-						EmbedBuilder embed = new EmbedBuilder();
-						embed.setAuthor("Google", "https://www.google.co.uk/search?q=" + URLEncoder.encode(query, StandardCharsets.UTF_8) + "&tbm=isch", "http://i.imgur.com/G46fm8J.png");
-						embed.setTitle("Image " + page.getCurrentPage() + "/" + page.getMaxPage());
-						embed.setFooter("next | previous | go to <page_number> | cancel", null);
-						
-						List<Object> data = page.getArray();
-						for (int i = page.getCurrentPage() * page.getPerPage() - page.getPerPage(); i < page.getCurrentPage() * page.getPerPage(); i++) {
-							try {
-								embed.setImage(((Map<String, String>) data.get(i)).get("link"));
-							} catch (IndexOutOfBoundsException e) {
+		if (rating != null) {
+			if (rating.contains("-")) {
+				String[] ratingSplit = rating.split("-", 2);
+				boolean reverseRating = rating.startsWith("!");
+				try {
+					int lowerBound = Integer.parseInt(reverseRating ? ratingSplit[0].substring(1) : ratingSplit[0]);
+					int upperBound = Integer.parseInt(ratingSplit[1]);
+					if (lowerBound >= 0 && upperBound <= 100 && upperBound >= lowerBound) {
+						filters.append("& (total_rating " + (reverseRating ? "<" : ">=") + lowerBound + (reverseRating ? "|" : "&") + " total_rating " + (reverseRating ? ">" : "<") + upperBound + ")");
+					}
+				} catch (NumberFormatException e) {}
+			} else if (GeneralUtils.isNumberUnsigned(rating)) {
+				filters.append("& total_rating = " + rating);
+			} else {
+				int index = 0;
+				StringBuilder prefix = new StringBuilder();
+				while (!Character.isDigit(rating.charAt(index)) && index != rating.length() - 1) {
+					prefix.append(rating.charAt(index++));
+				}
+				
+				if (index != rating.length() - 1) {
+					try {
+						int bound = Integer.parseInt(rating.substring(index));
+						switch (prefix.toString()) {
+							case "<":
+								filters.append("& total_rating < " + bound);
 								break;
-							}
+							case "<=":
+								filters.append("& total_rating <= " + bound);
+								break;
+							case ">":
+								filters.append("& total_rating > " + bound);
+								break;
+							case ">=":
+								filters.append("& total_rating >= " + bound);
+								break;
+							case "=":
+								filters.append("& total_rating = " + bound);
+								break;
+							case "==":
+								filters.append("& total_rating = " + bound);
+								break;
+							case "!=":
+								filters.append("& total_rating != " + bound);
+								break;
+							case "!":
+								filters.append("& total_rating != " + bound);
+								break;
 						}
-						
-						return embed.build();
-					});
+					} catch(NumberFormatException e) {}
+				}
+			}
+		}
+		
+		query.append(filters.toString());
+		query.append(";");
+		
+		Request request = new Request.Builder()
+				.url("https://api-v3.igdb.com/games/")
+				.post(RequestBody.create(MediaType.parse("application/json; charset=utf-8"), query.toString()))
+				.addHeader("user-key", TokenUtils.IGDB)
+				.build();
+		
+		Sx4Bot.client.newCall(request).enqueue((Sx4Callback) response -> {
+			JSONArray results = new JSONArray(response.body().string());
+			if (results.isEmpty()) {
+				event.reply("I could not find any games :no_entry:").queue();
+				return;
+			}
 			
-			PagedUtils.getPagedResult(event, paged, 300, null);
+			PagedResult<Object> paged = new PagedResult<>(results.toList())
+					.setAutoSelect(true)
+					.setIncreasedIndex(true)
+					.setSelectableByIndex(true)
+					.setAuthor("IGDB Search", null, "http://bit.ly/2NXGwMz")
+					.setFunction(data -> (String) ((Map<String, Object>) data).get("name"));
+			
+			PagedUtils.getPagedResult(event, paged, 300, onReturn -> {
+				JSONObject data = new JSONObject((Map<String, Object>) onReturn.getData());
+				
+				EmbedBuilder embed = new EmbedBuilder();
+				embed.setAuthor(data.getString("name"), data.getString("url"), "http://bit.ly/2NXGwMz");
+				embed.setDescription(GeneralUtils.limitString(data.optString("summary", "This game has no description :("), MessageEmbed.TEXT_MAX_LENGTH, "... [Read More](" + data.getString("url") + ")"));
+				embed.setThumbnail(data.has("cover") ? String.format("https://images.igdb.com/igdb/image/upload/t_thumb/%s.jpg", data.getJSONObject("cover").getString("image_id")) : null);
+				
+				int ratings = data.optInt("total_rating_count");
+				embed.addField("Rating", data.has("total_rating") ? String.format("%.2f out of %,d rating%s", data.getDouble("total_rating"), ratings, ratings == 1 ? "" : "s") : "Unknown", true);
+				embed.addField("Release Date", data.has("first_release_date") ? LocalDateTime.ofEpochSecond(data.getLong("first_release_date"), 0, ZoneOffset.UTC).format(this.formatter) : "Unknown", true);
+				embed.addField("Popularity", String.format("%.2f", data.optDouble("popularity")), true);
+				embed.addField("Genres", data.has("genres") ? String.join("\n", data.getJSONArray("genres").toList().stream().map(genre -> (String) ((Map<String, Object>) genre).get("name")).collect(Collectors.toList())) : "None", true);
+				embed.addField("Platforms", data.has("platforms") ? String.join("\n", data.getJSONArray("platforms").toList().stream().map(platform -> (String) ((Map<String, Object>) platform).get("name")).collect(Collectors.toList())) : "None", true);
+				
+				event.reply(embed.build()).queue();
+			});
 		});
 	}
 	
@@ -2363,50 +2458,30 @@ public class FunModule {
 	@Cooldown(value=5)
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void dictionary(CommandEvent event, @Argument(value="word", endless=true) String word) {
-		Request request;
-		try {
-			request = new Request.Builder()
-					.url(new URL("https://od-api.oxforddictionaries.com:443/api/v2/entries/en-gb/" + word.toLowerCase()))
-					.addHeader("Accept", "application/json")
-					.addHeader("app_id", "e01b354a")
-					.addHeader("app_key", TokenUtils.OXFORD_DICTIONARIES)
-					.build();
-		} catch (MalformedURLException e) {
-			event.reply("Oops something went wrong there, try again :no_entry:").queue();
-			return;
-		}
-		
-		Sx4Bot.client.newCall(request).enqueue((Sx4Callback) response -> {
-			if (response.code() == 404) {
-				event.reply("I could not find any results :no_entry:").queue();
-				return;
+		DictionaryCache.INSTANCE.retrieveResultByQuery(word.toLowerCase(), (result, exception) -> {
+			if (exception != null) {
+				if (exception instanceof ForbiddenException) {
+					event.reply(exception.getMessage() + " :no_entry:").queue();
+				} else {
+					exception.printStackTrace();
+					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+				}
+			} else {
+				if (result == null || !result.hasDefinition()) {
+					event.reply("I could not find a definition for that word :no_entry:").queue();
+					return;
+				}
+				
+				EmbedBuilder embed = new EmbedBuilder();
+				embed.setAuthor(GeneralUtils.title(result.getId()), "https://en.oxforddictionaries.com/definition/" + word.toLowerCase());
+				embed.addField("Definition", result.getDefinition() + (result.hasExample() ? "\n\n*" + result.getExample() + "*" : ""), false);
+				
+				if (result.hasAudioFile()) {
+					embed.addField("Pronunciation", "[Download Here](" + result.getAudioFile() + ")", false);
+				}
+				
+				event.reply(embed.build()).queue();
 			}
-			
-			JSONObject json;
-			try {
-				json = new JSONObject(response.body().string());
-			} catch (JSONException | IOException e) {
-				event.reply("Oops something went wrong there, try again :no_entry:").queue();
-				return;
-			}
-			
-			JSONArray results = json.getJSONArray("results"); 
-			if (results.toList().isEmpty()) {
-				event.reply("I could not find any results :no_entry:").queue();
-				return;
-			}
-			
-			JSONObject data = results.getJSONObject(0);
-			String pronunciationLink = data.getJSONArray("lexicalEntries").getJSONObject(0).getJSONArray("pronunciations").getJSONObject(0).getString("audioFile");	
-			JSONObject sense = data.getJSONArray("lexicalEntries").getJSONObject(0).getJSONArray("entries").getJSONObject(0).getJSONArray("senses").getJSONObject(0);
-			String definition = sense.getJSONArray("definitions").getString(0);
-			String example = "\n\n" + (sense.has("examples") ? "*" + sense.getJSONArray("examples").getJSONObject(0).getString("text") + "*" : "");
-			EmbedBuilder embed = new EmbedBuilder();
-			embed.setAuthor(GeneralUtils.title(data.getString("id")), "https://en.oxforddictionaries.com/definition/" + word.toLowerCase());
-			embed.addField("Definition", definition + example , false);
-			embed.addField("Pronunciation", "[Download Here](" + pronunciationLink + ")", false);
-			
-			event.reply(embed.build()).queue();
 		});
 	}
 	
@@ -2453,7 +2528,7 @@ public class FunModule {
 				}
 				
 				JSONObject player = players.getJSONObject(0);
-				String lastLoggedOn = LocalDateTime.ofEpochSecond(player.getLong("lastlogoff"), 0, ZoneOffset.UTC).format(DateTimeFormatter.ofPattern("dd LLL yyyy HH:mm"));
+				String lastLoggedOn = LocalDateTime.ofEpochSecond(player.getLong("lastlogoff"), 0, ZoneOffset.UTC).format(this.formatter);
 				
 				String status;
 				if (player.getInt("personastate") == 0) {

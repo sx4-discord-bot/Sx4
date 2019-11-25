@@ -9,7 +9,6 @@ import com.sx4.bot.economy.tools.Axe;
 import com.sx4.bot.economy.tools.Pickaxe;
 import com.sx4.bot.economy.tools.Rod;
 import com.sx4.bot.economy.tools.Tool;
-import com.sx4.bot.utils.EconomyUtils;
 
 import net.dv8tion.jda.api.entities.User;
 
@@ -23,7 +22,7 @@ public class AuctionItem {
 
 	public AuctionItem(Document auctionData) {
 		this.itemData = auctionData.get("item", Document.class);
-		this.item = EconomyUtils.getItem(this.itemData.getString("name"));
+		this.item = Item.getItemByName(this.itemData.getString("name"));
 		this.ownerId = auctionData.getLong("ownerId");
 		this.id = auctionData.getObjectId("_id");
 		this.price = auctionData.getLong("price");

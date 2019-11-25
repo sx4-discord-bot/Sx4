@@ -54,8 +54,8 @@ public class ServerPostEvents {
 				
 				request = new Request.Builder()
 						.post(RequestBody.create(MediaType.parse("application/json; charset=utf-8"), bodyDiscordBotListOrg))
-						.url("https://discordbots.org/api/bots/" + botId + "/stats")
-						.addHeader("Authorization", TokenUtils.DISCORD_BOT_LIST_ORG)
+						.url("https://top.gg/api/bots/" + botId + "/stats")
+						.addHeader("Authorization", TokenUtils.TOP_GG)
 						.addHeader("Content-Type", "application/json")
 						.build();
 				
@@ -73,7 +73,7 @@ public class ServerPostEvents {
 				request = new Request.Builder()
 						.post(RequestBody.create(MediaType.parse("application/json; charset=utf-8"), bodyDiscordBotListCom))
 						.url("https://discordbotlist.com/api/bots/" + botId + "/stats")
-						.addHeader("Authorization", TokenUtils.DISCORD_BOT_LIST_COM)
+						.addHeader("Authorization", TokenUtils.DISCORD_BOT_LIST)
 						.addHeader("Content-Type", "application/json")
 						.build();
 				

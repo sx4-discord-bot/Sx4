@@ -20,6 +20,7 @@ import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.internal.utils.tuple.Pair;
 
 public class HelpUtils {
 	
@@ -89,8 +90,17 @@ public class HelpUtils {
 	}
 	
 	public static PagedResult<Sx4Command> getCommandPagedResult(List<Sx4Command> commands) {
+		return HelpUtils.getCommandPagedResult(commands, 1);
+	}
+	
+	public static PagedResult<Sx4Command> getCommandPagedResult(List<Sx4Command> commands, int page) {
+		if (page - 1 > commands.size() / 15) {
+			page = 1;
+		}
+		
 		return new PagedResult<>(commands)
 				.setDeleteMessage(false)
+				.setPage(page)
 				.setPerPage(15)
 				.setIndexed(false)
 				.setSelectableByObject(true)
@@ -102,6 +112,10 @@ public class HelpUtils {
 	}
 	
 	public static PagedResult<Sx4Command> getModulePagedResult(CategoryImpl module, User author) {
+		return HelpUtils.getModulePagedResult(module, author, 1);
+	}
+	
+	public static PagedResult<Sx4Command> getModulePagedResult(CategoryImpl module, User author, int page) {
 		List<Sx4Command> commands = new ArrayList<>();
 		for (ICommand command : module.getCommands()) {
 			commands.add((Sx4Command) command);
@@ -109,10 +123,27 @@ public class HelpUtils {
 		
 		commands.sort((a, b) -> a.getCommandTrigger().compareTo(b.getCommandTrigger()));
 		
-		PagedResult<Sx4Command> paged = HelpUtils.getCommandPagedResult(commands);
+		PagedResult<Sx4Command> paged = HelpUtils.getCommandPagedResult(commands, page);
 		paged.setAuthor("Commands in " + module.getName(), null, author.getEffectiveAvatarUrl());
 		
 		return paged;
+	}
+	
+	public static Pair<String, Integer> getArgumentAndPage(String argument) {
+		String[] split = argument.split(" ");
+		
+		int page = 1;
+		
+		String lastArgument = split[split.length - 1], firstArgument = split[0];
+		if (GeneralUtils.isNumberUnsigned(lastArgument)) {
+			page = Integer.parseUnsignedInt(lastArgument);
+			argument = argument.substring(0, argument.length() - lastArgument.length() - (split.length == 1 ? 0 : 1));
+		} else if (GeneralUtils.isNumberUnsigned(firstArgument)) {
+			page = Integer.parseUnsignedInt(firstArgument);
+			argument = argument.substring(firstArgument.length() + 1);
+		}
+		
+		return Pair.of(argument, page);
 	}
 	
 }

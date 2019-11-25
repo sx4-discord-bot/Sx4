@@ -27,6 +27,7 @@ import com.sx4.bot.utils.PagedUtils.PagedResult;
 
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.internal.utils.tuple.Pair;
 
 @Module
 public class HelpModule {
@@ -40,8 +41,11 @@ public class HelpModule {
 	@Command(value="help", aliases={"h", "commands", "commandlist", "command list"}, description="Lists commands on the bot and gives you info on specific commands")
 	@Examples({"help", "help logs", "help --all", "help logs --command"})
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-	public void help(CommandEvent event, @Argument(value="command | module", endless=true, nullDefault=true) String commandName, @Option(value="all", aliases={"a"}, description="Shows every command on the bot") boolean all, @Option(value="module", description="Filters your query to only search for modules") boolean moduleChoice, @Option(value="command", description="Filters your query to only search for commands") boolean commandChoice) {
-		if (commandName == null) {
+	public void help(CommandEvent event, @Argument(value="command | module", endless=true, nullDefault=true) String commandArgument, @Option(value="all", aliases={"a"}, description="Shows every command on the bot") boolean all, @Option(value="module", description="Filters your query to only search for modules") boolean moduleChoice, @Option(value="command", description="Filters your query to only search for commands") boolean commandChoice) {
+		Pair<String, Integer> commandAndPage = HelpUtils.getArgumentAndPage(commandArgument);
+		String commandName = commandAndPage.getLeft();
+		int page = commandAndPage.getRight();
+		if (commandName == null || commandName.isBlank()) {
 			if (all) {
 				List<Sx4Command> allCommands = new ArrayList<>();
 				for (ICommand command : event.getCommandListener().getAllCommands(true, true)) {
@@ -54,7 +58,7 @@ public class HelpModule {
 				
 				allCommands.sort((a, b) -> a.getCommandTrigger().toLowerCase().compareTo(b.getCommandTrigger().toLowerCase()));
 				
-				PagedResult<Sx4Command> paged = HelpUtils.getCommandPagedResult(allCommands);
+				PagedResult<Sx4Command> paged = HelpUtils.getCommandPagedResult(allCommands, page);
 				paged.setAuthor("All Commands", null, event.getAuthor().getEffectiveAvatarUrl());
 				
 				PagedUtils.getPagedResult(event, paged, 300, pagedReturn -> {
@@ -85,7 +89,7 @@ public class HelpModule {
 					PagedUtils.getResponse(event, 300, e -> {
 						return event.getChannel().equals(e.getChannel()) && event.getAuthor().equals(e.getAuthor()) && moduleNames.contains(e.getMessage().getContentRaw());
 					}, null, response -> {
-						PagedResult<Sx4Command> paged = HelpUtils.getModulePagedResult(ArgumentUtils.getModule(response.getContentRaw(), false, event.isAuthorDeveloper()), event.getAuthor());
+						PagedResult<Sx4Command> paged = HelpUtils.getModulePagedResult(ArgumentUtils.getModule(response.getContentRaw(), false, event.isAuthorDeveloper()), event.getAuthor(), page);
 						PagedUtils.getPagedResult(event, paged, 300, pagedReturn -> {
 							event.reply(HelpUtils.getHelpMessage(pagedReturn.getData())).queue();
 						});
@@ -110,13 +114,13 @@ public class HelpModule {
 			}
 			
 			if (moduleChoice) {
-				PagedResult<Sx4Command> paged = HelpUtils.getModulePagedResult(module, event.getAuthor());
+				PagedResult<Sx4Command> paged = HelpUtils.getModulePagedResult(module, event.getAuthor(), page);
 				PagedUtils.getPagedResult(event, paged, 300, pagedReturn -> {
 					event.reply(HelpUtils.getHelpMessage(pagedReturn.getData())).queue();
 				});
 			} else if (commandChoice) {
 				if (commands.size() > 1) {
-					PagedResult<Sx4Command> paged = HelpUtils.getCommandPagedResult(commands);
+					PagedResult<Sx4Command> paged = HelpUtils.getCommandPagedResult(commands, page);
 					paged.setAuthor(GeneralUtils.title(commands.get(0).getCommandTrigger()), null, event.getSelfUser().getEffectiveAvatarUrl());
 					PagedUtils.getPagedResult(event, paged, 60, pagedReturn -> {
 						event.reply(HelpUtils.getHelpMessage(pagedReturn.getData())).queue();
@@ -126,13 +130,13 @@ public class HelpModule {
 				}
 			} else {
 				if (module != null) {
-					PagedResult<Sx4Command> paged = HelpUtils.getModulePagedResult(module, event.getAuthor());
+					PagedResult<Sx4Command> paged = HelpUtils.getModulePagedResult(module, event.getAuthor(), page);
 					PagedUtils.getPagedResult(event, paged, 300, pagedReturn -> {
 						event.reply(HelpUtils.getHelpMessage(pagedReturn.getData())).queue();
 					});
 				} else if (!commands.isEmpty()) {
 					if (commands.size() > 1) {
-						PagedResult<Sx4Command> paged = HelpUtils.getCommandPagedResult(commands);
+						PagedResult<Sx4Command> paged = HelpUtils.getCommandPagedResult(commands, page);
 						paged.setAuthor(GeneralUtils.title(commands.get(0).getCommandTrigger()), null, event.getSelfUser().getEffectiveAvatarUrl());
 						PagedUtils.getPagedResult(event, paged, 60, pagedReturn -> {
 							event.reply(HelpUtils.getHelpMessage(pagedReturn.getData())).queue();

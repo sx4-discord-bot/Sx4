@@ -1,10 +1,8 @@
 package com.sx4.bot.utils;
 
-import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
-import java.util.Set;
 
 public class GeneralUtils {
 	
@@ -87,15 +85,6 @@ public class GeneralUtils {
 		return newText.toString();
 	}
 	
-	public static <Type> List<Type> convertSetToList(Set<Type> set) {
-		List<Type> returnList = new ArrayList<>();
-		for (Type object : set) {
-			returnList.add(object);
-		}
-		
-		return returnList;
-	}
-	
 	public static String join(Iterable<?> iterable, String joinBy) {
 		StringBuilder output = new StringBuilder();
 		
@@ -148,8 +137,12 @@ public class GeneralUtils {
 	}
 	
 	public static String limitString(String text, int limit) {
+		return GeneralUtils.limitString(text, limit, "...");
+	}
+	
+	public static String limitString(String text, int limit, String end) {
 		if (text.length() > limit) {
-			return text.substring(0, limit - 3) + "...";
+			return text.substring(0, limit - end.length()) + end;
 		} else {
 			return text;
 		}

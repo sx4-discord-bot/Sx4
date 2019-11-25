@@ -242,7 +242,7 @@ public class ImageModule {
 	@Examples({"discord Shea hello there", "discord Sx4 User has been banned"})
 	@Cooldown(value=5)
 	@BotPermissions({Permission.MESSAGE_ATTACH_FILES})
-	public void discord(CommandEvent event, @Argument(value="user") String userArgument, @Argument(value="text", endless=true) String text, @Option(value="white") boolean white) {
+	public void discord(CommandEvent event, @Argument(value="user") String userArgument, @Argument(value="text", endless=true) String text, @Option(value="white", description="Displays the image in light theme rather than dark") boolean white) {
 		Member member = ArgumentUtils.getMember(event.getGuild(), userArgument);
 		if (member == null) {
 			event.reply("I could not find that user :no_entry:").queue();

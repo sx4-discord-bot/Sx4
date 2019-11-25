@@ -14,6 +14,7 @@ import com.sx4.bot.economy.Item;
 import com.sx4.bot.economy.ItemStack;
 import com.sx4.bot.economy.items.Booster;
 import com.sx4.bot.economy.items.Crate;
+import com.sx4.bot.economy.items.Envelope;
 import com.sx4.bot.economy.items.Factory;
 import com.sx4.bot.economy.items.Miner;
 import com.sx4.bot.economy.items.Sawmill;
@@ -40,6 +41,12 @@ public class EconomyUtils {
 	public static final List<Item> ALL_ITEMS = new ArrayList<>();
 	public static final List<Item> TRADEABLE_ITEMS = new ArrayList<>();
 	static {
+		for (Envelope envelope : Envelope.ALL) {
+			WINNABLE_ITEMS.add(envelope);
+			ALL_ITEMS.add(envelope);
+			TRADEABLE_ITEMS.add(envelope);
+		}
+		
 		for (Miner miner : Miner.ALL) {
 			WINNABLE_ITEMS.add(miner);
 			ALL_ITEMS.add(miner);
@@ -327,6 +334,12 @@ public class EconomyUtils {
 		return Pair.of(money, itemStacks);
 	}
 	
+	public static void addItems(List<Document> items, List<ItemStack> itemStacks) {
+		for (ItemStack itemStack : itemStacks) {
+			EconomyUtils.addItem(items, itemStack);
+		}
+	}
+	
 	public static void addItem(List<Document> items, String name, long amount, Document extraFields) {
 		for (Document item : items) {
 			if (item.getString("name").equals(name)) {
@@ -381,6 +394,12 @@ public class EconomyUtils {
 		EconomyUtils.editItem(items, item.getName(), key, value);
 	}
 	
+	public static void removeItems(List<Document> items, List<ItemStack> itemStacks) {
+		for (ItemStack itemStack : itemStacks) {
+			EconomyUtils.removeItem(items, itemStack);
+		}
+	}
+	
 	public static void removeItem(List<Document> items, String name, long amount) {
 		for (Document item : items) {
 			if (item.getString("name").equals(name)) {
@@ -421,7 +440,7 @@ public class EconomyUtils {
 		long networth = 0;
 		List<Document> items = data.getList("items", Document.class, Collections.emptyList());
 		for (Document itemData : items) {
-			Item item = EconomyUtils.getItem(itemData.getString("name"));
+			Item item = Item.getItemByName(itemData.getString("name"));
 			ItemStack userItem = EconomyUtils.getUserItem(items, item);
 			if (item.isBuyable()) {
 				networth += userItem.getItem().getPrice() * userItem.getAmount();
@@ -431,17 +450,6 @@ public class EconomyUtils {
 		networth += data.get("balance", 0L);
 		
 		return networth;
-	}
-	
-	public static Item getItem(String itemName) {
-		itemName = itemName.toLowerCase();
-		for (Item item : ALL_ITEMS) {
-			if (item.getName().toLowerCase().equals(itemName)) {
-				return item;
-			}
-		}
-		
-		return null;
 	}
 	
 	public static Document getUserItemRaw(List<Document> items, Item item) {

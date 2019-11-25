@@ -1,5 +1,7 @@
 package com.sx4.bot.economy;
 
+import com.sx4.bot.utils.EconomyUtils;
+
 public class Item {
 	
 	private String name;
@@ -20,6 +22,17 @@ public class Item {
 	
 	public Long getPrice() {
 		return this.price;
+	}
+	
+	public static Item getItemByName(String name) {
+		name = name.toLowerCase();
+		for (Item item : EconomyUtils.ALL_ITEMS) {
+			if (item.getName().toLowerCase().equals(name)) {
+				return item;
+			}
+		}
+		
+		return null;
 	}
 	
 }

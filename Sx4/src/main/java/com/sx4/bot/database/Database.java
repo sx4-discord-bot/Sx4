@@ -72,16 +72,25 @@ public class Database {
 		this.users = this.database.getCollection("users");
 		
 		this.auction = this.database.getCollection("auction");
-		this.auction.createIndex(Indexes.descending("ownerId", "item"));
+		this.auction.createIndex(Indexes.descending("ownerId"));
+		this.auction.createIndex(Indexes.descending("item"));
 		
 		this.modLogs = this.database.getCollection("modLogs");
-		this.modLogs.createIndex(Indexes.descending("guildId", "id"));
+		this.modLogs.createIndex(Indexes.descending("guildId"));
+		this.modLogs.createIndex(Indexes.descending("id"));
 		
 		this.commandLogs = this.database.getCollection("commandLogs");
-		this.commandLogs.createIndex(Indexes.descending("guildId", "authorId", "command", "module", "channelId", "shard", "timestamp"));
+		this.commandLogs.createIndex(Indexes.descending("guildId"));
+		this.commandLogs.createIndex(Indexes.descending("authorId"));
+		this.commandLogs.createIndex(Indexes.descending("command"));
+		this.commandLogs.createIndex(Indexes.descending("module"));
+		this.commandLogs.createIndex(Indexes.descending("channelId"));
+		this.commandLogs.createIndex(Indexes.descending("shard"));
+		this.commandLogs.createIndex(Indexes.descending("timestamp"));
 		
 		this.guildLogs = this.database.getCollection("guildLogs");
-		this.guildLogs.createIndex(Indexes.descending("guildId", "timestamp"));
+		this.guildLogs.createIndex(Indexes.descending("guildId"));
+		this.guildLogs.createIndex(Indexes.descending("timestamp"));
 		
 		System.out.println("Connecting to MongoDB...");
 		

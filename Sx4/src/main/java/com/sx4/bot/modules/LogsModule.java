@@ -174,7 +174,7 @@ public class LogsModule {
 			embed.setAuthor("Logs Settings", null, event.getGuild().getIconUrl());
 			embed.addField("Status", data.getBoolean("enabled", false) ? "Enabled" : "Disabled", true);
 			embed.addField("Channel", channel == null ? "Not Set" : channel.getAsMention(), true);
-			embed.addField("Enabled Events", eventList.toString(), false);
+			embed.addField("Enabled Events", events.isEmpty() ? "None" : eventList.toString(), false);
 			event.reply(embed.build()).queue();
 		}
 		

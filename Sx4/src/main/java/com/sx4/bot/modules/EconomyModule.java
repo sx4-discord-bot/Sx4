@@ -6,6 +6,7 @@ import java.time.DayOfWeek;
 import java.time.LocalDateTime;
 import java.time.Month;
 import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.time.format.TextStyle;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -54,6 +55,7 @@ import com.sx4.bot.economy.Item;
 import com.sx4.bot.economy.ItemStack;
 import com.sx4.bot.economy.items.Booster;
 import com.sx4.bot.economy.items.Crate;
+import com.sx4.bot.economy.items.Envelope;
 import com.sx4.bot.economy.items.Factory;
 import com.sx4.bot.economy.items.Miner;
 import com.sx4.bot.economy.materials.Material;
@@ -92,6 +94,51 @@ import okhttp3.Request;
 public class EconomyModule {
 	
 	private final Random random = new Random();
+	
+	@Command(value="advent calendar", aliases={"adventcalendar", "advent", "calendar"}, description="Open your advent calendar to get a random item every day up to the 24th")
+	@Examples({"advent calendar"})
+	public void adventCalander(CommandEvent event, @Context Database database) {
+		ZonedDateTime now = ZonedDateTime.now(ZoneOffset.UTC);
+		int day = now.getDayOfMonth();
+		if (now.getMonthValue() != 12 || day > 24) {
+			event.replyFormat("There's no advent calander box for the %s %s :no_entry:", GeneralUtils.getNumberSuffix(day), now.getMonth().getDisplayName(TextStyle.FULL, Locale.UK)).queue();
+			return;
+		}
+		
+		long secondsTillTomorrow = now.toLocalDate().atStartOfDay(ZoneOffset.UTC).plusDays(1).toEpochSecond() - now.toEpochSecond();
+		
+		Document data = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.opened", "economy.items")).get("economy", Database.EMPTY_DOCUMENT);
+		List<Document> items = data.getList("items", Document.class, new ArrayList<>());
+		
+		List<Integer> opened = data.getList("opened", Integer.class, Collections.emptyList());
+		if (opened.contains(day)) {
+			event.replyFormat("You've already opened todays box on your advent calendar%s :no_entry:", day != 24 ? ", you can open tomorrows in " + TimeUtils.toTimeString(secondsTillTomorrow, ChronoUnit.SECONDS) : "").queue();
+		} else {
+			List<Item> winnableItems = new ArrayList<>(EconomyUtils.WINNABLE_ITEMS);
+			winnableItems.sort((a, b) -> Long.compare(b.getPrice(), a.getPrice()));
+			for (int i = 0; i < winnableItems.size(); i++) {
+				Item item = winnableItems.get(i);
+				if (random.nextInt((int) Math.ceil(item.getPrice() / Math.pow(day * 3, 2)) + 1) == 1 || i == winnableItems.size() - 1) {
+					if (opened.size() == 23) {
+						EconomyUtils.addItem(items, Crate.PRESENT, 1);
+					}
+					
+					EconomyUtils.addItem(items, item, 1);
+					
+					database.updateUserById(event.getAuthor().getIdLong(), Updates.combine(Updates.addToSet("economy.opened", day), Updates.set("economy.items", items)), (result, exception) -> {
+						if (exception != null) {
+							exception.printStackTrace();
+							event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+						} else {
+							event.replyFormat("You opened your advent calendar for the %s and got a **%s**%s :christmas_tree:", GeneralUtils.getNumberSuffix(day), item.getName(), opened.size() == 23 ? " and a **Present Crate**" : "").queue();
+						}
+					});
+					
+					return;
+				}
+			}
+		}
+	}
 	
 	@Command(value="claim", description="Claim your free 1 billion dollars to play with (Only works on Canary version)")
 	@Examples({"claim"})
@@ -198,41 +245,71 @@ public class EconomyModule {
 		}
 		
 		@Command(value="open", description="Open a crate you have in your items")
-		@Examples({"crate open Shoe Crate 50", "crate open Platinum Crate", "crate open Gold 2"})
+		@Examples({"crate open Shoe Crate 50", "crate open Platinum Crate", "crate open all"})
 		@Async
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void open(CommandEvent event, @Context Database database, @Argument(value="crate name", endless=true) String crateArgument) {
-			Document data = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items")).get("economy", Database.EMPTY_DOCUMENT);
+			List<Document> items = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items")).getEmbedded(List.of("economy", "items"), new ArrayList<>());
 			
-			Pair<String, BigInteger> cratePair = EconomyUtils.getItemAndAmount(crateArgument);
-			String crateName = cratePair.getLeft();
-			BigInteger crateAmount = cratePair.getRight();
-			
-			if (crateAmount.compareTo(BigInteger.ONE) == -1) {
-				event.reply("You have to open at least 1 crate :no_entry:").queue();
-				return;
+			long totalCrates = 0;
+			List<ItemStack> crates = new ArrayList<>();
+			if (crateArgument.toLowerCase().equals("all")) {
+				for (Document itemData : items) {
+					Item item = Item.getItemByName(itemData.getString("name"));
+					if (item instanceof Crate) {
+						if (((Crate) item).isOpenable()) {
+							long amount = itemData.getLong("amount");
+							
+							crates.add(new ItemStack(item, amount));
+							totalCrates += amount;
+						}
+					}
+				}
+				
+				if (crates.isEmpty()) {
+					event.reply("You do not have any crates :no_entry:").queue();
+					return;
+				}
+			} else {
+				Pair<String, BigInteger> cratePair = EconomyUtils.getItemAndAmount(crateArgument);
+				String crateName = cratePair.getLeft();
+				BigInteger crateAmount = cratePair.getRight();
+				
+				if (crateAmount.compareTo(BigInteger.ONE) == -1) {
+					event.reply("You have to open at least 1 crate :no_entry:").queue();
+					return;
+				}
+				
+				Crate crate = Crate.getCrateByName(crateName);
+				if (crate == null) {
+					event.reply("I could not find that crate :no_entry:").queue();
+					return;
+				}
+				
+				if (!crate.isOpenable()) {
+					event.reply("That crate is currently not openable :no_entry:").queue();
+					return;
+				}
+				
+				ItemStack userItem = EconomyUtils.getUserItem(items, crate);
+				if (BigInteger.valueOf(userItem.getAmount()).compareTo(crateAmount) == -1) {
+					event.reply(String.format("You do not have `%,d %s` :no_entry:", crateAmount, crate.getName())).queue();
+					return;
+				}
+				
+				crates.add(new ItemStack(crate, crateAmount.longValue()));
+				totalCrates = crateAmount.longValue();
 			}
 			
-			Crate crate = Crate.getCrateByName(crateName);
-			if (crate == null) {
-				event.reply("I could not find that crate :no_entry:").queue();
-				return;
-			}
-			
-			if (!crate.isOpenable()) {
-				event.reply("That crate is currently not openable :no_entry:").queue();
-				return;
-			}
-			
-			List<Document> userItems = data.getList("items", Document.class, new ArrayList<>());
-			
-			List<Item> itemsWon = new ArrayList<>();
 			Map<Item, Long> finalItems = new HashMap<>();
-			List<Item> winnableItems = EconomyUtils.WINNABLE_ITEMS;
-			winnableItems.remove(crate);
-			ItemStack userItem = EconomyUtils.getUserItem(userItems, crate);
-			if (BigInteger.valueOf(userItem.getAmount()).compareTo(crateAmount) != -1) {
-				for (int i = 0; i < crateAmount.longValue(); i++) { 
+			List<Item> itemsWon = new ArrayList<>();
+			for (ItemStack crateStack : crates) {
+				Item crate = crateStack.getItem();
+				
+				List<Item> winnableItems = new ArrayList<>(EconomyUtils.WINNABLE_ITEMS);
+				winnableItems.remove(crate);
+				
+				for (int i = 0; i < crateStack.getAmount(); i++) { 
 					for (Item item : winnableItems) {
 						int equation = (int) Math.ceil((double) (38 * item.getPrice()) / crate.getPrice());
 						if (random.nextInt(equation + 1) == 0) {
@@ -247,46 +324,163 @@ public class EconomyModule {
 						itemsWon.clear();
 					}
 				}
-				
-				EmbedBuilder embed = new EmbedBuilder();
-				embed.setAuthor(event.getAuthor().getName(), null, event.getAuthor().getEffectiveAvatarUrl());
-				embed.setColor(event.getMember().getColor());
-				if (finalItems.isEmpty()) {
-					embed.setDescription(String.format("You opened `%,d %s` and got scammed, there was nothing in the crate.", crateAmount, crate.getName()));
+			}
+			
+			EmbedBuilder embed = new EmbedBuilder();
+			embed.setAuthor(event.getAuthor().getName(), null, event.getAuthor().getEffectiveAvatarUrl());
+			embed.setColor(event.getMember().getColor());
+			if (finalItems.isEmpty()) {
+				if (crates.size() == 1) {
+					ItemStack crateStack = crates.get(0);
+					embed.setDescription(String.format("You opened `%,d %s` and got scammed, there was nothing in the crate.", crateStack.getAmount(), crateStack.getItem().getName()));
 				} else {
-					String content = "";
+					embed.setDescription(String.format("You opened all your crates (%,d) and got scammed, there was nothing in the crate.", totalCrates));
+				}
+			} else {
+				StringBuilder content = new StringBuilder();
+				
+				List<Entry<Item, Long>> newItems = new ArrayList<>(finalItems.entrySet());
+				newItems.sort((a, b) -> Long.compare(b.getValue(), a.getValue()));
+				
+				long total = 0;
+				for (Entry<Item, Long> item : newItems) {
+					content.append(String.format("• %,d %s\n", item.getValue(), item.getKey().getName()));
 					
-					List<Entry<Item, Long>> newItems = new ArrayList<>(finalItems.entrySet());
-					newItems.sort((a, b) -> Long.compare(b.getValue(), a.getValue()));
-					
-					for (int i = 0; i < newItems.size(); i++) {
-						Entry<Item, Long> item = newItems.get(i);
-						
-						content += item.getKey().getName() + " x" + item.getValue();
-						if (i != finalItems.size() - 1) {
-							content += ", ";
-						}
-						
-						EconomyUtils.addItem(userItems, item.getKey(), item.getValue());
-					}
-					
-					embed.setDescription(String.format("You opened `%,d %s` and won **%s** :tada:", crateAmount, crate.getName(), content));
+					total += item.getValue();
+					EconomyUtils.addItem(items, item.getKey(), item.getValue());
 				}
 				
-				EconomyUtils.removeItem(userItems, crate, crateAmount.longValue());
+				if (crates.size() == 1) {
+					ItemStack crateStack = crates.get(0);
+					content.insert(0, String.format("You opened `%,d %s` and got **%,d** item%s\n\n", crateStack.getAmount(), crateStack.getItem().getName(), total, total == 1 ? "" : "s"));
+				} else {
+					content.insert(0, String.format("You opened all your crates (%,d) and got **%,d** item%s\n\n", totalCrates, total, total == 1 ? "" : "s"));
+				}
 				
-				database.updateUserById(event.getAuthor().getIdLong(), Updates.set("economy.items", userItems), (result, exception) -> {
-					if (exception != null) {
-						exception.printStackTrace();
-						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
-					} else {
-						event.reply(embed.build()).queue();
-					}
-				});
-			} else {
-				event.reply(String.format("You do not have `%,d %s` :no_entry:", crateAmount, crate.getName())).queue();
+				embed.setDescription(content.toString());
+			}
+			
+			EconomyUtils.removeItems(items, crates);
+			
+			database.updateUserById(event.getAuthor().getIdLong(), Updates.set("economy.items", items), (result, exception) -> {
+				if (exception != null) {
+					exception.printStackTrace();
+					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+				} else {
+					event.reply(embed.build()).queue();
+				}
+			});
+		}
+		
+	}
+	
+	public class EnvelopeCommand extends Sx4Command {
+		
+		public EnvelopeCommand() {
+			super("envelope");
+			
+			super.setDescription("Create and redeem envelopes");
+			super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
+			super.setExamples("envelope redeem", "envelope create");
+		}
+		
+		public void onCommand(CommandEvent event) {
+			event.reply(HelpUtils.getHelpMessage(event.getCommand())).queue();
+		}
+		
+		@Command(value="create", description="Creates envelopes from a specified amount of money", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"envelope create 55000", "envelope create all", "envelopes create 25%"})
+		public void create(CommandEvent event, @Context Database database, @Argument(value="amount") String moneyArgument) {
+			Document data = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance", "economy.items")).get("economy", Database.EMPTY_DOCUMENT);
+			List<Document> items = data.getList("items", Document.class, new ArrayList<>());
+			long balance = data.getLong("balance");
+			
+			long amount;
+			try {
+				amount = EconomyUtils.convertMoneyArgument(balance, moneyArgument);
+			} catch(IllegalArgumentException e) {
+				event.reply(e.getMessage()).queue();
 				return;
 			}
+			
+			if (amount > balance) {
+				event.replyFormat("You do not have **$%,d** :no_entry:", amount).queue();
+				return;
+			}
+			
+			EconomyUtils.addItems(items, Envelope.getOptimalEnvelopes(amount));
+			database.updateUserById(event.getAuthor().getIdLong(), Updates.combine(Updates.inc("economy.balance", -amount), Updates.set("economy.items", items)), (result, exception) -> {
+				if (exception != null) {
+					exception.printStackTrace();
+					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+				} else {
+					event.replyFormat("You have been given **$%,d** worth of envelopes :ok_hand:", amount).queue();
+				}
+			});
+		}
+		
+		@Command(value="redeem", description="Trade in envelopes for actual money")
+		@Examples({"envelope redeem all", "envelope redeem Coal Envelope 5", "envelope redeem Diamond"})
+		public void redeem(CommandEvent event, @Context Database database, @Argument(value="envelope", endless=true) String envelopeArgument) {
+			List<Document> items = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items")).getEmbedded(List.of("economy", "items"), Collections.emptyList());
+			if (items.isEmpty()) {
+				event.reply("You do not have any envelopes :no_entry:").queue();
+				return;
+			}
+			
+			Bson update;
+			String reply;
+			if (envelopeArgument.toLowerCase().equals("all")) {
+				long amount = 0;
+				for (Document itemData : new ArrayList<>(items)) {
+					Item item = Item.getItemByName(itemData.getString("name"));
+					if (item instanceof Envelope) {
+						long itemAmount = itemData.getLong("amount");
+
+						EconomyUtils.removeItem(items, item, itemAmount);
+						amount += item.getPrice() * itemAmount;
+					}
+				}
+				
+				if (amount == 0) {
+					event.reply("You do not have any envelopes :no_entry:").queue();
+					return;
+				}
+				
+				update = Updates.combine(Updates.inc("economy.balance", amount), Updates.set("economy.items", items));
+				reply = String.format("You redeemed all your envelopes for **$%,d** :ok_hand:", amount);
+			} else {
+				Pair<String, BigInteger> itemAndAmount = EconomyUtils.getItemAndAmount(envelopeArgument);
+				String itemName = itemAndAmount.getLeft();
+				BigInteger amount = itemAndAmount.getRight();
+				
+				Envelope envelope = Envelope.getEnvelopeByName(itemName);
+				if (envelope == null) {
+					event.reply("I could not find that envelope :no_entry:").queue();
+					return;
+				}
+	
+				ItemStack userEnvelope = EconomyUtils.getUserItem(items, envelope);
+				if (BigInteger.valueOf(userEnvelope.getAmount()).compareTo(amount) == -1) {
+					event.replyFormat("You do not have `%,d %s` :no_entry:", amount, envelope.getName()).queue();
+					return;
+				} else {
+					EconomyUtils.removeItem(items, envelope, amount.longValue());
+					
+					update = Updates.combine(Updates.inc("economy.balance", envelope.getPrice() * amount.longValue()), Updates.set("economy.items", items));
+					reply = String.format("You redeemed `%,d %s` for **$%,d** :ok_hand:", amount, envelope.getName(), envelope.getPrice() * amount.longValue());
+				}
+			}
+			
+			
+			database.updateUserById(event.getAuthor().getIdLong(), update, (result, exception) -> {
+				if (exception != null) {
+					exception.printStackTrace();
+					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+				} else {
+					event.reply(reply).queue();
+				}
+			});
 		}
 		
 	}
@@ -1191,7 +1385,7 @@ public class EconomyModule {
 				
 				StringBuilder contentBuilder = new StringBuilder();
 				if (!materials.isEmpty()) {
-					List<Material> materialKeys = GeneralUtils.convertSetToList(materials.keySet());
+					List<Material> materialKeys = new ArrayList<>(materials.keySet());
 					materialKeys.sort((a, b) -> Long.compare(materials.get(b), materials.get(a)));
 					for (int i = 0; i < materialKeys.size(); i++) {
 						Material key = materialKeys.get(i);
@@ -2347,7 +2541,7 @@ public class EconomyModule {
 		}
 	}
 	
-	@Command(value="give", aliases={"gift"}, description="Give money to others users, there is a 5% tax per transaction", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+	@Command(value="give", aliases={"gift"}, description="Give money to others users, there is a 5% tax per transaction")
 	@Examples({"give @Shea#6653 50000", "give Shea all", "give 402557516728369153 23%"})
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void give(CommandEvent event, @Context Database database, @Argument(value="user") String userArgument, @Argument(value="amount") String amountArgument) {
@@ -2755,7 +2949,7 @@ public class EconomyModule {
 		public void list(CommandEvent event, @Context Database database, @Argument(value="item name", endless=true, nullDefault=true) String itemName, @Option(value="sort", description="Sort by the `name`, `amount`, `price` or `price-per-item` (default)") String sort, @Option(value="reverse", description="Reverses the order the items are shown in") boolean reverse) {
 			List<Document> shownData;
 			if (itemName != null) {
-				Item item = EconomyUtils.getItem(itemName);
+				Item item = Item.getItemByName(itemName);
 				if (item == null) {
 					event.reply("I could not find that item :no_entry:").queue();
 					return;
@@ -2830,7 +3024,7 @@ public class EconomyModule {
 				return;
 			}
 			
-			Item item = EconomyUtils.getItem(itemName);
+			Item item = Item.getItemByName(itemName);
 			if (item == null) {
 				event.reply("I could not find that item :no_entry:").queue();
 				return;
@@ -2879,7 +3073,7 @@ public class EconomyModule {
 		public void buy(CommandEvent event, @Context Database database, @Argument(value="item name", endless=true, nullDefault=true) String itemName) {
 			List<Document> shownData;
 			if (itemName != null) {
-				Item item = EconomyUtils.getItem(itemName);
+				Item item = Item.getItemByName(itemName);
 				if (item == null) {
 					event.reply("I could not find that item :no_entry:").queue();
 					return;
@@ -3009,7 +3203,7 @@ public class EconomyModule {
 			Bson ownerFilter = Filters.eq("ownerId", event.getAuthor().getIdLong());
 			List<Document> shownData;
 			if (itemName != null) {
-				Item item = EconomyUtils.getItem(itemName);
+				Item item = Item.getItemByName(itemName);
 				if (item == null) {
 					event.reply("I could not find that item :no_entry:").queue();
 					return;
@@ -3224,7 +3418,7 @@ public class EconomyModule {
 			embed.setColor(event.getMember().getColor());
 			embed.setAuthor(event.getAuthor().getName(), null, event.getAuthor().getEffectiveAvatarUrl());
 			if (!woodGathered.isEmpty()) {
-				List<Wood> keys = GeneralUtils.convertSetToList(woodGathered.keySet());
+				List<Wood> keys = new ArrayList<>(woodGathered.keySet());
 				keys.sort((a, b) -> Long.compare(woodGathered.get(b), woodGathered.get(a)));
 				for (int i = 0; i < keys.size(); i++) {
 					Wood key = keys.get(i);
@@ -3362,8 +3556,9 @@ public class EconomyModule {
 		userItems.put("Factories", new ArrayList<>());
 		userItems.put("Crates", new ArrayList<>());
 		userItems.put("Wood", new ArrayList<>());
+		userItems.put("Envelopes", new ArrayList<>());
 		for (Document item : items) {
-			Item actualItem = EconomyUtils.getItem(item.getString("name"));
+			Item actualItem = Item.getItemByName(item.getString("name"));
 			ItemStack userItem = new ItemStack(actualItem, item.getLong("amount"));
 			
 			if (actualItem instanceof Tool) {
@@ -3380,10 +3575,12 @@ public class EconomyModule {
 				userItems.get("Factories").add(String.format("%s x%,d", actualItem.getName(), userItem.getAmount()));
 			} else if (actualItem instanceof Crate) {
 				userItems.get("Crates").add(String.format("%s x%,d", actualItem.getName(), userItem.getAmount()));
+			} else if (actualItem instanceof Envelope) {
+				userItems.get("Envelopes").add(String.format("%s x%,d", actualItem.getName(), userItem.getAmount()));
 			}
 		}
 		
-		List<String> keys = GeneralUtils.convertSetToList(userItems.keySet());
+		List<String> keys = new ArrayList<>(userItems.keySet());
 		keys.sort((a, b) -> Integer.compare(userItems.get(a).size(), userItems.get(b).size()));
 		
 		EmbedBuilder embed = new EmbedBuilder();
@@ -3696,7 +3893,7 @@ public class EconomyModule {
 		@Examples({"leaderboard items Platinum", "leaderboard items Diamond --server", "leaderboard items Gold --reverse", "leaderboard items Shoe --sort=name --reverse"})
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void items(CommandEvent event, @Context Database database, @Argument(value="item name", endless=true) String itemName, @Option(value="server", aliases={"guild"}, description="Filters the leaderboard so only people in the current server are shown") boolean guild, @Option(value="sort", description="Sort the leaderboard by `name` or `items` (default)") String sort, @Option(value="reverse", description="Reverses the sorting order") boolean reverse) {
-			Item item = EconomyUtils.getItem(itemName);
+			Item item = Item.getItemByName(itemName);
 			if (item == null) {
 				event.reply("I could not find that item :no_entry:").queue();
 				return;

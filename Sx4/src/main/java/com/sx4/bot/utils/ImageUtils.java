@@ -8,6 +8,7 @@ import com.sx4.bot.core.Sx4Bot;
 
 import net.dv8tion.jda.api.entities.Emote;
 import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Message.MentionType;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.TextChannel;
@@ -25,15 +26,24 @@ public class ImageUtils {
 		while (userMention.find()) {
 			String id = userMention.group(1);
 			
-			User user; 
+			Member member;
 			try {
-				user = Sx4Bot.getShardManager().getUserById(id);
+				member = guild.getMemberById(id);
 			} catch (NumberFormatException e) {
 				continue;
 			}
 			
-			if (user != null) {
-				users.put(id, new JSONObject().put("name", user.getName()));
+			User user = null;
+			if (member == null) {
+				try {
+					user = Sx4Bot.getShardManager().getUserById(id);
+				} catch (NumberFormatException e) {
+					continue;
+				}
+			}
+			
+			if (member != null || user != null) {
+				users.put(id, new JSONObject().put("name", member != null ? member.getEffectiveName() : user.getName()));
 			}
 		}
 		
