@@ -1225,8 +1225,12 @@ public class GeneralModule {
 			channel = event.getTextChannel();
 		} else {
 			channel = ArgumentUtils.getTextChannel(event.getGuild(), channelArgument);
-			channel = ArgumentUtils.getVoiceChannel(event.getGuild(), channelArgument);
-			channel = ArgumentUtils.getCategory(event.getGuild(), channelArgument);
+			if (channel == null) {
+				channel = ArgumentUtils.getVoiceChannel(event.getGuild(), channelArgument);
+				if (channel == null) {
+					channel = ArgumentUtils.getCategory(event.getGuild(), channelArgument);
+				}
+			}
 		}
 		
 		if (channel == null) {
@@ -1245,7 +1249,7 @@ public class GeneralModule {
 		if (channel instanceof TextChannel) {
 			TextChannel textChannel = (TextChannel) channel;
 			embed.addField("NSFW Channel", textChannel.isNSFW() == true ? "Yes" : "No", true);
-			embed.addField("Slowmode", textChannel.getSlowmode() != 0 ? textChannel.getSlowmode() + (textChannel.getSlowmode() == 1 ? " second" : " seconds") : "No Slowmode Set", true);
+			embed.addField("Slowmode", textChannel.getSlowmode() != 0 ? TimeUtils.toTimeString(textChannel.getSlowmode(), ChronoUnit.SECONDS) : "No Slowmode Set", true);
 			embed.addField("Channel Category", textChannel.getParent() == null ? "Not in a Category" : textChannel.getParent().getName(), true);
 		} else if (channel instanceof VoiceChannel) {
 			VoiceChannel voiceChannel = (VoiceChannel) channel;

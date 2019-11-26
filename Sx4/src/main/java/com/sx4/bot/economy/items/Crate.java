@@ -23,7 +23,7 @@ public class Crate extends Item {
 	private boolean openable;
 	private double chance = 0;
 	
-	public Crate(String name, Long price, boolean openable) {
+	public Crate(String name, long price, boolean openable) {
 		super(name, price);
 		
 		this.openable = openable;

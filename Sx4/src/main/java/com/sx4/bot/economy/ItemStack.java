@@ -2,7 +2,7 @@ package com.sx4.bot.economy;
 
 public class ItemStack {
 		
-	private Item item;
+	private final Item item;
 	private long amount;
 
 	public ItemStack(Item item, long amount) {
@@ -20,6 +20,10 @@ public class ItemStack {
 	
 	public long getAmount() {
 		return this.amount;
+	}
+	
+	public Long getPrice() {
+		return this.item.isBuyable() ? this.item.getPrice() * this.amount : null;
 	}
 	
 	public ItemStack incrementAmount() {

@@ -105,20 +105,21 @@ public class EconomyModule {
 			return;
 		}
 		
-		long secondsTillTomorrow = now.toLocalDate().atStartOfDay(ZoneOffset.UTC).plusDays(1).toEpochSecond() - now.toEpochSecond();
-		
 		Document data = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.opened", "economy.items")).get("economy", Database.EMPTY_DOCUMENT);
 		List<Document> items = data.getList("items", Document.class, new ArrayList<>());
 		
 		List<Integer> opened = data.getList("opened", Integer.class, Collections.emptyList());
 		if (opened.contains(day)) {
-			event.replyFormat("You've already opened todays box on your advent calendar%s :no_entry:", day != 24 ? ", you can open tomorrows in " + TimeUtils.toTimeString(secondsTillTomorrow, ChronoUnit.SECONDS) : "").queue();
+			long secondsTillTomorrow = now.toLocalDate().atStartOfDay(ZoneOffset.UTC).plusDays(1).toEpochSecond() - now.toEpochSecond();
+			event.replyFormat("You've already opened todays box on your advent calendar%s :no_entry:", day != 24 ? ", you can open tomorrows in **" + TimeUtils.toTimeString(secondsTillTomorrow, ChronoUnit.SECONDS) + "**" : "").queue();
 		} else {
 			List<Item> winnableItems = new ArrayList<>(EconomyUtils.WINNABLE_ITEMS);
 			winnableItems.sort((a, b) -> Long.compare(b.getPrice(), a.getPrice()));
 			for (int i = 0; i < winnableItems.size(); i++) {
 				Item item = winnableItems.get(i);
-				if (random.nextInt((int) Math.ceil(item.getPrice() / Math.pow(day * 3, 2)) + 1) == 1 || i == winnableItems.size() - 1) {
+				
+				int equation = (int) Math.ceil(item.getPrice() / Math.pow(day * 3, 2));
+				if (random.nextInt(equation + 1) == 0 || i == winnableItems.size() - 1) {
 					if (opened.size() == 23) {
 						EconomyUtils.addItem(items, Crate.PRESENT, 1);
 					}
@@ -304,14 +305,14 @@ public class EconomyModule {
 			Map<Item, Long> finalItems = new HashMap<>();
 			List<Item> itemsWon = new ArrayList<>();
 			for (ItemStack crateStack : crates) {
-				Item crate = crateStack.getItem();
+				Crate crate = (Crate) crateStack.getItem();
 				
 				List<Item> winnableItems = new ArrayList<>(EconomyUtils.WINNABLE_ITEMS);
 				winnableItems.remove(crate);
 				
 				for (int i = 0; i < crateStack.getAmount(); i++) { 
 					for (Item item : winnableItems) {
-						int equation = (int) Math.ceil((double) (38 * item.getPrice()) / crate.getPrice());
+						int equation = (int) Math.ceil((double) (38 * item.getPrice()) / Math.pow(crate.getChance(), 1.4));
 						if (random.nextInt(equation + 1) == 0) {
 							itemsWon.add(item);
 						}
@@ -1365,24 +1366,17 @@ public class EconomyModule {
 							double randomFloat = 0.85D + Math.random() * (1D - 0.85D);
 							long materialAmount = (long) Math.round((userMiners.get(userMiner) / Math.ceil(material.getChance() * userMiner.getMultiplier())) * userMiner.getMaximumMaterials() * randomFloat);
 							if (materialAmount != 0) {
-								if (materials.containsKey(material)) {
-									materials.put(material, materials.get(material) + materialAmount);
-								} else {
-									materials.put(material, materialAmount);
-								}
+								materials.compute(material, (key, value) -> value != null ? value + materialAmount : materialAmount);
 							} else {
 								if (random.nextInt((int) Math.ceil(material.getChance() * userMiner.getMultiplier()) + 1) == 0) {
-									if (materials.containsKey(material)) {
-										materials.put(material, materials.get(material) + 1);
-									} else {
-										materials.put(material, 1L);
-									}
+									materials.compute(material, (key, value) -> value != null ? value + 1 : 1L);
 								}
 							}
 						}
 					}
 				}
 				
+				long totalItems = 0;
 				StringBuilder contentBuilder = new StringBuilder();
 				if (!materials.isEmpty()) {
 					List<Material> materialKeys = new ArrayList<>(materials.keySet());
@@ -1390,20 +1384,19 @@ public class EconomyModule {
 					for (int i = 0; i < materialKeys.size(); i++) {
 						Material key = materialKeys.get(i);
 						long value = materials.get(key);
+						totalItems += value;
 						
 						EconomyUtils.addItem(items, key, value);
 						
-						contentBuilder.append(key.getName() + " x" + String.format("%,d", value) + key.getEmote());
+						contentBuilder.append(String.format("• %,d %s %s", value, key.getName(), key.getEmote()));
 						if (i != materialKeys.size() - 1) {
-							contentBuilder.append(", ");
+							contentBuilder.append("\n");
 						}
 					}
-				} else {
-					contentBuilder = new StringBuilder("Absolutely nothing");
 				}
 				
 				embed.setAuthor(event.getAuthor().getName(), null, event.getAuthor().getEffectiveAvatarUrl());
-				embed.setDescription("You used your miners and gathered these materials: " + contentBuilder.toString());
+				embed.setDescription(String.format("You used your miners and gathered **%,d** material%s\n\n%s", totalItems, totalItems == 1 ? "" : "s", contentBuilder.length() == 0 ? "": contentBuilder.toString()));
 				embed.setColor(event.getMember().getColor());
 				
 				Bson update = Updates.combine(Updates.set("economy.minerCooldown", timestampNow), Updates.set("economy.items", items));
