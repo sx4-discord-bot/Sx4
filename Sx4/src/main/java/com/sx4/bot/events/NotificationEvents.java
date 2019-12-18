@@ -105,8 +105,8 @@ public class NotificationEvents implements YouTubeListener {
 			
 			this.webhooks.put(textChannel.getIdLong(), webhookClient);
 			
-			Bson update = Updates.combine(Updates.set("youtubeNotifications.$[].webhookId", webhookClient.getId()), Updates.set("youtubeNotifications.$[].webhookToken", newWebhook.getToken()));
-			Database.get().updateGuildById(textChannel.getGuild().getIdLong(), Filters.eq("youtubeNotifications.channelId", textChannel.getIdLong()), update, new UpdateOptions(), (result, databaseException) -> {
+			Bson update = Updates.combine(Updates.set("youtubeNotifications.$[notification].webhookId", webhookClient.getId()), Updates.set("youtubeNotifications.$[notification].webhookToken", newWebhook.getToken()));
+			Database.get().updateGuildById(textChannel.getGuild().getIdLong(), null, update, new UpdateOptions().arrayFilters(List.of(Filters.eq("notification.channelId", textChannel.getIdLong()))), (result, databaseException) -> {
 				if (databaseException != null) {
 					databaseException.printStackTrace();
 				} else {
@@ -128,58 +128,59 @@ public class NotificationEvents implements YouTubeListener {
 			try {
 				Database database = Database.get();
 
-				Bson channelFilter = Filters.eq("youtubeNotifications.uploaderId", event.getChannel().getId());
-				database.getGuilds(channelFilter, Projections.include("youtubeNotifications")).forEach((Document guildData) -> {
+				database.getGuilds(Filters.exists("youtubeNotifications"), Projections.include("youtubeNotifications")).forEach((Document guildData) -> {
 					List<Document> notifications = guildData.getList("youtubeNotifications", Document.class);
 					for (Document data : notifications) {
-						TextChannel textChannel = shardManager.getTextChannelById(data.getLong("channelId"));
-						if (textChannel != null) {
-							String messageContent = this.getMessage(event, data.get("message", this.defaultMessage));
-							
-							WebhookClient webhook;
-							
-							Long webhookId = data.getLong("webhookId");
-							String webhookToken = data.getString("webhookToken");
-							if (this.webhooks.containsKey(textChannel.getIdLong())) {
-								webhook = this.webhooks.get(textChannel.getIdLong());
-							} else {
-								if (webhookId == null || webhookToken == null) {
-									if (textChannel.getGuild().getSelfMember().hasPermission(Permission.MANAGE_WEBHOOKS)) {
-										this.createNewWebhook(textChannel, messageContent);
-									}
-									
-									return;
+						if (data.getString("uploaderId").equals(event.getChannel().getId())) {
+							TextChannel textChannel = shardManager.getTextChannelById(data.getLong("channelId"));
+							if (textChannel != null) {
+								String messageContent = this.getMessage(event, data.get("message", this.defaultMessage));
+								
+								WebhookClient webhook;
+								
+								Long webhookId = data.getLong("webhookId");
+								String webhookToken = data.getString("webhookToken");
+								if (this.webhooks.containsKey(textChannel.getIdLong())) {
+									webhook = this.webhooks.get(textChannel.getIdLong());
 								} else {
-									webhook = new WebhookClientBuilder(webhookId, webhookToken)
-											.setExecutorService(this.scheduledExectuor)
-											.setHttpClient(this.client)
-											.build();
-									
-									this.webhooks.put(textChannel.getIdLong(), webhook);
+									if (webhookId == null || webhookToken == null) {
+										if (textChannel.getGuild().getSelfMember().hasPermission(Permission.MANAGE_WEBHOOKS)) {
+											this.createNewWebhook(textChannel, messageContent);
+										}
+										
+										return;
+									} else {
+										webhook = new WebhookClientBuilder(webhookId, webhookToken)
+												.setExecutorService(this.scheduledExectuor)
+												.setHttpClient(this.client)
+												.build();
+										
+										this.webhooks.put(textChannel.getIdLong(), webhook);
+									}
 								}
-							}
-							
-							WebhookMessage message = new WebhookMessageBuilder()
-									.setAvatarUrl(shardManager.getShardById(0).getSelfUser().getEffectiveAvatarUrl())
-									.setContent(messageContent)
-									.build();
-							
-							webhook.send(message).whenCompleteAsync((webhookMessage, exception) -> {
-								if (exception != null) {
-									if (exception instanceof HttpException) {
-										/* Ugly catch, blame JDA */
-										if (exception.getMessage().startsWith("Request returned failure 404")) {
-											this.webhooks.remove(textChannel.getIdLong());
-											
-											if (textChannel.getGuild().getSelfMember().hasPermission(Permission.MANAGE_WEBHOOKS)) {
-												this.createNewWebhook(textChannel, messageContent);
+								
+								WebhookMessage message = new WebhookMessageBuilder()
+										.setAvatarUrl(shardManager.getShardById(0).getSelfUser().getEffectiveAvatarUrl())
+										.setContent(messageContent)
+										.build();
+								
+								webhook.send(message).whenCompleteAsync((webhookMessage, exception) -> {
+									if (exception != null) {
+										if (exception instanceof HttpException) {
+											/* Ugly catch, blame JDA */
+											if (exception.getMessage().startsWith("Request returned failure 404")) {
+												this.webhooks.remove(textChannel.getIdLong());
+												
+												if (textChannel.getGuild().getSelfMember().hasPermission(Permission.MANAGE_WEBHOOKS)) {
+													this.createNewWebhook(textChannel, messageContent);
+												}
+												
+												return;
 											}
-											
-											return;
 										}
 									}
-								}
-							});
+								});
+							}
 						}
 					}
 				});
