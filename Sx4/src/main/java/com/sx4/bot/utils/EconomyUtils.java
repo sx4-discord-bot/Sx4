@@ -296,10 +296,10 @@ public class EconomyUtils {
 		return null;
 	}
 	
-	public static Pair<Long, List<ItemStack>> getTrade(String tradeArgument) {
+	public static Pair<Long, List<ItemStack<Item>>> getTrade(String tradeArgument) {
 		String[] splitTrade = tradeArgument.split(",");
 		long money = 0;
-		List<ItemStack> itemStacks = new ArrayList<>();
+		List<ItemStack<Item>> itemStacks = new ArrayList<>();
 		for (String split : splitTrade) {
 			split = split.trim();
 			try {
@@ -311,7 +311,7 @@ public class EconomyUtils {
 					throw new IllegalArgumentException("The item `" + split + "` is not tradeable or doesn't exist :no_entry:");
 				} else {
 					boolean updated = false;
-					for (ItemStack itemStack : new ArrayList<>(itemStacks)) {
+					for (ItemStack<Item> itemStack : new ArrayList<>(itemStacks)) {
 						if (itemStack.getItem().equals(item)) {
 							itemStack.addAmount(itemPair.getRight().longValue());
 							
@@ -321,7 +321,7 @@ public class EconomyUtils {
 					}
 					
 					if (updated == false) {
-						itemStacks.add(new ItemStack(item, itemPair.getRight().longValue()));
+						itemStacks.add(new ItemStack<>(item, itemPair.getRight().longValue()));
 					}
 				}
 			}
@@ -334,8 +334,8 @@ public class EconomyUtils {
 		return Pair.of(money, itemStacks);
 	}
 	
-	public static void addItems(List<Document> items, List<ItemStack> itemStacks) {
-		for (ItemStack itemStack : itemStacks) {
+	public static <Type extends Item> void addItems(List<Document> items, List<ItemStack<Type>> itemStacks) {
+		for (ItemStack<Type> itemStack : itemStacks) {
 			EconomyUtils.addItem(items, itemStack);
 		}
 	}
@@ -375,7 +375,7 @@ public class EconomyUtils {
 		EconomyUtils.addItem(items, item.getName(), amount);
 	}
 	
-	public static void addItem(List<Document> items, ItemStack itemStack) {
+	public static void addItem(List<Document> items, ItemStack<?> itemStack) {
 		EconomyUtils.addItem(items, itemStack.getItem(), itemStack.getAmount());
 	}
 	
@@ -394,8 +394,8 @@ public class EconomyUtils {
 		EconomyUtils.editItem(items, item.getName(), key, value);
 	}
 	
-	public static void removeItems(List<Document> items, List<ItemStack> itemStacks) {
-		for (ItemStack itemStack : itemStacks) {
+	public static <Type extends Item> void removeItems(List<Document> items, List<ItemStack<Type>> itemStacks) {
+		for (ItemStack<Type> itemStack : itemStacks) {
 			EconomyUtils.removeItem(items, itemStack);
 		}
 	}
@@ -421,7 +421,7 @@ public class EconomyUtils {
 		EconomyUtils.removeItem(items, item.getName(), amount);
 	}
 	
-	public static void removeItem(List<Document> items, ItemStack itemStack) {
+	public static void removeItem(List<Document> items, ItemStack<?> itemStack) {
 		EconomyUtils.removeItem(items, itemStack.getItem(), itemStack.getAmount());
 	}
 	
@@ -441,7 +441,7 @@ public class EconomyUtils {
 		List<Document> items = data.getList("items", Document.class, Collections.emptyList());
 		for (Document itemData : items) {
 			Item item = Item.getItemByName(itemData.getString("name"));
-			ItemStack userItem = EconomyUtils.getUserItem(items, item);
+			ItemStack<Item> userItem = EconomyUtils.getUserItem(items, item);
 			if (item.isBuyable()) {
 				networth += userItem.getItem().getPrice() * userItem.getAmount();
 			}
@@ -462,19 +462,19 @@ public class EconomyUtils {
 		return null;
 	}
 	
-	public static ItemStack getUserItem(List<Document> items, Item item) {
+	public static ItemStack<Item> getUserItem(List<Document> items, Item item) {
 		for (Document itemData : items) {
 			String itemName = itemData.getString("name");
 			if (itemName.equals(item.getName())) {
 				if (itemData.containsKey("price")) {
-					return new ItemStack(new Item(itemName, itemData.getLong("price")), itemData.getLong("amount"));
-				} else {
-					return new ItemStack(item, itemData.getLong("amount"));
+					item = new Item(itemName, itemData.getLong("price"));
 				}
+				
+				return new ItemStack<>(item, itemData.getLong("amount"));
 			}
 		}
 		
-		return new ItemStack(item, 0L);
+		return new ItemStack<>(item, 0L);
 	}
 	
 	private static Map<String, Double> stringValues = new HashMap<>();

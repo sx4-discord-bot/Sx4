@@ -29,16 +29,16 @@ public class Envelope extends Item {
 		super(name, price);
 	}
 	
-	public static List<ItemStack> getOptimalEnvelopes(long money) {
+	public static List<ItemStack<Envelope>> getOptimalEnvelopes(long money) {
 		Envelope[] envelopes = Envelope.ALL.clone();
 		Arrays.sort(envelopes, (a, b) -> Long.compare(b.getPrice(), a.getPrice()));
 		
-		List<ItemStack> returnEnvelopes = new ArrayList<>();
+		List<ItemStack<Envelope>> returnEnvelopes = new ArrayList<>();
 		for (Envelope envelope : envelopes) {
 			long maxAmount = (long) Math.floor((double) money / envelope.getPrice());
 			
 			if (maxAmount != 0) {
-				returnEnvelopes.add(new ItemStack(envelope, maxAmount));
+				returnEnvelopes.add(new ItemStack<>(envelope, maxAmount));
 				
 				money -= maxAmount * envelope.getPrice();
 			}

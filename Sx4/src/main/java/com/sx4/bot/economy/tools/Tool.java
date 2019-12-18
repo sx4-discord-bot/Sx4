@@ -51,7 +51,7 @@ public class Tool extends Item {
 	public long getEstimatePrice() {
 		if (!this.isBuyable()) {
 			long price = 0;
-			for (ItemStack itemStack : this.craft.getCraftingItems()) {
+			for (ItemStack<Material> itemStack : this.craft.getCraftingMaterials()) {
 				price += itemStack.getItem().getPrice();
 			}
 			

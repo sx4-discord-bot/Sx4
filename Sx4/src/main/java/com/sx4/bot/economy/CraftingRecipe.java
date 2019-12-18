@@ -4,30 +4,33 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+import com.sx4.bot.economy.materials.Material;
+
 public class CraftingRecipe {
 	
-	private List<ItemStack> craftItems = new ArrayList<>();
+	private List<ItemStack<Material>> craftMaterials = new ArrayList<>();
 	
-	public CraftingRecipe(ItemStack... items) {
-		for (ItemStack item : items) {
-			this.craftItems.add(item);
+	@SuppressWarnings("unchecked")
+	public CraftingRecipe(ItemStack<Material>... materials) {
+		for (ItemStack<Material> material : materials) {
+			this.craftMaterials.add(material);
 		}
 	}
 	
-	public CraftingRecipe(Collection<ItemStack> items) {
-		this.craftItems.addAll(items);
+	public CraftingRecipe(Collection<ItemStack<Material>> items) {
+		this.craftMaterials.addAll(items);
 	}
 	
-	public CraftingRecipe(Item item, int amount) {
-		this.craftItems.add(new ItemStack(item, amount));
+	public CraftingRecipe(Material material, int amount) {
+		this.craftMaterials.add(new ItemStack<>(material, amount));
 	}
 	
-	public CraftingRecipe(Item firstItem, int firstAmount, Item secondItem, int secondAmount) {
-		this.craftItems.add(new ItemStack(firstItem, firstAmount));
-		this.craftItems.add(new ItemStack(secondItem, secondAmount));
+	public CraftingRecipe(Material firstMaterial, int firstAmount, Material secondMaterial, int secondAmount) {
+		this.craftMaterials.add(new ItemStack<>(firstMaterial, firstAmount));
+		this.craftMaterials.add(new ItemStack<>(secondMaterial, secondAmount));
 	}
 	
-	public List<ItemStack> getCraftingItems() {
-		return this.craftItems;
+	public List<ItemStack<Material>> getCraftingMaterials() {
+		return this.craftMaterials;
 	}
 }

@@ -12,7 +12,7 @@ public class Wood extends Material {
 	
 	private int multiplier = 45; 
 	
-	public Wood(String name, int price) {
+	public Wood(String name, long price) {
 		super(name, price, null, false);
 	}
 	

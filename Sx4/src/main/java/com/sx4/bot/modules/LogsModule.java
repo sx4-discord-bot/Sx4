@@ -437,6 +437,11 @@ public class LogsModule {
 					}
 				}
 				
+				if (display.isEmpty()) {
+					event.reply("Nothing is blacklisted from that event :no_entry:").queue();
+					return;
+				}
+				
 				PagedResult<String> paged = new PagedResult<>(display)
 						.setDeleteMessage(false)
 						.setIndexed(false);

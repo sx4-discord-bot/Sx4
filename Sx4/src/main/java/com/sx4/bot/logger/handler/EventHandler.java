@@ -3,6 +3,7 @@ package com.sx4.bot.logger.handler;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -12,7 +13,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingDeque;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingDeque;
@@ -207,7 +207,7 @@ public class EventHandler extends ListenerAdapter {
 		}
 	}
 	
-	private void _send(JDA bot, Guild guild, Document data, List<WebhookEmbed> embeds, int requestAmount, int attempts) {
+	private void _send(JDA bot, Guild guild, Document rawData, List<WebhookEmbed> embeds, int requestAmount, int attempts) {
 		if(attempts >= MAX_ATTEMPTS) {
 			Statistics.increaseSkippedLogs();
 			
@@ -215,8 +215,10 @@ public class EventHandler extends ListenerAdapter {
 		}
 		
 		if(attempts >= ATTEMPTS_BEFORE_REFETCH) {
-			data = Database.get().getGuildById(guild.getIdLong(), null, DEFAULT_PROJECTION).get("logger", Database.EMPTY_DOCUMENT);
+			rawData = Database.get().getGuildById(guild.getIdLong(), null, DEFAULT_PROJECTION).get("logger", Database.EMPTY_DOCUMENT);
 		}
+		
+		Document data = rawData;
 		
 		TextChannel channel = guild.getTextChannelById(data.getLong("channelId"));
 		if (channel == null) {
@@ -261,23 +263,19 @@ public class EventHandler extends ListenerAdapter {
 					.build());
 		}
 		
-		try {
-			WebhookMessage message = new WebhookMessageBuilder()
-				.setAvatarUrl(bot.getSelfUser().getEffectiveAvatarUrl())
-				.setUsername("Sx4 - Logs")
-				.addEmbeds(embeds)
-				.build();
-			
-			client.send(message).get();
-			
-			Statistics.increaseSuccessfulLogs(requestAmount);
-		}catch(InterruptedException | ExecutionException e) {
-			Statistics.increaseFailedLogs();
-			
-			if(e instanceof ExecutionException) {
-				if(e.getCause() instanceof HttpException) {
+		WebhookMessage message = new WebhookMessageBuilder()
+			.setAvatarUrl(bot.getSelfUser().getEffectiveAvatarUrl())
+			.setUsername("Sx4 - Logs")
+			.addEmbeds(embeds)
+			.build();
+		
+		client.send(message).whenCompleteAsync((finalMessage, e) -> {
+			if (e != null) {
+				Statistics.increaseFailedLogs();
+				
+				if(e instanceof HttpException) {
 					/* Ugly catch, blame JDA */
-					if(e.getCause().getMessage().startsWith("Request returned failure 404")) {
+					if(e.getMessage().startsWith("Request returned failure 404")) {
 						data.put("webhookId", null);
 						data.put("wehookToken", null);
 						
@@ -302,11 +300,13 @@ public class EventHandler extends ListenerAdapter {
 						return;
 					}
 				}
+				
+				System.err.println("[" + LocalDateTime.now().format(Sx4Bot.getTimeFormatter()) + "] [_send]");
+				e.printStackTrace();
+			} else {
+				Statistics.increaseSuccessfulLogs(requestAmount);
 			}
-			
-			System.err.println("[" + LocalDateTime.now().format(Sx4Bot.getTimeFormatter()) + "] [_send]");
-			e.printStackTrace();
-		}
+		});
 	}
 	
 	public void send(JDA bot, Guild guild, Document data, List<WebhookEmbed> embeds) {
@@ -340,30 +340,70 @@ public class EventHandler extends ListenerAdapter {
 			return;
 		}
 		
-		EnumSet<Event> events = Event.getEvents(data.get("events", Event.ALL_EVENTS));
-		if (!events.contains(Event.MEMBER_JOIN)) {
-			return;
-		}
-		
-		List<Document> users = data.getEmbedded(List.of("blacklisted", "users"), Collections.emptyList());
-		for (Document userBlacklist : users) {
-			if (userBlacklist.getLong("id") == member.getIdLong()) {
-				if ((userBlacklist.getLong("events") & Event.MEMBER_JOIN.getRaw()) == Event.MEMBER_JOIN.getRaw()) {
-					return;
-				}
-				
-				break;
-			}
-		}
-		
 		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
-		embed.setDescription(String.format("`%s` just joined the server", member.getEffectiveName()));
 		embed.setColor(COLOR_GREEN);
 		embed.setTimestamp(ZonedDateTime.now());
 		embed.setAuthor(new EmbedAuthor(member.getUser().getAsTag(), member.getUser().getEffectiveAvatarUrl(), null));
+		embed.setFooter(new EmbedFooter(String.format("%s ID: %s", event.getUser().isBot() ? "Bot" : "User", member.getId()), null));
 		
-		embed.setFooter(new EmbedFooter(String.format("User ID: %s", member.getUser().getId()), null));
+		EnumSet<Event> events = Event.getEvents(data.get("events", Event.ALL_EVENTS));
+		if (event.getUser().isBot()) {
+			if (!events.contains(Event.BOT_ADDED)) {
+				return;
+			}
+			
+			List<Document> users = data.getEmbedded(List.of("blacklisted", "users"), Collections.emptyList());
+			for (Document userBlacklist : users) {
+				if (userBlacklist.getLong("id") == member.getIdLong()) {
+					if ((userBlacklist.getLong("events") & Event.BOT_ADDED.getRaw()) == Event.BOT_ADDED.getRaw()) {
+						return;
+					}
+					
+					break;
+				}
+			}
+			
+			StringBuilder description = new StringBuilder(String.format("`%s` was just added to the server", member.getEffectiveName()));
+			
+			if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
+				guild.retrieveAuditLogs().type(ActionType.BOT_ADD).queueAfter(AUDIT_LOG_DELAY, TimeUnit.MILLISECONDS, logs -> {
+					AuditLogEntry entry = logs.stream()
+							.filter(e -> e.getTargetIdLong() == member.getIdLong())
+							.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
+							.findFirst()
+							.orElse(null);
+					
+					if (entry != null) {
+						description.append(" by **" + entry.getUser().getAsTag() + "**");
+					}
+					
+					embed.setDescription(description.toString());
+					this.send(event.getJDA(), guild, data, embed.build());
+				});
+				
+				return;
+			}
+			
+			embed.setDescription(description.toString());
+		} else {
+			if (!events.contains(Event.MEMBER_JOIN)) {
+				return;
+			}
+			
+			List<Document> users = data.getEmbedded(List.of("blacklisted", "users"), Collections.emptyList());
+			for (Document userBlacklist : users) {
+				if (userBlacklist.getLong("id") == member.getIdLong()) {
+					if ((userBlacklist.getLong("events") & Event.MEMBER_JOIN.getRaw()) == Event.MEMBER_JOIN.getRaw()) {
+						return;
+					}
+					
+					break;
+				}
+			}
 		
+			embed.setDescription(String.format("`%s` just joined the server", member.getEffectiveName()));
+		}
+			
 		this.send(event.getJDA(), guild, data, embed.build());		
 	}
 	

@@ -171,7 +171,7 @@ public class SelfrolesModule {
 						
 						List<Document> roles = reactionRole.getList("roles", Document.class, Collections.emptyList());
 						for (Document roleData : roles) {
-							if (roleData.get("id").equals(role.getId())) {
+							if (roleData.getLong("id") == role.getIdLong()) {
 								event.reply("That role is already on the reaction role :no_entry:").queue();
 								return;
 							}
@@ -212,7 +212,7 @@ public class SelfrolesModule {
 							}, e -> {
 								if (e instanceof ErrorResponseException) {
 									ErrorResponseException exception = (ErrorResponseException) e;
-									if (exception.getErrorResponse().equals(ErrorResponse.UNKNOWN_EMOJI)) {
+									if (exception.getErrorResponse().equals(ErrorResponse.UNKNOWN_EMOJI) || exception.getErrorCode() == 400) {
 										event.reply("I could not find that emote :no_entry:").queue();
 									}
 								}
@@ -282,7 +282,7 @@ public class SelfrolesModule {
 					}, e -> {
 						if (e instanceof ErrorResponseException) {
 							ErrorResponseException exception = (ErrorResponseException) e;
-							if (exception.getErrorResponse().equals(ErrorResponse.UNKNOWN_EMOJI)) {
+							if (exception.getErrorResponse().equals(ErrorResponse.UNKNOWN_EMOJI) || exception.getErrorCode() == 400) {
 								event.reply("I could not find that emote :no_entry:").queue();
 							}
 						}

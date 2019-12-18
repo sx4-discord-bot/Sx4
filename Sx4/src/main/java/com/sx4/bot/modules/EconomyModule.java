@@ -131,7 +131,7 @@ public class EconomyModule {
 							exception.printStackTrace();
 							event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
 						} else {
-							event.replyFormat("You opened your advent calendar for the %s and got a **%s**%s :christmas_tree:", GeneralUtils.getNumberSuffix(day), item.getName(), opened.size() == 23 ? " and a **Present Crate**" : "").queue();
+							event.replyFormat("You opened your advent calendar for the %s and got **%s**%s :christmas_tree:", GeneralUtils.getNumberSuffix(day), item.getName(), opened.size() == 23 ? " and a **Present Crate**" : "").queue();
 						}
 					});
 					
@@ -168,7 +168,7 @@ public class EconomyModule {
 			super.setAliases("crates");
 			super.setDescription("Open crates to get random items in the economy");
 			super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
-			super.setExamples("create open", "crate buy", "crate shop");
+			super.setExamples("crate open", "crate buy", "crate shop");
 		}
 		
 		public void onCommand(CommandEvent event) {
@@ -253,15 +253,16 @@ public class EconomyModule {
 			List<Document> items = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items")).getEmbedded(List.of("economy", "items"), new ArrayList<>());
 			
 			long totalCrates = 0;
-			List<ItemStack> crates = new ArrayList<>();
+			List<ItemStack<Crate>> crates = new ArrayList<>();
 			if (crateArgument.toLowerCase().equals("all")) {
 				for (Document itemData : items) {
 					Item item = Item.getItemByName(itemData.getString("name"));
 					if (item instanceof Crate) {
-						if (((Crate) item).isOpenable()) {
+						Crate crate = (Crate) item;
+						if (crate.isOpenable()) {
 							long amount = itemData.getLong("amount");
 							
-							crates.add(new ItemStack(item, amount));
+							crates.add(new ItemStack<>(crate, amount));
 							totalCrates += amount;
 						}
 					}
@@ -292,20 +293,20 @@ public class EconomyModule {
 					return;
 				}
 				
-				ItemStack userItem = EconomyUtils.getUserItem(items, crate);
+				ItemStack<Item> userItem = EconomyUtils.getUserItem(items, crate);
 				if (BigInteger.valueOf(userItem.getAmount()).compareTo(crateAmount) == -1) {
 					event.reply(String.format("You do not have `%,d %s` :no_entry:", crateAmount, crate.getName())).queue();
 					return;
 				}
 				
-				crates.add(new ItemStack(crate, crateAmount.longValue()));
+				crates.add(new ItemStack<>(crate, crateAmount.longValue()));
 				totalCrates = crateAmount.longValue();
 			}
 			
 			Map<Item, Long> finalItems = new HashMap<>();
 			List<Item> itemsWon = new ArrayList<>();
-			for (ItemStack crateStack : crates) {
-				Crate crate = (Crate) crateStack.getItem();
+			for (ItemStack<Crate> crateStack : crates) {
+				Crate crate = crateStack.getItem();
 				
 				List<Item> winnableItems = new ArrayList<>(EconomyUtils.WINNABLE_ITEMS);
 				winnableItems.remove(crate);
@@ -332,7 +333,7 @@ public class EconomyModule {
 			embed.setColor(event.getMember().getColor());
 			if (finalItems.isEmpty()) {
 				if (crates.size() == 1) {
-					ItemStack crateStack = crates.get(0);
+					ItemStack<Crate> crateStack = crates.get(0);
 					embed.setDescription(String.format("You opened `%,d %s` and got scammed, there was nothing in the crate.", crateStack.getAmount(), crateStack.getItem().getName()));
 				} else {
 					embed.setDescription(String.format("You opened all your crates (%,d) and got scammed, there was nothing in the crate.", totalCrates));
@@ -352,7 +353,7 @@ public class EconomyModule {
 				}
 				
 				if (crates.size() == 1) {
-					ItemStack crateStack = crates.get(0);
+					ItemStack<Crate> crateStack = crates.get(0);
 					content.insert(0, String.format("You opened `%,d %s` and got **%,d** item%s\n\n", crateStack.getAmount(), crateStack.getItem().getName(), total, total == 1 ? "" : "s"));
 				} else {
 					content.insert(0, String.format("You opened all your crates (%,d) and got **%,d** item%s\n\n", totalCrates, total, total == 1 ? "" : "s"));
@@ -461,7 +462,7 @@ public class EconomyModule {
 					return;
 				}
 	
-				ItemStack userEnvelope = EconomyUtils.getUserItem(items, envelope);
+				ItemStack<Item> userEnvelope = EconomyUtils.getUserItem(items, envelope);
 				if (BigInteger.valueOf(userEnvelope.getAmount()).compareTo(amount) == -1) {
 					event.replyFormat("You do not have `%,d %s` :no_entry:", amount, envelope.getName()).queue();
 					return;
@@ -546,7 +547,7 @@ public class EconomyModule {
 					return;
 				}
 				
-				Pair<Long, List<ItemStack>> authorTrade;
+				Pair<Long, List<ItemStack<Item>>> authorTrade;
 				try {
 					authorTrade = EconomyUtils.getTrade(authorTradeMessage.getContentRaw());
 				} catch(IllegalArgumentException e) {
@@ -555,10 +556,10 @@ public class EconomyModule {
 				}
 				
 				long authorMoney = authorTrade.getLeft();
-				List<ItemStack> authorItems = authorTrade.getRight();
+				List<ItemStack<Item>> authorItems = authorTrade.getRight();
 				
 				String authorItemsContent = "";
-				for (ItemStack itemStack : authorItems) {
+				for (ItemStack<Item> itemStack : authorItems) {
 					authorItemsContent += String.format("%s x%,d\n", itemStack.getItem().getName(), itemStack.getAmount());
 				}
 				
@@ -573,7 +574,7 @@ public class EconomyModule {
 							return;
 						}
 						
-						Pair<Long, List<ItemStack>> userTrade;
+						Pair<Long, List<ItemStack<Item>>> userTrade;
 						try {
 							userTrade = EconomyUtils.getTrade(userTradeMessage.getContentRaw());
 						} catch(IllegalArgumentException e) {
@@ -582,10 +583,10 @@ public class EconomyModule {
 						}
 						
 						long userMoney = userTrade.getLeft();
-						List<ItemStack> userItems = userTrade.getRight();
+						List<ItemStack<Item>> userItems = userTrade.getRight();
 						
 						String userItemsContent = "";
-						for (ItemStack itemStack : userItems) {
+						for (ItemStack<Item> itemStack : userItems) {
 							userItemsContent += String.format("%s x%,d\n", itemStack.getItem().getName(), itemStack.getAmount());
 						}
 						
@@ -616,8 +617,8 @@ public class EconomyModule {
 									
 									List<Document> authorItemsData = newAuthorData.getList("items", Document.class, new ArrayList<>());
 									List<Document> userItemsData = newUserData.getList("items", Document.class, new ArrayList<>());									
-									for (ItemStack itemStack : authorItems) {
-										ItemStack authorItem = EconomyUtils.getUserItem(authorItemsData, itemStack.getItem());
+									for (ItemStack<Item> itemStack : authorItems) {
+										ItemStack<Item> authorItem = EconomyUtils.getUserItem(authorItemsData, itemStack.getItem());
 										if (authorItem.getAmount() < itemStack.getAmount()) {
 											event.reply(String.format("**%s** does not have `%,d %s` :no_entry:", event.getAuthor().getAsTag(), itemStack.getAmount(), itemStack.getItem().getName())).queue();
 											return;
@@ -629,8 +630,8 @@ public class EconomyModule {
 										EconomyUtils.addItem(userItemsData, itemStack);
 									}
 									
-									for (ItemStack itemStack : userItems) {
-										ItemStack userItem = EconomyUtils.getUserItem(userItemsData, itemStack.getItem());
+									for (ItemStack<Item> itemStack : userItems) {
+										ItemStack<Item> userItem = EconomyUtils.getUserItem(userItemsData, itemStack.getItem());
 										if (userItem.getAmount() < itemStack.getAmount()) {
 											event.reply(String.format("**%s** does not have `%,d %s` :no_entry:", member.getUser().getAsTag(), itemStack.getAmount(), itemStack.getItem().getName())).queue();
 											return;
@@ -773,7 +774,7 @@ public class EconomyModule {
 			
 			List<Document> userItems = data.getList("items", Document.class, new ArrayList<>());
 			if (booster.equals(Booster.LENDED_PICKAXE)) {
-				ItemStack userBooster = EconomyUtils.getUserItem(userItems, booster);
+				ItemStack<Item> userBooster = EconomyUtils.getUserItem(userItems, booster);
 				if (userBooster.getAmount() == 0) {
 					event.reply("You do not own any `" + booster.getName() + "` :no_entry:").queue();
 					return;
@@ -1444,9 +1445,9 @@ public class EconomyModule {
 				if (pickaxe.isBuyable() || pickaxe.isCraftable()) {
 					StringBuilder craftContent = new StringBuilder();
 					if (pickaxe.isCraftable()) {
-						List<ItemStack> craftingItems = pickaxe.getCraftingRecipe().getCraftingItems();
+						List<ItemStack<Material>> craftingItems = pickaxe.getCraftingRecipe().getCraftingMaterials();
 						for (int i = 0; i < craftingItems.size(); i++) {
-							ItemStack itemStack = craftingItems.get(i);
+							ItemStack<Material> itemStack = craftingItems.get(i);
 							craftContent.append(itemStack.getAmount() + " " + itemStack.getItem().getName());
 							if (i != craftingItems.size() - 1) {
 								craftContent.append("\n");
@@ -1566,8 +1567,8 @@ public class EconomyModule {
 				return;
 			}
 			
-			for (ItemStack craftItem : pickaxe.getCraftingRecipe().getCraftingItems()) {
-				ItemStack userItem = EconomyUtils.getUserItem(userItems, craftItem.getItem());
+			for (ItemStack<Material> craftItem : pickaxe.getCraftingRecipe().getCraftingMaterials()) {
+				ItemStack<Item> userItem = EconomyUtils.getUserItem(userItems, craftItem.getItem());
 				if (userItem.getAmount() < craftItem.getAmount()) {
 					event.reply(String.format("You do not have `%,d %s` :no_entry:", craftItem.getAmount(), craftItem.getItem().getName())).queue();
 					return;
@@ -1583,7 +1584,7 @@ public class EconomyModule {
 					exception.printStackTrace();
 					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
 				} else {
-					event.reply("You just crafted a `" + pickaxe.getName() + "` with " + GeneralUtils.joinGrammatical(pickaxe.getCraftingRecipe().getCraftingItems()) + " :ok_hand:").queue();
+					event.reply("You just crafted a `" + pickaxe.getName() + "` with " + GeneralUtils.joinGrammatical(pickaxe.getCraftingRecipe().getCraftingMaterials()) + " :ok_hand:").queue();
 				}
 			});
 		}
@@ -1737,7 +1738,7 @@ public class EconomyModule {
 			}
 			
 			Item repairItem = pickaxe.getRepairItem();
-			ItemStack userItem = EconomyUtils.getUserItem(items, repairItem);
+			ItemStack<Item> userItem = EconomyUtils.getUserItem(items, repairItem);
 			int cost = pickaxe.getAmountOfMaterialsForRepair(durabilityNeeded);
 			if (userItem.getAmount() < cost) {
 				long fixBy = pickaxe.getEstimateOfDurability(userItem.getAmount());
@@ -1766,7 +1767,7 @@ public class EconomyModule {
 							return;
 						}
 						
-						ItemStack userItemNew = EconomyUtils.getUserItem(itemsNew, repairItem);
+						ItemStack<Item> userItemNew = EconomyUtils.getUserItem(itemsNew, repairItem);
 						if (userItemNew.getAmount() < cost) {
 							long fixBy = pickaxe.getEstimateOfDurability(userItemNew.getAmount());
 							event.reply("You do not have enough materials to fix your pickaxe by **" + durabilityNeeded + "** durability, you would need `" + cost + " " + repairItem.getName() + "`. You can fix your pickaxe by **" + fixBy + "** durability with your current amount of `" + repairItem.getName() + "` :no_entry:").queue();
@@ -1823,9 +1824,9 @@ public class EconomyModule {
 				if (rod.isBuyable() || rod.isCraftable()) {
 					StringBuilder craftContent = new StringBuilder();
 					if (rod.isCraftable()) {
-						List<ItemStack> craftingItems = rod.getCraftingRecipe().getCraftingItems();
+						List<ItemStack<Material>> craftingItems = rod.getCraftingRecipe().getCraftingMaterials();
 						for (int i = 0; i < craftingItems.size(); i++) {
-							ItemStack itemStack = craftingItems.get(i);
+							ItemStack<Material> itemStack = craftingItems.get(i);
 							craftContent.append(itemStack.getAmount() + " " + itemStack.getItem().getName());
 							if (i != craftingItems.size() - 1) {
 								craftContent.append("\n");
@@ -1944,8 +1945,8 @@ public class EconomyModule {
 				return;
 			}
 			
-			for (ItemStack craftItem : rod.getCraftingRecipe().getCraftingItems()) {
-				ItemStack userItem = EconomyUtils.getUserItem(userItems, craftItem.getItem());
+			for (ItemStack<Material> craftItem : rod.getCraftingRecipe().getCraftingMaterials()) {
+				ItemStack<Item> userItem = EconomyUtils.getUserItem(userItems, craftItem.getItem());
 				if (userItem.getAmount() < craftItem.getAmount()) {
 					event.reply(String.format("You do not have `%,d %s` :no_entry:", craftItem.getAmount(), craftItem.getItem().getName())).queue();
 					return;
@@ -1961,7 +1962,7 @@ public class EconomyModule {
 					exception.printStackTrace();
 					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
 				} else {
-					event.reply("You just crafted a `" + rod.getName() + "` with " + GeneralUtils.joinGrammatical(rod.getCraftingRecipe().getCraftingItems()) + " :ok_hand:").queue();
+					event.reply("You just crafted a `" + rod.getName() + "` with " + GeneralUtils.joinGrammatical(rod.getCraftingRecipe().getCraftingMaterials()) + " :ok_hand:").queue();
 				}
 			});
 		}
@@ -2110,7 +2111,7 @@ public class EconomyModule {
 			}
 			
 			Item repairItem = rod.getRepairItem();
-			ItemStack userItem = EconomyUtils.getUserItem(items, repairItem);
+			ItemStack<Item> userItem = EconomyUtils.getUserItem(items, repairItem);
 			int cost = rod.getAmountOfMaterialsForRepair(durabilityNeeded);
 			if (userItem.getAmount() < cost) {
 				long fixBy = rod.getEstimateOfDurability(userItem.getAmount());
@@ -2139,7 +2140,7 @@ public class EconomyModule {
 							return;
 						}
 						
-						ItemStack userItemNew = EconomyUtils.getUserItem(itemsNew, repairItem);
+						ItemStack<Item> userItemNew = EconomyUtils.getUserItem(itemsNew, repairItem);
 						if (userItemNew.getAmount() < cost) {
 							long fixBy = rod.getEstimateOfDurability(userItemNew.getAmount());
 							event.reply("You do not have enough materials to fix your fishing rod by **" + durabilityNeeded + "** durability, you would need `" + cost + " " + repairItem.getName() + "`. You can fix your fishing rod by **" + fixBy + "** durability with your current amount of `" + repairItem.getName() + "` :no_entry:").queue();
@@ -2195,9 +2196,9 @@ public class EconomyModule {
 				if (axe.isBuyable() || axe.isCraftable()) {
 					StringBuilder craftContent = new StringBuilder();
 					if (axe.isCraftable()) {
-						List<ItemStack> craftingItems = axe.getCraftingRecipe().getCraftingItems();
+						List<ItemStack<Material>> craftingItems = axe.getCraftingRecipe().getCraftingMaterials();
 						for (int i = 0; i < craftingItems.size(); i++) {
-							ItemStack itemStack = craftingItems.get(i);
+							ItemStack<Material> itemStack = craftingItems.get(i);
 							craftContent.append(itemStack.getAmount() + " " + itemStack.getItem().getName());
 							if (i != craftingItems.size() - 1) {
 								craftContent.append("\n");
@@ -2317,8 +2318,8 @@ public class EconomyModule {
 				return;
 			}
 			
-			for (ItemStack craftItem : axe.getCraftingRecipe().getCraftingItems()) {
-				ItemStack userItem = EconomyUtils.getUserItem(items, craftItem.getItem());
+			for (ItemStack<Material> craftItem : axe.getCraftingRecipe().getCraftingMaterials()) {
+				ItemStack<Item> userItem = EconomyUtils.getUserItem(items, craftItem.getItem());
 				if (userItem.getAmount() < craftItem.getAmount()) {
 					event.reply(String.format("You do not have `%,d %s` :no_entry:", craftItem.getAmount(), craftItem.getItem().getName())).queue();
 					return;
@@ -2334,7 +2335,7 @@ public class EconomyModule {
 					exception.printStackTrace();
 					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
 				} else {
-					event.reply("You just crafted a `" + axe.getName() + "` with " + GeneralUtils.joinGrammatical(axe.getCraftingRecipe().getCraftingItems()) + " :ok_hand:").queue();
+					event.reply("You just crafted a `" + axe.getName() + "` with " + GeneralUtils.joinGrammatical(axe.getCraftingRecipe().getCraftingMaterials()) + " :ok_hand:").queue();
 				}
 			});
 		}
@@ -2479,7 +2480,7 @@ public class EconomyModule {
 			}
 			
 			Item repairItem = axe.getRepairItem();
-			ItemStack userItem = EconomyUtils.getUserItem(items, repairItem);
+			ItemStack<Item> userItem = EconomyUtils.getUserItem(items, repairItem);
 			int cost = axe.getAmountOfMaterialsForRepair(durabilityNeeded);
 			if (userItem.getAmount() < cost) {
 				long fixBy = axe.getEstimateOfDurability(userItem.getAmount());
@@ -2508,7 +2509,7 @@ public class EconomyModule {
 							return;
 						}
 						
-						ItemStack userItemNew = EconomyUtils.getUserItem(itemsNew, repairItem);
+						ItemStack<Item> userItemNew = EconomyUtils.getUserItem(itemsNew, repairItem);
 						if (userItemNew.getAmount() < cost) {
 							long fixBy = axe.getEstimateOfDurability(userItemNew.getAmount());
 							event.reply("You do not have enough materials to fix your axe by **" + durabilityNeeded + "** durability, you would need `" + cost + " " + repairItem.getName() + "`. You can fix your axe by **" + fixBy + "** durability with your current amount of `" + repairItem.getName() + "` :no_entry:").queue();
@@ -2645,12 +2646,12 @@ public class EconomyModule {
 		
 		List<Document> authorItems = data.getList("items", Document.class, new ArrayList<>());
 		String itemString = String.format("%,d %s", itemAmount, item.getName());
-		ItemStack authorItem = EconomyUtils.getUserItem(authorItems, item);
+		ItemStack<Item> authorItem = EconomyUtils.getUserItem(authorItems, item);
 		if (BigInteger.valueOf(authorItem.getAmount()).compareTo(itemAmount) != -1) {
 			List<Document> userItems = database.getUserById(member.getIdLong(), null, Projections.include("economy.items")).getEmbedded(List.of("economy", "items"), new ArrayList<>());
 			
 			long itemAmountLong = itemAmount.longValue();
-			ItemStack userItem = EconomyUtils.getUserItem(userItems, item);
+			ItemStack<Item> userItem = EconomyUtils.getUserItem(userItems, item);
 			
 			long fullPrice = item.getPrice() * itemAmountLong;
 			long tax = (long) (fullPrice * 0.05D);
@@ -2774,10 +2775,8 @@ public class EconomyModule {
 			embed.setFooter("Use " + event.getPrefix() + "factory buy <factory> to buy a factory", event.getAuthor().getEffectiveAvatarUrl());
 			
 			for (Factory factory : Factory.ALL) {
-				if (!factory.isHidden()) {
-					ItemStack userItem = EconomyUtils.getUserItem(items, factory.getMaterial());
-					embed.addField(factory.getName(), String.format("Price: %,d/%,d %s (%,d)", userItem.getAmount(), factory.getMaterialAmount(), factory.getMaterial().getName(), (long) Math.floor((double) userItem.getAmount() / factory.getMaterialAmount())), true);
-				}
+				ItemStack<Item> userItem = EconomyUtils.getUserItem(items, factory.getMaterial());
+				embed.addField(factory.getName(), String.format("Price: %,d/%,d %s (%,d)", userItem.getAmount(), factory.getMaterialAmount(), factory.getMaterial().getName(), (long) Math.floor((double) userItem.getAmount() / factory.getMaterialAmount())), true);
 			}
 			
 			event.reply(embed.build()).queue();
@@ -2795,17 +2794,15 @@ public class EconomyModule {
 					return;
 				}
 				
-				List<ItemStack> factoriesBought = new ArrayList<>();
+				List<ItemStack<Factory>> factoriesBought = new ArrayList<>();
 				for (Factory factory : Factory.ALL) {
-					if (!factory.isHidden()) {
-						ItemStack userItem = EconomyUtils.getUserItem(items, factory.getMaterial());
-						long buyableAmount = (long) Math.floor((double) userItem.getAmount() / factory.getMaterialAmount());
-						if (buyableAmount > 0) {
-							factoriesBought.add(new ItemStack(factory, buyableAmount));
-							
-							EconomyUtils.removeItem(items, factory.getMaterial(), factory.getMaterialAmount() * buyableAmount);
-							EconomyUtils.addItem(items, factory, buyableAmount);
-						}
+					ItemStack<Item> userItem = EconomyUtils.getUserItem(items, factory.getMaterial());
+					long buyableAmount = (long) Math.floor((double) userItem.getAmount() / factory.getMaterialAmount());
+					if (buyableAmount > 0) {
+						factoriesBought.add(new ItemStack<>(factory, buyableAmount));
+						
+						EconomyUtils.removeItem(items, factory.getMaterial(), factory.getMaterialAmount() * buyableAmount);
+						EconomyUtils.addItem(items, factory, buyableAmount);
 					}
 				}
 				
@@ -2845,12 +2842,7 @@ public class EconomyModule {
 					return;
 				}
 				
-				if (factory.isHidden()) {
-					event.reply("You cannot purchase that factory :no_entry:").queue();
-					return;
-				}
-				
-				ItemStack userItem = EconomyUtils.getUserItem(items, factory.getMaterial());
+				ItemStack<Item> userItem = EconomyUtils.getUserItem(items, factory.getMaterial());
 				
 				BigInteger price = factoryAmount.multiply(BigInteger.valueOf(factory.getMaterialAmount()));
 				if (BigInteger.valueOf(userItem.getAmount()).compareTo(price) != -1) {					
@@ -3024,7 +3016,7 @@ public class EconomyModule {
 			}
 			
 			List<Document> items = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items")).getEmbedded(List.of("economy", "items"), new ArrayList<>());
-			ItemStack userItem = EconomyUtils.getUserItem(items, item);
+			ItemStack<Item> userItem = EconomyUtils.getUserItem(items, item);
 			
 			if (item.isBuyable()) {
 				BigInteger itemPrice = BigInteger.valueOf(userItem.getItem().getPrice()).multiply(itemAmount);
@@ -3552,7 +3544,7 @@ public class EconomyModule {
 		userItems.put("Envelopes", new ArrayList<>());
 		for (Document item : items) {
 			Item actualItem = Item.getItemByName(item.getString("name"));
-			ItemStack userItem = new ItemStack(actualItem, item.getLong("amount"));
+			ItemStack<Item> userItem = new ItemStack<>(actualItem, item.getLong("amount"));
 			
 			if (actualItem instanceof Tool) {
 				userItems.get("Tools").add(String.format("%s x%,d (%,d Durability)", actualItem.getName(), userItem.getAmount(), item.getInteger("currentDurability")));
@@ -3898,7 +3890,7 @@ public class EconomyModule {
 			for (Document dataObject : data) {	
 				List<Document> userItems = dataObject.getEmbedded(List.of("economy", "items"), Collections.emptyList());
 				
-				ItemStack userItem = EconomyUtils.getUserItem(userItems, item);
+				ItemStack<Item> userItem = EconomyUtils.getUserItem(userItems, item);
 				if (userItem.getAmount() == 0) {
 					continue;
 				}

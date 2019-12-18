@@ -38,7 +38,7 @@ public class Main {
 		Server server = new Server();
 
 		ServerConnector connector = new ServerConnector(server);
-		connector.setPort(Settings.CANARY ? 8083 : 8082);
+		connector.setPort(Settings.PORT);
 		
 		server.setErrorHandler(new ErrorHandler() {
 			protected void handleErrorPage(HttpServletRequest request, Writer writer, int code, String message) throws IOException {

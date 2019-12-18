@@ -1,11 +1,7 @@
 package com.sx4.bot.modules;
 
 import java.awt.Color;
-import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
-import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLDecoder;
@@ -33,12 +29,12 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import javax.imageio.ImageIO;
 import javax.ws.rs.ForbiddenException;
 
 import org.bson.BsonDocument;
 import org.bson.Document;
 import org.bson.conversions.Bson;
+import org.bson.types.Binary;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -98,6 +94,7 @@ import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.internal.utils.tuple.Pair;
 import okhttp3.MediaType;
+import okhttp3.MultipartBody;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
@@ -152,6 +149,140 @@ public class FunModule {
 
 			return closest;
 		}
+	}
+	
+	public class YouTubeNotificationCommand extends Sx4Command {
+		
+		public YouTubeNotificationCommand() {
+			super("youtube notification");
+			
+			super.setDescription("Subscribe to a youtube channel so anytime it uploads it's sent in a channel of your choice");
+			super.setAliases("yt notif", "yt notification", "youtube notif");
+			super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
+			super.setExamples("youtube notification add", "youtube notification remove", "youtube notification list");
+		}
+		
+		public void onCommand(CommandEvent event) {
+			event.reply(HelpUtils.getHelpMessage(event.getCommand())).queue();
+		}
+		
+		@Command(value="add", description="Add a youtube notification to be posted to a specific channel when the user uploads")
+		@AuthorPermissions({Permission.MANAGE_SERVER})
+		public void add(CommandEvent event, @Context Database database, @Argument(value="channel") String channelArgument, @Argument(value="youtube channel", endless=true) String youtubeChannelArgument) {
+			TextChannel channel = ArgumentUtils.getTextChannel(event.getGuild(), channelArgument);
+			if (channel == null) {
+				event.reply("I could not find that channel :no_entry:").queue();
+				return;
+			}
+			
+			Request channelRequest = new Request.Builder()
+					.url("https://www.googleapis.com/youtube/v3/search?key=" + TokenUtils.YOUTUBE + "&q=" + youtubeChannelArgument + "&part=id&maxResults=1")
+					.build();
+			
+			Sx4Bot.client.newCall(channelRequest).enqueue((Sx4Callback) channelResponse -> {
+				JSONObject data = new JSONObject(channelResponse.body().string());
+				
+				JSONArray items = data.getJSONArray("items");
+				if (items.isEmpty()) {
+					event.reply("I could not find that youtube channel :no_entry:").queue();
+					return;
+				}
+				
+				String channelId = items.getJSONObject(0).getJSONObject("id").getString("channelId");
+				
+				Document notificationData = new Document("uploaderId", channelId)
+						.append("channelId", channel.getIdLong())
+						.append("guildId", event.getGuild().getIdLong());
+				
+				List<Document> notifications = database.getNotifications(Filters.eq("uploaderId", channelId), Projections.include("channelId")).into(new ArrayList<>());
+				if (notifications.isEmpty() && !Sx4Bot.getYouTubeManager().hasResubscription(channelId)) {
+					RequestBody body = new MultipartBody.Builder()
+							.addFormDataPart("hub.mode", "subscribe")
+							.addFormDataPart("hub.topic", "https://www.youtube.com/xml/feeds/videos.xml?channel_id=" + channelId)
+							.addFormDataPart("hub.callback", "http://" + Settings.DOMAIN + ":" + Settings.PORT + "/api/v1/youtube")
+							.addFormDataPart("hub.verify", "sync")
+							.addFormDataPart("hub.verify_token", TokenUtils.YOUTUBE)
+							.setType(MultipartBody.FORM)
+							.build();
+					
+					Request request = new Request.Builder()
+							.url("https://pubsubhubbub.appspot.com/subscribe")
+							.post(body)
+							.build();
+					
+					Sx4Bot.client.newCall(request).enqueue((Sx4Callback) response -> {
+						if (response.isSuccessful()) {
+							database.insertNotification(notificationData, (result, exception) -> {
+								if (exception != null) {
+									exception.printStackTrace();
+									event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+								} else {
+									event.reply("Notifications will now be sent in " + channel.getAsMention() + " when that user uploads <:done:403285928233402378>").queue();
+								}
+							});
+						} else {
+							event.reply("Oops something went wrong there, try again. If this repeats report this to my developer (Code: " + response.code() + ") :no_entry:").queue();
+						}
+					});
+				} else {
+					for (Document notification : notifications) {
+						if (notification.getLong("channelId") == channel.getIdLong()) {
+							event.reply("You already have a notification for that user in that channel :no_entry:").queue();
+							return;
+						}
+					}
+					
+					database.insertNotification(notificationData, (result, exception) -> {
+						if (exception != null) {
+							exception.printStackTrace();
+							event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+						} else {
+							event.reply("Notifications will now be sent in " + channel.getAsMention() + " when that user uploads <:done:403285928233402378>").queue();
+						}
+					});
+				}
+			});
+		}
+		
+		@Command(value="remove", description="Removes a notification from a channel you had setup prior for a youtube channel")
+		@AuthorPermissions({Permission.MANAGE_SERVER})
+		public void remove(CommandEvent event, @Context Database database, @Argument(value="channel") String channelArgument, @Argument(value="youtube channel", endless=true) String youtubeChannelArgument) {
+			TextChannel channel = ArgumentUtils.getTextChannel(event.getGuild(), channelArgument);
+			if (channel == null) {
+				event.reply("I could not find that channel :no_entry:").queue();
+				return;
+			}
+			
+			Request channelRequest = new Request.Builder()
+					.url("https://www.googleapis.com/youtube/v3/search?key=" + TokenUtils.YOUTUBE + "&q=" + youtubeChannelArgument + "&part=id&maxResults=1")
+					.build();
+			
+			Sx4Bot.client.newCall(channelRequest).enqueue((Sx4Callback) channelResponse -> {
+				JSONObject data = new JSONObject(channelResponse.body().string());
+				
+				JSONArray items = data.getJSONArray("items");
+				if (items.isEmpty()) {
+					event.reply("I could not find that youtube channel :no_entry:").queue();
+					return;
+				}
+				
+				String channelId = items.getJSONObject(0).getJSONObject("id").getString("channelId");
+				
+				database.deleteNotification(Filters.and(Filters.eq("uploaderId", channelId), Filters.eq("channelId", channel.getIdLong())), (result, exception) -> {
+					if (exception != null) {
+						exception.printStackTrace();
+						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+					} else {
+						if (result.getDeletedCount() == 1) {
+							event.reply("Notifications will no longer be sent in " + channel.getAsMention() + " when that user uploads <:done:403285928233402378>").queue();
+						} else {
+							event.reply("You do not have a notification for that user in " + channel.getAsMention() + " :no_entry:").queue();
+						}
+					}
+				});
+			});
+		}
+		
 	}
 	
 	public class StarboardCommand extends Sx4Command {
@@ -603,7 +734,7 @@ public class FunModule {
 			}
 		}
 		
-		Bson projection = Projections.include("economy.balance", "profile.birthday", "profile.description", "profile.height", "profile.colour", "profile.marriedUsers", "reputation.amount");
+		Bson projection = Projections.include("economy.balance", "profile", "reputation.amount");
 		Document data = database.getUserById(member.getIdLong(), null, projection);
 		
 		Document profile = data.get("profile", Database.EMPTY_DOCUMENT);
@@ -624,7 +755,9 @@ public class FunModule {
 		String birthday = profile.getString("birthday");
 		String height = profile.getString("height");
 		String description = profile.getString("description");
-		String backgroundPath = "file://" + new File("profile-images/" + member.getUser().getId() + ".png").getAbsolutePath();
+		
+		Binary bytes = profile.get("banner", Binary.class);
+		
 		List<String> badges = FunUtils.getMemberBadges(member);
 		
 		if (colour != null || birthday != null || height != null || description != null) {
@@ -637,7 +770,7 @@ public class FunModule {
 		
 		String body = new JSONObject()
 				.put("user_name", member.getUser().getAsTag())
-				.put("background_path", backgroundPath)
+				.put("background", bytes == null ? null : bytes.getData())
 				.put("colour", colour == null ? "#ffffff" : colour)
 				.put("balance", String.format("%,d", balance))
 				.put("reputation", reputation)
@@ -879,7 +1012,7 @@ public class FunModule {
 		@Examples({"set banner", "set banner https://i.imgur.com/EqaQ9wo.png"})
 		@Async
 		@Cooldown(value=30)
-		public void banner(CommandEvent event, @Argument(value="banner", nullDefault=true) String banner) {
+		public void banner(CommandEvent event, @Context Database database, @Argument(value="banner", nullDefault=true) String banner) {
 			URL url = null;
 			if (banner == null && !event.getMessage().getAttachments().isEmpty()) {
 				for (Attachment attachment : event.getMessage().getAttachments()) {
@@ -920,14 +1053,21 @@ public class FunModule {
 				}
 			}
 			
-			File file = new File("profile-images/" + event.getAuthor().getId() + ".png").getAbsoluteFile();
+			Binary currentBytes = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("profile.banner")).getEmbedded(List.of("profile", "banner"), Binary.class);
 			if (url == null) {
-				if (file.exists()) {
-					file.delete();
-					event.reply("Your profile background has been reset <:done:403285928233402378>").queue();
-				} else { 
-					event.reply("You don't have a profile background set :no_entry:").queue();
+				if (currentBytes == null) {
+					event.reply("You do not have a profile background set :no_entry:").queue();
+					return;
 				}
+				
+				database.updateUserById(event.getAuthor().getIdLong(), Updates.unset("profile.banner"), (result, exception) -> {
+					if (exception != null) {
+						exception.printStackTrace();
+						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+					} else {
+						event.reply("Your profile background has been updated <:done:403285928233402378>").queue();
+					}
+				});
 			} else {
 				if (url.getHost().contains("giphy")) {
 					try {
@@ -935,25 +1075,30 @@ public class FunModule {
 					} catch (MalformedURLException e) {}
 				}
 				
-				Request request = new Request.Builder().url("http://" + Settings.LOCAL_HOST + ":8443/api/resize?image=" + url + "&width=2560&height=1440").build();
+				try {
+					url = new URL("http://" + Settings.LOCAL_HOST + ":8443/api/resize?image=" + url.toString() + "&width=2560&height=1440");
+				} catch (MalformedURLException e1) {}
 				
-				ImageModule.client.newCall(request).enqueue((Sx4Callback) response -> {
-					InputStream stream = new ByteArrayInputStream(response.body().bytes());
-					
-					BufferedImage image = ImageIO.read(stream);
-					if (image == null) {
-						event.reply("The url provided is not a valid image :no_entry:").queue();
-						return;
+				Binary bytes;
+				try {
+					bytes = new Binary(url.openStream().readAllBytes());
+				} catch (IOException e) {
+					event.reply("Oops something went wrong there, try again :no_entry:").queue();
+					return;
+				}
+				
+				if (bytes.equals(currentBytes)) {
+					event.reply("Your profile background is already set to that :no_entry:").queue();
+					return;
+				}
+				
+				database.updateUserById(event.getAuthor().getIdLong(), Updates.set("profile.banner", bytes), (result, exception) -> {
+					if (exception != null) {
+						exception.printStackTrace();
+						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+					} else {
+						event.reply("Your profile background has been updated <:done:403285928233402378>").queue();
 					}
-					
-					try {
-						ImageIO.write(image, "png", file);
-					} catch (IOException e) {
-						event.reply("Oops something went wrong there, try again :no_entry:").queue();
-						return;
-					}
-					
-					event.reply("Your profile background has been updated <:done:403285928233402378>").queue();
 				});
 			}
 		}	
@@ -1986,13 +2131,13 @@ public class FunModule {
 	public void calculator(CommandEvent event, @Argument(value="equation", endless=true) String equation) {
 		String eq;
 		try {
-			eq = new String(Runtime.getRuntime().exec("./calc " + equation.replace(" ", "").replace("(", "l").replace(")", "r")).getInputStream().readAllBytes());
+			eq = new String(Runtime.getRuntime().exec("./calc " + equation.strip().replace("(", "l").replace(")", "r")).getInputStream().readAllBytes());
 		} catch (IOException e) {
 			event.reply("Oops something went wrong there, try again :no_entry:").queue();
 			return;
 		}
 		
-		if (eq.equals("")) {
+		if (eq.isEmpty()) {
 			event.reply("Invalid equation :no_entry:").queue();
 			return;
 		}
@@ -2122,15 +2267,9 @@ public class FunModule {
 	@Examples({"youtube pewdiepie", "youtube youtube rewind 2018", "youtube top charts"})
 	@Cooldown(value=3)
 	public void youtube(CommandEvent event, @Argument(value="query", endless=true) String query) {
-		Request request;
-		try {
-			request = new Request.Builder()
-					.url(new URL("https://www.googleapis.com/youtube/v3/search?key=" + TokenUtils.YOUTUBE + "&part=snippet&safeSearch=none&q=" + query))
-					.build();
-		} catch (MalformedURLException e) {
-			event.reply("Oops something went wrong there, try again :no_entry:").queue();
-			return;
-		}
+		Request request = new Request.Builder()
+				.url("https://www.googleapis.com/youtube/v3/search?key=" + TokenUtils.YOUTUBE + "&part=snippet&safeSearch=none&maxResults=1&q=" + query)
+				.build();
 		
 		Sx4Bot.client.newCall(request).enqueue((Sx4Callback) response -> {
 			JSONObject json;
@@ -2141,19 +2280,41 @@ public class FunModule {
 				return;
 			}
 			
-			if (json.getJSONArray("items").toList().isEmpty()) {
+			JSONArray items = json.getJSONArray("items");
+			if (items.isEmpty()) {
 				event.reply("I could not find any results :no_entry:").queue();
 				return;
 			}
 			
-			JSONObject youtubeId = json.getJSONArray("items").getJSONObject(0).getJSONObject("id");
-			if (youtubeId.getString("kind").equals("youtube#channel")) {
-				event.reply("https://www.youtube.com/channel/" + youtubeId.getString("channelId")).queue();
-			} else if (youtubeId.getString("kind").equals("youtube#video")) {
-				event.reply("https://www.youtube.com/watch?v=" + youtubeId.getString("videoId")).queue();
-			} else if (youtubeId.getString("kind").equals("youtube#playlist")) {
-				event.reply("https://www.youtube.com/playlist?list=" + youtubeId.getString("playlistId")).queue();
+			JSONObject result = items.getJSONObject(0);
+			JSONObject id = result.getJSONObject("id");
+			JSONObject snippet = result.getJSONObject("snippet");
+			JSONObject thumbnails = snippet.getJSONObject("thumbnails");
+			
+			ZonedDateTime uploadedAt = ZonedDateTime.parse(snippet.getString("publishedAt"));
+			
+			EmbedBuilder embed = new EmbedBuilder();
+			embed.setColor(16711680);
+			embed.setDescription(snippet.getString("description"));
+			embed.setImage(thumbnails.getJSONObject("high").getString("url"));
+			
+			if (id.getString("kind").equals("youtube#channel")) {
+				embed.setTitle(snippet.getString("title"), "https://www.youtube.com/channel/" + id.getString("channelId"));
+				embed.addField("Created At", uploadedAt.format(this.formatter), true);
+			} else if (id.getString("kind").equals("youtube#video")) {
+				embed.setTitle(snippet.getString("title"), "https://www.youtube.com/watch?v=" + id.getString("videoId"));
+				
+				String state = snippet.getString("liveBroadcastContent");
+				embed.addField("Uploaded By", "[" + snippet.getString("channelTitle") + "](https://www.youtube.com/channel/" + snippet.getString("channelId") + ")", true);
+				embed.addField("Uploaded At", uploadedAt.format(this.formatter), true);
+				embed.addField("State", state.equals("live") ? "Live Now" : state.equals("upcoming") ? "Scheduled" : "Uploaded", true);
+			} else {
+				embed.setTitle(snippet.getString("title"), "https://www.youtube.com/playlist?list=" + id.getString("playlistId"));
+				embed.addField("Uploaded By", "[" + snippet.getString("channelTitle") + "](https://www.youtube.com/channel/" + snippet.getString("channelId") + ")", true);
+				embed.addField("Uploaded At", uploadedAt.format(this.formatter), true);
 			}
+			
+			event.reply(embed.build()).queue();
 		});
 	}
 	
@@ -2473,7 +2634,7 @@ public class FunModule {
 				}
 				
 				EmbedBuilder embed = new EmbedBuilder();
-				embed.setAuthor(GeneralUtils.title(result.getId()), "https://en.oxforddictionaries.com/definition/" + word.toLowerCase());
+				embed.setAuthor(GeneralUtils.title(result.getId()), "https://en.oxforddictionaries.com/definition/" + URLEncoder.encode(word.toLowerCase(), StandardCharsets.UTF_8));
 				embed.addField("Definition", result.getDefinition() + (result.hasExample() ? "\n\n*" + result.getExample() + "*" : ""), false);
 				
 				if (result.hasAudioFile()) {

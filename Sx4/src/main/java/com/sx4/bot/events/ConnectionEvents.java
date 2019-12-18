@@ -5,6 +5,7 @@ import java.time.Instant;
 import com.sx4.api.Main;
 import com.sx4.bot.cache.SteamCache;
 import com.sx4.bot.core.Sx4Bot;
+import com.sx4.bot.economy.Item;
 import com.sx4.bot.settings.Settings;
 import com.sx4.bot.utils.HelpUtils;
 
@@ -58,6 +59,8 @@ public class ConnectionEvents extends ListenerAdapter {
 			AwaitEvents.ensureAwaitData();
 			MuteEvents.ensureMutes();
 			AutoroleEvents.ensureAutoroles();
+			Item.loadConfig();
+			Sx4Bot.getYouTubeManager().ensureResubscriptions();
 			
 			System.gc();
 		}

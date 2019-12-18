@@ -56,8 +56,8 @@ public class AuctionItem {
 		return (double) this.price / this.getAmount();
 	}
 	
-	public ItemStack getItemStack() {
-		return new ItemStack(this.item, this.getAmount());
+	public ItemStack<Item> getItemStack() {
+		return new ItemStack<>(this.item, this.getAmount());
 	}
 	
 	public boolean isTool() {

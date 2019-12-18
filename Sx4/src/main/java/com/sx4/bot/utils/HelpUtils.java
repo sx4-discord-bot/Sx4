@@ -130,16 +130,28 @@ public class HelpUtils {
 	}
 	
 	public static Pair<String, Integer> getArgumentAndPage(String argument) {
+		if (argument == null) {
+			return Pair.of("", 1);
+		}
+		
+		argument = argument.trim();
+		
 		String[] split = argument.split(" ");
 		
 		int page = 1;
 		
 		String lastArgument = split[split.length - 1], firstArgument = split[0];
 		if (GeneralUtils.isNumberUnsigned(lastArgument)) {
-			page = Integer.parseUnsignedInt(lastArgument);
+			try {
+				page = Integer.parseUnsignedInt(lastArgument);
+			} catch (NumberFormatException e) {}
+			
 			argument = argument.substring(0, argument.length() - lastArgument.length() - (split.length == 1 ? 0 : 1));
 		} else if (GeneralUtils.isNumberUnsigned(firstArgument)) {
-			page = Integer.parseUnsignedInt(firstArgument);
+			try {
+				page = Integer.parseUnsignedInt(firstArgument);
+			} catch (NumberFormatException e) {}
+			
 			argument = argument.substring(firstArgument.length() + 1);
 		}
 		

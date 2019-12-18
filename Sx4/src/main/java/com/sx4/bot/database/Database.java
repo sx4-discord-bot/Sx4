@@ -50,6 +50,8 @@ public class Database {
 	private MongoCollection<Document> guilds;
 	private MongoCollection<Document> users;
 	private MongoCollection<Document> auction;
+	private MongoCollection<Document> notifications;
+	private MongoCollection<Document> resubscriptions;
 	
 	private MongoCollection<Document> commandLogs;
 	private MongoCollection<Document> guildLogs;
@@ -70,6 +72,13 @@ public class Database {
 		
 		this.guilds = this.database.getCollection("guilds");
 		this.users = this.database.getCollection("users");
+		
+		this.resubscriptions = this.database.getCollection("resubscriptions");
+		
+		this.notifications = this.database.getCollection("notifications");
+		this.notifications.createIndex(Indexes.descending("uploaderId"));
+		this.notifications.createIndex(Indexes.descending("channelId"));
+		this.notifications.createIndex(Indexes.descending("guildId"));
 		
 		this.auction = this.database.getCollection("auction");
 		this.auction.createIndex(Indexes.descending("ownerId"));
@@ -130,6 +139,14 @@ public class Database {
 		return this.users;
 	}
 	
+	public MongoCollection<Document> getResubscriptions() {
+		return this.resubscriptions;
+	}
+	
+	public MongoCollection<Document> getNotifications() {
+		return this.notifications;
+	}
+	
 	public MongoCollection<Document> getAuction() {
 		return this.auction;
 	}
@@ -160,6 +177,120 @@ public class Database {
 		}
 		
 		return guildsGained;
+	}
+	
+	public Document getResubscriptionById(String id) {
+		Document data = this.resubscriptions.find(Filters.eq("_id", id)).first();
+		
+		return data == null ? Database.EMPTY_DOCUMENT : data; 
+	}
+	
+	public UpdateResult updateResubscriptionById(String id, Bson update) {
+		return this.resubscriptions.updateOne(Filters.eq("_id", id), update, this.defaultUpdateOptions);
+	}
+	
+	public void updateResubscriptionById(String id, Bson update, DatabaseCallback<UpdateResult> callback) {
+		this.queryExecutor.submit(() -> {
+			try {
+				callback.onResult(this.updateResubscriptionById(id, update), null);
+			} catch (Throwable e) {
+				callback.onResult(null, e);
+			}
+		});
+	}
+	
+	public DeleteResult deleteResubscriptionById(String id) {
+		return this.resubscriptions.deleteOne(Filters.eq("_id", id));
+	}
+	
+	public void deleteResubscriptionById(String id, DatabaseCallback<DeleteResult> callback) {
+		this.queryExecutor.submit(() -> {
+			try {
+				callback.onResult(this.deleteResubscriptionById(id), null);
+			} catch (Throwable e) {
+				callback.onResult(null, e);
+			}
+		});
+	}
+	
+	public void insertNotification(Document document) {
+		this.notifications.insertOne(document);
+	}
+	
+	public void insertNotification(Document document, DatabaseCallback<Void> callback) {
+		this.queryExecutor.submit(() -> {
+			try {
+				this.insertNotification(document);
+				
+				callback.onResult(null, null);
+			} catch (Throwable e) {
+				callback.onResult(null, e);
+			}
+		});
+	}
+	
+	public UpdateResult updateNotification(Bson filter, Bson update) {
+		return this.notifications.updateOne(filter, update);
+	}
+	
+	public void updateNotification(Bson filter, Bson update, DatabaseCallback<UpdateResult> callback) {
+		this.queryExecutor.submit(() -> {
+			try {
+				callback.onResult(this.updateNotification(filter, update), null);
+			} catch (Throwable e) {
+				callback.onResult(null, e);
+			}
+		});
+	}
+	
+	public UpdateResult updateManyNotifications(Bson filter, Bson update) {
+		return this.notifications.updateMany(filter, update);
+	}
+	
+	public void updateManyNotifications(Bson filter, Bson update, DatabaseCallback<UpdateResult> callback) {
+		this.queryExecutor.submit(() -> {
+			try {
+				callback.onResult(this.updateManyNotifications(filter, update), null);
+			} catch (Throwable e) {
+				callback.onResult(null, e);
+			}
+		});
+	}
+	
+	public long countNotifications(Bson filter) {
+		return this.notifications.countDocuments(filter);
+	}
+	
+	public DeleteResult deleteNotification(Bson filter) {
+		return this.notifications.deleteOne(filter);
+	}
+	
+	public void deleteNotification(Bson filter, DatabaseCallback<DeleteResult> callback) {
+		this.queryExecutor.submit(() -> {
+			try {
+				callback.onResult(this.deleteNotification(filter), null);
+			} catch (Throwable e) {
+				callback.onResult(null, e);
+			}
+		});
+	}
+	
+	public FindIterable<Document> getNotifications(Bson filter, Bson projection) {
+		return this.notifications.find(filter).projection(projection);
+	}
+	
+	public FindIterable<Document> getNotifications(Bson filter) {
+		return this.getNotifications(filter, null);
+	}
+	
+	public Document getNotification(Bson filter, Bson projection) {
+		Document result = this.getNotifications(filter, projection).first();
+		
+		return result == null ? Database.EMPTY_DOCUMENT : result;
+	}
+	
+	public Document getNotification(Bson filter) {
+		return this.getNotification(filter, null);
 	}
 	
 	public void insertAuction(long ownerId, long price, Document rawItem, DatabaseCallback<Void> callback) {

@@ -408,11 +408,7 @@ public class ArgumentUtils {
 				return null;
 			}
 		} else if (channelName.matches()) {
-			List<GuildChannel> guildChannels = new ArrayList<>(guild.getTextChannels());
-			guildChannels.addAll(guild.getStoreChannels());
-			guildChannels.addAll(guild.getCategories());
-			guildChannels.addAll(guild.getVoiceChannels());
-			
+			List<GuildChannel> guildChannels = guild.getChannels();
 			for (GuildChannel channel : guildChannels) {
 				if (channel.getName().toLowerCase().equals(channelArgument)) {
 					return channel;

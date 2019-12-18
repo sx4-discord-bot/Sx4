@@ -24,6 +24,7 @@ public class DictionaryCache {
 	
 	public class DictionaryResult {
 		
+		private final JSONObject result;
 		private final JSONObject lexicalEntry;
 		private final JSONObject pronunciation;
 		private final JSONObject entry;
@@ -35,7 +36,8 @@ public class DictionaryCache {
 		private final String id;
 		
 		public DictionaryResult(JSONObject data) {
-			this.lexicalEntry = data.has("lexicalEntries") ? data.getJSONArray("lexicalEntries").getJSONObject(0) : new JSONObject();
+			this.result = data.getJSONArray("results").isEmpty() ? new JSONObject() : data.getJSONArray("results").getJSONObject(0);
+			this.lexicalEntry = this.result.has("lexicalEntries") ? this.result.getJSONArray("lexicalEntries").getJSONObject(0) : new JSONObject();
 			this.pronunciation = this.lexicalEntry.has("pronunciations") ? this.lexicalEntry.getJSONArray("pronunciations").getJSONObject(0) : new JSONObject();
 			this.entry = this.lexicalEntry.has("entries") ? this.lexicalEntry.getJSONArray("entries").getJSONObject(0) : new JSONObject();
 			this.sense = this.entry.has("senses") ? this.entry.getJSONArray("senses").getJSONObject(0) : new JSONObject();
@@ -43,7 +45,7 @@ public class DictionaryCache {
 			this.id = data.optString("id");
 			this.audioFile = this.pronunciation.optString("audioFile");
 			this.definition = this.sense.has("definitions") ? this.sense.getJSONArray("definitions").getString(0) : null;
-			this.example = this.sense.has("examples") ? this.sense.getJSONArray("examples").getString(0) : null;
+			this.example = this.sense.has("examples") ? this.sense.getJSONArray("examples").getJSONObject(0).getString("text") : null;
 		}
 		
 		public JSONObject getLexicalEntry() {

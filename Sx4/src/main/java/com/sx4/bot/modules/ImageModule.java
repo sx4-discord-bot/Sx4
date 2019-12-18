@@ -49,6 +49,87 @@ public class ImageModule {
 	
 	private static final Random RANDOM = new Random();
 	
+	@Command(value="crop", description="Crops in the centre of the image of the size provided")
+	@Examples({"crop 1920 1080", "crop 100 100 https://i.imgur.com/i87lyNO.png", "crop 150 150 @Shea#6653"})
+	@Cooldown(value=5)
+	@BotPermissions({Permission.MESSAGE_ATTACH_FILES})
+	public void crop(CommandEvent event, @Argument(value="width") int width, @Argument(value="height") int height, @Argument(value="url | user", endless=true, nullDefault=true) String argument) {
+		String url = null;
+		if (!event.getMessage().getAttachments().isEmpty() && argument == null) {
+			for (Attachment attachment : event.getMessage().getAttachments()) {
+				if (attachment.isImage()) {
+					url = attachment.getUrl();
+				}
+			}
+		} else if (event.getMessage().getAttachments().isEmpty() && argument == null) {
+			url = event.getAuthor().getEffectiveAvatarUrl();
+		} else {
+			Member member = ArgumentUtils.getMember(event.getGuild(), argument);
+			if (member == null) {
+				url = argument;
+			} else {
+				url = member.getUser().getEffectiveAvatarUrl();
+			}
+		}
+		
+		Request request = new Request.Builder().url("http://" + Settings.LOCAL_HOST + ":8443/api/crop?image=" + url + "&width=" + width + "&height=" + height).build();
+		
+		event.getTextChannel().sendTyping().queue($ -> {
+			ImageModule.client.newCall(request).enqueue((Sx4Callback) response -> {
+				if (response.code() == 200) {
+					event.getTextChannel().sendFile(response.body().bytes(), "cropped." + response.headers().get("Content-Type").split("/")[1]).queue();
+				} else if (response.code() == 400) {
+					event.reply(response.body().string()).queue();
+				} else {
+					event.reply("Oops something went wrong there! Status code: " + response.code() +  " :no_entry:\n```java\n" + response.body().string() + "```").queue();
+				}	
+			});
+		});
+	}
+	
+	@Command(value="resize", description="Resizes the image you provide to the size you want")
+	@Examples({"resize 50 50", "resize 100 100 https://i.imgur.com/i87lyNO.png", "resize 150 150 @Shea#6653"})
+	@Cooldown(value=5)
+	@BotPermissions({Permission.MESSAGE_ATTACH_FILES})
+	public void resize(CommandEvent event, @Argument(value="width") int width, @Argument(value="height") int height, @Argument(value="url | user", endless=true, nullDefault=true) String argument) {
+		String url = null;
+		if (!event.getMessage().getAttachments().isEmpty() && argument == null) {
+			for (Attachment attachment : event.getMessage().getAttachments()) {
+				if (attachment.isImage()) {
+					url = attachment.getUrl();
+				}
+			}
+		} else if (event.getMessage().getAttachments().isEmpty() && argument == null) {
+			url = event.getAuthor().getEffectiveAvatarUrl();
+		} else {
+			Member member = ArgumentUtils.getMember(event.getGuild(), argument);
+			if (member == null) {
+				url = argument;
+			} else {
+				url = member.getUser().getEffectiveAvatarUrl();
+			}
+		}
+		
+		if (height > 3000 || width > 3000) {
+			event.reply("The biggest image you can have is 3000x3000 pixels :no_entry:").queue();
+			return;
+		}
+		
+		Request request = new Request.Builder().url("http://" + Settings.LOCAL_HOST + ":8443/api/resize?image=" + url + "&width=" + width + "&height=" + height).build();
+		
+		event.getTextChannel().sendTyping().queue($ -> {
+			ImageModule.client.newCall(request).enqueue((Sx4Callback) response -> {
+				if (response.code() == 200) {
+					event.getTextChannel().sendFile(response.body().bytes(), "resized." + response.headers().get("Content-Type").split("/")[1]).queue();
+				} else if (response.code() == 400) {
+					event.reply(response.body().string()).queue();
+				} else {
+					event.reply("Oops something went wrong there! Status code: " + response.code() +  " :no_entry:\n```java\n" + response.body().string() + "```").queue();
+				}	
+			});
+		});
+	}
+	
 	@Command(value="canny", description="Returns an image with the canny effect")
 	@Examples({"canny", "canny https://i.imgur.com/i87lyNO.png", "canny @Shea#6653"})
 	@Cooldown(value=5)

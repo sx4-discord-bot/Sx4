@@ -544,6 +544,7 @@ public class WelcomerModule {
 		
 		@Command(value="banner", aliases={"background"}, description="Set or reset the banner for your image welcomer", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@Examples({"image welcomer banner", "image welcomer banner https://i.imgur.com/i87lyNO.png"})
+		@AuthorPermissions({Permission.MESSAGE_MANAGE})
 		public void banner(CommandEvent event, @Context Database database, @Argument(value="banner", nullDefault=true) String banner) {
 			URL url = null;
 			if (banner == null && !event.getMessage().getAttachments().isEmpty()) {

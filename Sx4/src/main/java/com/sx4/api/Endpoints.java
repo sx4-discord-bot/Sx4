@@ -2,10 +2,14 @@ package com.sx4.api;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
@@ -19,8 +23,18 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
 import org.json.JSONObject;
+import org.json.XML;
 
+import com.jockie.bot.core.category.impl.CategoryImpl;
+import com.jockie.bot.core.option.IOption;
+import com.mongodb.client.model.Updates;
+import com.sx4.bot.categories.Categories;
 import com.sx4.bot.core.Sx4Bot;
+import com.sx4.bot.core.Sx4Command;
+import com.sx4.bot.database.Database;
+import com.sx4.bot.utils.TokenUtils;
+import com.sx4.bot.youtube.YouTubeEvent;
+import com.sx4.bot.youtube.YouTubeManager;
 
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Activity;
@@ -40,6 +54,40 @@ public class Endpoints {
 		
 		String[] typeSplit = typeName.split("\\.");
 		return typeSplit[typeSplit.length - 1];
+	}
+	
+	private JSONObject getOptionData(IOption<?> option) {
+		JSONObject data = new JSONObject();
+		data.put("name", option.getName());
+		data.put("aliases", option.getAliases());
+		data.put("description", option.getDescription());
+		
+		return data;
+	}
+	
+	private JSONObject getCommandData(Sx4Command command) {
+		JSONObject data = new JSONObject();
+		data.put("name", command.getCommandTrigger());
+		data.put("aliases", command.getAliases());
+		data.put("description", command.getDescription());
+		data.put("usage", command.getUsage());
+		data.put("userPermissions", Permission.getRaw(command.getAuthorDiscordPermissions()));
+		data.put("botPermissions", Permission.getRaw(command.getBotDiscordPermissions()));
+		data.put("donator", command.isDonatorCommand());
+		data.put("developer", command.isDeveloperCommand());
+		data.put("canary", command.isCanaryCommand());
+		data.put("options", command.getOptions().stream().map(this::getOptionData).collect(Collectors.toList()));
+		data.put("subCommands", command.getSubCommands().stream().map(Sx4Command.class::cast).map(this::getCommandData).collect(Collectors.toList()));
+		
+		return data;
+	}
+	
+	private JSONObject getModuleData(CategoryImpl module) {
+		JSONObject data = new JSONObject();
+		data.put("name", module.getName());
+		data.put("commands", module.getCommands().stream().map(Sx4Command.class::cast).map(this::getCommandData).collect(Collectors.toList()));
+		
+		return data;
 	}
 	
 	private JSONObject getGuildData(Guild guild) {
@@ -101,7 +149,7 @@ public class Endpoints {
 	
 	@GET
 	@Path("/endpoints")
-	@Produces({"text/plain"})
+	@Produces(MediaType.TEXT_PLAIN)
 	public Response getEndpoints() {
 		StringBuilder stringBuilder = new StringBuilder();
 		
@@ -154,6 +202,73 @@ public class Endpoints {
 		Arrays.sort(splitText, (a, b) -> Integer.compare(b.trim().length(), a.trim().length()));
 		
 		return Response.ok("All endpoints are as listed:\n\n" + String.join("\n", splitText)).build();
+	}
+	
+	@GET
+	@Path("/youtube")
+	@Produces(MediaType.TEXT_PLAIN)
+	public Response getChallenge(@QueryParam("hub.topic") String topic, @QueryParam("hub.verify_token") String authorization, @QueryParam("hub.challenge") String challenge, @QueryParam("hub.lease_seconds") long seconds) {
+		if (authorization != null && authorization.equals(TokenUtils.YOUTUBE)) {
+			YouTubeManager manager = Sx4Bot.getYouTubeManager();
+			String channelId = topic.substring(topic.lastIndexOf('=') + 1);
+			
+			Database.get().updateResubscriptionById(channelId, Updates.set("resubscribeAt", Clock.systemUTC().instant().getEpochSecond() + seconds), (result, exception) -> {
+				if (exception != null) {
+					exception.printStackTrace();
+				} else {
+					ScheduledFuture<?> resubscription = Sx4Bot.scheduledExectuor.schedule(() -> manager.resubscribe(channelId), seconds, TimeUnit.SECONDS);
+					manager.putResubscription(channelId, resubscription);
+				}
+			});
+			
+			return Response.ok(challenge).build();
+		} else {
+			return Response.status(401).build();
+		}
+	}
+	
+	@POST
+	@Path("/youtube")
+	public Response getYoutube(String body) {
+		YouTubeManager manager = Sx4Bot.getYouTubeManager();
+		
+		JSONObject json = XML.toJSONObject(body);
+		
+		JSONObject feed = json.getJSONObject("feed");
+		if (feed.has("at:deleted-entry")) {
+			JSONObject entry = feed.getJSONObject("at:deleted-entry");
+			JSONObject channel = entry.getJSONObject("at:by");
+			
+			String videoId = entry.getString("ref").substring(9), videoDeletedAt = entry.getString("when");
+			String channelId = channel.getString("uri").substring(32), channelName = channel.getString("name");
+			
+			YouTubeEvent event = new YouTubeEvent(channelId, channelName, videoId, null, null, null, videoDeletedAt);
+			
+			manager.onYouTubeDelete(event);
+		} else {
+			JSONObject entry = feed.getJSONObject("entry");
+			
+			String videoTitle = entry.getString("title"), videoId = entry.getString("yt:videoId"), videoUpdatedAt = entry.getString("updated"), videoPublishedAt = entry.getString("published");
+			String channelId = entry.getString("yt:channelId"), channelName = entry.getJSONObject("author").getString("name");
+			
+			YouTubeEvent event = new YouTubeEvent(channelId, channelName, videoId, videoTitle, videoUpdatedAt, videoPublishedAt, null);
+			
+			manager.onYouTubeUpload(event);
+		}
+		
+		return Response.status(204).build();
+	}
+	
+	@GET
+	@Path("/commands")
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response commands() {
+		JSONObject response = new JSONObject();
+		
+		response.put("status", 200);
+		response.put("data", Arrays.stream(Categories.ALL).map(this::getModuleData).collect(Collectors.toList()));
+		
+		return Response.ok(response.toString()).build();
 	}
 
 	@GET

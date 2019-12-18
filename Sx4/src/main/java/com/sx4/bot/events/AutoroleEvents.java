@@ -19,7 +19,7 @@ public class AutoroleEvents extends ListenerAdapter {
 
 	public void onGuildMemberJoin(GuildMemberJoinEvent event) {
 		Document data = Database.get().getGuildById(event.getGuild().getIdLong(), null, Projections.include("autorole.roleId", "autorole.enabled", "autorole.botRoleId")).get("autorole", Database.EMPTY_DOCUMENT);
-		if (data.isEmpty() || data.getBoolean("enabled", false) == false) {
+		if (data.isEmpty() || !data.getBoolean("enabled", false)) {
 			return;
 		}
 		
@@ -40,14 +40,14 @@ public class AutoroleEvents extends ListenerAdapter {
 				event.getGuild().addRoleToMember(event.getMember(), role).setCheck(() -> event.getGuild().isMember(event.getUser())).queue();
 			}
 		} else if (roleData == null && botRoleData != null) {
-			if (event.getMember().getUser().isBot()) {
+			if (event.getUser().isBot()) {
 				Role role = event.getGuild().getRoleById(botRoleData);
 				if (role != null && self.canInteract(role)) {
 					event.getGuild().addRoleToMember(event.getMember(), role).setCheck(() -> event.getGuild().isMember(event.getUser())).queue();
 				}
 			}
 		} else {
-			if (event.getMember().getUser().isBot()) {
+			if (event.getUser().isBot()) {
 				Role role = event.getGuild().getRoleById(botRoleData);
 				if (role != null && self.canInteract(role)) {
 					event.getGuild().addRoleToMember(event.getMember(), role).setCheck(() -> event.getGuild().isMember(event.getUser())).queue();

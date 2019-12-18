@@ -474,16 +474,24 @@ public class PagedUtils {
 		PagedUtils.getPagedResult(event, event.getChannel(), paged, timeout, returnFunction);
 	}
 	
+	public static void getConfirmation(CommandEvent event, int timeout, User responder, List<String> confirmationStrings, Consumer<Boolean> returnFunction) {
+		PagedUtils.getConfirmation(event, timeout, responder, confirmationStrings, returnFunction, () -> event.reply("Response timed out :stopwatch:").queue());
+	}
+	
 	public static void getConfirmation(CommandEvent event, int timeout, User responder, Consumer<Boolean> returnFunction) {
-		PagedUtils.getConfirmation(event, timeout, responder, returnFunction, () -> event.reply("Response timed out :stopwatch:").queue());
+		PagedUtils.getConfirmation(event, timeout, responder, confirmation, returnFunction, () -> event.reply("Response timed out :stopwatch:").queue());
 	}
 	
 	public static void getConfirmation(CommandEvent event, int timeout, User responder, Consumer<Boolean> returnFunction, Runnable onTimeout) {
+		PagedUtils.getConfirmation(event, timeout, responder, confirmation, returnFunction, onTimeout);
+	}
+	
+	public static void getConfirmation(CommandEvent event, int timeout, User responder, List<String> confirmationStrings, Consumer<Boolean> returnFunction, Runnable onTimeout) {
 		Sx4Bot.waiter.waitForEvent(MessageReceivedEvent.class, e -> {
 			return e.getChannel().equals(event.getChannel()) && e.getAuthor().getIdLong() == responder.getIdLong();
 		}, e -> {
 			String messageContent = e.getMessage().getContentRaw().toLowerCase();
-			if (confirmation.contains(messageContent)) {
+			if (confirmationStrings.contains(messageContent)) {
 				returnFunction.accept(true);
 			} else {
 				returnFunction.accept(false);

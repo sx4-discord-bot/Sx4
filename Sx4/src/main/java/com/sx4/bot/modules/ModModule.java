@@ -51,6 +51,7 @@ import com.sx4.bot.database.Database;
 import com.sx4.bot.events.MuteEvents;
 import com.sx4.bot.interfaces.Examples;
 import com.sx4.bot.utils.ArgumentUtils;
+import com.sx4.bot.utils.FunUtils;
 import com.sx4.bot.utils.GeneralUtils;
 import com.sx4.bot.utils.HelpUtils;
 import com.sx4.bot.utils.ModUtils;
@@ -1519,21 +1520,14 @@ public class ModModule {
 		}
 		
 		PermissionOverride channelOverrides = channel.getPermissionOverride(event.getGuild().getPublicRole()); 
-		if (channelOverrides != null && (channelOverrides.getAllowed().contains(Permission.MESSAGE_WRITE) || channelOverrides.getInherit().contains(Permission.MESSAGE_WRITE))) {
-			event.reply(channel.getAsMention() + " has been locked down <:done:403285928233402378>").queue();
-			List<Permission> channelAllowedPermissions = new ArrayList<>(channelOverrides.getAllowed());
-			if (channelAllowedPermissions.contains(Permission.MESSAGE_WRITE)) {
-				channelAllowedPermissions.remove(Permission.MESSAGE_WRITE);
-			}
-			
-			List<Permission> channelDeniedPermissions = new ArrayList<>(channelOverrides.getDenied());
-			channelDeniedPermissions.add(Permission.MESSAGE_WRITE);
-			channel.putPermissionOverride(event.getGuild().getPublicRole()).setPermissions(channelAllowedPermissions, channelDeniedPermissions).queue();
+		if (channelOverrides != null && channelOverrides.getDenied().contains(Permission.MESSAGE_WRITE)) {
+			channel.upsertPermissionOverride(event.getGuild().getPublicRole()).clear(Permission.MESSAGE_WRITE).queue($ -> {
+				event.reply(channel.getAsMention() + " is no longer locked down <:done:403285928233402378>").queue();
+			});
 		} else {
-			event.reply(channel.getAsMention() + " is no longer locked down <:done:403285928233402378>").queue();
-			List<Permission> channelDeniedPermissions = channelOverrides == null ? new ArrayList<>() : new ArrayList<>(channelOverrides.getDenied());
-			channelDeniedPermissions.remove(Permission.MESSAGE_WRITE);
-			channel.putPermissionOverride(event.getGuild().getPublicRole()).setPermissions(channelOverrides == null ? new ArrayList<>() : channelOverrides.getAllowed(), channelDeniedPermissions).queue();
+			channel.upsertPermissionOverride(event.getGuild().getPublicRole()).deny(Permission.MESSAGE_WRITE).queue($ -> {
+				event.reply(channel.getAsMention() + " has been locked down <:done:403285928233402378>").queue();
+			});
 		}
 	}
 	
@@ -1646,7 +1640,7 @@ public class ModModule {
 						exception.printStackTrace();
 						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
 					} else {
-						event.reply("Your prefixes have been set to `" + String.join("`,  `", cleanPrefixes) + "` <:done:403285928233402378>").queue();
+						event.reply(FunUtils.escapeMentions(event.getGuild(), "Your prefixes have been set to `" + String.join("`,  `", cleanPrefixes) + "` <:done:403285928233402378>")).queue();
 					}
 				});
 			}
@@ -1678,7 +1672,7 @@ public class ModModule {
 						exception.printStackTrace();
 						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
 					} else {
-						event.reply("The prefixes `" + String.join("`, `", cleanPrefixes) + "` have been added to your personal prefixes <:done:403285928233402378>").queue();
+						event.reply(FunUtils.escapeMentions(event.getGuild(), "The prefixes `" + String.join("`, `", cleanPrefixes) + "` have been added to your personal prefixes <:done:403285928233402378>")).queue();
 					}
 				});
 			}
@@ -1704,7 +1698,7 @@ public class ModModule {
 						exception.printStackTrace();
 						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
 					} else {
-						event.reply("The prefixes `" + String.join("`, `", prefixes) + "` have been removed from your personal prefixes <:done:403285928233402378>").queue();
+						event.reply(FunUtils.escapeMentions(event.getGuild(), "The prefixes `" + String.join("`, `", prefixes) + "` have been removed from your personal prefixes <:done:403285928233402378>")).queue();
 					}
 				});
 			}
@@ -1792,7 +1786,7 @@ public class ModModule {
 						exception.printStackTrace();
 						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
 					} else {
-						event.reply("The prefixes `" + String.join("`, `", cleanPrefixes) + "` have been added to the server prefixes <:done:403285928233402378>").queue();
+						event.reply(FunUtils.escapeMentions(event.getGuild(), "The prefixes `" + String.join("`, `", cleanPrefixes) + "` have been added to the server prefixes <:done:403285928233402378>")).queue();
 					}
 				});
 			}
@@ -1819,7 +1813,7 @@ public class ModModule {
 						exception.printStackTrace();
 						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
 					} else {
-						event.reply("The prefixes `" + String.join("`, `", prefixes) + "` have been removed from the servers prefixes <:done:403285928233402378>").queue();
+						event.reply(FunUtils.escapeMentions(event.getGuild(), "The prefixes `" + String.join("`, `", prefixes) + "` have been removed from the servers prefixes <:done:403285928233402378>")).queue();
 					}
 				});
 			}
@@ -2018,6 +2012,11 @@ public class ModModule {
 			int limit = Integer.parseInt(argument);
 			if (limit < 1) {
 				event.reply("You have to delete at least 1 message :no_entry:").queue();
+				return;
+			}
+			
+			if (limit > 100) {
+				event.reply("You cannot delete more than 100 messages at one time :no_entry:").queue();
 				return;
 			}
 			

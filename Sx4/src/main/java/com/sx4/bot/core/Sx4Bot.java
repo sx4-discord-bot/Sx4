@@ -30,6 +30,7 @@ import com.sx4.bot.events.EventWaiterEvents;
 import com.sx4.bot.events.ImageModeEvents;
 import com.sx4.bot.events.ModEvents;
 import com.sx4.bot.events.MuteEvents;
+import com.sx4.bot.events.NotificationEvents;
 import com.sx4.bot.events.SelfroleEvents;
 import com.sx4.bot.events.ServerLogEvents;
 import com.sx4.bot.events.StarboardEvents;
@@ -43,6 +44,7 @@ import com.sx4.bot.utils.CheckUtils;
 import com.sx4.bot.utils.HelpUtils;
 import com.sx4.bot.utils.ModUtils;
 import com.sx4.bot.utils.TimeUtils;
+import com.sx4.bot.youtube.YouTubeManager;
 
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Guild;
@@ -90,10 +92,14 @@ public class Sx4Bot {
 	
 	private static EventHandler eventHandler;
 	
+	private static YouTubeManager youtubeManager;
+	
 	private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("uuuu-MM-dd HH:mm:ss");
 
 	public static void main(String[] args) throws Exception {
 		eventHandler = new EventHandler();
+		
+		youtubeManager = new YouTubeManager().addListener(new NotificationEvents());
 		
 		ContextManagerFactory.getDefault()
 			.registerContext(Database.class, (event, type) -> Sx4Bot.DATABASE)
@@ -152,7 +158,7 @@ public class Sx4Bot {
 							return false;
 						} 
 						
-						if (sx4Command.isDonator()) {
+						if (sx4Command.isDonatorCommand()) {
 							Guild guild = event.getShardManager().getGuildById(Settings.SUPPORT_SERVER_ID);
 							Role donatorRole = guild.getRoleById(Settings.DONATOR_ONE_ROLE_ID);
 				
@@ -226,6 +232,10 @@ public class Sx4Bot {
 			
 			Sx4CommandEventListener.sendErrorMessage(bot.getGuildById(Settings.SUPPORT_SERVER_ID).getTextChannelById(Settings.ERRORS_CHANNEL_ID), exception, new Object[0]);
 		});
+	}
+	
+	public static YouTubeManager getYouTubeManager() {
+		return Sx4Bot.youtubeManager;
 	}
 	
 	public static Database getDatabase() {

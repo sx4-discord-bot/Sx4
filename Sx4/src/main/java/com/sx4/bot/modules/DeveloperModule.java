@@ -2,6 +2,7 @@ package com.sx4.bot.modules;
 
 import java.awt.Color;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -41,11 +42,13 @@ import com.sx4.bot.core.Sx4Bot;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEventListener;
 import com.sx4.bot.database.Database;
+import com.sx4.bot.economy.Item;
 import com.sx4.bot.interfaces.Examples;
 import com.sx4.bot.logger.Statistics;
 import com.sx4.bot.logger.handler.EventHandler;
 import com.sx4.bot.logger.util.Utils;
 import com.sx4.bot.utils.ArgumentUtils;
+import com.sx4.bot.utils.GeneralUtils;
 import com.sx4.bot.utils.HelpUtils;
 
 import groovy.lang.GroovyShell;
@@ -366,6 +369,93 @@ public class DeveloperModule {
 			event.reply("`" + command.getCommandTrigger() + "` has been enabled <:done:403285928233402378>").queue();
 		}
 	}
+	
+	@Command(value="economy override add", description="Adds an override to an item in the economy")
+	@Examples({"economy override add Snowflake hidden true", "economy override add Pumpkin price 10"})
+	@Developer
+	public void economyOverrideAdd(CommandEvent event, @Argument(value="item") String itemName, @Argument(value="field") String field, @Argument(value="value") String valueArgument) {
+		Object value;
+		
+		valueArgument = valueArgument.toLowerCase();
+		if (valueArgument.equals("true") || valueArgument.equals("false")) {
+			value = Boolean.parseBoolean(valueArgument);
+		} else if (GeneralUtils.isNumberUnsigned(valueArgument)) {
+			value = Long.parseLong(valueArgument);
+		} else {
+			value = valueArgument;
+		}
+		
+		Item item = Item.getItemByName(itemName);
+		if (item == null) {
+			event.reply("I could not find that item :no_entry:").queue();
+			return;
+		}
+		
+		File economyOverride = new File("economyOverride.json");
+		
+		try (FileInputStream stream = new FileInputStream(economyOverride)) {
+			JSONObject json = new JSONObject(new String(stream.readAllBytes()));
+			if (json.has(item.getName())) {
+				JSONObject details = json.getJSONObject(item.getName());
+				details.put(field, value);
+			} else {
+				json.put(item.getName(), new JSONObject().put(field, value));
+			}
+			
+			try (FileOutputStream file = new FileOutputStream(economyOverride)) {
+				Item.loadConfig(json);
+				file.write(json.toString().getBytes());
+				
+				event.reply("Added override for `" + item.getName() + "` <:done:403285928233402378>").queue();
+			} catch (IOException e) {
+				event.reply(Sx4CommandEventListener.getUserErrorMessage(e)).queue();
+			}
+		} catch (IOException e) {
+			event.reply(Sx4CommandEventListener.getUserErrorMessage(e)).queue();
+		}
+	}
+	
+	@Command(value="economy override remove", description="Removes an override added to an item in the economy")
+	@Examples({"economy override remove Snowflake hidden", "economy override remove Pumpkin price"})
+	@Developer
+	public void economyOverrideRemove(CommandEvent event, @Argument(value="item") String itemName, @Argument(value="field") String field) {
+		Item item = Item.getItemByName(itemName);
+		if (item == null) {
+			event.reply("I could not find that item :no_entry:").queue();
+			return;
+		}
+		
+		File economyOverride = new File("economyOverride.json");
+		
+		try (FileInputStream stream = new FileInputStream(economyOverride)) {
+			JSONObject json = new JSONObject(new String(stream.readAllBytes()));
+			if (json.has(item.getName())) {
+				JSONObject details = json.getJSONObject(item.getName());
+				
+				if (details.has(field)) {
+					details.remove(field);
+				} else {
+					event.reply("That item doesn't have an override for `" + field + "` :no_entry:").queue();
+					return;
+				}
+			} else {
+				event.reply("That item doesn't have an override for `" + field + "` :no_entry:").queue();
+				return;
+			}
+			
+			try (FileOutputStream file = new FileOutputStream(economyOverride)) {
+				Item.loadConfig(json);
+				file.write(json.toString().getBytes());
+				
+				event.reply("Removed override for `" + item.getName() + "` <:done:403285928233402378>").queue();
+			} catch (IOException e) {
+				event.reply(Sx4CommandEventListener.getUserErrorMessage(e)).queue();
+			}
+		} catch (IOException e) {
+			event.reply(Sx4CommandEventListener.getUserErrorMessage(e)).queue();
+		}
+	}
+	
 	
 	@Initialize(all=true, subCommands=true, recursive=true)
 	public void initialize(CommandImpl command) {

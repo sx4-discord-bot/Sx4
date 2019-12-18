@@ -47,7 +47,7 @@ public class ModEvents extends ListenerAdapter {
 					}
 				}
 				
-				if (moderator == null || !moderator.equals(event.getJDA().getSelfUser())) {
+				if (moderator != null && !moderator.equals(event.getJDA().getSelfUser())) {
 					ModUtils.createModLogAndOffence(event.getGuild(), moderator, event.getUser(), "Ban", reason);
 				}
 			});
@@ -67,7 +67,7 @@ public class ModEvents extends ListenerAdapter {
 					}
 				}
 				
-				if (moderator == null || !moderator.equals(event.getJDA().getSelfUser())) {
+				if (moderator != null && !moderator.equals(event.getJDA().getSelfUser())) {
 					ModUtils.createModLog(event.getGuild(), moderator, event.getUser(), "Unban", reason);
 				}
 			});

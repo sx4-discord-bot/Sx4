@@ -175,11 +175,11 @@ public class Sx4Command extends CommandImpl {
 		return this;
 	}
 	
-	public boolean isDonator() {
+	public boolean isDonatorCommand() {
 		return this.donator;
 	}
 	
-	public Sx4Command setDonator(boolean donator) {
+	public Sx4Command setDonatorCommand(boolean donator) {
 		this.donator = donator;
 		
 		return this;

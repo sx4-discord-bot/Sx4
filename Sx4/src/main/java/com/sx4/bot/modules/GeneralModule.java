@@ -999,12 +999,11 @@ public class GeneralModule {
 		@Examples({"command stats all", "command stats all --server=330399610273136641", "command stats all --channel=#general", "command stats all --server=330399610273136641 --user=Shea#6653"})
 		@Async
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-		public void all(CommandEvent event, @Context Database database, @Option(value="server", aliases={"guild"}, description="Provide a server name or id to filter the usage by") String guildArgument, @Option(value="user", description="Provide a user name, tag, mention or id to filter the usage by") String userArgument, @Option(value="channel", description="Provide a channel name, mention or id to filter the usage by") String channelArgument) {
+		public void all(CommandEvent event, @Context Database database, @Option(value="server", aliases={"guild"}, description="Provide a server name or id to filter the usage by") String guildArgument, @Option(value="user", description="Provide a user name, tag, mention or id to filter the usage by") String userArgument, @Option(value="channel", description="Provide a channel name, mention or id to filter the usage by") String channelArgument, @Option(value="from", description="Choose when the data should start at in epoch seconds") String from, @Option(value="to", description="Choose when the data should end at in epoch seconds") String to) {
 			List<Bson> filters = new ArrayList<>(), projections = new ArrayList<>();
 			if (guildArgument != null) {
 				Guild guild = ArgumentUtils.getGuild(guildArgument);
 				if (guild != null) {
-					projections.add(Projections.include("guildId"));
 					filters.add(Filters.eq("guildId", guild.getIdLong()));
 				}
 			} 
@@ -1025,7 +1024,19 @@ public class GeneralModule {
 				}
 			}
 			
-			projections.add(Projections.include("command", "executionDuration", "timestamp"));
+			if (from != null) {
+				try {
+					filters.add(Filters.gte("timestamp", Long.parseLong(from)));
+				} catch (NumberFormatException e) {}
+			}
+			
+			if (to != null) {
+				try {
+					filters.add(Filters.lte("timestamp", Long.parseLong(to)));
+				} catch (NumberFormatException e) {}
+			}
+			
+			projections.add(Projections.include("command", "executionDuration", "timestamp", "guildId"));
 			projections.add(Projections.exclude("_id"));
 			
 			List<BsonField> accumulators = List.of(
@@ -1033,7 +1044,7 @@ public class GeneralModule {
 					Accumulators.avg("executionAverage", "$executionDuration"),
 					Accumulators.max("executionMaximum", "$executionDuration"),
 					Accumulators.min("executionMinimum", "$executionDuration"),
-					Accumulators.max("lastUsed", "$timestamp")	
+					Accumulators.max("lastUsed", "$timestamp")
 			);
 			
 			List<Bson> aggregates;
@@ -1055,6 +1066,11 @@ public class GeneralModule {
 			AggregateIterable<Document> commands = database.getCommandLogs().aggregate(aggregates);
 			
 			List<Document> commandCounter = commands.into(new ArrayList<>());
+			if (commandCounter.isEmpty()) {
+				event.reply("No commands have been used with those set filters :no_entry:").queue();
+				return;
+			}
+			
 			PagedResult<Document> paged = new PagedResult<>(commandCounter)
 					.setFunction(data -> String.format("`%s` - %,d %s", data.getString("_id"), data.getLong("count"), data.getLong("count") == 1 ? "use" : "uses"))
 					.setAuthor("Top Commands", null, event.getSelfUser().getEffectiveAvatarUrl())
@@ -1068,7 +1084,7 @@ public class GeneralModule {
 		@Examples({"command stats servers", "command stats servers --command=ship", "command stats servers --command=fish --user=Shea#6653"})
 		@Async
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-		public void guilds(CommandEvent event, @Context Database database, @Option(value="command", description="Provide a command name to filter the usage by") String commandArgument, @Option(value="user", description="Provide a user name, tag, mention or id to filter the usage by") String userArgument) {
+		public void guilds(CommandEvent event, @Context Database database, @Option(value="command", description="Provide a command name to filter the usage by") String commandArgument, @Option(value="user", description="Provide a user name, tag, mention or id to filter the usage by") String userArgument, @Option(value="from", description="Choose when the data should start at in epoch seconds") String from, @Option(value="to", description="Choose when the data should end at in epoch seconds") String to) {
 			List<Bson> filters = new ArrayList<>(), projections = new ArrayList<>();
 			if (commandArgument != null) {
 				Sx4Command command = ArgumentUtils.getCommand(commandArgument, false, true, true);
@@ -1084,6 +1100,18 @@ public class GeneralModule {
 					projections.add(Projections.include("authorId"));
 					filters.add(Filters.eq("authorId", user.getIdLong()));
 				}
+			}
+			
+			if (from != null) {
+				try {
+					filters.add(Filters.gte("timestamp", Long.parseLong(from)));
+				} catch (NumberFormatException e) {}
+			}
+			
+			if (to != null) {
+				try {
+					filters.add(Filters.lte("timestamp", Long.parseLong(to)));
+				} catch (NumberFormatException e) {}
 			}
 			
 			projections.add(Projections.include("guildId"));
@@ -1108,6 +1136,11 @@ public class GeneralModule {
 			AggregateIterable<Document> commands = database.getCommandLogs().aggregate(aggregates);
 
 			List<Document> commandCounter = commands.into(new ArrayList<>());
+			if (commandCounter.isEmpty()) {
+				event.reply("No commands have been used with those set filters :no_entry:").queue();
+				return;
+			}
+			
 			PagedResult<Document> paged = new PagedResult<>(commandCounter)
 					.setFunction(data -> {
 						Guild guild = event.getShardManager().getGuildById(data.getLong("_id"));
@@ -1124,7 +1157,7 @@ public class GeneralModule {
 		@Examples({"command stats users", "command stats users --command=ship", "command stats users --channel=#general", "command stats users --command=fish --server=330399610273136641"})
 		@Async
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-		public void users(CommandEvent event, @Context Database database, @Option(value="command", description="Provide a command name to filter the usage by") String commandArgument, @Option(value="server", aliases={"guild"}, description="Provide a server name or id to filter the usage by") String guildArgument, @Option(value="channel", description="Provide a channel name, mention or id to filter the usage by") String channelArgument) {
+		public void users(CommandEvent event, @Context Database database, @Option(value="command", description="Provide a command name to filter the usage by") String commandArgument, @Option(value="server", aliases={"guild"}, description="Provide a server name or id to filter the usage by") String guildArgument, @Option(value="channel", description="Provide a channel name, mention or id to filter the usage by") String channelArgument, @Option(value="from", description="Choose when the data should start at in epoch seconds") String from, @Option(value="to", description="Choose when the data should end at in epoch seconds") String to) {
 			List<Bson> filters = new ArrayList<>(), projections = new ArrayList<>();
 			if (commandArgument != null) {
 				Sx4Command command = ArgumentUtils.getCommand(commandArgument, false, true, true);
@@ -1150,6 +1183,18 @@ public class GeneralModule {
 				}
 			}
 			
+			if (from != null) {
+				try {
+					filters.add(Filters.gte("timestamp", Long.parseLong(from)));
+				} catch (NumberFormatException e) {}
+			}
+			
+			if (to != null) {
+				try {
+					filters.add(Filters.lte("timestamp", Long.parseLong(to)));
+				} catch (NumberFormatException e) {}
+			}
+			
 			projections.add(Projections.include("authorId"));
 			projections.add(Projections.exclude("_id"));
 			
@@ -1172,6 +1217,11 @@ public class GeneralModule {
 			AggregateIterable<Document> commands = database.getCommandLogs().aggregate(aggregates);
 
 			List<Document> commandCounter = commands.into(new ArrayList<>());
+			if (commandCounter.isEmpty()) {
+				event.reply("No commands have been used with those set filters :no_entry:").queue();
+				return;
+			}
+			
 			PagedResult<Document> paged = new PagedResult<>(commandCounter)
 					.setFunction(data -> {
 						User user = event.getShardManager().getUserById(data.getLong("_id"));
@@ -1281,6 +1331,7 @@ public class GeneralModule {
 	public void changes(CommandEvent event, @Argument(value="version", nullDefault=true) String version) {
 		List<Pair<Long, String>> messages = ChangesMessageCache.getMessages();
 		if (version == null) {
+			messages = messages.stream().filter(message -> message.getRight().startsWith("Version: ")).collect(Collectors.toList());
 			if (messages.isEmpty()) {
 				event.reply("I could not find any change logs :no_entry:").queue();
 				return;
@@ -2271,23 +2322,34 @@ public class GeneralModule {
 		}
 
 		if (member != null) {
-			String description = "";
+			StringBuilder description = new StringBuilder();
 			if (!member.getActivities().isEmpty()) {
-				Activity activity = member.getActivities().get(0);
-				if (activity.isRich()) {
-					if (activity.getName().equals("Spotify")) {
-						String currentTime = TimeUtils.getTimeFormat(activity.getTimestamps().getElapsedTime(ChronoUnit.SECONDS));
-						String totalTime = TimeUtils.getTimeFormat((activity.getTimestamps().getEnd()/1000) - (activity.getTimestamps().getStart()/1000));
-						description = String.format("Listening to [%s by %s](https://open.spotify.com/track/%s) `[%s/%s]`", activity.asRichPresence().getDetails(), activity.asRichPresence().getState().split(";")[0], activity.asRichPresence().getSyncId(), currentTime, totalTime);
-					} else {
-						description = GeneralUtils.title(activity.getType().equals(ActivityType.DEFAULT) ? "Playing" : activity.getType().toString()) + " " + activity.getName() + (activity.getTimestamps() != null ? " for " + 
-								TimeUtils.toTimeString(Clock.systemUTC().instant().getEpochSecond() - (activity.getTimestamps().getStart()/1000), ChronoUnit.SECONDS) : "");  
+				for (Activity activity : member.getActivities()) {
+					boolean emptyCustomStatus = activity.getName().equals("Custom Status");
+					if (activity.getEmoji() != null && emptyCustomStatus) {
+						description.append(activity.getEmoji().getAsMention() + " ");
+						continue;
 					}
-				} else if (activity.getType().equals(ActivityType.STREAMING)) {
-					description = String.format("Streaming [%s](%s)", activity.getName(), activity.getUrl());
-				} else {
-					description = GeneralUtils.title(activity.getType().equals(ActivityType.DEFAULT) ? "Playing" : activity.getType().toString()) + " " + activity.getName() + (activity.getTimestamps() != null ? " for " + 
-							TimeUtils.toTimeString(Clock.systemUTC().instant().getEpochSecond() - (activity.getTimestamps().getStart()/1000), ChronoUnit.SECONDS) : "");																															
+					
+					if (activity.isRich()) {
+						if (activity.getName().equals("Spotify")) {
+							String currentTime = TimeUtils.getTimeFormat(activity.getTimestamps().getElapsedTime(ChronoUnit.SECONDS));
+							String totalTime = TimeUtils.getTimeFormat((activity.getTimestamps().getEnd()/1000) - (activity.getTimestamps().getStart()/1000));
+							description.append(String.format("Listening to [%s by %s](https://open.spotify.com/track/%s) `[%s/%s]`", activity.asRichPresence().getDetails(), activity.asRichPresence().getState().split(";")[0], activity.asRichPresence().getSyncId(), currentTime, totalTime));
+						} else {
+							description.append(GeneralUtils.title(activity.getType().equals(ActivityType.DEFAULT) ? "Playing" : activity.getType().toString()) + " " + activity.getName() + (activity.getTimestamps() != null ? " for " + 
+									TimeUtils.toTimeString(Clock.systemUTC().instant().getEpochSecond() - (activity.getTimestamps().getStart()/1000), ChronoUnit.SECONDS) : ""));  
+						}
+					} else if (activity.getType() == ActivityType.STREAMING) {
+						description.append(String.format("Streaming [%s](%s)", activity.getName(), activity.getUrl()));
+					} else if (activity.getType() == ActivityType.CUSTOM_STATUS && !emptyCustomStatus) {
+						description.append((activity.getEmoji() != null ? activity.getEmoji().getAsMention() : "") + " " + activity.getName());																		
+					} else {
+						description.append(GeneralUtils.title(activity.getType().equals(ActivityType.DEFAULT) ? "Playing" : activity.getType().toString()) + " " + activity.getName() + (activity.getTimestamps() != null ? " for " + 
+								TimeUtils.toTimeString(Clock.systemUTC().instant().getEpochSecond() - (activity.getTimestamps().getStart()/1000), ChronoUnit.SECONDS) : ""));	
+					}
+					
+					break;
 				}
 			}
 			
@@ -2304,7 +2366,10 @@ public class GeneralModule {
 			
 			embed.setAuthor(String.format("%s %s", member.getUser().getAsTag(), onlineOn.length() == 0 ? "" : onlineOn.toString()), null, member.getUser().getEffectiveAvatarUrl());
 			embed.setThumbnail(member.getUser().getEffectiveAvatarUrl());
-			embed.setDescription(description);
+			
+			if (description.length() != 0) {
+				embed.setDescription(description.toString());
+			}
 			
 			if (!event.getGuild().getMembers().contains(member)) {
 				embed.addField("User ID", member.getUser().getId(), true);

@@ -7,11 +7,8 @@ import java.util.stream.Collectors;
 
 public enum Event {
 	
-	// Messages
 	MESSAGE_DELETE(1, Category.MESSAGE, Category.MEMBER, Category.CHANNEL),
 	MESSAGE_UPDATE(2, Category.MESSAGE, Category.MEMBER, Category.CHANNEL),
-	
-	// Members
 	MEMBER_JOIN(3, Category.MEMBER),
 	MEMBER_ROLE_ADD(4, Category.MEMBER, Category.ROLE),
 	MEMBER_ROLE_REMOVE(5, Category.MEMBER, Category.ROLE),
@@ -24,8 +21,6 @@ public enum Event {
 	MEMBER_VOICE_JOIN(12, Category.MEMBER, Category.CHANNEL),
 	MEMBER_VOICE_LEAVE(13, Category.MEMBER, Category.CHANNEL),
 	MEMBER_VOICE_MOVE(14, Category.MEMBER),
-	
-	// Channels
 	STORE_CHANNEL_DELETE(15, Category.CHANNEL),
 	STORE_CHANNEL_CREATE(16, Category.CHANNEL),
 	STORE_CHANNEL_NAME_UPDATE(17, Category.CHANNEL),
@@ -38,12 +33,11 @@ public enum Event {
 	CATEGORY_DELETE(24, Category.CHANNEL),
 	CATEGORY_CREATE(25, Category.CHANNEL),	
 	CATEGORY_NAME_UPDATE(26, Category.CHANNEL),
-	
-	// Roles
 	ROLE_CREATE(27, Category.ROLE),
 	ROLE_DELETE(28, Category.ROLE),
 	ROLE_NAME_UPDATE(29, Category.ROLE),
-	ROLE_PERMISSION_UPDATE(30, Category.ROLE);
+	ROLE_PERMISSION_UPDATE(30, Category.ROLE),
+	BOT_ADDED(31, Category.MEMBER);
 	
 	private static final Event[] EMPTY_EVENT = new Event[0];
 	
@@ -71,7 +65,7 @@ public enum Event {
 	
 	public boolean containsCategory(Category category) {
 		for (Category eventCategory : this.categories) {
-			if (eventCategory.equals(category)) {
+			if (eventCategory == category) {
 				return true;
 			}
 		}
