@@ -50,7 +50,6 @@ public class Database {
 	private MongoCollection<Document> guilds;
 	private MongoCollection<Document> users;
 	private MongoCollection<Document> auction;
-	private MongoCollection<Document> notifications;
 	private MongoCollection<Document> resubscriptions;
 	
 	private MongoCollection<Document> commandLogs;
@@ -71,14 +70,12 @@ public class Database {
 		this.database = this.client.getDatabase(Settings.DATABASE_NAME);
 		
 		this.guilds = this.database.getCollection("guilds");
+		this.guilds.createIndex(Indexes.descending("youtubeNotifications.uploaderId"));
+		this.guilds.createIndex(Indexes.descending("youtubeNotifications.channelId"));
+		
 		this.users = this.database.getCollection("users");
 		
 		this.resubscriptions = this.database.getCollection("resubscriptions");
-		
-		this.notifications = this.database.getCollection("notifications");
-		this.notifications.createIndex(Indexes.descending("uploaderId"));
-		this.notifications.createIndex(Indexes.descending("channelId"));
-		this.notifications.createIndex(Indexes.descending("guildId"));
 		
 		this.auction = this.database.getCollection("auction");
 		this.auction.createIndex(Indexes.descending("ownerId"));
@@ -141,10 +138,6 @@ public class Database {
 	
 	public MongoCollection<Document> getResubscriptions() {
 		return this.resubscriptions;
-	}
-	
-	public MongoCollection<Document> getNotifications() {
-		return this.notifications;
 	}
 	
 	public MongoCollection<Document> getAuction() {
@@ -211,86 +204,6 @@ public class Database {
 				callback.onResult(null, e);
 			}
 		});
-	}
-	
-	public void insertNotification(Document document) {
-		this.notifications.insertOne(document);
-	}
-	
-	public void insertNotification(Document document, DatabaseCallback<Void> callback) {
-		this.queryExecutor.submit(() -> {
-			try {
-				this.insertNotification(document);
-				
-				callback.onResult(null, null);
-			} catch (Throwable e) {
-				callback.onResult(null, e);
-			}
-		});
-	}
-	
-	public UpdateResult updateNotification(Bson filter, Bson update) {
-		return this.notifications.updateOne(filter, update);
-	}
-	
-	public void updateNotification(Bson filter, Bson update, DatabaseCallback<UpdateResult> callback) {
-		this.queryExecutor.submit(() -> {
-			try {
-				callback.onResult(this.updateNotification(filter, update), null);
-			} catch (Throwable e) {
-				callback.onResult(null, e);
-			}
-		});
-	}
-	
-	public UpdateResult updateManyNotifications(Bson filter, Bson update) {
-		return this.notifications.updateMany(filter, update);
-	}
-	
-	public void updateManyNotifications(Bson filter, Bson update, DatabaseCallback<UpdateResult> callback) {
-		this.queryExecutor.submit(() -> {
-			try {
-				callback.onResult(this.updateManyNotifications(filter, update), null);
-			} catch (Throwable e) {
-				callback.onResult(null, e);
-			}
-		});
-	}
-	
-	public long countNotifications(Bson filter) {
-		return this.notifications.countDocuments(filter);
-	}
-	
-	public DeleteResult deleteNotification(Bson filter) {
-		return this.notifications.deleteOne(filter);
-	}
-	
-	public void deleteNotification(Bson filter, DatabaseCallback<DeleteResult> callback) {
-		this.queryExecutor.submit(() -> {
-			try {
-				callback.onResult(this.deleteNotification(filter), null);
-			} catch (Throwable e) {
-				callback.onResult(null, e);
-			}
-		});
-	}
-	
-	public FindIterable<Document> getNotifications(Bson filter, Bson projection) {
-		return this.notifications.find(filter).projection(projection);
-	}
-	
-	public FindIterable<Document> getNotifications(Bson filter) {
-		return this.getNotifications(filter, null);
-	}
-	
-	public Document getNotification(Bson filter, Bson projection) {
-		Document result = this.getNotifications(filter, projection).first();
-		
-		return result == null ? Database.EMPTY_DOCUMENT : result;
-	}
-	
-	public Document getNotification(Bson filter) {
-		return this.getNotification(filter, null);
 	}
 	
 	public void insertAuction(long ownerId, long price, Document rawItem, DatabaseCallback<Void> callback) {
@@ -441,6 +354,10 @@ public class Database {
 	
 	public void updateGuildById(long guildId, Bson update, DatabaseCallback<UpdateResult> callback) {
 		this.updateGuildById(guildId, null, update, null, callback);
+	}
+	
+	public FindIterable<Document> getGuilds(Bson filter, Bson projection) {
+		return this.guilds.find(filter).projection(projection);
 	}
 	
 	public Document getGuildByIdAndUpdate(long guildId, Bson filters, Bson update, FindOneAndUpdateOptions findOneAndUpdateOptions) {

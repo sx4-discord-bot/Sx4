@@ -54,7 +54,9 @@ import com.jockie.bot.core.module.Module;
 import com.jockie.bot.core.option.Option;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.FindOneAndUpdateOptions;
 import com.mongodb.client.model.Projections;
+import com.mongodb.client.model.ReturnDocument;
 import com.mongodb.client.model.UpdateOneModel;
 import com.mongodb.client.model.UpdateOptions;
 import com.mongodb.client.model.Updates;
@@ -191,11 +193,10 @@ public class FunModule {
 				String channelId = items.getJSONObject(0).getJSONObject("id").getString("channelId");
 				
 				Document notificationData = new Document("uploaderId", channelId)
-						.append("channelId", channel.getIdLong())
-						.append("guildId", event.getGuild().getIdLong());
+						.append("channelId", channel.getIdLong());
 				
-				List<Document> notifications = database.getNotifications(Filters.eq("uploaderId", channelId), Projections.include("channelId")).into(new ArrayList<>());
-				if (notifications.isEmpty() && !Sx4Bot.getYouTubeManager().hasResubscription(channelId)) {
+				List<Document> guilds = database.getGuilds(Filters.eq("youtubeNotifications.uploaderId", channelId), Projections.include("youtubeNotifications.channelId")).into(new ArrayList<>());
+				if (guilds.isEmpty() && !Sx4Bot.getYouTubeManager().hasResubscription(channelId)) {
 					RequestBody body = new MultipartBody.Builder()
 							.addFormDataPart("hub.mode", "subscribe")
 							.addFormDataPart("hub.topic", "https://www.youtube.com/xml/feeds/videos.xml?channel_id=" + channelId)
@@ -210,9 +211,9 @@ public class FunModule {
 							.post(body)
 							.build();
 					
-					Sx4Bot.client.newCall(request).enqueue((Sx4Callback) response -> {
+					ImageModule.client.newCall(request).enqueue((Sx4Callback) response -> {
 						if (response.isSuccessful()) {
-							database.insertNotification(notificationData, (result, exception) -> {
+							database.updateGuildById(event.getGuild().getIdLong(), Updates.push("youtubeNotifications", notificationData), (result, exception) -> {
 								if (exception != null) {
 									exception.printStackTrace();
 									event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
@@ -221,18 +222,22 @@ public class FunModule {
 								}
 							});
 						} else {
-							event.reply("Oops something went wrong there, try again. If this repeats report this to my developer (Code: " + response.code() + ") :no_entry:").queue();
+							event.reply("Oops something went wrong there, try again. If this repeats report this to my developer (Message: " + response.body().string() + ") :no_entry:").queue();
 						}
 					});
 				} else {
-					for (Document notification : notifications) {
-						if (notification.getLong("channelId") == channel.getIdLong()) {
-							event.reply("You already have a notification for that user in that channel :no_entry:").queue();
-							return;
+					for (Document guild : guilds) {
+						if (guild.getLong("_id") == event.getGuild().getIdLong()) {
+							for (Document notification : guild.getList("youtubeNotifications", Document.class)) {
+								if (notification.getLong("channelId") == channel.getIdLong()) {
+									event.reply("You already have a notification for that user in that channel :no_entry:").queue();
+									return;
+								}
+							}
 						}
 					}
 					
-					database.insertNotification(notificationData, (result, exception) -> {
+					database.updateGuildById(event.getGuild().getIdLong(), Updates.push("youtubeNotifications", notificationData), (result, exception) -> {
 						if (exception != null) {
 							exception.printStackTrace();
 							event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
@@ -268,16 +273,30 @@ public class FunModule {
 				
 				String channelId = items.getJSONObject(0).getJSONObject("id").getString("channelId");
 				
-				database.deleteNotification(Filters.and(Filters.eq("uploaderId", channelId), Filters.eq("channelId", channel.getIdLong())), (result, exception) -> {
+				Bson filter = Filters.and(
+						Filters.eq("_id", event.getGuild().getIdLong()), 
+						Filters.eq("youtubeNotifications.uploaderId", channelId),
+						Filters.eq("youtubeNotifications.channelId", channel.getIdLong())
+				);
+				
+				long notifications = database.getGuilds().countDocuments(filter);
+				if (notifications == 0) {
+					event.reply("Notifications will no longer be sent in " + channel.getAsMention() + " when that user uploads <:done:403285928233402378>").queue();
+					return;
+				}
+				
+				FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().projection(Projections.include("youtubeNotifications")).returnDocument(ReturnDocument.BEFORE);
+				database.getGuildByIdAndUpdate(event.getGuild().getIdLong(), Filters.eq("youtubeNotifications.channelId", channel.getIdLong()), Updates.pull("youtubeNotifications", Filters.and(Filters.eq("uploaderId", channelId), Filters.eq("channelId", channel.getIdLong()))), options, (result, exception) -> {
 					if (exception != null) {
 						exception.printStackTrace();
 						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
 					} else {
-						if (result.getDeletedCount() == 1) {
-							event.reply("Notifications will no longer be sent in " + channel.getAsMention() + " when that user uploads <:done:403285928233402378>").queue();
-						} else {
-							event.reply("You do not have a notification for that user in " + channel.getAsMention() + " :no_entry:").queue();
+						List<Document> dataBefore = result.getList("youtubeNotifications", Document.class);
+						if (dataBefore.size() == 1) {
+							channel.deleteWebhookById(String.valueOf(dataBefore.get(0).getLong("webhookId"))).queue();
 						}
+						
+						event.reply("Notifications will no longer be sent in " + channel.getAsMention() + " when that user uploads <:done:403285928233402378>").queue();
 					}
 				});
 			});

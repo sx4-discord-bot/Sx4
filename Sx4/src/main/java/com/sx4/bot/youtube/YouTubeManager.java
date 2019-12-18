@@ -15,6 +15,7 @@ import com.mongodb.client.model.Filters;
 import com.sx4.bot.core.Sx4Bot;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.interfaces.Sx4Callback;
+import com.sx4.bot.modules.ImageModule;
 import com.sx4.bot.settings.Settings;
 import com.sx4.bot.utils.TokenUtils;
 
@@ -74,7 +75,7 @@ public class YouTubeManager {
 	}
 	
 	public void resubscribe(String channelId) {
-		long amount = Database.get().countNotifications(Filters.eq("uploaderId", channelId));
+		long amount = Database.get().getGuilds().countDocuments(Filters.eq("youtubeNotifications.uploaderId", channelId));
 		
 		if (amount != 0) {
 			RequestBody body = new MultipartBody.Builder()
@@ -91,7 +92,7 @@ public class YouTubeManager {
 					.post(body)
 					.build();
 			
-			Sx4Bot.client.newCall(request).enqueue((Sx4Callback) response -> {
+			ImageModule.client.newCall(request).enqueue((Sx4Callback) response -> {
 				if (response.isSuccessful()) {
 					System.out.println("Resubscribed to " + channelId + " for YouTube notifications");
 				}
