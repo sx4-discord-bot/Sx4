@@ -2121,7 +2121,7 @@ public class GeneralModule {
 					+ "{channel.name} - The current channels name\n"
 					+ "{channel.mention} - The current channels mention\n\n"
 					+ "Make sure to keep the **{}** brackets when using the formatting\n"
-					+ "Example: %strigger add hello Hello {user.name}!", event.getPrefix());
+					+ "Example: `%strigger add hello Hello {user.name}!`", event.getPrefix());
 			
 			EmbedBuilder embed = new EmbedBuilder()
 					.setAuthor("Trigger Formatting", null, event.getGuild().getIconUrl())

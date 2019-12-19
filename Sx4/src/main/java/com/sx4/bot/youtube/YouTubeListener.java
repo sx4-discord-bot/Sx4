@@ -6,4 +6,8 @@ public interface YouTubeListener {
 	
 	void onVideoDelete(YouTubeEvent event);
 	
+	void onVideoDescriptionUpdate(YouTubeEvent event);
+	
+	void onVideoTitleUpdate(YouTubeEvent event);
+	
 }

@@ -216,6 +216,7 @@ public class Sx4Bot {
 		eventManager.register(new AntiInviteEvents());
 		eventManager.register(new AntiLinkEvents());
 		eventManager.register(new ServerLogEvents());
+		eventManager.register(new NotificationEvents());
 
 		eventManager.register(new ExceptionHandler());
 		

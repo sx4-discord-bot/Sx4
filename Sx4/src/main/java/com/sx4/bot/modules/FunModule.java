@@ -168,6 +168,7 @@ public class FunModule {
 		
 		@Command(value="add", description="Add a youtube notification to be posted to a specific channel when the user uploads")
 		@AuthorPermissions({Permission.MANAGE_SERVER})
+		@Examples({"youtube notification add videos mrbeast", "youtube notification add #videos pewdiepie"})
 		public void add(CommandEvent event, @Context Database database, @Argument(value="channel") String channelArgument, @Argument(value="youtube channel", endless=true) String youtubeChannelArgument) {
 			TextChannel channel = ArgumentUtils.getTextChannel(event.getGuild(), channelArgument);
 			if (channel == null) {
@@ -235,7 +236,7 @@ public class FunModule {
 							for (Document guild : guilds) {
 								if (guild.getLong("_id") == event.getGuild().getIdLong()) {
 									for (Document notification : guild.getList("youtubeNotifications", Document.class)) {
-										if (notification.getLong("channelId") == channel.getIdLong()) {
+										if (notification.getString("uploaderId").equals(channelId) && notification.getLong("channelId") == channel.getIdLong()) {
 											event.reply("You already have a notification for that user in that channel :no_entry:").queue();
 											return;
 										}
@@ -263,6 +264,7 @@ public class FunModule {
 		
 		@Command(value="remove", description="Removes a notification from a channel you had setup prior for a youtube channel")
 		@AuthorPermissions({Permission.MANAGE_SERVER})
+		@Examples({"youtube notification remove videos mrbeast", "youtube notification remove #videos pewdiepie"})
 		public void remove(CommandEvent event, @Context Database database, @Argument(value="channel") String channelArgument, @Argument(value="youtube channel", endless=true) String youtubeChannelArgument) {
 			TextChannel channel = ArgumentUtils.getTextChannel(event.getGuild(), channelArgument);
 			if (channel == null) {
@@ -288,7 +290,7 @@ public class FunModule {
 					if (id.getString("kind").equals("youtube#channel")) {
 						String channelId = id.getString("channelId");
 						
-						List<Document> notifications = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("youtubeNotifications.channelId", "youtubeNotifications.uploaderId", "youtubeNotifications.webhookId")).getList("youtubeNotifications", Document.class);
+						List<Document> notifications = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("youtubeNotifications.channelId", "youtubeNotifications.uploaderId", "youtubeNotifications.webhookId")).getList("youtubeNotifications", Document.class, Collections.emptyList());
 						
 						int notificationsInChannel = 0;
 						Document notification = null;
@@ -329,6 +331,110 @@ public class FunModule {
 				
 				event.reply("I could not find that youtube channel :no_entry:").queue();
 			});
+		}
+		
+		@Command(value="message", description="Set the message you want to be sent for your specific notification, view the formatters for messages in `youtube notification formatting`")
+		@Examples({"youtube notification message videos mrbeast {video.url}", "youtube notification message #videos pewdiepie **{channel.name}** just uploaded, check it out: {video.url}"})
+		@AuthorPermissions({Permission.MANAGE_SERVER})
+		public void message(CommandEvent event, @Context Database database, @Argument(value="channel") String channelArgument, @Argument(value="youtube channel") String youtubeChannelArgument, @Argument(value="message", endless=true) String message) {
+			TextChannel channel = ArgumentUtils.getTextChannel(event.getGuild(), channelArgument);
+			if (channel == null) {
+				event.reply("I could not find that channel :no_entry:").queue();
+				return;
+			}
+			
+			Request channelRequest = new Request.Builder()
+					.url("https://www.googleapis.com/youtube/v3/search?key=" + TokenUtils.YOUTUBE + "&q=" + youtubeChannelArgument + "&part=id&maxResults=1")
+					.build();
+			
+			Sx4Bot.client.newCall(channelRequest).enqueue((Sx4Callback) channelResponse -> {
+				JSONObject json = new JSONObject(channelResponse.body().string());
+				
+				JSONArray items = json.getJSONArray("items");
+				if (items.isEmpty()) {
+					event.reply("I could not find that youtube channel :no_entry:").queue();
+					return;
+				}
+				
+				for (int i = 0; i < items.length(); i++) {
+					JSONObject id = items.getJSONObject(i).getJSONObject("id");;
+					if (id.getString("kind").equals("youtube#channel")) {
+						String channelId = id.getString("channelId");
+						
+						List<Document> notifications = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("youtubeNotifications.channelId", "youtubeNotifications.uploaderId", "youtubeNotifications.message")).getList("youtubeNotifications", Document.class);
+						for (Document data : notifications) {
+							if (data.getString("uploaderId").equals(channelId) && data.getLong("channelId") == channel.getIdLong()) {
+								String currentMessage = data.getString("message");
+								if (currentMessage != null && currentMessage.equals(message)) {
+									event.reply("Your message for that notification is already set to that :no_entry:").queue();
+									return;
+								}
+								
+								UpdateOptions options = new UpdateOptions().arrayFilters(List.of(Filters.and(Filters.eq("notification.uploaderId", channelId), Filters.eq("notification.channelId", channel.getIdLong()))));
+								database.updateGuildById(event.getGuild().getIdLong(), null, Updates.set("youtubeNotifications.$[notification].message", message), options, (result, exception) -> {
+									if (exception != null) {
+										exception.printStackTrace();
+										event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+									} else {
+										event.reply("Your message has been updated for that notification <:done:403285928233402378>").queue();
+									}
+								});
+								
+								return;
+							}
+						}
+						
+						event.reply("You don't have a notification for that user in " + channel.getAsMention() + " :no_entry:").queue();
+						return;
+					}
+				}
+				
+				event.reply("I could not find that youtube channel :no_entry:").queue();
+			});
+		}
+		
+		@Command(value="formatting", aliases={"format", "formats"}, description="View the formats you are able to use to customize your notifications message", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+		@Examples({"youtube notification formatting"})
+		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
+		public void formatting(CommandEvent event) {
+			String example = String.format("{channel.name} - The youtube channels name\n"
+					+ "{channel.id} - The youtube channels id\n"
+					+ "{channel.url} - The youtube channels url\n"
+					+ "{video.title} - The youtube videos current title\n"
+					+ "{video.id} - The youtube videos id\n"
+					+ "{video.url} - The youtube videos url\n"
+					+ "{video.published} - The youtube date time of when it was uploaded, (10 December 2019 15:30)\n\n"
+					+ "Make sure to keep the **{}** brackets when using the formatting\n"
+					+ "Example: `%syoutube notification message #videos pewdiepie **{channel.name}** just uploaded, check it out: {video.url}`", event.getPrefix());
+			
+			EmbedBuilder embed = new EmbedBuilder()
+					.setAuthor("YouTube Notification Formatting", null, event.getGuild().getIconUrl())
+					.setDescription(example);
+			
+			event.reply(embed.build()).queue();
+		}
+		
+		@Command(value="list", description="View all the notifications you have setup throughout your server")
+		@Examples({"youtube notification list"})
+		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
+		public void list(CommandEvent event, @Context Database database) {
+			List<Document> notifications = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("youtubeNotifications.uploaderId", "youtubeNotifications.channelId")).getList("youtubeNotifications", Document.class, Collections.emptyList());
+			notifications.sort((a, b) -> Long.compare(a.getLong("channelId"), b.getLong("channelId")));
+			
+			if (notifications.isEmpty()) {
+				event.reply("You have no notifications setup in this server :no_entry:").queue();
+				return;
+			}
+			
+			PagedResult<Document> paged = new PagedResult<>(notifications)
+					.setDeleteMessage(false)
+					.setIndexed(false)
+					.setAuthor("YouTube Notifications", null, event.getGuild().getIconUrl())
+					.setFunction(data -> {
+						return String.format("<#%d> - [%s](https://youtube.com/channel/%<s)", data.getLong("channelId"), data.getString("uploaderId"));
+					});
+			
+			PagedUtils.getPagedResult(event, paged, 300, null);
 		}
 		
 	}

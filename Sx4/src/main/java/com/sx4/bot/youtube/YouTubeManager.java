@@ -62,15 +62,27 @@ public class YouTubeManager {
 		return this;
 	}
 	
-	public void onYouTubeUpload(YouTubeEvent event) {
+	public void onVideoUpload(YouTubeEvent event) {
 		for (YouTubeListener listener : this.listeners) {
 			listener.onVideoUpload(event);
 		}
 	}
 	
-	public void onYouTubeDelete(YouTubeEvent event) {
+	public void onVideoDelete(YouTubeEvent event) {
 		for (YouTubeListener listener : this.listeners) {
 			listener.onVideoDelete(event);
+		}
+	}
+	
+	public void onVideoTitleUpdate(YouTubeEvent event) {
+		for (YouTubeListener listener : this.listeners) {
+			listener.onVideoTitleUpdate(event);
+		}
+	}
+	
+	public void onVideoDescriptionUpdate(YouTubeEvent event) {
+		for (YouTubeListener listener : this.listeners) {
+			listener.onVideoDescriptionUpdate(event);
 		}
 	}
 	

@@ -19,6 +19,7 @@ import com.mongodb.client.model.FindOneAndUpdateOptions;
 import com.mongodb.client.model.Indexes;
 import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.ReturnDocument;
+import com.mongodb.client.model.Sorts;
 import com.mongodb.client.model.UpdateOneModel;
 import com.mongodb.client.model.UpdateOptions;
 import com.mongodb.client.model.WriteModel;
@@ -51,6 +52,7 @@ public class Database {
 	private MongoCollection<Document> users;
 	private MongoCollection<Document> auction;
 	private MongoCollection<Document> resubscriptions;
+	private MongoCollection<Document> notifications;
 	
 	private MongoCollection<Document> commandLogs;
 	private MongoCollection<Document> guildLogs;
@@ -74,6 +76,11 @@ public class Database {
 		this.guilds.createIndex(Indexes.descending("youtubeNotifications.channelId"));
 		
 		this.users = this.database.getCollection("users");
+		
+		this.notifications = this.database.getCollection("notifications");
+		this.notifications.createIndex(Indexes.descending("videoId"));
+		this.notifications.createIndex(Indexes.descending("uploaderId"));
+		this.notifications.createIndex(Indexes.descending("timestamp"));
 		
 		this.resubscriptions = this.database.getCollection("resubscriptions");
 		
@@ -140,6 +147,10 @@ public class Database {
 		return this.resubscriptions;
 	}
 	
+	public MongoCollection<Document> getNotifications() {
+		return this.notifications;
+	}
+	
 	public MongoCollection<Document> getAuction() {
 		return this.auction;
 	}
@@ -201,6 +212,46 @@ public class Database {
 			try {
 				callback.onResult(this.deleteResubscriptionById(id), null);
 			} catch (Throwable e) {
+				callback.onResult(null, e);
+			}
+		});
+	}
+	
+	public FindIterable<Document> getNotifications(Bson filter, Bson projection) {
+		return this.notifications.find(filter).projection(projection).sort(Sorts.descending("timestamp"));
+	}
+	
+	public Document getNotification(Bson filter, Bson projection) {
+		Document data = this.getNotifications(filter, projection).first();
+		
+		return data == null ? Database.EMPTY_DOCUMENT : data;
+	}
+	
+	public void insertNotification(Document data) {
+		this.notifications.insertOne(data);
+	}
+	
+	public void insertNotification(Document data, DatabaseCallback<Void> callback) {
+		this.queryExecutor.submit(() -> {
+			try {
+				this.insertNotification(data);
+				
+				callback.onResult(null, null);
+			} catch(Throwable e) {
+				callback.onResult(null, e);
+			}
+		});
+	}
+	
+	public DeleteResult deleteManyNotifications(String videoId) {
+		return this.notifications.deleteMany(Filters.eq("videoId", videoId));
+	}
+	
+	public void deleteManyNotifications(String videoId, DatabaseCallback<DeleteResult> callback) {
+		this.queryExecutor.submit(() -> {
+			try {
+				callback.onResult(this.deleteManyNotifications(videoId), null);
+			} catch(Throwable e) {
 				callback.onResult(null, e);
 			}
 		});

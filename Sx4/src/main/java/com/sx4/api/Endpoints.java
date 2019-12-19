@@ -22,11 +22,14 @@ import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
+import org.bson.Document;
 import org.json.JSONObject;
 import org.json.XML;
 
 import com.jockie.bot.core.category.impl.CategoryImpl;
 import com.jockie.bot.core.option.IOption;
+import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.Updates;
 import com.sx4.bot.categories.Categories;
 import com.sx4.bot.core.Sx4Bot;
@@ -231,6 +234,7 @@ public class Endpoints {
 	@Path("/youtube")
 	public Response getYoutube(String body) {
 		YouTubeManager manager = Sx4Bot.getYouTubeManager();
+		Database database = Database.get();
 		
 		JSONObject json = XML.toJSONObject(body);
 		
@@ -244,7 +248,7 @@ public class Endpoints {
 			
 			YouTubeEvent event = new YouTubeEvent(channelId, channelName, videoId, null, null, null, videoDeletedAt);
 			
-			manager.onYouTubeDelete(event);
+			manager.onVideoDelete(event);
 		} else {
 			JSONObject entry = feed.getJSONObject("entry");
 			
@@ -253,7 +257,14 @@ public class Endpoints {
 			
 			YouTubeEvent event = new YouTubeEvent(channelId, channelName, videoId, videoTitle, videoUpdatedAt, videoPublishedAt, null);
 			
-			manager.onYouTubeUpload(event);
+			Document data = database.getNotification(Filters.eq("videoId", videoId), Projections.include("title", "timestamp"));
+			if (data.isEmpty() || Clock.systemUTC().instant().getEpochSecond() - data.getLong("timestamp") > 3600) {
+				manager.onVideoUpload(event);
+			} else if (data.getString("title").equals(videoTitle)) {
+				manager.onVideoDescriptionUpdate(event);
+			} else {
+				manager.onVideoTitleUpdate(event);
+			}
 		}
 		
 		return Response.status(204).build();
