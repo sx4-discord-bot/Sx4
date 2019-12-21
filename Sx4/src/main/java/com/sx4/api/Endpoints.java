@@ -3,6 +3,9 @@ package com.sx4.api;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 import java.time.Clock;
+import java.time.Duration;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -210,7 +213,7 @@ public class Endpoints {
 	@GET
 	@Path("/youtube")
 	@Produces(MediaType.TEXT_PLAIN)
-	public Response getChallenge(@QueryParam("hub.topic") String topic, @QueryParam("hub.verify_token") String authorization, @QueryParam("hub.challenge") String challenge, @QueryParam("hub.lease_seconds") long seconds) {
+	public Response getChallenge(@QueryParam("hub.topic") final String topic, @QueryParam("hub.verify_token") final String authorization, @QueryParam("hub.challenge") final String challenge, @QueryParam("hub.lease_seconds") final long seconds) {
 		if (authorization != null && authorization.equals(TokenUtils.YOUTUBE)) {
 			YouTubeManager manager = Sx4Bot.getYouTubeManager();
 			String channelId = topic.substring(topic.lastIndexOf('=') + 1);
@@ -232,7 +235,7 @@ public class Endpoints {
 	
 	@POST
 	@Path("/youtube")
-	public Response getYoutube(String body) {
+	public Response getYoutube(final String body) {
 		YouTubeManager manager = Sx4Bot.getYouTubeManager();
 		Database database = Database.get();
 		
@@ -258,7 +261,7 @@ public class Endpoints {
 			YouTubeEvent event = new YouTubeEvent(channelId, channelName, videoId, videoTitle, videoUpdatedAt, videoPublishedAt, null);
 			
 			Document data = database.getNotification(Filters.eq("videoId", videoId), Projections.include("title", "timestamp"));
-			if (data.isEmpty() || Clock.systemUTC().instant().getEpochSecond() - data.getLong("timestamp") > 3600) {
+			if (data.isEmpty() && Duration.between(event.getVideo().getTimePublishedAt(), ZonedDateTime.now(ZoneOffset.UTC)).toMinutes() <= 60) {
 				manager.onVideoUpload(event);
 			} else if (data.getString("title").equals(videoTitle)) {
 				manager.onVideoDescriptionUpdate(event);

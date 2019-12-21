@@ -203,6 +203,20 @@ public class Database {
 		});
 	}
 	
+	public DeleteResult deleteResubscription(Bson filter) {
+		return this.resubscriptions.deleteOne(filter);
+	}
+	
+	public void deleteResubscription(Bson filter, DatabaseCallback<DeleteResult> callback) {
+		this.queryExecutor.submit(() -> {
+			try {
+				callback.onResult(this.deleteResubscription(filter), null);
+			} catch (Throwable e) {
+				callback.onResult(null, e);
+			}
+		});
+	}
+	
 	public DeleteResult deleteResubscriptionById(String id) {
 		return this.resubscriptions.deleteOne(Filters.eq("_id", id));
 	}
@@ -211,6 +225,20 @@ public class Database {
 		this.queryExecutor.submit(() -> {
 			try {
 				callback.onResult(this.deleteResubscriptionById(id), null);
+			} catch (Throwable e) {
+				callback.onResult(null, e);
+			}
+		});
+	}
+	
+	public DeleteResult deleteManyResubscriptions(Bson filter) {
+		return this.resubscriptions.deleteMany(filter);
+	}
+	
+	public void deleteManyResubscriptions(Bson filter, DatabaseCallback<DeleteResult> callback) {
+		this.queryExecutor.submit(() -> {
+			try {
+				callback.onResult(this.deleteManyResubscriptions(filter), null);
 			} catch (Throwable e) {
 				callback.onResult(null, e);
 			}
@@ -273,7 +301,7 @@ public class Database {
 		});
 	}
 	
-	public void removeAuction(ObjectId id, DatabaseCallback<Void> callback) {
+	public void deleteAuction(ObjectId id, DatabaseCallback<Void> callback) {
 		this.queryExecutor.submit(() -> {
 			try {
 				this.auction.deleteOne(Filters.eq("_id", id));

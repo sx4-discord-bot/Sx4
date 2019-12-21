@@ -32,6 +32,7 @@ import club.minnced.discord.webhook.exception.HttpException;
 import club.minnced.discord.webhook.send.WebhookMessage;
 import club.minnced.discord.webhook.send.WebhookMessageBuilder;
 import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.events.channel.text.TextChannelDeleteEvent;
@@ -149,57 +150,68 @@ public class NotificationEvents implements EventListener, YouTubeListener {
 				Database database = Database.get();
 
 				database.getGuilds(Filters.exists("youtubeNotifications"), Projections.include("youtubeNotifications")).forEach((Document guildData) -> {
-					List<Document> notifications = guildData.getList("youtubeNotifications", Document.class);
-					for (Document data : notifications) {
-						if (data.getString("uploaderId").equals(event.getChannel().getId())) {
-							TextChannel textChannel = shardManager.getTextChannelById(data.getLong("channelId"));
-							if (textChannel != null) {
-								String messageContent = this.getMessage(event, data.get("message", this.defaultMessage));
-								
-								WebhookClient webhook;
-								
-								Long webhookId = data.getLong("webhookId");
-								String webhookToken = data.getString("webhookToken");
-								if (this.webhooks.containsKey(textChannel.getIdLong())) {
-									webhook = this.webhooks.get(textChannel.getIdLong());
-								} else {
-									if (webhookId == null || webhookToken == null) {
-										if (textChannel.getGuild().getSelfMember().hasPermission(Permission.MANAGE_WEBHOOKS)) {
-											this.createNewWebhook(event, textChannel, messageContent);
-										}
-										
-										return;
+					Guild guild = shardManager.getGuildById(guildData.getLong("_id"));
+					
+					if (guild != null) {
+						List<Document> notifications = guildData.getList("youtubeNotifications", Document.class);
+						for (Document data : notifications) {
+							if (data.getString("uploaderId").equals(event.getChannel().getId())) {
+								Long textChannelId = data.getLong("channelId");
+								TextChannel textChannel = guild.getTextChannelById(textChannelId);
+								if (textChannel != null) {
+									String messageContent = this.getMessage(event, data.get("message", this.defaultMessage));
+									
+									WebhookClient webhook;
+									
+									Long webhookId = data.getLong("webhookId");
+									String webhookToken = data.getString("webhookToken");
+									if (this.webhooks.containsKey(textChannel.getIdLong())) {
+										webhook = this.webhooks.get(textChannel.getIdLong());
 									} else {
-										webhook = new WebhookClientBuilder(webhookId, webhookToken)
-												.setExecutorService(this.scheduledExectuor)
-												.setHttpClient(this.client)
-												.build();
-										
-										this.webhooks.put(textChannel.getIdLong(), webhook);
+										if (webhookId == null || webhookToken == null) {
+											if (textChannel.getGuild().getSelfMember().hasPermission(Permission.MANAGE_WEBHOOKS)) {
+												this.createNewWebhook(event, textChannel, messageContent);
+											}
+											
+											return;
+										} else {
+											webhook = new WebhookClientBuilder(webhookId, webhookToken)
+													.setExecutorService(this.scheduledExectuor)
+													.setHttpClient(this.client)
+													.build();
+											
+											this.webhooks.put(textChannel.getIdLong(), webhook);
+										}
 									}
-								}
-								
-								WebhookMessage message = new WebhookMessageBuilder()
-										.setAvatarUrl(shardManager.getShardById(0).getSelfUser().getEffectiveAvatarUrl())
-										.setContent(messageContent)
-										.build();
-								
-								webhook.send(message).whenCompleteAsync((webhookMessage, exception) -> {
-									if (exception != null) {
-										if (exception instanceof HttpException) {
-											/* Ugly catch, blame JDA */
-											if (exception.getMessage().startsWith("Request returned failure 404")) {
-												this.webhooks.remove(textChannel.getIdLong());
-												
-												if (textChannel.getGuild().getSelfMember().hasPermission(Permission.MANAGE_WEBHOOKS)) {
-													this.createNewWebhook(event, textChannel, messageContent);
+									
+									WebhookMessage message = new WebhookMessageBuilder()
+											.setAvatarUrl(shardManager.getShardById(0).getSelfUser().getEffectiveAvatarUrl())
+											.setContent(messageContent)
+											.build();
+									
+									webhook.send(message).whenCompleteAsync((webhookMessage, exception) -> {
+										if (exception != null) {
+											if (exception instanceof HttpException) {
+												/* Ugly catch, blame JDA */
+												if (exception.getMessage().startsWith("Request returned failure 404")) {
+													this.webhooks.remove(textChannel.getIdLong());
+													
+													if (textChannel.getGuild().getSelfMember().hasPermission(Permission.MANAGE_WEBHOOKS)) {
+														this.createNewWebhook(event, textChannel, messageContent);
+													}
+													
+													return;
 												}
-												
-												return;
 											}
 										}
-									}
-								});
+									});
+								} else {
+									database.updateGuildById(guild.getIdLong(), Updates.pull("youtubeNotifications", Filters.eq("channelId", textChannelId)), (result, exception) -> {
+										if (exception != null) {
+											exception.printStackTrace();
+										}
+									});
+								}
 							}
 						}
 					}

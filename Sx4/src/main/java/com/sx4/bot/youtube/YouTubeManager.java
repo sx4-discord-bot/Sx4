@@ -1,6 +1,8 @@
 package com.sx4.bot.youtube;
 
+import java.util.List;
 import java.time.Clock;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -10,6 +12,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 import org.bson.Document;
+import org.bson.conversions.Bson;
 
 import com.mongodb.client.model.Filters;
 import com.sx4.bot.core.Sx4Bot;
@@ -86,9 +89,10 @@ public class YouTubeManager {
 		}
 	}
 	
-	public void resubscribe(String channelId) {
+	public Bson resubscribeAndGet(String channelId) {
 		long amount = Database.get().getGuilds().countDocuments(Filters.eq("youtubeNotifications.uploaderId", channelId));
 		
+		Bson filter = null;
 		if (amount != 0) {
 			RequestBody body = new MultipartBody.Builder()
 					.addFormDataPart("hub.mode", "subscribe")
@@ -112,28 +116,51 @@ public class YouTubeManager {
 				response.close();
 			});
 		} else {
-			Database.get().deleteResubscriptionById(channelId, (result, exception) -> {
+			filter = Filters.eq("_id", channelId);
+		}
+		
+		this.removeResubscription(channelId);
+		
+		return filter;
+	}
+	
+	public void resubscribe(String channelId) {
+		Bson filter = this.resubscribeAndGet(channelId);
+		if (filter != null) {
+			Database.get().deleteResubscription(filter, (result, exception) -> {
 				if (exception != null) {
 					exception.printStackTrace();
 				}
 			});
 		}
-		
-		this.removeResubscription(channelId);
 	}
 	
 	public void ensureResubscriptions() {
-		Database.get().getResubscriptions().find().forEach((Document data) -> {
+		List<Document> resubscriptions = Database.get().getResubscriptions().find().into(new ArrayList<>());
+		
+		List<Bson> filters = new ArrayList<>();
+		for (Document data : resubscriptions) {
 			String channelId = data.getString("_id");
 			
 			long timeTill = data.getLong("resubscribeAt") - Clock.systemUTC().instant().getEpochSecond();
 			if (timeTill <= 0) { 
-				this.resubscribe(channelId);
+				Bson filter = this.resubscribeAndGet(channelId);
+				if (filter != null) {
+					filters.add(filter);
+				}
 			} else {
 				ScheduledFuture<?> resubscription = Sx4Bot.scheduledExectuor.schedule(() -> this.resubscribe(channelId), timeTill, TimeUnit.SECONDS);
 				this.putResubscription(channelId, resubscription);
 			}
-		});
+		}
+		
+		if (!filters.isEmpty()) {
+			Database.get().deleteManyResubscriptions(Filters.or(filters), (result, exception) -> {
+				if (exception != null) {
+					exception.printStackTrace();
+				}
+			});
+		}
 	}
 	
 }

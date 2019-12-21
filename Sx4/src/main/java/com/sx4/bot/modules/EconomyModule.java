@@ -3151,7 +3151,7 @@ public class EconomyModule {
 					} 
 				}
 				
-				database.removeAuction(auctionItem.getId(), (auctionResult, auctionException) -> {
+				database.deleteAuction(auctionItem.getId(), (auctionResult, auctionException) -> {
 					if (auctionException != null) {
 						auctionException.printStackTrace();
 						event.reply(Sx4CommandEventListener.getUserErrorMessage(auctionException)).queue();
@@ -3267,7 +3267,7 @@ public class EconomyModule {
 					}
 				}
 				
-				database.removeAuction(auctionItem.getId(), (auctionResult, auctionException) -> {
+				database.deleteAuction(auctionItem.getId(), (auctionResult, auctionException) -> {
 					if (auctionException != null) {
 						auctionException.printStackTrace();
 						event.reply(Sx4CommandEventListener.getUserErrorMessage(auctionException)).queue();
