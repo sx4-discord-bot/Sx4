@@ -24,9 +24,16 @@ sell your stuff on an online auction house built into the bot where you can also
 You can also get some bonus money by simply voting for the bot to rocket your start in the economy, make sure to vote every 12
 hours as it's very profitable in the long run (If you give your referral links to friends you get bonus money just for referring them) and it doubles on weekends due to votes counting as 2 so double the reward!
 
+#### YouTube Notifications
+Sx4 has the ability to send notifications for a YouTube channel to any channel in your discord server, this can be helpful if you want users to keep up to date with a certain channel or if you and your friends all watch a channel and want to know when they upload a video.
+
 #### Utility
 
 Sx4 has many utility commands such as commands like serverinfo, userinfo, channelinfo and roleinfo which gives detailed info on the desired user/role/server/channel. There are also commands such as invites which displays how many invites a user has for the current server, their placement for amount of invites and the percent of the server they have invited. This and so much more!
+
+#### Starboard
+
+Sx4 has a Starboard which allows a lot of customizability such as being able to set a custom message for any amount of stars a messages gets, you are also able to jump to the starred message for ease and star on the starboard message and original message to make it as easy as possible for your users.
 
 #### Logging
 
@@ -44,6 +51,7 @@ Sx4 can log your server to make sure your server stays safe, it has a very detai
 * When a user has a nickname change
 * When a user is server muted/deafened in a voice channel
 * Permissions updates on a role, shows what perms have been removed/added
+* When a user adds a bot to the server
 
 #### Welcomer
 
