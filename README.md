@@ -27,6 +27,9 @@ hours as it's very profitable in the long run (If you give your referral links t
 #### YouTube Notifications
 Sx4 has the ability to send notifications for a YouTube channel to any channel in your discord server, this can be helpful if you want users to keep up to date with a certain channel or if you and your friends all watch a channel and want to know when they upload a video.
 
+#### Reaction/Self Roles
+Sx4 has reaction roles and self roles, 2 easy ways to give users roles without having to ask anyone. With reaction roles you can setup a reaction on a message to give a specific role when a user reacts to it and with self roles you can allow a user to use a command to gain a role. This makes it easier for users to get things such as colour roles if you have them setup, rather than them asking an Admin.
+
 #### Utility
 
 Sx4 has many utility commands such as commands like serverinfo, userinfo, channelinfo and roleinfo which gives detailed info on the desired user/role/server/channel. There are also commands such as invites which displays how many invites a user has for the current server, their placement for amount of invites and the percent of the server they have invited. This and so much more!
