@@ -15,6 +15,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.bson.Document;
 
+import com.mongodb.client.FindIterable;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.UpdateOneModel;
@@ -129,10 +130,10 @@ public class GiveawayEvents {
 	
 	public static void ensureGiveaways() {
 		ShardManager shardManager = Sx4Bot.getShardManager();
-		List<Document> allData = Database.get().getGuilds().find(Filters.exists("giveaway.giveaways")).projection(Projections.include("giveaway.giveaways")).into(new ArrayList<>());
+		FindIterable<Document> allData = Database.get().getGuilds().find(Filters.exists("giveaway.giveaways")).projection(Projections.include("giveaway.giveaways"));
 		
 		List<WriteModel<Document>> bulkData = new ArrayList<>();
-		for (Document data : allData) {
+		allData.forEach((Document data) -> {
 			try {
 				Document giveawayData = data.get("giveaway", Database.EMPTY_DOCUMENT);
 				long timestampNow = Clock.systemUTC().instant().getEpochSecond();
@@ -152,7 +153,7 @@ public class GiveawayEvents {
 			} catch(Throwable e) {
 				e.printStackTrace();
 			}
-		}
+		});
 		
 		if (!bulkData.isEmpty()) {
 			Database.get().bulkWriteGuilds(bulkData, (result, exception) -> {

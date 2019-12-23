@@ -38,6 +38,8 @@ import org.bson.types.Binary;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.json.XML;
+import org.jsoup.Jsoup;
 
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
@@ -105,7 +107,8 @@ public class FunModule {
 	
 	private static final Random RANDOM = new Random();
 	
-	private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd LLL yyyy HH:mm");
+	private final DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("dd LLL yyyy HH:mm");
+	private final DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd LLLL yyyy");
 	
 	public enum Direction {
 		NORTH(0),
@@ -2454,18 +2457,18 @@ public class FunModule {
 			
 			if (id.getString("kind").equals("youtube#channel")) {
 				embed.setTitle(snippet.getString("title"), "https://www.youtube.com/channel/" + id.getString("channelId"));
-				embed.addField("Created At", uploadedAt.format(this.formatter), true);
+				embed.addField("Created At", uploadedAt.format(this.dateTimeFormatter), true);
 			} else if (id.getString("kind").equals("youtube#video")) {
 				embed.setTitle(snippet.getString("title"), "https://www.youtube.com/watch?v=" + id.getString("videoId"));
 				
 				String state = snippet.getString("liveBroadcastContent");
 				embed.addField("Uploaded By", "[" + snippet.getString("channelTitle") + "](https://www.youtube.com/channel/" + snippet.getString("channelId") + ")", true);
-				embed.addField("Uploaded At", uploadedAt.format(this.formatter), true);
+				embed.addField("Uploaded At", uploadedAt.format(this.dateTimeFormatter), true);
 				embed.addField("State", state.equals("live") ? "Live Now" : state.equals("upcoming") ? "Scheduled" : "Uploaded", true);
 			} else {
 				embed.setTitle(snippet.getString("title"), "https://www.youtube.com/playlist?list=" + id.getString("playlistId"));
 				embed.addField("Uploaded By", "[" + snippet.getString("channelTitle") + "](https://www.youtube.com/channel/" + snippet.getString("channelId") + ")", true);
-				embed.addField("Uploaded At", uploadedAt.format(this.formatter), true);
+				embed.addField("Uploaded At", uploadedAt.format(this.dateTimeFormatter), true);
 			}
 			
 			event.reply(embed.build()).queue();
@@ -2758,7 +2761,7 @@ public class FunModule {
 				
 				int ratings = data.optInt("total_rating_count");
 				embed.addField("Rating", data.has("total_rating") ? String.format("%.2f out of %,d rating%s", data.getDouble("total_rating"), ratings, ratings == 1 ? "" : "s") : "Unknown", true);
-				embed.addField("Release Date", data.has("first_release_date") ? LocalDateTime.ofEpochSecond(data.getLong("first_release_date"), 0, ZoneOffset.UTC).format(this.formatter) : "Unknown", true);
+				embed.addField("Release Date", data.has("first_release_date") ? LocalDateTime.ofEpochSecond(data.getLong("first_release_date"), 0, ZoneOffset.UTC).format(this.dateTimeFormatter) : "Unknown", true);
 				embed.addField("Popularity", String.format("%.2f", data.optDouble("popularity")), true);
 				embed.addField("Genres", data.has("genres") ? String.join("\n", data.getJSONArray("genres").toList().stream().map(genre -> (String) ((Map<String, Object>) genre).get("name")).collect(Collectors.toList())) : "None", true);
 				embed.addField("Platforms", data.has("platforms") ? String.join("\n", data.getJSONArray("platforms").toList().stream().map(platform -> (String) ((Map<String, Object>) platform).get("name")).collect(Collectors.toList())) : "None", true);
@@ -2800,94 +2803,107 @@ public class FunModule {
 		});
 	}
 	
+	private enum SteamStatus {
+		
+		OFFLINE("Offline", 0),
+		ONLINE("Online", 1, 5, 6),
+		BUSY("Busy", 2),
+		AWAY("Away", 3),
+		SNOOZE("Snooze", 4);
+		
+		private final int[] states;
+		private final String name;
+		
+		private SteamStatus(String name, int... states) {
+			this.name = name;
+			this.states = states;
+		}
+		
+		public String getName() {
+			return this.name;
+		}
+		
+		public int[] getStates() {
+			return this.states;
+		}
+		
+		public static SteamStatus getStatus(int state) {
+			for (SteamStatus status : SteamStatus.values()) {
+				for (int statusState : status.getStates()) {
+					if (state == statusState) {
+						return status;
+					}
+				}
+			}
+			
+			return null;
+		}
+		
+	}
+	
 	@Command(value="steam", aliases={"steam profile", "steamprofile"}, description="Look up any users steam profile", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 	@Examples({"steam dog", "steam https://steamcommunity.com/id/dog"})
 	@Cooldown(value=10)
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void steam(CommandEvent event, @Argument(value="vanity url", endless=true) String vanityUrl) {
 		vanityUrl = vanityUrl.replace("https://steamcommunity.com/id/", "");
-		String profileUrl = vanityUrl;
-		Request requestForId = new Request.Builder().url("http://api.steampowered.com/ISteamUser/ResolveVanityURL/v0001/?key=" + TokenUtils.STEAM + "&vanityurl=" + vanityUrl).build();
 		
-		Sx4Bot.client.newCall(requestForId).enqueue((Sx4Callback) responseForId -> {
-			JSONObject jsonForId;
-			try {
-				jsonForId = new JSONObject(responseForId.body().string());
-			} catch (JSONException | IOException e) {
-				event.reply("Oops something went wrong there, try again :no_entry:").queue();
+		String url ="https://steamcommunity.com/id/" + vanityUrl;
+		Request request = new Request.Builder().url(url + "?xml=1").build();
+		
+		Sx4Bot.client.newCall(request).enqueue((Sx4Callback) response -> {
+			JSONObject json = XML.toJSONObject(response.body().string());
+			
+			if (json.has("response")) {
+				event.reply("I could not find that steam user :no_entry:").queue();
 				return;
 			}
 			
-			String id;
-			if (jsonForId.getJSONObject("response").has("message")) {
-				id = profileUrl;
-			} else {
-				id = jsonForId.getJSONObject("response").getString("steamid");
+			JSONObject profile = json.getJSONObject("profile");
+			JSONObject mostPlayedGames = profile.optJSONObject("mostPlayedGames");
+			JSONArray games = mostPlayedGames == null ? new JSONArray() : mostPlayedGames.getJSONArray("mostPlayedGame");
+			
+			System.out.println(games.toString());
+			
+			String stateMessage =  profile.getString("stateMessage");
+			String location = profile.getString("location");
+			
+			EmbedBuilder embed = new EmbedBuilder();
+			embed.setAuthor(profile.getString("steamID"), url, profile.getString("avatarFull"));
+			embed.setDescription(Jsoup.parse(profile.getString("summary")).text());
+			embed.setFooter("ID: " + profile.getLong("steamID64"));
+			embed.setThumbnail(profile.getString("avatarFull"));
+			embed.addField("Real Name", profile.getString("realname"), true);
+			embed.addField("Created At", LocalDate.parse(profile.getString("memberSince"), DateTimeFormatter.ofPattern("LLLL d, yyyy")).format(this.dateFormatter), true);
+			embed.addField("Status", SteamStatus.getStatus(profile.getInt("visibilityState")).getName(), true);
+			
+			if (!stateMessage.equals("Online")) {
+				embed.addField("Last Online", stateMessage.substring(12), true);
 			}
 			
-			Request request = new Request.Builder().url("http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key=" + TokenUtils.STEAM + "&steamids=" + id).build();
+			embed.addField("Vac Bans", String.valueOf(profile.getInt("vacBanned")), true);
 			
-			Sx4Bot.client.newCall(request).enqueue((Sx4Callback) response -> {
-				JSONObject json;
-				try {
-					json = new JSONObject(response.body().string());
-				} catch (JSONException | IOException e) {
-					event.reply("Oops something went wrong there, try again :no_entry:").queue();
-					return;
-				}
+			if (!location.isBlank()) {
+				embed.addField("Location", location, true);
+			}
+			
+			double hours = 0D;
+			StringBuilder gamesString = new StringBuilder();
+			for (int i = 0; i < games.length(); i++) {
+				JSONObject game = games.getJSONObject(i);
 				
-				JSONArray players = json.getJSONObject("response").getJSONArray("players");
-				if (players.toList().isEmpty()) {
-					event.reply("I could not find any results :no_entry:").queue();
-					return;
-				}
+				double hoursPlayed = game.getDouble("hoursPlayed");
+				hours += hoursPlayed;
 				
-				JSONObject player = players.getJSONObject(0);
-				String lastLoggedOn = LocalDateTime.ofEpochSecond(player.getLong("lastlogoff"), 0, ZoneOffset.UTC).format(this.formatter);
-				
-				String status;
-				if (player.getInt("personastate") == 0) {
-					if (player.getInt("communityvisibilitystate") == 1) {
-						status = "Private Account";
-					} else {
-						status = "Offline";
-					}
-				} else if (player.getInt("personastate") == 1 || player.getInt("personastate") == 5 || player.getInt("personastate") == 6) {
-					status = "Online";
-				} else if (player.getInt("personastate") == 2) {
-					status = "Busy";
-				} else if (player.getInt("personastate") == 3) {
-					status = "Away";
-				} else if (player.getInt("personastate") == 4) {
-					status = "Snooze";
-				} else {
-					status = "Unknown";
-				}
-				
-				EmbedBuilder embed = new EmbedBuilder();
-				embed.setDescription("Steam Profile <:steam:530830699821793281>");
-				embed.setAuthor(player.getString("personaname"), player.getString("profileurl"), player.getString("avatarfull"));
-				embed.setThumbnail(player.getString("avatarfull"));
-				embed.addField("Status", status, true);
-				
-				if (status.equals("Offline")) {
-					embed.addField("Last Time Logged In", lastLoggedOn, true);
-				} else {
-					embed.addField("Last Time Logged In", "Currently Online", true);
-				}
-				
-				if (player.getInt("communityvisibilitystate") != 1) {
-					if (player.has("realname")) {
-						embed.addField("Real Name", player.getString("realname"), true);
-					}
-					
-					if (player.has("gameextrainfo")) {
-						embed.addField("Currently Playing", player.getString("gameextrainfo"), true);
-					}
-				}
-				
-				event.reply(embed.build()).queue();
-			});
+				gamesString.append(String.format("[%s](%s) - **%.1f** hours\n", game.getString("gameName"), game.getString("gameLink"), hoursPlayed));
+			}
+			
+			if (hours != 0) {
+				gamesString.append(String.format("\nTotal - **%.1f** hours", hours));
+				embed.addField("Games (2 Weeks)", gamesString.toString(), false);
+			}
+			
+			event.reply(embed.build()).queue();
 		});
 	}
 	

@@ -221,7 +221,7 @@ public class MuteEvents extends ListenerAdapter {
 		FindIterable<Document> allData = Database.get().getGuilds().find(Filters.exists("mute.users")).projection(Projections.include("mute.users"));
 		
 		List<WriteModel<Document>> bulkData = new ArrayList<>();
-		for (Document data : allData) {
+		allData.forEach((Document data) -> {
 			try {
 				Document guildData = data.get("mute", Database.EMPTY_DOCUMENT);
 				long timestampNow = Clock.systemUTC().instant().getEpochSecond();
@@ -250,7 +250,7 @@ public class MuteEvents extends ListenerAdapter {
 			} catch(Throwable e) {
 				e.printStackTrace();
 			}
-		}
+		});
 		
 		if (!bulkData.isEmpty()) {
 			Database.get().bulkWriteGuilds(bulkData, (result, exception) -> {

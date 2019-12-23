@@ -71,6 +71,14 @@ public class Endpoints {
 		return data;
 	}
 	
+	private JSONObject getSubCommandData(Sx4Command command) {
+		JSONObject data = new JSONObject();
+		data.put("name", command.getCommandTrigger());
+		data.put("subCommands", command.getSubCommands().stream().map(Sx4Command.class::cast).map(this::getSubCommandData).collect(Collectors.toList()));
+		
+		return data;
+	}
+	
 	private JSONObject getCommandData(Sx4Command command) {
 		JSONObject data = new JSONObject();
 		data.put("name", command.getCommandTrigger());
@@ -83,7 +91,7 @@ public class Endpoints {
 		data.put("developer", command.isDeveloperCommand());
 		data.put("canary", command.isCanaryCommand());
 		data.put("options", command.getOptions().stream().map(this::getOptionData).collect(Collectors.toList()));
-		data.put("subCommands", command.getSubCommands().stream().map(Sx4Command.class::cast).map(this::getCommandData).collect(Collectors.toList()));
+		data.put("subCommands", command.getSubCommands().stream().map(Sx4Command.class::cast).map(this::getSubCommandData).collect(Collectors.toList()));
 		
 		return data;
 	}
@@ -122,7 +130,14 @@ public class Endpoints {
 		List<JSONObject> activities = new ArrayList<>();
 		for (Activity activity : member.getActivities()) {
 			JSONObject activityData = new JSONObject();
-			activityData.put("name", activity.getName());
+			
+			boolean hasEmote = activity.getEmoji() != null;
+			
+			if (hasEmote) {
+				activityData.put("emote", new JSONObject().put("id", activity.getEmoji().isEmote() ? activity.getEmoji().getIdLong() : null).put("name", activity.getEmoji().getName()));
+			}
+			
+			activityData.put("name", hasEmote && activity.getName().equals("Custom Status") ? null : activity.getName());
 			activityData.put("type", activity.getType().getKey());
 			
 			String url = activity.getUrl();
@@ -190,7 +205,7 @@ public class Endpoints {
 		    }
 			
 		    if (method.isAnnotationPresent(Path.class)) {
-		    	stringBuilder.append(String.format("%-" + (maxLength + 5) + "s", "/api" + method.getAnnotation(Path.class).value() + "/"));
+		    	stringBuilder.append(String.format("%-" + (maxLength + 5) + "s", "/api/v1" + method.getAnnotation(Path.class).value() + "/"));
 		    	
 		    	Parameter[] newParameters = method.getParameters();
 				for (int i = 0; i < newParameters.length; i++) {
