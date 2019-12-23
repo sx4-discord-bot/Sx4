@@ -2003,54 +2003,100 @@ public class ModModule {
 		event.getGuild().modifyNickname(member, nickname).queue();
 	}
 	
-	@Command(value="prune", aliases={"clear", "c", "purge"}, description="Clear a certain amount of messages in the current channel or clear a certain amount of messages from a specified user", argumentInfo="<user>* <amount> | <amount>", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
-	@Examples({"prune", "prune 10", "prune @Shea#6653", "prune Shea 10"})
-	@AuthorPermissions({Permission.MESSAGE_MANAGE})
-	@BotPermissions({Permission.MESSAGE_MANAGE, Permission.MESSAGE_HISTORY})
-	public void prune(CommandEvent event, @Argument(value="user | amount") String argument, @Argument(value="amount", nullDefault=true) Integer amount) {
-		try {
-			int limit = Integer.parseInt(argument);
-			if (limit < 1) {
-				event.reply("You have to delete at least 1 message :no_entry:").queue();
-				return;
-			}
+	public class PruneCommand extends Sx4Command {
+		
+		public PruneCommand() {
+			super("prune");
 			
-			if (limit > 100) {
-				event.reply("You cannot delete more than 100 messages at one time :no_entry:").queue();
-				return;
-			}
-			
-			event.getMessage().delete().queue($ -> {
-				event.getTextChannel().getHistory().retrievePast(limit).queue(messages -> {
-					long secondsNow = Clock.systemUTC().instant().getEpochSecond();
-					for (Message message : new ArrayList<>(messages)) {
-						if (secondsNow - message.getTimeCreated().toEpochSecond() > 1209600) {
-							messages.remove(message);
+			super.setAliases("clear", "c", "purge");
+			super.setExamples("prune images", "prune 10", "prune @Shea#6653", "prune embeds");
+			super.setAuthorDiscordPermissions(Permission.MESSAGE_MANAGE);
+			super.setBotDiscordPermissions(Permission.MESSAGE_MANAGE, Permission.MESSAGE_HISTORY);
+		}
+		
+		public void onCommand(CommandEvent event, @Argument(value="user | amount") String argument, @Argument(value="amount", nullDefault=true) Integer amount) {
+			try {
+				int limit = Integer.parseInt(argument);
+				if (limit < 1) {
+					event.reply("You have to delete at least 1 message :no_entry:").queue();
+					return;
+				}
+				
+				if (limit > 100) {
+					event.reply("You cannot delete more than 100 messages at one time :no_entry:").queue();
+					return;
+				}
+				
+				event.getMessage().delete().queue($ -> {
+					event.getTextChannel().getHistory().retrievePast(limit).queue(messages -> {
+						long secondsNow = Clock.systemUTC().instant().getEpochSecond();
+						for (Message message : new ArrayList<>(messages)) {
+							if (secondsNow - message.getTimeCreated().toEpochSecond() > 1209600) {
+								messages.remove(message);
+							}
 						}
-					}
-					
-					if (messages.size() == 0) {
-						event.reply("All the **" + limit + "** messages were 14 days or older :no_entry:").queue();
-						return;
-					}
-					
-					if (messages.size() == 1) {
-						messages.get(0).delete().queue();
-					} else {
-						event.getTextChannel().deleteMessages(messages).queue();
-					}
+						
+						if (messages.size() == 0) {
+							event.reply("All the **" + limit + "** messages were 14 days or older :no_entry:").queue();
+							return;
+						}
+						
+						if (messages.size() == 1) {
+							messages.get(0).delete().queue();
+						} else {
+							event.getTextChannel().deleteMessages(messages).queue();
+						}
+					});
 				});
-			});
-		} catch(NumberFormatException e) {
+			} catch(NumberFormatException e) {
+				int limit = amount == null ? 100 : amount > 100 ? 100 : amount;
+				if (limit < 1) {
+					event.reply("You have to delete at least 1 message :no_entry:").queue();
+					return;
+				}
+				
+				Member member = ArgumentUtils.getMember(event.getGuild(), argument);
+				if (member == null) {
+					event.reply("I could not find that user :no_entry:").queue();
+					return;
+				}
+				
+				event.getMessage().delete().queue($ -> {
+					event.getTextChannel().getHistory().retrievePast(100).queue(messages -> {
+						long secondsNow = Clock.systemUTC().instant().getEpochSecond();
+						for (Message message : new ArrayList<>(messages)) {
+							if (!message.getAuthor().equals(member.getUser())) {
+								messages.remove(message);
+							} else if (secondsNow - message.getTimeCreated().toEpochSecond() > 1209600) {
+								messages.remove(message);
+							}
+						}
+						
+						if (messages.size() == 0) {
+							event.reply("No messages in the last 100 were from that user or they were 14 days or older :no_entry:").queue();
+							return;
+						}
+						
+						messages = messages.subList(0, Math.min(limit, messages.size()));
+						
+						if (messages.size() == 1) {
+							messages.get(0).delete().queue();
+						} else {
+							event.getTextChannel().deleteMessages(messages).queue();
+						}
+					});
+				});
+			}
+		}
+		
+		@Command(value="images", description="Prunes a set amount of images in the last 100 messages")
+		@Examples({"prune images", "prune images 10"})
+		@AuthorPermissions({Permission.MESSAGE_MANAGE})
+		@BotPermissions({Permission.MESSAGE_MANAGE, Permission.MESSAGE_HISTORY})
+		public void images(CommandEvent event, @Argument(value="amount", nullDefault=true) Integer amount) {
 			int limit = amount == null ? 100 : amount > 100 ? 100 : amount;
 			if (limit < 1) {
 				event.reply("You have to delete at least 1 message :no_entry:").queue();
-				return;
-			}
-			
-			Member member = ArgumentUtils.getMember(event.getGuild(), argument);
-			if (member == null) {
-				event.reply("I could not find that user :no_entry:").queue();
 				return;
 			}
 			
@@ -2058,7 +2104,7 @@ public class ModModule {
 				event.getTextChannel().getHistory().retrievePast(100).queue(messages -> {
 					long secondsNow = Clock.systemUTC().instant().getEpochSecond();
 					for (Message message : new ArrayList<>(messages)) {
-						if (!message.getAuthor().equals(member.getUser())) {
+						if (!message.getAttachments().stream().anyMatch(Attachment::isImage)) {
 							messages.remove(message);
 						} else if (secondsNow - message.getTimeCreated().toEpochSecond() > 1209600) {
 							messages.remove(message);
@@ -2080,6 +2126,121 @@ public class ModModule {
 				});
 			});
 		}
+		
+		@Command(value="embeds", description="Prunes a set amount of embeds in the last 100 messages")
+		@Examples({"prune embeds", "prune embeds 10"})
+		@AuthorPermissions({Permission.MESSAGE_MANAGE})
+		@BotPermissions({Permission.MESSAGE_MANAGE, Permission.MESSAGE_HISTORY})
+		public void embeds(CommandEvent event, @Argument(value="amount", nullDefault=true) Integer amount) {
+			int limit = amount == null ? 100 : amount > 100 ? 100 : amount;
+			if (limit < 1) {
+				event.reply("You have to delete at least 1 message :no_entry:").queue();
+				return;
+			}
+			
+			event.getMessage().delete().queue($ -> {
+				event.getTextChannel().getHistory().retrievePast(100).queue(messages -> {
+					long secondsNow = Clock.systemUTC().instant().getEpochSecond();
+					for (Message message : new ArrayList<>(messages)) {
+						if (message.getEmbeds().isEmpty()) {
+							messages.remove(message);
+						} else if (secondsNow - message.getTimeCreated().toEpochSecond() > 1209600) {
+							messages.remove(message);
+						}
+					}
+					
+					if (messages.size() == 0) {
+						event.reply("No messages in the last 100 were from that user or they were 14 days or older :no_entry:").queue();
+						return;
+					}
+					
+					messages = messages.subList(0, Math.min(limit, messages.size()));
+					
+					if (messages.size() == 1) {
+						messages.get(0).delete().queue();
+					} else {
+						event.getTextChannel().deleteMessages(messages).queue();
+					}
+				});
+			});
+		}
+		
+		@Command(value="attachments", description="Prunes a set amount of attachments in the last 100 messages")
+		@Examples({"prune attachments", "prune attachments 10"})
+		@AuthorPermissions({Permission.MESSAGE_MANAGE})
+		@BotPermissions({Permission.MESSAGE_MANAGE, Permission.MESSAGE_HISTORY})
+		public void attachments(CommandEvent event, @Argument(value="amount", nullDefault=true) Integer amount) {
+			int limit = amount == null ? 100 : amount > 100 ? 100 : amount;
+			if (limit < 1) {
+				event.reply("You have to delete at least 1 message :no_entry:").queue();
+				return;
+			}
+			
+			event.getMessage().delete().queue($ -> {
+				event.getTextChannel().getHistory().retrievePast(100).queue(messages -> {
+					long secondsNow = Clock.systemUTC().instant().getEpochSecond();
+					for (Message message : new ArrayList<>(messages)) {
+						if (message.getAttachments().isEmpty()) {
+							messages.remove(message);
+						} else if (secondsNow - message.getTimeCreated().toEpochSecond() > 1209600) {
+							messages.remove(message);
+						}
+					}
+					
+					if (messages.size() == 0) {
+						event.reply("No messages in the last 100 were from that user or they were 14 days or older :no_entry:").queue();
+						return;
+					}
+					
+					messages = messages.subList(0, Math.min(limit, messages.size()));
+					
+					if (messages.size() == 1) {
+						messages.get(0).delete().queue();
+					} else {
+						event.getTextChannel().deleteMessages(messages).queue();
+					}
+				});
+			});
+		}
+		
+		@Command(value="mentions", description="Prunes a set amount of mentions in the last 100 messages")
+		@Examples({"prune mentions", "prune mentions 10"})
+		@AuthorPermissions({Permission.MESSAGE_MANAGE})
+		@BotPermissions({Permission.MESSAGE_MANAGE, Permission.MESSAGE_HISTORY})
+		public void mentions(CommandEvent event, @Argument(value="amount", nullDefault=true) Integer amount) {
+			int limit = amount == null ? 100 : amount > 100 ? 100 : amount;
+			if (limit < 1) {
+				event.reply("You have to delete at least 1 message :no_entry:").queue();
+				return;
+			}
+			
+			event.getMessage().delete().queue($ -> {
+				event.getTextChannel().getHistory().retrievePast(100).queue(messages -> {
+					long secondsNow = Clock.systemUTC().instant().getEpochSecond();
+					for (Message message : new ArrayList<>(messages)) {
+						if (message.getMentions(MentionType.values()).isEmpty()) {
+							messages.remove(message);
+						} else if (secondsNow - message.getTimeCreated().toEpochSecond() > 1209600) {
+							messages.remove(message);
+						}
+					}
+					
+					if (messages.size() == 0) {
+						event.reply("No messages in the last 100 were from that user or they were 14 days or older :no_entry:").queue();
+						return;
+					}
+					
+					messages = messages.subList(0, Math.min(limit, messages.size()));
+					
+					if (messages.size() == 1) {
+						messages.get(0).delete().queue();
+					} else {
+						event.getTextChannel().deleteMessages(messages).queue();
+					}
+				});
+			});
+		}
+		
 	}
 	
 	@Command(value="bot clean", aliases={"bc", "botclean"}, description="Removed a certain amount of bot messages in the current channel", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)

@@ -2803,44 +2803,6 @@ public class FunModule {
 		});
 	}
 	
-	private enum SteamStatus {
-		
-		OFFLINE("Offline", 0),
-		ONLINE("Online", 1, 5, 6),
-		BUSY("Busy", 2),
-		AWAY("Away", 3),
-		SNOOZE("Snooze", 4);
-		
-		private final int[] states;
-		private final String name;
-		
-		private SteamStatus(String name, int... states) {
-			this.name = name;
-			this.states = states;
-		}
-		
-		public String getName() {
-			return this.name;
-		}
-		
-		public int[] getStates() {
-			return this.states;
-		}
-		
-		public static SteamStatus getStatus(int state) {
-			for (SteamStatus status : SteamStatus.values()) {
-				for (int statusState : status.getStates()) {
-					if (state == statusState) {
-						return status;
-					}
-				}
-			}
-			
-			return null;
-		}
-		
-	}
-	
 	@Command(value="steam", aliases={"steam profile", "steamprofile"}, description="Look up any users steam profile", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 	@Examples({"steam dog", "steam https://steamcommunity.com/id/dog"})
 	@Cooldown(value=10)
@@ -2860,22 +2822,44 @@ public class FunModule {
 			}
 			
 			JSONObject profile = json.getJSONObject("profile");
+			if (profile.has("privacyMessage")) {
+				Object privacyMessage = profile.get("privacyMessage");
+				if (privacyMessage instanceof String) {
+					event.reply((String) privacyMessage).queue();
+				} else {
+					JSONArray lines = ((JSONObject) privacyMessage).getJSONArray("content");
+					
+					StringBuilder reply = new StringBuilder();
+					for (int i = 0; i < lines.length(); i++) {
+						reply.append(lines.getString(i) + "\n");
+					}
+					
+					event.reply(reply.toString()).queue();
+				}
+				
+				return;
+			}
+			
+			if (profile.getInt("visibilityState") == 1) {
+				event.reply("That profile is marked as private :no_entry:").queue();
+				return;
+			}
+			
 			JSONObject mostPlayedGames = profile.optJSONObject("mostPlayedGames");
 			JSONArray games = mostPlayedGames == null ? new JSONArray() : mostPlayedGames.getJSONArray("mostPlayedGame");
 			
-			System.out.println(games.toString());
-			
 			String stateMessage =  profile.getString("stateMessage");
 			String location = profile.getString("location");
-			
+			String realName = profile.getString("realname");
+
 			EmbedBuilder embed = new EmbedBuilder();
 			embed.setAuthor(profile.getString("steamID"), url, profile.getString("avatarFull"));
 			embed.setDescription(Jsoup.parse(profile.getString("summary")).text());
 			embed.setFooter("ID: " + profile.getLong("steamID64"));
 			embed.setThumbnail(profile.getString("avatarFull"));
-			embed.addField("Real Name", profile.getString("realname"), true);
+			embed.addField("Real Name", realName.isBlank() ? "None Given" : realName, true);
 			embed.addField("Created At", LocalDate.parse(profile.getString("memberSince"), DateTimeFormatter.ofPattern("LLLL d, yyyy")).format(this.dateFormatter), true);
-			embed.addField("Status", SteamStatus.getStatus(profile.getInt("visibilityState")).getName(), true);
+			embed.addField("Status", GeneralUtils.title(profile.getString("onlineState")), true);
 			
 			if (!stateMessage.equals("Online")) {
 				embed.addField("Last Online", stateMessage.substring(12), true);
@@ -2975,7 +2959,7 @@ public class FunModule {
 						embed.setTitle("Page " + page.getCurrentPage() + "/" + page.getMaxPage());
 						embed.setAuthor(data.getString("word"), data.getString("permalink"), null);
 						embed.addField("Definition", definition.length() > 950 ? definition.substring(0, 950) + "... [Read more](" + data.getString("permalink") + ")" : definition, false);
-						if (!data.getString("example").equals("")) {
+						if (!data.getString("example").isEmpty()) {
 							embed.addField("Example", example.length() > 950 ? example.substring(0, 950) + "... [Read more](" + data.getString("permalink") + ")" : example, false);
 						}
 						
