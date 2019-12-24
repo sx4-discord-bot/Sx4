@@ -544,4 +544,5 @@ public class EconomyUtils {
 		
 		return Pair.of(name, amount);
 	}
+	
 }

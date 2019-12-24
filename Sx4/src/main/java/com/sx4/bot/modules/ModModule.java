@@ -2089,7 +2089,7 @@ public class ModModule {
 			}
 		}
 		
-		@Command(value="images", description="Prunes a set amount of images in the last 100 messages")
+		@Command(value="images", description="Prunes a set amount of messages which include images in the last 100 messages")
 		@Examples({"prune images", "prune images 10"})
 		@AuthorPermissions({Permission.MESSAGE_MANAGE})
 		@BotPermissions({Permission.MESSAGE_MANAGE, Permission.MESSAGE_HISTORY})
@@ -2127,7 +2127,7 @@ public class ModModule {
 			});
 		}
 		
-		@Command(value="embeds", description="Prunes a set amount of embeds in the last 100 messages")
+		@Command(value="embeds", description="Prunes a set amount of messages which include embeds in the last 100 messages")
 		@Examples({"prune embeds", "prune embeds 10"})
 		@AuthorPermissions({Permission.MESSAGE_MANAGE})
 		@BotPermissions({Permission.MESSAGE_MANAGE, Permission.MESSAGE_HISTORY})
@@ -2165,7 +2165,7 @@ public class ModModule {
 			});
 		}
 		
-		@Command(value="attachments", description="Prunes a set amount of attachments in the last 100 messages")
+		@Command(value="attachments", description="Prunes a set amount of messages which include attachments in the last 100 messages")
 		@Examples({"prune attachments", "prune attachments 10"})
 		@AuthorPermissions({Permission.MESSAGE_MANAGE})
 		@BotPermissions({Permission.MESSAGE_MANAGE, Permission.MESSAGE_HISTORY})
@@ -2203,7 +2203,7 @@ public class ModModule {
 			});
 		}
 		
-		@Command(value="mentions", description="Prunes a set amount of mentions in the last 100 messages")
+		@Command(value="mentions", description="Prunes a set amount of messages which include mentions in the last 100 messages")
 		@Examples({"prune mentions", "prune mentions 10"})
 		@AuthorPermissions({Permission.MESSAGE_MANAGE})
 		@BotPermissions({Permission.MESSAGE_MANAGE, Permission.MESSAGE_HISTORY})

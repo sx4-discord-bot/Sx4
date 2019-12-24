@@ -140,6 +140,9 @@ public class Sx4Bot {
 						
 						event.reply("I am missing the permission" + (permissions.size() == 1 ? "" : "s") + " `" + String.join("`, `", permissionNames) + "`, therefore I cannot execute that command :no_entry:").queue();
 					}
+				})
+				.setNSFWFunction(event -> {
+					event.reply("You can not use this command in a non-nsfw channel :no_entry:").queue();
 				});
 		
 		listener.removeDefaultPreExecuteChecks()

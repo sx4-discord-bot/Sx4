@@ -47,6 +47,7 @@ import com.jockie.bot.core.command.Command.Async;
 import com.jockie.bot.core.command.Command.AuthorPermissions;
 import com.jockie.bot.core.command.Command.BotPermissions;
 import com.jockie.bot.core.command.Command.Cooldown;
+import com.jockie.bot.core.command.Command.Nsfw;
 import com.jockie.bot.core.command.Context;
 import com.jockie.bot.core.command.ICommand.ContentOverflowPolicy;
 import com.jockie.bot.core.command.Initialize;
@@ -76,6 +77,7 @@ import com.sx4.bot.settings.Settings;
 import com.sx4.bot.starboard.Starboard;
 import com.sx4.bot.starboard.StarboardMessage;
 import com.sx4.bot.utils.ArgumentUtils;
+import com.sx4.bot.utils.CompactNumber;
 import com.sx4.bot.utils.EconomyUtils;
 import com.sx4.bot.utils.FunUtils;
 import com.sx4.bot.utils.GeneralUtils;
@@ -929,7 +931,7 @@ public class FunModule {
 				.put("user_name", member.getUser().getAsTag())
 				.put("background", bytes == null ? null : bytes.getData())
 				.put("colour", colour == null ? "#ffffff" : colour)
-				.put("balance", String.format("%,d", balance))
+				.put("balance", CompactNumber.getCompactNumber(balance))
 				.put("reputation", reputation)
 				.put("description", description == null ? "Not set" : description)
 				.put("birthday", birthday == null ? "Not set" : birthday)
@@ -2896,13 +2898,9 @@ public class FunModule {
 	@Command(value="urban dictionary", aliases={"urban", "urbandictionary", "ud"}, description="Look up definitions on the urban dictionary")
 	@Examples({"urban dictionary hello", "urban dictionary dog"})
 	@Cooldown(value=3)
+	@Nsfw
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void urbanDictionary(CommandEvent event, @Argument(value="word", endless=true) String word) {
-		if (!event.getTextChannel().isNSFW()) {
-			event.reply("You can not use this command in a non-nsfw channel :no_entry:").queue();
-			return;
-		}
-		
 		Request request;
 		try {
 			request = new Request.Builder().url(new URL("http://api.urbandictionary.com/v0/define?term=" + word)).build();
