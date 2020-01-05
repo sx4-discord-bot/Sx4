@@ -91,8 +91,8 @@ import net.dv8tion.jda.api.events.role.RoleDeleteEvent;
 import net.dv8tion.jda.api.events.role.update.RoleUpdateNameEvent;
 import net.dv8tion.jda.api.events.role.update.RoleUpdatePermissionsEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
-import net.dv8tion.jda.internal.requests.EmptyRestAction;
-import okhttp3.OkHttpClient;;
+import net.dv8tion.jda.internal.requests.RestActionImpl;
+import okhttp3.OkHttpClient;
 
 public class EventHandler extends ListenerAdapter {
 	
@@ -1405,7 +1405,7 @@ public class EventHandler extends ListenerAdapter {
 		}
 
 		/* Wait AUDIT_LOG_DELAY milliseconds to ensure that the role-deletion event has come through */
-		new EmptyRestAction<Void>(event.getJDA()).queueAfter(AUDIT_LOG_DELAY, TimeUnit.MILLISECONDS, ($) -> {
+		new RestActionImpl<Void>(event.getJDA(), null).queueAfter(AUDIT_LOG_DELAY, TimeUnit.MILLISECONDS, ($) -> {
 			StringBuilder embedDescription = new StringBuilder();
 			
 			WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
