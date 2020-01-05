@@ -29,6 +29,7 @@ import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.VoiceChannel;
+import net.dv8tion.jda.api.utils.cache.SnowflakeCacheView;
 
 public class ArgumentUtils {
 	
@@ -51,20 +52,16 @@ public class ArgumentUtils {
 	}
 	
 	public static List<Member> getAllUniqueMembers() {
-		return Sx4Bot.getShardManager().getGuilds().stream()
-			.map(guild -> guild.getMembers())
-			.flatMap(List::stream)
+		return ArgumentUtils.getAllMembers().stream()
 			.filter(ArgumentUtils.distinctByKey(member -> member.getUser().getIdLong()))
 			.collect(Collectors.toList());
 	}
 
 	public static List<Member> getAllMembers() {
-		List<Member> members = new ArrayList<Member>();
-		for (Guild guild : Sx4Bot.getShardManager().getGuilds()) {
-			members.addAll(guild.getMembers());
-		}
-		
-		return members;
+		return Sx4Bot.getShardManager().getGuildCache().stream()
+			.map(Guild::getMemberCache)
+			.flatMap(SnowflakeCacheView::stream)
+			.collect(Collectors.toList());
 	}
 	
 	public static Month getMonthValue(String monthArgument) {

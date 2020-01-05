@@ -596,8 +596,10 @@ public class ModModule {
 			List<Document> commands = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("blacklist.commands")).getEmbedded(List.of("blacklist", "commands"), Collections.emptyList());
 			for (Document commandData : commands) {
 				if (commandData.getString("id").equals(commandName)) {
-					List<Document> blacklisted = commandData.getList("blacklisted", Document.class, Collections.emptyList());
-					if (blacklisted.isEmpty()) {
+					Document blacklisted = commandData.get("blacklisted", Database.EMPTY_DOCUMENT);
+					
+					boolean empty = blacklisted.entrySet().stream().allMatch(map -> ((List<?>) map.getValue()).isEmpty());
+					if (empty) {
 						event.reply("Nothing is blacklisted from that " + (command == null ? "module" : "command") + " :no_entry:").queue();
 						return;
 					}
@@ -997,8 +999,10 @@ public class ModModule {
 			List<Document> commands = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("blacklist.commands")).getEmbedded(List.of("blacklist", "commands"), Collections.emptyList());
 			for (Document commandData : commands) {
 				if (commandData.getString("id").equals(commandName)) {
-					List<Document> whitelisted = commandData.getList("whitelisted", Document.class, Collections.emptyList());
-					if (whitelisted.isEmpty()) {
+					Document whitelisted = commandData.get("whitelisted", Database.EMPTY_DOCUMENT);
+					
+					boolean empty = whitelisted.entrySet().stream().allMatch(map -> ((List<?>) map.getValue()).isEmpty());
+					if (empty) {
 						event.reply("Nothing is whitelisted from that " + (command == null ? "module" : "command") + " :no_entry:").queue();
 						return;
 					}

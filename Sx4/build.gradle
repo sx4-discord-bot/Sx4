@@ -8,9 +8,6 @@ repositories {
 	jcenter()
 }
 
-sourceCompatibility = JavaVersion.VERSION_12
-targetCompatibility = JavaVersion.VERSION_12
-
 dependencies {
 	implementation('com.github.21Joakim:Jockie-Utils:jda-v4-SNAPSHOT') {
 		exclude group: 'net.dv8tion', module: 'JDA'

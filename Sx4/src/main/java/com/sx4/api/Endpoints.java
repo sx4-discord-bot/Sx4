@@ -180,18 +180,16 @@ public class Endpoints {
 		    if (method.isAnnotationPresent(Path.class)) {
 		    	maxLength = Math.max(maxLength, ("/api" + method.getAnnotation(Path.class).value() + "/").length());
 		    	
-		    	Parameter[] parameters = method.getParameters();
-		    	for (int i = 0; i < parameters.length; i++) {
-		    		Parameter parameter = parameters[i];
-		    		if (parameter.isAnnotationPresent(QueryParam.class)) {
-			    		String query = " " + this.getParameterType(parameter) + " " + parameter.getAnnotation(QueryParam.class).value();
-			    		
-			    		if (maxLengthParameters.size() - 1 <= i) {
-			    			maxLengthParameters.add(query.length());
-			    		} else {
-			    			maxLengthParameters.remove(i);
-			    			maxLengthParameters.add(i, Math.max(query.length(), maxLengthParameters.get(i)));
-			    		}
+		    	List<Parameter> parameters = Arrays.stream(method.getParameters()).filter(paramater -> paramater.isAnnotationPresent(QueryParam.class)).collect(Collectors.toList());
+		    	for (int i = 0; i < parameters.size(); i++) {
+		    		Parameter parameter = parameters.get(i);
+		    		String query = " " + this.getParameterType(parameter) + " " + parameter.getAnnotation(QueryParam.class).value();
+		    		
+		    		if (maxLengthParameters.size() - 1 <= i) {
+		    			maxLengthParameters.add(query.length());
+		    		} else {
+		    			maxLengthParameters.remove(i);
+		    			maxLengthParameters.add(i, Math.max(query.length(), maxLengthParameters.get(i)));
 		    		}
 		    	}
 		    }
@@ -207,12 +205,10 @@ public class Endpoints {
 		    if (method.isAnnotationPresent(Path.class)) {
 		    	stringBuilder.append(String.format("%-" + (maxLength + 5) + "s", "/api/v1" + method.getAnnotation(Path.class).value() + "/"));
 		    	
-		    	Parameter[] newParameters = method.getParameters();
-				for (int i = 0; i < newParameters.length; i++) {
-					Parameter parameter = newParameters[i];
-					if (parameter.isAnnotationPresent(QueryParam.class)) {
-			    		stringBuilder.append(String.format("%-" + (maxLengthParameters.get(i) + 5) + "s", " " + this.getParameterType(parameter) + " " + parameter.getAnnotation(QueryParam.class).value()));
-					}
+		    	List<Parameter> newParameters = Arrays.stream(method.getParameters()).filter(paramater -> paramater.isAnnotationPresent(QueryParam.class)).collect(Collectors.toList());
+				for (int i = 0; i < newParameters.size(); i++) {
+					Parameter parameter = newParameters.get(i);
+			    	stringBuilder.append(String.format("%-" + (maxLengthParameters.get(i) + 5) + "s", " " + this.getParameterType(parameter) + " " + parameter.getAnnotation(QueryParam.class).value()));
 				}
 				
 				stringBuilder.append("\n");

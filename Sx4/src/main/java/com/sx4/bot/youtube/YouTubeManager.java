@@ -1,20 +1,21 @@
 package com.sx4.bot.youtube;
 
-import java.util.List;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 import org.bson.Document;
-import org.bson.conversions.Bson;
 
+import com.mongodb.client.model.DeleteOneModel;
 import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.WriteModel;
 import com.sx4.bot.core.Sx4Bot;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.interfaces.Sx4Callback;
@@ -89,10 +90,10 @@ public class YouTubeManager {
 		}
 	}
 	
-	public Bson resubscribeAndGet(String channelId) {
-		long amount = Database.get().getGuilds().countDocuments(Filters.eq("youtubeNotifications.uploaderId", channelId));
+	public DeleteOneModel<Document> resubscribeAndGet(String channelId) {
+		long amount = Database.get().getGuilds().countDocuments(Filters.elemMatch("youtubeNotifications", Filters.eq("uploaderId", channelId)));
 		
-		Bson filter = null;
+		DeleteOneModel<Document> model = null;
 		if (amount != 0) {
 			RequestBody body = new MultipartBody.Builder()
 					.addFormDataPart("hub.mode", "subscribe")
@@ -116,18 +117,18 @@ public class YouTubeManager {
 				response.close();
 			});
 		} else {
-			filter = Filters.eq("_id", channelId);
+			model = new DeleteOneModel<>(Filters.eq("_id", channelId));
 		}
 		
 		this.removeResubscription(channelId);
 		
-		return filter;
+		return model;
 	}
 	
 	public void resubscribe(String channelId) {
-		Bson filter = this.resubscribeAndGet(channelId);
-		if (filter != null) {
-			Database.get().deleteResubscription(filter, (result, exception) -> {
+		DeleteOneModel<Document> model = this.resubscribeAndGet(channelId);
+		if (model != null) {
+			Database.get().deleteResubscription(model.getFilter(), (result, exception) -> {
 				if (exception != null) {
 					exception.printStackTrace();
 				}
@@ -138,15 +139,15 @@ public class YouTubeManager {
 	public void ensureResubscriptions() {
 		List<Document> resubscriptions = Database.get().getResubscriptions().find().into(new ArrayList<>());
 		
-		List<Bson> filters = new ArrayList<>();
+		List<WriteModel<Document>> bulkData = new ArrayList<>();
 		for (Document data : resubscriptions) {
 			String channelId = data.getString("_id");
 			
 			long timeTill = data.getLong("resubscribeAt") - Clock.systemUTC().instant().getEpochSecond();
 			if (timeTill <= 0) { 
-				Bson filter = this.resubscribeAndGet(channelId);
-				if (filter != null) {
-					filters.add(filter);
+				DeleteOneModel<Document> model = this.resubscribeAndGet(channelId);
+				if (model != null) {
+					bulkData.add(model);
 				}
 			} else {
 				ScheduledFuture<?> resubscription = Sx4Bot.scheduledExectuor.schedule(() -> this.resubscribe(channelId), timeTill, TimeUnit.SECONDS);
@@ -154,8 +155,8 @@ public class YouTubeManager {
 			}
 		}
 		
-		if (!filters.isEmpty()) {
-			Database.get().deleteManyResubscriptions(Filters.or(filters), (result, exception) -> {
+		if (!bulkData.isEmpty()) {
+			Database.get().bulkWriteResubscriptions(bulkData, (result, exception) -> {
 				if (exception != null) {
 					exception.printStackTrace();
 				}

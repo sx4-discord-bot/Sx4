@@ -92,6 +92,7 @@ import net.dv8tion.jda.api.entities.Invite;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Message.Attachment;
 import net.dv8tion.jda.api.entities.MessageEmbed;
+import net.dv8tion.jda.api.entities.RichPresence;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.entities.User;
@@ -2323,34 +2324,33 @@ public class GeneralModule {
 
 		if (member != null) {
 			StringBuilder description = new StringBuilder();
-			if (!member.getActivities().isEmpty()) {
-				for (Activity activity : member.getActivities()) {
-					boolean emptyCustomStatus = activity.getName().equals("Custom Status");
-					if (activity.getEmoji() != null && emptyCustomStatus) {
-						description.append(activity.getEmoji().getAsMention() + " ");
-						continue;
-					}
-					
-					if (activity.isRich()) {
-						if (activity.getName().equals("Spotify")) {
-							String currentTime = TimeUtils.getTimeFormat(activity.getTimestamps().getElapsedTime(ChronoUnit.SECONDS));
-							String totalTime = TimeUtils.getTimeFormat((activity.getTimestamps().getEnd()/1000) - (activity.getTimestamps().getStart()/1000));
-							description.append(String.format("Listening to [%s by %s](https://open.spotify.com/track/%s) `[%s/%s]`", activity.asRichPresence().getDetails(), activity.asRichPresence().getState().split(";")[0], activity.asRichPresence().getSyncId(), currentTime, totalTime));
-						} else {
-							description.append(GeneralUtils.title(activity.getType().equals(ActivityType.DEFAULT) ? "Playing" : activity.getType().toString()) + " " + activity.getName() + (activity.getTimestamps() != null ? " for " + 
-									TimeUtils.toTimeString(Clock.systemUTC().instant().getEpochSecond() - (activity.getTimestamps().getStart()/1000), ChronoUnit.SECONDS) : ""));  
-						}
-					} else if (activity.getType() == ActivityType.STREAMING) {
-						description.append(String.format("Streaming [%s](%s)", activity.getName(), activity.getUrl()));
-					} else if (activity.getType() == ActivityType.CUSTOM_STATUS && !emptyCustomStatus) {
-						description.append((activity.getEmoji() != null ? activity.getEmoji().getAsMention() : "") + " " + activity.getName());																		
-					} else {
-						description.append(GeneralUtils.title(activity.getType().equals(ActivityType.DEFAULT) ? "Playing" : activity.getType().toString()) + " " + activity.getName() + (activity.getTimestamps() != null ? " for " + 
-								TimeUtils.toTimeString(Clock.systemUTC().instant().getEpochSecond() - (activity.getTimestamps().getStart()/1000), ChronoUnit.SECONDS) : ""));	
-					}
-					
-					break;
+			for (Activity activity : member.getActivities()) {
+				boolean emptyCustomStatus = activity.getName().equals("Custom Status");
+				if (activity.getEmoji() != null && emptyCustomStatus) {
+					description.append(activity.getEmoji().getAsMention() + " ");
+					continue;
 				}
+				
+				if (activity.getType() == ActivityType.CUSTOM_STATUS && !emptyCustomStatus) {
+					description.append((activity.getEmoji() != null ? activity.getEmoji().getAsMention() : "") + " " + activity.getName());																		
+				} else if (activity.isRich()) {
+					RichPresence richPresence = activity.asRichPresence();
+					if (activity.getName().equals("Spotify")) {
+						String currentTime = TimeUtils.getTimeFormat(activity.getTimestamps().getElapsedTime(ChronoUnit.SECONDS));
+						String totalTime = TimeUtils.getTimeFormat((activity.getTimestamps().getEnd()/1000) - (activity.getTimestamps().getStart()/1000));
+						description.append(String.format("Listening to [%s by %s](https://open.spotify.com/track/%s) `[%s/%s]`", richPresence.getDetails(), richPresence.getState().split(";")[0], richPresence.getSyncId(), currentTime, totalTime));
+					} else if (activity.getType() == ActivityType.STREAMING) {
+						description.append(String.format("Streaming [%s](%s)", richPresence.getState(), richPresence.getUrl()));
+					} else {
+						description.append(GeneralUtils.title(activity.getType() == ActivityType.DEFAULT ? "Playing" : activity.getType().toString()) + " " + activity.getName() + (activity.getTimestamps() != null ? " for " + 
+								TimeUtils.toTimeString(Clock.systemUTC().instant().getEpochSecond() - (activity.getTimestamps().getStart()/1000), ChronoUnit.SECONDS) : ""));  
+					}
+				} else {
+					description.append(GeneralUtils.title(activity.getType().equals(ActivityType.DEFAULT) ? "Playing" : activity.getType().toString()) + " " + activity.getName() + (activity.getTimestamps() != null ? " for " + 
+							TimeUtils.toTimeString(Clock.systemUTC().instant().getEpochSecond() - (activity.getTimestamps().getStart()/1000), ChronoUnit.SECONDS) : ""));	
+				}
+				
+				break;
 			}
 			
 			StringBuilder onlineOn = new StringBuilder();

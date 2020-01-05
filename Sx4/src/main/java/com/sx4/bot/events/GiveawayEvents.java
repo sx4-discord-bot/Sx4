@@ -77,7 +77,7 @@ public class GiveawayEvents {
 							List<Member> members = new ArrayList<>();
 							CompletableFuture<?> future = reaction.retrieveUsers().forEachAsync((user) -> {
 								Member reactionMember = guild.getMember(user);
-								if (reactionMember != null && !members.contains(reactionMember) && reactionMember != guild.getSelfMember()) {
+								if (reactionMember != null && reactionMember != guild.getSelfMember()) {
 									members.add(reactionMember);
 								}
 								

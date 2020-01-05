@@ -60,6 +60,7 @@ public class ConnectionEvents extends ListenerAdapter {
 			MuteEvents.ensureMutes();
 			AutoroleEvents.ensureAutoroles();
 			Item.loadConfig();
+			NotificationEvents.get().ensureWebhooks();
 			Sx4Bot.getYouTubeManager().ensureResubscriptions();
 			
 			System.gc();

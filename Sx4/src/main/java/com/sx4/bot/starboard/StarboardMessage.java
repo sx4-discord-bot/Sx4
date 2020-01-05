@@ -74,7 +74,7 @@ public class StarboardMessage {
 	}
 	
 	public static List<StarboardMessage> fromRaw(List<Document> messages) {
-		return messages.stream().map(message -> new StarboardMessage(message)).collect(Collectors.toList());
+		return messages.stream().map(StarboardMessage::new).collect(Collectors.toList());
 	}
 	
 }

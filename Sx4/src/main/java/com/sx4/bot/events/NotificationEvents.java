@@ -42,9 +42,15 @@ import okhttp3.OkHttpClient;
 
 public class NotificationEvents implements EventListener, YouTubeListener {
 	
-	private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd LLLL yyyy HH:mm");
+	private static final NotificationEvents INSTANCE = new NotificationEvents();
 	
-	private final String defaultMessage = "**[{channel.name}]({channel.url})** just uploaded a new video!\n{video.url}";
+	public static NotificationEvents get() {
+		return NotificationEvents.INSTANCE;
+	}
+	
+	public static final String DEFAULT_MESSAGE = "**[{channel.name}]({channel.url})** just uploaded a new video!\n{video.url}";
+	
+	private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd LLLL yyyy HH:mm");
 	
 	private final OkHttpClient client = new OkHttpClient.Builder().build();
 	
@@ -102,6 +108,24 @@ public class NotificationEvents implements EventListener, YouTubeListener {
 		return message;
 	}
 	
+	public void ensureWebhooks() {
+		Database.get().getGuilds(Filters.elemMatch("youtubeNotifications", Filters.exists("webhookId")), Projections.include("youtubeNotifications.channelId", "youtubeNotifications.webhookId", "youtubeNotifications.webhookToken")).forEach((Document guildData) -> {
+			List<Document> notifications = guildData.getList("youtubeNotifications", Document.class);
+			for (Document data : notifications) {
+				Long webhookId = data.getLong("webhookId");
+				String webhookToken = data.getString("webhookToken");
+				if (webhookId != null && webhookToken != null) {
+					WebhookClient webhook = new WebhookClientBuilder(webhookId, webhookToken)
+							.setExecutorService(this.scheduledExectuor)
+							.setHttpClient(this.client)
+							.build();
+					
+					this.webhooks.putIfAbsent(data.getLong("channelId"), webhook);
+				}
+			}
+		});
+	}
+	
 	private void createNewWebhook(YouTubeEvent event, TextChannel textChannel, String messageContent) {
 		textChannel.createWebhook("Sx4 - YouTube").queue(newWebhook -> {
 			WebhookClient webhookClient = new WebhookClientBuilder(newWebhook.getUrl())
@@ -149,17 +173,18 @@ public class NotificationEvents implements EventListener, YouTubeListener {
 			try {
 				Database database = Database.get();
 
-				database.getGuilds(Filters.exists("youtubeNotifications"), Projections.include("youtubeNotifications")).forEach((Document guildData) -> {
+				String channelId = event.getChannel().getId();
+				database.getGuilds(Filters.elemMatch("youtubeNotifications", Filters.eq("uploaderId", channelId)), Projections.include("youtubeNotifications")).forEach((Document guildData) -> {
 					Guild guild = shardManager.getGuildById(guildData.getLong("_id"));
 					
 					if (guild != null) {
 						List<Document> notifications = guildData.getList("youtubeNotifications", Document.class);
 						for (Document data : notifications) {
-							if (data.getString("uploaderId").equals(event.getChannel().getId())) {
-								Long textChannelId = data.getLong("channelId");
+							if (data.getString("uploaderId").equals(channelId)) {
+								long textChannelId = data.getLong("channelId");
 								TextChannel textChannel = guild.getTextChannelById(textChannelId);
 								if (textChannel != null) {
-									String messageContent = this.getMessage(event, data.get("message", this.defaultMessage));
+									String messageContent = this.getMessage(event, data.get("message", NotificationEvents.DEFAULT_MESSAGE));
 									
 									WebhookClient webhook;
 									

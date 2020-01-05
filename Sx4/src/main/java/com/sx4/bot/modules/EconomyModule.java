@@ -395,7 +395,7 @@ public class EconomyModule {
 		public void create(CommandEvent event, @Context Database database, @Argument(value="amount") String moneyArgument) {
 			Document data = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance", "economy.items")).get("economy", Database.EMPTY_DOCUMENT);
 			List<Document> items = data.getList("items", Document.class, new ArrayList<>());
-			long balance = data.getLong("balance");
+			long balance = data.get("balance", 0L);
 			
 			long amount;
 			try {
@@ -2653,8 +2653,8 @@ public class EconomyModule {
 			long itemAmountLong = itemAmount.longValue();
 			ItemStack<Item> userItem = EconomyUtils.getUserItem(userItems, item);
 			
-			long fullPrice = item.getPrice() * itemAmountLong;
-			long tax = (long) (fullPrice * 0.05D);
+			long fullPrice = item.isBuyable() ? item.getPrice() * itemAmountLong : 0;
+			long tax = item.isBuyable() ? (long) (fullPrice * 0.05D) : 0;
 			if (data.get("balance", 0L) < tax) {
 				event.replyFormat("You cannot afford the tax for giving `%s`, you need **$%,d** :no_entry:", itemString, tax).queue();
 				return;
@@ -2998,7 +2998,7 @@ public class EconomyModule {
 		}
 		
 		@Command(value="sell", description="Put an item on the auction for the chance of it being bought by someone else")
-		@Examples({"auction sell Coal 20", "auction sell Platinum Pickaxe"})
+		@Examples({"auction sell 1000 Coal 20", "auction sell 50000 Platinum Pickaxe"})
 		public void sell(CommandEvent event, @Context Database database, @Argument(value="price") long price, @Argument(value="item", endless=true) String itemArgument) {
 			Pair<String, BigInteger> itemPair = EconomyUtils.getItemAndAmount(itemArgument);
 			String itemName = itemPair.getLeft();
@@ -3162,7 +3162,7 @@ public class EconomyModule {
 						UpdateOptions updateOptions = new UpdateOptions().upsert(true);
 						List<WriteModel<Document>> bulkData = List.of(
 								new UpdateOneModel<>(Filters.eq("_id", event.getAuthor().getIdLong()), authorUpdate, updateOptions),
-								new UpdateOneModel<>(Filters.eq("_id", owner.getIdLong()), Updates.inc("economy.balance", auctionItem.getPrice()), updateOptions)
+								new UpdateOneModel<>(Filters.eq("_id", auctionItem.getOwnerId()), Updates.inc("economy.balance", auctionItem.getPrice()), updateOptions)
 						);
 						
 						database.bulkWriteUsers(bulkData, (userResult, userException) -> {
@@ -3171,9 +3171,12 @@ public class EconomyModule {
 								event.reply(Sx4CommandEventListener.getUserErrorMessage(userException)).queue();
 							} else {
 								event.replyFormat("You just bought `%,d %s` for **$%,d** :ok_hand:", auctionItem.getAmount(), auctionItem.getItem().getName(), auctionItem.getPrice()).queue();
-								owner.openPrivateChannel().queue(channel -> {
-									channel.sendMessageFormat("Your `%,d %s` was just bought for **$%,d** :tada:", auctionItem.getAmount(), auctionItem.getItem().getName(), auctionItem.getPrice()).queue();
-								}, e -> {});
+								
+								if (owner != null) {
+									owner.openPrivateChannel().queue(channel -> {
+										channel.sendMessageFormat("Your `%,d %s` was just bought for **$%,d** :tada:", auctionItem.getAmount(), auctionItem.getItem().getName(), auctionItem.getPrice()).queue();
+									}, e -> {});
+								}
 							}
 						});
 					}
@@ -3383,11 +3386,7 @@ public class EconomyModule {
 				for (int i = 0; i < userAxe.getMaximumMaterials(); i++) {
 					int randomInt = random.nextInt((int) Math.ceil(wood.getChance() / userAxe.getMultiplier()) + 1);
 					if (randomInt == 0) {
-						if (woodGathered.containsKey(wood)) {
-							woodGathered.put(wood, woodGathered.get(wood) + 1L);
-						} else {
-							woodGathered.put(wood, 1L);
-						}
+						woodGathered.compute(wood, (key, value) -> value != null ? ++value : 1L);
 					}
 				}
 			}

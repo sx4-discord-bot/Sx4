@@ -24,7 +24,7 @@ public class StarboardConfiguration {
 	}
 	
 	public static List<StarboardConfiguration> fromRaw(List<Document> configuration) {
-		return configuration.stream().map(star -> new StarboardConfiguration(star)).collect(Collectors.toList());
+		return configuration.stream().map(StarboardConfiguration::new).collect(Collectors.toList());
 	}
 	
 }

@@ -12,6 +12,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.bson.Document;
@@ -47,13 +48,15 @@ import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.entities.MessageReaction;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
+import net.dv8tion.jda.internal.utils.tuple.Pair;
 
 @Module
 public class GiveawayModule {
 
 	public class GiveawayCommand extends Sx4Command {
 		
-		Pattern winnerRegex = Pattern.compile("\\*\\*(.*)\\*\\* has won \\*\\*(.*)\\*\\*");
+		Pattern winnersRegex = Pattern.compile("\\*\\*(.*)\\*\\* has won \\*\\*(.*)\\*\\*");
+		Pattern winnerRegex = Pattern.compile("(.{2,32})#(\\d{4}), ");
 		
 		public GiveawayCommand() {
 			super("giveaway");
@@ -92,7 +95,7 @@ public class GiveawayModule {
 								List<Member> members = new ArrayList<>();
 								CompletableFuture<?> future = reaction.retrieveUsers().forEachAsync(user -> {
 									Member reactionMember = event.getGuild().getMember(user);
-									if (reactionMember != null && !members.contains(reactionMember) && reactionMember != event.getSelfMember()) {
+									if (reactionMember != null && reactionMember != event.getSelfMember()) {
 										members.add(reactionMember);
 									}
 									
@@ -188,12 +191,30 @@ public class GiveawayModule {
 								event.reply("That message is not a giveaway message :no_entry:").queue();
 								return;
 							} else {
-								if (winnerRegex.matcher(embed.getDescription()).matches()) {
-									String[] winners = embed.getDescription().split("\\*\\*")[1].split(", ");
+								Matcher matcher = winnersRegex.matcher(embed.getDescription());
+								if (matcher.matches()) {
+									String winnersUnparsed = matcher.group(1);
+									Matcher winnerMatcher = winnerRegex.matcher(winnersUnparsed);
+									
+									List<Pair<String, String>> winners = new ArrayList<>();
+									while (winnerMatcher.find()) {
+										winners.add(Pair.of(winnerMatcher.group(1), winnerMatcher.group(2)));
+										
+										int end = winnerMatcher.end();
+										if (!winnerMatcher.find()) {
+											Matcher lastMatcher = ArgumentUtils.USER_TAG_REGEX.matcher(winnersUnparsed.substring(end).trim());
+											if (lastMatcher.matches()) {
+												winners.add(Pair.of(lastMatcher.group(1), lastMatcher.group(2)));
+											}
+										}
+									}
+									
 									Set<Member> members = new HashSet<>();
-									for (String winner : winners) {
-										Member member = event.getGuild().getMembersByName(winner.split("#")[0], false).stream().filter(it -> it.getUser().getDiscriminator().equals(winner.split("#")[1])).findFirst().orElse(null);
-										members.add(member);
+									for (Pair<String, String> winner : winners) {
+										Member member = event.getGuild().getMembersByName(winner.getLeft(), false).stream().filter(it -> it.getUser().getDiscriminator().equals(winner.getRight())).findFirst().orElse(null);
+										if (member != null) {
+											members.add(member);
+										}
 									}
 										
 									List<Member> possibleWinners = new ArrayList<>();

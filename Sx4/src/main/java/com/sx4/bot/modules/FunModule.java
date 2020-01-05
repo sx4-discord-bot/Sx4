@@ -71,6 +71,7 @@ import com.sx4.bot.core.Sx4Bot;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEventListener;
 import com.sx4.bot.database.Database;
+import com.sx4.bot.events.NotificationEvents;
 import com.sx4.bot.interfaces.Examples;
 import com.sx4.bot.interfaces.Sx4Callback;
 import com.sx4.bot.settings.Settings;
@@ -202,11 +203,7 @@ public class FunModule {
 						Document notificationData = new Document("uploaderId", channelId)
 								.append("channelId", channel.getIdLong());
 						
-						List<Document> guilds = database.getGuilds(Filters.exists("youtubeNotifications"), Projections.include("youtubeNotifications.channelId", "youtubeNotifications.uploaderId"))
-								.into(new ArrayList<>())
-								.stream()
-								.filter(guildData -> guildData.getList("youtubeNotifications", Document.class).stream().anyMatch(notification -> notification.getString("uploaderId").equals(channelId)))
-								.collect(Collectors.toList());
+						List<Document> guilds = database.getGuilds(Filters.elemMatch("youtubeNotifications", Filters.eq("uploaderId", channelId)), Projections.include("youtubeNotifications.channelId", "youtubeNotifications.uploaderId")).into(new ArrayList<>());
 						
 						if (guilds.isEmpty() && !Sx4Bot.getYouTubeManager().hasResubscription(channelId)) {
 							RequestBody body = new MultipartBody.Builder()
@@ -278,7 +275,7 @@ public class FunModule {
 			}
 			
 			Request channelRequest = new Request.Builder()
-					.url("https://www.googleapis.com/youtube/v3/search?key=" + TokenUtils.YOUTUBE + "&q=" + youtubeChannelArgument + "&part=id&maxResults=1")
+					.url("https://www.googleapis.com/youtube/v3/search?key=" + TokenUtils.YOUTUBE + "&q=" + youtubeChannelArgument + "&part=id&maxResults=50")
 					.build();
 			
 			Sx4Bot.client.newCall(channelRequest).enqueue((Sx4Callback) channelResponse -> {
@@ -349,7 +346,7 @@ public class FunModule {
 			}
 			
 			Request channelRequest = new Request.Builder()
-					.url("https://www.googleapis.com/youtube/v3/search?key=" + TokenUtils.YOUTUBE + "&q=" + youtubeChannelArgument + "&part=id&maxResults=1")
+					.url("https://www.googleapis.com/youtube/v3/search?key=" + TokenUtils.YOUTUBE + "&q=" + youtubeChannelArgument + "&part=id&maxResults=50")
 					.build();
 			
 			Sx4Bot.client.newCall(channelRequest).enqueue((Sx4Callback) channelResponse -> {
@@ -366,7 +363,7 @@ public class FunModule {
 					if (id.getString("kind").equals("youtube#channel")) {
 						String channelId = id.getString("channelId");
 						
-						List<Document> notifications = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("youtubeNotifications.channelId", "youtubeNotifications.uploaderId", "youtubeNotifications.message")).getList("youtubeNotifications", Document.class);
+						List<Document> notifications = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("youtubeNotifications.channelId", "youtubeNotifications.uploaderId", "youtubeNotifications.message")).getList("youtubeNotifications", Document.class, Collections.emptyList());
 						for (Document data : notifications) {
 							if (data.getString("uploaderId").equals(channelId) && data.getLong("channelId") == channel.getIdLong()) {
 								String currentMessage = data.getString("message");
@@ -440,6 +437,58 @@ public class FunModule {
 					});
 			
 			PagedUtils.getPagedResult(event, paged, 300, null);
+		}
+		
+		@Command(value="stats", aliases={"settings", "setting"}, description="View the settings for a specific notification")
+		@Examples({"youtube notification stats videos mrbeast", "youtube notification stats #videos pewdiepie"})
+		@AuthorPermissions({Permission.MANAGE_SERVER})
+		public void stats(CommandEvent event, @Context Database database, @Argument(value="channel") String channelArgument, @Argument(value="youtube channel", endless=true) String youtubeChannelArgument) {
+			TextChannel channel = ArgumentUtils.getTextChannel(event.getGuild(), channelArgument);
+			if (channel == null) {
+				event.reply("I could not find that channel :no_entry:").queue();
+				return;
+			}
+			
+			Request channelRequest = new Request.Builder()
+					.url("https://www.googleapis.com/youtube/v3/search?key=" + TokenUtils.YOUTUBE + "&q=" + youtubeChannelArgument + "&part=id&maxResults=50")
+					.build();
+			
+			Sx4Bot.client.newCall(channelRequest).enqueue((Sx4Callback) channelResponse -> {
+				JSONObject json = new JSONObject(channelResponse.body().string());
+				
+				JSONArray items = json.getJSONArray("items");
+				if (items.isEmpty()) {
+					event.reply("I could not find that youtube channel :no_entry:").queue();
+					return;
+				}
+				
+				for (int i = 0; i < items.length(); i++) {
+					JSONObject id = items.getJSONObject(i).getJSONObject("id");;
+					if (id.getString("kind").equals("youtube#channel")) {
+						String channelId = id.getString("channelId");
+						
+						List<Document> notifications = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("youtubeNotifications.channelId", "youtubeNotifications.uploaderId", "youtubeNotifications.message")).getList("youtubeNotifications", Document.class);
+						for (Document data : notifications) {
+							if (data.getString("uploaderId").equals(channelId) && data.getLong("channelId") == channel.getIdLong()) {
+								EmbedBuilder embed = new EmbedBuilder();
+								embed.setColor(Settings.EMBED_COLOUR);
+								embed.setAuthor("YouTube Notification Stats", null, event.getGuild().getIconUrl());
+								embed.addField("YouTube Channel", String.format("[%s](https://youtube.com/channel/%<s)", channelId), true);
+								embed.addField("Channel", channel.getAsMention(), true);
+								embed.addField("Message", "`" + data.get("message", NotificationEvents.DEFAULT_MESSAGE) + "`", false);
+								event.reply(embed.build()).queue();
+								
+								return;
+							}
+						}
+						
+						event.reply("You don't have a notification for that user in " + channel.getAsMention() + " :no_entry:").queue();
+						return;
+					}
+				}
+				
+				event.reply("I could not find that youtube channel :no_entry:").queue();
+			});
 		}
 		
 	}

@@ -99,7 +99,7 @@ public class Sx4Bot {
 	public static void main(String[] args) throws Exception {
 		eventHandler = new EventHandler();
 		
-		youtubeManager = new YouTubeManager().addListener(new NotificationEvents());
+		youtubeManager = new YouTubeManager().addListener(NotificationEvents.get());
 		
 		ContextManagerFactory.getDefault()
 			.registerContext(Database.class, (event, type) -> Sx4Bot.DATABASE)

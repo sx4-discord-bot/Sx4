@@ -231,14 +231,14 @@ public class Database {
 		});
 	}
 	
-	public DeleteResult deleteManyResubscriptions(Bson filter) {
-		return this.resubscriptions.deleteMany(filter);
+	public BulkWriteResult bulkWriteResubscriptions(List<WriteModel<Document>> bulkData) {
+		return this.resubscriptions.bulkWrite(bulkData);
 	}
 	
-	public void deleteManyResubscriptions(Bson filter, DatabaseCallback<DeleteResult> callback) {
+	public void bulkWriteResubscriptions(List<WriteModel<Document>> bulkData, DatabaseCallback<BulkWriteResult> callback) {
 		this.queryExecutor.submit(() -> {
 			try {
-				callback.onResult(this.deleteManyResubscriptions(filter), null);
+				callback.onResult(this.bulkWriteResubscriptions(bulkData), null);
 			} catch (Throwable e) {
 				callback.onResult(null, e);
 			}
