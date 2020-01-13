@@ -17,6 +17,8 @@ import com.jockie.bot.core.command.Initialize;
 import com.jockie.bot.core.command.impl.CommandEvent;
 import com.jockie.bot.core.command.impl.CommandImpl;
 import com.jockie.bot.core.module.Module;
+import com.mongodb.client.model.Aggregates;
+import com.mongodb.client.model.Field;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.UpdateOptions;
@@ -24,6 +26,7 @@ import com.mongodb.client.model.Updates;
 import com.sx4.bot.categories.Categories;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEventListener;
+import com.sx4.bot.database.Conditions;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.interfaces.Examples;
 import com.sx4.bot.utils.ArgumentUtils;
@@ -707,13 +710,13 @@ public class SelfrolesModule {
 		@Examples({"reaction role dm toggle"})
 		@AuthorPermissions({Permission.MANAGE_ROLES})
 		public void dmToggle(CommandEvent event, @Context Database database) {
-			boolean dm = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("reactionRole.dm")).getEmbedded(List.of("reactionRole", "dm"), true);
-			database.updateGuildById(event.getGuild().getIdLong(), Updates.set("reactionRole.dm", !dm), (result, exception) -> {
+			List<Bson> update = List.of(Aggregates.addFields(new Field<>("reactionRole.dm", Conditions.cond("$reactionRole.dm", "$$REMOVE", true))));
+			database.getGuildByIdAndUpdate(event.getGuild().getIdLong(), update, Projections.include("reactionRole.dm"), (data, exception) -> {
 				if (exception != null) {
 					exception.printStackTrace();
 					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
 				} else {
-					event.reply("I will " + (dm ? "no longer" : "now") + " dm users when they are given a role <:done:403285928233402378>").queue();
+					event.reply("I will " + (data.getEmbedded(List.of("reactionRole", "dm"), false) ? "now" : "no longer") + " dm users when they are given a role <:done:403285928233402378>").queue();
 				}
 			});
 		}

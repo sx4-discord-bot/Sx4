@@ -7,6 +7,10 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
+import java.time.Month;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingDeque;
@@ -17,6 +21,7 @@ import java.util.stream.Collectors;
 import org.bson.Document;
 import org.codehaus.groovy.control.CompilerConfiguration;
 import org.codehaus.groovy.control.customizers.ImportCustomizer;
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -44,9 +49,11 @@ import com.sx4.bot.core.Sx4CommandEventListener;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.economy.Item;
 import com.sx4.bot.interfaces.Examples;
+import com.sx4.bot.interfaces.Sx4Callback;
 import com.sx4.bot.logger.Statistics;
 import com.sx4.bot.logger.handler.EventHandler;
 import com.sx4.bot.logger.util.Utils;
+import com.sx4.bot.settings.Settings;
 import com.sx4.bot.utils.ArgumentUtils;
 import com.sx4.bot.utils.GeneralUtils;
 import com.sx4.bot.utils.HelpUtils;
@@ -60,6 +67,7 @@ import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.requests.RestAction;
 import net.dv8tion.jda.internal.entities.AbstractMessage;
 import net.dv8tion.jda.internal.entities.ReceivedMessage;
+import okhttp3.Request;
 
 @Module
 public class DeveloperModule {
@@ -413,6 +421,59 @@ public class DeveloperModule {
 		} catch (IOException e) {
 			event.reply(Sx4CommandEventListener.getUserErrorMessage(e)).queue();
 		}
+	}
+	
+	@Command(value="reward votes", description="Gives out the money rewards for votes for a specific month")
+	@Examples({"reward votes december", "reward votes july"})
+	@Developer
+	public void rewardVotes(CommandEvent event, @Context Database database, @Argument(value="month") String monthArgument) {
+		Month month;
+		try {
+			month = ArgumentUtils.getMonthValue(monthArgument);
+		} catch(IllegalArgumentException e) {
+			event.reply(e.getMessage()).queue();
+			return;
+		}
+		
+		ZonedDateTime now = ZonedDateTime.now(ZoneOffset.UTC);
+		
+		int year = month.getValue() > now.getMonthValue() ? now.getYear() - 1 : now.getYear();
+		
+		long startTimestamp = ZonedDateTime.of(year, month.getValue(), 1, 0, 0, 0, 0, ZoneOffset.UTC).toEpochSecond();
+		long endTimestamp = ZonedDateTime.of(year, month.plus(1).getValue(), 1, 0, 0, 0, 0, ZoneOffset.UTC).toEpochSecond();
+			
+		Request request = new Request.Builder().url(String.format("http://" + Settings.LOCAL_HOST + ":8080/votesCount?after=%d&before=%d&limit=3", startTimestamp, endTimestamp)).build();
+		
+		
+		ImageModule.client.newCall(request).enqueue((Sx4Callback) response -> {
+			JSONObject json = new JSONObject(response.body().string());
+			JSONArray votes = json.getJSONArray("votes");
+			
+			List<Long> rewards = List.of(50000L, 30000L, 20000L);
+			
+			StringBuilder reply = new StringBuilder();
+			List<WriteModel<Document>> bulkData = new ArrayList<>();
+			for (int i = 0; i < votes.length(); i++) {
+				JSONObject vote = votes.getJSONObject(i);
+				
+				String id = vote.getString("id");
+				int voteCount = vote.getInt("count");
+				long prize = rewards.get(i);
+				
+				bulkData.add(new UpdateOneModel<>(Filters.eq("_id", Long.parseLong(id)), Updates.inc("economy.balance", prize), new UpdateOptions().upsert(true)));
+				
+				reply.append(String.format("Gave **$%,d** to the user with id **%s** for having **%,d** votes\n", prize, id, voteCount));
+			}
+			
+			database.bulkWriteUsers(bulkData, (result, exception) -> {
+				if (exception != null) {
+					exception.printStackTrace();
+					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+				} else {
+					event.reply(reply.toString()).queue();
+				}
+			});
+		});
 	}
 	
 	@Command(value="economy override remove", description="Removes an override added to an item in the economy")

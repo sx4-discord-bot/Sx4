@@ -18,7 +18,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Random;
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import org.bson.Document;
@@ -86,7 +85,6 @@ import net.dv8tion.jda.api.MessageBuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.User;
-import net.dv8tion.jda.api.utils.cache.SnowflakeCacheView;
 import net.dv8tion.jda.internal.utils.tuple.Pair;
 import okhttp3.Request;
 
@@ -4075,6 +4073,7 @@ public class EconomyModule {
 			PagedUtils.getPagedResult(event, paged, 300, null);
 		}
 		
+		@SuppressWarnings("unchecked")
 		@Command(value="votes", aliases={"vote"}, description="View the leaderboard for the highest votes of the month/all time")
 		@Examples({"leaderboard votes", "leaderboard votes --all", "leaderboard votes --all --server"})
 		public void votes(CommandEvent event, @Argument(value="month", nullDefault=true) String monthArgument, @Option(value="all", description="Displays the leaderboard for votes all time") boolean all, @Option(value="server", aliases={"guild"}, description="Filters the leaderboard so only people in the current server are shown") boolean guild) {
@@ -4093,102 +4092,54 @@ public class EconomyModule {
 			
 			int year = month.getValue() > now.getMonthValue() ? now.getYear() - 1 : now.getYear();
 			
-			Request requestSx4 = new Request.Builder().url("http://" + Settings.LOCAL_HOST + ":8080/440996323156819968/votes" + (all ? "?ids=true" : "")).build();
-			Request requestJockie = new Request.Builder().url("http://" + Settings.LOCAL_HOST + ":8080/411916947773587456/votes" + (all ? "?ids=true" : "")).build();
+			Request request;
+			if (all) {
+				request = new Request.Builder().url("http://" + Settings.LOCAL_HOST + ":8080/votesCount").build();
+			} else {
+				long startTimestamp = ZonedDateTime.of(year, month.getValue(), 1, 0, 0, 0, 0, ZoneOffset.UTC).toEpochSecond();
+				long endTimestamp = ZonedDateTime.of(year, month.plus(1).getValue(), 1, 0, 0, 0, 0, ZoneOffset.UTC).toEpochSecond();
+				
+				request = new Request.Builder().url(String.format("http://" + Settings.LOCAL_HOST + ":8080/votesCount?after=%d&before=%d", startTimestamp, endTimestamp)).build();
+			}
 			
-			ImageModule.client.newCall(requestSx4).enqueue((Sx4Callback) responseSx4 -> {
-				ImageModule.client.newCall(requestJockie).enqueue((Sx4Callback) responseJockie -> {
-					JSONObject jsonSx4 = new JSONObject(responseSx4.body().string()).getJSONObject("votes");
-					JSONObject jsonJockie = new JSONObject(responseJockie.body().string()).getJSONObject("votes");
-					Set<String> keysSx4 = jsonSx4.keySet();
-					Set<String> keysJockie = jsonJockie.keySet();
-					
-					Map<User, Integer> votesMap = new HashMap<>();
-					SnowflakeCacheView<User> cache = event.getShardManager().getUserCache();
-					if (all) {
-						for (String keySx4 : keysSx4) {
-							User user = cache.getElementById(keySx4);
-							if (user != null) {
-								if (!guild || event.getGuild().isMember(user)) {
-									votesMap.compute(user, (key, value) -> value != null ? value + jsonSx4.getJSONObject(keySx4).getJSONArray("votes").length() : jsonSx4.getJSONObject(keySx4).getJSONArray("votes").length());
+			ImageModule.client.newCall(request).enqueue((Sx4Callback) response -> {
+				Map<String, Object> map = new JSONObject(response.body().string()).toMap();
+				List<Map<String, Object>> votes = (List<Map<String, Object>>) map.get("votes");
+				
+				PagedResult<Map<String, Object>> paged = new PagedResult<>(votes)
+						.setDeleteMessage(false)
+						.setCustomFunction(page -> {
+							Integer index = null;
+							for (int i = 0; i < votes.size(); i++) {
+								Map<String, Object> userData = votes.get(i);
+								if (event.getAuthor().getId().equals(userData.get("id"))) {
+									index = i + 1;
 								}
 							}
-						}
-						
-						for (String keyJockie : keysJockie) {
-							User user = cache.getElementById(keyJockie);
-							if (user != null) {
-								if (!guild || event.getGuild().isMember(user)) {
-									votesMap.compute(user, (key, value) -> value != null ? value + jsonJockie.getJSONObject(keyJockie).getJSONArray("votes").length() : jsonJockie.getJSONObject(keyJockie).getJSONArray("votes").length());
+							
+							EmbedBuilder embed = new EmbedBuilder();
+							embed.setColor(Settings.EMBED_COLOUR);
+							embed.setTitle("Votes Leaderboard" + (all ? "" : " for " + month.getDisplayName(TextStyle.FULL, Locale.UK) + " " + year));
+							embed.setFooter(event.getAuthor().getName() + "'s Rank: " + (index == null ? "Unranked" : GeneralUtils.getNumberSuffix(index)) + " | Page " + page.getCurrentPage() + "/" + page.getMaxPage(), event.getAuthor().getEffectiveAvatarUrl());
+							
+							for (int i = page.getCurrentPage() * page.getPerPage() - page.getPerPage(); i < page.getCurrentPage() * page.getPerPage(); i++) {
+								try {
+									Map<String, Object> userData = votes.get(i);
+									
+									int votesAmount = (int) userData.get("count");
+									String id = (String) userData.get("id");
+									
+									User user = Sx4Bot.getShardManager().getUserById(id);
+									embed.appendDescription(String.format("%d. `%s` - %,d vote%s\n", i + 1, user != null ? user.getAsTag() : "Unknown (" + id + ")", votesAmount, votesAmount == 1 ? "" : "s"));
+								} catch (IndexOutOfBoundsException e) {
+									break;
 								}
 							}
-						}
-					} else {
-						for (String keySx4 : keysSx4) {
-							User user = cache.getElementById(keySx4);
-							if (user != null) {
-								for (Object voteObject : jsonSx4.getJSONObject(keySx4).getJSONArray("votes")) {
-									JSONObject vote = (JSONObject) voteObject;
-									LocalDateTime voteTime = LocalDateTime.ofEpochSecond(vote.getLong("time"), 0, ZoneOffset.UTC);
-									if (voteTime.getMonth() == month && voteTime.getYear() == year) {
-										if (!guild || event.getGuild().isMember(user)) {
-											votesMap.compute(user, (key, value) -> value != null ? ++value : 1);
-										}
-									}
-								}
-							}
-						}
-						
-						for (String keyJockie : keysJockie) {
-							User user = cache.getElementById(keyJockie);
-							if (user != null) {
-								for (Object voteObject : jsonJockie.getJSONObject(keyJockie).getJSONArray("votes")) {
-									JSONObject vote = (JSONObject) voteObject;
-									LocalDateTime voteTime = LocalDateTime.ofEpochSecond(vote.getLong("time"), 0, ZoneOffset.UTC);
-									if (voteTime.getMonth() == month && voteTime.getYear() == year) {
-										if (!guild || event.getGuild().isMember(user)) {
-											votesMap.compute(user, (key, value) -> value != null ? ++value : 1);
-										}
-									}
-								}
-							}
-						}
-					}
-					
-					List<Entry<User, Integer>> votes = new ArrayList<>(votesMap.entrySet());
-					votes.sort((a, b) -> Integer.compare(b.getValue(), a.getValue()));
-					
-					PagedResult<Entry<User, Integer>> paged = new PagedResult<>(votes)
-							.setDeleteMessage(false)
-							.setCustomFunction(page -> {
-								Integer index = null;
-								for (int i = 0; i < votes.size(); i++) {
-									Entry<User, Integer> userData = votes.get(i);
-									if (userData.getKey().equals(event.getAuthor())) {
-										index = i + 1;
-									}
-								}
-								
-								EmbedBuilder embed = new EmbedBuilder();
-								embed.setColor(Settings.EMBED_COLOUR);
-								embed.setTitle("Votes Leaderboard" + (all ? "" : " for " + month.getDisplayName(TextStyle.FULL, Locale.UK) + " " + year));
-								embed.setFooter(event.getAuthor().getName() + "'s Rank: " + (index == null ? "Unranked" : GeneralUtils.getNumberSuffix(index)) + " | Page " + page.getCurrentPage() + "/" + page.getMaxPage(), event.getAuthor().getEffectiveAvatarUrl());
-								
-								for (int i = page.getCurrentPage() * page.getPerPage() - page.getPerPage(); i < page.getCurrentPage() * page.getPerPage(); i++) {
-									try {
-										Entry<User, Integer> userData = votes.get(i);
-										int votesAmount = userData.getValue();
-										embed.appendDescription(String.format("%d. `%s` - %,d vote%s\n", i + 1, userData.getKey().getAsTag(), votesAmount, votesAmount == 1 ? "" : "s"));
-									} catch (IndexOutOfBoundsException e) {
-										break;
-									}
-								}
-								
-								return embed.build();
-							});
-					
-					PagedUtils.getPagedResult(event, paged, 300, null);
-				});
+							
+							return embed.build();
+						});
+				
+				PagedUtils.getPagedResult(event, paged, 300, null);
 			});
 		}
 		

@@ -16,12 +16,15 @@ import com.jockie.bot.core.command.Initialize;
 import com.jockie.bot.core.command.impl.CommandEvent;
 import com.jockie.bot.core.command.impl.CommandImpl;
 import com.jockie.bot.core.module.Module;
+import com.mongodb.client.model.Aggregates;
+import com.mongodb.client.model.Field;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.Updates;
 import com.sx4.bot.categories.Categories;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEventListener;
+import com.sx4.bot.database.Conditions;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.interfaces.Examples;
 import com.sx4.bot.settings.Settings;
@@ -64,13 +67,13 @@ public class AntiInviteModule {
 		@Examples({"antiinvite toggle"})
 		@AuthorPermissions({Permission.MESSAGE_MANAGE})
 		public void toggle(CommandEvent event, @Context Database database) {
-			boolean enabled = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("antiinvite.enabled")).getEmbedded(List.of("antiinvite", "enabled"), false);
-			database.updateGuildById(event.getGuild().getIdLong(), Updates.set("antiinvite.enabled", !enabled), (result, exception) -> {
+			List<Bson> update = List.of(Aggregates.addFields(new Field<>("antiinvite.enabled", Conditions.cond("$antiinvite.enabled", "$$REMOVE", true))));
+			database.getGuildByIdAndUpdate(event.getGuild().getIdLong(), update, Projections.include("antiinvite.enabled"), (data, exception) -> {
 				if (exception != null) {
 					exception.printStackTrace();
 					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
 				} else {
-					event.reply("Anti-Invite is now " + (enabled ? "disabled" : "enabled") + " <:done:403285928233402378>").queue();
+					event.reply("Anti-Invite is now " + (data.getEmbedded(List.of("antiinvite", "enabled"), false) ? "enabled" : "disabled") + " in this server <:done:403285928233402378>").queue();
 				}
 			});
 		}

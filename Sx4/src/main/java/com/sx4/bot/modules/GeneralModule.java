@@ -4,6 +4,7 @@ import java.awt.Color;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.time.Clock;
+import java.time.OffsetDateTime;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
@@ -45,6 +46,7 @@ import com.mongodb.client.AggregateIterable;
 import com.mongodb.client.model.Accumulators;
 import com.mongodb.client.model.Aggregates;
 import com.mongodb.client.model.BsonField;
+import com.mongodb.client.model.Field;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.Sorts;
@@ -56,6 +58,7 @@ import com.sx4.bot.categories.Categories;
 import com.sx4.bot.core.Sx4Bot;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEventListener;
+import com.sx4.bot.database.Conditions;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.events.AwaitEvents;
 import com.sx4.bot.events.ConnectionEvents;
@@ -99,6 +102,7 @@ import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.VoiceChannel;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
+import net.dv8tion.jda.api.utils.TimeUtil;
 import net.dv8tion.jda.internal.utils.tuple.Pair;
 import okhttp3.Request;
 
@@ -350,13 +354,13 @@ public class GeneralModule {
 		@Examples({"suggestion toggle"})
 		@AuthorPermissions({Permission.MESSAGE_MANAGE})
 		public void toggle(CommandEvent event, @Context Database database) {
-			boolean enabled = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("suggestion.enabled")).getEmbedded(List.of("suggestion", "enabled"), false);			
-			database.updateGuildById(event.getGuild().getIdLong(), Updates.set("suggestion.enabled", !enabled), (result, exception) -> {
+			List<Bson> update = List.of(Aggregates.addFields(new Field<>("suggestion.enabled", Conditions.cond("$suggestion.enabled", "$$REMOVE", true))));
+			database.getGuildByIdAndUpdate(event.getGuild().getIdLong(), update, Projections.include("suggestion.enabled"), (data, exception) -> {
 				if (exception != null) {
 					exception.printStackTrace();
 					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
 				} else {
-					event.reply("Suggestions are now " + (enabled ? "disabled" : "enabled") + " <:done:403285928233402378>").queue();
+					event.reply("Suggestions are now " + (data.getEmbedded(List.of("suggestion", "enabled"), false) ? "disabled" : "enabled") + " <:done:403285928233402378>").queue();
 				}
 			});
 		}
@@ -1027,12 +1031,14 @@ public class GeneralModule {
 			
 			if (from != null) {
 				try {
+					projections.add(Projections.include("timestamp"));
 					filters.add(Filters.gte("timestamp", Long.parseLong(from)));
 				} catch (NumberFormatException e) {}
 			}
 			
 			if (to != null) {
 				try {
+					projections.add(Projections.include("timestamp"));
 					filters.add(Filters.lte("timestamp", Long.parseLong(to)));
 				} catch (NumberFormatException e) {}
 			}
@@ -1105,12 +1111,14 @@ public class GeneralModule {
 			
 			if (from != null) {
 				try {
+					projections.add(Projections.include("timestamp"));
 					filters.add(Filters.gte("timestamp", Long.parseLong(from)));
 				} catch (NumberFormatException e) {}
 			}
 			
 			if (to != null) {
 				try {
+					projections.add(Projections.include("timestamp"));
 					filters.add(Filters.lte("timestamp", Long.parseLong(to)));
 				} catch (NumberFormatException e) {}
 			}
@@ -1186,12 +1194,14 @@ public class GeneralModule {
 			
 			if (from != null) {
 				try {
+					projections.add(Projections.include("timestamp"));
 					filters.add(Filters.gte("timestamp", Long.parseLong(from)));
 				} catch (NumberFormatException e) {}
 			}
 			
 			if (to != null) {
 				try {
+					projections.add(Projections.include("timestamp"));
 					filters.add(Filters.lte("timestamp", Long.parseLong(to)));
 				} catch (NumberFormatException e) {}
 			}
@@ -1558,20 +1568,49 @@ public class GeneralModule {
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void emoteInfo(CommandEvent event, @Argument(value="emote") String argument) {
 		Emote emote = ArgumentUtils.getEmote(event.getGuild(), argument);
+		
+		EmbedBuilder embed = new EmbedBuilder();
+		
+		String imageUrl, emoteName;
+		long emoteId;
+		OffsetDateTime emoteCreated;
 		if (emote == null) {
-			event.reply("I could not find that emote :no_entry:").queue();
-			return;
+			Matcher matcher = ArgumentUtils.EMOTE_REGEX.matcher(argument);
+			if (matcher.matches()) {
+				boolean animated = matcher.group(1) != null;
+				
+				try {
+					emoteId = Long.parseLong(matcher.group(3));
+				} catch(NumberFormatException e) {
+					event.reply("I could not find that emote :no_entry:").queue();
+					return;
+				}
+				
+				emoteName = matcher.group(2);
+				imageUrl = String.format(Emote.ICON_URL, emoteId, animated ? "gif" : "png");
+				emoteCreated = TimeUtil.getTimeCreated(emoteId);
+			} else {
+				event.reply("I could not find that emote :no_entry:").queue();
+				return;
+			}
+		} else {
+			emoteId = emote.getIdLong();
+			imageUrl = emote.getImageUrl();
+			emoteName = emote.getName();
+			emoteCreated = emote.getTimeCreated();
+		}
+				
+		embed.setAuthor(emoteName, imageUrl, imageUrl);
+		embed.setThumbnail(imageUrl);
+		embed.setTimestamp(emoteCreated);
+		embed.setFooter("Created", null);
+		embed.addField("ID", String.valueOf(emoteId), false);
+		
+		if (emote != null) {
+			embed.addField("Server", emote.getGuild().getName() + " (" + emote.getGuild().getId() + ")", false);
 		}
 		
-		EmbedBuilder embed = new EmbedBuilder()
-				.setAuthor(emote.getName(), emote.getImageUrl(), emote.getImageUrl())
-				.setThumbnail(emote.getImageUrl())
-				.setTimestamp(emote.getTimeCreated())
-				.setFooter("Created", null)
-				.addField("ID", emote.getId(), false)
-				.addField("Server", emote.getGuild().getName() + " (" + emote.getGuild().getId() + ")", false);
-		
-		if (event.getSelfMember().hasPermission(Permission.MANAGE_EMOTES)) {
+		if (event.getSelfMember().hasPermission(Permission.MANAGE_EMOTES) && emote != null) {
 			emote.getGuild().retrieveEmote(emote).queue(e -> {
 				if (e.hasUser()) {
 					embed.addField("Uploader", e.getUser().getAsTag(), false);
@@ -2135,13 +2174,13 @@ public class GeneralModule {
 		@Examples({"trigger toggle"})
 		@AuthorPermissions({Permission.MESSAGE_MANAGE})
 		public void toggle(CommandEvent event, @Context Database database) {
-			boolean enabled = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("trigger.enabled")).getEmbedded(List.of("trigger", "enabled"), true);
-			database.updateGuildById(event.getGuild().getIdLong(), Updates.set("trigger.enabled", !enabled), (result, exception) -> {
+			List<Bson> update = List.of(Aggregates.addFields(new Field<>("trigger.enabled", Conditions.cond("$trigger.enabled", "$$REMOVE", true))));
+			database.getGuildByIdAndUpdate(event.getGuild().getIdLong(), update, Projections.include("trigger.enabled"), (data, exception) -> {
 				if (exception != null) {
 					exception.printStackTrace();
 					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
 				} else {
-					event.reply("Triggers are now " + (enabled ? "disabled" : "enabled") + " in this server <:done:403285928233402378>").queue();
+					event.reply("Triggers are now " + (data.getEmbedded(List.of("trigger", "enabled"), false) ? "enabled" : "disabled") + " in this server <:done:403285928233402378>").queue();
 				}
 			});
 		}
@@ -2150,13 +2189,13 @@ public class GeneralModule {
 		@Examples({"trigger case"})
 		@AuthorPermissions({Permission.MESSAGE_MANAGE})
 		public void caseSensitive(CommandEvent event, @Context Database database) {
-			boolean caseSensitive = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("trigger.case")).getEmbedded(List.of("trigger", "case"), true);
-			database.updateGuildById(event.getGuild().getIdLong(), Updates.set("trigger.case", !caseSensitive), (result, exception) -> {
+			List<Bson> update = List.of(Aggregates.addFields(new Field<>("trigger.case", Conditions.cond("$trigger.case", "$$REMOVE", true))));
+			database.getGuildByIdAndUpdate(event.getGuild().getIdLong(), update, Projections.include("trigger.case"), (data, exception) -> {
 				if (exception != null) {
 					exception.printStackTrace();
 					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
 				} else {
-					event.reply("Triggers are " + (caseSensitive ? "no longer" : "now") + " case sensitive in this server <:done:403285928233402378>").queue();
+					event.reply("Triggers are " + (data.getEmbedded(List.of("trigger", "case"), false) ? "now" : "no longer") + " case sensitive in this server <:done:403285928233402378>").queue();
 				}
 			});
 		}

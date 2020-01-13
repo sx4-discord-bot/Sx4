@@ -17,6 +17,8 @@ import com.jockie.bot.core.command.Initialize;
 import com.jockie.bot.core.command.impl.CommandEvent;
 import com.jockie.bot.core.command.impl.CommandImpl;
 import com.jockie.bot.core.module.Module;
+import com.mongodb.client.model.Aggregates;
+import com.mongodb.client.model.Field;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.UpdateOptions;
@@ -24,6 +26,7 @@ import com.mongodb.client.model.Updates;
 import com.sx4.bot.categories.Categories;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEventListener;
+import com.sx4.bot.database.Conditions;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.interfaces.Examples;
 import com.sx4.bot.logger.Category;
@@ -65,13 +68,13 @@ public class LogsModule {
 		@Examples({"logs toggle"})
 		@AuthorPermissions({Permission.MANAGE_SERVER})
 		public void toggle(CommandEvent event, @Context Database database) {
-			boolean enabled = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("logger.enabled")).getEmbedded(List.of("logger", "enabled"), false);
-			database.updateGuildById(event.getGuild().getIdLong(), Updates.set("logger.enabled", !enabled), (result, exception) -> {
+			List<Bson> update = List.of(Aggregates.addFields(new Field<>("logger.enabled", Conditions.cond("$logger.enabled", "$$REMOVE", true))));
+			database.getGuildByIdAndUpdate(event.getGuild().getIdLong(), update, Projections.include("logger.enabled"), (data, exception) -> {
 				if (exception != null) {
 					exception.printStackTrace();
 					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
 				} else {
-					event.reply("Logs are now " + (enabled ? "disabled" : "enabled") + " <:done:403285928233402378>").queue();
+					event.reply("Logs are now " + (data.getEmbedded(List.of("logger", "enabled"), false) ? "enabled" : "disabled") + " in this server <:done:403285928233402378>").queue();
 				}
 			});
 		}
@@ -288,23 +291,27 @@ public class LogsModule {
 				}
 				
 				long eventsRaw = 0L;
-				for (String stringEvent : eventsArgument) {
-					try {
-						Event newEvent = Event.valueOf(stringEvent.toUpperCase());
-						if (!newEvent.containsCategory(category)) {
-							event.reply("You cannot blacklist a " + category.toString().toLowerCase() + " from the `" + newEvent.toString() + "` event :no_entry:").queue();
+				if (eventsArgument.length == 1 && eventsArgument[0].toLowerCase().equals("all")) {
+					eventsRaw = role != null ? Event.ALL_ROLE_EVENTS : member != null ? Event.ALL_MEMBER_EVENTS : Event.ALL_CHANNEL_EVENTS;
+				} else {
+					for (String stringEvent : eventsArgument) {
+						try {
+							Event newEvent = Event.valueOf(stringEvent.toUpperCase());
+							if (!newEvent.containsCategory(category)) {
+								event.reply("You cannot blacklist a " + category.toString().toLowerCase() + " from the `" + newEvent.toString() + "` event :no_entry:").queue();
+								return;
+							}
+							
+							if ((currentEventsRaw & newEvent.getRaw()) == newEvent.getRaw()) {
+								event.reply("That " + category.toString().toLowerCase() + " is already blacklisted from the event `" + newEvent.toString() + "` :no_entry:").queue();
+								return;
+							}
+							
+							eventsRaw |= newEvent.getRaw();
+						} catch(IllegalArgumentException e) {
+							event.reply("`" + stringEvent.toUpperCase() + "` is not a valid event :no_entry:").queue();
 							return;
 						}
-						
-						if ((currentEventsRaw & newEvent.getRaw()) == newEvent.getRaw()) {
-							event.reply("That " + category.toString().toLowerCase() + " is already blacklisted from the event `" + newEvent.toString() + "` :no_entry:").queue();
-							return;
-						}
-						
-						eventsRaw |= newEvent.getRaw();
-					} catch(IllegalArgumentException e) {
-						event.reply("`" + stringEvent.toUpperCase() + "` is not a valid event :no_entry:").queue();
-						return;
 					}
 				}
 				
@@ -356,24 +363,27 @@ public class LogsModule {
 					}
 				}
 				
-				for (String stringEvent : eventsArgument) {
-					try {
-						Event newEvent = Event.valueOf(stringEvent.toUpperCase());
-						if ((currentEventsRaw & newEvent.getRaw()) == newEvent.getRaw()) {
-							currentEventsRaw -= newEvent.getRaw();
-						} else {
-							event.reply("That " + category.toString().toLowerCase() + " is not blacklisted from the event `" + newEvent.toString() + "` :no_entry:").queue();
+				boolean all = eventsArgument.length == 1 && eventsArgument[0].toLowerCase().equals("all");
+				if (!all) {
+					for (String stringEvent : eventsArgument) {
+						try {
+							Event newEvent = Event.valueOf(stringEvent.toUpperCase());
+							if ((currentEventsRaw & newEvent.getRaw()) == newEvent.getRaw()) {
+								currentEventsRaw -= newEvent.getRaw();
+							} else {
+								event.reply("That " + category.toString().toLowerCase() + " is not blacklisted from the event `" + newEvent.toString() + "` :no_entry:").queue();
+								return;
+							}
+						} catch(IllegalArgumentException e) {
+							event.reply("`" + stringEvent.toUpperCase() + "` is not a valid event :no_entry:").queue();
 							return;
 						}
-					} catch(IllegalArgumentException e) {
-						event.reply("`" + stringEvent.toUpperCase() + "` is not a valid event :no_entry:").queue();
-						return;
 					}
 				}
 				
 				Bson update;
 				List<Bson> arrayFilters = null;
-				if (currentEventsRaw == 0) {
+				if (currentEventsRaw == 0 || all) {
 					update = Updates.pull("logger.blacklisted." + type, Filters.eq("id", id));
 				} else {
 					update = Updates.set("logger.blacklisted." + type + ".$[blacklist].events", currentEventsRaw);

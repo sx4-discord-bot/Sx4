@@ -13,7 +13,7 @@ import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.requests.RestAction;
-import net.dv8tion.jda.internal.requests.EmptyRestAction;
+import net.dv8tion.jda.internal.requests.RestActionImpl;
 
 public class BlackJackSession {
 	
@@ -90,7 +90,7 @@ public class BlackJackSession {
 	public RestAction<Message> retrieveMessage() {
 		TextChannel channel = this.getChannel();
 		
-		return channel == null ? new EmptyRestAction<>(null, null) : channel.retrieveMessageById(this.messageId);
+		return channel == null ? new RestActionImpl<>(Sx4Bot.getShardManager().getShardById(0), null) : channel.retrieveMessageById(this.messageId);
 	}
 	
 	public void refreshMessage() {

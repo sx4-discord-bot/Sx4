@@ -39,9 +39,9 @@ public class ArgumentUtils {
 	public static final Pattern SMALL_NAME_REGEX = Pattern.compile("(.{1,32})");
 	public static final Pattern USER_MENTION_REGEX = Pattern.compile("<@(?:!|)(\\d+)>");
 	public static final Pattern CHANNEL_MENTION_REGEX = Pattern.compile("<#(\\d+)>");
-	public static final Pattern EMOTE_REGEX = Pattern.compile("<(?:a|):(.{2,32}):(\\d+)>");
+	public static final Pattern EMOTE_REGEX = Pattern.compile("<(a)?:([a-zA-Z0-9_]{2,32}):(\\d+)>");
 	public static final Pattern ROLE_MENTION_REGEX = Pattern.compile("<@&(\\d+)>");
-	public static final Pattern HEX_REGEX = Pattern.compile("(?:#|)([A-Fa-f|\\d]{6})");
+	public static final Pattern HEX_REGEX = Pattern.compile("#?([A-Fa-f|\\d]{6})");
 	public static final Pattern RGB_REGEX = Pattern.compile("(?:\\(|)(\\d{1,3})(?: |,|, )(\\d{1,3})(?: |,|, )(\\d{1,3})(?:\\)|)");
 	public static final Pattern LIST_OF_NUMBERS_REGEX = Pattern.compile("(\\d+)(?: |, |,|)");
 	public static final Pattern RANGE_OF_NUMBERS_REGEX = Pattern.compile("(\\d+)-(\\d+)(?: |,|, |)");
@@ -323,9 +323,9 @@ public class ArgumentUtils {
 		Emote emoteObject;
 		if (emoteMention.matches()) {
 			try {
-				emoteObject = guild.getEmoteById(emoteMention.group(2));
+				emoteObject = guild.getEmoteById(emoteMention.group(3));
 				if (emoteObject == null) {
-					return Sx4Bot.getShardManager().getEmoteById(emoteMention.group(2));
+					return Sx4Bot.getShardManager().getEmoteById(emoteMention.group(3));
 				} else {
 					return emoteObject;
 				}

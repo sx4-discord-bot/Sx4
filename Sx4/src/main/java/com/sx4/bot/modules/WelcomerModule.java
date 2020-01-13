@@ -18,11 +18,14 @@ import com.jockie.bot.core.command.Initialize;
 import com.jockie.bot.core.command.impl.CommandEvent;
 import com.jockie.bot.core.command.impl.CommandImpl;
 import com.jockie.bot.core.module.Module;
+import com.mongodb.client.model.Aggregates;
+import com.mongodb.client.model.Field;
 import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.Updates;
 import com.sx4.bot.categories.Categories;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEventListener;
+import com.sx4.bot.database.Conditions;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.interfaces.Examples;
 import com.sx4.bot.settings.Settings;
@@ -62,13 +65,13 @@ public class WelcomerModule {
 		@Examples({"welcomer toggle"})
 		@AuthorPermissions({Permission.MESSAGE_MANAGE})
 		public void toggle(CommandEvent event, @Context Database database) {
-			boolean enabled = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("welcomer.enabled")).getEmbedded(List.of("welcomer", "enabled"), false);
-			database.updateGuildById(event.getGuild().getIdLong(), Updates.set("welcomer.enabled", !enabled), (result, exception) -> {
+			List<Bson> update = List.of(Aggregates.addFields(new Field<>("welcomer.enabled", Conditions.cond("$welcomer.enabled", "$$REMOVE", true))));
+			database.getGuildByIdAndUpdate(event.getGuild().getIdLong(), update, Projections.include("welcomer.enabled"), (data, exception) -> {
 				if (exception != null) {
 					exception.printStackTrace();
 					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
 				} else {
-					event.reply("Welcomer is now " + (enabled ? "disabled" : "enabled") + " <:done:403285928233402378>").queue();
+					event.reply("Welcomer is now " + (data.getEmbedded(List.of("welcomer", "enabled"), false) ? "enabled" : "disabled") + " in this server <:done:403285928233402378>").queue();
 				}
 			});
 		}
@@ -107,13 +110,13 @@ public class WelcomerModule {
 		@Command(value="embed", aliases={"toggle embed", "toggleembed", "embedtoggle", "embed toggle"}, description="Enable/disable whether the welcomer messages should be embedded", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@Examples({"welcomer embed"})
 		public void embed(CommandEvent event, @Context Database database) {
-			boolean embedded = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("welcomer.embed.enabled")).getEmbedded(List.of("welcomer", "embed", "enabled"), false);
-			database.updateGuildById(event.getGuild().getIdLong(), Updates.set("welcomer.embed.enabled", !embedded), (result, exception) -> {
+			List<Bson> update = List.of(Aggregates.addFields(new Field<>("welcomer.embed.enabled", Conditions.cond("$welcomer.embed.enabled", "$$REMOVE", true))));
+			database.getGuildByIdAndUpdate(event.getGuild().getIdLong(), update, Projections.include("welcomer.embed.enabled"), (data, exception) -> {
 				if (exception != null) {
 					exception.printStackTrace();
 					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
 				} else {
-					event.reply("Welcomer messages are " + (embedded ? "no longer" : "now") + " embedded <:done:403285928233402378>").queue();
+					event.reply("Welcomer messages are " + (data.getEmbedded(List.of("welcomer", "embed", "enabled"), false) ? "now" : "no longer") + " embedded <:done:403285928233402378>").queue();
 				}
 			});
 		}
@@ -159,13 +162,13 @@ public class WelcomerModule {
 		@Examples({"welcomer dm toggle"})
 		@AuthorPermissions({Permission.MESSAGE_MANAGE})
 		public void dmToggle(CommandEvent event, @Context Database database) {
-			boolean dm = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("welcomer.dm")).getEmbedded(List.of("welcomer", "dm"), false);
-			database.updateGuildById(event.getGuild().getIdLong(), Updates.set("welcomer.dm", !dm), (result, exception) -> {
+			List<Bson> update = List.of(Aggregates.addFields(new Field<>("welcomer.dm", Conditions.cond("$welcomer.dm", "$$REMOVE", true))));
+			database.getGuildByIdAndUpdate(event.getGuild().getIdLong(), update, Projections.include("welcomer.dm"), (data, exception) -> {
 				if (exception != null) {
 					exception.printStackTrace();
 					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
 				} else {
-					event.reply("Welcomer messages will " + (dm ? "no longer" : "now")  + " be sent in dms <:done:403285928233402378>").queue();
+					event.reply("I will " + (data.getEmbedded(List.of("welcomer", "dm"), false) ? "now" : "no longer") + " dm users when they join <:done:403285928233402378>").queue();
 				}
 			});
 		}
@@ -319,13 +322,13 @@ public class WelcomerModule {
 		@Examples({"leaver toggle"})
 		@AuthorPermissions({Permission.MESSAGE_MANAGE})
 		public void toggle(CommandEvent event, @Context Database database) {
-			boolean enabled = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("leaver.enabled")).getEmbedded(List.of("leaver", "enabled"), false);
-			database.updateGuildById(event.getGuild().getIdLong(), Updates.set("leaver.enabled", !enabled), (result, exception) -> {
+			List<Bson> update = List.of(Aggregates.addFields(new Field<>("leaver.enabled", Conditions.cond("$leaver.enabled", "$$REMOVE", true))));
+			database.getGuildByIdAndUpdate(event.getGuild().getIdLong(), update, Projections.include("leaver.enabled"), (data, exception) -> {
 				if (exception != null) {
 					exception.printStackTrace();
 					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
 				} else {
-					event.reply("Leaver is now " + (enabled ? "disabled" : "enabled") + " <:done:403285928233402378>").queue();
+					event.reply("Leaver is now " + (data.getEmbedded(List.of("leaver", "enabled"), false) ? "enabled" : "disabled") + " in this server <:done:403285928233402378>").queue();
 				}
 			});
 		}
@@ -364,13 +367,13 @@ public class WelcomerModule {
 		@Command(value="embed", aliases={"toggle embed", "toggleembed", "embedtoggle", "embed toggle"}, description="Enable/disable whether the leaver messages should be embedded", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@Examples({"leaver embed"})
 		public void embed(CommandEvent event, @Context Database database) {
-			boolean embedded = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("leaver.embed.enabled")).getEmbedded(List.of("leaver", "embed", "enabled"), false);
-			database.updateGuildById(event.getGuild().getIdLong(), Updates.set("leaver.embed.enabled", !embedded), (result, exception) -> {
+			List<Bson> update = List.of(Aggregates.addFields(new Field<>("leaver.embed.enabled", Conditions.cond("$leaver.embed.enabled", "$$REMOVE", true))));
+			database.getGuildByIdAndUpdate(event.getGuild().getIdLong(), update, Projections.include("leaver.embed.enabled"), (data, exception) -> {
 				if (exception != null) {
 					exception.printStackTrace();
 					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
 				} else {
-					event.reply("Leaver messages are " + (embedded ? "no longer" : "now") + " embedded <:done:403285928233402378>").queue();
+					event.reply("Leaver messages are " + (data.getEmbedded(List.of("leaver", "embed", "enabled"), false) ? "now" : "no longer") + " embedded <:done:403285928233402378>").queue();
 				}
 			});
 		}
@@ -531,13 +534,13 @@ public class WelcomerModule {
 		@Examples({"image welcomer toggle"})
 		@AuthorPermissions({Permission.MESSAGE_MANAGE})
 		public void toggle(CommandEvent event, @Context Database database) {
-			boolean enabled = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("imageWelcomer.enabled")).getEmbedded(List.of("imageWelcomer", "enabled"), false);
-			database.updateGuildById(event.getGuild().getIdLong(), Updates.set("imageWelcomer.enabled", !enabled), (result, exception) -> {
+			List<Bson> update = List.of(Aggregates.addFields(new Field<>("imageWelcomer.enabled", Conditions.cond("$imageWelcomer.enabled", "$$REMOVE", true))));
+			database.getGuildByIdAndUpdate(event.getGuild().getIdLong(), update, Projections.include("imageWelcomer.enabled"), (data, exception) -> {
 				if (exception != null) {
 					exception.printStackTrace();
 					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
 				} else {
-					event.reply("Image Welcomer is now " + (enabled ? "disabled" : "enabled") + " <:done:403285928233402378>").queue();
+					event.reply("Image welcomer is now " + (data.getEmbedded(List.of("imageWelcomer", "enabled"), false) ? "enabled" : "disabled") + " in this server <:done:403285928233402378>").queue();
 				}
 			});
 		}

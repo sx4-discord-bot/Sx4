@@ -37,6 +37,8 @@ import com.jockie.bot.core.command.impl.CommandEvent;
 import com.jockie.bot.core.command.impl.CommandImpl;
 import com.jockie.bot.core.module.Module;
 import com.jockie.bot.core.option.Option;
+import com.mongodb.client.model.Aggregates;
+import com.mongodb.client.model.Field;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.UpdateOneModel;
@@ -47,6 +49,7 @@ import com.sx4.bot.categories.Categories;
 import com.sx4.bot.core.Sx4Bot;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEventListener;
+import com.sx4.bot.database.Conditions;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.events.MuteEvents;
 import com.sx4.bot.interfaces.Examples;
@@ -1577,7 +1580,7 @@ public class ModModule {
 			return;
 		}
 		
-		if (event.getSelfMember().getRoles().get(0).getPosition() <= role.getPosition()) {
+		if (!event.getSelfMember().canInteract(role)) {
 			event.reply("I cannot edit roles higher or equal to my top role :no_entry:").queue();
 			return;
 		}
@@ -2013,6 +2016,7 @@ public class ModModule {
 			super("prune");
 			
 			super.setAliases("clear", "c", "purge");
+			super.setDescription("Prunes messages with specific filters or just prune a set amount of messages");
 			super.setExamples("prune images", "prune 10", "prune @Shea#6653", "prune embeds");
 			super.setAuthorDiscordPermissions(Permission.MESSAGE_MANAGE);
 			super.setBotDiscordPermissions(Permission.MESSAGE_MANAGE, Permission.MESSAGE_HISTORY);
@@ -2342,13 +2346,13 @@ public class ModModule {
 		@Examples({"modlog toggle"})
 		@AuthorPermissions({Permission.MANAGE_SERVER})
 		public void toggle(CommandEvent event, @Context Database database) {
-			boolean enabled = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("modlog.enabled")).getEmbedded(List.of("modlog", "enabled"), false);
-			database.updateGuildById(event.getGuild().getIdLong(), Updates.set("modlog.enabled", !enabled), (result, exception) -> {
+			List<Bson> update = List.of(Aggregates.addFields(new Field<>("modlog.enabled", Conditions.cond("$modlog.enabled", "$$REMOVE", true))));
+			database.getGuildByIdAndUpdate(event.getGuild().getIdLong(), update, Projections.include("modlog.enabled"), (data, exception) -> {
 				if (exception != null) {
 					exception.printStackTrace();
 					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
 				} else {
-					event.reply("Modlogs are now " + (enabled ? "disabled" : "enabled")  + " <:done:403285928233402378>").queue();
+					event.reply("Mod Logs are now " + (data.getEmbedded(List.of("modlog", "enabled"), false) ? "enabled" : "disabled") + " in this server <:done:403285928233402378>").queue();
 				}
 			});
 		}

@@ -439,6 +439,35 @@ public class Database {
 		return this.guilds.find(filter).projection(projection);
 	}
 	
+	public Document getGuildByIdAndUpdate(long guildId, Bson filters, List<? extends Bson> update, FindOneAndUpdateOptions findOneAndUpdateOptions) {
+		Bson filter;
+		if (filters != null) {
+			filter = Filters.and(filters, Filters.eq("_id", guildId));
+		} else {
+			filter = Filters.eq("_id", guildId);
+		}
+		
+		return this.guilds.findOneAndUpdate(filter, update, findOneAndUpdateOptions == null ? this.defaultFindOneAndUpdateOptions : findOneAndUpdateOptions);
+	}
+	
+	public Document getGuildByIdAndUpdate(long guildId, List<? extends Bson> update, Bson projection) {
+		return this.getGuildByIdAndUpdate(guildId, null, update, this.defaultFindOneAndUpdateOptions.projection(projection));
+	}
+	
+	public void getGuildByIdAndUpdate(long guildId, Bson filters, List<? extends Bson> update, FindOneAndUpdateOptions findOneAndUpdateOptions, DatabaseCallback<Document> callback) {
+		this.queryExecutor.submit(() -> {
+			try {
+				callback.onResult(this.getGuildByIdAndUpdate(guildId, filters, update, findOneAndUpdateOptions), null);
+			} catch(Throwable e) {
+				callback.onResult(null, e);
+			}
+		});
+	}
+	
+	public void getGuildByIdAndUpdate(long guildId, List<? extends Bson> update, Bson projection, DatabaseCallback<Document> callback) {
+		this.getGuildByIdAndUpdate(guildId, null, update, this.defaultFindOneAndUpdateOptions.projection(projection), callback);
+	}
+	
 	public Document getGuildByIdAndUpdate(long guildId, Bson filters, Bson update, FindOneAndUpdateOptions findOneAndUpdateOptions) {
 		Bson filter;
 		if (filters != null) {
@@ -574,6 +603,35 @@ public class Database {
 	
 	public void updateUserById(long userId, Bson update, DatabaseCallback<UpdateResult> callback) {
 		this.updateUserById(userId, null, update, null, callback);
+	}
+	
+	public Document getUserByIdAndUpdate(long userId, Bson filters, List<? extends Bson> update, FindOneAndUpdateOptions findOneAndUpdateOptions) {
+		Bson filter;
+		if (filters != null) {
+			filter = Filters.and(filters, Filters.eq("_id", userId));
+		} else {
+			filter = Filters.eq("_id", userId);
+		}
+		
+		return this.users.findOneAndUpdate(filter, update, findOneAndUpdateOptions == null ? this.defaultFindOneAndUpdateOptions : findOneAndUpdateOptions);
+	}
+	
+	public Document getUserByIdAndUpdate(long userId, List<? extends Bson> update, Bson projection) {
+		return this.getUserByIdAndUpdate(userId, null, update, this.defaultFindOneAndUpdateOptions.projection(projection));
+	}
+	
+	public void getUserByIdAndUpdate(long userId, Bson filters, List<? extends Bson> update, FindOneAndUpdateOptions findOneAndUpdateOptions, DatabaseCallback<Document> callback) {
+		this.queryExecutor.submit(() -> {
+			try {
+				callback.onResult(this.getUserByIdAndUpdate(userId, filters, update, findOneAndUpdateOptions), null);
+			} catch(Throwable e) {
+				callback.onResult(null, e);
+			}
+		});
+	}
+	
+	public void getUserByIdAndUpdate(long userId, List<? extends Bson> update, Bson projection, DatabaseCallback<Document> callback) {
+		this.getUserByIdAndUpdate(userId, null, update, this.defaultFindOneAndUpdateOptions.projection(projection), callback);
 	}
 	
 	public Document getUserByIdAndUpdate(long userId, Bson filters, Bson update, FindOneAndUpdateOptions findOneAndUpdateOptions) {
