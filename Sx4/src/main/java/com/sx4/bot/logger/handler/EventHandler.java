@@ -90,8 +90,8 @@ import net.dv8tion.jda.api.events.role.RoleCreateEvent;
 import net.dv8tion.jda.api.events.role.RoleDeleteEvent;
 import net.dv8tion.jda.api.events.role.update.RoleUpdateNameEvent;
 import net.dv8tion.jda.api.events.role.update.RoleUpdatePermissionsEvent;
+import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
-import net.dv8tion.jda.internal.requests.RestActionImpl;
 import okhttp3.OkHttpClient;
 
 public class EventHandler extends ListenerAdapter {
@@ -228,8 +228,14 @@ public class EventHandler extends ListenerAdapter {
 		WebhookClient client;
 		if(data.getLong("webhookId") == null || data.getString("webhookToken") == null) {
 			Webhook webhook;
-			if (guild.getSelfMember().hasPermission(Permission.MANAGE_WEBHOOKS)) {
-				webhook = channel.createWebhook("Sx4 - Logs").complete();
+			if (guild.getSelfMember().hasPermission(channel, Permission.MANAGE_WEBHOOKS)) {
+				try {
+					webhook = channel.createWebhook("Sx4 - Logs").complete();
+				} catch (ErrorResponseException e) {
+					Statistics.increaseSkippedLogs();
+					
+					return;
+				}
 			} else {
 				Statistics.increaseSkippedLogs();
 				
@@ -269,7 +275,7 @@ public class EventHandler extends ListenerAdapter {
 			.addEmbeds(embeds)
 			.build();
 		
-		client.send(message).whenCompleteAsync((finalMessage, e) -> {
+		client.send(message).whenComplete((finalMessage, e) -> {
 			if (e != null) {
 				Statistics.increaseFailedLogs();
 				
@@ -1405,7 +1411,7 @@ public class EventHandler extends ListenerAdapter {
 		}
 
 		/* Wait AUDIT_LOG_DELAY milliseconds to ensure that the role-deletion event has come through */
-		new RestActionImpl<Void>(event.getJDA(), null).queueAfter(AUDIT_LOG_DELAY, TimeUnit.MILLISECONDS, ($) -> {
+		Sx4Bot.scheduledExectuor.schedule(() -> {
 			StringBuilder embedDescription = new StringBuilder();
 			
 			WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
@@ -1488,7 +1494,7 @@ public class EventHandler extends ListenerAdapter {
 					this.send(event.getJDA(), guild, data, embed.build());
 				}
 			}
-		});
+		}, AUDIT_LOG_DELAY, TimeUnit.MILLISECONDS);
 	}
 	
 	public void onGuildMemberUpdateNickname(GuildMemberUpdateNicknameEvent event) {

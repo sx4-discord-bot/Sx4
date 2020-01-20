@@ -13,7 +13,7 @@ import net.dv8tion.jda.api.hooks.ListenerAdapter;
 
 public class TriggerEvents extends ListenerAdapter {
 	
-	private String getTriggerText(GuildMessageReceivedEvent event, String text) {
+	private String getResponseText(GuildMessageReceivedEvent event, String text) {
 		int index = -1;
 		while ((index = text.indexOf('{', index + 1)) != -1) {
 		    if (index > 0 && text.charAt(index - 1) == '\\') {
@@ -28,23 +28,22 @@ public class TriggerEvents extends ListenerAdapter {
 		            continue;
 		        } else {
 		            String formatter = text.substring(index + 1, endIndex);
-		            String placeHolder = text.substring(0, index) + "%s" + text.substring(endIndex + 1);
 		            
 		            switch (formatter.trim().toLowerCase()) {
 		            	case "user":
-		            		text = String.format(placeHolder, event.getAuthor().getAsTag());
+		            		text = text.substring(0, index) + event.getAuthor().getAsTag() + text.substring(endIndex + 1);
 		            		break;
 		            	case "user.mention":
-		            		text = String.format(placeHolder, event.getAuthor().getAsMention());
+		            		text = text.substring(0, index) + event.getAuthor().getAsMention() + text.substring(endIndex + 1);
 		            		break;
 		            	case "user.name":
-		            		text = String.format(placeHolder, event.getAuthor().getName());
+		            		text = text.substring(0, index) + event.getAuthor().getName() + text.substring(endIndex + 1);
 		            		break;
 		            	case "channel.name":
-		            		text = String.format(placeHolder, event.getChannel().getName());
+		            		text = text.substring(0, index) + event.getChannel().getName() + text.substring(endIndex + 1);
 		            		break;
 		            	case "channel.mention":
-		            		text = String.format(placeHolder, event.getChannel().getAsMention());
+		            		text = text.substring(0, index) + event.getChannel().getAsMention() + text.substring(endIndex + 1);
 		            		break;
 		            }
 		        }
@@ -68,10 +67,11 @@ public class TriggerEvents extends ListenerAdapter {
 		List<Document> triggers = data.getList("triggers", Document.class, Collections.emptyList());
 		for (Document triggerData : triggers) {
 			String triggerText = triggerData.getString("trigger");
+
 			triggerText = isCaseSensitive ? triggerText : triggerText.toLowerCase();
 			String messageContent = isCaseSensitive ? event.getMessage().getContentRaw() : event.getMessage().getContentRaw().toLowerCase();
 			if (messageContent.equals(triggerText)) {
-				event.getChannel().sendMessage(this.getTriggerText(event, triggerData.getString("response"))).queue();
+				event.getChannel().sendMessage(this.getResponseText(event, triggerData.getString("response"))).queue();
 			}
 		}
 	}

@@ -21,7 +21,6 @@ import com.mongodb.client.model.UpdateOptions;
 import com.mongodb.client.model.Updates;
 import com.sx4.bot.core.Sx4Bot;
 import com.sx4.bot.database.Database;
-import com.sx4.bot.events.MuteEvents;
 import com.sx4.bot.utils.WarnUtils.Warning;
 
 import net.dv8tion.jda.api.EmbedBuilder;
@@ -29,12 +28,11 @@ import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.MessageEmbed;
-import net.dv8tion.jda.api.entities.PermissionOverride;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.VoiceChannel;
-import net.dv8tion.jda.api.exceptions.InsufficientPermissionException;
+import net.dv8tion.jda.api.requests.ErrorResponse;
 import net.dv8tion.jda.internal.utils.PermissionUtil;
 
 public class ModUtils {
@@ -42,83 +40,58 @@ public class ModUtils {
 	public static final List<Document> DEFAULT_WARN_CONFIGURATION = new ArrayList<>();
 	
 	static {
-		DEFAULT_WARN_CONFIGURATION.add(new Document().append("action", "mute").append("warning", 2).append("duration", 1800L));
-		DEFAULT_WARN_CONFIGURATION.add(new Document().append("action", "kick").append("warning", 3));
-		DEFAULT_WARN_CONFIGURATION.add(new Document().append("action", "ban").append("warning", 4));
+		DEFAULT_WARN_CONFIGURATION.add(new Document("action", ModAction.MUTE.getType()).append("warning", 2).append("duration", 1800L));
+		DEFAULT_WARN_CONFIGURATION.add(new Document("action", ModAction.KICK.getType()).append("warning", 3));
+		DEFAULT_WARN_CONFIGURATION.add(new Document("action", ModAction.BAN.getType()).append("warning", 4));
+	}
+	
+	private static void createMuteRole(Guild guild, boolean autoUpdate, BiConsumer<Role, String> muteRole) {
+		if (guild.getRoles().size() >= 250) {
+			muteRole.accept(null, ErrorResponse.MAX_ROLES_PER_GUILD.getMeaning());
+			return;
+		}
+		
+		guild.createRole().setName("Muted - " + guild.getJDA().getSelfUser().getName()).queue(role -> {
+			Database.get().updateGuildById(guild.getIdLong(), Updates.set("mute.role", role.getIdLong()), (result, exception) -> {
+				if (exception != null) {
+					muteRole.accept(null, exception.getMessage());
+				} else {
+					muteRole.accept(role, null);
+					if (autoUpdate && guild.getSelfMember().hasPermission(Permission.MANAGE_PERMISSIONS)) {
+						guild.getTextChannels().forEach(channel -> channel.upsertPermissionOverride(role).deny(Permission.MESSAGE_WRITE).queue(null, e -> {}));
+					}
+				}
+			});
+		});
+	}
+	
+	public static void getOrCreateMuteRole(Guild guild, Long roleId, boolean autoUpdate, BiConsumer<Role, String> muteRole) {
+		if (roleId == null) {
+			ModUtils.createMuteRole(guild, autoUpdate, muteRole);
+		} else {
+			Role role = guild.getRoleById(roleId);
+			if (role != null) {
+				muteRole.accept(role, null);
+			} else {
+				ModUtils.createMuteRole(guild, autoUpdate, muteRole);
+			}
+		}
 	}
 	
 	public static void getOrCreateMuteRole(Guild guild, BiConsumer<Role, String> muteRole) {
-		String roleName = "Muted - " + guild.getSelfMember().getUser().getName();
+		Document data = Database.get().getGuildById(guild.getIdLong(), null, Projections.include("mute.role", "mute.autoUpdate")).get("mute", Database.EMPTY_DOCUMENT);
+		Long roleId = data.getLong("role");
+		boolean autoUpdate = data.getBoolean("autoUpdate", true);
 		
-		Role role = MuteEvents.getMuteRole(guild);
-		if (role != null) {
-			muteRole.accept(role, null);
-
-			if (guild.getSelfMember().hasPermission(Permission.MANAGE_PERMISSIONS)) {
-				for (TextChannel channel : guild.getTextChannels()) {
-					PermissionOverride roleOverrides = channel.getPermissionOverride(role);
-					List<Permission> deniedPermissions = roleOverrides == null ? new ArrayList<>() : new ArrayList<>(roleOverrides.getDenied());
-					if (!deniedPermissions.contains(Permission.MESSAGE_WRITE)) {
-						deniedPermissions.add(Permission.MESSAGE_WRITE);
-						try {
-							channel.putPermissionOverride(role).setPermissions(roleOverrides == null ? null : roleOverrides.getAllowed(), deniedPermissions).queue();
-						} catch(InsufficientPermissionException e) {
-							continue;
-						}
-					}
-				}
-			}
+		if (roleId == null) {
+			ModUtils.createMuteRole(guild, autoUpdate, muteRole);
 		} else {
-			for (Role guildRole : guild.getRoles()) {
-				if (guildRole.getName().equals(roleName)) {
-					muteRole.accept(guildRole, null);
-					MuteEvents.putMuteRole(guild.getIdLong(), guildRole.getIdLong());
-					
-					if (guild.getSelfMember().hasPermission(Permission.MANAGE_PERMISSIONS)) {
-						for (TextChannel channel : guild.getTextChannels()) {
-							PermissionOverride roleOverrides = channel.getPermissionOverride(guildRole);
-							List<Permission> deniedPermissions = roleOverrides == null ? new ArrayList<>() : new ArrayList<>(roleOverrides.getDenied());
-							if (!deniedPermissions.contains(Permission.MESSAGE_WRITE)) {
-								deniedPermissions.add(Permission.MESSAGE_WRITE);
-								try {
-									channel.putPermissionOverride(guildRole).setPermissions(roleOverrides == null ? null : roleOverrides.getAllowed(), deniedPermissions).queue();
-								} catch(InsufficientPermissionException e) {
-									continue;
-								}
-							}
-						}
-					}
-					
-					return;
-				}
+			Role role = guild.getRoleById(roleId);
+			if (role != null) {
+				muteRole.accept(role, null);
+			} else {
+				ModUtils.createMuteRole(guild, autoUpdate, muteRole);
 			}
-			
-			if (guild.getRoles().size() >= 250) {		
-				muteRole.accept(null, "I cannot create the mute role because the server has the max amount of roles (250)");
-				return;
-			}
-			
-			guild.createRole().setName(roleName).queue(newRole -> {
-				muteRole.accept(newRole, null);
-				MuteEvents.putMuteRole(guild.getIdLong(), newRole.getIdLong());
-				
-				if (guild.getSelfMember().hasPermission(Permission.MANAGE_PERMISSIONS)) {
-					for (TextChannel channel : guild.getTextChannels()) {
-						PermissionOverride roleOverrides = channel.getPermissionOverride(newRole);
-						List<Permission> deniedPermissions = roleOverrides == null ? new ArrayList<>() : new ArrayList<>(roleOverrides.getDenied());
-						if (!deniedPermissions.contains(Permission.MESSAGE_WRITE)) {
-							deniedPermissions.add(Permission.MESSAGE_WRITE);
-							try {
-								channel.putPermissionOverride(newRole).setPermissions(roleOverrides == null ? null : roleOverrides.getAllowed(), deniedPermissions).queue();
-							} catch(InsufficientPermissionException e) {
-								continue;
-							}
-						}
-					}
-				}
-				
-				return;
-			});
 		}
 	}
 	
@@ -182,17 +155,17 @@ public class ModUtils {
 		if (punishments) {
 			Warning nextAction = WarnUtils.getWarning(warnConfiguration, warning.getWarning() + 1);
 			if (nextAction != null) {
-				String actionData = nextAction.getAction();
+				ModAction actionData = nextAction.getAction();
 				if (nextAction.hasDuration()) {
-					nextActionString = GeneralUtils.title(actionData) + " (" + TimeUtils.toTimeString(nextAction.getDuration(), ChronoUnit.SECONDS) + ")";
+					nextActionString = actionData.getName() + " (" + TimeUtils.toTimeString(nextAction.getDuration(), ChronoUnit.SECONDS) + ")";
 				} else {
-					nextActionString = GeneralUtils.title(actionData);
+					nextActionString = actionData.getName();
 				}
 			}
 		}
 		
 		EmbedBuilder embed = new EmbedBuilder();
-		embed.setAuthor("You have been " + WarnUtils.getSuffixedAction(warning.getAction()) + " in " + guild.getName() + " (" + GeneralUtils.getNumberSuffix(warning.getWarning()) + " Warning)", null, guild.getIconUrl());
+		embed.setAuthor("You have received a " + warning.getAction().getName() + " in " + guild.getName() + " (" + GeneralUtils.getNumberSuffix(warning.getWarning()) + " Warning)", null, guild.getIconUrl());
 		embed.setTimestamp(Instant.now());
 		embed.addField("Moderator", moderator.getAsTag() + " (" + moderator.getId() + ")", false);
 		embed.addField("Reason", reason == null ? "None Given" : GeneralUtils.limitString(reason, MessageEmbed.VALUE_MAX_LENGTH), false);
@@ -201,10 +174,14 @@ public class ModUtils {
 	}
 	
 	public static UpdateOneModel<Document> getMuteUpdate(long guildId, long memberId, List<Document> users, Long muteLength) {
+		return ModUtils.getMuteUpdate(guildId, memberId, users, muteLength, false);
+	}
+	
+	public static UpdateOneModel<Document> getMuteUpdate(long guildId, long memberId, List<Document> users, Long muteLength, boolean extend) {
 		long timestamp = Clock.systemUTC().instant().getEpochSecond();
 		for (Document userData : users) {
 			if (userData.getLong("id") == memberId) {
-				Bson update = Updates.combine(Updates.set("mute.users.$[user].timestamp", timestamp), Updates.set("mute.users.$[user].duration", muteLength));
+				Bson update = Updates.combine(Updates.set("mute.users.$[user].timestamp", timestamp), extend ? Updates.inc("mute.users.$[user].duration", muteLength) : Updates.set("mute.users.$[user].duration", muteLength));
 				UpdateOptions updateOptions = new UpdateOptions().arrayFilters(List.of(Filters.eq("user.id", memberId)));
 				return new UpdateOneModel<>(Filters.eq("_id", guildId), update, updateOptions);
 			}

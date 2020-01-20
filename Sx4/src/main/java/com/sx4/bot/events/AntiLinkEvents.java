@@ -81,7 +81,7 @@ public class AntiLinkEvents extends ListenerAdapter {
 						if (!event.getGuild().getSelfMember().hasPermission(Permission.BAN_MEMBERS)) {
 							event.getChannel().sendMessage("I was unable to ban **" + event.getAuthor().getAsTag() + "** as I am missing the `Ban Members` permission :no_entry:").queue();
 							return;
-						} else if (event.getGuild().getSelfMember().getRoles().get(0).getPosition() <= event.getMember().getRoles().get(0).getPosition()) {
+						} else if (!event.getGuild().getSelfMember().canInteract(event.getMember())) {
 							event.getChannel().sendMessage("I was unable to ban **" + event.getAuthor().getAsTag() + "** as their top role is higher or equal than my top role :no_entry:").queue();
 							return;
 						} else {
@@ -100,7 +100,7 @@ public class AntiLinkEvents extends ListenerAdapter {
 						if (!event.getGuild().getSelfMember().hasPermission(Permission.KICK_MEMBERS)) {
 							event.getChannel().sendMessage("I was unable to kick **" + event.getAuthor().getAsTag() + "** as I am missing the `Kick Members` permission :no_entry:").queue();
 							return;
-						} else if (event.getGuild().getSelfMember().getRoles().get(0).getPosition() <= event.getMember().getRoles().get(0).getPosition()) {
+						} else if (!event.getGuild().getSelfMember().canInteract(event.getMember())) {
 							event.getChannel().sendMessage("I was unable to kick **" + event.getAuthor().getAsTag() + "** as their top role is higher or equal than my top role :no_entry:").queue();
 							return;
 						} else {
@@ -121,13 +121,15 @@ public class AntiLinkEvents extends ListenerAdapter {
 							return;
 						}
 						
-						ModUtils.getOrCreateMuteRole(event.getGuild(), (role, error) -> {
+						Document muteData = allData.get("mute", Database.EMPTY_DOCUMENT);
+						
+						ModUtils.getOrCreateMuteRole(event.getGuild(), muteData.getLong("role"), muteData.getBoolean("autoUpdate", true), (role, error) -> {
 							if (error != null) {
 								event.getChannel().sendMessage("I was unable to mute **" + event.getAuthor().getAsTag() + "** as " + error + " :no_entry:").queue();
 								return;
 							}
 							
-							if (role.getPosition() >= event.getGuild().getSelfMember().getRoles().get(0).getPosition()) {
+							if (!event.getGuild().getSelfMember().canInteract(role)) {
 								event.getChannel().sendMessage("I am unable to mute **" + event.getAuthor().getAsTag() + "** as the mute role is higher or equal than my top role :no_entry:").queue();
 								return;
 							}
@@ -137,7 +139,7 @@ public class AntiLinkEvents extends ListenerAdapter {
 							event.getGuild().addRoleToMember(event.getMember(), role).queue();
 							ModUtils.createModLogAndOffence(event.getGuild(), event.getJDA().getSelfUser(), event.getAuthor(), "Mute (Automatic)", reason);
 							
-							UpdateOneModel<Document> muteModel = ModUtils.getMuteUpdate(event.getGuild().getIdLong(), event.getAuthor().getIdLong(), allData.getEmbedded(List.of("mute", "users"), Collections.emptyList()), null);		
+							UpdateOneModel<Document> muteModel = ModUtils.getMuteUpdate(event.getGuild().getIdLong(), event.getAuthor().getIdLong(), muteData.getList("users", Document.class, Collections.emptyList()), null);		
 							Bson update = Updates.combine(
 									muteModel.getUpdate(),
 									Updates.pull("antiinvite.users", Filters.eq("id", event.getAuthor().getIdLong()))
@@ -233,7 +235,7 @@ public class AntiLinkEvents extends ListenerAdapter {
 						if (!event.getGuild().getSelfMember().hasPermission(Permission.BAN_MEMBERS)) {
 							event.getChannel().sendMessage("I was unable to ban **" + event.getAuthor().getAsTag() + "** as I am missing the `Ban Members` permission :no_entry:").queue();
 							return;
-						} else if (event.getGuild().getSelfMember().getRoles().get(0).getPosition() <= event.getMember().getRoles().get(0).getPosition()) {
+						} else if (!event.getGuild().getSelfMember().canInteract(event.getMember())) {
 							event.getChannel().sendMessage("I was unable to ban **" + event.getAuthor().getAsTag() + "** as their top role is higher or equal than my top role :no_entry:").queue();
 							return;
 						} else {
@@ -252,7 +254,7 @@ public class AntiLinkEvents extends ListenerAdapter {
 						if (!event.getGuild().getSelfMember().hasPermission(Permission.KICK_MEMBERS)) {
 							event.getChannel().sendMessage("I was unable to kick **" + event.getAuthor().getAsTag() + "** as I am missing the `Kick Members` permission :no_entry:").queue();
 							return;
-						} else if (event.getGuild().getSelfMember().getRoles().get(0).getPosition() <= event.getMember().getRoles().get(0).getPosition()) {
+						} else if (!event.getGuild().getSelfMember().canInteract(event.getMember())) {
 							event.getChannel().sendMessage("I was unable to kick **" + event.getAuthor().getAsTag() + "** as their top role is higher or equal than my top role :no_entry:").queue();
 							return;
 						} else {
@@ -273,13 +275,15 @@ public class AntiLinkEvents extends ListenerAdapter {
 							return;
 						}
 						
-						ModUtils.getOrCreateMuteRole(event.getGuild(), (role, error) -> {
+						Document muteData = allData.get("mute", Database.EMPTY_DOCUMENT);
+						
+						ModUtils.getOrCreateMuteRole(event.getGuild(), muteData.getLong("role"), muteData.getBoolean("autoUpdate", true), (role, error) -> {
 							if (error != null) {
 								event.getChannel().sendMessage("I was unable to mute **" + event.getAuthor().getAsTag() + "** as " + error + " :no_entry:").queue();
 								return;
 							}
 							
-							if (role.getPosition() >= event.getGuild().getSelfMember().getRoles().get(0).getPosition()) {
+							if (!event.getGuild().getSelfMember().canInteract(role)) {
 								event.getChannel().sendMessage("I am unable to mute **" + event.getAuthor().getAsTag() + "** as the mute role is higher or equal than my top role :no_entry:").queue();
 								return;
 							}
@@ -289,7 +293,7 @@ public class AntiLinkEvents extends ListenerAdapter {
 							event.getGuild().addRoleToMember(event.getMember(), role).queue();
 							ModUtils.createModLogAndOffence(event.getGuild(), event.getJDA().getSelfUser(), event.getAuthor(), "Mute (Automatic)", reason);
 							
-							UpdateOneModel<Document> muteModel = ModUtils.getMuteUpdate(event.getGuild().getIdLong(), event.getAuthor().getIdLong(), allData.getEmbedded(List.of("mute", "users"), Collections.emptyList()), null);		
+							UpdateOneModel<Document> muteModel = ModUtils.getMuteUpdate(event.getGuild().getIdLong(), event.getAuthor().getIdLong(), muteData.getList("users", Document.class, Collections.emptyList()), null);		
 							Bson update = Updates.combine(
 									muteModel.getUpdate(),
 									Updates.pull("antiinvite.users", Filters.eq("id", event.getAuthor().getIdLong()))

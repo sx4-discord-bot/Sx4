@@ -53,10 +53,12 @@ import com.sx4.bot.database.Conditions;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.events.MuteEvents;
 import com.sx4.bot.interfaces.Examples;
+import com.sx4.bot.settings.Settings;
 import com.sx4.bot.utils.ArgumentUtils;
 import com.sx4.bot.utils.FunUtils;
 import com.sx4.bot.utils.GeneralUtils;
 import com.sx4.bot.utils.HelpUtils;
+import com.sx4.bot.utils.ModAction;
 import com.sx4.bot.utils.ModUtils;
 import com.sx4.bot.utils.PagedUtils;
 import com.sx4.bot.utils.PagedUtils.PagedResult;
@@ -3021,19 +3023,183 @@ public class ModModule {
 		ModUtils.createModLog(event.getGuild(), event.getAuthor(), member.getUser(), "Unmute", reason);
 	}
 	
+	public class MuteConfigurationCommand extends Sx4Command {
+		
+		public MuteConfigurationCommand() {
+			super("mute configuration");
+			
+			super.setDescription("Set some default settings for mute related things");
+			super.setExamples("mute configuration role", "mute configuration time", "mute configuration leave action");
+			super.setAliases("mute config", "muteconfiguration", "muteconfig");
+			super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
+		}
+		
+		public void onCommand(CommandEvent event) {
+			event.reply(HelpUtils.getHelpMessage(event.getCommand())).queue();
+		}
+		
+		@Command(value="role", aliases={"mute role", "muterole"}, description="Set the mute role Sx4 will use")
+		@Examples({"mute configuration role @Mute-Role", "mute configuration role Mute-Role", "mute configuration role 345718366373150720"})
+		@AuthorPermissions({Permission.MANAGE_ROLES})
+		public void role(CommandEvent event, @Context Database database, @Argument(value="role", endless=true) String roleArgument) {
+			Role role = ArgumentUtils.getRole(event.getGuild(), roleArgument);
+			if (role == null) {
+				event.reply("I could not find that role :no_entry:").queue();
+				return;
+			}
+			
+			if (role.isManaged()) {
+				event.reply("I cannot give a role which is managed :no_entry:").queue();
+				return;
+			}
+			
+			if (role.isPublicRole()) {
+				event.reply("I cannot give users the `@everyone` role :no_entry:").queue();
+				return;
+			}
+			
+			if (!event.getSelfMember().canInteract(role)) {
+				event.reply("I cannot give a role which is higher or equal than my top role :no_entry:").queue();
+				return;
+			}
+			
+			Long roleId = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("mute.role")).getEmbedded(List.of("mute", "role"), Long.class);
+			if (roleId != null && roleId == role.getIdLong()) {
+				event.reply("The mute role is already set to that role :no_entry:").queue();
+			} else {
+				database.updateGuildById(event.getGuild().getIdLong(), Updates.set("mute.role", role.getIdLong()), (result, exception) -> {
+					if (exception != null) {
+						exception.printStackTrace();
+						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+					} else {
+						event.reply("The mute role has been set to `" + role.getName() + "` <:done:403285928233402378>").queue();
+					}
+				});
+			}
+		}
+		
+		@Command(value="time", aliases={"default time", "defaulttime"}, description="Set the default time a user should be muted for if the argument isn't provided")
+		@Examples({"mute configuration time 1h", "mute configuration time 1h 30m"})
+		@AuthorPermissions({Permission.MANAGE_SERVER})
+		public void time(CommandEvent event, @Context Database database, @Argument(value="time", endless=true) String timeArgument) {
+			long time = TimeUtils.convertToSeconds(timeArgument);
+			if (time < 1) {
+				event.reply("Invalid time format, make sure it's formatted with a numerical value then a letter representing the time (d for days, h for hours, m for minutes, s for seconds) and make sure it's in order :no_entry:").queue();
+				return;
+			}
+			
+			long oldTime = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("mute.time")).getEmbedded(List.of("mute", "time"), 1800L);
+			if (oldTime == time) {
+				event.reply("The default mute time is already set to `" + TimeUtils.toTimeString(time, ChronoUnit.SECONDS) + "` :no_entry:").queue();
+			} else {
+				database.updateGuildById(event.getGuild().getIdLong(), Updates.set("mute.time", time), (result, exception) -> {
+					if (exception != null) {
+						exception.printStackTrace();
+						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+					} else {
+						event.reply("The default mute time has been set to `" + TimeUtils.toTimeString(time, ChronoUnit.SECONDS) + "` <:done:403285928233402378>").queue();
+					}
+				});
+			}
+		}
+		
+		@Command(value="auto update", aliases= {"autoupdate"}, description="Toggles whether the bot should automatically update permissions for the mute role")
+		@Examples({"mute configuration auto update"})
+		@AuthorPermissions({Permission.MANAGE_SERVER})
+		public void autoUpdate(CommandEvent event, @Context Database database) {
+			List<Bson> update = List.of(Aggregates.addFields(new Field<>("mute.autoUpdate", Conditions.cond(Conditions.exists("$mute.autoUpdate"), "$$REMOVE", false))));
+			database.getGuildByIdAndUpdate(event.getGuild().getIdLong(), update, Projections.include("mute.autoUpdate"), (data, exception) -> {
+				if (exception != null) {
+					exception.printStackTrace();
+					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+				} else {
+					event.reply("The mute roles permission will " + (data.getEmbedded(List.of("mute", "autoUpdate"), true) ? "now" : "no longer") + " be updated automatically <:done:403285928233402378>").queue();
+				}
+			});
+		}
+		
+		@Command(value="leave action", aliases={"leaveaction"}, description="Set a punishment for users who leave and rejoin the server while muted, Options are: `ban`, `kick`, `mute`, `warn` and `mute-extend`")
+		@Examples({"mute configuration leave action ban", "mute configuration leave action mute 1h", "mute configuration leave action mute-extend 1h"})
+		@AuthorPermissions({Permission.MANAGE_SERVER})
+		public void onLeave(CommandEvent event, @Context Database database, @Argument(value="action", endless=true) String actionArgument) {
+			actionArgument = actionArgument.toUpperCase();
+			
+			String[] actionSplit = actionArgument.split("\\s+", 2);
+			
+			ModAction action;
+			try {
+				action = ModAction.valueOf(actionSplit[0]);
+			} catch(IllegalArgumentException e) {
+				event.reply("I could not find that action, valid actions are `" + Arrays.stream(ModAction.values()).map(ModAction::name).collect(Collectors.joining("`, `")) + "` :no_entry:").queue();
+				return;
+			}
+			
+			long duration = actionSplit.length > 1 && (action == ModAction.MUTE || action == ModAction.MUTE_EXTEND) ? TimeUtils.convertToSeconds(actionSplit[1]) : -1;
+			if (duration == 0) {
+				event.reply("Invalid time format, make sure it's formatted with a numerical value then a letter representing the time (d for days, h for hours, m for minutes, s for seconds) and make sure it's in order :no_entry:").queue();
+				return;
+			}
+			
+			Document currentAction = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("mute.leaveAction")).getEmbedded(List.of("mute", "leaveAction"), Database.EMPTY_DOCUMENT);
+			if (currentAction.getInteger("type", ModAction.MUTE.getType()) == action.getType() && currentAction.get("duration", -1L) == duration) {
+				event.reply("Your mute leave action is already set to that :no_entry:").queue();
+			} else {
+				Bson update = Updates.set("mute.leaveAction.type", action.getType());
+				if (duration != -1) {
+					update = Updates.combine(update, Updates.set("mute.leaveAction.duration", duration));
+				} else {
+					update = Updates.combine(update, Updates.unset("mute.leaveAction.duration"));
+				}
+				
+				database.updateGuildById(event.getGuild().getIdLong(), update, (result, exception) -> {
+					if (exception != null) {
+						exception.printStackTrace();
+						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+					} else {
+						event.replyFormat("When a muted user joins the server they will now receive a `%s`%s <:done:403285928233402378>", action.getName(), duration == 0 ? "" : " for " + TimeUtils.toTimeString(duration, ChronoUnit.SECONDS)).queue();
+					}
+				});
+			}
+		}
+		
+		@Command(value="stats", aliases={"setting", "settings"}, description="Shows the current servers mute configuration settings")
+		@Examples({"mute configuration stats"})
+		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
+		public void stats(CommandEvent event, @Context Database database) {
+			Document data = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("mute.leaveAction", "mute.role", "mute.time")).get("mute", Database.EMPTY_DOCUMENT);
+			
+			Long roleId = data.getLong("role");
+			Role role = roleId == null ? null : event.getGuild().getRoleById(roleId);
+			
+			Document leaveAction = data.get("leaveAction", Database.EMPTY_DOCUMENT);
+			Long duration = leaveAction.getLong("duration");
+			ModAction action = ModAction.getFromType(leaveAction.getInteger("type", ModAction.MUTE.getType()));
+			
+			EmbedBuilder embed = new EmbedBuilder();
+			embed.setAuthor("Mute Configuration", null, event.getGuild().getIconUrl());
+			embed.setColor(Settings.EMBED_COLOUR);
+			embed.addField("Mute Role", role == null ? "None" : role.getAsMention(), true);
+			embed.addField("Default Mute Time", TimeUtils.toTimeString(data.get("time", 1800L), ChronoUnit.SECONDS), true);
+			embed.addField("Auto Update", data.getBoolean("autoUpdate", true) ? "Enabled" : "Disabled", true);
+			embed.addField("Leave Action", action.getName() + (duration == null ? "" : " for " + TimeUtils.toTimeString(duration, ChronoUnit.SECONDS)), false);
+			event.reply(embed.build()).queue();
+		}
+		
+	}
+	
 	@Command(value="mute", description="Mute a user server wide for a specified amount of time")
 	@Examples({"mute @Shea#6653 20m", "mute Shea 30m Spamming", "mute 402557516728369153 12h template:offensive & Spamming"})
 	@AuthorPermissions({Permission.MESSAGE_MANAGE})
-	@BotPermissions({Permission.MANAGE_ROLES, Permission.MANAGE_PERMISSIONS})
+	@BotPermissions({Permission.MANAGE_ROLES})
 	public void mute(CommandEvent event, @Context Database database, @Argument(value="user") String userArgument, @Argument(value="time and unit", nullDefault=true) String muteLengthArgument, @Argument(value="reason", endless=true, nullDefault=true) String reasonArgument) {
-		String muteString;
+		Document allData = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("mute.users", "mute.role", "mute.time", "mute.autoUpdate", "templates"));
+		Document data = allData.get("mute", Database.EMPTY_DOCUMENT);
+		
 		long muteLength;
 		if (muteLengthArgument == null) {
-			muteLength = 1800;
-			muteString = "30 minutes";
+			muteLength = data.get("time", 1800L);
 		} else {
 			muteLength = TimeUtils.convertToSeconds(muteLengthArgument);
-			muteString = TimeUtils.toTimeString(muteLength, ChronoUnit.SECONDS);
 			if (muteLength <= 0) {
 				event.reply("Invalid time format, make sure it's formatted with a numerical value then a letter representing the time (d for days, h for hours, m for minutes, s for seconds) and make sure it's in order :no_entry:").queue();
 				return;
@@ -3066,7 +3232,7 @@ public class ModModule {
 			return;
 		}
 		
-		ModUtils.getOrCreateMuteRole(event.getGuild(), (role, error) -> {
+		ModUtils.getOrCreateMuteRole(event.getGuild(), data.getLong("role"), data.getBoolean("autoUpdate", true), (role, error) -> {
 			if (error != null) {
 				event.reply(error + " :no_entry:").queue();
 				return;
@@ -3082,16 +3248,17 @@ public class ModModule {
 				return;
 			}
 			
-			Document data = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("mute.users", "templates"));
-			List<Document> users = data.getEmbedded(List.of("mute", "users"), Collections.emptyList());
-			database.updateGuildById(ModUtils.getMuteUpdate(event.getGuild().getIdLong(), member.getUser().getIdLong(), users, muteLength), (result, exception) -> {
+			List<Document> users = data.getList("users", Document.class, Collections.emptyList());
+			database.updateGuildById(ModUtils.getMuteUpdate(event.getGuild().getIdLong(), member.getIdLong(), users, muteLength), (result, exception) -> {
 				if (exception != null) {
 					exception.printStackTrace();
 					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
 				} else {
-					String reason = TemplatesCommand.getReason(data.getList("templates", Document.class, Collections.emptyList()), reasonArgument);
+					String reason = TemplatesCommand.getReason(allData.getList("templates", Document.class, Collections.emptyList()), reasonArgument);
 					
 					event.getGuild().addRoleToMember(member, role).queue(mute -> {
+						String muteString = TimeUtils.toTimeString(muteLength, ChronoUnit.SECONDS);
+						
 						event.reply("**" + member.getUser().getAsTag() + "** has been muted for " + muteString + " <:done:403285928233402378>:ok_hand:").queue();
 						
 						if (!member.getUser().isBot()) {
@@ -3103,7 +3270,7 @@ public class ModModule {
 						ModUtils.createModLogAndOffence(event.getGuild(), event.getAuthor(), member.getUser(), "Mute (" + muteString + ")", reason);
 						
 						ScheduledFuture<?> executor = MuteEvents.scheduledExectuor.schedule(() -> MuteEvents.removeUserMute(event.getGuild().getIdLong(), member.getIdLong(), role.getIdLong()), muteLength, TimeUnit.SECONDS);
-						MuteEvents.putExecutor(event.getGuild().getIdLong(), member.getUser().getIdLong(), executor);
+						MuteEvents.putExecutor(event.getGuild().getIdLong(), member.getIdLong(), executor);
 					});
 				}	
 			});
@@ -3126,7 +3293,8 @@ public class ModModule {
 			return;
 		}
 		
-		Role role = MuteEvents.getMuteRole(event.getGuild());
+		Long roleId = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("mute.role")).getEmbedded(List.of("mute", "role"), Long.class);
+		Role role = roleId == null ? null : event.getGuild().getRoleById(roleId);
 		if (role == null) {
 			event.reply("**" + member.getUser().getAsTag() + "** is not muted :no_entry:").queue();
 			return;
@@ -3405,94 +3573,97 @@ public class ModModule {
 			});
 		}
 		
-		private final List<String> actions = List.of("ban", "mute", "kick");
-		
 		@SuppressWarnings("unchecked")
 		@Command(value="set", aliases={"add"}, description="Set a certain warning to a specified action to happen when a user reaches that warning")
 		@Examples({"warn configuration set 5 ban", "warn configuration set 2 mute", "warn configuration set 3 mute 2 hours"})
 		@AuthorPermissions({Permission.MANAGE_SERVER})
-		public void set(CommandEvent event, @Context Database database, @Argument(value="warning number") int warningNumber, @Argument(value="action", endless=true) String action) {
-			String actionLower = action.toLowerCase();
-			
+		public void set(CommandEvent event, @Context Database database, @Argument(value="warning number") int warningNumber, @Argument(value="action", endless=true) String actionArgument) {
 			if (warningNumber <= 0 || warningNumber > 50) {
 				event.reply("Warnings start at 1 and have a max warning of 50 :no_entry:").queue();
 				return;
 			}
 			
-			Document configuration = new Document("warning", warningNumber);
-			if (actions.contains(actionLower) || actionLower.startsWith("mute")) {
-				if (actionLower.equals("mute")) {
-					configuration.append("action", actionLower).append("duration", 1800L);
-				} else if (actionLower.startsWith("mute")) {
-					String timeString = actionLower.split(" ", 2)[1];
-					long muteLength = TimeUtils.convertToSeconds(timeString);
-					if (muteLength <= 0) {
-						event.reply("Invalid time format, make sure it's formatted with a numerical value then a letter representing the time (d for days, h for hours, m for minutes, s for seconds) and make sure it's in order :no_entry:").queue();
-						return;
-					}
-					
-					configuration.append("action", "mute").append("duration", muteLength);
-				} else {
-					configuration.append("action", actionLower);
-				}
-				
-				Bson update = null;
-				UpdateOptions updateOptions = null;
-				
-				List<Document> warnConfiguration = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("warn.configuration")).getEmbedded(List.of("warn", "configuration"), List.class);
-				if (warnConfiguration == null) {
-					List<Document> newWarnConfiguration = new ArrayList<>(ModUtils.DEFAULT_WARN_CONFIGURATION);
-					boolean updated = false;
-					for (Document warning : newWarnConfiguration) {
-						if (warning.getInteger("warning") == warningNumber) {
-							if (warning.equals(configuration)) {
-								event.reply("Warning #" + warningNumber + " already does that action :no_entry:").queue();
-								return;
-							}
-							
-							newWarnConfiguration.remove(warning);
-							newWarnConfiguration.add(configuration);
-							updated = true;
-							
-							break;
-						}
-					}
-					
-					if (!updated) {
-						newWarnConfiguration.add(configuration);
-					}
-					
-					update = Updates.set("warn.configuration", newWarnConfiguration);
-				} else {	
-					for (Document warning : warnConfiguration) {
-						if (warning.getInteger("warning") == warningNumber) {
-							if (warning.equals(configuration)) {
-								event.reply("Warning #" + warningNumber + " already does that action :no_entry:").queue();
-								return;
-							}
-							
-							update = Updates.set("warn.configuration.$[warning]", configuration);
-							updateOptions = new UpdateOptions().arrayFilters(List.of(Filters.eq("warning.warning", warningNumber)));
-							break;
-						}
-					}
-					
-					if (update == null) {
-						update = Updates.push("warn.configuration", configuration);
-					}
-				}
-				
-				database.updateGuildById(event.getGuild().getIdLong(), null, update, updateOptions, (result, exception) -> {
-					if (exception != null) {
-						exception.printStackTrace();
-						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
-					} else {
-						event.replyFormat("Warning #%d will now %s the user %s<:done:403285928233402378>", warningNumber, configuration.containsKey("duration") ? "mute" : actionLower, configuration.containsKey("duration") ? "for " + TimeUtils.toTimeString(configuration.getLong("duration"), ChronoUnit.SECONDS) + " " : "").queue();
-					}
-				});
-			} else {
-				event.reply("Invalid action, make sure it is either mute, kick or ban :no_entry:").queue();
+			String[] actionSplit = actionArgument.toUpperCase().split("\\s+", 2);
+			
+			ModAction action;
+			try {
+				action = ModAction.valueOf(actionSplit[0]);
+			} catch (IllegalArgumentException e) {
+				event.reply("I could not find that action, valid actions are `" + Arrays.stream(ModAction.values()).map(ModAction::name).collect(Collectors.joining("`, `")) + "` :no_entry:").queue();
+				return;
 			}
+			
+			Document data = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("warn.configuration", "mute.time"));
+			
+			Document configuration = new Document("warning", warningNumber);
+			if (actionSplit.length > 1 && (action == ModAction.MUTE || action == ModAction.MUTE_EXTEND)) {
+				long muteLength = TimeUtils.convertToSeconds(actionSplit[1]);
+				if (muteLength <= 0) {
+					event.reply("Invalid time format, make sure it's formatted with a numerical value then a letter representing the time (d for days, h for hours, m for minutes, s for seconds) and make sure it's in order :no_entry:").queue();
+					return;
+				}
+				
+				configuration.append("action", action.getType()).append("duration", muteLength);
+			} else if (action == ModAction.MUTE || action == ModAction.MUTE_EXTEND) {
+				configuration.append("action", action.getType()).append("duration", data.getEmbedded(List.of("mute", "time"), 1800L));
+			} else {
+				configuration.append("action", action.getType());
+			}
+			
+			Bson update = null;
+			UpdateOptions updateOptions = null;
+			
+			List<Document> warnConfiguration = data.getEmbedded(List.of("warn", "configuration"), List.class);
+			if (warnConfiguration == null) {
+				List<Document> newWarnConfiguration = new ArrayList<>(ModUtils.DEFAULT_WARN_CONFIGURATION);
+				boolean updated = false;
+				for (Document warning : newWarnConfiguration) {
+					if (warning.getInteger("warning") == warningNumber) {
+						if (warning.equals(configuration)) {
+							event.reply("Warning #" + warningNumber + " already does that action :no_entry:").queue();
+							return;
+						}
+						
+						newWarnConfiguration.remove(warning);
+						newWarnConfiguration.add(configuration);
+						updated = true;
+						
+						break;
+					}
+				}
+				
+				if (!updated) {
+					newWarnConfiguration.add(configuration);
+				}
+				
+				update = Updates.set("warn.configuration", newWarnConfiguration);
+			} else {	
+				for (Document warning : warnConfiguration) {
+					if (warning.getInteger("warning") == warningNumber) {
+						if (warning.equals(configuration)) {
+							event.reply("Warning #" + warningNumber + " already does that action :no_entry:").queue();
+							return;
+						}
+						
+						update = Updates.set("warn.configuration.$[warning]", configuration);
+						updateOptions = new UpdateOptions().arrayFilters(List.of(Filters.eq("warning.warning", warningNumber)));
+						break;
+					}
+				}
+				
+				if (update == null) {
+					update = Updates.push("warn.configuration", configuration);
+				}
+			}
+			
+			database.updateGuildById(event.getGuild().getIdLong(), null, update, updateOptions, (result, exception) -> {
+				if (exception != null) {
+					exception.printStackTrace();
+					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+				} else {
+					event.replyFormat("The user will now receive a %s%s on Warning #%d <:done:403285928233402378>", action.getName(), configuration.containsKey("duration") ? " for " + TimeUtils.toTimeString(configuration.getLong("duration"), ChronoUnit.SECONDS) : "", warningNumber).queue();
+				}
+			});
 		}
 		
 		@SuppressWarnings("unchecked")
@@ -3646,8 +3817,10 @@ public class ModModule {
 				Long duration = warning.getDuration();
 				
 				List<WriteModel<Document>> bulkData = new ArrayList<>();
-				if (warning.getAction().equals("mute")) {
+				if (warning.getAction() == ModAction.MUTE) {
 					bulkData.add(ModUtils.getMuteUpdate(event.getGuild().getIdLong(), member.getIdLong(), mutedUsers, duration));
+				} else if (warning.getAction() == ModAction.MUTE_EXTEND) {
+					bulkData.add(ModUtils.getMuteUpdate(event.getGuild().getIdLong(), member.getIdLong(), mutedUsers, duration, true));
 				}
 				
 				bulkData.add(WarnUtils.getUserUpdate(warnedUsers, warnConfiguration, event.getGuild().getIdLong(), member.getIdLong(), reason));
@@ -3657,7 +3830,7 @@ public class ModModule {
 						writeException.printStackTrace();
 						event.reply(Sx4CommandEventListener.getUserErrorMessage(writeException)).queue();
 					} else {
-						event.replyFormat("**%s** has been %s%s (%s warning) <:done:403285928233402378>", member.getUser().getAsTag(), WarnUtils.getSuffixedAction(warning.getAction()), duration != null ? " for " + TimeUtils.toTimeString(duration, ChronoUnit.SECONDS) : "", GeneralUtils.getNumberSuffix(warning.getWarning())).queue();
+						event.replyFormat("**%s** has received a %s%s (%s warning) <:done:403285928233402378>", member.getUser().getAsTag(), warning.getAction().getName(), duration != null ? " for " + TimeUtils.toTimeString(duration, ChronoUnit.SECONDS) : "", GeneralUtils.getNumberSuffix(warning.getWarning())).queue();
 					}
 				});
 			}
@@ -3722,7 +3895,7 @@ public class ModModule {
 		if (punishments) {
 			nextWarning = WarnUtils.getWarning(configuration, userWarning.getWarning() + 1);
 		} else {
-			nextWarning = new Warning(userWarning.getWarning() + 1, "warn");
+			nextWarning = new Warning(userWarning.getWarning() + 1, ModAction.WARN);
 		}
 		
 		StringBuilder reasons = new StringBuilder();
@@ -3743,7 +3916,7 @@ public class ModModule {
 		embed.setColor(member.getColor());
 		embed.setAuthor(member.getUser().getAsTag(), null, member.getUser().getEffectiveAvatarUrl());
 		embed.setDescription(member.getUser().getName() + " is on " + userWarning.getWarning() + " warning" + (userWarning.getWarning() == 1 ? "" : "s"));
-		embed.addField("Next Action", GeneralUtils.title(nextWarning.getAction()), false);
+		embed.addField("Next Action", nextWarning.getAction().getName() + (nextWarning.getDuration() == null ? "" : " for " + TimeUtils.toTimeString(nextWarning.getDuration(), ChronoUnit.SECONDS)), false);
 		embed.addField("Reasons", reasons.length() == 0 ? "None" : reasons.toString(), false);
 		event.reply(embed.build()).queue();
 	}

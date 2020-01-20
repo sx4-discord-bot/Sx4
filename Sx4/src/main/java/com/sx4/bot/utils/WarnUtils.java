@@ -30,21 +30,21 @@ public class WarnUtils {
 	public static class Warning {
 		
 		private int warning;
-		private String action;
+		private ModAction action;
 		private Long duration = null;
 		
 		public Warning(Document document) {
 			this.warning = document.getInteger("warning");
-			this.action = document.getString("action");
+			this.action = ModAction.getFromType(document.getInteger("action"));
 			this.duration = document.getLong("duration");
 		}
 		
-		public Warning(int warning, String action) {
+		public Warning(int warning, ModAction action) {
 			this.warning = warning;
 			this.action = action;
 		}
 		
-		public Warning(int warning, String action, long duration) {
+		public Warning(int warning, ModAction action, long duration) {
 			this.warning = warning;
 			this.action = action;
 			this.duration = duration;
@@ -54,7 +54,7 @@ public class WarnUtils {
 			return this.warning;
 		}
 		
-		public String getAction() {
+		public ModAction getAction() {
 			return this.action;
 		}
 		
@@ -110,7 +110,7 @@ public class WarnUtils {
 		if (punishments) {
 			nextWarning = WarnUtils.getWarning(configuration, userNextWarning.getWarning() + 1);
 		} else {
-			nextWarning = new Warning(userNextWarning.getWarning() + 1, "warn");
+			nextWarning = new Warning(userNextWarning.getWarning() + 1, ModAction.WARN);
 		}
 		
 		WarnUtils.handleWarningPunishments(guild, user, moderator, reason, punishments, configuration, nextWarning, exception -> {
@@ -129,8 +129,8 @@ public class WarnUtils {
 	}
 	
 	public static void handleWarningPunishments(Guild guild, Member target, Member moderator, String reason, boolean punishments, List<Document> warnConfiguration, Warning warning, Consumer<Throwable> exception) {
-		switch (warning.getAction().toLowerCase()) {
-			case "ban":
+		switch (warning.getAction()) {
+			case BAN:
 				if (guild.getSelfMember().hasPermission(Permission.BAN_MEMBERS)) {
 					if (guild.getSelfMember().canInteract(target)) {
 						if (!target.getUser().isBot()) {
@@ -138,7 +138,7 @@ public class WarnUtils {
 						}
 						
 						guild.ban(target, 1).queue(ban -> {
-							ModUtils.createModLogAndOffence(guild, moderator.getUser(), target.getUser(), GeneralUtils.title(warning.getAction()) + " (" + GeneralUtils.getNumberSuffix(warning.getWarning()) + " warning)", reason);
+							ModUtils.createModLogAndOffence(guild, moderator.getUser(), target.getUser(), warning.getAction().getName() + " (" + GeneralUtils.getNumberSuffix(warning.getWarning()) + " warning)", reason);
 							
 							exception.accept(null);
 						}, e -> {
@@ -152,7 +152,7 @@ public class WarnUtils {
 				}
 				
 				break;
-			case "kick": 
+			case KICK: 
 				if (guild.getSelfMember().hasPermission(Permission.KICK_MEMBERS)) {
 					if (guild.getSelfMember().canInteract(target)) {
 						if (!target.getUser().isBot()) {
@@ -160,7 +160,7 @@ public class WarnUtils {
 						}
 						
 						guild.kick(target).queue(kick -> {
-							ModUtils.createModLogAndOffence(guild, moderator.getUser(), target.getUser(), GeneralUtils.title(warning.getAction()) + " (" + GeneralUtils.getNumberSuffix(warning.getWarning()) + " warning)", reason);
+							ModUtils.createModLogAndOffence(guild, moderator.getUser(), target.getUser(), warning.getAction().getName() + " (" + GeneralUtils.getNumberSuffix(warning.getWarning()) + " warning)", reason);
 							
 							exception.accept(null);
 						}, e -> {
@@ -174,7 +174,7 @@ public class WarnUtils {
 				}
 				
 				break;
-			case "mute": 				
+			case MUTE: 				
 				ModUtils.getOrCreateMuteRole(guild, (muteRole, error) -> {
 					if (error != null) {
 						exception.accept(new IllegalStateException(error));
@@ -194,7 +194,50 @@ public class WarnUtils {
 									MuteEvents.putExecutor(guild.getIdLong(), target.getIdLong(), executor);
 								}
 								
-								ModUtils.createModLogAndOffence(guild, moderator.getUser(), target.getUser(), GeneralUtils.title(warning.getAction()) + (duration == null ? " Infinite" : " " + TimeUtils.toTimeString(duration, ChronoUnit.SECONDS)) + " (" + GeneralUtils.getNumberSuffix(warning.getWarning()) + " warning)", reason);
+								ModUtils.createModLogAndOffence(guild, moderator.getUser(), target.getUser(), warning.getAction().getName() + (duration == null ? " Infinite" : " " + TimeUtils.toTimeString(duration, ChronoUnit.SECONDS)) + " (" + GeneralUtils.getNumberSuffix(warning.getWarning()) + " warning)", reason);
+								
+								exception.accept(null);
+							}, e -> {
+								exception.accept(e);
+							});
+						} else {
+							exception.accept(new HierarchyException("I am unable to mute that user as their top role is higher than mine"));
+						}
+					} else {
+						exception.accept(new PermissionException("I am unable to mute that user because I am missing the Manage Roles permission"));
+					}
+				});
+				
+				break;
+			case MUTE_EXTEND:
+				ModUtils.getOrCreateMuteRole(guild, (muteRole, error) -> {
+					if (error != null) {
+						exception.accept(new IllegalStateException(error));
+						return;
+					}
+					
+					if (guild.getSelfMember().hasPermission(Permission.MANAGE_ROLES)) {
+						if (guild.getSelfMember().canInteract(muteRole)) {
+							if (!target.getUser().isBot()) {
+								target.getUser().openPrivateChannel().queue(channel -> channel.sendMessage(ModUtils.getWarnEmbed(guild, moderator.getUser(), punishments, warnConfiguration, warning, reason)).queue(), e -> {});
+							}
+							
+							guild.addRoleToMember(target, muteRole).queue(mute -> {
+								Long duration = warning.getDuration();
+								if (duration != null) {
+									ScheduledFuture<?> currentExecutor = MuteEvents.getExecutor(guild.getIdLong(), target.getIdLong());
+									
+									long delay = duration;
+									if (currentExecutor != null && !currentExecutor.isDone()) {
+										currentExecutor.cancel(true);
+										delay += currentExecutor.getDelay(TimeUnit.SECONDS);
+									}
+									
+									ScheduledFuture<?> executor = MuteEvents.scheduledExectuor.schedule(() -> MuteEvents.removeUserMute(guild.getIdLong(), target.getIdLong(), muteRole.getIdLong()), delay, TimeUnit.SECONDS);
+									MuteEvents.putExecutor(guild.getIdLong(), target.getIdLong(), executor);
+								}
+								
+								ModUtils.createModLogAndOffence(guild, moderator.getUser(), target.getUser(), warning.getAction().getName() + (duration == null ? " Infinite" : " " + TimeUtils.toTimeString(duration, ChronoUnit.SECONDS)) + " (" + GeneralUtils.getNumberSuffix(warning.getWarning()) + " warning)", reason);
 								
 								exception.accept(null);
 							}, e -> {
@@ -214,7 +257,7 @@ public class WarnUtils {
 					target.getUser().openPrivateChannel().queue(channel -> channel.sendMessage(ModUtils.getWarnEmbed(guild, moderator.getUser(), punishments, warnConfiguration, warning, reason)).queue(), e -> {});
 				}
 				
-				ModUtils.createModLogAndOffence(guild, moderator.getUser(), target.getUser(), GeneralUtils.title(warning.getAction()) + " (" + GeneralUtils.getNumberSuffix(warning.getWarning()) + " warning)", reason);
+				ModUtils.createModLogAndOffence(guild, moderator.getUser(), target.getUser(), warning.getAction().getName() + " (" + GeneralUtils.getNumberSuffix(warning.getWarning()) + " warning)", reason);
 				
 				exception.accept(null);
 				
@@ -265,7 +308,7 @@ public class WarnUtils {
 			}
 		}
 		
-		return new Warning(warning, "warn");
+		return new Warning(warning, ModAction.WARN);
 	}
 	
 	public static int getMaxWarning(List<Document> warnConfiguration) {
@@ -285,7 +328,7 @@ public class WarnUtils {
 	}
 	
 	public static String getSuffixedAction(String action) {
-		return action.equals("mute") ? action + "d" : action.equals("ban") ? action + "ned" : action + "ed";
+		return action.equalsIgnoreCase("mute") ? action + "d" : action.equalsIgnoreCase("ban") ? action + "ned" : action + "ed";
 	}
 	
 }

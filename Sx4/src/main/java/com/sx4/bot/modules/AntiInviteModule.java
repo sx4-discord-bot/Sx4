@@ -1,8 +1,11 @@
 package com.sx4.bot.modules;
 
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.bson.Document;
 import org.bson.conversions.Bson;
@@ -29,10 +32,11 @@ import com.sx4.bot.database.Database;
 import com.sx4.bot.interfaces.Examples;
 import com.sx4.bot.settings.Settings;
 import com.sx4.bot.utils.ArgumentUtils;
-import com.sx4.bot.utils.GeneralUtils;
 import com.sx4.bot.utils.HelpUtils;
+import com.sx4.bot.utils.ModAction;
 import com.sx4.bot.utils.PagedUtils;
 import com.sx4.bot.utils.PagedUtils.PagedResult;
+import com.sx4.bot.utils.TimeUtils;
 
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
@@ -47,7 +51,6 @@ public class AntiInviteModule {
 
 	public class AntiInviteCommand extends Sx4Command {
 		
-		private final List<String> actions = List.of("mute", "kick", "ban");
 		private final List<String> nullStrings = List.of("null", "none", "off", "reset");
 		
 		public AntiInviteCommand() {
@@ -96,12 +99,10 @@ public class AntiInviteModule {
 		@Command(value="action", aliases={"set action", "setaction"}, description="Set the action which will happen when a user posts a certain amount of invites (Set with antiinvite attempts), use off as an argument to turn this feature off", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@Examples({"antiinvite action ban", "antiinvite action mute", "antiinvite action none"})
 		@AuthorPermissions({Permission.BAN_MEMBERS})
-		public void action(CommandEvent event, @Context Database database, @Argument(value="action") String actionArgument) {
-			String action = actionArgument.toLowerCase();
-			
+		public void action(CommandEvent event, @Context Database database, @Argument(value="action", endless=true) String actionArgument) {			
 			Document data = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("antiinvite.action", "antiinvite.attempts")).get("antiinvite", Database.EMPTY_DOCUMENT);
-			if (nullStrings.contains(action)) {
-				if (data.getString("action") == null) {
+			if (this.nullStrings.contains(actionArgument.toLowerCase())) {
+				if (data.get("action", Document.class) == null) {
 					event.reply("You don't have an action set :no_entry:").queue();
 					return;
 				}
@@ -115,23 +116,45 @@ public class AntiInviteModule {
 						event.reply("An action will no longer occur when a user sends " + attempts + " invite" + (attempts == 1 ? "" : "s") + " <:done:403285928233402378>").queue();
 					}
 				});
-			} else if (actions.contains(action)) {
-				if (data.getString("action") != null && data.getString("action").equals(action)) {
-					event.reply("The action is already set to `" + action + "` :no_entry:").queue();
+			} else {
+				String[] actionSplit = actionArgument.toUpperCase().split("\\s+", 2);
+				
+				ModAction action;
+				try {
+					action = ModAction.valueOf(actionSplit[0]);
+				} catch (IllegalArgumentException e) {
+					event.reply("I could not find that action, valid actions are `" + Arrays.stream(ModAction.values()).map(ModAction::name).collect(Collectors.joining("`, `")) + "` :no_entry:").queue();
 					return;
 				}
 				
+				long duration = actionSplit.length > 1 && (action == ModAction.MUTE || action == ModAction.MUTE_EXTEND) ? TimeUtils.convertToSeconds(actionSplit[1]) : -1;
+				if (duration == 0) {
+					event.reply("Invalid time format, make sure it's formatted with a numerical value then a letter representing the time (d for days, h for hours, m for minutes, s for seconds) and make sure it's in order :no_entry:").queue();
+					return;
+				}
+				
+				Document currentAction = data.get("action", Document.class);
+				if (currentAction != null && currentAction.getInteger("type") == action.getType() && currentAction.get("duration", -1L) == duration) {
+					event.reply("The action is already set to that :no_entry:").queue();
+					return;
+				}
+				
+				Bson update = Updates.set("antiinvite.action.type", action.getType());
+				if (duration == -1) {
+					update = Updates.combine(update, Updates.unset("antiinvite.action.duration"));
+				} else {
+					update = Updates.combine(update, Updates.set("antiinvite.action.duration", duration));
+				}
+				
 				int attempts = data.getInteger("attempts", 3);
-				database.updateGuildById(event.getGuild().getIdLong(), Updates.set("antiinvite.action", action), (result, exception) -> {
+				database.updateGuildById(event.getGuild().getIdLong(), update, (result, exception) -> {
 					if (exception != null) {
 						exception.printStackTrace();
 						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
 					} else {
-						event.reply("Users will now receive a `" + action + "` when sending **" + attempts + "** invite" + (attempts == 1 ? "" : "s") + " <:done:403285928233402378>").queue();
+						event.replyFormat("Users will now receive a `%s`%s when sending **%d** invite%s <:done:403285928233402378>", action.getName(), duration == -1 ? "" : " for " + TimeUtils.toTimeString(duration, ChronoUnit.SECONDS), attempts, attempts == 1 ? "" : "s").queue();
 					}
 				});
-			} else {
-				event.reply("Invalid action, `" + GeneralUtils.joinGrammatical(actions) + "` are the valid actions :no_entry:").queue();
 			}
 		}
 		

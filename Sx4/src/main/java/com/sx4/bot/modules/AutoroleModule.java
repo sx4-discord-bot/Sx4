@@ -219,13 +219,13 @@ public class AutoroleModule {
 		@Examples({"autorole auto update"})
 		@AuthorPermissions({Permission.MANAGE_ROLES})
 		public void autoUpdate(CommandEvent event, @Context Database database) {
-			boolean enabled = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("autorole.autoUpdate")).getEmbedded(List.of("autorole", "autoUpdate"), false);
-			database.updateGuildById(event.getGuild().getIdLong(), Updates.set("autorole.autoUpdate", !enabled), (result, exception) -> {
+			List<Bson> update = List.of(Aggregates.addFields(new Field<>("autorole.autoUpdate", Conditions.cond(Conditions.exists("$autorole.autoUpdate"), "$$REMOVE", false))));
+			database.getGuildByIdAndUpdate(event.getGuild().getIdLong(), update, Projections.include("autorole.autoUpdate"), (data, exception) -> {
 				if (exception != null) {
 					exception.printStackTrace();
 					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
 				} else {
-					event.reply("Auto updating for auto role is now " + (enabled ? "disabled" : "enabled") + " <:done:403285928233402378>").queue();
+					event.reply("Auto updating for auto role is now " + (data.getEmbedded(List.of("autorole", "autoUpdate"), true) ? "enabled" : "disabled") + " <:done:403285928233402378>").queue();
 				}
 			});
 		}

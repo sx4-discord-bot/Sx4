@@ -10,7 +10,6 @@ import com.sx4.bot.settings.Settings;
 
 import net.dv8tion.jda.api.entities.Activity;
 import net.dv8tion.jda.api.entities.Guild;
-import net.dv8tion.jda.api.entities.GuildChannel;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.TextChannel;
@@ -77,7 +76,7 @@ public class FunUtils {
 		Member guildMember = supportServer.getMember(member.getUser());
 		
 		if (guildMember != null) {
-			if (guildMember.getRoles().contains(supportServer.getRoleById(Settings.DONATOR_ONE_ROLE_ID))) {
+			if (guildMember.getRoles().stream().map(Role::getIdLong).anyMatch(id -> id == Settings.DONATOR_ONE_ROLE_ID)) {
 				badges.add("donator.png");
 			}
 			
@@ -89,7 +88,7 @@ public class FunUtils {
 		}
 		
 		for (Guild guild : Sx4Bot.getShardManager().getGuilds()) {
-			if (guild.getOwner().equals(member)) {
+			if (guild.getOwnerIdLong() == member.getIdLong()) {
 				badges.add("server_owner.png");
 				break;
 			}
