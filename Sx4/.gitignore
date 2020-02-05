@@ -1,5 +1,4 @@
 /.gradle/
 /bin/
-TokenUtils.java
-Settings.java
+config.json
 /build/

@@ -1,0 +1,97 @@
+{
+	"state": {
+		"canary": true,
+		"test": true
+	},
+	"canary": {
+		"supportGuild": {
+			"id": 0,
+			"channel": {
+				"errorsId": 0,
+				"changesId": 0,
+				"commandsId": 0,
+				"eventsId": 0,
+				"statsId": 0,
+				"guildsId": 0,
+				"milestonesId": 0
+			},
+			"role": {
+				"donatorId": 0
+			},
+			"webhook": {
+				"eventsId": 0,
+				"eventsToken": "",
+				"commandsId": 0,
+				"commandsToken": ""
+			}
+		},
+		"database": "",
+		"ad": {
+			"description": null,
+			"image": null,
+		},
+		"host": {
+			"localHost": "",
+			"domain": "",
+			"port": 0
+		}
+	},
+	"main": {
+		"supportGuild": {
+			"id": 0,
+			"channel": {
+				"errorsId": 0,
+				"changesId": 0,
+				"commandsId": 0,
+				"eventsId": 0,
+				"statsId": 0,
+				"guildsId": 0,
+				"milestonesId": 0
+			},
+			"role": {
+				"donatorId": 0
+			},
+			"webhook": {
+				"eventsId": 0,
+				"eventsToken": "",
+				"commandsId": 0,
+				"commandsToken": "0"
+			}
+		},
+		"database": "",
+		"ad": {
+			"description": null,
+			"image": null,
+		},
+		"host": {
+			"localHost": "",
+			"domain": "",
+			"port": 0
+		}
+	},
+	"token": {
+		"canaryId": 0,
+		"test": "",
+		"canary": "",
+		"main": "",
+		"vainGlory": "",
+		"voteApi": {
+			"sx4": "",
+			"jockieMusic": ""
+		},
+		"top.gg": "",
+		"botlist.space": "",
+		"dbl": "",
+		"discord.bots": "",
+		"google": "",
+		"steam": "",
+		"oxfordDictionaries": "",
+		"mashape": "",
+		"youtube": "",
+		"bitly": "",
+		"weebsh": "",
+		"currencyConvertor": "",
+		"openWeather": "",
+		"igdb": ""
+	}
+} 

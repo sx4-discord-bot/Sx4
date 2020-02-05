@@ -22,7 +22,7 @@ dependencies {
 
 	implementation 'net.dv8tion:JDA:4+'
 	
-	implementation 'org.mongodb:mongodb-driver-sync:3+'
+	implementation 'org.mongodb:mongodb-driver-sync:+'
 	
 	compile group: 'org.codehaus.groovy', name: 'groovy', version: '2.5.2'
 	
