@@ -121,6 +121,68 @@ public class SearchUtility {
 		}
 	}
 	
+	public static void getUserRest(Guild guild, String userArgument, Consumer<User> userConsumer) {
+		Matcher mentionMatch = SearchUtility.USER_MENTION.matcher(userArgument);
+		Matcher tagMatch = SearchUtility.USER_TAG.matcher(userArgument);
+		if (mentionMatch.matches()) {
+			try {
+				long id = Long.parseLong(mentionMatch.group(1));
+				
+				Member member = guild.getMemberById(id);
+				if (member == null) {
+					Sx4Bot.getShardManager().retrieveUserById(id).queue(user -> {
+						userConsumer.accept(user);
+					});
+				} else {
+					userConsumer.accept(member.getUser());
+				}
+			} catch (NumberFormatException e) {
+				userConsumer.accept(null);
+			}
+		} else if (tagMatch.matches()) {
+			String name = tagMatch.group(1);
+			String discriminator = tagMatch.group(2);
+			
+			userConsumer.accept(
+				guild.getMemberCache().stream()
+					.map(Member::getUser)
+					.filter(user -> user.getName().equalsIgnoreCase(name) && user.getDiscriminator().equals(discriminator))
+					.findFirst()
+					.orElseGet(() -> {
+						return Sx4Bot.getShardManager().getUserCache().stream()
+							.filter(user -> user.getName().equalsIgnoreCase(name) && user.getDiscriminator().equals(discriminator))
+							.findFirst()
+							.orElse(null);
+					})
+			);
+		} else if (NumberUtility.isNumberUnsigned(userArgument)) {
+			try {
+				long id = Long.parseLong(userArgument);
+				
+				Member member = guild.getMemberById(id);
+				if (member == null) {
+					Sx4Bot.getShardManager().retrieveUserById(id).queue(user -> {
+						userConsumer.accept(user);
+					});
+				} else {
+					userConsumer.accept(member.getUser());
+				}
+			} catch (NumberFormatException e) {
+				userConsumer.accept(null);
+			}
+		} else {
+			Member member = SearchUtility.findMember(guild.getMembers(), userArgument);
+			if (member == null) {
+				userConsumer.accept(Sx4Bot.getShardManager().getUserCache().stream()
+						.filter(user -> user.getName().equalsIgnoreCase(userArgument))
+						.findFirst()
+						.orElse(null));
+			} else {
+				userConsumer.accept(member.getUser());
+			}
+		}
+	}
+	
 	public static void getUserRest(String userArgument, Consumer<User> userConsumer) {
 		Matcher mentionMatch = SearchUtility.USER_MENTION.matcher(userArgument);
 		Matcher tagMatch = SearchUtility.USER_TAG.matcher(userArgument);

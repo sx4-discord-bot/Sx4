@@ -28,4 +28,8 @@ public class Operators {
 		return Operators.ne(key, new BsonUndefined());
 	}
 	
+	public static Bson set(String key, Object expression) {
+		return new Document("$set", new Document(key, expression));
+	}
+	
 }

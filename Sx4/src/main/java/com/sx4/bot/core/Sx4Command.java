@@ -1,16 +1,20 @@
 package com.sx4.bot.core;
 
 import java.lang.reflect.Method;
+import java.util.concurrent.ScheduledExecutorService;
 
 import com.jockie.bot.core.command.impl.CommandImpl;
 import com.sx4.bot.annotations.Canary;
 import com.sx4.bot.annotations.Donator;
 import com.sx4.bot.annotations.Examples;
 import com.sx4.bot.hooks.mod.ModActionManager;
+import com.sx4.bot.managers.MuteManager;
 
 public class Sx4Command extends CommandImpl {
 	
 	public final ModActionManager modManager = Sx4Bot.getModActionManager();
+	public final MuteManager muteManager = MuteManager.get();
+	public final ScheduledExecutorService muteExecutor = this.muteManager.getExecutor();
 	
 	protected boolean donator = false;
 	

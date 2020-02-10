@@ -14,8 +14,11 @@ import com.sx4.bot.handlers.ModHandler;
 import com.sx4.bot.hooks.mod.ModActionManager;
 import com.sx4.bot.message.cache.GuildMessageCache;
 import com.sx4.bot.paged.PagedHandler;
+import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.SearchUtility;
+import com.sx4.bot.utility.TimeUtility;
 
+import java.time.Duration;
 import net.dv8tion.jda.api.entities.Category;
 import net.dv8tion.jda.api.entities.Emote;
 import net.dv8tion.jda.api.entities.GuildChannel;
@@ -50,11 +53,13 @@ public class Sx4Bot {
 			.registerResponse(VoiceChannel.class, "I could not find that voice channel :no_entry:")
 			.registerResponse(Category.class, "I could not find that category :no_entry:")
 			.registerResponse(GuildChannel.class, "I could not find that channel :no_entry:")
-			.registerResponse(IPermissionHolder.class, "I could not find that user/role :no_entry:");
+			.registerResponse(IPermissionHolder.class, "I could not find that user/role :no_entry:")
+			.registerResponse(Duration.class, "Invalid time string given, a good example would be `5d 1h 24m 36s` :no_entry:");
 		
 		ArgumentFactory.getDefault()
 			.registerParser(Member.class, (context, argument, content) -> new ParsedArgument<>(SearchUtility.getMember(context.getMessage().getGuild(), content.trim())))
-			.registerParser(User.class, (context, argument, content) -> new ParsedArgument<>(SearchUtility.getUser(content.trim())));
+			.registerParser(User.class, (context, argument, content) -> new ParsedArgument<>(SearchUtility.getUser(content.trim())))
+			.registerParser(Duration.class, (context, argument, content) -> new ParsedArgument<>(TimeUtility.getTimeFromString(content)));
 		
 		ContextManagerFactory.getDefault()
 			.registerContext(Database.class, (event, type) -> Database.INSTANCE);
@@ -63,7 +68,7 @@ public class Sx4Bot {
 			.addCommandStores(CommandStore.of("com.sx4.bot.commands"))
 			.addDevelopers(402557516728369153L, 190551803669118976L)
 			.setErrorManager(errorManager);
-		
+				
 		InterfacedEventManager eventManager = new InterfacedEventManager();
 		
 		eventManager.register(Sx4Bot.commandListener);
@@ -75,6 +80,14 @@ public class Sx4Bot {
 			.setBulkDeleteSplittingEnabled(false)
 			.setEventManagerProvider(shardId -> eventManager)
 			.build();
+		
+		Thread.setDefaultUncaughtExceptionHandler((thread, exception) -> {
+			System.err.println("[Uncaught]");
+			
+			exception.printStackTrace();
+			
+			ExceptionUtility.sendErrorMessage(exception);
+		});
 	}
 	
 	public static ShardManager getShardManager() {

@@ -1,4 +1,9 @@
 {
+	"colours": {
+		"red": 0,
+		"orange": 0,
+		"green": 0
+	},
 	"state": {
 		"canary": true,
 		"test": true
@@ -34,7 +39,8 @@
 			"localHost": "",
 			"domain": "",
 			"port": 0
-		}
+		}, 
+		"colour": 0
 	},
 	"main": {
 		"supportGuild": {
@@ -67,7 +73,8 @@
 			"localHost": "",
 			"domain": "",
 			"port": 0
-		}
+		},
+		"colour": 0
 	},
 	"token": {
 		"canaryId": 0,

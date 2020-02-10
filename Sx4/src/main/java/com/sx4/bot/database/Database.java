@@ -7,6 +7,7 @@ import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
 
+import com.mongodb.MongoClientSettings;
 import com.mongodb.bulk.BulkWriteResult;
 import com.mongodb.client.AggregateIterable;
 import com.mongodb.client.FindIterable;
@@ -28,6 +29,7 @@ import com.sx4.bot.entities.mod.ModLog;
 import com.sx4.bot.entities.mod.TimeAction;
 import com.sx4.bot.entities.mod.WarnAction;
 import com.sx4.bot.entities.warn.WarnConfig;
+import com.sx4.bot.handlers.DatabaseHandler;
 
 public class Database {
 	
@@ -54,7 +56,14 @@ public class Database {
 	private final MongoCollection<Document> offences;
 	
 	public Database() {
-		this.client = MongoClients.create();
+		DatabaseHandler handler = new DatabaseHandler();
+		
+		MongoClientSettings settings = MongoClientSettings.builder()
+			.addCommandListener(handler)
+			.applyToClusterSettings(block -> block.addClusterListener(handler))
+			.build();
+		
+		this.client = MongoClients.create(settings);
 		this.database = this.client.getDatabase(Config.get().getDatabase());
 		
 		this.users = this.database.getCollection("users");
@@ -120,6 +129,25 @@ public class Database {
 	
 	public CompletableFuture<UpdateResult> updateUserById(long userId, Bson update) {
 		return this.updateUserById(userId, update, this.updateOptions);
+	}
+	
+	public CompletableFuture<Document> findAndUpdateUserById(long userId, Bson filter, List<? extends Bson> update, FindOneAndUpdateOptions options) {
+		Bson dbFilter;
+		if (filter == null) {
+			dbFilter = Filters.eq("_id", userId);
+		} else {
+			dbFilter = Filters.and(Filters.eq("_id", userId), filter);
+		}
+		
+		return CompletableFuture.supplyAsync(() -> this.users.findOneAndUpdate(dbFilter, update, options));
+	}
+	
+	public CompletableFuture<Document> findAndUpdateUserById(long userId, Bson filter, Bson projection, List<? extends Bson> update) {
+		return this.findAndUpdateUserById(userId, filter, update, this.findOneAndUpdateOptions.projection(projection));
+	}
+	
+	public CompletableFuture<Document> findAndUpdateUserById(long userId, Bson projection, List<? extends Bson> update) {
+		return this.findAndUpdateUserById(userId, null, update, this.findOneAndUpdateOptions.projection(projection));
 	}
 	
 	public CompletableFuture<BulkWriteResult> bulkWriteUsers(List<? extends WriteModel<? extends Document>> bulkData) {

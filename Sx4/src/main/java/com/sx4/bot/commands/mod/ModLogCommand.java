@@ -8,13 +8,12 @@ import com.jockie.bot.core.command.Command;
 import com.jockie.bot.core.command.Command.AuthorPermissions;
 import com.jockie.bot.core.command.Context;
 import com.jockie.bot.core.command.impl.CommandEvent;
-import com.mongodb.client.model.Aggregates;
-import com.mongodb.client.model.Field;
 import com.mongodb.client.model.Projections;
 import com.sx4.bot.annotations.Examples;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.database.model.Operators;
+import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.HelpUtility;
 
 import net.dv8tion.jda.api.Permission;
@@ -37,13 +36,12 @@ public class ModLogCommand extends Sx4Command {
 	@AuthorPermissions({Permission.MANAGE_SERVER})
 	@Examples({"modlog toggle"})
 	public void toggle(CommandEvent event, @Context Database database) {
-		List<Bson> update = List.of(Aggregates.addFields(new Field<>("modLog.enabled", Operators.cond("$modLog.enabled", "$$REMOVE", true))));
+		List<Bson> update = List.of(Operators.set("modLog.enabled", Operators.cond("$modLog.enabled", "$$REMOVE", true)));
 		database.findAndUpdateGuildById(event.getGuild().getIdLong(), Projections.include("modLog.enabled"), update).whenComplete((data, exception) -> {
 			if (exception != null) {
-				exception.printStackTrace();
-				//send to error channel
+				ExceptionUtility.sendExceptionally(event, exception);
 			} else {
-				event.reply("ModLogs are now **" + (data.getEmbedded(List.of("modLog", "enabled"), false) ? "enabled" : "disabled") + "** <:done:403285928233402378>").queue();
+				event.reply("Mod logs are now **" + (data.getEmbedded(List.of("modLog", "enabled"), false) ? "enabled" : "disabled") + "** <:done:403285928233402378>").queue();
 			}
 		});
 	}

@@ -16,6 +16,7 @@ import com.sx4.bot.events.mod.UnmuteEvent;
 import com.sx4.bot.events.mod.WarnEvent;
 import com.sx4.bot.hooks.mod.ModAction;
 import com.sx4.bot.hooks.mod.ModActionAdapter;
+import com.sx4.bot.utility.ExceptionUtility;
 
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.TextChannel;
@@ -59,7 +60,7 @@ public class ModHandler extends ModActionAdapter {
 			database.insertModLog(modLog).whenComplete((result, exception) -> {
 				if (exception != null) {
 					exception.printStackTrace();
-					// send error message
+					ExceptionUtility.sendErrorMessage(exception);
 				}
 			});
 		});

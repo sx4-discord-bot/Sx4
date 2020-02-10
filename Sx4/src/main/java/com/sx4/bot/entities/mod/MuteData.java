@@ -1,0 +1,107 @@
+package com.sx4.bot.entities.mod;
+
+import java.util.Collections;
+import java.util.List;
+import java.util.function.BiConsumer;
+
+import org.bson.Document;
+
+import com.mongodb.client.model.Updates;
+import com.sx4.bot.database.Database;
+import com.sx4.bot.exceptions.mod.MaxRolesException;
+import com.sx4.bot.utility.ExceptionUtility;
+
+import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.entities.Member;
+import net.dv8tion.jda.api.entities.Role;
+
+public class MuteData {
+	
+	private final List<MuteUser> users;
+	
+	private final long roleId;
+	private final long defaultTime;
+	private final boolean autoUpdate;
+	
+	public MuteData(Document data) {
+		List<Document> users = data.getList("users", Document.class, Collections.emptyList());
+		
+		this.roleId = data.get("roleId", 0L);
+		this.defaultTime = data.get("defaultTime", 1800L);
+		this.users = MuteUser.fromData(users);
+		this.autoUpdate = data.getBoolean("autoUpdate", true);
+	}
+
+	public MuteData(long roleId, long defaultTime, boolean autoUpdate, List<MuteUser> users) {
+		this.roleId = roleId;
+		this.defaultTime = defaultTime;
+		this.users = users;
+		this.autoUpdate = autoUpdate;
+	}
+	
+	public boolean isAutoUpdated() {
+		return this.autoUpdate;
+	}
+	
+	public boolean hasRoleId() {
+		return this.roleId != 0L;
+	}
+	
+	public long getRoleId() {
+		return this.roleId;
+	}
+	
+	public long getDefaultTime() {
+		return this.defaultTime;
+	}
+	
+	public List<MuteUser> getUsers() {
+		return this.users;
+	}
+	
+	public MuteUser getUserById(long id) {
+		return this.users.stream()
+			.filter(user -> user.getUserId() == id)
+			.findFirst()
+			.orElse(null);
+	}
+	
+	private void createRole(Guild guild, BiConsumer<Role, Throwable> consumer) {
+		Member selfMember = guild.getSelfMember();
+		
+		if (guild.getRoleCache().size() >= 250) {
+			consumer.accept(null, new MaxRolesException("The guild has the max roles possible (250) so I was unable to make the mute role"));
+			return;
+		}
+		
+		guild.createRole().setName("Muted - " + selfMember.getUser().getName()).queue(newRole -> {
+			Database.get().updateGuildById(guild.getIdLong(), Updates.set("mute.roleId", newRole.getIdLong())).whenComplete((result, exception) -> {
+				if (exception != null) {
+					ExceptionUtility.sendErrorMessage(exception);
+					consumer.accept(null, exception);
+				} else {
+					consumer.accept(newRole, null);
+					
+					if (this.autoUpdate && selfMember.hasPermission(Permission.MANAGE_PERMISSIONS)) {
+						guild.getTextChannels().forEach(channel -> channel.upsertPermissionOverride(newRole).deny(Permission.MESSAGE_WRITE).queue());
+					}
+				}
+			});
+		});
+	}
+	
+	public void getOrCreateRole(Guild guild, BiConsumer<Role, Throwable> consumer) {
+		if (this.hasRoleId()) {
+			Role role = guild.getRoleById(this.roleId);
+			if (role != null) {
+				consumer.accept(role, null);
+			} else {
+				this.createRole(guild, consumer);
+			}
+		} else {
+			this.createRole(guild, consumer);
+		}
+	}
+	
+}

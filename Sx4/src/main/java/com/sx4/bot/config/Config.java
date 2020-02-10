@@ -46,6 +46,11 @@ public class Config {
 	private String mainDatabase;
 	private String database;
 	
+	private int colour;
+	private int green;
+	private int orange;
+	private int red;
+	
 	private String token;
 	private String topGG;
 	private String botlistSpace;
@@ -296,6 +301,22 @@ public class Config {
 		return this.voteApi;
 	}
 	
+	public int getColour() {
+		return this.colour;
+	}
+	
+	public int getRed() {
+		return this.red;
+	}
+	
+	public int getOrange() {
+		return this.orange;
+	}
+	
+	public int getGreen() {
+		return this.green;
+	}
+	
 	public void loadConfig() {
 		try (FileInputStream stream = new FileInputStream(new File("config.json"))) {
 			JSONObject json = new JSONObject(new String(stream.readAllBytes()));
@@ -303,6 +324,11 @@ public class Config {
 			JSONObject state = json.getJSONObject("state");
 			this.canary = state.getBoolean("canary");
 			this.test = state.getBoolean("test");
+			
+			JSONObject colours = json.getJSONObject("colours");
+			this.green = colours.getInt("green");
+			this.orange = colours.getInt("orange");
+			this.red = colours.getInt("red");
 			
 			JSONObject token = json.getJSONObject("token");
 			this.token = this.test ? token.getString("test") : this.canary ? token.getString("canary") : token.getString("main");
@@ -327,6 +353,8 @@ public class Config {
 			
 			JSONObject bot = json.getJSONObject(this.canary ? "canary" : "main");
 			JSONObject otherBot = json.getJSONObject(this.canary ? "main" : "canary");
+			
+			this.colour = bot.getInt("colour");
 			
 			JSONObject supportGuild = bot.getJSONObject("supportGuild");
 			this.supportGuildId = supportGuild.getLong("id");
