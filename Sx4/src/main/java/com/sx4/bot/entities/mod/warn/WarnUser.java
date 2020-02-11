@@ -1,4 +1,4 @@
-package com.sx4.bot.entities.warn;
+package com.sx4.bot.entities.mod.warn;
 
 import java.util.List;
 import java.util.stream.Collectors;

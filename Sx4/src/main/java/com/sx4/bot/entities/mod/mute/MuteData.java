@@ -1,4 +1,4 @@
-package com.sx4.bot.entities.mod;
+package com.sx4.bot.entities.mod.mute;
 
 import java.time.Clock;
 import java.util.Collections;
@@ -109,11 +109,11 @@ public class MuteData {
 		}
 	}
 	
-	public UpdateOneModel<Document> getMuteUpdate(long guildId, long userId, long seconds) {
-		return this.getMuteUpdate(guildId, userId, seconds, false);
+	public UpdateOneModel<Document> getUpdate(long guildId, long userId, long seconds) {
+		return this.getUpdate(guildId, userId, seconds, false);
 	}
 	
-	public UpdateOneModel<Document> getMuteUpdate(long guildId, long userId, long seconds, boolean extend) {
+	public UpdateOneModel<Document> getUpdate(long guildId, long userId, long seconds, boolean extend) {
 		MuteUser user = this.getUserById(userId);
 		
 		Bson update;

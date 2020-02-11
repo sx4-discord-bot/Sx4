@@ -1,4 +1,4 @@
-package com.sx4.bot.entities.mod;
+package com.sx4.bot.entities.mod.modlog;
 
 import java.time.Instant;
 
@@ -6,7 +6,11 @@ import org.bson.Document;
 import org.bson.types.ObjectId;
 
 import com.sx4.bot.core.Sx4Bot;
-import com.sx4.bot.entities.warn.WarnConfig;
+import com.sx4.bot.entities.mod.Reason;
+import com.sx4.bot.entities.mod.action.Action;
+import com.sx4.bot.entities.mod.action.TimeAction;
+import com.sx4.bot.entities.mod.action.WarnAction;
+import com.sx4.bot.entities.mod.warn.WarnConfig;
 import com.sx4.bot.utility.TimeUtility;
 
 import net.dv8tion.jda.api.EmbedBuilder;

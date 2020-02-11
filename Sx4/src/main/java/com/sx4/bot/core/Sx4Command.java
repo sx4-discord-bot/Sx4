@@ -9,12 +9,16 @@ import com.sx4.bot.annotations.Donator;
 import com.sx4.bot.annotations.Examples;
 import com.sx4.bot.hooks.mod.ModActionManager;
 import com.sx4.bot.managers.MuteManager;
+import com.sx4.bot.managers.TempBanManager;
 
 public class Sx4Command extends CommandImpl {
 	
 	public final ModActionManager modManager = Sx4Bot.getModActionManager();
+	
 	public final MuteManager muteManager = MuteManager.get();
 	public final ScheduledExecutorService muteExecutor = this.muteManager.getExecutor();
+	
+	public final TempBanManager banManager = TempBanManager.get();
 	
 	protected boolean donator = false;
 	

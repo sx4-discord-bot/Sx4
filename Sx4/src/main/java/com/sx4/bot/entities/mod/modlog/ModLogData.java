@@ -1,4 +1,4 @@
-package com.sx4.bot.entities.mod;
+package com.sx4.bot.entities.mod.modlog;
 
 import org.bson.Document;
 

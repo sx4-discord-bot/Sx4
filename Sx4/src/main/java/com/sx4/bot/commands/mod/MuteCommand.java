@@ -9,8 +9,8 @@ import com.jockie.bot.core.option.Option;
 import com.mongodb.client.model.Projections;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.database.Database;
-import com.sx4.bot.entities.mod.MuteData;
 import com.sx4.bot.entities.mod.Reason;
+import com.sx4.bot.entities.mod.mute.MuteData;
 import com.sx4.bot.events.mod.ModActionEvent;
 import com.sx4.bot.events.mod.MuteEvent;
 import com.sx4.bot.events.mod.MuteExtendEvent;
@@ -61,7 +61,7 @@ public class MuteCommand extends Sx4Command {
 				
 				long seconds = time == null ? data.getDefaultTime() : time.toSeconds();
 				
-				database.updateGuildById(data.getMuteUpdate(event.getGuild().getIdLong(), member.getIdLong(), seconds, extend)).whenComplete((result, writeException) -> {
+				database.updateGuildById(data.getUpdate(event.getGuild().getIdLong(), member.getIdLong(), seconds, extend)).whenComplete((result, writeException) -> {
 					if (writeException != null) {
 						ExceptionUtility.sendExceptionally(event, writeException);
 					} else {

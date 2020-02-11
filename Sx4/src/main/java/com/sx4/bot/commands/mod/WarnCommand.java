@@ -6,10 +6,10 @@ import com.jockie.bot.core.command.impl.CommandEvent;
 import com.mongodb.client.model.Projections;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.database.Database;
-import com.sx4.bot.entities.mod.Action;
 import com.sx4.bot.entities.mod.Reason;
-import com.sx4.bot.entities.mod.TimeAction;
-import com.sx4.bot.entities.warn.WarnData;
+import com.sx4.bot.entities.mod.action.Action;
+import com.sx4.bot.entities.mod.action.TimeAction;
+import com.sx4.bot.entities.mod.warn.WarnData;
 import com.sx4.bot.utility.NumberUtility;
 import com.sx4.bot.utility.TimeUtility;
 

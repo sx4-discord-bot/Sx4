@@ -14,8 +14,6 @@ public class Reason {
 	public Reason(long guildId, String reason) {
 		this.unparsed = reason;
 		this.parsed = this.parse(guildId, reason);
-		
-		System.out.println(this.unparsed + " - " + this.parsed);
 	}
 	
 	public Reason(String reason) {

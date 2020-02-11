@@ -2,9 +2,9 @@ package com.sx4.bot.handlers;
 
 import com.mongodb.client.model.Projections;
 import com.sx4.bot.database.Database;
-import com.sx4.bot.entities.mod.Action;
-import com.sx4.bot.entities.mod.ModLog;
-import com.sx4.bot.entities.mod.ModLogData;
+import com.sx4.bot.entities.mod.action.Action;
+import com.sx4.bot.entities.mod.modlog.ModLog;
+import com.sx4.bot.entities.mod.modlog.ModLogData;
 import com.sx4.bot.events.mod.BanEvent;
 import com.sx4.bot.events.mod.KickEvent;
 import com.sx4.bot.events.mod.ModActionEvent;

@@ -1,4 +1,4 @@
-package com.sx4.bot.entities.mod;
+package com.sx4.bot.entities.mod.mute;
 
 import java.util.List;
 import java.util.stream.Collectors;

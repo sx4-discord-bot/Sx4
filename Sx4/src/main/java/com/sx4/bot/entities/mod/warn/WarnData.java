@@ -1,4 +1,4 @@
-package com.sx4.bot.entities.warn;
+package com.sx4.bot.entities.mod.warn;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -16,10 +16,11 @@ import com.mongodb.client.model.Updates;
 import com.mongodb.client.model.WriteModel;
 import com.sx4.bot.core.Sx4Bot;
 import com.sx4.bot.database.Database;
-import com.sx4.bot.entities.mod.Action;
-import com.sx4.bot.entities.mod.MuteData;
 import com.sx4.bot.entities.mod.Reason;
-import com.sx4.bot.entities.mod.TimeAction;
+import com.sx4.bot.entities.mod.action.Action;
+import com.sx4.bot.entities.mod.action.TimeAction;
+import com.sx4.bot.entities.mod.mute.MuteData;
+import com.sx4.bot.entities.mod.tempban.TempBanData;
 import com.sx4.bot.events.mod.WarnEvent;
 import com.sx4.bot.exceptions.mod.AuthorPermissionException;
 import com.sx4.bot.exceptions.mod.BotHierarchyException;
@@ -27,6 +28,7 @@ import com.sx4.bot.exceptions.mod.BotPermissionException;
 import com.sx4.bot.hooks.mod.ModAction;
 import com.sx4.bot.hooks.mod.ModActionManager;
 import com.sx4.bot.managers.MuteManager;
+import com.sx4.bot.managers.TempBanManager;
 import com.sx4.bot.utility.ModUtility;
 
 import net.dv8tion.jda.api.Permission;
@@ -98,6 +100,7 @@ public class WarnData {
 	public void warn(Member target, Member moderator, Reason reason, BiConsumer<WarnConfig, Throwable> consumer) {
 		ModActionManager manager = Sx4Bot.getModActionManager();
 		MuteManager muteManager = MuteManager.get();
+		Database database = Database.get();
 		
 		Guild guild = target.getGuild();
 		
@@ -111,7 +114,7 @@ public class WarnData {
 		Action action = config.getAction();
 		switch (action.getModAction()) {
 			case WARN:
-				Database.get().updateGuildById(this.getWarnUpdate(guild.getIdLong(), target.getIdLong(), config.getNumber())).whenComplete((result, exception) -> {
+				database.updateGuildById(this.getUpdate(guild.getIdLong(), target.getIdLong(), config.getNumber())).whenComplete((result, exception) -> {
 					if (exception != null) {
 						consumer.accept(null, exception);
 					} else {
@@ -125,17 +128,17 @@ public class WarnData {
 			case MUTE:
 				if (!guild.getSelfMember().hasPermission(Permission.MANAGE_ROLES)) consumer.accept(null, new BotPermissionException(Permission.MANAGE_ROLES));
 				
-				MuteData muteData = new MuteData(Database.get().getGuildById(guild.getIdLong(), Projections.include("mute")).get("mute", Database.EMPTY_DOCUMENT));
+				MuteData muteData = new MuteData(database.getGuildById(guild.getIdLong(), Projections.include("mute")).get("mute", Database.EMPTY_DOCUMENT));
 				muteData.getOrCreateRole(guild, (role, roleException) -> {
 					if (roleException != null) {
 						consumer.accept(null, roleException);
 					} else {
 						long seconds = ((TimeAction) action).getDuration();
 						
-						bulkData.add(muteData.getMuteUpdate(guild.getIdLong(), target.getIdLong(), seconds));
-						bulkData.add(this.getWarnUpdate(guild.getIdLong(), target.getIdLong(), config.getNumber()));
+						bulkData.add(muteData.getUpdate(guild.getIdLong(), target.getIdLong(), seconds));
+						bulkData.add(this.getUpdate(guild.getIdLong(), target.getIdLong(), config.getNumber()));
 						
-						Database.get().bulkWriteGuilds(bulkData).whenComplete((result, writeException) -> {
+						database.bulkWriteGuilds(bulkData).whenComplete((result, writeException) -> {
 							if (writeException != null) {
 								consumer.accept(null, writeException);
 							} else {
@@ -155,17 +158,17 @@ public class WarnData {
 			case MUTE_EXTEND:
 				if (!guild.getSelfMember().hasPermission(Permission.MANAGE_ROLES)) consumer.accept(null, new BotPermissionException(Permission.MANAGE_ROLES));
 				
-				MuteData muteExtendData = new MuteData(Database.get().getGuildById(guild.getIdLong(), Projections.include("mute")).get("mute", Database.EMPTY_DOCUMENT));
+				MuteData muteExtendData = new MuteData(database.getGuildById(guild.getIdLong(), Projections.include("mute")).get("mute", Database.EMPTY_DOCUMENT));
 				muteExtendData.getOrCreateRole(guild, (role, roleException) -> {
 					if (roleException != null) {
 						consumer.accept(null, roleException);
 					} else {
 						long seconds = ((TimeAction) action).getDuration();
 						
-						bulkData.add(muteExtendData.getMuteUpdate(guild.getIdLong(), target.getIdLong(), seconds, true));
-						bulkData.add(this.getWarnUpdate(guild.getIdLong(), target.getIdLong(), config.getNumber()));
+						bulkData.add(muteExtendData.getUpdate(guild.getIdLong(), target.getIdLong(), seconds, true));
+						bulkData.add(this.getUpdate(guild.getIdLong(), target.getIdLong(), config.getNumber()));
 						
-						Database.get().bulkWriteGuilds(bulkData).whenComplete((result, writeException) -> {
+						database.bulkWriteGuilds(bulkData).whenComplete((result, writeException) -> {
 							if (writeException != null) {
 								consumer.accept(null, writeException);
 							} else {
@@ -187,7 +190,7 @@ public class WarnData {
 				if (!guild.getSelfMember().canInteract(target)) consumer.accept(null, new BotHierarchyException("I cannot kick a user higher or equal than my top role"));
 				if (!moderator.hasPermission(Permission.KICK_MEMBERS)) consumer.accept(null, new AuthorPermissionException(Permission.KICK_MEMBERS));
 					
-				Database.get().updateGuildById(this.getWarnUpdate(guild.getIdLong(), target.getIdLong(), config.getNumber())).whenComplete((result, exception) -> {
+				database.updateGuildById(this.getUpdate(guild.getIdLong(), target.getIdLong(), config.getNumber())).whenComplete((result, exception) -> {
 					if (exception != null) {
 						consumer.accept(null, exception);
 					} else {
@@ -206,6 +209,27 @@ public class WarnData {
 				if (!moderator.hasPermission(Permission.BAN_MEMBERS)) consumer.accept(null, new AuthorPermissionException(Permission.BAN_MEMBERS));
 					
 				
+				TempBanData tempBanData = new TempBanData(database.getGuildById(guild.getIdLong(), Projections.include("tempBan")).get("tempBan", Database.EMPTY_DOCUMENT));
+				
+				long seconds = ((TimeAction) action).getDuration();
+				
+				bulkData.add(tempBanData.getUpdate(guild.getIdLong(), target.getIdLong(), seconds));
+				bulkData.add(this.getUpdate(guild.getIdLong(), target.getIdLong(), config.getNumber()));
+				
+				database.bulkWriteGuilds(bulkData).whenComplete((result, exception) -> {
+					if (exception != null) {
+						consumer.accept(null, exception);
+					} else {
+						target.ban(1).reason(ModUtility.getAuditReason(reason, moderator.getUser())).queue($ -> {
+							manager.onModAction(new WarnEvent(moderator, target.getUser(), reason, config));
+							
+							TempBanManager.get().putBan(guild.getIdLong(), target.getIdLong(), seconds);
+							
+							consumer.accept(config, null);
+						});
+					}
+				});
+				
 				break;
 			case BAN:
 				if (!guild.getSelfMember().hasPermission(Permission.BAN_MEMBERS)) consumer.accept(null, new BotPermissionException(Permission.BAN_MEMBERS));
@@ -213,7 +237,7 @@ public class WarnData {
 				if (!moderator.hasPermission(Permission.BAN_MEMBERS)) consumer.accept(null, new AuthorPermissionException(Permission.BAN_MEMBERS));
 						
 					
-				Database.get().updateGuildById(this.getWarnUpdate(guild.getIdLong(), target.getIdLong(), config.getNumber())).whenComplete((result, exception) -> {
+				database.updateGuildById(this.getUpdate(guild.getIdLong(), target.getIdLong(), config.getNumber())).whenComplete((result, exception) -> {
 					if (exception != null) {
 						consumer.accept(null, exception);
 					} else {
@@ -231,7 +255,7 @@ public class WarnData {
 		}
 	}
 	
-	private UpdateOneModel<Document> getWarnUpdate(long guildId, long userId, int amount) {
+	private UpdateOneModel<Document> getUpdate(long guildId, long userId, int amount) {
 		WarnUser user = this.getUserById(userId);
 		
 		Bson update;

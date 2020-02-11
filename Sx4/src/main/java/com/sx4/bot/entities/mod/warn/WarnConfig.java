@@ -1,12 +1,12 @@
-package com.sx4.bot.entities.warn;
+package com.sx4.bot.entities.mod.warn;
 
 import java.util.List;
 import java.util.stream.Collectors;
 
 import org.bson.Document;
 
-import com.sx4.bot.entities.mod.Action;
-import com.sx4.bot.entities.mod.TimeAction;
+import com.sx4.bot.entities.mod.action.Action;
+import com.sx4.bot.entities.mod.action.TimeAction;
 import com.sx4.bot.hooks.mod.ModAction;
 
 public class WarnConfig {

@@ -1,4 +1,4 @@
-package com.sx4.bot.entities.mod;
+package com.sx4.bot.entities.mod.action;
 
 import com.sx4.bot.hooks.mod.ModAction;
 

@@ -25,7 +25,7 @@ import com.mongodb.client.model.WriteModel;
 import com.mongodb.client.result.InsertOneResult;
 import com.mongodb.client.result.UpdateResult;
 import com.sx4.bot.config.Config;
-import com.sx4.bot.entities.mod.ModLog;
+import com.sx4.bot.entities.mod.modlog.ModLog;
 import com.sx4.bot.handlers.DatabaseHandler;
 
 public class Database {
