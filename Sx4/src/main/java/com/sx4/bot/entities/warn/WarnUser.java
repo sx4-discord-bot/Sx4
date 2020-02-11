@@ -11,36 +11,42 @@ import net.dv8tion.jda.api.entities.User;
 
 public class WarnUser {
 
-	private final long userId;
-	private int amount;
+	private final long id;
+	private final int amount;
+	private final boolean fake; 
 	
 	public WarnUser(Document data) {
-		this(data.getLong("id"), data.getInteger("amount"));
+		this(data.getLong("id"), data.getInteger("amount"), false);
 	}
 	
 	public WarnUser(User user, int amount) {
-		this(user.getIdLong(), amount);
+		this(user.getIdLong(), amount, false);
 	}
 	
 	public WarnUser(long userId, int amount) {
-		this.userId = userId;
-		this.amount = amount;
+		this(userId, amount, false);
 	}
 	
-	public long getUserId() {
-		return this.userId;
+	public WarnUser(long userId, int amount, boolean fake) {
+		this.id = userId;
+		this.amount = amount;
+		this.fake = fake;
+	}
+	
+	public long getId() {
+		return this.id;
 	}
 	
 	public User getUser() {
-		return Sx4Bot.getShardManager().getUserById(this.userId);
+		return Sx4Bot.getShardManager().getUserById(this.id);
 	}
 	
 	public int getAmount() {
 		return this.amount;
 	}
 	
-	public void incrementAmount() {
-		this.amount++;
+	public boolean isFake() {
+		return this.fake;
 	}
 	
 	public static List<WarnUser> fromData(List<Document> data) {

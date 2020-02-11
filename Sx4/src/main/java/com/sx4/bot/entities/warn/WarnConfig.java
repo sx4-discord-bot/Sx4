@@ -5,57 +5,48 @@ import java.util.stream.Collectors;
 
 import org.bson.Document;
 
+import com.sx4.bot.entities.mod.Action;
+import com.sx4.bot.entities.mod.TimeAction;
 import com.sx4.bot.hooks.mod.ModAction;
 
 public class WarnConfig {
 	
 	public static final List<WarnConfig> DEFAULT = List.of(
-		new WarnConfig(ModAction.MUTE, 2, 1800L),
-		new WarnConfig(ModAction.KICK, 3),
-		new WarnConfig(ModAction.BAN, 4)
+		new WarnConfig(new TimeAction(ModAction.MUTE, 1800L), 2),
+		new WarnConfig(new Action(ModAction.KICK), 3),
+		new WarnConfig(new Action(ModAction.BAN), 4)
 	);
 
-	private final ModAction action;
+	private final Action action;
 	private final int number;
 	
-	private final long duration;
-	
 	public WarnConfig(Document data) {
-		this(data.getInteger("type"), data.getInteger("number"), data.get("duration", 0L));
+		Document action = data.get("action", Document.class);
+		ModAction modAction = ModAction.getFromType(action.getInteger("type"));
+		
+		this.action = action.containsKey("duration") ? new TimeAction(modAction, action.getLong("duration")) : new Action(modAction);
+		this.number = data.getInteger("number");
 	}
 	
 	public WarnConfig(int type, int number) {
-		this(type, number, 0L);
-	}
-	
-	public WarnConfig(ModAction action, int number) {
-		this(action, number, 0L);
+		this(new Action(ModAction.getFromType(type)), number);
 	}
 	
 	public WarnConfig(int type, int number, long duration) {
-		this(ModAction.getFromType(type), number, duration);
+		this(new TimeAction(ModAction.getFromType(type), duration), number);
 	}
 	
-	public WarnConfig(ModAction action, int number, long duration) {
+	public WarnConfig(Action action, int number) {
 		this.action = action;
 		this.number = number;
-		this.duration = duration;
 	}
 	
-	public ModAction getAction() {
+	public Action getAction() {
 		return this.action;
 	}
 	
 	public int getNumber() {
 		return this.number;
-	}
-	
-	public boolean hasDuration() {
-		return this.duration != 0L;
-	}
-	
-	public long getDuration() {
-		return this.duration;
 	}
 	
 	public static List<WarnConfig> fromData(List<Document> data) {

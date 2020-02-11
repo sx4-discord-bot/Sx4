@@ -2,6 +2,7 @@ package com.sx4.bot.entities.mod;
 
 import java.time.Instant;
 
+import org.bson.Document;
 import org.bson.types.ObjectId;
 
 import com.sx4.bot.core.Sx4Bot;
@@ -27,13 +28,13 @@ public class ModLog {
 	
 	private final Action action;
 	
-	private final String reason;
+	private final Reason reason;
 	
-	public ModLog(long channelId, long guildId, long targetId, long moderatorId, String reason, Action action) {
+	public ModLog(long channelId, long guildId, long targetId, long moderatorId, Reason reason, Action action) {
 		this(ObjectId.get(), 0L, channelId, guildId, targetId, moderatorId, reason, action);
 	}
 	
-	public ModLog(ObjectId id, long messageId, long channelId, long guildId, long targetId, long moderatorId, String reason, Action action) {
+	public ModLog(ObjectId id, long messageId, long channelId, long guildId, long targetId, long moderatorId, Reason reason, Action action) {
 		this.id = id;
 		this.messageId = messageId;
 		this.channelId = channelId;
@@ -104,7 +105,7 @@ public class ModLog {
 		return Sx4Bot.getShardManager().getUserById(this.moderatorId);
 	}
 	
-	public String getReason() {
+	public Reason getReason() {
 		return this.reason;
 	}
 	
@@ -118,22 +119,55 @@ public class ModLog {
 		if (this.action instanceof WarnAction) {
 			WarnConfig warning = ((WarnAction) this.action).getWarning();
 			
-			embed.setTitle(warning.getAction().getName() + (warning.hasDuration() ? " (" + TimeUtility.getTimeString(warning.getDuration()) + ")" : ""));
-		} else if (this.action instanceof TimeAction) {
-			TimeAction action = (TimeAction) this.action;
-			
-			embed.setTitle(action.getModAction().getName() + (action.hasDuration() ? " (" + TimeUtility.getTimeString(action.getDuration()) + ")" : ""));
+			Action action = warning.getAction();
+
+			embed.setTitle(action.getModAction().getName() + (action instanceof TimeAction ? " (" + TimeUtility.getTimeString(((TimeAction) action).getDuration()) + ")" : ""));
 		} else {
-			embed.setTitle(this.action.getModAction().getName());
+			embed.setTitle(this.action.getModAction().getName() + (this.action instanceof TimeAction ? " (" + TimeUtility.getTimeString(((TimeAction) this.action).getDuration()) + ")" : ""));
 		}
 		
 		embed.addField("Target", target.getAsTag() + " (" + target.getId() + ")", false);
 		embed.addField("Moderator", moderator.getUser().getAsTag() + " (" + moderator.getId() + ")", false);
-		embed.addField("Reason", this.reason, false);
+		embed.addField("Reason", this.reason == null ? "None Given" : this.reason.getParsed(), false);
 		embed.setTimestamp(Instant.ofEpochSecond(this.getTimestamp()));
 		embed.setFooter("ID: " + this.getHex());
 		
 		return embed.build();
+	}
+	
+	public Document toData() {
+		Document data = new Document("_id", this.id)
+				.append("guildId", this.guildId)
+				.append("channelId", this.channelId)
+				.append("targetId", this.targetId)
+				.append("messageId", this.messageId)
+				.append("moderatorId", this.moderatorId)
+				.append("reason", this.reason == null ? null : this.reason.getParsed()); 
+		
+		Action action = this.getAction();
+		Document actionData = new Document("type", action.getModAction().getType());
+		
+		if (action instanceof TimeAction) {
+			actionData.append("duration", ((TimeAction) action).getDuration());
+		} else if (action instanceof WarnAction) {
+			WarnConfig warning = ((WarnAction) action).getWarning();
+			Action warnAction = warning.getAction();
+			
+			Document warnData = new Document("number", warning.getNumber());
+			Document warnActionData = new Document("type", warnAction.getModAction().getType());
+			
+			if (warnAction instanceof TimeAction) {
+				warnActionData.append("duration", ((TimeAction) warnAction).getDuration());
+			}
+			
+			warnData.append("action", warnActionData);
+			
+			actionData.append("warning", warnData);
+		}
+		
+		data.append("action", actionData);
+		
+		return data;
 	}
 	
 }

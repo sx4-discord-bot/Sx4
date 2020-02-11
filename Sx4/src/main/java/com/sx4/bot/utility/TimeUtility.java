@@ -37,11 +37,15 @@ public class TimeUtility {
 			int amount = (int) Math.floor((double) seconds / secondsInTime);
 			
 			if (amount != 0) {
-				string.append(amount + " " + TimeUtility.getChronoUnitName(chronoUnit, amount != 1) + (i == TimeUtility.CHRONO_UNITS.length - 1 ? "" : " "));
+				string.append(amount + " " + TimeUtility.getChronoUnitName(chronoUnit, amount != 1));
 				
 				seconds -= amount * secondsInTime;
 				if (seconds == 0) {
 					break;
+				}
+				
+				if (i != CHRONO_UNITS.length - 1) {
+					string.append(" ");
 				}
 			}
 		}

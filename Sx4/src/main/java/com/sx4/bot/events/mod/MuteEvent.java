@@ -1,5 +1,6 @@
 package com.sx4.bot.events.mod;
 
+import com.sx4.bot.entities.mod.Reason;
 import com.sx4.bot.entities.mod.TimeAction;
 import com.sx4.bot.hooks.mod.ModAction;
 
@@ -8,11 +9,11 @@ import net.dv8tion.jda.api.entities.User;
 
 public class MuteEvent extends ModActionEvent {
 	
-	public MuteEvent(Member moderator, User target, String reason, long duration) {
+	public MuteEvent(Member moderator, User target, Reason reason, long duration) {
 		this(moderator, target, reason, new TimeAction(ModAction.MUTE, duration));
 	}
 	
-	public MuteEvent(Member moderator, User target, String reason, TimeAction action) {
+	public MuteEvent(Member moderator, User target, Reason reason, TimeAction action) {
 		super(moderator, target, reason, action);
 	}
 	

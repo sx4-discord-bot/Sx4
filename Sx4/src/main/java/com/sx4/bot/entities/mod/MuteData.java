@@ -1,11 +1,16 @@
 package com.sx4.bot.entities.mod;
 
+import java.time.Clock;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.BiConsumer;
 
 import org.bson.Document;
+import org.bson.conversions.Bson;
 
+import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.UpdateOneModel;
+import com.mongodb.client.model.UpdateOptions;
 import com.mongodb.client.model.Updates;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.exceptions.mod.MaxRolesException;
@@ -62,7 +67,7 @@ public class MuteData {
 	
 	public MuteUser getUserById(long id) {
 		return this.users.stream()
-			.filter(user -> user.getUserId() == id)
+			.filter(user -> user.getId() == id)
 			.findFirst()
 			.orElse(null);
 	}
@@ -102,6 +107,29 @@ public class MuteData {
 		} else {
 			this.createRole(guild, consumer);
 		}
+	}
+	
+	public UpdateOneModel<Document> getMuteUpdate(long guildId, long userId, long seconds) {
+		return this.getMuteUpdate(guildId, userId, seconds, false);
+	}
+	
+	public UpdateOneModel<Document> getMuteUpdate(long guildId, long userId, long seconds, boolean extend) {
+		MuteUser user = this.getUserById(userId);
+		
+		Bson update;
+		List<Bson> arrayFilters = null;
+		if (user == null) {
+			Document rawData = new Document("id", userId)
+					.append("unmuteAt", Clock.systemUTC().instant().getEpochSecond() + seconds);
+			
+			update = Updates.push("mute.users", rawData);
+		} else {
+			arrayFilters = List.of(Filters.eq("user.id", user.getId()));
+			
+			update = extend ? Updates.inc("mute.users.$[user].unmuteAt", seconds) : Updates.set("mute.users.$[user].unmuteAt", Clock.systemUTC().instant().getEpochSecond() + seconds);
+		}
+		
+		return new UpdateOneModel<>(Filters.eq("_id", guildId), update, new UpdateOptions().arrayFilters(arrayFilters).upsert(true));
 	}
 	
 }

@@ -1,6 +1,7 @@
 package com.sx4.bot.events.mod;
 
 import com.sx4.bot.entities.mod.Action;
+import com.sx4.bot.entities.mod.Reason;
 
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
@@ -14,9 +15,9 @@ public class ModActionEvent {
 	
 	private final Action action;
 	
-	private final String reason;
+	private final Reason reason;
 	
-	public ModActionEvent(Member moderator, User target, String reason, Action action) {
+	public ModActionEvent(Member moderator, User target, Reason reason, Action action) {
 		this.guild = moderator.getGuild();
 		this.moderator = moderator;
 		this.target = target;
@@ -40,7 +41,7 @@ public class ModActionEvent {
 		return this.action;
 	}
 	
-	public String getReason() {
+	public Reason getReason() {
 		return this.reason;
 	}
 	

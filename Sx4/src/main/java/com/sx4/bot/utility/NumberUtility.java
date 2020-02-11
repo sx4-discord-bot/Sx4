@@ -36,4 +36,29 @@ public class NumberUtility {
 		return true;
 	}
 	
+	public static String getSuffix(int number) {
+		int remainderTens = number % 100;
+		String suffix;
+		if (remainderTens >= 11 && remainderTens <= 13) {
+			suffix = "th";
+		} else {
+			int remainderOnes = number % 10;
+			if (remainderOnes == 1) {
+				suffix = "st";
+			} else if (remainderOnes == 2) {
+				suffix = "nd";
+			} else if (remainderOnes == 3) {
+				suffix = "rd";
+			} else {
+				suffix = "th";
+			}
+		}
+		
+		return suffix;
+	}
+	
+	public static String getSuffixed(int number) {
+		return number + NumberUtility.getSuffix(number);
+	}
+	
 }

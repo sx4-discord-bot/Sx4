@@ -19,16 +19,13 @@ import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.FindOneAndUpdateOptions;
 import com.mongodb.client.model.Indexes;
 import com.mongodb.client.model.ReturnDocument;
+import com.mongodb.client.model.UpdateOneModel;
 import com.mongodb.client.model.UpdateOptions;
 import com.mongodb.client.model.WriteModel;
 import com.mongodb.client.result.InsertOneResult;
 import com.mongodb.client.result.UpdateResult;
 import com.sx4.bot.config.Config;
-import com.sx4.bot.entities.mod.Action;
 import com.sx4.bot.entities.mod.ModLog;
-import com.sx4.bot.entities.mod.TimeAction;
-import com.sx4.bot.entities.mod.WarnAction;
-import com.sx4.bot.entities.warn.WarnConfig;
 import com.sx4.bot.handlers.DatabaseHandler;
 
 public class Database {
@@ -193,6 +190,10 @@ public class Database {
 		return this.updateGuildById(guildId, update, this.updateOptions);
 	}
 	
+	public CompletableFuture<UpdateResult> updateGuildById(UpdateOneModel<Document> model) {
+		return CompletableFuture.supplyAsync(() -> this.guilds.updateOne(model.getFilter(), model.getUpdate(), model.getOptions()));
+	}
+	
 	public CompletableFuture<Document> findAndUpdateGuildById(long guildId, Bson filter, List<? extends Bson> update, FindOneAndUpdateOptions options) {
 		Bson dbFilter;
 		if (filter == null) {
@@ -225,38 +226,7 @@ public class Database {
 	}
 	
 	public CompletableFuture<InsertOneResult> insertModLog(ModLog modLog) {
-		Document data = new Document("_id", modLog.getId())
-				.append("guildId", modLog.getGuildId())
-				.append("channelId", modLog.getChannelId())
-				.append("targetId", modLog.getTargetId())
-				.append("moderatorId", modLog.getModeratorId())
-				.append("reason", modLog.getReason());
-		
-		Action action = modLog.getAction();
-		Document actionData = new Document("type", action.getModAction().getType());
-		
-		if (action instanceof TimeAction) {
-			TimeAction timeAction = (TimeAction) action;
-			
-			if (timeAction.hasDuration()) {
-				actionData.append("duration", timeAction.getDuration());
-			}
-		} else if (action instanceof WarnAction) {
-			WarnConfig warning = ((WarnAction) action).getWarning();
-			
-			Document warnData = new Document("number", warning.getNumber())
-					.append("type", warning.getAction().getType());
-			
-			if (warning.hasDuration()) {
-				warnData.append("duration", warning.getDuration());
-			}
-			
-			actionData.append("warning", warnData);
-		}
-		
-		data.append("action", actionData);
-		
-		return CompletableFuture.supplyAsync(() -> this.modLogs.insertOne(data));
+		return CompletableFuture.supplyAsync(() -> this.modLogs.insertOne(modLog.toData()));
 	}
 	
 	public MongoCollection<Document> getCommandLogs() {

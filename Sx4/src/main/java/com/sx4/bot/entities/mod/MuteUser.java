@@ -4,39 +4,23 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import org.bson.Document;
-import org.bson.types.ObjectId;
 
 public class MuteUser {
 	
-	private final ObjectId id;
-	
-	private final long userId;
+	private final long id;
 	private final long unmuteAt;
 
 	public MuteUser(Document data) {
-		this(data.getObjectId("id"), data.getLong("userId"), data.getLong("unmuteAt"));
+		this(data.getLong("id"), data.getLong("unmuteAt"));
 	}
 	
-	public MuteUser(ObjectId id, long userId, long unmuteAt) {
-		this.id = id;
-		this.userId = userId;
+	public MuteUser(long userId, long unmuteAt) {
+		this.id = userId;
 		this.unmuteAt = unmuteAt;
 	}
 	
-	public ObjectId getId() {
+	public long getId() {
 		return this.id;
-	}
-	
-	public String getHex() {
-		return this.id.toHexString();
-	}
-	
-	public long getTimestamp() {
-		return this.id.getTimestamp();
-	}
-	
-	public long getUserId() {
-		return this.userId;
 	}
 	
 	public long getUnmuteAt() {

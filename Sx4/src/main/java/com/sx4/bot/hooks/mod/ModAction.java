@@ -1,8 +1,6 @@
 package com.sx4.bot.hooks.mod;
 
 import java.util.Arrays;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 public enum ModAction {
 
@@ -15,7 +13,7 @@ public enum ModAction {
 	UNMUTE("Unmute", 6, false),
 	WARN("Warn", 7, true);
 	
-	private static final Set<ModAction> OFFENCES = Arrays.stream(ModAction.values()).filter(ModAction::isOffence).collect(Collectors.toSet());
+	private static final ModAction[] OFFENCES = Arrays.stream(ModAction.values()).filter(ModAction::isOffence).toArray(ModAction[]::new);
 	
 	private final String name;
 	private final int type;
@@ -49,7 +47,7 @@ public enum ModAction {
 		return null;
 	}
 	
-	public static Set<ModAction> getOffences() {
+	public static ModAction[] getOffences() {
 		return ModAction.OFFENCES;
 	}
 	

@@ -1,5 +1,7 @@
 package com.sx4.bot.core;
 
+import java.time.Duration;
+
 import com.jockie.bot.core.argument.factory.impl.ArgumentFactory;
 import com.jockie.bot.core.argument.parser.ParsedArgument;
 import com.jockie.bot.core.command.factory.impl.MethodCommandFactory;
@@ -10,6 +12,7 @@ import com.jockie.bot.core.command.manager.impl.ContextManagerFactory;
 import com.jockie.bot.core.command.manager.impl.ErrorManagerImpl;
 import com.sx4.bot.config.Config;
 import com.sx4.bot.database.Database;
+import com.sx4.bot.entities.mod.Reason;
 import com.sx4.bot.handlers.ModHandler;
 import com.sx4.bot.hooks.mod.ModActionManager;
 import com.sx4.bot.message.cache.GuildMessageCache;
@@ -18,7 +21,6 @@ import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.SearchUtility;
 import com.sx4.bot.utility.TimeUtility;
 
-import java.time.Duration;
 import net.dv8tion.jda.api.entities.Category;
 import net.dv8tion.jda.api.entities.Emote;
 import net.dv8tion.jda.api.entities.GuildChannel;
@@ -59,7 +61,8 @@ public class Sx4Bot {
 		ArgumentFactory.getDefault()
 			.registerParser(Member.class, (context, argument, content) -> new ParsedArgument<>(SearchUtility.getMember(context.getMessage().getGuild(), content.trim())))
 			.registerParser(User.class, (context, argument, content) -> new ParsedArgument<>(SearchUtility.getUser(content.trim())))
-			.registerParser(Duration.class, (context, argument, content) -> new ParsedArgument<>(TimeUtility.getTimeFromString(content)));
+			.registerParser(Duration.class, (context, argument, content) -> new ParsedArgument<>(TimeUtility.getTimeFromString(content)))
+			.registerParser(Reason.class, (context, argument, content) -> new ParsedArgument<>(new Reason(context.getMessage().getGuild().getIdLong(), content)));
 		
 		ContextManagerFactory.getDefault()
 			.registerContext(Database.class, (event, type) -> Database.INSTANCE);
