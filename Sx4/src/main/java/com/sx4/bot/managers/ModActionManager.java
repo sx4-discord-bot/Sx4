@@ -1,9 +1,10 @@
-package com.sx4.bot.hooks.mod;
+package com.sx4.bot.managers;
 
 import java.util.ArrayList;
 import java.util.List;
 
 import com.sx4.bot.events.mod.ModActionEvent;
+import com.sx4.bot.hooks.mod.ModActionListener;
 
 public class ModActionManager {
 

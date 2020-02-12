@@ -6,8 +6,8 @@ import java.util.stream.Collectors;
 import org.bson.Document;
 
 import com.sx4.bot.entities.mod.action.Action;
+import com.sx4.bot.entities.mod.action.ModAction;
 import com.sx4.bot.entities.mod.action.TimeAction;
-import com.sx4.bot.hooks.mod.ModAction;
 
 public class WarnConfig {
 	

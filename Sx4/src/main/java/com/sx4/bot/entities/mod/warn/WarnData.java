@@ -18,6 +18,7 @@ import com.sx4.bot.core.Sx4Bot;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.entities.mod.Reason;
 import com.sx4.bot.entities.mod.action.Action;
+import com.sx4.bot.entities.mod.action.ModAction;
 import com.sx4.bot.entities.mod.action.TimeAction;
 import com.sx4.bot.entities.mod.mute.MuteData;
 import com.sx4.bot.entities.mod.tempban.TempBanData;
@@ -25,8 +26,7 @@ import com.sx4.bot.events.mod.WarnEvent;
 import com.sx4.bot.exceptions.mod.AuthorPermissionException;
 import com.sx4.bot.exceptions.mod.BotHierarchyException;
 import com.sx4.bot.exceptions.mod.BotPermissionException;
-import com.sx4.bot.hooks.mod.ModAction;
-import com.sx4.bot.hooks.mod.ModActionManager;
+import com.sx4.bot.managers.ModActionManager;
 import com.sx4.bot.managers.MuteManager;
 import com.sx4.bot.managers.TempBanManager;
 import com.sx4.bot.utility.ModUtility;
@@ -173,7 +173,7 @@ public class WarnData {
 								consumer.accept(null, writeException);
 							} else {
 								guild.addRoleToMember(target, role).reason(ModUtility.getAuditReason(reason, moderator.getUser())).queue($ -> {
-									muteManager.putMute(guild.getIdLong(), target.getIdLong(), role.getIdLong(), seconds);
+									muteManager.putMute(guild.getIdLong(), target.getIdLong(), role.getIdLong(), seconds, true);
 									
 									manager.onModAction(new WarnEvent(moderator, target.getUser(), reason, config));
 									

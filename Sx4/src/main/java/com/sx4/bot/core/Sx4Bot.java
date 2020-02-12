@@ -1,6 +1,7 @@
 package com.sx4.bot.core;
 
 import java.time.Duration;
+import java.util.concurrent.TimeUnit;
 
 import com.jockie.bot.core.argument.factory.impl.ArgumentFactory;
 import com.jockie.bot.core.argument.parser.ParsedArgument;
@@ -14,7 +15,7 @@ import com.sx4.bot.config.Config;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.entities.mod.Reason;
 import com.sx4.bot.handlers.ModHandler;
-import com.sx4.bot.hooks.mod.ModActionManager;
+import com.sx4.bot.managers.ModActionManager;
 import com.sx4.bot.message.cache.GuildMessageCache;
 import com.sx4.bot.paged.PagedHandler;
 import com.sx4.bot.utility.ExceptionUtility;
@@ -33,12 +34,19 @@ import net.dv8tion.jda.api.entities.VoiceChannel;
 import net.dv8tion.jda.api.hooks.InterfacedEventManager;
 import net.dv8tion.jda.api.sharding.DefaultShardManagerBuilder;
 import net.dv8tion.jda.api.sharding.ShardManager;
+import okhttp3.OkHttpClient;
 
 public class Sx4Bot {
 	
 	private static ShardManager shardManager;
 	private static CommandListener commandListener;
 	private static ModActionManager modActionManager;
+	
+	private static final OkHttpClient CLIENT = new OkHttpClient.Builder()
+			.connectTimeout(15, TimeUnit.SECONDS)
+			.readTimeout(15, TimeUnit.SECONDS)
+			.writeTimeout(15, TimeUnit.SECONDS)
+			.build();
 	
 	public static void main(String[] args) throws Throwable {
 		Sx4Bot.modActionManager = new ModActionManager()
@@ -91,6 +99,10 @@ public class Sx4Bot {
 			
 			ExceptionUtility.sendErrorMessage(exception);
 		});
+	}
+	
+	public static OkHttpClient getClient() {
+		return Sx4Bot.CLIENT;
 	}
 	
 	public static ShardManager getShardManager() {

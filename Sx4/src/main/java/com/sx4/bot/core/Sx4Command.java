@@ -7,7 +7,7 @@ import com.jockie.bot.core.command.impl.CommandImpl;
 import com.sx4.bot.annotations.Canary;
 import com.sx4.bot.annotations.Donator;
 import com.sx4.bot.annotations.Examples;
-import com.sx4.bot.hooks.mod.ModActionManager;
+import com.sx4.bot.managers.ModActionManager;
 import com.sx4.bot.managers.MuteManager;
 import com.sx4.bot.managers.TempBanManager;
 

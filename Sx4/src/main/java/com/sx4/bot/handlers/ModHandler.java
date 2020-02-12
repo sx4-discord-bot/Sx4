@@ -3,6 +3,7 @@ package com.sx4.bot.handlers;
 import com.mongodb.client.model.Projections;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.entities.mod.action.Action;
+import com.sx4.bot.entities.mod.action.ModAction;
 import com.sx4.bot.entities.mod.modlog.ModLog;
 import com.sx4.bot.entities.mod.modlog.ModLogData;
 import com.sx4.bot.events.mod.BanEvent;
@@ -14,7 +15,6 @@ import com.sx4.bot.events.mod.TempBanEvent;
 import com.sx4.bot.events.mod.UnbanEvent;
 import com.sx4.bot.events.mod.UnmuteEvent;
 import com.sx4.bot.events.mod.WarnEvent;
-import com.sx4.bot.hooks.mod.ModAction;
 import com.sx4.bot.hooks.mod.ModActionAdapter;
 import com.sx4.bot.utility.ExceptionUtility;
 

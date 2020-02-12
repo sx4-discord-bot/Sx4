@@ -92,16 +92,23 @@ public class MuteManager {
 		}
 	}
 	
-	public void putMute(long guildId, long userId, long roleId, long seconds) {
+	public void putMute(long guildId, long userId, long roleId, long seconds, boolean extend) {
 		ScheduledFuture<?> executor = this.getExecutor(guildId, userId);
 		if (executor != null && !executor.isDone()) {
-			seconds += executor.getDelay(TimeUnit.SECONDS);
+			if (extend) {
+				seconds += executor.getDelay(TimeUnit.SECONDS);
+			}
+			
 			executor.cancel(true);
 		}
 		
 		ScheduledFuture<?> newExecutor = this.executor.schedule(() -> this.removeMute(guildId, userId, roleId), seconds, TimeUnit.SECONDS);
 		
 		this.putExecutor(guildId, userId, newExecutor);
+	}
+	
+	public void putMute(long guildId, long userId, long roleId, long seconds) {
+		this.putMute(guildId, userId, roleId, seconds, false);
 	}
 	
 	public void removeMute(long guildId, long userId, long roleId) {

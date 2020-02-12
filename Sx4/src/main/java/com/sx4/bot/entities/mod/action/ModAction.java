@@ -1,4 +1,4 @@
-package com.sx4.bot.hooks.mod;
+package com.sx4.bot.entities.mod.action;
 
 import java.util.Arrays;
 

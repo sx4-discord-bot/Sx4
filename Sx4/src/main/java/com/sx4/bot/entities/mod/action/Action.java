@@ -1,7 +1,5 @@
 package com.sx4.bot.entities.mod.action;
 
-import com.sx4.bot.hooks.mod.ModAction;
-
 public class Action {
 	
 	private final ModAction action;

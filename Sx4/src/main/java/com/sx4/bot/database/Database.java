@@ -19,9 +19,11 @@ import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.FindOneAndUpdateOptions;
 import com.mongodb.client.model.Indexes;
 import com.mongodb.client.model.ReturnDocument;
+import com.mongodb.client.model.Sorts;
 import com.mongodb.client.model.UpdateOneModel;
 import com.mongodb.client.model.UpdateOptions;
 import com.mongodb.client.model.WriteModel;
+import com.mongodb.client.result.DeleteResult;
 import com.mongodb.client.result.InsertOneResult;
 import com.mongodb.client.result.UpdateResult;
 import com.sx4.bot.config.Config;
@@ -50,6 +52,9 @@ public class Database {
 	private final MongoCollection<Document> modLogs;
 	private final MongoCollection<Document> commandLogs;
 	
+	private final MongoCollection<Document> resubscriptions;
+	private final MongoCollection<Document> notifications;
+	
 	private final MongoCollection<Document> offences;
 	
 	public Database() {
@@ -76,6 +81,9 @@ public class Database {
 		this.commandLogs.createIndex(Indexes.descending("command"));
 		this.commandLogs.createIndex(Indexes.descending("channelId"));
 		
+		this.resubscriptions = this.database.getCollection("resubscriptions");
+		this.notifications = this.database.getCollection("notifications");
+		
 		this.offences = this.database.getCollection("offences");
 		this.offences.createIndex(Indexes.descending("type"));
 		this.offences.createIndex(Indexes.descending("authorId"));
@@ -91,6 +99,10 @@ public class Database {
 	
 	public MongoCollection<Document> getUsers() {
 		return this.users;
+	}
+	
+	public long countUserDocuments(Bson filter) {
+		return this.users.countDocuments(filter);
 	}
 	
 	public Document getUserById(long userId, Bson filter, Bson projection) {
@@ -153,6 +165,10 @@ public class Database {
 	
 	public MongoCollection<Document> getGuilds() {
 		return this.guilds;
+	}
+	
+	public long countGuildDocuments(Bson filter) {
+		return this.guilds.countDocuments(filter);
 	}
 	
 	public Document getGuildById(long guildId, Bson filter, Bson projection) {
@@ -227,6 +243,44 @@ public class Database {
 	
 	public CompletableFuture<InsertOneResult> insertModLog(ModLog modLog) {
 		return CompletableFuture.supplyAsync(() -> this.modLogs.insertOne(modLog.toData()));
+	}
+	
+	public MongoCollection<Document> getResubscriptions() {
+		return this.resubscriptions;
+	}
+	
+	public long countResubscriptionDocuments(Bson filter) {
+		return this.resubscriptions.countDocuments(filter);
+	}
+	
+	public CompletableFuture<DeleteResult> deleteResubscription(Bson filter) {
+		return CompletableFuture.supplyAsync(() -> this.resubscriptions.deleteOne(filter));
+	}
+	
+	public CompletableFuture<UpdateResult> updateResubscriptionById(String channelId, Bson update) {
+		return CompletableFuture.supplyAsync(() -> this.resubscriptions.updateOne(Filters.eq("_id", channelId), update));
+	}
+	
+	public CompletableFuture<BulkWriteResult> bulkWriteResubscriptions(List<? extends WriteModel<? extends Document>> bulkData) {
+		return CompletableFuture.supplyAsync(() -> this.resubscriptions.bulkWrite(bulkData));
+	}
+	
+	public FindIterable<Document> getNotifications(Bson filter, Bson projection) {
+		return this.notifications.find(filter).projection(projection).sort(Sorts.descending("_id"));
+	}
+	
+	public Document getNotification(Bson filter, Bson projection) {
+		Document data = this.getNotifications(filter, projection).first();
+		
+		return data == null ? Database.EMPTY_DOCUMENT : data;
+	}
+	
+	public CompletableFuture<InsertOneResult> insertNotification(Document data) {
+		return CompletableFuture.supplyAsync(() -> this.notifications.insertOne(data));
+	}
+	
+	public CompletableFuture<DeleteResult> deleteManyNotifications(String videoId) {
+		return CompletableFuture.supplyAsync(() -> this.notifications.deleteMany(Filters.eq("videoId", videoId)));
 	}
 	
 	public MongoCollection<Document> getCommandLogs() {
