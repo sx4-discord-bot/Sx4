@@ -30,11 +30,7 @@ import okhttp3.RequestBody;
 
 public class YouTubeManager {
 	
-	private static final YouTubeManager INSTANCE = new YouTubeManager();
-	
-	public static YouTubeManager get() {
-		return YouTubeManager.INSTANCE;
-	}
+	public static final String DEFAULT_MESSAGE = "**[{channel.name}]({channel.url})** just uploaded a new video!\n{video.url}";
 	
 	private final List<YouTubeListener> listeners;
 
@@ -42,7 +38,7 @@ public class YouTubeManager {
 	
 	private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
 	
-	private YouTubeManager() {
+	public YouTubeManager() {
 		this.executors = new HashMap<>();
 		this.listeners = new ArrayList<>();
 	}
@@ -67,6 +63,10 @@ public class YouTubeManager {
 	
 	public ScheduledExecutorService getExecutor() {
 		return this.executor;
+	}
+	
+	public boolean hasExecutor(String channelId) {
+		return this.executors.containsKey(channelId);
 	}
 	
 	public ScheduledFuture<?> getExecutor(String channelId) {

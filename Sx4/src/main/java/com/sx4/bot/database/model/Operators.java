@@ -1,5 +1,6 @@
 package com.sx4.bot.database.model;
 
+import java.util.Arrays;
 import java.util.List;
 
 import org.bson.BsonUndefined;
@@ -16,20 +17,40 @@ public class Operators {
 		return new Document("$cond", List.of(ifCond, thenCond, elseCond));
 	}
 	
-	public static Bson eq(String key, Object value) {
-		return new Document("$eq", List.of(key, value));
+	public static Bson and(Object... expressions) {
+		return new Document("$and", Arrays.asList(expressions));
 	}
 	
-	public static Bson ne(String key, Object value) {
-		return new Document("$ne", List.of(key, value));
+	public static Bson or(Object... expressions) {
+		return new Document("$or", Arrays.asList(expressions));
+	}
+	
+	public static Bson eq(Object expression, Object expression2) {
+		return new Document("$eq", List.of(expression, expression2));
+	}
+	
+	public static Bson ne(Object expression, Object expression2) {
+		return new Document("$ne", List.of(expression, expression2));
+	}
+	
+	public static Bson extinct(String key) {
+		return Operators.eq(key, new BsonUndefined());
 	}
 	
 	public static Bson exists(String key) {
 		return Operators.ne(key, new BsonUndefined());
 	}
 	
+	public static Bson filter(String key, Object expression) {
+		return new Document("$filter", new Document("input", key).append("cond", expression));
+	}
+	
 	public static Bson set(String key, Object expression) {
 		return new Document("$set", new Document(key, expression));
+	}
+	
+	public static Bson concatArrays(Object... expressions) {
+		return new Document("$concatArrays", Arrays.asList(expressions));
 	}
 	
 }

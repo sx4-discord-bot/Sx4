@@ -3,6 +3,7 @@ package com.sx4.bot.commands.mod;
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.impl.CommandEvent;
 import com.jockie.bot.core.option.Option;
+import com.sx4.bot.category.Category;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.entities.mod.Reason;
 import com.sx4.bot.events.mod.BanEvent;
@@ -25,6 +26,7 @@ public class BanCommand extends Sx4Command {
 		super.setDescription("Ban any user from the current server");
 		super.setAliases("ban user");
 		super.setExamples("ban @Shea", "ban Shea Spamming", "ban Shea#6653 template:tos", "ban 402557516728369153 t:tos and Spamming");
+		super.setCategory(Category.MODERATION);
 	}
 	
 	public void onCommand(CommandEvent event, @Argument(value="user") String userArgument, @Argument(value="reason", endless=true, nullDefault=true) Reason reason, @Option(value="days", description="Set how many days of messages should be deleted from the user") String days) {

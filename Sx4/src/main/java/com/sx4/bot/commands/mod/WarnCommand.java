@@ -1,9 +1,9 @@
 package com.sx4.bot.commands.mod;
 
 import com.jockie.bot.core.argument.Argument;
-import com.jockie.bot.core.command.Context;
 import com.jockie.bot.core.command.impl.CommandEvent;
 import com.mongodb.client.model.Projections;
+import com.sx4.bot.category.Category;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.entities.mod.Reason;
@@ -25,9 +25,10 @@ public class WarnCommand extends Sx4Command {
 		super.setDescription("Warn a user in the server, warning can give punishments on each warn a user gets");
 		super.setAuthorDiscordPermissions(Permission.MESSAGE_MANAGE);
 		super.setExamples("warn @Shea", "warn Shea Spamming", "warn Shea#6653 template:tos", "warn 402557516728369153 t:tos and Spamming");
+		super.setCategory(Category.MODERATION);
 	}
 	
-	public void onCommand(CommandEvent event, @Context Database database, @Argument(value="user") Member member, @Argument(value="reason", endless=true, nullDefault=true) Reason reason) {
+	public void onCommand(CommandEvent event, @Argument(value="user") Member member, @Argument(value="reason", endless=true, nullDefault=true) Reason reason) {
 		if (member.getIdLong() == event.getSelfUser().getIdLong()) {
 			event.reply("You cannot warn me, that is illegal :no_entry:").queue();
 			return;
@@ -38,7 +39,7 @@ public class WarnCommand extends Sx4Command {
 			return;
 		}
 		
-		WarnData data = new WarnData(database.getGuildById(event.getGuild().getIdLong(), Projections.include("warn")).get("warn", Database.EMPTY_DOCUMENT));
+		WarnData data = new WarnData(this.database.getGuildById(event.getGuild().getIdLong(), Projections.include("warn")).get("warn", Database.EMPTY_DOCUMENT));
 		data.warn(member, event.getMember(), reason, (warning, exception) -> {
 			if (exception != null) {
 				event.reply(exception.getMessage() + " :no_entry:").queue();

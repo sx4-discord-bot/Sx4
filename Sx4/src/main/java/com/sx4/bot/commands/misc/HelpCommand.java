@@ -6,7 +6,6 @@ import java.util.stream.Collectors;
 
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.impl.CommandEvent;
-import com.jockie.bot.core.option.Option;
 import com.sx4.bot.category.Category;
 import com.sx4.bot.config.Config;
 import com.sx4.bot.core.Sx4Category;
@@ -38,62 +37,48 @@ public class HelpCommand extends Sx4Command {
 		super.setCategory(Category.MISC);
 	}
 	
-	public void onCommand(CommandEvent event, @Argument(value="command | module", endless=true, nullDefault=true) String commandName, @Option(value="all", description="Shows every command on the bot") boolean all) {
+	public void onCommand(CommandEvent event, @Argument(value="command | module", endless=true, nullDefault=true) String commandName) {
 		boolean embed = event.isFromGuild() ? event.getGuild().getSelfMember().hasPermission(event.getTextChannel(), Permission.MESSAGE_EMBED_LINKS) : true;
 		if (commandName == null) {
-			if (all) {
-				List<Sx4Command> commands = event.getCommandListener().getAllCommands(event.isAuthorDeveloper(), true).stream()
+			String image = Config.get().getAdImage();
+			String description = Config.get().getAdDescription();
+			
+			PagedResult<Sx4Category> paged = new PagedResult<>(Arrays.asList(Category.ALL_ARRAY))
+					.setPerPage(Category.ALL_ARRAY.length)
+					.setSelect(SelectType.OBJECT)
+					.setSelectablePredicate((content, category) -> category.getName().equalsIgnoreCase(content) || Arrays.stream(category.getAliases()).anyMatch(content::equalsIgnoreCase))
+					.setCustomFunction(page -> {
+						MessageBuilder builder = new MessageBuilder();
+						
+						EmbedBuilder embedBuilder = new EmbedBuilder();
+						embedBuilder.setAuthor("Help", null, event.getSelfUser().getEffectiveAvatarUrl());
+						embedBuilder.setFooter(event.getPrefix() + "help <module> or respond below with a name of a module", event.getAuthor().getEffectiveAvatarUrl());
+						embedBuilder.setDescription("All commands are put in a set category also known as a module, use `" + event.getPrefix() + "help <module>` on the module of your choice, The bot will then "
+						+ "list all the commands in that module. If you need further help feel free to join the [support server](https://discord.gg/PqJNcfB).");
+						embedBuilder.addField("Modules", "`" + Arrays.stream(Category.ALL_ARRAY).map(Sx4Category::getName).collect(Collectors.joining("`, `")) + "`", false);
+						embedBuilder.addField("Sponsor", description == null ? this.defaultDescription : description, false);
+						embedBuilder.setImage(image == null ? this.defaultImage : image);
+						
+						return builder.setEmbed(embedBuilder.build()).build();
+					});
+					
+			paged.onSelect(select -> {
+				Sx4Category category = select.getSelected();
+				
+				List<Sx4Command> categoryCommands = category.getCommands().stream()
 						.map(Sx4Command.class::cast)
 						.sorted((a, b) -> a.getCommandTrigger().compareTo(b.getCommandTrigger()))
 						.collect(Collectors.toList());
 				
-				PagedResult<Sx4Command> paged = HelpUtility.getCommandsPaged(commands)
-						.setAuthor("All Commands", null, event.getAuthor().getEffectiveAvatarUrl());
+				PagedResult<Sx4Command> categoryPaged = HelpUtility.getCommandsPaged(categoryCommands)
+						.setAuthor(category.getName(), null, event.getAuthor().getEffectiveAvatarUrl());
 				
-				paged.onSelect(select -> event.reply(HelpUtility.getHelpMessage(select.getSelected(), embed)).queue());
+				categoryPaged.onSelect(categorySelect -> event.reply(HelpUtility.getHelpMessage(categorySelect.getSelected(), embed)).queue());
 				
-				paged.execute(event);
-			} else {
-				String image = Config.get().getAdImage();
-				String description = Config.get().getAdDescription();
-				
-				PagedResult<Sx4Category> paged = new PagedResult<>(Arrays.asList(Category.ALL))
-						.setPerPage(Category.ALL.length)
-						.setSelect(SelectType.OBJECT)
-						.setSelectablePredicate((content, category) -> category.getName().equalsIgnoreCase(content) || Arrays.stream(category.getAliases()).anyMatch(content::equalsIgnoreCase))
-						.setCustomFunction(page -> {
-							MessageBuilder builder = new MessageBuilder();
-							
-							EmbedBuilder embedBuilder = new EmbedBuilder();
-							embedBuilder.setAuthor("Help", null, event.getSelfUser().getEffectiveAvatarUrl());
-							embedBuilder.setFooter(event.getPrefix() + "help <module> or respond below with a name of a module", event.getAuthor().getEffectiveAvatarUrl());
-							embedBuilder.setDescription("All commands are put in a set category also known as a module, use `" + event.getPrefix() + "help <module>` on the module of your choice, The bot will then "
-							+ "list all the commands in that module. If you need further help feel free to join the [support server](https://discord.gg/PqJNcfB).");
-							embedBuilder.addField("Modules", "`" + Arrays.stream(Category.ALL).map(Sx4Category::getName).collect(Collectors.joining("`, `")) + "`", false);
-							embedBuilder.addField("Sponsor", description == null ? this.defaultDescription : description, false);
-							embedBuilder.setImage(image == null ? this.defaultImage : image);
-							
-							return builder.setEmbed(embedBuilder.build()).build();
-						});
-						
-				paged.onSelect(select -> {
-					Sx4Category category = select.getSelected();
-					
-					List<Sx4Command> categoryCommands = category.getCommands().stream()
-							.map(Sx4Command.class::cast)
-							.sorted((a, b) -> a.getCommandTrigger().compareTo(b.getCommandTrigger()))
-							.collect(Collectors.toList());
-					
-					PagedResult<Sx4Command> categoryPaged = HelpUtility.getCommandsPaged(categoryCommands)
-							.setAuthor(category.getName(), null, event.getAuthor().getEffectiveAvatarUrl());
-					
-					categoryPaged.onSelect(categorySelect -> event.reply(HelpUtility.getHelpMessage(categorySelect.getSelected(), embed)).queue());
-					
-					categoryPaged.execute(event);
-				});
-				
-				paged.execute(event);
-			}
+				categoryPaged.execute(event);
+			});
+			
+			paged.execute(event);
 		} else {
 			Sx4Category category = SearchUtility.getModule(commandName);
 			List<Sx4Command> commands = SearchUtility.getCommands(commandName, event.isAuthorDeveloper());
@@ -105,7 +90,8 @@ public class HelpCommand extends Sx4Command {
 						.collect(Collectors.toList());
 				
 				PagedResult<Sx4Command> paged = HelpUtility.getCommandsPaged(categoryCommands)
-						.setAuthor(category.getName(), null, event.getAuthor().getEffectiveAvatarUrl());
+						.setAuthor(category.getName(), null, event.getAuthor().getEffectiveAvatarUrl())
+						.setAutoSelect(true);
 				
 				paged.onSelect(select -> event.reply(HelpUtility.getHelpMessage(select.getSelected(), embed)).queue());
 				
@@ -113,6 +99,7 @@ public class HelpCommand extends Sx4Command {
 			} else if (!commands.isEmpty()) {
 				PagedResult<Sx4Command> paged = new PagedResult<>(commands)
 						.setAuthor(commandName, null, event.getAuthor().getEffectiveAvatarUrl())
+						.setAutoSelect(true)
 						.setSelectablePredicate((content, command) -> command.getCommandTrigger().equals(content))
 						.setDisplayFunction(Sx4Command::getCommandTrigger);
 				

@@ -21,6 +21,7 @@ import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.Updates;
 import com.sx4.bot.config.Config;
+import com.sx4.bot.core.Sx4Bot;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.entities.youtube.YouTubeChannel;
 import com.sx4.bot.entities.youtube.YouTubeVideo;
@@ -39,7 +40,7 @@ public class YouTubeEndpoint {
 	@Produces(MediaType.TEXT_PLAIN)
 	public Response getYoutube(@QueryParam("hub.topic") final String topic, @QueryParam("hub.verify_token") final String authorization, @QueryParam("hub.challenge") final String challenge, @QueryParam("hub.lease_seconds") final long seconds) {
 		if (authorization != null && authorization.equals(Config.get().getYoutube())) {
-			YouTubeManager manager = YouTubeManager.get();
+			YouTubeManager manager = Sx4Bot.getYouTubeManager();
 			String channelId = topic.substring(topic.lastIndexOf('=') + 1);
 			
 			Database.get().updateResubscriptionById(channelId, Updates.set("resubscribeAt", Clock.systemUTC().instant().getEpochSecond() + seconds)).whenComplete((result, exception) -> {
@@ -60,7 +61,7 @@ public class YouTubeEndpoint {
 	@POST
 	@Path("/youtube")
 	public Response postYoutube(final String body) {
-		YouTubeManager manager = YouTubeManager.get();
+		YouTubeManager manager = Sx4Bot.getYouTubeManager();
 		Database database = Database.get();
 		
 		JSONObject json = XML.toJSONObject(body);

@@ -75,7 +75,7 @@ public class PagedResult<Type> {
 	private boolean indexed = true;
 	private boolean increasedIndex = false;
 	private boolean embed = true;
-	private boolean autoSelect = true;
+	private boolean autoSelect = false;
 	
 	private String authorName = null;
 	private String authorUrl = null;

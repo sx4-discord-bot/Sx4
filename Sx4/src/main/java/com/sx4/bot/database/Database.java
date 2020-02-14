@@ -62,7 +62,7 @@ public class Database {
 		
 		MongoClientSettings settings = MongoClientSettings.builder()
 			.addCommandListener(handler)
-			.applyToClusterSettings(block -> block.addClusterListener(handler))
+			.applyToClusterSettings(clusterSettings -> clusterSettings.addClusterListener(handler))
 			.build();
 		
 		this.client = MongoClients.create(settings);
@@ -72,7 +72,7 @@ public class Database {
 		this.guilds = this.database.getCollection("guilds");
 		
 		this.modLogs = this.database.getCollection("modLogs");
-		this.modLogs.createIndex(Indexes.descending("timestamp"));
+		this.modLogs.createIndex(Indexes.descending("action.type"));
 		
 		this.commandLogs = this.database.getCollection("commandLogs");
 		this.commandLogs.createIndex(Indexes.descending("timestamp"));
@@ -85,7 +85,6 @@ public class Database {
 		this.notifications = this.database.getCollection("notifications");
 		
 		this.offences = this.database.getCollection("offences");
-		this.offences.createIndex(Indexes.descending("type"));
 		this.offences.createIndex(Indexes.descending("authorId"));
 	}
 	
@@ -167,6 +166,10 @@ public class Database {
 		return this.guilds;
 	}
 	
+	public FindIterable<Document> getGuilds(Bson filter, Bson projection) {
+		return this.guilds.find(filter).projection(projection);
+	}
+	
 	public long countGuildDocuments(Bson filter) {
 		return this.guilds.countDocuments(filter);
 	}
@@ -185,6 +188,25 @@ public class Database {
 	
 	public Document getGuildById(long guildId, Bson projection) {
 		return this.getGuildById(guildId, null, projection);
+	}
+	
+	public CompletableFuture<UpdateResult> updateGuildById(long guildId, Bson filter, List<? extends Bson> update, UpdateOptions options) {
+		Bson dbFilter;
+		if (filter == null) {
+			dbFilter = Filters.eq("_id", guildId);
+		} else {
+			dbFilter = Filters.and(Filters.eq("_id", guildId), filter);
+		}
+		
+		return CompletableFuture.supplyAsync(() -> this.guilds.updateOne(dbFilter, update, options));
+	}
+	
+	public CompletableFuture<UpdateResult> updateGuildById(long guildId, List<? extends Bson> update, UpdateOptions options) {
+		return this.updateGuildById(guildId, null, update, options);
+	}
+	
+	public CompletableFuture<UpdateResult> updateGuildById(long guildId, List<? extends Bson> update) {
+		return this.updateGuildById(guildId, update, this.updateOptions);
 	}
 	
 	public CompletableFuture<UpdateResult> updateGuildById(long guildId, Bson filter, Bson update, UpdateOptions options) {
@@ -210,6 +232,29 @@ public class Database {
 		return CompletableFuture.supplyAsync(() -> this.guilds.updateOne(model.getFilter(), model.getUpdate(), model.getOptions()));
 	}
 	
+	public CompletableFuture<Document> findAndUpdateGuildById(long guildId, Bson filter, Bson update, FindOneAndUpdateOptions options) {
+		Bson dbFilter;
+		if (filter == null) {
+			dbFilter = Filters.eq("_id", guildId);
+		} else {
+			dbFilter = Filters.and(Filters.eq("_id", guildId), filter);
+		}
+		
+		return CompletableFuture.supplyAsync(() -> this.guilds.findOneAndUpdate(dbFilter, update, options));
+	}
+	
+	public CompletableFuture<Document> findAndUpdateGuildById(long guildId, Bson update, FindOneAndUpdateOptions options) {
+		return this.findAndUpdateGuildById(guildId, null, update, options);
+	}
+	
+	public CompletableFuture<Document> findAndUpdateGuildById(long guildId, Bson filter, Bson projection, Bson update) {
+		return this.findAndUpdateGuildById(guildId, filter, update, this.findOneAndUpdateOptions.projection(projection));
+	}
+	
+	public CompletableFuture<Document> findAndUpdateGuildById(long guildId, Bson projection, Bson update) {
+		return this.findAndUpdateGuildById(guildId, null, update, this.findOneAndUpdateOptions.projection(projection));
+	}
+	
 	public CompletableFuture<Document> findAndUpdateGuildById(long guildId, Bson filter, List<? extends Bson> update, FindOneAndUpdateOptions options) {
 		Bson dbFilter;
 		if (filter == null) {
@@ -219,6 +264,10 @@ public class Database {
 		}
 		
 		return CompletableFuture.supplyAsync(() -> this.guilds.findOneAndUpdate(dbFilter, update, options));
+	}
+	
+	public CompletableFuture<Document> findAndUpdateGuildById(long guildId, List<? extends Bson> update, FindOneAndUpdateOptions options) {
+		return this.findAndUpdateGuildById(guildId, null, update, options);
 	}
 	
 	public CompletableFuture<Document> findAndUpdateGuildById(long guildId, Bson filter, Bson projection, List<? extends Bson> update) {
@@ -258,7 +307,7 @@ public class Database {
 	}
 	
 	public CompletableFuture<UpdateResult> updateResubscriptionById(String channelId, Bson update) {
-		return CompletableFuture.supplyAsync(() -> this.resubscriptions.updateOne(Filters.eq("_id", channelId), update));
+		return CompletableFuture.supplyAsync(() -> this.resubscriptions.updateOne(Filters.eq("_id", channelId), update, this.updateOptions));
 	}
 	
 	public CompletableFuture<BulkWriteResult> bulkWriteResubscriptions(List<? extends WriteModel<? extends Document>> bulkData) {

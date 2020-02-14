@@ -5,7 +5,6 @@ import com.sx4.bot.entities.youtube.YouTubeChannel;
 public class YouTubeEvent {
 
 	private final String videoId;
-	
 	private final YouTubeChannel channel;
 
 	public YouTubeEvent(YouTubeChannel channel, String videoId) {

@@ -1,24 +1,34 @@
 package com.sx4.bot.core;
 
 import java.lang.reflect.Method;
-import java.util.concurrent.ScheduledExecutorService;
 
+import com.jockie.bot.core.category.ICategory;
+import com.jockie.bot.core.command.impl.AbstractCommand;
 import com.jockie.bot.core.command.impl.CommandImpl;
 import com.sx4.bot.annotations.Canary;
 import com.sx4.bot.annotations.Donator;
 import com.sx4.bot.annotations.Examples;
+import com.sx4.bot.config.Config;
+import com.sx4.bot.database.Database;
 import com.sx4.bot.managers.ModActionManager;
 import com.sx4.bot.managers.MuteManager;
 import com.sx4.bot.managers.TempBanManager;
+import com.sx4.bot.managers.YouTubeManager;
+
+import okhttp3.OkHttpClient;
 
 public class Sx4Command extends CommandImpl {
 	
+	public final YouTubeManager youtubeManager = Sx4Bot.getYouTubeManager();
 	public final ModActionManager modManager = Sx4Bot.getModActionManager();
-	
 	public final MuteManager muteManager = MuteManager.get();
-	public final ScheduledExecutorService muteExecutor = this.muteManager.getExecutor();
-	
 	public final TempBanManager banManager = TempBanManager.get();
+	
+	public final OkHttpClient client = Sx4Bot.getClient();
+	
+	public final Database database = Database.get();
+	
+	public final Config config = Config.get();
 	
 	protected boolean donator = false;
 	
@@ -93,6 +103,32 @@ public class Sx4Command extends CommandImpl {
 	
 	public Sx4Command setDonatorCommand(boolean donator) {
 		this.donator = donator;
+		
+		return this;
+	}
+	
+	public AbstractCommand setCategory(ICategory category) {
+		ICategory old = this.category;
+		
+		this.category = category;
+		
+		if(old != null) {
+			old.removeCommand(this);
+			
+			ICategory parent = old.getParent();
+			if (parent != null) {
+				parent.removeCommand(this);
+			}
+		}
+		
+		if(this.category != null) {
+			this.category.addCommand(this);
+			
+			ICategory parent = this.category.getParent();
+			if (parent != null) {
+				parent.addCommand(this);
+			}
+		}
 		
 		return this;
 	}

@@ -6,12 +6,11 @@ import org.bson.conversions.Bson;
 
 import com.jockie.bot.core.command.Command;
 import com.jockie.bot.core.command.Command.AuthorPermissions;
-import com.jockie.bot.core.command.Context;
 import com.jockie.bot.core.command.impl.CommandEvent;
 import com.mongodb.client.model.Projections;
 import com.sx4.bot.annotations.Examples;
+import com.sx4.bot.category.Category;
 import com.sx4.bot.core.Sx4Command;
-import com.sx4.bot.database.Database;
 import com.sx4.bot.database.model.Operators;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.HelpUtility;
@@ -26,6 +25,7 @@ public class ModLogCommand extends Sx4Command {
 		super.setAliases("modlogs", "mod log", "mod logs");
 		super.setDescription("Setup the mod log in your server to log mod actions which happen within the server");
 		super.setExamples("modlog toggle", "modlog channel", "modlog case");
+		super.setCategory(Category.MODERATION);
 	}
 	
 	public void onCommand(CommandEvent event) {
@@ -35,9 +35,9 @@ public class ModLogCommand extends Sx4Command {
 	@Command(value="toggle", description="Turn modlogs on/off in your server")
 	@AuthorPermissions({Permission.MANAGE_SERVER})
 	@Examples({"modlog toggle"})
-	public void toggle(CommandEvent event, @Context Database database) {
+	public void toggle(CommandEvent event) {
 		List<Bson> update = List.of(Operators.set("modLog.enabled", Operators.cond("$modLog.enabled", "$$REMOVE", true)));
-		database.findAndUpdateGuildById(event.getGuild().getIdLong(), Projections.include("modLog.enabled"), update).whenComplete((data, exception) -> {
+		this.database.findAndUpdateGuildById(event.getGuild().getIdLong(), Projections.include("modLog.enabled"), update).whenComplete((data, exception) -> {
 			if (exception != null) {
 				ExceptionUtility.sendExceptionally(event, exception);
 			} else {

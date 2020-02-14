@@ -3,10 +3,10 @@ package com.sx4.bot.commands.mod;
 import java.time.Duration;
 
 import com.jockie.bot.core.argument.Argument;
-import com.jockie.bot.core.command.Context;
 import com.jockie.bot.core.command.impl.CommandEvent;
 import com.jockie.bot.core.option.Option;
 import com.mongodb.client.model.Projections;
+import com.sx4.bot.category.Category;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.entities.mod.Reason;
@@ -32,9 +32,10 @@ public class TempBanCommand extends Sx4Command {
 		super.setExamples("temporary ban @Shea#6653 5d", "temporary ban Shea 30m Spamming", "temporary ban 402557516728369153 10d t:tos and Spamming");
 		super.setAuthorDiscordPermissions(Permission.BAN_MEMBERS);
 		super.setBotDiscordPermissions(Permission.BAN_MEMBERS);
+		super.setCategory(Category.MODERATION);
 	}
 	
-	public void onCommand(CommandEvent event, @Context Database database, @Argument(value="user") String userArgument, @Argument(value="time", nullDefault=true) Duration time, @Argument(value="reason", endless=true, nullDefault=true) Reason reason, @Option(value="days", description="Set how many days of messages should be deleted from the user") String days) {
+	public void onCommand(CommandEvent event, @Argument(value="user") String userArgument, @Argument(value="time", nullDefault=true) Duration time, @Argument(value="reason", endless=true, nullDefault=true) Reason reason, @Option(value="days", description="Set how many days of messages should be deleted from the user") String days) {
 		SearchUtility.getUserRest(event.getGuild(), userArgument, user -> {
 			if (user == null) {
 				event.reply("I could not find that user :no_entry:").queue();
@@ -62,11 +63,11 @@ public class TempBanCommand extends Sx4Command {
 			event.getGuild().retrieveBan(user).queue(ban -> {
 				event.reply("That user is already banned :no_entry:").queue();
 			}, new ErrorHandler().handle(ErrorResponse.UNKNOWN_BAN, e -> {
-				TempBanData data = new TempBanData(database.getGuildById(event.getGuild().getIdLong(), Projections.include("tempBan")).get("tempBan", Database.EMPTY_DOCUMENT));
+				TempBanData data = new TempBanData(this.database.getGuildById(event.getGuild().getIdLong(), Projections.include("tempBan")).get("tempBan", Database.EMPTY_DOCUMENT));
 				
 				long seconds = time == null ? data.getDefaultTime() : time.toSeconds();
 				
-				database.updateGuildById(data.getUpdate(event.getGuild().getIdLong(), member.getIdLong(), seconds)).whenComplete((result, exception) -> {
+				this.database.updateGuildById(data.getUpdate(event.getGuild().getIdLong(), member.getIdLong(), seconds)).whenComplete((result, exception) -> {
 					if (exception != null) {
 						ExceptionUtility.sendExceptionally(event, exception);
 					} else {

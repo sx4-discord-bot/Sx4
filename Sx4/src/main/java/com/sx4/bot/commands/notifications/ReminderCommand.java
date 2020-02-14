@@ -1,4 +1,4 @@
-package com.sx4.bot.commands.task;
+package com.sx4.bot.commands.notifications;
 
 import com.jockie.bot.core.command.impl.CommandEvent;
 import com.sx4.bot.category.Category;
@@ -11,7 +11,7 @@ public class ReminderCommand extends Sx4Command {
 		
 		super.setDescription("Create reminders to keep up to date with tasks");
 		super.setExamples("reminder add", "reminder remove", "reminder list");
-		super.setCategory(Category.TASK);
+		super.setCategory(Category.NOTIFICATIONS);
 	}
 	
 	public String onCommand(CommandEvent event) {

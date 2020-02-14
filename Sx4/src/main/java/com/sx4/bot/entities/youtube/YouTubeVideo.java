@@ -15,8 +15,8 @@ public class YouTubeVideo {
 		this.id = videoId;
 		this.title = videoTitle;
 		this.url = "https://www.youtube.com/watch?v=" + videoId;
-		this.updatedAt = videoUpdatedAt == null ? null : OffsetDateTime.parse(videoUpdatedAt);
-		this.publishedAt = videoPublishedAt == null ? null : OffsetDateTime.parse(videoPublishedAt);
+		this.updatedAt = OffsetDateTime.parse(videoUpdatedAt);
+		this.publishedAt = OffsetDateTime.parse(videoPublishedAt);
 	}
 	
 	public String getId() {
