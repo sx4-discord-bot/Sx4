@@ -73,6 +73,9 @@ public class Database {
 		
 		this.modLogs = this.database.getCollection("modLogs");
 		this.modLogs.createIndex(Indexes.descending("action.type"));
+		this.modLogs.createIndex(Indexes.descending("guildId"));
+		this.modLogs.createIndex(Indexes.descending("moderatorId"));
+		this.modLogs.createIndex(Indexes.descending("targetId"));
 		
 		this.commandLogs = this.database.getCollection("commandLogs");
 		this.commandLogs.createIndex(Indexes.descending("timestamp"));
@@ -286,12 +289,20 @@ public class Database {
 		return this.modLogs;
 	}
 	
-	public Document getModLog(ObjectId id) {
-		return this.modLogs.find(Filters.eq("_id", id)).first();
+	public FindIterable<Document> getModLogs(Bson filter, Bson projection) {
+		return this.modLogs.find(filter).projection(projection).sort(Sorts.descending("_id"));
+	}
+	
+	public Document getModLogById(Bson filter, Bson projection) {
+		return this.modLogs.find(filter).projection(projection).first();
 	}
 	
 	public CompletableFuture<InsertOneResult> insertModLog(ModLog modLog) {
 		return CompletableFuture.supplyAsync(() -> this.modLogs.insertOne(modLog.toData()));
+	}
+	
+	public CompletableFuture<UpdateResult> updateModLogById(ObjectId id, Bson update) {
+		return CompletableFuture.supplyAsync(() -> this.modLogs.updateOne(Filters.eq("_id", id), update, this.updateOptions));
 	}
 	
 	public MongoCollection<Document> getResubscriptions() {

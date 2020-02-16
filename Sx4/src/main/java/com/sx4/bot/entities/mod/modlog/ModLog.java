@@ -11,11 +11,9 @@ import com.sx4.bot.entities.mod.action.Action;
 import com.sx4.bot.entities.mod.action.TimeAction;
 import com.sx4.bot.entities.mod.action.WarnAction;
 import com.sx4.bot.entities.mod.warn.WarnConfig;
-import com.sx4.bot.utility.TimeUtility;
 
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.Guild;
-import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.entities.User;
@@ -36,6 +34,20 @@ public class ModLog {
 	
 	public ModLog(long channelId, long guildId, long targetId, long moderatorId, Reason reason, Action action) {
 		this(ObjectId.get(), 0L, channelId, guildId, targetId, moderatorId, reason, action);
+	}
+	
+	public ModLog(Document data) {
+		this.id = data.getObjectId("_id");
+		this.messageId = data.get("messageId", 0L);
+		this.channelId = data.get("channelId", 0L);
+		this.guildId = data.get("guildId", 0L);
+		this.targetId = data.get("targetId", 0L);
+		this.moderatorId = data.get("moderatorId", 0L);
+		
+		String reason = data.getString("reason");
+		this.reason = reason == null ? null : new Reason(reason);
+		
+		this.action = Action.getActionFromData(data);
 	}
 	
 	public ModLog(ObjectId id, long messageId, long channelId, long guildId, long targetId, long moderatorId, Reason reason, Action action) {
@@ -117,26 +129,20 @@ public class ModLog {
 		return this.action;
 	}
 	
-	public MessageEmbed getEmbed(Member moderator, User target) {
+	public MessageEmbed getEmbed(User moderator, User target) {
 		EmbedBuilder embed = new EmbedBuilder();
-
-		if (this.action instanceof WarnAction) {
-			WarnConfig warning = ((WarnAction) this.action).getWarning();
-			
-			Action action = warning.getAction();
-
-			embed.setTitle(action.getModAction().getName() + (action instanceof TimeAction ? " (" + TimeUtility.getTimeString(((TimeAction) action).getDuration()) + ")" : ""));
-		} else {
-			embed.setTitle(this.action.getModAction().getName() + (this.action instanceof TimeAction ? " (" + TimeUtility.getTimeString(((TimeAction) this.action).getDuration()) + ")" : ""));
-		}
-		
-		embed.addField("Target", target.getAsTag() + " (" + target.getId() + ")", false);
-		embed.addField("Moderator", moderator.getUser().getAsTag() + " (" + moderator.getId() + ")", false);
+		embed.setTitle(this.action.toString());
+		embed.addField("Target", (target == null ? "Unknown User" : target.getAsTag()) + " (" + this.getTargetId() + ")", false);
+		embed.addField("Moderator", (moderator == null ? "Unknown User" : moderator.getAsTag()) + " (" + this.getModeratorId() + ")", false);
 		embed.addField("Reason", this.reason == null ? "None Given" : this.reason.getParsed(), false);
 		embed.setTimestamp(Instant.ofEpochSecond(this.getTimestamp()));
 		embed.setFooter("ID: " + this.getHex());
 		
 		return embed.build();
+	}
+	
+	public MessageEmbed getEmbed() {
+		return this.getEmbed(this.getModerator(), this.getTarget());
 	}
 	
 	public Document toData() {

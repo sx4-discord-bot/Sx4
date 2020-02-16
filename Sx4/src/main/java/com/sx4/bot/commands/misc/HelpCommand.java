@@ -90,8 +90,7 @@ public class HelpCommand extends Sx4Command {
 						.collect(Collectors.toList());
 				
 				PagedResult<Sx4Command> paged = HelpUtility.getCommandsPaged(categoryCommands)
-						.setAuthor(category.getName(), null, event.getAuthor().getEffectiveAvatarUrl())
-						.setAutoSelect(true);
+						.setAuthor(category.getName(), null, event.getAuthor().getEffectiveAvatarUrl());
 				
 				paged.onSelect(select -> event.reply(HelpUtility.getHelpMessage(select.getSelected(), embed)).queue());
 				
@@ -100,6 +99,7 @@ public class HelpCommand extends Sx4Command {
 				PagedResult<Sx4Command> paged = new PagedResult<>(commands)
 						.setAuthor(commandName, null, event.getAuthor().getEffectiveAvatarUrl())
 						.setAutoSelect(true)
+						.setPerPage(15)
 						.setSelectablePredicate((content, command) -> command.getCommandTrigger().equals(content))
 						.setDisplayFunction(Sx4Command::getCommandTrigger);
 				

@@ -31,6 +31,7 @@ import com.sx4.bot.database.model.Operators;
 import com.sx4.bot.http.HttpCallback;
 import com.sx4.bot.managers.YouTubeManager;
 import com.sx4.bot.paged.PagedResult;
+import com.sx4.bot.paged.PagedResult.SelectType;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.HelpUtility;
 
@@ -241,16 +242,35 @@ public class YouTubeNotification extends Sx4Command {
 		}
 		
 		PagedResult<Document> paged = new PagedResult<>(notifications)
-				.setIndexed(false)
+				.setIncreasedIndex(true)
 				.setAutoSelect(false)
 				.setAuthor("YouTube Notifications", null, event.getGuild().getIconUrl())
-				.setDisplayFunction(data -> String.format("<#%d> - [%s](https://youtube.com/channel/%s)", data.getLong("channelId"), data.getObjectId("id").toHexString(), data.getString("uploaderId")));
+				.setDisplayFunction(data -> String.format("<#%d> - [%s](https://youtube.com/channel/%s)", data.getLong("channelId"), data.getObjectId("id").toHexString(), data.getString("uploaderId")))
+				.setSelect(SelectType.INDEX);
+		
+		paged.onSelect(selected -> this.sendStats(event, selected.getSelected()));
 		
 		paged.execute(event);
 	}
 	
+	public void sendStats(CommandEvent event, Document notification) {
+		ObjectId id = notification.getObjectId("id");
+		
+		EmbedBuilder embed = new EmbedBuilder();
+		embed.setColor(this.config.getColour());
+		embed.setAuthor("YouTube Notification Stats", null, event.getGuild().getIconUrl());
+		embed.addField("Id", id.toHexString(), true);
+		embed.addField("YouTube Channel", String.format("[%s](https://youtube.com/channel/%<s)", notification.getString("uploaderId")), true);
+		embed.addField("Channel", "<#" + notification.getLong("channelId") + ">", true);
+		embed.addField("Message", "`" + notification.get("message", YouTubeManager.DEFAULT_MESSAGE) + "`", false);
+		embed.setFooter("Created at");
+		embed.setTimestamp(Instant.ofEpochSecond(id.getTimestamp()));
+		
+		event.reply(embed.build()).queue();
+	}
+	
 	@Command(value="stats", aliases={"settings", "setting"}, description="View the settings for a specific notification")
-	@Examples({"youtube notification stats videos mrbeast", "youtube notification stats #videos pewdiepie"})
+	@Examples({"youtube notification stats 5e45ce6d3688b30ee75201ae"})
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void stats(CommandEvent event, @Argument(value="id") ObjectId id) {
 		List<Document> notifications = this.database.getGuildById(event.getGuild().getIdLong(), Projections.include("youtube.notifications")).getEmbedded(List.of("youtube", "notifications"), Collections.emptyList());
@@ -265,16 +285,7 @@ public class YouTubeNotification extends Sx4Command {
 			return;
 		}
 		
-		EmbedBuilder embed = new EmbedBuilder();
-		embed.setColor(this.config.getColour());
-		embed.setAuthor("YouTube Notification Stats", null, event.getGuild().getIconUrl());
-		embed.addField("Id", id.toHexString(), true);
-		embed.addField("YouTube Channel", String.format("[%s](https://youtube.com/channel/%<s)", notification.getString("uploaderId")), true);
-		embed.addField("Channel", "<#" + notification.getLong("channelId") + ">", true);
-		embed.addField("Message", "`" + notification.get("message", YouTubeManager.DEFAULT_MESSAGE) + "`", false);
-		embed.setFooter("Created at");
-		embed.setTimestamp(Instant.ofEpochSecond(id.getTimestamp()));
-		event.reply(embed.build()).queue();
+		this.sendStats(event, notification);
 	}
 	
 }

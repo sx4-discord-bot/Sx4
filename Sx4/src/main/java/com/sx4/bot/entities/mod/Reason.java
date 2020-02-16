@@ -17,7 +17,7 @@ public class Reason {
 	}
 	
 	public Reason(String reason) {
-		this.unparsed = reason;
+		this.unparsed = null;
 		this.parsed = reason;
 	}
 	

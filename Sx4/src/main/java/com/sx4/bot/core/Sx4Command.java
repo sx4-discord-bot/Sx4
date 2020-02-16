@@ -114,19 +114,23 @@ public class Sx4Command extends CommandImpl {
 		
 		if(old != null) {
 			old.removeCommand(this);
+			this.subCommands.forEach(this.category::removeCommand);
 			
 			ICategory parent = old.getParent();
 			if (parent != null) {
 				parent.removeCommand(this);
+				this.subCommands.forEach(parent::removeCommand);
 			}
 		}
 		
 		if(this.category != null) {
 			this.category.addCommand(this);
+			this.subCommands.forEach(this.category::addCommand);
 			
 			ICategory parent = this.category.getParent();
 			if (parent != null) {
 				parent.addCommand(this);
+				this.subCommands.forEach(parent::addCommand);
 			}
 		}
 		

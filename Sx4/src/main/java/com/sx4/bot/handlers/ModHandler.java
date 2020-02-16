@@ -54,7 +54,7 @@ public class ModHandler extends ModActionAdapter {
 			event.getAction()
 		);
 		
-		channel.sendMessage(modLog.getEmbed(event.getModerator(), event.getTarget())).queue(message -> {
+		channel.sendMessage(modLog.getEmbed(event.getModerator().getUser(), event.getTarget())).queue(message -> {
 			modLog.setMessageId(message.getIdLong());
 			
 			database.insertModLog(modLog).whenComplete((result, exception) -> {
