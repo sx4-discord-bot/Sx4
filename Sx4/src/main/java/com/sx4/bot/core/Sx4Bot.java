@@ -1,6 +1,9 @@
 package com.sx4.bot.core;
 
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.time.Duration;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import org.bson.types.ObjectId;
@@ -19,6 +22,7 @@ import com.jockie.bot.core.command.manager.impl.ErrorManagerImpl;
 import com.sx4.api.Main;
 import com.sx4.bot.config.Config;
 import com.sx4.bot.entities.mod.Reason;
+import com.sx4.bot.handlers.ConnectionHandler;
 import com.sx4.bot.handlers.ModHandler;
 import com.sx4.bot.handlers.YouTubeHandler;
 import com.sx4.bot.managers.ModActionManager;
@@ -36,6 +40,7 @@ import net.dv8tion.jda.api.entities.Emote;
 import net.dv8tion.jda.api.entities.GuildChannel;
 import net.dv8tion.jda.api.entities.IPermissionHolder;
 import net.dv8tion.jda.api.entities.Member;
+import net.dv8tion.jda.api.entities.Message.Attachment;
 import net.dv8tion.jda.api.entities.MessageChannel;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.TextChannel;
@@ -61,8 +66,8 @@ public class Sx4Bot {
 	
 	public static void main(String[] args) throws Throwable {
 		Sx4Bot.modActionManager = new ModActionManager()
-			.addListener(new ModHandler());
-		
+				.addListener(new ModHandler());
+				
 		Sx4Bot.youtubeManager = new YouTubeManager()
 			.addListener(new YouTubeHandler());
 		
@@ -79,7 +84,9 @@ public class Sx4Bot {
 			.registerResponse(GuildChannel.class, "I could not find that channel :no_entry:")
 			.registerResponse(IPermissionHolder.class, "I could not find that user/role :no_entry:")
 			.registerResponse(Duration.class, "Invalid time string given, a good example would be `5d 1h 24m 36s` :no_entry:")
-			.registerResponse(ObjectId.class, "Invalid id given, an example id would be `5e45ce6d3688b30ee75201ae` :no_entry:");
+			.registerResponse(ObjectId.class, "Invalid id given, an example id would be `5e45ce6d3688b30ee75201ae` :no_entry:")
+			.registerResponse(List.class, "I could not find that command/module :no_entry:")
+			.registerResponse(URL.class, "Invalid image given :no_entry:");
 		
 		ArgumentFactory.getDefault()
 			.registerParser(Member.class, (context, argument, content) -> new ParsedArgument<>(SearchUtility.getMember(context.getMessage().getGuild(), content.trim())))
@@ -87,7 +94,28 @@ public class Sx4Bot {
 			.registerParser(TextChannel.class, (context, argument, content) -> new ParsedArgument<>(SearchUtility.getTextChannel(context.getMessage().getGuild(), content.trim())))
 			.registerParser(Duration.class, (context, argument, content) -> new ParsedArgument<>(TimeUtility.getTimeFromString(content)))
 			.registerParser(Reason.class, (context, argument, content) -> new ParsedArgument<>(new Reason(context.getMessage().getGuild().getIdLong(), content)))
-			.registerParser(ObjectId.class, (context, argument, content) -> new ParsedArgument<>(ObjectId.isValid(content) ? new ObjectId(content) : null));
+			.registerParser(ObjectId.class, (context, argument, content) -> new ParsedArgument<>(ObjectId.isValid(content) ? new ObjectId(content) : null))
+			.registerParser(List.class, (context, argument, content) -> new ParsedArgument<>(SearchUtility.getCommandOrModule(content)))
+			.registerParser(IPermissionHolder.class, (context, argument, content) -> new ParsedArgument<>(SearchUtility.getPermissionHolder(context.getMessage().getGuild(), content)))
+			.registerParser(Role.class, (context, argument, content) -> new ParsedArgument<>(SearchUtility.getRole(context.getMessage().getGuild(), content)))
+			.registerParser(URL.class, (context, argument, content) -> {
+				if (content.isEmpty()) {
+					Attachment attachment = context.getMessage().getAttachments().stream()
+						.filter(Attachment::isImage)
+						.findFirst()
+						.orElse(null);
+					
+					if (attachment != null) {
+						try {
+							return new ParsedArgument<>(new URL(attachment.getUrl()));
+						} catch (MalformedURLException e) {}
+					}
+					
+					return new ParsedArgument<>();
+				} else {
+					return new ParsedArgument<>(SearchUtility.getURL(context.getMessage(), content));
+				}
+			});
 		
 		Sx4Bot.commandListener = new Sx4CommandListener()
 			.addCommandStores(CommandStore.of("com.sx4.bot.commands"))
@@ -125,6 +153,7 @@ public class Sx4Bot {
 		eventManager.register(Sx4Bot.commandListener);
 		eventManager.register(new PagedHandler());
 		eventManager.register(GuildMessageCache.INSTANCE);
+		eventManager.register(new ConnectionHandler());
 		
 		Sx4Bot.shardManager = new DefaultShardManagerBuilder()
 			.setToken(Config.get().getToken())

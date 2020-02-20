@@ -15,13 +15,15 @@ import com.sx4.bot.events.mod.TempBanEvent;
 import com.sx4.bot.events.mod.UnbanEvent;
 import com.sx4.bot.events.mod.UnmuteEvent;
 import com.sx4.bot.events.mod.WarnEvent;
-import com.sx4.bot.hooks.mod.ModActionAdapter;
+import com.sx4.bot.hooks.mod.ModActionListener;
 import com.sx4.bot.utility.ExceptionUtility;
 
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.TextChannel;
+import net.dv8tion.jda.api.events.GenericEvent;
+import net.dv8tion.jda.api.hooks.EventListener;
 
-public class ModHandler extends ModActionAdapter {
+public class ModHandler implements ModActionListener, EventListener {
 	
 	public void onAction(ModActionEvent event) {
 		Database database = Database.get();
@@ -95,6 +97,10 @@ public class ModHandler extends ModActionAdapter {
 	}
 	
 	public void onUnmute(UnmuteEvent event) {
+		
+	}
+
+	public void onEvent(GenericEvent genericEvent) {
 		
 	}
 	

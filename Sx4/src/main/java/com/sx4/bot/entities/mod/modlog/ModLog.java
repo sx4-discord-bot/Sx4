@@ -47,7 +47,7 @@ public class ModLog {
 		String reason = data.getString("reason");
 		this.reason = reason == null ? null : new Reason(reason);
 		
-		this.action = Action.getActionFromData(data);
+		this.action = Action.fromData(data);
 	}
 	
 	public ModLog(ObjectId id, long messageId, long channelId, long guildId, long targetId, long moderatorId, Reason reason, Action action) {

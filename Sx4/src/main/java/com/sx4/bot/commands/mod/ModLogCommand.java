@@ -118,9 +118,7 @@ public class ModLogCommand extends Sx4Command {
 					long targetId = data.getLong("targetId");
 					User target = event.getShardManager().getUserById(targetId);
 					
-					Action action = Action.getActionFromData(data);
-					
-					return action.toString() + " to `" + (target == null ? targetId : target.getAsTag() + "`");
+					return Action.fromData(data).toString() + " to `" + (target == null ? targetId : target.getAsTag() + "`");
 				})
 				.setIncreasedIndex(true);
 			

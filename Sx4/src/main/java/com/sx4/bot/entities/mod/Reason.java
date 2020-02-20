@@ -3,6 +3,8 @@ package com.sx4.bot.entities.mod;
 import org.bson.Document;
 
 import com.mongodb.client.model.Projections;
+
+import java.util.Collections;
 import java.util.List;
 import com.sx4.bot.database.Database;
 
@@ -28,14 +30,9 @@ public class Reason {
 	public String getParsed() {
 		return this.parsed;
 	}
-	
-	@SuppressWarnings("unchecked")
+
 	private String parse(long guildId, String reason) {
-		if (reason == null) {
-			return null;
-		}
-		
-		List<Document> templates = Database.get().getGuildById(guildId, Projections.include("template")).getEmbedded(List.of("template", "templates"), List.class);
+		List<Document> templates = Database.get().getGuildById(guildId, Projections.include("template")).getEmbedded(List.of("template", "templates"), Collections.emptyList());
 		
 		int index = 0;
 		while ((index = reason.indexOf(':', index + 1)) != -1) {

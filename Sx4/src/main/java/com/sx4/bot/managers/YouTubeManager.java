@@ -19,7 +19,11 @@ import com.mongodb.client.model.WriteModel;
 import com.sx4.bot.config.Config;
 import com.sx4.bot.core.Sx4Bot;
 import com.sx4.bot.database.Database;
+import com.sx4.bot.events.youtube.YouTubeDeleteEvent;
 import com.sx4.bot.events.youtube.YouTubeEvent;
+import com.sx4.bot.events.youtube.YouTubeUpdateEvent;
+import com.sx4.bot.events.youtube.YouTubeUpdateTitleEvent;
+import com.sx4.bot.events.youtube.YouTubeUploadEvent;
 import com.sx4.bot.hooks.youtube.YouTubeListener;
 import com.sx4.bot.http.HttpCallback;
 import com.sx4.bot.utility.ExceptionUtility;
@@ -58,6 +62,20 @@ public class YouTubeManager {
 	public void onYouTube(YouTubeEvent event) {
 		for (YouTubeListener listener : this.listeners) {
 			listener.onYouTube(event);
+			
+			if (event instanceof YouTubeUpdateEvent) {
+				listener.onYouTubeUpdate((YouTubeUpdateEvent) event);
+			}
+			
+			if (event instanceof YouTubeUpdateTitleEvent) {
+				listener.onYouTubeUpdateTitle((YouTubeUpdateTitleEvent) event);
+			} else if (event instanceof YouTubeUploadEvent) {
+				listener.onYouTubeUpload((YouTubeUploadEvent) event);
+			}
+			
+			if (event instanceof YouTubeDeleteEvent) {
+				listener.onYouTubeDelete((YouTubeDeleteEvent) event);
+			}
 		}
 	}
 	

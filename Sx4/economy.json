@@ -1,0 +1,40 @@
+{
+	"rod": [
+		{
+			"name": "Coal Rod",
+			"price": 600,
+			"craft": [
+				{
+					"item": "Coal",
+					"amount": 7
+				},
+				{
+					"item": "Oak",
+					"amount": 3
+				}
+			],
+			"repairItem": "Coal",
+			"minYield": 32,
+			"maxYeild": 35,
+			"durability": 20
+		},
+		{
+			"name": "Copper Rod",
+			"price": 1000,
+			"craft": [
+				{
+					"item": "Copper",
+					"amount": 14
+				},
+				{
+					"item": "Birchwood",
+					"amount": 1
+				}
+			],
+			"repairItem": "Copper",
+			"minYield": 45,
+			"maxYeild": 52,
+			"durability": 25
+		}
+	]
+}

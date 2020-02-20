@@ -1,5 +1,7 @@
 package com.sx4.bot.utility;
 
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -7,6 +9,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import com.jockie.bot.core.command.ICommand;
 import com.sx4.bot.category.Category;
@@ -15,16 +18,23 @@ import com.sx4.bot.core.Sx4Category;
 import com.sx4.bot.core.Sx4Command;
 
 import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.entities.IPermissionHolder;
 import net.dv8tion.jda.api.entities.Member;
+import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.Message.MentionType;
+import net.dv8tion.jda.api.entities.MessageEmbed;
+import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.entities.User;
 
 public class SearchUtility {
 	
+	private static final List<String> SUPPORTED_TYPES = List.of("png", "jpg", "gif", "webp", "jpeg");
+	
 	private static final Pattern USER_MENTION = MentionType.USER.getPattern();
 	private static final Pattern USER_TAG = Pattern.compile("(.{2,32})#(\\d{4})");
 	private static final Pattern CHANNEL_MENTION = MentionType.CHANNEL.getPattern();
+	private static final Pattern ROLE_MENTION = MentionType.ROLE.getPattern();
 	
 	private static <Type> Type find(List<Type> list, String query, Function<Type, String> nameFunction) {
 		List<Type> startsWith = new ArrayList<>();
@@ -63,6 +73,84 @@ public class SearchUtility {
 	
 	private static Member findMember(List<Member> members, String query) {
 		return SearchUtility.find(members, query, member -> member.getEffectiveName());
+	}
+	
+	private static Role findRole(List<Role> roles, String query) {
+		return SearchUtility.find(roles, query, role -> role.getName());
+	}
+	
+	public static IPermissionHolder getPermissionHolder(Guild guild, String query) {
+		Member member = SearchUtility.getMember(guild, query);
+		Role role = SearchUtility.getRole(guild, query);
+		
+		if (role != null) {
+			return role;
+		} else {
+			return member;
+		} 
+	}
+	
+	public static URL getURL(Message message, String query) {
+		URL url;
+		try {
+			url = new URL(query);
+		} catch (MalformedURLException e) {
+			return null;
+		}
+		
+		String urlString = url.toString();
+		int periodIndex = urlString.lastIndexOf(".");
+		
+		if (periodIndex == -1 || !SearchUtility.SUPPORTED_TYPES.contains(urlString.substring(periodIndex + 1).toLowerCase())) {
+			if (message.getEmbeds().isEmpty()) {
+				return null;
+			} else {
+				MessageEmbed imageEmbed = message.getEmbeds().stream()
+					.filter(embed -> embed.getThumbnail() != null)
+					.findFirst()
+					.orElse(null);
+				
+				if (imageEmbed != null) {
+					String embedUrl = imageEmbed.getThumbnail().getUrl();
+					int periodIndexEmbed = embedUrl.lastIndexOf(".");
+					
+					if (!SearchUtility.SUPPORTED_TYPES.contains(embedUrl.substring(periodIndexEmbed + 1).toUpperCase())) {
+						return null;
+					} else {
+						try {
+							url = new URL(embedUrl);
+						} catch (MalformedURLException e) {}
+					}
+				} else {
+					return null;
+				}
+			}
+		}
+		
+		return url;
+	}
+	
+	public static Role getRole(Guild guild, String query) {
+		Matcher mentionMatch = SearchUtility.ROLE_MENTION.matcher(query);
+		if (mentionMatch.matches()) {
+			try {
+				long id = Long.parseLong(mentionMatch.group(1));
+				
+				return guild.getRoleById(id);
+			} catch (NumberFormatException e) {
+				return null;
+			}
+		} else if (NumberUtility.isNumberUnsigned(query)) {
+			try {
+				long id = Long.parseLong(query);
+				
+				return guild.getRoleById(id);
+			} catch (NumberFormatException e) {
+				return null;
+			}
+		} else {
+			return SearchUtility.findRole(guild.getRoles(), query);
+		}
 	}
 	
 	public static TextChannel getTextChannel(Guild guild, String query) {
@@ -253,6 +341,19 @@ public class SearchUtility {
 					.filter(user -> user.getName().equalsIgnoreCase(query))
 					.findFirst()
 					.orElse(null));
+		}
+	}
+	
+	public static List<Sx4Command> getCommandOrModule(String query) {
+		Sx4Command command = SearchUtility.getCommand(query, false);
+		Sx4Category category = SearchUtility.getModule(query);
+		
+		if (category != null) {
+			return category.getCommands().stream().map(Sx4Command.class::cast).collect(Collectors.toList());
+		} else if (command != null) {
+			return List.of(command);
+		} else {
+			return null;
 		}
 	}
 	

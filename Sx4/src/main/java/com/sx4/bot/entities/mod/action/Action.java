@@ -29,7 +29,7 @@ public class Action {
 		}
 	}
 	
-	public static Action getActionFromData(Document data) {
+	public static Action fromData(Document data) {
 		Document action = data.get("action", Document.class);
 		ModAction modAction = ModAction.getFromType(action.getInteger("type"));
 		
