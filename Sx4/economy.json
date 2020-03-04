@@ -1,4 +1,30 @@
 {
+	"material": [
+		{
+			"name": "Copper",
+			"price": 600,
+			"hidden": false,
+			"emote": ""
+		},
+		{
+			"name": "Coal",
+			"price": 50,
+			"hidden": false,
+			"emote": ""
+		},
+		{
+			"name": "Birchwood",
+			"price": 10,
+			"hidden": false,
+			"emote": ""
+		},
+		{
+			"name": "Oak",
+			"price": 1,
+			"hidden": false,
+			"emote": ""
+		}
+	],
 	"rod": [
 		{
 			"name": "Coal Rod",
@@ -15,7 +41,7 @@
 			],
 			"repairItem": "Coal",
 			"minYield": 32,
-			"maxYeild": 35,
+			"maxYield": 35,
 			"durability": 20
 		},
 		{
@@ -33,7 +59,7 @@
 			],
 			"repairItem": "Copper",
 			"minYield": 45,
-			"maxYeild": 52,
+			"maxYield": 52,
 			"durability": 25
 		}
 	]

@@ -9,9 +9,9 @@ import java.util.stream.Collectors;
 import org.bson.Document;
 
 import com.sx4.bot.database.Database;
-import com.sx4.bot.entities.economy.Item;
-import com.sx4.bot.entities.economy.ItemStack;
-import com.sx4.bot.entities.economy.ItemType;
+import com.sx4.bot.entities.economy.item.Item;
+import com.sx4.bot.entities.economy.item.ItemStack;
+import com.sx4.bot.entities.economy.item.ItemType;
 
 public class EconomyUser {
 
@@ -76,6 +76,45 @@ public class EconomyUser {
 		return this.items;
 	}
 	
+	public void addItems(List<ItemStack<?>> items) {
+		items.forEach(this::addItem);
+	}
+	
+	public void addItem(ItemStack<?> item) {
+		ItemStack<?> itemStack = this.items.stream()
+			.filter(item::equalsItem)
+			.findFirst()
+			.orElse(null);
+		
+		if (itemStack == null) {
+			this.items.add(item);
+		} else {
+			itemStack.addAmount(item.getAmount());
+		}
+	}
+	
+	public void removeItems(List<ItemStack<?>> items) {
+		items.forEach(this::removeItem);
+	}
+	
+	public void removeItem(ItemStack<?> item) {
+		ItemStack<?> itemStack = this.items.stream()
+			.filter(item::equalsItem)
+			.findFirst()
+			.orElse(null);
+		
+		if (itemStack == null) {
+			throw new IllegalArgumentException("That user doesn't have `" + item.getItem().getName() + "`");
+		} else {
+			long newAmount = itemStack.getAmount() - item.getAmount();
+			if (newAmount == 0) {
+				this.items.remove(itemStack);
+			} else {
+				itemStack.removeAmount(item.getAmount());
+			}
+		}
+	}
+	
 	public List<ItemStack<?>> getItems(ItemType type) {
 		return this.items.stream()
 			.filter(stack -> stack.getItem().getType() == type)
@@ -86,18 +125,57 @@ public class EconomyUser {
 		return this.getItems(ItemType.getFromType(type));
 	}
 	
+	public long sumItems() {
+		return this.items.stream()
+			.mapToLong(ItemStack::getAmount)
+			.sum();
+	}
+	
+	public long sumItems(ItemType type) {
+		return this.items.stream()
+			.filter(stack -> stack.getItem().getType() == type)
+			.mapToLong(ItemStack::getAmount)
+			.sum();
+	}
+	
+	public long sumItems(int type) {
+		return this.sumItems(ItemType.getFromType(type));
+	}
+	
 	public long getNetworth() {
 		return this.items.stream()
 			.map(ItemStack::getItem)
+			.filter(Item::isBuyable)
 			.mapToLong(Item::getPrice)
 			.sum() + this.balance;
 	}
 	
+	public Map<ItemType, Long> getLimits() {
+		return this.limits;
+	}
+	
+	public Map<ItemType, Long> getRemainingLimits() {
+		return this.limits.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, limit -> limit.getValue() - this.sumItems(limit.getKey())));
+	}
+	
+	public void updateLimit(ItemType type, long limit) {
+		this.limits.put(type, limit);
+	}
+	
 	public Map.Entry<ItemType, Long> checkLimits() {
 		return this.limits.entrySet().stream()
-			.filter(limit -> this.getItems(limit.getKey()).size() >= limit.getValue())
+			.filter(limit -> this.sumItems(limit.getKey()) >= limit.getValue())
 			.findFirst()
 			.orElse(null);
+	}
+	
+	public Long checkLimit(ItemType type) {
+		long limit = this.limits.get(type);
+		if (this.sumItems(type) >= limit) {
+			return limit;
+		}
+		
+		return null;
 	}
 	
 }

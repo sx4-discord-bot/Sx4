@@ -10,6 +10,7 @@ import org.bson.types.ObjectId;
 
 import com.jockie.bot.core.argument.IArgument;
 import com.jockie.bot.core.argument.factory.impl.ArgumentFactory;
+import com.jockie.bot.core.argument.factory.impl.ArgumentFactoryImpl;
 import com.jockie.bot.core.argument.parser.ParsedArgument;
 import com.jockie.bot.core.command.exception.parser.ArgumentParseException;
 import com.jockie.bot.core.command.exception.parser.OutOfContentException;
@@ -36,17 +37,18 @@ import com.sx4.bot.utility.TimeUtility;
 
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Category;
-import net.dv8tion.jda.api.entities.Emote;
 import net.dv8tion.jda.api.entities.GuildChannel;
 import net.dv8tion.jda.api.entities.IPermissionHolder;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Message.Attachment;
 import net.dv8tion.jda.api.entities.MessageChannel;
+import net.dv8tion.jda.api.entities.MessageReaction.ReactionEmote;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.VoiceChannel;
 import net.dv8tion.jda.api.hooks.InterfacedEventManager;
+import net.dv8tion.jda.api.requests.RestAction;
 import net.dv8tion.jda.api.sharding.DefaultShardManagerBuilder;
 import net.dv8tion.jda.api.sharding.ShardManager;
 import okhttp3.OkHttpClient;
@@ -77,7 +79,7 @@ public class Sx4Bot {
 			.registerResponse(Member.class, "I could not find that user :no_entry:")
 			.registerResponse(User.class, "I could not find that user :no_entry:")
 			.registerResponse(Role.class, "I could not find that role :no_entry:")
-			.registerResponse(Emote.class, "I could not find that emote :no_entry:")
+			.registerResponse(ReactionEmote.class, "I could not find that emote :no_entry:")
 			.registerResponse(TextChannel.class, "I could not find that text channel :no_entry:")
 			.registerResponse(VoiceChannel.class, "I could not find that voice channel :no_entry:")
 			.registerResponse(Category.class, "I could not find that category :no_entry:")
@@ -86,10 +88,12 @@ public class Sx4Bot {
 			.registerResponse(Duration.class, "Invalid time string given, a good example would be `5d 1h 24m 36s` :no_entry:")
 			.registerResponse(ObjectId.class, "Invalid id given, an example id would be `5e45ce6d3688b30ee75201ae` :no_entry:")
 			.registerResponse(List.class, "I could not find that command/module :no_entry:")
-			.registerResponse(URL.class, "Invalid image given :no_entry:");
+			.registerResponse(URL.class, "Invalid image given :no_entry:")
+			.registerResponse(RestAction.class, "I could not find that message :no_entry:");
 		
-		ArgumentFactory.getDefault()
-			.registerParser(Member.class, (context, argument, content) -> new ParsedArgument<>(SearchUtility.getMember(context.getMessage().getGuild(), content.trim())))
+		ArgumentFactoryImpl argumentFactory = (ArgumentFactoryImpl) ArgumentFactory.getDefault();
+			
+		argumentFactory.registerParser(Member.class, (context, argument, content) -> new ParsedArgument<>(SearchUtility.getMember(context.getMessage().getGuild(), content.trim())))
 			.registerParser(User.class, (context, argument, content) -> new ParsedArgument<>(SearchUtility.getUser(content.trim())))
 			.registerParser(TextChannel.class, (context, argument, content) -> new ParsedArgument<>(SearchUtility.getTextChannel(context.getMessage().getGuild(), content.trim())))
 			.registerParser(Duration.class, (context, argument, content) -> new ParsedArgument<>(TimeUtility.getTimeFromString(content)))
@@ -98,6 +102,8 @@ public class Sx4Bot {
 			.registerParser(List.class, (context, argument, content) -> new ParsedArgument<>(SearchUtility.getCommandOrModule(content)))
 			.registerParser(IPermissionHolder.class, (context, argument, content) -> new ParsedArgument<>(SearchUtility.getPermissionHolder(context.getMessage().getGuild(), content)))
 			.registerParser(Role.class, (context, argument, content) -> new ParsedArgument<>(SearchUtility.getRole(context.getMessage().getGuild(), content)))
+			.registerParser(RestAction.class, (context, argument, content) -> new ParsedArgument<>(SearchUtility.getMessageAction(context.getMessage().getTextChannel(), content)))
+			.registerParser(ReactionEmote.class, (context, argument, content) -> new ParsedArgument<>(SearchUtility.getEmote(content)))
 			.registerParser(URL.class, (context, argument, content) -> {
 				if (content.isEmpty()) {
 					Attachment attachment = context.getMessage().getAttachments().stream()

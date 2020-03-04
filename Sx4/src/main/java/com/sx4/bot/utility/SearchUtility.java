@@ -17,24 +17,31 @@ import com.sx4.bot.core.Sx4Bot;
 import com.sx4.bot.core.Sx4Category;
 import com.sx4.bot.core.Sx4Command;
 
+import net.dv8tion.jda.api.entities.Emote;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.IPermissionHolder;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.Message.MentionType;
 import net.dv8tion.jda.api.entities.MessageEmbed;
+import net.dv8tion.jda.api.entities.MessageReaction.ReactionEmote;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.requests.RestAction;
+import net.dv8tion.jda.api.sharding.ShardManager;
+import net.dv8tion.jda.api.utils.MiscUtil;
 
 public class SearchUtility {
 	
 	private static final List<String> SUPPORTED_TYPES = List.of("png", "jpg", "gif", "webp", "jpeg");
 	
+	private static final Pattern MESSAGE_JUMP = Pattern.compile("https?://(?:(?:ptb|canary).)?discordapp.com/channels/(\\d+)/(\\d+)/(\\d+)/?", Pattern.CASE_INSENSITIVE);
 	private static final Pattern USER_MENTION = MentionType.USER.getPattern();
 	private static final Pattern USER_TAG = Pattern.compile("(.{2,32})#(\\d{4})");
 	private static final Pattern CHANNEL_MENTION = MentionType.CHANNEL.getPattern();
 	private static final Pattern ROLE_MENTION = MentionType.ROLE.getPattern();
+	private static final Pattern EMOTE_MENTION = MentionType.EMOTE.getPattern();
 	
 	private static <Type> Type find(List<Type> list, String query, Function<Type, String> nameFunction) {
 		List<Type> startsWith = new ArrayList<>();
@@ -77,6 +84,67 @@ public class SearchUtility {
 	
 	private static Role findRole(List<Role> roles, String query) {
 		return SearchUtility.find(roles, query, role -> role.getName());
+	}
+	
+	private static Emote findEmote(List<Emote> emotes, String query) {
+		return SearchUtility.find(emotes, query, emote -> emote.getName());
+	}
+	
+	public static ReactionEmote getEmote(String query) {
+		Matcher mentionMatch = SearchUtility.EMOTE_MENTION.matcher(query);
+		if (mentionMatch.matches()) {
+			try {
+				Emote emote = Sx4Bot.getShardManager().getEmoteById(mentionMatch.group(2));
+				
+				return ReactionEmote.fromCustom(emote);
+			} catch (NumberFormatException e) {
+				return null;
+			}
+		} else if (NumberUtility.isNumberUnsigned(query)) {
+			try {
+				return ReactionEmote.fromCustom(Sx4Bot.getShardManager().getEmoteById(query));
+			} catch (NumberFormatException e) {
+				return null;
+			}
+		} else {
+			ShardManager shardManager = Sx4Bot.getShardManager();
+			
+			Emote emote = SearchUtility.findEmote(shardManager.getEmotes(), query);
+			if (emote == null) {
+				return ReactionEmote.fromUnicode(query, shardManager.getShardById(0));
+			} else {
+				return ReactionEmote.fromCustom(emote);
+			}
+		}
+	}
+	
+	public static RestAction<Message> getMessageAction(TextChannel channel, String query) {
+		Matcher jumpMatch = SearchUtility.MESSAGE_JUMP.matcher(query);
+		if (jumpMatch.matches()) {
+			try {
+				Guild guild = Sx4Bot.getShardManager().getGuildById(jumpMatch.group(1));
+				if (guild == null) {
+					return null;
+				}
+				
+				TextChannel linkChannel = guild.getTextChannelById(jumpMatch.group(2));
+				if (linkChannel == null) {
+					return null;
+				}
+				
+				long messageId = MiscUtil.parseSnowflake(jumpMatch.group(3));
+				
+				return linkChannel.retrieveMessageById(messageId);
+			} catch (NumberFormatException e) {
+				return null;
+			}
+		} else {
+			try {
+				return channel.retrieveMessageById(MiscUtil.parseSnowflake(query));
+			} catch (NumberFormatException e) {
+				return null;
+			}
+		}
 	}
 	
 	public static IPermissionHolder getPermissionHolder(Guild guild, String query) {

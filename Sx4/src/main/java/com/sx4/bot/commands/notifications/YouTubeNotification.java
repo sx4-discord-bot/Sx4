@@ -198,7 +198,8 @@ public class YouTubeNotification extends Sx4Command {
 					return;
 				}
 				
-				if (notification.getString("message").equals(message)) {
+				String oldMessage = notification.getString("message");
+				if (oldMessage != null && oldMessage.equals(message)) {
 					event.reply("Your message for that notification was already set to that :no_entry:").queue();
 					return;
 				}
@@ -208,98 +209,86 @@ public class YouTubeNotification extends Sx4Command {
 		});
 	}
 	
-	@Command(value="name", description="Set the name of the webhook that sends youtube notifications in a specific channel")
-	@Examples({"youtube notification name #videos YouTube", "youtube notification name videos Pewdiepie's Minion"})
+	@Command(value="name", description="Set the name of the webhook that sends youtube notifications for a specific notification")
+	@Examples({"youtube notification name 5e45ce6d3688b30ee75201ae YouTube", "youtube notification name 5e45ce6d3688b30ee75201ae Pewdiepie's Minion"})
 	@AuthorPermissions({Permission.MANAGE_SERVER})
-	public void name(CommandEvent event, @Argument(value="channel", nullDefault=true) TextChannel channel, @Argument(value="name", endless=true) String name) {
-		Bson projection = Projections.include("youtube.notifications.channelId", "youtube.notifications.name");
-		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(projection);
-		if (channel != null) {
-			options.arrayFilters(List.of(Filters.eq("notification.channelId", channel.getIdLong())));
-		}
-		
-		this.database.findAndUpdateGuildById(event.getGuild().getIdLong(), Updates.set("youtube.notifications.$[" + (channel == null ? "" : "notification") + "].name", name), options).whenComplete((data, exception) -> {
+	public void name(CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="name", endless=true) String name) {
+		Bson projection = Projections.include("youtube.notifications.id", "youtube.notifications.name");
+		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(projection).arrayFilters(List.of(Filters.eq("notification.id", id)));
+		this.database.findAndUpdateGuildById(event.getGuild().getIdLong(), Updates.set("youtube.notifications.$[notification].name", name), options).whenComplete((data, exception) -> {
 			if (exception != null) {
 				if (exception instanceof CompletionException) {
 					Throwable cause = ((CompletionException) exception).getCause();
 					if (cause instanceof MongoWriteException && ((MongoWriteException) cause).getCode() == 2) {
-						event.reply("You don't have any notifications" +  (channel == null ? "" : " in that channel") + " :no_entry:").queue();
+						event.reply("You don't have a notification with that id :no_entry:").queue();
 						return;
 					}
 				}
 				
 				ExceptionUtility.sendExceptionally(event, exception);
 			} else {
-				if (channel != null) {
-					List<Document> notifications = data.getEmbedded(List.of("youtube", "notifications"), Collections.emptyList());
-					
-					Document notification = notifications.stream()
-						.filter(d -> d.getLong("channelId") == channel.getIdLong())
-						.findFirst()
-						.orElse(null);
-					
-					if (notification == null) {
-						event.reply("You don't have any notifications in that channel :no_entry:").queue();
-						return;
-					}
-					
-					String oldName = notification.getString("name");
-					if (oldName != null && oldName.equals(name)) {
-						event.reply("Your webhook name for that channel was already set to that :no_entry:").queue();
-						return;
-					}
+				List<Document> notifications = data.getEmbedded(List.of("youtube", "notifications"), Collections.emptyList());
+				
+				Document notification = notifications.stream()
+					.filter(d -> d.getObjectId("id").equals(id))
+					.findFirst()
+					.orElse(null);
+				
+				if (notification == null) {
+					event.reply("You don't have a notification with that id :no_entry:").queue();
+					return;
 				}
 				
-				event.reply("Your webhook name has been updated for all notifications" + (channel == null ? "" : " in " + channel.getAsMention()) + " <:done:403285928233402378>").queue();
+				String oldName = notification.getString("name");
+				if (oldName != null && oldName.equals(name)) {
+					event.reply("Your webhook name for that notification was already set to that :no_entry:").queue();
+					return;
+				}
+				
+				event.reply("Your webhook name has been updated for that notification <:done:403285928233402378>").queue();
 			}
 		});
 	}
 	
-	@Command(value="avatar", description="Set the avatar of the webhook that sends youtube notifications in a specific channel")
-	@Examples({"youtube notification avatar #videos", "youtube notification avatar videos https://i.imgur.com/i87lyNO.png"})
+	@Command(value="avatar", description="Set the avatar of the webhook that sends youtube notifications for a specific notification")
+	@Examples({"youtube notification avatar 5e45ce6d3688b30ee75201ae", "youtube notification avatar 5e45ce6d3688b30ee75201ae https://i.imgur.com/i87lyNO.png"})
 	@AuthorPermissions({Permission.MANAGE_SERVER})
-	public void avatar(CommandEvent event, @Argument(value="channel", nullDefault=true) TextChannel channel, @Argument(value="avatar", endless=true, acceptEmpty=true) URL avatar) {
+	public void name(CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="avatar", endless=true, acceptEmpty=true) URL avatar) {
 		String url = avatar.toString();
 		
-		Bson projection = Projections.include("youtube.notifications.channelId", "youtube.notifications.avatar");
-		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(projection);
-		if (channel != null) {
-			options.arrayFilters(List.of(Filters.eq("notification.channelId", channel.getIdLong())));
-		}
-		
-		this.database.findAndUpdateGuildById(event.getGuild().getIdLong(), Updates.set("youtube.notifications.$[" + (channel == null ? "" : "notification") + "].avatar", url), options).whenComplete((data, exception) -> {
+		Bson projection = Projections.include("youtube.notifications.id", "youtube.notifications.avatar");
+		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(projection).arrayFilters(List.of(Filters.eq("notification.id", id)));
+		this.database.findAndUpdateGuildById(event.getGuild().getIdLong(), Updates.set("youtube.notifications.$[notification].avatar", url), options).whenComplete((data, exception) -> {
 			if (exception != null) {
 				if (exception instanceof CompletionException) {
 					Throwable cause = ((CompletionException) exception).getCause();
 					if (cause instanceof MongoWriteException && ((MongoWriteException) cause).getCode() == 2) {
-						event.reply("You don't have any notifications" +  (channel == null ? "" : " in that channel") + " :no_entry:").queue();
+						event.reply("You don't have a notification with that id :no_entry:").queue();
 						return;
 					}
 				}
 				
 				ExceptionUtility.sendExceptionally(event, exception);
 			} else {
-				if (channel != null) {
-					List<Document> notifications = data.getEmbedded(List.of("youtube", "notifications"), Collections.emptyList());
-					
-					Document notification = notifications.stream()
-						.filter(d -> d.getLong("channelId") == channel.getIdLong())
-						.findFirst()
-						.orElse(null);
-					
-					if (notification == null) {
-						event.reply("You don't have any notifications in that channel :no_entry:").queue();
-						return;
-					}
-					
-					String oldAvatar = notification.getString("avatar");
-					if (oldAvatar != null && oldAvatar.equals(url)) {
-						event.reply("Your webhook avatar for that channel was already set to that :no_entry:").queue();
-						return;
-					}
+				List<Document> notifications = data.getEmbedded(List.of("youtube", "notifications"), Collections.emptyList());
+				
+				Document notification = notifications.stream()
+					.filter(d -> d.getObjectId("id").equals(id))
+					.findFirst()
+					.orElse(null);
+				
+				if (notification == null) {
+					event.reply("You don't have a notification with that id :no_entry:").queue();
+					return;
 				}
 				
-				event.reply("Your webhook avatar has been updated for all notifications" + (channel == null ? "" : " in " + channel.getAsMention()) + " <:done:403285928233402378>").queue();
+				String oldAvatar = notification.getString("avatar");
+				if (oldAvatar != null && oldAvatar.equals(url)) {
+					event.reply("Your webhook avatar for that notification was already set to that :no_entry:").queue();
+					return;
+				}
+				
+				event.reply("Your webhook avatar has been updated for that notification <:done:403285928233402378>").queue();
 			}
 		});
 	}

@@ -1,15 +1,11 @@
-package com.sx4.bot.entities.economy;
+package com.sx4.bot.entities.economy.item;
 
-import org.json.JSONObject;
+import com.sx4.bot.managers.EconomyManager;
 
 public class Material extends Item {
 	
 	private final String emote;
 	private final boolean hidden;
-	
-	public Material(JSONObject json) {
-		this(json.getString("name"), json.getLong("price"), json.getString("emote"), json.getBoolean("hidden"));
-	}
 
 	public Material(String name, long price, String emote, boolean hidden) {
 		super(name, price, ItemType.MATERIAL);
@@ -24,6 +20,14 @@ public class Material extends Item {
 	
 	public boolean isHidden() {
 		return this.hidden;
+	}
+	
+	public static Material getFromName(String name) {
+		return EconomyManager.get().getItems(ItemType.MATERIAL).stream()
+			.filter(item -> item.getName().equalsIgnoreCase(name))
+			.map(Material.class::cast)
+			.findFirst()
+			.orElse(null);
 	}
 	
 }

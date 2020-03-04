@@ -23,7 +23,6 @@ import com.sx4.bot.entities.youtube.YouTubeChannel;
 import com.sx4.bot.entities.youtube.YouTubeType;
 import com.sx4.bot.entities.youtube.YouTubeVideo;
 import com.sx4.bot.events.youtube.YouTubeDeleteEvent;
-import com.sx4.bot.events.youtube.YouTubeUpdateEvent;
 import com.sx4.bot.events.youtube.YouTubeUpdateTitleEvent;
 import com.sx4.bot.events.youtube.YouTubeUploadEvent;
 import com.sx4.bot.hooks.youtube.YouTubeListener;

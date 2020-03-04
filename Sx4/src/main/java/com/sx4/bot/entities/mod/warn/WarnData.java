@@ -207,7 +207,6 @@ public class WarnData {
 				if (!guild.getSelfMember().hasPermission(Permission.BAN_MEMBERS)) consumer.accept(null, new BotPermissionException(Permission.BAN_MEMBERS));
 				if (!guild.getSelfMember().canInteract(target)) consumer.accept(null, new BotHierarchyException("I cannot ban a user higher or equal than my top role"));
 				if (!moderator.hasPermission(Permission.BAN_MEMBERS)) consumer.accept(null, new AuthorPermissionException(Permission.BAN_MEMBERS));
-					
 				
 				TempBanData tempBanData = new TempBanData(database.getGuildById(guild.getIdLong(), Projections.include("tempBan")).get("tempBan", Database.EMPTY_DOCUMENT));
 				

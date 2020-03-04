@@ -1,15 +1,17 @@
-package com.sx4.bot.entities.economy;
+package com.sx4.bot.entities.economy.item;
 
 public enum ItemType {
 
-	ROD(0, "Fishing Rod", "rod", 1),
-	PICKAXE(1, "Pickaxe", "pick", 1),
-	AXE(2, "Axe", "axe", 1),
-	MATERIAL(3, "Material", "mat", 750),
+	// Determines in which order items are loaded from the json file
+	
+	MATERIAL(0, "Material", "material", 750),
+	ROD(1, "Fishing Rod", "rod", 1),
+	PICKAXE(2, "Pickaxe", "pickaxe", 1),
+	AXE(3, "Axe", "axe", 1),
 	MINER(4, "Miner", "miner", 10),
 	FACTORY(5, "Factory", "factory", 10),
 	CRATE(6, "Crate", "crate", 50),
-	ENVELOPE(7, "Envelope", "env", 50),
+	ENVELOPE(7, "Envelope", "envelope", 50),
 	BOOSTER(8, "Booster", "booster", 50);
 	
 	private final int type;
@@ -53,7 +55,17 @@ public enum ItemType {
 	
 	public static ItemType getFromName(String name) {
 		for (ItemType itemType : ItemType.values()) {
-			if (itemType.getDataName().equals(name)) {
+			if (itemType.getName().equalsIgnoreCase(name)) {
+				return itemType;
+			}
+		}
+		
+		return null;
+	}
+	
+	public static ItemType getFromDataName(String dataName) {
+		for (ItemType itemType : ItemType.values()) {
+			if (itemType.getDataName().equals(dataName)) {
 				return itemType;
 			}
 		}

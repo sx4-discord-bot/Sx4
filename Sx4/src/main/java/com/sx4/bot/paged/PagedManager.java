@@ -33,8 +33,7 @@ public class PagedManager {
 	public void cancelTimeout(long channelId, long ownerId) {
 		Map<Long, ScheduledFuture<?>> executors = this.executors.get(channelId);
 		if (executors != null) {
-			executors.get(ownerId).cancel(true);
-			executors.remove(ownerId);
+			executors.remove(ownerId).cancel(true);
 		}
 	}
 	

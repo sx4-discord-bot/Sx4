@@ -49,6 +49,8 @@ public class Database {
 	private final MongoCollection<Document> guilds;
 	private final MongoCollection<Document> users;
 	
+	private final MongoCollection<Document> auction;
+	
 	private final MongoCollection<Document> modLogs;
 	private final MongoCollection<Document> commandLogs;
 	
@@ -70,6 +72,10 @@ public class Database {
 		
 		this.users = this.database.getCollection("users");
 		this.guilds = this.database.getCollection("guilds");
+		
+		this.auction = this.database.getCollection("auction");
+		this.auction.createIndex(Indexes.descending("item.name"));
+		this.auction.createIndex(Indexes.descending("ownerId"));
 		
 		this.modLogs = this.database.getCollection("modLogs");
 		this.modLogs.createIndex(Indexes.descending("action.type"));
@@ -285,6 +291,22 @@ public class Database {
 		return CompletableFuture.supplyAsync(() -> this.guilds.bulkWrite(bulkData));
 	}
 	
+	public MongoCollection<Document> getAuction() {
+		return this.auction;
+	}
+	
+	public FindIterable<Document> getAuctions(Bson filter) {
+		return this.auction.find(filter);
+	}
+	
+	public Document getAuctionById(ObjectId id) {
+		return this.auction.find(Filters.eq("_id", id)).first();
+	}
+	
+	public CompletableFuture<DeleteResult> deleteAuctionById(ObjectId id) {
+		return CompletableFuture.supplyAsync(() -> this.auction.deleteOne(Filters.eq("_id", id)));
+	}
+ 	
 	public MongoCollection<Document> getModLogs() {
 		return this.modLogs;
 	}

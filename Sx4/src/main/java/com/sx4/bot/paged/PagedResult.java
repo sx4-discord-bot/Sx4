@@ -60,10 +60,10 @@ public class PagedResult<Type> {
 	
 	private final List<Type> list;
 	
-	private Long messageId = null;
-	private Long channelId = null;
-	private Long guildId = null;
-	private Long ownerId = null;
+	private long messageId = 0L;
+	private long channelId = 0L;
+	private long guildId = 0L;
+	private long ownerId = 0L;
 	
 	private long timeout = 0;
 	
@@ -95,38 +95,38 @@ public class PagedResult<Type> {
 		this.list = list;
 	}
 	
-	public Long getMessageId() {
+	public long getMessageId() {
 		return this.messageId;
 	}
 	
-	public Long getGuildId() {
+	public long getGuildId() {
 		return this.guildId;
 	}
 	
 	public Guild getGuild() {
-		return this.guildId == null ? null : Sx4Bot.getShardManager().getGuildById(this.guildId);
+		return this.guildId == 0 ? null : Sx4Bot.getShardManager().getGuildById(this.guildId);
 	}
 	
-	public Long getChannelId() {
+	public long getChannelId() {
 		return this.channelId;
 	}
 	
 	public MessageChannel getChannel() {
-		if (this.guildId == null && this.channelId != null) {
+		if (this.guildId == 0 && this.channelId != 0) {
 			return Sx4Bot.getShardManager().getPrivateChannelById(this.channelId);
 		} else {
 			Guild guild = this.getGuild();
 			
-			return guild == null || this.channelId == null ? null : guild.getTextChannelById(this.channelId);
+			return guild == null || this.channelId == 0 ? null : guild.getTextChannelById(this.channelId);
 		}
 	}
 	
-	public Long getOwnerId() {
+	public long getOwnerId() {
 		return this.ownerId;
 	}
 	
 	public User getOwner() {
-		return this.ownerId == null ? null : Sx4Bot.getShardManager().getUserById(this.ownerId);
+		return this.ownerId == 0 ? null : Sx4Bot.getShardManager().getUserById(this.ownerId);
 	}
 	
 	public List<Type> getList() {
@@ -371,7 +371,7 @@ public class PagedResult<Type> {
 	
 	public void delete() {
 		MessageChannel channel = this.getChannel();
-		if (channel != null && this.messageId != null) {
+		if (channel != null && this.messageId != 0) {
 			channel.deleteMessageById(this.messageId).queue(null, ErrorResponseException.ignore(ErrorResponse.UNKNOWN_MESSAGE));
 		}
 		

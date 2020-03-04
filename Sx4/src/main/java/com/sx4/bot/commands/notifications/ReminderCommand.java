@@ -14,8 +14,8 @@ public class ReminderCommand extends Sx4Command {
 		super.setCategory(Category.NOTIFICATIONS);
 	}
 	
-	public String onCommand(CommandEvent event) {
-		return "hi";
+	public void onCommand(CommandEvent event) {
+		
 	}
 
 }
