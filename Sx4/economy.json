@@ -11,7 +11,9 @@
 			"price": 50,
 			"hidden": false,
 			"emote": ""
-		},
+		}
+	],
+	"wood": [
 		{
 			"name": "Birchwood",
 			"price": 10,

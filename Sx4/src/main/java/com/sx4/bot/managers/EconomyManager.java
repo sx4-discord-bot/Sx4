@@ -25,6 +25,7 @@ import com.sx4.bot.entities.economy.item.Material;
 import com.sx4.bot.entities.economy.item.Miner;
 import com.sx4.bot.entities.economy.item.Pickaxe;
 import com.sx4.bot.entities.economy.item.Rod;
+import com.sx4.bot.entities.economy.item.Wood;
 
 public class EconomyManager {
 
@@ -103,6 +104,10 @@ public class EconomyManager {
 				switch (type) {
 					case MATERIAL:
 						item = new Material(itemData.getString("name"), itemData.getLong("price"), itemData.getString("emote"), itemData.getBoolean("hidden"));
+						
+						break;
+					case WOOD:
+						item = new Wood(itemData.getString("name"), itemData.getLong("price"));
 						
 						break;
 					case ENVELOPE:

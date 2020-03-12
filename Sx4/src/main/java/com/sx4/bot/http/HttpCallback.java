@@ -11,16 +11,16 @@ import okhttp3.Response;
 @FunctionalInterface
 public interface HttpCallback extends Callback {
 	
-	public void onResponse(Response response) throws IOException;
+	void onResponse(Response response) throws IOException;
 	
-	public default void onFailure(Call call, IOException e) {
+	default void onFailure(Call call, IOException e) {
 		if (!call.isCanceled()) {
 			e.printStackTrace();
 			ExceptionUtility.sendErrorMessage(e);
 		}
 	}
 	
-	public default void onResponse(Call call, Response response) throws IOException {
+	default void onResponse(Call call, Response response) throws IOException {
 		try {
 			this.onResponse(response);
 		} catch (Exception e) {

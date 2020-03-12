@@ -4,15 +4,16 @@ public enum ItemType {
 
 	// Determines in which order items are loaded from the json file
 	
-	MATERIAL(0, "Material", "material", 750),
-	ROD(1, "Fishing Rod", "rod", 1),
-	PICKAXE(2, "Pickaxe", "pickaxe", 1),
-	AXE(3, "Axe", "axe", 1),
-	MINER(4, "Miner", "miner", 10),
-	FACTORY(5, "Factory", "factory", 10),
-	CRATE(6, "Crate", "crate", 50),
-	ENVELOPE(7, "Envelope", "envelope", 50),
-	BOOSTER(8, "Booster", "booster", 50);
+	MATERIAL(0, "Material", "material", 500),
+	WOOD(1, "Wood", "wood", 250),
+	ROD(2, "Fishing Rod", "rod", 1),
+	PICKAXE(3, "Pickaxe", "pickaxe", 1),
+	AXE(4, "Axe", "axe", 1),
+	MINER(5, "Miner", "miner", 10),
+	FACTORY(6, "Factory", "factory", 10),
+	CRATE(7, "Crate", "crate", 50),
+	ENVELOPE(8, "Envelope", "envelope", 50),
+	BOOSTER(9, "Booster", "booster", 50);
 	
 	private final int type;
 	private final long defaultLimit;

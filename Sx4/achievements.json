@@ -1,0 +1,136 @@
+{
+	"achievements": [
+		{
+			"id": 1,
+			"title": "Mining Time",
+			"description": "Buy your first pickaxe",
+			"reward": {
+				"exp": 250
+			},
+			"secret": false
+		},
+		{
+			"id": 2,
+			"title": "Efficient Mining",
+			"description": "Craft your first pickaxe",
+			"reward": {
+				"exp": 1000,
+				"money": 5000
+			},
+			"secret": false
+		},
+		{
+			"id": 3,
+			"title": "Oops",
+			"description": "Upgrade a tool and then allow it to break",
+			"reward": {
+				"exp": 500,
+				"money": 10000
+			},
+			"secret": true
+		},
+		{
+			"id": 4,
+			"title": "Get Help",
+			"description": "Lose $5,000,000 from gambling",
+			"reward": {
+				"exp": 5000,
+				"items": [
+					{
+						"name": "Coal",
+						"amount": 1
+					}
+				]
+			},
+			"secret": true
+		},
+		{
+			"id": 5,
+			"title": "Go big or go home",
+			"description": "Bet $1,000,000 all at once",
+			"reward": {
+				"exp": 2000,
+				"money": 100000
+			},
+			"secret": false
+		},
+		{
+			"id": 6,
+			"title": "Flipper",
+			"description": "Buy an item off the auction house and sell it for profit",
+			"reward": {
+				"exp": 500,
+				"money": 5000
+			},
+			"secret": false
+		},
+		{
+			"id": 7,
+			"title": "Business Men",
+			"description": "Buy an item off the auction house worth at least $10,000 and sell it for at least double its original price",
+			"reward": {
+				"exp": 1500,
+				"money": 15000
+			},
+			"secret": false
+		},
+		{
+			"id": 8,
+			"title": "Gold Digger",
+			"description": "Obtain 5000 Gold",
+			"reward": {
+				"exp": 2000,
+				"items": [
+					{
+						"name": "Gold",
+						"amount": 100
+					}
+				]
+			},
+			"secret": false
+		},
+		{
+			"id": 9,
+			"title": "Impressive",
+			"description": "Get every item in the economy",
+			"reward": {
+				"exp": 10000,
+				"items": [
+					{
+						"name": "Some unobtainable item",
+						"amount": 1
+					}
+				]
+			},
+			"secret": true
+		},
+		{
+			"id": 10,
+			"title": "An Achievement for Achievements",
+			"description": "Complete every single achievement",
+			"reward": {
+				"exp": 50000,
+				"money": 150000
+			},
+			"secret": true
+		},
+		{
+			"id": 11,
+			"title": "Time to become rich",
+			"description": "Make your first bit of money",
+			"reward": {
+				"exp": 100
+			},
+			"secret": false
+		},
+		{
+			"id": 12,
+			"title": "What's this?",
+			"description": "Obtain your first item",
+			"reward": {
+				"exp": 100
+			},
+			"secret": false
+		}
+	]
+}
