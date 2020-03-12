@@ -2013,6 +2013,7 @@ public class ModModule {
 			super("prune");
 			
 			super.setAliases("clear", "c", "purge");
+			super.setDescription("Prune a set amount of message with or without a filter");
 			super.setExamples("prune images", "prune 10", "prune @Shea#6653", "prune embeds");
 			super.setAuthorDiscordPermissions(Permission.MESSAGE_MANAGE);
 			super.setBotDiscordPermissions(Permission.MESSAGE_MANAGE, Permission.MESSAGE_HISTORY);

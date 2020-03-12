@@ -17,7 +17,6 @@ import com.sx4.bot.economy.items.Crate;
 import com.sx4.bot.economy.items.Envelope;
 import com.sx4.bot.economy.items.Factory;
 import com.sx4.bot.economy.items.Miner;
-import com.sx4.bot.economy.items.Sawmill;
 import com.sx4.bot.economy.materials.Material;
 import com.sx4.bot.economy.materials.Wood;
 import com.sx4.bot.economy.tools.Axe;
@@ -51,12 +50,6 @@ public class EconomyUtils {
 			WINNABLE_ITEMS.add(miner);
 			ALL_ITEMS.add(miner);
 			TRADEABLE_ITEMS.add(miner);
-		}
-		
-		for (Sawmill sawmill : Sawmill.ALL) {
-			WINNABLE_ITEMS.add(sawmill);
-			ALL_ITEMS.add(sawmill);
-			TRADEABLE_ITEMS.add(sawmill);
 		}
 		
 		for (Material material : Material.ALL) {

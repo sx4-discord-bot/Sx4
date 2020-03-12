@@ -88,7 +88,7 @@ public class AntiInviteEvents extends ListenerAdapter {
 							if (!event.getGuild().getSelfMember().hasPermission(Permission.BAN_MEMBERS)) {
 								event.getChannel().sendMessage("I was unable to ban **" + event.getAuthor().getAsTag() + "** as I am missing the `Ban Members` permission :no_entry:").queue();
 								return;
-							} else if (event.getGuild().getSelfMember().getRoles().get(0).getPosition() <= event.getMember().getRoles().get(0).getPosition()) {
+							} else if (!event.getGuild().getSelfMember().canInteract(event.getMember())) {
 								event.getChannel().sendMessage("I was unable to ban **" + event.getAuthor().getAsTag() + "** as their top role is higher or equal than my top role :no_entry:").queue();
 								return;
 							} else {
@@ -107,7 +107,7 @@ public class AntiInviteEvents extends ListenerAdapter {
 							if (!event.getGuild().getSelfMember().hasPermission(Permission.KICK_MEMBERS)) {
 								event.getChannel().sendMessage("I was unable to kick **" + event.getAuthor().getAsTag() + "** as I am missing the `Kick Members` permission :no_entry:").queue();
 								return;
-							} else if (event.getGuild().getSelfMember().getRoles().get(0).getPosition() <= event.getMember().getRoles().get(0).getPosition()) {
+							} else if (!event.getGuild().getSelfMember().canInteract(event.getMember())) {
 								event.getChannel().sendMessage("I was unable to kick **" + event.getAuthor().getAsTag() + "** as their top role is higher or equal than my top role :no_entry:").queue();
 								return;
 							} else {
@@ -134,7 +134,7 @@ public class AntiInviteEvents extends ListenerAdapter {
 									return;
 								}
 								
-								if (role.getPosition() >= event.getGuild().getSelfMember().getRoles().get(0).getPosition()) {
+								if (!event.getGuild().getSelfMember().canInteract(role)) {
 									event.getChannel().sendMessage("I am unable to mute **" + event.getAuthor().getAsTag() + "** as the mute role is higher or equal than my top role :no_entry:").queue();
 									return;
 								}
@@ -246,7 +246,7 @@ public class AntiInviteEvents extends ListenerAdapter {
 							if (!event.getGuild().getSelfMember().hasPermission(Permission.BAN_MEMBERS)) {
 								event.getChannel().sendMessage("I was unable to ban **" + event.getAuthor().getAsTag() + "** as I am missing the `Ban Members` permission :no_entry:").queue();
 								return;
-							} else if (event.getGuild().getSelfMember().getRoles().get(0).getPosition() <= event.getMember().getRoles().get(0).getPosition()) {
+							} else if (!event.getGuild().getSelfMember().canInteract(event.getMember())) {
 								event.getChannel().sendMessage("I was unable to ban **" + event.getAuthor().getAsTag() + "** as their top role is higher or equal than my top role :no_entry:").queue();
 								return;
 							} else {
@@ -265,7 +265,7 @@ public class AntiInviteEvents extends ListenerAdapter {
 							if (!event.getGuild().getSelfMember().hasPermission(Permission.KICK_MEMBERS)) {
 								event.getChannel().sendMessage("I was unable to kick **" + event.getAuthor().getAsTag() + "** as I am missing the `Kick Members` permission :no_entry:").queue();
 								return;
-							} else if (event.getGuild().getSelfMember().getRoles().get(0).getPosition() <= event.getMember().getRoles().get(0).getPosition()) {
+							} else if (!event.getGuild().getSelfMember().canInteract(event.getMember())) {
 								event.getChannel().sendMessage("I was unable to kick **" + event.getAuthor().getAsTag() + "** as their top role is higher or equal than my top role :no_entry:").queue();
 								return;
 							} else {
@@ -292,7 +292,7 @@ public class AntiInviteEvents extends ListenerAdapter {
 									return;
 								}
 								
-								if (role.getPosition() >= event.getGuild().getSelfMember().getRoles().get(0).getPosition()) {
+								if (!event.getGuild().getSelfMember().canInteract(role)) {
 									event.getChannel().sendMessage("I am unable to mute **" + event.getAuthor().getAsTag() + "** as the mute role is higher or equal than my top role :no_entry:").queue();
 									return;
 								}

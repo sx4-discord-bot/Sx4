@@ -91,7 +91,7 @@ import net.dv8tion.jda.api.events.role.RoleDeleteEvent;
 import net.dv8tion.jda.api.events.role.update.RoleUpdateNameEvent;
 import net.dv8tion.jda.api.events.role.update.RoleUpdatePermissionsEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
-import net.dv8tion.jda.internal.requests.RestActionImpl;
+import net.dv8tion.jda.internal.requests.CompletedRestAction;
 import okhttp3.OkHttpClient;
 
 public class EventHandler extends ListenerAdapter {
@@ -228,7 +228,7 @@ public class EventHandler extends ListenerAdapter {
 		WebhookClient client;
 		if(data.getLong("webhookId") == null || data.getString("webhookToken") == null) {
 			Webhook webhook;
-			if (guild.getSelfMember().hasPermission(Permission.MANAGE_WEBHOOKS)) {
+			if (guild.getSelfMember().hasPermission(channel, Permission.MANAGE_WEBHOOKS)) {
 				webhook = channel.createWebhook("Sx4 - Logs").complete();
 			} else {
 				Statistics.increaseSkippedLogs();
@@ -1405,7 +1405,7 @@ public class EventHandler extends ListenerAdapter {
 		}
 
 		/* Wait AUDIT_LOG_DELAY milliseconds to ensure that the role-deletion event has come through */
-		new RestActionImpl<Void>(event.getJDA(), null).queueAfter(AUDIT_LOG_DELAY, TimeUnit.MILLISECONDS, ($) -> {
+		new CompletedRestAction<Void>(event.getJDA(), (Void) null).queueAfter(AUDIT_LOG_DELAY, TimeUnit.MILLISECONDS, ($) -> {
 			StringBuilder embedDescription = new StringBuilder();
 			
 			WebhookEmbedBuilder embed = new WebhookEmbedBuilder();

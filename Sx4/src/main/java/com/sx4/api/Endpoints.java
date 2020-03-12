@@ -274,7 +274,7 @@ public class Endpoints {
 			Document data = database.getNotification(Filters.eq("videoId", videoId), Projections.include("title", "timestamp"));
 			if (data.isEmpty() && Duration.between(event.getVideo().getTimePublishedAt(), ZonedDateTime.now(ZoneOffset.UTC)).toMinutes() <= 60) {
 				manager.onVideoUpload(event);
-			} else if (data.getString("title").equals(videoTitle)) {
+			} else if (!data.isEmpty() && data.getString("title").equals(videoTitle)) {
 				manager.onVideoDescriptionUpdate(event);
 			} else {
 				manager.onVideoTitleUpdate(event);
