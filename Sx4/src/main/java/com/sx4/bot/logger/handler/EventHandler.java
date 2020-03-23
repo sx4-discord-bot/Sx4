@@ -10,8 +10,10 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -135,6 +137,8 @@ public class EventHandler extends ListenerAdapter {
 	private Map<Long, WebhookClient> webhooks = new HashMap<>();
 	
 	private Map<Long, BlockingDeque<Request>> queue = new HashMap<>();
+	
+	private Map<Long, Integer> disconnectCache = new HashMap<>();
 	
 	private ExecutorService executor = Executors.newCachedThreadPool();
 	private ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
@@ -1759,6 +1763,82 @@ public class EventHandler extends ListenerAdapter {
 		
 		Document data = Database.get().getGuildById(guild.getIdLong(), null, DEFAULT_PROJECTION).get("logger", Database.EMPTY_DOCUMENT);
 		if (!data.getBoolean("enabled", false) || data.getLong("channelId") == null) {
+			return;
+		}
+		
+		if (event.getGuild().getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
+			event.getGuild().retrieveAuditLogs().type(ActionType.MEMBER_VOICE_KICK).queueAfter(AUDIT_LOG_DELAY, TimeUnit.MILLISECONDS, auditLogs -> {
+				Set<Long> ids = new HashSet<>();
+				
+				AuditLogEntry entry = auditLogs.stream()
+					.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toMinutes() <= 10)
+					.filter(e -> {
+						long id = e.getUser().getIdLong();
+						
+						int count = Integer.parseInt(e.getOptionByName("count"));
+						int oldCount = this.disconnectCache.getOrDefault(id, 0);
+						
+						if (ids.contains(id)) {
+							return false;
+						}
+						
+						ids.add(id);
+						
+						return ((count == 1 && count != oldCount) || count > oldCount);
+					})
+					.findFirst()
+					.orElse(null);
+				
+				WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
+				embed.setColor(COLOR_RED);
+				embed.setTimestamp(ZonedDateTime.now());
+				embed.setAuthor(new EmbedAuthor(member.getUser().getAsTag(), member.getUser().getEffectiveAvatarUrl(), null));
+				
+				Event logEvent;
+				if (entry == null) {
+					logEvent = Event.MEMBER_VOICE_LEAVE;
+					
+					embed.setDescription(String.format("`%s` just left the voice channel `%s`", member.getEffectiveName(), channel.getName()));
+				} else {
+					this.disconnectCache.put(entry.getUser().getIdLong(), Integer.parseInt(entry.getOptionByName("count")));
+					
+					logEvent = Event.MEMBER_VOICE_DISCONNECT;
+					
+					embed.setDescription(String.format("`%s` was disconnected from the voice channel `%s` by **%s**", member.getEffectiveName(), channel.getName(), entry.getUser().getAsTag()));
+				}
+				
+				EnumSet<Event> events = Event.getEvents(data.get("events", Event.ALL_EVENTS));
+				if (!events.contains(logEvent)) {
+					return;
+				}
+				
+				Document blacklisted = data.get("blacklisted", Database.EMPTY_DOCUMENT);
+				
+				List<Document> users = blacklisted.getList("users", Document.class, Collections.emptyList());
+				for (Document userBlacklist : users) {
+					if (userBlacklist.getLong("id") == member.getIdLong()) {
+						if ((userBlacklist.getLong("events") & logEvent.getRaw()) == logEvent.getRaw()) {
+							return;
+						}
+						
+						break;
+					}
+				}
+				
+				List<Document> channels = blacklisted.getList("channels", Document.class, Collections.emptyList());
+				for (Document channelBlacklist : channels) {
+					if (channelBlacklist.getLong("id") == channel.getIdLong() || (channel.getParent() != null && channelBlacklist.getLong("id") == channel.getParent().getIdLong())) {
+						if ((channelBlacklist.getLong("events") & logEvent.getRaw()) == logEvent.getRaw()) {
+							return;
+						}
+						
+						break;
+					}
+				}
+				
+				this.send(event.getJDA(), guild, data, embed.build());
+			});
+			
 			return;
 		}
 		

@@ -37,7 +37,8 @@ public enum Event {
 	ROLE_DELETE(28, Category.ROLE),
 	ROLE_NAME_UPDATE(29, Category.ROLE),
 	ROLE_PERMISSION_UPDATE(30, Category.ROLE),
-	BOT_ADDED(31, Category.MEMBER);
+	BOT_ADDED(31, Category.MEMBER),
+	MEMBER_VOICE_DISCONNECT(32, Category.MEMBER, Category.CHANNEL);
 	
 	private static final Event[] EMPTY_EVENT = new Event[0];
 	
