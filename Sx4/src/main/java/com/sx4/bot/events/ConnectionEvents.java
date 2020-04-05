@@ -47,6 +47,8 @@ public class ConnectionEvents extends ListenerAdapter {
 				e.printStackTrace();
 			}
 			
+			NotificationEvents.get().ensureWebhooks();
+			Sx4Bot.getYouTubeManager().ensureResubscriptions();
 			SteamCache.getGames();
 			HelpUtils.ensureAdvertisement();
 			StatusEvents.initialize();
@@ -60,8 +62,6 @@ public class ConnectionEvents extends ListenerAdapter {
 			MuteEvents.ensureMutes();
 			AutoroleEvents.ensureAutoroles();
 			Item.loadConfig();
-			NotificationEvents.get().ensureWebhooks();
-			Sx4Bot.getYouTubeManager().ensureResubscriptions();
 			
 			System.gc();
 		}

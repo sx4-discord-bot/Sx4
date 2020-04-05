@@ -193,12 +193,9 @@ public class WelcomerUtils {
 	}
 	
 	public static void getImageWelcomer(Member user, String banner, Consumer<Response> imageResponse, Consumer<ImageProcessingException> error) {
-		Request request = null;
-		try {
-			request = new Request.Builder()
-					.url(new URL("http://" + Settings.LOCAL_HOST + ":8443/api/welcomer?userAvatar=" + user.getUser().getEffectiveAvatarUrl() + "&userName=" + URLEncoder.encode(user.getUser().getAsTag(), StandardCharsets.UTF_8) + (banner == null ? "" : "&background=" + banner)))
-					.build();
-		} catch (MalformedURLException e) {}
+		Request request = new Request.Builder()
+			.url("http://" + Settings.LOCAL_HOST + ":8443/api/welcomer?userAvatar=" + user.getUser().getEffectiveAvatarUrl() + "&userName=" + URLEncoder.encode(user.getUser().getAsTag(), StandardCharsets.UTF_8) + (banner == null ? "" : "&background=" + banner))
+			.build();
 		
 		ImageModule.client.newCall(request).enqueue((Sx4Callback) response -> {
 			if (response.code() != 200) {

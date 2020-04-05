@@ -1950,7 +1950,7 @@ public class FunModule {
 	@Cooldown(value=3)
 	public void convert(CommandEvent event, @Argument(value="amount") double amount, @Argument(value="currency from") String currencyFrom, @Argument(value="currency to") String currencyTo) {
 		String from = currencyFrom.toUpperCase(), to = currencyTo.toUpperCase();
-		Request request = new Request.Builder().url("https://free.currencyconverterapi.com/api/v6/convert?q=" + currencyFrom + "_" + currencyTo + "&apiKey=" + TokenUtils.CURRENCY_CONVERTOR).build();
+		Request request = new Request.Builder().url("https://free.currconv.com/api/v7/convert?q=" + currencyFrom + "_" + currencyTo + "&apiKey=" + TokenUtils.CURRENCY_CONVERTOR + "&compact=y").build();
 		
 		Sx4Bot.client.newCall(request).enqueue((Sx4Callback) response -> {
 			JSONObject json;
@@ -1961,12 +1961,12 @@ public class FunModule {
 				return;
 			}
 			
-			if (json.getJSONObject("query").getInt("count") == 0) {
+			JSONObject result = json.optJSONObject(from + "_" + to);
+			if (result == null) {
 				event.reply("I could not find one of the currencies :no_entry:").queue();
 				return;
 			}
 			
-			JSONObject result = json.getJSONObject("results").getJSONObject(from + "_" + to);
 			event.reply("**" + String.format("%,.2f", amount) + "** " + from + " \\➡ **" + String.format("%,.2f", amount * result.getDouble("val")) + "** " + to).queue();
 		});
 	}
@@ -2631,13 +2631,53 @@ public class FunModule {
 					return;
 				}
 				
+				String googleUrl = "https://www.google.co.uk/search?q=" + URLEncoder.encode(query, StandardCharsets.UTF_8);
+				
 				PagedResult<GoogleSearchResult> paged = new PagedResult<>(results)
 						.setDeleteMessage(false)
 						.setIndexed(false)
 						.setPerPage(5)
-						.setAuthor("Google", "https://www.google.co.uk/search?q=" + URLEncoder.encode(query, StandardCharsets.UTF_8), "http://i.imgur.com/G46fm8J.png")
+						.setAuthor("Google", googleUrl, "http://i.imgur.com/G46fm8J.png")
 						.setFunction(result -> {
-							return String.format("**[%s](%s)**\n%s\n", result.getTitle(), result.getLink(), result.getSnippet());
+							String title = result.getTitle(), link = result.getLink(), snippet = result.getSnippet();
+							
+							int length = title.length() + link.length() + snippet.length() + 10;
+							int i = 0, offset = 0;
+							while (length - offset > 409 && i != 3) {
+								switch (i) {
+									case 0:
+										if (title.length() > 50) {
+											offset += title.length() - 54;
+											title = title.substring(0, 50) + " ...";
+										}
+										
+										break;
+									case 1:
+										System.out.println("hi");
+										if (snippet.length() > 280) {
+											offset += snippet.length() - 284;
+											snippet = snippet.substring(0, 280) + " ...";
+										}
+										
+										break;
+									case 2:
+										if (409 - (length - offset) < googleUrl.length()) {
+											link = "https://google.com";
+										} else {
+											link = googleUrl;
+										}
+										
+										break;
+								}
+								
+								i++;
+							}
+				
+							
+							
+							System.out.println(title.length() + "-" + link.length() + "-" + snippet.length());
+							
+							return String.format("**[%s](%s)**\n%s\n", title, link, snippet);
 						});
 				
 				PagedUtils.getPagedResult(event, paged, 300, null);

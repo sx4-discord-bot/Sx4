@@ -138,7 +138,7 @@ public class EventHandler extends ListenerAdapter {
 	
 	private Map<Long, BlockingDeque<Request>> queue = new HashMap<>();
 	
-	private Map<Long, Integer> disconnectCache = new HashMap<>();
+	private Map<Long, Map<Long, Integer>> disconnectCache = new HashMap<>();
 	
 	private ExecutorService executor = Executors.newCachedThreadPool();
 	private ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
@@ -1770,13 +1770,21 @@ public class EventHandler extends ListenerAdapter {
 			event.getGuild().retrieveAuditLogs().type(ActionType.MEMBER_VOICE_KICK).queueAfter(AUDIT_LOG_DELAY, TimeUnit.MILLISECONDS, auditLogs -> {
 				Set<Long> ids = new HashSet<>();
 				
+				Map<Long, Integer> guildCache;
+				if (this.disconnectCache.containsKey(guild.getIdLong())) {
+					guildCache = this.disconnectCache.get(guild.getIdLong());
+				} else {
+					guildCache = new HashMap<>();
+					this.disconnectCache.put(guild.getIdLong(), guildCache);
+				}
+				
 				AuditLogEntry entry = auditLogs.stream()
 					.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toMinutes() <= 10)
 					.filter(e -> {
 						long id = e.getUser().getIdLong();
 						
 						int count = Integer.parseInt(e.getOptionByName("count"));
-						int oldCount = this.disconnectCache.getOrDefault(id, 0);
+						int oldCount = guildCache.getOrDefault(id, 0);
 						
 						if (ids.contains(id)) {
 							return false;
@@ -1800,7 +1808,7 @@ public class EventHandler extends ListenerAdapter {
 					
 					embed.setDescription(String.format("`%s` just left the voice channel `%s`", member.getEffectiveName(), channel.getName()));
 				} else {
-					this.disconnectCache.put(entry.getUser().getIdLong(), Integer.parseInt(entry.getOptionByName("count")));
+					guildCache.put(entry.getUser().getIdLong(), Integer.parseInt(entry.getOptionByName("count")));
 					
 					logEvent = Event.MEMBER_VOICE_DISCONNECT;
 					
