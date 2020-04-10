@@ -2848,7 +2848,7 @@ public class FunModule {
 				embed.addField("Definition", result.getDefinition() + (result.hasExample() ? "\n\n*" + result.getExample() + "*" : ""), false);
 				
 				if (result.hasAudioFile()) {
-					embed.addField("Pronunciation", "[Download Here](" + result.getAudioFile() + ")", false);
+					embed.addField("Pronunciation", "[Listen Here](" + result.getAudioFile() + ")", false);
 				}
 				
 				event.reply(embed.build()).queue();
