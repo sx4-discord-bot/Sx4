@@ -4,6 +4,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.BiConsumer;
 
+import org.jsoup.Jsoup;
+
 import com.sx4.bot.core.Sx4Bot;
 import com.sx4.bot.interfaces.Sx4Callback;
 
@@ -122,13 +124,13 @@ public class DictionaryCache {
 					audio = body.substring(audioIndex, body.indexOf("\"", audioIndex));
 				}
 				
-				int exampleIndex = body.indexOf("<ul class=\"examples\"");
+				int exampleIndex = body.indexOf("<span class=\"x\">");
 				
 				String example = null;
 				if (exampleIndex != -1) {
-					exampleIndex += 88;
+					exampleIndex += 16;
 					
-					example = body.substring(exampleIndex, body.indexOf("</span>", exampleIndex));
+					example = Jsoup.parse(body.substring(exampleIndex, body.indexOf("</span>", exampleIndex))).text();
 				}
 				
 				DictionaryResult result;
