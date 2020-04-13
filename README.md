@@ -60,10 +60,6 @@ Sx4 can log your server to make sure your server stays safe, it has a very detai
 
 Sx4 has a welcomer which is highly customizable, you can edit the message it welcomes the user with and even the leave message, or you can just choose for it to be sent to the user's dms which automatically disables the leave message. You also have the option for your message to be displayed in an embed and a image welcomer options with a customizable banner.
 
-#### Music (Currently Disabled)
-
-Sx4 has 18 music commands and is really simple to use all you do is play a song or playlist and as long as you're in a voice channel it'll stream smooth music to your ears for you to enjoy, with commands such as play, search, playlist, seek, rewind, movesong and more you will not be left with little choice.
-
 #### Fun
 
 There are many fun commands on Sx4 to keep you entertained, there are commands such as rock paper scissors which you can play against the bot (the bot logs how many you've won/lost in stats) you can also marry/divorce other users which can be displayed on your very own customizable profile, as well as use google, steam, urbandictionary, steamsearch so you can search for games easily, a randomly generated minesweeper with the new addition of spoilers, google translate and much more!
