@@ -3,6 +3,7 @@ package com.sx4.bot.core;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.time.Duration;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -48,6 +49,7 @@ import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.VoiceChannel;
 import net.dv8tion.jda.api.hooks.InterfacedEventManager;
+import net.dv8tion.jda.api.requests.GatewayIntent;
 import net.dv8tion.jda.api.requests.RestAction;
 import net.dv8tion.jda.api.sharding.DefaultShardManagerBuilder;
 import net.dv8tion.jda.api.sharding.ShardManager;
@@ -161,8 +163,8 @@ public class Sx4Bot {
 		eventManager.register(GuildMessageCache.INSTANCE);
 		eventManager.register(new ConnectionHandler());
 		
-		Sx4Bot.shardManager = new DefaultShardManagerBuilder()
-			.setToken(Config.get().getToken())
+		Sx4Bot.shardManager = DefaultShardManagerBuilder.create(Config.get().getToken(), EnumSet.allOf(GatewayIntent.class))
+			.disableIntents(GatewayIntent.DIRECT_MESSAGE_TYPING, GatewayIntent.DIRECT_MESSAGE_REACTIONS, GatewayIntent.GUILD_MESSAGE_TYPING)
 			.setBulkDeleteSplittingEnabled(false)
 			.setEventManagerProvider(shardId -> eventManager)
 			.build();
