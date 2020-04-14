@@ -253,7 +253,7 @@ public class YouTubeNotification extends Sx4Command {
 	@Command(value="avatar", description="Set the avatar of the webhook that sends youtube notifications for a specific notification")
 	@Examples({"youtube notification avatar 5e45ce6d3688b30ee75201ae", "youtube notification avatar 5e45ce6d3688b30ee75201ae https://i.imgur.com/i87lyNO.png"})
 	@AuthorPermissions({Permission.MANAGE_SERVER})
-	public void name(CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="avatar", endless=true, acceptEmpty=true) URL avatar) {
+	public void avatar(CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="avatar", endless=true, acceptEmpty=true) URL avatar) {
 		String url = avatar.toString();
 		
 		Bson projection = Projections.include("youtube.notifications.id", "youtube.notifications.avatar");

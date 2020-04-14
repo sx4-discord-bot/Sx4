@@ -1,11 +1,12 @@
 package com.sx4.bot.handlers;
 
+import org.bson.Document;
+
 import com.mongodb.client.model.Projections;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.entities.mod.action.Action;
 import com.sx4.bot.entities.mod.action.ModAction;
 import com.sx4.bot.entities.mod.modlog.ModLog;
-import com.sx4.bot.entities.mod.modlog.ModLogData;
 import com.sx4.bot.events.mod.BanEvent;
 import com.sx4.bot.events.mod.KickEvent;
 import com.sx4.bot.events.mod.ModActionEvent;
@@ -37,12 +38,14 @@ public class ModHandler implements ModActionListener, EventListener {
 			// insert offence
 		}
 		
-		ModLogData data = new ModLogData(database.getGuildById(guild.getIdLong(), Projections.include("modLog")).get("modLog", Database.EMPTY_DOCUMENT));
-		if (!data.isEnabled() || !data.hasChannelId()) {
+		Document data = database.getGuildById(guild.getIdLong(), Projections.include("modLog")).get("modLog", Database.EMPTY_DOCUMENT);
+		
+		long channelId = data.get("channelId", 0L);
+		if (!data.getBoolean("enabled", false) || channelId == 0) {
 			return;
 		}
 		
-		TextChannel channel = guild.getTextChannelById(data.getChannelId());
+		TextChannel channel = guild.getTextChannelById(channelId);
 		if (channel == null) {
 			return;
 		}
@@ -59,7 +62,7 @@ public class ModHandler implements ModActionListener, EventListener {
 		channel.sendMessage(modLog.getEmbed(event.getModerator().getUser(), event.getTarget())).queue(message -> {
 			modLog.setMessageId(message.getIdLong());
 			
-			database.insertModLog(modLog).whenComplete((result, exception) -> {
+			database.insertModLog(modLog.toData()).whenComplete((result, exception) -> {
 				if (exception != null) {
 					exception.printStackTrace();
 					ExceptionUtility.sendErrorMessage(exception);

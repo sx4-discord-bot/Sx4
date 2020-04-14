@@ -135,7 +135,7 @@ public class WarnData {
 					} else {
 						long seconds = ((TimeAction) action).getDuration();
 						
-						bulkData.add(muteData.getUpdate(guild.getIdLong(), target.getIdLong(), seconds));
+						bulkData.add(muteData.getUpdate(target, seconds));
 						bulkData.add(this.getUpdate(guild.getIdLong(), target.getIdLong(), config.getNumber()));
 						
 						database.bulkWriteGuilds(bulkData).whenComplete((result, writeException) -> {

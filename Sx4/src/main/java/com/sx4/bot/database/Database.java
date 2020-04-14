@@ -27,7 +27,6 @@ import com.mongodb.client.result.DeleteResult;
 import com.mongodb.client.result.InsertOneResult;
 import com.mongodb.client.result.UpdateResult;
 import com.sx4.bot.config.Config;
-import com.sx4.bot.entities.mod.modlog.ModLog;
 import com.sx4.bot.handlers.DatabaseHandler;
 
 public class Database {
@@ -319,8 +318,8 @@ public class Database {
 		return this.modLogs.find(filter).projection(projection).first();
 	}
 	
-	public CompletableFuture<InsertOneResult> insertModLog(ModLog modLog) {
-		return CompletableFuture.supplyAsync(() -> this.modLogs.insertOne(modLog.toData()));
+	public CompletableFuture<InsertOneResult> insertModLog(Document data) {
+		return CompletableFuture.supplyAsync(() -> this.modLogs.insertOne(data));
 	}
 	
 	public CompletableFuture<UpdateResult> updateModLogById(ObjectId id, Bson update) {

@@ -163,7 +163,8 @@ public class Sx4Bot {
 		eventManager.register(GuildMessageCache.INSTANCE);
 		eventManager.register(new ConnectionHandler());
 		
-		Sx4Bot.shardManager = DefaultShardManagerBuilder.create(Config.get().getToken(), EnumSet.allOf(GatewayIntent.class))
+		Sx4Bot.shardManager = DefaultShardManagerBuilder.create(EnumSet.allOf(GatewayIntent.class))
+			.setToken(Config.get().getToken())
 			.disableIntents(GatewayIntent.DIRECT_MESSAGE_TYPING, GatewayIntent.DIRECT_MESSAGE_REACTIONS, GatewayIntent.GUILD_MESSAGE_TYPING)
 			.setBulkDeleteSplittingEnabled(false)
 			.setEventManagerProvider(shardId -> eventManager)

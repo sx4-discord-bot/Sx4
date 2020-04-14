@@ -109,6 +109,14 @@ public class MuteData {
 		}
 	}
 	
+	public UpdateOneModel<Document> getUpdate(Member member, long seconds) {
+		return this.getUpdate(member, seconds, false);
+	}
+	
+	public UpdateOneModel<Document> getUpdate(Member member, long seconds, boolean extend) {
+		return this.getUpdate(member.getGuild().getIdLong(), member.getIdLong(), seconds, extend);
+	}
+	
 	public UpdateOneModel<Document> getUpdate(long guildId, long userId, long seconds) {
 		return this.getUpdate(guildId, userId, seconds, false);
 	}
