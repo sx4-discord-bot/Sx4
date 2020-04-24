@@ -103,7 +103,7 @@ public class DictionaryCache {
 								
 								builder.append(String.format("[%s](https://www.oxfordlearnersdictionaries.com/definition/english/%s)", word, url));
 								
-								i = endIndex + 65;
+								i = endIndex + (word.length() * 2) + 49;
 							} else {
 								break;
 							}

@@ -54,6 +54,8 @@ import net.dv8tion.jda.api.hooks.InterfacedEventManager;
 import net.dv8tion.jda.api.requests.GatewayIntent;
 import net.dv8tion.jda.api.sharding.DefaultShardManagerBuilder;
 import net.dv8tion.jda.api.sharding.ShardManager;
+import net.dv8tion.jda.api.utils.ChunkingFilter;
+import net.dv8tion.jda.api.utils.MemberCachePolicy;
 import okhttp3.OkHttpClient;
 
 public class Sx4Bot {
@@ -225,6 +227,8 @@ public class Sx4Bot {
 		eventManager.register(new ExceptionHandler());
 		
 		bot = DefaultShardManagerBuilder.create(Settings.BOT_OAUTH, EnumSet.allOf(GatewayIntent.class))
+				.setMemberCachePolicy(MemberCachePolicy.ALL)
+				.setChunkingFilter(ChunkingFilter.ALL)
 				.disableIntents(GatewayIntent.DIRECT_MESSAGE_REACTIONS, GatewayIntent.DIRECT_MESSAGE_TYPING, GatewayIntent.GUILD_MESSAGE_TYPING)
 				.setEventManagerProvider(shardId -> eventManager)
 				.setBulkDeleteSplittingEnabled(false)
