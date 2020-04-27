@@ -10,7 +10,7 @@ import com.sx4.bot.database.Database;
 import com.sx4.bot.entities.economy.item.Item;
 import com.sx4.bot.entities.economy.item.ItemStack;
 
-public class AuctionItem<Type extends Item> {
+public class Auction<Type extends Item> {
 
 	private final ObjectId id;
 	
@@ -19,7 +19,7 @@ public class AuctionItem<Type extends Item> {
 	
 	private final ItemStack<Type> itemStack;
 	
-	public AuctionItem(ObjectId id, long price, long timeout, ItemStack<Type> itemStack) {
+	public Auction(ObjectId id, long price, long timeout, ItemStack<Type> itemStack) {
 		this.id = id;
 		this.price = price;
 		this.timeout = timeout;
