@@ -1826,20 +1826,25 @@ public class GeneralModule {
 	@Examples({"shard info"})
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void shardInfo(CommandEvent event) {
+		long totalGuilds = event.getShardManager().getGuildCache().size(), totalUsers = event.getShardManager().getUserCache().size();
+		
+		List<JDA> shards = new ArrayList<>(event.getShardManager().getShards());
+		shards.sort((a, b) -> Integer.compare(a.getShardInfo().getShardId(), b.getShardInfo().getShardId()));
+		
 		ShardInfo shardInfo = event.getJDA().getShardInfo();
-		PagedResult<JDA> paged = new PagedResult<>(event.getShardManager().getShards())
+		PagedResult<JDA> paged = new PagedResult<>(shards)
 				.setPerPage(9)
 				.setDeleteMessage(false)
 				.setCustomFunction(page -> {
 					EmbedBuilder embed = new EmbedBuilder();
-					embed.setDescription(String.format("```prolog\nTotal Shards: %d\nTotal Servers: %,d\nTotal Users: %,d\nAverage Ping: %.0fms```", shardInfo.getShardTotal(), event.getShardManager().getGuilds().size(), event.getShardManager().getUsers().size(), event.getShardManager().getAverageGatewayPing()));
+					embed.setDescription(String.format("```prolog\nTotal Shards: %d\nTotal Servers: %,d\nTotal Users: %,d\nAverage Ping: %.0fms```", shardInfo.getShardTotal(), totalGuilds, totalUsers, event.getShardManager().getAverageGatewayPing()));
 					embed.setAuthor("Shard Info!", null, event.getSelfUser().getEffectiveAvatarUrl());
 					embed.setFooter("next | previous | go to <page> | cancel");
 					embed.setColor(Settings.EMBED_COLOUR);
 					
-					List<JDA> shards = page.getArray();
-					for (int i = page.getCurrentPage() * page.getPerPage() - page.getPerPage(); i < (page.getMaxPage() == page.getCurrentPage() ? shards.size() : page.getCurrentPage() * page.getPerPage()); i++) {
-						JDA shard = shards.get(i);
+					List<JDA> pageShards = page.getArray();
+					for (int i = page.getCurrentPage() * page.getPerPage() - page.getPerPage(); i < (page.getMaxPage() == page.getCurrentPage() ? pageShards.size() : page.getCurrentPage() * page.getPerPage()); i++) {
+						JDA shard = pageShards.get(i);
 						String currentShard = shardInfo.getShardId() == i ? "\\> " : "";
 						embed.addField(currentShard + "Shard " + (i + 1), String.format("%,d servers\n%,d users\n%dms\n%s", shard.getGuilds().size(), shard.getUsers().size(), shard.getGatewayPing(), shard.getStatus().toString()), true);
 					}
