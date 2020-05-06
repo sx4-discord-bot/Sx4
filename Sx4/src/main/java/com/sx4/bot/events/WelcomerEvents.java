@@ -25,7 +25,7 @@ import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.Webhook;
 import net.dv8tion.jda.api.events.guild.member.GuildMemberJoinEvent;
-import net.dv8tion.jda.api.events.guild.member.GuildMemberLeaveEvent;
+import net.dv8tion.jda.api.events.guild.member.GuildMemberRemoveEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import okhttp3.OkHttpClient;
 
@@ -258,7 +258,7 @@ public class WelcomerEvents extends ListenerAdapter {
 		}
 	}
 	
-	public void onGuildMemberLeave(GuildMemberLeaveEvent event) {
+	public void onGuildMemberRemove(GuildMemberRemoveEvent event) {
 		Bson projection = Projections.include("leaver.enabled", "leaver.channelId", "leaver.embed", "leaver.webhookId", "leaver.webhookToken", "leaver.message");
 		Document data = Database.get().getGuildById(event.getGuild().getIdLong(), null, projection).get("leaver", Database.EMPTY_DOCUMENT);
 		if (!data.getBoolean("enabled", false) || data.getLong("channelId") == null) {

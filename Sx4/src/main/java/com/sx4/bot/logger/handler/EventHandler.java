@@ -49,14 +49,17 @@ import club.minnced.discord.webhook.send.WebhookMessageBuilder;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.audit.ActionType;
+import net.dv8tion.jda.api.audit.AuditLogChange;
 import net.dv8tion.jda.api.audit.AuditLogEntry;
 import net.dv8tion.jda.api.audit.AuditLogKey;
 import net.dv8tion.jda.api.entities.ChannelType;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.GuildChannel;
+import net.dv8tion.jda.api.entities.IPermissionHolder;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.MessageEmbed;
+import net.dv8tion.jda.api.entities.PermissionOverride;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.entities.User;
@@ -76,10 +79,13 @@ import net.dv8tion.jda.api.events.guild.GuildBanEvent;
 import net.dv8tion.jda.api.events.guild.GuildLeaveEvent;
 import net.dv8tion.jda.api.events.guild.GuildUnbanEvent;
 import net.dv8tion.jda.api.events.guild.member.GuildMemberJoinEvent;
-import net.dv8tion.jda.api.events.guild.member.GuildMemberLeaveEvent;
+import net.dv8tion.jda.api.events.guild.member.GuildMemberRemoveEvent;
 import net.dv8tion.jda.api.events.guild.member.GuildMemberRoleAddEvent;
 import net.dv8tion.jda.api.events.guild.member.GuildMemberRoleRemoveEvent;
 import net.dv8tion.jda.api.events.guild.member.update.GuildMemberUpdateNicknameEvent;
+import net.dv8tion.jda.api.events.guild.override.PermissionOverrideCreateEvent;
+import net.dv8tion.jda.api.events.guild.override.PermissionOverrideDeleteEvent;
+import net.dv8tion.jda.api.events.guild.override.PermissionOverrideUpdateEvent;
 import net.dv8tion.jda.api.events.guild.voice.GuildVoiceGuildDeafenEvent;
 import net.dv8tion.jda.api.events.guild.voice.GuildVoiceGuildMuteEvent;
 import net.dv8tion.jda.api.events.guild.voice.GuildVoiceJoinEvent;
@@ -411,7 +417,7 @@ public class EventHandler extends ListenerAdapter {
 		this.send(event.getJDA(), guild, data, embed.build());		
 	}
 	
-	public void onGuildMemberLeave(GuildMemberLeaveEvent event) {
+	public void onGuildMemberRemove(GuildMemberRemoveEvent event) {
 		Guild guild = event.getGuild();
 		Member member = event.getMember();
 		
@@ -1242,6 +1248,353 @@ public class EventHandler extends ListenerAdapter {
 				
 				this.send(event.getJDA(), guild, data, embed.build());
 			}
+		}
+	}
+	
+	private String getPermissionOverrideDifference(long permissionsBeforeAllowed, long permissionsBeforeInherit, long permissionsBeforeDenied, PermissionOverride permissionOverrideAfter) {
+		StringBuilder builder = new StringBuilder();
+		
+		long permissionsAfterAllowed = permissionOverrideAfter.getAllowedRaw();;
+		long permissionsAllowed =  permissionsBeforeAllowed ^ permissionsAfterAllowed;
+		
+		EnumSet<Permission> permissionsAddedAllowed = Permission.getPermissions(permissionsAfterAllowed & permissionsAllowed);
+		
+		long permissionsAfterInherit = permissionOverrideAfter.getInheritRaw();
+		long permissionsInherit =  permissionsBeforeInherit ^ permissionsAfterInherit;
+		
+		EnumSet<Permission> permissionsAddedInherit = Permission.getPermissions(permissionsAfterInherit & permissionsInherit);
+		
+		long permissionsAfterDenied = permissionOverrideAfter.getDeniedRaw();
+		long permissionsDenied =  permissionsBeforeDenied ^ permissionsAfterDenied;
+		
+		EnumSet<Permission> permissionsAddedDenied = Permission.getPermissions(permissionsAfterDenied & permissionsDenied);
+		
+		if(!permissionsAddedAllowed.isEmpty() || !permissionsAddedInherit.isEmpty() || !permissionsAddedDenied.isEmpty()) {
+			builder.append("\n```diff");
+			
+			for(Permission permission : permissionsAddedAllowed) {
+				builder.append("\n+ " + permission.getName());
+			}
+			
+			for(Permission permission : permissionsAddedInherit) {
+				builder.append("\n/ " + permission.getName());
+			}
+			
+			for(Permission permission : permissionsAddedDenied) {
+				builder.append("\n- " + permission.getName());
+			}
+			
+			builder.append("```");
+		}
+		
+		return builder.toString();
+	}
+	
+	public void onPermissionOverrideCreate(PermissionOverrideCreateEvent event) {
+		Guild guild = event.getGuild();
+		GuildChannel channel = event.getChannel();
+		IPermissionHolder permissionHolder = event.getPermissionHolder();
+		
+		Document data = Database.get().getGuildById(guild.getIdLong(), null, DEFAULT_PROJECTION).get("logger", Database.EMPTY_DOCUMENT);
+		if (!data.getBoolean("enabled", false) || data.getLong("channelId") == null) {
+			return;
+		}
+		
+		Event logEvent = event.getChannelType() == ChannelType.STORE ? Event.STORE_CHANNEL_OVERRIDE_CREATE : event.getChannelType() == ChannelType.VOICE ? Event.VOICE_CHANNEL_OVERRIDE_CREATE : Event.TEXT_CHANNEL_OVERRIDE_CREATE;
+		
+		EnumSet<Event> events = Event.getEvents(data.get("events", Event.ALL_EVENTS));
+		if (!events.contains(logEvent)) {
+			return;
+		}
+		
+		Document blacklisted = data.get("blacklisted", Database.EMPTY_DOCUMENT);
+		
+		List<Document> roles = blacklisted.getList("roles", Document.class, Collections.emptyList());
+		for (Document roleBlacklist : roles) {
+			if (roleBlacklist.getLong("id") == permissionHolder.getIdLong()) {
+				if ((roleBlacklist.getLong("events") & logEvent.getRaw()) == logEvent.getRaw()) {
+					return;
+				}
+				
+				break;
+			}
+		}
+		
+		List<Document> users = blacklisted.getList("users", Document.class, Collections.emptyList());
+		for (Document userBlacklist : users) {
+			if (userBlacklist.getLong("id") == permissionHolder.getIdLong()) {
+				if ((userBlacklist.getLong("events") & logEvent.getRaw()) == logEvent.getRaw()) {
+					return;
+				}
+				
+				break;
+			}
+		}
+		
+		List<Document> channels = blacklisted.getList("channels", Document.class, Collections.emptyList());
+		for (Document channelBlacklist : channels) {
+			if (channelBlacklist.getLong("id") == channel.getIdLong() || (channel.getParent() != null && channelBlacklist.getLong("id") == channel.getParent().getIdLong())) {
+				if ((channelBlacklist.getLong("events") & logEvent.getRaw()) == logEvent.getRaw()) {
+					return;
+				}
+				
+				break;
+			}
+		}
+		
+		PermissionOverride permissionOverride = event.getPermissionOverride();
+		String message = this.getPermissionOverrideDifference(0, Permission.ALL_PERMISSIONS, 0, permissionOverride);
+		
+		StringBuilder embedDescription = new StringBuilder();
+		embedDescription.append(String.format("The %s `%s` has had permission overrides created for %s", Utils.getChannelTypeReadable(channel), channel.getName(), event.isRoleOverride() ? event.getRole().getAsMention() : "`" + event.getMember().getEffectiveName() + "`"));
+		
+		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
+		embed.setColor(COLOR_GREEN);
+		embed.setTimestamp(ZonedDateTime.now());
+		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
+		embed.setFooter(new EmbedFooter(String.format("%s ID: %s", event.isRoleOverride() ? "Role" : "User", permissionHolder.getIdLong()), null));
+		
+		if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
+			guild.retrieveAuditLogs().type(ActionType.CHANNEL_OVERRIDE_CREATE).limit(100).queueAfter(AUDIT_LOG_DELAY, TimeUnit.MILLISECONDS, logs -> {
+				AuditLogEntry entry = logs.stream()
+					.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
+					.filter(e -> e.getTargetIdLong() == channel.getIdLong())
+					.filter(e -> {
+						AuditLogChange allow = e.getChangeByKey("allow");
+						AuditLogChange deny = e.getChangeByKey("deny");
+						
+						int denyNew = deny == null ? (int) permissionOverride.getDeniedRaw() : deny.getNewValue();
+						int allowNew = allow == null ? (int) permissionOverride.getAllowedRaw() : allow.getNewValue();
+						
+						return denyNew == permissionOverride.getDeniedRaw() && allowNew == permissionOverride.getAllowedRaw();
+					})
+					.findFirst()
+					.orElse(null);
+				
+				if(entry != null) {
+					Statistics.increaseSuccessfulAuditLogs();
+					
+					embedDescription.append(String.format(" by **%s**", entry.getUser().getAsTag()));
+				}else{
+					Statistics.increaseFailedAuditLogs();
+					
+					System.err.println(String.format("[onPermissionOverrideCreate] Could not find audit log for %s (%s) %s", guild.getName(), guild.getId(), permissionHolder.getId()));
+				}
+				
+				embedDescription.append(message);
+				
+				embed.setDescription(embedDescription.toString());
+				
+				this.send(event.getJDA(), guild, data, embed.build());
+			});
+			
+			return;
+		} else {
+			embedDescription.append(message);
+			
+			embed.setDescription(embedDescription.toString());
+			
+			this.send(event.getJDA(), guild, data, embed.build());
+		}
+	}
+	
+	public void onPermissionOverrideUpdate(PermissionOverrideUpdateEvent event) {
+		Guild guild = event.getGuild();
+		GuildChannel channel = event.getChannel();
+		IPermissionHolder permissionHolder = event.getPermissionHolder();
+		
+		Document data = Database.get().getGuildById(guild.getIdLong(), null, DEFAULT_PROJECTION).get("logger", Database.EMPTY_DOCUMENT);
+		if (!data.getBoolean("enabled", false) || data.getLong("channelId") == null) {
+			return;
+		}
+		
+		Event logEvent = event.getChannelType() == ChannelType.STORE ? Event.STORE_CHANNEL_OVERRIDE_UPDATE : event.getChannelType() == ChannelType.VOICE ? Event.VOICE_CHANNEL_OVERRIDE_UPDATE : Event.TEXT_CHANNEL_OVERRIDE_UPDATE;
+		
+		EnumSet<Event> events = Event.getEvents(data.get("events", Event.ALL_EVENTS));
+		if (!events.contains(logEvent)) {
+			return;
+		}
+		
+		Document blacklisted = data.get("blacklisted", Database.EMPTY_DOCUMENT);
+		
+		List<Document> roles = blacklisted.getList("roles", Document.class, Collections.emptyList());
+		for (Document roleBlacklist : roles) {
+			if (roleBlacklist.getLong("id") == permissionHolder.getIdLong()) {
+				if ((roleBlacklist.getLong("events") & logEvent.getRaw()) == logEvent.getRaw()) {
+					return;
+				}
+				
+				break;
+			}
+		}
+		
+		List<Document> users = blacklisted.getList("users", Document.class, Collections.emptyList());
+		for (Document userBlacklist : users) {
+			if (userBlacklist.getLong("id") == permissionHolder.getIdLong()) {
+				if ((userBlacklist.getLong("events") & logEvent.getRaw()) == logEvent.getRaw()) {
+					return;
+				}
+				
+				break;
+			}
+		}
+		
+		List<Document> channels = blacklisted.getList("channels", Document.class, Collections.emptyList());
+		for (Document channelBlacklist : channels) {
+			if (channelBlacklist.getLong("id") == channel.getIdLong() || (channel.getParent() != null && channelBlacklist.getLong("id") == channel.getParent().getIdLong())) {
+				if ((channelBlacklist.getLong("events") & logEvent.getRaw()) == logEvent.getRaw()) {
+					return;
+				}
+				
+				break;
+			}
+		}
+		
+		PermissionOverride permissionOverride = event.getPermissionOverride();
+		String message = this.getPermissionOverrideDifference(event.getOldAllowRaw(), event.getOldInheritedRaw(), event.getOldDenyRaw(), permissionOverride);
+		
+		StringBuilder embedDescription = new StringBuilder();
+		embedDescription.append(String.format("The %s `%s` has had permission overrides updated for %s", Utils.getChannelTypeReadable(channel), channel.getName(), event.isRoleOverride() ? event.getRole().getAsMention() : "`" + event.getMember().getEffectiveName() + "`"));
+		
+		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
+		embed.setColor(COLOR_ORANGE);
+		embed.setTimestamp(ZonedDateTime.now());
+		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
+		embed.setFooter(new EmbedFooter(String.format("%s ID: %s", event.isRoleOverride() ? "Role" : "User", permissionHolder.getIdLong()), null));
+		
+		if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
+			guild.retrieveAuditLogs().type(ActionType.CHANNEL_OVERRIDE_UPDATE).limit(100).queueAfter(AUDIT_LOG_DELAY, TimeUnit.MILLISECONDS, logs -> {
+				AuditLogEntry entry = logs.stream()
+					.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
+					.filter(e -> e.getTargetIdLong() == channel.getIdLong())
+					.filter(e -> {
+						AuditLogChange allow = e.getChangeByKey("allow");
+						AuditLogChange deny = e.getChangeByKey("deny");
+						
+						int denyNew = deny == null ? (int) permissionOverride.getDeniedRaw() : deny.getNewValue(), denyOld = deny == null ? (int) event.getOldDenyRaw() : deny.getOldValue();
+						int allowNew = allow == null ? (int) permissionOverride.getAllowedRaw() : allow.getNewValue(), allowOld = allow == null ? (int) event.getOldAllowRaw() : allow.getOldValue();
+						
+						return denyNew == permissionOverride.getDeniedRaw() && denyOld == event.getOldDenyRaw() && allowNew == permissionOverride.getAllowedRaw() && allowOld == event.getOldAllowRaw();
+					})
+					.findFirst()
+					.orElse(null);
+				
+				if(entry != null) {
+					Statistics.increaseSuccessfulAuditLogs();
+					
+					embedDescription.append(String.format(" by **%s**", entry.getUser().getAsTag()));
+				}else{
+					Statistics.increaseFailedAuditLogs();
+					
+					System.err.println(String.format("[onPermissionOverrideUpdate] Could not find audit log for %s (%s) %s", guild.getName(), guild.getId(), permissionHolder.getId()));
+				}
+				
+				embedDescription.append(message);
+				
+				embed.setDescription(embedDescription.toString());
+				
+				this.send(event.getJDA(), guild, data, embed.build());
+			});
+			
+			return;
+		} else {
+			embedDescription.append(message);
+			
+			embed.setDescription(embedDescription.toString());
+			
+			this.send(event.getJDA(), guild, data, embed.build());
+		}
+	}
+	
+	public void onPermissionOverrideDelete(PermissionOverrideDeleteEvent event) {
+		Guild guild = event.getGuild();
+		GuildChannel channel = event.getChannel();
+		IPermissionHolder permissionHolder = event.getPermissionHolder();
+		
+		Document data = Database.get().getGuildById(guild.getIdLong(), null, DEFAULT_PROJECTION).get("logger", Database.EMPTY_DOCUMENT);
+		if (!data.getBoolean("enabled", false) || data.getLong("channelId") == null) {
+			return;
+		}
+		
+		Event logEvent = event.getChannelType() == ChannelType.STORE ? Event.STORE_CHANNEL_OVERRIDE_DELETE : event.getChannelType() == ChannelType.VOICE ? Event.VOICE_CHANNEL_OVERRIDE_DELETE : Event.TEXT_CHANNEL_OVERRIDE_DELETE;
+		
+		EnumSet<Event> events = Event.getEvents(data.get("events", Event.ALL_EVENTS));
+		if (!events.contains(logEvent)) {
+			return;
+		}
+		
+		Document blacklisted = data.get("blacklisted", Database.EMPTY_DOCUMENT);
+		
+		List<Document> roles = blacklisted.getList("roles", Document.class, Collections.emptyList());
+		for (Document roleBlacklist : roles) {
+			if (roleBlacklist.getLong("id") == permissionHolder.getIdLong()) {
+				if ((roleBlacklist.getLong("events") & logEvent.getRaw()) == logEvent.getRaw()) {
+					return;
+				}
+				
+				break;
+			}
+		}
+		
+		List<Document> users = blacklisted.getList("users", Document.class, Collections.emptyList());
+		for (Document userBlacklist : users) {
+			if (userBlacklist.getLong("id") == permissionHolder.getIdLong()) {
+				if ((userBlacklist.getLong("events") & logEvent.getRaw()) == logEvent.getRaw()) {
+					return;
+				}
+				
+				break;
+			}
+		}
+		
+		List<Document> channels = blacklisted.getList("channels", Document.class, Collections.emptyList());
+		for (Document channelBlacklist : channels) {
+			if (channelBlacklist.getLong("id") == channel.getIdLong() || (channel.getParent() != null && channelBlacklist.getLong("id") == channel.getParent().getIdLong())) {
+				if ((channelBlacklist.getLong("events") & logEvent.getRaw()) == logEvent.getRaw()) {
+					return;
+				}
+				
+				break;
+			}
+		}
+		
+		StringBuilder embedDescription = new StringBuilder();
+		embedDescription.append(String.format("The %s `%s` has had permission overrides deleted for %s", Utils.getChannelTypeReadable(channel), channel.getName(), event.isRoleOverride() ? event.getRole().getAsMention() : "`" + event.getMember().getEffectiveName() + "`"));
+		
+		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
+		embed.setColor(COLOR_RED);
+		embed.setTimestamp(ZonedDateTime.now());
+		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
+		embed.setFooter(new EmbedFooter(String.format("%s ID: %s", event.isRoleOverride() ? "Role" : "User", permissionHolder.getIdLong()), null));
+		
+		if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
+			guild.retrieveAuditLogs().type(ActionType.CHANNEL_OVERRIDE_DELETE).limit(100).queueAfter(AUDIT_LOG_DELAY, TimeUnit.MILLISECONDS, logs -> {
+				AuditLogEntry entry = logs.stream()
+					.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
+					.filter(e -> e.getTargetIdLong() == channel.getIdLong())
+					.findFirst()
+					.orElse(null);
+				
+				if(entry != null) {
+					Statistics.increaseSuccessfulAuditLogs();
+					
+					embedDescription.append(String.format(" by **%s**", entry.getUser().getAsTag()));
+				}else{
+					Statistics.increaseFailedAuditLogs();
+					
+					System.err.println(String.format("[onPermissionOverrideDelete] Could not find audit log for %s (%s) %s", guild.getName(), guild.getId(), permissionHolder.getId()));
+				}
+				
+				embed.setDescription(embedDescription.toString());
+				
+				this.send(event.getJDA(), guild, data, embed.build());
+			});
+			
+			return;
+		} else {
+			embed.setDescription(embedDescription.toString());
+			
+			this.send(event.getJDA(), guild, data, embed.build());
 		}
 	}
 	

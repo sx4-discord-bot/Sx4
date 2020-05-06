@@ -1824,6 +1824,7 @@ public class GeneralModule {
 	
 	@Command(value="shard info", aliases={"shards", "shardinfo"}, description="Views Sx4s shards and some basic stats on them", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 	@Examples({"shard info"})
+	@Cooldown(value=7)
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void shardInfo(CommandEvent event) {
 		long totalGuilds = event.getShardManager().getGuildCache().size(), totalUsers = event.getShardManager().getUserCache().size();
