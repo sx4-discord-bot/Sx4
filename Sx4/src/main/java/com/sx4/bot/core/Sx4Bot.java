@@ -3,9 +3,11 @@ package com.sx4.bot.core;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import org.bson.types.ObjectId;
 
@@ -13,15 +15,16 @@ import com.jockie.bot.core.argument.IArgument;
 import com.jockie.bot.core.argument.factory.impl.ArgumentFactory;
 import com.jockie.bot.core.argument.factory.impl.ArgumentFactoryImpl;
 import com.jockie.bot.core.argument.parser.ParsedArgument;
-import com.jockie.bot.core.command.exception.parser.ArgumentParseException;
-import com.jockie.bot.core.command.exception.parser.OutOfContentException;
 import com.jockie.bot.core.command.factory.impl.MethodCommandFactory;
 import com.jockie.bot.core.command.impl.CommandListener;
-import com.jockie.bot.core.command.impl.CommandListener.Failure;
 import com.jockie.bot.core.command.impl.CommandStore;
 import com.jockie.bot.core.command.manager.IErrorManager;
 import com.jockie.bot.core.command.manager.impl.ErrorManagerImpl;
 import com.sx4.api.Main;
+import com.sx4.bot.annotations.DefaultInt;
+import com.sx4.bot.annotations.Limit;
+import com.sx4.bot.annotations.Lowercase;
+import com.sx4.bot.annotations.Uppercase;
 import com.sx4.bot.config.Config;
 import com.sx4.bot.entities.mod.Reason;
 import com.sx4.bot.handlers.ConnectionHandler;
@@ -42,6 +45,7 @@ import net.dv8tion.jda.api.entities.GuildChannel;
 import net.dv8tion.jda.api.entities.IPermissionHolder;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Message.Attachment;
+import net.dv8tion.jda.api.entities.Message.MentionType;
 import net.dv8tion.jda.api.entities.MessageChannel;
 import net.dv8tion.jda.api.entities.MessageReaction.ReactionEmote;
 import net.dv8tion.jda.api.entities.Role;
@@ -68,6 +72,7 @@ public class Sx4Bot {
 			.writeTimeout(15, TimeUnit.SECONDS)
 			.build();
 	
+	@SuppressWarnings("unchecked")
 	public static void main(String[] args) throws Throwable {
 		Sx4Bot.modActionManager = new ModActionManager()
 				.addListener(new ModHandler());
@@ -91,7 +96,8 @@ public class Sx4Bot {
 			.registerResponse(ObjectId.class, "Invalid id given, an example id would be `5e45ce6d3688b30ee75201ae` :no_entry:")
 			.registerResponse(List.class, "I could not find that command/module :no_entry:")
 			.registerResponse(URL.class, "Invalid image given :no_entry:")
-			.registerResponse(RestAction.class, "I could not find that message :no_entry:");
+			.registerResponse(RestAction.class, "I could not find that message :no_entry:")
+			.registerResponse(MentionType.class, "Invalid mention type, valid types are `" + Arrays.stream(MentionType.values()).map(MentionType::name).collect(Collectors.joining("`, `")) + "` :no_entry:");
 		
 		ArgumentFactoryImpl argumentFactory = (ArgumentFactoryImpl) ArgumentFactory.getDefault();
 			
@@ -105,6 +111,7 @@ public class Sx4Bot {
 			.registerParser(IPermissionHolder.class, (context, argument, content) -> new ParsedArgument<>(SearchUtility.getPermissionHolder(context.getMessage().getGuild(), content)))
 			.registerParser(Role.class, (context, argument, content) -> new ParsedArgument<>(SearchUtility.getRole(context.getMessage().getGuild(), content)))
 			.registerParser(RestAction.class, (context, argument, content) -> new ParsedArgument<>(SearchUtility.getMessageAction(context.getMessage().getTextChannel(), content)))
+			.registerParser(MentionType.class, (context, argument, content) -> new ParsedArgument<>(Arrays.stream(MentionType.values()).filter(mention -> mention.name().equalsIgnoreCase(content)).findFirst().orElse(null)))
 			.registerParser(ReactionEmote.class, (context, argument, content) -> new ParsedArgument<>(SearchUtility.getEmote(content)))
 			.registerParser(URL.class, (context, argument, content) -> {
 				if (content.isEmpty()) {
@@ -125,35 +132,64 @@ public class Sx4Bot {
 				}
 			});
 		
+		argumentFactory.addBuilderConfigureFunction(String.class, (parameter, builder) -> {
+			if (parameter.isAnnotationPresent(Lowercase.class)) {
+				builder.setProperty("lowercase", true);
+			}
+			
+			if (parameter.isAnnotationPresent(Uppercase.class)) {
+				builder.setProperty("uppercase", true);
+			}
+			
+			return builder;
+		}).addBuilderConfigureFunction(Integer.class, (parameter, builder) -> {
+			Limit limit = parameter.getAnnotation(Limit.class);
+			if (limit != null) {
+				builder.setProperty("upperLimit", limit.max());
+				builder.setProperty("lowerLimit", limit.min());
+			}
+			
+			DefaultInt defaultInt = parameter.getAnnotation(DefaultInt.class);
+			if (defaultInt != null) {
+				((IArgument.Builder<Integer, ?, ?>) builder).setDefaultValue(defaultInt.value());
+			}
+			
+			return builder;
+		});
+		
+		argumentFactory.addParserAfter(String.class, (context, argument, content) -> {
+			if (argument.getProperty("lowercase", boolean.class) && content != null) {
+				content = content.toLowerCase();
+			}
+			
+			if (argument.getProperty("uppercase", boolean.class) && content != null) {
+				content = content.toUpperCase();
+			}
+			
+			return new ParsedArgument<>(content);
+		}).addParserAfter(Integer.class, (context, argument, content) -> {
+			Integer lowerLimit = argument.getProperty("lowerLimit", Integer.class);
+			if (lowerLimit != null) {
+				content = content < lowerLimit ? lowerLimit : content;
+			}
+			
+			Integer upperLimit = argument.getProperty("upperLimit", Integer.class);
+			if (upperLimit != null) {
+				content = content > upperLimit ? upperLimit : content;
+			}
+			
+			return new ParsedArgument<>(content);
+		});
+		
 		Sx4Bot.commandListener = new Sx4CommandListener()
 			.addCommandStores(CommandStore.of("com.sx4.bot.commands"))
 			.addDevelopers(402557516728369153L, 190551803669118976L)
 			.setErrorManager(errorManager)
-			.setHelpFunction((message, prefix, failures) -> {
-				Failure failure = failures.stream()
-					.filter(f -> {
-						Throwable reason = f.getReason();
-						
-						return reason instanceof ArgumentParseException && !(reason instanceof OutOfContentException);
-					})
-					.findFirst()
-					.orElse(null);
-				
-				if (failure != null) {
-					ArgumentParseException parseException = (ArgumentParseException) failure.getReason();
-					
-					IArgument<?> argument = parseException.getArgument();
-					String value = parseException.getValue();
-					
-					if (errorManager.handle(argument, message, value)) {
-						return;
-					}
-				}
-				
+			.setHelpFunction((message, prefix, commands) -> {
 				MessageChannel channel = message.getChannel();
 				boolean embed = message.isFromGuild() ? message.getGuild().getSelfMember().hasPermission((TextChannel) channel, Permission.MESSAGE_EMBED_LINKS) : true;
 				
-				channel.sendMessage(HelpUtility.getHelpMessage(failures.get(0).getCommand(), embed)).queue();
+				channel.sendMessage(HelpUtility.getHelpMessage(commands.get(0), embed)).queue();
 			});
 				
 		InterfacedEventManager eventManager = new InterfacedEventManager();

@@ -7,10 +7,6 @@ import java.lang.annotation.Target;
 
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.PARAMETER)
-public @interface Limit {
+public @interface Uppercase {
 
-	public int max() default Integer.MAX_VALUE;
-	
-	public int min() default Integer.MIN_VALUE;
-	
 }
