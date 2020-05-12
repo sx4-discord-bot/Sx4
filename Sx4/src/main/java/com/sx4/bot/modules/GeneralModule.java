@@ -34,6 +34,7 @@ import com.jockie.bot.core.command.Command.Async;
 import com.jockie.bot.core.command.Command.AuthorPermissions;
 import com.jockie.bot.core.command.Command.BotPermissions;
 import com.jockie.bot.core.command.Command.Cooldown;
+import com.jockie.bot.core.command.Command.Developer;
 import com.jockie.bot.core.command.Context;
 import com.jockie.bot.core.command.ICommand.ContentOverflowPolicy;
 import com.jockie.bot.core.command.Initialize;
@@ -1886,6 +1887,7 @@ public class GeneralModule {
 	
 	@Command(value="servers", aliases={"guilds"}, description="View all the guilds Sx4 is in", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 	@Examples({"servers"})
+	@Developer
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void guilds(CommandEvent event) {
 		List<Guild> guilds = new ArrayList<>(event.getShardManager().getGuilds());

@@ -98,6 +98,7 @@ import net.dv8tion.jda.api.events.role.RoleCreateEvent;
 import net.dv8tion.jda.api.events.role.RoleDeleteEvent;
 import net.dv8tion.jda.api.events.role.update.RoleUpdateNameEvent;
 import net.dv8tion.jda.api.events.role.update.RoleUpdatePermissionsEvent;
+import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.dv8tion.jda.internal.requests.CompletedRestAction;
 import okhttp3.OkHttpClient;
@@ -239,7 +240,19 @@ public class EventHandler extends ListenerAdapter {
 		if(data.getLong("webhookId") == null || data.getString("webhookToken") == null) {
 			Webhook webhook;
 			if (guild.getSelfMember().hasPermission(channel, Permission.MANAGE_WEBHOOKS)) {
-				webhook = channel.createWebhook("Sx4 - Logs").complete();
+				try {
+					webhook = channel.createWebhook("Sx4 - Logs").complete();
+				} catch (ErrorResponseException e) {
+					if (e.getErrorCode() == 30007) {
+						Database.get().updateGuildById(guild.getIdLong(), Updates.set("logger.enabled", false), (result, exception) -> {
+							if (exception != null) {
+								exception.printStackTrace();
+							}
+						});
+					}
+					
+					return;
+				}
 			} else {
 				Statistics.increaseSkippedLogs();
 				
@@ -279,13 +292,12 @@ public class EventHandler extends ListenerAdapter {
 			.addEmbeds(embeds)
 			.build();
 		
-		client.send(message).whenCompleteAsync((finalMessage, e) -> {
+		client.send(message).whenComplete((finalMessage, e) -> {
 			if (e != null) {
 				Statistics.increaseFailedLogs();
 				
 				if(e instanceof HttpException) {
-					/* Ugly catch, blame JDA */
-					if(e.getMessage().startsWith("Request returned failure 404")) {
+					if(((HttpException) e).getCode() == 404) {
 						data.put("webhookId", null);
 						data.put("wehookToken", null);
 						
@@ -320,9 +332,7 @@ public class EventHandler extends ListenerAdapter {
 	}
 	
 	public void send(JDA bot, Guild guild, Document data, List<WebhookEmbed> embeds) {
-		this.executor.submit(() -> {
-			this.handleRequest(bot, guild, data, embeds);
-		});
+		this.handleRequest(bot, guild, data, embeds);
 	}
 	
 	public void send(JDA bot, Guild guild, Document data, WebhookEmbed... embeds) {
@@ -1387,8 +1397,6 @@ public class EventHandler extends ListenerAdapter {
 				
 				this.send(event.getJDA(), guild, data, embed.build());
 			});
-			
-			return;
 		} else {
 			embedDescription.append(message);
 			
@@ -1495,8 +1503,6 @@ public class EventHandler extends ListenerAdapter {
 				
 				this.send(event.getJDA(), guild, data, embed.build());
 			});
-			
-			return;
 		} else {
 			embedDescription.append(message);
 			
@@ -1589,8 +1595,6 @@ public class EventHandler extends ListenerAdapter {
 				
 				this.send(event.getJDA(), guild, data, embed.build());
 			});
-			
-			return;
 		} else {
 			embed.setDescription(embedDescription.toString());
 			

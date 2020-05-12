@@ -66,7 +66,7 @@ public enum Event {
 	private Event(int offset, Category... categories) {
 		this.categories = categories;
 		this.offset = offset;
-		this.raw = 1 << offset;
+		this.raw = 1L << offset;
 	}
 	
 	public Category[] getCategories() {
