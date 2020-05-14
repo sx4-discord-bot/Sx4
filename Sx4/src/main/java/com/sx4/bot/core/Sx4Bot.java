@@ -21,10 +21,12 @@ import com.jockie.bot.core.command.impl.CommandStore;
 import com.jockie.bot.core.command.manager.IErrorManager;
 import com.jockie.bot.core.command.manager.impl.ErrorManagerImpl;
 import com.sx4.api.Main;
-import com.sx4.bot.annotations.DefaultInt;
-import com.sx4.bot.annotations.Limit;
-import com.sx4.bot.annotations.Lowercase;
-import com.sx4.bot.annotations.Uppercase;
+import com.sx4.bot.annotations.argument.DefaultInt;
+import com.sx4.bot.annotations.argument.DefaultLong;
+import com.sx4.bot.annotations.argument.DefaultString;
+import com.sx4.bot.annotations.argument.Limit;
+import com.sx4.bot.annotations.argument.Lowercase;
+import com.sx4.bot.annotations.argument.Uppercase;
 import com.sx4.bot.config.Config;
 import com.sx4.bot.entities.mod.Reason;
 import com.sx4.bot.handlers.ConnectionHandler;
@@ -133,12 +135,12 @@ public class Sx4Bot {
 			});
 		
 		argumentFactory.addBuilderConfigureFunction(String.class, (parameter, builder) -> {
-			if (parameter.isAnnotationPresent(Lowercase.class)) {
-				builder.setProperty("lowercase", true);
-			}
+			builder.setProperty("lowercase", parameter.isAnnotationPresent(Lowercase.class));
+			builder.setProperty("uppercase", parameter.isAnnotationPresent(Uppercase.class));
 			
-			if (parameter.isAnnotationPresent(Uppercase.class)) {
-				builder.setProperty("uppercase", true);
+			DefaultString defaultString = parameter.getAnnotation(DefaultString.class);
+			if (defaultString != null) {
+				((IArgument.Builder<String, ?, ?>) builder).setDefaultValue(defaultString.value());
 			}
 			
 			return builder;
@@ -155,14 +157,21 @@ public class Sx4Bot {
 			}
 			
 			return builder;
+		}).addBuilderConfigureFunction(Long.class, (parameter, builder) -> {
+			DefaultLong defaultLong = parameter.getAnnotation(DefaultLong.class);
+			if (defaultLong != null) {
+				((IArgument.Builder<Long, ?, ?>) builder).setDefaultValue(defaultLong.value());
+			}
+			
+			return builder;
 		});
 		
 		argumentFactory.addParserAfter(String.class, (context, argument, content) -> {
-			if (argument.getProperty("lowercase", boolean.class) && content != null) {
+			if (argument.getProperty("lowercase", boolean.class)) {
 				content = content.toLowerCase();
 			}
 			
-			if (argument.getProperty("uppercase", boolean.class) && content != null) {
+			if (argument.getProperty("uppercase", boolean.class)) {
 				content = content.toUpperCase();
 			}
 			

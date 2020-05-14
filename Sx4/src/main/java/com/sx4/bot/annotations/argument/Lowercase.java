@@ -1,4 +1,4 @@
-package com.sx4.bot.annotations;
+package com.sx4.bot.annotations.argument;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -7,8 +7,6 @@ import java.lang.annotation.Target;
 
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.PARAMETER)
-public @interface DefaultInt {
+public @interface Lowercase {
 
-	public int value();
-	
 }

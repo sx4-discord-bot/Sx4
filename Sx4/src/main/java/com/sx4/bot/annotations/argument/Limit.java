@@ -1,4 +1,4 @@
-package com.sx4.bot.annotations;
+package com.sx4.bot.annotations.argument;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -6,9 +6,11 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 @Retention(RetentionPolicy.RUNTIME)
-@Target(ElementType.METHOD)
-public @interface Examples {
+@Target(ElementType.PARAMETER)
+public @interface Limit {
 
-	public String[] value() default {};
+	public int max() default Integer.MAX_VALUE;
+	
+	public int min() default Integer.MIN_VALUE;
 	
 }

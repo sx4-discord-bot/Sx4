@@ -1,4 +1,4 @@
-package com.sx4.bot.annotations;
+package com.sx4.bot.annotations.command;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -7,8 +7,8 @@ import java.lang.annotation.Target;
 
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
-public @interface Canary {
-	
-	public boolean value() default true;
+public @interface Examples {
+
+	public String[] value() default {};
 	
 }

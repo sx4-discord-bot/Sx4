@@ -14,7 +14,7 @@ import com.jockie.bot.core.command.impl.CommandEvent;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.Updates;
-import com.sx4.bot.annotations.Examples;
+import com.sx4.bot.annotations.command.Examples;
 import com.sx4.bot.category.Category;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.database.model.Operators;

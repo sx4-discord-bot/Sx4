@@ -10,13 +10,14 @@ import com.jockie.bot.core.command.Command;
 import com.jockie.bot.core.command.Command.AuthorPermissions;
 import com.jockie.bot.core.command.Command.BotPermissions;
 import com.jockie.bot.core.command.impl.CommandEvent;
-import com.sx4.bot.annotations.DefaultInt;
-import com.sx4.bot.annotations.Examples;
-import com.sx4.bot.annotations.Limit;
+import com.sx4.bot.annotations.argument.DefaultInt;
+import com.sx4.bot.annotations.argument.Limit;
+import com.sx4.bot.annotations.command.Examples;
 import com.sx4.bot.category.Category;
 import com.sx4.bot.core.Sx4Command;
 
 import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.Message.Attachment;
 import net.dv8tion.jda.api.entities.Message.MentionType;
@@ -56,7 +57,7 @@ public class PruneCommand extends Sx4Command {
 		});
 	}
 	
-	public void onCommand(CommandEvent event, @Argument(value="amount", nullDefault=true) @Limit(min=1, max=100) @DefaultInt(100) int amount) {
+	public void onCommand(CommandEvent event, @Argument(value="amount") @Limit(min=1, max=100) @DefaultInt(100) int amount) {
 		this.prune(event, amount, message -> true);
 	}
 	
@@ -64,7 +65,7 @@ public class PruneCommand extends Sx4Command {
 	@Examples({"prune bots", "prune bots 10"})
 	@AuthorPermissions({Permission.MESSAGE_MANAGE})
 	@BotPermissions({Permission.MESSAGE_MANAGE, Permission.MESSAGE_HISTORY})
-	public void bots(CommandEvent event, @Argument(value="amount", nullDefault=true) @Limit(min=1, max=100) @DefaultInt(100) int amount) {
+	public void bots(CommandEvent event, @Argument(value="amount") @Limit(min=1, max=100) @DefaultInt(100) int amount) {
 		this.prune(event, amount, message -> message.getAuthor().isBot());
 	}
 	
@@ -72,7 +73,7 @@ public class PruneCommand extends Sx4Command {
 	@Examples({"prune images", "prune images 10"})
 	@AuthorPermissions({Permission.MESSAGE_MANAGE})
 	@BotPermissions({Permission.MESSAGE_MANAGE, Permission.MESSAGE_HISTORY})
-	public void images(CommandEvent event, @Argument(value="amount", nullDefault=true) @Limit(min=1, max=100) @DefaultInt(100) int amount) {
+	public void images(CommandEvent event, @Argument(value="amount") @Limit(min=1, max=100) @DefaultInt(100) int amount) {
 		this.prune(event, amount, message -> message.getAttachments().stream().anyMatch(Attachment::isImage));
 	}
 	
@@ -80,7 +81,7 @@ public class PruneCommand extends Sx4Command {
 	@Examples({"prune mantions", "prune mentions 10", "prune mentions USER CHANNEL"})
 	@AuthorPermissions({Permission.MESSAGE_MANAGE})
 	@BotPermissions({Permission.MESSAGE_MANAGE, Permission.MESSAGE_HISTORY})
-	public void mentions(CommandEvent event, @Argument(value="amount", nullDefault=true) @Limit(min=1, max=100) @DefaultInt(100) int amount, @Argument(value="mentions") @Endless(minArguments=0) MentionType... mentions) {
+	public void mentions(CommandEvent event, @Argument(value="amount") @Limit(min=1, max=100) @DefaultInt(100) int amount, @Argument(value="mentions") @Endless(minArguments=0) MentionType... mentions) {
 		this.prune(event, amount, message -> !message.getMentions(mentions).isEmpty());
 	}
 	
@@ -88,7 +89,7 @@ public class PruneCommand extends Sx4Command {
 	@Examples({"prune attachments", "prune attachments 10"})
 	@AuthorPermissions({Permission.MESSAGE_MANAGE})
 	@BotPermissions({Permission.MESSAGE_MANAGE, Permission.MESSAGE_HISTORY})
-	public void attachments(CommandEvent event, @Argument(value="amount", nullDefault=true) @Limit(min=1, max=100) @DefaultInt(100) int amount) {
+	public void attachments(CommandEvent event, @Argument(value="amount") @Limit(min=1, max=100) @DefaultInt(100) int amount) {
 		this.prune(event, amount, message -> !message.getAttachments().isEmpty());
 	}
 	
@@ -96,8 +97,16 @@ public class PruneCommand extends Sx4Command {
 	@Examples({"prune contains hello", "prune contains hello 10"})
 	@AuthorPermissions({Permission.MESSAGE_MANAGE})
 	@BotPermissions({Permission.MESSAGE_MANAGE, Permission.MESSAGE_HISTORY})
-	public void contains(CommandEvent event, @Argument(value="content") String content, @Argument(value="amount", nullDefault=true) @Limit(min=1, max=100) @DefaultInt(100) int amount) {
+	public void contains(CommandEvent event, @Argument(value="content") String content, @Argument(value="amount") @Limit(min=1, max=100) @DefaultInt(100) int amount) {
 		this.prune(event, amount, message -> message.getContentRaw().contains(content));
+	}
+	
+	@Command(value="user", description="Prunes a set amount of message sent by a specific user")
+	@Examples({"prune user @Shea#6653", "prune user Shea 10"})
+	@AuthorPermissions({Permission.MESSAGE_MANAGE})
+	@BotPermissions({Permission.MESSAGE_MANAGE, Permission.MESSAGE_HISTORY})
+	public void user(CommandEvent event, @Argument(value="user") Member member, @Argument(value="amount") @Limit(min=1, max=100) @DefaultInt(100) int amount) {
+		this.prune(event, amount, message -> message.getAuthor().getIdLong() == member.getIdLong());
 	}
 	
 }
