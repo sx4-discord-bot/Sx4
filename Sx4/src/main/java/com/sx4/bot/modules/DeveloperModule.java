@@ -243,7 +243,7 @@ public class DeveloperModule {
 			return;
 		}
 		
-		event.getCommandListener().parse(event.getMessage());
+		event.getCommandListener().handle(event.getMessage());
 	}
 	
 	@Command(value="transfer tax", description="Transfer the tax money to a user")

@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -162,6 +163,8 @@ public class EconomyModule {
 
 	public class CrateCommand extends Sx4Command {
 		
+		private Set<Long> pending = new HashSet<>();
+		
 		public CrateCommand() {
 			super("crate");
 			
@@ -220,6 +223,11 @@ public class EconomyModule {
 			
 			if (!crate.isBuyable()) {
 				event.reply("That crate is not buyable :no_entry:").queue();
+				return;
+			}
+			
+			if (this.pending.contains(event.getAuthor().getIdLong())) {
+				event.reply("You cannot buy crates while opening crates :no_entry:").queue();
 				return;
 			}
 			
@@ -303,6 +311,13 @@ public class EconomyModule {
 				totalCrates = crateAmount.longValue();
 			}
 			
+			if (this.pending.contains(event.getAuthor().getIdLong())) {
+				event.reply("You are already opening some crates, wait for them to open before opening more :no_entry:").queue();
+				return;
+			}
+			
+			this.pending.add(event.getAuthor().getIdLong());
+			
 			Map<Item, Long> finalItems = new HashMap<>();
 			List<Item> itemsWon = new ArrayList<>();
 			for (ItemStack<Crate> crateStack : crates) {
@@ -370,6 +385,8 @@ public class EconomyModule {
 					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
 				} else {
 					event.reply(embed.build()).queue();
+					
+					this.pending.remove(event.getAuthor().getIdLong());
 				}
 			});
 		}

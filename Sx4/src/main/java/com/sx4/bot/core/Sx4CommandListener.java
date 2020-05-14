@@ -24,7 +24,7 @@ public class Sx4CommandListener extends CommandListener {
 				return;
 			}
 			
-			this.parse(editedMessage);
+			this.handle(editedMessage);
 		}
 	}
 	
