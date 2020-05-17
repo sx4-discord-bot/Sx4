@@ -10,13 +10,13 @@ import org.bson.types.ObjectId;
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
 import com.jockie.bot.core.command.Command.AuthorPermissions;
-import com.jockie.bot.core.command.impl.CommandEvent;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.Updates;
 import com.sx4.bot.annotations.command.Examples;
 import com.sx4.bot.category.Category;
 import com.sx4.bot.core.Sx4Command;
+import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.model.Operators;
 import com.sx4.bot.entities.mod.Reason;
 import com.sx4.bot.entities.mod.action.Action;
@@ -40,14 +40,14 @@ public class ModLogCommand extends Sx4Command {
 		super.setCategory(Category.MODERATION);
 	}
 	
-	public void onCommand(CommandEvent event) {
+	public void onCommand(Sx4CommandEvent event) {
 		event.reply(HelpUtility.getHelpMessage(event.getCommand(), event.getSelfMember().hasPermission(Permission.MESSAGE_EMBED_LINKS))).queue();
 	}
 	
 	@Command(value="toggle", description="Turn mod logs on/off in your server")
 	@AuthorPermissions({Permission.MANAGE_SERVER})
 	@Examples({"modlog toggle"})
-	public void toggle(CommandEvent event) {
+	public void toggle(Sx4CommandEvent event) {
 		List<Bson> update = List.of(Operators.set("modLog.enabled", Operators.cond("$modLog.enabled", "$$REMOVE", true)));
 		this.database.findAndUpdateGuildById(event.getGuild().getIdLong(), Projections.include("modLog.enabled"), update).whenComplete((data, exception) -> {
 			if (exception != null) {
@@ -61,7 +61,7 @@ public class ModLogCommand extends Sx4Command {
 	@Command(value="channel", description="Sets the channel which mod logs are sent to")
 	@AuthorPermissions({Permission.MANAGE_SERVER})
 	@Examples({"modlog channel #mod-logs", "modlog channel mod-logs", "modlog channel 432898619943813132"})
-	public void channel(CommandEvent event, @Argument(value="channel", endless=true, nullDefault=true) TextChannel channel) {
+	public void channel(Sx4CommandEvent event, @Argument(value="channel", endless=true, nullDefault=true) TextChannel channel) {
 		List<Bson> update = List.of(Operators.set("modLog.channelId", channel == null ? "$$REMOVE" : channel.getIdLong()));
 		this.database.updateGuildById(event.getGuild().getIdLong(), update).whenComplete((result, exception) -> {
 			if (exception != null) {
@@ -79,7 +79,7 @@ public class ModLogCommand extends Sx4Command {
 	
 	@Command(value="case", description="Edit the reason of a mod log case")
 	@Examples({"modlog case 5e45ce6d3688b30ee75201ae Spamming", "modlog case 5e45ce6d3688b30ee75201ae template:tos", "modlog case 5e45ce6d3688b30ee75201ae t:tos and Spamming"})
-	public void case_(CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="reason", endless=true) Reason reason) {
+	public void case_(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="reason", endless=true) Reason reason) {
 		Document data = this.database.getModLogById(Filters.and(Filters.eq("_id", id), Filters.eq("guildId", event.getGuild().getIdLong())), Projections.include("moderatorId", "reason"));
 		if (data == null) {
 			event.reply("I could not find a mod log with that id :no_entry:").queue();
@@ -108,7 +108,7 @@ public class ModLogCommand extends Sx4Command {
 	
 	@Command(value="view case", aliases={"viewcase"}, description="View a modlog case from the server")
 	@Examples({"modlog view case 5e45ce6d3688b30ee75201ae", "modlog view case"})
-	public void viewCase(CommandEvent event, @Argument(value="id", nullDefault=true) ObjectId id) {
+	public void viewCase(Sx4CommandEvent event, @Argument(value="id", nullDefault=true) ObjectId id) {
 		Bson projection = Projections.include("moderatorId", "reason", "targetId", "action");
 		if (id == null) {
 			List<Document> allData = this.database.getModLogs(Filters.eq("guildId", event.getGuild().getIdLong()), projection).into(new ArrayList<>());

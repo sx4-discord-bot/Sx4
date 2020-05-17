@@ -1,10 +1,10 @@
 package com.sx4.bot.commands.mod;
 
 import com.jockie.bot.core.argument.Argument;
-import com.jockie.bot.core.command.impl.CommandEvent;
 import com.jockie.bot.core.option.Option;
 import com.sx4.bot.category.Category;
 import com.sx4.bot.core.Sx4Command;
+import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.entities.mod.Reason;
 import com.sx4.bot.events.mod.BanEvent;
 import com.sx4.bot.utility.ModUtility;
@@ -29,7 +29,7 @@ public class BanCommand extends Sx4Command {
 		super.setCategory(Category.MODERATION);
 	}
 	
-	public void onCommand(CommandEvent event, @Argument(value="user") String userArgument, @Argument(value="reason", endless=true, nullDefault=true) Reason reason, @Option(value="days", description="Set how many days of messages should be deleted from the user") String days) {
+	public void onCommand(Sx4CommandEvent event, @Argument(value="user") String userArgument, @Argument(value="reason", endless=true, nullDefault=true) Reason reason, @Option(value="days", description="Set how many days of messages should be deleted from the user") String days) {
 		SearchUtility.getUserRest(event.getGuild(), userArgument, user -> {
 			if (user == null) {
 				event.reply("I could not find that user :no_entry:").queue();

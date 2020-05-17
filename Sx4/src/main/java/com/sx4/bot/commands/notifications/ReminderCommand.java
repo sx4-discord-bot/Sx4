@@ -1,8 +1,8 @@
 package com.sx4.bot.commands.notifications;
 
-import com.jockie.bot.core.command.impl.CommandEvent;
 import com.sx4.bot.category.Category;
 import com.sx4.bot.core.Sx4Command;
+import com.sx4.bot.core.Sx4CommandEvent;
 
 public class ReminderCommand extends Sx4Command {
 	
@@ -14,7 +14,7 @@ public class ReminderCommand extends Sx4Command {
 		super.setCategory(Category.NOTIFICATIONS);
 	}
 	
-	public void onCommand(CommandEvent event) {
+	public void onCommand(Sx4CommandEvent event) {
 		
 	}
 

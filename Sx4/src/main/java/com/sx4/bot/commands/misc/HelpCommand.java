@@ -5,11 +5,11 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import com.jockie.bot.core.argument.Argument;
-import com.jockie.bot.core.command.impl.CommandEvent;
 import com.sx4.bot.category.Category;
 import com.sx4.bot.config.Config;
 import com.sx4.bot.core.Sx4Category;
 import com.sx4.bot.core.Sx4Command;
+import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.paged.PagedResult.SelectType;
 import com.sx4.bot.utility.HelpUtility;
@@ -37,7 +37,7 @@ public class HelpCommand extends Sx4Command {
 		super.setCategory(Category.MISC);
 	}
 	
-	public void onCommand(CommandEvent event, @Argument(value="command | module", endless=true, nullDefault=true) String commandName) {
+	public void onCommand(Sx4CommandEvent event, @Argument(value="command | module", endless=true, nullDefault=true) String commandName) {
 		boolean embed = event.isFromGuild() ? event.getGuild().getSelfMember().hasPermission(event.getTextChannel(), Permission.MESSAGE_EMBED_LINKS) : true;
 		if (commandName == null) {
 			String image = Config.get().getAdImage();

@@ -1,9 +1,9 @@
 package com.sx4.bot.commands.mod;
 
 import com.jockie.bot.core.argument.Argument;
-import com.jockie.bot.core.command.impl.CommandEvent;
 import com.sx4.bot.category.Category;
 import com.sx4.bot.core.Sx4Command;
+import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.entities.mod.Reason;
 import com.sx4.bot.events.mod.UnbanEvent;
 import com.sx4.bot.utility.ModUtility;
@@ -26,7 +26,7 @@ public class UnbanCommand extends Sx4Command {
 		super.setCategory(Category.MODERATION);
 	}
 	
-	public void onCommand(CommandEvent event, @Argument(value="user") String userArgument, @Argument(value="reason", endless=true, nullDefault=true) Reason reason) {
+	public void onCommand(Sx4CommandEvent event, @Argument(value="user") String userArgument, @Argument(value="reason", endless=true, nullDefault=true) Reason reason) {
 		SearchUtility.getUserRest(userArgument, user -> {
 			if (user == null) {
 				event.reply("I could not find that user :no_entry:").queue();

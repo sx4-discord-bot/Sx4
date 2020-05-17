@@ -1,8 +1,8 @@
 package com.sx4.bot.commands.developer;
 
 import com.jockie.bot.core.argument.Argument;
-import com.jockie.bot.core.command.impl.CommandEvent;
 import com.sx4.bot.core.Sx4Command;
+import com.sx4.bot.core.Sx4CommandEvent;
 
 import groovy.lang.GroovyShell;
 import net.dv8tion.jda.api.entities.Message;
@@ -19,7 +19,7 @@ public class EvalCommand extends Sx4Command {
 		super.setAllowedArgumentParsingTypes(ArgumentParsingType.POSITIONAL);
 	}
 	
-	public void onCommand(CommandEvent event, @Argument(value="code", endless=true) String evaluableString) {
+	public void onCommand(Sx4CommandEvent event, @Argument(value="code", endless=true) String evaluableString) {
 		try {
 			GroovyShell shell = new GroovyShell();
 			

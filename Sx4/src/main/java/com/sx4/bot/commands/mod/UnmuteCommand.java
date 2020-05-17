@@ -3,12 +3,12 @@ package com.sx4.bot.commands.mod;
 import java.util.List;
 
 import com.jockie.bot.core.argument.Argument;
-import com.jockie.bot.core.command.impl.CommandEvent;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.Updates;
 import com.sx4.bot.category.Category;
 import com.sx4.bot.core.Sx4Command;
+import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.entities.mod.Reason;
 import com.sx4.bot.events.mod.UnmuteEvent;
 import com.sx4.bot.utility.ExceptionUtility;
@@ -30,7 +30,7 @@ public class UnmuteCommand extends Sx4Command {
 		super.setCategory(Category.MODERATION);
 	}
 	
-	public void onCommand(CommandEvent event, @Argument(value="user") Member member, @Argument(value="reason", endless=true, nullDefault=true) Reason reason) {
+	public void onCommand(Sx4CommandEvent event, @Argument(value="user") Member member, @Argument(value="reason", endless=true, nullDefault=true) Reason reason) {
 		long roleId = this.database.getGuildById(event.getGuild().getIdLong(), Projections.include("mute.roleId")).getEmbedded(List.of("mute", "roleId"), 0L);
 		
 		Role role = roleId == 0L ? null : event.getGuild().getRoleById(roleId);

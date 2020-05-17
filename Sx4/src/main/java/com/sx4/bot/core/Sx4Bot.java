@@ -3,11 +3,9 @@ package com.sx4.bot.core;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.time.Duration;
-import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 import org.bson.types.ObjectId;
 
@@ -18,6 +16,7 @@ import com.jockie.bot.core.command.factory.impl.MethodCommandFactory;
 import com.jockie.bot.core.command.impl.CommandListener;
 import com.jockie.bot.core.command.impl.CommandStore;
 import com.jockie.bot.core.command.manager.IErrorManager;
+import com.jockie.bot.core.command.manager.impl.ContextManagerFactory;
 import com.jockie.bot.core.command.manager.impl.ErrorManagerImpl;
 import com.sx4.api.Main;
 import com.sx4.bot.annotations.argument.DefaultInt;
@@ -46,7 +45,6 @@ import net.dv8tion.jda.api.entities.GuildChannel;
 import net.dv8tion.jda.api.entities.IPermissionHolder;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Message.Attachment;
-import net.dv8tion.jda.api.entities.Message.MentionType;
 import net.dv8tion.jda.api.entities.MessageChannel;
 import net.dv8tion.jda.api.entities.MessageReaction.ReactionEmote;
 import net.dv8tion.jda.api.entities.Role;
@@ -82,6 +80,12 @@ public class Sx4Bot {
 		
 		MethodCommandFactory.setDefault(new Sx4CommandFactory());
 		
+		ContextManagerFactory.getDefault()
+			.registerContext(Sx4CommandEvent.class, (event, parameter, a) -> {
+				return new Sx4CommandEvent(event);
+			})
+			.setEnforcedContext(Sx4CommandEvent.class, true);
+		
 		IErrorManager errorManager = new ErrorManagerImpl()
 			.registerResponse(Member.class, "I could not find that user :no_entry:")
 			.registerResponse(User.class, "I could not find that user :no_entry:")
@@ -96,8 +100,7 @@ public class Sx4Bot {
 			.registerResponse(ObjectId.class, "Invalid id given, an example id would be `5e45ce6d3688b30ee75201ae` :no_entry:")
 			.registerResponse(List.class, "I could not find that command/module :no_entry:")
 			.registerResponse(URL.class, "Invalid image given :no_entry:")
-			.registerResponse(RestAction.class, "I could not find that message :no_entry:")
-			.registerResponse(MentionType.class, "Invalid mention type, valid types are `" + Arrays.stream(MentionType.values()).map(MentionType::name).collect(Collectors.joining("`, `")) + "` :no_entry:");
+			.registerResponse(RestAction.class, "I could not find that message :no_entry:");
 		
 		ArgumentFactoryImpl argumentFactory = (ArgumentFactoryImpl) ArgumentFactory.getDefault();
 			
@@ -191,6 +194,7 @@ public class Sx4Bot {
 			.addCommandStores(CommandStore.of("com.sx4.bot.commands"))
 			.addDevelopers(402557516728369153L, 190551803669118976L)
 			.setErrorManager(errorManager)
+			.setCommandEventFactory(new Sx4CommandEventFactory())
 			.setHelpFunction((message, prefix, commands) -> {
 				MessageChannel channel = message.getChannel();
 				boolean embed = message.isFromGuild() ? message.getGuild().getSelfMember().hasPermission((TextChannel) channel, Permission.MESSAGE_EMBED_LINKS) : true;

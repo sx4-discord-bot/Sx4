@@ -3,11 +3,11 @@ package com.sx4.bot.commands.mod;
 import java.time.Duration;
 
 import com.jockie.bot.core.argument.Argument;
-import com.jockie.bot.core.command.impl.CommandEvent;
 import com.jockie.bot.core.option.Option;
 import com.mongodb.client.model.Projections;
 import com.sx4.bot.category.Category;
 import com.sx4.bot.core.Sx4Command;
+import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.entities.mod.Reason;
 import com.sx4.bot.entities.mod.mute.MuteData;
@@ -34,7 +34,7 @@ public class MuteCommand extends Sx4Command {
 		super.setCategory(Category.MODERATION);
 	}
 	
-	public void onCommand(CommandEvent event, @Argument(value="user") Member member, @Argument(value="time", nullDefault=true) Duration time, @Argument(value="reason", endless=true, nullDefault=true) Reason reason, @Option(value="extend", description="Will extend the mute of the user if muted") boolean extend) {
+	public void onCommand(Sx4CommandEvent event, @Argument(value="user") Member member, @Argument(value="time", nullDefault=true) Duration time, @Argument(value="reason", endless=true, nullDefault=true) Reason reason, @Option(value="extend", description="Will extend the mute of the user if muted") boolean extend) {
 		if (!event.getMember().canInteract(member)) {
 			event.reply("You cannot mute someone higher or equal than your top role :no_entry:").queue();
 			return;

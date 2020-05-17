@@ -18,7 +18,6 @@ import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
 import com.jockie.bot.core.command.Command.AuthorPermissions;
 import com.jockie.bot.core.command.Command.BotPermissions;
-import com.jockie.bot.core.command.impl.CommandEvent;
 import com.mongodb.MongoWriteException;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.FindOneAndUpdateOptions;
@@ -28,6 +27,7 @@ import com.mongodb.client.model.Updates;
 import com.sx4.bot.annotations.command.Examples;
 import com.sx4.bot.category.Category;
 import com.sx4.bot.core.Sx4Command;
+import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.model.Operators;
 import com.sx4.bot.http.HttpCallback;
 import com.sx4.bot.managers.YouTubeManager;
@@ -54,14 +54,14 @@ public class YouTubeNotification extends Sx4Command {
 		super.setCategory(Category.NOTIFICATIONS);
 	}
 	
-	public void onCommand(CommandEvent event) {
+	public void onCommand(Sx4CommandEvent event) {
 		event.reply(HelpUtility.getHelpMessage(event.getCommand(), event.getSelfMember().hasPermission(event.getTextChannel(), Permission.MESSAGE_EMBED_LINKS))).queue();
 	}
 	
 	@Command(value="add", description="Add a youtube notification to be posted to a specific channel when the user uploads")
 	@AuthorPermissions({Permission.MANAGE_SERVER})
 	@Examples({"youtube notification add videos mrbeast", "youtube notification add #videos pewdiepie"})
-	public void add(CommandEvent event, @Argument(value="channel") TextChannel channel, @Argument(value="youtube channel", endless=true) String youtubeChannelArgument) {
+	public void add(Sx4CommandEvent event, @Argument(value="channel") TextChannel channel, @Argument(value="youtube channel", endless=true) String youtubeChannelArgument) {
 		Request channelRequest = new Request.Builder()
 				.url("https://www.googleapis.com/youtube/v3/search?key=" + this.config.getYoutube() + "&q=" + URLEncoder.encode(youtubeChannelArgument, StandardCharsets.UTF_8) + "&part=id&type=channel&maxResults=50")
 				.build();
@@ -132,7 +132,7 @@ public class YouTubeNotification extends Sx4Command {
 	@Command(value="remove", description="Removes a notification from a channel you had setup prior for a youtube channel")
 	@AuthorPermissions({Permission.MANAGE_SERVER})
 	@Examples({"youtube notification remove 5e45ce6d3688b30ee75201ae"})
-	public void remove(CommandEvent event, @Argument(value="id") ObjectId id) {
+	public void remove(Sx4CommandEvent event, @Argument(value="id") ObjectId id) {
 		Bson projection = Projections.include("youtube.notifications.webhookId", "youtube.notifications.channelId", "youtube.notifications.id");
 		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(projection);
 		this.database.findAndUpdateGuildById(event.getGuild().getIdLong(), Updates.pull("youtube.notifications", Filters.eq("id", id)), options).whenComplete((data, exception) -> {
@@ -171,7 +171,7 @@ public class YouTubeNotification extends Sx4Command {
 	@Command(value="message", description="Set the message you want to be sent for your specific notification, view the formatters for messages in `youtube notification formatting`")
 	@Examples({"youtube notification message 5e45ce6d3688b30ee75201ae {video.url}", "youtube notification message 5e45ce6d3688b30ee75201ae **{channel.name}** just uploaded, check it out: {video.url}"})
 	@AuthorPermissions({Permission.MANAGE_SERVER})
-	public void message(CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="message", endless=true) String message) {
+	public void message(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="message", endless=true) String message) {
 		Bson projection = Projections.include("youtube.notifications.id", "youtube.notifications.message");
 		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(projection).arrayFilters(List.of(Filters.eq("notification.id", id)));
 		this.database.findAndUpdateGuildById(event.getGuild().getIdLong(), Updates.set("youtube.notifications.$[notification].message", message), options).whenComplete((data, exception) -> {
@@ -212,7 +212,7 @@ public class YouTubeNotification extends Sx4Command {
 	@Command(value="name", description="Set the name of the webhook that sends youtube notifications for a specific notification")
 	@Examples({"youtube notification name 5e45ce6d3688b30ee75201ae YouTube", "youtube notification name 5e45ce6d3688b30ee75201ae Pewdiepie's Minion"})
 	@AuthorPermissions({Permission.MANAGE_SERVER})
-	public void name(CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="name", endless=true) String name) {
+	public void name(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="name", endless=true) String name) {
 		Bson projection = Projections.include("youtube.notifications.id", "youtube.notifications.name");
 		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(projection).arrayFilters(List.of(Filters.eq("notification.id", id)));
 		this.database.findAndUpdateGuildById(event.getGuild().getIdLong(), Updates.set("youtube.notifications.$[notification].name", name), options).whenComplete((data, exception) -> {
@@ -253,7 +253,7 @@ public class YouTubeNotification extends Sx4Command {
 	@Command(value="avatar", description="Set the avatar of the webhook that sends youtube notifications for a specific notification")
 	@Examples({"youtube notification avatar 5e45ce6d3688b30ee75201ae", "youtube notification avatar 5e45ce6d3688b30ee75201ae https://i.imgur.com/i87lyNO.png"})
 	@AuthorPermissions({Permission.MANAGE_SERVER})
-	public void avatar(CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="avatar", endless=true, acceptEmpty=true) URL avatar) {
+	public void avatar(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="avatar", endless=true, acceptEmpty=true) URL avatar) {
 		String url = avatar.toString();
 		
 		Bson projection = Projections.include("youtube.notifications.id", "youtube.notifications.avatar");
@@ -296,7 +296,7 @@ public class YouTubeNotification extends Sx4Command {
 	@Command(value="formatting", aliases={"format", "formats"}, description="View the formats you are able to use to customize your notifications message", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 	@Examples({"youtube notification formatting"})
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-	public void formatting(CommandEvent event) {
+	public void formatting(Sx4CommandEvent event) {
 		String example = String.format("{channel.name} - The youtube channels name\n"
 				+ "{channel.id} - The youtube channels id\n"
 				+ "{channel.url} - The youtube channels url\n"
@@ -318,7 +318,7 @@ public class YouTubeNotification extends Sx4Command {
 	@Command(value="list", description="View all the notifications you have setup throughout your server")
 	@Examples({"youtube notification list"})
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-	public void list(CommandEvent event) {
+	public void list(Sx4CommandEvent event) {
 		List<Document> notifications = this.database.getGuildById(event.getGuild().getIdLong(), Projections.include("youtube.notifications.uploaderId", "youtube.notifications.channelId", "youtube.notifications.id")).getEmbedded(List.of("youtube", "notifications"), Collections.emptyList());
 		notifications.sort((a, b) -> Long.compare(a.getLong("channelId"), b.getLong("channelId")));
 		
@@ -339,7 +339,7 @@ public class YouTubeNotification extends Sx4Command {
 		paged.execute(event);
 	}
 	
-	public void sendStats(CommandEvent event, Document notification) {
+	public void sendStats(Sx4CommandEvent event, Document notification) {
 		ObjectId id = notification.getObjectId("id");
 		
 		EmbedBuilder embed = new EmbedBuilder();
@@ -358,7 +358,7 @@ public class YouTubeNotification extends Sx4Command {
 	@Command(value="stats", aliases={"settings", "setting"}, description="View the settings for a specific notification")
 	@Examples({"youtube notification stats 5e45ce6d3688b30ee75201ae"})
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-	public void stats(CommandEvent event, @Argument(value="id") ObjectId id) {
+	public void stats(Sx4CommandEvent event, @Argument(value="id") ObjectId id) {
 		List<Document> notifications = this.database.getGuildById(event.getGuild().getIdLong(), Projections.include("youtube.notifications")).getEmbedded(List.of("youtube", "notifications"), Collections.emptyList());
 		
 		Document notification = notifications.stream()

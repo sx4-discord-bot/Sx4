@@ -11,6 +11,7 @@ import com.jockie.bot.core.command.Command.AuthorPermissions;
 import com.jockie.bot.core.command.impl.CommandEvent;
 import com.sx4.bot.annotations.command.Examples;
 import com.sx4.bot.core.Sx4Command;
+import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.utility.HelpUtility;
 
 import net.dv8tion.jda.api.Permission;
@@ -33,7 +34,7 @@ public class BlacklistCommand extends Sx4Command {
 	@Command(value="add", description="Add a role/user to be blacklisted from a specified command/module in a channel")
 	@Examples({"blacklist add #general @Shea#6653 fish", "blacklist add #bots @Members ban"})
 	@AuthorPermissions({Permission.MANAGE_SERVER})
-	public void add(CommandEvent event, @Argument(value="channel") TextChannel channel, @Argument(value="user | role") IPermissionHolder holder, @Argument(value="command | module", endless=true) List<Sx4Command> commands) {
+	public void add(Sx4CommandEvent event, @Argument(value="channel") TextChannel channel, @Argument(value="user | role") IPermissionHolder holder, @Argument(value="command | module", endless=true) List<Sx4Command> commands) {
 		List<Document> data = commands.stream().map(command -> {
 			return new Document("id", command.getCommandTrigger())
 				.append("blacklisted", true);

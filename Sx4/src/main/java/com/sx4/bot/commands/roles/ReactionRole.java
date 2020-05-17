@@ -7,6 +7,7 @@ import com.jockie.bot.core.command.Command.BotPermissions;
 import com.jockie.bot.core.command.impl.CommandEvent;
 import com.sx4.bot.annotations.command.Examples;
 import com.sx4.bot.core.Sx4Command;
+import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.utility.HelpUtility;
 
 import net.dv8tion.jda.api.Permission;
@@ -33,7 +34,7 @@ public class ReactionRole extends Sx4Command {
 	@Examples({"reaction role add 643945552865919002 🐝 @Yellow", "reaction role add https://discordapp.com/channels/330399610273136641/678274453158887446/680051429460803622 :doggo: Dog person"})
 	@AuthorPermissions({Permission.MANAGE_ROLES})
 	@BotPermissions({Permission.MESSAGE_ADD_REACTION, Permission.MESSAGE_HISTORY})
-	public void add(CommandEvent event, @Argument(value="message id") RestAction<Message> action, @Argument(value="emote") ReactionEmote emoji, @Argument(value="role", endless=true) Role role) {
+	public void add(Sx4CommandEvent event, @Argument(value="message id") RestAction<Message> action, @Argument(value="emote") ReactionEmote emoji, @Argument(value="role", endless=true) Role role) {
 		if (role.isManaged()) {
 			event.reply("I cannot give a role which is managed :no_entry:").queue();
 			return;
