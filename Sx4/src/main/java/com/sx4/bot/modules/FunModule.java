@@ -984,7 +984,7 @@ public class FunModule {
 		"<:developer:441255213068845056> - Be a developer of Sx4\n<:helper:441255213131628554> - You have at some point contributed to the bot\n" +
 		"<:donator:441255213224034325> - Donate to Sx4 either through PayPal or Patreon\n<:profile_editor:441255213207126016> - Edit your profile" +
 		"\n<:married:441255213106593803> - Be married to someone on the bot\n<:playing:441255213513572358> - Have a playing status\n<:streaming:441255213106724865> - Have a streaming status" +
-		"\n<:insx4server:472895584856965132> - Be in the Sx4 Support Server");
+		"\n<:sx4:637715282995183636> - Be in the Sx4 Support Server");
 		
 		event.reply(embed.build()).queue();
 	}
