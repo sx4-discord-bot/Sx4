@@ -18,22 +18,6 @@ public class Sx4CommandEvent extends CommandEvent {
 		super(message, listener, command, arguments, rawArguments, prefix, commandTrigger, options, parsingType, contentOverflow, timeStarted);
 	}
 	
-	public Sx4CommandEvent(CommandEvent event) {
-		super(
-			event.getMessage(), 
-			event.getCommandListener(), 
-			event.getCommand(), 
-			event.getArguments(), 
-			event.getRawArguments(), 
-			event.getPrefix(), 
-			event.getCommandTrigger(), 
-			event.getOptions(), 
-			event.getParsingType(), 
-			event.getContentOverflow(), 
-			event.getTimeStarted()
-		);
-	}
-	
 	public Sx4Command getCommand() {
 		return (Sx4Command) this.command;
 	}

@@ -81,8 +81,8 @@ public class Sx4Bot {
 		MethodCommandFactory.setDefault(new Sx4CommandFactory());
 		
 		ContextManagerFactory.getDefault()
-			.registerContext(Sx4CommandEvent.class, (event, parameter, a) -> {
-				return new Sx4CommandEvent(event);
+			.registerContext(Sx4CommandEvent.class, (event, type) -> {
+				return (Sx4CommandEvent) event;
 			})
 			.setEnforcedContext(Sx4CommandEvent.class, true);
 		
