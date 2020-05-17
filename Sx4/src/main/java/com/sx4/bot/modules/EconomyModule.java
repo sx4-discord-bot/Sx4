@@ -1214,11 +1214,23 @@ public class EconomyModule {
 	@Examples({"double or nothing"})
 	@Cooldown(value=40)
 	public void doubleOrNothing(CommandEvent event, @Context Database database) {
-		long balance = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance")).getEmbedded(List.of("economy", "balance"), 0L);
+		Document data = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.balance", "economy.items")).get("economy", Database.EMPTY_DOCUMENT);
+		
+		long balance = data.get("balance", 0L);
 		if (balance < 1) {
 			event.reply("You do not have any money to bet :no_entry:").queue();
 			event.removeCooldown();
 			return;
+		}
+		
+		List<Document> items = data.getList("items", Document.class, Collections.emptyList());
+		for (Document itemData : items) {
+			Item item = Item.getItemByName(itemData.getString("name"));
+			if (item instanceof Envelope) {
+				event.reply("You cannot have envelopes in your inventory when using double or nothing :no_entry:").queue();
+				event.removeCooldown();
+				return;
+			}
 		}
 
 		event.reply(String.format(event.getAuthor().getName() + ", this will bet **$%,d** are you sure you want to bet this (Yes or No)", balance)).queue(originalMessage -> {
