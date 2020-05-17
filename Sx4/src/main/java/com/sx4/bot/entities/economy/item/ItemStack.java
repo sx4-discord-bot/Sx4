@@ -12,7 +12,10 @@ public class ItemStack<Type extends Item> {
 	
 	@SuppressWarnings("unchecked")
 	public ItemStack(Document data) {
-		this.item = (Type) new Item(data.getString("name"), 0, ItemType.getFromType(data.getInteger("type")));
+		Item defaultItem = Item.getFromName(data.getString("name"));
+		ItemType type = ItemType.getFromType(data.getInteger("type"));
+		
+		this.item = (Type) type.create(data, defaultItem);
 		this.amount = data.getLong("amount");
 	}
 
@@ -58,7 +61,7 @@ public class ItemStack<Type extends Item> {
 			.append("amount", this.amount);
 	}
 	
-	public static List<ItemStack<?>> fromData(List<Document> data) {
+	public static List<ItemStack<? extends Item>> fromData(List<Document> data) {
 		return data.stream().map(ItemStack::new).collect(Collectors.toList());
 	}
 	

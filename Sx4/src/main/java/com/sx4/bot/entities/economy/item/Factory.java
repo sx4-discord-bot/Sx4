@@ -1,10 +1,16 @@
 package com.sx4.bot.entities.economy.item;
 
+import org.bson.Document;
+
 public class Factory extends Item {
 	
 	private final long maxYield;
 	private final long minYield;
 	private final ItemStack<Material> cost;
+	
+	public Factory(Document data, Factory defaultFactory) {
+		this(defaultFactory.getName(), defaultFactory.getCost(), defaultFactory.getMinYield(), defaultFactory.getMaxYield());
+	}
 
 	public Factory(String name, ItemStack<Material> cost, long minYield, long maxYield) {
 		super(name, cost.getItem().getPrice() * cost.getAmount(), ItemType.FACTORY);

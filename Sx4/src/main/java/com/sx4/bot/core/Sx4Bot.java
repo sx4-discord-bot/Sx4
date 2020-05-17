@@ -11,7 +11,6 @@ import java.util.stream.Collectors;
 
 import org.bson.types.ObjectId;
 
-import com.jockie.bot.core.argument.IArgument;
 import com.jockie.bot.core.argument.factory.impl.ArgumentFactory;
 import com.jockie.bot.core.argument.factory.impl.ArgumentFactoryImpl;
 import com.jockie.bot.core.argument.parser.ParsedArgument;
@@ -74,7 +73,6 @@ public class Sx4Bot {
 			.writeTimeout(15, TimeUnit.SECONDS)
 			.build();
 	
-	@SuppressWarnings("unchecked")
 	public static void main(String[] args) throws Throwable {
 		Sx4Bot.modActionManager = new ModActionManager()
 				.addListener(new ModHandler());
@@ -113,7 +111,6 @@ public class Sx4Bot {
 			.registerParser(IPermissionHolder.class, (context, argument, content) -> new ParsedArgument<>(SearchUtility.getPermissionHolder(context.getMessage().getGuild(), content)))
 			.registerParser(Role.class, (context, argument, content) -> new ParsedArgument<>(SearchUtility.getRole(context.getMessage().getGuild(), content)))
 			.registerParser(RestAction.class, (context, argument, content) -> new ParsedArgument<>(SearchUtility.getMessageAction(context.getMessage().getTextChannel(), content)))
-			.registerParser(MentionType.class, (context, argument, content) -> new ParsedArgument<>(Arrays.stream(MentionType.values()).filter(mention -> mention.name().equalsIgnoreCase(content)).findFirst().orElse(null)))
 			.registerParser(ReactionEmote.class, (context, argument, content) -> new ParsedArgument<>(SearchUtility.getEmote(content)))
 			.registerParser(URL.class, (context, argument, content) -> {
 				if (content.isEmpty()) {
@@ -140,7 +137,7 @@ public class Sx4Bot {
 			
 			DefaultString defaultString = parameter.getAnnotation(DefaultString.class);
 			if (defaultString != null) {
-				((IArgument.Builder<String, ?, ?>) builder).setDefaultValue(defaultString.value());
+				builder.setDefaultValue(defaultString.value());
 			}
 			
 			return builder;
@@ -153,14 +150,14 @@ public class Sx4Bot {
 			
 			DefaultInt defaultInt = parameter.getAnnotation(DefaultInt.class);
 			if (defaultInt != null) {
-				((IArgument.Builder<Integer, ?, ?>) builder).setDefaultValue(defaultInt.value());
+				builder.setDefaultValue(defaultInt.value());
 			}
 			
 			return builder;
 		}).addBuilderConfigureFunction(Long.class, (parameter, builder) -> {
 			DefaultLong defaultLong = parameter.getAnnotation(DefaultLong.class);
 			if (defaultLong != null) {
-				((IArgument.Builder<Long, ?, ?>) builder).setDefaultValue(defaultLong.value());
+				builder.setDefaultValue(defaultLong.value());
 			}
 			
 			return builder;

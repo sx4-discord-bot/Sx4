@@ -4,10 +4,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import org.bson.Document;
+
 public class Crate extends Item {
 	
 	private final Map<ItemType, Long> contents;
 	private final long points;
+	
+	public Crate(Document data, Crate defaultCrate) {
+		this(defaultCrate.getName(), defaultCrate.getPrice(), defaultCrate.getPoints(), defaultCrate.getContents());
+	}
 
 	public Crate(String name, long price, long points, Map<ItemType, Long> contents) {
 		super(name, price, ItemType.CRATE);

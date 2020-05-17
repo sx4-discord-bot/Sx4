@@ -105,13 +105,13 @@ public class EconomyUser {
 		
 		if (itemStack == null) {
 			throw new IllegalArgumentException("That user doesn't have `" + item.getItem().getName() + "`");
+		}
+		
+		long newAmount = itemStack.getAmount() - item.getAmount();
+		if (newAmount == 0) {
+			this.items.remove(itemStack);
 		} else {
-			long newAmount = itemStack.getAmount() - item.getAmount();
-			if (newAmount == 0) {
-				this.items.remove(itemStack);
-			} else {
-				itemStack.removeAmount(item.getAmount());
-			}
+			itemStack.removeAmount(item.getAmount());
 		}
 	}
 	
@@ -123,6 +123,23 @@ public class EconomyUser {
 	
 	public List<ItemStack<?>> getItems(int type) {
 		return this.getItems(ItemType.getFromType(type));
+	}
+	
+	public <Type extends Item> Type getFirstItem(Class<Type> clazz) {
+		return this.items.stream()
+			.map(ItemStack::getItem)
+			.filter(item -> item.getClass() == clazz)
+			.map(clazz::cast)
+			.findFirst()
+			.orElse(null);
+	}
+	
+	public boolean hasItemType(ItemType type) {
+		return this.items.stream().anyMatch(stack -> stack.getItem().getType() == type);
+	}
+	
+	public boolean hasItemType(int type) {
+		return this.hasItemType(ItemType.getFromType(type));
 	}
 	
 	public long sumItems() {
