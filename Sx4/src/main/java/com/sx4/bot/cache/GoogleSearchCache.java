@@ -21,8 +21,8 @@ public class GoogleSearchCache {
 
 	public static final GoogleSearchCache INSTANCE = new GoogleSearchCache();
 	
-	private final Map<String, List<GoogleSearchResult>> cache = new HashMap<>();
-	private final Map<String, List<GoogleSearchResult>> imageCache = new HashMap<>();
+	private final Map<Boolean, Map<String, List<GoogleSearchResult>>> cache = new HashMap<>();
+	private final Map<Boolean, Map<String, List<GoogleSearchResult>>> imageCache = new HashMap<>();
 	
 	private GoogleSearchCache() {}
 	
@@ -57,9 +57,11 @@ public class GoogleSearchCache {
 	}
 	
 	public void retrieveResultsByQuery(String query, boolean imageSearch, boolean includeNSFW, BiConsumer<List<GoogleSearchResult>, Throwable> data) {
-		Map<String, List<GoogleSearchResult>> cache = imageSearch ? this.imageCache : this.cache;
-		if (cache.containsKey(query)) {
-			data.accept(cache.get(query), null);
+		Map<Boolean, Map<String, List<GoogleSearchResult>>> cache = imageSearch ? this.imageCache : this.cache;
+		Map<String, List<GoogleSearchResult>> actualCache = cache.get(includeNSFW);
+		
+		if (actualCache != null && actualCache.containsKey(query)) {
+			data.accept(actualCache.get(query), null);
 		} else {
 			Request request = new Request.Builder()
 					.url("https://www.googleapis.com/customsearch/v1?key=" + TokenUtils.GOOGLE + "&cx=014023765838117903829:mm334tqd3kg" + (imageSearch ? "&searchType=image" : "") + "&safe=" + (includeNSFW ? "off" : "active") + "&q=" + query)
@@ -82,7 +84,19 @@ public class GoogleSearchCache {
 					}
 				}
 				
-				cache.put(query, endResults);
+				cache.compute(includeNSFW, (key, value) -> {
+					if (value == null) {
+						Map<String, List<GoogleSearchResult>> newCache = new HashMap<>();
+
+						newCache.put(query, endResults);
+						
+						return newCache;
+					} else {
+						value.put(query, endResults);
+						
+						return value;
+					}
+				});
 				
 				data.accept(endResults, null);
 			});
