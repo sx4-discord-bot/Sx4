@@ -19,7 +19,7 @@ public class Sx4CommandEvent extends CommandEvent {
 	}
 	
 	public Sx4Command getCommand() {
-		return (Sx4Command) this.command;
+		return (Sx4Command) super.getCommand();
 	}
 	
 	public Sx4CommandListener getCommandListener() {

@@ -1,5 +1,5 @@
 {
-	"colours": {
+	"colour": {
 		"red": 0,
 		"orange": 0,
 		"green": 0
@@ -86,10 +86,10 @@
 			"sx4": "",
 			"jockieMusic": ""
 		},
-		"top.gg": "",
-		"botlist.space": "",
+		"topGG": "",
+		"botlistSpace": "",
 		"dbl": "",
-		"discord.bots": "",
+		"discordBots": "",
 		"google": "",
 		"steam": "",
 		"oxfordDictionaries": "",

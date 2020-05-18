@@ -1,6 +1,7 @@
 package com.sx4.bot.commands.developer;
 
 import com.jockie.bot.core.argument.Argument;
+import com.sx4.bot.category.Category;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 
@@ -17,6 +18,8 @@ public class EvalCommand extends Sx4Command {
 		super.setDescription("Execute some code, last line will be sent");
 		super.setExamples("eval \"hi\"", "eval new EmbedBuilder().setDescription(\"hi\").build();");
 		super.setAllowedArgumentParsingTypes(ArgumentParsingType.POSITIONAL);
+		super.setCategory(Category.DEVELOPER);
+		super.setDeveloper(true);
 	}
 	
 	public void onCommand(Sx4CommandEvent event, @Argument(value="code", endless=true) String evaluableString) {

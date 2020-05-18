@@ -3,6 +3,7 @@ package com.sx4.bot.config;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.util.List;
 
 import org.json.JSONObject;
 
@@ -20,377 +21,299 @@ public class Config {
 		return Config.INSTANCE;
 	}
 	
-	private boolean canary;
-	private boolean test;
-	
-	private long canaryId;
-	
-	private long supportGuildId;
-	
-	private long errorsChannelId;
-	private long changesChannelId;
-	private long commandsChannelId;
-	private long eventsChannelId;
-	private long statsChannelId;
-	private long guildsChannelId;
-	private long milestonesChannelId;
-	
-	private long donatorRoleId;
-	
-	private long eventsWebhookId;
-	private String eventsWebhookToken;
-	private long commandsWebhookId;
-	private String commandsWebhookToken;
-	
-	private String canaryDatabase;
-	private String mainDatabase;
-	private String database;
-	
-	private int colour;
-	private int green;
-	private int orange;
-	private int red;
-	
-	private String token;
-	private String topGG;
-	private String botlistSpace;
-	private String dbl;
-	private String discordBots;
-	private String google;
-	private String steam;
-	private String currencyConvertor;
-	private String mashape;
-	private String weebsh;
-	private String bitly;
-	private String openWeather;
-	private String igdb;
-	private String youtube;
-	private String vainGlory;
-	private String oxfordDictionaries;
-	
-	private JSONObject voteApi;
-	
-	private String localHost;
-	private String domain;
-	private int port;
-	
-	private String adDescription;
-	private String adImage;
+	private JSONObject json;
 	
 	public Config() {
-		this.loadConfig();
+		this.json = this.getConfig();
+	}
+	
+	public <Type> Type get(String path) {
+		return this.get(path, (Type) null); 
+	}
+	
+	public <Type> Type get(String path, Type defaultValue) {
+		return this.get(List.of(path.split("\\.")), defaultValue);
+	}
+	
+	@SuppressWarnings("unchecked")
+	public <Type> Type get(List<String> path, Type defaultValue) {
+		JSONObject json = this.json;
+		
+		for (int i = 0; i < path.size(); i++) {
+			String key = path.get(i);
+			if (!json.has(key)) {
+				return defaultValue;
+			}
+			
+			Object value = json.get(key);
+			if (i == path.size() - 1) {
+				if (value == JSONObject.NULL) {
+					return null;
+				}
+				
+				return (Type) value;
+			}
+			
+			if (value instanceof JSONObject) {
+				json = (JSONObject) value;
+			} else {
+				return defaultValue;
+			}
+		}
+		
+		return defaultValue;
 	}
 	
 	public boolean isCanary() {
-		return this.canary;
+		return this.get("state.canary", true);
 	}
 	
 	public boolean isTest() {
-		return this.test;
+		return this.get("state.test", true);
 	}
 	
 	public boolean isMain() {
-		return !this.test && !this.canary;
+		return !this.isTest() && !this.isCanary();
+	}
+	
+	public String getState() {
+		return this.isMain() ? "main" : "canary";
 	}
 	
 	public long getCanaryId() {
-		return this.canaryId;
+		return this.get("token.canaryId", 0L);
 	}
 	
 	public long getSupportGuildId() {
-		return this.supportGuildId;
+		return this.get(this.getState() + ".supportGuild.id", 0L);
 	}
 	
 	public Guild getSupportGuild() {
-		return Sx4Bot.getShardManager().getGuildById(this.supportGuildId);
+		return Sx4Bot.getShardManager().getGuildById(this.getSupportGuildId());
 	}
 	
 	public long getErrorsChannelId() {
-		return this.errorsChannelId;
+		return this.get(this.getState() + ".supportGuild.channel.errorsId", 0L);
 	}
 	
 	public TextChannel getErrorsChannel() {
 		Guild guild = this.getSupportGuild();
 		
-		return guild == null ? null : guild.getTextChannelById(this.errorsChannelId);
+		return guild == null ? null : guild.getTextChannelById(this.getErrorsChannelId());
 	}
 	
 	public long getChangesChannelId() {
-		return this.changesChannelId;
+		return this.get(this.getState() + ".supportGuild.channel.changesId", 0L);
 	}
 	
 	public TextChannel getChangesChannel() {
 		Guild guild = this.getSupportGuild();
 		
-		return guild == null ? null : guild.getTextChannelById(this.changesChannelId);
+		return guild == null ? null : guild.getTextChannelById(this.getChangesChannelId());
 	}
 	
 	public long getCommandsChannelId() {
-		return this.commandsChannelId;
+		return this.get(this.getState() + ".supportGuild.channel.commandsId", 0L);
 	}
 	
 	public TextChannel getCommandsChannel() {
 		Guild guild = this.getSupportGuild();
 		
-		return guild == null ? null : guild.getTextChannelById(this.commandsChannelId);
+		return guild == null ? null : guild.getTextChannelById(this.getCommandsChannelId());
 	}
 	
 	public long getEventsChannelId() {
-		return this.eventsChannelId;
+		return this.get(this.getState() + ".supportGuild.channel.eventsId", 0L);
 	}
 	
 	public TextChannel getEventsChannel() {
 		Guild guild = this.getSupportGuild();
 		
-		return guild == null ? null : guild.getTextChannelById(this.eventsChannelId);
+		return guild == null ? null : guild.getTextChannelById(this.getEventsChannelId());
 	}
 	
 	public long getStatsChannelId() {
-		return this.statsChannelId;
+		return this.get(this.getState() + ".supportGuild.channel.statsId", 0L);
 	}
 	
 	public TextChannel getStatsChannel() {
 		Guild guild = this.getSupportGuild();
 		
-		return guild == null ? null : guild.getTextChannelById(this.statsChannelId);
+		return guild == null ? null : guild.getTextChannelById(this.getStatsChannelId());
 	}
 	
 	public long getGuildsChannelId() {
-		return this.guildsChannelId;
+		return this.get(this.getState() + ".supportGuild.channel.guildsId", 0L);
 	}
 	
 	public TextChannel getGuildsChannel() {
 		Guild guild = this.getSupportGuild();
 		
-		return guild == null ? null : guild.getTextChannelById(this.guildsChannelId);
+		return guild == null ? null : guild.getTextChannelById(this.getGuildsChannelId());
 	}
 	
 	public long getMilstonesChannelId() {
-		return this.milestonesChannelId;
+		return this.get(this.getState() + ".supportGuild.channel.milestonesId", 0L);
 	}
 	
 	public TextChannel getMilestonesChannel() {
 		Guild guild = this.getSupportGuild();
 		
-		return guild == null ? null : guild.getTextChannelById(this.milestonesChannelId);
+		return guild == null ? null : guild.getTextChannelById(this.getMilstonesChannelId());
 	}
 	
 	public long getDonatorRoleId() {
-		return this.donatorRoleId;
+		return this.get(this.getState() + ".supportGuild.role.donatorId", 0L);
 	}
 	
 	public Role getDonatorRole() {
 		Guild guild = this.getSupportGuild();
 		
-		return guild == null ? null : guild.getRoleById(this.donatorRoleId);
+		return guild == null ? null : guild.getRoleById(this.getDonatorRoleId());
 	}
 	
 	public long getEventsWebhookId() {
-		return this.eventsWebhookId;
+		return this.get(this.getState() + ".supportGuild.webhook.eventsId", 0L);
 	}
 	
 	public String getEventsWebhookToken() {
-		return this.eventsWebhookToken;
+		return this.get(this.getState() + ".supportGuild.webhook.eventsToken");
 	}
 	
 	public long getCommandsWebhookId() {
-		return this.commandsWebhookId;
+		return this.get(this.getState() + ".supportGuild.webhook.commandsId", 0L);
 	}
 	
 	public String getCommandsWebhookToken() {
-		return this.commandsWebhookToken;
+		return this.get(this.getState() + ".supportGuild.webhook.commandsToken");
 	}
 	
 	public String getCanaryDatabase() {
-		return this.canaryDatabase;
+		return this.get("canary.database", "sx4Canary");
 	}
 	
 	public String getMainDatabase() {
-		return this.mainDatabase;
+		return this.get("main.database", "sx4");
 	}
 	
 	public String getDatabase() {
-		return this.database;
+		return this.get(this.getState() + ".database");
 	}
 	
 	public String getToken() {
-		return this.token;
+		return this.get("token." + (this.isTest() ? "test" : this.isCanary() ? "canary" : "main"));
 	}
 	
 	public String getLocalHost() {
-		return this.localHost;
+		return this.get(this.getState() + ".host.localHost", "localhost");
 	}
 	
 	public String getDomain() {
-		return this.domain;
+		return this.get(this.getState() + ".host.domain");
 	}
 	
 	public int getPort() {
-		return this.port;
+		return this.get(this.getState() + ".host.port", 8080);
 	}
 	
 	public String getAdDescription() {
-		return this.adDescription;
+		return this.get(this.getState() + ".ad.description");
 	}
 	
 	public String getAdImage() {
-		return this.adImage;
+		return this.get(this.getState() + ".ad.image");
 	}
 	
 	public String getVainGlory() {
-		return this.vainGlory;
+		return this.get(this.getState() + ".token.vainGlory");
 	}
 	
 	public String getBotlistSpace() {
-		return this.botlistSpace;
+		return this.get(this.getState() + ".token.botlistSpace");
 	}
 	
 	public String getTopGG() {
-		return this.topGG;
+		return this.get(this.getState() + ".token.topGG");
 	}
 	
 	public String getDiscordBots() {
-		return this.discordBots;
+		return this.get(this.getState() + ".token.discordBots");
 	}
 	
 	public String getDBL() {
-		return this.dbl;
+		return this.get(this.getState() + ".token.dbl");
 	}
 	
 	public String getGoogle() {
-		return this.google;
+		return this.get(this.getState() + ".token.google");
 	}
 	
 	public String getSteam() {
-		return this.steam;
+		return this.get(this.getState() + ".token.steam");
 	}
 	
 	public String getOxfordDictionaries() {
-		return this.oxfordDictionaries;
+		return this.get(this.getState() + ".token.oxfordDictionaries");
 	}
 	
 	public String getCurrencyConvertor() {
-		return this.currencyConvertor;
+		return this.get(this.getState() + ".token.currencyConvertor");
 	}
 	
 	public String getIGDB() {
-		return this.igdb;
+		return this.get(this.getState() + ".token.igdb");
 	}
 	
 	public String getBitly() {
-		return this.bitly;
+		return this.get(this.getState() + ".token.bitly");
 	}
 	
 	public String getYoutube() {
-		return this.youtube;
+		return this.get(this.getState() + ".token.youtube");
 	}
 	
 	public String getMashape() {
-		return this.mashape;
+		return this.get(this.getState() + ".token.mashape");
 	}
 	
 	public String getOpenWeather() {
-		return this.openWeather;
+		return this.get(this.getState() + ".token.openWeather");
 	}
 	
 	public String getWeebsh() {
-		return this.weebsh;
+		return this.get(this.getState() + ".token.weebsh");
 	}
 	
 	public JSONObject getVoteApi() {
-		return this.voteApi;
+		return this.get(this.getState() + ".token.voteApi");
+	}
+	
+	public String getVoteApi(boolean sx4) {
+		return this.get(this.getState() + ".token.voteApi." + (sx4 ? "sx4" : "jockieMusic"));
 	}
 	
 	public int getColour() {
-		return this.colour;
+		return this.get(this.getState() + ".colour", 0);
 	}
 	
 	public int getRed() {
-		return this.red;
+		return this.get("colour.red", 16711680);
 	}
 	
 	public int getOrange() {
-		return this.orange;
+		return this.get("colour.orange", 16753920);
 	}
 	
 	public int getGreen() {
-		return this.green;
+		return this.get("colour.green", 65280);
 	}
 	
-	public void loadConfig() {
+	public JSONObject getConfig() {
 		try (FileInputStream stream = new FileInputStream(new File("config.json"))) {
-			JSONObject json = new JSONObject(new String(stream.readAllBytes()));
-			
-			JSONObject state = json.getJSONObject("state");
-			this.canary = state.getBoolean("canary");
-			this.test = state.getBoolean("test");
-			
-			JSONObject colours = json.getJSONObject("colours");
-			this.green = colours.getInt("green");
-			this.orange = colours.getInt("orange");
-			this.red = colours.getInt("red");
-			
-			JSONObject token = json.getJSONObject("token");
-			this.token = this.test ? token.getString("test") : this.canary ? token.getString("canary") : token.getString("main");
-			this.canaryId = token.getLong("canaryId");
-			this.vainGlory = token.getString("vainGlory");
-			this.topGG = token.getString("top.gg");
-			this.botlistSpace = token.getString("botlist.space");
-			this.dbl = token.getString("dbl");
-			this.discordBots = token.getString("discord.bots");
-			this.google = token.getString("google");
-			this.steam = token.getString("steam");
-			this.oxfordDictionaries = token.getString("oxfordDictionaries");
-			this.mashape = token.getString("mashape");
-			this.youtube = token.getString("youtube");
-			this.bitly = token.getString("bitly");
-			this.weebsh = token.getString("weebsh");
-			this.currencyConvertor = token.getString("currencyConvertor");
-			this.openWeather = token.getString("openWeather");
-			this.igdb = token.getString("igdb");
-			
-			this.voteApi = token.getJSONObject("voteApi");
-			
-			JSONObject bot = json.getJSONObject(this.canary ? "canary" : "main");
-			JSONObject otherBot = json.getJSONObject(this.canary ? "main" : "canary");
-			
-			this.colour = bot.getInt("colour");
-			
-			JSONObject supportGuild = bot.getJSONObject("supportGuild");
-			this.supportGuildId = supportGuild.getLong("id");
-			
-			JSONObject channel = supportGuild.getJSONObject("channel");
-			this.errorsChannelId = channel.getLong("errorsId");
-			this.changesChannelId = channel.getLong("changesId");
-			this.commandsChannelId = channel.getLong("commandsId");
-			this.eventsChannelId = channel.getLong("eventsId");
-			this.statsChannelId = channel.getLong("statsId");
-			this.guildsChannelId = channel.getLong("guildsId");
-			this.milestonesChannelId = channel.getLong("milestonesId");
-			
-			JSONObject role = supportGuild.getJSONObject("role");
-			this.donatorRoleId = role.getLong("donatorId");
-			
-			JSONObject webhook = supportGuild.getJSONObject("webhook");
-			this.eventsWebhookId = webhook.getLong("eventsId");
-			this.eventsWebhookToken = webhook.getString("eventsToken");
-			this.commandsWebhookId = webhook.getLong("commandsId");
-			this.commandsWebhookToken = webhook.getString("commandsToken");
-			
-			this.database = bot.getString("database");
-			this.canaryDatabase = this.canary ? bot.getString("database") : otherBot.getString("database");
-			this.mainDatabase = !this.canary ? bot.getString("database") : otherBot.getString("database");
-			
-			JSONObject ad = bot.getJSONObject("ad");
-			this.adDescription = ad.isNull("description") ? null : ad.getString("description");
-			this.adImage = ad.isNull("image") ? null : ad.getString("image");
-			
-			JSONObject host = bot.getJSONObject("host");
-			this.localHost = host.getString("localHost");
-			this.domain = host.getString("domain");
-			this.port = host.getInt("port");
+			return new JSONObject(new String(stream.readAllBytes()));
 		} catch (IOException e) {
 			e.printStackTrace();
+			return null;
 		}
 	}
 	

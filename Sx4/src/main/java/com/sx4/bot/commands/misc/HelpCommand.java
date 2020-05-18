@@ -43,8 +43,14 @@ public class HelpCommand extends Sx4Command {
 			String image = Config.get().getAdImage();
 			String description = Config.get().getAdDescription();
 			
-			PagedResult<Sx4Category> paged = new PagedResult<>(Arrays.asList(Category.ALL_ARRAY))
-					.setPerPage(Category.ALL_ARRAY.length)
+			List<Sx4Category> categories = Arrays.stream(Category.ALL_ARRAY)
+				.filter(category -> !category.getCommands(event.isAuthorDeveloper()).isEmpty())
+				.collect(Collectors.toList());
+			
+			System.out.println(categories);
+			
+			PagedResult<Sx4Category> paged = new PagedResult<>(categories)
+					.setPerPage(categories.size())
 					.setSelect(SelectType.OBJECT)
 					.setSelectablePredicate((content, category) -> category.getName().equalsIgnoreCase(content) || Arrays.stream(category.getAliases()).anyMatch(content::equalsIgnoreCase))
 					.setCustomFunction(page -> {
@@ -55,7 +61,7 @@ public class HelpCommand extends Sx4Command {
 						embedBuilder.setFooter(event.getPrefix() + "help <module> or respond below with a name of a module", event.getAuthor().getEffectiveAvatarUrl());
 						embedBuilder.setDescription("All commands are put in a set category also known as a module, use `" + event.getPrefix() + "help <module>` on the module of your choice, The bot will then "
 						+ "list all the commands in that module. If you need further help feel free to join the [support server](https://discord.gg/PqJNcfB).");
-						embedBuilder.addField("Modules", "`" + Arrays.stream(Category.ALL_ARRAY).map(Sx4Category::getName).collect(Collectors.joining("`, `")) + "`", false);
+						embedBuilder.addField("Modules", "`" + categories.stream().map(Sx4Category::getName).collect(Collectors.joining("`, `")) + "`", false);
 						embedBuilder.addField("Sponsor", description == null ? this.defaultDescription : description, false);
 						embedBuilder.setImage(image == null ? this.defaultImage : image);
 						
@@ -65,7 +71,7 @@ public class HelpCommand extends Sx4Command {
 			paged.onSelect(select -> {
 				Sx4Category category = select.getSelected();
 				
-				List<Sx4Command> categoryCommands = category.getCommands().stream()
+				List<Sx4Command> categoryCommands = category.getCommands(event.isAuthorDeveloper()).stream()
 						.map(Sx4Command.class::cast)
 						.sorted((a, b) -> a.getCommandTrigger().compareTo(b.getCommandTrigger()))
 						.collect(Collectors.toList());
@@ -84,7 +90,7 @@ public class HelpCommand extends Sx4Command {
 			List<Sx4Command> commands = SearchUtility.getCommands(commandName, event.isAuthorDeveloper());
 			
 			if (category != null) {
-				List<Sx4Command> categoryCommands = category.getCommands().stream()
+				List<Sx4Command> categoryCommands = category.getCommands(event.isAuthorDeveloper()).stream()
 						.map(Sx4Command.class::cast)
 						.sorted((a, b) -> a.getCommandTrigger().compareTo(b.getCommandTrigger()))
 						.collect(Collectors.toList());

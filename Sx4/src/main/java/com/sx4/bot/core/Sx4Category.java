@@ -1,8 +1,8 @@
 package com.sx4.bot.core;
 
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import com.jockie.bot.core.category.ICategory;
 import com.jockie.bot.core.category.impl.CategoryImpl;
@@ -41,7 +41,14 @@ public class Sx4Category extends CategoryImpl {
 	}
 	
 	public Set<ICommand> getCommands() {
-		return Collections.unmodifiableSet(this.commands);
+		return this.getCommands(false);
+	}
+	
+	public Set<ICommand> getCommands(boolean includeDeveloper) {
+		return this.commands
+			.stream()
+			.filter(command -> !(!includeDeveloper && command.isDeveloperCommand()))
+			.collect(Collectors.toUnmodifiableSet());
 	}
 	
 }
