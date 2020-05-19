@@ -1,5 +1,7 @@
 package com.sx4.bot.commands.notifications;
 
+import com.jockie.bot.core.command.Command;
+import com.sx4.bot.annotations.command.Redirects;
 import com.sx4.bot.category.Category;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
@@ -16,6 +18,12 @@ public class ReminderCommand extends Sx4Command {
 	
 	public void onCommand(Sx4CommandEvent event) {
 		
+	}
+	
+	@Command(value="list", description="Get a list of your current active reminders")
+	@Redirects({"reminders"})
+	public void list(Sx4CommandEvent event) {
+		event.reply("testing").queue();
 	}
 
 }

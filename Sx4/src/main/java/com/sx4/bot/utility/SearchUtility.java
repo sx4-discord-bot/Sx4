@@ -457,37 +457,47 @@ public class SearchUtility {
 		query = caseSensitive ? query.trim() : query.toLowerCase().trim();
 		
 		List<Sx4Command> commands = new ArrayList<>();
-		for (ICommand commandObject : Sx4Bot.getCommandListener().getAllCommands(includeDeveloper, false)) {
+		Command : for (ICommand commandObject : Sx4Bot.getCommandListener().getAllCommands(includeDeveloper, false)) {
 			Sx4Command command = (Sx4Command) commandObject;
+			
 			String commandTrigger = caseSensitive ? command.getCommandTrigger() : command.getCommandTrigger().toLowerCase();
 			if (commandTrigger.equals(query)) {
 				commands.add(command);
-			} else {
-				List<String> allAliases = new ArrayList<>();
-				ICommand parent = command;
-				List<String> parentAliases = new ArrayList<>(parent.getAliases());
-				parentAliases.add(parent.getCommand());
-				for (String alias : parentAliases) {
-					allAliases.add(alias);
+				continue;
+			}
+			
+			for (String redirect : command.getRedirects()) {
+				if ((caseSensitive ? redirect : redirect.toLowerCase()).equals(query)) {
+					commands.add(command);
+					continue Command;
 				}
-				
-				while (parent.hasParent()) {
-					parent = parent.getParent();
-					List<String> continuousParentAliases = new ArrayList<>(parent.getAliases());
-					continuousParentAliases.add(parent.getCommand());
-					for (String aliases : new ArrayList<>(allAliases)) {
-						for (String alias : continuousParentAliases) {
-							allAliases.remove(aliases);
-							allAliases.add(alias + " " + aliases);
-						}
+			}
+			
+			List<String> allAliases = new ArrayList<>();
+			ICommand parent = command;
+			List<String> parentAliases = new ArrayList<>(parent.getAliases());
+			parentAliases.add(parent.getCommand());
+			for (String alias : parentAliases) {
+				allAliases.add(alias);
+			}
+			
+			while (parent.hasParent()) {
+				parent = parent.getParent();
+				List<String> continuousParentAliases = new ArrayList<>(parent.getAliases());
+				continuousParentAliases.add(parent.getCommand());
+				for (String aliases : new ArrayList<>(allAliases)) {
+					for (String alias : continuousParentAliases) {
+						allAliases.remove(aliases);
+						allAliases.add(alias + " " + aliases);
 					}
 				}
-				
-				for (String commandAlias : allAliases) {
-					commandAlias = caseSensitive ? commandAlias : commandAlias.toLowerCase();
-					if (query.equals(commandAlias)) {
-						commands.add(command);
-					}
+			}
+			
+			for (String commandAlias : allAliases) {
+				commandAlias = caseSensitive ? commandAlias : commandAlias.toLowerCase();
+				if (query.equals(commandAlias)) {
+					commands.add(command);
+					continue Command;
 				}
 			}
 		}

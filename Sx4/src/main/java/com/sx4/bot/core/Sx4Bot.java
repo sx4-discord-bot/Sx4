@@ -203,7 +203,6 @@ public class Sx4Bot {
 			});
 				
 		InterfacedEventManager eventManager = new InterfacedEventManager();
-		
 		eventManager.register(Sx4Bot.commandListener);
 		eventManager.register(new PagedHandler());
 		eventManager.register(GuildMessageCache.INSTANCE);

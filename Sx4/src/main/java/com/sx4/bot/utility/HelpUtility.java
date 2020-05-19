@@ -53,6 +53,10 @@ public class HelpUtility {
 				embedBuilder.addField("Aliases", String.join(", ", command.getAliases()), false);
 			}
 			
+			if (command.getRedirects().length != 0) {
+				embedBuilder.addField("Redirects", "`" + String.join("`, `", command.getRedirects()) + "`", false);
+			}
+			
 			if (!command.getSubCommands().isEmpty()) {
 				embedBuilder.addField("Sub Commands", command.getSubCommands().stream().map(ICommand::getCommand).collect(Collectors.joining(", ")), false);
 			}
@@ -76,8 +80,16 @@ public class HelpUtility {
 			
 			if (command.isDeveloperCommand()) {
 				stringBuilder.append(String.format(placeHolder, "Required Permissions", "Developer"));
-			}else if (!command.getAuthorDiscordPermissions().isEmpty()) {
+			} else if (!command.getAuthorDiscordPermissions().isEmpty()) {
 				stringBuilder.append(String.format(placeHolder, "Required Permissions", command.getAuthorDiscordPermissions().stream().map(Permission::getName).collect(Collectors.joining(", "))));
+			}
+			
+			if (!command.getAliases().isEmpty()) {
+				stringBuilder.append(String.format(placeHolder, "Aliases", String.join(", ", command.getAliases())));
+			}
+			
+			if (command.getRedirects().length != 0) {
+				stringBuilder.append(String.format(placeHolder, "Redirects", "`" + String.join("`, `", command.getRedirects()) + "`"));
 			}
 			
 			if (!command.getSubCommands().isEmpty()) {

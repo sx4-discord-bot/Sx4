@@ -1,13 +1,19 @@
 package com.sx4.bot.core;
 
 import java.lang.reflect.Method;
+import java.util.List;
+import java.util.stream.Collectors;
 
 import com.jockie.bot.core.category.ICategory;
+import com.jockie.bot.core.command.CommandTrigger;
+import com.jockie.bot.core.command.ICommand;
 import com.jockie.bot.core.command.impl.AbstractCommand;
 import com.jockie.bot.core.command.impl.CommandImpl;
+import com.jockie.bot.core.command.impl.DummyCommand;
 import com.sx4.bot.annotations.command.Canary;
 import com.sx4.bot.annotations.command.Donator;
 import com.sx4.bot.annotations.command.Examples;
+import com.sx4.bot.annotations.command.Redirects;
 import com.sx4.bot.config.Config;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.managers.ModActionManager;
@@ -15,6 +21,7 @@ import com.sx4.bot.managers.MuteManager;
 import com.sx4.bot.managers.TempBanManager;
 import com.sx4.bot.managers.YouTubeManager;
 
+import net.dv8tion.jda.api.entities.Message;
 import okhttp3.OkHttpClient;
 
 public class Sx4Command extends CommandImpl {
@@ -33,6 +40,7 @@ public class Sx4Command extends CommandImpl {
 	protected boolean donator = false;
 	
 	protected String[] examples = {};
+	protected String[] redirects = {};
 	
 	protected boolean disabled = false;
 	protected String disabledMessage = null;
@@ -87,6 +95,16 @@ public class Sx4Command extends CommandImpl {
 		return this.disabledMessage;
 	}
 	
+	public String[] getRedirects() {
+		return this.redirects;
+	}
+	
+	public Sx4Command setRedirects(String... redirects) {
+		this.redirects = redirects;
+		
+		return this;
+	}
+	
 	public String[] getExamples() {
 		return this.examples;
 	}
@@ -105,6 +123,29 @@ public class Sx4Command extends CommandImpl {
 		this.donator = donator;
 		
 		return this;
+	}
+	
+	public List<CommandTrigger> getAllCommandsRecursiveWithTriggers(Message message, String prefix) {
+	    List<CommandTrigger> commands = super.getAllCommandsRecursiveWithTriggers(message, prefix);
+	    
+	    if (this.redirects.length != 0) {
+	        List<ICommand> dummyCommands = commands.stream()
+	            .map(CommandTrigger::getCommand)
+	            .filter(command -> command instanceof DummyCommand)
+	            .map(DummyCommand.class::cast)
+	            .filter(command -> command.getActualCommand().equals(this))
+	            .collect(Collectors.toList());
+	        
+	        for (String redirect : this.redirects) {
+	            commands.add(new CommandTrigger(redirect, this));
+	            
+	            for (ICommand command : dummyCommands) {
+	                commands.add(new CommandTrigger(redirect, command));
+	            }
+	        }
+	    }
+	    
+	    return commands;
 	}
 	
 	public AbstractCommand setCategory(ICategory category) {
@@ -149,6 +190,10 @@ public class Sx4Command extends CommandImpl {
 			
 			if (this.method.isAnnotationPresent(Canary.class)) {
 				this.canaryCommand = this.method.getAnnotation(Canary.class).value();
+			}
+			
+			if (this.method.isAnnotationPresent(Redirects.class)) {
+				this.redirects = this.method.getAnnotation(Redirects.class).value();
 			}
 		}
 	}
