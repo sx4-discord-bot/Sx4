@@ -40,8 +40,6 @@ public class ModActionManager {
 	
 	public void onModAction(ModActionEvent event) {
 		for (ModActionListener listener : this.listeners) {
-			System.out.println("hi");
-			
 			listener.onAction(event);
 			
 			if (event instanceof BanEvent) {

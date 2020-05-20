@@ -2,6 +2,7 @@ package com.sx4.bot.database;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.BiConsumer;
 
 import org.bson.Document;
 import org.bson.conversions.Bson;
@@ -28,8 +29,21 @@ import com.mongodb.client.result.InsertOneResult;
 import com.mongodb.client.result.UpdateResult;
 import com.sx4.bot.config.Config;
 import com.sx4.bot.handlers.DatabaseHandler;
+import com.sx4.bot.utility.ExceptionUtility;
 
 public class Database {
+	
+	public static final BiConsumer<BulkWriteResult, Throwable> DEFAULT_BULK_HANDLER = (result, exception) -> {
+		if (exception != null) {
+			ExceptionUtility.sendErrorMessage(exception);
+		}
+	};
+	
+	public static final BiConsumer<UpdateResult, Throwable> DEFAULT_UPDATE_HANDLER = (result, exception) -> {
+		if (exception != null) {
+			ExceptionUtility.sendErrorMessage(exception);
+		}
+	};
 	
 	public static final Document EMPTY_DOCUMENT = new Document();
 
@@ -108,6 +122,10 @@ public class Database {
 		return this.users;
 	}
 	
+	public FindIterable<Document> getUsers(Bson filter, Bson projection) {
+		return this.users.find(filter).projection(projection);
+	}
+	
 	public long countUserDocuments(Bson filter) {
 		return this.users.countDocuments(filter);
 	}
@@ -145,6 +163,33 @@ public class Database {
 	
 	public CompletableFuture<UpdateResult> updateUserById(long userId, Bson update) {
 		return this.updateUserById(userId, update, this.updateOptions);
+	}
+	
+	public CompletableFuture<UpdateResult> updateUserById(UpdateOneModel<Document> update) {
+		return CompletableFuture.supplyAsync(() -> this.users.updateOne(update.getFilter(), update.getUpdate(), update.getOptions()));
+	}
+	
+	public CompletableFuture<Document> findAndUpdateUserById(long userId, Bson filter, Bson update, FindOneAndUpdateOptions options) {
+		Bson dbFilter;
+		if (filter == null) {
+			dbFilter = Filters.eq("_id", userId);
+		} else {
+			dbFilter = Filters.and(Filters.eq("_id", userId), filter);
+		}
+		
+		return CompletableFuture.supplyAsync(() -> this.users.findOneAndUpdate(dbFilter, update, options));
+	}
+	
+	public CompletableFuture<Document> findAndUpdateUserById(long userId, Bson update, FindOneAndUpdateOptions options) {
+		return this.findAndUpdateUserById(userId, null, update, options);
+	}
+	
+	public CompletableFuture<Document> findAndUpdateUserById(long userId, Bson filter, Bson projection, Bson update) {
+		return this.findAndUpdateUserById(userId, filter, update, this.findOneAndUpdateOptions.projection(projection));
+	}
+	
+	public CompletableFuture<Document> findAndUpdateUserById(long userId, Bson projection, Bson update) {
+		return this.findAndUpdateUserById(userId, null, update, this.findOneAndUpdateOptions.projection(projection));
 	}
 	
 	public CompletableFuture<Document> findAndUpdateUserById(long userId, Bson filter, List<? extends Bson> update, FindOneAndUpdateOptions options) {

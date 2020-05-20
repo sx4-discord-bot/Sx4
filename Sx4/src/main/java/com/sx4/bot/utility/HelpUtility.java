@@ -54,7 +54,7 @@ public class HelpUtility {
 			}
 			
 			if (command.getRedirects().length != 0) {
-				embedBuilder.addField("Redirects", "`" + String.join("`, `", command.getRedirects()) + "`", false);
+				embedBuilder.addField("Redirects", String.join(", ", command.getRedirects()), false);
 			}
 			
 			if (!command.getSubCommands().isEmpty()) {
@@ -89,7 +89,7 @@ public class HelpUtility {
 			}
 			
 			if (command.getRedirects().length != 0) {
-				stringBuilder.append(String.format(placeHolder, "Redirects", "`" + String.join("`, `", command.getRedirects()) + "`"));
+				stringBuilder.append(String.format(placeHolder, "Redirects", String.join(", ", command.getRedirects())));
 			}
 			
 			if (!command.getSubCommands().isEmpty()) {

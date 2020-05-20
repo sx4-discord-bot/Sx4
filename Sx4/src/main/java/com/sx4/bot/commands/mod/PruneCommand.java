@@ -12,6 +12,7 @@ import com.jockie.bot.core.command.Command.BotPermissions;
 import com.sx4.bot.annotations.argument.DefaultInt;
 import com.sx4.bot.annotations.argument.Limit;
 import com.sx4.bot.annotations.command.Examples;
+import com.sx4.bot.annotations.command.Redirects;
 import com.sx4.bot.category.Category;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
@@ -62,6 +63,7 @@ public class PruneCommand extends Sx4Command {
 	}
 	
 	@Command(value="bots", aliases={"bot"}, description="Prunes a set amount of messages sent by bots")
+	@Redirects({"bc", "bot clean", "botclean"})
 	@Examples({"prune bots", "prune bots 10"})
 	@AuthorPermissions({Permission.MESSAGE_MANAGE})
 	@BotPermissions({Permission.MESSAGE_MANAGE, Permission.MESSAGE_HISTORY})
@@ -78,7 +80,7 @@ public class PruneCommand extends Sx4Command {
 	}
 	
 	@Command(value="mentions", aliases={"mention"}, description="Prunes a set amount of messages which contain mentions")
-	@Examples({"prune mantions", "prune mentions 10", "prune mentions USER CHANNEL"})
+	@Examples({"prune mentions", "prune mentions 10", "prune mentions USER CHANNEL"})
 	@AuthorPermissions({Permission.MESSAGE_MANAGE})
 	@BotPermissions({Permission.MESSAGE_MANAGE, Permission.MESSAGE_HISTORY})
 	public void mentions(Sx4CommandEvent event, @Argument(value="amount") @Limit(min=1, max=100) @DefaultInt(100) int amount, @Argument(value="mentions") @Endless(minArguments=0) MentionType... mentions) {

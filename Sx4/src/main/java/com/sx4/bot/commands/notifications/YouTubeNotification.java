@@ -63,7 +63,7 @@ public class YouTubeNotification extends Sx4Command {
 	@Examples({"youtube notification add videos mrbeast", "youtube notification add #videos pewdiepie"})
 	public void add(Sx4CommandEvent event, @Argument(value="channel") TextChannel channel, @Argument(value="youtube channel", endless=true) String youtubeChannelArgument) {
 		Request channelRequest = new Request.Builder()
-				.url("https://www.googleapis.com/youtube/v3/search?key=" + this.config.getYoutube() + "&q=" + URLEncoder.encode(youtubeChannelArgument, StandardCharsets.UTF_8) + "&part=id&type=channel&maxResults=50")
+				.url("https://www.googleapis.com/youtube/v3/search?key=" + this.config.getYoutube() + "&q=" + URLEncoder.encode(youtubeChannelArgument, StandardCharsets.UTF_8) + "&part=id&type=channel&maxResults=1")
 				.build();
 		
 		this.client.newCall(channelRequest).enqueue((HttpCallback) channelResponse -> {

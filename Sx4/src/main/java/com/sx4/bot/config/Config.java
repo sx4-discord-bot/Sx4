@@ -225,71 +225,71 @@ public class Config {
 	}
 	
 	public String getVainGlory() {
-		return this.get(this.getState() + ".token.vainGlory");
+		return this.get("token.vainGlory");
 	}
 	
 	public String getBotlistSpace() {
-		return this.get(this.getState() + ".token.botlistSpace");
+		return this.get("token.botlistSpace");
 	}
 	
 	public String getTopGG() {
-		return this.get(this.getState() + ".token.topGG");
+		return this.get("token.topGG");
 	}
 	
 	public String getDiscordBots() {
-		return this.get(this.getState() + ".token.discordBots");
+		return this.get("token.discordBots");
 	}
 	
 	public String getDBL() {
-		return this.get(this.getState() + ".token.dbl");
+		return this.get("token.dbl");
 	}
 	
 	public String getGoogle() {
-		return this.get(this.getState() + ".token.google");
+		return this.get("token.google");
 	}
 	
 	public String getSteam() {
-		return this.get(this.getState() + ".token.steam");
+		return this.get("token.steam");
 	}
 	
 	public String getOxfordDictionaries() {
-		return this.get(this.getState() + ".token.oxfordDictionaries");
+		return this.get("token.oxfordDictionaries");
 	}
 	
 	public String getCurrencyConvertor() {
-		return this.get(this.getState() + ".token.currencyConvertor");
+		return this.get("token.currencyConvertor");
 	}
 	
 	public String getIGDB() {
-		return this.get(this.getState() + ".token.igdb");
+		return this.get("token.igdb");
 	}
 	
 	public String getBitly() {
-		return this.get(this.getState() + ".token.bitly");
+		return this.get("token.bitly");
 	}
 	
 	public String getYoutube() {
-		return this.get(this.getState() + ".token.youtube");
+		return this.get("token.youtube");
 	}
 	
 	public String getMashape() {
-		return this.get(this.getState() + ".token.mashape");
+		return this.get("token.mashape");
 	}
 	
 	public String getOpenWeather() {
-		return this.get(this.getState() + ".token.openWeather");
+		return this.get("token.openWeather");
 	}
 	
 	public String getWeebsh() {
-		return this.get(this.getState() + ".token.weebsh");
+		return this.get("token.weebsh");
 	}
 	
 	public JSONObject getVoteApi() {
-		return this.get(this.getState() + ".token.voteApi");
+		return this.get("token.voteApi");
 	}
 	
 	public String getVoteApi(boolean sx4) {
-		return this.get(this.getState() + ".token.voteApi." + (sx4 ? "sx4" : "jockieMusic"));
+		return this.get("token.voteApi." + (sx4 ? "sx4" : "jockieMusic"));
 	}
 	
 	public int getColour() {

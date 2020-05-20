@@ -18,6 +18,7 @@ import com.sx4.bot.config.Config;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.managers.ModActionManager;
 import com.sx4.bot.managers.MuteManager;
+import com.sx4.bot.managers.ReminderManager;
 import com.sx4.bot.managers.TempBanManager;
 import com.sx4.bot.managers.YouTubeManager;
 
@@ -30,6 +31,7 @@ public class Sx4Command extends CommandImpl {
 	public final ModActionManager modManager = Sx4Bot.getModActionManager();
 	public final MuteManager muteManager = MuteManager.get();
 	public final TempBanManager banManager = TempBanManager.get();
+	public final ReminderManager reminderManager = ReminderManager.get();
 	
 	public final OkHttpClient client = Sx4Bot.getClient();
 	

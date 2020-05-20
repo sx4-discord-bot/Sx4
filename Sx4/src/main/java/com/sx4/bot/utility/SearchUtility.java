@@ -36,7 +36,6 @@ public class SearchUtility {
 	
 	private static final List<String> SUPPORTED_TYPES = List.of("png", "jpg", "gif", "webp", "jpeg");
 	
-	private static final Pattern MESSAGE_JUMP = Pattern.compile("https?://(?:(?:ptb|canary).)?discordapp.com/channels/(\\d+)/(\\d+)/(\\d+)/?", Pattern.CASE_INSENSITIVE);
 	private static final Pattern USER_MENTION = MentionType.USER.getPattern();
 	private static final Pattern USER_TAG = Pattern.compile("(.{2,32})#(\\d{4})");
 	private static final Pattern CHANNEL_MENTION = MentionType.CHANNEL.getPattern();
@@ -95,6 +94,9 @@ public class SearchUtility {
 		if (mentionMatch.matches()) {
 			try {
 				Emote emote = Sx4Bot.getShardManager().getEmoteById(mentionMatch.group(2));
+				if (emote == null) {
+					return null;
+				}
 				
 				return ReactionEmote.fromCustom(emote);
 			} catch (NumberFormatException e) {
@@ -102,7 +104,12 @@ public class SearchUtility {
 			}
 		} else if (NumberUtility.isNumberUnsigned(query)) {
 			try {
-				return ReactionEmote.fromCustom(Sx4Bot.getShardManager().getEmoteById(query));
+				Emote emote = Sx4Bot.getShardManager().getEmoteById(query);
+				if (emote == null) {
+					return null;
+				}
+				
+				return ReactionEmote.fromCustom(emote);
 			} catch (NumberFormatException e) {
 				return null;
 			}
@@ -119,7 +126,7 @@ public class SearchUtility {
 	}
 	
 	public static RestAction<Message> getMessageAction(TextChannel channel, String query) {
-		Matcher jumpMatch = SearchUtility.MESSAGE_JUMP.matcher(query);
+		Matcher jumpMatch = Message.JUMP_URL_PATTERN.matcher(query);
 		if (jumpMatch.matches()) {
 			try {
 				Guild guild = Sx4Bot.getShardManager().getGuildById(jumpMatch.group(1));
