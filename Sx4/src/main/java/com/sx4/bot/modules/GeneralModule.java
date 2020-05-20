@@ -10,6 +10,7 @@ import java.time.temporal.ChronoUnit;
 import java.time.zone.ZoneRulesException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -97,6 +98,7 @@ import net.dv8tion.jda.api.entities.RichPresence;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.entities.User.UserFlag;
 import net.dv8tion.jda.api.entities.VoiceChannel;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
@@ -2301,6 +2303,45 @@ public class GeneralModule {
 		statuses.put(OnlineStatus.OFFLINE, "Offline<:offline:361445086275567626>");
 	}
 	
+	private String getBadges(EnumSet<UserFlag> flags) {
+		StringBuilder description = new StringBuilder();
+		for (UserFlag flag : flags) {
+			switch (flag) {
+				case HYPESQUAD_BRILLIANCE:
+					description.append("<:brilliance:585763004495298575>");
+					break;
+				case HYPESQUAD_BRAVERY:
+					description.append("<:bravery:585763004218343426>");
+					break;
+				case HYPESQUAD_BALANCE:
+					description.append("<:balance:585763004574859273>");
+					break;
+				case VERIFIED_DEVELOPER:
+					description.append("<:verified:712714152287928333>");
+					break;
+				case EARLY_SUPPORTER:
+					description.append("<:supporter:585763690868113455>");
+					break;
+				case STAFF:
+					description.append("<:staff_badge:712717245058646146>");
+					break;
+				case HYPESQUAD:
+					description.append("<:hypesquad_events:585765895939424258>");
+					break;
+				case PARTNER:
+					description.append("<:partner:314068430556758017>");
+					break;
+				case BUG_HUNTER_LEVEL_1:
+					description.append("<:bughunter:585765206769139723>");
+					break;
+				default:
+					break;
+			}
+		}
+		
+		return description.toString();
+	}
+	
 	@Command(value="user info", aliases={"userinfo", "ui", "uinfo"}, description="Returns info about a specified user")
 	@Examples({"user info", "user info @Shea#6653", "user info 402557516728369153", "user info Shea"})
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
@@ -2318,6 +2359,7 @@ public class GeneralModule {
 						return;
 					}
 					
+					embed.setDescription(this.getBadges(user.getFlags()));
 					embed.setAuthor(user.getAsTag(), null, user.getEffectiveAvatarUrl());
 					embed.setThumbnail(user.getEffectiveAvatarUrl());
 					embed.addField("User ID", user.getId(), true);
@@ -2359,6 +2401,11 @@ public class GeneralModule {
 				}
 				
 				break;
+			}
+			
+			EnumSet<UserFlag> flags = member.getUser().getFlags();
+			if (!flags.isEmpty()) {
+				description.append("\n" + this.getBadges(flags));
 			}
 			
 			StringBuilder onlineOn = new StringBuilder();
