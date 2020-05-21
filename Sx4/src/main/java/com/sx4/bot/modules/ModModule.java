@@ -1,8 +1,6 @@
 package com.sx4.bot.modules;
 
 import java.awt.Color;
-import java.io.IOException;
-import java.net.URL;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -26,7 +24,6 @@ import org.bson.conversions.Bson;
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.category.impl.CategoryImpl;
 import com.jockie.bot.core.command.Command;
-import com.jockie.bot.core.command.Command.Async;
 import com.jockie.bot.core.command.Command.AuthorPermissions;
 import com.jockie.bot.core.command.Command.BotPermissions;
 import com.jockie.bot.core.command.Context;
@@ -50,6 +47,7 @@ import com.sx4.bot.core.Sx4CommandEventListener;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.events.MuteEvents;
 import com.sx4.bot.interfaces.Examples;
+import com.sx4.bot.interfaces.Sx4Callback;
 import com.sx4.bot.utils.ArgumentUtils;
 import com.sx4.bot.utils.FunUtils;
 import com.sx4.bot.utils.GeneralUtils;
@@ -83,16 +81,28 @@ import net.dv8tion.jda.api.entities.VoiceChannel;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.requests.ErrorResponse;
 import okhttp3.Request;
-import okhttp3.Response;
 
 @Module
 public class ModModule {
+	
+	private void createEmoteRequest(CommandEvent event, Request request, String name) {
+		Sx4Bot.client.newCall(request).enqueue((Sx4Callback) response -> {
+			event.getGuild().createEmote(name, Icon.from(response.body().bytes())).queue(e -> {
+				event.reply(e.getAsMention() + " has been created <:done:403285928233402378>").queue();
+			}, e -> {
+				if (e instanceof ErrorResponseException) {
+					if (((ErrorResponseException) e).getErrorCode() == 400) {
+						event.reply("The emote cannot be any larger than 256KB :no_entry:").queue();
+					}
+				}
+			});
+		});
+	}
 
 	@Command(value="create emote", aliases={"createemote", "create emoji", "createemoji"}, description="Allows you to create an emote in your server by providing an emote name/id/mention, attachment or image url", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 	@Examples({"create emote", "create emote https://i.imgur.com/i87lyNO.png", "create emote :doggo:"})
 	@AuthorPermissions({Permission.MANAGE_EMOTES})
 	@BotPermissions({Permission.MANAGE_EMOTES})
-	@Async
 	public void createEmote(CommandEvent event, @Argument(value="emote | image", nullDefault=true) String argument) {
 		long animatedEmotes = event.getGuild().getEmoteCache().stream().filter(Emote::isAnimated).count();
 		long nonAnimatedEmotes = event.getGuild().getEmoteCache().stream().filter(Predicate.not(Emote::isAnimated)).count();
@@ -101,32 +111,30 @@ public class ModModule {
 		if (argument != null) {
 			Emote emote = ArgumentUtils.getEmote(event.getGuild(), argument);
 			if (emote != null) {
-				try {
-					if ((emote.isAnimated() && animatedEmotes >= maxEmotes) || (!emote.isAnimated() && nonAnimatedEmotes >= maxEmotes)) {
-						event.reply("You already have the max" + (emote.isAnimated() ? "" : " non") + " animated emotes on this server :no_entry:").queue();
-						return;
-					}
-					
-					event.getGuild().createEmote(emote.getName(), Icon.from(new URL(emote.getImageUrl()).openStream())).queue(e -> {
-						event.reply(e.getAsMention() + " has been created <:done:403285928233402378>").queue();
-					});
-				} catch (IOException e) {
-					event.reply("Oops something went wrong there, try again :no_entry:").queue();
+				if ((emote.isAnimated() && animatedEmotes >= maxEmotes) || (!emote.isAnimated() && nonAnimatedEmotes >= maxEmotes)) {
+					event.reply("You already have the max" + (emote.isAnimated() ? "" : " non") + " animated emotes on this server :no_entry:").queue();
 					return;
-				} 
+				}
+				
+				Request request = new Request.Builder()
+					.url(emote.getImageUrl())
+					.build();
+				
+				this.createEmoteRequest(event, request, emote.getName());
 			} else {
 				Matcher emoteMention = MentionType.EMOTE.getPattern().matcher(argument);
 				String url = null, name = null;
 				Request request;
-				String id = null;
+				String id;
 				Boolean animated = null;
-				if (!event.getMessage().getAttachments().isEmpty()) {	
+				if (!event.getMessage().getAttachments().isEmpty()) {
+					id = null;
 					for (Attachment attachment : event.getMessage().getAttachments()) {
 						if (attachment.isImage()) {
 							url = attachment.getUrl();
-							name = attachment.getFileName().replace("-", "_").replace(" ", "_");
-							int periodIndex = name.lastIndexOf(".");
-							name = name.substring(0, periodIndex);
+							String fileName = attachment.getFileName().replace("-", "_").replace(" ", "_");
+							int periodIndex = fileName.lastIndexOf(".");
+							name = fileName.substring(0, periodIndex);
 							break;
 						}
 					}
@@ -144,36 +152,42 @@ public class ModModule {
 						return;
 					}
 					
-					try {
-						try (Response response = Sx4Bot.client.newCall(request).execute()) {
-							if (response.code() == 200) {
-								String type;
-								if (response.header("Content-Type") != null && response.header("Content-Type").contains("/")) {
-									type = response.header("Content-Type").split("/")[1];
-								} else {
-									event.reply("The url you provided wasn't an image or a gif :no_entry:").queue();
-									return;
-								}
-								
-								if (type.equals("gif")) {
-									url = argument;
-									animated = true;
-								} else if (type.equals("png") || type.equals("jpg") || type.equals("jpeg")) {
-									url = argument;
-									animated = false;
-								} else {
-									event.reply("The url you provided wasn't an image or a gif :no_entry:").queue();
-									return;
-								}
+					Sx4Bot.client.newCall(request).enqueue((Sx4Callback) response -> {
+						if (response.code() == 200) {
+							String type;
+							if (response.header("Content-Type") != null && response.header("Content-Type").contains("/")) {
+								type = response.header("Content-Type").split("/")[1];
 							} else {
-								event.reply("The url you provided was invalid :no_entry:").queue();
+								event.reply("The url you provided wasn't an image or a gif :no_entry:").queue();
 								return;
 							}
+							
+							boolean animatedRequest;
+							String urlRequest;
+							if (type.equals("gif")) {
+								urlRequest = argument;
+								animatedRequest = true;
+							} else if (type.equals("png") || type.equals("jpg") || type.equals("jpeg")) {
+								urlRequest = argument;
+								animatedRequest = false;
+							} else {
+								event.reply("The url you provided wasn't an image or a gif :no_entry:").queue();
+								return;
+							}
+							
+							if ((animatedRequest && animatedEmotes >= maxEmotes) || (!animatedRequest && nonAnimatedEmotes >= maxEmotes)) {
+								event.reply("You already have the max" + (animatedRequest ? "" : " non") + " animated emotes on this server :no_entry:").queue();
+								return;
+							}
+							
+							this.createEmoteRequest(event, new Request.Builder().url(urlRequest).build(), "Unnamed_Emote");
+						} else {
+							event.reply("The url you provided was invalid :no_entry:").queue();
+							return;
 						}
-					} catch (IOException e) {
-						event.reply("Oops something went wrong there, try again :no_entry:").queue();
-						return;
-					}
+					});
+					
+					return;
 				}
 				
 				if (id != null && animated != null) {
@@ -182,26 +196,34 @@ public class ModModule {
 					try {
 						request = new Request.Builder().url("https://cdn.discordapp.com/emojis/" + id + ".gif").build();
 					} catch(IllegalArgumentException e) {
-						event.reply("You didn't provide a valid url :no_entry:").queue();
+						event.reply("You didn't provide a valid emote id :no_entry:").queue();
 						return;
 					}
-					try {
-						try (Response response = Sx4Bot.client.newCall(request).execute()) {
-							if (response.code() == 415) {
-								url = "https://cdn.discordapp.com/emojis/" + id + ".png";
-								animated = false;
-							} else if (response.code() == 200) {
-								url = "https://cdn.discordapp.com/emojis/" + id + ".gif";
-								animated = true;
-							} else {
-								event.reply("I could not find that emote :no_entry:").queue();
-								return;
-							}
+					
+					String nameRequest = name;
+					Sx4Bot.client.newCall(request).enqueue((Sx4Callback) response -> {
+						boolean animatedRequest;
+						String urlRequest;
+						if (response.code() == 415) {
+							urlRequest = "https://cdn.discordapp.com/emojis/" + id + ".png";
+							animatedRequest = false;
+						} else if (response.code() == 200) {
+							urlRequest = "https://cdn.discordapp.com/emojis/" + id + ".gif";
+							animatedRequest = true;
+						} else {
+							event.reply("I could not find that emote :no_entry:").queue();
+							return;
 						}
-					} catch (IOException e) {
-						event.reply("Oops something went wrong there, try again :no_entry:").queue();
-						return;
-					}
+						
+						if ((animatedRequest && animatedEmotes >= maxEmotes) || (!animatedRequest && nonAnimatedEmotes >= maxEmotes)) {
+							event.reply("You already have the max" + (animatedRequest ? "" : " non") + " animated emotes on this server :no_entry:").queue();
+							return;
+						}
+						
+						this.createEmoteRequest(event, new Request.Builder().url(urlRequest).build(), nameRequest == null ? "Unnamed_Emote" : nameRequest);
+					});
+					
+					return;
 				}
 				
 				if (url == null) {
@@ -209,19 +231,12 @@ public class ModModule {
 					return;
 				}
 				
-				try {
-					if ((animated && animatedEmotes >= maxEmotes) || (!animated && nonAnimatedEmotes >= maxEmotes)) {
-						event.reply("You already have the max" + (animated ? "" : " non") + " animated emotes on this server :no_entry:").queue();
-						return;
-					}
-					
-					event.getGuild().createEmote(name == null ? "Unnamed_Emote" : name, Icon.from(new URL(url).openStream())).queue(e -> {
-						event.reply(e.getAsMention() + " has been created <:done:403285928233402378>").queue();
-					});
-				} catch (IOException e) {
-					event.reply("Oops something went wrong there, try again :no_entry:").queue();
+				if ((animated && animatedEmotes >= maxEmotes) || (!animated && nonAnimatedEmotes >= maxEmotes)) {
+					event.reply("You already have the max" + (animated ? "" : " non") + " animated emotes on this server :no_entry:").queue();
 					return;
 				}
+				
+				this.createEmoteRequest(event, new Request.Builder().url(url).build(), name == null ? "Unnamed_Emote" : name);
 			}
 		} else {
 			if (!event.getMessage().getAttachments().isEmpty()) {
@@ -240,6 +255,12 @@ public class ModModule {
 						attachment.retrieveAsIcon().thenAcceptAsync(stream -> {
 							event.getGuild().createEmote(emoteName, stream).queue(e -> {
 								event.reply(e.getAsMention() + " has been created <:done:403285928233402378>").queue();
+							}, e -> {
+								if (e instanceof ErrorResponseException) {
+									if (((ErrorResponseException) e).getErrorCode() == 400) {
+										event.reply("The emote cannot be any larger than 256KB :no_entry:").queue();
+									}
+								}
 							});
 						}); 
 						

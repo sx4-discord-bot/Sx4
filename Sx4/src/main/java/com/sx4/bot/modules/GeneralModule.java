@@ -2305,6 +2305,8 @@ public class GeneralModule {
 	
 	private String getBadges(EnumSet<UserFlag> flags) {
 		StringBuilder description = new StringBuilder();
+		
+		int i = 0;
 		for (UserFlag flag : flags) {
 			switch (flag) {
 				case HYPESQUAD_BRILLIANCE:
@@ -2337,6 +2339,12 @@ public class GeneralModule {
 				default:
 					break;
 			}
+			
+			if (i != flags.size() - 1) {
+				description.append(" ");
+			}
+			
+			i++;
 		}
 		
 		return description.toString();

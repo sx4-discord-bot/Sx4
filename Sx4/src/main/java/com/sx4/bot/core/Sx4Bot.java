@@ -14,6 +14,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.jockie.bot.core.command.factory.impl.MethodCommandFactory;
 import com.jockie.bot.core.command.impl.CommandListener;
 import com.jockie.bot.core.command.impl.CommandStore;
@@ -197,6 +198,9 @@ public class Sx4Bot {
 		
 		listener.setPrefixesFunction(event -> ModUtils.getPrefixes(event.isFromGuild() ? event.getGuild() : null, event.getAuthor()));
 		listener.addCommandEventListener(new Sx4CommandEventListener());
+		listener.setCommandExecutor(Executors.newCachedThreadPool(new ThreadFactoryBuilder()
+		    .setNameFormat("jockie-utils-async-executor-%d")
+		    .build()));
 		
 		InterfacedEventManager eventManager = new InterfacedEventManager();
 		
