@@ -103,6 +103,12 @@ public class ReminderManager {
 		}
 	}
 	
+	public void putReminder(long userId, Document data) {
+		ScheduledFuture<?> executor = this.executor.schedule(() -> this.executeReminder(new Reminder(userId, data)), data.getLong("duration"), TimeUnit.SECONDS);
+		
+		this.putExecutor(userId, data.getObjectId("id"), executor);
+	}
+	
 	public void executeReminder(Reminder reminder) {
 		Database.get().updateUserById(this.executeReminderBulk(reminder)).whenComplete(Database.DEFAULT_UPDATE_HANDLER);
 	}

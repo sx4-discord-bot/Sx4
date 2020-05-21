@@ -27,7 +27,7 @@ public class ReminderArgument {
 				this.duration = duration.toSeconds();
 			}
 			
-			this.reminder = query.substring(0, atIndex);
+			this.reminder = query.substring(0, atIndex).trim();
 		} else {
 			Duration duration = TimeUtility.getDurationFromString(query.substring(inIndex + 2));
 			if (duration != null) {
@@ -36,7 +36,7 @@ public class ReminderArgument {
 				throw new IllegalArgumentException("Invalid time string given");
 			}
 			
-			this.reminder = query.substring(0, inIndex);
+			this.reminder = query.substring(0, inIndex).trim();
 		}
 	}
 	
