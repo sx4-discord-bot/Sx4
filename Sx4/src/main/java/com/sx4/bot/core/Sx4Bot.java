@@ -1,20 +1,26 @@
 package com.sx4.bot.core;
 
+import java.lang.reflect.ParameterizedType;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.time.DateTimeException;
 import java.time.Duration;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.EnumSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
+import java.util.stream.Collectors;
 
 import org.bson.types.ObjectId;
 
 import com.jockie.bot.core.argument.IArgument;
 import com.jockie.bot.core.argument.factory.impl.ArgumentFactory;
 import com.jockie.bot.core.argument.factory.impl.ArgumentFactoryImpl;
+import com.jockie.bot.core.argument.factory.impl.BuilderConfigureFunction;
 import com.jockie.bot.core.argument.parser.ParsedArgument;
 import com.jockie.bot.core.command.exception.parser.ArgumentParseException;
 import com.jockie.bot.core.command.exception.parser.OutOfContentException;
@@ -29,10 +35,14 @@ import com.sx4.api.Main;
 import com.sx4.bot.annotations.argument.DefaultInt;
 import com.sx4.bot.annotations.argument.DefaultLong;
 import com.sx4.bot.annotations.argument.DefaultString;
+import com.sx4.bot.annotations.argument.ExcludeUpdate;
 import com.sx4.bot.annotations.argument.Limit;
 import com.sx4.bot.annotations.argument.Lowercase;
 import com.sx4.bot.annotations.argument.Uppercase;
 import com.sx4.bot.config.Config;
+import com.sx4.bot.entities.argument.All;
+import com.sx4.bot.entities.argument.MessageArgument;
+import com.sx4.bot.entities.argument.UpdateType;
 import com.sx4.bot.entities.mod.Reason;
 import com.sx4.bot.entities.reminder.ReminderArgument;
 import com.sx4.bot.handlers.ConnectionHandler;
@@ -46,6 +56,7 @@ import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.HelpUtility;
 import com.sx4.bot.utility.SearchUtility;
 import com.sx4.bot.utility.TimeUtility;
+import com.sx4.bot.waiter.WaiterHandler;
 
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Category;
@@ -62,7 +73,6 @@ import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.VoiceChannel;
 import net.dv8tion.jda.api.hooks.InterfacedEventManager;
 import net.dv8tion.jda.api.requests.GatewayIntent;
-import net.dv8tion.jda.api.requests.RestAction;
 import net.dv8tion.jda.api.sharding.DefaultShardManagerBuilder;
 import net.dv8tion.jda.api.sharding.ShardManager;
 import okhttp3.OkHttpClient;
@@ -73,6 +83,7 @@ public class Sx4Bot {
 	private static CommandListener commandListener;
 	private static ModActionManager modActionManager;
 	private static YouTubeManager youtubeManager;
+	public static ArgumentFactoryImpl ag;
 	
 	private static final OkHttpClient CLIENT = new OkHttpClient.Builder()
 			.connectTimeout(15, TimeUnit.SECONDS)
@@ -80,9 +91,10 @@ public class Sx4Bot {
 			.writeTimeout(15, TimeUnit.SECONDS)
 			.build();
 	
+	@SuppressWarnings({"unchecked", "rawtypes"})
 	public static void main(String[] args) throws Throwable {
 		Sx4Bot.modActionManager = new ModActionManager()
-				.addListener(new ModHandler());
+			.addListener(new ModHandler());
 				
 		Sx4Bot.youtubeManager = new YouTubeManager()
 			.addListener(new YouTubeHandler());
@@ -109,48 +121,14 @@ public class Sx4Bot {
 			.registerResponse(ObjectId.class, "Invalid id given, an example id would be `5e45ce6d3688b30ee75201ae` :no_entry:")
 			.registerResponse(List.class, "I could not find that command/module :no_entry:")
 			.registerResponse(URL.class, "Invalid image given :no_entry:")
-			.registerResponse(RestAction.class, "I could not find that message :no_entry:")
-			.registerResponse(ReminderArgument.class, "Invalid reminder format given, view `help reminder add` for more info :no_entry:");
+			.registerResponse(MessageArgument.class, "I could not find that message :no_entry:")
+			.registerResponse(ReminderArgument.class, "Invalid reminder format given, view `help reminder add` for more info :no_entry:")
+			.registerResponse(UpdateType.class, (argument, message, content) -> {
+				List<UpdateType> updates = argument.getProperty("updates", List.class);
+				message.getChannel().sendMessage("Invalid update type given, update types you can use are `" + updates.stream().map(t -> t.name().toLowerCase()).collect(Collectors.joining("`, `")) + "` :no_entry:").queue();
+			});
 		
 		ArgumentFactoryImpl argumentFactory = (ArgumentFactoryImpl) ArgumentFactory.getDefault();
-			
-		argumentFactory.registerParser(Member.class, (context, argument, content) -> new ParsedArgument<>(SearchUtility.getMember(context.getMessage().getGuild(), content.trim())))
-			.registerParser(User.class, (context, argument, content) -> new ParsedArgument<>(SearchUtility.getUser(content.trim())))
-			.registerParser(TextChannel.class, (context, argument, content) -> new ParsedArgument<>(SearchUtility.getTextChannel(context.getMessage().getGuild(), content.trim())))
-			.registerParser(Duration.class, (context, argument, content) -> new ParsedArgument<>(TimeUtility.getDurationFromString(content)))
-			.registerParser(Reason.class, (context, argument, content) -> new ParsedArgument<>(new Reason(context.getMessage().getGuild().getIdLong(), content)))
-			.registerParser(ObjectId.class, (context, argument, content) -> new ParsedArgument<>(ObjectId.isValid(content) ? new ObjectId(content) : null))
-			.registerParser(List.class, (context, argument, content) -> new ParsedArgument<>(SearchUtility.getCommandOrModule(content)))
-			.registerParser(IPermissionHolder.class, (context, argument, content) -> new ParsedArgument<>(SearchUtility.getPermissionHolder(context.getMessage().getGuild(), content)))
-			.registerParser(Role.class, (context, argument, content) -> new ParsedArgument<>(SearchUtility.getRole(context.getMessage().getGuild(), content)))
-			.registerParser(RestAction.class, (context, argument, content) -> new ParsedArgument<>(SearchUtility.getMessageAction(context.getMessage().getTextChannel(), content)))
-			.registerParser(ReactionEmote.class, (context, argument, content) -> new ParsedArgument<>(SearchUtility.getEmote(content)))
-			.registerParser(TimeZone.class, (context, argument, content) -> new ParsedArgument<>(TimeZone.getTimeZone(content.toUpperCase().replace("UTC", "GMT"))))
-			.registerParser(ReminderArgument.class, (context, argument, content) -> {
-				try {
-					return new ParsedArgument<>(new ReminderArgument(context.getMessage().getAuthor().getIdLong(), content));
-				} catch (DateTimeException | IllegalArgumentException e) {
-					return new ParsedArgument<>();
-				}
-			})
-			.registerParser(URL.class, (context, argument, content) -> {
-				if (content.isEmpty()) {
-					Attachment attachment = context.getMessage().getAttachments().stream()
-						.filter(Attachment::isImage)
-						.findFirst()
-						.orElse(null);
-					
-					if (attachment != null) {
-						try {
-							return new ParsedArgument<>(new URL(attachment.getUrl()));
-						} catch (MalformedURLException e) {}
-					}
-					
-					return new ParsedArgument<>();
-				} else {
-					return new ParsedArgument<>(SearchUtility.getURL(context.getMessage(), content));
-				}
-			});
 		
 		argumentFactory.addBuilderConfigureFunction(String.class, (parameter, builder) -> {
 			builder.setProperty("lowercase", parameter.isAnnotationPresent(Lowercase.class));
@@ -182,7 +160,81 @@ public class Sx4Bot {
 			}
 			
 			return builder;
+		}).addBuilderConfigureFunction(UpdateType.class, (parameter, builder) -> {
+			ExcludeUpdate exclude = parameter.getAnnotation(ExcludeUpdate.class);
+			if (exclude != null) {
+				UpdateType[] excluded = exclude.value();
+				if (excluded.length != 0) {
+					List<UpdateType> values = new LinkedList<>(Arrays.asList(UpdateType.values()));
+					for (UpdateType type : exclude.value()) {
+						values.remove(type);
+					}
+					
+					builder.setProperty("updates", values);
+				}
+			}
+			
+			return builder;
+		}).addBuilderConfigureFunction(All.class, (parameter, builder) -> {
+			ParameterizedType type = (ParameterizedType) parameter.getParameterizedType();
+			builder.setProperty("type", type);
+			
+			Class<?> clazz = (Class<?>) type.getActualTypeArguments()[0];
+			
+			List<?> builders = argumentFactory.getBuilderConfigureFunctions(clazz);
+			for (Object builderFunction : builders) {
+				builder = ((BuilderConfigureFunction) builderFunction).configure(parameter, builder);
+			}
+			
+			return builder;
 		});
+			
+		argumentFactory.registerParser(Member.class, (context, argument, content) -> new ParsedArgument<>(SearchUtility.getMember(context.getMessage().getGuild(), content.trim())))
+			.registerParser(User.class, (context, argument, content) -> new ParsedArgument<>(SearchUtility.getUser(content.trim())))
+			.registerParser(TextChannel.class, (context, argument, content) -> new ParsedArgument<>(SearchUtility.getTextChannel(context.getMessage().getGuild(), content.trim())))
+			.registerParser(Duration.class, (context, argument, content) -> new ParsedArgument<>(TimeUtility.getDurationFromString(content)))
+			.registerParser(Reason.class, (context, argument, content) -> new ParsedArgument<>(new Reason(context.getMessage().getGuild().getIdLong(), content)))
+			.registerParser(ObjectId.class, (context, argument, content) -> new ParsedArgument<>(ObjectId.isValid(content) ? new ObjectId(content) : null))
+			.registerParser(List.class, (context, argument, content) -> new ParsedArgument<>(SearchUtility.getCommandOrModule(content)))
+			.registerParser(IPermissionHolder.class, (context, argument, content) -> new ParsedArgument<>(SearchUtility.getPermissionHolder(context.getMessage().getGuild(), content)))
+			.registerParser(Role.class, (context, argument, content) -> new ParsedArgument<>(SearchUtility.getRole(context.getMessage().getGuild(), content)))
+			.registerParser(MessageArgument.class, (context, argument, content) -> new ParsedArgument<>(SearchUtility.getMessageArgument(context.getMessage().getTextChannel(), content)))
+			.registerParser(ReactionEmote.class, (context, argument, content) -> new ParsedArgument<>(SearchUtility.getEmote(content)))
+			.registerParser(TimeZone.class, (context, argument, content) -> new ParsedArgument<>(TimeZone.getTimeZone(content.toUpperCase().replace("UTC", "GMT"))))
+			.registerParser(ReminderArgument.class, (context, argument, content) -> {
+				try {
+					return new ParsedArgument<>(new ReminderArgument(context.getMessage().getAuthor().getIdLong(), content));
+				} catch (DateTimeException | IllegalArgumentException e) {
+					return new ParsedArgument<>();
+				}
+			})
+			.registerParser(URL.class, (context, argument, content) -> {
+				if (content.isEmpty()) {
+					Attachment attachment = context.getMessage().getAttachments().stream()
+						.filter(Attachment::isImage)
+						.findFirst()
+						.orElse(null);
+					
+					if (attachment != null) {
+						try {
+							return new ParsedArgument<>(new URL(attachment.getUrl()));
+						} catch (MalformedURLException e) {}
+					}
+					
+					return new ParsedArgument<>();
+				} else {
+					return new ParsedArgument<>(SearchUtility.getURL(context.getMessage(), content));
+				}
+			}).registerParser(All.class, (context, argument, content) -> {
+				if (content.equalsIgnoreCase("all")) {
+					return new ParsedArgument<>(new All<>(null));
+				} else {
+					ParameterizedType type = argument.getProperty("type", ParameterizedType.class);
+					Class<?> clazz = (Class<?>) type.getActualTypeArguments()[0];
+					
+					return new ParsedArgument<>(new All<>(argumentFactory.getParser(clazz).parse(context, (IArgument) argument, content).getObject()));
+				}
+			});
 		
 		argumentFactory.addParserAfter(String.class, (context, argument, content) -> {
 			if (argument.getProperty("lowercase", boolean.class)) {
@@ -206,7 +258,15 @@ public class Sx4Bot {
 			}
 			
 			return new ParsedArgument<>(content);
+		}).addParserAfter(UpdateType.class, (context, argument, content) -> {
+			List<UpdateType> updates = argument.getProperty("updates", Collections.emptyList());
+			
+			boolean match = updates.stream().anyMatch(content::equals);
+			
+			return new ParsedArgument<>(match ? content : null);
 		});
+		
+		ag = argumentFactory;
 		
 		Sx4Bot.commandListener = new Sx4CommandListener()
 			.addCommandStores(CommandStore.of("com.sx4.bot.commands"))
@@ -266,6 +326,7 @@ public class Sx4Bot {
 		InterfacedEventManager eventManager = new InterfacedEventManager();
 		eventManager.register(Sx4Bot.commandListener);
 		eventManager.register(new PagedHandler());
+		eventManager.register(new WaiterHandler());
 		eventManager.register(GuildMessageCache.INSTANCE);
 		eventManager.register(new ConnectionHandler());
 		

@@ -42,10 +42,13 @@ public class ReminderCommand extends Sx4Command {
 	}
 	
 	@Command(value="add", description="Create a reminder so the bot will message you when the time is up", argumentInfo="reminder add <reminder>* in <time>*\nreminder add <reminder>* at <date time>*")
-	@Examples({"reminder add Football game in 4 hours", "reminder add Party at 21/07/20 15:00 UTC+1", "reminder add Finish coursework at 12:00", "reminder add fish in 5 minutes --repeat"})
-	public void add(Sx4CommandEvent event, @Argument(value="reminder", endless=true) ReminderArgument reminder, @Option(value="repeat", description="Continuosly repeats the reminder after the duration is up") boolean repeat) {
-		long duration = reminder.getDuration();
-		if (duration < 30 && repeat) {
+	@Examples({"reminder add Football game in 4 hours", "reminder add Party at 21/07/20 15:00 UTC+1", "reminder add Finish coursework at 12:00", "reminder add fish in 5 minutes --repeat", "reminder add weekly task at 23/05 --repeat=7d"})
+	public void add(Sx4CommandEvent event, @Argument(value="reminder", endless=true) ReminderArgument reminder, @Option(value="repeat", description="Continuosly repeats the reminder after the initial duration is up") String repeat) {
+		long initialDuration = reminder.getDuration();
+		boolean repeatOption = event.isOptionPresent("repeat");
+		
+		long duration = repeat == null ? initialDuration : TimeUtility.getDurationFromString(repeat).toSeconds();
+		if (duration < 30 && repeatOption) {
 			event.reply("Repeated reminders have to be at least 30 seconds long :no_entry:").queue();
 			return;
 		}
@@ -54,18 +57,19 @@ public class ReminderCommand extends Sx4Command {
 		
 		Document reminderData = new Document("id", id)
 			.append("duration", duration)
-			.append("remindAt", Clock.systemUTC().instant().getEpochSecond() + duration)
+			.append("remindAt", Clock.systemUTC().instant().getEpochSecond() + initialDuration)
 			.append("reminder", reminder.getReminder())
-			.append("repeat", repeat);
+			.append("repeat", repeatOption);
 		
 		this.database.updateUserById(event.getAuthor().getIdLong(), Updates.push("reminder.reminders", reminderData)).whenComplete((result, exception) -> {
 			if (exception != null) {
 				ExceptionUtility.sendExceptionally(event, exception);
+				return;
 			}
 				
-			this.reminderManager.putReminder(event.getAuthor().getIdLong(), reminderData);
+			this.reminderManager.putReminder(event.getAuthor().getIdLong(), initialDuration, reminderData);
 				
-			event.replyFormat("I will remind you about that in **%s**, your reminder id is `%s` <:done:403285928233402378>", TimeUtility.getTimeString(reminder.getDuration()), id.toHexString()).queue();
+			event.replyFormat("I will remind you about that in **%s**, your reminder id is `%s` <:done:403285928233402378>", TimeUtility.getTimeString(initialDuration), id.toHexString()).queue();
 		});
 	}
 	
@@ -75,6 +79,7 @@ public class ReminderCommand extends Sx4Command {
 		this.database.updateUserById(event.getAuthor().getIdLong(), Updates.pull("reminder.reminders", Filters.eq("id", id))).whenComplete((result, exception) -> {
 			if (exception != null) {
 				ExceptionUtility.sendExceptionally(event, exception);
+				return;
 			}
 			
 			if (result.getModifiedCount() == 0) {
@@ -111,13 +116,14 @@ public class ReminderCommand extends Sx4Command {
 	}
 	
 	@Command(value="time zone", aliases={"zone"}, description="Set the default time zone to be used when specifiying a date when adding a reminder")
-	@Examples({"reminder time zone utc", "reminder time zone pst", "reminder time zone utc+1"})
+	@Examples({"reminder time zone UTC", "reminder time zone PST", "reminder time zone UTC+1"})
 	public void timeZone(Sx4CommandEvent event, @Argument(value="time zone") TimeZone timeZone) {
 		String zoneId = timeZone.getID();
 		
 		this.database.updateUserById(event.getAuthor().getIdLong(), Updates.set("reminder.timeZone", zoneId)).whenComplete((result, exception) -> {
 			if (exception != null) {
 				ExceptionUtility.sendExceptionally(event, exception);
+				return;
 			}
 			
 			if (result.getModifiedCount() == 0) {

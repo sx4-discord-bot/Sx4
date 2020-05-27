@@ -36,7 +36,7 @@ public class PruneCommand extends Sx4Command {
 	}
 	
 	private void prune(Sx4CommandEvent event, int amount, Function<Message, Boolean> filter) {
-		event.getTextChannel().getHistory().retrievePast(Math.min(100, amount + 1)).queue(messages -> {
+		event.getTextChannel().getHistory().retrievePast(100).queue(messages -> {
 			long secondsNow = Clock.systemUTC().instant().getEpochSecond();
 			for (Message message : new ArrayList<>(messages)) {
 				if (secondsNow - message.getTimeCreated().toEpochSecond() > 1209600) {
@@ -48,7 +48,8 @@ public class PruneCommand extends Sx4Command {
 				}
 			}
 			
-			messages.add(event.getMessage());
+			messages.add(0, event.getMessage());
+			messages.subList(0, Math.min(messages.size(), amount));
 			
 			if (messages.size() == 1) {
 				messages.get(0).delete().queue();

@@ -5,7 +5,7 @@ import java.util.stream.Collectors;
 
 import org.bson.Document;
 
-public class ItemStack<Type extends Item> {
+public class ItemStack<Type extends Item> implements Comparable<ItemStack<?>> {
 	
 	private final Type item;
 	private long amount;
@@ -48,10 +48,6 @@ public class ItemStack<Type extends Item> {
 		return false;
 	}
 	
-	public int compareTo(ItemStack<?> itemStack) {
-		return Long.compare(this.amount, itemStack.getAmount());
-	}
-	
 	public String toString() {
 		return this.item.getName() + " x" + this.amount;
 	}
@@ -63,6 +59,11 @@ public class ItemStack<Type extends Item> {
 	
 	public static List<ItemStack<? extends Item>> fromData(List<Document> data) {
 		return data.stream().map(ItemStack::new).collect(Collectors.toList());
+	}
+
+	@Override
+	public int compareTo(ItemStack<?> itemStack) {
+		return Long.compare(this.amount, itemStack.getAmount());
 	}
 	
 }

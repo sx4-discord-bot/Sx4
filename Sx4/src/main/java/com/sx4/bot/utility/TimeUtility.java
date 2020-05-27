@@ -29,7 +29,7 @@ public class TimeUtility {
 		}
 	}
 	
-	private static LocalDate parseDate(String date, String character) {
+	private static LocalDate parseDate(String date, String character, int currentYear) {
 		String[] dateSplit = date.split(character);
 		
 		String yearString = null;
@@ -48,12 +48,11 @@ public class TimeUtility {
 			year = Integer.parseInt(yearString);
 			
 			if (yearString.length() == 2) {
-				int currentYear = LocalDate.now().getYear();
 				int remainder = currentYear % 100;
 				year = currentYear - remainder + year;
 			}
 		} else {
-			year = 0;
+			year = currentYear;
 		}
 		
 		return LocalDate.of(year, month, day);
@@ -64,10 +63,21 @@ public class TimeUtility {
 	}
 	
 	public static Duration getDurationToDateTime(String dateTime, String defaultTimeZone) {
-		String[] dateTimeSplit = dateTime.trim().split(" ");
+		int lastSpace = dateTime.lastIndexOf(' ');
 		
-		int day = 0, month = 0, year = 0, hour = 0, minute = 0; 
-		TimeZone timeZone = TimeZone.getTimeZone(defaultTimeZone);
+		ZonedDateTime now;
+		TimeZone timeZone = TimeZone.getTimeZone(dateTime.substring(lastSpace + 1));
+		if (!timeZone.getID().equals("GMT") && !timeZone.getID().equals("GMT+00:00")) {
+			dateTime = dateTime.substring(0, lastSpace);
+			now = ZonedDateTime.now(timeZone.toZoneId());
+		} else {
+			timeZone = TimeZone.getTimeZone(defaultTimeZone);
+			now = ZonedDateTime.now(timeZone.toZoneId());
+		}
+		
+		String[] dateTimeSplit = dateTime.split(" ");
+		
+		int day = now.getDayOfMonth(), month = now.getMonthValue(), year = now.getYear(), hour = 0, minute = 0; 
 		for (String part : dateTimeSplit) {
 			if (part.contains(":")) {
 				String[] partSplit = part.split(":");
@@ -87,28 +97,19 @@ public class TimeUtility {
 					minute = minuteInt;
 				}
 			} else if (part.contains("/")) {
-				LocalDate date = TimeUtility.parseDate(part, "/");
+				LocalDate date = TimeUtility.parseDate(part, "/", now.getYear());
 				year = date.getYear();
 				month = date.getMonthValue();
 				day = date.getDayOfMonth();
 			} else if (part.contains("-")) {
-				LocalDate date = TimeUtility.parseDate(part, "-");
+				LocalDate date = TimeUtility.parseDate(part, "-", now.getYear());
 				year = date.getYear();
 				month = date.getMonthValue();
 				day = date.getDayOfMonth();
-			} else {
-				timeZone = TimeZone.getTimeZone(part.toUpperCase().replace("UTC", "GMT"));
 			}
 		}
 		
-		int offsetSeconds = timeZone.getRawOffset() / 1000;
-		
-		ZonedDateTime now = ZonedDateTime.now(timeZone.toZoneId()).minusSeconds(offsetSeconds);
-		year = year == 0 ? now.getYear() : year;
-		month = month == 0 ? now.getMonthValue() : month;
-		day = day == 0 ? now.getDayOfMonth() : day;
-		
-		return Duration.between(now, ZonedDateTime.of(year, month, day, hour, minute, 0, 0, timeZone.toZoneId()).minusSeconds(offsetSeconds));
+		return Duration.between(now, ZonedDateTime.of(year, month, day, hour, minute, 0, 0, timeZone.toZoneId()));
 	}
 	
 	public static String getTimeString(long duration, TimeUnit unit) {
@@ -129,7 +130,7 @@ public class TimeUtility {
 					break;
 				}
 				
-				if (i != CHRONO_UNITS.length - 1) {
+				if (i != TimeUtility.CHRONO_UNITS.length - 1) {
 					string.append(" ");
 				}
 			}

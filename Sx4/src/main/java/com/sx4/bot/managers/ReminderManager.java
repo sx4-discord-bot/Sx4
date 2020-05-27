@@ -103,8 +103,8 @@ public class ReminderManager {
 		}
 	}
 	
-	public void putReminder(long userId, Document data) {
-		ScheduledFuture<?> executor = this.executor.schedule(() -> this.executeReminder(new Reminder(userId, data)), data.getLong("duration"), TimeUnit.SECONDS);
+	public void putReminder(long userId, long duration, Document data) {
+		ScheduledFuture<?> executor = this.executor.schedule(() -> this.executeReminder(new Reminder(userId, data)), duration, TimeUnit.SECONDS);
 		
 		this.putExecutor(userId, data.getObjectId("id"), executor);
 	}
@@ -149,11 +149,11 @@ public class ReminderManager {
 				
 				long remindAt = reminder.getLong("remindAt"), currentTime = Clock.systemUTC().instant().getEpochSecond();;
 				if (remindAt > currentTime) {
-					ScheduledFuture<?> executor = this.executor.schedule(() -> this.executeReminder(new Reminder(userId, data)), remindAt - currentTime, TimeUnit.SECONDS);
+					ScheduledFuture<?> executor = this.executor.schedule(() -> this.executeReminder(new Reminder(userId, reminder)), remindAt - currentTime, TimeUnit.SECONDS);
 					
 					this.putExecutor(userId, id, executor);
 				} else {
-					bulkData.add(this.executeReminderBulk(new Reminder(userId, data)));
+					bulkData.add(this.executeReminderBulk(new Reminder(userId, reminder)));
 				}
 			}
 		});

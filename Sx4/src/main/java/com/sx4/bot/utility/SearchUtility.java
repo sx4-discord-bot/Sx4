@@ -16,6 +16,7 @@ import com.sx4.bot.category.Category;
 import com.sx4.bot.core.Sx4Bot;
 import com.sx4.bot.core.Sx4Category;
 import com.sx4.bot.core.Sx4Command;
+import com.sx4.bot.entities.argument.MessageArgument;
 
 import net.dv8tion.jda.api.entities.Emote;
 import net.dv8tion.jda.api.entities.Guild;
@@ -28,7 +29,6 @@ import net.dv8tion.jda.api.entities.MessageReaction.ReactionEmote;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.entities.User;
-import net.dv8tion.jda.api.requests.RestAction;
 import net.dv8tion.jda.api.sharding.ShardManager;
 import net.dv8tion.jda.api.utils.MiscUtil;
 
@@ -125,7 +125,7 @@ public class SearchUtility {
 		}
 	}
 	
-	public static RestAction<Message> getMessageAction(TextChannel channel, String query) {
+	public static MessageArgument getMessageArgument(TextChannel channel, String query) {
 		Matcher jumpMatch = Message.JUMP_URL_PATTERN.matcher(query);
 		if (jumpMatch.matches()) {
 			try {
@@ -141,13 +141,15 @@ public class SearchUtility {
 				
 				long messageId = MiscUtil.parseSnowflake(jumpMatch.group(3));
 				
-				return linkChannel.retrieveMessageById(messageId);
+				return new MessageArgument(messageId, linkChannel.retrieveMessageById(messageId));
 			} catch (NumberFormatException e) {
 				return null;
 			}
 		} else {
 			try {
-				return channel.retrieveMessageById(MiscUtil.parseSnowflake(query));
+				long messageId = MiscUtil.parseSnowflake(query);
+				
+				return new MessageArgument(messageId, channel.retrieveMessageById(messageId));
 			} catch (NumberFormatException e) {
 				return null;
 			}

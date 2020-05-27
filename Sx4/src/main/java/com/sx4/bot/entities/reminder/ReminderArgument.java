@@ -20,7 +20,7 @@ public class ReminderArgument {
 		} else if (atIndex > inIndex) {
 			String defaultTimeZone = Database.get().getUserById(userId, Projections.include("reminder.timeZone")).getEmbedded(List.of("reminder", "timeZone"), "GMT");
 			
-			Duration duration = TimeUtility.getDurationToDateTime(query.substring(atIndex + 2), defaultTimeZone);
+			Duration duration = TimeUtility.getDurationToDateTime(query.substring(atIndex + 2).trim(), defaultTimeZone);
 			if (duration.isNegative()) {
 				throw new IllegalArgumentException("The date cannot be in the past");
 			} else {
@@ -29,7 +29,7 @@ public class ReminderArgument {
 			
 			this.reminder = query.substring(0, atIndex).trim();
 		} else {
-			Duration duration = TimeUtility.getDurationFromString(query.substring(inIndex + 2));
+			Duration duration = TimeUtility.getDurationFromString(query.substring(inIndex + 2).trim());
 			if (duration != null) {
 				this.duration = duration.toSeconds();
 			} else {
