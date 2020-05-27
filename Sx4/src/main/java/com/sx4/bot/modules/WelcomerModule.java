@@ -106,6 +106,7 @@ public class WelcomerModule {
 		
 		@Command(value="embed", aliases={"toggle embed", "toggleembed", "embedtoggle", "embed toggle"}, description="Enable/disable whether the welcomer messages should be embedded", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@Examples({"welcomer embed"})
+		@AuthorPermissions({Permission.MESSAGE_MANAGE})
 		public void embed(CommandEvent event, @Context Database database) {
 			boolean embedded = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("welcomer.embed.enabled")).getEmbedded(List.of("welcomer", "embed", "enabled"), false);
 			database.updateGuildById(event.getGuild().getIdLong(), Updates.set("welcomer.embed.enabled", !embedded), (result, exception) -> {
@@ -363,6 +364,7 @@ public class WelcomerModule {
 		
 		@Command(value="embed", aliases={"toggle embed", "toggleembed", "embedtoggle", "embed toggle"}, description="Enable/disable whether the leaver messages should be embedded", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@Examples({"leaver embed"})
+		@AuthorPermissions({Permission.MESSAGE_MANAGE})
 		public void embed(CommandEvent event, @Context Database database) {
 			boolean embedded = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("leaver.embed.enabled")).getEmbedded(List.of("leaver", "embed", "enabled"), false);
 			database.updateGuildById(event.getGuild().getIdLong(), Updates.set("leaver.embed.enabled", !embedded), (result, exception) -> {
