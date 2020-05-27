@@ -83,7 +83,6 @@ public class Sx4Bot {
 	private static CommandListener commandListener;
 	private static ModActionManager modActionManager;
 	private static YouTubeManager youtubeManager;
-	public static ArgumentFactoryImpl ag;
 	
 	private static final OkHttpClient CLIENT = new OkHttpClient.Builder()
 			.connectTimeout(15, TimeUnit.SECONDS)
@@ -265,8 +264,6 @@ public class Sx4Bot {
 			
 			return new ParsedArgument<>(match ? content : null);
 		});
-		
-		ag = argumentFactory;
 		
 		Sx4Bot.commandListener = new Sx4CommandListener()
 			.addCommandStores(CommandStore.of("com.sx4.bot.commands"))
