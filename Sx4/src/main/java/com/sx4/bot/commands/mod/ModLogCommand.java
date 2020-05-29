@@ -9,10 +9,10 @@ import org.bson.types.ObjectId;
 
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
-import com.jockie.bot.core.command.Command.AuthorPermissions;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.Updates;
+import com.sx4.bot.annotations.command.AuthorPermissions;
 import com.sx4.bot.annotations.command.Examples;
 import com.sx4.bot.category.Category;
 import com.sx4.bot.core.Sx4Command;
@@ -45,7 +45,7 @@ public class ModLogCommand extends Sx4Command {
 	}
 	
 	@Command(value="toggle", description="Turn mod logs on/off in your server")
-	@AuthorPermissions({Permission.MANAGE_SERVER})
+	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	@Examples({"modlog toggle"})
 	public void toggle(Sx4CommandEvent event) {
 		List<Bson> update = List.of(Operators.set("modLog.enabled", Operators.cond("$modLog.enabled", "$$REMOVE", true)));
@@ -59,7 +59,7 @@ public class ModLogCommand extends Sx4Command {
 	}
 	
 	@Command(value="channel", description="Sets the channel which mod logs are sent to")
-	@AuthorPermissions({Permission.MANAGE_SERVER})
+	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	@Examples({"modlog channel #mod-logs", "modlog channel mod-logs", "modlog channel 432898619943813132"})
 	public void channel(Sx4CommandEvent event, @Argument(value="channel", endless=true, nullDefault=true) TextChannel channel) {
 		List<Bson> update = List.of(Operators.set("modLog.channelId", channel == null ? "$$REMOVE" : channel.getIdLong()));

@@ -9,8 +9,6 @@ import org.bson.conversions.Bson;
 
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
-import com.jockie.bot.core.command.Command.AuthorPermissions;
-import com.jockie.bot.core.command.Command.BotPermissions;
 import com.jockie.bot.core.command.Command.Cooldown;
 import com.jockie.bot.core.command.impl.CommandEvent;
 import com.mongodb.client.model.Filters;
@@ -20,6 +18,9 @@ import com.mongodb.client.model.ReturnDocument;
 import com.mongodb.client.model.UpdateOptions;
 import com.mongodb.client.model.Updates;
 import com.sx4.bot.annotations.argument.ExcludeUpdate;
+import com.sx4.bot.annotations.argument.Limit;
+import com.sx4.bot.annotations.command.AuthorPermissions;
+import com.sx4.bot.annotations.command.BotPermissions;
 import com.sx4.bot.annotations.command.Examples;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
@@ -62,8 +63,8 @@ public class ReactionRole extends Sx4Command {
 	
 	@Command(value="add", description="Adds a role to be given when a user reacts to the specified emote")
 	@Examples({"reaction role add 643945552865919002 🐝 @Yellow", "reaction role add https://discordapp.com/channels/330399610273136641/678274453158887446/680051429460803622 :doggo: Dog person"})
-	@AuthorPermissions({Permission.MANAGE_ROLES})
-	@BotPermissions({Permission.MESSAGE_ADD_REACTION, Permission.MESSAGE_HISTORY})
+	@AuthorPermissions(permissions={Permission.MANAGE_ROLES})
+	@BotPermissions(permissions={Permission.MESSAGE_ADD_REACTION, Permission.MESSAGE_HISTORY})
 	@Cooldown(value=2)
 	public void add(Sx4CommandEvent event, @Argument(value="message id") MessageArgument messageArgument, @Argument(value="emote") ReactionEmote emote, @Argument(value="role", endless=true) Role role) {
 		if (role.isPublicRole()) {
@@ -186,8 +187,7 @@ public class ReactionRole extends Sx4Command {
 	
 	@Command(value="remove", description="Removes a role or a whole reaction from the reaction role")
 	@Examples({"reaction role remove 643945552865919002 🐝", "reaction role add https://discordapp.com/channels/330399610273136641/678274453158887446/680051429460803622 🐝 @Yellow"})
-	@AuthorPermissions({Permission.MANAGE_ROLES})
-	@BotPermissions({Permission.MESSAGE_ADD_REACTION, Permission.MESSAGE_HISTORY})
+	@AuthorPermissions(permissions={Permission.MANAGE_ROLES})
 	@Cooldown(value=2)
 	public void remove(Sx4CommandEvent event, @Argument(value="message id") MessageArgument messageArgument, @Argument(value="emote") ReactionEmote emote, @Argument(value="role", endless=true, nullDefault=true) Role role) {
 		boolean unicode = emote.isEmoji();
@@ -263,8 +263,7 @@ public class ReactionRole extends Sx4Command {
 	
 	@Command(value="dm", description="Enables/disables whether a reaction role should send dms when a user acquires roles")
 	@Examples({"reaction role dm enable all", "reaction role dm disable all", "reaction role dm enable 643945552865919002", "reaction role dm disable 643945552865919002"})
-	@AuthorPermissions({Permission.MANAGE_ROLES})
-	@BotPermissions({Permission.MESSAGE_ADD_REACTION, Permission.MESSAGE_HISTORY})
+	@AuthorPermissions(permissions={Permission.MANAGE_ROLES})
 	@Cooldown(value=2)
 	public void dm(Sx4CommandEvent event, @Argument(value="update type") @ExcludeUpdate(UpdateType.TOGGLE) UpdateType updateType, @Argument(value="message id") All<MessageArgument> allArgument) {
 		boolean all = allArgument.isAll(), value = updateType.getValue();
@@ -297,7 +296,46 @@ public class ReactionRole extends Sx4Command {
 				return;
 			}
 			
-			event.reply("Reactions roles " + (all ? "" : "for that message ") + "will " + (value ? "now" : "no longer") + " send dms <:done:403285928233402378>").queue();
+			event.reply((all ? "All your reaction roles" : "That reaction role") + " will " + (value ? "now" : "no longer") + " send dms <:done:403285928233402378>").queue();
+		});
+	}
+	
+	@Command(value="max reactions", aliases={"maxreactions"}, description="Sets the max amount of reactions a user can react to simultanously")
+	@Examples({"reaction role max reactions all 2", "reaction role max reactions 643945552865919002 0"})
+	@AuthorPermissions(permissions={Permission.MANAGE_ROLES})
+	@Cooldown(value=2)
+	public void maxReactions(Sx4CommandEvent event, @Argument(value="message id") All<MessageArgument> allArgument, @Argument(value="max reactions") @Limit(min=0, max=20) int maxReactions) {
+		boolean all = allArgument.isAll(), unlimited = maxReactions == 0;
+		long messageId = all ? 0L : allArgument.getValue().getMessageId();
+		
+		Bson update;
+		List<Bson> arrayFilters;
+		if (all) {
+			update = unlimited ? Updates.unset("reactionRole.reactionRoles.$[].maxReactions") : Updates.set("reactionRole.reactionRoles.$[].maxReactions", maxReactions);
+			arrayFilters = null;
+		} else {
+			update = unlimited ? Updates.unset("reactionRole.reactionRoles.$[reactionRole].maxReactions") : Updates.set("reactionRole.reactionRoles.$[reactionRole].maxReactions", maxReactions);
+			arrayFilters = List.of(Filters.eq("reactionRole.id", messageId));
+		}
+		
+		UpdateOptions options = new UpdateOptions().arrayFilters(arrayFilters);
+		this.database.updateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((result, exception) -> {
+			if (exception != null) {
+				ExceptionUtility.sendExceptionally(event, exception);
+				return;
+			}
+			
+			if (result.getModifiedCount() == 0 && result.getMatchedCount() != 0) {
+				event.reply((all ? "All your reaction roles" : "That reaction role") + " already " + (all ? "have" : "has") + " it set to " + (unlimited ? "unlimted" : String.valueOf(maxReactions)) + " max reaction" + (maxReactions == 1 ? "" : "s") + ":no_entry:").queue();
+				return;
+			}
+			
+			if (result.getModifiedCount() == 0) {
+				event.reply(all ? "You do not have any reaction roles setup :no_entry:" : "There is no reaction role linked to that message :no_entry:").queue();
+				return;
+			}
+			
+			event.reply((all ? "All your reaction roles" : "That reaction role") + " now " + (all ? "have " : "has ") + (unlimited ? "no cap for" : "a cap of " + maxReactions) + " reaction" + (maxReactions == 1 ? "" : "s") + " <:done:403285928233402378>").queue();
 		});
 	}
 	

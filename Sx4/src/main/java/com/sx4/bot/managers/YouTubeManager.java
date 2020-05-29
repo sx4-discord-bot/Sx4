@@ -69,7 +69,9 @@ public class YouTubeManager {
 			
 			if (event instanceof YouTubeUpdateTitleEvent) {
 				listener.onYouTubeUpdateTitle((YouTubeUpdateTitleEvent) event);
-			} else if (event instanceof YouTubeUploadEvent) {
+			} 
+			
+			if (event instanceof YouTubeUploadEvent) {
 				listener.onYouTubeUpload((YouTubeUploadEvent) event);
 			}
 			
@@ -119,22 +121,24 @@ public class YouTubeManager {
 		DeleteOneModel<Document> model = null;
 		if (amount != 0) {
 			RequestBody body = new MultipartBody.Builder()
-					.addFormDataPart("hub.mode", "subscribe")
-					.addFormDataPart("hub.topic", "https://www.youtube.com/xml/feeds/videos.xml?channel_id=" + channelId)
-					.addFormDataPart("hub.callback", "http://" + config.getDomain() + ":" + config.getPort() + "/api/v1/youtube")
-					.addFormDataPart("hub.verify", "sync")
-					.addFormDataPart("hub.verify_token", config.getYoutube())
-					.setType(MultipartBody.FORM)
-					.build();
+				.addFormDataPart("hub.mode", "subscribe")
+				.addFormDataPart("hub.topic", "https://www.youtube.com/xml/feeds/videos.xml?channel_id=" + channelId)
+				.addFormDataPart("hub.callback", "http://" + config.getDomain() + ":" + config.getPort() + "/api/v1/youtube")
+				.addFormDataPart("hub.verify", "sync")
+				.addFormDataPart("hub.verify_token", config.getYoutube())
+				.setType(MultipartBody.FORM)
+				.build();
 			
 			Request request = new Request.Builder()
-					.url("https://pubsubhubbub.appspot.com/subscribe")
-					.post(body)
-					.build();
+				.url("https://pubsubhubbub.appspot.com/subscribe")
+				.post(body)
+				.build();
 			
 			Sx4Bot.getClient().newCall(request).enqueue((HttpCallback) response -> {
 				if (response.isSuccessful()) {
 					System.out.println("Resubscribed to " + channelId + " for YouTube notifications");
+				} else {
+					System.err.println(String.format("Failed to resubscribe to %s for YouTube notifications, Code: %d, Message: %s", channelId, response.code(), response.body().string()));
 				}
 				
 				response.close();

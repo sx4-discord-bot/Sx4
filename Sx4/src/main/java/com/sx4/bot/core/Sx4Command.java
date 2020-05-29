@@ -1,6 +1,8 @@
 package com.sx4.bot.core;
 
 import java.lang.reflect.Method;
+import java.util.Arrays;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -10,6 +12,8 @@ import com.jockie.bot.core.command.ICommand;
 import com.jockie.bot.core.command.impl.AbstractCommand;
 import com.jockie.bot.core.command.impl.CommandImpl;
 import com.jockie.bot.core.command.impl.DummyCommand;
+import com.sx4.bot.annotations.command.AuthorPermissions;
+import com.sx4.bot.annotations.command.BotPermissions;
 import com.sx4.bot.annotations.command.Canary;
 import com.sx4.bot.annotations.command.Donator;
 import com.sx4.bot.annotations.command.Examples;
@@ -22,6 +26,7 @@ import com.sx4.bot.managers.ReminderManager;
 import com.sx4.bot.managers.TempBanManager;
 import com.sx4.bot.managers.YouTubeManager;
 
+import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Message;
 import okhttp3.OkHttpClient;
 
@@ -48,6 +53,9 @@ public class Sx4Command extends CommandImpl {
 	protected String disabledMessage = null;
 	
 	protected boolean canaryCommand = false;
+	
+	protected EnumSet<Permission> authorDiscordPermissions = EnumSet.noneOf(Permission.class);
+	protected EnumSet<Permission> botDiscordPermissions = EnumSet.of(Permission.MESSAGE_WRITE);
 	
 	public Sx4Command(String name) {
 		super(name, true);
@@ -127,6 +135,42 @@ public class Sx4Command extends CommandImpl {
 		return this;
 	}
 	
+	public Sx4Command setAuthorDiscordPermissions(Permission... permissions) {
+		return this.setAuthorDiscordPermissions(false, permissions);
+	}
+	
+	public Sx4Command setAuthorDiscordPermissions(boolean overwrite, Permission... permissions) {
+		if (overwrite) {
+			this.authorDiscordPermissions = permissions.length == 0 ? EnumSet.noneOf(Permission.class) : EnumSet.copyOf(Arrays.asList(permissions));
+		} else {
+			this.authorDiscordPermissions.addAll(Arrays.asList(permissions));
+		}
+		
+		return this;
+	}
+
+	public EnumSet<Permission> getAuthorDiscordPermissions() {
+		return this.authorDiscordPermissions;
+	}
+	
+	public Sx4Command setBotDiscordPermissions(Permission... permissions) {
+		return this.setBotDiscordPermissions(false, permissions);
+	}
+	
+	public Sx4Command setBotDiscordPermissions(boolean overwrite, Permission... permissions) {
+		if (overwrite) {
+			this.botDiscordPermissions = permissions.length == 0 ? EnumSet.noneOf(Permission.class) : EnumSet.copyOf(Arrays.asList(permissions));
+		} else {
+			this.botDiscordPermissions.addAll(Arrays.asList(permissions));
+		}
+		
+		return this;
+	}
+	
+	public EnumSet<Permission> getBotDiscordPermissions() {
+		return this.botDiscordPermissions;
+	}
+	
 	public List<CommandTrigger> getAllCommandsRecursiveWithTriggers(Message message, String prefix) {
 	    List<CommandTrigger> commands = super.getAllCommandsRecursiveWithTriggers(message, prefix);
 	    
@@ -184,7 +228,7 @@ public class Sx4Command extends CommandImpl {
 		if (this.method != null) {
 			if (this.method.isAnnotationPresent(Donator.class)) {
 				this.donator = this.method.getAnnotation(Donator.class).value();
-			} 
+			}
 			
 			if (this.method.isAnnotationPresent(Examples.class)) {
 				this.examples = this.method.getAnnotation(Examples.class).value();
@@ -196,6 +240,26 @@ public class Sx4Command extends CommandImpl {
 			
 			if (this.method.isAnnotationPresent(Redirects.class)) {
 				this.redirects = this.method.getAnnotation(Redirects.class).value();
+			}
+			
+			AuthorPermissions authorPermissions = this.method.getAnnotation(AuthorPermissions.class);
+			if (authorPermissions != null) {
+				List<Permission> permissions = Arrays.asList(authorPermissions.permissions());
+				if (authorPermissions.overwrite()) {
+					this.authorDiscordPermissions = permissions.isEmpty() ? EnumSet.noneOf(Permission.class) : EnumSet.copyOf(permissions);
+				} else {
+					this.authorDiscordPermissions.addAll(permissions);
+				}
+			}
+			
+			BotPermissions botPermissions = this.method.getAnnotation(BotPermissions.class);
+			if (botPermissions != null) {
+				List<Permission> permissions = Arrays.asList(botPermissions.permissions());
+				if (botPermissions.overwrite()) {
+					this.authorDiscordPermissions = permissions.isEmpty() ? EnumSet.noneOf(Permission.class) : EnumSet.copyOf(permissions);
+				} else {
+					this.authorDiscordPermissions.addAll(permissions);
+				}
 			}
 		}
 	}

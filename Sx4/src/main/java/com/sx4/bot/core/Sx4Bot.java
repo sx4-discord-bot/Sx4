@@ -270,6 +270,7 @@ public class Sx4Bot {
 			.addDevelopers(402557516728369153L, 190551803669118976L)
 			.setErrorManager(errorManager)
 			.setCommandEventFactory(new Sx4CommandEventFactory())
+			.setDefaultPrefixes("!")
 			.setHelpFunction((message, prefix, commands) -> {
 				MessageChannel channel = message.getChannel();
 				boolean embed = message.isFromGuild() ? message.getGuild().getSelfMember().hasPermission((TextChannel) channel, Permission.MESSAGE_EMBED_LINKS) : true;

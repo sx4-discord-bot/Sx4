@@ -7,10 +7,10 @@ import java.util.function.Function;
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.argument.Endless;
 import com.jockie.bot.core.command.Command;
-import com.jockie.bot.core.command.Command.AuthorPermissions;
-import com.jockie.bot.core.command.Command.BotPermissions;
 import com.sx4.bot.annotations.argument.DefaultInt;
 import com.sx4.bot.annotations.argument.Limit;
+import com.sx4.bot.annotations.command.AuthorPermissions;
+import com.sx4.bot.annotations.command.BotPermissions;
 import com.sx4.bot.annotations.command.Examples;
 import com.sx4.bot.annotations.command.Redirects;
 import com.sx4.bot.category.Category;
@@ -66,48 +66,48 @@ public class PruneCommand extends Sx4Command {
 	@Command(value="bots", aliases={"bot"}, description="Prunes a set amount of messages sent by bots")
 	@Redirects({"bc", "bot clean", "botclean"})
 	@Examples({"prune bots", "prune bots 10"})
-	@AuthorPermissions({Permission.MESSAGE_MANAGE})
-	@BotPermissions({Permission.MESSAGE_MANAGE, Permission.MESSAGE_HISTORY})
+	@AuthorPermissions(permissions={Permission.MESSAGE_MANAGE})
+	@BotPermissions(permissions={Permission.MESSAGE_MANAGE, Permission.MESSAGE_HISTORY}, overwrite=true)
 	public void bots(Sx4CommandEvent event, @Argument(value="amount") @Limit(min=1, max=100) @DefaultInt(100) int amount) {
 		this.prune(event, amount, message -> message.getAuthor().isBot());
 	}
 	
 	@Command(value="images", aliases={"image"}, description="Prunes a set amount of messages sent with images")
 	@Examples({"prune images", "prune images 10"})
-	@AuthorPermissions({Permission.MESSAGE_MANAGE})
-	@BotPermissions({Permission.MESSAGE_MANAGE, Permission.MESSAGE_HISTORY})
+	@AuthorPermissions(permissions={Permission.MESSAGE_MANAGE})
+	@BotPermissions(permissions={Permission.MESSAGE_MANAGE, Permission.MESSAGE_HISTORY}, overwrite=true)
 	public void images(Sx4CommandEvent event, @Argument(value="amount") @Limit(min=1, max=100) @DefaultInt(100) int amount) {
 		this.prune(event, amount, message -> message.getAttachments().stream().anyMatch(Attachment::isImage));
 	}
 	
 	@Command(value="mentions", aliases={"mention"}, description="Prunes a set amount of messages which contain mentions")
 	@Examples({"prune mentions", "prune mentions 10", "prune mentions USER CHANNEL"})
-	@AuthorPermissions({Permission.MESSAGE_MANAGE})
-	@BotPermissions({Permission.MESSAGE_MANAGE, Permission.MESSAGE_HISTORY})
+	@AuthorPermissions(permissions={Permission.MESSAGE_MANAGE})
+	@BotPermissions(permissions={Permission.MESSAGE_MANAGE, Permission.MESSAGE_HISTORY}, overwrite=true)
 	public void mentions(Sx4CommandEvent event, @Argument(value="amount") @Limit(min=1, max=100) @DefaultInt(100) int amount, @Argument(value="mentions") @Endless(minArguments=0) MentionType... mentions) {
 		this.prune(event, amount, message -> !message.getMentions(mentions).isEmpty());
 	}
 	
 	@Command(value="attachments", aliases={"attachments"}, description="Prunes a set amount of messages sent with attachments")
 	@Examples({"prune attachments", "prune attachments 10"})
-	@AuthorPermissions({Permission.MESSAGE_MANAGE})
-	@BotPermissions({Permission.MESSAGE_MANAGE, Permission.MESSAGE_HISTORY})
+	@AuthorPermissions(permissions={Permission.MESSAGE_MANAGE})
+	@BotPermissions(permissions={Permission.MESSAGE_MANAGE, Permission.MESSAGE_HISTORY}, overwrite=true)
 	public void attachments(Sx4CommandEvent event, @Argument(value="amount") @Limit(min=1, max=100) @DefaultInt(100) int amount) {
 		this.prune(event, amount, message -> !message.getAttachments().isEmpty());
 	}
 	
 	@Command(value="contains", aliases={"contain"}, description="Prunes a set amount of messages which contain the content given")
 	@Examples({"prune contains hello", "prune contains hello 10"})
-	@AuthorPermissions({Permission.MESSAGE_MANAGE})
-	@BotPermissions({Permission.MESSAGE_MANAGE, Permission.MESSAGE_HISTORY})
+	@AuthorPermissions(permissions={Permission.MESSAGE_MANAGE})
+	@BotPermissions(permissions={Permission.MESSAGE_MANAGE, Permission.MESSAGE_HISTORY}, overwrite=true)
 	public void contains(Sx4CommandEvent event, @Argument(value="content") String content, @Argument(value="amount") @Limit(min=1, max=100) @DefaultInt(100) int amount) {
 		this.prune(event, amount, message -> message.getContentRaw().contains(content));
 	}
 	
 	@Command(value="user", description="Prunes a set amount of message sent by a specific user")
 	@Examples({"prune user @Shea#6653", "prune user Shea 10"})
-	@AuthorPermissions({Permission.MESSAGE_MANAGE})
-	@BotPermissions({Permission.MESSAGE_MANAGE, Permission.MESSAGE_HISTORY})
+	@AuthorPermissions(permissions={Permission.MESSAGE_MANAGE})
+	@BotPermissions(permissions={Permission.MESSAGE_MANAGE, Permission.MESSAGE_HISTORY}, overwrite=true)
 	public void user(Sx4CommandEvent event, @Argument(value="user") Member member, @Argument(value="amount") @Limit(min=1, max=100) @DefaultInt(100) int amount) {
 		this.prune(event, amount, message -> message.getAuthor().getIdLong() == member.getIdLong());
 	}
