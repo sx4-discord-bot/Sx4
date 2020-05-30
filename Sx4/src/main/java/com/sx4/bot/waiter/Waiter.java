@@ -15,10 +15,12 @@ public class Waiter<Type extends GenericEvent> {
 	
 	private final Class<Type> event;
 	
+	private Runnable onCancelled = null;
 	private Runnable onTimeout = null;
 	private CompletableFuture<Type> future = new CompletableFuture<>();
 	
 	private Predicate<Type> predicate = $ -> true;
+	private Predicate<Type> cancelPredicate = $ -> false;
 	
 	public Waiter(Class<Type> event) {
 		this.event = event;
@@ -26,6 +28,14 @@ public class Waiter<Type extends GenericEvent> {
 	
 	public Class<Type> getEvent() {
 		return this.event;
+	}
+	
+	public Runnable getCancelRunnable() {
+		return this.onCancelled;
+	}
+	
+	public void onCancelled(Runnable onCancelled) {
+		this.onCancelled = onCancelled;
 	}
 	
 	public Runnable getTimeoutRunnable() {
@@ -46,6 +56,17 @@ public class Waiter<Type extends GenericEvent> {
 	
 	public Waiter<Type> setTimeout(long timeout, TimeUnit timeUnit) {
 		this.timeout = timeUnit.toSeconds(timeout);
+		
+		return this;
+	}
+	
+	@SuppressWarnings("unchecked")
+	public boolean testCancelPredicate(GenericEvent event) {
+		return this.cancelPredicate.test((Type) event);
+	}
+	
+	public Waiter<Type> setCancelPredicate(Predicate<Type> predicate) {
+		this.cancelPredicate = predicate;
 		
 		return this;
 	}
@@ -72,6 +93,16 @@ public class Waiter<Type extends GenericEvent> {
 	@SuppressWarnings("unchecked")
 	public void execute(GenericEvent event) {
 		this.future.complete((Type) event);
+		
+		this.delete();
+	}
+	
+	public void cancel() {
+		if (this.onCancelled != null) {
+			this.onCancelled.run();
+		}
+		
+		this.delete();
 	}
 	
 	public void timeout() {
@@ -91,7 +122,6 @@ public class Waiter<Type extends GenericEvent> {
 	}
 	
 	public void delete() {
-		this.future.cancel(true);
 		this.manager.removeWaiter(this);
 		this.manager.cancelTimeout(this);
 	}

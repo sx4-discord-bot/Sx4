@@ -65,13 +65,19 @@ public class WaiterManager {
 	}
 	
 	public void checkWaiters(GenericEvent event, Class<?> clazz) {
-		new ArrayList<>(this.waiters).stream()
-			.filter(waiter -> waiter.getEvent() == clazz)
-			.filter(waiter -> waiter.testPredicate(event))
-			.forEach(waiter -> {
+		for (Waiter<?> waiter : new ArrayList<>(this.waiters)) {
+			if (waiter.getEvent() != clazz) {
+				continue;
+			}
+			
+			if (waiter.testPredicate(event)) {
 				waiter.execute(event);
-				waiter.delete();
-			});
+			}
+			
+			if (waiter.testCancelPredicate(event)) {
+				waiter.cancel();
+			}
+		}
 	}
 	
 }

@@ -29,11 +29,13 @@ import com.sx4.bot.entities.argument.MessageArgument;
 import com.sx4.bot.entities.argument.UpdateType;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.HelpUtility;
+import com.sx4.bot.waiter.Waiter;
 
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.MessageReaction.ReactionEmote;
 import net.dv8tion.jda.api.entities.MessageType;
 import net.dv8tion.jda.api.entities.Role;
+import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent;
 import net.dv8tion.jda.api.exceptions.ErrorHandler;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.requests.ErrorResponse;
@@ -331,6 +333,53 @@ public class ReactionRole extends Sx4Command {
 			
 			event.reply((all ? "All your reaction roles" : "That reaction role") + " now " + (all ? "have " : "has ") + (unlimited ? "no cap for" : "a cap of **" + maxReactions + "**") + " reaction" + (maxReactions == 1 ? "" : "s") + " <:done:403285928233402378>").queue();
 		});
+	}
+	
+	@Command(value="delete", description="Deletes a reaction role")
+	@Examples({"reaction role delete 643945552865919002", "reaction role delete all"})
+	@AuthorPermissions(permissions={Permission.MANAGE_ROLES})
+	@Cooldown(value=5)
+	public void delete(Sx4CommandEvent event, @Argument(value="message id") All<MessageArgument> allArgument) {
+		if (allArgument.isAll()) {
+			event.reply(event.getAuthor().getName() + ", are you sure you want to delete **all** the reaction roles in this server? (Yes or No)").queue(queryMessage -> {
+				Waiter<GuildMessageReceivedEvent> waiter = new Waiter<>(GuildMessageReceivedEvent.class)
+					.setPredicate(messageEvent -> messageEvent.getAuthor().getIdLong() == event.getAuthor().getIdLong() && messageEvent.getChannel().getIdLong() == event.getChannel().getIdLong() && messageEvent.getMessage().getContentRaw().equalsIgnoreCase("yes"))
+					.setCancelPredicate(messageEvent -> messageEvent.getAuthor().getIdLong() == event.getAuthor().getIdLong() && messageEvent.getChannel().getIdLong() == event.getChannel().getIdLong() && !messageEvent.getMessage().getContentRaw().equalsIgnoreCase("yes"))
+					.setTimeout(30);
+				
+				waiter.onTimeout(() -> event.reply("Response timed out :stopwatch:").queue());
+				
+				waiter.onCancelled(() -> event.reply("Cancelled <:done:403285928233402378>").queue());
+				
+				waiter.future().thenCompose((messageEvent) -> {
+					return this.database.updateGuildById(event.getGuild().getIdLong(), Updates.unset("reactionRole.reactionRoles"));
+				}).whenComplete((result, exception) -> {
+					if (exception != null) {
+						ExceptionUtility.sendExceptionally(event, exception);
+						return;
+					}
+					
+					event.reply("All reaction role data has been deleted in this server <:done:403285928233402378>").queue();
+				});
+				
+				waiter.start();
+			});
+		} else {
+			long messageId = allArgument.getValue().getMessageId();
+			this.database.updateGuildById(event.getGuild().getIdLong(), Updates.pull("reactionRole.reactionRoles", Filters.eq("id", messageId))).whenComplete((result, exception) -> {
+				if (exception != null) {
+					ExceptionUtility.sendExceptionally(event, exception);
+					return;
+				}
+				
+				if (result.getModifiedCount() == 0) {
+					event.reply("There was no reaction role linked to that message :no_entry:").queue();
+					return;
+				}
+				
+				event.reply("That reaction role has been deleted <:done:403285928233402378>").queue();
+			});
+		}
 	}
 	
 }
