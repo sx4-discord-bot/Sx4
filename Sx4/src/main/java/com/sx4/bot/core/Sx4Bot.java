@@ -298,7 +298,7 @@ public class Sx4Bot {
 						
 						if (!bot.hasPermission(Permission.MESSAGE_WRITE)) {
 							message.getAuthor().openPrivateChannel()
-								.flatMap(channel -> channel.sendMessage("I am missing the permission `" + Permission.MESSAGE_WRITE.getName() + "` in " + message.getTextChannel().getAsMention() + " :no_entry:"))
+								.flatMap(channel -> channel.sendMessage("I am missing the `" + Permission.MESSAGE_WRITE.getName() + "` permission in " + message.getTextChannel().getAsMention() + " :no_entry:"))
 								.queue();
 							
 							return;

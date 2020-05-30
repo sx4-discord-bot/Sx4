@@ -114,7 +114,6 @@ public class ReactionRole extends Sx4Command {
 			List<Bson> arrayFilters;
 			if (reactionRole == null) {
 				Document data = new Document("id", message.getIdLong())
-					.append("channelId", message.getChannel().getIdLong())
 					.append("reactions", List.of(reactionData));
 				
 				update = Updates.push("reactionRole.reactionRoles", data);
@@ -321,7 +320,7 @@ public class ReactionRole extends Sx4Command {
 			}
 			
 			if (result.getModifiedCount() == 0 && result.getMatchedCount() != 0) {
-				event.reply((all ? "All your reaction roles" : "That reaction role") + " already " + (all ? "have" : "has") + " it set to " + (unlimited ? "unlimted" : String.valueOf(maxReactions)) + " max reaction" + (maxReactions == 1 ? "" : "s") + ":no_entry:").queue();
+				event.reply((all ? "All your reaction roles" : "That reaction role") + " already " + (all ? "have" : "has") + " it set to " + (unlimited ? "unlimted" : "**" + maxReactions + "**") + " max reaction" + (maxReactions == 1 ? "" : "s") + ":no_entry:").queue();
 				return;
 			}
 			
@@ -330,7 +329,7 @@ public class ReactionRole extends Sx4Command {
 				return;
 			}
 			
-			event.reply((all ? "All your reaction roles" : "That reaction role") + " now " + (all ? "have " : "has ") + (unlimited ? "no cap for" : "a cap of " + maxReactions) + " reaction" + (maxReactions == 1 ? "" : "s") + " <:done:403285928233402378>").queue();
+			event.reply((all ? "All your reaction roles" : "That reaction role") + " now " + (all ? "have " : "has ") + (unlimited ? "no cap for" : "a cap of **" + maxReactions + "**") + " reaction" + (maxReactions == 1 ? "" : "s") + " <:done:403285928233402378>").queue();
 		});
 	}
 	
