@@ -71,12 +71,18 @@ public class ExceptionUtility {
 		return embed.build();
 	}
 	
-	public static void sendExceptionally(CommandEvent event, Throwable throwable) {
+	public static boolean sendExceptionally(CommandEvent event, Throwable throwable) {
+		if (throwable == null) {
+			return false;
+		}
+		
 		event.reply(ExceptionUtility.getSimpleErrorMessage(throwable)).queue();
 		
 		ExceptionUtility.sendErrorMessage(throwable);
 		
 		throwable.printStackTrace();
+		
+		return true;
 	}
 	
 }

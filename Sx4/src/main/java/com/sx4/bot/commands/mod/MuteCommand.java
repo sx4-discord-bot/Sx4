@@ -63,22 +63,18 @@ public class MuteCommand extends Sx4Command {
 				long seconds = time == null ? data.getDefaultTime() : time.toSeconds();
 				
 				this.database.updateGuildById(data.getUpdate(member, seconds, extend)).whenComplete((result, writeException) -> {
-					if (writeException != null) {
-						ExceptionUtility.sendExceptionally(event, writeException);
-					} else {
-						try {
-							event.getGuild().addRoleToMember(member, role).reason(ModUtility.getAuditReason(reason, event.getAuthor())).queue($ -> {
-								event.reply("**" + member.getUser().getAsTag() + "** has " + (extend ? "had their mute extended" : "been muted") + " for " + TimeUtility.getTimeString(seconds) + " <:done:403285928233402378>").queue();
-								
-								this.muteManager.putMute(event.getGuild().getIdLong(), member.getIdLong(), role.getIdLong(), seconds, extend);
-								
-								ModActionEvent modEvent = extend ? new MuteExtendEvent(event.getMember(), member.getUser(), reason, seconds) : new MuteEvent(event.getMember(), member.getUser(), reason, seconds);
-								this.modManager.onModAction(modEvent);
-							});
-						} catch (Throwable e) {
-							e.printStackTrace();
-						}
+					if (ExceptionUtility.sendExceptionally(event, writeException)) {
+						return;
 					}
+					
+					event.getGuild().addRoleToMember(member, role).reason(ModUtility.getAuditReason(reason, event.getAuthor())).queue($ -> {
+						event.reply("**" + member.getUser().getAsTag() + "** has " + (extend ? "had their mute extended" : "been muted") + " for " + TimeUtility.getTimeString(seconds) + " <:done:403285928233402378>").queue();
+						
+						this.muteManager.putMute(event.getGuild().getIdLong(), member.getIdLong(), role.getIdLong(), seconds, extend);
+						
+						ModActionEvent modEvent = extend ? new MuteExtendEvent(event.getMember(), member.getUser(), reason, seconds) : new MuteEvent(event.getMember(), member.getUser(), reason, seconds);
+						this.modManager.onModAction(modEvent);
+					});
 				});
 			}
 		});

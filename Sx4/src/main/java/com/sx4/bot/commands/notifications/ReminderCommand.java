@@ -53,6 +53,11 @@ public class ReminderCommand extends Sx4Command {
 			return;
 		}
 		
+		if (reminder.getReminder().length() > 1500) {
+			event.reply("Your reminder cannot be longer than 1500 characters :no_entry:").queue();
+			return;
+		}
+		
 		ObjectId id = ObjectId.get();
 		
 		Document reminderData = new Document("id", id)
@@ -62,8 +67,7 @@ public class ReminderCommand extends Sx4Command {
 			.append("repeat", repeatOption);
 		
 		this.database.updateUserById(event.getAuthor().getIdLong(), Updates.push("reminder.reminders", reminderData)).whenComplete((result, exception) -> {
-			if (exception != null) {
-				ExceptionUtility.sendExceptionally(event, exception);
+			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
 				
@@ -77,8 +81,7 @@ public class ReminderCommand extends Sx4Command {
 	@Examples({"reminder remove 5ec67a3b414d8776950f0eee"})
 	public void remove(Sx4CommandEvent event, @Argument(value="id") ObjectId id) {
 		this.database.updateUserById(event.getAuthor().getIdLong(), Updates.pull("reminder.reminders", Filters.eq("id", id))).whenComplete((result, exception) -> {
-			if (exception != null) {
-				ExceptionUtility.sendExceptionally(event, exception);
+			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
 			
@@ -121,8 +124,7 @@ public class ReminderCommand extends Sx4Command {
 		String zoneId = timeZone.getID();
 		
 		this.database.updateUserById(event.getAuthor().getIdLong(), Updates.set("reminder.timeZone", zoneId)).whenComplete((result, exception) -> {
-			if (exception != null) {
-				ExceptionUtility.sendExceptionally(event, exception);
+			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
 			

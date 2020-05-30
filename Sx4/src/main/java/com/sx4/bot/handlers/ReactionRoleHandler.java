@@ -1,7 +1,9 @@
 package com.sx4.bot.handlers;
 
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.bson.Document;
@@ -32,7 +34,6 @@ public class ReactionRoleHandler extends ListenerAdapter {
 		Guild guild = event.getGuild();
 		ReactionEmote emote = event.getReactionEmote();
 		
-		
 		if (user.isBot()) {
 			return;
 		}
@@ -57,8 +58,10 @@ public class ReactionRoleHandler extends ListenerAdapter {
 		}
 		
 		int reactedTo = 0;
+		boolean remove = false;
 		
-		List<Role> memberRoles = event.getMember().getRoles(), roles = null;
+		Set<Role> memberRoles = new HashSet<>(event.getMember().getRoles());
+		List<Role> roles = null;
 		for (Document data : reactionRole.getList("reactions", Document.class)) {
 			List<Role> rolesData = data.getList("roles", Long.class).stream()
 				.map(guild::getRoleById)
@@ -66,7 +69,8 @@ public class ReactionRoleHandler extends ListenerAdapter {
 				.filter(role -> guild.getSelfMember().canInteract(role))
 				.collect(Collectors.toList());
 			
-			if (memberRoles.containsAll(rolesData)) {
+			boolean removeData = memberRoles.containsAll(rolesData);
+			if (removeData) {
 				reactedTo++;
 			}
 			
@@ -74,10 +78,12 @@ public class ReactionRoleHandler extends ListenerAdapter {
 			if (emote.isEmoji()) {
 				if (emoteData.containsKey("name") && emoteData.getString("name").equals(emote.getEmoji())) {
 					roles = rolesData;
+					remove = removeData;
 				}
 			} else {
 				if (emoteData.get("id", 0L) == emote.getEmote().getIdLong()) {
 					roles = rolesData;
+					remove = removeData;
 				}
 			}
 		}
@@ -95,7 +101,6 @@ public class ReactionRoleHandler extends ListenerAdapter {
 			return;
 		}
 		
-		boolean remove = memberRoles.containsAll(roles);
 		if (remove) {
 			guild.modifyMemberRoles(event.getMember(), null, roles).queue();
 		} else {

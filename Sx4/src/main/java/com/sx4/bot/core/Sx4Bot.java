@@ -176,10 +176,9 @@ public class Sx4Bot {
 			
 			return builder;
 		}).addBuilderConfigureFunction(All.class, (parameter, builder) -> {
-			ParameterizedType type = (ParameterizedType) parameter.getParameterizedType();
-			builder.setProperty("type", type);
+			Class<?> clazz = (Class<?>) ((ParameterizedType) parameter.getParameterizedType()).getActualTypeArguments()[0];
 			
-			Class<?> clazz = (Class<?>) type.getActualTypeArguments()[0];
+			builder.setProperty("class", clazz);
 			
 			List<?> builders = argumentFactory.getBuilderConfigureFunctions(clazz);
 			for (Object builderFunction : builders) {
@@ -229,8 +228,7 @@ public class Sx4Bot {
 				if (content.equalsIgnoreCase("all")) {
 					return new ParsedArgument<>(new All<>(null));
 				} else {
-					ParameterizedType type = argument.getProperty("type", ParameterizedType.class);
-					Class<?> clazz = (Class<?>) type.getActualTypeArguments()[0];
+					Class<?> clazz = argument.getProperty("class", Class.class);
 					
 					return new ParsedArgument<>(new All<>(argumentFactory.getParser(clazz).parse(context, (IArgument) argument, content).getObject()));
 				}

@@ -2,6 +2,7 @@ package com.sx4.bot.commands.roles;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CompletionException;
 import java.util.function.Predicate;
 
 import org.bson.Document;
@@ -11,6 +12,7 @@ import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
 import com.jockie.bot.core.command.Command.Cooldown;
 import com.jockie.bot.core.command.impl.CommandEvent;
+import com.mongodb.MongoWriteException;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.FindOneAndUpdateOptions;
 import com.mongodb.client.model.Projections;
@@ -156,8 +158,7 @@ public class ReactionRole extends Sx4Command {
 			if (unicode && message.getReactionByUnicode(emote.getEmoji()) == null) {
 				message.addReaction(emote.getEmoji()).queue($ -> {
 					this.database.updateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((result, exception) -> {
-						if (exception != null) {
-							ExceptionUtility.sendExceptionally(event, exception);
+						if (ExceptionUtility.sendExceptionally(event, exception)) {
 							return;
 						}
 						
@@ -170,8 +171,7 @@ public class ReactionRole extends Sx4Command {
 				}
 				
 				this.database.updateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((result, exception) -> {
-					if (exception != null) {
-						ExceptionUtility.sendExceptionally(event, exception);
+					if (ExceptionUtility.sendExceptionally(event, exception)) {
 						return;
 					}
 					
@@ -201,8 +201,15 @@ public class ReactionRole extends Sx4Command {
 		
 		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().arrayFilters(arrayFilters).returnDocument(ReturnDocument.BEFORE).projection(Projections.include("reactionRole.reactionRoles"));
 		this.database.findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
-			if (exception != null) {
-				ExceptionUtility.sendExceptionally(event, exception);
+			if (exception instanceof CompletionException) {
+				Throwable cause = ((CompletionException) exception).getCause();
+				if (cause instanceof MongoWriteException && ((MongoWriteException) cause).getCode() == 2) {
+					event.reply("There was no reaction role on that message :no_entry:").queue();
+					return;
+				}
+			}
+				
+			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
 			
@@ -248,7 +255,7 @@ public class ReactionRole extends Sx4Command {
 				event.reply("The reaction " + (unicode ? emote.getEmoji() : emote.getEmote().getAsMention()) + " will no longer give any roles <:done:403285928233402378>").queue();
 			} else {
 				if (!reaction.getList("roles", Long.class).contains(role.getIdLong())) {
-					event.reply("That role was not linked to that reaction :no_entry:").queue();
+					event.reply("That role is not given when reacting to that emote :no_entry:").queue();
 					return;
 				}
 				
@@ -277,8 +284,15 @@ public class ReactionRole extends Sx4Command {
 		
 		UpdateOptions options = new UpdateOptions().arrayFilters(arrayFilters);
 		this.database.updateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((result, exception) -> {
-			if (exception != null) {
-				ExceptionUtility.sendExceptionally(event, exception);
+			if (exception instanceof CompletionException) {
+				Throwable cause = ((CompletionException) exception).getCause();
+				if (cause instanceof MongoWriteException && ((MongoWriteException) cause).getCode() == 2) {
+					event.reply(all ? "You do not have any reaction roles setup :no_entry:" : "There was no reaction role on that message :no_entry:").queue();
+					return;
+				}
+			}
+				
+			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
 			
@@ -288,7 +302,7 @@ public class ReactionRole extends Sx4Command {
 			}
 			
 			if (result.getModifiedCount() == 0) {
-				event.reply(all ? "You do not have any reaction roles setup :no_entry:" : "There is no reaction role linked to that message :no_entry:").queue();
+				event.reply(all ? "You do not have any reaction roles setup :no_entry:" : "There was no reaction role on that message :no_entry:").queue();
 				return;
 			}
 			
@@ -316,8 +330,15 @@ public class ReactionRole extends Sx4Command {
 		
 		UpdateOptions options = new UpdateOptions().arrayFilters(arrayFilters);
 		this.database.updateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((result, exception) -> {
-			if (exception != null) {
-				ExceptionUtility.sendExceptionally(event, exception);
+			if (exception instanceof CompletionException) {
+				Throwable cause = ((CompletionException) exception).getCause();
+				if (cause instanceof MongoWriteException && ((MongoWriteException) cause).getCode() == 2) {
+					event.reply(all ? "You do not have any reaction roles setup :no_entry:" : "There was no reaction role on that message :no_entry:").queue();
+					return;
+				}
+			}
+				
+			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
 			
@@ -327,7 +348,7 @@ public class ReactionRole extends Sx4Command {
 			}
 			
 			if (result.getModifiedCount() == 0) {
-				event.reply(all ? "You do not have any reaction roles setup :no_entry:" : "There is no reaction role linked to that message :no_entry:").queue();
+				event.reply(all ? "You do not have any reaction roles setup :no_entry:" : "There was no reaction role on that message :no_entry:").queue();
 				return;
 			}
 			
@@ -351,29 +372,27 @@ public class ReactionRole extends Sx4Command {
 				
 				waiter.onCancelled(() -> event.reply("Cancelled <:done:403285928233402378>").queue());
 				
-				waiter.future().thenCompose((messageEvent) -> {
-					return this.database.updateGuildById(event.getGuild().getIdLong(), Updates.unset("reactionRole.reactionRoles"));
-				}).whenComplete((result, exception) -> {
-					if (exception != null) {
-						ExceptionUtility.sendExceptionally(event, exception);
-						return;
-					}
-					
-					event.reply("All reaction role data has been deleted in this server <:done:403285928233402378>").queue();
-				});
+				waiter.future()
+					.thenCompose(messageEvent -> this.database.updateGuildById(event.getGuild().getIdLong(), Updates.unset("reactionRole.reactionRoles")))
+					.whenComplete((result, exception) -> {
+						if (ExceptionUtility.sendExceptionally(event, exception)) {
+							return;
+						}
+						
+						event.reply("All reaction role data has been deleted in this server <:done:403285928233402378>").queue();
+					});
 				
 				waiter.start();
 			});
 		} else {
 			long messageId = allArgument.getValue().getMessageId();
 			this.database.updateGuildById(event.getGuild().getIdLong(), Updates.pull("reactionRole.reactionRoles", Filters.eq("id", messageId))).whenComplete((result, exception) -> {
-				if (exception != null) {
-					ExceptionUtility.sendExceptionally(event, exception);
+				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
 				
 				if (result.getModifiedCount() == 0) {
-					event.reply("There was no reaction role linked to that message :no_entry:").queue();
+					event.reply("There was no reaction role on that message :no_entry:").queue();
 					return;
 				}
 				

@@ -68,29 +68,29 @@ public class TempBanCommand extends Sx4Command {
 				long seconds = time == null ? data.getDefaultTime() : time.toSeconds();
 				
 				this.database.updateGuildById(data.getUpdate(event.getGuild().getIdLong(), member.getIdLong(), seconds)).whenComplete((result, exception) -> {
-					if (exception != null) {
-						ExceptionUtility.sendExceptionally(event, exception);
-					} else {
-						int deleteDays = 1;
-						if (days != null) {
-							try {
-								deleteDays = Integer.parseInt(days);
-							} catch (NumberFormatException ex) {}
-						}
-						
-						deleteDays = deleteDays < 0 ? 0 : deleteDays > 7 ? 7 : deleteDays;
-						
-						event.getGuild()
-							.ban(user, deleteDays)
-							.reason(ModUtility.getAuditReason(reason, event.getAuthor()))
-							.queue($ -> {
-								event.reply("**" + user.getAsTag() + "** has been temporarily banned for " + TimeUtility.getTimeString(seconds) + " <:done:403285928233402378>:ok_hand:").queue();
-								
-								this.modManager.onModAction(new TempBanEvent(event.getMember(), user, reason, member != null, seconds));
-								
-								this.banManager.putBan(event.getGuild().getIdLong(), member.getIdLong(), seconds);
-							});
+					if (ExceptionUtility.sendExceptionally(event, exception)) {
+						return;
 					}
+					
+					int deleteDays = 1;
+					if (days != null) {
+						try {
+							deleteDays = Integer.parseInt(days);
+						} catch (NumberFormatException ex) {}
+					}
+					
+					deleteDays = deleteDays < 0 ? 0 : deleteDays > 7 ? 7 : deleteDays;
+					
+					event.getGuild()
+						.ban(user, deleteDays)
+						.reason(ModUtility.getAuditReason(reason, event.getAuthor()))
+						.queue($ -> {
+							event.reply("**" + user.getAsTag() + "** has been temporarily banned for " + TimeUtility.getTimeString(seconds) + " <:done:403285928233402378>:ok_hand:").queue();
+							
+							this.modManager.onModAction(new TempBanEvent(event.getMember(), user, reason, member != null, seconds));
+							
+							this.banManager.putBan(event.getGuild().getIdLong(), member.getIdLong(), seconds);
+						});
 				});
 			}));
 		});

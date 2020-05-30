@@ -50,11 +50,11 @@ public class ModLogCommand extends Sx4Command {
 	public void toggle(Sx4CommandEvent event) {
 		List<Bson> update = List.of(Operators.set("modLog.enabled", Operators.cond("$modLog.enabled", "$$REMOVE", true)));
 		this.database.findAndUpdateGuildById(event.getGuild().getIdLong(), Projections.include("modLog.enabled"), update).whenComplete((data, exception) -> {
-			if (exception != null) {
-				ExceptionUtility.sendExceptionally(event, exception);
-			} else {
-				event.reply("Mod logs are now **" + (data.getEmbedded(List.of("modLog", "enabled"), false) ? "enabled" : "disabled") + "** <:done:403285928233402378>").queue();
+			if (ExceptionUtility.sendExceptionally(event, exception)) {
+				return;
 			}
+			
+			event.reply("Mod logs are now **" + (data.getEmbedded(List.of("modLog", "enabled"), false) ? "enabled" : "disabled") + "** <:done:403285928233402378>").queue();
 		});
 	}
 	
@@ -64,16 +64,16 @@ public class ModLogCommand extends Sx4Command {
 	public void channel(Sx4CommandEvent event, @Argument(value="channel", endless=true, nullDefault=true) TextChannel channel) {
 		List<Bson> update = List.of(Operators.set("modLog.channelId", channel == null ? "$$REMOVE" : channel.getIdLong()));
 		this.database.updateGuildById(event.getGuild().getIdLong(), update).whenComplete((result, exception) -> {
-			if (exception != null) {
-				ExceptionUtility.sendExceptionally(event, exception);
-			} else {
-				if (result.getModifiedCount() == 0) {
-					event.reply("The mod log channel is already " + (channel == null ? "unset" : "set to " + channel.getAsMention()) + " :no_entry:").queue();
-					return;
-				}
-				
-				event.reply("The mod log channel has been " + (channel == null ? "unset" : "set to " + channel.getAsMention()) + " <:done:403285928233402378>").queue();
+			if (ExceptionUtility.sendExceptionally(event, exception)) {
+				return;
 			}
+			
+			if (result.getModifiedCount() == 0) {
+				event.reply("The mod log channel is already " + (channel == null ? "unset" : "set to " + channel.getAsMention()) + " :no_entry:").queue();
+				return;
+			}
+			
+			event.reply("The mod log channel has been " + (channel == null ? "unset" : "set to " + channel.getAsMention()) + " <:done:403285928233402378>").queue();
 		});
 	}
 	
@@ -98,11 +98,11 @@ public class ModLogCommand extends Sx4Command {
 		}
 		
 		this.database.updateModLogById(id, Updates.set("reason", reason.getParsed())).whenComplete((result, exception) -> {
-			if (exception != null) {
-				ExceptionUtility.sendExceptionally(event, exception);
-			} else {
-				event.reply("Case `" + id.toHexString() + "` has been updated <:done:403285928233402378>").queue();
+			if (ExceptionUtility.sendExceptionally(event, exception)) {
+				return;
 			}
+			
+			event.reply("Case `" + id.toHexString() + "` has been updated <:done:403285928233402378>").queue();
 		});
 	}
 	

@@ -3,6 +3,7 @@ package com.sx4.bot.config;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.List;
 
 import org.json.JSONObject;
@@ -32,7 +33,7 @@ public class Config {
 	}
 	
 	public <Type> Type get(String path, Type defaultValue) {
-		return this.get(List.of(path.split("\\.")), defaultValue);
+		return this.get(Arrays.asList(path.split("\\.")), defaultValue);
 	}
 	
 	@SuppressWarnings("unchecked")
@@ -250,10 +251,6 @@ public class Config {
 	
 	public String getSteam() {
 		return this.get("token.steam");
-	}
-	
-	public String getOxfordDictionaries() {
-		return this.get("token.oxfordDictionaries");
 	}
 	
 	public String getCurrencyConvertor() {

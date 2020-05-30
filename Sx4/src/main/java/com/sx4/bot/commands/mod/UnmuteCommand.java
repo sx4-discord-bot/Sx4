@@ -45,16 +45,16 @@ public class UnmuteCommand extends Sx4Command {
 		}
 		
 		this.database.updateGuildById(event.getGuild().getIdLong(), Updates.pull("mute.users", Filters.eq("id", member.getIdLong()))).whenComplete((result, exception) -> {
-			if (exception != null) {
-				ExceptionUtility.sendExceptionally(event, exception);
-			} else {
-				event.getGuild().removeRoleFromMember(member, role).reason(ModUtility.getAuditReason(reason, event.getAuthor())).queue($ -> {
-					event.reply("**" + member.getUser().getAsTag() + "** has been unmuted <:done:403285928233402378>").queue();
-					
-					this.muteManager.deleteExecutor(event.getGuild().getIdLong(), member.getIdLong());
-					this.modManager.onModAction(new UnmuteEvent(event.getMember(), member.getUser(), reason));
-				});
+			if (ExceptionUtility.sendExceptionally(event, exception)) {
+				return;
 			}
+			
+			event.getGuild().removeRoleFromMember(member, role).reason(ModUtility.getAuditReason(reason, event.getAuthor())).queue($ -> {
+				event.reply("**" + member.getUser().getAsTag() + "** has been unmuted <:done:403285928233402378>").queue();
+				
+				this.muteManager.deleteExecutor(event.getGuild().getIdLong(), member.getIdLong());
+				this.modManager.onModAction(new UnmuteEvent(event.getMember(), member.getUser(), reason));
+			});
 		});
 	}
 	
