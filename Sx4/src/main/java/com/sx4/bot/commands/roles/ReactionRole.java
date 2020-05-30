@@ -146,11 +146,6 @@ public class ReactionRole extends Sx4Command {
 						return;
 					}
 					
-					if (roles.size() >= 10) {
-						event.reply("A single reaction cannot give more than 10 roles :no_entry:").queue();
-						return;
-					}
-					
 					update = Updates.addToSet("reactionRole.reactionRoles.$[reactionRole].reactions.$[reaction].roles", role.getIdLong());
 					arrayFilters = List.of(Filters.eq("reactionRole.id", message.getIdLong()), Filters.eq("reaction.emote." + identifier, unicode ? emote.getEmoji() : emote.getEmote().getIdLong()));
 				}

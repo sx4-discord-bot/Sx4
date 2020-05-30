@@ -47,6 +47,7 @@ import com.sx4.bot.entities.mod.Reason;
 import com.sx4.bot.entities.reminder.ReminderArgument;
 import com.sx4.bot.handlers.ConnectionHandler;
 import com.sx4.bot.handlers.ModHandler;
+import com.sx4.bot.handlers.ReactionRoleHandler;
 import com.sx4.bot.handlers.YouTubeHandler;
 import com.sx4.bot.managers.ModActionManager;
 import com.sx4.bot.managers.YouTubeManager;
@@ -296,13 +297,9 @@ public class Sx4Bot {
 						Member bot = message.getGuild().getSelfMember();
 						
 						if (!bot.hasPermission(Permission.MESSAGE_WRITE)) {
-							message.getAuthor().openPrivateChannel().queue(channel -> {
-								channel.sendMessage("Missing permission **" + Permission.MESSAGE_WRITE.getName() + "** in " + message.getChannel().getName() + ", " + message.getGuild().getName()).queue();
-							});
-							
-							return;
-						} else if (!bot.hasPermission(Permission.MESSAGE_EMBED_LINKS)) {
-							message.getChannel().sendMessage("Missing permission **" + Permission.MESSAGE_EMBED_LINKS.getName() + "** in " + message.getChannel().getName() + ", " + message.getGuild().getName()).queue();
+							message.getAuthor().openPrivateChannel()
+								.flatMap(channel -> channel.sendMessage("I am missing the permission `" + Permission.MESSAGE_WRITE.getName() + "` in " + message.getTextChannel().getAsMention() + " :no_entry:"))
+								.queue();
 							
 							return;
 						}
@@ -327,6 +324,7 @@ public class Sx4Bot {
 		eventManager.register(new WaiterHandler());
 		eventManager.register(GuildMessageCache.INSTANCE);
 		eventManager.register(new ConnectionHandler());
+		eventManager.register(new ReactionRoleHandler());
 		
 		Sx4Bot.shardManager = DefaultShardManagerBuilder.create(EnumSet.allOf(GatewayIntent.class))
 			.setToken(Config.get().getToken())

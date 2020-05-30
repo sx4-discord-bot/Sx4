@@ -54,17 +54,18 @@ public class Sx4Command extends CommandImpl {
 	
 	protected boolean canaryCommand = false;
 	
-	protected EnumSet<Permission> authorDiscordPermissions = EnumSet.noneOf(Permission.class);
-	protected EnumSet<Permission> botDiscordPermissions = EnumSet.of(Permission.MESSAGE_WRITE);
-	
 	public Sx4Command(String name) {
 		super(name, true);
-		
+
+		super.botDiscordPermissions = EnumSet.of(Permission.MESSAGE_WRITE);
+	
 		this.doAnnotations();
 	}
 	
 	public Sx4Command(String name, Method method, Object invoker) {
 		super(name, method, invoker);
+
+		super.botDiscordPermissions = EnumSet.of(Permission.MESSAGE_WRITE);
 		
 		this.doAnnotations();
 	}
@@ -199,7 +200,7 @@ public class Sx4Command extends CommandImpl {
 		
 		this.category = category;
 		
-		if(old != null) {
+		if (old != null) {
 			old.removeCommand(this);
 			this.subCommands.forEach(this.category::removeCommand);
 			
@@ -210,7 +211,7 @@ public class Sx4Command extends CommandImpl {
 			}
 		}
 		
-		if(this.category != null) {
+		if (this.category != null) {
 			this.category.addCommand(this);
 			this.subCommands.forEach(this.category::addCommand);
 			
