@@ -3044,6 +3044,11 @@ public class EconomyModule {
 				return;
 			}
 			
+			if (item instanceof Envelope) {
+				event.reply("You cannot sell envelopes on the auction :no_entry:").queue();
+				return;
+			}
+			
 			List<Document> items = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items")).getEmbedded(List.of("economy", "items"), new ArrayList<>());
 			ItemStack<Item> userItem = EconomyUtils.getUserItem(items, item);
 			
