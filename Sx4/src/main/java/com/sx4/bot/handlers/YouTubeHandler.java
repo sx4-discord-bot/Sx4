@@ -1,6 +1,5 @@
 package com.sx4.bot.handlers;
 
-import java.time.Clock;
 import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.HashMap;
@@ -169,68 +168,62 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 					
 					if (guild != null) {
 						List<Document> notifications = guildData.getEmbedded(List.of("youtube", "notifications"), Collections.emptyList());
-						
-						Document notification = notifications.stream()
-							.filter(data -> data.getString("uploaderId").equals(channelId))
-							.findFirst()
-							.orElse(null);
-						
-						if (notification == null) {
-							return;
-						}
-						
-						long textChannelId = notification.getLong("channelId");
-						TextChannel textChannel = guild.getTextChannelById(textChannelId);
-						if (textChannel != null) {
-							String messageContent = this.getMessage(event, notification.get("message", YouTubeManager.DEFAULT_MESSAGE));
-							
-							WebhookMessage message = new WebhookMessageBuilder()
-								.setAvatarUrl(notification.get("avatar", Sx4Bot.getShardManager().getShardById(0).getSelfUser().getEffectiveAvatarUrl()))
-								.setUsername(notification.get("name", "Sx4 - YouTube"))
-								.setContent(messageContent)
-								.build();
-							
-							long webhookId = notification.get("webhookId", 0L);
-							String webhookToken = notification.getString("webhookToken");
-							
-							WebhookClient webhook;
-							if (this.webhooks.containsKey(textChannel.getIdLong())) {
-								webhook = this.webhooks.get(textChannel.getIdLong());
-							} else {
-								if (webhookId == 0L || webhookToken == null) {
-									if (textChannel.getGuild().getSelfMember().hasPermission(textChannel, Permission.MANAGE_WEBHOOKS)) {
-										this.createNewWebhook(event, textChannel, message);
+						for (Document notification : notifications) {
+							if (notification.getString("uploaderId").equals(channelId)) {
+								long textChannelId = notification.getLong("channelId");
+								TextChannel textChannel = guild.getTextChannelById(textChannelId);
+								if (textChannel != null) {
+									String messageContent = this.getMessage(event, notification.get("message", YouTubeManager.DEFAULT_MESSAGE));
+									
+									WebhookMessage message = new WebhookMessageBuilder()
+										.setAvatarUrl(notification.get("avatar", Sx4Bot.getShardManager().getShardById(0).getSelfUser().getEffectiveAvatarUrl()))
+										.setUsername(notification.get("name", "Sx4 - YouTube"))
+										.setContent(messageContent)
+										.build();
+									
+									long webhookId = notification.get("webhookId", 0L);
+									String webhookToken = notification.getString("webhookToken");
+									
+									WebhookClient webhook;
+									if (this.webhooks.containsKey(textChannel.getIdLong())) {
+										webhook = this.webhooks.get(textChannel.getIdLong());
+									} else {
+										if (webhookId == 0L || webhookToken == null) {
+											if (textChannel.getGuild().getSelfMember().hasPermission(textChannel, Permission.MANAGE_WEBHOOKS)) {
+												this.createNewWebhook(event, textChannel, message);
+											}
+											
+											return;
+										} else {
+											webhook = new WebhookClientBuilder(webhookId, webhookToken)
+													.setExecutorService(this.scheduledExectuor)
+													.setHttpClient(this.client)
+													.build();
+											
+											this.webhooks.put(textChannel.getIdLong(), webhook);
+										}
 									}
 									
-									return;
+									webhook.send(message).whenComplete((webhookMessage, exception) -> {
+										if (exception instanceof HttpException && ((HttpException) exception).getCode() == 404) {
+											this.webhooks.remove(textChannel.getIdLong());
+											
+											if (textChannel.getGuild().getSelfMember().hasPermission(textChannel, Permission.MANAGE_WEBHOOKS)) {
+												this.createNewWebhook(event, textChannel, message);
+											}
+										}
+									});
 								} else {
-									webhook = new WebhookClientBuilder(webhookId, webhookToken)
-											.setExecutorService(this.scheduledExectuor)
-											.setHttpClient(this.client)
-											.build();
-									
-									this.webhooks.put(textChannel.getIdLong(), webhook);
+									database.updateGuildById(guild.getIdLong(), Updates.pull("youtube.notifications", Filters.eq("channelId", textChannelId))).whenComplete((result, exception) -> {
+										if (exception != null) {
+											exception.printStackTrace();
+											ExceptionUtility.sendErrorMessage(exception);
+										} else {
+											this.webhooks.remove(textChannelId);
+										}
+									});
 								}
 							}
-							
-							webhook.send(message).whenComplete((webhookMessage, exception) -> {
-								if (exception instanceof HttpException && ((HttpException) exception).getCode() == 404) {
-									this.webhooks.remove(textChannel.getIdLong());
-									
-									if (textChannel.getGuild().getSelfMember().hasPermission(textChannel, Permission.MANAGE_WEBHOOKS)) {
-										this.createNewWebhook(event, textChannel, message);
-									}
-								}
-							});
-						} else {
-							database.updateGuildById(guild.getIdLong(), Updates.pull("youtube.notifications", Filters.eq("channelId", textChannelId))).whenComplete((result, exception) -> {
-								if (exception != null) {
-									exception.printStackTrace();
-									ExceptionUtility.sendErrorMessage(exception);
-								} else {
-									this.webhooks.remove(textChannelId);
-								}
-							});
 						}
 					}
 				});
@@ -238,8 +231,7 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 				Document databaseData = new Document("type", YouTubeType.UPLOAD.getRaw())
 						.append("videoId", event.getVideo().getId())
 						.append("title", event.getVideo().getTitle())
-						.append("uploaderId", event.getChannel().getId())
-						.append("timestamp", Clock.systemUTC().instant().getEpochSecond());
+						.append("uploaderId", event.getChannel().getId());
 				
 				Database.get().insertNotification(databaseData).whenComplete((result, databaseException) -> {
 					if (databaseException != null) {
@@ -267,8 +259,7 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 		Document data = new Document("type", YouTubeType.TITLE.getRaw())
 				.append("videoId", event.getVideo().getId())
 				.append("title", event.getVideo().getTitle())
-				.append("uploaderId", event.getChannel().getId())
-				.append("timestamp", Clock.systemUTC().instant().getEpochSecond());
+				.append("uploaderId", event.getChannel().getId());
 		
 		Database.get().insertNotification(data).whenComplete((result, exception) -> {
 			if (exception != null) {
