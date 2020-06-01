@@ -491,7 +491,9 @@ public class LogsModule {
 							eventsRaw = Event.ALL_MEMBER_EVENTS;
 							break;
 					}
-				} else {
+				}
+				
+				if (eventsRaw == 0) {
 					for (String stringEvent : eventsArgument) {
 						try {
 							Event newEvent = Event.valueOf(stringEvent.toUpperCase());
