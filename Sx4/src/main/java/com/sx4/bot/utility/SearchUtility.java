@@ -17,6 +17,7 @@ import com.sx4.bot.core.Sx4Bot;
 import com.sx4.bot.core.Sx4Category;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.entities.argument.MessageArgument;
+import com.sx4.bot.entities.mod.PartialEmote;
 
 import net.dv8tion.jda.api.entities.Emote;
 import net.dv8tion.jda.api.entities.Guild;
@@ -29,7 +30,6 @@ import net.dv8tion.jda.api.entities.MessageReaction.ReactionEmote;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.entities.User;
-import net.dv8tion.jda.api.sharding.ShardManager;
 import net.dv8tion.jda.api.utils.MiscUtil;
 
 public class SearchUtility {
@@ -40,7 +40,8 @@ public class SearchUtility {
 	private static final Pattern USER_TAG = Pattern.compile("(.{2,32})#(\\d{4})");
 	private static final Pattern CHANNEL_MENTION = MentionType.CHANNEL.getPattern();
 	private static final Pattern ROLE_MENTION = MentionType.ROLE.getPattern();
-	private static final Pattern EMOTE_MENTION = MentionType.EMOTE.getPattern();
+	private static final Pattern EMOTE_MENTION = Pattern.compile("<(a)?:([a-zA-Z0-9_]+):([0-9]+)>");
+	private static final Pattern EMOTE_URL = Pattern.compile("https?://cdn\\.discordapp\\.com/emojis/([0-9]+)\\.(png|gif|jpeg|jpg)(?:\\?\\S*)?(?:#\\S*)?", Pattern.CASE_INSENSITIVE);
 	
 	private static <Type> Type find(List<Type> list, String query, Function<Type, String> nameFunction) {
 		List<Type> startsWith = new ArrayList<>();
@@ -89,39 +90,45 @@ public class SearchUtility {
 		return SearchUtility.find(emotes, query, emote -> emote.getName());
 	}
 	
-	public static ReactionEmote getEmote(String query) {
+	public static PartialEmote getPartialEmote(String query) {
+		Matcher mentionMatch = SearchUtility.EMOTE_MENTION.matcher(query);
+		Matcher urlMatch = SearchUtility.EMOTE_URL.matcher(query);
+		if (mentionMatch.matches()) {
+			return new PartialEmote(String.format(Emote.ICON_URL, mentionMatch.group(3), mentionMatch.group(1) == null ? "png" : "gif"), mentionMatch.group(2));
+		} else if (NumberUtility.isNumberUnsigned(query)) {
+			return new PartialEmote(String.format(Emote.ICON_URL, query, "gif"), null);
+		} else if (urlMatch.matches()) {
+			return new PartialEmote(query, null);
+		}
+		
+		return null;
+	}
+	
+	public static Emote getEmote(String query) {
 		Matcher mentionMatch = SearchUtility.EMOTE_MENTION.matcher(query);
 		if (mentionMatch.matches()) {
 			try {
-				Emote emote = Sx4Bot.getShardManager().getEmoteById(mentionMatch.group(2));
-				if (emote == null) {
-					return null;
-				}
-				
-				return ReactionEmote.fromCustom(emote);
+				return Sx4Bot.getShardManager().getEmoteById(mentionMatch.group(3));
 			} catch (NumberFormatException e) {
 				return null;
 			}
 		} else if (NumberUtility.isNumberUnsigned(query)) {
 			try {
-				Emote emote = Sx4Bot.getShardManager().getEmoteById(query);
-				if (emote == null) {
-					return null;
-				}
-				
-				return ReactionEmote.fromCustom(emote);
+				return Sx4Bot.getShardManager().getEmoteById(query);
 			} catch (NumberFormatException e) {
 				return null;
 			}
 		} else {
-			ShardManager shardManager = Sx4Bot.getShardManager();
-			
-			Emote emote = SearchUtility.findEmote(shardManager.getEmotes(), query);
-			if (emote == null) {
-				return ReactionEmote.fromUnicode(query, shardManager.getShardById(0));
-			} else {
-				return ReactionEmote.fromCustom(emote);
-			}
+			return SearchUtility.findEmote(Sx4Bot.getShardManager().getEmotes(), query);
+		}
+	}
+	
+	public static ReactionEmote getReactionEmote(String query) {
+		Emote emote = SearchUtility.getEmote(query);
+		if (emote != null) {
+			return ReactionEmote.fromCustom(emote);
+		} else {
+			return ReactionEmote.fromUnicode(query, Sx4Bot.getShardManager().getShardById(0));
 		}
 	}
 	

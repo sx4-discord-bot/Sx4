@@ -43,6 +43,7 @@ import com.sx4.bot.config.Config;
 import com.sx4.bot.entities.argument.All;
 import com.sx4.bot.entities.argument.MessageArgument;
 import com.sx4.bot.entities.argument.UpdateType;
+import com.sx4.bot.entities.mod.PartialEmote;
 import com.sx4.bot.entities.mod.Reason;
 import com.sx4.bot.entities.reminder.ReminderArgument;
 import com.sx4.bot.handlers.ConnectionHandler;
@@ -61,6 +62,7 @@ import com.sx4.bot.waiter.WaiterHandler;
 
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Category;
+import net.dv8tion.jda.api.entities.Emote;
 import net.dv8tion.jda.api.entities.GuildChannel;
 import net.dv8tion.jda.api.entities.IPermissionHolder;
 import net.dv8tion.jda.api.entities.Member;
@@ -123,6 +125,7 @@ public class Sx4Bot {
 			.registerResponse(URL.class, "Invalid image given :no_entry:")
 			.registerResponse(MessageArgument.class, "I could not find that message :no_entry:")
 			.registerResponse(ReminderArgument.class, "Invalid reminder format given, view `help reminder add` for more info :no_entry:")
+			.registerResponse(PartialEmote.class, "I could not find that emote :no_entry:")
 			.registerResponse(UpdateType.class, (argument, message, content) -> {
 				List<UpdateType> updates = argument.getProperty("updates", List.class);
 				message.getChannel().sendMessage("Invalid update type given, update types you can use are `" + updates.stream().map(t -> t.name().toLowerCase()).collect(Collectors.joining("`, `")) + "` :no_entry:").queue();
@@ -198,7 +201,7 @@ public class Sx4Bot {
 			.registerParser(IPermissionHolder.class, (context, argument, content) -> new ParsedArgument<>(SearchUtility.getPermissionHolder(context.getMessage().getGuild(), content)))
 			.registerParser(Role.class, (context, argument, content) -> new ParsedArgument<>(SearchUtility.getRole(context.getMessage().getGuild(), content)))
 			.registerParser(MessageArgument.class, (context, argument, content) -> new ParsedArgument<>(SearchUtility.getMessageArgument(context.getMessage().getTextChannel(), content)))
-			.registerParser(ReactionEmote.class, (context, argument, content) -> new ParsedArgument<>(SearchUtility.getEmote(content)))
+			.registerParser(ReactionEmote.class, (context, argument, content) -> new ParsedArgument<>(SearchUtility.getReactionEmote(content)))
 			.registerParser(TimeZone.class, (context, argument, content) -> new ParsedArgument<>(TimeZone.getTimeZone(content.toUpperCase().replace("UTC", "GMT"))))
 			.registerParser(ReminderArgument.class, (context, argument, content) -> {
 				try {
@@ -224,6 +227,37 @@ public class Sx4Bot {
 				} else {
 					return new ParsedArgument<>(SearchUtility.getURL(context.getMessage(), content));
 				}
+			}).registerParser(PartialEmote.class, (context, argument, content) -> {
+				if (content.isEmpty()) {
+					Attachment attachment = context.getMessage().getAttachments().stream()
+						.filter(Attachment::isImage)
+						.findFirst()
+						.orElse(null);
+					
+					if (attachment != null) {
+						return new ParsedArgument<>(new PartialEmote(attachment.getUrl(), attachment.getFileName()));
+					}
+					
+					return new ParsedArgument<>();
+				}
+				
+				Emote emote = SearchUtility.getEmote(content);
+				if (emote != null) {
+					return new ParsedArgument<>(new PartialEmote(emote));
+				}
+				
+				PartialEmote partialEmote = SearchUtility.getPartialEmote(content);
+				if (partialEmote != null) {
+					return new ParsedArgument<>(partialEmote);
+				}
+				
+				try {
+					new URL(content);
+				} catch (MalformedURLException e) {
+					return new ParsedArgument<>();
+				}
+				
+				return new ParsedArgument<>(new PartialEmote(content, null));
 			}).registerParser(All.class, (context, argument, content) -> {
 				if (content.equalsIgnoreCase("all")) {
 					return new ParsedArgument<>(new All<>(null));

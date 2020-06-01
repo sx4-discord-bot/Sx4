@@ -42,7 +42,7 @@ import net.dv8tion.jda.api.exceptions.ErrorHandler;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.requests.ErrorResponse;
 
-public class ReactionRole extends Sx4Command {
+public class ReactionRoleCommand extends Sx4Command {
 
 	private final Predicate<Throwable> defaultReactionFailure = exception -> {
 		if (exception instanceof ErrorResponseException) {
@@ -53,7 +53,7 @@ public class ReactionRole extends Sx4Command {
 		return false;
 	};
 	
-	public ReactionRole() {
+	public ReactionRoleCommand() {
 		super("reaction role");
 		
 		super.setDescription("Set up a reaction role so users can simply react to an emote and get a specified role");
