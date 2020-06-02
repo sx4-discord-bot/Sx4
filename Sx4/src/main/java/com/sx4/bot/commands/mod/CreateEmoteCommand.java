@@ -62,7 +62,7 @@ public class CreateEmoteCommand extends Sx4Command {
 		});
 	}
 	
-	public void onCommand(Sx4CommandEvent event, @Argument(value="emote", acceptEmpty=true) PartialEmote emote) {
+	public void onCommand(Sx4CommandEvent event, @Argument(value="emote", acceptEmpty=true) PartialEmote emote, @Argument(value="name", endless=true, nullDefault=true) String name) {
 		long animatedEmotes = event.getGuild().getEmoteCache().stream().filter(Emote::isAnimated).count();
 		long nonAnimatedEmotes = event.getGuild().getEmoteCache().stream().filter(Predicate.not(Emote::isAnimated)).count();
 		int maxEmotes = event.getGuild().getMaxEmotes();
@@ -89,7 +89,7 @@ public class CreateEmoteCommand extends Sx4Command {
 				return;
 			}
 			
-			event.getGuild().createEmote(emote.hasName() ? emote.getName() : "Unnamed_Emote", Icon.from(bytes))
+			event.getGuild().createEmote(name != null ? name : emote.hasName() ? emote.getName() : "Unnamed_Emote", Icon.from(bytes))
 				.flatMap(createdEmote -> event.reply(createdEmote.getAsMention() + " has been created <:done:403285928233402378>"))
 				.queue(null, exception -> {
 					if (exception instanceof ErrorResponseException && ((ErrorResponseException) exception).getErrorCode() == 400) {
