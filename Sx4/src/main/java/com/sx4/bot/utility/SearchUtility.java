@@ -94,11 +94,33 @@ public class SearchUtility {
 		Matcher mentionMatch = SearchUtility.EMOTE_MENTION.matcher(query);
 		Matcher urlMatch = SearchUtility.EMOTE_URL.matcher(query);
 		if (mentionMatch.matches()) {
-			return new PartialEmote(String.format(Emote.ICON_URL, mentionMatch.group(3), mentionMatch.group(1) == null ? "png" : "gif"), mentionMatch.group(2));
+			String id = mentionMatch.group(3);
+			
+			try {
+				return new PartialEmote(Long.valueOf(id), mentionMatch.group(2), mentionMatch.group(1) != null);
+			} catch (NumberFormatException e) {
+				return null;
+			}	
 		} else if (NumberUtility.isNumberUnsigned(query)) {
-			return new PartialEmote(String.format(Emote.ICON_URL, query, "gif"), null);
+			try {
+				Emote emote = Sx4Bot.getShardManager().getEmoteById(query);
+				if (emote == null) {
+					return new PartialEmote(Long.valueOf(query), null, null);
+				} else {
+					return new PartialEmote(emote);
+				}
+			} catch (NumberFormatException e) {
+				return null;
+			}
 		} else if (urlMatch.matches()) {
-			return new PartialEmote(query, null);
+			String extension = StringUtility.getFileExtension(query);
+			
+			return new PartialEmote(query, null, extension.equals("gif"));
+		} else {
+			Emote emote = SearchUtility.findEmote(Sx4Bot.getShardManager().getEmotes(), query);
+			if (emote != null) {
+				return new PartialEmote(emote);
+			}
 		}
 		
 		return null;

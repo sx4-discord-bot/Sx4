@@ -57,12 +57,12 @@ import com.sx4.bot.paged.PagedHandler;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.HelpUtility;
 import com.sx4.bot.utility.SearchUtility;
+import com.sx4.bot.utility.StringUtility;
 import com.sx4.bot.utility.TimeUtility;
 import com.sx4.bot.waiter.WaiterHandler;
 
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Category;
-import net.dv8tion.jda.api.entities.Emote;
 import net.dv8tion.jda.api.entities.GuildChannel;
 import net.dv8tion.jda.api.entities.IPermissionHolder;
 import net.dv8tion.jda.api.entities.Member;
@@ -235,15 +235,10 @@ public class Sx4Bot {
 						.orElse(null);
 					
 					if (attachment != null) {
-						return new ParsedArgument<>(new PartialEmote(attachment.getUrl(), attachment.getFileName()));
+						return new ParsedArgument<>(new PartialEmote(attachment.getUrl(), attachment.getFileName(), attachment.getFileExtension().equalsIgnoreCase("gif")));
 					}
 					
 					return new ParsedArgument<>();
-				}
-				
-				Emote emote = SearchUtility.getEmote(content);
-				if (emote != null) {
-					return new ParsedArgument<>(new PartialEmote(emote));
 				}
 				
 				PartialEmote partialEmote = SearchUtility.getPartialEmote(content);
@@ -257,7 +252,12 @@ public class Sx4Bot {
 					return new ParsedArgument<>();
 				}
 				
-				return new ParsedArgument<>(new PartialEmote(content, null));
+				String extension = StringUtility.getFileExtension(content);
+				if (extension != null) {
+					return new ParsedArgument<>(new PartialEmote(content, null, extension.equalsIgnoreCase("gif")));
+				} else {
+					return new ParsedArgument<>();
+				}
 			}).registerParser(All.class, (context, argument, content) -> {
 				if (content.equalsIgnoreCase("all")) {
 					return new ParsedArgument<>(new All<>(null));
