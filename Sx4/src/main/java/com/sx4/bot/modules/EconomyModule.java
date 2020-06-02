@@ -3055,7 +3055,12 @@ public class EconomyModule {
 			if (item.isBuyable()) {
 				BigInteger itemPrice = BigInteger.valueOf(userItem.getItem().getPrice()).multiply(itemAmount);
 				if (itemPrice.divide(BigInteger.valueOf(price)).compareTo(BigInteger.valueOf(20)) == 1) {
-					event.reply(String.format("You have to sell this item for at least 5%% its worth (**$%,d**)", itemPrice.divide(BigInteger.valueOf(20)))).queue();
+					event.reply(String.format("You have to sell this item for at least 5%% its worth (**$%,d**) :no_entry:", itemPrice.divide(BigInteger.valueOf(20)))).queue();
+					return;
+				}
+				
+				if (itemPrice.multiply(BigInteger.valueOf(5)).compareTo(BigInteger.valueOf(price)) == -1) {
+					event.reply(String.format("You cannot sell this item for more than 500%% its worth (**$%,d**) :no_entry:", itemPrice.multiply(BigInteger.valueOf(5)))).queue();
 					return;
 				}
 			}
