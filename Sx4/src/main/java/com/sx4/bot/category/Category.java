@@ -10,9 +10,11 @@ public class Category {
 	public static final Sx4Category SETTINGS = new Sx4Category("Settings", "This module has commands which will configure the bot around your server", Category.ALL);
 	public static final Sx4Category NOTIFICATIONS = new Sx4Category("Notifications", "This modules has commands which will give you notifications for various things", Category.ALL);
 	public static final Sx4Category LOGGING = new Sx4Category("Logging", "This module has commands which will help you log things which happen in your server", Category.ALL);
-	public static final Sx4Category DEVELOPER = new Sx4Category("Developer", "This modules contains command which are for developers only", Category.ALL, "Dev");
+	public static final Sx4Category INFORMATION = new Sx4Category("Information", "This modules contains commands which give information about different discord entities", Category.ALL, "Info");
+	public static final Sx4Category MANAGEMENT = new Sx4Category("Management", "This modules contains commands which give help you manage your server", Category.ALL);
+	public static final Sx4Category DEVELOPER = new Sx4Category("Developer", "This modules contains commands which are for developers only", Category.ALL, "Dev");
 	public static final Sx4Category MISC = new Sx4Category("Miscellaneous", "This module has a mix of commands which are useful in their own way", Category.ALL, "Misc");
 	
-	public static final Sx4Category[] ALL_ARRAY = {ALL, MODERATION, NOTIFICATIONS, LOGGING, DEVELOPER, MISC};
+	public static final Sx4Category[] ALL_ARRAY = {ALL, MODERATION, NOTIFICATIONS, LOGGING, INFORMATION, MANAGEMENT, DEVELOPER, MISC};
 	
 }

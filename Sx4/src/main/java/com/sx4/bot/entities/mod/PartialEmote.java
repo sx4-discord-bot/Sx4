@@ -4,10 +4,10 @@ import net.dv8tion.jda.api.entities.Emote;
 
 public class PartialEmote {
 	
-	private final long id;
-	private final Boolean animated;
-	private final String name;
-	private final String url;
+	protected final long id;
+	protected final Boolean animated;
+	protected final String name;
+	protected final String url;
 	
 	public PartialEmote(Emote emote) {
 		this.name = emote.getName();
@@ -17,10 +17,10 @@ public class PartialEmote {
 	}
 	
 	public PartialEmote(String url, String name, Boolean animated) {
-		this.url = url;
-		this.animated = animated;
-		this.id = 0L;
 		this.name = name;
+		this.id = 0L;
+		this.animated = animated;
+		this.url = url;
 	}
 	
 	public PartialEmote(long id, String name, Boolean animated) {
