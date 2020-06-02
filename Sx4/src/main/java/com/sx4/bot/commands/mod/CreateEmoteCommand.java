@@ -23,9 +23,9 @@ public class CreateEmoteCommand extends Sx4Command {
 	public CreateEmoteCommand() {
 		super("create emote");
 		
-		super.setDescription("Creates an emote from a url, emote mention or emote name");
+		super.setDescription("Creates an emote from a url, attachment, emote mention, emote id or emote name");
 		super.setAliases("createemote", "ce");
-		super.setExamples("create emote <:sx4:637715282995183636>", "create emote sx4", "create emote https://cdn.discordapp.com/emojis/637715282995183636.png?v=1");
+		super.setExamples("create emote <:sx4:637715282995183636>", "create emote sx4", "create emote https://cdn.discordapp.com/emojis/637715282995183636.png");
 		super.setCategory(Category.MODERATION);
 		super.setCooldownDuration(5);
 		super.setAuthorDiscordPermissions(Permission.MANAGE_EMOTES);
@@ -39,8 +39,7 @@ public class CreateEmoteCommand extends Sx4Command {
 		
 		Sx4Bot.getClient().newCall(request).enqueue((HttpCallback) response -> {
 			if (response.code() == 200) {
-				String contentType = response.header("Content-Type");
-				String extension = null;
+				String contentType = response.header("Content-Type"), extension = null;
 				if (contentType.contains("/")) {
 					extension = contentType.split("/")[1].toLowerCase();
 				}
@@ -63,7 +62,7 @@ public class CreateEmoteCommand extends Sx4Command {
 		});
 	}
 	
-	public void onCommand(Sx4CommandEvent event, @Argument(value="emote", endless=true, acceptEmpty=true) PartialEmote emote) {
+	public void onCommand(Sx4CommandEvent event, @Argument(value="emote", acceptEmpty=true) PartialEmote emote) {
 		long animatedEmotes = event.getGuild().getEmoteCache().stream().filter(Emote::isAnimated).count();
 		long nonAnimatedEmotes = event.getGuild().getEmoteCache().stream().filter(Predicate.not(Emote::isAnimated)).count();
 		int maxEmotes = event.getGuild().getMaxEmotes();
@@ -80,8 +79,13 @@ public class CreateEmoteCommand extends Sx4Command {
 				return;
 			}
 			
+			if (bytes.length > 256000) {
+				event.reply("You cannot create an emote larger than 256KB :no_entry:").queue();
+				return;
+			}
+			
 			if (animatedResponse != null && ((animatedResponse && animatedEmotes >= maxEmotes) || (!animatedResponse && nonAnimatedEmotes >= maxEmotes))) {
-				event.reply("You already have the max" + (animated ? "" : " non") + " animated emotes on this server :no_entry:").queue();
+				event.reply("You already have the max" + (animatedResponse ? "" : " non") + " animated emotes on this server :no_entry:").queue();
 				return;
 			}
 			

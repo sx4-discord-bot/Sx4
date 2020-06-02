@@ -63,6 +63,7 @@ import com.sx4.bot.waiter.WaiterHandler;
 
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Category;
+import net.dv8tion.jda.api.entities.Emote;
 import net.dv8tion.jda.api.entities.GuildChannel;
 import net.dv8tion.jda.api.entities.IPermissionHolder;
 import net.dv8tion.jda.api.entities.Member;
@@ -119,6 +120,7 @@ public class Sx4Bot {
 			.registerResponse(Category.class, "I could not find that category :no_entry:")
 			.registerResponse(GuildChannel.class, "I could not find that channel :no_entry:")
 			.registerResponse(IPermissionHolder.class, "I could not find that user/role :no_entry:")
+			.registerResponse(Emote.class, "I could not find that emote :no_entry:")
 			.registerResponse(Duration.class, "Invalid time string given, a good example would be `5d 1h 24m 36s` :no_entry:")
 			.registerResponse(ObjectId.class, "Invalid id given, an example id would be `5e45ce6d3688b30ee75201ae` :no_entry:")
 			.registerResponse(List.class, "I could not find that command/module :no_entry:")
@@ -200,6 +202,7 @@ public class Sx4Bot {
 			.registerParser(List.class, (context, argument, content) -> new ParsedArgument<>(SearchUtility.getCommandOrModule(content)))
 			.registerParser(IPermissionHolder.class, (context, argument, content) -> new ParsedArgument<>(SearchUtility.getPermissionHolder(context.getMessage().getGuild(), content)))
 			.registerParser(Role.class, (context, argument, content) -> new ParsedArgument<>(SearchUtility.getRole(context.getMessage().getGuild(), content)))
+			.registerParser(Emote.class, (context, argument, content) -> new ParsedArgument<>(SearchUtility.getGuildEmote(context.getMessage().getGuild(), content)))
 			.registerParser(MessageArgument.class, (context, argument, content) -> new ParsedArgument<>(SearchUtility.getMessageArgument(context.getMessage().getTextChannel(), content)))
 			.registerParser(ReactionEmote.class, (context, argument, content) -> new ParsedArgument<>(SearchUtility.getReactionEmote(content)))
 			.registerParser(TimeZone.class, (context, argument, content) -> new ParsedArgument<>(TimeZone.getTimeZone(content.toUpperCase().replace("UTC", "GMT"))))

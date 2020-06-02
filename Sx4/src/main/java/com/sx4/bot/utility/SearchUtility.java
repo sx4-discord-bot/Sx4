@@ -113,9 +113,19 @@ public class SearchUtility {
 				return null;
 			}
 		} else if (urlMatch.matches()) {
-			String extension = StringUtility.getFileExtension(query);
+			try {
+				Long id = Long.parseLong(urlMatch.group(1));
+				
+				Emote emote = Sx4Bot.getShardManager().getEmoteById(id);
+				if (emote == null) {
+					return new PartialEmote(id, null, urlMatch.group(2).equals("gif"));
+				} else {
+					return new PartialEmote(emote);
+				}
+			} catch (NumberFormatException e) {
+				return null;
+			}
 			
-			return new PartialEmote(query, null, extension.equals("gif"));
 		} else {
 			Emote emote = SearchUtility.findEmote(Sx4Bot.getShardManager().getEmotes(), query);
 			if (emote != null) {
@@ -128,6 +138,7 @@ public class SearchUtility {
 	
 	public static Emote getEmote(String query) {
 		Matcher mentionMatch = SearchUtility.EMOTE_MENTION.matcher(query);
+		Matcher urlMatch = SearchUtility.EMOTE_URL.matcher(query);
 		if (mentionMatch.matches()) {
 			try {
 				return Sx4Bot.getShardManager().getEmoteById(mentionMatch.group(3));
@@ -140,8 +151,40 @@ public class SearchUtility {
 			} catch (NumberFormatException e) {
 				return null;
 			}
+		} else if (urlMatch.matches()) {
+			try {
+				return Sx4Bot.getShardManager().getEmoteById(urlMatch.group(1));
+			} catch (NumberFormatException e) {
+				return null;
+			}
 		} else {
 			return SearchUtility.findEmote(Sx4Bot.getShardManager().getEmotes(), query);
+		}
+	}
+	
+	public static Emote getGuildEmote(Guild guild, String query) {
+		Matcher mentionMatch = SearchUtility.EMOTE_MENTION.matcher(query);
+		Matcher urlMatch = SearchUtility.EMOTE_URL.matcher(query);
+		if (mentionMatch.matches()) {
+			try {
+				return guild.getEmoteById(mentionMatch.group(3));
+			} catch (NumberFormatException e) {
+				return null;
+			}
+		} else if (NumberUtility.isNumberUnsigned(query)) {
+			try {
+				return guild.getEmoteById(query);
+			} catch (NumberFormatException e) {
+				return null;
+			}
+		} else if (urlMatch.matches()) {
+			try {
+				return guild.getEmoteById(urlMatch.group(1));
+			} catch (NumberFormatException e) {
+				return null;
+			}
+		} else {
+			return SearchUtility.findEmote(guild.getEmotes(), query);
 		}
 	}
 	
