@@ -219,7 +219,7 @@ public class WelcomerEvents extends ListenerAdapter {
 	}
 
 	public void onGuildMemberJoin(GuildMemberJoinEvent event) {
-		Bson projection = Projections.include("welcomer.enabled", "welcomer.channelId", "welcomer.webhookId", "welcomer.webhookToken", "welcomer.message", "imageWelcomer.enabled", "imageWelcomer.banner", "welcomer.embed", "welcomer.dm");
+		Bson projection = Projections.include("welcomer.enabled", "welcomer.channelId", "welcomer.webhookId", "welcomer.webhookToken", "welcomer.message", "imageWelcomer.gif", "imageWelcomer.enabled", "imageWelcomer.banner", "welcomer.embed", "welcomer.dm");
 		Document data = Database.get().getGuildById(event.getGuild().getIdLong(), null, projection);
 		Document welcomerData = data.get("welcomer", Database.EMPTY_DOCUMENT), imageWelcomerData = data.get("imageWelcomer", Database.EMPTY_DOCUMENT);
 		if ((!welcomerData.getBoolean("enabled", false) && !imageWelcomerData.getBoolean("enabled", false)) || welcomerData.getLong("channelId") == null) {
@@ -227,7 +227,7 @@ public class WelcomerEvents extends ListenerAdapter {
 		}
 		
 		if (welcomerData.getBoolean("dm", false) && !event.getUser().isBot()) {
-			WelcomerUtils.getWelcomerPreview(event.getMember(), event.getGuild(), data, (message, response) -> {
+			WelcomerUtils.getWelcomerPreview(event.getMember(), event.getGuild(), data, imageWelcomerData.getBoolean("gif", false), (message, response) -> {
 				if (!message.isEmpty() && response == null) {
 					event.getUser().openPrivateChannel().queue(channel -> channel.sendMessage(message.build()).queue(), e -> {});
 				} else {
@@ -250,7 +250,7 @@ public class WelcomerEvents extends ListenerAdapter {
 		} else {	
 			try {
 				this.getWelcomerWebhook(event.getGuild(), welcomerData, webhook -> {
-					WelcomerUtils.getWelcomerMessage(event.getMember(), event.getGuild(), data, message -> {
+					WelcomerUtils.getWelcomerMessage(event.getMember(), event.getGuild(), data, imageWelcomerData.getBoolean("gif", false), message -> {
 						webhook.send(message.setAvatarUrl(event.getJDA().getSelfUser().getEffectiveAvatarUrl()).build());
 					});
 				});

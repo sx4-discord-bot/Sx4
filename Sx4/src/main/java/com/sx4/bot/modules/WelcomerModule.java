@@ -221,7 +221,7 @@ public class WelcomerModule {
 		@Examples({"welcomer preview"})
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS, Permission.MESSAGE_ATTACH_FILES})
 		public void preview(CommandEvent event, @Context Database database) {
-			Bson projection = Projections.include("welcomer.embed", "welcomer.message", "welcomer.enabled", "welcomer.channelId", "imageWelcomer.enabled", "imageWelcomer.banner");
+			Bson projection = Projections.include("welcomer.embed", "welcomer.message", "welcomer.enabled", "welcomer.channelId", "imageWelcomer.enabled", "imageWelcomer.banner", "imageWelcomer.gif");
 			Document data = database.getGuildById(event.getGuild().getIdLong(), null, projection);
 			
 			StringBuilder warningMessage = new StringBuilder();
@@ -244,7 +244,7 @@ public class WelcomerModule {
 				warningMessage.append(":warning: Welcomer is currently disabled, use `" + event.getPrefix() + "welcomer toggle` to enable it\n");
 			}
 			
-			WelcomerUtils.getWelcomerPreview(event.getMember(), event.getGuild(), data, (message, response) -> {
+			WelcomerUtils.getWelcomerPreview(event.getMember(), event.getGuild(), data, imageWelcomerData.getBoolean("gif", false), (message, response) -> {
 				if (!message.isEmpty() && response == null) {
 					event.reply(message.build()).queue();
 				} else {

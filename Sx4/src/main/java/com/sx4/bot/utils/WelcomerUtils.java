@@ -190,9 +190,9 @@ public class WelcomerUtils {
 		return embed;
 	}
 	
-	public static void getImageWelcomer(Member user, String banner, Consumer<Response> imageResponse, Consumer<ImageProcessingException> error) {
+	public static void getImageWelcomer(Member user, String banner, boolean gif, Consumer<Response> imageResponse, Consumer<ImageProcessingException> error) {
 		Request request = new Request.Builder()
-			.url("http://" + Settings.LOCAL_HOST + ":8443/api/welcomer?userAvatar=" + user.getUser().getEffectiveAvatarUrl() + "&userName=" + URLEncoder.encode(user.getUser().getAsTag(), StandardCharsets.UTF_8) + (banner == null ? "" : "&background=" + banner))
+			.url("http://" + Settings.LOCAL_HOST + ":8443/api/welcomer?userAvatar=" + user.getUser().getEffectiveAvatarUrl() + "&userName=" + URLEncoder.encode(user.getUser().getAsTag(), StandardCharsets.UTF_8) + (banner == null ? "" : "&background=" + banner) + (gif ? "&gif=true" : ""))
 			.build();
 		
 		ImageModule.client.newCall(request).enqueue((Sx4Callback) response -> {
@@ -204,8 +204,8 @@ public class WelcomerUtils {
 		});
 	}
 	
-	public static void getWelcomerMessage(Member user, Guild guild, Document data, Consumer<WebhookMessageBuilder> message) {
-		WelcomerUtils.getWelcomerPreview(user, guild, data, (messageBuilder, response) -> {
+	public static void getWelcomerMessage(Member user, Guild guild, Document data, boolean gif, Consumer<WebhookMessageBuilder> message) {
+		WelcomerUtils.getWelcomerPreview(user, guild, data, gif, (messageBuilder, response) -> {
 			WebhookMessageBuilder webhookMessageBuilder = new WebhookMessageBuilder();
 			
 			if (!messageBuilder.isEmpty()) {
@@ -233,12 +233,12 @@ public class WelcomerUtils {
 		});
 	}
 	
-	public static void getWelcomerPreview(Member user, Guild guild, Document data, BiConsumer<MessageBuilder, Response> message) {
+	public static void getWelcomerPreview(Member user, Guild guild, Document data, boolean gif, BiConsumer<MessageBuilder, Response> message) {
 		MessageBuilder messageBuilder = new MessageBuilder();
 		
 		Document welcomerData = data.get("welcomer", Database.EMPTY_DOCUMENT), imageWelcomerData = data.get("imageWelcomer", Database.EMPTY_DOCUMENT);
 		if (!welcomerData.getBoolean("enabled", false) && imageWelcomerData.getBoolean("enabled", false)) {
-			WelcomerUtils.getImageWelcomer(user, imageWelcomerData.getString("banner"), response -> {
+			WelcomerUtils.getImageWelcomer(user, imageWelcomerData.getString("banner"), gif, response -> {
 				if (response != null) {
 					String fileName = "welcomer." + response.headers().get("Content-Type").split("/")[1];
 					
@@ -268,7 +268,7 @@ public class WelcomerUtils {
 			if (embedData.getBoolean("enabled", false)) {
 				EmbedBuilder embed = WelcomerUtils.getPreviewEmbed(user, messageString, embedData.getInteger("colour"));
 				if (imageWelcomerData.getBoolean("enabled", false)) {
-					WelcomerUtils.getImageWelcomer(user, imageWelcomerData.getString("banner"), response -> {
+					WelcomerUtils.getImageWelcomer(user, imageWelcomerData.getString("banner"), gif, response -> {
 						if (response != null) {
 							String fileName = "welcomer." + response.headers().get("Content-Type").split("/")[1];
 							
@@ -290,7 +290,7 @@ public class WelcomerUtils {
 				}
 			} else {
 				if (imageWelcomerData.getBoolean("enabled", false)) {
-					WelcomerUtils.getImageWelcomer(user, imageWelcomerData.getString("banner"), response -> {
+					WelcomerUtils.getImageWelcomer(user, imageWelcomerData.getString("banner"), gif, response -> {
 						if (response != null) {						
 							message.accept(messageBuilder.setContent(messageString), response);
 						}
