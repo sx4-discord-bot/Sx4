@@ -7,8 +7,11 @@ import com.jockie.bot.core.command.ICommand.ArgumentParsingType;
 import com.jockie.bot.core.command.impl.CommandEvent;
 import com.jockie.bot.core.command.impl.CommandListener;
 import com.sx4.bot.database.Database;
+import com.sx4.bot.utility.HelpUtility;
 
+import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Message;
+import net.dv8tion.jda.api.requests.restaction.MessageAction;
 
 public class Sx4CommandEvent extends CommandEvent {
 
@@ -28,6 +31,10 @@ public class Sx4CommandEvent extends CommandEvent {
 	
 	public Database getDatabase() {
 		return Database.get();
+	}
+	
+	public MessageAction replyHelp() {
+		return this.reply(HelpUtility.getHelpMessage(this.command, !this.isFromGuild() || this.getSelfMember().hasPermission(this.getTextChannel(), Permission.MESSAGE_EMBED_LINKS)));
 	}
 	
 }

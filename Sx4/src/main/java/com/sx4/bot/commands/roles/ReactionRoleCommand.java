@@ -182,7 +182,7 @@ public class ReactionRoleCommand extends Sx4Command {
 	}
 	
 	@Command(value="remove", description="Removes a role or a whole reaction from the reaction role")
-	@Examples({"reaction role remove 643945552865919002 🐝", "reaction role add https://discordapp.com/channels/330399610273136641/678274453158887446/680051429460803622 🐝 @Yellow"})
+	@Examples({"reaction role remove 643945552865919002 🐝", "reaction role remove https://discordapp.com/channels/330399610273136641/678274453158887446/680051429460803622 🐝 @Yellow"})
 	@AuthorPermissions(permissions={Permission.MANAGE_ROLES})
 	@Cooldown(value=2)
 	public void remove(Sx4CommandEvent event, @Argument(value="message id") MessageArgument messageArgument, @Argument(value="emote") ReactionEmote emote, @Argument(value="role", endless=true, nullDefault=true) Role role) {
