@@ -8,11 +8,9 @@ import org.bson.Document;
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
 import com.jockie.bot.core.command.Command.AuthorPermissions;
-import com.jockie.bot.core.command.impl.CommandEvent;
 import com.sx4.bot.annotations.command.Examples;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
-import com.sx4.bot.utility.HelpUtility;
 
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.IPermissionHolder;
@@ -27,8 +25,8 @@ public class BlacklistCommand extends Sx4Command {
 		super.setExamples("blacklist add", "blacklist remove", "blacklist info");
 	}
 	
-	public void onCommand(CommandEvent event) {
-		event.reply(HelpUtility.getHelpMessage(event.getCommand(), event.getSelfMember().hasPermission(event.getTextChannel(), Permission.MESSAGE_EMBED_LINKS))).queue();
+	public void onCommand(Sx4CommandEvent event) {
+		event.replyHelp().queue();
 	}
 	
 	@Command(value="add", description="Add a role/user to be blacklisted from a specified command/module in a channel")

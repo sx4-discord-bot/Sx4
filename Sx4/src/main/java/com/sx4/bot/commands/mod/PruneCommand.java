@@ -30,7 +30,7 @@ public class PruneCommand extends Sx4Command {
 		
 		super.setDescription("Prune a set amount of messages in the current channel");
 		super.setAuthorDiscordPermissions(Permission.MESSAGE_MANAGE);
-		super.setBotDiscordPermissions(Permission.MESSAGE_MANAGE, Permission.MESSAGE_HISTORY);
+		super.setBotDiscordPermissions(true, Permission.MESSAGE_MANAGE, Permission.MESSAGE_HISTORY);
 		super.setCategory(Category.MODERATION);
 		super.setExamples("prune", "prune 10");
 	}
@@ -49,7 +49,7 @@ public class PruneCommand extends Sx4Command {
 			}
 			
 			messages.add(0, event.getMessage());
-			messages.subList(0, Math.min(messages.size(), amount));
+			messages = messages.subList(0, Math.min(messages.size(), amount + 1));
 			
 			if (messages.size() == 1) {
 				messages.get(0).delete().queue();

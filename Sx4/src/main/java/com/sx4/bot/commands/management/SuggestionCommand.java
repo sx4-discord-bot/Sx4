@@ -10,9 +10,12 @@ import org.bson.conversions.Bson;
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
 import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.FindOneAndUpdateOptions;
 import com.mongodb.client.model.Projections;
+import com.mongodb.client.model.ReturnDocument;
 import com.mongodb.client.model.UpdateOptions;
 import com.mongodb.client.model.Updates;
+import com.sx4.bot.annotations.argument.Colour;
 import com.sx4.bot.annotations.command.AuthorPermissions;
 import com.sx4.bot.annotations.command.BotPermissions;
 import com.sx4.bot.annotations.command.Examples;
@@ -21,8 +24,11 @@ import com.sx4.bot.category.Category;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.Database;
+import com.sx4.bot.database.model.Operators;
+import com.sx4.bot.entities.argument.All;
 import com.sx4.bot.entities.argument.MessageArgument;
 import com.sx4.bot.entities.management.State;
+import com.sx4.bot.utility.ColourUtility;
 import com.sx4.bot.utility.ExceptionUtility;
 
 import net.dv8tion.jda.api.EmbedBuilder;
@@ -184,6 +190,82 @@ public class SuggestionCommand extends Sx4Command {
 		
 		public void onCommand(Sx4CommandEvent event) {
 			event.replyHelp().queue();
+		}
+		
+		@Command(value="add", description="Add a custom state to be used for suggestions")
+		@Examples({"suggestion state add #FF0000 Bug", "suggestion state add #FFA500 On Hold"})
+		@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
+		public void add(Sx4CommandEvent event, @Argument(value="colour") @Colour int colour, @Argument(value="state name", endless=true) String stateName) {
+			String dataName = stateName.toUpperCase().replace(" ", "_");
+			Document stateData = new Document("name", stateName)
+				.append("dataName", dataName)
+				.append("colour", colour);
+			
+			List<Document> defaultStates = State.getDefaultStates();
+			if (defaultStates.stream().anyMatch(state -> state.getString("dataName").equals(dataName))) {
+				event.reply("There is already a state named that :no_entry:").queue();
+				return;
+			}
+			
+			defaultStates.add(stateData);
+			
+			List<Bson> update = List.of(Operators.set("suggestion.states", Operators.cond(Operators.and(Operators.exists("$suggestion.states"), Operators.ne(Operators.filter("$suggestion.states", Operators.eq("$$this.dataName", dataName)), List.of())), "$suggestion.states", Operators.cond(Operators.extinct("$suggestion.states"), defaultStates, Operators.concatArrays("$suggestion.states", List.of(stateData))))));
+			this.database.updateGuildById(event.getGuild().getIdLong(), update).whenComplete((result, exception) -> {
+				if (ExceptionUtility.sendExceptionally(event, exception)) {
+					return;
+				}
+				
+				if (result.getModifiedCount() == 0) {
+					event.reply("There is already a state named that :no_entry:").queue();
+					return;
+				}
+				
+				event.reply("Added the suggestion state `" + dataName + "` with the colour **#" + ColourUtility.toHexString(colour) + "** <:done:403285928233402378>").queue();
+			});
+		}
+		
+		@Command(value="remove", description="Remove a state from being used in suggestions")
+		@Examples({"suggestion state remove Bug", "suggestion state remove On Hold", "suggestion state remove all"})
+		@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
+		public void remove(Sx4CommandEvent event, @Argument(value="state name", endless=true) All<String> allArgument) {
+			if (allArgument.isAll()) {
+				this.database.updateGuildById(event.getGuild().getIdLong(), Updates.unset("suggestion.states")).whenComplete((result, exception) -> {
+					if (ExceptionUtility.sendExceptionally(event, exception)) {
+						return;
+					}
+					
+					if (result.getModifiedCount() == 0) {
+						event.reply("You already have the default states setup :no_entry:").queue();
+						return;
+					}
+					
+					event.reply("All your suggestion states have been removed <:done:403285928233402378>").queue();
+				});
+			} else {
+				String dataName = allArgument.getValue().toUpperCase().replace(" ", "_");
+				
+				FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("suggestion.states"));
+				List<Bson> update = List.of(Operators.set("suggestion.states", Operators.cond(Operators.and(Operators.exists("$suggestion.states"), Operators.ne(Operators.size("$suggestion.states"), 1)), Operators.filter("$suggestion.states", Operators.ne("$$this.dataName", dataName)), "$suggestion.states")));
+				this.database.findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
+					if (ExceptionUtility.sendExceptionally(event, exception)) {
+						return;
+					}
+					
+					data = data == null ? Database.EMPTY_DOCUMENT : data;
+					List<Document> states = data.getEmbedded(List.of("suggestion", "states"), Collections.emptyList());
+					if (states.size() == 1) {
+						event.reply("You have to have at least 1 state at all times :no_entry:").queue();
+						return;
+					}
+					
+					if (!states.stream().anyMatch(state -> state.getString("dataName").equals(dataName))) {
+						event.reply("There is no state with that name :no_entry:").queue();
+						return;
+					}
+					
+					event.reply("Removed the suggestion state `" + dataName + "` <:done:403285928233402378>").queue();
+				});
+			}
 		}
 		
 	}

@@ -22,10 +22,7 @@ import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.entities.reminder.ReminderArgument;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
-import com.sx4.bot.utility.HelpUtility;
 import com.sx4.bot.utility.TimeUtility;
-
-import net.dv8tion.jda.api.Permission;
 
 public class ReminderCommand extends Sx4Command {
 	
@@ -38,7 +35,7 @@ public class ReminderCommand extends Sx4Command {
 	}
 	
 	public void onCommand(Sx4CommandEvent event) {
-		event.reply(HelpUtility.getHelpMessage(event.getCommand(), event.getSelfMember().hasPermission(Permission.MESSAGE_EMBED_LINKS))).queue();
+		event.replyHelp().queue();
 	}
 	
 	@Command(value="add", description="Create a reminder so the bot will message you when the time is up", argumentInfo="reminder add <reminder>* in <time>*\nreminder add <reminder>* at <date time>*")
@@ -111,9 +108,7 @@ public class ReminderCommand extends Sx4Command {
 		PagedResult<Document> paged = new PagedResult<>(reminders)
 			.setIndexed(false)
 			.setAuthor(event.getAuthor().getName() + "'s Reminders", null, event.getAuthor().getEffectiveAvatarUrl())
-			.setDisplayFunction(data -> {
-				return data.getObjectId("id").toHexString() + " - `" + TimeUtility.getTimeString(data.getLong("remindAt") - timeNow) + "`";
-			});
+			.setDisplayFunction(data -> data.getObjectId("id").toHexString() + " - `" + TimeUtility.getTimeString(data.getLong("remindAt") - timeNow) + "`");
 		
 		paged.execute(event);
 	}

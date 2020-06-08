@@ -1,5 +1,6 @@
 package com.sx4.bot.entities.management;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.bson.Document;
@@ -15,9 +16,9 @@ public class State {
 	public static final State DENIED = new State("Denied", "DENIED", Config.get().getRed());
 	
 	public static final List<Document> DEFAULT_STATES = List.of(
-			State.PENDING.toData(),
-			State.ACCEPTED.toData(),
-			State.DENIED.toData()
+		State.PENDING.toData(),
+		State.ACCEPTED.toData(),
+		State.DENIED.toData()
 	);
 
 	private final int colour;
@@ -54,6 +55,10 @@ public class State {
 		return new Document("name", this.name)
 			.append("dataName", this.dataName)
 			.append("colour", this.colour);
+	}
+	
+	public static List<Document> getDefaultStates() {
+		return new ArrayList<>(State.DEFAULT_STATES);
 	}
 	
 }

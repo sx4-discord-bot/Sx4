@@ -11,7 +11,6 @@ import org.bson.conversions.Bson;
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
 import com.jockie.bot.core.command.Command.Cooldown;
-import com.jockie.bot.core.command.impl.CommandEvent;
 import com.mongodb.MongoWriteException;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.FindOneAndUpdateOptions;
@@ -30,7 +29,6 @@ import com.sx4.bot.entities.argument.All;
 import com.sx4.bot.entities.argument.MessageArgument;
 import com.sx4.bot.entities.argument.UpdateType;
 import com.sx4.bot.utility.ExceptionUtility;
-import com.sx4.bot.utility.HelpUtility;
 import com.sx4.bot.waiter.Waiter;
 
 import net.dv8tion.jda.api.Permission;
@@ -61,8 +59,8 @@ public class ReactionRoleCommand extends Sx4Command {
 		super.setExamples("reaction role add", "reaction role remove");
 	}
 	
-	public void onCommand(CommandEvent event) {
-		event.reply(HelpUtility.getHelpMessage(event.getCommand(), event.getSelfMember().hasPermission(event.getTextChannel(), Permission.MESSAGE_EMBED_LINKS))).queue();
+	public void onCommand(Sx4CommandEvent event) {
+		event.replyHelp().queue();
 	}
 	
 	@Command(value="add", description="Adds a role to be given when a user reacts to the specified emote")

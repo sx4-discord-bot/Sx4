@@ -32,6 +32,7 @@ import com.jockie.bot.core.command.manager.IErrorManager;
 import com.jockie.bot.core.command.manager.impl.ContextManagerFactory;
 import com.jockie.bot.core.command.manager.impl.ErrorManagerImpl;
 import com.sx4.api.Main;
+import com.sx4.bot.annotations.argument.Colour;
 import com.sx4.bot.annotations.argument.DefaultInt;
 import com.sx4.bot.annotations.argument.DefaultLong;
 import com.sx4.bot.annotations.argument.DefaultString;
@@ -54,6 +55,7 @@ import com.sx4.bot.managers.ModActionManager;
 import com.sx4.bot.managers.YouTubeManager;
 import com.sx4.bot.message.cache.GuildMessageCache;
 import com.sx4.bot.paged.PagedHandler;
+import com.sx4.bot.utility.ColourUtility;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.HelpUtility;
 import com.sx4.bot.utility.SearchUtility;
@@ -131,6 +133,12 @@ public class Sx4Bot {
 			.registerResponse(UpdateType.class, (argument, message, content) -> {
 				List<UpdateType> updates = argument.getProperty("updates", List.class);
 				message.getChannel().sendMessage("Invalid update type given, update types you can use are `" + updates.stream().map(t -> t.name().toLowerCase()).collect(Collectors.joining("`, `")) + "` :no_entry:").queue();
+			}).registerResponse(int.class, (argument, message, content) -> {
+				if (argument.getProperty("colour", boolean.class)) {
+					message.getChannel().sendMessage("I could not find that colour :no_entry:").queue();
+				} else {
+					message.getChannel().sendMessage("The argument `" + argument.getName() + "` needs to be a number :no_entry:").queue();
+				}
 			});
 		
 		ArgumentFactoryImpl argumentFactory = (ArgumentFactoryImpl) ArgumentFactory.getDefault();
@@ -146,6 +154,8 @@ public class Sx4Bot {
 			
 			return builder;
 		}).addBuilderConfigureFunction(Integer.class, (parameter, builder) -> {
+			builder.setProperty("colour", parameter.isAnnotationPresent(Colour.class));
+			
 			Limit limit = parameter.getAnnotation(Limit.class);
 			if (limit != null) {
 				builder.setProperty("upperLimit", limit.max());
@@ -229,6 +239,21 @@ public class Sx4Bot {
 					return new ParsedArgument<>();
 				} else {
 					return new ParsedArgument<>(SearchUtility.getURL(context.getMessage(), content));
+				}
+			}).registerParser(Integer.class, (context, argument, content) -> {
+				if (argument.getProperty("colour", boolean.class)) {
+					int colour = ColourUtility.fromQuery(content);
+					if (colour == -1) {
+						return new ParsedArgument<>();
+					} else {
+						return new ParsedArgument<>(colour);
+					}
+				}
+				
+				try {
+					return new ParsedArgument<>(Integer.parseInt(content));
+				} catch (NumberFormatException e) {
+					return new ParsedArgument<>();
 				}
 			}).registerParser(PartialEmote.class, (context, argument, content) -> {
 				if (content.isEmpty()) {

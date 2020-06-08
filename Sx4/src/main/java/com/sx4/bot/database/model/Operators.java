@@ -53,4 +53,12 @@ public class Operators {
 		return new Document("$concatArrays", Arrays.asList(expressions));
 	}
 	
+	public static Bson size(Object expression) {
+		return new Document("$size", expression);
+	}
+	
+	public static Bson unset(Object expression) {
+		return new Document("$unset", expression);
+	}
+	
 }
