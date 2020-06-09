@@ -115,7 +115,7 @@ public class ReactionRoleHandler extends ListenerAdapter {
 		}
 	}
 	
-	public void checkReactionRole(long guildId, List<Long> messageIds) {
+	public void handle(long guildId, List<Long> messageIds) {
 		Database.get().updateGuildById(guildId, Updates.pull("reactionRole.reactionRoles", Filters.in("id", messageIds))).whenComplete((result, exception) -> {
 			if (exception != null) {
 				ExceptionUtility.sendErrorMessage(exception);
@@ -124,11 +124,11 @@ public class ReactionRoleHandler extends ListenerAdapter {
 	}
 	
 	public void onMessageBulkDelete(MessageBulkDeleteEvent event) {
-		this.checkReactionRole(event.getGuild().getIdLong(), event.getMessageIds().stream().map(Long::valueOf).collect(Collectors.toList()));
+		this.handle(event.getGuild().getIdLong(), event.getMessageIds().stream().map(Long::valueOf).collect(Collectors.toList()));
 	}
 	
 	public void onMessageDelete(MessageDeleteEvent event) {
-		this.checkReactionRole(event.getGuild().getIdLong(), List.of(event.getMessageIdLong()));
+		this.handle(event.getGuild().getIdLong(), List.of(event.getMessageIdLong()));
 	}
 	
 	public void onRoleDelete(RoleDeleteEvent event) {

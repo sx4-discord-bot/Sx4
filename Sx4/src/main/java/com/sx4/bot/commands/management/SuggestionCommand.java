@@ -30,12 +30,16 @@ import com.sx4.bot.entities.argument.MessageArgument;
 import com.sx4.bot.entities.management.State;
 import com.sx4.bot.utility.ColourUtility;
 import com.sx4.bot.utility.ExceptionUtility;
+import com.sx4.bot.waiter.Waiter;
 
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent;
+import net.dv8tion.jda.api.exceptions.ErrorHandler;
+import net.dv8tion.jda.api.requests.ErrorResponse;
 
 public class SuggestionCommand extends Sx4Command {
 
@@ -68,6 +72,39 @@ public class SuggestionCommand extends Sx4Command {
 	
 	public void onCommand(Sx4CommandEvent event) {
 		event.replyHelp().queue();
+	}
+	
+	@Command(value="toggle", description="Enables/disables suggestions in this server")
+	@Examples({"suggestion toggle"})
+	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
+	public void toggle(Sx4CommandEvent event) {
+		List<Bson> update = List.of(Operators.set("suggestion.enabled", Operators.cond("$suggestion.enabled", "$$REMOVE", true)));
+		this.database.findAndUpdateGuildById(event.getGuild().getIdLong(), Projections.include("suggestion.enabled"), update).whenComplete((data, exception) -> {
+			if (ExceptionUtility.sendExceptionally(event, exception)) {
+				return;
+			}
+			
+			event.reply("Suggestions are now **" + (data.getEmbedded(List.of("suggestion", "enabled"), false) ? "enabled" : "disabled") + "** <:done:403285928233402378>").queue();
+		});
+	}
+	
+	@Command(value="channel", description="Sets the channel where suggestions are set to")
+	@Examples({"suggestion channel", "suggestion channel #suggestions"})
+	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
+	public void channel(Sx4CommandEvent event, @Argument(value="channel", endless=true, nullDefault=true) TextChannel channel) {
+		List<Bson> update = List.of(Operators.set("suggestion.channelId", channel == null ? "$$REMOVE" : channel.getIdLong()));
+		this.database.updateGuildById(event.getGuild().getIdLong(), update).whenComplete((result, exception) -> {
+			if (ExceptionUtility.sendExceptionally(event, exception)) {
+				return;
+			}
+			
+			if (result.getModifiedCount() == 0) {
+				event.reply("The suggestion channel is already " + (channel == null ? "unset" : "set to " + channel.getAsMention()) + " :no_entry:").queue();
+				return;
+			}
+			
+			event.reply("The suggestion channel has been " + (channel == null ? "unset" : "set to " + channel.getAsMention()) + " <:done:403285928233402378>").queue();
+		});
 	}
 	
 	@Command(value="add", description="Sends a suggestion to the suggestion channel if one is setup in the server")
@@ -113,6 +150,80 @@ public class SuggestionCommand extends Sx4Command {
 				event.reply("Your suggestion has been sent to " + channel.getAsMention() + " <:done:403285928233402378>").queue();
 			});
 		});
+	}
+	
+	@Command(value="remove", description="Removes a suggestion, can be your own or anyones if you have the manage server permission")
+	@Examples({"suggestion remove 717843290837483611", "suggestion remove all"})
+	public void remove(Sx4CommandEvent event, @Argument(value="message id") All<MessageArgument> allArgument) {
+		if (allArgument.isAll()) {
+			// TODO: Use a method which includes fake permissions in the future
+			if (!event.getMember().hasPermission(Permission.MANAGE_SERVER)) {
+				event.reply("You are missing the permission " + Permission.MANAGE_SERVER.getName() + " to execute this command :no_entry:").queue();
+				return;
+			}
+			
+			event.reply(event.getAuthor().getName() + ", are you sure you want to delete **all** the suggestions in this server? (Yes or No)").queue(queryMessage -> {
+				Waiter<GuildMessageReceivedEvent> waiter = new Waiter<>(GuildMessageReceivedEvent.class)
+					.setPredicate(messageEvent -> messageEvent.getAuthor().getIdLong() == event.getAuthor().getIdLong() && messageEvent.getChannel().getIdLong() == event.getChannel().getIdLong() && messageEvent.getMessage().getContentRaw().equalsIgnoreCase("yes"))
+					.setCancelPredicate(messageEvent -> messageEvent.getAuthor().getIdLong() == event.getAuthor().getIdLong() && messageEvent.getChannel().getIdLong() == event.getChannel().getIdLong() && !messageEvent.getMessage().getContentRaw().equalsIgnoreCase("yes"))
+					.setTimeout(30);
+				
+				waiter.onTimeout(() -> event.reply("Response timed out :stopwatch:").queue());
+				
+				waiter.onCancelled(() -> event.reply("Cancelled <:done:403285928233402378>").queue());
+				
+				waiter.future()
+					.thenCompose(messageEvent -> this.database.updateGuildById(event.getGuild().getIdLong(), Updates.unset("suggestion.suggestions")))
+					.whenComplete((result, exception) -> {
+						if (ExceptionUtility.sendExceptionally(event, exception)) {
+							return;
+						}
+						
+						event.reply("All suggestions have been deleted in this server <:done:403285928233402378>").queue();
+					});
+				
+				waiter.start();
+			});
+		} else {
+			long messageId = allArgument.getValue().getMessageId();
+			// TODO: Use a method which includes fake permissions in the future
+			boolean hasPermission = event.getMember().hasPermission(Permission.MANAGE_SERVER);
+			
+			FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("suggestion.suggestions"));
+			
+			Bson filter = Operators.eq(Operators.filter("$suggestion.suggestions", Operators.and(Operators.eq("$$this.id", messageId), Operators.or(Operators.eq("$$this.authorId", event.getAuthor().getIdLong()), hasPermission))), List.of());
+			List<Bson> update = List.of(Operators.set("suggestion.suggestions", Operators.cond(filter, "$suggestion.suggestions", Operators.filter("$suggestion.suggestions", Operators.ne("$$this.id", messageId)))));
+			this.database.findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
+				if (ExceptionUtility.sendExceptionally(event, exception)) {
+					return;
+				}
+				
+				data = data == null ? Database.EMPTY_DOCUMENT : data;
+				
+				List<Document> suggestions = data.getEmbedded(List.of("suggestion", "suggestions"), Collections.emptyList());
+				Document suggestion = suggestions.stream()
+					.filter(suggestionData -> suggestionData.getLong("id") == messageId)
+					.findFirst()
+					.orElse(null);
+				
+				if (suggestion == null) {
+					event.reply("I could not find that suggestion :no_entry:").queue();
+					return;
+				}
+				
+				if (suggestion.get("authorId", 0L) != event.getAuthor().getIdLong() && !hasPermission) {
+					event.reply("You do not own that suggestion :no_entry:").queue();
+					return;
+				}
+				
+				TextChannel channel = event.getGuild().getTextChannelById(suggestion.get("channelId", 0L));
+				if (channel != null) {
+					channel.deleteMessageById(suggestion.get("id", 0L)).queue(null, new ErrorHandler().ignore(ErrorResponse.UNKNOWN_MESSAGE));
+				}
+				
+				event.reply("That suggestion has been removed <:done:403285928233402378>").queue();
+			});
+		}
 	}
 	
 	@Command(value="set", description="Sets a suggestion to a specified state")
