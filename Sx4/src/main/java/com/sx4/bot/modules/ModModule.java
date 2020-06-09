@@ -2442,6 +2442,7 @@ public class ModModule {
 			
 			if (caseNumbers.size() > 100) {
 				event.reply("You can only edit up to 100 cases at one time :no_entry:").queue();
+				return;
 			}
 			
 			List<Bson> filters = new ArrayList<>();
