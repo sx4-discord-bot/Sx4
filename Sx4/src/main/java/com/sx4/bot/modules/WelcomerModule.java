@@ -622,7 +622,7 @@ public class WelcomerModule {
 					exception.printStackTrace();
 					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
 				} else {
-					event.reply("Your image welcomer banner has been " + (urlString == null ? "reset" : "updated") + " <:done:403285928233402378>").queue();
+					event.reply("Your image welcomer banner has been " + (urlString == null ? "reset" : "updated") + " <:done:403285928233402378>\nThis will only be a still image if you want a gif please vist: <https://www.patreon.com/join/Sx4> ").queue();
 				}
 			});
 		}

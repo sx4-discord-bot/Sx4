@@ -3026,6 +3026,7 @@ public class ModModule {
 			}
 		} else {
 			event.reply("That user is not muted in this channel :no_entry:").queue();
+			return;
 		}
 		
 		event.reply("**" + member.getUser().getAsTag() + "** has been unmuted in " + event.getTextChannel().getAsMention() + " <:done:403285928233402378>:ok_hand:").queue();
