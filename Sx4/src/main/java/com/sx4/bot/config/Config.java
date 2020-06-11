@@ -314,4 +314,12 @@ public class Config {
 		}
 	}
 	
+	public void reloadConfig() {
+		try (FileInputStream stream = new FileInputStream(new File("config.json"))) {
+			this.json = new JSONObject(new String(stream.readAllBytes()));
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+	
 }

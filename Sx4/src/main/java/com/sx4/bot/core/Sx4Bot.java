@@ -1,6 +1,7 @@
 package com.sx4.bot.core;
 
 import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.time.DateTimeException;
@@ -43,6 +44,7 @@ import com.sx4.bot.annotations.argument.Uppercase;
 import com.sx4.bot.config.Config;
 import com.sx4.bot.entities.argument.All;
 import com.sx4.bot.entities.argument.MessageArgument;
+import com.sx4.bot.entities.argument.Or;
 import com.sx4.bot.entities.argument.UpdateType;
 import com.sx4.bot.entities.mod.PartialEmote;
 import com.sx4.bot.entities.mod.Reason;
@@ -201,6 +203,14 @@ public class Sx4Bot {
 			}
 			
 			return builder;
+		}).addBuilderConfigureFunction(Or.class, (parameter, builder) -> {
+			Type[] classes = ((ParameterizedType) parameter.getParameterizedType()).getActualTypeArguments();
+			Class<?> firstClass = (Class<?>) classes[0], secondClass = (Class<?>) classes[1];
+			
+			builder.setProperty("firstClass", firstClass);
+			builder.setProperty("secondClass", secondClass);
+			
+			return builder;
 		});
 			
 		argumentFactory.registerParser(Member.class, (context, argument, content) -> new ParsedArgument<>(SearchUtility.getMember(context.getMessage().getGuild(), content.trim())))
@@ -241,7 +251,7 @@ public class Sx4Bot {
 					return new ParsedArgument<>(SearchUtility.getURL(context.getMessage(), content));
 				}
 			}).registerParser(Integer.class, (context, argument, content) -> {
-				if (argument.getProperty("colour", boolean.class)) {
+				if (argument.getProperty("colour", false)) {
 					int colour = ColourUtility.fromQuery(content);
 					if (colour == -1) {
 						return new ParsedArgument<>();
@@ -292,16 +302,34 @@ public class Sx4Bot {
 				} else {
 					Class<?> clazz = argument.getProperty("class", Class.class);
 					
-					return new ParsedArgument<>(new All<>(argumentFactory.getParser(clazz).parse(context, (IArgument) argument, content).getObject()));
+					ParsedArgument<?> parsedArgument = argumentFactory.getParser(clazz).parse(context, (IArgument) argument, content);
+					if (!parsedArgument.isValid()) {
+						return new ParsedArgument<>();
+					}
+					
+					return new ParsedArgument<>(new All<>(parsedArgument.getObject()));
+				}
+			}).registerParser(Or.class, (context, argument, content) -> {
+				Class<?> firstClass = argument.getProperty("firstClass"), secondClass = argument.getProperty("secondClass");
+				
+				ParsedArgument<?> firstParsedArgument = argumentFactory.getParser(firstClass).parse(context, (IArgument) argument, content);
+				ParsedArgument<?> secondParsedArgument = argumentFactory.getParser(secondClass).parse(context, (IArgument) argument, content);
+				
+				if (firstParsedArgument.isValid()) {
+					return new ParsedArgument<>(new Or<>(firstParsedArgument.getObject(), null));
+				} else if (secondParsedArgument.isValid()) {
+					return new ParsedArgument<>(new Or<>(null, secondParsedArgument.getObject()));
+				} else {
+					return new ParsedArgument<>();
 				}
 			});
 		
 		argumentFactory.addParserAfter(String.class, (context, argument, content) -> {
-			if (argument.getProperty("lowercase", boolean.class)) {
+			if (argument.getProperty("lowercase", false)) {
 				content = content.toLowerCase();
 			}
 			
-			if (argument.getProperty("uppercase", boolean.class)) {
+			if (argument.getProperty("uppercase", false)) {
 				content = content.toUpperCase();
 			}
 			

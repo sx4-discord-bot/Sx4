@@ -158,7 +158,7 @@ public class SuggestionCommand extends Sx4Command {
 		if (allArgument.isAll()) {
 			// TODO: Use a method which includes fake permissions in the future
 			if (!event.getMember().hasPermission(Permission.MANAGE_SERVER)) {
-				event.reply("You are missing the permission " + Permission.MANAGE_SERVER.getName() + " to execute this command :no_entry:").queue();
+				event.reply("You are missing the permission " + Permission.MANAGE_SERVER.getName() + " to execute this, you can remove your own suggestions only :no_entry:").queue();
 				return;
 			}
 			

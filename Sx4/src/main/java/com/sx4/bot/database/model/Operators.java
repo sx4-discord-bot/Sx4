@@ -8,6 +8,8 @@ import org.bson.Document;
 import org.bson.conversions.Bson;
 
 public class Operators {
+	
+	public static final String REMOVE = "$$REMOVE";
 
 	public static Bson not(Object cond) {
 		return new Document("$not", cond);
@@ -55,10 +57,6 @@ public class Operators {
 	
 	public static Bson size(Object expression) {
 		return new Document("$size", expression);
-	}
-	
-	public static Bson unset(Object expression) {
-		return new Document("$unset", expression);
 	}
 	
 }
