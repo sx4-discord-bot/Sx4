@@ -1,14 +1,22 @@
 package com.sx4.bot.managers;
 
+import java.time.Clock;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
+import org.bson.Document;
+
 import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.Projections;
+import com.mongodb.client.model.UpdateOneModel;
 import com.mongodb.client.model.Updates;
+import com.mongodb.client.model.WriteModel;
 import com.sx4.bot.core.Sx4Bot;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.entities.mod.Reason;
@@ -111,10 +119,10 @@ public class MuteManager {
 		this.putMute(guildId, userId, roleId, seconds, false);
 	}
 	
-	public void removeMute(long guildId, long userId, long roleId) {
+	public UpdateOneModel<Document> removeMuteAndGet(long guildId, long userId, long roleId) {
 		Guild guild = Sx4Bot.getShardManager().getGuildById(guildId);
 		if (guild == null) {
-			return;
+			return null;
 		}
 		
 		Member member = guild.getMemberById(userId);
@@ -123,15 +131,52 @@ public class MuteManager {
 			guild.removeRoleFromMember(member, role).reason("Mute length served").queue();
 		}
 		
-		Database.get().updateGuildById(guildId, Updates.pull("mute.users", Filters.eq("id", userId))).whenComplete((result, exception) -> {
-			if (exception != null) {
-				exception.printStackTrace();
-				ExceptionUtility.sendErrorMessage(exception);
-			} 
+		Sx4Bot.getModActionManager().onModAction(new UnmuteEvent(guild.getSelfMember(), member.getUser(), new Reason("Mute length served")));
+		this.deleteExecutor(guildId, userId);
+		
+		return new UpdateOneModel<>(Filters.eq("_id", guildId), Updates.pull("mute.users", Filters.eq("id", userId)));
+	}
+	
+	public void removeMute(long guildId, long userId, long roleId) {
+		UpdateOneModel<Document> model = this.removeMuteAndGet(guildId, userId, roleId);
+		if (model != null) {
+			Database.get().updateGuildById(model).whenComplete((result, exception) -> {
+				if (exception != null) {
+					ExceptionUtility.sendErrorMessage(exception);
+				}
+			});
+		}
+	}
+	
+	public void ensureMutes() {
+		Database database = Database.get();
+		
+		List<WriteModel<Document>> bulkData = new ArrayList<>();
+		database.getGuilds(Filters.elemMatch("mute.users", Filters.exists("id")), Projections.include("mute.users", "mute.role")).forEach(data -> {
+			Document mute = data.get("mute", Document.class);
+			long roleId = mute.get("roleId", 0L);
 			
-			Sx4Bot.getModActionManager().onModAction(new UnmuteEvent(guild.getSelfMember(), member.getUser(), new Reason("Mute length served")));
-			this.deleteExecutor(guildId, userId);
+			List<Document> users = mute.getList("users", Document.class);
+			for (Document user : users) {
+				long currentTime = Clock.systemUTC().instant().getEpochSecond(), unmuteAt = user.get("unmuteAt", 0L);
+				if (unmuteAt > currentTime) {
+					this.putMute(data.get("_id", 0L), user.get("id", 0L), roleId, unmuteAt - currentTime);
+				} else {
+					UpdateOneModel<Document> model = this.removeMuteAndGet(data.get("_id", 0L), user.get("id", 0L), roleId);
+					if (model != null) {
+						bulkData.add(model);
+					}
+				}
+			}
 		});
+		
+		if (!bulkData.isEmpty()) {
+			database.bulkWriteGuilds(bulkData).whenComplete((result, exception) -> {
+				if (exception != null) {
+					ExceptionUtility.sendErrorMessage(exception);
+				}
+			});
+		}
 	}
 	
 }

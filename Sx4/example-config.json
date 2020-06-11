@@ -99,6 +99,7 @@
 		"weebsh": "",
 		"currencyConvertor": "",
 		"openWeather": "",
-		"igdb": ""
+		"igdb": "",
+		"patreonWebhookSecret": ""
 	}
 } 

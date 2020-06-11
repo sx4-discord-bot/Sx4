@@ -5,6 +5,7 @@ import java.time.OffsetDateTime;
 
 import com.sx4.bot.config.Config;
 import com.sx4.bot.core.Sx4Bot;
+import com.sx4.bot.managers.MuteManager;
 import com.sx4.bot.managers.ReminderManager;
 
 import club.minnced.discord.webhook.WebhookClient;
@@ -58,6 +59,7 @@ public class ConnectionHandler extends ListenerAdapter {
 		if (++this.readyEventsCalled == jda.getShardInfo().getShardTotal()) {
 			YouTubeHandler.get().ensureWebhooks();
 			ReminderManager.get().ensureReminders();
+			MuteManager.get().ensureMutes();
 		}
 		
 		this.eventsWebhook.send(this.getEmbed(jda, "Ready", Config.get().getGreen()));

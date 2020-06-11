@@ -14,6 +14,7 @@ import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.server.ServerProperties;
 import org.glassfish.jersey.servlet.ServletContainer;
 
+import com.sx4.api.endpoints.PatreonEndpoint;
 import com.sx4.api.endpoints.YouTubeEndpoint;
 import com.sx4.api.exceptions.UncaughtExceptionHandler;
 import com.sx4.bot.config.Config;
@@ -28,7 +29,8 @@ public class Main {
 		
 		resourceConfig.registerInstances(
 			new UncaughtExceptionHandler(),
-			new YouTubeEndpoint()
+			new YouTubeEndpoint(),
+			new PatreonEndpoint()
 		);
 		
 		resourceConfig.property(ServerProperties.PROCESSING_RESPONSE_ERRORS_ENABLED, true);

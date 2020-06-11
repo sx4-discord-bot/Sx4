@@ -147,7 +147,7 @@ public class ReminderManager {
 			for (Document reminder : reminders) {
 				ObjectId id = reminder.getObjectId("id");
 				
-				long remindAt = reminder.getLong("remindAt"), currentTime = Clock.systemUTC().instant().getEpochSecond();;
+				long remindAt = reminder.getLong("remindAt"), currentTime = Clock.systemUTC().instant().getEpochSecond();
 				if (remindAt > currentTime) {
 					ScheduledFuture<?> executor = this.executor.schedule(() -> this.executeReminder(new Reminder(userId, reminder)), remindAt - currentTime, TimeUnit.SECONDS);
 					

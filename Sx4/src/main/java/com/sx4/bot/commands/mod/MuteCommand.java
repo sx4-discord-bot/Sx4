@@ -53,7 +53,7 @@ public class MuteCommand extends Sx4Command {
 					return;
 				}
 				
-				event.reply(ExceptionUtility.getSimpleErrorMessage(exception)).queue();
+				ExceptionUtility.sendExceptionally(event, exception);
 			} else {
 				if (member.getRoles().contains(role) && !extend) {
 					event.reply("That user is already muted :no_entry:").queue();

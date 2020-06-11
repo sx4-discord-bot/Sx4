@@ -285,6 +285,10 @@ public class Config {
 		return this.get("token.voteApi");
 	}
 	
+	public String getPatreonWebhookSecret() {
+		return this.get("token.patreonWebhookSecret");
+	}
+	
 	public String getVoteApi(boolean sx4) {
 		return this.get("token.voteApi." + (sx4 ? "sx4" : "jockieMusic"));
 	}
