@@ -51,7 +51,6 @@ public class PremiumCommand extends Sx4Command {
 			return;
 		}
 		
-		
 		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("guilds", "amount"));
 		
 		List<Bson> update = List.of(Operators.set("guilds", Operators.cond(Operators.lt(Operators.size("$guilds"), Operators.floor(Operators.divide("$amount", 500))), Operators.concatArrays("$guilds", List.of(guildId)), "$guilds")));

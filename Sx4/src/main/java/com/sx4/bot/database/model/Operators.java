@@ -63,8 +63,24 @@ public class Operators {
 		return new Document("$divide", List.of(expression, expression2));
 	}
 	
+	public static Bson multiply(Object... expressions) {
+		return new Document("$multiply", Arrays.asList(expressions));
+	}
+	
+	public static Bson add(Object... expressions) {
+		return new Document("$add", Arrays.asList(expressions));
+	}
+	
+	public static Bson subtract(Object expression, Object expression2) {
+		return new Document("$subtract", List.of(expression, expression2));
+	}
+	
 	public static Bson floor(Object expression) {
 		return new Document("$floor", expression);
+	}
+	
+	public static Bson ceil(Object expression) {
+		return new Document("$ceil", expression);
 	}
 	
 	public static Bson lt(Object expression, Object expression2) {
@@ -73,6 +89,22 @@ public class Operators {
 	
 	public static Bson in(Object expression, Object arrayExpression) {
 		return new Document("$in", List.of(expression, arrayExpression));
+	}
+	
+	public static Bson abs(Object expression) {
+		return new Document("$abs", expression);
+	}
+	
+	public static Bson arrayElemAt(Object expression, int index) {
+		return new Document("$arrayElemAt", List.of(expression, index));
+	}
+	
+	public static Bson first(Object expression) {
+		return Operators.arrayElemAt(expression, 0);
+	}
+	
+	public static Bson last(Object expression) {
+		return Operators.arrayElemAt(expression, -1);
 	}
 	
 }
