@@ -102,13 +102,13 @@ public class Sx4Bot {
 	@SuppressWarnings({"unchecked", "rawtypes"})
 	public static void main(String[] args) throws Throwable {
 		ModActionManager.get()
-			.addListener(new ModHandler());
+			.addListener(ModHandler.INSTANCE);
 		
 		YouTubeManager.get()
 			.addListener(new YouTubeHandler());
 		
 		PatreonManager.get()
-			.addListener(new PatreonHandler());
+			.addListener(PatreonHandler.INSTANCE);
 		
 		MethodCommandFactory.setDefault(new Sx4CommandFactory());
 		
@@ -416,6 +416,8 @@ public class Sx4Bot {
 		eventManager.register(Sx4Bot.commandListener);
 		eventManager.register(new PagedHandler());
 		eventManager.register(new WaiterHandler());
+		eventManager.register(ModHandler.INSTANCE);
+		eventManager.register(PatreonHandler.INSTANCE);
 		eventManager.register(GuildMessageCache.INSTANCE);
 		eventManager.register(new ConnectionHandler());
 		eventManager.register(new ReactionRoleHandler());

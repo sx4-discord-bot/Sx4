@@ -26,6 +26,8 @@ import net.dv8tion.jda.api.hooks.EventListener;
 
 public class ModHandler implements ModActionListener, EventListener {
 	
+	public static final ModHandler INSTANCE = new ModHandler();
+	
 	public void onAction(ModActionEvent event) {
 		Database database = Database.get();
 		

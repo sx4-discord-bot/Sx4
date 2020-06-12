@@ -9,7 +9,9 @@ import org.bson.Document;
 import org.bson.conversions.Bson;
 
 import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.FindOneAndUpdateOptions;
 import com.mongodb.client.model.Projections;
+import com.mongodb.client.model.ReturnDocument;
 import com.mongodb.client.model.UpdateOneModel;
 import com.mongodb.client.model.Updates;
 import com.mongodb.client.model.WriteModel;
@@ -21,7 +23,13 @@ import com.sx4.bot.events.patreon.PatreonPledgeUpdateEvent;
 import com.sx4.bot.hooks.PatreonListener;
 import com.sx4.bot.utility.ExceptionUtility;
 
-public class PatreonHandler implements PatreonListener {
+import net.dv8tion.jda.api.events.GenericEvent;
+import net.dv8tion.jda.api.events.guild.GuildLeaveEvent;
+import net.dv8tion.jda.api.hooks.EventListener;
+
+public class PatreonHandler implements PatreonListener, EventListener {
+	
+	public static final PatreonHandler INSTANCE = new PatreonHandler();
 
 	public void onPatreonPledgeCreate(PatreonPledgeCreateEvent event) {
 		Bson update = Updates.combine(
@@ -85,6 +93,34 @@ public class PatreonHandler implements PatreonListener {
 				ExceptionUtility.sendErrorMessage(exception);
 			}
 		});
+	}
+	
+	public void onEvent(GenericEvent event) {
+		if (event instanceof GuildLeaveEvent) {
+			long guildId = ((GuildLeaveEvent) event).getGuild().getIdLong();
+			
+			Database database = Database.get();
+			
+			FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("premium"));
+			database.findAndUpdateGuildById(guildId, Updates.unset("premium"), options).whenComplete((data, exception) -> {
+				if (exception != null) {
+					ExceptionUtility.sendErrorMessage(exception);
+					return;
+				}
+				
+				if (data == null) {
+					return;
+				}
+				
+				long userId = data.get("premium", 0L);
+				
+				database.updatePatronByFilter(Filters.eq("discordId", userId), Updates.pull("guilds", guildId)).whenComplete((result, patronException) -> {
+					if (patronException != null) {
+						ExceptionUtility.sendErrorMessage(patronException);
+					}
+				});
+			});
+		}
 	}
 	
 }
