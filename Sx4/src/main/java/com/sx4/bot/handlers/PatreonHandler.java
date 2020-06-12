@@ -9,13 +9,12 @@ import org.bson.Document;
 import org.bson.conversions.Bson;
 
 import com.mongodb.client.model.Filters;
-import com.mongodb.client.model.FindOneAndUpdateOptions;
 import com.mongodb.client.model.Projections;
-import com.mongodb.client.model.ReturnDocument;
 import com.mongodb.client.model.UpdateOneModel;
 import com.mongodb.client.model.Updates;
 import com.mongodb.client.model.WriteModel;
 import com.sx4.bot.database.Database;
+import com.sx4.bot.events.patreon.PatreonMemberUpdateEvent;
 import com.sx4.bot.events.patreon.PatreonPledgeCreateEvent;
 import com.sx4.bot.events.patreon.PatreonPledgeDeleteEvent;
 import com.sx4.bot.events.patreon.PatreonPledgeUpdateEvent;
@@ -25,12 +24,16 @@ import com.sx4.bot.utility.ExceptionUtility;
 public class PatreonHandler implements PatreonListener {
 
 	public void onPatreonPledgeCreate(PatreonPledgeCreateEvent event) {
-		if (!event.hasDiscord()) {
-			return;
+		Bson update = Updates.combine(
+			Updates.set("amount", event.getAmount()),
+			Updates.set("since", Clock.systemUTC().instant().getEpochSecond())
+		);
+		
+		if (event.hasDiscord()) {
+			update = Updates.combine(update, Updates.set("discordId", event.getDiscordId()));
 		}
 		
-		Bson update = Updates.combine(Updates.set("patreon.amount", event.getAmount()), Updates.set("patreon.since", Clock.systemUTC().instant().getEpochSecond()));
-		Database.get().updateUserById(event.getDiscordId(), update).whenComplete((result, exception) -> {
+		Database.get().updatePatronById(event.getId(), update).whenComplete((result, exception) -> {
 			if (exception != null) {
 				ExceptionUtility.sendErrorMessage(exception);
 			}
@@ -38,11 +41,7 @@ public class PatreonHandler implements PatreonListener {
 	}
 	
 	public void onPatreonPledgeUpdate(PatreonPledgeUpdateEvent event) {
-		if (!event.hasDiscord()) {
-			return;
-		}
-		
-		Database.get().updateUserById(event.getDiscordId(), Updates.set("patreon.amount", event.getAmount())).whenComplete((result, exception) -> {
+		Database.get().updatePatronById(event.getId(), Updates.set("amount", event.getAmount())).whenComplete((result, exception) -> {
 			if (exception != null) {
 				ExceptionUtility.sendErrorMessage(exception);
 			}
@@ -50,20 +49,15 @@ public class PatreonHandler implements PatreonListener {
 	}
 	
 	public void onPatreonPledgeDelete(PatreonPledgeDeleteEvent event) {
-		if (!event.hasDiscord()) {
-			return;
-		}
-		
 		Database database = Database.get();
 		
-		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("patreon.guilds"));
-		database.findAndUpdateUserById(event.getDiscordId(), Updates.unset("patreon"), options).whenComplete((data, exception) -> {
+		database.findAndDeletePatronById(event.getId(), Projections.include("guilds")).whenComplete((data, exception) -> {
 			if (exception != null) {
 				ExceptionUtility.sendErrorMessage(exception);
 				return;
 			}
 			
-			List<Long> guilds = data.getEmbedded(List.of("patreon", "guilds"), Collections.emptyList());
+			List<Long> guilds = data.getList("guilds", Long.class, Collections.emptyList());
 			
 			List<WriteModel<Document>> bulkData = new ArrayList<>();
 			for (long guildId : guilds) {
@@ -76,6 +70,18 @@ public class PatreonHandler implements PatreonListener {
         				ExceptionUtility.sendErrorMessage(guildException);
         			}
     			});
+			}
+		});
+	}
+	
+	public void onPatreonMemberUpdate(PatreonMemberUpdateEvent event) {
+		if (!event.hasDiscord()) {
+			return;
+		}
+		
+		Database.get().updatePatronById(event.getId(), Updates.set("discordId", event.getDiscordId())).whenComplete((result, exception) -> {
+			if (exception != null) {
+				ExceptionUtility.sendErrorMessage(exception);
 			}
 		});
 	}

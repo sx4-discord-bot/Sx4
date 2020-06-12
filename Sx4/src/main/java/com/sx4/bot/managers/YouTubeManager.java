@@ -122,7 +122,7 @@ public class YouTubeManager {
 	public DeleteOneModel<Document> resubscribeAndGet(String channelId) {
 		Config config = Config.get();
 		
-		long amount = Database.get().countGuildDocuments(Filters.elemMatch("youtubeNotifications", Filters.eq("uploaderId", channelId)));
+		long amount = Database.get().countGuilds(Filters.elemMatch("youtubeNotifications", Filters.eq("uploaderId", channelId)));
 		
 		DeleteOneModel<Document> model = null;
 		if (amount != 0) {

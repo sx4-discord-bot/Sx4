@@ -17,6 +17,7 @@ import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.FindOneAndDeleteOptions;
 import com.mongodb.client.model.FindOneAndUpdateOptions;
 import com.mongodb.client.model.Indexes;
 import com.mongodb.client.model.ReturnDocument;
@@ -62,6 +63,8 @@ public class Database {
 	private final MongoCollection<Document> guilds;
 	private final MongoCollection<Document> users;
 	
+	private final MongoCollection<Document> patrons;
+	
 	private final MongoCollection<Document> auction;
 	
 	private final MongoCollection<Document> modLogs;
@@ -85,6 +88,9 @@ public class Database {
 		
 		this.users = this.database.getCollection("users");
 		this.guilds = this.database.getCollection("guilds");
+		
+		this.patrons = this.database.getCollection("patrons");
+		this.patrons.createIndex(Indexes.descending("discordId"));
 		
 		this.auction = this.database.getCollection("auction");
 		this.auction.createIndex(Indexes.descending("item.name"));
@@ -118,6 +124,111 @@ public class Database {
 		return this.database;
 	}
 	
+	public MongoCollection<Document> getPatrons() {
+		return this.patrons;
+	}
+	
+	public FindIterable<Document> getPatrons(Bson filter, Bson projection) {
+		return this.patrons.find(filter).projection(projection);
+	}
+	
+	public long countPatrons(Bson filter) {
+		return this.patrons.countDocuments(filter);
+	}
+	
+	public Document getPatronById(String id, Bson filter, Bson projection) {
+		if (filter == null) {
+			filter = Filters.eq("_id", id);
+		} else {
+			filter = Filters.and(Filters.eq("_id", id), filter);
+		}
+		
+		Document data = this.patrons.find(filter).projection(projection).first();
+		
+		return data == null ? Database.EMPTY_DOCUMENT : data;
+	}
+	
+	public Document getPatronById(String id, Bson projection) {
+		return this.getPatronById(id, null, projection);
+	}
+	
+	public CompletableFuture<UpdateResult> updatePatronById(String id, Bson filter, Bson update, UpdateOptions options) {
+		Bson dbFilter;
+		if (filter == null) {
+			dbFilter = Filters.eq("_id", id);
+		} else {
+			dbFilter = Filters.and(Filters.eq("_id", id), filter);
+		}
+		
+		return CompletableFuture.supplyAsync(() -> this.patrons.updateOne(dbFilter, update, options));
+	}
+	
+	public CompletableFuture<UpdateResult> updatePatronById(String id, Bson update, UpdateOptions options) {
+		return this.updatePatronById(id, null, update, options);
+	}
+	
+	public CompletableFuture<UpdateResult> updatePatronById(String id, Bson update) {
+		return this.updatePatronById(id, update, this.updateOptions);
+	}
+	
+	public CompletableFuture<UpdateResult> updatePatronById(UpdateOneModel<Document> update) {
+		return CompletableFuture.supplyAsync(() -> this.patrons.updateOne(update.getFilter(), update.getUpdate(), update.getOptions()));
+	}
+	
+	public CompletableFuture<Document> findAndUpdatePatronById(String id, Bson filter, Bson update, FindOneAndUpdateOptions options) {
+		Bson dbFilter;
+		if (filter == null) {
+			dbFilter = Filters.eq("_id", id);
+		} else {
+			dbFilter = Filters.and(Filters.eq("_id", id), filter);
+		}
+		
+		return CompletableFuture.supplyAsync(() -> this.patrons.findOneAndUpdate(dbFilter, update, options));
+	}
+	
+	public CompletableFuture<Document> findAndUpdatePatronById(String id, Bson update, FindOneAndUpdateOptions options) {
+		return this.findAndUpdatePatronById(id, null, update, options);
+	}
+	
+	public CompletableFuture<Document> findAndUpdatePatronById(String id, Bson filter, Bson projection, Bson update) {
+		return this.findAndUpdatePatronById(id, filter, update, this.findOneAndUpdateOptions.projection(projection));
+	}
+	
+	public CompletableFuture<Document> findAndUpdatePatronById(String id, Bson projection, Bson update) {
+		return this.findAndUpdatePatronById(id, null, update, this.findOneAndUpdateOptions.projection(projection));
+	}
+	
+	public CompletableFuture<Document> findAndUpdatePatronById(String id, Bson filter, List<? extends Bson> update, FindOneAndUpdateOptions options) {
+		Bson dbFilter;
+		if (filter == null) {
+			dbFilter = Filters.eq("_id", id);
+		} else {
+			dbFilter = Filters.and(Filters.eq("_id", id), filter);
+		}
+		
+		return CompletableFuture.supplyAsync(() -> this.patrons.findOneAndUpdate(dbFilter, update, options));
+	}
+	
+	public CompletableFuture<Document> findAndUpdatePatronById(String id, Bson filter, Bson projection, List<? extends Bson> update) {
+		return this.findAndUpdatePatronById(id, filter, update, this.findOneAndUpdateOptions.projection(projection));
+	}
+	
+	public CompletableFuture<Document> findAndUpdatePatronById(String id, Bson projection, List<? extends Bson> update) {
+		return this.findAndUpdatePatronById(id, null, update, this.findOneAndUpdateOptions.projection(projection));
+	}
+	
+	public CompletableFuture<DeleteResult> deletePatronById(String id) {
+		return CompletableFuture.supplyAsync(() -> this.patrons.deleteOne(Filters.eq("_id", id)));
+	}
+	
+	public CompletableFuture<Document> findAndDeletePatronById(String id, Bson projection) {
+		return CompletableFuture.supplyAsync(() -> this.patrons.findOneAndDelete(Filters.eq("_id", id), new FindOneAndDeleteOptions().projection(projection)));
+	}
+	
+	public CompletableFuture<BulkWriteResult> bulkWritePatrons(List<? extends WriteModel<? extends Document>> bulkData) {
+		return CompletableFuture.supplyAsync(() -> this.patrons.bulkWrite(bulkData));
+	}
+	
 	public MongoCollection<Document> getUsers() {
 		return this.users;
 	}
@@ -126,7 +237,7 @@ public class Database {
 		return this.users.find(filter).projection(projection);
 	}
 	
-	public long countUserDocuments(Bson filter) {
+	public long countUsers(Bson filter) {
 		return this.users.countDocuments(filter);
 	}
 	
@@ -223,7 +334,7 @@ public class Database {
 		return this.guilds.find(filter).projection(projection);
 	}
 	
-	public long countGuildDocuments(Bson filter) {
+	public long countGuilds(Bson filter) {
 		return this.guilds.countDocuments(filter);
 	}
 	

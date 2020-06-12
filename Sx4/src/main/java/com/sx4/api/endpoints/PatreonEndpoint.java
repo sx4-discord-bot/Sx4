@@ -12,6 +12,7 @@ import javax.ws.rs.core.Response;
 import org.bson.Document;
 
 import com.sx4.bot.config.Config;
+import com.sx4.bot.events.patreon.PatreonMemberUpdateEvent;
 import com.sx4.bot.events.patreon.PatreonPledgeCreateEvent;
 import com.sx4.bot.events.patreon.PatreonPledgeDeleteEvent;
 import com.sx4.bot.events.patreon.PatreonPledgeUpdateEvent;
@@ -48,7 +49,7 @@ public class PatreonEndpoint {
 	    }
 	    
 	    if (user != null) {
-	        String discordIdString = user.getEmbedded(List.of("attributes", "social_connections", "discord", "user_id"), String.class), id = user.getString("id");
+	        String discordIdString = user.getEmbedded(List.of("attributes", "discord_id"), String.class), id = user.getString("id");
 	        long discordId = discordIdString == null ? 0L : Long.valueOf(discordIdString);
 	       
 	        PatreonManager manager = PatreonManager.get();
@@ -58,6 +59,8 @@ public class PatreonEndpoint {
 	        	manager.onPatreonPledge(new PatreonPledgeUpdateEvent(discordId, id, centsDonated));
 	        } else if (event.equals("members:pledge:create")) {
 	        	manager.onPatreonPledge(new PatreonPledgeCreateEvent(discordId, id, centsDonated));
+	        } else if (event.equals("members:update")) {
+	        	manager.onPatreonPledge(new PatreonMemberUpdateEvent(discordId, id));
 	        }
 	    }
 		

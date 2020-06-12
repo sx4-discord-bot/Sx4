@@ -18,15 +18,14 @@ public class Action {
 	}
 	
 	public String toString() {
+		Action action;
 		if (this instanceof WarnAction) {
-			WarnConfig warning = ((WarnAction) this).getWarning();
-			
-			Action action = warning.getAction();
-
-			return action.getModAction().getName() + (action instanceof TimeAction ? " (" + TimeUtility.getTimeString(((TimeAction) action).getDuration()) + ")" : "");
+			action = ((WarnAction) this).getWarning().getAction();
 		} else {
-			return this.getModAction().getName() + (this instanceof TimeAction ? " (" + TimeUtility.getTimeString(((TimeAction) this).getDuration()) + ")" : "");
+			action = this;
 		}
+		
+		return action.getModAction().getName() + (action instanceof TimeAction ? " (" + TimeUtility.getTimeString(((TimeAction) action).getDuration()) + ")" : "");
 	}
 	
 	public static Action fromData(Document data) {
