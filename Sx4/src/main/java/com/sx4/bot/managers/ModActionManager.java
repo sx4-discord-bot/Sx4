@@ -15,10 +15,16 @@ import com.sx4.bot.events.mod.WarnEvent;
 import com.sx4.bot.hooks.mod.ModActionListener;
 
 public class ModActionManager {
+	
+	private static final ModActionManager INSTANCE = new ModActionManager();
+	
+	public static ModActionManager get() {
+		return ModActionManager.INSTANCE;
+	}
 
 	private final List<ModActionListener> listeners;
 	
-	public ModActionManager() {
+	private ModActionManager() {
 		this.listeners = new ArrayList<>();
 	}
 	

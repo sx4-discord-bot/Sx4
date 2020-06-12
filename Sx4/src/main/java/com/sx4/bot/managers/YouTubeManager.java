@@ -34,6 +34,12 @@ import okhttp3.RequestBody;
 
 public class YouTubeManager {
 	
+	private static final YouTubeManager INSTANCE = new YouTubeManager();
+	
+	public static YouTubeManager get() {
+		return YouTubeManager.INSTANCE;
+	}
+	
 	public static final String DEFAULT_MESSAGE = "**[{channel.name}]({channel.url})** just uploaded a new video!\n{video.url}";
 	
 	private final List<YouTubeListener> listeners;
@@ -42,7 +48,7 @@ public class YouTubeManager {
 	
 	private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
 	
-	public YouTubeManager() {
+	private YouTubeManager() {
 		this.executors = new HashMap<>();
 		this.listeners = new ArrayList<>();
 	}

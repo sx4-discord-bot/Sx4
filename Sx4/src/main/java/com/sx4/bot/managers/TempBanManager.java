@@ -100,7 +100,7 @@ private static final TempBanManager INSTANCE = new TempBanManager();
 				ExceptionUtility.sendErrorMessage(exception);
 			} 
 			
-			Sx4Bot.getModActionManager().onModAction(new UnbanEvent(guild.getSelfMember(), member.getUser(), new Reason("Ban length served")));
+			ModActionManager.get().onModAction(new UnbanEvent(guild.getSelfMember(), member.getUser(), new Reason("Ban length served")));
 			this.deleteExecutor(guildId, userId);
 		});
 	}

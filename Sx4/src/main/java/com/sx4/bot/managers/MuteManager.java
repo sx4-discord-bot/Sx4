@@ -131,7 +131,7 @@ public class MuteManager {
 			guild.removeRoleFromMember(member, role).reason("Mute length served").queue();
 		}
 		
-		Sx4Bot.getModActionManager().onModAction(new UnmuteEvent(guild.getSelfMember(), member.getUser(), new Reason("Mute length served")));
+		ModActionManager.get().onModAction(new UnmuteEvent(guild.getSelfMember(), member.getUser(), new Reason("Mute length served")));
 		this.deleteExecutor(guildId, userId);
 		
 		return new UpdateOneModel<>(Filters.eq("_id", guildId), Updates.pull("mute.users", Filters.eq("id", userId)));

@@ -51,9 +51,11 @@ import com.sx4.bot.entities.mod.Reason;
 import com.sx4.bot.entities.reminder.ReminderArgument;
 import com.sx4.bot.handlers.ConnectionHandler;
 import com.sx4.bot.handlers.ModHandler;
+import com.sx4.bot.handlers.PatreonHandler;
 import com.sx4.bot.handlers.ReactionRoleHandler;
 import com.sx4.bot.handlers.YouTubeHandler;
 import com.sx4.bot.managers.ModActionManager;
+import com.sx4.bot.managers.PatreonManager;
 import com.sx4.bot.managers.YouTubeManager;
 import com.sx4.bot.message.cache.GuildMessageCache;
 import com.sx4.bot.paged.PagedHandler;
@@ -89,8 +91,6 @@ public class Sx4Bot {
 	
 	private static ShardManager shardManager;
 	private static CommandListener commandListener;
-	private static ModActionManager modActionManager;
-	private static YouTubeManager youtubeManager;
 	
 	private static final OkHttpClient CLIENT = new OkHttpClient.Builder()
 			.connectTimeout(15, TimeUnit.SECONDS)
@@ -100,11 +100,14 @@ public class Sx4Bot {
 	
 	@SuppressWarnings({"unchecked", "rawtypes"})
 	public static void main(String[] args) throws Throwable {
-		Sx4Bot.modActionManager = new ModActionManager()
+		ModActionManager.get()
 			.addListener(new ModHandler());
-				
-		Sx4Bot.youtubeManager = new YouTubeManager()
+		
+		YouTubeManager.get()
 			.addListener(new YouTubeHandler());
+		
+		PatreonManager.get()
+			.addListener(new PatreonHandler());
 		
 		MethodCommandFactory.setDefault(new Sx4CommandFactory());
 		
@@ -442,13 +445,6 @@ public class Sx4Bot {
 	
 	public static CommandListener getCommandListener() {
 		return Sx4Bot.commandListener;
-	}
-	
-	public static ModActionManager getModActionManager() {
-		return Sx4Bot.modActionManager;
-	}
-	public static YouTubeManager getYouTubeManager() {
-		return Sx4Bot.youtubeManager;
 	}
 	
 }

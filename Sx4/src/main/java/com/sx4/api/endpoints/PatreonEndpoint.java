@@ -2,15 +2,20 @@ package com.sx4.api.endpoints;
 
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
+import java.util.List;
 
 import javax.ws.rs.HeaderParam;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.core.Response;
 
-import org.json.JSONObject;
+import org.bson.Document;
 
 import com.sx4.bot.config.Config;
+import com.sx4.bot.events.patreon.PatreonPledgeCreateEvent;
+import com.sx4.bot.events.patreon.PatreonPledgeDeleteEvent;
+import com.sx4.bot.events.patreon.PatreonPledgeUpdateEvent;
+import com.sx4.bot.managers.PatreonManager;
 import com.sx4.bot.utility.HmacUtility;
 
 @Path("")
@@ -30,11 +35,33 @@ public class PatreonEndpoint {
 			return Response.status(401).build();
 		}
 		
-		JSONObject json = new JSONObject(body), data = json.getJSONObject("data"), attributes = data.getJSONObject("attributes");
+		Document document = Document.parse(body);
+		int centsDonated = document.getEmbedded(List.of("data", "attributes", "campaign_pledge_amount_cents"), int.class);
 		
-		int centsDonated = attributes.getInt("campaign_pledge_amount_cents");
+		Document user = null;
+	    for (Document included : document.getList("included", Document.class)) {
+	        if (included.getString("type").equals("user")) {
+	            user = included;
+	            
+	            break;
+	        }
+	    }
+	    
+	    if (user != null) {
+	        String discordIdString = user.getEmbedded(List.of("attributes", "social_connections", "discord", "user_id"), String.class), id = user.getString("id");
+	        long discordId = discordIdString == null ? 0L : Long.valueOf(discordIdString);
+	       
+	        PatreonManager manager = PatreonManager.get();
+	        if (event.equals("members:pledge:delete")) {
+	        	manager.onPatreonPledge(new PatreonPledgeDeleteEvent(discordId, id));
+	        } else if (event.equals("members:pledge:update")) {
+	        	manager.onPatreonPledge(new PatreonPledgeUpdateEvent(discordId, id, centsDonated));
+	        } else if (event.equals("members:pledge:create")) {
+	        	manager.onPatreonPledge(new PatreonPledgeCreateEvent(discordId, id, centsDonated));
+	        }
+	    }
 		
-		return Response.ok().build();
+		return Response.status(204).build();
 	}
 	
 }

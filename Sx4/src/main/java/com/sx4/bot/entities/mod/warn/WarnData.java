@@ -14,7 +14,6 @@ import com.mongodb.client.model.UpdateOneModel;
 import com.mongodb.client.model.UpdateOptions;
 import com.mongodb.client.model.Updates;
 import com.mongodb.client.model.WriteModel;
-import com.sx4.bot.core.Sx4Bot;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.entities.mod.Reason;
 import com.sx4.bot.entities.mod.action.Action;
@@ -98,7 +97,7 @@ public class WarnData {
 	}
 	
 	public void warn(Member target, Member moderator, Reason reason, BiConsumer<WarnConfig, Throwable> consumer) {
-		ModActionManager manager = Sx4Bot.getModActionManager();
+		ModActionManager manager = ModActionManager.get();
 		MuteManager muteManager = MuteManager.get();
 		Database database = Database.get();
 		
