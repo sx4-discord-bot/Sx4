@@ -101,5 +101,12 @@
 		"openWeather": "",
 		"igdb": "",
 		"patreonWebhookSecret": ""
+	},
+	"premium": {
+		"price": 0
+	},
+	"emote": {
+		"success": "",
+		"failure": ""
 	}
 } 

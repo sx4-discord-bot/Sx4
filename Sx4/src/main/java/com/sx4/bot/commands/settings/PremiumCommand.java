@@ -2,6 +2,7 @@ package com.sx4.bot.commands.settings;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.bson.Document;
 import org.bson.conversions.Bson;
@@ -15,12 +16,15 @@ import com.mongodb.client.model.ReturnDocument;
 import com.mongodb.client.model.Updates;
 import com.sx4.bot.annotations.command.Donator;
 import com.sx4.bot.annotations.command.Examples;
+import com.sx4.bot.config.Config;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.model.Operators;
+import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 
 import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.sharding.ShardManager;
 
 public class PremiumCommand extends Sx4Command {
 
@@ -28,7 +32,7 @@ public class PremiumCommand extends Sx4Command {
 		super("premium");
 		
 		super.setDescription("Make a server premium or remove a server from being premium, you can make a server premium for $5");
-		super.setExamples("premium add", "premium remove");
+		super.setExamples("premium add", "premium remove", "premium list");
 	}
 	
 	public void onCommand(Sx4CommandEvent event) {
@@ -44,6 +48,7 @@ public class PremiumCommand extends Sx4Command {
 		}
 		
 		long guildId = guild.getIdLong();
+		int price = Config.get().getPremiumPrice();
 		
 		Document guildData = this.database.getGuildById(guildId, Projections.include("premium"));
 		if (guildData.containsKey("premium")) {
@@ -53,7 +58,7 @@ public class PremiumCommand extends Sx4Command {
 		
 		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("guilds", "amount"));
 		
-		List<Bson> update = List.of(Operators.set("guilds", Operators.cond(Operators.lt(Operators.size("$guilds"), Operators.floor(Operators.divide("$amount", 500))), Operators.concatArrays("$guilds", List.of(guildId)), "$guilds")));
+		List<Bson> update = List.of(Operators.set("guilds", Operators.cond(Operators.lt(Operators.size("$guilds"), Operators.floor(Operators.divide("$amount", price))), Operators.concatArrays("$guilds", List.of(guildId)), "$guilds")));
 		this.database.findAndUpdatePatronById(Filters.eq("discordId", event.getAuthor().getIdLong()), update, options).whenComplete((data, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
@@ -64,7 +69,7 @@ public class PremiumCommand extends Sx4Command {
 				return;
 			}
 			
-			int allocatedGuilds = data.getInteger("amount") / 500;
+			int allocatedGuilds = data.getInteger("amount") / price;
 			
 			List<Long> guilds = data.getList("guilds", Long.class, Collections.emptyList());
 			if (guilds.size() == allocatedGuilds) {
@@ -98,7 +103,7 @@ public class PremiumCommand extends Sx4Command {
 			}
 			
 			if (result.getModifiedCount() == 0) {
-				event.reply("You were not subscribed to that server :no_entry:").queue();
+				event.reply("You are not giving premium to that server :no_entry:").queue();
 				return;
 			}
 			
@@ -110,6 +115,33 @@ public class PremiumCommand extends Sx4Command {
 				event.reply("That server is no longer premium <:done:403285928233402378>").queue();
 			});
 		});
+	}
+	
+	@Command(value="list", description="Lists all the servers you are giving premium to")
+	@Examples({"premium list"})
+	public void list(Sx4CommandEvent event) {
+		Document data = this.database.getPatronByFilter(Filters.eq("discordId", event.getAuthor().getIdLong()), Projections.include("guilds", "amount"));
+		
+		List<Long> guildIds = data.getList("guilds", Long.class, Collections.emptyList());
+		if (guildIds.isEmpty()) {
+			event.reply("You are not giving premium to any servers :no_entry:").queue();
+			return;
+		}
+		
+		int allocatedGuilds = data.getInteger("amount") / Config.get().getPremiumPrice();
+		
+		ShardManager shardManager = event.getShardManager();	
+		
+		List<Guild> guilds = guildIds.stream()
+			.map(shardManager::getGuildById)
+			.filter(guild -> guild != null)
+			.collect(Collectors.toList());
+		
+		PagedResult<Guild> paged = new PagedResult<>(guilds)
+			.setAuthor(String.format("Premium Servers (%d/%d)", guilds.size(), allocatedGuilds), null, event.getAuthor().getEffectiveAvatarUrl())
+			.setDisplayFunction(Guild::getName);
+		
+		paged.execute(event);
 	}
 	
 }

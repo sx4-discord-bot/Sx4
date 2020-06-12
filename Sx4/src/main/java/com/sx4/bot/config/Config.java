@@ -293,6 +293,18 @@ public class Config {
 		return this.get("token.voteApi." + (sx4 ? "sx4" : "jockieMusic"));
 	}
 	
+	public int getPremiumPrice() {
+		return this.get("premium.price", 500);
+	}
+	
+	public String getSuccessEmote() {
+		return this.get("emote.success");
+	}
+	
+	public String getFailureEmote() {
+		return this.get("emote.failure");
+	}
+	
 	public int getColour() {
 		return this.get(this.getState() + ".colour", 0);
 	}
