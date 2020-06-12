@@ -37,30 +37,29 @@ public class PatreonEndpoint {
 		}
 		
 		Document document = Document.parse(body);
-		int centsDonated = document.getEmbedded(List.of("data", "attributes", "campaign_pledge_amount_cents"), int.class);
+		int centsDonated = document.getEmbedded(List.of("data", "attributes", "currently_entitled_amount_cents"), int.class);
 		
 		Document user = null;
 	    for (Document included : document.getList("included", Document.class)) {
 	        if (included.getString("type").equals("user")) {
 	            user = included;
-	            
 	            break;
 	        }
 	    }
 	    
 	    if (user != null) {
-	        String discordIdString = user.getEmbedded(List.of("attributes", "discord_id"), String.class), id = user.getString("id");
+	        String discordIdString = user.getEmbedded(List.of("attributes", "social_connections", "discord", "user_id"), String.class), id = user.getString("id");
 	        long discordId = discordIdString == null ? 0L : Long.valueOf(discordIdString);
 	       
 	        PatreonManager manager = PatreonManager.get();
 	        if (event.equals("members:pledge:delete")) {
-	        	manager.onPatreonPledge(new PatreonPledgeDeleteEvent(discordId, id));
+	        	manager.onPatreon(new PatreonPledgeDeleteEvent(discordId, id));
 	        } else if (event.equals("members:pledge:update")) {
-	        	manager.onPatreonPledge(new PatreonPledgeUpdateEvent(discordId, id, centsDonated));
+	        	manager.onPatreon(new PatreonPledgeUpdateEvent(discordId, id, centsDonated));
 	        } else if (event.equals("members:pledge:create")) {
-	        	manager.onPatreonPledge(new PatreonPledgeCreateEvent(discordId, id, centsDonated));
+	        	manager.onPatreon(new PatreonPledgeCreateEvent(discordId, id, centsDonated));
 	        } else if (event.equals("members:update")) {
-	        	manager.onPatreonPledge(new PatreonMemberUpdateEvent(discordId, id));
+	        	manager.onPatreon(new PatreonMemberUpdateEvent(discordId, id));
 	        }
 	    }
 		

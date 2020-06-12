@@ -70,6 +70,7 @@ import com.sx4.bot.waiter.WaiterHandler;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Category;
 import net.dv8tion.jda.api.entities.Emote;
+import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.GuildChannel;
 import net.dv8tion.jda.api.entities.IPermissionHolder;
 import net.dv8tion.jda.api.entities.Member;
@@ -135,6 +136,7 @@ public class Sx4Bot {
 			.registerResponse(MessageArgument.class, "I could not find that message :no_entry:")
 			.registerResponse(ReminderArgument.class, "Invalid reminder format given, view `help reminder add` for more info :no_entry:")
 			.registerResponse(PartialEmote.class, "I could not find that emote :no_entry:")
+			.registerResponse(Guild.class, "I could not find that server :no_entry:")
 			.registerResponse(UpdateType.class, (argument, message, content) -> {
 				List<UpdateType> updates = argument.getProperty("updates", List.class);
 				message.getChannel().sendMessage("Invalid update type given, update types you can use are `" + updates.stream().map(t -> t.name().toLowerCase()).collect(Collectors.joining("`, `")) + "` :no_entry:").queue();
@@ -226,6 +228,7 @@ public class Sx4Bot {
 			.registerParser(IPermissionHolder.class, (context, argument, content) -> new ParsedArgument<>(SearchUtility.getPermissionHolder(context.getMessage().getGuild(), content)))
 			.registerParser(Role.class, (context, argument, content) -> new ParsedArgument<>(SearchUtility.getRole(context.getMessage().getGuild(), content)))
 			.registerParser(Emote.class, (context, argument, content) -> new ParsedArgument<>(SearchUtility.getGuildEmote(context.getMessage().getGuild(), content)))
+			.registerParser(Guild.class, (context, argument, content) -> new ParsedArgument<>(SearchUtility.getGuild(content)))
 			.registerParser(MessageArgument.class, (context, argument, content) -> new ParsedArgument<>(SearchUtility.getMessageArgument(context.getMessage().getTextChannel(), content)))
 			.registerParser(ReactionEmote.class, (context, argument, content) -> new ParsedArgument<>(SearchUtility.getReactionEmote(content)))
 			.registerParser(TimeZone.class, (context, argument, content) -> new ParsedArgument<>(TimeZone.getTimeZone(content.toUpperCase().replace("UTC", "GMT"))))

@@ -136,6 +136,12 @@ public class Database {
 		return this.patrons.countDocuments(filter);
 	}
 	
+	public Document getPatronByFilter(Bson filter, Bson projection) {
+		Document data = this.getPatrons(filter, projection).first();
+		
+		return data == null ? Database.EMPTY_DOCUMENT : data;
+	}
+	
 	public Document getPatronById(String id, Bson filter, Bson projection) {
 		if (filter == null) {
 			filter = Filters.eq("_id", id);
@@ -152,6 +158,14 @@ public class Database {
 		return this.getPatronById(id, null, projection);
 	}
 	
+	public CompletableFuture<UpdateResult> updatePatronByFilter(Bson filter, Bson update, UpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.patrons.updateOne(filter, update, options));
+	}
+	
+	public CompletableFuture<UpdateResult> updatePatronByFilter(Bson filter, Bson update) {
+		return this.updatePatronByFilter(filter, update, this.updateOptions);
+	}
+	
 	public CompletableFuture<UpdateResult> updatePatronById(String id, Bson filter, Bson update, UpdateOptions options) {
 		Bson dbFilter;
 		if (filter == null) {
@@ -160,7 +174,7 @@ public class Database {
 			dbFilter = Filters.and(Filters.eq("_id", id), filter);
 		}
 		
-		return CompletableFuture.supplyAsync(() -> this.patrons.updateOne(dbFilter, update, options));
+		return this.updatePatronByFilter(dbFilter, update, options);
 	}
 	
 	public CompletableFuture<UpdateResult> updatePatronById(String id, Bson update, UpdateOptions options) {
@@ -175,6 +189,10 @@ public class Database {
 		return CompletableFuture.supplyAsync(() -> this.patrons.updateOne(update.getFilter(), update.getUpdate(), update.getOptions()));
 	}
 	
+	public CompletableFuture<Document> findAndUpdatePatronById(Bson filter, Bson update, FindOneAndUpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.patrons.findOneAndUpdate(filter, update, options));
+	}
+	
 	public CompletableFuture<Document> findAndUpdatePatronById(String id, Bson filter, Bson update, FindOneAndUpdateOptions options) {
 		Bson dbFilter;
 		if (filter == null) {
@@ -183,7 +201,7 @@ public class Database {
 			dbFilter = Filters.and(Filters.eq("_id", id), filter);
 		}
 		
-		return CompletableFuture.supplyAsync(() -> this.patrons.findOneAndUpdate(dbFilter, update, options));
+		return this.findAndUpdatePatronById(dbFilter, update, options);
 	}
 	
 	public CompletableFuture<Document> findAndUpdatePatronById(String id, Bson update, FindOneAndUpdateOptions options) {
@@ -198,6 +216,10 @@ public class Database {
 		return this.findAndUpdatePatronById(id, null, update, this.findOneAndUpdateOptions.projection(projection));
 	}
 	
+	public CompletableFuture<Document> findAndUpdatePatronById(Bson filter, List<? extends Bson> update, FindOneAndUpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.patrons.findOneAndUpdate(filter, update, options));
+	}
+	
 	public CompletableFuture<Document> findAndUpdatePatronById(String id, Bson filter, List<? extends Bson> update, FindOneAndUpdateOptions options) {
 		Bson dbFilter;
 		if (filter == null) {
@@ -206,7 +228,7 @@ public class Database {
 			dbFilter = Filters.and(Filters.eq("_id", id), filter);
 		}
 		
-		return CompletableFuture.supplyAsync(() -> this.patrons.findOneAndUpdate(dbFilter, update, options));
+		return this.findAndUpdatePatronById(dbFilter, update, options);
 	}
 	
 	public CompletableFuture<Document> findAndUpdatePatronById(String id, Bson filter, Bson projection, List<? extends Bson> update) {

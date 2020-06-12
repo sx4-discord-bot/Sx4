@@ -59,4 +59,20 @@ public class Operators {
 		return new Document("$size", expression);
 	}
 	
+	public static Bson divide(Object expression, Object expression2) {
+		return new Document("$divide", List.of(expression, expression2));
+	}
+	
+	public static Bson floor(Object expression) {
+		return new Document("$floor", expression);
+	}
+	
+	public static Bson lt(Object expression, Object expression2) {
+		return new Document("$lt", List.of(expression, expression2));
+	}
+	
+	public static Bson in(Object expression, Object arrayExpression) {
+		return new Document("$in", List.of(expression, arrayExpression));
+	}
+	
 }

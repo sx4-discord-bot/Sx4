@@ -31,6 +31,7 @@ import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.utils.MiscUtil;
+import net.dv8tion.jda.api.utils.cache.CacheView;
 
 public class SearchUtility {
 	
@@ -43,12 +44,12 @@ public class SearchUtility {
 	private static final Pattern EMOTE_MENTION = Pattern.compile("<(a)?:([a-zA-Z0-9_]+):([0-9]+)>");
 	private static final Pattern EMOTE_URL = Pattern.compile("https?://cdn\\.discordapp\\.com/emojis/([0-9]+)\\.(png|gif|jpeg|jpg)(?:\\?\\S*)?(?:#\\S*)?", Pattern.CASE_INSENSITIVE);
 	
-	private static <Type> Type find(List<Type> list, String query, Function<Type, String> nameFunction) {
+	private static <Type> Type find(Iterable<Type> iterable, String query, Function<Type, String> nameFunction) {
 		List<Type> startsWith = new ArrayList<>();
 		List<Type> contains = new ArrayList<>();
 
 		query = query.toLowerCase();
-		for (Type object : list) {
+		for (Type object : iterable) {
 		    String name = nameFunction.apply(object).toLowerCase();
 		    if (name.equals(query)) {
 		        return object;
@@ -74,20 +75,36 @@ public class SearchUtility {
 		return null;
 	}
 	
-	private static TextChannel findTextChannel(List<TextChannel> channels, String query) {
+	private static TextChannel findTextChannel(CacheView<TextChannel> channels, String query) {
 		return SearchUtility.find(channels, query, channel -> channel.getName());
 	}
 	
-	private static Member findMember(List<Member> members, String query) {
+	private static Member findMember(CacheView<Member> members, String query) {
 		return SearchUtility.find(members, query, member -> member.getEffectiveName());
 	}
 	
-	private static Role findRole(List<Role> roles, String query) {
+	private static Role findRole(CacheView<Role> roles, String query) {
 		return SearchUtility.find(roles, query, role -> role.getName());
 	}
 	
-	private static Emote findEmote(List<Emote> emotes, String query) {
+	private static Emote findEmote(CacheView<Emote> emotes, String query) {
 		return SearchUtility.find(emotes, query, emote -> emote.getName());
+	}
+	
+	private static Guild findGuild(CacheView<Guild> guilds, String query) {
+		return SearchUtility.find(guilds, query, guild -> guild.getName());
+	}
+	
+	public static Guild getGuild(String query) {
+		if (NumberUtility.isNumberUnsigned(query)) {
+			try {
+				return Sx4Bot.getShardManager().getGuildById(query);
+			} catch (NumberFormatException e) {
+				return null;
+			}
+		} else {
+			return SearchUtility.findGuild(Sx4Bot.getShardManager().getGuildCache(), query);
+		}
 	}
 	
 	public static PartialEmote getPartialEmote(String query) {
@@ -127,7 +144,7 @@ public class SearchUtility {
 			}
 			
 		} else {
-			Emote emote = SearchUtility.findEmote(Sx4Bot.getShardManager().getEmotes(), query);
+			Emote emote = SearchUtility.findEmote(Sx4Bot.getShardManager().getEmoteCache(), query);
 			if (emote != null) {
 				return new PartialEmote(emote);
 			}
@@ -158,7 +175,7 @@ public class SearchUtility {
 				return null;
 			}
 		} else {
-			return SearchUtility.findEmote(Sx4Bot.getShardManager().getEmotes(), query);
+			return SearchUtility.findEmote(Sx4Bot.getShardManager().getEmoteCache(), query);
 		}
 	}
 	
@@ -184,7 +201,7 @@ public class SearchUtility {
 				return null;
 			}
 		} else {
-			return SearchUtility.findEmote(guild.getEmotes(), query);
+			return SearchUtility.findEmote(guild.getEmoteCache(), query);
 		}
 	}
 	
@@ -298,7 +315,7 @@ public class SearchUtility {
 				return null;
 			}
 		} else {
-			return SearchUtility.findRole(guild.getRoles(), query);
+			return SearchUtility.findRole(guild.getRoleCache(), query);
 		}
 	}
 	
@@ -321,7 +338,7 @@ public class SearchUtility {
 				return null;
 			}
 		} else {
-			return SearchUtility.findTextChannel(guild.getTextChannels(), query);
+			return SearchUtility.findTextChannel(guild.getTextChannelCache(), query);
 		}
 	}
 	
@@ -353,7 +370,7 @@ public class SearchUtility {
 				return null;
 			}
 		} else {
-			return SearchUtility.findMember(guild.getMembers(), query);
+			return SearchUtility.findMember(guild.getMemberCache(), query);
 		}
 	}
 	
@@ -442,7 +459,7 @@ public class SearchUtility {
 				userConsumer.accept(null);
 			}
 		} else {
-			Member member = SearchUtility.findMember(guild.getMembers(), query);
+			Member member = SearchUtility.findMember(guild.getMemberCache(), query);
 			if (member == null) {
 				userConsumer.accept(Sx4Bot.getShardManager().getUserCache().stream()
 						.filter(user -> user.getName().equalsIgnoreCase(query))

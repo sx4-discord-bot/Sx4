@@ -1,5 +1,6 @@
 package com.sx4.bot.utility;
 
+import java.util.Formatter;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -45,6 +46,8 @@ public class HelpUtility {
 			
 			if (command.isDeveloperCommand()) {
 				embedBuilder.addField("Required Permissions", "Developer", false);
+			} else if (command.isDonatorCommand()) {
+				embedBuilder.addField("Required Permissions", "Donator", false);
 			} else if (!command.getAuthorDiscordPermissions().isEmpty()) {
 				embedBuilder.addField("Required Permissions", command.getAuthorDiscordPermissions().stream().map(Permission::getName).collect(Collectors.joining(", ")), false);
 			}
@@ -65,38 +68,44 @@ public class HelpUtility {
 		} else {
 			String placeHolder = "%s:\n%s\n\n";
 			
-			StringBuilder stringBuilder = new StringBuilder();
-			stringBuilder.append(">>> **" + command.getCommandTrigger() + "**\n\n");
-			stringBuilder.append(String.format(placeHolder, "Description", command.getDescription()));
-			stringBuilder.append(String.format(placeHolder, "Usage", usage));
+			Formatter formatter = new Formatter();
+			formatter.format(">>> **" + command.getCommandTrigger() + "**\n\n");
+			formatter.format(placeHolder, "Description", command.getDescription());
+			formatter.format(placeHolder, "Usage", usage);
 			
 			if (!command.getOptions().isEmpty()) {
-				stringBuilder.append(String.format(placeHolder, "Options", options.toString()));
+				formatter.format(placeHolder, "Options", options.toString());
 			}
 			
 			if (command.getExamples().length != 0) {
-				stringBuilder.append(String.format(placeHolder, "Examples", "`" + String.join("`\n`", command.getExamples()) + "`"));
+				formatter.format(placeHolder, "Examples", "`" + String.join("`\n`", command.getExamples()) + "`");
 			}
 			
 			if (command.isDeveloperCommand()) {
-				stringBuilder.append(String.format(placeHolder, "Required Permissions", "Developer"));
+				formatter.format(placeHolder, "Required Permissions", "Developer");
+			} else if (command.isDonatorCommand()) {
+				formatter.format(placeHolder, "Required Permissions", "Donator");
 			} else if (!command.getAuthorDiscordPermissions().isEmpty()) {
-				stringBuilder.append(String.format(placeHolder, "Required Permissions", command.getAuthorDiscordPermissions().stream().map(Permission::getName).collect(Collectors.joining(", "))));
+				formatter.format(placeHolder, "Required Permissions", command.getAuthorDiscordPermissions().stream().map(Permission::getName).collect(Collectors.joining(", ")));
 			}
 			
 			if (!command.getAliases().isEmpty()) {
-				stringBuilder.append(String.format(placeHolder, "Aliases", String.join(", ", command.getAliases())));
+				formatter.format(placeHolder, "Aliases", String.join(", ", command.getAliases()));
 			}
 			
 			if (command.getRedirects().length != 0) {
-				stringBuilder.append(String.format(placeHolder, "Redirects", String.join(", ", command.getRedirects())));
+				formatter.format(placeHolder, "Redirects", String.join(", ", command.getRedirects()));
 			}
 			
 			if (!command.getSubCommands().isEmpty()) {
-				stringBuilder.append(String.format(placeHolder, "Required Permissions", command.getSubCommands().stream().map(ICommand::getCommand).collect(Collectors.joining(", "))));
+				formatter.format(placeHolder, "Required Permissions", command.getSubCommands().stream().map(ICommand::getCommand).collect(Collectors.joining(", ")));
 			}
 			
-			return builder.setContent(stringBuilder.toString()).build();
+			Message message = builder.setContent(formatter.toString()).build();
+			
+			formatter.close();
+			
+			return message;
 		}
 	}
 	

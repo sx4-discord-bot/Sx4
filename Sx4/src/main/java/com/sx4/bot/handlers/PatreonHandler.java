@@ -26,7 +26,8 @@ public class PatreonHandler implements PatreonListener {
 	public void onPatreonPledgeCreate(PatreonPledgeCreateEvent event) {
 		Bson update = Updates.combine(
 			Updates.set("amount", event.getAmount()),
-			Updates.set("since", Clock.systemUTC().instant().getEpochSecond())
+			Updates.set("since", Clock.systemUTC().instant().getEpochSecond()),
+			Updates.set("guilds", List.of())
 		);
 		
 		if (event.hasDiscord()) {

@@ -38,25 +38,25 @@ public class PatreonManager {
 		return this;
 	}
 	
-	public void onPatreonPledge(PatreonEvent event) {
+	public void onPatreon(PatreonEvent event) {
 		for (PatreonListener listener : this.listeners) {
 			listener.onPatreon(event);
 			
-			if (event instanceof PatreonPledgeEvent) {
-				listener.onPatreonPledge((PatreonPledgeEvent) event);
-			
-				if (event instanceof PatreonPledgeCreateEvent) {
-					listener.onPatreonPledgeCreate((PatreonPledgeCreateEvent) event);
-				} else if (event instanceof PatreonPledgeUpdateEvent) {
-					listener.onPatreonPledgeUpdate((PatreonPledgeUpdateEvent) event);
-				} else if (event instanceof PatreonPledgeDeleteEvent) {
-					listener.onPatreonPledgeDelete((PatreonPledgeDeleteEvent) event);
-				}
-			} else if (event instanceof PatreonMemberEvent) {
+			if (event instanceof PatreonMemberEvent) {
 				listener.onPatreonMember((PatreonMemberEvent) event);
 				
 				if (event instanceof PatreonMemberUpdateEvent) {
 					listener.onPatreonMemberUpdate((PatreonMemberUpdateEvent) event);
+				} else if (event instanceof PatreonPledgeEvent) {
+					listener.onPatreonPledge((PatreonPledgeEvent) event);
+				
+					if (event instanceof PatreonPledgeCreateEvent) {
+						listener.onPatreonPledgeCreate((PatreonPledgeCreateEvent) event);
+					} else if (event instanceof PatreonPledgeUpdateEvent) {
+						listener.onPatreonPledgeUpdate((PatreonPledgeUpdateEvent) event);
+					} else if (event instanceof PatreonPledgeDeleteEvent) {
+						listener.onPatreonPledgeDelete((PatreonPledgeDeleteEvent) event);
+					}
 				}
 			}
 		}
