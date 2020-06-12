@@ -84,7 +84,7 @@ public class SuggestionCommand extends Sx4Command {
 				return;
 			}
 			
-			event.reply("Suggestions are now **" + (data.getEmbedded(List.of("suggestion", "enabled"), false) ? "enabled" : "disabled") + "** <:done:403285928233402378>").queue();
+			event.reply("Suggestions are now **" + (data.getEmbedded(List.of("suggestion", "enabled"), false) ? "enabled" : "disabled") + "** " + this.config.getSuccessEmote()).queue();
 		});
 	}
 	
@@ -99,11 +99,11 @@ public class SuggestionCommand extends Sx4Command {
 			}
 			
 			if (result.getModifiedCount() == 0) {
-				event.reply("The suggestion channel is already " + (channel == null ? "unset" : "set to " + channel.getAsMention()) + " :no_entry:").queue();
+				event.reply("The suggestion channel is already " + (channel == null ? "unset" : "set to " + channel.getAsMention()) + " " + this.config.getFailureEmote()).queue();
 				return;
 			}
 			
-			event.reply("The suggestion channel has been " + (channel == null ? "unset" : "set to " + channel.getAsMention()) + " <:done:403285928233402378>").queue();
+			event.reply("The suggestion channel has been " + (channel == null ? "unset" : "set to " + channel.getAsMention()) + " " + this.config.getSuccessEmote()).queue();
 		});
 	}
 	
@@ -115,19 +115,19 @@ public class SuggestionCommand extends Sx4Command {
 		Document data = this.database.getGuildById(event.getGuild().getIdLong(), Projections.include("suggestion.channelId", "suggestion.enabled")).get("suggestion", Database.EMPTY_DOCUMENT);
 		
 		if (!data.getBoolean("enabled", false)) {
-			event.reply("Suggestions are not enabled in this server :no_entry:").queue();
+			event.reply("Suggestions are not enabled in this server " + this.config.getFailureEmote()).queue();
 			return;
 		}
 		
 		long channelId = data.get("channelId", 0L);
 		if (channelId == 0L) {
-			event.reply("There is no suggestion channel :no_entry:").queue();
+			event.reply("There is no suggestion channel " + this.config.getFailureEmote()).queue();
 			return;
 		}
 		
 		TextChannel channel = event.getGuild().getTextChannelById(channelId);
 		if (channel == null) {
-			event.reply("The suggestion channel no longer exists :no_entry:").queue();
+			event.reply("The suggestion channel no longer exists " + this.config.getFailureEmote()).queue();
 			return;
 		}
 		
@@ -147,7 +147,7 @@ public class SuggestionCommand extends Sx4Command {
 				message.addReaction("✅").queue();
 				message.addReaction("❌").queue();
 				
-				event.reply("Your suggestion has been sent to " + channel.getAsMention() + " <:done:403285928233402378>").queue();
+				event.reply("Your suggestion has been sent to " + channel.getAsMention() + " " + this.config.getSuccessEmote()).queue();
 			});
 		});
 	}
@@ -158,7 +158,7 @@ public class SuggestionCommand extends Sx4Command {
 		if (allArgument.isAll()) {
 			// TODO: Use a method which includes fake permissions in the future
 			if (!event.getMember().hasPermission(Permission.MANAGE_SERVER)) {
-				event.reply("You are missing the permission " + Permission.MANAGE_SERVER.getName() + " to execute this, you can remove your own suggestions only :no_entry:").queue();
+				event.reply("You are missing the permission " + Permission.MANAGE_SERVER.getName() + " to execute this, you can remove your own suggestions only " + this.config.getFailureEmote()).queue();
 				return;
 			}
 			
@@ -170,7 +170,7 @@ public class SuggestionCommand extends Sx4Command {
 				
 				waiter.onTimeout(() -> event.reply("Response timed out :stopwatch:").queue());
 				
-				waiter.onCancelled(() -> event.reply("Cancelled <:done:403285928233402378>").queue());
+				waiter.onCancelled(() -> event.reply("Cancelled " + this.config.getSuccessEmote()).queue());
 				
 				waiter.future()
 					.thenCompose(messageEvent -> this.database.updateGuildById(event.getGuild().getIdLong(), Updates.unset("suggestion.suggestions")))
@@ -179,7 +179,7 @@ public class SuggestionCommand extends Sx4Command {
 							return;
 						}
 						
-						event.reply("All suggestions have been deleted in this server <:done:403285928233402378>").queue();
+						event.reply("All suggestions have been deleted in this server " + this.config.getSuccessEmote()).queue();
 					});
 				
 				waiter.start();
@@ -207,12 +207,12 @@ public class SuggestionCommand extends Sx4Command {
 					.orElse(null);
 				
 				if (suggestion == null) {
-					event.reply("I could not find that suggestion :no_entry:").queue();
+					event.reply("I could not find that suggestion " + this.config.getFailureEmote()).queue();
 					return;
 				}
 				
 				if (suggestion.get("authorId", 0L) != event.getAuthor().getIdLong() && !hasPermission) {
-					event.reply("You do not own that suggestion :no_entry:").queue();
+					event.reply("You do not own that suggestion " + this.config.getFailureEmote()).queue();
 					return;
 				}
 				
@@ -221,7 +221,7 @@ public class SuggestionCommand extends Sx4Command {
 					channel.deleteMessageById(suggestion.get("id", 0L)).queue(null, new ErrorHandler().ignore(ErrorResponse.UNKNOWN_MESSAGE));
 				}
 				
-				event.reply("That suggestion has been removed <:done:403285928233402378>").queue();
+				event.reply("That suggestion has been removed " + this.config.getSuccessEmote()).queue();
 			});
 		}
 	}
@@ -239,7 +239,7 @@ public class SuggestionCommand extends Sx4Command {
 			.orElse(null);
 		
 		if (state == null) {
-			event.reply("You do not have a suggestion state with that name :no_entry:").queue();
+			event.reply("You do not have a suggestion state with that name " + this.config.getFailureEmote()).queue();
 			return;
 		}
 		
@@ -253,7 +253,7 @@ public class SuggestionCommand extends Sx4Command {
 			.orElse(null);
 		
 		if (suggestion == null) {
-			event.reply("There is no suggestion with that id :no_entry:").queue();
+			event.reply("There is no suggestion with that id " + this.config.getFailureEmote()).queue();
 			return;
 		}
 		
@@ -261,13 +261,13 @@ public class SuggestionCommand extends Sx4Command {
 		boolean reasonMatch = reasonData == null && reason == null || (reason != null && reasonData != null && reasonData.equals(reason));
 		
 		if (suggestion.getString("state").equals(stateData) && reasonMatch) {
-			event.reply("That suggestion is already in that state and has the same reason :no_entry:").queue();
+			event.reply("That suggestion is already in that state and has the same reason " + this.config.getFailureEmote()).queue();
 			return;
 		}
 		
 		TextChannel channel = event.getGuild().getTextChannelById(suggestion.get("channelId", 0L));
 		if (channel == null) {
-			event.reply("The channel for that suggestion no longer exists :no_entry:").queue();
+			event.reply("The channel for that suggestion no longer exists " + this.config.getFailureEmote()).queue();
 			return;
 		}
 		
@@ -285,7 +285,7 @@ public class SuggestionCommand extends Sx4Command {
 			User author = event.getShardManager().getUserById(suggestion.get("authorId", 0L));
 			
 			channel.editMessageById(messageId, this.getSuggestionEmbed(author, event.getAuthor(), suggestion.getString("suggestion"), reason, new State(state))).queue(message -> {
-				event.reply("That suggestion has been set to the `" + state.getString("name") + "` state <:done:403285928233402378>").queue();
+				event.reply("That suggestion has been set to the `" + state.getString("name") + "` state " + this.config.getSuccessEmote()).queue();
 			});
 		});
 	}
@@ -314,7 +314,7 @@ public class SuggestionCommand extends Sx4Command {
 			
 			List<Document> defaultStates = State.getDefaultStates();
 			if (defaultStates.stream().anyMatch(state -> state.getString("dataName").equals(dataName))) {
-				event.reply("There is already a state named that :no_entry:").queue();
+				event.reply("There is already a state named that " + this.config.getFailureEmote()).queue();
 				return;
 			}
 			
@@ -327,11 +327,11 @@ public class SuggestionCommand extends Sx4Command {
 				}
 				
 				if (result.getModifiedCount() == 0) {
-					event.reply("There is already a state named that :no_entry:").queue();
+					event.reply("There is already a state named that " + this.config.getFailureEmote()).queue();
 					return;
 				}
 				
-				event.reply("Added the suggestion state `" + dataName + "` with the colour **#" + ColourUtility.toHexString(colour) + "** <:done:403285928233402378>").queue();
+				event.reply("Added the suggestion state `" + dataName + "` with the colour **#" + ColourUtility.toHexString(colour) + "** " + this.config.getSuccessEmote()).queue();
 			});
 		}
 		
@@ -346,11 +346,11 @@ public class SuggestionCommand extends Sx4Command {
 					}
 					
 					if (result.getModifiedCount() == 0) {
-						event.reply("You already have the default states setup :no_entry:").queue();
+						event.reply("You already have the default states setup " + this.config.getFailureEmote()).queue();
 						return;
 					}
 					
-					event.reply("All your suggestion states have been removed <:done:403285928233402378>").queue();
+					event.reply("All your suggestion states have been removed " + this.config.getSuccessEmote()).queue();
 				});
 			} else {
 				String dataName = allArgument.getValue().toUpperCase().replace(" ", "_");
@@ -365,16 +365,16 @@ public class SuggestionCommand extends Sx4Command {
 					data = data == null ? Database.EMPTY_DOCUMENT : data;
 					List<Document> states = data.getEmbedded(List.of("suggestion", "states"), Collections.emptyList());
 					if (states.size() == 1) {
-						event.reply("You have to have at least 1 state at all times :no_entry:").queue();
+						event.reply("You have to have at least 1 state at all times " + this.config.getFailureEmote()).queue();
 						return;
 					}
 					
 					if (!states.stream().anyMatch(state -> state.getString("dataName").equals(dataName))) {
-						event.reply("There is no state with that name :no_entry:").queue();
+						event.reply("There is no state with that name " + this.config.getFailureEmote()).queue();
 						return;
 					}
 					
-					event.reply("Removed the suggestion state `" + dataName + "` <:done:403285928233402378>").queue();
+					event.reply("Removed the suggestion state `" + dataName + "` " + this.config.getSuccessEmote()).queue();
 				});
 			}
 		}

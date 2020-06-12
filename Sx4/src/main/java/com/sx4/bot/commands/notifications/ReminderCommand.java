@@ -46,12 +46,12 @@ public class ReminderCommand extends Sx4Command {
 		
 		long duration = repeat == null ? initialDuration : TimeUtility.getDurationFromString(repeat).toSeconds();
 		if (duration < 30 && repeatOption) {
-			event.reply("Repeated reminders have to be at least 30 seconds long :no_entry:").queue();
+			event.reply("Repeated reminders have to be at least 30 seconds long " + this.config.getFailureEmote()).queue();
 			return;
 		}
 		
 		if (reminder.getReminder().length() > 1500) {
-			event.reply("Your reminder cannot be longer than 1500 characters :no_entry:").queue();
+			event.reply("Your reminder cannot be longer than 1500 characters " + this.config.getFailureEmote()).queue();
 			return;
 		}
 		
@@ -70,7 +70,7 @@ public class ReminderCommand extends Sx4Command {
 				
 			this.reminderManager.putReminder(event.getAuthor().getIdLong(), initialDuration, reminderData);
 				
-			event.replyFormat("I will remind you about that in **%s**, your reminder id is `%s` <:done:403285928233402378>", TimeUtility.getTimeString(initialDuration), id.toHexString()).queue();
+			event.replyFormat("I will remind you about that in **%s**, your reminder id is `%s` " + this.config.getSuccessEmote(), TimeUtility.getTimeString(initialDuration), id.toHexString()).queue();
 		});
 	}
 	
@@ -83,13 +83,13 @@ public class ReminderCommand extends Sx4Command {
 			}
 			
 			if (result.getModifiedCount() == 0) {
-				event.reply("You do not have a reminder with that id :no_entry:").queue();
+				event.reply("You do not have a reminder with that id " + this.config.getFailureEmote()).queue();
 				return;
 			}
 			
 			this.reminderManager.deleteExecutor(event.getAuthor().getIdLong(), id);
 			
-			event.reply("You will no longer be reminded about that reminder <:done:403285928233402378>").queue();
+			event.reply("You will no longer be reminded about that reminder " + this.config.getSuccessEmote()).queue();
 		});
 	}
 	
@@ -99,7 +99,7 @@ public class ReminderCommand extends Sx4Command {
 	public void list(Sx4CommandEvent event) {
 		List<Document> reminders = this.database.getUserById(event.getAuthor().getIdLong(), Projections.include("reminder.reminders")).getEmbedded(List.of("reminder", "reminders"), Collections.emptyList());
 		if (reminders.isEmpty()) {
-			event.reply("You do not have any active reminders :no_entry:").queue();;
+			event.reply("You do not have any active reminders " + this.config.getFailureEmote()).queue();;
 			return;
 		}
 		
@@ -124,11 +124,11 @@ public class ReminderCommand extends Sx4Command {
 			}
 			
 			if (result.getModifiedCount() == 0) {
-				event.reply("Your default time zone was already set to that :no_entry:").queue();
+				event.reply("Your default time zone was already set to that " + this.config.getFailureEmote()).queue();
 				return;
 			}
 			
-			event.replyFormat("Your default time zone has been set to `%s` <:done:403285928233402378>", zoneId).queue();
+			event.replyFormat("Your default time zone has been set to `%s` " + this.config.getSuccessEmote(), zoneId).queue();
 		});
 	}
 

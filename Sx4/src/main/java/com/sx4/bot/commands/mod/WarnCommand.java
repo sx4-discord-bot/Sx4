@@ -30,23 +30,23 @@ public class WarnCommand extends Sx4Command {
 	
 	public void onCommand(Sx4CommandEvent event, @Argument(value="user") Member member, @Argument(value="reason", endless=true, nullDefault=true) Reason reason) {
 		if (member.getIdLong() == event.getSelfUser().getIdLong()) {
-			event.reply("You cannot warn me, that is illegal :no_entry:").queue();
+			event.reply("You cannot warn me, that is illegal " + this.config.getFailureEmote()).queue();
 			return;
 		}
 		
 		if (member.canInteract(event.getMember())) {
-			event.reply("You cannot warn someone higher or equal than your top role :no_entry:").queue();
+			event.reply("You cannot warn someone higher or equal than your top role " + this.config.getFailureEmote()).queue();
 			return;
 		}
 		
 		WarnData data = new WarnData(this.database.getGuildById(event.getGuild().getIdLong(), Projections.include("warn")).get("warn", Database.EMPTY_DOCUMENT));
 		data.warn(member, event.getMember(), reason, (warning, exception) -> {
 			if (exception != null) {
-				event.reply(exception.getMessage() + " :no_entry:").queue();
+				event.reply(exception.getMessage() + " " + this.config.getFailureEmote()).queue();
 			} else {
 				Action action = warning.getAction();
 				
-				event.replyFormat("**%s** has received a %s%s (%s warning) <:done:403285928233402378>", member.getUser().getAsTag(), action.getModAction().getName().toLowerCase(), action instanceof TimeAction ? " for " + TimeUtility.getTimeString(((TimeAction) action).getDuration()) : "", NumberUtility.getSuffixed(warning.getNumber())).queue();
+				event.replyFormat("**%s** has received a %s%s (%s warning) " + this.config.getSuccessEmote(), member.getUser().getAsTag(), action.getModAction().getName().toLowerCase(), action instanceof TimeAction ? " for " + TimeUtility.getTimeString(((TimeAction) action).getDuration()) : "", NumberUtility.getSuffixed(warning.getNumber())).queue();
 			}
 		});
 	}

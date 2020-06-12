@@ -32,30 +32,30 @@ public class BanCommand extends Sx4Command {
 	public void onCommand(Sx4CommandEvent event, @Argument(value="user") String userArgument, @Argument(value="reason", endless=true, nullDefault=true) Reason reason, @Option(value="days", description="Set how many days of messages should be deleted from the user") String days) {
 		SearchUtility.getUserRest(event.getGuild(), userArgument, user -> {
 			if (user == null) {
-				event.reply("I could not find that user :no_entry:").queue();
+				event.reply("I could not find that user " + this.config.getFailureEmote()).queue();
 				return;
 			}
 			
 			if (user.getIdLong() == event.getSelfUser().getIdLong()) {
-				event.reply("You cannot ban me, that is illegal :no_entry:").queue();
+				event.reply("You cannot ban me, that is illegal " + this.config.getFailureEmote()).queue();
 				return;
 			}
 			
 			Member member = event.getGuild().getMember(user);
 			if (member != null) {
 				if (member.canInteract(event.getMember())) {
-					event.reply("You cannot ban someone higher or equal than your top role :no_entry:").queue();
+					event.reply("You cannot ban someone higher or equal than your top role " + this.config.getFailureEmote()).queue();
 					return;
 				}
 				
 				if (member.canInteract(event.getSelfMember())) {
-					event.reply("I cannot ban someone higher or equal than my top role :no_entry:").queue();
+					event.reply("I cannot ban someone higher or equal than my top role " + this.config.getFailureEmote()).queue();
 					return;
 				}
 			}
 			
 			event.getGuild().retrieveBan(user).queue(ban -> {
-				event.reply("That user is already banned :no_entry:").queue();
+				event.reply("That user is already banned " + this.config.getFailureEmote()).queue();
 			}, new ErrorHandler().handle(ErrorResponse.UNKNOWN_BAN, e -> {
 				int deleteDays = 1;
 				if (days != null) {

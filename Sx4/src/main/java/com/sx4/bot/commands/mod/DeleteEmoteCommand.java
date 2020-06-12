@@ -23,11 +23,11 @@ public class DeleteEmoteCommand extends Sx4Command {
 	
 	public void onCommand(Sx4CommandEvent event, @Argument(value="emote") Emote emote) {
 		if (emote.isManaged()) {
-			event.reply("I cannot delete emotes managed by discord :no_entry:").queue();
+			event.reply("I cannot delete emotes managed by discord " + this.config.getFailureEmote()).queue();
 			return;
 		}
 		
-		emote.delete().flatMap($ -> event.reply("I have deleted the emote `" + emote.getName() + "` <:done:403285928233402378>")).queue();
+		emote.delete().flatMap($ -> event.reply("I have deleted the emote `" + emote.getName() + "` " + this.config.getSuccessEmote())).queue();
 	}
 	
 }

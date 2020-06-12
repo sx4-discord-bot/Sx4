@@ -69,31 +69,31 @@ public class CreateEmoteCommand extends Sx4Command {
 		
 		Boolean animated = emote.isAnimated();
 		if (animated != null && ((animated && animatedEmotes >= maxEmotes) || (!animated && nonAnimatedEmotes >= maxEmotes))) {
-			event.reply("You already have the max" + (animated ? "" : " non") + " animated emotes on this server :no_entry:").queue();
+			event.reply("You already have the max" + (animated ? "" : " non") + " animated emotes on this server " + this.config.getFailureEmote()).queue();
 			return;
 		}
 		
 		this.getBytes(emote.getUrl(), (bytes, animatedResponse, code) -> {
 			if (bytes == null) {
-				event.reply("Failed to get url from the emote argument with status code: " + code + " :no_entry:").queue();
+				event.reply("Failed to get url from the emote argument with status code: " + code + " " + this.config.getFailureEmote()).queue();
 				return;
 			}
 			
 			if (bytes.length > 256000) {
-				event.reply("You cannot create an emote larger than 256KB :no_entry:").queue();
+				event.reply("You cannot create an emote larger than 256KB " + this.config.getFailureEmote()).queue();
 				return;
 			}
 			
 			if (animatedResponse != null && ((animatedResponse && animatedEmotes >= maxEmotes) || (!animatedResponse && nonAnimatedEmotes >= maxEmotes))) {
-				event.reply("You already have the max" + (animatedResponse ? "" : " non") + " animated emotes on this server :no_entry:").queue();
+				event.reply("You already have the max" + (animatedResponse ? "" : " non") + " animated emotes on this server " + this.config.getFailureEmote()).queue();
 				return;
 			}
 			
 			event.getGuild().createEmote(name != null ? name : emote.hasName() ? emote.getName() : "Unnamed_Emote", Icon.from(bytes))
-				.flatMap(createdEmote -> event.reply(createdEmote.getAsMention() + " has been created <:done:403285928233402378>"))
+				.flatMap(createdEmote -> event.reply(createdEmote.getAsMention() + " has been created " + this.config.getSuccessEmote()))
 				.queue(null, exception -> {
 					if (exception instanceof ErrorResponseException && ((ErrorResponseException) exception).getErrorCode() == 400) {
-						event.reply("You cannot create an emote larger than 256KB :no_entry:").queue();
+						event.reply("You cannot create an emote larger than 256KB " + this.config.getFailureEmote()).queue();
 						return;
 					}
 					

@@ -36,12 +36,12 @@ public class MuteCommand extends Sx4Command {
 	
 	public void onCommand(Sx4CommandEvent event, @Argument(value="user") Member member, @Argument(value="time", nullDefault=true) Duration time, @Argument(value="reason", endless=true, nullDefault=true) Reason reason, @Option(value="extend", description="Will extend the mute of the user if muted") boolean extend) {
 		if (!event.getMember().canInteract(member)) {
-			event.reply("You cannot mute someone higher or equal than your top role :no_entry:").queue();
+			event.reply("You cannot mute someone higher or equal than your top role " + this.config.getFailureEmote()).queue();
 			return;
 		}
 		
 		if (!event.getSelfMember().canInteract(member)) {
-			event.reply("I cannot mute someone higher or equal than your top role :no_entry:").queue();
+			event.reply("I cannot mute someone higher or equal than your top role " + this.config.getFailureEmote()).queue();
 			return;
 		}
 		
@@ -49,14 +49,14 @@ public class MuteCommand extends Sx4Command {
 		data.getOrCreateRole(event.getGuild(), (role, exception) -> {
 			if (exception != null) {
 				if (exception instanceof MaxRolesException) {
-					event.reply(exception.getMessage() + " :no_entry:").queue();
+					event.reply(exception.getMessage() + " " + this.config.getFailureEmote()).queue();
 					return;
 				}
 				
 				ExceptionUtility.sendExceptionally(event, exception);
 			} else {
 				if (member.getRoles().contains(role) && !extend) {
-					event.reply("That user is already muted :no_entry:").queue();
+					event.reply("That user is already muted " + this.config.getFailureEmote()).queue();
 					return;
 				}
 				
@@ -68,7 +68,7 @@ public class MuteCommand extends Sx4Command {
 					}
 					
 					event.getGuild().addRoleToMember(member, role).reason(ModUtility.getAuditReason(reason, event.getAuthor())).queue($ -> {
-						event.reply("**" + member.getUser().getAsTag() + "** has " + (extend ? "had their mute extended" : "been muted") + " for " + TimeUtility.getTimeString(seconds) + " <:done:403285928233402378>").queue();
+						event.reply("**" + member.getUser().getAsTag() + "** has " + (extend ? "had their mute extended" : "been muted") + " for " + TimeUtility.getTimeString(seconds) + " " + this.config.getSuccessEmote()).queue();
 						
 						this.muteManager.putMute(event.getGuild().getIdLong(), member.getIdLong(), role.getIdLong(), seconds, extend);
 						

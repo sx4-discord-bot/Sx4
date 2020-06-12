@@ -70,22 +70,22 @@ public class ReactionRoleCommand extends Sx4Command {
 	@Cooldown(value=2)
 	public void add(Sx4CommandEvent event, @Argument(value="message id") MessageArgument messageArgument, @Argument(value="emote") ReactionEmote emote, @Argument(value="role", endless=true) Role role) {
 		if (role.isPublicRole()) {
-			event.reply("I cannot give the `@everyone` role :no_entry:").queue();
+			event.reply("I cannot give the `@everyone` role " + this.config.getFailureEmote()).queue();
 			return;
 		}
 		
 		if (role.isManaged()) {
-			event.reply("I cannot give managed roles :no_entry:").queue();
+			event.reply("I cannot give managed roles " + this.config.getFailureEmote()).queue();
 			return;
 		}
 		
 		if (!event.getSelfMember().canInteract(role)) {
-			event.reply("I cannot give a role higher or equal than my top role :no_entry:").queue();
+			event.reply("I cannot give a role higher or equal than my top role " + this.config.getFailureEmote()).queue();
 			return;
 		}
 		
 		if (!event.getMember().canInteract(role)) {
-			event.reply("You cannot give a role higher or equal than your top role :no_entry:").queue();
+			event.reply("You cannot give a role higher or equal than your top role " + this.config.getFailureEmote()).queue();
 			return;
 		}
 		
@@ -93,12 +93,12 @@ public class ReactionRoleCommand extends Sx4Command {
 		String identifier = unicode ? "name" : "id";
 		messageArgument.getRestAction().queue(message -> {
 			if (message.getReactions().size() >= 20) {
-				event.reply("That message is at the max amount of reactions (20) :no_entry:").queue();
+				event.reply("That message is at the max amount of reactions (20) " + this.config.getFailureEmote()).queue();
 				return;
 			}
 			
 			if (message.getType() != MessageType.DEFAULT) {
-				event.reply("You cannot have a reaction role on this message :no_entry:").queue();
+				event.reply("You cannot have a reaction role on this message " + this.config.getFailureEmote()).queue();
 				return;
 			}
 			
@@ -143,7 +143,7 @@ public class ReactionRoleCommand extends Sx4Command {
 				} else {
 					List<Long> roles = reaction.getList("roles", Long.class);
 					if (roles.contains(role.getIdLong())) {
-						event.reply("That role is already given when reacting to this reaction :no_entry:").queue();
+						event.reply("That role is already given when reacting to this reaction " + this.config.getFailureEmote()).queue();
 						return;
 					}
 					
@@ -160,9 +160,9 @@ public class ReactionRoleCommand extends Sx4Command {
 							return;
 						}
 						
-						event.reply("The role `" + role.getName() + "` will now be given when reacting to " + emote.getEmoji() + " <:done:403285928233402378>").queue();
+						event.reply("The role `" + role.getName() + "` will now be given when reacting to " + emote.getEmoji() + " " + this.config.getSuccessEmote()).queue();
 					});
-				}, new ErrorHandler().handle(this.defaultReactionFailure, exception -> event.reply("I could not find that emote :no_entry:").queue()));
+				}, new ErrorHandler().handle(this.defaultReactionFailure, exception -> event.reply("I could not find that emote " + this.config.getFailureEmote()).queue()));
 			} else {
 				if (!unicode && message.getReactionById(emote.getEmote().getIdLong()) == null) {
 					message.addReaction(emote.getEmote()).queue();
@@ -173,10 +173,10 @@ public class ReactionRoleCommand extends Sx4Command {
 						return;
 					}
 					
-					event.reply("The role `" + role.getName() + "` will now be given when reacting to " + (unicode ? emote.getEmoji() : emote.getEmote().getAsMention()) + " <:done:403285928233402378>").queue();
+					event.reply("The role `" + role.getName() + "` will now be given when reacting to " + (unicode ? emote.getEmoji() : emote.getEmote().getAsMention()) + " " + this.config.getSuccessEmote()).queue();
 				});
 			}
-		}, new ErrorHandler().handle(ErrorResponse.UNKNOWN_MESSAGE, exception -> event.reply("I could not find that message :no_entry:").queue()));
+		}, new ErrorHandler().handle(ErrorResponse.UNKNOWN_MESSAGE, exception -> event.reply("I could not find that message " + this.config.getFailureEmote()).queue()));
 	}
 	
 	@Command(value="remove", description="Removes a role or a whole reaction from the reaction role")
@@ -202,7 +202,7 @@ public class ReactionRoleCommand extends Sx4Command {
 			if (exception instanceof CompletionException) {
 				Throwable cause = ((CompletionException) exception).getCause();
 				if (cause instanceof MongoWriteException && ((MongoWriteException) cause).getCode() == 2) {
-					event.reply("There was no reaction role on that message :no_entry:").queue();
+					event.reply("There was no reaction role on that message " + this.config.getFailureEmote()).queue();
 					return;
 				}
 			}
@@ -212,7 +212,7 @@ public class ReactionRoleCommand extends Sx4Command {
 			}
 			
 			if (data == null) {
-				event.reply("There was no reaction role on that message :no_entry:").queue();
+				event.reply("There was no reaction role on that message " + this.config.getFailureEmote()).queue();
 				return;
 			}
 			
@@ -224,7 +224,7 @@ public class ReactionRoleCommand extends Sx4Command {
 				.orElse(null);
 			
 			if (reactionRole == null) {
-				event.reply("There was no reaction role on that message :no_entry:").queue();
+				event.reply("There was no reaction role on that message " + this.config.getFailureEmote()).queue();
 				return;
 			}
 			
@@ -245,19 +245,19 @@ public class ReactionRoleCommand extends Sx4Command {
 				.orElse(null);
 			
 			if (reaction == null) {
-				event.reply("There was no reaction role for that emote :no_entry:").queue();
+				event.reply("There was no reaction role for that emote " + this.config.getFailureEmote()).queue();
 				return;
 			}
 			
 			if (role == null) {
-				event.reply("The reaction " + (unicode ? emote.getEmoji() : emote.getEmote().getAsMention()) + " will no longer give any roles <:done:403285928233402378>").queue();
+				event.reply("The reaction " + (unicode ? emote.getEmoji() : emote.getEmote().getAsMention()) + " will no longer give any roles " + this.config.getSuccessEmote()).queue();
 			} else {
 				if (!reaction.getList("roles", Long.class).contains(role.getIdLong())) {
-					event.reply("That role is not given when reacting to that emote :no_entry:").queue();
+					event.reply("That role is not given when reacting to that emote " + this.config.getFailureEmote()).queue();
 					return;
 				}
 				
-				event.reply("The role `" + role.getName() + "` has been removed from that reaction <:done:403285928233402378>").queue();
+				event.reply("The role `" + role.getName() + "` has been removed from that reaction " + this.config.getSuccessEmote()).queue();
 			}
 		});
 	}
@@ -285,7 +285,7 @@ public class ReactionRoleCommand extends Sx4Command {
 			if (exception instanceof CompletionException) {
 				Throwable cause = ((CompletionException) exception).getCause();
 				if (cause instanceof MongoWriteException && ((MongoWriteException) cause).getCode() == 2) {
-					event.reply(all ? "You do not have any reaction roles setup :no_entry:" : "There was no reaction role on that message :no_entry:").queue();
+					event.reply(all ? "You do not have any reaction roles setup " + this.config.getFailureEmote() : "There was no reaction role on that message " + this.config.getFailureEmote()).queue();
 					return;
 				}
 			}
@@ -295,16 +295,16 @@ public class ReactionRoleCommand extends Sx4Command {
 			}
 			
 			if (result.getModifiedCount() == 0 && result.getMatchedCount() != 0) {
-				event.reply((all ? "All your reaction roles" : "That reaction role") + " already " + (all ? "have" : "has") + " it set to " + (value ? "" : "not ") + "dm users :no_entry:").queue();
+				event.reply((all ? "All your reaction roles" : "That reaction role") + " already " + (all ? "have" : "has") + " it set to " + (value ? "" : "not ") + "dm users " + this.config.getFailureEmote()).queue();
 				return;
 			}
 			
 			if (result.getModifiedCount() == 0) {
-				event.reply(all ? "You do not have any reaction roles setup :no_entry:" : "There was no reaction role on that message :no_entry:").queue();
+				event.reply(all ? "You do not have any reaction roles setup " + this.config.getFailureEmote() : "There was no reaction role on that message " + this.config.getFailureEmote()).queue();
 				return;
 			}
 			
-			event.reply((all ? "All your reaction roles" : "That reaction role") + " will " + (value ? "now" : "no longer") + " send dms <:done:403285928233402378>").queue();
+			event.reply((all ? "All your reaction roles" : "That reaction role") + " will " + (value ? "now" : "no longer") + " send dms " + this.config.getSuccessEmote()).queue();
 		});
 	}
 	
@@ -331,7 +331,7 @@ public class ReactionRoleCommand extends Sx4Command {
 			if (exception instanceof CompletionException) {
 				Throwable cause = ((CompletionException) exception).getCause();
 				if (cause instanceof MongoWriteException && ((MongoWriteException) cause).getCode() == 2) {
-					event.reply(all ? "You do not have any reaction roles setup :no_entry:" : "There was no reaction role on that message :no_entry:").queue();
+					event.reply(all ? "You do not have any reaction roles setup " + this.config.getFailureEmote() : "There was no reaction role on that message " + this.config.getFailureEmote()).queue();
 					return;
 				}
 			}
@@ -341,16 +341,16 @@ public class ReactionRoleCommand extends Sx4Command {
 			}
 			
 			if (result.getModifiedCount() == 0 && result.getMatchedCount() != 0) {
-				event.reply((all ? "All your reaction roles" : "That reaction role") + " already " + (all ? "have" : "has") + " it set to " + (unlimited ? "unlimted" : "**" + maxReactions + "**") + " max reaction" + (maxReactions == 1 ? "" : "s") + ":no_entry:").queue();
+				event.reply((all ? "All your reaction roles" : "That reaction role") + " already " + (all ? "have" : "has") + " it set to " + (unlimited ? "unlimted" : "**" + maxReactions + "**") + " max reaction" + (maxReactions == 1 ? "" : "s") + "" + this.config.getFailureEmote()).queue();
 				return;
 			}
 			
 			if (result.getModifiedCount() == 0) {
-				event.reply(all ? "You do not have any reaction roles setup :no_entry:" : "There was no reaction role on that message :no_entry:").queue();
+				event.reply(all ? "You do not have any reaction roles setup " + this.config.getFailureEmote() : "There was no reaction role on that message " + this.config.getFailureEmote()).queue();
 				return;
 			}
 			
-			event.reply((all ? "All your reaction roles" : "That reaction role") + " now " + (all ? "have " : "has ") + (unlimited ? "no cap for" : "a cap of **" + maxReactions + "**") + " reaction" + (maxReactions == 1 ? "" : "s") + " <:done:403285928233402378>").queue();
+			event.reply((all ? "All your reaction roles" : "That reaction role") + " now " + (all ? "have " : "has ") + (unlimited ? "no cap for" : "a cap of **" + maxReactions + "**") + " reaction" + (maxReactions == 1 ? "" : "s") + " " + this.config.getSuccessEmote()).queue();
 		});
 	}
 	
@@ -368,7 +368,7 @@ public class ReactionRoleCommand extends Sx4Command {
 				
 				waiter.onTimeout(() -> event.reply("Response timed out :stopwatch:").queue());
 				
-				waiter.onCancelled(() -> event.reply("Cancelled <:done:403285928233402378>").queue());
+				waiter.onCancelled(() -> event.reply("Cancelled " + this.config.getSuccessEmote()).queue());
 				
 				waiter.future()
 					.thenCompose(messageEvent -> this.database.updateGuildById(event.getGuild().getIdLong(), Updates.unset("reactionRole.reactionRoles")))
@@ -377,7 +377,7 @@ public class ReactionRoleCommand extends Sx4Command {
 							return;
 						}
 						
-						event.reply("All reaction role data has been deleted in this server <:done:403285928233402378>").queue();
+						event.reply("All reaction role data has been deleted in this server " + this.config.getSuccessEmote()).queue();
 					});
 				
 				waiter.start();
@@ -390,11 +390,11 @@ public class ReactionRoleCommand extends Sx4Command {
 				}
 				
 				if (result.getModifiedCount() == 0) {
-					event.reply("There was no reaction role on that message :no_entry:").queue();
+					event.reply("There was no reaction role on that message " + this.config.getFailureEmote()).queue();
 					return;
 				}
 				
-				event.reply("That reaction role has been deleted <:done:403285928233402378>").queue();
+				event.reply("That reaction role has been deleted " + this.config.getSuccessEmote()).queue();
 			});
 		}
 	}

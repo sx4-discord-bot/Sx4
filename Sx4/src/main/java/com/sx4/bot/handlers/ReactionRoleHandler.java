@@ -11,6 +11,7 @@ import org.bson.Document;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.Updates;
+import com.sx4.bot.config.Config;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.utility.ExceptionUtility;
 
@@ -38,9 +39,11 @@ public class ReactionRoleHandler extends ListenerAdapter {
 			return;
 		}
 		
+		Config config = Config.get();
+		
 		if (!guild.getSelfMember().hasPermission(Permission.MANAGE_ROLES)) {
 			user.openPrivateChannel()
-				.flatMap(channel -> channel.sendMessage("I am missing the `" + Permission.MANAGE_ROLES.getName() + "` permission :no_entry:"))
+				.flatMap(channel -> channel.sendMessage("I am missing the `" + Permission.MANAGE_ROLES.getName() + "` permission " + config.getFailureEmote()))
 				.queue(null, new ErrorHandler().ignore(ErrorResponse.CANNOT_SEND_TO_USER));
 			
 			return;
@@ -95,7 +98,7 @@ public class ReactionRoleHandler extends ListenerAdapter {
 		int maxReactions = reactionRole.getInteger("maxReactions", 0);
 		if (reactedTo >= maxReactions && maxReactions != 0) {
 			user.openPrivateChannel()
-				.flatMap(channel -> channel.sendMessage("You can only react to **" + maxReactions + "** reaction" + (maxReactions == 1 ? "" : "s") + " on this message :no_entry:"))
+				.flatMap(channel -> channel.sendMessage("You can only react to **" + maxReactions + "** reaction" + (maxReactions == 1 ? "" : "s") + " on this message " + config.getFailureEmote()))
 				.queue(null, new ErrorHandler().ignore(ErrorResponse.CANNOT_SEND_TO_USER));
 			
 			return;
@@ -107,7 +110,7 @@ public class ReactionRoleHandler extends ListenerAdapter {
 			guild.modifyMemberRoles(event.getMember(), roles, null).queue();
 		}
 		
-		String message = "You " + (remove ? "no longer" : "now") + " have the role" + (roles.size() == 1 ? "" : "s") + " `" + roles.stream().map(Role::getName).collect(Collectors.joining("`, `")) + "` <:done:403285928233402378>";
+		String message = "You " + (remove ? "no longer" : "now") + " have the role" + (roles.size() == 1 ? "" : "s") + " `" + roles.stream().map(Role::getName).collect(Collectors.joining("`, `")) + "` " + config.getSuccessEmote();
 		if (reactionRole.getBoolean("dm", true)) {
 			user.openPrivateChannel()
 				.flatMap(channel -> channel.sendMessage(message))

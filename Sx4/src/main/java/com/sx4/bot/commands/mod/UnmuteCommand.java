@@ -35,12 +35,12 @@ public class UnmuteCommand extends Sx4Command {
 		
 		Role role = roleId == 0L ? null : event.getGuild().getRoleById(roleId);
 		if (role == null || !member.getRoles().contains(role)) {
-			event.reply("That user is not muted :no_entry:").queue();
+			event.reply("That user is not muted " + this.config.getFailureEmote()).queue();
 			return;
 		}
 		
 		if (!event.getSelfMember().canInteract(role)) {
-			event.reply("I am unable to unmute that user as the mute role is higher or equal than my top role :no_entry:").queue();
+			event.reply("I am unable to unmute that user as the mute role is higher or equal than my top role " + this.config.getFailureEmote()).queue();
 			return;
 		}
 		
@@ -50,7 +50,7 @@ public class UnmuteCommand extends Sx4Command {
 			}
 			
 			event.getGuild().removeRoleFromMember(member, role).reason(ModUtility.getAuditReason(reason, event.getAuthor())).queue($ -> {
-				event.reply("**" + member.getUser().getAsTag() + "** has been unmuted <:done:403285928233402378>").queue();
+				event.reply("**" + member.getUser().getAsTag() + "** has been unmuted " + this.config.getSuccessEmote()).queue();
 				
 				this.muteManager.deleteExecutor(event.getGuild().getIdLong(), member.getIdLong());
 				this.modManager.onModAction(new UnmuteEvent(event.getMember(), member.getUser(), reason));

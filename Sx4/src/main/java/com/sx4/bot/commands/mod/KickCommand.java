@@ -26,17 +26,17 @@ public class KickCommand extends Sx4Command {
 	
 	public void onCommand(Sx4CommandEvent event, @Argument(value="user") Member member, @Argument(value="reason", endless=true, nullDefault=true) Reason reason) {
 		if (member.getIdLong() == event.getSelfUser().getIdLong()) {
-			event.reply("You cannot kick me, that is illegal :no_entry:").queue();
+			event.reply("You cannot kick me, that is illegal " + this.config.getFailureEmote()).queue();
 			return;
 		}
 		
 		if (member.canInteract(event.getMember())) {
-			event.reply("You cannot kick someone higher or equal than your top role :no_entry:").queue();
+			event.reply("You cannot kick someone higher or equal than your top role " + this.config.getFailureEmote()).queue();
 			return;
 		}
 		
 		if (member.canInteract(event.getSelfMember())) {
-			event.reply("I cannot kick someone higher or equal than my top role :no_entry:").queue();
+			event.reply("I cannot kick someone higher or equal than my top role " + this.config.getFailureEmote()).queue();
 		}
 		
 		member.kick().reason(ModUtility.getAuditReason(reason, event.getAuthor())).queue($ -> {

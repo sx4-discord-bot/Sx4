@@ -29,12 +29,12 @@ public class UnbanCommand extends Sx4Command {
 	public void onCommand(Sx4CommandEvent event, @Argument(value="user") String userArgument, @Argument(value="reason", endless=true, nullDefault=true) Reason reason) {
 		SearchUtility.getUserRest(userArgument, user -> {
 			if (user == null) {
-				event.reply("I could not find that user :no_entry:").queue();
+				event.reply("I could not find that user " + this.config.getFailureEmote()).queue();
 				return;
 			}
 			
 			if (event.getGuild().isMember(user)) {
-				event.reply("That user is not banned :no_entry:").queue();
+				event.reply("That user is not banned " + this.config.getFailureEmote()).queue();
 				return;
 			}
 			
@@ -44,7 +44,7 @@ public class UnbanCommand extends Sx4Command {
 					
 					this.modManager.onModAction(new UnbanEvent(event.getMember(), user, reason));
 				});
-			}, new ErrorHandler().handle(ErrorResponse.UNKNOWN_BAN, e -> event.reply("That user is not banned :no_entry:").queue()));
+			}, new ErrorHandler().handle(ErrorResponse.UNKNOWN_BAN, e -> event.reply("That user is not banned " + this.config.getFailureEmote()).queue()));
 		});
 	}
 	

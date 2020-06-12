@@ -111,7 +111,7 @@ public class HelpCommand extends Sx4Command {
 				
 				paged.execute(event);
 			} else {
-				event.reply("I could not find that command/module :no_entry:").queue();
+				event.reply("I could not find that command/module " + this.config.getFailureEmote()).queue();
 			}
 		}
 	}

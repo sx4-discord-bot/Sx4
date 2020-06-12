@@ -101,6 +101,8 @@ public class Sx4Bot {
 	
 	@SuppressWarnings({"unchecked", "rawtypes"})
 	public static void main(String[] args) throws Throwable {
+		Config config = Config.get();
+		
 		ModActionManager.get()
 			.addListener(ModHandler.INSTANCE);
 		
@@ -119,32 +121,32 @@ public class Sx4Bot {
 			.setEnforcedContext(Sx4CommandEvent.class, true);
 		
 		IErrorManager errorManager = new ErrorManagerImpl()
-			.registerResponse(Member.class, "I could not find that user :no_entry:")
-			.registerResponse(User.class, "I could not find that user :no_entry:")
-			.registerResponse(Role.class, "I could not find that role :no_entry:")
-			.registerResponse(ReactionEmote.class, "I could not find that emote :no_entry:")
-			.registerResponse(TextChannel.class, "I could not find that text channel :no_entry:")
-			.registerResponse(VoiceChannel.class, "I could not find that voice channel :no_entry:")
-			.registerResponse(Category.class, "I could not find that category :no_entry:")
-			.registerResponse(GuildChannel.class, "I could not find that channel :no_entry:")
-			.registerResponse(IPermissionHolder.class, "I could not find that user/role :no_entry:")
-			.registerResponse(Emote.class, "I could not find that emote :no_entry:")
-			.registerResponse(Duration.class, "Invalid time string given, a good example would be `5d 1h 24m 36s` :no_entry:")
-			.registerResponse(ObjectId.class, "Invalid id given, an example id would be `5e45ce6d3688b30ee75201ae` :no_entry:")
-			.registerResponse(List.class, "I could not find that command/module :no_entry:")
-			.registerResponse(URL.class, "Invalid image given :no_entry:")
-			.registerResponse(MessageArgument.class, "I could not find that message :no_entry:")
-			.registerResponse(ReminderArgument.class, "Invalid reminder format given, view `help reminder add` for more info :no_entry:")
-			.registerResponse(PartialEmote.class, "I could not find that emote :no_entry:")
-			.registerResponse(Guild.class, "I could not find that server :no_entry:")
+			.registerResponse(Member.class, "I could not find that user " + config.getFailureEmote())
+			.registerResponse(User.class, "I could not find that user " + config.getFailureEmote())
+			.registerResponse(Role.class, "I could not find that role " + config.getFailureEmote())
+			.registerResponse(ReactionEmote.class, "I could not find that emote " + config.getFailureEmote())
+			.registerResponse(TextChannel.class, "I could not find that text channel " + config.getFailureEmote())
+			.registerResponse(VoiceChannel.class, "I could not find that voice channel " + config.getFailureEmote())
+			.registerResponse(Category.class, "I could not find that category " + config.getFailureEmote())
+			.registerResponse(GuildChannel.class, "I could not find that channel " + config.getFailureEmote())
+			.registerResponse(IPermissionHolder.class, "I could not find that user/role " + config.getFailureEmote())
+			.registerResponse(Emote.class, "I could not find that emote " + config.getFailureEmote())
+			.registerResponse(Duration.class, "Invalid time string given, a good example would be `5d 1h 24m 36s` " + config.getFailureEmote())
+			.registerResponse(ObjectId.class, "Invalid id given, an example id would be `5e45ce6d3688b30ee75201ae` " + config.getFailureEmote())
+			.registerResponse(List.class, "I could not find that command/module " + config.getFailureEmote())
+			.registerResponse(URL.class, "Invalid image given " + config.getFailureEmote())
+			.registerResponse(MessageArgument.class, "I could not find that message " + config.getFailureEmote())
+			.registerResponse(ReminderArgument.class, "Invalid reminder format given, view `help reminder add` for more info " + config.getFailureEmote())
+			.registerResponse(PartialEmote.class, "I could not find that emote " + config.getFailureEmote())
+			.registerResponse(Guild.class, "I could not find that server " + config.getFailureEmote())
 			.registerResponse(UpdateType.class, (argument, message, content) -> {
 				List<UpdateType> updates = argument.getProperty("updates", List.class);
-				message.getChannel().sendMessage("Invalid update type given, update types you can use are `" + updates.stream().map(t -> t.name().toLowerCase()).collect(Collectors.joining("`, `")) + "` :no_entry:").queue();
+				message.getChannel().sendMessage("Invalid update type given, update types you can use are `" + updates.stream().map(t -> t.name().toLowerCase()).collect(Collectors.joining("`, `")) + "` " + config.getFailureEmote()).queue();
 			}).registerResponse(int.class, (argument, message, content) -> {
 				if (argument.getProperty("colour", boolean.class)) {
-					message.getChannel().sendMessage("I could not find that colour :no_entry:").queue();
+					message.getChannel().sendMessage("I could not find that colour " + config.getFailureEmote()).queue();
 				} else {
-					message.getChannel().sendMessage("The argument `" + argument.getName() + "` needs to be a number :no_entry:").queue();
+					message.getChannel().sendMessage("The argument `" + argument.getName() + "` needs to be a number " + config.getFailureEmote()).queue();
 				}
 			});
 		
@@ -392,7 +394,7 @@ public class Sx4Bot {
 						
 						if (!bot.hasPermission(Permission.MESSAGE_WRITE)) {
 							message.getAuthor().openPrivateChannel()
-								.flatMap(channel -> channel.sendMessage("I am missing the `" + Permission.MESSAGE_WRITE.getName() + "` permission in " + message.getTextChannel().getAsMention() + " :no_entry:"))
+								.flatMap(channel -> channel.sendMessage("I am missing the `" + Permission.MESSAGE_WRITE.getName() + "` permission in " + message.getTextChannel().getAsMention() + " " + config.getFailureEmote()))
 								.queue();
 							
 							return;

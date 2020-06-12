@@ -52,7 +52,7 @@ public class PremiumCommand extends Sx4Command {
 		
 		Document guildData = this.database.getGuildById(guildId, Projections.include("premium"));
 		if (guildData.containsKey("premium")) {
-			event.reply("That server already has premium :no_entry:").queue();
+			event.reply("That server already has premium " + this.config.getFailureEmote()).queue();
 			return;
 		}
 		
@@ -65,7 +65,7 @@ public class PremiumCommand extends Sx4Command {
 			}
 			
 			if (data == null) {
-				event.reply("You are not a premium user, you can become one at <https://patreon.com/Sx4> :no_entry:").queue();
+				event.reply("You are not a premium user, you can become one at <https://patreon.com/Sx4> " + this.config.getFailureEmote()).queue();
 				return;
 			}
 			
@@ -73,7 +73,7 @@ public class PremiumCommand extends Sx4Command {
 			
 			List<Long> guilds = data.getList("guilds", Long.class, Collections.emptyList());
 			if (guilds.size() == allocatedGuilds) {
-				event.replyFormat("You have used all your premium servers (**%d/%<d**) :no_entry:", allocatedGuilds).queue();
+				event.replyFormat("You have used all your premium servers (**%d/%<d**) " + this.config.getFailureEmote(), allocatedGuilds).queue();
 				return;
 			}
 			
@@ -82,7 +82,7 @@ public class PremiumCommand extends Sx4Command {
 					return;
 				}
 				
-				event.reply("That server is now premium <:done:403285928233402378>").queue();
+				event.reply("That server is now premium " + this.config.getSuccessEmote()).queue();
 			});
 		});
 	}
@@ -103,7 +103,7 @@ public class PremiumCommand extends Sx4Command {
 			}
 			
 			if (result.getModifiedCount() == 0) {
-				event.reply("You are not giving premium to that server :no_entry:").queue();
+				event.reply("You are not giving premium to that server " + this.config.getFailureEmote()).queue();
 				return;
 			}
 			
@@ -112,7 +112,7 @@ public class PremiumCommand extends Sx4Command {
 					return;
 				}
 				
-				event.reply("That server is no longer premium <:done:403285928233402378>").queue();
+				event.reply("That server is no longer premium " + this.config.getSuccessEmote()).queue();
 			});
 		});
 	}
@@ -124,7 +124,7 @@ public class PremiumCommand extends Sx4Command {
 		
 		List<Long> guildIds = data.getList("guilds", Long.class, Collections.emptyList());
 		if (guildIds.isEmpty()) {
-			event.reply("You are not giving premium to any servers :no_entry:").queue();
+			event.reply("You are not giving premium to any servers " + this.config.getFailureEmote()).queue();
 			return;
 		}
 		

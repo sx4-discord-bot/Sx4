@@ -35,12 +35,12 @@ public class JoinPositionCommand extends Sx4Command {
 		if (or.hasFirst()) {
 			int joinPosition = or.getFirst();
 			if (joinPosition > members.size()) {
-				event.reply("The join position cannot be more than the member count of this server :no_entry:").queue();
+				event.reply("The join position cannot be more than the member count of this server " + this.config.getFailureEmote()).queue();
 				return;
 			}
 			
 			if (joinPosition < 1) {
-				event.reply("The join position cannot be lower than 1 :no_entry:").queue();
+				event.reply("The join position cannot be lower than 1 " + this.config.getFailureEmote()).queue();
 				return;
 			}
 			
