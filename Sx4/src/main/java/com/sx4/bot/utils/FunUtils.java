@@ -56,7 +56,7 @@ public class FunUtils {
 		List<String> roleMentions = new ArrayList<>(), roleNames = new ArrayList<>();
 		while (roleMentionMatch.find()) {
 			Role role = guild.getRoleById(roleMentionMatch.group(2));
-			if (role != null) {
+			if (role != null && !role.isPublicRole()) {
 				roleMentions.add(roleMentionMatch.group(1));
 				roleNames.add(role.getName());
 			}
