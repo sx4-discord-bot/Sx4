@@ -6,7 +6,6 @@ import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.option.Option;
 import com.mongodb.client.model.Projections;
 import com.sx4.bot.category.Category;
-import com.sx4.bot.config.Config;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.Database;

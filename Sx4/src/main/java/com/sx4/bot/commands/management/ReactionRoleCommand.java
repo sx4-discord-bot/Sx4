@@ -1,4 +1,4 @@
-package com.sx4.bot.commands.roles;
+package com.sx4.bot.commands.management;
 
 import java.util.Collections;
 import java.util.List;

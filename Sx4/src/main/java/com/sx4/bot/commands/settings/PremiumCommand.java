@@ -16,6 +16,7 @@ import com.mongodb.client.model.ReturnDocument;
 import com.mongodb.client.model.Updates;
 import com.sx4.bot.annotations.command.Donator;
 import com.sx4.bot.annotations.command.Examples;
+import com.sx4.bot.category.Category;
 import com.sx4.bot.config.Config;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
@@ -33,6 +34,7 @@ public class PremiumCommand extends Sx4Command {
 		
 		super.setDescription("Make a server premium or remove a server from being premium, you can make a server premium for $5");
 		super.setExamples("premium add", "premium remove", "premium list");
+		super.setCategory(Category.SETTINGS);
 	}
 	
 	public void onCommand(Sx4CommandEvent event) {
