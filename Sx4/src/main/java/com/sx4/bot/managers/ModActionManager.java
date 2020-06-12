@@ -12,7 +12,7 @@ import com.sx4.bot.events.mod.TempBanEvent;
 import com.sx4.bot.events.mod.UnbanEvent;
 import com.sx4.bot.events.mod.UnmuteEvent;
 import com.sx4.bot.events.mod.WarnEvent;
-import com.sx4.bot.hooks.mod.ModActionListener;
+import com.sx4.bot.hooks.ModActionListener;
 
 public class ModActionManager {
 	

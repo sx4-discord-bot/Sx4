@@ -19,7 +19,7 @@ import com.sx4.bot.database.Database;
 import com.sx4.bot.events.patreon.PatreonPledgeCreateEvent;
 import com.sx4.bot.events.patreon.PatreonPledgeDeleteEvent;
 import com.sx4.bot.events.patreon.PatreonPledgeUpdateEvent;
-import com.sx4.bot.hooks.patreon.PatreonListener;
+import com.sx4.bot.hooks.PatreonListener;
 import com.sx4.bot.utility.ExceptionUtility;
 
 public class PatreonHandler implements PatreonListener {

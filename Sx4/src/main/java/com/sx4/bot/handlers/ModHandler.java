@@ -16,7 +16,7 @@ import com.sx4.bot.events.mod.TempBanEvent;
 import com.sx4.bot.events.mod.UnbanEvent;
 import com.sx4.bot.events.mod.UnmuteEvent;
 import com.sx4.bot.events.mod.WarnEvent;
-import com.sx4.bot.hooks.mod.ModActionListener;
+import com.sx4.bot.hooks.ModActionListener;
 import com.sx4.bot.utility.ExceptionUtility;
 
 import net.dv8tion.jda.api.entities.Guild;
@@ -35,10 +35,10 @@ public class ModHandler implements ModActionListener, EventListener {
 		
 		ModAction modAction = action.getModAction();
 		if (modAction.isOffence()) {
-			// insert offence
+			// TODO: insert offence
 		}
 		
-		Document data = database.getGuildById(guild.getIdLong(), Projections.include("modLog")).get("modLog", Database.EMPTY_DOCUMENT);
+		Document data = database.getGuildById(guild.getIdLong(), Projections.include("modLog.channelId", "modLog.enabled")).get("modLog", Database.EMPTY_DOCUMENT);
 		
 		long channelId = data.get("channelId", 0L);
 		if (!data.getBoolean("enabled", false) || channelId == 0) {

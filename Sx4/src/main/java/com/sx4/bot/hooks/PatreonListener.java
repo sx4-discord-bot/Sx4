@@ -1,4 +1,4 @@
-package com.sx4.bot.hooks.patreon;
+package com.sx4.bot.hooks;
 
 import java.util.EventListener;
 

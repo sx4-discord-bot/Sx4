@@ -7,7 +7,7 @@ import com.sx4.bot.events.patreon.PatreonPledgeCreateEvent;
 import com.sx4.bot.events.patreon.PatreonPledgeDeleteEvent;
 import com.sx4.bot.events.patreon.PatreonPledgeEvent;
 import com.sx4.bot.events.patreon.PatreonPledgeUpdateEvent;
-import com.sx4.bot.hooks.patreon.PatreonListener;
+import com.sx4.bot.hooks.PatreonListener;
 
 public class PatreonManager {
 	

@@ -24,7 +24,7 @@ import com.sx4.bot.events.youtube.YouTubeEvent;
 import com.sx4.bot.events.youtube.YouTubeUpdateEvent;
 import com.sx4.bot.events.youtube.YouTubeUpdateTitleEvent;
 import com.sx4.bot.events.youtube.YouTubeUploadEvent;
-import com.sx4.bot.hooks.youtube.YouTubeListener;
+import com.sx4.bot.hooks.YouTubeListener;
 import com.sx4.bot.http.HttpCallback;
 import com.sx4.bot.utility.ExceptionUtility;
 
