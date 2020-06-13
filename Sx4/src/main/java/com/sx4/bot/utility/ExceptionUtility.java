@@ -16,7 +16,11 @@ import net.dv8tion.jda.api.requests.RestAction;
 
 public class ExceptionUtility {
 
-	public static void sendErrorMessage(Throwable throwable) {
+	public static boolean sendErrorMessage(Throwable throwable) {
+		if (throwable == null) {
+			return false;
+		}
+		
 		List<String> messages = new ArrayList<>();
 		
 		ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
@@ -48,6 +52,8 @@ public class ExceptionUtility {
 		if (channel != null) {
 			messages.stream().map(channel::sendMessage).forEach(RestAction::queue);
 		}
+		
+		return true;
 	}
 	
 	public static MessageEmbed getSimpleErrorMessage(Throwable throwable) {

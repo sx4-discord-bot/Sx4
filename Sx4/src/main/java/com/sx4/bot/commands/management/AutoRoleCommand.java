@@ -4,6 +4,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.bson.conversions.Bson;
+
 import com.google.common.base.Predicates;
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
@@ -15,6 +17,7 @@ import com.sx4.bot.annotations.command.Examples;
 import com.sx4.bot.category.Category;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
+import com.sx4.bot.database.model.Operators;
 import com.sx4.bot.entities.argument.All;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
@@ -30,7 +33,7 @@ public class AutoRoleCommand extends Sx4Command {
 		
 		super.setDescription("Sets roles to be given when a user joins the server");
 		super.setAliases("autorole");
-		super.setExamples("auto role add", "auto role remove");
+		super.setExamples("auto role toggle", "auto role add", "auto role remove");
 		super.setCategory(Category.MANAGEMENT);
 	}
 	
@@ -38,7 +41,21 @@ public class AutoRoleCommand extends Sx4Command {
 		event.replyHelp().queue();
 	}
 	
-	@Command(value="add", description="Add a role to be added when a user joins")
+	@Command(value="toggle", description="Toggles whether auto role is enabled or discord in this server")
+	@Examples({"auto role toggle"})
+	@AuthorPermissions(permissions={Permission.MANAGE_ROLES})
+	public void toggle(Sx4CommandEvent event) {
+		List<Bson> update = List.of(Operators.set("autoRole.enabled", Operators.cond("$autoRole.enabled", Operators.REMOVE, true)));
+		this.database.findAndUpdateGuildById(event.getGuild().getIdLong(), Projections.include("autoRole.enabled"), update).whenComplete((data, exception) -> {
+			if (ExceptionUtility.sendExceptionally(event, exception)) {
+				return;
+			}
+			
+			event.reply("Auto role is now **" + (data.getEmbedded(List.of("autoRole", "enabled"), false) ? "enabled" : "disabled") + "** " + this.config.getSuccessEmote()).queue();
+		});
+	}
+	
+	@Command(value="add", description="Add a role to be given when a user joins")
 	@Examples({"auto role add @Role", "auto role add Role", "auto role add 406240455622262784"})
 	@AuthorPermissions(permissions={Permission.MANAGE_ROLES})
 	public void add(Sx4CommandEvent event, @Argument(value="role", endless=true) Role role) {
@@ -72,11 +89,11 @@ public class AutoRoleCommand extends Sx4Command {
 				return;
 			}
 			
-			event.reply("The role `" + role.getName() + "` has been added as an auto role " + this.config.getSuccessEmote()).queue();
+			event.reply("The role " + role.getAsMention() + " has been added as an auto role " + this.config.getSuccessEmote()).queue();
 		});
 	}
 	
-	@Command(value="remove", description="Remove a role from being added when a user joins")
+	@Command(value="remove", description="Remove a role from being given when a user joins")
 	@Examples({"auto role remove @Role", "auto role remove Role", "auto role remove all"})
 	@AuthorPermissions(permissions={Permission.MANAGE_ROLES})
 	public void remove(Sx4CommandEvent event, @Argument(value="role", endless=true) All<Role> allArgument) {
@@ -105,7 +122,7 @@ public class AutoRoleCommand extends Sx4Command {
 					return;
 				}
 				
-				event.reply("The role `" + role.getName() + "` has been removed from being an auto role " + this.config.getSuccessEmote()).queue();
+				event.reply("The role " + role.getAsMention() + " has been removed from being an auto role " + this.config.getSuccessEmote()).queue();
 			});
 		}
 	}

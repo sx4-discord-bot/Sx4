@@ -215,12 +215,11 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 									});
 								} else {
 									database.updateGuildById(guild.getIdLong(), Updates.pull("youtube.notifications", Filters.eq("channelId", textChannelId))).whenComplete((result, exception) -> {
-										if (exception != null) {
-											exception.printStackTrace();
-											ExceptionUtility.sendErrorMessage(exception);
-										} else {
-											this.webhooks.remove(textChannelId);
-										}
+										if (ExceptionUtility.sendErrorMessage(exception)) {
+											return;
+										} 
+											
+										this.webhooks.remove(textChannelId);
 									});
 								}
 							}
@@ -247,12 +246,7 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 	}
 	
 	public void onYouTubeDelete(YouTubeDeleteEvent event) {
-		Database.get().deleteManyNotifications(event.getVideoId()).whenComplete((result, exception) -> {
-			if (exception != null) {
-				exception.printStackTrace();
-				ExceptionUtility.sendErrorMessage(exception);
-			}
-		});
+		Database.get().deleteManyNotifications(event.getVideoId()).whenComplete((result, exception) -> ExceptionUtility.sendErrorMessage(exception));
 	}
 	
 	public void onYouTubeUpdateTitle(YouTubeUpdateTitleEvent event) {
@@ -261,12 +255,7 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 				.append("title", event.getVideo().getTitle())
 				.append("uploaderId", event.getChannel().getId());
 		
-		Database.get().insertNotification(data).whenComplete((result, exception) -> {
-			if (exception != null) {
-				exception.printStackTrace();
-				ExceptionUtility.sendErrorMessage(exception);
-			}
-		});
+		Database.get().insertNotification(data).whenComplete((result, exception) -> ExceptionUtility.sendErrorMessage(exception));
 	}
 
 	public void onEvent(GenericEvent event) {
@@ -274,12 +263,11 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 			TextChannelDeleteEvent deleteEvent = (TextChannelDeleteEvent) event;
 			
 			Database.get().updateGuildById(deleteEvent.getGuild().getIdLong(), Updates.pull("youtube.notifications", Filters.eq("channelId", deleteEvent.getChannel().getIdLong()))).whenComplete((result, exception) -> {
-				if (exception != null) {
-					exception.printStackTrace();
-					ExceptionUtility.sendErrorMessage(exception);
-				} else {
-					this.webhooks.remove(deleteEvent.getChannel().getIdLong());
-				}
+				if (ExceptionUtility.sendErrorMessage(exception)) {
+					return;
+				} 
+				
+				this.webhooks.remove(deleteEvent.getChannel().getIdLong());
 			});
 		}
 	}

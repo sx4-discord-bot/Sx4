@@ -172,7 +172,7 @@ public class YouTubeManager {
 	public void ensureResubscriptions() {
 		List<WriteModel<Document>> bulkData = new ArrayList<>();
 		
-		Database.get().getResubscriptions().find().forEach((Document data) -> {
+		Database.get().getResubscriptions().find().forEach(data -> {
 			String channelId = data.getString("_id");
 			
 			long timeTill = data.getLong("resubscribeAt") - Clock.systemUTC().instant().getEpochSecond();
@@ -187,12 +187,7 @@ public class YouTubeManager {
 		});
 		
 		if (!bulkData.isEmpty()) {
-			Database.get().bulkWriteResubscriptions(bulkData).whenComplete((result, exception) -> {
-				if (exception != null) {
-					exception.printStackTrace();
-					ExceptionUtility.sendErrorMessage(exception);
-				}
-			});
+			Database.get().bulkWriteResubscriptions(bulkData).whenComplete((result, exception) -> ExceptionUtility.sendErrorMessage(exception));
 		}
 	}
 	

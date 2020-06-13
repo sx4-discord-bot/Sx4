@@ -160,7 +160,7 @@ public class ReactionRoleCommand extends Sx4Command {
 							return;
 						}
 						
-						event.reply("The role `" + role.getName() + "` will now be given when reacting to " + emote.getEmoji() + " " + this.config.getSuccessEmote()).queue();
+						event.reply("The role " + role.getAsMention() + " will now be given when reacting to " + emote.getEmoji() + " " + this.config.getSuccessEmote()).queue();
 					});
 				}, new ErrorHandler().handle(this.defaultReactionFailure, exception -> event.reply("I could not find that emote " + this.config.getFailureEmote()).queue()));
 			} else {
@@ -173,7 +173,7 @@ public class ReactionRoleCommand extends Sx4Command {
 						return;
 					}
 					
-					event.reply("The role `" + role.getName() + "` will now be given when reacting to " + (unicode ? emote.getEmoji() : emote.getEmote().getAsMention()) + " " + this.config.getSuccessEmote()).queue();
+					event.reply("The role " + role.getAsMention() + " will now be given when reacting to " + (unicode ? emote.getEmoji() : emote.getEmote().getAsMention()) + " " + this.config.getSuccessEmote()).queue();
 				});
 			}
 		}, new ErrorHandler().handle(ErrorResponse.UNKNOWN_MESSAGE, exception -> event.reply("I could not find that message " + this.config.getFailureEmote()).queue()));
@@ -256,8 +256,8 @@ public class ReactionRoleCommand extends Sx4Command {
 					event.reply("That role is not given when reacting to that emote " + this.config.getFailureEmote()).queue();
 					return;
 				}
-				
-				event.reply("The role `" + role.getName() + "` has been removed from that reaction " + this.config.getSuccessEmote()).queue();
+			
+				event.reply("The role " + role.getAsMention() + " has been removed from that reaction " + this.config.getSuccessEmote()).queue();
 			}
 		});
 	}

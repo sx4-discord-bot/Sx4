@@ -82,8 +82,7 @@ public class MuteData {
 		
 		guild.createRole().setName("Muted - " + selfMember.getUser().getName()).queue(newRole -> {
 			Database.get().updateGuildById(guild.getIdLong(), Updates.set("mute.roleId", newRole.getIdLong())).whenComplete((result, exception) -> {
-				if (exception != null) {
-					ExceptionUtility.sendErrorMessage(exception);
+				if (ExceptionUtility.sendErrorMessage(exception)) {
 					consumer.accept(null, exception);
 				} else {
 					consumer.accept(newRole, null);

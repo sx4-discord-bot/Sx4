@@ -10,6 +10,7 @@ import java.util.function.Function;
 
 import com.jockie.bot.core.command.impl.CommandEvent;
 import com.sx4.bot.core.Sx4Bot;
+import com.sx4.bot.utility.MentionUtility;
 
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.MessageBuilder;
@@ -20,6 +21,7 @@ import net.dv8tion.jda.api.entities.MessageChannel;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.entities.Message.MentionType;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.requests.ErrorResponse;
 

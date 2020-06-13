@@ -43,12 +43,11 @@ public class YouTubeEndpoint {
 			String channelId = topic.substring(topic.lastIndexOf('=') + 1);
 			
 			Database.get().updateResubscriptionById(channelId, Updates.set("resubscribeAt", Clock.systemUTC().instant().getEpochSecond() + seconds)).whenComplete((result, exception) -> {
-				if (exception != null) {
-					exception.printStackTrace();
-					ExceptionUtility.sendErrorMessage(exception);
-				} else {
-					manager.putResubscription(channelId, seconds);
+				if (ExceptionUtility.sendErrorMessage(exception)) {
+					return;
 				}
+				
+				manager.putResubscription(channelId, seconds);
 			});
 			
 			return Response.ok(challenge).build();

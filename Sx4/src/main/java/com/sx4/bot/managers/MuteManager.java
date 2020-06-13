@@ -140,11 +140,7 @@ public class MuteManager {
 	public void removeMute(long guildId, long userId, long roleId) {
 		UpdateOneModel<Document> model = this.removeMuteAndGet(guildId, userId, roleId);
 		if (model != null) {
-			Database.get().updateGuildById(model).whenComplete((result, exception) -> {
-				if (exception != null) {
-					ExceptionUtility.sendErrorMessage(exception);
-				}
-			});
+			Database.get().updateGuildById(model).whenComplete((result, exception) -> ExceptionUtility.sendErrorMessage(exception));
 		}
 	}
 	
@@ -171,11 +167,7 @@ public class MuteManager {
 		});
 		
 		if (!bulkData.isEmpty()) {
-			database.bulkWriteGuilds(bulkData).whenComplete((result, exception) -> {
-				if (exception != null) {
-					ExceptionUtility.sendErrorMessage(exception);
-				}
-			});
+			database.bulkWriteGuilds(bulkData).whenComplete((result, exception) -> ExceptionUtility.sendErrorMessage(exception));
 		}
 	}
 	

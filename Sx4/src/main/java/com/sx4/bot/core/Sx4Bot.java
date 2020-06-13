@@ -62,6 +62,7 @@ import com.sx4.bot.paged.PagedHandler;
 import com.sx4.bot.utility.ColourUtility;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.HelpUtility;
+import com.sx4.bot.utility.MentionUtility;
 import com.sx4.bot.utility.SearchUtility;
 import com.sx4.bot.utility.StringUtility;
 import com.sx4.bot.utility.TimeUtility;
@@ -84,6 +85,7 @@ import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.VoiceChannel;
 import net.dv8tion.jda.api.hooks.InterfacedEventManager;
 import net.dv8tion.jda.api.requests.GatewayIntent;
+import net.dv8tion.jda.api.requests.restaction.MessageAction;
 import net.dv8tion.jda.api.sharding.DefaultShardManagerBuilder;
 import net.dv8tion.jda.api.sharding.ShardManager;
 import okhttp3.OkHttpClient;
@@ -111,6 +113,8 @@ public class Sx4Bot {
 		
 		PatreonManager.get()
 			.addListener(PatreonHandler.INSTANCE);
+		
+		MessageAction.setDefaultMentions(MentionUtility.NONE);
 		
 		MethodCommandFactory.setDefault(new Sx4CommandFactory());
 		

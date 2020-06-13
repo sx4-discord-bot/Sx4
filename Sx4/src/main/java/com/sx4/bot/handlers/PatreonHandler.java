@@ -42,27 +42,18 @@ public class PatreonHandler implements PatreonListener, EventListener {
 			update = Updates.combine(update, Updates.set("discordId", event.getDiscordId()));
 		}
 		
-		Database.get().updatePatronById(event.getId(), update).whenComplete((result, exception) -> {
-			if (exception != null) {
-				ExceptionUtility.sendErrorMessage(exception);
-			}
-		});
+		Database.get().updatePatronById(event.getId(), update).whenComplete((result, exception) -> ExceptionUtility.sendErrorMessage(exception));
 	}
 	
 	public void onPatreonPledgeUpdate(PatreonPledgeUpdateEvent event) {
-		Database.get().updatePatronById(event.getId(), Updates.set("amount", event.getAmount())).whenComplete((result, exception) -> {
-			if (exception != null) {
-				ExceptionUtility.sendErrorMessage(exception);
-			}
-		});
+		Database.get().updatePatronById(event.getId(), Updates.set("amount", event.getAmount())).whenComplete((result, exception) -> ExceptionUtility.sendErrorMessage(exception));
 	}
 	
 	public void onPatreonPledgeDelete(PatreonPledgeDeleteEvent event) {
 		Database database = Database.get();
 		
 		database.findAndDeletePatronById(event.getId(), Projections.include("guilds")).whenComplete((data, exception) -> {
-			if (exception != null) {
-				ExceptionUtility.sendErrorMessage(exception);
+			if (ExceptionUtility.sendErrorMessage(exception)) {
 				return;
 			}
 			
@@ -74,11 +65,7 @@ public class PatreonHandler implements PatreonListener, EventListener {
 			}
 			
 			if (!bulkData.isEmpty()) {
-    			database.bulkWriteGuilds(bulkData).whenComplete((result, guildException) -> {
-    				if (guildException != null) {
-        				ExceptionUtility.sendErrorMessage(guildException);
-        			}
-    			});
+    			database.bulkWriteGuilds(bulkData).whenComplete((result, guildException) -> ExceptionUtility.sendErrorMessage(guildException));
 			}
 		});
 	}
@@ -88,11 +75,7 @@ public class PatreonHandler implements PatreonListener, EventListener {
 			return;
 		}
 		
-		Database.get().updatePatronById(event.getId(), Updates.set("discordId", event.getDiscordId())).whenComplete((result, exception) -> {
-			if (exception != null) {
-				ExceptionUtility.sendErrorMessage(exception);
-			}
-		});
+		Database.get().updatePatronById(event.getId(), Updates.set("discordId", event.getDiscordId())).whenComplete((result, exception) -> ExceptionUtility.sendErrorMessage(exception));
 	}
 	
 	public void onEvent(GenericEvent event) {
@@ -103,8 +86,7 @@ public class PatreonHandler implements PatreonListener, EventListener {
 			
 			FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("premium"));
 			database.findAndUpdateGuildById(guildId, Updates.unset("premium"), options).whenComplete((data, exception) -> {
-				if (exception != null) {
-					ExceptionUtility.sendErrorMessage(exception);
+				if (ExceptionUtility.sendErrorMessage(exception)) {
 					return;
 				}
 				

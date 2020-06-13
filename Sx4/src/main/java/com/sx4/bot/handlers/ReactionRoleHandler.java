@@ -119,11 +119,7 @@ public class ReactionRoleHandler extends ListenerAdapter {
 	}
 	
 	public void handle(long guildId, List<Long> messageIds) {
-		Database.get().updateGuildById(guildId, Updates.pull("reactionRole.reactionRoles", Filters.in("id", messageIds))).whenComplete((result, exception) -> {
-			if (exception != null) {
-				ExceptionUtility.sendErrorMessage(exception);
-			}
-		});
+		Database.get().updateGuildById(guildId, Updates.pull("reactionRole.reactionRoles", Filters.in("id", messageIds))).whenComplete((result, exception) -> ExceptionUtility.sendErrorMessage(exception));
 	}
 	
 	public void onMessageBulkDelete(MessageBulkDeleteEvent event) {
@@ -135,11 +131,7 @@ public class ReactionRoleHandler extends ListenerAdapter {
 	}
 	
 	public void onRoleDelete(RoleDeleteEvent event) {
-		Database.get().updateGuildById(event.getGuild().getIdLong(), Updates.pull("reactionRole.reactionRoles.$[].reactions.$[].roles", event.getRole().getIdLong())).whenComplete((result, exception) -> {
-			if (exception != null) {
-				ExceptionUtility.sendErrorMessage(exception);
-			}
-		});
+		Database.get().updateGuildById(event.getGuild().getIdLong(), Updates.pull("reactionRole.reactionRoles.$[].reactions.$[].roles", event.getRole().getIdLong())).whenComplete((result, exception) -> ExceptionUtility.sendErrorMessage(exception));
 	}
 	
 }

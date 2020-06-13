@@ -78,7 +78,7 @@ public class SuggestionCommand extends Sx4Command {
 	@Examples({"suggestion toggle"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void toggle(Sx4CommandEvent event) {
-		List<Bson> update = List.of(Operators.set("suggestion.enabled", Operators.cond("$suggestion.enabled", "$$REMOVE", true)));
+		List<Bson> update = List.of(Operators.set("suggestion.enabled", Operators.cond("$suggestion.enabled", Operators.REMOVE, true)));
 		this.database.findAndUpdateGuildById(event.getGuild().getIdLong(), Projections.include("suggestion.enabled"), update).whenComplete((data, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
@@ -92,7 +92,7 @@ public class SuggestionCommand extends Sx4Command {
 	@Examples({"suggestion channel", "suggestion channel #suggestions"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void channel(Sx4CommandEvent event, @Argument(value="channel", endless=true, nullDefault=true) TextChannel channel) {
-		List<Bson> update = List.of(Operators.set("suggestion.channelId", channel == null ? "$$REMOVE" : channel.getIdLong()));
+		List<Bson> update = List.of(Operators.set("suggestion.channelId", channel == null ? Operators.REMOVE : channel.getIdLong()));
 		this.database.updateGuildById(event.getGuild().getIdLong(), update).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;

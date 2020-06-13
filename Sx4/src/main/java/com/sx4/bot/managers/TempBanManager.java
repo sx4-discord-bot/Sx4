@@ -95,9 +95,8 @@ private static final TempBanManager INSTANCE = new TempBanManager();
 		}
 		
 		Database.get().updateGuildById(guildId, Updates.pull("tempBan.users", Filters.eq("id", userId))).whenComplete((result, exception) -> {
-			if (exception != null) {
-				exception.printStackTrace();
-				ExceptionUtility.sendErrorMessage(exception);
+			if (ExceptionUtility.sendErrorMessage(exception)) {
+				return;
 			} 
 			
 			ModActionManager.get().onModAction(new UnbanEvent(guild.getSelfMember(), member.getUser(), new Reason("Ban length served")));

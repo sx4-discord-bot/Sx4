@@ -64,12 +64,7 @@ public class ModHandler implements ModActionListener, EventListener {
 		channel.sendMessage(modLog.getEmbed(event.getModerator().getUser(), event.getTarget())).queue(message -> {
 			modLog.setMessageId(message.getIdLong());
 			
-			database.insertModLog(modLog.toData()).whenComplete((result, exception) -> {
-				if (exception != null) {
-					exception.printStackTrace();
-					ExceptionUtility.sendErrorMessage(exception);
-				}
-			});
+			database.insertModLog(modLog.toData()).whenComplete((result, exception) -> ExceptionUtility.sendErrorMessage(exception));
 		});
 	}
 

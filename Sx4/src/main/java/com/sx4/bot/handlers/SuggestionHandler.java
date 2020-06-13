@@ -15,11 +15,7 @@ import net.dv8tion.jda.api.hooks.ListenerAdapter;
 public class SuggestionHandler extends ListenerAdapter {
 
 	public void handle(long guildId, List<Long> messageIds) {
-		Database.get().updateGuildById(guildId, Updates.pull("suggestion.suggestions", Filters.in("id", messageIds))).whenComplete((result, exception) -> {
-			if (exception != null) {
-				ExceptionUtility.sendErrorMessage(exception);
-			}
-		});
+		Database.get().updateGuildById(guildId, Updates.pull("suggestion.suggestions", Filters.in("id", messageIds))).whenComplete((result, exception) -> ExceptionUtility.sendErrorMessage(exception));
 	}
 	
 	public void onMessageDelete(MessageDeleteEvent event) {

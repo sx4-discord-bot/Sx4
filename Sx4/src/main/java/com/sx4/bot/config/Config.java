@@ -24,8 +24,12 @@ public class Config {
 	
 	private JSONObject json;
 	
+	// Avoid iterating the json everytime they're used
+	private String emoteSuccess;
+	private String emoteFailure;
+	
 	public Config() {
-		this.json = this.getConfig();
+		this.reloadConfig();
 	}
 	
 	public <Type> Type get(String path) {
@@ -298,11 +302,11 @@ public class Config {
 	}
 	
 	public String getSuccessEmote() {
-		return this.get("emote.success");
+		return this.emoteSuccess;
 	}
 	
 	public String getFailureEmote() {
-		return this.get("emote.failure");
+		return this.emoteFailure;
 	}
 	
 	public int getColour() {
@@ -321,18 +325,12 @@ public class Config {
 		return this.get("colour.green", 65280);
 	}
 	
-	public JSONObject getConfig() {
-		try (FileInputStream stream = new FileInputStream(new File("config.json"))) {
-			return new JSONObject(new String(stream.readAllBytes()));
-		} catch (IOException e) {
-			e.printStackTrace();
-			return null;
-		}
-	}
-	
 	public void reloadConfig() {
 		try (FileInputStream stream = new FileInputStream(new File("config.json"))) {
 			this.json = new JSONObject(new String(stream.readAllBytes()));
+			
+			this.emoteSuccess = this.get("emote.success");
+			this.emoteFailure = this.get("emote.failure");
 		} catch (IOException e) {
 			e.printStackTrace();
 		}

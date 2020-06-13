@@ -34,17 +34,9 @@ import com.sx4.bot.utility.ExceptionUtility;
 
 public class Database {
 	
-	public static final BiConsumer<BulkWriteResult, Throwable> DEFAULT_BULK_HANDLER = (result, exception) -> {
-		if (exception != null) {
-			ExceptionUtility.sendErrorMessage(exception);
-		}
-	};
+	public static final BiConsumer<BulkWriteResult, Throwable> DEFAULT_BULK_HANDLER = (result, exception) -> ExceptionUtility.sendErrorMessage(exception);
 	
-	public static final BiConsumer<UpdateResult, Throwable> DEFAULT_UPDATE_HANDLER = (result, exception) -> {
-		if (exception != null) {
-			ExceptionUtility.sendErrorMessage(exception);
-		}
-	};
+	public static final BiConsumer<UpdateResult, Throwable> DEFAULT_UPDATE_HANDLER = (result, exception) -> ExceptionUtility.sendErrorMessage(exception);
 	
 	public static final Document EMPTY_DOCUMENT = new Document();
 
