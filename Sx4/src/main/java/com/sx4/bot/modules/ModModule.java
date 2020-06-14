@@ -49,7 +49,6 @@ import com.sx4.bot.events.MuteEvents;
 import com.sx4.bot.interfaces.Examples;
 import com.sx4.bot.interfaces.Sx4Callback;
 import com.sx4.bot.utils.ArgumentUtils;
-import com.sx4.bot.utils.FunUtils;
 import com.sx4.bot.utils.GeneralUtils;
 import com.sx4.bot.utils.HelpUtils;
 import com.sx4.bot.utils.ModUtils;
@@ -1665,7 +1664,7 @@ public class ModModule {
 						exception.printStackTrace();
 						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
 					} else {
-						event.reply(FunUtils.escapeMentions(event.getGuild(), "Your prefixes have been set to `" + String.join("`,  `", cleanPrefixes) + "` <:done:403285928233402378>")).queue();
+						event.reply("Your prefixes have been set to `" + String.join("`,  `", cleanPrefixes) + "` <:done:403285928233402378>").queue();
 					}
 				});
 			}
@@ -1697,7 +1696,7 @@ public class ModModule {
 						exception.printStackTrace();
 						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
 					} else {
-						event.reply(FunUtils.escapeMentions(event.getGuild(), "The prefixes `" + String.join("`, `", cleanPrefixes) + "` have been added to your personal prefixes <:done:403285928233402378>")).queue();
+						event.reply("The prefixes `" + String.join("`, `", cleanPrefixes) + "` have been added to your personal prefixes <:done:403285928233402378>").queue();
 					}
 				});
 			}
@@ -1723,7 +1722,7 @@ public class ModModule {
 						exception.printStackTrace();
 						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
 					} else {
-						event.reply(FunUtils.escapeMentions(event.getGuild(), "The prefixes `" + String.join("`, `", prefixes) + "` have been removed from your personal prefixes <:done:403285928233402378>")).queue();
+						event.reply("The prefixes `" + String.join("`, `", prefixes) + "` have been removed from your personal prefixes <:done:403285928233402378>").queue();
 					}
 				});
 			}
@@ -1811,7 +1810,7 @@ public class ModModule {
 						exception.printStackTrace();
 						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
 					} else {
-						event.reply(FunUtils.escapeMentions(event.getGuild(), "The prefixes `" + String.join("`, `", cleanPrefixes) + "` have been added to the server prefixes <:done:403285928233402378>")).queue();
+						event.reply("The prefixes `" + String.join("`, `", cleanPrefixes) + "` have been added to the server prefixes <:done:403285928233402378>").queue();
 					}
 				});
 			}
@@ -1838,7 +1837,7 @@ public class ModModule {
 						exception.printStackTrace();
 						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
 					} else {
-						event.reply(FunUtils.escapeMentions(event.getGuild(), "The prefixes `" + String.join("`, `", prefixes) + "` have been removed from the servers prefixes <:done:403285928233402378>")).queue();
+						event.reply("The prefixes `" + String.join("`, `", prefixes) + "` have been removed from the servers prefixes <:done:403285928233402378>").queue();
 					}
 				});
 			}

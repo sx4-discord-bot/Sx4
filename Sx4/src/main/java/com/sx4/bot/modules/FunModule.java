@@ -3025,7 +3025,6 @@ public class FunModule {
 	@Command(value="say", description="The bot will repeat whatever you say")
 	@Examples({"say hello there"})
 	public void say(CommandEvent event, @Argument(value="text", endless=true) String text) {
-		text = FunUtils.escapeMentions(event.getGuild(), text);
 		event.reply(text.substring(0, Math.min(text.length(), 2000))).queue();
 	}
 	
@@ -3041,8 +3040,7 @@ public class FunModule {
 			}
 		}
 		
-		text = FunUtils.escapeMentions(event.getGuild(), content);
-		event.reply(text.substring(0, Math.min(text.length(), 2000))).queue();
+		event.reply(content.substring(0, Math.min(content.length(), 2000))).queue();
 	}
 	
 	@Command(value="embed", aliases={"esay"}, description="The bot will repeat whatever you say in an embed")
@@ -3172,14 +3170,14 @@ public class FunModule {
 	@Command(value="clapify", description="The bot will return your text with a clap emote in between each word")
 	@Examples({"clapify some angry message"})
 	public void clapify(CommandEvent event, @Argument(value="text", endless=true) String text) {
-		text = FunUtils.escapeMentions(event.getGuild(), text.replace(" ", " :clap: "));
+		text = text.replace(" ", " :clap: ");
 		event.reply(text.substring(0, Math.min(text.length(), 2000))).queue();
 	}
 	
 	@Command(value="ascend", description="The bot will return your text with a space in between each character")
 	@Examples({"ascend hello there"})
 	public void ascend(CommandEvent event, @Argument(value="text", endless=true) String text) {
-		text = FunUtils.escapeMentions(event.getGuild(), text.replace("", " "));
+		text = text.replace("", " ");
 		event.reply(text.substring(0, Math.min(text.length(), 2000))).queue();
 	}
 	
@@ -3191,8 +3189,7 @@ public class FunModule {
 			content += text.charAt(i);
 		}
 		
-		text = FunUtils.escapeMentions(event.getGuild(), content);
-		event.reply(text.substring(0, Math.min(text.length(), 2000))).queue();
+		event.reply(content.substring(0, Math.min(content.length(), 2000))).queue();
 	}
 	
 	@Command(value="random caps", aliases={"randomcaps", "rand caps", "randcaps"}, description="The bot will return your text with the characters randomly being lower case or upper case")
@@ -3208,8 +3205,7 @@ public class FunModule {
 			}
 		}
 		
-		text = FunUtils.escapeMentions(event.getGuild(), content);
-		event.reply(content.substring(0, Math.min(text.length(), 2000))).queue();
+		event.reply(content.substring(0, Math.min(content.length(), 2000))).queue();
 	}
 	
 	@Command(value="alternate caps", aliases={"alt caps", "altcaps", "alternatecaps"}, description="The bot will return your text with the characters alternating between being lower case or upper case")
@@ -3224,8 +3220,7 @@ public class FunModule {
 			}
 		}
 		
-		text = FunUtils.escapeMentions(event.getGuild(), content);
-		event.reply(text.substring(0, Math.min(text.length(), 2000))).queue();
+		event.reply(content.substring(0, Math.min(content.length(), 2000))).queue();
 	}
 	
 	private final List<String> rockChoices = List.of("r", "rock");

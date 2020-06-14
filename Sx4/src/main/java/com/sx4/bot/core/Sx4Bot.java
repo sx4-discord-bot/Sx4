@@ -51,8 +51,10 @@ import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Role;
+import net.dv8tion.jda.api.entities.Message.MentionType;
 import net.dv8tion.jda.api.hooks.InterfacedEventManager;
 import net.dv8tion.jda.api.requests.GatewayIntent;
+import net.dv8tion.jda.api.requests.restaction.MessageAction;
 import net.dv8tion.jda.api.sharding.DefaultShardManagerBuilder;
 import net.dv8tion.jda.api.sharding.ShardManager;
 import net.dv8tion.jda.api.utils.MemberCachePolicy;
@@ -103,6 +105,8 @@ public class Sx4Bot {
 		eventHandler = new EventHandler();
 		
 		youtubeManager = new YouTubeManager().addListener(NotificationEvents.get());
+		
+		MessageAction.setDefaultMentions(EnumSet.noneOf(MentionType.class));
 		
 		ContextManagerFactory.getDefault()
 			.registerContext(Database.class, (event, type) -> Sx4Bot.DATABASE)
