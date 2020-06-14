@@ -12,7 +12,6 @@ import javax.ws.rs.core.Response;
 import org.bson.Document;
 
 import com.sx4.bot.config.Config;
-import com.sx4.bot.events.patreon.PatreonMemberUpdateEvent;
 import com.sx4.bot.events.patreon.PatreonPledgeCreateEvent;
 import com.sx4.bot.events.patreon.PatreonPledgeDeleteEvent;
 import com.sx4.bot.events.patreon.PatreonPledgeUpdateEvent;
@@ -58,8 +57,6 @@ public class PatreonEndpoint {
 	        	manager.onPatreon(new PatreonPledgeUpdateEvent(discordId, id, centsDonated));
 	        } else if (event.equals("members:pledge:create")) {
 	        	manager.onPatreon(new PatreonPledgeCreateEvent(discordId, id, centsDonated));
-	        } else if (event.equals("members:update")) {
-	        	manager.onPatreon(new PatreonMemberUpdateEvent(discordId, id));
 	        }
 	    }
 		

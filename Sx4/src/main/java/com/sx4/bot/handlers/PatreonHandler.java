@@ -16,7 +16,6 @@ import com.mongodb.client.model.UpdateOneModel;
 import com.mongodb.client.model.Updates;
 import com.mongodb.client.model.WriteModel;
 import com.sx4.bot.database.Database;
-import com.sx4.bot.events.patreon.PatreonMemberUpdateEvent;
 import com.sx4.bot.events.patreon.PatreonPledgeCreateEvent;
 import com.sx4.bot.events.patreon.PatreonPledgeDeleteEvent;
 import com.sx4.bot.events.patreon.PatreonPledgeUpdateEvent;
@@ -32,6 +31,10 @@ public class PatreonHandler implements PatreonListener, EventListener {
 	public static final PatreonHandler INSTANCE = new PatreonHandler();
 
 	public void onPatreonPledgeCreate(PatreonPledgeCreateEvent event) {
+		if (event.getAmount() == 0) {
+			return;
+		}
+		
 		Bson update = Updates.combine(
 			Updates.set("amount", event.getAmount()),
 			Updates.set("since", Clock.systemUTC().instant().getEpochSecond()),
@@ -70,14 +73,6 @@ public class PatreonHandler implements PatreonListener, EventListener {
 		});
 	}
 	
-	public void onPatreonMemberUpdate(PatreonMemberUpdateEvent event) {
-		if (!event.hasDiscord()) {
-			return;
-		}
-		
-		Database.get().updatePatronById(event.getId(), Updates.set("discordId", event.getDiscordId())).whenComplete((result, exception) -> ExceptionUtility.sendErrorMessage(exception));
-	}
-	
 	public void onEvent(GenericEvent event) {
 		if (event instanceof GuildLeaveEvent) {
 			long guildId = ((GuildLeaveEvent) event).getGuild().getIdLong();
@@ -94,13 +89,7 @@ public class PatreonHandler implements PatreonListener, EventListener {
 					return;
 				}
 				
-				long userId = data.get("premium", 0L);
-				
-				database.updatePatronByFilter(Filters.eq("discordId", userId), Updates.pull("guilds", guildId)).whenComplete((result, patronException) -> {
-					if (patronException != null) {
-						ExceptionUtility.sendErrorMessage(patronException);
-					}
-				});
+				database.updatePatronByFilter(Filters.eq("discordId", data.get("premium", 0L)), Updates.pull("guilds", guildId)).whenComplete((result, patronException) -> ExceptionUtility.sendErrorMessage(patronException));
 			});
 		}
 	}
