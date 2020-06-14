@@ -1,6 +1,7 @@
 package com.sx4.bot.events;
 
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.List;
 
 import org.bson.Document;
@@ -8,6 +9,7 @@ import org.bson.Document;
 import com.mongodb.client.model.Projections;
 import com.sx4.bot.database.Database;
 
+import net.dv8tion.jda.api.entities.Message.MentionType;
 import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 
@@ -71,7 +73,7 @@ public class TriggerEvents extends ListenerAdapter {
 			triggerText = isCaseSensitive ? triggerText : triggerText.toLowerCase();
 			String messageContent = isCaseSensitive ? event.getMessage().getContentRaw() : event.getMessage().getContentRaw().toLowerCase();
 			if (messageContent.equals(triggerText)) {
-				event.getChannel().sendMessage(this.getTriggerText(event, triggerData.getString("response"))).queue();
+				event.getChannel().sendMessage(this.getTriggerText(event, triggerData.getString("response"))).allowedMentions(EnumSet.of(MentionType.USER, MentionType.ROLE)).queue();
 			}
 		}
 	}

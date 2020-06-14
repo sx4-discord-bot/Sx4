@@ -3,6 +3,7 @@ package com.sx4.bot.events;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -30,6 +31,7 @@ import com.sx4.bot.utils.GiveawayUtils;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
+import net.dv8tion.jda.api.entities.Message.MentionType;
 import net.dv8tion.jda.api.entities.MessageReaction;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.sharding.ShardManager;
@@ -96,7 +98,7 @@ public class GiveawayEvents {
 										winnerTags.add(winner.getUser().getAsTag());
 									}
 									
-									channel.sendMessage(String.join(", ", winnerMentions) + ", Congratulations you have won the giveaway for **" + data.getString("item") + "**").queue();
+									channel.sendMessage(String.join(", ", winnerMentions) + ", Congratulations you have won the giveaway for **" + data.getString("item") + "**").allowedMentions(EnumSet.of(MentionType.USER)).queue();
 									
 									EmbedBuilder embed = new EmbedBuilder();
 									embed.setTitle("Giveaway");
