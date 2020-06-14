@@ -15,6 +15,7 @@ import com.sx4.bot.core.Sx4Bot;
 import com.sx4.bot.interfaces.Sx4Callback;
 import com.sx4.bot.utils.TokenUtils;
 
+import net.dv8tion.jda.api.exceptions.HttpException;
 import okhttp3.Request;
 
 public class GoogleSearchCache {
@@ -68,12 +69,20 @@ public class GoogleSearchCache {
 					.build();
 			
 			Sx4Bot.client.newCall(request).enqueue((Sx4Callback) response -> {
-				if (response.code() == 403) {
-					data.accept(null, new ForbiddenException("Daily quota reached (100)"));
+				JSONObject json = new JSONObject(response.body().string());
+				if (json.has("error")) {
+					JSONObject error = json.getJSONObject("error");
+					
+					int code = error.getInt("code");
+					if (code == 429) {
+						data.accept(null, new ForbiddenException("Daily quota reached (100)"));
+					} else {
+						data.accept(null, new HttpException(error.optString("message", "Unknown error occured with status " + code)));
+					}
+					
 					return;
 				}
 				
-				JSONObject json = new JSONObject(response.body().string());
 				JSONArray results = json.optJSONArray("items");
 				
 				List<GoogleSearchResult> endResults = new ArrayList<>();
