@@ -1,5 +1,6 @@
 package com.sx4.bot.entities.economy.item;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -44,7 +45,7 @@ public class Crate extends Item {
 	}
 	
 	public List<ItemStack<?>> open() {
-		return List.of();
+		return Collections.emptyList();
 	}
 	
 }

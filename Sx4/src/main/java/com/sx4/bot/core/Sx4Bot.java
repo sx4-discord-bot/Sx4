@@ -45,7 +45,9 @@ import com.sx4.bot.config.Config;
 import com.sx4.bot.entities.argument.All;
 import com.sx4.bot.entities.argument.MessageArgument;
 import com.sx4.bot.entities.argument.Or;
+import com.sx4.bot.entities.argument.TimedArgument;
 import com.sx4.bot.entities.argument.UpdateType;
+import com.sx4.bot.entities.management.Filter;
 import com.sx4.bot.entities.mod.PartialEmote;
 import com.sx4.bot.entities.mod.Reason;
 import com.sx4.bot.entities.reminder.ReminderArgument;
@@ -143,6 +145,7 @@ public class Sx4Bot {
 			.registerResponse(ReminderArgument.class, "Invalid reminder format given, view `help reminder add` for more info " + config.getFailureEmote())
 			.registerResponse(PartialEmote.class, "I could not find that emote " + config.getFailureEmote())
 			.registerResponse(Guild.class, "I could not find that server " + config.getFailureEmote())
+			.registerResponse(Filter.class, "I could not find that filter " + config.getFailureEmote())
 			.registerResponse(UpdateType.class, (argument, message, content) -> {
 				List<UpdateType> updates = argument.getProperty("updates", List.class);
 				message.getChannel().sendMessage("Invalid update type given, update types you can use are `" + updates.stream().map(t -> t.name().toLowerCase()).collect(Collectors.joining("`, `")) + "` " + config.getFailureEmote()).queue();
@@ -200,6 +203,17 @@ public class Sx4Bot {
 					
 					builder.setProperty("updates", values);
 				}
+			}
+			
+			return builder;
+		}).addBuilderConfigureFunction(TimedArgument.class, (parameter, builder) -> {
+			Class<?> clazz = (Class<?>) ((ParameterizedType) parameter.getParameterizedType()).getActualTypeArguments()[0];
+			
+			builder.setProperty("class", clazz);
+			
+			List<?> builders = argumentFactory.getBuilderConfigureFunctions(clazz);
+			for (Object builderFunction : builders) {
+				builder = ((BuilderConfigureFunction) builderFunction).configure(parameter, builder);
 			}
 			
 			return builder;
@@ -308,13 +322,41 @@ public class Sx4Bot {
 				} else {
 					return new ParsedArgument<>();
 				}
+			}).registerParser(TimedArgument.class, (context, argument, content) -> {
+				Class<?> clazz = argument.getProperty("class", Class.class);
+				
+				ParsedArgument<?> parsedArgument;
+				if (clazz.isEnum()) {
+					parsedArgument = argumentFactory.getGenericParser(clazz).parse(context, (IArgument) argument, content);
+				} else {
+					parsedArgument = argumentFactory.getParser(clazz).parse(context, (IArgument) argument, content);
+				}
+				
+				if (!parsedArgument.isValid()) {
+					return new ParsedArgument<>();
+				}
+				
+				int lastIndex = content.lastIndexOf(' ');
+				if (lastIndex == -1) {
+					return new ParsedArgument<>(new TimedArgument<>(null, parsedArgument.getObject()));
+				}
+				
+				Duration duration = TimeUtility.getDurationFromString(content.substring(lastIndex));
+				
+				return new ParsedArgument<>(new TimedArgument<>(duration, parsedArgument.getObject()));
 			}).registerParser(All.class, (context, argument, content) -> {
 				if (content.equalsIgnoreCase("all")) {
 					return new ParsedArgument<>(new All<>(null));
 				} else {
 					Class<?> clazz = argument.getProperty("class", Class.class);
 					
-					ParsedArgument<?> parsedArgument = argumentFactory.getParser(clazz).parse(context, (IArgument) argument, content);
+					ParsedArgument<?> parsedArgument;
+					if (clazz.isEnum()) {
+						parsedArgument = argumentFactory.getGenericParser(clazz).parse(context, (IArgument) argument, content);
+					} else {
+						parsedArgument = argumentFactory.getParser(clazz).parse(context, (IArgument) argument, content);
+					}
+					
 					if (!parsedArgument.isValid()) {
 						return new ParsedArgument<>();
 					}
@@ -416,6 +458,11 @@ public class Sx4Bot {
 						return;
 					}
 				}
+				
+				MessageChannel channel = message.getChannel();
+				boolean embed = message.isFromGuild() ? message.getGuild().getSelfMember().hasPermission((TextChannel) channel, Permission.MESSAGE_EMBED_LINKS) : true;
+				
+				channel.sendMessage(HelpUtility.getHelpMessage(failures.get(0).getCommand(), embed)).queue();
 			});
 				
 		InterfacedEventManager eventManager = new InterfacedEventManager();

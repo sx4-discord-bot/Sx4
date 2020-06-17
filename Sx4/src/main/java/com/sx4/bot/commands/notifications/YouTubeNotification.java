@@ -111,7 +111,7 @@ public class YouTubeNotification extends Sx4Command {
 					}
 				});
 			} else {
-				List<Bson> update = List.of(Operators.set("youtube.notifications", Operators.cond(Operators.or(Operators.extinct("$youtube.notifications"), Operators.eq(Operators.filter("$youtube.notifications", Operators.and(Operators.eq("$$this.uploaderId", channelId), Operators.eq("$$this.channelId", channel.getIdLong()))), List.of())), Operators.cond(Operators.exists("$youtube.notifications"), Operators.concatArrays("$youtube.notifications", List.of(notificationData)), List.of(notificationData)), "$youtube.notifications")));
+				List<Bson> update = List.of(Operators.set("youtube.notifications", Operators.cond(Operators.or(Operators.extinct("$youtube.notifications"), Operators.eq(Operators.filter("$youtube.notifications", Operators.and(Operators.eq("$$this.uploaderId", channelId), Operators.eq("$$this.channelId", channel.getIdLong()))), Collections.EMPTY_LIST)), Operators.cond(Operators.exists("$youtube.notifications"), Operators.concatArrays("$youtube.notifications", List.of(notificationData)), List.of(notificationData)), "$youtube.notifications")));
 				this.database.updateGuildById(event.getGuild().getIdLong(), update).whenComplete((result, exception) -> {
 					if (ExceptionUtility.sendExceptionally(event, exception)) {
 						return;

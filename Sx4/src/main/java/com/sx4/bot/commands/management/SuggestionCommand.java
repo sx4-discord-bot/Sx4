@@ -191,7 +191,7 @@ public class SuggestionCommand extends Sx4Command {
 			
 			FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("suggestion.suggestions"));
 			
-			Bson filter = Operators.eq(Operators.filter("$suggestion.suggestions", Operators.and(Operators.eq("$$this.id", messageId), Operators.or(Operators.eq("$$this.authorId", event.getAuthor().getIdLong()), hasPermission))), List.of());
+			Bson filter = Operators.eq(Operators.filter("$suggestion.suggestions", Operators.and(Operators.eq("$$this.id", messageId), Operators.or(Operators.eq("$$this.authorId", event.getAuthor().getIdLong()), hasPermission))), Collections.EMPTY_LIST);
 			List<Bson> update = List.of(Operators.set("suggestion.suggestions", Operators.cond(filter, "$suggestion.suggestions", Operators.filter("$suggestion.suggestions", Operators.ne("$$this.id", messageId)))));
 			this.database.findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
@@ -320,7 +320,7 @@ public class SuggestionCommand extends Sx4Command {
 			
 			defaultStates.add(stateData);
 			
-			List<Bson> update = List.of(Operators.set("suggestion.states", Operators.cond(Operators.and(Operators.exists("$suggestion.states"), Operators.ne(Operators.filter("$suggestion.states", Operators.eq("$$this.dataName", dataName)), List.of())), "$suggestion.states", Operators.cond(Operators.extinct("$suggestion.states"), defaultStates, Operators.concatArrays("$suggestion.states", List.of(stateData))))));
+			List<Bson> update = List.of(Operators.set("suggestion.states", Operators.cond(Operators.and(Operators.exists("$suggestion.states"), Operators.ne(Operators.filter("$suggestion.states", Operators.eq("$$this.dataName", dataName)), Collections.EMPTY_LIST)), "$suggestion.states", Operators.cond(Operators.extinct("$suggestion.states"), defaultStates, Operators.concatArrays("$suggestion.states", List.of(stateData))))));
 			this.database.updateGuildById(event.getGuild().getIdLong(), update).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;

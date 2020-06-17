@@ -14,13 +14,30 @@ public class StringUtility {
 		return newString.toString();
 	}
 
-	public static String getFileExtension(String query) {
-		int periodIndex = query.lastIndexOf('.');
+	public static String getFileExtension(String string) {
+		int periodIndex = string.lastIndexOf('.');
 		if (periodIndex != -1) {
-			return query.substring(periodIndex + 1);
+			return string.substring(periodIndex + 1);
 		}
 		
 		return null;
+	}
+	
+	public static String substring(String string, int beginIndex, int endIndex) {
+		int length = string.length();
+		if (endIndex < 0) {
+			endIndex = length + endIndex;
+		}
+		
+		if (beginIndex < 0) {
+			beginIndex = length + beginIndex;
+		}
+		
+		return string.substring(beginIndex, Math.min(length, endIndex));
+	}
+	
+	public static String substring(String string, int beginIndex) {
+		return StringUtility.substring(string, beginIndex, string.length());
 	}
 	
 }

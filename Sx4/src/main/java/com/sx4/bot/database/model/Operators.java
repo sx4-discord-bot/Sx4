@@ -43,8 +43,12 @@ public class Operators {
 		return Operators.ne(key, new BsonUndefined());
 	}
 	
-	public static Bson filter(String key, Object expression) {
-		return new Document("$filter", new Document("input", key).append("cond", expression));
+	public static Bson filter(Object listExpression, Object expression) {
+		return new Document("$filter", new Document("input", listExpression).append("cond", expression));
+	}
+	
+	public static Bson map(Object listExpression, Object expression) {
+		return new Document("$map", new Document("input", listExpression).append("in", expression));
 	}
 	
 	public static Bson set(String key, Object expression) {
@@ -105,6 +109,10 @@ public class Operators {
 	
 	public static Bson last(Object expression) {
 		return Operators.arrayElemAt(expression, -1);
+	}
+	
+	public static Bson ifNull(Object expression, Object defaultExpression) {
+		return new Document("$ifNull", List.of(expression, defaultExpression));
 	}
 	
 }
