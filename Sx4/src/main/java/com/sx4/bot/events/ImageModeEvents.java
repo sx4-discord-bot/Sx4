@@ -3,6 +3,7 @@ package com.sx4.bot.events;
 import java.time.OffsetDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -18,6 +19,7 @@ import com.sx4.bot.utils.TimeUtils;
 
 import net.dv8tion.jda.api.entities.EmbedType;
 import net.dv8tion.jda.api.entities.Message.Attachment;
+import net.dv8tion.jda.api.entities.Message.MentionType;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
@@ -37,7 +39,7 @@ public class ImageModeEvents extends ListenerAdapter {
 				if (event.getMessage().getAttachments().isEmpty()) {
 					if (event.getMessage().getEmbeds().isEmpty()) {
 						event.getMessage().delete().queue(null, e -> {});
-						event.getChannel().sendMessage(event.getAuthor().getAsMention() + ", You can only send images in this channel :no_entry:").queue(message -> {
+						event.getChannel().sendMessage(event.getAuthor().getAsMention() + ", You can only send images in this channel :no_entry:").allowedMentions(EnumSet.of(MentionType.USER)).queue(message -> {
 							message.delete().queueAfter(10, TimeUnit.SECONDS, null, e -> {});
 						});
 						
@@ -62,7 +64,7 @@ public class ImageModeEvents extends ListenerAdapter {
 								break;
 							} else if (i == embeds.size() - 1) {
 								event.getMessage().delete().queue(null, e -> {});
-								event.getChannel().sendMessage(event.getAuthor().getAsMention() + ", You can only send images in this channel :no_entry:").queue(message -> {
+								event.getChannel().sendMessage(event.getAuthor().getAsMention() + ", You can only send images in this channel :no_entry:").allowedMentions(EnumSet.of(MentionType.USER)).queue(message -> {
 									message.delete().queueAfter(10, TimeUnit.SECONDS, null, e -> {});
 								});
 								
@@ -83,7 +85,7 @@ public class ImageModeEvents extends ListenerAdapter {
 							break;
 						} else if (i == attachments.size() - 1) {
 							event.getMessage().delete().queue(null, e -> {});
-							event.getChannel().sendMessage(event.getAuthor().getAsMention() + ", You can only send images in this channel :no_entry:").queue(message -> {
+							event.getChannel().sendMessage(event.getAuthor().getAsMention() + ", You can only send images in this channel :no_entry:").allowedMentions(EnumSet.of(MentionType.USER)).queue(message -> {
 								message.delete().queueAfter(10, TimeUnit.SECONDS, null, e -> {});
 							});
 							
@@ -101,7 +103,7 @@ public class ImageModeEvents extends ListenerAdapter {
 							if (timeCreated.toEpochSecond() - userData.getLong("timestamp") < slowmode) {
 								long timeTill = userData.getLong("timestamp") - timeCreated.toEpochSecond() + slowmode;
 								event.getMessage().delete().queue(null, e -> {});
-								event.getChannel().sendMessage(event.getAuthor().getAsMention() + ", You can send another image in " + TimeUtils.toTimeString(timeTill, ChronoUnit.SECONDS) + " :stopwatch:").queue(message -> {
+								event.getChannel().sendMessage(event.getAuthor().getAsMention() + ", You can send another image in " + TimeUtils.toTimeString(timeTill, ChronoUnit.SECONDS) + " :stopwatch:").allowedMentions(EnumSet.of(MentionType.USER)).queue(message -> {
 									message.delete().queueAfter(10, TimeUnit.SECONDS, null, e -> {});
 								});
 							} else {

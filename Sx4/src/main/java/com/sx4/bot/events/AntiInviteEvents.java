@@ -1,6 +1,7 @@
 package com.sx4.bot.events;
 
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -18,6 +19,7 @@ import com.sx4.bot.utils.ModUtils;
 
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Invite;
+import net.dv8tion.jda.api.entities.Message.MentionType;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.events.guild.member.GuildMemberJoinEvent;
 import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent;
@@ -69,7 +71,10 @@ public class AntiInviteEvents extends ListenerAdapter {
 				
 				event.getMessage().delete().queue();
 				if (action == null) {
-					event.getChannel().sendMessage(event.getAuthor().getAsMention() + ", You are not allowed to send invite links here :no_entry:").queue();
+					event.getChannel().sendMessage(event.getAuthor().getAsMention() + ", You are not allowed to send invite links here :no_entry:")
+						.allowedMentions(EnumSet.of(MentionType.USER))
+						.queue();
+					
 					return;
 				} else {
 					List<Document> users = data.getList("users", Document.class, Collections.emptyList());
@@ -159,7 +164,9 @@ public class AntiInviteEvents extends ListenerAdapter {
 							});
 						}
 					} else {
-						event.getChannel().sendMessage(String.format("%s, You are not allowed to send invite links here. If you continue you will receive a %s. **(%d/%d)** :no_entry:", event.getAuthor().getAsMention(), action, currentAttempts + 1, dataAttempts)).queue();
+						event.getChannel().sendMessage(String.format("%s, You are not allowed to send invite links here. If you continue you will receive a %s. **(%d/%d)** :no_entry:", event.getAuthor().getAsMention(), action, currentAttempts + 1, dataAttempts))
+							.allowedMentions(EnumSet.of(MentionType.USER))
+							.queue();
 						
 						Bson update = null;
 						List<Bson> arrayFilters = null;
@@ -227,7 +234,10 @@ public class AntiInviteEvents extends ListenerAdapter {
 				
 				event.getMessage().delete().queue();
 				if (action == null) {
-					event.getChannel().sendMessage(event.getAuthor().getAsMention() + ", You are not allowed to send invite links here :no_entry:").queue();
+					event.getChannel().sendMessage(event.getAuthor().getAsMention() + ", You are not allowed to send invite links here :no_entry:")
+						.allowedMentions(EnumSet.of(MentionType.USER))
+						.queue();
+					
 					return;
 				} else {
 					List<Document> users = data.getList("users", Document.class, Collections.emptyList());
@@ -317,7 +327,9 @@ public class AntiInviteEvents extends ListenerAdapter {
 							});
 						}
 					} else {
-						event.getChannel().sendMessage(String.format("%s, You are not allowed to send invite links here. If you continue you will receive a %s. **(%d/%d)** :no_entry:", event.getAuthor().getAsMention(), action, currentAttempts + 1, dataAttempts)).queue();
+						event.getChannel().sendMessage(String.format("%s, You are not allowed to send invite links here. If you continue you will receive a %s. **(%d/%d)** :no_entry:", event.getAuthor().getAsMention(), action, currentAttempts + 1, dataAttempts))
+							.allowedMentions(EnumSet.of(MentionType.USER))
+							.queue();
 						
 						Bson update = null;
 						List<Bson> arrayFilters = null;
