@@ -5,6 +5,7 @@ import java.time.OffsetDateTime;
 
 import com.sx4.bot.config.Config;
 import com.sx4.bot.core.Sx4Bot;
+import com.sx4.bot.managers.AutoRoleManager;
 import com.sx4.bot.managers.MuteManager;
 import com.sx4.bot.managers.ReminderManager;
 
@@ -60,6 +61,7 @@ public class ConnectionHandler extends ListenerAdapter {
 			YouTubeHandler.get().ensureWebhooks();
 			ReminderManager.get().ensureReminders();
 			MuteManager.get().ensureMutes();
+			AutoRoleManager.get().ensureAutoRoles();
 		}
 		
 		this.eventsWebhook.send(this.getEmbed(jda, "Ready", Config.get().getGreen()));

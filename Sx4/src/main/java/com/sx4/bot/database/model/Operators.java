@@ -63,6 +63,10 @@ public class Operators {
 		return new Document("$size", expression);
 	}
 	
+	public static Bson isEmpty(Object expression) {
+		return Operators.eq(Operators.size(expression), 0);
+	}
+	
 	public static Bson divide(Object expression, Object expression2) {
 		return new Document("$divide", List.of(expression, expression2));
 	}
@@ -85,6 +89,46 @@ public class Operators {
 	
 	public static Bson ceil(Object expression) {
 		return new Document("$ceil", expression);
+	}
+	
+	public static Bson mod(Object expression, Object expression2) {
+		return new Document("$mod", List.of(expression, expression2));
+	}
+	
+	public static Bson sum(Object listExpression) {
+		return new Document("$sum", listExpression);
+	}
+	
+	public static Bson sum(List<Object> objects) {
+		return new Document("$sum", objects);
+	}
+	
+	public static Bson range(Object start, Object end) {
+		return new Document("$range", List.of(start, end));
+	}
+	
+	public static Bson sigma(Object start, Object end, Object expression) {
+		return Operators.sum(Operators.map(Operators.range(start, Operators.add(end, 1)), expression));
+	}
+	
+	public static Bson pow(Object expression, Object powerExpression) {
+		return new Document("$pow", List.of(expression, powerExpression));
+	}
+	
+	public static Bson log(Object expression, Object baseExpression) {
+		return new Document("$log", List.of(expression, baseExpression));
+	}
+	
+	public static Bson toLong(Object expression) {
+		return new Document("$toLong", expression);
+	}
+	
+	private static Bson bitwiseOrUnchecked(Object x, Object y) {
+		return Operators.sigma(0, Operators.floor(Operators.log(x, 2)), Operators.multiply(Operators.pow(2, "$$this"), Operators.mod(Operators.add(Operators.mod(Operators.floor(Operators.divide(x, Operators.pow(2, "$$this"))), 2), Operators.mod(Operators.floor(Operators.divide(y, Operators.pow(2, "$$this"))), 2), Operators.multiply(Operators.mod(Operators.floor(Operators.divide(x, Operators.pow(2, "$$this"))), 2), Operators.mod(Operators.floor(Operators.divide(y, Operators.pow(2, "$$this"))), 2))), 2)));
+	}
+	
+	public static Bson bitwiseOr(Object x, Object y) {
+		return Operators.cond(Operators.lt(x, y), Operators.bitwiseOrUnchecked(y, x), Operators.bitwiseOrUnchecked(x, y));
 	}
 	
 	public static Bson lt(Object expression, Object expression2) {

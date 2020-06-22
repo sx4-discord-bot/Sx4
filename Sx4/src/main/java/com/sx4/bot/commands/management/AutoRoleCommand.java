@@ -197,7 +197,7 @@ public class AutoRoleCommand extends Sx4Command {
 			}
 			
 			List<Document> filters = roleData.getList("filters", Document.class, Collections.emptyList());
-			if (filters.stream().anyMatch(data -> data.containsKey(filter.getKey()))) {
+			if (filters.stream().anyMatch(data -> data.getString("key").equals(filter.getKey()))) {
 				event.reply("That auto role already has that filter or has a contradicting filter " + this.config.getFailureEmote()).queue();
 				return;
 			}
@@ -227,7 +227,7 @@ public class AutoRoleCommand extends Sx4Command {
 			boolean all = allArgument.isAll();
 			
 			UpdateOptions options = new UpdateOptions().arrayFilters(List.of(Filters.eq("role.id", role.getIdLong())));
-			Bson update = all ? Updates.unset("autoRole.roles.$[role].filters") : Updates.pull("autoRole.roles.$[role].filters", Filters.exists(allArgument.getValue().getKey()));
+			Bson update = all ? Updates.unset("autoRole.roles.$[role].filters") : Updates.pull("autoRole.roles.$[role].filters", Filters.eq("key", allArgument.getValue().getKey()));
 			this.database.updateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((result, exception) -> {
 				if (exception instanceof CompletionException) {
 					Throwable cause = ((CompletionException) exception).getCause();
