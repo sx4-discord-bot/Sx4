@@ -67,6 +67,7 @@ import com.sx4.bot.utility.ColourUtility;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.HelpUtility;
 import com.sx4.bot.utility.MentionUtility;
+import com.sx4.bot.utility.PermissionUtility;
 import com.sx4.bot.utility.SearchUtility;
 import com.sx4.bot.utility.StringUtility;
 import com.sx4.bot.utility.TimeUtility;
@@ -472,7 +473,10 @@ public class Sx4Bot {
 			.addPreExecuteCheck((event, command) -> {
 				Set<Permission> permissions = command.getAuthorDiscordPermissions();
 				
-				return CheckUtility.hasPermissions(event.getMember(), event.getTextChannel(), permissions.isEmpty() ? EnumSet.noneOf(Permission.class) : EnumSet.copyOf(permissions));
+				EnumSet<Permission> missingPermissions = CheckUtility.missingPermissions(event.getMember(), event.getTextChannel(), permissions.isEmpty() ? EnumSet.noneOf(Permission.class) : EnumSet.copyOf(permissions));
+				event.reply(PermissionUtility.formatMissingPermissions(missingPermissions)).queue();
+				
+				return missingPermissions.isEmpty();
 			});
 				
 		InterfacedEventManager eventManager = new InterfacedEventManager();

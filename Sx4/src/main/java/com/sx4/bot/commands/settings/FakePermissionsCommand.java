@@ -1,6 +1,9 @@
 package com.sx4.bot.commands.settings;
 
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.bson.Document;
 import org.bson.conversions.Bson;
@@ -8,6 +11,7 @@ import org.bson.conversions.Bson;
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
 import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.Updates;
 import com.sx4.bot.annotations.command.AuthorPermissions;
 import com.sx4.bot.annotations.command.Examples;
@@ -16,9 +20,12 @@ import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.model.Operators;
 import com.sx4.bot.entities.argument.All;
+import com.sx4.bot.entities.settings.HolderType;
+import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.waiter.Waiter;
 
+import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.IPermissionHolder;
 import net.dv8tion.jda.api.entities.Member;
@@ -140,6 +147,73 @@ public class FakePermissionsCommand extends Sx4Command {
 				event.reply((role ? ((Role) holder).getAsMention() : "**" + ((Member) holder).getUser().getAsTag() + "**") + " no longer has any fake permissions " + this.config.getSuccessEmote()).queue();
 			});
 		}
+	}
+	
+	@Command(value="stats", description="Lists the permissions a role or user has")
+	@Examples({"fake permissions stats @Shea#6653", "fake permissions stats @Mods"})
+	public void stats(Sx4CommandEvent event, @Argument(value="user | role", endless=true) IPermissionHolder holder) {
+		boolean role = holder instanceof Role;
+		
+		List<Document> holders = this.database.getGuildById(event.getGuild().getIdLong(), Projections.include("fakePermissions.holders")).getEmbedded(List.of("fakePermissions", "holders"), Collections.emptyList());
+		long permissionsRaw = holders.stream()
+			.filter(data -> data.get("id", 0L) == holder.getIdLong())
+			.map(data -> data.get("permissions", 0L))
+			.findFirst()
+			.orElse(0L);
+		
+		if (permissionsRaw == 0L) {
+			event.reply("That " + (role ? "role" : "user") + " doesn't have any fake permissions " + this.config.getFailureEmote()).queue();
+			return;
+		}
+		
+		EmbedBuilder embed = new EmbedBuilder()
+			.setDescription(Permission.getPermissions(permissionsRaw).stream().map(Permission::getName).collect(Collectors.joining("\n")))
+			.setAuthor((role ? ((Role) holder).getName() : ((Member) holder).getEffectiveName()) + "'s Fake Permissions", null, role ? event.getGuild().getIconUrl() : ((Member) holder).getUser().getEffectiveAvatarUrl());
+		
+		event.reply(embed.build()).queue();
+	}
+	
+	@Command(value="in permission", aliases={"inpermission", "inperm", "in perm", "in"}, description="Lists all roles and users in a certain permissions")
+	@Examples({"fake permissions in permission message_manage", "fake permissions in permission kick_members ban_members"})
+	public void inPermission(Sx4CommandEvent event, @Argument(value="permissions") Permission... permissions) {
+		long permissionsRaw = Permission.getRaw(permissions);
+		
+		List<Document> allHolders = this.database.getGuildById(event.getGuild().getIdLong(), Projections.include("fakePermissions.holders")).getEmbedded(List.of("fakePermissions", "holders"), Collections.emptyList());
+		
+		List<Document> holders = allHolders.stream()
+			.sorted((a, b) -> Integer.compare(a.get("type", 0), b.get("type", 0)))
+			.filter(data -> (data.get("permissions", 0L) & permissionsRaw) == permissionsRaw)
+			.collect(Collectors.toList());
+		
+		PagedResult<Document> paged = new PagedResult<>(holders)
+			.setAuthor("Roles & Users", null, event.getGuild().getIconUrl())
+			.setPerPage(15)
+			.setIndexed(false)
+			.setDisplayFunction(data -> {
+				int type = data.get("type", 0);
+				
+				Member member = null;
+				Role role = null;
+				if (type == HolderType.USER.getType()) {
+					member = event.getGuild().getMemberById(data.get("id", 0L));
+				} else {
+					role = event.getGuild().getRoleById(data.get("id", 0L));
+				}
+				
+				return member == null ? role.getAsMention() : member.getUser().getAsTag();
+			});
+		
+		paged.execute(event);
+	}
+	
+	@Command(value="list", description="Lists all permissions you can use as arguments")
+	@Examples({"fake permissions list"})
+	public void list(Sx4CommandEvent event) {
+		EmbedBuilder embed = new EmbedBuilder()
+			.setDescription(Arrays.stream(Permission.values()).filter(permission -> permission != Permission.UNKNOWN).map(Permission::name).collect(Collectors.joining("\n")))
+			.setAuthor("Fake Permissions", null, event.getGuild().getIconUrl());
+		
+		event.reply(embed.build()).queue();
 	}
 	
 }

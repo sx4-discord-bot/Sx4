@@ -123,6 +123,14 @@ public class Operators {
 		return new Document("$toLong", expression);
 	}
 	
+	private static Bson bitwiseXorUnchecked(Object x, Object y) {
+		return Operators.abs(Operators.sigma(0, Operators.floor(Operators.log("x", 2)), Operators.multiply(Operators.pow(2, "$$this"), Operators.mod(Operators.add(Operators.floor(Operators.divide(x, Operators.pow(2, "$$this"))), Operators.floor(Operators.divide(y, Operators.pow(2, "$$this")))), 2))));
+	}
+	
+	public static Bson bitwiseXor(Object x, Object y) {
+		return Operators.cond(Operators.lt(x, y), Operators.bitwiseXorUnchecked(y, x), Operators.bitwiseXorUnchecked(x, y));
+	}
+	
 	public static Bson bitwiseNot(Object x) {
 		return Operators.subtract(Operators.multiply(x, -1), 1);
 	}
