@@ -361,8 +361,6 @@ public class EventHandler extends ListenerAdapter {
 			/* Tell the thread that it is time to stop blocking */
 			queue.offer(EMPTY_REQUEST);
 		}
-		
-		this.queue.remove(event.getGuild().getIdLong());
 	}
 	
 	public void onGuildMemberJoin(GuildMemberJoinEvent event) {
