@@ -11,6 +11,7 @@ import java.util.Collections;
 import java.util.EnumSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Set;
 import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
@@ -61,6 +62,7 @@ import com.sx4.bot.managers.PatreonManager;
 import com.sx4.bot.managers.YouTubeManager;
 import com.sx4.bot.message.cache.GuildMessageCache;
 import com.sx4.bot.paged.PagedHandler;
+import com.sx4.bot.utility.CheckUtility;
 import com.sx4.bot.utility.ColourUtility;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.HelpUtility;
@@ -414,6 +416,7 @@ public class Sx4Bot {
 			.setErrorManager(errorManager)
 			.setCommandEventFactory(new Sx4CommandEventFactory())
 			.setDefaultPrefixes("!")
+			.removeDefaultPreExecuteChecks()
 			.setHelpFunction((message, prefix, commands) -> {
 				MessageChannel channel = message.getChannel();
 				boolean embed = message.isFromGuild() ? message.getGuild().getSelfMember().hasPermission((TextChannel) channel, Permission.MESSAGE_EMBED_LINKS) : true;
@@ -463,6 +466,13 @@ public class Sx4Bot {
 				boolean embed = message.isFromGuild() ? message.getGuild().getSelfMember().hasPermission((TextChannel) channel, Permission.MESSAGE_EMBED_LINKS) : true;
 				
 				channel.sendMessage(HelpUtility.getHelpMessage(failures.get(0).getCommand(), embed)).queue();
+			});
+		
+		Sx4Bot.commandListener.addPreExecuteCheck(Sx4Bot.commandListener.defaultBotPermissionCheck)
+			.addPreExecuteCheck((event, command) -> {
+				Set<Permission> permissions = command.getAuthorDiscordPermissions();
+				
+				return CheckUtility.hasPermissions(event.getMember(), event.getTextChannel(), permissions.isEmpty() ? EnumSet.noneOf(Permission.class) : EnumSet.copyOf(permissions));
 			});
 				
 		InterfacedEventManager eventManager = new InterfacedEventManager();

@@ -28,6 +28,7 @@ import com.sx4.bot.database.model.Operators;
 import com.sx4.bot.entities.argument.All;
 import com.sx4.bot.entities.argument.MessageArgument;
 import com.sx4.bot.entities.management.State;
+import com.sx4.bot.utility.CheckUtility;
 import com.sx4.bot.utility.ColourUtility;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.waiter.Waiter;
@@ -156,8 +157,7 @@ public class SuggestionCommand extends Sx4Command {
 	@Examples({"suggestion remove 717843290837483611", "suggestion remove all"})
 	public void remove(Sx4CommandEvent event, @Argument(value="message id") All<MessageArgument> allArgument) {
 		if (allArgument.isAll()) {
-			// TODO: Use a method which includes fake permissions in the future
-			if (!event.getMember().hasPermission(Permission.MANAGE_SERVER)) {
+			if (CheckUtility.hasPermissions(event.getMember(), event.getTextChannel(), Permission.MANAGE_SERVER)) {
 				event.reply("You are missing the permission " + Permission.MANAGE_SERVER.getName() + " to execute this, you can remove your own suggestions only " + this.config.getFailureEmote()).queue();
 				return;
 			}
@@ -186,8 +186,7 @@ public class SuggestionCommand extends Sx4Command {
 			});
 		} else {
 			long messageId = allArgument.getValue().getMessageId();
-			// TODO: Use a method which includes fake permissions in the future
-			boolean hasPermission = event.getMember().hasPermission(Permission.MANAGE_SERVER);
+			boolean hasPermission = CheckUtility.hasPermissions(event.getMember(), event.getTextChannel(), Permission.MANAGE_SERVER);
 			
 			FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("suggestion.suggestions"));
 			

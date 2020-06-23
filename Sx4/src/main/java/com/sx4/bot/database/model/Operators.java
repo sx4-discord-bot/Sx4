@@ -123,8 +123,20 @@ public class Operators {
 		return new Document("$toLong", expression);
 	}
 	
+	public static Bson bitwiseNot(Object x) {
+		return Operators.subtract(Operators.multiply(x, -1), 1);
+	}
+	
+	private static Bson bitwiseAndUnchecked(Object x, Object y) {
+		return Operators.abs(Operators.sigma(0, Operators.floor(Operators.log(x, 2)), Operators.multiply(Operators.pow(2, "$$this"), Operators.mod(Operators.floor(Operators.divide(x, Operators.pow(2, "$$this"))), 2), Operators.mod(Operators.floor(Operators.divide(y, Operators.pow(2, "$$this"))), 2))));
+	}
+	
+	public static Bson bitwiseAnd(Object x, Object y) {
+		return Operators.cond(Operators.lt(x, y), Operators.bitwiseAndUnchecked(y, x), Operators.bitwiseAndUnchecked(x, y));
+	}
+	
 	private static Bson bitwiseOrUnchecked(Object x, Object y) {
-		return Operators.sigma(0, Operators.floor(Operators.log(x, 2)), Operators.multiply(Operators.pow(2, "$$this"), Operators.mod(Operators.add(Operators.mod(Operators.floor(Operators.divide(x, Operators.pow(2, "$$this"))), 2), Operators.mod(Operators.floor(Operators.divide(y, Operators.pow(2, "$$this"))), 2), Operators.multiply(Operators.mod(Operators.floor(Operators.divide(x, Operators.pow(2, "$$this"))), 2), Operators.mod(Operators.floor(Operators.divide(y, Operators.pow(2, "$$this"))), 2))), 2)));
+		return Operators.abs(Operators.sigma(0, Operators.floor(Operators.log(x, 2)), Operators.multiply(Operators.pow(2, "$$this"), Operators.mod(Operators.add(Operators.mod(Operators.floor(Operators.divide(x, Operators.pow(2, "$$this"))), 2), Operators.mod(Operators.floor(Operators.divide(y, Operators.pow(2, "$$this"))), 2), Operators.multiply(Operators.mod(Operators.floor(Operators.divide(x, Operators.pow(2, "$$this"))), 2), Operators.mod(Operators.floor(Operators.divide(y, Operators.pow(2, "$$this"))), 2))), 2))));
 	}
 	
 	public static Bson bitwiseOr(Object x, Object y) {
