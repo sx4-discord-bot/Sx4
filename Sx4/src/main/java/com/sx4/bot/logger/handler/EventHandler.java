@@ -233,6 +233,20 @@ public class EventHandler extends ListenerAdapter {
 		
 		TextChannel channel = guild.getTextChannelById(data.getLong("channelId"));
 		if (channel == null) {
+			BlockingDeque<Request> queue = this.queue.remove(guild.getIdLong());
+			if(queue != null) {
+				queue.clear();
+				
+				/* Tell the thread that it is time to stop blocking */
+				queue.offer(EMPTY_REQUEST);
+			}
+			
+			Database.get().updateGuildById(guild.getIdLong(), Updates.unset("logger.channelId"), (result, exception) -> {
+				if (exception != null) {
+					exception.printStackTrace();
+				}
+			});
+			
 			return;
 		}
 		
@@ -340,7 +354,7 @@ public class EventHandler extends ListenerAdapter {
 	}
 	
 	public void onGuildLeave(GuildLeaveEvent event) {
-		BlockingDeque<Request> queue = this.queue.get(event.getGuild().getIdLong());
+		BlockingDeque<Request> queue = this.queue.remove(event.getGuild().getIdLong());
 		if(queue != null) {
 			queue.clear();
 			
