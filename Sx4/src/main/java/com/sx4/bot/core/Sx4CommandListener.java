@@ -1,7 +1,11 @@
 package com.sx4.bot.core;
 
+import org.bson.Document;
+
 import com.jockie.bot.core.command.impl.CommandListener;
+import com.mongodb.client.model.Filters;
 import com.sx4.bot.cache.GuildMessageCache;
+import com.sx4.bot.database.Database;
 
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.events.GenericEvent;
@@ -20,7 +24,8 @@ public class Sx4CommandListener extends CommandListener {
 				return;
 			}
 			
-			if ((oldMessage.isPinned() && !editedMessage.isPinned()) || (!oldMessage.isPinned() && editedMessage.isPinned())) {
+			Document data = Database.get().getCommandLogs().find(Filters.eq("messageId", editedMessage.getIdLong())).first();
+			if (data != null && ((editedMessage.isPinned() && !data.getBoolean("pinned")) || (!editedMessage.isPinned() && data.getBoolean("pinned")))) {
 				return;
 			}
 			

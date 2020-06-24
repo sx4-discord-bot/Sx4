@@ -213,7 +213,6 @@ public class Sx4Bot {
 		eventManager.register(Sx4Bot.eventHandler);
 
 		eventManager.register(new ChangesMessageCache());
-		eventManager.register(GuildMessageCache.INSTANCE);
 
 		eventManager.register(new StarboardEvents());
 		eventManager.register(new SelfroleEvents());
@@ -232,6 +231,7 @@ public class Sx4Bot {
 		eventManager.register(new NotificationEvents());	
 
 		eventManager.register(new ExceptionHandler());
+		eventManager.register(GuildMessageCache.INSTANCE);
 			
 		bot = DefaultShardManagerBuilder.create(Settings.BOT_OAUTH, EnumSet.allOf(GatewayIntent.class))
 				.setMemberCachePolicy(MemberCachePolicy.ALL)

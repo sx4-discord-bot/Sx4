@@ -93,6 +93,7 @@ public class Database {
 		this.modLogs.createIndex(Indexes.descending("id"));
 		
 		this.commandLogs = this.database.getCollection("commandLogs");
+		this.commandLogs.createIndex(Indexes.descending("messageId"));
 		this.commandLogs.createIndex(Indexes.descending("guildId"));
 		this.commandLogs.createIndex(Indexes.descending("authorId"));
 		this.commandLogs.createIndex(Indexes.descending("command"));

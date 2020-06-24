@@ -10,6 +10,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import org.bson.Document;
+import org.bson.types.ObjectId;
 
 import com.jockie.bot.core.command.ICommand;
 import com.jockie.bot.core.command.impl.CommandEvent;
@@ -135,7 +136,8 @@ public class Sx4CommandEventListener extends CommandEventListener {
 			this.commandStore.add(embed.build());
 		}
 		
-		Document commandData = new Document("_id", event.getMessage().getIdLong())
+		Document commandData = new Document("_id", ObjectId.get())
+				.append("messageId", event.getMessage().getIdLong())
 				.append("content", event.getMessage().getContentRaw())
 				.append("command", command.getCommandTrigger())
 				.append("module", command.getCategory() == null ? null : command.getCategory().getName())
@@ -146,6 +148,7 @@ public class Sx4CommandEventListener extends CommandEventListener {
 				.append("arguments", Arrays.asList(event.getRawArguments()))
 				.append("prefix", event.getPrefix())
 				.append("attachments", attachments)
+				.append("pinned", event.getMessage().isPinned())
 				.append("shard", event.getJDA().getShardInfo().getShardId())
 				.append("executionDuration", event.getTimeSinceStarted())
 				.append("timestamp", Clock.systemUTC().instant().getEpochSecond());
