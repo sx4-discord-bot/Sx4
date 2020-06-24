@@ -99,10 +99,6 @@ public class Operators {
 		return new Document("$sum", listExpression);
 	}
 	
-	public static Bson sum(List<Object> objects) {
-		return new Document("$sum", objects);
-	}
-	
 	public static Bson range(Object start, Object end) {
 		return new Document("$range", List.of(start, end));
 	}
