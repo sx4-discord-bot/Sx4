@@ -641,7 +641,7 @@ public class EconomyModule {
 											return;
 										}
 										
-										totalAuthorWorth += !itemStack.getItem().isBuyable() ? 0 : itemStack.getItem().getPrice();
+										totalAuthorWorth += !itemStack.getItem().isBuyable() ? 0 : itemStack.getItem().getPrice() * itemStack.getAmount();
 										
 										EconomyUtils.removeItem(authorItemsData, itemStack);
 										EconomyUtils.addItem(userItemsData, itemStack);
@@ -654,7 +654,7 @@ public class EconomyModule {
 											return;
 										}
 										
-										totalUserWorth += !itemStack.getItem().isBuyable() ? 0 : itemStack.getItem().getPrice();
+										totalUserWorth += !itemStack.getItem().isBuyable() ? 0 : itemStack.getItem().getPrice() * itemStack.getAmount();
 										
 										EconomyUtils.addItem(authorItemsData, itemStack);
 										EconomyUtils.removeItem(userItemsData, itemStack);
