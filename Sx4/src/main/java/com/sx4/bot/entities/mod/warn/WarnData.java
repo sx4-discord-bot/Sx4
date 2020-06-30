@@ -113,7 +113,7 @@ public class WarnData {
 		Action action = config.getAction();
 		switch (action.getModAction()) {
 			case WARN:
-				database.updateGuildById(this.getUpdate(guild.getIdLong(), target.getIdLong(), config.getNumber())).whenComplete((result, exception) -> {
+				database.updateGuild(this.getUpdate(guild.getIdLong(), target.getIdLong(), config.getNumber())).whenComplete((result, exception) -> {
 					if (exception != null) {
 						consumer.accept(null, exception);
 					} else {
@@ -189,7 +189,7 @@ public class WarnData {
 				if (!guild.getSelfMember().canInteract(target)) consumer.accept(null, new BotHierarchyException("I cannot kick a user higher or equal than my top role"));
 				if (!moderator.hasPermission(Permission.KICK_MEMBERS)) consumer.accept(null, new AuthorPermissionException(Permission.KICK_MEMBERS));
 					
-				database.updateGuildById(this.getUpdate(guild.getIdLong(), target.getIdLong(), config.getNumber())).whenComplete((result, exception) -> {
+				database.updateGuild(this.getUpdate(guild.getIdLong(), target.getIdLong(), config.getNumber())).whenComplete((result, exception) -> {
 					if (exception != null) {
 						consumer.accept(null, exception);
 					} else {
@@ -235,7 +235,7 @@ public class WarnData {
 				if (!moderator.hasPermission(Permission.BAN_MEMBERS)) consumer.accept(null, new AuthorPermissionException(Permission.BAN_MEMBERS));
 						
 					
-				database.updateGuildById(this.getUpdate(guild.getIdLong(), target.getIdLong(), config.getNumber())).whenComplete((result, exception) -> {
+				database.updateGuild(this.getUpdate(guild.getIdLong(), target.getIdLong(), config.getNumber())).whenComplete((result, exception) -> {
 					if (exception != null) {
 						consumer.accept(null, exception);
 					} else {

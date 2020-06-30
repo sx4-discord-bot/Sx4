@@ -140,7 +140,7 @@ public class MuteManager {
 	public void removeMute(long guildId, long userId, long roleId) {
 		UpdateOneModel<Document> model = this.removeMuteAndGet(guildId, userId, roleId);
 		if (model != null) {
-			Database.get().updateGuildById(model).whenComplete((result, exception) -> ExceptionUtility.sendErrorMessage(exception));
+			Database.get().updateGuild(model).whenComplete((result, exception) -> ExceptionUtility.sendErrorMessage(exception));
 		}
 	}
 	

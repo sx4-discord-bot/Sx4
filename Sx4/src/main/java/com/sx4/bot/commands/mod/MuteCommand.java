@@ -62,7 +62,7 @@ public class MuteCommand extends Sx4Command {
 				
 				long seconds = time == null ? data.getDefaultTime() : time.toSeconds();
 				
-				this.database.updateGuildById(data.getUpdate(member, seconds, extend)).whenComplete((result, writeException) -> {
+				this.database.updateGuild(data.getUpdate(member, seconds, extend)).whenComplete((result, writeException) -> {
 					if (ExceptionUtility.sendExceptionally(event, writeException)) {
 						return;
 					}

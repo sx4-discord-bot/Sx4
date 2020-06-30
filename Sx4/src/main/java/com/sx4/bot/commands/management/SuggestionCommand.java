@@ -164,13 +164,14 @@ public class SuggestionCommand extends Sx4Command {
 			
 			event.reply(event.getAuthor().getName() + ", are you sure you want to delete **all** the suggestions in this server? (Yes or No)").queue(queryMessage -> {
 				Waiter<GuildMessageReceivedEvent> waiter = new Waiter<>(GuildMessageReceivedEvent.class)
-					.setPredicate(messageEvent -> messageEvent.getAuthor().getIdLong() == event.getAuthor().getIdLong() && messageEvent.getChannel().getIdLong() == event.getChannel().getIdLong() && messageEvent.getMessage().getContentRaw().equalsIgnoreCase("yes"))
-					.setCancelPredicate(messageEvent -> messageEvent.getAuthor().getIdLong() == event.getAuthor().getIdLong() && messageEvent.getChannel().getIdLong() == event.getChannel().getIdLong() && !messageEvent.getMessage().getContentRaw().equalsIgnoreCase("yes"))
-					.setTimeout(30);
+					.setPredicate(messageEvent -> messageEvent.getMessage().getContentRaw().equalsIgnoreCase("yes"))
+					.setOppositeCancelPredicate()
+					.setTimeout(30)
+					.setUnique(event.getAuthor().getIdLong(), event.getChannel().getIdLong());
 				
 				waiter.onTimeout(() -> event.reply("Response timed out :stopwatch:").queue());
 				
-				waiter.onCancelled(() -> event.reply("Cancelled " + this.config.getSuccessEmote()).queue());
+				waiter.onCancelled(type -> event.reply("Cancelled " + this.config.getSuccessEmote()).queue());
 				
 				waiter.future()
 					.thenCompose(messageEvent -> this.database.updateGuildById(event.getGuild().getIdLong(), Updates.unset("suggestion.suggestions")))

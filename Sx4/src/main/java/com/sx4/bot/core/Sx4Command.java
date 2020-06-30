@@ -20,6 +20,7 @@ import com.sx4.bot.annotations.command.Examples;
 import com.sx4.bot.annotations.command.Redirects;
 import com.sx4.bot.config.Config;
 import com.sx4.bot.database.Database;
+import com.sx4.bot.managers.GiveawayManager;
 import com.sx4.bot.managers.ModActionManager;
 import com.sx4.bot.managers.MuteManager;
 import com.sx4.bot.managers.ReminderManager;
@@ -37,6 +38,7 @@ public class Sx4Command extends CommandImpl {
 	public final MuteManager muteManager = MuteManager.get();
 	public final TempBanManager banManager = TempBanManager.get();
 	public final ReminderManager reminderManager = ReminderManager.get();
+	public final GiveawayManager giveawayManager = GiveawayManager.get();
 	
 	public final OkHttpClient client = Sx4Bot.getClient();
 	

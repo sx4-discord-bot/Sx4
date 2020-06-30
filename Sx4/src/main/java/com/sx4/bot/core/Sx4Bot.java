@@ -474,7 +474,9 @@ public class Sx4Bot {
 				Set<Permission> permissions = command.getAuthorDiscordPermissions();
 				
 				EnumSet<Permission> missingPermissions = CheckUtility.missingPermissions(event.getMember(), event.getTextChannel(), permissions.isEmpty() ? EnumSet.noneOf(Permission.class) : EnumSet.copyOf(permissions));
-				event.reply(PermissionUtility.formatMissingPermissions(missingPermissions)).queue();
+				if (!missingPermissions.isEmpty()) {
+					event.reply(PermissionUtility.formatMissingPermissions(missingPermissions)).queue();
+				}
 				
 				return missingPermissions.isEmpty();
 			});

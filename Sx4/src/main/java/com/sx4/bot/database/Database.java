@@ -55,6 +55,8 @@ public class Database {
 	private final MongoCollection<Document> guilds;
 	private final MongoCollection<Document> users;
 	
+	private final MongoCollection<Document> giveaways;
+	
 	private final MongoCollection<Document> patrons;
 	
 	private final MongoCollection<Document> auction;
@@ -80,6 +82,11 @@ public class Database {
 		
 		this.users = this.database.getCollection("users");
 		this.guilds = this.database.getCollection("guilds");
+		
+		this.giveaways = this.database.getCollection("giveaways");
+		this.giveaways.createIndex(Indexes.descending("guildId"));
+		this.giveaways.createIndex(Indexes.descending("channelId"));
+		this.giveaways.createIndex(Indexes.descending("winners"));
 		
 		this.patrons = this.database.getCollection("patrons");
 		this.patrons.createIndex(Indexes.descending("discordId"));
@@ -290,7 +297,7 @@ public class Database {
 		return this.updateUserById(userId, update, this.updateOptions);
 	}
 	
-	public CompletableFuture<UpdateResult> updateUserById(UpdateOneModel<Document> update) {
+	public CompletableFuture<UpdateResult> updateUser(UpdateOneModel<Document> update) {
 		return CompletableFuture.supplyAsync(() -> this.users.updateOne(update.getFilter(), update.getUpdate(), update.getOptions()));
 	}
 	
@@ -406,7 +413,7 @@ public class Database {
 		return this.updateGuildById(guildId, update, this.updateOptions);
 	}
 	
-	public CompletableFuture<UpdateResult> updateGuildById(UpdateOneModel<Document> model) {
+	public CompletableFuture<UpdateResult> updateGuild(UpdateOneModel<Document> model) {
 		return CompletableFuture.supplyAsync(() -> this.guilds.updateOne(model.getFilter(), model.getUpdate(), model.getOptions()));
 	}
 	
@@ -458,6 +465,50 @@ public class Database {
 	
 	public CompletableFuture<BulkWriteResult> bulkWriteGuilds(List<? extends WriteModel<? extends Document>> bulkData) {
 		return CompletableFuture.supplyAsync(() -> this.guilds.bulkWrite(bulkData));
+	}
+	
+	public MongoCollection<Document> getGiveaways() {
+		return this.giveaways;
+	}
+	
+	public FindIterable<Document> getGiveaways(Bson filter) {
+		return this.giveaways.find(filter);
+	}
+	
+	public Document getGiveawayById(long messageId) {
+		return this.giveaways.find(Filters.eq("_id", messageId)).first();
+	}
+	
+	public CompletableFuture<InsertOneResult> insertGiveaway(Document data) {
+		return CompletableFuture.supplyAsync(() -> this.giveaways.insertOne(data));
+	}
+	
+	public CompletableFuture<UpdateResult> updateGiveaway(UpdateOneModel<Document> model) {
+		return CompletableFuture.supplyAsync(() -> this.giveaways.updateOne(model.getFilter(), model.getUpdate(), model.getOptions()));
+	}
+	
+	public CompletableFuture<UpdateResult> updateGiveawayById(long messageId, Bson update) {
+		return CompletableFuture.supplyAsync(() -> this.giveaways.updateOne(Filters.eq("_id", messageId), update));
+	}
+	
+	public CompletableFuture<UpdateResult> updateGiveawayById(long messageId, List<? extends Bson> update) {
+		return CompletableFuture.supplyAsync(() -> this.giveaways.updateOne(Filters.eq("_id", messageId), update));
+	}
+	
+	public CompletableFuture<Document> findAndUpdateGiveawayById(long messageId, List<? extends Bson> update, FindOneAndUpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.giveaways.findOneAndUpdate(Filters.eq("_id", messageId), update, options));
+	}
+	
+	public CompletableFuture<DeleteResult> deleteGiveawayById(long messageId) {
+		return CompletableFuture.supplyAsync(() -> this.giveaways.deleteOne(Filters.eq("_id", messageId)));
+	}
+	
+	public CompletableFuture<DeleteResult> deleteManyGiveaways(Bson filter) {
+		return CompletableFuture.supplyAsync(() -> this.giveaways.deleteMany(filter));
+	}
+	
+	public CompletableFuture<BulkWriteResult> bulkWriteGiveaways(List<? extends WriteModel<? extends Document>> bulkData) {
+		return CompletableFuture.supplyAsync(() -> this.giveaways.bulkWrite(bulkData));
 	}
 	
 	public MongoCollection<Document> getAuction() {

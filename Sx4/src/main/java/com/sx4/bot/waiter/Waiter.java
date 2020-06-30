@@ -6,16 +6,36 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 import net.dv8tion.jda.api.events.GenericEvent;
+import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent;
 
 public class Waiter<Type extends GenericEvent> {
 	
+	public enum CancelType {
+		USER("Cancelled due to user input"),
+		UNIQUE("Cancelled due to a new user waiter being created");
+		
+		private final String reason;
+		
+		private CancelType(String reason) {
+			this.reason = reason;
+		}
+		
+		public String getReason() {
+			return this.reason;
+		}
+		
+	}
+	
 	private final WaiterManager manager = WaiterManager.get();
 
+	private long authorId = 0L;
+	private long channelId = 0L;
+	
 	private long timeout = 0L;
 	
 	private final Class<Type> event;
 	
-	private Runnable onCancelled = null;
+	private Consumer<CancelType> onCancelled = null;
 	private Runnable onTimeout = null;
 	private CompletableFuture<Type> future = new CompletableFuture<>();
 	
@@ -30,11 +50,34 @@ public class Waiter<Type extends GenericEvent> {
 		return this.event;
 	}
 	
-	public Runnable getCancelRunnable() {
+	public Waiter<Type> setUnique(long authorId, long channelId) {
+		if (this.event != GuildMessageReceivedEvent.class) {
+			throw new IllegalArgumentException("Unique waiters currently only support GuildMessageReceivedEvent");
+		}
+		
+		this.authorId = authorId;
+		this.channelId = channelId;
+		
+		return this;
+	}
+	
+	public boolean isUnique() {
+		return this.authorId != 0L && this.channelId != 0L;
+	}
+	
+	public long getChannelId() {
+		return this.channelId;
+	}
+	
+	public long getAuthorId() {
+		return this.authorId;
+	}
+	
+	public Consumer<CancelType> getCancelRunnable() {
 		return this.onCancelled;
 	}
 	
-	public void onCancelled(Runnable onCancelled) {
+	public void onCancelled(Consumer<CancelType> onCancelled) {
 		this.onCancelled = onCancelled;
 	}
 	
@@ -71,6 +114,12 @@ public class Waiter<Type extends GenericEvent> {
 		return this;
 	}
 	
+	public Waiter<Type> setOppositeCancelPredicate() {
+		this.cancelPredicate = Predicate.not(this.predicate);
+		
+		return this;
+	}
+	
 	@SuppressWarnings("unchecked")
 	public boolean testPredicate(GenericEvent event) {
 		return this.predicate.test((Type) event);
@@ -97,9 +146,9 @@ public class Waiter<Type extends GenericEvent> {
 		this.delete();
 	}
 	
-	public void cancel() {
+	public void cancel(CancelType type) {
 		if (this.onCancelled != null) {
-			this.onCancelled.run();
+			this.onCancelled.accept(type);
 		}
 		
 		this.delete();

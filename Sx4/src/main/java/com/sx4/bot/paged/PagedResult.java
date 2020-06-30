@@ -10,7 +10,6 @@ import java.util.function.Function;
 
 import com.jockie.bot.core.command.impl.CommandEvent;
 import com.sx4.bot.core.Sx4Bot;
-import com.sx4.bot.utility.MentionUtility;
 
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.MessageBuilder;
@@ -21,7 +20,6 @@ import net.dv8tion.jda.api.entities.MessageChannel;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.entities.User;
-import net.dv8tion.jda.api.entities.Message.MentionType;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.requests.ErrorResponse;
 
@@ -414,7 +412,7 @@ public class PagedResult<Type> {
 				StringBuilder string = new StringBuilder();
 				string.append("Page **" + this.page + "/" + maxPage + "**\n\n");
 				
-				for (int i = this.page * this.perPage - this.perPage; i < (this.page == maxPage ? this.list.size() : this.page * this.perPage); i++) {
+				for (int i = this.page * (this.perPage - 1); i < (this.page == maxPage ? this.list.size() : this.page * this.perPage); i++) {
 					string.append((this.increasedIndex ? this.indexFunction.apply(i + 1) : (indexed == true ? (this.indexFunction.apply(i + 1 - ((this.page - 1) * this.perPage))) : "")) + this.displayFunction.apply(this.list.get(i)) + "\n");
 				}
 				

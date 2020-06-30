@@ -8,9 +8,11 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
+
+import com.sx4.bot.waiter.Waiter.CancelType;
 
 import net.dv8tion.jda.api.events.GenericEvent;
+import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent;
 
 public class WaiterManager {
 
@@ -21,11 +23,14 @@ public class WaiterManager {
 	}
 	
 	private final List<Waiter<?>> waiters;
+	private final Map<Long, Map<Long, Waiter<?>>> uniqueWaiters;
+	
 	private final Map<Waiter<?>, ScheduledFuture<?>> executors;
 	
 	private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
 	
 	private WaiterManager() {
+		this.uniqueWaiters = new HashMap<>();
 		this.waiters = new ArrayList<>();
 		this.executors = new HashMap<>();
 	}
@@ -51,20 +56,58 @@ public class WaiterManager {
 	}
 	
 	public void addWaiter(Waiter<?> waiter) {
-		this.waiters.add(waiter);
+		if (waiter.isUnique() && waiter.getEvent() == GuildMessageReceivedEvent.class) {
+			Map<Long, Waiter<?>> users = this.uniqueWaiters.get(waiter.getChannelId());
+			if (users != null) {
+				Waiter<?> oldWaiter = users.remove(waiter.getAuthorId());
+				if (oldWaiter != null) {
+					oldWaiter.cancel(CancelType.UNIQUE);
+				}
+				
+				users.put(waiter.getAuthorId(), waiter);
+				
+				return;
+			}
+			
+			users = new HashMap<>();
+			users.put(waiter.getAuthorId(), waiter);
+			
+			this.uniqueWaiters.put(waiter.getChannelId(), users);
+		} else {
+			this.waiters.add(waiter);
+		}
 	}
 	
 	public void removeWaiter(Waiter<?> waiter) {
-		this.waiters.remove(waiter);
-	}
-	
-	public List<Waiter<?>> getWaiters(Class<?> clazz) {
-		return this.waiters.stream()
-			.filter(waiter -> waiter.getEvent() == clazz)
-			.collect(Collectors.toList());
+		if (waiter.isUnique()) {
+			Map<Long, Waiter<?>> users = this.uniqueWaiters.get(waiter.getChannelId());
+			if (users != null) {
+				users.remove(waiter.getAuthorId());
+			}
+		} else {
+			this.waiters.remove(waiter);
+		}
 	}
 	
 	public void checkWaiters(GenericEvent event, Class<?> clazz) {
+		if (event instanceof GuildMessageReceivedEvent) {
+			GuildMessageReceivedEvent messageEvent = (GuildMessageReceivedEvent) event;
+			
+			Map<Long, Waiter<?>> users = this.uniqueWaiters.get(messageEvent.getChannel().getIdLong());
+			if (users != null) {
+				Waiter<?> waiter = users.get(messageEvent.getAuthor().getIdLong());
+				if (waiter != null && waiter.getEvent() == clazz) {
+					if (waiter.testPredicate(event)) {
+						waiter.execute(event);
+					}
+					
+					if (waiter.testCancelPredicate(event)) {
+						waiter.cancel(CancelType.USER);
+					}
+				}
+			}
+		}
+		
 		for (Waiter<?> waiter : new ArrayList<>(this.waiters)) {
 			if (waiter.getEvent() != clazz) {
 				continue;
@@ -75,7 +118,7 @@ public class WaiterManager {
 			}
 			
 			if (waiter.testCancelPredicate(event)) {
-				waiter.cancel();
+				waiter.cancel(CancelType.USER);
 			}
 		}
 	}

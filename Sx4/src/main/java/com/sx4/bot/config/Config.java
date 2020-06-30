@@ -78,7 +78,7 @@ public class Config {
 	}
 	
 	public boolean isMain() {
-		return !this.isTest() && !this.isCanary();
+		return !this.isCanary();
 	}
 	
 	public String getState() {

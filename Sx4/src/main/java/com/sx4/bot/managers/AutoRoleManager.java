@@ -102,7 +102,7 @@ public class AutoRoleManager {
 	public void updateMemberRoles(long guildId, long userId, ObjectId id, List<Long> roleIdsAdd, List<Long> roleIdsRemove) {
 		UpdateOneModel<Document> model = this.updateMemberRolesAndGet(guildId, userId, id, roleIdsAdd, roleIdsRemove);
 		if (model != null) {
-			Database.get().updateGuildById(model).whenComplete((result, exception) -> ExceptionUtility.sendErrorMessage(exception));
+			Database.get().updateGuild(model).whenComplete((result, exception) -> ExceptionUtility.sendErrorMessage(exception));
 		}
 	}
 	

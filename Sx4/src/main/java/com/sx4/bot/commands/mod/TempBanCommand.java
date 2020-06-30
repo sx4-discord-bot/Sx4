@@ -67,7 +67,7 @@ public class TempBanCommand extends Sx4Command {
 				
 				long seconds = time == null ? data.getDefaultTime() : time.toSeconds();
 				
-				this.database.updateGuildById(data.getUpdate(event.getGuild().getIdLong(), member.getIdLong(), seconds)).whenComplete((result, exception) -> {
+				this.database.updateGuild(data.getUpdate(event.getGuild().getIdLong(), member.getIdLong(), seconds)).whenComplete((result, exception) -> {
 					if (ExceptionUtility.sendExceptionally(event, exception)) {
 						return;
 					}

@@ -110,7 +110,7 @@ public class ReminderManager {
 	}
 	
 	public void executeReminder(Reminder reminder) {
-		Database.get().updateUserById(this.executeReminderBulk(reminder)).whenComplete(Database.DEFAULT_UPDATE_HANDLER);
+		Database.get().updateUser(this.executeReminderBulk(reminder)).whenComplete(Database.DEFAULT_UPDATE_HANDLER);
 	}
 	
 	public UpdateOneModel<Document> executeReminderBulk(Reminder reminder) {
