@@ -43,7 +43,7 @@ public class GiveawayManager {
 		return GiveawayManager.INSTANCE;
 	}
 	
-	private final Map<Long, Map<Long, ScheduledFuture<?>>> executors;
+	private final Map<Long, ScheduledFuture<?>> executors;
 	
 	private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
 	
@@ -55,44 +55,28 @@ public class GiveawayManager {
 		return this.executor;
 	}
 	
-	public ScheduledFuture<?> getExecutor(long guildId, long messageId) {
-		Map<Long, ScheduledFuture<?>> giveaways = this.executors.get(guildId);
-		if (giveaways != null) {
-			return giveaways.get(messageId);
-		}
-		
-		return null;
+	public ScheduledFuture<?> getExecutor(long messageId) {
+		return this.executors.get(messageId);
 	}
 	
-	public void cancelExecutor(long guildId, long messageId) {
-		Map<Long, ScheduledFuture<?>> giveaways = this.executors.get(guildId);
-		if (giveaways != null) {
-			ScheduledFuture<?> executor = giveaways.remove(messageId);
-			if (executor != null) {
-				executor.cancel(true);
-			}
+	public void cancelExecutor(long messageId) {
+		ScheduledFuture<?> executor = this.executors.remove(messageId);
+		if (executor != null) {
+			executor.cancel(true);
 		}
 	}
 	
-	public void putExecutor(long guildId, long messageId, ScheduledFuture<?> executor) {
-		Map<Long, ScheduledFuture<?>> giveaways = this.executors.get(guildId);
-		if (giveaways != null) {
-			ScheduledFuture<?> oldExecutor = giveaways.remove(messageId);
-			if (oldExecutor != null) {
-				oldExecutor.cancel(true);
-			}
-			
-			giveaways.put(messageId, executor);
+	public void putExecutor(long messageId, ScheduledFuture<?> executor) {
+		ScheduledFuture<?> oldExecutor = this.executors.remove(messageId);
+		if (oldExecutor != null) {
+			oldExecutor.cancel(true);
 		}
 		
-		giveaways = new HashMap<>();
-		giveaways.put(messageId, executor);
-		
-		this.executors.put(guildId, giveaways);
+		this.executors.put(messageId, executor);
 	}
 	
 	public void putGiveaway(Document data, long seconds) {
-		this.putExecutor(data.get("guildId", 0L), data.get("_id", 0L), this.executor.schedule(() -> this.endGiveaway(data), seconds, TimeUnit.SECONDS));
+		this.putExecutor(data.get("_id", 0L), this.executor.schedule(() -> this.endGiveaway(data), seconds, TimeUnit.SECONDS));
 	}
 	
 	public void endGiveaway(Document data) {
@@ -173,7 +157,7 @@ public class GiveawayManager {
 			});
 		});
 		
-		this.cancelExecutor(guildId, messageId);
+		this.cancelExecutor(messageId);
 		
 		return future;
 	}
@@ -191,10 +175,18 @@ public class GiveawayManager {
 			}
 		});
 		
-		CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()]))
-			.thenApply($ -> futures.stream().map(CompletableFuture::join).filter(Objects::nonNull).collect(Collectors.toList()))
-			.thenCompose(bulkData -> database.bulkWriteGiveaways(bulkData))
-			.whenComplete((result, exception) -> ExceptionUtility.sendErrorMessage(exception));
+		if (!futures.isEmpty()) {
+			CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()]))
+				.thenApply($ -> futures.stream().map(CompletableFuture::join).filter(Objects::nonNull).collect(Collectors.toList()))
+				.thenCompose(bulkData -> {
+					if (!bulkData.isEmpty()) {
+						return database.bulkWriteGiveaways(bulkData);
+					}
+					
+					return CompletableFuture.completedStage(null);
+				})
+				.whenComplete((result, exception) -> ExceptionUtility.sendErrorMessage(exception));
+		}
 	}
 	
 }

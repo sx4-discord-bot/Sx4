@@ -33,7 +33,6 @@ import com.sx4.bot.waiter.Waiter;
 
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.MessageReaction.ReactionEmote;
-import net.dv8tion.jda.api.entities.MessageType;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent;
 import net.dv8tion.jda.api.exceptions.ErrorHandler;
@@ -94,11 +93,6 @@ public class ReactionRoleCommand extends Sx4Command {
 		messageArgument.getRestAction().queue(message -> {
 			if (message.getReactions().size() >= 20) {
 				event.reply("That message is at the max amount of reactions (20) " + this.config.getFailureEmote()).queue();
-				return;
-			}
-			
-			if (message.getType() != MessageType.DEFAULT) {
-				event.reply("You cannot have a reaction role on this message " + this.config.getFailureEmote()).queue();
 				return;
 			}
 			
@@ -360,29 +354,30 @@ public class ReactionRoleCommand extends Sx4Command {
 	@Cooldown(value=5)
 	public void delete(Sx4CommandEvent event, @Argument(value="message id") All<MessageArgument> allArgument) {
 		if (allArgument.isAll()) {
-			event.reply(event.getAuthor().getName() + ", are you sure you want to delete **all** the reaction roles in this server? (Yes or No)").queue(queryMessage -> {
-				Waiter<GuildMessageReceivedEvent> waiter = new Waiter<>(GuildMessageReceivedEvent.class)
-					.setPredicate(messageEvent -> messageEvent.getMessage().getContentRaw().equalsIgnoreCase("yes"))
-					.setOppositeCancelPredicate()
-					.setTimeout(30)
-					.setUnique(event.getAuthor().getIdLong(), event.getChannel().getIdLong());
-				
-				waiter.onTimeout(() -> event.reply("Response timed out :stopwatch:").queue());
-				
-				waiter.onCancelled(type -> event.reply("Cancelled " + this.config.getSuccessEmote()).queue());
-				
-				waiter.future()
-					.thenCompose(messageEvent -> this.database.updateGuildById(event.getGuild().getIdLong(), Updates.unset("reactionRole.reactionRoles")))
-					.whenComplete((result, exception) -> {
-						if (ExceptionUtility.sendExceptionally(event, exception)) {
-							return;
-						}
-						
-						event.reply("All reaction role data has been deleted in this server " + this.config.getSuccessEmote()).queue();
-					});
-				
-				waiter.start();
-			});
+			event.reply(event.getAuthor().getName() + ", are you sure you want to delete **all** the reaction roles in this server? (Yes or No)").submit()
+				.thenCompose(message -> {
+					Waiter<GuildMessageReceivedEvent> waiter = new Waiter<>(GuildMessageReceivedEvent.class)
+						.setPredicate(messageEvent -> messageEvent.getMessage().getContentRaw().equalsIgnoreCase("yes"))
+						.setOppositeCancelPredicate()
+						.setTimeout(30)
+						.setUnique(event.getAuthor().getIdLong(), event.getChannel().getIdLong());
+					
+					waiter.onTimeout(() -> event.reply("Response timed out :stopwatch:").queue());
+					
+					waiter.onCancelled(type -> event.reply("Cancelled " + this.config.getSuccessEmote()).queue());
+					
+					waiter.start();
+					
+					return waiter.future();
+				})
+				.thenCompose(messageEvent -> this.database.updateGuildById(event.getGuild().getIdLong(), Updates.unset("reactionRole.reactionRoles")))
+				.whenComplete((result, exception) -> {
+					if (ExceptionUtility.sendExceptionally(event, exception)) {
+						return;
+					}
+					
+					event.reply("All reaction role data has been deleted in this server " + this.config.getSuccessEmote()).queue();
+				});
 		} else {
 			long messageId = allArgument.getValue().getMessageId();
 			this.database.updateGuildById(event.getGuild().getIdLong(), Updates.pull("reactionRole.reactionRoles", Filters.eq("id", messageId))).whenComplete((result, exception) -> {

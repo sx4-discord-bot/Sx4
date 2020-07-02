@@ -3,10 +3,14 @@ package com.sx4.bot.commands.management;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 import org.bson.Document;
 import org.bson.conversions.Bson;
@@ -27,6 +31,7 @@ import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.model.Operators;
 import com.sx4.bot.entities.argument.All;
 import com.sx4.bot.entities.argument.MessageArgument;
+import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.NumberUtility;
 import com.sx4.bot.utility.SearchUtility;
@@ -37,7 +42,9 @@ import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.entities.TextChannel;
+import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent;
+import net.dv8tion.jda.api.sharding.ShardManager;
 
 public class GiveawayCommand extends Sx4Command {
 
@@ -327,6 +334,7 @@ public class GiveawayCommand extends Sx4Command {
 		
 		List<Bson> update = List.of(
 			Operators.set("endAt", Operators.cond(Operators.exists("$winners"), duration == null ? Operators.add(timeNow, "$duration") : duration.toSeconds() + timeNow, "$endAt")),
+			Operators.set("duration", Operators.cond(Operators.exists("$winners"), duration == null ? "$duration" : duration.toSeconds(), "$duration")),
 			Operators.set("winners", Operators.REMOVE)
 		);	
 		
@@ -428,6 +436,44 @@ public class GiveawayCommand extends Sx4Command {
 				event.reply("That giveaway has been deleted " + this.config.getSuccessEmote()).queue();
 			});
 		}
+	}
+	
+	@Command(value="list", description="Lists all the giveaways which have happened in the server")
+	@Examples({"giveaway list"})
+	public void list(Sx4CommandEvent event) {
+		List<Document> giveaways = this.database.getGiveaways(Filters.eq("guildId", event.getGuild().getIdLong())).into(new ArrayList<>());
+		if (giveaways.isEmpty()) {
+			event.reply("No giveaways have been setup in this server " + this.config.getFailureEmote()).queue();
+			return;
+		}
+		
+		PagedResult<Document> paged = new PagedResult<>(giveaways)
+			.setAuthor("Giveaways", null, event.getGuild().getIconUrl())
+			.setDisplayFunction(data -> {
+				long endAt = data.get("endAt", 0L), timeNow = Clock.systemUTC().instant().getEpochSecond();
+				if (endAt - timeNow < 0) {
+					return data.get("_id", 0L) + " - Ended";
+				} else {
+					return data.get("_id", 0L) + " - " + TimeUtility.getTimeString(endAt - timeNow);
+				}
+			});
+		
+		paged.onSelect(select -> {
+			ShardManager shardManager = event.getShardManager();
+			
+			Document data = select.getSelected();
+			
+			List<Long> winners = data.getList("winners", Long.class, Collections.emptyList());
+			String winnersString = winners.isEmpty() ? "None" : winners.stream()
+				.map(shardManager::getUserById)
+				.filter(Objects::nonNull)
+				.map(User::getAsMention)
+				.collect(Collectors.joining(", "));
+			
+			event.replyFormat("**Giveaway %d**\nItem: %s\nWinner%s: %s\nDuration: %s", data.get("_id", 0L), data.getString("item"), winners.size() == 1 ? "" : "s", winnersString, TimeUtility.getTimeString(data.get("duration", 0L))).queue();
+		});
+		
+		paged.execute(event);
 	}
 	
 }
