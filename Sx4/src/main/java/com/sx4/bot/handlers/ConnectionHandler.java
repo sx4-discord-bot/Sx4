@@ -3,6 +3,7 @@ package com.sx4.bot.handlers;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 
+import com.sx4.bot.cache.message.GuildMessageCache;
 import com.sx4.bot.config.Config;
 import com.sx4.bot.core.Sx4Bot;
 import com.sx4.bot.managers.AutoRoleManager;

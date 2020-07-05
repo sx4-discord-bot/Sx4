@@ -42,6 +42,7 @@ import com.sx4.bot.annotations.argument.ExcludeUpdate;
 import com.sx4.bot.annotations.argument.Limit;
 import com.sx4.bot.annotations.argument.Lowercase;
 import com.sx4.bot.annotations.argument.Uppercase;
+import com.sx4.bot.cache.message.GuildMessageCache;
 import com.sx4.bot.category.Category;
 import com.sx4.bot.config.Config;
 import com.sx4.bot.entities.argument.All;
@@ -62,7 +63,6 @@ import com.sx4.bot.handlers.YouTubeHandler;
 import com.sx4.bot.managers.ModActionManager;
 import com.sx4.bot.managers.PatreonManager;
 import com.sx4.bot.managers.YouTubeManager;
-import com.sx4.bot.message.cache.GuildMessageCache;
 import com.sx4.bot.paged.PagedHandler;
 import com.sx4.bot.utility.CheckUtility;
 import com.sx4.bot.utility.ColourUtility;
@@ -489,7 +489,7 @@ public class Sx4Bot {
 		eventManager.register(new GiveawayHandler());
 		eventManager.register(ModHandler.INSTANCE);
 		eventManager.register(PatreonHandler.INSTANCE);
-		eventManager.register(GuildMessageCache.INSTANCE);
+		eventManager.register(GuildMessageCache.get());
 		eventManager.register(new ConnectionHandler());
 		eventManager.register(new ReactionRoleHandler());
 		

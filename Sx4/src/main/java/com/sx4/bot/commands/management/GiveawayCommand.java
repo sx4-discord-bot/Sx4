@@ -385,7 +385,25 @@ public class GiveawayCommand extends Sx4Command {
 			return;
 		}
 		
-		this.giveawayManager.endGiveaway(data);
+		this.giveawayManager.endGiveaway(data, true);
+	}
+	
+	@Command(value="end", description="Ends an active giveaway early")
+	@Examples({"giveaway end 727224132202397726"})
+	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
+	public void end(Sx4CommandEvent event, @Argument(value="message id") MessageArgument messageArgument) {
+		Document data = this.database.getGiveawayById(messageArgument.getMessageId());
+		if (data == null) {
+			event.reply("There is no giveaway with that id " + this.config.getFailureEmote()).queue();
+			return;
+		}
+		
+		if (data.containsKey("winners")) {
+			event.reply("That giveaway has already ended " + this.config.getFailureEmote()).queue();
+			return;
+		}
+		
+		this.giveawayManager.endGiveaway(data, true);
 	}
 	
 	@Command(value="delete", description="Deletes a giveaway")
@@ -393,34 +411,35 @@ public class GiveawayCommand extends Sx4Command {
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void delete(Sx4CommandEvent event, @Argument(value="message id | all") All<MessageArgument> all) {
 		if (all.isAll()) {
-			event.reply(event.getAuthor().getName() + ", are you sure you want to delete **all** giveaways in this server? (Yes or No)").queue(message -> {
-				Waiter<GuildMessageReceivedEvent> waiter = new Waiter<>(GuildMessageReceivedEvent.class)
-					.setPredicate(e -> e.getMessage().getContentRaw().equalsIgnoreCase("yes"))
-					.setOppositeCancelPredicate()
-					.setUnique(event.getAuthor().getIdLong(), event.getChannel().getIdLong())
-					.setTimeout(30);
-				
-				waiter.onTimeout(() -> event.reply("Response timed out :stopwatch:"));
-				
-				waiter.onCancelled(type -> event.reply("Cancelled " + this.config.getSuccessEmote()));
-				
-				waiter.future()
-					.thenCompose(e -> this.database.deleteManyGiveaways(Filters.eq("guildId", event.getGuild().getIdLong())))
-					.whenComplete((result, exception) -> {
-						if (ExceptionUtility.sendExceptionally(event, exception)) {
-							return;
-						}
-						
-						if (result.getDeletedCount() == 0) {
-							event.reply("There are no giveaways in this server " + this.config.getFailureEmote()).queue();
-							return;
-						}
-						
-						event.reply("All giveaways in this server have been deleted " + this.config.getSuccessEmote()).queue();
-					});
-				
-				waiter.start();
-			});
+			event.reply(event.getAuthor().getName() + ", are you sure you want to delete **all** giveaways in this server? (Yes or No)").submit()
+				.thenCompose(message -> {
+					Waiter<GuildMessageReceivedEvent> waiter = new Waiter<>(GuildMessageReceivedEvent.class)
+						.setPredicate(e -> e.getMessage().getContentRaw().equalsIgnoreCase("yes"))
+						.setOppositeCancelPredicate()
+						.setUnique(event.getAuthor().getIdLong(), event.getChannel().getIdLong())
+						.setTimeout(30);
+					
+					waiter.onTimeout(() -> event.reply("Response timed out :stopwatch:"));
+					
+					waiter.onCancelled(type -> event.reply("Cancelled " + this.config.getSuccessEmote()));
+					
+					waiter.start();
+					
+					return waiter.future();
+				})
+				.thenCompose(e -> this.database.deleteManyGiveaways(Filters.eq("guildId", event.getGuild().getIdLong())))
+				.whenComplete((result, exception) -> {
+					if (ExceptionUtility.sendExceptionally(event, exception)) {
+						return;
+					}
+					
+					if (result.getDeletedCount() == 0) {
+						event.reply("There are no giveaways in this server " + this.config.getFailureEmote()).queue();
+						return;
+					}
+					
+					event.reply("All giveaways in this server have been deleted " + this.config.getSuccessEmote()).queue();
+				});
 		} else {
 			long messageId = all.getValue().getMessageId();
 			this.database.deleteGiveawayById(messageId).whenComplete((result, exception) -> {

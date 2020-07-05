@@ -1,8 +1,9 @@
 package com.sx4.bot.core;
 
+import org.bson.Document;
+
 import com.jockie.bot.core.command.impl.CommandListener;
-//import com.sx4.bot.cache.GuildMessageCache;
-import com.sx4.bot.message.cache.GuildMessageCache;
+import com.sx4.bot.database.Database;
 
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.events.GenericEvent;
@@ -15,13 +16,13 @@ public class Sx4CommandListener extends CommandListener {
 		
 		if (event instanceof MessageUpdateEvent) {
 			Message editedMessage = ((MessageUpdateEvent) event).getMessage();
-			Message oldMessage = GuildMessageCache.INSTANCE.getMessageById(editedMessage.getIdLong());
+			Document oldMessage = Database.get().getMessageById(editedMessage.getIdLong());
 			
 			if (oldMessage == null) {
 				return;
 			}
 			
-			if ((oldMessage.isPinned() && !editedMessage.isPinned()) || (!oldMessage.isPinned() && editedMessage.isPinned())) {
+			if ((oldMessage.getBoolean("pinned") && !editedMessage.isPinned()) || (!oldMessage.getBoolean("pinned") && editedMessage.isPinned())) {
 				return;
 			}
 			

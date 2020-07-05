@@ -2,6 +2,7 @@ package com.sx4.bot.database;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 
 import org.bson.Document;
@@ -19,6 +20,7 @@ import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.FindOneAndDeleteOptions;
 import com.mongodb.client.model.FindOneAndUpdateOptions;
+import com.mongodb.client.model.IndexOptions;
 import com.mongodb.client.model.Indexes;
 import com.mongodb.client.model.ReturnDocument;
 import com.mongodb.client.model.Sorts;
@@ -64,6 +66,8 @@ public class Database {
 	private final MongoCollection<Document> modLogs;
 	private final MongoCollection<Document> commandLogs;
 	
+	private final MongoCollection<Document> messages;
+	
 	private final MongoCollection<Document> resubscriptions;
 	private final MongoCollection<Document> notifications;
 	
@@ -107,6 +111,9 @@ public class Database {
 		this.commandLogs.createIndex(Indexes.descending("guildId"));
 		this.commandLogs.createIndex(Indexes.descending("command"));
 		this.commandLogs.createIndex(Indexes.descending("channelId"));
+		
+		this.messages = this.database.getCollection("messages");
+		this.messages.createIndex(Indexes.descending("updated"), new IndexOptions().expireAfter(7L, TimeUnit.DAYS));
 		
 		this.resubscriptions = this.database.getCollection("resubscriptions");
 		this.notifications = this.database.getCollection("notifications");
@@ -316,6 +323,10 @@ public class Database {
 		return this.findAndUpdateUserById(userId, null, update, options);
 	}
 	
+	public CompletableFuture<Document> findAndUpdateUserById(long userId, Bson update) {
+		return this.findAndUpdateUserById(userId, update, this.findOneAndUpdateOptions);
+	}
+	
 	public CompletableFuture<Document> findAndUpdateUserById(long userId, Bson filter, Bson projection, Bson update) {
 		return this.findAndUpdateUserById(userId, filter, update, this.findOneAndUpdateOptions.projection(projection));
 	}
@@ -339,8 +350,16 @@ public class Database {
 		return this.findAndUpdateUserById(userId, filter, update, this.findOneAndUpdateOptions.projection(projection));
 	}
 	
+	public CompletableFuture<Document> findAndUpdateUserById(long userId, List<? extends Bson> update, FindOneAndUpdateOptions options) {
+		return this.findAndUpdateUserById(userId, null, update, options);
+	}
+	
+	public CompletableFuture<Document> findAndUpdateUserById(long userId, List<? extends Bson> update) {
+		return this.findAndUpdateUserById(userId, update, this.findOneAndUpdateOptions);
+	}
+	
 	public CompletableFuture<Document> findAndUpdateUserById(long userId, Bson projection, List<? extends Bson> update) {
-		return this.findAndUpdateUserById(userId, null, update, this.findOneAndUpdateOptions.projection(projection));
+		return this.findAndUpdateUserById(userId, update, this.findOneAndUpdateOptions.projection(projection));
 	}
 	
 	public CompletableFuture<BulkWriteResult> bulkWriteUsers(List<? extends WriteModel<? extends Document>> bulkData) {
@@ -509,6 +528,38 @@ public class Database {
 	
 	public CompletableFuture<BulkWriteResult> bulkWriteGiveaways(List<? extends WriteModel<? extends Document>> bulkData) {
 		return CompletableFuture.supplyAsync(() -> this.giveaways.bulkWrite(bulkData));
+	}
+	
+	public MongoCollection<Document> getMessages() {
+		return this.messages;
+	}
+	
+	public FindIterable<Document> getMessages(Bson filter) {
+		return this.messages.find(filter);
+	}
+	
+	public long countMessages(Bson filter) {
+		return this.messages.countDocuments(filter);
+	}
+	
+	public Document getMessageById(long messageId) {
+		return this.messages.find(Filters.eq("_id", messageId)).first();
+	}
+	
+	public CompletableFuture<InsertOneResult> insertMessage(Document data) {
+		return CompletableFuture.supplyAsync(() -> this.messages.insertOne(data));
+	}
+	
+	public CompletableFuture<UpdateResult> replaceMessage(Document data) {
+		return CompletableFuture.supplyAsync(() -> this.messages.replaceOne(Filters.eq("_id", data.get("_id")), data));
+	}
+	
+	public CompletableFuture<DeleteResult> deleteMessageById(long messageId) {
+		return CompletableFuture.supplyAsync(() -> this.messages.deleteOne(Filters.eq("_id", messageId)));
+	}
+	
+	public CompletableFuture<BulkWriteResult> bulkWriteMessages(List<? extends WriteModel<? extends Document>> bulkData) {
+		return CompletableFuture.supplyAsync(() -> this.messages.bulkWrite(bulkData));
 	}
 	
 	public MongoCollection<Document> getAuction() {

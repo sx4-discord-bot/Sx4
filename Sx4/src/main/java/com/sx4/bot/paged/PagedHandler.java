@@ -59,11 +59,13 @@ public class PagedHandler extends ListenerAdapter {
 			this.attemptDelete(message);
 			pagedResult.delete();
 		} else if (selectTypes.contains(SelectType.INDEX) && NumberUtility.isNumberUnsigned(content)) {
-			int index = Integer.parseInt(content);
-			if (index > pagedResult.getLowerPageBound() && index <= pagedResult.getHigherPageBound()) {
-				pagedResult.select(pagedResult.isIncreasedIndex() ? index - 1 : (pagedResult.getPage() * pagedResult.getPerPage() - pagedResult.getPerPage()) + (index - 1));
-				this.attemptDelete(message);
-			}
+			try {
+				int index = Integer.parseInt(content);
+				if (index > pagedResult.getLowerPageBound() && index <= pagedResult.getHigherPageBound()) {
+					pagedResult.select(pagedResult.isIncreasedIndex() ? index - 1 : (pagedResult.getPage() * pagedResult.getPerPage() - pagedResult.getPerPage()) + (index - 1));
+					this.attemptDelete(message);
+				}
+			} catch (NumberFormatException e) {}
 		} else {
 			for (String skip : this.skip) {
 				if (contentLower.startsWith(skip)) {

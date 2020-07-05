@@ -19,12 +19,20 @@ public class Operators {
 		return new Document("$cond", List.of(ifCond, thenCond, elseCond));
 	}
 	
+	public static Bson and(List<?> expressions) {
+		return new Document("$and", expressions);
+	}
+	
 	public static Bson and(Object... expressions) {
-		return new Document("$and", Arrays.asList(expressions));
+		return Operators.and(Arrays.asList(expressions));
+	}
+	
+	public static Bson or(List<?> expressions) {
+		return new Document("$or", expressions);
 	}
 	
 	public static Bson or(Object... expressions) {
-		return new Document("$or", Arrays.asList(expressions));
+		return Operators.or(Arrays.asList(expressions));
 	}
 	
 	public static Bson eq(Object expression, Object expression2) {
@@ -55,8 +63,12 @@ public class Operators {
 		return new Document("$set", new Document(key, expression));
 	}
 	
+	public static Bson concatArrays(List<?> expressions) {
+		return new Document("$concatArrays", expressions);
+	}
+	
 	public static Bson concatArrays(Object... expressions) {
-		return new Document("$concatArrays", Arrays.asList(expressions));
+		return Operators.concatArrays(Arrays.asList(expressions));
 	}
 	
 	public static Bson size(Object expression) {

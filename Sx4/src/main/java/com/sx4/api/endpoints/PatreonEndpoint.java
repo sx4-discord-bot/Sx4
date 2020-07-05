@@ -35,6 +35,8 @@ public class PatreonEndpoint {
 			return Response.status(401).build();
 		}
 		
+		System.out.println(body);
+		
 		Document document = Document.parse(body);
 		int centsDonated = document.getEmbedded(List.of("data", "attributes", "currently_entitled_amount_cents"), int.class);
 		

@@ -18,6 +18,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import org.bson.Document;
+import org.bson.conversions.Bson;
 
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.UpdateOneModel;
@@ -80,7 +81,11 @@ public class GiveawayManager {
 	}
 	
 	public void endGiveaway(Document data) {
-		this.endGiveawayAndGet(data).thenCompose(model -> {
+		this.endGiveaway(data, false);
+	}
+	
+	public void endGiveaway(Document data, boolean offTime) {
+		this.endGiveawayAndGet(data, offTime).thenCompose(model -> {
 			if (model == null) {
 				return CompletableFuture.completedStage(null);
 			}
@@ -90,6 +95,10 @@ public class GiveawayManager {
 	}
 	
 	public CompletableFuture<UpdateOneModel<Document>> endGiveawayAndGet(Document data) {
+		return this.endGiveawayAndGet(data, false);
+	}
+	
+	public CompletableFuture<UpdateOneModel<Document>> endGiveawayAndGet(Document data, boolean offTime) {
 		long guildId = data.get("guildId", 0L), messageId = data.get("_id", 0L);
 		
 		Guild guild = Sx4Bot.getShardManager().getGuildById(guildId);
@@ -126,8 +135,11 @@ public class GiveawayManager {
 				
 				return true;
 			}).thenRun(() -> {
+				Bson update;
 				if (members.size() == 0) {
-					future.complete(new UpdateOneModel<>(Filters.eq("_id", messageId), Updates.set("winners", Collections.EMPTY_LIST)));
+					update = Updates.set("winners", Collections.EMPTY_LIST);
+					
+					future.complete(new UpdateOneModel<>(Filters.eq("_id", messageId), offTime ? Updates.combine(Updates.set("endAt", Clock.systemUTC().instant().getEpochSecond()), update) : update));
 					channel.sendMessage("At least " + (oldWinners.isEmpty() ? "1 person needs" : oldWinners.size() == 1 ? "1 extra person needs" : oldWinners.size() + " extra people need") + " to have entered the giveaway to pick a winner " + Config.get().getFailureEmote()).queue();
 					
 					return;
@@ -153,7 +165,9 @@ public class GiveawayManager {
 				
 				message.editMessage(embed.build()).queue();
 				
-				future.complete(new UpdateOneModel<>(Filters.eq("_id", messageId), Updates.set("winners", winnerIds)));
+				update = Updates.set("winners", winnerIds);
+				
+				future.complete(new UpdateOneModel<>(Filters.eq("_id", messageId), offTime ? Updates.combine(Updates.set("endAt", Clock.systemUTC().instant().getEpochSecond()), update) : update));
 			});
 		});
 		

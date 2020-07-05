@@ -28,12 +28,20 @@ public class ItemStack<Type extends Item> implements Comparable<ItemStack<?>> {
 		return this.item;
 	}
 	
-	public void addAmount(long amount) {
-		this.amount += amount;
+	public String getName() {
+		return this.item.getName();
 	}
 	
-	public void removeAmount(long amount) {
+	public ItemStack<Type> addAmount(long amount) {
+		this.amount += amount;
+		
+		return this;
+	}
+	
+	public ItemStack<Type> removeAmount(long amount) {
 		this.amount -= amount;
+		
+		return this;
 	}
 	
 	public long getAmount() {
@@ -46,6 +54,14 @@ public class ItemStack<Type extends Item> implements Comparable<ItemStack<?>> {
 		}
 		
 		return false;
+	}
+	
+	public ItemStack<Type> combine(ItemStack<?> itemStack) {
+		if (!itemStack.equalsItem(this)) {
+			throw new IllegalArgumentException("Cannot combine item stacks which contain different items");
+		}
+		
+		return this.addAmount(itemStack.getAmount());
 	}
 	
 	public String toString() {
