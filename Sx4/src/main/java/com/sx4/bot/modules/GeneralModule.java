@@ -2537,6 +2537,7 @@ public class GeneralModule {
 	@Command(value="stats", description="Shows you Sx4s current stats", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 	@Examples({"stats"})
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
+	@Cooldown(value=20)
 	@Async
 	public void stats(CommandEvent event, @Context Database database) {
 		long timestampNow = Clock.systemUTC().instant().getEpochSecond();
