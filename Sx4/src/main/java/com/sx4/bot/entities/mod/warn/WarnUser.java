@@ -5,7 +5,7 @@ import java.util.stream.Collectors;
 
 import org.bson.Document;
 
-import com.sx4.bot.core.Sx4Bot;
+import com.sx4.bot.core.Sx4;
 
 import net.dv8tion.jda.api.entities.User;
 
@@ -38,7 +38,7 @@ public class WarnUser {
 	}
 	
 	public User getUser() {
-		return Sx4Bot.getShardManager().getUserById(this.id);
+		return Sx4.get().getShardManager().getUserById(this.id);
 	}
 	
 	public int getAmount() {

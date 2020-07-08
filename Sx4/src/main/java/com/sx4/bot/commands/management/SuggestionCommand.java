@@ -39,7 +39,7 @@ import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent;
-import net.dv8tion.jda.api.exceptions.ErrorHandler;
+import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.requests.ErrorResponse;
 
 public class SuggestionCommand extends Sx4Command {
@@ -218,7 +218,7 @@ public class SuggestionCommand extends Sx4Command {
 				
 				TextChannel channel = event.getGuild().getTextChannelById(suggestion.get("channelId", 0L));
 				if (channel != null) {
-					channel.deleteMessageById(suggestion.get("id", 0L)).queue(null, new ErrorHandler().ignore(ErrorResponse.UNKNOWN_MESSAGE));
+					channel.deleteMessageById(suggestion.get("id", 0L)).queue(null, ErrorResponseException.ignore(ErrorResponse.UNKNOWN_MESSAGE));
 				}
 				
 				event.reply("That suggestion has been removed " + this.config.getSuccessEmote()).queue();

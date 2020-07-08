@@ -40,7 +40,7 @@ public class Sx4Command extends CommandImpl {
 	public final ReminderManager reminderManager = ReminderManager.get();
 	public final GiveawayManager giveawayManager = GiveawayManager.get();
 	
-	public final OkHttpClient client = Sx4Bot.getClient();
+	public final OkHttpClient client = Sx4.getClient();
 	
 	public final Database database = Database.get();
 	
@@ -61,7 +61,7 @@ public class Sx4Command extends CommandImpl {
 
 		super.botDiscordPermissions = EnumSet.of(Permission.MESSAGE_WRITE);
 	
-		this.doAnnotations();
+		this.checkAnnotations();
 	}
 	
 	public Sx4Command(String name, Method method, Object invoker) {
@@ -69,7 +69,7 @@ public class Sx4Command extends CommandImpl {
 
 		super.botDiscordPermissions = EnumSet.of(Permission.MESSAGE_WRITE);
 		
-		this.doAnnotations();
+		this.checkAnnotations();
 	}
 	
 	public Sx4Command setCanaryCommand(boolean canaryCommand) {
@@ -227,7 +227,7 @@ public class Sx4Command extends CommandImpl {
 		return this;
 	}
 	
-	private void doAnnotations() {
+	private void checkAnnotations() {
 		if (this.method != null) {
 			if (this.method.isAnnotationPresent(Donator.class)) {
 				this.donator = this.method.getAnnotation(Donator.class).value();

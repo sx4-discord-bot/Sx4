@@ -16,7 +16,7 @@ import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.UpdateOptions;
 import com.mongodb.client.model.Updates;
-import com.sx4.bot.core.Sx4Bot;
+import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.entities.youtube.YouTubeChannel;
 import com.sx4.bot.entities.youtube.YouTubeType;
@@ -157,7 +157,7 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 
 	public void onYouTubeUpload(YouTubeUploadEvent event) {
 		this.notificationExecutor.submit(() -> {
-			ShardManager shardManager = Sx4Bot.getShardManager();
+			ShardManager shardManager = Sx4.get().getShardManager();
 			
 			try {
 				Database database = Database.get();
@@ -176,7 +176,7 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 									String messageContent = this.getMessage(event, notification.get("message", YouTubeManager.DEFAULT_MESSAGE));
 									
 									WebhookMessage message = new WebhookMessageBuilder()
-										.setAvatarUrl(notification.get("avatar", Sx4Bot.getShardManager().getShardById(0).getSelfUser().getEffectiveAvatarUrl()))
+										.setAvatarUrl(notification.get("avatar", shardManager.getShardById(0).getSelfUser().getEffectiveAvatarUrl()))
 										.setUsername(notification.get("name", "Sx4 - YouTube"))
 										.setContent(messageContent)
 										.build();

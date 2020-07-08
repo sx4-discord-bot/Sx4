@@ -9,7 +9,7 @@ import java.util.concurrent.TimeUnit;
 
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Updates;
-import com.sx4.bot.core.Sx4Bot;
+import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.entities.mod.Reason;
 import com.sx4.bot.events.mod.UnbanEvent;
@@ -84,7 +84,7 @@ private static final TempBanManager INSTANCE = new TempBanManager();
 	}
 	
 	public void removeBan(long guildId, long userId) {
-		Guild guild = Sx4Bot.getShardManager().getGuildById(guildId);
+		Guild guild = Sx4.get().getShardManager().getGuildById(guildId);
 		if (guild == null) {
 			return;
 		}

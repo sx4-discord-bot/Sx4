@@ -5,7 +5,7 @@ import java.util.function.Predicate;
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.utility.function.TriConsumer;
 import com.sx4.bot.category.Category;
-import com.sx4.bot.core.Sx4Bot;
+import com.sx4.bot.core.Sx4;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.entities.mod.PartialEmote;
@@ -37,7 +37,7 @@ public class CreateEmoteCommand extends Sx4Command {
 			.url(url)
 			.build();
 		
-		Sx4Bot.getClient().newCall(request).enqueue((HttpCallback) response -> {
+		Sx4.getClient().newCall(request).enqueue((HttpCallback) response -> {
 			if (response.code() == 200) {
 				String contentType = response.header("Content-Type"), extension = null;
 				if (contentType.contains("/")) {

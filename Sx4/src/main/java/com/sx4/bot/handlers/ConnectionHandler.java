@@ -3,9 +3,8 @@ package com.sx4.bot.handlers;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 
-import com.sx4.bot.cache.message.GuildMessageCache;
 import com.sx4.bot.config.Config;
-import com.sx4.bot.core.Sx4Bot;
+import com.sx4.bot.core.Sx4;
 import com.sx4.bot.managers.AutoRoleManager;
 import com.sx4.bot.managers.GiveawayManager;
 import com.sx4.bot.managers.MuteManager;
@@ -30,7 +29,7 @@ import net.dv8tion.jda.api.requests.CloseCode;
 public class ConnectionHandler extends ListenerAdapter {
 	
 	private WebhookClient eventsWebhook = new WebhookClientBuilder(Config.get().getEventsWebhookId(), Config.get().getEventsWebhookToken())
-		.setHttpClient(Sx4Bot.getClient())
+		.setHttpClient(Sx4.getClient())
 		.build();
 	
 	private int readyEventsCalled = 0;

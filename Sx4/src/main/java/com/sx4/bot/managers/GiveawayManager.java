@@ -24,7 +24,7 @@ import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.UpdateOneModel;
 import com.mongodb.client.model.Updates;
 import com.sx4.bot.config.Config;
-import com.sx4.bot.core.Sx4Bot;
+import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.MathUtility;
@@ -87,7 +87,7 @@ public class GiveawayManager {
 	public void endGiveaway(Document data, boolean offTime) {
 		this.endGiveawayAndGet(data, offTime).thenCompose(model -> {
 			if (model == null) {
-				return CompletableFuture.completedStage(null);
+				return CompletableFuture.completedFuture(null);
 			}
 			
 			return Database.get().updateGiveaway(model);
@@ -101,7 +101,7 @@ public class GiveawayManager {
 	public CompletableFuture<UpdateOneModel<Document>> endGiveawayAndGet(Document data, boolean offTime) {
 		long guildId = data.get("guildId", 0L), messageId = data.get("_id", 0L);
 		
-		Guild guild = Sx4Bot.getShardManager().getGuildById(guildId);
+		Guild guild = Sx4.get().getShardManager().getGuildById(guildId);
 		if (guild == null) {
 			return CompletableFuture.completedFuture(null);
 		}
@@ -197,7 +197,7 @@ public class GiveawayManager {
 						return database.bulkWriteGiveaways(bulkData);
 					}
 					
-					return CompletableFuture.completedStage(null);
+					return CompletableFuture.completedFuture(null);
 				})
 				.whenComplete((result, exception) -> ExceptionUtility.sendErrorMessage(exception));
 		}

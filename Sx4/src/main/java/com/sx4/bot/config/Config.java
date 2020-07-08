@@ -8,7 +8,7 @@ import java.util.List;
 
 import org.json.JSONObject;
 
-import com.sx4.bot.core.Sx4Bot;
+import com.sx4.bot.core.Sx4;
 
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Role;
@@ -94,7 +94,7 @@ public class Config {
 	}
 	
 	public Guild getSupportGuild() {
-		return Sx4Bot.getShardManager().getGuildById(this.getSupportGuildId());
+		return Sx4.get().getShardManager().getGuildById(this.getSupportGuildId());
 	}
 	
 	public long getErrorsChannelId() {

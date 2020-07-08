@@ -5,7 +5,7 @@ import java.time.Instant;
 import org.bson.Document;
 import org.bson.types.ObjectId;
 
-import com.sx4.bot.core.Sx4Bot;
+import com.sx4.bot.core.Sx4;
 import com.sx4.bot.entities.mod.Reason;
 import com.sx4.bot.entities.mod.action.Action;
 import com.sx4.bot.entities.mod.action.TimeAction;
@@ -92,7 +92,7 @@ public class ModLog {
 	}
 	
 	public Guild getGuild() {
-		return Sx4Bot.getShardManager().getGuildById(this.guildId);
+		return Sx4.get().getShardManager().getGuildById(this.guildId);
 	}
 	
 	public long getChannelId() {
@@ -110,7 +110,7 @@ public class ModLog {
 	}
 	
 	public User getTarget() {
-		return Sx4Bot.getShardManager().getUserById(this.targetId);
+		return Sx4.get().getShardManager().getUserById(this.targetId);
 	}
 	
 	public long getModeratorId() {
@@ -118,7 +118,7 @@ public class ModLog {
 	}
 	
 	public User getModerator() {
-		return Sx4Bot.getShardManager().getUserById(this.moderatorId);
+		return Sx4.get().getShardManager().getUserById(this.moderatorId);
 	}
 	
 	public Reason getReason() {

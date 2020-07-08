@@ -62,14 +62,15 @@ public class ExceptionUtility {
 		embed.setColor(Config.get().getRed());
 		embed.setDescription("You have come across an error! [Support Server](https://discord.gg/PqJNcfB)\n```diff\n- " + throwable.toString());
 		
-		for (int i = 0; i < throwable.getStackTrace().length; i++) {
-			StackTraceElement element = throwable.getStackTrace()[i];
-			if (element.toString().contains("com.sx4")) {
+		StackTraceElement[] stackTrace = throwable.getStackTrace();
+		for (int i = 0; i < stackTrace.length; i++) {
+			StackTraceElement element = stackTrace[i];
+			if (element.toString().contains("com.sx4.bot")) {
 				embed.appendDescription("\n- " + element.toString() + "```");
 				break;
 			}
 			
-			if (i == throwable.getStackTrace().length - 1) {
+			if (i == stackTrace.length - 1) {
 				embed.appendDescription("```");
 			}
 		}

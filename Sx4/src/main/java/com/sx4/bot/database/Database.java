@@ -63,9 +63,10 @@ public class Database {
 	
 	private final MongoCollection<Document> auction;
 	
-	private final MongoCollection<Document> modLogs;
-	private final MongoCollection<Document> commandLogs;
+	private final MongoCollection<Document> regexes;
 	
+	private final MongoCollection<Document> modLogs;
+	private final MongoCollection<Document> commands;
 	private final MongoCollection<Document> messages;
 	
 	private final MongoCollection<Document> resubscriptions;
@@ -99,18 +100,36 @@ public class Database {
 		this.auction.createIndex(Indexes.descending("item.name"));
 		this.auction.createIndex(Indexes.descending("ownerId"));
 		
+		this.regexes = this.database.getCollection("regexes");
+		this.regexes.createIndex(Indexes.descending("approved"));
+		this.regexes.createIndex(Indexes.descending("pattern"));
+		/*
+		 * {
+		 *   "_id": ObjectId(),
+		 *   "pattern": ".*[0-9]+.*",
+		 *   "uses": [
+		 *   	ids of guilds
+		 *   ]
+		 *   "description": "This regex deletes any message which contains a number",
+		 *   "title": "Numbers",
+		 *   "ownerId": discord id of owner,
+		 *   "approved": false,
+		 *   "verified": true
+		 * }
+		 */
+		
 		this.modLogs = this.database.getCollection("modLogs");
 		this.modLogs.createIndex(Indexes.descending("action.type"));
 		this.modLogs.createIndex(Indexes.descending("guildId"));
 		this.modLogs.createIndex(Indexes.descending("moderatorId"));
 		this.modLogs.createIndex(Indexes.descending("targetId"));
 		
-		this.commandLogs = this.database.getCollection("commandLogs");
-		this.commandLogs.createIndex(Indexes.descending("timestamp"));
-		this.commandLogs.createIndex(Indexes.descending("authorId"));
-		this.commandLogs.createIndex(Indexes.descending("guildId"));
-		this.commandLogs.createIndex(Indexes.descending("command"));
-		this.commandLogs.createIndex(Indexes.descending("channelId"));
+		this.commands = this.database.getCollection("commands");
+		this.commands.createIndex(Indexes.descending("timestamp"));
+		this.commands.createIndex(Indexes.descending("authorId"));
+		this.commands.createIndex(Indexes.descending("guildId"));
+		this.commands.createIndex(Indexes.descending("command"));
+		this.commands.createIndex(Indexes.descending("channelId"));
 		
 		this.messages = this.database.getCollection("messages");
 		this.messages.createIndex(Indexes.descending("updated"), new IndexOptions().expireAfter(7L, TimeUnit.DAYS));
@@ -255,6 +274,50 @@ public class Database {
 	
 	public CompletableFuture<BulkWriteResult> bulkWritePatrons(List<? extends WriteModel<? extends Document>> bulkData) {
 		return CompletableFuture.supplyAsync(() -> this.patrons.bulkWrite(bulkData));
+	}
+	
+	public MongoCollection<Document> getRegexes() {
+		return this.regexes;
+	}
+	
+	public FindIterable<Document> getRegexes(Bson filter, Bson projection) {
+		return this.regexes.find(filter).projection(projection);
+	}
+	
+	public Document getRegexById(ObjectId id, Bson filter, Bson projection) {
+		if (filter == null) {
+			filter = Filters.eq("_id", id);
+		} else {
+			filter = Filters.and(Filters.eq("_id", id), filter);
+		}
+		
+		Document data = this.regexes.find(filter).projection(projection).first();
+		
+		return data == null ? Database.EMPTY_DOCUMENT : data;
+	}
+	
+	public Document getRegexById(ObjectId id, Bson projection) {
+		return this.getRegexById(id, null, projection);
+	}
+	
+	public CompletableFuture<InsertOneResult> insertRegex(Document data) {
+		return CompletableFuture.supplyAsync(() -> this.regexes.insertOne(data));
+	}
+	
+	public CompletableFuture<UpdateResult> updateRegexById(ObjectId id, Bson update) {
+		return CompletableFuture.supplyAsync(() -> this.regexes.updateOne(Filters.eq("_id", id), update));
+	}
+	
+	public CompletableFuture<Document> findAndUpdateRegexById(ObjectId id, Bson update, FindOneAndUpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.regexes.findOneAndUpdate(Filters.eq("_id", id), update, options));
+	}
+	
+	public CompletableFuture<DeleteResult> deleteRegexById(ObjectId id) {
+		return CompletableFuture.supplyAsync(() -> this.regexes.deleteOne(Filters.eq("_id", id)));
+	}
+	
+	public CompletableFuture<Document> findAndDeleteRegexById(ObjectId id, FindOneAndDeleteOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.regexes.findOneAndDelete(Filters.eq("_id", id), options));
 	}
 	
 	public MongoCollection<Document> getUsers() {
@@ -636,16 +699,16 @@ public class Database {
 		return CompletableFuture.supplyAsync(() -> this.notifications.deleteMany(Filters.eq("videoId", videoId)));
 	}
 	
-	public MongoCollection<Document> getCommandLogs() {
-		return this.commandLogs;
+	public MongoCollection<Document> getCommands() {
+		return this.commands;
 	}
 	
-	public CompletableFuture<FindIterable<Document>> getCommandLogs(Bson filter) {
-		return CompletableFuture.supplyAsync(() -> this.commandLogs.find(filter));
+	public CompletableFuture<FindIterable<Document>> getCommands(Bson filter) {
+		return CompletableFuture.supplyAsync(() -> this.commands.find(filter));
 	}
 	
-	public CompletableFuture<AggregateIterable<Document>> aggregateCommandLogs(List<? extends Bson> pipeline) {
-		return CompletableFuture.supplyAsync(() -> this.commandLogs.aggregate(pipeline));
+	public CompletableFuture<AggregateIterable<Document>> aggregateCommands(List<? extends Bson> pipeline) {
+		return CompletableFuture.supplyAsync(() -> this.commands.aggregate(pipeline));
 	}
 	
 	public MongoCollection<Document> getOffences() {

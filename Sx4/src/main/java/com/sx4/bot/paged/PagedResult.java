@@ -4,12 +4,13 @@ import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BiConsumer;
 import java.util.function.BiPredicate;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
 import com.jockie.bot.core.command.impl.CommandEvent;
-import com.sx4.bot.core.Sx4Bot;
+import com.sx4.bot.core.Sx4;
 
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.MessageBuilder;
@@ -104,7 +105,7 @@ public class PagedResult<Type> {
 	}
 	
 	public Guild getGuild() {
-		return this.guildId == 0 ? null : Sx4Bot.getShardManager().getGuildById(this.guildId);
+		return this.guildId == 0 ? null : Sx4.get().getShardManager().getGuildById(this.guildId);
 	}
 	
 	public long getChannelId() {
@@ -113,7 +114,7 @@ public class PagedResult<Type> {
 	
 	public MessageChannel getChannel() {
 		if (this.guildId == 0 && this.channelId != 0) {
-			return Sx4Bot.getShardManager().getPrivateChannelById(this.channelId);
+			return Sx4.get().getShardManager().getPrivateChannelById(this.channelId);
 		} else {
 			Guild guild = this.getGuild();
 			
@@ -126,7 +127,7 @@ public class PagedResult<Type> {
 	}
 	
 	public User getOwner() {
-		return this.ownerId == 0 ? null : Sx4Bot.getShardManager().getUserById(this.ownerId);
+		return this.ownerId == 0 ? null : Sx4.get().getShardManager().getUserById(this.ownerId);
 	}
 	
 	public List<Type> getList() {
@@ -168,7 +169,7 @@ public class PagedResult<Type> {
 	}
 	
 	public int getLowerPageBound() {
-		return this.increasedIndex ? this.page * this.perPage - this.perPage : 0;
+		return this.increasedIndex ? (this.page - 1) * this.perPage : 0;
 	}
 	
 	public int getHigherPageBound() {
@@ -391,6 +392,12 @@ public class PagedResult<Type> {
 		this.onSelect = select;
 	}
 	
+	public void forEach(BiConsumer<Type, Integer> consumer) {
+		for (int i = (this.page - 1) * this.perPage; i < (this.page == this.getMaxPage() ? this.list.size() : this.page * this.perPage); i++) {
+			consumer.accept(this.list.get(i), i);
+		}
+	}
+	
 	public Message getPagedMessage() {
 		if (this.customFunction == null) {
 			MessageBuilder builder = new MessageBuilder();
@@ -403,18 +410,18 @@ public class PagedResult<Type> {
 				embed.setTitle("Page " + this.page + "/" + maxPage);
 				embed.setFooter("next | previous | go to <page_number> | cancel", null);
 				
-				for (int i = this.page * this.perPage - this.perPage; i < (this.page == maxPage ? this.list.size() : this.page * this.perPage); i++) {
-					embed.appendDescription((this.increasedIndex ? this.indexFunction.apply(i + 1) : (indexed == true ? (this.indexFunction.apply(i + 1 - ((this.page - 1) * this.perPage))) : "")) + this.displayFunction.apply(this.list.get(i)) + "\n");
-				}
+				this.forEach((object, index) -> {
+					embed.appendDescription((this.increasedIndex ? this.indexFunction.apply(index + 1) : (indexed == true ? (this.indexFunction.apply(index + 1 - ((this.page - 1) * this.perPage))) : "")) + this.displayFunction.apply(object) + "\n");
+				});
 				
 				return builder.setEmbed(embed.build()).build();
 			} else {
 				StringBuilder string = new StringBuilder();
 				string.append("Page **" + this.page + "/" + maxPage + "**\n\n");
 				
-				for (int i = this.page * (this.perPage - 1); i < (this.page == maxPage ? this.list.size() : this.page * this.perPage); i++) {
-					string.append((this.increasedIndex ? this.indexFunction.apply(i + 1) : (indexed == true ? (this.indexFunction.apply(i + 1 - ((this.page - 1) * this.perPage))) : "")) + this.displayFunction.apply(this.list.get(i)) + "\n");
-				}
+				this.forEach((object, index) -> {
+					string.append((this.increasedIndex ? this.indexFunction.apply(index + 1) : (indexed == true ? (this.indexFunction.apply(index + 1 - ((this.page - 1) * this.perPage))) : "")) + this.displayFunction.apply(object) + "\n");
+				});
 				
 				string.append("\nnext | previous | go to <page_number> | cancel");
 				

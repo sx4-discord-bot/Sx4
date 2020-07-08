@@ -13,7 +13,7 @@ import java.util.stream.Collectors;
 
 import com.jockie.bot.core.command.ICommand;
 import com.sx4.bot.category.Category;
-import com.sx4.bot.core.Sx4Bot;
+import com.sx4.bot.core.Sx4;
 import com.sx4.bot.core.Sx4Category;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.entities.argument.MessageArgument;
@@ -98,12 +98,12 @@ public class SearchUtility {
 	public static Guild getGuild(String query) {
 		if (NumberUtility.isNumberUnsigned(query)) {
 			try {
-				return Sx4Bot.getShardManager().getGuildById(query);
+				return Sx4.get().getShardManager().getGuildById(query);
 			} catch (NumberFormatException e) {
 				return null;
 			}
 		} else {
-			return SearchUtility.findGuild(Sx4Bot.getShardManager().getGuildCache(), query);
+			return SearchUtility.findGuild(Sx4.get().getShardManager().getGuildCache(), query);
 		}
 	}
 	
@@ -120,7 +120,7 @@ public class SearchUtility {
 			}	
 		} else if (NumberUtility.isNumberUnsigned(query)) {
 			try {
-				Emote emote = Sx4Bot.getShardManager().getEmoteById(query);
+				Emote emote = Sx4.get().getShardManager().getEmoteById(query);
 				if (emote == null) {
 					return new PartialEmote(Long.valueOf(query), null, null);
 				} else {
@@ -133,7 +133,7 @@ public class SearchUtility {
 			try {
 				Long id = Long.parseLong(urlMatch.group(1));
 				
-				Emote emote = Sx4Bot.getShardManager().getEmoteById(id);
+				Emote emote = Sx4.get().getShardManager().getEmoteById(id);
 				if (emote == null) {
 					return new PartialEmote(id, null, urlMatch.group(2).equals("gif"));
 				} else {
@@ -144,7 +144,7 @@ public class SearchUtility {
 			}
 			
 		} else {
-			Emote emote = SearchUtility.findEmote(Sx4Bot.getShardManager().getEmoteCache(), query);
+			Emote emote = SearchUtility.findEmote(Sx4.get().getShardManager().getEmoteCache(), query);
 			if (emote != null) {
 				return new PartialEmote(emote);
 			}
@@ -158,24 +158,24 @@ public class SearchUtility {
 		Matcher urlMatch = SearchUtility.EMOTE_URL.matcher(query);
 		if (mentionMatch.matches()) {
 			try {
-				return Sx4Bot.getShardManager().getEmoteById(mentionMatch.group(3));
+				return Sx4.get().getShardManager().getEmoteById(mentionMatch.group(3));
 			} catch (NumberFormatException e) {
 				return null;
 			}
 		} else if (NumberUtility.isNumberUnsigned(query)) {
 			try {
-				return Sx4Bot.getShardManager().getEmoteById(query);
+				return Sx4.get().getShardManager().getEmoteById(query);
 			} catch (NumberFormatException e) {
 				return null;
 			}
 		} else if (urlMatch.matches()) {
 			try {
-				return Sx4Bot.getShardManager().getEmoteById(urlMatch.group(1));
+				return Sx4.get().getShardManager().getEmoteById(urlMatch.group(1));
 			} catch (NumberFormatException e) {
 				return null;
 			}
 		} else {
-			return SearchUtility.findEmote(Sx4Bot.getShardManager().getEmoteCache(), query);
+			return SearchUtility.findEmote(Sx4.get().getShardManager().getEmoteCache(), query);
 		}
 	}
 	
@@ -210,7 +210,7 @@ public class SearchUtility {
 		if (emote != null) {
 			return ReactionEmote.fromCustom(emote);
 		} else {
-			return ReactionEmote.fromUnicode(query, Sx4Bot.getShardManager().getShardById(0));
+			return ReactionEmote.fromUnicode(query, Sx4.get().getShardManager().getShardById(0));
 		}
 	}
 	
@@ -218,7 +218,7 @@ public class SearchUtility {
 		Matcher jumpMatch = Message.JUMP_URL_PATTERN.matcher(query);
 		if (jumpMatch.matches()) {
 			try {
-				Guild guild = Sx4Bot.getShardManager().getGuildById(jumpMatch.group(1));
+				Guild guild = Sx4.get().getShardManager().getGuildById(jumpMatch.group(1));
 				if (guild == null) {
 					return null;
 				}
@@ -381,7 +381,7 @@ public class SearchUtility {
 			try {
 				long id = Long.parseLong(mentionMatch.group(1));
 				
-				return Sx4Bot.getShardManager().getUserById(id);
+				return Sx4.get().getShardManager().getUserById(id);
 			} catch (NumberFormatException e) {
 				return null;
 			}
@@ -389,7 +389,7 @@ public class SearchUtility {
 			String name = tagMatch.group(1);
 			String discriminator = tagMatch.group(2);
 			
-			return Sx4Bot.getShardManager().getUserCache().stream()
+			return Sx4.get().getShardManager().getUserCache().stream()
 				.filter(user -> user.getName().equalsIgnoreCase(name) && user.getDiscriminator().equals(discriminator))
 				.findFirst()
 				.orElse(null);
@@ -397,12 +397,12 @@ public class SearchUtility {
 			try {
 				long id = Long.parseLong(query);
 				
-				return Sx4Bot.getShardManager().getUserById(id);
+				return Sx4.get().getShardManager().getUserById(id);
 			} catch (NumberFormatException e) {
 				return null;
 			}
 		} else {
-			return Sx4Bot.getShardManager().getUserCache().stream()
+			return Sx4.get().getShardManager().getUserCache().stream()
 					.filter(user -> user.getName().equalsIgnoreCase(query))
 					.findFirst()
 					.orElse(null);
@@ -418,7 +418,7 @@ public class SearchUtility {
 				
 				Member member = guild.getMemberById(id);
 				if (member == null) {
-					Sx4Bot.getShardManager().retrieveUserById(id).queue(user -> {
+					Sx4.get().getShardManager().retrieveUserById(id).queue(user -> {
 						userConsumer.accept(user);
 					});
 				} else {
@@ -437,7 +437,7 @@ public class SearchUtility {
 					.filter(user -> user.getName().equalsIgnoreCase(name) && user.getDiscriminator().equals(discriminator))
 					.findFirst()
 					.orElseGet(() -> {
-						return Sx4Bot.getShardManager().getUserCache().stream()
+						return Sx4.get().getShardManager().getUserCache().stream()
 							.filter(user -> user.getName().equalsIgnoreCase(name) && user.getDiscriminator().equals(discriminator))
 							.findFirst()
 							.orElse(null);
@@ -449,7 +449,7 @@ public class SearchUtility {
 				
 				Member member = guild.getMemberById(id);
 				if (member == null) {
-					Sx4Bot.getShardManager().retrieveUserById(id).queue(user -> {
+					Sx4.get().getShardManager().retrieveUserById(id).queue(user -> {
 						userConsumer.accept(user);
 					});
 				} else {
@@ -461,7 +461,7 @@ public class SearchUtility {
 		} else {
 			Member member = SearchUtility.findMember(guild.getMemberCache(), query);
 			if (member == null) {
-				userConsumer.accept(Sx4Bot.getShardManager().getUserCache().stream()
+				userConsumer.accept(Sx4.get().getShardManager().getUserCache().stream()
 						.filter(user -> user.getName().equalsIgnoreCase(query))
 						.findFirst()
 						.orElse(null));
@@ -478,7 +478,7 @@ public class SearchUtility {
 			try {
 				long id = Long.parseLong(mentionMatch.group(1));
 				
-				Sx4Bot.getShardManager().retrieveUserById(id).queue(user -> {
+				Sx4.get().getShardManager().retrieveUserById(id).queue(user -> {
 					userConsumer.accept(user);
 				});
 			} catch (NumberFormatException e) {
@@ -488,7 +488,7 @@ public class SearchUtility {
 			String name = tagMatch.group(1);
 			String discriminator = tagMatch.group(2);
 			
-			userConsumer.accept(Sx4Bot.getShardManager().getUserCache().stream()
+			userConsumer.accept(Sx4.get().getShardManager().getUserCache().stream()
 				.filter(user -> user.getName().equalsIgnoreCase(name) && user.getDiscriminator().equals(discriminator))
 				.findFirst()
 				.orElse(null));
@@ -496,14 +496,14 @@ public class SearchUtility {
 			try {
 				long id = Long.parseLong(query);
 				
-				Sx4Bot.getShardManager().retrieveUserById(id).queue(user -> {
+				Sx4.get().getShardManager().retrieveUserById(id).queue(user -> {
 					userConsumer.accept(user);
 				});
 			} catch (NumberFormatException e) {
 				userConsumer.accept(null);
 			}
 		} else {
-			userConsumer.accept(Sx4Bot.getShardManager().getUserCache().stream()
+			userConsumer.accept(Sx4.get().getShardManager().getUserCache().stream()
 					.filter(user -> user.getName().equalsIgnoreCase(query))
 					.findFirst()
 					.orElse(null));
@@ -555,7 +555,7 @@ public class SearchUtility {
 		query = caseSensitive ? query.trim() : query.toLowerCase().trim();
 		
 		List<Sx4Command> commands = new ArrayList<>();
-		Command : for (ICommand commandObject : Sx4Bot.getCommandListener().getAllCommands(includeDeveloper, false)) {
+		Command : for (ICommand commandObject : Sx4.get().getCommandListener().getAllCommands(includeDeveloper, false)) {
 			Sx4Command command = (Sx4Command) commandObject;
 			
 			String commandTrigger = caseSensitive ? command.getCommandTrigger() : command.getCommandTrigger().toLowerCase();

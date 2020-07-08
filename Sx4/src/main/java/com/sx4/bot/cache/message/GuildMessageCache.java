@@ -19,12 +19,6 @@ import net.dv8tion.jda.api.hooks.ListenerAdapter;
 
 public class GuildMessageCache extends ListenerAdapter {
 	
-	private static final GuildMessageCache INSTANCE = new GuildMessageCache();
-	
-	public static GuildMessageCache get() {
-		return GuildMessageCache.INSTANCE;
-	}
-	
 	private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
 	
 	private Document getData(Message message) {

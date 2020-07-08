@@ -24,7 +24,7 @@ import net.dv8tion.jda.api.events.message.MessageBulkDeleteEvent;
 import net.dv8tion.jda.api.events.message.MessageDeleteEvent;
 import net.dv8tion.jda.api.events.message.guild.react.GenericGuildMessageReactionEvent;
 import net.dv8tion.jda.api.events.role.RoleDeleteEvent;
-import net.dv8tion.jda.api.exceptions.ErrorHandler;
+import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.dv8tion.jda.api.requests.ErrorResponse;
 
@@ -44,7 +44,7 @@ public class ReactionRoleHandler extends ListenerAdapter {
 		if (!guild.getSelfMember().hasPermission(Permission.MANAGE_ROLES)) {
 			user.openPrivateChannel()
 				.flatMap(channel -> channel.sendMessage("I am missing the `" + Permission.MANAGE_ROLES.getName() + "` permission " + config.getFailureEmote()))
-				.queue(null, new ErrorHandler().ignore(ErrorResponse.CANNOT_SEND_TO_USER));
+				.queue(null, ErrorResponseException.ignore(ErrorResponse.CANNOT_SEND_TO_USER));
 			
 			return;
 		}
@@ -99,7 +99,7 @@ public class ReactionRoleHandler extends ListenerAdapter {
 		if (reactedTo >= maxReactions && maxReactions != 0) {
 			user.openPrivateChannel()
 				.flatMap(channel -> channel.sendMessage("You can only react to **" + maxReactions + "** reaction" + (maxReactions == 1 ? "" : "s") + " on this message " + config.getFailureEmote()))
-				.queue(null, new ErrorHandler().ignore(ErrorResponse.CANNOT_SEND_TO_USER));
+				.queue(null, ErrorResponseException.ignore(ErrorResponse.CANNOT_SEND_TO_USER));
 			
 			return;
 		}
@@ -114,7 +114,7 @@ public class ReactionRoleHandler extends ListenerAdapter {
 		if (reactionRole.getBoolean("dm", true)) {
 			user.openPrivateChannel()
 				.flatMap(channel -> channel.sendMessage(message))
-				.queue(null, new ErrorHandler().ignore(ErrorResponse.CANNOT_SEND_TO_USER));
+				.queue(null, ErrorResponseException.ignore(ErrorResponse.CANNOT_SEND_TO_USER));
 		}
 	}
 	

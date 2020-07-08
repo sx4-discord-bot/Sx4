@@ -8,7 +8,7 @@ import java.time.ZoneOffset;
 import org.bson.Document;
 import org.bson.types.ObjectId;
 
-import com.sx4.bot.core.Sx4Bot;
+import com.sx4.bot.core.Sx4;
 
 import net.dv8tion.jda.api.entities.User;
 
@@ -45,7 +45,7 @@ public class Reminder {
 	}
 	
 	public User getUser() {
-		return Sx4Bot.getShardManager().getUserById(userId);
+		return Sx4.get().getShardManager().getUserById(userId);
 	}
 	
 	public ObjectId getId() {

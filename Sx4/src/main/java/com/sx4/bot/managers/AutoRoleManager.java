@@ -22,7 +22,7 @@ import com.mongodb.client.model.UpdateOneModel;
 import com.mongodb.client.model.UpdateOptions;
 import com.mongodb.client.model.Updates;
 import com.mongodb.client.model.WriteModel;
-import com.sx4.bot.core.Sx4Bot;
+import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.utility.ExceptionUtility;
 
@@ -107,7 +107,7 @@ public class AutoRoleManager {
 	}
 	
 	public UpdateOneModel<Document> updateMemberRolesAndGet(long guildId, long userId, ObjectId id, List<Long> roleIdsAdd, List<Long> roleIdsRemove) {
-		Guild guild = Sx4Bot.getShardManager().getGuildById(guildId);
+		Guild guild = Sx4.get().getShardManager().getGuildById(guildId);
 		if (guild == null) {
 			return null;
 		}

@@ -17,7 +17,7 @@ import com.mongodb.client.model.DeleteOneModel;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.WriteModel;
 import com.sx4.bot.config.Config;
-import com.sx4.bot.core.Sx4Bot;
+import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.events.youtube.YouTubeDeleteEvent;
 import com.sx4.bot.events.youtube.YouTubeEvent;
@@ -140,7 +140,7 @@ public class YouTubeManager {
 				.post(body)
 				.build();
 			
-			Sx4Bot.getClient().newCall(request).enqueue((HttpCallback) response -> {
+			Sx4.getClient().newCall(request).enqueue((HttpCallback) response -> {
 				if (response.isSuccessful()) {
 					System.out.println("Resubscribed to " + channelId + " for YouTube notifications");
 				} else {

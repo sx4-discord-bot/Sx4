@@ -10,7 +10,7 @@ import java.util.stream.Collectors;
 import org.bson.Document;
 
 import com.mongodb.client.model.Projections;
-import com.sx4.bot.core.Sx4Bot;
+import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.entities.settings.HolderType;
 
@@ -34,7 +34,7 @@ public class CheckUtility {
 	}
 
 	public static EnumSet<Permission> missingPermissions(Member member, TextChannel channel, EnumSet<Permission> permissions) {
-		if (Sx4Bot.getCommandListener().isDeveloper(member.getIdLong()) || member.hasPermission(channel, permissions)) {
+		if (Sx4.get().getCommandListener().isDeveloper(member.getIdLong()) || member.hasPermission(channel, permissions)) {
 			return EnumSet.noneOf(Permission.class);
 		}
 		
