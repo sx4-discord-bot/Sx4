@@ -1,11 +1,7 @@
 package com.sx4.bot.paged;
 
-import java.util.EnumSet;
-import java.util.List;
-
 import com.sx4.bot.paged.PagedResult.SelectType;
 import com.sx4.bot.utility.NumberUtility;
-
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.MessageChannel;
@@ -15,6 +11,9 @@ import net.dv8tion.jda.api.events.message.MessageUpdateEvent;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.dv8tion.jda.api.requests.ErrorResponse;
+
+import java.util.EnumSet;
+import java.util.List;
 
 public class PagedHandler extends ListenerAdapter {
 	
@@ -74,9 +73,9 @@ public class PagedHandler extends ListenerAdapter {
 						if (page > 0 && page <= pagedResult.getMaxPage() && page != pagedResult.getPage()) {
 							pagedResult.setPage(page).ensure(channel);
 							this.attemptDelete(message);
+
+							return;
 						}
-						
-						return;
 					} catch (NumberFormatException e) {}
 				}
 			}

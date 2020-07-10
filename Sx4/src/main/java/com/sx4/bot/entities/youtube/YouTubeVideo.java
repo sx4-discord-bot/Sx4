@@ -7,6 +7,7 @@ public class YouTubeVideo {
 	private final String id;
 	private final String title;
 	private final String url;
+	private final String thumbnail;
 	
 	private final OffsetDateTime updatedAt;
 	private final OffsetDateTime publishedAt;
@@ -15,6 +16,7 @@ public class YouTubeVideo {
 		this.id = videoId;
 		this.title = videoTitle;
 		this.url = "https://www.youtube.com/watch?v=" + videoId;
+		this.thumbnail = "https://img.youtube.com/vi/" + videoId + "/0.jpg";
 		this.updatedAt = OffsetDateTime.parse(videoUpdatedAt);
 		this.publishedAt = OffsetDateTime.parse(videoPublishedAt);
 	}
@@ -29,6 +31,10 @@ public class YouTubeVideo {
 	
 	public String getUrl() {
 		return this.url;
+	}
+
+	public String getThumbnail() {
+		return this.thumbnail;
 	}
 	
 	public OffsetDateTime getUpdatedAt() {

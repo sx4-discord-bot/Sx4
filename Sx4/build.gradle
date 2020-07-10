@@ -8,6 +8,10 @@ repositories {
 	jcenter()
 }
 
+compileJava {
+	options.encoding = "UTF-8"
+}
+
 sourceCompatibility = JavaVersion.VERSION_12
 targetCompatibility = JavaVersion.VERSION_12
 
@@ -20,7 +24,9 @@ dependencies {
 	
 	compile group: 'org.jsoup', name: 'jsoup', version: '1.11.3'
 
-	implementation 'net.dv8tion:JDA:4+'
+	implementation('net.dv8tion:JDA:4+') {
+		exclude module: 'opus-java'
+	}
 	
 	implementation 'org.mongodb:mongodb-driver-sync:+'
 	

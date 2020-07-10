@@ -1,17 +1,10 @@
 package com.sx4.bot.handlers;
 
-import java.time.format.DateTimeFormatter;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-
-import org.bson.Document;
-import org.bson.conversions.Bson;
-
+import club.minnced.discord.webhook.WebhookClient;
+import club.minnced.discord.webhook.WebhookClientBuilder;
+import club.minnced.discord.webhook.exception.HttpException;
+import club.minnced.discord.webhook.send.WebhookMessage;
+import club.minnced.discord.webhook.send.WebhookMessageBuilder;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.UpdateOptions;
@@ -27,12 +20,6 @@ import com.sx4.bot.events.youtube.YouTubeUploadEvent;
 import com.sx4.bot.hooks.YouTubeListener;
 import com.sx4.bot.managers.YouTubeManager;
 import com.sx4.bot.utility.ExceptionUtility;
-
-import club.minnced.discord.webhook.WebhookClient;
-import club.minnced.discord.webhook.WebhookClientBuilder;
-import club.minnced.discord.webhook.exception.HttpException;
-import club.minnced.discord.webhook.send.WebhookMessage;
-import club.minnced.discord.webhook.send.WebhookMessageBuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.TextChannel;
@@ -41,6 +28,17 @@ import net.dv8tion.jda.api.events.channel.text.TextChannelDeleteEvent;
 import net.dv8tion.jda.api.hooks.EventListener;
 import net.dv8tion.jda.api.sharding.ShardManager;
 import okhttp3.OkHttpClient;
+import org.bson.Document;
+import org.bson.conversions.Bson;
+
+import java.time.format.DateTimeFormatter;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 
 public class YouTubeHandler implements YouTubeListener, EventListener {
 	
@@ -60,7 +58,7 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 	
 	private final Map<Long, WebhookClient> webhooks = new HashMap<>();
 	
-	private String getMessage(YouTubeUploadEvent event, String message) {
+	private String format(YouTubeUploadEvent event, String message) {
 		YouTubeChannel channel = event.getChannel();
 		YouTubeVideo video = event.getVideo();
 		
@@ -75,7 +73,6 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 		    if (endIndex != -1)  {
 		        if (message.charAt(endIndex - 1) == '\\') {
 		            message = message.substring(0, endIndex - 1) + message.substring(endIndex);
-		            continue;
 		        } else {
 		            String formatter = message.substring(index + 1, endIndex);
 		            switch (formatter.trim().toLowerCase()) {
@@ -97,6 +94,9 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 		            	case "video.id":
 		            		message = message.substring(0, index) + video.getId() + message.substring(endIndex + 1);
 		            		break;
+						case "video.thumbnail":
+							message = message.substring(0, index) + video.getThumbnail() + message.substring(endIndex + 1);
+							break;
 		            	case "video.published":
 		            		message = message.substring(0, index) + video.getPublishedAt().format(this.formatter) + message.substring(endIndex + 1);
 		            		break;
@@ -109,14 +109,13 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 	}
 	
 	public void ensureWebhooks() {
-		Bson projection = Projections.include("youtube.notifications.channelId", "youtube.notifications.webhookId", "youtube.notifications.webhookToken");
-		Database.get().getGuilds(Filters.elemMatch("youtube.notifications", Filters.exists("webhookId")), projection).forEach((Document guildData) -> {
-			List<Document> notifications = guildData.getEmbedded(List.of("youtube", "notification"), Collections.emptyList());
+		Bson projection = Projections.include("youtube.notifications.channelId", "youtube.notifications.webhook");
+		Database.get().getGuilds(Filters.elemMatch("youtube.notifications", Filters.exists("webhook")), projection).forEach(guildData -> {
+			List<Document> notifications = guildData.getEmbedded(List.of("youtube", "notifications"), Collections.emptyList());
 			for (Document data : notifications) {
-				long webhookId = data.get("webhookId", 0L);
-				String webhookToken = data.getString("webhookToken");
-				if (webhookId != 0L && webhookToken != null) {
-					WebhookClient webhook = new WebhookClientBuilder(webhookId, webhookToken)
+				Document webhookData = data.get("webhook", Document.class);
+				if (webhookData != null) {
+					WebhookClient webhook = new WebhookClientBuilder(webhookData.get("id", 0L), webhookData.getString("token"))
 							.setExecutorService(this.scheduledExectuor)
 							.setHttpClient(this.client)
 							.build();
@@ -136,7 +135,7 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 			
 			this.webhooks.put(textChannel.getIdLong(), webhookClient);
 			
-			Bson update = Updates.combine(Updates.set("youtube.notifications.$[notification].webhookId", webhookClient.getId()), Updates.set("youtube.notifications.$[notification].webhookToken", newWebhook.getToken()));
+			Bson update = Updates.combine(Updates.set("youtube.notifications.$[notification].webhook.id", webhookClient.getId()), Updates.set("youtube.notifications.$[notification].webhook.token", newWebhook.getToken()));
 			UpdateOptions options = new UpdateOptions().arrayFilters(List.of(Filters.eq("notification.channelId", textChannel.getIdLong())));
 			
 			Database.get().updateGuildById(textChannel.getGuild().getIdLong(), update, options)
@@ -173,29 +172,28 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 								long textChannelId = notification.getLong("channelId");
 								TextChannel textChannel = guild.getTextChannelById(textChannelId);
 								if (textChannel != null) {
-									String messageContent = this.getMessage(event, notification.get("message", YouTubeManager.DEFAULT_MESSAGE));
+									String messageContent = this.format(event, notification.get("message", YouTubeManager.DEFAULT_MESSAGE));
 									
 									WebhookMessage message = new WebhookMessageBuilder()
 										.setAvatarUrl(notification.get("avatar", shardManager.getShardById(0).getSelfUser().getEffectiveAvatarUrl()))
 										.setUsername(notification.get("name", "Sx4 - YouTube"))
 										.setContent(messageContent)
 										.build();
-									
-									long webhookId = notification.get("webhookId", 0L);
-									String webhookToken = notification.getString("webhookToken");
-									
+
+									Document webhookData = notification.get("webhook", Document.class);
+
 									WebhookClient webhook;
 									if (this.webhooks.containsKey(textChannel.getIdLong())) {
 										webhook = this.webhooks.get(textChannel.getIdLong());
 									} else {
-										if (webhookId == 0L || webhookToken == null) {
+										if (webhookData == null) {
 											if (textChannel.getGuild().getSelfMember().hasPermission(textChannel, Permission.MANAGE_WEBHOOKS)) {
 												this.createNewWebhook(event, textChannel, message);
 											}
 											
 											return;
 										} else {
-											webhook = new WebhookClientBuilder(webhookId, webhookToken)
+											webhook = new WebhookClientBuilder(webhookData.get("id", 0L), webhookData.getString("token"))
 													.setExecutorService(this.scheduledExectuor)
 													.setHttpClient(this.client)
 													.build();
@@ -232,12 +230,7 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 						.append("title", event.getVideo().getTitle())
 						.append("uploaderId", event.getChannel().getId());
 				
-				Database.get().insertNotification(databaseData).whenComplete((result, databaseException) -> {
-					if (databaseException != null) {
-						databaseException.printStackTrace();
-						ExceptionUtility.sendErrorMessage(databaseException);
-					}
-				});
+				Database.get().insertNotification(databaseData).whenComplete((result, exception) -> ExceptionUtility.sendErrorMessage(exception));
 			} catch (Throwable e) {
 				e.printStackTrace();
 				ExceptionUtility.sendErrorMessage(e);
