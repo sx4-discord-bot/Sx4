@@ -11,13 +11,13 @@ import com.sx4.bot.category.Category;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.model.Operators;
+import com.sx4.bot.entities.settings.HolderType;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.MessageBuilder;
 import net.dv8tion.jda.api.Permission;
-import net.dv8tion.jda.api.entities.TextChannel;
-import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.entities.*;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.requests.ErrorResponse;
 import org.bson.Document;
@@ -38,7 +38,7 @@ public class AntiRegexCommand extends Sx4Command {
 		super.setAliases("antiregex");
 		super.setDescription("Setup a regex which if matched with the content of a message it will perform an action");
 		super.setExamples("anti regex add", "anti regex remove", "anti regex list");
-		super.setCategory(Category.AUTO_MODERATION);
+		super.setCategoryAll(Category.AUTO_MODERATION);
 	}
 	
 	public void onCommand(Sx4CommandEvent event) {
@@ -174,12 +174,12 @@ public class AntiRegexCommand extends Sx4Command {
 							continue;
 						}
 
-						groups.add(groupWhitelist);
-						whitelistsCopy.remove(whitelist);
+						List<Document> groupsCopy = new ArrayList<>(groups);
+						groupsCopy.add(groupWhitelist);
 
+						whitelistsCopy.remove(whitelist);
 						whitelistsCopy.add(
-							new Document("id", channelId)
-								.append("groups", groups)
+							whitelist.append("groups", groupsCopy)
 						);
 
 						continue Channels;
@@ -203,7 +203,214 @@ public class AntiRegexCommand extends Sx4Command {
 					return;
 				}
 
-				event.reply("Group **" + group + "** is now whitelisted from that string in the provided channel " + this.config.getSuccessEmote()).queue();
+				event.reply("Group **" + group + "** is now whitelisted from that string in the provided channels " + this.config.getSuccessEmote()).queue();
+			});
+		}
+
+		@Command(value="add", description="Adds a whitelist for a role or user")
+		@Examples({"anti regex whitelist add 5f023782ef9eba03390a740c #channel @everyone", "anti regex whitelist add 5f023782ef9eba03390a740c @Shea#6653"})
+		@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
+		public void add(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="channel", nullDefault=true) TextChannel channelArgument, @Argument(value="user | role", endless=true)IPermissionHolder holder) {
+			List<TextChannel> channels = channelArgument == null ? event.getGuild().getTextChannels() : List.of(channelArgument);
+
+			List<Document> regexes = this.database.getGuildById(event.getGuild().getIdLong(), Projections.include("antiRegex.regexes")).getEmbedded(List.of("antiRegex", "regexes"), Collections.emptyList());
+			Document regex = regexes.stream()
+				.filter(data -> data.getObjectId("id").equals(id))
+				.findFirst()
+				.orElse(null);
+
+			if (regex == null) {
+				event.reply("I could not find that regex " + this.config.getFailureEmote()).queue();
+				return;
+			}
+
+			List<Document> whitelists = regex.getEmbedded(List.of("whitelist", "channels"), Collections.emptyList());
+			List<Document> whitelistsCopy = new ArrayList<>(whitelists);
+
+			boolean role = holder instanceof Role;
+			Document holderWhitelist = new Document("id", holder.getIdLong())
+				.append("type", role ? HolderType.ROLE.getType() : HolderType.USER.getType());
+
+			Channels : for (TextChannel channel : channels) {
+				long channelId = channel.getIdLong();
+				for (Document whitelist : whitelists) {
+					if (whitelist.get("id", 0L) == channelId) {
+						List<Document> holders = whitelist.getList("holders", Document.class, Collections.emptyList());
+						if (holders.stream().anyMatch(data -> data.get("id", 0L) == holder.getIdLong())) {
+							continue;
+						}
+
+						List<Document> holdersCopy = new ArrayList<>(holders);
+						holdersCopy.add(holderWhitelist);
+
+						whitelistsCopy.remove(whitelist);
+						whitelistsCopy.add(
+							whitelist.append("holders", holdersCopy)
+						);
+
+						continue Channels;
+					}
+				}
+
+				whitelistsCopy.add(
+					new Document("id", channelId)
+						.append("holders", List.of(holderWhitelist))
+				);
+			}
+
+			UpdateOptions options = new UpdateOptions().arrayFilters(List.of(Filters.eq("regex.id", id)));
+			this.database.updateGuildById(event.getGuild().getIdLong(), Updates.set("antiRegex.regexes.$[regex].whitelist.channels", whitelistsCopy), options).whenComplete((result, exception) -> {
+				if (ExceptionUtility.sendExceptionally(event, exception)) {
+					return;
+				}
+
+				if (result.getModifiedCount() == 0) {
+					event.reply((role ? ((Role) holder).getAsMention() : ((Member) holder).getUser().getAsMention()) + " already was whitelisted in the channels provided " + this.config.getFailureEmote()).queue();
+					return;
+				}
+
+				event.reply((role ? ((Role) holder).getAsMention() : ((Member) holder).getUser().getAsMention()) + " is now whitelisted in the provided channels " + this.config.getSuccessEmote()).queue();
+			});
+		}
+
+		@Command(value="remove", description="Removes a group whitelist from channels")
+		@Examples({"anti regex whitelist remove 5f023782ef9eba03390a740c #youtube-links 2 youtube.com", "anti regex whitelist remove 5f023782ef9eba03390a740c 0 https://youtube.com"})
+		@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
+		public void remove(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="channel", nullDefault=true) TextChannel channelArgument, @Argument(value="group") @Limit(min=0) int group, @Argument(value="string", endless=true) String string) {
+			List<TextChannel> channels = channelArgument == null ? event.getGuild().getTextChannels() : List.of(channelArgument);
+
+			List<Document> regexes = this.database.getGuildById(event.getGuild().getIdLong(), Projections.include("antiRegex.regexes")).getEmbedded(List.of("antiRegex", "regexes"), Collections.emptyList());
+			Document regex = regexes.stream()
+				.filter(data -> data.getObjectId("id").equals(id))
+				.findFirst()
+				.orElse(null);
+
+			if (regex == null) {
+				event.reply("I could not find that regex " + this.config.getFailureEmote()).queue();
+				return;
+			}
+
+			int groupCount = Pattern.compile(regex.getString("pattern")).matcher("").groupCount();
+			if (group > groupCount) {
+				event.reply("That regex does not have a group " + group + " " + this.config.getFailureEmote()).queue();
+				return;
+			}
+
+			List<Document> whitelists = regex.getEmbedded(List.of("whitelist", "channels"), Collections.emptyList());
+			List<Document> whitelistsCopy = new ArrayList<>(whitelists);
+
+			Channels : for (TextChannel channel : channels) {
+				long channelId = channel.getIdLong();
+				for (Document whitelist : whitelists) {
+					if (whitelist.get("id", 0L) == channelId) {
+						List<Document> groups = whitelist.getList("groups", Document.class, Collections.emptyList());
+
+						Document groupData = groups.stream()
+							.filter(data -> data.get("group", 0) == group && data.getString("string").equals(string))
+							.findFirst()
+							.orElse(null);
+
+						if (groupData == null) {
+							continue;
+						}
+
+						List<Document> groupsCopy = new ArrayList<>(groups);
+						groupsCopy.remove(groupData);
+
+						whitelistsCopy.remove(whitelist);
+
+						List<Document> holders = whitelist.getList("holders", Document.class, Collections.emptyList());
+						if (!holders.isEmpty() || !groupsCopy.isEmpty()) {
+							whitelistsCopy.add(
+								whitelist.append("groups", groupsCopy)
+							);
+						}
+
+						continue Channels;
+					}
+				}
+			}
+
+			UpdateOptions options = new UpdateOptions().arrayFilters(List.of(Filters.eq("regex.id", id)));
+			this.database.updateGuildById(event.getGuild().getIdLong(), Updates.set("antiRegex.regexes.$[regex].whitelist.channels", whitelistsCopy), options).whenComplete((result, exception) -> {
+				if (ExceptionUtility.sendExceptionally(event, exception)) {
+					return;
+				}
+
+				if (result.getModifiedCount() == 0) {
+					event.reply("Group **" + group + "** did not have that string whitelisted in any of the channels provided " + this.config.getFailureEmote()).queue();
+					return;
+				}
+
+				event.reply("Group **" + group + "** is no longer whitelisted from that string in the provided channels " + this.config.getSuccessEmote()).queue();
+			});
+		}
+
+		@Command(value="remove", description="Removes a role or user whitelist from channels")
+		@Examples({"anti regex whitelist remove 5f023782ef9eba03390a740c #channel @everyone", "anti regex whitelist remove 5f023782ef9eba03390a740c @Shea#6653"})
+		@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
+		public void remove(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="channel", nullDefault=true) TextChannel channelArgument, @Argument(value="user | role") IPermissionHolder holder) {
+			List<TextChannel> channels = channelArgument == null ? event.getGuild().getTextChannels() : List.of(channelArgument);
+
+			List<Document> regexes = this.database.getGuildById(event.getGuild().getIdLong(), Projections.include("antiRegex.regexes")).getEmbedded(List.of("antiRegex", "regexes"), Collections.emptyList());
+			Document regex = regexes.stream()
+				.filter(data -> data.getObjectId("id").equals(id))
+				.findFirst()
+				.orElse(null);
+
+			if (regex == null) {
+				event.reply("I could not find that regex " + this.config.getFailureEmote()).queue();
+				return;
+			}
+
+			List<Document> whitelists = regex.getEmbedded(List.of("whitelist", "channels"), Collections.emptyList());
+			List<Document> whitelistsCopy = new ArrayList<>(whitelists);
+
+			Channels : for (TextChannel channel : channels) {
+				long channelId = channel.getIdLong();
+				for (Document whitelist : whitelists) {
+					if (whitelist.get("id", 0L) == channelId) {
+						List<Document> holders = whitelist.getList("holders", Document.class, Collections.emptyList());
+
+						Document holderData = holders.stream()
+							.filter(data -> data.get("id", 0L) == holder.getIdLong())
+							.findFirst()
+							.orElse(null);
+
+						if (holderData == null) {
+							continue;
+						}
+
+						List<Document> holdersCopy = new ArrayList<>(holders);
+						holdersCopy.remove(holderData);
+
+						whitelistsCopy.remove(whitelist);
+
+						List<Document> groups = whitelist.getList("groups", Document.class, Collections.emptyList());
+						if (!holdersCopy.isEmpty() || !groups.isEmpty()) {
+							whitelistsCopy.add(
+								whitelist.append("holders", holdersCopy)
+							);
+						}
+
+						continue Channels;
+					}
+				}
+			}
+
+			UpdateOptions options = new UpdateOptions().arrayFilters(List.of(Filters.eq("regex.id", id)));
+			this.database.updateGuildById(event.getGuild().getIdLong(), Updates.set("antiRegex.regexes.$[regex].whitelist.channels", whitelistsCopy), options).whenComplete((result, exception) -> {
+				if (ExceptionUtility.sendExceptionally(event, exception)) {
+					return;
+				}
+
+				boolean role = holder instanceof Role;
+				if (result.getModifiedCount() == 0) {
+					event.reply((role ? ((Role) holder).getAsMention() : ((Member) holder).getUser().getAsMention()) + " was not whitelisted in any of the channels provided " + this.config.getFailureEmote()).queue();
+					return;
+				}
+
+				event.reply((role ? ((Role) holder).getAsMention() : ((Member) holder).getUser().getAsMention()) + " is no longer whitelisted in the provided channels " + this.config.getSuccessEmote()).queue();
 			});
 		}
 

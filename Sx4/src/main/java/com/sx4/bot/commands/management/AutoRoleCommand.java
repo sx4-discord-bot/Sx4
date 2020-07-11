@@ -1,15 +1,5 @@
 package com.sx4.bot.commands.management;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
-import java.util.concurrent.CompletionException;
-import java.util.stream.Collectors;
-
-import org.bson.Document;
-import org.bson.conversions.Bson;
-
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
 import com.jockie.bot.core.command.Context;
@@ -30,11 +20,19 @@ import com.sx4.bot.entities.management.Filter;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.TimeUtility;
-
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Role;
+import org.bson.Document;
+import org.bson.conversions.Bson;
+
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
+import java.util.concurrent.CompletionException;
+import java.util.stream.Collectors;
 
 public class AutoRoleCommand extends Sx4Command {
 
@@ -44,7 +42,7 @@ public class AutoRoleCommand extends Sx4Command {
 		super.setDescription("Sets roles to be given when a user joins the server");
 		super.setAliases("autorole");
 		super.setExamples("auto role toggle", "auto role add", "auto role remove");
-		super.setCategory(Category.MANAGEMENT);
+		super.setCategoryAll(Category.MANAGEMENT);
 	}
 	
 	public void onCommand(Sx4CommandEvent event) {
@@ -230,7 +228,7 @@ public class AutoRoleCommand extends Sx4Command {
 			Bson update = all ? Updates.unset("autoRole.roles.$[role].filters") : Updates.pull("autoRole.roles.$[role].filters", Filters.eq("key", allArgument.getValue().getKey()));
 			this.database.updateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((result, exception) -> {
 				if (exception instanceof CompletionException) {
-					Throwable cause = ((CompletionException) exception).getCause();
+					Throwable cause = exception.getCause();
 					if (cause instanceof MongoWriteException && ((MongoWriteException) cause).getCode() == 2) {
 						event.reply("That auto role does not have " + (all ? "any" : "that") + " filter" + (all ? "s " : " ") + this.config.getFailureEmote()).queue();
 						return;

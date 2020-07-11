@@ -31,7 +31,7 @@ public class PruneCommand extends Sx4Command {
 		super.setDescription("Prune a set amount of messages in the current channel");
 		super.setAuthorDiscordPermissions(Permission.MESSAGE_MANAGE);
 		super.setBotDiscordPermissions(true, Permission.MESSAGE_MANAGE, Permission.MESSAGE_HISTORY);
-		super.setCategory(Category.MODERATION);
+		super.setCategoryAll(Category.MODERATION);
 		super.setExamples("prune", "prune 10");
 	}
 	

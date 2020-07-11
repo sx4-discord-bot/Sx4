@@ -1,13 +1,5 @@
 package com.sx4.bot.commands.notifications;
 
-import java.time.Clock;
-import java.util.Collections;
-import java.util.List;
-import java.util.TimeZone;
-
-import org.bson.Document;
-import org.bson.types.ObjectId;
-
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
 import com.jockie.bot.core.option.Option;
@@ -23,6 +15,14 @@ import com.sx4.bot.entities.reminder.ReminderArgument;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.TimeUtility;
+import org.bson.Document;
+import org.bson.types.ObjectId;
+
+import java.time.Clock;
+import java.time.Duration;
+import java.util.Collections;
+import java.util.List;
+import java.util.TimeZone;
 
 public class ReminderCommand extends Sx4Command {
 	
@@ -31,7 +31,7 @@ public class ReminderCommand extends Sx4Command {
 		
 		super.setDescription("Create reminders to keep up to date with tasks");
 		super.setExamples("reminder add", "reminder remove", "reminder list");
-		super.setCategory(Category.NOTIFICATIONS);
+		super.setCategoryAll(Category.NOTIFICATIONS);
 	}
 	
 	public void onCommand(Sx4CommandEvent event) {
@@ -40,11 +40,11 @@ public class ReminderCommand extends Sx4Command {
 	
 	@Command(value="add", description="Create a reminder so the bot will message you when the time is up", argumentInfo="reminder add <reminder>* in <time>*\nreminder add <reminder>* at <date time>*")
 	@Examples({"reminder add Football game in 4 hours", "reminder add Party at 21/07/20 15:00 UTC+1", "reminder add Finish coursework at 12:00", "reminder add fish in 5 minutes --repeat", "reminder add weekly task at 23/05 --repeat=7d"})
-	public void add(Sx4CommandEvent event, @Argument(value="reminder", endless=true) ReminderArgument reminder, @Option(value="repeat", description="Continuosly repeats the reminder after the initial duration is up") String repeat) {
+	public void add(Sx4CommandEvent event, @Argument(value="reminder", endless=true) ReminderArgument reminder, @Option(value="repeat", description="Continuosly repeats the reminder after the initial duration is up") Duration repeat) {
 		long initialDuration = reminder.getDuration();
 		boolean repeatOption = event.isOptionPresent("repeat");
-		
-		long duration = repeat == null ? initialDuration : TimeUtility.getDurationFromString(repeat).toSeconds();
+
+		long duration = repeat == null ? initialDuration : repeat.toSeconds();
 		if (duration < 30 && repeatOption) {
 			event.reply("Repeated reminders have to be at least 30 seconds long " + this.config.getFailureEmote()).queue();
 			return;
@@ -99,7 +99,7 @@ public class ReminderCommand extends Sx4Command {
 	public void list(Sx4CommandEvent event) {
 		List<Document> reminders = this.database.getUserById(event.getAuthor().getIdLong(), Projections.include("reminder.reminders")).getEmbedded(List.of("reminder", "reminders"), Collections.emptyList());
 		if (reminders.isEmpty()) {
-			event.reply("You do not have any active reminders " + this.config.getFailureEmote()).queue();;
+			event.reply("You do not have any active reminders " + this.config.getFailureEmote()).queue();
 			return;
 		}
 		

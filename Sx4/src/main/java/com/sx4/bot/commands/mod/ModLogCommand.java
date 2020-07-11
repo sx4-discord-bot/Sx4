@@ -36,7 +36,7 @@ public class ModLogCommand extends Sx4Command {
 		super.setAliases("modlogs", "mod log", "mod logs");
 		super.setDescription("Setup the mod log in your server to log mod actions which happen within the server");
 		super.setExamples("modlog toggle", "modlog channel", "modlog case");
-		super.setCategory(Category.MODERATION);
+		super.setCategoryAll(Category.MODERATION);
 	}
 	
 	public void onCommand(Sx4CommandEvent event) {

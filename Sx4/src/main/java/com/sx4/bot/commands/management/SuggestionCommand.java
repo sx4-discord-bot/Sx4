@@ -1,20 +1,8 @@
 package com.sx4.bot.commands.management;
 
-import java.time.Instant;
-import java.util.Collections;
-import java.util.List;
-
-import org.bson.Document;
-import org.bson.conversions.Bson;
-
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
-import com.mongodb.client.model.Filters;
-import com.mongodb.client.model.FindOneAndUpdateOptions;
-import com.mongodb.client.model.Projections;
-import com.mongodb.client.model.ReturnDocument;
-import com.mongodb.client.model.UpdateOptions;
-import com.mongodb.client.model.Updates;
+import com.mongodb.client.model.*;
 import com.sx4.bot.annotations.argument.Colour;
 import com.sx4.bot.annotations.command.AuthorPermissions;
 import com.sx4.bot.annotations.command.BotPermissions;
@@ -32,7 +20,6 @@ import com.sx4.bot.utility.CheckUtility;
 import com.sx4.bot.utility.ColourUtility;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.waiter.Waiter;
-
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.MessageEmbed;
@@ -41,6 +28,12 @@ import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.requests.ErrorResponse;
+import org.bson.Document;
+import org.bson.conversions.Bson;
+
+import java.time.Instant;
+import java.util.Collections;
+import java.util.List;
 
 public class SuggestionCommand extends Sx4Command {
 
@@ -49,7 +42,7 @@ public class SuggestionCommand extends Sx4Command {
 		
 		super.setDescription("Create a suggestion channel where suggestions can be sent in and voted on in your server");
 		super.setExamples("suggestion add", "suggestion set", "suggestion remove");
-		super.setCategory(Category.MANAGEMENT);
+		super.setCategoryAll(Category.MANAGEMENT);
 	}
 	
 	private MessageEmbed getSuggestionEmbed(User author, User moderator, String suggestion, String reason, State state) {
@@ -258,7 +251,7 @@ public class SuggestionCommand extends Sx4Command {
 		}
 		
 		String reasonData = suggestion.getString("reason");
-		boolean reasonMatch = reasonData == null && reason == null || (reason != null && reasonData != null && reasonData.equals(reason));
+		boolean reasonMatch = reasonData == null && reason == null || (reasonData != null && reasonData.equals(reason));
 		
 		if (suggestion.getString("state").equals(stateData) && reasonMatch) {
 			event.reply("That suggestion is already in that state and has the same reason " + this.config.getFailureEmote()).queue();
@@ -369,7 +362,7 @@ public class SuggestionCommand extends Sx4Command {
 						return;
 					}
 					
-					if (!states.stream().anyMatch(state -> state.getString("dataName").equals(dataName))) {
+					if (states.stream().noneMatch(state -> state.getString("dataName").equals(dataName))) {
 						event.reply("There is no state with that name " + this.config.getFailureEmote()).queue();
 						return;
 					}

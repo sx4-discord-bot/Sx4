@@ -33,7 +33,7 @@
 		"database": "",
 		"ad": {
 			"description": null,
-			"image": null,
+			"image": null
 		},
 		"host": {
 			"localHost": "",
@@ -67,7 +67,7 @@
 		"database": "",
 		"ad": {
 			"description": null,
-			"image": null,
+			"image": null
 		},
 		"host": {
 			"localHost": "",

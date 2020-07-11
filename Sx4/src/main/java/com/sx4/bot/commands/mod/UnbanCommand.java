@@ -23,7 +23,7 @@ public class UnbanCommand extends Sx4Command {
 		super.setAuthorDiscordPermissions(Permission.BAN_MEMBERS);
 		super.setAuthorDiscordPermissions(Permission.BAN_MEMBERS);
 		super.setExamples("unban @Shea", "unban Shea template:appeal", "unban Shea#6653 Mistake", "unban 402557516728369153 t:appeal and Mistake");
-		super.setCategory(Category.MODERATION);
+		super.setCategoryAll(Category.MODERATION);
 	}
 	
 	public void onCommand(Sx4CommandEvent event, @Argument(value="user") String userArgument, @Argument(value="reason", endless=true, nullDefault=true) Reason reason) {

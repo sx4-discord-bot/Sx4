@@ -16,7 +16,7 @@ public class DeleteEmoteCommand extends Sx4Command {
 		super.setDescription("Deletes an emote in the current server");
 		super.setAliases("deleteemote", "de");
 		super.setExamples("create emote <:sx4:637715282995183636>", "create emote sx4", "create emote https://cdn.discordapp.com/emojis/637715282995183636.png");
-		super.setCategory(Category.MODERATION);
+		super.setCategoryAll(Category.MODERATION);
 		super.setAuthorDiscordPermissions(Permission.MANAGE_EMOTES);
 		super.setBotDiscordPermissions(Permission.MANAGE_EMOTES);
 	}

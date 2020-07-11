@@ -1,16 +1,16 @@
 package com.sx4.bot.commands.info;
 
-import java.util.List;
-import java.util.stream.Collectors;
-
 import com.jockie.bot.core.argument.Argument;
 import com.sx4.bot.category.Category;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.entities.argument.Or;
 import com.sx4.bot.utility.NumberUtility;
-
 import net.dv8tion.jda.api.entities.Member;
+
+import java.util.Comparator;
+import java.util.List;
+import java.util.stream.Collectors;
 
 public class JoinPositionCommand extends Sx4Command {
 
@@ -20,7 +20,7 @@ public class JoinPositionCommand extends Sx4Command {
 		super.setDescription("View the join position at a specific index or for a specific user");
 		super.setExamples("join position 1", "join position Shea#6653");
 		super.setAliases("joinposition");
-		super.setCategory(Category.INFORMATION);
+		super.setCategoryAll(Category.INFORMATION);
 	}
 	
 	public void onCommand(Sx4CommandEvent event, @Argument(value="position | user", endless=true, nullDefault=true) Or<Integer, Member> or) {
@@ -29,7 +29,7 @@ public class JoinPositionCommand extends Sx4Command {
 		}
 		
 		List<Member> members = event.getGuild().getMemberCache().stream()
-			.sorted((a, b) -> a.getTimeJoined().compareTo(b.getTimeJoined()))
+			.sorted(Comparator.comparing(Member::getTimeJoined))
 			.collect(Collectors.toList());
 			
 		if (or.hasFirst()) {

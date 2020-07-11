@@ -1,7 +1,5 @@
 package com.sx4.bot.commands.mod;
 
-import java.util.function.Predicate;
-
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.utility.function.TriConsumer;
 import com.sx4.bot.category.Category;
@@ -11,12 +9,13 @@ import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.entities.mod.PartialEmote;
 import com.sx4.bot.http.HttpCallback;
 import com.sx4.bot.utility.ExceptionUtility;
-
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Emote;
 import net.dv8tion.jda.api.entities.Icon;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import okhttp3.Request;
+
+import java.util.function.Predicate;
 
 public class CreateEmoteCommand extends Sx4Command {
 	
@@ -26,7 +25,7 @@ public class CreateEmoteCommand extends Sx4Command {
 		super.setDescription("Creates an emote from a url, attachment, emote mention, emote id or emote name");
 		super.setAliases("createemote", "ce");
 		super.setExamples("create emote <:sx4:637715282995183636>", "create emote sx4", "create emote https://cdn.discordapp.com/emojis/637715282995183636.png");
-		super.setCategory(Category.MODERATION);
+		super.setCategoryAll(Category.MODERATION);
 		super.setCooldownDuration(5);
 		super.setAuthorDiscordPermissions(Permission.MANAGE_EMOTES);
 		super.setBotDiscordPermissions(Permission.MANAGE_EMOTES);
@@ -40,19 +39,19 @@ public class CreateEmoteCommand extends Sx4Command {
 		Sx4.getClient().newCall(request).enqueue((HttpCallback) response -> {
 			if (response.code() == 200) {
 				String contentType = response.header("Content-Type"), extension = null;
-				if (contentType.contains("/")) {
+				if (contentType != null && contentType.contains("/")) {
 					extension = contentType.split("/")[1].toLowerCase();
 				}
 				
 				bytes.accept(response.body().bytes(), extension == null ? null : extension.equals("gif"), 200);
 				return;
 			} else if (response.code() == 415) {
-				int periodIndex = url.lastIndexOf('.') + 1;
+				int periodIndex = url.lastIndexOf('.');
 				if (periodIndex != -1) {
-					String extension = url.substring(periodIndex);
+					String extension = url.substring(periodIndex + 1);
 					
 					if (extension.equalsIgnoreCase("gif")) {
-						this.getBytes(url.substring(0, periodIndex) + "png", bytes);
+						this.getBytes(url.substring(0, periodIndex + 1) + "png", bytes);
 						return;
 					}
 				}

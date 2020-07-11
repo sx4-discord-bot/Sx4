@@ -1,18 +1,17 @@
 package com.sx4.bot.commands.developer;
 
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.option.Option;
 import com.sx4.bot.category.Category;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
-
 import groovy.lang.GroovyShell;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.requests.RestAction;
+
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class EvalCommand extends Sx4Command {
 	
@@ -24,7 +23,7 @@ public class EvalCommand extends Sx4Command {
 		super.setDescription("Execute some code, last line will be sent");
 		super.setExamples("eval \"hi\"", "eval new EmbedBuilder().setDescription(\"hi\").build();");
 		super.setAllowedArgumentParsingTypes(ArgumentParsingType.POSITIONAL);
-		super.setCategory(Category.DEVELOPER);
+		super.setCategoryAll(Category.DEVELOPER);
 		super.setDeveloper(true);
 	}
 	
@@ -60,9 +59,7 @@ public class EvalCommand extends Sx4Command {
 		shell.setProperty("database", this.database);
 		
 		if (async) {
-			this.executor.submit(() -> {
-				this.execute(event, shell, evaluableString);
-			});
+			this.executor.submit(() -> this.execute(event, shell, evaluableString));
 		} else {
 			this.execute(event, shell, evaluableString);
 		}

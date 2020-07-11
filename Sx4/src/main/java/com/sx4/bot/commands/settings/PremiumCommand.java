@@ -1,19 +1,8 @@
 package com.sx4.bot.commands.settings;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.stream.Collectors;
-
-import org.bson.Document;
-import org.bson.conversions.Bson;
-
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
-import com.mongodb.client.model.Filters;
-import com.mongodb.client.model.FindOneAndUpdateOptions;
-import com.mongodb.client.model.Projections;
-import com.mongodb.client.model.ReturnDocument;
-import com.mongodb.client.model.Updates;
+import com.mongodb.client.model.*;
 import com.sx4.bot.annotations.command.Donator;
 import com.sx4.bot.annotations.command.Examples;
 import com.sx4.bot.category.Category;
@@ -23,9 +12,15 @@ import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.model.Operators;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
-
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.sharding.ShardManager;
+import org.bson.Document;
+import org.bson.conversions.Bson;
+
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 public class PremiumCommand extends Sx4Command {
 
@@ -34,7 +29,7 @@ public class PremiumCommand extends Sx4Command {
 		
 		super.setDescription("Make a server premium or remove a server from being premium, you can make a server premium for $5");
 		super.setExamples("premium add", "premium remove", "premium list");
-		super.setCategory(Category.SETTINGS);
+		super.setCategoryAll(Category.SETTINGS);
 	}
 	
 	public void onCommand(Sx4CommandEvent event) {
@@ -136,7 +131,7 @@ public class PremiumCommand extends Sx4Command {
 		
 		List<Guild> guilds = guildIds.stream()
 			.map(shardManager::getGuildById)
-			.filter(guild -> guild != null)
+			.filter(Objects::nonNull)
 			.collect(Collectors.toList());
 		
 		PagedResult<Guild> paged = new PagedResult<>(guilds)

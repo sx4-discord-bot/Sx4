@@ -27,7 +27,7 @@ public class UnmuteCommand extends Sx4Command {
 		super.setExamples("unmute @Shea#6653", "unmute Shea Misunderstanding", "unmute 402557516728369153 template:wrong-person");
 		super.setBotDiscordPermissions(Permission.MANAGE_ROLES);
 		super.setAuthorDiscordPermissions(Permission.MESSAGE_MANAGE);
-		super.setCategory(Category.MODERATION);
+		super.setCategoryAll(Category.MODERATION);
 	}
 	
 	public void onCommand(Sx4CommandEvent event, @Argument(value="user") Member member, @Argument(value="reason", endless=true, nullDefault=true) Reason reason) {

@@ -31,7 +31,7 @@ public class MuteCommand extends Sx4Command {
 		super.setDescription("Mute a user server wide");
 		super.setAuthorDiscordPermissions(Permission.MESSAGE_MANAGE);
 		super.setBotDiscordPermissions(Permission.MANAGE_ROLES);
-		super.setCategory(Category.MODERATION);
+		super.setCategoryAll(Category.MODERATION);
 	}
 	
 	public void onCommand(Sx4CommandEvent event, @Argument(value="user") Member member, @Argument(value="time", nullDefault=true) Duration time, @Argument(value="reason", endless=true, nullDefault=true) Reason reason, @Option(value="extend", description="Will extend the mute of the user if muted") boolean extend) {

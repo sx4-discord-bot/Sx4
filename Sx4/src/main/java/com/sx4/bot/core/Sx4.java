@@ -1,31 +1,9 @@
 package com.sx4.bot.core;
 
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.time.DateTimeException;
-import java.time.Duration;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.TimeZone;
-import java.util.concurrent.TimeUnit;
-import java.util.function.BiConsumer;
-import java.util.regex.Pattern;
-import java.util.regex.PatternSyntaxException;
-import java.util.stream.Collectors;
-
-import javax.security.auth.login.LoginException;
-
-import org.bson.types.ObjectId;
-
 import com.jockie.bot.core.argument.IArgument;
 import com.jockie.bot.core.argument.factory.impl.ArgumentFactory;
 import com.jockie.bot.core.argument.factory.impl.ArgumentFactoryImpl;
 import com.jockie.bot.core.argument.factory.impl.BuilderConfigureFunction;
-import com.jockie.bot.core.argument.parser.ParsedArgument;
 import com.jockie.bot.core.command.exception.parser.ArgumentParseException;
 import com.jockie.bot.core.command.exception.parser.OutOfContentException;
 import com.jockie.bot.core.command.factory.impl.MethodCommandFactory;
@@ -35,66 +13,49 @@ import com.jockie.bot.core.command.impl.CommandStore;
 import com.jockie.bot.core.command.manager.IErrorManager;
 import com.jockie.bot.core.command.manager.impl.ContextManagerFactory;
 import com.jockie.bot.core.command.manager.impl.ErrorManagerImpl;
-import com.sx4.api.Main;
-import com.sx4.bot.annotations.argument.Colour;
-import com.sx4.bot.annotations.argument.DefaultInt;
-import com.sx4.bot.annotations.argument.DefaultLong;
-import com.sx4.bot.annotations.argument.DefaultString;
-import com.sx4.bot.annotations.argument.ExcludeUpdate;
-import com.sx4.bot.annotations.argument.Limit;
-import com.sx4.bot.annotations.argument.Lowercase;
-import com.sx4.bot.annotations.argument.Uppercase;
+import com.jockie.bot.core.option.factory.impl.OptionFactory;
+import com.jockie.bot.core.parser.ParsedResult;
+import com.sx4.bot.annotations.argument.*;
 import com.sx4.bot.cache.message.GuildMessageCache;
 import com.sx4.bot.category.Category;
 import com.sx4.bot.config.Config;
-import com.sx4.bot.entities.argument.All;
-import com.sx4.bot.entities.argument.MessageArgument;
-import com.sx4.bot.entities.argument.Or;
-import com.sx4.bot.entities.argument.TimedArgument;
-import com.sx4.bot.entities.argument.UpdateType;
+import com.sx4.bot.entities.argument.*;
 import com.sx4.bot.entities.management.Filter;
 import com.sx4.bot.entities.mod.PartialEmote;
 import com.sx4.bot.entities.mod.Reason;
 import com.sx4.bot.entities.reminder.ReminderArgument;
-import com.sx4.bot.handlers.ConnectionHandler;
-import com.sx4.bot.handlers.GiveawayHandler;
-import com.sx4.bot.handlers.ModHandler;
-import com.sx4.bot.handlers.PatreonHandler;
-import com.sx4.bot.handlers.ReactionRoleHandler;
-import com.sx4.bot.handlers.YouTubeHandler;
+import com.sx4.bot.handlers.*;
 import com.sx4.bot.managers.ModActionManager;
 import com.sx4.bot.managers.PatreonManager;
 import com.sx4.bot.managers.YouTubeManager;
 import com.sx4.bot.paged.PagedHandler;
-import com.sx4.bot.utility.ColourUtility;
-import com.sx4.bot.utility.ExceptionUtility;
-import com.sx4.bot.utility.HelpUtility;
-import com.sx4.bot.utility.MentionUtility;
-import com.sx4.bot.utility.SearchUtility;
-import com.sx4.bot.utility.StringUtility;
-import com.sx4.bot.utility.TimeUtility;
+import com.sx4.bot.utility.*;
 import com.sx4.bot.waiter.WaiterHandler;
-
 import net.dv8tion.jda.api.Permission;
-import net.dv8tion.jda.api.entities.Emote;
-import net.dv8tion.jda.api.entities.Guild;
-import net.dv8tion.jda.api.entities.GuildChannel;
-import net.dv8tion.jda.api.entities.IPermissionHolder;
-import net.dv8tion.jda.api.entities.Member;
-import net.dv8tion.jda.api.entities.Message;
+import net.dv8tion.jda.api.entities.*;
 import net.dv8tion.jda.api.entities.Message.Attachment;
-import net.dv8tion.jda.api.entities.MessageChannel;
 import net.dv8tion.jda.api.entities.MessageReaction.ReactionEmote;
-import net.dv8tion.jda.api.entities.Role;
-import net.dv8tion.jda.api.entities.TextChannel;
-import net.dv8tion.jda.api.entities.User;
-import net.dv8tion.jda.api.entities.VoiceChannel;
 import net.dv8tion.jda.api.hooks.InterfacedEventManager;
 import net.dv8tion.jda.api.requests.GatewayIntent;
 import net.dv8tion.jda.api.requests.restaction.MessageAction;
 import net.dv8tion.jda.api.sharding.DefaultShardManagerBuilder;
 import net.dv8tion.jda.api.sharding.ShardManager;
 import okhttp3.OkHttpClient;
+import org.bson.types.ObjectId;
+
+import javax.security.auth.login.LoginException;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.time.DateTimeException;
+import java.time.Duration;
+import java.util.*;
+import java.util.concurrent.TimeUnit;
+import java.util.function.BiConsumer;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
+import java.util.stream.Collectors;
 
 public class Sx4 {
 	
@@ -134,6 +95,7 @@ public class Sx4 {
 			.setEnforcedContext(Sx4CommandEvent.class, true);
 		
 		this.setupArgumentFactory();
+		this.setupOptionFactory();
 		
 		this.commandListener = this.createCommandListener(this.createErrorManager());
 		this.shardManager = this.createShardManager();
@@ -180,7 +142,7 @@ public class Sx4 {
 			.removeDefaultPreExecuteChecks()
 			.setHelpFunction((message, prefix, commands) -> {
 				MessageChannel channel = message.getChannel();
-				boolean embed = message.isFromGuild() ? message.getGuild().getSelfMember().hasPermission((TextChannel) channel, Permission.MESSAGE_EMBED_LINKS) : true;
+				boolean embed = !message.isFromGuild() || message.getGuild().getSelfMember().hasPermission((TextChannel) channel, Permission.MESSAGE_EMBED_LINKS);
 				
 				channel.sendMessage(HelpUtility.getHelpMessage(commands.get(0), embed)).queue();
 			}).setMessageParseFailureFunction((message, content, failures) -> {
@@ -224,12 +186,17 @@ public class Sx4 {
 				}
 				
 				MessageChannel channel = message.getChannel();
-				boolean embed = message.isFromGuild() ? message.getGuild().getSelfMember().hasPermission((TextChannel) channel, Permission.MESSAGE_EMBED_LINKS) : true;
+				boolean embed = !message.isFromGuild() || message.getGuild().getSelfMember().hasPermission((TextChannel) channel, Permission.MESSAGE_EMBED_LINKS);
 				
 				channel.sendMessage(HelpUtility.getHelpMessage(failures.get(0).getCommand(), embed)).queue();
 			});
 	}
-	
+
+	private void setupOptionFactory() {
+		OptionFactory.getDefault()
+			.registerParser(Duration.class, (context, option, content) -> new ParsedResult<>(TimeUtility.getDurationFromString(content)));
+	}
+
 	@SuppressWarnings({"unchecked", "rawtypes"})
 	private void setupArgumentFactory() {
 		ArgumentFactoryImpl argumentFactory = (ArgumentFactoryImpl) ArgumentFactory.getDefault();
@@ -313,25 +280,25 @@ public class Sx4 {
 			return builder;
 		});
 			
-		argumentFactory.registerParser(Member.class, (context, argument, content) -> new ParsedArgument<>(SearchUtility.getMember(context.getMessage().getGuild(), content.trim())))
-			.registerParser(User.class, (context, argument, content) -> new ParsedArgument<>(SearchUtility.getUser(content.trim())))
-			.registerParser(TextChannel.class, (context, argument, content) -> new ParsedArgument<>(SearchUtility.getTextChannel(context.getMessage().getGuild(), content.trim())))
-			.registerParser(Duration.class, (context, argument, content) -> new ParsedArgument<>(TimeUtility.getDurationFromString(content)))
-			.registerParser(Reason.class, (context, argument, content) -> new ParsedArgument<>(new Reason(context.getMessage().getGuild().getIdLong(), content)))
-			.registerParser(ObjectId.class, (context, argument, content) -> new ParsedArgument<>(ObjectId.isValid(content) ? new ObjectId(content) : null))
-			.registerParser(List.class, (context, argument, content) -> new ParsedArgument<>(SearchUtility.getCommandOrModule(content)))
-			.registerParser(IPermissionHolder.class, (context, argument, content) -> new ParsedArgument<>(SearchUtility.getPermissionHolder(context.getMessage().getGuild(), content)))
-			.registerParser(Role.class, (context, argument, content) -> new ParsedArgument<>(SearchUtility.getRole(context.getMessage().getGuild(), content)))
-			.registerParser(Emote.class, (context, argument, content) -> new ParsedArgument<>(SearchUtility.getGuildEmote(context.getMessage().getGuild(), content)))
-			.registerParser(Guild.class, (context, argument, content) -> new ParsedArgument<>(SearchUtility.getGuild(content)))
-			.registerParser(MessageArgument.class, (context, argument, content) -> new ParsedArgument<>(SearchUtility.getMessageArgument(context.getMessage().getTextChannel(), content)))
-			.registerParser(ReactionEmote.class, (context, argument, content) -> new ParsedArgument<>(SearchUtility.getReactionEmote(content)))
-			.registerParser(TimeZone.class, (context, argument, content) -> new ParsedArgument<>(TimeZone.getTimeZone(content.toUpperCase().replace("UTC", "GMT"))))
+		argumentFactory.registerParser(Member.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getMember(context.getMessage().getGuild(), content.trim())))
+			.registerParser(User.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getUser(content.trim())))
+			.registerParser(TextChannel.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getTextChannel(context.getMessage().getGuild(), content.trim())))
+			.registerParser(Duration.class, (context, argument, content) -> new ParsedResult<>(TimeUtility.getDurationFromString(content)))
+			.registerParser(Reason.class, (context, argument, content) -> new ParsedResult<>(new Reason(context.getMessage().getGuild().getIdLong(), content)))
+			.registerParser(ObjectId.class, (context, argument, content) -> new ParsedResult<>(ObjectId.isValid(content) ? new ObjectId(content) : null))
+			.registerParser(List.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getCommandOrModule(content)))
+			.registerParser(IPermissionHolder.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getPermissionHolder(context.getMessage().getGuild(), content)))
+			.registerParser(Role.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getRole(context.getMessage().getGuild(), content)))
+			.registerParser(Emote.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getGuildEmote(context.getMessage().getGuild(), content)))
+			.registerParser(Guild.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getGuild(content)))
+			.registerParser(MessageArgument.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getMessageArgument(context.getMessage().getTextChannel(), content)))
+			.registerParser(ReactionEmote.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getReactionEmote(content)))
+			.registerParser(TimeZone.class, (context, argument, content) -> new ParsedResult<>(TimeZone.getTimeZone(content.toUpperCase().replace("UTC", "GMT"))))
 			.registerParser(ReminderArgument.class, (context, argument, content) -> {
 				try {
-					return new ParsedArgument<>(new ReminderArgument(context.getMessage().getAuthor().getIdLong(), content));
+					return new ParsedResult<>(new ReminderArgument(context.getMessage().getAuthor().getIdLong(), content));
 				} catch (DateTimeException | IllegalArgumentException e) {
-					return new ParsedArgument<>();
+					return new ParsedResult<>();
 				}
 			})
 			.registerParser(URL.class, (context, argument, content) -> {
@@ -343,34 +310,34 @@ public class Sx4 {
 					
 					if (attachment != null) {
 						try {
-							return new ParsedArgument<>(new URL(attachment.getUrl()));
+							return new ParsedResult<>(new URL(attachment.getUrl()));
 						} catch (MalformedURLException e) {}
 					}
 					
-					return new ParsedArgument<>();
+					return new ParsedResult<>();
 				} else {
-					return new ParsedArgument<>(SearchUtility.getURL(context.getMessage(), content));
+					return new ParsedResult<>(SearchUtility.getURL(context.getMessage(), content));
 				}
 			}).registerParser(Integer.class, (context, argument, content) -> {
 				if (argument.getProperty("colour", false)) {
 					int colour = ColourUtility.fromQuery(content);
 					if (colour == -1) {
-						return new ParsedArgument<>();
+						return new ParsedResult<>();
 					} else {
-						return new ParsedArgument<>(colour);
+						return new ParsedResult<>(colour);
 					}
 				}
 				
 				try {
-					return new ParsedArgument<>(Integer.parseInt(content));
+					return new ParsedResult<>(Integer.parseInt(content));
 				} catch (NumberFormatException e) {
-					return new ParsedArgument<>();
+					return new ParsedResult<>();
 				}
 			}).registerParser(Pattern.class, (context, argument, content) -> {
 				try {
-					return new ParsedArgument<>(Pattern.compile(content));
+					return new ParsedResult<>(Pattern.compile(content));
 				} catch (PatternSyntaxException e) {
-					return new ParsedArgument<>();
+					return new ParsedResult<>();
 				}
 			}).registerParser(PartialEmote.class, (context, argument, content) -> {
 				if (content.isEmpty()) {
@@ -380,33 +347,33 @@ public class Sx4 {
 						.orElse(null);
 					
 					if (attachment != null) {
-						return new ParsedArgument<>(new PartialEmote(attachment.getUrl(), attachment.getFileName(), attachment.getFileExtension().equalsIgnoreCase("gif")));
+						return new ParsedResult<>(new PartialEmote(attachment.getUrl(), attachment.getFileName(), attachment.getFileExtension().equalsIgnoreCase("gif")));
 					}
 					
-					return new ParsedArgument<>();
+					return new ParsedResult<>();
 				}
 				
 				PartialEmote partialEmote = SearchUtility.getPartialEmote(content);
 				if (partialEmote != null) {
-					return new ParsedArgument<>(partialEmote);
+					return new ParsedResult<>(partialEmote);
 				}
 				
 				try {
 					new URL(content);
 				} catch (MalformedURLException e) {
-					return new ParsedArgument<>();
+					return new ParsedResult<>();
 				}
 				
 				String extension = StringUtility.getFileExtension(content);
 				if (extension != null) {
-					return new ParsedArgument<>(new PartialEmote(content, null, extension.equalsIgnoreCase("gif")));
+					return new ParsedResult<>(new PartialEmote(content, null, extension.equalsIgnoreCase("gif")));
 				} else {
-					return new ParsedArgument<>();
+					return new ParsedResult<>();
 				}
 			}).registerParser(TimedArgument.class, (context, argument, content) -> {
 				Class<?> clazz = argument.getProperty("class", Class.class);
 				
-				ParsedArgument<?> parsedArgument;
+				ParsedResult<?> parsedArgument;
 				if (clazz.isEnum()) {
 					parsedArgument = argumentFactory.getGenericParser(clazz).parse(context, (IArgument) argument, content);
 				} else {
@@ -414,24 +381,24 @@ public class Sx4 {
 				}
 				
 				if (!parsedArgument.isValid()) {
-					return new ParsedArgument<>();
+					return new ParsedResult<>();
 				}
 				
 				int lastIndex = content.lastIndexOf(' ');
 				if (lastIndex == -1) {
-					return new ParsedArgument<>(new TimedArgument<>(null, parsedArgument.getObject()));
+					return new ParsedResult<>(new TimedArgument<>(null, parsedArgument.getObject()));
 				}
 				
 				Duration duration = TimeUtility.getDurationFromString(content.substring(lastIndex));
 				
-				return new ParsedArgument<>(new TimedArgument<>(duration, parsedArgument.getObject()));
+				return new ParsedResult<>(new TimedArgument<>(duration, parsedArgument.getObject()));
 			}).registerParser(All.class, (context, argument, content) -> {
 				if (content.equalsIgnoreCase("all")) {
-					return new ParsedArgument<>(new All<>(null));
+					return new ParsedResult<>(new All<>(null));
 				} else {
 					Class<?> clazz = argument.getProperty("class", Class.class);
 					
-					ParsedArgument<?> parsedArgument;
+					ParsedResult<?> parsedArgument;
 					if (clazz.isEnum()) {
 						parsedArgument = argumentFactory.getGenericParser(clazz).parse(context, (IArgument) argument, content);
 					} else {
@@ -439,23 +406,23 @@ public class Sx4 {
 					}
 					
 					if (!parsedArgument.isValid()) {
-						return new ParsedArgument<>();
+						return new ParsedResult<>();
 					}
 					
-					return new ParsedArgument<>(new All<>(parsedArgument.getObject()));
+					return new ParsedResult<>(new All<>(parsedArgument.getObject()));
 				}
 			}).registerParser(Or.class, (context, argument, content) -> {
 				Class<?> firstClass = argument.getProperty("firstClass"), secondClass = argument.getProperty("secondClass");
-				
-				ParsedArgument<?> firstParsedArgument = argumentFactory.getParser(firstClass).parse(context, (IArgument) argument, content);
-				ParsedArgument<?> secondParsedArgument = argumentFactory.getParser(secondClass).parse(context, (IArgument) argument, content);
+
+				ParsedResult<?> firstParsedArgument = argumentFactory.getParser(firstClass).parse(context, (IArgument) argument, content);
+				ParsedResult<?> secondParsedArgument = argumentFactory.getParser(secondClass).parse(context, (IArgument) argument, content);
 				
 				if (firstParsedArgument.isValid()) {
-					return new ParsedArgument<>(new Or<>(firstParsedArgument.getObject(), null));
+					return new ParsedResult<>(new Or<>(firstParsedArgument.getObject(), null));
 				} else if (secondParsedArgument.isValid()) {
-					return new ParsedArgument<>(new Or<>(null, secondParsedArgument.getObject()));
+					return new ParsedResult<>(new Or<>(null, secondParsedArgument.getObject()));
 				} else {
-					return new ParsedArgument<>();
+					return new ParsedResult<>();
 				}
 			});
 		
@@ -468,7 +435,7 @@ public class Sx4 {
 				content = content.toUpperCase();
 			}
 			
-			return new ParsedArgument<>(content);
+			return new ParsedResult<>(content);
 		}).addParserAfter(Integer.class, (context, argument, content) -> {
 			Integer lowerLimit = argument.getProperty("lowerLimit", Integer.class);
 			if (lowerLimit != null) {
@@ -480,13 +447,13 @@ public class Sx4 {
 				content = content > upperLimit ? upperLimit : content;
 			}
 			
-			return new ParsedArgument<>(content);
+			return new ParsedResult<>(content);
 		}).addParserAfter(UpdateType.class, (context, argument, content) -> {
 			List<UpdateType> updates = argument.getProperty("updates", Collections.emptyList());
 			
 			boolean match = updates.stream().anyMatch(content::equals);
 			
-			return new ParsedArgument<>(match ? content : null);
+			return new ParsedResult<>(match ? content : null);
 		});
 	}
 	
@@ -525,10 +492,10 @@ public class Sx4 {
 			});
 	}
 	
-	public static void main(String[] args) throws Throwable {
+	public static void main(String[] args) {
 		Sx4.get();
 		
-		Main.initiateWebserver();
+		//Main.initiateWebserver();
 		
 		Thread.setDefaultUncaughtExceptionHandler((thread, exception) -> {
 			System.err.println("[Uncaught]");

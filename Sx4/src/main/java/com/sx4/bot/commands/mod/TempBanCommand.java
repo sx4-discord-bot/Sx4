@@ -1,7 +1,5 @@
 package com.sx4.bot.commands.mod;
 
-import java.time.Duration;
-
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.option.Option;
 import com.mongodb.client.model.Projections;
@@ -16,11 +14,12 @@ import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.ModUtility;
 import com.sx4.bot.utility.SearchUtility;
 import com.sx4.bot.utility.TimeUtility;
-
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.exceptions.ErrorHandler;
 import net.dv8tion.jda.api.requests.ErrorResponse;
+
+import java.time.Duration;
 
 public class TempBanCommand extends Sx4Command {
 
@@ -32,10 +31,10 @@ public class TempBanCommand extends Sx4Command {
 		super.setExamples("temporary ban @Shea#6653 5d", "temporary ban Shea 30m Spamming", "temporary ban 402557516728369153 10d t:tos and Spamming");
 		super.setAuthorDiscordPermissions(Permission.BAN_MEMBERS);
 		super.setBotDiscordPermissions(Permission.BAN_MEMBERS);
-		super.setCategory(Category.MODERATION);
+		super.setCategoryAll(Category.MODERATION);
 	}
 	
-	public void onCommand(Sx4CommandEvent event, @Argument(value="user") String userArgument, @Argument(value="time", nullDefault=true) Duration time, @Argument(value="reason", endless=true, nullDefault=true) Reason reason, @Option(value="days", description="Set how many days of messages should be deleted from the user") String days) {
+	public void onCommand(Sx4CommandEvent event, @Argument(value="user") String userArgument, @Argument(value="time", nullDefault=true) Duration time, @Argument(value="reason", endless=true, nullDefault=true) Reason reason, @Option(value="days", description="Set how many days of messages should be deleted from the user") Integer days) {
 		SearchUtility.getUserRest(event.getGuild(), userArgument, user -> {
 			if (user == null) {
 				event.reply("I could not find that user " + this.config.getFailureEmote()).queue();
@@ -67,19 +66,12 @@ public class TempBanCommand extends Sx4Command {
 				
 				long seconds = time == null ? data.getDefaultTime() : time.toSeconds();
 				
-				this.database.updateGuild(data.getUpdate(event.getGuild().getIdLong(), member.getIdLong(), seconds)).whenComplete((result, exception) -> {
+				this.database.updateGuild(data.getUpdate(event.getGuild().getIdLong(), user.getIdLong(), seconds)).whenComplete((result, exception) -> {
 					if (ExceptionUtility.sendExceptionally(event, exception)) {
 						return;
 					}
 					
-					int deleteDays = 1;
-					if (days != null) {
-						try {
-							deleteDays = Integer.parseInt(days);
-						} catch (NumberFormatException ex) {}
-					}
-					
-					deleteDays = deleteDays < 0 ? 0 : deleteDays > 7 ? 7 : deleteDays;
+					int deleteDays = days == null ? 1 : Math.min(Math.max(0, days), 7);
 					
 					event.getGuild()
 						.ban(user, deleteDays)
@@ -89,7 +81,7 @@ public class TempBanCommand extends Sx4Command {
 							
 							this.modManager.onModAction(new TempBanEvent(event.getMember(), user, reason, member != null, seconds));
 							
-							this.banManager.putBan(event.getGuild().getIdLong(), member.getIdLong(), seconds);
+							this.banManager.putBan(event.getGuild().getIdLong(), user.getIdLong(), seconds);
 						});
 				});
 			}));

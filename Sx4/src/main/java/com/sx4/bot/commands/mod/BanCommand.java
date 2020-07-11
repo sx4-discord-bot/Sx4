@@ -26,10 +26,10 @@ public class BanCommand extends Sx4Command {
 		super.setDescription("Ban any user from the current server");
 		super.setAliases("ban user");
 		super.setExamples("ban @Shea", "ban Shea Spamming", "ban Shea#6653 template:tos", "ban 402557516728369153 t:tos and Spamming");
-		super.setCategory(Category.MODERATION);
+		super.setCategoryAll(Category.MODERATION);
 	}
 	
-	public void onCommand(Sx4CommandEvent event, @Argument(value="user") String userArgument, @Argument(value="reason", endless=true, nullDefault=true) Reason reason, @Option(value="days", description="Set how many days of messages should be deleted from the user") String days) {
+	public void onCommand(Sx4CommandEvent event, @Argument(value="user") String userArgument, @Argument(value="reason", endless=true, nullDefault=true) Reason reason, @Option(value="days", description="Set how many days of messages should be deleted from the user") Integer days) {
 		SearchUtility.getUserRest(event.getGuild(), userArgument, user -> {
 			if (user == null) {
 				event.reply("I could not find that user " + this.config.getFailureEmote()).queue();
@@ -57,14 +57,7 @@ public class BanCommand extends Sx4Command {
 			event.getGuild().retrieveBan(user).queue(ban -> {
 				event.reply("That user is already banned " + this.config.getFailureEmote()).queue();
 			}, new ErrorHandler().handle(ErrorResponse.UNKNOWN_BAN, e -> {
-				int deleteDays = 1;
-				if (days != null) {
-					try {
-						deleteDays = Integer.parseInt(days);
-					} catch (NumberFormatException ex) {}
-				}
-				
-				deleteDays = deleteDays < 0 ? 0 : deleteDays > 7 ? 7 : deleteDays;
+				int deleteDays = days == null ? 1 : Math.min(Math.max(0, days), 7);
 				
 				event.getGuild()
 					.ban(user, deleteDays)

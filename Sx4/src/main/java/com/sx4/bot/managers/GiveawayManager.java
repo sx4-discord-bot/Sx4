@@ -1,25 +1,5 @@
 package com.sx4.bot.managers;
 
-import java.time.Clock;
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.EnumSet;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
-
-import org.bson.Document;
-import org.bson.conversions.Bson;
-
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.UpdateOneModel;
 import com.mongodb.client.model.Updates;
@@ -28,13 +8,20 @@ import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.MathUtility;
-
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Message.MentionType;
 import net.dv8tion.jda.api.entities.MessageReaction;
 import net.dv8tion.jda.api.entities.TextChannel;
+import org.bson.Document;
+import org.bson.conversions.Bson;
+
+import java.time.Clock;
+import java.time.Instant;
+import java.util.*;
+import java.util.concurrent.*;
+import java.util.stream.Collectors;
 
 public class GiveawayManager {
 
@@ -190,7 +177,7 @@ public class GiveawayManager {
 		});
 		
 		if (!futures.isEmpty()) {
-			CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()]))
+			CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
 				.thenApply($ -> futures.stream().map(CompletableFuture::join).filter(Objects::nonNull).collect(Collectors.toList()))
 				.thenCompose(bulkData -> {
 					if (!bulkData.isEmpty()) {

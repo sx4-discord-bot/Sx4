@@ -1,35 +1,24 @@
 package com.sx4.bot.core;
 
-import java.lang.reflect.Method;
-import java.util.Arrays;
-import java.util.EnumSet;
-import java.util.List;
-import java.util.stream.Collectors;
-
 import com.jockie.bot.core.category.ICategory;
 import com.jockie.bot.core.command.CommandTrigger;
 import com.jockie.bot.core.command.ICommand;
 import com.jockie.bot.core.command.impl.AbstractCommand;
 import com.jockie.bot.core.command.impl.CommandImpl;
 import com.jockie.bot.core.command.impl.DummyCommand;
-import com.sx4.bot.annotations.command.AuthorPermissions;
-import com.sx4.bot.annotations.command.BotPermissions;
-import com.sx4.bot.annotations.command.Canary;
-import com.sx4.bot.annotations.command.Donator;
-import com.sx4.bot.annotations.command.Examples;
-import com.sx4.bot.annotations.command.Redirects;
+import com.sx4.bot.annotations.command.*;
 import com.sx4.bot.config.Config;
 import com.sx4.bot.database.Database;
-import com.sx4.bot.managers.GiveawayManager;
-import com.sx4.bot.managers.ModActionManager;
-import com.sx4.bot.managers.MuteManager;
-import com.sx4.bot.managers.ReminderManager;
-import com.sx4.bot.managers.TempBanManager;
-import com.sx4.bot.managers.YouTubeManager;
-
+import com.sx4.bot.managers.*;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Message;
 import okhttp3.OkHttpClient;
+
+import java.lang.reflect.Method;
+import java.util.Arrays;
+import java.util.EnumSet;
+import java.util.List;
+import java.util.stream.Collectors;
 
 public class Sx4Command extends CommandImpl {
 	
@@ -196,34 +185,27 @@ public class Sx4Command extends CommandImpl {
 	    
 	    return commands;
 	}
-	
-	public AbstractCommand setCategory(ICategory category) {
+
+	public AbstractCommand setCategoryAll(ICategory category) {
 		ICategory old = this.category;
-		
+
 		this.category = category;
-		
-		if (old != null) {
+
+		while (old != null) {
 			old.removeCommand(this);
-			this.subCommands.forEach(this.category::removeCommand);
-			
-			ICategory parent = old.getParent();
-			if (parent != null) {
-				parent.removeCommand(this);
-				this.subCommands.forEach(parent::removeCommand);
-			}
+			this.getAllCommandsRecursive().forEach(old::removeCommand);
+
+			old = old.getParent();
 		}
-		
-		if (this.category != null) {
-			this.category.addCommand(this);
-			this.subCommands.forEach(this.category::addCommand);
-			
-			ICategory parent = this.category.getParent();
-			if (parent != null) {
-				parent.addCommand(this);
-				this.subCommands.forEach(parent::addCommand);
-			}
+
+		ICategory parent = this.category;
+		while (parent != null) {
+			parent.addCommand(this);
+			this.getAllCommandsRecursive().forEach(parent::addCommand);
+
+			parent = parent.getParent();
 		}
-		
+
 		return this;
 	}
 	

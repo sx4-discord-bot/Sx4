@@ -53,7 +53,7 @@ public class GiveawayCommand extends Sx4Command {
 		
 		super.setDescription("Setup giveaways in a certain channel which will be decided randomly through reactions");
 		super.setExamples("giveaway setup", "giveaway reroll", "giveaway reaction");
-		super.setCategory(Category.MANAGEMENT);
+		super.setCategoryAll(Category.MANAGEMENT);
 	}
 	
 	public void onCommand(Sx4CommandEvent event) {

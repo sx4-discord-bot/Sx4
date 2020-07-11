@@ -45,7 +45,7 @@ public class YouTubeNotification extends Sx4Command {
 		super.setDescription("Subscribe to a youtube channel so anytime it uploads it's sent in a channel of your choice");
 		super.setAliases("yt notif", "yt notification", "youtube notif");
 		super.setExamples("youtube notification add", "youtube notification remove", "youtube notification list");
-		super.setCategory(Category.NOTIFICATIONS);
+		super.setCategoryAll(Category.NOTIFICATIONS);
 	}
 	
 	public void onCommand(Sx4CommandEvent event) {

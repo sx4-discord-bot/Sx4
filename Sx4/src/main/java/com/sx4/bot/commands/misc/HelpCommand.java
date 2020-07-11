@@ -1,9 +1,5 @@
 package com.sx4.bot.commands.misc;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.stream.Collectors;
-
 import com.jockie.bot.core.argument.Argument;
 import com.sx4.bot.category.Category;
 import com.sx4.bot.config.Config;
@@ -14,10 +10,14 @@ import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.paged.PagedResult.SelectType;
 import com.sx4.bot.utility.HelpUtility;
 import com.sx4.bot.utility.SearchUtility;
-
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.MessageBuilder;
 import net.dv8tion.jda.api.Permission;
+
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.List;
+import java.util.stream.Collectors;
 
 public class HelpCommand extends Sx4Command {
 	
@@ -34,11 +34,11 @@ public class HelpCommand extends Sx4Command {
 		super.setAliases("h", "commands", "cmds");
 		super.setExamples("help", "help logs", "help all", "help welcomer");
 		super.setPrivateTriggerable(true);
-		super.setCategory(Category.MISC);
+		super.setCategoryAll(Category.MISC);
 	}
 	
 	public void onCommand(Sx4CommandEvent event, @Argument(value="command | module", endless=true, nullDefault=true) String commandName) {
-		boolean embed = event.isFromGuild() ? event.getGuild().getSelfMember().hasPermission(event.getTextChannel(), Permission.MESSAGE_EMBED_LINKS) : true;
+		boolean embed = !event.isFromGuild() || event.getGuild().getSelfMember().hasPermission(event.getTextChannel(), Permission.MESSAGE_EMBED_LINKS);
 		if (commandName == null) {
 			String image = Config.get().getAdImage();
 			String description = Config.get().getAdDescription();
@@ -71,7 +71,7 @@ public class HelpCommand extends Sx4Command {
 				
 				List<Sx4Command> categoryCommands = category.getCommands(event.isAuthorDeveloper()).stream()
 					.map(Sx4Command.class::cast)
-					.sorted((a, b) -> a.getCommandTrigger().compareTo(b.getCommandTrigger()))
+					.sorted(Comparator.comparing(a -> a.getCommandTrigger()))
 					.collect(Collectors.toList());
 				
 				PagedResult<Sx4Command> categoryPaged = HelpUtility.getCommandsPaged(categoryCommands)
@@ -90,7 +90,7 @@ public class HelpCommand extends Sx4Command {
 			if (category != null) {
 				List<Sx4Command> categoryCommands = category.getCommands(event.isAuthorDeveloper()).stream()
 					.map(Sx4Command.class::cast)
-					.sorted((a, b) -> a.getCommandTrigger().compareTo(b.getCommandTrigger()))
+					.sorted(Comparator.comparing(a -> a.getCommandTrigger()))
 					.collect(Collectors.toList());
 				
 				PagedResult<Sx4Command> paged = HelpUtility.getCommandsPaged(categoryCommands)
@@ -105,7 +105,7 @@ public class HelpCommand extends Sx4Command {
 					.setAutoSelect(true)
 					.setPerPage(15)
 					.setSelectablePredicate((content, command) -> command.getCommandTrigger().equals(content))
-					.setDisplayFunction(Sx4Command::getCommandTrigger);
+					.setDisplayFunction(Sx4Command::getUsage);
 				
 				paged.onSelect(select -> event.reply(HelpUtility.getHelpMessage(select.getSelected(), embed)).queue());
 				

@@ -1,13 +1,5 @@
 package com.sx4.bot.commands.settings;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.stream.Collectors;
-
-import org.bson.Document;
-import org.bson.conversions.Bson;
-
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
 import com.mongodb.client.model.Filters;
@@ -24,13 +16,20 @@ import com.sx4.bot.entities.settings.HolderType;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.waiter.Waiter;
-
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.IPermissionHolder;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent;
+import org.bson.Document;
+import org.bson.conversions.Bson;
+
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import java.util.stream.Collectors;
 
 public class FakePermissionsCommand extends Sx4Command {
 
@@ -40,7 +39,7 @@ public class FakePermissionsCommand extends Sx4Command {
 		super.setDescription("Setup permissions for user or roles which only work within the bot");
 		super.setAliases("fakepermissions", "fake perms", "fakeperms");
 		super.setExamples("fake permissions add", "fake permissions remove", "fake permissions list");
-		super.setCategory(Category.SETTINGS);
+		super.setCategoryAll(Category.SETTINGS);
 	}
 	
 	public void onCommand(Sx4CommandEvent event) {
@@ -182,7 +181,7 @@ public class FakePermissionsCommand extends Sx4Command {
 		List<Document> allHolders = this.database.getGuildById(event.getGuild().getIdLong(), Projections.include("fakePermissions.holders")).getEmbedded(List.of("fakePermissions", "holders"), Collections.emptyList());
 		
 		List<Document> holders = allHolders.stream()
-			.sorted((a, b) -> Integer.compare(a.get("type", 0), b.get("type", 0)))
+			.sorted(Comparator.comparingInt(a -> a.get("type", 0)))
 			.filter(data -> (data.get("permissions", 0L) & permissionsRaw) == permissionsRaw)
 			.collect(Collectors.toList());
 		

@@ -1,5 +1,18 @@
 package com.sx4.bot.utility;
 
+import com.jockie.bot.core.command.ICommand;
+import com.sx4.bot.category.Category;
+import com.sx4.bot.core.Sx4;
+import com.sx4.bot.core.Sx4Category;
+import com.sx4.bot.core.Sx4Command;
+import com.sx4.bot.entities.argument.MessageArgument;
+import com.sx4.bot.entities.mod.PartialEmote;
+import net.dv8tion.jda.api.entities.*;
+import net.dv8tion.jda.api.entities.Message.MentionType;
+import net.dv8tion.jda.api.entities.MessageReaction.ReactionEmote;
+import net.dv8tion.jda.api.utils.MiscUtil;
+import net.dv8tion.jda.api.utils.cache.CacheView;
+
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
@@ -10,28 +23,6 @@ import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-
-import com.jockie.bot.core.command.ICommand;
-import com.sx4.bot.category.Category;
-import com.sx4.bot.core.Sx4;
-import com.sx4.bot.core.Sx4Category;
-import com.sx4.bot.core.Sx4Command;
-import com.sx4.bot.entities.argument.MessageArgument;
-import com.sx4.bot.entities.mod.PartialEmote;
-
-import net.dv8tion.jda.api.entities.Emote;
-import net.dv8tion.jda.api.entities.Guild;
-import net.dv8tion.jda.api.entities.IPermissionHolder;
-import net.dv8tion.jda.api.entities.Member;
-import net.dv8tion.jda.api.entities.Message;
-import net.dv8tion.jda.api.entities.Message.MentionType;
-import net.dv8tion.jda.api.entities.MessageEmbed;
-import net.dv8tion.jda.api.entities.MessageReaction.ReactionEmote;
-import net.dv8tion.jda.api.entities.Role;
-import net.dv8tion.jda.api.entities.TextChannel;
-import net.dv8tion.jda.api.entities.User;
-import net.dv8tion.jda.api.utils.MiscUtil;
-import net.dv8tion.jda.api.utils.cache.CacheView;
 
 public class SearchUtility {
 	
@@ -76,23 +67,23 @@ public class SearchUtility {
 	}
 	
 	private static TextChannel findTextChannel(CacheView<TextChannel> channels, String query) {
-		return SearchUtility.find(channels, query, channel -> channel.getName());
+		return SearchUtility.find(channels, query, TextChannel::getName);
 	}
 	
 	private static Member findMember(CacheView<Member> members, String query) {
-		return SearchUtility.find(members, query, member -> member.getEffectiveName());
+		return SearchUtility.find(members, query, Member::getEffectiveName);
 	}
 	
 	private static Role findRole(CacheView<Role> roles, String query) {
-		return SearchUtility.find(roles, query, role -> role.getName());
+		return SearchUtility.find(roles, query, Role::getName);
 	}
 	
 	private static Emote findEmote(CacheView<Emote> emotes, String query) {
-		return SearchUtility.find(emotes, query, emote -> emote.getName());
+		return SearchUtility.find(emotes, query, Emote::getName);
 	}
 	
 	private static Guild findGuild(CacheView<Guild> guilds, String query) {
-		return SearchUtility.find(guilds, query, guild -> guild.getName());
+		return SearchUtility.find(guilds, query, Guild::getName);
 	}
 	
 	public static Guild getGuild(String query) {
@@ -114,7 +105,7 @@ public class SearchUtility {
 			String id = mentionMatch.group(3);
 			
 			try {
-				return new PartialEmote(Long.valueOf(id), mentionMatch.group(2), mentionMatch.group(1) != null);
+				return new PartialEmote(Long.parseLong(id), mentionMatch.group(2), mentionMatch.group(1) != null);
 			} catch (NumberFormatException e) {
 				return null;
 			}	
@@ -122,7 +113,7 @@ public class SearchUtility {
 			try {
 				Emote emote = Sx4.get().getShardManager().getEmoteById(query);
 				if (emote == null) {
-					return new PartialEmote(Long.valueOf(query), null, null);
+					return new PartialEmote(Long.parseLong(query), null, null);
 				} else {
 					return new PartialEmote(emote);
 				}
@@ -131,7 +122,7 @@ public class SearchUtility {
 			}
 		} else if (urlMatch.matches()) {
 			try {
-				Long id = Long.parseLong(urlMatch.group(1));
+				long id = Long.parseLong(urlMatch.group(1));
 				
 				Emote emote = Sx4.get().getShardManager().getEmoteById(id);
 				if (emote == null) {
@@ -278,14 +269,20 @@ public class SearchUtility {
 				
 				if (imageEmbed != null) {
 					String embedUrl = imageEmbed.getThumbnail().getUrl();
+					if (embedUrl == null) {
+						return null;
+					}
+
 					int periodIndexEmbed = embedUrl.lastIndexOf(".");
 					
-					if (!SearchUtility.SUPPORTED_TYPES.contains(embedUrl.substring(periodIndexEmbed + 1).toUpperCase())) {
+					if (periodIndexEmbed == -1 || !SearchUtility.SUPPORTED_TYPES.contains(embedUrl.substring(periodIndexEmbed + 1).toUpperCase())) {
 						return null;
 					} else {
 						try {
 							url = new URL(embedUrl);
-						} catch (MalformedURLException e) {}
+						} catch (MalformedURLException e) {
+							return null;
+						}
 					}
 				} else {
 					return null;
@@ -418,9 +415,7 @@ public class SearchUtility {
 				
 				Member member = guild.getMemberById(id);
 				if (member == null) {
-					Sx4.get().getShardManager().retrieveUserById(id).queue(user -> {
-						userConsumer.accept(user);
-					});
+					Sx4.get().getShardManager().retrieveUserById(id).queue(userConsumer::accept);
 				} else {
 					userConsumer.accept(member.getUser());
 				}
@@ -449,9 +444,7 @@ public class SearchUtility {
 				
 				Member member = guild.getMemberById(id);
 				if (member == null) {
-					Sx4.get().getShardManager().retrieveUserById(id).queue(user -> {
-						userConsumer.accept(user);
-					});
+					Sx4.get().getShardManager().retrieveUserById(id).queue(userConsumer::accept);
 				} else {
 					userConsumer.accept(member.getUser());
 				}
@@ -478,9 +471,7 @@ public class SearchUtility {
 			try {
 				long id = Long.parseLong(mentionMatch.group(1));
 				
-				Sx4.get().getShardManager().retrieveUserById(id).queue(user -> {
-					userConsumer.accept(user);
-				});
+				Sx4.get().getShardManager().retrieveUserById(id).queue(userConsumer::accept);
 			} catch (NumberFormatException e) {
 				userConsumer.accept(null);
 			}
@@ -496,9 +487,7 @@ public class SearchUtility {
 			try {
 				long id = Long.parseLong(query);
 				
-				Sx4.get().getShardManager().retrieveUserById(id).queue(user -> {
-					userConsumer.accept(user);
-				});
+				Sx4.get().getShardManager().retrieveUserById(id).queue(userConsumer::accept);
 			} catch (NumberFormatException e) {
 				userConsumer.accept(null);
 			}
@@ -525,9 +514,9 @@ public class SearchUtility {
 	
 	public static Sx4Category getModule(String query) {
 		return Arrays.stream(Category.ALL_ARRAY)
-				.filter(category -> category.getName().equalsIgnoreCase(query) || Arrays.stream(category.getAliases()).anyMatch(query::equalsIgnoreCase))
-				.findFirst()
-				.orElse(null);
+			.filter(category -> category.getName().equalsIgnoreCase(query) || Arrays.stream(category.getAliases()).anyMatch(query::equalsIgnoreCase))
+			.findFirst()
+			.orElse(null);
 	}
 	
 	public static Sx4Command getCommand(String query) {
@@ -570,28 +559,25 @@ public class SearchUtility {
 					continue Command;
 				}
 			}
-			
-			List<String> allAliases = new ArrayList<>();
+
 			ICommand parent = command;
 			List<String> parentAliases = new ArrayList<>(parent.getAliases());
 			parentAliases.add(parent.getCommand());
-			for (String alias : parentAliases) {
-				allAliases.add(alias);
-			}
+			parentAliases.addAll(parentAliases);
 			
 			while (parent.hasParent()) {
 				parent = parent.getParent();
 				List<String> continuousParentAliases = new ArrayList<>(parent.getAliases());
 				continuousParentAliases.add(parent.getCommand());
-				for (String aliases : new ArrayList<>(allAliases)) {
+				for (String aliases : new ArrayList<>(parentAliases)) {
 					for (String alias : continuousParentAliases) {
-						allAliases.remove(aliases);
-						allAliases.add(alias + " " + aliases);
+						parentAliases.remove(aliases);
+						parentAliases.add(alias + " " + aliases);
 					}
 				}
 			}
 			
-			for (String commandAlias : allAliases) {
+			for (String commandAlias : parentAliases) {
 				commandAlias = caseSensitive ? commandAlias : commandAlias.toLowerCase();
 				if (query.equals(commandAlias)) {
 					commands.add(command);
