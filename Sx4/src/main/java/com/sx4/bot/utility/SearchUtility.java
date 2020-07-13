@@ -415,7 +415,7 @@ public class SearchUtility {
 				
 				Member member = guild.getMemberById(id);
 				if (member == null) {
-					Sx4.get().getShardManager().retrieveUserById(id).queue(userConsumer::accept);
+					Sx4.get().getShardManager().retrieveUserById(id).queue(userConsumer);
 				} else {
 					userConsumer.accept(member.getUser());
 				}
@@ -444,7 +444,7 @@ public class SearchUtility {
 				
 				Member member = guild.getMemberById(id);
 				if (member == null) {
-					Sx4.get().getShardManager().retrieveUserById(id).queue(userConsumer::accept);
+					Sx4.get().getShardManager().retrieveUserById(id).queue(userConsumer);
 				} else {
 					userConsumer.accept(member.getUser());
 				}
@@ -563,7 +563,6 @@ public class SearchUtility {
 			ICommand parent = command;
 			List<String> parentAliases = new ArrayList<>(parent.getAliases());
 			parentAliases.add(parent.getCommand());
-			parentAliases.addAll(parentAliases);
 			
 			while (parent.hasParent()) {
 				parent = parent.getParent();

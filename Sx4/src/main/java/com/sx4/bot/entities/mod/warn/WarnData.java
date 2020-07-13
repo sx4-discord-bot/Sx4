@@ -1,19 +1,6 @@
 package com.sx4.bot.entities.mod.warn;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.function.BiConsumer;
-
-import org.bson.Document;
-import org.bson.conversions.Bson;
-
-import com.mongodb.client.model.Filters;
-import com.mongodb.client.model.Projections;
-import com.mongodb.client.model.UpdateOneModel;
-import com.mongodb.client.model.UpdateOptions;
-import com.mongodb.client.model.Updates;
-import com.mongodb.client.model.WriteModel;
+import com.mongodb.client.model.*;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.entities.mod.Reason;
 import com.sx4.bot.entities.mod.action.Action;
@@ -29,10 +16,17 @@ import com.sx4.bot.managers.ModActionManager;
 import com.sx4.bot.managers.MuteManager;
 import com.sx4.bot.managers.TempBanManager;
 import com.sx4.bot.utility.ModUtility;
-
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
+import org.bson.Document;
+import org.bson.conversions.Bson;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import java.util.function.BiConsumer;
 
 public class WarnData {
 	
@@ -88,7 +82,7 @@ public class WarnData {
 	
 	public WarnConfig getLastConfig() {
 		return this.config.stream()
-			.max((a, b) -> Integer.compare(a.getNumber(), b.getNumber()))
+			.max(Comparator.comparingInt(WarnConfig::getNumber))
 			.get();
 	}
 	

@@ -1,12 +1,11 @@
 package com.sx4.bot.http;
 
-import java.io.IOException;
-
 import com.sx4.bot.utility.ExceptionUtility;
-
 import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.Response;
+
+import java.io.IOException;
 
 @FunctionalInterface
 public interface HttpCallback extends Callback {
@@ -20,7 +19,7 @@ public interface HttpCallback extends Callback {
 		}
 	}
 	
-	default void onResponse(Call call, Response response) throws IOException {
+	default void onResponse(Call call, Response response) {
 		try {
 			this.onResponse(response);
 		} catch (Exception e) {

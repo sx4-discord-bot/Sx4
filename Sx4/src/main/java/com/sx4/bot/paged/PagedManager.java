@@ -1,16 +1,16 @@
 package com.sx4.bot.paged;
 
+import net.dv8tion.jda.api.entities.MessageChannel;
+import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.exceptions.ErrorResponseException;
+import net.dv8tion.jda.api.requests.ErrorResponse;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-
-import net.dv8tion.jda.api.entities.MessageChannel;
-import net.dv8tion.jda.api.entities.User;
-import net.dv8tion.jda.api.exceptions.ErrorResponseException;
-import net.dv8tion.jda.api.requests.ErrorResponse;
 
 public class PagedManager {
 	
@@ -48,10 +48,10 @@ public class PagedManager {
 					executors.get(pagedResult.getOwnerId()).cancel(true);
 				}
 				
-				executors.put(pagedResult.getOwnerId(), this.executor.schedule(() -> pagedResult.timeout(), pagedResult.getTimeout(), TimeUnit.SECONDS));
+				executors.put(pagedResult.getOwnerId(), this.executor.schedule(pagedResult::timeout, pagedResult.getTimeout(), TimeUnit.SECONDS));
 			} else {
 				Map<Long, ScheduledFuture<?>> executors = new HashMap<>();
-				executors.put(pagedResult.getOwnerId(), this.executor.schedule(() -> pagedResult.timeout(), pagedResult.getTimeout(), TimeUnit.SECONDS));
+				executors.put(pagedResult.getOwnerId(), this.executor.schedule(pagedResult::timeout, pagedResult.getTimeout(), TimeUnit.SECONDS));
 				
 				this.executors.put(pagedResult.getChannelId(), executors);
 			}

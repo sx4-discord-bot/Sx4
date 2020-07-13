@@ -1,15 +1,5 @@
 package com.sx4.bot.handlers;
 
-import java.time.Instant;
-import java.time.OffsetDateTime;
-
-import com.sx4.bot.config.Config;
-import com.sx4.bot.core.Sx4;
-import com.sx4.bot.managers.AutoRoleManager;
-import com.sx4.bot.managers.GiveawayManager;
-import com.sx4.bot.managers.MuteManager;
-import com.sx4.bot.managers.ReminderManager;
-
 import club.minnced.discord.webhook.WebhookClient;
 import club.minnced.discord.webhook.WebhookClientBuilder;
 import club.minnced.discord.webhook.send.WebhookEmbed;
@@ -17,6 +7,12 @@ import club.minnced.discord.webhook.send.WebhookEmbed.EmbedAuthor;
 import club.minnced.discord.webhook.send.WebhookEmbed.EmbedField;
 import club.minnced.discord.webhook.send.WebhookEmbed.EmbedFooter;
 import club.minnced.discord.webhook.send.WebhookEmbedBuilder;
+import com.sx4.bot.config.Config;
+import com.sx4.bot.core.Sx4;
+import com.sx4.bot.managers.AutoRoleManager;
+import com.sx4.bot.managers.GiveawayManager;
+import com.sx4.bot.managers.MuteManager;
+import com.sx4.bot.managers.ReminderManager;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDA.ShardInfo;
 import net.dv8tion.jda.api.events.DisconnectEvent;
@@ -26,9 +22,12 @@ import net.dv8tion.jda.api.events.ResumedEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.dv8tion.jda.api.requests.CloseCode;
 
+import java.time.Instant;
+import java.time.OffsetDateTime;
+
 public class ConnectionHandler extends ListenerAdapter {
 	
-	private WebhookClient eventsWebhook = new WebhookClientBuilder(Config.get().getEventsWebhookId(), Config.get().getEventsWebhookToken())
+	private final WebhookClient eventsWebhook = new WebhookClientBuilder(Config.get().getEventsWebhookId(), Config.get().getEventsWebhookToken())
 		.setHttpClient(Sx4.getClient())
 		.build();
 	

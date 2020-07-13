@@ -1,20 +1,11 @@
 package com.sx4.bot.handlers;
 
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
-
-import org.bson.Document;
-
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.Updates;
 import com.sx4.bot.config.Config;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.utility.ExceptionUtility;
-
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.MessageReaction.ReactionEmote;
@@ -27,6 +18,10 @@ import net.dv8tion.jda.api.events.role.RoleDeleteEvent;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.dv8tion.jda.api.requests.ErrorResponse;
+import org.bson.Document;
+
+import java.util.*;
+import java.util.stream.Collectors;
 
 public class ReactionRoleHandler extends ListenerAdapter {
 
@@ -68,7 +63,7 @@ public class ReactionRoleHandler extends ListenerAdapter {
 		for (Document data : reactionRole.getList("reactions", Document.class)) {
 			List<Role> rolesData = data.getList("roles", Long.class).stream()
 				.map(guild::getRoleById)
-				.filter(role -> role != null)
+				.filter(Objects::nonNull)
 				.filter(role -> guild.getSelfMember().canInteract(role))
 				.collect(Collectors.toList());
 			

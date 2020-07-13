@@ -1,14 +1,13 @@
 package com.sx4.bot.entities.economy.auction;
 
-import java.time.Clock;
-import java.util.concurrent.CompletableFuture;
-
-import org.bson.types.ObjectId;
-
 import com.mongodb.client.result.DeleteResult;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.entities.economy.item.Item;
 import com.sx4.bot.entities.economy.item.ItemStack;
+import org.bson.types.ObjectId;
+
+import java.time.Clock;
+import java.util.concurrent.CompletableFuture;
 
 public class Auction<Type extends Item> {
 

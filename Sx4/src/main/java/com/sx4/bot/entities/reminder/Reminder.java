@@ -1,16 +1,14 @@
 package com.sx4.bot.entities.reminder;
 
+import com.sx4.bot.core.Sx4;
+import net.dv8tion.jda.api.entities.User;
+import org.bson.Document;
+import org.bson.types.ObjectId;
+
 import java.time.Duration;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
-
-import org.bson.Document;
-import org.bson.types.ObjectId;
-
-import com.sx4.bot.core.Sx4;
-
-import net.dv8tion.jda.api.entities.User;
 
 public class Reminder {
 	
@@ -20,7 +18,7 @@ public class Reminder {
 	private final ObjectId id;
 	
 	private final OffsetDateTime createdAt;
-	private final OffsetDateTime remindAt;
+	private OffsetDateTime remindAt;
 	
 	private final String reminder;
 	
@@ -69,7 +67,7 @@ public class Reminder {
 	}
 	
 	public Reminder extend() {
-		this.remindAt.plusSeconds(this.duration);
+		this.remindAt = this.remindAt.plusSeconds(this.duration);
 		
 		return this;
 	}

@@ -70,7 +70,7 @@ public class ReminderCommand extends Sx4Command {
 				
 			this.reminderManager.putReminder(event.getAuthor().getIdLong(), initialDuration, reminderData);
 				
-			event.replyFormat("I will remind you about that in **%s**, your reminder id is `%s` " + this.config.getSuccessEmote(), TimeUtility.getTimeString(initialDuration), id.toHexString()).queue();
+			event.replyFormat("I will remind you about that in **%s**, your reminder id is `%s` %s", TimeUtility.getTimeString(initialDuration), id.toHexString(), this.config.getSuccessEmote()).queue();
 		});
 	}
 	

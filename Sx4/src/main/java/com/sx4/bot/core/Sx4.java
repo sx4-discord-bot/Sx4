@@ -14,7 +14,9 @@ import com.jockie.bot.core.command.manager.IErrorManager;
 import com.jockie.bot.core.command.manager.impl.ContextManagerFactory;
 import com.jockie.bot.core.command.manager.impl.ErrorManagerImpl;
 import com.jockie.bot.core.option.factory.impl.OptionFactory;
+import com.jockie.bot.core.option.factory.impl.OptionFactoryImpl;
 import com.jockie.bot.core.parser.ParsedResult;
+import com.jockie.bot.core.parser.impl.essential.EnumParser;
 import com.sx4.bot.annotations.argument.*;
 import com.sx4.bot.cache.message.GuildMessageCache;
 import com.sx4.bot.category.Category;
@@ -23,6 +25,7 @@ import com.sx4.bot.entities.argument.*;
 import com.sx4.bot.entities.management.Filter;
 import com.sx4.bot.entities.mod.PartialEmote;
 import com.sx4.bot.entities.mod.Reason;
+import com.sx4.bot.entities.mod.action.ModAction;
 import com.sx4.bot.entities.reminder.ReminderArgument;
 import com.sx4.bot.handlers.*;
 import com.sx4.bot.managers.ModActionManager;
@@ -193,8 +196,40 @@ public class Sx4 {
 	}
 
 	private void setupOptionFactory() {
-		OptionFactory.getDefault()
-			.registerParser(Duration.class, (context, option, content) -> new ParsedResult<>(TimeUtility.getDurationFromString(content)));
+		OptionFactoryImpl optionFactory = (OptionFactoryImpl) OptionFactory.getDefault();
+
+		optionFactory.addBuilderConfigureFunction(Integer.class, (parameter, builder) -> {
+			builder.setProperty("colour", parameter.isAnnotationPresent(Colour.class));
+
+			Limit limit = parameter.getAnnotation(Limit.class);
+			if (limit != null) {
+				builder.setProperty("upperLimit", limit.max());
+				builder.setProperty("lowerLimit", limit.min());
+			}
+
+			DefaultInt defaultInt = parameter.getAnnotation(DefaultInt.class);
+			if (defaultInt != null) {
+				builder.setDefaultValue(defaultInt.value());
+			}
+
+			return builder;
+		});
+
+		optionFactory.registerParser(Duration.class, (context, option, content) -> content == null ? new ParsedResult<>(true, null) : new ParsedResult<>(TimeUtility.getDurationFromString(content)));
+
+		optionFactory.addParserAfter(Integer.class, (context, argument, content) -> {
+			Integer lowerLimit = argument.getProperty("lowerLimit", Integer.class);
+			if (lowerLimit != null) {
+				content = Math.max(lowerLimit, content);
+			}
+
+			Integer upperLimit = argument.getProperty("upperLimit", Integer.class);
+			if (upperLimit != null) {
+				content = Math.min(upperLimit, content);
+			}
+
+			return new ParsedResult<>(content);
+		});
 	}
 
 	@SuppressWarnings({"unchecked", "rawtypes"})
@@ -293,6 +328,7 @@ public class Sx4 {
 			.registerParser(Guild.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getGuild(content)))
 			.registerParser(MessageArgument.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getMessageArgument(context.getMessage().getTextChannel(), content)))
 			.registerParser(ReactionEmote.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getReactionEmote(content)))
+			.registerParser(ModAction.class, new EnumParser<>())
 			.registerParser(TimeZone.class, (context, argument, content) -> new ParsedResult<>(TimeZone.getTimeZone(content.toUpperCase().replace("UTC", "GMT"))))
 			.registerParser(ReminderArgument.class, (context, argument, content) -> {
 				try {
@@ -373,13 +409,7 @@ public class Sx4 {
 			}).registerParser(TimedArgument.class, (context, argument, content) -> {
 				Class<?> clazz = argument.getProperty("class", Class.class);
 				
-				ParsedResult<?> parsedArgument;
-				if (clazz.isEnum()) {
-					parsedArgument = argumentFactory.getGenericParser(clazz).parse(context, (IArgument) argument, content);
-				} else {
-					parsedArgument = argumentFactory.getParser(clazz).parse(context, (IArgument) argument, content);
-				}
-				
+				ParsedResult<?> parsedArgument = argumentFactory.getParser(clazz).parse(context, (IArgument) argument, content);
 				if (!parsedArgument.isValid()) {
 					return new ParsedResult<>();
 				}
@@ -397,14 +427,8 @@ public class Sx4 {
 					return new ParsedResult<>(new All<>(null));
 				} else {
 					Class<?> clazz = argument.getProperty("class", Class.class);
-					
-					ParsedResult<?> parsedArgument;
-					if (clazz.isEnum()) {
-						parsedArgument = argumentFactory.getGenericParser(clazz).parse(context, (IArgument) argument, content);
-					} else {
-						parsedArgument = argumentFactory.getParser(clazz).parse(context, (IArgument) argument, content);
-					}
-					
+
+					ParsedResult<?> parsedArgument = argumentFactory.getParser(clazz).parse(context, (IArgument) argument, content);
 					if (!parsedArgument.isValid()) {
 						return new ParsedResult<>();
 					}
@@ -439,12 +463,12 @@ public class Sx4 {
 		}).addParserAfter(Integer.class, (context, argument, content) -> {
 			Integer lowerLimit = argument.getProperty("lowerLimit", Integer.class);
 			if (lowerLimit != null) {
-				content = content < lowerLimit ? lowerLimit : content;
+				content = Math.max(lowerLimit, content);
 			}
-			
+
 			Integer upperLimit = argument.getProperty("upperLimit", Integer.class);
 			if (upperLimit != null) {
-				content = content > upperLimit ? upperLimit : content;
+				content = Math.min(upperLimit, content);
 			}
 			
 			return new ParsedResult<>(content);

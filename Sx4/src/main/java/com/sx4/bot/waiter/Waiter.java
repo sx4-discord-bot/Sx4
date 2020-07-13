@@ -1,12 +1,12 @@
 package com.sx4.bot.waiter;
 
+import net.dv8tion.jda.api.events.GenericEvent;
+import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent;
+
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
-
-import net.dv8tion.jda.api.events.GenericEvent;
-import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent;
 
 public class Waiter<Type extends GenericEvent> {
 	
@@ -37,7 +37,7 @@ public class Waiter<Type extends GenericEvent> {
 	
 	private Consumer<CancelType> onCancelled = null;
 	private Runnable onTimeout = null;
-	private CompletableFuture<Type> future = new CompletableFuture<>();
+	private final CompletableFuture<Type> future = new CompletableFuture<>();
 	
 	private Predicate<Type> predicate = $ -> true;
 	private Predicate<Type> cancelPredicate = $ -> false;

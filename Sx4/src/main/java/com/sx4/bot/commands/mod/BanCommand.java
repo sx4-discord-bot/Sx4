@@ -2,6 +2,8 @@ package com.sx4.bot.commands.mod;
 
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.option.Option;
+import com.sx4.bot.annotations.argument.DefaultInt;
+import com.sx4.bot.annotations.argument.Limit;
 import com.sx4.bot.category.Category;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
@@ -29,7 +31,7 @@ public class BanCommand extends Sx4Command {
 		super.setCategoryAll(Category.MODERATION);
 	}
 	
-	public void onCommand(Sx4CommandEvent event, @Argument(value="user") String userArgument, @Argument(value="reason", endless=true, nullDefault=true) Reason reason, @Option(value="days", description="Set how many days of messages should be deleted from the user") Integer days) {
+	public void onCommand(Sx4CommandEvent event, @Argument(value="user") String userArgument, @Argument(value="reason", endless=true, nullDefault=true) Reason reason, @Option(value="days", description="Set how many days of messages should be deleted from the user") @DefaultInt(1) @Limit(min=0, max=7) int days) {
 		SearchUtility.getUserRest(event.getGuild(), userArgument, user -> {
 			if (user == null) {
 				event.reply("I could not find that user " + this.config.getFailureEmote()).queue();
@@ -57,10 +59,8 @@ public class BanCommand extends Sx4Command {
 			event.getGuild().retrieveBan(user).queue(ban -> {
 				event.reply("That user is already banned " + this.config.getFailureEmote()).queue();
 			}, new ErrorHandler().handle(ErrorResponse.UNKNOWN_BAN, e -> {
-				int deleteDays = days == null ? 1 : Math.min(Math.max(0, days), 7);
-				
 				event.getGuild()
-					.ban(user, deleteDays)
+					.ban(user, days)
 					.reason(ModUtility.getAuditReason(reason, event.getAuthor()))
 					.queue($ -> {
 						event.reply("**" + user.getAsTag() + "** has been banned <:done:403285928233402378>:ok_hand:").queue();

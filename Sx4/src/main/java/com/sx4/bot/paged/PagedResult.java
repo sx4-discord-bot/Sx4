@@ -1,5 +1,14 @@
 package com.sx4.bot.paged;
 
+import com.jockie.bot.core.command.impl.CommandEvent;
+import com.sx4.bot.core.Sx4;
+import net.dv8tion.jda.api.EmbedBuilder;
+import net.dv8tion.jda.api.MessageBuilder;
+import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.*;
+import net.dv8tion.jda.api.exceptions.ErrorResponseException;
+import net.dv8tion.jda.api.requests.ErrorResponse;
+
 import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.List;
@@ -8,21 +17,6 @@ import java.util.function.BiConsumer;
 import java.util.function.BiPredicate;
 import java.util.function.Consumer;
 import java.util.function.Function;
-
-import com.jockie.bot.core.command.impl.CommandEvent;
-import com.sx4.bot.core.Sx4;
-
-import net.dv8tion.jda.api.EmbedBuilder;
-import net.dv8tion.jda.api.MessageBuilder;
-import net.dv8tion.jda.api.Permission;
-import net.dv8tion.jda.api.entities.Guild;
-import net.dv8tion.jda.api.entities.Message;
-import net.dv8tion.jda.api.entities.MessageChannel;
-import net.dv8tion.jda.api.entities.Role;
-import net.dv8tion.jda.api.entities.TextChannel;
-import net.dv8tion.jda.api.entities.User;
-import net.dv8tion.jda.api.exceptions.ErrorResponseException;
-import net.dv8tion.jda.api.requests.ErrorResponse;
 
 public class PagedResult<Type> {
 	
@@ -85,7 +79,7 @@ public class PagedResult<Type> {
 	private EnumSet<SelectType> select = EnumSet.allOf(SelectType.class);
 	
 	private Function<PagedResult<Type>, Message> customFunction = null;
-	private Function<Type, String> displayFunction = a -> a.toString();
+	private Function<Type, String> displayFunction = Object::toString;
 	private Function<Integer, String> indexFunction = a -> a + ". ";
 	private BiPredicate<String, Type> selectablePredicate = null;
 	

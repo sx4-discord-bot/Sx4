@@ -1,11 +1,11 @@
 package com.sx4.bot.database.model;
 
-import java.util.Arrays;
-import java.util.List;
-
 import org.bson.BsonUndefined;
 import org.bson.Document;
 import org.bson.conversions.Bson;
+
+import java.util.Arrays;
+import java.util.List;
 
 public class Operators {
 	
@@ -58,6 +58,10 @@ public class Operators {
 	public static Bson map(Object listExpression, Object expression) {
 		return new Document("$map", new Document("input", listExpression).append("in", expression));
 	}
+
+	public static Bson get(Object documentExpression, String key) {
+		return Operators.first(Operators.map(List.of(documentExpression), "$$this." + key));
+	}
 	
 	public static Bson set(String key, Object expression) {
 		return new Document("$set", new Document(key, expression));
@@ -69,6 +73,10 @@ public class Operators {
 	
 	public static Bson concatArrays(Object... expressions) {
 		return Operators.concatArrays(Arrays.asList(expressions));
+	}
+
+	public static Bson mergeObjects(Object... expressions) {
+		return new Document("$mergeObjects", Arrays.asList(expressions));
 	}
 	
 	public static Bson size(Object expression) {

@@ -1,5 +1,9 @@
 package com.sx4.bot.waiter;
 
+import com.sx4.bot.waiter.Waiter.CancelType;
+import net.dv8tion.jda.api.events.GenericEvent;
+import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -8,11 +12,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-
-import com.sx4.bot.waiter.Waiter.CancelType;
-
-import net.dv8tion.jda.api.events.GenericEvent;
-import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent;
 
 public class WaiterManager {
 
@@ -43,7 +42,7 @@ public class WaiterManager {
 			}
 		}
 		
-		this.executors.put(waiter, this.executor.schedule(() -> waiter.timeout(), waiter.getTimeout(), TimeUnit.SECONDS));
+		this.executors.put(waiter, this.executor.schedule(waiter::timeout, waiter.getTimeout(), TimeUnit.SECONDS));
 	}
 	
 	public void cancelTimeout(Waiter<?> waiter) {

@@ -10,7 +10,11 @@ import com.sx4.bot.annotations.command.Examples;
 import com.sx4.bot.category.Category;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
+import com.sx4.bot.database.Database;
 import com.sx4.bot.database.model.Operators;
+import com.sx4.bot.entities.argument.TimedArgument;
+import com.sx4.bot.entities.mod.action.ModAction;
+import com.sx4.bot.entities.mod.auto.MatchAction;
 import com.sx4.bot.entities.settings.HolderType;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
@@ -98,6 +102,96 @@ public class AntiRegexCommand extends Sx4Command {
 			});
 	}
 
+	@Command(value="match action", aliases={"matchaction"}, description="Set what the bot should do when the regex is matched")
+	@Examples({"anti regex match action 5f023782ef9eba03390a740c SEND_MESSAGE", "anti regex match action 5f023782ef9eba03390a740c SEND_MESSAGE DELETE_MESSAGE"})
+	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
+	public void matchAction(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="actions") MatchAction... actions) {
+		long raw = MatchAction.getRaw(actions);
+
+		Bson filter = Operators.filter("$antiRegex.regexes", Operators.eq("$$this.id", id));
+		List<Bson> update = List.of(Operators.set("antiRegex.regexes", Operators.cond(Operators.or(Operators.extinct("$antiRegex.regexes"), Operators.isEmpty(filter)), "$antiRegex.regexes", Operators.concatArrays(List.of(Operators.mergeObjects(Operators.first(filter), new Document("matchAction", raw))), Operators.filter("$antiRegex.regexes", Operators.ne("$$this.id", id))))));
+
+		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE);
+		this.database.findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
+			if (ExceptionUtility.sendExceptionally(event, exception)) {
+				return;
+			}
+
+			data = data == null ? Database.EMPTY_DOCUMENT : data;
+
+			List<Document> regexes = data.getEmbedded(List.of("antiRegex", "regexes"), Collections.emptyList());
+			Document regex = regexes.stream()
+				.filter(d -> d.getObjectId("id").equals(id))
+				.findFirst()
+				.orElse(null);
+
+			if (regex == null) {
+				event.reply("I could not find that regex " + this.config.getFailureEmote()).queue();
+				return;
+			}
+
+			if (regex.get("matchAction", MatchAction.ALL) == raw) {
+				event.reply("Your match action for this regex is already set to that " + this.config.getFailureEmote()).queue();
+				return;
+			}
+
+			event.reply("Your match action for that regex has been updated " + this.config.getSuccessEmote()).queue();
+		});
+	}
+
+	@Command(value="mod action", description="Sets the action to be taken when a user hits the max attempts")
+	@Examples({"anti regex mod action 5f023782ef9eba03390a740c WARN", "anti regex mod action 5f023782ef9eba03390a740c MUTE 60m"})
+	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
+	public void modAction(Sx4CommandEvent event, @Argument(value="id") ObjectId id /*, @Argument(value="action", endless=true) TimedArgument<ModAction> timedAction*/) {
+		TimedArgument<ModAction> timedAction = new TimedArgument<>(null, ModAction.MUTE);
+		ModAction action = timedAction.getArgument();
+		if (!action.isOffence()) {
+			event.reply("The action has to be an offence " + this.config.getFailureEmote()).queue();
+			return;
+		}
+
+		Document modAction = new Document("type", action.getType());
+
+		long duration;
+		if (timedAction.hasDuration() && (action == ModAction.MUTE || action == ModAction.MUTE_EXTEND)) {
+			duration = timedAction.getDuration().toSeconds();
+			modAction.append("duration", duration);
+		} else {
+			duration = 0L;
+		}
+
+		Bson filter = Operators.filter("$antiRegex.regexes", Operators.eq("$$this.id", id));
+		List<Bson> update = List.of(Operators.set("antiRegex.regexes", Operators.cond(Operators.or(Operators.extinct("$antiRegex.regexes"), Operators.isEmpty(filter)), "$antiRegex.regexes", Operators.concatArrays(List.of(Operators.mergeObjects(Operators.first(filter), new Document("modAction", Operators.mergeObjects(modAction, Operators.ifNull(Operators.first(Operators.map(filter, "$$this.modAction.attempts")), new Document()))))), Operators.filter("$antiRegex.regexes", Operators.ne("$$this.id", id))))));
+
+		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE);
+		this.database.findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
+			if (ExceptionUtility.sendExceptionally(event, exception)) {
+				return;
+			}
+
+			data = data == null ? Database.EMPTY_DOCUMENT : data;
+
+			List<Document> regexes = data.getEmbedded(List.of("antiRegex", "regexes"), Collections.emptyList());
+			Document regex = regexes.stream()
+				.filter(d -> d.getObjectId("id").equals(id))
+				.findFirst()
+				.orElse(null);
+
+			if (regex == null) {
+				event.reply("I could not find that regex " + this.config.getFailureEmote()).queue();
+				return;
+			}
+
+			Document modActionData = regex.get("modAction", Document.class);
+			if (modActionData != null && modActionData.get("type", 0) == action.getType() && modActionData.get("duration", 0L) == duration) {
+				event.reply("Your mod action for this regex is already set to that " + this.config.getFailureEmote()).queue();
+				return;
+			}
+
+			event.reply("Your mod action for that regex has been updated " + this.config.getSuccessEmote()).queue();
+		});
+	}
+
 	@Command(value="list", description="Lists the regexes which are active in this server")
 	@Examples({"anti regex list"})
 	public void list(Sx4CommandEvent event) {
@@ -144,62 +238,34 @@ public class AntiRegexCommand extends Sx4Command {
 		public void add(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="channel", nullDefault=true) TextChannel channelArgument, @Argument(value="group") @Limit(min=0) int group, @Argument(value="string", endless=true) String string) {
 			List<TextChannel> channels = channelArgument == null ? event.getGuild().getTextChannels() : List.of(channelArgument);
 
-			List<Document> regexes = this.database.getGuildById(event.getGuild().getIdLong(), Projections.include("antiRegex.regexes")).getEmbedded(List.of("antiRegex", "regexes"), Collections.emptyList());
-			Document regex = regexes.stream()
-				.filter(data -> data.getObjectId("id").equals(id))
-				.findFirst()
-				.orElse(null);
+			Bson regex = Operators.filter("$antiRegex.regexes", Operators.eq("$$this.id", id));
+			Bson channelMap = Operators.ifNull(Operators.first(Operators.map(regex, "$$this.whitelist.channels")), Collections.EMPTY_LIST);
 
-			if (regex == null) {
-				event.reply("I could not find that regex " + this.config.getFailureEmote()).queue();
-				return;
-			}
-
-			int groupCount = Pattern.compile(regex.getString("pattern")).matcher("").groupCount();
-			if (group > groupCount) {
-				event.reply("That regex does not have a group " + group + " " + this.config.getFailureEmote()).queue();
-				return;
-			}
-
-			List<Document> whitelists = regex.getEmbedded(List.of("whitelist", "channels"), Collections.emptyList());
-			List<Document> whitelistsCopy = new ArrayList<>(whitelists);
-
-			Document groupWhitelist = new Document("group", group).append("string", string);
-			Channels : for (TextChannel channel : channels) {
+			Document groupData = new Document("group", group).append("strings", List.of(string));
+			List<Bson> concat = new ArrayList<>(), and = new ArrayList<>();
+			for (TextChannel channel : channels) {
 				long channelId = channel.getIdLong();
-				for (Document whitelist : whitelists) {
-					if (whitelist.get("id", 0L) == channelId) {
-						List<Document> groups = whitelist.getList("groups", Document.class, Collections.emptyList());
-						if (groups.stream().anyMatch(data -> data.get("group", 0) == group && data.getString("string").equals(string))) {
-							continue;
-						}
+				and.add(Operators.ne("$$this.id", channelId));
 
-						List<Document> groupsCopy = new ArrayList<>(groups);
-						groupsCopy.add(groupWhitelist);
+				Document channelData = new Document("id", channelId).append("groups", List.of(groupData));
 
-						whitelistsCopy.remove(whitelist);
-						whitelistsCopy.add(
-							whitelist.append("groups", groupsCopy)
-						);
+				Bson channelFilter = Operators.filter(channelMap, Operators.eq("$$this.id", channelId));
+				Bson groupMap = Operators.ifNull(Operators.first(Operators.map(channelFilter, "$$this.groups")), Collections.EMPTY_LIST);
+				Bson groupFilter = Operators.filter(groupMap, Operators.eq("$$this.group", group));
 
-						continue Channels;
-					}
-				}
-
-				whitelistsCopy.add(
-					new Document("id", channelId)
-						.append("groups", List.of(groupWhitelist))
-				);
+				concat.add(Operators.cond(Operators.isEmpty(channelFilter), List.of(channelData), Operators.cond(Operators.isEmpty(groupFilter), List.of(Operators.mergeObjects(Operators.first(channelFilter), new Document("groups", Operators.concatArrays(List.of(groupData), Operators.filter(groupMap, Operators.ne("$$this.group", group)))))), List.of(Operators.mergeObjects(Operators.first(channelFilter), new Document("groups", Operators.concatArrays(List.of(Operators.mergeObjects(Operators.first(groupFilter), new Document("strings", Operators.concatArrays(Operators.filter(Operators.first(Operators.map(groupFilter, "$$this.strings")), Operators.ne("$$this", string)), List.of(string))))), Operators.filter(groupMap, Operators.ne("$$this.group", group)))))))));
 			}
 
-			UpdateOptions options = new UpdateOptions().arrayFilters(List.of(Filters.eq("regex.id", id)));
-			this.database.updateGuildById(event.getGuild().getIdLong(), Updates.set("antiRegex.regexes.$[regex].whitelist.channels", whitelistsCopy), options).whenComplete((result, exception) -> {
+			concat.add(Operators.filter(channelMap, Operators.and(and)));
+			List<Bson> update = List.of(Operators.set("antiRegex.regexes", Operators.cond(Operators.or(Operators.extinct("$antiRegex.regexes"), Operators.isEmpty(regex)), "$antiRegex.regexes", Operators.concatArrays(Operators.filter("$antiRegex.regexes", Operators.ne("$$this.id", id)), List.of(Operators.mergeObjects(Operators.first(regex), new Document("whitelist", new Document("channels", Operators.concatArrays(concat)))))))));
+
+			this.database.updateGuildById(event.getGuild().getIdLong(), update).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
 
 				if (result.getModifiedCount() == 0) {
-					event.reply("Group **" + group + "** already had that string whitelisted in the channels provided " + this.config.getFailureEmote()).queue();
+					event.reply("That anti regex either does not exist or already has that group and string whitelisted in the provided channels " + this.config.getFailureEmote()).queue();
 					return;
 				}
 
@@ -210,62 +276,37 @@ public class AntiRegexCommand extends Sx4Command {
 		@Command(value="add", description="Adds a whitelist for a role or user")
 		@Examples({"anti regex whitelist add 5f023782ef9eba03390a740c #channel @everyone", "anti regex whitelist add 5f023782ef9eba03390a740c @Shea#6653"})
 		@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-		public void add(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="channel", nullDefault=true) TextChannel channelArgument, @Argument(value="user | role", endless=true)IPermissionHolder holder) {
+		public void add(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="channel", nullDefault=true) TextChannel channelArgument, @Argument(value="user | role", endless=true) IPermissionHolder holder) {
 			List<TextChannel> channels = channelArgument == null ? event.getGuild().getTextChannels() : List.of(channelArgument);
 
-			List<Document> regexes = this.database.getGuildById(event.getGuild().getIdLong(), Projections.include("antiRegex.regexes")).getEmbedded(List.of("antiRegex", "regexes"), Collections.emptyList());
-			Document regex = regexes.stream()
-				.filter(data -> data.getObjectId("id").equals(id))
-				.findFirst()
-				.orElse(null);
-
-			if (regex == null) {
-				event.reply("I could not find that regex " + this.config.getFailureEmote()).queue();
-				return;
-			}
-
-			List<Document> whitelists = regex.getEmbedded(List.of("whitelist", "channels"), Collections.emptyList());
-			List<Document> whitelistsCopy = new ArrayList<>(whitelists);
+			Bson regex = Operators.filter("$antiRegex.regexes", Operators.eq("$$this.id", id));
+			Bson channelMap = Operators.ifNull(Operators.first(Operators.map(regex, "$$this.whitelist.channels")), Collections.EMPTY_LIST);
 
 			boolean role = holder instanceof Role;
-			Document holderWhitelist = new Document("id", holder.getIdLong())
-				.append("type", role ? HolderType.ROLE.getType() : HolderType.USER.getType());
+			long holderId = holder.getIdLong();
 
-			Channels : for (TextChannel channel : channels) {
+			Document holderData = new Document("id", holderId).append("type", role ? HolderType.ROLE.getType() : HolderType.USER.getType());
+			List<Bson> concat = new ArrayList<>(), and = new ArrayList<>();
+			for (TextChannel channel : channels) {
 				long channelId = channel.getIdLong();
-				for (Document whitelist : whitelists) {
-					if (whitelist.get("id", 0L) == channelId) {
-						List<Document> holders = whitelist.getList("holders", Document.class, Collections.emptyList());
-						if (holders.stream().anyMatch(data -> data.get("id", 0L) == holder.getIdLong())) {
-							continue;
-						}
+				and.add(Operators.ne("$$this.id", channelId));
 
-						List<Document> holdersCopy = new ArrayList<>(holders);
-						holdersCopy.add(holderWhitelist);
+				Document channelData = new Document("id", channelId).append("holders", List.of(holderData));
 
-						whitelistsCopy.remove(whitelist);
-						whitelistsCopy.add(
-							whitelist.append("holders", holdersCopy)
-						);
-
-						continue Channels;
-					}
-				}
-
-				whitelistsCopy.add(
-					new Document("id", channelId)
-						.append("holders", List.of(holderWhitelist))
-				);
+				Bson channelFilter = Operators.filter(channelMap, Operators.eq("$$this.id", channelId));
+				concat.add(Operators.cond(Operators.isEmpty(channelFilter), List.of(channelData), List.of(Operators.mergeObjects(Operators.first(channelFilter), new Document("holders", Operators.concatArrays(List.of(holderData), Operators.filter(Operators.ifNull(Operators.first(Operators.map(channelFilter, "$$this.holders")), Collections.EMPTY_LIST), Operators.ne("$$this.id", holderId))))))));
 			}
 
-			UpdateOptions options = new UpdateOptions().arrayFilters(List.of(Filters.eq("regex.id", id)));
-			this.database.updateGuildById(event.getGuild().getIdLong(), Updates.set("antiRegex.regexes.$[regex].whitelist.channels", whitelistsCopy), options).whenComplete((result, exception) -> {
+			concat.add(Operators.filter(channelMap, Operators.and(and)));
+			List<Bson> update = List.of(Operators.set("antiRegex.regexes", Operators.cond(Operators.or(Operators.extinct("$antiRegex.regexes"), Operators.isEmpty(regex)), "$antiRegex.regexes", Operators.concatArrays(Operators.filter("$antiRegex.regexes", Operators.ne("$$this.id", id)), List.of(Operators.mergeObjects(Operators.first(regex), new Document("whitelist", new Document("channels", Operators.concatArrays(concat)))))))));
+
+			this.database.updateGuildById(event.getGuild().getIdLong(), update).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
 
 				if (result.getModifiedCount() == 0) {
-					event.reply((role ? ((Role) holder).getAsMention() : ((Member) holder).getUser().getAsMention()) + " already was whitelisted in the channels provided " + this.config.getFailureEmote()).queue();
+					event.reply("That anti regex does not exit or the " + (role ? "role" : "user") + " was already whitelisted in the channels provided " + this.config.getFailureEmote()).queue();
 					return;
 				}
 
@@ -279,66 +320,31 @@ public class AntiRegexCommand extends Sx4Command {
 		public void remove(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="channel", nullDefault=true) TextChannel channelArgument, @Argument(value="group") @Limit(min=0) int group, @Argument(value="string", endless=true) String string) {
 			List<TextChannel> channels = channelArgument == null ? event.getGuild().getTextChannels() : List.of(channelArgument);
 
-			List<Document> regexes = this.database.getGuildById(event.getGuild().getIdLong(), Projections.include("antiRegex.regexes")).getEmbedded(List.of("antiRegex", "regexes"), Collections.emptyList());
-			Document regex = regexes.stream()
-				.filter(data -> data.getObjectId("id").equals(id))
-				.findFirst()
-				.orElse(null);
+			Bson regexFilter = Operators.filter("$antiRegex.regexes", Operators.eq("$$this.id", id));
+			Bson channelMap = Operators.ifNull(Operators.first(Operators.map(regexFilter, "$$this.whitelist.channels")), Collections.EMPTY_LIST);
 
-			if (regex == null) {
-				event.reply("I could not find that regex " + this.config.getFailureEmote()).queue();
-				return;
-			}
-
-			int groupCount = Pattern.compile(regex.getString("pattern")).matcher("").groupCount();
-			if (group > groupCount) {
-				event.reply("That regex does not have a group " + group + " " + this.config.getFailureEmote()).queue();
-				return;
-			}
-
-			List<Document> whitelists = regex.getEmbedded(List.of("whitelist", "channels"), Collections.emptyList());
-			List<Document> whitelistsCopy = new ArrayList<>(whitelists);
-
-			Channels : for (TextChannel channel : channels) {
+			List<Bson> concat = new ArrayList<>(), and = new ArrayList<>();
+			for (TextChannel channel : channels) {
 				long channelId = channel.getIdLong();
-				for (Document whitelist : whitelists) {
-					if (whitelist.get("id", 0L) == channelId) {
-						List<Document> groups = whitelist.getList("groups", Document.class, Collections.emptyList());
+				and.add(Operators.ne("$$this.id", channelId));
 
-						Document groupData = groups.stream()
-							.filter(data -> data.get("group", 0) == group && data.getString("string").equals(string))
-							.findFirst()
-							.orElse(null);
+				Bson channelFilter = Operators.filter(channelMap, Operators.eq("$$this.id", channelId));
+				Bson groupMap = Operators.ifNull(Operators.first(Operators.map(channelFilter, "$$this.groups")), Collections.EMPTY_LIST);
+				Bson groupFilter = Operators.filter(groupMap, Operators.eq("$$this.group", group));
 
-						if (groupData == null) {
-							continue;
-						}
-
-						List<Document> groupsCopy = new ArrayList<>(groups);
-						groupsCopy.remove(groupData);
-
-						whitelistsCopy.remove(whitelist);
-
-						List<Document> holders = whitelist.getList("holders", Document.class, Collections.emptyList());
-						if (!holders.isEmpty() || !groupsCopy.isEmpty()) {
-							whitelistsCopy.add(
-								whitelist.append("groups", groupsCopy)
-							);
-						}
-
-						continue Channels;
-					}
-				}
+				concat.add(Operators.cond(Operators.or(Operators.isEmpty(channelFilter), Operators.isEmpty(groupFilter)), Collections.EMPTY_LIST, List.of(Operators.mergeObjects(Operators.first(channelFilter), new Document("groups", Operators.concatArrays(List.of(Operators.mergeObjects(Operators.first(groupFilter), new Document("strings", Operators.filter(Operators.first(Operators.map(groupFilter, "$$this.strings")), Operators.ne("$$this", string))))), Operators.filter(groupMap, Operators.ne("$$this.group", group))))))));
 			}
 
-			UpdateOptions options = new UpdateOptions().arrayFilters(List.of(Filters.eq("regex.id", id)));
-			this.database.updateGuildById(event.getGuild().getIdLong(), Updates.set("antiRegex.regexes.$[regex].whitelist.channels", whitelistsCopy), options).whenComplete((result, exception) -> {
+			concat.add(Operators.filter(channelMap, Operators.and(and)));
+			List<Bson> update = List.of(Operators.set("antiRegex.regexes", Operators.cond(Operators.or(Operators.extinct("$antiRegex.regexes"), Operators.isEmpty(regexFilter)), "$antiRegex.regexes", Operators.concatArrays(Operators.filter("$antiRegex.regexes", Operators.ne("$$this.id", id)), List.of(Operators.mergeObjects(Operators.first(regexFilter), new Document("whitelist", new Document("channels", Operators.concatArrays(concat)))))))));
+
+			this.database.updateGuildById(event.getGuild().getIdLong(), update).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
 
 				if (result.getModifiedCount() == 0) {
-					event.reply("Group **" + group + "** did not have that string whitelisted in any of the channels provided " + this.config.getFailureEmote()).queue();
+					event.reply("That anti regex either does not exist or doesn't have that group and string whitelisted " + this.config.getFailureEmote()).queue();
 					return;
 				}
 
@@ -352,6 +358,44 @@ public class AntiRegexCommand extends Sx4Command {
 		public void remove(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="channel", nullDefault=true) TextChannel channelArgument, @Argument(value="user | role") IPermissionHolder holder) {
 			List<TextChannel> channels = channelArgument == null ? event.getGuild().getTextChannels() : List.of(channelArgument);
 
+			Bson regex = Operators.filter("$antiRegex.regexes", Operators.eq("$$this.id", id));
+			Bson channelMap = Operators.ifNull(Operators.first(Operators.map(regex, "$$this.whitelist.channels")), Collections.EMPTY_LIST);
+
+			boolean role = holder instanceof Role;
+			long holderId = holder.getIdLong();
+
+			Document holderData = new Document("id", holderId).append("type", role ? HolderType.ROLE.getType() : HolderType.USER.getType());
+			List<Bson> concat = new ArrayList<>(), and = new ArrayList<>();
+			for (TextChannel channel : channels) {
+				long channelId = channel.getIdLong();
+				and.add(Operators.ne("$$this.id", channelId));
+
+				Document channelData = new Document("id", channelId).append("holders", List.of(holderData));
+
+				Bson channelFilter = Operators.filter(channelMap, Operators.eq("$$this.id", channelId));
+				concat.add(Operators.cond(Operators.isEmpty(channelFilter), List.of(channelData), List.of(Operators.mergeObjects(Operators.first(channelFilter), new Document("holders", Operators.filter(Operators.ifNull(Operators.first(Operators.map(channelFilter, "$$this.holders")), Collections.EMPTY_LIST), Operators.ne("$$this.id", holderId)))))));
+			}
+
+			concat.add(Operators.filter(channelMap, Operators.and(and)));
+			List<Bson> update = List.of(Operators.set("antiRegex.regexes", Operators.cond(Operators.or(Operators.extinct("$antiRegex.regexes"), Operators.isEmpty(regex)), "$antiRegex.regexes", Operators.concatArrays(Operators.filter("$antiRegex.regexes", Operators.ne("$$this.id", id)), List.of(Operators.mergeObjects(Operators.first(regex), new Document("whitelist", new Document("channels", Operators.concatArrays(concat)))))))));
+
+			this.database.updateGuildById(event.getGuild().getIdLong(), update).whenComplete((result, exception) -> {
+				if (ExceptionUtility.sendExceptionally(event, exception)) {
+					return;
+				}
+
+				if (result.getModifiedCount() == 0) {
+					event.reply("That anti regex does not exist or the " + (role ? "role" : "user") + " was not whitelisted in any of the channels provided " + this.config.getFailureEmote()).queue();
+					return;
+				}
+
+				event.reply((role ? ((Role) holder).getAsMention() : ((Member) holder).getUser().getAsMention()) + " is no longer whitelisted in the provided channels " + this.config.getSuccessEmote()).queue();
+			});
+		}
+
+		@Command(value="list", description="Lists regex groups, roles and users that are whitelisted from specific channels for an anti regex")
+		@Examples({"anti regex whitelist list 5f023782ef9eba03390a740c"})
+		public void list(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="channels") TextChannel channel) {
 			List<Document> regexes = this.database.getGuildById(event.getGuild().getIdLong(), Projections.include("antiRegex.regexes")).getEmbedded(List.of("antiRegex", "regexes"), Collections.emptyList());
 			Document regex = regexes.stream()
 				.filter(data -> data.getObjectId("id").equals(id))
@@ -364,54 +408,17 @@ public class AntiRegexCommand extends Sx4Command {
 			}
 
 			List<Document> whitelists = regex.getEmbedded(List.of("whitelist", "channels"), Collections.emptyList());
-			List<Document> whitelistsCopy = new ArrayList<>(whitelists);
+			Document whitelist = whitelists.stream()
+				.filter(d -> d.get("id", 0L) == channel.getIdLong())
+				.findFirst()
+				.orElse(null);
 
-			Channels : for (TextChannel channel : channels) {
-				long channelId = channel.getIdLong();
-				for (Document whitelist : whitelists) {
-					if (whitelist.get("id", 0L) == channelId) {
-						List<Document> holders = whitelist.getList("holders", Document.class, Collections.emptyList());
-
-						Document holderData = holders.stream()
-							.filter(data -> data.get("id", 0L) == holder.getIdLong())
-							.findFirst()
-							.orElse(null);
-
-						if (holderData == null) {
-							continue;
-						}
-
-						List<Document> holdersCopy = new ArrayList<>(holders);
-						holdersCopy.remove(holderData);
-
-						whitelistsCopy.remove(whitelist);
-
-						List<Document> groups = whitelist.getList("groups", Document.class, Collections.emptyList());
-						if (!holdersCopy.isEmpty() || !groups.isEmpty()) {
-							whitelistsCopy.add(
-								whitelist.append("holders", holdersCopy)
-							);
-						}
-
-						continue Channels;
-					}
-				}
+			if (whitelist == null) {
+				event.reply("Nothing is whitelisted in that channel " + this.config.getFailureEmote()).queue();
+				return;
 			}
 
-			UpdateOptions options = new UpdateOptions().arrayFilters(List.of(Filters.eq("regex.id", id)));
-			this.database.updateGuildById(event.getGuild().getIdLong(), Updates.set("antiRegex.regexes.$[regex].whitelist.channels", whitelistsCopy), options).whenComplete((result, exception) -> {
-				if (ExceptionUtility.sendExceptionally(event, exception)) {
-					return;
-				}
-
-				boolean role = holder instanceof Role;
-				if (result.getModifiedCount() == 0) {
-					event.reply((role ? ((Role) holder).getAsMention() : ((Member) holder).getUser().getAsMention()) + " was not whitelisted in any of the channels provided " + this.config.getFailureEmote()).queue();
-					return;
-				}
-
-				event.reply((role ? ((Role) holder).getAsMention() : ((Member) holder).getUser().getAsMention()) + " is no longer whitelisted in the provided channels " + this.config.getSuccessEmote()).queue();
-			});
+			
 		}
 
 	}

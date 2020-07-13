@@ -1,22 +1,20 @@
 package com.sx4.api.endpoints;
 
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
-import java.util.List;
-
-import javax.ws.rs.HeaderParam;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.core.Response;
-
-import org.bson.Document;
-
 import com.sx4.bot.config.Config;
 import com.sx4.bot.events.patreon.PatreonPledgeCreateEvent;
 import com.sx4.bot.events.patreon.PatreonPledgeDeleteEvent;
 import com.sx4.bot.events.patreon.PatreonPledgeUpdateEvent;
 import com.sx4.bot.managers.PatreonManager;
 import com.sx4.bot.utility.HmacUtility;
+import org.bson.Document;
+
+import javax.ws.rs.HeaderParam;
+import javax.ws.rs.POST;
+import javax.ws.rs.Path;
+import javax.ws.rs.core.Response;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.util.List;
 
 @Path("")
 public class PatreonEndpoint {
@@ -50,16 +48,20 @@ public class PatreonEndpoint {
 	    
 	    if (user != null) {
 	        String discordIdString = user.getEmbedded(List.of("attributes", "social_connections", "discord", "user_id"), String.class), id = user.getString("id");
-	        long discordId = discordIdString == null ? 0L : Long.valueOf(discordIdString);
+	        long discordId = discordIdString == null ? 0L : Long.parseLong(discordIdString);
 	       
 	        PatreonManager manager = PatreonManager.get();
-	        if (event.equals("members:pledge:delete")) {
-	        	manager.onPatreon(new PatreonPledgeDeleteEvent(discordId, id));
-	        } else if (event.equals("members:pledge:update")) {
-	        	manager.onPatreon(new PatreonPledgeUpdateEvent(discordId, id, centsDonated));
-	        } else if (event.equals("members:pledge:create")) {
-	        	manager.onPatreon(new PatreonPledgeCreateEvent(discordId, id, centsDonated));
-	        }
+			switch (event) {
+				case "members:pledge:delete":
+					manager.onPatreon(new PatreonPledgeDeleteEvent(discordId, id));
+					break;
+				case "members:pledge:update":
+					manager.onPatreon(new PatreonPledgeUpdateEvent(discordId, id, centsDonated));
+					break;
+				case "members:pledge:create":
+					manager.onPatreon(new PatreonPledgeCreateEvent(discordId, id, centsDonated));
+					break;
+			}
 	    }
 		
 		return Response.status(204).build();

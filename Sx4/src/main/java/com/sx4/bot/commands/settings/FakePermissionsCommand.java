@@ -29,6 +29,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 public class FakePermissionsCommand extends Sx4Command {
@@ -210,7 +211,7 @@ public class FakePermissionsCommand extends Sx4Command {
 	@Examples({"fake permissions list"})
 	public void list(Sx4CommandEvent event) {
 		EmbedBuilder embed = new EmbedBuilder()
-			.setDescription(Arrays.stream(Permission.values()).filter(permission -> permission != Permission.UNKNOWN).map(Permission::name).collect(Collectors.joining("\n")))
+			.setDescription(Arrays.stream(Permission.values()).filter(Predicate.not(Permission.UNKNOWN::equals)).map(Permission::name).collect(Collectors.joining("\n")))
 			.setAuthor("Fake Permissions", null, event.getGuild().getIconUrl());
 		
 		event.reply(embed.build()).queue();

@@ -98,11 +98,19 @@ public class TimeUtility {
 				}
 			} else if (part.contains("/")) {
 				LocalDate date = TimeUtility.parseDate(part, "/", now.getYear());
+				if (date == null) {
+					continue;
+				}
+
 				year = date.getYear();
 				month = date.getMonthValue();
 				day = date.getDayOfMonth();
 			} else if (part.contains("-")) {
 				LocalDate date = TimeUtility.parseDate(part, "-", now.getYear());
+				if (date == null) {
+					continue;
+				}
+
 				year = date.getYear();
 				month = date.getMonthValue();
 				day = date.getDayOfMonth();

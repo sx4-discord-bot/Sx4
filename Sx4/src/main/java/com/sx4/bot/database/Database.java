@@ -1,38 +1,23 @@
 package com.sx4.bot.database;
 
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
-import java.util.function.BiConsumer;
-
-import org.bson.Document;
-import org.bson.conversions.Bson;
-import org.bson.types.ObjectId;
-
 import com.mongodb.MongoClientSettings;
 import com.mongodb.bulk.BulkWriteResult;
-import com.mongodb.client.AggregateIterable;
-import com.mongodb.client.FindIterable;
-import com.mongodb.client.MongoClient;
-import com.mongodb.client.MongoClients;
-import com.mongodb.client.MongoCollection;
-import com.mongodb.client.MongoDatabase;
-import com.mongodb.client.model.Filters;
-import com.mongodb.client.model.FindOneAndDeleteOptions;
-import com.mongodb.client.model.FindOneAndUpdateOptions;
-import com.mongodb.client.model.IndexOptions;
-import com.mongodb.client.model.Indexes;
-import com.mongodb.client.model.ReturnDocument;
-import com.mongodb.client.model.Sorts;
-import com.mongodb.client.model.UpdateOneModel;
-import com.mongodb.client.model.UpdateOptions;
-import com.mongodb.client.model.WriteModel;
+import com.mongodb.client.*;
+import com.mongodb.client.model.*;
 import com.mongodb.client.result.DeleteResult;
 import com.mongodb.client.result.InsertOneResult;
 import com.mongodb.client.result.UpdateResult;
 import com.sx4.bot.config.Config;
 import com.sx4.bot.handlers.DatabaseHandler;
 import com.sx4.bot.utility.ExceptionUtility;
+import org.bson.Document;
+import org.bson.conversions.Bson;
+import org.bson.types.ObjectId;
+
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.function.BiConsumer;
 
 public class Database {
 	
@@ -103,20 +88,6 @@ public class Database {
 		this.regexes = this.database.getCollection("regexes");
 		this.regexes.createIndex(Indexes.descending("approved"));
 		this.regexes.createIndex(Indexes.descending("pattern"));
-		/*
-		 * {
-		 *   "_id": ObjectId(),
-		 *   "pattern": ".*[0-9]+.*",
-		 *   "uses": [
-		 *   	ids of guilds
-		 *   ]
-		 *   "description": "This regex deletes any message which contains a number",
-		 *   "title": "Numbers",
-		 *   "ownerId": discord id of owner,
-		 *   "approved": false,
-		 *   "verified": true
-		 * }
-		 */
 		
 		this.modLogs = this.database.getCollection("modLogs");
 		this.modLogs.createIndex(Indexes.descending("action.type"));
@@ -346,6 +317,25 @@ public class Database {
 	
 	public Document getUserById(long userId, Bson projection) {
 		return this.getUserById(userId, null, projection);
+	}
+
+	public CompletableFuture<UpdateResult> updateUserById(long userId, Bson filter, List<? extends Bson> update, UpdateOptions options) {
+		Bson dbFilter;
+		if (filter == null) {
+			dbFilter = Filters.eq("_id", userId);
+		} else {
+			dbFilter = Filters.and(Filters.eq("_id", userId), filter);
+		}
+
+		return CompletableFuture.supplyAsync(() -> this.users.updateOne(dbFilter, update, options));
+	}
+
+	public CompletableFuture<UpdateResult> updateUserById(long userId, List<? extends Bson> update, UpdateOptions options) {
+		return this.updateUserById(userId, null, update, options);
+	}
+
+	public CompletableFuture<UpdateResult> updateUserById(long userId, List<? extends Bson> update) {
+		return this.updateUserById(userId, update, this.updateOptions);
 	}
 	
 	public CompletableFuture<UpdateResult> updateUserById(long userId, Bson filter, Bson update, UpdateOptions options) {
