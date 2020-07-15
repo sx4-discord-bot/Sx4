@@ -1,22 +1,8 @@
 package com.sx4.bot.events;
 
-import java.util.Collections;
-import java.util.EnumSet;
-import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
-import org.bson.Document;
-import org.bson.conversions.Bson;
-
-import com.mongodb.client.model.Filters;
-import com.mongodb.client.model.Projections;
-import com.mongodb.client.model.UpdateOneModel;
-import com.mongodb.client.model.UpdateOptions;
-import com.mongodb.client.model.Updates;
+import com.mongodb.client.model.*;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.utils.ModUtils;
-
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Invite;
 import net.dv8tion.jda.api.entities.Message.MentionType;
@@ -25,6 +11,14 @@ import net.dv8tion.jda.api.events.guild.member.GuildMemberJoinEvent;
 import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent;
 import net.dv8tion.jda.api.events.message.guild.GuildMessageUpdateEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
+import org.bson.Document;
+import org.bson.conversions.Bson;
+
+import java.util.Collections;
+import java.util.EnumSet;
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class AntiInviteEvents extends ListenerAdapter {
 
@@ -63,7 +57,8 @@ public class AntiInviteEvents extends ListenerAdapter {
 			}
 			
 			Invite.resolve(event.getJDA(), inviteMatch.group(1), true).queue(invite -> {
-				if (invite.getGuild().getIdLong() == event.getGuild().getIdLong()) {
+				Invite.Guild guild = invite.getGuild();
+				if (guild != null && guild.getIdLong() == event.getGuild().getIdLong()) {
 					return;
 				}
 				
@@ -226,7 +221,8 @@ public class AntiInviteEvents extends ListenerAdapter {
 			}
 			
 			Invite.resolve(event.getJDA(), inviteMatch.group(1), true).queue(invite -> {
-				if (invite.getGuild().getIdLong() == event.getGuild().getIdLong()) {
+				Invite.Guild guild = invite.getGuild();
+				if (guild != null && guild.getIdLong() == event.getGuild().getIdLong()) {
 					return;
 				}
 				
