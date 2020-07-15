@@ -63,24 +63,24 @@ public class AntiRegexCommand extends Sx4Command {
 			.append("pattern", regex.getString("pattern"));
 		
 		List<Bson> update = List.of(Operators.set("antiRegex.regexes", Operators.cond(Operators.and(Operators.exists("$antiRegex.regexes"), Operators.not(Operators.isEmpty(Operators.filter("$antiRegex.regexes", Operators.eq("$$this.id", id))))), "$antiRegex.regexes", Operators.cond(Operators.exists("$antiRegex.regexes"), Operators.concatArrays("$antiRegex.regexes", List.of(data)), List.of(data)))));
-		
+
 		this.database.updateGuildById(event.getGuild().getIdLong(), update)
 			.thenCompose(result -> {
 				if (result.getModifiedCount() == 0) {
 					event.reply("You already have that regex setup in this server " + this.config.getFailureEmote()).queue();
 					return CompletableFuture.completedFuture(null);
 				}
-				
+
 				return this.database.updateRegexById(id, Updates.addToSet("uses", event.getGuild().getIdLong()));
 			}).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception) || result == null) {
 					return;
 				}
-				
+
 				event.reply("The regex **" + regex.getString("title") + "** is now active " + this.config.getSuccessEmote()).queue();
 			});
 	}
-	
+
 	@Command(value="remove", description="Removes a anti regex that you have setup")
 	@Examples({"anti regex remove 5f023782ef9eba03390a740c"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
@@ -91,13 +91,13 @@ public class AntiRegexCommand extends Sx4Command {
 					event.reply("You do that have that regex setup in this server " + this.config.getFailureEmote()).queue();
 					return CompletableFuture.completedFuture(null);
 				}
-				
+
 				return this.database.updateRegexById(id, Updates.pull("uses", event.getGuild().getIdLong()));
 			}).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception) || result == null) {
 					return;
 				}
-				
+
 				event.reply("That regex is no longer active " + this.config.getSuccessEmote()).queue();
 			});
 	}
@@ -139,6 +139,8 @@ public class AntiRegexCommand extends Sx4Command {
 		});
 	}
 
+
+	// TODO
 	@Command(value="mod action", description="Sets the action to be taken when a user hits the max attempts")
 	@Examples({"anti regex mod action 5f023782ef9eba03390a740c WARN", "anti regex mod action 5f023782ef9eba03390a740c MUTE 60m"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
@@ -218,16 +220,16 @@ public class AntiRegexCommand extends Sx4Command {
 
 		paged.execute(event);
 	}
-	
+
 	public class WhitelistCommand extends Sx4Command {
-		
+
 		public WhitelistCommand() {
 			super("whitelist");
-			
+
 			super.setDescription("Whitelist roles and users from certain channels so they can ignore the anti regex");
 			super.setExamples("anti regex whitelist add", "anti regex whitelist remove");
 		}
-		
+
 		public void onCommand(Sx4CommandEvent event) {
 			event.replyHelp().queue();
 		}
@@ -495,6 +497,7 @@ public class AntiRegexCommand extends Sx4Command {
 			});
 		}
 
+		// TODO: Think of a good format
 		@Command(value="list", description="Lists regex groups, roles and users that are whitelisted from specific channels for an anti regex")
 		@Examples({"anti regex whitelist list 5f023782ef9eba03390a740c"})
 		public void list(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="channels") TextChannel channel) {
