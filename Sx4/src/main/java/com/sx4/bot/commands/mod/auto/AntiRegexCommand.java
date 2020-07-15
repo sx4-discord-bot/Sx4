@@ -164,7 +164,8 @@ public class AntiRegexCommand extends Sx4Command {
 		}
 
 		Bson filter = Operators.filter("$antiRegex.regexes", Operators.eq("$$this.id", id));
-		List<Bson> update = List.of(Operators.set("antiRegex.regexes", Operators.cond(Operators.or(Operators.extinct("$antiRegex.regexes"), Operators.isEmpty(filter)), "$antiRegex.regexes", Operators.concatArrays(List.of(Operators.mergeObjects(Operators.first(filter), new Document("action", Operators.mergeObjects(new Document("mod", Operators.mergeObjects(modAction, Operators.ifNull(Operators.first(Operators.map(filter, "$$this.action.mod.attempts")), Database.EMPTY_DOCUMENT))), Operators.ifNull(Operators.first(Operators.map(filter, "$$this.action")), Database.EMPTY_DOCUMENT))))), Operators.filter("$antiRegex.regexes", Operators.ne("$$this.id", id))))));
+		Bson attemptsMap = Operators.first(Operators.map(filter, "$$this.action.mod.attempts"));
+		List<Bson> update = List.of(Operators.set("antiRegex.regexes", Operators.cond(Operators.or(Operators.extinct("$antiRegex.regexes"), Operators.isEmpty(filter)), "$antiRegex.regexes", Operators.concatArrays(List.of(Operators.mergeObjects(Operators.first(filter), new Document("action", Operators.mergeObjects(Operators.ifNull(Operators.first(Operators.map(filter, "$$this.action")), Database.EMPTY_DOCUMENT), new Document("mod", Operators.mergeObjects(modAction, Operators.cond(Operators.isNull(attemptsMap), Database.EMPTY_DOCUMENT, new Document("attempts", attemptsMap)))))))), Operators.filter("$antiRegex.regexes", Operators.ne("$$this.id", id))))));
 
 		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE);
 		this.database.findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
@@ -192,6 +193,48 @@ public class AntiRegexCommand extends Sx4Command {
 			}
 
 			event.reply("Your mod action for that regex has been updated " + this.config.getSuccessEmote()).queue();
+		});
+	}
+
+	@Command(value="attempts", description="Sets the amount of attempts needed for the mod action to execute")
+	@Examples({"anti regex attempts 5f023782ef9eba03390a740c 3", "anti regex attempts 5f023782ef9eba03390a740c 1"})
+	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
+	public void attempts(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="attempts") @Limit(min=1) int attempts) {
+		Bson filter = Operators.filter("$antiRegex.regexes", Operators.eq("$$this.id", id));
+		Bson modActionMap = Operators.first(Operators.map(filter, "$$this.action.mod"));
+		List<Bson> update = List.of(Operators.set("antiRegex.regexes", Operators.cond(Operators.or(Operators.extinct("$antiRegex.regexes"), Operators.isEmpty(filter), Operators.isNull(modActionMap)), "$antiRegex.regexes", Operators.concatArrays(List.of(Operators.mergeObjects(Operators.first(filter), new Document("action", Operators.mergeObjects(Operators.ifNull(Operators.first(Operators.map(filter, "$$this.action")), Database.EMPTY_DOCUMENT), new Document("mod", Operators.mergeObjects(modActionMap, new Document("attempts", attempts))))))), Operators.filter("$antiRegex.regexes", Operators.ne("$$this.id", id))))));
+
+		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE);
+		this.database.findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
+			if (ExceptionUtility.sendExceptionally(event, exception)) {
+				return;
+			}
+
+			data = data == null ? Database.EMPTY_DOCUMENT : data;
+
+			List<Document> regexes = data.getEmbedded(List.of("antiRegex", "regexes"), Collections.emptyList());
+			Document regex = regexes.stream()
+				.filter(d -> d.getObjectId("id").equals(id))
+				.findFirst()
+				.orElse(null);
+
+			if (regex == null) {
+				event.reply("I could not find that regex " + this.config.getFailureEmote()).queue();
+				return;
+			}
+
+			Document modActionData = regex.getEmbedded(List.of("action", "mod"), Document.class);
+			if (modActionData == null) {
+				event.reply("You need a mod action to be set up to change the attempts " + this.config.getFailureEmote()).queue();
+				return;
+			}
+
+			if (modActionData.get("attempts", 3) == attempts) {
+				event.reply("Your attempts are already set to **" + attempts + "** " + this.config.getFailureEmote()).queue();
+				return;
+			}
+
+			event.reply("Attempts to a mod action have been set to **" + attempts + "** " + this.config.getSuccessEmote()).queue();
 		});
 	}
 

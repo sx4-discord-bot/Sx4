@@ -190,9 +190,22 @@ public class Operators {
 	public static Bson last(Object expression) {
 		return Operators.arrayElemAt(expression, -1);
 	}
+
+	public static Bson type(Object expression) {
+		return new Document("$type", expression);
+	}
 	
 	public static Bson ifNull(Object expression, Object defaultExpression) {
 		return new Document("$ifNull", List.of(expression, defaultExpression));
+	}
+
+	// Operators.eq(expression, null) would be ideal but List.of does not take null values
+	public static Bson isNull(Object expression) {
+		return Operators.eq(Operators.type(expression), "null");
+	}
+
+	public static Bson nonNull(Object expression) {
+		return Operators.ne(Operators.type(expression), "null");
 	}
 	
 }
