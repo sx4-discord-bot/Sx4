@@ -1,17 +1,16 @@
 package com.sx4.bot.core;
 
-import java.util.Map;
-
 import com.jockie.bot.core.command.ICommand;
 import com.jockie.bot.core.command.ICommand.ArgumentParsingType;
 import com.jockie.bot.core.command.impl.CommandEvent;
 import com.jockie.bot.core.command.impl.CommandListener;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.utility.HelpUtility;
-
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.requests.restaction.MessageAction;
+
+import java.util.Map;
 
 public class Sx4CommandEvent extends CommandEvent {
 
@@ -35,6 +34,10 @@ public class Sx4CommandEvent extends CommandEvent {
 	
 	public MessageAction replyHelp() {
 		return this.reply(HelpUtility.getHelpMessage(this.command, !this.isFromGuild() || this.getSelfMember().hasPermission(this.getTextChannel(), Permission.MESSAGE_EMBED_LINKS)));
+	}
+
+	public MessageAction replyTimed(long start) {
+		return this.replyFormat("%,.3fms :stopwatch:", (System.nanoTime() - start) / 1_000_000D);
 	}
 	
 }
