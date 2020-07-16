@@ -213,6 +213,13 @@ public class Sx4 {
 			}
 
 			return builder;
+		}).addBuilderConfigureFunction(Long.class, (parameter, builder) -> {
+			DefaultLong defaultLong = parameter.getAnnotation(DefaultLong.class);
+			if (defaultLong != null) {
+				builder.setDefaultValue(defaultLong.value());
+			}
+
+			return builder;
 		});
 
 		optionFactory.registerParser(Duration.class, (context, option, content) -> content == null ? new ParsedResult<>(true, null) : new ParsedResult<>(TimeUtility.getDurationFromString(content)));
