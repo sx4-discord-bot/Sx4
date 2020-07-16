@@ -1,7 +1,5 @@
 package com.sx4.bot.cache;
 
-import java.util.Objects;
-
 import gnu.trove.impl.sync.TSynchronizedLongObjectMap;
 import gnu.trove.map.TLongObjectMap;
 import gnu.trove.map.hash.TLongObjectHashMap;
@@ -10,6 +8,8 @@ import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent;
 import net.dv8tion.jda.api.events.message.guild.GuildMessageUpdateEvent;
 import net.dv8tion.jda.api.hooks.EventListener;
+
+import java.util.Objects;
 
 public class GuildMessageCache implements EventListener {
 	
