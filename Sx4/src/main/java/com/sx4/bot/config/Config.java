@@ -1,18 +1,17 @@
 package com.sx4.bot.config;
 
+import com.sx4.bot.core.Sx4;
+import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.entities.Role;
+import net.dv8tion.jda.api.entities.TextChannel;
+import org.bson.Document;
+import org.json.JSONObject;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
-
-import org.json.JSONObject;
-
-import com.sx4.bot.core.Sx4;
-
-import net.dv8tion.jda.api.entities.Guild;
-import net.dv8tion.jda.api.entities.Role;
-import net.dv8tion.jda.api.entities.TextChannel;
 
 public class Config {
 	
@@ -22,7 +21,7 @@ public class Config {
 		return Config.INSTANCE;
 	}
 	
-	private JSONObject json;
+	private Document json;
 	
 	// Avoid iterating the json everytime they're used
 	private String emoteSuccess;
@@ -42,25 +41,21 @@ public class Config {
 	
 	@SuppressWarnings("unchecked")
 	public <Type> Type get(List<String> path, Type defaultValue) {
-		JSONObject json = this.json;
+		Document json = this.json;
 		
 		for (int i = 0; i < path.size(); i++) {
 			String key = path.get(i);
-			if (!json.has(key)) {
+			if (!json.containsKey(key)) {
 				return defaultValue;
 			}
 			
 			Object value = json.get(key);
 			if (i == path.size() - 1) {
-				if (value == JSONObject.NULL) {
-					return null;
-				}
-				
 				return (Type) value;
 			}
 			
-			if (value instanceof JSONObject) {
-				json = (JSONObject) value;
+			if (value instanceof Document) {
+				json = (Document) value;
 			} else {
 				return defaultValue;
 			}
@@ -324,10 +319,14 @@ public class Config {
 	public int getGreen() {
 		return this.get("colour.green", 65280);
 	}
+
+	public List<Document> getPolicies() {
+		return this.get("policy");
+	}
 	
 	public void reloadConfig() {
 		try (FileInputStream stream = new FileInputStream(new File("config.json"))) {
-			this.json = new JSONObject(new String(stream.readAllBytes()));
+			this.json = Document.parse(new String(stream.readAllBytes(), "UTF-8"));
 			
 			this.emoteSuccess = this.get("emote.success");
 			this.emoteFailure = this.get("emote.failure");

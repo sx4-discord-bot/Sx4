@@ -17,6 +17,7 @@ import com.sx4.bot.entities.youtube.YouTubeVideo;
 import com.sx4.bot.events.youtube.YouTubeDeleteEvent;
 import com.sx4.bot.events.youtube.YouTubeUpdateTitleEvent;
 import com.sx4.bot.events.youtube.YouTubeUploadEvent;
+import com.sx4.bot.formatter.Formatter;
 import com.sx4.bot.hooks.YouTubeListener;
 import com.sx4.bot.managers.YouTubeManager;
 import com.sx4.bot.utility.ExceptionUtility;
@@ -61,51 +62,17 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 	private String format(YouTubeUploadEvent event, String message) {
 		YouTubeChannel channel = event.getChannel();
 		YouTubeVideo video = event.getVideo();
-		
-		int index = -1;
-		while ((index = message.indexOf('{', index + 1)) != -1) {
-		    if (index > 0 && message.charAt(index - 1) == '\\') {
-		        message = message.substring(0, index - 1) + message.substring(index);
-		        continue;
-		    }
 
-		    int endIndex = message.indexOf('}', index + 1);
-		    if (endIndex != -1)  {
-		        if (message.charAt(endIndex - 1) == '\\') {
-		            message = message.substring(0, endIndex - 1) + message.substring(endIndex);
-		        } else {
-		            String formatter = message.substring(index + 1, endIndex);
-		            switch (formatter.trim().toLowerCase()) {
-		            	case "channel.name":
-		            		message = message.substring(0, index) + channel.getName() + message.substring(endIndex + 1);
-		            		break;
-		            	case "channel.url":
-		            		message = message.substring(0, index) + channel.getUrl() + message.substring(endIndex + 1);
-		            		break;
-		            	case "channel.id":
-		            		message = message.substring(0, index) + channel.getId() + message.substring(endIndex + 1);
-		            		break;
-		            	case "video.title":
-		            		message = message.substring(0, index) + video.getTitle() + message.substring(endIndex + 1);
-		            		break;
-		            	case "video.url":
-		            		message = message.substring(0, index) + video.getUrl() + message.substring(endIndex + 1);
-		            		break;
-		            	case "video.id":
-		            		message = message.substring(0, index) + video.getId() + message.substring(endIndex + 1);
-		            		break;
-						case "video.thumbnail":
-							message = message.substring(0, index) + video.getThumbnail() + message.substring(endIndex + 1);
-							break;
-		            	case "video.published":
-		            		message = message.substring(0, index) + video.getPublishedAt().format(this.formatter) + message.substring(endIndex + 1);
-		            		break;
-		            }
-		        }
-		    }
-		}
-		
-		return message;
+		return new Formatter(message)
+			.append("channel.name", channel.getName())
+			.append("channel.url", channel.getUrl())
+			.append("channel.id", channel.getId())
+			.append("video.title", video.getTitle())
+			.append("video.url", video.getUrl())
+			.append("video.id", video.getId())
+			.append("video.thumbnail", video.getThumbnail())
+			.append("video.published", video.getPublishedAt().format(this.formatter))
+			.format();
 	}
 	
 	public void ensureWebhooks() {
@@ -116,9 +83,9 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 				Document webhookData = data.get("webhook", Document.class);
 				if (webhookData != null) {
 					WebhookClient webhook = new WebhookClientBuilder(webhookData.get("id", 0L), webhookData.getString("token"))
-							.setExecutorService(this.scheduledExectuor)
-							.setHttpClient(this.client)
-							.build();
+						.setExecutorService(this.scheduledExectuor)
+						.setHttpClient(this.client)
+						.build();
 					
 					this.webhooks.putIfAbsent(data.getLong("channelId"), webhook);
 				}
@@ -129,9 +96,9 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 	private void createNewWebhook(YouTubeUploadEvent event, TextChannel textChannel, WebhookMessage message) {
 		textChannel.createWebhook("Sx4 - YouTube").queue(newWebhook -> {
 			WebhookClient webhookClient = new WebhookClientBuilder(newWebhook.getUrl())
-					.setExecutorService(this.scheduledExectuor)
-					.setHttpClient(this.client)
-					.build();
+				.setExecutorService(this.scheduledExectuor)
+				.setHttpClient(this.client)
+				.build();
 			
 			this.webhooks.put(textChannel.getIdLong(), webhookClient);
 			
@@ -194,9 +161,9 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 											return;
 										} else {
 											webhook = new WebhookClientBuilder(webhookData.get("id", 0L), webhookData.getString("token"))
-													.setExecutorService(this.scheduledExectuor)
-													.setHttpClient(this.client)
-													.build();
+												.setExecutorService(this.scheduledExectuor)
+												.setHttpClient(this.client)
+												.build();
 											
 											this.webhooks.put(textChannel.getIdLong(), webhook);
 										}
@@ -226,9 +193,9 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 				});
 				
 				Document databaseData = new Document("type", YouTubeType.UPLOAD.getRaw())
-						.append("videoId", event.getVideo().getId())
-						.append("title", event.getVideo().getTitle())
-						.append("uploaderId", event.getChannel().getId());
+					.append("videoId", event.getVideo().getId())
+					.append("title", event.getVideo().getTitle())
+					.append("uploaderId", event.getChannel().getId());
 				
 				Database.get().insertNotification(databaseData).whenComplete((result, exception) -> ExceptionUtility.sendErrorMessage(exception));
 			} catch (Throwable e) {
@@ -244,9 +211,9 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 	
 	public void onYouTubeUpdateTitle(YouTubeUpdateTitleEvent event) {
 		Document data = new Document("type", YouTubeType.TITLE.getRaw())
-				.append("videoId", event.getVideo().getId())
-				.append("title", event.getVideo().getTitle())
-				.append("uploaderId", event.getChannel().getId());
+			.append("videoId", event.getVideo().getId())
+			.append("title", event.getVideo().getTitle())
+			.append("uploaderId", event.getChannel().getId());
 		
 		Database.get().insertNotification(data).whenComplete((result, exception) -> ExceptionUtility.sendErrorMessage(exception));
 	}

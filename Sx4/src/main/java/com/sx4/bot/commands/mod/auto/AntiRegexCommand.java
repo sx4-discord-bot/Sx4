@@ -16,6 +16,7 @@ import com.sx4.bot.entities.argument.TimedArgument;
 import com.sx4.bot.entities.mod.action.ModAction;
 import com.sx4.bot.entities.mod.auto.MatchAction;
 import com.sx4.bot.entities.settings.HolderType;
+import com.sx4.bot.managers.AntiRegexManager;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
@@ -235,6 +236,47 @@ public class AntiRegexCommand extends Sx4Command {
 			}
 
 			event.reply("Attempts to a mod action have been set to **" + attempts + "** " + this.config.getSuccessEmote()).queue();
+		});
+	}
+
+	@Command(value="message", description="Changes the message which is sent when someone triggers an anti regex")
+	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
+	@Examples({"anti regex message 5f023782ef9eba03390a740c You cannot have a url in your message :no_entry:", "anti regex message 5f023782ef9eba03390a740c {user.mention}, don't send that here or else you'll get a {regex.action} :no_entry:"})
+	public void message(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="message", endless=true) String message) {
+		if (message.length() > 1500) {
+			event.reply("Your message cannot be longer than 1500 characters :no_entry:").queue();
+			return;
+		}
+
+		Bson filter = Operators.filter("$antiRegex.regexes", Operators.eq("$$this.id", id));
+		List<Bson> update = List.of(Operators.set("antiRegex.regexes", Operators.cond(Operators.or(Operators.extinct("$antiRegex.regexes"), Operators.isEmpty(filter)), "$antiRegex.regexes", Operators.concatArrays(Operators.filter("$antiRegex.regexes", Operators.ne("$$this.id", id)), List.of(Operators.mergeObjects(Operators.first(filter), new Document("message", message)))))));
+
+		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE);
+		this.database.findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
+			if (ExceptionUtility.sendExceptionally(event, exception)) {
+				return;
+			}
+
+			data = data == null ? Database.EMPTY_DOCUMENT : data;
+
+			List<Document> regexes = data.getEmbedded(List.of("antiRegex", "regexes"), Collections.emptyList());
+			Document regex = regexes.stream()
+				.filter(d -> d.getObjectId("id").equals(id))
+				.findFirst()
+				.orElse(null);
+
+			if (regex == null) {
+				event.reply("I could not find that regex " + this.config.getFailureEmote()).queue();
+				return;
+			}
+
+			String oldMessage = regex.get("message", AntiRegexManager.DEFAULT_MESSAGE);
+			if (oldMessage.equals(message)) {
+				event.reply("Your message for that regex was already set to that " + this.config.getFailureEmote()).queue();
+				return;
+			}
+
+			event.reply("Your message for that regex has been updated " + this.config.getSuccessEmote()).queue();
 		});
 	}
 

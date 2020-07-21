@@ -610,6 +610,10 @@ public class Database {
 	public CompletableFuture<DeleteResult> deleteMessageById(long messageId) {
 		return CompletableFuture.supplyAsync(() -> this.messages.deleteOne(Filters.eq("_id", messageId)));
 	}
+
+	public CompletableFuture<DeleteResult> deleteMessages(List<Long> messageIds) {
+		return CompletableFuture.supplyAsync(() -> this.messages.deleteMany(Filters.in("_id", messageIds)));
+	}
 	
 	public CompletableFuture<BulkWriteResult> bulkWriteMessages(List<? extends WriteModel<? extends Document>> bulkData) {
 		return CompletableFuture.supplyAsync(() -> this.messages.bulkWrite(bulkData));

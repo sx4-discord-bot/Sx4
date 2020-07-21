@@ -7,6 +7,9 @@ import java.util.Map;
 
 public class AntiRegexManager {
 
+    public static final String DEFAULT_MESSAGE = "{user.mention}, you cannot send that content here due to the regex {regex.id}"
+        + "{regex.action.exists?, you will receive a {regex.action} if you continue **({regex.attempts.current}/{regex.attempts.max})**} :no_entry:";
+
     private static final AntiRegexManager INSTANCE = new AntiRegexManager();
 
     public static AntiRegexManager get() {
