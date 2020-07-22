@@ -1,17 +1,15 @@
 package com.sx4.bot.events;
 
-import java.util.Collections;
-import java.util.EnumSet;
-import java.util.List;
-
-import org.bson.Document;
-
 import com.mongodb.client.model.Projections;
 import com.sx4.bot.database.Database;
-
 import net.dv8tion.jda.api.entities.Message.MentionType;
 import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
+import org.bson.Document;
+
+import java.util.Collections;
+import java.util.EnumSet;
+import java.util.List;
 
 public class TriggerEvents extends ListenerAdapter {
 	
@@ -57,7 +55,7 @@ public class TriggerEvents extends ListenerAdapter {
 	}
 
 	public void onGuildMessageReceived(GuildMessageReceivedEvent event) {
-		if (event.getMessage().getAuthor().equals(event.getJDA().getSelfUser())) {
+		if (event.getMessage().getAuthor().isBot()) {
 			return;
 		}
 		
