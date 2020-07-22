@@ -86,8 +86,8 @@ public class Formatter {
                         }
 
                         Object replace = this.map.get(formatter);
-                        if (replace instanceof Boolean) {
-                            string = string.substring(0, index) + (ifFormatter == null ? replace : (((Boolean) replace) ? ifFormatter : elseFormatter)) + string.substring(endIndex + 1);
+                        if (replace instanceof Boolean && ifFormatter != null) {
+                            string = string.substring(0, index) + (((Boolean) replace) ? ifFormatter : elseFormatter) + string.substring(endIndex + 1);
                         } else {
                             string = string.substring(0, index) + replace + string.substring(endIndex + 1);
                         }

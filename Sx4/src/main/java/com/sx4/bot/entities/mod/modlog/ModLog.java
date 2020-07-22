@@ -10,7 +10,7 @@ import com.sx4.bot.entities.mod.Reason;
 import com.sx4.bot.entities.mod.action.Action;
 import com.sx4.bot.entities.mod.action.TimeAction;
 import com.sx4.bot.entities.mod.action.WarnAction;
-import com.sx4.bot.entities.mod.warn.WarnConfig;
+import com.sx4.bot.entities.mod.warn.Warn;
 
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.Guild;
@@ -160,7 +160,7 @@ public class ModLog {
 		if (action instanceof TimeAction) {
 			actionData.append("duration", ((TimeAction) action).getDuration());
 		} else if (action instanceof WarnAction) {
-			WarnConfig warning = ((WarnAction) action).getWarning();
+			Warn warning = ((WarnAction) action).getWarning();
 			Action warnAction = warning.getAction();
 			
 			Document warnData = new Document("number", warning.getNumber());

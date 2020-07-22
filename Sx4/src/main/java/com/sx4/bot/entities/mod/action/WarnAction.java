@@ -1,18 +1,18 @@
 package com.sx4.bot.entities.mod.action;
 
-import com.sx4.bot.entities.mod.warn.WarnConfig;
+import com.sx4.bot.entities.mod.warn.Warn;
 
 public class WarnAction extends Action {
 
-	private final WarnConfig warning;
+	private final Warn warning;
 	
-	public WarnAction(WarnConfig warning) {
+	public WarnAction(Warn warning) {
 		super(ModAction.WARN);
 		
 		this.warning = warning;
 	}
 	
-	public WarnConfig getWarning() {
+	public Warn getWarning() {
 		return this.warning;
 	}
 	

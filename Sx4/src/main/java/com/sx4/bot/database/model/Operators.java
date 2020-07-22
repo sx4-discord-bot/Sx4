@@ -10,6 +10,15 @@ import java.util.List;
 public class Operators {
 	
 	public static final String REMOVE = "$$REMOVE";
+	public static final String NOW = "$$NOW";
+
+	public static Bson nowEpochMilli() {
+		return Operators.toLong(Operators.NOW);
+	}
+
+	public static Bson nowEpochSecond() {
+		return Operators.toLong(Operators.divide(Operators.nowEpochMilli(), 1000));
+	}
 
 	public static Bson not(Object cond) {
 		return new Document("$not", cond);
@@ -166,9 +175,21 @@ public class Operators {
 	public static Bson bitwiseOr(Object x, Object y) {
 		return Operators.cond(Operators.lt(x, y), Operators.bitwiseOrUnchecked(y, x), Operators.bitwiseOrUnchecked(x, y));
 	}
+
+	public static Bson gt(Object expression, Object expression2) {
+		return new Document("$gt", List.of(expression, expression2));
+	}
+
+	public static Bson gte(Object expression, Object expression2) {
+		return new Document("$gte", List.of(expression, expression2));
+	}
 	
 	public static Bson lt(Object expression, Object expression2) {
 		return new Document("$lt", List.of(expression, expression2));
+	}
+
+	public static Bson lte(Object expression, Object expression2) {
+		return new Document("$lte", List.of(expression, expression2));
 	}
 	
 	public static Bson in(Object expression, Object arrayExpression) {
@@ -177,6 +198,10 @@ public class Operators {
 	
 	public static Bson abs(Object expression) {
 		return new Document("$abs", expression);
+	}
+
+	public static Bson reduce(Object listExpression, Object initialValue, Object expression) {
+		return new Document("$reduce", new Document("input", listExpression).append("initialValue", initialValue).append("in", expression));
 	}
 	
 	public static Bson arrayElemAt(Object expression, int index) {
@@ -200,12 +225,13 @@ public class Operators {
 	}
 
 	// Operators.eq(expression, null) would be ideal but List.of does not take null values
+	// Check for missing even though it's an undocumented type and I don't think it should be possible to get missing but have been able to get the missing type before
 	public static Bson isNull(Object expression) {
-		return Operators.eq(Operators.type(expression), "null");
+		return Operators.or(Operators.eq(Operators.type(expression), "null"), Operators.eq(Operators.type(expression), "missing"));
 	}
 
 	public static Bson nonNull(Object expression) {
-		return Operators.ne(Operators.type(expression), "null");
+		return Operators.and(Operators.ne(Operators.type(expression), "null"), Operators.ne(Operators.type(expression), "missing"));
 	}
 	
 }

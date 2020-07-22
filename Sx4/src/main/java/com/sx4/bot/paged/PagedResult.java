@@ -405,7 +405,7 @@ public class PagedResult<Type> {
 				embed.setFooter("next | previous | go to <page_number> | cancel", null);
 				
 				this.forEach((object, index) -> {
-					embed.appendDescription((this.increasedIndex ? this.indexFunction.apply(index + 1) : (indexed == true ? (this.indexFunction.apply(index + 1 - ((this.page - 1) * this.perPage))) : "")) + this.displayFunction.apply(object) + "\n");
+					embed.appendDescription((this.increasedIndex ? this.indexFunction.apply(index + 1) : (this.indexed ? (this.indexFunction.apply(index + 1 - ((this.page - 1) * this.perPage))) : "")) + this.displayFunction.apply(object) + "\n");
 				});
 				
 				return builder.setEmbed(embed.build()).build();
@@ -414,7 +414,7 @@ public class PagedResult<Type> {
 				string.append("Page **" + this.page + "/" + maxPage + "**\n\n");
 				
 				this.forEach((object, index) -> {
-					string.append((this.increasedIndex ? this.indexFunction.apply(index + 1) : (indexed == true ? (this.indexFunction.apply(index + 1 - ((this.page - 1) * this.perPage))) : "")) + this.displayFunction.apply(object) + "\n");
+					string.append((this.increasedIndex ? this.indexFunction.apply(index + 1) : (this.indexed ? (this.indexFunction.apply(index + 1 - ((this.page - 1) * this.perPage))) : "")) + this.displayFunction.apply(object) + "\n");
 				});
 				
 				string.append("\nnext | previous | go to <page_number> | cancel");
