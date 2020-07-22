@@ -2,15 +2,17 @@ package com.sx4.bot.commands.mod;
 
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.option.Option;
+import com.mongodb.client.model.FindOneAndUpdateOptions;
 import com.mongodb.client.model.Projections;
+import com.mongodb.client.model.ReturnDocument;
 import com.sx4.bot.annotations.argument.DefaultInt;
 import com.sx4.bot.annotations.argument.Limit;
 import com.sx4.bot.category.Category;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.Database;
+import com.sx4.bot.database.model.Operators;
 import com.sx4.bot.entities.mod.Reason;
-import com.sx4.bot.entities.mod.tempban.TempBanData;
 import com.sx4.bot.events.mod.TempBanEvent;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.ModUtility;
@@ -20,8 +22,12 @@ import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.exceptions.ErrorHandler;
 import net.dv8tion.jda.api.requests.ErrorResponse;
+import org.bson.Document;
+import org.bson.conversions.Bson;
 
 import java.time.Duration;
+import java.util.Collections;
+import java.util.List;
 
 public class TempBanCommand extends Sx4Command {
 
@@ -64,15 +70,17 @@ public class TempBanCommand extends Sx4Command {
 			event.getGuild().retrieveBan(user).queue(ban -> {
 				event.reply("That user is already banned " + this.config.getFailureEmote()).queue();
 			}, new ErrorHandler().handle(ErrorResponse.UNKNOWN_BAN, e -> {
-				TempBanData data = new TempBanData(this.database.getGuildById(event.getGuild().getIdLong(), Projections.include("tempBan")).get("tempBan", Database.EMPTY_DOCUMENT));
-				
-				long seconds = time == null ? data.getDefaultTime() : time.toSeconds();
-				
-				this.database.updateGuild(data.getUpdate(event.getGuild().getIdLong(), user.getIdLong(), seconds)).whenComplete((result, exception) -> {
+				Bson banFilter = Operators.filter("$tempBan.users", Operators.filter("$$this.id", user.getIdLong()));
+				List<Bson> update = List.of(Operators.set("tempBan.users", Operators.concatArrays(List.of(Operators.mergeObjects(Operators.ifNull(Operators.first(banFilter), Database.EMPTY_DOCUMENT), new Document("id", user.getIdLong()).append("unbanAt", Operators.add(Operators.nowEpochSecond(), time == null ? Operators.ifNull("$tempBan.defaultTime", 86400L) : time.toSeconds())))), Operators.ifNull(Operators.filter("$tempBan.users", Operators.ne("$$this.id", user.getIdLong())), Collections.EMPTY_LIST))));
+
+				FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("tempBan.defaulTime"));
+				this.database.findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
 					if (ExceptionUtility.sendExceptionally(event, exception)) {
 						return;
 					}
-					
+
+					long seconds = time == null ? data == null ? 86400L : data.getEmbedded(List.of("tempBan", "defaultTime"), 86400L) : time.toSeconds();
+
 					event.getGuild()
 						.ban(user, days)
 						.reason(ModUtility.getAuditReason(reason, event.getAuthor()))

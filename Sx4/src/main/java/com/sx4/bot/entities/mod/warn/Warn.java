@@ -11,9 +11,9 @@ import java.util.stream.Collectors;
 public class Warn {
 	
 	public static final List<Document> DEFAULT_CONFIG = List.of(
-		new TimeAction(ModAction.MUTE, 1800L).toData().append("number", 2),
-		new Action(ModAction.KICK).toData().append("number", 3),
-		new Action(ModAction.BAN).toData().append("number", 4)
+		new Warn(new TimeAction(ModAction.MUTE, 1800L), 2).toData(),
+		new Warn(new Action(ModAction.KICK), 3).toData(),
+		new Warn(new Action(ModAction.BAN), 4).toData()
 	);
 
 	private final Action action;
@@ -46,6 +46,10 @@ public class Warn {
 	
 	public int getNumber() {
 		return this.number;
+	}
+
+	public Document toData() {
+		return this.action.toData().append("number", this.number);
 	}
 	
 	public static List<Warn> fromData(List<Document> data) {

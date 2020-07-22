@@ -1,22 +1,17 @@
 package com.sx4.bot.entities.mod.modlog;
 
-import java.time.Instant;
-
-import org.bson.Document;
-import org.bson.types.ObjectId;
-
 import com.sx4.bot.core.Sx4;
 import com.sx4.bot.entities.mod.Reason;
 import com.sx4.bot.entities.mod.action.Action;
-import com.sx4.bot.entities.mod.action.TimeAction;
-import com.sx4.bot.entities.mod.action.WarnAction;
-import com.sx4.bot.entities.mod.warn.Warn;
-
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.entities.User;
+import org.bson.Document;
+import org.bson.types.ObjectId;
+
+import java.time.Instant;
 
 public class ModLog {
 	
@@ -146,38 +141,14 @@ public class ModLog {
 	}
 	
 	public Document toData() {
-		Document data = new Document("_id", this.id)
-				.append("guildId", this.guildId)
-				.append("channelId", this.channelId)
-				.append("targetId", this.targetId)
-				.append("messageId", this.messageId)
-				.append("moderatorId", this.moderatorId)
-				.append("reason", this.reason == null ? null : this.reason.getParsed()); 
-		
-		Action action = this.getAction();
-		Document actionData = new Document("type", action.getModAction().getType());
-		
-		if (action instanceof TimeAction) {
-			actionData.append("duration", ((TimeAction) action).getDuration());
-		} else if (action instanceof WarnAction) {
-			Warn warning = ((WarnAction) action).getWarning();
-			Action warnAction = warning.getAction();
-			
-			Document warnData = new Document("number", warning.getNumber());
-			Document warnActionData = new Document("type", warnAction.getModAction().getType());
-			
-			if (warnAction instanceof TimeAction) {
-				warnActionData.append("duration", ((TimeAction) warnAction).getDuration());
-			}
-			
-			warnData.append("action", warnActionData);
-			
-			actionData.append("warning", warnData);
-		}
-		
-		data.append("action", actionData);
-		
-		return data;
+		return this.action.toData()
+			.append("_id", this.id)
+			.append("guildId", this.guildId)
+			.append("channelId", this.channelId)
+			.append("targetId", this.targetId)
+			.append("messageId", this.messageId)
+			.append("moderatorId", this.moderatorId)
+			.append("reason", this.reason == null ? null : this.reason.getParsed());
 	}
 	
 }

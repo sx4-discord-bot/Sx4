@@ -33,7 +33,7 @@ public class Action {
 		if (this instanceof TimeAction) {
 			action.append("duration", ((TimeAction) this).getDuration());
 		} else if (this instanceof WarnAction) {
-			action.append("warning", ((WarnAction) this).getWarning().getAction().toData());
+			action.append("warning", ((WarnAction) this).getWarning().toData());
 		}
 
 		return new Document("action", action);
