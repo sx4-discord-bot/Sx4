@@ -20,7 +20,7 @@ import com.sx4.bot.utility.SearchUtility;
 import com.sx4.bot.utility.TimeUtility;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Member;
-import net.dv8tion.jda.api.exceptions.ErrorHandler;
+import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.requests.ErrorResponse;
 import org.bson.Document;
 import org.bson.conversions.Bson;
@@ -43,56 +43,62 @@ public class TempBanCommand extends Sx4Command {
 	}
 	
 	public void onCommand(Sx4CommandEvent event, @Argument(value="user") String userArgument, @Argument(value="time", nullDefault=true) Duration time, @Argument(value="reason", endless=true, nullDefault=true) Reason reason, @Option(value="days", description="Set how many days of messages should be deleted from the user") @DefaultInt(1) @Limit(min=0, max=7) int days) {
-		SearchUtility.getUserRest(event.getGuild(), userArgument, user -> {
+		SearchUtility.getUserRest(event.getGuild(), userArgument).thenAccept(user -> {
 			if (user == null) {
 				event.reply("I could not find that user " + this.config.getFailureEmote()).queue();
 				return;
 			}
-			
+
 			if (user.getIdLong() == event.getSelfUser().getIdLong()) {
 				event.reply("You cannot ban me, that is illegal " + this.config.getFailureEmote()).queue();
 				return;
 			}
-			
+
 			Member member = event.getGuild().getMember(user);
 			if (member != null) {
 				if (member.canInteract(event.getMember())) {
 					event.reply("You cannot ban someone higher or equal than your top role " + this.config.getFailureEmote()).queue();
 					return;
 				}
-				
+
 				if (member.canInteract(event.getSelfMember())) {
 					event.reply("I cannot ban someone higher or equal than my top role " + this.config.getFailureEmote()).queue();
 					return;
 				}
 			}
-			
-			event.getGuild().retrieveBan(user).queue(ban -> {
-				event.reply("That user is already banned " + this.config.getFailureEmote()).queue();
-			}, new ErrorHandler().handle(ErrorResponse.UNKNOWN_BAN, e -> {
-				Bson banFilter = Operators.filter("$tempBan.users", Operators.filter("$$this.id", user.getIdLong()));
-				List<Bson> update = List.of(Operators.set("tempBan.users", Operators.concatArrays(List.of(Operators.mergeObjects(Operators.ifNull(Operators.first(banFilter), Database.EMPTY_DOCUMENT), new Document("id", user.getIdLong()).append("unbanAt", Operators.add(Operators.nowEpochSecond(), time == null ? Operators.ifNull("$tempBan.defaultTime", 86400L) : time.toSeconds())))), Operators.ifNull(Operators.filter("$tempBan.users", Operators.ne("$$this.id", user.getIdLong())), Collections.EMPTY_LIST))));
 
-				FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("tempBan.defaulTime"));
-				this.database.findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
+			event.getGuild().retrieveBan(user).submit().whenComplete((ban, exception) -> {
+				if (exception instanceof ErrorResponseException && ((ErrorResponseException) exception).getErrorResponse() == ErrorResponse.UNKNOWN_BAN) {
+					Bson banFilter = Operators.filter("$tempBan.users", Operators.filter("$$this.id", user.getIdLong()));
+					List<Bson> update = List.of(Operators.set("tempBan.users", Operators.concatArrays(List.of(Operators.mergeObjects(Operators.ifNull(Operators.first(banFilter), Database.EMPTY_DOCUMENT), new Document("id", user.getIdLong()).append("unbanAt", Operators.add(Operators.nowEpochSecond(), time == null ? Operators.ifNull("$tempBan.defaultTime", 86400L) : time.toSeconds())))), Operators.ifNull(Operators.filter("$tempBan.users", Operators.ne("$$this.id", user.getIdLong())), Collections.EMPTY_LIST))));
+
+					FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("tempBan.defaulTime"));
+					this.database.findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, dataException) -> {
+						if (ExceptionUtility.sendExceptionally(event, dataException)) {
+							return;
+						}
+
+						long seconds = time == null ? data == null ? 86400L : data.getEmbedded(List.of("tempBan", "defaultTime"), 86400L) : time.toSeconds();
+
+						event.getGuild()
+							.ban(user, days)
+							.reason(ModUtility.getAuditReason(reason, event.getAuthor()))
+							.queue($ -> {
+								event.reply("**" + user.getAsTag() + "** has been temporarily banned for " + TimeUtility.getTimeString(seconds) + " <:done:403285928233402378>:ok_hand:").queue();
+
+								this.modManager.onModAction(new TempBanEvent(event.getMember(), user, reason, member != null, seconds));
+
+								this.banManager.putBan(event.getGuild().getIdLong(), user.getIdLong(), seconds);
+							});
+					});
+				} else {
 					if (ExceptionUtility.sendExceptionally(event, exception)) {
 						return;
 					}
 
-					long seconds = time == null ? data == null ? 86400L : data.getEmbedded(List.of("tempBan", "defaultTime"), 86400L) : time.toSeconds();
-
-					event.getGuild()
-						.ban(user, days)
-						.reason(ModUtility.getAuditReason(reason, event.getAuthor()))
-						.queue($ -> {
-							event.reply("**" + user.getAsTag() + "** has been temporarily banned for " + TimeUtility.getTimeString(seconds) + " <:done:403285928233402378>:ok_hand:").queue();
-							
-							this.modManager.onModAction(new TempBanEvent(event.getMember(), user, reason, member != null, seconds));
-							
-							this.banManager.putBan(event.getGuild().getIdLong(), user.getIdLong(), seconds);
-						});
-				});
-			}));
+					event.reply("That user is already banned " + this.config.getFailureEmote()).queue();
+				}
+			});
 		});
 	}
 	

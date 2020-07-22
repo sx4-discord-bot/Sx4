@@ -18,7 +18,7 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.function.Consumer;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -406,7 +406,9 @@ public class SearchUtility {
 		}
 	}
 	
-	public static void getUserRest(Guild guild, String query, Consumer<User> userConsumer) {
+	public static CompletableFuture<User> getUserRest(Guild guild, String query) {
+		CompletableFuture<User> future = new CompletableFuture<>();
+
 		Matcher mentionMatch = SearchUtility.USER_MENTION.matcher(query);
 		Matcher tagMatch = SearchUtility.USER_TAG.matcher(query);
 		if (mentionMatch.matches()) {
@@ -415,18 +417,18 @@ public class SearchUtility {
 				
 				Member member = guild.getMemberById(id);
 				if (member == null) {
-					Sx4.get().getShardManager().retrieveUserById(id).queue(userConsumer);
+					Sx4.get().getShardManager().retrieveUserById(id).queue(future::complete);
 				} else {
-					userConsumer.accept(member.getUser());
+					future.complete(member.getUser());
 				}
 			} catch (NumberFormatException e) {
-				userConsumer.accept(null);
+				future.complete(null);
 			}
 		} else if (tagMatch.matches()) {
 			String name = tagMatch.group(1);
 			String discriminator = tagMatch.group(2);
-			
-			userConsumer.accept(
+
+			future.complete(
 				guild.getMemberCache().stream()
 					.map(Member::getUser)
 					.filter(user -> user.getName().equalsIgnoreCase(name) && user.getDiscriminator().equals(discriminator))
@@ -444,42 +446,46 @@ public class SearchUtility {
 				
 				Member member = guild.getMemberById(id);
 				if (member == null) {
-					Sx4.get().getShardManager().retrieveUserById(id).queue(userConsumer);
+					Sx4.get().getShardManager().retrieveUserById(id).queue(future::complete);
 				} else {
-					userConsumer.accept(member.getUser());
+					future.complete(member.getUser());
 				}
 			} catch (NumberFormatException e) {
-				userConsumer.accept(null);
+				future.complete(null);
 			}
 		} else {
 			Member member = SearchUtility.findMember(guild.getMemberCache(), query);
 			if (member == null) {
-				userConsumer.accept(Sx4.get().getShardManager().getUserCache().stream()
+				future.complete(Sx4.get().getShardManager().getUserCache().stream()
 						.filter(user -> user.getName().equalsIgnoreCase(query))
 						.findFirst()
 						.orElse(null));
 			} else {
-				userConsumer.accept(member.getUser());
+				future.complete(member.getUser());
 			}
 		}
+
+		return future;
 	}
 	
-	public static void getUserRest(String query, Consumer<User> userConsumer) {
+	public static CompletableFuture<User> getUserRest(String query) {
+		CompletableFuture<User> future = new CompletableFuture<>();
+
 		Matcher mentionMatch = SearchUtility.USER_MENTION.matcher(query);
 		Matcher tagMatch = SearchUtility.USER_TAG.matcher(query);
 		if (mentionMatch.matches()) {
 			try {
 				long id = Long.parseLong(mentionMatch.group(1));
 				
-				Sx4.get().getShardManager().retrieveUserById(id).queue(userConsumer::accept);
+				Sx4.get().getShardManager().retrieveUserById(id).queue(future::complete);
 			} catch (NumberFormatException e) {
-				userConsumer.accept(null);
+				future.complete(null);
 			}
 		} else if (tagMatch.matches()) {
 			String name = tagMatch.group(1);
 			String discriminator = tagMatch.group(2);
-			
-			userConsumer.accept(Sx4.get().getShardManager().getUserCache().stream()
+
+			future.complete(Sx4.get().getShardManager().getUserCache().stream()
 				.filter(user -> user.getName().equalsIgnoreCase(name) && user.getDiscriminator().equals(discriminator))
 				.findFirst()
 				.orElse(null));
@@ -487,16 +493,18 @@ public class SearchUtility {
 			try {
 				long id = Long.parseLong(query);
 				
-				Sx4.get().getShardManager().retrieveUserById(id).queue(userConsumer::accept);
+				Sx4.get().getShardManager().retrieveUserById(id).queue(future::complete);
 			} catch (NumberFormatException e) {
-				userConsumer.accept(null);
+				future.complete(null);
 			}
 		} else {
-			userConsumer.accept(Sx4.get().getShardManager().getUserCache().stream()
+			future.complete(Sx4.get().getShardManager().getUserCache().stream()
 					.filter(user -> user.getName().equalsIgnoreCase(query))
 					.findFirst()
 					.orElse(null));
 		}
+
+		return future;
 	}
 	
 	public static List<Sx4Command> getCommandOrModule(String query) {

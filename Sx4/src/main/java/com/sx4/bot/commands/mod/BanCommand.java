@@ -32,7 +32,7 @@ public class BanCommand extends Sx4Command {
 	}
 	
 	public void onCommand(Sx4CommandEvent event, @Argument(value="user") String userArgument, @Argument(value="reason", endless=true, nullDefault=true) Reason reason, @Option(value="days", description="Set how many days of messages should be deleted from the user") @DefaultInt(1) @Limit(min=0, max=7) int days) {
-		SearchUtility.getUserRest(event.getGuild(), userArgument, user -> {
+		SearchUtility.getUserRest(event.getGuild(), userArgument).thenAccept(user -> {
 			if (user == null) {
 				event.reply("I could not find that user " + this.config.getFailureEmote()).queue();
 				return;
@@ -59,12 +59,11 @@ public class BanCommand extends Sx4Command {
 			event.getGuild().retrieveBan(user).queue(ban -> {
 				event.reply("That user is already banned " + this.config.getFailureEmote()).queue();
 			}, new ErrorHandler().handle(ErrorResponse.UNKNOWN_BAN, e -> {
-				event.getGuild()
-					.ban(user, days)
+				event.getGuild().ban(user, days)
 					.reason(ModUtility.getAuditReason(reason, event.getAuthor()))
 					.queue($ -> {
 						event.reply("**" + user.getAsTag() + "** has been banned <:done:403285928233402378>:ok_hand:").queue();
-						
+
 						this.modManager.onModAction(new BanEvent(event.getMember(), user, reason, member != null));
 					});
 			}));
