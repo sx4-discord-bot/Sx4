@@ -37,7 +37,7 @@ public enum ModAction {
 		return this.offence;
 	}
 	
-	public static ModAction getFromType(int type) {
+	public static ModAction fromType(int type) {
 		for (ModAction action : ModAction.values()) {
 			if (action.getType() == type) {
 				return action;

@@ -1,14 +1,13 @@
 package com.sx4.api.exceptions;
 
-import java.util.List;
-import java.util.Optional;
+import com.sx4.bot.utility.ExceptionUtility;
 
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.ext.ExceptionMapper;
 import javax.ws.rs.ext.Provider;
-
-import com.sx4.bot.utility.ExceptionUtility;
+import java.util.List;
+import java.util.Optional;
 
 @Provider
 public class UncaughtExceptionHandler implements ExceptionMapper<Throwable> {
@@ -25,7 +24,7 @@ public class UncaughtExceptionHandler implements ExceptionMapper<Throwable> {
 			.findFirst();
 		
 		return Response.status(500)
-			.entity(exception.toString() + (element.isPresent() ? "\n" + element.get().toString() : ""))
+			.entity(exception.toString() + (element.map(stackTraceElement -> "\n" + stackTraceElement.toString()).orElse("")))
 			.type("text/plain")
 			.build();
 	}

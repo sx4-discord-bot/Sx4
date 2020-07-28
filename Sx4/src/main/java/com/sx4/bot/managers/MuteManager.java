@@ -1,5 +1,16 @@
 package com.sx4.bot.managers;
 
+import com.mongodb.client.model.*;
+import com.sx4.bot.core.Sx4;
+import com.sx4.bot.database.Database;
+import com.sx4.bot.entities.mod.Reason;
+import com.sx4.bot.events.mod.UnmuteEvent;
+import com.sx4.bot.utility.ExceptionUtility;
+import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.entities.Member;
+import net.dv8tion.jda.api.entities.Role;
+import org.bson.Document;
+
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -9,23 +20,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-
-import org.bson.Document;
-
-import com.mongodb.client.model.Filters;
-import com.mongodb.client.model.Projections;
-import com.mongodb.client.model.UpdateOneModel;
-import com.mongodb.client.model.Updates;
-import com.mongodb.client.model.WriteModel;
-import com.sx4.bot.core.Sx4;
-import com.sx4.bot.database.Database;
-import com.sx4.bot.entities.mod.Reason;
-import com.sx4.bot.events.mod.UnmuteEvent;
-import com.sx4.bot.utility.ExceptionUtility;
-
-import net.dv8tion.jda.api.entities.Guild;
-import net.dv8tion.jda.api.entities.Member;
-import net.dv8tion.jda.api.entities.Role;
 
 public class MuteManager {
 

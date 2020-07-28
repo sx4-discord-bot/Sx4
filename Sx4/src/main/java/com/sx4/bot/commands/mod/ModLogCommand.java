@@ -1,12 +1,5 @@
 package com.sx4.bot.commands.mod;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import org.bson.Document;
-import org.bson.conversions.Bson;
-import org.bson.types.ObjectId;
-
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
 import com.mongodb.client.model.Filters;
@@ -23,10 +16,15 @@ import com.sx4.bot.entities.mod.action.Action;
 import com.sx4.bot.entities.mod.modlog.ModLog;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
-
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.entities.User;
+import org.bson.Document;
+import org.bson.conversions.Bson;
+import org.bson.types.ObjectId;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class ModLogCommand extends Sx4Command {
 
@@ -117,7 +115,7 @@ public class ModLogCommand extends Sx4Command {
 					long targetId = data.getLong("targetId");
 					User target = event.getShardManager().getUserById(targetId);
 					
-					return Action.fromData(data).toString() + " to `" + (target == null ? targetId : target.getAsTag() + "`");
+					return Action.fromData(data.get("action", Document.class)).toString() + " to `" + (target == null ? targetId : target.getAsTag() + "`");
 				})
 				.setIncreasedIndex(true);
 			

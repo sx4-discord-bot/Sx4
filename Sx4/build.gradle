@@ -1,5 +1,8 @@
 plugins {
 	id 'java'
+	id 'application'
+	id 'com.github.johnrengelman.shadow' version '6.0.0'
+	id 'antlr'
 }
 
 repositories {
@@ -8,12 +11,15 @@ repositories {
 	jcenter()
 }
 
-compileJava {
-	options.encoding = "UTF-8"
-}
+mainClassName = 'com.sx4.bot.core.Sx4'
+
+compileJava.options.encoding = "UTF-8"
 
 sourceCompatibility = JavaVersion.VERSION_12
 targetCompatibility = JavaVersion.VERSION_12
+
+project.ext.parserPackage = 'com.sx4.bot.antlr'
+sourceSets.main.java.srcDirs = ['src/main/java', 'generated-src/main/java']
 
 dependencies {
 	implementation('com.github.21Joakim:Jockie-Utils:jda-v4-SNAPSHOT') {
@@ -47,4 +53,22 @@ dependencies {
 	compile group: 'javax.xml.bind', name: 'jaxb-api', version: '2.4.0-b180830.0359'
 	
 	compile group: 'org.slf4j', name: 'slf4j-simple', version: '1.6.2'
+
+	antlr 'org.antlr:antlr4:4.7.2'
+}
+
+generateGrammarSource {
+	outputs.cacheIf { true }
+	source = 'src/main/antlr'
+	arguments += ['-visitor', '-no-listener', '-package', parserPackage, '-Xexact-output-dir']
+
+	doLast {
+		println 'Copying generated grammar lexer/parser files to source'
+		mkdir 'generated-src/main/java'
+		copy {
+			from generateGrammarSource.outputDirectory.canonicalPath
+			into "generated-src/main/java/${parserPackage.replace('.', '/')}"
+		}
+		delete "$buildDir/generated-src/antlr"
+	}
 }

@@ -21,18 +21,18 @@ public class Warn {
 	
 	public Warn(Document data) {
 		Document action = data.get("action", Document.class);
-		ModAction modAction = ModAction.getFromType(action.getInteger("type"));
+		ModAction modAction = ModAction.fromType(action.getInteger("type"));
 		
 		this.action = action.containsKey("duration") ? new TimeAction(modAction, action.getLong("duration")) : new Action(modAction);
 		this.number = data.getInteger("number");
 	}
 	
 	public Warn(int type, int number) {
-		this(new Action(ModAction.getFromType(type)), number);
+		this(new Action(ModAction.fromType(type)), number);
 	}
 	
 	public Warn(int type, int number, long duration) {
-		this(new TimeAction(ModAction.getFromType(type), duration), number);
+		this(new TimeAction(ModAction.fromType(type), duration), number);
 	}
 	
 	public Warn(Action action, int number) {
@@ -49,7 +49,7 @@ public class Warn {
 	}
 
 	public Document toData() {
-		return this.action.toData().append("number", this.number);
+		return new Document("action", this.action.toData()).append("number", this.number);
 	}
 	
 	public static List<Warn> fromData(List<Document> data) {

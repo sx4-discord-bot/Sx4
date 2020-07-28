@@ -46,7 +46,7 @@ public class MuteCommand extends Sx4Command {
 			event.reply("You cannot mute someone higher or equal than your top role " + this.config.getFailureEmote()).queue();
 			return;
 		}
-		
+
 		if (!event.getSelfMember().canInteract(member)) {
 			event.reply("I cannot mute someone higher or equal than your top role " + this.config.getFailureEmote()).queue();
 			return;
@@ -91,5 +91,5 @@ public class MuteCommand extends Sx4Command {
 			});
 		});
 	}
-	
+
 }

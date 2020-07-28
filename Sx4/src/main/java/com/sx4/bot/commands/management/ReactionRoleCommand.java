@@ -12,13 +12,17 @@ import com.sx4.bot.annotations.command.BotPermissions;
 import com.sx4.bot.annotations.command.Examples;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
+import com.sx4.bot.database.Database;
 import com.sx4.bot.database.model.Operators;
 import com.sx4.bot.entities.argument.All;
 import com.sx4.bot.entities.argument.MessageArgument;
 import com.sx4.bot.entities.argument.UpdateType;
+import com.sx4.bot.entities.settings.HolderType;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.waiter.Waiter;
 import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.IPermissionHolder;
+import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.MessageReaction.ReactionEmote;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent;
@@ -43,6 +47,21 @@ public class ReactionRoleCommand extends Sx4Command {
 		
 		return false;
 	};
+
+	private static Predicate<Document> getReactionFilter(ReactionEmote emote) {
+		return data -> {
+			Document emoteData = data.get("emote", Document.class);
+			if (emote.isEmoji()) {
+				if (emoteData.containsKey("name")) {
+					return emoteData.getString("name").equals(emote.getEmoji());
+				}
+
+				return false;
+			} else {
+				return emoteData.get("id", 0L) == emote.getEmote().getIdLong();
+			}
+		};
+	}
 	
 	public ReactionRoleCommand() {
 		super("reaction role");
@@ -190,18 +209,7 @@ public class ReactionRoleCommand extends Sx4Command {
 			}
 			
 			Document reaction = reactionRole.getList("reactions", Document.class).stream()
-				.filter(d -> {
-					Document emoteData = d.get("emote", Document.class);
-					if (unicode) {
-						if (emoteData.containsKey("name")) {
-							return emoteData.getString("name").equals(emote.getEmoji());
-						} 
-						
-						return false;
-					} else {
-						return emoteData.get("id", 0L) == emote.getEmote().getIdLong();
-					}
-				})
+				.filter(ReactionRoleCommand.getReactionFilter(emote))
 				.findFirst()
 				.orElse(null);
 			
@@ -296,7 +304,7 @@ public class ReactionRoleCommand extends Sx4Command {
 					return;
 				}
 			}
-				
+
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -360,6 +368,218 @@ public class ReactionRoleCommand extends Sx4Command {
 				event.reply("That reaction role has been deleted " + this.config.getSuccessEmote()).queue();
 			});
 		}
+	}
+
+	public class WhitelistCommand extends Sx4Command {
+
+		public WhitelistCommand() {
+			super("whitelist");
+
+			super.setDescription("Whitelists a user or role from being able to use the reaction on the reaction role");
+			super.setExamples("reaction role whitelist add", "reaction role whitelist remove", "reaction role whitelist list");
+		}
+
+		public void onCommand(Sx4CommandEvent event) {
+			event.replyHelp().queue();
+		}
+
+		@Command(value="add", description="Adds a whitelist for a user or role to be able to use a reaction on a reaction role")
+		@Examples({"reaction role whitelist add 643945552865919002 🐝 @Shea#6653", "reaction role whitelist add 643945552865919002 :doggo: @Role", "reaction role whitelist add 643945552865919002 @Role"})
+		@AuthorPermissions(permissions={Permission.MANAGE_ROLES})
+		public void add(Sx4CommandEvent event, @Argument(value="message id") MessageArgument messageArgument, @Argument(value="emote", nullDefault=true) ReactionEmote emote, @Argument(value="user | role", endless=true)IPermissionHolder holder) {
+			long messageId = messageArgument.getMessageId();
+			boolean role = holder instanceof Role;
+
+			Document holderData = new Document("id", holder.getIdLong())
+				.append("type", role ? HolderType.ROLE.getType() : HolderType.USER.getType());
+
+			Bson reactionRoleFilter = Operators.filter("$reactionRole.reactionRoles", Operators.eq("$$this.id", messageId));
+			Bson reactionsFilter = Operators.first(Operators.map(reactionRoleFilter, "$$this.reactions"));
+
+			List<Bson> update;
+			if (emote != null) {
+				boolean emoji = emote.isEmoji();
+
+				Bson reaction = Operators.filter(reactionsFilter, Operators.eq("$$this.emote." + (emoji ? "name" : "id"), emoji ? emote.getEmoji() : emote.getEmote().getIdLong()));
+				Bson whitelist = Operators.ifNull(Operators.first(Operators.map(reaction, "$$this.whitelist")), Collections.EMPTY_LIST);
+				Bson holderFilter = Operators.filter(whitelist, Operators.eq("$$this.id", holder.getIdLong()));
+
+				Bson result = Operators.concatArrays(Operators.filter("$reactionRole.reactionRoles", Operators.ne("$$this.id", messageId)), List.of(Operators.mergeObjects(Operators.first(reactionRoleFilter), new Document("reactions", Operators.concatArrays(List.of(Operators.mergeObjects(Operators.first(reaction), new Document("whitelist", Operators.concatArrays(whitelist, Operators.cond(Operators.isEmpty(holderFilter), List.of(holderData), Collections.EMPTY_LIST))))), Operators.filter(reactionsFilter, Operators.ne("$$this.emote." + (emoji ? "name" : "id"), emoji ? emote.getEmoji() : emote.getEmote().getIdLong())))))));
+				update = List.of(Operators.set("reactionRole.reactionRoles", Operators.cond(Operators.or(Operators.isEmpty(reactionRoleFilter), Operators.isEmpty(reaction)), "$reactionRole.reactionRoles", result)));
+			} else {
+				Bson result = Operators.concatArrays(Operators.filter("$reactionRole.reactionRoles", Operators.ne("$$this.id", messageId)), List.of(Operators.mergeObjects(Operators.first(reactionRoleFilter), new Document("reactions", Operators.map(reactionsFilter, Operators.mergeObjects("$$this", new Document("whitelist", Operators.concatArrays(Operators.ifNull("$$this.whitelist", Collections.EMPTY_LIST), Operators.cond(Operators.isEmpty(Operators.filter(Operators.ifNull("$$this.whitelist", Collections.EMPTY_LIST), Operators.eq("$$this.id", holder.getIdLong()))), List.of(holderData), Collections.EMPTY_LIST)))))))));
+				update = List.of(Operators.set("reactionRole.reactionRoles", Operators.cond(Operators.isEmpty(reactionRoleFilter), "$reactionRole.reactionRoles", result)));
+			}
+
+			FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().projection(Projections.include("reactionRole.reactionRoles")).returnDocument(ReturnDocument.BEFORE);
+			this.database.findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
+				if (ExceptionUtility.sendExceptionally(event, exception)) {
+					return;
+				}
+
+				data = data == null ? Database.EMPTY_DOCUMENT : data;
+
+				List<Document> reactionRoles = data.getEmbedded(List.of("reactionRole", "reactionRoles"), Collections.emptyList());
+				Document reactionRole = reactionRoles.stream()
+					.filter(d -> d.get("id", 0L) == messageId)
+					.findFirst()
+					.orElse(null);
+
+				if (reactionRole == null) {
+					event.reply("There was no reaction role on that message " + this.config.getFailureEmote()).queue();
+					return;
+				}
+
+				if (emote != null) {
+					List<Document> reactions = reactionRole.getList("reactions", Document.class, Collections.emptyList());
+					Document reaction = reactions.stream()
+						.filter(ReactionRoleCommand.getReactionFilter(emote))
+						.findFirst()
+						.orElse(null);
+
+					if (reaction == null) {
+						event.reply("You do not have that reaction on that reaction role " + this.config.getFailureEmote()).queue();
+						return;
+					}
+				}
+
+				event.reply((role ? ((Role) holder).getAsMention() : ((Member) holder).getAsMention()) + " is now whitelisted from " + (emote == null ? "all reactions" : "the " + (emote.isEmoji() ? emote.getEmoji() : emote.getEmote().getAsMention()) + " reaction") + " on that reaction role " + this.config.getSuccessEmote()).queue();
+			});
+		}
+
+		@Command(value="remove", description="Removes a whitelist from a user or role")
+		@Examples({"reaction role whitelist remove 643945552865919002 🐝 @Shea#6653", "reaction role whitelist remove 643945552865919002 :doggo: @Role", "reaction role whitelist remove 643945552865919002 @Role"})
+		@AuthorPermissions(permissions={Permission.MANAGE_ROLES})
+		public void remove(Sx4CommandEvent event, @Argument(value="message id") MessageArgument messageArgument, @Argument(value="emote", nullDefault=true) ReactionEmote emote, @Argument(value="user | role", endless=true)IPermissionHolder holder) {
+			long messageId = messageArgument.getMessageId();
+			boolean role = holder instanceof Role;
+
+			Document holderData = new Document("id", holder.getIdLong())
+				.append("type", role ? HolderType.ROLE.getType() : HolderType.USER.getType());
+
+			Bson reactionRoleFilter = Operators.filter("$reactionRole.reactionRoles", Operators.eq("$$this.id", messageId));
+			Bson reactionsFilter = Operators.first(Operators.map(reactionRoleFilter, "$$this.reactions"));
+
+			List<Bson> update;
+			if (emote != null) {
+				boolean emoji = emote.isEmoji();
+
+				Bson reaction = Operators.filter(reactionsFilter, Operators.eq("$$this.emote." + (emoji ? "name" : "id"), emoji ? emote.getEmoji() : emote.getEmote().getIdLong()));
+				Bson whitelist = Operators.ifNull(Operators.first(Operators.map(reaction, "$$this.whitelist")), Collections.EMPTY_LIST);
+
+				Bson result = Operators.concatArrays(Operators.filter("$reactionRole.reactionRoles", Operators.ne("$$this.id", messageId)), List.of(Operators.mergeObjects(Operators.first(reactionRoleFilter), new Document("reactions", Operators.concatArrays(List.of(Operators.mergeObjects(Operators.first(reaction), new Document("whitelist", Operators.filter(whitelist, Operators.ne("$$this.id", holder.getIdLong()))))), Operators.filter(reactionsFilter, Operators.ne("$$this.emote." + (emoji ? "name" : "id"), emoji ? emote.getEmoji() : emote.getEmote().getIdLong())))))));
+				update = List.of(Operators.set("reactionRole.reactionRoles", Operators.cond(Operators.or(Operators.isEmpty(reactionRoleFilter), Operators.isEmpty(reaction)), "$reactionRole.reactionRoles", result)));
+			} else {
+				Bson result = Operators.concatArrays(Operators.filter("$reactionRole.reactionRoles", Operators.ne("$$this.id", messageId)), List.of(Operators.mergeObjects(Operators.first(reactionRoleFilter), new Document("reactions", Operators.map(reactionsFilter, Operators.mergeObjects("$$this", new Document("whitelist", Operators.filter("$$this.whitelist", Operators.ne("$$this.id", holder.getIdLong())))))))));
+				update = List.of(Operators.set("reactionRole.reactionRoles", Operators.cond(Operators.isEmpty(reactionRoleFilter), "$reactionRole.reactionRoles", result)));
+			}
+
+			FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().projection(Projections.include("reactionRole.reactionRoles")).returnDocument(ReturnDocument.BEFORE);
+			this.database.findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
+				if (ExceptionUtility.sendExceptionally(event, exception)) {
+					return;
+				}
+
+				data = data == null ? Database.EMPTY_DOCUMENT : data;
+
+				List<Document> reactionRoles = data.getEmbedded(List.of("reactionRole", "reactionRoles"), Collections.emptyList());
+				Document reactionRole = reactionRoles.stream()
+					.filter(d -> d.get("id", 0L) == messageId)
+					.findFirst()
+					.orElse(null);
+
+				if (reactionRole == null) {
+					event.reply("There was no reaction role on that message " + this.config.getFailureEmote()).queue();
+					return;
+				}
+
+				if (emote != null) {
+					List<Document> reactions = reactionRole.getList("reactions", Document.class, Collections.emptyList());
+					Document reaction = reactions.stream()
+						.filter(ReactionRoleCommand.getReactionFilter(emote))
+						.findFirst()
+						.orElse(null);
+
+					if (reaction == null) {
+						event.reply("You do not have that reaction on that reaction role " + this.config.getFailureEmote()).queue();
+						return;
+					}
+
+					List<Document> whitelists = reaction.getList("whitelist", Document.class, Collections.emptyList());
+					if (whitelists.stream().noneMatch(d -> d.get("id", 0L) == holder.getIdLong())) {
+						event.reply("That " + (role ? "role" : "user") + " is not whitelisted from that reaction " + this.config.getFailureEmote()).queue();
+						return;
+					}
+				}
+
+				event.reply((role ? ((Role) holder).getAsMention() : ((Member) holder).getAsMention()) + " is no longer whitelisted from " + (emote == null ? "any reactions" : "the " + (emote.isEmoji() ? emote.getEmoji() : emote.getEmote().getAsMention()) + " reaction") + " on that reaction role " + this.config.getSuccessEmote()).queue();
+			});
+		}
+
+		@Command(value="delete", description="Deletes a whitelist for a reaction or all reactions")
+		@Examples({"reaction role whitelist delete 643945552865919002 :doggo:", "reaction role whitelist delete 643945552865919002"})
+		@AuthorPermissions(permissions={Permission.MANAGE_ROLES})
+		public void delete(Sx4CommandEvent event, @Argument(value="message id") MessageArgument messageArgument, @Argument(value="emote", nullDefault=true) ReactionEmote emote) {
+			long messageId = messageArgument.getMessageId();
+
+			Bson reactionRoleFilter = Operators.filter("$reactionRole.reactionRoles", Operators.eq("$$this.id", messageId));
+			Bson reactionsFilter = Operators.first(Operators.map(reactionRoleFilter, "$$this.reactions"));
+
+			List<Bson> update;
+			if (emote != null) {
+				boolean emoji = emote.isEmoji();
+
+				Bson reaction = Operators.filter(reactionsFilter, Operators.eq("$$this.emote." + (emoji ? "name" : "id"), emoji ? emote.getEmoji() : emote.getEmote().getIdLong()));
+
+				Bson result = Operators.concatArrays(Operators.filter("$reactionRole.reactionRoles", Operators.ne("$$this.id", messageId)), List.of(Operators.mergeObjects(Operators.first(reactionRoleFilter), new Document("reactions", Operators.concatArrays(List.of(Operators.mergeObjects(Operators.first(reaction), new Document("whitelist", Collections.EMPTY_LIST))), Operators.filter(reactionsFilter, Operators.ne("$$this.emote." + (emoji ? "name" : "id"), emoji ? emote.getEmoji() : emote.getEmote().getIdLong())))))));
+				update = List.of(Operators.set("reactionRole.reactionRoles", Operators.cond(Operators.or(Operators.isEmpty(reactionRoleFilter), Operators.isEmpty(reaction)), "$reactionRole.reactionRoles", result)));
+			} else {
+				Bson result = Operators.concatArrays(Operators.filter("$reactionRole.reactionRoles", Operators.ne("$$this.id", messageId)), List.of(Operators.mergeObjects(Operators.first(reactionRoleFilter), new Document("reactions", Operators.map(reactionsFilter, Operators.mergeObjects("$$this", new Document("whitelist", Collections.EMPTY_LIST)))))));
+				update = List.of(Operators.set("reactionRole.reactionRoles", Operators.cond(Operators.isEmpty(reactionRoleFilter), "$reactionRole.reactionRoles", result)));
+			}
+
+			FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().projection(Projections.include("reactionRole.reactionRoles")).returnDocument(ReturnDocument.BEFORE);
+			this.database.findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
+				if (ExceptionUtility.sendExceptionally(event, exception)) {
+					return;
+				}
+
+				data = data == null ? Database.EMPTY_DOCUMENT : data;
+
+				List<Document> reactionRoles = data.getEmbedded(List.of("reactionRole", "reactionRoles"), Collections.emptyList());
+				Document reactionRole = reactionRoles.stream()
+					.filter(d -> d.get("id", 0L) == messageId)
+					.findFirst()
+					.orElse(null);
+
+				if (reactionRole == null) {
+					event.reply("There was no reaction role on that message " + this.config.getFailureEmote()).queue();
+					return;
+				}
+
+				if (emote != null) {
+					List<Document> reactions = reactionRole.getList("reactions", Document.class, Collections.emptyList());
+					Document reaction = reactions.stream()
+						.filter(ReactionRoleCommand.getReactionFilter(emote))
+						.findFirst()
+						.orElse(null);
+
+					if (reaction == null) {
+						event.reply("You do not have that reaction on that reaction role " + this.config.getFailureEmote()).queue();
+						return;
+					}
+
+					List<Document> whitelists = reaction.getList("whitelist", Document.class, Collections.emptyList());
+					if (whitelists.isEmpty()) {
+						event.reply("That reaction does not have any whitelists " + this.config.getFailureEmote()).queue();
+						return;
+					}
+				}
+
+				event.reply("There are no longer any whitelists on " + (emote == null ? "any reactions" : "the " + (emote.isEmoji() ? emote.getEmoji() : emote.getEmote().getAsMention()) + " reaction") + " on that reaction role " + this.config.getSuccessEmote()).queue();
+			});
+		}
+
 	}
 	
 }

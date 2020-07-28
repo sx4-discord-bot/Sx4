@@ -124,6 +124,7 @@ public class Sx4 {
 			eventManager.register(new GuildMessageCache());
 			eventManager.register(new ConnectionHandler());
 			eventManager.register(new ReactionRoleHandler());
+			eventManager.register(new AntiRegexHandler());
 			
 			return DefaultShardManagerBuilder.create(this.config.getToken(), GatewayIntent.getIntents(6094))
 				.setBulkDeleteSplittingEnabled(false)
@@ -524,8 +525,6 @@ public class Sx4 {
 	}
 	
 	public static void main(String[] args) {
-		Sx4.get();
-		
 		//Main.initiateWebserver();
 		
 		Thread.setDefaultUncaughtExceptionHandler((thread, exception) -> {

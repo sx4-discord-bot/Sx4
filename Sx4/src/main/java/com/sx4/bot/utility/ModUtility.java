@@ -57,6 +57,10 @@ public class ModUtility {
 			return CompletableFuture.failedFuture(new MaxRolesException("The guild has the max roles possible (250) so I was unable to make the mute role"));
 		}
 
+		if (!selfMember.hasPermission(Permission.MANAGE_ROLES)) {
+			return CompletableFuture.failedFuture(new BotPermissionException(Permission.MANAGE_ROLES));
+		}
+
 		CompletableFuture<Role> future = new CompletableFuture<>();
 		guild.createRole().setName("Muted - " + selfMember.getUser().getName()).queue(newRole -> {
 			Database.get().updateGuildById(guild.getIdLong(), Updates.set("mute.roleId", newRole.getIdLong())).whenComplete((result, exception) -> {

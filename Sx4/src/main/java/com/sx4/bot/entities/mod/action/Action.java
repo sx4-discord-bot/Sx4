@@ -16,6 +16,10 @@ public class Action {
 	public ModAction getModAction() {
 		return this.action;
 	}
+
+	public String getName() {
+		return this.action.getName();
+	}
 	
 	public String toString() {
 		Action action;
@@ -36,12 +40,11 @@ public class Action {
 			action.append("warning", ((WarnAction) this).getWarning().toData());
 		}
 
-		return new Document("action", action);
+		return action;
 	}
 	
-	public static Action fromData(Document data) {
-		Document action = data.get("action", Document.class);
-		ModAction modAction = ModAction.getFromType(action.getInteger("type"));
+	public static Action fromData(Document action) {
+		ModAction modAction = ModAction.fromType(action.getInteger("type"));
 		
 		if (action.containsKey("duration")) {
 			return new TimeAction(modAction, action.getLong("duration"));

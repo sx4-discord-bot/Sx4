@@ -42,7 +42,7 @@ public class ModLog {
 		String reason = data.getString("reason");
 		this.reason = reason == null ? null : new Reason(reason);
 		
-		this.action = Action.fromData(data);
+		this.action = Action.fromData(data.get("action", Document.class));
 	}
 	
 	public ModLog(ObjectId id, long messageId, long channelId, long guildId, long targetId, long moderatorId, Reason reason, Action action) {
@@ -141,14 +141,14 @@ public class ModLog {
 	}
 	
 	public Document toData() {
-		return this.action.toData()
-			.append("_id", this.id)
+		return new Document("_id", this.id)
 			.append("guildId", this.guildId)
 			.append("channelId", this.channelId)
 			.append("targetId", this.targetId)
 			.append("messageId", this.messageId)
 			.append("moderatorId", this.moderatorId)
-			.append("reason", this.reason == null ? null : this.reason.getParsed());
+			.append("reason", this.reason == null ? null : this.reason.getParsed())
+			.append("action", this.action.toData());
 	}
 	
 }

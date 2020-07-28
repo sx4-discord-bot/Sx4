@@ -7,8 +7,11 @@ import java.util.Map;
 
 public class AntiRegexManager {
 
-    public static final String DEFAULT_MESSAGE = "{user.mention}, you cannot send that content here due to the regex {regex.id}"
+    public static final String DEFAULT_MATCH_MESSAGE = "{user.mention}, you cannot send that content here due to the regex {regex.id}"
         + "{regex.action.exists?, you will receive a {regex.action} if you continue **({regex.attempts.current}/{regex.attempts.max})**} :no_entry:";
+
+    // TODO
+    public static final String DEFAULT_MOD_MESSAGE = "**{user.tag}** has received a {action.name} for sending a message which matched the regex `{regex.id}` too many times <:done:403285928233402378>";
 
     private static final AntiRegexManager INSTANCE = new AntiRegexManager();
 
@@ -16,7 +19,7 @@ public class AntiRegexManager {
         return AntiRegexManager.INSTANCE;
     }
 
-    // TODO has to be linked per anti regex, would also be nice for a way to combine attempts across multiple anti regexes
+    // TODO Would also be nice for a way to combine attempts across multiple anti regexes
     private final Map<Long, Map<ObjectId, Map<Long, Integer>>> attempts;
 
     private AntiRegexManager() {
@@ -28,7 +31,7 @@ public class AntiRegexManager {
         if (regexAttempts != null) {
             Map<Long, Integer> userAttempts = regexAttempts.get(id);
             if (userAttempts != null) {
-                return userAttempts.get(userId);
+                return userAttempts.getOrDefault(userId, 0);
             }
         }
 

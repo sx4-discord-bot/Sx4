@@ -1,29 +1,18 @@
 package com.sx4.bot.managers;
 
+import com.mongodb.client.model.*;
+import com.sx4.bot.database.Database;
+import com.sx4.bot.entities.reminder.Reminder;
+import net.dv8tion.jda.api.entities.User;
+import org.bson.Document;
+import org.bson.types.ObjectId;
+
 import java.time.Clock;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-
-import org.bson.Document;
-import org.bson.types.ObjectId;
-
-import com.mongodb.client.model.Filters;
-import com.mongodb.client.model.Projections;
-import com.mongodb.client.model.UpdateOneModel;
-import com.mongodb.client.model.UpdateOptions;
-import com.mongodb.client.model.Updates;
-import com.mongodb.client.model.WriteModel;
-import com.sx4.bot.database.Database;
-import com.sx4.bot.entities.reminder.Reminder;
-
-import net.dv8tion.jda.api.entities.User;
 
 public class ReminderManager {
 	
@@ -110,7 +99,7 @@ public class ReminderManager {
 	}
 	
 	public void executeReminder(Reminder reminder) {
-		Database.get().updateUser(this.executeReminderBulk(reminder)).whenComplete(Database.DEFAULT_UPDATE_HANDLER);
+		Database.get().updateUser(this.executeReminderBulk(reminder)).whenComplete(Database.defaultHandler());
 	}
 	
 	public UpdateOneModel<Document> executeReminderBulk(Reminder reminder) {
@@ -159,7 +148,7 @@ public class ReminderManager {
 		});
 		
 		if (!bulkData.isEmpty()) {
-			database.bulkWriteUsers(bulkData).whenComplete(Database.DEFAULT_BULK_HANDLER);
+			database.bulkWriteUsers(bulkData).whenComplete(Database.defaultHandler());
 		}
 	}
 	

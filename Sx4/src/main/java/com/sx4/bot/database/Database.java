@@ -1,5 +1,6 @@
 package com.sx4.bot.database;
 
+import com.jockie.bot.core.command.impl.CommandEvent;
 import com.mongodb.MongoClientSettings;
 import com.mongodb.bulk.BulkWriteResult;
 import com.mongodb.client.*;
@@ -20,10 +21,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 
 public class Database {
-	
-	public static final BiConsumer<BulkWriteResult, Throwable> DEFAULT_BULK_HANDLER = (result, exception) -> ExceptionUtility.sendErrorMessage(exception);
-	
-	public static final BiConsumer<UpdateResult, Throwable> DEFAULT_UPDATE_HANDLER = (result, exception) -> ExceptionUtility.sendErrorMessage(exception);
 	
 	public static final Document EMPTY_DOCUMENT = new Document();
 
@@ -711,6 +708,14 @@ public class Database {
 	
 	public CompletableFuture<FindIterable<Document>> getOffences(Bson filter) {
 		return CompletableFuture.supplyAsync(() -> this.offences.find(filter));
+	}
+
+	public static <Type> BiConsumer<Type, Throwable> defaultHandler() {
+		return ($, exception) -> ExceptionUtility.sendErrorMessage(exception);
+	}
+
+	public static <Type> BiConsumer<Type, Throwable> defaultHandler(CommandEvent event) {
+		return ($, exception) -> ExceptionUtility.sendExceptionally(event, exception);
 	}
 	
 }

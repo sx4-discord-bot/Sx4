@@ -5,6 +5,7 @@ import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.Updates;
 import com.sx4.bot.config.Config;
 import com.sx4.bot.database.Database;
+import com.sx4.bot.entities.settings.HolderType;
 import com.sx4.bot.utility.ExceptionUtility;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Guild;
@@ -57,7 +58,8 @@ public class ReactionRoleHandler extends ListenerAdapter {
 		
 		int reactedTo = 0;
 		boolean remove = false;
-		
+		List<Document> whitelists = Collections.emptyList();
+
 		Set<Role> memberRoles = new HashSet<>(event.getMember().getRoles());
 		List<Role> roles = null;
 		for (Document data : reactionRole.getList("reactions", Document.class)) {
@@ -76,11 +78,13 @@ public class ReactionRoleHandler extends ListenerAdapter {
 			if (emote.isEmoji()) {
 				if (emoteData.containsKey("name") && emoteData.getString("name").equals(emote.getEmoji())) {
 					roles = rolesData;
+					whitelists = data.getList("whitelist", Document.class, Collections.emptyList());
 					remove = removeData;
 				}
 			} else {
 				if (emoteData.get("id", 0L) == emote.getEmote().getIdLong()) {
 					roles = rolesData;
+					whitelists = data.getList("whitelist", Document.class, Collections.emptyList());
 					remove = removeData;
 				}
 			}
@@ -89,8 +93,33 @@ public class ReactionRoleHandler extends ListenerAdapter {
 		if (roles == null || roles.isEmpty()) {
 			return;
 		}
+
+		if (!remove) {
+			for (int i = 0; i < whitelists.size(); i++) {
+				Document whitelist = whitelists.get(i);
+
+				long holderId = whitelist.get("id", 0L);
+				if (whitelist.get("type", 0) == HolderType.USER.getType()) {
+					if (holderId == user.getIdLong()) {
+						break;
+					}
+				} else {
+					if (memberRoles.stream().anyMatch(role -> role.getIdLong() == holderId)) {
+						break;
+					}
+				}
+
+				if (i == whitelists.size() - 1) {
+					user.openPrivateChannel()
+						.flatMap(channel -> channel.sendMessage("You are not whitelisted to be able to get the roles behind this reaction  " + config.getFailureEmote()))
+						.queue(null, ErrorResponseException.ignore(ErrorResponse.CANNOT_SEND_TO_USER));
+
+					return;
+				}
+			}
+		}
 		
-		int maxReactions = reactionRole.getInteger("maxReactions", 0);
+		int maxReactions = reactionRole.get("maxReactions", 0);
 		if (reactedTo >= maxReactions && maxReactions != 0) {
 			user.openPrivateChannel()
 				.flatMap(channel -> channel.sendMessage("You can only react to **" + maxReactions + "** reaction" + (maxReactions == 1 ? "" : "s") + " on this message " + config.getFailureEmote()))
