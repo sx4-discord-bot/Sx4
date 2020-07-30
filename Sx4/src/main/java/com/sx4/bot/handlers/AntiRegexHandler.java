@@ -9,7 +9,7 @@ import com.sx4.bot.entities.mod.Reason;
 import com.sx4.bot.entities.mod.action.Action;
 import com.sx4.bot.entities.mod.auto.MatchAction;
 import com.sx4.bot.entities.settings.HolderType;
-import com.sx4.bot.antlr.Formatter;
+import com.sx4.bot.formatter.Formatter;
 import com.sx4.bot.managers.AntiRegexManager;
 import com.sx4.bot.managers.ModActionManager;
 import com.sx4.bot.utility.ExceptionUtility;
