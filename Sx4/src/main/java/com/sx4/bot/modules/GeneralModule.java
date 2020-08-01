@@ -1,41 +1,9 @@
 package com.sx4.bot.modules;
 
-import java.awt.Color;
-import java.io.IOException;
-import java.lang.management.ManagementFactory;
-import java.time.Clock;
-import java.time.ZonedDateTime;
-import java.time.format.DateTimeFormatter;
-import java.time.temporal.ChronoUnit;
-import java.time.zone.ZoneRulesException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.EnumSet;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.stream.Collector;
-import java.util.stream.Collectors;
-
-import org.bson.Document;
-import org.bson.conversions.Bson;
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
-
 import com.jockie.bot.core.JockieUtils;
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
-import com.jockie.bot.core.command.Command.Async;
-import com.jockie.bot.core.command.Command.AuthorPermissions;
-import com.jockie.bot.core.command.Command.BotPermissions;
-import com.jockie.bot.core.command.Command.Cooldown;
-import com.jockie.bot.core.command.Command.Developer;
+import com.jockie.bot.core.command.Command.*;
 import com.jockie.bot.core.command.Context;
 import com.jockie.bot.core.command.ICommand.ContentOverflowPolicy;
 import com.jockie.bot.core.command.Initialize;
@@ -44,14 +12,7 @@ import com.jockie.bot.core.command.impl.CommandImpl;
 import com.jockie.bot.core.module.Module;
 import com.jockie.bot.core.option.Option;
 import com.mongodb.client.AggregateIterable;
-import com.mongodb.client.model.Accumulators;
-import com.mongodb.client.model.Aggregates;
-import com.mongodb.client.model.BsonField;
-import com.mongodb.client.model.Filters;
-import com.mongodb.client.model.Projections;
-import com.mongodb.client.model.Sorts;
-import com.mongodb.client.model.UpdateOptions;
-import com.mongodb.client.model.Updates;
+import com.mongodb.client.model.*;
 import com.sun.management.OperatingSystemMXBean;
 import com.sx4.bot.cache.ChangesMessageCache;
 import com.sx4.bot.categories.Categories;
@@ -66,44 +27,42 @@ import com.sx4.bot.events.StatsEvents;
 import com.sx4.bot.interfaces.Examples;
 import com.sx4.bot.interfaces.Sx4Callback;
 import com.sx4.bot.settings.Settings;
-import com.sx4.bot.utils.ArgumentUtils;
-import com.sx4.bot.utils.GeneralUtils;
-import com.sx4.bot.utils.HelpUtils;
-import com.sx4.bot.utils.PagedUtils;
+import com.sx4.bot.utils.*;
 import com.sx4.bot.utils.PagedUtils.PagedResult;
-import com.sx4.bot.utils.TimeUtils;
-import com.sx4.bot.utils.TokenUtils;
-
-import net.dv8tion.jda.api.EmbedBuilder;
-import net.dv8tion.jda.api.JDA;
+import net.dv8tion.jda.api.*;
 import net.dv8tion.jda.api.JDA.ShardInfo;
-import net.dv8tion.jda.api.JDAInfo;
-import net.dv8tion.jda.api.OnlineStatus;
-import net.dv8tion.jda.api.Permission;
-import net.dv8tion.jda.api.entities.Activity;
+import net.dv8tion.jda.api.entities.*;
 import net.dv8tion.jda.api.entities.Activity.ActivityType;
-import net.dv8tion.jda.api.entities.Category;
-import net.dv8tion.jda.api.entities.ChannelType;
-import net.dv8tion.jda.api.entities.ClientType;
-import net.dv8tion.jda.api.entities.Emote;
-import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Guild.ExplicitContentLevel;
-import net.dv8tion.jda.api.entities.GuildChannel;
-import net.dv8tion.jda.api.entities.IPermissionHolder;
-import net.dv8tion.jda.api.entities.Invite;
-import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Message.Attachment;
-import net.dv8tion.jda.api.entities.MessageEmbed;
-import net.dv8tion.jda.api.entities.RichPresence;
-import net.dv8tion.jda.api.entities.Role;
-import net.dv8tion.jda.api.entities.TextChannel;
-import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.User.UserFlag;
-import net.dv8tion.jda.api.entities.VoiceChannel;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.internal.utils.tuple.Pair;
 import okhttp3.Request;
+import org.bson.Document;
+import org.bson.conversions.Bson;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.awt.*;
+import java.io.IOException;
+import java.lang.management.ManagementFactory;
+import java.time.Clock;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
+import java.time.zone.ZoneRulesException;
+import java.util.List;
+import java.util.*;
+import java.util.Map.Entry;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collector;
+import java.util.stream.Collectors;
 
 @Module
 public class GeneralModule {
@@ -148,7 +107,7 @@ public class GeneralModule {
 		
 		@Command(value="add", description="Add a reminder so that the bot can remind you about it rather than you having to remember", argumentInfo="<reminder> in <time>\nreminder add <reminder> at <date>")
 		@Examples({"reminder add Football game in 4 hours", "reminder add Party at 01/07/20 15:00 UTC+1", "reminder add Finish coursework at 12:00", "reminder add fish in 5 minutes --repeat"})
-		public void add(CommandEvent event, @Context Database database, @Argument(value="reminder", endless=true) String reminder, @Option(value="repeat", aliases={"reoccur"}, description="Repeats your reminder so once it finishes it recreates one for you") boolean repeat) {
+		public void add(CommandEvent event, @Context Database database, @Argument(value="reminder", endless=true) String reminder, @Option(value="repeat", /*aliases={"reoccur"},*/ description="Repeats your reminder so once it finishes it recreates one for you") boolean repeat) {
 			Matcher timeRegex = this.reminderTimeRegex.matcher(reminder);
 			Matcher dateRegex = this.reminderDateRegex.matcher(reminder);
 			String reminderName;
@@ -950,7 +909,7 @@ public class GeneralModule {
 	
 	@Command(value="usage", description="Shows you how much a specific command has been used on Sx4")
 	@Examples({"usage fish", "usage ship --server=330399610273136641", "usage ban --channel=#general", "usage userinfo --server=330399610273136641 --user=Shea#6653"})
-	public void usage(CommandEvent event, @Context Database database, @Argument(value="command name", endless=true) String commandName, @Option(value="server", aliases={"guild"}, description="Provide a server name or id to filter the usage by") String guildArgument, @Option(value="user", description="Provide a user name, tag, mention or id to filter the usage by") String userArgument, @Option(value="channel", description="Provide a channel name, mention or id to filter the usage by") String channelArgument) {
+	public void usage(CommandEvent event, @Context Database database, @Argument(value="command name", endless=true) String commandName, @Option(value="server", /*aliases={"guild"},*/ description="Provide a server name or id to filter the usage by") String guildArgument, @Option(value="user", description="Provide a user name, tag, mention or id to filter the usage by") String userArgument, @Option(value="channel", description="Provide a channel name, mention or id to filter the usage by") String channelArgument) {
 		Sx4Command command = ArgumentUtils.getCommand(commandName);
 		if (command == null) {
 			event.reply("I could not find that command :no_entry:").queue();
@@ -1003,7 +962,7 @@ public class GeneralModule {
 		@Examples({"command stats all", "command stats all --server=330399610273136641", "command stats all --channel=#general", "command stats all --server=330399610273136641 --user=Shea#6653"})
 		@Async
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-		public void all(CommandEvent event, @Context Database database, @Option(value="server", aliases={"guild"}, description="Provide a server name or id to filter the usage by") String guildArgument, @Option(value="user", description="Provide a user name, tag, mention or id to filter the usage by") String userArgument, @Option(value="channel", description="Provide a channel name, mention or id to filter the usage by") String channelArgument, @Option(value="from", description="Choose when the data should start at in epoch seconds") String from, @Option(value="to", description="Choose when the data should end at in epoch seconds") String to) {
+		public void all(CommandEvent event, @Context Database database, @Option(value="server", /*aliases={"guild"},*/ description="Provide a server name or id to filter the usage by") String guildArgument, @Option(value="user", description="Provide a user name, tag, mention or id to filter the usage by") String userArgument, @Option(value="channel", description="Provide a channel name, mention or id to filter the usage by") String channelArgument, @Option(value="from", description="Choose when the data should start at in epoch seconds") String from, @Option(value="to", description="Choose when the data should end at in epoch seconds") String to) {
 			List<Bson> filters = new ArrayList<>(), projections = new ArrayList<>();
 			if (guildArgument != null) {
 				Guild guild = ArgumentUtils.getGuild(guildArgument);
@@ -1161,7 +1120,7 @@ public class GeneralModule {
 		@Examples({"command stats users", "command stats users --command=ship", "command stats users --channel=#general", "command stats users --command=fish --server=330399610273136641"})
 		@Async
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-		public void users(CommandEvent event, @Context Database database, @Option(value="command", description="Provide a command name to filter the usage by") String commandArgument, @Option(value="server", aliases={"guild"}, description="Provide a server name or id to filter the usage by") String guildArgument, @Option(value="channel", description="Provide a channel name, mention or id to filter the usage by") String channelArgument, @Option(value="from", description="Choose when the data should start at in epoch seconds") String from, @Option(value="to", description="Choose when the data should end at in epoch seconds") String to) {
+		public void users(CommandEvent event, @Context Database database, @Option(value="command", description="Provide a command name to filter the usage by") String commandArgument, @Option(value="server", /*aliases={"guild"},*/ description="Provide a server name or id to filter the usage by") String guildArgument, @Option(value="channel", description="Provide a channel name, mention or id to filter the usage by") String channelArgument, @Option(value="from", description="Choose when the data should start at in epoch seconds") String from, @Option(value="to", description="Choose when the data should end at in epoch seconds") String to) {
 			List<Bson> filters = new ArrayList<>(), projections = new ArrayList<>();
 			if (commandArgument != null) {
 				Sx4Command command = ArgumentUtils.getCommand(commandArgument, false, true, true);

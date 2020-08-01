@@ -1,10 +1,5 @@
 package com.sx4.bot.modules;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import org.json.JSONObject;
-
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.category.impl.CategoryImpl;
 import com.jockie.bot.core.command.Command;
@@ -24,10 +19,13 @@ import com.sx4.bot.utils.GeneralUtils;
 import com.sx4.bot.utils.HelpUtils;
 import com.sx4.bot.utils.PagedUtils;
 import com.sx4.bot.utils.PagedUtils.PagedResult;
-
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.internal.utils.tuple.Pair;
+import org.json.JSONObject;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Module
 public class HelpModule {
@@ -41,7 +39,7 @@ public class HelpModule {
 	@Command(value="help", aliases={"h", "commands", "commandlist", "command list"}, description="Lists commands on the bot and gives you info on specific commands")
 	@Examples({"help", "help logs", "help --all", "help logs --command"})
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-	public void help(CommandEvent event, @Argument(value="command | module", endless=true, nullDefault=true) String commandArgument, @Option(value="all", aliases={"a"}, description="Shows every command on the bot") boolean all, @Option(value="module", description="Filters your query to only search for modules") boolean moduleChoice, @Option(value="command", description="Filters your query to only search for commands") boolean commandChoice) {
+	public void help(CommandEvent event, @Argument(value="command | module", endless=true, nullDefault=true) String commandArgument, @Option(value="all", /*aliases={"a"},*/ description="Shows every command on the bot") boolean all, @Option(value="module", description="Filters your query to only search for modules") boolean moduleChoice, @Option(value="command", description="Filters your query to only search for commands") boolean commandChoice) {
 		Pair<String, Integer> commandAndPage = HelpUtils.getArgumentAndPage(commandArgument);
 		String commandName = commandAndPage.getLeft();
 		int page = commandAndPage.getRight();

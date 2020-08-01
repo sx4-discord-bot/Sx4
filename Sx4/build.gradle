@@ -1,5 +1,7 @@
 plugins {
 	id 'java'
+	id 'application'
+	id 'com.github.johnrengelman.shadow' version '6.0.0'
 }
 
 repositories {
@@ -7,6 +9,10 @@ repositories {
 	
 	jcenter()
 }
+
+mainClassName = 'com.sx4.bot.core.Sx4Bot'
+
+compileJava.options.encoding = 'UTF-8'
 
 dependencies {
 	implementation('com.github.21Joakim:Jockie-Utils:jda-v4-SNAPSHOT') {

@@ -1,32 +1,5 @@
 package com.sx4.bot.modules;
 
-import java.math.BigInteger;
-import java.time.Clock;
-import java.time.DayOfWeek;
-import java.time.LocalDateTime;
-import java.time.Month;
-import java.time.ZoneOffset;
-import java.time.ZonedDateTime;
-import java.time.format.TextStyle;
-import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Random;
-import java.util.Set;
-import java.util.concurrent.TimeUnit;
-
-import org.bson.Document;
-import org.bson.conversions.Bson;
-import org.json.JSONArray;
-import org.json.JSONObject;
-
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
 import com.jockie.bot.core.command.Command.Async;
@@ -40,12 +13,7 @@ import com.jockie.bot.core.command.impl.CommandImpl;
 import com.jockie.bot.core.module.Module;
 import com.jockie.bot.core.option.Option;
 import com.mongodb.client.FindIterable;
-import com.mongodb.client.model.Filters;
-import com.mongodb.client.model.Projections;
-import com.mongodb.client.model.UpdateOneModel;
-import com.mongodb.client.model.UpdateOptions;
-import com.mongodb.client.model.Updates;
-import com.mongodb.client.model.WriteModel;
+import com.mongodb.client.model.*;
 import com.sx4.bot.categories.Categories;
 import com.sx4.bot.core.Sx4Bot;
 import com.sx4.bot.core.Sx4Command;
@@ -54,11 +22,7 @@ import com.sx4.bot.database.Database;
 import com.sx4.bot.economy.AuctionItem;
 import com.sx4.bot.economy.Item;
 import com.sx4.bot.economy.ItemStack;
-import com.sx4.bot.economy.items.Booster;
-import com.sx4.bot.economy.items.Crate;
-import com.sx4.bot.economy.items.Envelope;
-import com.sx4.bot.economy.items.Factory;
-import com.sx4.bot.economy.items.Miner;
+import com.sx4.bot.economy.items.*;
 import com.sx4.bot.economy.materials.Material;
 import com.sx4.bot.economy.materials.Wood;
 import com.sx4.bot.economy.tools.Axe;
@@ -72,16 +36,9 @@ import com.sx4.bot.interfaces.Canary;
 import com.sx4.bot.interfaces.Examples;
 import com.sx4.bot.interfaces.Sx4Callback;
 import com.sx4.bot.settings.Settings;
-import com.sx4.bot.utils.ArgumentUtils;
-import com.sx4.bot.utils.EconomyUtils;
+import com.sx4.bot.utils.*;
 import com.sx4.bot.utils.EconomyUtils.Slot;
-import com.sx4.bot.utils.GeneralUtils;
-import com.sx4.bot.utils.HelpUtils;
-import com.sx4.bot.utils.PagedUtils;
 import com.sx4.bot.utils.PagedUtils.PagedResult;
-import com.sx4.bot.utils.TimeUtils;
-import com.sx4.bot.utils.TokenUtils;
-
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.MessageBuilder;
 import net.dv8tion.jda.api.Permission;
@@ -90,6 +47,18 @@ import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.utils.cache.SnowflakeCacheView;
 import net.dv8tion.jda.internal.utils.tuple.Pair;
 import okhttp3.Request;
+import org.bson.Document;
+import org.bson.conversions.Bson;
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+import java.math.BigInteger;
+import java.time.*;
+import java.time.format.TextStyle;
+import java.time.temporal.ChronoUnit;
+import java.util.*;
+import java.util.Map.Entry;
+import java.util.concurrent.TimeUnit;
 
 @Module
 public class EconomyModule {
@@ -575,9 +544,9 @@ public class EconomyModule {
 				long authorMoney = authorTrade.getLeft();
 				List<ItemStack<Item>> authorItems = authorTrade.getRight();
 				
-				String authorItemsContent = "";
+				StringBuilder authorItemsContent = new StringBuilder();
 				for (ItemStack<Item> itemStack : authorItems) {
-					authorItemsContent += String.format("%s x%,d\n", itemStack.getItem().getName(), itemStack.getAmount());
+					authorItemsContent.append(String.format("%s x%,d\n", itemStack.getItem().getName(), itemStack.getAmount()));
 				}
 				
 				EmbedBuilder embedAuthor = new EmbedBuilder();
@@ -602,9 +571,9 @@ public class EconomyModule {
 						long userMoney = userTrade.getLeft();
 						List<ItemStack<Item>> userItems = userTrade.getRight();
 						
-						String userItemsContent = "";
+						StringBuilder userItemsContent = new StringBuilder();
 						for (ItemStack<Item> itemStack : userItems) {
-							userItemsContent += String.format("%s x%,d\n", itemStack.getItem().getName(), itemStack.getAmount());
+							userItemsContent.append(String.format("%s x%,d\n", itemStack.getItem().getName(), itemStack.getAmount()));
 						}
 						
 						EmbedBuilder embed = new EmbedBuilder();
@@ -631,6 +600,8 @@ public class EconomyModule {
 										event.reply("**" + member.getUser().getAsTag() + "** does not have $" + userMoney + " :no_entry:").queue();
 										return;
 									}
+
+									Map<Item, Integer> types = new HashMap<>();
 									
 									List<Document> authorItemsData = newAuthorData.getList("items", Document.class, new ArrayList<>());
 									List<Document> userItemsData = newUserData.getList("items", Document.class, new ArrayList<>());									
@@ -640,6 +611,13 @@ public class EconomyModule {
 											event.reply(String.format("**%s** does not have `%,d %s` :no_entry:", event.getAuthor().getAsTag(), itemStack.getAmount(), itemStack.getItem().getName())).queue();
 											return;
 										}
+
+										if (itemStack.getItem() instanceof Envelope) {
+											event.reply("You cannot trade envelopes, use money instead :no_entry:").queue();
+											return;
+										}
+
+										types.compute(itemStack.getItem(), (key, value) -> value != null ? value + 1 : 1);
 										
 										totalAuthorWorth += !itemStack.getItem().isBuyable() ? 0 : itemStack.getItem().getPrice() * itemStack.getAmount();
 										
@@ -653,15 +631,32 @@ public class EconomyModule {
 											event.reply(String.format("**%s** does not have `%,d %s` :no_entry:", member.getUser().getAsTag(), itemStack.getAmount(), itemStack.getItem().getName())).queue();
 											return;
 										}
+
+										if (itemStack.getItem() instanceof Envelope) {
+											event.reply("You cannot trade envelopes, use money instead :no_entry:").queue();
+											return;
+										}
+
+										types.compute(itemStack.getItem(), (key, value) -> value != null ? value + 1 : 1);
 										
 										totalUserWorth += !itemStack.getItem().isBuyable() ? 0 : itemStack.getItem().getPrice() * itemStack.getAmount();
 										
 										EconomyUtils.addItem(authorItemsData, itemStack);
 										EconomyUtils.removeItem(userItemsData, itemStack);
 									}
+
+									if (userMoney != 0L && authorMoney != 0L && userItems.isEmpty() && authorItems.isEmpty()) {
+										event.reply("You cannot trade money for money, use `give` :no_entry:").queue();
+										return;
+									}
+
+									if (userMoney == 0L && authorMoney == 0L && types.size() == 1) {
+										event.reply("You cannot trade only the exact same item :no_entry:").queue();
+										return;
+									}
 									
-									if (totalUserWorth / totalAuthorWorth > 20 || totalAuthorWorth / totalUserWorth > 20) {
-										event.reply("You have to trade at least 5% the worth of the other persons trade :no_entry:").queue();
+									if (totalUserWorth / totalAuthorWorth > 5 || totalAuthorWorth / totalUserWorth > 5) {
+										event.reply("You have to trade at least 20% the worth of the other persons trade :no_entry:").queue();
 										return;
 									}
 									
@@ -3707,7 +3702,7 @@ public class EconomyModule {
 		
 		public LeaderboardCommand() {
 			super("leaderboard");
-			
+
 			super.setAliases("lb", "ranks", "rank");
 			super.setDescription("View the leaderboards for the economy");
 			super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
@@ -3721,9 +3716,9 @@ public class EconomyModule {
 		@Command(value="bank", aliases={"money", "balance"}, description="View the leaderboard for people with the most money in their balance", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@Examples({"leaderboard bank", "leaderboard bank --server", "leaderboard bank --reverse", "leaderboard bank --sort=name --reverse"})
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-		public void bank(CommandEvent event, @Context Database database, @Option(value="server", aliases={"guild"}, description="Filters the leaderboard so only people in the current server are shown") boolean guild, @Option(value="sort", description="Sort the leaderboard by `name` or `balance` (default)") String sort, @Option(value="reverse", description="Reverses the sorting order") boolean reverse) {
+		public void bank(CommandEvent event, @Context Database database, @Option(value="server", /*aliases={"guild"},*/ description="Filters the leaderboard so only people in the current server are shown") boolean guild, @Option(value="sort", description="Sort the leaderboard by `name` or `balance` (default)") String sort, @Option(value="reverse", description="Reverses the sorting order") boolean reverse) {
 			FindIterable<Document> data = database.getUsers().find(Filters.and(Filters.exists("economy.balance"), Filters.ne("economy.balance", 0))).projection(Projections.include("economy.balance"));
-			
+
 			List<Document> compressedData = new ArrayList<>();
 			for (Document dataObject : data) {
 				User user;
@@ -3733,17 +3728,17 @@ public class EconomyModule {
 				} else {
 					user = event.getShardManager().getUserById(dataObject.getLong("_id"));
 				}
-				
+
 				if (user == null) {
 					continue;
 				}
-				
+
 				Document dataDocument = new Document("user", user)
 						.append("balance", dataObject.getEmbedded(List.of("economy", "balance"), Long.class));
 
 				compressedData.add(dataDocument);
 			}
-			
+
 			sort = sort == null ? "balance" : sort;
 			switch (sort.toLowerCase()) {
 				case "name":
@@ -3753,7 +3748,7 @@ public class EconomyModule {
 					compressedData.sort((a, b) -> (reverse ? 1 : -1) * Long.compare(a.getLong("balance"), b.getLong("balance")));
 					break;
 			}
-			
+
 			PagedResult<Document> paged = new PagedResult<>(compressedData)
 					.setDeleteMessage(false)
 					.setCustomFunction(page -> {
@@ -3764,36 +3759,36 @@ public class EconomyModule {
 								index = i + 1;
 							}
 						}
-						
+
 						EmbedBuilder embed = new EmbedBuilder();
 						embed.setColor(Settings.EMBED_COLOUR);
 						embed.setTitle("Bank Leaderboard");
 						embed.setFooter(event.getAuthor().getName() + "'s Rank: " + (index == null ? "Unranked" : GeneralUtils.getNumberSuffix(index)) + " | Page " + page.getCurrentPage() + "/" + page.getMaxPage(), event.getAuthor().getEffectiveAvatarUrl());
-						
+
 						for (int i = page.getCurrentPage() * page.getPerPage() - page.getPerPage(); i < (page.getCurrentPage() == page.getMaxPage() ? compressedData.size() : page.getCurrentPage() * page.getPerPage()); i++) {
 							Document userData = compressedData.get(i);
 							embed.appendDescription(String.format("%d. `%s` - $%,d\n", i + 1, userData.get("user", User.class).getAsTag(), userData.getLong("balance")));
 						}
-						
+
 						return embed.build();
 					});
-			
+
 			PagedUtils.getPagedResult(event, paged, 300, null);
 		}
-		
+
 		@Command(value="networth", description="View the leaderboard for people with the most networth (All items worth + their balance)", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@Examples({"leaderboard networth", "leaderboard networth --server", "leaderboard networth --reverse", "leaderboard networth --sort=name --reverse"})
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-		public void networth(CommandEvent event, @Context Database database, @Option(value="server", aliases={"guild"}, description="Filters the leaderboard so only people in the current server are shown") boolean guild, @Option(value="sort", description="Sort the leaderboard by `name` or `networth` (default)") String sort, @Option(value="reverse", description="Reverses the sorting order") boolean reverse) {
+		public void networth(CommandEvent event, @Context Database database, @Option(value="server", /*aliases={"guild"},*/ description="Filters the leaderboard so only people in the current server are shown") boolean guild, @Option(value="sort", description="Sort the leaderboard by `name` or `networth` (default)") String sort, @Option(value="reverse", description="Reverses the sorting order") boolean reverse) {
 			FindIterable<Document> data = database.getUsers().find().projection(Projections.include("economy.balance", "economy.items"));
-			
+
 			List<Document> compressedData = new ArrayList<>();
-			for (Document dataObject : data) {		
+			for (Document dataObject : data) {
 				long networth = EconomyUtils.getUserNetworth(dataObject.get("economy", Database.EMPTY_DOCUMENT));
 				if (networth == 0) {
 					continue;
 				}
-				
+
 				User user;
 				if (guild) {
 					Member member = event.getGuild().getMemberById(dataObject.getLong("_id"));
@@ -3801,17 +3796,17 @@ public class EconomyModule {
 				} else {
 					user = event.getShardManager().getUserById(dataObject.getLong("_id"));
 				}
-				
+
 				if (user == null) {
 					continue;
 				}
-				
+
 				Document dataDocument = new Document("user", user)
 						.append("networth", networth);
-				
+
 				compressedData.add(dataDocument);
 			}
-			
+
 			sort = sort == null ? "networth" : sort;
 			switch (sort.toLowerCase()) {
 				case "name":
@@ -3821,7 +3816,7 @@ public class EconomyModule {
 					compressedData.sort((a, b) -> (reverse ? 1 : -1) * Long.compare(a.getLong("networth"), b.getLong("networth")));
 					break;
 			}
-			
+
 			PagedResult<Document> paged = new PagedResult<>(compressedData)
 					.setDeleteMessage(false)
 					.setCustomFunction(page -> {
@@ -3832,29 +3827,29 @@ public class EconomyModule {
 								index = i + 1;
 							}
 						}
-						
+
 						EmbedBuilder embed = new EmbedBuilder();
 						embed.setColor(Settings.EMBED_COLOUR);
 						embed.setTitle("Networth Leaderboard");
 						embed.setFooter(event.getAuthor().getName() + "'s Rank: " + (index == null ? "Unranked" : GeneralUtils.getNumberSuffix(index)) + " | Page " + page.getCurrentPage() + "/" + page.getMaxPage(), event.getAuthor().getEffectiveAvatarUrl());
-						
+
 						for (int i = page.getCurrentPage() * page.getPerPage() - page.getPerPage(); i < (page.getCurrentPage() == page.getMaxPage() ? compressedData.size() : page.getCurrentPage() * page.getPerPage()); i++) {
 							Document userData = compressedData.get(i);
 							embed.appendDescription(String.format("%d. `%s` - $%,d\n", i + 1, userData.get("user", User.class).getAsTag(), userData.getLong("networth")));
 						}
-						
+
 						return embed.build();
 					});
-			
+
 			PagedUtils.getPagedResult(event, paged, 300, null);
 		}
-		
+
 		@Command(value="winnings", description="View the leaderboard for people with the highest winnings", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@Examples({"leaderboard winnings", "leaderboard winnings --server", "leaderboard winnings --reverse", "leaderboard winnings --sort=name --reverse"})
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-		public void winnings(CommandEvent event, @Context Database database, @Option(value="server", aliases={"guild"}, description="Filters the leaderboard so only people in the current server are shown") boolean guild, @Option(value="sort", description="Sort the leaderboard by `name` or `winnings` (default)") String sort, @Option(value="reverse", description="Reverses the sorting order") boolean reverse) {
+		public void winnings(CommandEvent event, @Context Database database, @Option(value="server", /*aliases={"guild"},*/ description="Filters the leaderboard so only people in the current server are shown") boolean guild, @Option(value="sort", description="Sort the leaderboard by `name` or `winnings` (default)") String sort, @Option(value="reverse", description="Reverses the sorting order") boolean reverse) {
 			FindIterable<Document> data = database.getUsers().find(Filters.and(Filters.exists("economy.winnings"), Filters.ne("economy.winnings", 0))).projection(Projections.include("economy.winnings"));
-			
+
 			List<Document> compressedData = new ArrayList<>();
 			for (Document dataObject : data) {
 				User user;
@@ -3864,17 +3859,17 @@ public class EconomyModule {
 				} else {
 					user = event.getShardManager().getUserById(dataObject.getLong("_id"));
 				}
-				
+
 				if (user == null) {
 					continue;
 				}
-				
+
 				Document dataDocument = new Document("user", user)
 						.append("winnings", dataObject.getEmbedded(List.of("economy", "winnings"), Long.class));
-				
+
 				compressedData.add(dataDocument);
 			}
-			
+
 			sort = sort == null ? "winnings" : sort;
 			switch (sort.toLowerCase()) {
 				case "name":
@@ -3884,7 +3879,7 @@ public class EconomyModule {
 					compressedData.sort((a, b) -> (reverse ? 1 : -1) * Long.compare(a.getLong("winnings"), b.getLong("winnings")));
 					break;
 			}
-			
+
 			PagedResult<Document> paged = new PagedResult<>(compressedData)
 					.setDeleteMessage(false)
 					.setCustomFunction(page -> {
@@ -3895,44 +3890,44 @@ public class EconomyModule {
 								index = i + 1;
 							}
 						}
-						
+
 						EmbedBuilder embed = new EmbedBuilder();
 						embed.setColor(Settings.EMBED_COLOUR);
 						embed.setTitle("Winnings Leaderboard");
 						embed.setFooter(event.getAuthor().getName() + "'s Rank: " + (index == null ? "Unranked" : GeneralUtils.getNumberSuffix(index)) + " | Page " + page.getCurrentPage() + "/" + page.getMaxPage(), event.getAuthor().getEffectiveAvatarUrl());
-						
+
 						for (int i = page.getCurrentPage() * page.getPerPage() - page.getPerPage(); i < (page.getCurrentPage() == page.getMaxPage() ? compressedData.size() : page.getCurrentPage() * page.getPerPage()); i++) {
 							Document userData = compressedData.get(i);
 							embed.appendDescription(String.format("%d. `%s` - $%,d\n", i + 1, userData.get("user", User.class).getAsTag(), userData.getLong("winnings")));
 						}
-						
+
 						return embed.build();
 					});
-			
+
 			PagedUtils.getPagedResult(event, paged, 300, null);
 		}
-		
+
 		@Command(value="items", aliases={"item"}, description="View the leaderboard for the people with the most of a specific item")
 		@Examples({"leaderboard items Platinum", "leaderboard items Diamond --server", "leaderboard items Gold --reverse", "leaderboard items Shoe --sort=name --reverse"})
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-		public void items(CommandEvent event, @Context Database database, @Argument(value="item name", endless=true) String itemName, @Option(value="server", aliases={"guild"}, description="Filters the leaderboard so only people in the current server are shown") boolean guild, @Option(value="sort", description="Sort the leaderboard by `name` or `items` (default)") String sort, @Option(value="reverse", description="Reverses the sorting order") boolean reverse) {
+		public void items(CommandEvent event, @Context Database database, @Argument(value="item name", endless=true) String itemName, @Option(value="server", /*aliases={"guild"},*/ description="Filters the leaderboard so only people in the current server are shown") boolean guild, @Option(value="sort", description="Sort the leaderboard by `name` or `items` (default)") String sort, @Option(value="reverse", description="Reverses the sorting order") boolean reverse) {
 			Item item = Item.getItemByName(itemName);
 			if (item == null) {
 				event.reply("I could not find that item :no_entry:").queue();
 				return;
 			}
-			
+
 			FindIterable<Document> data = database.getUsers().find().projection(Projections.include("economy.items"));
-			
+
 			List<Document> compressedData = new ArrayList<>();
-			for (Document dataObject : data) {	
+			for (Document dataObject : data) {
 				List<Document> userItems = dataObject.getEmbedded(List.of("economy", "items"), Collections.emptyList());
-				
+
 				ItemStack<Item> userItem = EconomyUtils.getUserItem(userItems, item);
 				if (userItem.getAmount() == 0) {
 					continue;
 				}
-				
+
 				User user;
 				if (guild) {
 					Member member = event.getGuild().getMemberById(dataObject.getLong("_id"));
@@ -3940,17 +3935,17 @@ public class EconomyModule {
 				} else {
 					user = event.getShardManager().getUserById(dataObject.getLong("_id"));
 				}
-				
+
 				if (user == null) {
 					continue;
 				}
-				
+
 				Document dataDocument = new Document("user", user)
 						.append("itemAmount", userItem.getAmount());
-				
+
 				compressedData.add(dataDocument);
 			}
-			
+
 			sort = sort == null ? "items" : sort;
 			switch (sort.toLowerCase()) {
 				case "name":
@@ -3960,7 +3955,7 @@ public class EconomyModule {
 					compressedData.sort((a, b) -> (reverse ? 1 : -1) * Long.compare(a.getLong("itemAmount"), b.getLong("itemAmount")));
 					break;
 			}
-			
+
 			PagedResult<Document> paged = new PagedResult<>(compressedData)
 					.setDeleteMessage(false)
 					.setCustomFunction(page -> {
@@ -3971,31 +3966,31 @@ public class EconomyModule {
 								index = i + 1;
 							}
 						}
-						
+
 						EmbedBuilder embed = new EmbedBuilder();
 						embed.setColor(Settings.EMBED_COLOUR);
 						embed.setTitle(item.getName() + " Leaderboard");
 						embed.setFooter(event.getAuthor().getName() + "'s Rank: " + (index == null ? "Unranked" : GeneralUtils.getNumberSuffix(index)) + " | Page " + page.getCurrentPage() + "/" + page.getMaxPage(), event.getAuthor().getEffectiveAvatarUrl());
-						
+
 						for (int i = page.getCurrentPage() * page.getPerPage() - page.getPerPage(); i < (page.getCurrentPage() == page.getMaxPage() ? compressedData.size() : page.getCurrentPage() * page.getPerPage()); i++) {
 							Document userData = compressedData.get(i);
 							embed.appendDescription(String.format("%d. `%s` - %,d %s\n", i + 1, userData.get("user", User.class).getAsTag(), userData.getLong("itemAmount"), item.getName()));
 						}
-						
+
 						return embed.build();
 					});
-			
+
 			PagedUtils.getPagedResult(event, paged, 300, null);
 		}
-		
+
 		@Command(value="reputation", aliases={"rep", "reps"}, description="View the leaderboard for people with the highest reputation", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@Examples({"leaderboard reputation", "leaderboard repuatation --server", "leaderboard reputation --reverse", "leaderboard reputation --sort=name --reverse"})
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-		public void reputation(CommandEvent event, @Context Database database, @Option(value="server", aliases={"guild"}, description="Filters the leaderboard so only people in the current server are shown") boolean guild, @Option(value="sort", description="Sort the leaderboard by `name` or `reputation` (default)") String sort, @Option(value="reverse", description="Reverses the sorting order") boolean reverse) {
+		public void reputation(CommandEvent event, @Context Database database, @Option(value="server", /*aliases={"guild"},*/ description="Filters the leaderboard so only people in the current server are shown") boolean guild, @Option(value="sort", description="Sort the leaderboard by `name` or `reputation` (default)") String sort, @Option(value="reverse", description="Reverses the sorting order") boolean reverse) {
 			FindIterable<Document> data = database.getUsers().find(Filters.and(Filters.exists("reputation.amount"), Filters.ne("reputation.amount", 0))).projection(Projections.include("reputation.amount"));
-			
+
 			List<Document> compressedData = new ArrayList<>();
-			for (Document dataObject : data) {	
+			for (Document dataObject : data) {
 				User user;
 				if (guild) {
 					Member member = event.getGuild().getMemberById(dataObject.getLong("_id"));
@@ -4003,17 +3998,17 @@ public class EconomyModule {
 				} else {
 					user = event.getShardManager().getUserById(dataObject.getLong("_id"));
 				}
-				
+
 				if (user == null) {
 					continue;
 				}
-				
+
 				Document dataDocument = new Document("user", user)
 						.append("reputation", dataObject.getEmbedded(List.of("reputation", "amount"), Integer.class));
-				
+
 				compressedData.add(dataDocument);
 			}
-			
+
 			sort = sort == null ? "reputation" : sort;
 			switch (sort.toLowerCase()) {
 				case "name":
@@ -4023,7 +4018,7 @@ public class EconomyModule {
 					compressedData.sort((a, b) -> (reverse ? 1 : -1) * Integer.compare(a.getInteger("reputation"), b.getInteger("reputation")));
 					break;
 			}
-			
+
 			PagedResult<Document> paged = new PagedResult<>(compressedData)
 					.setDeleteMessage(false)
 					.setCustomFunction(page -> {
@@ -4034,31 +4029,31 @@ public class EconomyModule {
 								index = i + 1;
 							}
 						}
-						
+
 						EmbedBuilder embed = new EmbedBuilder();
 						embed.setColor(Settings.EMBED_COLOUR);
 						embed.setTitle("Reputation Leaderboard");
 						embed.setFooter(event.getAuthor().getName() + "'s Rank: " + (index == null ? "Unranked" : GeneralUtils.getNumberSuffix(index)) + " | Page " + page.getCurrentPage() + "/" + page.getMaxPage(), event.getAuthor().getEffectiveAvatarUrl());
-						
+
 						for (int i = page.getCurrentPage() * page.getPerPage() - page.getPerPage(); i < (page.getCurrentPage() == page.getMaxPage() ? compressedData.size() : page.getCurrentPage() * page.getPerPage()); i++) {
 							Document userData = compressedData.get(i);
 							embed.appendDescription(String.format("%d. `%s` - %,d reputation\n", i + 1, userData.get("user", User.class).getAsTag(), userData.getInteger("reputation")));
 						}
-						
+
 						return embed.build();
 					});
-			
+
 			PagedUtils.getPagedResult(event, paged, 300, null);
 		}
-		
+
 		@Command(value="streak", description="View the leaderboard for people who have the highest streak for using `daily`", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 		@Examples({"leaderboard streak", "leaderboard streak --server", "leaderboard streak --reverse", "leaderboard streak --sort=name --reverse"})
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-		public void streak(CommandEvent event, @Context Database database, @Option(value="server", aliases={"guild"}, description="Filters the leaderboard so only people in the current server are shown") boolean guild, @Option(value="sort", description="Sort the leaderboard by `name` or `streak` (default)") String sort, @Option(value="reverse", description="Reverses the sorting order") boolean reverse) {
+		public void streak(CommandEvent event, @Context Database database, @Option(value="server", /*aliases={"guild"},*/ description="Filters the leaderboard so only people in the current server are shown") boolean guild, @Option(value="sort", description="Sort the leaderboard by `name` or `streak` (default)") String sort, @Option(value="reverse", description="Reverses the sorting order") boolean reverse) {
 			FindIterable<Document> data = database.getUsers().find(Filters.and(Filters.exists("economy.streak"), Filters.ne("economy.streak", 0))).projection(Projections.include("economy.streak"));
-			
+
 			List<Document> compressedData = new ArrayList<>();
-			for (Document dataObject : data) {	
+			for (Document dataObject : data) {
 				User user;
 				if (guild) {
 					Member member = event.getGuild().getMemberById(dataObject.getLong("_id"));
@@ -4066,17 +4061,17 @@ public class EconomyModule {
 				} else {
 					user = event.getShardManager().getUserById(dataObject.getLong("_id"));
 				}
-				
+
 				if (user == null) {
 					continue;
 				}
-				
+
 				Document dataDocument = new Document("user", user)
 						.append("streak", dataObject.getEmbedded(List.of("economy", "streak"), Integer.class));
-				
+
 				compressedData.add(dataDocument);
 			}
-			
+
 			sort = sort == null ? "streak" : sort;
 			switch (sort.toLowerCase()) {
 				case "name":
@@ -4086,7 +4081,7 @@ public class EconomyModule {
 					compressedData.sort((a, b) -> (reverse ? 1 : -1) * Long.compare(a.getInteger("streak"), b.getInteger("streak")));
 					break;
 			}
-			
+
 			PagedResult<Document> paged = new PagedResult<>(compressedData)
 					.setDeleteMessage(false)
 					.setCustomFunction(page -> {
@@ -4097,26 +4092,26 @@ public class EconomyModule {
 								index = i + 1;
 							}
 						}
-						
+
 						EmbedBuilder embed = new EmbedBuilder();
 						embed.setColor(Settings.EMBED_COLOUR);
 						embed.setTitle("Streak Leaderboard");
 						embed.setFooter(event.getAuthor().getName() + "'s Rank: " + (index == null ? "Unranked" : GeneralUtils.getNumberSuffix(index)) + " | Page " + page.getCurrentPage() + "/" + page.getMaxPage(), event.getAuthor().getEffectiveAvatarUrl());
-						
+
 						for (int i = page.getCurrentPage() * page.getPerPage() - page.getPerPage(); i < (page.getCurrentPage() == page.getMaxPage() ? compressedData.size() : page.getCurrentPage() * page.getPerPage()); i++) {
 							Document userData = compressedData.get(i);
 							embed.appendDescription(String.format("%d. `%s` - %,d day streak\n", i + 1, userData.get("user", User.class).getAsTag(), userData.getInteger("streak")));
 						}
-						
+
 						return embed.build();
 					});
-			
+
 			PagedUtils.getPagedResult(event, paged, 300, null);
 		}
-		
+
 		@Command(value="votes", aliases={"vote"}, description="View the leaderboard for the highest votes of the month/all time")
 		@Examples({"leaderboard votes", "leaderboard votes --all", "leaderboard votes --all --server"})
-		public void votes(CommandEvent event, @Argument(value="month", nullDefault=true) String monthArgument, @Option(value="all", description="Displays the leaderboard for votes all time") boolean all, @Option(value="server", aliases={"guild"}, description="Filters the leaderboard so only people in the current server are shown") boolean guild) {
+		public void votes(CommandEvent event, @Argument(value="month", nullDefault=true) String monthArgument, @Option(value="all", description="Displays the leaderboard for votes all time") boolean all, @Option(value="server", /*aliases={"guild"},*/ description="Filters the leaderboard so only people in the current server are shown") boolean guild) {
 			LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
 			Month month;
 			if (monthArgument == null) {

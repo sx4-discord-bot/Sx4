@@ -1281,7 +1281,7 @@ public class FunModule {
 	@Command(value="birthdays", description="View all the birthdays which are upcoming in the next 30 days (Set your birthday with `set birthday`)", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 	@Examples({"birthdays", "birthdays --server"})
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
-	public void birthdays(CommandEvent event, @Context Database database, @Option(value="server", aliases={"guild"}, description="Filters all birthdays so only peoples birthdays from the current server are shown") boolean guild) {
+	public void birthdays(CommandEvent event, @Context Database database, @Option(value="server", /*aliases={"guild"},*/ description="Filters all birthdays so only peoples birthdays from the current server are shown") boolean guild) {
 		FindIterable<Document> data = database.getUsers().find(Filters.exists("profile.birthday")).projection(Projections.include("profile.birthday"));
 		
 		LocalDate now = LocalDate.now(ZoneOffset.UTC);
