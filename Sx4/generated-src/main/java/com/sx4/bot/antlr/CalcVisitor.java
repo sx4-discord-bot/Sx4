@@ -80,6 +80,13 @@ public interface CalcVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitShiftLeft(CalcParser.ShiftLeftContext ctx);
 	/**
+	 * Visit a parse tree produced by the {@code Max}
+	 * labeled alternative in {@link CalcParser#expr}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitMax(CalcParser.MaxContext ctx);
+	/**
 	 * Visit a parse tree produced by the {@code Mul}
 	 * labeled alternative in {@link CalcParser#expr}.
 	 * @param ctx the parse tree
@@ -101,6 +108,13 @@ public interface CalcVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitParens(CalcParser.ParensContext ctx);
 	/**
+	 * Visit a parse tree produced by the {@code Sigma}
+	 * labeled alternative in {@link CalcParser#expr}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitSigma(CalcParser.SigmaContext ctx);
+	/**
 	 * Visit a parse tree produced by the {@code Double}
 	 * labeled alternative in {@link CalcParser#expr}.
 	 * @param ctx the parse tree
@@ -121,6 +135,20 @@ public interface CalcVisitor<T> extends ParseTreeVisitor<T> {
 	 * @return the visitor result
 	 */
 	T visitNot(CalcParser.NotContext ctx);
+	/**
+	 * Visit a parse tree produced by the {@code Abs}
+	 * labeled alternative in {@link CalcParser#expr}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitAbs(CalcParser.AbsContext ctx);
+	/**
+	 * Visit a parse tree produced by the {@code Min}
+	 * labeled alternative in {@link CalcParser#expr}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitMin(CalcParser.MinContext ctx);
 	/**
 	 * Visit a parse tree produced by the {@code And}
 	 * labeled alternative in {@link CalcParser#expr}.

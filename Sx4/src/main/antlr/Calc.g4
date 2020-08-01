@@ -7,24 +7,28 @@ stat: expr                         #Return
     | NEWLINE                      #Blank
     ;
 
-expr: expr POW expr             #Pow
-    | expr DIV expr             #Div
-    | expr MUL expr             #Mul
-    | expr ADD expr             #Add
-    | expr SUB expr             #Sub
-    | expr OR expr              #Or
-    | expr AND expr             #And
-    | expr XOR expr             #Xor
-    | NOT expr                  #Not
-    | expr SHIFT_LEFT expr      #ShiftLeft
-    | expr SHIFT_RIGHT expr     #ShiftRight
-    | DOUBLE                    #Double
-    | VAR                       #Var
-    | PI                        #Pi
-    | '(' expr ')'              #Parens
-    | 'round(' expr ')'         #Round
-    | 'ceil(' expr ')'          #Ceil
-    | 'floor(' expr ')'         #Floor
+expr: expr POW expr                         #Pow
+    | expr DIV expr                         #Div
+    | expr MUL expr                         #Mul
+    | expr ADD expr                         #Add
+    | expr SUB expr                         #Sub
+    | expr OR expr                          #Or
+    | expr AND expr                         #And
+    | expr XOR expr                         #Xor
+    | NOT expr                              #Not
+    | expr SHIFT_LEFT expr                  #ShiftLeft
+    | expr SHIFT_RIGHT expr                 #ShiftRight
+    | DOUBLE                                #Double
+    | VAR                                   #Var
+    | PI                                    #Pi
+    | '(' expr ')'                          #Parens
+    | 'round(' expr ')'                     #Round
+    | 'ceil(' expr ')'                      #Ceil
+    | 'floor(' expr ')'                     #Floor
+    | 'abs(' expr ')'                       #Abs
+    | 'min(' expr ',' expr ')'              #Min
+    | 'max(' expr ',' expr ')'              #Max
+    | 'sigma(' expr ',' expr ',' expr ')'   #Sigma
     ;
 
 DIV: '/';

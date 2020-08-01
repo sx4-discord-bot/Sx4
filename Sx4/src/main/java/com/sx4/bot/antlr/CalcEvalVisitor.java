@@ -1,14 +1,52 @@
 package com.sx4.bot.antlr;
 
+import org.antlr.v4.runtime.tree.ParseTree;
+
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.*;
 
 public class CalcEvalVisitor extends CalcBaseVisitor<Double> {
 
+    private final ExecutorService executor = Executors.newSingleThreadExecutor();
+
     private final Map<String, Double> variables;
+    private long timeout = 0L;
 
     public CalcEvalVisitor() {
         this.variables = new HashMap<>();
+    }
+
+    public CalcEvalVisitor timeout(long duration, TimeUnit unit) {
+        this.timeout = unit.toMillis(duration);
+
+        return this;
+    }
+
+    @Override
+    public Double visitSigma(CalcParser.SigmaContext ctx) {
+        double result = 0D;
+        for (int i = this.visit(ctx.expr(0)).intValue(); i <= this.visit(ctx.expr(1)).intValue(); i++) {
+            this.variables.put("n", (double) i);
+            result += this.visit(ctx.expr(2));
+        }
+
+        return result;
+    }
+
+    @Override
+    public Double visitAbs(CalcParser.AbsContext ctx) {
+        return Math.abs(this.visit(ctx.expr()));
+    }
+
+    @Override
+    public Double visitMax(CalcParser.MaxContext ctx) {
+        return Math.max(this.visit(ctx.expr(0)), this.visit(ctx.expr(1)));
+    }
+
+    @Override
+    public Double visitMin(CalcParser.MinContext ctx) {
+        return Math.min(this.visit(ctx.expr(0)), this.visit(ctx.expr(1)));
     }
 
     @Override
@@ -107,4 +145,13 @@ public class CalcEvalVisitor extends CalcBaseVisitor<Double> {
     public Double visitPi(CalcParser.PiContext ctx) {
         return Math.PI;
     }
+
+    public Double parse(ParseTree tree) throws TimeoutException, ExecutionException, InterruptedException {
+        if (this.timeout == 0L) {
+            return super.visit(tree);
+        }
+
+        return this.executor.submit(() -> super.visit(tree)).get(this.timeout, TimeUnit.MILLISECONDS);
+    }
+
 }
