@@ -1,14 +1,5 @@
 package com.sx4.bot.modules;
 
-import java.awt.Color;
-import java.io.IOException;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.util.List;
-
-import org.bson.Document;
-import org.bson.conversions.Bson;
-
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
 import com.jockie.bot.core.command.Command.AuthorPermissions;
@@ -30,13 +21,20 @@ import com.sx4.bot.utils.ArgumentUtils;
 import com.sx4.bot.utils.GeneralUtils;
 import com.sx4.bot.utils.HelpUtils;
 import com.sx4.bot.utils.WelcomerUtils;
-
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Message.Attachment;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.TextChannel;
+import org.bson.Document;
+import org.bson.conversions.Bson;
+
+import java.awt.*;
+import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.util.List;
 
 @Module
 public class WelcomerModule {
@@ -175,11 +173,6 @@ public class WelcomerModule {
 		@Examples({"welcomer message A new person has joined", "welcomer message Welcome {user.mention}!"})
 		@AuthorPermissions({Permission.MESSAGE_MANAGE})
 		public void message(CommandEvent event, @Context Database database, @Argument(value="message", endless=true) String message) {
-			if (message.length() > MessageEmbed.VALUE_MAX_LENGTH) {
-				event.reply("The leaver message cannot be any longer than " + MessageEmbed.VALUE_MAX_LENGTH + " characters :no_entry:").queue();
-				return;
-			}
-			
 			String currentMessage = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("welcomer.message")).getEmbedded(List.of("welcomer", "message"), String.class);
 			if (currentMessage != null && currentMessage.equals(message)) {
 				event.reply("The welcomer message is already set to that :no_entry:").queue();
@@ -418,11 +411,6 @@ public class WelcomerModule {
 		@Examples({"leaver message Someone has left, goodbye", "leaver message Goodbye **{user.name}** 👋"})
 		@AuthorPermissions({Permission.MESSAGE_MANAGE})
 		public void message(CommandEvent event, @Context Database database, @Argument(value="message", endless=true) String message) {
-			if (message.length() > MessageEmbed.VALUE_MAX_LENGTH) {
-				event.reply("The leaver message cannot be any longer than " + MessageEmbed.VALUE_MAX_LENGTH + " characters :no_entry:").queue();
-				return;
-			}
-			
 			String currentMessage = database.getGuildById(event.getGuild().getIdLong(), null, Projections.include("leaver.message")).getEmbedded(List.of("leaver", "message"), String.class);
 			if (currentMessage != null && currentMessage.equals(message)) {
 				event.reply("The leaver message is already set to that :no_entry:").queue();
