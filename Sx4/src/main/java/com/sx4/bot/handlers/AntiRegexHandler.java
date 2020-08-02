@@ -9,6 +9,8 @@ import com.sx4.bot.entities.mod.Reason;
 import com.sx4.bot.entities.mod.action.Action;
 import com.sx4.bot.entities.mod.auto.MatchAction;
 import com.sx4.bot.entities.settings.HolderType;
+import com.sx4.bot.events.mod.BanEvent;
+import com.sx4.bot.events.mod.KickEvent;
 import com.sx4.bot.formatter.Formatter;
 import com.sx4.bot.managers.AntiRegexManager;
 import com.sx4.bot.managers.ModActionManager;
@@ -131,6 +133,7 @@ public class AntiRegexHandler extends ListenerAdapter {
                     message.delete().queue();
                 }
 
+                boolean send = (matchRaw & MatchAction.SEND_MESSAGE.getRaw()) == MatchAction.SEND_MESSAGE.getRaw();
                 if (action != null && currentAttempts + 1 >= maxAttempts) {
                     // TODO: execute mod action
                     Reason reason = new Reason(String.format("Sent a message which matched regex `%s` %d time%s", id.toHexString(), maxAttempts, maxAttempts == 1 ? "" : "s"));
@@ -139,6 +142,10 @@ public class AntiRegexHandler extends ListenerAdapter {
                             ModUtility.warn(member, guild.getSelfMember(), reason).whenComplete((warn, exception) -> {
                                 if (exception == null) {
                                     this.manager.clearAttempts(guildId, id, userId);
+
+                                    if (send) {
+                                        textChannel.sendMessage(modMessage).queue();
+                                    }
 
                                     UpdateOptions options = new UpdateOptions().arrayFilters(List.of(Filters.eq("regex.id", id)));
                                     this.database.updateGuildById(guildId, Updates.pull("antiRegex.regexes.$[regex].users", Filters.eq("id", userId)), options).whenComplete((result, writeException) ->
@@ -152,10 +159,30 @@ public class AntiRegexHandler extends ListenerAdapter {
 
                             break;
                         case KICK:
+                            member.kick(ModUtility.getAuditReason(reason, guild.getSelfMember().getUser())).queue($ -> {
+                                this.modActionManager.onModAction(new KickEvent(guild.getSelfMember(), user, reason));
+
+                                this.manager.clearAttempts(guildId, id, userId);
+
+                                if (send) {
+                                    textChannel.sendMessage(modMessage).queue();
+                                }
+                            });
+
                             break;
                         case TEMP_BAN:
                             break;
                         case BAN:
+                            member.ban(1, ModUtility.getAuditReason(reason, guild.getSelfMember().getUser())).queue($ -> {
+                                this.modActionManager.onModAction(new BanEvent(guild.getSelfMember(), user, reason, true));
+
+                                this.manager.clearAttempts(guildId, id, userId);
+
+                                if (send) {
+                                    textChannel.sendMessage(modMessage).queue();
+                                }
+                            });
+
                             break;
                         default:
                             break;
@@ -164,7 +191,7 @@ public class AntiRegexHandler extends ListenerAdapter {
                     break;
                 }
 
-                if ((matchRaw & MatchAction.SEND_MESSAGE.getRaw()) == MatchAction.SEND_MESSAGE.getRaw()) {
+                if (send) {
                     textChannel.sendMessage(matchMessage).queue();
                 }
 

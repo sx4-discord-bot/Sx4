@@ -8,10 +8,10 @@ import java.util.Map;
 public class AntiRegexManager {
 
     public static final String DEFAULT_MATCH_MESSAGE = "{user.mention}, you cannot send that content here due to the regex {regex.id}"
-        + "{{regex.action.exists}?, you will receive a {regex.action.name} if you continue **({regex.attempts.current}/{regex.attempts.max})**} :no_entry:";
+        + "({regex.action.exists}?, you will receive a {regex.action.name} if you continue **({regex.attempts.current}/{regex.attempts.max})**) :no_entry:";
 
     public static final String DEFAULT_MOD_MESSAGE = "**{user.tag}** has received a {regex.action.name} for sending a message which matched the regex"
-        + "`{regex.id}` {regex.attempts.max} time{{regex.attempts.max}!=1?s} <:done:403285928233402378>";
+        + "`{regex.id}` {regex.attempts.max} time({regex.attempts.max}!=1?s) <:done:403285928233402378>";
 
     private static final AntiRegexManager INSTANCE = new AntiRegexManager();
 

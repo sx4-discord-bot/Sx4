@@ -73,6 +73,13 @@ public interface FormatterVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitLessThanEqual(FormatterParser.LessThanEqualContext ctx);
 	/**
+	 * Visit a parse tree produced by the {@code Empty}
+	 * labeled alternative in {@link FormatterParser#expr}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitEmpty(FormatterParser.EmptyContext ctx);
+	/**
 	 * Visit a parse tree produced by the {@code LessThan}
 	 * labeled alternative in {@link FormatterParser#expr}.
 	 * @param ctx the parse tree

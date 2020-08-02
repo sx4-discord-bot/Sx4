@@ -125,12 +125,22 @@ public class FormatterEvalVisitor extends FormatterBaseVisitor<String> {
 
     @Override
     public String visitFormat(FormatterParser.FormatContext ctx) {
-        return String.valueOf(this.map.get(this.visit(ctx.expr())));
+        String key = this.visit(ctx.expr());
+        if (this.map.containsKey(key)) {
+            return String.valueOf(this.map.get(key));
+        }
+
+        return "{" + key + "}";
     }
 
     @Override
     public String visitString(FormatterParser.StringContext ctx) {
         return ctx.STRING().getText();
+    }
+
+    @Override
+    public String visitEmpty(FormatterParser.EmptyContext ctx) {
+        return "{}";
     }
 
     @Override

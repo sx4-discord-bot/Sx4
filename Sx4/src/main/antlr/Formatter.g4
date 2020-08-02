@@ -5,6 +5,7 @@ parse: expr+;
 expr: '(' expr '?' parse (':' parse)? ')'               #Ternary
     | '(' parse ' if ' expr (' else ' parse)? ')'       #TernaryPy
     | '{' expr '}'                                      #Format
+    | '{' '}'                                           #Empty
     | '(' condition+ ')'                                #Cond
     | expr EQUAL expr                                   #Equal
     | expr NOT_EQUAL expr                               #NotEqual
