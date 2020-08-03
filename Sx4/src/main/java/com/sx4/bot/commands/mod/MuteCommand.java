@@ -67,7 +67,7 @@ public class MuteCommand extends Sx4Command {
 			Document mute = data.get("mute", Database.EMPTY_DOCUMENT);
 			atomicDuration.set(mute.get("defaultTime", 1800L));
 
-			return ModUtility.upsertMuteRole(event.getGuild(), mute.get("roleId", 0L), mute.get("autoUpdate", true));
+			return ModUtility.upsertMuteRole(event.getGuild(), mute.getLong("roleId"), mute.get("autoUpdate", true));
 		}).whenComplete((role, exception) -> {
 			if (exception != null) {
 				if (exception instanceof MaxRolesException) {

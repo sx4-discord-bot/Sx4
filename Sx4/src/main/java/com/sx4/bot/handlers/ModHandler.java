@@ -42,7 +42,7 @@ public class ModHandler implements ModActionListener, EventListener {
 		
 		Document data = database.getGuildById(guild.getIdLong(), Projections.include("modLog.channelId", "modLog.enabled")).get("modLog", Database.EMPTY_DOCUMENT);
 		
-		long channelId = data.get("channelId", 0L);
+		long channelId = data.getLong("channelId");
 		if (!data.getBoolean("enabled", false) || channelId == 0) {
 			return;
 		}

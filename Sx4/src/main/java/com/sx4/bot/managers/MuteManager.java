@@ -142,17 +142,17 @@ public class MuteManager {
 		Database database = Database.get();
 		
 		List<WriteModel<Document>> bulkData = new ArrayList<>();
-		database.getGuilds(Filters.elemMatch("mute.users", Filters.exists("id")), Projections.include("mute.users", "mute.role")).forEach(data -> {
+		database.getGuilds(Filters.elemMatch("mute.users", Filters.exists("id")), Projections.include("mute.users", "mute.roleId")).forEach(data -> {
 			Document mute = data.get("mute", Document.class);
-			long roleId = mute.get("roleId", 0L);
+			long roleId = mute.getLong("roleId");
 			
 			List<Document> users = mute.getList("users", Document.class);
 			for (Document user : users) {
-				long currentTime = Clock.systemUTC().instant().getEpochSecond(), unmuteAt = user.get("unmuteAt", 0L);
+				long currentTime = Clock.systemUTC().instant().getEpochSecond(), unmuteAt = user.getLong("unmuteAt");
 				if (unmuteAt > currentTime) {
-					this.putMute(data.get("_id", 0L), user.get("id", 0L), roleId, unmuteAt - currentTime);
+					this.putMute(data.get("_id", 0L), user.getLong("id"), roleId, unmuteAt - currentTime);
 				} else {
-					UpdateOneModel<Document> model = this.removeMuteAndGet(data.get("_id", 0L), user.get("id", 0L), roleId);
+					UpdateOneModel<Document> model = this.removeMuteAndGet(data.get("_id", 0L), user.getLong("id"), roleId);
 					if (model != null) {
 						bulkData.add(model);
 					}

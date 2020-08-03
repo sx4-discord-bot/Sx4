@@ -1,8 +1,8 @@
 package com.sx4.bot.managers;
 
 import com.mongodb.client.model.*;
+import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.Database;
-import com.sx4.bot.entities.reminder.Reminder;
 import net.dv8tion.jda.api.entities.User;
 import org.bson.Document;
 import org.bson.types.ObjectId;
@@ -93,35 +93,36 @@ public class ReminderManager {
 	}
 	
 	public void putReminder(long userId, long duration, Document data) {
-		ScheduledFuture<?> executor = this.executor.schedule(() -> this.executeReminder(new Reminder(userId, data)), duration, TimeUnit.SECONDS);
+		ScheduledFuture<?> executor = this.executor.schedule(() -> this.executeReminder(userId, data), duration, TimeUnit.SECONDS);
 		
 		this.putExecutor(userId, data.getObjectId("id"), executor);
 	}
 	
-	public void executeReminder(Reminder reminder) {
-		Database.get().updateUser(this.executeReminderBulk(reminder)).whenComplete(Database.defaultHandler());
+	public void executeReminder(long userId, Document data) {
+		Database.get().updateUser(this.executeReminderBulk(userId, data)).whenComplete(Database.exceptionally());
 	}
 	
-	public UpdateOneModel<Document> executeReminderBulk(Reminder reminder) {
-		long userId = reminder.getUserId();
-		
-		User user = reminder.getUser();
+	public UpdateOneModel<Document> executeReminderBulk(long userId, Document data) {
+		User user = Sx4.get().getShardManager().getUserById(userId);
 		if (user != null) {
 			user.openPrivateChannel()
-				.flatMap(channel -> channel.sendMessageFormat("You wanted me to remind you about **%s**", reminder.getReminder()))
+				.flatMap(channel -> channel.sendMessageFormat("You wanted me to remind you about **%s**", data.getString("reminder")))
 				.queue();
 		}
-		
-		if (reminder.isRepeated()) {
-			this.extendExecutor(userId, reminder.getId(), () -> this.executeReminder(reminder.extend()), reminder.getDuration());
+
+		ObjectId id = data.getObjectId("id");
+		long remindAt = data.getLong("remindAt"), duration = data.getLong("duration");
+		if (data.get("repeat", false)) {
+			data.append("remindAt", remindAt + duration);
+			this.extendExecutor(userId, id, () -> this.executeReminder(userId, data), duration);
 			
-			UpdateOptions options = new UpdateOptions().arrayFilters(List.of(Filters.eq("reminder.id", reminder.getId())));
+			UpdateOptions options = new UpdateOptions().arrayFilters(List.of(Filters.eq("reminder.id", id)));
 					
-			return new UpdateOneModel<>(Filters.eq("_id", userId), Updates.inc("reminder.reminders.$[reminder].remindAt", reminder.getDuration()), options);
+			return new UpdateOneModel<>(Filters.eq("_id", userId), Updates.inc("reminder.reminders.$[reminder].remindAt", duration), options);
 		} else {
-			this.deleteExecutor(userId, reminder.getId());
+			this.deleteExecutor(userId, id);
 			
-			return new UpdateOneModel<>(Filters.eq("_id", userId), Updates.pull("reminder.reminders", Filters.eq("id", reminder.getId())));
+			return new UpdateOneModel<>(Filters.eq("_id", userId), Updates.pull("reminder.reminders", Filters.eq("id", id)));
 		}
 	}
 	
@@ -138,17 +139,17 @@ public class ReminderManager {
 				
 				long remindAt = reminder.getLong("remindAt"), currentTime = Clock.systemUTC().instant().getEpochSecond();
 				if (remindAt > currentTime) {
-					ScheduledFuture<?> executor = this.executor.schedule(() -> this.executeReminder(new Reminder(userId, reminder)), remindAt - currentTime, TimeUnit.SECONDS);
+					ScheduledFuture<?> executor = this.executor.schedule(() -> this.executeReminder(userId, reminder), remindAt - currentTime, TimeUnit.SECONDS);
 					
 					this.putExecutor(userId, id, executor);
 				} else {
-					bulkData.add(this.executeReminderBulk(new Reminder(userId, reminder)));
+					bulkData.add(this.executeReminderBulk(userId, reminder));
 				}
 			}
 		});
 		
 		if (!bulkData.isEmpty()) {
-			database.bulkWriteUsers(bulkData).whenComplete(Database.defaultHandler());
+			database.bulkWriteUsers(bulkData).whenComplete(Database.exceptionally());
 		}
 	}
 	

@@ -33,11 +33,11 @@ public class ModLog {
 	
 	public ModLog(Document data) {
 		this.id = data.getObjectId("_id");
-		this.messageId = data.get("messageId", 0L);
-		this.channelId = data.get("channelId", 0L);
-		this.guildId = data.get("guildId", 0L);
-		this.targetId = data.get("targetId", 0L);
-		this.moderatorId = data.get("moderatorId", 0L);
+		this.messageId = data.getLong("messageId");
+		this.channelId = data.getLong("channelId");
+		this.guildId = data.getLong("guildId");
+		this.targetId = data.getLong("targetId");
+		this.moderatorId = data.getLong("moderatorId");
 		
 		String reason = data.getString("reason");
 		this.reason = reason == null ? null : new Reason(reason);

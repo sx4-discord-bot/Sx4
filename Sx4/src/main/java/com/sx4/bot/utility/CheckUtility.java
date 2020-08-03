@@ -1,23 +1,17 @@
 package com.sx4.bot.utility;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.EnumSet;
-import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
-
-import org.bson.Document;
-
 import com.mongodb.client.model.Projections;
 import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.entities.settings.HolderType;
-
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.TextChannel;
+import org.bson.Document;
+
+import java.util.*;
+import java.util.stream.Collectors;
 
 public class CheckUtility {
 	
@@ -46,13 +40,13 @@ public class CheckUtility {
 		
 		long permissionsRaw = Permission.getRaw(member.getPermissions(channel)), permissionsNeededRaw = Permission.getRaw(permissions);
 		for (Document holder : holders) {
-			long id = holder.get("id", 0L);
-			int type = holder.get("type", 0);
+			long id = holder.getLong("id");
+			int type = holder.getInteger("type");
 			
 			if (type == HolderType.ROLE.getType() && roleIds.contains(id)) {
-				permissionsRaw |= holder.get("permissions", 0L);
+				permissionsRaw |= holder.getLong("permissions");
 			} else if (type == HolderType.USER.getType() && member.getIdLong() == id) {
-				permissionsRaw |= holder.get("permissions", 0L);
+				permissionsRaw |= holder.getLong("permissions");
 			}
 		}
 		

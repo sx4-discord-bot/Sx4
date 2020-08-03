@@ -82,7 +82,7 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 			for (Document data : notifications) {
 				Document webhookData = data.get("webhook", Document.class);
 				if (webhookData != null) {
-					WebhookClient webhook = new WebhookClientBuilder(webhookData.get("id", 0L), webhookData.getString("token"))
+					WebhookClient webhook = new WebhookClientBuilder(webhookData.getLong("id"), webhookData.getString("token"))
 						.setExecutorService(this.scheduledExectuor)
 						.setHttpClient(this.client)
 						.build();
@@ -160,7 +160,7 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 											
 											return;
 										} else {
-											webhook = new WebhookClientBuilder(webhookData.get("id", 0L), webhookData.getString("token"))
+											webhook = new WebhookClientBuilder(webhookData.getLong("id"), webhookData.getString("token"))
 												.setExecutorService(this.scheduledExectuor)
 												.setHttpClient(this.client)
 												.build();

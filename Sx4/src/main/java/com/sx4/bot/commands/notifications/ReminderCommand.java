@@ -11,7 +11,7 @@ import com.sx4.bot.annotations.command.Redirects;
 import com.sx4.bot.category.Category;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
-import com.sx4.bot.entities.reminder.ReminderArgument;
+import com.sx4.bot.entities.argument.ReminderArgument;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.TimeUtility;

@@ -710,11 +710,11 @@ public class Database {
 		return CompletableFuture.supplyAsync(() -> this.offences.find(filter));
 	}
 
-	public static <Type> BiConsumer<Type, Throwable> defaultHandler() {
+	public static <Type> BiConsumer<Type, Throwable> exceptionally() {
 		return ($, exception) -> ExceptionUtility.sendErrorMessage(exception);
 	}
 
-	public static <Type> BiConsumer<Type, Throwable> defaultHandler(CommandEvent event) {
+	public static <Type> BiConsumer<Type, Throwable> exceptionally(CommandEvent event) {
 		return ($, exception) -> ExceptionUtility.sendExceptionally(event, exception);
 	}
 	

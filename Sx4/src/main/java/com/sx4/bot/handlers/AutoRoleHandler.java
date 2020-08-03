@@ -1,21 +1,11 @@
 package com.sx4.bot.handlers;
 
-import java.time.Clock;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-import org.bson.Document;
-
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.Updates;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.managers.AutoRoleManager;
 import com.sx4.bot.utility.ExceptionUtility;
-
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
@@ -24,6 +14,10 @@ import net.dv8tion.jda.api.events.guild.member.GuildMemberJoinEvent;
 import net.dv8tion.jda.api.events.role.RoleDeleteEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.dv8tion.jda.internal.utils.tuple.Pair;
+import org.bson.Document;
+
+import java.time.Clock;
+import java.util.*;
 
 public class AutoRoleHandler extends ListenerAdapter {
 	
@@ -51,7 +45,7 @@ public class AutoRoleHandler extends ListenerAdapter {
 		for (Document roleData : rolesData) {
 			List<Document> filters = roleData.getList("filters", Document.class);
 			if (filters == null) {
-				Role role = guild.getRoleById(roleData.get("id", 0L));
+				Role role = guild.getRoleById(roleData.getLong("id"));
 				if (role != null && me.canInteract(role)) {
 					roles.add(role);
 				}
@@ -64,7 +58,7 @@ public class AutoRoleHandler extends ListenerAdapter {
 			for (Document filter : filters) {
 				String key = filter.getString("key");
 				Object value = filter.get("value");
-				long duration = filter.get("duration", 0L);
+				long duration = filter.getLong("duration");
 				
 				switch (key) {
 					case "BOT":

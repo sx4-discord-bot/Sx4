@@ -82,7 +82,7 @@ public class ReactionRoleHandler extends ListenerAdapter {
 					remove = removeData;
 				}
 			} else {
-				if (emoteData.get("id", 0L) == emote.getEmote().getIdLong()) {
+				if (emoteData.getLong("id") == emote.getEmote().getIdLong()) {
 					roles = rolesData;
 					whitelists = data.getList("whitelist", Document.class, Collections.emptyList());
 					remove = removeData;
@@ -98,8 +98,8 @@ public class ReactionRoleHandler extends ListenerAdapter {
 			for (int i = 0; i < whitelists.size(); i++) {
 				Document whitelist = whitelists.get(i);
 
-				long holderId = whitelist.get("id", 0L);
-				if (whitelist.get("type", 0) == HolderType.USER.getType()) {
+				long holderId = whitelist.getLong("id");
+				if (whitelist.getInteger("type") == HolderType.USER.getType()) {
 					if (holderId == user.getIdLong()) {
 						break;
 					}

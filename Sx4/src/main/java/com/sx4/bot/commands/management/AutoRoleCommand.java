@@ -185,7 +185,7 @@ public class AutoRoleCommand extends Sx4Command {
 			
 			List<Document> roles = this.database.getGuildById(event.getGuild().getIdLong(), Projections.include("autoRole.roles")).getEmbedded(List.of("autoRole", "roles"), Collections.emptyList());
 			Document roleData = roles.stream()
-				.filter(data -> data.get("id", 0L) == role.getIdLong())
+				.filter(data -> data.getLong("id") == role.getIdLong())
 				.findFirst()
 				.orElse(null);
 			

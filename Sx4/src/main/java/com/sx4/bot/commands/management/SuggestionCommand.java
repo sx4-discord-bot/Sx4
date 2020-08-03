@@ -113,7 +113,7 @@ public class SuggestionCommand extends Sx4Command {
 			return;
 		}
 		
-		long channelId = data.get("channelId", 0L);
+		long channelId = data.getLong("channelId");
 		if (channelId == 0L) {
 			event.reply("There is no suggestion channel " + this.config.getFailureEmote()).queue();
 			return;
@@ -204,14 +204,14 @@ public class SuggestionCommand extends Sx4Command {
 					return;
 				}
 				
-				if (suggestion.get("authorId", 0L) != event.getAuthor().getIdLong() && !hasPermission) {
+				if (suggestion.getLong("authorId") != event.getAuthor().getIdLong() && !hasPermission) {
 					event.reply("You do not own that suggestion " + this.config.getFailureEmote()).queue();
 					return;
 				}
 				
-				TextChannel channel = event.getGuild().getTextChannelById(suggestion.get("channelId", 0L));
+				TextChannel channel = event.getGuild().getTextChannelById(suggestion.getLong("channelId"));
 				if (channel != null) {
-					channel.deleteMessageById(suggestion.get("id", 0L)).queue(null, ErrorResponseException.ignore(ErrorResponse.UNKNOWN_MESSAGE));
+					channel.deleteMessageById(suggestion.getLong("id")).queue(null, ErrorResponseException.ignore(ErrorResponse.UNKNOWN_MESSAGE));
 				}
 				
 				event.reply("That suggestion has been removed " + this.config.getSuccessEmote()).queue();
@@ -258,7 +258,7 @@ public class SuggestionCommand extends Sx4Command {
 			return;
 		}
 		
-		TextChannel channel = event.getGuild().getTextChannelById(suggestion.get("channelId", 0L));
+		TextChannel channel = event.getGuild().getTextChannelById(suggestion.getLong("channelId"));
 		if (channel == null) {
 			event.reply("The channel for that suggestion no longer exists " + this.config.getFailureEmote()).queue();
 			return;
@@ -275,7 +275,7 @@ public class SuggestionCommand extends Sx4Command {
 				return;
 			}
 			
-			User author = event.getShardManager().getUserById(suggestion.get("authorId", 0L));
+			User author = event.getShardManager().getUserById(suggestion.getLong("authorId"));
 			
 			channel.editMessageById(messageId, this.getSuggestionEmbed(author, event.getAuthor(), suggestion.getString("suggestion"), reason, new State(state))).queue(message -> {
 				event.reply("That suggestion has been set to the `" + state.getString("name") + "` state " + this.config.getSuccessEmote()).queue();

@@ -1,34 +1,22 @@
 package com.sx4.bot.managers;
 
+import com.mongodb.client.model.*;
+import com.sx4.bot.core.Sx4;
+import com.sx4.bot.database.Database;
+import com.sx4.bot.utility.ExceptionUtility;
+import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.entities.Member;
+import net.dv8tion.jda.api.entities.Role;
+import org.bson.Document;
+import org.bson.types.ObjectId;
+
 import java.time.Clock;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-
-import org.bson.Document;
-import org.bson.types.ObjectId;
-
-import com.mongodb.client.model.Filters;
-import com.mongodb.client.model.Projections;
-import com.mongodb.client.model.UpdateOneModel;
-import com.mongodb.client.model.UpdateOptions;
-import com.mongodb.client.model.Updates;
-import com.mongodb.client.model.WriteModel;
-import com.sx4.bot.core.Sx4;
-import com.sx4.bot.database.Database;
-import com.sx4.bot.utility.ExceptionUtility;
-
-import net.dv8tion.jda.api.entities.Guild;
-import net.dv8tion.jda.api.entities.Member;
-import net.dv8tion.jda.api.entities.Role;
 
 public class AutoRoleManager {
 	
@@ -140,20 +128,20 @@ public class AutoRoleManager {
 		database.getGuilds(Filters.elemMatch("autoRole.users", Filters.exists("id")), Projections.include("autoRole.users")).forEach(data -> {
 			List<Document> users = data.getEmbedded(List.of("autoRole", "users"), Collections.emptyList());
 			for (Document user : users) {
-				long userId = user.get("id", 0L);
+				long userId = user.getLong("id");
 				
 				List<Document> tasks = user.getList("tasks", Document.class);
 				for (Document task : tasks) {
 					ObjectId id = task.getObjectId("id");
 					
-					long executeAt = task.get("executeAt", 0L), timeNow = Clock.systemUTC().instant().getEpochSecond();
+					long executeAt = task.getLong("executeAt"), timeNow = Clock.systemUTC().instant().getEpochSecond();
 					if (executeAt - timeNow <= 0) {
-						UpdateOneModel<Document> model = this.updateMemberRolesAndGet(data.get("_id", 0L), userId, id, data.getList("add", Long.class), data.getList("remove", Long.class));
+						UpdateOneModel<Document> model = this.updateMemberRolesAndGet(data.getLong("_id"), userId, id, data.getList("add", Long.class), data.getList("remove", Long.class));
 						if (model != null) {
 							bulkData.add(model);
 						}
 					} else {
-						this.putMemberRoles(data.get("_id", 0L), userId, id, data.getList("add", Long.class), data.getList("remove", Long.class), executeAt - timeNow);
+						this.putMemberRoles(data.getLong("_id"), userId, id, data.getList("add", Long.class), data.getList("remove", Long.class), executeAt - timeNow);
 					}
 				}
 			}

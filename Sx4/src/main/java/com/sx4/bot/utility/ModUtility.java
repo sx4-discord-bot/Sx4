@@ -125,22 +125,22 @@ public class ModUtility {
 
 			List<Document> config = warn.getList("config", Document.class, Warn.DEFAULT_CONFIG);
 			int maxWarning = config.stream()
-				.map(d -> d.get("number", 0))
+				.map(d -> d.getInteger("number"))
 				.max(Integer::compareTo)
 				.get();
 
 			List<Document> users = warn.getList("users", Document.class, Collections.emptyList());
 			int nextWarning = users.stream()
-				.filter(d -> d.get("id", 0L) == target.getIdLong())
+				.filter(d -> d.getLong("id") == target.getIdLong())
 				.map(d -> {
-					int current = d.get("amount", 0);
+					int current = d.getInteger("amount");
 					return current >= maxWarning ? 1 : current + 1;
 				})
 				.findFirst()
 				.orElse(1);
 
 			Action action = config.stream()
-				.filter(d -> d.get("number", 0) == nextWarning)
+				.filter(d -> d.getInteger("number") == nextWarning)
 				.map(Action::fromData)
 				.findFirst()
 				.orElse(new Action(ModAction.WARN));
@@ -159,7 +159,7 @@ public class ModUtility {
 
 					Document mute = data.get("mute", Database.EMPTY_DOCUMENT);
 
-					ModUtility.upsertMuteRole(guild, mute.get("roleId", 0L), mute.get("autoUpdate", true)).whenComplete((role, roleException) -> {
+					ModUtility.upsertMuteRole(guild, mute.getLong("roleId"), mute.get("autoUpdate", true)).whenComplete((role, roleException) -> {
 						if (roleException != null) {
 							future.completeExceptionally(roleException);
 						} else {

@@ -64,7 +64,7 @@ public class GiveawayManager {
 	}
 	
 	public void putGiveaway(Document data, long seconds) {
-		this.putExecutor(data.get("_id", 0L), this.executor.schedule(() -> this.endGiveaway(data), seconds, TimeUnit.SECONDS));
+		this.putExecutor(data.getLong("_id"), this.executor.schedule(() -> this.endGiveaway(data), seconds, TimeUnit.SECONDS));
 	}
 	
 	public void endGiveaway(Document data) {
@@ -86,14 +86,14 @@ public class GiveawayManager {
 	}
 	
 	public CompletableFuture<UpdateOneModel<Document>> endGiveawayAndGet(Document data, boolean offTime) {
-		long guildId = data.get("guildId", 0L), messageId = data.get("_id", 0L);
+		long guildId = data.getLong("guildId"), messageId = data.get("_id", 0L);
 		
 		Guild guild = Sx4.get().getShardManager().getGuildById(guildId);
 		if (guild == null) {
 			return CompletableFuture.completedFuture(null);
 		}
 		
-		TextChannel channel = guild.getTextChannelById(data.get("channelId", 0L));
+		TextChannel channel = guild.getTextChannelById(data.getLong("channelId"));
 		if (channel == null) {
 			return CompletableFuture.completedFuture(null);
 		}
@@ -132,7 +132,7 @@ public class GiveawayManager {
 					return;
 				}
 				
-				Set<Member> winners = MathUtility.randomSample(members, Math.min(data.get("winnersAmount", 0), members.size()));
+				Set<Member> winners = MathUtility.randomSample(members, Math.min(data.getInteger("winnersAmount"), members.size()));
 				
 				List<Long> winnerIds = new ArrayList<>();
 				List<String> winnerTags = new ArrayList<>(), winnerMentions = new ArrayList<>();
@@ -168,7 +168,7 @@ public class GiveawayManager {
 		
 		List<CompletableFuture<UpdateOneModel<Document>>> futures = new ArrayList<>();
 		database.getGiveaways(Filters.not(Filters.exists("winners"))).forEach(data -> {
-			long endAt = data.get("endAt", 0L), timeNow = Clock.systemUTC().instant().getEpochSecond();
+			long endAt = data.getLong("endAt"), timeNow = Clock.systemUTC().instant().getEpochSecond();
 			if (endAt - timeNow > 0) {
 				this.putGiveaway(data, endAt - timeNow);
 			} else {

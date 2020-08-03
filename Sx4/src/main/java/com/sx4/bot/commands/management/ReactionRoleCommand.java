@@ -58,7 +58,7 @@ public class ReactionRoleCommand extends Sx4Command {
 
 				return false;
 			} else {
-				return emoteData.get("id", 0L) == emote.getEmote().getIdLong();
+				return emoteData.getLong("id") == emote.getEmote().getIdLong();
 			}
 		};
 	}
@@ -421,7 +421,7 @@ public class ReactionRoleCommand extends Sx4Command {
 
 				List<Document> reactionRoles = data.getEmbedded(List.of("reactionRole", "reactionRoles"), Collections.emptyList());
 				Document reactionRole = reactionRoles.stream()
-					.filter(d -> d.get("id", 0L) == messageId)
+					.filter(d -> d.getLong("id") == messageId)
 					.findFirst()
 					.orElse(null);
 
@@ -484,7 +484,7 @@ public class ReactionRoleCommand extends Sx4Command {
 
 				List<Document> reactionRoles = data.getEmbedded(List.of("reactionRole", "reactionRoles"), Collections.emptyList());
 				Document reactionRole = reactionRoles.stream()
-					.filter(d -> d.get("id", 0L) == messageId)
+					.filter(d -> d.getLong("id") == messageId)
 					.findFirst()
 					.orElse(null);
 
@@ -506,7 +506,7 @@ public class ReactionRoleCommand extends Sx4Command {
 					}
 
 					List<Document> whitelists = reaction.getList("whitelist", Document.class, Collections.emptyList());
-					if (whitelists.stream().noneMatch(d -> d.get("id", 0L) == holder.getIdLong())) {
+					if (whitelists.stream().noneMatch(d -> d.getLong("id") == holder.getIdLong())) {
 						event.reply("That " + (role ? "role" : "user") + " is not whitelisted from that reaction " + this.config.getFailureEmote()).queue();
 						return;
 					}
@@ -548,7 +548,7 @@ public class ReactionRoleCommand extends Sx4Command {
 
 				List<Document> reactionRoles = data.getEmbedded(List.of("reactionRole", "reactionRoles"), Collections.emptyList());
 				Document reactionRole = reactionRoles.stream()
-					.filter(d -> d.get("id", 0L) == messageId)
+					.filter(d -> d.getLong("id") == messageId)
 					.findFirst()
 					.orElse(null);
 

@@ -89,7 +89,7 @@ public class PatreonHandler implements PatreonListener, EventListener {
 					return;
 				}
 				
-				database.updatePatronByFilter(Filters.eq("discordId", data.get("premium", 0L)), Updates.pull("guilds", guildId)).whenComplete((result, patronException) -> ExceptionUtility.sendErrorMessage(patronException));
+				database.updatePatronByFilter(Filters.eq("discordId", data.getLong("premium")), Updates.pull("guilds", guildId)).whenComplete((result, patronException) -> ExceptionUtility.sendErrorMessage(patronException));
 			});
 		}
 	}

@@ -1,20 +1,5 @@
 package com.sx4.bot.commands.management;
 
-import java.time.Clock;
-import java.time.Duration;
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Collectors;
-
-import org.bson.Document;
-import org.bson.conversions.Bson;
-
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
 import com.mongodb.client.model.Filters;
@@ -37,7 +22,6 @@ import com.sx4.bot.utility.NumberUtility;
 import com.sx4.bot.utility.SearchUtility;
 import com.sx4.bot.utility.TimeUtility;
 import com.sx4.bot.waiter.Waiter;
-
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.MessageEmbed;
@@ -45,6 +29,20 @@ import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent;
 import net.dv8tion.jda.api.sharding.ShardManager;
+import org.bson.Document;
+import org.bson.conversions.Bson;
+
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 public class GiveawayCommand extends Sx4Command {
 
@@ -349,20 +347,20 @@ public class GiveawayCommand extends Sx4Command {
 				return;
 			}
 			
-			if (data.get("endAt", 0L) - timeNow > 0) {
+			if (data.getLong("endAt") - timeNow > 0) {
 				event.reply("That giveaway has not ended yet " + this.config.getFailureEmote()).queue();
 				return;
 			}
 			
-			long seconds = duration == null ? data.get("duration", 0L) : duration.toSeconds();
+			long seconds = duration == null ? data.getLong("duration") : duration.toSeconds();
 			
-			TextChannel channel = event.getGuild().getTextChannelById(data.get("channelId", 0L));
+			TextChannel channel = event.getGuild().getTextChannelById(data.getLong("channelId"));
 			if (channel == null) {
 				event.reply("That giveaway no longer exists " + this.config.getFailureEmote()).queue();
 				return;
 			}
 			
-			channel.editMessageById(data.get("_id", 0L), this.getEmbed(data.get("winnersAmount", 0), seconds, data.getString("item"))).queue();
+			channel.editMessageById(data.getLong("_id"), this.getEmbed(data.getInteger("winnersAmount"), seconds, data.getString("item"))).queue();
 			
 			this.giveawayManager.putGiveaway(data, seconds);
 			
@@ -469,12 +467,8 @@ public class GiveawayCommand extends Sx4Command {
 		PagedResult<Document> paged = new PagedResult<>(giveaways)
 			.setAuthor("Giveaways", null, event.getGuild().getIconUrl())
 			.setDisplayFunction(data -> {
-				long endAt = data.get("endAt", 0L), timeNow = Clock.systemUTC().instant().getEpochSecond();
-				if (endAt - timeNow < 0) {
-					return data.get("_id", 0L) + " - Ended";
-				} else {
-					return data.get("_id", 0L) + " - " + TimeUtility.getTimeString(endAt - timeNow);
-				}
+				long endAt = data.getLong("endAt"), timeNow = Clock.systemUTC().instant().getEpochSecond();
+				return data.getLong("_id") + " - " + (endAt - timeNow < 0 ? "Ended" : TimeUtility.getTimeString(endAt - timeNow));
 			});
 		
 		paged.onSelect(select -> {
@@ -489,7 +483,7 @@ public class GiveawayCommand extends Sx4Command {
 				.map(User::getAsMention)
 				.collect(Collectors.joining(", "));
 			
-			event.replyFormat("**Giveaway %d**\nItem: %s\nWinner%s: %s\nDuration: %s", data.get("_id", 0L), data.getString("item"), winners.size() == 1 ? "" : "s", winnersString, TimeUtility.getTimeString(data.get("duration", 0L))).queue();
+			event.replyFormat("**Giveaway %d**\nItem: %s\nWinner%s: %s\nDuration: %s", data.getLong("_id"), data.getString("item"), winners.size() == 1 ? "" : "s", winnersString, TimeUtility.getTimeString(data.getLong("duration"))).queue();
 		});
 		
 		paged.execute(event);

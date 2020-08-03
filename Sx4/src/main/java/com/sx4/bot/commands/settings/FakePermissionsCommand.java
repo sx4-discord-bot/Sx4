@@ -157,8 +157,8 @@ public class FakePermissionsCommand extends Sx4Command {
 		
 		List<Document> holders = this.database.getGuildById(event.getGuild().getIdLong(), Projections.include("fakePermissions.holders")).getEmbedded(List.of("fakePermissions", "holders"), Collections.emptyList());
 		long permissionsRaw = holders.stream()
-			.filter(data -> data.get("id", 0L) == holder.getIdLong())
-			.map(data -> data.get("permissions", 0L))
+			.filter(data -> data.getLong("id") == holder.getIdLong())
+			.map(data -> data.getLong("permissions"))
 			.findFirst()
 			.orElse(0L);
 		
@@ -182,8 +182,8 @@ public class FakePermissionsCommand extends Sx4Command {
 		List<Document> allHolders = this.database.getGuildById(event.getGuild().getIdLong(), Projections.include("fakePermissions.holders")).getEmbedded(List.of("fakePermissions", "holders"), Collections.emptyList());
 		
 		List<Document> holders = allHolders.stream()
-			.sorted(Comparator.comparingInt(a -> a.get("type", 0)))
-			.filter(data -> (data.get("permissions", 0L) & permissionsRaw) == permissionsRaw)
+			.sorted(Comparator.comparingInt(a -> a.getInteger("type")))
+			.filter(data -> (data.getLong("permissions") & permissionsRaw) == permissionsRaw)
 			.collect(Collectors.toList());
 		
 		PagedResult<Document> paged = new PagedResult<>(holders)
@@ -191,14 +191,14 @@ public class FakePermissionsCommand extends Sx4Command {
 			.setPerPage(15)
 			.setIndexed(false)
 			.setDisplayFunction(data -> {
-				int type = data.get("type", 0);
+				int type = data.getInteger("type");
 				
 				Member member = null;
 				Role role = null;
 				if (type == HolderType.USER.getType()) {
-					member = event.getGuild().getMemberById(data.get("id", 0L));
+					member = event.getGuild().getMemberById(data.getLong("id"));
 				} else {
-					role = event.getGuild().getRoleById(data.get("id", 0L));
+					role = event.getGuild().getRoleById(data.getLong("id"));
 				}
 				
 				return member == null ? role.getAsMention() : member.getUser().getAsTag();

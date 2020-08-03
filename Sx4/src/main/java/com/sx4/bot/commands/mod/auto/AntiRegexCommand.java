@@ -264,7 +264,7 @@ public class AntiRegexCommand extends Sx4Command {
 				}
 
 				Document modActionData = regex.getEmbedded(List.of("action", "mod"), Document.class);
-				if (modActionData != null && modActionData.get("type", 0) == action.getType() && modActionData.get("duration", 0L) == duration) {
+				if (modActionData != null && modActionData.getInteger("type") == action.getType() && modActionData.getLong("duration") == duration) {
 					event.reply("Your mod action for this regex is already set to that " + this.config.getFailureEmote()).queue();
 					return;
 				}
@@ -433,15 +433,15 @@ public class AntiRegexCommand extends Sx4Command {
 				List<Document> whitelists = regex.getEmbedded(List.of("whitelist", "channels"), Collections.emptyList());
 				if (!whitelists.isEmpty()) {
 					Document whitelist = whitelists.stream()
-						.filter(d -> channels.stream().anyMatch(channel -> channel.getIdLong() == d.get("id", 0L)))
+						.filter(d -> channels.stream().anyMatch(channel -> channel.getIdLong() == d.getLong("id")))
 						.findAny()
-						.orElse(null);
+						.orElse(Database.EMPTY_DOCUMENT);
 
 					List<Document> groups = whitelist.getList("groups", Document.class, Collections.emptyList());
 					Document oldGroup = groups.stream()
-						.filter(d -> d.get("group", 0) == group)
+						.filter(d -> d.getInteger("group") == group)
 						.findFirst()
-						.orElse(null);
+						.orElse(Database.EMPTY_DOCUMENT);
 
 					if (oldGroup.getList("strings", String.class).contains(string)) {
 						event.reply("Group **" + group + "** is already whitelisted from that string in all of the provided channels " + this.config.getFailureEmote()).queue();
@@ -502,12 +502,12 @@ public class AntiRegexCommand extends Sx4Command {
 				List<Document> whitelists = regex.getEmbedded(List.of("whitelist", "channels"), Collections.emptyList());
 				if (!whitelists.isEmpty()) {
 					Document whitelist = whitelists.stream()
-						.filter(d -> channels.stream().anyMatch(channel -> channel.getIdLong() == d.get("id", 0L)))
+						.filter(d -> channels.stream().anyMatch(channel -> channel.getIdLong() == d.getLong("id")))
 						.findAny()
-						.orElse(null);
+						.orElse(Database.EMPTY_DOCUMENT);
 
 					List<Document> holders = whitelist.getList("holders", Document.class, Collections.emptyList());
-					if (holders.stream().anyMatch(d -> d.get("id", 0L) == holderId)) {
+					if (holders.stream().anyMatch(d -> d.getLong("id") == holderId)) {
 						event.reply((role ? ((Role) holder).getAsMention() : ((Member) holder).getUser().getAsMention()) + " is already whitelisted in all of the provided channels " + this.config.getFailureEmote()).queue();
 						return;
 					}
@@ -563,15 +563,15 @@ public class AntiRegexCommand extends Sx4Command {
 				List<Document> whitelists = regex.getEmbedded(List.of("whitelist", "channels"), Collections.emptyList());
 				if (!whitelists.isEmpty()) {
 					Document whitelist = whitelists.stream()
-						.filter(d -> channels.stream().anyMatch(channel -> channel.getIdLong() == d.get("id", 0L)))
+						.filter(d -> channels.stream().anyMatch(channel -> channel.getIdLong() == d.getLong("id")))
 						.findAny()
-						.orElse(null);
+						.orElse(Database.EMPTY_DOCUMENT);
 
 					List<Document> groups = whitelist.getList("groups", Document.class, Collections.emptyList());
 					Document oldGroup = groups.stream()
-						.filter(d -> d.get("group", 0) == group)
+						.filter(d -> d.getInteger("group") == group)
 						.findFirst()
-						.orElse(null);
+						.orElse(Database.EMPTY_DOCUMENT);
 
 					if (oldGroup.getList("strings", String.class).contains(string)) {
 						event.reply("Group **" + group + "** is no longer whitelisted from that string in the provided channels " + this.config.getSuccessEmote()).queue();
@@ -632,12 +632,12 @@ public class AntiRegexCommand extends Sx4Command {
 				List<Document> whitelists = regex.getEmbedded(List.of("whitelist", "channels"), Collections.emptyList());
 				if (!whitelists.isEmpty()) {
 					Document whitelist = whitelists.stream()
-						.filter(d -> channels.stream().anyMatch(channel -> channel.getIdLong() == d.get("id", 0L)))
+						.filter(d -> channels.stream().anyMatch(channel -> channel.getIdLong() == d.getLong("id")))
 						.findAny()
-						.orElse(null);
+						.orElse(Database.EMPTY_DOCUMENT);
 
 					List<Document> holders = whitelist.getList("holders", Document.class, Collections.emptyList());
-					if (holders.stream().anyMatch(d -> d.get("id", 0L) == holderId)) {
+					if (holders.stream().anyMatch(d -> d.getLong("id") == holderId)) {
 						event.reply((role ? ((Role) holder).getAsMention() : ((Member) holder).getUser().getAsMention()) + " is no longer whitelisted in the provided channels " + this.config.getSuccessEmote()).queue();
 						return;
 					}
@@ -664,7 +664,7 @@ public class AntiRegexCommand extends Sx4Command {
 
 			List<Document> whitelists = regex.getEmbedded(List.of("whitelist", "channels"), Collections.emptyList());
 			Document whitelist = whitelists.stream()
-				.filter(d -> d.get("id", 0L) == channel.getIdLong())
+				.filter(d -> d.getLong("id") == channel.getIdLong())
 				.findFirst()
 				.orElse(null);
 
@@ -744,7 +744,7 @@ public class AntiRegexCommand extends Sx4Command {
 					embed.setFooter("next | previous | go to <page_number> | cancel", null);
 
 					page.forEach((data, index) -> {
-						User owner = event.getShardManager().getUserById(data.get("ownerId", 0L));
+						User owner = event.getShardManager().getUserById(data.getLong("ownerId"));
 						List<Long> uses = data.getList("uses", Long.class, Collections.emptyList());
 
 						embed.addField(data.getString("title"), String.format("Id: %s\nRegex: `%s`\nUses: %,d\nOwner: %s\nDescription: %s", data.getObjectId("_id").toHexString(), data.getString("pattern"), uses.size(), owner == null ? "Annonymous#0000" : owner.getAsTag(), data.getString("description")), true);
@@ -776,7 +776,7 @@ public class AntiRegexCommand extends Sx4Command {
 					embed.setFooter("next | previous | go to <page_number> | cancel", null);
 					
 					page.forEach((data, index) -> {
-						User owner = event.getShardManager().getUserById(data.get("ownerId", 0L));
+						User owner = event.getShardManager().getUserById(data.getLong("ownerId"));
 
 						embed.addField(data.getString("title"), String.format("Id: %s\nRegex: `%s`\nOwner: %s\nDescription: %s", data.getObjectId("_id").toHexString(), data.getString("pattern"), owner == null ? "Annonymous#0000" : owner.getAsTag(), data.getString("description")), true);
 					});
@@ -802,7 +802,7 @@ public class AntiRegexCommand extends Sx4Command {
 					return;
 				}
 				
-				User owner = event.getShardManager().getUserById(data.get("ownerId", 0L));
+				User owner = event.getShardManager().getUserById(data.getLong("ownerId"));
 				if (owner != null) {
 					owner.openPrivateChannel()
 						.flatMap(channel -> channel.sendMessage("Your regex template **" + data.getString("title") + "** was just approved you can now use it in anti regex " + this.config.getSuccessEmote()))
@@ -828,7 +828,7 @@ public class AntiRegexCommand extends Sx4Command {
 					return;
 				}
 				
-				User owner = event.getShardManager().getUserById(data.get("ownerId", 0L));
+				User owner = event.getShardManager().getUserById(data.getLong("ownerId"));
 				if (owner != null) {
 					owner.openPrivateChannel()
 						.flatMap(channel -> channel.sendMessage("Your regex template **" + data.getString("title") + "** was just denied with the reason `" + reason + "` " + this.config.getFailureEmote()))
