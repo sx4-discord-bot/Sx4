@@ -12,8 +12,8 @@ repositories {
 }
 
 shadowJar {
-	baseName = 'Sx4'
-	classifier = ''
+	archiveBaseName = 'Sx4'
+	archiveClassifier = ''
 	archiveVersion = ''
 }
 
