@@ -1,15 +1,5 @@
 package com.sx4.bot.modules;
 
-import java.awt.Color;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Random;
-import java.util.concurrent.TimeUnit;
-
-import org.json.JSONObject;
-
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
 import com.jockie.bot.core.command.Command.BotPermissions;
@@ -27,7 +17,6 @@ import com.sx4.bot.utils.ArgumentUtils;
 import com.sx4.bot.utils.FunUtils;
 import com.sx4.bot.utils.GeneralUtils;
 import com.sx4.bot.utils.ImageUtils;
-
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Member;
@@ -36,6 +25,16 @@ import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
+import org.bson.Document;
+import org.json.JSONObject;
+
+import java.awt.*;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
+import java.util.concurrent.TimeUnit;
 
 @Module
 public class ImageModule {
@@ -970,14 +969,23 @@ public class ImageModule {
 		event.getTextChannel().sendTyping().queue($ -> {
 			ImageModule.client.newCall(request).enqueue((Sx4Callback) response -> {
 				if (response.code() == 200) {
-					int colourRaw;
-					colourRaw = Integer.parseInt(response.body().string());
+					Document json = Document.parse(response.body().string());
+					List<Document> colours = json.getList("colours", Document.class);
+					if (colours.isEmpty()) {
+						event.reply("That image didn't have any colours :no_entry:").queue();
+						return;
+					}
+
+					Document mostCommon = colours.get(0);
+					int colourRaw = mostCommon.getInteger("colour");
 					
-					EmbedBuilder embed = new EmbedBuilder();
-					embed.setThumbnail(newUrl);
-					embed.setColor(colourRaw);
-					embed.setTitle("Most Common Colour");
-					embed.setDescription("Hex: #" + GeneralUtils.getHex(colourRaw) + "\nRGB: " + GeneralUtils.getRGB(colourRaw));		
+					EmbedBuilder embed = new EmbedBuilder()
+						.setThumbnail(newUrl)
+						.setColor(colourRaw)
+						.setTitle("Most Common Colour")
+						.addField("Colour", "Hex: #" + GeneralUtils.getHex(colourRaw) + "\nRGB: " + GeneralUtils.getRGB(colourRaw), true)
+						.addField("Pixels", String.format("Amount: %,d", mostCommon.getInteger("pixels")), true);
+
 					event.reply(embed.build()).queue();
 				} else if (response.code() == 400) {
 					event.reply(response.body().string()).queue();

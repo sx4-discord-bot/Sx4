@@ -10,6 +10,12 @@ repositories {
 	jcenter()
 }
 
+shadowJar {
+	archiveBaseName = 'Sx4'
+	archiveClassifier = ''
+	archiveVersion = ''
+}
+
 mainClassName = 'com.sx4.bot.core.Sx4Bot'
 
 compileJava.options.encoding = 'UTF-8'
