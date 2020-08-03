@@ -16,6 +16,9 @@ shadowJar {
 	archiveVersion = ''
 }
 
+sourceCompatibility = JavaVersion.VERSION_11
+targetCompatibility = JavaVersion.VERSION_11
+
 mainClassName = 'com.sx4.bot.core.Sx4Bot'
 
 compileJava.options.encoding = 'UTF-8'
