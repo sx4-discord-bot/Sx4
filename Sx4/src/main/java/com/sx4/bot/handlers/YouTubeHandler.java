@@ -72,7 +72,7 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 			.append("video.id", video.getId())
 			.append("video.thumbnail", video.getThumbnail())
 			.append("video.published", video.getPublishedAt().format(this.formatter))
-			.format();
+			.parse();
 	}
 	
 	public void ensureWebhooks() {

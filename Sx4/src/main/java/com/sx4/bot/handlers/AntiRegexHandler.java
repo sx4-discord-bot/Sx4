@@ -49,7 +49,7 @@ public class AntiRegexHandler extends ListenerAdapter {
             .append("regex.action.exists", action != null)
             .append("regex.attempts.current", currentAttempts)
             .append("regex.attempts.max", maxAttempts)
-            .format();
+            .parse();
     }
 
     public void handle(Message message) {
