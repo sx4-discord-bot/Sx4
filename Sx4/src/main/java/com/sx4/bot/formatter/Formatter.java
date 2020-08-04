@@ -1,5 +1,7 @@
 package com.sx4.bot.formatter;
 
+import com.sx4.bot.utility.ColourUtility;
+import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.entities.User;
 
@@ -40,14 +42,21 @@ public class Formatter {
             .append("channel.id", channel.getId());
     }
 
+    public Formatter role(Role role) {
+        return this.append("role.mention", role.getAsMention())
+            .append("role.name", role.getName())
+            .append("role.id", role.getId())
+            .append("role.colour", "#" + ColourUtility.toHexString(role.getColorRaw()));
+    }
+
     public String parse() {
         return this.parse(this.string, this.map);
     }
 
-    private boolean equal(String string, char firstChar, char secondChar) {
+    private boolean notEqual(String string, char firstChar, char secondChar) {
         int first = 0, second = 0;
         for (int i = 0; i < string.length(); i++) {
-            char character = string.charAt(i), characterBefore = string.charAt(i == 0 ? 0 : i - 1);
+            char character = string.charAt(i), characterBefore = string.charAt(Math.max(0, i - 1));
             if (character == firstChar && characterBefore != '\\') {
                 first++;
             } else if (character == secondChar && characterBefore != '\\') {
@@ -55,7 +64,7 @@ public class Formatter {
             }
         }
 
-        return first == second;
+        return first != second;
     }
 
     private boolean escape(String string, int index) {
@@ -132,7 +141,7 @@ public class Formatter {
                     continue;
                 }
 
-                if (!this.equal(string.substring(index + 1, endIndex), '(', ')')) {
+                if (this.notEqual(string.substring(index + 1, endIndex), '(', ')')) {
                     continue;
                 }
 
@@ -149,7 +158,7 @@ public class Formatter {
                         }
 
                         String ifFormatter = string.substring(condIndex + 1, endCondIndex);
-                        if (!this.equal(ifFormatter, '?', ':')) {
+                        if (this.notEqual(ifFormatter, '?', ':')) {
                             continue;
                         }
 
@@ -183,7 +192,7 @@ public class Formatter {
                 }
 
                 String formatter = string.substring(index + 1, endIndex);
-                if (!this.equal(formatter, '{', '}')) {
+                if (this.notEqual(formatter, '{', '}')) {
                     continue;
                 }
 
@@ -192,6 +201,7 @@ public class Formatter {
                 }
 
                 string = string.substring(0, index) + map.get(formatter) + string.substring(endIndex + 1);
+
                 continue Open;
             }
         }

@@ -9,10 +9,7 @@ import club.minnced.discord.webhook.send.WebhookEmbed.EmbedFooter;
 import club.minnced.discord.webhook.send.WebhookEmbedBuilder;
 import com.sx4.bot.config.Config;
 import com.sx4.bot.core.Sx4;
-import com.sx4.bot.managers.AutoRoleManager;
-import com.sx4.bot.managers.GiveawayManager;
-import com.sx4.bot.managers.MuteManager;
-import com.sx4.bot.managers.ReminderManager;
+import com.sx4.bot.managers.*;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDA.ShardInfo;
 import net.dv8tion.jda.api.events.DisconnectEvent;
@@ -63,6 +60,7 @@ public class ConnectionHandler extends ListenerAdapter {
 			MuteManager.get().ensureMutes();
 			AutoRoleManager.get().ensureAutoRoles();
 			GiveawayManager.get().ensureGiveaways();
+			AntiRegexManager.get().ensureAttempts();
 		}
 		
 		this.eventsWebhook.send(this.getEmbed(jda, "Ready", Config.get().getGreen()));

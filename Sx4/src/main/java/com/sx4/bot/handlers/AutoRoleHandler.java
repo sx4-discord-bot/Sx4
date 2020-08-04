@@ -95,7 +95,7 @@ public class AutoRoleHandler extends ListenerAdapter {
 	
 	public void onRoleDelete(RoleDeleteEvent event) {
 		Database.get().updateGuildById(event.getGuild().getIdLong(), Updates.pull("autoRole.roles", Filters.eq("id", event.getRole().getIdLong())))
-			.whenComplete((result, exception) -> ExceptionUtility.sendErrorMessage(exception));
+			.whenComplete(Database.exceptionally());
 	}
 
 }

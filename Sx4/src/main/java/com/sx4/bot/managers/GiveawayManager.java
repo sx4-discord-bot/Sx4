@@ -78,7 +78,7 @@ public class GiveawayManager {
 			}
 			
 			return Database.get().updateGiveaway(model);
-		}).whenComplete((result, excpetion) -> ExceptionUtility.sendErrorMessage(excpetion));
+		}).whenComplete(Database.exceptionally());
 	}
 	
 	public CompletableFuture<UpdateOneModel<Document>> endGiveawayAndGet(Document data) {
@@ -186,7 +186,7 @@ public class GiveawayManager {
 					
 					return CompletableFuture.completedFuture(null);
 				})
-				.whenComplete((result, exception) -> ExceptionUtility.sendErrorMessage(exception));
+				.whenComplete(Database.exceptionally());
 		}
 	}
 	

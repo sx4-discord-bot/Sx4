@@ -64,15 +64,23 @@ public class AntiRegexCommand extends Sx4Command {
 			return;
 		}
 		
-		Document data = new Document("id", id)
+		Document pattern = new Document("id", id)
 			.append("pattern", regex.getString("pattern"));
 		
-		List<Bson> update = List.of(Operators.set("antiRegex.regexes", Operators.cond(Operators.and(Operators.exists("$antiRegex.regexes"), Operators.not(Operators.isEmpty(Operators.filter("$antiRegex.regexes", Operators.eq("$$this.id", id))))), "$antiRegex.regexes", Operators.cond(Operators.exists("$antiRegex.regexes"), Operators.concatArrays("$antiRegex.regexes", List.of(data)), List.of(data)))));
+		List<Bson> update = List.of(Operators.set("antiRegex.regexes", Operators.cond(Operators.or(Operators.and(Operators.extinct("$premium"), Operators.gte(Operators.ifNull(Operators.size("$antiRegex.regexes"), 0), 10)), Operators.and(Operators.exists("$antiRegex.regexes"), Operators.not(Operators.isEmpty(Operators.filter("$antiRegex.regexes", Operators.eq("$$this.id", id)))))), "$antiRegex.regexes", Operators.concatArrays(Operators.ifNull("$antiRegex.regexes", Collections.EMPTY_LIST), List.of(pattern)))));
 
-		this.database.updateGuildById(event.getGuild().getIdLong(), update)
-			.thenCompose(result -> {
-				if (result.getModifiedCount() == 0) {
+		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("premium", "antiRegex.regexes"));
+		this.database.findAndUpdateGuildById(event.getGuild().getIdLong(), update, options)
+			.thenCompose(data -> {
+				data = data == null ? Database.EMPTY_DOCUMENT : data;
+				List<Document> regexes = data.getEmbedded(List.of("antiRegex", "regexes"), Collections.emptyList());
+				if (regexes.stream().anyMatch(d -> d.getObjectId("id").equals(id))) {
 					event.reply("You already have that regex setup in this server " + this.config.getFailureEmote()).queue();
+					return CompletableFuture.completedFuture(null);
+				}
+
+				if (regexes.size() >= 10 && !data.containsKey("premium")) {
+					event.reply("You need to have Sx4 premium to have more than 10 anti regexes, you can get premium at <https://www.patreon.com/Sx4> " + this.config.getFailureEmote()).queue();
 					return CompletableFuture.completedFuture(null);
 				}
 
@@ -153,6 +161,11 @@ public class AntiRegexCommand extends Sx4Command {
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	@Examples({"anti regex reset after 5f023782ef9eba03390a740c 1 1 day", "anti regex reset after 5f023782ef9eba03390a740c 3 5h 20s", "anti regex reset after 5f023782ef9eba03390a740c 3 5h 20s"})
 	public void resetAfter(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="amount") @Limit(min=0) int amount, @Argument(value="time", endless=true, nullDefault=true) Duration time) {
+		if (time.toMinutes() < 5) {
+			event.reply("The duration has to be 5 minutes or above " + this.config.getFailureEmote()).queue();
+			return;
+		}
+
 		Bson update = amount == 0 ? Updates.unset("antiRegex.regexes.$[regex].action.mod.attempts.reset") : Updates.set("antiRegex.regexes.$[regex].action.mod.attempts.reset", new Document("amount", amount).append("after", time.toSeconds()));
 
 		UpdateOptions options = new UpdateOptions().arrayFilters(List.of(Filters.eq("regex.id", id)));
@@ -388,6 +401,22 @@ public class AntiRegexCommand extends Sx4Command {
 		@Examples({"anti regex whitelist add 5f023782ef9eba03390a740c #youtube-links 2 youtube.com", "anti regex whitelist add 5f023782ef9eba03390a740c 0 https://youtube.com"})
 		@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 		public void add(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="channel", nullDefault=true) TextChannel channelArgument, @Argument(value="group") @Limit(min=0) int group, @Argument(value="string", endless=true) String string) {
+			List<Document> patterns = this.database.getGuildById(event.getGuild().getIdLong(), Projections.include("antiRegex.regexes")).getEmbedded(List.of("antiRegex", "regexes"), Collections.emptyList());
+			Document pattern = patterns.stream()
+				.filter(d -> d.getObjectId("id").equals(id))
+				.findFirst()
+				.orElse(null);
+			
+			if (pattern == null) {
+				event.reply("I could not find that anti regex " + this.config.getFailureEmote()).queue();
+				return;
+			}
+			
+			if (Pattern.compile(pattern.getString("pattern")).matcher("").groupCount() < group) {
+				event.reply("There is not a group " + group + " in that regex " + this.config.getFailureEmote()).queue();
+				return;
+			}
+			
 			List<TextChannel> channels = channelArgument == null ? event.getGuild().getTextChannels() : List.of(channelArgument);
 
 			Bson regexFilter = Operators.filter("$antiRegex.regexes", Operators.eq("$$this.id", id));

@@ -1,7 +1,6 @@
 package com.sx4.bot.cache.message;
 
 import com.sx4.bot.database.Database;
-import com.sx4.bot.utility.ExceptionUtility;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.events.message.MessageBulkDeleteEvent;
 import net.dv8tion.jda.api.events.message.guild.GuildMessageDeleteEvent;
@@ -33,15 +32,15 @@ public class GuildMessageCache extends ListenerAdapter {
 	}
 
 	public void onGuildMessageReceived(GuildMessageReceivedEvent event) {
-		Database.get().insertMessage(this.getData(event.getMessage())).whenComplete((result, exception) -> ExceptionUtility.sendErrorMessage(exception));
+		Database.get().insertMessage(this.getData(event.getMessage())).whenComplete(Database.exceptionally());
 	}
 	
 	public void onGuildMessageUpdate(GuildMessageUpdateEvent event) {
-		Database.get().replaceMessage(this.getData(event.getMessage())).whenComplete((result, exception) -> ExceptionUtility.sendErrorMessage(exception));
+		Database.get().replaceMessage(this.getData(event.getMessage())).whenComplete(Database.exceptionally());
 	}
 
 	public void handleDelete(List<Long> messageIds) {
-		this.executor.schedule(() -> Database.get().deleteMessages(messageIds).whenComplete((result, exception) -> ExceptionUtility.sendErrorMessage(exception)), 5, TimeUnit.SECONDS);
+		this.executor.schedule(() -> Database.get().deleteMessages(messageIds).whenComplete(Database.exceptionally()), 5, TimeUnit.SECONDS);
 	}
 	
 	public void onGuildMessageDelete(GuildMessageDeleteEvent event) {

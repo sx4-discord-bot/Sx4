@@ -1,13 +1,26 @@
 package com.sx4.bot.managers;
 
+import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.Projections;
+import com.mongodb.client.model.UpdateOptions;
+import com.mongodb.client.model.Updates;
+import com.sx4.bot.database.Database;
+import org.bson.Document;
+import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
 
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 public class AntiRegexManager {
 
-    public static final String DEFAULT_MATCH_MESSAGE = "{user.mention}, you cannot send that content here due to the regex {regex.id}"
+    public static final String DEFAULT_MATCH_MESSAGE = "{user.mention}, you cannot send that content here due to the regex `{regex.id}`"
         + "({regex.action.exists}?, you will receive a {regex.action.name} if you continue **({regex.attempts.current}/{regex.attempts.max})**:) :no_entry:";
 
     public static final String DEFAULT_MOD_MESSAGE = "**{user.tag}** has received a {regex.action.name} for sending a message which matched the regex"
@@ -22,8 +35,12 @@ public class AntiRegexManager {
     // TODO Would also be nice for a way to combine attempts across multiple anti regexes
     private final Map<Long, Map<ObjectId, Map<Long, Integer>>> attempts;
 
+    private final Map<Long, Map<ObjectId, Map<Long, ScheduledFuture<?>>>> executors;
+    private final ScheduledExecutorService executor = Executors.newScheduledThreadPool(20);
+
     private AntiRegexManager() {
         this.attempts = new HashMap<>();
+        this.executors = new HashMap<>();
     }
 
     public int getAttempts(long guildId, ObjectId id, long userId) {
@@ -94,6 +111,104 @@ public class AntiRegexManager {
                 userAttempts.remove(userId);
             }
         }
+
+        this.cancelExecutor(guildId, id, userId);
+    }
+
+    public void cancelExecutor(long guildId, ObjectId id, long userId) {
+        Map<ObjectId, Map<Long, ScheduledFuture<?>>> regexExecutors = this.executors.get(guildId);
+        if (regexExecutors != null) {
+            Map<Long, ScheduledFuture<?>> userExecutors = regexExecutors.get(id);
+            if (userExecutors != null) {
+                ScheduledFuture<?> executor = userExecutors.remove(userId);
+                if (executor != null) {
+                    executor.cancel(true);
+                }
+            }
+        }
+    }
+
+    public void putExecutor(long guildId, ObjectId id, long userId, ScheduledFuture<?> executor) {
+        this.executors.compute(guildId, (guildKey, guildValue) -> {
+            if (guildValue == null) {
+                Map<ObjectId, Map<Long, ScheduledFuture<?>>> regexAttempts = new HashMap<>();
+                Map<Long, ScheduledFuture<?>> userAttempts = new HashMap<>();
+
+                userAttempts.put(userId, executor);
+                regexAttempts.put(id, userAttempts);
+
+                return regexAttempts;
+            }
+
+            guildValue.compute(id, (idKey, idValue) -> {
+                if (idValue == null) {
+                    Map<Long, ScheduledFuture<?>> userAttempts = new HashMap<>();
+                    userAttempts.put(userId, executor);
+
+                    return userAttempts;
+                }
+
+                idValue.compute(userId, (userKey, userValue) -> {
+                    if (userValue != null && !userValue.isDone()) {
+                        userValue.cancel(true);
+                    }
+
+                    return executor;
+                });
+
+                return idValue;
+            });
+
+            return guildValue;
+        });
+    }
+
+    public void resetAttempts(long guildId, ObjectId id, long userId, int amount) {
+        this.decreaseAttempts(guildId, id, userId, amount);
+        int attempts = this.getAttempts(guildId, id, userId);
+
+        List<Bson> arrayFilters;
+        Bson update;
+        if (attempts == 0) {
+            this.cancelExecutor(guildId, id, userId);
+
+            update = Updates.pull("antiRegex.regexes.$[regex].users", Filters.eq("id", userId));
+            arrayFilters = List.of(Filters.eq("regex.id", id));
+        } else {
+            update = Updates.set("antiRegex.regexes.$[regex].users.$[user].attempts", attempts);
+            arrayFilters = List.of(Filters.eq("regex.id", id), Filters.eq("user.id", userId));
+        }
+
+        Database.get().updateGuildById(guildId, update, new UpdateOptions().arrayFilters(arrayFilters)).whenComplete(Database.exceptionally());
+    }
+
+    public void resetAttempts(long guildId, ObjectId id, long userId, long duration, int amount) {
+        ScheduledFuture<?> executor = this.executor.scheduleAtFixedRate(() -> this.resetAttempts(guildId, id, userId, amount), duration, duration, TimeUnit.SECONDS);
+        this.putExecutor(guildId, id, userId, executor);
+    }
+
+    public void ensureAttempts() {
+        Database.get().getGuilds(Filters.elemMatch("antiRegex.regexes", Filters.exists("id")), Projections.include("antiRegex.regexes")).forEach(data -> {
+            long guildId = data.getLong("_id");
+
+            List<Document> regexes = data.getEmbedded(List.of("antiRegex", "regexes"), Collections.emptyList());
+            for (Document regex : regexes) {
+                ObjectId id = regex.getObjectId("id");
+
+                Document reset = regex.getEmbedded(List.of("action", "mod", "attempts", "reset"), Database.EMPTY_DOCUMENT);
+                long duration = reset.get("after", 0L);
+                int amount = reset.getInteger("amount");
+
+                List<Document> users = regex.getList("users", Document.class, Collections.emptyList());
+                for (Document user : users) {
+                    long userId = user.getLong("id");
+                    this.increaseAttempts(guildId, id, userId, user.getInteger("attempts"));
+                    if (duration != 0L) {
+                        this.resetAttempts(guildId, id, userId, duration, amount);
+                    }
+                }
+            }
+        });
     }
 
 }

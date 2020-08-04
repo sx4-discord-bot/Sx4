@@ -197,7 +197,7 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 					.append("title", event.getVideo().getTitle())
 					.append("uploaderId", event.getChannel().getId());
 				
-				Database.get().insertNotification(databaseData).whenComplete((result, exception) -> ExceptionUtility.sendErrorMessage(exception));
+				Database.get().insertNotification(databaseData).whenComplete(Database.exceptionally());
 			} catch (Throwable e) {
 				e.printStackTrace();
 				ExceptionUtility.sendErrorMessage(e);
@@ -206,7 +206,7 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 	}
 	
 	public void onYouTubeDelete(YouTubeDeleteEvent event) {
-		Database.get().deleteManyNotifications(event.getVideoId()).whenComplete((result, exception) -> ExceptionUtility.sendErrorMessage(exception));
+		Database.get().deleteManyNotifications(event.getVideoId()).whenComplete(Database.exceptionally());
 	}
 	
 	public void onYouTubeUpdateTitle(YouTubeUpdateTitleEvent event) {
@@ -215,7 +215,7 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 			.append("title", event.getVideo().getTitle())
 			.append("uploaderId", event.getChannel().getId());
 		
-		Database.get().insertNotification(data).whenComplete((result, exception) -> ExceptionUtility.sendErrorMessage(exception));
+		Database.get().insertNotification(data).whenComplete(Database.exceptionally());
 	}
 
 	public void onEvent(GenericEvent event) {

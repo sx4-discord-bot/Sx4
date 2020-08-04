@@ -90,7 +90,7 @@ public class AutoRoleManager {
 	public void updateMemberRoles(long guildId, long userId, ObjectId id, List<Long> roleIdsAdd, List<Long> roleIdsRemove) {
 		UpdateOneModel<Document> model = this.updateMemberRolesAndGet(guildId, userId, id, roleIdsAdd, roleIdsRemove);
 		if (model != null) {
-			Database.get().updateGuild(model).whenComplete((result, exception) -> ExceptionUtility.sendErrorMessage(exception));
+			Database.get().updateGuild(model).whenComplete(Database.exceptionally());
 		}
 	}
 	
@@ -148,7 +148,7 @@ public class AutoRoleManager {
 		});
 		
 		if (!bulkData.isEmpty()) {
-			database.bulkWriteGuilds(bulkData).whenComplete((result, exception) -> ExceptionUtility.sendErrorMessage(exception));
+			database.bulkWriteGuilds(bulkData).whenComplete(Database.exceptionally());
 		}
 	}
 	

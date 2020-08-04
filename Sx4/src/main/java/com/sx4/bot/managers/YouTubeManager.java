@@ -187,7 +187,7 @@ public class YouTubeManager {
 		});
 		
 		if (!bulkData.isEmpty()) {
-			Database.get().bulkWriteResubscriptions(bulkData).whenComplete((result, exception) -> ExceptionUtility.sendErrorMessage(exception));
+			Database.get().bulkWriteResubscriptions(bulkData).whenComplete(Database.exceptionally());
 		}
 	}
 	
