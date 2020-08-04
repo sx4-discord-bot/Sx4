@@ -25,6 +25,7 @@ import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
 
+import java.time.Clock;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -66,7 +67,6 @@ public class AntiRegexHandler extends ListenerAdapter {
         if (user.isBot()) {
             return;
         }
-
 
         //this.executor.submit(() -> {
             long guildId = guild.getIdLong(), userId = member.getIdLong(), channelId = textChannel.getIdLong();
@@ -203,17 +203,20 @@ public class AntiRegexHandler extends ListenerAdapter {
 
                 this.manager.incrementAttempts(guildId, id, userId);
 
+                Document userData = new Document("id", userId);
+
                 Document reset = attempts.get("reset", Database.EMPTY_DOCUMENT);
                 long duration = reset.get("after", 0L);
                 if (duration != 0L) {
-                    this.manager.resetAttempts(guildId, id, userId, duration, reset.getInteger("amount"));
+                    this.manager.scheduleResetAttempts(guildId, id, userId, duration, reset.getInteger("amount"));
+                    userData.append("resetAt", Clock.systemUTC().instant().getEpochSecond() + duration);
                 }
 
                 Bson regexFilter = Operators.filter("$antiRegex.regexes", Operators.eq("$$this.id", id));
                 Bson users = Operators.first(Operators.map(regexFilter, "$$this.users"));
                 Bson userFilter = Operators.filter(users, Operators.eq("$$this.id", userId));
                 Bson userAttempts = Operators.ifNull(Operators.first(Operators.map(userFilter, "$$this.attempts")), 0);
-                List<Bson> update = List.of(Operators.set("antiRegex.regexes", Operators.concatArrays(List.of(Operators.mergeObjects(Operators.first(regexFilter), new Document("users", Operators.concatArrays(List.of(Operators.mergeObjects(Operators.ifNull(Operators.first(userFilter), new Document("id", userId)), new Document("attempts", Operators.add(userAttempts, 1)))), Operators.ifNull(Operators.filter(users, Operators.ne("$$this.id", userId)), Collections.EMPTY_LIST))))), Operators.filter("$antiRegex.regexes", Operators.ne("$$this.id", id)))));
+                List<Bson> update = List.of(Operators.set("antiRegex.regexes", Operators.concatArrays(List.of(Operators.mergeObjects(Operators.first(regexFilter), new Document("users", Operators.concatArrays(List.of(Operators.mergeObjects(Operators.first(userFilter), userData.append("attempts", Operators.add(userAttempts, 1)))), Operators.ifNull(Operators.filter(users, Operators.ne("$$this.id", userId)), Collections.EMPTY_LIST))))), Operators.filter("$antiRegex.regexes", Operators.ne("$$this.id", id)))));
                 this.database.updateGuildById(guildId, update).whenComplete(Database.exceptionally());
 
                 break;

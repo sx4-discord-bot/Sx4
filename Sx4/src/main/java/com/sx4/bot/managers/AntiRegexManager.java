@@ -1,18 +1,13 @@
 package com.sx4.bot.managers;
 
-import com.mongodb.client.model.Filters;
-import com.mongodb.client.model.Projections;
-import com.mongodb.client.model.UpdateOptions;
-import com.mongodb.client.model.Updates;
+import com.mongodb.client.model.*;
 import com.sx4.bot.database.Database;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.time.Clock;
+import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -36,7 +31,7 @@ public class AntiRegexManager {
     private final Map<Long, Map<ObjectId, Map<Long, Integer>>> attempts;
 
     private final Map<Long, Map<ObjectId, Map<Long, ScheduledFuture<?>>>> executors;
-    private final ScheduledExecutorService executor = Executors.newScheduledThreadPool(20);
+    private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
 
     private AntiRegexManager() {
         this.attempts = new HashMap<>();
@@ -163,32 +158,48 @@ public class AntiRegexManager {
         });
     }
 
-    public void resetAttempts(long guildId, ObjectId id, long userId, int amount) {
+    public UpdateOneModel<Document> resetAttemptsBulk(long guildId, ObjectId id, long userId, long duration, int amount) {
         this.decreaseAttempts(guildId, id, userId, amount);
         int attempts = this.getAttempts(guildId, id, userId);
 
         List<Bson> arrayFilters;
         Bson update;
         if (attempts == 0) {
-            this.cancelExecutor(guildId, id, userId);
-
             update = Updates.pull("antiRegex.regexes.$[regex].users", Filters.eq("id", userId));
             arrayFilters = List.of(Filters.eq("regex.id", id));
         } else {
-            update = Updates.set("antiRegex.regexes.$[regex].users.$[user].attempts", attempts);
+            update = Updates.combine(
+                Updates.set("antiRegex.regexes.$[regex].users.$[user].attempts", attempts),
+                Updates.set("antiRegex.regexes.$[regex].users.$[user].resetAt", Clock.systemUTC().instant().getEpochSecond() + duration)
+            );
             arrayFilters = List.of(Filters.eq("regex.id", id), Filters.eq("user.id", userId));
         }
 
-        Database.get().updateGuildById(guildId, update, new UpdateOptions().arrayFilters(arrayFilters)).whenComplete(Database.exceptionally());
+        if (attempts == 0) {
+            this.cancelExecutor(guildId, id, userId);
+        }
+
+        return new UpdateOneModel<>(Filters.eq("_id", guildId), update, new UpdateOptions().arrayFilters(arrayFilters));
     }
 
     public void resetAttempts(long guildId, ObjectId id, long userId, long duration, int amount) {
-        ScheduledFuture<?> executor = this.executor.scheduleAtFixedRate(() -> this.resetAttempts(guildId, id, userId, amount), duration, duration, TimeUnit.SECONDS);
+        Database.get().updateGuild(this.resetAttemptsBulk(guildId, id, userId, duration, amount)).whenComplete(Database.exceptionally());
+    }
+
+    public void scheduleResetAttempts(long guildId, ObjectId id, long userId, long duration, int amount) {
+        this.scheduleResetAttempts(guildId, id, userId, duration, duration, amount);
+    }
+
+    public void scheduleResetAttempts(long guildId, ObjectId id, long userId, long initialDuration, long duration, int amount) {
+        ScheduledFuture<?> executor = this.executor.scheduleAtFixedRate(() -> this.resetAttempts(guildId, id, userId, duration, amount), initialDuration, duration, TimeUnit.SECONDS);
         this.putExecutor(guildId, id, userId, executor);
     }
 
     public void ensureAttempts() {
-        Database.get().getGuilds(Filters.elemMatch("antiRegex.regexes", Filters.exists("id")), Projections.include("antiRegex.regexes")).forEach(data -> {
+        Database database = Database.get();
+
+        List<WriteModel<Document>> bulkData = new ArrayList<>();
+        database.getGuilds(Filters.elemMatch("antiRegex.regexes", Filters.exists("id")), Projections.include("antiRegex.regexes")).forEach(data -> {
             long guildId = data.getLong("_id");
 
             List<Document> regexes = data.getEmbedded(List.of("antiRegex", "regexes"), Collections.emptyList());
@@ -202,13 +213,30 @@ public class AntiRegexManager {
                 List<Document> users = regex.getList("users", Document.class, Collections.emptyList());
                 for (Document user : users) {
                     long userId = user.getLong("id");
-                    this.increaseAttempts(guildId, id, userId, user.getInteger("attempts"));
+                    int attempts = user.getInteger("attempts");
+
+                    this.increaseAttempts(guildId, id, userId, attempts);
                     if (duration != 0L) {
-                        this.resetAttempts(guildId, id, userId, duration, amount);
+                        long resetAt = user.getLong("resetAt"), now = Clock.systemUTC().instant().getEpochSecond();
+                        if (now >= resetAt) {
+                            int remove = (int) Math.floorDiv(now - resetAt, duration) + 1;
+                            long currentDuration = duration - (now - resetAt);
+
+                            bulkData.add(this.resetAttemptsBulk(guildId, id, userId, currentDuration, remove));
+                            if (remove < attempts) {
+                                this.scheduleResetAttempts(guildId, id, userId, currentDuration, duration, amount);
+                            }
+                        } else {
+                            this.scheduleResetAttempts(guildId, id, userId, resetAt - now, duration, amount);
+                        }
                     }
                 }
             }
         });
+
+        if (!bulkData.isEmpty()) {
+            database.bulkWriteGuilds(bulkData).whenComplete(Database.exceptionally());
+        }
     }
 
 }
