@@ -280,7 +280,7 @@ public class EconomyModule {
 				totalCrates = crateAmount.longValue();
 			}
 
-			if (crates.stream().mapToLong(ItemStack::getAmount).sum() > 50_000_000L) {
+			if (totalCrates > 50_000_000L) {
 				event.reply("You can only open **50,000,000** crates at once :no_entry:").queue();
 				return;
 			}
