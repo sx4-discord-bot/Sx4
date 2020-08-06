@@ -54,6 +54,7 @@ public class AntiRegexManager {
         this.attempts.compute(guildId, (guildKey, guildValue) -> {
             if (guildValue == null) {
                 if (amount < 1) {
+                    this.cancelExecutor(guildId, id, userId);
                     return null;
                 }
 
@@ -69,6 +70,7 @@ public class AntiRegexManager {
             guildValue.compute(id, (idKey, idValue) -> {
                 if (idValue == null) {
                     if (amount < 1) {
+                        this.cancelExecutor(guildId, id, userId);
                         return null;
                     }
 
@@ -79,8 +81,13 @@ public class AntiRegexManager {
                 }
 
                 idValue.compute(userId, (userKey, userValue) -> {
-                    int newAmount = Math.max(0, userValue == null ? amount : userValue + amount);
-                    return newAmount == 0 ? null : newAmount;
+                    int newAmount = userValue == null ? amount : userValue + amount;
+                    if (newAmount <= 0) {
+                        this.cancelExecutor(guildId, id, userId);
+                        return null;
+                    }
+
+                    return newAmount;
                 });
 
                 return idValue;
@@ -116,7 +123,7 @@ public class AntiRegexManager {
             Map<Long, ScheduledFuture<?>> userExecutors = regexExecutors.get(id);
             if (userExecutors != null) {
                 ScheduledFuture<?> executor = userExecutors.remove(userId);
-                if (executor != null) {
+                if (executor != null && !executor.isDone()) {
                     executor.cancel(true);
                 }
             }
@@ -173,10 +180,6 @@ public class AntiRegexManager {
                 Updates.set("antiRegex.regexes.$[regex].users.$[user].resetAt", Clock.systemUTC().instant().getEpochSecond() + duration)
             );
             arrayFilters = List.of(Filters.eq("regex.id", id), Filters.eq("user.id", userId));
-        }
-
-        if (attempts == 0) {
-            this.cancelExecutor(guildId, id, userId);
         }
 
         return new UpdateOneModel<>(Filters.eq("_id", guildId), update, new UpdateOptions().arrayFilters(arrayFilters));

@@ -27,6 +27,7 @@ import org.bson.types.ObjectId;
 
 import java.time.Clock;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -146,7 +147,7 @@ public class AntiRegexHandler extends ListenerAdapter {
                                     this.manager.clearAttempts(guildId, id, userId);
 
                                     if (send) {
-                                        textChannel.sendMessage(modMessage).queue();
+                                        textChannel.sendMessage(modMessage).allowedMentions(EnumSet.allOf(Message.MentionType.class)).queue();
                                     }
 
                                     UpdateOptions options = new UpdateOptions().arrayFilters(List.of(Filters.eq("regex.id", id)));
@@ -165,7 +166,7 @@ public class AntiRegexHandler extends ListenerAdapter {
                                 this.manager.clearAttempts(guildId, id, userId);
 
                                 if (send) {
-                                    textChannel.sendMessage(modMessage).queue();
+                                    textChannel.sendMessage(modMessage).allowedMentions(EnumSet.allOf(Message.MentionType.class)).queue();
                                 }
 
                                 UpdateOptions options = new UpdateOptions().arrayFilters(List.of(Filters.eq("regex.id", id)));
@@ -182,7 +183,7 @@ public class AntiRegexHandler extends ListenerAdapter {
                                 this.manager.clearAttempts(guildId, id, userId);
 
                                 if (send) {
-                                    textChannel.sendMessage(modMessage).queue();
+                                    textChannel.sendMessage(modMessage).allowedMentions(EnumSet.allOf(Message.MentionType.class)).queue();
                                 }
 
                                 UpdateOptions options = new UpdateOptions().arrayFilters(List.of(Filters.eq("regex.id", id)));
@@ -198,14 +199,14 @@ public class AntiRegexHandler extends ListenerAdapter {
                 }
 
                 if (send) {
-                    textChannel.sendMessage(matchMessage).queue();
+                    textChannel.sendMessage(matchMessage).allowedMentions(EnumSet.allOf(Message.MentionType.class)).queue();
                 }
 
                 this.manager.incrementAttempts(guildId, id, userId);
 
                 Document userData = new Document("id", userId);
-
                 Document reset = attempts.get("reset", Database.EMPTY_DOCUMENT);
+
                 long duration = reset.get("after", 0L);
                 if (duration != 0L) {
                     this.manager.scheduleResetAttempts(guildId, id, userId, duration, reset.getInteger("amount"));

@@ -26,7 +26,6 @@ import com.sx4.bot.entities.management.Filter;
 import com.sx4.bot.entities.mod.PartialEmote;
 import com.sx4.bot.entities.mod.Reason;
 import com.sx4.bot.entities.mod.action.ModAction;
-import com.sx4.bot.entities.argument.ReminderArgument;
 import com.sx4.bot.handlers.*;
 import com.sx4.bot.managers.ModActionManager;
 import com.sx4.bot.managers.PatreonManager;
@@ -89,7 +88,7 @@ public class Sx4 {
 		PatreonManager.get()
 			.addListener(PatreonHandler.INSTANCE);
 		
-		MessageAction.setDefaultMentions(MentionUtility.NONE);
+		MessageAction.setDefaultMentions(EnumSet.noneOf(Message.MentionType.class));
 		
 		MethodCommandFactory.setDefault(new Sx4CommandFactory());
 		
