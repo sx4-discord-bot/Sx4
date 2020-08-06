@@ -279,6 +279,11 @@ public class EconomyModule {
 				crates.add(new ItemStack<>(crate, crateAmount.longValue()));
 				totalCrates = crateAmount.longValue();
 			}
+
+			if (crates.stream().mapToLong(ItemStack::getAmount).sum() > 50_000_000L) {
+				event.reply("You can only open **50,000,000** crates at once :no_entry:").queue();
+				return;
+			}
 			
 			if (this.pending.contains(event.getAuthor().getIdLong())) {
 				event.reply("You are already opening some crates, wait for them to open before opening more :no_entry:").queue();
