@@ -67,19 +67,18 @@ public class MuteCommand extends Sx4Command {
 			Document mute = data.get("mute", Database.EMPTY_DOCUMENT);
 			atomicDuration.set(mute.get("defaultTime", 1800L));
 
-			return ModUtility.upsertMuteRole(event.getGuild(), mute.getLong("roleId"), mute.get("autoUpdate", true));
+			return ModUtility.upsertMuteRole(event.getGuild(), mute.get("roleId", 0L), mute.get("autoUpdate", true));
 		}).whenComplete((role, exception) -> {
-			if (exception != null) {
-				if (exception instanceof MaxRolesException) {
-					event.reply(exception.getMessage() + " " + this.config.getFailureEmote()).queue();
-					return;
-				}
-
-				ExceptionUtility.sendExceptionally(event, exception);
+			if (exception instanceof MaxRolesException) {
+				event.reply(exception.getMessage() + " " + this.config.getFailureEmote()).queue();
 				return;
 			}
 
-			long duration = atomicDuration.get();
+			if (ExceptionUtility.sendExceptionally(event, exception)) {
+				return;
+			}
+
+			long duration = time == null ? atomicDuration.get() : time.toSeconds();
 
 			event.getGuild().addRoleToMember(member, role).reason(ModUtility.getAuditReason(reason, event.getAuthor())).queue($ -> {
 				event.reply("**" + member.getUser().getAsTag() + "** has " + (extend ? "had their mute extended" : "been muted") + " for " + TimeUtility.getTimeString(duration) + " " + this.config.getSuccessEmote()).queue();

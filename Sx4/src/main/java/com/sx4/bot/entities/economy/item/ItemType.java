@@ -1,8 +1,8 @@
 package com.sx4.bot.entities.economy.item;
 
-import java.util.function.BiFunction;
-
 import org.bson.Document;
+
+import java.util.function.BiFunction;
 
 public enum ItemType {
 
@@ -24,13 +24,16 @@ public enum ItemType {
 	
 	private final String name;
 	private final String dataName;
+
+	private final Class<? extends Item> itemClass;
 	
 	@SuppressWarnings("rawtypes")
 	private final BiFunction createFunction;
 	
-	private <Type extends Item> ItemType(int type, String name, long defaultLimit, Class<Type> clazz, BiFunction<Document, Type, Type> createFunction) {
+	private <Type extends Item> ItemType(int type, String name, long defaultLimit, Class<Type> itemClass, BiFunction<Document, Type, Type> createFunction) {
 		this.type = type;
 		this.name = name;
+		this.itemClass = itemClass;
 		this.dataName = name.toLowerCase().replace(" ", "_");
 		this.defaultLimit = defaultLimit;
 		this.createFunction = createFunction;
@@ -51,13 +54,17 @@ public enum ItemType {
 	public String getDataName() {
 		return this.dataName;
 	}
+
+	public Class<? extends Item> getItemClass() {
+		return this.itemClass;
+	}
 	
 	@SuppressWarnings("unchecked")
 	public <Type> Type create(Document data, Type defaultItem) {
 		return (Type) this.createFunction.apply(data, defaultItem);
 	}
 	
-	public static ItemType getFromType(int type) {
+	public static ItemType fromType(int type) {
 		for (ItemType itemType : ItemType.values()) {
 			if (itemType.getType() == type) {
 				return itemType;
@@ -67,7 +74,7 @@ public enum ItemType {
 		return null;
 	}
 	
-	public static ItemType getFromName(String name) {
+	public static ItemType fromName(String name) {
 		for (ItemType itemType : ItemType.values()) {
 			if (itemType.getName().equalsIgnoreCase(name)) {
 				return itemType;
@@ -77,7 +84,7 @@ public enum ItemType {
 		return null;
 	}
 	
-	public static ItemType getFromDataName(String dataName) {
+	public static ItemType fromDataName(String dataName) {
 		for (ItemType itemType : ItemType.values()) {
 			if (itemType.getDataName().equals(dataName)) {
 				return itemType;

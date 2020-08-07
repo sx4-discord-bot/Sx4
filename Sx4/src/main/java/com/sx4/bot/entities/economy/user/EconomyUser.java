@@ -122,7 +122,7 @@ public class EconomyUser {
 	}
 	
 	public List<ItemStack<?>> getItems(int type) {
-		return this.getItems(ItemType.getFromType(type));
+		return this.getItems(ItemType.fromType(type));
 	}
 	
 	public <Type extends Item> Type getFirstItem(Class<Type> clazz) {
@@ -139,7 +139,7 @@ public class EconomyUser {
 	}
 	
 	public boolean hasItemType(int type) {
-		return this.hasItemType(ItemType.getFromType(type));
+		return this.hasItemType(ItemType.fromType(type));
 	}
 	
 	public long sumItems() {
@@ -156,7 +156,7 @@ public class EconomyUser {
 	}
 	
 	public long sumItems(int type) {
-		return this.sumItems(ItemType.getFromType(type));
+		return this.sumItems(ItemType.fromType(type));
 	}
 	
 	public long getNetworth() {

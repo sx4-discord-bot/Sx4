@@ -1,9 +1,9 @@
 package com.sx4.bot.entities.economy.item;
 
+import org.bson.Document;
+
 import java.util.List;
 import java.util.stream.Collectors;
-
-import org.bson.Document;
 
 public class ItemStack<Type extends Item> implements Comparable<ItemStack<?>> {
 	
@@ -13,7 +13,7 @@ public class ItemStack<Type extends Item> implements Comparable<ItemStack<?>> {
 	@SuppressWarnings("unchecked")
 	public ItemStack(Document data) {
 		Item defaultItem = Item.getFromName(data.getString("name"));
-		ItemType type = ItemType.getFromType(data.getInteger("type"));
+		ItemType type = ItemType.fromType(data.getInteger("type"));
 		
 		this.item = (Type) type.create(data, defaultItem);
 		this.amount = data.getLong("amount");

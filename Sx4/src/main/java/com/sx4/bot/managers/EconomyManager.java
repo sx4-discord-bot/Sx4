@@ -1,31 +1,14 @@
 package com.sx4.bot.managers;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
-
+import com.sx4.bot.entities.economy.item.*;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import com.sx4.bot.entities.economy.item.Axe;
-import com.sx4.bot.entities.economy.item.Booster;
-import com.sx4.bot.entities.economy.item.Crate;
-import com.sx4.bot.entities.economy.item.Envelope;
-import com.sx4.bot.entities.economy.item.Factory;
-import com.sx4.bot.entities.economy.item.Item;
-import com.sx4.bot.entities.economy.item.ItemStack;
-import com.sx4.bot.entities.economy.item.ItemType;
-import com.sx4.bot.entities.economy.item.Material;
-import com.sx4.bot.entities.economy.item.Miner;
-import com.sx4.bot.entities.economy.item.Pickaxe;
-import com.sx4.bot.entities.economy.item.Rod;
-import com.sx4.bot.entities.economy.item.Wood;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.util.*;
+import java.util.stream.Collectors;
 
 public class EconomyManager {
 
@@ -50,7 +33,7 @@ public class EconomyManager {
 		return this.items;
 	}
 	
-	public List<Item> getItems(ItemType type) {
+	public List<? extends Item> getItems(ItemType type) {
 		return this.itemTypes.getOrDefault(type, Collections.emptyList());
 	}
 	
@@ -130,7 +113,7 @@ public class EconomyManager {
 						JSONObject contentsData = itemData.getJSONObject("contents");
 						Map<ItemType, Long> contents = contentsData.keySet()
 							.stream()
-							.collect(Collectors.toMap(ItemType::getFromDataName, contentsData::getLong));
+							.collect(Collectors.toMap(ItemType::fromDataName, contentsData::getLong));
 						
 						item = new Crate(itemData.getString("name"), itemData.getLong("price"), itemData.getLong("points"), contents);
 						

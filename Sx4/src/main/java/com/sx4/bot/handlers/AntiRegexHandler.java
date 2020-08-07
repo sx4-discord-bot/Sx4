@@ -1,20 +1,22 @@
 package com.sx4.bot.handlers;
 
-import com.mongodb.client.model.Filters;
-import com.mongodb.client.model.Projections;
-import com.mongodb.client.model.UpdateOptions;
-import com.mongodb.client.model.Updates;
+import com.mongodb.client.model.*;
+import com.sx4.bot.config.Config;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.database.model.Operators;
 import com.sx4.bot.entities.mod.Reason;
 import com.sx4.bot.entities.mod.action.Action;
+import com.sx4.bot.entities.mod.action.ModAction;
+import com.sx4.bot.entities.mod.action.TimeAction;
 import com.sx4.bot.entities.mod.auto.MatchAction;
 import com.sx4.bot.entities.settings.HolderType;
-import com.sx4.bot.events.mod.BanEvent;
-import com.sx4.bot.events.mod.KickEvent;
+import com.sx4.bot.events.mod.*;
 import com.sx4.bot.formatter.Formatter;
 import com.sx4.bot.managers.AntiRegexManager;
 import com.sx4.bot.managers.ModActionManager;
+import com.sx4.bot.managers.MuteManager;
+import com.sx4.bot.managers.TempBanManager;
+import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.ModUtility;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.*;
@@ -31,6 +33,7 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -38,7 +41,10 @@ public class AntiRegexHandler extends ListenerAdapter {
 
     private final AntiRegexManager manager = AntiRegexManager.get();
     private final ModActionManager modActionManager = ModActionManager.get();
+    private final MuteManager muteManager = MuteManager.get();
+    private final TempBanManager banManager = TempBanManager.get();
     private final Database database = Database.get();
+    private final Config config = Config.get();
 
     private final ExecutorService executor = Executors.newCachedThreadPool();
 
@@ -69,7 +75,7 @@ public class AntiRegexHandler extends ListenerAdapter {
             return;
         }
 
-        //this.executor.submit(() -> {
+        this.executor.submit(() -> {
             long guildId = guild.getIdLong(), userId = member.getIdLong(), channelId = textChannel.getIdLong();
             List<Role> roles = member.getRoles();
 
@@ -136,11 +142,16 @@ public class AntiRegexHandler extends ListenerAdapter {
                     message.delete().queue();
                 }
 
-                boolean send = (matchRaw & MatchAction.SEND_MESSAGE.getRaw()) == MatchAction.SEND_MESSAGE.getRaw() && selfMember.hasPermission(textChannel, Permission.MESSAGE_WRITE);
+                boolean canSend = selfMember.hasPermission(textChannel, Permission.MESSAGE_WRITE);
+                boolean send = (matchRaw & MatchAction.SEND_MESSAGE.getRaw()) == MatchAction.SEND_MESSAGE.getRaw() && canSend;
                 if (action != null && currentAttempts + 1 >= maxAttempts) {
-                    // TODO: execute mod action
                     Reason reason = new Reason(String.format("Sent a message which matched regex `%s` %d time%s", id.toHexString(), maxAttempts, maxAttempts == 1 ? "" : "s"));
-                    switch (action.getModAction()) {
+
+                    List<Bson> update = null;
+                    Bson regexFilter = Operators.filter("$antiRegex.regexes", Operators.eq("$$this.id", id));
+
+                    ModAction attemptAction = action.getModAction();
+                    switch (attemptAction) {
                         case WARN:
                             ModUtility.warn(member, selfMember, reason).whenComplete((warn, exception) -> {
                                 if (exception == null) {
@@ -152,14 +163,82 @@ public class AntiRegexHandler extends ListenerAdapter {
 
                                     UpdateOptions options = new UpdateOptions().arrayFilters(List.of(Filters.eq("regex.id", id)));
                                     this.database.updateGuildById(guildId, Updates.pull("antiRegex.regexes.$[regex].users", Filters.eq("id", userId)), options).whenComplete(Database.exceptionally());
+                                } else {
+                                    if (canSend) {
+                                        textChannel.sendMessage(exception.getMessage() + " " + this.config.getFailureEmote()).queue();
+                                    }
                                 }
                             });
                         case MUTE:
                         case MUTE_EXTEND:
+                            if (!selfMember.hasPermission(Permission.MANAGE_ROLES)) {
+                                if (canSend) {
+                                    textChannel.sendMessage("I failed to mute **" + member.getUser().getAsTag() + "** due to missing the Manage Roles permission " + this.config.getFailureEmote()).queue();
+                                }
 
+                                return;
+                            }
+
+                            this.manager.clearAttempts(guildId, id, userId);
+
+                            boolean extend = attemptAction == ModAction.MUTE_EXTEND;
+
+                            Object muteSeconds = action instanceof TimeAction ? ((TimeAction) action).getDuration() : Operators.ifNull("$mute.defaultTime", 1800L);
+                            Bson muteFilter = Operators.filter("$mute.users", Operators.filter("$$this.id", member.getIdLong()));
+                            Bson unmuteAt = Operators.first(Operators.map(muteFilter, "$$this.unmuteAt"));
+
+                            update = List.of(
+                                Operators.set("antiRegex.regexes", Operators.concatArrays(List.of(Operators.mergeObjects(Operators.first(regexFilter), new Document("users", Operators.filter(Operators.map(regexFilter, "$$this.users"), Operators.ne("$$this.id", userId))))), Operators.filter("$antiRegex.regexes", Operators.ne("$$this.id", id)))),
+                                Operators.set("mute.users", Operators.concatArrays(List.of(Operators.mergeObjects(Operators.ifNull(Operators.first(muteFilter), Database.EMPTY_DOCUMENT), new Document("id", member.getIdLong()).append("unmuteAt", Operators.cond(Operators.and(extend, Operators.nonNull(unmuteAt)), Operators.add(unmuteAt, muteSeconds), Operators.add(Operators.nowEpochSecond(), muteSeconds))))), Operators.ifNull(Operators.filter("$mute.users", Operators.ne("$$this.id", member.getIdLong())), Collections.EMPTY_LIST)))
+                            );
+
+                            AtomicLong atomicDuration = new AtomicLong();
+
+                            FindOneAndUpdateOptions muteFindOptions = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("mute.roleId", "mute.defaultTime"));
+                            this.database.findAndUpdateGuildById(guildId, update, muteFindOptions).thenCompose(data -> {
+                                data = data == null ? Database.EMPTY_DOCUMENT : data;
+
+                                Document mute = data.get("mute", Database.EMPTY_DOCUMENT);
+                                atomicDuration.set(mute.get("defaultTime", 1800L));
+
+                                return ModUtility.upsertMuteRole(guild, mute.get("roleId", 0L), mute.get("autoUpdate", true));
+                            }).whenComplete((role, exception) -> {
+                                if (ExceptionUtility.sendErrorMessage(exception)) {
+                                    return;
+                                }
+
+                                long duration =  action instanceof TimeAction ? ((TimeAction) action).getDuration() : atomicDuration.get();
+
+                                guild.addRoleToMember(member, role).reason(ModUtility.getAuditReason(reason, selfMember.getUser())).queue($ -> {
+                                    this.muteManager.putMute(guildId, member.getIdLong(), role.getIdLong(), duration, extend);
+
+                                    ModActionEvent modEvent = extend ? new MuteExtendEvent(member, selfMember.getUser(), reason, duration) : new MuteEvent(member, selfMember.getUser(), reason, duration);
+                                    this.modActionManager.onModAction(modEvent);
+
+                                    if (send) {
+                                        textChannel.sendMessage(modMessage).allowedMentions(EnumSet.allOf(Message.MentionType.class)).queue();
+                                    }
+                                });
+                            });
 
                             break;
                         case KICK:
+                            if (!selfMember.hasPermission(Permission.KICK_MEMBERS)) {
+                                if (canSend) {
+                                    textChannel.sendMessage("I failed to kick **" + member.getUser().getAsTag() + "** due to missing the Kick Members permission " + this.config.getFailureEmote()).queue();
+                                }
+
+                                return;
+                            }
+
+                            if (!selfMember.canInteract(member)) {
+                                if (canSend) {
+                                    textChannel.sendMessage("I failed to kick **" + member.getUser().getAsTag() + "** due to them having a higher or equal role to mine " + this.config.getFailureEmote()).queue();
+                                }
+
+                                return;
+                            }
+
                             member.kick(ModUtility.getAuditReason(reason, selfMember.getUser())).queue($ -> {
                                 this.modActionManager.onModAction(new KickEvent(selfMember, user, reason));
 
@@ -169,14 +248,71 @@ public class AntiRegexHandler extends ListenerAdapter {
                                     textChannel.sendMessage(modMessage).allowedMentions(EnumSet.allOf(Message.MentionType.class)).queue();
                                 }
 
-                                UpdateOptions options = new UpdateOptions().arrayFilters(List.of(Filters.eq("regex.id", id)));
-                                this.database.updateGuildById(guildId, Updates.pull("antiRegex.regexes.$[regex].users", Filters.eq("id", userId)), options).whenComplete(Database.exceptionally());
+                                UpdateOptions updateOptions = new UpdateOptions().arrayFilters(List.of(Filters.eq("regex.id", id)));
+                                this.database.updateGuildById(guildId, Updates.pull("antiRegex.regexes.$[regex].users", Filters.eq("id", userId)), updateOptions).whenComplete(Database.exceptionally());
                             });
 
                             break;
                         case TEMP_BAN:
+                            if (!selfMember.hasPermission(Permission.BAN_MEMBERS)) {
+                                if (canSend) {
+                                    textChannel.sendMessage("I failed to ban **" + member.getUser().getAsTag() + "** due to missing the Ban Members permission " + this.config.getFailureEmote()).queue();
+                                }
+
+                                return;
+                            }
+
+                            if (!selfMember.canInteract(member)) {
+                                if (canSend) {
+                                    textChannel.sendMessage("I failed to ban **" + member.getUser().getAsTag() + "** due to them having a higher or equal role to mine " + this.config.getFailureEmote()).queue();
+                                }
+
+                                return;
+                            }
+
+                            this.manager.clearAttempts(guildId, id, userId);
+
+                            Object banSeconds = action instanceof TimeAction ? ((TimeAction) action).getDuration() : Operators.ifNull("$tempBan.defaultTime", 86400L);
+
+                            Bson banFilter = Operators.filter("$tempBan.users", Operators.filter("$$this.id", user.getIdLong()));
+                            update = List.of(
+                                Operators.set("antiRegex.regexes", Operators.concatArrays(List.of(Operators.mergeObjects(Operators.first(regexFilter), new Document("users", Operators.filter(Operators.map(regexFilter, "$$this.users"), Operators.ne("$$this.id", userId))))), Operators.filter("$antiRegex.regexes", Operators.ne("$$this.id", id)))),
+                                Operators.set("tempBan.users", Operators.concatArrays(List.of(Operators.mergeObjects(Operators.ifNull(Operators.first(banFilter), Database.EMPTY_DOCUMENT), new Document("id", user.getIdLong()).append("unbanAt", Operators.add(Operators.nowEpochSecond(), banSeconds)))), Operators.ifNull(Operators.filter("$tempBan.users", Operators.ne("$$this.id", user.getIdLong())), Collections.EMPTY_LIST)))
+                            );
+
+                            FindOneAndUpdateOptions banFindOptions = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("tempBan.defaultTime"));
+                            this.database.findAndUpdateGuildById(guildId, update, banFindOptions).whenComplete((data, exception) -> {
+                                if (ExceptionUtility.sendErrorMessage(exception)) {
+                                    return;
+                                }
+
+                                long duration =  data == null ? 86400L : action instanceof TimeAction ? ((TimeAction) action).getDuration() : data.getEmbedded(List.of("tempBan", "defaultTime"), 86400L);
+
+                                guild.ban(user, 1).reason(ModUtility.getAuditReason(reason, selfMember.getUser())).queue($ -> {
+                                    this.modActionManager.onModAction(new TempBanEvent(member, selfMember.getUser(), reason, true, duration));
+
+                                    this.banManager.putBan(guildId, userId, duration);
+                                });
+                            });
+
                             break;
                         case BAN:
+                            if (!selfMember.hasPermission(Permission.BAN_MEMBERS)) {
+                                if (canSend) {
+                                    textChannel.sendMessage("I failed to ban **" + member.getUser().getAsTag() + "** due to missing the Ban Members permission " + this.config.getFailureEmote()).queue();
+                                }
+
+                                return;
+                            }
+
+                            if (!selfMember.canInteract(member)) {
+                                if (canSend) {
+                                    textChannel.sendMessage("I failed to ban **" + member.getUser().getAsTag() + "** due to them having a higher or equal role to mine " + this.config.getFailureEmote()).queue();
+                                }
+
+                                return;
+                            }
+
                             member.ban(1, ModUtility.getAuditReason(reason, selfMember.getUser())).queue($ -> {
                                 this.modActionManager.onModAction(new BanEvent(selfMember, user, reason, true));
 
@@ -222,7 +358,7 @@ public class AntiRegexHandler extends ListenerAdapter {
 
                 break;
             }
-        //});
+        });
     }
 
     public void onGuildMessageReceived(GuildMessageReceivedEvent event) {

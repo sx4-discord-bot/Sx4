@@ -1,18 +1,17 @@
 package com.sx4.bot.utility;
 
+import com.jockie.bot.core.command.impl.CommandEvent;
+import com.sx4.bot.config.Config;
+import net.dv8tion.jda.api.EmbedBuilder;
+import net.dv8tion.jda.api.entities.MessageEmbed;
+import net.dv8tion.jda.api.entities.TextChannel;
+import net.dv8tion.jda.api.requests.RestAction;
+
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
-
-import com.jockie.bot.core.command.impl.CommandEvent;
-import com.sx4.bot.config.Config;
-
-import net.dv8tion.jda.api.EmbedBuilder;
-import net.dv8tion.jda.api.entities.MessageEmbed;
-import net.dv8tion.jda.api.entities.TextChannel;
-import net.dv8tion.jda.api.requests.RestAction;
 
 public class ExceptionUtility {
 
@@ -79,17 +78,16 @@ public class ExceptionUtility {
 	}
 	
 	public static boolean sendExceptionally(CommandEvent event, Throwable throwable) {
-		if (throwable == null) {
-			return false;
+		boolean exception = throwable != null;
+		if (exception) {
+			event.reply(ExceptionUtility.getSimpleErrorMessage(throwable)).queue();
+
+			ExceptionUtility.sendErrorMessage(throwable);
+
+			throwable.printStackTrace();
 		}
 		
-		event.reply(ExceptionUtility.getSimpleErrorMessage(throwable)).queue();
-		
-		ExceptionUtility.sendErrorMessage(throwable);
-		
-		throwable.printStackTrace();
-		
-		return true;
+		return exception;
 	}
 	
 }
