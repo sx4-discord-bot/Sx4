@@ -656,11 +656,6 @@ public class EconomyModule {
 
 									types.put("Money", userMoney + authorMoney);
 
-									if (userMoney != 0L && authorMoney != 0L && userItems.isEmpty() && authorItems.isEmpty()) {
-										event.reply("You cannot trade money for money, use `give` :no_entry:").queue();
-										return;
-									}
-
 									Entry<String, Long> max = types.entrySet().stream()
 										.max(Entry.comparingByValue())
 										.get();
