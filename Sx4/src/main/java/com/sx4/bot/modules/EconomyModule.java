@@ -502,10 +502,10 @@ public class EconomyModule {
 			return;
 		}
 		
-		/*if (member.equals(event.getMember())) {
+		if (member.equals(event.getMember())) {
 			event.reply("You cannot trade with yourself :no_entry:").queue();
 			return;
-		}*/
+		}
 		
 		if (member.getUser().isBot()) {
 			event.reply("You cannot trade with bots :no_entry:").queue();
