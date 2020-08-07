@@ -187,7 +187,7 @@ public class ModUtility {
 						}
 
 						if (!guild.getSelfMember().canInteract(target)) {
-							future.completeExceptionally(new BotHierarchyException("I cannot kick a user higher or equal than my top role"));
+							future.completeExceptionally(new BotHierarchyException("kick"));
 							return;
 						}
 
@@ -210,7 +210,7 @@ public class ModUtility {
 						}
 
 						if (!guild.getSelfMember().canInteract(target)) {
-							future.completeExceptionally(new BotHierarchyException("I cannot ban a user higher or equal than my top role"));
+							future.completeExceptionally(new BotHierarchyException("ban"));
 							return;
 						}
 
@@ -235,7 +235,7 @@ public class ModUtility {
 						}
 
 						if (!guild.getSelfMember().canInteract(target)) {
-							future.completeExceptionally(new BotHierarchyException("I cannot ban a user higher or equal than my top role"));
+							future.completeExceptionally(new BotHierarchyException("ban"));
 							return;
 						}
 

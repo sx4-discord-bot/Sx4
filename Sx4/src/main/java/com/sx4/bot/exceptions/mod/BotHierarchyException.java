@@ -4,8 +4,15 @@ public class BotHierarchyException extends RuntimeException {
 
 	private static final long serialVersionUID = 1L;
 
-	public BotHierarchyException(String reason) {
-		super(reason);
+	private final String type;
+
+	public BotHierarchyException(String type) {
+		super("I cannot " + type + " a user higher or equal than my top role");
+		this.type = type;
+	}
+
+	public String getType() {
+		return this.type;
 	}
 	
 }
