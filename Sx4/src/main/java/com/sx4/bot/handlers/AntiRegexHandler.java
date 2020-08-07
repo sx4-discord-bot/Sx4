@@ -53,7 +53,7 @@ public class AntiRegexHandler extends ListenerAdapter {
             .user(user)
             .channel(channel)
             .append("regex.id", id.toHexString())
-            .append("regex.action", action == null ? null : action.getName().toLowerCase())
+            .append("regex.action.name", action == null ? null : action.getName().toLowerCase())
             .append("regex.action.exists", action != null)
             .append("regex.attempts.current", currentAttempts)
             .append("regex.attempts.max", maxAttempts)
@@ -75,7 +75,7 @@ public class AntiRegexHandler extends ListenerAdapter {
             return;
         }
 
-        this.executor.submit(() -> {
+        //this.executor.submit(() -> {
             long guildId = guild.getIdLong(), userId = member.getIdLong(), channelId = textChannel.getIdLong();
             List<Role> roles = member.getRoles();
 
@@ -126,8 +126,7 @@ public class AntiRegexHandler extends ListenerAdapter {
                 long matchRaw = match.get("raw", MatchAction.ALL);
 
                 Document mod = actionData.get("mod", Database.EMPTY_DOCUMENT);
-                Document modAction = mod.get("action", Document.class);
-                Action action = modAction == null ? null : Action.fromData(mod);
+                Action action = mod.isEmpty() ? null : Action.fromData(mod);
 
                 Document attempts = mod.get("attempts", Database.EMPTY_DOCUMENT);
                 int maxAttempts = attempts.get("amount", 3);
@@ -184,11 +183,11 @@ public class AntiRegexHandler extends ListenerAdapter {
                             boolean extend = attemptAction == ModAction.MUTE_EXTEND;
 
                             Object muteSeconds = action instanceof TimeAction ? ((TimeAction) action).getDuration() : Operators.ifNull("$mute.defaultTime", 1800L);
-                            Bson muteFilter = Operators.filter("$mute.users", Operators.filter("$$this.id", member.getIdLong()));
+                            Bson muteFilter = Operators.filter("$mute.users", Operators.eq("$$this.id", userId));
                             Bson unmuteAt = Operators.first(Operators.map(muteFilter, "$$this.unmuteAt"));
 
                             update = List.of(
-                                Operators.set("antiRegex.regexes", Operators.concatArrays(List.of(Operators.mergeObjects(Operators.first(regexFilter), new Document("users", Operators.filter(Operators.map(regexFilter, "$$this.users"), Operators.ne("$$this.id", userId))))), Operators.filter("$antiRegex.regexes", Operators.ne("$$this.id", id)))),
+                                Operators.set("antiRegex.regexes", Operators.concatArrays(List.of(Operators.mergeObjects(Operators.first(regexFilter), new Document("users", Operators.filter(Operators.first(Operators.map(regexFilter, "$$this.users")), Operators.ne("$$this.id", userId))))), Operators.filter("$antiRegex.regexes", Operators.ne("$$this.id", id)))),
                                 Operators.set("mute.users", Operators.concatArrays(List.of(Operators.mergeObjects(Operators.ifNull(Operators.first(muteFilter), Database.EMPTY_DOCUMENT), new Document("id", member.getIdLong()).append("unmuteAt", Operators.cond(Operators.and(extend, Operators.nonNull(unmuteAt)), Operators.add(unmuteAt, muteSeconds), Operators.add(Operators.nowEpochSecond(), muteSeconds))))), Operators.ifNull(Operators.filter("$mute.users", Operators.ne("$$this.id", member.getIdLong())), Collections.EMPTY_LIST)))
                             );
 
@@ -212,7 +211,7 @@ public class AntiRegexHandler extends ListenerAdapter {
                                 guild.addRoleToMember(member, role).reason(ModUtility.getAuditReason(reason, selfMember.getUser())).queue($ -> {
                                     this.muteManager.putMute(guildId, member.getIdLong(), role.getIdLong(), duration, extend);
 
-                                    ModActionEvent modEvent = extend ? new MuteExtendEvent(member, selfMember.getUser(), reason, duration) : new MuteEvent(member, selfMember.getUser(), reason, duration);
+                                    ModActionEvent modEvent = extend ? new MuteExtendEvent(selfMember, user, reason, duration) : new MuteEvent(selfMember, user, reason, duration);
                                     this.modActionManager.onModAction(modEvent);
 
                                     if (send) {
@@ -274,9 +273,9 @@ public class AntiRegexHandler extends ListenerAdapter {
 
                             Object banSeconds = action instanceof TimeAction ? ((TimeAction) action).getDuration() : Operators.ifNull("$tempBan.defaultTime", 86400L);
 
-                            Bson banFilter = Operators.filter("$tempBan.users", Operators.filter("$$this.id", user.getIdLong()));
+                            Bson banFilter = Operators.filter("$tempBan.users", Operators.eq("$$this.id", userId));
                             update = List.of(
-                                Operators.set("antiRegex.regexes", Operators.concatArrays(List.of(Operators.mergeObjects(Operators.first(regexFilter), new Document("users", Operators.filter(Operators.map(regexFilter, "$$this.users"), Operators.ne("$$this.id", userId))))), Operators.filter("$antiRegex.regexes", Operators.ne("$$this.id", id)))),
+                                Operators.set("antiRegex.regexes", Operators.concatArrays(List.of(Operators.mergeObjects(Operators.first(regexFilter), new Document("users", Operators.filter(Operators.first(Operators.map(regexFilter, "$$this.users")), Operators.ne("$$this.id", userId))))), Operators.filter("$antiRegex.regexes", Operators.ne("$$this.id", id)))),
                                 Operators.set("tempBan.users", Operators.concatArrays(List.of(Operators.mergeObjects(Operators.ifNull(Operators.first(banFilter), Database.EMPTY_DOCUMENT), new Document("id", user.getIdLong()).append("unbanAt", Operators.add(Operators.nowEpochSecond(), banSeconds)))), Operators.ifNull(Operators.filter("$tempBan.users", Operators.ne("$$this.id", user.getIdLong())), Collections.EMPTY_LIST)))
                             );
 
@@ -289,7 +288,7 @@ public class AntiRegexHandler extends ListenerAdapter {
                                 long duration =  data == null ? 86400L : action instanceof TimeAction ? ((TimeAction) action).getDuration() : data.getEmbedded(List.of("tempBan", "defaultTime"), 86400L);
 
                                 guild.ban(user, 1).reason(ModUtility.getAuditReason(reason, selfMember.getUser())).queue($ -> {
-                                    this.modActionManager.onModAction(new TempBanEvent(member, selfMember.getUser(), reason, true, duration));
+                                    this.modActionManager.onModAction(new TempBanEvent(selfMember, user, reason, true, duration));
 
                                     this.banManager.putBan(guildId, userId, duration);
                                 });
@@ -358,7 +357,7 @@ public class AntiRegexHandler extends ListenerAdapter {
 
                 break;
             }
-        });
+        //});
     }
 
     public void onGuildMessageReceived(GuildMessageReceivedEvent event) {

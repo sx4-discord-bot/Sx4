@@ -55,7 +55,7 @@ public class MuteCommand extends Sx4Command {
 		Object seconds = time == null ? Operators.ifNull("$mute.defaultTime", 1800L) : time.toSeconds();
 		AtomicLong atomicDuration = new AtomicLong();
 
-		Bson muteFilter = Operators.filter("$mute.users", Operators.filter("$$this.id", member.getIdLong()));
+		Bson muteFilter = Operators.filter("$mute.users", Operators.eq("$$this.id", member.getIdLong()));
 		Bson unmuteAt = Operators.first(Operators.map(muteFilter, "$$this.unmuteAt"));
 
 		List<Bson> update = List.of(Operators.set("mute.users", Operators.concatArrays(List.of(Operators.mergeObjects(Operators.ifNull(Operators.first(muteFilter), Database.EMPTY_DOCUMENT), new Document("id", member.getIdLong()).append("unmuteAt", Operators.cond(Operators.and(extend, Operators.nonNull(unmuteAt)), Operators.add(unmuteAt, seconds), Operators.add(Operators.nowEpochSecond(), seconds))))), Operators.ifNull(Operators.filter("$mute.users", Operators.ne("$$this.id", member.getIdLong())), Collections.EMPTY_LIST))));

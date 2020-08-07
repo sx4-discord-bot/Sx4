@@ -69,7 +69,7 @@ public class TempBanCommand extends Sx4Command {
 
 			event.getGuild().retrieveBan(user).submit().whenComplete((ban, exception) -> {
 				if (exception instanceof ErrorResponseException && ((ErrorResponseException) exception).getErrorResponse() == ErrorResponse.UNKNOWN_BAN) {
-					Bson banFilter = Operators.filter("$tempBan.users", Operators.filter("$$this.id", user.getIdLong()));
+					Bson banFilter = Operators.filter("$tempBan.users", Operators.eq("$$this.id", user.getIdLong()));
 					List<Bson> update = List.of(Operators.set("tempBan.users", Operators.concatArrays(List.of(Operators.mergeObjects(Operators.ifNull(Operators.first(banFilter), Database.EMPTY_DOCUMENT), new Document("id", user.getIdLong()).append("unbanAt", Operators.add(Operators.nowEpochSecond(), time == null ? Operators.ifNull("$tempBan.defaultTime", 86400L) : time.toSeconds())))), Operators.ifNull(Operators.filter("$tempBan.users", Operators.ne("$$this.id", user.getIdLong())), Collections.EMPTY_LIST))));
 
 					FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("tempBan.defaulTime"));

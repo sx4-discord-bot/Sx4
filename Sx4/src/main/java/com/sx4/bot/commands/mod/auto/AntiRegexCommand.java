@@ -123,7 +123,7 @@ public class AntiRegexCommand extends Sx4Command {
 		Bson modActionMap = Operators.first(Operators.map(filter, "$$this.action.mod"));
 		List<Bson> update = List.of(Operators.set("antiRegex.regexes", Operators.cond(Operators.or(Operators.extinct("$antiRegex.regexes"), Operators.isEmpty(filter), Operators.isNull(modActionMap)), "$antiRegex.regexes", Operators.concatArrays(List.of(Operators.mergeObjects(Operators.first(filter), new Document("action", Operators.mergeObjects(Operators.ifNull(Operators.first(Operators.map(filter, "$$this.action")), Database.EMPTY_DOCUMENT), new Document("mod", Operators.mergeObjects(modActionMap, new Document("attempts", Operators.mergeObjects(Operators.first(Operators.map(filter, "$$this.action.mod.attempts")), new Document("amount", attempts))))))))), Operators.filter("$antiRegex.regexes", Operators.ne("$$this.id", id))))));
 
-		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE);
+		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("antiRegex.regexes"));
 		this.database.findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
@@ -148,7 +148,7 @@ public class AntiRegexCommand extends Sx4Command {
 				return;
 			}
 
-			if (modActionData.get("attempts", 3) == attempts) {
+			if (modActionData.getEmbedded(List.of("attempts", "amount"), 3) == attempts) {
 				event.reply("Your attempts are already set to **" + attempts + "** " + this.config.getFailureEmote()).queue();
 				return;
 			}

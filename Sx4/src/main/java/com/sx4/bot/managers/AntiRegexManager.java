@@ -18,7 +18,7 @@ public class AntiRegexManager {
     public static final String DEFAULT_MATCH_MESSAGE = "{user.mention}, you cannot send that content here due to the regex `{regex.id}`"
         + "({regex.action.exists}?, you will receive a {regex.action.name} if you continue **({regex.attempts.current}/{regex.attempts.max})**:) :no_entry:";
 
-    public static final String DEFAULT_MOD_MESSAGE = "**{user.tag}** has received a {regex.action.name} for sending a message which matched the regex"
+    public static final String DEFAULT_MOD_MESSAGE = "**{user.tag}** has received a {regex.action.name} for sending a message which matched the regex "
         + "`{regex.id}` {regex.attempts.max} time({regex.attempts.max}!=1?s:) <:done:403285928233402378>";
 
     private static final AntiRegexManager INSTANCE = new AntiRegexManager();
@@ -211,7 +211,7 @@ public class AntiRegexManager {
 
                 Document reset = regex.getEmbedded(List.of("action", "mod", "attempts", "reset"), Database.EMPTY_DOCUMENT);
                 long duration = reset.get("after", 0L);
-                int amount = reset.getInteger("amount");
+                int amount = reset.get("amount", 0);
 
                 List<Document> users = regex.getList("users", Document.class, Collections.emptyList());
                 for (Document user : users) {
@@ -228,9 +228,11 @@ public class AntiRegexManager {
                             bulkData.add(this.resetAttemptsBulk(guildId, id, userId, currentDuration, remove));
                             if (remove < attempts) {
                                 this.scheduleResetAttempts(guildId, id, userId, currentDuration, duration, amount);
+                                this.increaseAttempts(guildId, id, userId, attempts - remove);
                             }
                         } else {
                             this.scheduleResetAttempts(guildId, id, userId, resetAt - now, duration, amount);
+                            this.increaseAttempts(guildId, id, userId, attempts);
                         }
                     }
                 }
