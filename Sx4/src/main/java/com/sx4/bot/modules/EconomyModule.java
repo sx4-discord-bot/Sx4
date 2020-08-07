@@ -502,10 +502,10 @@ public class EconomyModule {
 			return;
 		}
 		
-		if (member.equals(event.getMember())) {
+		/*if (member.equals(event.getMember())) {
 			event.reply("You cannot trade with yourself :no_entry:").queue();
 			return;
-		}
+		}*/
 		
 		if (member.getUser().isBot()) {
 			event.reply("You cannot trade with bots :no_entry:").queue();
@@ -606,7 +606,7 @@ public class EconomyModule {
 										return;
 									}
 
-									Map<Item, Integer> types = new HashMap<>();
+									Map<String, Long> types = new HashMap<>();
 									
 									List<Document> authorItemsData = newAuthorData.getList("items", Document.class, new ArrayList<>());
 									List<Document> userItemsData = newUserData.getList("items", Document.class, new ArrayList<>());									
@@ -622,9 +622,11 @@ public class EconomyModule {
 											return;
 										}
 
-										types.compute(itemStack.getItem(), (key, value) -> value != null ? value + 1 : 1);
+										long price = itemStack.getItem().getPrice() * itemStack.getAmount();
+
+										types.compute(itemStack.getItem().getName(), (key, value) -> value != null ? value + price : price);
 										
-										totalAuthorWorth += !itemStack.getItem().isBuyable() ? 0 : itemStack.getItem().getPrice() * itemStack.getAmount();
+										totalAuthorWorth += !itemStack.getItem().isBuyable() ? 0 : price;
 										
 										EconomyUtils.removeItem(authorItemsData, itemStack);
 										EconomyUtils.addItem(userItemsData, itemStack);
@@ -642,21 +644,29 @@ public class EconomyModule {
 											return;
 										}
 
-										types.compute(itemStack.getItem(), (key, value) -> value != null ? value + 1 : 1);
+										long price = itemStack.getItem().getPrice() * itemStack.getAmount();
+
+										types.compute(itemStack.getItem().getName(), (key, value) -> value != null ? value + price : price);
 										
-										totalUserWorth += !itemStack.getItem().isBuyable() ? 0 : itemStack.getItem().getPrice() * itemStack.getAmount();
+										totalUserWorth += !itemStack.getItem().isBuyable() ? 0 : price;
 										
 										EconomyUtils.addItem(authorItemsData, itemStack);
 										EconomyUtils.removeItem(userItemsData, itemStack);
 									}
+
+									types.put("Money", userMoney + authorMoney);
 
 									if (userMoney != 0L && authorMoney != 0L && userItems.isEmpty() && authorItems.isEmpty()) {
 										event.reply("You cannot trade money for money, use `give` :no_entry:").queue();
 										return;
 									}
 
-									if (userMoney == 0L && authorMoney == 0L && types.size() == 1) {
-										event.reply("You cannot trade only the exact same item :no_entry:").queue();
+									Entry<String, Long> max = types.entrySet().stream()
+										.max(Entry.comparingByValue())
+										.get();
+
+									if ((double) max.getValue() / (totalUserWorth + totalAuthorWorth) >= 0.7D) {
+										event.reply(max.getKey() + " cannot make up more than 70% of the trades value :no_entry:").queue();
 										return;
 									}
 									
