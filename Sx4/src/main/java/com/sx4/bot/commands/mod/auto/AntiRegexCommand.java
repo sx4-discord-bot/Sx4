@@ -236,7 +236,7 @@ public class AntiRegexCommand extends Sx4Command {
 		@Examples({"anti regex mod action 5f023782ef9eba03390a740c WARN", "anti regex mod action 5f023782ef9eba03390a740c MUTE 60m"})
 		@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 		public void action(Sx4CommandEvent event, @Argument(value="id") ObjectId id /*, @Argument(value="action", endless=true) TimedArgument<ModAction> timedAction*/) {
-			TimedArgument<ModAction> timedAction = new TimedArgument<>(null, ModAction.MUTE);
+			TimedArgument<ModAction> timedAction = new TimedArgument<>(null, ModAction.WARN);
 			ModAction action = timedAction.getArgument();
 			if (!action.isOffence()) {
 				event.reply("The action has to be an offence " + this.config.getFailureEmote()).queue();
@@ -254,8 +254,8 @@ public class AntiRegexCommand extends Sx4Command {
 			}
 
 			Bson filter = Operators.filter("$antiRegex.regexes", Operators.eq("$$this.id", id));
-			Bson modMap = Operators.first(Operators.map(filter, "$$this.action.mod.attempts"));
-			List<Bson> update = List.of(Operators.set("antiRegex.regexes", Operators.cond(Operators.or(Operators.extinct("$antiRegex.regexes"), Operators.isEmpty(filter)), "$antiRegex.regexes", Operators.concatArrays(List.of(Operators.mergeObjects(Operators.first(filter), new Document("action", Operators.mergeObjects(Operators.ifNull(Operators.first(Operators.map(filter, "$$this.action")), Database.EMPTY_DOCUMENT), new Document("mod", Operators.mergeObjects(Operators.ifNull(modMap, Database.EMPTY_DOCUMENT), modAction)))))), Operators.filter("$antiRegex.regexes", Operators.ne("$$this.id", id))))));
+			Bson modMap = Operators.first(Operators.map(filter, "$$this.action.mod"));
+			List<Bson> update = List.of(Operators.set("antiRegex.regexes", Operators.cond(Operators.or(Operators.extinct("$antiRegex.regexes"), Operators.isEmpty(filter)), "$antiRegex.regexes", Operators.concatArrays(List.of(Operators.mergeObjects(Operators.first(filter), new Document("action", Operators.mergeObjects(Operators.ifNull(Operators.first(Operators.map(filter, "$$this.action")), Database.EMPTY_DOCUMENT), new Document("mod", Operators.mergeObjects(modMap, modAction)))))), Operators.filter("$antiRegex.regexes", Operators.ne("$$this.id", id))))));
 
 			FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE);
 			this.database.findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
@@ -277,7 +277,7 @@ public class AntiRegexCommand extends Sx4Command {
 				}
 
 				Document modActionData = regex.getEmbedded(List.of("action", "mod"), Document.class);
-				if (modActionData != null && modActionData.getInteger("type") == action.getType() && modActionData.getLong("duration") == duration) {
+				if (modActionData != null && modActionData.getInteger("type") == action.getType() && modActionData.get("duration", 0L) == duration) {
 					event.reply("Your mod action for this regex is already set to that " + this.config.getFailureEmote()).queue();
 					return;
 				}

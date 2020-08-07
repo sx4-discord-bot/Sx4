@@ -168,6 +168,8 @@ public class AntiRegexHandler extends ListenerAdapter {
                                     }
                                 }
                             });
+
+                            break;
                         case MUTE:
                         case MUTE_EXTEND:
                             if (!selfMember.hasPermission(Permission.MANAGE_ROLES)) {
