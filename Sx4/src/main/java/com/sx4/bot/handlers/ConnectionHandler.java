@@ -55,7 +55,6 @@ public class ConnectionHandler extends ListenerAdapter {
 		JDA jda = event.getJDA();
 		
 		if (++this.readyEventsCalled == jda.getShardInfo().getShardTotal()) {
-			YouTubeHandler.get().ensureWebhooks();
 			ReminderManager.get().ensureReminders();
 			MuteManager.get().ensureMutes();
 			AutoRoleManager.get().ensureAutoRoles();
