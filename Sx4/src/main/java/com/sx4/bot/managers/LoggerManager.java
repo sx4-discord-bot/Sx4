@@ -88,7 +88,7 @@ public class LoggerManager {
         this.webhooks = new HashMap<>();
     }
 
-    public void createWebhook(TextChannel channel, BlockingDeque<Request> deque, Request request, int retries) {
+    public void createWebhook(TextChannel channel, BlockingDeque<Request> deque, List<Request> requests, int retries) {
         channel.createWebhook("Sx4 - Logger").queue(webhook -> {
             WebhookClient webhookClient = new WebhookClientBuilder(webhook.getUrl())
                 .setExecutorService(this.webhookExecutor)
@@ -105,7 +105,7 @@ public class LoggerManager {
                     return;
                 }
 
-                deque.addFirst(request);
+                requests.forEach(deque::addFirst);
                 this.handleQueue(deque, retries + 1);
             });
         });
@@ -138,7 +138,9 @@ public class LoggerManager {
             int length = 0; // embed length
 
             List<WebhookEmbed> embeds = new ArrayList<>(request.getEmbeds());
-            List<Request> skippedRequests = new ArrayList<>();
+
+            List<Request> skippedRequests = new ArrayList<>(), requests = new ArrayList<>();
+            requests.add(request);
 
             Document logger = request.getLogger();
             List<Document> blacklist = logger.getEmbedded(List.of("blacklist", "entities"), Collections.emptyList());
@@ -161,6 +163,7 @@ public class LoggerManager {
                 }
 
                 embeds.addAll(nextEmbeds);
+                requests.add(nextRequest);
             }
 
             // Keep order of logs
@@ -178,7 +181,8 @@ public class LoggerManager {
                 webhook = this.webhooks.get(channelId);
             } else if (webhookData == null) {
                 if (channel.getGuild().getSelfMember().hasPermission(channel, Permission.MANAGE_WEBHOOKS)) {
-                    this.createWebhook(channel, deque, request, retries);
+                    this.createWebhook(channel, deque, requests, retries);
+                    return;
                 }
 
                 this.handleQueue(deque, 0);
@@ -195,14 +199,16 @@ public class LoggerManager {
             webhook.send(message).whenComplete((result, exception) -> {
                 if (exception instanceof HttpException && ((HttpException) exception).getCode() == 404) {
                     if (channel.getGuild().getSelfMember().hasPermission(channel, Permission.MANAGE_WEBHOOKS)) {
-                        this.createWebhook(channel, deque, request, retries);
+                        this.createWebhook(channel, deque, requests, retries);
+                        return;
                     }
 
+                    this.handleQueue(deque, 0);
                     return;
                 }
 
                 if (ExceptionUtility.sendErrorMessage(exception)) {
-                    deque.addFirst(request);
+                    requests.forEach(deque::addFirst);
                     this.handleQueue(deque, retries + 1);
 
                     return;
