@@ -18,10 +18,7 @@ import okhttp3.OkHttpClient;
 import org.bson.Document;
 
 import java.util.*;
-import java.util.concurrent.BlockingDeque;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.*;
 
 public class LoggerManager {
 
@@ -217,6 +214,34 @@ public class LoggerManager {
                 this.handleQueue(deque, 0);
             });
         });
+    }
+
+    public void queue(Request request) {
+        BlockingDeque<Request> deque = this.queue.computeIfAbsent(request.getChannelId(), key -> new LinkedBlockingDeque<>());
+
+        if (deque.isEmpty()) {
+            deque.add(request);
+            this.handleQueue(deque, 0);
+        } else {
+            deque.add(request);
+        }
+    }
+
+    public void queue(TextChannel channel, Document logger, LoggerEvent event, WebhookEmbed... embeds) {
+        this.queue(channel, logger, event, Arrays.asList(embeds));
+    }
+
+    public void queue(TextChannel channel, Document logger, LoggerEvent event, List<WebhookEmbed> embeds) {
+        List<Request> requests = new ArrayList<>();
+
+        double messages = Math.ceil((double) embeds.size() / 10);
+        for (int i = 0; i < messages; i++) {
+            List<WebhookEmbed> splitEmbeds = embeds.subList(i * 10, i == messages - 1 ? embeds.size() : (i + 1) * 10);
+
+            requests.add(new Request(channel.getJDA(), channel.getIdLong(), splitEmbeds, event, logger));
+        }
+
+        requests.forEach(this::queue);
     }
 
 }
