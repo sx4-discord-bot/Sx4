@@ -27,14 +27,12 @@ public class LoggerManager {
         private final JDA jda;
         private final long channelId;
         private final List<WebhookEmbed> embeds;
-        private final LoggerEvent event;
         private final Document logger;
 
-        public Request(JDA jda, long channelId, List<WebhookEmbed> embeds, LoggerEvent event, Document logger) {
+        public Request(JDA jda, long channelId, List<WebhookEmbed> embeds, Document logger) {
             this.jda = jda;
             this.channelId = channelId;
             this.embeds = embeds;
-            this.event = event;
             this.logger = logger;
         }
 
@@ -54,10 +52,6 @@ public class LoggerManager {
             return this.embeds;
         }
 
-        public LoggerEvent getEvent() {
-            return this.event;
-        }
-
         public Document getLogger() {
             return this.logger;
         }
@@ -73,7 +67,7 @@ public class LoggerManager {
     }
 
     private final Map<Long, WebhookClient> webhooks;
-    private final Map<Long, BlockingDeque<Request>> queue;
+    private final BlockingDeque<Request> queue;
 
     private final OkHttpClient webhookClient = new OkHttpClient();
     private final ScheduledExecutorService webhookExecutor = Executors.newSingleThreadScheduledExecutor();
@@ -81,7 +75,7 @@ public class LoggerManager {
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
 
     private LoggerManager() {
-        this.queue = new HashMap<>();
+        this.queue = new LinkedBlockingDeque<>();
         this.webhooks = new HashMap<>();
     }
 
@@ -126,8 +120,8 @@ public class LoggerManager {
             if (channel == null) {
                 Database.get().deleteChannelById(channelId).whenComplete(Database.exceptionally());
 
-                this.queue.remove(channelId);
                 this.webhooks.remove(channelId);
+                this.handleQueue(deque, 0);
 
                 return;
             }
@@ -139,22 +133,11 @@ public class LoggerManager {
             List<Request> skippedRequests = new ArrayList<>(), requests = new ArrayList<>();
             requests.add(request);
 
-            Document logger = request.getLogger();
-            List<Document> blacklist = logger.getEmbedded(List.of("blacklist", "entities"), Collections.emptyList());
-            long events = logger.get("events", 0L);
-
-            while (length < MessageEmbed.EMBED_MAX_LENGTH_BOT && embeds.size() < 10) {
-                Request nextRequest = deque.poll();
-                if (nextRequest == null) {
-                    break;
-                }
-
-                Document nextLogger = nextRequest.getLogger();
-                boolean equal = blacklist.equals(nextLogger.getEmbedded(List.of("blacklist", "entities"), Collections.emptyList())) && nextLogger.get("events", 0L) == events;
-
+            Request nextRequest;
+            while ((nextRequest = deque.poll()) != null) {
                 List<WebhookEmbed> nextEmbeds = nextRequest.getEmbeds();
                 int nextLength = 0; // embed length
-                if (!equal || embeds.size() + nextEmbeds.size() > 10 || length + nextLength > MessageEmbed.EMBED_MAX_LENGTH_BOT) {
+                if (request.getChannelId() != nextRequest.getChannelId() || embeds.size() + nextEmbeds.size() > 10 || length + nextLength > MessageEmbed.EMBED_MAX_LENGTH_BOT) {
                     skippedRequests.add(nextRequest);
                     continue;
                 }
@@ -166,6 +149,7 @@ public class LoggerManager {
             // Keep order of logs
             skippedRequests.forEach(deque::addFirst);
 
+            Document logger = request.getLogger();
             Document webhookData = logger.get("webhook", Document.class);
 
             WebhookMessage message = new WebhookMessageBuilder()
@@ -217,13 +201,11 @@ public class LoggerManager {
     }
 
     public void queue(Request request) {
-        BlockingDeque<Request> deque = this.queue.computeIfAbsent(request.getChannelId(), key -> new LinkedBlockingDeque<>());
-
-        if (deque.isEmpty()) {
-            deque.add(request);
-            this.handleQueue(deque, 0);
+        if (this.queue.isEmpty()) {
+            this.queue.add(request);
+            this.handleQueue(this.queue, 0);
         } else {
-            deque.add(request);
+            this.queue.add(request);
         }
     }
 
@@ -238,7 +220,7 @@ public class LoggerManager {
         for (int i = 0; i < messages; i++) {
             List<WebhookEmbed> splitEmbeds = embeds.subList(i * 10, i == messages - 1 ? embeds.size() : (i + 1) * 10);
 
-            requests.add(new Request(channel.getJDA(), channel.getIdLong(), splitEmbeds, event, logger));
+            requests.add(new Request(channel.getJDA(), channel.getIdLong(), splitEmbeds, logger));
         }
 
         requests.forEach(this::queue);

@@ -83,7 +83,7 @@ public class Sx4 {
 			.addListener(ModHandler.INSTANCE);
 	
 		YouTubeManager.get()
-			.addListener(new YouTubeHandler());
+			.addListener(YouTubeHandler.get());
 		
 		PatreonManager.get()
 			.addListener(PatreonHandler.INSTANCE);
