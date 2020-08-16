@@ -87,9 +87,25 @@ public class Operators {
 	public static Bson mergeObjects(Object... expressions) {
 		return new Document("$mergeObjects", Arrays.asList(expressions));
 	}
+
+	public static Bson removeObject(Object expression, Object key) {
+		return Operators.arrayToObject(Operators.filter(Operators.objectToArray(expression), Operators.ne("$$this.k", key)));
+	}
+
+	public static Bson objectToArray(Object expression) {
+		return new Document("$objectToArray", expression);
+	}
+
+	public static Bson arrayToObject(Object expression) {
+		return new Document("$arrayToObject", expression);
+	}
 	
 	public static Bson size(Object expression) {
 		return new Document("$size", expression);
+	}
+
+	public static Bson notEmpty(Object expression) {
+		return Operators.ne(Operators.size(expression), 0);
 	}
 	
 	public static Bson isEmpty(Object expression) {

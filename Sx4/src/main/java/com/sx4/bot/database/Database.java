@@ -38,7 +38,6 @@ public class Database {
 	
 	private final MongoCollection<Document> guilds;
 	private final MongoCollection<Document> users;
-	private final MongoCollection<Document> channels;
 	
 	private final MongoCollection<Document> giveaways;
 	
@@ -70,9 +69,6 @@ public class Database {
 		
 		this.users = this.database.getCollection("users");
 		this.guilds = this.database.getCollection("guilds");
-
-		this.channels = this.database.getCollection("channels");
-		this.channels.createIndex(Indexes.descending("guildId"));
 		
 		this.giveaways = this.database.getCollection("giveaways");
 		this.giveaways.createIndex(Indexes.descending("guildId"));
@@ -538,49 +534,6 @@ public class Database {
 	
 	public CompletableFuture<BulkWriteResult> bulkWriteGuilds(List<? extends WriteModel<? extends Document>> bulkData) {
 		return CompletableFuture.supplyAsync(() -> this.guilds.bulkWrite(bulkData));
-	}
-
-	public MongoCollection<Document> getChannels() {
-		return this.channels;
-	}
-
-	public FindIterable<Document> getChannels(Bson filter, Bson projection) {
-		return this.channels.find(filter).projection(projection);
-	}
-
-	public long countChannels(Bson filter) {
-		return this.channels.countDocuments(filter);
-	}
-
-	public CompletableFuture<UpdateResult> updateChannelById(long channelId, Bson filter, Bson update, UpdateOptions options) {
-		Bson dbFilter;
-		if (filter == null) {
-			dbFilter = Filters.eq("_id", channelId);
-		} else {
-			dbFilter = Filters.and(Filters.eq("_id", channelId), filter);
-		}
-
-		return CompletableFuture.supplyAsync(() -> this.channels.updateOne(dbFilter, update, options));
-	}
-
-	public CompletableFuture<UpdateResult> updateChannelById(long channelId, Bson update, UpdateOptions options) {
-		return this.updateChannelById(channelId, null, update, options);
-	}
-
-	public CompletableFuture<UpdateResult> updateChannelById(long channelId, Bson update) {
-		return this.updateChannelById(channelId, update, this.updateOptions);
-	}
-
-	public CompletableFuture<UpdateResult> updateChannel(UpdateOneModel<Document> model) {
-		return CompletableFuture.supplyAsync(() -> this.channels.updateOne(model.getFilter(), model.getUpdate(), model.getOptions()));
-	}
-
-	public CompletableFuture<BulkWriteResult> bulkWriteChannels(List<? extends WriteModel<? extends Document>> bulkData) {
-		return CompletableFuture.supplyAsync(() -> this.channels.bulkWrite(bulkData));
-	}
-
-	public CompletableFuture<DeleteResult> deleteChannelById(long channelId) {
-		return CompletableFuture.supplyAsync(() -> this.channels.deleteOne(Filters.eq("_id", channelId)));
 	}
 	
 	public MongoCollection<Document> getGiveaways() {

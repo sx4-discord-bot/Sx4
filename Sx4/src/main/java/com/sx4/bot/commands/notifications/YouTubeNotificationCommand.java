@@ -25,8 +25,6 @@ import okhttp3.RequestBody;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
-import org.json.JSONArray;
-import org.json.JSONObject;
 
 import java.net.URL;
 import java.net.URLEncoder;
@@ -37,9 +35,9 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.CompletionException;
 
-public class YouTubeNotification extends Sx4Command {
+public class YouTubeNotificationCommand extends Sx4Command {
 	
-	public YouTubeNotification() {
+	public YouTubeNotificationCommand() {
 		super("youtube notification");
 		
 		super.setDescription("Subscribe to a youtube channel so anytime it uploads it's sent in a channel of your choice");
@@ -61,15 +59,15 @@ public class YouTubeNotification extends Sx4Command {
 			.build();
 		
 		this.client.newCall(channelRequest).enqueue((HttpCallback) channelResponse -> {
-			JSONObject json = new JSONObject(channelResponse.body().string());
+			Document json = Document.parse(channelResponse.body().string());
 			
-			JSONArray items = json.getJSONArray("items");
+			List<Document> items = json.getList("items", Document.class);
 			if (items.isEmpty()) {
 				event.reply("I could not find that youtube channel " + this.config.getFailureEmote()).queue();
 				return;
 			}
 			
-			String channelId = items.getJSONObject(0).getJSONObject("id").getString("channelId");
+			String channelId = items.get(0).getEmbedded(List.of("id", "channelId"), String.class);
 				
 			ObjectId id = ObjectId.get();
 			

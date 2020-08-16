@@ -22,6 +22,14 @@ public class StringUtility {
 		
 		return null;
 	}
+
+	public static String limit(String string, int maxLength, String suffix) {
+		if (string.length() <= maxLength) {
+			return string;
+		} else {
+			return string.substring(0, maxLength - suffix.length()) + suffix;
+		}
+	}
 	
 	public static String substring(String string, int beginIndex, int endIndex) {
 		int length = string.length();

@@ -19,7 +19,7 @@ import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.Message.Attachment;
 import net.dv8tion.jda.api.entities.Message.MentionType;
-import net.dv8tion.jda.api.entities.MessageHistory;
+import net.dv8tion.jda.api.entities.MessageHistory.MessageRetrieveAction;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.requests.ErrorResponse;
 
@@ -42,7 +42,7 @@ public class PruneCommand extends Sx4Command {
 	
 	private void prune(Sx4CommandEvent event, int amount, long start, long end, Predicate<Message> predicate) {
 		Message originalMessage = event.getMessage();
-		MessageHistory.MessageRetrieveAction action = start == 0L ? event.getTextChannel().getHistoryBefore(originalMessage, 100) : event.getTextChannel().getHistoryBefore(start, 100);
+		MessageRetrieveAction action = start == 0L ? event.getTextChannel().getHistoryBefore(originalMessage, 100) : event.getTextChannel().getHistoryBefore(start, 100);
 
 		action.queue(history -> {
 			List<Message> retrievedHistory = history.getRetrievedHistory();

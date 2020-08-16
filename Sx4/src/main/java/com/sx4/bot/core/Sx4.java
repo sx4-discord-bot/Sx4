@@ -123,6 +123,7 @@ public class Sx4 {
 			eventManager.register(new GuildMessageCache());
 			eventManager.register(new ConnectionHandler());
 			eventManager.register(new ReactionRoleHandler());
+			eventManager.register(new LoggerHandler());
 			eventManager.register(new AntiRegexHandler());
 			
 			return DefaultShardManagerBuilder.create(this.config.getToken(), GatewayIntent.getIntents(6094))
