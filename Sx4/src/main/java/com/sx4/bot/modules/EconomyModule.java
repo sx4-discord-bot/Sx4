@@ -293,26 +293,20 @@ public class EconomyModule {
 			this.pending.add(event.getAuthor().getIdLong());
 			
 			Map<Item, Long> finalItems = new HashMap<>();
-			List<Item> itemsWon = new ArrayList<>();
 			for (ItemStack<Crate> crateStack : crates) {
 				Crate crate = crateStack.getItem();
 				
 				List<Item> winnableItems = new ArrayList<>(EconomyUtils.WINNABLE_ITEMS);
 				winnableItems.remove(crate);
+				winnableItems.sort(Comparator.comparing(Item::getPrice).reversed());
 				
 				for (int i = 0; i < crateStack.getAmount(); i++) { 
 					for (Item item : winnableItems) {
 						int equation = (int) Math.ceil((double) (38 * item.getPrice()) / Math.pow(crate.getChance(), 1.4));
 						if (random.nextInt(equation + 1) == 0) {
-							itemsWon.add(item);
+							finalItems.compute(item, (key, value) -> value != null ? value + 1L : 1L);
+							break;
 						}
-					}	
-					
-					itemsWon.sort((a, b) -> Long.compare(b.getPrice(), a.getPrice()));
-					if (!itemsWon.isEmpty()) {
-						finalItems.compute(itemsWon.get(0), (key, value) -> value != null ? value + 1L : 1L);
-
-						itemsWon.clear();
 					}
 				}
 			}
@@ -842,7 +836,7 @@ public class EconomyModule {
 			}
 		}
 		
-		event.reply(String.format("**Referral Links for %s**\n\nSx4: <https://discordbots.org/bot/440996323156819968/vote?referral=%s>\nJockie Music: <https://discordbots.org/bot/411916947773587456/vote?referral=%s>", 
+		event.reply(String.format("**Referral Links for %s**\n\nSx4: <https://discordbots.org/bot/440996323156819968/vote?referral=%s>",
 				member.getUser().getAsTag(), member.getUser().getId(), member.getUser().getId())).queue();
 	}
 	
@@ -851,162 +845,103 @@ public class EconomyModule {
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void vote(CommandEvent event, @Context Database database) {
 		LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
-		boolean weekend = now.getDayOfWeek().equals(DayOfWeek.FRIDAY) || now.getDayOfWeek().equals(DayOfWeek.SATURDAY) || now.getDayOfWeek().equals(DayOfWeek.SUNDAY) ? true : false;
+		boolean weekend = now.getDayOfWeek().equals(DayOfWeek.FRIDAY) || now.getDayOfWeek().equals(DayOfWeek.SATURDAY) || now.getDayOfWeek().equals(DayOfWeek.SUNDAY);
 		
-		Request requestSx4 = new Request.Builder()
-				.url("http://" + Settings.LOCAL_HOST + ":8080/440996323156819968/votes/user/" + event.getAuthor().getId() + "/unused/use")
-				.addHeader("Authorization", TokenUtils.VOTE_API_SX4)
-				.build();
+		Request request = new Request.Builder()
+			.url("http://" + Settings.LOCAL_HOST + ":8080/440996323156819968/votes/user/" + event.getAuthor().getId() + "/unused/use")
+			.addHeader("Authorization", TokenUtils.VOTE_API_SX4)
+			.build();
 		
-		Request requestJockieMusic = new Request.Builder()
-				.url("http://" + Settings.LOCAL_HOST + ":8080/411916947773587456/votes/user/" + event.getAuthor().getId() + "/unused/use")
-				.addHeader("Authorization", TokenUtils.VOTE_API_JOCKIE_MUSIC)
-				.build();
-		
-		Sx4Bot.client.newCall(requestSx4).enqueue((Sx4Callback) sx4Response -> {
-			Sx4Bot.client.newCall(requestJockieMusic).enqueue((Sx4Callback) jockieMusicResponse -> {
-				JSONObject jsonSx4 = new JSONObject(sx4Response.body().string());
-				JSONObject jsonJockieMusic = new JSONObject(jockieMusicResponse.body().string());
-				 
-				if (jsonSx4.getBoolean("success") || jsonJockieMusic.getBoolean("success")) {
-					JSONArray sx4Votes = new JSONArray();
-					JSONArray jockieMusicVotes = new JSONArray();
-					long money = 0;
-					if (jsonSx4.has("votes")) {
-						sx4Votes = jsonSx4.getJSONArray("votes");
-					}
-					
-					if (jsonJockieMusic.has("votes")) {
-						jockieMusicVotes = jsonJockieMusic.getJSONArray("votes");
-					}
-					 
-					Map<User, Integer> referredUsers = new HashMap<>();
-					for (Object sx4VoteObject : sx4Votes) {
-						JSONObject sx4Vote = (JSONObject) sx4VoteObject;
-						
-						money += sx4Vote.getBoolean("weekend") ? 1000 : 500;
-						
-						if (sx4Vote.getJSONObject("query").has("referral")) {
-							User referredUser;
-							if (sx4Vote.getJSONObject("query").get("referral") instanceof String[]) {
-								referredUser = event.getShardManager().getUserById(sx4Vote.getJSONObject("query").getJSONArray("referral").getString(0));
-							} else {
-								referredUser = event.getShardManager().getUserById(sx4Vote.getJSONObject("query").getString("referral"));
-							}
-							
-							if (referredUser != null) {
-								if (referredUsers.containsKey(referredUser)) {
-									referredUsers.put(referredUser, referredUsers.get(referredUser) + (sx4Vote.getBoolean("weekend") ? 500 : 250));
-								} else {
-									referredUsers.put(referredUser, sx4Vote.getBoolean("weekend") ? 500 : 250);
-								}
-							}
-						}
-						
-					}
-					
-					for (Object jockieMusicVoteObject : jockieMusicVotes) {
-						JSONObject jockieMusicVote = (JSONObject) jockieMusicVoteObject;
-						
-						money += jockieMusicVote.getBoolean("weekend") ? 600 : 300;
-						
-						if (jockieMusicVote.getJSONObject("query").has("referral")) {
-							User referredUser;
-							if (jockieMusicVote.getJSONObject("query").get("referral") instanceof String[]) {
-								referredUser = event.getShardManager().getUserById(jockieMusicVote.getJSONObject("query").getJSONArray("referral").getString(0));
-							} else {
-								referredUser = event.getShardManager().getUserById(jockieMusicVote.getJSONObject("query").getString("referral"));
-							}
-							
-							if (referredUser != null) {
-								if (referredUsers.containsKey(referredUser)) {
-									referredUsers.put(referredUser, referredUsers.get(referredUser) + (jockieMusicVote.getBoolean("weekend") ? 300 : 150));
-								} else {
-									referredUsers.put(referredUser, jockieMusicVote.getBoolean("weekend") ? 300 : 150);
-								}
-							}
-						}
-				
-					}
-					
-					UpdateOptions updateOptions = new UpdateOptions().upsert(true);
-					List<WriteModel<Document>> updates = new ArrayList<>();
-					StringBuilder referredBuilder = new StringBuilder();
-					for (User key : referredUsers.keySet()) {						
-						updates.add(new UpdateOneModel<>(Filters.eq("_id", key.getIdLong()), Updates.inc("economy.balance", referredUsers.get(key)), updateOptions));
-						referredBuilder.append(key.getAsTag() + " (**$" + referredUsers.get(key) + "**), ");
-					}
-					
-					String referredContent = referredBuilder.length() != 0 ? referredBuilder.substring(0, referredBuilder.length() - 2) : "No one";
-					int totalVotes = sx4Votes.length() + jockieMusicVotes.length();	
-					String message = String.format("You have voted for the bot **%,d** time%s since you last used the command gathering you a total of **$%,d**, Vote for the bots again in 12 hours for more money."
-							+ " Referred users: %s", totalVotes, totalVotes == 1 ? "" : "s", money, referredContent);
-					
-					updates.add(new UpdateOneModel<>(Filters.eq("_id", event.getAuthor().getIdLong()), Updates.inc("economy.balance", money), updateOptions));
-					database.bulkWriteUsers(updates, (result, exception) -> {
-						if (exception != null) {
-							exception.printStackTrace();
-							event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+		Sx4Bot.client.newCall(request).enqueue((Sx4Callback) response -> {
+			JSONObject json = new JSONObject(response.body().string());
+			if (json.getBoolean("success")) {
+				JSONArray votes = new JSONArray();
+				long money = 0;
+				if (json.has("votes")) {
+					votes = json.getJSONArray("votes");
+				}
+
+				Map<User, Integer> referredUsers = new HashMap<>();
+				for (Object voteObject : votes) {
+					JSONObject vote = (JSONObject) voteObject;
+
+					money += vote.getBoolean("weekend") ? 1000 : 500;
+
+					if (vote.getJSONObject("query").has("referral")) {
+						User referredUser;
+						if (vote.getJSONObject("query").get("referral") instanceof String[]) {
+							referredUser = event.getShardManager().getUserById(vote.getJSONObject("query").getJSONArray("referral").getString(0));
 						} else {
-							event.reply(message).queue();
+							referredUser = event.getShardManager().getUserById(vote.getJSONObject("query").getString("referral"));
 						}
+
+						if (referredUser != null) {
+							if (referredUsers.containsKey(referredUser)) {
+								referredUsers.put(referredUser, referredUsers.get(referredUser) + (vote.getBoolean("weekend") ? 500 : 250));
+							} else {
+								referredUsers.put(referredUser, vote.getBoolean("weekend") ? 500 : 250);
+							}
+						}
+					}
+
+				}
+
+				UpdateOptions updateOptions = new UpdateOptions().upsert(true);
+				List<WriteModel<Document>> updates = new ArrayList<>();
+				StringBuilder referredBuilder = new StringBuilder();
+				for (User key : referredUsers.keySet()) {
+					updates.add(new UpdateOneModel<>(Filters.eq("_id", key.getIdLong()), Updates.inc("economy.balance", referredUsers.get(key)), updateOptions));
+					referredBuilder.append(key.getAsTag() + " (**$" + referredUsers.get(key) + "**), ");
+				}
+
+				String referredContent = referredBuilder.length() != 0 ? referredBuilder.substring(0, referredBuilder.length() - 2) : "No one";
+				int totalVotes = votes.length();
+				String message = String.format("You have voted for the bot **%,d** time%s since you last used the command gathering you a total of **$%,d**, Vote for the bots again in 12 hours for more money."
+						+ " Referred users: %s", totalVotes, totalVotes == 1 ? "" : "s", money, referredContent);
+
+				updates.add(new UpdateOneModel<>(Filters.eq("_id", event.getAuthor().getIdLong()), Updates.inc("economy.balance", money), updateOptions));
+				database.bulkWriteUsers(updates, (result, exception) -> {
+					if (exception != null) {
+						exception.printStackTrace();
+						event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+					} else {
+						event.reply(message).queue();
+					}
+				});
+			} else {
+				if (json.getString("error").equals("This user has no unused votes")) {
+					Request latest = new Request.Builder()
+						.url("http://" + Settings.LOCAL_HOST + ":8080/440996323156819968/votes/user/" + event.getAuthor().getId() + "/latest")
+						.addHeader("Authorization", TokenUtils.VOTE_API_SX4)
+						.build();
+
+					Sx4Bot.client.newCall(latest).enqueue((Sx4Callback) latestSx4Response -> {
+						JSONObject latestJson = new JSONObject(latestSx4Response.body().string());
+
+						EmbedBuilder embed = new EmbedBuilder();
+						embed.setAuthor("Vote Bonus", null, event.getAuthor().getEffectiveAvatarUrl());
+
+						long timestamp = Clock.systemUTC().instant().getEpochSecond();
+
+						long timestampSx4 = 0;
+						String timeSx4 = null;
+						if (latestJson.has("vote")) {
+							timestampSx4 = latestJson.getJSONObject("vote").getLong("time") - timestamp + EconomyUtils.VOTE_COOLDOWN;
+							timeSx4 = latestJson.getBoolean("success") ? TimeUtils.toTimeString(timestampSx4, ChronoUnit.SECONDS) : null;
+						}
+
+						if (timeSx4 != null && timestampSx4 >= 0) {
+							embed.addField("Sx4", "**[You have voted recently you can vote for the bot again in " + timeSx4 + "](https://discordbots.org/bot/440996323156819968/vote)**", false);
+						} else {
+							embed.addField("Sx4", "**[You can vote for Sx4 for an extra $" + (weekend ? 1000 : 500) + "](https://discordbots.org/bot/440996323156819968/vote)**", false);
+						}
+
+						event.reply(embed.build()).queue();
 					});
 				} else {
-					if (jsonSx4.getString("error").equals("This user has no unused votes") && jsonJockieMusic.getString("error").equals("This user has no unused votes")) {
-						Request latestSx4 = new Request.Builder()
-									.url("http://" + Settings.LOCAL_HOST + ":8080/440996323156819968/votes/user/" + event.getAuthor().getId() + "/latest")
-									.addHeader("Authorization", TokenUtils.VOTE_API_SX4)
-									.build();
-							
-						Request latestJockieMusic = new Request.Builder()
-									.url("http://" + Settings.LOCAL_HOST + ":8080/411916947773587456/votes/user/" + event.getAuthor().getId() + "/latest")
-									.addHeader("Authorization", TokenUtils.VOTE_API_JOCKIE_MUSIC)
-									.build();
-							
-						Sx4Bot.client.newCall(latestSx4).enqueue((Sx4Callback) latestSx4Response -> {
-							Sx4Bot.client.newCall(latestJockieMusic).enqueue((Sx4Callback) latestJockieMusicResponse -> {
-								JSONObject latestJsonSx4 = new JSONObject(latestSx4Response.body().string());
-								JSONObject latestJsonJockieMusic = new JSONObject(latestJockieMusicResponse.body().string());
-								
-								EmbedBuilder embed = new EmbedBuilder();
-								embed.setAuthor("Vote Bonus", null, event.getAuthor().getEffectiveAvatarUrl());
-								
-								long timestamp = Clock.systemUTC().instant().getEpochSecond();
-								
-								long timestampSx4 = 0;
-								String timeSx4 = null;
-								if (latestJsonSx4.has("vote")) {
-									timestampSx4 = latestJsonSx4.getJSONObject("vote").getLong("time") - timestamp + EconomyUtils.VOTE_COOLDOWN;
-									timeSx4 = latestJsonSx4.getBoolean("success") ? TimeUtils.toTimeString(timestampSx4, ChronoUnit.SECONDS) : null;
-								}
-								
-								long timestampJockieMusic = 0;
-								String timeJockieMusic = null;
-								if (latestJsonJockieMusic.has("vote")) {
-									timestampJockieMusic = latestJsonJockieMusic.getJSONObject("vote").getLong("time") - timestamp + EconomyUtils.VOTE_COOLDOWN; 
-									timeJockieMusic = latestJsonJockieMusic.getBoolean("success") ? TimeUtils.toTimeString(timestampJockieMusic, ChronoUnit.SECONDS) : null;
-								}
-				
-								if (timeSx4 != null && timestampSx4 >= 0) {
-									embed.addField("Sx4", "**[You have voted recently you can vote for the bot again in " + timeSx4 + "](https://discordbots.org/bot/440996323156819968/vote)**", false);
-								} else {
-									embed.addField("Sx4", "**[You can vote for Sx4 for an extra $" + (weekend ? 1000 : 500) + "](https://discordbots.org/bot/440996323156819968/vote)**", false);
-								}
-								
-								if (timeJockieMusic != null && timestampJockieMusic >= 0) {
-									embed.addField("Jockie Music", "**[You have voted recently you can vote for the bot again in " + timeJockieMusic + "](https://discordbots.org/bot/411916947773587456/vote)**", false);
-								} else {
-									embed.addField("Jockie Music", "**[You can vote for Jockie Music for an extra $" + (weekend ? 600 : 300) + "](https://discordbots.org/bot/411916947773587456/vote)**", false);
-								}
-								
-								event.reply(embed.build()).queue();
-							});
-						});
-					} else {
-						event.reply("Oops something went wrong there, try again :no_entry:").queue();
-					}
+					event.reply("Oops something went wrong there, try again :no_entry:").queue();
 				}
-			});
+			}
 		});
 	}
 	
