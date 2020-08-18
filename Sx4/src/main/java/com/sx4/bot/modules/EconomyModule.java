@@ -131,8 +131,8 @@ public class EconomyModule {
 	}
 
 	public class CrateCommand extends Sx4Command {
-		
-		private Set<Long> pending = new HashSet<>();
+
+		private final Set<Long> pendingCrates = new HashSet<>();
 		
 		public CrateCommand() {
 			super("crate");
@@ -195,7 +195,7 @@ public class EconomyModule {
 				return;
 			}
 			
-			if (this.pending.contains(event.getAuthor().getIdLong())) {
+			if (this.pendingCrates.contains(event.getAuthor().getIdLong())) {
 				event.reply("You cannot buy crates while opening crates :no_entry:").queue();
 				return;
 			}
@@ -205,8 +205,8 @@ public class EconomyModule {
 				EconomyUtils.addItem(items, crate, crateAmount.longValue());
 				
 				Bson update = Updates.combine(
-						Updates.set("economy.items", items),
-						Updates.inc("economy.balance", -price.longValue())
+					Updates.set("economy.items", items),
+					Updates.inc("economy.balance", -price.longValue())
 				);
 				
 				database.updateUserById(event.getAuthor().getIdLong(), update, (result, exception) -> {
@@ -228,7 +228,7 @@ public class EconomyModule {
 		@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 		public void open(CommandEvent event, @Context Database database, @Argument(value="crate name", endless=true) String crateArgument) {
 			List<Document> items = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items")).getEmbedded(List.of("economy", "items"), new ArrayList<>());
-			
+
 			long totalCrates = 0;
 			List<ItemStack<Crate>> crates = new ArrayList<>();
 			if (crateArgument.toLowerCase().equals("all")) {
@@ -280,17 +280,17 @@ public class EconomyModule {
 				totalCrates = crateAmount.longValue();
 			}
 
-			if (totalCrates > 50_000_000L) {
-				event.reply("You can only open **50,000,000** crates at once :no_entry:").queue();
+			if (totalCrates > 1_000_000L) {
+				event.reply("You can only open **1,000,000** crates at once :no_entry:").queue();
 				return;
 			}
 			
-			if (this.pending.contains(event.getAuthor().getIdLong())) {
+			if (this.pendingCrates.contains(event.getAuthor().getIdLong())) {
 				event.reply("You are already opening some crates, wait for them to open before opening more :no_entry:").queue();
 				return;
 			}
 			
-			this.pending.add(event.getAuthor().getIdLong());
+			this.pendingCrates.add(event.getAuthor().getIdLong());
 			
 			Map<Item, Long> finalItems = new HashMap<>();
 			for (ItemStack<Crate> crateStack : crates) {
@@ -308,6 +308,16 @@ public class EconomyModule {
 							break;
 						}
 					}
+				}
+			}
+
+			List<Document> itemsAfter = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("economy.items")).getEmbedded(List.of("economy", "items"), new ArrayList<>());
+			for (ItemStack<Crate> crate : crates) {
+				ItemStack<Item> userCrate = EconomyUtils.getUserItem(itemsAfter, crate.getItem());
+				if (userCrate.getAmount() < crate.getAmount()) {
+					event.reply("You no longer have the sufficient amount of crates to perform this command :no_entry:").queue();
+					this.pendingCrates.remove(event.getAuthor().getIdLong());
+					return;
 				}
 			}
 			
@@ -332,7 +342,7 @@ public class EconomyModule {
 					content.append(String.format("• %,d %s\n", item.getValue(), item.getKey().getName()));
 					
 					total += item.getValue();
-					EconomyUtils.addItem(items, item.getKey(), item.getValue());
+					EconomyUtils.addItem(itemsAfter, item.getKey(), item.getValue());
 				}
 				
 				if (crates.size() == 1) {
@@ -344,17 +354,17 @@ public class EconomyModule {
 				
 				embed.setDescription(content.toString());
 			}
+
+			EconomyUtils.removeItems(itemsAfter, crates);
 			
-			EconomyUtils.removeItems(items, crates);
-			
-			database.updateUserById(event.getAuthor().getIdLong(), Updates.set("economy.items", items), (result, exception) -> {
+			database.updateUserById(event.getAuthor().getIdLong(), Updates.set("economy.items", itemsAfter), (result, exception) -> {
 				if (exception != null) {
 					exception.printStackTrace();
 					event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
 				} else {
 					event.reply(embed.build()).queue();
 					
-					this.pending.remove(event.getAuthor().getIdLong());
+					this.pendingCrates.remove(event.getAuthor().getIdLong());
 				}
 			});
 		}
@@ -865,7 +875,7 @@ public class EconomyModule {
 				for (Object voteObject : votes) {
 					JSONObject vote = (JSONObject) voteObject;
 
-					money += vote.getBoolean("weekend") ? 1000 : 500;
+					money += vote.getBoolean("weekend") ? 1600 : 800;
 
 					if (vote.getJSONObject("query").has("referral")) {
 						User referredUser;
@@ -933,7 +943,7 @@ public class EconomyModule {
 						if (timeSx4 != null && timestampSx4 >= 0) {
 							embed.addField("Sx4", "**[You have voted recently you can vote for the bot again in " + timeSx4 + "](https://discordbots.org/bot/440996323156819968/vote)**", false);
 						} else {
-							embed.addField("Sx4", "**[You can vote for Sx4 for an extra $" + (weekend ? 1000 : 500) + "](https://discordbots.org/bot/440996323156819968/vote)**", false);
+							embed.addField("Sx4", "**[You can vote for Sx4 for an extra $" + (weekend ? 1600 : 800) + "](https://discordbots.org/bot/440996323156819968/vote)**", false);
 						}
 
 						event.reply(embed.build()).queue();
