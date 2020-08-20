@@ -1,42 +1,20 @@
 package com.sx4.bot.modules;
 
-import java.awt.Color;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.lang.reflect.Field;
-import java.nio.charset.StandardCharsets;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.BlockingDeque;
-import java.util.concurrent.ExecutionException;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
-
-import org.bson.Document;
-import org.codehaus.groovy.control.CompilerConfiguration;
-import org.codehaus.groovy.control.customizers.ImportCustomizer;
-import org.json.JSONObject;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.jockie.bot.core.argument.Argument;
+import com.jockie.bot.core.category.ICategory;
 import com.jockie.bot.core.command.Command;
 import com.jockie.bot.core.command.Command.Developer;
 import com.jockie.bot.core.command.Context;
+import com.jockie.bot.core.command.ICommand;
 import com.jockie.bot.core.command.ICommand.ArgumentParsingType;
 import com.jockie.bot.core.command.ICommand.ContentOverflowPolicy;
 import com.jockie.bot.core.command.Initialize;
 import com.jockie.bot.core.command.impl.CommandEvent;
 import com.jockie.bot.core.command.impl.CommandImpl;
 import com.jockie.bot.core.module.Module;
-import com.mongodb.client.model.Filters;
-import com.mongodb.client.model.Projections;
-import com.mongodb.client.model.UpdateOneModel;
-import com.mongodb.client.model.UpdateOptions;
-import com.mongodb.client.model.Updates;
-import com.mongodb.client.model.WriteModel;
+import com.mongodb.client.model.*;
 import com.sx4.bot.categories.Categories;
 import com.sx4.bot.core.Sx4Bot;
 import com.sx4.bot.core.Sx4Command;
@@ -50,16 +28,30 @@ import com.sx4.bot.logger.util.Utils;
 import com.sx4.bot.utils.ArgumentUtils;
 import com.sx4.bot.utils.GeneralUtils;
 import com.sx4.bot.utils.HelpUtils;
-
 import groovy.lang.GroovyShell;
-import net.dv8tion.jda.api.entities.Guild;
-import net.dv8tion.jda.api.entities.Member;
-import net.dv8tion.jda.api.entities.Message;
-import net.dv8tion.jda.api.entities.MessageEmbed;
-import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.entities.*;
 import net.dv8tion.jda.api.requests.RestAction;
 import net.dv8tion.jda.internal.entities.AbstractMessage;
 import net.dv8tion.jda.internal.entities.ReceivedMessage;
+import org.bson.Document;
+import org.codehaus.groovy.control.CompilerConfiguration;
+import org.codehaus.groovy.control.customizers.ImportCustomizer;
+import org.json.JSONObject;
+
+import java.awt.*;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.lang.reflect.Field;
+import java.nio.charset.StandardCharsets;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.BlockingDeque;
+import java.util.concurrent.ExecutionException;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 @Module
 public class DeveloperModule {
@@ -179,26 +171,69 @@ public class DeveloperModule {
 	}
 	
 	@Command(value="blacklist user", description="Blacklist a user from the bot")
-	@Examples({"blacklist user @Shea#6653", "blacklist user 402557516728369153", "blacklist user Shea"})
+	@Examples({"blacklist user @Shea#6653 Economy", "blacklist user 402557516728369153 all", "blacklist user Shea ship"})
 	@Developer 
-	public void blacklistUser(CommandEvent event, @Context Database database, @Argument(value="user", endless=true) String userArgument) {
+	public void blacklistUser(CommandEvent event, @Context Database database, @Argument(value="user") String userArgument, @Argument(value="commands", endless=true) String commandsArgument) {
 		User user = ArgumentUtils.getUser(userArgument);
 		if (user == null) {
 			event.reply("I could not find that user :no_entry:").queue();
 			return;
 		}
-		
-		boolean blacklisted = database.getUserById(user.getIdLong(), null, Projections.include("blacklisted")).getBoolean("blacklisted", false);	
-		database.updateUserById(user.getIdLong(), Updates.set("blacklisted", !blacklisted), (result, exception) -> {
+
+		Collection<ICommand> commands = null;
+		if (commandsArgument.equals("all")) {
+			commands = event.getCommandListener().getAllCommands();
+		} else {
+			ICategory category = ArgumentUtils.getModule(commandsArgument);
+			if (category != null) {
+				commands = category.getCommands();
+			} else {
+				ICommand command = ArgumentUtils.getCommand(commandsArgument);
+				if (command != null) {
+					commands = List.of(command);
+				}
+			}
+		}
+
+		if (commands == null) {
+			event.reply("I could not find that command :no_entry:").queue();
+			return;
+		}
+
+		List<String> names = commands.stream()
+			.map(command -> command.getCommandTrigger())
+			.collect(Collectors.toList());
+
+		database.updateUserById(user.getIdLong(), Updates.addEachToSet("blacklisted", names), (result, exception) -> {
 			if (exception != null) {
 				exception.printStackTrace();
 				event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
 			} else {
-				event.reply("That user is " + (blacklisted ? "no longer" : "now") + " blacklisted <:done:403285928233402378>").queue();
+				event.reply("That user is now blacklisted from those commands <:done:403285928233402378>").queue();
 			}
 		});
 	}
-	
+
+	@Command(value="blacklist user reset", description="Unblacklist a user from the bot")
+	@Examples({"blacklist user reset @Shea#6653", "blacklist user reset 402557516728369153", "blacklist user reset Shea"})
+	@Developer
+	public void blacklistUserReset(CommandEvent event, @Context Database database, @Argument(value="user", endless=true) String userArgument) {
+		User user = ArgumentUtils.getUser(userArgument);
+		if (user == null) {
+			event.reply("I could not find that user :no_entry:").queue();
+			return;
+		}
+
+		database.updateUserById(user.getIdLong(), Updates.unset("blacklisted"), (result, exception) -> {
+			if (exception != null) {
+				exception.printStackTrace();
+				event.reply(Sx4CommandEventListener.getUserErrorMessage(exception)).queue();
+			} else {
+				event.reply("That user is no longer blacklisted from any commands <:done:403285928233402378>").queue();
+			}
+		});
+	}
+
 	@Command(value="as", description="Execute a command as someone else")
 	@Examples({"as Joakim fish", "as Joakim#9814 reminder add something in 10 minutes"})
 	@Developer

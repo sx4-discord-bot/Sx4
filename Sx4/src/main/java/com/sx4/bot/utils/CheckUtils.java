@@ -1,23 +1,21 @@
 package com.sx4.bot.utils;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.EnumSet;
-import java.util.List;
-
-import org.bson.Document;
-
 import com.jockie.bot.core.command.impl.CommandEvent;
 import com.mongodb.client.model.Projections;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.settings.Settings;
-
 import net.dv8tion.jda.api.OnlineStatus;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.PermissionOverride;
 import net.dv8tion.jda.api.entities.Role;
+import org.bson.Document;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.EnumSet;
+import java.util.List;
 
 public class CheckUtils {
 	
@@ -108,12 +106,12 @@ public class CheckUtils {
 	}
 	
 	public static boolean checkBlacklist(CommandEvent event) {
-		if (!event.isAuthorDeveloper()) {
+		if (true/*!event.isAuthorDeveloper()*/) {
 			Database database = Database.get();
 			
-			boolean userBlacklisted = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("blacklisted")).getBoolean("blacklisted", false);
-			if (userBlacklisted && !event.getCommand().getCommand().equals("support")) {
-				event.reply("You are blacklisted from using the bot, to appeal make sure to join the bots support server which can be found in `" + event.getPrefix() + "support`").queue();
+			List<String> blacklistedCommands = database.getUserById(event.getAuthor().getIdLong(), null, Projections.include("blacklisted")).getList("blacklisted", String.class, Collections.emptyList());
+			if (blacklistedCommands.contains(event.getCommand().getCommandTrigger()) && !event.getCommand().getCommandTrigger().equals("support")) {
+				event.reply("You are blacklisted from using that command on the bot, to appeal make sure to join the bots support server which can be found in `" + event.getPrefix() + "support`").queue();
 				return false;
 			} else {
 				if (!CheckUtils.checkPermissions(event, EnumSet.of(Permission.ADMINISTRATOR), false)) {

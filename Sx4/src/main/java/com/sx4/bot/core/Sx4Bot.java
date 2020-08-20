@@ -1,19 +1,5 @@
 package com.sx4.bot.core;
 
-import java.lang.reflect.Field;
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
-import java.time.format.DateTimeFormatter;
-import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.EnumSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
-
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.jockie.bot.core.command.factory.impl.MethodCommandFactory;
 import com.jockie.bot.core.command.impl.CommandListener;
@@ -22,22 +8,7 @@ import com.jockie.bot.core.command.manager.impl.ContextManagerFactory;
 import com.sx4.bot.cache.ChangesMessageCache;
 import com.sx4.bot.cache.GuildMessageCache;
 import com.sx4.bot.database.Database;
-import com.sx4.bot.events.AntiInviteEvents;
-import com.sx4.bot.events.AntiLinkEvents;
-import com.sx4.bot.events.AutoroleEvents;
-import com.sx4.bot.events.AwaitEvents;
-import com.sx4.bot.events.ConnectionEvents;
-import com.sx4.bot.events.EventWaiterEvents;
-import com.sx4.bot.events.ImageModeEvents;
-import com.sx4.bot.events.ModEvents;
-import com.sx4.bot.events.MuteEvents;
-import com.sx4.bot.events.NotificationEvents;
-import com.sx4.bot.events.SelfroleEvents;
-import com.sx4.bot.events.ServerLogEvents;
-import com.sx4.bot.events.StarboardEvents;
-import com.sx4.bot.events.StatsEvents;
-import com.sx4.bot.events.TriggerEvents;
-import com.sx4.bot.events.WelcomerEvents;
+import com.sx4.bot.events.*;
 import com.sx4.bot.logger.handler.EventHandler;
 import com.sx4.bot.logger.handler.ExceptionHandler;
 import com.sx4.bot.settings.Settings;
@@ -46,12 +17,11 @@ import com.sx4.bot.utils.HelpUtils;
 import com.sx4.bot.utils.ModUtils;
 import com.sx4.bot.utils.TimeUtils;
 import com.sx4.bot.youtube.YouTubeManager;
-
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
-import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.Message.MentionType;
+import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.hooks.InterfacedEventManager;
 import net.dv8tion.jda.api.requests.GatewayIntent;
 import net.dv8tion.jda.api.requests.restaction.MessageAction;
@@ -59,6 +29,16 @@ import net.dv8tion.jda.api.sharding.DefaultShardManagerBuilder;
 import net.dv8tion.jda.api.sharding.ShardManager;
 import net.dv8tion.jda.api.utils.MemberCachePolicy;
 import okhttp3.OkHttpClient;
+
+import java.lang.reflect.Field;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
+import java.util.*;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 public class Sx4Bot {
 	
@@ -153,8 +133,8 @@ public class Sx4Bot {
 				});
 		
 		listener.removeDefaultPreExecuteChecks()
-				.addPreExecuteCheck((event, command) -> CheckUtils.checkBlacklist(event))
 				.addPreExecuteCheck((event, command) -> CheckUtils.canReply(event.getMessage(), event.getPrefix()))
+				.addPreExecuteCheck((event, command) -> CheckUtils.checkBlacklist(event))
 				.addPreExecuteCheck((event, command) -> {
 					if (command instanceof Sx4Command) {
 						Sx4Command sx4Command = (Sx4Command) command;
