@@ -871,35 +871,39 @@ public class EconomyModule {
 					votes = json.getJSONArray("votes");
 				}
 
-				Map<User, Integer> referredUsers = new HashMap<>();
+				Map<User, Long> referredUsers = new HashMap<>();
 				for (Object voteObject : votes) {
 					JSONObject vote = (JSONObject) voteObject;
 
 					money += vote.getBoolean("weekend") ? 1600 : 800;
 
-					if (vote.getJSONObject("query").has("referral")) {
+					JSONObject query = vote.getJSONObject("query");
+					if (query.has("referral")) {
+						Object referral = query.get("referral");
+						String id = referral instanceof JSONArray ? ((JSONArray) referral).getString(0) : (String) referral;
+
 						User referredUser;
-						if (vote.getJSONObject("query").get("referral") instanceof String[]) {
-							referredUser = event.getShardManager().getUserById(vote.getJSONObject("query").getJSONArray("referral").getString(0));
-						} else {
-							referredUser = event.getShardManager().getUserById(vote.getJSONObject("query").getString("referral"));
+						try {
+							referredUser = event.getShardManager().getUserById(id);
+						} catch (NumberFormatException e) {
+							continue;
 						}
 
 						if (referredUser != null) {
-							if (referredUsers.containsKey(referredUser)) {
-								referredUsers.put(referredUser, referredUsers.get(referredUser) + (vote.getBoolean("weekend") ? 500 : 250));
-							} else {
-								referredUsers.put(referredUser, vote.getBoolean("weekend") ? 500 : 250);
-							}
+							long amount = vote.getBoolean("weekend") ? 500 : 250;
+							referredUsers.compute(referredUser, (key, value) -> value == null ? amount : value + amount);
 						}
 					}
-
 				}
 
 				UpdateOptions updateOptions = new UpdateOptions().upsert(true);
 				List<WriteModel<Document>> updates = new ArrayList<>();
 				StringBuilder referredBuilder = new StringBuilder();
 				for (User key : referredUsers.keySet()) {
+					if (key.getIdLong() == event.getAuthor().getIdLong()) {
+						continue;
+					}
+
 					updates.add(new UpdateOneModel<>(Filters.eq("_id", key.getIdLong()), Updates.inc("economy.balance", referredUsers.get(key)), updateOptions));
 					referredBuilder.append(key.getAsTag() + " (**$" + referredUsers.get(key) + "**), ");
 				}

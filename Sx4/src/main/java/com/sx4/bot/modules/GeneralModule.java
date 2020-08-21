@@ -1492,8 +1492,8 @@ public class GeneralModule {
 			if (member == null) {
 				try {
 					joinPosition = Integer.parseInt(argument);
-					if (joinPosition > guildMembers.size() || joinPosition < 0) {
-						event.reply("The join position can not be more than the member count of the server or less than 0 :no_entry:").queue();
+					if (joinPosition > guildMembers.size() || joinPosition < 1) {
+						event.reply("The join position can not be more than the member count of the server or less than 1 :no_entry:").queue();
 						return;
 					}
 				} catch(NumberFormatException e) {
@@ -2462,7 +2462,7 @@ public class GeneralModule {
 		embed.addField("Region", event.getGuild().getRegion().getName() + " " + (event.getGuild().getRegion().getEmoji() == null ? "" : event.getGuild().getRegion().getEmoji()), true);
 		embed.addField("Total users/bots",  totalMembersSize + " user" + (totalMembersSize == 1 ? "" : "s") + "/bot" + (totalMembersSize == 1 ? "" : "s"), true);
 		embed.addField("Users", members.size() + " user" + (members.size() == 1 ? "" : "s") + " (" + onlineMembers.size() + " Online)", true);
-		embed.addField("Bots", bots.size() + " user" + (bots.size() == 1 ? "" : "s") + " (" + onlineBots.size() + " Online)", true);
+		embed.addField("Bots", bots.size() + " bot" + (bots.size() == 1 ? "" : "s") + " (" + onlineBots.size() + " Online)", true);
 		embed.addField("Boosts", event.getGuild().getBoostCount() + " booster" + (event.getGuild().getBoostCount() == 1 ? "" : "s") + " (Tier " + event.getGuild().getBoostTier().getKey() + ")", true);
 		embed.addField("Text Channels", String.valueOf(event.getGuild().getTextChannels().size()), true);
 		embed.addField("Voice Channels", String.valueOf(event.getGuild().getVoiceChannels().size()), true);

@@ -1,12 +1,5 @@
 package com.sx4.bot.modules;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-
-import org.bson.Document;
-import org.bson.conversions.Bson;
-
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
 import com.jockie.bot.core.command.Command.AuthorPermissions;
@@ -30,14 +23,15 @@ import com.sx4.bot.utils.GeneralUtils;
 import com.sx4.bot.utils.HelpUtils;
 import com.sx4.bot.utils.PagedUtils;
 import com.sx4.bot.utils.PagedUtils.PagedResult;
-
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
-import net.dv8tion.jda.api.entities.Category;
-import net.dv8tion.jda.api.entities.GuildChannel;
-import net.dv8tion.jda.api.entities.Member;
-import net.dv8tion.jda.api.entities.Role;
-import net.dv8tion.jda.api.entities.TextChannel;
+import net.dv8tion.jda.api.entities.*;
+import org.bson.Document;
+import org.bson.conversions.Bson;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 @Module
 public class AntiLinkModule {
@@ -51,7 +45,7 @@ public class AntiLinkModule {
 			super("antilink");
 			
 			super.setAliases("anti link", "anti-link");
-			super.setDescription("Set up antilink to automatically delete any active discord links which are sent in the server");
+			super.setDescription("Set up antilink to automatically delete any links which are sent in the server");
 			super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
 			super.setExamples("antilink toggle", "antilink action", "antilink stats");
 		}
