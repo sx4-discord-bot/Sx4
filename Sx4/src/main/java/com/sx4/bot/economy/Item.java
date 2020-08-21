@@ -1,14 +1,13 @@
 package com.sx4.bot.economy;
 
+import com.sx4.bot.utils.EconomyUtils;
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.lang.reflect.Field;
-
-import org.json.JSONException;
-import org.json.JSONObject;
-
-import com.sx4.bot.utils.EconomyUtils;
 
 public class Item {
 	
@@ -26,6 +25,10 @@ public class Item {
 	
 	public boolean isBuyable() {
 		return this.price != null;
+	}
+
+	public Long getCurrentPrice() {
+		return this.price;
 	}
 	
 	public Long getPrice() {

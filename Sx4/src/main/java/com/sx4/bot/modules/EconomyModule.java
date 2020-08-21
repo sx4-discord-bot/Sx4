@@ -1518,7 +1518,7 @@ public class EconomyModule {
 			embed.setThumbnail("https://emojipedia-us.s3.amazonaws.com/thumbs/120/twitter/131/pick_26cf.png");
 			embed.addField("Durability", pickaxe.getCurrentDurability() + "/" + pickaxe.getDurability(), false);
 			if (pickaxe.isBuyable()) {
-				embed.addField("Current Price", String.format("$%,d", Math.round(((double) pickaxe.getPrice() / pickaxe.getDurability()) * pickaxe.getCurrentDurability())), false);
+				embed.addField("Current Price", String.format("$%,d", pickaxe.getCurrentPrice()), false);
 				embed.addField("Price", String.format("$%,d", pickaxe.getPrice()), false);
 			}
 			embed.addField("Upgrades", String.valueOf(pickaxe.getUpgrades()), false);
@@ -1896,7 +1896,7 @@ public class EconomyModule {
 			embed.setThumbnail("https://emojipedia-us.s3.amazonaws.com/thumbs/120/twitter/147/fishing-pole-and-fish_1f3a3.png");
 			embed.addField("Durability", rod.getCurrentDurability() + "/" + rod.getDurability(), false);
 			if (rod.isBuyable()) {
-				embed.addField("Current Price", String.format("$%,d", Math.round(((double) rod.getPrice() / rod.getDurability()) * rod.getCurrentDurability())), false);
+				embed.addField("Current Price", String.format("$%,d", rod.getCurrentPrice()), false);
 				embed.addField("Price", String.format("$%,d", rod.getPrice()), false);
 			}
 			embed.addField("Upgrades", String.valueOf(rod.getUpgrades()), false);
@@ -2269,7 +2269,7 @@ public class EconomyModule {
 			embed.setThumbnail("https://www.shareicon.net/data/2016/09/02/823994_ax_512x512.png");
 			embed.addField("Durability", axe.getCurrentDurability() + "/" + axe.getDurability(), false);
 			if (axe.isBuyable()) {
-				embed.addField("Current Price", String.format("$%,d", Math.round(((double) axe.getPrice() / axe.getDurability()) * axe.getCurrentDurability())), false);
+				embed.addField("Current Price", String.format("$%,d", axe.getCurrentPrice()), false);
 				embed.addField("Price", String.format("$%,d", axe.getPrice()), false);
 			}
 			embed.addField("Upgrades", String.valueOf(axe.getUpgrades()), false);

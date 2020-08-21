@@ -1,29 +1,19 @@
 package com.sx4.bot.utils;
 
-import java.math.BigInteger;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-import org.bson.Document;
-
 import com.sx4.bot.database.Database;
 import com.sx4.bot.economy.Item;
 import com.sx4.bot.economy.ItemStack;
-import com.sx4.bot.economy.items.Booster;
-import com.sx4.bot.economy.items.Crate;
-import com.sx4.bot.economy.items.Envelope;
-import com.sx4.bot.economy.items.Factory;
-import com.sx4.bot.economy.items.Miner;
+import com.sx4.bot.economy.items.*;
 import com.sx4.bot.economy.materials.Material;
 import com.sx4.bot.economy.materials.Wood;
 import com.sx4.bot.economy.tools.Axe;
 import com.sx4.bot.economy.tools.Pickaxe;
 import com.sx4.bot.economy.tools.Rod;
-
 import net.dv8tion.jda.internal.utils.tuple.Pair;
+import org.bson.Document;
+
+import java.math.BigInteger;
+import java.util.*;
 
 public class EconomyUtils {
 	
@@ -436,7 +426,7 @@ public class EconomyUtils {
 			Item item = Item.getItemByName(itemData.getString("name"));
 			ItemStack<Item> userItem = EconomyUtils.getUserItem(items, item);
 			if (item.isBuyable()) {
-				networth += userItem.getItem().getPrice() * userItem.getAmount();
+				networth += userItem.getItem().getCurrentPrice() * userItem.getAmount();
 			}
 		}
 		

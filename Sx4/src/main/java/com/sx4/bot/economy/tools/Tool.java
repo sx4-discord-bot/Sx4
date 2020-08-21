@@ -2,7 +2,6 @@ package com.sx4.bot.economy.tools;
 
 import com.sx4.bot.economy.CraftingRecipe;
 import com.sx4.bot.economy.Item;
-import com.sx4.bot.economy.ItemStack;
 import com.sx4.bot.economy.materials.Material;
 
 public class Tool extends Item {
@@ -47,18 +46,14 @@ public class Tool extends Item {
 	public CraftingRecipe getCraftingRecipe() {
 		return this.craft;
 	}
-	
-	public long getEstimatePrice() {
-		if (!this.isBuyable()) {
-			long price = 0;
-			for (ItemStack<Material> itemStack : this.craft.getCraftingMaterials()) {
-				price += itemStack.getItem().getPrice();
-			}
-			
-			return price;
-		} else {
-			return this.getPrice();
+
+	public Long getCurrentPrice() {
+		Long fullPrice = this.getPrice();
+		if (fullPrice == null) {
+			return null;
 		}
+
+		return Math.round(((double) fullPrice / this.durability) * this.currentDurability);
 	}
 	
 	public int getDurability() {
@@ -74,11 +69,11 @@ public class Tool extends Item {
 	}
 	
 	public int getAmountOfMaterialsForRepair(int durabilityNeeded) {
-		return (int) Math.ceil((((double) this.getEstimatePrice() / this.repairItem.getPrice()) / this.durability) * durabilityNeeded);
+		return (int) Math.ceil((((double) super.getPrice() / this.repairItem.getPrice()) / this.durability) * durabilityNeeded);
 	}
 	
 	public long getEstimateOfDurability(long materialAmount) {
-		return (long) Math.floor(materialAmount / (((double) this.getEstimatePrice() / this.repairItem.getPrice()) / this.durability));
+		return (long) Math.floor(materialAmount / (((double) super.getPrice() / this.repairItem.getPrice()) / this.durability));
 	}
 	
 }

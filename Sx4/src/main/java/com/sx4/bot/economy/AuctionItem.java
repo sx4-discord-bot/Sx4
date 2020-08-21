@@ -68,7 +68,7 @@ public class AuctionItem {
 		Tool tool = (Tool) this.item;
 		return new Tool(
 				tool.getName(), 
-				this.itemData.get("price", tool.getPrice()), 
+				this.itemData.get("price", tool.getPrice()),
 				tool.getCraftingRecipe(), 
 				tool.getRepairItem(), 
 				this.itemData.getInteger("currentDurability"),
@@ -85,7 +85,7 @@ public class AuctionItem {
 		Pickaxe pickaxe = (Pickaxe) this.item;
 		return new Pickaxe(
 				pickaxe.getName(), 
-				this.itemData.get("price", pickaxe.getPrice()), 
+				this.itemData.get("price", pickaxe.getPrice()),
 				pickaxe.getCraftingRecipe(), 
 				pickaxe.getRepairItem(), 
 				this.itemData.getInteger("minimumYeild", pickaxe.getMinimumYield()), 
@@ -105,7 +105,7 @@ public class AuctionItem {
 		Rod rod = (Rod) this.item;
 		return new Rod(
 				rod.getName(), 
-				this.itemData.get("price", rod.getPrice()), 
+				this.itemData.get("price", rod.getPrice()),
 				rod.getCraftingRecipe(), 
 				rod.getRepairItem(), 
 				this.itemData.getInteger("minimumYeild", rod.getMinimumYield()),
