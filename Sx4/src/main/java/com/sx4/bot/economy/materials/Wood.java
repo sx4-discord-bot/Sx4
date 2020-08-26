@@ -10,14 +10,12 @@ public class Wood extends Material {
 	
 	public static final Wood[] ALL = {OAK, CHERRYWOOD, BIRCHWOOD, KINGWOOD, SNAKEWOOD};
 	
-	private int multiplier = 45; 
-	
 	public Wood(String name, long price) {
 		super(name, price, null, false);
 	}
 	
 	public int getChance() {
-		return (int) Math.ceil((double) this.getPrice() / this.multiplier);
+		return (int) Math.ceil((double) this.getPrice() / 45);
 	}
 	
 	public static Wood getWoodByName(String woodName) {
