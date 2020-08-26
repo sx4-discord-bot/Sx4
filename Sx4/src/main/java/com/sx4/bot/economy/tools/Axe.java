@@ -10,7 +10,7 @@ public class Axe extends Tool {
 	public static final Axe COAL = new Axe("Coal Axe", 375L, new CraftingRecipe(Material.COAL, 10, Wood.OAK, 2), Material.COAL, 1, 10, 0.24);
 	public static final Axe COPPER = new Axe("Copper Axe", 620L, new CraftingRecipe(Material.COPPER, 6, Wood.OAK, 4), Material.COPPER, 1, 25, 0.18);
 	public static final Axe BRONZE = new Axe("Bronze Axe", 780L, new CraftingRecipe(Material.BRONZE, 7, Wood.CHERRYWOOD, 2), Material.BRONZE, 1, 28, 0.20);
-	public static final Axe GOLD = new Axe("Gold Axe", 1200L, new CraftingRecipe(Material.GOLD, 2, Wood.CHERRYWOOD, 1), Material.GOLD, 5, 18, 0.2);
+	public static final Axe GOLD = new Axe("Gold Axe", 1200L, new CraftingRecipe(Material.GOLD, 2, Wood.CHERRYWOOD, 1), Material.GOLD, 5, 18, 0.15);
 	public static final Axe IRON = new Axe("Iron Axe", 1750L, new CraftingRecipe(Material.IRON, 6, Wood.BIRCHWOOD, 2), Material.IRON, 1, 35, 0.28);
 	public static final Axe TITANIUM = new Axe("Titanium Axe", 4200L, new CraftingRecipe(Material.TITANIUM, 3, Wood.BIRCHWOOD, 3), Material.TITANIUM, 2, 42, 0.4);
 	public static final Axe URANIUM = new Axe("Uranium Axe", 9750L, new CraftingRecipe(Material.URANIUM, 1, Wood.KINGWOOD, 10), Material.URANIUM, 3, 32, 0.6);
