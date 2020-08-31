@@ -11,7 +11,7 @@ import java.util.Map;
 public class Formatter {
 
     private final Map<String, Object> map;
-    private String string;
+    private final String string;
 
     public Formatter(String string) {
         this(string, new HashMap<>());

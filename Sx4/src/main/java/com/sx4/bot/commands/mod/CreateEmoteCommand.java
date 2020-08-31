@@ -2,7 +2,7 @@ package com.sx4.bot.commands.mod;
 
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.utility.function.TriConsumer;
-import com.sx4.bot.category.Category;
+import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
@@ -25,7 +25,7 @@ public class CreateEmoteCommand extends Sx4Command {
 		super.setDescription("Creates an emote from a url, attachment, emote mention, emote id or emote name");
 		super.setAliases("createemote", "ce");
 		super.setExamples("create emote <:sx4:637715282995183636>", "create emote sx4", "create emote https://cdn.discordapp.com/emojis/637715282995183636.png");
-		super.setCategoryAll(Category.MODERATION);
+		super.setCategoryAll(ModuleCategory.MODERATION);
 		super.setCooldownDuration(5);
 		super.setAuthorDiscordPermissions(Permission.MANAGE_EMOTES);
 		super.setBotDiscordPermissions(Permission.MANAGE_EMOTES);

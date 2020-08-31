@@ -1,7 +1,7 @@
 package com.sx4.bot.utility;
 
 import com.jockie.bot.core.command.ICommand;
-import com.sx4.bot.category.Category;
+import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4;
 import com.sx4.bot.core.Sx4Category;
 import com.sx4.bot.core.Sx4Command;
@@ -68,6 +68,18 @@ public class SearchUtility {
 	
 	private static TextChannel findTextChannel(CacheView<TextChannel> channels, String query) {
 		return SearchUtility.find(channels, query, TextChannel::getName);
+	}
+
+	private static VoiceChannel findVoiceChannel(CacheView<VoiceChannel> channels, String query) {
+		return SearchUtility.find(channels, query, VoiceChannel::getName);
+	}
+
+	private static StoreChannel findStoreChannel(CacheView<StoreChannel> channels, String query) {
+		return SearchUtility.find(channels, query, StoreChannel::getName);
+	}
+
+	private static Category findCategory(CacheView<Category> channels, String query) {
+		return SearchUtility.find(channels, query, Category::getName);
 	}
 	
 	private static Member findMember(CacheView<Member> members, String query) {
@@ -240,11 +252,7 @@ public class SearchUtility {
 		Member member = SearchUtility.getMember(guild, query);
 		Role role = SearchUtility.getRole(guild, query);
 		
-		if (role != null) {
-			return role;
-		} else {
-			return member;
-		} 
+		return role == null ? member : role;
 	}
 	
 	public static URL getURL(Message message, String query) {
@@ -336,6 +344,57 @@ public class SearchUtility {
 			}
 		} else {
 			return SearchUtility.findTextChannel(guild.getTextChannelCache(), query);
+		}
+	}
+
+	public static StoreChannel getStoreChannel(Guild guild, String query) {
+		Matcher mentionMatch = SearchUtility.CHANNEL_MENTION.matcher(query);
+		if (mentionMatch.matches()) {
+			try {
+				long id = Long.parseLong(mentionMatch.group(1));
+
+				return guild.getStoreChannelById(id);
+			} catch (NumberFormatException e) {
+				return null;
+			}
+		} else if (NumberUtility.isNumberUnsigned(query)) {
+			try {
+				long id = Long.parseLong(query);
+
+				return guild.getStoreChannelById(id);
+			} catch (NumberFormatException e) {
+				return null;
+			}
+		} else {
+			return SearchUtility.findStoreChannel(guild.getStoreChannelCache(), query);
+		}
+	}
+
+	public static VoiceChannel getVoiceChannel(Guild guild, String query) {
+		if (NumberUtility.isNumberUnsigned(query)) {
+			try {
+				long id = Long.parseLong(query);
+
+				return guild.getVoiceChannelById(id);
+			} catch (NumberFormatException e) {
+				return null;
+			}
+		} else {
+			return SearchUtility.findVoiceChannel(guild.getVoiceChannelCache(), query);
+		}
+	}
+
+	public static Category getCategory(Guild guild, String query) {
+		if (NumberUtility.isNumberUnsigned(query)) {
+			try {
+				long id = Long.parseLong(query);
+
+				return guild.getCategoryById(id);
+			} catch (NumberFormatException e) {
+				return null;
+			}
+		} else {
+			return SearchUtility.findCategory(guild.getCategoryCache(), query);
 		}
 	}
 	
@@ -521,7 +580,7 @@ public class SearchUtility {
 	}
 	
 	public static Sx4Category getModule(String query) {
-		return Arrays.stream(Category.ALL_ARRAY)
+		return Arrays.stream(ModuleCategory.ALL_ARRAY)
 			.filter(category -> category.getName().equalsIgnoreCase(query) || Arrays.stream(category.getAliases()).anyMatch(query::equalsIgnoreCase))
 			.findFirst()
 			.orElse(null);

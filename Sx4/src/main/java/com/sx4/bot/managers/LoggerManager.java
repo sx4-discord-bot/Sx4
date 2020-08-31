@@ -19,6 +19,7 @@ import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.entities.TextChannel;
 import okhttp3.OkHttpClient;
 import org.bson.Document;
+import org.bson.conversions.Bson;
 
 import java.util.*;
 import java.util.concurrent.*;
@@ -105,11 +106,13 @@ public class LoggerManager {
 
             this.webhooks.put(channel.getIdLong(), webhookClient);
 
-            Document webhookData = new Document("id", webhook.getIdLong())
-                .append("token", webhook.getToken());
+            Bson update = Updates.combine(
+                Updates.set("logger.loggers.$[logger].webhook.id", webhook.getIdLong()),
+                Updates.set("logger.loggers.$[logger].webhook.token", webhook.getToken())
+            );
 
             UpdateOptions options = new UpdateOptions().arrayFilters(List.of(Filters.eq("logger.id", channel.getIdLong())));
-            Database.get().updateGuildById(channel.getGuild().getIdLong(), Updates.set("logger.loggers.$[logger].webhook", webhookData), options).whenComplete((result, exception) -> {
+            Database.get().updateGuildById(channel.getGuild().getIdLong(), update, options).whenComplete((result, exception) -> {
                 if (ExceptionUtility.sendErrorMessage(exception)) {
                     return;
                 }
@@ -176,17 +179,18 @@ public class LoggerManager {
             skippedRequests.forEach(deque::addFirst);
 
             Document logger = request.getLogger();
-            Document webhookData = logger.get("webhook", Document.class);
+            Document webhookData = logger.get("webhook", Database.EMPTY_DOCUMENT);
 
             WebhookMessage message = new WebhookMessageBuilder()
                 .addEmbeds(embeds)
-                .setAvatarUrl(request.getJDA().getSelfUser().getEffectiveAvatarUrl())
+                .setUsername(webhookData.get("name", "Sx4 - Logger"))
+                .setAvatarUrl(webhookData.get("avatar", request.getJDA().getSelfUser().getEffectiveAvatarUrl()))
                 .build();
 
             WebhookClient webhook;
             if (this.webhooks.containsKey(channelId)) {
                 webhook = this.webhooks.get(channelId);
-            } else if (webhookData == null) {
+            } else if (!webhookData.containsKey("id")) {
                 if (channel.getGuild().getSelfMember().hasPermission(channel, Permission.MANAGE_WEBHOOKS)) {
                     this.createWebhook(channel, deque, requests, retries);
                     return;

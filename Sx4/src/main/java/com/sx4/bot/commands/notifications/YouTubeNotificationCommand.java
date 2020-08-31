@@ -7,7 +7,7 @@ import com.mongodb.client.model.*;
 import com.sx4.bot.annotations.command.AuthorPermissions;
 import com.sx4.bot.annotations.command.BotPermissions;
 import com.sx4.bot.annotations.command.Examples;
-import com.sx4.bot.category.Category;
+import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.model.Operators;
@@ -43,7 +43,7 @@ public class YouTubeNotificationCommand extends Sx4Command {
 		super.setDescription("Subscribe to a youtube channel so anytime it uploads it's sent in a channel of your choice");
 		super.setAliases("yt notif", "yt notification", "youtube notif");
 		super.setExamples("youtube notification add", "youtube notification remove", "youtube notification list");
-		super.setCategoryAll(Category.NOTIFICATIONS);
+		super.setCategoryAll(ModuleCategory.NOTIFICATIONS);
 	}
 	
 	public void onCommand(Sx4CommandEvent event) {
@@ -207,7 +207,7 @@ public class YouTubeNotificationCommand extends Sx4Command {
 	public void name(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="name", endless=true) String name) {
 		Bson projection = Projections.include("youtube.notifications.id", "youtube.notifications.name");
 		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(projection).arrayFilters(List.of(Filters.eq("notification.id", id)));
-		this.database.findAndUpdateGuildById(event.getGuild().getIdLong(), Updates.set("youtube.notifications.$[notification].name", name), options).whenComplete((data, exception) -> {
+		this.database.findAndUpdateGuildById(event.getGuild().getIdLong(), Updates.set("youtube.notifications.$[notification].webhook.name", name), options).whenComplete((data, exception) -> {
 			if (exception instanceof CompletionException) {
 				Throwable cause = exception.getCause();
 				if (cause instanceof MongoWriteException && ((MongoWriteException) cause).getCode() == 2) {
@@ -232,7 +232,7 @@ public class YouTubeNotificationCommand extends Sx4Command {
 				return;
 			}
 			
-			String oldName = notification.getString("name");
+			String oldName = notification.getEmbedded(List.of("webhook", "name"), String.class);
 			if (oldName != null && oldName.equals(name)) {
 				event.reply("Your webhook name for that notification was already set to that " + this.config.getFailureEmote()).queue();
 				return;
@@ -250,7 +250,7 @@ public class YouTubeNotificationCommand extends Sx4Command {
 		
 		Bson projection = Projections.include("youtube.notifications.id", "youtube.notifications.avatar");
 		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(projection).arrayFilters(List.of(Filters.eq("notification.id", id)));
-		this.database.findAndUpdateGuildById(event.getGuild().getIdLong(), Updates.set("youtube.notifications.$[notification].avatar", url), options).whenComplete((data, exception) -> {
+		this.database.findAndUpdateGuildById(event.getGuild().getIdLong(), Updates.set("youtube.notifications.$[notification].webhook.avatar", url), options).whenComplete((data, exception) -> {
 			if (exception instanceof CompletionException) {
 				Throwable cause = exception.getCause();
 				if (cause instanceof MongoWriteException && ((MongoWriteException) cause).getCode() == 2) {
@@ -275,7 +275,7 @@ public class YouTubeNotificationCommand extends Sx4Command {
 				return;
 			}
 			
-			String oldAvatar = notification.getString("avatar");
+			String oldAvatar = notification.getEmbedded(List.of("webhook", "avatar"), String.class);
 			if (oldAvatar != null && oldAvatar.equals(url)) {
 				event.reply("Your webhook avatar for that notification was already set to that " + this.config.getFailureEmote()).queue();
 				return;
@@ -290,15 +290,15 @@ public class YouTubeNotificationCommand extends Sx4Command {
 	@BotPermissions(permissions={Permission.MESSAGE_EMBED_LINKS})
 	public void formatting(Sx4CommandEvent event) {
 		String example = String.format("{channel.name} - The youtube channels name\n"
-				+ "{channel.id} - The youtube channels id\n"
-				+ "{channel.url} - The youtube channels url\n"
-				+ "{video.title} - The youtube videos current title\n"
-				+ "{video.id} - The youtube videos id\n"
-				+ "{video.url} - The youtube videos url\n"
-				+ "{video.thumbnail} - The youtube videos thumbnail\n"
-				+ "{video.published} - The youtube date time of when it was uploaded, (10 December 2019 15:30)\n\n"
-				+ "Make sure to keep the **{}** brackets when using the formatting\n"
-				+ "Example: `%syoutube notification message #videos pewdiepie **{channel.name}** just uploaded, check it out: {video.url}`", event.getPrefix());
+			+ "{channel.id} - The youtube channels id\n"
+			+ "{channel.url} - The youtube channels url\n"
+			+ "{video.title} - The youtube videos current title\n"
+			+ "{video.id} - The youtube videos id\n"
+			+ "{video.url} - The youtube videos url\n"
+			+ "{video.thumbnail} - The youtube videos thumbnail\n"
+			+ "{video.published} - The youtube date time of when it was uploaded, (10 December 2019 15:30)\n\n"
+			+ "Make sure to keep the **{}** brackets when using the formatting\n"
+			+ "Example: `%syoutube notification message #videos pewdiepie **{channel.name}** just uploaded, check it out: {video.url}`", event.getPrefix());
 		
 		EmbedBuilder embed = new EmbedBuilder()
 			.setAuthor("YouTube Notification Formatting", null, event.getGuild().getIconUrl())

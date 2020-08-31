@@ -10,7 +10,7 @@ import com.mongodb.client.model.UpdateOptions;
 import com.mongodb.client.model.Updates;
 import com.sx4.bot.annotations.command.AuthorPermissions;
 import com.sx4.bot.annotations.command.Examples;
-import com.sx4.bot.category.Category;
+import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.model.Operators;
@@ -42,7 +42,7 @@ public class AutoRoleCommand extends Sx4Command {
 		super.setDescription("Sets roles to be given when a user joins the server");
 		super.setAliases("autorole");
 		super.setExamples("auto role toggle", "auto role add", "auto role remove");
-		super.setCategoryAll(Category.MANAGEMENT);
+		super.setCategoryAll(ModuleCategory.MANAGEMENT);
 	}
 	
 	public void onCommand(Sx4CommandEvent event) {

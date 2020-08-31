@@ -7,7 +7,7 @@ import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.Updates;
 import com.sx4.bot.annotations.command.AuthorPermissions;
 import com.sx4.bot.annotations.command.Examples;
-import com.sx4.bot.category.Category;
+import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.model.Operators;
@@ -40,7 +40,7 @@ public class FakePermissionsCommand extends Sx4Command {
 		super.setDescription("Setup permissions for user or roles which only work within the bot");
 		super.setAliases("fakepermissions", "fake perms", "fakeperms");
 		super.setExamples("fake permissions add", "fake permissions remove", "fake permissions list");
-		super.setCategoryAll(Category.SETTINGS);
+		super.setCategoryAll(ModuleCategory.SETTINGS);
 	}
 	
 	public void onCommand(Sx4CommandEvent event) {

@@ -80,17 +80,20 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 	}
 	
 	private void createWebhook(TextChannel textChannel, WebhookMessage message) {
-		textChannel.createWebhook("Sx4 - YouTube").queue(newWebhook -> {
-			WebhookClient webhookClient = new WebhookClientBuilder(newWebhook.getUrl())
+		textChannel.createWebhook("Sx4 - YouTube").queue(webhook -> {
+			WebhookClient webhookClient = new WebhookClientBuilder(webhook.getUrl())
 				.setExecutorService(this.scheduledExectuor)
 				.setHttpClient(this.client)
 				.build();
 			
 			this.webhooks.put(textChannel.getIdLong(), webhookClient);
 			
-			Bson update = Updates.combine(Updates.set("youtube.notifications.$[notification].webhook.id", webhookClient.getId()), Updates.set("youtube.notifications.$[notification].webhook.token", newWebhook.getToken()));
+			Bson update = Updates.combine(
+				Updates.set("youtube.notifications.$[notification].webhook.id", webhook.getIdLong()),
+				Updates.set("youtube.notifications.$[notification].webhook.token", webhook.getToken())
+			);
+
 			UpdateOptions options = new UpdateOptions().arrayFilters(List.of(Filters.eq("notification.channelId", textChannel.getIdLong())));
-			
 			Database.get().updateGuildById(textChannel.getGuild().getIdLong(), update, options)
 				.thenCompose(result -> webhookClient.send(message))
 				.whenComplete((webhookMessage, exception) -> {
@@ -129,18 +132,18 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 							if (textChannel != null) {
 								String messageContent = this.format(event, notification.get("message", YouTubeManager.DEFAULT_MESSAGE));
 
+								Document webhookData = notification.get("webhook", Database.EMPTY_DOCUMENT);
+
 								WebhookMessage message = new WebhookMessageBuilder()
-									.setAvatarUrl(notification.get("avatar", shardManager.getShardById(0).getSelfUser().getEffectiveAvatarUrl()))
-									.setUsername(notification.get("name", "Sx4 - YouTube"))
+									.setAvatarUrl(webhookData.get("avatar", shardManager.getShardById(0).getSelfUser().getEffectiveAvatarUrl()))
+									.setUsername(webhookData.get("name", "Sx4 - YouTube"))
 									.setContent(messageContent)
 									.build();
-
-								Document webhookData = notification.get("webhook", Document.class);
 
 								WebhookClient webhook;
 								if (this.webhooks.containsKey(textChannel.getIdLong())) {
 									webhook = this.webhooks.get(textChannel.getIdLong());
-								} else if (webhookData == null) {
+								} else if (!webhookData.containsKey("id")) {
 									if (textChannel.getGuild().getSelfMember().hasPermission(textChannel, Permission.MANAGE_WEBHOOKS)) {
 										this.createWebhook(textChannel, message);
 									}

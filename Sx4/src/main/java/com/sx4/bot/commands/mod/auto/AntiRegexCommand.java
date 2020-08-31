@@ -8,7 +8,7 @@ import com.mongodb.client.model.*;
 import com.sx4.bot.annotations.argument.Limit;
 import com.sx4.bot.annotations.command.AuthorPermissions;
 import com.sx4.bot.annotations.command.Examples;
-import com.sx4.bot.category.Category;
+import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.Database;
@@ -47,7 +47,7 @@ public class AntiRegexCommand extends Sx4Command {
 		super.setAliases("antiregex");
 		super.setDescription("Setup a regex which if matched with the content of a message it will perform an action");
 		super.setExamples("anti regex add", "anti regex remove", "anti regex list");
-		super.setCategoryAll(Category.AUTO_MODERATION);
+		super.setCategoryAll(ModuleCategory.AUTO_MODERATION);
 	}
 	
 	public void onCommand(Sx4CommandEvent event) {

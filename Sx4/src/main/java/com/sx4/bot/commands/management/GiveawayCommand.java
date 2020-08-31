@@ -10,7 +10,7 @@ import com.sx4.bot.annotations.argument.DefaultInt;
 import com.sx4.bot.annotations.argument.Limit;
 import com.sx4.bot.annotations.command.AuthorPermissions;
 import com.sx4.bot.annotations.command.Examples;
-import com.sx4.bot.category.Category;
+import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.model.Operators;
@@ -51,7 +51,7 @@ public class GiveawayCommand extends Sx4Command {
 		
 		super.setDescription("Setup giveaways in a certain channel which will be decided randomly through reactions");
 		super.setExamples("giveaway setup", "giveaway reroll", "giveaway reaction");
-		super.setCategoryAll(Category.MANAGEMENT);
+		super.setCategoryAll(ModuleCategory.MANAGEMENT);
 	}
 	
 	public void onCommand(Sx4CommandEvent event) {

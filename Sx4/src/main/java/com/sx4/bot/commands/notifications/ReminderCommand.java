@@ -8,7 +8,7 @@ import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.Updates;
 import com.sx4.bot.annotations.command.Examples;
 import com.sx4.bot.annotations.command.Redirects;
-import com.sx4.bot.category.Category;
+import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.entities.argument.ReminderArgument;
@@ -31,7 +31,7 @@ public class ReminderCommand extends Sx4Command {
 		
 		super.setDescription("Create reminders to keep up to date with tasks");
 		super.setExamples("reminder add", "reminder remove", "reminder list");
-		super.setCategoryAll(Category.NOTIFICATIONS);
+		super.setCategoryAll(ModuleCategory.NOTIFICATIONS);
 	}
 	
 	public void onCommand(Sx4CommandEvent event) {

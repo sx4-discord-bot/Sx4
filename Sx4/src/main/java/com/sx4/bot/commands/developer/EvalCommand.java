@@ -2,7 +2,7 @@ package com.sx4.bot.commands.developer;
 
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.option.Option;
-import com.sx4.bot.category.Category;
+import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import groovy.lang.GroovyShell;
@@ -23,7 +23,7 @@ public class EvalCommand extends Sx4Command {
 		super.setDescription("Execute some code, last line will be sent");
 		super.setExamples("eval \"hi\"", "eval new EmbedBuilder().setDescription(\"hi\").build();");
 		super.setAllowedArgumentParsingTypes(ArgumentParsingType.POSITIONAL);
-		super.setCategoryAll(Category.DEVELOPER);
+		super.setCategoryAll(ModuleCategory.DEVELOPER);
 		super.setDeveloper(true);
 	}
 	

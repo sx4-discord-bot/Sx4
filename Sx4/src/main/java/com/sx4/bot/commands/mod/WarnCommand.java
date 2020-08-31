@@ -1,7 +1,7 @@
 package com.sx4.bot.commands.mod;
 
 import com.jockie.bot.core.argument.Argument;
-import com.sx4.bot.category.Category;
+import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.entities.mod.Reason;
@@ -22,7 +22,7 @@ public class WarnCommand extends Sx4Command {
 		super.setDescription("Warn a user in the server, warning can give punishments on each warn a user gets");
 		super.setAuthorDiscordPermissions(Permission.MESSAGE_MANAGE);
 		super.setExamples("warn @Shea", "warn Shea Spamming", "warn Shea#6653 template:tos", "warn 402557516728369153 t:tos and Spamming");
-		super.setCategoryAll(Category.MODERATION);
+		super.setCategoryAll(ModuleCategory.MODERATION);
 	}
 	
 	public void onCommand(Sx4CommandEvent event, @Argument(value="user") Member member, @Argument(value="reason", endless=true, nullDefault=true) Reason reason) {

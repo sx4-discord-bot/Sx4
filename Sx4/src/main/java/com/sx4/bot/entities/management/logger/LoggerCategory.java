@@ -2,18 +2,24 @@ package com.sx4.bot.entities.management.logger;
 
 public enum LoggerCategory {
 
-	USER(0),
-	TEXT_CHANNEL(1),
-	VOICE_CHANNEL(2),
-	STORE_CHANNEL(3),
-	CATEGORY(4),
-	ROLE(5),
-	AUDIT(6);
+	USER("User", 0),
+	TEXT_CHANNEL("Text Channel", 1),
+	VOICE_CHANNEL("Voice Channel", 2),
+	STORE_CHANNEL("Store Channel", 3),
+	CATEGORY("Category", 4),
+	ROLE("Role", 5),
+	AUDIT("User", 6);
 
 	private final int type;
+	private final String name;
 
-	private LoggerCategory(int type) {
+	private LoggerCategory(String name, int type) {
+		this.name = name;
 		this.type = type;
+	}
+
+	public String getName() {
+		return this.name;
 	}
 
 	public int getType() {

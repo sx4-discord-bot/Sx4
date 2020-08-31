@@ -19,7 +19,7 @@ import com.jockie.bot.core.parser.ParsedResult;
 import com.jockie.bot.core.parser.impl.essential.EnumParser;
 import com.sx4.bot.annotations.argument.*;
 import com.sx4.bot.cache.message.GuildMessageCache;
-import com.sx4.bot.category.Category;
+import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.config.Config;
 import com.sx4.bot.entities.argument.*;
 import com.sx4.bot.entities.management.Filter;
@@ -498,7 +498,7 @@ public class Sx4 {
 			.registerResponse(ReactionEmote.class, "I could not find that emote " + this.config.getFailureEmote())
 			.registerResponse(TextChannel.class, "I could not find that text channel " + this.config.getFailureEmote())
 			.registerResponse(VoiceChannel.class, "I could not find that voice channel " + this.config.getFailureEmote())
-			.registerResponse(Category.class, "I could not find that category " + this.config.getFailureEmote())
+			.registerResponse(ModuleCategory.class, "I could not find that category " + this.config.getFailureEmote())
 			.registerResponse(GuildChannel.class, "I could not find that channel " + this.config.getFailureEmote())
 			.registerResponse(IPermissionHolder.class, "I could not find that user/role " + this.config.getFailureEmote())
 			.registerResponse(Emote.class, "I could not find that emote " + this.config.getFailureEmote())

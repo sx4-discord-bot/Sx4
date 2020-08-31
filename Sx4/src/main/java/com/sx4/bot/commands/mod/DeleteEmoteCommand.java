@@ -1,7 +1,7 @@
 package com.sx4.bot.commands.mod;
 
 import com.jockie.bot.core.argument.Argument;
-import com.sx4.bot.category.Category;
+import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 
@@ -16,7 +16,7 @@ public class DeleteEmoteCommand extends Sx4Command {
 		super.setDescription("Deletes an emote in the current server");
 		super.setAliases("deleteemote", "de");
 		super.setExamples("create emote <:sx4:637715282995183636>", "create emote sx4", "create emote https://cdn.discordapp.com/emojis/637715282995183636.png");
-		super.setCategoryAll(Category.MODERATION);
+		super.setCategoryAll(ModuleCategory.MODERATION);
 		super.setAuthorDiscordPermissions(Permission.MANAGE_EMOTES);
 		super.setBotDiscordPermissions(Permission.MANAGE_EMOTES);
 	}

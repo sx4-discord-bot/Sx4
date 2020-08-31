@@ -1,7 +1,7 @@
 package com.sx4.bot.commands.mod;
 
 import com.jockie.bot.core.argument.Argument;
-import com.sx4.bot.category.Category;
+import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.entities.mod.Reason;
@@ -21,7 +21,7 @@ public class KickCommand extends Sx4Command {
 		super.setBotDiscordPermissions(Permission.KICK_MEMBERS);
 		super.setDescription("Kick a user from the current server");
 		super.setExamples("kick @Shea", "kick Shea Spamming", "kick Shea#6653 template:tos", "kick 402557516728369153 t:tos and Spamming");
-		super.setCategoryAll(Category.MODERATION);
+		super.setCategoryAll(ModuleCategory.MODERATION);
 	}
 	
 	public void onCommand(Sx4CommandEvent event, @Argument(value="user") Member member, @Argument(value="reason", endless=true, nullDefault=true) Reason reason) {

@@ -1,7 +1,7 @@
 package com.sx4.bot.commands.misc;
 
 import com.jockie.bot.core.argument.Argument;
-import com.sx4.bot.category.Category;
+import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.config.Config;
 import com.sx4.bot.core.Sx4Category;
 import com.sx4.bot.core.Sx4Command;
@@ -34,7 +34,7 @@ public class HelpCommand extends Sx4Command {
 		super.setAliases("h", "commands", "cmds");
 		super.setExamples("help", "help logs", "help all", "help welcomer");
 		super.setPrivateTriggerable(true);
-		super.setCategoryAll(Category.MISC);
+		super.setCategoryAll(ModuleCategory.MISC);
 	}
 	
 	public void onCommand(Sx4CommandEvent event, @Argument(value="command | module", endless=true, nullDefault=true) String commandName) {
@@ -43,7 +43,7 @@ public class HelpCommand extends Sx4Command {
 			String image = Config.get().getAdImage();
 			String description = Config.get().getAdDescription();
 			
-			List<Sx4Category> categories = Arrays.stream(Category.ALL_ARRAY)
+			List<Sx4Category> categories = Arrays.stream(ModuleCategory.ALL_ARRAY)
 				.filter(category -> !category.getCommands(event.isAuthorDeveloper()).isEmpty())
 				.collect(Collectors.toList());
 			

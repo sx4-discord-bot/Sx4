@@ -1,6 +1,6 @@
 package com.sx4.bot.commands.misc;
 
-import com.sx4.bot.category.Category;
+import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.paged.PagedResult;
@@ -16,7 +16,7 @@ public class PrivacyPolicyCommand extends Sx4Command {
 
         super.setDescription("View the privacy policy of Sx4, required for discord api purposes");
         super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
-        super.setCategoryAll(Category.MISC);
+        super.setCategoryAll(ModuleCategory.MISC);
     }
 
     public void onCommand(Sx4CommandEvent event) {

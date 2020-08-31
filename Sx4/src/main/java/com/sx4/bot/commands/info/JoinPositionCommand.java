@@ -1,7 +1,7 @@
 package com.sx4.bot.commands.info;
 
 import com.jockie.bot.core.argument.Argument;
-import com.sx4.bot.category.Category;
+import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.entities.argument.Or;
@@ -20,7 +20,7 @@ public class JoinPositionCommand extends Sx4Command {
 		super.setDescription("View the join position at a specific index or for a specific user");
 		super.setExamples("join position 1", "join position Shea#6653");
 		super.setAliases("joinposition");
-		super.setCategoryAll(Category.INFORMATION);
+		super.setCategoryAll(ModuleCategory.INFORMATION);
 	}
 	
 	public void onCommand(Sx4CommandEvent event, @Argument(value="position | user", endless=true, nullDefault=true) Or<Integer, Member> or) {

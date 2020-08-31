@@ -8,7 +8,7 @@ import com.sx4.bot.annotations.command.AuthorPermissions;
 import com.sx4.bot.annotations.command.BotPermissions;
 import com.sx4.bot.annotations.command.Examples;
 import com.sx4.bot.annotations.command.Redirects;
-import com.sx4.bot.category.Category;
+import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.Database;
@@ -42,7 +42,7 @@ public class SuggestionCommand extends Sx4Command {
 		
 		super.setDescription("Create a suggestion channel where suggestions can be sent in and voted on in your server");
 		super.setExamples("suggestion add", "suggestion set", "suggestion remove");
-		super.setCategoryAll(Category.MANAGEMENT);
+		super.setCategoryAll(ModuleCategory.MANAGEMENT);
 	}
 	
 	private MessageEmbed getSuggestionEmbed(User author, User moderator, String suggestion, String reason, State state) {

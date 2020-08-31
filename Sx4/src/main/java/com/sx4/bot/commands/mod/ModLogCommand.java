@@ -7,7 +7,7 @@ import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.Updates;
 import com.sx4.bot.annotations.command.AuthorPermissions;
 import com.sx4.bot.annotations.command.Examples;
-import com.sx4.bot.category.Category;
+import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.model.Operators;
@@ -34,7 +34,7 @@ public class ModLogCommand extends Sx4Command {
 		super.setAliases("modlogs", "mod log", "mod logs");
 		super.setDescription("Setup the mod log in your server to log mod actions which happen within the server");
 		super.setExamples("modlog toggle", "modlog channel", "modlog case");
-		super.setCategoryAll(Category.MODERATION);
+		super.setCategoryAll(ModuleCategory.MODERATION);
 	}
 	
 	public void onCommand(Sx4CommandEvent event) {

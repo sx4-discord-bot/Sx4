@@ -1,6 +1,5 @@
 package com.sx4.bot.entities.management.logger;
 
-import java.util.Arrays;
 import java.util.Collection;
 
 public enum LoggerEvent {
@@ -47,7 +46,8 @@ public enum LoggerEvent {
     VOICE_CHANNEL_OVERRIDE_DELETE(40, LoggerCategory.VOICE_CHANNEL, LoggerCategory.CATEGORY, LoggerCategory.USER, LoggerCategory.ROLE, LoggerCategory.AUDIT),
     VOICE_CHANNEL_OVERRIDE_CREATE(41, LoggerCategory.VOICE_CHANNEL, LoggerCategory.CATEGORY, LoggerCategory.USER, LoggerCategory.ROLE, LoggerCategory.AUDIT);
 
-    public static final long ALL = LoggerEvent.getRaw(Arrays.asList(LoggerEvent.values()));
+    public static final long ALL = LoggerEvent.getRaw(LoggerEvent.values());
+    private static final LoggerEvent[] EMPTY = new LoggerEvent[0];
 
     private final long raw;
     private final LoggerCategory[] categories;
@@ -75,13 +75,17 @@ public enum LoggerEvent {
         return false;
     }
 
-    public static long getRaw(Collection<LoggerEvent> events) {
+    public static long getRaw(LoggerEvent... events) {
         long raw = 0;
         for (LoggerEvent event : events) {
             raw |= event.getRaw();
         }
 
         return raw;
+    }
+
+    public static long getRaw(Collection<LoggerEvent> events) {
+        return LoggerEvent.getRaw(events.toArray(LoggerEvent.EMPTY));
     }
 
 }

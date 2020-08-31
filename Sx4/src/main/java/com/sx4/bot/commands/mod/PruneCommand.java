@@ -11,7 +11,7 @@ import com.sx4.bot.annotations.command.AuthorPermissions;
 import com.sx4.bot.annotations.command.BotPermissions;
 import com.sx4.bot.annotations.command.Examples;
 import com.sx4.bot.annotations.command.Redirects;
-import com.sx4.bot.category.Category;
+import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import net.dv8tion.jda.api.Permission;
@@ -36,7 +36,7 @@ public class PruneCommand extends Sx4Command {
 		super.setDescription("Prune a set amount of messages in the current channel");
 		super.setAuthorDiscordPermissions(Permission.MESSAGE_MANAGE);
 		super.setBotDiscordPermissions(true, Permission.MESSAGE_MANAGE, Permission.MESSAGE_HISTORY);
-		super.setCategoryAll(Category.MODERATION);
+		super.setCategoryAll(ModuleCategory.MODERATION);
 		super.setExamples("prune", "prune 10");
 	}
 	

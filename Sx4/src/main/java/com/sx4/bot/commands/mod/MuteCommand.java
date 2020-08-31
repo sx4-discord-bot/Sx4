@@ -5,7 +5,7 @@ import com.jockie.bot.core.option.Option;
 import com.mongodb.client.model.FindOneAndUpdateOptions;
 import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.ReturnDocument;
-import com.sx4.bot.category.Category;
+import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.Database;
@@ -37,7 +37,7 @@ public class MuteCommand extends Sx4Command {
 		super.setDescription("Mute a user server wide");
 		super.setAuthorDiscordPermissions(Permission.MESSAGE_MANAGE);
 		super.setBotDiscordPermissions(Permission.MANAGE_ROLES);
-		super.setCategoryAll(Category.MODERATION);
+		super.setCategoryAll(ModuleCategory.MODERATION);
 	}
 
 	// TODO: Find a good way to avoid pushing data if a role failure happens, maybe cache mute roles

@@ -6,7 +6,7 @@ import com.jockie.bot.core.argument.Argument;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.Updates;
-import com.sx4.bot.category.Category;
+import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.entities.mod.Reason;
@@ -27,7 +27,7 @@ public class UnmuteCommand extends Sx4Command {
 		super.setExamples("unmute @Shea#6653", "unmute Shea Misunderstanding", "unmute 402557516728369153 template:wrong-person");
 		super.setBotDiscordPermissions(Permission.MANAGE_ROLES);
 		super.setAuthorDiscordPermissions(Permission.MESSAGE_MANAGE);
-		super.setCategoryAll(Category.MODERATION);
+		super.setCategoryAll(ModuleCategory.MODERATION);
 	}
 	
 	public void onCommand(Sx4CommandEvent event, @Argument(value="user") Member member, @Argument(value="reason", endless=true, nullDefault=true) Reason reason) {
