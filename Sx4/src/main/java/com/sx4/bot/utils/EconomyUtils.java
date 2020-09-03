@@ -190,23 +190,32 @@ public class EconomyUtils {
 	
 	public static Axe getUserAxe(List<Document> items) {
 		for (Document item : items) {
-			for (Axe axe : Axe.ALL) {
-				if (item.getString("name").equals(axe.getName())) {
-					return new Axe(
-							axe.getName(), 
-							item.get("price", axe.getPrice()), 
-							axe.getCraftingRecipe(), 
-							axe.getRepairItem(), 
-							item.getInteger("maximumMaterials", axe.getMaximumMaterials()),
-							item.getInteger("currentDurability"),
-							item.getInteger("maximumDurability", axe.getDurability()), 
-							item.get("multiplier", axe.getMultiplier()),
-							item.getInteger("upgrades", axe.getUpgrades())
-					);
-				}
+			Axe axe = EconomyUtils.getUserAxe(item);
+			if (axe != null) {
+				return axe;
 			}
 		}
 		
+		return null;
+	}
+
+	public static Axe getUserAxe(Document item) {
+		for (Axe axe : Axe.ALL) {
+			if (item.getString("name").equals(axe.getName())) {
+				return new Axe(
+					axe.getName(),
+					item.get("price", axe.getPrice()),
+					axe.getCraftingRecipe(),
+					axe.getRepairItem(),
+					item.getInteger("maximumMaterials", axe.getMaximumMaterials()),
+					item.getInteger("currentDurability"),
+					item.getInteger("maximumDurability", axe.getDurability()),
+					item.get("multiplier", axe.getMultiplier()),
+					item.getInteger("upgrades", axe.getUpgrades())
+				);
+			}
+		}
+
 		return null;
 	}
 	
@@ -224,23 +233,32 @@ public class EconomyUtils {
 	
 	public static Rod getUserRod(List<Document> items) {
 		for (Document item : items) {
-			for (Rod rod : Rod.ALL) {
-				if (item.getString("name").equals(rod.getName())) {
-					return new Rod(
-							rod.getName(), 
-							item.get("price", rod.getPrice()), 
-							rod.getCraftingRecipe(), 
-							rod.getRepairItem(), 
-							item.getInteger("minimumYield", rod.getMinimumYield()), 
-							item.getInteger("maximumYield", rod.getMaximumYield()), 
-							item.getInteger("currentDurability"),
-							item.getInteger("maximumDurability", rod.getDurability()), 
-							item.getInteger("upgrades", rod.getUpgrades())
-					);
-				}
+			Rod rod = EconomyUtils.getUserRod(item);
+			if (rod != null) {
+				return rod;
 			}
 		}
 		
+		return null;
+	}
+
+	public static Rod getUserRod(Document item) {
+		for (Rod rod : Rod.ALL) {
+			if (item.getString("name").equals(rod.getName())) {
+				return new Rod(
+					rod.getName(),
+					item.get("price", rod.getPrice()),
+					rod.getCraftingRecipe(),
+					rod.getRepairItem(),
+					item.getInteger("minimumYield", rod.getMinimumYield()),
+					item.getInteger("maximumYield", rod.getMaximumYield()),
+					item.getInteger("currentDurability"),
+					item.getInteger("maximumDurability", rod.getDurability()),
+					item.getInteger("upgrades", rod.getUpgrades())
+				);
+			}
+		}
+
 		return null;
 	}
 	
@@ -258,24 +276,33 @@ public class EconomyUtils {
 	
 	public static Pickaxe getUserPickaxe(List<Document> items) {
 		for (Document item : items) {
-			for (Pickaxe pickaxe : Pickaxe.ALL) {
-				if (item.getString("name").equals(pickaxe.getName())) {
-					return new Pickaxe(
-							pickaxe.getName(), 
-							item.get("price", pickaxe.getPrice()), 
-							pickaxe.getCraftingRecipe(), 
-							pickaxe.getRepairItem(), 
-							item.getInteger("minimumYield", pickaxe.getMinimumYield()), 
-							item.getInteger("maximumYield", pickaxe.getMaximumYield()),
-							item.getInteger("currentDurability"),
-							item.getInteger("maximumDurability", pickaxe.getDurability()), 
-							item.get("multiplier", pickaxe.getMultiplier()),
-							item.getInteger("upgrades", pickaxe.getUpgrades())
-					);
-				}
+			Pickaxe pickaxe = EconomyUtils.getUserPickaxe(item);
+			if (pickaxe != null) {
+				return pickaxe;
 			}
 		}
 		
+		return null;
+	}
+
+	public static Pickaxe getUserPickaxe(Document item) {
+		for (Pickaxe pickaxe : Pickaxe.ALL) {
+			if (item.getString("name").equals(pickaxe.getName())) {
+				return new Pickaxe(
+					pickaxe.getName(),
+					item.get("price", pickaxe.getPrice()),
+					pickaxe.getCraftingRecipe(),
+					pickaxe.getRepairItem(),
+					item.getInteger("minimumYield", pickaxe.getMinimumYield()),
+					item.getInteger("maximumYield", pickaxe.getMaximumYield()),
+					item.getInteger("currentDurability"),
+					item.getInteger("maximumDurability", pickaxe.getDurability()),
+					item.get("multiplier", pickaxe.getMultiplier()),
+					item.getInteger("upgrades", pickaxe.getUpgrades())
+				);
+			}
+		}
+
 		return null;
 	}
 	
@@ -424,10 +451,22 @@ public class EconomyUtils {
 		List<Document> items = data.getList("items", Document.class, Collections.emptyList());
 		for (Document itemData : items) {
 			Item item = Item.getItemByName(itemData.getString("name"));
-			ItemStack<Item> userItem = EconomyUtils.getUserItem(items, item);
-			if (item.isBuyable()) {
-				networth += userItem.getItem().getCurrentPrice() * userItem.getAmount();
+			if (!item.isBuyable()) {
+				continue;
 			}
+
+			ItemStack<Item> userItem;
+			if (item instanceof Pickaxe) {
+				userItem = new ItemStack<>(EconomyUtils.getUserPickaxe(itemData), itemData.getLong("amount"));
+			} else if (item instanceof Rod) {
+				userItem = new ItemStack<>(EconomyUtils.getUserRod(itemData), itemData.getLong("amount"));
+			} else if (item instanceof Axe) {
+				userItem = new ItemStack<>(EconomyUtils.getUserAxe(itemData), itemData.getLong("amount"));
+			} else {
+				userItem = new ItemStack<>(itemData.containsKey("price") ? new Item(item.getName(), itemData.getLong("price")) : item, itemData.getLong("amount"));
+			}
+
+			networth += userItem.getItem().getCurrentPrice() * userItem.getAmount();
 		}
 		
 		networth += data.get("balance", 0L);
@@ -452,7 +491,7 @@ public class EconomyUtils {
 				if (itemData.containsKey("price")) {
 					item = new Item(itemName, itemData.getLong("price"));
 				}
-				
+
 				return new ItemStack<>(item, itemData.getLong("amount"));
 			}
 		}
