@@ -1,4 +1,4 @@
-package com.sx4.bot.cache.message;
+package com.sx4.bot.cache;
 
 import com.sx4.bot.database.Database;
 import net.dv8tion.jda.api.entities.Message;

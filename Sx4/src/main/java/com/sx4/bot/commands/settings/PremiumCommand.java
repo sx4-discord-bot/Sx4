@@ -45,7 +45,7 @@ public class PremiumCommand extends Sx4Command {
 		}
 		
 		long guildId = guild.getIdLong();
-		int price = Config.get().getPremiumPrice();
+		int price = this.config.getPremiumPrice();
 		
 		Document guildData = this.database.getGuildById(guildId, Projections.include("premium"));
 		if (guildData.containsKey("premium")) {

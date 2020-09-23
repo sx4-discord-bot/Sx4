@@ -58,7 +58,7 @@ public class YouTubeNotificationCommand extends Sx4Command {
 			.url("https://www.googleapis.com/youtube/v3/search?key=" + this.config.getYoutube() + "&q=" + URLEncoder.encode(youtubeChannelArgument, StandardCharsets.UTF_8) + "&part=id&type=channel&maxResults=1")
 			.build();
 		
-		this.client.newCall(channelRequest).enqueue((HttpCallback) channelResponse -> {
+		event.getClient().newCall(channelRequest).enqueue((HttpCallback) channelResponse -> {
 			Document json = Document.parse(channelResponse.body().string());
 			
 			List<Document> items = json.getList("items", Document.class);
@@ -90,7 +90,7 @@ public class YouTubeNotificationCommand extends Sx4Command {
 					.post(body)
 					.build();
 				
-				this.client.newCall(request).enqueue((HttpCallback) response -> {
+				event.getClient().newCall(request).enqueue((HttpCallback) response -> {
 					if (response.isSuccessful()) {
 						this.database.updateGuildById(event.getGuild().getIdLong(), Updates.push("youtube.notifications", notificationData)).whenComplete((result, exception) -> {
 							if (ExceptionUtility.sendExceptionally(event, exception)) {

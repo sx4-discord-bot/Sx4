@@ -46,7 +46,7 @@ public class LoggerUtility {
             .sum();
     }
 
-    public static Set<LoggerCategory> getCommonEvents(LoggerEvent... events) {
+    public static Set<LoggerCategory> getCommonCategories(LoggerEvent... events) {
         if (events.length == 1) {
             return new HashSet<>(Arrays.asList(events[0].getCategories()));
         }

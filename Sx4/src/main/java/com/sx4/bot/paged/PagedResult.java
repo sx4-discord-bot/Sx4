@@ -359,6 +359,8 @@ public class PagedResult<Type> {
 	public boolean runSelectablePredicate(String content, Object object) {
 		if (this.selectablePredicate != null) {
 			return this.selectablePredicate.test(content, (Type) object);
+		} else if (this.displayFunction != null) {
+			return this.displayFunction.apply((Type) object).equals(content);
 		} else {
 			return object.toString().equals(content);
 		}

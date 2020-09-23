@@ -35,7 +35,7 @@ public class CreateEmoteCommand extends Sx4Command {
 		Request request = new Request.Builder()
 			.url(url)
 			.build();
-		
+
 		Sx4.getClient().newCall(request).enqueue((HttpCallback) response -> {
 			if (response.code() == 200) {
 				String contentType = response.header("Content-Type"), extension = null;

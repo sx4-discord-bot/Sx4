@@ -5,6 +5,7 @@ import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.entities.settings.HolderType;
 import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.TextChannel;
@@ -31,8 +32,10 @@ public class CheckUtility {
 		if (Sx4.get().getCommandListener().isDeveloper(member.getIdLong()) || member.hasPermission(channel, permissions)) {
 			return EnumSet.noneOf(Permission.class);
 		}
-		
-		List<Document> holders = Database.get().getGuildById(member.getGuild().getIdLong(), Projections.include("fakePermissions.holders")).getEmbedded(List.of("fakePermissions", "holders"), Collections.emptyList());
+
+		Guild guild = channel.getGuild();
+
+		List<Document> holders = Database.get().getGuildById(guild.getIdLong(), Projections.include("fakePermissions.holders")).getEmbedded(List.of("fakePermissions", "holders"), Collections.emptyList());
 		
 		Set<Long> roleIds = member.getRoles().stream()
 			.map(Role::getIdLong)
@@ -42,8 +45,9 @@ public class CheckUtility {
 		for (Document holder : holders) {
 			long id = holder.getLong("id");
 			int type = holder.getInteger("type");
-			
-			if (type == HolderType.ROLE.getType() && roleIds.contains(id)) {
+
+			// Check if the role is equal to the guild id for the @everyone role which every member has
+			if (type == HolderType.ROLE.getType() && (id == guild.getIdLong() || roleIds.contains(id))) {
 				permissionsRaw |= holder.getLong("permissions");
 			} else if (type == HolderType.USER.getType() && member.getIdLong() == id) {
 				permissionsRaw |= holder.getLong("permissions");

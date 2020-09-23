@@ -18,7 +18,7 @@ import com.jockie.bot.core.option.factory.impl.OptionFactoryImpl;
 import com.jockie.bot.core.parser.ParsedResult;
 import com.jockie.bot.core.parser.impl.essential.EnumParser;
 import com.sx4.bot.annotations.argument.*;
-import com.sx4.bot.cache.message.GuildMessageCache;
+import com.sx4.bot.cache.GuildMessageCache;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.config.Config;
 import com.sx4.bot.entities.argument.*;
@@ -67,18 +67,18 @@ public class Sx4 {
 		return Sx4.INSTANCE;
 	}
 	
+	private final Config config = Config.get();
+
 	private static final OkHttpClient CLIENT = new OkHttpClient.Builder()
 		.connectTimeout(15, TimeUnit.SECONDS)
 		.readTimeout(15, TimeUnit.SECONDS)
 		.writeTimeout(15, TimeUnit.SECONDS)
 		.build();
 	
-	private final Config config = Config.get();
-	
 	private final CommandListener commandListener;
-	private final ShardManager shardManager;
+	private ShardManager shardManager;
 	
-	public Sx4() {
+	private Sx4() {
 		ModActionManager.get()
 			.addListener(ModHandler.INSTANCE);
 	
@@ -101,6 +101,10 @@ public class Sx4 {
 		
 		this.commandListener = this.createCommandListener(this.createErrorManager());
 		this.shardManager = this.createShardManager();
+	}
+
+	public static OkHttpClient getClient() {
+		return Sx4.CLIENT;
 	}
 	
 	public CommandListener getCommandListener() {
@@ -125,7 +129,7 @@ public class Sx4 {
 			eventManager.register(new ReactionRoleHandler());
 			eventManager.register(new LoggerHandler());
 			eventManager.register(new AntiRegexHandler());
-			
+
 			return DefaultShardManagerBuilder.create(this.config.getToken(), GatewayIntent.getIntents(6094))
 				.setBulkDeleteSplittingEnabled(false)
 				.setEventManagerProvider(shardId -> eventManager)
@@ -138,12 +142,12 @@ public class Sx4 {
 	
 	private CommandListener createCommandListener(IErrorManager errorManager) {
 		return new Sx4CommandListener()
+			.removePreExecuteCheck(listener -> listener.defaultAuthorPermissionCheck)
 			.addCommandStores(CommandStore.of("com.sx4.bot.commands"))
 			.addDevelopers(402557516728369153L, 190551803669118976L)
 			.setErrorManager(errorManager)
 			.setCommandEventFactory(new Sx4CommandEventFactory())
 			.setDefaultPrefixes("!")
-			.removeDefaultPreExecuteChecks()
 			.setHelpFunction((message, prefix, commands) -> {
 				MessageChannel channel = message.getChannel();
 				boolean embed = !message.isFromGuild() || message.getGuild().getSelfMember().hasPermission((TextChannel) channel, Permission.MESSAGE_EMBED_LINKS);
@@ -193,6 +197,19 @@ public class Sx4 {
 				boolean embed = !message.isFromGuild() || message.getGuild().getSelfMember().hasPermission((TextChannel) channel, Permission.MESSAGE_EMBED_LINKS);
 				
 				channel.sendMessage(HelpUtility.getHelpMessage(failures.get(0).getCommand(), embed)).queue();
+			}).addPreExecuteCheck((event, command) -> {
+				Set<Permission> permissions = command.getAuthorDiscordPermissions();
+				if (permissions.isEmpty()) {
+					return true;
+				}
+
+				EnumSet<Permission> missingPermissions = CheckUtility.missingPermissions(event.getMember(), event.getTextChannel(), EnumSet.copyOf(permissions));
+				if (missingPermissions.isEmpty()) {
+					return true;
+				} else {
+					event.reply(PermissionUtility.formatMissingPermissions(missingPermissions)).queue();
+					return false;
+				}
 			});
 	}
 
@@ -534,10 +551,6 @@ public class Sx4 {
 			
 			ExceptionUtility.sendErrorMessage(exception);
 		});
-	}
-	
-	public static OkHttpClient getClient() {
-		return Sx4.CLIENT;
 	}
 	
 }

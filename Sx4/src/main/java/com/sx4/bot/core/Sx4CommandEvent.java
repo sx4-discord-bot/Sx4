@@ -9,6 +9,7 @@ import com.sx4.bot.utility.HelpUtility;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.requests.restaction.MessageAction;
+import okhttp3.OkHttpClient;
 
 import java.util.Map;
 
@@ -18,6 +19,10 @@ public class Sx4CommandEvent extends CommandEvent {
 			Object[] arguments, String[] rawArguments, String prefix, String commandTrigger, 
 			Map<String, Object> options, ArgumentParsingType parsingType, String contentOverflow, long timeStarted) {
 		super(message, listener, command, arguments, rawArguments, prefix, commandTrigger, options, parsingType, contentOverflow, timeStarted);
+	}
+
+	public OkHttpClient getClient() {
+		return Sx4.getClient();
 	}
 	
 	public Sx4Command getCommand() {

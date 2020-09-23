@@ -12,7 +12,6 @@ import com.sx4.bot.database.Database;
 import com.sx4.bot.managers.*;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Message;
-import okhttp3.OkHttpClient;
 
 import java.lang.reflect.Method;
 import java.util.Arrays;
@@ -28,8 +27,6 @@ public class Sx4Command extends CommandImpl {
 	public final TempBanManager banManager = TempBanManager.get();
 	public final ReminderManager reminderManager = ReminderManager.get();
 	public final GiveawayManager giveawayManager = GiveawayManager.get();
-	
-	public final OkHttpClient client = Sx4.getClient();
 	
 	public final Database database = Database.get();
 	

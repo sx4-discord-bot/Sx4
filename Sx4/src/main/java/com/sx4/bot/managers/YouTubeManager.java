@@ -1,36 +1,25 @@
 package com.sx4.bot.managers;
 
-import java.time.Clock;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
-
-import org.bson.Document;
-
 import com.mongodb.client.model.DeleteOneModel;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.WriteModel;
 import com.sx4.bot.config.Config;
 import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.Database;
-import com.sx4.bot.events.youtube.YouTubeDeleteEvent;
-import com.sx4.bot.events.youtube.YouTubeEvent;
-import com.sx4.bot.events.youtube.YouTubeUpdateEvent;
-import com.sx4.bot.events.youtube.YouTubeUpdateTitleEvent;
-import com.sx4.bot.events.youtube.YouTubeUploadEvent;
+import com.sx4.bot.events.youtube.*;
 import com.sx4.bot.hooks.YouTubeListener;
 import com.sx4.bot.http.HttpCallback;
-import com.sx4.bot.utility.ExceptionUtility;
-
 import okhttp3.MultipartBody;
 import okhttp3.Request;
 import okhttp3.RequestBody;
+import org.bson.Document;
+
+import java.time.Clock;
+import java.util.*;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 public class YouTubeManager {
 	
