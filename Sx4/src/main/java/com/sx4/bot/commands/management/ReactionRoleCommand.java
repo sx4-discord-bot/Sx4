@@ -401,13 +401,14 @@ public class ReactionRoleCommand extends Sx4Command {
 				boolean emoji = emote.isEmoji();
 
 				Bson reaction = Operators.filter(reactionsFilter, Operators.eq("$$this.emote." + (emoji ? "name" : "id"), emoji ? emote.getEmoji() : emote.getEmote().getIdLong()));
-				Bson whitelist = Operators.ifNull(Operators.first(Operators.map(reaction, "$$this.whitelist")), Collections.EMPTY_LIST);
-				Bson holderFilter = Operators.filter(whitelist, Operators.eq("$$this.id", holder.getIdLong()));
+				Bson permissionsMap = Operators.ifNull(Operators.first(Operators.map(reaction, "$$this.permissions")), Collections.EMPTY_LIST);
+				Bson holderFilter = Operators.filter(permissionsMap, Operators.eq("$$this.id", holder.getIdLong()));
+				Bson holderMap = Operators.ifNull(Operators.first(holderFilter), holderData);
 
-				Bson result = Operators.concatArrays(Operators.filter("$reactionRole.reactionRoles", Operators.ne("$$this.id", messageId)), List.of(Operators.mergeObjects(Operators.first(reactionRoleFilter), new Document("reactions", Operators.concatArrays(List.of(Operators.mergeObjects(Operators.first(reaction), new Document("whitelist", Operators.concatArrays(whitelist, Operators.cond(Operators.isEmpty(holderFilter), List.of(holderData), Collections.EMPTY_LIST))))), Operators.filter(reactionsFilter, Operators.ne("$$this.emote." + (emoji ? "name" : "id"), emoji ? emote.getEmoji() : emote.getEmote().getIdLong())))))));
+				Bson result = Operators.concatArrays(Operators.filter("$reactionRole.reactionRoles", Operators.ne("$$this.id", messageId)), List.of(Operators.mergeObjects(Operators.first(reactionRoleFilter), new Document("reactions", Operators.concatArrays(List.of(Operators.mergeObjects(Operators.first(reaction), new Document("permissions", Operators.concatArrays(Operators.filter(permissionsMap, Operators.ne("$$this.id", holder.getIdLong())), Operators.mergeObjects(holderMap, new Document("granted", true)))))), Operators.filter(reactionsFilter, Operators.ne("$$this.emote." + (emoji ? "name" : "id"), emoji ? emote.getEmoji() : emote.getEmote().getIdLong())))))));
 				update = List.of(Operators.set("reactionRole.reactionRoles", Operators.cond(Operators.or(Operators.isEmpty(reactionRoleFilter), Operators.isEmpty(reaction)), "$reactionRole.reactionRoles", result)));
 			} else {
-				Bson result = Operators.concatArrays(Operators.filter("$reactionRole.reactionRoles", Operators.ne("$$this.id", messageId)), List.of(Operators.mergeObjects(Operators.first(reactionRoleFilter), new Document("reactions", Operators.map(reactionsFilter, Operators.mergeObjects("$$this", new Document("whitelist", Operators.concatArrays(Operators.ifNull("$$this.whitelist", Collections.EMPTY_LIST), Operators.cond(Operators.isEmpty(Operators.filter(Operators.ifNull("$$this.whitelist", Collections.EMPTY_LIST), Operators.eq("$$this.id", holder.getIdLong()))), List.of(holderData), Collections.EMPTY_LIST)))))))));
+				Bson result = Operators.concatArrays(Operators.filter("$reactionRole.reactionRoles", Operators.ne("$$this.id", messageId)), List.of(Operators.mergeObjects(Operators.first(reactionRoleFilter), new Document("reactions", Operators.map(reactionsFilter, Operators.mergeObjects("$$this", new Document("permissions", Operators.concatArrays(Operators.filter(Operators.ifNull("$$this.permissions", Collections.EMPTY_LIST), Operators.ne("$$this.id", holder.getIdLong())), Operators.mergeObjects(Operators.ifNull(Operators.first(Operators.filter(Operators.ifNull("$$this.permissions", Collections.EMPTY_LIST), Operators.eq("$$this.id", holder.getIdLong()))), holderData), new Document("granted", true))))))))));
 				update = List.of(Operators.set("reactionRole.reactionRoles", Operators.cond(Operators.isEmpty(reactionRoleFilter), "$reactionRole.reactionRoles", result)));
 			}
 
@@ -454,9 +455,6 @@ public class ReactionRoleCommand extends Sx4Command {
 			long messageId = messageArgument.getMessageId();
 			boolean role = holder instanceof Role;
 
-			Document holderData = new Document("id", holder.getIdLong())
-				.append("type", role ? HolderType.ROLE.getType() : HolderType.USER.getType());
-
 			Bson reactionRoleFilter = Operators.filter("$reactionRole.reactionRoles", Operators.eq("$$this.id", messageId));
 			Bson reactionsFilter = Operators.first(Operators.map(reactionRoleFilter, "$$this.reactions"));
 
@@ -465,12 +463,12 @@ public class ReactionRoleCommand extends Sx4Command {
 				boolean emoji = emote.isEmoji();
 
 				Bson reaction = Operators.filter(reactionsFilter, Operators.eq("$$this.emote." + (emoji ? "name" : "id"), emoji ? emote.getEmoji() : emote.getEmote().getIdLong()));
-				Bson whitelist = Operators.ifNull(Operators.first(Operators.map(reaction, "$$this.whitelist")), Collections.EMPTY_LIST);
+				Bson permissionsMap = Operators.ifNull(Operators.first(Operators.map(reaction, "$$this.permissions")), Collections.EMPTY_LIST);
 
-				Bson result = Operators.concatArrays(Operators.filter("$reactionRole.reactionRoles", Operators.ne("$$this.id", messageId)), List.of(Operators.mergeObjects(Operators.first(reactionRoleFilter), new Document("reactions", Operators.concatArrays(List.of(Operators.mergeObjects(Operators.first(reaction), new Document("whitelist", Operators.filter(whitelist, Operators.ne("$$this.id", holder.getIdLong()))))), Operators.filter(reactionsFilter, Operators.ne("$$this.emote." + (emoji ? "name" : "id"), emoji ? emote.getEmoji() : emote.getEmote().getIdLong())))))));
+				Bson result = Operators.concatArrays(Operators.filter("$reactionRole.reactionRoles", Operators.ne("$$this.id", messageId)), List.of(Operators.mergeObjects(Operators.first(reactionRoleFilter), new Document("reactions", Operators.concatArrays(List.of(Operators.mergeObjects(Operators.first(reaction), new Document("permissions", Operators.filter(permissionsMap, Operators.ne("$$this.id", holder.getIdLong()))))), Operators.filter(reactionsFilter, Operators.ne("$$this.emote." + (emoji ? "name" : "id"), emoji ? emote.getEmoji() : emote.getEmote().getIdLong())))))));
 				update = List.of(Operators.set("reactionRole.reactionRoles", Operators.cond(Operators.or(Operators.isEmpty(reactionRoleFilter), Operators.isEmpty(reaction)), "$reactionRole.reactionRoles", result)));
 			} else {
-				Bson result = Operators.concatArrays(Operators.filter("$reactionRole.reactionRoles", Operators.ne("$$this.id", messageId)), List.of(Operators.mergeObjects(Operators.first(reactionRoleFilter), new Document("reactions", Operators.map(reactionsFilter, Operators.mergeObjects("$$this", new Document("whitelist", Operators.filter("$$this.whitelist", Operators.ne("$$this.id", holder.getIdLong())))))))));
+				Bson result = Operators.concatArrays(Operators.filter("$reactionRole.reactionRoles", Operators.ne("$$this.id", messageId)), List.of(Operators.mergeObjects(Operators.first(reactionRoleFilter), new Document("reactions", Operators.map(reactionsFilter, Operators.mergeObjects("$$this", new Document("permissions", Operators.filter("$$this.permissions", Operators.ne("$$this.id", holder.getIdLong())))))))));
 				update = List.of(Operators.set("reactionRole.reactionRoles", Operators.cond(Operators.isEmpty(reactionRoleFilter), "$reactionRole.reactionRoles", result)));
 			}
 
@@ -505,8 +503,8 @@ public class ReactionRoleCommand extends Sx4Command {
 						return;
 					}
 
-					List<Document> whitelists = reaction.getList("whitelist", Document.class, Collections.emptyList());
-					if (whitelists.stream().noneMatch(d -> d.getLong("id") == holder.getIdLong())) {
+					List<Document> permissions = reaction.getList("permissions", Document.class, Collections.emptyList());
+					if (permissions.stream().noneMatch(d -> d.getLong("id") == holder.getIdLong())) {
 						event.reply("That " + (role ? "role" : "user") + " is not whitelisted from that reaction " + this.config.getFailureEmote()).queue();
 						return;
 					}
@@ -531,10 +529,10 @@ public class ReactionRoleCommand extends Sx4Command {
 
 				Bson reaction = Operators.filter(reactionsFilter, Operators.eq("$$this.emote." + (emoji ? "name" : "id"), emoji ? emote.getEmoji() : emote.getEmote().getIdLong()));
 
-				Bson result = Operators.concatArrays(Operators.filter("$reactionRole.reactionRoles", Operators.ne("$$this.id", messageId)), List.of(Operators.mergeObjects(Operators.first(reactionRoleFilter), new Document("reactions", Operators.concatArrays(List.of(Operators.mergeObjects(Operators.first(reaction), new Document("whitelist", Collections.EMPTY_LIST))), Operators.filter(reactionsFilter, Operators.ne("$$this.emote." + (emoji ? "name" : "id"), emoji ? emote.getEmoji() : emote.getEmote().getIdLong())))))));
+				Bson result = Operators.concatArrays(Operators.filter("$reactionRole.reactionRoles", Operators.ne("$$this.id", messageId)), List.of(Operators.mergeObjects(Operators.first(reactionRoleFilter), new Document("reactions", Operators.concatArrays(List.of(Operators.mergeObjects(Operators.first(reaction), new Document("permissions", Collections.EMPTY_LIST))), Operators.filter(reactionsFilter, Operators.ne("$$this.emote." + (emoji ? "name" : "id"), emoji ? emote.getEmoji() : emote.getEmote().getIdLong())))))));
 				update = List.of(Operators.set("reactionRole.reactionRoles", Operators.cond(Operators.or(Operators.isEmpty(reactionRoleFilter), Operators.isEmpty(reaction)), "$reactionRole.reactionRoles", result)));
 			} else {
-				Bson result = Operators.concatArrays(Operators.filter("$reactionRole.reactionRoles", Operators.ne("$$this.id", messageId)), List.of(Operators.mergeObjects(Operators.first(reactionRoleFilter), new Document("reactions", Operators.map(reactionsFilter, Operators.mergeObjects("$$this", new Document("whitelist", Collections.EMPTY_LIST)))))));
+				Bson result = Operators.concatArrays(Operators.filter("$reactionRole.reactionRoles", Operators.ne("$$this.id", messageId)), List.of(Operators.mergeObjects(Operators.first(reactionRoleFilter), new Document("reactions", Operators.map(reactionsFilter, Operators.mergeObjects("$$this", new Document("permissions", Collections.EMPTY_LIST)))))));
 				update = List.of(Operators.set("reactionRole.reactionRoles", Operators.cond(Operators.isEmpty(reactionRoleFilter), "$reactionRole.reactionRoles", result)));
 			}
 
@@ -569,8 +567,8 @@ public class ReactionRoleCommand extends Sx4Command {
 						return;
 					}
 
-					List<Document> whitelists = reaction.getList("whitelist", Document.class, Collections.emptyList());
-					if (whitelists.isEmpty()) {
+					List<Document> permissions = reaction.getList("permissions", Document.class, Collections.emptyList());
+					if (permissions.isEmpty()) {
 						event.reply("That reaction does not have any whitelists " + this.config.getFailureEmote()).queue();
 						return;
 					}

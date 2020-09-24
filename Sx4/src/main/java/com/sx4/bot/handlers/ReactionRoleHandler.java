@@ -6,7 +6,6 @@ import com.mongodb.client.model.Updates;
 import com.sx4.bot.config.Config;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.entities.settings.HolderType;
-import com.sx4.bot.utility.ExceptionUtility;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.MessageReaction.ReactionEmote;
@@ -58,7 +57,7 @@ public class ReactionRoleHandler extends ListenerAdapter {
 		
 		int reactedTo = 0;
 		boolean remove = false;
-		List<Document> whitelists = Collections.emptyList();
+		List<Document> permissions = Collections.emptyList();
 
 		Set<Role> memberRoles = new HashSet<>(event.getMember().getRoles());
 		List<Role> roles = null;
@@ -78,13 +77,13 @@ public class ReactionRoleHandler extends ListenerAdapter {
 			if (emote.isEmoji()) {
 				if (emoteData.containsKey("name") && emoteData.getString("name").equals(emote.getEmoji())) {
 					roles = rolesData;
-					whitelists = data.getList("whitelist", Document.class, Collections.emptyList());
+					permissions = data.getList("permissions", Document.class, Collections.emptyList());
 					remove = removeData;
 				}
 			} else {
 				if (emoteData.getLong("id") == emote.getEmote().getIdLong()) {
 					roles = rolesData;
-					whitelists = data.getList("whitelist", Document.class, Collections.emptyList());
+					permissions = data.getList("permissions", Document.class, Collections.emptyList());
 					remove = removeData;
 				}
 			}
@@ -95,21 +94,29 @@ public class ReactionRoleHandler extends ListenerAdapter {
 		}
 
 		if (!remove) {
-			for (int i = 0; i < whitelists.size(); i++) {
-				Document whitelist = whitelists.get(i);
+			boolean whitelisted = true;
+			for (int i = 0; i < permissions.size(); i++) {
+				Document permission = permissions.get(i);
 
-				long holderId = whitelist.getLong("id");
-				if (whitelist.getInteger("type") == HolderType.USER.getType()) {
-					if (holderId == user.getIdLong()) {
+				long holderId = permission.getLong("id");
+				int type = permission.getInteger("type");
+				boolean granted = permission.getBoolean("granted");
+
+				if (type == HolderType.USER.getType() && holderId == user.getIdLong()) {
+					if (granted) {
 						break;
 					}
-				} else {
-					if (memberRoles.stream().anyMatch(role -> role.getIdLong() == holderId)) {
+
+					whitelisted = false;
+				} else if (type == HolderType.ROLE.getType() && (holderId == guild.getIdLong() || memberRoles.stream().anyMatch(role -> role.getIdLong() == holderId))) {
+					if (granted) {
 						break;
 					}
+
+					whitelisted = false;
 				}
 
-				if (i == whitelists.size() - 1) {
+				if (i == permissions.size() - 1 && !whitelisted) {
 					user.openPrivateChannel()
 						.flatMap(channel -> channel.sendMessage("You are not whitelisted to be able to get the roles behind this reaction  " + config.getFailureEmote()))
 						.queue(null, ErrorResponseException.ignore(ErrorResponse.CANNOT_SEND_TO_USER));

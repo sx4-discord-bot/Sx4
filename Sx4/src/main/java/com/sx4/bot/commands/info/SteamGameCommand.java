@@ -102,7 +102,7 @@ public class SteamGameCommand extends Sx4Command {
 
 				int age = gameInfo.getInteger("required_age");
 				embed.addField("Required Age", age == 0 ? "No Age Restriction" : String.valueOf(age), true);
-				embed.addField("Recommendations", gameInfo.containsKey("recommendations") ? String.format("%,d", gameInfo.getEmbedded(List.of("recommendations", "total"), 0)) : "Unknown/None", true);
+				embed.addField("Recommendations", String.format("%,d", gameInfo.getEmbedded(List.of("recommendations", "total"), 0)), true);
 				embed.addField("Supported Languages", gameInfo.containsKey("supported_languages") ? Jsoup.parse(gameInfo.getString("supported_languages")).text() : "Unknown", true);
 
 				List<Document> genres = gameInfo.getList("genres", Document.class);
