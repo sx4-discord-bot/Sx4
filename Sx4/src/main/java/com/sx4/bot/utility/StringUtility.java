@@ -24,11 +24,7 @@ public class StringUtility {
 	}
 
 	public static String limit(String string, int maxLength, String suffix) {
-		if (string.length() <= maxLength) {
-			return string;
-		} else {
-			return string.substring(0, maxLength - suffix.length()) + suffix;
-		}
+		return string.length() <= maxLength ? string : string.substring(0, maxLength - suffix.length()) + suffix;
 	}
 	
 	public static String substring(String string, int beginIndex, int endIndex) {

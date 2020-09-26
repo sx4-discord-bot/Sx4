@@ -40,7 +40,7 @@ public class GuildMessageCache extends ListenerAdapter {
 	}
 
 	public void handleDelete(List<Long> messageIds) {
-		this.executor.schedule(() -> Database.get().deleteMessages(messageIds).whenComplete(Database.exceptionally()), 5, TimeUnit.SECONDS);
+		this.executor.schedule(() -> Database.get().deleteMessages(messageIds).whenComplete(Database.exceptionally()), 30, TimeUnit.SECONDS);
 	}
 	
 	public void onGuildMessageDelete(GuildMessageDeleteEvent event) {

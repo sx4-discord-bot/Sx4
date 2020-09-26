@@ -10,6 +10,8 @@ import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.UpdateOptions;
 import com.mongodb.client.model.Updates;
 import com.sx4.bot.database.Database;
+import com.sx4.bot.entities.logger.LoggerContext;
+import com.sx4.bot.entities.management.logger.LoggerEvent;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.LoggerUtility;
 import net.dv8tion.jda.api.JDA;
@@ -75,6 +77,8 @@ public class LoggerManager {
         }
 
     }
+
+    private static final int SHARDS = 2;
 
     private static final int MAX_RETRIES = 3;
 
@@ -231,7 +235,7 @@ public class LoggerManager {
     }
 
     private void queue(Request request) {
-        BlockingDeque<Request> queue = this.queues.computeIfAbsent((request.getChannelId() >> 22) % 2, (key) -> new LinkedBlockingDeque<>());
+        BlockingDeque<Request> queue = this.queues.computeIfAbsent((request.getChannelId() >> 22) % LoggerManager.SHARDS, (key) -> new LinkedBlockingDeque<>());
         if (queue.isEmpty()) {
             queue.add(request);
             this.handleQueue(queue, 0);
@@ -255,6 +259,32 @@ public class LoggerManager {
         }
 
         requests.forEach(this::queue);
+    }
+
+    public void queue(Guild guild, List<Document> loggers, LoggerEvent event, LoggerContext context, WebhookEmbed... embeds) {
+        this.queue(guild, loggers, event, context, Arrays.asList(embeds));
+    }
+
+    public void queue(Guild guild, List<Document> loggers, LoggerEvent event, LoggerContext context, List<WebhookEmbed> embeds) {
+        List<Long> deletedLoggers = new ArrayList<>();
+        for (Document logger : loggers) {
+            if (!LoggerUtility.canSend(logger, event, context)) {
+                continue;
+            }
+
+            long channelId = logger.getLong("id");
+            TextChannel channel = guild.getTextChannelById(channelId);
+            if (channel == null) {
+                deletedLoggers.add(channelId);
+                continue;
+            }
+
+            this.queue(channel, logger, embeds);
+        }
+
+        if (!deletedLoggers.isEmpty()) {
+            Database.get().updateGuildById(guild.getIdLong(), Updates.pull("logger.loggers", Filters.in("id", deletedLoggers))).whenComplete(Database.exceptionally());
+        }
     }
 
 }

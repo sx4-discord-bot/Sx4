@@ -1,9 +1,11 @@
 package com.sx4.bot.utility;
 
 import club.minnced.discord.webhook.send.WebhookEmbed;
+import com.sx4.bot.entities.logger.LoggerContext;
 import com.sx4.bot.entities.management.logger.LoggerCategory;
 import com.sx4.bot.entities.management.logger.LoggerEvent;
 import net.dv8tion.jda.api.entities.*;
+import org.bson.Document;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -92,6 +94,71 @@ public class LoggerUtility {
         }
 
         return 0L;
+    }
+
+    public static boolean isWhitelisted(List<Document> entities, LoggerEvent event, long roleId, long userId, long moderatorId, GuildChannel channel) {
+        for (Document entity : entities) {
+            if ((entity.getLong("events") & event.getRaw()) != event.getRaw()) {
+                continue;
+            }
+
+            long id = entity.getLong("id");
+            LoggerCategory category = LoggerCategory.fromType(entity.getInteger("type"));
+            switch (category) {
+                case ROLE:
+                    if (roleId == id) {
+                        return false;
+                    }
+
+                    break;
+                case USER:
+                    if (userId == id) {
+                        return false;
+                    }
+
+                    break;
+                case AUDIT:
+                    if (moderatorId == id) {
+                        return false;
+                    }
+
+                    break;
+                case VOICE_CHANNEL:
+                case TEXT_CHANNEL:
+                case STORE_CHANNEL:
+                    if (channel.getIdLong() == id) {
+                        return false;
+                    }
+
+                    break;
+                case CATEGORY:
+                    GuildChannel parent = channel.getParent();
+                    if (((parent == null && channel.getIdLong() == id) || (parent != null && parent.getIdLong() == id))) {
+                        return false;
+                    }
+
+                    break;
+            }
+        }
+
+        return true;
+    }
+
+    public static boolean isWhitelisted(List<Document> entities, LoggerEvent event, LoggerContext context) {
+        return LoggerUtility.isWhitelisted(entities, event, context.hasRole() ? context.getRole().getIdLong() : 0L, context.hasUser() ? context.getUser().getIdLong() : 0L, context.hasModerator() ? context.getModerator().getIdLong() : 0L, context.getChannel());
+    }
+
+    public static boolean canSend(Document logger, LoggerEvent event, LoggerContext context) {
+        if (!logger.get("enabled", true)) {
+            return false;
+        }
+
+        if ((logger.get("events", LoggerEvent.ALL) & event.getRaw()) != event.getRaw()) {
+            return false;
+        }
+
+        List<Document> entities = logger.getEmbedded(List.of("blacklist", "entities"), Collections.emptyList());
+        return LoggerUtility.isWhitelisted(entities, event, context);
     }
 
 }

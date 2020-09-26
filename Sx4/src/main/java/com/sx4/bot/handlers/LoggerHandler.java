@@ -11,11 +11,16 @@ import com.mongodb.client.model.Updates;
 import com.sx4.bot.config.Config;
 import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.Database;
-import com.sx4.bot.entities.management.logger.LoggerCategory;
+import com.sx4.bot.entities.logger.LoggerContext;
 import com.sx4.bot.entities.management.logger.LoggerEvent;
 import com.sx4.bot.managers.LoggerManager;
+import com.sx4.bot.utility.LoggerUtility;
 import com.sx4.bot.utility.StringUtility;
+import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.audit.ActionType;
+import net.dv8tion.jda.api.audit.AuditLogEntry;
 import net.dv8tion.jda.api.entities.*;
+import net.dv8tion.jda.api.events.guild.member.GuildMemberJoinEvent;
 import net.dv8tion.jda.api.events.guild.voice.GuildVoiceJoinEvent;
 import net.dv8tion.jda.api.events.message.MessageBulkDeleteEvent;
 import net.dv8tion.jda.api.events.message.guild.GuildMessageDeleteEvent;
@@ -24,114 +29,23 @@ import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.dv8tion.jda.api.sharding.ShardManager;
 import org.bson.Document;
 
+import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 public class LoggerHandler extends ListenerAdapter {
 
-	public class LoggerContext {
-
-		private final User user;
-		private final GuildChannel channel;
-		private final Role role;
-
-		public LoggerContext(User user, GuildChannel channel, Role role) {
-			this.user = user;
-			this.channel = channel;
-			this.role = role;
-		}
-
-		public boolean hasUser() {
-			return this.user != null;
-		}
-
-		public User getUser() {
-			return this.user;
-		}
-
-		public boolean hasChannel() {
-			return this.channel != null;
-		}
-
-		public GuildChannel getChannel() {
-			return this.channel;
-		}
-
-		public boolean hasRole() {
-			return this.role != null;
-		}
-
-		public Role getRole() {
-			return this.role;
-		}
-
-	}
+	private static final int DELAY = 500;
 
 	private final LoggerManager manager = LoggerManager.get();
 	private final Database database = Database.get();
 	private final Config config = Config.get();
-
-	private boolean isWhitelisted(List<Document> entities, LoggerEvent event, long roleId, long userId, GuildChannel channel) {
-		for (Document entity : entities) {
-			if ((entity.getLong("events") & event.getRaw()) != event.getRaw()) {
-				continue;
-			}
-
-			long id = entity.getLong("id");
-			LoggerCategory category = LoggerCategory.fromType(entity.getInteger("type"));
-			switch (category) {
-				case ROLE:
-					if (roleId == id) {
-						return false;
-					}
-
-					break;
-				case USER:
-					if (userId == id) {
-						return false;
-					}
-
-					break;
-				case VOICE_CHANNEL:
-				case TEXT_CHANNEL:
-				case STORE_CHANNEL:
-					if (channel.getIdLong() == id) {
-						return false;
-					}
-
-					break;
-				case CATEGORY:
-					GuildChannel parent = channel.getParent();
-					if (((parent == null && channel.getIdLong() == id) || (parent != null && parent.getIdLong() == id))) {
-						return false;
-					}
-
-					break;
-			}
-		}
-
-		return true;
-	}
-
-	private boolean isWhitelisted(List<Document> entities, LoggerEvent event, LoggerContext context) {
-		return this.isWhitelisted(entities, event, context.hasRole() ? context.getRole().getIdLong() : 0L, context.hasUser() ? context.getUser().getIdLong() : 0L, context.getChannel());
-	}
-
-	private boolean canSend(Document logger, LoggerEvent event, LoggerContext context) {
-		if (!logger.get("enabled", true)) {
-			return false;
-		}
-
-		if ((logger.get("events", LoggerEvent.ALL) & event.getRaw()) != event.getRaw()) {
-			return false;
-		}
-
-		List<Document> entities = logger.getEmbedded(List.of("blacklist", "entities"), Collections.emptyList());
-		return this.isWhitelisted(entities, event, context);
-	}
 
 	private void onMessageDelete(TextChannel textChannel, List<Long> messageIds) {
 		Guild guild = textChannel.getGuild();
@@ -175,7 +89,7 @@ public class LoggerHandler extends ListenerAdapter {
 					long userId = message.getLong("authorId");
 					User user = shardManager.getUserById(userId);
 
-					if (!this.isWhitelisted(entities, loggerEvent, 0L, userId, textChannel)) {
+					if (!LoggerUtility.isWhitelisted(entities, loggerEvent, 0L, userId, 0L, textChannel)) {
 						continue;
 					}
 
@@ -183,7 +97,7 @@ public class LoggerHandler extends ListenerAdapter {
 					embed.setAuthor(new EmbedAuthor(user == null ? guild.getName() : user.getAsTag(), user == null ? guild.getIconUrl() : user.getEffectiveAvatarUrl(), null));
 
 					String content = message.getString("content");
-					if (content.length() != 0) {
+					if (!content.isBlank()) {
 						embed.addField(new EmbedField(false, "Message", StringUtility.limit(content, MessageEmbed.VALUE_MAX_LENGTH, "...")));
 					}
 				}
@@ -211,51 +125,83 @@ public class LoggerHandler extends ListenerAdapter {
 		Guild guild = event.getGuild();
 		TextChannel textChannel = event.getChannel();
 		Member member = event.getMember();
+		User user = event.getAuthor();
 		Message message = event.getMessage();
 
 		Document previousMessage = this.database.getMessageById(message.getIdLong());
 		String oldContent = previousMessage == null ? null : previousMessage.getString("content");
 
-		LoggerContext loggerContext = new LoggerContext(member.getUser(), textChannel, null);
+		LoggerContext loggerContext = new LoggerContext(user, textChannel, null);
 		LoggerEvent loggerEvent = LoggerEvent.MESSAGE_UPDATE;
 
-		List<Long> deletedLoggers = new ArrayList<>();
+		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
+		if (member != null) {
+			embed.setDescription(String.format("`%s` edited their [message](%s) in %s", member.getEffectiveName(), message.getJumpUrl(), textChannel.getAsMention()));
+		} else {
+			embed.setDescription(String.format("`%s` edited their [message](%s) in %s", user.getName(), message.getJumpUrl(), textChannel.getAsMention()));
+		}
+
+		embed.setAuthor(new EmbedAuthor(user.getAsTag(), user.getEffectiveAvatarUrl(), null));
+		embed.setColor(this.config.getOrange());
+		embed.setTimestamp(Instant.now());
+		embed.setFooter(new EmbedFooter(String.format("Message ID: %s", message.getId()), null));
+
+		if (oldContent != null && !oldContent.isBlank()) {
+			embed.addField(new EmbedField(false, "Before", StringUtility.limit(oldContent, MessageEmbed.VALUE_MAX_LENGTH, "...")));
+		}
+
+		if (!message.getContentRaw().isBlank()) {
+			embed.addField(new EmbedField(false, "After", StringUtility.limit(message.getContentRaw(), MessageEmbed.VALUE_MAX_LENGTH, String.format("[...](%s)", message.getJumpUrl()))));
+		}
 
 		List<Document> loggers = this.database.getGuildById(guild.getIdLong(), Projections.include("logger.loggers")).getEmbedded(List.of("logger", "loggers"), Collections.emptyList());
-		for (Document logger : loggers) {
-			if (!this.canSend(logger, loggerEvent, loggerContext)) {
-				continue;
+		this.manager.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+	}
+
+	public void onGuildMemberJoin(GuildMemberJoinEvent event) {
+		Guild guild = event.getGuild();
+		Member member = event.getMember();
+		User user = event.getUser();
+
+		LoggerEvent loggerEvent = user.isBot() ? LoggerEvent.BOT_ADDED : LoggerEvent.MEMBER_JOIN;
+
+		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
+		embed.setColor(this.config.getGreen());
+		embed.setTimestamp(Instant.now());
+		embed.setAuthor(new EmbedAuthor(user.getAsTag(), user.getEffectiveAvatarUrl(), null));
+		embed.setFooter(new EmbedFooter(String.format("%s ID: %s", user.isBot() ? "Bot" : "User", member.getId()), null));
+
+		List<Document> loggers = this.database.getGuildById(guild.getIdLong(), Projections.include("logger.loggers")).getEmbedded(List.of("logger", "loggers"), Collections.emptyList());
+
+
+		if (user.isBot()) {
+			StringBuilder description = new StringBuilder(String.format("`%s` was just added to the server", member.getEffectiveName()));
+
+			if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
+				guild.retrieveAuditLogs().type(ActionType.BOT_ADD).queueAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS, logs -> {
+					User moderator = logs.stream()
+						.filter(e -> e.getTargetIdLong() == member.getIdLong())
+						.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
+						.map(AuditLogEntry::getUser)
+						.findFirst()
+						.orElse(null);
+
+					LoggerContext loggerContext = new LoggerContext(user, null, null, moderator);
+
+					embed.setDescription(description.toString());
+
+					this.manager.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+				});
+
+				return;
 			}
 
-			long channelId = logger.getLong("id");
-			TextChannel channel = guild.getTextChannelById(channelId);
-			if (channel == null) {
-				deletedLoggers.add(channelId);
-				continue;
-			}
-
-			WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
-			embed.setDescription(String.format("`%s` edited their [message](%s) in %s", member.getEffectiveName(), message.getJumpUrl(), channel.getAsMention()));
-			embed.setAuthor(new EmbedAuthor(member.getUser().getAsTag(), member.getUser().getEffectiveAvatarUrl(), null));
-			embed.setColor(this.config.getOrange());
-			embed.setTimestamp(Instant.now());
-			embed.setFooter(new EmbedFooter(String.format("Message ID: %s", message.getId()), null));
-
-
-			if (oldContent != null && oldContent.length() > 0) {
-				embed.addField(new EmbedField(false, "Before", StringUtility.limit(oldContent, MessageEmbed.VALUE_MAX_LENGTH, "...")));
-			}
-
-			if (message.getContentRaw().length() > 0) {
-				embed.addField(new EmbedField(false, "After", StringUtility.limit(message.getContentRaw(), MessageEmbed.VALUE_MAX_LENGTH, "...")));
-			}
-
-			this.manager.queue(channel, logger, embed.build());
+			embed.setDescription(description.toString());
+		} else {
+			embed.setDescription(String.format("`%s` just joined the server", member.getEffectiveName()));
 		}
 
-		if (!deletedLoggers.isEmpty()) {
-			this.database.updateGuildById(guild.getIdLong(), Updates.pull("logger.loggers", Filters.in("id", deletedLoggers))).whenComplete(Database.exceptionally());
-		}
+		this.manager.queue(guild, loggers, loggerEvent, new LoggerContext(user, null, null), embed.build());
 	}
 
 	public void onGuildVoiceJoin(GuildVoiceJoinEvent event) {
@@ -266,34 +212,15 @@ public class LoggerHandler extends ListenerAdapter {
 		LoggerEvent loggerEvent = LoggerEvent.MEMBER_VOICE_JOIN;
 		LoggerContext loggerContext = new LoggerContext(member.getUser(), channel, null);
 
-		List<Long> deletedLoggers = new ArrayList<>();
+		WebhookEmbedBuilder embed = new WebhookEmbedBuilder()
+			.setDescription(String.format("`%s` just joined the voice channel `%s`", member.getEffectiveName(), channel.getName()))
+			.setColor(this.config.getGreen())
+			.setTimestamp(Instant.now())
+			.setFooter(new EmbedFooter(String.format("User ID: %s", member.getId()), null))
+			.setAuthor(new EmbedAuthor(member.getUser().getAsTag(), member.getUser().getEffectiveAvatarUrl(), null));
 
 		List<Document> loggers = this.database.getGuildById(guild.getIdLong(), Projections.include("logger.loggers")).getEmbedded(List.of("logger", "loggers"), Collections.emptyList());
-		for (Document logger : loggers) {
-			if (!this.canSend(logger, loggerEvent, loggerContext)) {
-				continue;
-			}
-
-			long channelId = logger.getLong("id");
-			TextChannel textChannel = guild.getTextChannelById(channelId);
-			if (textChannel == null) {
-				deletedLoggers.add(channelId);
-				continue;
-			}
-
-			WebhookEmbedBuilder embed = new WebhookEmbedBuilder()
-				.setDescription(String.format("`%s` just joined the voice channel `%s`", member.getEffectiveName(), channel.getName()))
-				.setColor(this.config.getGreen())
-				.setTimestamp(Instant.now())
-				.setFooter(new EmbedFooter(String.format("User ID: %s", member.getId()), null))
-				.setAuthor(new EmbedAuthor(member.getUser().getAsTag(), member.getUser().getEffectiveAvatarUrl(), null));
-
-			this.manager.queue(textChannel, logger, embed.build());
-		}
-
-		if (!deletedLoggers.isEmpty()) {
-			this.database.updateGuildById(guild.getIdLong(), Updates.pull("logger.loggers", Filters.in("id", deletedLoggers))).whenComplete(Database.exceptionally());
-		}
+		this.manager.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 	}
 
 }
