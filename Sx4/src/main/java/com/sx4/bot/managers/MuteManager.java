@@ -5,7 +5,6 @@ import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.entities.mod.Reason;
 import com.sx4.bot.events.mod.UnmuteEvent;
-import com.sx4.bot.utility.ExceptionUtility;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Role;
@@ -125,7 +124,7 @@ public class MuteManager {
 			guild.removeRoleFromMember(member, role).reason("Mute length served").queue();
 		}
 		
-		ModActionManager.get().onModAction(new UnmuteEvent(guild.getSelfMember(), member.getUser(), new Reason("Mute length served")));
+		ModActionManager.get().onModAction(new UnmuteEvent(guild.getSelfMember(), member == null ? null : member.getUser(), new Reason("Mute length served")));
 		this.deleteExecutor(guildId, userId);
 		
 		return new UpdateOneModel<>(Filters.eq("_id", guildId), Updates.pull("mute.users", Filters.eq("id", userId)));

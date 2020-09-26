@@ -413,10 +413,11 @@ public class SearchUtility {
 			String name = tagMatch.group(1);
 			String discriminator = tagMatch.group(2);
 			
-			return guild.getMemberCache().stream()
+			return guild.getMemberCache().applyStream(stream -> stream
 				.filter(member -> member.getUser().getName().equalsIgnoreCase(name) && member.getUser().getDiscriminator().equals(discriminator))
 				.findFirst()
-				.orElse(null);
+				.orElse(null)
+			);
 		} else if (NumberUtility.isNumberUnsigned(query)) {
 			try {
 				long id = Long.parseLong(query);
@@ -445,10 +446,11 @@ public class SearchUtility {
 			String name = tagMatch.group(1);
 			String discriminator = tagMatch.group(2);
 			
-			return Sx4.get().getShardManager().getUserCache().stream()
+			return Sx4.get().getShardManager().getUserCache().applyStream(stream -> stream
 				.filter(user -> user.getName().equalsIgnoreCase(name) && user.getDiscriminator().equals(discriminator))
 				.findFirst()
-				.orElse(null);
+				.orElse(null)
+			);
 		} else if (NumberUtility.isNumberUnsigned(query)) {
 			try {
 				long id = Long.parseLong(query);
@@ -458,10 +460,11 @@ public class SearchUtility {
 				return null;
 			}
 		} else {
-			return Sx4.get().getShardManager().getUserCache().stream()
-					.filter(user -> user.getName().equalsIgnoreCase(query))
-					.findFirst()
-					.orElse(null);
+			return Sx4.get().getShardManager().getUserCache().applyStream(stream -> stream
+				.filter(user -> user.getName().equalsIgnoreCase(query))
+				.findFirst()
+				.orElse(null)
+			);
 		}
 	}
 	
@@ -488,16 +491,16 @@ public class SearchUtility {
 			String discriminator = tagMatch.group(2);
 
 			future.complete(
-				guild.getMemberCache().stream()
+				guild.getMemberCache().applyStream(memberStream -> memberStream
 					.map(Member::getUser)
 					.filter(user -> user.getName().equalsIgnoreCase(name) && user.getDiscriminator().equals(discriminator))
 					.findFirst()
-					.orElseGet(() -> {
-						return Sx4.get().getShardManager().getUserCache().stream()
-							.filter(user -> user.getName().equalsIgnoreCase(name) && user.getDiscriminator().equals(discriminator))
-							.findFirst()
-							.orElse(null);
-					})
+					.orElseGet(() -> Sx4.get().getShardManager().getUserCache().applyStream(userStream -> userStream
+						.filter(user -> user.getName().equalsIgnoreCase(name) && user.getDiscriminator().equals(discriminator))
+						.findFirst()
+						.orElse(null)
+					))
+				)
 			);
 		} else if (NumberUtility.isNumberUnsigned(query)) {
 			try {
@@ -515,10 +518,13 @@ public class SearchUtility {
 		} else {
 			Member member = SearchUtility.findMember(guild.getMemberCache(), query);
 			if (member == null) {
-				future.complete(Sx4.get().getShardManager().getUserCache().stream()
+				future.complete(
+					Sx4.get().getShardManager().getUserCache().applyStream(stream -> stream
 						.filter(user -> user.getName().equalsIgnoreCase(query))
 						.findFirst()
-						.orElse(null));
+						.orElse(null)
+					)
+				);
 			} else {
 				future.complete(member.getUser());
 			}
@@ -544,10 +550,13 @@ public class SearchUtility {
 			String name = tagMatch.group(1);
 			String discriminator = tagMatch.group(2);
 
-			future.complete(Sx4.get().getShardManager().getUserCache().stream()
-				.filter(user -> user.getName().equalsIgnoreCase(name) && user.getDiscriminator().equals(discriminator))
-				.findFirst()
-				.orElse(null));
+			future.complete(
+				Sx4.get().getShardManager().getUserCache().applyStream(stream -> stream
+					.filter(user -> user.getName().equalsIgnoreCase(name) && user.getDiscriminator().equals(discriminator))
+					.findFirst()
+					.orElse(null)
+				)
+			);
 		} else if (NumberUtility.isNumberUnsigned(query)) {
 			try {
 				long id = Long.parseLong(query);
@@ -557,10 +566,13 @@ public class SearchUtility {
 				future.complete(null);
 			}
 		} else {
-			future.complete(Sx4.get().getShardManager().getUserCache().stream()
+			future.complete(
+				Sx4.get().getShardManager().getUserCache().applyStream(stream -> stream
 					.filter(user -> user.getName().equalsIgnoreCase(query))
 					.findFirst()
-					.orElse(null));
+					.orElse(null)
+				)
+			);
 		}
 
 		return future;

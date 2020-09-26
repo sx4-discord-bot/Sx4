@@ -62,8 +62,8 @@ public class CreateEmoteCommand extends Sx4Command {
 	}
 	
 	public void onCommand(Sx4CommandEvent event, @Argument(value="emote", acceptEmpty=true) PartialEmote emote, @Argument(value="name", endless=true, nullDefault=true) String name) {
-		long animatedEmotes = event.getGuild().getEmoteCache().stream().filter(Emote::isAnimated).count();
-		long nonAnimatedEmotes = event.getGuild().getEmoteCache().stream().filter(Predicate.not(Emote::isAnimated)).count();
+		long animatedEmotes = event.getGuild().getEmoteCache().applyStream(stream -> stream.filter(Emote::isAnimated).count());
+		long nonAnimatedEmotes = event.getGuild().getEmoteCache().applyStream(stream -> stream.filter(Predicate.not(Emote::isAnimated)).count());
 		int maxEmotes = event.getGuild().getMaxEmotes();
 		
 		Boolean animated = emote.isAnimated();
