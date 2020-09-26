@@ -114,148 +114,144 @@ public class ModUtility {
 
 		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("warn", "mute.roleId", "mute.autoUpdate"));
 		database.findAndUpdateGuildById(guild.getIdLong(), update, options).whenComplete((data, exception) -> {
-			try {
-				if (exception != null) {
-					future.completeExceptionally(exception);
-					return;
-				}
+			if (exception != null) {
+				future.completeExceptionally(exception);
+				return;
+			}
 
-				data = data == null ? Database.EMPTY_DOCUMENT : data;
+			data = data == null ? Database.EMPTY_DOCUMENT : data;
 
-				Document warn = data.get("warn", Database.EMPTY_DOCUMENT);
+			Document warn = data.get("warn", Database.EMPTY_DOCUMENT);
 
-				List<Document> config = warn.getList("config", Document.class, Warn.DEFAULT_CONFIG);
-				int maxWarning = config.stream()
-					.map(d -> d.getInteger("number"))
-					.max(Integer::compareTo)
-					.get();
+			List<Document> config = warn.getList("config", Document.class, Warn.DEFAULT_CONFIG);
+			int maxWarning = config.stream()
+				.map(d -> d.getInteger("number"))
+				.max(Integer::compareTo)
+				.get();
 
-				List<Document> users = warn.getList("users", Document.class, Collections.emptyList());
-				int nextWarning = users.stream()
-					.filter(d -> d.getLong("id") == target.getIdLong())
-					.map(d -> {
-						int current = d.getInteger("amount");
-						return current >= maxWarning ? 1 : current + 1;
-					})
-					.findFirst()
-					.orElse(1);
+			List<Document> users = warn.getList("users", Document.class, Collections.emptyList());
+			int nextWarning = users.stream()
+				.filter(d -> d.getLong("id") == target.getIdLong())
+				.map(d -> {
+					int current = d.getInteger("amount");
+					return current >= maxWarning ? 1 : current + 1;
+				})
+				.findFirst()
+				.orElse(1);
 
-				Action action = config.stream()
-					.filter(d -> d.getInteger("number") == nextWarning)
-					.map(d -> d.get("action", Document.class))
-					.map(Action::fromData)
-					.findFirst()
-					.orElse(new Action(ModAction.WARN));
+			Action action = config.stream()
+				.filter(d -> d.getInteger("number") == nextWarning)
+				.map(d -> d.get("action", Document.class))
+				.map(Action::fromData)
+				.findFirst()
+				.orElse(new Action(ModAction.WARN));
 
-				Warn warnConfig = new Warn(action, nextWarning);
+			Warn warnConfig = new Warn(action, nextWarning);
 
-				switch (action.getModAction()) {
-					case WARN:
+			switch (action.getModAction()) {
+				case WARN:
+					manager.onModAction(new WarnEvent(moderator, target.getUser(), reason, warnConfig));
+					future.complete(warnConfig);
+
+					break;
+				case MUTE:
+				case MUTE_EXTEND:
+					if (!guild.getSelfMember().hasPermission(Permission.MANAGE_ROLES)) {
+						future.completeExceptionally(new BotPermissionException(Permission.MANAGE_ROLES));
+						return;
+					}
+
+					Document mute = data.get("mute", Database.EMPTY_DOCUMENT);
+
+					ModUtility.upsertMuteRole(guild, mute.getLong("roleId"), mute.get("autoUpdate", true)).whenComplete((role, roleException) -> {
+						if (roleException != null) {
+							future.completeExceptionally(roleException);
+							return;
+						}
+
+						guild.addRoleToMember(target, role).reason(ModUtility.getAuditReason(reason, moderator.getUser())).queue($ -> {
+							muteManager.putMute(guild.getIdLong(), target.getIdLong(), role.getIdLong(), ((TimeAction) action).getDuration(), action.getModAction() == ModAction.MUTE_EXTEND);
+
+							manager.onModAction(new WarnEvent(moderator, target.getUser(), reason, warnConfig));
+
+							future.complete(warnConfig);
+						});
+					});
+
+					break;
+				case KICK:
+					if (!guild.getSelfMember().hasPermission(Permission.KICK_MEMBERS)) {
+						future.completeExceptionally(new BotPermissionException(Permission.KICK_MEMBERS));
+						return;
+					}
+
+					if (!guild.getSelfMember().canInteract(target)) {
+						future.completeExceptionally(new BotHierarchyException("kick"));
+						return;
+					}
+
+					if (!moderator.hasPermission(Permission.KICK_MEMBERS)) {
+						future.completeExceptionally(new AuthorPermissionException(Permission.KICK_MEMBERS));
+						return;
+					}
+
+					target.kick(ModUtility.getAuditReason(reason, moderator.getUser())).queue($ -> {
 						manager.onModAction(new WarnEvent(moderator, target.getUser(), reason, warnConfig));
+
 						future.complete(warnConfig);
+					});
 
-						break;
-					case MUTE:
-					case MUTE_EXTEND:
-						if (!guild.getSelfMember().hasPermission(Permission.MANAGE_ROLES)) {
-							future.completeExceptionally(new BotPermissionException(Permission.MANAGE_ROLES));
-							return;
-						}
+					break;
+				case TEMP_BAN:
+					if (!guild.getSelfMember().hasPermission(Permission.BAN_MEMBERS)) {
+						future.completeExceptionally(new BotPermissionException(Permission.BAN_MEMBERS));
+						return;
+					}
 
-						Document mute = data.get("mute", Database.EMPTY_DOCUMENT);
+					if (!guild.getSelfMember().canInteract(target)) {
+						future.completeExceptionally(new BotHierarchyException("ban"));
+						return;
+					}
 
-						ModUtility.upsertMuteRole(guild, mute.getLong("roleId"), mute.get("autoUpdate", true)).whenComplete((role, roleException) -> {
-							if (roleException != null) {
-								future.completeExceptionally(roleException);
-								return;
-							}
+					if (!moderator.hasPermission(Permission.BAN_MEMBERS)) {
+						future.completeExceptionally(new AuthorPermissionException(Permission.BAN_MEMBERS));
+						return;
+					}
 
-							guild.addRoleToMember(target, role).reason(ModUtility.getAuditReason(reason, moderator.getUser())).queue($ -> {
-								muteManager.putMute(guild.getIdLong(), target.getIdLong(), role.getIdLong(), ((TimeAction) action).getDuration(), action.getModAction() == ModAction.MUTE_EXTEND);
+					target.ban(1).reason(ModUtility.getAuditReason(reason, moderator.getUser())).queue($ -> {
+						manager.onModAction(new WarnEvent(moderator, target.getUser(), reason, warnConfig));
 
-								manager.onModAction(new WarnEvent(moderator, target.getUser(), reason, warnConfig));
+						TempBanManager.get().putBan(guild.getIdLong(), target.getIdLong(), ((TimeAction) action).getDuration());
 
-								future.complete(warnConfig);
-							});
-						});
+						future.complete(warnConfig);
+					});
 
-						break;
-					case KICK:
-						if (!guild.getSelfMember().hasPermission(Permission.KICK_MEMBERS)) {
-							future.completeExceptionally(new BotPermissionException(Permission.KICK_MEMBERS));
-							return;
-						}
+					break;
+				case BAN:
+					if (!guild.getSelfMember().hasPermission(Permission.BAN_MEMBERS)) {
+						future.completeExceptionally(new BotPermissionException(Permission.BAN_MEMBERS));
+						return;
+					}
 
-						if (!guild.getSelfMember().canInteract(target)) {
-							future.completeExceptionally(new BotHierarchyException("kick"));
-							return;
-						}
+					if (!guild.getSelfMember().canInteract(target)) {
+						future.completeExceptionally(new BotHierarchyException("ban"));
+						return;
+					}
 
-						if (!moderator.hasPermission(Permission.KICK_MEMBERS)) {
-							future.completeExceptionally(new AuthorPermissionException(Permission.KICK_MEMBERS));
-							return;
-						}
+					if (!moderator.hasPermission(Permission.BAN_MEMBERS)) {
+						future.completeExceptionally(new AuthorPermissionException(Permission.BAN_MEMBERS));
+						return;
+					}
 
-						target.kick(ModUtility.getAuditReason(reason, moderator.getUser())).queue($ -> {
-							manager.onModAction(new WarnEvent(moderator, target.getUser(), reason, warnConfig));
+					target.ban(1).reason(ModUtility.getAuditReason(reason, moderator.getUser())).queue($ -> {
+						manager.onModAction(new WarnEvent(moderator, target.getUser(), reason, warnConfig));
 
-							future.complete(warnConfig);
-						});
+						future.complete(warnConfig);
+					});
 
-						break;
-					case TEMP_BAN:
-						if (!guild.getSelfMember().hasPermission(Permission.BAN_MEMBERS)) {
-							future.completeExceptionally(new BotPermissionException(Permission.BAN_MEMBERS));
-							return;
-						}
-
-						if (!guild.getSelfMember().canInteract(target)) {
-							future.completeExceptionally(new BotHierarchyException("ban"));
-							return;
-						}
-
-						if (!moderator.hasPermission(Permission.BAN_MEMBERS)) {
-							future.completeExceptionally(new AuthorPermissionException(Permission.BAN_MEMBERS));
-							return;
-						}
-
-						target.ban(1).reason(ModUtility.getAuditReason(reason, moderator.getUser())).queue($ -> {
-							manager.onModAction(new WarnEvent(moderator, target.getUser(), reason, warnConfig));
-
-							TempBanManager.get().putBan(guild.getIdLong(), target.getIdLong(), ((TimeAction) action).getDuration());
-
-							future.complete(warnConfig);
-						});
-
-						break;
-					case BAN:
-						if (!guild.getSelfMember().hasPermission(Permission.BAN_MEMBERS)) {
-							future.completeExceptionally(new BotPermissionException(Permission.BAN_MEMBERS));
-							return;
-						}
-
-						if (!guild.getSelfMember().canInteract(target)) {
-							future.completeExceptionally(new BotHierarchyException("ban"));
-							return;
-						}
-
-						if (!moderator.hasPermission(Permission.BAN_MEMBERS)) {
-							future.completeExceptionally(new AuthorPermissionException(Permission.BAN_MEMBERS));
-							return;
-						}
-
-						target.ban(1).reason(ModUtility.getAuditReason(reason, moderator.getUser())).queue($ -> {
-							manager.onModAction(new WarnEvent(moderator, target.getUser(), reason, warnConfig));
-
-							future.complete(warnConfig);
-						});
-
-						break;
-					default:
-						break;
-				}
-			}catch(Throwable e) {
-				e.printStackTrace();
+					break;
+				default:
+					break;
 			}
 		});
 

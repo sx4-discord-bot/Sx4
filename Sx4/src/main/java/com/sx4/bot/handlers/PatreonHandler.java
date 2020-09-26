@@ -1,30 +1,22 @@
 package com.sx4.bot.handlers;
 
-import java.time.Clock;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-
-import org.bson.Document;
-import org.bson.conversions.Bson;
-
-import com.mongodb.client.model.Filters;
-import com.mongodb.client.model.FindOneAndUpdateOptions;
-import com.mongodb.client.model.Projections;
-import com.mongodb.client.model.ReturnDocument;
-import com.mongodb.client.model.UpdateOneModel;
-import com.mongodb.client.model.Updates;
-import com.mongodb.client.model.WriteModel;
+import com.mongodb.client.model.*;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.events.patreon.PatreonPledgeCreateEvent;
 import com.sx4.bot.events.patreon.PatreonPledgeDeleteEvent;
 import com.sx4.bot.events.patreon.PatreonPledgeUpdateEvent;
 import com.sx4.bot.hooks.PatreonListener;
-import com.sx4.bot.utility.ExceptionUtility;
-
 import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.events.guild.GuildLeaveEvent;
 import net.dv8tion.jda.api.hooks.EventListener;
+import org.bson.Document;
+import org.bson.conversions.Bson;
+
+import java.time.Clock;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 public class PatreonHandler implements PatreonListener, EventListener {
 	
@@ -55,11 +47,7 @@ public class PatreonHandler implements PatreonListener, EventListener {
 	public void onPatreonPledgeDelete(PatreonPledgeDeleteEvent event) {
 		Database database = Database.get();
 		
-		database.findAndDeletePatronById(event.getId(), Projections.include("guilds")).whenComplete((data, exception) -> {
-			if (ExceptionUtility.sendErrorMessage(exception)) {
-				return;
-			}
-			
+		database.findAndDeletePatronById(event.getId(), Projections.include("guilds")).thenCompose(data -> {
 			List<Long> guilds = data.getList("guilds", Long.class, Collections.emptyList());
 			
 			List<WriteModel<Document>> bulkData = new ArrayList<>();
@@ -68,9 +56,11 @@ public class PatreonHandler implements PatreonListener, EventListener {
 			}
 			
 			if (!bulkData.isEmpty()) {
-    			database.bulkWriteGuilds(bulkData).whenComplete(Database.exceptionally());
+    			return database.bulkWriteGuilds(bulkData);
 			}
-		});
+
+			return CompletableFuture.completedFuture(null);
+		}).whenComplete(Database.exceptionally());
 	}
 	
 	public void onEvent(GenericEvent event) {
@@ -80,17 +70,13 @@ public class PatreonHandler implements PatreonListener, EventListener {
 			Database database = Database.get();
 			
 			FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("premium"));
-			database.findAndUpdateGuildById(guildId, Updates.unset("premium"), options).whenComplete((data, exception) -> {
-				if (ExceptionUtility.sendErrorMessage(exception)) {
-					return;
-				}
-				
+			database.findAndUpdateGuildById(guildId, Updates.unset("premium"), options).thenCompose(data -> {
 				if (data == null) {
-					return;
+					return CompletableFuture.completedFuture(null);
 				}
 				
-				database.updatePatronByFilter(Filters.eq("discordId", data.getLong("premium")), Updates.pull("guilds", guildId)).whenComplete(Database.exceptionally());
-			});
+				return database.updatePatronByFilter(Filters.eq("discordId", data.getLong("premium")), Updates.pull("guilds", guildId));
+			}).whenComplete(Database.exceptionally());
 		}
 	}
 	

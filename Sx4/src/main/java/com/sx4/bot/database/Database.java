@@ -231,6 +231,10 @@ public class Database {
 	public CompletableFuture<Document> findAndUpdatePatronById(String id, Bson projection, List<? extends Bson> update) {
 		return this.findAndUpdatePatronById(id, null, update, this.findOneAndUpdateOptions.projection(projection));
 	}
+
+	public CompletableFuture<Document> findAndUpdatePatronByFilter(Bson filter, List<? extends Bson> update, FindOneAndUpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.patrons.findOneAndUpdate(filter, update, options));
+	}
 	
 	public CompletableFuture<DeleteResult> deletePatronById(String id) {
 		return CompletableFuture.supplyAsync(() -> this.patrons.deleteOne(Filters.eq("_id", id)));

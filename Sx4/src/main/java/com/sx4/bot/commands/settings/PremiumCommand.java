@@ -9,17 +9,23 @@ import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.config.Config;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
+import com.sx4.bot.database.Database;
 import com.sx4.bot.database.model.Operators;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import net.dv8tion.jda.api.entities.Guild;
-import net.dv8tion.jda.api.sharding.ShardManager;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
-import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 public class PremiumCommand extends Sx4Command {
@@ -52,35 +58,40 @@ public class PremiumCommand extends Sx4Command {
 			event.reply("That server already has premium " + this.config.getFailureEmote()).queue();
 			return;
 		}
-		
+
+		Document premiumData = new Document("id", guildId)
+			.append("since", Operators.nowEpochSecond());
+
+		Bson guildsMap = Operators.ifNull("$guilds", Collections.EMPTY_LIST);
+		List<Bson> update = List.of(Operators.set("guilds", Operators.cond(Operators.and(Operators.lt(Operators.size(guildsMap), Operators.floor(Operators.divide("$amount", price))), Operators.isEmpty(Operators.filter(guildsMap, Operators.eq("$$this.id", guildId)))), Operators.concatArrays(guildsMap, List.of(premiumData)), "$guilds")));
+
 		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("guilds", "amount"));
-		
-		List<Bson> update = List.of(Operators.set("guilds", Operators.cond(Operators.lt(Operators.size("$guilds"), Operators.floor(Operators.divide("$amount", price))), Operators.concatArrays("$guilds", List.of(guildId)), "$guilds")));
-		this.database.findAndUpdatePatronById(Filters.eq("discordId", event.getAuthor().getIdLong()), update, options).whenComplete((data, exception) -> {
-			if (ExceptionUtility.sendExceptionally(event, exception)) {
-				return;
-			}
-			
+		this.database.findAndUpdatePatronById(Filters.eq("discordId", event.getAuthor().getIdLong()), update, options).thenCompose(data -> {
 			if (data == null) {
 				event.reply("You are not a premium user, you can become one at <https://patreon.com/Sx4> " + this.config.getFailureEmote()).queue();
-				return;
+				return CompletableFuture.completedFuture(null);
 			}
 			
 			int allocatedGuilds = data.getInteger("amount") / price;
 			
-			List<Long> guilds = data.getList("guilds", Long.class, Collections.emptyList());
-			if (guilds.size() == allocatedGuilds) {
+			List<Document> guilds = data.getList("guilds", Document.class, Collections.emptyList());
+			if (guilds.stream().anyMatch(d -> d.getLong("id") == guildId)) {
+				event.reply("You are already giving premium to this server " + this.config.getFailureEmote()).queue();
+				return CompletableFuture.completedFuture(null);
+			}
+
+			if (guilds.size() >= allocatedGuilds) {
 				event.replyFormat("You have used all your premium servers (**%d/%<d**) " + this.config.getFailureEmote(), allocatedGuilds).queue();
-				return;
+				return CompletableFuture.completedFuture(null);
 			}
 			
-			this.database.updateGuildById(guildId, Updates.set("premium", event.getAuthor().getIdLong())).whenComplete((result, guildException) -> {
-				if (ExceptionUtility.sendExceptionally(event, guildException)) {
-					return;
-				}
-				
-				event.reply("That server is now premium " + this.config.getSuccessEmote()).queue();
-			});
+			return this.database.updateGuildById(guildId, Updates.set("premium", event.getAuthor().getIdLong()));
+		}).whenComplete((result, exception) -> {
+			if (ExceptionUtility.sendExceptionally(event, exception) || result == null) {
+				return;
+			}
+
+			event.reply("That server is now premium " + this.config.getSuccessEmote()).queue();
 		});
 	}
 	
@@ -92,25 +103,38 @@ public class PremiumCommand extends Sx4Command {
 			guild = event.getGuild();
 		}
 		
-		long guildId = guild.getIdLong();
-		
-		this.database.updatePatronByFilter(Filters.eq("discordId", event.getAuthor().getIdLong()), Updates.pull("guilds", guildId)).whenComplete((result, exception) -> {
-			if (ExceptionUtility.sendExceptionally(event, exception)) {
-				return;
-			}
-			
-			if (result.getModifiedCount() == 0) {
+		long guildId = guild.getIdLong(), now = Clock.systemUTC().instant().getEpochSecond();
+
+		Bson guildsMap = Operators.ifNull("$guilds", Collections.EMPTY_LIST);
+		Bson since = Operators.first(Operators.map(Operators.filter("$guilds", Operators.eq("$$this.id", guildId)), "$$this.since"));
+		List<Bson> update = List.of(Operators.set("guilds", Operators.cond(Operators.lt(Operators.subtract(now, since), 604800L), guildsMap, Operators.filter(guildsMap, Operators.ne("$$this.id", guildId)))));
+
+		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().projection(Projections.include("guilds")).returnDocument(ReturnDocument.BEFORE);
+		this.database.findAndUpdatePatronByFilter(Filters.eq("discordId", event.getAuthor().getIdLong()), update, options).thenCompose(data -> {
+			data = data == null ? Database.EMPTY_DOCUMENT : data;
+
+			Document guildData = data.getList("guilds", Document.class, Collections.emptyList()).stream()
+				.filter(d -> d.getLong("id") == guildId)
+				.findFirst()
+				.orElse(null);
+
+			if (guildData == null) {
 				event.reply("You are not giving premium to that server " + this.config.getFailureEmote()).queue();
-				return;
+				return CompletableFuture.completedFuture(null);
+			}
+
+			if (now - guildData.getLong("since") < 604800L) {
+				event.reply("You cannot remove premium from a server 7 days within giving it premium " + this.config.getFailureEmote()).queue();
+				return CompletableFuture.completedFuture(null);
 			}
 			
-			this.database.updateGuildById(guildId, Updates.unset("premium")).whenComplete((guildResult, guildException) -> {
-				if (ExceptionUtility.sendExceptionally(event, guildException)) {
-					return;
-				}
-				
-				event.reply("That server is no longer premium " + this.config.getSuccessEmote()).queue();
-			});
+			return this.database.updateGuildById(guildId, Updates.unset("premium"));
+		}).whenComplete((result, exception) -> {
+			if (ExceptionUtility.sendExceptionally(event, exception) || result == null) {
+				return;
+			}
+
+			event.reply("That server is no longer premium " + this.config.getSuccessEmote()).queue();
 		});
 	}
 	
@@ -119,24 +143,27 @@ public class PremiumCommand extends Sx4Command {
 	public void list(Sx4CommandEvent event) {
 		Document data = this.database.getPatronByFilter(Filters.eq("discordId", event.getAuthor().getIdLong()), Projections.include("guilds", "amount"));
 		
-		List<Long> guildIds = data.getList("guilds", Long.class, Collections.emptyList());
-		if (guildIds.isEmpty()) {
+		List<Document> guilds = data.getList("guilds", Document.class, Collections.emptyList());
+		if (guilds.isEmpty()) {
 			event.reply("You are not giving premium to any servers " + this.config.getFailureEmote()).queue();
 			return;
 		}
 		
 		int allocatedGuilds = data.getInteger("amount") / Config.get().getPremiumPrice();
 		
-		ShardManager shardManager = event.getShardManager();	
-		
-		List<Guild> guilds = guildIds.stream()
-			.map(shardManager::getGuildById)
-			.filter(Objects::nonNull)
+		List<String> guildsFormat = guilds.stream()
+			.sorted(Comparator.comparing(guildData -> guildData.getLong("since")))
+			.map(guildData -> {
+				long guildId = guildData.getLong("id"), since = guildData.getLong("since");
+				Guild guild = event.getShardManager().getGuildById(guildId);
+
+				return String.format("`%s` (%s)", (guild == null ? "Unknown (" + guildId + ")" : guild.getName()), ZonedDateTime.ofInstant(Instant.ofEpochSecond(since), ZoneOffset.UTC).format(DateTimeFormatter.ofPattern("d MMM y")));
+			})
 			.collect(Collectors.toList());
 		
-		PagedResult<Guild> paged = new PagedResult<>(guilds)
+		PagedResult<String> paged = new PagedResult<>(guildsFormat)
 			.setAuthor(String.format("Premium Servers (%d/%d)", guilds.size(), allocatedGuilds), null, event.getAuthor().getEffectiveAvatarUrl())
-			.setDisplayFunction(Guild::getName);
+			.setIndexed(false);
 		
 		paged.execute(event);
 	}

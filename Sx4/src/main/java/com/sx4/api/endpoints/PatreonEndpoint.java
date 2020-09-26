@@ -33,18 +33,13 @@ public class PatreonEndpoint {
 			return Response.status(401).build();
 		}
 		
-		System.out.println(body);
-		
 		Document document = Document.parse(body);
 		int centsDonated = document.getEmbedded(List.of("data", "attributes", "currently_entitled_amount_cents"), int.class);
 		
-		Document user = null;
-	    for (Document included : document.getList("included", Document.class)) {
-	        if (included.getString("type").equals("user")) {
-	            user = included;
-	            break;
-	        }
-	    }
+		Document user = document.getList("included", Document.class).stream()
+			.filter(included -> included.getString("type").equals("user"))
+			.findFirst()
+			.orElse(null);
 	    
 	    if (user != null) {
 	        String discordIdString = user.getEmbedded(List.of("attributes", "social_connections", "discord", "user_id"), String.class), id = user.getString("id");

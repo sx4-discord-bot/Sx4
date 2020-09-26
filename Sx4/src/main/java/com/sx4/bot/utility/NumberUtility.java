@@ -30,23 +30,18 @@ public class NumberUtility {
 	
 	public static String getSuffix(int number) {
 		int remainderTens = number % 100;
-		String suffix;
-		if (remainderTens >= 11 && remainderTens <= 13) {
-			suffix = "th";
-		} else {
+		if (remainderTens < 11 || remainderTens > 13) {
 			int remainderOnes = number % 10;
 			if (remainderOnes == 1) {
-				suffix = "st";
+				return "st";
 			} else if (remainderOnes == 2) {
-				suffix = "nd";
+				return "nd";
 			} else if (remainderOnes == 3) {
-				suffix = "rd";
-			} else {
-				suffix = "th";
+				return "rd";
 			}
 		}
 		
-		return suffix;
+		return "th";
 	}
 	
 	public static String getSuffixed(int number) {
