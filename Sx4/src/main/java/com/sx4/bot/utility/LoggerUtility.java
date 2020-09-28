@@ -96,7 +96,7 @@ public class LoggerUtility {
         return 0L;
     }
 
-    public static boolean isWhitelisted(List<Document> entities, LoggerEvent event, long roleId, long userId, long moderatorId, GuildChannel channel) {
+    public static boolean isWhitelisted(List<Document> entities, LoggerEvent event, long roleId, long userId, long channelId, long moderatorId) {
         for (Document entity : entities) {
             if ((entity.getLong("events") & event.getRaw()) != event.getRaw()) {
                 continue;
@@ -126,14 +126,8 @@ public class LoggerUtility {
                 case VOICE_CHANNEL:
                 case TEXT_CHANNEL:
                 case STORE_CHANNEL:
-                    if (channel.getIdLong() == id) {
-                        return false;
-                    }
-
-                    break;
                 case CATEGORY:
-                    GuildChannel parent = channel.getParent();
-                    if (((parent == null && channel.getIdLong() == id) || (parent != null && parent.getIdLong() == id))) {
+                    if (channelId == id) {
                         return false;
                     }
 
@@ -145,7 +139,7 @@ public class LoggerUtility {
     }
 
     public static boolean isWhitelisted(List<Document> entities, LoggerEvent event, LoggerContext context) {
-        return LoggerUtility.isWhitelisted(entities, event, context.hasRole() ? context.getRole().getIdLong() : 0L, context.hasUser() ? context.getUser().getIdLong() : 0L, context.hasModerator() ? context.getModerator().getIdLong() : 0L, context.getChannel());
+        return LoggerUtility.isWhitelisted(entities, event, context.hasRole() ? context.getRole().getIdLong() : 0L, context.hasUser() ? context.getUser().getIdLong() : 0L, context.hasChannel() ? context.getChannel().getIdLong() : 0L, context.hasModerator() ? context.getModerator().getIdLong() : 0L);
     }
 
     public static boolean canSend(Document logger, LoggerEvent event, LoggerContext context) {

@@ -4,8 +4,9 @@ import java.util.Collection;
 
 public enum LoggerEvent {
 
-    MESSAGE_DELETE(1, LoggerCategory.USER, LoggerCategory.TEXT_CHANNEL, LoggerCategory.CATEGORY),
-    MESSAGE_UPDATE(2, LoggerCategory.USER, LoggerCategory.TEXT_CHANNEL, LoggerCategory.CATEGORY),
+    MEMBER_KICKED(0, LoggerCategory.USER, LoggerCategory.AUDIT),
+    MESSAGE_DELETE(1, LoggerCategory.USER, LoggerCategory.TEXT_CHANNEL),
+    MESSAGE_UPDATE(2, LoggerCategory.USER, LoggerCategory.TEXT_CHANNEL),
     MEMBER_JOIN(3, LoggerCategory.USER),
     MEMBER_ROLE_ADD(4, LoggerCategory.USER, LoggerCategory.ROLE, LoggerCategory.AUDIT),
     MEMBER_ROLE_REMOVE(5, LoggerCategory.USER, LoggerCategory.ROLE, LoggerCategory.AUDIT),
@@ -13,10 +14,10 @@ public enum LoggerEvent {
     MEMBER_LEAVE(7, LoggerCategory.USER),
     MEMBER_BANNED(8, LoggerCategory.USER, LoggerCategory.AUDIT),
     MEMBER_UNBANNED(9, LoggerCategory.USER, LoggerCategory.AUDIT),
-    MEMBER_SERVER_VOICE_MUTE(10, LoggerCategory.USER, LoggerCategory.VOICE_CHANNEL, LoggerCategory.CATEGORY, LoggerCategory.AUDIT),
-    MEMBER_SERVER_VOICE_DEAFEN(11, LoggerCategory.USER, LoggerCategory.VOICE_CHANNEL, LoggerCategory.CATEGORY, LoggerCategory.AUDIT),
-    MEMBER_VOICE_JOIN(12, LoggerCategory.USER, LoggerCategory.VOICE_CHANNEL, LoggerCategory.CATEGORY),
-    MEMBER_VOICE_LEAVE(13, LoggerCategory.USER, LoggerCategory.VOICE_CHANNEL, LoggerCategory.CATEGORY),
+    MEMBER_SERVER_VOICE_MUTE(10, LoggerCategory.USER, LoggerCategory.VOICE_CHANNEL, LoggerCategory.AUDIT),
+    MEMBER_SERVER_VOICE_DEAFEN(11, LoggerCategory.USER, LoggerCategory.VOICE_CHANNEL, LoggerCategory.AUDIT),
+    MEMBER_VOICE_JOIN(12, LoggerCategory.USER, LoggerCategory.VOICE_CHANNEL),
+    MEMBER_VOICE_LEAVE(13, LoggerCategory.USER, LoggerCategory.VOICE_CHANNEL),
     MEMBER_VOICE_MOVE(14, LoggerCategory.USER, LoggerCategory.AUDIT),
     STORE_CHANNEL_DELETE(15, LoggerCategory.STORE_CHANNEL, LoggerCategory.AUDIT),
     STORE_CHANNEL_CREATE(16, LoggerCategory.STORE_CHANNEL, LoggerCategory.AUDIT),
@@ -35,16 +36,16 @@ public enum LoggerEvent {
     ROLE_NAME_UPDATE(29, LoggerCategory.ROLE, LoggerCategory.AUDIT),
     ROLE_PERMISSION_UPDATE(30, LoggerCategory.ROLE, LoggerCategory.AUDIT),
     BOT_ADDED(31, LoggerCategory.USER, LoggerCategory.AUDIT),
-    MEMBER_VOICE_DISCONNECT(32, LoggerCategory.USER, LoggerCategory.VOICE_CHANNEL, LoggerCategory.CATEGORY, LoggerCategory.AUDIT),
-    TEXT_CHANNEL_OVERRIDE_UPDATE(33, LoggerCategory.TEXT_CHANNEL, LoggerCategory.CATEGORY, LoggerCategory.USER, LoggerCategory.ROLE, LoggerCategory.AUDIT),
-    TEXT_CHANNEL_OVERRIDE_DELETE(34, LoggerCategory.TEXT_CHANNEL, LoggerCategory.CATEGORY, LoggerCategory.USER, LoggerCategory.ROLE, LoggerCategory.AUDIT),
-    TEXT_CHANNEL_OVERRIDE_CREATE(35, LoggerCategory.TEXT_CHANNEL, LoggerCategory.CATEGORY, LoggerCategory.USER, LoggerCategory.ROLE, LoggerCategory.AUDIT),
-    STORE_CHANNEL_OVERRIDE_UPDATE(36, LoggerCategory.STORE_CHANNEL, LoggerCategory.CATEGORY, LoggerCategory.USER, LoggerCategory.ROLE, LoggerCategory.AUDIT),
-    STORE_CHANNEL_OVERRIDE_DELETE(37, LoggerCategory.STORE_CHANNEL, LoggerCategory.CATEGORY, LoggerCategory.USER, LoggerCategory.ROLE, LoggerCategory.AUDIT),
-    STORE_CHANNEL_OVERRIDE_CREATE(38, LoggerCategory.STORE_CHANNEL, LoggerCategory.CATEGORY, LoggerCategory.USER, LoggerCategory.ROLE, LoggerCategory.AUDIT),
-    VOICE_CHANNEL_OVERRIDE_UPDATE(39, LoggerCategory.VOICE_CHANNEL, LoggerCategory.CATEGORY, LoggerCategory.USER, LoggerCategory.ROLE, LoggerCategory.AUDIT),
-    VOICE_CHANNEL_OVERRIDE_DELETE(40, LoggerCategory.VOICE_CHANNEL, LoggerCategory.CATEGORY, LoggerCategory.USER, LoggerCategory.ROLE, LoggerCategory.AUDIT),
-    VOICE_CHANNEL_OVERRIDE_CREATE(41, LoggerCategory.VOICE_CHANNEL, LoggerCategory.CATEGORY, LoggerCategory.USER, LoggerCategory.ROLE, LoggerCategory.AUDIT);
+    MEMBER_VOICE_DISCONNECT(32, LoggerCategory.USER, LoggerCategory.VOICE_CHANNEL, LoggerCategory.AUDIT),
+    TEXT_CHANNEL_OVERRIDE_UPDATE(33, LoggerCategory.TEXT_CHANNEL, LoggerCategory.USER, LoggerCategory.ROLE, LoggerCategory.AUDIT),
+    TEXT_CHANNEL_OVERRIDE_DELETE(34, LoggerCategory.TEXT_CHANNEL, LoggerCategory.USER, LoggerCategory.ROLE, LoggerCategory.AUDIT),
+    TEXT_CHANNEL_OVERRIDE_CREATE(35, LoggerCategory.TEXT_CHANNEL, LoggerCategory.USER, LoggerCategory.ROLE, LoggerCategory.AUDIT),
+    STORE_CHANNEL_OVERRIDE_UPDATE(36, LoggerCategory.STORE_CHANNEL, LoggerCategory.USER, LoggerCategory.ROLE, LoggerCategory.AUDIT),
+    STORE_CHANNEL_OVERRIDE_DELETE(37, LoggerCategory.STORE_CHANNEL, LoggerCategory.USER, LoggerCategory.ROLE, LoggerCategory.AUDIT),
+    STORE_CHANNEL_OVERRIDE_CREATE(38, LoggerCategory.STORE_CHANNEL, LoggerCategory.USER, LoggerCategory.ROLE, LoggerCategory.AUDIT),
+    VOICE_CHANNEL_OVERRIDE_UPDATE(39, LoggerCategory.VOICE_CHANNEL, LoggerCategory.USER, LoggerCategory.ROLE, LoggerCategory.AUDIT),
+    VOICE_CHANNEL_OVERRIDE_DELETE(40, LoggerCategory.VOICE_CHANNEL, LoggerCategory.USER, LoggerCategory.ROLE, LoggerCategory.AUDIT),
+    VOICE_CHANNEL_OVERRIDE_CREATE(41, LoggerCategory.VOICE_CHANNEL, LoggerCategory.USER, LoggerCategory.ROLE, LoggerCategory.AUDIT);
 
     public static final long ALL = LoggerEvent.getRaw(LoggerEvent.values());
     private static final LoggerEvent[] EMPTY = new LoggerEvent[0];
