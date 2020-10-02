@@ -4,6 +4,7 @@ import club.minnced.discord.webhook.send.WebhookEmbed;
 import com.sx4.bot.entities.logger.LoggerContext;
 import com.sx4.bot.entities.management.logger.LoggerCategory;
 import com.sx4.bot.entities.management.logger.LoggerEvent;
+import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.*;
 import org.bson.Document;
 
@@ -153,6 +154,84 @@ public class LoggerUtility {
 
         List<Document> entities = logger.getEmbedded(List.of("blacklist", "entities"), Collections.emptyList());
         return LoggerUtility.isWhitelisted(entities, event, context);
+    }
+
+    public static String getPermissionOverrideDifference(long permissionsBeforeAllowed, long permissionsBeforeInherit, long permissionsBeforeDenied, PermissionOverride permissionOverrideAfter) {
+        StringBuilder builder = new StringBuilder();
+
+        long permissionsAfterAllowed = permissionOverrideAfter.getAllowedRaw();
+        long permissionsAllowed =  permissionsBeforeAllowed ^ permissionsAfterAllowed;
+
+        EnumSet<Permission> permissionsAddedAllowed = Permission.getPermissions(permissionsAfterAllowed & permissionsAllowed);
+
+        long permissionsAfterInherit = permissionOverrideAfter.getInheritRaw();
+        long permissionsInherit =  permissionsBeforeInherit ^ permissionsAfterInherit;
+
+        EnumSet<Permission> permissionsAddedInherit = Permission.getPermissions(permissionsAfterInherit & permissionsInherit);
+
+        long permissionsAfterDenied = permissionOverrideAfter.getDeniedRaw();
+        long permissionsDenied =  permissionsBeforeDenied ^ permissionsAfterDenied;
+
+        EnumSet<Permission> permissionsAddedDenied = Permission.getPermissions(permissionsAfterDenied & permissionsDenied);
+
+        if (!permissionsAddedAllowed.isEmpty() || !permissionsAddedInherit.isEmpty() || !permissionsAddedDenied.isEmpty()) {
+            builder.append("\n```diff");
+
+            for (Permission permission : permissionsAddedAllowed) {
+                builder.append("\n+ ").append(permission.getName());
+            }
+
+            for (Permission permission : permissionsAddedInherit) {
+                builder.append("\n/ ").append(permission.getName());
+            }
+
+            for (Permission permission : permissionsAddedDenied) {
+                builder.append("\n- ").append(permission.getName());
+            }
+
+            builder.append("```");
+        }
+
+        return builder.toString();
+    }
+
+    public static String getRolePermissionDifference(long permissionsBefore, long permissionsAfter) {
+        StringBuilder builder = new StringBuilder();
+
+        long permissions = permissionsBefore ^ permissionsAfter;
+
+        EnumSet<Permission> permissionsAdded = Permission.getPermissions(permissionsAfter & permissions);
+        EnumSet<Permission> permissionsRemoved = Permission.getPermissions(permissionsBefore & permissions);
+
+        if (!permissionsAdded.isEmpty() || !permissionsRemoved.isEmpty()) {
+            builder.append("\n```diff");
+
+            for(Permission permissionAdded : permissionsAdded) {
+                builder.append("\n+ ").append(permissionAdded.getName());
+            }
+
+            for(Permission permissionRemoved : permissionsRemoved) {
+                builder.append("\n- ").append(permissionRemoved.getName());
+            }
+
+            builder.append("```");
+        }
+
+        return builder.toString();
+    }
+
+    public static String getChannelTypeReadable(ChannelType channelType) {
+        String type;
+        if (channelType == ChannelType.TEXT || channelType == ChannelType.VOICE || channelType == ChannelType.STORE) {
+            type = channelType.toString().toLowerCase() + " channel";
+        } else if(channelType == ChannelType.CATEGORY) {
+            type = "category";
+        } else {
+            // return unknown so it can easily be reported as a bug user side rather than throwing an NPE
+            return "unknown";
+        }
+
+        return type;
     }
 
 }

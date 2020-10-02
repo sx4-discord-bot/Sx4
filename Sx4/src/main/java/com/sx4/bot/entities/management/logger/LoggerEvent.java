@@ -45,7 +45,10 @@ public enum LoggerEvent {
     STORE_CHANNEL_OVERRIDE_CREATE(38, LoggerCategory.STORE_CHANNEL, LoggerCategory.USER, LoggerCategory.ROLE, LoggerCategory.AUDIT),
     VOICE_CHANNEL_OVERRIDE_UPDATE(39, LoggerCategory.VOICE_CHANNEL, LoggerCategory.USER, LoggerCategory.ROLE, LoggerCategory.AUDIT),
     VOICE_CHANNEL_OVERRIDE_DELETE(40, LoggerCategory.VOICE_CHANNEL, LoggerCategory.USER, LoggerCategory.ROLE, LoggerCategory.AUDIT),
-    VOICE_CHANNEL_OVERRIDE_CREATE(41, LoggerCategory.VOICE_CHANNEL, LoggerCategory.USER, LoggerCategory.ROLE, LoggerCategory.AUDIT);
+    VOICE_CHANNEL_OVERRIDE_CREATE(41, LoggerCategory.VOICE_CHANNEL, LoggerCategory.USER, LoggerCategory.ROLE, LoggerCategory.AUDIT),
+    CATEGORY_OVERRIDE_UPDATE(42, LoggerCategory.CATEGORY, LoggerCategory.USER, LoggerCategory.ROLE, LoggerCategory.AUDIT),
+    CATEGORY_OVERRIDE_DELETE(43, LoggerCategory.CATEGORY, LoggerCategory.USER, LoggerCategory.ROLE, LoggerCategory.AUDIT),
+    CATEGORY_OVERRIDE_CREATE(44, LoggerCategory.CATEGORY, LoggerCategory.USER, LoggerCategory.ROLE, LoggerCategory.AUDIT);
 
     public static final long ALL = LoggerEvent.getRaw(LoggerEvent.values());
     private static final LoggerEvent[] EMPTY = new LoggerEvent[0];
