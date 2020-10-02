@@ -4,9 +4,8 @@ import java.util.Collection;
 
 public enum LoggerEvent {
 
+    // Member events
     MEMBER_KICKED(0, LoggerCategory.USER, LoggerCategory.AUDIT),
-    MESSAGE_DELETE(1, LoggerCategory.USER, LoggerCategory.TEXT_CHANNEL),
-    MESSAGE_UPDATE(2, LoggerCategory.USER, LoggerCategory.TEXT_CHANNEL),
     MEMBER_JOIN(3, LoggerCategory.USER),
     MEMBER_ROLE_ADD(4, LoggerCategory.USER, LoggerCategory.ROLE, LoggerCategory.AUDIT),
     MEMBER_ROLE_REMOVE(5, LoggerCategory.USER, LoggerCategory.ROLE, LoggerCategory.AUDIT),
@@ -19,6 +18,22 @@ public enum LoggerEvent {
     MEMBER_VOICE_JOIN(12, LoggerCategory.USER, LoggerCategory.VOICE_CHANNEL),
     MEMBER_VOICE_LEAVE(13, LoggerCategory.USER, LoggerCategory.VOICE_CHANNEL),
     MEMBER_VOICE_MOVE(14, LoggerCategory.USER, LoggerCategory.AUDIT),
+    MEMBER_VOICE_DISCONNECT(32, LoggerCategory.USER, LoggerCategory.VOICE_CHANNEL, LoggerCategory.AUDIT),
+
+    // Guild events
+    BOT_ADDED(31, LoggerCategory.USER, LoggerCategory.AUDIT),
+
+    // Message events
+    MESSAGE_DELETE(1, LoggerCategory.USER, LoggerCategory.TEXT_CHANNEL),
+    MESSAGE_UPDATE(2, LoggerCategory.USER, LoggerCategory.TEXT_CHANNEL),
+
+    // Role events
+    ROLE_CREATE(27, LoggerCategory.ROLE, LoggerCategory.AUDIT),
+    ROLE_DELETE(28, LoggerCategory.ROLE, LoggerCategory.AUDIT),
+    ROLE_NAME_UPDATE(29, LoggerCategory.ROLE, LoggerCategory.AUDIT),
+    ROLE_PERMISSION_UPDATE(30, LoggerCategory.ROLE, LoggerCategory.AUDIT),
+
+    // Channel events
     STORE_CHANNEL_DELETE(15, LoggerCategory.STORE_CHANNEL, LoggerCategory.AUDIT),
     STORE_CHANNEL_CREATE(16, LoggerCategory.STORE_CHANNEL, LoggerCategory.AUDIT),
     STORE_CHANNEL_NAME_UPDATE(17, LoggerCategory.STORE_CHANNEL, LoggerCategory.AUDIT),
@@ -31,12 +46,6 @@ public enum LoggerEvent {
     CATEGORY_DELETE(24, LoggerCategory.CATEGORY, LoggerCategory.AUDIT),
     CATEGORY_CREATE(25, LoggerCategory.CATEGORY, LoggerCategory.AUDIT),
     CATEGORY_NAME_UPDATE(26, LoggerCategory.CATEGORY, LoggerCategory.AUDIT),
-    ROLE_CREATE(27, LoggerCategory.ROLE, LoggerCategory.AUDIT),
-    ROLE_DELETE(28, LoggerCategory.ROLE, LoggerCategory.AUDIT),
-    ROLE_NAME_UPDATE(29, LoggerCategory.ROLE, LoggerCategory.AUDIT),
-    ROLE_PERMISSION_UPDATE(30, LoggerCategory.ROLE, LoggerCategory.AUDIT),
-    BOT_ADDED(31, LoggerCategory.USER, LoggerCategory.AUDIT),
-    MEMBER_VOICE_DISCONNECT(32, LoggerCategory.USER, LoggerCategory.VOICE_CHANNEL, LoggerCategory.AUDIT),
     TEXT_CHANNEL_OVERRIDE_UPDATE(33, LoggerCategory.TEXT_CHANNEL, LoggerCategory.USER, LoggerCategory.ROLE, LoggerCategory.AUDIT),
     TEXT_CHANNEL_OVERRIDE_DELETE(34, LoggerCategory.TEXT_CHANNEL, LoggerCategory.USER, LoggerCategory.ROLE, LoggerCategory.AUDIT),
     TEXT_CHANNEL_OVERRIDE_CREATE(35, LoggerCategory.TEXT_CHANNEL, LoggerCategory.USER, LoggerCategory.ROLE, LoggerCategory.AUDIT),
