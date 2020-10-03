@@ -46,6 +46,7 @@ import net.dv8tion.jda.api.events.guild.override.PermissionOverrideDeleteEvent;
 import net.dv8tion.jda.api.events.guild.override.PermissionOverrideUpdateEvent;
 import net.dv8tion.jda.api.events.guild.voice.GuildVoiceJoinEvent;
 import net.dv8tion.jda.api.events.guild.voice.GuildVoiceLeaveEvent;
+import net.dv8tion.jda.api.events.guild.voice.GuildVoiceMoveEvent;
 import net.dv8tion.jda.api.events.message.MessageBulkDeleteEvent;
 import net.dv8tion.jda.api.events.message.guild.GuildMessageDeleteEvent;
 import net.dv8tion.jda.api.events.message.guild.GuildMessageUpdateEvent;
@@ -75,6 +76,7 @@ public class LoggerHandler extends ListenerAdapter {
 	private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
 
 	private final Map<Long, Map<Long, Integer>> disconnectCache = new HashMap<>();
+	private final Map<Long, Map<Long, Integer>> moveCache = new HashMap<>();
 
 	private final LoggerManager manager = LoggerManager.get();
 	private final Database database = Database.get();
@@ -401,23 +403,13 @@ public class LoggerHandler extends ListenerAdapter {
 
 		if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
 			event.getGuild().retrieveAuditLogs().type(ActionType.MEMBER_VOICE_KICK).queueAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS, logs -> {
-				Set<Long> ids = new HashSet<>();
-
 				Map<Long, Integer> guildCache = this.disconnectCache.computeIfAbsent(guild.getIdLong(), key -> new HashMap<>());
 
 				AuditLogEntry entry = logs.stream()
 					.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toMinutes() <= 10)
 					.filter(e -> {
-						long id = e.getUser().getIdLong();
-
 						int count = Integer.parseInt(e.getOptionByName("count"));
-						int oldCount = guildCache.getOrDefault(id, 0);
-
-						if (ids.contains(id)) {
-							return false;
-						}
-
-						ids.add(id);
+						int oldCount = guildCache.getOrDefault(e.getIdLong(), 0);
 
 						return (count == 1 && count != oldCount) || count > oldCount;
 					})
@@ -430,21 +422,73 @@ public class LoggerHandler extends ListenerAdapter {
 				LoggerEvent loggerEvent = moderator == null ? LoggerEvent.MEMBER_VOICE_LEAVE : LoggerEvent.MEMBER_VOICE_DISCONNECT;
 
 				if (moderator != null) {
-					guildCache.put(moderator.getIdLong(), Integer.parseInt(entry.getOptionByName("count")));
+					guildCache.put(entry.getIdLong(), Integer.parseInt(entry.getOptionByName("count")));
 
 					embed.setDescription(String.format("`%s` was disconnected from the voice channel `%s` by **%s**", member.getEffectiveName(), channel.getName(), moderator.getAsTag()));
 				}
 
 				this.manager.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 			});
+		} else {
+			LoggerContext loggerContext = new LoggerContext(user, channel, null);
+			LoggerEvent loggerEvent = LoggerEvent.MEMBER_VOICE_LEAVE;
 
-			return;
+			this.manager.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 		}
+	}
 
-		LoggerContext loggerContext = new LoggerContext(user, channel, null);
-		LoggerEvent loggerEvent = LoggerEvent.MEMBER_VOICE_LEAVE;
+	public void onGuildVoiceMove(GuildVoiceMoveEvent event) {
+		Guild guild = event.getGuild();
+		Member member = event.getMember();
+		User user = member.getUser();
+		VoiceChannel joined = event.getChannelJoined(), left = event.getChannelLeft();
 
-		this.manager.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+		LoggerEvent loggerEvent = LoggerEvent.MEMBER_VOICE_MOVE;
+
+		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
+		embed.setDescription(String.format("`%s` just changed voice channel", member.getEffectiveName()));
+		embed.setColor(this.config.getOrange());
+		embed.setTimestamp(Instant.now());
+		embed.setAuthor(new EmbedAuthor(member.getUser().getAsTag(), member.getUser().getEffectiveAvatarUrl(), null));
+
+		embed.addField(new EmbedField(false, "Before", String.format("`%s`", left.getName())));
+		embed.addField(new EmbedField(false, "After", String.format("`%s`", joined.getName())));
+
+		List<Document> loggers = this.database.getGuildById(guild.getIdLong(), Projections.include("logger.loggers")).getEmbedded(List.of("logger", "loggers"), Collections.emptyList());
+
+		if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
+			event.getGuild().retrieveAuditLogs().type(ActionType.MEMBER_VOICE_MOVE).queueAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS, logs -> {
+				Map<Long, Integer> channelCache = this.moveCache.computeIfAbsent(joined.getIdLong(), key -> new HashMap<>());
+
+				AuditLogEntry entry = logs.stream()
+					.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toMinutes() <= 10)
+					.filter(e -> Long.parseLong(e.getOptionByName("channel_id")) == joined.getIdLong())
+					.filter(e -> {
+						int count = Integer.parseInt(e.getOptionByName("count"));
+						int oldCount = channelCache.getOrDefault(e.getIdLong(), 0);
+
+						return (count == 1 && count != oldCount) || count > oldCount;
+					})
+					.findFirst()
+					.orElse(null);
+
+				User moderator = entry == null ? null : entry.getUser();
+
+				LoggerContext loggerContext = new LoggerContext(user, joined, null, moderator);
+
+				if (moderator != null) {
+					channelCache.put(entry.getIdLong(), Integer.parseInt(entry.getOptionByName("count")));
+
+					embed.setDescription(String.format("`%s` was moved voice channel by **%s**", member.getEffectiveName(), moderator.getAsTag()));
+				}
+
+				this.manager.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+			});
+		} else {
+			LoggerContext loggerContext = new LoggerContext(user, joined, null);
+
+			this.manager.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+		}
 	}
 
 	public void onPermissionOverrideCreate(PermissionOverrideCreateEvent event) {
