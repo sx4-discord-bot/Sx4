@@ -76,7 +76,7 @@ public class Sx4 {
 		.build();
 	
 	private final CommandListener commandListener;
-	private ShardManager shardManager;
+	private final ShardManager shardManager;
 	
 	private Sx4() {
 		ModActionManager.get()

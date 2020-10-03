@@ -32,6 +32,7 @@ public enum LoggerEvent {
     ROLE_DELETE(28, LoggerCategory.ROLE, LoggerCategory.AUDIT),
     ROLE_NAME_UPDATE(29, LoggerCategory.ROLE, LoggerCategory.AUDIT),
     ROLE_PERMISSION_UPDATE(30, LoggerCategory.ROLE, LoggerCategory.AUDIT),
+    ROLE_COLOUR_UPDATE(45, LoggerCategory.ROLE, LoggerCategory.AUDIT),
 
     // Channel events
     STORE_CHANNEL_DELETE(15, LoggerCategory.STORE_CHANNEL, LoggerCategory.AUDIT),

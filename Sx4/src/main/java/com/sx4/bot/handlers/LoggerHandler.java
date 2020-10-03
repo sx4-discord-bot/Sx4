@@ -14,6 +14,7 @@ import com.sx4.bot.database.Database;
 import com.sx4.bot.entities.logger.LoggerContext;
 import com.sx4.bot.entities.management.logger.LoggerEvent;
 import com.sx4.bot.managers.LoggerManager;
+import com.sx4.bot.utility.ColourUtility;
 import com.sx4.bot.utility.LoggerUtility;
 import com.sx4.bot.utility.StringUtility;
 import net.dv8tion.jda.api.Permission;
@@ -38,6 +39,8 @@ import net.dv8tion.jda.api.events.guild.GuildBanEvent;
 import net.dv8tion.jda.api.events.guild.GuildUnbanEvent;
 import net.dv8tion.jda.api.events.guild.member.GuildMemberJoinEvent;
 import net.dv8tion.jda.api.events.guild.member.GuildMemberRemoveEvent;
+import net.dv8tion.jda.api.events.guild.member.GuildMemberRoleAddEvent;
+import net.dv8tion.jda.api.events.guild.member.GuildMemberRoleRemoveEvent;
 import net.dv8tion.jda.api.events.guild.override.PermissionOverrideCreateEvent;
 import net.dv8tion.jda.api.events.guild.override.PermissionOverrideDeleteEvent;
 import net.dv8tion.jda.api.events.guild.override.PermissionOverrideUpdateEvent;
@@ -48,6 +51,7 @@ import net.dv8tion.jda.api.events.message.guild.GuildMessageDeleteEvent;
 import net.dv8tion.jda.api.events.message.guild.GuildMessageUpdateEvent;
 import net.dv8tion.jda.api.events.role.RoleCreateEvent;
 import net.dv8tion.jda.api.events.role.RoleDeleteEvent;
+import net.dv8tion.jda.api.events.role.update.RoleUpdateColorEvent;
 import net.dv8tion.jda.api.events.role.update.RoleUpdateNameEvent;
 import net.dv8tion.jda.api.events.role.update.RoleUpdatePermissionsEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
@@ -914,6 +918,51 @@ public class LoggerHandler extends ListenerAdapter {
 		}
 	}
 
+	public void onRoleUpdateColor(RoleUpdateColorEvent event) {
+		Guild guild = event.getGuild();
+		Role role = event.getRole();
+
+		LoggerEvent loggerEvent = LoggerEvent.ROLE_COLOUR_UPDATE;
+
+		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
+		embed.setDescription(String.format("The role %s has been given a new colour", role.getAsMention()));
+		embed.setColor(this.config.getOrange());
+		embed.setTimestamp(Instant.now());
+		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
+		embed.setFooter(new EmbedFooter(String.format("Role ID: %s", role.getId()), null));
+
+		int oldColour = event.getOldColorRaw(), newColour = event.getNewColorRaw();
+
+		embed.addField(new EmbedField(false, "Before", String.format("Hex: [#%s](%3$s%1$s)\nRGB: [%2$s](%3$s%1$s)", ColourUtility.toHexString(oldColour), ColourUtility.toRGBString(oldColour), "https://image.sx4bot.co.uk/api/colour?w=1000&h=500&hex=")));
+		embed.addField(new EmbedField(false, "After", String.format("Hex: [#%s](%3$s%1$s)\nRGB: [%2$s](%3$s%1$s)", ColourUtility.toHexString(newColour), ColourUtility.toRGBString(newColour), "https://image.sx4bot.co.uk/api/colour?w=1000&h=500&hex=")));
+
+		List<Document> loggers = this.database.getGuildById(guild.getIdLong(), Projections.include("logger.loggers")).getEmbedded(List.of("logger", "loggers"), Collections.emptyList());
+
+		if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
+			guild.retrieveAuditLogs().type(ActionType.ROLE_UPDATE).queueAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS, logs -> {
+				User moderator = logs.stream()
+					.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
+					.filter(e -> e.getTargetIdLong() == role.getIdLong())
+					.filter(e -> e.getChangeByKey(AuditLogKey.ROLE_COLOR) != null)
+					.map(AuditLogEntry::getUser)
+					.findFirst()
+					.orElse(null);
+
+				LoggerContext loggerContext = new LoggerContext(null, null, role, moderator);
+
+				if (moderator != null) {
+					embed.setDescription(String.format("The role %s has been given a new colour by **%s**", role.getAsMention(), moderator.getAsTag()));
+				}
+
+				this.manager.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+			});
+		} else {
+			LoggerContext loggerContext = new LoggerContext(null, null, role);
+
+			this.manager.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+		}
+	}
+
 	public void onRoleUpdatePermissions(RoleUpdatePermissionsEvent event) {
 		Guild guild = event.getGuild();
 		Role role = event.getRole();
@@ -963,5 +1012,202 @@ public class LoggerHandler extends ListenerAdapter {
 
 			this.manager.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 		}
+	}
+
+	public void onGuildMemberRoleAdd(GuildMemberRoleAddEvent event) {
+		Guild guild = event.getGuild();
+		Member member = event.getMember();
+		User user = event.getUser();
+
+		List<Role> roles = event.getRoles();
+		Role firstRole = roles.get(0);
+
+		LoggerEvent loggerEvent = LoggerEvent.MEMBER_ROLE_ADD;
+
+		StringBuilder description = new StringBuilder();
+
+		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
+		embed.setColor(this.config.getGreen());
+		embed.setTimestamp(Instant.now());
+		embed.setAuthor(new EmbedAuthor(user.getAsTag(), user.getEffectiveAvatarUrl(), null));
+
+		boolean multiple = roles.size() > 1;
+		if (multiple) {
+			StringBuilder builder = new StringBuilder();
+
+			/* Make sure there is always enough space to write all the components to it */
+			int maxLength = MessageEmbed.TEXT_MAX_LENGTH
+				- 32 /* Max nickname length */
+				- 32 /* Result String overhead */
+				- 16 /* " and x more" overhead */
+				- 3 /* Max length of x */;
+
+			for (int i = 0; i < roles.size(); i++) {
+				Role role = roles.get(i);
+
+				String entry = (i == roles.size() - 1 ? " and " : i != 0 ? ", " : "") + role.getAsMention();
+				if (builder.length() + entry.length() < maxLength) {
+					builder.append(entry);
+				} else {
+					builder.append(String.format(" and **%s** more", roles.size() - i));
+
+					break;
+				}
+			}
+
+			description.append(String.format("The roles %s have been added to `%s`", builder.toString(), member.getEffectiveName()));
+		} else {
+			description.append(String.format("The role %s has been added to `%s`", firstRole.getAsMention(), member.getEffectiveName()));
+			embed.setFooter(new EmbedFooter(String.format("Role ID: %s", firstRole.getId()), null));
+		}
+
+		List<Document> loggers = this.database.getGuildById(guild.getIdLong(), Projections.include("logger.loggers")).getEmbedded(List.of("logger", "loggers"), Collections.emptyList());
+
+		if (!firstRole.isManaged() && guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
+			guild.retrieveAuditLogs().type(ActionType.MEMBER_ROLE_UPDATE).queueAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS, logs -> {
+				User moderator = logs.stream()
+					.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
+					.filter(e -> e.getTargetIdLong() == member.getUser().getIdLong())
+					.filter(e -> {
+						AuditLogChange change = e.getChangeByKey(AuditLogKey.MEMBER_ROLES_ADD);
+						if (change == null) {
+							return false;
+						}
+
+						List<Map<String, String>> roleEntries = change.getNewValue();
+						List<String> roleIds = roleEntries.stream().map(roleEntry -> roleEntry.get("id")).collect(Collectors.toList());
+
+						for (Role role : roles) {
+							if (!roleIds.contains(role.getId())) {
+								return false;
+							}
+						}
+
+						return true;
+					})
+					.map(AuditLogEntry::getUser)
+					.findFirst()
+					.orElse(null);
+
+				LoggerContext loggerContext = new LoggerContext(user, null, multiple ? null : firstRole, moderator);
+
+				if (moderator != null) {
+					description.append(String.format(" by **%s**", moderator.getAsTag()));
+				}
+
+				embed.setDescription(description.toString());
+
+				this.manager.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+			});
+		} else {
+			embed.setDescription(description.toString());
+
+			LoggerContext loggerContext = new LoggerContext(user, null, multiple ? null : firstRole);
+
+			this.manager.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+		}
+	}
+
+	public void onGuildMemberRoleRemove(GuildMemberRoleRemoveEvent event) {
+		Guild guild = event.getGuild();
+		Member member = event.getMember();
+		User user = event.getUser();
+
+		List<Role> roles = event.getRoles();
+		Role firstRole = roles.get(0);
+
+		LoggerEvent loggerEvent = LoggerEvent.MEMBER_ROLE_REMOVE;
+
+		// Ensure role delete event has been sent just in case
+		this.delay(() -> {
+			StringBuilder description = new StringBuilder();
+
+			WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
+			embed.setColor(this.config.getGreen());
+			embed.setTimestamp(Instant.now());
+			embed.setAuthor(new EmbedAuthor(user.getAsTag(), user.getEffectiveAvatarUrl(), null));
+
+			boolean multiple = roles.size() > 1, deleted = false;
+			if (multiple) {
+				StringBuilder builder = new StringBuilder();
+
+				/* Make sure there is always enough space to write all the components to it */
+				int maxLength = MessageEmbed.TEXT_MAX_LENGTH
+					- 32 /* Max nickname length */
+					- 32 /* Result String overhead */
+					- 16 /* " and x more" overhead */
+					- 3 /* Max length of x */;
+
+				for (int i = 0; i < roles.size(); i++) {
+					Role role = roles.get(i);
+
+					String entry = (i == roles.size() - 1 ? " and " : i != 0 ? ", " : "") + role.getAsMention();
+					if (builder.length() + entry.length() < maxLength) {
+						builder.append(entry);
+					} else {
+						builder.append(String.format(" and **%s** more", roles.size() - i));
+
+						break;
+					}
+				}
+
+				description.append(String.format("The roles %s have been removed from `%s`", builder.toString(), member.getEffectiveName()));
+			} else {
+				deleted = guild.getRoleById(firstRole.getIdLong()) == null;
+
+				description.append(String.format("The role %s has been removed from `%s`", deleted ? "`" + firstRole.getName() + "`" : firstRole.getAsMention(), member.getEffectiveName()));
+				embed.setFooter(new EmbedFooter(String.format("Role ID: %s", firstRole.getId()), null));
+
+				if (deleted) {
+					description.append(" by **role deletion**");
+				}
+			}
+
+			List<Document> loggers = this.database.getGuildById(guild.getIdLong(), Projections.include("logger.loggers")).getEmbedded(List.of("logger", "loggers"), Collections.emptyList());
+
+			if (!deleted && !firstRole.isManaged() && guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
+				guild.retrieveAuditLogs().type(ActionType.MEMBER_ROLE_UPDATE).queue(logs -> {
+					User moderator = logs.stream()
+						.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
+						.filter(e -> e.getTargetIdLong() == member.getUser().getIdLong())
+						.filter(e -> {
+							AuditLogChange change = e.getChangeByKey(AuditLogKey.MEMBER_ROLES_REMOVE);
+							if (change == null) {
+								return false;
+							}
+
+							List<Map<String, String>> roleEntries = change.getNewValue();
+							List<String> roleIds = roleEntries.stream().map(roleEntry -> roleEntry.get("id")).collect(Collectors.toList());
+
+							for (Role role : roles) {
+								if (!roleIds.contains(role.getId())) {
+									return false;
+								}
+							}
+
+							return true;
+						})
+						.map(AuditLogEntry::getUser)
+						.findFirst()
+						.orElse(null);
+
+					LoggerContext loggerContext = new LoggerContext(user, null, multiple ? null : firstRole, moderator);
+
+					if (moderator != null) {
+						description.append(String.format(" by **%s**", moderator.getAsTag()));
+					}
+
+					embed.setDescription(description.toString());
+
+					this.manager.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+				});
+			} else {
+				embed.setDescription(description.toString());
+
+				LoggerContext loggerContext = new LoggerContext(user, null, multiple ? null : firstRole);
+
+				this.manager.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+			}
+		});
 	}
 }

@@ -1,13 +1,24 @@
 package com.sx4.bot.database.model;
 
+import org.bson.BsonDocument;
 import org.bson.BsonUndefined;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 public class Operators {
+
+	private final static List<Integer> FROM_BASE_64 = List.of(-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+		-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 62, -1, -1, -1, 63, 52, 53, 54, 55, 56, 57,
+		58, 59, 60, 61, -1, -1, -1, -2, -1, -1, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25,
+		-1, -1, -1, -1, -1, -1, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, -1, -1, -1,
+		-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+		-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+		-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+		-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1);
 	
 	public static final String REMOVE = "$$REMOVE";
 	public static final String NOW = "$$NOW";
@@ -64,6 +75,10 @@ public class Operators {
 		return new Document("$filter", new Document("input", listExpression).append("cond", expression));
 	}
 	
+	public static Bson map(Object listExpression, Object expression, String name) {
+		return new Document("$map", new Document("input", listExpression).append("in", expression).append("as", name));
+	}
+
 	public static Bson map(Object listExpression, Object expression) {
 		return new Document("$map", new Document("input", listExpression).append("in", expression));
 	}
@@ -74,6 +89,10 @@ public class Operators {
 	
 	public static Bson set(String key, Object expression) {
 		return new Document("$set", new Document(key, expression));
+	}
+
+	public static Bson slice(Object array, Object start, Object end) {
+		return new Document("$slice", List.of(array, start, end));
 	}
 	
 	public static Bson concatArrays(List<?> expressions) {
@@ -98,6 +117,10 @@ public class Operators {
 
 	public static Bson arrayToObject(Object expression) {
 		return new Document("$arrayToObject", expression);
+	}
+
+	public static Bson indexOfArray(Object array, Object object) {
+		return new Document("$indexOfArray", List.of(array, object));
 	}
 	
 	public static Bson size(Object expression) {
@@ -149,7 +172,7 @@ public class Operators {
 	}
 	
 	public static Bson sigma(Object start, Object end, Object expression) {
-		return Operators.sum(Operators.map(Operators.range(start, Operators.add(end, 1)), expression));
+		return Operators.reduce(Operators.range(start, Operators.add(end, 1)), 0, Operators.add("$$value", expression));
 	}
 	
 	public static Bson pow(Object expression, Object powerExpression) {
@@ -192,6 +215,22 @@ public class Operators {
 		return Operators.cond(Operators.lt(x, y), Operators.bitwiseOrUnchecked(y, x), Operators.bitwiseOrUnchecked(x, y));
 	}
 
+	public static Bson shiftLeft(Object x, Object y) {
+		return Operators.multiply(x, Operators.pow(2, y));
+	}
+
+	public static Bson shiftRight(Object x, Object y) {
+		return Operators.floor(Operators.divide(x, Operators.pow(2, y)));
+	}
+
+	public static Bson decodeBase64(Object binary) {
+		return new BsonDocument();
+	}
+
+	public static Bson byteArrayToWords(Object bytes) {
+		return Operators.concatArrays(Operators.reduce(Operators.range(0, Operators.floor(Operators.divide(Operators.size(bytes), 8))), Collections.EMPTY_LIST, Operators.concatArrays("$$value", List.of(Operators.sum(Operators.map(Operators.range(0, 8), Operators.shiftLeft(Operators.toLong(Operators.bitwiseAnd(Operators.arrayElemAt(Operators.slice(bytes, Operators.multiply("$$this", 8), Operators.add(Operators.multiply("$$this", 8), 8)), Operators.add(Operators.multiply("$$this", 8), "$$index")), 0x00FF)), Operators.multiply("$$index", 8)), "index"))))), List.of(Operators.reduce(Operators.range(Operators.multiply(Operators.floor(Operators.divide(Operators.size(bytes), 8)), 8), Operators.size(bytes)), 0, Operators.add("$$value", Operators.shiftLeft(Operators.bitwiseAnd(Operators.arrayElemAt(Operators.slice(bytes, Operators.multiply(Operators.floor(Operators.divide(Operators.size(bytes), 8)), 8), Operators.size(bytes)), "$$this"), 0x00FF), Operators.multiply("$$this", 8))))));
+	}
+
 	public static Bson gt(Object expression, Object expression2) {
 		return new Document("$gt", List.of(expression, expression2));
 	}
@@ -220,7 +259,7 @@ public class Operators {
 		return new Document("$reduce", new Document("input", listExpression).append("initialValue", initialValue).append("in", expression));
 	}
 	
-	public static Bson arrayElemAt(Object expression, int index) {
+	public static Bson arrayElemAt(Object expression, Object index) {
 		return new Document("$arrayElemAt", List.of(expression, index));
 	}
 	
