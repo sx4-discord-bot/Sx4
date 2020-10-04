@@ -53,6 +53,8 @@ import java.net.URL;
 import java.time.DateTimeException;
 import java.time.Duration;
 import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.regex.Pattern;
@@ -74,6 +76,8 @@ public class Sx4 {
 		.readTimeout(15, TimeUnit.SECONDS)
 		.writeTimeout(15, TimeUnit.SECONDS)
 		.build();
+
+	private static final ExecutorService EXECUTOR = Executors.newSingleThreadExecutor();
 	
 	private final CommandListener commandListener;
 	private final ShardManager shardManager;
@@ -105,6 +109,10 @@ public class Sx4 {
 
 	public static OkHttpClient getClient() {
 		return Sx4.CLIENT;
+	}
+
+	public static ExecutorService getExecutor() {
+		return Sx4.EXECUTOR;
 	}
 	
 	public CommandListener getCommandListener() {

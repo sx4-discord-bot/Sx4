@@ -9,6 +9,8 @@ import groovy.lang.GroovyShell;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.requests.RestAction;
+import org.codehaus.groovy.control.CompilerConfiguration;
+import org.codehaus.groovy.control.customizers.ImportCustomizer;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -16,6 +18,26 @@ import java.util.concurrent.Executors;
 public class EvalCommand extends Sx4Command {
 	
 	private final ExecutorService executor = Executors.newSingleThreadExecutor();
+
+	private CompilerConfiguration configuration;
+	{
+		CompilerConfiguration parseConfiguration = new CompilerConfiguration();
+		ImportCustomizer importCustomizer = new ImportCustomizer();
+
+		importCustomizer.addStarImports("java.util.stream");
+
+		importCustomizer.addStarImports("net.dv8tion.jda.api");
+		importCustomizer.addStarImports("net.dv8tion.jda.api.entities");
+		importCustomizer.addStarImports("com.sx4.bot.database.model");
+		importCustomizer.addStarImports("com.mongodb.client");
+		importCustomizer.addStarImports("com.mongodb.client.model");
+		importCustomizer.addStarImports("org.bson");
+		importCustomizer.addStarImports("okhttp3");
+
+		parseConfiguration.addCompilationCustomizers(importCustomizer);
+
+		this.configuration = parseConfiguration;
+	}
 
 	public EvalCommand() {
 		super("eval");
@@ -52,8 +74,8 @@ public class EvalCommand extends Sx4Command {
 	}
 	
 	public void onCommand(Sx4CommandEvent event, @Argument(value="code", endless=true) String evaluableString, @Option(value="async") boolean async) {
-		GroovyShell shell = new GroovyShell();
-		
+		GroovyShell shell = new GroovyShell(this.configuration);
+
 		shell.setProperty("event", event);
 		shell.setProperty("JDA", event.getJDA());
 		shell.setProperty("database", this.database);

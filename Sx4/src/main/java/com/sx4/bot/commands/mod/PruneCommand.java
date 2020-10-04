@@ -3,6 +3,8 @@ package com.sx4.bot.commands.mod;
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.argument.Endless;
 import com.jockie.bot.core.command.Command;
+import com.jockie.bot.core.command.Command.Cooldown;
+import com.jockie.bot.core.cooldown.ICooldown;
 import com.jockie.bot.core.option.Option;
 import com.sx4.bot.annotations.argument.DefaultInt;
 import com.sx4.bot.annotations.argument.DefaultLong;
@@ -20,13 +22,17 @@ import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.Message.Attachment;
 import net.dv8tion.jda.api.entities.Message.MentionType;
 import net.dv8tion.jda.api.entities.MessageHistory.MessageRetrieveAction;
-import net.dv8tion.jda.api.exceptions.ErrorResponseException;
-import net.dv8tion.jda.api.requests.ErrorResponse;
+import net.dv8tion.jda.api.exceptions.ErrorHandler;
 
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Predicate;
+import java.util.regex.Pattern;
 
 public class PruneCommand extends Sx4Command {
 
@@ -40,7 +46,9 @@ public class PruneCommand extends Sx4Command {
 		super.setExamples("prune", "prune 10");
 	}
 	
-	private void prune(Sx4CommandEvent event, int amount, long start, long end, Predicate<Message> predicate) {
+	private CompletableFuture<Void> prune(Sx4CommandEvent event, int amount, long start, long end, Predicate<Message> predicate) {
+		CompletableFuture<Void> future = new CompletableFuture<>();
+
 		Message originalMessage = event.getMessage();
 		MessageRetrieveAction action = start == 0L ? event.getTextChannel().getHistoryBefore(originalMessage, 100) : event.getTextChannel().getHistoryBefore(start, 100);
 
@@ -67,7 +75,11 @@ public class PruneCommand extends Sx4Command {
 			} else {
 				event.getTextChannel().deleteMessages(messages).queue();
 			}
-		}, ErrorResponseException.ignore(ErrorResponse.UNKNOWN_MESSAGE));
+
+			future.complete(null);
+		}, new ErrorHandler(e -> future.complete(null)));
+
+		return future;
 	}
 	
 	public void onCommand(Sx4CommandEvent event, @Argument(value="amount") @Limit(min=1, max=100) @DefaultInt(100) int amount, @Option(value="start", description="The message id to start pruning from") @DefaultLong(0L) long start, @Option(value="end", description="The message id to end pruning at") @DefaultLong(0L) long end) {
@@ -115,12 +127,25 @@ public class PruneCommand extends Sx4Command {
 		this.prune(event, amount, start, end, message -> message.getContentRaw().contains(content));
 	}
 	
-	@Command(value="user", description="Prunes a set amount of message sent by a specific user")
+	@Command(value="user", description="Prunes a set amount of messages sent by a specific user")
 	@Examples({"prune user @Shea#6653", "prune user Shea 10"})
 	@AuthorPermissions(permissions={Permission.MESSAGE_MANAGE})
 	@BotPermissions(permissions={Permission.MESSAGE_MANAGE, Permission.MESSAGE_HISTORY}, overwrite=true)
 	public void user(Sx4CommandEvent event, @Argument(value="user") Member member, @Argument(value="amount") @Limit(min=1, max=100) @DefaultInt(100) int amount, @Option(value="start", description="The message id to start pruning from") @DefaultLong(0L) long start, @Option(value="end", description="The message id to end pruning at") @DefaultLong(0L) long end) {
 		this.prune(event, amount, start, end, message -> message.getAuthor().getIdLong() == member.getIdLong());
+	}
+
+	@Command(value="regex", description="Prunes a set amount of messages which match a specific regex")
+	@Examples({"prune regex [0-9]+", "prune regex .{2,32}#[0-9]{4}"})
+	@Cooldown(value=20, cooldownScope=ICooldown.Scope.GUILD)
+	@AuthorPermissions(permissions={Permission.MESSAGE_MANAGE})
+	@BotPermissions(permissions={Permission.MESSAGE_MANAGE, Permission.MESSAGE_HISTORY}, overwrite=true)
+	public void regex(Sx4CommandEvent event, @Argument(value="regex") Pattern pattern, @Argument(value="amount") @Limit(min=1, max=100) @DefaultInt(100) int amount, @Option(value="start", description="The message id to start pruning from") @DefaultLong(0L) long start, @Option(value="end", description="The message id to end pruning at") @DefaultLong(0L) long end) {
+		try {
+			this.prune(event, amount, start, end, message -> pattern.matcher(message.getContentRaw()).matches()).get(500, TimeUnit.MILLISECONDS);
+		} catch (InterruptedException | ExecutionException | TimeoutException e) {
+			event.reply("That regex took longer than 500ms to execute :stopwatch:").queue();
+		}
 	}
 	
 }

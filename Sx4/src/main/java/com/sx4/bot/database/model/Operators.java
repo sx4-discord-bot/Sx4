@@ -227,8 +227,20 @@ public class Operators {
 		return new BsonDocument();
 	}
 
+	public static Bson getLongFromBytes(Object bytes, Object position, Object endPosition) {
+		return Operators.reduce(Operators.range(0, Operators.subtract(endPosition, position)), 0, Operators.let(new Document("byteIndex", "$$this"), Operators.add("$$value", Operators.shiftLeft(Operators.toLong(Operators.bitwiseAnd(Operators.arrayElemAt(bytes, Operators.add(position, "$$byteIndex")), 0x00FF)), Operators.multiply("$$byteIndex", 8)))));
+	}
+
+	public static Bson getLongFromBytes(Object bytes, Object position) {
+		return Operators.getLongFromBytes(bytes, position, Operators.add(position, 8));
+	}
+
 	public static Bson byteArrayToWords(Object bytes) {
-		return Operators.concatArrays(Operators.reduce(Operators.range(0, Operators.floor(Operators.divide(Operators.size(bytes), 8))), Collections.EMPTY_LIST, Operators.concatArrays("$$value", List.of(Operators.sum(Operators.map(Operators.range(0, 8), Operators.shiftLeft(Operators.toLong(Operators.bitwiseAnd(Operators.arrayElemAt(Operators.slice(bytes, Operators.multiply("$$this", 8), Operators.add(Operators.multiply("$$this", 8), 8)), Operators.add(Operators.multiply("$$this", 8), "$$index")), 0x00FF)), Operators.multiply("$$index", 8)), "index"))))), List.of(Operators.reduce(Operators.range(Operators.multiply(Operators.floor(Operators.divide(Operators.size(bytes), 8)), 8), Operators.size(bytes)), 0, Operators.add("$$value", Operators.shiftLeft(Operators.bitwiseAnd(Operators.arrayElemAt(Operators.slice(bytes, Operators.multiply(Operators.floor(Operators.divide(Operators.size(bytes), 8)), 8), Operators.size(bytes)), "$$this"), 0x00FF), Operators.multiply("$$this", 8))))));
+		return Operators.concatArrays(Operators.reduce(Operators.range(0, Operators.floor(Operators.divide(Operators.size(bytes), 8))), Collections.EMPTY_LIST, Operators.let(new Document("index", "$$this"), Operators.concatArrays("$$value", List.of(Operators.getLongFromBytes(bytes, Operators.multiply("$$index", 8)))))), List.of(Operators.getLongFromBytes(bytes, Operators.multiply(Operators.floor(Operators.divide(Operators.size(bytes), 8)), 8), Operators.size(bytes))));
+	}
+
+	public static Bson let(Object variables, Object expression) {
+		return new Document("$let", new Document("vars", variables).append("in", expression));
 	}
 
 	public static Bson gt(Object expression, Object expression2) {
