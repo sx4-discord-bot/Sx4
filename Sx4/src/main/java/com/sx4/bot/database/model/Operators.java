@@ -1,6 +1,5 @@
 package com.sx4.bot.database.model;
 
-import org.bson.BsonDocument;
 import org.bson.BsonUndefined;
 import org.bson.Document;
 import org.bson.conversions.Bson;
@@ -10,15 +9,6 @@ import java.util.Collections;
 import java.util.List;
 
 public class Operators {
-
-	private final static List<Integer> FROM_BASE_64 = List.of(-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-		-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 62, -1, -1, -1, 63, 52, 53, 54, 55, 56, 57,
-		58, 59, 60, 61, -1, -1, -1, -2, -1, -1, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25,
-		-1, -1, -1, -1, -1, -1, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, -1, -1, -1,
-		-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-		-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-		-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-		-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1);
 	
 	public static final String REMOVE = "$$REMOVE";
 	public static final String NOW = "$$NOW";
@@ -124,7 +114,7 @@ public class Operators {
 	}
 	
 	public static Bson size(Object expression) {
-		return new Document("$size", expression);
+		return new Document("$size", List.of(expression));
 	}
 
 	public static Bson notEmpty(Object expression) {
@@ -162,6 +152,10 @@ public class Operators {
 	public static Bson mod(Object expression, Object expression2) {
 		return new Document("$mod", List.of(expression, expression2));
 	}
+
+	public static Bson min(Object expression, Object expression2) {
+		return new Document("$min", List.of(expression, expression2));
+	}
 	
 	public static Bson sum(Object listExpression) {
 		return new Document("$sum", listExpression);
@@ -188,7 +182,7 @@ public class Operators {
 	}
 	
 	private static Bson bitwiseXorUnchecked(Object x, Object y) {
-		return Operators.abs(Operators.sigma(0, Operators.floor(Operators.log("x", 2)), Operators.multiply(Operators.pow(2, "$$this"), Operators.mod(Operators.add(Operators.floor(Operators.divide(x, Operators.pow(2, "$$this"))), Operators.floor(Operators.divide(y, Operators.pow(2, "$$this")))), 2))));
+		return Operators.abs(Operators.sigma(0, Operators.floor(Operators.log(x, 2)), Operators.multiply(Operators.pow(2, "$$this"), Operators.mod(Operators.add(Operators.floor(Operators.divide(x, Operators.pow(2, "$$this"))), Operators.floor(Operators.divide(y, Operators.pow(2, "$$this")))), 2))));
 	}
 	
 	public static Bson bitwiseXor(Object x, Object y) {
@@ -198,13 +192,14 @@ public class Operators {
 	public static Bson bitwiseNot(Object x) {
 		return Operators.subtract(Operators.multiply(x, -1), 1);
 	}
-	
+
+	// Doesn't work with long min value
 	private static Bson bitwiseAndUnchecked(Object x, Object y) {
 		return Operators.abs(Operators.sigma(0, Operators.floor(Operators.log(x, 2)), Operators.multiply(Operators.pow(2, "$$this"), Operators.mod(Operators.floor(Operators.divide(x, Operators.pow(2, "$$this"))), 2), Operators.mod(Operators.floor(Operators.divide(y, Operators.pow(2, "$$this"))), 2))));
 	}
 	
 	public static Bson bitwiseAnd(Object x, Object y) {
-		return Operators.cond(Operators.lt(x, y), Operators.bitwiseAndUnchecked(y, x), Operators.bitwiseAndUnchecked(x, y));
+		return Operators.cond(Operators.and(Operators.lt(x, 0), Operators.lt(y, 0)), Operators.let(new Document("value", Operators.cond(Operators.lt(x, y), Operators.bitwiseAndUnchecked(Operators.abs(x), y), Operators.bitwiseAndUnchecked(Operators.abs(y), x))), Operators.subtract("$$value", Operators.multiply("$$value", 2))), Operators.cond(Operators.lt(x, y), Operators.bitwiseAndUnchecked(y, x), Operators.bitwiseAndUnchecked(x, y)));
 	}
 	
 	private static Bson bitwiseOrUnchecked(Object x, Object y) {
@@ -212,7 +207,7 @@ public class Operators {
 	}
 	
 	public static Bson bitwiseOr(Object x, Object y) {
-		return Operators.cond(Operators.lt(x, y), Operators.bitwiseOrUnchecked(y, x), Operators.bitwiseOrUnchecked(x, y));
+		return Operators.cond(Operators.or(Operators.lt(x, 0), Operators.lt(y, 0)), Operators.let(new Document("value", Operators.cond(Operators.lt(x, y), Operators.bitwiseOrUnchecked(Operators.abs(y), x), Operators.bitwiseOrUnchecked(Operators.abs(x), y))), Operators.subtract("$$value", Operators.multiply("$$value", 2))), Operators.cond(Operators.lt(x, y), Operators.bitwiseOrUnchecked(y, x), Operators.bitwiseOrUnchecked(x, y)));
 	}
 
 	public static Bson shiftLeft(Object x, Object y) {
@@ -223,20 +218,24 @@ public class Operators {
 		return Operators.floor(Operators.divide(x, Operators.pow(2, y)));
 	}
 
-	public static Bson decodeBase64(Object binary) {
-		return new BsonDocument();
+	public static Bson wordsOr(Object words, Object words2) {
+		Bson wordsInCommon = Operators.min(Operators.size(words), Operators.size(words2));
+		Bson largerWords = Operators.cond(Operators.gt(Operators.size(words), Operators.size(words2)), words, words2);
+		Bson difference = Operators.subtract(Operators.size(largerWords), wordsInCommon);
+
+		return Operators.concatArrays(Operators.reduce(Operators.range(0, wordsInCommon), Collections.EMPTY_LIST, Operators.let(new Document("index", "$$this"), Operators.concatArrays("$$value", List.of(Operators.toLong(Operators.bitwiseOr(Operators.arrayElemAt(words, "$$index"), Operators.arrayElemAt(words2, "$$index"))))))), Operators.cond(Operators.eq(difference, 0), Collections.EMPTY_LIST, Operators.slice(largerWords, wordsInCommon, difference)));
 	}
 
-	public static Bson getLongFromBytes(Object bytes, Object position, Object endPosition) {
-		return Operators.reduce(Operators.range(0, Operators.subtract(endPosition, position)), 0, Operators.let(new Document("byteIndex", "$$this"), Operators.add("$$value", Operators.shiftLeft(Operators.toLong(Operators.bitwiseAnd(Operators.arrayElemAt(bytes, Operators.add(position, "$$byteIndex")), 0x00FF)), Operators.multiply("$$byteIndex", 8)))));
+	public static Bson wordsAnd(Object words, Object words2) {
+		Bson wordsInCommon = Operators.min(Operators.size(words), Operators.size(words2));
+		Bson largerWords = Operators.cond(Operators.gt(Operators.size(words), Operators.size(words2)), words, words2);
+		Bson difference = Operators.subtract(Operators.size(largerWords), wordsInCommon);
+
+		return Operators.reduce(Operators.range(0, wordsInCommon), Collections.EMPTY_LIST, Operators.let(new Document("index", "$$this"), Operators.concatArrays("$$value", List.of(Operators.toLong(Operators.bitwiseAnd(Operators.arrayElemAt(words, "$$index"), Operators.arrayElemAt(words2, "$$index")))))));
 	}
 
-	public static Bson getLongFromBytes(Object bytes, Object position) {
-		return Operators.getLongFromBytes(bytes, position, Operators.add(position, 8));
-	}
-
-	public static Bson byteArrayToWords(Object bytes) {
-		return Operators.concatArrays(Operators.reduce(Operators.range(0, Operators.floor(Operators.divide(Operators.size(bytes), 8))), Collections.EMPTY_LIST, Operators.let(new Document("index", "$$this"), Operators.concatArrays("$$value", List.of(Operators.getLongFromBytes(bytes, Operators.multiply("$$index", 8)))))), List.of(Operators.getLongFromBytes(bytes, Operators.multiply(Operators.floor(Operators.divide(Operators.size(bytes), 8)), 8), Operators.size(bytes))));
+	public static Bson wordsIsEmpty(Object words) {
+		return Operators.isEmpty(Operators.filter(words, Operators.ne("$$this", 0L)));
 	}
 
 	public static Bson let(Object variables, Object expression) {

@@ -41,12 +41,11 @@ import net.dv8tion.jda.api.events.guild.member.GuildMemberJoinEvent;
 import net.dv8tion.jda.api.events.guild.member.GuildMemberRemoveEvent;
 import net.dv8tion.jda.api.events.guild.member.GuildMemberRoleAddEvent;
 import net.dv8tion.jda.api.events.guild.member.GuildMemberRoleRemoveEvent;
+import net.dv8tion.jda.api.events.guild.member.update.GuildMemberUpdateNicknameEvent;
 import net.dv8tion.jda.api.events.guild.override.PermissionOverrideCreateEvent;
 import net.dv8tion.jda.api.events.guild.override.PermissionOverrideDeleteEvent;
 import net.dv8tion.jda.api.events.guild.override.PermissionOverrideUpdateEvent;
-import net.dv8tion.jda.api.events.guild.voice.GuildVoiceJoinEvent;
-import net.dv8tion.jda.api.events.guild.voice.GuildVoiceLeaveEvent;
-import net.dv8tion.jda.api.events.guild.voice.GuildVoiceMoveEvent;
+import net.dv8tion.jda.api.events.guild.voice.*;
 import net.dv8tion.jda.api.events.message.MessageBulkDeleteEvent;
 import net.dv8tion.jda.api.events.message.guild.GuildMessageDeleteEvent;
 import net.dv8tion.jda.api.events.message.guild.GuildMessageUpdateEvent;
@@ -486,6 +485,94 @@ public class LoggerHandler extends ListenerAdapter {
 			});
 		} else {
 			LoggerContext loggerContext = new LoggerContext(user, joined, null);
+
+			this.manager.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+		}
+	}
+
+	public void onGuildVoiceGuildMute(GuildVoiceGuildMuteEvent event) {
+		Guild guild = event.getGuild();
+		Member member = event.getMember();
+		User user = member.getUser();
+		GuildVoiceState voiceState = event.getVoiceState();
+		VoiceChannel channel = voiceState.getChannel();
+
+		boolean muted = voiceState.isGuildMuted();
+		LoggerEvent loggerEvent = muted ? LoggerEvent.MEMBER_SERVER_VOICE_MUTE : LoggerEvent.MEMBER_SERVER_VOICE_UNMUTE;
+
+		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
+		embed.setDescription(String.format("`%s` has been %s", member.getEffectiveName(), muted ? "muted" : "unmuted"));
+		embed.setTimestamp(Instant.now());
+		embed.setAuthor(new EmbedAuthor(member.getUser().getAsTag(), member.getUser().getEffectiveAvatarUrl(), null));
+		embed.setFooter(new EmbedFooter(String.format("User ID: %s", user.getId()), null));
+		embed.setColor(muted ? this.config.getRed() : this.config.getGreen());
+
+		List<Document> loggers = this.database.getGuildById(guild.getIdLong(), Projections.include("logger.loggers")).getEmbedded(List.of("logger", "loggers"), Collections.emptyList());
+
+		if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
+			guild.retrieveAuditLogs().type(ActionType.MEMBER_UPDATE).queueAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS, logs -> {
+				User moderator = logs.stream()
+					.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
+					.filter(e -> e.getTargetIdLong() == member.getUser().getIdLong())
+					.filter(e -> e.getChangeByKey(AuditLogKey.MEMBER_MUTE) != null)
+					.map(AuditLogEntry::getUser)
+					.findFirst()
+					.orElse(null);
+
+				LoggerContext loggerContext = new LoggerContext(user, channel, null, moderator);
+
+				if (moderator != null) {
+					embed.setDescription(String.format("`%s` has been %s by **%s**", member.getEffectiveName(), muted ? "muted" : "unmuted", moderator.getAsTag()));
+				}
+
+				this.manager.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+			});
+		} else {
+			LoggerContext loggerContext = new LoggerContext(user, channel, null);
+
+			this.manager.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+		}
+	}
+
+	public void onGuildVoiceGuildDeafen(GuildVoiceGuildDeafenEvent event) {
+		Guild guild = event.getGuild();
+		Member member = event.getMember();
+		User user = member.getUser();
+		GuildVoiceState voiceState = event.getVoiceState();
+		VoiceChannel channel = voiceState.getChannel();
+
+		boolean deafened = voiceState.isGuildMuted();
+		LoggerEvent loggerEvent = deafened ? LoggerEvent.MEMBER_SERVER_VOICE_DEAFEN : LoggerEvent.MEMBER_SERVER_VOICE_UNDEAFEN;
+
+		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
+		embed.setDescription(String.format("`%s` has been %s", member.getEffectiveName(), deafened ? "deafened" : "undeafened"));
+		embed.setTimestamp(Instant.now());
+		embed.setAuthor(new EmbedAuthor(member.getUser().getAsTag(), member.getUser().getEffectiveAvatarUrl(), null));
+		embed.setFooter(new EmbedFooter(String.format("User ID: %s", user.getId()), null));
+		embed.setColor(deafened ? this.config.getRed() : this.config.getGreen());
+
+		List<Document> loggers = this.database.getGuildById(guild.getIdLong(), Projections.include("logger.loggers")).getEmbedded(List.of("logger", "loggers"), Collections.emptyList());
+
+		if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
+			guild.retrieveAuditLogs().type(ActionType.MEMBER_UPDATE).queueAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS, logs -> {
+				User moderator = logs.stream()
+					.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
+					.filter(e -> e.getTargetIdLong() == member.getUser().getIdLong())
+					.filter(e -> e.getChangeByKey(AuditLogKey.MEMBER_DEAF) != null)
+					.map(AuditLogEntry::getUser)
+					.findFirst()
+					.orElse(null);
+
+				LoggerContext loggerContext = new LoggerContext(user, channel, null, moderator);
+
+				if (moderator != null) {
+					embed.setDescription(String.format("`%s` has been %s by **%s**", member.getEffectiveName(), deafened ? "deafened" : "undeafened", moderator.getAsTag()));
+				}
+
+				this.manager.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+			});
+		} else {
+			LoggerContext loggerContext = new LoggerContext(user, channel, null);
 
 			this.manager.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 		}
@@ -1167,7 +1254,7 @@ public class LoggerHandler extends ListenerAdapter {
 			StringBuilder description = new StringBuilder();
 
 			WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
-			embed.setColor(this.config.getGreen());
+			embed.setColor(this.config.getRed());
 			embed.setTimestamp(Instant.now());
 			embed.setAuthor(new EmbedAuthor(user.getAsTag(), user.getEffectiveAvatarUrl(), null));
 
@@ -1254,4 +1341,49 @@ public class LoggerHandler extends ListenerAdapter {
 			}
 		});
 	}
+
+	public void onGuildMemberUpdateNickname(GuildMemberUpdateNicknameEvent event) {
+		Guild guild = event.getGuild();
+		Member member = event.getMember();
+		User user = event.getUser();
+
+		LoggerEvent loggerEvent = LoggerEvent.MEMBER_NICKNAME_UPDATE;
+
+		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
+		embed.setDescription(String.format("`%s` has had their nickname changed", member.getEffectiveName()));
+		embed.setColor(this.config.getOrange());
+		embed.setTimestamp(ZonedDateTime.now());
+		embed.setAuthor(new EmbedAuthor(user.getAsTag(), user.getEffectiveAvatarUrl(), null));
+		embed.setFooter(new EmbedFooter(String.format("User ID: %s", user.getId()), null));
+
+		embed.addField(new EmbedField(false, "Before", String.format("`%s`", event.getOldNickname() != null ? event.getOldNickname() : member.getUser().getName())));
+		embed.addField(new EmbedField(false, "After", String.format("`%s`", event.getNewNickname() != null ? event.getNewNickname() : member.getUser().getName())));
+
+		List<Document> loggers = this.database.getGuildById(guild.getIdLong(), Projections.include("logger.loggers")).getEmbedded(List.of("logger", "loggers"), Collections.emptyList());
+
+		if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
+			guild.retrieveAuditLogs().type(ActionType.MEMBER_UPDATE).queueAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS, logs -> {
+				User moderator = logs.stream()
+					.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
+					.filter(e -> e.getTargetIdLong() == user.getIdLong())
+					.filter(e -> e.getChangeByKey(AuditLogKey.MEMBER_NICK) != null)
+					.map(AuditLogEntry::getUser)
+					.findFirst()
+					.orElse(null);
+
+				LoggerContext loggerContext = new LoggerContext(user, null, null, moderator);
+
+				if (moderator != null) {
+					embed.setDescription(String.format("`%s` has had their nickname changed by **%s**", member.getEffectiveName(), moderator.getAsTag()));
+				}
+
+				this.manager.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+			});
+		} else {
+			LoggerContext loggerContext = new LoggerContext(user, null, null);
+
+			this.manager.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+		}
+	}
+
 }

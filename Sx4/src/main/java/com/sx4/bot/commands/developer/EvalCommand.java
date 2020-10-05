@@ -78,7 +78,12 @@ public class EvalCommand extends Sx4Command {
 
 		shell.setProperty("event", event);
 		shell.setProperty("JDA", event.getJDA());
+		shell.setProperty("guild", event.getGuild());
+		shell.setProperty("channel", event.getTextChannel());
+		shell.setProperty("user", event.getAuthor());
+		shell.setProperty("member", event.getMember());
 		shell.setProperty("database", this.database);
+		shell.setProperty("client", event.getClient());
 		
 		if (async) {
 			this.executor.submit(() -> this.execute(event, shell, evaluableString));
