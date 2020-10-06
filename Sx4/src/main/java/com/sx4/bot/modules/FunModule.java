@@ -1,53 +1,8 @@
 package com.sx4.bot.modules;
 
-import java.awt.Color;
-import java.io.IOException;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.net.URLDecoder;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
-import java.time.ZonedDateTime;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
-import java.time.format.TextStyle;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Random;
-import java.util.Set;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
-
-import javax.ws.rs.ForbiddenException;
-
-import org.bson.BsonDocument;
-import org.bson.Document;
-import org.bson.conversions.Bson;
-import org.bson.types.Binary;
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
-import org.json.XML;
-import org.jsoup.Jsoup;
-
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
-import com.jockie.bot.core.command.Command.Async;
-import com.jockie.bot.core.command.Command.AuthorPermissions;
-import com.jockie.bot.core.command.Command.BotPermissions;
-import com.jockie.bot.core.command.Command.Cooldown;
-import com.jockie.bot.core.command.Command.Nsfw;
+import com.jockie.bot.core.command.Command.*;
 import com.jockie.bot.core.command.Context;
 import com.jockie.bot.core.command.ICommand.ContentOverflowPolicy;
 import com.jockie.bot.core.command.Initialize;
@@ -56,12 +11,7 @@ import com.jockie.bot.core.command.impl.CommandImpl;
 import com.jockie.bot.core.module.Module;
 import com.jockie.bot.core.option.Option;
 import com.mongodb.client.FindIterable;
-import com.mongodb.client.model.Filters;
-import com.mongodb.client.model.Projections;
-import com.mongodb.client.model.UpdateOneModel;
-import com.mongodb.client.model.UpdateOptions;
-import com.mongodb.client.model.Updates;
-import com.mongodb.client.model.WriteModel;
+import com.mongodb.client.model.*;
 import com.sx4.bot.cache.DictionaryCache;
 import com.sx4.bot.cache.GoogleSearchCache;
 import com.sx4.bot.cache.GoogleSearchCache.GoogleSearchResult;
@@ -77,32 +27,45 @@ import com.sx4.bot.interfaces.Sx4Callback;
 import com.sx4.bot.settings.Settings;
 import com.sx4.bot.starboard.Starboard;
 import com.sx4.bot.starboard.StarboardMessage;
-import com.sx4.bot.utils.ArgumentUtils;
-import com.sx4.bot.utils.CompactNumber;
-import com.sx4.bot.utils.EconomyUtils;
-import com.sx4.bot.utils.FunUtils;
-import com.sx4.bot.utils.GeneralUtils;
-import com.sx4.bot.utils.HelpUtils;
-import com.sx4.bot.utils.PagedUtils;
+import com.sx4.bot.utils.*;
 import com.sx4.bot.utils.PagedUtils.PagedResult;
-import com.sx4.bot.utils.StarboardUtils;
-import com.sx4.bot.utils.TimeUtils;
-import com.sx4.bot.utils.TokenUtils;
-
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
-import net.dv8tion.jda.api.entities.Member;
+import net.dv8tion.jda.api.entities.*;
 import net.dv8tion.jda.api.entities.Message.Attachment;
-import net.dv8tion.jda.api.entities.MessageEmbed;
-import net.dv8tion.jda.api.entities.Role;
-import net.dv8tion.jda.api.entities.TextChannel;
-import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.internal.utils.tuple.Pair;
-import okhttp3.MediaType;
-import okhttp3.MultipartBody;
-import okhttp3.Request;
-import okhttp3.RequestBody;
-import okhttp3.Response;
+import okhttp3.*;
+import org.bson.BsonDocument;
+import org.bson.Document;
+import org.bson.conversions.Bson;
+import org.bson.types.Binary;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+import org.json.XML;
+import org.jsoup.Jsoup;
+
+import javax.ws.rs.ForbiddenException;
+import java.awt.*;
+import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.net.URLDecoder;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+import java.time.format.TextStyle;
+import java.util.List;
+import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 
 @Module
@@ -2699,7 +2662,7 @@ public class FunModule {
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void igdb(CommandEvent event, @Argument(value="game", endless=true, nullDefault=true) String game, @Option(value="rating", description="Filters results based on their rating") String rating, @Option(value="sort", description="Sort results by `name` (default), `rating`, `popularity` and `release`") String sort, @Option(value="reverse", description="Reverses sorting order") boolean reverse) {
 		StringBuilder filters = new StringBuilder(";where category = 0");
-		StringBuilder query = new StringBuilder("fields name,total_rating,total_rating_count,first_release_date,genres.name,url,summary,cover.image_id,platforms.name,popularity;limit 500");
+		StringBuilder query = new StringBuilder("fields name,total_rating,total_rating_count,first_release_date,genres.name,url,summary,cover.image_id,platforms.name;limit 500");
 		if (game != null && sort == null && !reverse) {
 			query.append(";search \"" + game + "\"");
 		} else {
@@ -2713,9 +2676,6 @@ public class FunModule {
 				case "rating":
 					query.append(";sort total_rating" + sortingOrder);
 					filters.append("& total_rating != n");
-					break;
-				case "popularity":
-					query.append(";sort popularity" + sortingOrder);
 					break;
 				default:
 					query.append(";sort name" + sortingOrder);
@@ -2785,9 +2745,10 @@ public class FunModule {
 		query.append(";");
 		
 		Request request = new Request.Builder()
-				.url("https://api-v3.igdb.com/games/")
+				.url("https://api.igdb.com/v4/games/")
 				.post(RequestBody.create(MediaType.parse("application/json; charset=utf-8"), query.toString()))
-				.addHeader("user-key", TokenUtils.IGDB)
+				.addHeader("Client-ID", TokenUtils.TWITCH_CLIENT_ID)
+				.addHeader("Authorization", "Bearer " + TokenUtils.TWITCH)
 				.build();
 		
 		Sx4Bot.client.newCall(request).enqueue((Sx4Callback) response -> {
@@ -2815,7 +2776,6 @@ public class FunModule {
 				int ratings = data.optInt("total_rating_count");
 				embed.addField("Rating", data.has("total_rating") ? String.format("%.2f out of %,d rating%s", data.getDouble("total_rating"), ratings, ratings == 1 ? "" : "s") : "Unknown", true);
 				embed.addField("Release Date", data.has("first_release_date") ? LocalDateTime.ofEpochSecond(data.getLong("first_release_date"), 0, ZoneOffset.UTC).format(this.dateTimeFormatter) : "Unknown", true);
-				embed.addField("Popularity", String.format("%.2f", data.optDouble("popularity")), true);
 				embed.addField("Genres", data.has("genres") ? String.join("\n", data.getJSONArray("genres").toList().stream().map(genre -> (String) ((Map<String, Object>) genre).get("name")).collect(Collectors.toList())) : "None", true);
 				embed.addField("Platforms", data.has("platforms") ? String.join("\n", data.getJSONArray("platforms").toList().stream().map(platform -> (String) ((Map<String, Object>) platform).get("name")).collect(Collectors.toList())) : "None", true);
 				
