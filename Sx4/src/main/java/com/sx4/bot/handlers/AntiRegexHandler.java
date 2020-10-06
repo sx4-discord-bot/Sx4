@@ -101,9 +101,10 @@ public class AntiRegexHandler extends ListenerAdapter {
                 List<Document> holders = channel.getList("holders", Document.class, Collections.emptyList());
                 for (Document holder : holders) {
                     long holderId = holder.getLong("id");
-                    if (holder.getInteger("type") == HolderType.USER.getType() && userId == holderId) {
+                    int type = holder.getInteger("type");
+                    if (type == HolderType.USER.getType() && userId == holderId) {
                         continue Regexes;
-                    } else if (roles.stream().anyMatch(role -> role.getIdLong() == holderId)) {
+                    } else if (type == HolderType.ROLE.getType() && roles.stream().anyMatch(role -> role.getIdLong() == holderId)) {
                         continue Regexes;
                     }
                 }
