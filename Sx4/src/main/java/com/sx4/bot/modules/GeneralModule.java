@@ -9,6 +9,7 @@ import com.jockie.bot.core.command.ICommand.ContentOverflowPolicy;
 import com.jockie.bot.core.command.Initialize;
 import com.jockie.bot.core.command.impl.CommandEvent;
 import com.jockie.bot.core.command.impl.CommandImpl;
+import com.jockie.bot.core.cooldown.ICooldown;
 import com.jockie.bot.core.module.Module;
 import com.jockie.bot.core.option.Option;
 import com.mongodb.client.AggregateIterable;
@@ -1994,6 +1995,8 @@ public class GeneralModule {
 	
 	@Command(value="discriminator", aliases={"discrim"}, description="Search through all the users Sx4 can see by discriminator", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
 	@Examples({"discriminator", "discriminator 6653", "discriminator 0001"})
+	@Cooldown(value=10, cooldownScope=ICooldown.Scope.GUILD)
+	@Async
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void discriminator(CommandEvent event, @Argument(value="discriminator", nullDefault=true) String discriminator) {
 		if (discriminator == null) {
