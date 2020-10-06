@@ -35,6 +35,10 @@ import net.dv8tion.jda.api.events.channel.text.update.TextChannelUpdateNameEvent
 import net.dv8tion.jda.api.events.channel.voice.VoiceChannelCreateEvent;
 import net.dv8tion.jda.api.events.channel.voice.VoiceChannelDeleteEvent;
 import net.dv8tion.jda.api.events.channel.voice.update.VoiceChannelUpdateNameEvent;
+import net.dv8tion.jda.api.events.emote.EmoteAddedEvent;
+import net.dv8tion.jda.api.events.emote.EmoteRemovedEvent;
+import net.dv8tion.jda.api.events.emote.update.EmoteUpdateNameEvent;
+import net.dv8tion.jda.api.events.emote.update.EmoteUpdateRolesEvent;
 import net.dv8tion.jda.api.events.guild.GuildBanEvent;
 import net.dv8tion.jda.api.events.guild.GuildUnbanEvent;
 import net.dv8tion.jda.api.events.guild.member.GuildMemberJoinEvent;
@@ -56,6 +60,7 @@ import net.dv8tion.jda.api.events.role.update.RoleUpdateNameEvent;
 import net.dv8tion.jda.api.events.role.update.RoleUpdatePermissionsEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.dv8tion.jda.api.sharding.ShardManager;
+import net.dv8tion.jda.internal.utils.tuple.Pair;
 import org.bson.Document;
 
 import java.time.Duration;
@@ -127,7 +132,11 @@ public class LoggerHandler extends ListenerAdapter {
 					long userId = message.getLong("authorId");
 					User user = shardManager.getUserById(userId);
 
-					if (!LoggerUtility.isWhitelisted(entities, loggerEvent, 0L, userId, textChannel.getIdLong(), 0L)) {
+					LoggerContext loggerContext = new LoggerContext()
+						.setUser(userId)
+						.setChannel(textChannel);
+
+					if (!LoggerUtility.isWhitelisted(entities, loggerEvent, loggerContext)) {
 						continue;
 					}
 
@@ -169,8 +178,10 @@ public class LoggerHandler extends ListenerAdapter {
 		Document previousMessage = this.database.getMessageById(message.getIdLong());
 		String oldContent = previousMessage == null ? null : previousMessage.getString("content");
 
-		LoggerContext loggerContext = new LoggerContext(user, textChannel, null);
 		LoggerEvent loggerEvent = LoggerEvent.MESSAGE_UPDATE;
+		LoggerContext loggerContext = new LoggerContext()
+			.setUser(user)
+			.setChannel(textChannel);
 
 		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
 		if (member != null) {
@@ -202,6 +213,8 @@ public class LoggerHandler extends ListenerAdapter {
 		User user = event.getUser();
 
 		LoggerEvent loggerEvent = user.isBot() ? LoggerEvent.BOT_ADDED : LoggerEvent.MEMBER_JOIN;
+		LoggerContext loggerContext = new LoggerContext()
+			.setUser(user);
 
 		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
 		embed.setColor(this.config.getGreen());
@@ -223,9 +236,9 @@ public class LoggerHandler extends ListenerAdapter {
 						.findFirst()
 						.orElse(null);
 
-					LoggerContext loggerContext = new LoggerContext(user, null, null, moderator);
-
 					if (moderator != null) {
+						loggerContext.setModerator(moderator);
+
 						description.append(" by **")
 							.append(moderator.getAsTag())
 							.append("**");
@@ -244,12 +257,15 @@ public class LoggerHandler extends ListenerAdapter {
 			embed.setDescription(String.format("`%s` just joined the server", member.getEffectiveName()));
 		}
 
-		this.manager.queue(guild, loggers, loggerEvent, new LoggerContext(user, null, null), embed.build());
+		this.manager.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 	}
 
 	public void onGuildMemberRemove(GuildMemberRemoveEvent event) {
 		Guild guild = event.getGuild();
 		User user = event.getUser();
+
+		LoggerContext loggerContext = new LoggerContext()
+			.setUser(user);
 
 		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
 		embed.setDescription(String.format("`%s` just left the server", user.getName()));
@@ -269,10 +285,11 @@ public class LoggerHandler extends ListenerAdapter {
 					.findFirst()
 					.orElse(null);
 
-				LoggerContext loggerContext = new LoggerContext(user, null, null, moderator);
 				LoggerEvent loggerEvent = moderator == null ? LoggerEvent.MEMBER_LEAVE : LoggerEvent.MEMBER_KICKED;
 
 				if (moderator != null) {
+					loggerContext.setModerator(moderator);
+
 					embed.setDescription(String.format("`%s` has been kicked by **%s**", user.getName(), moderator.getAsTag()));
 				}
 
@@ -282,7 +299,6 @@ public class LoggerHandler extends ListenerAdapter {
 			return;
 		}
 
-		LoggerContext loggerContext = new LoggerContext(user, null, null);
 		LoggerEvent loggerEvent = LoggerEvent.MEMBER_LEAVE;
 
 		this.manager.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
@@ -293,6 +309,8 @@ public class LoggerHandler extends ListenerAdapter {
 		User user = event.getUser();
 
 		LoggerEvent loggerEvent = LoggerEvent.MEMBER_BANNED;
+		LoggerContext loggerContext = new LoggerContext()
+			.setUser(user);
 
 		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
 		embed.setDescription(String.format("`%s` has been banned", user.getName()));
@@ -312,17 +330,15 @@ public class LoggerHandler extends ListenerAdapter {
 					.findFirst()
 					.orElse(null);
 
-				LoggerContext loggerContext = new LoggerContext(user, null, null, moderator);
-
 				if (moderator != null) {
+					loggerContext.setModerator(moderator);
+
 					embed.setDescription(String.format("`%s` has been banned by **%s**", user.getName(), moderator.getAsTag()));
 				}
 
 				this.manager.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 			});
 		} else {
-			LoggerContext loggerContext = new LoggerContext(user, null, null, null);
-
 			this.manager.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 		}
 	}
@@ -332,6 +348,8 @@ public class LoggerHandler extends ListenerAdapter {
 		User user = event.getUser();
 
 		LoggerEvent loggerEvent = LoggerEvent.MEMBER_UNBANNED;
+		LoggerContext loggerContext = new LoggerContext()
+			.setUser(user);
 
 		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
 		embed.setDescription(String.format("`%s` has been unbanned", user.getName()));
@@ -351,17 +369,15 @@ public class LoggerHandler extends ListenerAdapter {
 					.findFirst()
 					.orElse(null);
 
-				LoggerContext loggerContext = new LoggerContext(user, null, null, moderator);
-
 				if (moderator != null) {
+					loggerContext.setModerator(moderator);
+
 					embed.setDescription(String.format("`%s` has been unbanned by **%s**", user.getName(), moderator.getAsTag()));
 				}
 
 				this.manager.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 			});
 		} else {
-			LoggerContext loggerContext = new LoggerContext(user, null, null);
-
 			this.manager.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 		}
 	}
@@ -369,17 +385,20 @@ public class LoggerHandler extends ListenerAdapter {
 	public void onGuildVoiceJoin(GuildVoiceJoinEvent event) {
 		Guild guild = event.getGuild();
 		Member member = event.getMember();
+		User user = member.getUser();
 		VoiceChannel channel = event.getChannelJoined();
 
 		LoggerEvent loggerEvent = LoggerEvent.MEMBER_VOICE_JOIN;
-		LoggerContext loggerContext = new LoggerContext(member.getUser(), channel, null);
+		LoggerContext loggerContext = new LoggerContext()
+			.setUser(user)
+			.setChannel(channel);
 
 		WebhookEmbedBuilder embed = new WebhookEmbedBuilder()
 			.setDescription(String.format("`%s` just joined the voice channel `%s`", member.getEffectiveName(), channel.getName()))
 			.setColor(this.config.getGreen())
 			.setTimestamp(Instant.now())
 			.setFooter(new EmbedFooter(String.format("User ID: %s", member.getId()), null))
-			.setAuthor(new EmbedAuthor(member.getUser().getAsTag(), member.getUser().getEffectiveAvatarUrl(), null));
+			.setAuthor(new EmbedAuthor(user.getAsTag(), user.getEffectiveAvatarUrl(), null));
 
 		List<Document> loggers = this.database.getGuildById(guild.getIdLong(), Projections.include("logger.loggers")).getEmbedded(List.of("logger", "loggers"), Collections.emptyList());
 		this.manager.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
@@ -390,6 +409,10 @@ public class LoggerHandler extends ListenerAdapter {
 		Member member = event.getMember();
 		User user = member.getUser();
 		VoiceChannel channel = event.getChannelLeft();
+
+		LoggerContext loggerContext = new LoggerContext()
+			.setChannel(channel)
+			.setUser(user);
 
 		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
 		embed.setDescription(String.format("`%s` just left the voice channel `%s`", member.getEffectiveName(), channel.getName()));
@@ -417,11 +440,12 @@ public class LoggerHandler extends ListenerAdapter {
 
 				User moderator = entry == null ? null : entry.getUser();
 
-				LoggerContext loggerContext = new LoggerContext(user, channel, null, moderator);
 				LoggerEvent loggerEvent = moderator == null ? LoggerEvent.MEMBER_VOICE_LEAVE : LoggerEvent.MEMBER_VOICE_DISCONNECT;
 
 				if (moderator != null) {
 					guildCache.put(entry.getIdLong(), Integer.parseInt(entry.getOptionByName("count")));
+
+					loggerContext.setModerator(moderator);
 
 					embed.setDescription(String.format("`%s` was disconnected from the voice channel `%s` by **%s**", member.getEffectiveName(), channel.getName(), moderator.getAsTag()));
 				}
@@ -429,7 +453,6 @@ public class LoggerHandler extends ListenerAdapter {
 				this.manager.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 			});
 		} else {
-			LoggerContext loggerContext = new LoggerContext(user, channel, null);
 			LoggerEvent loggerEvent = LoggerEvent.MEMBER_VOICE_LEAVE;
 
 			this.manager.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
@@ -443,6 +466,9 @@ public class LoggerHandler extends ListenerAdapter {
 		VoiceChannel joined = event.getChannelJoined(), left = event.getChannelLeft();
 
 		LoggerEvent loggerEvent = LoggerEvent.MEMBER_VOICE_MOVE;
+		LoggerContext loggerContext = new LoggerContext()
+			.setChannel(joined)
+			.setUser(user);
 
 		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
 		embed.setDescription(String.format("`%s` just changed voice channel", member.getEffectiveName()));
@@ -472,11 +498,10 @@ public class LoggerHandler extends ListenerAdapter {
 					.orElse(null);
 
 				User moderator = entry == null ? null : entry.getUser();
-
-				LoggerContext loggerContext = new LoggerContext(user, joined, null, moderator);
-
 				if (moderator != null) {
 					channelCache.put(entry.getIdLong(), Integer.parseInt(entry.getOptionByName("count")));
+
+					loggerContext.setModerator(moderator);
 
 					embed.setDescription(String.format("`%s` was moved voice channel by **%s**", member.getEffectiveName(), moderator.getAsTag()));
 				}
@@ -484,8 +509,6 @@ public class LoggerHandler extends ListenerAdapter {
 				this.manager.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 			});
 		} else {
-			LoggerContext loggerContext = new LoggerContext(user, joined, null);
-
 			this.manager.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 		}
 	}
@@ -498,7 +521,11 @@ public class LoggerHandler extends ListenerAdapter {
 		VoiceChannel channel = voiceState.getChannel();
 
 		boolean muted = voiceState.isGuildMuted();
+
 		LoggerEvent loggerEvent = muted ? LoggerEvent.MEMBER_SERVER_VOICE_MUTE : LoggerEvent.MEMBER_SERVER_VOICE_UNMUTE;
+		LoggerContext loggerContext = new LoggerContext()
+			.setUser(user)
+			.setChannel(channel);
 
 		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
 		embed.setDescription(String.format("`%s` has been %s", member.getEffectiveName(), muted ? "muted" : "unmuted"));
@@ -519,17 +546,15 @@ public class LoggerHandler extends ListenerAdapter {
 					.findFirst()
 					.orElse(null);
 
-				LoggerContext loggerContext = new LoggerContext(user, channel, null, moderator);
-
 				if (moderator != null) {
+					loggerContext.setModerator(moderator);
+
 					embed.setDescription(String.format("`%s` has been %s by **%s**", member.getEffectiveName(), muted ? "muted" : "unmuted", moderator.getAsTag()));
 				}
 
 				this.manager.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 			});
 		} else {
-			LoggerContext loggerContext = new LoggerContext(user, channel, null);
-
 			this.manager.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 		}
 	}
@@ -542,7 +567,11 @@ public class LoggerHandler extends ListenerAdapter {
 		VoiceChannel channel = voiceState.getChannel();
 
 		boolean deafened = voiceState.isGuildMuted();
+
 		LoggerEvent loggerEvent = deafened ? LoggerEvent.MEMBER_SERVER_VOICE_DEAFEN : LoggerEvent.MEMBER_SERVER_VOICE_UNDEAFEN;
+		LoggerContext loggerContext = new LoggerContext()
+			.setChannel(channel == null ? 0L : channel.getIdLong())
+			.setUser(user);
 
 		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
 		embed.setDescription(String.format("`%s` has been %s", member.getEffectiveName(), deafened ? "deafened" : "undeafened"));
@@ -563,17 +592,15 @@ public class LoggerHandler extends ListenerAdapter {
 					.findFirst()
 					.orElse(null);
 
-				LoggerContext loggerContext = new LoggerContext(user, channel, null, moderator);
-
 				if (moderator != null) {
+					loggerContext.setModerator(moderator);
+
 					embed.setDescription(String.format("`%s` has been %s by **%s**", member.getEffectiveName(), deafened ? "deafened" : "undeafened", moderator.getAsTag()));
 				}
 
 				this.manager.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 			});
 		} else {
-			LoggerContext loggerContext = new LoggerContext(user, channel, null);
-
 			this.manager.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 		}
 	}
@@ -589,6 +616,11 @@ public class LoggerHandler extends ListenerAdapter {
 			channelType == ChannelType.STORE ? LoggerEvent.STORE_CHANNEL_OVERRIDE_CREATE :
 			channelType == ChannelType.VOICE ? LoggerEvent.VOICE_CHANNEL_OVERRIDE_CREATE :
 			LoggerEvent.TEXT_CHANNEL_OVERRIDE_CREATE;
+
+		LoggerContext loggerContext = new LoggerContext()
+			.setUser(event.isMemberOverride() ? permissionHolder.getIdLong() : 0L)
+			.setRole(event.isRoleOverride() ? permissionHolder.getIdLong() : 0L)
+			.setChannel(channel);
 
 		String message = LoggerUtility.getPermissionOverrideDifference(0L, Permission.ALL_PERMISSIONS, 0L, permissionOverride);
 
@@ -620,9 +652,9 @@ public class LoggerHandler extends ListenerAdapter {
 					.findFirst()
 					.orElse(null);
 
-				LoggerContext loggerContext = new LoggerContext(event.isMemberOverride() ? event.getMember().getUser() : null, channel, event.isRoleOverride() ? event.getRole() : null, moderator);
-
 				if (moderator != null) {
+					loggerContext.setModerator(moderator);
+
 					description.append(String.format(" by **%s**", moderator.getAsTag()));
 				}
 
@@ -632,8 +664,6 @@ public class LoggerHandler extends ListenerAdapter {
 				this.manager.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 			});
 		} else {
-			LoggerContext loggerContext = new LoggerContext(event.isMemberOverride() ? event.getMember().getUser() : null, channel, event.isRoleOverride() ? event.getRole() : null);
-
 			description.append(message);
 			embed.setDescription(description.toString());
 
@@ -652,6 +682,11 @@ public class LoggerHandler extends ListenerAdapter {
 			channelType == ChannelType.STORE ? LoggerEvent.STORE_CHANNEL_OVERRIDE_CREATE :
 			channelType == ChannelType.VOICE ? LoggerEvent.VOICE_CHANNEL_OVERRIDE_CREATE :
 			LoggerEvent.TEXT_CHANNEL_OVERRIDE_CREATE;
+
+		LoggerContext loggerContext = new LoggerContext()
+			.setUser(event.isMemberOverride() ? permissionHolder.getIdLong() : 0L)
+			.setRole(event.isRoleOverride() ? permissionHolder.getIdLong() : 0L)
+			.setChannel(channel);
 
 		String message = LoggerUtility.getPermissionOverrideDifference(event.getOldAllowRaw(), event.getOldInheritedRaw(), event.getOldDenyRaw(), permissionOverride);
 
@@ -682,9 +717,9 @@ public class LoggerHandler extends ListenerAdapter {
 					.findFirst()
 					.orElse(null);
 
-				LoggerContext loggerContext = new LoggerContext(event.isMemberOverride() ? event.getMember().getUser() : null, channel, event.isRoleOverride() ? event.getRole() : null, moderator);
-
 				if (moderator != null) {
+					loggerContext.setModerator(moderator);
+
 					description.append(String.format(" by **%s**", moderator.getAsTag()));
 				}
 
@@ -694,8 +729,6 @@ public class LoggerHandler extends ListenerAdapter {
 				this.manager.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 			});
 		} else {
-			LoggerContext loggerContext = new LoggerContext(event.isMemberOverride() ? event.getMember().getUser() : null, channel, event.isRoleOverride() ? event.getRole() : null);
-
 			description.append(message);
 			embed.setDescription(description.toString());
 
@@ -709,12 +742,18 @@ public class LoggerHandler extends ListenerAdapter {
 		ChannelType channelType = event.getChannelType();
 		Member member = event.getMember();
 		Role role = event.getRole();
+
 		boolean roleOverride = event.isRoleOverride();
 
 		LoggerEvent loggerEvent = channelType == ChannelType.CATEGORY ? LoggerEvent.CATEGORY_OVERRIDE_DELETE :
 			channelType == ChannelType.STORE ? LoggerEvent.STORE_CHANNEL_OVERRIDE_DELETE :
 			channelType == ChannelType.VOICE ? LoggerEvent.VOICE_CHANNEL_OVERRIDE_DELETE :
 			LoggerEvent.TEXT_CHANNEL_OVERRIDE_DELETE;
+
+		LoggerContext loggerContext = new LoggerContext()
+			.setUser(roleOverride ? 0L : member.getIdLong())
+			.setRole(roleOverride ? role.getIdLong() : 0L)
+			.setChannel(channel);
 
 		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
 		embed.setColor(this.config.getRed());
@@ -743,9 +782,9 @@ public class LoggerHandler extends ListenerAdapter {
 						.findFirst()
 						.orElse(null);
 
-					LoggerContext loggerContext = new LoggerContext(roleOverride ? null : member.getUser(), channel, roleOverride ? role : null, moderator);
-
 					if (moderator != null) {
+						loggerContext.setModerator(moderator);
+
 						description.append(String.format(" by **%s**", moderator.getAsTag()));
 					}
 
@@ -754,8 +793,6 @@ public class LoggerHandler extends ListenerAdapter {
 					this.manager.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 				});
 			} else {
-				LoggerContext loggerContext = new LoggerContext(roleOverride ? null : member.getUser(), channel, roleOverride ? role : null);
-
 				embed.setDescription(description.toString());
 
 				this.manager.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
@@ -766,6 +803,9 @@ public class LoggerHandler extends ListenerAdapter {
 	public void onChannelDelete(GuildChannel channel, LoggerEvent loggerEvent) {
 		Guild guild = channel.getGuild();
 		String typeReadable = LoggerUtility.getChannelTypeReadable(channel.getType());
+
+		LoggerContext loggerContext = new LoggerContext()
+			.setChannel(channel);
 
 		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
 		embed.setDescription(String.format("The %s `%s` has just been deleted", typeReadable, channel.getName()));
@@ -785,17 +825,15 @@ public class LoggerHandler extends ListenerAdapter {
 					.findFirst()
 					.orElse(null);
 
-				LoggerContext loggerContext = new LoggerContext(null, channel, null, moderator);
-
 				if (moderator != null) {
+					loggerContext.setModerator(moderator);
+
 					embed.setDescription(String.format("The %s `%s` has just been deleted by **%s**", typeReadable, channel.getName(),  moderator.getAsTag()));
 				}
 
 				this.manager.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 			});
 		} else {
-			LoggerContext loggerContext = new LoggerContext(null, channel, null);
-
 			this.manager.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 		}
 	}
@@ -821,6 +859,9 @@ public class LoggerHandler extends ListenerAdapter {
 		ChannelType channelType = channel.getType();
 		String typeReadable = LoggerUtility.getChannelTypeReadable(channelType);
 
+		LoggerContext loggerContext = new LoggerContext()
+			.setChannel(channel);
+
 		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
 		embed.setDescription(String.format("The %s `%s` has just been created", typeReadable, channel.getName()));
 		embed.setColor(this.config.getGreen());
@@ -839,17 +880,15 @@ public class LoggerHandler extends ListenerAdapter {
 					.findFirst()
 					.orElse(null);
 
-				LoggerContext loggerContext = new LoggerContext(null, channel, null, moderator);
-
 				if (moderator != null) {
+					loggerContext.setModerator(moderator);
+
 					embed.setDescription(String.format("The %s %s has just been created by **%s**", typeReadable, channelType == ChannelType.TEXT ? ((TextChannel) channel).getAsMention() : "`" + channel.getName() + "`",  moderator.getAsTag()));
 				}
 
 				this.manager.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 			});
 		} else {
-			LoggerContext loggerContext = new LoggerContext(null, channel, null);
-
 			this.manager.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 		}
 	}
@@ -875,6 +914,9 @@ public class LoggerHandler extends ListenerAdapter {
 		ChannelType channelType = channel.getType();
 		String typeReadable = LoggerUtility.getChannelTypeReadable(channelType);
 
+		LoggerContext loggerContext = new LoggerContext()
+			.setChannel(channel);
+
 		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
 		embed.setDescription(String.format("The %s `%s` has just been renamed", typeReadable, channel.getName()));
 		embed.setColor(this.config.getOrange());
@@ -897,17 +939,15 @@ public class LoggerHandler extends ListenerAdapter {
 					.findFirst()
 					.orElse(null);
 
-				LoggerContext loggerContext = new LoggerContext(null, channel, null, moderator);
-
 				if (moderator != null) {
+					loggerContext.setModerator(moderator);
+
 					embed.setDescription(String.format("The %s %s has just been renamed by **%s**", typeReadable, channelType == ChannelType.TEXT ? ((TextChannel) channel).getAsMention() : "`" + channel.getName() + "`", moderator.getAsTag()));
 				}
 
 				this.manager.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 			});
 		} else {
-			LoggerContext loggerContext = new LoggerContext(null, channel, null);
-
 			this.manager.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 		}
 	}
@@ -933,6 +973,8 @@ public class LoggerHandler extends ListenerAdapter {
 		Role role = event.getRole();
 
 		LoggerEvent loggerEvent = LoggerEvent.ROLE_CREATE;
+		LoggerContext loggerContext = new LoggerContext()
+			.setRole(role);
 
 		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
 		embed.setDescription(String.format("The role %s has been created", role.getAsMention()));
@@ -952,17 +994,15 @@ public class LoggerHandler extends ListenerAdapter {
 					.findFirst()
 					.orElse(null);
 
-				LoggerContext loggerContext = new LoggerContext(null, null, role, moderator);
-
 				if (moderator != null) {
+					loggerContext.setModerator(moderator);
+
 					embed.setDescription(String.format("The role %s has been created by **%s**", role.getAsMention(), moderator.getAsTag()));
 				}
 
 				this.manager.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 			});
 		} else {
-			LoggerContext loggerContext = new LoggerContext(null, null, role);
-
 			this.manager.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 		}
 	}
@@ -972,6 +1012,8 @@ public class LoggerHandler extends ListenerAdapter {
 		Role role = event.getRole();
 
 		LoggerEvent loggerEvent = LoggerEvent.ROLE_DELETE;
+		LoggerContext loggerContext = new LoggerContext()
+			.setRole(role);
 
 		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
 		embed.setDescription(String.format("The role `%s` has been deleted", role.getName()));
@@ -991,17 +1033,15 @@ public class LoggerHandler extends ListenerAdapter {
 					.findFirst()
 					.orElse(null);
 
-				LoggerContext loggerContext = new LoggerContext(null, null, role, moderator);
-
 				if (moderator != null) {
+					loggerContext.setModerator(moderator);
+
 					embed.setDescription(String.format("The role `%s` has been deleted by **%s**", role.getName(), moderator.getAsTag()));
 				}
 
 				this.manager.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 			});
 		} else {
-			LoggerContext loggerContext = new LoggerContext(null, null, role);
-
 			this.manager.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 		}
 	}
@@ -1011,6 +1051,8 @@ public class LoggerHandler extends ListenerAdapter {
 		Role role = event.getRole();
 
 		LoggerEvent loggerEvent = LoggerEvent.ROLE_NAME_UPDATE;
+		LoggerContext loggerContext = new LoggerContext()
+			.setRole(role);
 
 		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
 		embed.setDescription(String.format("The role %s has been renamed", role.getAsMention()));
@@ -1034,17 +1076,15 @@ public class LoggerHandler extends ListenerAdapter {
 					.findFirst()
 					.orElse(null);
 
-				LoggerContext loggerContext = new LoggerContext(null, null, role, moderator);
-
 				if (moderator != null) {
+					loggerContext.setModerator(moderator);
+
 					embed.setDescription(String.format("The role %s has been renamed by **%s**", role.getAsMention(), moderator.getAsTag()));
 				}
 
 				this.manager.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 			});
 		} else {
-			LoggerContext loggerContext = new LoggerContext(null, null, role);
-
 			this.manager.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 		}
 	}
@@ -1054,6 +1094,8 @@ public class LoggerHandler extends ListenerAdapter {
 		Role role = event.getRole();
 
 		LoggerEvent loggerEvent = LoggerEvent.ROLE_COLOUR_UPDATE;
+		LoggerContext loggerContext = new LoggerContext()
+			.setRole(role);
 
 		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
 		embed.setDescription(String.format("The role %s has been given a new colour", role.getAsMention()));
@@ -1079,17 +1121,15 @@ public class LoggerHandler extends ListenerAdapter {
 					.findFirst()
 					.orElse(null);
 
-				LoggerContext loggerContext = new LoggerContext(null, null, role, moderator);
-
 				if (moderator != null) {
+					loggerContext.setModerator(moderator);
+
 					embed.setDescription(String.format("The role %s has been given a new colour by **%s**", role.getAsMention(), moderator.getAsTag()));
 				}
 
 				this.manager.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 			});
 		} else {
-			LoggerContext loggerContext = new LoggerContext(null, null, role);
-
 			this.manager.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 		}
 	}
@@ -1099,6 +1139,8 @@ public class LoggerHandler extends ListenerAdapter {
 		Role role = event.getRole();
 
 		LoggerEvent loggerEvent = LoggerEvent.ROLE_PERMISSION_UPDATE;
+		LoggerContext loggerContext = new LoggerContext()
+			.setRole(role);
 
 		String permissionMessage = LoggerUtility.getRolePermissionDifference(event.getOldPermissionsRaw(), event.getNewPermissionsRaw());
 		if (permissionMessage.isEmpty()) {
@@ -1124,9 +1166,9 @@ public class LoggerHandler extends ListenerAdapter {
 					.findFirst()
 					.orElse(null);
 
-				LoggerContext loggerContext = new LoggerContext(null, null, role, moderator);
-
 				if (moderator != null) {
+					loggerContext.setModerator(moderator);
+
 					description.append(String.format(" by **%s**", moderator.getAsTag()));
 				}
 
@@ -1138,8 +1180,6 @@ public class LoggerHandler extends ListenerAdapter {
 		} else {
 			description.append(permissionMessage);
 			embed.setDescription(description.toString());
-
-			LoggerContext loggerContext = new LoggerContext(null, null, role);
 
 			this.manager.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 		}
@@ -1153,7 +1193,12 @@ public class LoggerHandler extends ListenerAdapter {
 		List<Role> roles = event.getRoles();
 		Role firstRole = roles.get(0);
 
+		boolean multiple = roles.size() > 1;
+
 		LoggerEvent loggerEvent = LoggerEvent.MEMBER_ROLE_ADD;
+		LoggerContext loggerContext = new LoggerContext()
+			.setRole(multiple ? 0L : firstRole.getIdLong())
+			.setUser(user);
 
 		StringBuilder description = new StringBuilder();
 
@@ -1162,7 +1207,6 @@ public class LoggerHandler extends ListenerAdapter {
 		embed.setTimestamp(Instant.now());
 		embed.setAuthor(new EmbedAuthor(user.getAsTag(), user.getEffectiveAvatarUrl(), null));
 
-		boolean multiple = roles.size() > 1;
 		if (multiple) {
 			StringBuilder builder = new StringBuilder();
 
@@ -1170,7 +1214,7 @@ public class LoggerHandler extends ListenerAdapter {
 			int maxLength = MessageEmbed.TEXT_MAX_LENGTH
 				- 32 /* Max nickname length */
 				- 32 /* Result String overhead */
-				- 16 /* " and x more" overhead */
+				- 15 /* " and x more" overhead */
 				- 3 /* Max length of x */;
 
 			for (int i = 0; i < roles.size(); i++) {
@@ -1220,9 +1264,9 @@ public class LoggerHandler extends ListenerAdapter {
 					.findFirst()
 					.orElse(null);
 
-				LoggerContext loggerContext = new LoggerContext(user, null, multiple ? null : firstRole, moderator);
-
 				if (moderator != null) {
+					loggerContext.setModerator(moderator);
+
 					description.append(String.format(" by **%s**", moderator.getAsTag()));
 				}
 
@@ -1232,8 +1276,6 @@ public class LoggerHandler extends ListenerAdapter {
 			});
 		} else {
 			embed.setDescription(description.toString());
-
-			LoggerContext loggerContext = new LoggerContext(user, null, multiple ? null : firstRole);
 
 			this.manager.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 		}
@@ -1247,18 +1289,24 @@ public class LoggerHandler extends ListenerAdapter {
 		List<Role> roles = event.getRoles();
 		Role firstRole = roles.get(0);
 
-		LoggerEvent loggerEvent = LoggerEvent.MEMBER_ROLE_REMOVE;
 
 		// Ensure role delete event has been sent just in case
 		this.delay(() -> {
 			StringBuilder description = new StringBuilder();
+
+			boolean multiple = roles.size() > 1;
+
+			LoggerEvent loggerEvent = LoggerEvent.MEMBER_ROLE_REMOVE;
+			LoggerContext loggerContext = new LoggerContext()
+				.setRole(multiple ? 0L : firstRole.getIdLong())
+				.setUser(user);
 
 			WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
 			embed.setColor(this.config.getRed());
 			embed.setTimestamp(Instant.now());
 			embed.setAuthor(new EmbedAuthor(user.getAsTag(), user.getEffectiveAvatarUrl(), null));
 
-			boolean multiple = roles.size() > 1, deleted = false;
+			boolean deleted = false;
 			if (multiple) {
 				StringBuilder builder = new StringBuilder();
 
@@ -1322,9 +1370,9 @@ public class LoggerHandler extends ListenerAdapter {
 						.findFirst()
 						.orElse(null);
 
-					LoggerContext loggerContext = new LoggerContext(user, null, multiple ? null : firstRole, moderator);
-
 					if (moderator != null) {
+						loggerContext.setModerator(moderator);
+
 						description.append(String.format(" by **%s**", moderator.getAsTag()));
 					}
 
@@ -1334,8 +1382,6 @@ public class LoggerHandler extends ListenerAdapter {
 				});
 			} else {
 				embed.setDescription(description.toString());
-
-				LoggerContext loggerContext = new LoggerContext(user, null, multiple ? null : firstRole);
 
 				this.manager.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 			}
@@ -1348,11 +1394,13 @@ public class LoggerHandler extends ListenerAdapter {
 		User user = event.getUser();
 
 		LoggerEvent loggerEvent = LoggerEvent.MEMBER_NICKNAME_UPDATE;
+		LoggerContext loggerContext = new LoggerContext()
+			.setUser(user);
 
 		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
 		embed.setDescription(String.format("`%s` has had their nickname changed", member.getEffectiveName()));
 		embed.setColor(this.config.getOrange());
-		embed.setTimestamp(ZonedDateTime.now());
+		embed.setTimestamp(Instant.now());
 		embed.setAuthor(new EmbedAuthor(user.getAsTag(), user.getEffectiveAvatarUrl(), null));
 		embed.setFooter(new EmbedFooter(String.format("User ID: %s", user.getId()), null));
 
@@ -1371,19 +1419,169 @@ public class LoggerHandler extends ListenerAdapter {
 					.findFirst()
 					.orElse(null);
 
-				LoggerContext loggerContext = new LoggerContext(user, null, null, moderator);
-
 				if (moderator != null) {
+					loggerContext.setModerator(moderator);
 					embed.setDescription(String.format("`%s` has had their nickname changed by **%s**", member.getEffectiveName(), moderator.getAsTag()));
 				}
 
 				this.manager.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 			});
 		} else {
-			LoggerContext loggerContext = new LoggerContext(user, null, null);
-
 			this.manager.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 		}
 	}
 
+	public void onEmoteAdded(EmoteAddedEvent event) {
+		Guild guild = event.getGuild();
+		Emote emote = event.getEmote();
+
+		LoggerEvent loggerEvent = LoggerEvent.EMOTE_CREATE;
+		LoggerContext loggerContext = new LoggerContext()
+			.setEmote(emote);
+
+		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
+		embed.setDescription(String.format("The emote %s has been created", emote.getAsMention()));
+		embed.setColor(this.config.getGreen());
+		embed.setTimestamp(Instant.now());
+		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
+		embed.setFooter(new EmbedFooter(String.format("Emote ID: %s", emote.getId()), null));
+
+		List<Document> loggers = this.database.getGuildById(guild.getIdLong(), Projections.include("logger.loggers")).getEmbedded(List.of("logger", "loggers"), Collections.emptyList());
+
+		if (!emote.isManaged() && guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
+			guild.retrieveAuditLogs().type(ActionType.EMOTE_CREATE).queueAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS, logs -> {
+				User moderator = logs.stream()
+					.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
+					.filter(e -> e.getTargetIdLong() == emote.getIdLong())
+					.map(AuditLogEntry::getUser)
+					.findFirst()
+					.orElse(null);
+
+				if (moderator != null) {
+					loggerContext.setModerator(moderator);
+
+					embed.setDescription(String.format("The emote %s has been created by **%s**", emote.getAsMention(), moderator.getAsTag()));
+				}
+
+				this.manager.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+			});
+		} else {
+			this.manager.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+		}
+	}
+
+	public void onEmoteRemoved(EmoteRemovedEvent event) {
+		Guild guild = event.getGuild();
+		Emote emote = event.getEmote();
+
+		LoggerEvent loggerEvent = LoggerEvent.EMOTE_DELETE;
+		LoggerContext loggerContext = new LoggerContext()
+			.setEmote(emote);
+
+		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
+		embed.setDescription(String.format("The emote `%s` has been deleted", emote.getName()));
+		embed.setColor(this.config.getRed());
+		embed.setTimestamp(Instant.now());
+		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
+		embed.setFooter(new EmbedFooter(String.format("Emote ID: %s", emote.getId()), null));
+
+		List<Document> loggers = this.database.getGuildById(guild.getIdLong(), Projections.include("logger.loggers")).getEmbedded(List.of("logger", "loggers"), Collections.emptyList());
+
+		if (!emote.isManaged() && guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
+			guild.retrieveAuditLogs().type(ActionType.EMOTE_DELETE).queueAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS, logs -> {
+				User moderator = logs.stream()
+					.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
+					.filter(e -> e.getTargetIdLong() == emote.getIdLong())
+					.map(AuditLogEntry::getUser)
+					.findFirst()
+					.orElse(null);
+
+				if (moderator != null) {
+					loggerContext.setModerator(moderator);
+
+					embed.setDescription(String.format("The emote `%s` has been deleted by **%s**", emote.getName(), moderator.getAsTag()));
+				}
+
+				this.manager.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+			});
+		} else {
+			this.manager.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+		}
+	}
+
+	public void onEmoteUpdateName(EmoteUpdateNameEvent event) {
+		Guild guild = event.getGuild();
+		Emote emote = event.getEmote();
+
+		LoggerEvent loggerEvent = LoggerEvent.EMOTE_NAME_UPDATE;
+		LoggerContext loggerContext = new LoggerContext()
+			.setEmote(emote);
+
+		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
+		embed.setDescription(String.format("The emote %s has been renamed", emote.getAsMention()));
+		embed.setColor(this.config.getOrange());
+		embed.setTimestamp(Instant.now());
+		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
+		embed.setFooter(new EmbedFooter(String.format("Emote ID: %s", emote.getId()), null));
+
+		embed.addField(new EmbedField(false, "Before", String.format("`%s`", event.getOldName())));
+		embed.addField(new EmbedField(false, "After", String.format("`%s`", event.getNewName())));
+
+		List<Document> loggers = this.database.getGuildById(guild.getIdLong(), Projections.include("logger.loggers")).getEmbedded(List.of("logger", "loggers"), Collections.emptyList());
+
+		if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
+			guild.retrieveAuditLogs().type(ActionType.EMOTE_UPDATE).queueAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS, logs -> {
+				User moderator = logs.stream()
+					.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
+					.filter(e -> e.getTargetIdLong() == emote.getIdLong())
+					.filter(e -> e.getChangeByKey(AuditLogKey.EMOTE_NAME) != null)
+					.map(AuditLogEntry::getUser)
+					.findFirst()
+					.orElse(null);
+
+				if (moderator != null) {
+					loggerContext.setModerator(moderator);
+
+					embed.setDescription(String.format("The emote %s has been renamed by **%s**", emote.getName(), moderator.getAsTag()));
+				}
+
+				this.manager.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+			});
+		} else {
+			this.manager.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+		}
+	}
+
+	public void onEmoteUpdateRoles(EmoteUpdateRolesEvent event) {
+		Guild guild = event.getGuild();
+		Emote emote = event.getEmote();
+		List<Role> newRoles = event.getNewRoles(), oldRoles = event.getOldRoles();
+
+		LoggerEvent loggerEvent = LoggerEvent.EMOTE_ROLES_UPDATE;
+		LoggerContext loggerContext = new LoggerContext()
+			.setEmote(emote);
+
+		Pair<List<Role>, List<Role>> roles = LoggerUtility.getRoleDifference(newRoles, oldRoles);
+		List<Role> rolesAdded = roles.getLeft(), rolesRemoved = roles.getRight();
+
+		StringBuilder description = new StringBuilder(String.format("The emote %s has had its role whitelist updated", emote.getAsMention()));
+
+		/* This event isn't sent when a role is deleted, I'll leave this here in case
+		if (rolesAdded.size() == 0 && rolesRemoved.size() == 1 && guild.getRoleById(rolesRemoved.get(0).getIdLong()) == null) {
+			description.append(" by **role deletion**");
+		}*/
+
+		description.append(LoggerUtility.getRoleDifferenceMessage(rolesRemoved, rolesAdded, description.length()));
+
+		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
+		embed.setDescription(description.toString());
+		embed.setColor(this.config.getOrange());
+		embed.setTimestamp(Instant.now());
+		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
+		embed.setFooter(new EmbedFooter(String.format("Emote ID: %s", emote.getId()), null));
+
+		List<Document> loggers = this.database.getGuildById(guild.getIdLong(), Projections.include("logger.loggers")).getEmbedded(List.of("logger", "loggers"), Collections.emptyList());
+
+		this.manager.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+	}
 }

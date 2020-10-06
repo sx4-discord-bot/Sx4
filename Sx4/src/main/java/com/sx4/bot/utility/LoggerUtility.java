@@ -6,9 +6,11 @@ import com.sx4.bot.entities.management.logger.LoggerCategory;
 import com.sx4.bot.entities.management.logger.LoggerEvent;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.*;
+import net.dv8tion.jda.internal.utils.tuple.Pair;
 import org.bson.Document;
 
 import java.util.*;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 public class LoggerUtility {
@@ -92,12 +94,15 @@ public class LoggerUtility {
             case STORE_CHANNEL:
                 StoreChannel storeChannel = SearchUtility.getStoreChannel(guild, query);
                 return storeChannel == null ? 0L : storeChannel.getIdLong();
+            case EMOTE:
+                Emote emote = SearchUtility.getGuildEmote(guild, query);
+                return emote == null ? 0L : emote.getIdLong();
         }
 
         return 0L;
     }
 
-    public static boolean isWhitelisted(List<Document> entities, LoggerEvent event, long roleId, long userId, long channelId, long moderatorId) {
+    public static boolean isWhitelisted(List<Document> entities, LoggerEvent event, LoggerContext context) {
         for (Document entity : entities) {
             if ((entity.getLong("events") & event.getRaw()) != event.getRaw()) {
                 continue;
@@ -107,19 +112,25 @@ public class LoggerUtility {
             LoggerCategory category = LoggerCategory.fromType(entity.getInteger("type"));
             switch (category) {
                 case ROLE:
-                    if (roleId == id) {
+                    if (context.getRoleId() == id) {
                         return false;
                     }
 
                     break;
                 case USER:
-                    if (userId == id) {
+                    if (context.getUserId() == id) {
                         return false;
                     }
 
                     break;
                 case AUDIT:
-                    if (moderatorId == id) {
+                    if (context.getModeratorId() == id) {
+                        return false;
+                    }
+
+                    break;
+                case EMOTE:
+                    if (context.getEmoteId() == id) {
                         return false;
                     }
 
@@ -128,7 +139,7 @@ public class LoggerUtility {
                 case TEXT_CHANNEL:
                 case STORE_CHANNEL:
                 case CATEGORY:
-                    if (channelId == id) {
+                    if (context.getChannelId() == id) {
                         return false;
                     }
 
@@ -137,10 +148,6 @@ public class LoggerUtility {
         }
 
         return true;
-    }
-
-    public static boolean isWhitelisted(List<Document> entities, LoggerEvent event, LoggerContext context) {
-        return LoggerUtility.isWhitelisted(entities, event, context.hasRole() ? context.getRole().getIdLong() : 0L, context.hasUser() ? context.getUser().getIdLong() : 0L, context.hasChannel() ? context.getChannel().getIdLong() : 0L, context.hasModerator() ? context.getModerator().getIdLong() : 0L);
     }
 
     public static boolean canSend(Document logger, LoggerEvent event, LoggerContext context) {
@@ -206,11 +213,11 @@ public class LoggerUtility {
         if (!permissionsAdded.isEmpty() || !permissionsRemoved.isEmpty()) {
             builder.append("\n```diff");
 
-            for(Permission permissionAdded : permissionsAdded) {
+            for (Permission permissionAdded : permissionsAdded) {
                 builder.append("\n+ ").append(permissionAdded.getName());
             }
 
-            for(Permission permissionRemoved : permissionsRemoved) {
+            for (Permission permissionRemoved : permissionsRemoved) {
                 builder.append("\n- ").append(permissionRemoved.getName());
             }
 
@@ -218,6 +225,55 @@ public class LoggerUtility {
         }
 
         return builder.toString();
+    }
+
+    public static Pair<List<Role>, List<Role>> getRoleDifference(List<Role> newRoles, List<Role> oldRoles) {
+        List<Role> rolesAdded = newRoles.stream()
+            .filter(Predicate.not(oldRoles::contains))
+            .collect(Collectors.toList());
+
+        List<Role> rolesRemoved = oldRoles.stream()
+            .filter(Predicate.not(newRoles::contains))
+            .collect(Collectors.toList());
+
+        return Pair.of(rolesAdded, rolesRemoved);
+    }
+
+    public static String getRoleDifferenceMessage(List<Role> rolesRemoved, List<Role> rolesAdded, int extraLength) {
+        int maxLength = MessageEmbed.TEXT_MAX_LENGTH
+            - extraLength
+            - 9 /* "\n```diff" */
+            - 3 /* "```" */
+            - 18 /* "\n+ x more added" */
+            - 18 /* "\n- x more removed" */;
+
+        StringBuilder builder = new StringBuilder("\n```diff");
+        for (int i = 0; i < rolesAdded.size(); i++) {
+            Role role = rolesAdded.get(i);
+
+            String entry = "\n+ " + role.getName();
+            if (builder.length() + entry.length() <= maxLength) {
+                builder.append(entry);
+            } else {
+                return builder.append(String.format("\n+ %d more added", rolesAdded.size() - i))
+                    .append(String.format("\n- %d more removed```", rolesRemoved.size()))
+                    .toString();
+            }
+        }
+
+        for (int i = 0; i < rolesRemoved.size(); i++) {
+            Role role = rolesRemoved.get(i);
+
+            String entry = "\n- " + role.getName();
+            if (builder.length() + entry.length() <= maxLength) {
+                builder.append(entry);
+            } else {
+                builder.append(String.format("\n- %d more removed```", rolesRemoved.size() - i));
+                break;
+            }
+        }
+
+        return builder.append("```").toString();
     }
 
     public static String getChannelTypeReadable(ChannelType channelType) {

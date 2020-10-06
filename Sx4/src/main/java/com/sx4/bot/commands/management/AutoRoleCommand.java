@@ -16,7 +16,7 @@ import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.model.Operators;
 import com.sx4.bot.entities.argument.All;
 import com.sx4.bot.entities.argument.TimedArgument;
-import com.sx4.bot.entities.management.Filter;
+import com.sx4.bot.entities.management.AutoRoleFilter;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.TimeUtility;
@@ -176,8 +176,8 @@ public class AutoRoleCommand extends Sx4Command {
 		@Command(value="add", description="Adds a filter to an auto role")
 		@Examples({"auto role filter add @Role BOT", "auto role filter add Role CREATED_LESS_THAN 2d"})
 		@AuthorPermissions(permissions={Permission.MANAGE_ROLES})
-		public void add(Sx4CommandEvent event, @Argument(value="role") Role role, @Argument(value="filter", endless=true) TimedArgument<Filter> timedArgument) {
-			Filter filter = timedArgument.getArgument();
+		public void add(Sx4CommandEvent event, @Argument(value="role") Role role, @Argument(value="filter", endless=true) TimedArgument<AutoRoleFilter> timedArgument) {
+			AutoRoleFilter filter = timedArgument.getArgument();
 			if (filter.hasDuration() && !timedArgument.hasDuration()) {
 				event.reply("That filter requires a time interval to be given with it " + this.config.getFailureEmote()).queue();
 				return;
@@ -221,7 +221,7 @@ public class AutoRoleCommand extends Sx4Command {
 		@Command(value="remove", description="Removes a filter from an auto  role")
 		@Examples({"auto role filter remove @Role BOT", "auto role filter remove Role CREATED_LESS_THAN"})
 		@AuthorPermissions(permissions={Permission.MANAGE_ROLES})
-		public void remove(Sx4CommandEvent event, @Argument(value="role") Role role, @Argument(value="filter") All<Filter> allArgument) {
+		public void remove(Sx4CommandEvent event, @Argument(value="role") Role role, @Argument(value="filter") All<AutoRoleFilter> allArgument) {
 			boolean all = allArgument.isAll();
 			
 			UpdateOptions options = new UpdateOptions().arrayFilters(List.of(Filters.eq("role.id", role.getIdLong())));
@@ -253,7 +253,7 @@ public class AutoRoleCommand extends Sx4Command {
 		public void list(Sx4CommandEvent event) {
 			StringBuilder description = new StringBuilder();
 			
-			Arrays.stream(Filter.values())
+			Arrays.stream(AutoRoleFilter.values())
 				.map(filter -> "`" + filter.name() + "` - " + filter.getDescription() + "\n\n")
 				.forEach(description::append);
 			

@@ -22,7 +22,7 @@ import com.sx4.bot.cache.GuildMessageCache;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.config.Config;
 import com.sx4.bot.entities.argument.*;
-import com.sx4.bot.entities.management.Filter;
+import com.sx4.bot.entities.management.AutoRoleFilter;
 import com.sx4.bot.entities.mod.PartialEmote;
 import com.sx4.bot.entities.mod.Reason;
 import com.sx4.bot.entities.mod.action.ModAction;
@@ -535,7 +535,7 @@ public class Sx4 {
 			.registerResponse(ReminderArgument.class, "Invalid reminder format given, view `help reminder add` for more info " + this.config.getFailureEmote())
 			.registerResponse(PartialEmote.class, "I could not find that emote " + this.config.getFailureEmote())
 			.registerResponse(Guild.class, "I could not find that server " + this.config.getFailureEmote())
-			.registerResponse(Filter.class, "I could not find that filter " + this.config.getFailureEmote())
+			.registerResponse(AutoRoleFilter.class, "I could not find that filter " + this.config.getFailureEmote())
 			.registerResponse(Pattern.class, "Regex syntax was incorrect " + this.config.getFailureEmote())
 			.registerResponse(UpdateType.class, (argument, message, content) -> {
 				List<UpdateType> updates = argument.getProperty("updates", List.class);

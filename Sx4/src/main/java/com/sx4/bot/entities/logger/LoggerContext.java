@@ -1,60 +1,88 @@
 package com.sx4.bot.entities.logger;
 
+import net.dv8tion.jda.api.entities.Emote;
 import net.dv8tion.jda.api.entities.GuildChannel;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.User;
 
 public class LoggerContext {
 
-	private final User moderator;
-	private final User user;
-	private final GuildChannel channel;
-	private final Role role;
+	private long moderatorId = 0L;
+	private long userId = 0L;
+	private long channelId = 0L;
+	private long roleId = 0L;
+	private long emoteId = 0L;
 
-	public LoggerContext(User user, GuildChannel channel, Role role) {
-		this.user = user;
-		this.channel = channel;
-		this.role = role;
-		this.moderator = null;
+	public LoggerContext() {}
+
+	public LoggerContext setUser(long userId) {
+		this.userId = userId;
+
+		return this;
 	}
 
-	public LoggerContext(User user, GuildChannel channel, Role role, User moderator) {
-		this.user = user;
-		this.channel = channel;
-		this.role = role;
-		this.moderator = moderator;
+	public LoggerContext setUser(User user) {
+		return this.setUser(user.getIdLong());
 	}
 
-	public boolean hasUser() {
-		return this.user != null;
+	public LoggerContext setModerator(long moderatorId) {
+		this.moderatorId = moderatorId;
+
+		return this;
 	}
 
-	public User getUser() {
-		return this.user;
+	public LoggerContext setModerator(User moderator) {
+		return this.setModerator(moderator.getIdLong());
 	}
 
-	public boolean hasModerator() {
-		return this.moderator != null;
+	public LoggerContext setEmote(long emoteId) {
+		this.emoteId = emoteId;
+
+		return this;
 	}
 
-	public User getModerator() {
-		return this.moderator;
+	public LoggerContext setEmote(Emote emote) {
+		return this.setEmote(emote.getIdLong());
 	}
 
-	public boolean hasChannel() {
-		return this.channel != null;
+	public LoggerContext setRole(long roleId) {
+		this.roleId = roleId;
+
+		return this;
 	}
 
-	public GuildChannel getChannel() {
-		return this.channel;
+	public LoggerContext setRole(Role role) {
+		return this.setRole(role.getIdLong());
 	}
 
-	public boolean hasRole() {
-		return this.role != null;
+	public LoggerContext setChannel(long channelId) {
+		this.channelId = channelId;
+
+		return this;
 	}
 
-	public Role getRole() {
-		return this.role;
+	public LoggerContext setChannel(GuildChannel channel) {
+		return this.setChannel(channel.getIdLong());
+	}
+
+	public long getModeratorId() {
+		return this.moderatorId;
+	}
+
+	public long getUserId() {
+		return this.userId;
+	}
+
+	public long getChannelId() {
+		return this.channelId;
+	}
+
+	public long getRoleId() {
+		return this.roleId;
+	}
+
+	public long getEmoteId() {
+		return this.emoteId;
 	}
 
 }

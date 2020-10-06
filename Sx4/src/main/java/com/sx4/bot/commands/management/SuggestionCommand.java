@@ -15,7 +15,7 @@ import com.sx4.bot.database.Database;
 import com.sx4.bot.database.model.Operators;
 import com.sx4.bot.entities.argument.All;
 import com.sx4.bot.entities.argument.MessageArgument;
-import com.sx4.bot.entities.management.State;
+import com.sx4.bot.entities.management.SuggestionState;
 import com.sx4.bot.utility.CheckUtility;
 import com.sx4.bot.utility.ColourUtility;
 import com.sx4.bot.utility.ExceptionUtility;
@@ -45,7 +45,7 @@ public class SuggestionCommand extends Sx4Command {
 		super.setCategoryAll(ModuleCategory.MANAGEMENT);
 	}
 	
-	private MessageEmbed getSuggestionEmbed(User author, User moderator, String suggestion, String reason, State state) {
+	private MessageEmbed getSuggestionEmbed(User author, User moderator, String suggestion, String reason, SuggestionState state) {
 		EmbedBuilder embed = new EmbedBuilder()
 			.setAuthor(author == null ? "Anonymous#0000" : author.getAsTag(), null, author == null ? null : author.getEffectiveAvatarUrl())
 			.setDescription(suggestion)
@@ -125,7 +125,7 @@ public class SuggestionCommand extends Sx4Command {
 			return;
 		}
 		
-		State state = State.PENDING;
+		SuggestionState state = SuggestionState.PENDING;
 		channel.sendMessage(this.getSuggestionEmbed(event.getAuthor(), null, suggestion, null, state)).queue(message -> {
 			Document suggestionData = new Document("id", message.getIdLong())
 				.append("channelId", channel.getIdLong())
@@ -225,7 +225,7 @@ public class SuggestionCommand extends Sx4Command {
 	public void set(Sx4CommandEvent event, @Argument(value="message id") MessageArgument messageArgument, @Argument(value="state") String stateName, @Argument(value="reason", endless=true, nullDefault=true) String reason) {
 		Document data = this.database.getGuildById(event.getGuild().getIdLong(), Projections.include("suggestion.states", "suggestion.suggestions", "suggestion.channelId")).get("suggestion", Database.EMPTY_DOCUMENT);
 		
-		List<Document> states = data.getList("states", Document.class, State.DEFAULT_STATES);
+		List<Document> states = data.getList("states", Document.class, SuggestionState.DEFAULT_STATES);
 		Document state = states.stream()
 			.filter(stateData -> stateData.getString("dataName").equalsIgnoreCase(stateName))
 			.findFirst()
@@ -277,7 +277,7 @@ public class SuggestionCommand extends Sx4Command {
 			
 			User author = event.getShardManager().getUserById(suggestion.getLong("authorId"));
 			
-			channel.editMessageById(messageId, this.getSuggestionEmbed(author, event.getAuthor(), suggestion.getString("suggestion"), reason, new State(state))).queue(message -> {
+			channel.editMessageById(messageId, this.getSuggestionEmbed(author, event.getAuthor(), suggestion.getString("suggestion"), reason, new SuggestionState(state))).queue(message -> {
 				event.reply("That suggestion has been set to the `" + state.getString("name") + "` state " + this.config.getSuccessEmote()).queue();
 			});
 		});
@@ -305,7 +305,7 @@ public class SuggestionCommand extends Sx4Command {
 				.append("dataName", dataName)
 				.append("colour", colour);
 			
-			List<Document> defaultStates = State.getDefaultStates();
+			List<Document> defaultStates = SuggestionState.getDefaultStates();
 			if (defaultStates.stream().anyMatch(state -> state.getString("dataName").equals(dataName))) {
 				event.reply("There is already a state named that " + this.config.getFailureEmote()).queue();
 				return;

@@ -22,6 +22,12 @@ public enum LoggerEvent {
     MEMBER_VOICE_MOVE(14, LoggerCategory.USER, LoggerCategory.AUDIT),
     MEMBER_VOICE_DISCONNECT(32, LoggerCategory.USER, LoggerCategory.VOICE_CHANNEL, LoggerCategory.AUDIT),
 
+    // Emote events
+    EMOTE_CREATE(48, LoggerCategory.AUDIT),
+    EMOTE_DELETE(49, LoggerCategory.AUDIT),
+    EMOTE_NAME_UPDATE(50, LoggerCategory.AUDIT),
+    EMOTE_ROLES_UPDATE(51, LoggerCategory.AUDIT),
+
     // Guild events
     BOT_ADDED(31, LoggerCategory.USER, LoggerCategory.AUDIT),
 

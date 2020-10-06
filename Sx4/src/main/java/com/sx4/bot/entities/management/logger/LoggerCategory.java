@@ -8,7 +8,8 @@ public enum LoggerCategory {
 	STORE_CHANNEL("Store Channel", 3),
 	CATEGORY("Category", 4),
 	ROLE("Role", 5),
-	AUDIT("User", 6);
+	AUDIT("User", 6),
+	EMOTE("Emote", 7);
 
 	private final int type;
 	private final String name;
