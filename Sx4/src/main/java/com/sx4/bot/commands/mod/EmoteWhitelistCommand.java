@@ -8,6 +8,7 @@ import com.sx4.bot.annotations.command.Examples;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
+import com.sx4.bot.paged.PagedResult;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Emote;
 import net.dv8tion.jda.api.entities.Role;
@@ -37,8 +38,8 @@ public class EmoteWhitelistCommand extends Sx4Command {
 	@BotPermissions(permissions={Permission.MANAGE_EMOTES})
 	public void set(Sx4CommandEvent event, @Argument(value="emote") Emote emote, @Argument(value="roles") Role... roles) {
 		List<Role> currentRoles = emote.getRoles(), newRoles = Arrays.asList(roles);
-		if (currentRoles.containsAll(newRoles)) {
-			event.reply("That emote is already has all those roles whitelisted " + this.config.getFailureEmote()).queue();
+		if (newRoles.containsAll(currentRoles)) {
+			event.reply("That emote already has all those roles whitelisted " + this.config.getFailureEmote()).queue();
 			return;
 		}
 
@@ -51,7 +52,7 @@ public class EmoteWhitelistCommand extends Sx4Command {
 	@Examples({"emote whitelist add <:rain:748240799719882762> @Emote Role", "emote whitelist add rain Emote Role"})
 	@AuthorPermissions(permissions={Permission.MANAGE_EMOTES})
 	@BotPermissions(permissions={Permission.MANAGE_EMOTES})
-	public void add(Sx4CommandEvent event, @Argument(value="emote") Emote emote, @Argument(value="roles") Role role) {
+	public void add(Sx4CommandEvent event, @Argument(value="emote") Emote emote, @Argument(value="role", endless=true) Role role) {
 		Set<Role> currentRoles = new HashSet<>(emote.getRoles());
 		if (currentRoles.contains(role)) {
 			event.reply("That emote already has that role whitelisted " + this.config.getFailureEmote()).queue();
@@ -69,7 +70,7 @@ public class EmoteWhitelistCommand extends Sx4Command {
 	@Examples({"emote whitelist remove <:rain:748240799719882762> @Emote Role", "emote whitelist remove rain Emote Role"})
 	@AuthorPermissions(permissions={Permission.MANAGE_EMOTES})
 	@BotPermissions(permissions={Permission.MANAGE_EMOTES})
-	public void remove(Sx4CommandEvent event, @Argument(value="emote") Emote emote, @Argument(value="roles") Role role) {
+	public void remove(Sx4CommandEvent event, @Argument(value="emote") Emote emote, @Argument(value="role", endless=true) Role role) {
 		Set<Role> currentRoles = new HashSet<>(emote.getRoles());
 		if (!currentRoles.contains(role)) {
 			event.reply("That emote does not have that role whitelisted " + this.config.getFailureEmote()).queue();
@@ -91,6 +92,22 @@ public class EmoteWhitelistCommand extends Sx4Command {
 		emote.getManager().setRoles(null)
 			.flatMap($ -> event.replyFormat("The emote %s no longer has any whitelisted roles %s", emote.getAsMention(), this.config.getSuccessEmote()))
 			.queue();
+	}
+
+	@Command(value="list", description="Lists the roles able to use the emote")
+	@Examples({"emote whitelist list <:rain:748240799719882762>", "emote whitelist list rain"})
+	public void list(Sx4CommandEvent event, @Argument(value="emote") Emote emote) {
+		if (emote.getRoles().isEmpty()) {
+			event.reply("That role does not have any whitelisted role " + this.config.getFailureEmote()).queue();
+			return;
+		}
+
+		PagedResult<Role> paged = new PagedResult<>(emote.getRoles())
+			.setAuthor("Roles Whitelisted", null, event.getGuild().getIconUrl())
+			.setDisplayFunction(Role::getAsMention)
+			.setIndexed(false);
+
+		paged.execute(event);
 	}
 
 }

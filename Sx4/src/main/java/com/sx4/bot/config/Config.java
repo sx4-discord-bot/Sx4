@@ -287,6 +287,22 @@ public class Config {
 	public String getPatreonWebhookSecret() {
 		return this.get("token.patreonWebhookSecret");
 	}
+
+	public String getTwitch() {
+		return this.get("token.twitch.token");
+	}
+
+	public long getTwitchExpiresAt() {
+		return this.get("token.twitch.expiresAt");
+	}
+
+	public String getTwitchClientSecret() {
+		return this.get("token.twitch.clientSecret");
+	}
+
+	public String getTwitchClientId() {
+		return this.get("token.twitch.clientId");
+	}
 	
 	public String getVoteApi(boolean sx4) {
 		return this.get("token.voteApi." + (sx4 ? "sx4" : "jockieMusic"));

@@ -13,10 +13,10 @@ import org.bson.Document;
 import org.bson.conversions.Bson;
 
 import java.time.Clock;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 public class PatreonHandler implements PatreonListener, EventListener {
 	
@@ -50,10 +50,9 @@ public class PatreonHandler implements PatreonListener, EventListener {
 		database.findAndDeletePatronById(event.getId(), Projections.include("guilds")).thenCompose(data -> {
 			List<Long> guilds = data.getList("guilds", Long.class, Collections.emptyList());
 			
-			List<WriteModel<Document>> bulkData = new ArrayList<>();
-			for (long guildId : guilds) {
-				bulkData.add(new UpdateOneModel<>(Filters.eq("_id", guildId), Updates.unset("premium")));
-			}
+			List<WriteModel<Document>> bulkData = guilds.stream()
+				.map(guildId -> new UpdateOneModel<Document>(Filters.eq("_id", guildId), Updates.unset("premium")))
+				.collect(Collectors.toList());
 			
 			if (!bulkData.isEmpty()) {
     			return database.bulkWriteGuilds(bulkData);
