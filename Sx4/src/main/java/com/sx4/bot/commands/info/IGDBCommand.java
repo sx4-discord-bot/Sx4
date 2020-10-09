@@ -48,7 +48,7 @@ public class IGDBCommand extends Sx4Command {
 				.appendFilter(filter -> IGDBFilter.and(filter, sort == null ? "name" : sort.getName() + " != n"));
 
 			if (game != null) {
-				parser.appendFilter(filter -> IGDBFilter.and(String.format("name ~ \"%s\"*", game)));
+				parser.appendFilter(filter -> IGDBFilter.and(filter, String.format("name ~ \"%s\"*", game)));
 			}
 		}
 
