@@ -213,9 +213,8 @@ public class Sx4Bot {
 		eventManager.register(new ExceptionHandler());
 		eventManager.register(GuildMessageCache.INSTANCE);
 			
-		bot = DefaultShardManagerBuilder.create(Settings.BOT_OAUTH, EnumSet.allOf(GatewayIntent.class))
+		bot = DefaultShardManagerBuilder.create(Settings.BOT_OAUTH, GatewayIntent.getIntents(Settings.INTENTS))
 				.setMemberCachePolicy(MemberCachePolicy.ALL)
-				.disableIntents(GatewayIntent.DIRECT_MESSAGE_TYPING, GatewayIntent.DIRECT_MESSAGE_REACTIONS, GatewayIntent.GUILD_MESSAGE_TYPING)
 				.setEventManagerProvider(shardId -> eventManager)
 				.setBulkDeleteSplittingEnabled(false)
 				.build();
