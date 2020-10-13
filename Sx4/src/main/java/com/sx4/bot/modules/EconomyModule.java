@@ -1241,7 +1241,7 @@ public class EconomyModule {
 		public MinerCommand() {
 			super("miner");
 			
-			super.setDescription("You can buy miners so that you can gain recources every 2 hours");
+			super.setDescription("You can buy miners so that you can gain resources every 2 hours");
 			super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
 			super.setExamples("miner shop", "miner buy", "miner collect");
 		}
