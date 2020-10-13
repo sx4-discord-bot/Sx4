@@ -66,11 +66,11 @@ public class FakePermissionsCommand extends Sx4Command {
 			}
 			
 			if (result.getModifiedCount() == 0) {
-				event.reply("That " + (role ? "role" : "user") + " already has all those permissions " + this.config.getFailureEmote()).queue();
+				event.replyFailure("That " + (role ? "role" : "user") + " already has all those permissions").queue();
 				return;
 			}
 			
-			event.reply((role ? ((Role) holder).getAsMention() : "**" + ((Member) holder).getUser().getAsTag() + "**") + " now has those permissions " + this.config.getSuccessEmote()).queue();
+			event.replySuccess((role ? ((Role) holder).getAsMention() : "**" + ((Member) holder).getUser().getAsTag() + "**") + " now has those permissions").queue();
 		});
 	}
 	
@@ -95,11 +95,11 @@ public class FakePermissionsCommand extends Sx4Command {
 			}
 			
 			if (result.getModifiedCount() == 0) {
-				event.reply("That " + (role ? "role" : "user") + " doesn't have any of those permissions " + this.config.getFailureEmote()).queue();
+				event.replyFailure("That " + (role ? "role" : "user") + " doesn't have any of those permissions").queue();
 				return;
 			}
 			
-			event.reply((role ? ((Role) holder).getAsMention() : "**" + ((Member) holder).getUser().getAsTag() + "**") + " no longer has those permissions " + this.config.getSuccessEmote()).queue();
+			event.replySuccess((role ? ((Role) holder).getAsMention() : "**" + ((Member) holder).getUser().getAsTag() + "**") + " no longer has those permissions").queue();
 		});
 	}
 	
@@ -117,7 +117,7 @@ public class FakePermissionsCommand extends Sx4Command {
 					
 				waiter.onTimeout(() -> event.reply("Response timed out :stopwatch:").queue());
 				
-				waiter.onCancelled(type -> event.reply("Cancelled " + this.config.getSuccessEmote()).queue());
+				waiter.onCancelled(type -> event.replySuccess("Cancelled").queue());
 				
 				waiter.future()
 					.thenCompose(messageEvent -> this.database.updateGuildById(event.getGuild().getIdLong(), Updates.unset("fakePermissions.holders")))
@@ -126,7 +126,7 @@ public class FakePermissionsCommand extends Sx4Command {
 							return;
 						}
 						
-						event.reply("All fake permission data has been deleted in this server " + this.config.getSuccessEmote()).queue();
+						event.replySuccess("All fake permission data has been deleted in this server").queue();
 					});
 				
 				waiter.start();
@@ -141,11 +141,11 @@ public class FakePermissionsCommand extends Sx4Command {
 				}
 				
 				if (result.getModifiedCount() == 0) {
-					event.reply("That " + (role ? "role" : "user") + " doesn't have any fake permissions " + this.config.getFailureEmote()).queue();
+					event.replyFailure("That " + (role ? "role" : "user") + " doesn't have any fake permissions").queue();
 					return;
 				}
 				
-				event.reply((role ? ((Role) holder).getAsMention() : "**" + ((Member) holder).getUser().getAsTag() + "**") + " no longer has any fake permissions " + this.config.getSuccessEmote()).queue();
+				event.replySuccess((role ? ((Role) holder).getAsMention() : "**" + ((Member) holder).getUser().getAsTag() + "**") + " no longer has any fake permissions").queue();
 			});
 		}
 	}
@@ -163,7 +163,7 @@ public class FakePermissionsCommand extends Sx4Command {
 			.orElse(0L);
 		
 		if (permissionsRaw == 0L) {
-			event.reply("That " + (role ? "role" : "user") + " doesn't have any fake permissions " + this.config.getFailureEmote()).queue();
+			event.replyFailure("That " + (role ? "role" : "user") + " doesn't have any fake permissions").queue();
 			return;
 		}
 		

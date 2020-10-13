@@ -46,12 +46,12 @@ public class ReminderCommand extends Sx4Command {
 
 		long duration = repeat == null ? initialDuration : repeat.toSeconds();
 		if (duration < 30 && repeatOption) {
-			event.reply("Repeated reminders have to be at least 30 seconds long " + this.config.getFailureEmote()).queue();
+			event.replyFailure("Repeated reminders have to be at least 30 seconds long").queue();
 			return;
 		}
 		
 		if (reminder.getReminder().length() > 1500) {
-			event.reply("Your reminder cannot be longer than 1500 characters " + this.config.getFailureEmote()).queue();
+			event.replyFailure("Your reminder cannot be longer than 1500 characters").queue();
 			return;
 		}
 		
@@ -83,13 +83,13 @@ public class ReminderCommand extends Sx4Command {
 			}
 			
 			if (result.getModifiedCount() == 0) {
-				event.reply("You do not have a reminder with that id " + this.config.getFailureEmote()).queue();
+				event.replyFailure("You do not have a reminder with that id").queue();
 				return;
 			}
 			
 			this.reminderManager.deleteExecutor(event.getAuthor().getIdLong(), id);
 			
-			event.reply("You will no longer be reminded about that reminder " + this.config.getSuccessEmote()).queue();
+			event.replySuccess("You will no longer be reminded about that reminder").queue();
 		});
 	}
 	
@@ -99,7 +99,7 @@ public class ReminderCommand extends Sx4Command {
 	public void list(Sx4CommandEvent event) {
 		List<Document> reminders = this.database.getUserById(event.getAuthor().getIdLong(), Projections.include("reminder.reminders")).getEmbedded(List.of("reminder", "reminders"), Collections.emptyList());
 		if (reminders.isEmpty()) {
-			event.reply("You do not have any active reminders " + this.config.getFailureEmote()).queue();
+			event.replyFailure("You do not have any active reminders").queue();
 			return;
 		}
 		
@@ -124,7 +124,7 @@ public class ReminderCommand extends Sx4Command {
 			}
 			
 			if (result.getModifiedCount() == 0) {
-				event.reply("Your default time zone was already set to that " + this.config.getFailureEmote()).queue();
+				event.replyFailure("Your default time zone was already set to that").queue();
 				return;
 			}
 			

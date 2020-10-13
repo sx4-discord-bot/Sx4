@@ -45,24 +45,24 @@ public class TempBanCommand extends Sx4Command {
 	public void onCommand(Sx4CommandEvent event, @Argument(value="user") String userArgument, @Argument(value="time", nullDefault=true) Duration time, @Argument(value="reason", endless=true, nullDefault=true) Reason reason, @Option(value="days", description="Set how many days of messages should be deleted from the user") @DefaultInt(1) @Limit(min=0, max=7) int days) {
 		SearchUtility.getUserRest(event.getGuild(), userArgument).thenAccept(user -> {
 			if (user == null) {
-				event.reply("I could not find that user " + this.config.getFailureEmote()).queue();
+				event.replyFailure("I could not find that user").queue();
 				return;
 			}
 
 			if (user.getIdLong() == event.getSelfUser().getIdLong()) {
-				event.reply("You cannot ban me, that is illegal " + this.config.getFailureEmote()).queue();
+				event.replyFailure("You cannot ban me, that is illegal").queue();
 				return;
 			}
 
 			Member member = event.getGuild().getMember(user);
 			if (member != null) {
 				if (member.canInteract(event.getMember())) {
-					event.reply("You cannot ban someone higher or equal than your top role " + this.config.getFailureEmote()).queue();
+					event.replyFailure("You cannot ban someone higher or equal than your top role").queue();
 					return;
 				}
 
 				if (member.canInteract(event.getSelfMember())) {
-					event.reply("I cannot ban someone higher or equal than my top role " + this.config.getFailureEmote()).queue();
+					event.replyFailure("I cannot ban someone higher or equal than my top role").queue();
 					return;
 				}
 			}
@@ -96,7 +96,7 @@ public class TempBanCommand extends Sx4Command {
 						return;
 					}
 
-					event.reply("That user is already banned " + this.config.getFailureEmote()).queue();
+					event.replyFailure("That user is already banned").queue();
 				}
 			});
 		});

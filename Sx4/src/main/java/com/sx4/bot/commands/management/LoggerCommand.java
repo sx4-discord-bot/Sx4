@@ -55,11 +55,11 @@ public class LoggerCommand extends Sx4Command {
             }
 
             if (result.getModifiedCount() == 0) {
-                event.reply("You already have a logger setup in " + mention + " " + this.config.getFailureEmote()).queue();
+                event.replyFailure("You already have a logger setup in " + mention).queue();
                 return;
             }
 
-            event.reply("You now have a logger setup in " + mention + " " + this.config.getSuccessEmote()).queue();
+            event.replySuccess("You now have a logger setup in " + mention).queue();
         });
     }
 
@@ -77,11 +77,11 @@ public class LoggerCommand extends Sx4Command {
             }
 
             if (result.getModifiedCount() == 0) {
-                event.reply("You don't have a logger in " + mention + " " + this.config.getFailureEmote()).queue();
+                event.replyFailure("You don't have a logger in " + mention).queue();
                 return;
             }
 
-            event.reply("You no longer have a logger setup in " + mention + " " + this.config.getSuccessEmote()).queue();
+            event.replySuccess("You no longer have a logger setup in " + mention).queue();
         });
     }
 
@@ -110,7 +110,7 @@ public class LoggerCommand extends Sx4Command {
                 .orElse(null);
 
             if (logger == null) {
-                event.reply("You don't have a logger in " + channel.getAsMention() + " " + this.config.getFailureEmote()).queue();
+                event.replyFailure("You don't have a logger in " + channel.getAsMention()).queue();
                 return;
             }
 
@@ -160,16 +160,16 @@ public class LoggerCommand extends Sx4Command {
                     .orElse(null);
 
                 if (logger == null) {
-                    event.reply("You don't have a logger in " + channel.getAsMention() + " " + this.config.getFailureEmote()).queue();
+                    event.replyFailure("You don't have a logger in " + channel.getAsMention()).queue();
                     return;
                 }
 
                 if ((logger.get("events", LoggerEvent.ALL) & raw) == raw) {
-                    event.reply("That logger already has those events " + this.config.getFailureEmote()).queue();
+                    event.replyFailure("That logger already has those events").queue();
                     return;
                 }
 
-                event.reply("That logger now has those events enabled " + this.config.getSuccessEmote()).queue();
+                event.replySuccess("That logger now has those events enabled").queue();
             });
         }
 
@@ -202,17 +202,17 @@ public class LoggerCommand extends Sx4Command {
                     .orElse(null);
 
                 if (logger == null) {
-                    event.reply("You don't have a logger in " + channel.getAsMention() + " " + this.config.getFailureEmote()).queue();
+                    event.replyFailure("You don't have a logger in " + channel.getAsMention()).queue();
                     return;
                 }
 
                 long eventsData = logger.get("events", LoggerEvent.ALL);
                 if ((eventsData & ~raw) == eventsData) {
-                    event.reply("That logger doesn't have any of those events " + this.config.getFailureEmote()).queue();
+                    event.replyFailure("That logger doesn't have any of those events").queue();
                     return;
                 }
 
-                event.reply("That logger now has those events disabled " + this.config.getSuccessEmote()).queue();
+                event.replySuccess("That logger now has those events disabled").queue();
             });
         }
 
@@ -232,11 +232,11 @@ public class LoggerCommand extends Sx4Command {
                 }
 
                 if (result.getModifiedCount() == 0) {
-                    event.reply("You don't have a logger in " + mention + " " + this.config.getFailureEmote()).queue();
+                    event.replyFailure("You don't have a logger in " + mention).queue();
                     return;
                 }
 
-                event.reply("That logger will now only send those events " + this.config.getSuccessEmote()).queue();
+                event.replySuccess("That logger will now only send those events").queue();
             });
         }
 
@@ -274,7 +274,7 @@ public class LoggerCommand extends Sx4Command {
 
             Set<LoggerCategory> common = LoggerUtility.getCommonCategories(events);
             if (common.isEmpty()) {
-                event.reply("All of those events don't have a blacklist type in common " + this.config.getFailureEmote()).queue();
+                event.replyFailure("All of those events don't have a blacklist type in common").queue();
                 return;
             }
 
@@ -289,7 +289,7 @@ public class LoggerCommand extends Sx4Command {
 
                 long id = LoggerUtility.getEntityIdFromType(query, event.getGuild(), category);
                 if (id == 0L) {
-                    event.reply("I could not find that " + category.getName().toLowerCase() + " " + this.config.getFailureEmote()).queue();
+                    event.replyFailure("I could not find that " + category.getName().toLowerCase()).queue();
                     return;
                 }
 
@@ -317,7 +317,7 @@ public class LoggerCommand extends Sx4Command {
                        .orElse(null);
 
                    if (logger == null) {
-                       event.reply("I could not find that logger " + this.config.getFailureEmote()).queue();
+                       event.replyFailure("I could not find that logger").queue();
                        return;
                    }
 
@@ -328,11 +328,11 @@ public class LoggerCommand extends Sx4Command {
                        .orElse(null);
 
                    if (entity != null && entity.get("events", 0L) == eventsRaw) {
-                       event.reply("That " + category.getName().toLowerCase() + " was already blacklisted from those events " + this.config.getFailureEmote()).queue();
+                       event.replyFailure("That " + category.getName().toLowerCase() + " was already blacklisted from those events").queue();
                        return;
                    }
 
-                   event.reply("That " + category.getName().toLowerCase() + " is now blacklisted from appearing in those events for that logger " + this.config.getSuccessEmote()).queue();
+                   event.replySuccess("That " + category.getName().toLowerCase() + " is now blacklisted from appearing in those events for that logger").queue();
                 });
             });
 
@@ -349,7 +349,7 @@ public class LoggerCommand extends Sx4Command {
 
             Set<LoggerCategory> common = LoggerUtility.getCommonCategories(events);
             if (common.isEmpty()) {
-                event.reply("All of those events don't have a blacklist type in common " + this.config.getFailureEmote()).queue();
+                event.replyFailure("All of those events don't have a blacklist type in common").queue();
                 return;
             }
 
@@ -364,7 +364,7 @@ public class LoggerCommand extends Sx4Command {
 
                 long id = LoggerUtility.getEntityIdFromType(query, event.getGuild(), category);
                 if (id == 0L) {
-                    event.reply("I could not find that " + category.getName().toLowerCase() + " " + this.config.getFailureEmote()).queue();
+                    event.replyFailure("I could not find that " + category.getName().toLowerCase()).queue();
                     return;
                 }
 
@@ -393,7 +393,7 @@ public class LoggerCommand extends Sx4Command {
                         .orElse(null);
 
                     if (logger == null) {
-                        event.reply("I could not find that logger " + this.config.getFailureEmote()).queue();
+                        event.replyFailure("I could not find that logger").queue();
                         return;
                     }
 
@@ -404,11 +404,11 @@ public class LoggerCommand extends Sx4Command {
                         .orElse(null);
 
                     if (entity != null && entity.get("events", 0L) == eventsRaw) {
-                        event.reply("That " + category.getName().toLowerCase() + " was already blacklisted from those events " + this.config.getFailureEmote()).queue();
+                        event.replyFailure("That " + category.getName().toLowerCase() + " was already blacklisted from those events").queue();
                         return;
                     }
 
-                    event.reply("That " + category.getName().toLowerCase() + " is now blacklisted from appearing in those events for that logger " + this.config.getSuccessEmote()).queue();
+                    event.replySuccess("That " + category.getName().toLowerCase() + " is now blacklisted from appearing in those events for that logger").queue();
                 });
             });
 

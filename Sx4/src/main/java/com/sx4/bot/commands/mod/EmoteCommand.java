@@ -86,31 +86,31 @@ public class EmoteCommand extends Sx4Command {
 
 		Boolean animated = emote.isAnimated();
 		if (animated != null && ((animated && animatedEmotes >= maxEmotes) || (!animated && nonAnimatedEmotes >= maxEmotes))) {
-			event.reply("You already have the max" + (animated ? "" : " non") + " animated emotes on this server " + this.config.getFailureEmote()).queue();
+			event.replyFailure("You already have the max" + (animated ? "" : " non") + " animated emotes on this server").queue();
 			return;
 		}
 
 		this.getBytes(emote.getUrl(), (bytes, animatedResponse, code) -> {
 			if (bytes == null) {
-				event.reply("Failed to get url from the emote argument with status code: " + code + " " + this.config.getFailureEmote()).queue();
+				event.replyFailure("Failed to get url from the emote argument with status code: " + code).queue();
 				return;
 			}
 
 			if (bytes.length > 256000) {
-				event.reply("You cannot create an emote larger than 256KB " + this.config.getFailureEmote()).queue();
+				event.replyFailure("You cannot create an emote larger than 256KB").queue();
 				return;
 			}
 
 			if (animatedResponse != null && ((animatedResponse && animatedEmotes >= maxEmotes) || (!animatedResponse && nonAnimatedEmotes >= maxEmotes))) {
-				event.reply("You already have the max" + (animatedResponse ? "" : " non") + " animated emotes on this server " + this.config.getFailureEmote()).queue();
+				event.replyFailure("You already have the max" + (animatedResponse ? "" : " non") + " animated emotes on this server").queue();
 				return;
 			}
 
 			event.getGuild().createEmote(name != null ? name : emote.hasName() ? emote.getName() : "Unnamed_Emote", Icon.from(bytes))
-				.flatMap(createdEmote -> event.reply(createdEmote.getAsMention() + " has been created " + this.config.getSuccessEmote()))
+				.flatMap(createdEmote -> event.replySuccess(createdEmote.getAsMention() + " has been created"))
 				.queue(null, exception -> {
 					if (exception instanceof ErrorResponseException && ((ErrorResponseException) exception).getErrorCode() == 400) {
-						event.reply("You cannot create an emote larger than 256KB " + this.config.getFailureEmote()).queue();
+						event.replyFailure("You cannot create an emote larger than 256KB").queue();
 						return;
 					}
 
@@ -125,12 +125,12 @@ public class EmoteCommand extends Sx4Command {
 	@BotPermissions(permissions={Permission.MANAGE_EMOTES})
 	public void delete(Sx4CommandEvent event, @Argument(value="emote") Emote emote) {
 		if (emote.isManaged()) {
-			event.reply("I cannot delete emotes that are managed " + this.config.getFailureEmote()).queue();
+			event.replyFailure("I cannot delete emotes that are managed").queue();
 			return;
 		}
 
 		emote.delete()
-			.flatMap($ -> event.reply("I have deleted the emote `" + emote.getName() + "` " + this.config.getSuccessEmote()))
+			.flatMap($ -> event.replySuccess("I have deleted the emote `" + emote.getName() + "`"))
 			.queue();
 	}
 
@@ -155,7 +155,7 @@ public class EmoteCommand extends Sx4Command {
 		public void set(Sx4CommandEvent event, @Argument(value="emote") Emote emote, @Argument(value="roles") Role... roles) {
 			List<Role> currentRoles = emote.getRoles(), newRoles = Arrays.asList(roles);
 			if (newRoles.containsAll(currentRoles)) {
-				event.reply("That emote already has all those roles whitelisted " + this.config.getFailureEmote()).queue();
+				event.replyFailure("That emote already has all those roles whitelisted").queue();
 				return;
 			}
 
@@ -171,7 +171,7 @@ public class EmoteCommand extends Sx4Command {
 		public void add(Sx4CommandEvent event, @Argument(value="emote") Emote emote, @Argument(value="role", endless=true) Role role) {
 			Set<Role> currentRoles = new HashSet<>(emote.getRoles());
 			if (currentRoles.contains(role)) {
-				event.reply("That emote already has that role whitelisted " + this.config.getFailureEmote()).queue();
+				event.replyFailure("That emote already has that role whitelisted").queue();
 				return;
 			}
 
@@ -189,7 +189,7 @@ public class EmoteCommand extends Sx4Command {
 		public void remove(Sx4CommandEvent event, @Argument(value="emote") Emote emote, @Argument(value="role", endless=true) Role role) {
 			Set<Role> currentRoles = new HashSet<>(emote.getRoles());
 			if (!currentRoles.contains(role)) {
-				event.reply("That emote does not have that role whitelisted " + this.config.getFailureEmote()).queue();
+				event.replyFailure("That emote does not have that role whitelisted").queue();
 				return;
 			}
 
@@ -214,7 +214,7 @@ public class EmoteCommand extends Sx4Command {
 		@Examples({"emote whitelist list <:rain:748240799719882762>", "emote whitelist list rain"})
 		public void list(Sx4CommandEvent event, @Argument(value="emote") Emote emote) {
 			if (emote.getRoles().isEmpty()) {
-				event.reply("That role does not have any whitelisted role " + this.config.getFailureEmote()).queue();
+				event.replyFailure("That role does not have any whitelisted role").queue();
 				return;
 			}
 

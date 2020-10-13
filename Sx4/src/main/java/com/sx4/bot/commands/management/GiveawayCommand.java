@@ -126,13 +126,13 @@ public class GiveawayCommand extends Sx4Command {
 							return true;
 						}
 						
-						event.reply("I could not find that channel " + this.config.getFailureEmote()).queue();
+						event.replyFailure("I could not find that channel").queue();
 						
 						return false;
 					});
 					
 				waiter.onCancelled((type) -> {
-					event.reply("Cancelled " + this.config.getSuccessEmote()).queue();
+					event.replySuccess("Cancelled").queue();
 					future.complete(false);
 				});
 				
@@ -179,13 +179,13 @@ public class GiveawayCommand extends Sx4Command {
 							return true;
 						}
 						
-						event.reply("That is not a number " + this.config.getFailureEmote()).queue();
+						event.replyFailure("That is not a number").queue();
 						
 						return false;
 					});
 					
 				waiter.onCancelled((type) -> {
-					event.reply("Cancelled " + this.config.getSuccessEmote()).queue();
+					event.replySuccess("Cancelled").queue();
 					future.complete(false);
 				});
 				
@@ -225,13 +225,13 @@ public class GiveawayCommand extends Sx4Command {
 							return true;
 						}
 						
-						event.reply("That is not a valid duration " + this.config.getFailureEmote()).queue();
+						event.replyFailure("That is not a valid duration").queue();
 						
 						return false;
 					});
 					
 				waiter.onCancelled((type) -> {
-					event.reply("Cancelled " + this.config.getSuccessEmote()).queue();
+					event.replySuccess("Cancelled").queue();
 					future.complete(false);
 				});
 				
@@ -275,7 +275,7 @@ public class GiveawayCommand extends Sx4Command {
 					});
 					
 				waiter.onCancelled((type) -> {
-					event.reply("Cancelled " + this.config.getSuccessEmote()).queue();
+					event.replySuccess("Cancelled").queue();
 					future.complete(false);
 				});
 				
@@ -343,12 +343,12 @@ public class GiveawayCommand extends Sx4Command {
 			}
 			
 			if (data == null) {
-				event.reply("There is no giveaway with that id " + this.config.getFailureEmote()).queue();
+				event.replyFailure("There is no giveaway with that id").queue();
 				return;
 			}
 			
 			if (data.getLong("endAt") - timeNow > 0) {
-				event.reply("That giveaway has not ended yet " + this.config.getFailureEmote()).queue();
+				event.replyFailure("That giveaway has not ended yet").queue();
 				return;
 			}
 			
@@ -356,7 +356,7 @@ public class GiveawayCommand extends Sx4Command {
 			
 			TextChannel channel = event.getGuild().getTextChannelById(data.getLong("channelId"));
 			if (channel == null) {
-				event.reply("That giveaway no longer exists " + this.config.getFailureEmote()).queue();
+				event.replyFailure("That giveaway no longer exists").queue();
 				return;
 			}
 			
@@ -364,7 +364,7 @@ public class GiveawayCommand extends Sx4Command {
 			
 			this.giveawayManager.putGiveaway(data, seconds);
 			
-			event.reply("That giveaway has been restarted " + this.config.getSuccessEmote()).queue();
+			event.replySuccess("That giveaway has been restarted").queue();
 		});
 	}
 	
@@ -374,12 +374,12 @@ public class GiveawayCommand extends Sx4Command {
 	public void reroll(Sx4CommandEvent event, @Argument(value="message id") MessageArgument messageArgument) {
 		Document data = this.database.getGiveawayById(messageArgument.getMessageId());
 		if (data == null) {
-			event.reply("There is no giveaway with that id " + this.config.getFailureEmote()).queue();
+			event.replyFailure("There is no giveaway with that id").queue();
 			return;
 		}
 		
 		if (!data.containsKey("winners")) {
-			event.reply("That giveaway has not ended yet " + this.config.getFailureEmote()).queue();
+			event.replyFailure("That giveaway has not ended yet").queue();
 			return;
 		}
 		
@@ -392,12 +392,12 @@ public class GiveawayCommand extends Sx4Command {
 	public void end(Sx4CommandEvent event, @Argument(value="message id") MessageArgument messageArgument) {
 		Document data = this.database.getGiveawayById(messageArgument.getMessageId());
 		if (data == null) {
-			event.reply("There is no giveaway with that id " + this.config.getFailureEmote()).queue();
+			event.replyFailure("There is no giveaway with that id").queue();
 			return;
 		}
 		
 		if (data.containsKey("winners")) {
-			event.reply("That giveaway has already ended " + this.config.getFailureEmote()).queue();
+			event.replyFailure("That giveaway has already ended").queue();
 			return;
 		}
 		
@@ -419,7 +419,7 @@ public class GiveawayCommand extends Sx4Command {
 					
 					waiter.onTimeout(() -> event.reply("Response timed out :stopwatch:"));
 					
-					waiter.onCancelled(type -> event.reply("Cancelled " + this.config.getSuccessEmote()));
+					waiter.onCancelled(type -> event.replySuccess("Cancelled"));
 					
 					waiter.start();
 					
@@ -432,11 +432,11 @@ public class GiveawayCommand extends Sx4Command {
 					}
 					
 					if (result.getDeletedCount() == 0) {
-						event.reply("There are no giveaways in this server " + this.config.getFailureEmote()).queue();
+						event.replyFailure("There are no giveaways in this server").queue();
 						return;
 					}
 					
-					event.reply("All giveaways in this server have been deleted " + this.config.getSuccessEmote()).queue();
+					event.replySuccess("All giveaways in this server have been deleted").queue();
 				});
 		} else {
 			long messageId = all.getValue().getMessageId();
@@ -446,11 +446,11 @@ public class GiveawayCommand extends Sx4Command {
 				}
 				
 				if (result.getDeletedCount() == 0) {
-					event.reply("There was no giveaway with that id " + this.config.getFailureEmote()).queue();
+					event.replyFailure("There was no giveaway with that id").queue();
 					return;
 				}
 				
-				event.reply("That giveaway has been deleted " + this.config.getSuccessEmote()).queue();
+				event.replySuccess("That giveaway has been deleted").queue();
 			});
 		}
 	}
@@ -460,7 +460,7 @@ public class GiveawayCommand extends Sx4Command {
 	public void list(Sx4CommandEvent event) {
 		List<Document> giveaways = this.database.getGiveaways(Filters.eq("guildId", event.getGuild().getIdLong())).into(new ArrayList<>());
 		if (giveaways.isEmpty()) {
-			event.reply("No giveaways have been setup in this server " + this.config.getFailureEmote()).queue();
+			event.replyFailure("No giveaways have been setup in this server").queue();
 			return;
 		}
 		

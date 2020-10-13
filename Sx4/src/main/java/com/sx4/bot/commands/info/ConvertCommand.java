@@ -29,7 +29,7 @@ public class ConvertCommand extends Sx4Command {
 
 			Document result = json.get(from + "_" + to, Document.class);
 			if (result == null) {
-				event.reply("I could not find one or both of those currencies " + this.config.getFailureEmote()).queue();
+				event.replyFailure("I could not find one or both of those currencies").queue();
 				return;
 			}
 

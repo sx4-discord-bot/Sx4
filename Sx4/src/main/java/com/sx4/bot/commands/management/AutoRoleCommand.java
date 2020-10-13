@@ -59,7 +59,7 @@ public class AutoRoleCommand extends Sx4Command {
 				return;
 			}
 			
-			event.reply("Auto role is now **" + (data.getEmbedded(List.of("autoRole", "enabled"), false) ? "enabled" : "disabled") + "** " + this.config.getSuccessEmote()).queue();
+			event.replySuccess("Auto role is now **" + (data.getEmbedded(List.of("autoRole", "enabled"), false) ? "enabled" : "disabled") + "**").queue();
 		});
 	}
 	
@@ -68,22 +68,22 @@ public class AutoRoleCommand extends Sx4Command {
 	@AuthorPermissions(permissions={Permission.MANAGE_ROLES})
 	public void add(Sx4CommandEvent event, @Argument(value="role", endless=true) Role role) {
 		if (role.isManaged()) {
-			event.reply("I cannot give a managed role " + this.config.getFailureEmote()).queue();
+			event.replyFailure("I cannot give a managed role").queue();
 			return;
 		}
 		
 		if (role.isPublicRole()) {
-			event.reply("I cannot give the `@everyone` role " + this.config.getFailureEmote()).queue();
+			event.replyFailure("I cannot give the `@everyone` role").queue();
 			return;
 		}
 		
 		if (!event.getSelfMember().canInteract(role)) {
-			event.reply("I cannot give a role higher or equal than my top role " + this.config.getFailureEmote()).queue();
+			event.replyFailure("I cannot give a role higher or equal than my top role").queue();
 			return;
 		}
 		
 		if (!event.getMember().canInteract(role)) {
-			event.reply("You cannot give a role higher or equal than your top role " + this.config.getFailureEmote()).queue();
+			event.replyFailure("You cannot give a role higher or equal than your top role").queue();
 			return;
 		}
 		
@@ -96,11 +96,11 @@ public class AutoRoleCommand extends Sx4Command {
 			}
 			
 			if (result.getModifiedCount() == 0) {
-				event.reply("That role is already an auto role " + this.config.getFailureEmote()).queue();
+				event.replyFailure("That role is already an auto role").queue();
 				return;
 			}
 			
-			event.reply("The role " + role.getAsMention() + " has been added as an auto role " + this.config.getSuccessEmote()).queue();
+			event.replySuccess("The role " + role.getAsMention() + " has been added as an auto role").queue();
 		});
 	}
 	
@@ -115,11 +115,11 @@ public class AutoRoleCommand extends Sx4Command {
 				}
 				
 				if (result.getModifiedCount() == 0) {
-					event.reply("You have no auto roles setup " + this.config.getFailureEmote()).queue();
+					event.replyFailure("You have no auto roles setup").queue();
 					return;
 				}
 				
-				event.reply("All auto roles have been removed " + this.config.getSuccessEmote()).queue();
+				event.replySuccess("All auto roles have been removed").queue();
 			});
 		} else {
 			Role role = allArgument.getValue();
@@ -129,11 +129,11 @@ public class AutoRoleCommand extends Sx4Command {
 				}
 				
 				if (result.getModifiedCount() == 0) {
-					event.reply("That role is not an auto role " + this.config.getFailureEmote()).queue();
+					event.replyFailure("That role is not an auto role").queue();
 					return;
 				}
 				
-				event.reply("The role " + role.getAsMention() + " has been removed from being an auto role " + this.config.getSuccessEmote()).queue();
+				event.replySuccess("The role " + role.getAsMention() + " has been removed from being an auto role").queue();
 			});
 		}
 	}
@@ -143,7 +143,7 @@ public class AutoRoleCommand extends Sx4Command {
 	public void list(Sx4CommandEvent event, @Context Guild guild) {
 		List<Long> roleIds = this.database.getGuildById(event.getGuild().getIdLong(), Projections.include("autoRole.roles")).getEmbedded(List.of("autoRole", "roles"), Collections.emptyList());
 		if (roleIds.isEmpty()) {
-			event.reply("You have no auto roles setup " + this.config.getFailureEmote()).queue();
+			event.replyFailure("You have no auto roles setup").queue();
 			return;
 		}
 		
@@ -179,7 +179,7 @@ public class AutoRoleCommand extends Sx4Command {
 		public void add(Sx4CommandEvent event, @Argument(value="role") Role role, @Argument(value="filter", endless=true) TimedArgument<AutoRoleFilter> timedArgument) {
 			AutoRoleFilter filter = timedArgument.getArgument();
 			if (filter.hasDuration() && !timedArgument.hasDuration()) {
-				event.reply("That filter requires a time interval to be given with it " + this.config.getFailureEmote()).queue();
+				event.replyFailure("That filter requires a time interval to be given with it").queue();
 				return;
 			}
 			
@@ -190,13 +190,13 @@ public class AutoRoleCommand extends Sx4Command {
 				.orElse(null);
 			
 			if (roleData == null) {
-				event.reply("That role is not an auto role " + this.config.getFailureEmote()).queue();
+				event.replyFailure("That role is not an auto role").queue();
 				return;
 			}
 			
 			List<Document> filters = roleData.getList("filters", Document.class, Collections.emptyList());
 			if (filters.stream().anyMatch(data -> data.getString("key").equals(filter.getKey()))) {
-				event.reply("That auto role already has that filter or has a contradicting filter " + this.config.getFailureEmote()).queue();
+				event.replyFailure("That auto role already has that filter or has a contradicting filter").queue();
 				return;
 			}
 			
@@ -244,7 +244,7 @@ public class AutoRoleCommand extends Sx4Command {
 					return;
 				}
 				
-				event.reply((all ? "All" : "That") + " filter" + (all ? "s have" : " has") + " been removed from that auto role " + this.config.getSuccessEmote()).queue();
+				event.replySuccess((all ? "All" : "That") + " filter" + (all ? "s have" : " has") + " been removed from that auto role").queue();
 			});
 		}
 		

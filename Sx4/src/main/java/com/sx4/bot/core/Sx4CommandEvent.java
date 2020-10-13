@@ -4,6 +4,7 @@ import com.jockie.bot.core.command.ICommand;
 import com.jockie.bot.core.command.ICommand.ArgumentParsingType;
 import com.jockie.bot.core.command.impl.CommandEvent;
 import com.jockie.bot.core.command.impl.CommandListener;
+import com.sx4.bot.config.Config;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.utility.HelpUtility;
 import net.dv8tion.jda.api.Permission;
@@ -43,6 +44,14 @@ public class Sx4CommandEvent extends CommandEvent {
 
 	public MessageAction replyTimed(long start) {
 		return this.replyFormat("%,.3fms :stopwatch:", (System.nanoTime() - start) / 1_000_000D);
+	}
+
+	public MessageAction replySuccess(String content) {
+		return this.replyFormat("%s %s", content, Config.get().getSuccessEmote());
+	}
+
+	public MessageAction replyFailure(String content) {
+		return this.replyFormat("%s %s", content, Config.get().getFailureEmote());
 	}
 	
 }

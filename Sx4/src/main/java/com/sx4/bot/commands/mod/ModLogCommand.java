@@ -51,7 +51,7 @@ public class ModLogCommand extends Sx4Command {
 				return;
 			}
 			
-			event.reply("Mod logs are now **" + (data.getEmbedded(List.of("modLog", "enabled"), false) ? "enabled" : "disabled") + "** " + this.config.getSuccessEmote()).queue();
+			event.replySuccess("Mod logs are now **" + (data.getEmbedded(List.of("modLog", "enabled"), false) ? "enabled" : "disabled") + "**").queue();
 		});
 	}
 	
@@ -66,11 +66,11 @@ public class ModLogCommand extends Sx4Command {
 			}
 			
 			if (result.getModifiedCount() == 0) {
-				event.reply("The mod log channel is already " + (channel == null ? "unset" : "set to " + channel.getAsMention()) + " " + this.config.getFailureEmote()).queue();
+				event.replyFailure("The mod log channel is already " + (channel == null ? "unset" : "set to " + channel.getAsMention())).queue();
 				return;
 			}
 			
-			event.reply("The mod log channel has been " + (channel == null ? "unset" : "set to " + channel.getAsMention()) + " " + this.config.getSuccessEmote()).queue();
+			event.replySuccess("The mod log channel has been " + (channel == null ? "unset" : "set to " + channel.getAsMention())).queue();
 		});
 	}
 	
@@ -79,18 +79,18 @@ public class ModLogCommand extends Sx4Command {
 	public void case_(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="reason", endless=true) Reason reason) {
 		Document data = this.database.getModLogById(Filters.and(Filters.eq("_id", id), Filters.eq("guildId", event.getGuild().getIdLong())), Projections.include("moderatorId", "reason"));
 		if (data == null) {
-			event.reply("I could not find a mod log with that id " + this.config.getFailureEmote()).queue();
+			event.replyFailure("I could not find a mod log with that id").queue();
 			return;
 		}
 		
 		if (data.getLong("moderatorId") != event.getAuthor().getIdLong()) {
-			event.reply("You do not own that mod log " + this.config.getFailureEmote()).queue();
+			event.replyFailure("You do not own that mod log").queue();
 			return;
 		}
 		
 		String oldReason = data.getString("reason");
 		if (oldReason != null && oldReason.equals(reason.getParsed())) {
-			event.reply("The reason for that mod log is already set to that " + this.config.getFailureEmote()).queue();
+			event.replyFailure("The reason for that mod log is already set to that").queue();
 			return;
 		}
 		
@@ -99,7 +99,7 @@ public class ModLogCommand extends Sx4Command {
 				return;
 			}
 			
-			event.reply("Case `" + id.toHexString() + "` has been updated " + this.config.getSuccessEmote()).queue();
+			event.replySuccess("Case `" + id.toHexString() + "` has been updated").queue();
 		});
 	}
 	
@@ -125,7 +125,7 @@ public class ModLogCommand extends Sx4Command {
 		} else {
 			Document data = this.database.getModLogById(Filters.and(Filters.eq("_id", id), Filters.eq("guildId", event.getGuild().getIdLong())), projection);
 			if (data == null) {
-				event.reply("I could not find a mod log with that id " + this.config.getFailureEmote()).queue();
+				event.replyFailure("I could not find a mod log with that id").queue();
 				return;
 			}
 			

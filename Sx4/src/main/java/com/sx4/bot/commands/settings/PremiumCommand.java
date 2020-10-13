@@ -55,7 +55,7 @@ public class PremiumCommand extends Sx4Command {
 		
 		Document guildData = this.database.getGuildById(guildId, Projections.include("premium"));
 		if (guildData.containsKey("premium")) {
-			event.reply("That server already has premium " + this.config.getFailureEmote()).queue();
+			event.replyFailure("That server already has premium").queue();
 			return;
 		}
 
@@ -68,7 +68,7 @@ public class PremiumCommand extends Sx4Command {
 		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("guilds", "amount"));
 		this.database.findAndUpdatePatronById(Filters.eq("discordId", event.getAuthor().getIdLong()), update, options).thenCompose(data -> {
 			if (data == null) {
-				event.reply("You are not a premium user, you can become one at <https://patreon.com/Sx4> " + this.config.getFailureEmote()).queue();
+				event.replyFailure("You are not a premium user, you can become one at <https://patreon.com/Sx4>").queue();
 				return CompletableFuture.completedFuture(null);
 			}
 			
@@ -76,7 +76,7 @@ public class PremiumCommand extends Sx4Command {
 			
 			List<Document> guilds = data.getList("guilds", Document.class, Collections.emptyList());
 			if (guilds.stream().anyMatch(d -> d.getLong("id") == guildId)) {
-				event.reply("You are already giving premium to this server " + this.config.getFailureEmote()).queue();
+				event.replyFailure("You are already giving premium to this server").queue();
 				return CompletableFuture.completedFuture(null);
 			}
 
@@ -91,7 +91,7 @@ public class PremiumCommand extends Sx4Command {
 				return;
 			}
 
-			event.reply("That server is now premium " + this.config.getSuccessEmote()).queue();
+			event.replySuccess("That server is now premium").queue();
 		});
 	}
 	
@@ -119,12 +119,12 @@ public class PremiumCommand extends Sx4Command {
 				.orElse(null);
 
 			if (guildData == null) {
-				event.reply("You are not giving premium to that server " + this.config.getFailureEmote()).queue();
+				event.replyFailure("You are not giving premium to that server").queue();
 				return CompletableFuture.completedFuture(null);
 			}
 
 			if (now - guildData.getLong("since") < 604800L) {
-				event.reply("You cannot remove premium from a server 7 days within giving it premium " + this.config.getFailureEmote()).queue();
+				event.replyFailure("You cannot remove premium from a server 7 days within giving it premium").queue();
 				return CompletableFuture.completedFuture(null);
 			}
 			
@@ -134,7 +134,7 @@ public class PremiumCommand extends Sx4Command {
 				return;
 			}
 
-			event.reply("That server is no longer premium " + this.config.getSuccessEmote()).queue();
+			event.replySuccess("That server is no longer premium").queue();
 		});
 	}
 	
@@ -145,7 +145,7 @@ public class PremiumCommand extends Sx4Command {
 		
 		List<Document> guilds = data.getList("guilds", Document.class, Collections.emptyList());
 		if (guilds.isEmpty()) {
-			event.reply("You are not giving premium to any servers " + this.config.getFailureEmote()).queue();
+			event.replyFailure("You are not giving premium to any servers").queue();
 			return;
 		}
 		

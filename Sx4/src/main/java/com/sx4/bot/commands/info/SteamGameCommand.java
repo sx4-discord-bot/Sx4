@@ -46,7 +46,7 @@ public class SteamGameCommand extends Sx4Command {
 		} else {
 			games = this.cache.getGames(query);
 			if (games.isEmpty()) {
-				event.reply("I could not find any games with that query " + this.config.getFailureEmote()).queue();
+				event.replyFailure("I could not find any games with that query").queue();
 				return;
 			}
 		}
@@ -70,7 +70,7 @@ public class SteamGameCommand extends Sx4Command {
 				Document json = Document.parse(response.body().string()).get(String.valueOf(appId), Document.class);
 
 				if (!json.getBoolean("success")) {
-					event.reply("Steam failed to get data for that game " + this.config.getFailureEmote()).queue();
+					event.replyFailure("Steam failed to get data for that game").queue();
 					return;
 				}
 

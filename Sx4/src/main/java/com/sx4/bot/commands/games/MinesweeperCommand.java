@@ -61,7 +61,7 @@ public class MinesweeperCommand extends Sx4Command {
 
 	public void onCommand(Sx4CommandEvent event, @Argument(value="bombs") @DefaultInt(10) int bombs, @Argument(value="grid x") @DefaultInt(10) int gridX, @Argument(value="grid y") @DefaultInt(10) int gridY) {
 		if (gridX < 2 || gridY < 2) {
-			event.reply("The grid has to be at least 2x2 in size " + this.config.getFailureEmote()).queue();
+			event.replyFailure("The grid has to be at least 2x2 in size").queue();
 			return;
 		}
 
@@ -72,7 +72,7 @@ public class MinesweeperCommand extends Sx4Command {
 		}
 
 		if (bombs < 1) {
-			event.reply("You need at least 1 bomb to play " + this.config.getFailureEmote()).queue();
+			event.replyFailure("You need at least 1 bomb to play").queue();
 			return;
 		}
 
@@ -119,8 +119,7 @@ public class MinesweeperCommand extends Sx4Command {
 		StringBuilder result = new StringBuilder();
 		for (int x = 0; x < gridX; x++) {
 			for (int y = 0; y < gridY; y++) {
-				MinesweeperType current = positions.getOrDefault(x, new HashMap<>())
-					.getOrDefault(y, MinesweeperType.UNKNOWN);
+				MinesweeperType current = positions.get(x).get(y);
 
 				result.append("||").append(current.getEmote()).append("||");
 			}
@@ -129,7 +128,7 @@ public class MinesweeperCommand extends Sx4Command {
 		}
 
 		if (result.length() > Message.MAX_CONTENT_LENGTH) {
-			event.reply("That grid size is too big to show " + this.config.getFailureEmote()).queue();
+			event.replyFailure("That grid size is too big to show").queue();
 			return;
 		}
 

@@ -27,18 +27,18 @@ public class WarnCommand extends Sx4Command {
 	
 	public void onCommand(Sx4CommandEvent event, @Argument(value="user") Member member, @Argument(value="reason", endless=true, nullDefault=true) Reason reason) {
 		if (member.getIdLong() == event.getSelfUser().getIdLong()) {
-			event.reply("You cannot warn me, that is illegal " + this.config.getFailureEmote()).queue();
+			event.replyFailure("You cannot warn me, that is illegal").queue();
 			return;
 		}
 		
 		if (member.canInteract(event.getMember())) {
-			event.reply("You cannot warn someone higher or equal than your top role " + this.config.getFailureEmote()).queue();
+			event.replyFailure("You cannot warn someone higher or equal than your top role").queue();
 			return;
 		}
 
 		ModUtility.warn(member, event.getMember(), reason).whenComplete((warning, exception) -> {
 			if (exception != null) {
-				event.reply(exception.getMessage() + " " + this.config.getFailureEmote()).queue();
+				event.replyFailure(exception.getMessage()).queue();
 			} else {
 				Action action = warning.getAction();
 

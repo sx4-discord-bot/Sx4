@@ -64,7 +64,7 @@ public class IGDBCommand extends Sx4Command {
 
 			List<Document> results = Document.parse(body).getList("data", Document.class);
 			if (results.isEmpty()) {
-				event.reply("I could not find any games with that filter " + this.config.getFailureEmote()).queue();
+				event.replyFailure("I could not find any games with that filter").queue();
 				return;
 			}
 

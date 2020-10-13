@@ -1,7 +1,5 @@
 package com.sx4.bot.commands.mod;
 
-import java.util.List;
-
 import com.jockie.bot.core.argument.Argument;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Projections;
@@ -13,10 +11,11 @@ import com.sx4.bot.entities.mod.Reason;
 import com.sx4.bot.events.mod.UnmuteEvent;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.ModUtility;
-
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Role;
+
+import java.util.List;
 
 public class UnmuteCommand extends Sx4Command {
 
@@ -35,12 +34,12 @@ public class UnmuteCommand extends Sx4Command {
 		
 		Role role = roleId == 0L ? null : event.getGuild().getRoleById(roleId);
 		if (role == null || !member.getRoles().contains(role)) {
-			event.reply("That user is not muted " + this.config.getFailureEmote()).queue();
+			event.replyFailure("That user is not muted").queue();
 			return;
 		}
 		
 		if (!event.getSelfMember().canInteract(role)) {
-			event.reply("I am unable to unmute that user as the mute role is higher or equal than my top role " + this.config.getFailureEmote()).queue();
+			event.replyFailure("I am unable to unmute that user as the mute role is higher or equal than my top role").queue();
 			return;
 		}
 		
@@ -50,7 +49,7 @@ public class UnmuteCommand extends Sx4Command {
 			}
 			
 			event.getGuild().removeRoleFromMember(member, role).reason(ModUtility.getAuditReason(reason, event.getAuthor())).queue($ -> {
-				event.reply("**" + member.getUser().getAsTag() + "** has been unmuted " + this.config.getSuccessEmote()).queue();
+				event.replySuccess("**" + member.getUser().getAsTag() + "** has been unmuted").queue();
 				
 				this.muteManager.deleteExecutor(event.getGuild().getIdLong(), member.getIdLong());
 				this.modManager.onModAction(new UnmuteEvent(event.getMember(), member.getUser(), reason));

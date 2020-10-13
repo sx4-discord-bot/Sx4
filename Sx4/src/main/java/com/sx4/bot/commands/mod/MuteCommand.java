@@ -43,12 +43,12 @@ public class MuteCommand extends Sx4Command {
 	// TODO: Find a good way to avoid pushing data if a role failure happens, maybe cache mute roles
 	public void onCommand(Sx4CommandEvent event, @Argument(value="user") Member member, @Argument(value="time", nullDefault=true) Duration time, @Argument(value="reason", endless=true, nullDefault=true) Reason reason, @Option(value="extend", description="Will extend the mute of the user if muted") boolean extend) {
 		if (!event.getMember().canInteract(member)) {
-			event.reply("You cannot mute someone higher or equal than your top role " + this.config.getFailureEmote()).queue();
+			event.replyFailure("You cannot mute someone higher or equal than your top role").queue();
 			return;
 		}
 
 		if (!event.getSelfMember().canInteract(member)) {
-			event.reply("I cannot mute someone higher or equal than your top role " + this.config.getFailureEmote()).queue();
+			event.replyFailure("I cannot mute someone higher or equal than your top role").queue();
 			return;
 		}
 
@@ -70,7 +70,7 @@ public class MuteCommand extends Sx4Command {
 			return ModUtility.upsertMuteRole(event.getGuild(), mute.get("roleId", 0L), mute.get("autoUpdate", true));
 		}).whenComplete((role, exception) -> {
 			if (exception instanceof MaxRolesException) {
-				event.reply(exception.getMessage() + " " + this.config.getFailureEmote()).queue();
+				event.replyFailure(exception.getMessage()).queue();
 				return;
 			}
 
@@ -81,7 +81,7 @@ public class MuteCommand extends Sx4Command {
 			long duration = time == null ? atomicDuration.get() : time.toSeconds();
 
 			event.getGuild().addRoleToMember(member, role).reason(ModUtility.getAuditReason(reason, event.getAuthor())).queue($ -> {
-				event.reply("**" + member.getUser().getAsTag() + "** has " + (extend ? "had their mute extended" : "been muted") + " for " + TimeUtility.getTimeString(duration) + " " + this.config.getSuccessEmote()).queue();
+				event.replySuccess("**" + member.getUser().getAsTag() + "** has " + (extend ? "had their mute extended" : "been muted") + " for " + TimeUtility.getTimeString(duration)).queue();
 
 				this.muteManager.putMute(event.getGuild().getIdLong(), member.getIdLong(), role.getIdLong(), duration, extend);
 

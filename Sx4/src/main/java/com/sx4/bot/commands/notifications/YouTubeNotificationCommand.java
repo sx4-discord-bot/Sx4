@@ -63,7 +63,7 @@ public class YouTubeNotificationCommand extends Sx4Command {
 			
 			List<Document> items = json.getList("items", Document.class);
 			if (items.isEmpty()) {
-				event.reply("I could not find that youtube channel " + this.config.getFailureEmote()).queue();
+				event.replyFailure("I could not find that youtube channel").queue();
 				return;
 			}
 			
@@ -97,10 +97,10 @@ public class YouTubeNotificationCommand extends Sx4Command {
 								return;
 							}
 							
-							event.reply("Notifications will now be sent in " + channel.getAsMention() + " when that user uploads with id `" + id.toHexString() + "` " + this.config.getSuccessEmote()).queue();
+							event.replySuccess("Notifications will now be sent in " + channel.getAsMention() + " when that user uploads with id `" + id.toHexString() + "`").queue();
 						});
 					} else {
-						event.reply("Oops something went wrong there, try again. If this repeats report this to my developer (Message: " + response.body().string() + ") " + this.config.getFailureEmote()).queue();
+						event.replyFailure("Oops something went wrong there, try again. If this repeats report this to my developer (Message: " + response.body().string() + ")").queue();
 					}
 				});
 			} else {
@@ -111,11 +111,11 @@ public class YouTubeNotificationCommand extends Sx4Command {
 					}
 					
 					if (result.getModifiedCount() == 0) {
-						event.reply("You already have a notification for that user in that channel " + this.config.getFailureEmote()).queue();
+						event.replyFailure("You already have a notification for that user in that channel").queue();
 						return;
 					}
 					
-					event.reply("Notifications will now be sent in " + channel.getAsMention() + " when that user uploads with id `" + id.toHexString() + "` " + this.config.getSuccessEmote()).queue();
+					event.replySuccess("Notifications will now be sent in " + channel.getAsMention() + " when that user uploads with id `" + id.toHexString() + "`").queue();
 				});
 			}
 		});
@@ -140,7 +140,7 @@ public class YouTubeNotificationCommand extends Sx4Command {
 				.orElse(null);
 			
 			if (notification == null) {
-				event.reply("You don't have a notification with that id " + this.config.getFailureEmote()).queue();
+				event.replyFailure("You don't have a notification with that id").queue();
 				return;
 			}
 			
@@ -156,7 +156,7 @@ public class YouTubeNotificationCommand extends Sx4Command {
 				channel.deleteWebhookById(String.valueOf(webhookId)).queue();
 			}
 			
-			event.reply("You will no longer receive notifications in <#" + channelId + "> for that user " + this.config.getSuccessEmote()).queue();
+			event.replySuccess("You will no longer receive notifications in <#" + channelId + "> for that user").queue();
 		});
 	}
 	
@@ -170,7 +170,7 @@ public class YouTubeNotificationCommand extends Sx4Command {
 			if (exception instanceof CompletionException) {
 				Throwable cause = exception.getCause();
 				if (cause instanceof MongoWriteException && ((MongoWriteException) cause).getCode() == 2) {
-					event.reply("You don't have a notification with that id " + this.config.getFailureEmote()).queue();
+					event.replyFailure("You don't have a notification with that id").queue();
 					return;
 				}
 			}
@@ -187,17 +187,17 @@ public class YouTubeNotificationCommand extends Sx4Command {
 				.orElse(null);
 			
 			if (notification == null) {
-				event.reply("You don't have a notification with that id " + this.config.getFailureEmote()).queue();
+				event.replyFailure("You don't have a notification with that id").queue();
 				return;
 			}
 			
 			String oldMessage = notification.getString("message");
 			if (oldMessage != null && oldMessage.equals(message)) {
-				event.reply("Your message for that notification was already set to that " + this.config.getFailureEmote()).queue();
+				event.replyFailure("Your message for that notification was already set to that").queue();
 				return;
 			}
 			
-			event.reply("Your message has been updated for that notification " + this.config.getSuccessEmote()).queue();
+			event.replySuccess("Your message has been updated for that notification").queue();
 		});
 	}
 	
@@ -211,7 +211,7 @@ public class YouTubeNotificationCommand extends Sx4Command {
 			if (exception instanceof CompletionException) {
 				Throwable cause = exception.getCause();
 				if (cause instanceof MongoWriteException && ((MongoWriteException) cause).getCode() == 2) {
-					event.reply("You don't have a notification with that id " + this.config.getFailureEmote()).queue();
+					event.replyFailure("You don't have a notification with that id").queue();
 					return;
 				}
 			}
@@ -228,17 +228,17 @@ public class YouTubeNotificationCommand extends Sx4Command {
 				.orElse(null);
 			
 			if (notification == null) {
-				event.reply("You don't have a notification with that id " + this.config.getFailureEmote()).queue();
+				event.replyFailure("You don't have a notification with that id").queue();
 				return;
 			}
 			
 			String oldName = notification.getEmbedded(List.of("webhook", "name"), String.class);
 			if (oldName != null && oldName.equals(name)) {
-				event.reply("Your webhook name for that notification was already set to that " + this.config.getFailureEmote()).queue();
+				event.replyFailure("Your webhook name for that notification was already set to that").queue();
 				return;
 			}
 			
-			event.reply("Your webhook name has been updated for that notification " + this.config.getSuccessEmote()).queue();
+			event.replySuccess("Your webhook name has been updated for that notification").queue();
 		});
 	}
 	
@@ -254,7 +254,7 @@ public class YouTubeNotificationCommand extends Sx4Command {
 			if (exception instanceof CompletionException) {
 				Throwable cause = exception.getCause();
 				if (cause instanceof MongoWriteException && ((MongoWriteException) cause).getCode() == 2) {
-					event.reply("You don't have a notification with that id " + this.config.getFailureEmote()).queue();
+					event.replyFailure("You don't have a notification with that id").queue();
 					return;
 				}
 			}
@@ -271,17 +271,17 @@ public class YouTubeNotificationCommand extends Sx4Command {
 				.orElse(null);
 			
 			if (notification == null) {
-				event.reply("You don't have a notification with that id " + this.config.getFailureEmote()).queue();
+				event.replyFailure("You don't have a notification with that id").queue();
 				return;
 			}
 			
 			String oldAvatar = notification.getEmbedded(List.of("webhook", "avatar"), String.class);
 			if (oldAvatar != null && oldAvatar.equals(url)) {
-				event.reply("Your webhook avatar for that notification was already set to that " + this.config.getFailureEmote()).queue();
+				event.replyFailure("Your webhook avatar for that notification was already set to that").queue();
 				return;
 			}
 			
-			event.reply("Your webhook avatar has been updated for that notification " + this.config.getSuccessEmote()).queue();
+			event.replySuccess("Your webhook avatar has been updated for that notification").queue();
 		});
 	}
 	
@@ -316,7 +316,7 @@ public class YouTubeNotificationCommand extends Sx4Command {
 		notifications.sort(Comparator.comparingLong(a -> a.getLong("channelId")));
 		
 		if (notifications.isEmpty()) {
-			event.reply("You have no notifications setup in this server " + this.config.getFailureEmote()).queue();
+			event.replyFailure("You have no notifications setup in this server").queue();
 			return;
 		}
 		
@@ -360,7 +360,7 @@ public class YouTubeNotificationCommand extends Sx4Command {
 			.orElse(null);
 			
 		if (notification == null) {
-			event.reply("You don't have a notification with that id " + this.config.getFailureEmote()).queue();
+			event.replyFailure("You don't have a notification with that id").queue();
 			return;
 		}
 		

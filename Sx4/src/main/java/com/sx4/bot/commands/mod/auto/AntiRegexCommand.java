@@ -60,7 +60,7 @@ public class AntiRegexCommand extends Sx4Command {
 	public void add(Sx4CommandEvent event, @Argument(value="id") ObjectId id) {
 		Document regex = this.database.getRegexById(id, Projections.include("approved", "pattern", "title"));
 		if (!regex.getBoolean("approved", false)) {
-			event.reply("I could not find that regex template " + this.config.getFailureEmote()).queue();
+			event.replyFailure("I could not find that regex template").queue();
 			return;
 		}
 		
@@ -75,12 +75,12 @@ public class AntiRegexCommand extends Sx4Command {
 				data = data == null ? Database.EMPTY_DOCUMENT : data;
 				List<Document> regexes = data.getEmbedded(List.of("antiRegex", "regexes"), Collections.emptyList());
 				if (regexes.stream().anyMatch(d -> d.getObjectId("id").equals(id))) {
-					event.reply("You already have that regex setup in this server " + this.config.getFailureEmote()).queue();
+					event.replyFailure("You already have that regex setup in this server").queue();
 					return CompletableFuture.completedFuture(null);
 				}
 
 				if (regexes.size() >= 10 && !data.containsKey("premium")) {
-					event.reply("You need to have Sx4 premium to have more than 10 anti regexes, you can get premium at <https://www.patreon.com/Sx4> " + this.config.getFailureEmote()).queue();
+					event.replyFailure("You need to have Sx4 premium to have more than 10 anti regexes, you can get premium at <https://www.patreon.com/Sx4>").queue();
 					return CompletableFuture.completedFuture(null);
 				}
 
@@ -90,7 +90,7 @@ public class AntiRegexCommand extends Sx4Command {
 					return;
 				}
 
-				event.reply("The regex **" + regex.getString("title") + "** is now active " + this.config.getSuccessEmote()).queue();
+				event.replySuccess("The regex **" + regex.getString("title") + "** is now active").queue();
 			});
 	}
 
@@ -101,7 +101,7 @@ public class AntiRegexCommand extends Sx4Command {
 		this.database.updateGuildById(event.getGuild().getIdLong(), Updates.pull("antiRegex.regexes", Filters.eq("id", id)))
 			.thenCompose(result -> {
 				if (result.getModifiedCount() == 0) {
-					event.reply("You do that have that regex setup in this server " + this.config.getFailureEmote()).queue();
+					event.replyFailure("You do that have that regex setup in this server").queue();
 					return CompletableFuture.completedFuture(null);
 				}
 
@@ -111,7 +111,7 @@ public class AntiRegexCommand extends Sx4Command {
 					return;
 				}
 
-				event.reply("That regex is no longer active " + this.config.getSuccessEmote()).queue();
+				event.replySuccess("That regex is no longer active").queue();
 			});
 	}
 
@@ -138,22 +138,22 @@ public class AntiRegexCommand extends Sx4Command {
 				.orElse(null);
 
 			if (regex == null) {
-				event.reply("I could not find that regex " + this.config.getFailureEmote()).queue();
+				event.replyFailure("I could not find that regex").queue();
 				return;
 			}
 
 			Document modActionData = regex.getEmbedded(List.of("action", "mod"), Document.class);
 			if (modActionData == null) {
-				event.reply("You need a mod action to be set up to change the attempts " + this.config.getFailureEmote()).queue();
+				event.replyFailure("You need a mod action to be set up to change the attempts").queue();
 				return;
 			}
 
 			if (modActionData.getEmbedded(List.of("attempts", "amount"), 3) == attempts) {
-				event.reply("Your attempts are already set to **" + attempts + "** " + this.config.getFailureEmote()).queue();
+				event.replyFailure("Your attempts are already set to **" + attempts + "**").queue();
 				return;
 			}
 
-			event.reply("Attempts to a mod action have been set to **" + attempts + "** " + this.config.getSuccessEmote()).queue();
+			event.replySuccess("Attempts to a mod action have been set to **" + attempts + "**").queue();
 		});
 	}
 
@@ -162,7 +162,7 @@ public class AntiRegexCommand extends Sx4Command {
 	@Examples({"anti regex reset after 5f023782ef9eba03390a740c 1 1 day", "anti regex reset after 5f023782ef9eba03390a740c 3 5h 20s", "anti regex reset after 5f023782ef9eba03390a740c 3 5h 20s"})
 	public void resetAfter(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="amount") @Limit(min=0) int amount, @Argument(value="time", endless=true, nullDefault=true) Duration time) {
 		if (time.toMinutes() < 5) {
-			event.reply("The duration has to be 5 minutes or above " + this.config.getFailureEmote()).queue();
+			event.replyFailure("The duration has to be 5 minutes or above").queue();
 			return;
 		}
 
@@ -173,7 +173,7 @@ public class AntiRegexCommand extends Sx4Command {
 			if (exception instanceof CompletionException) {
 				Throwable cause = exception.getCause();
 				if (cause instanceof MongoWriteException && ((MongoWriteException) cause).getCode() == 2) {
-					event.reply("I could not find that regex " + this.config.getFailureEmote()).queue();
+					event.replyFailure("I could not find that regex").queue();
 					return;
 				}
 			}
@@ -183,7 +183,7 @@ public class AntiRegexCommand extends Sx4Command {
 			}
 
 			if (result.getModifiedCount() == 0) {
-				event.reply("Your reset attempts configuration was already set to that " + this.config.getFailureEmote()).queue();
+				event.replyFailure("Your reset attempts configuration was already set to that").queue();
 				return;
 			}
 
@@ -200,7 +200,7 @@ public class AntiRegexCommand extends Sx4Command {
 	public void list(Sx4CommandEvent event) {
 		List<Document> regexes = this.database.getGuildById(event.getGuild().getIdLong(), Projections.include("antiRegex.regexes")).getEmbedded(List.of("antiRegex", "regexes"), Collections.emptyList());
 		if (regexes.isEmpty()) {
-			event.reply("There are no regexes setup in this server " + this.config.getFailureEmote()).queue();
+			event.replyFailure("There are no regexes setup in this server").queue();
 			return;
 		}
 
@@ -239,7 +239,7 @@ public class AntiRegexCommand extends Sx4Command {
 			TimedArgument<ModAction> timedAction = new TimedArgument<>(null, ModAction.WARN);
 			ModAction action = timedAction.getArgument();
 			if (!action.isOffence()) {
-				event.reply("The action has to be an offence " + this.config.getFailureEmote()).queue();
+				event.replyFailure("The action has to be an offence").queue();
 				return;
 			}
 
@@ -272,17 +272,17 @@ public class AntiRegexCommand extends Sx4Command {
 					.orElse(null);
 
 				if (regex == null) {
-					event.reply("I could not find that regex " + this.config.getFailureEmote()).queue();
+					event.replyFailure("I could not find that regex").queue();
 					return;
 				}
 
 				Document modActionData = regex.getEmbedded(List.of("action", "mod"), Document.class);
 				if (modActionData != null && modActionData.getInteger("type") == action.getType() && modActionData.get("duration", 0L) == duration) {
-					event.reply("Your mod action for this regex is already set to that " + this.config.getFailureEmote()).queue();
+					event.replyFailure("Your mod action for this regex is already set to that").queue();
 					return;
 				}
 
-				event.reply("Your mod action for that regex has been updated " + this.config.getSuccessEmote()).queue();
+				event.replySuccess("Your mod action for that regex has been updated").queue();
 			});
 		}
 
@@ -328,17 +328,17 @@ public class AntiRegexCommand extends Sx4Command {
 					.orElse(null);
 
 				if (regex == null) {
-					event.reply("I could not find that regex " + this.config.getFailureEmote()).queue();
+					event.replyFailure("I could not find that regex").queue();
 					return;
 				}
 
 				String oldMessage = regex.get("message", AntiRegexManager.DEFAULT_MATCH_MESSAGE);
 				if (oldMessage.equals(message)) {
-					event.reply("Your message for that regex was already set to that " + this.config.getFailureEmote()).queue();
+					event.replyFailure("Your message for that regex was already set to that").queue();
 					return;
 				}
 
-				event.reply("Your message for that regex has been updated " + this.config.getSuccessEmote()).queue();
+				event.replySuccess("Your message for that regex has been updated").queue();
 			});
 		}
 
@@ -368,17 +368,17 @@ public class AntiRegexCommand extends Sx4Command {
 					.orElse(null);
 
 				if (regex == null) {
-					event.reply("I could not find that regex " + this.config.getFailureEmote()).queue();
+					event.replyFailure("I could not find that regex").queue();
 					return;
 				}
 
 				long matchActionRaw = regex.getEmbedded(List.of("action", "match", "raw"), MatchAction.ALL);
 				if (matchActionRaw == raw) {
-					event.reply("Your match action for this regex is already set to that " + this.config.getFailureEmote()).queue();
+					event.replyFailure("Your match action for this regex is already set to that").queue();
 					return;
 				}
 
-				event.reply("Your match action for that regex has been updated " + this.config.getSuccessEmote()).queue();
+				event.replySuccess("Your match action for that regex has been updated").queue();
 			});
 		}
 
@@ -408,12 +408,12 @@ public class AntiRegexCommand extends Sx4Command {
 				.orElse(null);
 			
 			if (pattern == null) {
-				event.reply("I could not find that anti regex " + this.config.getFailureEmote()).queue();
+				event.replyFailure("I could not find that anti regex").queue();
 				return;
 			}
 			
 			if (Pattern.compile(pattern.getString("pattern")).matcher("").groupCount() < group) {
-				event.reply("There is not a group " + group + " in that regex " + this.config.getFailureEmote()).queue();
+				event.replyFailure("There is not a group " + group + " in that regex").queue();
 				return;
 			}
 			
@@ -455,7 +455,7 @@ public class AntiRegexCommand extends Sx4Command {
 					.orElse(null);
 
 				if (regex == null) {
-					event.reply("I could not find that anti regex " + this.config.getFailureEmote()).queue();
+					event.replyFailure("I could not find that anti regex").queue();
 					return;
 				}
 
@@ -473,12 +473,12 @@ public class AntiRegexCommand extends Sx4Command {
 						.orElse(Database.EMPTY_DOCUMENT);
 
 					if (oldGroup.getList("strings", String.class).contains(string)) {
-						event.reply("Group **" + group + "** is already whitelisted from that string in all of the provided channels " + this.config.getFailureEmote()).queue();
+						event.replyFailure("Group **" + group + "** is already whitelisted from that string in all of the provided channels").queue();
 						return;
 					}
 				}
 
-				event.reply("Group **" + group + "** is now whitelisted from that string in the provided channels " + this.config.getSuccessEmote()).queue();
+				event.replySuccess("Group **" + group + "** is now whitelisted from that string in the provided channels").queue();
 			});
 		}
 
@@ -524,7 +524,7 @@ public class AntiRegexCommand extends Sx4Command {
 					.orElse(null);
 
 				if (regex == null) {
-					event.reply("I could not find that anti regex " + this.config.getFailureEmote()).queue();
+					event.replyFailure("I could not find that anti regex").queue();
 					return;
 				}
 
@@ -537,12 +537,12 @@ public class AntiRegexCommand extends Sx4Command {
 
 					List<Document> holders = whitelist.getList("holders", Document.class, Collections.emptyList());
 					if (holders.stream().anyMatch(d -> d.getLong("id") == holderId)) {
-						event.reply((role ? ((Role) holder).getAsMention() : ((Member) holder).getUser().getAsMention()) + " is already whitelisted in all of the provided channels " + this.config.getFailureEmote()).queue();
+						event.replyFailure((role ? ((Role) holder).getAsMention() : ((Member) holder).getUser().getAsMention()) + " is already whitelisted in all of the provided channels").queue();
 						return;
 					}
 				}
 
-				event.reply((role ? ((Role) holder).getAsMention() : ((Member) holder).getUser().getAsMention()) + " is now whitelisted in the provided channels " + this.config.getSuccessEmote()).queue();
+				event.replySuccess((role ? ((Role) holder).getAsMention() : ((Member) holder).getUser().getAsMention()) + " is now whitelisted in the provided channels").queue();
 			});
 		}
 
@@ -585,7 +585,7 @@ public class AntiRegexCommand extends Sx4Command {
 					.orElse(null);
 
 				if (regex == null) {
-					event.reply("I could not find that anti regex " + this.config.getFailureEmote()).queue();
+					event.replyFailure("I could not find that anti regex").queue();
 					return;
 				}
 
@@ -603,12 +603,12 @@ public class AntiRegexCommand extends Sx4Command {
 						.orElse(Database.EMPTY_DOCUMENT);
 
 					if (oldGroup.getList("strings", String.class).contains(string)) {
-						event.reply("Group **" + group + "** is no longer whitelisted from that string in the provided channels " + this.config.getSuccessEmote()).queue();
+						event.replySuccess("Group **" + group + "** is no longer whitelisted from that string in the provided channels").queue();
 						return;
 					}
 				}
 
-				event.reply("Group **" + group + "** is not whitelisted from that string in any of the provided channels " + this.config.getFailureEmote()).queue();
+				event.replyFailure("Group **" + group + "** is not whitelisted from that string in any of the provided channels").queue();
 			});
 		}
 
@@ -654,7 +654,7 @@ public class AntiRegexCommand extends Sx4Command {
 					.orElse(null);
 
 				if (regex == null) {
-					event.reply("I could not find that anti regex " + this.config.getFailureEmote()).queue();
+					event.replyFailure("I could not find that anti regex").queue();
 					return;
 				}
 
@@ -667,12 +667,12 @@ public class AntiRegexCommand extends Sx4Command {
 
 					List<Document> holders = whitelist.getList("holders", Document.class, Collections.emptyList());
 					if (holders.stream().anyMatch(d -> d.getLong("id") == holderId)) {
-						event.reply((role ? ((Role) holder).getAsMention() : ((Member) holder).getUser().getAsMention()) + " is no longer whitelisted in the provided channels " + this.config.getSuccessEmote()).queue();
+						event.replySuccess((role ? ((Role) holder).getAsMention() : ((Member) holder).getUser().getAsMention()) + " is no longer whitelisted in the provided channels").queue();
 						return;
 					}
 				}
 
-				event.reply((role ? ((Role) holder).getAsMention() : ((Member) holder).getUser().getAsMention()) + " is not whitelisted in any of the provided channels " + this.config.getFailureEmote()).queue();
+				event.replyFailure((role ? ((Role) holder).getAsMention() : ((Member) holder).getUser().getAsMention()) + " is not whitelisted in any of the provided channels").queue();
 			});
 		}
 
@@ -687,7 +687,7 @@ public class AntiRegexCommand extends Sx4Command {
 				.orElse(null);
 
 			if (regex == null) {
-				event.reply("I could not find that regex " + this.config.getFailureEmote()).queue();
+				event.replyFailure("I could not find that regex").queue();
 				return;
 			}
 
@@ -698,7 +698,7 @@ public class AntiRegexCommand extends Sx4Command {
 				.orElse(null);
 
 			if (whitelist == null) {
-				event.reply("Nothing is whitelisted in that channel " + this.config.getFailureEmote()).queue();
+				event.replyFailure("Nothing is whitelisted in that channel").queue();
 				return;
 			}
 
@@ -724,18 +724,18 @@ public class AntiRegexCommand extends Sx4Command {
 		@Examples({"anti regex template add Numbers .*[0-9]+.* Will match any message which contains a number"})
 		public void add(Sx4CommandEvent event, @Argument(value="title") String title, @Argument(value="regex") Pattern pattern, @Argument(value="description", endless=true) String description) {
 			if (title.length() > 20) {
-				event.reply("The title cannot be more than 20 characters " + this.config.getFailureEmote()).queue();
+				event.replyFailure("The title cannot be more than 20 characters").queue();
 				return;
 			}
 			
 			if (description.length() > 250) {
-				event.reply("The description cannot be more than 250 characters " + this.config.getFailureEmote()).queue();
+				event.replyFailure("The description cannot be more than 250 characters").queue();
 				return;
 			}
 			
 			String patternString = pattern.pattern();
 			if (patternString.length() > 200) {
-				event.reply("The regex cannot be more than 200 characters " + this.config.getFailureEmote()).queue();
+				event.replyFailure("The regex cannot be more than 200 characters").queue();
 				return;
 			}
 			
@@ -749,7 +749,7 @@ public class AntiRegexCommand extends Sx4Command {
 					return;
 				}
 				
-				event.reply("Your regex has been added to the queue you will be notified when it has been approved or denied " + this.config.getSuccessEmote()).queue();
+				event.replySuccess("Your regex has been added to the queue you will be notified when it has been approved or denied").queue();
 			});
 		}
 
@@ -758,7 +758,7 @@ public class AntiRegexCommand extends Sx4Command {
 		public void list(Sx4CommandEvent event) {
 			List<Document> list = this.database.getRegexes(Filters.eq("approved", true), Projections.include("title", "description", "pattern", "ownerId", "uses")).sort(Sorts.descending("uses")).into(new ArrayList<>());
 			if (list.isEmpty()) {
-				event.reply("There are no regex templates currently " + this.config.getFailureEmote()).queue();
+				event.replyFailure("There are no regex templates currently").queue();
 				return;
 			}
 
@@ -790,7 +790,7 @@ public class AntiRegexCommand extends Sx4Command {
 		public void queue(Sx4CommandEvent event) {
 			List<Document> queue = this.database.getRegexes(Filters.ne("approved", true), Projections.include("title", "description", "pattern", "ownerId")).into(new ArrayList<>());
 			if (queue.isEmpty()) {
-				event.reply("There are now regex templates in the queue " + this.config.getFailureEmote()).queue();
+				event.replyFailure("There are now regex templates in the queue").queue();
 				return;
 			}
 
@@ -827,7 +827,7 @@ public class AntiRegexCommand extends Sx4Command {
 				}
 				
 				if (data == null) {
-					event.reply("I could not find that regex template " + this.config.getFailureEmote()).queue();
+					event.replyFailure("I could not find that regex template").queue();
 					return;
 				}
 				
@@ -838,7 +838,7 @@ public class AntiRegexCommand extends Sx4Command {
 						.queue(null, ErrorResponseException.ignore(ErrorResponse.CANNOT_SEND_TO_USER));
 				}
 				
-				event.reply("That regex template has been approved " + this.config.getSuccessEmote()).queue();
+				event.replySuccess("That regex template has been approved").queue();
 			});
 		}
 		
@@ -853,7 +853,7 @@ public class AntiRegexCommand extends Sx4Command {
 				}
 				
 				if (data == null) {
-					event.reply("I could not find that regex template " + this.config.getFailureEmote()).queue();
+					event.replyFailure("I could not find that regex template").queue();
 					return;
 				}
 				
@@ -864,7 +864,7 @@ public class AntiRegexCommand extends Sx4Command {
 						.queue(null, ErrorResponseException.ignore(ErrorResponse.CANNOT_SEND_TO_USER));
 				}
 				
-				event.reply("That regex template has been denied " + this.config.getSuccessEmote()).queue();
+				event.replySuccess("That regex template has been denied").queue();
 			});
 		}
 		
