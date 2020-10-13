@@ -45,7 +45,7 @@ public class IGDBCommand extends Sx4Command {
 			parser.search(String.format("\"%s\"", game));
 		} else {
 			parser.sort(sort == null ? "name" : sort.getName(), !reverse)
-				.appendFilter(filter -> IGDBFilter.and(filter, sort == null ? "name" : sort.getName() + " != n"));
+				.appendFilter(filter -> IGDBFilter.and(filter, (sort == null ? "name" : sort.getName()) + " != n"));
 
 			if (game != null) {
 				parser.appendFilter(filter -> IGDBFilter.and(filter, String.format("name ~ \"%s\"*", game)));
