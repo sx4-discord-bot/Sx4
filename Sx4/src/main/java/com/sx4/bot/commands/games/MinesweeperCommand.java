@@ -4,7 +4,6 @@ import com.jockie.bot.core.argument.Argument;
 import com.sx4.bot.annotations.argument.DefaultInt;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
-import net.dv8tion.jda.api.entities.Message;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -12,16 +11,16 @@ import java.util.Map;
 public class MinesweeperCommand extends Sx4Command {
 
 	public enum MinesweeperType {
-		ZERO(0, ":zero:"),
-		ONE(1, ":one:"),
-		TWO(2, ":two:"),
-		THREE(3, ":three:"),
-		FOUR(4, ":four:"),
-		FIVE(5, ":five:"),
-		SIX(6, ":six:"),
-		SEVEN(7, ":seven:"),
-		EIGHT(8, ":eight:"),
-		BOMB(9, ":bomb:"),
+		ZERO(0, "0️⃣"),
+		ONE(1, "1️⃣"),
+		TWO(2, "2️⃣"),
+		THREE(3, "3️⃣"),
+		FOUR(4, "4️⃣"),
+		FIVE(5, "5️⃣"),
+		SIX(6, "6️⃣"),
+		SEVEN(7, "7️⃣"),
+		EIGHT(8, "8️⃣"),
+		BOMB(9, "\uD83D\uDCA3"),
 		UNKNOWN(-1, "");
 
 		private int number;
@@ -60,19 +59,24 @@ public class MinesweeperCommand extends Sx4Command {
 	}
 
 	public void onCommand(Sx4CommandEvent event, @Argument(value="bombs") @DefaultInt(10) int bombs, @Argument(value="grid x") @DefaultInt(10) int gridX, @Argument(value="grid y") @DefaultInt(10) int gridY) {
-		if (gridX < 2 || gridY < 2) {
-			event.replyFailure("The grid has to be at least 2x2 in size").queue();
+		int gridSize = gridX * gridY;
+		if (gridSize < 4) {
+			event.replyFailure("The grid has to be at least 4 blocks in size").queue();
 			return;
 		}
 
-		int maxBombs = gridX * gridY - 1;
-		if (bombs > maxBombs) {
-			event.replyFormat("**%,d** is the max amount of bombs you can have in this grid %s", maxBombs, this.config.getFailureEmote()).queue();
+		if (bombs > (gridX * gridY) / 2) {
+			event.replyFailure("Only 50% of the grid can be bombs").queue();
 			return;
 		}
 
 		if (bombs < 1) {
 			event.replyFailure("You need at least 1 bomb to play").queue();
+			return;
+		}
+
+		if (bombs * 6 + (gridSize - bombs) * 7 + (gridY - 1) > 1400) {
+			event.replyFailure("That grid size is too big to show").queue();
 			return;
 		}
 
@@ -100,10 +104,10 @@ public class MinesweeperCommand extends Sx4Command {
 				}
 
 				int amount = 0;
-				for (int aroundX = -1; aroundX < 2; aroundX++) {
-					for (int aroundY = -1; aroundY < 2; aroundY++) {
-						MinesweeperType type = positions.getOrDefault(aroundX + x, new HashMap<>())
-							.getOrDefault(aroundY + y, MinesweeperType.UNKNOWN);
+				for (int aroundX = x - 1; aroundX < x + 2; aroundX++) {
+					for (int aroundY = y - 1; aroundY < y + 2; aroundY++) {
+						MinesweeperType type = positions.getOrDefault(aroundX, new HashMap<>())
+							.getOrDefault(aroundY, MinesweeperType.UNKNOWN);
 
 						if (type == MinesweeperType.BOMB) {
 							amount++;
@@ -124,12 +128,9 @@ public class MinesweeperCommand extends Sx4Command {
 				result.append("||").append(current.getEmote()).append("||");
 			}
 
-			result.append("\n");
-		}
-
-		if (result.length() > Message.MAX_CONTENT_LENGTH) {
-			event.replyFailure("That grid size is too big to show").queue();
-			return;
+			if (x != gridX - 1) {
+				result.append("\n");
+			}
 		}
 
 		event.reply(result.toString()).queue();
