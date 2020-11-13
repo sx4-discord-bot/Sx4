@@ -60,14 +60,14 @@ public class YouTubeManager {
 			
 			if (event instanceof YouTubeUpdateEvent) {
 				listener.onYouTubeUpdate((YouTubeUpdateEvent) event);
-			}
-			
-			if (event instanceof YouTubeUpdateTitleEvent) {
-				listener.onYouTubeUpdateTitle((YouTubeUpdateTitleEvent) event);
-			} 
-			
-			if (event instanceof YouTubeUploadEvent) {
-				listener.onYouTubeUpload((YouTubeUploadEvent) event);
+
+				if (event instanceof YouTubeUpdateTitleEvent) {
+					listener.onYouTubeUpdateTitle((YouTubeUpdateTitleEvent) event);
+				}
+
+				if (event instanceof YouTubeUploadEvent) {
+					listener.onYouTubeUpload((YouTubeUploadEvent) event);
+				}
 			}
 			
 			if (event instanceof YouTubeDeleteEvent) {
@@ -118,7 +118,7 @@ public class YouTubeManager {
 			RequestBody body = new MultipartBody.Builder()
 				.addFormDataPart("hub.mode", "subscribe")
 				.addFormDataPart("hub.topic", "https://www.youtube.com/xml/feeds/videos.xml?channel_id=" + channelId)
-				.addFormDataPart("hub.callback", "http://" + config.getDomain() + ":" + config.getPort() + "/api/v1/youtube")
+				.addFormDataPart("hub.callback", "http://" + config.getDomain() + ":" + config.getPort() + "/api/youtube")
 				.addFormDataPart("hub.verify", "sync")
 				.addFormDataPart("hub.verify_token", config.getYoutube())
 				.setType(MultipartBody.FORM)
@@ -133,7 +133,7 @@ public class YouTubeManager {
 				if (response.isSuccessful()) {
 					System.out.println("Resubscribed to " + channelId + " for YouTube notifications");
 				} else {
-					System.err.println(String.format("Failed to resubscribe to %s for YouTube notifications, Code: %d, Message: %s", channelId, response.code(), response.body().string()));
+					System.err.printf("Failed to resubscribe to %s for YouTube notifications, Code: %d, Message: %s%n", channelId, response.code(), response.body().string());
 				}
 				
 				response.close();

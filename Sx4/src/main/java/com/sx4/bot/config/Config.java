@@ -285,7 +285,7 @@ public class Config {
 	}
 	
 	public String getPatreonWebhookSecret() {
-		return this.get("token.patreonWebhookSecret");
+		return this.get("token.patreon.webhook");
 	}
 
 	public String getTwitch() {
@@ -306,6 +306,10 @@ public class Config {
 	
 	public String getVoteApi(boolean sx4) {
 		return this.get("token.voteApi." + (sx4 ? "sx4" : "jockieMusic"));
+	}
+
+	public String getGitHubWebhookSecret() {
+		return this.get("token.github.webhook");
 	}
 	
 	public int getPremiumPrice() {

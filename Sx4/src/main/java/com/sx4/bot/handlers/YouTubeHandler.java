@@ -113,83 +113,78 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 	public void onYouTubeUpload(YouTubeUploadEvent event) {
 		this.notificationExecutor.submit(() -> {
 			ShardManager shardManager = Sx4.get().getShardManager();
-			
-			try {
-				Database database = Database.get();
 
-				String channelId = event.getChannel().getId();
-				database.getGuilds(Filters.elemMatch("youtube.notifications", Filters.eq("uploaderId", channelId)), Projections.include("youtube.notifications")).forEach(guildData -> {
-					Guild guild = shardManager.getGuildById(guildData.getLong("_id"));
-					if (guild == null) {
-						return;
-					}
+			Database database = Database.get();
 
-					List<Document> notifications = guildData.getEmbedded(List.of("youtube", "notifications"), Collections.emptyList());
-					for (Document notification : notifications) {
-						if (notification.getString("uploaderId").equals(channelId)) {
-							long textChannelId = notification.getLong("channelId");
-							TextChannel textChannel = guild.getTextChannelById(textChannelId);
-							if (textChannel != null) {
-								String messageContent = this.format(event, notification.get("message", YouTubeManager.DEFAULT_MESSAGE));
+			String channelId = event.getChannel().getId();
+			database.getGuilds(Filters.elemMatch("youtube.notifications", Filters.eq("uploaderId", channelId)), Projections.include("youtube.notifications")).forEach(guildData -> {
+				Guild guild = shardManager.getGuildById(guildData.getLong("_id"));
+				if (guild == null) {
+					return;
+				}
 
-								Document webhookData = notification.get("webhook", Database.EMPTY_DOCUMENT);
+				List<Document> notifications = guildData.getEmbedded(List.of("youtube", "notifications"), Collections.emptyList());
+				for (Document notification : notifications) {
+					if (notification.getString("uploaderId").equals(channelId)) {
+						long textChannelId = notification.getLong("channelId");
+						TextChannel textChannel = guild.getTextChannelById(textChannelId);
+						if (textChannel != null) {
+							String messageContent = this.format(event, notification.get("message", YouTubeManager.DEFAULT_MESSAGE));
 
-								WebhookMessage message = new WebhookMessageBuilder()
-									.setAvatarUrl(webhookData.get("avatar", shardManager.getShardById(0).getSelfUser().getEffectiveAvatarUrl()))
-									.setUsername(webhookData.get("name", "Sx4 - YouTube"))
-									.setContent(messageContent)
+							Document webhookData = notification.get("webhook", Database.EMPTY_DOCUMENT);
+
+							WebhookMessage message = new WebhookMessageBuilder()
+								.setAvatarUrl(webhookData.get("avatar", shardManager.getShardById(0).getSelfUser().getEffectiveAvatarUrl()))
+								.setUsername(webhookData.get("name", "Sx4 - YouTube"))
+								.setContent(messageContent)
+								.build();
+
+							WebhookClient webhook;
+							if (this.webhooks.containsKey(textChannel.getIdLong())) {
+								webhook = this.webhooks.get(textChannel.getIdLong());
+							} else if (!webhookData.containsKey("id")) {
+								if (textChannel.getGuild().getSelfMember().hasPermission(textChannel, Permission.MANAGE_WEBHOOKS)) {
+									this.createWebhook(textChannel, message);
+								}
+
+								return;
+							} else {
+								webhook = new WebhookClientBuilder(webhookData.getLong("id"), webhookData.getString("token"))
+									.setExecutorService(this.scheduledExectuor)
+									.setHttpClient(this.client)
 									.build();
 
-								WebhookClient webhook;
-								if (this.webhooks.containsKey(textChannel.getIdLong())) {
-									webhook = this.webhooks.get(textChannel.getIdLong());
-								} else if (!webhookData.containsKey("id")) {
+								this.webhooks.put(textChannel.getIdLong(), webhook);
+							}
+
+							webhook.send(message).whenComplete((webhookMessage, exception) -> {
+								if (exception instanceof HttpException && ((HttpException) exception).getCode() == 404) {
+									this.webhooks.remove(textChannel.getIdLong());
+
 									if (textChannel.getGuild().getSelfMember().hasPermission(textChannel, Permission.MANAGE_WEBHOOKS)) {
 										this.createWebhook(textChannel, message);
 									}
-
+								}
+							});
+						} else {
+							database.updateGuildById(guild.getIdLong(), Updates.pull("youtube.notifications", Filters.eq("channelId", textChannelId))).whenComplete((result, exception) -> {
+								if (ExceptionUtility.sendErrorMessage(exception)) {
 									return;
-								} else {
-									webhook = new WebhookClientBuilder(webhookData.getLong("id"), webhookData.getString("token"))
-										.setExecutorService(this.scheduledExectuor)
-										.setHttpClient(this.client)
-										.build();
-
-									this.webhooks.put(textChannel.getIdLong(), webhook);
 								}
 
-								webhook.send(message).whenComplete((webhookMessage, exception) -> {
-									if (exception instanceof HttpException && ((HttpException) exception).getCode() == 404) {
-										this.webhooks.remove(textChannel.getIdLong());
-
-										if (textChannel.getGuild().getSelfMember().hasPermission(textChannel, Permission.MANAGE_WEBHOOKS)) {
-											this.createWebhook(textChannel, message);
-										}
-									}
-								});
-							} else {
-								database.updateGuildById(guild.getIdLong(), Updates.pull("youtube.notifications", Filters.eq("channelId", textChannelId))).whenComplete((result, exception) -> {
-									if (ExceptionUtility.sendErrorMessage(exception)) {
-										return;
-									}
-
-									this.webhooks.remove(textChannelId);
-								});
-							}
+								this.webhooks.remove(textChannelId);
+							});
 						}
 					}
-				});
-				
-				Document databaseData = new Document("type", YouTubeType.UPLOAD.getRaw())
-					.append("videoId", event.getVideo().getId())
-					.append("title", event.getVideo().getTitle())
-					.append("uploaderId", event.getChannel().getId());
-				
-				Database.get().insertNotification(databaseData).whenComplete(Database.exceptionally());
-			} catch (Throwable e) {
-				e.printStackTrace();
-				ExceptionUtility.sendErrorMessage(e);
-			}
+				}
+			});
+
+			Document databaseData = new Document("type", YouTubeType.UPLOAD.getRaw())
+				.append("videoId", event.getVideo().getId())
+				.append("title", event.getVideo().getTitle())
+				.append("uploaderId", event.getChannel().getId());
+
+			Database.get().insertNotification(databaseData).whenComplete(Database.exceptionally());
 		});
 	}
 	

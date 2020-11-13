@@ -16,15 +16,15 @@ import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.util.List;
 
-@Path("")
+@Path("api")
 public class PatreonEndpoint {
 	
 	@POST
-	@Path("/patreon")
+	@Path("patreon")
 	public Response postPatreon(final String body, @HeaderParam("X-Patreon-Signature") final String signature, @HeaderParam("X-Patreon-Event") final String event) {
 		String hash;
 		try {
-			hash = HmacUtility.getMD5Signature(Config.get().getPatreonWebhookSecret(), body);
+			hash = HmacUtility.getSignature(Config.get().getPatreonWebhookSecret(), body, HmacUtility.HMAC_MD5);
 		} catch (InvalidKeyException | NoSuchAlgorithmException e) {
 			return Response.status(500).build();
 		}

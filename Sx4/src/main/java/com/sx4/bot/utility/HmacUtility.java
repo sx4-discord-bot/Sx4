@@ -1,15 +1,16 @@
 package com.sx4.bot.utility;
 
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.util.Formatter;
 
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
-
 public class HmacUtility {
 	
 	public static final String HMAC_MD5 = "HmacMD5";
+	public static final String HMAC_SHA256 = "HmacSHA256";
 
 	@SuppressWarnings("resource")
 	public static String toHexString(byte[] bytes) {
@@ -22,13 +23,13 @@ public class HmacUtility {
 		return formatter.toString();
 	}
 	
-	public static String getMD5Signature(String key, String data) throws NoSuchAlgorithmException, InvalidKeyException {
-		SecretKeySpec signingKey = new SecretKeySpec(key.getBytes(), HmacUtility.HMAC_MD5);
+	public static String getSignature(String key, String data, String type) throws NoSuchAlgorithmException, InvalidKeyException {
+		SecretKeySpec signingKey = new SecretKeySpec(key.getBytes(), type);
 		
-		Mac mac = Mac.getInstance(HmacUtility.HMAC_MD5);
+		Mac mac = Mac.getInstance(type);
 		mac.init(signingKey);
 		
-		return HmacUtility.toHexString(mac.doFinal(data.getBytes()));
+		return HmacUtility.toHexString(mac.doFinal(data.getBytes(StandardCharsets.UTF_8)));
 	}
 	
 }

@@ -65,7 +65,7 @@ public class MinesweeperCommand extends Sx4Command {
 			return;
 		}
 
-		if (bombs > (gridX * gridY) / 2) {
+		if (bombs > gridSize / 2) {
 			event.replyFailure("Only 50% of the grid can be bombs").queue();
 			return;
 		}

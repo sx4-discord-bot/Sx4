@@ -5,6 +5,7 @@ import com.jockie.bot.core.option.Option;
 import com.sx4.bot.antlr.CalcEvalVisitor;
 import com.sx4.bot.antlr.CalcLexer;
 import com.sx4.bot.antlr.CalcParser;
+import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import org.antlr.v4.runtime.CharStreams;
@@ -23,6 +24,7 @@ public class CalculatorCommand extends Sx4Command {
         super.setAliases("calc");
         super.setDescription("Eval a mathematical equation");
         super.setExamples("calc 1 + 1", "calc a = 5; a + 10");
+        super.setCategory(ModuleCategory.INFORMATION);
     }
 
     public void onCommand(Sx4CommandEvent event, @Argument(value="expression", endless=true) String expression, @Option(value="pretty", description="Puts a comma every 3 digits before the decimal point") boolean pretty) {

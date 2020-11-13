@@ -17,6 +17,7 @@ import com.jockie.bot.core.option.factory.impl.OptionFactory;
 import com.jockie.bot.core.option.factory.impl.OptionFactoryImpl;
 import com.jockie.bot.core.parser.ParsedResult;
 import com.jockie.bot.core.parser.impl.essential.EnumParser;
+import com.sx4.api.Sx4Server;
 import com.sx4.bot.annotations.argument.*;
 import com.sx4.bot.cache.GuildMessageCache;
 import com.sx4.bot.category.ModuleCategory;
@@ -549,8 +550,8 @@ public class Sx4 {
 			});
 	}
 	
-	public static void main(String[] args) {
-		//Main.initiateWebserver();
+	public static void main(String[] args) throws Exception {
+		Sx4Server.initiateWebserver();
 		
 		Thread.setDefaultUncaughtExceptionHandler((thread, exception) -> {
 			System.err.println("[Uncaught]");

@@ -1,22 +1,5 @@
 package com.sx4.api.endpoints;
 
-import java.time.Clock;
-import java.time.Duration;
-import java.time.ZoneOffset;
-import java.time.ZonedDateTime;
-
-import javax.ws.rs.GET;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
-
-import org.bson.Document;
-import org.json.JSONObject;
-import org.json.XML;
-
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.Updates;
@@ -30,12 +13,23 @@ import com.sx4.bot.events.youtube.YouTubeUpdateTitleEvent;
 import com.sx4.bot.events.youtube.YouTubeUploadEvent;
 import com.sx4.bot.managers.YouTubeManager;
 import com.sx4.bot.utility.ExceptionUtility;
+import org.bson.Document;
+import org.json.JSONObject;
+import org.json.XML;
 
-@Path("")
+import javax.ws.rs.*;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+
+@Path("api")
 public class YouTubeEndpoint {
 
 	@GET
-	@Path("/youtube")
+	@Path("youtube")
 	@Produces(MediaType.TEXT_PLAIN)
 	public Response getYoutube(@QueryParam("hub.topic") final String topic, @QueryParam("hub.verify_token") final String authorization, @QueryParam("hub.challenge") final String challenge, @QueryParam("hub.lease_seconds") final long seconds) {
 		if (authorization != null && authorization.equals(Config.get().getYoutube())) {

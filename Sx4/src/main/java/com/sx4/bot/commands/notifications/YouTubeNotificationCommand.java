@@ -79,7 +79,7 @@ public class YouTubeNotificationCommand extends Sx4Command {
 				RequestBody body = new MultipartBody.Builder()
 					.addFormDataPart("hub.mode", "subscribe")
 					.addFormDataPart("hub.topic", "https://www.youtube.com/xml/feeds/videos.xml?channel_id=" + channelId)
-					.addFormDataPart("hub.callback", "http://" + this.config.getDomain() + ":" + this.config.getPort() + "/api/v1/youtube")
+					.addFormDataPart("hub.callback", "http://" + this.config.getDomain() + ":" + this.config.getPort() + "/api/youtube")
 					.addFormDataPart("hub.verify", "sync")
 					.addFormDataPart("hub.verify_token", this.config.getYoutube())
 					.setType(MultipartBody.FORM)

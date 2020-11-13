@@ -40,6 +40,8 @@ public class Database {
 	private final MongoCollection<Document> users;
 	
 	private final MongoCollection<Document> giveaways;
+
+	private final MongoCollection<Document> redirects;
 	
 	private final MongoCollection<Document> patrons;
 	
@@ -77,6 +79,9 @@ public class Database {
 		
 		this.patrons = this.database.getCollection("patrons");
 		this.patrons.createIndex(Indexes.descending("discordId"));
+
+		this.redirects = this.database.getCollection("redirects");
+		this.redirects.createIndex(Indexes.descending("url"));
 		
 		this.auction = this.database.getCollection("auction");
 		this.auction.createIndex(Indexes.descending("item.name"));
@@ -115,6 +120,18 @@ public class Database {
 	
 	public MongoDatabase getDatabase() {
 		return this.database;
+	}
+
+	public MongoCollection<Document> getRedirects() {
+		return this.redirects;
+	}
+
+	public Document getRedirectById(String id) {
+		return this.redirects.find(Filters.eq("_id", id)).first();
+	}
+
+	public CompletableFuture<Document> insertRedirect(String id, String url) {
+		return CompletableFuture.supplyAsync(() -> this.redirects.findOneAndUpdate(Filters.eq("url", url), Updates.combine(Updates.setOnInsert("_id", id), Updates.setOnInsert("url", url)), this.findOneAndUpdateOptions));
 	}
 	
 	public MongoCollection<Document> getPatrons() {

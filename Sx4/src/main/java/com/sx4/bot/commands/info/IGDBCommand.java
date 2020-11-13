@@ -2,6 +2,7 @@ package com.sx4.bot.commands.info;
 
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.option.Option;
+import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.entities.info.IGDBFilter;
@@ -33,6 +34,7 @@ public class IGDBCommand extends Sx4Command {
 		super.setExamples("igdb human fall", "igdb uno --sort=release --reverse", "igdb grand theft auto --sort=rating");
 		super.setCooldownDuration(10);
 		super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
+		super.setCategory(ModuleCategory.INFORMATION);
 	}
 
 	public void onCommand(Sx4CommandEvent event, @Argument(value="game", endless=true, nullDefault=true) String game, @Option(value="sort", description="Sort results by `name` (default), `rating` and `release`") IGDBSort sort, @Option(value="reverse", description="Reverses sorting order") boolean reverse) {
