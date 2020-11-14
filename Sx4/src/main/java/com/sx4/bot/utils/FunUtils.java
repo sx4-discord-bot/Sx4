@@ -1,18 +1,13 @@
 package com.sx4.bot.utils;
 
+import com.sx4.bot.core.Sx4Bot;
+import com.sx4.bot.settings.Settings;
+import net.dv8tion.jda.api.entities.*;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import com.sx4.bot.core.Sx4Bot;
-import com.sx4.bot.settings.Settings;
-
-import net.dv8tion.jda.api.entities.Activity;
-import net.dv8tion.jda.api.entities.Guild;
-import net.dv8tion.jda.api.entities.Member;
-import net.dv8tion.jda.api.entities.Role;
-import net.dv8tion.jda.api.entities.TextChannel;
 
 public class FunUtils {
 	
@@ -77,29 +72,29 @@ public class FunUtils {
 		
 		if (guildMember != null) {
 			if (guildMember.getRoles().contains(supportServer.getRoleById(Settings.DONATOR_ONE_ROLE_ID))) {
-				badges.add("donator.png");
+				badges.add("donator");
 			}
 			
-			badges.add("sx4-circle.png");
+			badges.add("sx4-circle");
 		}
 		
 		if (Sx4Bot.getCommandListener().getDevelopers().contains(member.getIdLong())) {
-			badges.add("developer.png");
+			badges.add("developer");
 		}
 		
 		for (Guild guild : Sx4Bot.getShardManager().getGuilds()) {
 			if (guild.getOwner().equals(member)) {
-				badges.add("server_owner.png");
+				badges.add("server_owner");
 				break;
 			}
 		}
 		
 		if (!member.getActivities().isEmpty()) {
-			badges.add("playing.png");
+			badges.add("playing");
 			
 			for (Activity activity : member.getActivities()) {
 				if (activity.getUrl() != null) {
-					badges.add("steaming.png");
+					badges.add("steaming");
 				}
 			}
 		}

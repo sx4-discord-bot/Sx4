@@ -1,18 +1,12 @@
 package com.sx4.bot.utils;
 
-import java.util.regex.Matcher;
-
+import com.sx4.bot.core.Sx4Bot;
+import net.dv8tion.jda.api.entities.*;
+import net.dv8tion.jda.api.entities.Message.MentionType;
+import org.json.JSONArray;
 import org.json.JSONObject;
 
-import com.sx4.bot.core.Sx4Bot;
-
-import net.dv8tion.jda.api.entities.Emote;
-import net.dv8tion.jda.api.entities.Guild;
-import net.dv8tion.jda.api.entities.Member;
-import net.dv8tion.jda.api.entities.Message.MentionType;
-import net.dv8tion.jda.api.entities.Role;
-import net.dv8tion.jda.api.entities.TextChannel;
-import net.dv8tion.jda.api.entities.User;
+import java.util.regex.Matcher;
 
 public class ImageUtils {
 
@@ -75,33 +69,20 @@ public class ImageUtils {
 			}
 			
 			if (role != null) {
-				roles.put(id, new JSONObject().put("name", role.getName()).put("colour", role.getColor() == null ? null : GeneralUtils.getHex(role.getColorRaw())));
+				roles.put(id, new JSONObject().put("name", role.getName()).put("colour", role.getColorRaw()));
 			}
 		}
 		
-		JSONObject emotes = new JSONObject();
+		JSONArray emotes = new JSONArray();
 		while (emoteMention.find()) {
-			String id = emoteMention.group(2);
-			
-			Emote emote; 
-			try {
-				emote = Sx4Bot.getShardManager().getEmoteById(id);
-			} catch (NumberFormatException e) {
-				continue;
-			}
-			
-			if (emote != null) {
-				emotes.put(id, new JSONObject().put("url", emote.getImageUrl()));
-			}
+			emotes.put(emoteMention.group(2));
 		}
-		
-		JSONObject data = new JSONObject()
+
+		return new JSONObject()
 				.put("users", users)
 				.put("roles", roles)
 				.put("channels", channels)
 				.put("emotes", emotes);
-		
-		return data;
 	}
 	
 }

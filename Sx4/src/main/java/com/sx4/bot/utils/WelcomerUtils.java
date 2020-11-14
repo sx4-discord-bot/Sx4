@@ -1,5 +1,28 @@
 package com.sx4.bot.utils;
 
+import club.minnced.discord.webhook.send.WebhookEmbed;
+import club.minnced.discord.webhook.send.WebhookEmbed.EmbedAuthor;
+import club.minnced.discord.webhook.send.WebhookEmbed.EmbedField;
+import club.minnced.discord.webhook.send.WebhookEmbed.EmbedFooter;
+import club.minnced.discord.webhook.send.WebhookEmbed.EmbedTitle;
+import club.minnced.discord.webhook.send.WebhookEmbedBuilder;
+import club.minnced.discord.webhook.send.WebhookMessageBuilder;
+import com.sx4.bot.core.Sx4Bot;
+import com.sx4.bot.database.Database;
+import com.sx4.bot.exceptions.ImageProcessingException;
+import com.sx4.bot.interfaces.Sx4Callback;
+import com.sx4.bot.modules.ImageModule;
+import com.sx4.bot.modules.WelcomerModule.LeaverCommand;
+import com.sx4.bot.modules.WelcomerModule.WelcomerCommand;
+import com.sx4.bot.settings.Settings;
+import net.dv8tion.jda.api.EmbedBuilder;
+import net.dv8tion.jda.api.MessageBuilder;
+import net.dv8tion.jda.api.entities.*;
+import net.dv8tion.jda.api.entities.MessageEmbed.Field;
+import okhttp3.Request;
+import okhttp3.Response;
+import org.bson.Document;
+
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -10,35 +33,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
-
-import org.bson.Document;
-
-import com.sx4.bot.core.Sx4Bot;
-import com.sx4.bot.database.Database;
-import com.sx4.bot.exceptions.ImageProcessingException;
-import com.sx4.bot.interfaces.Sx4Callback;
-import com.sx4.bot.modules.ImageModule;
-import com.sx4.bot.modules.WelcomerModule.LeaverCommand;
-import com.sx4.bot.modules.WelcomerModule.WelcomerCommand;
-import com.sx4.bot.settings.Settings;
-
-import club.minnced.discord.webhook.send.WebhookEmbed;
-import club.minnced.discord.webhook.send.WebhookEmbed.EmbedAuthor;
-import club.minnced.discord.webhook.send.WebhookEmbed.EmbedField;
-import club.minnced.discord.webhook.send.WebhookEmbed.EmbedFooter;
-import club.minnced.discord.webhook.send.WebhookEmbed.EmbedTitle;
-import club.minnced.discord.webhook.send.WebhookEmbedBuilder;
-import club.minnced.discord.webhook.send.WebhookMessageBuilder;
-import net.dv8tion.jda.api.EmbedBuilder;
-import net.dv8tion.jda.api.MessageBuilder;
-import net.dv8tion.jda.api.entities.Guild;
-import net.dv8tion.jda.api.entities.Member;
-import net.dv8tion.jda.api.entities.Message;
-import net.dv8tion.jda.api.entities.MessageEmbed;
-import net.dv8tion.jda.api.entities.MessageEmbed.Field;
-import net.dv8tion.jda.api.entities.Role;
-import okhttp3.Request;
-import okhttp3.Response;
 
 public class WelcomerUtils {
 	
@@ -192,7 +186,8 @@ public class WelcomerUtils {
 	
 	public static void getImageWelcomer(Member user, String banner, boolean gif, Consumer<Response> imageResponse, Consumer<ImageProcessingException> error) {
 		Request request = new Request.Builder()
-			.url("http://" + Settings.LOCAL_HOST + ":8443/api/welcomer?userAvatar=" + user.getUser().getEffectiveAvatarUrl() + "&userName=" + URLEncoder.encode(user.getUser().getAsTag(), StandardCharsets.UTF_8) + (banner == null ? "" : "&background=" + banner) + (gif ? "&gif=true" : ""))
+			.url("http://" + Settings.LOCAL_HOST + ":8443/api/welcomer?avatar=" + user.getUser().getEffectiveAvatarUrl() + "&name=" + URLEncoder.encode(user.getUser().getAsTag(), StandardCharsets.UTF_8) + (banner == null ? "" : "&banner=" + banner) + "&gif=" + Boolean.toString(gif))
+			.addHeader("Authorization", TokenUtils.WEBSERVER)
 			.build();
 		
 		ImageModule.client.newCall(request).enqueue((Sx4Callback) response -> {

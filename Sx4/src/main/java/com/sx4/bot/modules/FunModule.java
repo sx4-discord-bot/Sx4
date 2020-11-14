@@ -48,10 +48,7 @@ import org.jsoup.Jsoup;
 import javax.ws.rs.ForbiddenException;
 import java.awt.*;
 import java.io.IOException;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.net.URLDecoder;
-import java.net.URLEncoder;
+import java.net.*;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -898,31 +895,32 @@ public class FunModule {
 		List<String> badges = FunUtils.getMemberBadges(member);
 		
 		if (colour != null || birthday != null || height != null || description != null) {
-			badges.add("profile_editor.png");
+			badges.add("profile_editor");
 		}
 		
 		if (!marriedUsers.isEmpty()) {
-			badges.add("married.png");
+			badges.add("married");
 		}
 		
 		String body = new JSONObject()
-				.put("user_name", member.getUser().getAsTag())
-				.put("background", bytes == null ? null : bytes.getData())
-				.put("colour", colour == null ? "#ffffff" : colour)
-				.put("balance", CompactNumber.getCompactNumber(balance))
-				.put("reputation", reputation)
-				.put("description", description == null ? "Not set" : description)
-				.put("birthday", birthday == null ? "Not set" : birthday)
-				.put("height", height == null ? "Not set" : height)
-				.put("badges", badges)
-				.put("married_users", marriedUserTags)
-				.put("user_avatar_url", member.getUser().getEffectiveAvatarUrl())
-				.toString();
+			.put("name", member.getUser().getAsTag())
+			.put("background", bytes == null ? null : bytes.getData())
+			.put("colour", colour == null ? 16777215 : Integer.parseInt(colour.substring(1), 16))
+			.put("balance", CompactNumber.getCompactNumber(balance))
+			.put("reputation", reputation)
+			.put("description", description == null ? "Not set" : description)
+			.put("birthday", birthday == null ? "Not set" : birthday)
+			.put("height", height == null ? "Not set" : height)
+			.put("badges", badges)
+			.put("married_users", marriedUserTags)
+			.put("avatar", member.getUser().getEffectiveAvatarUrl())
+			.toString();
 		
 		Request request = new Request.Builder()
-				.post(RequestBody.create(MediaType.parse("application/json; charset=utf-8"), body))
-				.url("http://" + Settings.LOCAL_HOST + ":8443/api/profile")
-				.build();
+			.post(RequestBody.create(MediaType.parse("application/json; charset=utf-8"), body))
+			.url("http://" + Settings.LOCAL_HOST + ":8443/api/profile")
+			.addHeader("Authorization", TokenUtils.WEBSERVER)
+			.build();
 		
 		event.getTextChannel().sendTyping().queue($ -> {
 			ImageModule.client.newCall(request).enqueue((Sx4Callback) response -> {
@@ -1211,14 +1209,15 @@ public class FunModule {
 						url = new URL("https://i.giphy.com/" + url.getPath().split("/")[2] + ".gif");
 					} catch (MalformedURLException e) {}
 				}
-				
-				try {
-					url = new URL("http://" + Settings.LOCAL_HOST + ":8443/api/resize?image=" + url.toString() + "&width=2560&height=1440");
-				} catch (MalformedURLException e1) {}
-				
+
+				Request request = new Request.Builder()
+					.url("http://" + Settings.LOCAL_HOST + ":8443/api/resize?image=" + url.toString() + "&width=2560&height=1440")
+					.addHeader("Authorization", TokenUtils.WEBSERVER)
+					.build();
+
 				Binary bytes;
 				try {
-					bytes = new Binary(url.openStream().readAllBytes());
+					bytes = new Binary(ImageModule.client.newCall(request).execute().body().bytes());
 				} catch (IOException e) {
 					event.reply("Oops something went wrong there, try again :no_entry:").queue();
 					return;
