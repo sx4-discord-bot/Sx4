@@ -3,6 +3,7 @@ package com.sx4.bot.utility;
 import com.jockie.bot.core.command.impl.CommandEvent;
 import com.sx4.bot.config.Config;
 import net.dv8tion.jda.api.EmbedBuilder;
+import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.requests.RestAction;
@@ -56,25 +57,32 @@ public class ExceptionUtility {
 	}
 	
 	public static MessageEmbed getSimpleErrorMessage(Throwable throwable) {
-		EmbedBuilder embed = new EmbedBuilder();
-		embed.setTitle("Error");
-		embed.setColor(Config.get().getRed());
-		embed.setDescription("You have come across an error! [Support Server](https://discord.gg/PqJNcfB)\n```diff\n- " + throwable.toString());
-		
+		StringBuilder builder = new StringBuilder("- " + throwable.toString());
+
 		StackTraceElement[] stackTrace = throwable.getStackTrace();
 		for (int i = 0; i < stackTrace.length; i++) {
 			StackTraceElement element = stackTrace[i];
 			if (element.toString().contains("com.sx4.bot")) {
-				embed.appendDescription("\n- " + element.toString() + "```");
+				builder.append("\n- " + element.toString() + "```");
 				break;
 			}
 			
 			if (i == stackTrace.length - 1) {
-				embed.appendDescription("```");
+				builder.append("```");
 			}
 		}
 		
-		return embed.build();
+		return ExceptionUtility.getSimpleErrorMessage(builder.toString(), "diff");
+	}
+
+	public static MessageEmbed getSimpleErrorMessage(String message, String markdown) {
+		message = StringUtility.limit(message, Message.MAX_CONTENT_LENGTH, "...");
+
+		return new EmbedBuilder()
+			.setTitle("Error")
+			.setColor(Config.get().getRed())
+			.setDescription(String.format("You have come across an error! [Support Server](%s)\n```%s\n%s```", Config.get().getSupportGuildInvite(), markdown, message))
+			.build();
 	}
 	
 	public static boolean sendExceptionally(CommandEvent event, Throwable throwable) {

@@ -271,6 +271,8 @@ public class Sx4 {
 		ArgumentFactoryImpl argumentFactory = (ArgumentFactoryImpl) ArgumentFactory.getDefault();
 		
 		argumentFactory.addBuilderConfigureFunction(String.class, (parameter, builder) -> {
+			builder.setProperty("imageUrl", parameter.isAnnotationPresent(ImageUrl.class));
+			builder.setProperty("url", parameter.isAnnotationPresent(Url.class));
 			builder.setProperty("lowercase", parameter.isAnnotationPresent(Lowercase.class));
 			builder.setProperty("uppercase", parameter.isAnnotationPresent(Uppercase.class));
 			
@@ -370,24 +372,6 @@ public class Sx4 {
 				} catch (DateTimeException | IllegalArgumentException e) {
 					return new ParsedResult<>();
 				}
-			})
-			.registerParser(URL.class, (context, argument, content) -> {
-				if (content.isEmpty()) {
-					Attachment attachment = context.getMessage().getAttachments().stream()
-						.filter(Attachment::isImage)
-						.findFirst()
-						.orElse(null);
-					
-					if (attachment != null) {
-						try {
-							return new ParsedResult<>(new URL(attachment.getUrl()));
-						} catch (MalformedURLException e) {}
-					}
-					
-					return new ParsedResult<>();
-				} else {
-					return new ParsedResult<>(SearchUtility.getURL(context.getMessage(), content));
-				}
 			}).registerParser(Integer.class, (context, argument, content) -> {
 				if (argument.getProperty("colour", false)) {
 					int colour = ColourUtility.fromQuery(content);
@@ -403,6 +387,39 @@ public class Sx4 {
 				} catch (NumberFormatException e) {
 					return new ParsedResult<>();
 				}
+			}).registerParser(String.class, (context, argument, content) -> {
+				boolean imageUrl = argument.getProperty("imageUrl", false);
+				if (imageUrl || argument.getProperty("url", false)) {
+					Message message = context.getMessage();
+
+					if (content.isEmpty()) {
+						Attachment attachment = message.getAttachments().stream()
+							.filter(Attachment::isImage)
+							.findFirst()
+							.orElse(null);
+
+						if (attachment == null) {
+							return imageUrl ? new ParsedResult<>(message.getAuthor().getEffectiveAvatarUrl()) : new ParsedResult<>();
+						} else {
+							return new ParsedResult<>(attachment.getUrl());
+						}
+					}
+
+					if (imageUrl) {
+						Member member = SearchUtility.getMember(message.getGuild(), content);
+						if (member != null) {
+							return new ParsedResult<>(member.getUser().getEffectiveAvatarUrl());
+						}
+					}
+
+					try {
+						new URL(content);
+					} catch (MalformedURLException e) {
+						return new ParsedResult<>();
+					}
+				}
+
+				return new ParsedResult<>(content);
 			}).registerParser(Pattern.class, (context, argument, content) -> {
 				try {
 					return new ParsedResult<>(Pattern.compile(content));
@@ -531,7 +548,6 @@ public class Sx4 {
 			.registerResponse(Duration.class, "Invalid time string given, a good example would be `5d 1h 24m 36s` " + this.config.getFailureEmote())
 			.registerResponse(ObjectId.class, "Invalid id given, an example id would be `5e45ce6d3688b30ee75201ae` " + this.config.getFailureEmote())
 			.registerResponse(List.class, "I could not find that command/module " + this.config.getFailureEmote())
-			.registerResponse(URL.class, "Invalid image given " + this.config.getFailureEmote())
 			.registerResponse(MessageArgument.class, "I could not find that message " + this.config.getFailureEmote())
 			.registerResponse(ReminderArgument.class, "Invalid reminder format given, view `help reminder add` for more info " + this.config.getFailureEmote())
 			.registerResponse(PartialEmote.class, "I could not find that emote " + this.config.getFailureEmote())
@@ -542,10 +558,14 @@ public class Sx4 {
 				List<UpdateType> updates = argument.getProperty("updates", List.class);
 				message.getChannel().sendMessage("Invalid update type given, update types you can use are `" + updates.stream().map(t -> t.name().toLowerCase()).collect(Collectors.joining("`, `")) + "` " + this.config.getFailureEmote()).queue();
 			}).registerResponse(int.class, (argument, message, content) -> {
-				if (argument.getProperty("colour", boolean.class)) {
+				if (argument.getProperty("colour", false)) {
 					message.getChannel().sendMessage("I could not find that colour " + this.config.getFailureEmote()).queue();
 				} else {
 					message.getChannel().sendMessage("The argument `" + argument.getName() + "` needs to be a number " + this.config.getFailureEmote()).queue();
+				}
+			}).registerResponse(String.class, (argument, message, content) -> {
+				if (argument.getProperty("imageUrl", false) || argument.getProperty("url", false)) {
+					message.getChannel().sendMessage("Invalid url given " + this.config.getFailureEmote()).queue();
 				}
 			});
 	}

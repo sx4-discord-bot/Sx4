@@ -2,6 +2,7 @@ package com.sx4.bot.commands.games;
 
 import com.jockie.bot.core.argument.Argument;
 import com.sx4.bot.annotations.argument.DefaultInt;
+import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 
@@ -56,6 +57,7 @@ public class MinesweeperCommand extends Sx4Command {
 		super.setDescription("Play mineweeper within discord");
 		super.setExamples("minesweeper", "minesweeper 12", "minesweeper 5 5 5");
 		super.setCooldownDuration(5);
+		super.setCategory(ModuleCategory.GAMES);
 	}
 
 	public void onCommand(Sx4CommandEvent event, @Argument(value="bombs") @DefaultInt(10) int bombs, @Argument(value="grid x") @DefaultInt(10) int gridX, @Argument(value="grid y") @DefaultInt(10) int gridY) {

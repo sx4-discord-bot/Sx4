@@ -10,6 +10,7 @@ import org.json.JSONObject;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 
@@ -86,6 +87,10 @@ public class Config {
 	
 	public long getSupportGuildId() {
 		return this.get(this.getState() + ".supportGuild.id", 0L);
+	}
+
+	public String getSupportGuildInvite() {
+		return "https://discord.gg/" + this.get(this.getState() + ".supportGuild.invite");
 	}
 	
 	public Guild getSupportGuild() {
@@ -203,17 +208,37 @@ public class Config {
 	public String getToken() {
 		return this.get("token." + (this.isTest() ? "test" : this.isCanary() ? "canary" : "main"));
 	}
-	
-	public String getLocalHost() {
-		return this.get(this.getState() + ".host.localHost", "localhost");
+
+	public String getIp() {
+		return this.get(this.getState() + ".host.ip", "localhost");
 	}
 	
 	public String getDomain() {
-		return this.get(this.getState() + ".host.domain");
+		return this.get(this.getState() + ".host.domain", String.format("http://%s:%d", this.getIp(), this.getPort()));
 	}
 	
 	public int getPort() {
 		return this.get(this.getState() + ".host.port", 8080);
+	}
+
+	public String getImageWebserverIp() {
+		return this.get("imageWebserver.ip", "localhost");
+	}
+
+	public String getImageWebserverDomain() {
+		return this.get("imageWebserver.domain", String.format("http://%s:%d", this.getImageWebserverIp(), this.getImageWebserverPort()));
+	}
+
+	public int getImageWebserverPort() {
+		return this.get("imageWebserver.port", 8443);
+	}
+
+	public String getImageWebserverPath() {
+		return this.get("imageWebserver.path");
+	}
+
+	public String getImageWebserverUrl(String endpoint) {
+		return this.getImageWebserverDomain() + String.format(this.getImageWebserverPath(), endpoint);
 	}
 	
 	public String getAdDescription() {
@@ -311,6 +336,10 @@ public class Config {
 	public String getGitHubWebhookSecret() {
 		return this.get("token.github.webhook");
 	}
+
+	public String getImageWebserver() {
+		return this.get("token.imageWebserver");
+	}
 	
 	public int getPremiumPrice() {
 		return this.get("premium.price", 500);
@@ -346,7 +375,7 @@ public class Config {
 	
 	public void reloadConfig() {
 		try (FileInputStream stream = new FileInputStream(new File("config.json"))) {
-			this.json = Document.parse(new String(stream.readAllBytes(), "UTF-8"));
+			this.json = Document.parse(new String(stream.readAllBytes(), StandardCharsets.UTF_8));
 			
 			this.emoteSuccess = this.get("emote.success");
 			this.emoteFailure = this.get("emote.failure");

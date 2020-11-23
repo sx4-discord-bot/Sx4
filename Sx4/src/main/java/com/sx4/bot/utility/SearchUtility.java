@@ -13,8 +13,6 @@ import net.dv8tion.jda.api.entities.MessageReaction.ReactionEmote;
 import net.dv8tion.jda.api.utils.MiscUtil;
 import net.dv8tion.jda.api.utils.cache.CacheView;
 
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -45,21 +43,21 @@ public class SearchUtility {
 		    if (name.equals(query)) {
 		        return object;
 		    }
-		    
+
 		    if (name.startsWith(query)) {
 		        startsWith.add(object);
 		    }
-		    
+
 		    if (name.contains(query)) {
 		        contains.add(object);
 		    }
 		}
 
-		if (startsWith.size() > 0) {
+		if (!startsWith.isEmpty()) {
 		    return startsWith.get(0);
 		}
 
-		if (contains.size() > 0) {
+		if (!contains.isEmpty()) {
 		    return contains.get(0);
 		}
 		
@@ -221,17 +219,17 @@ public class SearchUtility {
 		Matcher jumpMatch = Message.JUMP_URL_PATTERN.matcher(query);
 		if (jumpMatch.matches()) {
 			try {
+				long messageId = MiscUtil.parseSnowflake(jumpMatch.group(3));
+
 				Guild guild = Sx4.get().getShardManager().getGuildById(jumpMatch.group(1));
 				if (guild == null) {
-					return null;
+					return new MessageArgument(messageId, channel.retrieveMessageById(messageId));
 				}
 				
 				TextChannel linkChannel = guild.getTextChannelById(jumpMatch.group(2));
 				if (linkChannel == null) {
-					return null;
+					return new MessageArgument(messageId, channel.retrieveMessageById(messageId));
 				}
-				
-				long messageId = MiscUtil.parseSnowflake(jumpMatch.group(3));
 				
 				return new MessageArgument(messageId, linkChannel.retrieveMessageById(messageId));
 			} catch (NumberFormatException e) {
@@ -249,73 +247,25 @@ public class SearchUtility {
 	}
 	
 	public static IPermissionHolder getPermissionHolder(Guild guild, String query) {
-		Member member = SearchUtility.getMember(guild, query);
 		Role role = SearchUtility.getRole(guild, query);
-		
-		return role == null ? member : role;
-	}
-	
-	public static URL getURL(Message message, String query) {
-		URL url;
-		try {
-			url = new URL(query);
-		} catch (MalformedURLException e) {
-			return null;
+		if (role == null) {
+			return SearchUtility.getMember(guild, query);
+		} else {
+			return role;
 		}
-		
-		String urlString = url.toString();
-		int periodIndex = urlString.lastIndexOf(".");
-		
-		if (periodIndex == -1 || !SearchUtility.SUPPORTED_TYPES.contains(urlString.substring(periodIndex + 1).toLowerCase())) {
-			if (message.getEmbeds().isEmpty()) {
-				return null;
-			} else {
-				MessageEmbed imageEmbed = message.getEmbeds().stream()
-					.filter(embed -> embed.getThumbnail() != null)
-					.findFirst()
-					.orElse(null);
-				
-				if (imageEmbed != null) {
-					String embedUrl = imageEmbed.getThumbnail().getUrl();
-					if (embedUrl == null) {
-						return null;
-					}
-
-					int periodIndexEmbed = embedUrl.lastIndexOf(".");
-					
-					if (periodIndexEmbed == -1 || !SearchUtility.SUPPORTED_TYPES.contains(embedUrl.substring(periodIndexEmbed + 1).toUpperCase())) {
-						return null;
-					} else {
-						try {
-							url = new URL(embedUrl);
-						} catch (MalformedURLException e) {
-							return null;
-						}
-					}
-				} else {
-					return null;
-				}
-			}
-		}
-		
-		return url;
 	}
 	
 	public static Role getRole(Guild guild, String query) {
 		Matcher mentionMatch = SearchUtility.ROLE_MENTION.matcher(query);
 		if (mentionMatch.matches()) {
 			try {
-				long id = Long.parseLong(mentionMatch.group(1));
-				
-				return guild.getRoleById(id);
+				return guild.getRoleById(mentionMatch.group(1));
 			} catch (NumberFormatException e) {
 				return null;
 			}
 		} else if (NumberUtility.isNumberUnsigned(query)) {
 			try {
-				long id = Long.parseLong(query);
-				
-				return guild.getRoleById(id);
+				return guild.getRoleById(query);
 			} catch (NumberFormatException e) {
 				return null;
 			}
@@ -328,17 +278,13 @@ public class SearchUtility {
 		Matcher mentionMatch = SearchUtility.CHANNEL_MENTION.matcher(query);
 		if (mentionMatch.matches()) {
 			try {
-				long id = Long.parseLong(mentionMatch.group(1));
-				
-				return guild.getTextChannelById(id);
+				return guild.getTextChannelById(mentionMatch.group(1));
 			} catch (NumberFormatException e) {
 				return null;
 			}
 		} else if (NumberUtility.isNumberUnsigned(query)) {
 			try {
-				long id = Long.parseLong(query);
-				
-				return guild.getTextChannelById(id);
+				return guild.getTextChannelById(query);
 			} catch (NumberFormatException e) {
 				return null;
 			}
@@ -351,17 +297,13 @@ public class SearchUtility {
 		Matcher mentionMatch = SearchUtility.CHANNEL_MENTION.matcher(query);
 		if (mentionMatch.matches()) {
 			try {
-				long id = Long.parseLong(mentionMatch.group(1));
-
-				return guild.getStoreChannelById(id);
+				return guild.getStoreChannelById(mentionMatch.group(1));
 			} catch (NumberFormatException e) {
 				return null;
 			}
 		} else if (NumberUtility.isNumberUnsigned(query)) {
 			try {
-				long id = Long.parseLong(query);
-
-				return guild.getStoreChannelById(id);
+				return guild.getStoreChannelById(query);
 			} catch (NumberFormatException e) {
 				return null;
 			}
@@ -373,9 +315,7 @@ public class SearchUtility {
 	public static VoiceChannel getVoiceChannel(Guild guild, String query) {
 		if (NumberUtility.isNumberUnsigned(query)) {
 			try {
-				long id = Long.parseLong(query);
-
-				return guild.getVoiceChannelById(id);
+				return guild.getVoiceChannelById(query);
 			} catch (NumberFormatException e) {
 				return null;
 			}
@@ -387,9 +327,7 @@ public class SearchUtility {
 	public static Category getCategory(Guild guild, String query) {
 		if (NumberUtility.isNumberUnsigned(query)) {
 			try {
-				long id = Long.parseLong(query);
-
-				return guild.getCategoryById(id);
+				return guild.getCategoryById(query);
 			} catch (NumberFormatException e) {
 				return null;
 			}
@@ -403,9 +341,7 @@ public class SearchUtility {
 		Matcher tagMatch = SearchUtility.USER_TAG.matcher(query);
 		if (mentionMatch.matches()) {
 			try {
-				long id = Long.parseLong(mentionMatch.group(1));
-				
-				return guild.getMemberById(id);
+				return guild.getMemberById(mentionMatch.group(1));
 			} catch (NumberFormatException e) {
 				return null;
 			}
@@ -420,14 +356,31 @@ public class SearchUtility {
 			);
 		} else if (NumberUtility.isNumberUnsigned(query)) {
 			try {
-				long id = Long.parseLong(query);
-				
-				return guild.getMemberById(id);
+				return guild.getMemberById(query);
 			} catch (NumberFormatException e) {
 				return null;
 			}
 		} else {
 			return SearchUtility.findMember(guild.getMemberCache(), query);
+		}
+	}
+
+	public static long getUserId(String query) {
+		Matcher mentionMatch = SearchUtility.USER_MENTION.matcher(query);
+		if (mentionMatch.matches()) {
+			try {
+				return MiscUtil.parseSnowflake(mentionMatch.group(1));
+			} catch (NumberFormatException e) {
+				return -1L;
+			}
+		} else if (NumberUtility.isNumberUnsigned(query)) {
+			try {
+				return MiscUtil.parseSnowflake(query);
+			} catch (NumberFormatException e) {
+				return -1L;
+			}
+		} else {
+			return -1L;
 		}
 	}
 	
@@ -436,9 +389,7 @@ public class SearchUtility {
 		Matcher tagMatch = SearchUtility.USER_TAG.matcher(query);
 		if (mentionMatch.matches()) {
 			try {
-				long id = Long.parseLong(mentionMatch.group(1));
-				
-				return Sx4.get().getShardManager().getUserById(id);
+				return Sx4.get().getShardManager().getUserById(mentionMatch.group(1));
 			} catch (NumberFormatException e) {
 				return null;
 			}
@@ -453,9 +404,7 @@ public class SearchUtility {
 			);
 		} else if (NumberUtility.isNumberUnsigned(query)) {
 			try {
-				long id = Long.parseLong(query);
-				
-				return Sx4.get().getShardManager().getUserById(id);
+				return Sx4.get().getShardManager().getUserById(query);
 			} catch (NumberFormatException e) {
 				return null;
 			}
@@ -468,71 +417,6 @@ public class SearchUtility {
 		}
 	}
 	
-	public static CompletableFuture<User> getUserRest(Guild guild, String query) {
-		CompletableFuture<User> future = new CompletableFuture<>();
-
-		Matcher mentionMatch = SearchUtility.USER_MENTION.matcher(query);
-		Matcher tagMatch = SearchUtility.USER_TAG.matcher(query);
-		if (mentionMatch.matches()) {
-			try {
-				long id = Long.parseLong(mentionMatch.group(1));
-				
-				Member member = guild.getMemberById(id);
-				if (member == null) {
-					Sx4.get().getShardManager().retrieveUserById(id).queue(future::complete);
-				} else {
-					future.complete(member.getUser());
-				}
-			} catch (NumberFormatException e) {
-				future.complete(null);
-			}
-		} else if (tagMatch.matches()) {
-			String name = tagMatch.group(1);
-			String discriminator = tagMatch.group(2);
-
-			future.complete(
-				guild.getMemberCache().applyStream(memberStream ->
-					memberStream.map(Member::getUser)
-						.filter(user -> user.getName().equalsIgnoreCase(name) && user.getDiscriminator().equals(discriminator))
-						.findFirst()
-						.orElseGet(() -> Sx4.get().getShardManager().getUserCache().applyStream(userStream ->
-							userStream.filter(user -> user.getName().equalsIgnoreCase(name) && user.getDiscriminator().equals(discriminator))
-								.findFirst()
-								.orElse(null)
-						))
-				)
-			);
-		} else if (NumberUtility.isNumberUnsigned(query)) {
-			try {
-				long id = Long.parseLong(query);
-				
-				Member member = guild.getMemberById(id);
-				if (member == null) {
-					Sx4.get().getShardManager().retrieveUserById(id).queue(future::complete);
-				} else {
-					future.complete(member.getUser());
-				}
-			} catch (NumberFormatException e) {
-				future.complete(null);
-			}
-		} else {
-			Member member = SearchUtility.findMember(guild.getMemberCache(), query);
-			if (member == null) {
-				future.complete(
-					Sx4.get().getShardManager().getUserCache().applyStream(stream ->
-						stream.filter(user -> user.getName().equalsIgnoreCase(query))
-							.findFirst()
-							.orElse(null)
-					)
-				);
-			} else {
-				future.complete(member.getUser());
-			}
-		}
-
-		return future;
-	}
-	
 	public static CompletableFuture<User> getUserRest(String query) {
 		CompletableFuture<User> future = new CompletableFuture<>();
 
@@ -540,9 +424,7 @@ public class SearchUtility {
 		Matcher tagMatch = SearchUtility.USER_TAG.matcher(query);
 		if (mentionMatch.matches()) {
 			try {
-				long id = Long.parseLong(mentionMatch.group(1));
-				
-				Sx4.get().getShardManager().retrieveUserById(id).queue(future::complete);
+				Sx4.get().getShardManager().retrieveUserById(mentionMatch.group(1)).queue(future::complete);
 			} catch (NumberFormatException e) {
 				future.complete(null);
 			}
@@ -551,17 +433,15 @@ public class SearchUtility {
 			String discriminator = tagMatch.group(2);
 
 			future.complete(
-				Sx4.get().getShardManager().getUserCache().applyStream(stream ->
-					stream.filter(user -> user.getName().equalsIgnoreCase(name) && user.getDiscriminator().equals(discriminator))
+				Sx4.get().getShardManager().getUserCache().applyStream(userStream ->
+					userStream.filter(user -> user.getName().equalsIgnoreCase(name) && user.getDiscriminator().equals(discriminator))
 						.findFirst()
 						.orElse(null)
 				)
 			);
 		} else if (NumberUtility.isNumberUnsigned(query)) {
 			try {
-				long id = Long.parseLong(query);
-				
-				Sx4.get().getShardManager().retrieveUserById(id).queue(future::complete);
+				Sx4.get().getShardManager().retrieveUserById(query).queue(future::complete);
 			} catch (NumberFormatException e) {
 				future.complete(null);
 			}

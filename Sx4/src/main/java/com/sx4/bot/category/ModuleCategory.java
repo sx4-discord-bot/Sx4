@@ -14,9 +14,10 @@ public class ModuleCategory {
 	public static final Sx4Category INFORMATION = new Sx4Category("Information", "This modules contains commands which give information about different discord entities", ModuleCategory.ALL, "Info");
 	public static final Sx4Category MANAGEMENT = new Sx4Category("Management", "This modules contains commands which give help you manage your server", ModuleCategory.ALL);
 	public static final Sx4Category GAMES = new Sx4Category("Games", "This modules contains commands which are games", ModuleCategory.ALL);
+	public static final Sx4Category IMAGE = new Sx4Category("Image", "This module contains commands which manipulate images", ModuleCategory.ALL);
 	public static final Sx4Category DEVELOPER = new Sx4Category("Developer", "This modules contains commands which are for developers only", ModuleCategory.ALL, "Dev");
 	public static final Sx4Category MISC = new Sx4Category("Miscellaneous", "This module has a mix of commands which are useful in their own way", ModuleCategory.ALL, "Misc");
 	
-	public static final Sx4Category[] ALL_ARRAY = {ALL, MODERATION, AUTO_MODERATION, NOTIFICATIONS, LOGGING, INFORMATION, MANAGEMENT, GAMES, DEVELOPER, MISC};
+	public static final Sx4Category[] ALL_ARRAY = {ALL, MODERATION, AUTO_MODERATION, NOTIFICATIONS, LOGGING, INFORMATION, MANAGEMENT, GAMES, IMAGE, DEVELOPER, MISC};
 	
 }

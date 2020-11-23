@@ -4,6 +4,7 @@ import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
 import com.mongodb.MongoWriteException;
 import com.mongodb.client.model.*;
+import com.sx4.bot.annotations.argument.Url;
 import com.sx4.bot.annotations.command.AuthorPermissions;
 import com.sx4.bot.annotations.command.BotPermissions;
 import com.sx4.bot.annotations.command.Examples;
@@ -26,7 +27,6 @@ import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
 
-import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
@@ -245,9 +245,7 @@ public class YouTubeNotificationCommand extends Sx4Command {
 	@Command(value="avatar", description="Set the avatar of the webhook that sends youtube notifications for a specific notification")
 	@Examples({"youtube notification avatar 5e45ce6d3688b30ee75201ae", "youtube notification avatar 5e45ce6d3688b30ee75201ae https://i.imgur.com/i87lyNO.png"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-	public void avatar(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="avatar", endless=true, acceptEmpty=true) URL avatar) {
-		String url = avatar.toString();
-		
+	public void avatar(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="avatar", endless=true, acceptEmpty=true) @Url String url) {
 		Bson projection = Projections.include("youtube.notifications.id", "youtube.notifications.avatar");
 		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(projection).arrayFilters(List.of(Filters.eq("notification.id", id)));
 		this.database.findAndUpdateGuildById(event.getGuild().getIdLong(), Updates.set("youtube.notifications.$[notification].webhook.avatar", url), options).whenComplete((data, exception) -> {
