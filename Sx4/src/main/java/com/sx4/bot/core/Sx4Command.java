@@ -17,7 +17,6 @@ import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.List;
-import java.util.Random;
 import java.util.stream.Collectors;
 
 public class Sx4Command extends CommandImpl {
@@ -32,8 +31,6 @@ public class Sx4Command extends CommandImpl {
 	public final Database database = Database.get();
 	
 	public final Config config = Config.get();
-
-	public final Random random = new Random();
 	
 	protected boolean donator = false;
 	

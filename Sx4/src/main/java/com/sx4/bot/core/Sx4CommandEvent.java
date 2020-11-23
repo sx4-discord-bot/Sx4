@@ -13,6 +13,8 @@ import net.dv8tion.jda.api.requests.restaction.MessageAction;
 import okhttp3.OkHttpClient;
 
 import java.util.Map;
+import java.util.Random;
+import java.util.concurrent.ThreadLocalRandom;
 
 public class Sx4CommandEvent extends CommandEvent {
 
@@ -28,6 +30,10 @@ public class Sx4CommandEvent extends CommandEvent {
 	
 	public Sx4Command getCommand() {
 		return (Sx4Command) super.getCommand();
+	}
+
+	public Random getRandom() {
+		return ThreadLocalRandom.current();
 	}
 	
 	public Sx4CommandListener getCommandListener() {

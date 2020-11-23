@@ -25,8 +25,8 @@ public class ImageRequest {
 		this.queries = new HashMap<>();
 	}
 
-	public ImageRequest addQuery(String query, String value) {
-		this.queries.put(query, URLEncoder.encode(value, StandardCharsets.UTF_8));
+	public ImageRequest addQuery(String query, Object value) {
+		this.queries.put(query, URLEncoder.encode(String.valueOf(value), StandardCharsets.UTF_8));
 
 		return this;
 	}

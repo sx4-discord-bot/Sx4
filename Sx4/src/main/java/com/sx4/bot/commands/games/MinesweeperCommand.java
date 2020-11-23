@@ -87,8 +87,8 @@ public class MinesweeperCommand extends Sx4Command {
 			Map<Integer, MinesweeperType> position;
 			int x, y;
 			do {
-				x = this.random.nextInt(gridX);
-				y = this.random.nextInt(gridY);
+				x = event.getRandom().nextInt(gridX);
+				y = event.getRandom().nextInt(gridY);
 
 				position = positions.computeIfAbsent(x, key -> new HashMap<>());
 			} while (position.containsKey(y));
