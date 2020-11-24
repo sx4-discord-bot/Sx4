@@ -23,7 +23,7 @@ public class ShortenCommand extends Sx4Command {
 
 	public void onCommand(Sx4CommandEvent event, @Argument(value="url") String url) {
 		Request request = new Request.Builder()
-			.url(String.format("http://%s:%d/api/shorten", this.config.getDomain(), this.config.getPort()))
+			.url(String.format("%s/api/shorten", this.config.getDomain()))
 			.post(RequestBody.create(MediaType.parse("application/json; charset=utf-8"), new Document("url", url).toJson()))
 			//.addHeader("Authorization", "Bearer " + this.config.getBitly())
 			//.addHeader("Content-Type", "application/json")
@@ -32,7 +32,7 @@ public class ShortenCommand extends Sx4Command {
 		event.getClient().newCall(request).enqueue((HttpCallback) response -> {
 			Document json = Document.parse(response.body().string());
 
-			event.replyFormat("<http://%s:%d/%s>", this.config.getDomain(), this.config.getPort(), json.getString("_id")).queue();
+			event.replyFormat("<%s/%s>", this.config.getDomain(), json.getString("_id")).queue();
 		});
 	}
 

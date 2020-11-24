@@ -26,12 +26,12 @@ public class SearchUtility {
 	
 	private static final List<String> SUPPORTED_TYPES = List.of("png", "jpg", "gif", "webp", "jpeg");
 	
-	private static final Pattern USER_MENTION = MentionType.USER.getPattern();
-	private static final Pattern USER_TAG = Pattern.compile("(.{2,32})#(\\d{4})");
-	private static final Pattern CHANNEL_MENTION = MentionType.CHANNEL.getPattern();
-	private static final Pattern ROLE_MENTION = MentionType.ROLE.getPattern();
-	private static final Pattern EMOTE_MENTION = Pattern.compile("<(a)?:([a-zA-Z0-9_]+):([0-9]+)>");
-	private static final Pattern EMOTE_URL = Pattern.compile("https?://cdn\\.discordapp\\.com/emojis/([0-9]+)\\.(png|gif|jpeg|jpg)(?:\\?\\S*)?(?:#\\S*)?", Pattern.CASE_INSENSITIVE);
+	public static final Pattern USER_MENTION = MentionType.USER.getPattern();
+	public static final Pattern USER_TAG = Pattern.compile("(.{2,32})#(\\d{4})");
+	public static final Pattern CHANNEL_MENTION = MentionType.CHANNEL.getPattern();
+	public static final Pattern ROLE_MENTION = MentionType.ROLE.getPattern();
+	public static final Pattern EMOTE_MENTION = Pattern.compile("<(a)?:([a-zA-Z0-9_]+):([0-9]+)>");
+	public static final Pattern EMOTE_URL = Pattern.compile("https?://cdn\\.discordapp\\.com/emojis/([0-9]+)\\.(png|gif|jpeg|jpg)(?:\\?\\S*)?(?:#\\S*)?", Pattern.CASE_INSENSITIVE);
 	
 	private static <Type> Type find(Iterable<Type> iterable, String query, Function<Type, String> nameFunction) {
 		List<Type> startsWith = new ArrayList<>();

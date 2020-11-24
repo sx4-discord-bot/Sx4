@@ -69,8 +69,12 @@ public class ModUtility {
 				} else {
 					future.complete(newRole);
 
-					if (autoUpdate && selfMember.hasPermission(Permission.MANAGE_PERMISSIONS)) {
-						guild.getTextChannels().forEach(channel -> channel.upsertPermissionOverride(newRole).deny(Permission.MESSAGE_WRITE).queue());
+					if (autoUpdate) {
+						guild.getTextChannels().forEach(channel -> {
+							if (selfMember.hasPermission(channel, Permission.MANAGE_PERMISSIONS)) {
+								channel.upsertPermissionOverride(newRole).deny(Permission.MESSAGE_WRITE).queue();
+							}
+						});
 					}
 				}
 			});

@@ -1,17 +1,13 @@
 package com.sx4.bot.handlers;
 
-import java.util.concurrent.TimeUnit;
+import com.mongodb.event.*;
 
-import com.mongodb.event.ClusterClosedEvent;
-import com.mongodb.event.ClusterListener;
-import com.mongodb.event.ClusterOpeningEvent;
-import com.mongodb.event.CommandListener;
-import com.mongodb.event.CommandSucceededEvent;
+import java.util.concurrent.TimeUnit;
 
 public class DatabaseHandler implements CommandListener, ClusterListener {
 	
 	public void commandSucceeded(CommandSucceededEvent event) {
-		System.out.println("Succesfully ran database commmand with name " + event.getCommandName() + ", elapsed: " + event.getElapsedTime(TimeUnit.NANOSECONDS));
+		System.out.println("Successfully ran database command with name " + event.getCommandName() + ", elapsed: " + event.getElapsedTime(TimeUnit.NANOSECONDS));
 	}
 	
 	public void clusterOpening(ClusterOpeningEvent event) {

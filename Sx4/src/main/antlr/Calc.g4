@@ -44,6 +44,6 @@ SHIFT_LEFT: '<<';
 SHIFT_RIGHT: '>>';
 PI: 'pi';
 DOUBLE: [0-9]+[\\.]?[0-9]*;
-VAR: [a-zA-Z]+;
+VAR: [a-zA-Z_]+;
 NEWLINE: '\r'? ('\n'|';');
 WS: [ \t]+ -> skip;
