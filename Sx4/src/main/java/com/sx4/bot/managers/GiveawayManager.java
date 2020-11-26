@@ -6,7 +6,6 @@ import com.mongodb.client.model.Updates;
 import com.sx4.bot.config.Config;
 import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.Database;
-import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.MathUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.Guild;
@@ -177,7 +176,7 @@ public class GiveawayManager {
 		});
 		
 		if (!futures.isEmpty()) {
-			CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+			CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new))
 				.thenApply($ -> futures.stream().map(CompletableFuture::join).filter(Objects::nonNull).collect(Collectors.toList()))
 				.thenCompose(bulkData -> {
 					if (!bulkData.isEmpty()) {

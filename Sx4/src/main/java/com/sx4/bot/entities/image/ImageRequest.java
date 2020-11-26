@@ -18,11 +18,19 @@ public class ImageRequest {
 	private final StringBuilder url;
 	private final Document fields;
 	private final Map<String, String> queries;
+	private byte[] image;
 
 	public ImageRequest(String endpoint) {
 		this.url = new StringBuilder(this.config.getImageWebserverUrl(endpoint));
 		this.fields = new Document();
 		this.queries = new HashMap<>();
+		this.image = new byte[0];
+	}
+
+	public ImageRequest setImage(byte[] image) {
+		this.image = image;
+
+		return this;
 	}
 
 	public ImageRequest addQuery(String query, Object value) {
@@ -33,6 +41,12 @@ public class ImageRequest {
 
 	public ImageRequest addField(String key, Object value) {
 		this.fields.append(key, value);
+
+		return this;
+	}
+
+	public ImageRequest addAllFields(Map<String, Object> map) {
+		this.fields.putAll(map);
 
 		return this;
 	}
@@ -53,6 +67,8 @@ public class ImageRequest {
 
 		if (!this.fields.isEmpty()) {
 			builder.post(RequestBody.create(MediaType.parse("application/json"), this.fields.toJson()));
+		} else if (this.image.length != 0) {
+			builder.post(RequestBody.create(MediaType.parse("image"), this.image));
 		}
 
 		return builder.build();

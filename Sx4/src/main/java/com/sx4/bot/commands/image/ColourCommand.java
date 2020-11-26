@@ -1,0 +1,59 @@
+package com.sx4.bot.commands.image;
+
+import com.jockie.bot.core.argument.Argument;
+import com.sx4.bot.annotations.argument.Colour;
+import com.sx4.bot.annotations.argument.DefaultInt;
+import com.sx4.bot.category.ModuleCategory;
+import com.sx4.bot.core.Sx4Command;
+import com.sx4.bot.core.Sx4CommandEvent;
+import com.sx4.bot.entities.image.ImageRequest;
+import com.sx4.bot.http.HttpCallback;
+import com.sx4.bot.utility.ColourUtility;
+import com.sx4.bot.utility.ImageUtility;
+import net.dv8tion.jda.api.EmbedBuilder;
+import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.MessageEmbed;
+import net.dv8tion.jda.api.requests.restaction.MessageAction;
+import okhttp3.Request;
+
+public class ColourCommand extends Sx4Command {
+
+	public ColourCommand() {
+		super("colour");
+
+		super.setDescription("Get info and visualize a specific colour");
+		super.setExamples("colour", "colour #ffff00", "colour 255, 255, 0");
+		super.setAliases("color");
+		super.setCategory(ModuleCategory.IMAGE);
+		super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
+	}
+
+	public void onCommand(Sx4CommandEvent event, @Argument(value="colour", endless=true) @DefaultInt(-1) @Colour int colour) {
+		if (colour == -1) {
+			colour = event.getRandom().nextInt(0xFFFFFF + 1);
+		}
+
+		String hex = "#" + ColourUtility.toHexString(colour);
+
+		MessageEmbed embed = new EmbedBuilder()
+			.setColor(colour == 0 ? 65793 : colour == 16777215 ? 16711422 : colour)
+			.setAuthor(hex, null, "attachment://image.png")
+			.setDescription(String.format("Hex: %s\nRGB: %s", hex, ColourUtility.toRGBString(colour)))
+			.setImage("attachment://image.png")
+			.build();
+
+		Request request = new ImageRequest("colour")
+			.addQuery("colour", colour)
+			.build();
+
+		event.getClient().newCall(request).enqueue((HttpCallback) response -> {
+			MessageAction action = ImageUtility.sendImage(event, response);
+			if (response.isSuccessful()) {
+				action.embed(embed);
+			}
+
+			action.queue();
+		});
+	}
+
+}

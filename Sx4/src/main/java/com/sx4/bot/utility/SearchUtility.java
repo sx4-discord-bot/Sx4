@@ -13,9 +13,7 @@ import net.dv8tion.jda.api.entities.MessageReaction.ReactionEmote;
 import net.dv8tion.jda.api.utils.MiscUtil;
 import net.dv8tion.jda.api.utils.cache.CacheView;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.regex.Matcher;
@@ -24,33 +22,38 @@ import java.util.stream.Collectors;
 
 public class SearchUtility {
 	
-	private static final List<String> SUPPORTED_TYPES = List.of("png", "jpg", "gif", "webp", "jpeg");
-	
 	public static final Pattern USER_MENTION = MentionType.USER.getPattern();
 	public static final Pattern USER_TAG = Pattern.compile("(.{2,32})#(\\d{4})");
 	public static final Pattern CHANNEL_MENTION = MentionType.CHANNEL.getPattern();
 	public static final Pattern ROLE_MENTION = MentionType.ROLE.getPattern();
-	public static final Pattern EMOTE_MENTION = Pattern.compile("<(a)?:([a-zA-Z0-9_]+):([0-9]+)>");
+	public static final Pattern EMOTE_MENTION = Pattern.compile("<(a)?:(\\w+):([0-9]+)>");
 	public static final Pattern EMOTE_URL = Pattern.compile("https?://cdn\\.discordapp\\.com/emojis/([0-9]+)\\.(png|gif|jpeg|jpg)(?:\\?\\S*)?(?:#\\S*)?", Pattern.CASE_INSENSITIVE);
 	
-	private static <Type> Type find(Iterable<Type> iterable, String query, Function<Type, String> nameFunction) {
+	private static <Type> Type find(Iterable<Type> iterable, String query, List<Function<Type, String>> nameFunctions) {
 		List<Type> startsWith = new ArrayList<>();
 		List<Type> contains = new ArrayList<>();
 
 		query = query.toLowerCase();
 		for (Type object : iterable) {
-		    String name = nameFunction.apply(object).toLowerCase();
-		    if (name.equals(query)) {
-		        return object;
-		    }
+			for (Function<Type, String> nameFunction : nameFunctions) {
+				String modified = nameFunction.apply(object);
+				if (modified == null) {
+					continue;
+				}
 
-		    if (name.startsWith(query)) {
-		        startsWith.add(object);
-		    }
+				String name = modified.toLowerCase();
+				if (name.equals(query)) {
+					return object;
+				}
 
-		    if (name.contains(query)) {
-		        contains.add(object);
-		    }
+				if (name.startsWith(query)) {
+					startsWith.add(object);
+				}
+
+				if (name.contains(query)) {
+					contains.add(object);
+				}
+			}
 		}
 
 		if (!startsWith.isEmpty()) {
@@ -62,6 +65,10 @@ public class SearchUtility {
 		}
 		
 		return null;
+	}
+
+	private static <Type> Type find(Iterable<Type> iterable, String query, Function<Type, String> nameFunction) {
+		return SearchUtility.find(iterable, query, Collections.singletonList(nameFunction));
 	}
 	
 	private static TextChannel findTextChannel(CacheView<TextChannel> channels, String query) {
@@ -81,7 +88,7 @@ public class SearchUtility {
 	}
 	
 	private static Member findMember(CacheView<Member> members, String query) {
-		return SearchUtility.find(members, query, Member::getEffectiveName);
+		return SearchUtility.find(members, query, List.of(Member::getNickname, member -> member.getUser().getName()));
 	}
 	
 	private static Role findRole(CacheView<Role> roles, String query) {
@@ -220,18 +227,10 @@ public class SearchUtility {
 		if (jumpMatch.matches()) {
 			try {
 				long messageId = MiscUtil.parseSnowflake(jumpMatch.group(3));
+				
+				TextChannel linkChannel = channel.getGuild().getTextChannelById(jumpMatch.group(2));
 
-				Guild guild = Sx4.get().getShardManager().getGuildById(jumpMatch.group(1));
-				if (guild == null) {
-					return new MessageArgument(messageId, channel.retrieveMessageById(messageId));
-				}
-				
-				TextChannel linkChannel = guild.getTextChannelById(jumpMatch.group(2));
-				if (linkChannel == null) {
-					return new MessageArgument(messageId, channel.retrieveMessageById(messageId));
-				}
-				
-				return new MessageArgument(messageId, linkChannel.retrieveMessageById(messageId));
+				return new MessageArgument(messageId, Objects.requireNonNullElse(linkChannel, channel).retrieveMessageById(messageId));
 			} catch (NumberFormatException e) {
 				return null;
 			}
