@@ -17,7 +17,7 @@ public class EdgeCommand extends Sx4Command {
 		super("edge");
 
 		super.setDescription("Applies the edge effect to an image");
-		super.setExamples("edge", "edge @Shea#6653", "edge https://some.domain/image.png");
+		super.setExamples("edge", "edge @Shea#6653", "edge https://example.com/image.png");
 		super.setBotDiscordPermissions(Permission.MESSAGE_ATTACH_FILES);
 		super.setCategory(ModuleCategory.IMAGE);
 		super.setCooldownDuration(3);
@@ -28,7 +28,7 @@ public class EdgeCommand extends Sx4Command {
 			.addQuery("image", imageUrl)
 			.build();
 
-		event.getClient().newCall(request).enqueue((HttpCallback) response -> ImageUtility.sendImage(event, response).queue());
+		event.getClient().newCall(request).enqueue((HttpCallback) response -> ImageUtility.getImageMessage(event, response).queue());
 	}
 
 }

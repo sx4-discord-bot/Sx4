@@ -17,7 +17,7 @@ public class CannyCommand extends Sx4Command {
 		super("canny");
 
 		super.setDescription("Applies the canny effect to an image");
-		super.setExamples("canny", "canny @Shea#6653", "canny https://some.domain/image.png");
+		super.setExamples("canny", "canny @Shea#6653", "canny https://example.com/image.png");
 		super.setBotDiscordPermissions(Permission.MESSAGE_ATTACH_FILES);
 		super.setCategory(ModuleCategory.IMAGE);
 		super.setCooldownDuration(3);
@@ -28,7 +28,7 @@ public class CannyCommand extends Sx4Command {
 			.addQuery("image", imageUrl)
 			.build();
 
-		event.getClient().newCall(request).enqueue((HttpCallback) response -> ImageUtility.sendImage(event, response).queue());
+		event.getClient().newCall(request).enqueue((HttpCallback) response -> ImageUtility.getImageMessage(event, response).queue());
 	}
 
 }

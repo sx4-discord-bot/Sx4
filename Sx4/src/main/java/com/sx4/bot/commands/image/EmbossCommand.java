@@ -17,7 +17,7 @@ public class EmbossCommand extends Sx4Command {
 		super("emboss");
 
 		super.setDescription("Applies the emboss effect to an image");
-		super.setExamples("emboss", "emboss @Shea#6653", "emboss https://some.domain/image.png");
+		super.setExamples("emboss", "emboss @Shea#6653", "emboss https://example.com/image.png");
 		super.setBotDiscordPermissions(Permission.MESSAGE_ATTACH_FILES);
 		super.setCategory(ModuleCategory.IMAGE);
 		super.setCooldownDuration(3);
@@ -28,7 +28,7 @@ public class EmbossCommand extends Sx4Command {
 			.addQuery("image", imageUrl)
 			.build();
 
-		event.getClient().newCall(request).enqueue((HttpCallback) response -> ImageUtility.sendImage(event, response).queue());
+		event.getClient().newCall(request).enqueue((HttpCallback) response -> ImageUtility.getImageMessage(event, response).queue());
 	}
 
 }

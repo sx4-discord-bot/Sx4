@@ -85,7 +85,7 @@ public class DiscordCommand extends Sx4Command {
 			.addAllFields(this.getMentions(event.getGuild(), text))
 			.build();
 
-		event.getClient().newCall(request).enqueue((HttpCallback) response -> ImageUtility.sendImage(event, response).queue());
+		event.getClient().newCall(request).enqueue((HttpCallback) response -> ImageUtility.getImageMessage(event, response).queue());
 	}
 
 }

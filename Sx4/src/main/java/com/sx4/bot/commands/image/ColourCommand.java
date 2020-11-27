@@ -36,7 +36,7 @@ public class ColourCommand extends Sx4Command {
 		String hex = "#" + ColourUtility.toHexString(colour);
 
 		MessageEmbed embed = new EmbedBuilder()
-			.setColor(colour == 0 ? 65793 : colour == 16777215 ? 16711422 : colour)
+			.setColor(ImageUtility.getEmbedColour(colour))
 			.setAuthor(hex, null, "attachment://image.png")
 			.setDescription(String.format("Hex: %s\nRGB: %s", hex, ColourUtility.toRGBString(colour)))
 			.setImage("attachment://image.png")
@@ -47,7 +47,7 @@ public class ColourCommand extends Sx4Command {
 			.build();
 
 		event.getClient().newCall(request).enqueue((HttpCallback) response -> {
-			MessageAction action = ImageUtility.sendImage(event, response);
+			MessageAction action = ImageUtility.getImageMessage(event, response);
 			if (response.isSuccessful()) {
 				action.embed(embed);
 			}

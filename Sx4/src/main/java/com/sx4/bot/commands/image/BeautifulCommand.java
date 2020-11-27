@@ -17,7 +17,7 @@ public class BeautifulCommand extends Sx4Command {
 		super("beautiful");
 
 		super.setDescription("Frames your image and captions it as beautiful");
-		super.setExamples("beautiful", "beautiful @Shea#6653", "beautiful https://some.domain/image.png");
+		super.setExamples("beautiful", "beautiful @Shea#6653", "beautiful https://example.com/image.png");
 		super.setBotDiscordPermissions(Permission.MESSAGE_ATTACH_FILES);
 		super.setCategory(ModuleCategory.IMAGE);
 		super.setCooldownDuration(3);
@@ -28,7 +28,7 @@ public class BeautifulCommand extends Sx4Command {
 			.addQuery("image", imageUrl)
 			.build();
 
-		event.getClient().newCall(request).enqueue((HttpCallback) response -> ImageUtility.sendImage(event, response).queue());
+		event.getClient().newCall(request).enqueue((HttpCallback) response -> ImageUtility.getImageMessage(event, response).queue());
 	}
 
 }

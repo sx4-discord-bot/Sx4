@@ -48,7 +48,7 @@ public class ShipCommand extends Sx4Command {
 
 		if (event.getSelfMember().hasPermission(event.getTextChannel(), Permission.MESSAGE_ATTACH_FILES)) {
 			event.getClient().newCall(request).enqueue((HttpCallback) response -> {
-				MessageAction action = ImageUtility.sendImage(event, response);
+				MessageAction action = ImageUtility.getImageMessage(event, response);
 				if (response.isSuccessful()) {
 					action.content(message);
 				}

@@ -1,5 +1,9 @@
 package com.sx4.bot.utility;
 
+import java.text.CharacterIterator;
+import java.text.DecimalFormat;
+import java.text.StringCharacterIterator;
+
 public class NumberUtility {
 
 	public static boolean isNumberUnsigned(String string) {
@@ -46,6 +50,26 @@ public class NumberUtility {
 	
 	public static String getSuffixed(int number) {
 		return number + NumberUtility.getSuffix(number);
+	}
+
+	public static String getBytesReadable(long bytes) {
+		long absoluteBytes = bytes == Long.MIN_VALUE ? Long.MAX_VALUE : Math.abs(bytes);
+		if (absoluteBytes < 1024) {
+			return bytes + " B";
+		}
+
+		long value = absoluteBytes;
+
+		CharacterIterator iterator = new StringCharacterIterator("KMGTPE");
+		for (int i = 40; i >= 0 && absoluteBytes > 0xFFFCCCCCCCCCCCCL >> i; i -= 10) {
+			value >>= 10;
+			iterator.next();
+		}
+
+		value *= Long.signum(bytes);
+
+		DecimalFormat bytesFormat = new DecimalFormat("0.##");
+		return String.format("%s %ciB", bytesFormat.format(value / 1024D), iterator.current());
 	}
 	
 }
