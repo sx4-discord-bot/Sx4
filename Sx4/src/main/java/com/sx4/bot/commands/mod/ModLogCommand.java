@@ -4,13 +4,13 @@ import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Projections;
-import com.mongodb.client.model.Updates;
 import com.sx4.bot.annotations.command.AuthorPermissions;
 import com.sx4.bot.annotations.command.Examples;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.model.Operators;
+import com.sx4.bot.entities.argument.Range;
 import com.sx4.bot.entities.mod.Reason;
 import com.sx4.bot.entities.mod.action.Action;
 import com.sx4.bot.entities.mod.modlog.ModLog;
@@ -19,6 +19,7 @@ import com.sx4.bot.utility.ExceptionUtility;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.internal.utils.tuple.Pair;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
@@ -75,31 +76,32 @@ public class ModLogCommand extends Sx4Command {
 	}
 	
 	@Command(value="case", description="Edit the reason of a mod log case")
-	@Examples({"modlog case 5e45ce6d3688b30ee75201ae Spamming", "modlog case 5e45ce6d3688b30ee75201ae template:tos", "modlog case 5e45ce6d3688b30ee75201ae t:tos and Spamming"})
-	public void case_(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="reason", endless=true) Reason reason) {
-		Document data = this.database.getModLogById(Filters.and(Filters.eq("_id", id), Filters.eq("guildId", event.getGuild().getIdLong())), Projections.include("moderatorId", "reason"));
-		if (data == null) {
-			event.replyFailure("I could not find a mod log with that id").queue();
-			return;
+	@Examples({"modlog case 5e45ce6d3688b30ee75201ae Spamming", "modlog case 5fc24ea34854845b7c74e7f4-5fc24ea64854845b7c74e7f6 template:tos", "modlog case 5e45ce6d3688b30ee75201ae,5e45ce6d3688b30ee75201ab t:tos and Spamming"})
+	public void case_(Sx4CommandEvent event, @Argument(value="id(s)") Range<ObjectId> range, @Argument(value="reason", endless=true) Reason reason) {
+		List<Bson> or = new ArrayList<>();
+		for (Pair<ObjectId, ObjectId> r : range.getRanges()) {
+			or.add(Operators.and(Operators.gte(Operators.objectIdToEpochSecond("$_id"), r.getLeft().getTimestamp()), Operators.lte(Operators.objectIdToEpochSecond("$_id"), r.getRight().getTimestamp())));
 		}
-		
-		if (data.getLong("moderatorId") != event.getAuthor().getIdLong()) {
-			event.replyFailure("You do not own that mod log").queue();
-			return;
+
+		for (ObjectId r : range.getObjects()) {
+			or.add(Operators.eq("$_id", r));
 		}
-		
-		String oldReason = data.getString("reason");
-		if (oldReason != null && oldReason.equals(reason.getParsed())) {
-			event.replyFailure("The reason for that mod log is already set to that").queue();
-			return;
-		}
-		
-		this.database.updateModLogById(id, Updates.set("reason", reason.getParsed())).whenComplete((result, exception) -> {
+
+		long authorId = event.getAuthor().getIdLong();
+
+		List<Bson> update = List.of(Operators.set("reason", Operators.cond(Operators.and(Operators.eq("$moderatorId", authorId), Operators.or(or)), reason.getParsed(), "$reason")));
+		this.database.updateManyModLogs(update).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
-			
-			event.replySuccess("Case `" + id.toHexString() + "` has been updated").queue();
+
+			long modified = result.getModifiedCount();
+			if (modified == 0) {
+				event.replyFailure("You were unable to update any of those mod logs").queue();
+				return;
+			}
+
+			event.replyFormat("Updated **%d** case%s %s", modified, modified == 1 ? "" : "s", this.config.getSuccessEmote()).queue();
 		});
 	}
 	
@@ -109,7 +111,11 @@ public class ModLogCommand extends Sx4Command {
 		Bson projection = Projections.include("moderatorId", "reason", "targetId", "action");
 		if (id == null) {
 			List<Document> allData = this.database.getModLogs(Filters.eq("guildId", event.getGuild().getIdLong()), projection).into(new ArrayList<>());
-			
+			if (allData.isEmpty()) {
+				event.replyFailure("There are no mod logs in this server").queue();
+				return;
+			}
+
 			PagedResult<Document> paged = new PagedResult<>(allData)
 				.setDisplayFunction(data -> {
 					long targetId = data.getLong("targetId");
@@ -119,7 +125,10 @@ public class ModLogCommand extends Sx4Command {
 				})
 				.setIncreasedIndex(true);
 			
-			paged.onSelect(select -> event.reply(new ModLog(select.getSelected()).getEmbed()).queue());
+			paged.onSelect(select -> {
+				System.out.println(select.getSelected());
+				event.reply(new ModLog(select.getSelected()).getEmbed()).queue();
+			});
 			
 			paged.execute(event);
 		} else {

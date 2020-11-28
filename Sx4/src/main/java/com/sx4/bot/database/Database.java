@@ -672,6 +672,14 @@ public class Database {
 	public CompletableFuture<UpdateResult> updateModLogById(ObjectId id, Bson update) {
 		return CompletableFuture.supplyAsync(() -> this.modLogs.updateOne(Filters.eq("_id", id), update, this.updateOptions));
 	}
+
+	public CompletableFuture<Document> findAndUpdateModLogById(ObjectId id, List<Bson> update, FindOneAndUpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.modLogs.findOneAndUpdate(Filters.eq("_id", id), update, options));
+	}
+
+	public CompletableFuture<UpdateResult> updateManyModLogs(List<Bson> update) {
+		return CompletableFuture.supplyAsync(() -> this.modLogs.updateMany(Database.EMPTY_DOCUMENT, update, this.updateOptions));
+	}
 	
 	public MongoCollection<Document> getResubscriptions() {
 		return this.resubscriptions;

@@ -1,10 +1,16 @@
 package com.sx4.bot.utility;
 
+import java.math.RoundingMode;
 import java.text.CharacterIterator;
 import java.text.DecimalFormat;
 import java.text.StringCharacterIterator;
 
 public class NumberUtility {
+
+	private static final DecimalFormat DEFAULT_DECIMAL_FORMAT = new DecimalFormat("0.##");
+	static {
+		NumberUtility.DEFAULT_DECIMAL_FORMAT.setRoundingMode(RoundingMode.HALF_UP);
+	}
 
 	public static boolean isNumberUnsigned(String string) {
 		for (char character : string.toCharArray()) {
@@ -68,8 +74,23 @@ public class NumberUtility {
 
 		value *= Long.signum(bytes);
 
-		DecimalFormat bytesFormat = new DecimalFormat("0.##");
-		return String.format("%s %ciB", bytesFormat.format(value / 1024D), iterator.current());
+		return String.format("%s %ciB", NumberUtility.DEFAULT_DECIMAL_FORMAT.format(value / 1024D), iterator.current());
+	}
+
+	public static String getNumberReadable(double number) {
+		if (number < 1000 && number > -1000) {
+			return NumberUtility.DEFAULT_DECIMAL_FORMAT.format(number);
+		}
+
+		number /= 1000;
+
+		CharacterIterator iterator = new StringCharacterIterator("kMBTPEZY");
+		while (number <= -1_000 || number >= 1_000) {
+			number /= 1000;
+			iterator.next();
+		}
+
+		return String.format("%s%c", NumberUtility.DEFAULT_DECIMAL_FORMAT.format(number), iterator.current());
 	}
 	
 }

@@ -176,6 +176,14 @@ public class Operators {
 	public static Bson log(Object expression, Object baseExpression) {
 		return new Document("$log", List.of(expression, baseExpression));
 	}
+
+	public static Bson objectIdToEpochSecond(Object expression) {
+		return Operators.toLong(Operators.divide(Operators.toLong(Operators.toDate(expression)), 1000));
+	}
+
+	public static Bson toDate(Object expression) {
+		return new Document("$toDate", expression);
+	}
 	
 	public static Bson toLong(Object expression) {
 		return new Document("$toLong", expression);

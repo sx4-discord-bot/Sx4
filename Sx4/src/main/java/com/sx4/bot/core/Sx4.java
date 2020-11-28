@@ -330,6 +330,17 @@ public class Sx4 {
 			}
 			
 			return builder;
+		}).addBuilderConfigureFunction(Range.class, (parameter, builder) -> {
+			Class<?> clazz = (Class<?>) ((ParameterizedType) parameter.getParameterizedType()).getActualTypeArguments()[0];
+
+			builder.setProperty("class", clazz);
+
+			List<?> builders = argumentFactory.getBuilderConfigureFunctions(clazz);
+			for (Object builderFunction : builders) {
+				builder = ((BuilderConfigureFunction) builderFunction).configure(parameter, builder);
+			}
+
+			return builder;
 		}).addBuilderConfigureFunction(All.class, (parameter, builder) -> {
 			Class<?> clazz = (Class<?>) ((ParameterizedType) parameter.getParameterizedType()).getActualTypeArguments()[0];
 			
@@ -473,6 +484,16 @@ public class Sx4 {
 				Duration duration = TimeUtility.getDurationFromString(content.substring(lastIndex));
 				
 				return new ParsedResult<>(new TimedArgument<>(duration, parsedArgument.getObject()));
+			}).registerParser(Range.class, (context, argument, content) -> {
+				Class<?> clazz = argument.getProperty("class", Class.class);
+
+				if (clazz == ObjectId.class) {
+					return new ParsedResult<>(Range.getRange(content, it -> ObjectId.isValid(it) ? new ObjectId(it) : null));
+				} else if (clazz == String.class) {
+					return new ParsedResult<>(Range.getRange(content));
+				}
+
+				return new ParsedResult<>();
 			}).registerParser(All.class, (context, argument, content) -> {
 				if (content.equalsIgnoreCase("all")) {
 					return new ParsedResult<>(new All<>(null));

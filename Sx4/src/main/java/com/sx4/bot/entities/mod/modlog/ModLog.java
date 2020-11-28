@@ -33,9 +33,9 @@ public class ModLog {
 	
 	public ModLog(Document data) {
 		this.id = data.getObjectId("_id");
-		this.messageId = data.getLong("messageId");
-		this.channelId = data.getLong("channelId");
-		this.guildId = data.getLong("guildId");
+		this.messageId = data.get("messageId", -1L);
+		this.channelId = data.get("channelId", -1L);
+		this.guildId = data.get("guildId", -1L);
 		this.targetId = data.getLong("targetId");
 		this.moderatorId = data.getLong("moderatorId");
 		
@@ -87,6 +87,10 @@ public class ModLog {
 	}
 	
 	public Guild getGuild() {
+		if (this.guildId == -1L) {
+			return null;
+		}
+
 		return Sx4.get().getShardManager().getGuildById(this.guildId);
 	}
 	
@@ -95,6 +99,10 @@ public class ModLog {
 	}
 	
 	public TextChannel getChannel() {
+		if (this.channelId == -1L) {
+			return null;
+		}
+
 		Guild guild = this.getGuild();
 		
 		return guild == null ? null : guild.getTextChannelById(this.channelId);
