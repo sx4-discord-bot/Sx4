@@ -1,5 +1,6 @@
 package com.sx4.bot.managers;
 
+import com.mongodb.client.model.CountOptions;
 import com.mongodb.client.model.DeleteOneModel;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.WriteModel;
@@ -111,14 +112,14 @@ public class YouTubeManager {
 	public DeleteOneModel<Document> resubscribeAndGet(String channelId) {
 		Config config = Config.get();
 		
-		long amount = Database.get().countGuilds(Filters.elemMatch("youtubeNotifications", Filters.eq("uploaderId", channelId)));
+		long amount = Database.get().countYouTubeNotifications(Filters.eq("uploaderId", channelId), new CountOptions().limit(1));
 		
 		DeleteOneModel<Document> model = null;
 		if (amount != 0) {
 			RequestBody body = new MultipartBody.Builder()
 				.addFormDataPart("hub.mode", "subscribe")
 				.addFormDataPart("hub.topic", "https://www.youtube.com/xml/feeds/videos.xml?channel_id=" + channelId)
-				.addFormDataPart("hub.callback", "http://" + config.getDomain() + ":" + config.getPort() + "/api/youtube")
+				.addFormDataPart("hub.callback", config.getDomain() + "/api/youtube")
 				.addFormDataPart("hub.verify", "sync")
 				.addFormDataPart("hub.verify_token", config.getYoutube())
 				.setType(MultipartBody.FORM)
@@ -150,7 +151,7 @@ public class YouTubeManager {
 	public void resubscribe(String channelId) {
 		DeleteOneModel<Document> model = this.resubscribeAndGet(channelId);
 		if (model != null) {
-			Database.get().deleteResubscription(model.getFilter()).whenComplete((result, exception) -> {
+			Database.get().deleteYouTubeSubscription(model.getFilter()).whenComplete((result, exception) -> {
 				if (exception != null) {
 					exception.printStackTrace();
 				}
@@ -161,7 +162,7 @@ public class YouTubeManager {
 	public void ensureResubscriptions() {
 		List<WriteModel<Document>> bulkData = new ArrayList<>();
 		
-		Database.get().getResubscriptions().find().forEach(data -> {
+		Database.get().getYouTubeSubscriptions().find().forEach(data -> {
 			String channelId = data.getString("_id");
 			
 			long timeTill = data.getLong("resubscribeAt") - Clock.systemUTC().instant().getEpochSecond();
@@ -176,7 +177,7 @@ public class YouTubeManager {
 		});
 		
 		if (!bulkData.isEmpty()) {
-			Database.get().bulkWriteResubscriptions(bulkData).whenComplete(Database.exceptionally());
+			Database.get().bulkWriteYouTubeSubscriptions(bulkData).whenComplete(Database.exceptionally());
 		}
 	}
 	

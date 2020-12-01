@@ -2,16 +2,19 @@ package com.sx4.bot.commands.notifications;
 
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
+import com.mongodb.ErrorCategory;
 import com.mongodb.MongoWriteException;
-import com.mongodb.client.model.*;
-import com.sx4.bot.annotations.argument.Url;
+import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.FindOneAndDeleteOptions;
+import com.mongodb.client.model.Projections;
+import com.mongodb.client.model.Updates;
+import com.sx4.bot.annotations.argument.ImageUrl;
 import com.sx4.bot.annotations.command.AuthorPermissions;
 import com.sx4.bot.annotations.command.BotPermissions;
 import com.sx4.bot.annotations.command.Examples;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
-import com.sx4.bot.database.model.Operators;
 import com.sx4.bot.http.HttpCallback;
 import com.sx4.bot.managers.YouTubeManager;
 import com.sx4.bot.paged.PagedResult;
@@ -24,13 +27,12 @@ import okhttp3.MultipartBody;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import org.bson.Document;
-import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
-import java.util.Collections;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.CompletionException;
@@ -68,18 +70,16 @@ public class YouTubeNotificationCommand extends Sx4Command {
 			}
 			
 			String channelId = items.get(0).getEmbedded(List.of("id", "channelId"), String.class);
-				
-			ObjectId id = ObjectId.get();
 			
 			Document notificationData = new Document("uploaderId", channelId)
-					.append("channelId", channel.getIdLong())
-					.append("id", id);
+				.append("channelId", channel.getIdLong())
+				.append("guildId", event.getGuild().getIdLong());
 			
 			if (!this.youtubeManager.hasExecutor(channelId)) {
 				RequestBody body = new MultipartBody.Builder()
 					.addFormDataPart("hub.mode", "subscribe")
 					.addFormDataPart("hub.topic", "https://www.youtube.com/xml/feeds/videos.xml?channel_id=" + channelId)
-					.addFormDataPart("hub.callback", "http://" + this.config.getDomain() + ":" + this.config.getPort() + "/api/youtube")
+					.addFormDataPart("hub.callback", this.config.getDomain() + "/api/youtube")
 					.addFormDataPart("hub.verify", "sync")
 					.addFormDataPart("hub.verify_token", this.config.getYoutube())
 					.setType(MultipartBody.FORM)
@@ -92,30 +92,32 @@ public class YouTubeNotificationCommand extends Sx4Command {
 				
 				event.getClient().newCall(request).enqueue((HttpCallback) response -> {
 					if (response.isSuccessful()) {
-						this.database.updateGuildById(event.getGuild().getIdLong(), Updates.push("youtube.notifications", notificationData)).whenComplete((result, exception) -> {
+						this.database.insertYouTubeNotification(notificationData).whenComplete((result, exception) -> {
 							if (ExceptionUtility.sendExceptionally(event, exception)) {
 								return;
 							}
-							
-							event.replySuccess("Notifications will now be sent in " + channel.getAsMention() + " when that user uploads with id `" + id.toHexString() + "`").queue();
+
+							event.replyFormat("Notifications will now be sent in %s when that user uploads with id `%s` %s", channel.getAsMention(), result.getInsertedId().asObjectId().getValue().toHexString(), this.config.getSuccessEmote()).queue();
 						});
 					} else {
 						event.replyFailure("Oops something went wrong there, try again. If this repeats report this to my developer (Message: " + response.body().string() + ")").queue();
 					}
 				});
 			} else {
-				List<Bson> update = List.of(Operators.set("youtube.notifications", Operators.cond(Operators.or(Operators.extinct("$youtube.notifications"), Operators.eq(Operators.filter("$youtube.notifications", Operators.and(Operators.eq("$$this.uploaderId", channelId), Operators.eq("$$this.channelId", channel.getIdLong()))), Collections.EMPTY_LIST)), Operators.cond(Operators.exists("$youtube.notifications"), Operators.concatArrays("$youtube.notifications", List.of(notificationData)), List.of(notificationData)), "$youtube.notifications")));
-				this.database.updateGuildById(event.getGuild().getIdLong(), update).whenComplete((result, exception) -> {
+				this.database.insertYouTubeNotification(notificationData).whenComplete((result, exception) -> {
+					if (exception instanceof CompletionException) {
+						Throwable cause = exception.getCause();
+						if (cause instanceof MongoWriteException && ((MongoWriteException) cause).getError().getCategory() == ErrorCategory.DUPLICATE_KEY) {
+							event.replyFailure("You already have a notification setup for that youtube channel in " + channel.getAsMention()).queue();
+							return;
+						}
+					}
+
 					if (ExceptionUtility.sendExceptionally(event, exception)) {
 						return;
 					}
 					
-					if (result.getModifiedCount() == 0) {
-						event.replyFailure("You already have a notification for that user in that channel").queue();
-						return;
-					}
-					
-					event.replySuccess("Notifications will now be sent in " + channel.getAsMention() + " when that user uploads with id `" + id.toHexString() + "`").queue();
+					event.replyFormat("Notifications will now be sent in %s when that user uploads with id `%s` %s", channel.getAsMention(), result.getInsertedId().asObjectId().getValue().toHexString(), this.config.getSuccessEmote()).queue();
 				});
 			}
 		});
@@ -125,38 +127,13 @@ public class YouTubeNotificationCommand extends Sx4Command {
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	@Examples({"youtube notification remove 5e45ce6d3688b30ee75201ae"})
 	public void remove(Sx4CommandEvent event, @Argument(value="id") ObjectId id) {
-		Bson projection = Projections.include("youtube.notifications.webhook.id", "youtube.notifications.channelId", "youtube.notifications.id");
-		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(projection);
-		this.database.findAndUpdateGuildById(event.getGuild().getIdLong(), Updates.pull("youtube.notifications", Filters.eq("id", id)), options).whenComplete((data, exception) -> {
+		FindOneAndDeleteOptions options = new FindOneAndDeleteOptions().projection(Projections.include("channelId"));
+		this.database.findAndDeleteYouTubeNotificationById(id, options).whenComplete((data, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
 			
-			List<Document> notifications = data.getEmbedded(List.of("youtube", "notifications"), Collections.emptyList());
-			
-			Document notification = notifications.stream()
-				.filter(d -> d.getObjectId("id").equals(id))
-				.findFirst()
-				.orElse(null);
-			
-			if (notification == null) {
-				event.replyFailure("You don't have a notification with that id").queue();
-				return;
-			}
-			
-			long webhookId = notification.getEmbedded(List.of("webhook", "id"), 0L);
-			long channelId = notification.getLong("channelId");
-			
-			long amount = notifications.stream()
-				.filter(d -> d.getLong("channelId") == channelId)
-				.count();
-			
-			TextChannel channel = event.getGuild().getTextChannelById(channelId);
-			if (amount == 1 && channel != null && webhookId != 0L) {
-				channel.deleteWebhookById(String.valueOf(webhookId)).queue();
-			}
-			
-			event.replySuccess("You will no longer receive notifications in <#" + channelId + "> for that user").queue();
+			event.replySuccess("You will no longer receive notifications in <#" + data.getLong("channelId") + "> for that user").queue();
 		});
 	}
 	
@@ -164,39 +141,16 @@ public class YouTubeNotificationCommand extends Sx4Command {
 	@Examples({"youtube notification message 5e45ce6d3688b30ee75201ae {video.url}", "youtube notification message 5e45ce6d3688b30ee75201ae **{channel.name}** just uploaded, check it out: {video.url}"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void message(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="message", endless=true) String message) {
-		Bson projection = Projections.include("youtube.notifications.id", "youtube.notifications.message");
-		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(projection).arrayFilters(List.of(Filters.eq("notification.id", id)));
-		this.database.findAndUpdateGuildById(event.getGuild().getIdLong(), Updates.set("youtube.notifications.$[notification].message", message), options).whenComplete((data, exception) -> {
-			if (exception instanceof CompletionException) {
-				Throwable cause = exception.getCause();
-				if (cause instanceof MongoWriteException && ((MongoWriteException) cause).getCode() == 2) {
-					event.replyFailure("You don't have a notification with that id").queue();
-					return;
-				}
-			}
-				
+		this.database.updateYouTubeNotificationById(id, Updates.set("message.content", message)).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
-				
-			List<Document> notifications = data.getEmbedded(List.of("youtube", "notifications"), Collections.emptyList());
-			
-			Document notification = notifications.stream()
-				.filter(d -> d.getObjectId("id").equals(id))
-				.findFirst()
-				.orElse(null);
-			
-			if (notification == null) {
-				event.replyFailure("You don't have a notification with that id").queue();
-				return;
-			}
-			
-			String oldMessage = notification.getString("message");
-			if (oldMessage != null && oldMessage.equals(message)) {
+
+			if (result.getModifiedCount() == 0) {
 				event.replyFailure("Your message for that notification was already set to that").queue();
 				return;
 			}
-			
+
 			event.replySuccess("Your message has been updated for that notification").queue();
 		});
 	}
@@ -205,35 +159,12 @@ public class YouTubeNotificationCommand extends Sx4Command {
 	@Examples({"youtube notification name 5e45ce6d3688b30ee75201ae YouTube", "youtube notification name 5e45ce6d3688b30ee75201ae Pewdiepie's Minion"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void name(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="name", endless=true) String name) {
-		Bson projection = Projections.include("youtube.notifications.id", "youtube.notifications.name");
-		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(projection).arrayFilters(List.of(Filters.eq("notification.id", id)));
-		this.database.findAndUpdateGuildById(event.getGuild().getIdLong(), Updates.set("youtube.notifications.$[notification].webhook.name", name), options).whenComplete((data, exception) -> {
-			if (exception instanceof CompletionException) {
-				Throwable cause = exception.getCause();
-				if (cause instanceof MongoWriteException && ((MongoWriteException) cause).getCode() == 2) {
-					event.replyFailure("You don't have a notification with that id").queue();
-					return;
-				}
-			}
-				
+		this.database.updateYouTubeNotificationById(id, Updates.set("webhook.name", name)).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
-			
-			List<Document> notifications = data.getEmbedded(List.of("youtube", "notifications"), Collections.emptyList());
-			
-			Document notification = notifications.stream()
-				.filter(d -> d.getObjectId("id").equals(id))
-				.findFirst()
-				.orElse(null);
-			
-			if (notification == null) {
-				event.replyFailure("You don't have a notification with that id").queue();
-				return;
-			}
-			
-			String oldName = notification.getEmbedded(List.of("webhook", "name"), String.class);
-			if (oldName != null && oldName.equals(name)) {
+
+			if (result.getModifiedCount() == 0) {
 				event.replyFailure("Your webhook name for that notification was already set to that").queue();
 				return;
 			}
@@ -243,42 +174,19 @@ public class YouTubeNotificationCommand extends Sx4Command {
 	}
 	
 	@Command(value="avatar", description="Set the avatar of the webhook that sends youtube notifications for a specific notification")
-	@Examples({"youtube notification avatar 5e45ce6d3688b30ee75201ae", "youtube notification avatar 5e45ce6d3688b30ee75201ae https://i.imgur.com/i87lyNO.png"})
+	@Examples({"youtube notification avatar 5e45ce6d3688b30ee75201ae Shea#6653", "youtube notification avatar 5e45ce6d3688b30ee75201ae https://i.imgur.com/i87lyNO.png"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-	public void avatar(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="avatar", endless=true, acceptEmpty=true) @Url String url) {
-		Bson projection = Projections.include("youtube.notifications.id", "youtube.notifications.avatar");
-		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(projection).arrayFilters(List.of(Filters.eq("notification.id", id)));
-		this.database.findAndUpdateGuildById(event.getGuild().getIdLong(), Updates.set("youtube.notifications.$[notification].webhook.avatar", url), options).whenComplete((data, exception) -> {
-			if (exception instanceof CompletionException) {
-				Throwable cause = exception.getCause();
-				if (cause instanceof MongoWriteException && ((MongoWriteException) cause).getCode() == 2) {
-					event.replyFailure("You don't have a notification with that id").queue();
-					return;
-				}
-			}
-				
+	public void avatar(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="avatar", endless=true, acceptEmpty=true) @ImageUrl String url) {
+		this.database.updateYouTubeNotificationById(id, Updates.set("webhook.avatar", url)).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
-			
-			List<Document> notifications = data.getEmbedded(List.of("youtube", "notifications"), Collections.emptyList());
-			
-			Document notification = notifications.stream()
-				.filter(d -> d.getObjectId("id").equals(id))
-				.findFirst()
-				.orElse(null);
-			
-			if (notification == null) {
-				event.replyFailure("You don't have a notification with that id").queue();
-				return;
-			}
-			
-			String oldAvatar = notification.getEmbedded(List.of("webhook", "avatar"), String.class);
-			if (oldAvatar != null && oldAvatar.equals(url)) {
+
+			if (result.getModifiedCount() == 0) {
 				event.replyFailure("Your webhook avatar for that notification was already set to that").queue();
 				return;
 			}
-			
+
 			event.replySuccess("Your webhook avatar has been updated for that notification").queue();
 		});
 	}
@@ -300,8 +208,7 @@ public class YouTubeNotificationCommand extends Sx4Command {
 		
 		EmbedBuilder embed = new EmbedBuilder()
 			.setAuthor("YouTube Notification Formatting", null, event.getGuild().getIconUrl())
-			.setDescription(example)
-			.setColor(this.config.getColour());
+			.setDescription(example);
 		
 		event.reply(embed.build()).queue();
 	}
@@ -310,19 +217,19 @@ public class YouTubeNotificationCommand extends Sx4Command {
 	@Examples({"youtube notification list"})
 	@BotPermissions(permissions={Permission.MESSAGE_EMBED_LINKS})
 	public void list(Sx4CommandEvent event) {
-		List<Document> notifications = this.database.getGuildById(event.getGuild().getIdLong(), Projections.include("youtube.notifications.uploaderId", "youtube.notifications.channelId", "youtube.notifications.id")).getEmbedded(List.of("youtube", "notifications"), Collections.emptyList());
-		notifications.sort(Comparator.comparingLong(a -> a.getLong("channelId")));
-		
+		List<Document> notifications = this.database.getYouTubeNotifications(Filters.eq("guildId", event.getGuild().getIdLong()), Projections.include("uploaderId", "channelId")).into(new ArrayList<>());
 		if (notifications.isEmpty()) {
 			event.replyFailure("You have no notifications setup in this server").queue();
 			return;
 		}
+
+		notifications.sort(Comparator.comparingLong(a -> a.getLong("channelId")));
 		
 		PagedResult<Document> paged = new PagedResult<>(notifications)
 			.setIncreasedIndex(true)
 			.setAutoSelect(false)
 			.setAuthor("YouTube Notifications", null, event.getGuild().getIconUrl())
-			.setDisplayFunction(data -> String.format("<#%d> - [%s](https://youtube.com/channel/%s)", data.getLong("channelId"), data.getObjectId("id").toHexString(), data.getString("uploaderId")))
+			.setDisplayFunction(data -> String.format("<#%d> - [%s](https://youtube.com/channel/%s)", data.getLong("channelId"), data.getObjectId("_id").toHexString(), data.getString("uploaderId")))
 			.setSelect(SelectType.INDEX);
 		
 		paged.onSelect(selected -> this.sendStats(event, selected.getSelected()));
@@ -331,15 +238,14 @@ public class YouTubeNotificationCommand extends Sx4Command {
 	}
 	
 	public void sendStats(Sx4CommandEvent event, Document notification) {
-		ObjectId id = notification.getObjectId("id");
+		ObjectId id = notification.getObjectId("_id");
 		
 		EmbedBuilder embed = new EmbedBuilder()
-			.setColor(this.config.getColour())
 			.setAuthor("YouTube Notification Stats", null, event.getGuild().getIconUrl())
 			.addField("Id", id.toHexString(), true)
 			.addField("YouTube Channel", String.format("[%s](https://youtube.com/channel/%<s)", notification.getString("uploaderId")), true)
 			.addField("Channel", "<#" + notification.getLong("channelId") + ">", true)
-			.addField("Message", "`" + notification.get("message", YouTubeManager.DEFAULT_MESSAGE) + "`", false)
+			.addField("Message", "`" + notification.getEmbedded(List.of("message", "content"), YouTubeManager.DEFAULT_MESSAGE) + "`", false)
 			.setFooter("Created at")
 			.setTimestamp(Instant.ofEpochSecond(id.getTimestamp()));
 		
@@ -350,13 +256,7 @@ public class YouTubeNotificationCommand extends Sx4Command {
 	@Examples({"youtube notification stats 5e45ce6d3688b30ee75201ae"})
 	@BotPermissions(permissions={Permission.MESSAGE_EMBED_LINKS})
 	public void stats(Sx4CommandEvent event, @Argument(value="id") ObjectId id) {
-		List<Document> notifications = this.database.getGuildById(event.getGuild().getIdLong(), Projections.include("youtube.notifications")).getEmbedded(List.of("youtube", "notifications"), Collections.emptyList());
-		
-		Document notification = notifications.stream()
-			.filter(d -> d.getObjectId("id").equals(id))
-			.findFirst()
-			.orElse(null);
-			
+		Document notification = this.database.getYouTubeNotification(Filters.eq("_id", id), Projections.include("uploaderId", "channelId", "message.content"));
 		if (notification == null) {
 			event.replyFailure("You don't have a notification with that id").queue();
 			return;

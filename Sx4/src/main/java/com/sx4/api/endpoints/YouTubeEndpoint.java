@@ -36,7 +36,7 @@ public class YouTubeEndpoint {
 			YouTubeManager manager = YouTubeManager.get();
 			String channelId = topic.substring(topic.lastIndexOf('=') + 1);
 			
-			Database.get().updateResubscriptionById(channelId, Updates.set("resubscribeAt", Clock.systemUTC().instant().getEpochSecond() + seconds)).whenComplete((result, exception) -> {
+			Database.get().updateYouTubeSubscriptionById(channelId, Updates.set("resubscribeAt", Clock.systemUTC().instant().getEpochSecond() + seconds)).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendErrorMessage(exception)) {
 					return;
 				}
@@ -76,7 +76,7 @@ public class YouTubeEndpoint {
 			YouTubeChannel channel = new YouTubeChannel(channelId, channelName);
 			YouTubeVideo video = new YouTubeVideo(videoId, videoTitle, videoUpdatedAt, videoPublishedAt);
 			
-			Document data = database.getNotification(Filters.eq("videoId", videoId), Projections.include("title"));
+			Document data = database.getYouTubeNotificationLog(Filters.eq("videoId", videoId), Projections.include("title"));
 			String oldTitle = data.getString("title");
 			
 			if (data.isEmpty() && Duration.between(video.getPublishedAt(), ZonedDateTime.now(ZoneOffset.UTC)).toMinutes() <= 60) {

@@ -251,6 +251,7 @@ public class Sx4 {
 
 		optionFactory.registerParser(Duration.class, (context, option, content) -> content == null ? new ParsedResult<>(true, null) : new ParsedResult<>(TimeUtility.getDurationFromString(content)));
 
+
 		optionFactory.addParserAfter(Integer.class, (context, argument, content) -> {
 			Integer lowerLimit = argument.getProperty("lowerLimit", Integer.class);
 			if (lowerLimit != null) {
@@ -275,6 +276,11 @@ public class Sx4 {
 			builder.setProperty("url", parameter.isAnnotationPresent(Url.class));
 			builder.setProperty("lowercase", parameter.isAnnotationPresent(Lowercase.class));
 			builder.setProperty("uppercase", parameter.isAnnotationPresent(Uppercase.class));
+
+			Limit limit = parameter.getAnnotation(Limit.class);
+			if (limit != null) {
+				builder.setProperty("charLimit", limit.max());
+			}
 			
 			DefaultString defaultString = parameter.getAnnotation(DefaultString.class);
 			if (defaultString != null) {
@@ -523,6 +529,11 @@ public class Sx4 {
 			});
 		
 		argumentFactory.addParserAfter(String.class, (context, argument, content) -> {
+			Integer charLimit = argument.getProperty("charLimit", Integer.class);
+			if (charLimit != null && content.length() > charLimit) {
+				return new ParsedResult<>();
+			}
+
 			if (argument.getProperty("lowercase", false)) {
 				content = content.toLowerCase();
 			}
@@ -587,6 +598,11 @@ public class Sx4 {
 			}).registerResponse(String.class, (argument, message, content) -> {
 				if (argument.getProperty("imageUrl", false) || argument.getProperty("url", false)) {
 					message.getChannel().sendMessage("Invalid url given " + this.config.getFailureEmote()).queue();
+				}
+			}).registerResponse(String.class, (argument, message, content) -> {
+				Integer charLimit = argument.getProperty("charLimit");
+				if (charLimit != null && content.length() > charLimit) {
+					message.getChannel().sendMessageFormat("You cannot use more than **%,d** character%s for `%s` %s", charLimit, charLimit == 1 ? "" : "s", argument.getName(), this.config.getFailureEmote()).queue();
 				}
 			});
 	}

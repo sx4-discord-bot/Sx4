@@ -97,7 +97,7 @@ public class ModLogCommand extends Sx4Command {
 
 			long modified = result.getModifiedCount();
 			if (modified == 0) {
-				event.replyFailure("You were unable to update any of those mod logs").queue();
+				event.replyFailure("You were unable to update any of those mod logs or you provided an invalid range").queue();
 				return;
 			}
 

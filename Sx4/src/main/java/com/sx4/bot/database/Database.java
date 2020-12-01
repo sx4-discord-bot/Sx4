@@ -29,7 +29,8 @@ public class Database {
 	public static Database get() {
 		return Database.INSTANCE;
 	}
-	
+
+	private final IndexOptions uniqueIndex = new IndexOptions().unique(true);
 	private final UpdateOptions updateOptions = new UpdateOptions().upsert(true);
 	private final FindOneAndUpdateOptions findOneAndUpdateOptions = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER).upsert(true);
 	
@@ -38,6 +39,9 @@ public class Database {
 	
 	private final MongoCollection<Document> guilds;
 	private final MongoCollection<Document> users;
+
+	private final MongoCollection<Document> warns;
+	private final MongoCollection<Document> mutes;
 	
 	private final MongoCollection<Document> giveaways;
 
@@ -52,9 +56,10 @@ public class Database {
 	private final MongoCollection<Document> modLogs;
 	private final MongoCollection<Document> commands;
 	private final MongoCollection<Document> messages;
-	
-	private final MongoCollection<Document> resubscriptions;
-	private final MongoCollection<Document> notifications;
+
+	private final MongoCollection<Document> youtubeNotifications;
+	private final MongoCollection<Document> youtubeSubscriptions;
+	private final MongoCollection<Document> youtubeNotificationLogs;
 	
 	private final MongoCollection<Document> offences;
 	
@@ -71,6 +76,18 @@ public class Database {
 		
 		this.users = this.database.getCollection("users");
 		this.guilds = this.database.getCollection("guilds");
+
+		Bson guildId = Indexes.descending("guildId"), userId = Indexes.descending("userId");
+
+		this.warns = this.database.getCollection("warns");
+		this.warns.createIndex(Indexes.compoundIndex(guildId, userId), this.uniqueIndex);
+		this.warns.createIndex(guildId);
+		this.warns.createIndex(userId);
+
+		this.mutes = this.database.getCollection("mutes");
+		this.mutes.createIndex(Indexes.compoundIndex(guildId, userId), this.uniqueIndex);
+		this.mutes.createIndex(guildId);
+		this.mutes.createIndex(userId);
 		
 		this.giveaways = this.database.getCollection("giveaways");
 		this.giveaways.createIndex(Indexes.descending("guildId"));
@@ -98,17 +115,24 @@ public class Database {
 		this.modLogs.createIndex(Indexes.descending("targetId"));
 		
 		this.commands = this.database.getCollection("commands");
-		this.commands.createIndex(Indexes.descending("timestamp"));
 		this.commands.createIndex(Indexes.descending("authorId"));
 		this.commands.createIndex(Indexes.descending("guildId"));
 		this.commands.createIndex(Indexes.descending("command"));
 		this.commands.createIndex(Indexes.descending("channelId"));
 		
 		this.messages = this.database.getCollection("messages");
-		this.messages.createIndex(Indexes.descending("updated"), new IndexOptions().expireAfter(7L, TimeUnit.DAYS));
-		
-		this.resubscriptions = this.database.getCollection("resubscriptions");
-		this.notifications = this.database.getCollection("notifications");
+		this.messages.createIndex(Indexes.descending("updated"), new IndexOptions().expireAfter(14L, TimeUnit.DAYS));
+
+		this.youtubeNotifications = this.database.getCollection("youtubeNotifications");
+
+		Bson uploaderId = Indexes.descending("uploaderId"), channelId = Indexes.descending("channelId");
+		this.youtubeNotifications.createIndex(Indexes.compoundIndex(channelId, uploaderId), this.uniqueIndex);
+		this.youtubeNotifications.createIndex(uploaderId);
+		this.youtubeNotifications.createIndex(channelId);
+		this.youtubeNotifications.createIndex(Indexes.descending("guildId"));
+
+		this.youtubeSubscriptions = this.database.getCollection("youtubeSubscriptions");
+		this.youtubeNotificationLogs = this.database.getCollection("youtubeNotificationLogs");
 		
 		this.offences = this.database.getCollection("offences");
 		this.offences.createIndex(Indexes.descending("authorId"));
@@ -120,6 +144,70 @@ public class Database {
 	
 	public MongoDatabase getDatabase() {
 		return this.database;
+	}
+
+	public MongoCollection<Document> getYouTubeNotifications() {
+		return this.youtubeNotifications;
+	}
+
+	public FindIterable<Document> getYouTubeNotifications(Bson filter, Bson projection) {
+		return this.youtubeNotifications.find(filter).projection(projection);
+	}
+
+	public long countYouTubeNotifications(Bson filter, CountOptions options) {
+		return this.youtubeNotifications.countDocuments(filter, options);
+	}
+
+	public Document getYouTubeNotification(Bson filter, Bson projection) {
+		return this.getYouTubeNotifications(filter, projection).first();
+	}
+
+	public CompletableFuture<InsertOneResult> insertYouTubeNotification(Document data) {
+		return CompletableFuture.supplyAsync(() -> this.youtubeNotifications.insertOne(data));
+	}
+
+	public CompletableFuture<Document> findAndDeleteYouTubeNotificationById(ObjectId id, FindOneAndDeleteOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.youtubeNotifications.findOneAndDelete(Filters.eq("_id", id), options));
+	}
+
+	public CompletableFuture<DeleteResult> deleteYouTubeNotificationById(ObjectId id) {
+		return CompletableFuture.supplyAsync(() -> this.youtubeNotifications.deleteOne(Filters.eq("_id", id)));
+	}
+
+	public CompletableFuture<DeleteResult> deleteManyYouTubeNotifications(Bson filter) {
+		return CompletableFuture.supplyAsync(() -> this.youtubeNotifications.deleteMany(filter));
+	}
+
+	public CompletableFuture<Document> findAndUpdateYouTubeNotification(Bson filter, Bson update, FindOneAndUpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.youtubeNotifications.findOneAndUpdate(filter, update, options));
+	}
+
+	public CompletableFuture<Document> findAndUpdateYouTubeNotificationById(ObjectId id, Bson update, FindOneAndUpdateOptions options) {
+		return this.findAndUpdateYouTubeNotification(Filters.eq("_id", id), update, options);
+	}
+
+	public CompletableFuture<UpdateResult> updateYouTubeNotification(Bson filter, Bson update, UpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.youtubeNotifications.updateOne(filter, update, options));
+	}
+
+	public CompletableFuture<UpdateResult> updateYouTubeNotificationById(ObjectId id, Bson update, UpdateOptions options) {
+		return this.updateYouTubeNotification(Filters.eq("_id", id), update, options);
+	}
+
+	public CompletableFuture<UpdateResult> updateYouTubeNotificationById(ObjectId id, Bson update) {
+		return this.updateYouTubeNotification(Filters.eq("_id", id), update, this.updateOptions);
+	}
+
+	public CompletableFuture<UpdateResult> updateYouTubeNotification(Bson filter, Bson update) {
+		return this.updateYouTubeNotification(filter, update, this.updateOptions);
+	}
+
+	public CompletableFuture<UpdateResult> updateManyYouTubeNotifications(Bson filter, Bson update, UpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.youtubeNotifications.updateMany(filter, update, options));
+	}
+
+	public CompletableFuture<UpdateResult> updateManyYouTubeNotifications(Bson filter, Bson update) {
+		return this.updateManyYouTubeNotifications(filter, update, this.updateOptions);
 	}
 
 	public MongoCollection<Document> getRedirects() {
@@ -681,42 +769,46 @@ public class Database {
 		return CompletableFuture.supplyAsync(() -> this.modLogs.updateMany(Database.EMPTY_DOCUMENT, update, this.updateOptions));
 	}
 	
-	public MongoCollection<Document> getResubscriptions() {
-		return this.resubscriptions;
+	public MongoCollection<Document> getYouTubeSubscriptions() {
+		return this.youtubeSubscriptions;
 	}
 	
-	public long countResubscriptionDocuments(Bson filter) {
-		return this.resubscriptions.countDocuments(filter);
+	public long countYouTubeSubscriptionDocuments(Bson filter) {
+		return this.youtubeSubscriptions.countDocuments(filter);
 	}
 	
-	public CompletableFuture<DeleteResult> deleteResubscription(Bson filter) {
-		return CompletableFuture.supplyAsync(() -> this.resubscriptions.deleteOne(filter));
+	public CompletableFuture<DeleteResult> deleteYouTubeSubscription(Bson filter) {
+		return CompletableFuture.supplyAsync(() -> this.youtubeSubscriptions.deleteOne(filter));
 	}
 	
-	public CompletableFuture<UpdateResult> updateResubscriptionById(String channelId, Bson update) {
-		return CompletableFuture.supplyAsync(() -> this.resubscriptions.updateOne(Filters.eq("_id", channelId), update, this.updateOptions));
+	public CompletableFuture<UpdateResult> updateYouTubeSubscriptionById(String channelId, Bson update) {
+		return CompletableFuture.supplyAsync(() -> this.youtubeSubscriptions.updateOne(Filters.eq("_id", channelId), update, this.updateOptions));
 	}
 	
-	public CompletableFuture<BulkWriteResult> bulkWriteResubscriptions(List<? extends WriteModel<? extends Document>> bulkData) {
-		return CompletableFuture.supplyAsync(() -> this.resubscriptions.bulkWrite(bulkData));
+	public CompletableFuture<BulkWriteResult> bulkWriteYouTubeSubscriptions(List<? extends WriteModel<? extends Document>> bulkData) {
+		return CompletableFuture.supplyAsync(() -> this.youtubeSubscriptions.bulkWrite(bulkData));
+	}
+
+	public MongoCollection<Document> getYoutubeNotificationLogs() {
+		return this.youtubeNotificationLogs;
 	}
 	
-	public FindIterable<Document> getNotifications(Bson filter, Bson projection) {
-		return this.notifications.find(filter).projection(projection).sort(Sorts.descending("_id"));
+	public FindIterable<Document> getYouTubeNotificationLogs(Bson filter, Bson projection) {
+		return this.youtubeNotificationLogs.find(filter).projection(projection);
 	}
 	
-	public Document getNotification(Bson filter, Bson projection) {
-		Document data = this.getNotifications(filter, projection).first();
+	public Document getYouTubeNotificationLog(Bson filter, Bson projection) {
+		Document data = this.getYouTubeNotificationLogs(filter, projection).first();
 		
 		return data == null ? Database.EMPTY_DOCUMENT : data;
 	}
 	
-	public CompletableFuture<InsertOneResult> insertNotification(Document data) {
-		return CompletableFuture.supplyAsync(() -> this.notifications.insertOne(data));
+	public CompletableFuture<InsertOneResult> insertYouTubeNotificationLog(Document data) {
+		return CompletableFuture.supplyAsync(() -> this.youtubeNotificationLogs.insertOne(data));
 	}
 	
-	public CompletableFuture<DeleteResult> deleteManyNotifications(String videoId) {
-		return CompletableFuture.supplyAsync(() -> this.notifications.deleteMany(Filters.eq("videoId", videoId)));
+	public CompletableFuture<DeleteResult> deleteManyYouTubeNotificationLogs(String videoId) {
+		return CompletableFuture.supplyAsync(() -> this.youtubeNotificationLogs.deleteMany(Filters.eq("videoId", videoId)));
 	}
 	
 	public MongoCollection<Document> getCommands() {
