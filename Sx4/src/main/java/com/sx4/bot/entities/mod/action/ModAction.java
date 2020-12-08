@@ -5,7 +5,7 @@ import java.util.Arrays;
 public enum ModAction {
 
 	BAN("Ban", 0, true),
-	TEMP_BAN("Temporary Ban", 1, true),
+	TEMPORARY_BAN("Temporary Ban", 1, true),
 	UNBAN("Unban", 2, false),
 	KICK("Kick", 3, true),
 	MUTE("Mute", 4, true),

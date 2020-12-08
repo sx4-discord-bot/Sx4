@@ -57,7 +57,7 @@ public class ConnectionHandler extends ListenerAdapter {
 		if (++this.readyEventsCalled == jda.getShardInfo().getShardTotal()) {
 			ReminderManager.get().ensureReminders();
 			MuteManager.get().ensureMutes();
-			TempBanManager.get().ensureBans();
+			TemporaryBanManager.get().ensureBans();
 			AutoRoleManager.get().ensureAutoRoles();
 			GiveawayManager.get().ensureGiveaways();
 			AntiRegexManager.get().ensureAttempts();

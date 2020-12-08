@@ -17,11 +17,13 @@ import com.jockie.bot.core.option.factory.impl.OptionFactory;
 import com.jockie.bot.core.option.factory.impl.OptionFactoryImpl;
 import com.jockie.bot.core.parser.ParsedResult;
 import com.jockie.bot.core.parser.impl.essential.EnumParser;
+import com.mongodb.client.model.Projections;
 import com.sx4.api.Sx4Server;
 import com.sx4.bot.annotations.argument.*;
 import com.sx4.bot.cache.GuildMessageCache;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.config.Config;
+import com.sx4.bot.database.Database;
 import com.sx4.bot.entities.argument.*;
 import com.sx4.bot.entities.management.AutoRoleFilter;
 import com.sx4.bot.entities.mod.PartialEmote;
@@ -44,6 +46,7 @@ import net.dv8tion.jda.api.requests.restaction.MessageAction;
 import net.dv8tion.jda.api.sharding.DefaultShardManagerBuilder;
 import net.dv8tion.jda.api.sharding.ShardManager;
 import okhttp3.OkHttpClient;
+import org.bson.Document;
 import org.bson.types.ObjectId;
 
 import javax.security.auth.login.LoginException;
@@ -207,19 +210,34 @@ public class Sx4 {
 				
 				channel.sendMessage(HelpUtility.getHelpMessage(failures.get(0).getCommand(), embed)).queue();
 			}).addPreExecuteCheck((event, command) -> {
+				Database database = Database.get();
+
+				Document guildData = database.getGuildById(event.getGuild().getIdLong(), Projections.include("prefixes", "fakePermissions.holders"));
+
+				List<Document> holders = guildData.getEmbedded(List.of("fakePermissions", "holders"), Collections.emptyList());
+				event.setProperty("fakePermissions", holders);
+
+				List<String> guildPrefixes = guildData.get("prefixes", Collections.emptyList());
+				List<String> userPrefixes = database.getUserById(event.getAuthor().getIdLong(), Projections.include("prefixes")).get("prefixes", Collections.emptyList());
+
+				List<String> prefixes = userPrefixes.isEmpty() ? guildPrefixes.isEmpty() ? event.getCommandListener().getDefaultPrefixes() : guildPrefixes : userPrefixes;
+				event.setProperty("prefixes", prefixes);
+
+				return true;
+			}).addPreExecuteCheck((event, command) -> {
 				Set<Permission> permissions = command.getAuthorDiscordPermissions();
 				if (permissions.isEmpty()) {
 					return true;
 				}
 
-				EnumSet<Permission> missingPermissions = CheckUtility.missingPermissions(event.getMember(), event.getTextChannel(), EnumSet.copyOf(permissions));
+				EnumSet<Permission> missingPermissions = CheckUtility.missingPermissions(event.getMember(), event.getTextChannel(), event.getProperty("fakePermissions"), EnumSet.copyOf(permissions));
 				if (missingPermissions.isEmpty()) {
 					return true;
 				} else {
 					event.reply(PermissionUtility.formatMissingPermissions(missingPermissions)).queue();
 					return false;
 				}
-			});
+			}).addPreParseCheck(message -> !message.getAuthor().isBot());
 	}
 
 	private void setupOptionFactory() {

@@ -30,7 +30,6 @@ public class Database {
 		return Database.INSTANCE;
 	}
 
-	private final IndexOptions uniqueIndex = new IndexOptions().unique(true);
 	private final UpdateOptions updateOptions = new UpdateOptions().upsert(true);
 	private final FindOneAndUpdateOptions findOneAndUpdateOptions = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER).upsert(true);
 	
@@ -42,6 +41,7 @@ public class Database {
 
 	private final MongoCollection<Document> warns;
 	private final MongoCollection<Document> mutes;
+	private final MongoCollection<Document> temporaryBans;
 	
 	private final MongoCollection<Document> giveaways;
 
@@ -70,6 +70,8 @@ public class Database {
 			.addCommandListener(handler)
 			.applyToClusterSettings(clusterSettings -> clusterSettings.addClusterListener(handler))
 			.build();
+
+		IndexOptions uniqueIndex = new IndexOptions().unique(true);
 		
 		this.client = MongoClients.create(settings);
 		this.database = this.client.getDatabase(Config.get().getDatabase());
@@ -80,14 +82,19 @@ public class Database {
 		Bson guildId = Indexes.descending("guildId"), userId = Indexes.descending("userId");
 
 		this.warns = this.database.getCollection("warns");
-		this.warns.createIndex(Indexes.compoundIndex(guildId, userId), this.uniqueIndex);
+		this.warns.createIndex(Indexes.compoundIndex(guildId, userId), uniqueIndex);
 		this.warns.createIndex(guildId);
 		this.warns.createIndex(userId);
 
 		this.mutes = this.database.getCollection("mutes");
-		this.mutes.createIndex(Indexes.compoundIndex(guildId, userId), this.uniqueIndex);
+		this.mutes.createIndex(Indexes.compoundIndex(guildId, userId), uniqueIndex);
 		this.mutes.createIndex(guildId);
 		this.mutes.createIndex(userId);
+
+		this.temporaryBans = this.database.getCollection("temporaryBans");
+		this.temporaryBans.createIndex(Indexes.compoundIndex(guildId, userId), uniqueIndex);
+		this.temporaryBans.createIndex(guildId);
+		this.temporaryBans.createIndex(userId);
 		
 		this.giveaways = this.database.getCollection("giveaways");
 		this.giveaways.createIndex(Indexes.descending("guildId"));
@@ -125,10 +132,9 @@ public class Database {
 
 		this.youtubeNotifications = this.database.getCollection("youtubeNotifications");
 
-		Bson uploaderId = Indexes.descending("uploaderId"), channelId = Indexes.descending("channelId");
-		this.youtubeNotifications.createIndex(Indexes.compoundIndex(channelId, uploaderId), this.uniqueIndex);
-		this.youtubeNotifications.createIndex(uploaderId);
-		this.youtubeNotifications.createIndex(channelId);
+		this.youtubeNotifications.createIndex(Indexes.descending("channelId", "uploaderId"), uniqueIndex);
+		this.youtubeNotifications.createIndex(Indexes.descending("channelId"));
+		this.youtubeNotifications.createIndex(Indexes.descending("uploaderId"));
 		this.youtubeNotifications.createIndex(Indexes.descending("guildId"));
 
 		this.youtubeSubscriptions = this.database.getCollection("youtubeSubscriptions");
@@ -144,6 +150,122 @@ public class Database {
 	
 	public MongoDatabase getDatabase() {
 		return this.database;
+	}
+
+	public MongoCollection<Document> getTemporaryBans() {
+		return this.temporaryBans;
+	}
+
+	public FindIterable<Document> getTemporaryBans(Bson filter, Bson projection) {
+		return this.temporaryBans.find(filter).projection(projection);
+	}
+
+	public Document getTemporaryBan(Bson filter, Bson projection) {
+		return this.getTemporaryBans(filter, projection).first();
+	}
+
+	public CompletableFuture<UpdateResult> updateTemporaryBan(Bson filter, Bson update, UpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.temporaryBans.updateOne(filter, update, options));
+	}
+
+	public CompletableFuture<UpdateResult> updateTemporaryBan(Bson filter, Bson update) {
+		return this.updateTemporaryBan(filter, update, this.updateOptions);
+	}
+
+	public CompletableFuture<UpdateResult> updateTemporaryBan(Bson filter, List<Bson> update, UpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.temporaryBans.updateOne(filter, update, options));
+	}
+
+	public CompletableFuture<UpdateResult> updateTemporaryBan(Bson filter, List<Bson> update) {
+		return this.updateTemporaryBan(filter, update, this.updateOptions);
+	}
+
+	public CompletableFuture<DeleteResult> deleteTemporaryBan(Bson filter) {
+		return CompletableFuture.supplyAsync(() -> this.temporaryBans.deleteOne(filter));
+	}
+
+	public CompletableFuture<DeleteResult> deleteTemporaryBan(DeleteOneModel<Document> model) {
+		return this.deleteTemporaryBan(model.getFilter());
+	}
+
+	public CompletableFuture<BulkWriteResult> bulkWriteTemporaryBans(List<WriteModel<Document>> bulkData) {
+		return CompletableFuture.supplyAsync(() -> this.temporaryBans.bulkWrite(bulkData));
+	}
+
+	public MongoCollection<Document> getWarns() {
+		return this.warns;
+	}
+
+	public FindIterable<Document> getWarns(Bson filter, Bson projection) {
+		return this.warns.find(filter).projection(projection);
+	}
+
+	public Document getWarn(Bson filter, Bson projection) {
+		return this.getWarns(filter, projection).first();
+	}
+
+	public CompletableFuture<UpdateResult> updateWarn(Bson filter, List<Bson> update, UpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.warns.updateOne(filter, update, options));
+	}
+
+	public CompletableFuture<UpdateResult> updateWarn(Bson filter, List<Bson> update) {
+		return this.updateWarn(filter, update, this.updateOptions);
+	}
+
+	public CompletableFuture<Document> findAndUpdateWarn(Bson filter, List<Bson> update, FindOneAndUpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.warns.findOneAndUpdate(filter, update, options));
+	}
+
+	public CompletableFuture<Document> findAndUpdateWarn(Bson filter, List<Bson> update) {
+		return this.findAndUpdateWarn(filter, update, this.findOneAndUpdateOptions);
+	}
+
+	public MongoCollection<Document> getMutes() {
+		return this.mutes;
+	}
+
+	public FindIterable<Document> getMutes(Bson filter, Bson projection) {
+		return this.mutes.find(filter).projection(projection);
+	}
+
+	public Document getMute(Bson filter, Bson projection) {
+		return this.getMutes(filter, projection).first();
+	}
+
+	public CompletableFuture<BulkWriteResult> bulkWriteMutes(List<WriteModel<Document>> bulkData) {
+		return CompletableFuture.supplyAsync(() -> this.mutes.bulkWrite(bulkData));
+	}
+
+	public CompletableFuture<DeleteResult> deleteMute(Bson filter) {
+		return CompletableFuture.supplyAsync(() -> this.mutes.deleteOne(filter));
+	}
+
+	public CompletableFuture<DeleteResult> deleteMute(DeleteOneModel<Document> model) {
+		return this.deleteMute(model.getFilter());
+	}
+
+	public CompletableFuture<InsertOneResult> insertMute(Document data) {
+		return CompletableFuture.supplyAsync(() -> this.mutes.insertOne(data));
+	}
+
+	public CompletableFuture<UpdateResult> updateMute(Bson filter, Bson update, UpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.mutes.updateOne(filter, update, options));
+	}
+
+	public CompletableFuture<UpdateResult> updateMute(Bson filter, Bson update) {
+		return this.updateMute(filter, update, this.updateOptions);
+	}
+
+	public CompletableFuture<UpdateResult> updateMute(Bson filter, List<Bson> update, UpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.mutes.updateOne(filter, update, options));
+	}
+
+	public CompletableFuture<UpdateResult> updateMute(Bson filter, List<Bson> update) {
+		return this.updateMute(filter, update, this.updateOptions);
+	}
+
+	public CompletableFuture<Document> findAndUpdateMute(Bson filter, List<Bson> update, FindOneAndUpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.mutes.findOneAndUpdate(filter, update, options));
 	}
 
 	public MongoCollection<Document> getYouTubeNotifications() {

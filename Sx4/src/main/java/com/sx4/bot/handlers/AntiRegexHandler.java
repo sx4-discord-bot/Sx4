@@ -15,7 +15,7 @@ import com.sx4.bot.formatter.Formatter;
 import com.sx4.bot.managers.AntiRegexManager;
 import com.sx4.bot.managers.ModActionManager;
 import com.sx4.bot.managers.MuteManager;
-import com.sx4.bot.managers.TempBanManager;
+import com.sx4.bot.managers.TemporaryBanManager;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.ModUtility;
 import net.dv8tion.jda.api.Permission;
@@ -42,7 +42,7 @@ public class AntiRegexHandler extends ListenerAdapter {
     private final AntiRegexManager manager = AntiRegexManager.get();
     private final ModActionManager modActionManager = ModActionManager.get();
     private final MuteManager muteManager = MuteManager.get();
-    private final TempBanManager banManager = TempBanManager.get();
+    private final TemporaryBanManager banManager = TemporaryBanManager.get();
     private final Database database = Database.get();
     private final Config config = Config.get();
 
@@ -255,7 +255,7 @@ public class AntiRegexHandler extends ListenerAdapter {
                             });
 
                             break;
-                        case TEMP_BAN:
+                        case TEMPORARY_BAN:
                             if (!selfMember.hasPermission(Permission.BAN_MEMBERS)) {
                                 if (canSend) {
                                     textChannel.sendMessage("I failed to ban **" + member.getUser().getAsTag() + "** due to missing the Ban Members permission " + this.config.getFailureEmote()).queue();
@@ -274,24 +274,24 @@ public class AntiRegexHandler extends ListenerAdapter {
 
                             this.manager.clearAttempts(guildId, id, userId);
 
-                            Object banSeconds = action instanceof TimeAction ? ((TimeAction) action).getDuration() : Operators.ifNull("$tempBan.defaultTime", 86400L);
+                            Object banSeconds = action instanceof TimeAction ? ((TimeAction) action).getDuration() : Operators.ifNull("$temporaryBan.defaultTime", 86400L);
 
-                            Bson banFilter = Operators.filter("$tempBan.users", Operators.eq("$$this.id", userId));
+                            Bson banFilter = Operators.filter("$temporaryBan.users", Operators.eq("$$this.id", userId));
                             update = List.of(
                                 Operators.set("antiRegex.regexes", Operators.concatArrays(List.of(Operators.mergeObjects(Operators.first(regexFilter), new Document("users", Operators.filter(Operators.first(Operators.map(regexFilter, "$$this.users")), Operators.ne("$$this.id", userId))))), Operators.filter("$antiRegex.regexes", Operators.ne("$$this.id", id)))),
-                                Operators.set("tempBan.users", Operators.concatArrays(List.of(Operators.mergeObjects(Operators.ifNull(Operators.first(banFilter), Database.EMPTY_DOCUMENT), new Document("id", user.getIdLong()).append("unbanAt", Operators.add(Operators.nowEpochSecond(), banSeconds)))), Operators.ifNull(Operators.filter("$tempBan.users", Operators.ne("$$this.id", user.getIdLong())), Collections.EMPTY_LIST)))
+                                Operators.set("temporaryBan.users", Operators.concatArrays(List.of(Operators.mergeObjects(Operators.ifNull(Operators.first(banFilter), Database.EMPTY_DOCUMENT), new Document("id", user.getIdLong()).append("unbanAt", Operators.add(Operators.nowEpochSecond(), banSeconds)))), Operators.ifNull(Operators.filter("$temporaryBan.users", Operators.ne("$$this.id", user.getIdLong())), Collections.EMPTY_LIST)))
                             );
 
-                            FindOneAndUpdateOptions banFindOptions = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("tempBan.defaultTime"));
+                            FindOneAndUpdateOptions banFindOptions = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("temporaryBan.defaultTime"));
                             this.database.findAndUpdateGuildById(guildId, update, banFindOptions).whenComplete((data, exception) -> {
                                 if (ExceptionUtility.sendErrorMessage(exception)) {
                                     return;
                                 }
 
-                                long duration =  data == null ? 86400L : action instanceof TimeAction ? ((TimeAction) action).getDuration() : data.getEmbedded(List.of("tempBan", "defaultTime"), 86400L);
+                                long duration =  data == null ? 86400L : action instanceof TimeAction ? ((TimeAction) action).getDuration() : data.getEmbedded(List.of("temporaryBan", "defaultTime"), 86400L);
 
                                 guild.ban(user, 1).reason(ModUtility.getAuditReason(reason, selfMember.getUser())).queue($ -> {
-                                    this.modActionManager.onModAction(new TempBanEvent(selfMember, user, reason, true, duration));
+                                    this.modActionManager.onModAction(new TemporaryBanEvent(selfMember, user, reason, true, duration));
 
                                     this.banManager.putBan(guildId, userId, duration);
                                 });

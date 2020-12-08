@@ -43,8 +43,8 @@ public class ModActionManager {
 			if (event instanceof BanEvent) {
 				listener.onBan((BanEvent) event);
 
-				if (event instanceof TempBanEvent) {
-					listener.onTempBan((TempBanEvent) event);
+				if (event instanceof TemporaryBanEvent) {
+					listener.onTemporaryBan((TemporaryBanEvent) event);
 				}
 			}
 

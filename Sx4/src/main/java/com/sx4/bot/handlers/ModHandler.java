@@ -12,12 +12,11 @@ import com.sx4.bot.events.mod.KickEvent;
 import com.sx4.bot.events.mod.ModActionEvent;
 import com.sx4.bot.events.mod.MuteEvent;
 import com.sx4.bot.events.mod.MuteExtendEvent;
-import com.sx4.bot.events.mod.TempBanEvent;
+import com.sx4.bot.events.mod.TemporaryBanEvent;
 import com.sx4.bot.events.mod.UnbanEvent;
 import com.sx4.bot.events.mod.UnmuteEvent;
 import com.sx4.bot.events.mod.WarnEvent;
 import com.sx4.bot.hooks.ModActionListener;
-import com.sx4.bot.utility.ExceptionUtility;
 
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.TextChannel;
@@ -72,7 +71,7 @@ public class ModHandler implements ModActionListener, EventListener {
 		
 	}
 	
-	public void onTempBan(TempBanEvent event) {
+	public void onTemporaryBan(TemporaryBanEvent event) {
 		
 	}
 	

@@ -24,7 +24,7 @@ public class Sx4Command extends CommandImpl {
 	public final YouTubeManager youtubeManager = YouTubeManager.get();
 	public final ModActionManager modManager = ModActionManager.get();
 	public final MuteManager muteManager = MuteManager.get();
-	public final TempBanManager banManager = TempBanManager.get();
+	public final TemporaryBanManager banManager = TemporaryBanManager.get();
 	public final ReminderManager reminderManager = ReminderManager.get();
 	public final GiveawayManager giveawayManager = GiveawayManager.get();
 	

@@ -18,19 +18,19 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
-public class TempBanManager {
+public class TemporaryBanManager {
 
-private static final TempBanManager INSTANCE = new TempBanManager();
+private static final TemporaryBanManager INSTANCE = new TemporaryBanManager();
 	
-	public static TempBanManager get() {
-		return TempBanManager.INSTANCE;
+	public static TemporaryBanManager get() {
+		return TemporaryBanManager.INSTANCE;
 	}
 	
 	private final Map<Long, Map<Long, ScheduledFuture<?>>> executors;
 	
 	private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
 	
-	private TempBanManager() {
+	private TemporaryBanManager() {
 		this.executors = new HashMap<>();
 	}
 	
@@ -83,7 +83,7 @@ private static final TempBanManager INSTANCE = new TempBanManager();
 		this.putExecutor(guildId, userId, executor);
 	}
 
-	public UpdateOneModel<Document> removeBanAndGet(long guildId, long userId) {
+	public DeleteOneModel<Document> removeBanAndGet(long guildId, long userId) {
 		ShardManager shardManager = Sx4.get().getShardManager();
 
 		Guild guild = shardManager.getGuildById(guildId);
@@ -101,13 +101,13 @@ private static final TempBanManager INSTANCE = new TempBanManager();
 		ModActionManager.get().onModAction(new UnbanEvent(guild.getSelfMember(), user, new Reason("Ban length served")));
 		this.deleteExecutor(guildId, userId);
 
-		return new UpdateOneModel<>(Filters.eq("_id", guildId), Updates.pull("tempBan.users", Filters.eq("id", userId)));
+		return new DeleteOneModel<>(Filters.and(Filters.eq("guildId", guildId), Filters.eq("userId", userId)));
 	}
 	
 	public void removeBan(long guildId, long userId) {
-		UpdateOneModel<Document> model = this.removeBanAndGet(guildId, userId);
+		DeleteOneModel<Document> model = this.removeBanAndGet(guildId, userId);
 		if (model != null) {
-			Database.get().updateGuild(model).whenComplete(Database.exceptionally());
+			Database.get().deleteTemporaryBan(model).whenComplete(Database.exceptionally());
 		}
 	}
 
@@ -115,23 +115,20 @@ private static final TempBanManager INSTANCE = new TempBanManager();
 		Database database = Database.get();
 
 		List<WriteModel<Document>> bulkData = new ArrayList<>();
-		database.getGuilds(Filters.elemMatch("tempBan.users", Filters.exists("id")), Projections.include("tempBan.users")).forEach(data -> {
-			List<Document> users = data.getEmbedded(List.of("tempBan", "users"), Collections.emptyList());
-			for (Document user : users) {
-				long currentTime = Clock.systemUTC().instant().getEpochSecond(), unbanAt = user.getLong("unbanAt");
-				if (unbanAt > currentTime) {
-					this.putBan(data.get("_id", 0L), user.getLong("id"), unbanAt - currentTime);
-				} else {
-					UpdateOneModel<Document> model = this.removeBanAndGet(data.get("_id", 0L), user.getLong("id"));
-					if (model != null) {
-						bulkData.add(model);
-					}
+		database.getTemporaryBans(Database.EMPTY_DOCUMENT, Projections.include("guildId", "userId", "unbanAt")).forEach(data -> {
+			long currentTime = Clock.systemUTC().instant().getEpochSecond(), unbanAt = data.getLong("unbanAt");
+			if (unbanAt > currentTime) {
+				this.putBan(data.getLong("guildId"), data.getLong("userId"), unbanAt - currentTime);
+			} else {
+				DeleteOneModel<Document> model = this.removeBanAndGet(data.getLong("guildId"), data.getLong("userId"));
+				if (model != null) {
+					bulkData.add(model);
 				}
 			}
 		});
 
 		if (!bulkData.isEmpty()) {
-			database.bulkWriteGuilds(bulkData).whenComplete(Database.exceptionally());
+			database.bulkWriteTemporaryBans(bulkData).whenComplete(Database.exceptionally());
 		}
 	}
 	

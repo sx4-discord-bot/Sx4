@@ -1,9 +1,6 @@
 package com.sx4.bot.utility;
 
-import com.mongodb.client.model.FindOneAndUpdateOptions;
-import com.mongodb.client.model.Projections;
-import com.mongodb.client.model.ReturnDocument;
-import com.mongodb.client.model.Updates;
+import com.mongodb.client.model.*;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.database.model.Operators;
 import com.sx4.bot.entities.mod.Reason;
@@ -18,7 +15,7 @@ import com.sx4.bot.exceptions.mod.BotPermissionException;
 import com.sx4.bot.exceptions.mod.MaxRolesException;
 import com.sx4.bot.managers.ModActionManager;
 import com.sx4.bot.managers.MuteManager;
-import com.sx4.bot.managers.TempBanManager;
+import com.sx4.bot.managers.TemporaryBanManager;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
@@ -27,9 +24,10 @@ import net.dv8tion.jda.api.entities.User;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 
-import java.util.Collections;
+import java.time.Clock;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class ModUtility {
 
@@ -91,66 +89,35 @@ public class ModUtility {
 
 		Guild guild = target.getGuild();
 
-		Bson maxWarnNumber = Operators.ifNull(Operators.reduce("$warn.config", -1, Operators.cond(Operators.gt("$$this.number", "$$value.number"), "$$this.number", "$$value.number")), 4);
-		Bson userFilter = Operators.filter("$warn.users", Operators.eq("$$this.id", target.getIdLong()));
-		Bson amount = Operators.ifNull(Operators.first(Operators.map(userFilter, "$$this.amount")), 0);
-		Bson nextWarnNumber = Operators.cond(Operators.gte(amount, maxWarnNumber), 1, Operators.add(amount, 1));
-		Bson nextWarnFilter = Operators.filter("$warn.config", Operators.eq("$$this.number", nextWarnNumber));
-		Bson nextWarnAction = Operators.ifNull(Operators.first(Operators.map(nextWarnFilter, "$$this.action.type")), ModAction.WARN.getType());
-		Bson nextWarnDuration = Operators.first(Operators.map(nextWarnFilter, "$$this.action.duration"));
+		Document data = database.getGuildById(guild.getIdLong(), Projections.include("warn.config", "mute", "temporaryBan"));
+		List<Document> config = data.getEmbedded(List.of("warn", "config"), Warn.DEFAULT_CONFIG);
 
-		Bson muteExtend = Operators.eq(nextWarnAction, ModAction.MUTE_EXTEND.getType());
-		Bson muteFilter = Operators.filter("$mute.users", Operators.eq("$$this.id", target.getIdLong()));
-		Bson unmuteAt = Operators.first(Operators.map(muteFilter, "$$this.unmuteAt"));
+		int maxWarning = config.stream()
+			.map(d -> d.getInteger("number"))
+			.max(Integer::compareTo)
+			.get();
 
-		Bson permissionCheck = Operators.cond(
-			Operators.or(muteExtend, Operators.eq(nextWarnAction, ModAction.MUTE.getType())), guild.getSelfMember().hasPermission(Permission.MANAGE_ROLES),
-			Operators.cond(Operators.eq(nextWarnAction, ModAction.KICK.getType()), Operators.and(guild.getSelfMember().hasPermission(Permission.KICK_MEMBERS), guild.getSelfMember().canInteract(target), moderator.hasPermission(Permission.KICK_MEMBERS)),
-				Operators.cond(Operators.or(Operators.eq(nextWarnAction, ModAction.BAN.getType()), Operators.eq(nextWarnAction, ModAction.TEMP_BAN.getType())), Operators.and(guild.getSelfMember().hasPermission(Permission.BAN_MEMBERS), guild.getSelfMember().canInteract(target), moderator.hasPermission(Permission.BAN_MEMBERS)), true)
-			)
-		);
+		List<Bson> update = List.of(Operators.set("warnings", Operators.add(Operators.mod(Operators.ifNull("$warnings", 0), maxWarning), 1)));
+		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER).projection(Projections.include("warnings")).upsert(true);
 
-		List<Bson> update = List.of(
-			Operators.set("warn.users", Operators.cond(permissionCheck, Operators.concatArrays(List.of(Operators.mergeObjects(Operators.ifNull(Operators.first(userFilter), Database.EMPTY_DOCUMENT), new Document("id", target.getIdLong()).append("amount", nextWarnNumber))), Operators.ifNull(Operators.filter("$warn.users", Operators.ne("$$this.id", target.getIdLong())), Collections.EMPTY_LIST)), "$warn.users")),
-			Operators.set("mute.users", Operators.cond(Operators.and(permissionCheck, Operators.or(Operators.eq(nextWarnAction, ModAction.MUTE.getType()), muteExtend), Operators.nonNull(nextWarnDuration)), Operators.concatArrays(List.of(Operators.mergeObjects(Operators.ifNull(Operators.first(muteFilter), Database.EMPTY_DOCUMENT), new Document("id", target.getIdLong()).append("unmuteAt", Operators.cond(Operators.and(muteExtend, Operators.nonNull(unmuteAt)), Operators.add(unmuteAt, nextWarnDuration), Operators.add(Operators.nowEpochSecond(), nextWarnDuration))))), Operators.ifNull(Operators.filter("$mute.users", Operators.ne("$$this.id", target.getIdLong())), Collections.EMPTY_LIST)), "$mute.users")),
-			Operators.set("tempBan.users", Operators.cond(Operators.and(permissionCheck, Operators.eq(nextWarnAction, ModAction.TEMP_BAN.getType()), Operators.nonNull(nextWarnDuration)), Operators.concatArrays(List.of(Operators.mergeObjects(Operators.ifNull(Operators.first(Operators.filter("$tempBan.users", Operators.filter("$$this.id", target.getIdLong()))), Database.EMPTY_DOCUMENT), new Document("id", target.getIdLong()).append("unbanAt", Operators.add(Operators.nowEpochSecond(), nextWarnDuration)))), Operators.ifNull(Operators.filter("$tempBan.users", Operators.ne("$$this.id", target.getIdLong())), Collections.EMPTY_LIST)), "$tempBan.users"))
-		);
-
-		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("warn", "mute.roleId", "mute.autoUpdate"));
-		database.findAndUpdateGuildById(guild.getIdLong(), update, options).whenComplete((data, exception) -> {
+		database.findAndUpdateWarn(Filters.and(Filters.eq("guildId", guild.getIdLong()), Filters.eq("userId", target.getIdLong())), update, options).whenComplete((result, exception) -> {
 			if (exception != null) {
 				future.completeExceptionally(exception);
 				return;
 			}
 
-			data = data == null ? Database.EMPTY_DOCUMENT : data;
+			System.out.println(result);
 
-			Document warn = data.get("warn", Database.EMPTY_DOCUMENT);
-
-			List<Document> config = warn.getList("config", Document.class, Warn.DEFAULT_CONFIG);
-			int maxWarning = config.stream()
-				.map(d -> d.getInteger("number"))
-				.max(Integer::compareTo)
-				.get();
-
-			List<Document> users = warn.getList("users", Document.class, Collections.emptyList());
-			int nextWarning = users.stream()
-				.filter(d -> d.getLong("id") == target.getIdLong())
-				.map(d -> {
-					int current = d.getInteger("amount");
-					return current >= maxWarning ? 1 : current + 1;
-				})
-				.findFirst()
-				.orElse(1);
+			int warnings = result.getInteger("warnings");
 
 			Action action = config.stream()
-				.filter(d -> d.getInteger("number") == nextWarning)
+				.filter(d -> d.getInteger("number") == warnings)
 				.map(d -> d.get("action", Document.class))
 				.map(Action::fromData)
 				.findFirst()
 				.orElse(new Action(ModAction.WARN));
 
-			Warn warnConfig = new Warn(action, nextWarning);
+			Warn warnConfig = new Warn(action, warnings);
 
 			switch (action.getModAction()) {
 				case WARN:
@@ -165,16 +132,27 @@ public class ModUtility {
 						return;
 					}
 
-					Document mute = data.get("mute", Database.EMPTY_DOCUMENT);
+					AtomicReference<Role> atomicRole = new AtomicReference<>();
 
-					ModUtility.upsertMuteRole(guild, mute.getLong("roleId"), mute.get("autoUpdate", true)).whenComplete((role, roleException) -> {
-						if (roleException != null) {
-							future.completeExceptionally(roleException);
+					Document mute = data.get("mute", Database.EMPTY_DOCUMENT);
+					long muteDuration = ((TimeAction) action).getDuration();
+					boolean extend = action.getModAction() == ModAction.MUTE_EXTEND;
+
+					ModUtility.upsertMuteRole(guild, mute.get("roleId", 0L), mute.get("autoUpdate", true)).thenCompose(role -> {
+						atomicRole.set(role);
+
+						List<Bson> muteUpdate = List.of(Operators.set("unmuteAt", Operators.add(muteDuration, Operators.cond(Operators.and(extend, Operators.exists("$unmuteAt")), "$unmuteAt", Operators.nowEpochSecond()))));
+						return database.updateMute(Filters.and(Filters.eq("guildId", guild.getIdLong()), Filters.eq("userId", target.getIdLong())), muteUpdate);
+					}).whenComplete((muteResult, muteException) -> {
+						if (muteException != null) {
+							future.completeExceptionally(muteException);
 							return;
 						}
 
+						Role role = atomicRole.get();
+
 						guild.addRoleToMember(target, role).reason(ModUtility.getAuditReason(reason, moderator.getUser())).queue($ -> {
-							muteManager.putMute(guild.getIdLong(), target.getIdLong(), role.getIdLong(), ((TimeAction) action).getDuration(), action.getModAction() == ModAction.MUTE_EXTEND);
+							muteManager.putMute(guild.getIdLong(), target.getIdLong(), role.getIdLong(), muteDuration,extend && muteResult.getUpsertedId() == null);
 
 							manager.onModAction(new WarnEvent(moderator, target.getUser(), reason, warnConfig));
 
@@ -206,7 +184,7 @@ public class ModUtility {
 					});
 
 					break;
-				case TEMP_BAN:
+				case TEMPORARY_BAN:
 					if (!guild.getSelfMember().hasPermission(Permission.BAN_MEMBERS)) {
 						future.completeExceptionally(new BotPermissionException(Permission.BAN_MEMBERS));
 						return;
@@ -222,12 +200,22 @@ public class ModUtility {
 						return;
 					}
 
-					target.ban(1).reason(ModUtility.getAuditReason(reason, moderator.getUser())).queue($ -> {
-						manager.onModAction(new WarnEvent(moderator, target.getUser(), reason, warnConfig));
+					long temporaryBanDuration = ((TimeAction) action).getDuration();
 
-						TempBanManager.get().putBan(guild.getIdLong(), target.getIdLong(), ((TimeAction) action).getDuration());
+					Bson temporaryBanUpdate = Updates.set("unbanAt", Clock.systemUTC().instant().getEpochSecond() + temporaryBanDuration);
+					database.updateTemporaryBan(Filters.and(Filters.eq("guildId", guild.getIdLong()), Filters.eq("userId", target.getIdLong())), temporaryBanUpdate).whenComplete((temporaryBanResult, temporaryBanException) -> {
+						if (temporaryBanException != null) {
+							future.completeExceptionally(temporaryBanException);
+							return;
+						}
 
-						future.complete(warnConfig);
+						target.ban(1).reason(ModUtility.getAuditReason(reason, moderator.getUser())).queue($ -> {
+							manager.onModAction(new WarnEvent(moderator, target.getUser(), reason, warnConfig));
+
+							TemporaryBanManager.get().putBan(guild.getIdLong(), target.getIdLong(), ((TimeAction) action).getDuration());
+
+							future.complete(warnConfig);
+						});
 					});
 
 					break;

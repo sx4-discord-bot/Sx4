@@ -2,9 +2,8 @@ package com.sx4.bot.commands.mod;
 
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.option.Option;
-import com.mongodb.client.model.FindOneAndUpdateOptions;
+import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Projections;
-import com.mongodb.client.model.ReturnDocument;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
@@ -20,13 +19,13 @@ import com.sx4.bot.utility.ModUtility;
 import com.sx4.bot.utility.TimeUtility;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Member;
+import net.dv8tion.jda.api.entities.Role;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 
 import java.time.Duration;
-import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class MuteCommand extends Sx4Command {
 
@@ -40,7 +39,6 @@ public class MuteCommand extends Sx4Command {
 		super.setCategoryAll(ModuleCategory.MODERATION);
 	}
 
-	// TODO: Find a good way to avoid pushing data if a role failure happens, maybe cache mute roles
 	public void onCommand(Sx4CommandEvent event, @Argument(value="user") Member member, @Argument(value="time", nullDefault=true) Duration time, @Argument(value="reason", endless=true, nullDefault=true) Reason reason, @Option(value="extend", description="Will extend the mute of the user if muted") boolean extend) {
 		if (!event.getMember().canInteract(member)) {
 			event.replyFailure("You cannot mute someone higher or equal than your top role").queue();
@@ -52,23 +50,19 @@ public class MuteCommand extends Sx4Command {
 			return;
 		}
 
-		Object seconds = time == null ? Operators.ifNull("$mute.defaultTime", 1800L) : time.toSeconds();
-		AtomicLong atomicDuration = new AtomicLong();
+		long guildId = event.getGuild().getIdLong(), userId = member.getIdLong();
 
-		Bson muteFilter = Operators.filter("$mute.users", Operators.eq("$$this.id", member.getIdLong()));
-		Bson unmuteAt = Operators.first(Operators.map(muteFilter, "$$this.unmuteAt"));
+		Document mute = this.database.getGuildById(guildId, Projections.include("mute.roleId", "mute.defaultTime", "mute.autoUpdate")).get("mute", Database.EMPTY_DOCUMENT);
+		long duration = time == null ? mute.get("defaultTime", 1800L) : time.toSeconds();
 
-		List<Bson> update = List.of(Operators.set("mute.users", Operators.concatArrays(List.of(Operators.mergeObjects(Operators.ifNull(Operators.first(muteFilter), Database.EMPTY_DOCUMENT), new Document("id", member.getIdLong()).append("unmuteAt", Operators.cond(Operators.and(extend, Operators.nonNull(unmuteAt)), Operators.add(unmuteAt, seconds), Operators.add(Operators.nowEpochSecond(), seconds))))), Operators.ifNull(Operators.filter("$mute.users", Operators.ne("$$this.id", member.getIdLong())), Collections.EMPTY_LIST))));
+		AtomicReference<Role> atomicRole = new AtomicReference<>();
 
-		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("mute.roleId", "mute.autoUpdate", "mute.defaultTime"));
-		this.database.findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).thenCompose(data -> {
-			data = data == null ? Database.EMPTY_DOCUMENT : data;
+		ModUtility.upsertMuteRole(event.getGuild(), mute.get("roleId", 0L), mute.get("autoUpdate", true)).thenCompose(role -> {
+			atomicRole.set(role);
 
-			Document mute = data.get("mute", Database.EMPTY_DOCUMENT);
-			atomicDuration.set(mute.get("defaultTime", 1800L));
-
-			return ModUtility.upsertMuteRole(event.getGuild(), mute.get("roleId", 0L), mute.get("autoUpdate", true));
-		}).whenComplete((role, exception) -> {
+			List<Bson> update = List.of(Operators.set("unmuteAt", Operators.add(duration, Operators.cond(Operators.and(extend, Operators.exists("$unmuteAt")), "$unmuteAt", Operators.nowEpochSecond()))));
+			return this.database.updateMute(Filters.and(Filters.eq("guildId", guildId), Filters.eq("userId", userId)), update);
+		}).whenComplete((result, exception) -> {
 			if (exception instanceof MaxRolesException) {
 				event.replyFailure(exception.getMessage()).queue();
 				return;
@@ -78,14 +72,15 @@ public class MuteCommand extends Sx4Command {
 				return;
 			}
 
-			long duration = time == null ? atomicDuration.get() : time.toSeconds();
+			Role role = atomicRole.get();
+			boolean wasExtended = extend && result.getUpsertedId() == null;
 
 			event.getGuild().addRoleToMember(member, role).reason(ModUtility.getAuditReason(reason, event.getAuthor())).queue($ -> {
-				event.replySuccess("**" + member.getUser().getAsTag() + "** has " + (extend ? "had their mute extended" : "been muted") + " for " + TimeUtility.getTimeString(duration)).queue();
+				event.replyFormat("**%s** has %s for %s %s", member.getUser().getAsTag(), wasExtended ? "had their mute extended" : "been muted", TimeUtility.getTimeString(duration), this.config.getSuccessEmote()).queue();
 
-				this.muteManager.putMute(event.getGuild().getIdLong(), member.getIdLong(), role.getIdLong(), duration, extend);
+				this.muteManager.putMute(event.getGuild().getIdLong(), member.getIdLong(), role.getIdLong(), duration, wasExtended);
 
-				ModActionEvent modEvent = extend ? new MuteExtendEvent(event.getMember(), member.getUser(), reason, duration) : new MuteEvent(event.getMember(), member.getUser(), reason, duration);
+				ModActionEvent modEvent = wasExtended ? new MuteExtendEvent(event.getMember(), member.getUser(), reason, duration) : new MuteEvent(event.getMember(), member.getUser(), reason, duration);
 				this.modManager.onModAction(modEvent);
 			});
 		});

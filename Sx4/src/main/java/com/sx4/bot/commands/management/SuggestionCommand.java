@@ -150,7 +150,7 @@ public class SuggestionCommand extends Sx4Command {
 	@Examples({"suggestion remove 717843290837483611", "suggestion remove all"})
 	public void remove(Sx4CommandEvent event, @Argument(value="message id") All<MessageArgument> allArgument) {
 		if (allArgument.isAll()) {
-			if (CheckUtility.hasPermissions(event.getMember(), event.getTextChannel(), Permission.MANAGE_SERVER)) {
+			if (CheckUtility.hasPermissions(event.getMember(), event.getTextChannel(), event.getProperty("fakePermissions"), Permission.MANAGE_SERVER)) {
 				event.replyFailure("You are missing the permission " + Permission.MANAGE_SERVER.getName() + " to execute this, you can remove your own suggestions only").queue();
 				return;
 			}
@@ -180,8 +180,8 @@ public class SuggestionCommand extends Sx4Command {
 			});
 		} else {
 			long messageId = allArgument.getValue().getMessageId();
-			boolean hasPermission = CheckUtility.hasPermissions(event.getMember(), event.getTextChannel(), Permission.MANAGE_SERVER);
-			
+			boolean hasPermission = CheckUtility.hasPermissions(event.getMember(), event.getTextChannel(), event.getProperty("fakePermissions"), Permission.MANAGE_SERVER);
+
 			FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("suggestion.suggestions"));
 			
 			Bson filter = Operators.eq(Operators.filter("$suggestion.suggestions", Operators.and(Operators.eq("$$this.id", messageId), Operators.or(Operators.eq("$$this.authorId", event.getAuthor().getIdLong()), hasPermission))), Collections.EMPTY_LIST);
