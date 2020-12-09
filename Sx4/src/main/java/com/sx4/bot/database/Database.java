@@ -39,6 +39,8 @@ public class Database {
 	private final MongoCollection<Document> guilds;
 	private final MongoCollection<Document> users;
 
+	private final MongoCollection<Document> reminders;
+
 	private final MongoCollection<Document> warns;
 	private final MongoCollection<Document> mutes;
 	private final MongoCollection<Document> temporaryBans;
@@ -80,6 +82,9 @@ public class Database {
 		this.guilds = this.database.getCollection("guilds");
 
 		Bson guildId = Indexes.descending("guildId"), userId = Indexes.descending("userId");
+
+		this.reminders = this.database.getCollection("reminders");
+		this.reminders.createIndex(userId);
 
 		this.warns = this.database.getCollection("warns");
 		this.warns.createIndex(Indexes.compoundIndex(guildId, userId), uniqueIndex);
@@ -150,6 +155,58 @@ public class Database {
 	
 	public MongoDatabase getDatabase() {
 		return this.database;
+	}
+
+	public MongoCollection<Document> getReminders() {
+		return this.reminders;
+	}
+
+	public FindIterable<Document> getReminders(Bson filter, Bson projection) {
+		return this.reminders.find(filter).projection(projection);
+	}
+
+	public Document getReminder(Bson filter, Bson projection) {
+		return this.getReminders(filter, projection).first();
+	}
+
+	public CompletableFuture<UpdateResult> updateReminder(Bson filter, Bson update, UpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.reminders.updateOne(filter, update, options));
+	}
+
+	public CompletableFuture<UpdateResult> updateReminder(Bson filter, Bson update) {
+		return this.updateReminder(filter, update, this.updateOptions);
+	}
+
+	public CompletableFuture<UpdateResult> updateReminder(Bson filter, List<Bson> update, UpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.reminders.updateOne(filter, update, options));
+	}
+
+	public CompletableFuture<UpdateResult> updateReminder(Bson filter, List<Bson> update) {
+		return this.updateReminder(filter, update, this.updateOptions);
+	}
+
+	public CompletableFuture<UpdateResult> updateReminder(UpdateOneModel<Document> model) {
+		return this.updateReminder(model.getFilter(), model.getUpdate(), model.getOptions());
+	}
+
+	public CompletableFuture<InsertOneResult> insertReminder(Document data) {
+		return CompletableFuture.supplyAsync(() -> this.reminders.insertOne(data));
+	}
+
+	public CompletableFuture<DeleteResult> deleteReminder(Bson filter) {
+		return CompletableFuture.supplyAsync(() -> this.reminders.deleteOne(filter));
+	}
+
+	public CompletableFuture<DeleteResult> deleteReminder(DeleteOneModel<Document> model) {
+		return this.deleteReminder(model.getFilter());
+	}
+
+	public CompletableFuture<DeleteResult> deleteReminderById(ObjectId id) {
+		return this.deleteReminder(Filters.eq("_id", id));
+	}
+
+	public CompletableFuture<BulkWriteResult> bulkWriteReminders(List<WriteModel<Document>> bulkData) {
+		return CompletableFuture.supplyAsync(() -> this.reminders.bulkWrite(bulkData));
 	}
 
 	public MongoCollection<Document> getTemporaryBans() {

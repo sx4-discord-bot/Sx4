@@ -63,12 +63,8 @@ public class ExceptionUtility {
 		for (int i = 0; i < stackTrace.length; i++) {
 			StackTraceElement element = stackTrace[i];
 			if (element.toString().contains("com.sx4.bot")) {
-				builder.append("\n- " + element.toString() + "```");
+				builder.append("\n- " + element.toString());
 				break;
-			}
-			
-			if (i == stackTrace.length - 1) {
-				builder.append("```");
 			}
 		}
 		

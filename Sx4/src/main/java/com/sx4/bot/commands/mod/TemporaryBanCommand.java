@@ -4,13 +4,13 @@ import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.option.Option;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Projections;
-import com.mongodb.client.model.Updates;
 import com.sx4.bot.annotations.argument.DefaultInt;
 import com.sx4.bot.annotations.argument.Limit;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.Database;
+import com.sx4.bot.database.model.Operators;
 import com.sx4.bot.entities.mod.Reason;
 import com.sx4.bot.events.mod.TemporaryBanEvent;
 import com.sx4.bot.utility.ExceptionUtility;
@@ -25,8 +25,8 @@ import net.dv8tion.jda.api.requests.ErrorResponse;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 
-import java.time.Clock;
 import java.time.Duration;
+import java.util.List;
 
 public class TemporaryBanCommand extends Sx4Command {
 
@@ -74,7 +74,7 @@ public class TemporaryBanCommand extends Sx4Command {
 
 					long duration = time == null ? data.get("defaultTime", 86400L) : time.toSeconds();
 
-					Bson update = Updates.set("unbanAt", Clock.systemUTC().instant().getEpochSecond() + duration);
+					List<Bson> update = List.of(Operators.set("unbanAt", Operators.add(Operators.nowEpochSecond(), duration)));
 					this.database.updateTemporaryBan(Filters.and(Filters.eq("guildId", guild.getIdLong()), Filters.eq("userId", user.getIdLong())), update).whenComplete((result, resultException) -> {
 						if (ExceptionUtility.sendExceptionally(event, resultException)) {
 							return;

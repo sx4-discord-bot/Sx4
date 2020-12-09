@@ -20,7 +20,7 @@ import org.bson.types.ObjectId;
 
 import java.time.Clock;
 import java.time.Duration;
-import java.util.Collections;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.TimeZone;
 
@@ -54,22 +54,23 @@ public class ReminderCommand extends Sx4Command {
 			event.replyFailure("Your reminder cannot be longer than 1500 characters").queue();
 			return;
 		}
-		
-		ObjectId id = ObjectId.get();
-		
-		Document reminderData = new Document("id", id)
+
+		Document data = new Document("userId", event.getAuthor().getIdLong())
+			.append("repeat", repeatOption)
 			.append("duration", duration)
-			.append("remindAt", Clock.systemUTC().instant().getEpochSecond() + initialDuration)
 			.append("reminder", reminder.getReminder())
-			.append("repeat", repeatOption);
-		
-		this.database.updateUserById(event.getAuthor().getIdLong(), Updates.push("reminder.reminders", reminderData)).whenComplete((result, exception) -> {
+			.append("remindAt", Clock.systemUTC().instant().getEpochSecond() + duration);
+
+		this.database.insertReminder(data).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
-				
-			this.reminderManager.putReminder(event.getAuthor().getIdLong(), initialDuration, reminderData);
-				
+
+			ObjectId id = result.getInsertedId().asObjectId().getValue();
+			data.append("_id", id);
+
+			this.reminderManager.putReminder(initialDuration, data);
+
 			event.replyFormat("I will remind you about that in **%s**, your reminder id is `%s` %s", TimeUtility.getTimeString(initialDuration), id.toHexString(), this.config.getSuccessEmote()).queue();
 		});
 	}
@@ -77,17 +78,17 @@ public class ReminderCommand extends Sx4Command {
 	@Command(value="remove", description="Remove a reminder from being notified about")
 	@Examples({"reminder remove 5ec67a3b414d8776950f0eee"})
 	public void remove(Sx4CommandEvent event, @Argument(value="id") ObjectId id) {
-		this.database.updateUserById(event.getAuthor().getIdLong(), Updates.pull("reminder.reminders", Filters.eq("id", id))).whenComplete((result, exception) -> {
+		this.database.deleteReminderById(id).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
 			
-			if (result.getModifiedCount() == 0) {
+			if (result.getDeletedCount() == 0) {
 				event.replyFailure("You do not have a reminder with that id").queue();
 				return;
 			}
 			
-			this.reminderManager.deleteExecutor(event.getAuthor().getIdLong(), id);
+			this.reminderManager.deleteExecutor(id);
 			
 			event.replySuccess("You will no longer be reminded about that reminder").queue();
 		});
@@ -97,18 +98,14 @@ public class ReminderCommand extends Sx4Command {
 	@Examples({"reminder list"})
 	@Redirects({"reminders"})
 	public void list(Sx4CommandEvent event) {
-		List<Document> reminders = this.database.getUserById(event.getAuthor().getIdLong(), Projections.include("reminder.reminders")).getEmbedded(List.of("reminder", "reminders"), Collections.emptyList());
-		if (reminders.isEmpty()) {
-			event.replyFailure("You do not have any active reminders").queue();
-			return;
-		}
+		List<Document> reminders = this.database.getReminders(Filters.eq("userId", event.getAuthor().getIdLong()), Projections.include("remindAt")).into(new ArrayList<>());
 		
 		long timeNow = Clock.systemUTC().instant().getEpochSecond();
 		
 		PagedResult<Document> paged = new PagedResult<>(reminders)
 			.setIndexed(false)
 			.setAuthor(event.getAuthor().getName() + "'s Reminders", null, event.getAuthor().getEffectiveAvatarUrl())
-			.setDisplayFunction(data -> data.getObjectId("id").toHexString() + " - `" + TimeUtility.getTimeString(data.getLong("remindAt") - timeNow) + "`");
+			.setDisplayFunction(data -> data.getObjectId("_id").toHexString() + " - `" + TimeUtility.getTimeString(data.getLong("remindAt") - timeNow) + "`");
 		
 		paged.execute(event);
 	}
