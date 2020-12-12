@@ -17,7 +17,7 @@ public class GiveawayHandler extends ListenerAdapter {
 	public void handle(List<Long> messageIds) {
 		Database.get().deleteManyGiveaways(Filters.in("_id", messageIds)).whenComplete(Database.exceptionally());
 		
-		messageIds.forEach(this.manager::cancelExecutor);
+		messageIds.forEach(this.manager::deleteExecutor);
 	}
 	
 	public void onMessageBulkDelete(MessageBulkDeleteEvent event) {

@@ -46,9 +46,9 @@ public class GiveawayManager {
 		return this.executors.get(messageId);
 	}
 	
-	public void cancelExecutor(long messageId) {
+	public void deleteExecutor(long messageId) {
 		ScheduledFuture<?> executor = this.executors.remove(messageId);
-		if (executor != null) {
+		if (executor != null && !executor.isDone()) {
 			executor.cancel(true);
 		}
 	}
@@ -157,7 +157,7 @@ public class GiveawayManager {
 			});
 		});
 		
-		this.cancelExecutor(messageId);
+		this.deleteExecutor(messageId);
 		
 		return future;
 	}

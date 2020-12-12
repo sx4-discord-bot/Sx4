@@ -54,7 +54,7 @@ public class AntiRegexManager {
         this.attempts.compute(guildId, (guildKey, guildValue) -> {
             if (guildValue == null) {
                 if (amount < 1) {
-                    this.cancelExecutor(guildId, id, userId);
+                    this.deleteExecutor(guildId, id, userId);
                     return null;
                 }
 
@@ -70,7 +70,7 @@ public class AntiRegexManager {
             guildValue.compute(id, (idKey, idValue) -> {
                 if (idValue == null) {
                     if (amount < 1) {
-                        this.cancelExecutor(guildId, id, userId);
+                        this.deleteExecutor(guildId, id, userId);
                         return null;
                     }
 
@@ -83,7 +83,7 @@ public class AntiRegexManager {
                 idValue.compute(userId, (userKey, userValue) -> {
                     int newAmount = userValue == null ? amount : userValue + amount;
                     if (newAmount <= 0) {
-                        this.cancelExecutor(guildId, id, userId);
+                        this.deleteExecutor(guildId, id, userId);
                         return null;
                     }
 
@@ -114,10 +114,10 @@ public class AntiRegexManager {
             }
         }
 
-        this.cancelExecutor(guildId, id, userId);
+        this.deleteExecutor(guildId, id, userId);
     }
 
-    public void cancelExecutor(long guildId, ObjectId id, long userId) {
+    public void deleteExecutor(long guildId, ObjectId id, long userId) {
         Map<ObjectId, Map<Long, ScheduledFuture<?>>> regexExecutors = this.executors.get(guildId);
         if (regexExecutors != null) {
             Map<Long, ScheduledFuture<?>> userExecutors = regexExecutors.get(id);

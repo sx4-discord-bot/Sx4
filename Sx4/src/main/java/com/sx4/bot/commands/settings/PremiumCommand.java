@@ -49,7 +49,7 @@ public class PremiumCommand extends Sx4Command {
 	@Command(value="add", description="Make a server premium")
 	@Examples({"premium add", "premium add 30", "premium add 20 Sx4 | Support Server"})
 	@Donator
-	public void add(Sx4CommandEvent event, @Argument(value="days") @Limit(min=1, max=365) @DefaultInt(30) Integer days, @Argument(value="server", endless=true, nullDefault=true) Guild guild) {
+	public void add(Sx4CommandEvent event, @Argument(value="days") @Limit(min=1, max=365) @DefaultInt(30) int days, @Argument(value="server", endless=true, nullDefault=true) Guild guild) {
 		if (guild == null) {
 			guild = event.getGuild();
 		}
@@ -94,8 +94,8 @@ public class PremiumCommand extends Sx4Command {
 					return CompletableFuture.completedFuture(Database.EMPTY_DOCUMENT);
 				}
 
-				List<Bson> update = List.of(Operators.set("premium.endsAt", Operators.add(TimeUnit.DAYS.toSeconds(days), Operators.ifNull("$premium.endsAt", Operators.nowEpochSecond()))));
-				FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("premium.endsAt")).upsert(true);
+				List<Bson> update = List.of(Operators.set("premium.endAt", Operators.add(TimeUnit.DAYS.toSeconds(days), Operators.ifNull("$premium.endAt", Operators.nowEpochSecond()))));
+				FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("premium.endAt")).upsert(true);
 
 				return this.database.findAndUpdateGuildById(guildId, update, options);
 			}).whenComplete((data, exception) -> {
@@ -103,9 +103,9 @@ public class PremiumCommand extends Sx4Command {
 					return;
 				}
 
-				long endsAt = data == null ? 0L : data.getEmbedded(List.of("premium", "endsAt"), 0L);
+				long endAt = data == null ? 0L : data.getEmbedded(List.of("premium", "endAt"), 0L);
 
-				event.replyFormat("**%s** now has premium for %s%d day%s %s", guildName, endsAt == 0 ? "" : "another ", days, days == 1 ? "" : "s", this.config.getSuccessEmote()).queue();
+				event.replyFormat("**%s** now has premium for %s%d day%s %s", guildName, endAt == 0 ? "" : "another ", days, days == 1 ? "" : "s", this.config.getSuccessEmote()).queue();
 			});
 
 			waiter.start();
@@ -114,7 +114,7 @@ public class PremiumCommand extends Sx4Command {
 
 	@Command(value="check", description="Checks when the current premium in the server expires")
 	@Examples({"premium check"})
-	public void chack(Sx4CommandEvent event) {
+	public void check(Sx4CommandEvent event) {
 		long endsAt = this.database.getGuildById(event.getGuild().getIdLong(), Projections.include("premium.endsAt")).getEmbedded(List.of("premium", "endsAt"), 0L);
 		if (endsAt == 0) {
 			event.replyFailure("This server currently doesn't have premium").queue();
