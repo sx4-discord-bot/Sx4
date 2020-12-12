@@ -2,33 +2,37 @@ package com.sx4.bot.commands.settings;
 
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
-import com.mongodb.client.model.*;
+import com.mongodb.client.model.FindOneAndUpdateOptions;
+import com.mongodb.client.model.Projections;
+import com.mongodb.client.model.ReturnDocument;
+import com.sx4.bot.annotations.argument.DefaultInt;
+import com.sx4.bot.annotations.argument.Limit;
 import com.sx4.bot.annotations.command.Donator;
 import com.sx4.bot.annotations.command.Examples;
 import com.sx4.bot.category.ModuleCategory;
-import com.sx4.bot.config.Config;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.database.model.Operators;
-import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
+import com.sx4.bot.waiter.Waiter;
+import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.Guild;
-import org.bson.Document;
+import net.dv8tion.jda.api.entities.MessageEmbed;
+import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent;
 import org.bson.conversions.Bson;
 
-import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
+import java.util.concurrent.TimeUnit;
 
 public class PremiumCommand extends Sx4Command {
+
+	DateTimeFormatter formatter = DateTimeFormatter.ofPattern("d/MM/u k:m");
 
 	public PremiumCommand() {
 		super("premium");
@@ -43,129 +47,90 @@ public class PremiumCommand extends Sx4Command {
 	}
 	
 	@Command(value="add", description="Make a server premium")
-	@Examples({"premium add", "premium add Sx4 | Support Server"})
+	@Examples({"premium add", "premium add 30", "premium add 20 Sx4 | Support Server"})
 	@Donator
-	public void add(Sx4CommandEvent event, @Argument(value="server", endless=true, nullDefault=true) Guild guild) {
+	public void add(Sx4CommandEvent event, @Argument(value="days") @Limit(min=1, max=365) @DefaultInt(30) Integer days, @Argument(value="server", endless=true, nullDefault=true) Guild guild) {
 		if (guild == null) {
 			guild = event.getGuild();
 		}
 		
 		long guildId = guild.getIdLong();
-		int price = this.config.getPremiumPrice();
-		
-		Document guildData = this.database.getGuildById(guildId, Projections.include("premium"));
-		if (guildData.containsKey("premium")) {
-			event.replyFailure("That server already has premium").queue();
+		String guildName = guild.getName();
+
+		int monthPrice = this.config.getPremiumPrice();
+		int price = (int) Math.round((monthPrice / 30D) * days);
+
+		long endsAtPrior = this.database.getGuildById(guildId, Projections.include("premium.endsAt")).getEmbedded(List.of("premium", "endsAt"), 0L);
+		boolean hasPremium = endsAtPrior != 0;
+
+		MessageEmbed embed = new EmbedBuilder()
+			.setColor(this.config.getOrange())
+			.setAuthor("Premium", null, event.getAuthor().getEffectiveAvatarUrl())
+			.setDescription(String.format("Buying %d day%s of premium will:\n\n• Use **$%.2f** of your credit\n• %s %1$s day%2$s of premium to the server\n\n:warning: **This action cannot be reversed** :warning:", days, days == 1 ? "" : "s", price / 100D, hasPremium ? "Add an extra" : "Give"))
+			.setFooter("Say yes to continue and cancel to cancel")
+			.build();
+
+		event.reply(embed).queue($ -> {
+			Waiter<GuildMessageReceivedEvent> waiter = new Waiter<>(GuildMessageReceivedEvent.class)
+				.setCancelPredicate(e -> e.getMessage().getContentRaw().equalsIgnoreCase("cancel"))
+				.setTimeout(30)
+				.setUnique(event.getAuthor().getIdLong(), event.getTextChannel().getIdLong())
+				.setPredicate(e -> e.getMessage().getContentRaw().equalsIgnoreCase("yes"))
+				.setOppositeCancelPredicate();
+
+			waiter.onCancelled(type -> event.replyFailure("Cancelled").queue());
+
+			waiter.onTimeout(() -> event.reply("Timed out :stopwatch:").queue());
+
+			waiter.future().thenCompose(messageEvent -> {
+				List<Bson> update = List.of(Operators.set("premium.credit", Operators.cond(Operators.gt(price, Operators.ifNull("$premium.credit", 0)), "$premium.credit", Operators.subtract("$premium.credit", price))));
+				FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("premium.credit")).upsert(true);
+
+				return this.database.findAndUpdateUserById(event.getAuthor().getIdLong(), update, options);
+			}).thenCompose(data -> {
+				int credit = data == null ? 0 : data.getEmbedded(List.of("premium", "credit"), 0);
+				if (price > credit) {
+					event.replyFailure("You do not have enough credit to buy premium for that long").queue();
+					return CompletableFuture.completedFuture(Database.EMPTY_DOCUMENT);
+				}
+
+				List<Bson> update = List.of(Operators.set("premium.endsAt", Operators.add(TimeUnit.DAYS.toSeconds(days), Operators.ifNull("$premium.endsAt", Operators.nowEpochSecond()))));
+				FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("premium.endsAt")).upsert(true);
+
+				return this.database.findAndUpdateGuildById(guildId, update, options);
+			}).whenComplete((data, exception) -> {
+				if (ExceptionUtility.sendExceptionally(event, exception) || (data != null && data.isEmpty())) {
+					return;
+				}
+
+				long endsAt = data == null ? 0L : data.getEmbedded(List.of("premium", "endsAt"), 0L);
+
+				event.replyFormat("**%s** now has premium for %s%d day%s %s", guildName, endsAt == 0 ? "" : "another ", days, days == 1 ? "" : "s", this.config.getSuccessEmote()).queue();
+			});
+
+			waiter.start();
+		});
+	}
+
+	@Command(value="check", description="Checks when the current premium in the server expires")
+	@Examples({"premium check"})
+	public void chack(Sx4CommandEvent event) {
+		long endsAt = this.database.getGuildById(event.getGuild().getIdLong(), Projections.include("premium.endsAt")).getEmbedded(List.of("premium", "endsAt"), 0L);
+		if (endsAt == 0) {
+			event.replyFailure("This server currently doesn't have premium").queue();
 			return;
 		}
 
-		Document premiumData = new Document("id", guildId)
-			.append("since", Operators.nowEpochSecond());
-
-		Bson guildsMap = Operators.ifNull("$guilds", Collections.EMPTY_LIST);
-		List<Bson> update = List.of(Operators.set("guilds", Operators.cond(Operators.and(Operators.lt(Operators.size(guildsMap), Operators.floor(Operators.divide("$amount", price))), Operators.isEmpty(Operators.filter(guildsMap, Operators.eq("$$this.id", guildId)))), Operators.concatArrays(guildsMap, List.of(premiumData)), "$guilds")));
-
-		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("guilds", "amount"));
-		this.database.findAndUpdatePatronById(Filters.eq("discordId", event.getAuthor().getIdLong()), update, options).thenCompose(data -> {
-			if (data == null) {
-				event.replyFailure("You are not a premium user, you can become one at <https://patreon.com/Sx4>").queue();
-				return CompletableFuture.completedFuture(null);
-			}
-			
-			int allocatedGuilds = data.getInteger("amount") / price;
-			
-			List<Document> guilds = data.getList("guilds", Document.class, Collections.emptyList());
-			if (guilds.stream().anyMatch(d -> d.getLong("id") == guildId)) {
-				event.replyFailure("You are already giving premium to this server").queue();
-				return CompletableFuture.completedFuture(null);
-			}
-
-			if (guilds.size() >= allocatedGuilds) {
-				event.replyFormat("You have used all your premium servers (**%d/%<d**) " + this.config.getFailureEmote(), allocatedGuilds).queue();
-				return CompletableFuture.completedFuture(null);
-			}
-			
-			return this.database.updateGuildById(guildId, Updates.set("premium", event.getAuthor().getIdLong()));
-		}).whenComplete((result, exception) -> {
-			if (ExceptionUtility.sendExceptionally(event, exception) || result == null) {
-				return;
-			}
-
-			event.replySuccess("That server is now premium").queue();
-		});
+		ZonedDateTime expire = ZonedDateTime.ofInstant(Instant.ofEpochSecond(endsAt), ZoneOffset.UTC);
+		event.replyFormat("Premium for this server will expire on **%s UTC**", expire.format(this.formatter)).queue();
 	}
-	
-	@Command(value="remove", description="Remove a server from being premium")
-	@Examples({"premium remove", "premium remove Sx4 | Support Server"})
-	@Donator
-	public void remove(Sx4CommandEvent event, @Argument(value="server", endless=true, nullDefault=true) Guild guild) {
-		if (guild == null) {
-			guild = event.getGuild();
-		}
-		
-		long guildId = guild.getIdLong(), now = Clock.systemUTC().instant().getEpochSecond();
 
-		Bson guildsMap = Operators.ifNull("$guilds", Collections.EMPTY_LIST);
-		Bson since = Operators.first(Operators.map(Operators.filter("$guilds", Operators.eq("$$this.id", guildId)), "$$this.since"));
-		List<Bson> update = List.of(Operators.set("guilds", Operators.cond(Operators.lt(Operators.subtract(now, since), 604800L), guildsMap, Operators.filter(guildsMap, Operators.ne("$$this.id", guildId)))));
+	@Command(value="credit", description="Checks your current credit")
+	@Examples({"premium credit"})
+	public void credit(Sx4CommandEvent event) {
+		int credit = this.database.getUserById(event.getAuthor().getIdLong(), Projections.include("premium.credit")).getEmbedded(List.of("premium", "credit"), 0);
 
-		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().projection(Projections.include("guilds")).returnDocument(ReturnDocument.BEFORE);
-		this.database.findAndUpdatePatronByFilter(Filters.eq("discordId", event.getAuthor().getIdLong()), update, options).thenCompose(data -> {
-			data = data == null ? Database.EMPTY_DOCUMENT : data;
-
-			Document guildData = data.getList("guilds", Document.class, Collections.emptyList()).stream()
-				.filter(d -> d.getLong("id") == guildId)
-				.findFirst()
-				.orElse(null);
-
-			if (guildData == null) {
-				event.replyFailure("You are not giving premium to that server").queue();
-				return CompletableFuture.completedFuture(null);
-			}
-
-			if (now - guildData.getLong("since") < 604800L) {
-				event.replyFailure("You cannot remove premium from a server 7 days within giving it premium").queue();
-				return CompletableFuture.completedFuture(null);
-			}
-			
-			return this.database.updateGuildById(guildId, Updates.unset("premium"));
-		}).whenComplete((result, exception) -> {
-			if (ExceptionUtility.sendExceptionally(event, exception) || result == null) {
-				return;
-			}
-
-			event.replySuccess("That server is no longer premium").queue();
-		});
-	}
-	
-	@Command(value="list", description="Lists all the servers you are giving premium to")
-	@Examples({"premium list"})
-	public void list(Sx4CommandEvent event) {
-		Document data = this.database.getPatronByFilter(Filters.eq("discordId", event.getAuthor().getIdLong()), Projections.include("guilds", "amount"));
-		
-		List<Document> guilds = data.getList("guilds", Document.class, Collections.emptyList());
-		if (guilds.isEmpty()) {
-			event.replyFailure("You are not giving premium to any servers").queue();
-			return;
-		}
-		
-		int allocatedGuilds = data.getInteger("amount") / Config.get().getPremiumPrice();
-		
-		List<String> guildsFormat = guilds.stream()
-			.sorted(Comparator.comparing(guildData -> guildData.getLong("since")))
-			.map(guildData -> {
-				long guildId = guildData.getLong("id"), since = guildData.getLong("since");
-				Guild guild = event.getShardManager().getGuildById(guildId);
-
-				return String.format("`%s` (%s)", (guild == null ? "Unknown (" + guildId + ")" : guild.getName()), ZonedDateTime.ofInstant(Instant.ofEpochSecond(since), ZoneOffset.UTC).format(DateTimeFormatter.ofPattern("d MMM y")));
-			})
-			.collect(Collectors.toList());
-		
-		PagedResult<String> paged = new PagedResult<>(guildsFormat)
-			.setAuthor(String.format("Premium Servers (%d/%d)", guilds.size(), allocatedGuilds), null, event.getAuthor().getEffectiveAvatarUrl())
-			.setIndexed(false);
-		
-		paged.execute(event);
+		event.replyFormat("Your current credit is **$%.2f**", credit / 100D).queue();
 	}
 	
 }

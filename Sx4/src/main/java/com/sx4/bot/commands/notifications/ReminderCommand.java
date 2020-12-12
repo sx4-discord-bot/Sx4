@@ -99,7 +99,11 @@ public class ReminderCommand extends Sx4Command {
 	@Redirects({"reminders"})
 	public void list(Sx4CommandEvent event) {
 		List<Document> reminders = this.database.getReminders(Filters.eq("userId", event.getAuthor().getIdLong()), Projections.include("remindAt")).into(new ArrayList<>());
-		
+		if (reminders.isEmpty()) {
+			event.replyFailure("You do not have any active reminders").queue();
+			return;
+		}
+
 		long timeNow = Clock.systemUTC().instant().getEpochSecond();
 		
 		PagedResult<Document> paged = new PagedResult<>(reminders)

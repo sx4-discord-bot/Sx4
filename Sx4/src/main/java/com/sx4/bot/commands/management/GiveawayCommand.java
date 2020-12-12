@@ -115,9 +115,9 @@ public class GiveawayCommand extends Sx4Command {
 			
 			event.reply("What channel would you like to start the giveaway in? Type `cancel` at anytime to cancel the creation.").queue(message -> {
 				Waiter<GuildMessageReceivedEvent> waiter = new Waiter<>(GuildMessageReceivedEvent.class)
+					.setUnique(event.getAuthor().getIdLong(), event.getChannel().getIdLong())
 					.setCancelPredicate(e -> e.getMessage().getContentRaw().equalsIgnoreCase("cancel"))
 					.setTimeout(30)
-					.setUnique(event.getAuthor().getIdLong(), event.getChannel().getIdLong())
 					.setPredicate(e -> {
 						TextChannel textChannel = SearchUtility.getTextChannel(event.getGuild(), e.getMessage().getContentRaw());
 						if (textChannel != null) {
