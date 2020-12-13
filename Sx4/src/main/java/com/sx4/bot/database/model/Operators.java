@@ -81,6 +81,10 @@ public class Operators {
 		return new Document("$set", new Document(key, expression));
 	}
 
+	public static Bson unset(String key) {
+		return new Document("$unset", key);
+	}
+
 	public static Bson slice(Object array, Object start, Object end) {
 		return new Document("$slice", List.of(array, start, end));
 	}

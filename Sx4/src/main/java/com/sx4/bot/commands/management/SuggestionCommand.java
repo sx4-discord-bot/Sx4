@@ -1,5 +1,11 @@
 package com.sx4.bot.commands.management;
 
+import club.minnced.discord.webhook.WebhookClient;
+import club.minnced.discord.webhook.send.WebhookEmbed;
+import club.minnced.discord.webhook.send.WebhookEmbed.EmbedAuthor;
+import club.minnced.discord.webhook.send.WebhookEmbed.EmbedField;
+import club.minnced.discord.webhook.send.WebhookEmbed.EmbedFooter;
+import club.minnced.discord.webhook.send.WebhookEmbedBuilder;
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
 import com.mongodb.client.model.*;
@@ -16,14 +22,12 @@ import com.sx4.bot.database.model.Operators;
 import com.sx4.bot.entities.argument.All;
 import com.sx4.bot.entities.argument.MessageArgument;
 import com.sx4.bot.entities.management.SuggestionState;
+import com.sx4.bot.managers.SuggestionManager;
 import com.sx4.bot.utility.CheckUtility;
 import com.sx4.bot.utility.ColourUtility;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.waiter.Waiter;
-import net.dv8tion.jda.api.EmbedBuilder;
-import net.dv8tion.jda.api.MessageBuilder;
 import net.dv8tion.jda.api.Permission;
-import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent;
@@ -36,6 +40,8 @@ import java.util.List;
 
 public class SuggestionCommand extends Sx4Command {
 
+	private final SuggestionManager manager = SuggestionManager.get();
+
 	public SuggestionCommand() {
 		super("suggestion");
 		
@@ -44,23 +50,23 @@ public class SuggestionCommand extends Sx4Command {
 		super.setCategoryAll(ModuleCategory.MANAGEMENT);
 	}
 	
-	private Message getSuggestionMessage(User author, User moderator, String suggestion, String reason, SuggestionState state) {
-		EmbedBuilder embed = new EmbedBuilder()
-			.setAuthor(author == null ? "Anonymous#0000" : author.getAsTag(), null,  author == null ? null : author.getEffectiveAvatarUrl())
+	private WebhookEmbed getSuggestionMessage(User author, User moderator, String suggestion, String reason, SuggestionState state) {
+		WebhookEmbedBuilder embed = new WebhookEmbedBuilder()
+			.setAuthor(new EmbedAuthor(author == null ? "Anonymous#0000" : author.getAsTag(), author == null ? null : author.getEffectiveAvatarUrl(), null))
 			.setDescription(suggestion)
-			.setFooter(state.getName())
+			.setFooter(new EmbedFooter(state.getName(), null))
 			.setColor(state.getColour())
 			.setTimestamp(Instant.now());
 		
 		if (moderator != null) {
-			embed.addField("Moderator", moderator.getAsTag(), true);
+			embed.addField(new EmbedField(true, "Moderator", moderator.getAsTag()));
 		}
 		
 		if (reason != null) {
-			embed.addField("Reason", reason, true);
+			embed.addField(new EmbedField(true, "Reason", reason));
 		}
 		
-		return new MessageBuilder().setEmbed(embed.build()).build();
+		return embed.build();
 	}
 	
 	public void onCommand(Sx4CommandEvent event) {
@@ -85,15 +91,26 @@ public class SuggestionCommand extends Sx4Command {
 	@Examples({"suggestion channel", "suggestion channel #suggestions"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void channel(Sx4CommandEvent event, @Argument(value="channel", endless=true, nullDefault=true) TextChannel channel) {
-		List<Bson> update = List.of(Operators.set("suggestion.channelId", channel == null ? Operators.REMOVE : channel.getIdLong()));
-		this.database.updateGuildById(event.getGuild().getIdLong(), update).whenComplete((result, exception) -> {
+		List<Bson> update = List.of(Operators.set("suggestion.channelId", channel == null ? Operators.REMOVE : channel.getIdLong()), Operators.unset("suggestion.webhook"));
+		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("suggestion.channelId")).upsert(true);
+
+		this.database.findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
-			
-			if (result.getModifiedCount() == 0) {
+
+			long channelId = data == null ? 0L : data.get("channelId", 0L);
+
+			if ((channel == null && channelId == 0L) || (channel != null && channel.getIdLong() == channelId)) {
 				event.replyFailure("The suggestion channel is already " + (channel == null ? "unset" : "set to " + channel.getAsMention())).queue();
 				return;
+			}
+
+			if (channel != null) {
+				WebhookClient oldWebhook = this.manager.removeWebhook(channelId);
+				if (oldWebhook != null) {
+					channel.deleteWebhookById(String.valueOf(oldWebhook.getId())).queue();
+				}
 			}
 			
 			event.replySuccess("The suggestion channel has been " + (channel == null ? "unset" : "set to " + channel.getAsMention())).queue();
@@ -105,7 +122,7 @@ public class SuggestionCommand extends Sx4Command {
 	@Examples({"suggestion add Add the dog emote", "suggestion Add a channel for people looking to play games"})
 	@BotPermissions(permissions={Permission.MESSAGE_ADD_REACTION, Permission.MESSAGE_EMBED_LINKS})
 	public void add(Sx4CommandEvent event, @Argument(value="suggestion", endless=true) String suggestion) {
-		Document data = this.database.getGuildById(event.getGuild().getIdLong(), Projections.include("suggestion.channelId", "suggestion.enabled")).get("suggestion", Database.EMPTY_DOCUMENT);
+		Document data = this.database.getGuildById(event.getGuild().getIdLong(), Projections.include("suggestion.channelId", "suggestion.enabled", "suggestion.webhook")).get("suggestion", Database.EMPTY_DOCUMENT);
 		
 		if (!data.getBoolean("enabled", false)) {
 			event.replyFailure("Suggestions are not enabled in this server").queue();
@@ -126,8 +143,8 @@ public class SuggestionCommand extends Sx4Command {
 		
 		SuggestionState state = SuggestionState.PENDING;
 
-		channel.sendMessage(this.getSuggestionMessage(event.getAuthor(), null, suggestion, null, state)).queue(message -> {
-			Document suggestionData = new Document("messageId", message.getIdLong())
+		this.manager.sendSuggestion(channel, data.get("webhook", Database.EMPTY_DOCUMENT), this.getSuggestionMessage(event.getAuthor(), null, suggestion, null, state), message -> {
+			Document suggestionData = new Document("messageId", message.getId())
 				.append("channelId", channel.getIdLong())
 				.append("guildId", event.getGuild().getIdLong())
 				.append("authorId", event.getAuthor().getIdLong())
@@ -139,8 +156,8 @@ public class SuggestionCommand extends Sx4Command {
 					return;
 				}
 
-				message.addReaction("✅")
-					.flatMap($ -> message.addReaction("❌"))
+				channel.addReactionById(message.getId(), "✅")
+					.flatMap($ -> channel.addReactionById(message.getId(), "❌"))
 					.queue();
 				
 				event.replySuccess("Your suggestion has been sent to " + channel.getAsMention()).queue();
@@ -215,7 +232,7 @@ public class SuggestionCommand extends Sx4Command {
 	@Examples({"suggestion set 717843290837483611 pending Need some time to think about this", "suggestion set 717843290837483611 accepted I think this is a great idea", "suggestion 717843290837483611 set denied Not possible"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void set(Sx4CommandEvent event, @Argument(value="message id") MessageArgument messageArgument, @Argument(value="state") String stateName, @Argument(value="reason", endless=true, nullDefault=true) String reason) {
-		Document data = this.database.getGuildById(event.getGuild().getIdLong(), Projections.include("suggestion.states")).get("suggestion", Database.EMPTY_DOCUMENT);
+		Document data = this.database.getGuildById(event.getGuild().getIdLong(), Projections.include("suggestion.states", "suggestion.webhook")).get("suggestion", Database.EMPTY_DOCUMENT);
 		
 		List<Document> states = data.getList("states", Document.class, SuggestionState.DEFAULT_STATES);
 		Document state = states.stream()
@@ -263,9 +280,9 @@ public class SuggestionCommand extends Sx4Command {
 			
 			User author = event.getShardManager().getUserById(suggestion.getLong("authorId"));
 			
-			channel.editMessageById(messageId, this.getSuggestionMessage(author, event.getAuthor(), suggestion.getString("suggestion"), reason, new SuggestionState(state))).queue(message -> {
-				event.replySuccess("That suggestion has been set to the `" + stateData + "` state").queue();
-			});
+			this.manager.editSuggestion(messageId, channel, data.get("webhook", Database.EMPTY_DOCUMENT), this.getSuggestionMessage(author, event.getAuthor(), suggestion.getString("suggestion"), reason, new SuggestionState(state)), message -> {});
+
+			event.replySuccess("That suggestion has been set to the `" + stateData + "` state").queue();
 		});
 	}
 	

@@ -49,7 +49,7 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 	
 	private final OkHttpClient client = new OkHttpClient();
 	
-	private final ScheduledExecutorService scheduledExectuor = Executors.newSingleThreadScheduledExecutor();
+	private final ScheduledExecutorService scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
 	
 	private final ExecutorService notificationExecutor = Executors.newCachedThreadPool();
 	
@@ -78,7 +78,7 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 	private void createWebhook(TextChannel textChannel, WebhookMessage message) {
 		textChannel.createWebhook("Sx4 - YouTube").queue(webhook -> {
 			WebhookClient webhookClient = new WebhookClientBuilder(webhook.getUrl())
-				.setExecutorService(this.scheduledExectuor)
+				.setExecutorService(this.scheduledExecutor)
 				.setHttpClient(this.client)
 				.build();
 			
@@ -138,7 +138,7 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 						return;
 					} else {
 						webhook = new WebhookClientBuilder(webhookData.getLong("id"), webhookData.getString("token"))
-							.setExecutorService(this.scheduledExectuor)
+							.setExecutorService(this.scheduledExecutor)
 							.setHttpClient(this.client)
 							.build();
 
