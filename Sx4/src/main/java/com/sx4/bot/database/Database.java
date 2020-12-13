@@ -24,7 +24,7 @@ public class Database {
 	
 	public static final Document EMPTY_DOCUMENT = new Document();
 
-	public static final Database INSTANCE = new Database();
+	private static final Database INSTANCE = new Database();
 	
 	public static Database get() {
 		return Database.INSTANCE;
@@ -40,6 +40,8 @@ public class Database {
 	private final MongoCollection<Document> users;
 
 	private final MongoCollection<Document> reminders;
+
+	private final MongoCollection<Document> suggestions;
 
 	private final MongoCollection<Document> warns;
 	private final MongoCollection<Document> mutes;
@@ -85,6 +87,10 @@ public class Database {
 
 		this.reminders = this.database.getCollection("reminders");
 		this.reminders.createIndex(userId);
+
+		this.suggestions = this.database.getCollection("suggestions");
+		this.suggestions.createIndex(guildId);
+		this.suggestions.createIndex(Indexes.descending("messageId"));
 
 		this.warns = this.database.getCollection("warns");
 		this.warns.createIndex(Indexes.compoundIndex(guildId, userId), uniqueIndex);
@@ -155,6 +161,50 @@ public class Database {
 	
 	public MongoDatabase getDatabase() {
 		return this.database;
+	}
+
+	public MongoCollection<Document> getSuggestions() {
+		return this.suggestions;
+	}
+
+	public FindIterable<Document> getSuggestions(Bson filter, Bson projection) {
+		return this.suggestions.find(filter).projection(projection);
+	}
+
+	public Document getSuggestion(Bson filter, Bson projection) {
+		return this.getSuggestions(filter, projection).first();
+	}
+
+	public CompletableFuture<InsertOneResult> insertSuggestion(Document data) {
+		return CompletableFuture.supplyAsync(() -> this.suggestions.insertOne(data));
+	}
+
+	public CompletableFuture<UpdateResult> updateSuggestion(Bson filter, Bson update, UpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.suggestions.updateOne(filter, update, options));
+	}
+
+	public CompletableFuture<UpdateResult> updateSuggestion(Bson filter, Bson update) {
+		return this.updateSuggestion(filter, update, this.updateOptions);
+	}
+
+	public CompletableFuture<Document> findAndUpdateSuggestion(Bson filter, Bson update, FindOneAndUpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.suggestions.findOneAndUpdate(filter, update, options));
+	}
+
+	public CompletableFuture<Document> findAndUpdateSuggestion(Bson filter, Bson update) {
+		return this.findAndUpdateSuggestion(filter, update, this.findOneAndUpdateOptions);
+	}
+
+	public CompletableFuture<DeleteResult> deleteSuggestion(Bson filter) {
+		return CompletableFuture.supplyAsync(() -> this.suggestions.deleteOne(filter));
+	}
+
+	public CompletableFuture<Document> findAndDeleteSuggestion(Bson filter) {
+		return CompletableFuture.supplyAsync(() -> this.suggestions.findOneAndDelete(filter));
+	}
+
+	public CompletableFuture<DeleteResult> deleteManySuggestions(Bson filter) {
+		return CompletableFuture.supplyAsync(() -> this.suggestions.deleteMany(filter));
 	}
 
 	public MongoCollection<Document> getReminders() {

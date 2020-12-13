@@ -59,13 +59,13 @@ public class PremiumManager {
 	}
 
 	public void endPremium(long guildId) {
-		UpdateOneModel<Document> model = this.endPremiumAndGet(guildId);
+		UpdateOneModel<Document> model = this.endPremiumBulk(guildId);
 		if (model != null) {
 			Database.get().updateGuild(model).whenComplete(Database.exceptionally());
 		}
 	}
 
-	public UpdateOneModel<Document> endPremiumAndGet(long guildId) {
+	public UpdateOneModel<Document> endPremiumBulk(long guildId) {
 		// remove premium features
 
 		return new UpdateOneModel<>(Filters.eq("guildId", guildId), Updates.unset("premium"));
@@ -82,7 +82,7 @@ public class PremiumManager {
 				if (endAt - timeNow > 0) {
 					this.schedulePremiumExpiry(data.getLong("_id"), endAt - timeNow);
 				} else {
-					bulkData.add(this.endPremiumAndGet(data.getLong("_id")));
+					bulkData.add(this.endPremiumBulk(data.getLong("_id")));
 				}
 			}
 		});

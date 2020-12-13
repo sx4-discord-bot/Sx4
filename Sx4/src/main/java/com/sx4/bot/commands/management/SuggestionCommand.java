@@ -21,13 +21,12 @@ import com.sx4.bot.utility.ColourUtility;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.waiter.Waiter;
 import net.dv8tion.jda.api.EmbedBuilder;
+import net.dv8tion.jda.api.MessageBuilder;
 import net.dv8tion.jda.api.Permission;
-import net.dv8tion.jda.api.entities.MessageEmbed;
+import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent;
-import net.dv8tion.jda.api.exceptions.ErrorResponseException;
-import net.dv8tion.jda.api.requests.ErrorResponse;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 
@@ -45,9 +44,9 @@ public class SuggestionCommand extends Sx4Command {
 		super.setCategoryAll(ModuleCategory.MANAGEMENT);
 	}
 	
-	private MessageEmbed getSuggestionEmbed(User author, User moderator, String suggestion, String reason, SuggestionState state) {
+	private Message getSuggestionMessage(User author, User moderator, String suggestion, String reason, SuggestionState state) {
 		EmbedBuilder embed = new EmbedBuilder()
-			.setAuthor(author == null ? "Anonymous#0000" : author.getAsTag(), null, author == null ? null : author.getEffectiveAvatarUrl())
+			.setAuthor(author == null ? "Anonymous#0000" : author.getAsTag(), null,  author == null ? null : author.getEffectiveAvatarUrl())
 			.setDescription(suggestion)
 			.setFooter(state.getName())
 			.setColor(state.getColour())
@@ -61,7 +60,7 @@ public class SuggestionCommand extends Sx4Command {
 			embed.addField("Reason", reason, true);
 		}
 		
-		return embed.build();
+		return new MessageBuilder().setEmbed(embed.build()).build();
 	}
 	
 	public void onCommand(Sx4CommandEvent event) {
@@ -113,7 +112,7 @@ public class SuggestionCommand extends Sx4Command {
 			return;
 		}
 		
-		long channelId = data.getLong("channelId");
+		long channelId = data.get("channelId", 0L);
 		if (channelId == 0L) {
 			event.replyFailure("There is no suggestion channel").queue();
 			return;
@@ -126,20 +125,23 @@ public class SuggestionCommand extends Sx4Command {
 		}
 		
 		SuggestionState state = SuggestionState.PENDING;
-		channel.sendMessage(this.getSuggestionEmbed(event.getAuthor(), null, suggestion, null, state)).queue(message -> {
-			Document suggestionData = new Document("id", message.getIdLong())
+
+		channel.sendMessage(this.getSuggestionMessage(event.getAuthor(), null, suggestion, null, state)).queue(message -> {
+			Document suggestionData = new Document("messageId", message.getIdLong())
 				.append("channelId", channel.getIdLong())
+				.append("guildId", event.getGuild().getIdLong())
 				.append("authorId", event.getAuthor().getIdLong())
 				.append("state", state.getDataName())
 				.append("suggestion", suggestion);
 			
-			this.database.updateGuildById(event.getGuild().getIdLong(), Updates.push("suggestion.suggestions", suggestionData)).whenComplete((result, exception) -> {
+			this.database.insertSuggestion(suggestionData).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
-				
-				message.addReaction("✅").queue();
-				message.addReaction("❌").queue();
+
+				message.addReaction("✅")
+					.flatMap($ -> message.addReaction("❌"))
+					.queue();
 				
 				event.replySuccess("Your suggestion has been sent to " + channel.getAsMention()).queue();
 			});
@@ -167,7 +169,7 @@ public class SuggestionCommand extends Sx4Command {
 				waiter.onCancelled(type -> event.replySuccess("Cancelled").queue());
 				
 				waiter.future()
-					.thenCompose(messageEvent -> this.database.updateGuildById(event.getGuild().getIdLong(), Updates.unset("suggestion.suggestions")))
+					.thenCompose(messageEvent -> this.database.deleteManySuggestions(Filters.eq("guildId", event.getGuild().getIdLong())))
 					.whenComplete((result, exception) -> {
 						if (ExceptionUtility.sendExceptionally(event, exception)) {
 							return;
@@ -183,37 +185,27 @@ public class SuggestionCommand extends Sx4Command {
 			boolean hasPermission = CheckUtility.hasPermissions(event.getMember(), event.getTextChannel(), event.getProperty("fakePermissions"), Permission.MANAGE_SERVER);
 
 			FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("suggestion.suggestions"));
-			
-			Bson filter = Operators.eq(Operators.filter("$suggestion.suggestions", Operators.and(Operators.eq("$$this.id", messageId), Operators.or(Operators.eq("$$this.authorId", event.getAuthor().getIdLong()), hasPermission))), Collections.EMPTY_LIST);
-			List<Bson> update = List.of(Operators.set("suggestion.suggestions", Operators.cond(filter, "$suggestion.suggestions", Operators.filter("$suggestion.suggestions", Operators.ne("$$this.id", messageId)))));
-			this.database.findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
+
+			Bson filter = Filters.eq("messageId", messageId);
+			if (!hasPermission) {
+				filter = Filters.and(Filters.eq("authorId", event.getAuthor().getIdLong()), filter);
+			}
+
+			this.database.findAndDeleteSuggestion(filter).whenComplete((data, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
-				
-				data = data == null ? Database.EMPTY_DOCUMENT : data;
-				
-				List<Document> suggestions = data.getEmbedded(List.of("suggestion", "suggestions"), Collections.emptyList());
-				Document suggestion = suggestions.stream()
-					.filter(suggestionData -> suggestionData.getLong("id") == messageId)
-					.findFirst()
-					.orElse(null);
-				
-				if (suggestion == null) {
+
+				if (data == null) {
 					event.replyFailure("I could not find that suggestion").queue();
 					return;
 				}
-				
-				if (suggestion.getLong("authorId") != event.getAuthor().getIdLong() && !hasPermission) {
+
+				if (data.getLong("authorId") != event.getAuthor().getIdLong() && !hasPermission) {
 					event.replyFailure("You do not own that suggestion").queue();
 					return;
 				}
-				
-				TextChannel channel = event.getGuild().getTextChannelById(suggestion.getLong("channelId"));
-				if (channel != null) {
-					channel.deleteMessageById(suggestion.getLong("id")).queue(null, ErrorResponseException.ignore(ErrorResponse.UNKNOWN_MESSAGE));
-				}
-				
+
 				event.replySuccess("That suggestion has been removed").queue();
 			});
 		}
@@ -223,7 +215,7 @@ public class SuggestionCommand extends Sx4Command {
 	@Examples({"suggestion set 717843290837483611 pending Need some time to think about this", "suggestion set 717843290837483611 accepted I think this is a great idea", "suggestion 717843290837483611 set denied Not possible"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void set(Sx4CommandEvent event, @Argument(value="message id") MessageArgument messageArgument, @Argument(value="state") String stateName, @Argument(value="reason", endless=true, nullDefault=true) String reason) {
-		Document data = this.database.getGuildById(event.getGuild().getIdLong(), Projections.include("suggestion.states", "suggestion.suggestions", "suggestion.channelId")).get("suggestion", Database.EMPTY_DOCUMENT);
+		Document data = this.database.getGuildById(event.getGuild().getIdLong(), Projections.include("suggestion.states")).get("suggestion", Database.EMPTY_DOCUMENT);
 		
 		List<Document> states = data.getList("states", Document.class, SuggestionState.DEFAULT_STATES);
 		Document state = states.stream()
@@ -239,46 +231,40 @@ public class SuggestionCommand extends Sx4Command {
 		String stateData = state.getString("dataName");
 		long messageId = messageArgument.getMessageId();
 		
-		List<Document> suggestions = data.getList("suggestions", Document.class, Collections.emptyList());
-		Document suggestion = suggestions.stream()
-			.filter(suggestionData -> suggestionData.getLong("id") == messageId)
-			.findFirst()
-			.orElse(null);
-		
-		if (suggestion == null) {
-			event.replyFailure("There is no suggestion with that id").queue();
-			return;
-		}
-		
-		String reasonData = suggestion.getString("reason");
-		boolean reasonMatch = reasonData == null && reason == null || (reasonData != null && reasonData.equals(reason));
-		
-		if (suggestion.getString("state").equals(stateData) && reasonMatch) {
-			event.replyFailure("That suggestion is already in that state and has the same reason").queue();
-			return;
-		}
-		
-		TextChannel channel = event.getGuild().getTextChannelById(suggestion.getLong("channelId"));
-		if (channel == null) {
-			event.replyFailure("The channel for that suggestion no longer exists").queue();
-			return;
-		}
-		
 		Bson update = Updates.combine(
-			reason == null ? Updates.unset("suggestion.suggestions.$[suggestion].reason") : Updates.set("suggestion.suggestions.$[suggestion].reason", reason),
-			Updates.set("suggestion.suggestions.$[suggestion].state", stateData)
+			reason == null ? Updates.unset("reason") : Updates.set("reason", reason),
+			Updates.set("state", stateData)
 		);
-		
-		UpdateOptions options = new UpdateOptions().arrayFilters(List.of(Filters.eq("suggestion.id", messageId)));
-		this.database.updateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((result, exception) -> {
+
+		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("channelId", "authorId", "reason", "state", "suggestion"));
+		this.database.findAndUpdateSuggestion(Filters.eq("messageId", messageId), update, options).whenComplete((suggestion, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
+				return;
+			}
+
+			if (suggestion == null) {
+				event.replyFailure("There is no suggestion with that id").queue();
+				return;
+			}
+
+			String reasonData = suggestion.getString("reason");
+			boolean reasonMatch = reasonData == null && reason == null || (reasonData != null && reasonData.equals(reason));
+
+			if (suggestion.getString("state").equals(stateData) && reasonMatch) {
+				event.replyFailure("That suggestion is already in that state and has the same reason").queue();
+				return;
+			}
+
+			TextChannel channel = event.getGuild().getTextChannelById(suggestion.getLong("channelId"));
+			if (channel == null) {
+				event.replyFailure("The channel for that suggestion no longer exists").queue();
 				return;
 			}
 			
 			User author = event.getShardManager().getUserById(suggestion.getLong("authorId"));
 			
-			channel.editMessageById(messageId, this.getSuggestionEmbed(author, event.getAuthor(), suggestion.getString("suggestion"), reason, new SuggestionState(state))).queue(message -> {
-				event.replySuccess("That suggestion has been set to the `" + state.getString("name") + "` state").queue();
+			channel.editMessageById(messageId, this.getSuggestionMessage(author, event.getAuthor(), suggestion.getString("suggestion"), reason, new SuggestionState(state))).queue(message -> {
+				event.replySuccess("That suggestion has been set to the `" + stateData + "` state").queue();
 			});
 		});
 	}

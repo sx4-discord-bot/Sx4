@@ -72,7 +72,6 @@ public class PremiumCommand extends Sx4Command {
 
 		event.reply(embed).queue($ -> {
 			Waiter<GuildMessageReceivedEvent> waiter = new Waiter<>(GuildMessageReceivedEvent.class)
-				.setCancelPredicate(e -> e.getMessage().getContentRaw().equalsIgnoreCase("cancel"))
 				.setTimeout(30)
 				.setUnique(event.getAuthor().getIdLong(), event.getTextChannel().getIdLong())
 				.setPredicate(e -> e.getMessage().getContentRaw().equalsIgnoreCase("yes"))

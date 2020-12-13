@@ -3,7 +3,6 @@ package com.sx4.bot.managers;
 import com.mongodb.client.model.*;
 import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.Database;
-import com.sx4.bot.utility.ExceptionUtility;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Role;
@@ -88,13 +87,13 @@ public class AutoRoleManager {
 	}
 	
 	public void updateMemberRoles(long guildId, long userId, ObjectId id, List<Long> roleIdsAdd, List<Long> roleIdsRemove) {
-		UpdateOneModel<Document> model = this.updateMemberRolesAndGet(guildId, userId, id, roleIdsAdd, roleIdsRemove);
+		UpdateOneModel<Document> model = this.updateMemberRolesBulk(guildId, userId, id, roleIdsAdd, roleIdsRemove);
 		if (model != null) {
 			Database.get().updateGuild(model).whenComplete(Database.exceptionally());
 		}
 	}
 	
-	public UpdateOneModel<Document> updateMemberRolesAndGet(long guildId, long userId, ObjectId id, List<Long> roleIdsAdd, List<Long> roleIdsRemove) {
+	public UpdateOneModel<Document> updateMemberRolesBulk(long guildId, long userId, ObjectId id, List<Long> roleIdsAdd, List<Long> roleIdsRemove) {
 		Guild guild = Sx4.get().getShardManager().getGuildById(guildId);
 		if (guild == null) {
 			return null;
@@ -136,7 +135,7 @@ public class AutoRoleManager {
 					
 					long executeAt = task.getLong("executeAt"), timeNow = Clock.systemUTC().instant().getEpochSecond();
 					if (executeAt - timeNow <= 0) {
-						UpdateOneModel<Document> model = this.updateMemberRolesAndGet(data.getLong("_id"), userId, id, data.getList("add", Long.class), data.getList("remove", Long.class));
+						UpdateOneModel<Document> model = this.updateMemberRolesBulk(data.getLong("_id"), userId, id, data.getList("add", Long.class), data.getList("remove", Long.class));
 						if (model != null) {
 							bulkData.add(model);
 						}

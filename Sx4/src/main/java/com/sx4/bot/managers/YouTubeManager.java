@@ -109,7 +109,7 @@ public class YouTubeManager {
 		this.putExecutor(channelId, this.executor.schedule(() -> this.resubscribe(channelId), seconds, TimeUnit.SECONDS));
 	}
 	
-	public DeleteOneModel<Document> resubscribeAndGet(String channelId) {
+	public DeleteOneModel<Document> resubscribeBulk(String channelId) {
 		Config config = Config.get();
 		
 		long amount = Database.get().countYouTubeNotifications(Filters.eq("uploaderId", channelId), new CountOptions().limit(1));
@@ -149,7 +149,7 @@ public class YouTubeManager {
 	}
 	
 	public void resubscribe(String channelId) {
-		DeleteOneModel<Document> model = this.resubscribeAndGet(channelId);
+		DeleteOneModel<Document> model = this.resubscribeBulk(channelId);
 		if (model != null) {
 			Database.get().deleteYouTubeSubscription(model.getFilter()).whenComplete((result, exception) -> {
 				if (exception != null) {
@@ -167,7 +167,7 @@ public class YouTubeManager {
 			
 			long timeTill = data.getLong("resubscribeAt") - Clock.systemUTC().instant().getEpochSecond();
 			if (timeTill <= 0) { 
-				DeleteOneModel<Document> model = this.resubscribeAndGet(channelId);
+				DeleteOneModel<Document> model = this.resubscribeBulk(channelId);
 				if (model != null) {
 					bulkData.add(model);
 				}

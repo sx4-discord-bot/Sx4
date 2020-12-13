@@ -71,7 +71,7 @@ public class GiveawayManager {
 	}
 	
 	public void endGiveaway(Document data, boolean offTime) {
-		this.endGiveawayAndGet(data, offTime).thenCompose(model -> {
+		this.endGiveawayBulk(data, offTime).thenCompose(model -> {
 			if (model == null) {
 				return CompletableFuture.completedFuture(null);
 			}
@@ -80,11 +80,11 @@ public class GiveawayManager {
 		}).whenComplete(Database.exceptionally());
 	}
 	
-	public CompletableFuture<UpdateOneModel<Document>> endGiveawayAndGet(Document data) {
-		return this.endGiveawayAndGet(data, false);
+	public CompletableFuture<UpdateOneModel<Document>> endGiveawayBulk(Document data) {
+		return this.endGiveawayBulk(data, false);
 	}
 	
-	public CompletableFuture<UpdateOneModel<Document>> endGiveawayAndGet(Document data, boolean offTime) {
+	public CompletableFuture<UpdateOneModel<Document>> endGiveawayBulk(Document data, boolean offTime) {
 		long guildId = data.getLong("guildId"), messageId = data.get("_id", 0L);
 		
 		Guild guild = Sx4.get().getShardManager().getGuildById(guildId);
@@ -171,7 +171,7 @@ public class GiveawayManager {
 			if (endAt - timeNow > 0) {
 				this.putGiveaway(data, endAt - timeNow);
 			} else {
-				futures.add(this.endGiveawayAndGet(data));
+				futures.add(this.endGiveawayBulk(data));
 			}
 		});
 		

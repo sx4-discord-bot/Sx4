@@ -112,7 +112,7 @@ public class MuteManager {
 		this.putMute(guildId, userId, roleId, seconds, false);
 	}
 	
-	public DeleteOneModel<Document> removeMuteAndGet(long guildId, long userId, long roleId) {
+	public DeleteOneModel<Document> removeMuteBulk(long guildId, long userId, long roleId) {
 		Guild guild = Sx4.get().getShardManager().getGuildById(guildId);
 		if (guild == null) {
 			return null;
@@ -131,7 +131,7 @@ public class MuteManager {
 	}
 	
 	public void removeMute(long guildId, long userId, long roleId) {
-		DeleteOneModel<Document> model = this.removeMuteAndGet(guildId, userId, roleId);
+		DeleteOneModel<Document> model = this.removeMuteBulk(guildId, userId, roleId);
 		if (model != null) {
 			Database.get().deleteMute(model).whenComplete(Database.exceptionally());
 		}
@@ -154,7 +154,7 @@ public class MuteManager {
 			if (unmuteAt > currentTime) {
 				this.putMute(guildId, data.getLong("userId"), roleIds.get(guildId), unmuteAt - currentTime);
 			} else {
-				DeleteOneModel<Document> model = this.removeMuteAndGet(guildId, data.getLong("userId"), roleIds.get(guildId));
+				DeleteOneModel<Document> model = this.removeMuteBulk(guildId, data.getLong("userId"), roleIds.get(guildId));
 				if (model != null) {
 					bulkData.add(model);
 				}
