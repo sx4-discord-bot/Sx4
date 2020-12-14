@@ -6,7 +6,6 @@ import club.minnced.discord.webhook.send.WebhookEmbed.EmbedFooter;
 import club.minnced.discord.webhook.send.WebhookEmbed.EmbedTitle;
 import club.minnced.discord.webhook.send.WebhookEmbedBuilder;
 import com.sx4.bot.core.Sx4;
-import com.sx4.bot.database.Database;
 import com.sx4.bot.entities.mod.Reason;
 import com.sx4.bot.entities.mod.action.Action;
 import net.dv8tion.jda.api.EmbedBuilder;
@@ -46,10 +45,6 @@ public class ModLog {
 		this.guildId = data.get("guildId",0L);
 		this.targetId = data.getLong("targetId");
 		this.moderatorId = data.getLong("moderatorId");
-
-		Document webhook = data.get("webhook", Database.EMPTY_DOCUMENT);
-		this.webhookId = webhook.get("id", 0L);
-		this.webhookToken = webhook.getString("token");
 		
 		String reason = data.getString("reason");
 		this.reason = reason == null ? null : new Reason(reason);
@@ -78,25 +73,6 @@ public class ModLog {
 	
 	public long getTimestamp() {
 		return this.id.getTimestamp();
-	}
-
-	public boolean hasWebhook() {
-		return this.webhookId != 0L;
-	}
-
-	public long getWebhookId() {
-		return this.webhookId;
-	}
-
-	public String getWebhookToken() {
-		return this.webhookToken;
-	}
-
-	public ModLog setWebhook(long id, String token) {
-		this.webhookId = id;
-		this.webhookToken = token;
-
-		return this;
 	}
 
 	public boolean hasMessageId() {
@@ -203,8 +179,7 @@ public class ModLog {
 			.append("messageId", this.messageId)
 			.append("moderatorId", this.moderatorId)
 			.append("reason", this.reason == null ? null : this.reason.getParsed())
-			.append("action", this.action.toData())
-			.append("webhook", new Document("id", this.webhookId).append("token", this.webhookToken));
+			.append("action", this.action.toData());
 	}
 	
 }
