@@ -1,24 +1,33 @@
 package com.sx4.bot.commands.mod;
 
+import club.minnced.discord.webhook.WebhookClient;
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
 import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.FindOneAndUpdateOptions;
 import com.mongodb.client.model.Projections;
+import com.mongodb.client.model.ReturnDocument;
 import com.sx4.bot.annotations.command.AuthorPermissions;
 import com.sx4.bot.annotations.command.Examples;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
+import com.sx4.bot.database.Database;
 import com.sx4.bot.database.model.Operators;
+import com.sx4.bot.entities.argument.All;
 import com.sx4.bot.entities.argument.Range;
 import com.sx4.bot.entities.mod.Reason;
 import com.sx4.bot.entities.mod.action.Action;
 import com.sx4.bot.entities.mod.modlog.ModLog;
+import com.sx4.bot.managers.ModLogManager;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
+import com.sx4.bot.waiter.Waiter;
 import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent;
 import net.dv8tion.jda.internal.utils.tuple.Pair;
 import org.bson.Document;
 import org.bson.conversions.Bson;
@@ -28,6 +37,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class ModLogCommand extends Sx4Command {
+
+	private final ModLogManager manager = ModLogManager.get();
 
 	public ModLogCommand() {
 		super("modlog");
@@ -60,15 +71,26 @@ public class ModLogCommand extends Sx4Command {
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	@Examples({"modlog channel #mod-logs", "modlog channel mod-logs", "modlog channel 432898619943813132"})
 	public void channel(Sx4CommandEvent event, @Argument(value="channel", endless=true, nullDefault=true) TextChannel channel) {
-		List<Bson> update = List.of(Operators.set("modLog.channelId", channel == null ? Operators.REMOVE : channel.getIdLong()));
-		this.database.updateGuildById(event.getGuild().getIdLong(), update).whenComplete((result, exception) -> {
+		List<Bson> update = List.of(Operators.set("modLog.channelId", channel == null ? Operators.REMOVE : channel.getIdLong()), Operators.unset("modLog.webhook.id"), Operators.unset("modLog.webhook.token"));
+		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("modLog.channelId")).upsert(true);
+
+		this.database.findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
-			
-			if (result.getModifiedCount() == 0) {
+
+			long channelId = data == null ? 0L : data.getEmbedded(List.of("modLog", "channelId"), 0L);
+
+			if ((channel == null && channelId == 0L) || (channel != null && channel.getIdLong() == channelId)) {
 				event.replyFailure("The mod log channel is already " + (channel == null ? "unset" : "set to " + channel.getAsMention())).queue();
 				return;
+			}
+
+			if (channel != null) {
+				WebhookClient oldWebhook = this.manager.removeWebhook(channelId);
+				if (oldWebhook != null) {
+					channel.deleteWebhookById(String.valueOf(oldWebhook.getId())).queue();
+				}
 			}
 			
 			event.replySuccess("The mod log channel has been " + (channel == null ? "unset" : "set to " + channel.getAsMention())).queue();
@@ -104,8 +126,75 @@ public class ModLogCommand extends Sx4Command {
 			event.replyFormat("Updated **%d** case%s %s", modified, modified == 1 ? "" : "s", this.config.getSuccessEmote()).queue();
 		});
 	}
+
+	@Command(value="remove", aliases={"delete"}, description="Deletes a mod log from the  server")
+	@Examples({"modlog remove 5e45ce6d3688b30ee75201ae", "modlog remove all"})
+	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
+	public void remove(Sx4CommandEvent event, @Argument(value="id") All<ObjectId> all) {
+		User author = event.getAuthor();
+
+		if (all.isAll()) {
+			event.reply(author.getName() + ", are you sure you want to delete **all** the suggestions in this server? (Yes or No)").queue(queryMessage -> {
+				Waiter<GuildMessageReceivedEvent> waiter = new Waiter<>(GuildMessageReceivedEvent.class)
+					.setPredicate(messageEvent -> messageEvent.getMessage().getContentRaw().equalsIgnoreCase("yes"))
+					.setOppositeCancelPredicate()
+					.setTimeout(30)
+					.setUnique(author.getIdLong(), event.getChannel().getIdLong());
+
+				waiter.onTimeout(() -> event.reply("Response timed out :stopwatch:").queue());
+
+				waiter.onCancelled(type -> event.replySuccess("Cancelled").queue());
+
+				waiter.future()
+					.thenCompose(messageEvent -> this.database.deleteManyModLogs(Filters.eq("guildId", event.getGuild().getIdLong())))
+					.whenComplete((result, exception) -> {
+						if (ExceptionUtility.sendExceptionally(event, exception)) {
+							return;
+						}
+
+						if (result.getDeletedCount() == 0) {
+							event.replyFailure("There are no mod logs in this server").queue();
+							return;
+						}
+
+						event.replySuccess("All your mod logs have been deleted").queue();
+					});
+
+				waiter.start();
+			});
+		} else {
+			ObjectId id = all.getValue();
+
+			this.database.findAndDeleteModLogById(id).whenComplete((data, exception) -> {
+				if (ExceptionUtility.sendExceptionally(event, exception)) {
+					return;
+				}
+
+				if (data == null) {
+					event.replyFailure("I could not find that mod log").queue();
+					return;
+				}
+
+				Guild guild = event.getGuild();
+
+				long channelId = data.getLong("channelId");
+				TextChannel channel = guild.getTextChannelById(channelId);
+				if (channel != null) {
+					if (guild.getSelfMember().hasPermission(channel, Permission.MESSAGE_MANAGE)) {
+						channel.deleteMessageById(data.getLong("messageId")).queue();
+					} else {
+						Document webhookData = this.database.getGuildById(guild.getIdLong(), Projections.include("modLog.webhook.token", "modLog.webhook.id")).getEmbedded(List.of("modLog", "webhook"), Database.EMPTY_DOCUMENT);
+
+						this.manager.deleteModLog(data.getLong("messageId"), channelId, webhookData);
+					}
+				}
+
+				event.replySuccess("That mod log has been deleted").queue();
+			});
+		}
+	}
 	
-	@Command(value="view case", aliases={"viewcase"}, description="View a modlog case from the server")
+	@Command(value="view case", aliases={"viewcase"}, description="View a mod log case from the server")
 	@Examples({"modlog view case 5e45ce6d3688b30ee75201ae", "modlog view case"})
 	public void viewCase(Sx4CommandEvent event, @Argument(value="id", nullDefault=true) ObjectId id) {
 		Bson projection = Projections.include("moderatorId", "reason", "targetId", "action");
@@ -126,7 +215,6 @@ public class ModLogCommand extends Sx4Command {
 				.setIncreasedIndex(true);
 			
 			paged.onSelect(select -> {
-				System.out.println(select.getSelected());
 				event.reply(new ModLog(select.getSelected()).getEmbed()).queue();
 			});
 			

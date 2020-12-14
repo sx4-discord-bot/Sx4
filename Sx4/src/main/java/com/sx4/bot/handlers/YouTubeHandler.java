@@ -75,29 +75,31 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 			.parse();
 	}
 	
-	private void createWebhook(TextChannel textChannel, WebhookMessage message) {
-		textChannel.createWebhook("Sx4 - YouTube").queue(webhook -> {
+	private void createWebhook(TextChannel channel, WebhookMessage message) {
+		if (!channel.getGuild().getSelfMember().hasPermission(channel, Permission.MANAGE_WEBHOOKS)) {
+			return;
+		}
+
+		channel.createWebhook("Sx4 - YouTube").queue(webhook -> {
 			WebhookClient webhookClient = new WebhookClientBuilder(webhook.getUrl())
 				.setExecutorService(this.scheduledExecutor)
 				.setHttpClient(this.client)
 				.build();
 			
-			this.webhooks.put(textChannel.getIdLong(), webhookClient);
+			this.webhooks.put(channel.getIdLong(), webhookClient);
 			
 			Bson update = Updates.combine(
 				Updates.set("webhook.id", webhook.getIdLong()),
 				Updates.set("webhook.token", webhook.getToken())
 			);
 
-			Database.get().updateManyYouTubeNotifications(Filters.eq("channelId", textChannel.getIdLong()), update)
+			Database.get().updateManyYouTubeNotifications(Filters.eq("channelId", channel.getIdLong()), update)
 				.thenCompose(result -> webhookClient.send(message))
 				.whenComplete((webhookMessage, exception) -> {
 					if (exception instanceof HttpException && ((HttpException) exception).getCode() == 404) {
-						this.webhooks.remove(textChannel.getIdLong());
-						
-						if (textChannel.getGuild().getSelfMember().hasPermission(textChannel, Permission.MANAGE_WEBHOOKS)) {
-							this.createWebhook(textChannel, message);
-						}
+						this.webhooks.remove(channel.getIdLong());
+
+						this.createWebhook(channel, message);
 					} else {
 						ExceptionUtility.sendErrorMessage(exception);
 					}
@@ -131,9 +133,7 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 					if (this.webhooks.containsKey(textChannel.getIdLong())) {
 						webhook = this.webhooks.get(textChannel.getIdLong());
 					} else if (!webhookData.containsKey("id")) {
-						if (textChannel.getGuild().getSelfMember().hasPermission(textChannel, Permission.MANAGE_WEBHOOKS)) {
-							this.createWebhook(textChannel, message);
-						}
+						this.createWebhook(textChannel, message);
 
 						return;
 					} else {
@@ -149,9 +149,7 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 						if (exception instanceof HttpException && ((HttpException) exception).getCode() == 404) {
 							this.webhooks.remove(textChannel.getIdLong());
 
-							if (textChannel.getGuild().getSelfMember().hasPermission(textChannel, Permission.MANAGE_WEBHOOKS)) {
-								this.createWebhook(textChannel, message);
-							}
+							this.createWebhook(textChannel, message);
 						}
 					});
 				} else {

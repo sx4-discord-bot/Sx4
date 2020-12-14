@@ -997,6 +997,26 @@ public class Database {
 	public CompletableFuture<UpdateResult> updateManyModLogs(List<Bson> update) {
 		return CompletableFuture.supplyAsync(() -> this.modLogs.updateMany(Database.EMPTY_DOCUMENT, update, this.updateOptions));
 	}
+
+	public CompletableFuture<Document> findAndDeleteModLog(Bson filter) {
+		return CompletableFuture.supplyAsync(() -> this.modLogs.findOneAndDelete(filter));
+	}
+
+	public CompletableFuture<Document> findAndDeleteModLogById(ObjectId id) {
+		return this.findAndDeleteModLog(Filters.eq("_id", id));
+	}
+
+	public CompletableFuture<DeleteResult> deleteModLog(Bson filter) {
+		return CompletableFuture.supplyAsync(() -> this.modLogs.deleteOne(filter));
+	}
+
+	public CompletableFuture<DeleteResult> deleteModLogById(ObjectId id) {
+		return this.deleteModLog(Filters.eq("_id", id));
+	}
+
+	public CompletableFuture<DeleteResult> deleteManyModLogs(Bson filter) {
+		return CompletableFuture.supplyAsync(() -> this.modLogs.deleteMany(filter));
+	}
 	
 	public MongoCollection<Document> getYouTubeSubscriptions() {
 		return this.youtubeSubscriptions;

@@ -28,6 +28,7 @@ import com.sx4.bot.utility.ColourUtility;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.waiter.Waiter;
 import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent;
@@ -91,7 +92,7 @@ public class SuggestionCommand extends Sx4Command {
 	@Examples({"suggestion channel", "suggestion channel #suggestions"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void channel(Sx4CommandEvent event, @Argument(value="channel", endless=true, nullDefault=true) TextChannel channel) {
-		List<Bson> update = List.of(Operators.set("suggestion.channelId", channel == null ? Operators.REMOVE : channel.getIdLong()), Operators.unset("suggestion.webhook"));
+		List<Bson> update = List.of(Operators.set("suggestion.channelId", channel == null ? Operators.REMOVE : channel.getIdLong()), Operators.unset("suggestion.webhook.id"), Operators.unset("suggestion.webhook.token"));
 		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("suggestion.channelId")).upsert(true);
 
 		this.database.findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
@@ -99,7 +100,7 @@ public class SuggestionCommand extends Sx4Command {
 				return;
 			}
 
-			long channelId = data == null ? 0L : data.get("channelId", 0L);
+			long channelId = data == null ? 0L : data.getEmbedded(List.of("suggestion", "channelId"), 0L);
 
 			if ((channel == null && channelId == 0L) || (channel != null && channel.getIdLong() == channelId)) {
 				event.replyFailure("The suggestion channel is already " + (channel == null ? "unset" : "set to " + channel.getAsMention())).queue();
@@ -165,21 +166,25 @@ public class SuggestionCommand extends Sx4Command {
 		});
 	}
 	
-	@Command(value="remove", description="Removes a suggestion, can be your own or anyones if you have the manage server permission")
+	@Command(value="remove", aliases={"delete"}, description="Removes a suggestion, can be your own or anyones if you have the manage server permission")
 	@Examples({"suggestion remove 717843290837483611", "suggestion remove all"})
 	public void remove(Sx4CommandEvent event, @Argument(value="message id") All<MessageArgument> allArgument) {
+		User author = event.getAuthor();
+		Guild guild = event.getGuild();
+		TextChannel channel = event.getTextChannel();
+
 		if (allArgument.isAll()) {
-			if (CheckUtility.hasPermissions(event.getMember(), event.getTextChannel(), event.getProperty("fakePermissions"), Permission.MANAGE_SERVER)) {
+			if (CheckUtility.hasPermissions(event.getMember(), channel, event.getProperty("fakePermissions"), Permission.MANAGE_SERVER)) {
 				event.replyFailure("You are missing the permission " + Permission.MANAGE_SERVER.getName() + " to execute this, you can remove your own suggestions only").queue();
 				return;
 			}
 			
-			event.reply(event.getAuthor().getName() + ", are you sure you want to delete **all** the suggestions in this server? (Yes or No)").queue(queryMessage -> {
+			event.reply(author.getName() + ", are you sure you want to delete **all** the suggestions in this server? (Yes or No)").queue(queryMessage -> {
 				Waiter<GuildMessageReceivedEvent> waiter = new Waiter<>(GuildMessageReceivedEvent.class)
 					.setPredicate(messageEvent -> messageEvent.getMessage().getContentRaw().equalsIgnoreCase("yes"))
 					.setOppositeCancelPredicate()
 					.setTimeout(30)
-					.setUnique(event.getAuthor().getIdLong(), event.getChannel().getIdLong());
+					.setUnique(author.getIdLong(), event.getChannel().getIdLong());
 				
 				waiter.onTimeout(() -> event.reply("Response timed out :stopwatch:").queue());
 				
@@ -189,6 +194,11 @@ public class SuggestionCommand extends Sx4Command {
 					.thenCompose(messageEvent -> this.database.deleteManySuggestions(Filters.eq("guildId", event.getGuild().getIdLong())))
 					.whenComplete((result, exception) -> {
 						if (ExceptionUtility.sendExceptionally(event, exception)) {
+							return;
+						}
+
+						if (result.getDeletedCount() == 0) {
+							event.replyFailure("This server has no suggestions").queue();
 							return;
 						}
 						
@@ -201,11 +211,9 @@ public class SuggestionCommand extends Sx4Command {
 			long messageId = allArgument.getValue().getMessageId();
 			boolean hasPermission = CheckUtility.hasPermissions(event.getMember(), event.getTextChannel(), event.getProperty("fakePermissions"), Permission.MANAGE_SERVER);
 
-			FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("suggestion.suggestions"));
-
 			Bson filter = Filters.eq("messageId", messageId);
 			if (!hasPermission) {
-				filter = Filters.and(Filters.eq("authorId", event.getAuthor().getIdLong()), filter);
+				filter = Filters.and(Filters.eq("authorId", author.getIdLong()), filter);
 			}
 
 			this.database.findAndDeleteSuggestion(filter).whenComplete((data, exception) -> {
@@ -218,9 +226,21 @@ public class SuggestionCommand extends Sx4Command {
 					return;
 				}
 
-				if (data.getLong("authorId") != event.getAuthor().getIdLong() && !hasPermission) {
+				if (data.getLong("authorId") != author.getIdLong() && !hasPermission) {
 					event.replyFailure("You do not own that suggestion").queue();
 					return;
+				}
+
+				long channelId = data.getLong("channelId");
+				TextChannel suggestionChannel = guild.getTextChannelById(channelId);
+				if (suggestionChannel != null) {
+					if (guild.getSelfMember().hasPermission(suggestionChannel, Permission.MESSAGE_MANAGE)) {
+						suggestionChannel.deleteMessageById(data.getLong("messageId")).queue();
+					} else {
+						Document webhookData = this.database.getGuildById(guild.getIdLong(), Projections.include("suggestion.webhook.token", "suggestion.webhook.id")).getEmbedded(List.of("suggestion", "webhook"), Database.EMPTY_DOCUMENT);
+
+						this.manager.deleteSuggestion(data.getLong("messageId"), channelId, webhookData);
+					}
 				}
 
 				event.replySuccess("That suggestion has been removed").queue();
@@ -280,7 +300,7 @@ public class SuggestionCommand extends Sx4Command {
 			
 			User author = event.getShardManager().getUserById(suggestion.getLong("authorId"));
 			
-			this.manager.editSuggestion(messageId, channel, data.get("webhook", Database.EMPTY_DOCUMENT), this.getSuggestionMessage(author, event.getAuthor(), suggestion.getString("suggestion"), reason, new SuggestionState(state)), message -> {});
+			this.manager.editSuggestion(messageId, channel.getIdLong(), data.get("webhook", Database.EMPTY_DOCUMENT), this.getSuggestionMessage(author, event.getAuthor(), suggestion.getString("suggestion"), reason, new SuggestionState(state)));
 
 			event.replySuccess("That suggestion has been set to the `" + stateData + "` state").queue();
 		});
@@ -331,7 +351,7 @@ public class SuggestionCommand extends Sx4Command {
 			});
 		}
 		
-		@Command(value="remove", description="Remove a state from being used in suggestions")
+		@Command(value="remove", aliases={"delete"}, description="Remove a state from being used in suggestions")
 		@Examples({"suggestion state remove Bug", "suggestion state remove On Hold", "suggestion state remove all"})
 		@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 		public void remove(Sx4CommandEvent event, @Argument(value="state name", endless=true) All<String> allArgument) {

@@ -1,31 +1,25 @@
 package com.sx4.bot.handlers;
 
-import org.bson.Document;
-
+import club.minnced.discord.webhook.send.WebhookEmbed;
 import com.mongodb.client.model.Projections;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.entities.mod.action.Action;
 import com.sx4.bot.entities.mod.action.ModAction;
 import com.sx4.bot.entities.mod.modlog.ModLog;
-import com.sx4.bot.events.mod.BanEvent;
-import com.sx4.bot.events.mod.KickEvent;
-import com.sx4.bot.events.mod.ModActionEvent;
-import com.sx4.bot.events.mod.MuteEvent;
-import com.sx4.bot.events.mod.MuteExtendEvent;
-import com.sx4.bot.events.mod.TemporaryBanEvent;
-import com.sx4.bot.events.mod.UnbanEvent;
-import com.sx4.bot.events.mod.UnmuteEvent;
-import com.sx4.bot.events.mod.WarnEvent;
+import com.sx4.bot.events.mod.*;
 import com.sx4.bot.hooks.ModActionListener;
-
+import com.sx4.bot.managers.ModLogManager;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.hooks.EventListener;
+import org.bson.Document;
 
 public class ModHandler implements ModActionListener, EventListener {
 	
 	public static final ModHandler INSTANCE = new ModHandler();
+
+	private final ModLogManager manager = ModLogManager.get();
 	
 	public void onAction(ModActionEvent event) {
 		Database database = Database.get();
@@ -39,7 +33,7 @@ public class ModHandler implements ModActionListener, EventListener {
 			// TODO: insert offence
 		}
 		
-		Document data = database.getGuildById(guild.getIdLong(), Projections.include("modLog.channelId", "modLog.enabled")).get("modLog", Database.EMPTY_DOCUMENT);
+		Document data = database.getGuildById(guild.getIdLong(), Projections.include("modLog.channelId", "modLog.enabled", "modLog.webhook")).get("modLog", Database.EMPTY_DOCUMENT);
 		
 		long channelId = data.getLong("channelId");
 		if (!data.getBoolean("enabled", false) || channelId == 0) {
@@ -59,10 +53,12 @@ public class ModHandler implements ModActionListener, EventListener {
 			event.getReason(),
 			event.getAction()
 		);
-		
-		channel.sendMessage(modLog.getEmbed(event.getModerator().getUser(), event.getTarget())).queue(message -> {
-			modLog.setMessageId(message.getIdLong());
-			
+
+		WebhookEmbed embed = modLog.getWebhookEmbed(event.getModerator().getUser(), event.getTarget());
+
+		this.manager.sendModLog(channel, data.get("webhook", Database.EMPTY_DOCUMENT), embed, webhookMessage -> {
+			modLog.setMessageId(webhookMessage.getId());
+
 			database.insertModLog(modLog.toData()).whenComplete(Database.exceptionally());
 		});
 	}

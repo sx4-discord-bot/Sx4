@@ -24,12 +24,12 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Consumer;
 
-public class SuggestionManager {
+public class ModLogManager {
 
-	private static final SuggestionManager INSTANCE = new SuggestionManager();
+	private static final ModLogManager INSTANCE = new ModLogManager();
 
-	public static SuggestionManager get() {
-		return SuggestionManager.INSTANCE;
+	public static ModLogManager get() {
+		return ModLogManager.INSTANCE;
 	}
 
 	private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
@@ -37,7 +37,7 @@ public class SuggestionManager {
 
 	private final Map<Long, WebhookClient> webhooks;
 
-	private SuggestionManager() {
+	private ModLogManager() {
 		this.webhooks = new HashMap<>();
 	}
 
@@ -50,7 +50,7 @@ public class SuggestionManager {
 			return;
 		}
 
-		channel.createWebhook("Sx4 - ModLogs").queue(webhook -> {
+		channel.createWebhook("Sx4 - Mod Logs").queue(webhook -> {
 			WebhookClient webhookClient = new WebhookClientBuilder(webhook.getUrl())
 				.setExecutorService(this.executor)
 				.setHttpClient(this.client)
@@ -81,24 +81,27 @@ public class SuggestionManager {
 		});
 	}
 
-	public void sendSuggestion(TextChannel channel, Document webhookData, WebhookEmbed embed, Consumer<ReadonlyMessage> consumer) {
+	public void sendModLog(TextChannel channel, Document webhookData, WebhookEmbed embed, Consumer<ReadonlyMessage> consumer) {
 		User selfUser = channel.getJDA().getSelfUser();
 
 		WebhookMessage message = new WebhookMessageBuilder()
 			.setAvatarUrl(webhookData.get("avatar", selfUser.getEffectiveAvatarUrl()))
-			.setUsername(webhookData.get("name", "Sx4 - ModLogs"))
+			.setUsername(webhookData.get("name", "Sx4 - Mod Logs"))
 			.addEmbeds(embed)
 			.build();
+
+		long webhookId = webhookData.get("id", 0L);
+		String webhookToken = webhookData.getString("token");
 
 		WebhookClient webhook;
 		if (this.webhooks.containsKey(channel.getIdLong())) {
 			webhook = this.webhooks.get(channel.getIdLong());
-		} else if (!webhookData.containsKey("id")) {
+		} else if (webhookId == 0L) {
 			this.createWebhook(channel, message, consumer);
 
 			return;
 		} else {
-			webhook = new WebhookClientBuilder(webhookData.getLong("id"), webhookData.getString("token"))
+			webhook = new WebhookClientBuilder(webhookId, webhookToken)
 				.setExecutorService(this.executor)
 				.setHttpClient(this.client)
 				.build();
@@ -121,7 +124,7 @@ public class SuggestionManager {
 		});
 	}
 
-	public void editSuggestion(long messageId, long channelId, Document webhookData, WebhookEmbed embed) {
+	public void editModLog(long messageId, long channelId, Document webhookData, WebhookEmbed embed) {
 		User selfUser = Sx4.get().getShardManager().getShardById(0).getSelfUser();
 
 		WebhookMessage message = new WebhookMessageBuilder()
@@ -161,7 +164,7 @@ public class SuggestionManager {
 		});
 	}
 
-	public void deleteSuggestion(long messageId, long channelId, Document webhookData) {
+	public void deleteModLog(long messageId, long channelId, Document webhookData) {
 		WebhookClient webhook;
 		if (this.webhooks.containsKey(channelId)) {
 			webhook = this.webhooks.get(channelId);

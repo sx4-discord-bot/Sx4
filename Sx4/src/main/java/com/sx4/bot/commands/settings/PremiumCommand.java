@@ -60,8 +60,8 @@ public class PremiumCommand extends Sx4Command {
 		int monthPrice = this.config.getPremiumPrice();
 		int price = (int) Math.round((monthPrice / 30D) * days);
 
-		long endsAtPrior = this.database.getGuildById(guildId, Projections.include("premium.endsAt")).getEmbedded(List.of("premium", "endsAt"), 0L);
-		boolean hasPremium = endsAtPrior != 0;
+		long endAtPrior = this.database.getGuildById(guildId, Projections.include("premium.endAt")).getEmbedded(List.of("premium", "endAt"), 0L);
+		boolean hasPremium = endAtPrior != 0;
 
 		MessageEmbed embed = new EmbedBuilder()
 			.setColor(this.config.getOrange())
