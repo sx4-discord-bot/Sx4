@@ -195,12 +195,24 @@ public class Database {
 		return this.findAndUpdateSuggestion(filter, update, this.findOneAndUpdateOptions);
 	}
 
+	public CompletableFuture<Document> findAndUpdateSuggestionById(ObjectId id, Bson update, FindOneAndUpdateOptions options) {
+		return this.findAndUpdateSuggestion(Filters.eq("_id", id), update, options);
+	}
+
+	public CompletableFuture<Document> findAndUpdateSuggestionById(ObjectId id, Bson update) {
+		return this.findAndUpdateSuggestionById(id, update, this.findOneAndUpdateOptions);
+	}
+
 	public CompletableFuture<DeleteResult> deleteSuggestion(Bson filter) {
 		return CompletableFuture.supplyAsync(() -> this.suggestions.deleteOne(filter));
 	}
 
 	public CompletableFuture<Document> findAndDeleteSuggestion(Bson filter) {
 		return CompletableFuture.supplyAsync(() -> this.suggestions.findOneAndDelete(filter));
+	}
+
+	public CompletableFuture<Document> findAndDeleteSuggestionById(ObjectId id) {
+		return this.findAndDeleteSuggestion(Filters.eq("_id", id));
 	}
 
 	public CompletableFuture<DeleteResult> deleteManySuggestions(Bson filter) {
