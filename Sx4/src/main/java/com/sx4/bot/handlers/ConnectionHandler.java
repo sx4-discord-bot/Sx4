@@ -61,6 +61,7 @@ public class ConnectionHandler extends ListenerAdapter {
 			AutoRoleManager.get().ensureAutoRoles();
 			GiveawayManager.get().ensureGiveaways();
 			AntiRegexManager.get().ensureAttempts();
+			PremiumManager.get().ensurePremiumExpiry();
 		}
 		
 		this.eventsWebhook.send(this.getEmbed(jda, "Ready", Config.get().getGreen()));

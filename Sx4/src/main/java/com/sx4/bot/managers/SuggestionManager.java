@@ -50,7 +50,7 @@ public class SuggestionManager {
 			return;
 		}
 
-		channel.createWebhook("Sx4 - ModLogs").queue(webhook -> {
+		channel.createWebhook("Sx4 - Suggestions").queue(webhook -> {
 			WebhookClient webhookClient = new WebhookClientBuilder(webhook.getUrl())
 				.setExecutorService(this.executor)
 				.setHttpClient(this.client)
@@ -86,7 +86,7 @@ public class SuggestionManager {
 
 		WebhookMessage message = new WebhookMessageBuilder()
 			.setAvatarUrl(webhookData.get("avatar", selfUser.getEffectiveAvatarUrl()))
-			.setUsername(webhookData.get("name", "Sx4 - ModLogs"))
+			.setUsername(webhookData.get("name", "Sx4 - Suggestions"))
 			.addEmbeds(embed)
 			.build();
 
@@ -145,17 +145,7 @@ public class SuggestionManager {
 		}
 
 		webhook.edit(messageId, message).whenComplete((webhookMessage, exception) -> {
-			if (exception instanceof HttpException) {
-				HttpException httpException = ((HttpException) exception);
-				if (httpException.getCode() == 404) {
-					Document body = Document.parse(httpException.getBody());
-
-					int code = body.get("code", 0);
-					if (code == 10015) {
-						this.webhooks.remove(channelId);
-					}
-				}
-			} else {
+			if (!(exception instanceof HttpException)) {
 				ExceptionUtility.sendErrorMessage(exception);
 			}
 		});
@@ -177,17 +167,7 @@ public class SuggestionManager {
 		}
 
 		webhook.delete(messageId).whenComplete((webhookMessage, exception) -> {
-			if (exception instanceof HttpException) {
-				HttpException httpException = ((HttpException) exception);
-				if (httpException.getCode() == 404) {
-					Document body = Document.parse(httpException.getBody());
-
-					int code = body.get("code", 0);
-					if (code == 10015) {
-						this.webhooks.remove(channelId);
-					}
-				}
-			} else {
+			if (!(exception instanceof HttpException)) {
 				ExceptionUtility.sendErrorMessage(exception);
 			}
 		});

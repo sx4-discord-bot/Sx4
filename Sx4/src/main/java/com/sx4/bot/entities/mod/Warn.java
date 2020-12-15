@@ -1,4 +1,4 @@
-package com.sx4.bot.entities.mod.warn;
+package com.sx4.bot.entities.mod;
 
 import com.sx4.bot.entities.mod.action.Action;
 import com.sx4.bot.entities.mod.action.ModAction;

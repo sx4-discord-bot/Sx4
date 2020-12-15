@@ -68,7 +68,7 @@ public class PremiumManager {
 	public UpdateOneModel<Document> endPremiumBulk(long guildId) {
 		// remove premium features
 
-		return new UpdateOneModel<>(Filters.eq("guildId", guildId), Updates.unset("premium"));
+		return new UpdateOneModel<>(Filters.eq("_id", guildId), Updates.unset("premium"));
 	}
 
 	public void ensurePremiumExpiry() {

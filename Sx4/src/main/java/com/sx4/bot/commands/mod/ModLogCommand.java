@@ -18,7 +18,7 @@ import com.sx4.bot.entities.argument.All;
 import com.sx4.bot.entities.argument.Range;
 import com.sx4.bot.entities.mod.Reason;
 import com.sx4.bot.entities.mod.action.Action;
-import com.sx4.bot.entities.mod.modlog.ModLog;
+import com.sx4.bot.entities.mod.ModLog;
 import com.sx4.bot.managers.ModLogManager;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
@@ -194,9 +194,9 @@ public class ModLogCommand extends Sx4Command {
 		}
 	}
 	
-	@Command(value="view case", aliases={"viewcase"}, description="View a mod log case from the server")
-	@Examples({"modlog view case 5e45ce6d3688b30ee75201ae", "modlog view case"})
-	public void viewCase(Sx4CommandEvent event, @Argument(value="id", nullDefault=true) ObjectId id) {
+	@Command(value="view", aliases={"viewcase", "view case", "list"}, description="View a mod log case from the server")
+	@Examples({"modlog view 5e45ce6d3688b30ee75201ae", "modlog view"})
+	public void view(Sx4CommandEvent event, @Argument(value="id", nullDefault=true) ObjectId id) {
 		Bson projection = Projections.include("moderatorId", "reason", "targetId", "action");
 		if (id == null) {
 			List<Document> allData = this.database.getModLogs(Filters.eq("guildId", event.getGuild().getIdLong()), projection).into(new ArrayList<>());
@@ -215,7 +215,7 @@ public class ModLogCommand extends Sx4Command {
 				.setIncreasedIndex(true);
 			
 			paged.onSelect(select -> {
-				event.reply(new ModLog(select.getSelected()).getEmbed()).queue();
+				event.reply(ModLog.fromData(select.getSelected()).getEmbed()).queue();
 			});
 			
 			paged.execute(event);
@@ -226,7 +226,7 @@ public class ModLogCommand extends Sx4Command {
 				return;
 			}
 			
-			event.reply(new ModLog(data).getEmbed()).queue();
+			event.reply(ModLog.fromData(data).getEmbed()).queue();
 		}
 	}
 	

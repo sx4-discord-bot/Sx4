@@ -2,7 +2,7 @@ package com.sx4.bot.entities.mod.action;
 
 import org.bson.Document;
 
-import com.sx4.bot.entities.mod.warn.Warn;
+import com.sx4.bot.entities.mod.Warn;
 import com.sx4.bot.utility.TimeUtility;
 
 public class Action {

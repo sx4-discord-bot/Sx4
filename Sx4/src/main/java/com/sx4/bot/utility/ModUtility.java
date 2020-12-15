@@ -7,7 +7,7 @@ import com.sx4.bot.entities.mod.Reason;
 import com.sx4.bot.entities.mod.action.Action;
 import com.sx4.bot.entities.mod.action.ModAction;
 import com.sx4.bot.entities.mod.action.TimeAction;
-import com.sx4.bot.entities.mod.warn.Warn;
+import com.sx4.bot.entities.mod.Warn;
 import com.sx4.bot.events.mod.WarnEvent;
 import com.sx4.bot.exceptions.mod.AuthorPermissionException;
 import com.sx4.bot.exceptions.mod.BotHierarchyException;

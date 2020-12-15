@@ -1,4 +1,4 @@
-package com.sx4.bot.entities.mod.modlog;
+package com.sx4.bot.entities.mod;
 
 import club.minnced.discord.webhook.send.WebhookEmbed;
 import club.minnced.discord.webhook.send.WebhookEmbed.EmbedField;
@@ -6,7 +6,6 @@ import club.minnced.discord.webhook.send.WebhookEmbed.EmbedFooter;
 import club.minnced.discord.webhook.send.WebhookEmbed.EmbedTitle;
 import club.minnced.discord.webhook.send.WebhookEmbedBuilder;
 import com.sx4.bot.core.Sx4;
-import com.sx4.bot.entities.mod.Reason;
 import com.sx4.bot.entities.mod.action.Action;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.Guild;
@@ -23,8 +22,6 @@ public class ModLog {
 	private final ObjectId id;
 	
 	private long messageId;
-	private long webhookId;
-	private String webhookToken;
 	private final long channelId;
 	private final long guildId;
 	private final long targetId;
@@ -38,7 +35,7 @@ public class ModLog {
 		this(ObjectId.get(), 0L, channelId, guildId, targetId, moderatorId, reason, action);
 	}
 	
-	public ModLog(Document data) {
+	private ModLog(Document data) {
 		this.id = data.getObjectId("_id");
 		this.messageId = data.get("messageId", 0L);
 		this.channelId = data.get("channelId", 0L);
@@ -94,7 +91,7 @@ public class ModLog {
 	}
 	
 	public Guild getGuild() {
-		if (this.guildId == -1L) {
+		if (this.guildId == 0L) {
 			return null;
 		}
 
@@ -106,7 +103,7 @@ public class ModLog {
 	}
 	
 	public TextChannel getChannel() {
-		if (this.channelId == -1L) {
+		if (this.channelId == 0L) {
 			return null;
 		}
 
@@ -180,6 +177,10 @@ public class ModLog {
 			.append("moderatorId", this.moderatorId)
 			.append("reason", this.reason == null ? null : this.reason.getParsed())
 			.append("action", this.action.toData());
+	}
+
+	public static ModLog fromData(Document data) {
+		return new ModLog(data);
 	}
 	
 }

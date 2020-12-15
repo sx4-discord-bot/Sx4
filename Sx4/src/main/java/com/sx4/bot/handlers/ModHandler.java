@@ -5,7 +5,7 @@ import com.mongodb.client.model.Projections;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.entities.mod.action.Action;
 import com.sx4.bot.entities.mod.action.ModAction;
-import com.sx4.bot.entities.mod.modlog.ModLog;
+import com.sx4.bot.entities.mod.ModLog;
 import com.sx4.bot.events.mod.*;
 import com.sx4.bot.hooks.ModActionListener;
 import com.sx4.bot.managers.ModLogManager;

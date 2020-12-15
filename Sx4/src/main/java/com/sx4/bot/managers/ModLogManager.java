@@ -148,17 +148,7 @@ public class ModLogManager {
 		}
 
 		webhook.edit(messageId, message).whenComplete((webhookMessage, exception) -> {
-			if (exception instanceof HttpException) {
-				HttpException httpException = ((HttpException) exception);
-				if (httpException.getCode() == 404) {
-					Document body = Document.parse(httpException.getBody());
-
-					int code = body.get("code", 0);
-					if (code == 10015) {
-						this.webhooks.remove(channelId);
-					}
-				}
-			} else {
+			if (!(exception instanceof HttpException)) {
 				ExceptionUtility.sendErrorMessage(exception);
 			}
 		});
@@ -180,17 +170,7 @@ public class ModLogManager {
 		}
 
 		webhook.delete(messageId).whenComplete((webhookMessage, exception) -> {
-			if (exception instanceof HttpException) {
-				HttpException httpException = ((HttpException) exception);
-				if (httpException.getCode() == 404) {
-					Document body = Document.parse(httpException.getBody());
-
-					int code = body.get("code", 0);
-					if (code == 10015) {
-						this.webhooks.remove(channelId);
-					}
-				}
-			} else {
+			if (!(exception instanceof HttpException)) {
 				ExceptionUtility.sendErrorMessage(exception);
 			}
 		});

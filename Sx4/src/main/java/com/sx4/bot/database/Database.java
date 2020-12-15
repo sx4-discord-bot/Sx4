@@ -69,7 +69,7 @@ public class Database {
 	
 	public Database() {
 		DatabaseHandler handler = new DatabaseHandler();
-		
+
 		MongoClientSettings settings = MongoClientSettings.builder()
 			.addCommandListener(handler)
 			.applyToClusterSettings(clusterSettings -> clusterSettings.addClusterListener(handler))
@@ -173,6 +173,10 @@ public class Database {
 
 	public Document getSuggestion(Bson filter, Bson projection) {
 		return this.getSuggestions(filter, projection).first();
+	}
+
+	public Document getSuggestionById(ObjectId id, Bson projection) {
+		return this.getSuggestion(Filters.eq("_id", id), projection);
 	}
 
 	public CompletableFuture<InsertOneResult> insertSuggestion(Document data) {

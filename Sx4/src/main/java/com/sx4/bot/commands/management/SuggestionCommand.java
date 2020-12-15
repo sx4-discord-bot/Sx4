@@ -20,8 +20,10 @@ import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.database.model.Operators;
 import com.sx4.bot.entities.argument.All;
+import com.sx4.bot.entities.management.Suggestion;
 import com.sx4.bot.entities.management.SuggestionState;
 import com.sx4.bot.managers.SuggestionManager;
+import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.CheckUtility;
 import com.sx4.bot.utility.ColourUtility;
 import com.sx4.bot.utility.ExceptionUtility;
@@ -36,6 +38,7 @@ import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -57,7 +60,7 @@ public class SuggestionCommand extends Sx4Command {
 			.setDescription(suggestion)
 			.setFooter(new EmbedFooter(String.format("%s | ID: %s", state.getName(), id.toHexString()), null))
 			.setColor(state.getColour())
-			.setTimestamp(Instant.now());
+			.setTimestamp(Instant.ofEpochSecond(id.getTimestamp()));
 		
 		if (moderator != null) {
 			embed.addField(new EmbedField(true, "Moderator", moderator.getAsTag()));
@@ -142,19 +145,20 @@ public class SuggestionCommand extends Sx4Command {
 			return;
 		}
 
-		ObjectId id = ObjectId.get();
 		SuggestionState state = SuggestionState.PENDING;
 
-		this.manager.sendSuggestion(channel, data.get("webhook", Database.EMPTY_DOCUMENT), this.getSuggestionMessage(id, event.getAuthor(), null, suggestion, null, state), message -> {
-			Document suggestionData = new Document("_id", id)
-				.append("messageId", message.getId())
-				.append("channelId", channel.getIdLong())
-				.append("guildId", event.getGuild().getIdLong())
-				.append("authorId", event.getAuthor().getIdLong())
-				.append("state", state.getDataName())
-				.append("suggestion", suggestion);
-			
-			this.database.insertSuggestion(suggestionData).whenComplete((result, exception) -> {
+		Suggestion suggestionData = new Suggestion(
+			channelId,
+			event.getGuild().getIdLong(),
+			event.getAuthor().getIdLong(),
+			suggestion,
+			state.getDataName()
+		);
+
+		this.manager.sendSuggestion(channel, data.get("webhook", Database.EMPTY_DOCUMENT), suggestionData.getWebhookEmbed(null, event.getAuthor(), state), message -> {
+			suggestionData.setMessageId(message.getId());
+
+			this.database.insertSuggestion(suggestionData.toData()).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
@@ -271,40 +275,83 @@ public class SuggestionCommand extends Sx4Command {
 		
 		Bson update = Updates.combine(
 			reason == null ? Updates.unset("reason") : Updates.set("reason", reason),
-			Updates.set("state", stateData)
+			Updates.set("state", stateData),
+			Updates.set("moderatorId", event.getAuthor().getIdLong())
 		);
 
-		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("channelId", "authorId", "reason", "state", "suggestion"));
-		this.database.findAndUpdateSuggestionById(id, update, options).whenComplete((suggestion, exception) -> {
+		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("channelId", "authorId", "reason", "state", "suggestion", "messageId"));
+		this.database.findAndUpdateSuggestionById(id, update, options).whenComplete((suggestionData, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
 
-			if (suggestion == null) {
+			if (suggestionData == null) {
 				event.replyFailure("There is no suggestion with that id").queue();
 				return;
 			}
 
-			String reasonData = suggestion.getString("reason");
+			Suggestion suggestion = Suggestion.fromData(suggestionData);
+
+			String reasonData = suggestion.getReason();
 			boolean reasonMatch = reasonData == null && reason == null || (reasonData != null && reasonData.equals(reason));
 
-			if (suggestion.getString("state").equals(stateData) && reasonMatch) {
+			if (suggestion.getState().equals(stateData) && reasonMatch) {
 				event.replyFailure("That suggestion is already in that state and has the same reason").queue();
 				return;
 			}
 
-			TextChannel channel = event.getGuild().getTextChannelById(suggestion.getLong("channelId"));
+			TextChannel channel = suggestion.getChannel(event.getGuild());
 			if (channel == null) {
 				event.replyFailure("The channel for that suggestion no longer exists").queue();
 				return;
 			}
 			
-			User author = event.getShardManager().getUserById(suggestion.getLong("authorId"));
-			
-			this.manager.editSuggestion(suggestion.getLong("messageId"), channel.getIdLong(), data.get("webhook", Database.EMPTY_DOCUMENT), this.getSuggestionMessage(id, author, event.getAuthor(), suggestion.getString("suggestion"), reason, new SuggestionState(state)));
+			this.manager.editSuggestion(suggestion.getMessageId(), channel.getIdLong(), data.get("webhook", Database.EMPTY_DOCUMENT), suggestion.getWebhookEmbed(new SuggestionState(state)));
 
 			event.replySuccess("That suggestion has been set to the `" + stateData + "` state").queue();
 		});
+	}
+
+	@Command(value="view", aliases={"list"}, description="View a suggestion in the current channel")
+	@Examples({"suggestion view 5e45ce6d3688b30ee75201ae", "suggestion view"})
+	public void view(Sx4CommandEvent event, @Argument(value="id", nullDefault=true) ObjectId id) {
+		Bson projection = Projections.include("suggestion", "reason", "moderatorId", "authorId", "state");
+		if (id == null) {
+			List<Document> suggestions = this.database.getSuggestions(Filters.eq("guildId", event.getGuild().getIdLong()), projection).into(new ArrayList<>());
+			if (suggestions.isEmpty()) {
+				event.replyFailure("There are not suggestions in this server").queue();
+				return;
+			}
+
+			PagedResult<Document> paged = new PagedResult<>(suggestions)
+				.setDisplayFunction(data -> {
+					long authorId = data.getLong("authorId");
+					User author = event.getShardManager().getUserById(authorId);
+
+					return String.format("`%s` by %s - **%s**", data.getObjectId("_id").toHexString(), author == null ? authorId : author.getAsTag(), data.getString("state"));
+				})
+				.setIncreasedIndex(true);
+
+			paged.onSelect(select -> {
+				List<Document> states = this.database.getGuildById(event.getGuild().getIdLong(), Projections.include("suggestion.states")).getEmbedded(List.of("suggestion", "states"), SuggestionState.getDefaultStates());
+				Suggestion suggestion = Suggestion.fromData(select.getSelected());
+
+				event.reply(suggestion.getEmbed(suggestion.getFullState(states))).queue();
+			});
+
+			paged.execute(event);
+		} else {
+			Document suggestionData = this.database.getSuggestionById(id, projection);
+			if (suggestionData == null) {
+				event.replyFailure("I could not find that suggestion").queue();
+				return;
+			}
+
+			List<Document> states = this.database.getGuildById(event.getGuild().getIdLong(), Projections.include("suggestion.states")).getEmbedded(List.of("suggestion", "states"), SuggestionState.getDefaultStates());
+			Suggestion suggestion = Suggestion.fromData(suggestionData);
+
+			event.reply(suggestion.getEmbed(suggestion.getFullState(states))).queue();
+		}
 	}
 	
 	public class StateCommand extends Sx4Command {
@@ -330,11 +377,6 @@ public class SuggestionCommand extends Sx4Command {
 				.append("colour", colour);
 			
 			List<Document> defaultStates = SuggestionState.getDefaultStates();
-			if (defaultStates.stream().anyMatch(state -> state.getString("dataName").equals(dataName))) {
-				event.replyFailure("There is already a state named that").queue();
-				return;
-			}
-			
 			defaultStates.add(stateData);
 			
 			List<Bson> update = List.of(Operators.set("suggestion.states", Operators.cond(Operators.and(Operators.exists("$suggestion.states"), Operators.ne(Operators.filter("$suggestion.states", Operators.eq("$$this.dataName", dataName)), Collections.EMPTY_LIST)), "$suggestion.states", Operators.cond(Operators.extinct("$suggestion.states"), defaultStates, Operators.concatArrays("$suggestion.states", List.of(stateData))))));
