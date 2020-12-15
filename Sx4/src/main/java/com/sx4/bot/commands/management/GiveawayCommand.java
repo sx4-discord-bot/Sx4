@@ -6,7 +6,6 @@ import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.FindOneAndUpdateOptions;
 import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.ReturnDocument;
-import com.sx4.bot.annotations.argument.DefaultInt;
 import com.sx4.bot.annotations.argument.Limit;
 import com.sx4.bot.annotations.command.AuthorPermissions;
 import com.sx4.bot.annotations.command.Examples;
@@ -71,7 +70,7 @@ public class GiveawayCommand extends Sx4Command {
 	@Command(value="setup", description="Setup giveaways for users to react to")
 	@Examples({"giveaway setup", "giveaway setup #giveaways 1 7d $10 Nitro"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-	public void setup(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) TextChannel channel, @Argument(value="winners") @DefaultInt(-1) @Limit(min=1) int winners, @Argument(value="duration", nullDefault=true) Duration duration, @Argument(value="item", nullDefault=true, endless=true) String item) {
+	public void setup(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) TextChannel channel, @Argument(value="winners") @Limit(min=1) int winners, @Argument(value="duration", nullDefault=true) Duration duration, @Argument(value="item", nullDefault=true, endless=true) String item) {
 		if (channel != null && winners != -1 && duration != null && item != null) {
 			long seconds = duration.toSeconds();
 			

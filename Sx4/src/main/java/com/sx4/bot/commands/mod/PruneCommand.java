@@ -6,8 +6,6 @@ import com.jockie.bot.core.command.Command;
 import com.jockie.bot.core.command.Command.Cooldown;
 import com.jockie.bot.core.cooldown.ICooldown;
 import com.jockie.bot.core.option.Option;
-import com.sx4.bot.annotations.argument.DefaultInt;
-import com.sx4.bot.annotations.argument.DefaultLong;
 import com.sx4.bot.annotations.argument.Limit;
 import com.sx4.bot.annotations.command.AuthorPermissions;
 import com.sx4.bot.annotations.command.BotPermissions;
@@ -82,7 +80,7 @@ public class PruneCommand extends Sx4Command {
 		return future;
 	}
 	
-	public void onCommand(Sx4CommandEvent event, @Argument(value="amount") @Limit(min=1, max=100) @DefaultInt(100) int amount, @Option(value="start", description="The message id to start pruning from") @DefaultLong(0L) long start, @Option(value="end", description="The message id to end pruning at") @DefaultLong(0L) long end) {
+	public void onCommand(Sx4CommandEvent event, @Argument(value="amount") @Limit(min=1, max=100) int amount, @Option(value="start", description="The message id to start pruning from") long start, @Option(value="end", description="The message id to end pruning at") long end) {
 		this.prune(event, amount, start, end, message -> true);
 	}
 	
@@ -91,7 +89,7 @@ public class PruneCommand extends Sx4Command {
 	@Examples({"prune bots", "prune bots 10"})
 	@AuthorPermissions(permissions={Permission.MESSAGE_MANAGE})
 	@BotPermissions(permissions={Permission.MESSAGE_MANAGE, Permission.MESSAGE_HISTORY}, overwrite=true)
-	public void bots(Sx4CommandEvent event, @Argument(value="amount") @Limit(min=1, max=100) @DefaultInt(100) int amount, @Option(value="start", description="The message id to start pruning from") @DefaultLong(0L) long start, @Option(value="end", description="The message id to end pruning at") @DefaultLong(0L) long end) {
+	public void bots(Sx4CommandEvent event, @Argument(value="amount") @Limit(min=1, max=100) int amount, @Option(value="start", description="The message id to start pruning from") long start, @Option(value="end", description="The message id to end pruning at") long end) {
 		this.prune(event, amount, start, end, message -> message.getAuthor().isBot());
 	}
 	
@@ -99,7 +97,7 @@ public class PruneCommand extends Sx4Command {
 	@Examples({"prune images", "prune images 10"})
 	@AuthorPermissions(permissions={Permission.MESSAGE_MANAGE})
 	@BotPermissions(permissions={Permission.MESSAGE_MANAGE, Permission.MESSAGE_HISTORY}, overwrite=true)
-	public void images(Sx4CommandEvent event, @Argument(value="amount") @Limit(min=1, max=100) @DefaultInt(100) int amount, @Option(value="start", description="The message id to start pruning from") @DefaultLong(0L) long start, @Option(value="end", description="The message id to end pruning at") @DefaultLong(0L) long end) {
+	public void images(Sx4CommandEvent event, @Argument(value="amount") @Limit(min=1, max=100) int amount, @Option(value="start", description="The message id to start pruning from") long start, @Option(value="end", description="The message id to end pruning at") long end) {
 		this.prune(event, amount, start, end, message -> message.getAttachments().stream().anyMatch(Attachment::isImage));
 	}
 	
@@ -107,7 +105,7 @@ public class PruneCommand extends Sx4Command {
 	@Examples({"prune mentions", "prune mentions 10", "prune mentions USER CHANNEL"})
 	@AuthorPermissions(permissions={Permission.MESSAGE_MANAGE})
 	@BotPermissions(permissions={Permission.MESSAGE_MANAGE, Permission.MESSAGE_HISTORY}, overwrite=true)
-	public void mentions(Sx4CommandEvent event, @Argument(value="amount") @Limit(min=1, max=100) @DefaultInt(100) int amount, @Option(value="start", description="The message id to start pruning from") @DefaultLong(0L) long start, @Option(value="end", description="The message id to end pruning at") @DefaultLong(0L) long end, @Argument(value="mentions") @Endless(minArguments=0) MentionType... mentions) {
+	public void mentions(Sx4CommandEvent event, @Argument(value="amount") @Limit(min=1, max=100) int amount, @Option(value="start", description="The message id to start pruning from") long start, @Option(value="end", description="The message id to end pruning at") long end, @Argument(value="mentions") @Endless(minArguments=0) MentionType... mentions) {
 		this.prune(event, amount, start, end, message -> !message.getMentions(mentions).isEmpty());
 	}
 	
@@ -115,7 +113,7 @@ public class PruneCommand extends Sx4Command {
 	@Examples({"prune attachments", "prune attachments 10"})
 	@AuthorPermissions(permissions={Permission.MESSAGE_MANAGE})
 	@BotPermissions(permissions={Permission.MESSAGE_MANAGE, Permission.MESSAGE_HISTORY}, overwrite=true)
-	public void attachments(Sx4CommandEvent event, @Argument(value="amount") @Limit(min=1, max=100) @DefaultInt(100) int amount, @Option(value="start", description="The message id to start pruning from") @DefaultLong(0L) long start, @Option(value="end", description="The message id to end pruning at") @DefaultLong(0L) long end) {
+	public void attachments(Sx4CommandEvent event, @Argument(value="amount") @Limit(min=1, max=100) int amount, @Option(value="start", description="The message id to start pruning from") long start, @Option(value="end", description="The message id to end pruning at") long end) {
 		this.prune(event, amount, start, end, message -> !message.getAttachments().isEmpty());
 	}
 	
@@ -123,7 +121,7 @@ public class PruneCommand extends Sx4Command {
 	@Examples({"prune contains hello", "prune contains hello 10"})
 	@AuthorPermissions(permissions={Permission.MESSAGE_MANAGE})
 	@BotPermissions(permissions={Permission.MESSAGE_MANAGE, Permission.MESSAGE_HISTORY}, overwrite=true)
-	public void contains(Sx4CommandEvent event, @Argument(value="content") String content, @Argument(value="amount") @Limit(min=1, max=100) @DefaultInt(100) int amount, @Option(value="start", description="The message id to start pruning from") @DefaultLong(0L) long start, @Option(value="end", description="The message id to end pruning at") @DefaultLong(0L) long end) {
+	public void contains(Sx4CommandEvent event, @Argument(value="content") String content, @Argument(value="amount") @Limit(min=1, max=100) int amount, @Option(value="start", description="The message id to start pruning from") long start, @Option(value="end", description="The message id to end pruning at") long end) {
 		this.prune(event, amount, start, end, message -> message.getContentRaw().contains(content));
 	}
 	
@@ -131,7 +129,7 @@ public class PruneCommand extends Sx4Command {
 	@Examples({"prune user @Shea#6653", "prune user Shea 10"})
 	@AuthorPermissions(permissions={Permission.MESSAGE_MANAGE})
 	@BotPermissions(permissions={Permission.MESSAGE_MANAGE, Permission.MESSAGE_HISTORY}, overwrite=true)
-	public void user(Sx4CommandEvent event, @Argument(value="user") Member member, @Argument(value="amount") @Limit(min=1, max=100) @DefaultInt(100) int amount, @Option(value="start", description="The message id to start pruning from") @DefaultLong(0L) long start, @Option(value="end", description="The message id to end pruning at") @DefaultLong(0L) long end) {
+	public void user(Sx4CommandEvent event, @Argument(value="user") Member member, @Argument(value="amount") @Limit(min=1, max=100) int amount, @Option(value="start", description="The message id to start pruning from") long start, @Option(value="end", description="The message id to end pruning at") long end) {
 		this.prune(event, amount, start, end, message -> message.getAuthor().getIdLong() == member.getIdLong());
 	}
 
@@ -140,7 +138,7 @@ public class PruneCommand extends Sx4Command {
 	@Cooldown(value=20, cooldownScope=ICooldown.Scope.GUILD)
 	@AuthorPermissions(permissions={Permission.MESSAGE_MANAGE})
 	@BotPermissions(permissions={Permission.MESSAGE_MANAGE, Permission.MESSAGE_HISTORY}, overwrite=true)
-	public void regex(Sx4CommandEvent event, @Argument(value="regex") Pattern pattern, @Argument(value="amount") @Limit(min=1, max=100) @DefaultInt(100) int amount, @Option(value="start", description="The message id to start pruning from") @DefaultLong(0L) long start, @Option(value="end", description="The message id to end pruning at") @DefaultLong(0L) long end) {
+	public void regex(Sx4CommandEvent event, @Argument(value="regex") Pattern pattern, @Argument(value="amount") @Limit(min=1, max=100) int amount, @Option(value="start", description="The message id to start pruning from") long start, @Option(value="end", description="The message id to end pruning at") long end) {
 		try {
 			this.prune(event, amount, start, end, message -> pattern.matcher(message.getContentRaw()).matches()).get(500, TimeUnit.MILLISECONDS);
 		} catch (InterruptedException | ExecutionException | TimeoutException e) {

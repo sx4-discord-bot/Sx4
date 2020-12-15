@@ -2,7 +2,6 @@ package com.sx4.bot.commands.image;
 
 import com.jockie.bot.core.argument.Argument;
 import com.sx4.bot.annotations.argument.Colour;
-import com.sx4.bot.annotations.argument.DefaultInt;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
@@ -28,7 +27,7 @@ public class ColourCommand extends Sx4Command {
 		super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
 	}
 
-	public void onCommand(Sx4CommandEvent event, @Argument(value="colour", endless=true) @DefaultInt(-1) @Colour int colour) {
+	public void onCommand(Sx4CommandEvent event, @Argument(value="colour", endless=true) @Colour int colour) {
 		if (colour == -1) {
 			colour = event.getRandom().nextInt(0xFFFFFF + 1);
 		}

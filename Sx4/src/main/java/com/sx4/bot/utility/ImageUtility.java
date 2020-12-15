@@ -11,6 +11,7 @@ import org.bson.Document;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.function.BiFunction;
 import java.util.regex.Matcher;
 
 public class ImageUtility {
@@ -19,7 +20,11 @@ public class ImageUtility {
 		return ImageUtility.getImageMessage(event.getTextChannel(), response);
 	}
 
-	public static MessageAction getImageMessage(TextChannel channel, Response response) throws IOException {
+	public static MessageAction getImageMessage(CommandEvent event, Response response, BiFunction<Document, ImageError, MessageAction> badRequest) throws IOException {
+		return ImageUtility.getImageMessage(event.getTextChannel(), response, badRequest);
+	}
+
+	public static MessageAction getImageMessage(TextChannel channel, Response response, BiFunction<Document, ImageError, MessageAction> badRequest) throws IOException {
 		int status = response.code();
 		if (status == 200) {
 			byte[] bytes = response.body().bytes();
@@ -29,11 +34,15 @@ public class ImageUtility {
 
 			return channel.sendFile(bytes, String.format("image.%s", response.header("Content-Type").split("/")[1]));
 		} else {
-			return ImageUtility.getErrorMessage(channel, status, response.body().string());
+			return ImageUtility.getErrorMessage(channel, status, response.body().string(), badRequest);
 		}
 	}
 
-	public static MessageAction getErrorMessage(TextChannel channel, int status, String fullBody) {
+	public static MessageAction getImageMessage(TextChannel channel, Response response) throws IOException {
+		return ImageUtility.getImageMessage(channel, response, null);
+	}
+
+	public static MessageAction getErrorMessage(TextChannel channel, int status, String fullBody, BiFunction<Document, ImageError, MessageAction> badRequest) {
 		if (status == 400) {
 			Document body = Document.parse(fullBody);
 			int code = body.getEmbedded(List.of("details", "code"), Integer.class);
@@ -41,12 +50,21 @@ public class ImageUtility {
 			ImageError error = ImageError.fromCode(code);
 			if (error != null && error.isUrlError()) {
 				return channel.sendMessageFormat("That url could not be formed to a valid image %s", Config.get().getFailureEmote());
+			}
+
+			MessageAction messageAction = badRequest == null ? null : badRequest.apply(body, error);
+			if (messageAction == null) {
+				return channel.sendMessage(ExceptionUtility.getSimpleErrorMessage(String.format("- Code: %d\n- %s", error.getCode(), body.getString("message")), "diff"));
 			} else {
-				return channel.sendMessage(ExceptionUtility.getSimpleErrorMessage(String.format("- Code: %d\n- %s", code, body.getString("message")), "diff"));
+				return messageAction;
 			}
 		} else {
 			return channel.sendMessage(ExceptionUtility.getSimpleErrorMessage(String.format("- Status: %d\n- %s", status, fullBody), "diff"));
 		}
+	}
+
+	public static MessageAction getErrorMessage(TextChannel channel, int status, String fullBody) {
+		return ImageUtility.getErrorMessage(channel, status, fullBody, null);
 	}
 
 	public static String escapeMentions(Guild guild, String text) {

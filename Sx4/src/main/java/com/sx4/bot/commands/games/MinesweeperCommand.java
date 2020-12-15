@@ -1,7 +1,6 @@
 package com.sx4.bot.commands.games;
 
 import com.jockie.bot.core.argument.Argument;
-import com.sx4.bot.annotations.argument.DefaultInt;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
@@ -60,7 +59,7 @@ public class MinesweeperCommand extends Sx4Command {
 		super.setCategory(ModuleCategory.GAMES);
 	}
 
-	public void onCommand(Sx4CommandEvent event, @Argument(value="bombs") @DefaultInt(10) int bombs, @Argument(value="grid x") @DefaultInt(10) int gridX, @Argument(value="grid y") @DefaultInt(10) int gridY) {
+	public void onCommand(Sx4CommandEvent event, @Argument(value="bombs") int bombs, @Argument(value="grid x") int gridX, @Argument(value="grid y") int gridY) {
 		int gridSize = gridX * gridY;
 		if (gridSize < 4) {
 			event.replyFailure("The grid has to be at least 4 blocks in size").queue();

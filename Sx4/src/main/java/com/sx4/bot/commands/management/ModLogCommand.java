@@ -1,4 +1,4 @@
-package com.sx4.bot.commands.mod;
+package com.sx4.bot.commands.management;
 
 import club.minnced.discord.webhook.WebhookClient;
 import com.jockie.bot.core.argument.Argument;

@@ -252,14 +252,21 @@ public class Sx4 {
 				builder.setProperty("lowerLimit", limit.min());
 			}
 
-			DefaultInt defaultInt = parameter.getAnnotation(DefaultInt.class);
+			DefaultNumber defaultInt = parameter.getAnnotation(DefaultNumber.class);
 			if (defaultInt != null) {
-				builder.setDefaultValue(defaultInt.value());
+				builder.setDefaultValue((int) defaultInt.value());
 			}
 
 			return builder;
 		}).addBuilderConfigureFunction(Long.class, (parameter, builder) -> {
-			DefaultLong defaultLong = parameter.getAnnotation(DefaultLong.class);
+			DefaultNumber defaultLong = parameter.getAnnotation(DefaultNumber.class);
+			if (defaultLong != null) {
+				builder.setDefaultValue((long) defaultLong.value());
+			}
+
+			return builder;
+		}).addBuilderConfigureFunction(Double.class, (parameter, builder) -> {
+			DefaultNumber defaultLong = parameter.getAnnotation(DefaultNumber.class);
 			if (defaultLong != null) {
 				builder.setDefaultValue(defaultLong.value());
 			}
@@ -315,18 +322,31 @@ public class Sx4 {
 				builder.setProperty("lowerLimit", limit.min());
 			}
 			
-			DefaultInt defaultInt = parameter.getAnnotation(DefaultInt.class);
+			DefaultNumber defaultInt = parameter.getAnnotation(DefaultNumber.class);
 			if (defaultInt != null) {
-				builder.setDefaultValue(defaultInt.value());
+				builder.setDefaultValue((int) defaultInt.value());
 			}
 			
 			return builder;
 		}).addBuilderConfigureFunction(Long.class, (parameter, builder) -> {
-			DefaultLong defaultLong = parameter.getAnnotation(DefaultLong.class);
+			DefaultNumber defaultLong = parameter.getAnnotation(DefaultNumber.class);
+			if (defaultLong != null) {
+				builder.setDefaultValue((long) defaultLong.value());
+			}
+			
+			return builder;
+		}).addBuilderConfigureFunction(Double.class, (parameter, builder) -> {
+			Limit limit = parameter.getAnnotation(Limit.class);
+			if (limit != null) {
+				builder.setProperty("upperLimit", limit.max());
+				builder.setProperty("lowerLimit", limit.min());
+			}
+
+			DefaultNumber defaultLong = parameter.getAnnotation(DefaultNumber.class);
 			if (defaultLong != null) {
 				builder.setDefaultValue(defaultLong.value());
 			}
-			
+
 			return builder;
 		}).addBuilderConfigureFunction(UpdateType.class, (parameter, builder) -> {
 			ExcludeUpdate exclude = parameter.getAnnotation(ExcludeUpdate.class);
@@ -572,6 +592,18 @@ public class Sx4 {
 				content = Math.min(upperLimit, content);
 			}
 			
+			return new ParsedResult<>(content);
+		}).addParserAfter(Double.class, (context, argument, content) -> {
+			Integer lowerLimit = argument.getProperty("lowerLimit", Integer.class);
+			if (lowerLimit != null) {
+				content = Math.max(lowerLimit, content);
+			}
+
+			Integer upperLimit = argument.getProperty("upperLimit", Integer.class);
+			if (upperLimit != null) {
+				content = Math.min(upperLimit, content);
+			}
+
 			return new ParsedResult<>(content);
 		}).addParserAfter(UpdateType.class, (context, argument, content) -> {
 			List<UpdateType> updates = argument.getProperty("updates", Collections.emptyList());

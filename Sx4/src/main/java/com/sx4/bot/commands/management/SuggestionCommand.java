@@ -1,11 +1,6 @@
 package com.sx4.bot.commands.management;
 
 import club.minnced.discord.webhook.WebhookClient;
-import club.minnced.discord.webhook.send.WebhookEmbed;
-import club.minnced.discord.webhook.send.WebhookEmbed.EmbedAuthor;
-import club.minnced.discord.webhook.send.WebhookEmbed.EmbedField;
-import club.minnced.discord.webhook.send.WebhookEmbed.EmbedFooter;
-import club.minnced.discord.webhook.send.WebhookEmbedBuilder;
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
 import com.mongodb.client.model.*;
@@ -37,7 +32,6 @@ import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
 
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -53,26 +47,7 @@ public class SuggestionCommand extends Sx4Command {
 		super.setExamples("suggestion add", "suggestion set", "suggestion remove");
 		super.setCategoryAll(ModuleCategory.MANAGEMENT);
 	}
-	
-	private WebhookEmbed getSuggestionMessage(ObjectId id, User author, User moderator, String suggestion, String reason, SuggestionState state) {
-		WebhookEmbedBuilder embed = new WebhookEmbedBuilder()
-			.setAuthor(new EmbedAuthor(author == null ? "Anonymous#0000" : author.getAsTag(), author == null ? null : author.getEffectiveAvatarUrl(), null))
-			.setDescription(suggestion)
-			.setFooter(new EmbedFooter(String.format("%s | ID: %s", state.getName(), id.toHexString()), null))
-			.setColor(state.getColour())
-			.setTimestamp(Instant.ofEpochSecond(id.getTimestamp()));
-		
-		if (moderator != null) {
-			embed.addField(new EmbedField(true, "Moderator", moderator.getAsTag()));
-		}
-		
-		if (reason != null) {
-			embed.addField(new EmbedField(true, "Reason", reason));
-		}
-		
-		return embed.build();
-	}
-	
+
 	public void onCommand(Sx4CommandEvent event) {
 		event.replyHelp().queue();
 	}
