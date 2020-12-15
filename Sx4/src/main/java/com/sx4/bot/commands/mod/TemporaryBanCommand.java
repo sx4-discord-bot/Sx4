@@ -4,6 +4,7 @@ import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.option.Option;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Projections;
+import com.sx4.bot.annotations.argument.DefaultNumber;
 import com.sx4.bot.annotations.argument.Limit;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
@@ -40,7 +41,7 @@ public class TemporaryBanCommand extends Sx4Command {
 		super.setCategoryAll(ModuleCategory.MODERATION);
 	}
 	
-	public void onCommand(Sx4CommandEvent event, @Argument(value="user") String userArgument, @Argument(value="time", nullDefault=true) Duration time, @Argument(value="reason", endless=true, nullDefault=true) Reason reason, @Option(value="days", description="Set how many days of messages should be deleted from the user") @Limit(min=0, max=7) int days) {
+	public void onCommand(Sx4CommandEvent event, @Argument(value="user") String userArgument, @Argument(value="time", nullDefault=true) Duration time, @Argument(value="reason", endless=true, nullDefault=true) Reason reason, @Option(value="days", description="Set how many days of messages should be deleted from the user") @DefaultNumber(1) @Limit(min=0, max=7) int days) {
 		SearchUtility.getUserRest(userArgument).thenAccept(user -> {
 			if (user == null) {
 				event.replyFailure("I could not find that user").queue();

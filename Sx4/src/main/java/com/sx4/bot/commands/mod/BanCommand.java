@@ -2,6 +2,7 @@ package com.sx4.bot.commands.mod;
 
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.option.Option;
+import com.sx4.bot.annotations.argument.DefaultNumber;
 import com.sx4.bot.annotations.argument.Limit;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
@@ -10,7 +11,6 @@ import com.sx4.bot.entities.mod.Reason;
 import com.sx4.bot.events.mod.BanEvent;
 import com.sx4.bot.utility.ModUtility;
 import com.sx4.bot.utility.SearchUtility;
-
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.exceptions.ErrorHandler;
@@ -30,7 +30,7 @@ public class BanCommand extends Sx4Command {
 		super.setCategoryAll(ModuleCategory.MODERATION);
 	}
 	
-	public void onCommand(Sx4CommandEvent event, @Argument(value="user") String userArgument, @Argument(value="reason", endless=true, nullDefault=true) Reason reason, @Option(value="days", description="Set how many days of messages should be deleted from the user") @Limit(min=0, max=7) int days) {
+	public void onCommand(Sx4CommandEvent event, @Argument(value="user") String userArgument, @Argument(value="reason", endless=true, nullDefault=true) Reason reason, @Option(value="days", description="Set how many days of messages should be deleted from the user") @DefaultNumber(1) @Limit(min=0, max=7) int days) {
 		SearchUtility.getUserRest(userArgument).thenAccept(user -> {
 			if (user == null) {
 				event.replyFailure("I could not find that user").queue();

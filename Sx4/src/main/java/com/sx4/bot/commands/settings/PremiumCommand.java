@@ -5,6 +5,7 @@ import com.jockie.bot.core.command.Command;
 import com.mongodb.client.model.FindOneAndUpdateOptions;
 import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.ReturnDocument;
+import com.sx4.bot.annotations.argument.DefaultNumber;
 import com.sx4.bot.annotations.argument.Limit;
 import com.sx4.bot.annotations.command.Donator;
 import com.sx4.bot.annotations.command.Examples;
@@ -48,7 +49,7 @@ public class PremiumCommand extends Sx4Command {
 	@Command(value="add", description="Make a server premium")
 	@Examples({"premium add", "premium add 30", "premium add 20 Sx4 | Support Server"})
 	@Donator
-	public void add(Sx4CommandEvent event, @Argument(value="days") @Limit(min=1, max=365) int days, @Argument(value="server", endless=true, nullDefault=true) Guild guild) {
+	public void add(Sx4CommandEvent event, @Argument(value="days") @DefaultNumber(30) @Limit(min=1, max=365) int days, @Argument(value="server", endless=true, nullDefault=true) Guild guild) {
 		if (guild == null) {
 			guild = event.getGuild();
 		}

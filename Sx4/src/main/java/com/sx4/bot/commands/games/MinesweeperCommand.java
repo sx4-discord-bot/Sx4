@@ -1,6 +1,7 @@
 package com.sx4.bot.commands.games;
 
 import com.jockie.bot.core.argument.Argument;
+import com.sx4.bot.annotations.argument.DefaultNumber;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
@@ -23,8 +24,8 @@ public class MinesweeperCommand extends Sx4Command {
 		BOMB(9, "\uD83D\uDCA3"),
 		UNKNOWN(-1, "");
 
-		private int number;
-		private String emote;
+		private final int number;
+		private final String emote;
 
 		private MinesweeperType(int number, String emote) {
 			this.number = number;
@@ -59,7 +60,7 @@ public class MinesweeperCommand extends Sx4Command {
 		super.setCategory(ModuleCategory.GAMES);
 	}
 
-	public void onCommand(Sx4CommandEvent event, @Argument(value="bombs") int bombs, @Argument(value="grid x") int gridX, @Argument(value="grid y") int gridY) {
+	public void onCommand(Sx4CommandEvent event, @Argument(value="bombs") @DefaultNumber(10) int bombs, @Argument(value="grid x") @DefaultNumber(10) int gridX, @Argument(value="grid y") @DefaultNumber(10) int gridY) {
 		int gridSize = gridX * gridY;
 		if (gridSize < 4) {
 			event.replyFailure("The grid has to be at least 4 blocks in size").queue();
