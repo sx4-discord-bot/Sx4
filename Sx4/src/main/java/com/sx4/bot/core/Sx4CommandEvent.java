@@ -12,11 +12,12 @@ import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.requests.restaction.MessageAction;
 import okhttp3.OkHttpClient;
 
+import java.security.SecureRandom;
 import java.util.Map;
-import java.util.Random;
-import java.util.concurrent.ThreadLocalRandom;
 
 public class Sx4CommandEvent extends CommandEvent {
+
+	private static final SecureRandom RANDOM = new SecureRandom();
 
 	public Sx4CommandEvent(Message message, CommandListener listener, ICommand command, 
 			Object[] arguments, String[] rawArguments, String prefix, String commandTrigger, 
@@ -32,8 +33,8 @@ public class Sx4CommandEvent extends CommandEvent {
 		return (Sx4Command) super.getCommand();
 	}
 
-	public Random getRandom() {
-		return ThreadLocalRandom.current();
+	public SecureRandom getRandom() {
+		return Sx4CommandEvent.RANDOM;
 	}
 	
 	public Sx4CommandListener getCommandListener() {

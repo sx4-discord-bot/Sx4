@@ -47,6 +47,7 @@ import net.dv8tion.jda.api.sharding.DefaultShardManagerBuilder;
 import net.dv8tion.jda.api.sharding.ShardManager;
 import okhttp3.OkHttpClient;
 import org.bson.Document;
+import org.bson.json.JsonParseException;
 import org.bson.types.ObjectId;
 
 import javax.security.auth.login.LoginException;
@@ -348,6 +349,10 @@ public class Sx4 {
 			}
 
 			return builder;
+		}).addBuilderConfigureFunction(Document.class, (parameter, builder) -> {
+			builder.setProperty("advancedMessage", parameter.isAnnotationPresent(AdvancedMessage.class));
+
+			return builder;
 		}).addBuilderConfigureFunction(UpdateType.class, (parameter, builder) -> {
 			ExcludeUpdate exclude = parameter.getAnnotation(ExcludeUpdate.class);
 			if (exclude != null) {
@@ -427,6 +432,25 @@ public class Sx4 {
 				} catch (DateTimeException | IllegalArgumentException e) {
 					return new ParsedResult<>();
 				}
+			}).registerParser(Document.class, (context, argument, content) -> {
+				Document json;
+				try {
+					json = Document.parse(content);
+				} catch (JsonParseException e) {
+					return new ParsedResult<>();
+				}
+
+				if (argument.getProperty("advancedMessage", false)) {
+					try {
+						MessageUtility.fromJson(json);
+					} catch (IllegalArgumentException e) {
+						return new ParsedResult<>();
+					}
+
+					MessageUtility.removeFields(json);
+				}
+
+				return new ParsedResult<>(json);
 			}).registerParser(Integer.class, (context, argument, content) -> {
 				if (argument.getProperty("colour", false)) {
 					int colour = ColourUtility.fromQuery(content);

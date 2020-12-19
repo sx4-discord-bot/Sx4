@@ -15,7 +15,7 @@ import com.sx4.bot.entities.youtube.YouTubeVideo;
 import com.sx4.bot.events.youtube.YouTubeDeleteEvent;
 import com.sx4.bot.events.youtube.YouTubeUpdateTitleEvent;
 import com.sx4.bot.events.youtube.YouTubeUploadEvent;
-import com.sx4.bot.formatter.Formatter;
+import com.sx4.bot.formatter.StringFormatter;
 import com.sx4.bot.hooks.YouTubeListener;
 import com.sx4.bot.managers.YouTubeManager;
 import com.sx4.bot.utility.ExceptionUtility;
@@ -63,7 +63,7 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 		YouTubeChannel channel = event.getChannel();
 		YouTubeVideo video = event.getVideo();
 
-		return new Formatter(message)
+		return new StringFormatter(message)
 			.append("channel.name", channel.getName())
 			.append("channel.url", channel.getUrl())
 			.append("channel.id", channel.getId())

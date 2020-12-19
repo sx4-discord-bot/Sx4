@@ -8,6 +8,7 @@ import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.FindOneAndDeleteOptions;
 import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.Updates;
+import com.sx4.bot.annotations.argument.AdvancedMessage;
 import com.sx4.bot.annotations.argument.ImageUrl;
 import com.sx4.bot.annotations.command.AuthorPermissions;
 import com.sx4.bot.annotations.command.BotPermissions;
@@ -151,6 +152,25 @@ public class YouTubeNotificationCommand extends Sx4Command {
 				return;
 			}
 
+			event.replySuccess("Your message has been updated for that notification").queue();
+		});
+	}
+
+	@Command(value="advanced message", aliases={"advancedmessage"}, description="Set the message with json so you can fully customize your message with an embed")
+	@Examples({"youtube notification advanced message 5e45ce6d3688b30ee75201ae {\"content\": \"{video.url}\"}", "youtube notification advanced message 5e45ce6d3688b30ee75201ae {\"embed\": {\"description\": \"{video.url}\"}}"})
+	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
+	public void advancedMessage(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="json", endless=true) @AdvancedMessage Document json) {
+		this.database.updateYouTubeNotificationById(id, Updates.set("message", json)).whenComplete((result, exception) -> {
+			if (ExceptionUtility.sendExceptionally(event, exception)) {
+				return;
+			}
+
+			if (result.getModifiedCount() == 0) {
+				event.replyFailure("Your message for that notification was already set to that").queue();
+				return;
+			}
+
+			event.reply(json.toJson()).queue();
 			event.replySuccess("Your message has been updated for that notification").queue();
 		});
 	}

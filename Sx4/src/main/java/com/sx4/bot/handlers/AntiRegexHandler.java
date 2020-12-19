@@ -11,7 +11,7 @@ import com.sx4.bot.entities.mod.action.TimeAction;
 import com.sx4.bot.entities.mod.auto.MatchAction;
 import com.sx4.bot.entities.settings.HolderType;
 import com.sx4.bot.events.mod.*;
-import com.sx4.bot.formatter.Formatter;
+import com.sx4.bot.formatter.StringFormatter;
 import com.sx4.bot.managers.AntiRegexManager;
 import com.sx4.bot.managers.ModActionManager;
 import com.sx4.bot.managers.MuteManager;
@@ -49,7 +49,7 @@ public class AntiRegexHandler extends ListenerAdapter {
     private final ExecutorService executor = Executors.newCachedThreadPool();
 
     private String format(String message, User user, TextChannel channel, ObjectId id, int currentAttempts, int maxAttempts, Action action) {
-        return new Formatter(message)
+        return new StringFormatter(message)
             .user(user)
             .channel(channel)
             .append("regex.id", id.toHexString())
