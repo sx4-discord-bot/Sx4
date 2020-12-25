@@ -64,7 +64,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
-import java.util.stream.Collectors;
 
 public class Sx4 {
 	
@@ -142,6 +141,7 @@ public class Sx4 {
 			eventManager.register(new ReactionRoleHandler());
 			eventManager.register(new LoggerHandler());
 			eventManager.register(new AntiRegexHandler());
+			eventManager.register(new WelcomerHandler());
 
 			return DefaultShardManagerBuilder.create(this.config.getToken(), GatewayIntent.getIntents(6094))
 				.setBulkDeleteSplittingEnabled(false)
@@ -312,6 +312,11 @@ public class Sx4 {
 			if (defaultString != null) {
 				builder.setDefaultValue(defaultString.value());
 			}
+
+			Options options = parameter.getAnnotation(Options.class);
+			if (options != null) {
+				builder.setProperty("options", options.value());
+			}
 			
 			return builder;
 		}).addBuilderConfigureFunction(Integer.class, (parameter, builder) -> {
@@ -353,21 +358,6 @@ public class Sx4 {
 			builder.setProperty("advancedMessage", parameter.isAnnotationPresent(AdvancedMessage.class));
 
 			return builder;
-		}).addBuilderConfigureFunction(UpdateType.class, (parameter, builder) -> {
-			ExcludeUpdate exclude = parameter.getAnnotation(ExcludeUpdate.class);
-			if (exclude != null) {
-				UpdateType[] excluded = exclude.value();
-				if (excluded.length != 0) {
-					List<UpdateType> values = new LinkedList<>(Arrays.asList(UpdateType.values()));
-					for (UpdateType type : exclude.value()) {
-						values.remove(type);
-					}
-					
-					builder.setProperty("updates", values);
-				}
-			}
-			
-			return builder;
 		}).addBuilderConfigureFunction(TimedArgument.class, (parameter, builder) -> {
 			Class<?> clazz = (Class<?>) ((ParameterizedType) parameter.getParameterizedType()).getActualTypeArguments()[0];
 			
@@ -390,10 +380,13 @@ public class Sx4 {
 			}
 
 			return builder;
-		}).addBuilderConfigureFunction(All.class, (parameter, builder) -> {
+		}).addBuilderConfigureFunction(Option.class, (parameter, builder) -> {
 			Class<?> clazz = (Class<?>) ((ParameterizedType) parameter.getParameterizedType()).getActualTypeArguments()[0];
 			
 			builder.setProperty("class", clazz);
+
+			Options options = parameter.getAnnotation(Options.class);
+			builder.setProperty("options", options == null ? new String[0] : options.value());
 			
 			List<?> builders = argumentFactory.getBuilderConfigureFunctions(clazz);
 			for (Object builderFunction : builders) {
@@ -441,12 +434,6 @@ public class Sx4 {
 				}
 
 				if (argument.getProperty("advancedMessage", false)) {
-					try {
-						MessageUtility.fromJson(json);
-					} catch (IllegalArgumentException e) {
-						return new ParsedResult<>();
-					}
-
 					MessageUtility.removeFields(json);
 				}
 
@@ -496,6 +483,17 @@ public class Sx4 {
 					} catch (MalformedURLException e) {
 						return new ParsedResult<>();
 					}
+				}
+
+				String[] options = argument.getProperty("options");
+				if (options != null && options.length != 0) {
+					for (String option : options) {
+						if (option.equalsIgnoreCase(content)) {
+							return new ParsedResult<>(option);
+						}
+					}
+
+					return new ParsedResult<>();
 				}
 
 				return new ParsedResult<>(content);
@@ -562,19 +560,22 @@ public class Sx4 {
 				}
 
 				return new ParsedResult<>();
-			}).registerParser(All.class, (context, argument, content) -> {
-				if (content.equalsIgnoreCase("all")) {
-					return new ParsedResult<>(new All<>(null));
-				} else {
-					Class<?> clazz = argument.getProperty("class", Class.class);
-
-					ParsedResult<?> parsedArgument = argumentFactory.getParser(clazz).parse(context, (IArgument) argument, content);
-					if (!parsedArgument.isValid()) {
-						return new ParsedResult<>();
+			}).registerParser(Option.class, (context, argument, content) -> {
+				String[] options = argument.getProperty("options", new String[0]);
+				for (String option : options) {
+					if (content.equalsIgnoreCase(option)) {
+						return new ParsedResult<>(new Option<>(null, option));
 					}
-					
-					return new ParsedResult<>(new All<>(parsedArgument.getObject()));
 				}
+
+				Class<?> clazz = argument.getProperty("class", Class.class);
+
+				ParsedResult<?> parsedArgument = argumentFactory.getParser(clazz).parse(context, (IArgument) argument, content);
+				if (!parsedArgument.isValid()) {
+					return new ParsedResult<>();
+				}
+					
+				return new ParsedResult<>(new Option<>(parsedArgument.getObject(), null));
 			}).registerParser(Or.class, (context, argument, content) -> {
 				Class<?> firstClass = argument.getProperty("firstClass"), secondClass = argument.getProperty("secondClass");
 
@@ -629,12 +630,6 @@ public class Sx4 {
 			}
 
 			return new ParsedResult<>(content);
-		}).addParserAfter(UpdateType.class, (context, argument, content) -> {
-			List<UpdateType> updates = argument.getProperty("updates", Collections.emptyList());
-			
-			boolean match = updates.stream().anyMatch(content::equals);
-			
-			return new ParsedResult<>(match ? content : null);
 		});
 	}
 	
@@ -660,10 +655,7 @@ public class Sx4 {
 			.registerResponse(Guild.class, "I could not find that server " + this.config.getFailureEmote())
 			.registerResponse(AutoRoleFilter.class, "I could not find that filter " + this.config.getFailureEmote())
 			.registerResponse(Pattern.class, "Regex syntax was incorrect " + this.config.getFailureEmote())
-			.registerResponse(UpdateType.class, (argument, message, content) -> {
-				List<UpdateType> updates = argument.getProperty("updates", List.class);
-				message.getChannel().sendMessage("Invalid update type given, update types you can use are `" + updates.stream().map(t -> t.name().toLowerCase()).collect(Collectors.joining("`, `")) + "` " + this.config.getFailureEmote()).queue();
-			}).registerResponse(int.class, (argument, message, content) -> {
+			.registerResponse(int.class, (argument, message, content) -> {
 				if (argument.getProperty("colour", false)) {
 					message.getChannel().sendMessage("I could not find that colour " + this.config.getFailureEmote()).queue();
 				} else {
@@ -673,7 +665,12 @@ public class Sx4 {
 				if (argument.getProperty("imageUrl", false) || argument.getProperty("url", false)) {
 					message.getChannel().sendMessage("Invalid url given " + this.config.getFailureEmote()).queue();
 				}
-			}).registerResponse(String.class, (argument, message, content) -> {
+
+				String[] options = argument.getProperty("options");
+				if (options != null && options.length != 0) {
+					message.getChannel().sendMessageFormat("Invalid option given, `%s` are valid options %s", String.join("`, `", options), this.config.getFailureEmote()).queue();
+				}
+
 				Integer charLimit = argument.getProperty("charLimit");
 				if (charLimit != null && content.length() > charLimit) {
 					message.getChannel().sendMessageFormat("You cannot use more than **%,d** character%s for `%s` %s", charLimit, charLimit == 1 ? "" : "s", argument.getName(), this.config.getFailureEmote()).queue();

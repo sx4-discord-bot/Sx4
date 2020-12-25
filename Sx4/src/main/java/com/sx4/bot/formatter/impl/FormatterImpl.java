@@ -1,9 +1,9 @@
-package com.sx4.bot.formatter;
+package com.sx4.bot.formatter.impl;
 
+import com.sx4.bot.formatter.Condition;
 import com.sx4.bot.utility.ColourUtility;
-import net.dv8tion.jda.api.entities.Role;
-import net.dv8tion.jda.api.entities.TextChannel;
-import net.dv8tion.jda.api.entities.User;
+import com.sx4.bot.utility.NumberUtility;
+import net.dv8tion.jda.api.entities.*;
 
 import java.util.Map;
 
@@ -18,6 +18,21 @@ public interface FormatterImpl<Type> {
 			.append("user.discriminator", user.getDiscriminator())
 			.append("user.tag", user.getAsTag())
 			.append("user.avatar", user.getEffectiveAvatarUrl());
+	}
+
+	default FormatterImpl<Type> member(Member member) {
+		return this.user(member.getUser())
+			.append("user.joined", member.getTimeJoined())
+			.append("user.colour.raw", member.getColorRaw())
+			.append("user.colour", "#" + ColourUtility.toHexString(member.getColorRaw()));
+	}
+
+	default  FormatterImpl<Type> guild(Guild guild) {
+		return this.append("server.id", guild.getId())
+			.append("server.name", guild.getName())
+			.append("server.avatar", guild.getIconUrl())
+			.append("server.members", guild.getMemberCount())
+			.append("server.members.suffix", NumberUtility.getSuffixed(guild.getMemberCount()));
 	}
 
 	default FormatterImpl<Type> channel(TextChannel channel) {
@@ -36,7 +51,7 @@ public interface FormatterImpl<Type> {
 
 	Type parse();
 
-	default boolean notEqual(String string, char firstChar, char secondChar) {
+	private boolean notEqual(String string, char firstChar, char secondChar) {
 		int first = 0, second = 0;
 		for (int i = 0; i < string.length(); i++) {
 			char character = string.charAt(i), characterBefore = string.charAt(Math.max(0, i - 1));
@@ -50,7 +65,7 @@ public interface FormatterImpl<Type> {
 		return first != second;
 	}
 
-	default boolean escape(String string, int index) {
+	private boolean escape(String string, int index) {
 		if (index > 0 && string.charAt(index - 1) == '\\') {
 			string = string.substring(0, index - 1) + string.substring(index);
 			return true;
@@ -59,7 +74,7 @@ public interface FormatterImpl<Type> {
 		return false;
 	}
 
-	default String condition(String string) {
+	private String condition(String string) {
 		for (Condition condition : Condition.values()) {
 			String operator = condition.getOperator();
 			int index = string.indexOf(operator);
@@ -111,7 +126,7 @@ public interface FormatterImpl<Type> {
 		return string;
 	}
 
-	default String ternary(String string) {
+	private String ternary(String string) {
 		int index = -1;
 		Brackets: while ((index = string.indexOf('(', index + 1)) != -1) {
 			if (this.escape(string, index)) {

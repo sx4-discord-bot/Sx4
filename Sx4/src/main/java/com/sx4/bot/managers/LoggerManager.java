@@ -12,6 +12,7 @@ import com.mongodb.client.model.Updates;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.entities.logger.LoggerContext;
 import com.sx4.bot.entities.management.logger.LoggerEvent;
+import com.sx4.bot.managers.impl.WebhookManagerImpl;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.LoggerUtility;
 import net.dv8tion.jda.api.JDA;
@@ -26,9 +27,9 @@ import org.bson.conversions.Bson;
 import java.util.*;
 import java.util.concurrent.*;
 
-public class LoggerManager {
+public class LoggerManager implements WebhookManagerImpl {
 
-    public class Request {
+    public static class Request {
 
         private final JDA jda;
         private final long guildId;
@@ -99,6 +100,18 @@ public class LoggerManager {
     private LoggerManager() {
         this.queues = new HashMap<>();
         this.webhooks = new HashMap<>();
+    }
+
+    public WebhookClient getWebhook(long channelId) {
+        return this.webhooks.get(channelId);
+    }
+
+    public WebhookClient removeWebhook(long channelId) {
+        return this.webhooks.remove(channelId);
+    }
+
+    public void putWebhook(long channelId, WebhookClient webhook) {
+        this.webhooks.put(channelId, webhook);
     }
 
     private void createWebhook(TextChannel channel, BlockingDeque<Request> deque, List<Request> requests, int retries) {

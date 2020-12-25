@@ -5,13 +5,14 @@ import com.jockie.bot.core.command.Command;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.Updates;
+import com.sx4.bot.annotations.argument.Options;
 import com.sx4.bot.annotations.command.AuthorPermissions;
 import com.sx4.bot.annotations.command.Examples;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.model.Operators;
-import com.sx4.bot.entities.argument.All;
+import com.sx4.bot.entities.argument.Option;
 import com.sx4.bot.entities.settings.HolderType;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
@@ -106,8 +107,8 @@ public class FakePermissionsCommand extends Sx4Command {
 	@Command(value="delete", description="Deletes fake permissions for a user or role")
 	@Examples({"fake permissions delete @Shea#6653", "fake permissions delete @Mods", "fake permissions delete all"})
 	@AuthorPermissions(permissions={Permission.ADMINISTRATOR})
-	public void delete(Sx4CommandEvent event, @Argument(value="user | role | all", endless=true) All<IPermissionHolder> all) {
-		if (all.isAll()) {
+	public void delete(Sx4CommandEvent event, @Argument(value="user | role | all", endless=true) @Options("all") Option<IPermissionHolder> option) {
+		if (option.isAlternative()) {
 			event.reply(event.getAuthor().getName() + ", are you sure you want to delete **all** fake permissions data? (Yes or No)").queue($ -> {
 				Waiter<GuildMessageReceivedEvent> waiter = new Waiter<>(GuildMessageReceivedEvent.class)
 					.setPredicate(messageEvent -> messageEvent.getMessage().getContentRaw().equalsIgnoreCase("yes"))
@@ -132,7 +133,7 @@ public class FakePermissionsCommand extends Sx4Command {
 				waiter.start();
 			});
 		} else {
-			IPermissionHolder holder = all.getValue();
+			IPermissionHolder holder = option.getValue();
 			boolean role = holder instanceof Role;
 			
 			this.database.updateGuildById(event.getGuild().getIdLong(), Updates.pull("fakePermissions.holders", Filters.eq("id", holder.getIdLong()))).whenComplete((result, exception) -> {

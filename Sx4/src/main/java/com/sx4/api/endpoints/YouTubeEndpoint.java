@@ -22,8 +22,8 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.time.Clock;
 import java.time.Duration;
+import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
-import java.time.ZonedDateTime;
 
 @Path("api")
 public class YouTubeEndpoint {
@@ -51,7 +51,7 @@ public class YouTubeEndpoint {
 	}
 	
 	@POST
-	@Path("/youtube")
+	@Path("youtube")
 	public Response postYoutube(final String body) {
 		YouTubeManager manager = YouTubeManager.get();
 		Database database = Database.get();
@@ -77,11 +77,11 @@ public class YouTubeEndpoint {
 			YouTubeVideo video = new YouTubeVideo(videoId, videoTitle, videoUpdatedAt, videoPublishedAt);
 			
 			Document data = database.getYouTubeNotificationLog(Filters.eq("videoId", videoId), Projections.include("title"));
-			String oldTitle = data.getString("title");
+			String oldTitle = data == null ? null : data.getString("title");
 			
-			if (data.isEmpty() && Duration.between(video.getPublishedAt(), ZonedDateTime.now(ZoneOffset.UTC)).toMinutes() <= 60) {
+			if (data == null && Duration.between(video.getPublishedAt(), OffsetDateTime.now(ZoneOffset.UTC)).toMinutes() <= 60) {
 				manager.onYouTube(new YouTubeUploadEvent(channel, video));
-			} else if (!data.isEmpty() && oldTitle.equals(videoTitle)) {
+			} else if (data != null && oldTitle.equals(videoTitle)) {
 				manager.onYouTube(new YouTubeUpdateEvent(channel, video));
 			} else {
 				manager.onYouTube(new YouTubeUpdateTitleEvent(channel, video, oldTitle));

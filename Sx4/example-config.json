@@ -31,10 +31,6 @@
 			}
 		},
 		"database": "",
-		"ad": {
-			"description": null,
-			"image": null
-		},
 		"host": {
 			"localHost": "",
 			"domain": "",
@@ -65,10 +61,6 @@
 			}
 		},
 		"database": "",
-		"ad": {
-			"description": null,
-			"image": null
-		},
 		"host": {
 			"localHost": "",
 			"domain": "",

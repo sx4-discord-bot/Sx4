@@ -7,6 +7,7 @@ import com.mongodb.client.model.FindOneAndUpdateOptions;
 import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.ReturnDocument;
 import com.sx4.bot.annotations.argument.DefaultNumber;
+import com.sx4.bot.annotations.argument.Options;
 import com.sx4.bot.annotations.argument.Limit;
 import com.sx4.bot.annotations.command.AuthorPermissions;
 import com.sx4.bot.annotations.command.Examples;
@@ -14,8 +15,8 @@ import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.model.Operators;
-import com.sx4.bot.entities.argument.All;
 import com.sx4.bot.entities.argument.MessageArgument;
+import com.sx4.bot.entities.argument.Option;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.NumberUtility;
@@ -407,8 +408,8 @@ public class GiveawayCommand extends Sx4Command {
 	@Command(value="delete", description="Deletes a giveaway")
 	@Examples({"giveaway delete 727224132202397726", "giveaway delete all"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-	public void delete(Sx4CommandEvent event, @Argument(value="message id | all") All<MessageArgument> all) {
-		if (all.isAll()) {
+	public void delete(Sx4CommandEvent event, @Argument(value="message id | all") @Options("all") Option<MessageArgument> option) {
+		if (option.isAlternative()) {
 			event.reply(event.getAuthor().getName() + ", are you sure you want to delete **all** giveaways in this server? (Yes or No)").submit()
 				.thenCompose(message -> {
 					Waiter<GuildMessageReceivedEvent> waiter = new Waiter<>(GuildMessageReceivedEvent.class)
@@ -439,7 +440,7 @@ public class GiveawayCommand extends Sx4Command {
 					event.replySuccess("All giveaways in this server have been deleted").queue();
 				});
 		} else {
-			long messageId = all.getValue().getMessageId();
+			long messageId = option.getValue().getMessageId();
 			this.database.deleteGiveawayById(messageId).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;

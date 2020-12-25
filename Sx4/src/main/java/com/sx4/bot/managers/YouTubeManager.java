@@ -30,7 +30,7 @@ public class YouTubeManager {
 		return YouTubeManager.INSTANCE;
 	}
 	
-	public static final String DEFAULT_MESSAGE = "**[{channel.name}]({channel.url})** just uploaded a new video!\n{video.url}";
+	public static final Document DEFAULT_MESSAGE = new Document("content", "**[{channel.name}]({channel.url})** just uploaded a new video!\n{video.url}");
 	
 	private final List<YouTubeListener> listeners;
 

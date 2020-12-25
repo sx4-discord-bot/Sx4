@@ -32,7 +32,7 @@ public class Sx4Command extends CommandImpl {
 	
 	public final Config config = Config.get();
 	
-	protected boolean donator = false;
+	protected boolean premium = false;
 	
 	protected String[] examples = {};
 	protected String[] redirects = {};
@@ -114,12 +114,12 @@ public class Sx4Command extends CommandImpl {
 		return this;
 	}
 	
-	public boolean isDonatorCommand() {
-		return this.donator;
+	public boolean isPremiumCommand() {
+		return this.premium;
 	}
 	
-	public Sx4Command setDonatorCommand(boolean donator) {
-		this.donator = donator;
+	public Sx4Command setPremiumCommand(boolean premium) {
+		this.premium = premium;
 		
 		return this;
 	}
@@ -208,8 +208,8 @@ public class Sx4Command extends CommandImpl {
 	
 	private void checkAnnotations() {
 		if (this.method != null) {
-			if (this.method.isAnnotationPresent(Donator.class)) {
-				this.donator = this.method.getAnnotation(Donator.class).value();
+			if (this.method.isAnnotationPresent(Premium.class)) {
+				this.premium = this.method.getAnnotation(Premium.class).value();
 			}
 			
 			if (this.method.isAnnotationPresent(Examples.class)) {

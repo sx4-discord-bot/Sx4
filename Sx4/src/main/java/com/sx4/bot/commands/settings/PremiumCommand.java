@@ -7,7 +7,7 @@ import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.ReturnDocument;
 import com.sx4.bot.annotations.argument.DefaultNumber;
 import com.sx4.bot.annotations.argument.Limit;
-import com.sx4.bot.annotations.command.Donator;
+import com.sx4.bot.annotations.command.Premium;
 import com.sx4.bot.annotations.command.Examples;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
@@ -15,6 +15,7 @@ import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.database.model.Operators;
 import com.sx4.bot.utility.ExceptionUtility;
+import com.sx4.bot.utility.NumberUtility;
 import com.sx4.bot.waiter.Waiter;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.Guild;
@@ -23,8 +24,8 @@ import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent;
 import org.bson.conversions.Bson;
 
 import java.time.Instant;
+import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
-import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -32,7 +33,7 @@ import java.util.concurrent.TimeUnit;
 
 public class PremiumCommand extends Sx4Command {
 
-	DateTimeFormatter formatter = DateTimeFormatter.ofPattern("d/MM/u k:m");
+	private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("d'%s' MMMM u 'at' k:m 'UTC'");
 
 	public PremiumCommand() {
 		super("premium");
@@ -48,7 +49,7 @@ public class PremiumCommand extends Sx4Command {
 	
 	@Command(value="add", description="Make a server premium")
 	@Examples({"premium add", "premium add 30", "premium add 20 Sx4 | Support Server"})
-	@Donator
+	@Premium
 	public void add(Sx4CommandEvent event, @Argument(value="days") @DefaultNumber(30) @Limit(min=1, max=365) int days, @Argument(value="server", endless=true, nullDefault=true) Guild guild) {
 		if (guild == null) {
 			guild = event.getGuild();
@@ -114,14 +115,14 @@ public class PremiumCommand extends Sx4Command {
 	@Command(value="check", description="Checks when the current premium in the server expires")
 	@Examples({"premium check"})
 	public void check(Sx4CommandEvent event) {
-		long endsAt = this.database.getGuildById(event.getGuild().getIdLong(), Projections.include("premium.endsAt")).getEmbedded(List.of("premium", "endsAt"), 0L);
-		if (endsAt == 0) {
+		long endAt = this.database.getGuildById(event.getGuild().getIdLong(), Projections.include("premium.endAt")).getEmbedded(List.of("premium", "endAt"), 0L);
+		if (endAt == 0) {
 			event.replyFailure("This server currently doesn't have premium").queue();
 			return;
 		}
 
-		ZonedDateTime expire = ZonedDateTime.ofInstant(Instant.ofEpochSecond(endsAt), ZoneOffset.UTC);
-		event.replyFormat("Premium for this server will expire on **%s UTC**", expire.format(this.formatter)).queue();
+		OffsetDateTime expire = OffsetDateTime.ofInstant(Instant.ofEpochSecond(endAt), ZoneOffset.UTC);
+		event.replyFormat("Premium for this server will expire on **%s**", String.format(expire.format(this.formatter), NumberUtility.getSuffix(expire.getDayOfMonth()))).queue();
 	}
 
 	@Command(value="credit", description="Checks your current credit")

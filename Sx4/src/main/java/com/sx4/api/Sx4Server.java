@@ -49,11 +49,11 @@ public class Sx4Server {
 		
 		server.setErrorHandler(new ErrorHandler() {
 			protected void handleErrorPage(HttpServletRequest request, Writer writer, int code, String message) throws IOException {
-				if (code == 404) {
-					writer.write("You've reached a dead end, I suggest you turn around");
-				} else {
-					super.handleErrorPage(request, writer, code, message);
-				}
+			if (code == 404) {
+				writer.write("You've reached a dead end, I suggest you turn around");
+			} else {
+				super.handleErrorPage(request, writer, code, message);
+			}
 			}
 		});
 		

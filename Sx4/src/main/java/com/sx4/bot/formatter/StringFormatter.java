@@ -1,5 +1,7 @@
 package com.sx4.bot.formatter;
 
+import com.sx4.bot.formatter.impl.FormatterImpl;
+
 import java.util.HashMap;
 import java.util.Map;
 

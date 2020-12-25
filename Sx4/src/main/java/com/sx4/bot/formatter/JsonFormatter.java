@@ -1,5 +1,6 @@
 package com.sx4.bot.formatter;
 
+import com.sx4.bot.formatter.impl.FormatterImpl;
 import org.bson.Document;
 
 import java.util.ArrayList;
@@ -58,6 +59,10 @@ public class JsonFormatter implements FormatterImpl<Document> {
 		}
 
 		return newJson;
+	}
+
+	public static JsonFormatter of(Document document, Map<String, Object> map) {
+		return new JsonFormatter(document, map);
 	}
 
 }

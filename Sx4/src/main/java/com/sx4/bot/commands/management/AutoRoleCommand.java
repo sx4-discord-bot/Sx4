@@ -8,13 +8,14 @@ import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.UpdateOptions;
 import com.mongodb.client.model.Updates;
+import com.sx4.bot.annotations.argument.Options;
 import com.sx4.bot.annotations.command.AuthorPermissions;
 import com.sx4.bot.annotations.command.Examples;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.model.Operators;
-import com.sx4.bot.entities.argument.All;
+import com.sx4.bot.entities.argument.Option;
 import com.sx4.bot.entities.argument.TimedArgument;
 import com.sx4.bot.entities.management.AutoRoleFilter;
 import com.sx4.bot.paged.PagedResult;
@@ -107,8 +108,8 @@ public class AutoRoleCommand extends Sx4Command {
 	@Command(value="remove", description="Remove a role from being given when a user joins")
 	@Examples({"auto role remove @Role", "auto role remove Role", "auto role remove all"})
 	@AuthorPermissions(permissions={Permission.MANAGE_ROLES})
-	public void remove(Sx4CommandEvent event, @Argument(value="role", endless=true) All<Role> allArgument) {
-		if (allArgument.isAll()) {
+	public void remove(Sx4CommandEvent event, @Argument(value="role", endless=true) @Options("all") Option<Role> option) {
+		if (option.isAlternative()) {
 			this.database.updateGuildById(event.getGuild().getIdLong(), Updates.unset("autoRole.roles")).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
@@ -122,7 +123,7 @@ public class AutoRoleCommand extends Sx4Command {
 				event.replySuccess("All auto roles have been removed").queue();
 			});
 		} else {
-			Role role = allArgument.getValue();
+			Role role = option.getValue();
 			this.database.updateGuildById(event.getGuild().getIdLong(), Updates.pull("autoRole.roles", Filters.eq("id", role.getIdLong()))).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
@@ -221,16 +222,16 @@ public class AutoRoleCommand extends Sx4Command {
 		@Command(value="remove", description="Removes a filter from an auto  role")
 		@Examples({"auto role filter remove @Role BOT", "auto role filter remove Role CREATED_LESS_THAN"})
 		@AuthorPermissions(permissions={Permission.MANAGE_ROLES})
-		public void remove(Sx4CommandEvent event, @Argument(value="role") Role role, @Argument(value="filter") All<AutoRoleFilter> allArgument) {
-			boolean all = allArgument.isAll();
+		public void remove(Sx4CommandEvent event, @Argument(value="role") Role role, @Argument(value="filter") @Options("all") Option<AutoRoleFilter> option) {
+			boolean alternative = option.isAlternative();
 			
 			UpdateOptions options = new UpdateOptions().arrayFilters(List.of(Filters.eq("role.id", role.getIdLong())));
-			Bson update = all ? Updates.unset("autoRole.roles.$[role].filters") : Updates.pull("autoRole.roles.$[role].filters", Filters.eq("key", allArgument.getValue().getKey()));
+			Bson update = alternative ? Updates.unset("autoRole.roles.$[role].filters") : Updates.pull("autoRole.roles.$[role].filters", Filters.eq("key", option.getValue().getKey()));
 			this.database.updateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((result, exception) -> {
 				if (exception instanceof CompletionException) {
 					Throwable cause = exception.getCause();
 					if (cause instanceof MongoWriteException && ((MongoWriteException) cause).getCode() == 2) {
-						event.reply("That auto role does not have " + (all ? "any" : "that") + " filter" + (all ? "s " : " ") + this.config.getFailureEmote()).queue();
+						event.reply("That auto role does not have " + (alternative ? "any" : "that") + " filter" + (alternative ? "s " : " ") + this.config.getFailureEmote()).queue();
 						return;
 					}
 				}
@@ -240,11 +241,11 @@ public class AutoRoleCommand extends Sx4Command {
 				}
 				
 				if (result.getModifiedCount() == 0) {
-					event.reply("That auto role does not have " + (all ? "any" : "that") + " filter" + (all ? "s " : " ") + this.config.getFailureEmote()).queue();
+					event.reply("That auto role does not have " + (alternative ? "any" : "that") + " filter" + (alternative ? "s " : " ") + this.config.getFailureEmote()).queue();
 					return;
 				}
 				
-				event.replySuccess((all ? "All" : "That") + " filter" + (all ? "s have" : " has") + " been removed from that auto role").queue();
+				event.replySuccess((alternative ? "All" : "That") + " filter" + (alternative ? "s have" : " has") + " been removed from that auto role").queue();
 			});
 		}
 		

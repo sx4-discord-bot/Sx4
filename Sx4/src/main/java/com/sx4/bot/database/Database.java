@@ -1063,9 +1063,7 @@ public class Database {
 	}
 	
 	public Document getYouTubeNotificationLog(Bson filter, Bson projection) {
-		Document data = this.getYouTubeNotificationLogs(filter, projection).first();
-		
-		return data == null ? Database.EMPTY_DOCUMENT : data;
+		return this.getYouTubeNotificationLogs(filter, projection).first();
 	}
 	
 	public CompletableFuture<InsertOneResult> insertYouTubeNotificationLog(Document data) {

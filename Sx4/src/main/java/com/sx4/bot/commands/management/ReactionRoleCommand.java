@@ -5,8 +5,8 @@ import com.jockie.bot.core.command.Command;
 import com.jockie.bot.core.command.Command.Cooldown;
 import com.mongodb.MongoWriteException;
 import com.mongodb.client.model.*;
-import com.sx4.bot.annotations.argument.ExcludeUpdate;
 import com.sx4.bot.annotations.argument.Limit;
+import com.sx4.bot.annotations.argument.Options;
 import com.sx4.bot.annotations.command.AuthorPermissions;
 import com.sx4.bot.annotations.command.BotPermissions;
 import com.sx4.bot.annotations.command.Examples;
@@ -14,9 +14,8 @@ import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.database.model.Operators;
-import com.sx4.bot.entities.argument.All;
 import com.sx4.bot.entities.argument.MessageArgument;
-import com.sx4.bot.entities.argument.UpdateType;
+import com.sx4.bot.entities.argument.Option;
 import com.sx4.bot.entities.settings.HolderType;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.waiter.Waiter;
@@ -235,17 +234,17 @@ public class ReactionRoleCommand extends Sx4Command {
 	@Examples({"reaction role dm enable all", "reaction role dm disable all", "reaction role dm enable 643945552865919002", "reaction role dm disable 643945552865919002"})
 	@AuthorPermissions(permissions={Permission.MANAGE_ROLES})
 	@Cooldown(value=2)
-	public void dm(Sx4CommandEvent event, @Argument(value="update type") @ExcludeUpdate(UpdateType.TOGGLE) UpdateType updateType, @Argument(value="message id") All<MessageArgument> allArgument) {
-		boolean all = allArgument.isAll(), value = updateType.getValue();
-		long messageId = all ? 0L : allArgument.getValue().getMessageId();
+	public void dm(Sx4CommandEvent event, @Argument(value="update type") @Options({"enable", "disable"}) String value, @Argument(value="message id") @Options("all") Option<MessageArgument> option) {
+		boolean alternative = option.isAlternative(), enable = value.equals("enable");
+		long messageId = alternative ? 0L : option.getValue().getMessageId();
 		
 		Bson update;
 		List<Bson> arrayFilters;
-		if (all) {
-			update = value ? Updates.unset("reactionRole.reactionRoles.$[].dm") : Updates.set("reactionRole.reactionRoles.$[].dm", false);
+		if (alternative) {
+			update = enable ? Updates.unset("reactionRole.reactionRoles.$[].dm") : Updates.set("reactionRole.reactionRoles.$[].dm", false);
 			arrayFilters = null;
 		} else {
-			update = value ? Updates.unset("reactionRole.reactionRoles.$[reactionRole].dm") : Updates.set("reactionRole.reactionRoles.$[reactionRole].dm", false);
+			update = enable ? Updates.unset("reactionRole.reactionRoles.$[reactionRole].dm") : Updates.set("reactionRole.reactionRoles.$[reactionRole].dm", false);
 			arrayFilters = List.of(Filters.eq("reactionRole.id", messageId));
 		}
 		
@@ -254,7 +253,7 @@ public class ReactionRoleCommand extends Sx4Command {
 			if (exception instanceof CompletionException) {
 				Throwable cause = exception.getCause();
 				if (cause instanceof MongoWriteException && ((MongoWriteException) cause).getCode() == 2) {
-					event.replyFailure(all ? "You do not have any reaction roles setup " + this.config.getFailureEmote() : "There was no reaction role on that message").queue();
+					event.replyFailure(alternative ? "You do not have any reaction roles setup" : "There was no reaction role on that message").queue();
 					return;
 				}
 			}
@@ -264,16 +263,16 @@ public class ReactionRoleCommand extends Sx4Command {
 			}
 			
 			if (result.getModifiedCount() == 0 && result.getMatchedCount() != 0) {
-				event.replyFailure((all ? "All your reaction roles" : "That reaction role") + " already " + (all ? "have" : "has") + " it set to " + (value ? "" : "not ") + "dm users").queue();
+				event.replyFailure((alternative ? "All your reaction roles" : "That reaction role") + " already " + (alternative ? "have" : "has") + " it set to " + (enable ? "" : "not ") + "dm users").queue();
 				return;
 			}
 			
 			if (result.getModifiedCount() == 0) {
-				event.replyFailure(all ? "You do not have any reaction roles setup " + this.config.getFailureEmote() : "There was no reaction role on that message").queue();
+				event.replyFailure(alternative ? "You do not have any reaction roles setup " + this.config.getFailureEmote() : "There was no reaction role on that message").queue();
 				return;
 			}
 			
-			event.replySuccess((all ? "All your reaction roles" : "That reaction role") + " will " + (value ? "now" : "no longer") + " send dms").queue();
+			event.replySuccess((alternative ? "All your reaction roles" : "That reaction role") + " will " + (enable ? "now" : "no longer") + " send dms").queue();
 		});
 	}
 	
@@ -281,13 +280,13 @@ public class ReactionRoleCommand extends Sx4Command {
 	@Examples({"reaction role max reactions all 2", "reaction role max reactions 643945552865919002 0"})
 	@AuthorPermissions(permissions={Permission.MANAGE_ROLES})
 	@Cooldown(value=2)
-	public void maxReactions(Sx4CommandEvent event, @Argument(value="message id") All<MessageArgument> allArgument, @Argument(value="max reactions") @Limit(min=0, max=20) int maxReactions) {
-		boolean all = allArgument.isAll(), unlimited = maxReactions == 0;
-		long messageId = all ? 0L : allArgument.getValue().getMessageId();
+	public void maxReactions(Sx4CommandEvent event, @Argument(value="message id") Option<MessageArgument> option, @Argument(value="max reactions") @Limit(min=0, max=20) int maxReactions) {
+		boolean alternative = option.isAlternative(), unlimited = maxReactions == 0;
+		long messageId = alternative ? 0L : option.getValue().getMessageId();
 		
 		Bson update;
 		List<Bson> arrayFilters;
-		if (all) {
+		if (alternative) {
 			update = unlimited ? Updates.unset("reactionRole.reactionRoles.$[].maxReactions") : Updates.set("reactionRole.reactionRoles.$[].maxReactions", maxReactions);
 			arrayFilters = null;
 		} else {
@@ -300,7 +299,7 @@ public class ReactionRoleCommand extends Sx4Command {
 			if (exception instanceof CompletionException) {
 				Throwable cause = exception.getCause();
 				if (cause instanceof MongoWriteException && ((MongoWriteException) cause).getCode() == 2) {
-					event.replyFailure(all ? "You do not have any reaction roles setup " + this.config.getFailureEmote() : "There was no reaction role on that message").queue();
+					event.replyFailure(alternative ? "You do not have any reaction roles setup " + this.config.getFailureEmote() : "There was no reaction role on that message").queue();
 					return;
 				}
 			}
@@ -310,16 +309,16 @@ public class ReactionRoleCommand extends Sx4Command {
 			}
 			
 			if (result.getModifiedCount() == 0 && result.getMatchedCount() != 0) {
-				event.reply((all ? "All your reaction roles" : "That reaction role") + " already " + (all ? "have" : "has") + " it set to " + (unlimited ? "unlimted" : "**" + maxReactions + "**") + " max reaction" + (maxReactions == 1 ? "" : "s") + this.config.getFailureEmote()).queue();
+				event.reply((alternative ? "All your reaction roles" : "That reaction role") + " already " + (alternative ? "have" : "has") + " it set to " + (unlimited ? "unlimted" : "**" + maxReactions + "**") + " max reaction" + (maxReactions == 1 ? "" : "s") + this.config.getFailureEmote()).queue();
 				return;
 			}
 			
 			if (result.getModifiedCount() == 0) {
-				event.replyFailure(all ? "You do not have any reaction roles setup " + this.config.getFailureEmote() : "There was no reaction role on that message").queue();
+				event.replyFailure(alternative ? "You do not have any reaction roles setup " + this.config.getFailureEmote() : "There was no reaction role on that message").queue();
 				return;
 			}
 			
-			event.replySuccess((all ? "All your reaction roles" : "That reaction role") + " now " + (all ? "have " : "has ") + (unlimited ? "no cap for" : "a cap of **" + maxReactions + "**") + " reaction" + (maxReactions == 1 ? "" : "s")).queue();
+			event.replySuccess((alternative ? "All your reaction roles" : "That reaction role") + " now " + (alternative ? "have " : "has ") + (unlimited ? "no cap for" : "a cap of **" + maxReactions + "**") + " reaction" + (maxReactions == 1 ? "" : "s")).queue();
 		});
 	}
 	
@@ -327,8 +326,8 @@ public class ReactionRoleCommand extends Sx4Command {
 	@Examples({"reaction role delete 643945552865919002", "reaction role delete all"})
 	@AuthorPermissions(permissions={Permission.MANAGE_ROLES})
 	@Cooldown(value=5)
-	public void delete(Sx4CommandEvent event, @Argument(value="message id") All<MessageArgument> allArgument) {
-		if (allArgument.isAll()) {
+	public void delete(Sx4CommandEvent event, @Argument(value="message id") @Options("all") Option<MessageArgument> option) {
+		if (option.isAlternative()) {
 			event.reply(event.getAuthor().getName() + ", are you sure you want to delete **all** the reaction roles in this server? (Yes or No)").submit()
 				.thenCompose(message -> {
 					Waiter<GuildMessageReceivedEvent> waiter = new Waiter<>(GuildMessageReceivedEvent.class)
@@ -354,7 +353,7 @@ public class ReactionRoleCommand extends Sx4Command {
 					event.replySuccess("All reaction role data has been deleted in this server").queue();
 				});
 		} else {
-			long messageId = allArgument.getValue().getMessageId();
+			long messageId = option.getValue().getMessageId();
 			this.database.updateGuildById(event.getGuild().getIdLong(), Updates.pull("reactionRole.reactionRoles", Filters.eq("id", messageId))).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;

@@ -2,7 +2,6 @@ package com.sx4.bot.commands.misc;
 
 import com.jockie.bot.core.argument.Argument;
 import com.sx4.bot.category.ModuleCategory;
-import com.sx4.bot.config.Config;
 import com.sx4.bot.core.Sx4Category;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
@@ -28,15 +27,12 @@ public class HelpCommand extends Sx4Command {
 		super.setAliases("h", "commands", "cmds");
 		super.setExamples("help", "help logs", "help all", "help welcomer");
 		super.setPrivateTriggerable(true);
-		super.setCategoryAll(ModuleCategory.MISC);
+		super.setCategory(ModuleCategory.MISC);
 	}
 	
 	public void onCommand(Sx4CommandEvent event, @Argument(value="command | module", endless=true, nullDefault=true) String commandName) {
 		boolean embed = !event.isFromGuild() || event.getGuild().getSelfMember().hasPermission(event.getTextChannel(), Permission.MESSAGE_EMBED_LINKS);
 		if (commandName == null) {
-			String image = Config.get().getAdImage();
-			String description = Config.get().getAdDescription();
-			
 			List<Sx4Category> categories = Arrays.stream(ModuleCategory.ALL_ARRAY)
 				.filter(category -> !category.getCommands(event.isAuthorDeveloper()).isEmpty())
 				.collect(Collectors.toList());
@@ -67,7 +63,7 @@ public class HelpCommand extends Sx4Command {
 					.collect(Collectors.toList());
 				
 				PagedResult<Sx4Command> categoryPaged = HelpUtility.getCommandsPaged(categoryCommands)
-						.setAuthor(category.getName(), null, event.getAuthor().getEffectiveAvatarUrl());
+					.setAuthor(category.getName(), null, event.getAuthor().getEffectiveAvatarUrl());
 				
 				categoryPaged.onSelect(categorySelect -> event.reply(HelpUtility.getHelpMessage(categorySelect.getSelected(), embed)).queue());
 				
@@ -86,7 +82,7 @@ public class HelpCommand extends Sx4Command {
 					.collect(Collectors.toList());
 				
 				PagedResult<Sx4Command> paged = HelpUtility.getCommandsPaged(categoryCommands)
-						.setAuthor(category.getName(), null, event.getAuthor().getEffectiveAvatarUrl());
+					.setAuthor(category.getName(), null, event.getAuthor().getEffectiveAvatarUrl());
 				
 				paged.onSelect(select -> event.reply(HelpUtility.getHelpMessage(select.getSelected(), embed)).queue());
 				

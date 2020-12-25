@@ -156,7 +156,7 @@ public class YouTubeNotificationCommand extends Sx4Command {
 		});
 	}
 
-	@Command(value="advanced message", aliases={"advancedmessage"}, description="Set the message with json so you can fully customize your message with an embed")
+	@Command(value="advanced message", description="Same as `youtube notification message` but takes json for more advanced options")
 	@Examples({"youtube notification advanced message 5e45ce6d3688b30ee75201ae {\"content\": \"{video.url}\"}", "youtube notification advanced message 5e45ce6d3688b30ee75201ae {\"embed\": {\"description\": \"{video.url}\"}}"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void advancedMessage(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="json", endless=true) @AdvancedMessage Document json) {
@@ -170,7 +170,6 @@ public class YouTubeNotificationCommand extends Sx4Command {
 				return;
 			}
 
-			event.reply(json.toJson()).queue();
 			event.replySuccess("Your message has been updated for that notification").queue();
 		});
 	}

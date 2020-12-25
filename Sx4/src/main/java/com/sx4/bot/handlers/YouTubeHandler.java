@@ -15,10 +15,11 @@ import com.sx4.bot.entities.youtube.YouTubeVideo;
 import com.sx4.bot.events.youtube.YouTubeDeleteEvent;
 import com.sx4.bot.events.youtube.YouTubeUpdateTitleEvent;
 import com.sx4.bot.events.youtube.YouTubeUploadEvent;
-import com.sx4.bot.formatter.StringFormatter;
+import com.sx4.bot.formatter.JsonFormatter;
 import com.sx4.bot.hooks.YouTubeListener;
 import com.sx4.bot.managers.YouTubeManager;
 import com.sx4.bot.utility.ExceptionUtility;
+import com.sx4.bot.utility.MessageUtility;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.events.GenericEvent;
@@ -31,7 +32,6 @@ import org.bson.conversions.Bson;
 
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -59,11 +59,11 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 		this.webhooks = new HashMap<>();
 	}
 	
-	private String format(YouTubeUploadEvent event, String message) {
+	private WebhookMessageBuilder format(YouTubeUploadEvent event, Document document) {
 		YouTubeChannel channel = event.getChannel();
 		YouTubeVideo video = event.getVideo();
 
-		return new StringFormatter(message)
+		Document formattedDocument = new JsonFormatter(document)
 			.append("channel.name", channel.getName())
 			.append("channel.url", channel.getUrl())
 			.append("channel.id", channel.getId())
@@ -71,8 +71,10 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 			.append("video.url", video.getUrl())
 			.append("video.id", video.getId())
 			.append("video.thumbnail", video.getThumbnail())
-			.append("video.published", video.getPublishedAt().format(this.formatter))
+			.append("video.published", video.getPublishedAt())
 			.parse();
+
+		return WebhookMessageBuilder.fromJDA(MessageUtility.fromJson(formattedDocument).build());
 	}
 	
 	private void createWebhook(TextChannel channel, WebhookMessage message) {
@@ -108,6 +110,7 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 	}
 
 	public void onYouTubeUpload(YouTubeUploadEvent event) {
+		System.out.println("hello");
 		this.notificationExecutor.submit(() -> {
 			ShardManager shardManager = Sx4.get().getShardManager();
 
@@ -119,19 +122,23 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 
 				TextChannel textChannel = shardManager.getTextChannelById(channelId);
 				if (textChannel != null) {
-					String messageContent = this.format(event, notification.getEmbedded(List.of("message", "content"), YouTubeManager.DEFAULT_MESSAGE));
-
 					Document webhookData = notification.get("webhook", Database.EMPTY_DOCUMENT);
 
-					WebhookMessage message = new WebhookMessageBuilder()
-						.setAvatarUrl(webhookData.get("avatar", shardManager.getShardById(0).getSelfUser().getEffectiveAvatarUrl()))
-						.setUsername(webhookData.get("name", "Sx4 - YouTube"))
-						.setContent(messageContent)
-						.build();
+					WebhookMessage message;
+					try {
+						message = this.format(event, notification.get("message", YouTubeManager.DEFAULT_MESSAGE))
+							.setAvatarUrl(webhookData.get("avatar", shardManager.getShardById(0).getSelfUser().getEffectiveAvatarUrl()))
+							.setUsername(webhookData.get("name", "Sx4 - YouTube"))
+							.build();
+					} catch (IllegalArgumentException e) {
+						// possibly create an error field when this happens so the user can debug what went wrong
+						database.updateYouTubeNotificationById(notification.getObjectId("_id"), Updates.unset("message")).whenComplete(Database.exceptionally());
+						return;
+					}
 
 					WebhookClient webhook;
-					if (this.webhooks.containsKey(textChannel.getIdLong())) {
-						webhook = this.webhooks.get(textChannel.getIdLong());
+					if (this.webhooks.containsKey(channelId)) {
+						webhook = this.webhooks.get(channelId);
 					} else if (!webhookData.containsKey("id")) {
 						this.createWebhook(textChannel, message);
 
@@ -142,12 +149,12 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 							.setHttpClient(this.client)
 							.build();
 
-						this.webhooks.put(textChannel.getIdLong(), webhook);
+						this.webhooks.put(channelId, webhook);
 					}
 
 					webhook.send(message).whenComplete((webhookMessage, exception) -> {
 						if (exception instanceof HttpException && ((HttpException) exception).getCode() == 404) {
-							this.webhooks.remove(textChannel.getIdLong());
+							this.webhooks.remove(channelId);
 
 							this.createWebhook(textChannel, message);
 						}

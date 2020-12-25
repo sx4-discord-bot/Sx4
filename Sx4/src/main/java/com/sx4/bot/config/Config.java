@@ -241,14 +241,6 @@ public class Config {
 		return this.getImageWebserverDomain() + String.format(this.getImageWebserverPath(), endpoint);
 	}
 	
-	public String getAdDescription() {
-		return this.get(this.getState() + ".ad.description");
-	}
-	
-	public String getAdImage() {
-		return this.get(this.getState() + ".ad.image");
-	}
-	
 	public String getVainGlory() {
 		return this.get("token.vainGlory");
 	}

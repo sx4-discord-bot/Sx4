@@ -7,6 +7,7 @@ import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.FindOneAndUpdateOptions;
 import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.ReturnDocument;
+import com.sx4.bot.annotations.argument.Options;
 import com.sx4.bot.annotations.command.AuthorPermissions;
 import com.sx4.bot.annotations.command.Examples;
 import com.sx4.bot.category.ModuleCategory;
@@ -14,11 +15,11 @@ import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.database.model.Operators;
-import com.sx4.bot.entities.argument.All;
+import com.sx4.bot.entities.argument.Option;
 import com.sx4.bot.entities.argument.Range;
+import com.sx4.bot.entities.mod.ModLog;
 import com.sx4.bot.entities.mod.Reason;
 import com.sx4.bot.entities.mod.action.Action;
-import com.sx4.bot.entities.mod.ModLog;
 import com.sx4.bot.managers.ModLogManager;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
@@ -69,8 +70,10 @@ public class ModLogCommand extends Sx4Command {
 	
 	@Command(value="channel", description="Sets the channel which mod logs are sent to")
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-	@Examples({"modlog channel #mod-logs", "modlog channel mod-logs", "modlog channel 432898619943813132"})
-	public void channel(Sx4CommandEvent event, @Argument(value="channel", endless=true, nullDefault=true) TextChannel channel) {
+	@Examples({"modlog channel", "modlog channel #mod-logs", "modlog channel reset"})
+	public void channel(Sx4CommandEvent event, @Argument(value="channel", endless=true, nullDefault=true) @Options("reset") Option<TextChannel> option) {
+		TextChannel channel = option == null ? event.getTextChannel() : option.isAlternative() ? null : option.getValue();
+
 		List<Bson> update = List.of(Operators.set("modLog.channelId", channel == null ? Operators.REMOVE : channel.getIdLong()), Operators.unset("modLog.webhook.id"), Operators.unset("modLog.webhook.token"));
 		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("modLog.channelId")).upsert(true);
 
@@ -81,15 +84,16 @@ public class ModLogCommand extends Sx4Command {
 
 			long channelId = data == null ? 0L : data.getEmbedded(List.of("modLog", "channelId"), 0L);
 
-			if ((channel == null && channelId == 0L) || (channel != null && channel.getIdLong() == channelId)) {
+			if ((channel == null ? 0L : channel.getIdLong()) == channelId) {
 				event.replyFailure("The mod log channel is already " + (channel == null ? "unset" : "set to " + channel.getAsMention())).queue();
 				return;
 			}
 
-			if (channel != null) {
+			TextChannel oldChannel = channelId == 0L ? null : event.getGuild().getTextChannelById(channelId);
+			if (oldChannel != null) {
 				WebhookClient oldWebhook = this.manager.removeWebhook(channelId);
 				if (oldWebhook != null) {
-					channel.deleteWebhookById(String.valueOf(oldWebhook.getId())).queue();
+					oldChannel.deleteWebhookById(String.valueOf(oldWebhook.getId())).queue();
 				}
 			}
 			
@@ -130,10 +134,10 @@ public class ModLogCommand extends Sx4Command {
 	@Command(value="remove", aliases={"delete"}, description="Deletes a mod log from the  server")
 	@Examples({"modlog remove 5e45ce6d3688b30ee75201ae", "modlog remove all"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-	public void remove(Sx4CommandEvent event, @Argument(value="id") All<ObjectId> all) {
+	public void remove(Sx4CommandEvent event, @Argument(value="id") @Options("all") Option<ObjectId> option) {
 		User author = event.getAuthor();
 
-		if (all.isAll()) {
+		if (option.isAlternative()) {
 			event.reply(author.getName() + ", are you sure you want to delete **all** the suggestions in this server? (Yes or No)").queue(queryMessage -> {
 				Waiter<GuildMessageReceivedEvent> waiter = new Waiter<>(GuildMessageReceivedEvent.class)
 					.setPredicate(messageEvent -> messageEvent.getMessage().getContentRaw().equalsIgnoreCase("yes"))
@@ -163,7 +167,7 @@ public class ModLogCommand extends Sx4Command {
 				waiter.start();
 			});
 		} else {
-			ObjectId id = all.getValue();
+			ObjectId id = option.getValue();
 
 			this.database.findAndDeleteModLogById(id).whenComplete((data, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {

@@ -1,19 +1,18 @@
 package com.sx4.bot.utility;
 
-import java.util.Formatter;
-import java.util.List;
-import java.util.stream.Collectors;
-
 import com.jockie.bot.core.command.ICommand;
 import com.jockie.bot.core.option.IOption;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.paged.PagedResult.SelectType;
-
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.MessageBuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Message;
+
+import java.util.Formatter;
+import java.util.List;
+import java.util.stream.Collectors;
 
 public class HelpUtility {
 
@@ -27,7 +26,7 @@ public class HelpUtility {
 		for (int i = 0; i < command.getOptions().size(); i++) {
 			IOption<?> option = command.getOptions().get(i);
 			
-			options.append("`" + option.getName() + (option.getType() == String.class ? "=<value>" : "") + "` - " + option.getDescription() + (i == command.getOptions().size() - 1 ? "" : "\n"));
+			options.append("`" + option.getName() + (option.getType() != boolean.class ? "=<value>" : "") + "` - " + option.getDescription() + (i == command.getOptions().size() - 1 ? "" : "\n"));
 		}
 		
 		if (embed) {
@@ -43,12 +42,8 @@ public class HelpUtility {
 			if (command.getExamples().length != 0) {
 				embedBuilder.addField("Examples", "`" + String.join("`\n`", command.getExamples()) + "`", false);
 			}
-			
-			if (command.isDeveloperCommand()) {
-				embedBuilder.addField("Required Permissions", "Developer", false);
-			} else if (command.isDonatorCommand()) {
-				embedBuilder.addField("Required Permissions", "Donator", false);
-			} else if (!command.getAuthorDiscordPermissions().isEmpty()) {
+
+			if (!command.getAuthorDiscordPermissions().isEmpty()) {
 				embedBuilder.addField("Required Permissions", command.getAuthorDiscordPermissions().stream().map(Permission::getName).collect(Collectors.joining(", ")), false);
 			}
 			
@@ -62,6 +57,10 @@ public class HelpUtility {
 			
 			if (!command.getSubCommands().isEmpty()) {
 				embedBuilder.addField("Sub Commands", command.getSubCommands().stream().map(ICommand::getCommand).collect(Collectors.joining(", ")), false);
+			}
+
+			if (command.isPremiumCommand()) {
+				embedBuilder.setFooter("Premium Command ⭐");
 			}
 	
 			return builder.setEmbed(embedBuilder.build()).build();
@@ -80,12 +79,8 @@ public class HelpUtility {
 			if (command.getExamples().length != 0) {
 				formatter.format(placeHolder, "Examples", "`" + String.join("`\n`", command.getExamples()) + "`");
 			}
-			
-			if (command.isDeveloperCommand()) {
-				formatter.format(placeHolder, "Required Permissions", "Developer");
-			} else if (command.isDonatorCommand()) {
-				formatter.format(placeHolder, "Required Permissions", "Donator");
-			} else if (!command.getAuthorDiscordPermissions().isEmpty()) {
+
+			if (!command.getAuthorDiscordPermissions().isEmpty()) {
 				formatter.format(placeHolder, "Required Permissions", command.getAuthorDiscordPermissions().stream().map(Permission::getName).collect(Collectors.joining(", ")));
 			}
 			
