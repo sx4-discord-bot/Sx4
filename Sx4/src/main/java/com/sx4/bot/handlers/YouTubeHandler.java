@@ -74,7 +74,7 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 			.append("video.published", video.getPublishedAt())
 			.parse();
 
-		return WebhookMessageBuilder.fromJDA(MessageUtility.fromJson(formattedDocument).build());
+		return MessageUtility.fromJson(formattedDocument);
 	}
 	
 	private void createWebhook(TextChannel channel, WebhookMessage message) {

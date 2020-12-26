@@ -1,33 +1,33 @@
-package com.sx4.bot.formatter.impl;
+package com.sx4.bot.formatter;
 
-import com.sx4.bot.formatter.Condition;
 import com.sx4.bot.utility.ColourUtility;
 import com.sx4.bot.utility.NumberUtility;
 import net.dv8tion.jda.api.entities.*;
 
 import java.util.Map;
 
-public interface FormatterImpl<Type> {
+public interface Formatter<Type> {
 
-	FormatterImpl<Type> append(String key, Object replace);
+	Formatter<Type> append(String key, Object replace);
 
-	default FormatterImpl<Type> user(User user) {
+	default Formatter<Type> user(User user) {
 		return this.append("user.mention", user.getAsMention())
 			.append("user.name", user.getName())
 			.append("user.id", user.getId())
 			.append("user.discriminator", user.getDiscriminator())
 			.append("user.tag", user.getAsTag())
-			.append("user.avatar", user.getEffectiveAvatarUrl());
+			.append("user.avatar", user.getEffectiveAvatarUrl())
+			.append("user.created", user.getTimeCreated());
 	}
 
-	default FormatterImpl<Type> member(Member member) {
+	default Formatter<Type> member(Member member) {
 		return this.user(member.getUser())
 			.append("user.joined", member.getTimeJoined())
 			.append("user.colour.raw", member.getColorRaw())
 			.append("user.colour", "#" + ColourUtility.toHexString(member.getColorRaw()));
 	}
 
-	default  FormatterImpl<Type> guild(Guild guild) {
+	default Formatter<Type> guild(Guild guild) {
 		return this.append("server.id", guild.getId())
 			.append("server.name", guild.getName())
 			.append("server.avatar", guild.getIconUrl())
@@ -35,13 +35,13 @@ public interface FormatterImpl<Type> {
 			.append("server.members.suffix", NumberUtility.getSuffixed(guild.getMemberCount()));
 	}
 
-	default FormatterImpl<Type> channel(TextChannel channel) {
+	default Formatter<Type> channel(TextChannel channel) {
 		return this.append("channel.mention", channel.getAsMention())
 			.append("channel.name", channel.getName())
 			.append("channel.id", channel.getId());
 	}
 
-	default FormatterImpl<Type> role(Role role) {
+	default Formatter<Type> role(Role role) {
 		return this.append("role.mention", role.getAsMention())
 			.append("role.name", role.getName())
 			.append("role.id", role.getId())

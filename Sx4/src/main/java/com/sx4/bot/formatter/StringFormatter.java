@@ -1,11 +1,9 @@
 package com.sx4.bot.formatter;
 
-import com.sx4.bot.formatter.impl.FormatterImpl;
-
 import java.util.HashMap;
 import java.util.Map;
 
-public class StringFormatter implements FormatterImpl<String> {
+public class StringFormatter implements Formatter<String> {
 
     private final Map<String, Object> map;
     private final String string;

@@ -10,7 +10,6 @@ import club.minnced.discord.webhook.send.WebhookMessageBuilder;
 import com.mongodb.client.model.Updates;
 import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.Database;
-import com.sx4.bot.managers.impl.WebhookManagerImpl;
 import com.sx4.bot.utility.ExceptionUtility;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.TextChannel;
@@ -25,7 +24,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Consumer;
 
-public class ModLogManager implements WebhookManagerImpl {
+public class ModLogManager implements WebhookManager {
 
 	private static final ModLogManager INSTANCE = new ModLogManager();
 

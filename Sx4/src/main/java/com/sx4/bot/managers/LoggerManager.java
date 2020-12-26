@@ -12,9 +12,9 @@ import com.mongodb.client.model.Updates;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.entities.logger.LoggerContext;
 import com.sx4.bot.entities.management.logger.LoggerEvent;
-import com.sx4.bot.managers.impl.WebhookManagerImpl;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.LoggerUtility;
+import com.sx4.bot.utility.MessageUtility;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Guild;
@@ -27,7 +27,7 @@ import org.bson.conversions.Bson;
 import java.util.*;
 import java.util.concurrent.*;
 
-public class LoggerManager implements WebhookManagerImpl {
+public class LoggerManager implements WebhookManager {
 
     public static class Request {
 
@@ -171,7 +171,7 @@ public class LoggerManager implements WebhookManagerImpl {
             }
 
             List<WebhookEmbed> embeds = new ArrayList<>(request.getEmbeds());
-            int length = LoggerUtility.getWebhookEmbedLength(embeds);
+            int length = MessageUtility.getWebhookEmbedLength(embeds);
 
             List<Request> skippedRequests = new ArrayList<>(), requests = new ArrayList<>();
             requests.add(request);
@@ -180,7 +180,7 @@ public class LoggerManager implements WebhookManagerImpl {
             while ((nextRequest = deque.poll()) != null) {
                 List<WebhookEmbed> nextEmbeds = nextRequest.getEmbeds();
 
-                int nextLength = LoggerUtility.getWebhookEmbedLength(nextEmbeds);
+                int nextLength = MessageUtility.getWebhookEmbedLength(nextEmbeds);
                 if (request.getChannelId() != nextRequest.getChannelId() || embeds.size() + nextEmbeds.size() > 10 || length + nextLength > MessageEmbed.EMBED_MAX_LENGTH_BOT) {
                     skippedRequests.add(nextRequest);
                     continue;

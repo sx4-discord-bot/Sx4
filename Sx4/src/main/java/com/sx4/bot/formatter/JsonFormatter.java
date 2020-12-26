@@ -1,6 +1,5 @@
 package com.sx4.bot.formatter;
 
-import com.sx4.bot.formatter.impl.FormatterImpl;
 import org.bson.Document;
 
 import java.util.ArrayList;
@@ -8,7 +7,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class JsonFormatter implements FormatterImpl<Document> {
+public class JsonFormatter implements Formatter<Document> {
 
 	private final Map<String, Object> map;
 	private final Document document;

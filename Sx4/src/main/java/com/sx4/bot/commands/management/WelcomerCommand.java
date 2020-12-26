@@ -22,7 +22,9 @@ import com.sx4.bot.entities.argument.Option;
 import com.sx4.bot.http.HttpCallback;
 import com.sx4.bot.managers.WelcomerManager;
 import com.sx4.bot.utility.ExceptionUtility;
+import com.sx4.bot.utility.MessageUtility;
 import com.sx4.bot.utility.OperatorsUtility;
+import com.sx4.bot.utility.WelcomerUtility;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.TextChannel;
 import okhttp3.Request;
@@ -74,7 +76,7 @@ public class WelcomerCommand extends Sx4Command {
 		TextChannel channel = option == null ? event.getTextChannel() : option.isAlternative() ? null : option.getValue();
 
 		List<Bson> update = List.of(Operators.set("welcomer.channelId", channel == null ? Operators.REMOVE : channel.getIdLong()), Operators.unset("welcomer.webhook.id"), Operators.unset("welcomer.webhook.token"));
-		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().upsert(true).projection(Projections.include("welcomer.webhook.token", "welcomer.webhook.id")).returnDocument(ReturnDocument.BEFORE);
+		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().upsert(true).projection(Projections.include("welcomer.webhook.token", "welcomer.webhook.id", "welcomer.channelId")).returnDocument(ReturnDocument.BEFORE);
 
 		this.database.findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
@@ -189,6 +191,52 @@ public class WelcomerCommand extends Sx4Command {
 			}
 
 			event.replySuccess("Your welcomer webhook avatar has been updated").queue();
+		});
+	}
+
+	@Command(value="dm", aliases={"dm toggle"}, description="Toggle the state of welcomer private messaging the user")
+	@Examples({"welcomer dm toggle"})
+	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
+	public void dmToggle(Sx4CommandEvent event) {
+		List<Bson> update = List.of(Operators.set("welcomer.dm", Operators.cond("$welcomer.dm", Operators.REMOVE, true)));
+		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER).projection(Projections.include("welcomer.dm")).upsert(true);
+
+		this.database.findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
+			if (ExceptionUtility.sendExceptionally(event, exception)) {
+				return;
+			}
+
+			event.replySuccess("Welcomer will " + (data.getEmbedded(List.of("welcomer", "dm"), false) ? "now" : "no longer") + " send in private messages").queue();
+		});
+	}
+
+	@Command(value="preview", description="Preview your welcomer message")
+	@Examples({"welcomer preview"})
+	public void preview(Sx4CommandEvent event) {
+		Document data = this.database.getGuildById(event.getGuild().getIdLong(), Projections.include("welcomer.message", "welcomer.image", "welcomer.enabled", "premium.endAt"));
+
+		Document welcomer = data.get("welcomer", Database.EMPTY_DOCUMENT);
+		Document image = welcomer.get("image", Database.EMPTY_DOCUMENT);
+
+		boolean messageEnabled = welcomer.get("enabled", false), imageEnabled = image.get("enabled", false);
+		if (!messageEnabled && !imageEnabled) {
+			event.replyFailure("Neither welcomer or image welcomer is enabled").queue();
+			return;
+		}
+
+		boolean gif = data.getEmbedded(List.of("premium", "endAt"), 0L) >= Clock.systemUTC().instant().getEpochSecond();
+
+		WelcomerUtility.getWelcomerMessage(messageEnabled ? welcomer.get("message", WelcomerManager.DEFAULT_MESSAGE) : null, event.getMember(), imageEnabled, gif, (builder, exception) -> {
+			if (exception instanceof IllegalArgumentException) {
+				event.replyFailure(exception.getMessage()).queue();
+				return;
+			}
+
+			if (ExceptionUtility.sendExceptionally(event, exception)) {
+				return;
+			}
+
+			MessageUtility.fromWebhookMessage(event.getTextChannel(), builder.build()).queue();
 		});
 	}
 

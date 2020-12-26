@@ -6,7 +6,6 @@ import club.minnced.discord.webhook.exception.HttpException;
 import club.minnced.discord.webhook.send.WebhookMessage;
 import com.mongodb.client.model.Updates;
 import com.sx4.bot.database.Database;
-import com.sx4.bot.managers.impl.WebhookManagerImpl;
 import com.sx4.bot.utility.ExceptionUtility;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.TextChannel;
@@ -19,7 +18,7 @@ import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
-public class WelcomerManager implements WebhookManagerImpl {
+public class WelcomerManager implements WebhookManager {
 
 	private static final WelcomerManager INSTANCE = new WelcomerManager();
 

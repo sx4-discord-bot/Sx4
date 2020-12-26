@@ -1,8 +1,8 @@
-package com.sx4.bot.managers.impl;
+package com.sx4.bot.managers;
 
 import club.minnced.discord.webhook.WebhookClient;
 
-public interface WebhookManagerImpl {
+public interface WebhookManager {
 
 	WebhookClient getWebhook(long id);
 

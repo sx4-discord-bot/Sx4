@@ -1,10 +1,14 @@
 package com.sx4.bot.utility;
 
+import club.minnced.discord.webhook.send.MessageAttachment;
+import club.minnced.discord.webhook.send.WebhookEmbed;
+import club.minnced.discord.webhook.send.WebhookMessage;
+import club.minnced.discord.webhook.send.WebhookMessageBuilder;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.MessageBuilder;
-import net.dv8tion.jda.api.entities.EmbedType;
+import net.dv8tion.jda.api.entities.MessageChannel;
 import net.dv8tion.jda.api.entities.MessageEmbed;
-import net.dv8tion.jda.api.entities.Role;
+import net.dv8tion.jda.api.requests.restaction.MessageAction;
 import org.bson.Document;
 
 import java.time.OffsetDateTime;
@@ -66,7 +70,7 @@ public class MessageUtility {
 	private static int colourFromJson(Document json) {
 		Object colourJson = json.get("color");
 
-		int colour = Role.DEFAULT_COLOR_RAW;
+		int colour;
 		if (!(colourJson instanceof Integer)) {
 			if (colourJson instanceof String) {
 				try {
@@ -84,7 +88,7 @@ public class MessageUtility {
 		return colour;
 	}
 
-	private static MessageEmbed.Footer footerFromJson(Document json) {
+	private static WebhookEmbed.EmbedFooter footerFromJson(Document json) {
 		Object footerJson = json.get("footer");
 		if (!(footerJson instanceof Document)) {
 			throw new IllegalArgumentException("`embed.footer` value has to be a json object");
@@ -123,7 +127,7 @@ public class MessageUtility {
 			}
 		}
 
-		return text == null ? null : new MessageEmbed.Footer(text, iconUrl, null);
+		return text == null ? null : new WebhookEmbed.EmbedFooter(text, iconUrl);
 	}
 
 	private static OffsetDateTime timestampFromJson(Document json) {
@@ -142,7 +146,7 @@ public class MessageUtility {
 		return timestamp;
 	}
 
-	private static MessageEmbed.Thumbnail thumbnailFromJson(Document json) {
+	private static String thumbnailFromJson(Document json) {
 		Object thumbnailJson = json.get("thumbnail");
 		if (!(thumbnailJson instanceof Document)) {
 			throw new IllegalArgumentException("`embed.thumbnail` value has to be a json object");
@@ -164,13 +168,13 @@ public class MessageUtility {
 				throw new IllegalArgumentException("`embed.thumbnail.url` is not a valid url");
 			}
 
-			return new MessageEmbed.Thumbnail(thumbnailUrl, null, 0, 0);
+			return thumbnailUrl;
 		}
 
 		return null;
 	}
 
-	private static MessageEmbed.AuthorInfo authorFromJson(Document json) {
+	private static WebhookEmbed.EmbedAuthor authorFromJson(Document json) {
 		Object authorJson = json.get("author");
 		if (!(authorJson instanceof Document)) {
 			throw new IllegalArgumentException("`embed.author` value has to be a json object");
@@ -226,10 +230,10 @@ public class MessageUtility {
 			}
 		}
 
-		return name == null ? null : new MessageEmbed.AuthorInfo(name, authorUrl, iconUrl, null);
+		return name == null ? null : new WebhookEmbed.EmbedAuthor(name, iconUrl, authorUrl);
 	}
 
-	private static MessageEmbed.ImageInfo imageFromJson(Document json) {
+	private static String imageFromJson(Document json) {
 		Object imageJson = json.get("image");
 		if (!(imageJson instanceof Document)) {
 			throw new IllegalArgumentException("`embed.image` value has to be a json object");
@@ -251,13 +255,13 @@ public class MessageUtility {
 				throw new IllegalArgumentException("`embed.image.url` is not a valid url");
 			}
 
-			return new MessageEmbed.ImageInfo(imageUrl, null, 0, 0);
+			return imageUrl;
 		}
 
 		return null;
 	}
 
-	private static List<MessageEmbed.Field> fieldsFromJson(Document json) {
+	private static List<WebhookEmbed.EmbedField> fieldsFromJson(Document json) {
 		Object fieldsJson = json.get("fields");
 		if (!(fieldsJson instanceof List)) {
 			throw new IllegalArgumentException("`embed.fields` value has to be an array");
@@ -270,7 +274,7 @@ public class MessageUtility {
 			throw new IllegalArgumentException("You can only have 25 fields per embed");
 		}
 
-		List<MessageEmbed.Field> fields = new ArrayList<>();
+		List<WebhookEmbed.EmbedField> fields = new ArrayList<>();
 		for (int i = 0; i < length; i++) {
 			Object fieldJson = fieldsData.get(i);
 			if (!(fieldJson instanceof Document)) {
@@ -317,15 +321,15 @@ public class MessageUtility {
 			}
 
 			if (name != null && value != null) {
-				fields.add(new MessageEmbed.Field(name, value, inline));
+				fields.add(new WebhookEmbed.EmbedField(inline, name, value));
 			}
 		}
 
 		return fields;
 	}
 
-	public static MessageBuilder fromJson(Document json) {
-		MessageBuilder builder = new MessageBuilder();
+	public static WebhookMessageBuilder fromJson(Document json) {
+		WebhookMessageBuilder builder = new WebhookMessageBuilder();
 		if (json.containsKey("embed")) {
 			Object embedJson = json.get("embed");
 			if (!(embedJson instanceof Document)) {
@@ -339,24 +343,24 @@ public class MessageUtility {
 			String title = titleExists ? MessageUtility.titleFromJson(embedData) : null;
 			String url = titleExists ? MessageUtility.urlFromJson(embedData) : null;
 			String description = embedData.containsKey("description") ? MessageUtility.descriptionFromJson(embedData) : null;
-			int colour = MessageUtility.colourFromJson(embedData);
+			Integer colour = embedData.containsKey("color") ? MessageUtility.colourFromJson(embedData) : null;
 			OffsetDateTime timestamp = embedData.containsKey("timestamp") ? MessageUtility.timestampFromJson(embedData) : null;
-			MessageEmbed.Footer footer = embedData.containsKey("footer") ? MessageUtility.footerFromJson(embedData) : null;
-			MessageEmbed.Thumbnail thumbnail = embedData.containsKey("thumbnail") ? MessageUtility.thumbnailFromJson(embedData) : null;
-			MessageEmbed.ImageInfo image = embedData.containsKey("image") ? MessageUtility.imageFromJson(embedData) : null;
-			MessageEmbed.AuthorInfo author = embedData.containsKey("author") ? MessageUtility.authorFromJson(embedData) : null;
-			List<MessageEmbed.Field> fields = embedData.containsKey("fields") ? MessageUtility.fieldsFromJson(embedData) : Collections.emptyList();
+			WebhookEmbed.EmbedFooter footer = embedData.containsKey("footer") ? MessageUtility.footerFromJson(embedData) : null;
+			String thumbnail = embedData.containsKey("thumbnail") ? MessageUtility.thumbnailFromJson(embedData) : null;
+			String image = embedData.containsKey("image") ? MessageUtility.imageFromJson(embedData) : null;
+			WebhookEmbed.EmbedAuthor author = embedData.containsKey("author") ? MessageUtility.authorFromJson(embedData) : null;
+			List<WebhookEmbed.EmbedField> fields = embedData.containsKey("fields") ? MessageUtility.fieldsFromJson(embedData) : Collections.emptyList();
 
-			MessageEmbed embed = new MessageEmbed(url, title, description, EmbedType.RICH, timestamp, colour, thumbnail, null, author, null, footer, image, fields);
-			if (embed.isEmpty()) {
+			WebhookEmbed embed = new WebhookEmbed(timestamp, colour, description, thumbnail, image, footer, title == null ? null : new WebhookEmbed.EmbedTitle(title, url), author, fields);
+			if (MessageUtility.isWebhookEmbedEmpty(embed)) {
 				throw new IllegalArgumentException("The embed cannot be empty");
 			}
 
-			if (embed.getLength() > 6000) {
+			if (MessageUtility.getWebhookEmbedLength(embed) > 6000) {
 				throw new IllegalArgumentException("The embeds total length cannot be more than 6000 characters");
 			}
 
-			builder.setEmbed(embed);
+			builder.addEmbeds(embed);
 		}
 
 		if (json.containsKey("content")) {
@@ -379,6 +383,157 @@ public class MessageUtility {
 		}
 
 		return builder;
+	}
+
+	public static boolean isWebhookEmbedEmpty(WebhookEmbed embed) {
+		return MessageUtility.isEmpty(embed.getDescription())
+			&& MessageUtility.isEmpty(embed.getImageUrl())
+			&& MessageUtility.isEmpty(embed.getThumbnailUrl())
+			&& MessageUtility.isFieldsEmpty(embed.getFields())
+			&& MessageUtility.isAuthorEmpty(embed.getAuthor())
+			&& MessageUtility.isTitleEmpty(embed.getTitle())
+			&& MessageUtility.isFooterEmpty(embed.getFooter())
+			&& embed.getTimestamp() == null;
+	}
+
+	private static boolean isEmpty(String s) {
+		return s == null || s.trim().isEmpty();
+	}
+
+	private static boolean isTitleEmpty(WebhookEmbed.EmbedTitle title) {
+		return title == null || isEmpty(title.getText());
+	}
+
+	private static boolean isFooterEmpty(WebhookEmbed.EmbedFooter footer) {
+		return footer == null || isEmpty(footer.getText());
+	}
+
+	private static boolean isAuthorEmpty(WebhookEmbed.EmbedAuthor author) {
+		return author == null || isEmpty(author.getName());
+	}
+
+	private static boolean isFieldsEmpty(List<WebhookEmbed.EmbedField> fields) {
+		if (fields.isEmpty()) {
+			return true;
+		}
+
+		return fields.stream().allMatch(f -> isEmpty(f.getName()) && isEmpty(f.getValue()));
+	}
+
+	public static int getWebhookEmbedLength(WebhookEmbed embed) {
+		int length = 0;
+
+		String title = embed.getTitle() != null ? embed.getTitle().getText().trim() : null;
+		if (title != null) {
+			length += title.length();
+		}
+
+		String description = embed.getDescription() != null ? embed.getDescription().trim() : null;
+		if (description != null) {
+			length += description.length();
+		}
+
+		String author = embed.getAuthor() != null ? embed.getAuthor().getName().trim() : null;
+		if (author != null) {
+			length += author.length();
+		}
+
+		String footer = embed.getFooter() != null ? embed.getFooter().getText().trim() : null;
+		if (footer != null) {
+			length += footer.length();
+		}
+
+		for (WebhookEmbed.EmbedField field : embed.getFields()) {
+			length += field.getName().trim().length() + field.getValue().trim().length();
+		}
+
+		return length;
+	}
+
+	public static int getWebhookEmbedLength(List<WebhookEmbed> embeds) {
+		return embeds.stream()
+			.mapToInt(MessageUtility::getWebhookEmbedLength)
+			.sum();
+	}
+
+	public static EmbedBuilder fromWebhookEmbed(WebhookEmbed embed) {
+		EmbedBuilder builder = new EmbedBuilder();
+		WebhookEmbed.EmbedTitle title = embed.getTitle();
+		String description = embed.getDescription();
+		String thumbnail = embed.getThumbnailUrl();
+		WebhookEmbed.EmbedAuthor author = embed.getAuthor();
+		WebhookEmbed.EmbedFooter footer = embed.getFooter();
+		String image = embed.getImageUrl();
+		List<WebhookEmbed.EmbedField> fields = embed.getFields();
+		Integer color = embed.getColor();
+		OffsetDateTime timestamp = embed.getTimestamp();
+
+		if (title != null) {
+			builder.setTitle(title.getText(), title.getUrl());
+		}
+
+		if (description != null) {
+			builder.setDescription(description);
+		}
+
+		if (thumbnail != null) {
+			builder.setThumbnail(thumbnail);
+		}
+
+		if (author != null) {
+			builder.setAuthor(author.getName(), author.getUrl(), author.getIconUrl());
+		}
+
+		if (footer != null) {
+			builder.setFooter(footer.getText(), footer.getIconUrl());
+		}
+
+		if (image != null) {
+			builder.setImage(image);
+		}
+
+		if (!fields.isEmpty()) {
+			fields.forEach(field -> builder.addField(field.getName(), field.getValue(), field.isInline()));
+		}
+
+		if (color != null) {
+			builder.setColor(color);
+		}
+
+		if (timestamp != null) {
+			builder.setTimestamp(timestamp);
+		}
+
+		return builder;
+	}
+
+	public static MessageAction fromWebhookMessage(MessageChannel channel, WebhookMessage message) {
+		MessageBuilder builder = new MessageBuilder();
+
+		List<WebhookEmbed> embeds = message.getEmbeds();
+		if (!embeds.isEmpty()) {
+			builder.setEmbed(MessageUtility.fromWebhookEmbed(embeds.get(0)).build());
+		}
+
+		builder.setContent(message.getContent());
+
+		MessageAction action = null;
+		if (!builder.isEmpty()) {
+			action = channel.sendMessage(builder.build());
+		}
+
+		MessageAttachment[] attachments = message.getAttachments();
+		if (attachments.length != 0) {
+			MessageAttachment attachment = attachments[0];
+
+			if (action == null) {
+				action = channel.sendFile(attachment.getData(), attachment.getName());
+			} else {
+				action.addFile(attachment.getData(), attachment.getName());
+			}
+		}
+
+		return action;
 	}
 
 	private static void keepFields(Document json, Set<String> whitelisted) {
