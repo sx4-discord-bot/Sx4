@@ -3,28 +3,24 @@ package com.sx4.bot.commands.image;
 import com.jockie.bot.core.argument.Argument;
 import com.sx4.bot.annotations.argument.Limit;
 import com.sx4.bot.category.ModuleCategory;
-import com.sx4.bot.core.Sx4;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.entities.image.ImageRequest;
 import com.sx4.bot.http.HttpCallback;
 import com.sx4.bot.utility.ImageUtility;
-import com.sx4.bot.utility.SearchUtility;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
-import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.entities.User;
 import okhttp3.Request;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Matcher;
 
 public class TweetCommand extends Sx4Command {
 
 	public TweetCommand() {
-		super("tweet");
+		super("tweet", 26);
 
 		super.setDescription("Send a tweet as a discord user");
 		super.setExamples("tweet @Shea hello #Sx4", "tweet Shea#6653 @Sx4 prefix");

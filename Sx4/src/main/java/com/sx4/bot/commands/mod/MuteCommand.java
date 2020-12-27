@@ -30,7 +30,7 @@ import java.util.concurrent.atomic.AtomicReference;
 public class MuteCommand extends Sx4Command {
 
 	public MuteCommand() {
-		super("mute");
+		super("mute", 139);
 		
 		super.setExamples("mute @Shea#6653 20m", "mute Shea 30m Spamming", "mute 402557516728369153 12h template:offensive & Spamming");
 		super.setDescription("Mute a user server wide");

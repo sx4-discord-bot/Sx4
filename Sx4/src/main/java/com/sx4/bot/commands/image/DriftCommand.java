@@ -14,7 +14,7 @@ import net.dv8tion.jda.api.entities.User;
 public class DriftCommand extends Sx4Command {
 
 	public DriftCommand() {
-		super("drift");
+		super("drift", 8);
 
 		super.setDescription("Sends an image of your drifting towards a junction away from a destination");
 		super.setExamples("drift Shea healthy", "drift Dyno Sx4", "drift \"Something you hate\"");

@@ -14,7 +14,7 @@ import okhttp3.Request;
 public class ChristmasCommand extends Sx4Command {
 
 	public ChristmasCommand() {
-		super("christmas");
+		super("christmas", 4);
 
 		super.setDescription("Creates a christmas version of a specific image");
 		super.setExamples("christmas", "christmas Shea#6653", "christmas https://example.com/image.png");

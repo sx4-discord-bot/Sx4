@@ -14,7 +14,7 @@ import okhttp3.Request;
 public class FearCommand extends Sx4Command {
 
 	public FearCommand() {
-		super("fear");
+		super("fear", 11);
 
 		super.setDescription("Creates an image of someone fearing a specified image");
 		super.setExamples("fear", "fear @Shea#6653", "fear https://example.com/image.png");

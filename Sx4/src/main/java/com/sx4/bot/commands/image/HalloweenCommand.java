@@ -14,7 +14,7 @@ import okhttp3.Request;
 public class HalloweenCommand extends Sx4Command {
 
 	public HalloweenCommand() {
-		super("halloween");
+		super("halloween", 14);
 
 		super.setDescription("Creates a halloween version of a specific image");
 		super.setExamples("halloween", "halloween Shea#6653", "halloween https://example.com/image.png");

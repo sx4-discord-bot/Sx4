@@ -40,7 +40,7 @@ public class EvalCommand extends Sx4Command {
 	}
 
 	public EvalCommand() {
-		super("eval");
+		super("eval", 0);
 		
 		super.setDescription("Execute some code, last line will be sent");
 		super.setExamples("eval \"hi\"", "eval new EmbedBuilder().setDescription(\"hi\").build();");

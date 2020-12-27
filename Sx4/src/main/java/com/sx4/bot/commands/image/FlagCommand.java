@@ -15,7 +15,7 @@ import okhttp3.Request;
 public class FlagCommand extends Sx4Command {
 
 	public FlagCommand() {
-		super("flag");
+		super("flag", 12);
 
 		super.setDescription("Puts a flag over a specified image");
 		super.setExamples("flag fr", "flag gb @Shea#6653", "hot se https://example.com/image.png");

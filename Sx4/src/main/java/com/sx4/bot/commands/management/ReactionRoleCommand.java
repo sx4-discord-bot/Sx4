@@ -9,6 +9,7 @@ import com.sx4.bot.annotations.argument.Limit;
 import com.sx4.bot.annotations.argument.Options;
 import com.sx4.bot.annotations.command.AuthorPermissions;
 import com.sx4.bot.annotations.command.BotPermissions;
+import com.sx4.bot.annotations.command.CommandId;
 import com.sx4.bot.annotations.command.Examples;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
@@ -63,7 +64,7 @@ public class ReactionRoleCommand extends Sx4Command {
 	}
 	
 	public ReactionRoleCommand() {
-		super("reaction role");
+		super("reaction role", 71);
 		
 		super.setDescription("Set up a reaction role so users can simply react to an emote and get a specified role");
 		super.setAliases("reactionrole");
@@ -75,6 +76,7 @@ public class ReactionRoleCommand extends Sx4Command {
 	}
 	
 	@Command(value="add", description="Adds a role to be given when a user reacts to the specified emote")
+	@CommandId(72)
 	@Examples({"reaction role add 643945552865919002 🐝 @Yellow", "reaction role add https://discordapp.com/channels/330399610273136641/678274453158887446/680051429460803622 :doggo: Dog person"})
 	@AuthorPermissions(permissions={Permission.MANAGE_ROLES})
 	@BotPermissions(permissions={Permission.MESSAGE_ADD_REACTION, Permission.MESSAGE_HISTORY})
@@ -159,6 +161,7 @@ public class ReactionRoleCommand extends Sx4Command {
 	}
 	
 	@Command(value="remove", description="Removes a role or a whole reaction from the reaction role")
+	@CommandId(73)
 	@Examples({"reaction role remove 643945552865919002 🐝", "reaction role remove https://discordapp.com/channels/330399610273136641/678274453158887446/680051429460803622 🐝 @Yellow"})
 	@AuthorPermissions(permissions={Permission.MANAGE_ROLES})
 	@Cooldown(value=2)
@@ -231,6 +234,7 @@ public class ReactionRoleCommand extends Sx4Command {
 	}
 	
 	@Command(value="dm", description="Enables/disables whether a reaction role should send dms when a user acquires roles")
+	@CommandId(74)
 	@Examples({"reaction role dm enable all", "reaction role dm disable all", "reaction role dm enable 643945552865919002", "reaction role dm disable 643945552865919002"})
 	@AuthorPermissions(permissions={Permission.MANAGE_ROLES})
 	@Cooldown(value=2)
@@ -277,6 +281,7 @@ public class ReactionRoleCommand extends Sx4Command {
 	}
 	
 	@Command(value="max reactions", aliases={"maxreactions"}, description="Sets the max amount of reactions a user can react to simultanously")
+	@CommandId(75)
 	@Examples({"reaction role max reactions all 2", "reaction role max reactions 643945552865919002 0"})
 	@AuthorPermissions(permissions={Permission.MANAGE_ROLES})
 	@Cooldown(value=2)
@@ -323,6 +328,7 @@ public class ReactionRoleCommand extends Sx4Command {
 	}
 	
 	@Command(value="delete", description="Deletes a reaction role")
+	@CommandId(76)
 	@Examples({"reaction role delete 643945552865919002", "reaction role delete all"})
 	@AuthorPermissions(permissions={Permission.MANAGE_ROLES})
 	@Cooldown(value=5)
@@ -372,7 +378,7 @@ public class ReactionRoleCommand extends Sx4Command {
 	public class WhitelistCommand extends Sx4Command {
 
 		public WhitelistCommand() {
-			super("whitelist");
+			super("whitelist", 77);
 
 			super.setDescription("Whitelists a user or role from being able to use the reaction on the reaction role");
 			super.setExamples("reaction role whitelist add", "reaction role whitelist remove", "reaction role whitelist list");
@@ -383,6 +389,7 @@ public class ReactionRoleCommand extends Sx4Command {
 		}
 
 		@Command(value="add", description="Adds a whitelist for a user or role to be able to use a reaction on a reaction role")
+		@CommandId(78)
 		@Examples({"reaction role whitelist add 643945552865919002 🐝 @Shea#6653", "reaction role whitelist add 643945552865919002 :doggo: @Role", "reaction role whitelist add 643945552865919002 @Role"})
 		@AuthorPermissions(permissions={Permission.MANAGE_ROLES})
 		public void add(Sx4CommandEvent event, @Argument(value="message id") MessageArgument messageArgument, @Argument(value="emote", nullDefault=true) ReactionEmote emote, @Argument(value="user | role", endless=true)IPermissionHolder holder) {
@@ -448,6 +455,7 @@ public class ReactionRoleCommand extends Sx4Command {
 		}
 
 		@Command(value="remove", description="Removes a whitelist from a user or role")
+		@CommandId(79)
 		@Examples({"reaction role whitelist remove 643945552865919002 🐝 @Shea#6653", "reaction role whitelist remove 643945552865919002 :doggo: @Role", "reaction role whitelist remove 643945552865919002 @Role"})
 		@AuthorPermissions(permissions={Permission.MANAGE_ROLES})
 		public void remove(Sx4CommandEvent event, @Argument(value="message id") MessageArgument messageArgument, @Argument(value="emote", nullDefault=true) ReactionEmote emote, @Argument(value="user | role", endless=true)IPermissionHolder holder) {
@@ -514,6 +522,7 @@ public class ReactionRoleCommand extends Sx4Command {
 		}
 
 		@Command(value="delete", description="Deletes a whitelist for a reaction or all reactions")
+		@CommandId(80)
 		@Examples({"reaction role whitelist delete 643945552865919002 :doggo:", "reaction role whitelist delete 643945552865919002"})
 		@AuthorPermissions(permissions={Permission.MANAGE_ROLES})
 		public void delete(Sx4CommandEvent event, @Argument(value="message id") MessageArgument messageArgument, @Argument(value="emote", nullDefault=true) ReactionEmote emote) {

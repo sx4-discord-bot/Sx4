@@ -19,7 +19,7 @@ import java.util.concurrent.TimeoutException;
 public class CalculatorCommand extends Sx4Command {
 
     public CalculatorCommand() {
-        super("calculator");
+        super("calculator", 29);
 
         super.setAliases("calc");
         super.setDescription("Eval a mathematical equation");

@@ -14,7 +14,7 @@ import okhttp3.Request;
 public class HueCommand extends Sx4Command {
 
 	public HueCommand() {
-		super("hue");
+		super("hue", 17);
 
 		super.setDescription("Rotates the hue on an image for 60 frames");
 		super.setExamples("hue", "hue @Shea#6653", "hue https://example.com/image.png");

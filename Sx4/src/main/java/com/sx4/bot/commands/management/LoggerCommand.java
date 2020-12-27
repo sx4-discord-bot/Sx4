@@ -6,6 +6,7 @@ import com.mongodb.client.model.FindOneAndUpdateOptions;
 import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.ReturnDocument;
 import com.sx4.bot.annotations.command.AuthorPermissions;
+import com.sx4.bot.annotations.command.CommandId;
 import com.sx4.bot.annotations.command.Examples;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
@@ -27,7 +28,7 @@ import java.util.*;
 public class LoggerCommand extends Sx4Command {
 
     public LoggerCommand() {
-        super("logger");
+        super("logger", 53);
 
         super.setAliases("logs", "log");
         super.setDescription("Logs server events which occur");
@@ -40,6 +41,7 @@ public class LoggerCommand extends Sx4Command {
     }
 
     @Command(value="add", description="Adds a logger to a certain channel")
+    @CommandId(54)
     @AuthorPermissions(permissions={Permission.MANAGE_SERVER})
     @Examples({"logger add #logs", "logger add"})
     public void add(Sx4CommandEvent event, @Argument(value="channel", endless=true, nullDefault=true) TextChannel channel) {
@@ -64,6 +66,7 @@ public class LoggerCommand extends Sx4Command {
     }
 
     @Command(value="remove", description="Removes a logger from a certain channel")
+    @CommandId(55)
     @AuthorPermissions(permissions={Permission.MANAGE_SERVER})
     @Examples({"logger remove #logs", "logger remove"})
     public void remove(Sx4CommandEvent event, @Argument(value="channel", endless=true, nullDefault=true) TextChannel channel) {
@@ -86,6 +89,7 @@ public class LoggerCommand extends Sx4Command {
     }
 
     @Command(value="toggle", aliases={"enable", "disable"}, description="Toggles whether a logger should be enabled or disabled")
+    @CommandId(56)
     @AuthorPermissions(permissions={Permission.MANAGE_SERVER})
     @Examples({"logger toggle #logs", "logger toggle"})
     public void toggle(Sx4CommandEvent event, @Argument(value="channel", endless=true, nullDefault=true) TextChannel channelArgument) {
@@ -121,7 +125,7 @@ public class LoggerCommand extends Sx4Command {
     public class EventsCommand extends Sx4Command {
 
         public EventsCommand() {
-            super("events");
+            super("events", 57);
 
             super.setAliases("event");
             super.setDescription("Set what events you want to be sent with a logger");
@@ -133,6 +137,7 @@ public class LoggerCommand extends Sx4Command {
         }
 
         @Command(value="add", description="Adds an event the logger should send")
+        @CommandId(58)
         @AuthorPermissions(permissions={Permission.MANAGE_SERVER})
         @Examples({"logger events add #logs MESSAGE_DELETE", "logger events add MESSAGE_DELETE MESSAGE_UPDATE"})
         public void add(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) TextChannel channelArgument, @Argument(value="events") LoggerEvent... events) {
@@ -174,6 +179,7 @@ public class LoggerCommand extends Sx4Command {
         }
 
         @Command(value="remove", description="Removes an event from a logger")
+        @CommandId(59)
         @AuthorPermissions(permissions={Permission.MANAGE_SERVER})
         @Examples({"logger events remove #logs MESSAGE_DELETE", "logger events remove MESSAGE_DELETE MESSAGE_UPDATE"})
         public void remove(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) TextChannel channelArgument, @Argument(value="events") LoggerEvent... events) {
@@ -217,6 +223,7 @@ public class LoggerCommand extends Sx4Command {
         }
 
         @Command(value="set", description="Sets the events a logger should use")
+        @CommandId(60)
         @AuthorPermissions(permissions={Permission.MANAGE_SERVER})
         @Examples({"logger events set #logs MESSAGE_DELETE", "logger events set MESSAGE_DELETE MESSAGE_UPDATE"})
         public void set(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) TextChannel channel, @Argument(value="events") LoggerEvent... events) {
@@ -241,6 +248,7 @@ public class LoggerCommand extends Sx4Command {
         }
 
         @Command(value="list", description="Lists all the events you can use")
+        @CommandId(61)
         @Examples({"logger events list"})
         public void list(Sx4CommandEvent event) {
             PagedResult<LoggerEvent> paged = new PagedResult<>(Arrays.asList(LoggerEvent.values()))
@@ -256,7 +264,7 @@ public class LoggerCommand extends Sx4Command {
     public class BlacklistCommand extends Sx4Command {
 
         public BlacklistCommand() {
-            super("blacklist");
+            super("blacklist", 62);
 
             super.setDescription("Blacklist certain entities from being able to appear in logs");
             super.setExamples("logger blacklist set", "logger blacklist add", "logger blacklist remove");
@@ -267,6 +275,7 @@ public class LoggerCommand extends Sx4Command {
         }
 
         @Command(value="set", description="Set what events a certain entity should be blacklisted from")
+        @CommandId(63)
         @AuthorPermissions(permissions={Permission.MANAGE_SERVER})
         @Examples({"logger blacklist set #logs @Shea#6653 MESSAGE_DELETE", "logger blacklist set #logs @Members MESSAGE_UPDATE MESSAGE_DELETE", "logger blacklist set #logs #channel TEXT_CHANNEL_OVERRIDE_UPDATE"})
         public void set(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) TextChannel channelArgument, @Argument(value="user | role | channel") String query, @Argument(value="events") LoggerEvent... events) {
@@ -342,6 +351,7 @@ public class LoggerCommand extends Sx4Command {
         }
 
         @Command(value="add", description="Add events to be blacklisted from a certain entity")
+        @CommandId(64)
         @AuthorPermissions(permissions={Permission.MANAGE_SERVER})
         @Examples({"logger blacklist add #logs @Shea#6653 MESSAGE_DELETE", "logger blacklist add #logs @Members MESSAGE_UPDATE MESSAGE_DELETE", "logger blacklist add #logs #channel TEXT_CHANNEL_OVERRIDE_UPDATE"})
         public void add(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) TextChannel channelArgument, @Argument(value="user | role | channel") String query, @Argument(value="events") LoggerEvent... events) {

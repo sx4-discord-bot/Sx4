@@ -21,7 +21,7 @@ import java.util.stream.Collectors;
 public class HelpCommand extends Sx4Command {
 
 	public HelpCommand() {
-		super("help");
+		super("help", 103);
 		
 		super.setDescription("Lists commands on the bot and gives you info on specific commands");
 		super.setAliases("h", "commands", "cmds");

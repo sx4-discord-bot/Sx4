@@ -26,7 +26,7 @@ public class SteamGameCommand extends Sx4Command {
 	private final SteamGameCache cache = SteamGameCache.get();
 
 	public SteamGameCommand() {
-		super("steam game");
+		super("steam game", 34);
 
 		super.setDescription("Look up a game on steam");
 		super.setAliases("steam search", "steamsearch", "steamgame");

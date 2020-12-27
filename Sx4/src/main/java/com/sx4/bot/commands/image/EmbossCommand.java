@@ -14,7 +14,7 @@ import okhttp3.Request;
 public class EmbossCommand extends Sx4Command {
 
 	public EmbossCommand() {
-		super("emboss");
+		super("emboss", 10);
 
 		super.setDescription("Applies the emboss effect to an image");
 		super.setExamples("emboss", "emboss @Shea#6653", "emboss https://example.com/image.png");

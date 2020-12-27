@@ -19,7 +19,7 @@ import okhttp3.Request;
 public class ColourCommand extends Sx4Command {
 
 	public ColourCommand() {
-		super("colour");
+		super("colour", 5);
 
 		super.setDescription("Get info and visualize a specific colour");
 		super.setExamples("colour", "colour #ffff00", "colour 255, 255, 0");

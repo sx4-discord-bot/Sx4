@@ -16,7 +16,7 @@ import net.dv8tion.jda.api.requests.ErrorResponse;
 public class UnbanCommand extends Sx4Command {
 
 	public UnbanCommand() {
-		super("unban");
+		super("unban", 149);
 		
 		super.setAliases("unban user");
 		super.setDescription("Unban a user which is banned from the current server");

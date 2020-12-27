@@ -14,7 +14,7 @@ import okhttp3.Request;
 public class BeautifulCommand extends Sx4Command {
 
 	public BeautifulCommand() {
-		super("beautiful");
+		super("beautiful", 2);
 
 		super.setDescription("Frames your image and captions it as beautiful");
 		super.setExamples("beautiful", "beautiful @Shea#6653", "beautiful https://example.com/image.png");

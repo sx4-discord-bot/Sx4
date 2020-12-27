@@ -14,7 +14,7 @@ import net.dv8tion.jda.api.entities.Member;
 public class KickCommand extends Sx4Command {
 
 	public KickCommand() {
-		super("kick");
+		super("kick", 138);
 		
 		super.setAliases("kick user");
 		super.setAuthorDiscordPermissions(Permission.KICK_MEMBERS);

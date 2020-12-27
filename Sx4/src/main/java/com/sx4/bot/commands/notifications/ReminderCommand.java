@@ -6,6 +6,7 @@ import com.jockie.bot.core.option.Option;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.Updates;
+import com.sx4.bot.annotations.command.CommandId;
 import com.sx4.bot.annotations.command.Examples;
 import com.sx4.bot.annotations.command.Redirects;
 import com.sx4.bot.category.ModuleCategory;
@@ -27,7 +28,7 @@ import java.util.TimeZone;
 public class ReminderCommand extends Sx4Command {
 	
 	public ReminderCommand() {
-		super("reminder");
+		super("reminder", 152);
 		
 		super.setDescription("Create reminders to keep up to date with tasks");
 		super.setExamples("reminder add", "reminder remove", "reminder list");
@@ -39,6 +40,7 @@ public class ReminderCommand extends Sx4Command {
 	}
 	
 	@Command(value="add", description="Create a reminder so the bot will message you when the time is up", argumentInfo="reminder add <reminder>* in <time>*\nreminder add <reminder>* at <date time>*")
+	@CommandId(153)
 	@Examples({"reminder add Football game in 4 hours", "reminder add Party at 21/07/20 15:00 UTC+1", "reminder add Finish coursework at 12:00", "reminder add fish in 5 minutes --repeat", "reminder add weekly task at 23/05 --repeat=7d"})
 	public void add(Sx4CommandEvent event, @Argument(value="reminder", endless=true) ReminderArgument reminder, @Option(value="repeat", description="Continuosly repeats the reminder after the initial duration is up") Duration repeat) {
 		long initialDuration = reminder.getDuration();
@@ -76,6 +78,7 @@ public class ReminderCommand extends Sx4Command {
 	}
 	
 	@Command(value="remove", description="Remove a reminder from being notified about")
+	@CommandId(154)
 	@Examples({"reminder remove 5ec67a3b414d8776950f0eee"})
 	public void remove(Sx4CommandEvent event, @Argument(value="id") ObjectId id) {
 		this.database.deleteReminderById(id).whenComplete((result, exception) -> {
@@ -95,6 +98,7 @@ public class ReminderCommand extends Sx4Command {
 	}
 	
 	@Command(value="list", description="Get a list of your current active reminders")
+	@CommandId(155)
 	@Examples({"reminder list"})
 	@Redirects({"reminders"})
 	public void list(Sx4CommandEvent event) {
@@ -115,6 +119,7 @@ public class ReminderCommand extends Sx4Command {
 	}
 	
 	@Command(value="time zone", aliases={"zone"}, description="Set the default time zone to be used when specifiying a date when adding a reminder")
+	@CommandId(156)
 	@Examples({"reminder time zone UTC", "reminder time zone PST", "reminder time zone UTC+1"})
 	public void timeZone(Sx4CommandEvent event, @Argument(value="time zone") TimeZone timeZone) {
 		String zoneId = timeZone.getID();

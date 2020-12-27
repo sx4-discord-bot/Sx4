@@ -7,8 +7,9 @@ import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.ReturnDocument;
 import com.sx4.bot.annotations.argument.DefaultNumber;
 import com.sx4.bot.annotations.argument.Limit;
-import com.sx4.bot.annotations.command.Premium;
+import com.sx4.bot.annotations.command.CommandId;
 import com.sx4.bot.annotations.command.Examples;
+import com.sx4.bot.annotations.command.Premium;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
@@ -36,7 +37,7 @@ public class PremiumCommand extends Sx4Command {
 	private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("d'%s' MMMM u 'at' k:m 'UTC'");
 
 	public PremiumCommand() {
-		super("premium");
+		super("premium", 176);
 		
 		super.setDescription("Make a server premium or remove a server from being premium, you can make a server premium for $5");
 		super.setExamples("premium add", "premium remove", "premium list");
@@ -48,6 +49,7 @@ public class PremiumCommand extends Sx4Command {
 	}
 	
 	@Command(value="add", description="Make a server premium")
+	@CommandId(177)
 	@Examples({"premium add", "premium add 30", "premium add 20 Sx4 | Support Server"})
 	@Premium
 	public void add(Sx4CommandEvent event, @Argument(value="days") @DefaultNumber(30) @Limit(min=1, max=365) int days, @Argument(value="server", endless=true, nullDefault=true) Guild guild) {
@@ -113,6 +115,7 @@ public class PremiumCommand extends Sx4Command {
 	}
 
 	@Command(value="check", description="Checks when the current premium in the server expires")
+	@CommandId(178)
 	@Examples({"premium check"})
 	public void check(Sx4CommandEvent event) {
 		long endAt = this.database.getGuildById(event.getGuild().getIdLong(), Projections.include("premium.endAt")).getEmbedded(List.of("premium", "endAt"), 0L);
@@ -126,6 +129,7 @@ public class PremiumCommand extends Sx4Command {
 	}
 
 	@Command(value="credit", description="Checks your current credit")
+	@CommandId(179)
 	@Examples({"premium credit"})
 	public void credit(Sx4CommandEvent event) {
 		int credit = this.database.getUserById(event.getAuthor().getIdLong(), Projections.include("premium.credit")).getEmbedded(List.of("premium", "credit"), 0);

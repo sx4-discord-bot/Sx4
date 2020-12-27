@@ -10,6 +10,7 @@ import com.mongodb.client.model.UpdateOptions;
 import com.mongodb.client.model.Updates;
 import com.sx4.bot.annotations.argument.Options;
 import com.sx4.bot.annotations.command.AuthorPermissions;
+import com.sx4.bot.annotations.command.CommandId;
 import com.sx4.bot.annotations.command.Examples;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
@@ -38,7 +39,7 @@ import java.util.stream.Collectors;
 public class AutoRoleCommand extends Sx4Command {
 
 	public AutoRoleCommand() {
-		super("auto role");
+		super("auto role", 37);
 		
 		super.setDescription("Sets roles to be given when a user joins the server");
 		super.setAliases("autorole");
@@ -51,6 +52,7 @@ public class AutoRoleCommand extends Sx4Command {
 	}
 	
 	@Command(value="toggle", description="Enables/disables auto role in this server")
+	@CommandId(38)
 	@Examples({"auto role toggle"})
 	@AuthorPermissions(permissions={Permission.MANAGE_ROLES})
 	public void toggle(Sx4CommandEvent event) {
@@ -65,6 +67,7 @@ public class AutoRoleCommand extends Sx4Command {
 	}
 	
 	@Command(value="add", description="Add a role to be given when a user joins")
+	@CommandId(39)
 	@Examples({"auto role add @Role", "auto role add Role", "auto role add 406240455622262784"})
 	@AuthorPermissions(permissions={Permission.MANAGE_ROLES})
 	public void add(Sx4CommandEvent event, @Argument(value="role", endless=true) Role role) {
@@ -106,6 +109,7 @@ public class AutoRoleCommand extends Sx4Command {
 	}
 	
 	@Command(value="remove", description="Remove a role from being given when a user joins")
+	@CommandId(40)
 	@Examples({"auto role remove @Role", "auto role remove Role", "auto role remove all"})
 	@AuthorPermissions(permissions={Permission.MANAGE_ROLES})
 	public void remove(Sx4CommandEvent event, @Argument(value="role", endless=true) @Options("all") Option<Role> option) {
@@ -140,6 +144,7 @@ public class AutoRoleCommand extends Sx4Command {
 	}
 	
 	@Command(value="list", description="Lists all the auto roles setup")
+	@CommandId(41)
 	@Examples({"auto role list"})
 	public void list(Sx4CommandEvent event, @Context Guild guild) {
 		List<Long> roleIds = this.database.getGuildById(event.getGuild().getIdLong(), Projections.include("autoRole.roles")).getEmbedded(List.of("autoRole", "roles"), Collections.emptyList());
@@ -164,7 +169,7 @@ public class AutoRoleCommand extends Sx4Command {
 	public class FilterCommand extends Sx4Command {
 		
 		public FilterCommand() {
-			super("filter");
+			super("filter", 42);
 			
 			super.setDescription("Add or remove filters from auto roles");
 			super.setExamples("auto role filter add", "auto role filter remove", "auto role filter list");
@@ -175,6 +180,7 @@ public class AutoRoleCommand extends Sx4Command {
 		}
 		
 		@Command(value="add", description="Adds a filter to an auto role")
+		@CommandId(43)
 		@Examples({"auto role filter add @Role BOT", "auto role filter add Role CREATED_LESS_THAN 2d"})
 		@AuthorPermissions(permissions={Permission.MANAGE_ROLES})
 		public void add(Sx4CommandEvent event, @Argument(value="role") Role role, @Argument(value="filter", endless=true) TimedArgument<AutoRoleFilter> timedArgument) {
@@ -220,6 +226,7 @@ public class AutoRoleCommand extends Sx4Command {
 		}
 		
 		@Command(value="remove", description="Removes a filter from an auto  role")
+		@CommandId(44)
 		@Examples({"auto role filter remove @Role BOT", "auto role filter remove Role CREATED_LESS_THAN"})
 		@AuthorPermissions(permissions={Permission.MANAGE_ROLES})
 		public void remove(Sx4CommandEvent event, @Argument(value="role") Role role, @Argument(value="filter") @Options("all") Option<AutoRoleFilter> option) {
@@ -250,6 +257,7 @@ public class AutoRoleCommand extends Sx4Command {
 		}
 		
 		@Command(value="list", description="Lists all the filters you can use with descriptions")
+		@CommandId(45)
 		@Examples({"auto role filter list"})
 		public void list(Sx4CommandEvent event) {
 			StringBuilder description = new StringBuilder();

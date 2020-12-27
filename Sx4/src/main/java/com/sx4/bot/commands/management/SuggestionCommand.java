@@ -6,10 +6,7 @@ import com.jockie.bot.core.command.Command;
 import com.mongodb.client.model.*;
 import com.sx4.bot.annotations.argument.Colour;
 import com.sx4.bot.annotations.argument.Options;
-import com.sx4.bot.annotations.command.AuthorPermissions;
-import com.sx4.bot.annotations.command.BotPermissions;
-import com.sx4.bot.annotations.command.Examples;
-import com.sx4.bot.annotations.command.Redirects;
+import com.sx4.bot.annotations.command.*;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
@@ -42,7 +39,7 @@ public class SuggestionCommand extends Sx4Command {
 	private final SuggestionManager manager = SuggestionManager.get();
 
 	public SuggestionCommand() {
-		super("suggestion");
+		super("suggestion", 81);
 		
 		super.setDescription("Create a suggestion channel where suggestions can be sent in and voted on in your server");
 		super.setExamples("suggestion add", "suggestion set", "suggestion remove");
@@ -54,6 +51,7 @@ public class SuggestionCommand extends Sx4Command {
 	}
 	
 	@Command(value="toggle", description="Enables/disables suggestions in this server")
+	@CommandId(82)
 	@Examples({"suggestion toggle"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void toggle(Sx4CommandEvent event) {
@@ -68,6 +66,7 @@ public class SuggestionCommand extends Sx4Command {
 	}
 	
 	@Command(value="channel", description="Sets the channel where suggestions are set to")
+	@CommandId(83)
 	@Examples({"suggestion channel", "suggestion channel #suggestions", "suggestion channel reset"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void channel(Sx4CommandEvent event, @Argument(value="channel", endless=true, nullDefault=true) @Options("reset") Option<TextChannel> option) {
@@ -101,6 +100,7 @@ public class SuggestionCommand extends Sx4Command {
 	}
 	
 	@Command(value="add", description="Sends a suggestion to the suggestion channel if one is setup in the server")
+	@CommandId(84)
 	@Redirects({"suggest"})
 	@Examples({"suggestion add Add the dog emote", "suggestion Add a channel for people looking to play games"})
 	@BotPermissions(permissions={Permission.MESSAGE_ADD_REACTION, Permission.MESSAGE_EMBED_LINKS})
@@ -152,6 +152,7 @@ public class SuggestionCommand extends Sx4Command {
 	}
 	
 	@Command(value="remove", aliases={"delete"}, description="Removes a suggestion, can be your own or anyones if you have the manage server permission")
+	@CommandId(85)
 	@Examples({"suggestion remove 5e45ce6d3688b30ee75201ae", "suggestion remove all"})
 	public void remove(Sx4CommandEvent event, @Argument(value="id") @Options("all") Option<ObjectId> option) {
 		User author = event.getAuthor();
@@ -234,6 +235,7 @@ public class SuggestionCommand extends Sx4Command {
 	}
 	
 	@Command(value="set", description="Sets a suggestion to a specified state")
+	@CommandId(86)
 	@Examples({"suggestion set 5e45ce6d3688b30ee75201ae pending Need some time to think about this", "suggestion set 5e45ce6d3688b30ee75201ae accepted I think this is a great idea", "suggestion 5e45ce6d3688b30ee75201ae set denied Not possible"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void set(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="state") String stateName, @Argument(value="reason", endless=true, nullDefault=true) String reason) {
@@ -292,6 +294,7 @@ public class SuggestionCommand extends Sx4Command {
 	}
 
 	@Command(value="view", aliases={"list"}, description="View a suggestion in the current channel")
+	@CommandId(87)
 	@Examples({"suggestion view 5e45ce6d3688b30ee75201ae", "suggestion view"})
 	public void view(Sx4CommandEvent event, @Argument(value="id", nullDefault=true) ObjectId id) {
 		Bson projection = Projections.include("suggestion", "reason", "moderatorId", "authorId", "state");
@@ -336,7 +339,7 @@ public class SuggestionCommand extends Sx4Command {
 	public class StateCommand extends Sx4Command {
 		
 		public StateCommand() {
-			super("state");
+			super("state", 88);
 			
 			super.setDescription("Allows you to add custom states for your suggestions");
 			super.setExamples("suggestion state add", "suggestion state remove");
@@ -347,6 +350,7 @@ public class SuggestionCommand extends Sx4Command {
 		}
 		
 		@Command(value="add", description="Add a custom state to be used for suggestions")
+		@CommandId(89)
 		@Examples({"suggestion state add #FF0000 Bug", "suggestion state add #FFA500 On Hold"})
 		@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 		public void add(Sx4CommandEvent event, @Argument(value="colour") @Colour int colour, @Argument(value="state name", endless=true) String stateName) {
@@ -374,6 +378,7 @@ public class SuggestionCommand extends Sx4Command {
 		}
 		
 		@Command(value="remove", aliases={"delete"}, description="Remove a state from being used in suggestions")
+		@CommandId(90)
 		@Examples({"suggestion state remove Bug", "suggestion state remove On Hold", "suggestion state remove all"})
 		@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 		public void remove(Sx4CommandEvent event, @Argument(value="state name", endless=true) @Options("all") Option<String> option) {

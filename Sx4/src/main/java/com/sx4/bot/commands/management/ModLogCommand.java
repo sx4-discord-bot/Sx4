@@ -9,6 +9,7 @@ import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.ReturnDocument;
 import com.sx4.bot.annotations.argument.Options;
 import com.sx4.bot.annotations.command.AuthorPermissions;
+import com.sx4.bot.annotations.command.CommandId;
 import com.sx4.bot.annotations.command.Examples;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
@@ -42,12 +43,12 @@ public class ModLogCommand extends Sx4Command {
 	private final ModLogManager manager = ModLogManager.get();
 
 	public ModLogCommand() {
-		super("modlog");
+		super("modlog", 65);
 		
 		super.setAliases("modlogs", "mod log", "mod logs");
 		super.setDescription("Setup the mod log in your server to log mod actions which happen within the server");
 		super.setExamples("modlog toggle", "modlog channel", "modlog case");
-		super.setCategoryAll(ModuleCategory.MODERATION);
+		super.setCategoryAll(ModuleCategory.MANAGEMENT);
 	}
 	
 	public void onCommand(Sx4CommandEvent event) {
@@ -55,6 +56,7 @@ public class ModLogCommand extends Sx4Command {
 	}
 	
 	@Command(value="toggle", description="Turn mod logs on/off in your server")
+	@CommandId(66)
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	@Examples({"modlog toggle"})
 	public void toggle(Sx4CommandEvent event) {
@@ -69,6 +71,7 @@ public class ModLogCommand extends Sx4Command {
 	}
 	
 	@Command(value="channel", description="Sets the channel which mod logs are sent to")
+	@CommandId(67)
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	@Examples({"modlog channel", "modlog channel #mod-logs", "modlog channel reset"})
 	public void channel(Sx4CommandEvent event, @Argument(value="channel", endless=true, nullDefault=true) @Options("reset") Option<TextChannel> option) {
@@ -102,6 +105,7 @@ public class ModLogCommand extends Sx4Command {
 	}
 	
 	@Command(value="case", description="Edit the reason of a mod log case")
+	@CommandId(68)
 	@Examples({"modlog case 5e45ce6d3688b30ee75201ae Spamming", "modlog case 5fc24ea34854845b7c74e7f4-5fc24ea64854845b7c74e7f6 template:tos", "modlog case 5e45ce6d3688b30ee75201ae,5e45ce6d3688b30ee75201ab t:tos and Spamming"})
 	public void case_(Sx4CommandEvent event, @Argument(value="id(s)") Range<ObjectId> range, @Argument(value="reason", endless=true) Reason reason) {
 		List<Bson> or = new ArrayList<>();
@@ -132,6 +136,7 @@ public class ModLogCommand extends Sx4Command {
 	}
 
 	@Command(value="remove", aliases={"delete"}, description="Deletes a mod log from the  server")
+	@CommandId(69)
 	@Examples({"modlog remove 5e45ce6d3688b30ee75201ae", "modlog remove all"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void remove(Sx4CommandEvent event, @Argument(value="id") @Options("all") Option<ObjectId> option) {
@@ -199,6 +204,7 @@ public class ModLogCommand extends Sx4Command {
 	}
 	
 	@Command(value="view", aliases={"viewcase", "view case", "list"}, description="View a mod log case from the server")
+	@CommandId(70)
 	@Examples({"modlog view 5e45ce6d3688b30ee75201ae", "modlog view"})
 	public void view(Sx4CommandEvent event, @Argument(value="id", nullDefault=true) ObjectId id) {
 		Bson projection = Projections.include("moderatorId", "reason", "targetId", "action");

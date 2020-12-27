@@ -13,7 +13,7 @@ import org.bson.Document;
 public class ShortenCommand extends Sx4Command {
 
 	public ShortenCommand() {
-		super("shorten");
+		super("shorten", 33);
 
 		super.setDescription("Shortens a url into a bit.ly url");
 		super.setExamples("shorten https://github.com/sponsors/Shea4", "shorten https://patreon.com/Sx4");

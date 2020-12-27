@@ -17,7 +17,7 @@ import org.bson.Document;
 public class MostCommonColourCommand extends Sx4Command {
 
 	public MostCommonColourCommand() {
-		super("most common colour");
+		super("most common colour", 19);
 
 		super.setDescription("Shows you the most common colour of an image");
 		super.setAliases("most common color", "mostcommoncolour", "mostcommoncolor");

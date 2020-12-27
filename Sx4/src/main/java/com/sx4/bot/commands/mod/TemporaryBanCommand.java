@@ -31,7 +31,7 @@ import java.util.List;
 public class TemporaryBanCommand extends Sx4Command {
 
 	public TemporaryBanCommand() {
-		super("temporary ban");
+		super("temporary ban", 148);
 		
 		super.setAliases("temp ban", "temporaryBan", "temporaryban");
 		super.setDescription("Ban a user for a set amount of time");

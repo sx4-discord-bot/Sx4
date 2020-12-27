@@ -19,7 +19,7 @@ import net.dv8tion.jda.api.requests.ErrorResponse;
 public class BanCommand extends Sx4Command {
 
 	public BanCommand() {
-		super("ban");
+		super("ban", 128);
 		
 		super.setCaseSensitive(true);
 		super.setAuthorDiscordPermissions(Permission.BAN_MEMBERS);

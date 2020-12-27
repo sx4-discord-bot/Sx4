@@ -14,7 +14,7 @@ import okhttp3.Request;
 public class HotCommand extends Sx4Command {
 
 	public HotCommand() {
-		super("hot");
+		super("hot", 15);
 
 		super.setDescription("Creates an image of Will Smith calling a specified image hot");
 		super.setExamples("hot", "hot @Shea#6653", "hot https://example.com/image.png");

@@ -64,7 +64,7 @@ public class DiscordCommand extends Sx4Command {
 	}
 
 	public DiscordCommand() {
-		super("discord");
+		super("discord", 7);
 
 		super.setDescription("Create a discord message as an image");
 		super.setExamples("discord @Shea hello", "discord Shea#6653 hello @Shea go to #channel");

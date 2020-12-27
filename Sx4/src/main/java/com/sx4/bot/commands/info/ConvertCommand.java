@@ -12,7 +12,7 @@ import org.bson.Document;
 public class ConvertCommand extends Sx4Command {
 
 	public ConvertCommand() {
-		super("convert");
+		super("convert", 30);
 
 		super.setDescription("Convert one currency to another");
 		super.setExamples("convert 5 GBP USD", "convert 10.50 SEK GBP");

@@ -19,7 +19,7 @@ import java.util.List;
 public class UnmuteCommand extends Sx4Command {
 
 	public UnmuteCommand() {
-		super("unmute");
+		super("unmute", 150);
 		
 		super.setDescription("Unmute a user which is currently muted in the current server");
 		super.setExamples("unmute @Shea#6653", "unmute Shea Misunderstanding", "unmute 402557516728369153 template:wrong-person");

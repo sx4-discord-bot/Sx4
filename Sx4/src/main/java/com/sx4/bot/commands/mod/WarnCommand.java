@@ -16,7 +16,7 @@ import net.dv8tion.jda.api.entities.Member;
 public class WarnCommand extends Sx4Command {
 
 	public WarnCommand() {
-		super("warn");
+		super("warn", 151);
 		
 		super.setAliases("warn user");
 		super.setDescription("Warn a user in the server, warning can give punishments on each warn a user gets");

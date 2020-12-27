@@ -14,7 +14,7 @@ import okhttp3.Request;
 public class TrumpTweetCommand extends Sx4Command {
 
 	public TrumpTweetCommand() {
-		super("trump tweet");
+		super("trump tweet", 25);
 
 		super.setAliases("trump", "trumptweet");
 		super.setDescription("Send a tweet as trump himself");

@@ -14,7 +14,7 @@ import okhttp3.Request;
 public class VrCommand extends Sx4Command {
 
 	public VrCommand() {
-		super("vr");
+		super("vr", 27);
 
 		super.setAliases("virtual reality", "virtualreality");
 		super.setDescription("Makes a man viewing a specified image cry while playing on vr");

@@ -17,7 +17,7 @@ import okhttp3.Request;
 public class ResizeCommand extends Sx4Command {
 
 	public ResizeCommand() {
-		super("resize");
+		super("resize", 20);
 
 		super.setDescription("Resizes an image by percentage if a decimal and pixels if a whole number");
 		super.setExamples("resize Shea 0.1 100", "resize Shea#6653 0.5 0.5", "resize https://example.com/image.png 500 500");

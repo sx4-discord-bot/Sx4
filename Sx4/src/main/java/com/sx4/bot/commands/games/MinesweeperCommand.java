@@ -52,7 +52,7 @@ public class MinesweeperCommand extends Sx4Command {
 	}
 
 	public MinesweeperCommand() {
-		super("minesweeper");
+		super("minesweeper", 1);
 
 		super.setDescription("Play mineweeper within discord");
 		super.setExamples("minesweeper", "minesweeper 12", "minesweeper 5 5 5");

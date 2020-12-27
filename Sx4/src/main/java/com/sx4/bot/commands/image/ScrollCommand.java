@@ -14,7 +14,7 @@ import okhttp3.Request;
 public class ScrollCommand extends Sx4Command {
 
 	public ScrollCommand() {
-		super("scroll");
+		super("scroll", 21);
 
 		super.setDescription("Puts some text on a scroll of truth");
 		super.setExamples("scroll Sx4 is cool I guess", "scroll I'm not very creative");

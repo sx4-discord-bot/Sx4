@@ -11,6 +11,7 @@ import com.sx4.bot.annotations.argument.AdvancedMessage;
 import com.sx4.bot.annotations.argument.ImageUrl;
 import com.sx4.bot.annotations.argument.Options;
 import com.sx4.bot.annotations.command.AuthorPermissions;
+import com.sx4.bot.annotations.command.CommandId;
 import com.sx4.bot.annotations.command.Examples;
 import com.sx4.bot.annotations.command.Premium;
 import com.sx4.bot.category.ModuleCategory;
@@ -42,7 +43,7 @@ public class WelcomerCommand extends Sx4Command {
 	private final WelcomerManager manager = WelcomerManager.get();
 
 	public WelcomerCommand() {
-		super("welcomer");
+		super("welcomer", 91);
 
 		super.setDescription("Set the bot to send welcome messages when a user joins the server");
 		super.setExamples("welcomer toggle", "welcomer message", "welcomer channel");
@@ -54,6 +55,7 @@ public class WelcomerCommand extends Sx4Command {
 	}
 
 	@Command(value="toggle", description="Toggle the state of welcomer")
+	@CommandId(92)
 	@Examples({"welcomer toggle"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void toggle(Sx4CommandEvent event) {
@@ -70,6 +72,7 @@ public class WelcomerCommand extends Sx4Command {
 	}
 
 	@Command(value="channel", description="Sets the channel where welcomer messages are sent to")
+	@CommandId(93)
 	@Examples({"welcomer channel", "welcomer channel #joins", "welcomer channel reset"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void channel(Sx4CommandEvent event, @Argument(value="channel", endless=true, nullDefault=true) @Options("reset") Option<TextChannel> option) {
@@ -103,6 +106,7 @@ public class WelcomerCommand extends Sx4Command {
 	}
 
 	@Command(value="message", description="Sets the message to be sent when welcoming a new user")
+	@CommandId(94)
 	@Examples({"welcomer message A new person has joined", "welcomer message Welcome {user.mention}!"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void message(Sx4CommandEvent event, @Argument(value="message", endless=true) String message) {
@@ -121,6 +125,7 @@ public class WelcomerCommand extends Sx4Command {
 	}
 
 	@Command(value="advanced message", description="Same as `welcomer message` but takes json for more advanced options")
+	@CommandId(95)
 	@Examples({"welcomer message {\"embed\": {\"description\": \"A new person has joined\"}}", "welcomer message {\"embed\": {\"description\": \"Welcome {user.mention}!\"}}"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void advancedMessage(Sx4CommandEvent event, @Argument(value="json", endless=true) @AdvancedMessage Document message) {
@@ -139,6 +144,7 @@ public class WelcomerCommand extends Sx4Command {
 	}
 
 	@Command(value="name", description="Set the name of the webhook that sends welcomer messages")
+	@CommandId(96)
 	@Examples({"welcomer name Welcomer", "welcomer name Joins"})
 	@Premium
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
@@ -167,6 +173,7 @@ public class WelcomerCommand extends Sx4Command {
 	}
 
 	@Command(value="avatar", description="Set the avatar of the webhook that sends welcomer messages")
+	@CommandId(97)
 	@Examples({"welcomer avatar Shea#6653", "welcomer avatar https://i.imgur.com/i87lyNO.png"})
 	@Premium
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
@@ -194,7 +201,8 @@ public class WelcomerCommand extends Sx4Command {
 		});
 	}
 
-	@Command(value="dm", aliases={"dm toggle"}, description="Toggle the state of welcomer private messaging the user")
+	@Command(value="dm toggle", aliases={"dm"}, description="Toggle the state of welcomer private messaging the user")
+	@CommandId(98)
 	@Examples({"welcomer dm toggle"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void dmToggle(Sx4CommandEvent event) {
@@ -211,6 +219,7 @@ public class WelcomerCommand extends Sx4Command {
 	}
 
 	@Command(value="preview", description="Preview your welcomer message")
+	@CommandId(99)
 	@Examples({"welcomer preview"})
 	public void preview(Sx4CommandEvent event) {
 		Document data = this.database.getGuildById(event.getGuild().getIdLong(), Projections.include("welcomer.message", "welcomer.image", "welcomer.enabled", "premium.endAt"));
@@ -245,7 +254,7 @@ public class WelcomerCommand extends Sx4Command {
 		private final Set<String> types = Set.of("png", "jpeg", "jpg", "gif");
 
 		public ImageCommand() {
-			super("image");
+			super("image", 100);
 
 			super.setDescription("Setup the image section of the welcomer");
 			super.setExamples("welcomer image toggle", "welcomer image banner");
@@ -256,6 +265,7 @@ public class WelcomerCommand extends Sx4Command {
 		}
 
 		@Command(value="toggle", description="Toggle the status of having an image on the welcomer message")
+		@CommandId(101)
 		@Examples({"welcomer image toggle"})
 		@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 		public void toggle(Sx4CommandEvent event) {
@@ -272,6 +282,7 @@ public class WelcomerCommand extends Sx4Command {
 		}
 
 		@Command(value="banner", description="Set the welcomer banner for image welcomer if the server is premium this can be a gif")
+		@CommandId(102)
 		@Examples({"welcomer banner https://i.imgur.com/i87lyNO.png", "welcomer banner https://example.com/image.png"})
 		@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 		public void banner(Sx4CommandEvent event, @Argument(value="url") @ImageUrl String url) {

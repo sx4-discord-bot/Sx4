@@ -14,7 +14,7 @@ import okhttp3.Request;
 public class TrashCommand extends Sx4Command {
 
 	public TrashCommand() {
-		super("trash");
+		super("trash", 24);
 
 		super.setDescription("Make an image look like trash");
 		super.setExamples("trash", "trash Shea#6653", "trash https://example.com/image.png");

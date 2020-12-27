@@ -7,6 +7,7 @@ import com.mongodb.MongoWriteException;
 import com.mongodb.client.model.*;
 import com.sx4.bot.annotations.argument.Limit;
 import com.sx4.bot.annotations.command.AuthorPermissions;
+import com.sx4.bot.annotations.command.CommandId;
 import com.sx4.bot.annotations.command.Examples;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
@@ -42,7 +43,7 @@ import java.util.regex.Pattern;
 public class AntiRegexCommand extends Sx4Command {
 
 	public AntiRegexCommand() {
-		super("anti regex");
+		super("anti regex", 105);
 		
 		super.setAliases("antiregex");
 		super.setDescription("Setup a regex which if matched with the content of a message it will perform an action");
@@ -55,6 +56,7 @@ public class AntiRegexCommand extends Sx4Command {
 	}
 	
 	@Command(value="add", description="Add a regex from `anti regex template list` to be checked on every message")
+	@CommandId(106)
 	@Examples({"anti regex add 5f023782ef9eba03390a740c"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void add(Sx4CommandEvent event, @Argument(value="id") ObjectId id) {
@@ -95,6 +97,7 @@ public class AntiRegexCommand extends Sx4Command {
 	}
 
 	@Command(value="remove", description="Removes a anti regex that you have setup")
+	@CommandId(107)
 	@Examples({"anti regex remove 5f023782ef9eba03390a740c"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void remove(Sx4CommandEvent event, @Argument(value="id") ObjectId id) {
@@ -116,6 +119,7 @@ public class AntiRegexCommand extends Sx4Command {
 	}
 
 	@Command(value="attempts", description="Sets the amount of attempts needed for the mod action to execute")
+	@CommandId(108)
 	@Examples({"anti regex attempts 5f023782ef9eba03390a740c 3", "anti regex attempts 5f023782ef9eba03390a740c 1"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void attempts(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="attempts") @Limit(min=1) int attempts) {
@@ -158,6 +162,7 @@ public class AntiRegexCommand extends Sx4Command {
 	}
 
 	@Command(value="reset after", description="The time it should take for an attempt(s) to be taken away")
+	@CommandId(109)
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	@Examples({"anti regex reset after 5f023782ef9eba03390a740c 1 1 day", "anti regex reset after 5f023782ef9eba03390a740c 3 5h 20s", "anti regex reset after 5f023782ef9eba03390a740c 3 5h 20s"})
 	public void resetAfter(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="amount") @Limit(min=0) int amount, @Argument(value="time", endless=true, nullDefault=true) Duration time) {
@@ -196,6 +201,7 @@ public class AntiRegexCommand extends Sx4Command {
 	}
 
 	@Command(value="list", description="Lists the regexes which are active in this server")
+	@CommandId(110)
 	@Examples({"anti regex list"})
 	public void list(Sx4CommandEvent event) {
 		List<Document> regexes = this.database.getGuildById(event.getGuild().getIdLong(), Projections.include("antiRegex.regexes")).getEmbedded(List.of("antiRegex", "regexes"), Collections.emptyList());
@@ -225,7 +231,7 @@ public class AntiRegexCommand extends Sx4Command {
 	public class ModCommand extends Sx4Command {
 
 		public ModCommand() {
-			super("mod");
+			super("mod", 111);
 
 			super.setDescription("Set specific things to happen when someone reaches a certain amount of attempts");
 			super.setExamples("anti regex mod message", "anti regex mod action");
@@ -233,6 +239,7 @@ public class AntiRegexCommand extends Sx4Command {
 
 		// TODO
 		@Command(value="action", description="Sets the action to be taken when a user hits the max attempts")
+		@CommandId(112)
 		@Examples({"anti regex mod action 5f023782ef9eba03390a740c WARN", "anti regex mod action 5f023782ef9eba03390a740c MUTE 60m"})
 		@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 		public void action(Sx4CommandEvent event, @Argument(value="id") ObjectId id /*, @Argument(value="action", endless=true) TimedArgument<ModAction> timedAction*/) {
@@ -291,7 +298,7 @@ public class AntiRegexCommand extends Sx4Command {
 	public class MatchCommand extends Sx4Command {
 
 		public MatchCommand() {
-			super("match");
+			super("match", 113);
 
 			super.setDescription("Set specific things to happen when a message is matched with a specific regex");
 			super.setExamples("anti regex match action", "anti regex match message");
@@ -302,6 +309,7 @@ public class AntiRegexCommand extends Sx4Command {
 		}
 
 		@Command(value="message", description="Changes the message which is sent when someone triggers an anti regex")
+		@CommandId(114)
 		@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 		@Examples({"anti regex match message 5f023782ef9eba03390a740c You cannot have a url in your message :no_entry:", "anti regex match message 5f023782ef9eba03390a740c {user.mention}, don't send that here or else you'll get a {regex.action} :no_entry:"})
 		public void message(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="message", endless=true) String message) {
@@ -343,6 +351,7 @@ public class AntiRegexCommand extends Sx4Command {
 		}
 
 		@Command(value="action", description="Set what the bot should do when the regex is matched")
+		@CommandId(115)
 		@Examples({"anti regex match action 5f023782ef9eba03390a740c SEND_MESSAGE", "anti regex match action 5f023782ef9eba03390a740c SEND_MESSAGE DELETE_MESSAGE"})
 		@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 		public void action(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="actions") MatchAction... actions) {
@@ -387,7 +396,7 @@ public class AntiRegexCommand extends Sx4Command {
 	public class WhitelistCommand extends Sx4Command {
 
 		public WhitelistCommand() {
-			super("whitelist");
+			super("whitelist", 116);
 
 			super.setDescription("Whitelist roles and users from certain channels so they can ignore the anti regex");
 			super.setExamples("anti regex whitelist add", "anti regex whitelist remove");
@@ -398,6 +407,7 @@ public class AntiRegexCommand extends Sx4Command {
 		}
 
 		@Command(value="add", description="Adds a whitelist for a group in the regex")
+		@CommandId(117)
 		@Examples({"anti regex whitelist add 5f023782ef9eba03390a740c #youtube-links 2 youtube.com", "anti regex whitelist add 5f023782ef9eba03390a740c 0 https://youtube.com"})
 		@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 		public void add(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="channel", nullDefault=true) TextChannel channelArgument, @Argument(value="group") @Limit(min=0) int group, @Argument(value="string", endless=true) String string) {
@@ -483,6 +493,7 @@ public class AntiRegexCommand extends Sx4Command {
 		}
 
 		@Command(value="add", description="Adds a whitelist for a role or user")
+		@CommandId(118)
 		@Examples({"anti regex whitelist add 5f023782ef9eba03390a740c #channel @everyone", "anti regex whitelist add 5f023782ef9eba03390a740c @Shea#6653"})
 		@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 		public void add(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="channel", nullDefault=true) TextChannel channelArgument, @Argument(value="user | role", endless=true) IPermissionHolder holder) {
@@ -547,6 +558,7 @@ public class AntiRegexCommand extends Sx4Command {
 		}
 
 		@Command(value="remove", description="Removes a group whitelist from channels")
+		@CommandId(119)
 		@Examples({"anti regex whitelist remove 5f023782ef9eba03390a740c #youtube-links 2 youtube.com", "anti regex whitelist remove 5f023782ef9eba03390a740c 0 https://youtube.com"})
 		@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 		public void remove(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="channel", nullDefault=true) TextChannel channelArgument, @Argument(value="group") @Limit(min=0) int group, @Argument(value="string", endless=true) String string) {
@@ -613,6 +625,7 @@ public class AntiRegexCommand extends Sx4Command {
 		}
 
 		@Command(value="remove", description="Removes a role or user whitelist from channels")
+		@CommandId(120)
 		@Examples({"anti regex whitelist remove 5f023782ef9eba03390a740c #channel @everyone", "anti regex whitelist remove 5f023782ef9eba03390a740c @Shea#6653"})
 		@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 		public void remove(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="channel", nullDefault=true) TextChannel channelArgument, @Argument(value="user | role") IPermissionHolder holder) {
@@ -678,6 +691,7 @@ public class AntiRegexCommand extends Sx4Command {
 
 		// TODO: Think of a good format
 		@Command(value="list", description="Lists regex groups, roles and users that are whitelisted from specific channels for an anti regex")
+		@CommandId(121)
 		@Examples({"anti regex whitelist list 5f023782ef9eba03390a740c"})
 		public void list(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="channels") TextChannel channel) {
 			List<Document> regexes = this.database.getGuildById(event.getGuild().getIdLong(), Projections.include("antiRegex.regexes")).getEmbedded(List.of("antiRegex", "regexes"), Collections.emptyList());
@@ -710,7 +724,7 @@ public class AntiRegexCommand extends Sx4Command {
 	public class TemplateCommand extends Sx4Command {
 		
 		public TemplateCommand() {
-			super("template");
+			super("template", 122);
 			
 			super.setDescription("Create regex templates for anti regex");
 			super.setExamples("anti regex template add", "anti regex template list");
@@ -721,6 +735,7 @@ public class AntiRegexCommand extends Sx4Command {
 		}
 		
 		@Command(value="add", description="Add a regex to the templates for anyone to use")
+		@CommandId(123)
 		@Examples({"anti regex template add Numbers .*[0-9]+.* Will match any message which contains a number"})
 		public void add(Sx4CommandEvent event, @Argument(value="title") String title, @Argument(value="regex") Pattern pattern, @Argument(value="description", endless=true) String description) {
 			if (title.length() > 20) {
@@ -754,6 +769,7 @@ public class AntiRegexCommand extends Sx4Command {
 		}
 
 		@Command(value="list", description="Lists the regexes which you can use for anti regex")
+		@CommandId(124)
 		@Examples({"anti regex template list"})
 		public void list(Sx4CommandEvent event) {
 			List<Document> list = this.database.getRegexes(Filters.eq("approved", true), Projections.include("title", "description", "pattern", "ownerId", "uses")).sort(Sorts.descending("uses")).into(new ArrayList<>());
@@ -786,6 +802,7 @@ public class AntiRegexCommand extends Sx4Command {
 		}
 		
 		@Command(value="queue", description="View the queue of regexes yet to be denied or approved")
+		@CommandId(125)
 		@Examples({"anti regex template queue"})
 		public void queue(Sx4CommandEvent event) {
 			List<Document> queue = this.database.getRegexes(Filters.ne("approved", true), Projections.include("title", "description", "pattern", "ownerId")).into(new ArrayList<>());
@@ -817,6 +834,7 @@ public class AntiRegexCommand extends Sx4Command {
 		}
 		
 		@Command(value="approve", description="Approve a regex in the queue")
+		@CommandId(126)
 		@Examples({"anti regex template approve 5f023782ef9eba03390a740c"})
 		@Developer
 		public void approve(Sx4CommandEvent event, @Argument(value="id") ObjectId id) {
@@ -843,6 +861,7 @@ public class AntiRegexCommand extends Sx4Command {
 		}
 		
 		@Command(value="deny", description="Denies a regex in the queue")
+		@CommandId(127)
 		@Examples({"anti regex template deny 5f023782ef9eba03390a740c"})
 		@Developer
 		public void deny(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="reason", endless=true) String reason) {

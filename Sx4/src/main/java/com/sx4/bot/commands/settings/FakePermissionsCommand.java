@@ -7,6 +7,7 @@ import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.Updates;
 import com.sx4.bot.annotations.argument.Options;
 import com.sx4.bot.annotations.command.AuthorPermissions;
+import com.sx4.bot.annotations.command.CommandId;
 import com.sx4.bot.annotations.command.Examples;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
@@ -36,7 +37,7 @@ import java.util.stream.Collectors;
 public class FakePermissionsCommand extends Sx4Command {
 
 	public FakePermissionsCommand() {
-		super("fake permissions");
+		super("fake permissions", 169);
 		
 		super.setDescription("Setup permissions for user or roles which only work within the bot");
 		super.setAliases("fakepermissions", "fake perms", "fakeperms");
@@ -49,6 +50,7 @@ public class FakePermissionsCommand extends Sx4Command {
 	}
 	
 	@Command(value="add", description="Adds permissions to a user or role within the bot")
+	@CommandId(170)
 	@Examples({"fake permissions add @Shea#6653 message_manage", "fake permissions add @Mods kick_members ban_members"})
 	@AuthorPermissions(permissions={Permission.ADMINISTRATOR})
 	public void add(Sx4CommandEvent event, @Argument(value="user | role") IPermissionHolder holder, @Argument(value="permissions") Permission... permissions) {
@@ -76,6 +78,7 @@ public class FakePermissionsCommand extends Sx4Command {
 	}
 	
 	@Command(value="remove", description="Removes permissions from a user or role within the bot")
+	@CommandId(171)
 	@Examples({"fake permissions remove @Shea#6653 message_manage", "fake permissions remove @Mods kick_members ban_members", "fake permissions remove @Mods all"})
 	@AuthorPermissions(permissions={Permission.ADMINISTRATOR})
 	public void remove(Sx4CommandEvent event, @Argument(value="user | role") IPermissionHolder holder, @Argument(value="permissions") Permission... permissions) {
@@ -105,6 +108,7 @@ public class FakePermissionsCommand extends Sx4Command {
 	}
 	
 	@Command(value="delete", description="Deletes fake permissions for a user or role")
+	@CommandId(172)
 	@Examples({"fake permissions delete @Shea#6653", "fake permissions delete @Mods", "fake permissions delete all"})
 	@AuthorPermissions(permissions={Permission.ADMINISTRATOR})
 	public void delete(Sx4CommandEvent event, @Argument(value="user | role | all", endless=true) @Options("all") Option<IPermissionHolder> option) {
@@ -152,6 +156,7 @@ public class FakePermissionsCommand extends Sx4Command {
 	}
 	
 	@Command(value="stats", description="Lists the permissions a role or user has")
+	@CommandId(173)
 	@Examples({"fake permissions stats @Shea#6653", "fake permissions stats @Mods"})
 	public void stats(Sx4CommandEvent event, @Argument(value="user | role", endless=true) IPermissionHolder holder) {
 		boolean role = holder instanceof Role;
@@ -176,6 +181,7 @@ public class FakePermissionsCommand extends Sx4Command {
 	}
 	
 	@Command(value="in permission", aliases={"inpermission", "inperm", "in perm", "in"}, description="Lists all roles and users in a certain permissions")
+	@CommandId(174)
 	@Examples({"fake permissions in permission message_manage", "fake permissions in permission kick_members ban_members"})
 	public void inPermission(Sx4CommandEvent event, @Argument(value="permissions") Permission... permissions) {
 		long permissionsRaw = Permission.getRaw(permissions);
@@ -209,6 +215,7 @@ public class FakePermissionsCommand extends Sx4Command {
 	}
 	
 	@Command(value="list", description="Lists all permissions you can use as arguments")
+	@CommandId(175)
 	@Examples({"fake permissions list"})
 	public void list(Sx4CommandEvent event) {
 		EmbedBuilder embed = new EmbedBuilder()

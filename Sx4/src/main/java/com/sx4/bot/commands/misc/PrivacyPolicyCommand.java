@@ -12,7 +12,7 @@ import org.bson.Document;
 public class PrivacyPolicyCommand extends Sx4Command {
 
     public PrivacyPolicyCommand() {
-        super("privacy policy");
+        super("privacy policy", 104);
 
         super.setDescription("View the privacy policy of Sx4, required for discord api purposes");
         super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);

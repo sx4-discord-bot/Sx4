@@ -22,7 +22,7 @@ public class YouTubeCommand extends Sx4Command {
 	private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd LLLL yyyy HH:mm");
 
 	public YouTubeCommand() {
-		super("youtube");
+		super("youtube", 36);
 
 		super.setDescription("Looks up a channel, video or playist on YouTube from a query");
 		super.setExamples("youtube PewDiePie", "youtube YouTube Rewind", "youtube Music Playlist");

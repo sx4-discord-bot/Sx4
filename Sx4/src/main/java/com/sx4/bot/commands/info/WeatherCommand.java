@@ -53,7 +53,7 @@ public class WeatherCommand extends Sx4Command {
 	}
 
 	public WeatherCommand() {
-		super("weather");
+		super("weather", 35);
 
 		super.setDescription("Find out the weather in a specific city");
 		super.setCooldownDuration(3);

@@ -15,7 +15,7 @@ import java.util.stream.Collectors;
 public class JoinPositionCommand extends Sx4Command {
 
 	public JoinPositionCommand() {
-		super("join position");
+		super("join position", 32);
 		
 		super.setDescription("View the join position at a specific index or for a specific user");
 		super.setExamples("join position 1", "join position Shea#6653");

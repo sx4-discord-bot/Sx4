@@ -12,6 +12,7 @@ import com.sx4.bot.annotations.argument.AdvancedMessage;
 import com.sx4.bot.annotations.argument.ImageUrl;
 import com.sx4.bot.annotations.command.AuthorPermissions;
 import com.sx4.bot.annotations.command.BotPermissions;
+import com.sx4.bot.annotations.command.CommandId;
 import com.sx4.bot.annotations.command.Examples;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
@@ -41,7 +42,7 @@ import java.util.concurrent.CompletionException;
 public class YouTubeNotificationCommand extends Sx4Command {
 	
 	public YouTubeNotificationCommand() {
-		super("youtube notification");
+		super("youtube notification", 157);
 		
 		super.setDescription("Subscribe to a youtube channel so anytime it uploads it's sent in a channel of your choice");
 		super.setAliases("yt notif", "yt notification", "youtube notif");
@@ -54,6 +55,7 @@ public class YouTubeNotificationCommand extends Sx4Command {
 	}
 	
 	@Command(value="add", description="Add a youtube notification to be posted to a specific channel when the user uploads")
+	@CommandId(158)
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	@Examples({"youtube notification add videos mrbeast", "youtube notification add #videos pewdiepie"})
 	public void add(Sx4CommandEvent event, @Argument(value="channel") TextChannel channel, @Argument(value="youtube channel", endless=true) String youtubeChannelArgument) {
@@ -125,6 +127,7 @@ public class YouTubeNotificationCommand extends Sx4Command {
 	}
 	
 	@Command(value="remove", description="Removes a notification from a channel you had setup prior for a youtube channel")
+	@CommandId(159)
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	@Examples({"youtube notification remove 5e45ce6d3688b30ee75201ae"})
 	public void remove(Sx4CommandEvent event, @Argument(value="id") ObjectId id) {
@@ -139,6 +142,7 @@ public class YouTubeNotificationCommand extends Sx4Command {
 	}
 	
 	@Command(value="message", description="Set the message you want to be sent for your specific notification, view the formatters for messages in `youtube notification formatting`")
+	@CommandId(160)
 	@Examples({"youtube notification message 5e45ce6d3688b30ee75201ae {video.url}", "youtube notification message 5e45ce6d3688b30ee75201ae **{channel.name}** just uploaded, check it out: {video.url}"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void message(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="message", endless=true) String message) {
@@ -157,6 +161,7 @@ public class YouTubeNotificationCommand extends Sx4Command {
 	}
 
 	@Command(value="advanced message", description="Same as `youtube notification message` but takes json for more advanced options")
+	@CommandId(161)
 	@Examples({"youtube notification advanced message 5e45ce6d3688b30ee75201ae {\"content\": \"{video.url}\"}", "youtube notification advanced message 5e45ce6d3688b30ee75201ae {\"embed\": {\"description\": \"{video.url}\"}}"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void advancedMessage(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="json", endless=true) @AdvancedMessage Document json) {
@@ -175,6 +180,7 @@ public class YouTubeNotificationCommand extends Sx4Command {
 	}
 	
 	@Command(value="name", description="Set the name of the webhook that sends youtube notifications for a specific notification")
+	@CommandId(162)
 	@Examples({"youtube notification name 5e45ce6d3688b30ee75201ae YouTube", "youtube notification name 5e45ce6d3688b30ee75201ae Pewdiepie's Minion"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void name(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="name", endless=true) String name) {
@@ -193,6 +199,7 @@ public class YouTubeNotificationCommand extends Sx4Command {
 	}
 	
 	@Command(value="avatar", description="Set the avatar of the webhook that sends youtube notifications for a specific notification")
+	@CommandId(163)
 	@Examples({"youtube notification avatar 5e45ce6d3688b30ee75201ae Shea#6653", "youtube notification avatar 5e45ce6d3688b30ee75201ae https://i.imgur.com/i87lyNO.png"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void avatar(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="avatar", endless=true, acceptEmpty=true) @ImageUrl String url) {
@@ -211,6 +218,7 @@ public class YouTubeNotificationCommand extends Sx4Command {
 	}
 	
 	@Command(value="formatting", aliases={"format", "formats"}, description="View the formats you are able to use to customize your notifications message", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
+	@CommandId(164)
 	@Examples({"youtube notification formatting"})
 	@BotPermissions(permissions={Permission.MESSAGE_EMBED_LINKS})
 	public void formatting(Sx4CommandEvent event) {
@@ -233,6 +241,7 @@ public class YouTubeNotificationCommand extends Sx4Command {
 	}
 	
 	@Command(value="list", description="View all the notifications you have setup throughout your server")
+	@CommandId(165)
 	@Examples({"youtube notification list"})
 	@BotPermissions(permissions={Permission.MESSAGE_EMBED_LINKS})
 	public void list(Sx4CommandEvent event) {
@@ -272,6 +281,7 @@ public class YouTubeNotificationCommand extends Sx4Command {
 	}
 	
 	@Command(value="stats", aliases={"settings", "setting"}, description="View the settings for a specific notification")
+	@CommandId(166)
 	@Examples({"youtube notification stats 5e45ce6d3688b30ee75201ae"})
 	@BotPermissions(permissions={Permission.MESSAGE_EMBED_LINKS})
 	public void stats(Sx4CommandEvent event, @Argument(value="id") ObjectId id) {

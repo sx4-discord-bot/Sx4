@@ -13,7 +13,7 @@ import okhttp3.Request;
 public class WhoWouldWinCommand extends Sx4Command {
 
 	public WhoWouldWinCommand() {
-		super("who would win");
+		super("who would win", 28);
 
 		super.setAliases("whowouldwin", "www");
 		super.setDescription("Who would win out of 2 images");

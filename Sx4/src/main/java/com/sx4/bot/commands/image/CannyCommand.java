@@ -14,7 +14,7 @@ import okhttp3.Request;
 public class CannyCommand extends Sx4Command {
 
 	public CannyCommand() {
-		super("canny");
+		super("canny", 3);
 
 		super.setDescription("Applies the canny effect to an image");
 		super.setExamples("canny", "canny @Shea#6653", "canny https://example.com/image.png");

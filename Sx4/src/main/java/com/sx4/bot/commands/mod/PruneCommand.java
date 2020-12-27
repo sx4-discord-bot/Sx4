@@ -8,10 +8,7 @@ import com.jockie.bot.core.cooldown.ICooldown;
 import com.jockie.bot.core.option.Option;
 import com.sx4.bot.annotations.argument.DefaultNumber;
 import com.sx4.bot.annotations.argument.Limit;
-import com.sx4.bot.annotations.command.AuthorPermissions;
-import com.sx4.bot.annotations.command.BotPermissions;
-import com.sx4.bot.annotations.command.Examples;
-import com.sx4.bot.annotations.command.Redirects;
+import com.sx4.bot.annotations.command.*;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
@@ -36,7 +33,7 @@ import java.util.regex.Pattern;
 public class PruneCommand extends Sx4Command {
 
 	public PruneCommand() {
-		super("prune");
+		super("prune", 140);
 		
 		super.setDescription("Prune a set amount of messages in the current channel");
 		super.setAuthorDiscordPermissions(Permission.MESSAGE_MANAGE);
@@ -86,6 +83,7 @@ public class PruneCommand extends Sx4Command {
 	}
 	
 	@Command(value="bots", aliases={"bot"}, description="Prunes a set amount of messages sent by bots")
+	@CommandId(141)
 	@Redirects({"bc", "bot clean", "botclean"})
 	@Examples({"prune bots", "prune bots 10"})
 	@AuthorPermissions(permissions={Permission.MESSAGE_MANAGE})
@@ -95,6 +93,7 @@ public class PruneCommand extends Sx4Command {
 	}
 	
 	@Command(value="images", aliases={"image"}, description="Prunes a set amount of messages sent with images")
+	@CommandId(142)
 	@Examples({"prune images", "prune images 10"})
 	@AuthorPermissions(permissions={Permission.MESSAGE_MANAGE})
 	@BotPermissions(permissions={Permission.MESSAGE_MANAGE, Permission.MESSAGE_HISTORY}, overwrite=true)
@@ -103,6 +102,7 @@ public class PruneCommand extends Sx4Command {
 	}
 	
 	@Command(value="mentions", aliases={"mention"}, description="Prunes a set amount of messages which contain mentions")
+	@CommandId(143)
 	@Examples({"prune mentions", "prune mentions 10", "prune mentions USER CHANNEL"})
 	@AuthorPermissions(permissions={Permission.MESSAGE_MANAGE})
 	@BotPermissions(permissions={Permission.MESSAGE_MANAGE, Permission.MESSAGE_HISTORY}, overwrite=true)
@@ -111,6 +111,7 @@ public class PruneCommand extends Sx4Command {
 	}
 	
 	@Command(value="attachments", aliases={"attachments"}, description="Prunes a set amount of messages sent with attachments")
+	@CommandId(144)
 	@Examples({"prune attachments", "prune attachments 10"})
 	@AuthorPermissions(permissions={Permission.MESSAGE_MANAGE})
 	@BotPermissions(permissions={Permission.MESSAGE_MANAGE, Permission.MESSAGE_HISTORY}, overwrite=true)
@@ -119,6 +120,7 @@ public class PruneCommand extends Sx4Command {
 	}
 	
 	@Command(value="contains", aliases={"contain"}, description="Prunes a set amount of messages which contain the content given")
+	@CommandId(145)
 	@Examples({"prune contains hello", "prune contains hello 10"})
 	@AuthorPermissions(permissions={Permission.MESSAGE_MANAGE})
 	@BotPermissions(permissions={Permission.MESSAGE_MANAGE, Permission.MESSAGE_HISTORY}, overwrite=true)
@@ -127,6 +129,7 @@ public class PruneCommand extends Sx4Command {
 	}
 	
 	@Command(value="user", description="Prunes a set amount of messages sent by a specific user")
+	@CommandId(146)
 	@Examples({"prune user @Shea#6653", "prune user Shea 10"})
 	@AuthorPermissions(permissions={Permission.MESSAGE_MANAGE})
 	@BotPermissions(permissions={Permission.MESSAGE_MANAGE, Permission.MESSAGE_HISTORY}, overwrite=true)
@@ -135,6 +138,7 @@ public class PruneCommand extends Sx4Command {
 	}
 
 	@Command(value="regex", description="Prunes a set amount of messages which match a specific regex")
+	@CommandId(147)
 	@Examples({"prune regex [0-9]+", "prune regex .{2,32}#[0-9]{4}"})
 	@Cooldown(value=20, cooldownScope=ICooldown.Scope.GUILD)
 	@AuthorPermissions(permissions={Permission.MESSAGE_MANAGE})

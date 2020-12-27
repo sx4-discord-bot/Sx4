@@ -7,9 +7,10 @@ import com.mongodb.client.model.FindOneAndUpdateOptions;
 import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.ReturnDocument;
 import com.sx4.bot.annotations.argument.DefaultNumber;
-import com.sx4.bot.annotations.argument.Options;
 import com.sx4.bot.annotations.argument.Limit;
+import com.sx4.bot.annotations.argument.Options;
 import com.sx4.bot.annotations.command.AuthorPermissions;
+import com.sx4.bot.annotations.command.CommandId;
 import com.sx4.bot.annotations.command.Examples;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
@@ -48,7 +49,7 @@ import java.util.stream.Collectors;
 public class GiveawayCommand extends Sx4Command {
 
 	public GiveawayCommand() {
-		super("giveaway");
+		super("giveaway", 46);
 		
 		super.setDescription("Setup giveaways in a certain channel which will be decided randomly through reactions");
 		super.setExamples("giveaway setup", "giveaway reroll", "giveaway reaction");
@@ -70,6 +71,7 @@ public class GiveawayCommand extends Sx4Command {
 	}
 	
 	@Command(value="setup", description="Setup giveaways for users to react to")
+	@CommandId(47)
 	@Examples({"giveaway setup", "giveaway setup #giveaways 1 7d $10 Nitro"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void setup(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) TextChannel channel, @Argument(value="winners") @DefaultNumber(0) @Limit(min=1) int winners, @Argument(value="duration", nullDefault=true) Duration duration, @Argument(value="item", nullDefault=true, endless=true) String item) {
@@ -326,6 +328,7 @@ public class GiveawayCommand extends Sx4Command {
 	}
 	
 	@Command(value="restart", description="Restarts a giveaway")
+	@CommandId(48)
 	@Examples({"giveaway restart 727224132202397726"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void restart(Sx4CommandEvent event, @Argument(value="message id") MessageArgument messageArgument, @Argument(value="duration", endless=true, nullDefault=true) Duration duration) {
@@ -370,6 +373,7 @@ public class GiveawayCommand extends Sx4Command {
 	}
 	
 	@Command(value="reroll", aliases={"re roll"}, description="Rerolls the winners for an ended giveaway")
+	@CommandId(49)
 	@Examples({"giveaway reroll 727224132202397726"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void reroll(Sx4CommandEvent event, @Argument(value="message id") MessageArgument messageArgument) {
@@ -388,6 +392,7 @@ public class GiveawayCommand extends Sx4Command {
 	}
 	
 	@Command(value="end", description="Ends an active giveaway early")
+	@CommandId(50)
 	@Examples({"giveaway end 727224132202397726"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void end(Sx4CommandEvent event, @Argument(value="message id") MessageArgument messageArgument) {
@@ -406,6 +411,7 @@ public class GiveawayCommand extends Sx4Command {
 	}
 	
 	@Command(value="delete", description="Deletes a giveaway")
+	@CommandId(51)
 	@Examples({"giveaway delete 727224132202397726", "giveaway delete all"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void delete(Sx4CommandEvent event, @Argument(value="message id | all") @Options("all") Option<MessageArgument> option) {
@@ -457,6 +463,7 @@ public class GiveawayCommand extends Sx4Command {
 	}
 	
 	@Command(value="list", description="Lists all the giveaways which have happened in the server")
+	@CommandId(52)
 	@Examples({"giveaway list"})
 	public void list(Sx4CommandEvent event) {
 		List<Document> giveaways = this.database.getGiveaways(Filters.eq("guildId", event.getGuild().getIdLong())).into(new ArrayList<>());

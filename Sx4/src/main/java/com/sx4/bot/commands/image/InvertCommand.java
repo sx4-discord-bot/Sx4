@@ -14,7 +14,7 @@ import okhttp3.Request;
 public class InvertCommand extends Sx4Command {
 
 	public InvertCommand() {
-		super("invert");
+		super("invert", 18);
 
 		super.setDescription("Inverts the RGB of every pixel in an image");
 		super.setExamples("invert", "invert @Shea#6653", "invert https://example.com/image.png");

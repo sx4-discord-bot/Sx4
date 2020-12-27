@@ -14,7 +14,7 @@ import okhttp3.Request;
 public class GayCommand extends Sx4Command {
 
 	public GayCommand() {
-		super("gay");
+		super("gay", 13);
 
 		super.setDescription("Puts the pride flag over a specified image");
 		super.setExamples("gay", "gay @Shea#6653", "gay https://example.com/image.png");

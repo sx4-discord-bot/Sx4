@@ -38,6 +38,7 @@ public class Database {
 	
 	private final MongoCollection<Document> guilds;
 	private final MongoCollection<Document> users;
+	private final MongoCollection<Document> channels;
 
 	private final MongoCollection<Document> reminders;
 
@@ -84,6 +85,9 @@ public class Database {
 		this.guilds = this.database.getCollection("guilds");
 
 		Bson guildId = Indexes.descending("guildId"), userId = Indexes.descending("userId");
+
+		this.channels = this.database.getCollection("channels");
+		this.channels.createIndex(guildId);
 
 		this.reminders = this.database.getCollection("reminders");
 		this.reminders.createIndex(userId);
@@ -641,6 +645,80 @@ public class Database {
 	public CompletableFuture<Document> findAndDeleteRegexById(ObjectId id, FindOneAndDeleteOptions options) {
 		return CompletableFuture.supplyAsync(() -> this.regexes.findOneAndDelete(Filters.eq("_id", id), options));
 	}
+
+	public MongoCollection<Document> getChannels() {
+		return this.channels;
+	}
+
+	public FindIterable<Document> getChannels(Bson filter, Bson projection) {
+		return this.channels.find(filter).projection(projection);
+	}
+
+	public Document getChannel(Bson filter, Bson projection) {
+		Document data = this.getChannels(filter, projection).first();
+
+		return data == null ? Database.EMPTY_DOCUMENT : data;
+	}
+
+	public Document getChannelById(long channelId, Bson projection) {
+		return this.getChannel(Filters.eq("_id", channelId), projection);
+	}
+
+	public CompletableFuture<UpdateResult> updateChannel(Bson filter, List<? extends Bson> update, UpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.channels.updateOne(filter, update, options));
+	}
+
+	public CompletableFuture<UpdateResult> updateChannelById(long channelId, List<? extends Bson> update, UpdateOptions options) {
+		return this.updateChannel(Filters.eq("_id", channelId), update, options);
+	}
+
+	public CompletableFuture<UpdateResult> updateChannelById(long channelId, List<? extends Bson> update) {
+		return this.updateChannelById(channelId, update, this.updateOptions);
+	}
+
+	public CompletableFuture<UpdateResult> updateChannel(Bson filter, Bson update, UpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.channels.updateOne(filter, update, options));
+	}
+
+	public CompletableFuture<UpdateResult> updateChannelById(long channelId, Bson update, UpdateOptions options) {
+		return this.updateChannel(Filters.eq("_id", channelId), update, options);
+	}
+
+	public CompletableFuture<UpdateResult> updateChannelById(long channelId, Bson update) {
+		return this.updateChannelById(channelId, update, this.updateOptions);
+	}
+
+	public CompletableFuture<UpdateResult> updateChannel(UpdateOneModel<Document> update) {
+		return this.updateChannel(update.getFilter(), update.getUpdate(), update.getOptions());
+	}
+
+	public CompletableFuture<Document> findAndUpdateChannel(Bson filter, Bson update, FindOneAndUpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.channels.findOneAndUpdate(filter, update, options));
+	}
+
+	public CompletableFuture<Document> findAndUpdateChannelById(long channelId, Bson update, FindOneAndUpdateOptions options) {
+		return this.findAndUpdateChannel(Filters.eq("_id", channelId), update, options);
+	}
+
+	public CompletableFuture<Document> findAndUpdateChannelById(long channelId, Bson update) {
+		return this.findAndUpdateChannelById(channelId, update, this.findOneAndUpdateOptions);
+	}
+
+	public CompletableFuture<Document> findAndUpdateChannel(Bson filter, List<Bson> update, FindOneAndUpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.channels.findOneAndUpdate(filter, update, options));
+	}
+
+	public CompletableFuture<Document> findAndUpdateChannelById(long channelId, List<Bson> update, FindOneAndUpdateOptions options) {
+		return this.findAndUpdateChannel(Filters.eq("_id", channelId), update, options);
+	}
+
+	public CompletableFuture<Document> findAndUpdateChannelById(long channelId, List<Bson> update) {
+		return this.findAndUpdateChannelById(channelId, update, this.findOneAndUpdateOptions);
+	}
+
+	public CompletableFuture<BulkWriteResult> bulkWriteChannels(List<? extends WriteModel<? extends Document>> bulkData) {
+		return CompletableFuture.supplyAsync(() -> this.channels.bulkWrite(bulkData));
+	}
 	
 	public MongoCollection<Document> getUsers() {
 		return this.users;
@@ -654,54 +732,34 @@ public class Database {
 		return this.users.countDocuments(filter);
 	}
 	
-	public Document getUserById(long userId, Bson filter, Bson projection) {
-		if (filter == null) {
-			filter = Filters.eq("_id", userId);
-		} else {
-			filter = Filters.and(Filters.eq("_id", userId), filter);
-		}
-		
-		Document data = this.users.find(filter).projection(projection).first();
-		
+	public Document getUserById(Bson filter, Bson projection) {
+		Document data = this.getUsers(filter, projection).first();
+
 		return data == null ? Database.EMPTY_DOCUMENT : data;
 	}
 	
 	public Document getUserById(long userId, Bson projection) {
-		return this.getUserById(userId, null, projection);
+		return this.getUserById(Filters.eq("_id", userId), projection);
 	}
 
-	public CompletableFuture<UpdateResult> updateUserById(long userId, Bson filter, List<? extends Bson> update, UpdateOptions options) {
-		Bson dbFilter;
-		if (filter == null) {
-			dbFilter = Filters.eq("_id", userId);
-		} else {
-			dbFilter = Filters.and(Filters.eq("_id", userId), filter);
-		}
-
-		return CompletableFuture.supplyAsync(() -> this.users.updateOne(dbFilter, update, options));
+	public CompletableFuture<UpdateResult> updateUser(Bson filter, List<? extends Bson> update, UpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.users.updateOne(filter, update, options));
 	}
 
 	public CompletableFuture<UpdateResult> updateUserById(long userId, List<? extends Bson> update, UpdateOptions options) {
-		return this.updateUserById(userId, null, update, options);
+		return this.updateUser(Filters.eq("_id", userId), update, options);
 	}
 
 	public CompletableFuture<UpdateResult> updateUserById(long userId, List<? extends Bson> update) {
 		return this.updateUserById(userId, update, this.updateOptions);
 	}
-	
-	public CompletableFuture<UpdateResult> updateUserById(long userId, Bson filter, Bson update, UpdateOptions options) {
-		Bson dbFilter;
-		if (filter == null) {
-			dbFilter = Filters.eq("_id", userId);
-		} else {
-			dbFilter = Filters.and(Filters.eq("_id", userId), filter);
-		}
-		
-		return CompletableFuture.supplyAsync(() -> this.users.updateOne(dbFilter, update, options));
+
+	public CompletableFuture<UpdateResult> updateUser(Bson filter, Bson update, UpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.users.updateOne(filter, update, options));
 	}
 	
 	public CompletableFuture<UpdateResult> updateUserById(long userId, Bson update, UpdateOptions options) {
-		return this.updateUserById(userId, null, update, options);
+		return this.updateUser(Filters.eq("_id", userId), update, options);
 	}
 	
 	public CompletableFuture<UpdateResult> updateUserById(long userId, Bson update) {
@@ -709,61 +767,31 @@ public class Database {
 	}
 	
 	public CompletableFuture<UpdateResult> updateUser(UpdateOneModel<Document> update) {
-		return CompletableFuture.supplyAsync(() -> this.users.updateOne(update.getFilter(), update.getUpdate(), update.getOptions()));
+		return this.updateUser(update.getFilter(), update.getUpdate(), update.getOptions());
 	}
 	
-	public CompletableFuture<Document> findAndUpdateUserById(long userId, Bson filter, Bson update, FindOneAndUpdateOptions options) {
-		Bson dbFilter;
-		if (filter == null) {
-			dbFilter = Filters.eq("_id", userId);
-		} else {
-			dbFilter = Filters.and(Filters.eq("_id", userId), filter);
-		}
-		
-		return CompletableFuture.supplyAsync(() -> this.users.findOneAndUpdate(dbFilter, update, options));
+	public CompletableFuture<Document> findAndUpdateUser(Bson filter, Bson update, FindOneAndUpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.users.findOneAndUpdate(filter, update, options));
 	}
-	
+
 	public CompletableFuture<Document> findAndUpdateUserById(long userId, Bson update, FindOneAndUpdateOptions options) {
-		return this.findAndUpdateUserById(userId, null, update, options);
+		return this.findAndUpdateUser(Filters.eq("_id", userId), update, options);
 	}
 	
 	public CompletableFuture<Document> findAndUpdateUserById(long userId, Bson update) {
 		return this.findAndUpdateUserById(userId, update, this.findOneAndUpdateOptions);
 	}
-	
-	public CompletableFuture<Document> findAndUpdateUserById(long userId, Bson filter, Bson projection, Bson update) {
-		return this.findAndUpdateUserById(userId, filter, update, this.findOneAndUpdateOptions.projection(projection));
+
+	public CompletableFuture<Document> findAndUpdateUser(Bson filter, List<Bson> update, FindOneAndUpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.users.findOneAndUpdate(filter, update, options));
 	}
-	
-	public CompletableFuture<Document> findAndUpdateUserById(long userId, Bson projection, Bson update) {
-		return this.findAndUpdateUserById(userId, null, update, this.findOneAndUpdateOptions.projection(projection));
+
+	public CompletableFuture<Document> findAndUpdateUserById(long userId, List<Bson> update, FindOneAndUpdateOptions options) {
+		return this.findAndUpdateUser(Filters.eq("_id", userId), update, options);
 	}
-	
-	public CompletableFuture<Document> findAndUpdateUserById(long userId, Bson filter, List<? extends Bson> update, FindOneAndUpdateOptions options) {
-		Bson dbFilter;
-		if (filter == null) {
-			dbFilter = Filters.eq("_id", userId);
-		} else {
-			dbFilter = Filters.and(Filters.eq("_id", userId), filter);
-		}
-		
-		return CompletableFuture.supplyAsync(() -> this.users.findOneAndUpdate(dbFilter, update, options));
-	}
-	
-	public CompletableFuture<Document> findAndUpdateUserById(long userId, Bson filter, Bson projection, List<? extends Bson> update) {
-		return this.findAndUpdateUserById(userId, filter, update, this.findOneAndUpdateOptions.projection(projection));
-	}
-	
-	public CompletableFuture<Document> findAndUpdateUserById(long userId, List<? extends Bson> update, FindOneAndUpdateOptions options) {
-		return this.findAndUpdateUserById(userId, null, update, options);
-	}
-	
-	public CompletableFuture<Document> findAndUpdateUserById(long userId, List<? extends Bson> update) {
+
+	public CompletableFuture<Document> findAndUpdateUserById(long userId, List<Bson> update) {
 		return this.findAndUpdateUserById(userId, update, this.findOneAndUpdateOptions);
-	}
-	
-	public CompletableFuture<Document> findAndUpdateUserById(long userId, Bson projection, List<? extends Bson> update) {
-		return this.findAndUpdateUserById(userId, update, this.findOneAndUpdateOptions.projection(projection));
 	}
 	
 	public CompletableFuture<BulkWriteResult> bulkWriteUsers(List<? extends WriteModel<? extends Document>> bulkData) {

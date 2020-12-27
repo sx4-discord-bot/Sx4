@@ -14,7 +14,7 @@ import okhttp3.Request;
 public class ShitCommand extends Sx4Command {
 
 	public ShitCommand() {
-		super("shit");
+		super("shit", 23);
 
 		super.setAliases("poop", "poopy");
 		super.setDescription("Makes an image shit");

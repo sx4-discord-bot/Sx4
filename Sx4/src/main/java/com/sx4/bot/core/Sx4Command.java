@@ -31,6 +31,8 @@ public class Sx4Command extends CommandImpl {
 	public final Database database = Database.get();
 	
 	public final Config config = Config.get();
+
+	protected int id;
 	
 	protected boolean premium = false;
 	
@@ -42,8 +44,10 @@ public class Sx4Command extends CommandImpl {
 	
 	protected boolean canaryCommand = false;
 	
-	public Sx4Command(String name) {
+	public Sx4Command(String name, int id) {
 		super(name, true);
+
+		this.id = id;
 
 		super.botDiscordPermissions = EnumSet.of(Permission.MESSAGE_WRITE);
 	
@@ -54,8 +58,13 @@ public class Sx4Command extends CommandImpl {
 		super(name, method, invoker);
 
 		super.botDiscordPermissions = EnumSet.of(Permission.MESSAGE_WRITE);
-		
+
+		this.checkIdAnnotation();
 		this.checkAnnotations();
+	}
+
+	public int getId() {
+		return this.id;
 	}
 	
 	public Sx4Command setCanaryCommand(boolean canaryCommand) {
@@ -205,23 +214,36 @@ public class Sx4Command extends CommandImpl {
 
 		return this;
 	}
+
+	private void checkIdAnnotation() {
+		CommandId id = this.method.getAnnotation(CommandId.class);
+		if (id != null) {
+			this.id = id.value();
+		} else {
+			throw new IllegalStateException(this.getCommandTrigger() + " does not have an id");
+		}
+	}
 	
 	private void checkAnnotations() {
 		if (this.method != null) {
-			if (this.method.isAnnotationPresent(Premium.class)) {
-				this.premium = this.method.getAnnotation(Premium.class).value();
+			Premium premium = this.method.getAnnotation(Premium.class);
+			if (premium != null) {
+				this.premium = premium.value();
 			}
-			
-			if (this.method.isAnnotationPresent(Examples.class)) {
-				this.examples = this.method.getAnnotation(Examples.class).value();
+
+			Examples examples = this.method.getAnnotation(Examples.class);
+			if (examples != null) {
+				this.examples = examples.value();
 			}
-			
-			if (this.method.isAnnotationPresent(Canary.class)) {
-				this.canaryCommand = this.method.getAnnotation(Canary.class).value();
+
+			Canary canary = this.method.getAnnotation(Canary.class);
+			if (canary != null) {
+				this.canaryCommand = canary.value();
 			}
-			
-			if (this.method.isAnnotationPresent(Redirects.class)) {
-				this.redirects = this.method.getAnnotation(Redirects.class).value();
+
+			Redirects redirects = this.method.getAnnotation(Redirects.class);
+			if (redirects != null) {
+				this.redirects = redirects.value();
 			}
 			
 			AuthorPermissions authorPermissions = this.method.getAnnotation(AuthorPermissions.class);

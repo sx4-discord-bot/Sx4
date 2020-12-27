@@ -14,7 +14,7 @@ import okhttp3.Request;
 public class EdgeCommand extends Sx4Command {
 
 	public EdgeCommand() {
-		super("edge");
+		super("edge", 9);
 
 		super.setDescription("Applies the edge effect to an image");
 		super.setExamples("edge", "edge @Shea#6653", "edge https://example.com/image.png");

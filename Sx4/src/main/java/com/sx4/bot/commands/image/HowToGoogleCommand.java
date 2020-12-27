@@ -14,7 +14,7 @@ import okhttp3.Request;
 public class HowToGoogleCommand extends Sx4Command {
 
 	public HowToGoogleCommand() {
-		super("how to google");
+		super("how to google", 16);
 
 		super.setAliases("htg", "howtogoogle");
 		super.setDescription("Creates a gif of someone looking up a query on google");

@@ -4,10 +4,7 @@ import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
 import com.jockie.bot.core.command.Command.Cooldown;
 import com.jockie.bot.core.utility.function.TriConsumer;
-import com.sx4.bot.annotations.command.AuthorPermissions;
-import com.sx4.bot.annotations.command.BotPermissions;
-import com.sx4.bot.annotations.command.Examples;
-import com.sx4.bot.annotations.command.Redirects;
+import com.sx4.bot.annotations.command.*;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4;
 import com.sx4.bot.core.Sx4Command;
@@ -32,7 +29,7 @@ import java.util.function.Predicate;
 public class EmoteCommand extends Sx4Command {
 
 	public EmoteCommand() {
-		super("emote");
+		super("emote", 129);
 
 		super.setDescription("Create, delete or modify an emote");
 		super.setExamples("emote create", "emote delete", "emote whitelist");
@@ -74,6 +71,7 @@ public class EmoteCommand extends Sx4Command {
 	}
 
 	@Command(value="create", description="Creates an emote from an existing emote or url")
+	@CommandId(130)
 	@Examples({"emote create <:sx4:637715282995183636>", "emote create sx4", "emote create https://cdn.discordapp.com/emojis/637715282995183636.png"})
 	@Cooldown(5)
 	@Redirects({"create emote", "ce"})
@@ -120,6 +118,7 @@ public class EmoteCommand extends Sx4Command {
 	}
 
 	@Command(value="delete", description="Deletes an emote from the server")
+	@CommandId(131)
 	@Examples({"emote delete <:sx4:637715282995183636>", "emote delete sx4"})
 	@AuthorPermissions(permissions={Permission.MANAGE_EMOTES})
 	@BotPermissions(permissions={Permission.MANAGE_EMOTES})
@@ -137,7 +136,7 @@ public class EmoteCommand extends Sx4Command {
 	public class WhitelistCommand extends Sx4Command {
 
 		public WhitelistCommand() {
-			super("whitelist");
+			super("whitelist", 132);
 
 			super.setDescription("Allows you to set roles which have access to the specified emote");
 			super.setExamples("emote whitelist set", "emote whitelist add", "emote whitelist remove");
@@ -149,6 +148,7 @@ public class EmoteCommand extends Sx4Command {
 		}
 
 		@Command(value="set", description="Sets what roles should be whitelisted to use the emote")
+		@CommandId(133)
 		@Examples({"emote whitelist set <:rain:748240799719882762> \"@Emote Role\"", "emote whitelist set rain \"Emote Role\" @Emotes"})
 		@AuthorPermissions(permissions={Permission.MANAGE_EMOTES})
 		@BotPermissions(permissions={Permission.MANAGE_EMOTES})
@@ -165,6 +165,7 @@ public class EmoteCommand extends Sx4Command {
 		}
 
 		@Command(value="add", description="Adds a role to be whitelisted to use the emote")
+		@CommandId(134)
 		@Examples({"emote whitelist add <:rain:748240799719882762> @Emote Role", "emote whitelist add rain Emote Role"})
 		@AuthorPermissions(permissions={Permission.MANAGE_EMOTES})
 		@BotPermissions(permissions={Permission.MANAGE_EMOTES})
@@ -183,6 +184,7 @@ public class EmoteCommand extends Sx4Command {
 		}
 
 		@Command(value="remove", description="Removes a role from being whitelisted to use the emote")
+		@CommandId(135)
 		@Examples({"emote whitelist remove <:rain:748240799719882762> @Emote Role", "emote whitelist remove rain Emote Role"})
 		@AuthorPermissions(permissions={Permission.MANAGE_EMOTES})
 		@BotPermissions(permissions={Permission.MANAGE_EMOTES})
@@ -201,6 +203,7 @@ public class EmoteCommand extends Sx4Command {
 		}
 
 		@Command(value="reset", description="Resets the emote so everyone can use it")
+		@CommandId(136)
 		@Examples({"emote whitelist reset <:rain:748240799719882762>", "emote whitelist reset rain"})
 		@AuthorPermissions(permissions={Permission.MANAGE_EMOTES})
 		@BotPermissions(permissions={Permission.MANAGE_EMOTES})
@@ -211,6 +214,7 @@ public class EmoteCommand extends Sx4Command {
 		}
 
 		@Command(value="list", description="Lists the roles able to use the emote")
+		@CommandId(137)
 		@Examples({"emote whitelist list <:rain:748240799719882762>", "emote whitelist list rain"})
 		public void list(Sx4CommandEvent event, @Argument(value="emote") Emote emote) {
 			if (emote.getRoles().isEmpty()) {

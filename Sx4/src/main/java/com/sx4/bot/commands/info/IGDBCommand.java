@@ -28,7 +28,7 @@ import java.util.stream.Collectors;
 public class IGDBCommand extends Sx4Command {
 
 	public IGDBCommand() {
-		super("igdb");
+		super("igdb", 31);
 
 		super.setDescription("Search up any game on IGDB");
 		super.setExamples("igdb human fall", "igdb uno --sort=release --reverse", "igdb grand theft auto --sort=rating");
