@@ -57,10 +57,10 @@ public class BlacklistCommand extends Sx4Command {
 		List<Long> longArray = Arrays.stream(bitSet.toLongArray()).boxed().collect(Collectors.toList());
 
 		Bson entities = Operators.ifNull("$blacklist.entities", Collections.EMPTY_LIST);
-		Bson entity = Operators.ifNull(Operators.filter(entities, Operators.eq("$$this.id", holder.getIdLong())), List.of(defaultData));
+		Bson entity = Operators.filter(entities, Operators.eq("$$this.id", holder.getIdLong()));
 
 		List<Bson> update = List.of(
-			Operators.set("blacklist.entities", Operators.concatArrays(Operators.ifNull(Operators.filter(entities, Operators.ne("$$this.id", holder.getIdLong())), Collections.EMPTY_LIST), List.of(Operators.mergeObjects(Operators.first(entity), new Document("blacklisted", Operators.bitSetOr(longArray, Operators.first(Operators.map(entity, "$$this.blacklisted")))))))),
+			Operators.set("blacklist.entities", Operators.concatArrays(Operators.ifNull(Operators.filter(entities, Operators.ne("$$this.id", holder.getIdLong())), Collections.EMPTY_LIST), List.of(Operators.mergeObjects(Operators.ifNull(Operators.first(entity), defaultData), new Document("blacklisted", Operators.bitSetOr(longArray, Operators.ifNull(Operators.first(Operators.map(entity, "$$this.blacklisted")), Collections.EMPTY_LIST))))))),
 			Operators.setOnInsert("guildId", event.getGuild().getIdLong())
 		);
 
@@ -89,5 +89,56 @@ public class BlacklistCommand extends Sx4Command {
 			event.replySuccess((commands.size() == 1 ? "That command is" :  "Those commands are") +  " now blacklisted for that " + (role ? "role" : "user") + " in " +  channel.getAsMention()).queue();
 		});
 	}
-	
+
+	@Command(value="remove", description="Remove a role/user from being blacklisted from a specified command/module in a channel")
+	@CommandId(180)
+	@Examples({"blacklist remove #general @Shea#6653 fish", "blacklist remove #bots @Members ban"})
+	@AuthorPermissions({Permission.MANAGE_SERVER})
+	public void remove(Sx4CommandEvent event, @Argument(value="channel") TextChannel channel, @Argument(value="user | role") IPermissionHolder holder, @Argument(value="command | module", endless=true) List<Sx4Command> commands) {
+		boolean role = holder instanceof Role;
+
+		BitSet bitSet = new BitSet();
+		commands.stream().map(Sx4Command::getId).forEach(bitSet::set);
+
+		List<Long> longArray = Arrays.stream(bitSet.toLongArray()).boxed().collect(Collectors.toList());
+
+		Bson entity = Operators.filter("$blacklist.entities", Operators.eq("$$this.id", holder.getIdLong()));
+		Bson clearedBits = Operators.bitSetClear(Operators.first(Operators.map(entity, "$$this.blacklisted")), longArray);
+
+		List<Bson> update = List.of(
+			Operators.set("blacklist.entities", Operators.cond(Operators.or(Operators.extinct("$blacklist.entities"), Operators.isEmpty(entity)), "$blacklist.entities", Operators.concatArrays(Operators.filter("$blacklist.entities", Operators.ne("$$this.id", holder.getIdLong())), Operators.cond(Operators.and(Operators.isEmpty(Operators.ifNull(Operators.first(Operators.map(entity, "$$this.whitelisted")), Collections.EMPTY_LIST)), Operators.bitSetIsEmpty(clearedBits)), Collections.EMPTY_LIST, List.of(Operators.cond(Operators.bitSetIsEmpty(clearedBits), Operators.removeObject(Operators.first(entity), "blacklisted"), Operators.mergeObjects(Operators.first(entity), new Document("blacklisted", clearedBits)))))))),
+			Operators.setOnInsert("guildId", event.getGuild().getIdLong())
+		);
+
+		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).upsert(true).projection(Projections.include("blacklist.entities"));
+		this.database.findAndUpdateChannelById(channel.getIdLong(), update, options).whenComplete((data, exception) -> {
+			if (ExceptionUtility.sendExceptionally(event, exception)) {
+				return;
+			}
+
+			List<Document> oldEntities = data == null ? Collections.emptyList() : data.getEmbedded(List.of("blacklist", "entities"), Collections.emptyList());
+			Document oldEntity = oldEntities.stream()
+				.filter(d -> d.getLong("id") == holder.getIdLong())
+				.findFirst()
+				.orElse(null);
+
+			if (oldEntity == null) {
+				event.replyFailure((commands.size() == 1 ? "That command is" :  "Those commands are") +  " not blacklisted for that " + (role ? "role" : "user") + " in " +  channel.getAsMention()).queue();
+				return;
+			}
+
+			long[] oldLongArray = oldEntity.getList("blacklisted", Long.class, Collections.emptyList()).stream().mapToLong(l -> l).toArray();
+
+			BitSet oldBitSet = BitSet.valueOf(oldLongArray);
+			oldBitSet.and(bitSet);
+
+			if (oldBitSet.isEmpty()) {
+				event.replyFailure((commands.size() == 1 ? "That command is" :  "Those commands are") +  " not blacklisted for that " + (role ? "role" : "user") + " in " +  channel.getAsMention()).queue();
+				return;
+			}
+
+			event.replySuccess((commands.size() == 1 ? "That command is" :  "Those commands are") +  " no longer blacklisted for that " + (role ? "role" : "user") + " in " +  channel.getAsMention()).queue();
+		});
+	}
+
 }
