@@ -206,16 +206,15 @@ public class Operators {
 	}
 	
 	public static Bson bitwiseNot(Object x) {
-		return Operators.subtract(Operators.multiply(x, -1), 1);
+		return Operators.cond(Operators.eq(x, Long.MIN_VALUE), Long.MAX_VALUE, Operators.subtract(Operators.multiply(x, -1), 1));
 	}
 
-	// Doesn't work with long min value
 	private static Bson bitwiseAndUnchecked(Object x, Object y) {
 		return Operators.cond(Operators.eq(y, 0), 0, Operators.abs(Operators.sigma(0, Operators.floor(Operators.log(x, 2)), Operators.multiply(Operators.pow(2, "$$this"), Operators.mod(Operators.floor(Operators.divide(x, Operators.pow(2, "$$this"))), 2), Operators.mod(Operators.floor(Operators.divide(y, Operators.pow(2, "$$this"))), 2)))));
 	}
 	
 	public static Bson bitwiseAnd(Object x, Object y) {
-		return Operators.cond(Operators.and(Operators.lt(x, 0), Operators.lt(y, 0)), Operators.let(new Document("value", Operators.cond(Operators.lt(x, y), Operators.bitwiseAndUnchecked(Operators.abs(x), y), Operators.bitwiseAndUnchecked(Operators.abs(y), x))), Operators.subtract("$$value", Operators.multiply("$$value", 2))), Operators.cond(Operators.lt(x, y), Operators.bitwiseAndUnchecked(y, x), Operators.bitwiseAndUnchecked(x, y)));
+		return Operators.cond(Operators.and(Operators.eq(x, Long.MIN_VALUE), Operators.eq(y, Long.MIN_VALUE)), Long.MIN_VALUE, Operators.cond(Operators.or(Operators.eq(x, Long.MIN_VALUE), Operators.eq(y, Long.MIN_VALUE)), 0L, Operators.cond(Operators.and(Operators.lt(x, 0), Operators.lt(y, 0)), Operators.let(new Document("value", Operators.cond(Operators.lt(x, y), Operators.bitwiseAndUnchecked(Operators.abs(x), y), Operators.bitwiseAndUnchecked(Operators.abs(y), x))), Operators.subtract("$$value", Operators.multiply("$$value", 2))), Operators.cond(Operators.lt(x, y), Operators.bitwiseAndUnchecked(y, x), Operators.bitwiseAndUnchecked(x, y)))));
 	}
 	
 	private static Bson bitwiseOrUnchecked(Object x, Object y) {
@@ -242,13 +241,17 @@ public class Operators {
 		return Operators.concatArrays(Operators.reduce(Operators.range(0, wordsInCommon), Collections.EMPTY_LIST, Operators.let(new Document("index", "$$this"), Operators.concatArrays("$$value", List.of(Operators.toLong(Operators.bitwiseOr(Operators.arrayElemAt(longArray, "$$index"), Operators.arrayElemAt(longArray2, "$$index"))))))), Operators.cond(Operators.eq(difference, 0), Collections.EMPTY_LIST, Operators.slice(largerWords, wordsInCommon, difference)));
 	}
 
-	/*public static Bson bitSetAnd(Object longArray, Object longArray2) {
+	public static Bson bitSetAnd(Object longArray, Object longArray2) {
 		Bson wordsInCommon = Operators.min(Operators.size(longArray), Operators.size(longArray2));
-		Bson largerWords = Operators.cond(Operators.gt(Operators.size(longArray), Operators.size(longArray2)), longArray, longArray2);
-		Bson difference = Operators.subtract(Operators.size(largerWords), wordsInCommon);
 
 		return Operators.reduce(Operators.range(0, wordsInCommon), Collections.EMPTY_LIST, Operators.let(new Document("index", "$$this"), Operators.concatArrays("$$value", List.of(Operators.toLong(Operators.bitwiseAnd(Operators.arrayElemAt(longArray, "$$index"), Operators.arrayElemAt(longArray2, "$$index")))))));
-	}*/
+	}
+
+	public static Bson bitSetClear(Object longArray, Object clearLongArray) {
+		Bson wordsInCommon = Operators.min(Operators.size(longArray), Operators.size(clearLongArray));
+
+		return Operators.reduce(Operators.range(0, wordsInCommon), Collections.EMPTY_LIST, Operators.let(new Document("index", "$$this"), Operators.concatArrays("$$value", List.of(Operators.toLong(Operators.bitwiseAnd(Operators.arrayElemAt(longArray, "$$index"), Operators.bitwiseNot(Operators.arrayElemAt(clearLongArray, "$$index"))))))));
+	}
 
 	public static Bson bitSetIsEmpty(Object longArray) {
 		return Operators.isEmpty(Operators.filter(longArray, Operators.ne("$$this", 0L)));
