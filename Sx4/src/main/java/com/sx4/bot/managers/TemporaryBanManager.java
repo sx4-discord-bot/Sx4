@@ -83,7 +83,7 @@ private static final TemporaryBanManager INSTANCE = new TemporaryBanManager();
 		this.putExecutor(guildId, userId, executor);
 	}
 
-	public DeleteOneModel<Document> removeBanAndGet(long guildId, long userId) {
+	public UpdateOneModel<Document> removeBanAndGet(long guildId, long userId) {
 		ShardManager shardManager = Sx4.get().getShardManager();
 
 		Guild guild = shardManager.getGuildById(guildId);
@@ -101,13 +101,13 @@ private static final TemporaryBanManager INSTANCE = new TemporaryBanManager();
 		ModActionManager.get().onModAction(new UnbanEvent(guild.getSelfMember(), user, new Reason("Ban length served")));
 		this.deleteExecutor(guildId, userId);
 
-		return new DeleteOneModel<>(Filters.and(Filters.eq("guildId", guildId), Filters.eq("userId", userId)));
+		return new UpdateOneModel<>(Filters.and(Filters.eq("guildId", guildId), Filters.eq("userId", userId)), Updates.unset("temporaryBan.unbanAt"));
 	}
 	
 	public void removeBan(long guildId, long userId) {
-		DeleteOneModel<Document> model = this.removeBanAndGet(guildId, userId);
+		UpdateOneModel<Document> model = this.removeBanAndGet(guildId, userId);
 		if (model != null) {
-			Database.get().deleteTemporaryBan(model).whenComplete(Database.exceptionally());
+			Database.get().updateMember(model).whenComplete(Database.exceptionally());
 		}
 	}
 
@@ -115,12 +115,12 @@ private static final TemporaryBanManager INSTANCE = new TemporaryBanManager();
 		Database database = Database.get();
 
 		List<WriteModel<Document>> bulkData = new ArrayList<>();
-		database.getTemporaryBans(Database.EMPTY_DOCUMENT, Projections.include("guildId", "userId", "unbanAt")).forEach(data -> {
-			long currentTime = Clock.systemUTC().instant().getEpochSecond(), unbanAt = data.getLong("unbanAt");
+		database.getMembers(Filters.exists("temporaryBan.unbanAt"), Projections.include("guildId", "userId", "temporaryBan.unbanAt")).forEach(data -> {
+			long currentTime = Clock.systemUTC().instant().getEpochSecond(), unbanAt = data.getEmbedded(List.of("temporaryBan", "unbanAt"), Long.class);
 			if (unbanAt > currentTime) {
 				this.putBan(data.getLong("guildId"), data.getLong("userId"), unbanAt - currentTime);
 			} else {
-				DeleteOneModel<Document> model = this.removeBanAndGet(data.getLong("guildId"), data.getLong("userId"));
+				UpdateOneModel<Document> model = this.removeBanAndGet(data.getLong("guildId"), data.getLong("userId"));
 				if (model != null) {
 					bulkData.add(model);
 				}
@@ -128,7 +128,7 @@ private static final TemporaryBanManager INSTANCE = new TemporaryBanManager();
 		});
 
 		if (!bulkData.isEmpty()) {
-			database.bulkWriteTemporaryBans(bulkData).whenComplete(Database.exceptionally());
+			database.bulkWriteMembers(bulkData).whenComplete(Database.exceptionally());
 		}
 	}
 	

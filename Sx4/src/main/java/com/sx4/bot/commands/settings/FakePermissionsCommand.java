@@ -58,7 +58,7 @@ public class FakePermissionsCommand extends Sx4Command {
 		boolean role = holder instanceof Role;
 		
 		Document data = new Document("id", holder.getIdLong())
-			.append("type", role ? 1 : 0)
+			.append("type", role ? HolderType.ROLE.getType() : HolderType.USER.getType())
 			.append("permissions", rawPermissions);
 		
 		Bson filter = Operators.filter("$fakePermissions.holders", Operators.eq("$$this.id", holder.getIdLong()));

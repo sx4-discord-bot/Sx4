@@ -97,18 +97,16 @@ public class ModUtility {
 			.max(Integer::compareTo)
 			.get();
 
-		List<Bson> update = List.of(Operators.set("warnings", Operators.add(Operators.mod(Operators.ifNull("$warnings", 0), maxWarning), 1)));
-		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER).projection(Projections.include("warnings")).upsert(true);
+		List<Bson> update = List.of(Operators.set("warn.warnings", Operators.add(Operators.mod(Operators.ifNull("$warn.warnings", 0), maxWarning), 1)));
+		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER).projection(Projections.include("warn.warnings")).upsert(true);
 
-		database.findAndUpdateWarn(Filters.and(Filters.eq("guildId", guild.getIdLong()), Filters.eq("userId", target.getIdLong())), update, options).whenComplete((result, exception) -> {
+		database.findAndUpdateMemberById(target.getIdLong(), guild.getIdLong(), update, options).whenComplete((result, exception) -> {
 			if (exception != null) {
 				future.completeExceptionally(exception);
 				return;
 			}
 
-			System.out.println(result);
-
-			int warnings = result.getInteger("warnings");
+			int warnings = result.getEmbedded(List.of("warn", "warnings"), Integer.class);
 
 			Action action = config.stream()
 				.filter(d -> d.getInteger("number") == warnings)
@@ -141,8 +139,8 @@ public class ModUtility {
 					ModUtility.upsertMuteRole(guild, mute.get("roleId", 0L), mute.get("autoUpdate", true)).thenCompose(role -> {
 						atomicRole.set(role);
 
-						List<Bson> muteUpdate = List.of(Operators.set("unmuteAt", Operators.add(muteDuration, Operators.cond(Operators.and(extend, Operators.exists("$unmuteAt")), "$unmuteAt", Operators.nowEpochSecond()))));
-						return database.updateMute(Filters.and(Filters.eq("guildId", guild.getIdLong()), Filters.eq("userId", target.getIdLong())), muteUpdate);
+						List<Bson> muteUpdate = List.of(Operators.set("mute.unmuteAt", Operators.add(muteDuration, Operators.cond(Operators.and(extend, Operators.exists("$mute.unmuteAt")), "$mute.unmuteAt", Operators.nowEpochSecond()))));
+						return database.updateMemberById(target.getIdLong(), guild.getIdLong(), muteUpdate);
 					}).whenComplete((muteResult, muteException) -> {
 						if (muteException != null) {
 							future.completeExceptionally(muteException);
@@ -202,8 +200,8 @@ public class ModUtility {
 
 					long temporaryBanDuration = ((TimeAction) action).getDuration();
 
-					Bson temporaryBanUpdate = Updates.set("unbanAt", Clock.systemUTC().instant().getEpochSecond() + temporaryBanDuration);
-					database.updateTemporaryBan(Filters.and(Filters.eq("guildId", guild.getIdLong()), Filters.eq("userId", target.getIdLong())), temporaryBanUpdate).whenComplete((temporaryBanResult, temporaryBanException) -> {
+					Bson temporaryBanUpdate = Updates.set("temporaryBan.unbanAt", Clock.systemUTC().instant().getEpochSecond() + temporaryBanDuration);
+					database.updateMemberById(target.getIdLong(), guild.getIdLong(), temporaryBanUpdate).whenComplete((temporaryBanResult, temporaryBanException) -> {
 						if (temporaryBanException != null) {
 							future.completeExceptionally(temporaryBanException);
 							return;

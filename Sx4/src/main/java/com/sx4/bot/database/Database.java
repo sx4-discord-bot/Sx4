@@ -39,20 +39,15 @@ public class Database {
 	private final MongoCollection<Document> guilds;
 	private final MongoCollection<Document> users;
 	private final MongoCollection<Document> channels;
+	private final MongoCollection<Document> members;
 
 	private final MongoCollection<Document> reminders;
 
 	private final MongoCollection<Document> suggestions;
-
-	private final MongoCollection<Document> warns;
-	private final MongoCollection<Document> mutes;
-	private final MongoCollection<Document> temporaryBans;
 	
 	private final MongoCollection<Document> giveaways;
 
 	private final MongoCollection<Document> redirects;
-	
-	private final MongoCollection<Document> patrons;
 	
 	private final MongoCollection<Document> auction;
 	
@@ -82,42 +77,30 @@ public class Database {
 		this.database = this.client.getDatabase(Config.get().getDatabase());
 		
 		this.users = this.database.getCollection("users");
+
 		this.guilds = this.database.getCollection("guilds");
 
 		Bson guildId = Indexes.descending("guildId"), userId = Indexes.descending("userId");
 
 		this.channels = this.database.getCollection("channels");
-		this.channels.createIndex(guildId);
+		this.channels.createIndex(Indexes.descending("guildId"));
+
+		this.members = this.database.getCollection("members");
+		this.members.createIndex(Indexes.compoundIndex(guildId, userId), uniqueIndex);
+		this.members.createIndex(guildId);
+		this.members.createIndex(userId);
 
 		this.reminders = this.database.getCollection("reminders");
-		this.reminders.createIndex(userId);
+		this.reminders.createIndex(Indexes.descending("userId"));
 
 		this.suggestions = this.database.getCollection("suggestions");
-		this.suggestions.createIndex(guildId);
+		this.suggestions.createIndex(Indexes.descending("guildId"));
 		this.suggestions.createIndex(Indexes.descending("messageId"));
-
-		this.warns = this.database.getCollection("warns");
-		this.warns.createIndex(Indexes.compoundIndex(guildId, userId), uniqueIndex);
-		this.warns.createIndex(guildId);
-		this.warns.createIndex(userId);
-
-		this.mutes = this.database.getCollection("mutes");
-		this.mutes.createIndex(Indexes.compoundIndex(guildId, userId), uniqueIndex);
-		this.mutes.createIndex(guildId);
-		this.mutes.createIndex(userId);
-
-		this.temporaryBans = this.database.getCollection("temporaryBans");
-		this.temporaryBans.createIndex(Indexes.compoundIndex(guildId, userId), uniqueIndex);
-		this.temporaryBans.createIndex(guildId);
-		this.temporaryBans.createIndex(userId);
 		
 		this.giveaways = this.database.getCollection("giveaways");
 		this.giveaways.createIndex(Indexes.descending("guildId"));
 		this.giveaways.createIndex(Indexes.descending("channelId"));
 		this.giveaways.createIndex(Indexes.descending("winners"));
-		
-		this.patrons = this.database.getCollection("patrons");
-		this.patrons.createIndex(Indexes.descending("discordId"));
 
 		this.redirects = this.database.getCollection("redirects");
 		this.redirects.createIndex(Indexes.descending("url"));
@@ -279,122 +262,6 @@ public class Database {
 		return CompletableFuture.supplyAsync(() -> this.reminders.bulkWrite(bulkData));
 	}
 
-	public MongoCollection<Document> getTemporaryBans() {
-		return this.temporaryBans;
-	}
-
-	public FindIterable<Document> getTemporaryBans(Bson filter, Bson projection) {
-		return this.temporaryBans.find(filter).projection(projection);
-	}
-
-	public Document getTemporaryBan(Bson filter, Bson projection) {
-		return this.getTemporaryBans(filter, projection).first();
-	}
-
-	public CompletableFuture<UpdateResult> updateTemporaryBan(Bson filter, Bson update, UpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.temporaryBans.updateOne(filter, update, options));
-	}
-
-	public CompletableFuture<UpdateResult> updateTemporaryBan(Bson filter, Bson update) {
-		return this.updateTemporaryBan(filter, update, this.updateOptions);
-	}
-
-	public CompletableFuture<UpdateResult> updateTemporaryBan(Bson filter, List<Bson> update, UpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.temporaryBans.updateOne(filter, update, options));
-	}
-
-	public CompletableFuture<UpdateResult> updateTemporaryBan(Bson filter, List<Bson> update) {
-		return this.updateTemporaryBan(filter, update, this.updateOptions);
-	}
-
-	public CompletableFuture<DeleteResult> deleteTemporaryBan(Bson filter) {
-		return CompletableFuture.supplyAsync(() -> this.temporaryBans.deleteOne(filter));
-	}
-
-	public CompletableFuture<DeleteResult> deleteTemporaryBan(DeleteOneModel<Document> model) {
-		return this.deleteTemporaryBan(model.getFilter());
-	}
-
-	public CompletableFuture<BulkWriteResult> bulkWriteTemporaryBans(List<WriteModel<Document>> bulkData) {
-		return CompletableFuture.supplyAsync(() -> this.temporaryBans.bulkWrite(bulkData));
-	}
-
-	public MongoCollection<Document> getWarns() {
-		return this.warns;
-	}
-
-	public FindIterable<Document> getWarns(Bson filter, Bson projection) {
-		return this.warns.find(filter).projection(projection);
-	}
-
-	public Document getWarn(Bson filter, Bson projection) {
-		return this.getWarns(filter, projection).first();
-	}
-
-	public CompletableFuture<UpdateResult> updateWarn(Bson filter, List<Bson> update, UpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.warns.updateOne(filter, update, options));
-	}
-
-	public CompletableFuture<UpdateResult> updateWarn(Bson filter, List<Bson> update) {
-		return this.updateWarn(filter, update, this.updateOptions);
-	}
-
-	public CompletableFuture<Document> findAndUpdateWarn(Bson filter, List<Bson> update, FindOneAndUpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.warns.findOneAndUpdate(filter, update, options));
-	}
-
-	public CompletableFuture<Document> findAndUpdateWarn(Bson filter, List<Bson> update) {
-		return this.findAndUpdateWarn(filter, update, this.findOneAndUpdateOptions);
-	}
-
-	public MongoCollection<Document> getMutes() {
-		return this.mutes;
-	}
-
-	public FindIterable<Document> getMutes(Bson filter, Bson projection) {
-		return this.mutes.find(filter).projection(projection);
-	}
-
-	public Document getMute(Bson filter, Bson projection) {
-		return this.getMutes(filter, projection).first();
-	}
-
-	public CompletableFuture<BulkWriteResult> bulkWriteMutes(List<WriteModel<Document>> bulkData) {
-		return CompletableFuture.supplyAsync(() -> this.mutes.bulkWrite(bulkData));
-	}
-
-	public CompletableFuture<DeleteResult> deleteMute(Bson filter) {
-		return CompletableFuture.supplyAsync(() -> this.mutes.deleteOne(filter));
-	}
-
-	public CompletableFuture<DeleteResult> deleteMute(DeleteOneModel<Document> model) {
-		return this.deleteMute(model.getFilter());
-	}
-
-	public CompletableFuture<InsertOneResult> insertMute(Document data) {
-		return CompletableFuture.supplyAsync(() -> this.mutes.insertOne(data));
-	}
-
-	public CompletableFuture<UpdateResult> updateMute(Bson filter, Bson update, UpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.mutes.updateOne(filter, update, options));
-	}
-
-	public CompletableFuture<UpdateResult> updateMute(Bson filter, Bson update) {
-		return this.updateMute(filter, update, this.updateOptions);
-	}
-
-	public CompletableFuture<UpdateResult> updateMute(Bson filter, List<Bson> update, UpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.mutes.updateOne(filter, update, options));
-	}
-
-	public CompletableFuture<UpdateResult> updateMute(Bson filter, List<Bson> update) {
-		return this.updateMute(filter, update, this.updateOptions);
-	}
-
-	public CompletableFuture<Document> findAndUpdateMute(Bson filter, List<Bson> update, FindOneAndUpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.mutes.findOneAndUpdate(filter, update, options));
-	}
-
 	public MongoCollection<Document> getYouTubeNotifications() {
 		return this.youtubeNotifications;
 	}
@@ -471,137 +338,6 @@ public class Database {
 		return CompletableFuture.supplyAsync(() -> this.redirects.findOneAndUpdate(Filters.eq("url", url), Updates.combine(Updates.setOnInsert("_id", id), Updates.setOnInsert("url", url)), this.findOneAndUpdateOptions));
 	}
 	
-	public MongoCollection<Document> getPatrons() {
-		return this.patrons;
-	}
-	
-	public FindIterable<Document> getPatrons(Bson filter, Bson projection) {
-		return this.patrons.find(filter).projection(projection);
-	}
-	
-	public long countPatrons(Bson filter) {
-		return this.patrons.countDocuments(filter);
-	}
-	
-	public Document getPatronByFilter(Bson filter, Bson projection) {
-		Document data = this.getPatrons(filter, projection).first();
-		
-		return data == null ? Database.EMPTY_DOCUMENT : data;
-	}
-	
-	public Document getPatronById(String id, Bson filter, Bson projection) {
-		if (filter == null) {
-			filter = Filters.eq("_id", id);
-		} else {
-			filter = Filters.and(Filters.eq("_id", id), filter);
-		}
-		
-		Document data = this.patrons.find(filter).projection(projection).first();
-		
-		return data == null ? Database.EMPTY_DOCUMENT : data;
-	}
-	
-	public Document getPatronById(String id, Bson projection) {
-		return this.getPatronById(id, null, projection);
-	}
-	
-	public CompletableFuture<UpdateResult> updatePatronByFilter(Bson filter, Bson update, UpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.patrons.updateOne(filter, update, options));
-	}
-	
-	public CompletableFuture<UpdateResult> updatePatronByFilter(Bson filter, Bson update) {
-		return this.updatePatronByFilter(filter, update, this.updateOptions);
-	}
-	
-	public CompletableFuture<UpdateResult> updatePatronById(String id, Bson filter, Bson update, UpdateOptions options) {
-		Bson dbFilter;
-		if (filter == null) {
-			dbFilter = Filters.eq("_id", id);
-		} else {
-			dbFilter = Filters.and(Filters.eq("_id", id), filter);
-		}
-		
-		return this.updatePatronByFilter(dbFilter, update, options);
-	}
-	
-	public CompletableFuture<UpdateResult> updatePatronById(String id, Bson update, UpdateOptions options) {
-		return this.updatePatronById(id, null, update, options);
-	}
-	
-	public CompletableFuture<UpdateResult> updatePatronById(String id, Bson update) {
-		return this.updatePatronById(id, update, this.updateOptions);
-	}
-	
-	public CompletableFuture<UpdateResult> updatePatronById(UpdateOneModel<Document> update) {
-		return CompletableFuture.supplyAsync(() -> this.patrons.updateOne(update.getFilter(), update.getUpdate(), update.getOptions()));
-	}
-	
-	public CompletableFuture<Document> findAndUpdatePatronById(Bson filter, Bson update, FindOneAndUpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.patrons.findOneAndUpdate(filter, update, options));
-	}
-	
-	public CompletableFuture<Document> findAndUpdatePatronById(String id, Bson filter, Bson update, FindOneAndUpdateOptions options) {
-		Bson dbFilter;
-		if (filter == null) {
-			dbFilter = Filters.eq("_id", id);
-		} else {
-			dbFilter = Filters.and(Filters.eq("_id", id), filter);
-		}
-		
-		return this.findAndUpdatePatronById(dbFilter, update, options);
-	}
-	
-	public CompletableFuture<Document> findAndUpdatePatronById(String id, Bson update, FindOneAndUpdateOptions options) {
-		return this.findAndUpdatePatronById(id, null, update, options);
-	}
-	
-	public CompletableFuture<Document> findAndUpdatePatronById(String id, Bson filter, Bson projection, Bson update) {
-		return this.findAndUpdatePatronById(id, filter, update, this.findOneAndUpdateOptions.projection(projection));
-	}
-	
-	public CompletableFuture<Document> findAndUpdatePatronById(String id, Bson projection, Bson update) {
-		return this.findAndUpdatePatronById(id, null, update, this.findOneAndUpdateOptions.projection(projection));
-	}
-	
-	public CompletableFuture<Document> findAndUpdatePatronById(Bson filter, List<? extends Bson> update, FindOneAndUpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.patrons.findOneAndUpdate(filter, update, options));
-	}
-	
-	public CompletableFuture<Document> findAndUpdatePatronById(String id, Bson filter, List<? extends Bson> update, FindOneAndUpdateOptions options) {
-		Bson dbFilter;
-		if (filter == null) {
-			dbFilter = Filters.eq("_id", id);
-		} else {
-			dbFilter = Filters.and(Filters.eq("_id", id), filter);
-		}
-		
-		return this.findAndUpdatePatronById(dbFilter, update, options);
-	}
-	
-	public CompletableFuture<Document> findAndUpdatePatronById(String id, Bson filter, Bson projection, List<? extends Bson> update) {
-		return this.findAndUpdatePatronById(id, filter, update, this.findOneAndUpdateOptions.projection(projection));
-	}
-	
-	public CompletableFuture<Document> findAndUpdatePatronById(String id, Bson projection, List<? extends Bson> update) {
-		return this.findAndUpdatePatronById(id, null, update, this.findOneAndUpdateOptions.projection(projection));
-	}
-
-	public CompletableFuture<Document> findAndUpdatePatronByFilter(Bson filter, List<? extends Bson> update, FindOneAndUpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.patrons.findOneAndUpdate(filter, update, options));
-	}
-	
-	public CompletableFuture<DeleteResult> deletePatronById(String id) {
-		return CompletableFuture.supplyAsync(() -> this.patrons.deleteOne(Filters.eq("_id", id)));
-	}
-	
-	public CompletableFuture<Document> findAndDeletePatronById(String id, Bson projection) {
-		return CompletableFuture.supplyAsync(() -> this.patrons.findOneAndDelete(Filters.eq("_id", id), new FindOneAndDeleteOptions().projection(projection)));
-	}
-	
-	public CompletableFuture<BulkWriteResult> bulkWritePatrons(List<? extends WriteModel<? extends Document>> bulkData) {
-		return CompletableFuture.supplyAsync(() -> this.patrons.bulkWrite(bulkData));
-	}
-	
 	public MongoCollection<Document> getRegexes() {
 		return this.regexes;
 	}
@@ -610,20 +346,14 @@ public class Database {
 		return this.regexes.find(filter).projection(projection);
 	}
 	
-	public Document getRegexById(ObjectId id, Bson filter, Bson projection) {
-		if (filter == null) {
-			filter = Filters.eq("_id", id);
-		} else {
-			filter = Filters.and(Filters.eq("_id", id), filter);
-		}
-		
+	public Document getRegex(Bson filter, Bson projection) {
 		Document data = this.regexes.find(filter).projection(projection).first();
 		
 		return data == null ? Database.EMPTY_DOCUMENT : data;
 	}
 	
 	public Document getRegexById(ObjectId id, Bson projection) {
-		return this.getRegexById(id, null, projection);
+		return this.getRegex(Filters.eq("_id", id), projection);
 	}
 	
 	public CompletableFuture<InsertOneResult> insertRegex(Document data) {
@@ -644,6 +374,80 @@ public class Database {
 	
 	public CompletableFuture<Document> findAndDeleteRegexById(ObjectId id, FindOneAndDeleteOptions options) {
 		return CompletableFuture.supplyAsync(() -> this.regexes.findOneAndDelete(Filters.eq("_id", id), options));
+	}
+
+	public MongoCollection<Document> getMembers() {
+		return this.members;
+	}
+
+	public FindIterable<Document> getMembers(Bson filter, Bson projection) {
+		return this.members.find(filter).projection(projection);
+	}
+
+	public Document getMember(Bson filter, Bson projection) {
+		Document data = this.getMembers(filter, projection).first();
+
+		return data == null ? Database.EMPTY_DOCUMENT : data;
+	}
+
+	public Document getMemberById(long userId, long guildId, Bson projection) {
+		return this.getMember(Filters.and(Filters.eq("userId", userId), Filters.eq("guildId", guildId)), projection);
+	}
+
+	public CompletableFuture<UpdateResult> updateMember(Bson filter, List<? extends Bson> update, UpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.members.updateOne(filter, update, options));
+	}
+
+	public CompletableFuture<UpdateResult> updateMemberById(long userId, long guildId, List<? extends Bson> update, UpdateOptions options) {
+		return this.updateMember(Filters.and(Filters.eq("userId", userId), Filters.eq("guildId", guildId)), update, options);
+	}
+
+	public CompletableFuture<UpdateResult> updateMemberById(long userId, long guildId, List<? extends Bson> update) {
+		return this.updateMemberById(userId, guildId, update, this.updateOptions);
+	}
+
+	public CompletableFuture<UpdateResult> updateMember(Bson filter, Bson update, UpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.members.updateOne(filter, update, options));
+	}
+
+	public CompletableFuture<UpdateResult> updateMemberById(long userId, long guildId, Bson update, UpdateOptions options) {
+		return this.updateMember(Filters.and(Filters.eq("userId", userId), Filters.eq("guildId", guildId)), update, options);
+	}
+
+	public CompletableFuture<UpdateResult> updateMemberById(long userId, long guildId, Bson update) {
+		return this.updateMemberById(userId, guildId, update, this.updateOptions);
+	}
+
+	public CompletableFuture<UpdateResult> updateMember(UpdateOneModel<Document> update) {
+		return this.updateMember(update.getFilter(), update.getUpdate(), update.getOptions());
+	}
+
+	public CompletableFuture<Document> findAndUpdateMember(Bson filter, Bson update, FindOneAndUpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.members.findOneAndUpdate(filter, update, options));
+	}
+
+	public CompletableFuture<Document> findAndUpdateMemberById(long userId, long guildId, Bson update, FindOneAndUpdateOptions options) {
+		return this.findAndUpdateMember(Filters.and(Filters.eq("userId", userId), Filters.eq("guildId", guildId)), update, options);
+	}
+
+	public CompletableFuture<Document> findAndUpdateMemberById(long userId, long guildId, Bson update) {
+		return this.findAndUpdateMemberById(userId, guildId, update, this.findOneAndUpdateOptions);
+	}
+
+	public CompletableFuture<Document> findAndUpdateMember(Bson filter, List<Bson> update, FindOneAndUpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.members.findOneAndUpdate(filter, update, options));
+	}
+
+	public CompletableFuture<Document> findAndUpdateMemberById(long userId, long guildId, List<Bson> update, FindOneAndUpdateOptions options) {
+		return this.findAndUpdateMember(Filters.and(Filters.eq("userId", userId), Filters.eq("guildId", guildId)), update, options);
+	}
+
+	public CompletableFuture<Document> findAndUpdateMemberById(long userId, long guildId, List<Bson> update) {
+		return this.findAndUpdateMemberById(userId, guildId, update, this.findOneAndUpdateOptions);
+	}
+
+	public CompletableFuture<BulkWriteResult> bulkWriteMembers(List<? extends WriteModel<? extends Document>> bulkData) {
+		return CompletableFuture.supplyAsync(() -> this.members.bulkWrite(bulkData));
 	}
 
 	public MongoCollection<Document> getChannels() {

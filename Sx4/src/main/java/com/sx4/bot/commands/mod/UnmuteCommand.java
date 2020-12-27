@@ -1,8 +1,8 @@
 package com.sx4.bot.commands.mod;
 
 import com.jockie.bot.core.argument.Argument;
-import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Projections;
+import com.mongodb.client.model.Updates;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
@@ -42,7 +42,7 @@ public class UnmuteCommand extends Sx4Command {
 			return;
 		}
 		
-		this.database.deleteMute(Filters.and(Filters.eq("guildId", event.getGuild().getIdLong()), Filters.eq("userId", member.getIdLong()))).whenComplete((result, exception) -> {
+		this.database.updateMemberById(member.getUser().getIdLong(), event.getGuild().getIdLong(), Updates.unset("mute.unmuteAt")).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}

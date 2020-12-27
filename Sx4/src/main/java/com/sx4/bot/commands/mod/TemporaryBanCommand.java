@@ -2,7 +2,6 @@ package com.sx4.bot.commands.mod;
 
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.option.Option;
-import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Projections;
 import com.sx4.bot.annotations.argument.DefaultNumber;
 import com.sx4.bot.annotations.argument.Limit;
@@ -74,8 +73,8 @@ public class TemporaryBanCommand extends Sx4Command {
 
 					long duration = time == null ? data.get("defaultTime", 86400L) : time.toSeconds();
 
-					List<Bson> update = List.of(Operators.set("unbanAt", Operators.add(Operators.nowEpochSecond(), duration)));
-					this.database.updateTemporaryBan(Filters.and(Filters.eq("guildId", guild.getIdLong()), Filters.eq("userId", user.getIdLong())), update).whenComplete((result, resultException) -> {
+					List<Bson> update = List.of(Operators.set("temporaryBan.unbanAt", Operators.add(Operators.nowEpochSecond(), duration)));
+					this.database.updateMemberById(user.getIdLong(), guild.getIdLong(), update).whenComplete((result, resultException) -> {
 						if (ExceptionUtility.sendExceptionally(event, resultException)) {
 							return;
 						}

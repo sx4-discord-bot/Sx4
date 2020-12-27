@@ -112,7 +112,7 @@ public class MuteManager {
 		this.putMute(guildId, userId, roleId, seconds, false);
 	}
 	
-	public DeleteOneModel<Document> removeMuteBulk(long guildId, long userId, long roleId) {
+	public UpdateOneModel<Document> removeMuteBulk(long guildId, long userId, long roleId) {
 		Guild guild = Sx4.get().getShardManager().getGuildById(guildId);
 		if (guild == null) {
 			return null;
@@ -127,13 +127,13 @@ public class MuteManager {
 		ModActionManager.get().onModAction(new UnmuteEvent(guild.getSelfMember(), member == null ? null : member.getUser(), new Reason("Mute length served")));
 		this.deleteExecutor(guildId, userId);
 		
-		return new DeleteOneModel<>(Filters.and(Filters.eq("guildId", guildId), Filters.eq("userId", userId)));
+		return new UpdateOneModel<>(Filters.and(Filters.eq("guildId", guildId), Filters.eq("userId", userId)), Updates.unset("mute.unmuteAt"));
 	}
 	
 	public void removeMute(long guildId, long userId, long roleId) {
-		DeleteOneModel<Document> model = this.removeMuteBulk(guildId, userId, roleId);
+		UpdateOneModel<Document> model = this.removeMuteBulk(guildId, userId, roleId);
 		if (model != null) {
-			Database.get().deleteMute(model).whenComplete(Database.exceptionally());
+			Database.get().updateMember(model).whenComplete(Database.exceptionally());
 		}
 	}
 	
@@ -143,18 +143,18 @@ public class MuteManager {
 		Map<Long, Long> roleIds = new HashMap<>();
 		
 		List<WriteModel<Document>> bulkData = new ArrayList<>();
-		database.getMutes(Database.EMPTY_DOCUMENT, Projections.include("unmuteAt", "userId", "guildId")).forEach(data -> {
+		database.getMembers(Filters.exists("mute.unmuteAt"), Projections.include("mute.unmuteAt", "userId", "guildId")).forEach(data -> {
 			long guildId = data.getLong("guildId");
 			if (!roleIds.containsKey(guildId)) {
 				long roleId = database.getGuildById(guildId, Projections.include("mute.roleId")).getEmbedded(List.of("mute", "roleId"), Long.class);
 				roleIds.put(guildId, roleId);
 			}
 
-			long currentTime = Clock.systemUTC().instant().getEpochSecond(), unmuteAt = data.getLong("unmuteAt");
+			long currentTime = Clock.systemUTC().instant().getEpochSecond(), unmuteAt = data.getEmbedded(List.of("mute", "unmuteAt"), Long.class);
 			if (unmuteAt > currentTime) {
 				this.putMute(guildId, data.getLong("userId"), roleIds.get(guildId), unmuteAt - currentTime);
 			} else {
-				DeleteOneModel<Document> model = this.removeMuteBulk(guildId, data.getLong("userId"), roleIds.get(guildId));
+				UpdateOneModel<Document> model = this.removeMuteBulk(guildId, data.getLong("userId"), roleIds.get(guildId));
 				if (model != null) {
 					bulkData.add(model);
 				}
@@ -162,7 +162,7 @@ public class MuteManager {
 		});
 		
 		if (!bulkData.isEmpty()) {
-			database.bulkWriteMutes(bulkData).whenComplete(Database.exceptionally());
+			database.bulkWriteMembers(bulkData).whenComplete(Database.exceptionally());
 		}
 	}
 	

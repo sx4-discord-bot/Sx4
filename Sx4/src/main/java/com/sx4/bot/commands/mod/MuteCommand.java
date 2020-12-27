@@ -2,7 +2,6 @@ package com.sx4.bot.commands.mod;
 
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.option.Option;
-import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Projections;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
@@ -60,8 +59,8 @@ public class MuteCommand extends Sx4Command {
 		ModUtility.upsertMuteRole(event.getGuild(), mute.get("roleId", 0L), mute.get("autoUpdate", true)).thenCompose(role -> {
 			atomicRole.set(role);
 
-			List<Bson> update = List.of(Operators.set("unmuteAt", Operators.add(duration, Operators.cond(Operators.and(extend, Operators.exists("$unmuteAt")), "$unmuteAt", Operators.nowEpochSecond()))));
-			return this.database.updateMute(Filters.and(Filters.eq("guildId", guildId), Filters.eq("userId", userId)), update);
+			List<Bson> update = List.of(Operators.set("mute.unmuteAt", Operators.add(duration, Operators.cond(Operators.and(extend, Operators.exists("$mute.unmuteAt")), "$mute.unmuteAt", Operators.nowEpochSecond()))));
+			return this.database.updateMemberById(userId, guildId, update);
 		}).whenComplete((result, exception) -> {
 			if (exception instanceof MaxRolesException) {
 				event.replyFailure(exception.getMessage()).queue();

@@ -135,7 +135,6 @@ public class Sx4 {
 			eventManager.register(new WaiterHandler());
 			eventManager.register(new GiveawayHandler());
 			eventManager.register(ModHandler.INSTANCE);
-			eventManager.register(PatreonHandler.INSTANCE);
 			eventManager.register(new GuildMessageCache());
 			eventManager.register(new ConnectionHandler());
 			eventManager.register(new ReactionRoleHandler());
@@ -148,6 +147,7 @@ public class Sx4 {
 				.setEventManagerProvider(shardId -> eventManager)
 				.build();
 		} catch (LoginException | IllegalArgumentException e) {
+			e.printStackTrace();
 			System.exit(1);
 			return null;
 		}

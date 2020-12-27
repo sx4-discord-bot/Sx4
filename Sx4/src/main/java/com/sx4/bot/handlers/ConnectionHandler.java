@@ -67,11 +67,11 @@ public class ConnectionHandler extends ListenerAdapter {
 		this.eventsWebhook.send(this.getEmbed(jda, "Ready", Config.get().getGreen()));
 	}
 	
-	public void onReconnect(ReconnectedEvent event) {
+	public void onReconnected(ReconnectedEvent event) {
 		this.eventsWebhook.send(this.getEmbed(event.getJDA(), "Reconnect", Config.get().getGreen()));
 	}
 	
-	public void onResume(ResumedEvent event) {
+	public void onResumed(ResumedEvent event) {
 		this.eventsWebhook.send(this.getEmbed(event.getJDA(), "Resume", Config.get().getGreen()));
 	}
 	

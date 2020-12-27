@@ -1,16 +1,10 @@
 package com.sx4.bot.managers;
 
+import com.sx4.bot.events.patreon.*;
+import com.sx4.bot.hooks.PatreonListener;
+
 import java.util.ArrayList;
 import java.util.List;
-
-import com.sx4.bot.events.patreon.PatreonEvent;
-import com.sx4.bot.events.patreon.PatreonMemberEvent;
-import com.sx4.bot.events.patreon.PatreonMemberUpdateEvent;
-import com.sx4.bot.events.patreon.PatreonPledgeCreateEvent;
-import com.sx4.bot.events.patreon.PatreonPledgeDeleteEvent;
-import com.sx4.bot.events.patreon.PatreonPledgeEvent;
-import com.sx4.bot.events.patreon.PatreonPledgeUpdateEvent;
-import com.sx4.bot.hooks.PatreonListener;
 
 public class PatreonManager {
 	
@@ -52,9 +46,13 @@ public class PatreonManager {
 				
 					if (event instanceof PatreonPledgeCreateEvent) {
 						listener.onPatreonPledgeCreate((PatreonPledgeCreateEvent) event);
-					} else if (event instanceof PatreonPledgeUpdateEvent) {
+					}
+
+					if (event instanceof PatreonPledgeUpdateEvent) {
 						listener.onPatreonPledgeUpdate((PatreonPledgeUpdateEvent) event);
-					} else if (event instanceof PatreonPledgeDeleteEvent) {
+					}
+
+					if (event instanceof PatreonPledgeDeleteEvent) {
 						listener.onPatreonPledgeDelete((PatreonPledgeDeleteEvent) event);
 					}
 				}
