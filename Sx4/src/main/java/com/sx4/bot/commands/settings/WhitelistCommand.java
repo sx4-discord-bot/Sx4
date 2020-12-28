@@ -99,7 +99,7 @@ public class WhitelistCommand extends Sx4Command {
 
 		List<Long> longArray = Arrays.stream(bitSet.toLongArray()).boxed().collect(Collectors.toList());
 
-		List<Bson> update = List.of(Operators.set("blacklist.holders", Operators.let(new Document("holder", Operators.filter("$blacklist.holders", Operators.eq("$$this.id", holder.getIdLong()))), Operators.cond(Operators.or(Operators.extinct("$blacklist.holders"), Operators.isEmpty("$$holder")), "$blacklist.holders", Operators.concatArrays(Operators.filter("$blacklist.holders", Operators.ne("$$this.id", holder.getIdLong())), Operators.let(new Document("result", Operators.bitSetClear(Operators.first(Operators.map("$$holder", "$$this.whitelisted")), longArray)), Operators.cond(Operators.and(Operators.isEmpty(Operators.ifNull(Operators.first(Operators.map("$$holder", "$$this.blacklisted")), Collections.EMPTY_LIST)), Operators.bitSetIsEmpty("$$result")), Collections.EMPTY_LIST, List.of(Operators.cond(Operators.bitSetIsEmpty("$$result"), Operators.removeObject(Operators.first("$$holder"), "whitelisted"), Operators.mergeObjects(Operators.first("$$holder"), new Document("whitelisted", "$$result")))))))))));
+		List<Bson> update = List.of(Operators.set("blacklist.holders", Operators.let(new Document("holder", Operators.filter("$blacklist.holders", Operators.eq("$$this.id", holder.getIdLong()))), Operators.cond(Operators.or(Operators.extinct("$blacklist.holders"), Operators.isEmpty("$$holder")), "$blacklist.holders", Operators.concatArrays(Operators.filter("$blacklist.holders", Operators.ne("$$this.id", holder.getIdLong())), Operators.let(new Document("result", Operators.bitSetClear(Operators.ifNull(Operators.first(Operators.map("$$holder", "$$this.whitelisted")), Collections.EMPTY_LIST), longArray)), Operators.cond(Operators.and(Operators.isEmpty(Operators.ifNull(Operators.first(Operators.map("$$holder", "$$this.blacklisted")), Collections.EMPTY_LIST)), Operators.bitSetIsEmpty("$$result")), Collections.EMPTY_LIST, List.of(Operators.cond(Operators.bitSetIsEmpty("$$result"), Operators.removeObject(Operators.first("$$holder"), "whitelisted"), Operators.mergeObjects(Operators.first("$$holder"), new Document("whitelisted", "$$result")))))))))));
 
 		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("blacklist.holders"));
 		this.database.findAndUpdateChannelById(channel.getIdLong(), update, options).whenComplete((data, exception) -> {
@@ -149,7 +149,7 @@ public class WhitelistCommand extends Sx4Command {
 					return;
 				}
 
-				event.replySuccess("Reset **" + result.getModifiedCount() + "** channels of their blacklist configurations").queue();
+				event.replySuccess("Reset **" + result.getModifiedCount() + "** channels of their whitelist configurations").queue();
 			});
 		} else {
 			TextChannel channel = option.getValue();
@@ -163,7 +163,7 @@ public class WhitelistCommand extends Sx4Command {
 					return;
 				}
 
-				event.replySuccess("That channel no longer has any blacklists").queue();
+				event.replySuccess("That channel no longer has any whitelists").queue();
 			});
 		}
 	}
