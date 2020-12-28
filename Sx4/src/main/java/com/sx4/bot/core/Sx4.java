@@ -238,6 +238,17 @@ public class Sx4 {
 					event.reply(PermissionUtility.formatMissingPermissions(missingPermissions)).queue();
 					return false;
 				}
+			}).addPreExecuteCheck((event, command) -> {
+				if (command instanceof Sx4Command) {
+					boolean canUseCommand = CheckUtility.canUseCommand(event.getMember(), event.getTextChannel(), (Sx4Command) command);
+					if (!canUseCommand) {
+						event.reply("You are blacklisted from using that command in this channel " + this.config.getFailureEmote()).queue();
+					}
+
+					return canUseCommand;
+				} else {
+					return true;
+				}
 			}).addPreParseCheck(message -> !message.getAuthor().isBot());
 	}
 

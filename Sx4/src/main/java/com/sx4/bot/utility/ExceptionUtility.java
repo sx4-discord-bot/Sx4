@@ -52,6 +52,8 @@ public class ExceptionUtility {
 		if (channel != null) {
 			messages.stream().map(channel::sendMessage).forEach(RestAction::queue);
 		}
+
+		throwable.printStackTrace();
 		
 		return true;
 	}
@@ -82,16 +84,15 @@ public class ExceptionUtility {
 	}
 	
 	public static boolean sendExceptionally(CommandEvent event, Throwable throwable) {
-		boolean exception = throwable != null;
-		if (exception) {
-			event.reply(ExceptionUtility.getSimpleErrorMessage(throwable)).queue();
-
-			ExceptionUtility.sendErrorMessage(throwable);
-
-			throwable.printStackTrace();
+		if (throwable == null) {
+			return false;
 		}
+
+		event.reply(ExceptionUtility.getSimpleErrorMessage(throwable)).queue();
+
+		ExceptionUtility.sendErrorMessage(throwable);
 		
-		return exception;
+		return true;
 	}
 	
 }

@@ -57,23 +57,23 @@ public class BlacklistCommand extends Sx4Command {
 		List<Long> longArray = Arrays.stream(bitSet.toLongArray()).boxed().collect(Collectors.toList());
 
 		List<Bson> update = List.of(
-			Operators.set("blacklist.entities", Operators.let(new Document("entities", Operators.ifNull("$blacklist.entities", Collections.EMPTY_LIST)), Operators.let(new Document("entity", Operators.filter("$$entities", Operators.eq("$$this.id", holder.getIdLong()))), Operators.concatArrays(Operators.ifNull(Operators.filter("$$entities", Operators.ne("$$this.id", holder.getIdLong())), Collections.EMPTY_LIST), List.of(Operators.mergeObjects(Operators.ifNull(Operators.first("$$entity"), defaultData), new Document("blacklisted", Operators.bitSetOr(longArray, Operators.ifNull(Operators.first(Operators.map("$$entity", "$$this.blacklisted")), Collections.EMPTY_LIST))))))))),
+			Operators.set("blacklist.holders", Operators.let(new Document("holders", Operators.ifNull("$blacklist.holders", Collections.EMPTY_LIST)), Operators.let(new Document("holder", Operators.filter("$$holders", Operators.eq("$$this.id", holder.getIdLong()))), Operators.concatArrays(Operators.ifNull(Operators.filter("$$holders", Operators.ne("$$this.id", holder.getIdLong())), Collections.EMPTY_LIST), List.of(Operators.mergeObjects(Operators.ifNull(Operators.first("$$holder"), defaultData), new Document("blacklisted", Operators.bitSetOr(longArray, Operators.ifNull(Operators.first(Operators.map("$$holder", "$$this.blacklisted")), Collections.EMPTY_LIST))))))))),
 			Operators.setOnInsert("guildId", event.getGuild().getIdLong())
 		);
 
-		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).upsert(true).projection(Projections.include("blacklist.entities"));
+		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).upsert(true).projection(Projections.include("blacklist.holders"));
 		this.database.findAndUpdateChannelById(channel.getIdLong(), update, options).whenComplete((data, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
 
-			List<Document> oldEntities = data == null ? Collections.emptyList() : data.getEmbedded(List.of("blacklist", "entities"), Collections.emptyList());
-			Document oldEntity = oldEntities.stream()
+			List<Document> oldHolders = data == null ? Collections.emptyList() : data.getEmbedded(List.of("blacklist", "holders"), Collections.emptyList());
+			Document oldHolder = oldHolders.stream()
 				.filter(d -> d.getLong("id") == holder.getIdLong())
 				.findFirst()
 				.orElse(null);
 
-			long[] oldLongArray = oldEntity == null ? new long[0] : oldEntity.getList("blacklisted", Long.class, Collections.emptyList()).stream().mapToLong(l -> l).toArray();
+			long[] oldLongArray = oldHolder == null ? new long[0] : oldHolder.getList("blacklisted", Long.class, Collections.emptyList()).stream().mapToLong(l -> l).toArray();
 
 			BitSet oldBitSet = BitSet.valueOf(oldLongArray);
 			oldBitSet.and(bitSet);
@@ -99,29 +99,26 @@ public class BlacklistCommand extends Sx4Command {
 
 		List<Long> longArray = Arrays.stream(bitSet.toLongArray()).boxed().collect(Collectors.toList());
 
-		List<Bson> update = List.of(
-			Operators.set("blacklist.entities", Operators.let(new Document("entity", Operators.filter("$blacklist.entities", Operators.eq("$$this.id", holder.getIdLong()))), Operators.cond(Operators.or(Operators.extinct("$blacklist.entities"), Operators.isEmpty("$$entity")), "$blacklist.entities", Operators.concatArrays(Operators.filter("$blacklist.entities", Operators.ne("$$this.id", holder.getIdLong())), Operators.let(new Document("result", Operators.bitSetClear(Operators.first(Operators.map("$$entity", "$$this.blacklisted")), longArray)), Operators.cond(Operators.and(Operators.isEmpty(Operators.ifNull(Operators.first(Operators.map("$$entity", "$$this.whitelisted")), Collections.EMPTY_LIST)), Operators.bitSetIsEmpty("$$result")), Collections.EMPTY_LIST, List.of(Operators.cond(Operators.bitSetIsEmpty("$$result"), Operators.removeObject(Operators.first("$$entity"), "blacklisted"), Operators.mergeObjects(Operators.first("$$entity"), new Document("blacklisted", "$$result")))))))))),
-			Operators.setOnInsert("guildId", event.getGuild().getIdLong())
-		);
+		List<Bson> update = List.of(Operators.set("blacklist.holders", Operators.let(new Document("holder", Operators.filter("$blacklist.holders", Operators.eq("$$this.id", holder.getIdLong()))), Operators.cond(Operators.or(Operators.extinct("$blacklist.holders"), Operators.isEmpty("$$holder")), "$blacklist.holders", Operators.concatArrays(Operators.filter("$blacklist.holders", Operators.ne("$$this.id", holder.getIdLong())), Operators.let(new Document("result", Operators.bitSetClear(Operators.first(Operators.map("$$holder", "$$this.blacklisted")), longArray)), Operators.cond(Operators.and(Operators.isEmpty(Operators.ifNull(Operators.first(Operators.map("$$holder", "$$this.whitelisted")), Collections.EMPTY_LIST)), Operators.bitSetIsEmpty("$$result")), Collections.EMPTY_LIST, List.of(Operators.cond(Operators.bitSetIsEmpty("$$result"), Operators.removeObject(Operators.first("$$holder"), "blacklisted"), Operators.mergeObjects(Operators.first("$$holder"), new Document("blacklisted", "$$result")))))))))));
 
-		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).upsert(true).projection(Projections.include("blacklist.entities"));
+		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("blacklist.holders"));
 		this.database.findAndUpdateChannelById(channel.getIdLong(), update, options).whenComplete((data, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
 
-			List<Document> oldEntities = data == null ? Collections.emptyList() : data.getEmbedded(List.of("blacklist", "entities"), Collections.emptyList());
-			Document oldEntity = oldEntities.stream()
+			List<Document> oldHolders = data == null ? Collections.emptyList() : data.getEmbedded(List.of("blacklist", "holders"), Collections.emptyList());
+			Document oldHolder = oldHolders.stream()
 				.filter(d -> d.getLong("id") == holder.getIdLong())
 				.findFirst()
 				.orElse(null);
 
-			if (oldEntity == null) {
+			if (oldHolder == null) {
 				event.replyFailure((commands.size() == 1 ? "That command is" :  "Those commands are") +  " not blacklisted for that " + (role ? "role" : "user") + " in " +  channel.getAsMention()).queue();
 				return;
 			}
 
-			long[] oldLongArray = oldEntity.getList("blacklisted", Long.class, Collections.emptyList()).stream().mapToLong(l -> l).toArray();
+			long[] oldLongArray = oldHolder.getList("blacklisted", Long.class, Collections.emptyList()).stream().mapToLong(l -> l).toArray();
 
 			BitSet oldBitSet = BitSet.valueOf(oldLongArray);
 			oldBitSet.and(bitSet);
