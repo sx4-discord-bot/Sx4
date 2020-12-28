@@ -3,14 +3,14 @@ package com.sx4.bot.commands.settings;
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
 import com.jockie.bot.core.command.Command.AuthorPermissions;
-import com.mongodb.client.model.FindOneAndUpdateOptions;
-import com.mongodb.client.model.Projections;
-import com.mongodb.client.model.ReturnDocument;
+import com.mongodb.client.model.*;
+import com.sx4.bot.annotations.argument.Options;
 import com.sx4.bot.annotations.command.CommandId;
 import com.sx4.bot.annotations.command.Examples;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.model.Operators;
+import com.sx4.bot.entities.argument.Option;
 import com.sx4.bot.entities.settings.HolderType;
 import com.sx4.bot.utility.ExceptionUtility;
 import net.dv8tion.jda.api.Permission;
@@ -130,6 +130,42 @@ public class BlacklistCommand extends Sx4Command {
 
 			event.replySuccess((commands.size() == 1 ? "That command is" :  "Those commands are") +  " no longer blacklisted for that " + (role ? "role" : "user") + " in " +  channel.getAsMention()).queue();
 		});
+	}
+
+	@Command(value="reset", description="Reset the blacklist for a specific role/user in a channel")
+	@CommandId(181)
+	@Examples({"blacklist reset #channel", "blacklist reset all"})
+	@AuthorPermissions({Permission.MANAGE_SERVER})
+	public void reset(Sx4CommandEvent event, @Argument(value="channel", endless=true) @Options("all") Option<TextChannel> option) {
+		List<Bson> update = List.of(Operators.set("blacklist", Operators.cond(Operators.extinct("$blacklist.holders"), Operators.REMOVE, new Document("holders", Operators.reduce("$blacklist.holders", Collections.EMPTY_LIST, Operators.concatArrays("$$value", Operators.cond(Operators.isEmpty(Operators.ifNull(Operators.first(Operators.map(List.of("$$this"), "$$holder.whitelisted", "holder")), Collections.EMPTY_LIST)), Collections.EMPTY_LIST, List.of(Operators.removeObject("$$this", "blacklisted")))))))));
+		if (option.isAlternative()) {
+			this.database.updateManyChannels(Filters.eq("guildId", event.getGuild().getIdLong()), update, new UpdateOptions()).whenComplete((result, exception) -> {
+				if (ExceptionUtility.sendExceptionally(event, exception)) {
+					return;
+				}
+
+				if (result.getModifiedCount() == 0) {
+					event.replyFailure("Nothing was blacklisted in this server").queue();
+					return;
+				}
+
+				event.replySuccess("Reset **" + result.getModifiedCount() + "** channels of their blacklist configurations").queue();
+			});
+		} else {
+			TextChannel channel = option.getValue();
+			this.database.updateChannelById(channel.getIdLong(), update, new UpdateOptions()).whenComplete((result, exception) -> {
+				if (ExceptionUtility.sendExceptionally(event, exception)) {
+					return;
+				}
+
+				if (result.getModifiedCount() == 0) {
+					event.replyFailure("Nothing was blacklisted in that channel").queue();
+					return;
+				}
+
+				event.replySuccess("That channel no longer has any blacklists").queue();
+			});
+		}
 	}
 
 }

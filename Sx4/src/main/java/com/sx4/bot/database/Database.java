@@ -520,6 +520,14 @@ public class Database {
 		return this.findAndUpdateChannelById(channelId, update, this.findOneAndUpdateOptions);
 	}
 
+	public CompletableFuture<UpdateResult> updateManyChannels(Bson filter, List<Bson> update, UpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.channels.updateMany(filter, update, options));
+	}
+
+	public CompletableFuture<UpdateResult> updateManyChannels(Bson filter, List<Bson> update) {
+		return this.updateManyChannels(filter, update, this.updateOptions);
+	}
+
 	public CompletableFuture<BulkWriteResult> bulkWriteChannels(List<? extends WriteModel<? extends Document>> bulkData) {
 		return CompletableFuture.supplyAsync(() -> this.channels.bulkWrite(bulkData));
 	}
