@@ -21,6 +21,10 @@ public class Operators {
 		return Operators.toLong(Operators.divide(Operators.nowEpochMilli(), 1000));
 	}
 
+	public static Bson function(String code, List<Object> args) {
+		return new Document("$function", new Document("body", code).append("args", args).append("lang", "js"));
+	}
+
 	public static Bson not(Object cond) {
 		return new Document("$not", cond);
 	}
@@ -196,6 +200,10 @@ public class Operators {
 	public static Bson toLong(Object expression) {
 		return new Document("$toLong", expression);
 	}
+
+	public static Bson toString(Object expression) {
+		return new Document("$toString", expression);
+	}
 	
 	private static Bson bitwiseXorUnchecked(Object x, Object y) {
 		return Operators.cond(Operators.eq(y, 0), x, Operators.abs(Operators.sigma(0, Operators.floor(Operators.log(x, 2)), Operators.multiply(Operators.pow(2, "$$this"), Operators.mod(Operators.add(Operators.floor(Operators.divide(x, Operators.pow(2, "$$this"))), Operators.floor(Operators.divide(y, Operators.pow(2, "$$this")))), 2)))));
@@ -205,24 +213,37 @@ public class Operators {
 		return Operators.cond(Operators.lt(x, y), Operators.bitwiseXorUnchecked(y, x), Operators.bitwiseXorUnchecked(x, y));
 	}
 	
-	public static Bson bitwiseNot(Object x) {
-		return Operators.cond(Operators.eq(x, Long.MIN_VALUE), Long.MAX_VALUE, Operators.subtract(Operators.multiply(x, -1), 1));
+	public static Bson bitwiseNot(Object expression) {
+		return Operators.cond(Operators.eq(expression, Long.MIN_VALUE), Long.MAX_VALUE, Operators.subtract(Operators.multiply(expression, -1), 1));
 	}
 
+	// TODO All bitwise AND operators need to handle negative numbers, do more research into it
 	private static Bson bitwiseAndUnchecked(Object x, Object y) {
-		return Operators.cond(Operators.or(Operators.eq(y, 0), Operators.eq(x, 0)), 0, Operators.abs(Operators.sigma(0, Operators.floor(Operators.log(x, 2)), Operators.multiply(Operators.pow(2, "$$this"), Operators.mod(Operators.floor(Operators.divide(x, Operators.pow(2, "$$this"))), 2), Operators.mod(Operators.floor(Operators.divide(y, Operators.pow(2, "$$this"))), 2)))));
+		return Operators.sigma(0, Operators.floor(Operators.log(x, 2)), Operators.multiply(Operators.pow(2, "$$this"), Operators.mod(Operators.floor(Operators.divide(x, Operators.pow(2, "$$this"))), 2), Operators.mod(Operators.floor(Operators.divide(y, Operators.pow(2, "$$this"))), 2)));
 	}
-	
+
 	public static Bson bitwiseAnd(Object x, Object y) {
-		return Operators.cond(Operators.and(Operators.eq(x, Long.MIN_VALUE), Operators.eq(y, Long.MIN_VALUE)), Long.MIN_VALUE, Operators.cond(Operators.or(Operators.eq(x, Long.MIN_VALUE), Operators.eq(y, Long.MIN_VALUE)), 0, Operators.cond(Operators.and(Operators.lt(x, 0), Operators.lt(y, 0)), Operators.let(new Document("value", Operators.cond(Operators.lt(x, y), Operators.bitwiseAndUnchecked(Operators.abs(x), y), Operators.bitwiseAndUnchecked(Operators.abs(y), x))), Operators.subtract("$$value", Operators.multiply("$$value", 2))), Operators.cond(Operators.lt(x, y), Operators.bitwiseAndUnchecked(y, x), Operators.bitwiseAndUnchecked(x, y)))));
+		return Operators.cond(Operators.eq(x, y), x, Operators.handleOverflowBitwiseAnd(x, y, Operators.cond(Operators.lt("$$x", "$$y"), Operators.bitwiseAndUnchecked("$$y", "$$x"), Operators.bitwiseAndUnchecked("$$x", "$$y"))));
+	}
+
+	public static Bson bitwiseAndNot(Object x, Object y) {
+		return Operators.cond(Operators.eq(Operators.bitwiseAnd(x, y), 0), x, Operators.subtract(x, y));
+	}
+
+	private static Bson handleOverflowBitwiseAnd(Object x, Object y, Object expression) {
+		return Operators.let(new Document("x", Operators.cond(Operators.lt(x, 0), Operators.bitwiseNot(x), x)).append("y", Operators.cond(Operators.lt(y, 0), Operators.bitwiseNot(y), y)), Operators.cond(Operators.or(Operators.lt(x, 0), Operators.lt(y, 0)), Operators.bitwiseNot(expression), expression));
 	}
 	
 	private static Bson bitwiseOrUnchecked(Object x, Object y) {
-		return Operators.cond(Operators.eq(y, 0), x, Operators.abs(Operators.sigma(0, Operators.floor(Operators.log(x, 2)), Operators.multiply(Operators.pow(2, "$$this"), Operators.mod(Operators.add(Operators.mod(Operators.floor(Operators.divide(x, Operators.pow(2, "$$this"))), 2), Operators.mod(Operators.floor(Operators.divide(y, Operators.pow(2, "$$this"))), 2), Operators.multiply(Operators.mod(Operators.floor(Operators.divide(x, Operators.pow(2, "$$this"))), 2), Operators.mod(Operators.floor(Operators.divide(y, Operators.pow(2, "$$this"))), 2))), 2)))));
+		return Operators.sigma(0, Operators.floor(Operators.log(x, 2)), Operators.multiply(Operators.pow(2, "$$this"), Operators.mod(Operators.add(Operators.mod(Operators.floor(Operators.divide(x, Operators.pow(2, "$$this"))), 2), Operators.mod(Operators.floor(Operators.divide(y, Operators.pow(2, "$$this"))), 2), Operators.multiply(Operators.mod(Operators.floor(Operators.divide(x, Operators.pow(2, "$$this"))), 2), Operators.mod(Operators.floor(Operators.divide(y, Operators.pow(2, "$$this"))), 2))), 2)));
 	}
 	
 	public static Bson bitwiseOr(Object x, Object y) {
-		return Operators.cond(Operators.or(Operators.lt(x, 0), Operators.lt(y, 0)), Operators.let(new Document("value", Operators.cond(Operators.lt(x, y), Operators.bitwiseOrUnchecked(Operators.abs(y), x), Operators.bitwiseOrUnchecked(Operators.abs(x), y))), Operators.subtract("$$value", Operators.multiply("$$value", 2))), Operators.cond(Operators.lt(x, y), Operators.bitwiseOrUnchecked(y, x), Operators.bitwiseOrUnchecked(x, y)));
+		return Operators.handleOverflowBitwiseOr(x, y, Operators.cond(Operators.lt("$$x", "$$y"), Operators.bitwiseOrUnchecked("$$y", "$$x"), Operators.bitwiseOrUnchecked("$$x", "$$y")));
+	}
+
+	private static Bson handleOverflowBitwiseOr(Object x, Object y, Object expression) {
+		return Operators.let(new Document("x", Operators.cond(Operators.lt(x, 0), Operators.add(Long.MAX_VALUE, x, 1), x)).append("y", Operators.cond(Operators.lt(y, 0), Operators.add(Long.MAX_VALUE, y, 1), y)), Operators.cond(Operators.or(Operators.lt(x, 0), Operators.lt(y, 0)), Operators.add(Long.MIN_VALUE, expression), expression));
 	}
 
 	public static Bson shiftLeft(Object x, Object y) {
@@ -247,10 +268,10 @@ public class Operators {
 		return Operators.reduce(Operators.range(0, wordsInCommon), Collections.EMPTY_LIST, Operators.let(new Document("index", "$$this"), Operators.concatArrays("$$value", List.of(Operators.toLong(Operators.bitwiseAnd(Operators.arrayElemAt(longArray, "$$index"), Operators.arrayElemAt(longArray2, "$$index")))))));
 	}
 
-	public static Bson bitSetClear(Object longArray, Object clearLongArray) {
+	public static Bson bitSetAndNot(Object longArray, Object clearLongArray) {
 		Bson wordsInCommon = Operators.min(Operators.size(longArray), Operators.size(clearLongArray));
 
-		return Operators.reduce(Operators.range(0, wordsInCommon), Collections.EMPTY_LIST, Operators.let(new Document("index", "$$this"), Operators.concatArrays("$$value", List.of(Operators.toLong(Operators.bitwiseAnd(Operators.arrayElemAt(longArray, "$$index"), Operators.bitwiseNot(Operators.arrayElemAt(clearLongArray, "$$index"))))))));
+		return Operators.reduce(Operators.range(0, wordsInCommon), Collections.EMPTY_LIST, Operators.let(new Document("index", "$$this"), Operators.concatArrays("$$value", List.of(Operators.toLong(Operators.bitwiseAndNot(Operators.arrayElemAt(longArray, "$$index"), Operators.arrayElemAt(clearLongArray, "$$index")))))));
 	}
 
 	public static Bson bitSetIsEmpty(Object longArray) {

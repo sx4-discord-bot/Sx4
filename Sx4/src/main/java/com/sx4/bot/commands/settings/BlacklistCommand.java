@@ -12,18 +12,17 @@ import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.model.Operators;
 import com.sx4.bot.entities.argument.Option;
 import com.sx4.bot.entities.settings.HolderType;
+import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.IPermissionHolder;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.TextChannel;
+import net.dv8tion.jda.api.entities.User;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 
-import java.util.Arrays;
-import java.util.BitSet;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class BlacklistCommand extends Sx4Command {
@@ -99,7 +98,7 @@ public class BlacklistCommand extends Sx4Command {
 
 		List<Long> longArray = Arrays.stream(bitSet.toLongArray()).boxed().collect(Collectors.toList());
 
-		List<Bson> update = List.of(Operators.set("blacklist.holders", Operators.let(new Document("holder", Operators.filter("$blacklist.holders", Operators.eq("$$this.id", holder.getIdLong()))), Operators.cond(Operators.or(Operators.extinct("$blacklist.holders"), Operators.isEmpty("$$holder")), "$blacklist.holders", Operators.concatArrays(Operators.filter("$blacklist.holders", Operators.ne("$$this.id", holder.getIdLong())), Operators.let(new Document("result", Operators.bitSetClear(Operators.ifNull(Operators.first(Operators.map("$$holder", "$$this.blacklisted")), Collections.EMPTY_LIST), longArray)), Operators.cond(Operators.and(Operators.isEmpty(Operators.ifNull(Operators.first(Operators.map("$$holder", "$$this.whitelisted")), Collections.EMPTY_LIST)), Operators.bitSetIsEmpty("$$result")), Collections.EMPTY_LIST, List.of(Operators.cond(Operators.bitSetIsEmpty("$$result"), Operators.removeObject(Operators.first("$$holder"), "blacklisted"), Operators.mergeObjects(Operators.first("$$holder"), new Document("blacklisted", "$$result")))))))))));
+		List<Bson> update = List.of(Operators.set("blacklist.holders", Operators.let(new Document("holder", Operators.filter("$blacklist.holders", Operators.eq("$$this.id", holder.getIdLong()))), Operators.cond(Operators.or(Operators.extinct("$blacklist.holders"), Operators.isEmpty("$$holder")), "$blacklist.holders", Operators.concatArrays(Operators.filter("$blacklist.holders", Operators.ne("$$this.id", holder.getIdLong())), Operators.let(new Document("result", Operators.bitSetAndNot(Operators.ifNull(Operators.first(Operators.map("$$holder", "$$this.blacklisted")), Collections.EMPTY_LIST), longArray)), Operators.cond(Operators.and(Operators.isEmpty(Operators.ifNull(Operators.first(Operators.map("$$holder", "$$this.whitelisted")), Collections.EMPTY_LIST)), Operators.bitSetIsEmpty("$$result")), Collections.EMPTY_LIST, List.of(Operators.cond(Operators.bitSetIsEmpty("$$result"), Operators.removeObject(Operators.first("$$holder"), "blacklisted"), Operators.mergeObjects(Operators.first("$$holder"), new Document("blacklisted", "$$result")))))))))));
 
 		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("blacklist.holders"));
 		this.database.findAndUpdateChannelById(channel.getIdLong(), update, options).whenComplete((data, exception) -> {
@@ -172,7 +171,65 @@ public class BlacklistCommand extends Sx4Command {
 	@CommandId(182)
 	@Examples({"blacklist list", "blacklist list #channel"})
 	public void list(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true, endless=true) TextChannel channel) {
+		List<TextChannel> channels = channel == null ? event.getGuild().getTextChannels() : List.of(channel);
 
+		PagedResult<TextChannel> channelPaged = new PagedResult<>(channels)
+			.setAutoSelect(true)
+			.setAuthor("Channels", null, event.getGuild().getIconUrl())
+			.setDisplayFunction(TextChannel::getAsMention);
+
+		channelPaged.onSelect(channelSelect -> {
+			TextChannel selectedChannel = channelSelect.getSelected();
+			List<Document> holders = this.database.getChannelById(selectedChannel.getIdLong(), Projections.include("blacklist.holders")).getEmbedded(List.of("blacklist", "holders"), Collections.emptyList());
+
+			holders = holders.stream()
+				.filter(holder -> !holder.getList("blacklisted", Long.class, Collections.emptyList()).isEmpty())
+				.sorted(Comparator.comparingInt(a -> a.getInteger("type")))
+				.collect(Collectors.toList());
+
+			if (holders.isEmpty()) {
+				event.replyFailure("Nothing is blacklisted in " + selectedChannel.getAsMention()).queue();
+				return;
+			}
+
+			PagedResult<Document> holderPaged = new PagedResult<>(holders)
+				.setAuthor("Users/Roles", null, event.getGuild().getIconUrl())
+				.setDisplayFunction(holder -> {
+					long id = holder.getLong("id");
+					int type = holder.getInteger("type");
+					if (type == HolderType.ROLE.getType()) {
+						Role role = event.getGuild().getRoleById(id);
+						return role == null ? "Deleted Role (" + id + ")" : role.getAsMention();
+					} else {
+						User user = event.getShardManager().getUserById(id);
+						return user == null ? "Unknown User (" + id + ")" : user.getAsTag();
+					}
+				});
+
+			holderPaged.onSelect(holderSelect -> {
+				Document holder = holderSelect.getSelected();
+				List<Long> blacklisted = holder.getList("blacklisted", Long.class, Collections.emptyList());
+
+				BitSet bitSet = BitSet.valueOf(blacklisted.stream().mapToLong(l -> l).toArray());
+
+				List<Sx4Command> commands = event.getCommandListener().getAllCommands().stream()
+					.map(Sx4Command.class::cast)
+					.filter(command -> bitSet.get(command.getId()))
+					.collect(Collectors.toList());
+
+				PagedResult<Sx4Command> commandPaged = new PagedResult<>(commands)
+					.setAuthor("Blacklisted Commands", null, event.getGuild().getIconUrl())
+					.setDisplayFunction(Sx4Command::getCommandTrigger)
+					.setSelect()
+					.setIndexed(false);
+
+				commandPaged.execute(event);
+			});
+
+			holderPaged.execute(event);
+		});
+
+		channelPaged.execute(event);
 	}
 
 }

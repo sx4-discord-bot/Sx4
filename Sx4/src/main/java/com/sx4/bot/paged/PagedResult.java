@@ -308,8 +308,8 @@ public class PagedResult<Type> {
 	}
 	
 	public PagedResult<Type> setSelect(SelectType... select) {
-		this.select = select == null || select.length == 0 ? EnumSet.noneOf(SelectType.class) : EnumSet.copyOf(Arrays.asList(select));
-		
+		this.select = select.length == 0 ? EnumSet.noneOf(SelectType.class) : EnumSet.copyOf(Arrays.asList(select));
+
 		return this;
 	}
 	

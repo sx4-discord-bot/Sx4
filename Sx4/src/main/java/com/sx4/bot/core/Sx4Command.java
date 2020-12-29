@@ -3,7 +3,6 @@ package com.sx4.bot.core;
 import com.jockie.bot.core.category.ICategory;
 import com.jockie.bot.core.command.CommandTrigger;
 import com.jockie.bot.core.command.ICommand;
-import com.jockie.bot.core.command.impl.AbstractCommand;
 import com.jockie.bot.core.command.impl.CommandImpl;
 import com.jockie.bot.core.command.impl.DummyCommand;
 import com.sx4.bot.annotations.command.*;
@@ -192,7 +191,7 @@ public class Sx4Command extends CommandImpl {
 	    return commands;
 	}
 
-	public AbstractCommand setCategoryAll(ICategory category) {
+	public Sx4Command setCategoryAll(ICategory category) {
 		ICategory old = this.category;
 
 		this.category = category;

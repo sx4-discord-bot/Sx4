@@ -18,9 +18,9 @@ import java.util.stream.Collectors;
 public class CheckUtility {
 
 	public static boolean canUseCommand(Member member, TextChannel channel, Sx4Command command) {
-		/*if (Sx4.get().getCommandListener().isDeveloper(member.getIdLong()) || member.hasPermission(Permission.ADMINISTRATOR)) {
+		if (Sx4.get().getCommandListener().isDeveloper(member.getIdLong()) || member.hasPermission(Permission.ADMINISTRATOR)) {
 			return true;
-		}*/
+		}
 
 		Guild guild = member.getGuild();
 
