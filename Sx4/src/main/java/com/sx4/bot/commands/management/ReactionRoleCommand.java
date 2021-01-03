@@ -11,6 +11,7 @@ import com.sx4.bot.annotations.command.AuthorPermissions;
 import com.sx4.bot.annotations.command.BotPermissions;
 import com.sx4.bot.annotations.command.CommandId;
 import com.sx4.bot.annotations.command.Examples;
+import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.Database;
@@ -69,6 +70,7 @@ public class ReactionRoleCommand extends Sx4Command {
 		super.setDescription("Set up a reaction role so users can simply react to an emote and get a specified role");
 		super.setAliases("reactionrole");
 		super.setExamples("reaction role add", "reaction role remove");
+		super.setCategoryAll(ModuleCategory.MANAGEMENT);
 	}
 	
 	public void onCommand(Sx4CommandEvent event) {

@@ -26,7 +26,7 @@ public class TweetCommand extends Sx4Command {
 		super.setExamples("tweet @Shea hello #Sx4", "tweet Shea#6653 @Sx4 prefix");
 		super.setBotDiscordPermissions(Permission.MESSAGE_ATTACH_FILES);
 		super.setCooldownDuration(5);
-		super.setCategory(ModuleCategory.IMAGE);
+		super.setCategoryAll(ModuleCategory.IMAGE);
 	}
 
 	public void onCommand(Sx4CommandEvent event, @Argument(value="user") Member member, @Argument(value="text", endless=true) @Limit(max=280) String text) {

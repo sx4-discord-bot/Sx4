@@ -19,7 +19,7 @@ public class CannyCommand extends Sx4Command {
 		super.setDescription("Applies the canny effect to an image");
 		super.setExamples("canny", "canny @Shea#6653", "canny https://example.com/image.png");
 		super.setBotDiscordPermissions(Permission.MESSAGE_ATTACH_FILES);
-		super.setCategory(ModuleCategory.IMAGE);
+		super.setCategoryAll(ModuleCategory.IMAGE);
 		super.setCooldownDuration(3);
 	}
 

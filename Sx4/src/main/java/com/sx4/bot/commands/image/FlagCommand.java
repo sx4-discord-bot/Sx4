@@ -20,7 +20,7 @@ public class FlagCommand extends Sx4Command {
 		super.setDescription("Puts a flag over a specified image");
 		super.setExamples("flag fr", "flag gb @Shea#6653", "hot se https://example.com/image.png");
 		super.setBotDiscordPermissions(Permission.MESSAGE_ATTACH_FILES);
-		super.setCategory(ModuleCategory.IMAGE);
+		super.setCategoryAll(ModuleCategory.IMAGE);
 		super.setCooldownDuration(3);
 	}
 

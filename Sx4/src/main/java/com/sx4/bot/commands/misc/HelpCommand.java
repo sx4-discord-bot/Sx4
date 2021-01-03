@@ -27,7 +27,7 @@ public class HelpCommand extends Sx4Command {
 		super.setAliases("h", "commands", "cmds");
 		super.setExamples("help", "help logs", "help all", "help welcomer");
 		super.setPrivateTriggerable(true);
-		super.setCategory(ModuleCategory.MISC);
+		super.setCategoryAll(ModuleCategory.MISC);
 	}
 	
 	public void onCommand(Sx4CommandEvent event, @Argument(value="command | module", endless=true, nullDefault=true) String commandName) {

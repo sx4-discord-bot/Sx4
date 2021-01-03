@@ -21,7 +21,7 @@ public class CropCommand extends Sx4Command {
 
 		super.setDescription("Crops an image centrally by percentage if a decimal and pixels if a whole number");
 		super.setExamples("crop Shea 0.1 100", "crop Shea#6653 0.5 0.5", "crop https://example.com/image.png 500 500");
-		super.setCategory(ModuleCategory.IMAGE);
+		super.setCategoryAll(ModuleCategory.IMAGE);
 		super.setBotDiscordPermissions(Permission.MESSAGE_ATTACH_FILES);
 		super.setCooldownDuration(5);
 	}

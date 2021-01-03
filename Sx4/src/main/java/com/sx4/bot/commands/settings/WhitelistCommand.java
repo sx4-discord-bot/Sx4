@@ -7,6 +7,7 @@ import com.mongodb.client.model.*;
 import com.sx4.bot.annotations.argument.Options;
 import com.sx4.bot.annotations.command.CommandId;
 import com.sx4.bot.annotations.command.Examples;
+import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.model.Operators;
@@ -32,6 +33,7 @@ public class WhitelistCommand extends Sx4Command {
 
 		super.setDescription("Whitelist roles/users from being able to use specific commands/modules in channels, this only works in correlation with blacklist");
 		super.setExamples("whitelist add", "whitelist remove", "whitelist list");
+		super.setCategoryAll(ModuleCategory.SETTINGS);
 	}
 
 	public void onCommand(Sx4CommandEvent event) {

@@ -19,7 +19,7 @@ public class EmbossCommand extends Sx4Command {
 		super.setDescription("Applies the emboss effect to an image");
 		super.setExamples("emboss", "emboss @Shea#6653", "emboss https://example.com/image.png");
 		super.setBotDiscordPermissions(Permission.MESSAGE_ATTACH_FILES);
-		super.setCategory(ModuleCategory.IMAGE);
+		super.setCategoryAll(ModuleCategory.IMAGE);
 		super.setCooldownDuration(3);
 	}
 

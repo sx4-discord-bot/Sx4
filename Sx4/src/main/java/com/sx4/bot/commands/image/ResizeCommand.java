@@ -21,7 +21,7 @@ public class ResizeCommand extends Sx4Command {
 
 		super.setDescription("Resizes an image by percentage if a decimal and pixels if a whole number");
 		super.setExamples("resize Shea 0.1 100", "resize Shea#6653 0.5 0.5", "resize https://example.com/image.png 500 500");
-		super.setCategory(ModuleCategory.IMAGE);
+		super.setCategoryAll(ModuleCategory.IMAGE);
 		super.setBotDiscordPermissions(Permission.MESSAGE_ATTACH_FILES);
 		super.setCooldownDuration(5);
 	}

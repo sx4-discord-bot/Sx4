@@ -21,7 +21,7 @@ public class TrumpTweetCommand extends Sx4Command {
 		super.setExamples("trump tweet I am Trump", "trump tweet I WON THE ELECTION");
 		super.setBotDiscordPermissions(Permission.MESSAGE_ATTACH_FILES);
 		super.setCooldownDuration(5);
-		super.setCategory(ModuleCategory.IMAGE);
+		super.setCategoryAll(ModuleCategory.IMAGE);
 	}
 
 	public void onCommand(Sx4CommandEvent event, @Argument(value="text", endless=true) @Limit(max=280) String text) {

@@ -19,7 +19,7 @@ public class BeautifulCommand extends Sx4Command {
 		super.setDescription("Frames your image and captions it as beautiful");
 		super.setExamples("beautiful", "beautiful @Shea#6653", "beautiful https://example.com/image.png");
 		super.setBotDiscordPermissions(Permission.MESSAGE_ATTACH_FILES);
-		super.setCategory(ModuleCategory.IMAGE);
+		super.setCategoryAll(ModuleCategory.IMAGE);
 		super.setCooldownDuration(3);
 	}
 

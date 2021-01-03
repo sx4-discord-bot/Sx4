@@ -18,7 +18,7 @@ public class DriftCommand extends Sx4Command {
 
 		super.setDescription("Sends an image of your drifting towards a junction away from a destination");
 		super.setExamples("drift Shea healthy", "drift Dyno Sx4", "drift \"Something you hate\"");
-		super.setCategory(ModuleCategory.IMAGE);
+		super.setCategoryAll(ModuleCategory.IMAGE);
 		super.setBotDiscordPermissions(Permission.MESSAGE_ATTACH_FILES);
 		super.setCooldownDuration(3);
 	}

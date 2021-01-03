@@ -44,7 +44,6 @@ public class EvalCommand extends Sx4Command {
 		
 		super.setDescription("Execute some code, last line will be sent");
 		super.setExamples("eval \"hi\"", "eval new EmbedBuilder().setDescription(\"hi\").build();");
-		super.setAllowedArgumentParsingTypes(ArgumentParsingType.POSITIONAL);
 		super.setCategoryAll(ModuleCategory.DEVELOPER);
 		super.setDeveloper(true);
 	}

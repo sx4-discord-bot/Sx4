@@ -20,7 +20,7 @@ public class HowToGoogleCommand extends Sx4Command {
 		super.setDescription("Creates a gif of someone looking up a query on google");
 		super.setExamples("google Sx4 GitHub", "google Sx4 Patreon");
 		super.setBotDiscordPermissions(Permission.MESSAGE_ATTACH_FILES);
-		super.setCategory(ModuleCategory.IMAGE);
+		super.setCategoryAll(ModuleCategory.IMAGE);
 		super.setCooldownDuration(5);
 	}
 

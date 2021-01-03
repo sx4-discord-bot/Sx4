@@ -57,7 +57,7 @@ public class MinesweeperCommand extends Sx4Command {
 		super.setDescription("Play mineweeper within discord");
 		super.setExamples("minesweeper", "minesweeper 12", "minesweeper 5 5 5");
 		super.setCooldownDuration(5);
-		super.setCategory(ModuleCategory.GAMES);
+		super.setCategoryAll(ModuleCategory.GAMES);
 	}
 
 	public void onCommand(Sx4CommandEvent event, @Argument(value="bombs") @DefaultNumber(10) int bombs, @Argument(value="grid x") @DefaultNumber(10) int gridX, @Argument(value="grid y") @DefaultNumber(10) int gridY) {

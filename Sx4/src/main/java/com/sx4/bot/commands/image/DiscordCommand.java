@@ -69,7 +69,7 @@ public class DiscordCommand extends Sx4Command {
 		super.setDescription("Create a discord message as an image");
 		super.setExamples("discord @Shea hello", "discord Shea#6653 hello @Shea go to #channel");
 		super.setBotDiscordPermissions(Permission.MESSAGE_ATTACH_FILES);
-		super.setCategory(ModuleCategory.IMAGE);
+		super.setCategoryAll(ModuleCategory.IMAGE);
 		super.setCooldownDuration(5);
 	}
 

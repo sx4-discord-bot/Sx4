@@ -20,7 +20,7 @@ public class JoinPositionCommand extends Sx4Command {
 		super.setDescription("View the join position at a specific index or for a specific user");
 		super.setExamples("join position 1", "join position Shea#6653");
 		super.setAliases("joinposition");
-		super.setCategory(ModuleCategory.INFORMATION);
+		super.setCategoryAll(ModuleCategory.INFORMATION);
 	}
 	
 	public void onCommand(Sx4CommandEvent event, @Argument(value="position | user", endless=true, nullDefault=true) Or<Integer, Member> or) {

@@ -28,7 +28,7 @@ public class YouTubeCommand extends Sx4Command {
 		super.setExamples("youtube PewDiePie", "youtube YouTube Rewind", "youtube Music Playlist");
 		super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
 		super.setCooldownDuration(3);
-		super.setCategory(ModuleCategory.INFORMATION);
+		super.setCategoryAll(ModuleCategory.INFORMATION);
 	}
 
 	public void onCommand(Sx4CommandEvent event, @Argument(value="query", endless=true) String query, @Option(value="channel", description="Only return a channel") boolean channel, @Option(value="playlist", description="Only return a playlist") boolean playlist, @Option(value="video", description="Only return a video") boolean video) {

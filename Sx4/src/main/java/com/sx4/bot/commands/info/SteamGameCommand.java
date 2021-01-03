@@ -32,7 +32,7 @@ public class SteamGameCommand extends Sx4Command {
 		super.setAliases("steam search", "steamsearch", "steamgame");
 		super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
 		super.setCooldownDuration(5);
-		super.setCategory(ModuleCategory.INFORMATION);
+		super.setCategoryAll(ModuleCategory.INFORMATION);
 	}
 
 	public void onCommand(Sx4CommandEvent event, @Argument(value="game", endless=true) String query) {

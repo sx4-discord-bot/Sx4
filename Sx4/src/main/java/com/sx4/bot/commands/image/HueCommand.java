@@ -19,7 +19,7 @@ public class HueCommand extends Sx4Command {
 		super.setDescription("Rotates the hue on an image for 60 frames");
 		super.setExamples("hue", "hue @Shea#6653", "hue https://example.com/image.png");
 		super.setBotDiscordPermissions(Permission.MESSAGE_ATTACH_FILES);
-		super.setCategory(ModuleCategory.IMAGE);
+		super.setCategoryAll(ModuleCategory.IMAGE);
 		super.setCooldownDuration(3);
 	}
 

@@ -237,6 +237,10 @@ public class AntiRegexCommand extends Sx4Command {
 			super.setExamples("anti regex mod message", "anti regex mod action");
 		}
 
+		public void onCommand(Sx4CommandEvent event) {
+			event.replyHelp().queue();
+		}
+
 		// TODO
 		@Command(value="action", description="Sets the action to be taken when a user hits the max attempts")
 		@CommandId(112)

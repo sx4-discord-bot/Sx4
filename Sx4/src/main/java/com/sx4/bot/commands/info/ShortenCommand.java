@@ -18,7 +18,7 @@ public class ShortenCommand extends Sx4Command {
 		super.setDescription("Shortens a url into a bit.ly url");
 		super.setExamples("shorten https://github.com/sponsors/Shea4", "shorten https://patreon.com/Sx4");
 		super.setCooldownDuration(5);
-		super.setCategory(ModuleCategory.INFORMATION);
+		super.setCategoryAll(ModuleCategory.INFORMATION);
 	}
 
 	public void onCommand(Sx4CommandEvent event, @Argument(value="url") String url) {

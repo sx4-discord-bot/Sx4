@@ -16,7 +16,7 @@ public class ConvertCommand extends Sx4Command {
 
 		super.setDescription("Convert one currency to another");
 		super.setExamples("convert 5 GBP USD", "convert 10.50 SEK GBP");
-		super.setCategory(ModuleCategory.INFORMATION);
+		super.setCategoryAll(ModuleCategory.INFORMATION);
 	}
 
 	public void onCommand(Sx4CommandEvent event, @Argument(value="amount") double amount, @Argument(value="currency from") @Uppercase String from, @Argument(value="currency to") @Uppercase String to) {

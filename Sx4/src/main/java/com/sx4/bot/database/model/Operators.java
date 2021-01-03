@@ -96,6 +96,14 @@ public class Operators {
 	public static Bson slice(Object array, Object start, Object end) {
 		return new Document("$slice", List.of(array, start, end));
 	}
+
+	public static Bson concat(List<?> expressions) {
+		return new Document("$concat", expressions);
+	}
+
+	public static Bson concat(Object... expressions) {
+		return Operators.concat(Arrays.asList(expressions));
+	}
 	
 	public static Bson concatArrays(List<?> expressions) {
 		return new Document("$concatArrays", expressions);
@@ -123,6 +131,18 @@ public class Operators {
 
 	public static Bson indexOfArray(Object array, Object object) {
 		return new Document("$indexOfArray", List.of(array, object));
+	}
+
+	public static Bson length(Object expression) {
+		return new Document("$strLenCP", expression);
+	}
+
+	public static Bson split(Object expression, String delimiter) {
+		return new Document("$split", List.of(expression, delimiter));
+	}
+
+	public static Bson toCharArray(Object expression) {
+		return Operators.split(expression, "");
 	}
 	
 	public static Bson size(Object expression) {
@@ -173,8 +193,12 @@ public class Operators {
 		return new Document("$sum", listExpression);
 	}
 	
+	public static Bson range(Object start, Object end, Object increment) {
+		return new Document("$range", List.of(start, end, increment));
+	}
+
 	public static Bson range(Object start, Object end) {
-		return new Document("$range", List.of(start, end));
+		return Operators.range(start, end, 1);
 	}
 	
 	public static Bson sigma(Object start, Object end, Object expression) {
@@ -182,7 +206,7 @@ public class Operators {
 	}
 	
 	public static Bson pow(Object expression, Object powerExpression) {
-		return new Document("$pow", List.of(expression, powerExpression));
+		return Operators.cond(Operators.eq(powerExpression, 63), Long.MIN_VALUE, new Document("$pow", List.of(expression, powerExpression)));
 	}
 	
 	public static Bson log(Object expression, Object baseExpression) {
@@ -217,17 +241,17 @@ public class Operators {
 		return Operators.cond(Operators.eq(expression, Long.MIN_VALUE), Long.MAX_VALUE, Operators.subtract(Operators.multiply(expression, -1), 1));
 	}
 
-	// TODO All bitwise AND operators need to handle negative numbers, do more research into it
+	// TODO have a deeper look into the equation for AND https://en.wikipedia.org/wiki/Bitwise_operation#Mathematical_equivalents
 	private static Bson bitwiseAndUnchecked(Object x, Object y) {
 		return Operators.sigma(0, Operators.floor(Operators.log(x, 2)), Operators.multiply(Operators.pow(2, "$$this"), Operators.mod(Operators.floor(Operators.divide(x, Operators.pow(2, "$$this"))), 2), Operators.mod(Operators.floor(Operators.divide(y, Operators.pow(2, "$$this"))), 2)));
 	}
 
 	public static Bson bitwiseAnd(Object x, Object y) {
-		return Operators.cond(Operators.eq(x, y), x, Operators.handleOverflowBitwiseAnd(x, y, Operators.cond(Operators.lt("$$x", "$$y"), Operators.bitwiseAndUnchecked("$$y", "$$x"), Operators.bitwiseAndUnchecked("$$x", "$$y"))));
+		return Operators.cond(Operators.or(Operators.eq(x, 0), Operators.eq(y, 0)), 0, Operators.cond(Operators.eq(x, y), x, Operators.handleOverflowBitwiseAnd(x, y, Operators.cond(Operators.lt("$$x", "$$y"), Operators.bitwiseAndUnchecked("$$y", "$$x"), Operators.bitwiseAndUnchecked("$$x", "$$y")))));
 	}
 
 	public static Bson bitwiseAndNot(Object x, Object y) {
-		return Operators.cond(Operators.eq(Operators.bitwiseAnd(x, y), 0), x, Operators.subtract(x, y));
+		return Operators.let(new Document("result", Operators.bitwiseAnd(x, y)), Operators.cond(Operators.eq("$$result", 0), x, Operators.subtract(x, "$$result")));
 	}
 
 	private static Bson handleOverflowBitwiseAnd(Object x, Object y, Object expression) {
@@ -239,7 +263,7 @@ public class Operators {
 	}
 	
 	public static Bson bitwiseOr(Object x, Object y) {
-		return Operators.handleOverflowBitwiseOr(x, y, Operators.cond(Operators.lt("$$x", "$$y"), Operators.bitwiseOrUnchecked("$$y", "$$x"), Operators.bitwiseOrUnchecked("$$x", "$$y")));
+		return Operators.cond(Operators.or(Operators.eq(x, 0), Operators.eq(y, 0)), Operators.cond(Operators.eq(y, 0), x, y), Operators.cond(Operators.eq(x, y), x, Operators.handleOverflowBitwiseOr(x, y, Operators.cond(Operators.lt("$$x", "$$y"), Operators.bitwiseOrUnchecked("$$y", "$$x"), Operators.bitwiseOrUnchecked("$$x", "$$y")))));
 	}
 
 	private static Bson handleOverflowBitwiseOr(Object x, Object y, Object expression) {
@@ -270,8 +294,9 @@ public class Operators {
 
 	public static Bson bitSetAndNot(Object longArray, Object clearLongArray) {
 		Bson wordsInCommon = Operators.min(Operators.size(longArray), Operators.size(clearLongArray));
+		Bson difference = Operators.subtract(Operators.size(longArray), wordsInCommon);
 
-		return Operators.reduce(Operators.range(0, wordsInCommon), Collections.EMPTY_LIST, Operators.let(new Document("index", "$$this"), Operators.concatArrays("$$value", List.of(Operators.toLong(Operators.bitwiseAndNot(Operators.arrayElemAt(longArray, "$$index"), Operators.arrayElemAt(clearLongArray, "$$index")))))));
+		return Operators.concatArrays(Operators.reduce(Operators.range(0, wordsInCommon), Collections.EMPTY_LIST, Operators.let(new Document("index", "$$this"), Operators.concatArrays("$$value", List.of(Operators.toLong(Operators.bitwiseAndNot(Operators.arrayElemAt(longArray, "$$index"), Operators.arrayElemAt(clearLongArray, "$$index"))))))), Operators.cond(Operators.lte(difference, 0), Collections.EMPTY_LIST, Operators.slice(longArray, wordsInCommon, difference)));
 	}
 
 	public static Bson bitSetIsEmpty(Object longArray) {
@@ -306,8 +331,8 @@ public class Operators {
 		return new Document("$abs", expression);
 	}
 
-	public static Bson reduce(Object listExpression, Object initialValue, Object expression) {
-		return new Document("$reduce", new Document("input", listExpression).append("initialValue", initialValue).append("in", expression));
+	public static Bson reduce(Object list, Object initialValue, Object expression) {
+		return new Document("$reduce", new Document("input", list).append("initialValue", initialValue).append("in", expression));
 	}
 	
 	public static Bson arrayElemAt(Object expression, Object index) {

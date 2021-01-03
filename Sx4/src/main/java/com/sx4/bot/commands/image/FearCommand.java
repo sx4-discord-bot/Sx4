@@ -19,7 +19,7 @@ public class FearCommand extends Sx4Command {
 		super.setDescription("Creates an image of someone fearing a specified image");
 		super.setExamples("fear", "fear @Shea#6653", "fear https://example.com/image.png");
 		super.setBotDiscordPermissions(Permission.MESSAGE_ATTACH_FILES);
-		super.setCategory(ModuleCategory.IMAGE);
+		super.setCategoryAll(ModuleCategory.IMAGE);
 		super.setCooldownDuration(3);
 	}
 

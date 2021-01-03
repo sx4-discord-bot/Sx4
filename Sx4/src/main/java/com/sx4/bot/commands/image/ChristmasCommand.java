@@ -18,7 +18,7 @@ public class ChristmasCommand extends Sx4Command {
 
 		super.setDescription("Creates a christmas version of a specific image");
 		super.setExamples("christmas", "christmas Shea#6653", "christmas https://example.com/image.png");
-		super.setCategory(ModuleCategory.IMAGE);
+		super.setCategoryAll(ModuleCategory.IMAGE);
 		super.setBotDiscordPermissions(Permission.MESSAGE_ATTACH_FILES);
 		super.setCooldownDuration(5);
 	}

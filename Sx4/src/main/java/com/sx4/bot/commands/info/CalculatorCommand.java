@@ -24,7 +24,7 @@ public class CalculatorCommand extends Sx4Command {
         super.setAliases("calc");
         super.setDescription("Eval a mathematical equation");
         super.setExamples("calc 1 + 1", "calc a = 5; a + 10");
-        super.setCategory(ModuleCategory.INFORMATION);
+        super.setCategoryAll(ModuleCategory.INFORMATION);
     }
 
     public void onCommand(Sx4CommandEvent event, @Argument(value="expression", endless=true) String expression, @Option(value="pretty", description="Puts a comma every 3 digits before the decimal point") boolean pretty) {

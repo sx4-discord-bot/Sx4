@@ -18,7 +18,7 @@ public class HalloweenCommand extends Sx4Command {
 
 		super.setDescription("Creates a halloween version of a specific image");
 		super.setExamples("halloween", "halloween Shea#6653", "halloween https://example.com/image.png");
-		super.setCategory(ModuleCategory.IMAGE);
+		super.setCategoryAll(ModuleCategory.IMAGE);
 		super.setBotDiscordPermissions(Permission.MESSAGE_ATTACH_FILES);
 		super.setCooldownDuration(5);
 	}

@@ -24,7 +24,7 @@ public class MostCommonColourCommand extends Sx4Command {
 		super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
 		super.setExamples("most common colour", "most common colour Shea#6653", "most common colour https://example.com/image.png");
 		super.setCooldownDuration(3);
-		super.setCategory(ModuleCategory.IMAGE);
+		super.setCategoryAll(ModuleCategory.IMAGE);
 	}
 
 	public void onCommand(Sx4CommandEvent event, @Argument(value="image url", acceptEmpty=true, endless=true) @ImageUrl String imageUrl) {

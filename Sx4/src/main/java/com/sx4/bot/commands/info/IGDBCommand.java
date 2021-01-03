@@ -34,7 +34,7 @@ public class IGDBCommand extends Sx4Command {
 		super.setExamples("igdb human fall", "igdb uno --sort=release --reverse", "igdb grand theft auto --sort=rating");
 		super.setCooldownDuration(10);
 		super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
-		super.setCategory(ModuleCategory.INFORMATION);
+		super.setCategoryAll(ModuleCategory.INFORMATION);
 	}
 
 	public void onCommand(Sx4CommandEvent event, @Argument(value="game", endless=true, nullDefault=true) String game, @Option(value="sort", description="Sort results by `name` (default), `rating` and `release`") IGDBSort sort, @Option(value="reverse", description="Reverses sorting order") boolean reverse) {

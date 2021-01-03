@@ -59,7 +59,7 @@ public class WeatherCommand extends Sx4Command {
 		super.setCooldownDuration(3);
 		super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
 		super.setExamples("weather London", "weather Stockholm", "weather London --country=uk");
-		super.setCategory(ModuleCategory.INFORMATION);
+		super.setCategoryAll(ModuleCategory.INFORMATION);
 	}
 
 	public void onCommand(Sx4CommandEvent event, @Argument(value="city", endless=true) String city, @Option(value="country", description="Country code of the country you want the weather to be from") String countryCode) {

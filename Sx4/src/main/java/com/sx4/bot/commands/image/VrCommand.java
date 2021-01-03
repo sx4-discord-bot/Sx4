@@ -20,7 +20,7 @@ public class VrCommand extends Sx4Command {
 		super.setDescription("Makes a man viewing a specified image cry while playing on vr");
 		super.setExamples("vr", "vr @Shea#6653", "vr https://example.com/image.png");
 		super.setBotDiscordPermissions(Permission.MESSAGE_ATTACH_FILES);
-		super.setCategory(ModuleCategory.IMAGE);
+		super.setCategoryAll(ModuleCategory.IMAGE);
 		super.setCooldownDuration(3);
 	}
 

@@ -19,7 +19,7 @@ public class HotCommand extends Sx4Command {
 		super.setDescription("Creates an image of Will Smith calling a specified image hot");
 		super.setExamples("hot", "hot @Shea#6653", "hot https://example.com/image.png");
 		super.setBotDiscordPermissions(Permission.MESSAGE_ATTACH_FILES);
-		super.setCategory(ModuleCategory.IMAGE);
+		super.setCategoryAll(ModuleCategory.IMAGE);
 		super.setCooldownDuration(3);
 	}
 

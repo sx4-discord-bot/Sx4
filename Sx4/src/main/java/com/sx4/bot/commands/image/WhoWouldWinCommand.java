@@ -18,7 +18,7 @@ public class WhoWouldWinCommand extends Sx4Command {
 		super.setAliases("whowouldwin", "www");
 		super.setDescription("Who would win out of 2 images");
 		super.setExamples("who would win Shea#6653", "who would win Sx4 Dyno", "who would win https://example.com/image.png Shea#6653");
-		super.setCategory(ModuleCategory.IMAGE);
+		super.setCategoryAll(ModuleCategory.IMAGE);
 		super.setCooldownDuration(5);
 	}
 

@@ -20,7 +20,7 @@ public class ScrollCommand extends Sx4Command {
 		super.setExamples("scroll Sx4 is cool I guess", "scroll I'm not very creative");
 		super.setBotDiscordPermissions(Permission.MESSAGE_ATTACH_FILES);
 		super.setCooldownDuration(3);
-		super.setCategory(ModuleCategory.IMAGE);
+		super.setCategoryAll(ModuleCategory.IMAGE);
 	}
 
 	public void onCommand(Sx4CommandEvent event, @Argument(value="text", endless=true) @Limit(max=45) String text) {

@@ -126,7 +126,7 @@ public class WelcomerCommand extends Sx4Command {
 
 	@Command(value="advanced message", description="Same as `welcomer message` but takes json for more advanced options")
 	@CommandId(95)
-	@Examples({"welcomer message {\"embed\": {\"description\": \"A new person has joined\"}}", "welcomer message {\"embed\": {\"description\": \"Welcome {user.mention}!\"}}"})
+	@Examples({"welcomer advanced message {\"embed\": {\"description\": \"A new person has joined\"}}", "welcomer advanced message {\"embed\": {\"description\": \"Welcome {user.mention}!\"}}"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void advancedMessage(Sx4CommandEvent event, @Argument(value="json", endless=true) @AdvancedMessage Document message) {
 		this.database.updateGuildById(event.getGuild().getIdLong(), Updates.set("welcomer.message", message)).whenComplete((result, exception) -> {
@@ -178,7 +178,7 @@ public class WelcomerCommand extends Sx4Command {
 	@Premium
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void avatar(Sx4CommandEvent event, @Argument(value="avatar", endless=true, acceptEmpty=true) @ImageUrl String url) {
-		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().projection(Projections.include("welcomer.webhook.name", "premium.endAt")).returnDocument(ReturnDocument.BEFORE).upsert(true);
+		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().projection(Projections.include("welcomer.webhook.avatar", "premium.endAt")).returnDocument(ReturnDocument.BEFORE).upsert(true);
 		this.database.findAndUpdateGuildById(event.getGuild().getIdLong(), List.of(OperatorsUtility.setIfPremium("welcomer.webhook.avatar", url)), options).whenComplete((data, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
