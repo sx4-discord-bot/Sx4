@@ -33,6 +33,7 @@ public class EvalCommand extends Sx4Command {
 		importCustomizer.addStarImports("com.mongodb.client.model");
 		importCustomizer.addStarImports("org.bson");
 		importCustomizer.addStarImports("okhttp3");
+		importCustomizer.addStarImports("com.vdurmont.emoji");
 
 		parseConfiguration.addCompilationCustomizers(importCustomizer);
 

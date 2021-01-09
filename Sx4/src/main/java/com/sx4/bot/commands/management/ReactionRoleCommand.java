@@ -352,9 +352,14 @@ public class ReactionRoleCommand extends Sx4Command {
 					
 					return waiter.future();
 				})
-				.thenCompose(messageEvent -> this.database.updateGuildById(event.getGuild().getIdLong(), Updates.unset("reactionRole.reactionRoles")))
+				.thenCompose(messageEvent -> this.database.updateGuildById(event.getGuild().getIdLong(), Updates.unset("reactionRole.reactionRoles"), new UpdateOptions()))
 				.whenComplete((result, exception) -> {
 					if (ExceptionUtility.sendExceptionally(event, exception)) {
+						return;
+					}
+
+					if (result.getModifiedCount() == 0) {
+						event.replySuccess("There are no reaction roles in this server").queue();
 						return;
 					}
 					

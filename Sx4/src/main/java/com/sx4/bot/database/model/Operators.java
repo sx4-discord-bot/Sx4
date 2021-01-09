@@ -247,7 +247,8 @@ public class Operators {
 	}
 
 	public static Bson bitwiseAnd(Object x, Object y) {
-		return Operators.cond(Operators.or(Operators.eq(x, 0), Operators.eq(y, 0)), 0, Operators.cond(Operators.eq(x, y), x, Operators.handleOverflowBitwiseAnd(x, y, Operators.cond(Operators.lt("$$x", "$$y"), Operators.bitwiseAndUnchecked("$$y", "$$x"), Operators.bitwiseAndUnchecked("$$x", "$$y")))));
+		return Operators.function("function(x,y){return x&y}", List.of(x, y));
+		//return Operators.cond(Operators.or(Operators.eq(x, 0), Operators.eq(y, 0)), 0, Operators.cond(Operators.eq(x, y), x, Operators.handleOverflowBitwiseAnd(x, y, Operators.cond(Operators.lt("$$x", "$$y"), Operators.bitwiseAndUnchecked("$$y", "$$x"), Operators.bitwiseAndUnchecked("$$x", "$$y")))));
 	}
 
 	public static Bson bitwiseAndNot(Object x, Object y) {
@@ -263,7 +264,8 @@ public class Operators {
 	}
 	
 	public static Bson bitwiseOr(Object x, Object y) {
-		return Operators.cond(Operators.or(Operators.eq(x, 0), Operators.eq(y, 0)), Operators.cond(Operators.eq(y, 0), x, y), Operators.cond(Operators.eq(x, y), x, Operators.handleOverflowBitwiseOr(x, y, Operators.cond(Operators.lt("$$x", "$$y"), Operators.bitwiseOrUnchecked("$$y", "$$x"), Operators.bitwiseOrUnchecked("$$x", "$$y")))));
+		return Operators.function("function(x,y){return NumberLong(x)|NumberLong(y)}", List.of(x, y));
+		//return Operators.cond(Operators.or(Operators.eq(x, 0), Operators.eq(y, 0)), Operators.cond(Operators.eq(y, 0), x, y), Operators.cond(Operators.eq(x, y), x, Operators.handleOverflowBitwiseOr(x, y, Operators.cond(Operators.lt("$$x", "$$y"), Operators.bitwiseOrUnchecked("$$y", "$$x"), Operators.bitwiseOrUnchecked("$$x", "$$y")))));
 	}
 
 	private static Bson handleOverflowBitwiseOr(Object x, Object y, Object expression) {

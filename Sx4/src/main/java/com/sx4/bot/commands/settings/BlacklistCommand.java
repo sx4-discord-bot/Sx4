@@ -2,9 +2,9 @@ package com.sx4.bot.commands.settings;
 
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
-import com.jockie.bot.core.command.Command.AuthorPermissions;
 import com.mongodb.client.model.*;
 import com.sx4.bot.annotations.argument.Options;
+import com.sx4.bot.annotations.command.AuthorPermissions;
 import com.sx4.bot.annotations.command.CommandId;
 import com.sx4.bot.annotations.command.Examples;
 import com.sx4.bot.category.ModuleCategory;
@@ -43,13 +43,14 @@ public class BlacklistCommand extends Sx4Command {
 	@Command(value="add", description="Add a role/user to be blacklisted from a specified command/module in a channel")
 	@CommandId(168)
 	@Examples({"blacklist add #general @Shea#6653 fish", "blacklist add #bots @Members ban"})
-	@AuthorPermissions({Permission.MANAGE_SERVER})
+	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void add(Sx4CommandEvent event, @Argument(value="channel") TextChannel channel, @Argument(value="user | role") IPermissionHolder holder, @Argument(value="command | module", endless=true) List<Sx4Command> commands) {
 		boolean role = holder instanceof Role;
 		int type = role ? HolderType.ROLE.getType() : HolderType.USER.getType();
 
 		BitSet bitSet = new BitSet();
 		commands.stream().map(Sx4Command::getId).forEach(bitSet::set);
+
 
 		Document defaultData = new Document("id", holder.getIdLong())
 			.append("type", type)
@@ -91,7 +92,7 @@ public class BlacklistCommand extends Sx4Command {
 	@Command(value="remove", description="Remove a role/user from being blacklisted from a specified command/module in a channel")
 	@CommandId(180)
 	@Examples({"blacklist remove #general @Shea#6653 fish", "blacklist remove #bots @Members ban"})
-	@AuthorPermissions({Permission.MANAGE_SERVER})
+	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void remove(Sx4CommandEvent event, @Argument(value="channel") TextChannel channel, @Argument(value="user | role") IPermissionHolder holder, @Argument(value="command | module", endless=true) List<Sx4Command> commands) {
 		boolean role = holder instanceof Role;
 
@@ -136,7 +137,7 @@ public class BlacklistCommand extends Sx4Command {
 	@Command(value="reset", description="Reset the blacklist for a specific role/user in a channel")
 	@CommandId(181)
 	@Examples({"blacklist reset #channel", "blacklist reset all"})
-	@AuthorPermissions({Permission.MANAGE_SERVER})
+	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void reset(Sx4CommandEvent event, @Argument(value="channel", endless=true) @Options("all") Option<TextChannel> option) {
 		List<Bson> update = List.of(Operators.set("blacklist", Operators.cond(Operators.extinct("$blacklist.holders"), Operators.REMOVE, new Document("holders", Operators.reduce("$blacklist.holders", Collections.EMPTY_LIST, Operators.concatArrays("$$value", Operators.cond(Operators.isEmpty(Operators.ifNull(Operators.first(Operators.map(List.of("$$this"), "$$holder.whitelisted", "holder")), Collections.EMPTY_LIST)), Collections.EMPTY_LIST, List.of(Operators.removeObject("$$this", "blacklisted")))))))));
 		if (option.isAlternative()) {

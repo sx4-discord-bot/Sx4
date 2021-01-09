@@ -7,6 +7,7 @@ import com.sx4.bot.core.Sx4Category;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.entities.argument.MessageArgument;
 import com.sx4.bot.entities.mod.PartialEmote;
+import com.vdurmont.emoji.EmojiParser;
 import net.dv8tion.jda.api.entities.*;
 import net.dv8tion.jda.api.entities.Message.MentionType;
 import net.dv8tion.jda.api.entities.MessageReaction.ReactionEmote;
@@ -214,11 +215,12 @@ public class SearchUtility {
 	}
 	
 	public static ReactionEmote getReactionEmote(String query) {
-		Emote emote = SearchUtility.getEmote(query);
-		if (emote != null) {
-			return ReactionEmote.fromCustom(emote);
+		List<String> emojis = EmojiParser.extractEmojis(query);
+		if (!emojis.isEmpty()) {
+			return ReactionEmote.fromUnicode(emojis.get(0), Sx4.get().getShardManager().getShardById(0));
 		} else {
-			return ReactionEmote.fromUnicode(query, Sx4.get().getShardManager().getShardById(0));
+			Emote emote = SearchUtility.getEmote(query);
+			return emote == null ? null : ReactionEmote.fromCustom(emote);
 		}
 	}
 	

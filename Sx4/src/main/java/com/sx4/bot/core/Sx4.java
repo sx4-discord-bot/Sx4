@@ -141,6 +141,7 @@ public class Sx4 {
 			eventManager.register(new LoggerHandler());
 			eventManager.register(new AntiRegexHandler());
 			eventManager.register(new WelcomerHandler());
+			eventManager.register(new StarboardHandler());
 
 			return DefaultShardManagerBuilder.create(this.config.getToken(), GatewayIntent.getIntents(6094))
 				.setBulkDeleteSplittingEnabled(false)
@@ -646,7 +647,7 @@ public class Sx4 {
 	
 	@SuppressWarnings("unchecked")
 	private IErrorManager createErrorManager() {
-		return new ErrorManagerImpl()
+		IErrorManager errorManager = new ErrorManagerImpl()
 			.registerResponse(Member.class, "I could not find that user " + this.config.getFailureEmote())
 			.registerResponse(User.class, "I could not find that user " + this.config.getFailureEmote())
 			.registerResponse(Role.class, "I could not find that role " + this.config.getFailureEmote())
@@ -687,6 +688,8 @@ public class Sx4 {
 					message.getChannel().sendMessageFormat("You cannot use more than **%,d** character%s for `%s` %s", charLimit, charLimit == 1 ? "" : "s", argument.getName(), this.config.getFailureEmote()).queue();
 				}
 			});
+
+		return errorManager;
 	}
 	
 	public static void main(String[] args) throws Exception {

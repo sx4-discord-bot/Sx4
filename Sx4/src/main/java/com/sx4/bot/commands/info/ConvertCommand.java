@@ -1,6 +1,7 @@
 package com.sx4.bot.commands.info;
 
 import com.jockie.bot.core.argument.Argument;
+import com.sx4.bot.annotations.argument.DefaultNumber;
 import com.sx4.bot.annotations.argument.Uppercase;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
@@ -19,7 +20,7 @@ public class ConvertCommand extends Sx4Command {
 		super.setCategoryAll(ModuleCategory.INFORMATION);
 	}
 
-	public void onCommand(Sx4CommandEvent event, @Argument(value="amount") double amount, @Argument(value="currency from") @Uppercase String from, @Argument(value="currency to") @Uppercase String to) {
+	public void onCommand(Sx4CommandEvent event, @Argument(value="amount") @DefaultNumber(1) double amount, @Argument(value="currency from") @Uppercase String from, @Argument(value="currency to") @Uppercase String to) {
 		Request request = new Request.Builder()
 			.url(String.format("https://free.currconv.com/api/v7/convert?q=%s_%s&apiKey=%s&compact=y", from, to, this.config.getCurrencyConvertor()))
 			.build();

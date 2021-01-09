@@ -56,7 +56,7 @@ public class ModHandler implements ModActionListener, EventListener {
 
 		WebhookEmbed embed = modLog.getWebhookEmbed(event.getModerator().getUser(), event.getTarget());
 
-		this.manager.sendModLog(channel, data.get("webhook", Database.EMPTY_DOCUMENT), embed, webhookMessage -> {
+		this.manager.sendModLog(channel, data.get("webhook", Database.EMPTY_DOCUMENT), embed).whenComplete((webhookMessage, exception) -> {
 			modLog.setMessageId(webhookMessage.getId());
 
 			database.insertModLog(modLog.toData()).whenComplete(Database.exceptionally());

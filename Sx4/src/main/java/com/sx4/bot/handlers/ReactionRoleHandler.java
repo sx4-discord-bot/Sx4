@@ -36,14 +36,6 @@ public class ReactionRoleHandler extends ListenerAdapter {
 		
 		Config config = Config.get();
 		
-		if (!guild.getSelfMember().hasPermission(Permission.MANAGE_ROLES)) {
-			user.openPrivateChannel()
-				.flatMap(channel -> channel.sendMessage("I am missing the `" + Permission.MANAGE_ROLES.getName() + "` permission " + config.getFailureEmote()))
-				.queue(null, ErrorResponseException.ignore(ErrorResponse.CANNOT_SEND_TO_USER));
-			
-			return;
-		}
-		
 		List<Document> reactionRoles = Database.get().getGuildById(guild.getIdLong(), Projections.include("reactionRole.reactionRoles")).getEmbedded(List.of("reactionRole", "reactionRoles"), Collections.emptyList());
 		
 		Document reactionRole = reactionRoles.stream()
@@ -52,6 +44,14 @@ public class ReactionRoleHandler extends ListenerAdapter {
 			.orElse(null);
 		
 		if (reactionRole == null) {
+			return;
+		}
+
+		if (!guild.getSelfMember().hasPermission(Permission.MANAGE_ROLES)) {
+			user.openPrivateChannel()
+				.flatMap(channel -> channel.sendMessage("I am missing the `" + Permission.MANAGE_ROLES.getName() + "` permission " + config.getFailureEmote()))
+				.queue(null, ErrorResponseException.ignore(ErrorResponse.CANNOT_SEND_TO_USER));
+
 			return;
 		}
 		

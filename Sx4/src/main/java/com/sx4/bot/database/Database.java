@@ -41,6 +41,9 @@ public class Database {
 	private final MongoCollection<Document> channels;
 	private final MongoCollection<Document> members;
 
+	private final MongoCollection<Document> starboards;
+	private final MongoCollection<Document> stars;
+
 	private final MongoCollection<Document> reminders;
 
 	private final MongoCollection<Document> suggestions;
@@ -89,6 +92,15 @@ public class Database {
 		this.members.createIndex(Indexes.compoundIndex(guildId, userId), uniqueIndex);
 		this.members.createIndex(guildId);
 		this.members.createIndex(userId);
+
+		this.starboards = this.database.getCollection("starboards");
+		this.starboards.createIndex(guildId);
+		this.starboards.createIndex(Indexes.descending("messageId"));
+		this.starboards.createIndex(Indexes.descending("originalMessageId"));
+
+		this.stars = this.database.getCollection("stars");
+		this.stars.createIndex(Indexes.compoundIndex(userId, Indexes.descending("messageId")), uniqueIndex);
+		this.stars.createIndex(userId);
 
 		this.reminders = this.database.getCollection("reminders");
 		this.reminders.createIndex(Indexes.descending("userId"));
@@ -148,6 +160,134 @@ public class Database {
 	
 	public MongoDatabase getDatabase() {
 		return this.database;
+	}
+
+	public MongoCollection<Document> getStars() {
+		return this.stars;
+	}
+
+	public FindIterable<Document> getStars(Bson filter, Bson projection) {
+		return this.stars.find(filter).projection(projection);
+	}
+
+	public Document getStar(Bson filter, Bson projection) {
+		return this.getStars(filter, projection).first();
+	}
+
+	public Document getStarById(long userId, long messageId, Bson projection) {
+		return this.getStar(Filters.and(Filters.eq("userId", userId), Filters.eq("messageId", messageId)), projection);
+	}
+
+	public CompletableFuture<InsertOneResult> insertStar(Document data) {
+		return CompletableFuture.supplyAsync(() -> this.stars.insertOne(data));
+	}
+
+	public CompletableFuture<DeleteResult> deleteManyStars(Bson filter) {
+		return CompletableFuture.supplyAsync(() -> this.stars.deleteMany(filter));
+	}
+
+	public MongoCollection<Document> getStarboards() {
+		return this.starboards;
+	}
+
+	public FindIterable<Document> getStarboards(Bson filter, Bson projection) {
+		return this.starboards.find(filter).projection(projection);
+	}
+
+	public Document getStarboard(Bson filter, Bson projection) {
+		return this.getStarboards(filter, projection).first();
+	}
+
+	public Document getStarboardById(ObjectId id, Bson projection) {
+		return this.getStarboard(Filters.eq("_id", id), projection);
+	}
+
+	public CompletableFuture<InsertOneResult> insertStarboard(Document data) {
+		return CompletableFuture.supplyAsync(() -> this.starboards.insertOne(data));
+	}
+
+	public CompletableFuture<UpdateResult> updateStarboard(Bson filter, Bson update, UpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.starboards.updateOne(filter, update, options));
+	}
+
+	public CompletableFuture<UpdateResult> updateStarboard(Bson filter, Bson update) {
+		return this.updateStarboard(filter, update, this.updateOptions);
+	}
+
+	public CompletableFuture<UpdateResult> updateStarboardById(ObjectId id, Bson update, UpdateOptions options) {
+		return this.updateStarboard(Filters.eq("_id", id), update, options);
+	}
+
+	public CompletableFuture<UpdateResult> updateStarboardById(ObjectId id, Bson update) {
+		return this.updateStarboardById(id, update, this.updateOptions);
+	}
+
+	public CompletableFuture<UpdateResult> updateStarboardById(ObjectId id, List<Bson> update) {
+		return this.updateStarboardById(id, update, this.updateOptions);
+	}
+
+	public CompletableFuture<UpdateResult> updateStarboard(Bson filter, List<Bson> update, UpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.starboards.updateOne(filter, update, options));
+	}
+
+	public CompletableFuture<UpdateResult> updateStarboard(Bson filter, List<Bson> update) {
+		return this.updateStarboard(filter, update, this.updateOptions);
+	}
+
+	public CompletableFuture<UpdateResult> updateStarboardById(ObjectId id, List<Bson> update, UpdateOptions options) {
+		return this.updateStarboard(Filters.eq("_id", id), update, options);
+	}
+
+	public CompletableFuture<Document> findAndUpdateStarboard(Bson filter, Bson update, FindOneAndUpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.starboards.findOneAndUpdate(filter, update, options));
+	}
+
+	public CompletableFuture<Document> findAndUpdateStarboard(Bson filter, Bson update) {
+		return this.findAndUpdateStarboard(filter, update, this.findOneAndUpdateOptions);
+	}
+
+	public CompletableFuture<Document> findAndUpdateStarboardById(ObjectId id, Bson update, FindOneAndUpdateOptions options) {
+		return this.findAndUpdateStarboard(Filters.eq("_id", id), update, options);
+	}
+
+	public CompletableFuture<Document> findAndUpdateStarboardById(ObjectId id, Bson update) {
+		return this.findAndUpdateStarboardById(id, update, this.findOneAndUpdateOptions);
+	}
+
+	public CompletableFuture<Document> findAndUpdateStarboardById(ObjectId id, List<Bson> update) {
+		return this.findAndUpdateStarboardById(id, update, this.findOneAndUpdateOptions);
+	}
+
+	public CompletableFuture<Document> findAndUpdateStarboard(Bson filter, List<Bson> update, FindOneAndUpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.starboards.findOneAndUpdate(filter, update, options));
+	}
+
+	public CompletableFuture<Document> findAndUpdateStarboard(Bson filter, List<Bson> update) {
+		return this.findAndUpdateStarboard(filter, update, this.findOneAndUpdateOptions);
+	}
+
+	public CompletableFuture<Document> findAndUpdateStarboardById(ObjectId id, List<Bson> update, FindOneAndUpdateOptions options) {
+		return this.findAndUpdateStarboard(Filters.eq("_id", id), update, options);
+	}
+
+	public CompletableFuture<DeleteResult> deleteStarboard(Bson filter) {
+		return CompletableFuture.supplyAsync(() -> this.starboards.deleteOne(filter));
+	}
+
+	public CompletableFuture<DeleteResult> deleteStarboardById(ObjectId id) {
+		return this.deleteStarboard(Filters.eq("_id", id));
+	}
+
+	public CompletableFuture<Document> findAndDeleteStarboard(Bson filter) {
+		return CompletableFuture.supplyAsync(() -> this.starboards.findOneAndDelete(filter));
+	}
+
+	public CompletableFuture<Document> findAndDeleteStarboardById(ObjectId id) {
+		return this.findAndDeleteStarboard(Filters.eq("_id", id));
+	}
+
+	public CompletableFuture<DeleteResult> deleteManyStarboards(Bson filter) {
+		return CompletableFuture.supplyAsync(() -> this.starboards.deleteMany(filter));
 	}
 
 	public MongoCollection<Document> getSuggestions() {

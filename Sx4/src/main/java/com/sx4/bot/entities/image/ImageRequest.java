@@ -56,9 +56,7 @@ public class ImageRequest {
 		for (Map.Entry<String, String> entry : this.queries.entrySet()) {
 			this.url.append(String.format("%s%s=%s", first ? "?" : "&", entry.getKey(), entry.getValue()));
 
-			if (first) {
-				first = false;
-			}
+			first = false;
 		}
 
 		Request.Builder builder = new Request.Builder()

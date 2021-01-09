@@ -32,7 +32,9 @@ dependencies {
 		exclude group: 'net.dv8tion', module: 'JDA'
 	}
 	
-	compile 'club.minnced:discord-webhooks:0.5.3'
+	compile 'club.minnced:discord-webhooks:0+'
+
+	compile 'com.vdurmont:emoji-java:5+'
 	
 	compile group: 'org.jsoup', name: 'jsoup', version: '1.11.3'
 

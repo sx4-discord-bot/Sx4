@@ -22,7 +22,6 @@ import com.sx4.bot.utility.ColourUtility;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.waiter.Waiter;
 import net.dv8tion.jda.api.Permission;
-import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent;
@@ -156,7 +155,6 @@ public class SuggestionCommand extends Sx4Command {
 	@Examples({"suggestion remove 5e45ce6d3688b30ee75201ae", "suggestion remove all"})
 	public void remove(Sx4CommandEvent event, @Argument(value="id") @Options("all") Option<ObjectId> option) {
 		User author = event.getAuthor();
-		Guild guild = event.getGuild();
 		TextChannel channel = event.getTextChannel();
 
 		if (option.isAlternative()) {
@@ -217,16 +215,9 @@ public class SuggestionCommand extends Sx4Command {
 					return;
 				}
 
-				long channelId = data.getLong("channelId");
-				TextChannel suggestionChannel = guild.getTextChannelById(channelId);
-				if (suggestionChannel != null) {
-					if (guild.getSelfMember().hasPermission(suggestionChannel, Permission.MESSAGE_MANAGE)) {
-						suggestionChannel.deleteMessageById(data.getLong("messageId")).queue();
-					} else {
-						Document webhookData = this.database.getGuildById(guild.getIdLong(), Projections.include("suggestion.webhook.token", "suggestion.webhook.id")).getEmbedded(List.of("suggestion", "webhook"), Database.EMPTY_DOCUMENT);
-
-						this.manager.deleteSuggestion(data.getLong("messageId"), channelId, webhookData);
-					}
+				WebhookClient webhook = this.manager.getWebhook(data.getLong("channelId"));
+				if (webhook != null) {
+					webhook.delete(data.getLong("messageId"));
 				}
 
 				event.replySuccess("That suggestion has been removed").queue();

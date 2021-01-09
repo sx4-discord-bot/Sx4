@@ -2,9 +2,9 @@ package com.sx4.bot.commands.settings;
 
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
-import com.jockie.bot.core.command.Command.AuthorPermissions;
 import com.mongodb.client.model.*;
 import com.sx4.bot.annotations.argument.Options;
+import com.sx4.bot.annotations.command.AuthorPermissions;
 import com.sx4.bot.annotations.command.CommandId;
 import com.sx4.bot.annotations.command.Examples;
 import com.sx4.bot.category.ModuleCategory;
@@ -43,7 +43,7 @@ public class WhitelistCommand extends Sx4Command {
 	@Command(value="add", description="Add a role/user to be whitelisted from a specified command/module in a channel")
 	@CommandId(184)
 	@Examples({"whitelist add #general @Shea#6653 fish", "whitelist add #bots @Members ban"})
-	@AuthorPermissions({Permission.MANAGE_SERVER})
+	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void add(Sx4CommandEvent event, @Argument(value="channel") TextChannel channel, @Argument(value="user | role") IPermissionHolder holder, @Argument(value="command | module", endless=true) List<Sx4Command> commands) {
 		boolean role = holder instanceof Role;
 		int type = role ? HolderType.ROLE.getType() : HolderType.USER.getType();
@@ -91,7 +91,7 @@ public class WhitelistCommand extends Sx4Command {
 	@Command(value="remove", description="Remove a role/user from being whitelisted from a specified command/module in a channel")
 	@CommandId(185)
 	@Examples({"whitelist remove #general @Shea#6653 fish", "whitelist remove #bots @Members ban"})
-	@AuthorPermissions({Permission.MANAGE_SERVER})
+	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void remove(Sx4CommandEvent event, @Argument(value="channel") TextChannel channel, @Argument(value="user | role") IPermissionHolder holder, @Argument(value="command | module", endless=true) List<Sx4Command> commands) {
 		boolean role = holder instanceof Role;
 
@@ -136,7 +136,7 @@ public class WhitelistCommand extends Sx4Command {
 	@Command(value="reset", description="Reset the whitelist for a specific role/user in a channel")
 	@CommandId(186)
 	@Examples({"whitelist reset #channel", "whitelist reset all"})
-	@AuthorPermissions({Permission.MANAGE_SERVER})
+	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void reset(Sx4CommandEvent event, @Argument(value="channel", endless=true) @Options("all") Option<TextChannel> option) {
 		List<Bson> update = List.of(Operators.set("blacklist", Operators.cond(Operators.extinct("$blacklist.holders"), Operators.REMOVE, new Document("holders", Operators.reduce("$blacklist.holders", Collections.EMPTY_LIST, Operators.concatArrays("$$value", Operators.cond(Operators.isEmpty(Operators.ifNull(Operators.first(Operators.map(List.of("$$this"), "$$holder.blacklisted", "holder")), Collections.EMPTY_LIST)), Collections.EMPTY_LIST, List.of(Operators.removeObject("$$this", "whitelisted")))))))));
 		if (option.isAlternative()) {

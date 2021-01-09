@@ -14,7 +14,6 @@ import com.sx4.bot.annotations.command.Examples;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
-import com.sx4.bot.database.Database;
 import com.sx4.bot.database.model.Operators;
 import com.sx4.bot.entities.argument.Option;
 import com.sx4.bot.entities.argument.Range;
@@ -26,7 +25,6 @@ import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.waiter.Waiter;
 import net.dv8tion.jda.api.Permission;
-import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent;
@@ -184,18 +182,9 @@ public class ModLogCommand extends Sx4Command {
 					return;
 				}
 
-				Guild guild = event.getGuild();
-
-				long channelId = data.getLong("channelId");
-				TextChannel channel = guild.getTextChannelById(channelId);
-				if (channel != null) {
-					if (guild.getSelfMember().hasPermission(channel, Permission.MESSAGE_MANAGE)) {
-						channel.deleteMessageById(data.getLong("messageId")).queue();
-					} else {
-						Document webhookData = this.database.getGuildById(guild.getIdLong(), Projections.include("modLog.webhook.token", "modLog.webhook.id")).getEmbedded(List.of("modLog", "webhook"), Database.EMPTY_DOCUMENT);
-
-						this.manager.deleteModLog(data.getLong("messageId"), channelId, webhookData);
-					}
+				WebhookClient webhook = this.manager.getWebhook(data.getLong("channelId"));
+				if (webhook != null) {
+					webhook.delete(data.getLong("messageId"));
 				}
 
 				event.replySuccess("That mod log has been deleted").queue();
