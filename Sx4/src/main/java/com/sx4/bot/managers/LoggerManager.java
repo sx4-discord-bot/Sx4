@@ -116,7 +116,7 @@ public class LoggerManager implements WebhookManager {
 
     private void createWebhook(TextChannel channel, BlockingDeque<Request> deque, List<Request> requests, int retries) {
         channel.createWebhook("Sx4 - Logger").queue(webhook -> {
-            WebhookClient webhookClient = new WebhookClientBuilder(webhook.getUrl())
+            WebhookClient webhookClient = new WebhookClientBuilder(webhook.getIdLong(), webhook.getToken())
                 .setExecutorService(this.webhookExecutor)
                 .setHttpClient(this.webhookClient)
                 .build();

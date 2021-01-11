@@ -57,7 +57,7 @@ public class LeaverManager implements WebhookManager {
 		}
 
 		return channel.createWebhook("Sx4 - Leaver").submit().thenCompose(webhook -> {
-			WebhookClient webhookClient = new WebhookClientBuilder(webhook.getUrl())
+			WebhookClient webhookClient = new WebhookClientBuilder(webhook.getIdLong(), webhook.getToken())
 				.setExecutorService(this.executor)
 				.setHttpClient(this.client)
 				.build();
@@ -65,8 +65,8 @@ public class LeaverManager implements WebhookManager {
 			this.webhooks.put(channel.getIdLong(), webhookClient);
 
 			Bson update = Updates.combine(
-				Updates.set("modLog.webhook.id", webhook.getIdLong()),
-				Updates.set("modLog.webhook.token", webhook.getToken())
+				Updates.set("leaver.webhook.id", webhook.getIdLong()),
+				Updates.set("leaver.webhook.token", webhook.getToken())
 			);
 
 			return Database.get().updateGuildById(channel.getGuild().getIdLong(), update).thenCompose(result -> webhookClient.send(message));

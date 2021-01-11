@@ -141,6 +141,7 @@ public class Sx4 {
 			eventManager.register(new LoggerHandler());
 			eventManager.register(new AntiRegexHandler());
 			eventManager.register(new WelcomerHandler());
+			eventManager.register(new LeaverHandler());
 			eventManager.register(new StarboardHandler());
 
 			return DefaultShardManagerBuilder.create(this.config.getToken(), GatewayIntent.getIntents(6094))

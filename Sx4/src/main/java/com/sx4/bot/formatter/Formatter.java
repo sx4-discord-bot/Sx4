@@ -198,7 +198,12 @@ public interface Formatter<Type> {
 					continue;
 				}
 
-				string = string.substring(0, index) + map.get(formatter) + string.substring(endIndex + 1);
+				Object formatted = map.get(formatter);
+				if (formatted instanceof String) {
+					formatted = this.format((String) formatted, map);
+				}
+
+				string = string.substring(0, index) + formatted + string.substring(endIndex + 1);
 
 				continue Open;
 			}

@@ -182,6 +182,14 @@ public class Database {
 		return CompletableFuture.supplyAsync(() -> this.stars.insertOne(data));
 	}
 
+	public CompletableFuture<DeleteResult> deleteStar(Bson filter) {
+		return CompletableFuture.supplyAsync(() -> this.stars.deleteOne(filter));
+	}
+
+	public CompletableFuture<DeleteResult> deleteStarById(long userId, long messageId) {
+		return this.deleteStar(Filters.and(Filters.eq("userId", userId), Filters.eq("messageId", messageId)));
+	}
+
 	public CompletableFuture<DeleteResult> deleteManyStars(Bson filter) {
 		return CompletableFuture.supplyAsync(() -> this.stars.deleteMany(filter));
 	}

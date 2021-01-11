@@ -60,7 +60,7 @@ public class SuggestionManager implements WebhookManager {
 		}
 
 		return channel.createWebhook("Sx4 - Suggestions").submit().thenCompose(webhook -> {
-			WebhookClient webhookClient = new WebhookClientBuilder(webhook.getUrl())
+			WebhookClient webhookClient = new WebhookClientBuilder(webhook.getIdLong(), webhook.getToken())
 				.setExecutorService(this.executor)
 				.setHttpClient(this.client)
 				.build();

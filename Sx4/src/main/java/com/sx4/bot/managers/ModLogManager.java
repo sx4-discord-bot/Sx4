@@ -59,7 +59,7 @@ public class ModLogManager implements WebhookManager {
 		}
 
 		return channel.createWebhook("Sx4 - Mod Logs").submit().thenCompose(webhook -> {
-			WebhookClient webhookClient = new WebhookClientBuilder(webhook.getUrl())
+			WebhookClient webhookClient = new WebhookClientBuilder(webhook.getIdLong(), webhook.getToken())
 				.setExecutorService(this.executor)
 				.setHttpClient(this.client)
 				.build();
