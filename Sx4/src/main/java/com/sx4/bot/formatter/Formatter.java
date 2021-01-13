@@ -3,6 +3,7 @@ package com.sx4.bot.formatter;
 import com.sx4.bot.utility.ColourUtility;
 import com.sx4.bot.utility.NumberUtility;
 import net.dv8tion.jda.api.entities.*;
+import net.dv8tion.jda.api.entities.MessageReaction.ReactionEmote;
 
 import java.util.Map;
 
@@ -47,6 +48,15 @@ public interface Formatter<Type> {
 			.append("role.id", role.getId())
 			.append("role.colour", "#" + ColourUtility.toHexString(role.getColorRaw()))
 			.append("role.colour.raw", role.getColorRaw());
+	}
+
+	default Formatter<Type> emote(ReactionEmote reactionEmote) {
+		boolean emoji = reactionEmote.isEmoji();
+		Emote emote = emoji ? null : reactionEmote.getEmote();
+
+		return this.append("emote.id", emoji ? "0" : reactionEmote.getId())
+			.append("emote.mention", emoji ? reactionEmote.getEmoji() : emote.getAsMention())
+			.append("emote.name", emoji ? reactionEmote.getEmoji() : emote.getName());
 	}
 
 	Type parse();

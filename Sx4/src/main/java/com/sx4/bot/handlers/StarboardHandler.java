@@ -37,7 +37,7 @@ public class StarboardHandler extends ListenerAdapter {
 	private final Database database = Database.get();
 	private final StarboardManager manager = StarboardManager.get();
 
-	private WebhookMessage getStarboardMessage(Document guildData, Document starboard, Guild guild, Member member) {
+	private WebhookMessage getStarboardMessage(Document guildData, Document starboard, Guild guild, Member member, ReactionEmote emote) {
 		List<Document> messages = guildData.getList("messages", Document.class, StarboardManager.DEFAULT_CONFIGURATION);
 
 		Document messageData = messages.stream()
@@ -81,7 +81,7 @@ public class StarboardHandler extends ListenerAdapter {
 		Document webhookData = guildData.get("webhook", Database.EMPTY_DOCUMENT);
 
 		try {
-			return this.format(messageData.get("message", Document.class), member, channel, stars, nextStars, starboard.getObjectId("_id"))
+			return this.format(messageData.get("message", Document.class), member, channel, emote, stars, nextStars, starboard.getObjectId("_id"))
 				.setUsername(webhookData.get("name", "Sx4 - Starboard"))
 				.setAvatarUrl(webhookData.get("avatar", Sx4.get().getShardManager().getShardById(0).getSelfUser().getEffectiveAvatarUrl()))
 				.addEmbeds(builder.build())
@@ -92,10 +92,11 @@ public class StarboardHandler extends ListenerAdapter {
 		}
 	}
 
-	private WebhookMessageBuilder format(Document message, Member member, TextChannel channel, int stars, int nextStars, ObjectId id) {
+	private WebhookMessageBuilder format(Document message, Member member, TextChannel channel, ReactionEmote emote, int stars, int nextStars, ObjectId id) {
 		Formatter<Document> formatter = new JsonFormatter(message)
 			.member(member)
 			.channel(channel)
+			.emote(emote)
 			.append("stars", stars)
 			.append("stars.suffix", NumberUtility.getSuffixed(stars))
 			.append("stars.next", nextStars)
@@ -177,10 +178,10 @@ public class StarboardHandler extends ListenerAdapter {
 					}
 				}
 
-				FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().projection(Projections.include("count", "authorId", "content", "image", "channelId", "originalMessageId", "messageId")).returnDocument(ReturnDocument.AFTER).upsert(true);
+				FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER).upsert(true);
 				return this.database.findAndUpdateStarboard(Filters.eq("originalMessageId", messageId), update, options);
 			}).thenCompose(updatedData -> {
-				WebhookMessage webhookMessage = this.getStarboardMessage(data, updatedData, event.getGuild(), event.getMember());
+				WebhookMessage webhookMessage = this.getStarboardMessage(data, updatedData, event.getGuild(), event.getMember(), emote);
 				if (webhookMessage == null) {
 					return CompletableFuture.completedFuture(null);
 				}
@@ -257,7 +258,7 @@ public class StarboardHandler extends ListenerAdapter {
 				return CompletableFuture.completedFuture(null);
 			}
 
-			FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER).projection(Projections.include("count", "authorId", "content", "image", "channelId", "originalMessageId", "messageId"));
+			FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER);
 			Bson update = Updates.inc("count", -1);
 			if (messageData == null) {
 				update = Updates.combine(update, Updates.unset("messageId"));
@@ -265,15 +266,11 @@ public class StarboardHandler extends ListenerAdapter {
 
 			return this.database.findAndUpdateStarboard(Filters.eq("originalMessageId", messageId), update, options);
 		}).whenComplete((updatedData, exception) -> {
-			if (ExceptionUtility.sendErrorMessage(exception)) {
+			if (ExceptionUtility.sendErrorMessage(exception) || updatedData == null) {
 				return;
 			}
 
-			if (updatedData == null) {
-				return;
-			}
-
-			WebhookMessage webhookMessage = this.getStarboardMessage(data, updatedData, event.getGuild(), event.getMember());
+			WebhookMessage webhookMessage = this.getStarboardMessage(data, updatedData, event.getGuild(), event.getMember(), emote);
 			if (webhookMessage == null) {
 				this.manager.deleteStarboard(starboard.getLong("messageId"), channel.getIdLong(), data.get("webhook", Database.EMPTY_DOCUMENT));
 			} else {
@@ -281,4 +278,5 @@ public class StarboardHandler extends ListenerAdapter {
 			}
 		});
 	}
+
 }

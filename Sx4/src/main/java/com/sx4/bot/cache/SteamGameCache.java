@@ -12,6 +12,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -26,6 +27,7 @@ public class SteamGameCache {
 	private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
 
 	private List<Document> games;
+	private ScheduledFuture<?> future;
 
 	public SteamGameCache() {
 		this.games = new ArrayList<>();
@@ -45,7 +47,7 @@ public class SteamGameCache {
 	}
 
 	public void initiateCache() {
-		this.executor.scheduleAtFixedRate(() -> {
+		this.future = this.executor.scheduleAtFixedRate(() -> {
 			Request request = new Request.Builder()
 				.url(String.format("https://api.steampowered.com/ISteamApps/GetAppList/v0002/?key=%s&format=json", Config.get().getSteam()))
 				.build();
@@ -56,6 +58,14 @@ public class SteamGameCache {
 				this.games = json.getEmbedded(List.of("applist", "apps"), Collections.emptyList());
 			});
 		}, 0, 15, TimeUnit.MINUTES);
+	}
+
+	public void restartCache() {
+		if (this.future != null && !this.future.isDone()) {
+			this.future.cancel(true);
+		}
+
+		this.initiateCache();
 	}
 
 }
