@@ -9,6 +9,7 @@ import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.StringUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.MessageBuilder;
+import net.dv8tion.jda.api.Permission;
 import okhttp3.Request;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -53,6 +54,7 @@ public class DictionaryCommand extends Sx4Command {
 		super.setAliases("define");
 		super.setDescription("Look up the definition for a specific word");
 		super.setExamples("dictionary hello", "dictionary placebo");
+		super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
 		super.setCategoryAll(ModuleCategory.INFORMATION);
 	}
 
@@ -111,7 +113,7 @@ public class DictionaryCommand extends Sx4Command {
 					embed.setFooter("next | previous | go to <page_number> | cancel");
 
 					page.forEach((result, index) -> {
-						embed.addField("Definition", String.format("%s%s", result.getDefinition(), result.getExamples().isEmpty() ? "" : "\n\n*" + String.join("*\n*", result.getExamples()) + "*"), false);
+						embed.addField("Definition", result.getDefinition() + (result.getExamples().isEmpty() ? "" : "\n\n*" + String.join("*\n*", result.getExamples()) + "*"), false);
 					});
 
 					if (pronunciation != null) {

@@ -8,6 +8,7 @@ import com.sx4.bot.http.HttpCallback;
 import com.sx4.bot.paged.PagedResult;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.MessageBuilder;
+import net.dv8tion.jda.api.Permission;
 import okhttp3.Request;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.DataNode;
@@ -30,6 +31,7 @@ public class GoogleImageCommand extends Sx4Command {
 
 		super.setDescription("Search up a query on google images");
 		super.setExamples("google image dog", "google image cat");
+		super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
 		super.setCategoryAll(ModuleCategory.INFORMATION);
 	}
 

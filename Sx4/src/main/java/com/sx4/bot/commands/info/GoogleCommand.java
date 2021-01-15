@@ -6,6 +6,7 @@ import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.http.HttpCallback;
 import com.sx4.bot.paged.PagedResult;
+import net.dv8tion.jda.api.Permission;
 import okhttp3.Request;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -23,6 +24,7 @@ public class GoogleCommand extends Sx4Command {
 
 		super.setDescription("Searches a query up on google");
 		super.setExamples("google How to use Sx4", "google Sx4 discord bot");
+		super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
 		super.setCategoryAll(ModuleCategory.INFORMATION);
 	}
 
