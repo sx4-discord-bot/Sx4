@@ -437,6 +437,7 @@ public class Sx4 {
 			.registerParser(MessageArgument.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getMessageArgument(context.getMessage().getTextChannel(), content)))
 			.registerParser(ReactionEmote.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getReactionEmote(content)))
 			.registerParser(ModAction.class, new EnumParser<>())
+			.registerParser(Sx4Command.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getCommand(content)))
 			.registerParser(TimeZone.class, (context, argument, content) -> new ParsedResult<>(TimeZone.getTimeZone(content.toUpperCase().replace("UTC", "GMT"))))
 			.registerParser(ReminderArgument.class, (context, argument, content) -> {
 				try {
@@ -663,6 +664,7 @@ public class Sx4 {
 			.registerResponse(Member.class, "I could not find that user " + this.config.getFailureEmote())
 			.registerResponse(User.class, "I could not find that user " + this.config.getFailureEmote())
 			.registerResponse(Role.class, "I could not find that role " + this.config.getFailureEmote())
+			.registerResponse(Sx4Command.class, "I could not find that command" + this.config.getFailureEmote())
 			.registerResponse(ReactionEmote.class, "I could not find that emote " + this.config.getFailureEmote())
 			.registerResponse(TextChannel.class, "I could not find that text channel " + this.config.getFailureEmote())
 			.registerResponse(VoiceChannel.class, "I could not find that voice channel " + this.config.getFailureEmote())
