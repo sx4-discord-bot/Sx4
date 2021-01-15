@@ -316,6 +316,12 @@ public class Sx4 {
 			builder.setProperty("lowercase", parameter.isAnnotationPresent(Lowercase.class));
 			builder.setProperty("uppercase", parameter.isAnnotationPresent(Uppercase.class));
 
+			Replace replace = parameter.getAnnotation(Replace.class);
+			if (replace != null) {
+				builder.setProperty("replace", replace.replace());
+				builder.setProperty("replaceWith", replace.with());
+			}
+
 			Limit limit = parameter.getAnnotation(Limit.class);
 			if (limit != null) {
 				builder.setProperty("charLimit", limit.max());
@@ -608,6 +614,11 @@ public class Sx4 {
 			Integer charLimit = argument.getProperty("charLimit", Integer.class);
 			if (charLimit != null && content.length() > charLimit) {
 				return new ParsedResult<>();
+			}
+
+			String replace = argument.getProperty("replace"), with = argument.getProperty("replaceWith");
+			if (replace != null && with != null) {
+				content = content.replace(replace, with);
 			}
 
 			if (argument.getProperty("lowercase", false)) {

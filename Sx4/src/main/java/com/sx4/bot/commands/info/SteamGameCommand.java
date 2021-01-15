@@ -1,6 +1,7 @@
 package com.sx4.bot.commands.info;
 
 import com.jockie.bot.core.argument.Argument;
+import com.jockie.bot.core.option.Option;
 import com.sx4.bot.cache.SteamGameCache;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
@@ -35,11 +36,19 @@ public class SteamGameCommand extends Sx4Command {
 		super.setCategoryAll(ModuleCategory.INFORMATION);
 	}
 
-	public void onCommand(Sx4CommandEvent event, @Argument(value="game", endless=true) String query) {
+	public void onCommand(Sx4CommandEvent event, @Argument(value="game", endless=true, nullDefault=true) String query, @Option(value="random", description="Gets a random game") boolean random) {
+		if (query == null && !random) {
+			event.replyHelp().queue();
+			return;
+		}
+
 		Matcher urlMatcher;
 
 		List<Document> games;
-		if (NumberUtility.isNumberUnsigned(query)) {
+		if (query == null) {
+			List<Document> cache = this.cache.getGames();
+			games = List.of(cache.get(event.getRandom().nextInt(cache.size())));
+		} else if (NumberUtility.isNumberUnsigned(query)) {
 			games = List.of(new Document("appid", Integer.parseInt(query)));
 		} else if ((urlMatcher = this.urlPattern.matcher(query)).matches()) {
 			games = List.of(new Document("appid", Integer.parseInt(urlMatcher.group(1))));
