@@ -6,23 +6,24 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
 public class JsonFormatter implements Formatter<Document> {
 
-	private final Map<String, Object> map;
+	private final Map<String, Function<Variable, Object>> map;
 	private final Document document;
 
 	public JsonFormatter(Document document) {
 		this(document, new HashMap<>());
 	}
 
-	private JsonFormatter(Document document, Map<String, Object> map) {
+	private JsonFormatter(Document document, Map<String, Function<Variable, Object>> map) {
 		this.document = document;
 		this.map = map;
 	}
 
-	public JsonFormatter append(String key, Object replace) {
-		this.map.put(key, replace);
+	public JsonFormatter appendFunction(String key, Function<Variable, Object> function) {
+		this.map.put(key, function);
 
 		return this;
 	}
@@ -31,7 +32,7 @@ public class JsonFormatter implements Formatter<Document> {
 		return this.parse(this.document, this.map);
 	}
 
-	public Document parse(Document json, Map<String, Object> map) {
+	public Document parse(Document json, Map<String, Function<Variable, Object>> map) {
 		Document newJson = new Document();
 		for (Map.Entry<String, Object> entry : json.entrySet()) {
 			Object value = entry.getValue();
@@ -60,7 +61,7 @@ public class JsonFormatter implements Formatter<Document> {
 		return newJson;
 	}
 
-	public static JsonFormatter of(Document document, Map<String, Object> map) {
+	public static JsonFormatter of(Document document, Map<String, Function<Variable, Object>> map) {
 		return new JsonFormatter(document, map);
 	}
 

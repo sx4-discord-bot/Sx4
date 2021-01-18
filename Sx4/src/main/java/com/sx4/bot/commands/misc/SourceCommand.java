@@ -1,17 +1,16 @@
 package com.sx4.bot.commands.misc;
 
 import com.jockie.bot.core.argument.Argument;
+import com.jockie.bot.core.option.Option;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.http.HttpCallback;
+import net.dv8tion.jda.api.entities.Message;
 import okhttp3.Request;
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
-import org.jsoup.nodes.Element;
 
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
+import java.lang.reflect.Method;
+import java.util.Arrays;
 
 public class SourceCommand extends Sx4Command {
 
@@ -23,41 +22,72 @@ public class SourceCommand extends Sx4Command {
 		super.setCategoryAll(ModuleCategory.MISC);
 	}
 
-	public void onCommand(Sx4CommandEvent event, @Argument(value="command", endless=true) Sx4Command command) {
-		String path = command.getCommandMethod().getDeclaringClass().getName();
+	public void onCommand(Sx4CommandEvent event, @Argument(value="command", endless=true) Sx4Command command, @Option(value="display", description="Sends the full command in discord") boolean display) {
+		Method method = command.getCommandMethod();
+		String path = method.getDeclaringClass().getName();
 
-		int lastIndex = path.lastIndexOf('.');
+		String className = path.substring(path.lastIndexOf('.'));
+		String[] classes = className.split("\\$");
+		String lastClassName = classes[classes.length - 1];
 
-		String className = path.substring(lastIndex);
-		if (className.contains("$")) {
-			String[] classes = className.split("\\$");
-			String lastClassName = classes[classes.length - 1];
+		String filePath = path.replace(".", "/").substring(0, classes.length == 1 ? path.length() : path.indexOf("$")) + ".java";
+		String fullPath = "rewrite/Sx4/src/main/java/" + filePath;
 
-			String fullPath = "Sx4/blob/rewrite/Sx4/src/main/java/" + path.replace(".", "/").substring(0, path.indexOf("$")) + ".java";
+		Request request = new Request.Builder()
+			.url("https://raw.githubusercontent.com/sx4-discord-bot/Sx4/" + fullPath)
+			.build();
 
-			Request request = new Request.Builder()
-				.url(String.format("https://github.com/sx4-discord-bot/Sx4/find-definition?q=%s&blob_path=%s&ref=rewrite&language=Java", URLEncoder.encode(lastClassName, StandardCharsets.UTF_8), URLEncoder.encode(fullPath, StandardCharsets.UTF_8)))
-				.build();
+		event.getClient().newCall(request).enqueue((HttpCallback) response -> {
+			String code = response.body().string();
+			String[] lines = code.split("\n");
 
-			event.getClient().newCall(request).enqueue((HttpCallback) response -> {
-				Document document = Jsoup.parse(response.body().string());
+			int classIndex = code.indexOf("class " + lastClassName);
 
-				for (Element element : document.getElementsByClass("TagsearchPopover-item")) {
-					String link = element.attr("href");
-					if (link.contains(fullPath)) {
-						event.reply("https://github.com" + link).queue();
-						return;
-					}
+			int startBracketCount = 0, endBracketCount = 0, startLine = 0, leading = 0;
+			for (int i = 0; i < lines.length; i++) {
+				String line = lines[i];
+
+				boolean foundLine = startBracketCount != 0 || endBracketCount != 0;
+				if (code.indexOf(line) < classIndex && !foundLine) {
+					continue;
 				}
 
-				// should basically be impossible, unless GitHub has an outage
-				event.reply("If you reach this message then GitHub didn't find something somehow").queue();
-			});
+				if (!line.contains(method.getName() + "(Sx4CommandEvent") && !foundLine) {
+					continue;
+				}
 
-			return;
-		}
+				if (display) {
+					if (!foundLine) {
+						leading = line.indexOf("public");
+						startLine = i;
+					}
 
-		event.reply("https://github.com/sx4-discord-bot/Sx4/blob/rewrite/Sx4/src/main/java/" + path.replace(".", "/") + ".java").queue();
+					if (!line.isBlank()) {
+						lines[i] = line.substring(leading);
+					}
+
+					for (char character : line.toCharArray()) {
+						if (character == '{') {
+							startBracketCount++;
+						}
+
+						if (character == '}') {
+							endBracketCount++;
+						}
+					}
+
+					if (endBracketCount == startBracketCount) {
+						String commandCode = String.join("\n",  Arrays.copyOfRange(lines, startLine, i + 1));
+
+						event.reply("```java\n" + commandCode.substring(0, Math.min(commandCode.length(), Message.MAX_CONTENT_LENGTH - 11)) + "```").queue();
+						break;
+					}
+				} else {
+					event.reply("https://github.com/sx4-discord-bot/Sx4/blob/" + fullPath + "#L" + (i + 1)).queue();
+					break;
+				}
+			}
+		});
 	}
 
 }

@@ -220,7 +220,11 @@ public class Operators {
 	public static Bson toDate(Object expression) {
 		return new Document("$toDate", expression);
 	}
-	
+
+	public static Bson toInt(Object expression) {
+		return new Document("$toInt",  expression);
+	}
+
 	public static Bson toLong(Object expression) {
 		return new Document("$toLong", expression);
 	}
@@ -228,7 +232,15 @@ public class Operators {
 	public static Bson toString(Object expression) {
 		return new Document("$toString", expression);
 	}
-	
+
+	private static Object toLowAndHigh(Object expression) {
+		return List.of(Operators.mod(expression, 0x100000000L), Operators.divide(expression, 0x100000000L));
+	}
+
+	private static Bson convertToLong(Object arrayExpression) {
+		return Operators.let(new Document("array", arrayExpression), Operators.add(Operators.multiply(Operators.unsignedShiftRight(Operators.arrayElemAt("$$array", 1), 0), 0x100000000L), Operators.unsignedShiftRight(Operators.arrayElemAt("$$array", 0), 0)));
+	}
+
 	private static Bson bitwiseXorUnchecked(Object x, Object y) {
 		return Operators.cond(Operators.eq(y, 0), x, Operators.abs(Operators.sigma(0, Operators.floor(Operators.log(x, 2)), Operators.multiply(Operators.pow(2, "$$this"), Operators.mod(Operators.add(Operators.floor(Operators.divide(x, Operators.pow(2, "$$this"))), Operators.floor(Operators.divide(y, Operators.pow(2, "$$this")))), 2)))));
 	}
@@ -247,12 +259,12 @@ public class Operators {
 	}
 
 	public static Bson bitwiseAnd(Object x, Object y) {
-		return Operators.function("function(x,y){return x&y}", List.of(x, y));
+		return Operators.let(new Document("x", Operators.toLowAndHigh(x)).append("y", Operators.toLowAndHigh(y)), Operators.convertToLong(Operators.function("function(x, y){return [(x[0] | 0) & (y[0] | 0), (x[1] | 0) & (y[1] | 0)]}", List.of("$$x", "$$y"))));
 		//return Operators.cond(Operators.or(Operators.eq(x, 0), Operators.eq(y, 0)), 0, Operators.cond(Operators.eq(x, y), x, Operators.handleOverflowBitwiseAnd(x, y, Operators.cond(Operators.lt("$$x", "$$y"), Operators.bitwiseAndUnchecked("$$y", "$$x"), Operators.bitwiseAndUnchecked("$$x", "$$y")))));
 	}
 
 	public static Bson bitwiseAndNot(Object x, Object y) {
-		return Operators.let(new Document("result", Operators.bitwiseAnd(x, y)), Operators.cond(Operators.eq("$$result", 0), x, Operators.subtract(x, "$$result")));
+		return Operators.bitwiseAnd(x, Operators.bitwiseNot(y));
 	}
 
 	private static Bson handleOverflowBitwiseAnd(Object x, Object y, Object expression) {
@@ -264,7 +276,7 @@ public class Operators {
 	}
 	
 	public static Bson bitwiseOr(Object x, Object y) {
-		return Operators.function("function(x,y){return NumberLong(x)|NumberLong(y)}", List.of(x, y));
+		return Operators.let(new Document("x", Operators.toLowAndHigh(x)).append("y", Operators.toLowAndHigh(y)), Operators.convertToLong(Operators.function("function(x, y){return [(x[0] | 0) | (y[0] | 0), (x[1] | 0) | (y[1] | 0)]}", List.of("$$x", "$$y"))));
 		//return Operators.cond(Operators.or(Operators.eq(x, 0), Operators.eq(y, 0)), Operators.cond(Operators.eq(y, 0), x, y), Operators.cond(Operators.eq(x, y), x, Operators.handleOverflowBitwiseOr(x, y, Operators.cond(Operators.lt("$$x", "$$y"), Operators.bitwiseOrUnchecked("$$y", "$$x"), Operators.bitwiseOrUnchecked("$$x", "$$y")))));
 	}
 
@@ -278,6 +290,10 @@ public class Operators {
 
 	public static Bson shiftRight(Object x, Object y) {
 		return Operators.floor(Operators.divide(x, Operators.pow(2, y)));
+	}
+
+	public static Bson unsignedShiftRight(Object x, Object y) {
+		return Operators.floor(Operators.divide(Operators.mod(x, 0x100000000L), Operators.pow(2, y)));
 	}
 
 	public static Bson bitSetOr(Object longArray, Object longArray2) {

@@ -18,7 +18,7 @@ import java.util.function.Function;
 
 public class PagedResult<Type> {
 	
-	public class PagedSelect<T> {
+	public static class PagedSelect<T> {
 		
 		private final T selected;
 		private final int index;
@@ -46,7 +46,7 @@ public class PagedResult<Type> {
 	
 	public enum SelectType {
 		INDEX,
-		OBJECT;
+		OBJECT
 	}
 	
 	private final PagedManager manager = PagedManager.get();
@@ -387,6 +387,10 @@ public class PagedResult<Type> {
 	}
 	
 	public void forEach(BiConsumer<Type, Integer> consumer) {
+		if (this.list.isEmpty()) {
+			return;
+		}
+
 		for (int i = (this.page - 1) * this.perPage; i < (this.page == this.getMaxPage() ? this.list.size() : this.page * this.perPage); i++) {
 			consumer.accept(this.list.get(i), i);
 		}

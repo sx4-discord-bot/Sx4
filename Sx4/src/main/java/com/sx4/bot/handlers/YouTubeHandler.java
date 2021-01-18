@@ -16,6 +16,7 @@ import com.sx4.bot.events.youtube.YouTubeDeleteEvent;
 import com.sx4.bot.events.youtube.YouTubeUpdateTitleEvent;
 import com.sx4.bot.events.youtube.YouTubeUploadEvent;
 import com.sx4.bot.formatter.JsonFormatter;
+import com.sx4.bot.formatter.parser.FormatterTimeParser;
 import com.sx4.bot.hooks.YouTubeListener;
 import com.sx4.bot.managers.YouTubeManager;
 import com.sx4.bot.utility.ExceptionUtility;
@@ -71,7 +72,7 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 			.append("video.url", video.getUrl())
 			.append("video.id", video.getId())
 			.append("video.thumbnail", video.getThumbnail())
-			.append("video.published", video.getPublishedAt())
+			.appendFunction("video.published", new FormatterTimeParser(video.getPublishedAt()))
 			.parse();
 
 		return MessageUtility.fromJson(formattedDocument);

@@ -1,15 +1,50 @@
 package com.sx4.bot.formatter;
 
+import com.sx4.bot.formatter.parser.FormatterTimeParser;
 import com.sx4.bot.utility.ColourUtility;
 import com.sx4.bot.utility.NumberUtility;
+import com.sx4.bot.utility.StringUtility;
 import net.dv8tion.jda.api.entities.*;
 import net.dv8tion.jda.api.entities.MessageReaction.ReactionEmote;
 
 import java.util.Map;
+import java.util.function.Function;
 
 public interface Formatter<Type> {
 
-	Formatter<Type> append(String key, Object replace);
+	class Variable {
+
+		private final String name;
+		private final String tag;
+
+		private Variable(String name) {
+			this(name, null);
+		}
+
+		private Variable(String name, String tag) {
+			this.name = name;
+			this.tag = tag;
+		}
+
+		public String getName() {
+			return this.name;
+		}
+
+		public boolean hasTag() {
+			return this.tag != null;
+		}
+
+		public String getTag() {
+			return this.tag;
+		}
+
+	}
+
+	default Formatter<Type> append(String key, Object replace) {
+		return this.appendFunction(key, (variable) -> replace);
+	}
+
+	Formatter<Type> appendFunction(String key, Function<Variable, Object> function);
 
 	default Formatter<Type> user(User user) {
 		return this.append("user.mention", user.getAsMention())
@@ -18,7 +53,7 @@ public interface Formatter<Type> {
 			.append("user.discriminator", user.getDiscriminator())
 			.append("user.tag", user.getAsTag())
 			.append("user.avatar", user.getEffectiveAvatarUrl())
-			.append("user.created", user.getTimeCreated());
+			.appendFunction("user.created", new FormatterTimeParser(user.getTimeCreated()));
 	}
 
 	default Formatter<Type> member(Member member) {
@@ -33,13 +68,15 @@ public interface Formatter<Type> {
 			.append("server.name", guild.getName())
 			.append("server.avatar", guild.getIconUrl())
 			.append("server.members", guild.getMemberCount())
-			.append("server.members.suffix", NumberUtility.getSuffixed(guild.getMemberCount()));
+			.append("server.members.suffix", NumberUtility.getSuffixed(guild.getMemberCount()))
+			.appendFunction("server.created", new FormatterTimeParser(guild.getTimeCreated()));
 	}
 
 	default Formatter<Type> channel(TextChannel channel) {
 		return this.append("channel.mention", channel.getAsMention())
 			.append("channel.name", channel.getName())
-			.append("channel.id", channel.getId());
+			.append("channel.id", channel.getId())
+			.appendFunction("channel.created", new FormatterTimeParser(channel.getTimeCreated()));
 	}
 
 	default Formatter<Type> role(Role role) {
@@ -47,7 +84,8 @@ public interface Formatter<Type> {
 			.append("role.name", role.getName())
 			.append("role.id", role.getId())
 			.append("role.colour", "#" + ColourUtility.toHexString(role.getColorRaw()))
-			.append("role.colour.raw", role.getColorRaw());
+			.append("role.colour.raw", role.getColorRaw())
+			.appendFunction("role.created", new FormatterTimeParser(role.getTimeCreated()));
 	}
 
 	default Formatter<Type> emote(ReactionEmote reactionEmote) {
@@ -56,24 +94,12 @@ public interface Formatter<Type> {
 
 		return this.append("emote.id", emoji ? "0" : reactionEmote.getId())
 			.append("emote.mention", emoji ? reactionEmote.getEmoji() : emote.getAsMention())
-			.append("emote.name", emoji ? reactionEmote.getEmoji() : emote.getName());
+			.append("emote.name", emoji ? reactionEmote.getEmoji() : emote.getName())
+			.append("emote.emoji", emoji)
+			.appendFunction("emote.created", emoji ? null : new FormatterTimeParser(emote.getTimeCreated()));
 	}
 
 	Type parse();
-
-	private boolean notEqual(String string, char firstChar, char secondChar) {
-		int first = 0, second = 0;
-		for (int i = 0; i < string.length(); i++) {
-			char character = string.charAt(i), characterBefore = string.charAt(Math.max(0, i - 1));
-			if (character == firstChar && characterBefore != '\\') {
-				first++;
-			} else if (character == secondChar && characterBefore != '\\') {
-				second++;
-			}
-		}
-
-		return first != second;
-	}
 
 	private boolean escape(String string, int index) {
 		if (index > 0 && string.charAt(index - 1) == '\\') {
@@ -149,7 +175,7 @@ public interface Formatter<Type> {
 					continue;
 				}
 
-				if (this.notEqual(string.substring(index + 1, endIndex), '(', ')')) {
+				if (StringUtility.isEqual(string.substring(index + 1, endIndex), '(', ')')) {
 					continue;
 				}
 
@@ -166,7 +192,7 @@ public interface Formatter<Type> {
 						}
 
 						String ifFormatter = string.substring(condIndex + 1, endCondIndex);
-						if (this.notEqual(ifFormatter, '?', ':')) {
+						if (StringUtility.isEqual(ifFormatter, '?', ':')) {
 							continue;
 						}
 
@@ -186,7 +212,7 @@ public interface Formatter<Type> {
 		return string;
 	}
 
-	private String format(String string, Map<String, Object> map) {
+	private String format(String string, Map<String, Function<Variable, Object>> map) {
 		int index = -1;
 		Open: while ((index = string.indexOf('{', index + 1)) != -1) {
 			if (this.escape(string, index)) {
@@ -200,20 +226,30 @@ public interface Formatter<Type> {
 				}
 
 				String formatter = string.substring(index + 1, endIndex);
-				if (this.notEqual(formatter, '{', '}')) {
+				if (StringUtility.isEqual(formatter, '{', '}')) {
 					continue;
 				}
 
-				if (!map.containsKey(formatter)) {
+				int colonIndex = formatter.indexOf(':');
+
+				String name;
+				Variable variable;
+				if (colonIndex == -1 || formatter.charAt(colonIndex - 1) == '\\') {
+					variable = new Variable(formatter);
+				} else {
+					variable = new Variable(formatter.substring(0, colonIndex), formatter.substring(colonIndex + 1));
+				}
+
+				if (!map.containsKey(variable.getName())) {
 					continue;
 				}
 
-				Object formatted = map.get(formatter);
+				Object formatted = map.get(variable.getName()).apply(variable);
 				if (formatted instanceof String) {
 					formatted = this.format((String) formatted, map);
 				}
 
-				string = string.substring(0, index) + formatted + string.substring(endIndex + 1);
+				string = string.substring(0, index) + formatted.toString() + string.substring(endIndex + 1);
 
 				continue Open;
 			}
@@ -222,7 +258,7 @@ public interface Formatter<Type> {
 		return string;
 	}
 
-	default String parse(String string, Map<String, Object> map) {
+	default String parse(String string, Map<String, Function<Variable, Object>> map) {
 		return this.ternary(this.format(string, map));
 	}
 

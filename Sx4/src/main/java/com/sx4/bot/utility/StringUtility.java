@@ -1,6 +1,20 @@
 package com.sx4.bot.utility;
 
 public class StringUtility {
+
+	public static boolean isEqual(String string, char firstChar, char secondChar) {
+		int first = 0, second = 0;
+		for (int i = 0; i < string.length(); i++) {
+			char character = string.charAt(i), characterBefore = string.charAt(Math.max(0, i - 1));
+			if (character == firstChar && characterBefore != '\\') {
+				first++;
+			} else if (character == secondChar && characterBefore != '\\') {
+				second++;
+			}
+		}
+
+		return first != second;
+	}
 	
 	public static String title(String string) {
 		String[] split = string.split(" ");

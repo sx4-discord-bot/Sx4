@@ -1,15 +1,14 @@
 package com.sx4.bot.commands.info;
 
 import com.jockie.bot.core.argument.Argument;
-import com.sx4.bot.annotations.argument.Replace;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.http.HttpCallback;
+import com.sx4.bot.utility.NumberUtility;
 import com.sx4.bot.utility.StringUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
-import net.dv8tion.jda.api.entities.MessageEmbed;
 import okhttp3.Request;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -20,6 +19,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.regex.Pattern;
 
 public class SteamProfileCommand extends Sx4Command {
 
@@ -35,8 +35,17 @@ public class SteamProfileCommand extends Sx4Command {
 		super.setCategoryAll(ModuleCategory.INFORMATION);
 	}
 
-	public void onCommand(Sx4CommandEvent event, @Argument(value="query", endless=true) @Replace(replace="https://steamcommunity.com/id/", with="") String query) {
-		String url = "https://steamcommunity.com/id/" + URLEncoder.encode(query, StandardCharsets.UTF_8);
+	private final Pattern url = Pattern.compile("https?://steamcommunity\\.com/(?:profiles|id)/[\\s\\d]+/?");
+
+	public void onCommand(Sx4CommandEvent event, @Argument(value="query", endless=true) String query) {
+		String url;
+		if (NumberUtility.isNumber(query)) {
+			url = "https://steamcommunity.com/profiles/" + query;
+		} else if (this.url.matcher(query).matches()) {
+			url = query;
+		} else {
+			url = "https://steamcommunity.com/id/" + URLEncoder.encode(query, StandardCharsets.UTF_8);
+		}
 
 		Request request = new Request.Builder()
 			.url(url + "?xml=1")
@@ -56,9 +65,19 @@ public class SteamProfileCommand extends Sx4Command {
 			}
 
 			JSONObject mostPlayedGames = profile.optJSONObject("mostPlayedGames");
-			JSONArray games = mostPlayedGames == null ? new JSONArray() : mostPlayedGames.getJSONArray("mostPlayedGame");
+			JSONArray gamesArray = mostPlayedGames == null ? new JSONArray() : mostPlayedGames.getJSONArray("mostPlayedGame");
 
-			String stateMessage =  profile.getString("stateMessage");
+			double hours = 0D;
+			StringBuilder gamesString = new StringBuilder();
+			for (int i = 0; i < gamesArray.length(); i++) {
+				JSONObject game = gamesArray.getJSONObject(i);
+
+				hours += game.getDouble("hoursPlayed");
+
+				gamesString.append(String.format("[%s](%s) - **%.1f** hours\n", game.getString("gameName"), game.getString("gameLink"), game.getDouble("hoursPlayed")));
+			}
+
+			String stateMessage = profile.getString("stateMessage");
 			String location = profile.getString("location");
 			String realName = profile.getString("realname");
 
@@ -70,10 +89,7 @@ public class SteamProfileCommand extends Sx4Command {
 			embed.addField("Real Name", realName.isBlank() ? "None Given" : realName, true);
 			embed.addField("Created At", LocalDate.parse(profile.getString("memberSince"), DateTimeFormatter.ofPattern("LLLL d, yyyy")).format(this.formatter), true);
 			embed.addField("Status", StringUtility.title(profile.getString("onlineState")), true);
-
-			if (!stateMessage.equals("Online")) {
-				embed.addField("Last Online", stateMessage.substring(12), true);
-			}
+			embed.addField("State Message", Jsoup.parse(stateMessage).text(), true);
 
 			embed.addField("Vac Bans", String.valueOf(profile.getInt("vacBanned")), true);
 
@@ -81,25 +97,9 @@ public class SteamProfileCommand extends Sx4Command {
 				embed.addField("Location", location, true);
 			}
 
-			double hours = 0D;
-			StringBuilder gamesString = new StringBuilder();
-			for (int i = 0; i < games.length(); i++) {
-				JSONObject game = games.getJSONObject(i);
-
-				double hoursPlayed = game.getDouble("hoursPlayed");
-				hours += hoursPlayed;
-
-				String line = String.format("[%s](%s) - **%.1f** hours\n", game.getString("gameName"), game.getString("gameLink"), hoursPlayed);
-				if (gamesString.length() + line.length() > MessageEmbed.VALUE_MAX_LENGTH - 20) {
-					break;
-				}
-
-				gamesString.append(line);
-			}
-
 			if (hours != 0) {
 				gamesString.append(String.format("\nTotal - **%.1f** hours", hours));
-				embed.addField("Games (2 Weeks)", gamesString.toString(), false);
+				embed.addField("Games Played (2 Weeks)", gamesString.toString(), false);
 			}
 
 			event.reply(embed.build()).queue();
