@@ -12,7 +12,7 @@ import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.database.model.Operators;
-import com.sx4.bot.entities.argument.Option;
+import com.sx4.bot.entities.argument.Alternative;
 import com.sx4.bot.entities.management.Suggestion;
 import com.sx4.bot.entities.management.SuggestionState;
 import com.sx4.bot.managers.SuggestionManager;
@@ -68,7 +68,7 @@ public class SuggestionCommand extends Sx4Command {
 	@CommandId(83)
 	@Examples({"suggestion channel", "suggestion channel #suggestions", "suggestion channel reset"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-	public void channel(Sx4CommandEvent event, @Argument(value="channel", endless=true, nullDefault=true) @Options("reset") Option<TextChannel> option) {
+	public void channel(Sx4CommandEvent event, @Argument(value="channel", endless=true, nullDefault=true) @Options("reset") Alternative<TextChannel> option) {
 		TextChannel channel = option == null ? event.getTextChannel() : option.isAlternative() ? null : option.getValue();
 
 		List<Bson> update = List.of(Operators.set("suggestion.channelId", channel == null ? Operators.REMOVE : channel.getIdLong()), Operators.unset("suggestion.webhook.id"), Operators.unset("suggestion.webhook.token"));
@@ -153,7 +153,7 @@ public class SuggestionCommand extends Sx4Command {
 	@Command(value="remove", aliases={"delete"}, description="Removes a suggestion, can be your own or anyones if you have the manage server permission")
 	@CommandId(85)
 	@Examples({"suggestion remove 5e45ce6d3688b30ee75201ae", "suggestion remove all"})
-	public void remove(Sx4CommandEvent event, @Argument(value="id") @Options("all") Option<ObjectId> option) {
+	public void remove(Sx4CommandEvent event, @Argument(value="id") @Options("all") Alternative<ObjectId> option) {
 		User author = event.getAuthor();
 		TextChannel channel = event.getTextChannel();
 
@@ -372,7 +372,7 @@ public class SuggestionCommand extends Sx4Command {
 		@CommandId(90)
 		@Examples({"suggestion state remove Bug", "suggestion state remove On Hold", "suggestion state remove all"})
 		@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-		public void remove(Sx4CommandEvent event, @Argument(value="state name", endless=true) @Options("all") Option<String> option) {
+		public void remove(Sx4CommandEvent event, @Argument(value="state name", endless=true) @Options("all") Alternative<String> option) {
 			if (option.isAlternative()) {
 				this.database.updateGuildById(event.getGuild().getIdLong(), Updates.unset("suggestion.states")).whenComplete((result, exception) -> {
 					if (ExceptionUtility.sendExceptionally(event, exception)) {

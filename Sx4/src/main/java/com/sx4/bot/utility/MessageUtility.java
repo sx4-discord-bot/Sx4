@@ -523,7 +523,7 @@ public class MessageUtility {
 		}
 
 		MessageAttachment[] attachments = message.getAttachments();
-		if (attachments.length != 0) {
+		if (attachments != null && attachments.length != 0) {
 			MessageAttachment attachment = attachments[0];
 
 			if (action == null) {

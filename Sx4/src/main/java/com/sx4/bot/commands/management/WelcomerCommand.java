@@ -19,7 +19,7 @@ import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.database.model.Operators;
-import com.sx4.bot.entities.argument.Option;
+import com.sx4.bot.entities.argument.Alternative;
 import com.sx4.bot.http.HttpCallback;
 import com.sx4.bot.managers.WelcomerManager;
 import com.sx4.bot.utility.ExceptionUtility;
@@ -75,7 +75,7 @@ public class WelcomerCommand extends Sx4Command {
 	@CommandId(93)
 	@Examples({"welcomer channel", "welcomer channel #joins", "welcomer channel reset"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-	public void channel(Sx4CommandEvent event, @Argument(value="channel", endless=true, nullDefault=true) @Options("reset") Option<TextChannel> option) {
+	public void channel(Sx4CommandEvent event, @Argument(value="channel", endless=true, nullDefault=true) @Options("reset") Alternative<TextChannel> option) {
 		TextChannel channel = option == null ? event.getTextChannel() : option.isAlternative() ? null : option.getValue();
 
 		List<Bson> update = List.of(Operators.set("welcomer.channelId", channel == null ? Operators.REMOVE : channel.getIdLong()), Operators.unset("welcomer.webhook.id"), Operators.unset("welcomer.webhook.token"));

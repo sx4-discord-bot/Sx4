@@ -11,7 +11,7 @@ import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.model.Operators;
-import com.sx4.bot.entities.argument.Option;
+import com.sx4.bot.entities.argument.Alternative;
 import com.sx4.bot.entities.settings.HolderType;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
@@ -138,7 +138,7 @@ public class BlacklistCommand extends Sx4Command {
 	@CommandId(181)
 	@Examples({"blacklist reset #channel", "blacklist reset all"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-	public void reset(Sx4CommandEvent event, @Argument(value="channel", endless=true) @Options("all") Option<TextChannel> option) {
+	public void reset(Sx4CommandEvent event, @Argument(value="channel", endless=true) @Options("all") Alternative<TextChannel> option) {
 		List<Bson> update = List.of(Operators.set("blacklist", Operators.cond(Operators.extinct("$blacklist.holders"), Operators.REMOVE, new Document("holders", Operators.reduce("$blacklist.holders", Collections.EMPTY_LIST, Operators.concatArrays("$$value", Operators.cond(Operators.isEmpty(Operators.ifNull(Operators.first(Operators.map(List.of("$$this"), "$$holder.whitelisted", "holder")), Collections.EMPTY_LIST)), Collections.EMPTY_LIST, List.of(Operators.removeObject("$$this", "blacklisted")))))))));
 		if (option.isAlternative()) {
 			this.database.updateManyChannels(Filters.eq("guildId", event.getGuild().getIdLong()), update, new UpdateOptions()).whenComplete((result, exception) -> {

@@ -20,7 +20,7 @@ import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.database.model.Operators;
-import com.sx4.bot.entities.argument.Option;
+import com.sx4.bot.entities.argument.Alternative;
 import com.sx4.bot.managers.LeaverManager;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.LeaverUtility;
@@ -71,7 +71,7 @@ public class LeaverCommand extends Sx4Command {
 	@CommandId(190)
 	@Examples({"leaver channel", "leaver channel #leaves", "leaver channel reset"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-	public void channel(Sx4CommandEvent event, @Argument(value="channel", endless=true, nullDefault=true) @Options("reset") Option<TextChannel> option) {
+	public void channel(Sx4CommandEvent event, @Argument(value="channel", endless=true, nullDefault=true) @Options("reset") Alternative<TextChannel> option) {
 		TextChannel channel = option == null ? event.getTextChannel() : option.isAlternative() ? null : option.getValue();
 
 		List<Bson> update = List.of(Operators.set("leaver.channelId", channel == null ? Operators.REMOVE : channel.getIdLong()), Operators.unset("leaver.webhook.id"), Operators.unset("leaver.webhook.token"));

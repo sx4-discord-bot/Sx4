@@ -16,7 +16,7 @@ import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.model.Operators;
-import com.sx4.bot.entities.argument.Option;
+import com.sx4.bot.entities.argument.Alternative;
 import com.sx4.bot.entities.argument.TimedArgument;
 import com.sx4.bot.entities.management.AutoRoleFilter;
 import com.sx4.bot.paged.PagedResult;
@@ -112,7 +112,7 @@ public class AutoRoleCommand extends Sx4Command {
 	@CommandId(40)
 	@Examples({"auto role remove @Role", "auto role remove Role", "auto role remove all"})
 	@AuthorPermissions(permissions={Permission.MANAGE_ROLES})
-	public void remove(Sx4CommandEvent event, @Argument(value="role", endless=true) @Options("all") Option<Role> option) {
+	public void remove(Sx4CommandEvent event, @Argument(value="role", endless=true) @Options("all") Alternative<Role> option) {
 		if (option.isAlternative()) {
 			this.database.updateGuildById(event.getGuild().getIdLong(), Updates.unset("autoRole.roles")).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
@@ -229,7 +229,7 @@ public class AutoRoleCommand extends Sx4Command {
 		@CommandId(44)
 		@Examples({"auto role filter remove @Role BOT", "auto role filter remove Role CREATED_LESS_THAN"})
 		@AuthorPermissions(permissions={Permission.MANAGE_ROLES})
-		public void remove(Sx4CommandEvent event, @Argument(value="role") Role role, @Argument(value="filter") @Options("all") Option<AutoRoleFilter> option) {
+		public void remove(Sx4CommandEvent event, @Argument(value="role") Role role, @Argument(value="filter") @Options("all") Alternative<AutoRoleFilter> option) {
 			boolean alternative = option.isAlternative();
 			
 			UpdateOptions options = new UpdateOptions().arrayFilters(List.of(Filters.eq("role.id", role.getIdLong())));

@@ -1,11 +1,11 @@
 package com.sx4.bot.entities.argument;
 
-public class Option<Type> {
+public class Alternative<Type> {
 	
 	private final Type value;
 	private final String alternative;
 
-	public Option(Type value, String alternative) {
+	public Alternative(Type value, String alternative) {
 		this.value = value;
 		this.alternative = alternative;
 	}

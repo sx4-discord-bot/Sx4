@@ -47,6 +47,10 @@ public interface Formatter<Type> {
 	Formatter<Type> appendFunction(String key, Function<Variable, Object> function);
 
 	default Formatter<Type> user(User user) {
+		if (user == null) {
+			return this;
+		}
+
 		return this.append("user.mention", user.getAsMention())
 			.append("user.name", user.getName())
 			.append("user.id", user.getId())
@@ -57,6 +61,10 @@ public interface Formatter<Type> {
 	}
 
 	default Formatter<Type> member(Member member) {
+		if (member == null) {
+			return this;
+		}
+
 		return this.user(member.getUser())
 			.append("user.joined", member.getTimeJoined())
 			.append("user.colour.raw", member.getColorRaw())
@@ -64,6 +72,10 @@ public interface Formatter<Type> {
 	}
 
 	default Formatter<Type> guild(Guild guild) {
+		if (guild == null) {
+			return this;
+		}
+
 		return this.append("server.id", guild.getId())
 			.append("server.name", guild.getName())
 			.append("server.avatar", guild.getIconUrl())
@@ -73,6 +85,10 @@ public interface Formatter<Type> {
 	}
 
 	default Formatter<Type> channel(TextChannel channel) {
+		if (channel == null) {
+			return this;
+		}
+
 		return this.append("channel.mention", channel.getAsMention())
 			.append("channel.name", channel.getName())
 			.append("channel.id", channel.getId())
@@ -80,6 +96,10 @@ public interface Formatter<Type> {
 	}
 
 	default Formatter<Type> role(Role role) {
+		if (role == null) {
+			return this;
+		}
+
 		return this.append("role.mention", role.getAsMention())
 			.append("role.name", role.getName())
 			.append("role.id", role.getId())
@@ -89,6 +109,10 @@ public interface Formatter<Type> {
 	}
 
 	default Formatter<Type> emote(ReactionEmote reactionEmote) {
+		if (reactionEmote == null) {
+			return this;
+		}
+
 		boolean emoji = reactionEmote.isEmoji();
 		Emote emote = emoji ? null : reactionEmote.getEmote();
 

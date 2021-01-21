@@ -41,14 +41,18 @@ public class GoogleCommand extends Sx4Command {
 			Document document = Jsoup.parse(response.body().string());
 
 			List<String> elements = new ArrayList<>();
-			for (Element element : document.select("div.rc")) {
+			for (Element element : document.getElementsByClass("g")) {
 				Element titleElement = element.getElementsByTag("a").get(0);
 
 				String webUrl = titleElement.attr("href");
-				String title = titleElement.getElementsByTag("h3").get(0).text();
+				Element title = titleElement.getElementsByTag("h3").first();
+				if (title == null) {
+					continue;
+				}
+
 				String description = element.getElementsByTag("div").get(8).text();
 
-				elements.add(String.format("**[%s](%s)**\n%s\n", title, webUrl, description));
+				elements.add(String.format("**[%s](%s)**\n%s\n", title.text(), webUrl, description));
 			}
 
 			if (elements.isEmpty()) {

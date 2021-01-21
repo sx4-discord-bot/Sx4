@@ -15,7 +15,7 @@ import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.model.Operators;
-import com.sx4.bot.entities.argument.Option;
+import com.sx4.bot.entities.argument.Alternative;
 import com.sx4.bot.entities.argument.Range;
 import com.sx4.bot.entities.mod.ModLog;
 import com.sx4.bot.entities.mod.Reason;
@@ -72,7 +72,7 @@ public class ModLogCommand extends Sx4Command {
 	@CommandId(67)
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	@Examples({"modlog channel", "modlog channel #mod-logs", "modlog channel reset"})
-	public void channel(Sx4CommandEvent event, @Argument(value="channel", endless=true, nullDefault=true) @Options("reset") Option<TextChannel> option) {
+	public void channel(Sx4CommandEvent event, @Argument(value="channel", endless=true, nullDefault=true) @Options("reset") Alternative<TextChannel> option) {
 		TextChannel channel = option == null ? event.getTextChannel() : option.isAlternative() ? null : option.getValue();
 
 		List<Bson> update = List.of(Operators.set("modLog.channelId", channel == null ? Operators.REMOVE : channel.getIdLong()), Operators.unset("modLog.webhook.id"), Operators.unset("modLog.webhook.token"));
@@ -137,7 +137,7 @@ public class ModLogCommand extends Sx4Command {
 	@CommandId(69)
 	@Examples({"modlog remove 5e45ce6d3688b30ee75201ae", "modlog remove all"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-	public void remove(Sx4CommandEvent event, @Argument(value="id") @Options("all") Option<ObjectId> option) {
+	public void remove(Sx4CommandEvent event, @Argument(value="id") @Options("all") Alternative<ObjectId> option) {
 		User author = event.getAuthor();
 
 		if (option.isAlternative()) {

@@ -41,6 +41,8 @@ public class Database {
 	private final MongoCollection<Document> channels;
 	private final MongoCollection<Document> members;
 
+	private final MongoCollection<Document> triggers;
+
 	private final MongoCollection<Document> starboards;
 	private final MongoCollection<Document> stars;
 
@@ -92,6 +94,10 @@ public class Database {
 		this.members.createIndex(Indexes.compoundIndex(guildId, userId), uniqueIndex);
 		this.members.createIndex(guildId);
 		this.members.createIndex(userId);
+
+		this.triggers = this.database.getCollection("triggers");
+		this.triggers.createIndex(Indexes.descending("trigger"), uniqueIndex);
+		this.triggers.createIndex(guildId);
 
 		this.starboards = this.database.getCollection("starboards");
 		this.starboards.createIndex(guildId);
@@ -160,6 +166,90 @@ public class Database {
 	
 	public MongoDatabase getDatabase() {
 		return this.database;
+	}
+
+	public MongoCollection<Document> getTriggers() {
+		return this.triggers;
+	}
+
+	public FindIterable<Document> getTriggers(Bson filter, Bson projection) {
+		return this.triggers.find(filter).projection(projection);
+	}
+
+	public Document getTrigger(Bson filter, Bson projection) {
+		return this.getTriggers(filter, projection).first();
+	}
+
+	public Document getTriggerById(ObjectId id, Bson projection) {
+		return this.getTrigger(Filters.eq("_id", id), projection);
+	}
+
+	public CompletableFuture<InsertOneResult> insertTrigger(Document data) {
+		return CompletableFuture.supplyAsync(() -> this.triggers.insertOne(data));
+	}
+
+	public CompletableFuture<UpdateResult> updateTrigger(Bson filter, Bson update, UpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.triggers.updateOne(filter, update, options));
+	}
+
+	public CompletableFuture<UpdateResult> updateTrigger(Bson filter, Bson update) {
+		return this.updateTrigger(filter, update, this.updateOptions);
+	}
+
+	public CompletableFuture<UpdateResult> updateTriggerById(Object id, Bson update, UpdateOptions options) {
+		return this.updateTrigger(Filters.eq("_id", id), update, options);
+	}
+
+	public CompletableFuture<UpdateResult> updateTriggerById(ObjectId id, Bson update) {
+		return this.updateTriggerById(id, update, this.updateOptions);
+	}
+
+	public CompletableFuture<UpdateResult> updateTrigger(Bson filter, List<Bson> update, UpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.triggers.updateOne(filter, update, options));
+	}
+
+	public CompletableFuture<UpdateResult> updateTrigger(Bson filter, List<Bson> update) {
+		return this.updateTrigger(filter, update, this.updateOptions);
+	}
+
+	public CompletableFuture<UpdateResult> updateTriggerById(Object id, List<Bson> update, UpdateOptions options) {
+		return this.updateTrigger(Filters.eq("_id", id), update, options);
+	}
+
+	public CompletableFuture<UpdateResult> updateTriggerById(ObjectId id, List<Bson> update) {
+		return this.updateTriggerById(id, update, this.updateOptions);
+	}
+
+	public CompletableFuture<UpdateResult> updateManyTriggers(Bson filter, List<Bson> update, UpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.triggers.updateMany(filter, update, options));
+	}
+
+	public CompletableFuture<UpdateResult> updateManyTriggers(Bson filter, List<Bson> update) {
+		return CompletableFuture.supplyAsync(() -> this.triggers.updateMany(filter, update, this.updateOptions));
+	}
+
+	public CompletableFuture<Document> findAndUpdateTrigger(Bson filter, List<Bson> update, FindOneAndUpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.triggers.findOneAndUpdate(filter, update, options));
+	}
+
+	public CompletableFuture<Document> findAndUpdateTriggerById(ObjectId id, List<Bson> update, FindOneAndUpdateOptions options) {
+		return this.findAndUpdateTrigger(Filters.eq("_id", id), update, options);
+	}
+
+	public CompletableFuture<DeleteResult> deleteTrigger(Bson filter) {
+		return CompletableFuture.supplyAsync(() -> this.triggers.deleteOne(filter));
+	}
+
+	public CompletableFuture<DeleteResult> deleteTriggerById(ObjectId id) {
+		return this.deleteTrigger(Filters.eq("_id", id));
+	}
+
+	public CompletableFuture<DeleteResult> deleteManyTriggers(Bson filter) {
+		return CompletableFuture.supplyAsync(() -> this.triggers.deleteMany(filter));
+	}
+
+	public CompletableFuture<BulkWriteResult> bulkWriteTriggers(List<WriteModel<Document>> bulkData) {
+		return CompletableFuture.supplyAsync(() -> this.triggers.bulkWrite(bulkData));
 	}
 
 	public MongoCollection<Document> getStars() {

@@ -16,7 +16,7 @@ import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.database.model.Operators;
-import com.sx4.bot.entities.argument.Option;
+import com.sx4.bot.entities.argument.Alternative;
 import com.sx4.bot.managers.StarboardManager;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
@@ -73,7 +73,7 @@ public class StarboardCommand extends Sx4Command {
 	@CommandId(198)
 	@Examples({"starboard channel", "starboard channel #starboard", "starboard channel reset"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-	public void channel(Sx4CommandEvent event, @Argument(value="channel", endless=true, nullDefault=true) @Options("reset") Option<TextChannel> option) {
+	public void channel(Sx4CommandEvent event, @Argument(value="channel", endless=true, nullDefault=true) @Options("reset") Alternative<TextChannel> option) {
 		TextChannel channel = option == null ? event.getTextChannel() : option.getValue();
 
 		List<Bson> update = List.of(Operators.set("starboard.channelId", channel == null ? Operators.REMOVE : channel.getIdLong()), Operators.unset("starboard.webhook.id"), Operators.unset("starboard.webhook.token"));
@@ -107,7 +107,7 @@ public class StarboardCommand extends Sx4Command {
 	@CommandId(199)
 	@Examples({"starboard emote ☝️", "starboard emote <:upvote:761345612079693865>", "starboard emote reset"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-	public void emote(Sx4CommandEvent event, @Argument(value="emote", endless=true) @Options("reset") Option<ReactionEmote> option) {
+	public void emote(Sx4CommandEvent event, @Argument(value="emote", endless=true) @Options("reset") Alternative<ReactionEmote> option) {
 		ReactionEmote emote = option.getValue();
 		boolean emoji = emote != null && emote.isEmoji();
 
@@ -133,7 +133,7 @@ public class StarboardCommand extends Sx4Command {
 	@CommandId(204)
 	@Examples({"starboard delete 5ff636647f93247aeb2ac429", "starboard delete all"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-	public void delete(Sx4CommandEvent event, @Argument(value="id") @Options("all") Option<ObjectId> option) {
+	public void delete(Sx4CommandEvent event, @Argument(value="id") @Options("all") Alternative<ObjectId> option) {
 		if (option.isAlternative()) {
 			event.reply(event.getAuthor().getName() + ", are you sure you want to delete **all** starboards in this server? (Yes or No)").submit()
 				.thenCompose(message -> {

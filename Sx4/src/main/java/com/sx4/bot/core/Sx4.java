@@ -143,6 +143,7 @@ public class Sx4 {
 			eventManager.register(new WelcomerHandler());
 			eventManager.register(new LeaverHandler());
 			eventManager.register(new StarboardHandler());
+			eventManager.register(new TriggerHandler());
 
 			return DefaultShardManagerBuilder.create(this.config.getToken(), GatewayIntent.getIntents(6094))
 				.setBulkDeleteSplittingEnabled(false)
@@ -399,7 +400,7 @@ public class Sx4 {
 			}
 
 			return builder;
-		}).addBuilderConfigureFunction(Option.class, (parameter, builder) -> {
+		}).addBuilderConfigureFunction(Alternative.class, (parameter, builder) -> {
 			Class<?> clazz = (Class<?>) ((ParameterizedType) parameter.getParameterizedType()).getActualTypeArguments()[0];
 			
 			builder.setProperty("class", clazz);
@@ -580,11 +581,11 @@ public class Sx4 {
 				}
 
 				return new ParsedResult<>();
-			}).registerParser(Option.class, (context, argument, content) -> {
+			}).registerParser(Alternative.class, (context, argument, content) -> {
 				String[] options = argument.getProperty("options", new String[0]);
 				for (String option : options) {
 					if (content.equalsIgnoreCase(option)) {
-						return new ParsedResult<>(new Option<>(null, option));
+						return new ParsedResult<>(new Alternative<>(null, option));
 					}
 				}
 
@@ -595,7 +596,7 @@ public class Sx4 {
 					return new ParsedResult<>();
 				}
 					
-				return new ParsedResult<>(new Option<>(parsedArgument.getObject(), null));
+				return new ParsedResult<>(new Alternative<>(parsedArgument.getObject(), null));
 			}).registerParser(Or.class, (context, argument, content) -> {
 				Class<?> firstClass = argument.getProperty("firstClass"), secondClass = argument.getProperty("secondClass");
 

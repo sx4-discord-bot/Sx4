@@ -17,7 +17,7 @@ import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.model.Operators;
 import com.sx4.bot.entities.argument.MessageArgument;
-import com.sx4.bot.entities.argument.Option;
+import com.sx4.bot.entities.argument.Alternative;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.NumberUtility;
@@ -414,7 +414,7 @@ public class GiveawayCommand extends Sx4Command {
 	@CommandId(51)
 	@Examples({"giveaway delete 727224132202397726", "giveaway delete all"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-	public void delete(Sx4CommandEvent event, @Argument(value="message id | all") @Options("all") Option<MessageArgument> option) {
+	public void delete(Sx4CommandEvent event, @Argument(value="message id | all") @Options("all") Alternative<MessageArgument> option) {
 		if (option.isAlternative()) {
 			event.reply(event.getAuthor().getName() + ", are you sure you want to delete **all** giveaways in this server? (Yes or No)").submit()
 				.thenCompose(message -> {
