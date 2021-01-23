@@ -15,6 +15,7 @@ import com.jockie.bot.core.command.manager.impl.ContextManagerFactory;
 import com.jockie.bot.core.command.manager.impl.ErrorManagerImpl;
 import com.jockie.bot.core.option.factory.impl.OptionFactory;
 import com.jockie.bot.core.option.factory.impl.OptionFactoryImpl;
+import com.jockie.bot.core.parser.IParser;
 import com.jockie.bot.core.parser.ParsedResult;
 import com.jockie.bot.core.parser.impl.essential.EnumParser;
 import com.mongodb.client.model.Projections;
@@ -163,7 +164,7 @@ public class Sx4 {
 			.addDevelopers(402557516728369153L, 190551803669118976L)
 			.setErrorManager(errorManager)
 			.setCommandEventFactory(new Sx4CommandEventFactory())
-			.setDefaultPrefixes("!")
+			.setDefaultPrefixes(Config.get().getDefaultPrefixes().toArray(String[]::new))
 			.setHelpFunction((message, prefix, commands) -> {
 				MessageChannel channel = message.getChannel();
 				boolean embed = !message.isFromGuild() || message.getGuild().getSelfMember().hasPermission((TextChannel) channel, Permission.MESSAGE_EMBED_LINKS);
@@ -221,12 +222,6 @@ public class Sx4 {
 				List<Document> holders = guildData.getEmbedded(List.of("fakePermissions", "holders"), Collections.emptyList());
 				event.setProperty("fakePermissions", holders);
 
-				List<String> guildPrefixes = guildData.get("prefixes", Collections.emptyList());
-				List<String> userPrefixes = database.getUserById(event.getAuthor().getIdLong(), Projections.include("prefixes")).get("prefixes", Collections.emptyList());
-
-				List<String> prefixes = userPrefixes.isEmpty() ? guildPrefixes.isEmpty() ? event.getCommandListener().getDefaultPrefixes() : guildPrefixes : userPrefixes;
-				event.setProperty("prefixes", prefixes);
-
 				return true;
 			}).addPreExecuteCheck((event, command) -> {
 				Set<Permission> permissions = command.getAuthorDiscordPermissions();
@@ -252,6 +247,13 @@ public class Sx4 {
 				} else {
 					return true;
 				}
+			}).setPrefixesFunction(message -> {
+				Database database = Database.get();
+
+				List<String> guildPrefixes = database.getGuildById(message.getGuild().getIdLong(), Projections.include("prefixes")).getList("prefixes", String.class, Collections.emptyList());
+				List<String> userPrefixes = database.getUserById(message.getAuthor().getIdLong(), Projections.include("prefixes")).getList("prefixes", String.class, Collections.emptyList());
+
+				return userPrefixes.isEmpty() ? guildPrefixes.isEmpty() ? Config.get().getDefaultPrefixes() : guildPrefixes : userPrefixes;
 			}).addPreParseCheck(message -> !message.getAuthor().isBot());
 	}
 
@@ -402,7 +404,7 @@ public class Sx4 {
 			return builder;
 		}).addBuilderConfigureFunction(Alternative.class, (parameter, builder) -> {
 			Class<?> clazz = (Class<?>) ((ParameterizedType) parameter.getParameterizedType()).getActualTypeArguments()[0];
-			
+
 			builder.setProperty("class", clazz);
 
 			Options options = parameter.getAnnotation(Options.class);
@@ -428,9 +430,9 @@ public class Sx4 {
 			.registerParser(User.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getUser(content.trim())))
 			.registerParser(TextChannel.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getTextChannel(context.getMessage().getGuild(), content.trim())))
 			.registerParser(Duration.class, (context, argument, content) -> new ParsedResult<>(TimeUtility.getDurationFromString(content)))
+			.registerParser(List.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getCommandOrModule(content)))
 			.registerParser(Reason.class, (context, argument, content) -> new ParsedResult<>(new Reason(context.getMessage().getGuild().getIdLong(), content)))
 			.registerParser(ObjectId.class, (context, argument, content) -> new ParsedResult<>(ObjectId.isValid(content) ? new ObjectId(content) : null))
-			.registerParser(List.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getCommandOrModule(content)))
 			.registerParser(IPermissionHolder.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getPermissionHolder(context.getMessage().getGuild(), content)))
 			.registerParser(Role.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getRole(context.getMessage().getGuild(), content)))
 			.registerParser(Emote.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getGuildEmote(context.getMessage().getGuild(), content)))
@@ -557,8 +559,13 @@ public class Sx4 {
 				}
 			}).registerParser(TimedArgument.class, (context, argument, content) -> {
 				Class<?> clazz = argument.getProperty("class", Class.class);
-				
-				ParsedResult<?> parsedArgument = argumentFactory.getParser(clazz).parse(context, (IArgument) argument, content);
+
+				IParser parser = argumentFactory.getParser(clazz);
+				if (parser == null) {
+					parser = argumentFactory.getGenericParser(clazz);
+				}
+
+				ParsedResult<?> parsedArgument = parser.parse(context, argument, content);
 				if (!parsedArgument.isValid()) {
 					return new ParsedResult<>();
 				}
@@ -591,7 +598,12 @@ public class Sx4 {
 
 				Class<?> clazz = argument.getProperty("class", Class.class);
 
-				ParsedResult<?> parsedArgument = argumentFactory.getParser(clazz).parse(context, (IArgument) argument, content);
+				IParser parser = argumentFactory.getParser(clazz);
+				if (parser == null) {
+					parser = argumentFactory.getGenericParser(clazz);
+				}
+
+				ParsedResult<?> parsedArgument = parser.parse(context, argument, content);
 				if (!parsedArgument.isValid()) {
 					return new ParsedResult<>();
 				}
@@ -600,8 +612,19 @@ public class Sx4 {
 			}).registerParser(Or.class, (context, argument, content) -> {
 				Class<?> firstClass = argument.getProperty("firstClass"), secondClass = argument.getProperty("secondClass");
 
-				ParsedResult<?> firstParsedArgument = argumentFactory.getParser(firstClass).parse(context, (IArgument) argument, content);
-				ParsedResult<?> secondParsedArgument = argumentFactory.getParser(secondClass).parse(context, (IArgument) argument, content);
+				IParser firstParser = argumentFactory.getParser(firstClass);
+				if (firstParser == null) {
+					firstParser = argumentFactory.getGenericParser(firstClass);
+				}
+
+				ParsedResult<?> firstParsedArgument = firstParser.parse(context, argument, content);
+
+				IParser secondParser = argumentFactory.getParser(secondClass);
+				if (secondParser == null) {
+					secondParser = argumentFactory.getGenericParser(secondClass);
+				}
+
+				ParsedResult<?> secondParsedArgument = secondParser.parse(context, argument, content);
 				
 				if (firstParsedArgument.isValid()) {
 					return new ParsedResult<>(new Or<>(firstParsedArgument.getObject(), null));

@@ -64,6 +64,10 @@ public class Config {
 		
 		return defaultValue;
 	}
+
+	public List<String> getDefaultPrefixes() {
+		return this.get("defaultPrefixes");
+	}
 	
 	public boolean isCanary() {
 		return this.get("state.canary", true);
