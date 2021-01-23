@@ -151,11 +151,7 @@ public class YouTubeManager {
 	public void resubscribe(String channelId) {
 		DeleteOneModel<Document> model = this.resubscribeBulk(channelId);
 		if (model != null) {
-			Database.get().deleteYouTubeSubscription(model.getFilter()).whenComplete((result, exception) -> {
-				if (exception != null) {
-					exception.printStackTrace();
-				}
-			});
+			Database.get().deleteYouTubeSubscription(model.getFilter()).whenComplete(Database.exceptionally());
 		}
 	}
 	

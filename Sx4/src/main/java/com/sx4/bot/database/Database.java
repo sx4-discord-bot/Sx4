@@ -96,7 +96,7 @@ public class Database {
 		this.members.createIndex(userId);
 
 		this.triggers = this.database.getCollection("triggers");
-		this.triggers.createIndex(Indexes.descending("trigger"), uniqueIndex);
+		this.triggers.createIndex(Indexes.descending("trigger", "guildId"), uniqueIndex);
 		this.triggers.createIndex(guildId);
 
 		this.starboards = this.database.getCollection("starboards");

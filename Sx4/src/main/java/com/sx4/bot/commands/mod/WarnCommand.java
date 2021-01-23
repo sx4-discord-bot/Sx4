@@ -7,6 +7,7 @@ import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.entities.mod.Reason;
 import com.sx4.bot.entities.mod.action.Action;
 import com.sx4.bot.entities.mod.action.TimeAction;
+import com.sx4.bot.entities.mod.action.Warn;
 import com.sx4.bot.utility.ModUtility;
 import com.sx4.bot.utility.NumberUtility;
 import com.sx4.bot.utility.TimeUtility;
@@ -40,9 +41,10 @@ public class WarnCommand extends Sx4Command {
 			if (exception != null) {
 				event.replyFailure(exception.getMessage()).queue();
 			} else {
-				Action action = warning.getAction();
+				Warn warn = warning.getWarning();
+				Action action = warn.getAction();
 
-				event.replyFormat("**%s** has received a %s%s (%s warning) " + this.config.getSuccessEmote(), member.getUser().getAsTag(), action.getModAction().getName().toLowerCase(), action instanceof TimeAction ? " for " + TimeUtility.getTimeString(((TimeAction) action).getDuration()) : "", NumberUtility.getSuffixed(warning.getNumber())).queue();
+				event.replyFormat("**%s** has received a %s%s (%s warning) " + this.config.getSuccessEmote(), member.getUser().getAsTag(), action.getModAction().getName().toLowerCase(), action instanceof TimeAction ? " for " + TimeUtility.getTimeString(((TimeAction) action).getDuration()) : "", NumberUtility.getSuffixed(warn.getNumber())).queue();
 			}
 		});
 	}

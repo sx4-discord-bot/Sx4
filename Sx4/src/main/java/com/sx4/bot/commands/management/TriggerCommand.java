@@ -175,7 +175,7 @@ public class TriggerCommand extends Sx4Command {
 	@CommandId(218)
 	@Examples({"trigger delete 6006ff6b94c9ed0f764ada83", "trigger delete all"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-	public void delete(Sx4CommandEvent event, @Argument(value="id") @Options("all") Alternative<ObjectId> option) {
+	public void delete(Sx4CommandEvent event, @Argument(value="id | all") @Options("all") Alternative<ObjectId> option) {
 		if (option.isAlternative()) {
 			event.reply(event.getAuthor().getName() + ", are you sure you want to delete **all** the triggers in this server? (Yes or No)").submit()
 				.thenCompose(message -> {

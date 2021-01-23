@@ -6,7 +6,6 @@ import com.sx4.bot.http.HttpCallback;
 import okhttp3.Request;
 import org.bson.Document;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -30,7 +29,7 @@ public class SteamGameCache {
 	private ScheduledFuture<?> future;
 
 	public SteamGameCache() {
-		this.games = new ArrayList<>();
+		this.games = Collections.emptyList();
 
 		this.initiateCache();
 	}

@@ -68,7 +68,7 @@ public class SuggestionCommand extends Sx4Command {
 	@CommandId(83)
 	@Examples({"suggestion channel", "suggestion channel #suggestions", "suggestion channel reset"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-	public void channel(Sx4CommandEvent event, @Argument(value="channel", endless=true, nullDefault=true) @Options("reset") Alternative<TextChannel> option) {
+	public void channel(Sx4CommandEvent event, @Argument(value="channel | reset", endless=true, nullDefault=true) @Options("reset") Alternative<TextChannel> option) {
 		TextChannel channel = option == null ? event.getTextChannel() : option.isAlternative() ? null : option.getValue();
 
 		List<Bson> update = List.of(Operators.set("suggestion.channelId", channel == null ? Operators.REMOVE : channel.getIdLong()), Operators.unset("suggestion.webhook.id"), Operators.unset("suggestion.webhook.token"));
@@ -133,18 +133,22 @@ public class SuggestionCommand extends Sx4Command {
 			state.getDataName()
 		);
 
-		this.manager.sendSuggestion(channel, data.get("webhook", Database.EMPTY_DOCUMENT), suggestionData.getWebhookEmbed(null, event.getAuthor(), state), message -> {
+		this.manager.sendSuggestion(channel, data.get("webhook", Database.EMPTY_DOCUMENT), suggestionData.getWebhookEmbed(null, event.getAuthor(), state)).whenComplete((message, exception) -> {
+			if (ExceptionUtility.sendExceptionally(event, exception)) {
+				return;
+			}
+
 			suggestionData.setMessageId(message.getId());
 
-			this.database.insertSuggestion(suggestionData.toData()).whenComplete((result, exception) -> {
-				if (ExceptionUtility.sendExceptionally(event, exception)) {
+			this.database.insertSuggestion(suggestionData.toData()).whenComplete((result, dataException) -> {
+				if (ExceptionUtility.sendExceptionally(event, dataException)) {
 					return;
 				}
 
 				channel.addReactionById(message.getId(), "✅")
 					.flatMap($ -> channel.addReactionById(message.getId(), "❌"))
 					.queue();
-				
+
 				event.replySuccess("Your suggestion has been sent to " + channel.getAsMention()).queue();
 			});
 		});
@@ -153,7 +157,7 @@ public class SuggestionCommand extends Sx4Command {
 	@Command(value="remove", aliases={"delete"}, description="Removes a suggestion, can be your own or anyones if you have the manage server permission")
 	@CommandId(85)
 	@Examples({"suggestion remove 5e45ce6d3688b30ee75201ae", "suggestion remove all"})
-	public void remove(Sx4CommandEvent event, @Argument(value="id") @Options("all") Alternative<ObjectId> option) {
+	public void remove(Sx4CommandEvent event, @Argument(value="id | all") @Options("all") Alternative<ObjectId> option) {
 		User author = event.getAuthor();
 		TextChannel channel = event.getTextChannel();
 
@@ -372,7 +376,7 @@ public class SuggestionCommand extends Sx4Command {
 		@CommandId(90)
 		@Examples({"suggestion state remove Bug", "suggestion state remove On Hold", "suggestion state remove all"})
 		@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-		public void remove(Sx4CommandEvent event, @Argument(value="state name", endless=true) @Options("all") Alternative<String> option) {
+		public void remove(Sx4CommandEvent event, @Argument(value="state name | all", endless=true) @Options("all") Alternative<String> option) {
 			if (option.isAlternative()) {
 				this.database.updateGuildById(event.getGuild().getIdLong(), Updates.unset("suggestion.states")).whenComplete((result, exception) -> {
 					if (ExceptionUtility.sendExceptionally(event, exception)) {

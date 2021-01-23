@@ -256,12 +256,11 @@ public interface Formatter<Type> {
 
 				int colonIndex = formatter.indexOf(':');
 
-				String name;
 				Variable variable;
 				if (colonIndex == -1 || formatter.charAt(colonIndex - 1) == '\\') {
 					variable = new Variable(formatter);
 				} else {
-					variable = new Variable(formatter.substring(0, colonIndex), formatter.substring(colonIndex + 1));
+					variable = new Variable(formatter.substring(0, colonIndex), this.format(formatter.substring(colonIndex + 1), map));
 				}
 
 				if (!map.containsKey(variable.getName())) {

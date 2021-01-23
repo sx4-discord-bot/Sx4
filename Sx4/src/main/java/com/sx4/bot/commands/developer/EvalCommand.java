@@ -1,7 +1,6 @@
 package com.sx4.bot.commands.developer;
 
 import com.jockie.bot.core.argument.Argument;
-import com.jockie.bot.core.option.Option;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
@@ -49,31 +48,7 @@ public class EvalCommand extends Sx4Command {
 		super.setDeveloper(true);
 	}
 	
-	private void execute(Sx4CommandEvent event, GroovyShell shell, String evaluableString) {
-		try {
-			Object object = shell.evaluate(evaluableString);
-			
-			if (object == null) {
-				event.reply("null").queue();
-			} else if (object instanceof Message) {
-				event.reply((Message) object).queue();
-			} else if (object instanceof MessageEmbed) {
-				event.reply((MessageEmbed) object).queue();
-			} else if (object instanceof RestAction) {
-				((RestAction<?>) object).queue();
-			} else {
-				event.reply(object.toString()).queue();
-			}
-		} catch(Exception e) {
-			if (e.getMessage() != null) {
-				event.reply(e.toString()).queue();
-			} else {
-				event.reply(e.getClass().getName() + " [No error message]").queue();
-			}
-		}
-	}
-	
-	public void onCommand(Sx4CommandEvent event, @Argument(value="code", endless=true) String evaluableString, @Option(value="async") boolean async) {
+	public void onCommand(Sx4CommandEvent event, @Argument(value="code", endless=true) String evaluableString) {
 		GroovyShell shell = new GroovyShell(this.configuration);
 
 		shell.setProperty("event", event);
@@ -85,11 +60,29 @@ public class EvalCommand extends Sx4Command {
 		shell.setProperty("database", this.database);
 		shell.setProperty("client", event.getClient());
 		
-		if (async) {
-			this.executor.submit(() -> this.execute(event, shell, evaluableString));
-		} else {
-			this.execute(event, shell, evaluableString);
-		}
+		this.executor.submit(() -> {
+			try {
+				Object object = shell.evaluate(evaluableString);
+
+				if (object == null) {
+					event.reply("null").queue();
+				} else if (object instanceof Message) {
+					event.reply((Message) object).queue();
+				} else if (object instanceof MessageEmbed) {
+					event.reply((MessageEmbed) object).queue();
+				} else if (object instanceof RestAction) {
+					((RestAction<?>) object).queue();
+				} else {
+					event.reply(object.toString()).queue();
+				}
+			} catch(Exception e) {
+				if (e.getMessage() != null) {
+					event.reply(e.toString()).queue();
+				} else {
+					event.reply(e.getClass().getName() + " [No error message]").queue();
+				}
+			}
+		});
 	}
 	
 }

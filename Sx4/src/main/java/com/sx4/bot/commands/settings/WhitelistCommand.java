@@ -137,7 +137,7 @@ public class WhitelistCommand extends Sx4Command {
 	@CommandId(186)
 	@Examples({"whitelist reset #channel", "whitelist reset all"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-	public void reset(Sx4CommandEvent event, @Argument(value="channel", endless=true) @Options("all") Alternative<TextChannel> option) {
+	public void reset(Sx4CommandEvent event, @Argument(value="channel | all", endless=true) @Options("all") Alternative<TextChannel> option) {
 		List<Bson> update = List.of(Operators.set("blacklist", Operators.cond(Operators.extinct("$blacklist.holders"), Operators.REMOVE, new Document("holders", Operators.reduce("$blacklist.holders", Collections.EMPTY_LIST, Operators.concatArrays("$$value", Operators.cond(Operators.isEmpty(Operators.ifNull(Operators.first(Operators.map(List.of("$$this"), "$$holder.blacklisted", "holder")), Collections.EMPTY_LIST)), Collections.EMPTY_LIST, List.of(Operators.removeObject("$$this", "whitelisted")))))))));
 		if (option.isAlternative()) {
 			this.database.updateManyChannels(Filters.eq("guildId", event.getGuild().getIdLong()), update, new UpdateOptions()).whenComplete((result, exception) -> {

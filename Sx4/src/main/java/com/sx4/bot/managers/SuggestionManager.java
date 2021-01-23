@@ -23,7 +23,6 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.function.Consumer;
 
 public class SuggestionManager implements WebhookManager {
 
@@ -84,7 +83,7 @@ public class SuggestionManager implements WebhookManager {
 		});
 	}
 
-	public CompletableFuture<ReadonlyMessage> sendSuggestion(TextChannel channel, Document webhookData, WebhookEmbed embed, Consumer<ReadonlyMessage> consumer) {
+	public CompletableFuture<ReadonlyMessage> sendSuggestion(TextChannel channel, Document webhookData, WebhookEmbed embed) {
 		User selfUser = channel.getJDA().getSelfUser();
 
 		WebhookMessage message = new WebhookMessageBuilder()

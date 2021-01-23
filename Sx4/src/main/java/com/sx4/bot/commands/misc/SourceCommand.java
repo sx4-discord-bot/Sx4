@@ -43,21 +43,20 @@ public class SourceCommand extends Sx4Command {
 
 			int classIndex = code.indexOf("class " + lastClassName);
 
-			int startBracketCount = 0, endBracketCount = 0, startLine = 0, leading = 0;
+			int startBracketCount = 0, endBracketCount = 0, startLine = -1, leading = 0;
 			for (int i = 0; i < lines.length; i++) {
 				String line = lines[i];
 
-				boolean foundLine = startBracketCount != 0 || endBracketCount != 0;
-				if (code.indexOf(line) < classIndex && !foundLine) {
+				if (code.indexOf(line) < classIndex && startLine == -1) {
 					continue;
 				}
 
-				if (!line.contains(method.getName() + "(Sx4CommandEvent") && !foundLine) {
+				if (!line.contains(method.getName() + "(Sx4CommandEvent") && startLine == -1) {
 					continue;
 				}
 
 				if (display) {
-					if (!foundLine) {
+					if (startLine == -1) {
 						leading = line.indexOf("public");
 						startLine = i;
 					}

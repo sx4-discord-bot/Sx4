@@ -240,7 +240,7 @@ public class ReactionRoleCommand extends Sx4Command {
 	@Examples({"reaction role dm enable all", "reaction role dm disable all", "reaction role dm enable 643945552865919002", "reaction role dm disable 643945552865919002"})
 	@AuthorPermissions(permissions={Permission.MANAGE_ROLES})
 	@Cooldown(value=2)
-	public void dm(Sx4CommandEvent event, @Argument(value="update type") @Options({"enable", "disable"}) String value, @Argument(value="message id") @Options("all") Alternative<MessageArgument> option) {
+	public void dm(Sx4CommandEvent event, @Argument(value="update type") @Options({"enable", "disable"}) String value, @Argument(value="message id | all") @Options("all") Alternative<MessageArgument> option) {
 		boolean alternative = option.isAlternative(), enable = value.equals("enable");
 		long messageId = alternative ? 0L : option.getValue().getMessageId();
 		
@@ -287,7 +287,7 @@ public class ReactionRoleCommand extends Sx4Command {
 	@Examples({"reaction role max reactions all 2", "reaction role max reactions 643945552865919002 0"})
 	@AuthorPermissions(permissions={Permission.MANAGE_ROLES})
 	@Cooldown(value=2)
-	public void maxReactions(Sx4CommandEvent event, @Argument(value="message id") Alternative<MessageArgument> option, @Argument(value="max reactions") @Limit(min=0, max=20) int maxReactions) {
+	public void maxReactions(Sx4CommandEvent event, @Argument(value="message id | all") @Options("all") Alternative<MessageArgument> option, @Argument(value="max reactions") @Limit(min=0, max=20) int maxReactions) {
 		boolean alternative = option.isAlternative(), unlimited = maxReactions == 0;
 		long messageId = alternative ? 0L : option.getValue().getMessageId();
 		
@@ -334,7 +334,7 @@ public class ReactionRoleCommand extends Sx4Command {
 	@Examples({"reaction role delete 643945552865919002", "reaction role delete all"})
 	@AuthorPermissions(permissions={Permission.MANAGE_ROLES})
 	@Cooldown(value=5)
-	public void delete(Sx4CommandEvent event, @Argument(value="message id") @Options("all") Alternative<MessageArgument> option) {
+	public void delete(Sx4CommandEvent event, @Argument(value="message id | all") @Options("all") Alternative<MessageArgument> option) {
 		if (option.isAlternative()) {
 			event.reply(event.getAuthor().getName() + ", are you sure you want to delete **all** the reaction roles in this server? (Yes or No)").submit()
 				.thenCompose(message -> {

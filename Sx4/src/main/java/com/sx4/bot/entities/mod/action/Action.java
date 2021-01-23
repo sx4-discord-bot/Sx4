@@ -2,7 +2,6 @@ package com.sx4.bot.entities.mod.action;
 
 import org.bson.Document;
 
-import com.sx4.bot.entities.mod.Warn;
 import com.sx4.bot.utility.TimeUtility;
 
 public class Action {
@@ -49,7 +48,7 @@ public class Action {
 		if (action.containsKey("duration")) {
 			return new TimeAction(modAction, action.getLong("duration"));
 		} else if (action.containsKey("warning")) {
-			return new WarnAction(new Warn(action.get("warning", Document.class)));
+			return new WarnAction(Warn.fromData(action.get("warning", Document.class)));
 		} else {
 			return new Action(modAction);
 		}
