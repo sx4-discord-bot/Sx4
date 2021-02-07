@@ -1,6 +1,6 @@
 package com.sx4.bot.handlers;
 
-import com.mongodb.client.model.Projections;
+import com.mongodb.client.model.Filters;
 import com.sx4.bot.config.Config;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.database.model.Operators;
@@ -24,6 +24,7 @@ import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
 
 import java.time.Clock;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
@@ -74,27 +75,21 @@ public class AntiRegexHandler extends ListenerAdapter {
             long guildId = guild.getIdLong(), userId = member.getIdLong(), channelId = textChannel.getIdLong();
             List<Role> roles = member.getRoles();
 
-            List<Document> regexes = this.database.getGuildById(guildId, Projections.include("antiRegex.regexes")).getEmbedded(List.of("antiRegex", "regexes"), Collections.emptyList());
+            List<Document> regexes = this.database.getRegexes(Filters.eq("guildId", guildId), Database.EMPTY_DOCUMENT).into(new ArrayList<>());
 
             String content = message.getContentRaw();
             Regexes : for (Document regex : regexes) {
-                ObjectId id = regex.getObjectId("id");
+                ObjectId regexId = regex.getObjectId("regexId"), id = regex.getObjectId("_id");
 
                 Pattern pattern = Pattern.compile(regex.getString("pattern"));
 
-                List<Document> channels = regex.getEmbedded(List.of("whitelist", "channels"), Collections.emptyList());
+                List<Document> channels = regex.getList("whitelist", Document.class, Collections.emptyList());
                 Document channel = channels.stream()
                     .filter(d -> d.getLong("id") == channelId)
                     .findFirst()
                     .orElse(Database.EMPTY_DOCUMENT);
 
                 List<Document> holders = channel.getList("holders", Document.class, Collections.emptyList());
-
-                Matcher matcher = pattern.matcher(content);
-                if (!matcher.matches()) {
-                    continue;
-                }
-
                 for (Document holder : holders) {
                     long holderId = holder.getLong("id");
                     int type = holder.getInteger("type");
@@ -105,43 +100,54 @@ public class AntiRegexHandler extends ListenerAdapter {
                     }
                 }
 
-                List<Document> groups = channel.getList("groups", Document.class, Collections.emptyList());
-                for (Document group : groups) {
-                    List<String> strings = group.getList("strings", String.class);
+                Matcher matcher = pattern.matcher(content);
 
-                    String match = matcher.group(group.getInteger("group"));
-                    if (match != null && strings.contains(match)) {
-                        continue Regexes;
+                int matchCount = 0, totalCount = 0;
+                while (matcher.find()) {
+                    List<Document> groups = channel.getList("groups", Document.class, Collections.emptyList());
+                    for (Document group : groups) {
+                        List<String> strings = group.getList("strings", String.class);
+
+                        String match = matcher.group(group.getInteger("group"));
+                        if (match != null && strings.contains(match)) {
+                            matchCount++;
+                        }
                     }
+
+                    totalCount++;
                 }
 
-                int currentAttempts = this.manager.getAttempts(guildId, id, userId);
+                if (matchCount == totalCount) {
+                    continue;
+                }
 
-                Document actionData = regex.get("action", Database.EMPTY_DOCUMENT);
+                int currentAttempts = this.manager.getAttempts(id, userId);
 
-                Document match = actionData.get("match", Database.EMPTY_DOCUMENT);
-                long matchRaw = match.get("raw", MatchAction.ALL);
+                Document match = regex.get("match", Database.EMPTY_DOCUMENT);
+                long matchAction = match.get("action", MatchAction.ALL);
 
-                Document mod = actionData.get("mod", Database.EMPTY_DOCUMENT);
-                Action action = mod.isEmpty() ? null : Action.fromData(mod);
+                Document mod = regex.get("mod", Database.EMPTY_DOCUMENT);
+                Document actionData = mod.get("action", Document.class);
 
-                Document attempts = mod.get("attempts", Database.EMPTY_DOCUMENT);
+                Action action = actionData == null ? null : Action.fromData(actionData);
+
+                Document attempts = regex.get("attempts", Database.EMPTY_DOCUMENT);
                 int maxAttempts = attempts.get("amount", 3);
 
                 String matchMessage = this.format(match.get("message", AntiRegexManager.DEFAULT_MATCH_MESSAGE),
-                    user, textChannel, id, currentAttempts + 1, maxAttempts, action);
+                    user, textChannel, regexId, currentAttempts + 1, maxAttempts, action);
 
                 String modMessage = this.format(mod.get("message", AntiRegexManager.DEFAULT_MOD_MESSAGE),
-                    user, textChannel, id, currentAttempts + 1, maxAttempts, action);
+                    user, textChannel, regexId, currentAttempts + 1, maxAttempts, action);
 
-                if ((matchRaw & MatchAction.DELETE_MESSAGE.getRaw()) == MatchAction.DELETE_MESSAGE.getRaw() && selfMember.hasPermission(textChannel, Permission.MESSAGE_MANAGE)) {
+                if ((matchAction & MatchAction.DELETE_MESSAGE.getRaw()) == MatchAction.DELETE_MESSAGE.getRaw() && selfMember.hasPermission(textChannel, Permission.MESSAGE_MANAGE)) {
                     message.delete().queue();
                 }
 
                 boolean canSend = selfMember.hasPermission(textChannel, Permission.MESSAGE_WRITE);
-                boolean send = (matchRaw & MatchAction.SEND_MESSAGE.getRaw()) == MatchAction.SEND_MESSAGE.getRaw() && canSend;
+                boolean send = (matchAction & MatchAction.SEND_MESSAGE.getRaw()) == MatchAction.SEND_MESSAGE.getRaw() && canSend;
                 if (action != null && currentAttempts + 1 >= maxAttempts) {
-                    Reason reason = new Reason(String.format("Sent a message which matched regex `%s` %d time%s", id.toHexString(), maxAttempts, maxAttempts == 1 ? "" : "s"));
+                    Reason reason = new Reason(String.format("Sent a message which matched regex `%s` %d time%s", regexId.toHexString(), maxAttempts, maxAttempts == 1 ? "" : "s"));
 
                     // TODO: have a new collection for user attempts and update after the action has been performed
 
@@ -163,22 +169,22 @@ public class AntiRegexHandler extends ListenerAdapter {
                     textChannel.sendMessage(matchMessage).allowedMentions(EnumSet.allOf(Message.MentionType.class)).queue();
                 }
 
-                this.manager.incrementAttempts(guildId, id, userId);
+                this.manager.incrementAttempts(id, userId);
 
                 Document userData = new Document("id", userId);
                 Document reset = attempts.get("reset", Database.EMPTY_DOCUMENT);
 
                 long duration = reset.get("after", 0L);
                 if (duration != 0L) {
-                    this.manager.scheduleResetAttempts(guildId, id, userId, duration, reset.getInteger("amount"));
+                    this.manager.scheduleResetAttempts(id, userId, duration, reset.getInteger("amount"));
                     userData.append("resetAt", Clock.systemUTC().instant().getEpochSecond() + duration);
                 }
 
-                Bson regexFilter = Operators.filter("$antiRegex.regexes", Operators.eq("$$this.id", id));
+                Bson regexFilter = Operators.filter("$antiRegex.regexes", Operators.eq("$$this.id", regexId));
                 Bson users = Operators.first(Operators.map(regexFilter, "$$this.users"));
                 Bson userFilter = Operators.filter(users, Operators.eq("$$this.id", userId));
                 Bson userAttempts = Operators.ifNull(Operators.first(Operators.map(userFilter, "$$this.attempts")), 0);
-                List<Bson> update = List.of(Operators.set("antiRegex.regexes", Operators.concatArrays(List.of(Operators.mergeObjects(Operators.first(regexFilter), new Document("users", Operators.concatArrays(List.of(Operators.mergeObjects(Operators.first(userFilter), userData.append("attempts", Operators.add(userAttempts, 1)))), Operators.ifNull(Operators.filter(users, Operators.ne("$$this.id", userId)), Collections.EMPTY_LIST))))), Operators.filter("$antiRegex.regexes", Operators.ne("$$this.id", id)))));
+                List<Bson> update = List.of(Operators.set("antiRegex.regexes", Operators.concatArrays(List.of(Operators.mergeObjects(Operators.first(regexFilter), new Document("users", Operators.concatArrays(List.of(Operators.mergeObjects(Operators.first(userFilter), userData.append("attempts", Operators.add(userAttempts, 1)))), Operators.ifNull(Operators.filter(users, Operators.ne("$$this.id", userId)), Collections.EMPTY_LIST))))), Operators.filter("$antiRegex.regexes", Operators.ne("$$this.id", regexId)))));
                 this.database.updateGuildById(guildId, update).whenComplete(Database.exceptionally());
 
                 break;

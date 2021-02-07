@@ -58,11 +58,11 @@ public class TimeUtility {
 		return LocalDate.of(year, month, day);
 	}
 	
-	public static Duration getDurationToDateTime(String dateTime) {
-		return TimeUtility.getDurationToDateTime(dateTime, "GMT");
+	public static Duration getDurationFromDateTime(String dateTime) {
+		return TimeUtility.getDurationFromDateTime(dateTime, "GMT");
 	}
 	
-	public static Duration getDurationToDateTime(String dateTime, String defaultTimeZone) {
+	public static Duration getDurationFromDateTime(String dateTime, String defaultTimeZone) {
 		int lastSpace = dateTime.lastIndexOf(' ');
 		
 		ZonedDateTime now;

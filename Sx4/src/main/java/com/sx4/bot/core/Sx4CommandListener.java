@@ -42,7 +42,7 @@ public class Sx4CommandListener extends CommandListener {
 					return;
 				}
 
-				if ((oldMessage.getBoolean("pinned") && !editedMessage.isPinned()) || (!oldMessage.getBoolean("pinned") && editedMessage.isPinned())) {
+				if (oldMessage.getBoolean("pinned") != editedMessage.isPinned()) {
 					return;
 				}
 

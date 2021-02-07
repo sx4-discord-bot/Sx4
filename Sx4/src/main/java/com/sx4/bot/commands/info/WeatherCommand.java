@@ -1,7 +1,6 @@
 package com.sx4.bot.commands.info;
 
 import com.jockie.bot.core.argument.Argument;
-import com.jockie.bot.core.option.Option;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
@@ -9,11 +8,15 @@ import com.sx4.bot.http.HttpCallback;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
 import okhttp3.Request;
-import org.bson.Document;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Comparator;
-import java.util.List;
 
 public class WeatherCommand extends Sx4Command {
 
@@ -46,7 +49,7 @@ public class WeatherCommand extends Sx4Command {
 
 		public static Direction getDirection(int degrees) {
 			return Arrays.stream(Direction.values())
-				.min(Comparator.comparing(a -> Math.abs(a.getDegrees() - degrees)))
+				.min(Comparator.comparingInt(a -> Math.abs(a.getDegrees() - degrees)))
 				.orElse(null);
 		}
 
@@ -55,39 +58,65 @@ public class WeatherCommand extends Sx4Command {
 	public WeatherCommand() {
 		super("weather", 35);
 
-		super.setDescription("Find out the weather in a specific city");
+		super.setDescription("Find out the weather in a specific area");
 		super.setCooldownDuration(3);
 		super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
-		super.setExamples("weather London", "weather Stockholm", "weather London --country=uk");
+		super.setExamples("weather London", "weather Stockholm", "weather England");
 		super.setCategoryAll(ModuleCategory.INFORMATION);
 	}
 
-	public void onCommand(Sx4CommandEvent event, @Argument(value="city", endless=true) String city, @Option(value="country", description="Country code of the country you want the weather to be from") String countryCode) {
+	public void onCommand(Sx4CommandEvent event, @Argument(value="query", endless=true) String query) {
 		Request request = new Request.Builder()
-			.url(String.format("https://api.openweathermap.org/data/2.5/weather?q=%s&appid=%s&units=metric", city + (countryCode == null ? "" : "," + countryCode), this.config.getOpenWeather()))
+			.url("https://google.com/search?q=" + URLEncoder.encode(query, StandardCharsets.UTF_8) + "%20weather")
+			.addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.3")
 			.build();
 
 		event.getClient().newCall(request).enqueue((HttpCallback) response -> {
-			Document json = Document.parse(response.body().string());
+			Document document = Jsoup.parse(response.body().string());
 
-			Object code = json.get("cod");
-			if ("404".equals(code)) {
+			Element element = document.getElementById("wob_wc");
+			if (element == null) {
 				event.replyFailure("I could not find that city").queue();
 				return;
 			}
 
-			Document weather = json.getList("weather", Document.class).get(0);
-			Document info = json.get("main", Document.class);
+			Element urlElement = document.getElementsByTag("td").first();
+			String url = urlElement.getElementsByTag("a").first().attr("href");
 
-			Document wind = json.get("wind", Document.class);
-			int degrees = wind.getInteger("deg");
+			Element info = element.getElementById("wob_d");
+			Element weather = info.getElementById("wob_tci");
+			if (weather == null) {
+				event.replyFailure("I failed to get weather data for that, try again and it should work").queue();
+				return;
+			}
+
+			Element hourly = element.getElementById("wob_gsp");
+
+			Element wind = hourly.getElementById("wob_wg");
+			Element windDirection = wind.getElementsByClass("wob_hw").first();
+			Element image = windDirection.getElementsByTag("img").first();
+			String windStyle = image.attr("style");
+
+			int degreesIndex = windStyle.indexOf("transform:rotate(") + 17;
+			int degrees = Integer.parseInt(windStyle.substring(degreesIndex, windStyle.indexOf("deg);", degreesIndex + 1))) % 360;
+
+			Element today = element.getElementsByClass("wob_df wob_ds").first();
+			Elements temperatures = today.getElementsByClass("wob_t");
+
+			String iconUrl = weather.attr("src");
+			String icon = iconUrl.substring(iconUrl.lastIndexOf('/') + 1);
 
 			EmbedBuilder embed = new EmbedBuilder();
-			embed.setTitle(String.format("%s (%s)", json.getString("name"), json.getEmbedded(List.of("sys", "country"), String.class)));
-			embed.setThumbnail("http://openweathermap.org/img/w/" + weather.getString("icon") + ".png");
-			embed.addField("Temperature", String.format("Minimum: %.2f°C\nCurrent: %.2f°C\nMaximum: %.2f°C\nFeels Like: %.2f°C", info.get("temp_min", Number.class).doubleValue(), info.get("temp", Number.class).doubleValue(), info.get("temp_max", Number.class).doubleValue(), info.get("feels_like", Number.class).doubleValue()), false);
-			embed.addField("Humidity", info.getInteger("humidity") + "%", false);
-			embed.addField("Wind", String.format("Speed: %.1fm/s\nDirection: %d° (%s)", wind.get("speed", Number.class).doubleValue(), degrees, Direction.getDirection(degrees).getName()), false);
+			embed.setAuthor(element.getElementById("wob_loc").text(), url, null);
+			embed.setTitle(weather.attr("alt"));
+			embed.addField("Temperature", String.format("Maximum: %s°C\nCurrent: %s°C\nMinimum: %s°C", temperatures.get(0).text(), info.getElementById("wob_tm").text(), temperatures.get(2).text()), true);
+			embed.addBlankField(true);
+			embed.addField("Wind", String.format("Direction: %d° (%s)\nSpeed: %s", degrees, Direction.getDirection(degrees).getName(), info.getElementById("wob_ws").text()), true);
+			embed.addField("Humidity", info.getElementById("wob_hm").text(), true);
+			embed.addBlankField(true);
+			embed.addField("Precipitation", info.getElementById("wob_pp").text(), true);
+			embed.setThumbnail("https://ssl.gstatic.com/onebox/weather/256/" + icon);
+			embed.setFooter(element.getElementById("wob_dts").text());
 
 			event.reply(embed.build()).queue();
 		});

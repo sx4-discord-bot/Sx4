@@ -525,7 +525,7 @@ public class LoggerHandler extends ListenerAdapter {
 		LoggerEvent loggerEvent = muted ? LoggerEvent.MEMBER_SERVER_VOICE_MUTE : LoggerEvent.MEMBER_SERVER_VOICE_UNMUTE;
 		LoggerContext loggerContext = new LoggerContext()
 			.setUser(user)
-			.setChannel(channel);
+			.setChannel(channel == null ? 0L : channel.getIdLong());
 
 		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
 		embed.setDescription(String.format("`%s` has been %s", member.getEffectiveName(), muted ? "muted" : "unmuted"));

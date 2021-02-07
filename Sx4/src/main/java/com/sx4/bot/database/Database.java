@@ -56,6 +56,7 @@ public class Database {
 	
 	private final MongoCollection<Document> auction;
 	
+	private final MongoCollection<Document> regexTemplates;
 	private final MongoCollection<Document> regexes;
 	
 	private final MongoCollection<Document> modLogs;
@@ -127,9 +128,13 @@ public class Database {
 		this.auction.createIndex(Indexes.descending("item.name"));
 		this.auction.createIndex(Indexes.descending("ownerId"));
 		
+		this.regexTemplates = this.database.getCollection("regexTemplates");
+		this.regexTemplates.createIndex(Indexes.descending("approved"));
+		this.regexTemplates.createIndex(Indexes.descending("pattern"));
+
 		this.regexes = this.database.getCollection("regexes");
-		this.regexes.createIndex(Indexes.descending("approved"));
-		this.regexes.createIndex(Indexes.descending("pattern"));
+		this.regexes.createIndex(guildId);
+		this.regexes.createIndex(Indexes.descending("regexId", "guildId"), uniqueIndex);
 		
 		this.modLogs = this.database.getCollection("modLogs");
 		this.modLogs.createIndex(Indexes.descending("action.type"));
@@ -140,7 +145,7 @@ public class Database {
 		this.commands = this.database.getCollection("commands");
 		this.commands.createIndex(Indexes.descending("authorId"));
 		this.commands.createIndex(Indexes.descending("guildId"));
-		this.commands.createIndex(Indexes.descending("command"));
+		this.commands.createIndex(Indexes.descending("command.id"));
 		this.commands.createIndex(Indexes.descending("channelId"));
 		
 		this.messages = this.database.getCollection("messages");
@@ -166,6 +171,70 @@ public class Database {
 	
 	public MongoDatabase getDatabase() {
 		return this.database;
+	}
+
+	public MongoCollection<Document> getRegexes() {
+		return this.regexes;
+	}
+
+	public FindIterable<Document> getRegexes(Bson filter, Bson projection) {
+		return this.regexes.find(filter).projection(projection);
+	}
+
+	public long countRegexes(Bson filter, CountOptions options) {
+		return this.regexes.countDocuments(filter, options);
+	}
+
+	public Document getRegex(Bson filter, Bson projection) {
+		return this.getRegexes(filter, projection).first();
+	}
+
+	public Document getRegexById(long guildId, ObjectId regexId, Bson projection) {
+		return this.getRegex(Filters.and(Filters.eq("guildId", guildId), Filters.eq("regexId", regexId)), projection);
+	}
+
+	public CompletableFuture<InsertOneResult> insertRegex(Document data) {
+		return CompletableFuture.supplyAsync(() -> this.regexes.insertOne(data));
+	}
+
+	public CompletableFuture<UpdateResult> updateRegex(Bson filter, Bson update, UpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.regexes.updateOne(filter, update, options));
+	}
+
+	public CompletableFuture<UpdateResult> updateRegex(Bson filter, Bson update) {
+		return this.updateRegex(filter, update, this.updateOptions);
+	}
+
+	public CompletableFuture<UpdateResult> updateRegexById(long guildId, ObjectId regexId, Bson update, UpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.regexes.updateOne(Filters.and(Filters.eq("guildId", guildId), Filters.eq("regexId", regexId)), update, options));
+	}
+
+	public CompletableFuture<UpdateResult> updateRegexById(long guildId, ObjectId regexId, Bson update) {
+		return this.updateRegexById(guildId, regexId, update, this.updateOptions);
+	}
+
+	public CompletableFuture<UpdateResult> updateRegex(Bson filter, List<Bson> update, UpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.regexes.updateOne(filter, update, options));
+	}
+
+	public CompletableFuture<UpdateResult> updateRegex(Bson filter, List<Bson> update) {
+		return this.updateRegex(filter, update, this.updateOptions);
+	}
+
+	public CompletableFuture<UpdateResult> updateRegexById(long guildId, ObjectId regexId, List<Bson> update, UpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.regexes.updateOne(Filters.and(Filters.eq("guildId", guildId), Filters.eq("regexId", regexId)), update, options));
+	}
+
+	public CompletableFuture<UpdateResult> updateRegexById(long guildId, ObjectId regexId, List<Bson> update) {
+		return this.updateRegexById(guildId, regexId, update, this.updateOptions);
+	}
+
+	public CompletableFuture<DeleteResult> deleteRegex(Bson filter) {
+		return CompletableFuture.supplyAsync(() -> this.regexes.deleteOne(filter));
+	}
+
+	public CompletableFuture<DeleteResult> deleteRegexById(long guildId, ObjectId regexId) {
+		return this.deleteRegex(Filters.and(Filters.eq("guildId", guildId), Filters.eq("regexId", regexId)));
 	}
 
 	public MongoCollection<Document> getTriggers() {
@@ -576,42 +645,40 @@ public class Database {
 		return CompletableFuture.supplyAsync(() -> this.redirects.findOneAndUpdate(Filters.eq("url", url), Updates.combine(Updates.setOnInsert("_id", id), Updates.setOnInsert("url", url)), this.findOneAndUpdateOptions));
 	}
 	
-	public MongoCollection<Document> getRegexes() {
-		return this.regexes;
+	public MongoCollection<Document> getRegexTemplates() {
+		return this.regexTemplates;
 	}
 	
-	public FindIterable<Document> getRegexes(Bson filter, Bson projection) {
-		return this.regexes.find(filter).projection(projection);
+	public FindIterable<Document> getRegexTemplates(Bson filter, Bson projection) {
+		return this.regexTemplates.find(filter).projection(projection);
 	}
 	
-	public Document getRegex(Bson filter, Bson projection) {
-		Document data = this.regexes.find(filter).projection(projection).first();
-		
-		return data == null ? Database.EMPTY_DOCUMENT : data;
+	public Document getRegexTemplate(Bson filter, Bson projection) {
+		return this.regexTemplates.find(filter).projection(projection).first();
 	}
 	
-	public Document getRegexById(ObjectId id, Bson projection) {
-		return this.getRegex(Filters.eq("_id", id), projection);
+	public Document getRegexTemplateById(ObjectId id, Bson projection) {
+		return this.getRegexTemplate(Filters.eq("_id", id), projection);
 	}
 	
-	public CompletableFuture<InsertOneResult> insertRegex(Document data) {
-		return CompletableFuture.supplyAsync(() -> this.regexes.insertOne(data));
+	public CompletableFuture<InsertOneResult> insertRegexTemplate(Document data) {
+		return CompletableFuture.supplyAsync(() -> this.regexTemplates.insertOne(data));
 	}
 	
-	public CompletableFuture<UpdateResult> updateRegexById(ObjectId id, Bson update) {
-		return CompletableFuture.supplyAsync(() -> this.regexes.updateOne(Filters.eq("_id", id), update));
+	public CompletableFuture<UpdateResult> updateRegexTemplateById(ObjectId id, Bson update) {
+		return CompletableFuture.supplyAsync(() -> this.regexTemplates.updateOne(Filters.eq("_id", id), update));
 	}
 	
-	public CompletableFuture<Document> findAndUpdateRegexById(ObjectId id, Bson update, FindOneAndUpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.regexes.findOneAndUpdate(Filters.eq("_id", id), update, options));
+	public CompletableFuture<Document> findAndUpdateRegexTemplateById(ObjectId id, Bson update, FindOneAndUpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.regexTemplates.findOneAndUpdate(Filters.eq("_id", id), update, options));
 	}
 	
-	public CompletableFuture<DeleteResult> deleteRegexById(ObjectId id) {
-		return CompletableFuture.supplyAsync(() -> this.regexes.deleteOne(Filters.eq("_id", id)));
+	public CompletableFuture<DeleteResult> deleteRegexTemplateById(ObjectId id) {
+		return CompletableFuture.supplyAsync(() -> this.regexTemplates.deleteOne(Filters.eq("_id", id)));
 	}
 	
-	public CompletableFuture<Document> findAndDeleteRegexById(ObjectId id, FindOneAndDeleteOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.regexes.findOneAndDelete(Filters.eq("_id", id), options));
+	public CompletableFuture<Document> findAndDeleteRegexTemplateById(ObjectId id, FindOneAndDeleteOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.regexTemplates.findOneAndDelete(Filters.eq("_id", id), options));
 	}
 
 	public MongoCollection<Document> getMembers() {
@@ -1158,6 +1225,10 @@ public class Database {
 	
 	public CompletableFuture<FindIterable<Document>> getCommands(Bson filter) {
 		return CompletableFuture.supplyAsync(() -> this.commands.find(filter));
+	}
+
+	public CompletableFuture<InsertOneResult> insertCommand(Document data) {
+		return CompletableFuture.supplyAsync(() -> this.commands.insertOne(data));
 	}
 	
 	public CompletableFuture<AggregateIterable<Document>> aggregateCommands(List<? extends Bson> pipeline) {

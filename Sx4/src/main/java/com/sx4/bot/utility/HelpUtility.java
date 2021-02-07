@@ -106,13 +106,13 @@ public class HelpUtility {
 	
 	public static PagedResult<Sx4Command> getCommandsPaged(List<Sx4Command> commands) {
 		return new PagedResult<>(commands)
-				.setAutoSelect(true)
-				.setPerPage(15)
-				.setDisplayFunction(command -> "`" + command.getCommandTrigger() + "` - " + command.getDescription())
-				.setSelectablePredicate((content, command) -> command.getCommandTrigger().equals(content))
-				.setSelect(SelectType.OBJECT)
-				.setIndexed(false)
-				.setAutoSelect(false);
+			.setAutoSelect(true)
+			.setPerPage(15)
+			.setDisplayFunction(command -> "`" + command.getCommandTrigger() + "` - " + command.getDescription())
+			.setSelectablePredicate((content, command) -> command.getCommandTrigger().equals(content))
+			.setSelect(SelectType.OBJECT)
+			.setIndexed(false)
+			.setAutoSelect(false);
 	}
 	
 }

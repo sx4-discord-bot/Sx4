@@ -58,7 +58,6 @@ public class ConnectionHandler extends ListenerAdapter {
 			ReminderManager.get().ensureReminders();
 			MuteManager.get().ensureMutes();
 			TemporaryBanManager.get().ensureBans();
-			AutoRoleManager.get().ensureAutoRoles();
 			GiveawayManager.get().ensureGiveaways();
 			AntiRegexManager.get().ensureAttempts();
 			PremiumManager.get().ensurePremiumExpiry();

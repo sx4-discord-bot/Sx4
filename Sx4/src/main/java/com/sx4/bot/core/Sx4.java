@@ -15,9 +15,7 @@ import com.jockie.bot.core.command.manager.impl.ContextManagerFactory;
 import com.jockie.bot.core.command.manager.impl.ErrorManagerImpl;
 import com.jockie.bot.core.option.factory.impl.OptionFactory;
 import com.jockie.bot.core.option.factory.impl.OptionFactoryImpl;
-import com.jockie.bot.core.parser.IParser;
 import com.jockie.bot.core.parser.ParsedResult;
-import com.jockie.bot.core.parser.impl.essential.EnumParser;
 import com.mongodb.client.model.Projections;
 import com.sx4.api.Sx4Server;
 import com.sx4.bot.annotations.argument.*;
@@ -29,7 +27,6 @@ import com.sx4.bot.entities.argument.*;
 import com.sx4.bot.entities.management.AutoRoleFilter;
 import com.sx4.bot.entities.mod.PartialEmote;
 import com.sx4.bot.entities.mod.Reason;
-import com.sx4.bot.entities.mod.action.ModAction;
 import com.sx4.bot.handlers.*;
 import com.sx4.bot.managers.ModActionManager;
 import com.sx4.bot.managers.PatreonManager;
@@ -131,12 +128,12 @@ public class Sx4 {
 	private ShardManager createShardManager() {
 		try {
 			InterfacedEventManager eventManager = new InterfacedEventManager();
+			eventManager.register(new GuildMessageCache());
 			eventManager.register(this.commandListener);
 			eventManager.register(new PagedHandler());
 			eventManager.register(new WaiterHandler());
 			eventManager.register(new GiveawayHandler());
 			eventManager.register(ModHandler.INSTANCE);
-			eventManager.register(new GuildMessageCache());
 			eventManager.register(new ConnectionHandler());
 			eventManager.register(new ReactionRoleHandler());
 			eventManager.register(new LoggerHandler());
@@ -164,6 +161,7 @@ public class Sx4 {
 			.addDevelopers(402557516728369153L, 190551803669118976L)
 			.setErrorManager(errorManager)
 			.setCommandEventFactory(new Sx4CommandEventFactory())
+			.addCommandEventListener(new Sx4CommandEventListener())
 			.setDefaultPrefixes(Config.get().getDefaultPrefixes().toArray(String[]::new))
 			.setHelpFunction((message, prefix, commands) -> {
 				MessageChannel channel = message.getChannel();
@@ -291,8 +289,10 @@ public class Sx4 {
 			return builder;
 		});
 
-		optionFactory.registerParser(Duration.class, (context, option, content) -> content == null ? new ParsedResult<>(true, null) : new ParsedResult<>(TimeUtility.getDurationFromString(content)));
-
+		optionFactory.registerParser(Duration.class, (context, option, content) -> content == null ? new ParsedResult<>(true, null) : new ParsedResult<>(TimeUtility.getDurationFromString(content)))
+			.registerParser(User.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getUser(content.trim())))
+			.registerParser(Guild.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getGuild(content)))
+			.registerParser(TextChannel.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getTextChannel(context.getMessage().getGuild(), content.trim())));
 
 		optionFactory.addParserAfter(Integer.class, (context, argument, content) -> {
 			Integer lowerLimit = argument.getProperty("lowerLimit", Integer.class);
@@ -439,7 +439,6 @@ public class Sx4 {
 			.registerParser(Guild.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getGuild(content)))
 			.registerParser(MessageArgument.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getMessageArgument(context.getMessage().getTextChannel(), content)))
 			.registerParser(ReactionEmote.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getReactionEmote(content)))
-			.registerParser(ModAction.class, new EnumParser<>())
 			.registerParser(Sx4Command.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getCommand(content)))
 			.registerParser(TimeZone.class, (context, argument, content) -> new ParsedResult<>(TimeZone.getTimeZone(content.toUpperCase().replace("UTC", "GMT"))))
 			.registerParser(ReminderArgument.class, (context, argument, content) -> {
@@ -560,22 +559,13 @@ public class Sx4 {
 			}).registerParser(TimedArgument.class, (context, argument, content) -> {
 				Class<?> clazz = argument.getProperty("class", Class.class);
 
-				IParser parser = argumentFactory.getParser(clazz);
-				if (parser == null) {
-					parser = argumentFactory.getGenericParser(clazz);
-				}
+				int lastIndex = content.lastIndexOf(' ');
+				Duration duration = lastIndex == -1 ? null : TimeUtility.getDurationFromString(content.substring(lastIndex));
 
-				ParsedResult<?> parsedArgument = parser.parse(context, argument, content);
+				ParsedResult<?> parsedArgument = CommandUtility.getParsedResult(clazz, argumentFactory, context, argument, lastIndex == -1 ? content : content.substring(0, lastIndex));
 				if (!parsedArgument.isValid()) {
 					return new ParsedResult<>();
 				}
-				
-				int lastIndex = content.lastIndexOf(' ');
-				if (lastIndex == -1) {
-					return new ParsedResult<>(new TimedArgument<>(null, parsedArgument.getObject()));
-				}
-				
-				Duration duration = TimeUtility.getDurationFromString(content.substring(lastIndex));
 				
 				return new ParsedResult<>(new TimedArgument<>(duration, parsedArgument.getObject()));
 			}).registerParser(Range.class, (context, argument, content) -> {
@@ -598,12 +588,7 @@ public class Sx4 {
 
 				Class<?> clazz = argument.getProperty("class", Class.class);
 
-				IParser parser = argumentFactory.getParser(clazz);
-				if (parser == null) {
-					parser = argumentFactory.getGenericParser(clazz);
-				}
-
-				ParsedResult<?> parsedArgument = parser.parse(context, argument, content);
+				ParsedResult<?> parsedArgument = CommandUtility.getParsedResult(clazz, argumentFactory, context, argument, content);
 				if (!parsedArgument.isValid()) {
 					return new ParsedResult<>();
 				}
@@ -612,19 +597,8 @@ public class Sx4 {
 			}).registerParser(Or.class, (context, argument, content) -> {
 				Class<?> firstClass = argument.getProperty("firstClass"), secondClass = argument.getProperty("secondClass");
 
-				IParser firstParser = argumentFactory.getParser(firstClass);
-				if (firstParser == null) {
-					firstParser = argumentFactory.getGenericParser(firstClass);
-				}
-
-				ParsedResult<?> firstParsedArgument = firstParser.parse(context, argument, content);
-
-				IParser secondParser = argumentFactory.getParser(secondClass);
-				if (secondParser == null) {
-					secondParser = argumentFactory.getGenericParser(secondClass);
-				}
-
-				ParsedResult<?> secondParsedArgument = secondParser.parse(context, argument, content);
+				ParsedResult<?> firstParsedArgument = CommandUtility.getParsedResult(firstClass, argumentFactory, context, argument, content);
+				ParsedResult<?> secondParsedArgument = CommandUtility.getParsedResult(secondClass, argumentFactory, context, argument, content);
 				
 				if (firstParsedArgument.isValid()) {
 					return new ParsedResult<>(new Or<>(firstParsedArgument.getObject(), null));

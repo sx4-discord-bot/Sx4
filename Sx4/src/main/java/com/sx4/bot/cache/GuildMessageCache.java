@@ -32,15 +32,23 @@ public class GuildMessageCache extends ListenerAdapter {
 	}
 
 	public void onGuildMessageReceived(GuildMessageReceivedEvent event) {
+		if (event.getAuthor().isBot()) {
+			return;
+		}
+
 		Database.get().insertMessage(this.getData(event.getMessage())).whenComplete(Database.exceptionally());
 	}
 	
 	public void onGuildMessageUpdate(GuildMessageUpdateEvent event) {
-		Database.get().replaceMessage(this.getData(event.getMessage())).whenComplete(Database.exceptionally());
+		if (event.getAuthor().isBot()) {
+			return;
+		}
+
+		this.executor.schedule(() -> Database.get().replaceMessage(this.getData(event.getMessage())).whenComplete(Database.exceptionally()), 50, TimeUnit.MILLISECONDS);
 	}
 
 	public void handleDelete(List<Long> messageIds) {
-		this.executor.schedule(() -> Database.get().deleteMessages(messageIds).whenComplete(Database.exceptionally()), 30, TimeUnit.SECONDS);
+		this.executor.schedule(() -> Database.get().deleteMessages(messageIds).whenComplete(Database.exceptionally()), 5, TimeUnit.MINUTES);
 	}
 	
 	public void onGuildMessageDelete(GuildMessageDeleteEvent event) {

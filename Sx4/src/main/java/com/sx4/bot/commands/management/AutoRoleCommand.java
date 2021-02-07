@@ -33,7 +33,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.CompletionException;
 import java.util.stream.Collectors;
 
 public class AutoRoleCommand extends Sx4Command {
@@ -181,7 +180,7 @@ public class AutoRoleCommand extends Sx4Command {
 		
 		@Command(value="add", description="Adds a filter to an auto role")
 		@CommandId(43)
-		@Examples({"auto role filter add @Role BOT", "auto role filter add Role CREATED_LESS_THAN 2d"})
+		@Examples({"auto role filter add @Role BOT", "auto role filter add Role NOT_BOT"})
 		@AuthorPermissions(permissions={Permission.MANAGE_ROLES})
 		public void add(Sx4CommandEvent event, @Argument(value="role") Role role, @Argument(value="filter", endless=true) TimedArgument<AutoRoleFilter> timedArgument) {
 			AutoRoleFilter filter = timedArgument.getArgument();
@@ -209,8 +208,7 @@ public class AutoRoleCommand extends Sx4Command {
 			
 			Document filterData;
 			if (filter.hasDuration() && timedArgument.hasDuration()) {
-				filterData = filter.asDocument()
-					.append("duration", timedArgument.getDuration().toSeconds());
+				filterData = filter.asDocument().append("duration", timedArgument.getDuration().toSeconds());
 			} else {
 				filterData = filter.asDocument();
 			}
@@ -227,7 +225,7 @@ public class AutoRoleCommand extends Sx4Command {
 		
 		@Command(value="remove", description="Removes a filter from an auto  role")
 		@CommandId(44)
-		@Examples({"auto role filter remove @Role BOT", "auto role filter remove Role CREATED_LESS_THAN"})
+		@Examples({"auto role filter remove @Role BOT", "auto role filter remove Role NOT_BOT"})
 		@AuthorPermissions(permissions={Permission.MANAGE_ROLES})
 		public void remove(Sx4CommandEvent event, @Argument(value="role | all") Role role, @Argument(value="filter") @Options("all") Alternative<AutoRoleFilter> option) {
 			boolean alternative = option.isAlternative();
@@ -235,12 +233,10 @@ public class AutoRoleCommand extends Sx4Command {
 			UpdateOptions options = new UpdateOptions().arrayFilters(List.of(Filters.eq("role.id", role.getIdLong())));
 			Bson update = alternative ? Updates.unset("autoRole.roles.$[role].filters") : Updates.pull("autoRole.roles.$[role].filters", Filters.eq("key", option.getValue().getKey()));
 			this.database.updateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((result, exception) -> {
-				if (exception instanceof CompletionException) {
-					Throwable cause = exception.getCause();
-					if (cause instanceof MongoWriteException && ((MongoWriteException) cause).getCode() == 2) {
-						event.reply("That auto role does not have " + (alternative ? "any" : "that") + " filter" + (alternative ? "s " : " ") + this.config.getFailureEmote()).queue();
-						return;
-					}
+				Throwable cause = exception == null ? null : exception.getCause();
+				if (cause instanceof MongoWriteException && ((MongoWriteException) cause).getCode() == 2) {
+					event.reply("That auto role does not have " + (alternative ? "any" : "that") + " filter" + (alternative ? "s " : " ") + this.config.getFailureEmote()).queue();
+					return;
 				}
 				
 				if (ExceptionUtility.sendExceptionally(event, exception)) {

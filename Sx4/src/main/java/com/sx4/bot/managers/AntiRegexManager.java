@@ -28,9 +28,9 @@ public class AntiRegexManager {
     }
 
     // TODO Would also be nice for a way to combine attempts across multiple anti regexes
-    private final Map<Long, Map<ObjectId, Map<Long, Integer>>> attempts;
+    private final Map<ObjectId, Map<Long, Integer>> attempts;
 
-    private final Map<Long, Map<ObjectId, Map<Long, ScheduledFuture<?>>>> executors;
+    private final Map<ObjectId, Map<Long, ScheduledFuture<?>>> executors;
     private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
 
     private AntiRegexManager() {
@@ -38,136 +38,94 @@ public class AntiRegexManager {
         this.executors = new HashMap<>();
     }
 
-    public int getAttempts(long guildId, ObjectId id, long userId) {
-        Map<ObjectId, Map<Long, Integer>> regexAttempts = this.attempts.get(guildId);
-        if (regexAttempts != null) {
-            Map<Long, Integer> userAttempts = regexAttempts.get(id);
-            if (userAttempts != null) {
-                return userAttempts.getOrDefault(userId, 0);
-            }
+    public int getAttempts(ObjectId id, long userId) {
+        Map<Long, Integer> userAttempts = this.attempts.get(id);
+        if (userAttempts != null) {
+            return userAttempts.getOrDefault(userId, 0);
         }
 
         return 0;
     }
 
-    public void increaseAttempts(long guildId, ObjectId id, long userId, int amount) {
-        this.attempts.compute(guildId, (guildKey, guildValue) -> {
-            if (guildValue == null) {
+    public void increaseAttempts(ObjectId id, long userId, int amount) {
+        this.attempts.compute(id, (idKey, idValue) -> {
+            if (idValue == null) {
                 if (amount < 1) {
-                    this.deleteExecutor(guildId, id, userId);
+                    this.deleteExecutor(id, userId);
                     return null;
                 }
 
-                Map<ObjectId, Map<Long, Integer>> regexAttempts = new HashMap<>();
                 Map<Long, Integer> userAttempts = new HashMap<>();
-
                 userAttempts.put(userId, amount);
-                regexAttempts.put(id, userAttempts);
 
-                return regexAttempts;
+                return userAttempts;
             }
 
-            guildValue.compute(id, (idKey, idValue) -> {
-                if (idValue == null) {
-                    if (amount < 1) {
-                        this.deleteExecutor(guildId, id, userId);
-                        return null;
-                    }
-
-                    Map<Long, Integer> userAttempts = new HashMap<>();
-                    userAttempts.put(userId, amount);
-
-                    return userAttempts;
+            idValue.compute(userId, (userKey, userValue) -> {
+                int newAmount = userValue == null ? amount : userValue + amount;
+                if (newAmount <= 0) {
+                    this.deleteExecutor(id, userId);
+                    return null;
                 }
 
-                idValue.compute(userId, (userKey, userValue) -> {
-                    int newAmount = userValue == null ? amount : userValue + amount;
-                    if (newAmount <= 0) {
-                        this.deleteExecutor(guildId, id, userId);
-                        return null;
-                    }
-
-                    return newAmount;
-                });
-
-                return idValue;
+                return newAmount;
             });
 
-            return guildValue;
+            return idValue;
         });
     }
 
-    public void incrementAttempts(long guildId, ObjectId id, long userId) {
-        this.increaseAttempts(guildId, id, userId,1);
+    public void incrementAttempts(ObjectId id, long userId) {
+        this.increaseAttempts(id, userId,1);
     }
 
-    public void decreaseAttempts(long guildId, ObjectId id, long userId, int amount) {
-        this.increaseAttempts(guildId, id, userId, -amount);
+    public void decreaseAttempts(ObjectId id, long userId, int amount) {
+        this.increaseAttempts(id, userId, -amount);
     }
 
-    public void clearAttempts(long guildId, ObjectId id, long userId) {
-        Map<ObjectId, Map<Long, Integer>> regexAttempts = this.attempts.get(guildId);
-        if (regexAttempts != null) {
-            Map<Long, Integer> userAttempts = regexAttempts.get(id);
-            if (userAttempts != null) {
-                userAttempts.remove(userId);
-            }
+    public void clearAttempts(ObjectId id, long userId) {
+        Map<Long, Integer> userAttempts = this.attempts.get(id);
+        if (userAttempts != null) {
+            userAttempts.remove(userId);
         }
 
-        this.deleteExecutor(guildId, id, userId);
+        this.deleteExecutor(id, userId);
     }
 
-    public void deleteExecutor(long guildId, ObjectId id, long userId) {
-        Map<ObjectId, Map<Long, ScheduledFuture<?>>> regexExecutors = this.executors.get(guildId);
-        if (regexExecutors != null) {
-            Map<Long, ScheduledFuture<?>> userExecutors = regexExecutors.get(id);
-            if (userExecutors != null) {
-                ScheduledFuture<?> executor = userExecutors.remove(userId);
-                if (executor != null && !executor.isDone()) {
-                    executor.cancel(true);
-                }
+    public void deleteExecutor(ObjectId id, long userId) {
+        Map<Long, ScheduledFuture<?>> userExecutors = this.executors.get(id);
+        if (userExecutors != null) {
+            ScheduledFuture<?> executor = userExecutors.remove(userId);
+            if (executor != null && !executor.isDone()) {
+                executor.cancel(true);
             }
         }
     }
 
-    public void putExecutor(long guildId, ObjectId id, long userId, ScheduledFuture<?> executor) {
-        this.executors.compute(guildId, (guildKey, guildValue) -> {
-            if (guildValue == null) {
-                Map<ObjectId, Map<Long, ScheduledFuture<?>>> regexAttempts = new HashMap<>();
+    public void putExecutor(ObjectId id, long userId, ScheduledFuture<?> executor) {
+        this.executors.compute(id, (idKey, idValue) -> {
+            if (idValue == null) {
                 Map<Long, ScheduledFuture<?>> userAttempts = new HashMap<>();
-
                 userAttempts.put(userId, executor);
-                regexAttempts.put(id, userAttempts);
 
-                return regexAttempts;
+                return userAttempts;
             }
 
-            guildValue.compute(id, (idKey, idValue) -> {
-                if (idValue == null) {
-                    Map<Long, ScheduledFuture<?>> userAttempts = new HashMap<>();
-                    userAttempts.put(userId, executor);
-
-                    return userAttempts;
+            idValue.compute(userId, (userKey, userValue) -> {
+                if (userValue != null && !userValue.isDone()) {
+                    userValue.cancel(true);
                 }
 
-                idValue.compute(userId, (userKey, userValue) -> {
-                    if (userValue != null && !userValue.isDone()) {
-                        userValue.cancel(true);
-                    }
-
-                    return executor;
-                });
-
-                return idValue;
+                return executor;
             });
 
-            return guildValue;
+            return idValue;
         });
     }
 
-    public UpdateOneModel<Document> resetAttemptsBulk(long guildId, ObjectId id, long userId, long duration, int amount) {
-        this.decreaseAttempts(guildId, id, userId, amount);
-        int attempts = this.getAttempts(guildId, id, userId);
+    public UpdateOneModel<Document> resetAttemptsBulk(ObjectId id, long userId, long duration, int amount) {
+        this.decreaseAttempts(id, userId, amount);
+        int attempts = this.getAttempts(id, userId);
 
         List<Bson> arrayFilters;
         Bson update;
@@ -182,58 +140,53 @@ public class AntiRegexManager {
             arrayFilters = List.of(Filters.eq("regex.id", id), Filters.eq("user.id", userId));
         }
 
-        return new UpdateOneModel<>(Filters.eq("_id", guildId), update, new UpdateOptions().arrayFilters(arrayFilters));
+        return new UpdateOneModel<>(Filters.eq("_id", id), update, new UpdateOptions().arrayFilters(arrayFilters));
     }
 
-    public void resetAttempts(long guildId, ObjectId id, long userId, long duration, int amount) {
-        Database.get().updateGuild(this.resetAttemptsBulk(guildId, id, userId, duration, amount)).whenComplete(Database.exceptionally());
+    public void resetAttempts(ObjectId id, long userId, long duration, int amount) {
+        Database.get().updateGuild(this.resetAttemptsBulk(id, userId, duration, amount)).whenComplete(Database.exceptionally());
     }
 
-    public void scheduleResetAttempts(long guildId, ObjectId id, long userId, long duration, int amount) {
-        this.scheduleResetAttempts(guildId, id, userId, duration, duration, amount);
+    public void scheduleResetAttempts(ObjectId id, long userId, long duration, int amount) {
+        this.scheduleResetAttempts(id, userId, duration, duration, amount);
     }
 
-    public void scheduleResetAttempts(long guildId, ObjectId id, long userId, long initialDuration, long duration, int amount) {
-        ScheduledFuture<?> executor = this.executor.scheduleAtFixedRate(() -> this.resetAttempts(guildId, id, userId, duration, amount), initialDuration, duration, TimeUnit.SECONDS);
-        this.putExecutor(guildId, id, userId, executor);
+    public void scheduleResetAttempts(ObjectId id, long userId, long initialDuration, long duration, int amount) {
+        ScheduledFuture<?> executor = this.executor.scheduleAtFixedRate(() -> this.resetAttempts(id, userId, duration, amount), initialDuration, duration, TimeUnit.SECONDS);
+        this.putExecutor(id, userId, executor);
     }
 
     public void ensureAttempts() {
         Database database = Database.get();
 
         List<WriteModel<Document>> bulkData = new ArrayList<>();
-        database.getGuilds(Filters.elemMatch("antiRegex.regexes", Filters.exists("id")), Projections.include("antiRegex.regexes")).forEach(data -> {
-            long guildId = data.getLong("_id");
+        database.getRegexes(Database.EMPTY_DOCUMENT, Projections.include("attempts.reset")).forEach(regex -> {
+            ObjectId id = regex.getObjectId("id");
 
-            List<Document> regexes = data.getEmbedded(List.of("antiRegex", "regexes"), Collections.emptyList());
-            for (Document regex : regexes) {
-                ObjectId id = regex.getObjectId("id");
+            Document reset = regex.getEmbedded(List.of("attempts", "reset"), Database.EMPTY_DOCUMENT);
+            long duration = reset.get("after", 0L);
+            int amount = reset.get("amount", 0);
 
-                Document reset = regex.getEmbedded(List.of("action", "mod", "attempts", "reset"), Database.EMPTY_DOCUMENT);
-                long duration = reset.get("after", 0L);
-                int amount = reset.get("amount", 0);
+            List<Document> users = /* database.getRegexAttempts(id, Projections.include("userId", "attempts")).forEach */ Collections.emptyList();
+            for (Document user : users) {
+                long userId = user.getLong("id");
+                int attempts = user.getInteger("attempts");
 
-                List<Document> users = regex.getList("users", Document.class, Collections.emptyList());
-                for (Document user : users) {
-                    long userId = user.getLong("id");
-                    int attempts = user.getInteger("attempts");
+                this.increaseAttempts(id, userId, attempts);
+                if (duration != 0L) {
+                    long resetAt = user.getLong("resetAt"), now = Clock.systemUTC().instant().getEpochSecond();
+                    if (now >= resetAt) {
+                        int remove = (int) Math.floorDiv(now - resetAt, duration) + 1;
+                        long currentDuration = duration - (now - resetAt);
 
-                    this.increaseAttempts(guildId, id, userId, attempts);
-                    if (duration != 0L) {
-                        long resetAt = user.getLong("resetAt"), now = Clock.systemUTC().instant().getEpochSecond();
-                        if (now >= resetAt) {
-                            int remove = (int) Math.floorDiv(now - resetAt, duration) + 1;
-                            long currentDuration = duration - (now - resetAt);
-
-                            bulkData.add(this.resetAttemptsBulk(guildId, id, userId, currentDuration, remove));
-                            if (remove < attempts) {
-                                this.scheduleResetAttempts(guildId, id, userId, currentDuration, duration, amount);
-                                this.increaseAttempts(guildId, id, userId, attempts - remove);
-                            }
-                        } else {
-                            this.scheduleResetAttempts(guildId, id, userId, resetAt - now, duration, amount);
-                            this.increaseAttempts(guildId, id, userId, attempts);
+                        bulkData.add(this.resetAttemptsBulk(id, userId, currentDuration, remove));
+                        if (remove < attempts) {
+                            this.scheduleResetAttempts(id, userId, currentDuration, duration, amount);
+                            this.increaseAttempts(id, userId, attempts - remove);
                         }
+                    } else {
+                        this.scheduleResetAttempts(id, userId, resetAt - now, duration, amount);
+                        this.increaseAttempts(id, userId, attempts);
                     }
                 }
             }

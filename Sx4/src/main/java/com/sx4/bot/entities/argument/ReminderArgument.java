@@ -1,11 +1,11 @@
 package com.sx4.bot.entities.argument;
 
-import java.time.Duration;
-import java.util.List;
-
 import com.mongodb.client.model.Projections;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.utility.TimeUtility;
+
+import java.time.Duration;
+import java.util.List;
 
 public class ReminderArgument {
 	
@@ -20,7 +20,7 @@ public class ReminderArgument {
 		} else if (atIndex > inIndex) {
 			String defaultTimeZone = Database.get().getUserById(userId, Projections.include("reminder.timeZone")).getEmbedded(List.of("reminder", "timeZone"), "GMT");
 			
-			Duration duration = TimeUtility.getDurationToDateTime(query.substring(atIndex + 2).trim(), defaultTimeZone);
+			Duration duration = TimeUtility.getDurationFromDateTime(query.substring(atIndex + 2).trim(), defaultTimeZone);
 			if (duration.isNegative()) {
 				throw new IllegalArgumentException("The date cannot be in the past");
 			} else {

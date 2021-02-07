@@ -17,7 +17,7 @@ public class GayCommand extends Sx4Command {
 		super("gay", 13);
 
 		super.setDescription("Puts the pride flag over a specified image");
-		super.setAliases("pride");
+		super.setAliases("pride", "rainbow");
 		super.setExamples("gay", "gay @Shea#6653", "gay https://example.com/image.png");
 		super.setBotDiscordPermissions(Permission.MESSAGE_ATTACH_FILES);
 		super.setCategoryAll(ModuleCategory.IMAGE);
