@@ -28,7 +28,7 @@ dependencies {
 		exclude group: 'net.dv8tion', module: 'JDA'
 	}
 	
-	compile 'club.minnced:discord-webhooks:0+'
+	compile 'club.minnced:discord-webhooks:0.5.4'
 	
 	compile group: 'org.jsoup', name: 'jsoup', version: '1.11.3'
 
