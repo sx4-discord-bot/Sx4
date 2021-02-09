@@ -1,41 +1,5 @@
 package com.sx4.bot.logger.handler;
 
-import java.time.Clock;
-import java.time.Duration;
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
-import java.time.ZonedDateTime;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.EnumSet;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.BlockingDeque;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.LinkedBlockingDeque;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
-
-import org.bson.Document;
-import org.bson.conversions.Bson;
-
-import com.mongodb.client.model.Projections;
-import com.mongodb.client.model.Updates;
-import com.sx4.bot.cache.GuildMessageCache;
-import com.sx4.bot.core.Sx4Bot;
-import com.sx4.bot.core.Sx4CommandEventListener;
-import com.sx4.bot.database.Database;
-import com.sx4.bot.logger.Event;
-import com.sx4.bot.logger.Statistics;
-import com.sx4.bot.logger.util.Utils;
-import com.sx4.bot.settings.Settings;
-
 import club.minnced.discord.webhook.WebhookClient;
 import club.minnced.discord.webhook.WebhookClientBuilder;
 import club.minnced.discord.webhook.exception.HttpException;
@@ -46,25 +10,23 @@ import club.minnced.discord.webhook.send.WebhookEmbed.EmbedFooter;
 import club.minnced.discord.webhook.send.WebhookEmbedBuilder;
 import club.minnced.discord.webhook.send.WebhookMessage;
 import club.minnced.discord.webhook.send.WebhookMessageBuilder;
+import com.mongodb.client.model.Projections;
+import com.mongodb.client.model.Updates;
+import com.sx4.bot.cache.GuildMessageCache;
+import com.sx4.bot.core.Sx4Bot;
+import com.sx4.bot.core.Sx4CommandEventListener;
+import com.sx4.bot.database.Database;
+import com.sx4.bot.logger.Event;
+import com.sx4.bot.logger.Statistics;
+import com.sx4.bot.logger.util.Utils;
+import com.sx4.bot.settings.Settings;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.audit.ActionType;
 import net.dv8tion.jda.api.audit.AuditLogChange;
 import net.dv8tion.jda.api.audit.AuditLogEntry;
 import net.dv8tion.jda.api.audit.AuditLogKey;
-import net.dv8tion.jda.api.entities.ChannelType;
-import net.dv8tion.jda.api.entities.Guild;
-import net.dv8tion.jda.api.entities.GuildChannel;
-import net.dv8tion.jda.api.entities.IPermissionHolder;
-import net.dv8tion.jda.api.entities.Member;
-import net.dv8tion.jda.api.entities.Message;
-import net.dv8tion.jda.api.entities.MessageEmbed;
-import net.dv8tion.jda.api.entities.PermissionOverride;
-import net.dv8tion.jda.api.entities.Role;
-import net.dv8tion.jda.api.entities.TextChannel;
-import net.dv8tion.jda.api.entities.User;
-import net.dv8tion.jda.api.entities.VoiceChannel;
-import net.dv8tion.jda.api.entities.Webhook;
+import net.dv8tion.jda.api.entities.*;
 import net.dv8tion.jda.api.events.channel.category.CategoryCreateEvent;
 import net.dv8tion.jda.api.events.channel.category.CategoryDeleteEvent;
 import net.dv8tion.jda.api.events.channel.category.update.CategoryUpdateNameEvent;
@@ -86,11 +48,7 @@ import net.dv8tion.jda.api.events.guild.member.update.GuildMemberUpdateNicknameE
 import net.dv8tion.jda.api.events.guild.override.PermissionOverrideCreateEvent;
 import net.dv8tion.jda.api.events.guild.override.PermissionOverrideDeleteEvent;
 import net.dv8tion.jda.api.events.guild.override.PermissionOverrideUpdateEvent;
-import net.dv8tion.jda.api.events.guild.voice.GuildVoiceGuildDeafenEvent;
-import net.dv8tion.jda.api.events.guild.voice.GuildVoiceGuildMuteEvent;
-import net.dv8tion.jda.api.events.guild.voice.GuildVoiceJoinEvent;
-import net.dv8tion.jda.api.events.guild.voice.GuildVoiceLeaveEvent;
-import net.dv8tion.jda.api.events.guild.voice.GuildVoiceMoveEvent;
+import net.dv8tion.jda.api.events.guild.voice.*;
 import net.dv8tion.jda.api.events.message.MessageBulkDeleteEvent;
 import net.dv8tion.jda.api.events.message.guild.GuildMessageDeleteEvent;
 import net.dv8tion.jda.api.events.message.guild.GuildMessageUpdateEvent;
@@ -102,6 +60,13 @@ import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.dv8tion.jda.internal.requests.CompletedRestAction;
 import okhttp3.OkHttpClient;
+import org.bson.Document;
+import org.bson.conversions.Bson;
+
+import java.time.*;
+import java.util.*;
+import java.util.concurrent.*;
+import java.util.stream.Collectors;
 
 public class EventHandler extends ListenerAdapter {
 	
@@ -305,44 +270,43 @@ public class EventHandler extends ListenerAdapter {
 			.setUsername("Sx4 - Logs")
 			.addEmbeds(embeds)
 			.build();
-		
-		client.send(message).whenComplete((finalMessage, e) -> {
-			if (e != null) {
-				Statistics.increaseFailedLogs();
-				
-				if(e instanceof HttpException) {
-					if(((HttpException) e).getCode() == 404) {
-						data.put("webhookId", null);
-						data.put("wehookToken", null);
-						
-						/* 
-						 * Calling close would close the scheduled executor service we are using,
-						 * causing all logs to stop.
-						 * 
-						 * this.webhooks.remove(client.getId()).close(); 
-						 */
-						
-						this.webhooks.remove(client.getId());
-						
-						Bson update = Updates.combine(Updates.set("logger.webhookId", null), Updates.set("logger.webhookToken", null));
-						Database.get().updateGuildById(guild.getIdLong(), update, (result, exception) -> {
-							if (exception != null) {
-								exception.printStackTrace();
-							}
-						});
-						
-						this._send(bot, guild, data, embeds, requestAmount, attempts + 1);
-						
-						return;
-					}
+
+		try {
+			client.send(message).get();
+			Statistics.increaseSuccessfulLogs(requestAmount);
+		} catch (Throwable e) {
+			Statistics.increaseFailedLogs();
+
+			if(e instanceof HttpException) {
+				if(((HttpException) e).getCode() == 404) {
+					data.put("webhookId", null);
+					data.put("wehookToken", null);
+
+					/*
+					 * Calling close would close the scheduled executor service we are using,
+					 * causing all logs to stop.
+					 *
+					 * this.webhooks.remove(client.getId()).close();
+					 */
+
+					this.webhooks.remove(client.getId());
+
+					Bson update = Updates.combine(Updates.set("logger.webhookId", null), Updates.set("logger.webhookToken", null));
+					Database.get().updateGuildById(guild.getIdLong(), update, (result, exception) -> {
+						if (exception != null) {
+							exception.printStackTrace();
+						}
+					});
+
+					this._send(bot, guild, data, embeds, requestAmount, attempts + 1);
+
+					return;
 				}
-				
-				System.err.println("[" + LocalDateTime.now().format(Sx4Bot.getTimeFormatter()) + "] [_send]");
-				e.printStackTrace();
-			} else {
-				Statistics.increaseSuccessfulLogs(requestAmount);
 			}
-		});
+
+			System.err.println("[" + LocalDateTime.now().format(Sx4Bot.getTimeFormatter()) + "] [_send]");
+			e.printStackTrace();
+		}
 	}
 	
 	public void send(JDA bot, Guild guild, Document data, List<WebhookEmbed> embeds) {

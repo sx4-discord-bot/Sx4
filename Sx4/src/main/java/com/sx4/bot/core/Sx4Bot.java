@@ -30,9 +30,6 @@ import net.dv8tion.jda.api.sharding.ShardManager;
 import net.dv8tion.jda.api.utils.MemberCachePolicy;
 import okhttp3.OkHttpClient;
 
-import java.lang.reflect.Field;
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
@@ -41,24 +38,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 public class Sx4Bot {
-	
-	static {
-		if (!Charset.defaultCharset().equals(StandardCharsets.UTF_8)) {
-			System.setProperty("file.encoding", "UTF-8");
-			Field charset = null;
-			try {
-				charset = Charset.class.getDeclaredField("defaultCharset");
-			} catch (NoSuchFieldException | SecurityException e) {
-				e.printStackTrace();
-			}
-			charset.setAccessible(true);
-			try {
-				charset.set(null, null);
-			} catch (IllegalArgumentException | IllegalAccessException e) {
-				e.printStackTrace();
-			}
-		}
-	}
 	
 	public static final EventWaiterEvents waiter = new EventWaiterEvents();
 	
