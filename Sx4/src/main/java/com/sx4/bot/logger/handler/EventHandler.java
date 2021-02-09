@@ -277,8 +277,8 @@ public class EventHandler extends ListenerAdapter {
 		} catch (Throwable e) {
 			Statistics.increaseFailedLogs();
 
-			if(e instanceof HttpException) {
-				if(((HttpException) e).getCode() == 404) {
+			if (e instanceof ExecutionException) {
+				if (e.getCause() instanceof HttpException && ((HttpException) e.getCause()).getCode() == 404) {
 					data.put("webhookId", null);
 					data.put("wehookToken", null);
 
