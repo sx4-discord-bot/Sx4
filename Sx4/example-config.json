@@ -8,6 +8,21 @@
 		"canary": true,
 		"test": true
 	},
+	"webserver": {
+		"image": {
+			"ip": "",
+			"port": 0,
+			"domain": "",
+			"path": ""
+		},
+		"search": {
+			"ip": "",
+			"port": 0,
+			"domain": "",
+			"path": ""
+		}
+	},
+	"defaultPrefixes": [],
 	"canary": {
 		"supportGuild": {
 			"id": 0,
@@ -101,7 +116,5 @@
 		"success": "",
 		"failure": ""
 	},
-	"policy": [
-
-	]
+	"policy": []
 } 

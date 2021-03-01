@@ -8,13 +8,12 @@ import com.sx4.bot.http.HttpCallback;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
 import okhttp3.Request;
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
-import org.jsoup.nodes.Element;
-import org.jsoup.select.Elements;
+import org.bson.Document;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.Comparator;
 
@@ -55,68 +54,58 @@ public class WeatherCommand extends Sx4Command {
 
 	}
 
+	private final DateTimeFormatter parseFormatter = DateTimeFormatter.ofPattern("uuuu-MM-dd'T'HH:mm:ssZZ");
+	private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm");
+
 	public WeatherCommand() {
 		super("weather", 35);
 
 		super.setDescription("Find out the weather in a specific area");
 		super.setCooldownDuration(3);
 		super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
-		super.setExamples("weather London", "weather Stockholm", "weather England");
+		super.setExamples("weather London", "weather Stockholm", "weather Florida");
 		super.setCategoryAll(ModuleCategory.INFORMATION);
 	}
 
 	public void onCommand(Sx4CommandEvent event, @Argument(value="query", endless=true) String query) {
 		Request request = new Request.Builder()
-			.url("https://google.com/search?q=" + URLEncoder.encode(query, StandardCharsets.UTF_8) + "%20weather")
-			.addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.3")
+			.url(this.config.getSearchWebserverUrl("weather") + "?q=" + URLEncoder.encode(query, StandardCharsets.UTF_8))
 			.build();
 
 		event.getClient().newCall(request).enqueue((HttpCallback) response -> {
-			Document document = Jsoup.parse(response.body().string());
-
-			Element element = document.getElementById("wob_wc");
-			if (element == null) {
-				event.replyFailure("I could not find that city").queue();
+			if (response.code() == 404) {
+				event.replyFailure("I could not find that location").queue();
 				return;
 			}
 
-			Element urlElement = document.getElementsByTag("td").first();
-			String url = urlElement.getElementsByTag("a").first().attr("href");
+			Document document = Document.parse(response.body().string());
+			if (!response.isSuccessful()) {
+				StringBuilder builder = new StringBuilder("Command failed with status " + response.code());
+				if (document.containsKey("message")) {
+					builder.append(" with message `").append(document.getString("message")).append("`");
+				}
 
-			Element info = element.getElementById("wob_d");
-			Element weather = info.getElementById("wob_tci");
-			if (weather == null) {
-				event.replyFailure("I failed to get weather data for that, try again and it should work").queue();
+				event.replyFailure(builder.toString()).queue();
 				return;
 			}
 
-			Element hourly = element.getElementById("wob_gsp");
+			Document now = document.get("now", Document.class);
+			Document today = document.get("today", Document.class);
 
-			Element wind = hourly.getElementById("wob_wg");
-			Element windDirection = wind.getElementsByClass("wob_hw").first();
-			Element image = windDirection.getElementsByTag("img").first();
-			String windStyle = image.attr("style");
-
-			int degreesIndex = windStyle.indexOf("transform:rotate(") + 17;
-			int degrees = Integer.parseInt(windStyle.substring(degreesIndex, windStyle.indexOf("deg);", degreesIndex + 1))) % 360;
-
-			Element today = element.getElementsByClass("wob_df wob_ds").first();
-			Elements temperatures = today.getElementsByClass("wob_t");
-
-			String iconUrl = weather.attr("src");
-			String icon = iconUrl.substring(iconUrl.lastIndexOf('/') + 1);
+			int windDegrees = now.getInteger("wdir");
+			Integer maxTemp = today.getInteger("max_temp");
 
 			EmbedBuilder embed = new EmbedBuilder();
-			embed.setAuthor(element.getElementById("wob_loc").text(), url, null);
-			embed.setTitle(weather.attr("alt"));
-			embed.addField("Temperature", String.format("Maximum: %s°C\nCurrent: %s°C\nMinimum: %s°C", temperatures.get(0).text(), info.getElementById("wob_tm").text(), temperatures.get(2).text()), true);
+			embed.setAuthor(document.getString("location"), document.getString("url"), null);
+			embed.setTitle(now.getString("phrase_32char"));
+			embed.addField("Temperature", String.format("Maximum: %s°C\nCurrent: %d°C\nMinimum: %d°C", maxTemp == null ? "--" : maxTemp, now.getInteger("temp"), today.getInteger("min_temp")), true);
 			embed.addBlankField(true);
-			embed.addField("Wind", String.format("Direction: %d° (%s)\nSpeed: %s", degrees, Direction.getDirection(degrees).getName(), info.getElementById("wob_ws").text()), true);
-			embed.addField("Humidity", info.getElementById("wob_hm").text(), true);
+			embed.addField("Wind", String.format("Direction: %d° (%s)\nSpeed: %d mph", windDegrees, Direction.getDirection(windDegrees).getName(), now.getInteger("wspd")), true);
+			embed.addField("Humidity", now.getInteger("rh") + "%", true);
 			embed.addBlankField(true);
-			embed.addField("Precipitation", info.getElementById("wob_pp").text(), true);
-			embed.setThumbnail("https://ssl.gstatic.com/onebox/weather/256/" + icon);
-			embed.setFooter(element.getElementById("wob_dts").text());
+			embed.addField("Precipitation", now.getInteger("pop") + "%", true);
+			embed.setThumbnail(now.getString("icon"));
+			embed.setFooter(now.getString("dow") + " " + OffsetDateTime.parse(now.getString("fcst_valid_local"), this.parseFormatter).format(this.formatter));
 
 			event.reply(embed.build()).queue();
 		});

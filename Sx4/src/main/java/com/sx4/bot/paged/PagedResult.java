@@ -415,10 +415,10 @@ public class PagedResult<Type> {
 				return builder.setEmbed(embed.build()).build();
 			} else {
 				StringBuilder string = new StringBuilder();
-				string.append("Page **" + this.page + "/" + maxPage + "**\n\n");
+				string.append("Page **").append(this.page).append("/").append(maxPage).append("**\n\n");
 				
 				this.forEach((object, index) -> {
-					string.append((this.increasedIndex ? this.indexFunction.apply(index + 1) : (this.indexed ? (this.indexFunction.apply(index + 1 - ((this.page - 1) * this.perPage))) : "")) + this.displayFunction.apply(object) + "\n");
+					string.append(this.increasedIndex ? this.indexFunction.apply(index + 1) : (this.indexed ? (this.indexFunction.apply(index + 1 - ((this.page - 1) * this.perPage))) : "")).append(this.displayFunction.apply(object)).append("\n");
 				});
 				
 				string.append("\nnext | previous | go to <page_number> | cancel");

@@ -8,7 +8,9 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import java.net.MalformedURLException;
 import java.net.URI;
+import java.net.URL;
 import java.util.Random;
 
 @Path("")
@@ -51,8 +53,8 @@ public class RedirectEndpoint {
 		}
 
 		try {
-			URI.create(url);
-		} catch (IllegalArgumentException e) {
+			new URL(url);
+		} catch (MalformedURLException e) {
 			response.resume(Response.status(403).build());
 			return;
 		}

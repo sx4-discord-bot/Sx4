@@ -3,6 +3,7 @@ package com.sx4.bot.core;
 import com.jockie.bot.core.command.ICommand;
 import com.jockie.bot.core.command.impl.CommandEvent;
 import com.jockie.bot.core.command.impl.CommandEventListener;
+import com.jockie.bot.core.command.impl.DummyCommand;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.utility.ExceptionUtility;
 import org.bson.Document;
@@ -16,9 +17,11 @@ public class Sx4CommandEventListener extends CommandEventListener {
 			event.removeCooldown();
 		}
 
+		Sx4Command effectiveCommand = command instanceof DummyCommand ? (Sx4Command) ((DummyCommand) command).getActualCommand() : (Sx4Command) command;
+
 		Document commandData = new Document("messageId", event.getMessage().getIdLong())
 			.append("content", event.getMessage().getContentRaw())
-			.append("command", new Document("name", command.getCommandTrigger()).append("id", ((Sx4Command) command).getId()))
+			.append("command", new Document("name", command.getCommandTrigger()).append("id", effectiveCommand.getId()))
 			.append("module", command.getCategory() == null ? null : command.getCategory().getName())
 			.append("aliasUsed", event.getCommandTrigger())
 			.append("authorId", event.getAuthor().getIdLong())

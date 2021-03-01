@@ -11,11 +11,7 @@ import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.MessageBuilder;
 import net.dv8tion.jda.api.Permission;
 import okhttp3.Request;
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
-import org.jsoup.nodes.Element;
-import org.jsoup.nodes.TextNode;
-import org.jsoup.select.Elements;
+import org.bson.Document;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -60,64 +56,52 @@ public class DictionaryCommand extends Sx4Command {
 
 	public void onCommand(Sx4CommandEvent event, @Argument(value="query", endless=true) String query) {
 		Request request = new Request.Builder()
-			.url("https://www.oxfordlearnersdictionaries.com/definition/english/" + URLEncoder.encode(query, StandardCharsets.UTF_8))
+			.url(this.config.getSearchWebserverUrl("dictionary") + "?q=" + URLEncoder.encode(query, StandardCharsets.UTF_8))
 			.build();
 
 		event.getClient().newCall(request).enqueue((HttpCallback) response -> {
-			Document document = Jsoup.parse(response.body().string());
-
-			Elements elements = document.getElementsByClass("sense");
-			if (elements.isEmpty()) {
-				event.replyFailure("I could not find a definition for that query").queue();
-			}
-
-			Element pronunciationElement = document.getElementsByClass("sound audio_play_button pron-uk icon-audio").first();
-			String pronunciation = pronunciationElement == null ? null : pronunciationElement.attr("data-src-mp3");
-
-			List<DictionaryResult> results = new ArrayList<>();
-			for (Element element : elements) {
-				Element definitionElement = element.getElementsByClass("def").first();
-
-				Elements referenceElements = definitionElement.getElementsByClass("Ref");
-				List<TextNode> nodes = definitionElement.textNodes();
-
-				StringBuilder definition = new StringBuilder();
-				for (int i = 0; i < nodes.size(); i++) {
-					definition.append(nodes.get(i).text());
-
-					if (i < referenceElements.size()) {
-						Element reference = referenceElements.get(i);
-						definition.append(String.format("[%s](%s)", reference.getElementsByClass("ndv").first().text(), reference.attr("href")));
-					}
+			Document document = Document.parse(response.body().string());
+			if (!response.isSuccessful()) {
+				StringBuilder builder = new StringBuilder("Command failed with status " + response.code());
+				if (document.containsKey("message")) {
+					builder.append(" with message `").append(document.getString("message")).append("`");
 				}
 
-				DictionaryResult result = new DictionaryResult(definition.toString());
-
-				Element exampleElement = element.getElementsByClass("examples").first();
-				if (exampleElement != null) {
-					Elements examples = exampleElement.getElementsByTag("li");
-					for (Element example : examples.subList(0, Math.min(examples.size(), 3))) {
-						result.addExample(example.text());
-					}
-				}
-
-				results.add(result);
+				event.replyFailure(builder.toString()).queue();
+				return;
 			}
 
-			PagedResult<DictionaryResult> paged = new PagedResult<>(results)
+			List<Document> definitions = document.getList("definitions", Document.class);
+			if (definitions.isEmpty()) {
+				event.replyFailure("I could not find a definition for that word").queue();
+				return;
+			}
+
+			PagedResult<Document> paged = new PagedResult<>(definitions)
 				.setPerPage(1)
 				.setCustomFunction(page -> {
 					EmbedBuilder embed = new EmbedBuilder();
-					embed.setAuthor(StringUtility.title(query), null, null);
+					embed.setAuthor(StringUtility.title(query) + " (" + document.getString("type") + ")", document.getString("url"), null);
 					embed.setTitle("Page " + page.getPage() + "/" + page.getMaxPage());
 					embed.setFooter("next | previous | go to <page_number> | cancel");
 
-					page.forEach((result, index) -> {
-						embed.addField("Definition", result.getDefinition() + (result.getExamples().isEmpty() ? "" : "\n\n*" + String.join("*\n*", result.getExamples()) + "*"), false);
+					page.forEach((data, index) -> {
+						StringBuilder definition = new StringBuilder();
+						for (Document node : data.getList("nodes", Document.class)) {
+							if (node.containsKey("url")) {
+								definition.append("[").append(node.getString("text")).append("](").append(node.getString("url")).append(")");
+							} else {
+								definition.append(node.getString("text"));
+							}
+						}
+
+						List<String> examples = data.getList("examples", String.class);
+
+						embed.addField("Definition", definition.toString() + (examples.isEmpty() ? "" : "\n\n*" + String.join("*\n*", examples.subList(0, Math.min(3, examples.size()))) + "*"), false);
 					});
 
-					if (pronunciation != null) {
-						embed.addField("Pronunciation", String.format("[Listen Here](%s)", pronunciation), false);
+					if (document.containsKey("pronunciation")) {
+						embed.addField("Pronunciation", String.format("[Listen Here](%s)", document.getString("pronunciation")), false);
 					}
 
 					return new MessageBuilder().setEmbed(embed.build()).build();

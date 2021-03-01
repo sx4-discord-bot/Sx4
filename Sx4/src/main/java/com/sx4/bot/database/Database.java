@@ -49,6 +49,8 @@ public class Database {
 	private final MongoCollection<Document> reminders;
 
 	private final MongoCollection<Document> suggestions;
+
+	private final MongoCollection<Document> reactionRoles;
 	
 	private final MongoCollection<Document> giveaways;
 
@@ -115,6 +117,10 @@ public class Database {
 		this.suggestions = this.database.getCollection("suggestions");
 		this.suggestions.createIndex(Indexes.descending("guildId"));
 		this.suggestions.createIndex(Indexes.descending("messageId"));
+
+		this.reactionRoles = this.database.getCollection("reactionRoles");
+		this.reactionRoles.createIndex(Indexes.descending("guildId"));
+		this.reactionRoles.createIndex(Indexes.descending("messageId"));
 		
 		this.giveaways = this.database.getCollection("giveaways");
 		this.giveaways.createIndex(Indexes.descending("guildId"));
@@ -171,6 +177,66 @@ public class Database {
 	
 	public MongoDatabase getDatabase() {
 		return this.database;
+	}
+
+	public MongoCollection<Document> getReactionRoles() {
+		return this.reactionRoles;
+	}
+
+	public FindIterable<Document> getReactionRoles(Bson filter, Bson projection) {
+		return this.reactionRoles.find(filter).projection(projection);
+	}
+
+	public Document getReactionRole(Bson filter, Bson projection) {
+		return this.getReactionRoles(filter, projection).first();
+	}
+
+	public CompletableFuture<InsertOneResult> insertReactionRole(Document data) {
+		return CompletableFuture.supplyAsync(() -> this.reactionRoles.insertOne(data));
+	}
+
+	public CompletableFuture<UpdateResult> updateReactionRole(Bson filter, List<Bson> update, UpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.reactionRoles.updateOne(filter, update, options));
+	}
+
+	public CompletableFuture<UpdateResult> updateReactionRole(Bson filter, List<Bson> update) {
+		return this.updateReactionRole(filter, update, this.updateOptions);
+	}
+
+	public CompletableFuture<Document> findAndUpdateReactionRole(Bson filter, List<Bson> update, FindOneAndUpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.reactionRoles.findOneAndUpdate(filter, update, options));
+	}
+
+	public CompletableFuture<UpdateResult> updateReactionRole(Bson filter, Bson update, UpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.reactionRoles.updateOne(filter, update, options));
+	}
+
+	public CompletableFuture<UpdateResult> updateReactionRole(Bson filter, Bson update) {
+		return this.updateReactionRole(filter, update, this.updateOptions);
+	}
+
+	public CompletableFuture<UpdateResult> updateManyReactionRoles(Bson filter, List<Bson> update, UpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.reactionRoles.updateMany(filter, update, options));
+	}
+
+	public CompletableFuture<Document> findAndUpdateReactionRole(Bson filter, Bson update, FindOneAndUpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.reactionRoles.findOneAndUpdate(filter, update, options));
+	}
+
+	public CompletableFuture<UpdateResult> updateManyReactionRoles(Bson filter, Bson update, UpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.reactionRoles.updateMany(filter, update, options));
+	}
+
+	public CompletableFuture<UpdateResult> updateManyReactionRoles(Bson filter, Bson update) {
+		return this.updateManyReactionRoles(filter, update, this.updateOptions);
+	}
+
+	public CompletableFuture<DeleteResult> deleteReactionRole(Bson filter) {
+		return CompletableFuture.supplyAsync(() -> this.reactionRoles.deleteOne(filter));
+	}
+
+	public CompletableFuture<DeleteResult> deleteManyReactionRoles(Bson filter) {
+		return CompletableFuture.supplyAsync(() -> this.reactionRoles.deleteMany(filter));
 	}
 
 	public MongoCollection<Document> getRegexes() {

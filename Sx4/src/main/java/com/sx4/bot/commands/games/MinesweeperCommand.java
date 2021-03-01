@@ -11,46 +11,6 @@ import java.util.Map;
 
 public class MinesweeperCommand extends Sx4Command {
 
-	public enum MinesweeperType {
-		ZERO(0, "0️⃣"),
-		ONE(1, "1️⃣"),
-		TWO(2, "2️⃣"),
-		THREE(3, "3️⃣"),
-		FOUR(4, "4️⃣"),
-		FIVE(5, "5️⃣"),
-		SIX(6, "6️⃣"),
-		SEVEN(7, "7️⃣"),
-		EIGHT(8, "8️⃣"),
-		BOMB(9, "\uD83D\uDCA3"),
-		UNKNOWN(-1, "");
-
-		private final int number;
-		private final String emote;
-
-		private MinesweeperType(int number, String emote) {
-			this.number = number;
-			this.emote = emote;
-		}
-
-		public int getNumber() {
-			return this.number;
-		}
-
-		public String getEmote() {
-			return this.emote;
-		}
-
-		public static MinesweeperType fromNumber(int number) {
-			for (MinesweeperType minesweeper : MinesweeperType.values()) {
-				if (minesweeper.getNumber() == number) {
-					return minesweeper;
-				}
-			}
-
-			return MinesweeperType.UNKNOWN;
-		}
-	}
-
 	public MinesweeperCommand() {
 		super("minesweeper", 1);
 
@@ -82,9 +42,9 @@ public class MinesweeperCommand extends Sx4Command {
 			return;
 		}
 
-		Map<Integer, Map<Integer, MinesweeperType>> positions = new HashMap<>();
+		Map<Integer, Map<Integer, String>> positions = new HashMap<>();
 		for (int i = 0; i < bombs; i++) {
-			Map<Integer, MinesweeperType> position;
+			Map<Integer, String> position;
 			int x, y;
 			do {
 				x = event.getRandom().nextInt(gridX);
@@ -93,41 +53,35 @@ public class MinesweeperCommand extends Sx4Command {
 				position = positions.computeIfAbsent(x, key -> new HashMap<>());
 			} while (position.containsKey(y));
 
-			position.put(y, MinesweeperType.BOMB);
+			position.put(y, "\uD83D\uDCA3");
 		}
 
 		for (int x = 0; x < gridX; x++) {
 			for (int y = 0; y < gridY; y++) {
-				MinesweeperType current = positions.getOrDefault(x, new HashMap<>())
-					.getOrDefault(y, MinesweeperType.UNKNOWN);
-
-				if (current == MinesweeperType.BOMB) {
+				if (positions.getOrDefault(x, new HashMap<>()).containsKey(y)) {
 					continue;
 				}
 
 				int amount = 0;
 				for (int aroundX = x - 1; aroundX < x + 2; aroundX++) {
 					for (int aroundY = y - 1; aroundY < y + 2; aroundY++) {
-						MinesweeperType type = positions.getOrDefault(aroundX, new HashMap<>())
-							.getOrDefault(aroundY, MinesweeperType.UNKNOWN);
-
-						if (type == MinesweeperType.BOMB) {
+						String type = positions.getOrDefault(aroundX, new HashMap<>()).get(aroundY);
+						if (type != null && type.equals("\uD83D\uDCA3")) {
 							amount++;
 						}
 					}
 				}
 
-				positions.computeIfAbsent(x, key -> new HashMap<>())
-					.put(y, MinesweeperType.fromNumber(amount));
+				positions.computeIfAbsent(x, key -> new HashMap<>()).put(y, Character.toString('\u0030' + amount) + "\u20E3");
 			}
 		}
 
 		StringBuilder result = new StringBuilder();
 		for (int x = 0; x < gridX; x++) {
 			for (int y = 0; y < gridY; y++) {
-				MinesweeperType current = positions.get(x).get(y);
+				String current = positions.get(x).get(y);
 
-				result.append("||").append(current.getEmote()).append("||");
+				result.append("||").append(current).append("||");
 			}
 
 			if (x != gridX - 1) {

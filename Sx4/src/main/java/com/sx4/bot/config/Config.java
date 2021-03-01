@@ -33,7 +33,7 @@ public class Config {
 	}
 	
 	public <Type> Type get(String path) {
-		return this.get(path, (Type) null); 
+		return this.get(path, null);
 	}
 	
 	public <Type> Type get(String path, Type defaultValue) {
@@ -226,23 +226,43 @@ public class Config {
 	}
 
 	public String getImageWebserverIp() {
-		return this.get("imageWebserver.ip", "localhost");
-	}
-
-	public String getImageWebserverDomain() {
-		return this.get("imageWebserver.domain", String.format("http://%s:%d", this.getImageWebserverIp(), this.getImageWebserverPort()));
-	}
-
-	public int getImageWebserverPort() {
-		return this.get("imageWebserver.port", 8443);
+		return this.get("webserver.image.ip", "localhost");
 	}
 
 	public String getImageWebserverPath() {
-		return this.get("imageWebserver.path");
+		return this.get("webserver.image.path");
+	}
+
+	public String getImageWebserverDomain() {
+		return this.get("webserver.image.domain", "http://" + this.getImageWebserverIp() + ":" + this.getImageWebserverPort() + "/");
+	}
+
+	public int getImageWebserverPort() {
+		return this.get("webserver.image.port", 8443);
 	}
 
 	public String getImageWebserverUrl(String endpoint) {
-		return this.getImageWebserverDomain() + String.format(this.getImageWebserverPath(), endpoint);
+		return this.getImageWebserverDomain() + endpoint;
+	}
+
+	public String getSearchWebserverIp() {
+		return this.get("webserver.search.ip", "localhost");
+	}
+
+	public String getSearchWebserverPath() {
+		return this.get("webserver.search.path");
+	}
+
+	public String getSearchWebserverDomain() {
+		return this.get("webserver.search.domain", "http://" + this.getSearchWebserverIp() + ":" + this.getSearchWebserverPort() + "/");
+	}
+
+	public int getSearchWebserverPort() {
+		return this.get("webserver.search.port", 8084);
+	}
+
+	public String getSearchWebserverUrl(String endpoint) {
+		return this.getSearchWebserverDomain() + this.getSearchWebserverPath() + endpoint;
 	}
 	
 	public String getVainGlory() {

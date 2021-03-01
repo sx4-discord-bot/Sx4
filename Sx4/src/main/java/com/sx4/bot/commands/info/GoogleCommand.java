@@ -1,23 +1,26 @@
 package com.sx4.bot.commands.info;
 
 import com.jockie.bot.core.argument.Argument;
+import com.jockie.bot.core.option.Option;
+import com.sx4.bot.annotations.argument.DefaultNumber;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.http.HttpCallback;
 import com.sx4.bot.paged.PagedResult;
 import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.utils.MarkdownSanitizer;
 import okhttp3.Request;
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
-import org.jsoup.nodes.Element;
+import org.bson.Document;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
+import java.text.DecimalFormat;
 import java.util.List;
 
 public class GoogleCommand extends Sx4Command {
+
+	private final DecimalFormat decimalFormat = new DecimalFormat("0.##");
 
 	public GoogleCommand() {
 		super("google", 208);
@@ -28,42 +31,66 @@ public class GoogleCommand extends Sx4Command {
 		super.setCategoryAll(ModuleCategory.INFORMATION);
 	}
 
-	public void onCommand(Sx4CommandEvent event, @Argument(value="query", endless=true) String query) {
+	public void onCommand(Sx4CommandEvent event, @Argument(value="query", endless=true) String query, @Option(value="page", description="Sets the page to search on") @DefaultNumber(1) int page) {
 		boolean nsfw = event.getTextChannel().isNSFW();
-		String url ="https://google.com/search?q=" + URLEncoder.encode(query, StandardCharsets.UTF_8) + (nsfw ? "" : "&safe=active");
 
 		Request request = new Request.Builder()
-			.url(url)
-			.addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.3")
+			.url(this.config.getSearchWebserverUrl("google") + "?q=" + URLEncoder.encode(query, StandardCharsets.UTF_8) + "&nsfw=" + nsfw + "&page=" + page + "&types=0,2,3,4,5,6,8")
 			.build();
 
 		event.getClient().newCall(request).enqueue((HttpCallback) response -> {
-			Document document = Jsoup.parse(response.body().string());
-
-			List<String> elements = new ArrayList<>();
-			for (Element element : document.getElementsByClass("g")) {
-				Element titleElement = element.getElementsByTag("a").get(0);
-
-				String webUrl = titleElement.attr("href");
-				Element title = titleElement.getElementsByTag("h3").first();
-				if (title == null) {
-					continue;
+			Document document = Document.parse(response.body().string());
+			if (!response.isSuccessful()) {
+				StringBuilder builder = new StringBuilder("Command failed with status " + response.code());
+				if (document.containsKey("message")) {
+					builder.append(" with message `").append(document.getString("message")).append("`");
 				}
 
-				String description = element.getElementsByTag("div").get(8).text();
-
-				elements.add(String.format("**[%s](%s)**\n%s\n", title.text(), webUrl, description));
-			}
-
-			if (elements.isEmpty()) {
-				event.replyFailure("I could not find any results for that query").queue();
+				event.replyFailure(builder.toString()).queue();
 				return;
 			}
 
-			PagedResult<String> paged = new PagedResult<>(elements)
+			List<Document> results = document.getList("results", Document.class);
+			if (results.isEmpty()) {
+				event.replyFailure("I could not find any results").queue();
+				return;
+			}
+
+			String url = document.getString("url").replace("*", "%2A");
+			String googleUrl = "https://google.com/";
+
+			PagedResult<Document> paged = new PagedResult<>(results)
 				.setIndexed(false)
 				.setPerPage(3)
-				.setAuthor("Google", url, "http://i.imgur.com/G46fm8J.png");
+				.setAuthor("Google", url, "http://i.imgur.com/G46fm8J.png")
+				.setDisplayFunction(data -> {
+					int type = data.getInteger("type");
+					if (type == 0) {
+						return String.format("**[%s](%s)**\n%s\n", data.getString("title"), data.getString("url"), MarkdownSanitizer.escape(data.getString("description")));
+					} else if (type == 4) {
+						Document input = data.get("input", Document.class);
+						Document output = data.get("output", Document.class);
+
+						String inputValue = this.decimalFormat.format(input.get("value", Number.class).doubleValue());
+						String outputValue = this.decimalFormat.format(output.get("value", Number.class).doubleValue());
+
+						return String.format("**[Conversion](%s)**\n**%s** %s \\➡ **%s** %s\n", googleUrl, inputValue, input.getString("unit"), outputValue, output.getString("unit"));
+					} else if (type == 5) {
+						return "**[Date Time](" + googleUrl + ")**\n" + (data.containsKey("time") ? "**" + data.getString("time") + "**\n" : "") + data.getString("date") + "\n";
+					} else if (type == 6) {
+						return "**[Calculator](" + googleUrl + ")**\nThe answer is: **" + this.decimalFormat.format(data.get("answer", Number.class).doubleValue()) + "**\n";
+					} else if (type == 8) {
+						return "**[Random Number between " + data.getInteger("min") + " and " + data.getInteger("max") + "](" + googleUrl + ")**\n**" + data.getInteger("value") + "**\n";
+					} else if (type == 3) {
+						return "**[Answer](" + googleUrl + ")**\n" + data.getString("answer") + "**\n";
+					} else if (type == 2) {
+						Document definition = data.getList("definitions", Document.class).get(0);
+
+						return "**[Definition of " + data.getString("word") + " (" + definition.getString("type") + ")](" + data.getString("url") + ")**\n**" + definition.getString("definition") + "**\n";
+					}
+
+					return "";
+				});
 
 			paged.execute(event);
 		});

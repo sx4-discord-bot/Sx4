@@ -1,7 +1,6 @@
 package com.sx4.bot.handlers;
 
 import com.mongodb.client.model.Filters;
-import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.Updates;
 import com.sx4.bot.config.Config;
 import com.sx4.bot.database.Database;
@@ -36,13 +35,7 @@ public class ReactionRoleHandler extends ListenerAdapter {
 		
 		Config config = Config.get();
 		
-		List<Document> reactionRoles = Database.get().getGuildById(guild.getIdLong(), Projections.include("reactionRole.reactionRoles")).getEmbedded(List.of("reactionRole", "reactionRoles"), Collections.emptyList());
-		
-		Document reactionRole = reactionRoles.stream()
-			.filter(data -> data.getLong("id") == event.getMessageIdLong())
-			.findFirst()
-			.orElse(null);
-		
+		Document reactionRole = Database.get().getReactionRole(Filters.eq("messageId", event.getMessageIdLong()), Database.EMPTY_DOCUMENT);
 		if (reactionRole == null) {
 			return;
 		}
@@ -94,7 +87,7 @@ public class ReactionRoleHandler extends ListenerAdapter {
 		}
 
 		if (!remove) {
-			boolean whitelisted = true;
+			System.out.println(permissions);
 			for (int i = 0; i < permissions.size(); i++) {
 				Document permission = permissions.get(i);
 
@@ -106,19 +99,15 @@ public class ReactionRoleHandler extends ListenerAdapter {
 					if (granted) {
 						break;
 					}
-
-					whitelisted = false;
 				} else if (type == HolderType.ROLE.getType() && (holderId == guild.getIdLong() || memberRoles.stream().anyMatch(role -> role.getIdLong() == holderId))) {
 					if (granted) {
 						break;
 					}
-
-					whitelisted = false;
 				}
 
-				if (i == permissions.size() - 1 && !whitelisted) {
+				if (i == permissions.size() - 1) {
 					user.openPrivateChannel()
-						.flatMap(channel -> channel.sendMessage("You are not whitelisted to be able to get the roles behind this reaction  " + config.getFailureEmote()))
+						.flatMap(channel -> channel.sendMessage("You are not whitelisted to be able to get the roles behind this reaction " + config.getFailureEmote()))
 						.queue(null, ErrorResponseException.ignore(ErrorResponse.CANNOT_SEND_TO_USER));
 
 					return;
@@ -149,20 +138,20 @@ public class ReactionRoleHandler extends ListenerAdapter {
 		}
 	}
 	
-	public void handle(long guildId, List<Long> messageIds) {
-		Database.get().updateGuildById(guildId, Updates.pull("reactionRole.reactionRoles", Filters.in("id", messageIds))).whenComplete(Database.exceptionally());
+	public void handle(List<Long> messageIds) {
+		Database.get().deleteManyReactionRoles(Filters.in("messageId", messageIds)).whenComplete(Database.exceptionally());
 	}
 	
 	public void onMessageBulkDelete(MessageBulkDeleteEvent event) {
-		this.handle(event.getGuild().getIdLong(), event.getMessageIds().stream().map(Long::valueOf).collect(Collectors.toList()));
+		this.handle(event.getMessageIds().stream().map(Long::valueOf).collect(Collectors.toList()));
 	}
 	
 	public void onMessageDelete(MessageDeleteEvent event) {
-		this.handle(event.getGuild().getIdLong(), List.of(event.getMessageIdLong()));
+		this.handle(List.of(event.getMessageIdLong()));
 	}
 	
 	public void onRoleDelete(RoleDeleteEvent event) {
-		Database.get().updateGuildById(event.getGuild().getIdLong(), Updates.pull("reactionRole.reactionRoles.$[].reactions.$[].roles", event.getRole().getIdLong())).whenComplete(Database.exceptionally());
+		Database.get().updateReactionRole(Filters.eq("guildId", event.getGuild().getIdLong()), Updates.pull("reactions.$[].roles", event.getRole().getIdLong())).whenComplete(Database.exceptionally());
 	}
 	
 }
