@@ -419,21 +419,19 @@ public class SearchUtility {
 	}
 	
 	public static CompletableFuture<User> getUserRest(String query) {
-		CompletableFuture<User> future = new CompletableFuture<>();
-
 		Matcher mentionMatch = SearchUtility.USER_MENTION.matcher(query);
 		Matcher tagMatch = SearchUtility.USER_TAG.matcher(query);
 		if (mentionMatch.matches()) {
 			try {
-				Sx4.get().getShardManager().retrieveUserById(mentionMatch.group(1)).queue(future::complete);
+				return Sx4.get().getShardManager().retrieveUserById(mentionMatch.group(1)).submit();
 			} catch (NumberFormatException e) {
-				future.complete(null);
+				return CompletableFuture.completedFuture(null);
 			}
 		} else if (tagMatch.matches()) {
 			String name = tagMatch.group(1);
 			String discriminator = tagMatch.group(2);
 
-			future.complete(
+			return CompletableFuture.completedFuture(
 				Sx4.get().getShardManager().getUserCache().applyStream(userStream ->
 					userStream.filter(user -> user.getName().equalsIgnoreCase(name) && user.getDiscriminator().equals(discriminator))
 						.findFirst()
@@ -442,12 +440,12 @@ public class SearchUtility {
 			);
 		} else if (NumberUtility.isNumberUnsigned(query)) {
 			try {
-				Sx4.get().getShardManager().retrieveUserById(query).queue(future::complete);
+				return Sx4.get().getShardManager().retrieveUserById(query).submit();
 			} catch (NumberFormatException e) {
-				future.complete(null);
+				return CompletableFuture.completedFuture(null);
 			}
 		} else {
-			future.complete(
+			return CompletableFuture.completedFuture(
 				Sx4.get().getShardManager().getUserCache().applyStream(stream ->
 					stream.filter(user -> user.getName().equalsIgnoreCase(query))
 						.findFirst()
@@ -455,8 +453,6 @@ public class SearchUtility {
 				)
 			);
 		}
-
-		return future;
 	}
 	
 	public static List<Sx4Command> getCommandOrModule(String query) {

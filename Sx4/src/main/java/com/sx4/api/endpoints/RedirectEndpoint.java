@@ -48,14 +48,14 @@ public class RedirectEndpoint {
 
 		String url = json.getString("url");
 		if (url == null) {
-			response.resume(Response.status(403).build());
+			response.resume(Response.status(400).build());
 			return;
 		}
 
 		try {
 			new URL(url);
 		} catch (MalformedURLException e) {
-			response.resume(Response.status(403).build());
+			response.resume(Response.status(400).build());
 			return;
 		}
 

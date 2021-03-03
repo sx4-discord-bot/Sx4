@@ -23,7 +23,7 @@ public class ShipCommand extends Sx4Command {
 		super("ship", 22);
 
 		super.setDescription("Ships two users to find out their ship name and percentage");
-		super.setExamples("ship @Shea", "ship Shea#6653 203421890637856768");
+		super.setExamples("ship @Shea#6653", "ship Shea#6653 203421890637856768");
 		super.setCategoryAll(ModuleCategory.IMAGE);
 		super.setCooldownDuration(3);
 	}

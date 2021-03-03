@@ -26,7 +26,7 @@ public class BanCommand extends Sx4Command {
 		super.setBotDiscordPermissions(Permission.BAN_MEMBERS);
 		super.setDescription("Ban any user from the current server");
 		super.setAliases("ban user");
-		super.setExamples("ban @Shea", "ban Shea Spamming", "ban Shea#6653 template:tos", "ban 402557516728369153 t:tos and Spamming");
+		super.setExamples("ban @Shea#6653", "ban Shea Spamming", "ban Shea#6653 template:tos", "ban 402557516728369153 t:tos and Spamming");
 		super.setCategoryAll(ModuleCategory.MODERATION);
 	}
 	

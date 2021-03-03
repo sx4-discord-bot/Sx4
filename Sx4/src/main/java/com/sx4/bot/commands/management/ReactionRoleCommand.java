@@ -34,7 +34,6 @@ import org.bson.conversions.Bson;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.CompletionException;
 import java.util.function.Predicate;
 
 public class ReactionRoleCommand extends Sx4Command {
@@ -179,12 +178,10 @@ public class ReactionRoleCommand extends Sx4Command {
 		
 		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().arrayFilters(arrayFilters).returnDocument(ReturnDocument.BEFORE);
 		this.database.findAndUpdateReactionRole(Filters.eq("messageId", messageArgument.getMessageId()), update, options).whenComplete((data, exception) -> {
-			if (exception instanceof CompletionException) {
-				Throwable cause = exception.getCause();
-				if (cause instanceof MongoWriteException && ((MongoWriteException) cause).getCode() == 2) {
-					event.replyFailure("There was no reaction role on that message").queue();
-					return;
-				}
+			Throwable cause = exception == null ? null : exception.getCause();
+			if (cause instanceof MongoWriteException && ((MongoWriteException) cause).getCode() == 2) {
+				event.replyFailure("There was no reaction role on that message").queue();
+				return;
 			}
 				
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
@@ -424,11 +421,14 @@ public class ReactionRoleCommand extends Sx4Command {
 
 				Bson reaction = Operators.filter(reactions, Operators.eq("$$this.emote." + (emoji ? "name" : "id"), emoji ? emote.getEmoji() : emote.getEmote().getIdLong()));
 				Bson permissionsMap = Operators.ifNull(Operators.first(Operators.map(reaction, "$$this.permissions")), Collections.EMPTY_LIST);
+				Bson permissionsFilter = Operators.filter(permissionsMap, Operators.ne("$$this.id", holder.getIdLong()));
 
-				Bson result = Operators.concatArrays(List.of(Operators.mergeObjects(Operators.first(reaction), new Document("permissions", Operators.filter(permissionsMap, Operators.ne("$$this.id", holder.getIdLong()))))), Operators.filter(reactions, Operators.ne("$$this.emote." + (emoji ? "name" : "id"), emoji ? emote.getEmoji() : emote.getEmote().getIdLong())));
+				Bson result = Operators.concatArrays(List.of(Operators.cond(Operators.isEmpty(permissionsFilter), Operators.removeObject(Operators.first(reaction), "permissions"), Operators.mergeObjects(Operators.first(reaction), new Document("permissions", permissionsFilter)))), Operators.filter(reactions, Operators.ne("$$this.emote." + (emoji ? "name" : "id"), emoji ? emote.getEmoji() : emote.getEmote().getIdLong())));
 				update = List.of(Operators.set("reactions", result));
 			} else {
-				Bson result = Operators.map(reactions, Operators.mergeObjects("$$this", new Document("permissions", Operators.filter("$$this.permissions", Operators.ne("$$this.id", holder.getIdLong())))));
+				Bson permissionsFilter = Operators.filter("$$this.permissions", Operators.ne("$$this.id", holder.getIdLong()));
+
+				Bson result = Operators.map(reactions, Operators.cond(Operators.isEmpty(permissionsFilter), Operators.removeObject("$$this", "permissions"), Operators.mergeObjects("$$this", new Document("permissions", permissionsFilter))));
 				update = List.of(Operators.set("reactions", result));
 			}
 

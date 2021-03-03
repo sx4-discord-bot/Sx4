@@ -4,14 +4,14 @@ import java.util.Arrays;
 
 public enum ModAction {
 
-	BAN("Ban", 0, true, false),
-	TEMPORARY_BAN("Temporary Ban", 1, true, false),
-	UNBAN("Unban", 2, false, false),
-	KICK("Kick", 3, true, false),
-	MUTE("Mute", 4, true, false),
-	MUTE_EXTEND("Mute Extension", 5, true, true),
-	UNMUTE("Unmute", 6, false, false),
-	WARN("Warn", 7, true, false);
+	BAN("Ban", 0, true, false, false),
+	TEMPORARY_BAN("Temporary Ban", 1, true, false, true),
+	UNBAN("Unban", 2, false, false, false),
+	KICK("Kick", 3, true, false, false),
+	MUTE("Mute", 4, true, false, true),
+	MUTE_EXTEND("Mute Extension", 5, true, true, true),
+	UNMUTE("Unmute", 6, false, false, false),
+	WARN("Warn", 7, true, false, false);
 	
 	private static final ModAction[] OFFENCES = Arrays.stream(ModAction.values()).filter(ModAction::isOffence).toArray(ModAction[]::new);
 	
@@ -19,12 +19,14 @@ public enum ModAction {
 	private final int type;
 	private final boolean offence;
 	private final boolean extend;
+	private final boolean timed;
 	
-	private ModAction(String name, int type, boolean offence, boolean extend) {
+	private ModAction(String name, int type, boolean offence, boolean extend, boolean timed) {
 		this.name = name;
 		this.type = type;
 		this.offence = offence;
 		this.extend = extend;
+		this.timed = timed;
 	}
 	
 	public String getName() {
@@ -41,6 +43,10 @@ public enum ModAction {
 
 	public boolean isExtend() {
 		return this.extend;
+	}
+
+	public boolean isTimed() {
+		return this.timed;
 	}
 	
 	public static ModAction fromType(int type) {

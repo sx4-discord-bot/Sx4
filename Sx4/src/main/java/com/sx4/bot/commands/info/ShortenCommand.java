@@ -32,7 +32,7 @@ public class ShortenCommand extends Sx4Command {
 		event.getClient().newCall(request).enqueue((HttpCallback) response -> {
 			Document json = Document.parse(response.body().string());
 
-			event.replyFormat("<%s/%s>", this.config.getDomain(), json.getString("_id")).queue();
+			event.replyFormat("<" + this.config.getDomain() + "/" + json.getString("_id") + ">").queue();
 		});
 	}
 

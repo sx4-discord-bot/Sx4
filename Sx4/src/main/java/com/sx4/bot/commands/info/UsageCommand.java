@@ -8,7 +8,6 @@ import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.TextChannel;
-import net.dv8tion.jda.api.entities.User;
 import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
 
@@ -27,7 +26,7 @@ public class UsageCommand extends Sx4Command {
 		super.setCategoryAll(ModuleCategory.INFORMATION);
 	}
 
-	public void onCommand(Sx4CommandEvent event, @Argument(value="command", endless=true) Sx4Command command, @Option(value="server", aliases={"guild"}, description="Provide a server filter") Guild guild, @Option(value="channel", description="Provide a channel filter") TextChannel channel, @Option(value="user", description="Provide a user argument") User user, @Option(value="from", description="When the data should start in epoch seconds") long from, @Option(value="to", description="When the data should end in epoch seconds") long to) {
+	public void onCommand(Sx4CommandEvent event, @Argument(value="command", endless=true) Sx4Command command, @Option(value="server", aliases={"guild"}, description="Provide a server filter") Guild guild, @Option(value="channel", description="Provide a channel filter") TextChannel channel, @Option(value="user", description="Provide a user id argument") long userId, @Option(value="from", description="When the data should start in epoch seconds") long from, @Option(value="to", description="When the data should end in epoch seconds") long to) {
 		List<Bson> filters = new ArrayList<>();
 		filters.add(Filters.eq("command.id", command.getId()));
 
@@ -35,8 +34,8 @@ public class UsageCommand extends Sx4Command {
 			filters.add(Filters.eq("guildId", guild.getIdLong()));
 		}
 
-		if (user != null) {
-			filters.add(Filters.eq("authorId", user.getIdLong()));
+		if (userId != 0L) {
+			filters.add(Filters.eq("authorId", userId));
 		}
 
 		if (channel != null) {

@@ -1,10 +1,12 @@
 package com.sx4.bot.handlers;
 
+import com.mongodb.MongoWriteException;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Updates;
 import com.sx4.bot.config.Config;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.entities.settings.HolderType;
+import com.sx4.bot.utility.ExceptionUtility;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.MessageReaction.ReactionEmote;
@@ -87,7 +89,6 @@ public class ReactionRoleHandler extends ListenerAdapter {
 		}
 
 		if (!remove) {
-			System.out.println(permissions);
 			for (int i = 0; i < permissions.size(); i++) {
 				Document permission = permissions.get(i);
 
@@ -151,7 +152,14 @@ public class ReactionRoleHandler extends ListenerAdapter {
 	}
 	
 	public void onRoleDelete(RoleDeleteEvent event) {
-		Database.get().updateReactionRole(Filters.eq("guildId", event.getGuild().getIdLong()), Updates.pull("reactions.$[].roles", event.getRole().getIdLong())).whenComplete(Database.exceptionally());
+		Database.get().updateReactionRole(Filters.eq("guildId", event.getGuild().getIdLong()), Updates.pull("reactions.$[].roles", event.getRole().getIdLong())).whenComplete((result, exception) -> {
+			Throwable cause = exception == null ? null : exception.getCause();
+			if (cause instanceof MongoWriteException && ((MongoWriteException) cause).getCode() == 2) {
+				return;
+			}
+
+			ExceptionUtility.sendErrorMessage(exception);
+		});
 	}
 	
 }

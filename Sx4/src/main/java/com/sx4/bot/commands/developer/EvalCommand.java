@@ -18,7 +18,7 @@ public class EvalCommand extends Sx4Command {
 	
 	private final ExecutorService executor = Executors.newSingleThreadExecutor();
 
-	private CompilerConfiguration configuration;
+	private final CompilerConfiguration configuration;
 	{
 		CompilerConfiguration parseConfiguration = new CompilerConfiguration();
 		ImportCustomizer importCustomizer = new ImportCustomizer();
@@ -57,6 +57,7 @@ public class EvalCommand extends Sx4Command {
 		shell.setProperty("channel", event.getTextChannel());
 		shell.setProperty("user", event.getAuthor());
 		shell.setProperty("member", event.getMember());
+		shell.setProperty("config", this.config);
 		shell.setProperty("database", this.database);
 		shell.setProperty("client", event.getClient());
 		

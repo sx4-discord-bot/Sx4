@@ -20,7 +20,7 @@ public class KickCommand extends Sx4Command {
 		super.setAuthorDiscordPermissions(Permission.KICK_MEMBERS);
 		super.setBotDiscordPermissions(Permission.KICK_MEMBERS);
 		super.setDescription("Kick a user from the current server");
-		super.setExamples("kick @Shea", "kick Shea Spamming", "kick Shea#6653 template:tos", "kick 402557516728369153 t:tos and Spamming");
+		super.setExamples("kick @Shea#6653", "kick Shea Spamming", "kick Shea#6653 template:tos", "kick 402557516728369153 t:tos and Spamming");
 		super.setCategoryAll(ModuleCategory.MODERATION);
 	}
 	

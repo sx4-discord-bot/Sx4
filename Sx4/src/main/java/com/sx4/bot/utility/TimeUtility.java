@@ -166,7 +166,7 @@ public class TimeUtility {
 			} 
 			
 			if (overZero) {
-				string.append((amount >= 0 && amount < 10 ? "0" : "") + amount + (i == TimeUtility.MUSIC_CHRONO_UNITS.length - 1 ? "" : ":"));
+				string.append(amount >= 0 && amount < 10 ? "0" : "").append(amount).append(i == TimeUtility.MUSIC_CHRONO_UNITS.length - 1 ? "" : ":");
 				
 				seconds -= amount * secondsInTime;
 			}

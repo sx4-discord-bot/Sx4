@@ -158,11 +158,11 @@ public class Sx4 {
 		return new Sx4CommandListener()
 			.removePreExecuteCheck(listener -> listener.defaultAuthorPermissionCheck)
 			.addCommandStores(CommandStore.of("com.sx4.bot.commands"))
-			.addDevelopers(402557516728369153L, 190551803669118976L)
+			.addDevelopers(this.config.getOwnerIds())
 			.setErrorManager(errorManager)
 			.setCommandEventFactory(new Sx4CommandEventFactory())
 			.addCommandEventListener(new Sx4CommandEventListener())
-			.setDefaultPrefixes(Config.get().getDefaultPrefixes().toArray(String[]::new))
+			.setDefaultPrefixes(this.config.getDefaultPrefixes().toArray(String[]::new))
 			.setHelpFunction((message, prefix, commands) -> {
 				MessageChannel channel = message.getChannel();
 				boolean embed = !message.isFromGuild() || message.getGuild().getSelfMember().hasPermission((TextChannel) channel, Permission.MESSAGE_EMBED_LINKS);
@@ -202,7 +202,7 @@ public class Sx4 {
 						
 						return;
 					}
-					
+
 					if (errorManager.handle(argument, message, value)) {
 						return;
 					}
@@ -290,7 +290,6 @@ public class Sx4 {
 		});
 
 		optionFactory.registerParser(Duration.class, (context, option, content) -> content == null ? new ParsedResult<>(true, null) : new ParsedResult<>(TimeUtility.getDurationFromString(content)))
-			.registerParser(User.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getUser(content.trim())))
 			.registerParser(Guild.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getGuild(content)))
 			.registerParser(TextChannel.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getTextChannel(context.getMessage().getGuild(), content.trim())));
 
@@ -427,7 +426,6 @@ public class Sx4 {
 		});
 			
 		argumentFactory.registerParser(Member.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getMember(context.getMessage().getGuild(), content.trim())))
-			.registerParser(User.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getUser(content.trim())))
 			.registerParser(TextChannel.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getTextChannel(context.getMessage().getGuild(), content.trim())))
 			.registerParser(Duration.class, (context, argument, content) -> new ParsedResult<>(TimeUtility.getDurationFromString(content)))
 			.registerParser(List.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getCommandOrModule(content)))
@@ -559,10 +557,10 @@ public class Sx4 {
 			}).registerParser(TimedArgument.class, (context, argument, content) -> {
 				Class<?> clazz = argument.getProperty("class", Class.class);
 
-				int lastIndex = content.lastIndexOf(' ');
-				Duration duration = lastIndex == -1 ? null : TimeUtility.getDurationFromString(content.substring(lastIndex));
+				int index = content.indexOf(' ');
+				Duration duration = index == -1 ? null : TimeUtility.getDurationFromString(content.substring(index));
 
-				ParsedResult<?> parsedArgument = CommandUtility.getParsedResult(clazz, argumentFactory, context, argument, lastIndex == -1 ? content : content.substring(0, lastIndex));
+				ParsedResult<?> parsedArgument = CommandUtility.getParsedResult(clazz, argumentFactory, context, argument, index == -1 ? content : content.substring(0, index));
 				if (!parsedArgument.isValid()) {
 					return new ParsedResult<>();
 				}
@@ -699,7 +697,16 @@ public class Sx4 {
 				if (charLimit != null && content.length() > charLimit) {
 					message.getChannel().sendMessageFormat("You cannot use more than **%,d** character%s for `%s` %s", charLimit, charLimit == 1 ? "" : "s", argument.getName(), this.config.getFailureEmote()).queue();
 				}
-			});
+			}).registerResponse(Enum.class, (argument, message, content) -> {
+				StringBuilder builder = new StringBuilder("`");
+				for (Enum<?> e : argument.getType().getEnumConstants()) {
+					builder.append("`, `").append(e.name());
+				}
+
+				builder.append("`");
+
+				message.getChannel().sendMessage("Invalid argument given, give any of the following " + builder.toString() + " " + this.config.getFailureEmote()).queue();
+			}).setHandleInheritance(Enum.class, true);
 
 		return errorManager;
 	}

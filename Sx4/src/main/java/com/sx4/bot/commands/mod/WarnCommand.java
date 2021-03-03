@@ -1,18 +1,42 @@
 package com.sx4.bot.commands.mod;
 
 import com.jockie.bot.core.argument.Argument;
+import com.jockie.bot.core.command.Command;
+import com.mongodb.client.model.FindOneAndUpdateOptions;
+import com.mongodb.client.model.Projections;
+import com.mongodb.client.model.ReturnDocument;
+import com.mongodb.client.model.Updates;
+import com.sx4.bot.annotations.argument.Limit;
+import com.sx4.bot.annotations.argument.Options;
+import com.sx4.bot.annotations.command.AuthorPermissions;
+import com.sx4.bot.annotations.command.CommandId;
+import com.sx4.bot.annotations.command.Examples;
+import com.sx4.bot.annotations.command.Redirects;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
+import com.sx4.bot.database.Database;
+import com.sx4.bot.database.model.Operators;
+import com.sx4.bot.entities.argument.Alternative;
+import com.sx4.bot.entities.argument.TimedArgument;
 import com.sx4.bot.entities.mod.Reason;
 import com.sx4.bot.entities.mod.action.Action;
+import com.sx4.bot.entities.mod.action.ModAction;
 import com.sx4.bot.entities.mod.action.TimeAction;
 import com.sx4.bot.entities.mod.action.Warn;
+import com.sx4.bot.paged.PagedResult;
+import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.ModUtility;
 import com.sx4.bot.utility.NumberUtility;
 import com.sx4.bot.utility.TimeUtility;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Member;
+import org.bson.Document;
+import org.bson.conversions.Bson;
+
+import java.time.Duration;
+import java.util.Comparator;
+import java.util.List;
 
 public class WarnCommand extends Sx4Command {
 
@@ -22,7 +46,7 @@ public class WarnCommand extends Sx4Command {
 		super.setAliases("warn user");
 		super.setDescription("Warn a user in the server, warning can give punishments on each warn a user gets");
 		super.setAuthorDiscordPermissions(Permission.MESSAGE_MANAGE);
-		super.setExamples("warn @Shea", "warn Shea Spamming", "warn Shea#6653 template:tos", "warn 402557516728369153 t:tos and Spamming");
+		super.setExamples("warn @Shea#6653", "warn Shea Spamming", "warn Shea#6653 template:tos", "warn 402557516728369153 t:tos and Spamming");
 		super.setCategoryAll(ModuleCategory.MODERATION);
 	}
 	
@@ -48,5 +72,200 @@ public class WarnCommand extends Sx4Command {
 			}
 		});
 	}
-	
+
+	@Command(value="set", description="Set the amount of warns a user has")
+	@CommandId(242)
+	@Redirects({"set warns", "set warnings"})
+	@Examples({"warn set @Shea#6653 2", "warn set Shea#6653 0", "warn set 402557516728369153 1"})
+	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
+	public void set(Sx4CommandEvent event, @Argument(value="user") Member member, @Argument(value="warnings") int warnings) {
+		if (member.canInteract(event.getMember())) {
+			event.replyFailure("You cannot change the amount of warnings of someone higher or equal than your top role").queue();
+			return;
+		}
+
+		Document warnData = this.database.getGuildById(event.getGuild().getIdLong(), Projections.include("warn")).get("warn", Document.class);
+		boolean punishments = warnData.get("punishments", true);
+
+		int maxWarning = punishments ? warnData.getList("config", Document.class, Warn.DEFAULT_CONFIG)
+			.stream()
+			.map(d -> d.getInteger("number"))
+			.max(Integer::compareTo)
+			.get() : Integer.MAX_VALUE;
+
+		if (warnings > maxWarning) {
+			event.replyFailure("The max amount of warnings you can give is **" + maxWarning + "**").queue();
+			return;
+		}
+
+		Bson update = warnings == 0 ? Updates.unset("warn.warnings") : Updates.set("warn.warnings", warnings);
+		this.database.updateMemberById(member.getIdLong(), event.getGuild().getIdLong(), update).whenComplete((result, exception) -> {
+			if (ExceptionUtility.sendExceptionally(event, exception)) {
+				return;
+			}
+
+			if (result.getModifiedCount() == 0 && result.getUpsertedId() == null) {
+				event.replyFailure("That user already had that amount of warnings").queue();
+				return;
+			}
+
+			event.replySuccess("That user now has **" + warnings + "** warning" + (warnings == 1 ? "" : "s")).queue();
+		});
+	}
+
+	public static class ConfigCommand extends Sx4Command {
+
+		public ConfigCommand() {
+			super("configuration", 236);
+
+			super.setDescription("Set the configuration for the warn system in the current server");
+			super.setAliases("config");
+			super.setExamples("warn configuration set", "warn configuration remove", "warn configuration punishments");
+		}
+
+		public void onCommand(Sx4CommandEvent event) {
+			event.replyHelp().queue();
+		}
+
+		@Command(value="set", description="Set the action to occur when a user reaches a certain amount of warnings")
+		@CommandId(237)
+		@Examples({"warn configuration set 5 ban", "warn configuration set 2 mute 1h", "warn configuration set 4 temporary_ban 7d"})
+		@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
+		public void set(Sx4CommandEvent event, @Argument(value="warnings") @Limit(min=1, max=50) int warnings, @Argument(value="action", endless=true) TimedArgument<ModAction> timedAction) {
+			ModAction action = timedAction.getArgument();
+			if (!action.isOffence()) {
+				event.replyFailure("The action has to be an offence").queue();
+				return;
+			}
+
+			if (action == ModAction.WARN) {
+				event.replyFailure("You cannot set a warning to warn").queue();
+				return;
+			}
+
+			Document modAction = new Document("type", action.getType());
+
+			Duration duration;
+			if (action.isTimed()) {
+				duration = timedAction.getDuration();
+				if (duration == null) {
+					event.replyFailure("You need to provide a duration for this mod action").queue();
+					return;
+				}
+
+				modAction.append("duration", duration.toSeconds());
+			} else {
+				duration = null;
+			}
+
+			Document warn = new Document("action", modAction).append("number", warnings);
+
+			List<Bson> update = List.of(Operators.set("warn.config", Operators.concatArrays(Operators.filter(Operators.ifNull("$warn.config", Warn.DEFAULT_CONFIG), Operators.ne("$$this.number", warnings)), List.of(warn))));
+			FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().projection(Projections.include("warn.config")).upsert(true).returnDocument(ReturnDocument.BEFORE);
+
+			this.database.findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
+				if (ExceptionUtility.sendExceptionally(event, exception)) {
+					return;
+				}
+
+				data = data == null ? Database.EMPTY_DOCUMENT : data;
+
+				List<Document> config = data.getEmbedded(List.of("warn", "config"), Warn.DEFAULT_CONFIG);
+				Document oldAction = config.stream()
+					.filter(d -> d.getInteger("number") == warnings)
+					.map(d -> d.get("action", Document.class))
+					.findFirst()
+					.orElse(null);
+
+				if (oldAction != null && oldAction.getInteger("type") == action.getType() && oldAction.get("duration", 0L) == (duration == null ? 0L : duration.toSeconds())) {
+					event.replyFailure("Warning #" + warnings + " already had that configuration").queue();
+					return;
+				}
+
+				event.replySuccess("Warning #" + warnings + " will now give the user a " + action.getName().toLowerCase() + (duration == null ? "" : " for " + TimeUtility.getTimeString(duration.toSeconds()))).queue();
+			});
+		}
+
+		@Command(value="remove", description="Removes an action from being taken when a user reaches a certain amount of warning")
+		@CommandId(238)
+		@Examples({"warn configuration remove 3", "warn configuration remove 1", "warn configuration remove all"})
+		@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
+		public void remove(Sx4CommandEvent event, @Argument(value="warnings | all") @Options("all") Alternative<Integer> option) {
+			int warnings = option.getValue();
+
+			List<Bson> update;
+			if (option.isAlternative()) {
+				update = List.of(Operators.unset("warn.config"));
+			} else {
+				Bson warnConfig = Operators.ifNull("$warn.config", Warn.DEFAULT_CONFIG);
+				update = List.of(Operators.set("warn.config", Operators.cond(Operators.eq(Operators.size(warnConfig), 1), "$warn.config", Operators.filter(warnConfig, Operators.ne("$$this.number", warnings)))));
+			}
+
+			FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().projection(Projections.include("warn.config")).returnDocument(ReturnDocument.BEFORE);
+
+			this.database.findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
+				if (ExceptionUtility.sendExceptionally(event, exception)) {
+					return;
+				}
+
+				if (option.isAlternative()) {
+					event.replySuccess("Your warn configuration has been reset to the default").queue();
+					return;
+				}
+
+				data = data == null ? Database.EMPTY_DOCUMENT : data;
+
+				List<Document> config = data.getEmbedded(List.of("warn", "config"), Warn.DEFAULT_CONFIG);
+				if (config.size() == 1) {
+					event.replyFailure("You cannot have less than 1 action, use `all` as an argument to go back to the default configuration").queue();
+					return;
+				}
+
+				Document oldAction = config.stream()
+					.filter(d -> d.getInteger("number") == warnings)
+					.map(d -> d.get("action", Document.class))
+					.findFirst()
+					.orElse(null);
+
+				if (oldAction == null) {
+					event.replyFailure("There was no configuration for warning #" + warnings).queue();
+					return;
+				}
+
+				event.replySuccess("Warning #" + warnings + " will no longer have an action").queue();
+			});
+		}
+
+		@Command(value="list", description="Lists the servers warn configuration")
+		@CommandId(239)
+		@Examples({"warn configuration list"})
+		public void list(Sx4CommandEvent event) {
+			List<Document> config = this.database.getGuildById(event.getGuild().getIdLong(), Projections.include("warn.config")).getEmbedded(List.of("warn", "config"), Warn.DEFAULT_CONFIG);
+			config.sort(Comparator.comparingInt(a -> a.getInteger("number")));
+
+			PagedResult<Document> paged = new PagedResult<>(config)
+				.setAuthor("Warn Configuration", null, event.getGuild().getIconUrl())
+				.setIndexed(false)
+				.setDisplayFunction(d -> "Warning #" + d.getInteger("number") + ": " + Action.fromData(d.get("action", Document.class)).toString());
+
+			paged.execute(event);
+		}
+
+		@Command(value="punishments", aliases={"punish"}, description="Enable/disable whether warns should give punishments per action")
+		@CommandId(240)
+		@Examples({"warn configuration punishments"})
+		@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
+		public void punishments(Sx4CommandEvent event) {
+			List<Bson> update = List.of(Operators.set("warn.punishments", Operators.cond(Operators.exists("$warn.punishments"), Operators.REMOVE, false)));
+			this.database.findAndUpdateGuildById(event.getGuild().getIdLong(), Projections.include("warn.punishments"), update).whenComplete((data, exception) -> {
+				if (ExceptionUtility.sendExceptionally(event, exception)) {
+					return;
+				}
+
+				event.replySuccess("Punishments for warns are now **" + (data.getEmbedded(List.of("warn", "punishments"), true) ? "enabled" : "disabled") + "**").queue();
+			});
+		}
+
+	}
+
 }

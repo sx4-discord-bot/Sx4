@@ -22,7 +22,7 @@ public class UnbanCommand extends Sx4Command {
 		super.setDescription("Unban a user which is banned from the current server");
 		super.setAuthorDiscordPermissions(Permission.BAN_MEMBERS);
 		super.setAuthorDiscordPermissions(Permission.BAN_MEMBERS);
-		super.setExamples("unban @Shea", "unban Shea template:appeal", "unban Shea#6653 Mistake", "unban 402557516728369153 t:appeal and Mistake");
+		super.setExamples("unban @Shea#6653", "unban Shea template:appeal", "unban Shea#6653 Mistake", "unban 402557516728369153 t:appeal and Mistake");
 		super.setCategoryAll(ModuleCategory.MODERATION);
 	}
 	

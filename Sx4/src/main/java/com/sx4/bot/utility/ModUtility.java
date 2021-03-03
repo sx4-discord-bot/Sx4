@@ -214,13 +214,17 @@ public class ModUtility {
 
 		Guild guild = target.getGuild();
 
-		Document data = database.getGuildById(guild.getIdLong(), Projections.include("warn.config", "mute", "temporaryBan"));
-		List<Document> config = data.getEmbedded(List.of("warn", "config"), Warn.DEFAULT_CONFIG);
+		Document data = database.getGuildById(guild.getIdLong(), Projections.include("warn", "mute", "temporaryBan"));
 
-		int maxWarning = config.stream()
+		Document warnData = data.get("warn", Database.EMPTY_DOCUMENT);
+
+		List<Document> config = warnData.getList("config", Document.class, Warn.DEFAULT_CONFIG);
+		boolean punishments = warnData.getBoolean("punishments", true);
+
+		int maxWarning = punishments ? config.stream()
 			.map(d -> d.getInteger("number"))
 			.max(Integer::compareTo)
-			.get();
+			.get() : Integer.MAX_VALUE;
 
 		List<Bson> update = List.of(Operators.set("warn.warnings", Operators.add(Operators.mod(Operators.ifNull("$warn.warnings", 0), maxWarning), 1)));
 		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER).projection(Projections.include("warn.warnings")).upsert(true);
@@ -233,12 +237,14 @@ public class ModUtility {
 
 			int warnings = result.getEmbedded(List.of("warn", "warnings"), Integer.class);
 
-			Action action = config.stream()
+			Action warnAction = new Action(ModAction.WARN);
+
+			Action action = punishments ? config.stream()
 				.filter(d -> d.getInteger("number") == warnings)
 				.map(d -> d.get("action", Document.class))
 				.map(Action::fromData)
 				.findFirst()
-				.orElse(new Action(ModAction.WARN));
+				.orElse(warnAction) : warnAction;
 
 			Warn warnConfig = new Warn(action, warnings);
 

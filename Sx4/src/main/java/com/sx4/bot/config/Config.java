@@ -12,6 +12,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 public class Config {
@@ -63,6 +64,22 @@ public class Config {
 		}
 		
 		return defaultValue;
+	}
+
+	public List<Document> getCredits() {
+		return this.get("credits", Collections.emptyList());
+	}
+
+	public String getBackStory() {
+		return this.get("backstory");
+	}
+
+	public List<Document> getOwners() {
+		return this.get("owners", Collections.emptyList());
+	}
+
+	public long[] getOwnerIds() {
+		return this.getOwners().stream().mapToLong(d -> d.getLong("id")).toArray();
 	}
 
 	public List<String> getDefaultPrefixes() {

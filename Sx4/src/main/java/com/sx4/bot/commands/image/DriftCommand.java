@@ -9,7 +9,7 @@ import com.sx4.bot.entities.image.ImageRequest;
 import com.sx4.bot.http.HttpCallback;
 import com.sx4.bot.utility.ImageUtility;
 import net.dv8tion.jda.api.Permission;
-import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.entities.Member;
 
 public class DriftCommand extends Sx4Command {
 
@@ -23,10 +23,10 @@ public class DriftCommand extends Sx4Command {
 		super.setCooldownDuration(3);
 	}
 
-	public void onCommand(Sx4CommandEvent event, @Argument(value="user", nullDefault=true) User user, @Argument(value="left text") @Limit(max=30) String leftText, @Argument(value="right text", endless=true, nullDefault=true) @Limit(max=40) String rightText) {
+	public void onCommand(Sx4CommandEvent event, @Argument(value="user", nullDefault=true) Member member, @Argument(value="left text") @Limit(max=30) String leftText, @Argument(value="right text", endless=true, nullDefault=true) @Limit(max=40) String rightText) {
 		ImageRequest request = new ImageRequest("drift")
 			.addQuery("left_text", leftText)
-			.addQuery("image", (user == null ? event.getAuthor() : user).getEffectiveAvatarUrl());
+			.addQuery("image", (member == null ? event.getAuthor() : member.getUser()).getEffectiveAvatarUrl());
 
 		if (rightText != null) {
 			request.addQuery("right_text", rightText);

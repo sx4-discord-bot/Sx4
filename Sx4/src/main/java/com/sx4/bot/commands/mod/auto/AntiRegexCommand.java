@@ -246,7 +246,7 @@ public class AntiRegexCommand extends Sx4Command {
 
 			Document modAction = new Document("type", action.getType());
 
-			if (action == ModAction.MUTE || action == ModAction.MUTE_EXTEND || action == ModAction.TEMPORARY_BAN) {
+			if (action.isTimed()) {
 				Duration duration = timedAction.getDuration();
 				if (duration == null) {
 					event.replyFailure("You need to provide a duration for this mod action").queue();
