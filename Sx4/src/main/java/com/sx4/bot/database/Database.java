@@ -191,10 +191,6 @@ public class Database {
 		return this.getReactionRoles(filter, projection).first();
 	}
 
-	public CompletableFuture<InsertOneResult> insertReactionRole(Document data) {
-		return CompletableFuture.supplyAsync(() -> this.reactionRoles.insertOne(data));
-	}
-
 	public CompletableFuture<UpdateResult> updateReactionRole(Bson filter, List<Bson> update, UpdateOptions options) {
 		return CompletableFuture.supplyAsync(() -> this.reactionRoles.updateOne(filter, update, options));
 	}

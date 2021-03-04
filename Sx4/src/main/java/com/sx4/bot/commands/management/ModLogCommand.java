@@ -117,7 +117,7 @@ public class ModLogCommand extends Sx4Command {
 
 		long authorId = event.getAuthor().getIdLong();
 
-		List<Bson> update = List.of(Operators.set("reason", Operators.cond(Operators.and(Operators.eq("$moderatorId", authorId), Operators.or(or)), reason.getParsed(), "$reason")));
+		List<Bson> update = List.of(Operators.set("reason", Operators.cond(Operators.and(Operators.or(Operators.eq("$moderatorId", authorId), event.getMember().hasPermission(Permission.ADMINISTRATOR)), Operators.or(or)), reason.getParsed(), "$reason")));
 		this.database.updateManyModLogs(update).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;

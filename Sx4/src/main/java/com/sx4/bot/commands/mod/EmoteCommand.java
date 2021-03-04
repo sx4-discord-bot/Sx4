@@ -13,17 +13,20 @@ import com.sx4.bot.entities.mod.PartialEmote;
 import com.sx4.bot.http.HttpCallback;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
+import com.sx4.bot.utility.TimeUtility;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Emote;
 import net.dv8tion.jda.api.entities.Icon;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
+import net.dv8tion.jda.api.exceptions.RateLimitedException;
 import okhttp3.Request;
 
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CompletionException;
 import java.util.function.Predicate;
 
 public class EmoteCommand extends Sx4Command {
@@ -104,11 +107,20 @@ public class EmoteCommand extends Sx4Command {
 				return;
 			}
 
-			event.getGuild().createEmote(name != null ? name : emote.hasName() ? emote.getName() : "Unnamed_Emote", Icon.from(bytes))
-				.flatMap(createdEmote -> event.replySuccess(createdEmote.getAsMention() + " has been created"))
-				.queue(null, exception -> {
+			event.getGuild().createEmote(name != null ? name : emote.hasName() ? emote.getName() : "Unnamed_Emote", Icon.from(bytes)).submit(false)
+				.thenCompose(createdEmote -> event.replySuccess(createdEmote.getAsMention() + " has been created").submit())
+				.whenComplete((result, exception) -> {
+					if (exception instanceof CompletionException) {
+						exception = exception.getCause();
+					}
+
 					if (exception instanceof ErrorResponseException && ((ErrorResponseException) exception).getErrorCode() == 400) {
 						event.replyFailure("You cannot create an emote larger than 256KB").queue();
+						return;
+					}
+
+					if (exception instanceof RateLimitedException) {
+						event.replyFailure("Creating emotes in this server is currently rate-limited by discord, try again in " + TimeUtility.getTimeString(((RateLimitedException) exception).getRetryAfter() / 1000)).queue();
 						return;
 					}
 

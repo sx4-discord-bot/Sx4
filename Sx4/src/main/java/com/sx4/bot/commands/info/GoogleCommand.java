@@ -66,7 +66,7 @@ public class GoogleCommand extends Sx4Command {
 				.setDisplayFunction(data -> {
 					int type = data.getInteger("type");
 					if (type == 0) {
-						return String.format("**[%s](%s)**\n%s\n", data.getString("title"), data.getString("url"), MarkdownSanitizer.escape(data.getString("description")));
+						return "**[" + data.getString("title") + "](" + data.getString("url") + ")**\n" + (data.containsKey("answer") ? "**" + data.getString("answer") + "**\n" : "") + MarkdownSanitizer.escape(data.getString("description")) + "\n";
 					} else if (type == 4) {
 						Document input = data.get("input", Document.class);
 						Document output = data.get("output", Document.class);
@@ -82,7 +82,7 @@ public class GoogleCommand extends Sx4Command {
 					} else if (type == 8) {
 						return "**[Random Number between " + data.getInteger("min") + " and " + data.getInteger("max") + "](" + googleUrl + ")**\n**" + data.getInteger("value") + "**\n";
 					} else if (type == 3) {
-						return "**[Answer](" + googleUrl + ")**\n" + data.getString("answer") + "**\n";
+						return "**[Answer](" + googleUrl + ")**\n**" + data.getString("answer") + "**\n";
 					} else if (type == 2) {
 						Document definition = data.getList("definitions", Document.class).get(0);
 
