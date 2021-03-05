@@ -243,7 +243,7 @@ public class LoggerUtility {
         String type;
         if (channelType == ChannelType.TEXT || channelType == ChannelType.VOICE || channelType == ChannelType.STORE) {
             type = channelType.toString().toLowerCase() + " channel";
-        } else if(channelType == ChannelType.CATEGORY) {
+        } else if (channelType == ChannelType.CATEGORY) {
             type = "category";
         } else {
             // return unknown so it can easily be reported as a bug user side rather than throwing an NPE

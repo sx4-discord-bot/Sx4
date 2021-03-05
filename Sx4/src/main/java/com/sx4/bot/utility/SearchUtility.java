@@ -274,6 +274,20 @@ public class SearchUtility {
 			return SearchUtility.findRole(guild.getRoleCache(), query);
 		}
 	}
+
+	public static GuildChannel getGuildChannel(Guild guild, ChannelType type, String query) {
+		if (type == ChannelType.TEXT) {
+			return SearchUtility.getTextChannel(guild, query);
+		} else if (type == ChannelType.CATEGORY) {
+			return SearchUtility.getCategory(guild, query);
+		} else if (type == ChannelType.STORE) {
+			return SearchUtility.getStoreChannel(guild, query);
+		} else if (type == ChannelType.VOICE) {
+			return SearchUtility.getVoiceChannel(guild, query);
+		}
+
+		return null;
+	}
 	
 	public static TextChannel getTextChannel(Guild guild, String query) {
 		Matcher mentionMatch = SearchUtility.CHANNEL_MENTION.matcher(query);

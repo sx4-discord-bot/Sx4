@@ -415,6 +415,25 @@ public class Sx4 {
 			}
 			
 			return builder;
+		}).addGenericBuilderConfigureFunction(Enum.class, (parameter, builder) -> {
+			Options options = parameter.getAnnotation(Options.class);
+			if (options != null) {
+				List<Enum<?>> enums = new ArrayList<>();
+				for (Object object : parameter.getType().getEnumConstants()) {
+					for (String option : options.value()) {
+						Enum<?> enumConstant = (Enum<?>) object;
+						if (option.equals(enumConstant.name())) {
+							enums.add(enumConstant);
+						}
+					}
+				}
+
+				System.out.println(enums);
+
+				builder.setProperty("options", enums);
+			}
+
+			return builder;
 		}).addBuilderConfigureFunction(Or.class, (parameter, builder) -> {
 			Type[] classes = ((ParameterizedType) parameter.getParameterizedType()).getActualTypeArguments();
 			Class<?> firstClass = (Class<?>) classes[0], secondClass = (Class<?>) classes[1];
@@ -592,6 +611,21 @@ public class Sx4 {
 				}
 					
 				return new ParsedResult<>(new Alternative<>(parsedArgument.getObject(), null));
+			}).registerGenericParser(Enum.class, (context, type, argument, content) -> {
+				List<Enum<?>> options = argument.getProperty("options");
+
+				for (Enum<?> enumEntry : type.getEnumConstants()) {
+					if (options != null && !options.contains(enumEntry)) {
+						continue;
+					}
+
+					String name = enumEntry.name();
+					if (name.equalsIgnoreCase(content) || name.replace("_", " ").equalsIgnoreCase(content)) {
+						return new ParsedResult<>(enumEntry);
+					}
+				}
+
+				return new ParsedResult<>();
 			}).registerParser(Or.class, (context, argument, content) -> {
 				Class<?> firstClass = argument.getProperty("firstClass"), secondClass = argument.getProperty("secondClass");
 
@@ -698,14 +732,14 @@ public class Sx4 {
 					message.getChannel().sendMessageFormat("You cannot use more than **%,d** character%s for `%s` %s", charLimit, charLimit == 1 ? "" : "s", argument.getName(), this.config.getFailureEmote()).queue();
 				}
 			}).registerResponse(Enum.class, (argument, message, content) -> {
-				StringBuilder builder = new StringBuilder("`");
-				for (Enum<?> e : argument.getType().getEnumConstants()) {
-					builder.append("`, `").append(e.name());
+				List<Enum<?>> enums = argument.getProperty("options", Arrays.asList(argument.getType().getEnumConstants()));
+
+				StringJoiner joiner = new StringJoiner("`, `");
+				for (Enum<?> enumEntry : enums) {
+					joiner.add(enumEntry.name());
 				}
 
-				builder.append("`");
-
-				message.getChannel().sendMessage("Invalid argument given, give any of the following " + builder.toString() + " " + this.config.getFailureEmote()).queue();
+				message.getChannel().sendMessage("Invalid argument given, give any of the following `" + joiner.toString() + "` " + this.config.getFailureEmote()).queue();
 			}).setHandleInheritance(Enum.class, true);
 
 		return errorManager;
