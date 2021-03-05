@@ -111,7 +111,6 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 	}
 
 	public void onYouTubeUpload(YouTubeUploadEvent event) {
-		System.out.println("hello");
 		this.notificationExecutor.submit(() -> {
 			ShardManager shardManager = Sx4.get().getShardManager();
 

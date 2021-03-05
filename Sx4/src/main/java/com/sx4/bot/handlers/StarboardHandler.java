@@ -212,7 +212,8 @@ public class StarboardHandler extends ListenerAdapter {
 	}
 
 	public void onGuildMessageReactionRemove(GuildMessageReactionRemoveEvent event) {
-		if (event.getUser().isBot()) {
+		User user = event.getUser();
+		if (user == null || user.isBot()) {
 			return;
 		}
 

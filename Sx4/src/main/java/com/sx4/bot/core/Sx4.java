@@ -324,6 +324,26 @@ public class Sx4 {
 			}
 
 			return new ParsedResult<>(content);
+		}).addParserAfter(String.class, (context, argument, content) -> {
+			Integer charLimit = argument.getProperty("charLimit", Integer.class);
+			if (charLimit != null && content.length() > charLimit) {
+				return new ParsedResult<>();
+			}
+
+			String replace = argument.getProperty("replace"), with = argument.getProperty("replaceWith");
+			if (replace != null && with != null) {
+				content = content.replace(replace, with);
+			}
+
+			if (argument.getProperty("lowercase", false)) {
+				content = content.toLowerCase();
+			}
+
+			if (argument.getProperty("uppercase", false)) {
+				content = content.toUpperCase();
+			}
+
+			return new ParsedResult<>(content);
 		});
 	}
 
@@ -446,8 +466,6 @@ public class Sx4 {
 						}
 					}
 				}
-
-				System.out.println(enums);
 
 				builder.setProperty("options", enums);
 			}

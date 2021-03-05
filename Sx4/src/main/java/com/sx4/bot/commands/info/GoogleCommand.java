@@ -35,7 +35,7 @@ public class GoogleCommand extends Sx4Command {
 		boolean nsfw = event.getTextChannel().isNSFW();
 
 		Request request = new Request.Builder()
-			.url(this.config.getSearchWebserverUrl("google") + "?q=" + URLEncoder.encode(query, StandardCharsets.UTF_8) + "&nsfw=" + nsfw + "&page=" + page + "&types=0,2,3,4,5,6,8")
+			.url(this.config.getSearchWebserverUrl("google") + "?q=" + URLEncoder.encode(query, StandardCharsets.UTF_8) + "&nsfw=" + nsfw + "&page=" + page + "&types=0,2,3,4,5,6,7,8")
 			.build();
 
 		event.getClient().newCall(request).enqueue((HttpCallback) response -> {
@@ -87,6 +87,10 @@ public class GoogleCommand extends Sx4Command {
 						Document definition = data.getList("definitions", Document.class).get(0);
 
 						return "**[Definition of " + data.getString("word") + " (" + definition.getString("type") + ")](" + data.getString("url") + ")**\n**" + definition.getString("definition") + "**\n";
+					} else if (type == 7) {
+						Document output = data.get("output", Document.class);
+
+						return "**[Translation to " + output.getEmbedded(List.of("language", "name"), String.class) + "](" + googleUrl + ")**\n**" + output.getString("text") + "**\n";
 					}
 
 					return "";

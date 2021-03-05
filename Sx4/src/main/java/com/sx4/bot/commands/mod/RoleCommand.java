@@ -4,6 +4,7 @@ import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
 import com.jockie.bot.core.option.Option;
 import com.sx4.bot.annotations.argument.Colour;
+import com.sx4.bot.annotations.argument.Limit;
 import com.sx4.bot.annotations.command.*;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
@@ -73,7 +74,7 @@ public class RoleCommand extends Sx4Command {
 	@Examples({"role edit @Role colour=#ffff00", "role edit Role name=Shea colour=#ffff00", "role edit 402557516728369153 mentionable=true hoisted=false"})
 	@AuthorPermissions(permissions={Permission.MANAGE_ROLES})
 	@BotPermissions(permissions={Permission.MANAGE_ROLES})
-	public void edit(Sx4CommandEvent event, @Argument(value="role") Role role, @Option(value="colour", description="Set the colour of the role") @Colour Integer colour, @Option(value="name", description="Set the name of the role") String name, @Option(value="mentionable", description="Set the mention state of the role") Boolean mentionable, @Option(value="hoisted", description="Set the hoist state of the role") Boolean hosted, @Option(value="permissions", description="Set the permissions of the role") Long permissions) {
+	public void edit(Sx4CommandEvent event, @Argument(value="role") Role role, @Option(value="colour", description="Set the colour of the role") @Colour Integer colour, @Option(value="name", description="Set the name of the role") @Limit(max=32) String name, @Option(value="mentionable", description="Set the mention state of the role") Boolean mentionable, @Option(value="hoisted", description="Set the hoist state of the role") Boolean hosted, @Option(value="permissions", description="Set the permissions of the role") Long permissions) {
 		if (!event.getMember().canInteract(role)) {
 			event.replyFailure("You cannot edit a role higher or equal then your top role").queue();
 			return;
@@ -86,11 +87,6 @@ public class RoleCommand extends Sx4Command {
 
 		if (event.getOptions().isEmpty()) {
 			event.replyFailure("You need to edit at least 1 attribute of the role").queue();
-			return;
-		}
-
-		if (name != null && name.length() > 32) {
-			event.replyFailure("Role names can be no longer than 32 characters").queue();
 			return;
 		}
 

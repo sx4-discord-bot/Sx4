@@ -31,7 +31,7 @@ public class ReactionRoleHandler extends ListenerAdapter {
 		Guild guild = event.getGuild();
 		ReactionEmote emote = event.getReactionEmote();
 		
-		if (user.isBot()) {
+		if (user == null || user.isBot()) {
 			return;
 		}
 		
