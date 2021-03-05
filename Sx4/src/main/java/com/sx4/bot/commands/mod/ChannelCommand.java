@@ -17,7 +17,7 @@ public class ChannelCommand extends Sx4Command {
 	public ChannelCommand() {
 		super("channel", 243);
 
-		super.setDescription("Create or delete a channel");
+		super.setDescription("Allows you to do multiple actions with channels");
 		super.setExamples("channel create", "channel delete");
 	}
 

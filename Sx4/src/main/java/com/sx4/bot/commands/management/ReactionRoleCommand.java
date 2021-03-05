@@ -83,7 +83,7 @@ public class ReactionRoleCommand extends Sx4Command {
 	@Cooldown(value=2)
 	public void add(Sx4CommandEvent event, @Argument(value="message id") MessageArgument messageArgument, @Argument(value="emote") ReactionEmote emote, @Argument(value="role", endless=true) Role role) {
 		if (role.isPublicRole()) {
-			event.replyFailure("I cannot give the `@everyone` role").queue();
+			event.replyFailure("I cannot give the @everyone role").queue();
 			return;
 		}
 		

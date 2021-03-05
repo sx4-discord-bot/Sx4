@@ -76,7 +76,7 @@ public class AutoRoleCommand extends Sx4Command {
 		}
 		
 		if (role.isPublicRole()) {
-			event.replyFailure("I cannot give the `@everyone` role").queue();
+			event.replyFailure("I cannot give the @everyone role").queue();
 			return;
 		}
 		

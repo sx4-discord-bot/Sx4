@@ -13,6 +13,7 @@ import com.jockie.bot.core.command.impl.CommandStore;
 import com.jockie.bot.core.command.manager.IErrorManager;
 import com.jockie.bot.core.command.manager.impl.ContextManagerFactory;
 import com.jockie.bot.core.command.manager.impl.ErrorManagerImpl;
+import com.jockie.bot.core.command.parser.impl.CommandParserImpl;
 import com.jockie.bot.core.option.factory.impl.OptionFactory;
 import com.jockie.bot.core.option.factory.impl.OptionFactoryImpl;
 import com.jockie.bot.core.parser.ParsedResult;
@@ -106,6 +107,8 @@ public class Sx4 {
 		this.setupOptionFactory();
 		
 		this.commandListener = this.createCommandListener(this.createErrorManager());
+		((CommandParserImpl) this.commandListener.getCommandParser()).addOptionPrefix("");
+
 		this.shardManager = this.createShardManager();
 	}
 
@@ -291,7 +294,23 @@ public class Sx4 {
 
 		optionFactory.registerParser(Duration.class, (context, option, content) -> content == null ? new ParsedResult<>(true, null) : new ParsedResult<>(TimeUtility.getDurationFromString(content)))
 			.registerParser(Guild.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getGuild(content)))
-			.registerParser(TextChannel.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getTextChannel(context.getMessage().getGuild(), content.trim())));
+			.registerParser(TextChannel.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getTextChannel(context.getMessage().getGuild(), content.trim())))
+			.registerParser(Integer.class, (context, argument, content) -> {
+				if (argument.getProperty("colour", false)) {
+					int colour = ColourUtility.fromQuery(content);
+					if (colour == -1) {
+						return new ParsedResult<>();
+					} else {
+						return new ParsedResult<>(colour);
+					}
+				}
+
+				try {
+					return new ParsedResult<>(Integer.parseInt(content));
+				} catch (NumberFormatException e) {
+					return new ParsedResult<>();
+				}
+			});
 
 		optionFactory.addParserAfter(Integer.class, (context, argument, content) -> {
 			Integer lowerLimit = argument.getProperty("lowerLimit", Integer.class);
@@ -711,7 +730,7 @@ public class Sx4 {
 			.registerResponse(Guild.class, "I could not find that server " + this.config.getFailureEmote())
 			.registerResponse(AutoRoleFilter.class, "I could not find that filter " + this.config.getFailureEmote())
 			.registerResponse(Pattern.class, "Regex syntax was incorrect " + this.config.getFailureEmote())
-			.registerResponse(int.class, (argument, message, content) -> {
+			.registerResponse(Integer.class, (argument, message, content) -> {
 				if (argument.getProperty("colour", false)) {
 					message.getChannel().sendMessage("I could not find that colour " + this.config.getFailureEmote()).queue();
 				} else {

@@ -26,7 +26,7 @@ public class HelpUtility {
 		for (int i = 0; i < command.getOptions().size(); i++) {
 			IOption<?> option = command.getOptions().get(i);
 			
-			options.append("`" + option.getName() + (option.getType() != boolean.class ? "=<value>" : "") + "` - " + option.getDescription() + (i == command.getOptions().size() - 1 ? "" : "\n"));
+			options.append("`").append(option.getName()).append(option.getType() != boolean.class ? "=<value>" : "").append("` - ").append(option.getDescription()).append(i == command.getOptions().size() - 1 ? "" : "\n");
 		}
 		
 		if (embed) {
