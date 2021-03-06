@@ -4,6 +4,7 @@ import com.mongodb.client.model.*;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.utils.ModUtils;
 import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.GuildChannel;
 import net.dv8tion.jda.api.entities.Invite;
 import net.dv8tion.jda.api.entities.Message.MentionType;
 import net.dv8tion.jda.api.entities.Role;
@@ -43,8 +44,9 @@ public class AntiInviteEvents extends ListenerAdapter {
 			List<Long> channelsData = whitelist.getList("channels", Long.class, Collections.emptyList()), 
 					rolesData = whitelist.getList("roles", Long.class, Collections.emptyList()), 
 					usersData = whitelist.getList("users", Long.class, Collections.emptyList());
-			
-			if (channelsData.contains(event.getChannel().getIdLong()) || channelsData.contains(event.getChannel().getParent().getIdLong())) {
+
+			GuildChannel parent = event.getChannel().getParent();
+			if (channelsData.contains(event.getChannel().getIdLong()) || (parent != null && channelsData.contains(parent.getIdLong()))) {
 				return;
 			} else if (usersData.contains(event.getAuthor().getIdLong())) {
 				return;
@@ -207,8 +209,9 @@ public class AntiInviteEvents extends ListenerAdapter {
 			List<Long> channelsData = whitelist.getList("channels", Long.class, Collections.emptyList()), 
 					rolesData = whitelist.getList("roles", Long.class, Collections.emptyList()), 
 					usersData = whitelist.getList("users", Long.class, Collections.emptyList());
-			
-			if (channelsData.contains(event.getChannel().getIdLong()) || channelsData.contains(event.getChannel().getParent().getIdLong())) {
+
+			GuildChannel parent = event.getChannel().getParent();
+			if (channelsData.contains(event.getChannel().getIdLong()) || (parent != null && channelsData.contains(parent.getIdLong()))) {
 				return;
 			} else if (usersData.contains(event.getAuthor().getIdLong())) {
 				return;
