@@ -12,6 +12,7 @@ import com.sx4.bot.annotations.argument.AdvancedMessage;
 import com.sx4.bot.annotations.argument.DefaultString;
 import com.sx4.bot.annotations.argument.Options;
 import com.sx4.bot.annotations.command.AuthorPermissions;
+import com.sx4.bot.annotations.command.BotPermissions;
 import com.sx4.bot.annotations.command.CommandId;
 import com.sx4.bot.annotations.command.Examples;
 import com.sx4.bot.category.ModuleCategory;
@@ -21,15 +22,19 @@ import com.sx4.bot.database.model.Operators;
 import com.sx4.bot.entities.argument.Alternative;
 import com.sx4.bot.formatter.JsonFormatter;
 import com.sx4.bot.formatter.parser.FormatterRandomParser;
+import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.MessageUtility;
+import com.sx4.bot.utility.StringUtility;
 import com.sx4.bot.waiter.Waiter;
 import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class TriggerCommand extends Sx4Command {
@@ -277,6 +282,25 @@ public class TriggerCommand extends Sx4Command {
 		} catch (IllegalArgumentException e) {
 			event.replyFailure(e.getMessage()).queue();
 		}
+	}
+
+	@Command(value="list", description="List the triggers in the current server")
+	@CommandId(253)
+	@Examples({"trigger list"})
+	@BotPermissions(permissions={Permission.MESSAGE_EMBED_LINKS})
+	public void list(Sx4CommandEvent event) {
+		List<Document> triggers = this.database.getTriggers(Filters.eq("guildId", event.getGuild().getIdLong()), Projections.include("trigger")).into(new ArrayList<>());
+		if (triggers.isEmpty()) {
+			event.replyFailure("There are no triggers setup in this server").queue();
+			return;
+		}
+
+		PagedResult<Document> paged = new PagedResult<>(triggers)
+			.setAuthor("Triggers", null, event.getGuild().getIconUrl())
+			.setIndexed(false)
+			.setDisplayFunction(data -> "`" + data.getObjectId("_id").toHexString() + "` - " + StringUtility.limit(data.getString("trigger"), MessageEmbed.TEXT_MAX_LENGTH / 10 - 29, "..."));
+
+		paged.execute(event);
 	}
 
 }

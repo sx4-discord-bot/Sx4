@@ -12,15 +12,14 @@ public class HmacUtility {
 	public static final String HMAC_MD5 = "HmacMD5";
 	public static final String HMAC_SHA256 = "HmacSHA256";
 
-	@SuppressWarnings("resource")
 	public static String toHexString(byte[] bytes) {
-		Formatter formatter = new Formatter();
-		
-		for (byte b : bytes) {
-			formatter.format("%02x", b);
-		}
+		try (Formatter formatter = new Formatter()) {
+			for (byte b : bytes) {
+				formatter.format("%02x", b);
+			}
 
-		return formatter.toString();
+			return formatter.toString();
+		}
 	}
 	
 	public static String getSignature(String key, String data, String type) throws NoSuchAlgorithmException, InvalidKeyException {

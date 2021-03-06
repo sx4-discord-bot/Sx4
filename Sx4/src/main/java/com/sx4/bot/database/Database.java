@@ -43,6 +43,8 @@ public class Database {
 
 	private final MongoCollection<Document> triggers;
 
+	private final MongoCollection<Document> templates;
+
 	private final MongoCollection<Document> starboards;
 	private final MongoCollection<Document> stars;
 
@@ -101,6 +103,10 @@ public class Database {
 		this.triggers = this.database.getCollection("triggers");
 		this.triggers.createIndex(Indexes.descending("trigger", "guildId"), uniqueIndex);
 		this.triggers.createIndex(guildId);
+
+		this.templates = this.database.getCollection("templates");
+		this.templates.createIndex(Indexes.descending("template", "guildId"), uniqueIndex);
+		this.templates.createIndex(guildId);
 
 		this.starboards = this.database.getCollection("starboards");
 		this.starboards.createIndex(guildId);
@@ -177,6 +183,30 @@ public class Database {
 	
 	public MongoDatabase getDatabase() {
 		return this.database;
+	}
+
+	public MongoCollection<Document> getTemplates() {
+		return this.templates;
+	}
+
+	public FindIterable<Document> getTemplates(Bson filter, Bson projection) {
+		return this.templates.find(filter).projection(projection);
+	}
+
+	public Document getTemplate(Bson filter, Bson projection) {
+		return this.getTemplates(filter, projection).first();
+	}
+
+	public CompletableFuture<InsertOneResult> insertTemplate(Document data) {
+		return CompletableFuture.supplyAsync(() -> this.templates.insertOne(data));
+	}
+
+	public CompletableFuture<DeleteResult> deleteTemplateById(ObjectId id) {
+		return CompletableFuture.supplyAsync(() -> this.templates.deleteOne(Filters.eq("_id", id)));
+	}
+
+	public CompletableFuture<DeleteResult> deleteManyTemplates(Bson filter) {
+		return CompletableFuture.supplyAsync(() -> this.templates.deleteMany(filter));
 	}
 
 	public MongoCollection<Document> getReactionRoles() {
