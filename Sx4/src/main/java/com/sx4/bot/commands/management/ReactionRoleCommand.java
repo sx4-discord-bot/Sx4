@@ -104,7 +104,7 @@ public class ReactionRoleCommand extends Sx4Command {
 		
 		boolean unicode = emote.isEmoji();
 		String identifier = unicode ? "name" : "id";
-		messageArgument.getRestAction().queue(message -> {
+		messageArgument.retrieveMessage().queue(message -> {
 			if (message.getReactions().size() >= 20) {
 				event.replyFailure("That message is at the max amount of reactions (20)").queue();
 				return;

@@ -232,7 +232,7 @@ public class SearchUtility {
 				
 				TextChannel linkChannel = channel.getGuild().getTextChannelById(jumpMatch.group(2));
 
-				return new MessageArgument(messageId, Objects.requireNonNullElse(linkChannel, channel).retrieveMessageById(messageId));
+				return new MessageArgument(messageId, linkChannel == null ? channel : linkChannel);
 			} catch (NumberFormatException e) {
 				return null;
 			}
@@ -240,7 +240,7 @@ public class SearchUtility {
 			try {
 				long messageId = MiscUtil.parseSnowflake(query);
 				
-				return new MessageArgument(messageId, channel.retrieveMessageById(messageId));
+				return new MessageArgument(messageId, channel);
 			} catch (NumberFormatException e) {
 				return null;
 			}

@@ -2,16 +2,10 @@ package com.sx4.bot.commands.mod;
 
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
-import com.mongodb.client.model.FindOneAndUpdateOptions;
-import com.mongodb.client.model.Projections;
-import com.mongodb.client.model.ReturnDocument;
-import com.mongodb.client.model.Updates;
+import com.mongodb.client.model.*;
 import com.sx4.bot.annotations.argument.Limit;
 import com.sx4.bot.annotations.argument.Options;
-import com.sx4.bot.annotations.command.AuthorPermissions;
-import com.sx4.bot.annotations.command.CommandId;
-import com.sx4.bot.annotations.command.Examples;
-import com.sx4.bot.annotations.command.Redirects;
+import com.sx4.bot.annotations.command.*;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
@@ -31,12 +25,16 @@ import com.sx4.bot.utility.NumberUtility;
 import com.sx4.bot.utility.TimeUtility;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Member;
+import net.dv8tion.jda.api.utils.MarkdownSanitizer;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class WarnCommand extends Sx4Command {
 
@@ -111,6 +109,48 @@ public class WarnCommand extends Sx4Command {
 
 			event.replySuccess("That user now has **" + warnings + "** warning" + (warnings == 1 ? "" : "s")).queue();
 		});
+	}
+
+	@Command(value="list", description="Lists all the warned users in the server and how many warnings they have")
+	@CommandId(258)
+	@Examples({"warn list"})
+	@BotPermissions(permissions={Permission.MESSAGE_EMBED_LINKS})
+	public void list(Sx4CommandEvent event) {
+		List<Document> members = this.database.getMembers(Filters.eq("guildId", event.getGuild().getIdLong()), Projections.include("warn.warnings", "userId")).into(new ArrayList<>());
+
+		List<Document> warnedMembers = members.stream()
+			.filter(d -> d.getEmbedded(List.of("warn", "warnings"), 0) != 0)
+			.sorted(Collections.reverseOrder(Comparator.comparingInt(d -> d.getEmbedded(List.of("warn", "warnings"), Integer.class))))
+			.collect(Collectors.toList());
+
+		if (warnedMembers.isEmpty()) {
+			event.replyFailure("There are no users with warnings in this server").queue();
+			return;
+		}
+
+		PagedResult<Document> paged = new PagedResult<>(warnedMembers)
+			.setAuthor("Warned Users", null, event.getGuild().getIconUrl())
+			.setIndexed(false)
+			.setDisplayFunction(d -> {
+				long userId = d.getLong("userId");
+				Member member = event.getGuild().getMemberById(userId);
+
+				return "`" + (member == null ? userId : MarkdownSanitizer.escape(member.getUser().getAsTag())) + "` - Warning **#" + d.getEmbedded(List.of("warn", "warnings"), Integer.class) + "**";
+			});
+
+		paged.execute(event);
+	}
+
+	@Command(value="view", description="View the amount of warnings a specific user is on")
+	@CommandId(259)
+	@Examples({"warn view @Shea#6653", "warn view Shea", "warn view 402557516728369153"})
+	@Redirects({"warnings"})
+	public void view(Sx4CommandEvent event, @Argument(value="user", endless=true) Member member) {
+		Document data = this.database.getMemberById(member.getIdLong(), event.getGuild().getIdLong(), Projections.include("warn.warnings"));
+
+		int warnings = data.getEmbedded(List.of("warn", "warnings"), 0);
+
+		event.reply(member.getAsMention() + " is currently on **" + warnings + "** warning" + (warnings == 1 ? "" : "s")).queue();
 	}
 
 	public static class ConfigCommand extends Sx4Command {
