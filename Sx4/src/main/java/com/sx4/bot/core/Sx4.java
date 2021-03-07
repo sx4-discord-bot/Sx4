@@ -489,6 +489,7 @@ public class Sx4 {
 			.registerParser(ObjectId.class, (context, argument, content) -> new ParsedResult<>(ObjectId.isValid(content) ? new ObjectId(content) : null))
 			.registerParser(IPermissionHolder.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getPermissionHolder(context.getMessage().getGuild(), content)))
 			.registerParser(Role.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getRole(context.getMessage().getGuild(), content)))
+			.registerParser(Attachment.class, (context, argument, content) -> context.getMessage().getAttachments().isEmpty() ? new ParsedResult<>() : new ParsedResult<>(context.getMessage().getAttachments().get(0)))
 			.registerParser(Emote.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getGuildEmote(context.getMessage().getGuild(), content)))
 			.registerParser(Guild.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getGuild(content)))
 			.registerParser(MessageArgument.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getMessageArgument(context.getMessage().getTextChannel(), content)))

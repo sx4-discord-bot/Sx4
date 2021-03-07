@@ -1,14 +1,14 @@
 package com.sx4.bot.utility;
 
+import java.security.SecureRandom;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Random;
 import java.util.Set;
 import java.util.function.Function;
 
 public class MathUtility {
 	
-	private static final Random RANDOM = new Random();
+	public static final SecureRandom RANDOM = new SecureRandom();
 
 	public static double sigma(int start, int end, Function<Integer, Double> function) {
 		double value = 0D;
