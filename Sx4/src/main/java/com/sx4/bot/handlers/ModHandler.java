@@ -2,13 +2,13 @@ package com.sx4.bot.handlers;
 
 import club.minnced.discord.webhook.send.WebhookEmbed;
 import com.mongodb.client.model.Projections;
+import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.Database;
+import com.sx4.bot.entities.mod.ModLog;
 import com.sx4.bot.entities.mod.action.Action;
 import com.sx4.bot.entities.mod.action.ModAction;
-import com.sx4.bot.entities.mod.ModLog;
 import com.sx4.bot.events.mod.*;
 import com.sx4.bot.hooks.ModActionListener;
-import com.sx4.bot.managers.ModLogManager;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.events.GenericEvent;
@@ -16,14 +16,14 @@ import net.dv8tion.jda.api.hooks.EventListener;
 import org.bson.Document;
 
 public class ModHandler implements ModActionListener, EventListener {
-	
-	public static final ModHandler INSTANCE = new ModHandler();
 
-	private final ModLogManager manager = ModLogManager.get();
+	private final Sx4 bot;
+
+	public ModHandler(Sx4 bot) {
+		this.bot = bot;
+	}
 	
 	public void onAction(ModActionEvent event) {
-		Database database = Database.get();
-		
 		Guild guild = event.getGuild();
 		
 		Action action = event.getAction();
@@ -33,7 +33,7 @@ public class ModHandler implements ModActionListener, EventListener {
 			// TODO: insert offence
 		}
 		
-		Document data = database.getGuildById(guild.getIdLong(), Projections.include("modLog.channelId", "modLog.enabled", "modLog.webhook")).get("modLog", Database.EMPTY_DOCUMENT);
+		Document data = this.bot.getDatabase().getGuildById(guild.getIdLong(), Projections.include("modLog.channelId", "modLog.enabled", "modLog.webhook")).get("modLog", Database.EMPTY_DOCUMENT);
 		
 		long channelId = data.getLong("channelId");
 		if (!data.getBoolean("enabled", false) || channelId == 0) {
@@ -56,10 +56,10 @@ public class ModHandler implements ModActionListener, EventListener {
 
 		WebhookEmbed embed = modLog.getWebhookEmbed(event.getModerator().getUser(), event.getTarget());
 
-		this.manager.sendModLog(channel, data.get("webhook", Database.EMPTY_DOCUMENT), embed).whenComplete((webhookMessage, exception) -> {
+		this.bot.getModLogManager().sendModLog(channel, data.get("webhook", Database.EMPTY_DOCUMENT), embed).whenComplete((webhookMessage, exception) -> {
 			modLog.setMessageId(webhookMessage.getId());
 
-			database.insertModLog(modLog.toData()).whenComplete(Database.exceptionally());
+			this.bot.getDatabase().insertModLog(modLog.toData()).whenComplete(Database.exceptionally(this.bot.getShardManager()));
 		});
 	}
 

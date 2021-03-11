@@ -49,8 +49,6 @@ public class PagedResult<Type> {
 		OBJECT
 	}
 	
-	private final PagedManager manager = PagedManager.get();
-	
 	private final List<Type> list;
 	
 	private long messageId = 0L;
@@ -84,7 +82,10 @@ public class PagedResult<Type> {
 	private Consumer<PagedSelect<Type>> onSelect = null;
 	private Runnable onTimeout = null;
 
-	public PagedResult(List<Type> list) {
+	private final Sx4 bot;
+
+	public PagedResult(Sx4 bot, List<Type> list) {
+		this.bot = bot;
 		this.list = list;
 	}
 	
@@ -97,7 +98,7 @@ public class PagedResult<Type> {
 	}
 	
 	public Guild getGuild() {
-		return this.guildId == 0 ? null : Sx4.get().getShardManager().getGuildById(this.guildId);
+		return this.guildId == 0 ? null : this.bot.getShardManager().getGuildById(this.guildId);
 	}
 	
 	public long getChannelId() {
@@ -106,7 +107,7 @@ public class PagedResult<Type> {
 	
 	public MessageChannel getChannel() {
 		if (this.guildId == 0 && this.channelId != 0) {
-			return Sx4.get().getShardManager().getPrivateChannelById(this.channelId);
+			return this.bot.getShardManager().getPrivateChannelById(this.channelId);
 		} else {
 			Guild guild = this.getGuild();
 			
@@ -119,7 +120,7 @@ public class PagedResult<Type> {
 	}
 	
 	public User getOwner() {
-		return this.ownerId == 0 ? null : Sx4.get().getShardManager().getUserById(this.ownerId);
+		return this.ownerId == 0 ? null : this.bot.getShardManager().getUserById(this.ownerId);
 	}
 	
 	public List<Type> getList() {
@@ -369,9 +370,9 @@ public class PagedResult<Type> {
 		if (channel != null && this.messageId != 0) {
 			channel.deleteMessageById(this.messageId).queue(null, ErrorResponseException.ignore(ErrorResponse.UNKNOWN_MESSAGE));
 		}
-		
-		this.manager.cancelTimeout(this.channelId, this.ownerId);
-		this.manager.removePagedResult(this.channelId, this.ownerId);
+
+		this.bot.getPagedManager().cancelTimeout(this.channelId, this.ownerId);
+		this.bot.getPagedManager().removePagedResult(this.channelId, this.ownerId);
 	}
 	
 	public void select(int index) {
@@ -433,7 +434,7 @@ public class PagedResult<Type> {
 	public void ensure(MessageChannel channel) {
 		channel.editMessageById(this.messageId, this.getPagedMessage()).queue(null, ErrorResponseException.ignore(ErrorResponse.UNKNOWN_MESSAGE));
 		
-		this.manager.setTimeout(this);
+		this.bot.getPagedManager().setTimeout(this);
 	}
 
 	public void execute(CommandEvent event) {
@@ -461,8 +462,8 @@ public class PagedResult<Type> {
 		channel.sendMessage(this.getPagedMessage()).queue(message -> {
 			this.messageId = message.getIdLong();
 			
-			this.manager.addPagedResult(channel, owner, this);
-			this.manager.setTimeout(this);
+			this.bot.getPagedManager().addPagedResult(channel, owner, this);
+			this.bot.getPagedManager().setTimeout(this);
 		});
 	}
 	

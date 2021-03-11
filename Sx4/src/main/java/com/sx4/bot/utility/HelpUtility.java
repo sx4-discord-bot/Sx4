@@ -2,6 +2,7 @@ package com.sx4.bot.utility;
 
 import com.jockie.bot.core.command.ICommand;
 import com.jockie.bot.core.option.IOption;
+import com.sx4.bot.core.Sx4;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.paged.PagedResult.SelectType;
@@ -104,8 +105,8 @@ public class HelpUtility {
 		}
 	}
 	
-	public static PagedResult<Sx4Command> getCommandsPaged(List<Sx4Command> commands) {
-		return new PagedResult<>(commands)
+	public static PagedResult<Sx4Command> getCommandsPaged(Sx4 bot, List<Sx4Command> commands) {
+		return new PagedResult<>(bot, commands)
 			.setAutoSelect(true)
 			.setPerPage(15)
 			.setDisplayFunction(command -> "`" + command.getCommandTrigger() + "` - " + command.getDescription())

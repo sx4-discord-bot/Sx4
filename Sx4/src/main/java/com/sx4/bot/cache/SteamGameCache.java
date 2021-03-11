@@ -1,6 +1,5 @@
 package com.sx4.bot.cache;
 
-import com.sx4.bot.config.Config;
 import com.sx4.bot.core.Sx4;
 import com.sx4.bot.http.HttpCallback;
 import okhttp3.Request;
@@ -17,18 +16,15 @@ import java.util.stream.Collectors;
 
 public class SteamGameCache {
 
-	private static final SteamGameCache INSTANCE = new SteamGameCache();
-
-	public static SteamGameCache get() {
-		return SteamGameCache.INSTANCE;
-	}
-
 	private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
 
 	private List<Document> games;
 	private ScheduledFuture<?> future;
 
-	public SteamGameCache() {
+	private final Sx4 bot;
+
+	public SteamGameCache(Sx4 bot) {
+		this.bot = bot;
 		this.games = Collections.emptyList();
 
 		this.initiateCache();
@@ -48,10 +44,10 @@ public class SteamGameCache {
 	public void initiateCache() {
 		this.future = this.executor.scheduleAtFixedRate(() -> {
 			Request request = new Request.Builder()
-				.url(String.format("https://api.steampowered.com/ISteamApps/GetAppList/v0002/?key=%s&format=json", Config.get().getSteam()))
+				.url(String.format("https://api.steampowered.com/ISteamApps/GetAppList/v0002/?key=%s&format=json", this.bot.getConfig().getSteam()))
 				.build();
 
-			Sx4.getClient().newCall(request).enqueue((HttpCallback) response -> {
+			this.bot.getHttpClient().newCall(request).enqueue((HttpCallback) response -> {
 				Document json = Document.parse(response.body().string());
 
 				this.games = json.getEmbedded(List.of("applist", "apps"), Collections.emptyList());

@@ -14,12 +14,6 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 public class WaiterManager {
-
-	private static final WaiterManager INSTANCE = new WaiterManager();
-	
-	public static WaiterManager get() {
-		return WaiterManager.INSTANCE;
-	}
 	
 	private final List<Waiter<?>> waiters;
 	private final Map<Long, Map<Long, Waiter<?>>> uniqueWaiters;
@@ -28,7 +22,7 @@ public class WaiterManager {
 	
 	private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
 	
-	private WaiterManager() {
+	public WaiterManager() {
 		this.uniqueWaiters = new HashMap<>();
 		this.waiters = new ArrayList<>();
 		this.executors = new HashMap<>();

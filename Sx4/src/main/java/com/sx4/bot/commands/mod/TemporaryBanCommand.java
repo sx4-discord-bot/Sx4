@@ -41,7 +41,7 @@ public class TemporaryBanCommand extends Sx4Command {
 	}
 	
 	public void onCommand(Sx4CommandEvent event, @Argument(value="user") String userArgument, @Argument(value="time", nullDefault=true) Duration time, @Argument(value="reason", endless=true, nullDefault=true) Reason reason, @Option(value="days", description="Set how many days of messages should be deleted from the user") @DefaultNumber(1) @Limit(min=0, max=7) int days) {
-		SearchUtility.getUserRest(userArgument).thenAccept(user -> {
+		SearchUtility.getUserRest(event.getShardManager(), userArgument).thenAccept(user -> {
 			if (user == null) {
 				event.replyFailure("I could not find that user").queue();
 				return;
@@ -69,12 +69,12 @@ public class TemporaryBanCommand extends Sx4Command {
 
 			event.getGuild().retrieveBan(user).submit().whenComplete((ban, exception) -> {
 				if (exception instanceof ErrorResponseException && ((ErrorResponseException) exception).getErrorResponse() == ErrorResponse.UNKNOWN_BAN) {
-					Document data = this.database.getGuildById(guild.getIdLong(), Projections.include("temporaryBan.defaultTime")).get("temporaryBan", Database.EMPTY_DOCUMENT);
+					Document data = event.getDatabase().getGuildById(guild.getIdLong(), Projections.include("temporaryBan.defaultTime")).get("temporaryBan", Database.EMPTY_DOCUMENT);
 
 					long duration = time == null ? data.get("defaultTime", 86400L) : time.toSeconds();
 
 					List<Bson> update = List.of(Operators.set("temporaryBan.unbanAt", Operators.add(Operators.nowEpochSecond(), duration)));
-					this.database.updateMemberById(user.getIdLong(), guild.getIdLong(), update).whenComplete((result, resultException) -> {
+					event.getDatabase().updateMemberById(user.getIdLong(), guild.getIdLong(), update).whenComplete((result, resultException) -> {
 						if (ExceptionUtility.sendExceptionally(event, resultException)) {
 							return;
 						}
@@ -85,9 +85,9 @@ public class TemporaryBanCommand extends Sx4Command {
 							.queue($ -> {
 								event.reply("**" + user.getAsTag() + "** has been temporarily banned for " + TimeUtility.getTimeString(duration) + " <:done:403285928233402378>:ok_hand:").queue();
 
-								this.modManager.onModAction(new TemporaryBanEvent(event.getMember(), user, reason, member != null, duration));
+								event.getBot().getModActionManager().onModAction(new TemporaryBanEvent(event.getMember(), user, reason, member != null, duration));
 
-								this.banManager.putBan(event.getGuild().getIdLong(), user.getIdLong(), duration);
+								event.getBot().getTemporaryBanManager().putBan(event.getGuild().getIdLong(), user.getIdLong(), duration);
 							});
 					});
 				} else {

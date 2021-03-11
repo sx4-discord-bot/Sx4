@@ -15,7 +15,6 @@ import com.sx4.bot.database.model.Operators;
 import com.sx4.bot.entities.argument.Alternative;
 import com.sx4.bot.entities.management.Suggestion;
 import com.sx4.bot.entities.management.SuggestionState;
-import com.sx4.bot.managers.SuggestionManager;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.CheckUtility;
 import com.sx4.bot.utility.ColourUtility;
@@ -35,8 +34,6 @@ import java.util.List;
 
 public class SuggestionCommand extends Sx4Command {
 
-	private final SuggestionManager manager = SuggestionManager.get();
-
 	public SuggestionCommand() {
 		super("suggestion", 81);
 		
@@ -55,7 +52,7 @@ public class SuggestionCommand extends Sx4Command {
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void toggle(Sx4CommandEvent event) {
 		List<Bson> update = List.of(Operators.set("suggestion.enabled", Operators.cond("$suggestion.enabled", Operators.REMOVE, true)));
-		this.database.findAndUpdateGuildById(event.getGuild().getIdLong(), Projections.include("suggestion.enabled"), update).whenComplete((data, exception) -> {
+		event.getDatabase().findAndUpdateGuildById(event.getGuild().getIdLong(), Projections.include("suggestion.enabled"), update).whenComplete((data, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -74,7 +71,7 @@ public class SuggestionCommand extends Sx4Command {
 		List<Bson> update = List.of(Operators.set("suggestion.channelId", channel == null ? Operators.REMOVE : channel.getIdLong()), Operators.unset("suggestion.webhook.id"), Operators.unset("suggestion.webhook.token"));
 		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("suggestion.channelId")).upsert(true);
 
-		this.database.findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
+		event.getDatabase().findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -88,7 +85,7 @@ public class SuggestionCommand extends Sx4Command {
 
 			TextChannel oldChannel = channelId == 0L ? null : event.getGuild().getTextChannelById(channelId);
 			if (oldChannel != null) {
-				WebhookClient oldWebhook = this.manager.removeWebhook(channelId);
+				WebhookClient oldWebhook = event.getBot().getSuggestionManager().removeWebhook(channelId);
 				if (oldWebhook != null) {
 					oldChannel.deleteWebhookById(String.valueOf(oldWebhook.getId())).queue();
 				}
@@ -104,7 +101,7 @@ public class SuggestionCommand extends Sx4Command {
 	@Examples({"suggestion add Add the dog emote", "suggestion Add a channel for people looking to play games"})
 	@BotPermissions(permissions={Permission.MESSAGE_ADD_REACTION, Permission.MESSAGE_EMBED_LINKS})
 	public void add(Sx4CommandEvent event, @Argument(value="suggestion", endless=true) String suggestion) {
-		Document data = this.database.getGuildById(event.getGuild().getIdLong(), Projections.include("suggestion.channelId", "suggestion.enabled", "suggestion.webhook")).get("suggestion", Database.EMPTY_DOCUMENT);
+		Document data = event.getDatabase().getGuildById(event.getGuild().getIdLong(), Projections.include("suggestion.channelId", "suggestion.enabled", "suggestion.webhook")).get("suggestion", Database.EMPTY_DOCUMENT);
 		
 		if (!data.getBoolean("enabled", false)) {
 			event.replyFailure("Suggestions are not enabled in this server").queue();
@@ -133,14 +130,14 @@ public class SuggestionCommand extends Sx4Command {
 			state.getDataName()
 		);
 
-		this.manager.sendSuggestion(channel, data.get("webhook", Database.EMPTY_DOCUMENT), suggestionData.getWebhookEmbed(null, event.getAuthor(), state)).whenComplete((message, exception) -> {
+		event.getBot().getSuggestionManager().sendSuggestion(channel, data.get("webhook", Database.EMPTY_DOCUMENT), suggestionData.getWebhookEmbed(null, event.getAuthor(), state)).whenComplete((message, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
 
 			suggestionData.setMessageId(message.getId());
 
-			this.database.insertSuggestion(suggestionData.toData()).whenComplete((result, dataException) -> {
+			event.getDatabase().insertSuggestion(suggestionData.toData()).whenComplete((result, dataException) -> {
 				if (ExceptionUtility.sendExceptionally(event, dataException)) {
 					return;
 				}
@@ -162,13 +159,13 @@ public class SuggestionCommand extends Sx4Command {
 		TextChannel channel = event.getTextChannel();
 
 		if (option.isAlternative()) {
-			if (CheckUtility.hasPermissions(event.getMember(), channel, event.getProperty("fakePermissions"), Permission.MANAGE_SERVER)) {
+			if (CheckUtility.hasPermissions(event.getBot(), event.getMember(), channel, event.getProperty("fakePermissions"), Permission.MANAGE_SERVER)) {
 				event.replyFailure("You are missing the permission " + Permission.MANAGE_SERVER.getName() + " to execute this, you can remove your own suggestions only").queue();
 				return;
 			}
 			
 			event.reply(author.getName() + ", are you sure you want to delete **all** the suggestions in this server? (Yes or No)").queue(queryMessage -> {
-				Waiter<GuildMessageReceivedEvent> waiter = new Waiter<>(GuildMessageReceivedEvent.class)
+				Waiter<GuildMessageReceivedEvent> waiter = new Waiter<>(event.getBot(), GuildMessageReceivedEvent.class)
 					.setPredicate(messageEvent -> messageEvent.getMessage().getContentRaw().equalsIgnoreCase("yes"))
 					.setOppositeCancelPredicate()
 					.setTimeout(30)
@@ -179,7 +176,7 @@ public class SuggestionCommand extends Sx4Command {
 				waiter.onCancelled(type -> event.replySuccess("Cancelled").queue());
 				
 				waiter.future()
-					.thenCompose(messageEvent -> this.database.deleteManySuggestions(Filters.eq("guildId", event.getGuild().getIdLong())))
+					.thenCompose(messageEvent -> event.getDatabase().deleteManySuggestions(Filters.eq("guildId", event.getGuild().getIdLong())))
 					.whenComplete((result, exception) -> {
 						if (ExceptionUtility.sendExceptionally(event, exception)) {
 							return;
@@ -197,14 +194,14 @@ public class SuggestionCommand extends Sx4Command {
 			});
 		} else {
 			ObjectId id = option.getValue();
-			boolean hasPermission = CheckUtility.hasPermissions(event.getMember(), event.getTextChannel(), event.getProperty("fakePermissions"), Permission.MANAGE_SERVER);
+			boolean hasPermission = CheckUtility.hasPermissions(event.getBot(), event.getMember(), event.getTextChannel(), event.getProperty("fakePermissions"), Permission.MANAGE_SERVER);
 
 			Bson filter = Filters.eq("_id", id);
 			if (!hasPermission) {
 				filter = Filters.and(Filters.eq("authorId", author.getIdLong()), filter);
 			}
 
-			this.database.findAndDeleteSuggestion(filter).whenComplete((data, exception) -> {
+			event.getDatabase().findAndDeleteSuggestion(filter).whenComplete((data, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
@@ -219,7 +216,7 @@ public class SuggestionCommand extends Sx4Command {
 					return;
 				}
 
-				WebhookClient webhook = this.manager.getWebhook(data.getLong("channelId"));
+				WebhookClient webhook = event.getBot().getSuggestionManager().getWebhook(data.getLong("channelId"));
 				if (webhook != null) {
 					webhook.delete(data.getLong("messageId"));
 				}
@@ -234,7 +231,7 @@ public class SuggestionCommand extends Sx4Command {
 	@Examples({"suggestion set 5e45ce6d3688b30ee75201ae pending Need some time to think about this", "suggestion set 5e45ce6d3688b30ee75201ae accepted I think this is a great idea", "suggestion 5e45ce6d3688b30ee75201ae set denied Not possible"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void set(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="state") String stateName, @Argument(value="reason", endless=true, nullDefault=true) String reason) {
-		Document data = this.database.getGuildById(event.getGuild().getIdLong(), Projections.include("suggestion.states", "suggestion.webhook")).get("suggestion", Database.EMPTY_DOCUMENT);
+		Document data = event.getDatabase().getGuildById(event.getGuild().getIdLong(), Projections.include("suggestion.states", "suggestion.webhook")).get("suggestion", Database.EMPTY_DOCUMENT);
 		
 		List<Document> states = data.getList("states", Document.class, SuggestionState.DEFAULT_STATES);
 		Document state = states.stream()
@@ -256,7 +253,7 @@ public class SuggestionCommand extends Sx4Command {
 		);
 
 		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("channelId", "authorId", "reason", "state", "suggestion", "messageId"));
-		this.database.findAndUpdateSuggestionById(id, update, options).whenComplete((suggestionData, exception) -> {
+		event.getDatabase().findAndUpdateSuggestionById(id, update, options).whenComplete((suggestionData, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -282,7 +279,7 @@ public class SuggestionCommand extends Sx4Command {
 				return;
 			}
 			
-			this.manager.editSuggestion(suggestion.getMessageId(), channel.getIdLong(), data.get("webhook", Database.EMPTY_DOCUMENT), suggestion.getWebhookEmbed(new SuggestionState(state)));
+			event.getBot().getSuggestionManager().editSuggestion(suggestion.getMessageId(), channel.getIdLong(), data.get("webhook", Database.EMPTY_DOCUMENT), suggestion.getWebhookEmbed(event.getShardManager(), new SuggestionState(state)));
 
 			event.replySuccess("That suggestion has been set to the `" + stateData + "` state").queue();
 		});
@@ -294,13 +291,13 @@ public class SuggestionCommand extends Sx4Command {
 	public void view(Sx4CommandEvent event, @Argument(value="id", nullDefault=true) ObjectId id) {
 		Bson projection = Projections.include("suggestion", "reason", "moderatorId", "authorId", "state");
 		if (id == null) {
-			List<Document> suggestions = this.database.getSuggestions(Filters.eq("guildId", event.getGuild().getIdLong()), projection).into(new ArrayList<>());
+			List<Document> suggestions = event.getDatabase().getSuggestions(Filters.eq("guildId", event.getGuild().getIdLong()), projection).into(new ArrayList<>());
 			if (suggestions.isEmpty()) {
 				event.replyFailure("There are not suggestions in this server").queue();
 				return;
 			}
 
-			PagedResult<Document> paged = new PagedResult<>(suggestions)
+			PagedResult<Document> paged = new PagedResult<>(event.getBot(), suggestions)
 				.setDisplayFunction(data -> {
 					long authorId = data.getLong("authorId");
 					User author = event.getShardManager().getUserById(authorId);
@@ -310,24 +307,24 @@ public class SuggestionCommand extends Sx4Command {
 				.setIncreasedIndex(true);
 
 			paged.onSelect(select -> {
-				List<Document> states = this.database.getGuildById(event.getGuild().getIdLong(), Projections.include("suggestion.states")).getEmbedded(List.of("suggestion", "states"), SuggestionState.getDefaultStates());
+				List<Document> states = event.getDatabase().getGuildById(event.getGuild().getIdLong(), Projections.include("suggestion.states")).getEmbedded(List.of("suggestion", "states"), SuggestionState.getDefaultStates());
 				Suggestion suggestion = Suggestion.fromData(select.getSelected());
 
-				event.reply(suggestion.getEmbed(suggestion.getFullState(states))).queue();
+				event.reply(suggestion.getEmbed(event.getShardManager(), suggestion.getFullState(states))).queue();
 			});
 
 			paged.execute(event);
 		} else {
-			Document suggestionData = this.database.getSuggestionById(id, projection);
+			Document suggestionData = event.getDatabase().getSuggestionById(id, projection);
 			if (suggestionData == null) {
 				event.replyFailure("I could not find that suggestion").queue();
 				return;
 			}
 
-			List<Document> states = this.database.getGuildById(event.getGuild().getIdLong(), Projections.include("suggestion.states")).getEmbedded(List.of("suggestion", "states"), SuggestionState.getDefaultStates());
+			List<Document> states = event.getDatabase().getGuildById(event.getGuild().getIdLong(), Projections.include("suggestion.states")).getEmbedded(List.of("suggestion", "states"), SuggestionState.getDefaultStates());
 			Suggestion suggestion = Suggestion.fromData(suggestionData);
 
-			event.reply(suggestion.getEmbed(suggestion.getFullState(states))).queue();
+			event.reply(suggestion.getEmbed(event.getShardManager(), suggestion.getFullState(states))).queue();
 		}
 	}
 	
@@ -358,7 +355,7 @@ public class SuggestionCommand extends Sx4Command {
 			defaultStates.add(stateData);
 			
 			List<Bson> update = List.of(Operators.set("suggestion.states", Operators.cond(Operators.and(Operators.exists("$suggestion.states"), Operators.ne(Operators.filter("$suggestion.states", Operators.eq("$$this.dataName", dataName)), Collections.EMPTY_LIST)), "$suggestion.states", Operators.cond(Operators.extinct("$suggestion.states"), defaultStates, Operators.concatArrays("$suggestion.states", List.of(stateData))))));
-			this.database.updateGuildById(event.getGuild().getIdLong(), update).whenComplete((result, exception) -> {
+			event.getDatabase().updateGuildById(event.getGuild().getIdLong(), update).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
@@ -378,7 +375,7 @@ public class SuggestionCommand extends Sx4Command {
 		@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 		public void remove(Sx4CommandEvent event, @Argument(value="state name | all", endless=true) @Options("all") Alternative<String> option) {
 			if (option.isAlternative()) {
-				this.database.updateGuildById(event.getGuild().getIdLong(), Updates.unset("suggestion.states")).whenComplete((result, exception) -> {
+				event.getDatabase().updateGuildById(event.getGuild().getIdLong(), Updates.unset("suggestion.states")).whenComplete((result, exception) -> {
 					if (ExceptionUtility.sendExceptionally(event, exception)) {
 						return;
 					}
@@ -395,7 +392,7 @@ public class SuggestionCommand extends Sx4Command {
 				
 				FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("suggestion.states"));
 				List<Bson> update = List.of(Operators.set("suggestion.states", Operators.cond(Operators.and(Operators.exists("$suggestion.states"), Operators.ne(Operators.size("$suggestion.states"), 1)), Operators.filter("$suggestion.states", Operators.ne("$$this.dataName", dataName)), "$suggestion.states")));
-				this.database.findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
+				event.getDatabase().findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
 					if (ExceptionUtility.sendExceptionally(event, exception)) {
 						return;
 					}

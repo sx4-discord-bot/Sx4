@@ -1,5 +1,6 @@
 package com.sx4.bot.paged;
 
+import com.sx4.bot.core.Sx4;
 import com.sx4.bot.paged.PagedResult.SelectType;
 import com.sx4.bot.utility.NumberUtility;
 import net.dv8tion.jda.api.Permission;
@@ -16,8 +17,12 @@ import java.util.EnumSet;
 import java.util.List;
 
 public class PagedHandler extends ListenerAdapter {
-	
-	private final PagedManager manager = PagedManager.get();
+
+	private final Sx4 bot;
+
+	public PagedHandler(Sx4 bot) {
+		this.bot = bot;
+	}
 	
 	private final List<String> next = List.of("n", "next", "next page");
 	private final List<String> previous = List.of("p", "previous", "previous page");
@@ -34,7 +39,7 @@ public class PagedHandler extends ListenerAdapter {
 		MessageChannel channel = message.getChannel();
 		User author = message.getAuthor();
 		
-		PagedResult<?> pagedResult = this.manager.getPagedResult(channel.getIdLong(), author.getIdLong());
+		PagedResult<?> pagedResult = this.bot.getPagedManager().getPagedResult(channel.getIdLong(), author.getIdLong());
 		if (pagedResult == null) {
 			return;
 		}

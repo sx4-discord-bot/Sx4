@@ -31,9 +31,9 @@ public class ResizeCommand extends Sx4Command {
 			.addQuery("w", width)
 			.addQuery("h", height)
 			.addQuery("image", imageUrl)
-			.build();
+			.build(event.getConfig().getImageWebserver());
 
-		event.getClient().newCall(request).enqueue((HttpCallback) response -> {
+		event.getHttpClient().newCall(request).enqueue((HttpCallback) response -> {
 			ImageUtility.getImageMessage(event, response, (body, error) -> {
 				if (error == ImageError.INVALID_QUERY_VALUE) {
 					return event.replyFailure(body.getString("message"));

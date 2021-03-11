@@ -26,9 +26,9 @@ public class WhoWouldWinCommand extends Sx4Command {
 		Request request = new ImageRequest("www")
 			.addQuery("first_image", firstImageUrl)
 			.addQuery("second_image", secondImageUrl)
-			.build();
+			.build(event.getConfig().getImageWebserver());
 
-		event.getClient().newCall(request).enqueue((HttpCallback) response -> ImageUtility.getImageMessage(event, response).queue());
+		event.getHttpClient().newCall(request).enqueue((HttpCallback) response -> ImageUtility.getImageMessage(event, response).queue());
 	}
 
 }

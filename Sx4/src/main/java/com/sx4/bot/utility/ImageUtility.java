@@ -2,7 +2,6 @@ package com.sx4.bot.utility;
 
 import com.jockie.bot.core.command.impl.CommandEvent;
 import com.sx4.bot.config.Config;
-import com.sx4.bot.core.Sx4;
 import com.sx4.bot.entities.image.ImageError;
 import net.dv8tion.jda.api.entities.*;
 import net.dv8tion.jda.api.requests.restaction.MessageAction;
@@ -70,7 +69,7 @@ public class ImageUtility {
 	public static String escapeMentions(Guild guild, String text) {
 		Matcher userMatcher = SearchUtility.USER_MENTION.matcher(text);
 		while (userMatcher.find()) {
-			User user = Sx4.get().getShardManager().getUserById(userMatcher.group(1));
+			User user = guild.getJDA().getShardManager().getUserById(userMatcher.group(1));
 			if (user != null) {
 				Member member = guild.getMember(user);
 				String name = member == null ? user.getName() : member.getEffectiveName();

@@ -51,7 +51,7 @@ public class LoggerCommand extends Sx4Command {
         Bson loggers = Operators.ifNull("$logger.loggers", Collections.EMPTY_LIST);
         Bson filter = Operators.filter(loggers, Operators.eq("$$this.id", channel.getIdLong()));
         List<Bson> update = List.of(Operators.set("logger.loggers", Operators.cond(Operators.isEmpty(filter), Operators.concatArrays(List.of(new Document("id", channel.getIdLong())), Operators.filter(loggers, Operators.ne("$$this.id", channel.getIdLong()))), "$logger.loggers")));
-        this.database.updateGuildById(event.getGuild().getIdLong(), update).whenComplete((result, exception) -> {
+        event.getDatabase().updateGuildById(event.getGuild().getIdLong(), update).whenComplete((result, exception) -> {
             if (ExceptionUtility.sendExceptionally(event, exception)) {
                 return;
             }
@@ -74,7 +74,7 @@ public class LoggerCommand extends Sx4Command {
         String mention = channel.getAsMention();
 
         List<Bson> update = List.of(Operators.set("logger.loggers", Operators.filter(Operators.ifNull("$logger.loggers", Collections.EMPTY_LIST), Operators.ne("$$this.id", channel.getIdLong()))));
-        this.database.updateGuildById(event.getGuild().getIdLong(), update).whenComplete((result, exception) -> {
+        event.getDatabase().updateGuildById(event.getGuild().getIdLong(), update).whenComplete((result, exception) -> {
             if (ExceptionUtility.sendExceptionally(event, exception)) {
                 return;
             }
@@ -100,7 +100,7 @@ public class LoggerCommand extends Sx4Command {
         List<Bson> update = List.of(Operators.set("logger.loggers", Operators.cond(Operators.isEmpty(filter), "$logger.loggers", Operators.concatArrays(Operators.cond(Operators.ifNull(Operators.first(Operators.map(filter, "$$this.enabled")), true), List.of(Operators.mergeObjects(Operators.first(filter), new Document("enabled", false))), List.of(Operators.removeObject(Operators.first(filter), "enabled"))), Operators.filter(filter, Operators.ne("$$this.id", channel.getIdLong()))))));
 
         FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER).projection(Projections.include("logger.loggers"));
-        this.database.findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
+        event.getDatabase().findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
             if (ExceptionUtility.sendExceptionally(event, exception)) {
                 return;
             }
@@ -118,7 +118,7 @@ public class LoggerCommand extends Sx4Command {
                 return;
             }
 
-            event.replyFormat("The logger in %s is now **%s** %s", channel.getAsMention(), logger.get("enabled", true) ? "enabled" : "disabled", this.config.getSuccessEmote()).queue();
+            event.replyFormat("The logger in %s is now **%s** %s", channel.getAsMention(), logger.get("enabled", true) ? "enabled" : "disabled", event.getConfig().getSuccessEmote()).queue();
         });
     }
 
@@ -151,7 +151,7 @@ public class LoggerCommand extends Sx4Command {
             List<Bson> update = List.of(Operators.set("logger.loggers", Operators.cond(Operators.or(Operators.isEmpty(filter), Operators.eq(Operators.toLong(Operators.bitwiseAnd(currentEvents, raw)), raw)), "$logger.loggers", Operators.concatArrays(List.of(Operators.mergeObjects(Operators.first(filter), new Document("events", Operators.toLong(Operators.bitwiseOr(raw, currentEvents))))), Operators.filter(currentLoggers, Operators.ne("$$this.id", channel.getIdLong()))))));
 
             FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().projection(Projections.include("logger.loggers")).returnDocument(ReturnDocument.BEFORE);
-            this.database.findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
+            event.getDatabase().findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
                 if (ExceptionUtility.sendExceptionally(event, exception)) {
                     return;
                 }
@@ -194,7 +194,7 @@ public class LoggerCommand extends Sx4Command {
             List<Bson> update = List.of(Operators.set("logger.loggers", Operators.cond(Operators.or(Operators.isEmpty(filter), Operators.eq(newEvents, currentEvents)), "$logger.loggers", Operators.concatArrays(List.of(Operators.mergeObjects(Operators.first(filter), new Document("events", newEvents))), Operators.filter(currentLoggers, Operators.ne("$$this.id", channel.getIdLong()))))));
 
             FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().projection(Projections.include("logger.loggers")).returnDocument(ReturnDocument.BEFORE);
-            this.database.findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
+            event.getDatabase().findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
                 if (ExceptionUtility.sendExceptionally(event, exception)) {
                     return;
                 }
@@ -233,7 +233,7 @@ public class LoggerCommand extends Sx4Command {
             Bson currentLoggers = Operators.ifNull("$logger.loggers", Collections.EMPTY_LIST);
             Bson filter = Operators.filter(currentLoggers, Operators.eq("$$this.id", channel.getIdLong()));
             List<Bson> update = List.of(Operators.set("logger.loggers", Operators.cond(Operators.isEmpty(filter), "$logger.loggers", Operators.concatArrays(List.of(Operators.mergeObjects(Operators.first(filter), new Document("events", LoggerEvent.getRaw(events)))), Operators.filter(currentLoggers, Operators.ne("$$this.id", channel.getIdLong()))))));
-            this.database.updateGuildById(event.getGuild().getIdLong(), update).whenComplete((result, exception) -> {
+            event.getDatabase().updateGuildById(event.getGuild().getIdLong(), update).whenComplete((result, exception) -> {
                 if (ExceptionUtility.sendExceptionally(event, exception)) {
                     return;
                 }
@@ -251,7 +251,7 @@ public class LoggerCommand extends Sx4Command {
         @CommandId(61)
         @Examples({"logger events list"})
         public void list(Sx4CommandEvent event) {
-            PagedResult<LoggerEvent> paged = new PagedResult<>(Arrays.asList(LoggerEvent.values()))
+            PagedResult<LoggerEvent> paged = new PagedResult<>(event.getBot(), Arrays.asList(LoggerEvent.values()))
                 .setPerPage(15)
                 .setAuthor("Events List", null, event.getGuild().getIconUrl())
                 .setIndexed(false);
@@ -287,7 +287,7 @@ public class LoggerCommand extends Sx4Command {
                 return;
             }
 
-            PagedResult<LoggerCategory> paged = new PagedResult<>(new ArrayList<>(common))
+            PagedResult<LoggerCategory> paged = new PagedResult<>(event.getBot(), new ArrayList<>(common))
                 .setAuthor("Conflicting Types", null, event.getGuild().getIconUrl())
                 .setDisplayFunction(LoggerCategory::getName)
                 .setTimeout(60)
@@ -312,7 +312,7 @@ public class LoggerCommand extends Sx4Command {
                 List<Bson> update = List.of(Operators.set("logger.loggers", Operators.cond(Operators.isEmpty(loggerFilter), "$logger.loggers", Operators.concatArrays(List.of(Operators.mergeObjects(Operators.first(loggerFilter), new Document("blacklist", Operators.mergeObjects(blacklistMap, new Document("entities", Operators.concatArrays(List.of(Operators.mergeObjects(Operators.ifNull(Operators.first(entityFilter), Database.EMPTY_DOCUMENT), new Document("id", id).append("events", eventsRaw).append("type", category.getType()))), Operators.filter(entitiesMap, Operators.ne("$$this.id", id)))))))), Operators.filter("$logger.loggers", Operators.ne("$$this.id", channel.getIdLong()))))));
 
                 FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("logger.loggers"));
-                this.database.findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
+                event.getDatabase().findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
                    if (ExceptionUtility.sendExceptionally(event, exception)) {
                        return;
                    }
@@ -363,7 +363,7 @@ public class LoggerCommand extends Sx4Command {
                 return;
             }
 
-            PagedResult<LoggerCategory> paged = new PagedResult<>(new ArrayList<>(common))
+            PagedResult<LoggerCategory> paged = new PagedResult<>(event.getBot(), new ArrayList<>(common))
                 .setAuthor("Conflicting Types", null, event.getGuild().getIconUrl())
                 .setDisplayFunction(LoggerCategory::getName)
                 .setTimeout(60)
@@ -389,7 +389,7 @@ public class LoggerCommand extends Sx4Command {
                 List<Bson> update = List.of(Operators.set("logger.loggers", Operators.cond(Operators.isEmpty(loggerFilter), "$logger.loggers", Operators.concatArrays(List.of(Operators.mergeObjects(Operators.first(loggerFilter), new Document("blacklist", Operators.mergeObjects(blacklistMap, new Document("entities", Operators.concatArrays(List.of(Operators.mergeObjects(Operators.ifNull(Operators.first(entityFilter), new Document("id", id).append("type", category.getType())), new Document("events", Operators.toLong(Operators.bitwiseOr(eventsRaw, currentEvents))))), Operators.filter(entitiesMap, Operators.ne("$$this.id", id)))))))), Operators.filter("$logger.loggers", Operators.ne("$$this.id", channel.getIdLong()))))));
 
                 FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("logger.loggers"));
-                this.database.findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
+                event.getDatabase().findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
                     if (ExceptionUtility.sendExceptionally(event, exception)) {
                         return;
                     }

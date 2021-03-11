@@ -53,8 +53,8 @@ public class Auction<Type extends Item> {
 		return this.itemStack;
 	}
 	
-	public CompletableFuture<DeleteResult> delete() {
-		return Database.get().deleteAuctionById(this.id);
+	public CompletableFuture<DeleteResult> delete(Database database) {
+		return database.deleteAuctionById(this.id);
 	}
 	
 }

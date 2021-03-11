@@ -26,9 +26,9 @@ public class ScrollCommand extends Sx4Command {
 	public void onCommand(Sx4CommandEvent event, @Argument(value="text", endless=true) @Limit(max=45) String text) {
 		Request request = new ImageRequest("scroll")
 			.addQuery("text", text)
-			.build();
+			.build(event.getConfig().getImageWebserver());
 
-		event.getClient().newCall(request).enqueue((HttpCallback) response -> ImageUtility.getImageMessage(event, response).queue());
+		event.getHttpClient().newCall(request).enqueue((HttpCallback) response -> ImageUtility.getImageMessage(event, response).queue());
 	}
 
 }

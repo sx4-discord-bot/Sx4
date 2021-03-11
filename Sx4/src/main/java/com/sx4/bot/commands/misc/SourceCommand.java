@@ -37,7 +37,7 @@ public class SourceCommand extends Sx4Command {
 			.url("https://raw.githubusercontent.com/sx4-discord-bot/Sx4/" + fullPath)
 			.build();
 
-		event.getClient().newCall(request).enqueue((HttpCallback) response -> {
+		event.getHttpClient().newCall(request).enqueue((HttpCallback) response -> {
 			String code = response.body().string();
 			String[] lines = code.split("\n");
 

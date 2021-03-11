@@ -4,7 +4,7 @@ import com.sx4.api.endpoints.PatreonEndpoint;
 import com.sx4.api.endpoints.RedirectEndpoint;
 import com.sx4.api.endpoints.YouTubeEndpoint;
 import com.sx4.api.exceptions.UncaughtExceptionHandler;
-import com.sx4.bot.config.Config;
+import com.sx4.bot.core.Sx4;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.server.handler.ErrorHandler;
@@ -20,17 +20,17 @@ import java.io.Writer;
 
 public class Sx4Server {
 	
-	public static void initiateWebserver() throws Exception {
+	public static void initiateWebserver(Sx4 bot) throws Exception {
 		ServletContextHandler contextHandler = new ServletContextHandler();
 		contextHandler.setContextPath("/");
 
 		ResourceConfig resourceConfig = new ResourceConfig();
 		
 		resourceConfig.registerInstances(
-			new UncaughtExceptionHandler(),
-			new YouTubeEndpoint(),
-			new PatreonEndpoint(),
-			new RedirectEndpoint()
+			new UncaughtExceptionHandler(bot),
+			new YouTubeEndpoint(bot),
+			new PatreonEndpoint(bot),
+			new RedirectEndpoint(bot)
 		);
 		
 		resourceConfig.property(ServerProperties.PROCESSING_RESPONSE_ERRORS_ENABLED, true);
@@ -45,7 +45,7 @@ public class Sx4Server {
 		Server server = new Server();
 
 		ServerConnector connector = new ServerConnector(server);
-		connector.setPort(Config.get().getPort());
+		connector.setPort(bot.getConfig().getPort());
 		
 		server.setErrorHandler(new ErrorHandler() {
 			protected void handleErrorPage(HttpServletRequest request, Writer writer, int code, String message) throws IOException {

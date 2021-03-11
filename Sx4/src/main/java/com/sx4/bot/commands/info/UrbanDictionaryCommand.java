@@ -69,7 +69,7 @@ public class UrbanDictionaryCommand extends Sx4Command {
 			.url("http://api.urbandictionary.com/v0/define?term=" + URLEncoder.encode(query, StandardCharsets.UTF_8))
 			.build();
 
-		event.getClient().newCall(request).enqueue((HttpCallback) response -> {
+		event.getHttpClient().newCall(request).enqueue((HttpCallback) response -> {
 			Document json = Document.parse(response.body().string());
 
 			List<Document> list = json.getList("list", Document.class, Collections.emptyList());
@@ -78,7 +78,7 @@ public class UrbanDictionaryCommand extends Sx4Command {
 				return;
 			}
 
-			PagedResult<Document> paged = new PagedResult<>(list)
+			PagedResult<Document> paged = new PagedResult<>(event.getBot(), list)
 				.setPerPage(1)
 				.setCustomFunction(page -> {
 					EmbedBuilder embed = new EmbedBuilder();

@@ -1,10 +1,9 @@
 package com.sx4.api.endpoints;
 
-import com.sx4.bot.config.Config;
+import com.sx4.bot.core.Sx4;
 import com.sx4.bot.events.patreon.PatreonPledgeCreateEvent;
 import com.sx4.bot.events.patreon.PatreonPledgeDeleteEvent;
 import com.sx4.bot.events.patreon.PatreonPledgeUpdateEvent;
-import com.sx4.bot.managers.PatreonManager;
 import com.sx4.bot.utility.HmacUtility;
 import org.bson.Document;
 
@@ -18,13 +17,19 @@ import java.util.List;
 
 @Path("api")
 public class PatreonEndpoint {
+
+	private final Sx4 bot;
+
+	public PatreonEndpoint(Sx4 bot) {
+		this.bot = bot;
+	}
 	
 	@POST
 	@Path("patreon")
 	public Response postPatreon(final String body, @HeaderParam("X-Patreon-Signature") final String signature, @HeaderParam("X-Patreon-Event") final String event) {
 		String hash;
 		try {
-			hash = HmacUtility.getSignature(Config.get().getPatreonWebhookSecret(), body, HmacUtility.HMAC_MD5);
+			hash = HmacUtility.getSignature(this.bot.getConfig().getPatreonWebhookSecret(), body, HmacUtility.HMAC_MD5);
 		} catch (InvalidKeyException | NoSuchAlgorithmException e) {
 			return Response.status(500).build();
 		}
@@ -44,17 +49,16 @@ public class PatreonEndpoint {
 	    if (user != null) {
 	        String discordIdString = user.getEmbedded(List.of("attributes", "social_connections", "discord", "user_id"), String.class), id = user.getString("id");
 	        long discordId = discordIdString == null ? 0L : Long.parseLong(discordIdString);
-	       
-	        PatreonManager manager = PatreonManager.get();
+
 			switch (event) {
 				case "members:pledge:delete":
-					manager.onPatreon(new PatreonPledgeDeleteEvent(discordId, id));
+					this.bot.getPatreonManager().onPatreon(new PatreonPledgeDeleteEvent(discordId, id));
 					break;
 				case "members:pledge:update":
-					manager.onPatreon(new PatreonPledgeUpdateEvent(discordId, id, centsDonated));
+					this.bot.getPatreonManager().onPatreon(new PatreonPledgeUpdateEvent(discordId, id, centsDonated));
 					break;
 				case "members:pledge:create":
-					manager.onPatreon(new PatreonPledgeCreateEvent(discordId, id, centsDonated));
+					this.bot.getPatreonManager().onPatreon(new PatreonPledgeCreateEvent(discordId, id, centsDonated));
 					break;
 			}
 	    }

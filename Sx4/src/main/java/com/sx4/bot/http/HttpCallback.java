@@ -1,6 +1,5 @@
 package com.sx4.bot.http;
 
-import com.sx4.bot.utility.ExceptionUtility;
 import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.Response;
@@ -15,7 +14,6 @@ public interface HttpCallback extends Callback {
 	default void onFailure(Call call, IOException e) {
 		if (!call.isCanceled()) {
 			e.printStackTrace();
-			ExceptionUtility.sendErrorMessage(e);
 		}
 	}
 	
@@ -24,7 +22,6 @@ public interface HttpCallback extends Callback {
 			this.onResponse(response);
 		} catch (Exception e) {
 			e.printStackTrace();
-			ExceptionUtility.sendErrorMessage(e);
 		}
 	}
 }

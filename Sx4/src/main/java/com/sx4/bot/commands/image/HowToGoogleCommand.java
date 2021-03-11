@@ -27,9 +27,9 @@ public class HowToGoogleCommand extends Sx4Command {
 	public void onCommand(Sx4CommandEvent event, @Argument(value="query", endless=true) @Limit(max=50) String query) {
 		Request request = new ImageRequest("google")
 			.addQuery("q", query)
-			.build();
+			.build(event.getConfig().getImageWebserver());
 
-		event.getClient().newCall(request).enqueue((HttpCallback) response -> ImageUtility.getImageMessage(event, response).queue());
+		event.getHttpClient().newCall(request).enqueue((HttpCallback) response -> ImageUtility.getImageMessage(event, response).queue());
 	}
 
 }

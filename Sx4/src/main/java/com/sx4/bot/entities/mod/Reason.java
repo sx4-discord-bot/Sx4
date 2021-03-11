@@ -10,29 +10,31 @@ import java.util.List;
 
 public class Reason {
 
-	private final String unparsed;
+	private final String raw;
 	private final String parsed;
 	
-	public Reason(long guildId, String reason) {
-		this.unparsed = reason;
-		this.parsed = this.parse(guildId, reason);
+	public Reason(String raw, String parsed) {
+		this.raw = raw;
+		this.parsed = parsed;
 	}
 	
 	public Reason(String reason) {
-		this.unparsed = null;
+		this.raw = null;
 		this.parsed = reason;
 	}
 	
-	public String getUnparsed() {
-		return this.unparsed;
+	public String getRaw() {
+		return this.raw;
 	}
 	
 	public String getParsed() {
 		return this.parsed;
 	}
 
-	private String parse(long guildId, String reason) {
-		List<Document> templates = Database.get().getTemplates(Filters.eq("guildId", guildId), Projections.include("template", "reason")).into(new ArrayList<>());
+	public static Reason parse(Database database, long guildId, String reason) {
+		String raw = reason;
+
+		List<Document> templates = database.getTemplates(Filters.eq("guildId", guildId), Projections.include("template", "reason")).into(new ArrayList<>());
 		
 		int index = 0;
 		while ((index = reason.indexOf(':', index + 1)) != -1) {
@@ -71,7 +73,7 @@ public class Reason {
 			}
 		}
 		
-		return reason;
+		return new Reason(raw, reason);
 	}
 	
 }

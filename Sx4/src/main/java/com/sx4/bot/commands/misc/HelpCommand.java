@@ -37,7 +37,7 @@ public class HelpCommand extends Sx4Command {
 				.filter(category -> !category.getCommands(event.isAuthorDeveloper()).isEmpty())
 				.collect(Collectors.toList());
 			
-			PagedResult<Sx4Category> paged = new PagedResult<>(categories)
+			PagedResult<Sx4Category> paged = new PagedResult<>(event.getBot(), categories)
 				.setPerPage(categories.size())
 				.setSelect(SelectType.OBJECT)
 				.setSelectablePredicate((content, category) -> category.getName().equalsIgnoreCase(content) || Arrays.stream(category.getAliases()).anyMatch(content::equalsIgnoreCase))
@@ -62,7 +62,7 @@ public class HelpCommand extends Sx4Command {
 					.sorted(Comparator.comparing(a -> a.getCommandTrigger()))
 					.collect(Collectors.toList());
 				
-				PagedResult<Sx4Command> categoryPaged = HelpUtility.getCommandsPaged(categoryCommands)
+				PagedResult<Sx4Command> categoryPaged = HelpUtility.getCommandsPaged(event.getBot(), categoryCommands)
 					.setAuthor(category.getName(), null, event.getAuthor().getEffectiveAvatarUrl());
 				
 				categoryPaged.onSelect(categorySelect -> event.reply(HelpUtility.getHelpMessage(categorySelect.getSelected(), embed)).queue());
@@ -73,7 +73,7 @@ public class HelpCommand extends Sx4Command {
 			paged.execute(event);
 		} else {
 			Sx4Category category = SearchUtility.getModule(commandName);
-			List<Sx4Command> commands = SearchUtility.getCommands(commandName, event.isAuthorDeveloper());
+			List<Sx4Command> commands = SearchUtility.getCommands(event.getCommandListener(), commandName, event.isAuthorDeveloper());
 			
 			if (category != null) {
 				List<Sx4Command> categoryCommands = category.getCommands(event.isAuthorDeveloper()).stream()
@@ -81,14 +81,14 @@ public class HelpCommand extends Sx4Command {
 					.sorted(Comparator.comparing(a -> a.getCommandTrigger()))
 					.collect(Collectors.toList());
 				
-				PagedResult<Sx4Command> paged = HelpUtility.getCommandsPaged(categoryCommands)
+				PagedResult<Sx4Command> paged = HelpUtility.getCommandsPaged(event.getBot(), categoryCommands)
 					.setAuthor(category.getName(), null, event.getAuthor().getEffectiveAvatarUrl());
 				
 				paged.onSelect(select -> event.reply(HelpUtility.getHelpMessage(select.getSelected(), embed)).queue());
 				
 				paged.execute(event);
 			} else if (!commands.isEmpty()) {
-				PagedResult<Sx4Command> paged = new PagedResult<>(commands)
+				PagedResult<Sx4Command> paged = new PagedResult<>(event.getBot(), commands)
 					.setAuthor(commandName, null, event.getAuthor().getEffectiveAvatarUrl())
 					.setAutoSelect(true)
 					.setPerPage(15)

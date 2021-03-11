@@ -29,7 +29,7 @@ public class UnmuteCommand extends Sx4Command {
 	}
 	
 	public void onCommand(Sx4CommandEvent event, @Argument(value="user") Member member, @Argument(value="reason", endless=true, nullDefault=true) Reason reason) {
-		long roleId = this.database.getGuildById(event.getGuild().getIdLong(), Projections.include("mute.roleId")).getEmbedded(List.of("mute", "roleId"), 0L);
+		long roleId = event.getDatabase().getGuildById(event.getGuild().getIdLong(), Projections.include("mute.roleId")).getEmbedded(List.of("mute", "roleId"), 0L);
 		
 		Role role = roleId == 0L ? null : event.getGuild().getRoleById(roleId);
 		if (role == null || !member.getRoles().contains(role)) {
@@ -42,7 +42,7 @@ public class UnmuteCommand extends Sx4Command {
 			return;
 		}
 		
-		this.database.updateMemberById(member.getUser().getIdLong(), event.getGuild().getIdLong(), Updates.unset("mute.unmuteAt")).whenComplete((result, exception) -> {
+		event.getDatabase().updateMemberById(member.getUser().getIdLong(), event.getGuild().getIdLong(), Updates.unset("mute.unmuteAt")).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -50,8 +50,8 @@ public class UnmuteCommand extends Sx4Command {
 			event.getGuild().removeRoleFromMember(member, role).reason(ModUtility.getAuditReason(reason, event.getAuthor())).queue($ -> {
 				event.replySuccess("**" + member.getUser().getAsTag() + "** has been unmuted").queue();
 				
-				this.muteManager.deleteExecutor(event.getGuild().getIdLong(), member.getIdLong());
-				this.modManager.onModAction(new UnmuteEvent(event.getMember(), member.getUser(), reason));
+				event.getBot().getMuteManager().deleteExecutor(event.getGuild().getIdLong(), member.getIdLong());
+				event.getBot().getModActionManager().onModAction(new UnmuteEvent(event.getMember(), member.getUser(), reason));
 			});
 		});
 	}

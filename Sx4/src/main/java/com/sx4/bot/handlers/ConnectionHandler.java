@@ -7,9 +7,7 @@ import club.minnced.discord.webhook.send.WebhookEmbed.EmbedAuthor;
 import club.minnced.discord.webhook.send.WebhookEmbed.EmbedField;
 import club.minnced.discord.webhook.send.WebhookEmbed.EmbedFooter;
 import club.minnced.discord.webhook.send.WebhookEmbedBuilder;
-import com.sx4.bot.config.Config;
 import com.sx4.bot.core.Sx4;
-import com.sx4.bot.managers.*;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDA.ShardInfo;
 import net.dv8tion.jda.api.events.DisconnectEvent;
@@ -23,10 +21,18 @@ import java.time.Instant;
 import java.time.OffsetDateTime;
 
 public class ConnectionHandler extends ListenerAdapter {
-	
-	private final WebhookClient eventsWebhook = new WebhookClientBuilder(Config.get().getEventsWebhookId(), Config.get().getEventsWebhookToken())
-		.setHttpClient(Sx4.getClient())
-		.build();
+
+	private final WebhookClient eventsWebhook;
+
+	private final Sx4 bot;
+
+	public ConnectionHandler(Sx4 bot) {
+		this.bot = bot;
+
+		this.eventsWebhook = new WebhookClientBuilder(this.bot.getConfig().getEventsWebhookId(), this.bot.getConfig().getEventsWebhookToken())
+			.setHttpClient(this.bot.getHttpClient())
+			.build();
+	}
 	
 	private int readyEventsCalled = 0;
 	
@@ -55,27 +61,27 @@ public class ConnectionHandler extends ListenerAdapter {
 		JDA jda = event.getJDA();
 		
 		if (++this.readyEventsCalled == jda.getShardInfo().getShardTotal()) {
-			ReminderManager.get().ensureReminders();
-			MuteManager.get().ensureMutes();
-			TemporaryBanManager.get().ensureBans();
-			GiveawayManager.get().ensureGiveaways();
-			AntiRegexManager.get().ensureAttempts();
-			PremiumManager.get().ensurePremiumExpiry();
+			this.bot.getReminderManager().ensureReminders();
+			this.bot.getMuteManager().ensureMutes();
+			this.bot.getTemporaryBanManager().ensureBans();
+			this.bot.getGiveawayManager().ensureGiveaways();
+			this.bot.getAntiRegexManager().ensureAttempts();
+			this.bot.getPremiumManager().ensurePremiumExpiry();
 		}
 		
-		this.eventsWebhook.send(this.getEmbed(jda, "Ready", Config.get().getGreen()));
+		this.eventsWebhook.send(this.getEmbed(jda, "Ready", this.bot.getConfig().getGreen()));
 	}
 	
 	public void onReconnected(ReconnectedEvent event) {
-		this.eventsWebhook.send(this.getEmbed(event.getJDA(), "Reconnect", Config.get().getGreen()));
+		this.eventsWebhook.send(this.getEmbed(event.getJDA(), "Reconnect", this.bot.getConfig().getGreen()));
 	}
 	
 	public void onResumed(ResumedEvent event) {
-		this.eventsWebhook.send(this.getEmbed(event.getJDA(), "Resume", Config.get().getGreen()));
+		this.eventsWebhook.send(this.getEmbed(event.getJDA(), "Resume", this.bot.getConfig().getGreen()));
 	}
 	
 	public void onDisconnect(DisconnectEvent event) {
-		this.eventsWebhook.send(this.getEmbed(event.getJDA(), "Disconnect", event.getCloseCode(), event.getTimeDisconnected(), Config.get().getRed()));
+		this.eventsWebhook.send(this.getEmbed(event.getJDA(), "Disconnect", event.getCloseCode(), event.getTimeDisconnected(), this.bot.getConfig().getRed()));
 	}
 	
 }

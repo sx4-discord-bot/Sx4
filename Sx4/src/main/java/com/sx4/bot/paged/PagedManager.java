@@ -14,12 +14,6 @@ import java.util.concurrent.TimeUnit;
 
 public class PagedManager {
 	
-	private static final PagedManager INSTANCE = new PagedManager();
-	
-	public static PagedManager get() {
-		return PagedManager.INSTANCE;
-	}
-	
 	private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
 	
 	private final Map<Long, Map<Long, PagedResult<?>>> pagedResults;

@@ -89,12 +89,12 @@ public class GiveawayCommand extends Sx4Command {
 					.append("duration", seconds)
 					.append("item", item);
 				
-				this.database.insertGiveaway(data).whenComplete((result, exception) -> {
+				event.getDatabase().insertGiveaway(data).whenComplete((result, exception) -> {
 					if (ExceptionUtility.sendExceptionally(event, exception)) {
 						return;
 					}
 					
-					this.giveawayManager.putGiveaway(data, seconds);
+					event.getBot().getGiveawayManager().putGiveaway(data, seconds);
 					
 					event.reply("Your giveaway has been created in " + channel.getAsMention() + " :tada:").queue();
 				});
@@ -117,7 +117,7 @@ public class GiveawayCommand extends Sx4Command {
 			CompletableFuture<Boolean> future = new CompletableFuture<>();
 			
 			event.reply("What channel would you like to start the giveaway in? Type `cancel` at anytime to cancel the creation.").queue(message -> {
-				Waiter<GuildMessageReceivedEvent> waiter = new Waiter<>(GuildMessageReceivedEvent.class)
+				Waiter<GuildMessageReceivedEvent> waiter = new Waiter<>(event.getBot(), GuildMessageReceivedEvent.class)
 					.setUnique(event.getAuthor().getIdLong(), event.getChannel().getIdLong())
 					.setCancelPredicate(e -> e.getMessage().getContentRaw().equalsIgnoreCase("cancel"))
 					.setTimeout(30)
@@ -163,7 +163,7 @@ public class GiveawayCommand extends Sx4Command {
 			CompletableFuture<Boolean> future = new CompletableFuture<>();
 			
 			event.reply("How many winners would you like the giveaway to have?").queue(message -> {
-				Waiter<GuildMessageReceivedEvent> waiter = new Waiter<>(GuildMessageReceivedEvent.class)
+				Waiter<GuildMessageReceivedEvent> waiter = new Waiter<>(event.getBot(), GuildMessageReceivedEvent.class)
 					.setCancelPredicate(e -> e.getMessage().getContentRaw().equalsIgnoreCase("cancel"))
 					.setTimeout(30)
 					.setUnique(event.getAuthor().getIdLong(), event.getChannel().getIdLong())
@@ -216,7 +216,7 @@ public class GiveawayCommand extends Sx4Command {
 			CompletableFuture<Boolean> future = new CompletableFuture<>();
 			
 			event.reply("How long would you like the giveaway to last?").queue(message -> {
-				Waiter<GuildMessageReceivedEvent> waiter = new Waiter<>(GuildMessageReceivedEvent.class)
+				Waiter<GuildMessageReceivedEvent> waiter = new Waiter<>(event.getBot(), GuildMessageReceivedEvent.class)
 					.setCancelPredicate(e -> e.getMessage().getContentRaw().equalsIgnoreCase("cancel"))
 					.setTimeout(30)
 					.setUnique(event.getAuthor().getIdLong(), event.getChannel().getIdLong())
@@ -262,7 +262,7 @@ public class GiveawayCommand extends Sx4Command {
 			CompletableFuture<Boolean> future = new CompletableFuture<>();
 			
 			event.reply("What would you like to giveaway?").queue(message -> {
-				Waiter<GuildMessageReceivedEvent> waiter = new Waiter<>(GuildMessageReceivedEvent.class)
+				Waiter<GuildMessageReceivedEvent> waiter = new Waiter<>(event.getBot(), GuildMessageReceivedEvent.class)
 					.setCancelPredicate(e -> e.getMessage().getContentRaw().equalsIgnoreCase("cancel"))
 					.setTimeout(30)
 					.setUnique(event.getAuthor().getIdLong(), event.getChannel().getIdLong())
@@ -314,12 +314,12 @@ public class GiveawayCommand extends Sx4Command {
 					.append("duration", durationFuture)
 					.append("item", itemFuture);
 					
-				this.database.insertGiveaway(data).whenComplete((result, exception) -> {
+				event.getDatabase().insertGiveaway(data).whenComplete((result, exception) -> {
 					if (ExceptionUtility.sendExceptionally(event, exception)) {
 						return;
 					}
 					
-					this.giveawayManager.putGiveaway(data, durationFuture);
+					event.getBot().getGiveawayManager().putGiveaway(data, durationFuture);
 					
 					event.reply("Your giveaway has been created in " + channelFuture.getAsMention() + " :tada:").queue();
 				});
@@ -341,7 +341,7 @@ public class GiveawayCommand extends Sx4Command {
 		);	
 		
 		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.exclude("winners"));
-		this.database.findAndUpdateGiveawayById(messageArgument.getMessageId(), update, options).whenComplete((data, exception) -> {
+		event.getDatabase().findAndUpdateGiveawayById(messageArgument.getMessageId(), update, options).whenComplete((data, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -366,7 +366,7 @@ public class GiveawayCommand extends Sx4Command {
 			
 			channel.editMessageById(data.getLong("_id"), this.getEmbed(data.getInteger("winnersAmount"), seconds, data.getString("item"))).queue();
 			
-			this.giveawayManager.putGiveaway(data, seconds);
+			event.getBot().getGiveawayManager().putGiveaway(data, seconds);
 			
 			event.replySuccess("That giveaway has been restarted").queue();
 		});
@@ -377,7 +377,7 @@ public class GiveawayCommand extends Sx4Command {
 	@Examples({"giveaway reroll 727224132202397726"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void reroll(Sx4CommandEvent event, @Argument(value="message id") MessageArgument messageArgument) {
-		Document data = this.database.getGiveawayById(messageArgument.getMessageId());
+		Document data = event.getDatabase().getGiveawayById(messageArgument.getMessageId());
 		if (data == null) {
 			event.replyFailure("There is no giveaway with that id").queue();
 			return;
@@ -388,7 +388,7 @@ public class GiveawayCommand extends Sx4Command {
 			return;
 		}
 		
-		this.giveawayManager.endGiveaway(data, true);
+		event.getBot().getGiveawayManager().endGiveaway(data, true);
 	}
 	
 	@Command(value="end", description="Ends an active giveaway early")
@@ -396,7 +396,7 @@ public class GiveawayCommand extends Sx4Command {
 	@Examples({"giveaway end 727224132202397726"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void end(Sx4CommandEvent event, @Argument(value="message id") MessageArgument messageArgument) {
-		Document data = this.database.getGiveawayById(messageArgument.getMessageId());
+		Document data = event.getDatabase().getGiveawayById(messageArgument.getMessageId());
 		if (data == null) {
 			event.replyFailure("There is no giveaway with that id").queue();
 			return;
@@ -407,7 +407,7 @@ public class GiveawayCommand extends Sx4Command {
 			return;
 		}
 		
-		this.giveawayManager.endGiveaway(data, true);
+		event.getBot().getGiveawayManager().endGiveaway(data, true);
 	}
 	
 	@Command(value="delete", aliases={"remove"}, description="Deletes a giveaway")
@@ -418,7 +418,7 @@ public class GiveawayCommand extends Sx4Command {
 		if (option.isAlternative()) {
 			event.reply(event.getAuthor().getName() + ", are you sure you want to delete **all** giveaways in this server? (Yes or No)").submit()
 				.thenCompose(message -> {
-					Waiter<GuildMessageReceivedEvent> waiter = new Waiter<>(GuildMessageReceivedEvent.class)
+					Waiter<GuildMessageReceivedEvent> waiter = new Waiter<>(event.getBot(), GuildMessageReceivedEvent.class)
 						.setPredicate(e -> e.getMessage().getContentRaw().equalsIgnoreCase("yes"))
 						.setOppositeCancelPredicate()
 						.setUnique(event.getAuthor().getIdLong(), event.getChannel().getIdLong())
@@ -432,7 +432,7 @@ public class GiveawayCommand extends Sx4Command {
 					
 					return waiter.future();
 				})
-				.thenCompose(e -> this.database.deleteManyGiveaways(Filters.eq("guildId", event.getGuild().getIdLong())))
+				.thenCompose(e -> event.getDatabase().deleteManyGiveaways(Filters.eq("guildId", event.getGuild().getIdLong())))
 				.whenComplete((result, exception) -> {
 					if (ExceptionUtility.sendExceptionally(event, exception)) {
 						return;
@@ -447,7 +447,7 @@ public class GiveawayCommand extends Sx4Command {
 				});
 		} else {
 			long messageId = option.getValue().getMessageId();
-			this.database.deleteGiveawayById(messageId).whenComplete((result, exception) -> {
+			event.getDatabase().deleteGiveawayById(messageId).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
@@ -466,13 +466,13 @@ public class GiveawayCommand extends Sx4Command {
 	@CommandId(52)
 	@Examples({"giveaway list"})
 	public void list(Sx4CommandEvent event) {
-		List<Document> giveaways = this.database.getGiveaways(Filters.eq("guildId", event.getGuild().getIdLong())).into(new ArrayList<>());
+		List<Document> giveaways = event.getDatabase().getGiveaways(Filters.eq("guildId", event.getGuild().getIdLong())).into(new ArrayList<>());
 		if (giveaways.isEmpty()) {
 			event.replyFailure("No giveaways have been setup in this server").queue();
 			return;
 		}
 		
-		PagedResult<Document> paged = new PagedResult<>(giveaways)
+		PagedResult<Document> paged = new PagedResult<>(event.getBot(), giveaways)
 			.setAuthor("Giveaways", null, event.getGuild().getIconUrl())
 			.setDisplayFunction(data -> {
 				long endAt = data.getLong("endAt"), timeNow = Clock.systemUTC().instant().getEpochSecond();

@@ -26,9 +26,9 @@ public class BeautifulCommand extends Sx4Command {
 	public void onCommand(Sx4CommandEvent event, @Argument(value="image url", endless=true, acceptEmpty=true) @ImageUrl String imageUrl) {
 		Request request = new ImageRequest("beautiful")
 			.addQuery("image", imageUrl)
-			.build();
+			.build(event.getConfig().getImageWebserver());
 
-		event.getClient().newCall(request).enqueue((HttpCallback) response -> ImageUtility.getImageMessage(event, response).queue());
+		event.getHttpClient().newCall(request).enqueue((HttpCallback) response -> ImageUtility.getImageMessage(event, response).queue());
 	}
 
 }

@@ -34,13 +34,13 @@ public class PrefixCommand extends Sx4Command {
 	}
 
 	public void onCommand(Sx4CommandEvent event) {
-		List<String> guildPrefixes = this.database.getGuildById(event.getGuild().getIdLong(), Projections.include("prefixes")).getList("prefixes", String.class, Collections.emptyList());
-		List<String> userPrefixes = this.database.getUserById(event.getAuthor().getIdLong(), Projections.include("prefixes")).getList("prefixes", String.class, Collections.emptyList());
+		List<String> guildPrefixes = event.getDatabase().getGuildById(event.getGuild().getIdLong(), Projections.include("prefixes")).getList("prefixes", String.class, Collections.emptyList());
+		List<String> userPrefixes = event.getDatabase().getUserById(event.getAuthor().getIdLong(), Projections.include("prefixes")).getList("prefixes", String.class, Collections.emptyList());
 
 		EmbedBuilder embed = new EmbedBuilder();
 		embed.setAuthor("Prefix Settings", null, event.getAuthor().getEffectiveAvatarUrl());
 		embed.setColor(event.getMember().getColor());
-		embed.addField("Default Prefixes", String.join(", ", this.config.getDefaultPrefixes()), false);
+		embed.addField("Default Prefixes", String.join(", ", event.getConfig().getDefaultPrefixes()), false);
 		embed.addField("Server Prefixes", guildPrefixes.isEmpty() ? "None" : String.join(", ", guildPrefixes), false);
 		embed.addField(event.getAuthor().getName() + "'s Prefixes", userPrefixes.isEmpty() ? "None" : String.join(", ", userPrefixes), false);
 
@@ -69,7 +69,7 @@ public class PrefixCommand extends Sx4Command {
 				return;
 			}
 
-			this.database.updateUserById(event.getAuthor().getIdLong(), Updates.set("prefixes", finalPrefixes)).whenComplete((result, exception) -> {
+			event.getDatabase().updateUserById(event.getAuthor().getIdLong(), Updates.set("prefixes", finalPrefixes)).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
@@ -94,8 +94,8 @@ public class PrefixCommand extends Sx4Command {
 				return;
 			}
 
-			List<Bson> update = List.of(Operators.set("prefixes", Operators.concatArrays(finalPrefixes, Operators.filter(Operators.ifNull("$prefixes", this.config.getDefaultPrefixes()), Operators.not(Operators.in("$$this", finalPrefixes))))));
-			this.database.updateUserById(event.getAuthor().getIdLong(), update).whenComplete((result, exception) -> {
+			List<Bson> update = List.of(Operators.set("prefixes", Operators.concatArrays(finalPrefixes, Operators.filter(Operators.ifNull("$prefixes", event.getConfig().getDefaultPrefixes()), Operators.not(Operators.in("$$this", finalPrefixes))))));
+			event.getDatabase().updateUserById(event.getAuthor().getIdLong(), update).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
@@ -116,7 +116,7 @@ public class PrefixCommand extends Sx4Command {
 			boolean all = prefixes.length == 1 && prefixes[0].equalsIgnoreCase("all");
 
 			Bson update = all ? Updates.unset("prefixes") : Updates.pullAll("prefixes", Arrays.asList(prefixes));
-			this.database.updateUserById(event.getAuthor().getIdLong(), update).whenComplete((result, exception) -> {
+			event.getDatabase().updateUserById(event.getAuthor().getIdLong(), update).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
@@ -156,7 +156,7 @@ public class PrefixCommand extends Sx4Command {
 				return;
 			}
 
-			this.database.updateGuildById(event.getGuild().getIdLong(), Updates.set("prefixes", finalPrefixes)).whenComplete((result, exception) -> {
+			event.getDatabase().updateGuildById(event.getGuild().getIdLong(), Updates.set("prefixes", finalPrefixes)).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
@@ -182,8 +182,8 @@ public class PrefixCommand extends Sx4Command {
 				return;
 			}
 
-			List<Bson> update = List.of(Operators.set("prefixes", Operators.concatArrays(finalPrefixes, Operators.filter(Operators.ifNull("$prefixes", this.config.getDefaultPrefixes()), Operators.not(Operators.in("$$this", finalPrefixes))))));
-			this.database.updateGuildById(event.getGuild().getIdLong(), update).whenComplete((result, exception) -> {
+			List<Bson> update = List.of(Operators.set("prefixes", Operators.concatArrays(finalPrefixes, Operators.filter(Operators.ifNull("$prefixes", event.getConfig().getDefaultPrefixes()), Operators.not(Operators.in("$$this", finalPrefixes))))));
+			event.getDatabase().updateGuildById(event.getGuild().getIdLong(), update).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
@@ -205,7 +205,7 @@ public class PrefixCommand extends Sx4Command {
 			boolean all = prefixes.length == 1 && prefixes[0].equalsIgnoreCase("all");
 
 			Bson update = all ? Updates.unset("prefixes") : Updates.pullAll("prefixes", Arrays.asList(prefixes));
-			this.database.updateGuildById(event.getGuild().getIdLong(), update).whenComplete((result, exception) -> {
+			event.getDatabase().updateGuildById(event.getGuild().getIdLong(), update).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}

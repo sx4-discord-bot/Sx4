@@ -6,7 +6,6 @@ import com.jockie.bot.core.command.Command.Cooldown;
 import com.jockie.bot.core.utility.function.TriConsumer;
 import com.sx4.bot.annotations.command.*;
 import com.sx4.bot.category.ModuleCategory;
-import com.sx4.bot.core.Sx4;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.entities.mod.PartialEmote;
@@ -20,6 +19,7 @@ import net.dv8tion.jda.api.entities.Icon;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.exceptions.RateLimitedException;
+import okhttp3.OkHttpClient;
 import okhttp3.Request;
 
 import java.util.Arrays;
@@ -43,12 +43,12 @@ public class EmoteCommand extends Sx4Command {
 		event.replyHelp().queue();
 	}
 
-	private void getBytes(String url, TriConsumer<byte[], Boolean, Integer> bytes) {
+	private void getBytes(OkHttpClient httpClient, String url, TriConsumer<byte[], Boolean, Integer> bytes) {
 		Request request = new Request.Builder()
 			.url(url)
 			.build();
 
-		Sx4.getClient().newCall(request).enqueue((HttpCallback) response -> {
+		httpClient.newCall(request).enqueue((HttpCallback) response -> {
 			if (response.code() == 200) {
 				String contentType = response.header("Content-Type"), extension = null;
 				if (contentType != null && contentType.contains("/")) {
@@ -63,7 +63,7 @@ public class EmoteCommand extends Sx4Command {
 					String extension = url.substring(periodIndex + 1);
 
 					if (extension.equalsIgnoreCase("gif")) {
-						this.getBytes(url.substring(0, periodIndex + 1) + "png", bytes);
+						this.getBytes(httpClient, url.substring(0, periodIndex + 1) + "png", bytes);
 						return;
 					}
 				}
@@ -91,7 +91,7 @@ public class EmoteCommand extends Sx4Command {
 			return;
 		}
 
-		this.getBytes(emote.getUrl(), (bytes, animatedResponse, code) -> {
+		this.getBytes(event.getHttpClient(), emote.getUrl(), (bytes, animatedResponse, code) -> {
 			if (bytes == null) {
 				event.replyFailure("Failed to get url from the emote argument with status code: " + code).queue();
 				return;
@@ -172,7 +172,7 @@ public class EmoteCommand extends Sx4Command {
 			}
 
 			emote.getManager().setRoles(new HashSet<>(newRoles))
-				.flatMap($ -> event.replyFormat("The emote %s is now only whitelisted from those roles %s", emote.getAsMention(), this.config.getSuccessEmote()))
+				.flatMap($ -> event.replyFormat("The emote %s is now only whitelisted from those roles %s", emote.getAsMention(), event.getConfig().getSuccessEmote()))
 				.queue();
 		}
 
@@ -191,7 +191,7 @@ public class EmoteCommand extends Sx4Command {
 			currentRoles.add(role);
 
 			emote.getManager().setRoles(currentRoles)
-				.flatMap($ -> event.replyFormat("The emote %s is now whitelisted from that role %s", emote.getAsMention(), this.config.getSuccessEmote()))
+				.flatMap($ -> event.replyFormat("The emote %s is now whitelisted from that role %s", emote.getAsMention(), event.getConfig().getSuccessEmote()))
 				.queue();
 		}
 
@@ -210,7 +210,7 @@ public class EmoteCommand extends Sx4Command {
 			currentRoles.remove(role);
 
 			emote.getManager().setRoles(currentRoles)
-				.flatMap($ -> event.replyFormat("The emote %s is no longer whitelisted from that role %s", emote.getAsMention(), this.config.getSuccessEmote()))
+				.flatMap($ -> event.replyFormat("The emote %s is no longer whitelisted from that role %s", emote.getAsMention(), event.getConfig().getSuccessEmote()))
 				.queue();
 		}
 
@@ -221,7 +221,7 @@ public class EmoteCommand extends Sx4Command {
 		@BotPermissions(permissions={Permission.MANAGE_EMOTES})
 		public void remove(Sx4CommandEvent event, @Argument(value="emote") Emote emote) {
 			emote.getManager().setRoles(null)
-				.flatMap($ -> event.replyFormat("The emote %s no longer has any whitelisted roles %s", emote.getAsMention(), this.config.getSuccessEmote()))
+				.flatMap($ -> event.replyFormat("The emote %s no longer has any whitelisted roles %s", emote.getAsMention(), event.getConfig().getSuccessEmote()))
 				.queue();
 		}
 
@@ -234,7 +234,7 @@ public class EmoteCommand extends Sx4Command {
 				return;
 			}
 
-			PagedResult<Role> paged = new PagedResult<>(emote.getRoles())
+			PagedResult<Role> paged = new PagedResult<>(event.getBot(), emote.getRoles())
 				.setAuthor("Roles Whitelisted", null, event.getGuild().getIconUrl())
 				.setDisplayFunction(Role::getAsMention)
 				.setIndexed(false);

@@ -59,14 +59,14 @@ public class WarnCommand extends Sx4Command {
 			return;
 		}
 
-		ModUtility.warn(member, event.getMember(), reason).whenComplete((warning, exception) -> {
+		ModUtility.warn(event.getBot(), member, event.getMember(), reason).whenComplete((warning, exception) -> {
 			if (exception != null) {
 				event.replyFailure(exception.getMessage()).queue();
 			} else {
 				Warn warn = warning.getWarning();
 				Action action = warn.getAction();
 
-				event.replyFormat("**%s** has received a %s%s (%s warning) " + this.config.getSuccessEmote(), member.getUser().getAsTag(), action.getModAction().getName().toLowerCase(), action instanceof TimeAction ? " for " + TimeUtility.getTimeString(((TimeAction) action).getDuration()) : "", NumberUtility.getSuffixed(warn.getNumber())).queue();
+				event.replyFormat("**%s** has received a %s%s (%s warning) " + event.getConfig().getSuccessEmote(), member.getUser().getAsTag(), action.getModAction().getName().toLowerCase(), action instanceof TimeAction ? " for " + TimeUtility.getTimeString(((TimeAction) action).getDuration()) : "", NumberUtility.getSuffixed(warn.getNumber())).queue();
 			}
 		});
 	}
@@ -82,7 +82,7 @@ public class WarnCommand extends Sx4Command {
 			return;
 		}
 
-		Document warnData = this.database.getGuildById(event.getGuild().getIdLong(), Projections.include("warn")).get("warn", Document.class);
+		Document warnData = event.getDatabase().getGuildById(event.getGuild().getIdLong(), Projections.include("warn")).get("warn", Document.class);
 		boolean punishments = warnData.get("punishments", true);
 
 		int maxWarning = punishments ? warnData.getList("config", Document.class, Warn.DEFAULT_CONFIG)
@@ -97,7 +97,7 @@ public class WarnCommand extends Sx4Command {
 		}
 
 		Bson update = warnings == 0 ? Updates.unset("warn.warnings") : Updates.set("warn.warnings", warnings);
-		this.database.updateMemberById(member.getIdLong(), event.getGuild().getIdLong(), update).whenComplete((result, exception) -> {
+		event.getDatabase().updateMemberById(member.getIdLong(), event.getGuild().getIdLong(), update).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -116,7 +116,7 @@ public class WarnCommand extends Sx4Command {
 	@Examples({"warn list"})
 	@BotPermissions(permissions={Permission.MESSAGE_EMBED_LINKS})
 	public void list(Sx4CommandEvent event) {
-		List<Document> members = this.database.getMembers(Filters.eq("guildId", event.getGuild().getIdLong()), Projections.include("warn.warnings", "userId")).into(new ArrayList<>());
+		List<Document> members = event.getDatabase().getMembers(Filters.eq("guildId", event.getGuild().getIdLong()), Projections.include("warn.warnings", "userId")).into(new ArrayList<>());
 
 		List<Document> warnedMembers = members.stream()
 			.filter(d -> d.getEmbedded(List.of("warn", "warnings"), 0) != 0)
@@ -128,7 +128,7 @@ public class WarnCommand extends Sx4Command {
 			return;
 		}
 
-		PagedResult<Document> paged = new PagedResult<>(warnedMembers)
+		PagedResult<Document> paged = new PagedResult<>(event.getBot(), warnedMembers)
 			.setAuthor("Warned Users", null, event.getGuild().getIconUrl())
 			.setIndexed(false)
 			.setDisplayFunction(d -> {
@@ -146,7 +146,7 @@ public class WarnCommand extends Sx4Command {
 	@Examples({"warn view @Shea#6653", "warn view Shea", "warn view 402557516728369153"})
 	@Redirects({"warnings"})
 	public void view(Sx4CommandEvent event, @Argument(value="user", endless=true) Member member) {
-		Document data = this.database.getMemberById(member.getIdLong(), event.getGuild().getIdLong(), Projections.include("warn.warnings"));
+		Document data = event.getDatabase().getMemberById(member.getIdLong(), event.getGuild().getIdLong(), Projections.include("warn.warnings"));
 
 		int warnings = data.getEmbedded(List.of("warn", "warnings"), 0);
 
@@ -203,7 +203,7 @@ public class WarnCommand extends Sx4Command {
 			List<Bson> update = List.of(Operators.set("warn.config", Operators.concatArrays(Operators.filter(Operators.ifNull("$warn.config", Warn.DEFAULT_CONFIG), Operators.ne("$$this.number", warnings)), List.of(warn))));
 			FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().projection(Projections.include("warn.config")).upsert(true).returnDocument(ReturnDocument.BEFORE);
 
-			this.database.findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
+			event.getDatabase().findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
@@ -243,7 +243,7 @@ public class WarnCommand extends Sx4Command {
 
 			FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().projection(Projections.include("warn.config")).returnDocument(ReturnDocument.BEFORE);
 
-			this.database.findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
+			event.getDatabase().findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
@@ -280,10 +280,10 @@ public class WarnCommand extends Sx4Command {
 		@CommandId(239)
 		@Examples({"warn configuration list"})
 		public void list(Sx4CommandEvent event) {
-			List<Document> config = this.database.getGuildById(event.getGuild().getIdLong(), Projections.include("warn.config")).getEmbedded(List.of("warn", "config"), Warn.DEFAULT_CONFIG);
+			List<Document> config = event.getDatabase().getGuildById(event.getGuild().getIdLong(), Projections.include("warn.config")).getEmbedded(List.of("warn", "config"), Warn.DEFAULT_CONFIG);
 			config.sort(Comparator.comparingInt(a -> a.getInteger("number")));
 
-			PagedResult<Document> paged = new PagedResult<>(config)
+			PagedResult<Document> paged = new PagedResult<>(event.getBot(), config)
 				.setAuthor("Warn Configuration", null, event.getGuild().getIconUrl())
 				.setIndexed(false)
 				.setDisplayFunction(d -> "Warning #" + d.getInteger("number") + ": " + Action.fromData(d.get("action", Document.class)).toString());
@@ -297,7 +297,7 @@ public class WarnCommand extends Sx4Command {
 		@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 		public void punishments(Sx4CommandEvent event) {
 			List<Bson> update = List.of(Operators.set("warn.punishments", Operators.cond(Operators.exists("$warn.punishments"), Operators.REMOVE, false)));
-			this.database.findAndUpdateGuildById(event.getGuild().getIdLong(), Projections.include("warn.punishments"), update).whenComplete((data, exception) -> {
+			event.getDatabase().findAndUpdateGuildById(event.getGuild().getIdLong(), Projections.include("warn.punishments"), update).whenComplete((data, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}

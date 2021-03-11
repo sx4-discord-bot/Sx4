@@ -36,10 +36,10 @@ public class GoogleCommand extends Sx4Command {
 		boolean nsfw = event.getTextChannel().isNSFW();
 
 		Request request = new Request.Builder()
-			.url(this.config.getSearchWebserverUrl("google") + "?q=" + URLEncoder.encode(query, StandardCharsets.UTF_8) + "&nsfw=" + nsfw + "&page=" + page + "&types=0,2,3,4,5,6,7,8,9,10")
+			.url(event.getConfig().getSearchWebserverUrl("google") + "?q=" + URLEncoder.encode(query, StandardCharsets.UTF_8) + "&nsfw=" + nsfw + "&page=" + page + "&types=0,2,3,4,5,6,7,8,9,10")
 			.build();
 
-		event.getClient().newCall(request).enqueue((HttpCallback) response -> {
+		event.getHttpClient().newCall(request).enqueue((HttpCallback) response -> {
 			Document document = Document.parse(response.body().string());
 			if (!response.isSuccessful()) {
 				StringBuilder builder = new StringBuilder("Command failed with status " + response.code());
@@ -60,7 +60,7 @@ public class GoogleCommand extends Sx4Command {
 			String url = document.getString("url").replace("*", "%2A");
 			String googleUrl = "https://google.com/";
 
-			PagedResult<Document> paged = new PagedResult<>(results)
+			PagedResult<Document> paged = new PagedResult<>(event.getBot(), results)
 				.setIndexed(false)
 				.setPerPage(3)
 				.setAuthor("Google", url, "http://i.imgur.com/G46fm8J.png")

@@ -27,7 +27,7 @@ public class UnbanCommand extends Sx4Command {
 	}
 	
 	public void onCommand(Sx4CommandEvent event, @Argument(value="user") String userArgument, @Argument(value="reason", endless=true, nullDefault=true) Reason reason) {
-		SearchUtility.getUserRest(userArgument).thenAccept(user -> {
+		SearchUtility.getUserRest(event.getShardManager(), userArgument).thenAccept(user -> {
 			if (user == null) {
 				event.replyFailure("I could not find that user").queue();
 				return;
@@ -42,7 +42,7 @@ public class UnbanCommand extends Sx4Command {
 				event.getGuild().unban(user).reason(ModUtility.getAuditReason(reason, event.getAuthor())).queue($ -> {
 					event.reply("**" + user.getAsTag() + "** has been unbanned <:done:403285928233402378>:ok_hand:").queue();
 					
-					this.modManager.onModAction(new UnbanEvent(event.getMember(), user, reason));
+					event.getBot().getModActionManager().onModAction(new UnbanEvent(event.getMember(), user, reason));
 				});
 			}, new ErrorHandler().handle(ErrorResponse.UNKNOWN_BAN, e -> event.replyFailure("That user is not banned").queue()));
 		});

@@ -69,10 +69,10 @@ public class WeatherCommand extends Sx4Command {
 
 	public void onCommand(Sx4CommandEvent event, @Argument(value="query", endless=true) String query) {
 		Request request = new Request.Builder()
-			.url(this.config.getSearchWebserverUrl("weather") + "?q=" + URLEncoder.encode(query, StandardCharsets.UTF_8))
+			.url(event.getConfig().getSearchWebserverUrl("weather") + "?q=" + URLEncoder.encode(query, StandardCharsets.UTF_8))
 			.build();
 
-		event.getClient().newCall(request).enqueue((HttpCallback) response -> {
+		event.getHttpClient().newCall(request).enqueue((HttpCallback) response -> {
 			if (response.code() == 404) {
 				event.replyFailure("I could not find that location").queue();
 				return;

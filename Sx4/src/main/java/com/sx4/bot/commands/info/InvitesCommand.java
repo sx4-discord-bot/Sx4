@@ -96,7 +96,7 @@ public class InvitesCommand extends Sx4Command {
 			List<Map.Entry<Long, Integer>> sortedCount = new ArrayList<>(count.entrySet());
 			sortedCount.sort(Collections.reverseOrder(Comparator.comparingInt(Map.Entry::getValue)));
 
-			PagedResult<Map.Entry<Long, Integer>> paged = new PagedResult<>(sortedCount)
+			PagedResult<Map.Entry<Long, Integer>> paged = new PagedResult<>(event.getBot(), sortedCount)
 				.setIncreasedIndex(true)
 				.setAuthor("Invites Leaderboard", null, event.getGuild().getIconUrl())
 				.setDisplayFunction(data -> {

@@ -30,7 +30,7 @@ public class InRoleCommand extends Sx4Command {
 			return;
 		}
 
-		PagedResult<Member> paged = new PagedResult<>(members)
+		PagedResult<Member> paged = new PagedResult<>(event.getBot(), members)
 			.setPerPage(15)
 			.setDisplayFunction(member -> member.getUser().getAsTag())
 			.setIndexed(false)

@@ -56,10 +56,10 @@ public class DictionaryCommand extends Sx4Command {
 
 	public void onCommand(Sx4CommandEvent event, @Argument(value="query", endless=true) String query) {
 		Request request = new Request.Builder()
-			.url(this.config.getSearchWebserverUrl("dictionary") + "?q=" + URLEncoder.encode(query, StandardCharsets.UTF_8))
+			.url(event.getConfig().getSearchWebserverUrl("dictionary") + "?q=" + URLEncoder.encode(query, StandardCharsets.UTF_8))
 			.build();
 
-		event.getClient().newCall(request).enqueue((HttpCallback) response -> {
+		event.getHttpClient().newCall(request).enqueue((HttpCallback) response -> {
 			Document document = Document.parse(response.body().string());
 			if (!response.isSuccessful()) {
 				StringBuilder builder = new StringBuilder("Command failed with status " + response.code());
@@ -77,7 +77,7 @@ public class DictionaryCommand extends Sx4Command {
 				return;
 			}
 
-			PagedResult<Document> paged = new PagedResult<>(definitions)
+			PagedResult<Document> paged = new PagedResult<>(event.getBot(), definitions)
 				.setPerPage(1)
 				.setCustomFunction(page -> {
 					EmbedBuilder embed = new EmbedBuilder();

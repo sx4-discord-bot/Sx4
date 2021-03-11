@@ -30,9 +30,9 @@ public class MostCommonColourCommand extends Sx4Command {
 	public void onCommand(Sx4CommandEvent event, @Argument(value="image url", acceptEmpty=true, endless=true) @ImageUrl String imageUrl) {
 		Request request = new ImageRequest("common-colour")
 			.addQuery("image", imageUrl)
-			.build();
+			.build(event.getConfig().getImageWebserver());
 
-		event.getClient().newCall(request).enqueue((HttpCallback) response -> {
+		event.getHttpClient().newCall(request).enqueue((HttpCallback) response -> {
 			if (!response.isSuccessful()) {
 				ImageUtility.getErrorMessage(event.getTextChannel(), response.code(), response.body().string()).queue();
 				return;

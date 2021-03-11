@@ -57,9 +57,9 @@ public class EvalCommand extends Sx4Command {
 		shell.setProperty("channel", event.getTextChannel());
 		shell.setProperty("user", event.getAuthor());
 		shell.setProperty("member", event.getMember());
-		shell.setProperty("config", this.config);
-		shell.setProperty("database", this.database);
-		shell.setProperty("client", event.getClient());
+		shell.setProperty("config", event.getConfig());
+		shell.setProperty("database", event.getDatabase());
+		shell.setProperty("client", event.getHttpClient());
 		
 		this.executor.submit(() -> {
 			try {

@@ -2,8 +2,6 @@ package com.sx4.bot.entities.economy.item;
 
 import org.bson.Document;
 
-import com.sx4.bot.managers.EconomyManager;
-
 public class Material extends Item {
 	
 	private final String emote;
@@ -35,12 +33,12 @@ public class Material extends Item {
 		return this.hidden;
 	}
 	
-	public static Material getFromName(String name) {
+	/*public static Material getFromName(String name) {
 		return EconomyManager.get().getItems(ItemType.MATERIAL).stream()
 			.filter(item -> item.getName().equalsIgnoreCase(name))
 			.map(Material.class::cast)
 			.findFirst()
 			.orElse(null);
-	}
+	}*/
 	
 }

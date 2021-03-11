@@ -8,9 +8,9 @@ import com.mongodb.client.model.*;
 import com.mongodb.client.result.DeleteResult;
 import com.mongodb.client.result.InsertOneResult;
 import com.mongodb.client.result.UpdateResult;
-import com.sx4.bot.config.Config;
 import com.sx4.bot.handlers.DatabaseHandler;
 import com.sx4.bot.utility.ExceptionUtility;
+import net.dv8tion.jda.api.sharding.ShardManager;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
@@ -23,12 +23,6 @@ import java.util.function.BiConsumer;
 public class Database {
 	
 	public static final Document EMPTY_DOCUMENT = new Document();
-
-	private static final Database INSTANCE = new Database();
-	
-	public static Database get() {
-		return Database.INSTANCE;
-	}
 
 	private final UpdateOptions updateOptions = new UpdateOptions().upsert(true);
 	private final FindOneAndUpdateOptions findOneAndUpdateOptions = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER).upsert(true);
@@ -75,7 +69,7 @@ public class Database {
 	
 	private final MongoCollection<Document> offences;
 	
-	public Database() {
+	public Database(String databaseName) {
 		DatabaseHandler handler = new DatabaseHandler();
 
 		MongoClientSettings settings = MongoClientSettings.builder()
@@ -86,7 +80,7 @@ public class Database {
 		IndexOptions uniqueIndex = new IndexOptions().unique(true);
 		
 		this.client = MongoClients.create(settings);
-		this.database = this.client.getDatabase(Config.get().getDatabase());
+		this.database = this.client.getDatabase(databaseName);
 		
 		this.users = this.database.getCollection("users");
 
@@ -1369,8 +1363,8 @@ public class Database {
 		return CompletableFuture.supplyAsync(() -> this.offences.find(filter));
 	}
 
-	public static <Type> BiConsumer<Type, Throwable> exceptionally() {
-		return ($, exception) -> ExceptionUtility.sendErrorMessage(exception);
+	public static <Type> BiConsumer<Type, Throwable> exceptionally(ShardManager manager) {
+		return ($, exception) -> ExceptionUtility.sendErrorMessage(manager, exception);
 	}
 
 	public static <Type> BiConsumer<Type, Throwable> exceptionally(CommandEvent event) {

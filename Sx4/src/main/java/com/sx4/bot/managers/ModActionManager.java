@@ -7,16 +7,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class ModActionManager {
-	
-	private static final ModActionManager INSTANCE = new ModActionManager();
-	
-	public static ModActionManager get() {
-		return ModActionManager.INSTANCE;
-	}
 
 	private final List<ModActionListener> listeners;
 	
-	private ModActionManager() {
+	public ModActionManager() {
 		this.listeners = new ArrayList<>();
 	}
 	

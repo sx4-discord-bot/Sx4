@@ -3,7 +3,6 @@ package com.sx4.bot.managers;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.UpdateOneModel;
 import com.mongodb.client.model.Updates;
-import com.sx4.bot.config.Config;
 import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.utility.MathUtility;
@@ -23,19 +22,16 @@ import java.util.concurrent.*;
 import java.util.stream.Collectors;
 
 public class GiveawayManager {
-
-	private static final GiveawayManager INSTANCE = new GiveawayManager();
-	
-	public static GiveawayManager get() {
-		return GiveawayManager.INSTANCE;
-	}
 	
 	private final Map<Long, ScheduledFuture<?>> executors;
 	
 	private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+
+	private final Sx4 bot;
 	
-	public GiveawayManager() {
+	public GiveawayManager(Sx4 bot) {
 		this.executors = new HashMap<>();
+		this.bot = bot;
 	}
 	
 	public ScheduledExecutorService getExecutor() {
@@ -76,8 +72,8 @@ public class GiveawayManager {
 				return CompletableFuture.completedFuture(null);
 			}
 			
-			return Database.get().updateGiveaway(model);
-		}).whenComplete(Database.exceptionally());
+			return this.bot.getDatabase().updateGiveaway(model);
+		}).whenComplete(Database.exceptionally(this.bot.getShardManager()));
 	}
 	
 	public CompletableFuture<UpdateOneModel<Document>> endGiveawayBulk(Document data) {
@@ -87,7 +83,7 @@ public class GiveawayManager {
 	public CompletableFuture<UpdateOneModel<Document>> endGiveawayBulk(Document data, boolean offTime) {
 		long guildId = data.getLong("guildId"), messageId = data.get("_id", 0L);
 		
-		Guild guild = Sx4.get().getShardManager().getGuildById(guildId);
+		Guild guild = this.bot.getShardManager().getGuildById(guildId);
 		if (guild == null) {
 			return CompletableFuture.completedFuture(null);
 		}
@@ -126,7 +122,7 @@ public class GiveawayManager {
 					update = Updates.set("winners", Collections.EMPTY_LIST);
 					
 					future.complete(new UpdateOneModel<>(Filters.eq("_id", messageId), offTime ? Updates.combine(Updates.set("endAt", Clock.systemUTC().instant().getEpochSecond()), update) : update));
-					channel.sendMessage("At least " + (oldWinners.isEmpty() ? "1 person needs" : oldWinners.size() == 1 ? "1 extra person needs" : oldWinners.size() + " extra people need") + " to have entered the giveaway to pick a winner " + Config.get().getFailureEmote()).queue();
+					channel.sendMessage("At least " + (oldWinners.isEmpty() ? "1 person needs" : oldWinners.size() == 1 ? "1 extra person needs" : oldWinners.size() + " extra people need") + " to have entered the giveaway to pick a winner " + this.bot.getConfig().getFailureEmote()).queue();
 					
 					return;
 				}
@@ -163,10 +159,8 @@ public class GiveawayManager {
 	}
 	
 	public void ensureGiveaways() {
-		Database database = Database.get();
-		
 		List<CompletableFuture<UpdateOneModel<Document>>> futures = new ArrayList<>();
-		database.getGiveaways(Filters.not(Filters.exists("winners"))).forEach(data -> {
+		this.bot.getDatabase().getGiveaways(Filters.not(Filters.exists("winners"))).forEach(data -> {
 			long endAt = data.getLong("endAt"), timeNow = Clock.systemUTC().instant().getEpochSecond();
 			if (endAt - timeNow > 0) {
 				this.putGiveaway(data, endAt - timeNow);
@@ -180,12 +174,12 @@ public class GiveawayManager {
 				.thenApply($ -> futures.stream().map(CompletableFuture::join).filter(Objects::nonNull).collect(Collectors.toList()))
 				.thenCompose(bulkData -> {
 					if (!bulkData.isEmpty()) {
-						return database.bulkWriteGiveaways(bulkData);
+						return this.bot.getDatabase().bulkWriteGiveaways(bulkData);
 					}
 					
 					return CompletableFuture.completedFuture(null);
 				})
-				.whenComplete(Database.exceptionally());
+				.whenComplete(Database.exceptionally(this.bot.getShardManager()));
 		}
 	}
 	

@@ -60,21 +60,21 @@ public class PremiumCommand extends Sx4Command {
 		long guildId = guild.getIdLong();
 		String guildName = guild.getName();
 
-		int monthPrice = this.config.getPremiumPrice();
+		int monthPrice = event.getConfig().getPremiumPrice();
 		int price = (int) Math.round((monthPrice / 30D) * days);
 
-		long endAtPrior = this.database.getGuildById(guildId, Projections.include("premium.endAt")).getEmbedded(List.of("premium", "endAt"), 0L);
+		long endAtPrior = event.getDatabase().getGuildById(guildId, Projections.include("premium.endAt")).getEmbedded(List.of("premium", "endAt"), 0L);
 		boolean hasPremium = endAtPrior != 0;
 
 		MessageEmbed embed = new EmbedBuilder()
-			.setColor(this.config.getOrange())
+			.setColor(event.getConfig().getOrange())
 			.setAuthor("Premium", null, event.getAuthor().getEffectiveAvatarUrl())
 			.setDescription(String.format("Buying %d day%s of premium will:\n\n• Use **$%.2f** of your credit\n• %s %1$s day%2$s of premium to the server\n\n:warning: **This action cannot be reversed** :warning:", days, days == 1 ? "" : "s", price / 100D, hasPremium ? "Add an extra" : "Give"))
 			.setFooter("Say yes to continue and cancel to cancel")
 			.build();
 
 		event.reply(embed).queue($ -> {
-			Waiter<GuildMessageReceivedEvent> waiter = new Waiter<>(GuildMessageReceivedEvent.class)
+			Waiter<GuildMessageReceivedEvent> waiter = new Waiter<>(event.getBot(), GuildMessageReceivedEvent.class)
 				.setTimeout(30)
 				.setUnique(event.getAuthor().getIdLong(), event.getTextChannel().getIdLong())
 				.setPredicate(e -> e.getMessage().getContentRaw().equalsIgnoreCase("yes"))
@@ -88,7 +88,7 @@ public class PremiumCommand extends Sx4Command {
 				List<Bson> update = List.of(Operators.set("premium.credit", Operators.cond(Operators.gt(price, Operators.ifNull("$premium.credit", 0)), "$premium.credit", Operators.subtract("$premium.credit", price))));
 				FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("premium.credit")).upsert(true);
 
-				return this.database.findAndUpdateUserById(event.getAuthor().getIdLong(), update, options);
+				return event.getDatabase().findAndUpdateUserById(event.getAuthor().getIdLong(), update, options);
 			}).thenCompose(data -> {
 				int credit = data == null ? 0 : data.getEmbedded(List.of("premium", "credit"), 0);
 				if (price > credit) {
@@ -99,7 +99,7 @@ public class PremiumCommand extends Sx4Command {
 				List<Bson> update = List.of(Operators.set("premium.endAt", Operators.add(TimeUnit.DAYS.toSeconds(days), Operators.ifNull("$premium.endAt", Operators.nowEpochSecond()))));
 				FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("premium.endAt")).upsert(true);
 
-				return this.database.findAndUpdateGuildById(guildId, update, options);
+				return event.getDatabase().findAndUpdateGuildById(guildId, update, options);
 			}).whenComplete((data, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception) || (data != null && data.isEmpty())) {
 					return;
@@ -107,7 +107,7 @@ public class PremiumCommand extends Sx4Command {
 
 				long endAt = data == null ? 0L : data.getEmbedded(List.of("premium", "endAt"), 0L);
 
-				event.replyFormat("**%s** now has premium for %s%d day%s %s", guildName, endAt == 0 ? "" : "another ", days, days == 1 ? "" : "s", this.config.getSuccessEmote()).queue();
+				event.replyFormat("**%s** now has premium for %s%d day%s %s", guildName, endAt == 0 ? "" : "another ", days, days == 1 ? "" : "s", event.getConfig().getSuccessEmote()).queue();
 			});
 
 			waiter.start();
@@ -118,7 +118,7 @@ public class PremiumCommand extends Sx4Command {
 	@CommandId(178)
 	@Examples({"premium check"})
 	public void check(Sx4CommandEvent event) {
-		long endAt = this.database.getGuildById(event.getGuild().getIdLong(), Projections.include("premium.endAt")).getEmbedded(List.of("premium", "endAt"), 0L);
+		long endAt = event.getDatabase().getGuildById(event.getGuild().getIdLong(), Projections.include("premium.endAt")).getEmbedded(List.of("premium", "endAt"), 0L);
 		if (endAt == 0) {
 			event.replyFailure("This server currently doesn't have premium").queue();
 			return;
@@ -132,7 +132,7 @@ public class PremiumCommand extends Sx4Command {
 	@CommandId(179)
 	@Examples({"premium credit"})
 	public void credit(Sx4CommandEvent event) {
-		int credit = this.database.getUserById(event.getAuthor().getIdLong(), Projections.include("premium.credit")).getEmbedded(List.of("premium", "credit"), 0);
+		int credit = event.getDatabase().getUserById(event.getAuthor().getIdLong(), Projections.include("premium.credit")).getEmbedded(List.of("premium", "credit"), 0);
 
 		event.replyFormat("Your current credit is **$%.2f**", credit / 100D).queue();
 	}

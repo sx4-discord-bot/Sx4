@@ -1,5 +1,6 @@
 package com.sx4.api.endpoints;
 
+import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.Database;
 import org.bson.Document;
 
@@ -11,14 +12,20 @@ import javax.ws.rs.core.Response;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
-import java.util.Random;
+import java.security.SecureRandom;
 
 @Path("")
 public class RedirectEndpoint {
 
-	private final Random random = new Random();
-
 	private static final String ALPHA_NUMERIC = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+
+	private final SecureRandom random = new SecureRandom();
+
+	private final Sx4 bot;
+
+	public RedirectEndpoint(Sx4 bot) {
+		this.bot = bot;
+	}
 
 	private String getAlphaNumericId(int length) {
 		StringBuilder id = new StringBuilder();
@@ -32,7 +39,7 @@ public class RedirectEndpoint {
 	@GET
 	@Path("{id: [a-zA-Z0-9]{6}}")
 	public Response getRedirect(@PathParam("id") final String id) {
-		Document redirect = Database.get().getRedirectById(id);
+		Document redirect = this.bot.getDatabase().getRedirectById(id);
 		if (redirect == null) {
 			return Response.status(404).build();
 		}
@@ -63,10 +70,10 @@ public class RedirectEndpoint {
 		String id;
 		do {
 			id = this.getAlphaNumericId(6);
-			result = Database.get().getRedirectById(id);
+			result = this.bot.getDatabase().getRedirectById(id);
 		} while (result != null);
 
-		Database.get().insertRedirect(id, url).whenComplete((data, exception) -> {
+		this.bot.getDatabase().insertRedirect(id, url).whenComplete((data, exception) -> {
 			if (exception != null) {
 				response.resume(exception);
 				return;

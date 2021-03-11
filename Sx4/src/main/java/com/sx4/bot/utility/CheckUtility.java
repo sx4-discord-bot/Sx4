@@ -3,7 +3,6 @@ package com.sx4.bot.utility;
 import com.mongodb.client.model.Projections;
 import com.sx4.bot.core.Sx4;
 import com.sx4.bot.core.Sx4Command;
-import com.sx4.bot.database.Database;
 import com.sx4.bot.entities.settings.HolderType;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Guild;
@@ -17,14 +16,14 @@ import java.util.stream.Collectors;
 
 public class CheckUtility {
 
-	public static boolean canUseCommand(Member member, TextChannel channel, Sx4Command command) {
-		if (Sx4.get().getCommandListener().isDeveloper(member.getIdLong()) || member.hasPermission(Permission.ADMINISTRATOR)) {
+	public static boolean canUseCommand(Sx4 bot, Member member, TextChannel channel, Sx4Command command) {
+		if (bot.getCommandListener().isDeveloper(member.getIdLong()) || member.hasPermission(Permission.ADMINISTRATOR)) {
 			return true;
 		}
 
 		Guild guild = member.getGuild();
 
-		List<Document> holders = Database.get().getChannelById(channel.getIdLong(), Projections.include("blacklist.holders")).getEmbedded(List.of("blacklist", "holders"), Collections.emptyList());
+		List<Document> holders = bot.getDatabase().getChannelById(channel.getIdLong(), Projections.include("blacklist.holders")).getEmbedded(List.of("blacklist", "holders"), Collections.emptyList());
 
 		Set<Long> roleIds = member.getRoles().stream()
 			.map(Role::getIdLong)
@@ -54,20 +53,20 @@ public class CheckUtility {
 		return canUseCommand;
 	}
 	
-	public static boolean hasPermissions(Member member, TextChannel channel, List<Document> holders, Permission... permissions) {
-		return CheckUtility.missingPermissions(member, channel, holders, permissions).isEmpty();
+	public static boolean hasPermissions(Sx4 bot, Member member, TextChannel channel, List<Document> holders, Permission... permissions) {
+		return CheckUtility.missingPermissions(bot, member, channel, holders, permissions).isEmpty();
 	}
 	
-	public static boolean hasPermissions(Member member, TextChannel channel, List<Document> holders, EnumSet<Permission> permissions) {
-		return CheckUtility.missingPermissions(member, channel, holders, permissions).isEmpty();
+	public static boolean hasPermissions(Sx4 bot, Member member, TextChannel channel, List<Document> holders, EnumSet<Permission> permissions) {
+		return CheckUtility.missingPermissions(bot, member, channel, holders, permissions).isEmpty();
 	}
 	
-	public static EnumSet<Permission> missingPermissions(Member member, TextChannel channel, List<Document> holders, Permission... permissions) {
-		return CheckUtility.missingPermissions(member, channel, holders, permissions.length == 0 ? EnumSet.noneOf(Permission.class) : EnumSet.copyOf(Arrays.asList(permissions)));
+	public static EnumSet<Permission> missingPermissions(Sx4 bot, Member member, TextChannel channel, List<Document> holders, Permission... permissions) {
+		return CheckUtility.missingPermissions(bot, member, channel, holders, permissions.length == 0 ? EnumSet.noneOf(Permission.class) : EnumSet.copyOf(Arrays.asList(permissions)));
 	}
 
-	public static EnumSet<Permission> missingPermissions(Member member, TextChannel channel, List<Document> holders, EnumSet<Permission> permissions) {
-		if (Sx4.get().getCommandListener().isDeveloper(member.getIdLong()) || member.hasPermission(channel, permissions)) {
+	public static EnumSet<Permission> missingPermissions(Sx4 bot, Member member, TextChannel channel, List<Document> holders, EnumSet<Permission> permissions) {
+		if (bot.getCommandListener().isDeveloper(member.getIdLong()) || member.hasPermission(channel, permissions)) {
 			return EnumSet.noneOf(Permission.class);
 		}
 

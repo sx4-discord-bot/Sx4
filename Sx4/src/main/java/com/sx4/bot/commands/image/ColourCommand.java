@@ -44,9 +44,9 @@ public class ColourCommand extends Sx4Command {
 
 		Request request = new ImageRequest("colour")
 			.addQuery("colour", colour)
-			.build();
+			.build(event.getConfig().getImageWebserver());
 
-		event.getClient().newCall(request).enqueue((HttpCallback) response -> {
+		event.getHttpClient().newCall(request).enqueue((HttpCallback) response -> {
 			MessageAction action = ImageUtility.getImageMessage(event, response);
 			if (response.isSuccessful()) {
 				action.embed(embed);

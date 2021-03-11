@@ -6,7 +6,7 @@ import club.minnced.discord.webhook.exception.HttpException;
 import club.minnced.discord.webhook.receive.ReadonlyMessage;
 import club.minnced.discord.webhook.send.WebhookMessage;
 import com.mongodb.client.model.Updates;
-import com.sx4.bot.database.Database;
+import com.sx4.bot.core.Sx4;
 import com.sx4.bot.exceptions.mod.BotPermissionException;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.TextChannel;
@@ -22,12 +22,6 @@ import java.util.concurrent.ScheduledExecutorService;
 
 public class LeaverManager implements WebhookManager {
 
-	private static final LeaverManager INSTANCE = new LeaverManager();
-
-	public static LeaverManager get() {
-		return LeaverManager.INSTANCE;
-	}
-
 	public static final Document DEFAULT_MESSAGE = new Document("content", "**{user.name}** has just left **{server.name}**. Bye **{user.name}**!");
 
 	private final Map<Long, WebhookClient> webhooks;
@@ -35,8 +29,11 @@ public class LeaverManager implements WebhookManager {
 	private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
 	private final OkHttpClient client = new OkHttpClient();
 
-	private LeaverManager() {
+	private final Sx4 bot;
+
+	public LeaverManager(Sx4 bot) {
 		this.webhooks = new HashMap<>();
+		this.bot = bot;
 	}
 
 	public WebhookClient getWebhook(long channelId) {
@@ -69,7 +66,7 @@ public class LeaverManager implements WebhookManager {
 				Updates.set("leaver.webhook.token", webhook.getToken())
 			);
 
-			return Database.get().updateGuildById(channel.getGuild().getIdLong(), update).thenCompose(result -> webhookClient.send(message));
+			return this.bot.getDatabase().updateGuildById(channel.getGuild().getIdLong(), update).thenCompose(result -> webhookClient.send(message));
 		}).exceptionallyCompose(exception -> {
 			if (exception instanceof HttpException && ((HttpException) exception).getCode() == 404) {
 				this.webhooks.remove(channel.getIdLong());

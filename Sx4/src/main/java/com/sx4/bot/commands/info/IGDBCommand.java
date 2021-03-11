@@ -57,11 +57,11 @@ public class IGDBCommand extends Sx4Command {
 		Request request = new Request.Builder()
 			.url("https://api.igdb.com/v4/games/")
 			.post(RequestBody.create(MediaType.parse("application/json; charset=utf-8"), parser.parse()))
-			.addHeader("Client-ID", this.config.getTwitchClientId())
-			.addHeader("Authorization", "Bearer " + this.config.getTwitch())
+			.addHeader("Client-ID", event.getConfig().getTwitchClientId())
+			.addHeader("Authorization", "Bearer " + event.getConfig().getTwitch())
 			.build();
 
-		event.getClient().newCall(request).enqueue((HttpCallback) response -> {
+		event.getHttpClient().newCall(request).enqueue((HttpCallback) response -> {
 			String body = String.format("{\"data\":%s}", response.body().string());
 
 			List<Document> results = Document.parse(body).getList("data", Document.class);
@@ -70,7 +70,7 @@ public class IGDBCommand extends Sx4Command {
 				return;
 			}
 
-			PagedResult<Document> paged = new PagedResult<>(results)
+			PagedResult<Document> paged = new PagedResult<>(event.getBot(), results)
 				.setAutoSelect(true)
 				.setIncreasedIndex(true)
 				.setAuthor("IGDB Search", null, "http://bit.ly/2NXGwMz")

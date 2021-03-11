@@ -6,7 +6,7 @@ import club.minnced.discord.webhook.exception.HttpException;
 import club.minnced.discord.webhook.receive.ReadonlyMessage;
 import club.minnced.discord.webhook.send.WebhookMessage;
 import com.mongodb.client.model.Updates;
-import com.sx4.bot.database.Database;
+import com.sx4.bot.core.Sx4;
 import com.sx4.bot.exceptions.mod.BotPermissionException;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.TextChannel;
@@ -31,19 +31,16 @@ public class StarboardManager implements WebhookManager {
 		new Document("stars", 100).append("message", new Document("content", "🎆 **{stars}** {channel.mention}"))
 	);
 
-	private static final StarboardManager INSTANCE = new StarboardManager();
-
-	public static StarboardManager get() {
-		return StarboardManager.INSTANCE;
-	}
-
 	private final Map<Long, WebhookClient> webhooks;
 
 	private final OkHttpClient client = new OkHttpClient();
 	private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
 
-	private StarboardManager() {
+	private final Sx4 bot;
+
+	public StarboardManager(Sx4 bot) {
 		this.webhooks = new HashMap<>();
+		this.bot = bot;
 	}
 
 	public WebhookClient getWebhook(long id) {
@@ -76,7 +73,7 @@ public class StarboardManager implements WebhookManager {
 				Updates.set("starboard.webhook.token", webhook.getToken())
 			);
 
-			return Database.get().updateGuildById(channel.getGuild().getIdLong(), update).thenCompose(result -> webhookClient.send(message));
+			return this.bot.getDatabase().updateGuildById(channel.getGuild().getIdLong(), update).thenCompose(result -> webhookClient.send(message));
 		}).exceptionallyCompose(exception -> {
 			if (exception instanceof HttpException && ((HttpException) exception).getCode() == 404) {
 				this.webhooks.remove(channel.getIdLong());

@@ -12,6 +12,12 @@ import java.util.Arrays;
 
 public class Sx4CommandEventListener extends CommandEventListener {
 
+	private final Sx4 bot;
+
+	public Sx4CommandEventListener(Sx4 bot) {
+		this.bot = bot;
+	}
+
 	public void onCommandExecuted(ICommand command, CommandEvent event) {
 		Sx4Command effectiveCommand = command instanceof DummyCommand ? (Sx4Command) ((DummyCommand) command).getActualCommand() : (Sx4Command) command;
 
@@ -27,7 +33,7 @@ public class Sx4CommandEventListener extends CommandEventListener {
 			.append("prefix", event.getPrefix())
 			.append("executionDuration", event.getTimeSinceStarted());
 
-		Database.get().insertCommand(commandData).whenComplete(Database.exceptionally());
+		this.bot.getDatabase().insertCommand(commandData).whenComplete(Database.exceptionally(this.bot.getShardManager()));
 	}
 
 	public void onCommandExecutionException(ICommand command, CommandEvent event, Throwable throwable) {

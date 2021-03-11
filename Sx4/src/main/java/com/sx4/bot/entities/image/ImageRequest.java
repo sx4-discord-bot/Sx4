@@ -1,6 +1,5 @@
 package com.sx4.bot.entities.image;
 
-import com.sx4.bot.config.Config;
 import okhttp3.MediaType;
 import okhttp3.Request;
 import okhttp3.RequestBody;
@@ -13,15 +12,13 @@ import java.util.Map;
 
 public class ImageRequest {
 
-	private final Config config = Config.get();
-
 	private final StringBuilder url;
 	private final Document fields;
 	private final Map<String, String> queries;
 	private byte[] image;
 
-	public ImageRequest(String endpoint) {
-		this.url = new StringBuilder(this.config.getImageWebserverUrl(endpoint));
+	public ImageRequest(String path) {
+		this.url = new StringBuilder(path);
 		this.fields = new Document();
 		this.queries = new HashMap<>();
 		this.image = new byte[0];
@@ -51,7 +48,7 @@ public class ImageRequest {
 		return this;
 	}
 
-	public Request build() {
+	public Request build(String authorization) {
 		boolean first = true;
 		for (Map.Entry<String, String> entry : this.queries.entrySet()) {
 			this.url.append(String.format("%s%s=%s", first ? "?" : "&", entry.getKey(), entry.getValue()));
@@ -61,7 +58,7 @@ public class ImageRequest {
 
 		Request.Builder builder = new Request.Builder()
 			.url(this.url.toString())
-			.addHeader("Authorization", this.config.getImageWebserver());
+			.addHeader("Authorization", authorization);
 
 		if (!this.fields.isEmpty()) {
 			builder.post(RequestBody.create(MediaType.parse("application/json"), this.fields.toJson()));

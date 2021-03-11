@@ -19,19 +19,16 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 public class TemporaryBanManager {
-
-private static final TemporaryBanManager INSTANCE = new TemporaryBanManager();
-	
-	public static TemporaryBanManager get() {
-		return TemporaryBanManager.INSTANCE;
-	}
 	
 	private final Map<Long, Map<Long, ScheduledFuture<?>>> executors;
 	
 	private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+
+	private final Sx4 bot;
 	
-	private TemporaryBanManager() {
+	public TemporaryBanManager(Sx4 bot) {
 		this.executors = new HashMap<>();
+		this.bot = bot;
 	}
 	
 	public ScheduledExecutorService getExecutor() {
@@ -84,7 +81,7 @@ private static final TemporaryBanManager INSTANCE = new TemporaryBanManager();
 	}
 
 	public UpdateOneModel<Document> removeBanAndGet(long guildId, long userId) {
-		ShardManager shardManager = Sx4.get().getShardManager();
+		ShardManager shardManager = this.bot.getShardManager();
 
 		Guild guild = shardManager.getGuildById(guildId);
 		if (guild == null) {
@@ -98,7 +95,7 @@ private static final TemporaryBanManager INSTANCE = new TemporaryBanManager();
 			guild.unban(String.valueOf(userId)).reason("Ban length served").queue();
 		}
 
-		ModActionManager.get().onModAction(new UnbanEvent(guild.getSelfMember(), user, new Reason("Ban length served")));
+		this.bot.getModActionManager().onModAction(new UnbanEvent(guild.getSelfMember(), user, new Reason("Ban length served")));
 		this.deleteExecutor(guildId, userId);
 
 		return new UpdateOneModel<>(Filters.and(Filters.eq("guildId", guildId), Filters.eq("userId", userId)), Updates.unset("temporaryBan.unbanAt"));
@@ -107,15 +104,13 @@ private static final TemporaryBanManager INSTANCE = new TemporaryBanManager();
 	public void removeBan(long guildId, long userId) {
 		UpdateOneModel<Document> model = this.removeBanAndGet(guildId, userId);
 		if (model != null) {
-			Database.get().updateMember(model).whenComplete(Database.exceptionally());
+			this.bot.getDatabase().updateMember(model).whenComplete(Database.exceptionally(this.bot.getShardManager()));
 		}
 	}
 
 	public void ensureBans() {
-		Database database = Database.get();
-
 		List<WriteModel<Document>> bulkData = new ArrayList<>();
-		database.getMembers(Filters.exists("temporaryBan.unbanAt"), Projections.include("guildId", "userId", "temporaryBan.unbanAt")).forEach(data -> {
+		this.bot.getDatabase().getMembers(Filters.exists("temporaryBan.unbanAt"), Projections.include("guildId", "userId", "temporaryBan.unbanAt")).forEach(data -> {
 			long currentTime = Clock.systemUTC().instant().getEpochSecond(), unbanAt = data.getEmbedded(List.of("temporaryBan", "unbanAt"), Long.class);
 			if (unbanAt > currentTime) {
 				this.putBan(data.getLong("guildId"), data.getLong("userId"), unbanAt - currentTime);
@@ -128,7 +123,7 @@ private static final TemporaryBanManager INSTANCE = new TemporaryBanManager();
 		});
 
 		if (!bulkData.isEmpty()) {
-			database.bulkWriteMembers(bulkData).whenComplete(Database.exceptionally());
+			this.bot.getDatabase().bulkWriteMembers(bulkData).whenComplete(Database.exceptionally(this.bot.getShardManager()));
 		}
 	}
 	

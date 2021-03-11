@@ -51,9 +51,9 @@ public class TweetCommand extends Sx4Command {
 			.addField("likes", likes)
 			.addField("text", ImageUtility.escapeMentions(guild, text))
 			.addField("urls", urls)
-			.build();
+			.build(event.getConfig().getImageWebserver());
 
-		event.getClient().newCall(request).enqueue((HttpCallback) response -> ImageUtility.getImageMessage(event, response).queue());
+		event.getHttpClient().newCall(request).enqueue((HttpCallback) response -> ImageUtility.getImageMessage(event, response).queue());
 	}
 
 }

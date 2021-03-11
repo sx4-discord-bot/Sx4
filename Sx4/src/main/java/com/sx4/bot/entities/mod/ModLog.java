@@ -5,13 +5,13 @@ import club.minnced.discord.webhook.send.WebhookEmbed.EmbedField;
 import club.minnced.discord.webhook.send.WebhookEmbed.EmbedFooter;
 import club.minnced.discord.webhook.send.WebhookEmbed.EmbedTitle;
 import club.minnced.discord.webhook.send.WebhookEmbedBuilder;
-import com.sx4.bot.core.Sx4;
 import com.sx4.bot.entities.mod.action.Action;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.sharding.ShardManager;
 import org.bson.Document;
 import org.bson.types.ObjectId;
 
@@ -90,24 +90,24 @@ public class ModLog {
 		return this.guildId;
 	}
 	
-	public Guild getGuild() {
+	public Guild getGuild(ShardManager manager) {
 		if (this.guildId == 0L) {
 			return null;
 		}
 
-		return Sx4.get().getShardManager().getGuildById(this.guildId);
+		return manager.getGuildById(this.guildId);
 	}
 	
 	public long getChannelId() {
 		return this.channelId;
 	}
 	
-	public TextChannel getChannel() {
+	public TextChannel getChannel(ShardManager manager) {
 		if (this.channelId == 0L) {
 			return null;
 		}
 
-		Guild guild = this.getGuild();
+		Guild guild = this.getGuild(manager);
 		
 		return guild == null ? null : guild.getTextChannelById(this.channelId);
 	}
@@ -116,16 +116,16 @@ public class ModLog {
 		return this.targetId;
 	}
 	
-	public User getTarget() {
-		return Sx4.get().getShardManager().getUserById(this.targetId);
+	public User getTarget(ShardManager manager) {
+		return manager.getUserById(this.targetId);
 	}
 	
 	public long getModeratorId() {
 		return this.moderatorId;
 	}
 	
-	public User getModerator() {
-		return Sx4.get().getShardManager().getUserById(this.moderatorId);
+	public User getModerator(ShardManager manager) {
+		return manager.getUserById(this.moderatorId);
 	}
 	
 	public Reason getReason() {
@@ -148,8 +148,8 @@ public class ModLog {
 		return embed.build();
 	}
 	
-	public MessageEmbed getEmbed() {
-		return this.getEmbed(this.getModerator(), this.getTarget());
+	public MessageEmbed getEmbed(ShardManager manager) {
+		return this.getEmbed(this.getModerator(manager), this.getTarget(manager));
 	}
 
 	public WebhookEmbed getWebhookEmbed(User moderator, User target) {
@@ -164,8 +164,8 @@ public class ModLog {
 		return embed.build();
 	}
 
-	public WebhookEmbed getWebhookEmbed() {
-		return this.getWebhookEmbed(this.getModerator(), this.getTarget());
+	public WebhookEmbed getWebhookEmbed(ShardManager manager) {
+		return this.getWebhookEmbed(this.getModerator(manager), this.getTarget(manager));
 	}
 
 	public Document toData() {

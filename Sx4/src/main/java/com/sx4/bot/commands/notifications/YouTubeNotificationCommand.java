@@ -59,10 +59,10 @@ public class YouTubeNotificationCommand extends Sx4Command {
 	@Examples({"youtube notification add videos mrbeast", "youtube notification add #videos pewdiepie"})
 	public void add(Sx4CommandEvent event, @Argument(value="channel") TextChannel channel, @Argument(value="youtube channel", endless=true) String youtubeChannelArgument) {
 		Request channelRequest = new Request.Builder()
-			.url("https://www.googleapis.com/youtube/v3/search?key=" + this.config.getYoutube() + "&q=" + URLEncoder.encode(youtubeChannelArgument, StandardCharsets.UTF_8) + "&part=id&type=channel&maxResults=1")
+			.url("https://www.googleapis.com/youtube/v3/search?key=" + event.getConfig().getYoutube() + "&q=" + URLEncoder.encode(youtubeChannelArgument, StandardCharsets.UTF_8) + "&part=id&type=channel&maxResults=1")
 			.build();
 		
-		event.getClient().newCall(channelRequest).enqueue((HttpCallback) channelResponse -> {
+		event.getHttpClient().newCall(channelRequest).enqueue((HttpCallback) channelResponse -> {
 			Document json = Document.parse(channelResponse.body().string());
 			
 			List<Document> items = json.getList("items", Document.class);
@@ -77,13 +77,13 @@ public class YouTubeNotificationCommand extends Sx4Command {
 				.append("channelId", channel.getIdLong())
 				.append("guildId", event.getGuild().getIdLong());
 			
-			if (!this.youtubeManager.hasExecutor(channelId)) {
+			if (!event.getBot().getYouTubeManager().hasExecutor(channelId)) {
 				RequestBody body = new MultipartBody.Builder()
 					.addFormDataPart("hub.mode", "subscribe")
 					.addFormDataPart("hub.topic", "https://www.youtube.com/xml/feeds/videos.xml?channel_id=" + channelId)
-					.addFormDataPart("hub.callback", this.config.getDomain() + "/api/youtube")
+					.addFormDataPart("hub.callback", event.getConfig().getDomain() + "/api/youtube")
 					.addFormDataPart("hub.verify", "sync")
-					.addFormDataPart("hub.verify_token", this.config.getYoutube())
+					.addFormDataPart("hub.verify_token", event.getConfig().getYoutube())
 					.setType(MultipartBody.FORM)
 					.build();
 				
@@ -92,21 +92,21 @@ public class YouTubeNotificationCommand extends Sx4Command {
 					.post(body)
 					.build();
 				
-				event.getClient().newCall(request).enqueue((HttpCallback) response -> {
+				event.getHttpClient().newCall(request).enqueue((HttpCallback) response -> {
 					if (response.isSuccessful()) {
-						this.database.insertYouTubeNotification(notificationData).whenComplete((result, exception) -> {
+						event.getDatabase().insertYouTubeNotification(notificationData).whenComplete((result, exception) -> {
 							if (ExceptionUtility.sendExceptionally(event, exception)) {
 								return;
 							}
 
-							event.replyFormat("Notifications will now be sent in %s when that user uploads with id `%s` %s", channel.getAsMention(), result.getInsertedId().asObjectId().getValue().toHexString(), this.config.getSuccessEmote()).queue();
+							event.replyFormat("Notifications will now be sent in %s when that user uploads with id `%s` %s", channel.getAsMention(), result.getInsertedId().asObjectId().getValue().toHexString(), event.getConfig().getSuccessEmote()).queue();
 						});
 					} else {
 						event.replyFailure("Oops something went wrong there, try again. If this repeats report this to my developer (Message: " + response.body().string() + ")").queue();
 					}
 				});
 			} else {
-				this.database.insertYouTubeNotification(notificationData).whenComplete((result, exception) -> {
+				event.getDatabase().insertYouTubeNotification(notificationData).whenComplete((result, exception) -> {
 					Throwable cause = exception == null ? null : exception.getCause();
 					if (cause instanceof MongoWriteException && ((MongoWriteException) cause).getError().getCategory() == ErrorCategory.DUPLICATE_KEY) {
 						event.replyFailure("You already have a notification setup for that youtube channel in " + channel.getAsMention()).queue();
@@ -117,7 +117,7 @@ public class YouTubeNotificationCommand extends Sx4Command {
 						return;
 					}
 					
-					event.replyFormat("Notifications will now be sent in %s when that user uploads with id `%s` %s", channel.getAsMention(), result.getInsertedId().asObjectId().getValue().toHexString(), this.config.getSuccessEmote()).queue();
+					event.replyFormat("Notifications will now be sent in %s when that user uploads with id `%s` %s", channel.getAsMention(), result.getInsertedId().asObjectId().getValue().toHexString(), event.getConfig().getSuccessEmote()).queue();
 				});
 			}
 		});
@@ -129,7 +129,7 @@ public class YouTubeNotificationCommand extends Sx4Command {
 	@Examples({"youtube notification remove 5e45ce6d3688b30ee75201ae"})
 	public void remove(Sx4CommandEvent event, @Argument(value="id") ObjectId id) {
 		FindOneAndDeleteOptions options = new FindOneAndDeleteOptions().projection(Projections.include("channelId"));
-		this.database.findAndDeleteYouTubeNotificationById(id, options).whenComplete((data, exception) -> {
+		event.getDatabase().findAndDeleteYouTubeNotificationById(id, options).whenComplete((data, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -143,7 +143,7 @@ public class YouTubeNotificationCommand extends Sx4Command {
 	@Examples({"youtube notification message 5e45ce6d3688b30ee75201ae {video.url}", "youtube notification message 5e45ce6d3688b30ee75201ae **{channel.name}** just uploaded, check it out: {video.url}"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void message(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="message", endless=true) String message) {
-		this.database.updateYouTubeNotificationById(id, Updates.set("message.content", message)).whenComplete((result, exception) -> {
+		event.getDatabase().updateYouTubeNotificationById(id, Updates.set("message.content", message)).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -162,7 +162,7 @@ public class YouTubeNotificationCommand extends Sx4Command {
 	@Examples({"youtube notification advanced message 5e45ce6d3688b30ee75201ae {\"content\": \"{video.url}\"}", "youtube notification advanced message 5e45ce6d3688b30ee75201ae {\"embed\": {\"description\": \"{video.url}\"}}"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void advancedMessage(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="json", endless=true) @AdvancedMessage Document json) {
-		this.database.updateYouTubeNotificationById(id, Updates.set("message", json)).whenComplete((result, exception) -> {
+		event.getDatabase().updateYouTubeNotificationById(id, Updates.set("message", json)).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -181,7 +181,7 @@ public class YouTubeNotificationCommand extends Sx4Command {
 	@Examples({"youtube notification name 5e45ce6d3688b30ee75201ae YouTube", "youtube notification name 5e45ce6d3688b30ee75201ae Pewdiepie's Minion"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void name(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="name", endless=true) String name) {
-		this.database.updateYouTubeNotificationById(id, Updates.set("webhook.name", name)).whenComplete((result, exception) -> {
+		event.getDatabase().updateYouTubeNotificationById(id, Updates.set("webhook.name", name)).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -200,7 +200,7 @@ public class YouTubeNotificationCommand extends Sx4Command {
 	@Examples({"youtube notification avatar 5e45ce6d3688b30ee75201ae Shea#6653", "youtube notification avatar 5e45ce6d3688b30ee75201ae https://i.imgur.com/i87lyNO.png"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void avatar(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="avatar", endless=true, acceptEmpty=true) @ImageUrl String url) {
-		this.database.updateYouTubeNotificationById(id, Updates.set("webhook.avatar", url)).whenComplete((result, exception) -> {
+		event.getDatabase().updateYouTubeNotificationById(id, Updates.set("webhook.avatar", url)).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -242,7 +242,7 @@ public class YouTubeNotificationCommand extends Sx4Command {
 	@Examples({"youtube notification list"})
 	@BotPermissions(permissions={Permission.MESSAGE_EMBED_LINKS})
 	public void list(Sx4CommandEvent event) {
-		List<Document> notifications = this.database.getYouTubeNotifications(Filters.eq("guildId", event.getGuild().getIdLong()), Projections.include("uploaderId", "channelId")).into(new ArrayList<>());
+		List<Document> notifications = event.getDatabase().getYouTubeNotifications(Filters.eq("guildId", event.getGuild().getIdLong()), Projections.include("uploaderId", "channelId")).into(new ArrayList<>());
 		if (notifications.isEmpty()) {
 			event.replyFailure("You have no notifications setup in this server").queue();
 			return;
@@ -250,7 +250,7 @@ public class YouTubeNotificationCommand extends Sx4Command {
 
 		notifications.sort(Comparator.comparingLong(a -> a.getLong("channelId")));
 		
-		PagedResult<Document> paged = new PagedResult<>(notifications)
+		PagedResult<Document> paged = new PagedResult<>(event.getBot(), notifications)
 			.setIncreasedIndex(true)
 			.setAutoSelect(false)
 			.setAuthor("YouTube Notifications", null, event.getGuild().getIconUrl())
@@ -282,7 +282,7 @@ public class YouTubeNotificationCommand extends Sx4Command {
 	@Examples({"youtube notification stats 5e45ce6d3688b30ee75201ae"})
 	@BotPermissions(permissions={Permission.MESSAGE_EMBED_LINKS})
 	public void stats(Sx4CommandEvent event, @Argument(value="id") ObjectId id) {
-		Document notification = this.database.getYouTubeNotification(Filters.eq("_id", id), Projections.include("uploaderId", "channelId", "message.content"));
+		Document notification = event.getDatabase().getYouTubeNotification(Filters.eq("_id", id), Projections.include("uploaderId", "channelId", "message.content"));
 		if (notification == null) {
 			event.replyFailure("You don't have a notification with that id").queue();
 			return;

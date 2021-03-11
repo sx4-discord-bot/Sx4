@@ -1,7 +1,7 @@
 package com.sx4.bot.handlers;
 
 import com.mongodb.client.model.Filters;
-import com.sx4.bot.config.Config;
+import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.database.model.Operators;
 import com.sx4.bot.entities.mod.Reason;
@@ -10,9 +10,6 @@ import com.sx4.bot.entities.mod.auto.MatchAction;
 import com.sx4.bot.entities.settings.HolderType;
 import com.sx4.bot.formatter.StringFormatter;
 import com.sx4.bot.managers.AntiRegexManager;
-import com.sx4.bot.managers.ModActionManager;
-import com.sx4.bot.managers.MuteManager;
-import com.sx4.bot.managers.TemporaryBanManager;
 import com.sx4.bot.utility.ModUtility;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.*;
@@ -35,14 +32,13 @@ import java.util.regex.Pattern;
 
 public class AntiRegexHandler extends ListenerAdapter {
 
-    private final AntiRegexManager manager = AntiRegexManager.get();
-    private final ModActionManager modActionManager = ModActionManager.get();
-    private final MuteManager muteManager = MuteManager.get();
-    private final TemporaryBanManager banManager = TemporaryBanManager.get();
-    private final Database database = Database.get();
-    private final Config config = Config.get();
+    private final Sx4 bot;
 
     private final ExecutorService executor = Executors.newCachedThreadPool();
+
+    public AntiRegexHandler(Sx4 bot) {
+        this.bot = bot;
+    }
 
     private String format(String message, User user, TextChannel channel, ObjectId id, int currentAttempts, int maxAttempts, Action action) {
         return new StringFormatter(message)
@@ -75,7 +71,7 @@ public class AntiRegexHandler extends ListenerAdapter {
             long guildId = guild.getIdLong(), userId = member.getIdLong(), channelId = textChannel.getIdLong();
             List<Role> roles = member.getRoles();
 
-            List<Document> regexes = this.database.getRegexes(Filters.eq("guildId", guildId), Database.EMPTY_DOCUMENT).into(new ArrayList<>());
+            List<Document> regexes = this.bot.getDatabase().getRegexes(Filters.eq("guildId", guildId), Database.EMPTY_DOCUMENT).into(new ArrayList<>());
 
             String content = message.getContentRaw();
             Regexes : for (Document regex : regexes) {
@@ -121,7 +117,7 @@ public class AntiRegexHandler extends ListenerAdapter {
                     continue;
                 }
 
-                int currentAttempts = this.manager.getAttempts(id, userId);
+                int currentAttempts = this.bot.getAntiRegexManager().getAttempts(id, userId);
 
                 Document match = regex.get("match", Database.EMPTY_DOCUMENT);
                 long matchAction = match.get("action", MatchAction.ALL);
@@ -151,9 +147,9 @@ public class AntiRegexHandler extends ListenerAdapter {
 
                     // TODO: have a new collection for user attempts and update after the action has been performed
 
-                    ModUtility.performAction(action, member, selfMember, reason).whenComplete((result, exception) -> {
+                    ModUtility.performAction(this.bot, action, member, selfMember, reason).whenComplete((result, exception) -> {
                         if (exception != null) {
-                            textChannel.sendMessage(exception.getMessage() + " " + this.config.getFailureEmote()).queue();
+                            textChannel.sendMessage(exception.getMessage() + " " + this.bot.getConfig().getFailureEmote()).queue();
                             return;
                         }
 
@@ -169,14 +165,14 @@ public class AntiRegexHandler extends ListenerAdapter {
                     textChannel.sendMessage(matchMessage).allowedMentions(EnumSet.allOf(Message.MentionType.class)).queue();
                 }
 
-                this.manager.incrementAttempts(id, userId);
+                this.bot.getAntiRegexManager().incrementAttempts(id, userId);
 
                 Document userData = new Document("id", userId);
                 Document reset = attempts.get("reset", Database.EMPTY_DOCUMENT);
 
                 long duration = reset.get("after", 0L);
                 if (duration != 0L) {
-                    this.manager.scheduleResetAttempts(id, userId, duration, reset.getInteger("amount"));
+                    this.bot.getAntiRegexManager().scheduleResetAttempts(id, userId, duration, reset.getInteger("amount"));
                     userData.append("resetAt", Clock.systemUTC().instant().getEpochSecond() + duration);
                 }
 
@@ -185,7 +181,7 @@ public class AntiRegexHandler extends ListenerAdapter {
                 Bson userFilter = Operators.filter(users, Operators.eq("$$this.id", userId));
                 Bson userAttempts = Operators.ifNull(Operators.first(Operators.map(userFilter, "$$this.attempts")), 0);
                 List<Bson> update = List.of(Operators.set("antiRegex.regexes", Operators.concatArrays(List.of(Operators.mergeObjects(Operators.first(regexFilter), new Document("users", Operators.concatArrays(List.of(Operators.mergeObjects(Operators.first(userFilter), userData.append("attempts", Operators.add(userAttempts, 1)))), Operators.ifNull(Operators.filter(users, Operators.ne("$$this.id", userId)), Collections.EMPTY_LIST))))), Operators.filter("$antiRegex.regexes", Operators.ne("$$this.id", regexId)))));
-                this.database.updateGuildById(guildId, update).whenComplete(Database.exceptionally());
+                this.bot.getDatabase().updateGuildById(guildId, update).whenComplete(Database.exceptionally(this.bot.getShardManager()));
 
                 break;
             }

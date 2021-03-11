@@ -36,13 +36,13 @@ public class MuteCommand extends Sx4Command {
 			return;
 		}
 
-		ModUtility.mute(member, event.getMember(), time, extend, reason).whenComplete((action, exception) -> {
+		ModUtility.mute(event.getBot(), member, event.getMember(), time, extend, reason).whenComplete((action, exception) -> {
 			if (exception != null) {
 				event.replyFailure(exception.getMessage()).queue();
 				return;
 			}
 
-			event.replyFormat("**%s** has %s for %s %s", member.getUser().getAsTag(), action.getModAction().isExtend() ? "had their mute extended" : "been muted", TimeUtility.getTimeString(action.getDuration()), this.config.getSuccessEmote()).queue();
+			event.replyFormat("**%s** has %s for %s %s", member.getUser().getAsTag(), action.getModAction().isExtend() ? "had their mute extended" : "been muted", TimeUtility.getTimeString(action.getDuration()), event.getConfig().getSuccessEmote()).queue();
 		});
 	}
 

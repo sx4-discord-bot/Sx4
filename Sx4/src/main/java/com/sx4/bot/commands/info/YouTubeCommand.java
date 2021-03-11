@@ -35,10 +35,10 @@ public class YouTubeCommand extends Sx4Command {
 		String type = channel ? "channel" : video ? "video" : playlist ? "playlist" : null;
 
 		Request request = new Request.Builder()
-			.url(String.format("https://www.googleapis.com/youtube/v3/search?key=%s&part=snippet&safeSearch=none&maxResults=1&q=%s%s", this.config.getYoutube(), URLEncoder.encode(query, StandardCharsets.UTF_8), type == null ? "" : "&type=" + type))
+			.url(String.format("https://www.googleapis.com/youtube/v3/search?key=%s&part=snippet&safeSearch=none&maxResults=1&q=%s%s", event.getConfig().getYoutube(), URLEncoder.encode(query, StandardCharsets.UTF_8), type == null ? "" : "&type=" + type))
 			.build();
 
-		event.getClient().newCall(request).enqueue((HttpCallback) response -> {
+		event.getHttpClient().newCall(request).enqueue((HttpCallback) response -> {
 			Document json = Document.parse(response.body().string());
 
 			List<Document> items = json.getList("items", Document.class);

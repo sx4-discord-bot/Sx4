@@ -2,8 +2,6 @@ package com.sx4.bot.entities.economy.item;
 
 import org.bson.Document;
 
-import com.sx4.bot.managers.EconomyManager;
-
 public class Item {
 
 	private final long price;
@@ -35,13 +33,6 @@ public class Item {
 	public Document toData() {
 		return new Document("name", this.name)
 			.append("type", this.type.getType());
-	}
-	
-	public static Item getFromName(String name) {
-		return EconomyManager.get().getItems().stream()
-			.filter(item -> item.getName().equalsIgnoreCase(name))
-			.findFirst()
-			.orElse(null);
 	}
 	
 }

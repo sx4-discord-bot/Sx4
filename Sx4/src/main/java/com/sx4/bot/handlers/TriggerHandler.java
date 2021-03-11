@@ -1,6 +1,7 @@
 package com.sx4.bot.handlers;
 
 import com.mongodb.client.model.*;
+import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.formatter.JsonFormatter;
 import com.sx4.bot.formatter.parser.FormatterRandomParser;
@@ -19,7 +20,11 @@ import java.util.List;
 
 public class TriggerHandler extends ListenerAdapter {
 
-	private final Database database = Database.get();
+	private final Sx4 bot;
+
+	public TriggerHandler(Sx4 bot) {
+		this.bot = bot;
+	}
 
 	public void handle(Message message) {
 		User author = message.getAuthor();
@@ -28,7 +33,7 @@ public class TriggerHandler extends ListenerAdapter {
 		}
 
 		List<WriteModel<Document>> bulkData = new ArrayList<>();
-		this.database.getTriggers(Filters.eq("guildId", message.getGuild().getIdLong()), Projections.include("trigger", "response", "case", "enabled")).forEach(trigger -> {
+		this.bot.getDatabase().getTriggers(Filters.eq("guildId", message.getGuild().getIdLong()), Projections.include("trigger", "response", "case", "enabled")).forEach(trigger -> {
 			if (!trigger.get("enabled", true)) {
 				return;
 			}
@@ -51,7 +56,7 @@ public class TriggerHandler extends ListenerAdapter {
 		});
 
 		if (!bulkData.isEmpty()) {
-			this.database.bulkWriteTriggers(bulkData).whenComplete(Database.exceptionally());
+			this.bot.getDatabase().bulkWriteTriggers(bulkData).whenComplete(Database.exceptionally(this.bot.getShardManager()));
 		}
 	}
 

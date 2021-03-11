@@ -18,14 +18,26 @@ import java.util.Map;
 
 public class Sx4CommandEvent extends CommandEvent {
 
-	public Sx4CommandEvent(Message message, CommandListener listener, ICommand command, 
+	private final Sx4 bot;
+
+	public Sx4CommandEvent(Sx4 bot, Message message, CommandListener listener, ICommand command,
 			Object[] arguments, String[] rawArguments, String prefix, String commandTrigger, 
 			Map<String, Object> options, ArgumentParsingType parsingType, String contentOverflow, long timeStarted) {
 		super(message, listener, command, arguments, rawArguments, prefix, commandTrigger, options, parsingType, contentOverflow, timeStarted);
+
+		this.bot = bot;
 	}
 
-	public OkHttpClient getClient() {
-		return Sx4.getClient();
+	public Sx4 getBot() {
+		return this.bot;
+	}
+
+	public Config getConfig() {
+		return this.bot.getConfig();
+	}
+
+	public OkHttpClient getHttpClient() {
+		return this.bot.getHttpClient();
 	}
 	
 	public Sx4Command getCommand() {
@@ -41,7 +53,7 @@ public class Sx4CommandEvent extends CommandEvent {
 	}
 	
 	public Database getDatabase() {
-		return Database.get();
+		return this.bot.getDatabase();
 	}
 	
 	public MessageAction replyHelp() {
@@ -53,11 +65,11 @@ public class Sx4CommandEvent extends CommandEvent {
 	}
 
 	public MessageAction replySuccess(String content) {
-		return this.replyFormat("%s %s", content, Config.get().getSuccessEmote());
+		return this.replyFormat("%s %s", content, this.getConfig().getSuccessEmote());
 	}
 
 	public MessageAction replyFailure(String content) {
-		return this.replyFormat("%s %s", content, Config.get().getFailureEmote());
+		return this.replyFormat("%s %s", content, this.getConfig().getFailureEmote());
 	}
 	
 }

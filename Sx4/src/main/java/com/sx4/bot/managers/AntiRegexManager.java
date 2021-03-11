@@ -1,6 +1,7 @@
 package com.sx4.bot.managers;
 
 import com.mongodb.client.model.*;
+import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.Database;
 import org.bson.Document;
 import org.bson.conversions.Bson;
@@ -21,21 +22,18 @@ public class AntiRegexManager {
     public static final String DEFAULT_MOD_MESSAGE = "**{user.tag}** has received a {regex.action.name} for sending a message which matched the regex "
         + "`{regex.id}` {regex.attempts.max} time({regex.attempts.max}!=1?s:) <:done:403285928233402378>";
 
-    private static final AntiRegexManager INSTANCE = new AntiRegexManager();
-
-    public static AntiRegexManager get() {
-        return AntiRegexManager.INSTANCE;
-    }
-
     // TODO Would also be nice for a way to combine attempts across multiple anti regexes
     private final Map<ObjectId, Map<Long, Integer>> attempts;
 
     private final Map<ObjectId, Map<Long, ScheduledFuture<?>>> executors;
     private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
 
-    private AntiRegexManager() {
+    private final Sx4 bot;
+
+    public AntiRegexManager(Sx4 bot) {
         this.attempts = new HashMap<>();
         this.executors = new HashMap<>();
+        this.bot = bot;
     }
 
     public int getAttempts(ObjectId id, long userId) {
@@ -144,7 +142,7 @@ public class AntiRegexManager {
     }
 
     public void resetAttempts(ObjectId id, long userId, long duration, int amount) {
-        Database.get().updateGuild(this.resetAttemptsBulk(id, userId, duration, amount)).whenComplete(Database.exceptionally());
+        this.bot.getDatabase().updateGuild(this.resetAttemptsBulk(id, userId, duration, amount)).whenComplete(Database.exceptionally(this.bot.getShardManager()));
     }
 
     public void scheduleResetAttempts(ObjectId id, long userId, long duration, int amount) {
@@ -157,10 +155,8 @@ public class AntiRegexManager {
     }
 
     public void ensureAttempts() {
-        Database database = Database.get();
-
         List<WriteModel<Document>> bulkData = new ArrayList<>();
-        database.getRegexes(Database.EMPTY_DOCUMENT, Projections.include("attempts.reset")).forEach(regex -> {
+        this.bot.getDatabase().getRegexes(Database.EMPTY_DOCUMENT, Projections.include("attempts.reset")).forEach(regex -> {
             ObjectId id = regex.getObjectId("id");
 
             Document reset = regex.getEmbedded(List.of("attempts", "reset"), Database.EMPTY_DOCUMENT);
@@ -193,7 +189,7 @@ public class AntiRegexManager {
         });
 
         if (!bulkData.isEmpty()) {
-            database.bulkWriteGuilds(bulkData).whenComplete(Database.exceptionally());
+            this.bot.getDatabase().bulkWriteGuilds(bulkData).whenComplete(Database.exceptionally(this.bot.getShardManager()));
         }
     }
 

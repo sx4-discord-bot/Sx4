@@ -40,12 +40,6 @@ import java.util.concurrent.ScheduledExecutorService;
 
 public class YouTubeHandler implements YouTubeListener, EventListener {
 	
-	private static final YouTubeHandler INSTANCE = new YouTubeHandler();
-	
-	public static YouTubeHandler get() {
-		return YouTubeHandler.INSTANCE;
-	}
-	
 	private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd LLLL yyyy HH:mm");
 	
 	private final OkHttpClient client = new OkHttpClient();
@@ -56,8 +50,11 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 	
 	private final Map<Long, WebhookClient> webhooks;
 
-	private YouTubeHandler() {
+	private final Sx4 bot;
+
+	public YouTubeHandler(Sx4 bot) {
 		this.webhooks = new HashMap<>();
+		this.bot = bot;
 	}
 	
 	private WebhookMessageBuilder format(YouTubeUploadEvent event, Document document) {
@@ -96,7 +93,7 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 				Updates.set("webhook.token", webhook.getToken())
 			);
 
-			Database.get().updateManyYouTubeNotifications(Filters.eq("channelId", channel.getIdLong()), update)
+			this.bot.getDatabase().updateManyYouTubeNotifications(Filters.eq("channelId", channel.getIdLong()), update)
 				.thenCompose(result -> webhookClient.send(message))
 				.whenComplete((webhookMessage, exception) -> {
 					if (exception instanceof HttpException && ((HttpException) exception).getCode() == 404) {
@@ -104,7 +101,7 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 
 						this.createWebhook(channel, message);
 					} else {
-						ExceptionUtility.sendErrorMessage(exception);
+						ExceptionUtility.sendErrorMessage(this.bot.getShardManager(), exception);
 					}
 				});
 		});
@@ -112,12 +109,10 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 
 	public void onYouTubeUpload(YouTubeUploadEvent event) {
 		this.notificationExecutor.submit(() -> {
-			ShardManager shardManager = Sx4.get().getShardManager();
-
-			Database database = Database.get();
+			ShardManager shardManager = this.bot.getShardManager();
 
 			String uploaderId = event.getChannel().getId();
-			database.getYouTubeNotifications(Filters.eq("uploaderId", uploaderId), Database.EMPTY_DOCUMENT).forEach(notification -> {
+			this.bot.getDatabase().getYouTubeNotifications(Filters.eq("uploaderId", uploaderId), Database.EMPTY_DOCUMENT).forEach(notification -> {
 				long channelId = notification.getLong("channelId");
 
 				TextChannel textChannel = shardManager.getTextChannelById(channelId);
@@ -132,7 +127,7 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 							.build();
 					} catch (IllegalArgumentException e) {
 						// possibly create an error field when this happens so the user can debug what went wrong
-						database.updateYouTubeNotificationById(notification.getObjectId("_id"), Updates.unset("message")).whenComplete(Database.exceptionally());
+						this.bot.getDatabase().updateYouTubeNotificationById(notification.getObjectId("_id"), Updates.unset("message")).whenComplete(Database.exceptionally(this.bot.getShardManager()));
 						return;
 					}
 
@@ -160,8 +155,8 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 						}
 					});
 				} else {
-					database.deleteYouTubeNotificationById(notification.getObjectId("_id")).whenComplete((result, exception) -> {
-						if (ExceptionUtility.sendErrorMessage(exception)) {
+					this.bot.getDatabase().deleteYouTubeNotificationById(notification.getObjectId("_id")).whenComplete((result, exception) -> {
+						if (ExceptionUtility.sendErrorMessage(this.bot.getShardManager(), exception)) {
 							return;
 						}
 
@@ -175,12 +170,12 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 				.append("title", event.getVideo().getTitle())
 				.append("uploaderId", event.getChannel().getId());
 
-			Database.get().insertYouTubeNotificationLog(data).whenComplete(Database.exceptionally());
+			this.bot.getDatabase().insertYouTubeNotificationLog(data).whenComplete(Database.exceptionally(this.bot.getShardManager()));
 		});
 	}
 	
 	public void onYouTubeDelete(YouTubeDeleteEvent event) {
-		Database.get().deleteManyYouTubeNotificationLogs(event.getVideoId()).whenComplete(Database.exceptionally());
+		this.bot.getDatabase().deleteManyYouTubeNotificationLogs(event.getVideoId()).whenComplete(Database.exceptionally(this.bot.getShardManager()));
 	}
 	
 	public void onYouTubeUpdateTitle(YouTubeUpdateTitleEvent event) {
@@ -188,16 +183,16 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 			.append("videoId", event.getVideo().getId())
 			.append("title", event.getVideo().getTitle())
 			.append("uploaderId", event.getChannel().getId());
-		
-		Database.get().insertYouTubeNotificationLog(data).whenComplete(Database.exceptionally());
+
+		this.bot.getDatabase().insertYouTubeNotificationLog(data).whenComplete(Database.exceptionally(this.bot.getShardManager()));
 	}
 
 	public void onEvent(GenericEvent event) {
 		if (event instanceof TextChannelDeleteEvent) {
 			long channelId = ((TextChannelDeleteEvent) event).getChannel().getIdLong();
-			
-			Database.get().deleteManyYouTubeNotifications(Filters.eq("channelId", channelId)).whenComplete((result, exception) -> {
-				if (ExceptionUtility.sendErrorMessage(exception)) {
+
+			this.bot.getDatabase().deleteManyYouTubeNotifications(Filters.eq("channelId", channelId)).whenComplete((result, exception) -> {
+				if (ExceptionUtility.sendErrorMessage(this.bot.getShardManager(), exception)) {
 					return;
 				} 
 				

@@ -33,7 +33,7 @@ public class ShardInfoCommand extends Sx4Command {
 		shards.sort(Comparator.comparingInt(a -> a.getShardInfo().getShardId()));
 
 		JDA.ShardInfo shardInfo = event.getJDA().getShardInfo();
-		PagedResult<JDA> paged = new PagedResult<>(shards)
+		PagedResult<JDA> paged = new PagedResult<>(event.getBot(), shards)
 			.setPerPage(9)
 			.setCustomFunction(page -> {
 				EmbedBuilder embed = new EmbedBuilder();

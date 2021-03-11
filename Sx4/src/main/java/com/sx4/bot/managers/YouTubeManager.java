@@ -4,7 +4,6 @@ import com.mongodb.client.model.CountOptions;
 import com.mongodb.client.model.DeleteOneModel;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.WriteModel;
-import com.sx4.bot.config.Config;
 import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.events.youtube.*;
@@ -24,12 +23,6 @@ import java.util.concurrent.TimeUnit;
 
 public class YouTubeManager {
 	
-	private static final YouTubeManager INSTANCE = new YouTubeManager();
-	
-	public static YouTubeManager get() {
-		return YouTubeManager.INSTANCE;
-	}
-	
 	public static final Document DEFAULT_MESSAGE = new Document("content", "**[{channel.name}]({channel.url})** just uploaded a new video!\n{video.url}");
 	
 	private final List<YouTubeListener> listeners;
@@ -37,10 +30,13 @@ public class YouTubeManager {
 	private final Map<String, ScheduledFuture<?>> executors;
 	
 	private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+
+	private final Sx4 bot;
 	
-	private YouTubeManager() {
+	public YouTubeManager(Sx4 bot) {
 		this.executors = new HashMap<>();
 		this.listeners = new ArrayList<>();
+		this.bot = bot;
 	}
 	
 	public YouTubeManager addListener(YouTubeListener... listeners) {
@@ -110,18 +106,16 @@ public class YouTubeManager {
 	}
 	
 	public DeleteOneModel<Document> resubscribeBulk(String channelId) {
-		Config config = Config.get();
-		
-		long amount = Database.get().countYouTubeNotifications(Filters.eq("uploaderId", channelId), new CountOptions().limit(1));
+		long amount = this.bot.getDatabase().countYouTubeNotifications(Filters.eq("uploaderId", channelId), new CountOptions().limit(1));
 		
 		DeleteOneModel<Document> model = null;
 		if (amount != 0) {
 			RequestBody body = new MultipartBody.Builder()
 				.addFormDataPart("hub.mode", "subscribe")
 				.addFormDataPart("hub.topic", "https://www.youtube.com/xml/feeds/videos.xml?channel_id=" + channelId)
-				.addFormDataPart("hub.callback", config.getDomain() + "/api/youtube")
+				.addFormDataPart("hub.callback", this.bot.getConfig().getDomain() + "/api/youtube")
 				.addFormDataPart("hub.verify", "sync")
-				.addFormDataPart("hub.verify_token", config.getYoutube())
+				.addFormDataPart("hub.verify_token", this.bot.getConfig().getYoutube())
 				.setType(MultipartBody.FORM)
 				.build();
 			
@@ -130,7 +124,7 @@ public class YouTubeManager {
 				.post(body)
 				.build();
 			
-			Sx4.getClient().newCall(request).enqueue((HttpCallback) response -> {
+			this.bot.getHttpClient().newCall(request).enqueue((HttpCallback) response -> {
 				if (response.isSuccessful()) {
 					System.out.println("Resubscribed to " + channelId + " for YouTube notifications");
 				} else {
@@ -151,14 +145,14 @@ public class YouTubeManager {
 	public void resubscribe(String channelId) {
 		DeleteOneModel<Document> model = this.resubscribeBulk(channelId);
 		if (model != null) {
-			Database.get().deleteYouTubeSubscription(model.getFilter()).whenComplete(Database.exceptionally());
+			this.bot.getDatabase().deleteYouTubeSubscription(model.getFilter()).whenComplete(Database.exceptionally(this.bot.getShardManager()));
 		}
 	}
 	
 	public void ensureResubscriptions() {
 		List<WriteModel<Document>> bulkData = new ArrayList<>();
 		
-		Database.get().getYouTubeSubscriptions().find().forEach(data -> {
+		this.bot.getDatabase().getYouTubeSubscriptions().find().forEach(data -> {
 			String channelId = data.getString("_id");
 			
 			long timeTill = data.getLong("resubscribeAt") - Clock.systemUTC().instant().getEpochSecond();
@@ -173,7 +167,7 @@ public class YouTubeManager {
 		});
 		
 		if (!bulkData.isEmpty()) {
-			Database.get().bulkWriteYouTubeSubscriptions(bulkData).whenComplete(Database.exceptionally());
+			this.bot.getDatabase().bulkWriteYouTubeSubscriptions(bulkData).whenComplete(Database.exceptionally(this.bot.getShardManager()));
 		}
 	}
 	

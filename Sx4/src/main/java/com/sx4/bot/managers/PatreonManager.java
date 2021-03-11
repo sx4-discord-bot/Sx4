@@ -7,16 +7,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class PatreonManager {
-	
-	private static final PatreonManager INSTANCE = new PatreonManager();
-	
-	public static PatreonManager get() {
-		return PatreonManager.INSTANCE;
-	}
 
 	private final List<PatreonListener> listeners;
 	
-	private PatreonManager() {
+	public PatreonManager() {
 		this.listeners = new ArrayList<>();
 	}
 	

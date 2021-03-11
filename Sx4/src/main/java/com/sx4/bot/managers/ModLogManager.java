@@ -9,7 +9,6 @@ import club.minnced.discord.webhook.send.WebhookMessage;
 import club.minnced.discord.webhook.send.WebhookMessageBuilder;
 import com.mongodb.client.model.Updates;
 import com.sx4.bot.core.Sx4;
-import com.sx4.bot.database.Database;
 import com.sx4.bot.exceptions.mod.BotPermissionException;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.TextChannel;
@@ -26,19 +25,16 @@ import java.util.concurrent.ScheduledExecutorService;
 
 public class ModLogManager implements WebhookManager {
 
-	private static final ModLogManager INSTANCE = new ModLogManager();
-
-	public static ModLogManager get() {
-		return ModLogManager.INSTANCE;
-	}
-
 	private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
 	private final OkHttpClient client = new OkHttpClient();
 
 	private final Map<Long, WebhookClient> webhooks;
 
-	private ModLogManager() {
+	private final Sx4 bot;
+
+	public ModLogManager(Sx4 bot) {
 		this.webhooks = new HashMap<>();
+		this.bot = bot;
 	}
 
 	public WebhookClient getWebhook(long channelId) {
@@ -71,7 +67,7 @@ public class ModLogManager implements WebhookManager {
 				Updates.set("modLog.webhook.token", webhook.getToken())
 			);
 
-			return Database.get().updateGuildById(channel.getGuild().getIdLong(), update).thenCompose(result -> webhookClient.send(message));
+			return this.bot.getDatabase().updateGuildById(channel.getGuild().getIdLong(), update).thenCompose(result -> webhookClient.send(message));
 		}).exceptionallyCompose(exception -> {
 			if (exception instanceof HttpException && ((HttpException) exception).getCode() == 404) {
 				this.webhooks.remove(channel.getIdLong());
@@ -118,7 +114,7 @@ public class ModLogManager implements WebhookManager {
 	}
 
 	public CompletableFuture<ReadonlyMessage> editModLog(long messageId, long channelId, Document webhookData, WebhookEmbed embed) {
-		User selfUser = Sx4.get().getShardManager().getShardById(0).getSelfUser();
+		User selfUser = this.bot.getShardManager().getShardById(0).getSelfUser();
 
 		WebhookMessage message = new WebhookMessageBuilder()
 			.setAvatarUrl(webhookData.get("url", selfUser.getEffectiveAvatarUrl()))

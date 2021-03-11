@@ -1,5 +1,6 @@
 package com.sx4.bot.cache;
 
+import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.Database;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.events.message.MessageBulkDeleteEvent;
@@ -20,6 +21,12 @@ import java.util.stream.Collectors;
 public class GuildMessageCache extends ListenerAdapter {
 	
 	private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+
+	private final Sx4 bot;
+
+	public GuildMessageCache(Sx4 bot) {
+		this.bot = bot;
+	}
 	
 	private Document getData(Message message) {
 		return new Document("_id", message.getIdLong())
@@ -36,7 +43,7 @@ public class GuildMessageCache extends ListenerAdapter {
 			return;
 		}
 
-		Database.get().insertMessage(this.getData(event.getMessage())).whenComplete(Database.exceptionally());
+		this.bot.getDatabase().insertMessage(this.getData(event.getMessage())).whenComplete(Database.exceptionally(this.bot.getShardManager()));
 	}
 	
 	public void onGuildMessageUpdate(GuildMessageUpdateEvent event) {
@@ -44,11 +51,11 @@ public class GuildMessageCache extends ListenerAdapter {
 			return;
 		}
 
-		this.executor.schedule(() -> Database.get().replaceMessage(this.getData(event.getMessage())).whenComplete(Database.exceptionally()), 50, TimeUnit.MILLISECONDS);
+		this.executor.schedule(() -> this.bot.getDatabase().replaceMessage(this.getData(event.getMessage())).whenComplete(Database.exceptionally(this.bot.getShardManager())), 50, TimeUnit.MILLISECONDS);
 	}
 
 	public void handleDelete(List<Long> messageIds) {
-		this.executor.schedule(() -> Database.get().deleteMessages(messageIds).whenComplete(Database.exceptionally()), 5, TimeUnit.MINUTES);
+		this.executor.schedule(() -> this.bot.getDatabase().deleteMessages(messageIds).whenComplete(Database.exceptionally(this.bot.getShardManager())), 5, TimeUnit.MINUTES);
 	}
 	
 	public void onGuildMessageDelete(GuildMessageDeleteEvent event) {

@@ -1,9 +1,9 @@
 package com.sx4.bot.config;
 
-import com.sx4.bot.core.Sx4;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.TextChannel;
+import net.dv8tion.jda.api.sharding.ShardManager;
 import org.bson.Document;
 import org.json.JSONObject;
 
@@ -16,9 +16,9 @@ import java.util.Collections;
 import java.util.List;
 
 public class Config {
-	
-	public static final Config INSTANCE = new Config();
-	
+
+	private static final Config INSTANCE = new Config();
+
 	public static Config get() {
 		return Config.INSTANCE;
 	}
@@ -29,7 +29,7 @@ public class Config {
 	private String emoteSuccess;
 	private String emoteFailure;
 	
-	public Config() {
+	private Config() {
 		this.reloadConfig();
 	}
 	
@@ -114,16 +114,16 @@ public class Config {
 		return "https://discord.gg/" + this.get(this.getState() + ".supportGuild.invite");
 	}
 	
-	public Guild getSupportGuild() {
-		return Sx4.get().getShardManager().getGuildById(this.getSupportGuildId());
+	public Guild getSupportGuild(ShardManager manager) {
+		return manager.getGuildById(this.getSupportGuildId());
 	}
 	
 	public long getErrorsChannelId() {
 		return this.get(this.getState() + ".supportGuild.channel.errorsId", 0L);
 	}
 	
-	public TextChannel getErrorsChannel() {
-		Guild guild = this.getSupportGuild();
+	public TextChannel getErrorsChannel(ShardManager manager) {
+		Guild guild = this.getSupportGuild(manager);
 		
 		return guild == null ? null : guild.getTextChannelById(this.getErrorsChannelId());
 	}
@@ -132,8 +132,8 @@ public class Config {
 		return this.get(this.getState() + ".supportGuild.channel.changesId", 0L);
 	}
 	
-	public TextChannel getChangesChannel() {
-		Guild guild = this.getSupportGuild();
+	public TextChannel getChangesChannel(ShardManager manager) {
+		Guild guild = this.getSupportGuild(manager);
 		
 		return guild == null ? null : guild.getTextChannelById(this.getChangesChannelId());
 	}
@@ -142,8 +142,8 @@ public class Config {
 		return this.get(this.getState() + ".supportGuild.channel.commandsId", 0L);
 	}
 	
-	public TextChannel getCommandsChannel() {
-		Guild guild = this.getSupportGuild();
+	public TextChannel getCommandsChannel(ShardManager manager) {
+		Guild guild = this.getSupportGuild(manager);
 		
 		return guild == null ? null : guild.getTextChannelById(this.getCommandsChannelId());
 	}
@@ -152,8 +152,8 @@ public class Config {
 		return this.get(this.getState() + ".supportGuild.channel.eventsId", 0L);
 	}
 	
-	public TextChannel getEventsChannel() {
-		Guild guild = this.getSupportGuild();
+	public TextChannel getEventsChannel(ShardManager manager) {
+		Guild guild = this.getSupportGuild(manager);
 		
 		return guild == null ? null : guild.getTextChannelById(this.getEventsChannelId());
 	}
@@ -162,8 +162,8 @@ public class Config {
 		return this.get(this.getState() + ".supportGuild.channel.statsId", 0L);
 	}
 	
-	public TextChannel getStatsChannel() {
-		Guild guild = this.getSupportGuild();
+	public TextChannel getStatsChannel(ShardManager manager) {
+		Guild guild = this.getSupportGuild(manager);
 		
 		return guild == null ? null : guild.getTextChannelById(this.getStatsChannelId());
 	}
@@ -172,8 +172,8 @@ public class Config {
 		return this.get(this.getState() + ".supportGuild.channel.guildsId", 0L);
 	}
 	
-	public TextChannel getGuildsChannel() {
-		Guild guild = this.getSupportGuild();
+	public TextChannel getGuildsChannel(ShardManager manager) {
+		Guild guild = this.getSupportGuild(manager);
 		
 		return guild == null ? null : guild.getTextChannelById(this.getGuildsChannelId());
 	}
@@ -182,8 +182,8 @@ public class Config {
 		return this.get(this.getState() + ".supportGuild.channel.milestonesId", 0L);
 	}
 	
-	public TextChannel getMilestonesChannel() {
-		Guild guild = this.getSupportGuild();
+	public TextChannel getMilestonesChannel(ShardManager manager) {
+		Guild guild = this.getSupportGuild(manager);
 		
 		return guild == null ? null : guild.getTextChannelById(this.getMilstonesChannelId());
 	}
@@ -192,8 +192,8 @@ public class Config {
 		return this.get(this.getState() + ".supportGuild.role.donatorId", 0L);
 	}
 	
-	public Role getDonatorRole() {
-		Guild guild = this.getSupportGuild();
+	public Role getDonatorRole(ShardManager manager) {
+		Guild guild = this.getSupportGuild(manager);
 		
 		return guild == null ? null : guild.getRoleById(this.getDonatorRoleId());
 	}

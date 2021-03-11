@@ -6,9 +6,6 @@ import com.jockie.bot.core.command.ICommand;
 import com.jockie.bot.core.command.impl.CommandImpl;
 import com.jockie.bot.core.command.impl.DummyCommand;
 import com.sx4.bot.annotations.command.*;
-import com.sx4.bot.config.Config;
-import com.sx4.bot.database.Database;
-import com.sx4.bot.managers.*;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Message;
 
@@ -19,17 +16,6 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 public class Sx4Command extends CommandImpl {
-	
-	public final YouTubeManager youtubeManager = YouTubeManager.get();
-	public final ModActionManager modManager = ModActionManager.get();
-	public final MuteManager muteManager = MuteManager.get();
-	public final TemporaryBanManager banManager = TemporaryBanManager.get();
-	public final ReminderManager reminderManager = ReminderManager.get();
-	public final GiveawayManager giveawayManager = GiveawayManager.get();
-	
-	public final Database database = Database.get();
-	
-	public final Config config = Config.get();
 
 	protected int id;
 	

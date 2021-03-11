@@ -4,7 +4,6 @@ import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.option.Option;
 import com.sx4.bot.annotations.argument.Limit;
 import com.sx4.bot.category.ModuleCategory;
-import com.sx4.bot.core.Sx4;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.entities.image.ImageRequest;
@@ -13,6 +12,7 @@ import com.sx4.bot.utility.ImageUtility;
 import com.sx4.bot.utility.SearchUtility;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.*;
+import net.dv8tion.jda.api.sharding.ShardManager;
 import okhttp3.Request;
 import org.bson.Document;
 
@@ -22,13 +22,13 @@ import java.util.regex.Matcher;
 
 public class DiscordCommand extends Sx4Command {
 
-	private Document getMentions(Guild guild, String text) {
+	private Document getMentions(ShardManager manager, Guild guild, String text) {
 		Document users = new Document(), channels = new Document(), roles = new Document();
 		Set<String> emotes = new HashSet<>();
 
 		Matcher userMatcher = SearchUtility.USER_MENTION.matcher(text);
 		while (userMatcher.find()) {
-			User user = Sx4.get().getShardManager().getUserById(userMatcher.group(1));
+			User user = manager.getUserById(userMatcher.group(1));
 			if (user != null) {
 				Member member = guild.getMember(user);
 
@@ -83,10 +83,10 @@ public class DiscordCommand extends Sx4Command {
 			.addField("dark_theme", !light)
 			.addField("colour", member.getColorRaw())
 			.addField("text", text)
-			.addAllFields(this.getMentions(event.getGuild(), text))
-			.build();
+			.addAllFields(this.getMentions(event.getShardManager(), event.getGuild(), text))
+			.build(event.getConfig().getImageWebserver());
 
-		event.getClient().newCall(request).enqueue((HttpCallback) response -> ImageUtility.getImageMessage(event, response).queue());
+		event.getHttpClient().newCall(request).enqueue((HttpCallback) response -> ImageUtility.getImageMessage(event, response).queue());
 	}
 
 }

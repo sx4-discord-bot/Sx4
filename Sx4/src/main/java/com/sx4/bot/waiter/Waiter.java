@@ -1,5 +1,6 @@
 package com.sx4.bot.waiter;
 
+import com.sx4.bot.core.Sx4;
 import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent;
 
@@ -25,8 +26,6 @@ public class Waiter<Type extends GenericEvent> {
 		}
 		
 	}
-	
-	private final WaiterManager manager = WaiterManager.get();
 
 	private long authorId = 0L;
 	private long channelId = 0L;
@@ -41,8 +40,11 @@ public class Waiter<Type extends GenericEvent> {
 	
 	private Predicate<Type> predicate = $ -> true;
 	private Predicate<Type> cancelPredicate = $ -> false;
+
+	private final Sx4 bot;
 	
-	public Waiter(Class<Type> event) {
+	public Waiter(Sx4 bot, Class<Type> event) {
+		this.bot = bot;
 		this.event = event;
 	}
 	
@@ -163,16 +165,16 @@ public class Waiter<Type extends GenericEvent> {
 	}
 	
 	public void start() {
-		this.manager.addWaiter(this);
+		this.bot.getWaiterManager().addWaiter(this);
 		
 		if (this.timeout != 0) {
-			this.manager.setTimeout(this);
+			this.bot.getWaiterManager().setTimeout(this);
 		}
 	}
 	
 	public void delete() {
-		this.manager.removeWaiter(this);
-		this.manager.cancelTimeout(this);
+		this.bot.getWaiterManager().removeWaiter(this);
+		this.bot.getWaiterManager().cancelTimeout(this);
 	}
 	
 }

@@ -16,18 +16,15 @@ import java.util.concurrent.TimeUnit;
 
 public class ReminderManager {
 	
-	private static final ReminderManager INSTANCE = new ReminderManager();
-	
-	public static ReminderManager get() {
-		return ReminderManager.INSTANCE;
-	}
-	
 	private final Map<ObjectId, ScheduledFuture<?>> executors;
 	
 	private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
 
-	public ReminderManager() {
+	private final Sx4 bot;
+
+	public ReminderManager(Sx4 bot) {
 		this.executors = new HashMap<>();
+		this.bot = bot;
 	}
 	
 	public ScheduledExecutorService getExecutor() {
@@ -73,14 +70,14 @@ public class ReminderManager {
 	public void executeReminder(Document data) {
 		WriteModel<Document> model = this.executeReminderBulk(data);
 		if (model instanceof UpdateOneModel) {
-			Database.get().updateReminder((UpdateOneModel<Document>) model).whenComplete(Database.exceptionally());
+			this.bot.getDatabase().updateReminder((UpdateOneModel<Document>) model).whenComplete(Database.exceptionally(this.bot.getShardManager()));
 		} else {
-			Database.get().deleteReminder((DeleteOneModel<Document>) model).whenComplete(Database.exceptionally());
+			this.bot.getDatabase().deleteReminder((DeleteOneModel<Document>) model).whenComplete(Database.exceptionally(this.bot.getShardManager()));
 		}
 	}
 	
 	public WriteModel<Document> executeReminderBulk(Document data) {
-		User user = Sx4.get().getShardManager().getUserById(data.getLong("userId"));
+		User user = this.bot.getShardManager().getUserById(data.getLong("userId"));
 		if (user != null) {
 			user.openPrivateChannel()
 				.flatMap(channel -> channel.sendMessageFormat("You wanted me to remind you about **%s**", data.getString("reminder")))
@@ -102,10 +99,8 @@ public class ReminderManager {
 	}
 	
 	public void ensureReminders() {
-		Database database = Database.get();
-		
 		List<WriteModel<Document>> bulkData = new ArrayList<>();
-		database.getReminders(Database.EMPTY_DOCUMENT, Database.EMPTY_DOCUMENT).forEach(data -> {
+		this.bot.getDatabase().getReminders(Database.EMPTY_DOCUMENT, Database.EMPTY_DOCUMENT).forEach(data -> {
 			ObjectId id = data.getObjectId("_id");
 
 			long remindAt = data.getLong("remindAt"), currentTime = Clock.systemUTC().instant().getEpochSecond();
@@ -119,7 +114,7 @@ public class ReminderManager {
 		});
 		
 		if (!bulkData.isEmpty()) {
-			database.bulkWriteReminders(bulkData).whenComplete(Database.exceptionally());
+			this.bot.getDatabase().bulkWriteReminders(bulkData).whenComplete(Database.exceptionally(this.bot.getShardManager()));
 		}
 	}
 	

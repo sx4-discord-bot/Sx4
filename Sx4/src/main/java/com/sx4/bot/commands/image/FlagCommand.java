@@ -28,9 +28,9 @@ public class FlagCommand extends Sx4Command {
 		Request request = new ImageRequest("flag")
 			.addQuery("image", imageUrl)
 			.addQuery("flag", flagCode)
-			.build();
+			.build(event.getConfig().getImageWebserver());
 
-		event.getClient().newCall(request).enqueue((HttpCallback) response -> {
+		event.getHttpClient().newCall(request).enqueue((HttpCallback) response -> {
 			ImageUtility.getImageMessage(event, response, (body, error) -> {
 				if (error == ImageError.INVALID_QUERY_VALUE) {
 					return event.replyFailure(body.getString("message"));

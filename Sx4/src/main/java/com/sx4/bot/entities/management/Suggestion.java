@@ -5,12 +5,12 @@ import club.minnced.discord.webhook.send.WebhookEmbed.EmbedAuthor;
 import club.minnced.discord.webhook.send.WebhookEmbed.EmbedField;
 import club.minnced.discord.webhook.send.WebhookEmbed.EmbedFooter;
 import club.minnced.discord.webhook.send.WebhookEmbedBuilder;
-import com.sx4.bot.core.Sx4;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.sharding.ShardManager;
 import org.bson.Document;
 import org.bson.types.ObjectId;
 
@@ -89,16 +89,16 @@ public class Suggestion {
 		return this.guildId;
 	}
 
-	public Guild getGuild() {
-		return Sx4.get().getShardManager().getGuildById(this.guildId);
+	public Guild getGuild(ShardManager manager) {
+		return manager.getGuildById(this.guildId);
 	}
 
 	public long getChannelId() {
 		return this.channelId;
 	}
 
-	public TextChannel getChannel() {
-		return this.getChannel(this.getGuild());
+	public TextChannel getChannel(ShardManager manager) {
+		return this.getChannel(this.getGuild(manager));
 	}
 
 	public TextChannel getChannel(Guild guild) {
@@ -109,20 +109,20 @@ public class Suggestion {
 		return this.authorId;
 	}
 
-	public User getAuthor() {
-		return Sx4.get().getShardManager().getUserById(this.authorId);
+	public User getAuthor(ShardManager manager) {
+		return manager.getUserById(this.authorId);
 	}
 
 	public long getModeratorId() {
 		return this.moderatorId;
 	}
 
-	public User getModerator() {
+	public User getModerator(ShardManager manager) {
 		if (this.moderatorId == 0L) {
 			return null;
 		}
 
-		return Sx4.get().getShardManager().getUserById(this.moderatorId);
+		return manager.getUserById(this.moderatorId);
 	}
 
 	public String getReason() {
@@ -169,8 +169,8 @@ public class Suggestion {
 		return embed.build();
 	}
 
-	public MessageEmbed getEmbed(SuggestionState state) {
-		return this.getEmbed(this.getModerator(), this.getAuthor(), state);
+	public MessageEmbed getEmbed(ShardManager manager, SuggestionState state) {
+		return this.getEmbed(this.getModerator(manager), this.getAuthor(manager), state);
 	}
 
 	public WebhookEmbed getWebhookEmbed(User moderator, User author, SuggestionState state) {
@@ -192,8 +192,8 @@ public class Suggestion {
 		return embed.build();
 	}
 
-	public WebhookEmbed getWebhookEmbed(SuggestionState state) {
-		return this.getWebhookEmbed(this.getModerator(), this.getAuthor(), state);
+	public WebhookEmbed getWebhookEmbed(ShardManager manager, SuggestionState state) {
+		return this.getWebhookEmbed(this.getModerator(manager), this.getAuthor(manager), state);
 	}
 
 	public Document toData() {

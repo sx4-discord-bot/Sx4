@@ -124,7 +124,7 @@ public class ReactionRoleCommand extends Sx4Command {
 
 			if (unicode && message.getReactionByUnicode(emote.getEmoji()) == null) {
 				message.addReaction(emote.getEmoji()).queue($ -> {
-					this.database.updateReactionRole(Filters.eq("messageId", message.getIdLong()), update).whenComplete((result, exception) -> {
+					event.getDatabase().updateReactionRole(Filters.eq("messageId", message.getIdLong()), update).whenComplete((result, exception) -> {
 						if (ExceptionUtility.sendExceptionally(event, exception)) {
 							return;
 						}
@@ -142,7 +142,7 @@ public class ReactionRoleCommand extends Sx4Command {
 					message.addReaction(emote.getEmote()).queue();
 				}
 
-				this.database.updateReactionRole(Filters.eq("messageId", message.getIdLong()), update).whenComplete((result, exception) -> {
+				event.getDatabase().updateReactionRole(Filters.eq("messageId", message.getIdLong()), update).whenComplete((result, exception) -> {
 					if (ExceptionUtility.sendExceptionally(event, exception)) {
 						return;
 					}
@@ -177,7 +177,7 @@ public class ReactionRoleCommand extends Sx4Command {
 		}
 		
 		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().arrayFilters(arrayFilters).returnDocument(ReturnDocument.BEFORE);
-		this.database.findAndUpdateReactionRole(Filters.eq("messageId", messageArgument.getMessageId()), update, options).whenComplete((data, exception) -> {
+		event.getDatabase().findAndUpdateReactionRole(Filters.eq("messageId", messageArgument.getMessageId()), update, options).whenComplete((data, exception) -> {
 			Throwable cause = exception == null ? null : exception.getCause();
 			if (cause instanceof MongoWriteException && ((MongoWriteException) cause).getCode() == 2) {
 				event.replyFailure("There was no reaction role on that message").queue();
@@ -228,7 +228,7 @@ public class ReactionRoleCommand extends Sx4Command {
 		Bson filter = alternative ? Filters.eq("guildId", event.getGuild().getIdLong()) : Filters.eq("messageId", messageId);
 		Bson update = enable ? Updates.unset("dm") : Updates.set("dm", false);
 
-		this.database.updateManyReactionRoles(filter, update).whenComplete((result, exception) -> {
+		event.getDatabase().updateManyReactionRoles(filter, update).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -239,7 +239,7 @@ public class ReactionRoleCommand extends Sx4Command {
 			}
 			
 			if (result.getModifiedCount() == 0) {
-				event.replyFailure(alternative ? "You do not have any reaction roles setup " + this.config.getFailureEmote() : "There was no reaction role on that message").queue();
+				event.replyFailure(alternative ? "You do not have any reaction roles setup " + event.getConfig().getFailureEmote() : "There was no reaction role on that message").queue();
 				return;
 			}
 			
@@ -259,18 +259,18 @@ public class ReactionRoleCommand extends Sx4Command {
 		Bson filter = alternative ? Filters.eq("guildId", event.getGuild().getIdLong()) : Filters.eq("messageId", messageId);
 		Bson update = unlimited ? Updates.unset("maxReactions") : Updates.set("maxReactions", maxReactions);
 
-		this.database.updateManyReactionRoles(filter, update).whenComplete((result, exception) -> {
+		event.getDatabase().updateManyReactionRoles(filter, update).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
 			
 			if (result.getModifiedCount() == 0 && result.getMatchedCount() != 0) {
-				event.reply((alternative ? "All your reaction roles" : "That reaction role") + " already " + (alternative ? "have" : "has") + " it set to " + (unlimited ? "unlimted" : "**" + maxReactions + "**") + " max reaction" + (maxReactions == 1 ? "" : "s") + this.config.getFailureEmote()).queue();
+				event.reply((alternative ? "All your reaction roles" : "That reaction role") + " already " + (alternative ? "have" : "has") + " it set to " + (unlimited ? "unlimted" : "**" + maxReactions + "**") + " max reaction" + (maxReactions == 1 ? "" : "s") + event.getConfig().getFailureEmote()).queue();
 				return;
 			}
 			
 			if (result.getModifiedCount() == 0) {
-				event.replyFailure(alternative ? "You do not have any reaction roles setup " + this.config.getFailureEmote() : "There was no reaction role on that message").queue();
+				event.replyFailure(alternative ? "You do not have any reaction roles setup " + event.getConfig().getFailureEmote() : "There was no reaction role on that message").queue();
 				return;
 			}
 			
@@ -287,7 +287,7 @@ public class ReactionRoleCommand extends Sx4Command {
 		if (option.isAlternative()) {
 			event.reply(event.getAuthor().getName() + ", are you sure you want to delete **all** the reaction roles in this server? (Yes or No)").submit()
 				.thenCompose(message -> {
-					Waiter<GuildMessageReceivedEvent> waiter = new Waiter<>(GuildMessageReceivedEvent.class)
+					Waiter<GuildMessageReceivedEvent> waiter = new Waiter<>(event.getBot(), GuildMessageReceivedEvent.class)
 						.setPredicate(messageEvent -> messageEvent.getMessage().getContentRaw().equalsIgnoreCase("yes"))
 						.setOppositeCancelPredicate()
 						.setTimeout(30)
@@ -301,7 +301,7 @@ public class ReactionRoleCommand extends Sx4Command {
 					
 					return waiter.future();
 				})
-				.thenCompose(messageEvent -> this.database.deleteManyReactionRoles(Filters.eq("guildId", event.getGuild().getIdLong())))
+				.thenCompose(messageEvent -> event.getDatabase().deleteManyReactionRoles(Filters.eq("guildId", event.getGuild().getIdLong())))
 				.whenComplete((result, exception) -> {
 					if (ExceptionUtility.sendExceptionally(event, exception)) {
 						return;
@@ -316,7 +316,7 @@ public class ReactionRoleCommand extends Sx4Command {
 				});
 		} else {
 			long messageId = option.getValue().getMessageId();
-			this.database.deleteReactionRole(Filters.eq("messageId", messageId)).whenComplete((result, exception) -> {
+			event.getDatabase().deleteReactionRole(Filters.eq("messageId", messageId)).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
@@ -373,7 +373,7 @@ public class ReactionRoleCommand extends Sx4Command {
 			}
 
 			FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().projection(Projections.include("reactions")).returnDocument(ReturnDocument.BEFORE);
-			this.database.findAndUpdateReactionRole(Filters.eq("messageId", messageArgument.getMessageId()), update, options).whenComplete((data, exception) -> {
+			event.getDatabase().findAndUpdateReactionRole(Filters.eq("messageId", messageArgument.getMessageId()), update, options).whenComplete((data, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
@@ -433,7 +433,7 @@ public class ReactionRoleCommand extends Sx4Command {
 			}
 
 			FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().projection(Projections.include("reactions")).returnDocument(ReturnDocument.BEFORE);
-			this.database.findAndUpdateReactionRole(Filters.eq("messageId", messageArgument.getMessageId()), update, options).whenComplete((data, exception) -> {
+			event.getDatabase().findAndUpdateReactionRole(Filters.eq("messageId", messageArgument.getMessageId()), update, options).whenComplete((data, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
@@ -487,7 +487,7 @@ public class ReactionRoleCommand extends Sx4Command {
 			}
 
 			FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().projection(Projections.include("reactions")).returnDocument(ReturnDocument.BEFORE);
-			this.database.findAndUpdateReactionRole(Filters.eq("messageId", messageArgument.getMessageId()), update, options).whenComplete((data, exception) -> {
+			event.getDatabase().findAndUpdateReactionRole(Filters.eq("messageId", messageArgument.getMessageId()), update, options).whenComplete((data, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}

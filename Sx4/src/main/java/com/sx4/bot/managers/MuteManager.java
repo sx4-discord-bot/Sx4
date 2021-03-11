@@ -21,19 +21,16 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 public class MuteManager {
-
-	private static final MuteManager INSTANCE = new MuteManager();
-	
-	public static MuteManager get() {
-		return MuteManager.INSTANCE;
-	}
 	
 	private final Map<Long, Map<Long, ScheduledFuture<?>>> executors;
 	
 	private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
-	
-	private MuteManager() {
+
+	private final Sx4 bot;
+
+	public MuteManager(Sx4 bot) {
 		this.executors = new HashMap<>();
+		this.bot = bot;
 	}
 	
 	public ScheduledExecutorService getExecutor() {
@@ -113,7 +110,7 @@ public class MuteManager {
 	}
 	
 	public UpdateOneModel<Document> removeMuteBulk(long guildId, long userId, long roleId) {
-		Guild guild = Sx4.get().getShardManager().getGuildById(guildId);
+		Guild guild = this.bot.getShardManager().getGuildById(guildId);
 		if (guild == null) {
 			return null;
 		}
@@ -124,7 +121,7 @@ public class MuteManager {
 			guild.removeRoleFromMember(member, role).reason("Mute length served").queue();
 		}
 		
-		ModActionManager.get().onModAction(new UnmuteEvent(guild.getSelfMember(), member == null ? null : member.getUser(), new Reason("Mute length served")));
+		this.bot.getModActionManager().onModAction(new UnmuteEvent(guild.getSelfMember(), member == null ? null : member.getUser(), new Reason("Mute length served")));
 		this.deleteExecutor(guildId, userId);
 		
 		return new UpdateOneModel<>(Filters.and(Filters.eq("guildId", guildId), Filters.eq("userId", userId)), Updates.unset("mute.unmuteAt"));
@@ -133,20 +130,18 @@ public class MuteManager {
 	public void removeMute(long guildId, long userId, long roleId) {
 		UpdateOneModel<Document> model = this.removeMuteBulk(guildId, userId, roleId);
 		if (model != null) {
-			Database.get().updateMember(model).whenComplete(Database.exceptionally());
+			this.bot.getDatabase().updateMember(model).whenComplete(Database.exceptionally(this.bot.getShardManager()));
 		}
 	}
 	
 	public void ensureMutes() {
-		Database database = Database.get();
-
 		Map<Long, Long> roleIds = new HashMap<>();
 		
 		List<WriteModel<Document>> bulkData = new ArrayList<>();
-		database.getMembers(Filters.exists("mute.unmuteAt"), Projections.include("mute.unmuteAt", "userId", "guildId")).forEach(data -> {
+		this.bot.getDatabase().getMembers(Filters.exists("mute.unmuteAt"), Projections.include("mute.unmuteAt", "userId", "guildId")).forEach(data -> {
 			long guildId = data.getLong("guildId");
 			if (!roleIds.containsKey(guildId)) {
-				long roleId = database.getGuildById(guildId, Projections.include("mute.roleId")).getEmbedded(List.of("mute", "roleId"), Long.class);
+				long roleId = this.bot.getDatabase().getGuildById(guildId, Projections.include("mute.roleId")).getEmbedded(List.of("mute", "roleId"), Long.class);
 				roleIds.put(guildId, roleId);
 			}
 
@@ -162,7 +157,7 @@ public class MuteManager {
 		});
 		
 		if (!bulkData.isEmpty()) {
-			database.bulkWriteMembers(bulkData).whenComplete(Database.exceptionally());
+			this.bot.getDatabase().bulkWriteMembers(bulkData).whenComplete(Database.exceptionally(this.bot.getShardManager()));
 		}
 	}
 	

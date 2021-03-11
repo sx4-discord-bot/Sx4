@@ -49,7 +49,7 @@ public class TemplateCommand extends Sx4Command {
 			.append("reason", reason)
 			.append("guildId", event.getGuild().getIdLong());
 
-		this.database.insertTemplate(data).whenComplete((result, exception) -> {
+		event.getDatabase().insertTemplate(data).whenComplete((result, exception) -> {
 			Throwable cause = exception == null ? null : exception.getCause();
 			if (cause instanceof MongoWriteException && ((MongoWriteException) cause).getError().getCategory() == ErrorCategory.DUPLICATE_KEY) {
 				event.replyFailure("You already have a template with that name").queue();
@@ -72,7 +72,7 @@ public class TemplateCommand extends Sx4Command {
 		if (option.isAlternative()) {
 			event.reply(event.getAuthor().getName() + ", are you sure you want to delete **all** the templates in this server? (Yes or No)").submit()
 				.thenCompose(message -> {
-					Waiter<GuildMessageReceivedEvent> waiter = new Waiter<>(GuildMessageReceivedEvent.class)
+					Waiter<GuildMessageReceivedEvent> waiter = new Waiter<>(event.getBot(), GuildMessageReceivedEvent.class)
 						.setPredicate(messageEvent -> messageEvent.getMessage().getContentRaw().equalsIgnoreCase("yes"))
 						.setOppositeCancelPredicate()
 						.setTimeout(30)
@@ -86,7 +86,7 @@ public class TemplateCommand extends Sx4Command {
 
 					return waiter.future();
 				})
-				.thenCompose(messageEvent -> this.database.deleteManyTemplates(Filters.eq("guildId", event.getGuild().getIdLong())))
+				.thenCompose(messageEvent -> event.getDatabase().deleteManyTemplates(Filters.eq("guildId", event.getGuild().getIdLong())))
 				.whenComplete((result, exception) -> {
 					if (ExceptionUtility.sendExceptionally(event, exception)) {
 						return;
@@ -100,7 +100,7 @@ public class TemplateCommand extends Sx4Command {
 					event.replySuccess("All templates have been deleted in this server").queue();
 				});
 		} else {
-			this.database.deleteTemplateById(option.getValue()).whenComplete((result, exception) -> {
+			event.getDatabase().deleteTemplateById(option.getValue()).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
@@ -120,13 +120,13 @@ public class TemplateCommand extends Sx4Command {
 	@Examples({"template list"})
 	@BotPermissions(permissions={Permission.MESSAGE_EMBED_LINKS})
 	public void list(Sx4CommandEvent event) {
-		List<Document> triggers = this.database.getTemplates(Filters.eq("guildId", event.getGuild().getIdLong()), Projections.include("template", "reason")).into(new ArrayList<>());
+		List<Document> triggers = event.getDatabase().getTemplates(Filters.eq("guildId", event.getGuild().getIdLong()), Projections.include("template", "reason")).into(new ArrayList<>());
 		if (triggers.isEmpty()) {
 			event.replyFailure("There are no templates setup in this server").queue();
 			return;
 		}
 
-		PagedResult<Document> paged = new PagedResult<>(triggers)
+		PagedResult<Document> paged = new PagedResult<>(event.getBot(), triggers)
 			.setAuthor("Templates", null, event.getGuild().getIconUrl())
 			.setDisplayFunction(data -> "`" + data.getObjectId("_id").toHexString() + "` - " + data.getString("template"));
 

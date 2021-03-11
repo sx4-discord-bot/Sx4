@@ -4,6 +4,7 @@ import club.minnced.discord.webhook.send.WebhookMessage;
 import club.minnced.discord.webhook.send.WebhookMessageBuilder;
 import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.Updates;
+import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.managers.LeaverManager;
 import com.sx4.bot.utility.LeaverUtility;
@@ -14,10 +15,14 @@ import org.bson.Document;
 
 public class LeaverHandler extends ListenerAdapter {
 
-	private final Database database = Database.get();
+	private final Sx4 bot;
+
+	public LeaverHandler(Sx4 bot) {
+		this.bot = bot;
+	}
 
 	public void onGuildMemberRemove(GuildMemberRemoveEvent event) {
-		Document data = this.database.getGuildById(event.getGuild().getIdLong(), Projections.include("welcomer", "premium.endAt"));
+		Document data = this.bot.getDatabase().getGuildById(event.getGuild().getIdLong(), Projections.include("welcomer", "premium.endAt"));
 
 		Document leaver = data.get("leaver", Database.EMPTY_DOCUMENT);
 
@@ -36,7 +41,7 @@ public class LeaverHandler extends ListenerAdapter {
 		try {
 			builder = LeaverUtility.getLeaverMessage(leaver.get("message", LeaverManager.DEFAULT_MESSAGE), event.getMember());
 		} catch (IllegalArgumentException e) {
-			this.database.updateGuildById(event.getGuild().getIdLong(), Updates.unset("welcomer.message")).whenComplete(Database.exceptionally());
+			this.bot.getDatabase().updateGuildById(event.getGuild().getIdLong(), Updates.unset("welcomer.message")).whenComplete(Database.exceptionally(this.bot.getShardManager()));
 			return;
 		}
 
@@ -47,7 +52,7 @@ public class LeaverHandler extends ListenerAdapter {
 			.setAvatarUrl(webhookData.get("avatar", event.getJDA().getSelfUser().getEffectiveAvatarUrl()))
 			.build();
 
-		LeaverManager.get().sendLeaver(channel, webhookData, message);
+		this.bot.getLeaverManager().sendLeaver(channel, webhookData, message);
 	}
 
 }

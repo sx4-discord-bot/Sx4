@@ -22,10 +22,10 @@ public class ConvertCommand extends Sx4Command {
 
 	public void onCommand(Sx4CommandEvent event, @Argument(value="amount") @DefaultNumber(1) double amount, @Argument(value="currency from") @Uppercase String from, @Argument(value="currency to") @Uppercase String to) {
 		Request request = new Request.Builder()
-			.url(String.format("https://free.currconv.com/api/v7/convert?q=%s_%s&apiKey=%s&compact=y", from, to, this.config.getCurrencyConvertor()))
+			.url(String.format("https://free.currconv.com/api/v7/convert?q=%s_%s&apiKey=%s&compact=y", from, to, event.getConfig().getCurrencyConvertor()))
 			.build();
 
-		event.getClient().newCall(request).enqueue((HttpCallback) response -> {
+		event.getHttpClient().newCall(request).enqueue((HttpCallback) response -> {
 			Document json = Document.parse(response.body().string());
 
 			Document result = json.get(from + "_" + to, Document.class);

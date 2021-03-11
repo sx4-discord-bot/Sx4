@@ -44,7 +44,7 @@ public class GoogleImageCommand extends Sx4Command {
 			.addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.3")
 			.build();
 
-		event.getClient().newCall(request).enqueue((HttpCallback) response -> {
+		event.getHttpClient().newCall(request).enqueue((HttpCallback) response -> {
 			Document document = Jsoup.parse(response.body().string());
 
 			Element element = document.getElementsByTag("script").get(41);
@@ -62,7 +62,7 @@ public class GoogleImageCommand extends Sx4Command {
 				return;
 			}
 
-			PagedResult<String> paged = new PagedResult<>(urls)
+			PagedResult<String> paged = new PagedResult<>(event.getBot(), urls)
 				.setPerPage(1)
 				.setCustomFunction(page -> {
 					EmbedBuilder embed = new EmbedBuilder();

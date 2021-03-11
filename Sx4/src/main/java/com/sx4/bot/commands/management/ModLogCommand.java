@@ -20,7 +20,6 @@ import com.sx4.bot.entities.argument.Range;
 import com.sx4.bot.entities.mod.ModLog;
 import com.sx4.bot.entities.mod.Reason;
 import com.sx4.bot.entities.mod.action.Action;
-import com.sx4.bot.managers.ModLogManager;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.waiter.Waiter;
@@ -37,8 +36,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class ModLogCommand extends Sx4Command {
-
-	private final ModLogManager manager = ModLogManager.get();
 
 	public ModLogCommand() {
 		super("modlog", 65);
@@ -59,7 +56,7 @@ public class ModLogCommand extends Sx4Command {
 	@Examples({"modlog toggle"})
 	public void toggle(Sx4CommandEvent event) {
 		List<Bson> update = List.of(Operators.set("modLog.enabled", Operators.cond("$modLog.enabled", Operators.REMOVE, true)));
-		this.database.findAndUpdateGuildById(event.getGuild().getIdLong(), Projections.include("modLog.enabled"), update).whenComplete((data, exception) -> {
+		event.getDatabase().findAndUpdateGuildById(event.getGuild().getIdLong(), Projections.include("modLog.enabled"), update).whenComplete((data, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -78,7 +75,7 @@ public class ModLogCommand extends Sx4Command {
 		List<Bson> update = List.of(Operators.set("modLog.channelId", channel == null ? Operators.REMOVE : channel.getIdLong()), Operators.unset("modLog.webhook.id"), Operators.unset("modLog.webhook.token"));
 		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("modLog.channelId")).upsert(true);
 
-		this.database.findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
+		event.getDatabase().findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -92,7 +89,7 @@ public class ModLogCommand extends Sx4Command {
 
 			TextChannel oldChannel = channelId == 0L ? null : event.getGuild().getTextChannelById(channelId);
 			if (oldChannel != null) {
-				WebhookClient oldWebhook = this.manager.removeWebhook(channelId);
+				WebhookClient oldWebhook = event.getBot().getModLogManager().removeWebhook(channelId);
 				if (oldWebhook != null) {
 					oldChannel.deleteWebhookById(String.valueOf(oldWebhook.getId())).queue();
 				}
@@ -118,7 +115,7 @@ public class ModLogCommand extends Sx4Command {
 		long authorId = event.getAuthor().getIdLong();
 
 		List<Bson> update = List.of(Operators.set("reason", Operators.cond(Operators.and(Operators.or(Operators.eq("$moderatorId", authorId), event.getMember().hasPermission(Permission.ADMINISTRATOR)), Operators.or(or)), reason.getParsed(), "$reason")));
-		this.database.updateManyModLogs(update).whenComplete((result, exception) -> {
+		event.getDatabase().updateManyModLogs(update).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -129,7 +126,7 @@ public class ModLogCommand extends Sx4Command {
 				return;
 			}
 
-			event.replyFormat("Updated **%d** case%s %s", modified, modified == 1 ? "" : "s", this.config.getSuccessEmote()).queue();
+			event.replyFormat("Updated **%d** case%s %s", modified, modified == 1 ? "" : "s", event.getConfig().getSuccessEmote()).queue();
 		});
 	}
 
@@ -142,7 +139,7 @@ public class ModLogCommand extends Sx4Command {
 
 		if (option.isAlternative()) {
 			event.reply(author.getName() + ", are you sure you want to delete **all** the suggestions in this server? (Yes or No)").queue(queryMessage -> {
-				Waiter<GuildMessageReceivedEvent> waiter = new Waiter<>(GuildMessageReceivedEvent.class)
+				Waiter<GuildMessageReceivedEvent> waiter = new Waiter<>(event.getBot(), GuildMessageReceivedEvent.class)
 					.setPredicate(messageEvent -> messageEvent.getMessage().getContentRaw().equalsIgnoreCase("yes"))
 					.setOppositeCancelPredicate()
 					.setTimeout(30)
@@ -153,7 +150,7 @@ public class ModLogCommand extends Sx4Command {
 				waiter.onCancelled(type -> event.replySuccess("Cancelled").queue());
 
 				waiter.future()
-					.thenCompose(messageEvent -> this.database.deleteManyModLogs(Filters.eq("guildId", event.getGuild().getIdLong())))
+					.thenCompose(messageEvent -> event.getDatabase().deleteManyModLogs(Filters.eq("guildId", event.getGuild().getIdLong())))
 					.whenComplete((result, exception) -> {
 						if (ExceptionUtility.sendExceptionally(event, exception)) {
 							return;
@@ -172,7 +169,7 @@ public class ModLogCommand extends Sx4Command {
 		} else {
 			ObjectId id = option.getValue();
 
-			this.database.findAndDeleteModLogById(id).whenComplete((data, exception) -> {
+			event.getDatabase().findAndDeleteModLogById(id).whenComplete((data, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
@@ -182,7 +179,7 @@ public class ModLogCommand extends Sx4Command {
 					return;
 				}
 
-				WebhookClient webhook = this.manager.getWebhook(data.getLong("channelId"));
+				WebhookClient webhook = event.getBot().getModLogManager().getWebhook(data.getLong("channelId"));
 				if (webhook != null) {
 					webhook.delete(data.getLong("messageId"));
 				}
@@ -198,13 +195,13 @@ public class ModLogCommand extends Sx4Command {
 	public void view(Sx4CommandEvent event, @Argument(value="id", nullDefault=true) ObjectId id) {
 		Bson projection = Projections.include("moderatorId", "reason", "targetId", "action");
 		if (id == null) {
-			List<Document> allData = this.database.getModLogs(Filters.eq("guildId", event.getGuild().getIdLong()), projection).into(new ArrayList<>());
+			List<Document> allData = event.getDatabase().getModLogs(Filters.eq("guildId", event.getGuild().getIdLong()), projection).into(new ArrayList<>());
 			if (allData.isEmpty()) {
 				event.replyFailure("There are no mod logs in this server").queue();
 				return;
 			}
 
-			PagedResult<Document> paged = new PagedResult<>(allData)
+			PagedResult<Document> paged = new PagedResult<>(event.getBot(), allData)
 				.setDisplayFunction(data -> {
 					long targetId = data.getLong("targetId");
 					User target = event.getShardManager().getUserById(targetId);
@@ -213,19 +210,17 @@ public class ModLogCommand extends Sx4Command {
 				})
 				.setIncreasedIndex(true);
 			
-			paged.onSelect(select -> {
-				event.reply(ModLog.fromData(select.getSelected()).getEmbed()).queue();
-			});
+			paged.onSelect(select -> event.reply(ModLog.fromData(select.getSelected()).getEmbed(event.getShardManager())).queue());
 			
 			paged.execute(event);
 		} else {
-			Document data = this.database.getModLogById(Filters.and(Filters.eq("_id", id), Filters.eq("guildId", event.getGuild().getIdLong())), projection);
+			Document data = event.getDatabase().getModLogById(Filters.and(Filters.eq("_id", id), Filters.eq("guildId", event.getGuild().getIdLong())), projection);
 			if (data == null) {
 				event.replyFailure("I could not find a mod log with that id").queue();
 				return;
 			}
 			
-			event.reply(ModLog.fromData(data).getEmbed()).queue();
+			event.reply(ModLog.fromData(data).getEmbed(event.getShardManager())).queue();
 		}
 	}
 	

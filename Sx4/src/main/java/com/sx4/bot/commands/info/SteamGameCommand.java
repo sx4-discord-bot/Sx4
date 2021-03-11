@@ -2,7 +2,6 @@ package com.sx4.bot.commands.info;
 
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.option.Option;
-import com.sx4.bot.cache.SteamGameCache;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
@@ -24,8 +23,6 @@ public class SteamGameCommand extends Sx4Command {
 
 	private final Pattern urlPattern = Pattern.compile("https?://store.steampowered.com/app/([0-9]+)[\\S]*", Pattern.CASE_INSENSITIVE);
 
-	private final SteamGameCache cache = SteamGameCache.get();
-
 	public SteamGameCommand() {
 		super("steam game", 34);
 
@@ -46,21 +43,21 @@ public class SteamGameCommand extends Sx4Command {
 
 		List<Document> games;
 		if (query == null) {
-			List<Document> cache = this.cache.getGames();
+			List<Document> cache = event.getBot().getSteamGameCache().getGames();
 			games = List.of(cache.get(event.getRandom().nextInt(cache.size())));
 		} else if (NumberUtility.isNumberUnsigned(query)) {
 			games = List.of(new Document("appid", Integer.parseInt(query)));
 		} else if ((urlMatcher = this.urlPattern.matcher(query)).matches()) {
 			games = List.of(new Document("appid", Integer.parseInt(urlMatcher.group(1))));
 		} else {
-			games = this.cache.getGames(query);
+			games = event.getBot().getSteamGameCache().getGames(query);
 			if (games.isEmpty()) {
 				event.replyFailure("I could not find any games with that query").queue();
 				return;
 			}
 		}
 
-		PagedResult<Document> paged = new PagedResult<>(games)
+		PagedResult<Document> paged = new PagedResult<>(event.getBot(), games)
 			.setAuthor("Steam Search", null, "https://upload.wikimedia.org/wikipedia/commons/thumb/8/83/Steam_icon_logo.svg/2000px-Steam_icon_logo.svg.png")
 			.setIncreasedIndex(true)
 			.setAutoSelect(true)
@@ -75,7 +72,7 @@ public class SteamGameCommand extends Sx4Command {
 				.url("https://store.steampowered.com/api/appdetails?cc=gb&appids=" + appId)
 				.build();
 
-			event.getClient().newCall(request).enqueue((HttpCallback) response -> {
+			event.getHttpClient().newCall(request).enqueue((HttpCallback) response -> {
 				Document json = Document.parse(response.body().string()).get(String.valueOf(appId), Document.class);
 
 				if (!json.getBoolean("success")) {

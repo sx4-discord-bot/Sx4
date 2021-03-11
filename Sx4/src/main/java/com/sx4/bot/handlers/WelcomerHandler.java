@@ -3,6 +3,7 @@ package com.sx4.bot.handlers;
 import club.minnced.discord.webhook.send.WebhookMessage;
 import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.Updates;
+import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.managers.WelcomerManager;
 import com.sx4.bot.utility.ExceptionUtility;
@@ -20,10 +21,14 @@ import java.util.List;
 
 public class WelcomerHandler extends ListenerAdapter {
 
-	private final Database database = Database.get();
+	private final Sx4 bot;
+
+	public WelcomerHandler(Sx4 bot) {
+		this.bot = bot;
+	}
 
 	public void onGuildMemberJoin(GuildMemberJoinEvent event) {
-		Document data = this.database.getGuildById(event.getGuild().getIdLong(), Projections.include("welcomer", "premium.endAt"));
+		Document data = this.bot.getDatabase().getGuildById(event.getGuild().getIdLong(), Projections.include("welcomer", "premium.endAt"));
 
 		Document welcomer = data.get("welcomer", Database.EMPTY_DOCUMENT);
 		Document image = welcomer.get("image", Database.EMPTY_DOCUMENT);
@@ -45,13 +50,13 @@ public class WelcomerHandler extends ListenerAdapter {
 
 		boolean gif = data.getEmbedded(List.of("premium", "endAt"), 0L) >= Clock.systemUTC().instant().getEpochSecond();
 
-		WelcomerUtility.getWelcomerMessage(messageEnabled ? welcomer.get("message", WelcomerManager.DEFAULT_MESSAGE) : null, event.getMember(), imageEnabled, gif, (builder, exception) -> {
+		WelcomerUtility.getWelcomerMessage(this.bot.getHttpClient(), messageEnabled ? welcomer.get("message", WelcomerManager.DEFAULT_MESSAGE) : null, event.getMember(), imageEnabled, gif, (builder, exception) -> {
 			if (exception instanceof IllegalArgumentException) {
-				this.database.updateGuildById(event.getGuild().getIdLong(), Updates.unset("welcomer.message")).whenComplete(Database.exceptionally());
+				this.bot.getDatabase().updateGuildById(event.getGuild().getIdLong(), Updates.unset("welcomer.message")).whenComplete(Database.exceptionally(event.getJDA().getShardManager()));
 				return;
 			}
 
-			if (ExceptionUtility.sendErrorMessage(exception)) {
+			if (ExceptionUtility.sendErrorMessage(event.getJDA().getShardManager(), exception)) {
 				return;
 			}
 
@@ -65,7 +70,7 @@ public class WelcomerHandler extends ListenerAdapter {
 					.setAvatarUrl(webhookData.get("avatar", event.getJDA().getSelfUser().getEffectiveAvatarUrl()))
 					.build();
 
-				WelcomerManager.get().sendWelcomer(channel, webhookData, message);
+				this.bot.getWelcomerManager().sendWelcomer(channel, webhookData, message);
 			}
 		});
 	}

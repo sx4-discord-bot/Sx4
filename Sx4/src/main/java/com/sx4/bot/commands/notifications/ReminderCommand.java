@@ -63,7 +63,7 @@ public class ReminderCommand extends Sx4Command {
 			.append("reminder", reminder.getReminder())
 			.append("remindAt", Clock.systemUTC().instant().getEpochSecond() + duration);
 
-		this.database.insertReminder(data).whenComplete((result, exception) -> {
+		event.getDatabase().insertReminder(data).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -71,9 +71,9 @@ public class ReminderCommand extends Sx4Command {
 			ObjectId id = result.getInsertedId().asObjectId().getValue();
 			data.append("_id", id);
 
-			this.reminderManager.putReminder(initialDuration, data);
+			event.getBot().getReminderManager().putReminder(initialDuration, data);
 
-			event.replyFormat("I will remind you about that in **%s**, your reminder id is `%s` %s", TimeUtility.getTimeString(initialDuration), id.toHexString(), this.config.getSuccessEmote()).queue();
+			event.replyFormat("I will remind you about that in **%s**, your reminder id is `%s` %s", TimeUtility.getTimeString(initialDuration), id.toHexString(), event.getConfig().getSuccessEmote()).queue();
 		});
 	}
 	
@@ -81,7 +81,7 @@ public class ReminderCommand extends Sx4Command {
 	@CommandId(154)
 	@Examples({"reminder remove 5ec67a3b414d8776950f0eee"})
 	public void remove(Sx4CommandEvent event, @Argument(value="id") ObjectId id) {
-		this.database.deleteReminderById(id).whenComplete((result, exception) -> {
+		event.getDatabase().deleteReminderById(id).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -91,7 +91,7 @@ public class ReminderCommand extends Sx4Command {
 				return;
 			}
 			
-			this.reminderManager.deleteExecutor(id);
+			event.getBot().getReminderManager().deleteExecutor(id);
 			
 			event.replySuccess("You will no longer be reminded about that reminder").queue();
 		});
@@ -102,7 +102,7 @@ public class ReminderCommand extends Sx4Command {
 	@Examples({"reminder list"})
 	@Redirects({"reminders"})
 	public void list(Sx4CommandEvent event) {
-		List<Document> reminders = this.database.getReminders(Filters.eq("userId", event.getAuthor().getIdLong()), Projections.include("remindAt")).into(new ArrayList<>());
+		List<Document> reminders = event.getDatabase().getReminders(Filters.eq("userId", event.getAuthor().getIdLong()), Projections.include("remindAt")).into(new ArrayList<>());
 		if (reminders.isEmpty()) {
 			event.replyFailure("You do not have any active reminders").queue();
 			return;
@@ -110,7 +110,7 @@ public class ReminderCommand extends Sx4Command {
 
 		long timeNow = Clock.systemUTC().instant().getEpochSecond();
 		
-		PagedResult<Document> paged = new PagedResult<>(reminders)
+		PagedResult<Document> paged = new PagedResult<>(event.getBot(), reminders)
 			.setIndexed(false)
 			.setAuthor(event.getAuthor().getName() + "'s Reminders", null, event.getAuthor().getEffectiveAvatarUrl())
 			.setDisplayFunction(data -> data.getObjectId("_id").toHexString() + " - `" + TimeUtility.getTimeString(data.getLong("remindAt") - timeNow) + "`");
@@ -124,7 +124,7 @@ public class ReminderCommand extends Sx4Command {
 	public void timeZone(Sx4CommandEvent event, @Argument(value="time zone") TimeZone timeZone) {
 		String zoneId = timeZone.getID();
 		
-		this.database.updateUserById(event.getAuthor().getIdLong(), Updates.set("reminder.timeZone", zoneId)).whenComplete((result, exception) -> {
+		event.getDatabase().updateUserById(event.getAuthor().getIdLong(), Updates.set("reminder.timeZone", zoneId)).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -134,7 +134,7 @@ public class ReminderCommand extends Sx4Command {
 				return;
 			}
 			
-			event.replyFormat("Your default time zone has been set to `%s` " + this.config.getSuccessEmote(), zoneId).queue();
+			event.replyFormat("Your default time zone has been set to `%s` " + event.getConfig().getSuccessEmote(), zoneId).queue();
 		});
 	}
 

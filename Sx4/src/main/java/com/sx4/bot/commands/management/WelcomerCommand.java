@@ -40,8 +40,6 @@ import java.util.Set;
 
 public class WelcomerCommand extends Sx4Command {
 
-	private final WelcomerManager manager = WelcomerManager.get();
-
 	public WelcomerCommand() {
 		super("welcomer", 91);
 
@@ -62,7 +60,7 @@ public class WelcomerCommand extends Sx4Command {
 		List<Bson> update = List.of(Operators.set("welcomer.enabled", Operators.cond("$welcomer.enabled", Operators.REMOVE, true)));
 		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER).projection(Projections.include("welcomer.enabled")).upsert(true);
 
-		this.database.findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
+		event.getDatabase().findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -81,7 +79,7 @@ public class WelcomerCommand extends Sx4Command {
 		List<Bson> update = List.of(Operators.set("welcomer.channelId", channel == null ? Operators.REMOVE : channel.getIdLong()), Operators.unset("welcomer.webhook.id"), Operators.unset("welcomer.webhook.token"));
 		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().upsert(true).projection(Projections.include("welcomer.webhook.token", "welcomer.webhook.id", "welcomer.channelId")).returnDocument(ReturnDocument.BEFORE);
 
-		this.database.findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
+		event.getDatabase().findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -95,7 +93,7 @@ public class WelcomerCommand extends Sx4Command {
 
 			TextChannel oldChannel = channelId == 0L ? null : event.getGuild().getTextChannelById(channelId);
 			if (oldChannel != null) {
-				WebhookClient oldWebhook = this.manager.removeWebhook(channelId);
+				WebhookClient oldWebhook = event.getBot().getWelcomerManager().removeWebhook(channelId);
 				if (oldWebhook != null) {
 					oldChannel.deleteWebhookById(String.valueOf(oldWebhook.getId())).queue();
 				}
@@ -110,7 +108,7 @@ public class WelcomerCommand extends Sx4Command {
 	@Examples({"welcomer message A new person has joined", "welcomer message Welcome {user.mention}!"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void message(Sx4CommandEvent event, @Argument(value="message", endless=true) String message) {
-		this.database.updateGuildById(event.getGuild().getIdLong(), Updates.set("welcomer.message.content", message)).whenComplete((result, exception) -> {
+		event.getDatabase().updateGuildById(event.getGuild().getIdLong(), Updates.set("welcomer.message.content", message)).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -129,7 +127,7 @@ public class WelcomerCommand extends Sx4Command {
 	@Examples({"welcomer advanced message {\"embed\": {\"description\": \"A new person has joined\"}}", "welcomer advanced message {\"embed\": {\"description\": \"Welcome {user.mention}!\"}}"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void advancedMessage(Sx4CommandEvent event, @Argument(value="json", endless=true) @AdvancedMessage Document message) {
-		this.database.updateGuildById(event.getGuild().getIdLong(), Updates.set("welcomer.message", message)).whenComplete((result, exception) -> {
+		event.getDatabase().updateGuildById(event.getGuild().getIdLong(), Updates.set("welcomer.message", message)).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -150,7 +148,7 @@ public class WelcomerCommand extends Sx4Command {
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void name(Sx4CommandEvent event, @Argument(value="name", endless=true) String name) {
 		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().projection(Projections.include("welcomer.webhook.name", "premium.endAt")).returnDocument(ReturnDocument.BEFORE).upsert(true);
-		this.database.findAndUpdateGuildById(event.getGuild().getIdLong(), List.of(OperatorsUtility.setIfPremium("welcomer.webhook.name", name)), options).whenComplete((data, exception) -> {
+		event.getDatabase().findAndUpdateGuildById(event.getGuild().getIdLong(), List.of(OperatorsUtility.setIfPremium("welcomer.webhook.name", name)), options).whenComplete((data, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -179,7 +177,7 @@ public class WelcomerCommand extends Sx4Command {
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void avatar(Sx4CommandEvent event, @Argument(value="avatar", endless=true, acceptEmpty=true) @ImageUrl String url) {
 		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().projection(Projections.include("welcomer.webhook.avatar", "premium.endAt")).returnDocument(ReturnDocument.BEFORE).upsert(true);
-		this.database.findAndUpdateGuildById(event.getGuild().getIdLong(), List.of(OperatorsUtility.setIfPremium("welcomer.webhook.avatar", url)), options).whenComplete((data, exception) -> {
+		event.getDatabase().findAndUpdateGuildById(event.getGuild().getIdLong(), List.of(OperatorsUtility.setIfPremium("welcomer.webhook.avatar", url)), options).whenComplete((data, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -209,7 +207,7 @@ public class WelcomerCommand extends Sx4Command {
 		List<Bson> update = List.of(Operators.set("welcomer.dm", Operators.cond("$welcomer.dm", Operators.REMOVE, true)));
 		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER).projection(Projections.include("welcomer.dm")).upsert(true);
 
-		this.database.findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
+		event.getDatabase().findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -222,7 +220,7 @@ public class WelcomerCommand extends Sx4Command {
 	@CommandId(99)
 	@Examples({"welcomer preview"})
 	public void preview(Sx4CommandEvent event) {
-		Document data = this.database.getGuildById(event.getGuild().getIdLong(), Projections.include("welcomer.message", "welcomer.image", "welcomer.enabled", "premium.endAt"));
+		Document data = event.getDatabase().getGuildById(event.getGuild().getIdLong(), Projections.include("welcomer.message", "welcomer.image", "welcomer.enabled", "premium.endAt"));
 
 		Document welcomer = data.get("welcomer", Database.EMPTY_DOCUMENT);
 		Document image = welcomer.get("image", Database.EMPTY_DOCUMENT);
@@ -235,7 +233,7 @@ public class WelcomerCommand extends Sx4Command {
 
 		boolean gif = data.getEmbedded(List.of("premium", "endAt"), 0L) >= Clock.systemUTC().instant().getEpochSecond();
 
-		WelcomerUtility.getWelcomerMessage(messageEnabled ? welcomer.get("message", WelcomerManager.DEFAULT_MESSAGE) : null, event.getMember(), imageEnabled, gif, (builder, exception) -> {
+		WelcomerUtility.getWelcomerMessage(event.getHttpClient(), messageEnabled ? welcomer.get("message", WelcomerManager.DEFAULT_MESSAGE) : null, event.getMember(), imageEnabled, gif, (builder, exception) -> {
 			if (exception instanceof IllegalArgumentException) {
 				event.replyFailure(exception.getMessage()).queue();
 				return;
@@ -272,7 +270,7 @@ public class WelcomerCommand extends Sx4Command {
 			List<Bson> update = List.of(Operators.set("welcomer.image.enabled", Operators.cond("$welcomer.image.enabled", Operators.REMOVE, true)));
 			FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER).projection(Projections.include("welcomer.image.enabled")).upsert(true);
 
-			this.database.findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
+			event.getDatabase().findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
@@ -290,7 +288,7 @@ public class WelcomerCommand extends Sx4Command {
 				.url(url)
 				.build();
 
-			event.getClient().newCall(request).enqueue((HttpCallback) response -> {
+			event.getHttpClient().newCall(request).enqueue((HttpCallback) response -> {
 				String contentType = response.header("Content-Type");
 				if (contentType == null) {
 					event.replyFailure("That url does not return a content type").queue();

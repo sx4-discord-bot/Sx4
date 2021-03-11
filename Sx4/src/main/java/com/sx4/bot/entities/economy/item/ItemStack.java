@@ -12,7 +12,7 @@ public class ItemStack<Type extends Item> implements Comparable<ItemStack<?>> {
 	
 	@SuppressWarnings("unchecked")
 	public ItemStack(Document data) {
-		Item defaultItem = Item.getFromName(data.getString("name"));
+		Item defaultItem = null; //Item.getFromName(data.getString("name"));
 		ItemType type = ItemType.fromType(data.getInteger("type"));
 		
 		this.item = (Type) type.create(data, defaultItem);

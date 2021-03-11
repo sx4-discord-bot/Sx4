@@ -7,6 +7,7 @@ import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.requests.RestAction;
+import net.dv8tion.jda.api.sharding.ShardManager;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
@@ -16,7 +17,7 @@ import java.util.List;
 
 public class ExceptionUtility {
 
-	public static boolean sendErrorMessage(Throwable throwable) {
+	public static boolean sendErrorMessage(ShardManager manager, Throwable throwable) {
 		if (throwable == null) {
 			return false;
 		}
@@ -48,7 +49,7 @@ public class ExceptionUtility {
 			messages.add(message.append("```").toString());
 		}
 		
-		TextChannel channel = Config.get().getErrorsChannel();
+		TextChannel channel = Config.get().getErrorsChannel(manager);
 		if (channel != null) {
 			messages.stream().map(channel::sendMessage).forEach(RestAction::queue);
 		}
@@ -90,7 +91,7 @@ public class ExceptionUtility {
 
 		event.reply(ExceptionUtility.getSimpleErrorMessage(throwable)).queue();
 
-		ExceptionUtility.sendErrorMessage(throwable);
+		ExceptionUtility.sendErrorMessage(event.getShardManager(), throwable);
 		
 		return true;
 	}

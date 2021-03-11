@@ -3,6 +3,7 @@ package com.sx4.bot.handlers;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.Updates;
+import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.Database;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Guild;
@@ -19,7 +20,11 @@ import java.util.List;
 
 public class AutoRoleHandler extends ListenerAdapter {
 
-	private final Database database = Database.get();
+	private final Sx4 bot;
+
+	public AutoRoleHandler(Sx4 bot) {
+		this.bot = bot;
+	}
 	
 	public void onGuildMemberJoin(GuildMemberJoinEvent event) {
 		Guild guild = event.getGuild();
@@ -30,7 +35,7 @@ public class AutoRoleHandler extends ListenerAdapter {
 			return;
 		}
 		
-		Document data = this.database.getGuildById(guild.getIdLong(), Projections.include("autoRole.roles", "autoRole.enabled")).get("autoRole", Database.EMPTY_DOCUMENT);
+		Document data = this.bot.getDatabase().getGuildById(guild.getIdLong(), Projections.include("autoRole.roles", "autoRole.enabled")).get("autoRole", Database.EMPTY_DOCUMENT);
 		if (!data.getBoolean("enabled", false)) {
 			return;
 		}
@@ -70,8 +75,8 @@ public class AutoRoleHandler extends ListenerAdapter {
 	}
 	
 	public void onRoleDelete(RoleDeleteEvent event) {
-		Database.get().updateGuildById(event.getGuild().getIdLong(), Updates.pull("autoRole.roles", Filters.eq("id", event.getRole().getIdLong())))
-			.whenComplete(Database.exceptionally());
+		this.bot.getDatabase().updateGuildById(event.getGuild().getIdLong(), Updates.pull("autoRole.roles", Filters.eq("id", event.getRole().getIdLong())))
+			.whenComplete(Database.exceptionally(this.bot.getShardManager()));
 	}
 
 }

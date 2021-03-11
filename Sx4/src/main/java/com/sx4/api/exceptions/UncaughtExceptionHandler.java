@@ -1,5 +1,6 @@
 package com.sx4.api.exceptions;
 
+import com.sx4.bot.core.Sx4;
 import com.sx4.bot.utility.ExceptionUtility;
 
 import javax.ws.rs.WebApplicationException;
@@ -11,9 +12,15 @@ import java.util.Optional;
 
 @Provider
 public class UncaughtExceptionHandler implements ExceptionMapper<Throwable> {
+
+	private final Sx4 bot;
+
+	public UncaughtExceptionHandler(Sx4 bot) {
+		this.bot = bot;
+	}
 	
 	public Response toResponse(Throwable exception) {
-		ExceptionUtility.sendErrorMessage(exception);
+		ExceptionUtility.sendErrorMessage(this.bot.getShardManager(), exception);
 		
 		if (exception instanceof WebApplicationException) {
 			return ((WebApplicationException) exception).getResponse();

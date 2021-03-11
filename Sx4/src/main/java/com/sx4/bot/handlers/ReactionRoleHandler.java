@@ -4,6 +4,7 @@ import com.mongodb.MongoWriteException;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Updates;
 import com.sx4.bot.config.Config;
+import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.entities.settings.HolderType;
 import com.sx4.bot.utility.ExceptionUtility;
@@ -26,6 +27,12 @@ import java.util.stream.Collectors;
 
 public class ReactionRoleHandler extends ListenerAdapter {
 
+	private final Sx4 bot;
+
+	public ReactionRoleHandler(Sx4 bot) {
+		this.bot = bot;
+	}
+
 	public void onGenericGuildMessageReaction(GenericGuildMessageReactionEvent event) {
 		User user = event.getUser();
 		Guild guild = event.getGuild();
@@ -35,9 +42,9 @@ public class ReactionRoleHandler extends ListenerAdapter {
 			return;
 		}
 		
-		Config config = Config.get();
+		Config config = this.bot.getConfig();
 		
-		Document reactionRole = Database.get().getReactionRole(Filters.eq("messageId", event.getMessageIdLong()), Database.EMPTY_DOCUMENT);
+		Document reactionRole = this.bot.getDatabase().getReactionRole(Filters.eq("messageId", event.getMessageIdLong()), Database.EMPTY_DOCUMENT);
 		if (reactionRole == null) {
 			return;
 		}
@@ -140,7 +147,7 @@ public class ReactionRoleHandler extends ListenerAdapter {
 	}
 	
 	public void handle(List<Long> messageIds) {
-		Database.get().deleteManyReactionRoles(Filters.in("messageId", messageIds)).whenComplete(Database.exceptionally());
+		this.bot.getDatabase().deleteManyReactionRoles(Filters.in("messageId", messageIds)).whenComplete(Database.exceptionally(this.bot.getShardManager()));
 	}
 	
 	public void onMessageBulkDelete(MessageBulkDeleteEvent event) {
@@ -152,13 +159,13 @@ public class ReactionRoleHandler extends ListenerAdapter {
 	}
 	
 	public void onRoleDelete(RoleDeleteEvent event) {
-		Database.get().updateReactionRole(Filters.eq("guildId", event.getGuild().getIdLong()), Updates.pull("reactions.$[].roles", event.getRole().getIdLong())).whenComplete((result, exception) -> {
+		this.bot.getDatabase().updateReactionRole(Filters.eq("guildId", event.getGuild().getIdLong()), Updates.pull("reactions.$[].roles", event.getRole().getIdLong())).whenComplete((result, exception) -> {
 			Throwable cause = exception == null ? null : exception.getCause();
 			if (cause instanceof MongoWriteException && ((MongoWriteException) cause).getCode() == 2) {
 				return;
 			}
 
-			ExceptionUtility.sendErrorMessage(exception);
+			ExceptionUtility.sendErrorMessage(event.getJDA().getShardManager(), exception);
 		});
 	}
 	

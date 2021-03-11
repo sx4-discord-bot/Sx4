@@ -60,7 +60,7 @@ public class MarriageCommand extends Sx4Command {
 			Filters.eq("partnerId", member.getIdLong())
 		);
 
-		List<Document> marriages = this.database.getMarriages(checkFilter, Projections.include("partnerId", "proposerId")).into(new ArrayList<>());
+		List<Document> marriages = event.getDatabase().getMarriages(checkFilter, Projections.include("partnerId", "proposerId")).into(new ArrayList<>());
 
 		long userCount = marriages.stream().filter(d -> d.getLong("proposerId") == author.getIdLong() || d.getLong("partnerId") == author.getIdLong()).count();
 		if (userCount >= 5) {
@@ -80,7 +80,7 @@ public class MarriageCommand extends Sx4Command {
 			.allowedMentions(EnumSet.of(Message.MentionType.USER))
 			.submit()
 			.thenCompose(message -> {
-				Waiter<GuildMessageReceivedEvent> waiter = new Waiter<>(GuildMessageReceivedEvent.class)
+				Waiter<GuildMessageReceivedEvent> waiter = new Waiter<>(event.getBot(), GuildMessageReceivedEvent.class)
 					.setPredicate(e -> e.getMessage().getContentRaw().equalsIgnoreCase("yes"))
 					.setOppositeCancelPredicate()
 					.setTimeout(60)
@@ -101,7 +101,7 @@ public class MarriageCommand extends Sx4Command {
 			}).thenCompose(e -> {
 				Bson filter = Filters.or(Filters.and(Filters.eq("proposerId", member.getIdLong()), Filters.eq("partnerId", author.getIdLong())), Filters.and(Filters.eq("proposerId", author.getIdLong()), Filters.eq("partnerId", member.getIdLong())));
 
-				return this.database.updateMarriage(filter, Updates.combine(Updates.setOnInsert("proposerId", author.getIdLong()), Updates.setOnInsert("partnerId", member.getIdLong())));
+				return event.getDatabase().updateMarriage(filter, Updates.combine(Updates.setOnInsert("proposerId", author.getIdLong()), Updates.setOnInsert("partnerId", member.getIdLong())));
 			}).whenComplete((result, exception) -> {
 				event.removeCooldown();
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
@@ -126,7 +126,7 @@ public class MarriageCommand extends Sx4Command {
 		if (option.isAlternative()) {
 			event.reply(author.getName() + ", are you sure you want to divorce everyone you are currently married to? (Yes or No)").submit()
 				.thenCompose(message -> {
-					Waiter<GuildMessageReceivedEvent> waiter = new Waiter<>(GuildMessageReceivedEvent.class)
+					Waiter<GuildMessageReceivedEvent> waiter = new Waiter<>(event.getBot(), GuildMessageReceivedEvent.class)
 						.setPredicate(messageEvent -> messageEvent.getMessage().getContentRaw().equalsIgnoreCase("yes"))
 						.setOppositeCancelPredicate()
 						.setTimeout(30)
@@ -142,7 +142,7 @@ public class MarriageCommand extends Sx4Command {
 				}).thenCompose(e -> {
 					Bson filter = Filters.or(Filters.eq("proposerId", author.getIdLong()), Filters.eq("partnerId", author.getIdLong()));
 
-					return this.database.deleteManyMarriages(filter);
+					return event.getDatabase().deleteManyMarriages(filter);
 				}).whenComplete((result, exception) -> {
 					if (ExceptionUtility.sendExceptionally(event, exception)) {
 						return;
@@ -159,7 +159,7 @@ public class MarriageCommand extends Sx4Command {
 			Member member = option.getValue();
 
 			Bson filter = Filters.or(Filters.and(Filters.eq("proposerId", member.getIdLong()), Filters.eq("partnerId", author.getIdLong())), Filters.and(Filters.eq("proposerId", author.getIdLong()), Filters.eq("partnerId", member.getIdLong())));
-			this.database.deleteMarriage(filter).whenComplete((result, exception) -> {
+			event.getDatabase().deleteMarriage(filter).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
@@ -184,7 +184,7 @@ public class MarriageCommand extends Sx4Command {
 
 		Bson filter = Filters.or(Filters.eq("proposerId", user.getIdLong()), Filters.eq("partnerId", user.getIdLong()));
 
-		List<Document> marriages = this.database.getMarriages(filter, Projections.include("proposerId", "partnerId")).into(new ArrayList<>());
+		List<Document> marriages = event.getDatabase().getMarriages(filter, Projections.include("proposerId", "partnerId")).into(new ArrayList<>());
 		if (marriages.isEmpty()) {
 			event.replyFailure("That user is not married to anyone").queue();
 			return;

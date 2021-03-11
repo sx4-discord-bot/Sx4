@@ -20,7 +20,7 @@ public class PrivacyPolicyCommand extends Sx4Command {
     }
 
     public void onCommand(Sx4CommandEvent event) {
-        PagedResult<Document> paged = new PagedResult<>(this.config.getPolicies())
+        PagedResult<Document> paged = new PagedResult<>(event.getBot(), event.getConfig().getPolicies())
             .setPerPage(1)
             .setCustomFunction(page -> {
                 MessageBuilder builder = new MessageBuilder();

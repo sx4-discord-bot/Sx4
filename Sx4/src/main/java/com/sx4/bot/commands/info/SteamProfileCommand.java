@@ -51,7 +51,7 @@ public class SteamProfileCommand extends Sx4Command {
 			.url(url + "?xml=1")
 			.build();
 
-		event.getClient().newCall(request).enqueue((HttpCallback) response -> {
+		event.getHttpClient().newCall(request).enqueue((HttpCallback) response -> {
 			JSONObject json = XML.toJSONObject(response.body().string());
 			if (json.has("response")) {
 				event.replyFailure("I could not find that steam user").queue();

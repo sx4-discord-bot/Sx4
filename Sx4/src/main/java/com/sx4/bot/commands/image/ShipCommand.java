@@ -44,10 +44,10 @@ public class ShipCommand extends Sx4Command {
 			.addQuery("first_image", firstUser.getEffectiveAvatarUrl())
 			.addQuery("second_image", secondUser.getEffectiveAvatarUrl())
 			.addQuery("percent", percent)
-			.build();
+			.build(event.getConfig().getImageWebserver());
 
 		if (event.getSelfMember().hasPermission(event.getTextChannel(), Permission.MESSAGE_ATTACH_FILES)) {
-			event.getClient().newCall(request).enqueue((HttpCallback) response -> {
+			event.getHttpClient().newCall(request).enqueue((HttpCallback) response -> {
 				MessageAction action = ImageUtility.getImageMessage(event, response);
 				if (response.isSuccessful()) {
 					action.content(message);

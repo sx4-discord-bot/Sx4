@@ -22,6 +22,7 @@ import com.mongodb.client.model.Projections;
 import com.sx4.api.Sx4Server;
 import com.sx4.bot.annotations.argument.*;
 import com.sx4.bot.cache.GuildMessageCache;
+import com.sx4.bot.cache.SteamGameCache;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.config.Config;
 import com.sx4.bot.database.Database;
@@ -30,17 +31,16 @@ import com.sx4.bot.entities.management.AutoRoleFilter;
 import com.sx4.bot.entities.mod.PartialEmote;
 import com.sx4.bot.entities.mod.Reason;
 import com.sx4.bot.handlers.*;
-import com.sx4.bot.managers.ModActionManager;
-import com.sx4.bot.managers.PatreonManager;
-import com.sx4.bot.managers.YouTubeManager;
+import com.sx4.bot.managers.*;
 import com.sx4.bot.paged.PagedHandler;
+import com.sx4.bot.paged.PagedManager;
 import com.sx4.bot.utility.*;
 import com.sx4.bot.waiter.WaiterHandler;
+import com.sx4.bot.waiter.WaiterManager;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.*;
 import net.dv8tion.jda.api.entities.Message.Attachment;
 import net.dv8tion.jda.api.entities.MessageReaction.ReactionEmote;
-import net.dv8tion.jda.api.hooks.InterfacedEventManager;
 import net.dv8tion.jda.api.requests.GatewayIntent;
 import net.dv8tion.jda.api.requests.restaction.MessageAction;
 import net.dv8tion.jda.api.sharding.DefaultShardManagerBuilder;
@@ -66,59 +66,121 @@ import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
 public class Sx4 {
-	
-	private static final Sx4 INSTANCE = new Sx4();
-	
-	public static Sx4 get() {
-		return Sx4.INSTANCE;
-	}
-	
+
 	private final Config config = Config.get();
-
-	private static final OkHttpClient CLIENT = new OkHttpClient.Builder()
-		.connectTimeout(15, TimeUnit.SECONDS)
-		.readTimeout(15, TimeUnit.SECONDS)
-		.writeTimeout(15, TimeUnit.SECONDS)
-		.build();
-
-	private static final ExecutorService EXECUTOR = Executors.newSingleThreadExecutor();
+	private final Database database;
 	
 	private final CommandListener commandListener;
 	private final ShardManager shardManager;
+	private final OkHttpClient httpClient;
+	private final ExecutorService executor;
+
+	private final SteamGameCache steamGameCache;
+
+	/* Managers */
+	private final YouTubeManager youTubeManager;
+	private final AntiRegexManager antiRegexManager;
+	private final LoggerManager loggerManager;
+	private final EconomyManager economyManager;
+	private final MuteManager muteManager;
+	private final GiveawayManager giveawayManager;
+	private final PatreonManager patreonManager;
+	private final ModLogManager modLogManager;
+	private final ReminderManager reminderManager;
+	private final StarboardManager starboardManager;
+	private final TemporaryBanManager temporaryBanManager;
+	private final WelcomerManager welcomerManager;
+	private final LeaverManager leaverManager;
+	private final ModActionManager modActionManager;
+	private final PremiumManager premiumManager;
+	private final SuggestionManager suggestionManager;
+	private final PagedManager pagedManager;
+	private final WaiterManager waiterManager;
 	
 	private Sx4() {
-		ModActionManager.get()
-			.addListener(ModHandler.INSTANCE);
-	
-		YouTubeManager.get()
-			.addListener(YouTubeHandler.get());
-		
-		PatreonManager.get()
-			.addListener(PatreonHandler.INSTANCE);
-		
-		MessageAction.setDefaultMentions(EnumSet.noneOf(Message.MentionType.class));
-		
-		MethodCommandFactory.setDefault(new Sx4CommandFactory());
-		
+		this.database = new Database(this.config.getDatabase());
+		this.executor = Executors.newSingleThreadExecutor();
+
+		this.httpClient = new OkHttpClient.Builder()
+			.connectTimeout(15, TimeUnit.SECONDS)
+			.readTimeout(15, TimeUnit.SECONDS)
+			.writeTimeout(15, TimeUnit.SECONDS)
+			.build();
+
 		ContextManagerFactory.getDefault()
 			.registerContext(Sx4CommandEvent.class, (event, type) -> (Sx4CommandEvent) event)
 			.setEnforcedContext(Sx4CommandEvent.class, true);
-		
+
+		MessageAction.setDefaultMentions(EnumSet.noneOf(Message.MentionType.class));
+
+		MethodCommandFactory.setDefault(new Sx4CommandFactory());
+
+		this.modLogManager = new ModLogManager(this);
+
+		ModHandler modHandler = new ModHandler(this);
+		YouTubeHandler youTubeHandler = new YouTubeHandler(this);
+
+		this.antiRegexManager = new AntiRegexManager(this);
+		this.economyManager = new EconomyManager();
+		this.giveawayManager = new GiveawayManager(this);
+		this.leaverManager = new LeaverManager(this);
+		this.loggerManager = new LoggerManager(this);
+		this.modActionManager = new ModActionManager().addListener(modHandler);
+		this.muteManager = new MuteManager(this);
+		this.patreonManager = new PatreonManager().addListener(new PatreonHandler(this));
+		this.premiumManager = new PremiumManager(this);
+		this.reminderManager = new ReminderManager(this);
+		this.starboardManager = new StarboardManager(this);
+		this.suggestionManager = new SuggestionManager(this);
+		this.temporaryBanManager = new TemporaryBanManager(this);
+		this.welcomerManager = new WelcomerManager(this);
+		this.youTubeManager = new YouTubeManager(this).addListener(youTubeHandler);
+		this.pagedManager = new PagedManager();
+		this.waiterManager = new WaiterManager();
+
+		this.steamGameCache = new SteamGameCache(this);
+
 		this.setupArgumentFactory();
 		this.setupOptionFactory();
-		
+
 		this.commandListener = this.createCommandListener(this.createErrorManager());
 		((CommandParserImpl) this.commandListener.getCommandParser()).addOptionPrefix("");
 
-		this.shardManager = this.createShardManager();
+		List<Object> listeners = List.of(
+			new GuildMessageCache(this),
+			this.commandListener,
+			new PagedHandler(this),
+			new WaiterHandler(this),
+			new GiveawayHandler(this),
+			modHandler,
+			new ConnectionHandler(this),
+			new ReactionRoleHandler(this),
+			new LoggerHandler(this),
+			new AntiRegexHandler(this),
+			new WelcomerHandler(this),
+			new LeaverHandler(this),
+			new StarboardHandler(this),
+			new TriggerHandler(this),
+			youTubeHandler
+		);
+
+		this.shardManager = this.createShardManager(listeners);
 	}
 
-	public static OkHttpClient getClient() {
-		return Sx4.CLIENT;
+	public Database getDatabase() {
+		return this.database;
 	}
 
-	public static ExecutorService getExecutor() {
-		return Sx4.EXECUTOR;
+	public Config getConfig() {
+		return this.config;
+	}
+
+	public OkHttpClient getHttpClient() {
+		return this.httpClient;
+	}
+
+	public ExecutorService getExecutor() {
+		return this.executor;
 	}
 	
 	public CommandListener getCommandListener() {
@@ -128,28 +190,88 @@ public class Sx4 {
 	public ShardManager getShardManager() {
 		return this.shardManager;
 	}
-	
-	private ShardManager createShardManager() {
-		try {
-			InterfacedEventManager eventManager = new InterfacedEventManager();
-			eventManager.register(new GuildMessageCache());
-			eventManager.register(this.commandListener);
-			eventManager.register(new PagedHandler());
-			eventManager.register(new WaiterHandler());
-			eventManager.register(new GiveawayHandler());
-			eventManager.register(ModHandler.INSTANCE);
-			eventManager.register(new ConnectionHandler());
-			eventManager.register(new ReactionRoleHandler());
-			eventManager.register(new LoggerHandler());
-			eventManager.register(new AntiRegexHandler());
-			eventManager.register(new WelcomerHandler());
-			eventManager.register(new LeaverHandler());
-			eventManager.register(new StarboardHandler());
-			eventManager.register(new TriggerHandler());
 
+	public AntiRegexManager getAntiRegexManager() {
+		return this.antiRegexManager;
+	}
+
+	public LoggerManager getLoggerManager() {
+		return this.loggerManager;
+	}
+
+	public EconomyManager getEconomyManager() {
+		return this.economyManager;
+	}
+
+	public MuteManager getMuteManager() {
+		return this.muteManager;
+	}
+
+	public GiveawayManager getGiveawayManager() {
+		return this.giveawayManager;
+	}
+
+	public ModLogManager getModLogManager() {
+		return this.modLogManager;
+	}
+
+	public LeaverManager getLeaverManager() {
+		return this.leaverManager;
+	}
+
+	public ModActionManager getModActionManager() {
+		return this.modActionManager;
+	}
+
+	public YouTubeManager getYouTubeManager() {
+		return this.youTubeManager;
+	}
+
+	public PatreonManager getPatreonManager() {
+		return this.patreonManager;
+	}
+
+	public ReminderManager getReminderManager() {
+		return this.reminderManager;
+	}
+
+	public StarboardManager getStarboardManager() {
+		return this.starboardManager;
+	}
+
+	public TemporaryBanManager getTemporaryBanManager() {
+		return this.temporaryBanManager;
+	}
+
+	public WelcomerManager getWelcomerManager() {
+		return this.welcomerManager;
+	}
+
+	public PremiumManager getPremiumManager() {
+		return this.premiumManager;
+	}
+
+	public SuggestionManager getSuggestionManager() {
+		return this.suggestionManager;
+	}
+
+	public PagedManager getPagedManager() {
+		return this.pagedManager;
+	}
+
+	public WaiterManager getWaiterManager() {
+		return this.waiterManager;
+	}
+
+	public SteamGameCache getSteamGameCache() {
+		return this.steamGameCache;
+	}
+
+	public ShardManager createShardManager(List<Object> listeners) {
+		try {
 			return DefaultShardManagerBuilder.create(this.config.getToken(), GatewayIntent.getIntents(6094))
 				.setBulkDeleteSplittingEnabled(false)
-				.setEventManagerProvider(shardId -> eventManager)
+				.addEventListeners(listeners)
 				.build();
 		} catch (LoginException | IllegalArgumentException e) {
 			e.printStackTrace();
@@ -159,13 +281,13 @@ public class Sx4 {
 	}
 	
 	private CommandListener createCommandListener(IErrorManager errorManager) {
-		return new Sx4CommandListener()
+		return new Sx4CommandListener(this)
 			.removePreExecuteCheck(listener -> listener.defaultAuthorPermissionCheck)
 			.addCommandStores(CommandStore.of("com.sx4.bot.commands"))
 			.addDevelopers(this.config.getOwnerIds())
 			.setErrorManager(errorManager)
-			.setCommandEventFactory(new Sx4CommandEventFactory())
-			.addCommandEventListener(new Sx4CommandEventListener())
+			.setCommandEventFactory(new Sx4CommandEventFactory(this))
+			.addCommandEventListener(new Sx4CommandEventListener(this))
 			.setDefaultPrefixes(this.config.getDefaultPrefixes().toArray(String[]::new))
 			.setHelpFunction((message, prefix, commands) -> {
 				MessageChannel channel = message.getChannel();
@@ -217,9 +339,7 @@ public class Sx4 {
 				
 				channel.sendMessage(HelpUtility.getHelpMessage(failures.get(0).getCommand(), embed)).queue();
 			}).addPreExecuteCheck((event, command) -> {
-				Database database = Database.get();
-
-				Document guildData = database.getGuildById(event.getGuild().getIdLong(), Projections.include("prefixes", "fakePermissions.holders"));
+				Document guildData = this.database.getGuildById(event.getGuild().getIdLong(), Projections.include("prefixes", "fakePermissions.holders"));
 
 				List<Document> holders = guildData.getEmbedded(List.of("fakePermissions", "holders"), Collections.emptyList());
 				event.setProperty("fakePermissions", holders);
@@ -231,7 +351,7 @@ public class Sx4 {
 					return true;
 				}
 
-				EnumSet<Permission> missingPermissions = CheckUtility.missingPermissions(event.getMember(), event.getTextChannel(), event.getProperty("fakePermissions"), EnumSet.copyOf(permissions));
+				EnumSet<Permission> missingPermissions = CheckUtility.missingPermissions(this, event.getMember(), event.getTextChannel(), event.getProperty("fakePermissions"), EnumSet.copyOf(permissions));
 				if (missingPermissions.isEmpty()) {
 					return true;
 				} else {
@@ -240,7 +360,7 @@ public class Sx4 {
 				}
 			}).addPreExecuteCheck((event, command) -> {
 				if (command instanceof Sx4Command) {
-					boolean canUseCommand = CheckUtility.canUseCommand(event.getMember(), event.getTextChannel(), (Sx4Command) command);
+					boolean canUseCommand = CheckUtility.canUseCommand(this, event.getMember(), event.getTextChannel(), (Sx4Command) command);
 					if (!canUseCommand) {
 						event.reply("You are blacklisted from using that command in this channel " + this.config.getFailureEmote()).queue();
 					}
@@ -250,12 +370,10 @@ public class Sx4 {
 					return true;
 				}
 			}).setPrefixesFunction(message -> {
-				Database database = Database.get();
+				List<String> guildPrefixes = this.database.getGuildById(message.getGuild().getIdLong(), Projections.include("prefixes")).getList("prefixes", String.class, Collections.emptyList());
+				List<String> userPrefixes = this.database.getUserById(message.getAuthor().getIdLong(), Projections.include("prefixes")).getList("prefixes", String.class, Collections.emptyList());
 
-				List<String> guildPrefixes = database.getGuildById(message.getGuild().getIdLong(), Projections.include("prefixes")).getList("prefixes", String.class, Collections.emptyList());
-				List<String> userPrefixes = database.getUserById(message.getAuthor().getIdLong(), Projections.include("prefixes")).getList("prefixes", String.class, Collections.emptyList());
-
-				return userPrefixes.isEmpty() ? guildPrefixes.isEmpty() ? Config.get().getDefaultPrefixes() : guildPrefixes : userPrefixes;
+				return userPrefixes.isEmpty() ? guildPrefixes.isEmpty() ? this.config.getDefaultPrefixes() : guildPrefixes : userPrefixes;
 			}).setCooldownFunction((event, cooldown) -> {
 				ICommand command = event.getCommand();
 				if (command instanceof Sx4Command) {
@@ -305,7 +423,7 @@ public class Sx4 {
 		});
 
 		optionFactory.registerParser(Duration.class, (context, option, content) -> content == null ? new ParsedResult<>(true, null) : new ParsedResult<>(TimeUtility.getDurationFromString(content)))
-			.registerParser(Guild.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getGuild(content)))
+			.registerParser(Guild.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getGuild(this.shardManager, content)))
 			.registerParser(TextChannel.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getTextChannel(context.getMessage().getGuild(), content.trim())))
 			.registerParser(Integer.class, (context, argument, content) -> {
 				if (argument.getProperty("colour", false)) {
@@ -506,21 +624,21 @@ public class Sx4 {
 		argumentFactory.registerParser(Member.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getMember(context.getMessage().getGuild(), content.trim())))
 			.registerParser(TextChannel.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getTextChannel(context.getMessage().getGuild(), content.trim())))
 			.registerParser(Duration.class, (context, argument, content) -> new ParsedResult<>(TimeUtility.getDurationFromString(content)))
-			.registerParser(List.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getCommandOrModule(content)))
-			.registerParser(Reason.class, (context, argument, content) -> new ParsedResult<>(new Reason(context.getMessage().getGuild().getIdLong(), content)))
+			.registerParser(List.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getCommandOrModule(this.commandListener, content)))
+			.registerParser(Reason.class, (context, argument, content) -> new ParsedResult<>(Reason.parse(this.database, context.getMessage().getGuild().getIdLong(), content)))
 			.registerParser(ObjectId.class, (context, argument, content) -> new ParsedResult<>(ObjectId.isValid(content) ? new ObjectId(content) : null))
 			.registerParser(IPermissionHolder.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getPermissionHolder(context.getMessage().getGuild(), content)))
 			.registerParser(Role.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getRole(context.getMessage().getGuild(), content)))
 			.registerParser(Attachment.class, (context, argument, content) -> context.getMessage().getAttachments().isEmpty() ? new ParsedResult<>() : new ParsedResult<>(context.getMessage().getAttachments().get(0)))
-			.registerParser(Emote.class, (context, argument, content) -> new ParsedResult<>(argument.getProperty("global") ? SearchUtility.getEmote(content) : SearchUtility.getGuildEmote(context.getMessage().getGuild(), content)))
-			.registerParser(Guild.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getGuild(content)))
+			.registerParser(Emote.class, (context, argument, content) -> new ParsedResult<>(argument.getProperty("global") ? SearchUtility.getEmote(this.shardManager, content) : SearchUtility.getGuildEmote(context.getMessage().getGuild(), content)))
+			.registerParser(Guild.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getGuild(this.shardManager, content)))
 			.registerParser(MessageArgument.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getMessageArgument(context.getMessage().getTextChannel(), content)))
-			.registerParser(ReactionEmote.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getReactionEmote(content)))
-			.registerParser(Sx4Command.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getCommand(content)))
+			.registerParser(ReactionEmote.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getReactionEmote(this.shardManager, content)))
+			.registerParser(Sx4Command.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getCommand(this.commandListener, content)))
 			.registerParser(TimeZone.class, (context, argument, content) -> new ParsedResult<>(TimeZone.getTimeZone(content.toUpperCase().replace("UTC", "GMT"))))
 			.registerParser(ReminderArgument.class, (context, argument, content) -> {
 				try {
-					return new ParsedResult<>(new ReminderArgument(context.getMessage().getAuthor().getIdLong(), content));
+					return new ParsedResult<>(ReminderArgument.parse(this.database, context.getMessage().getAuthor().getIdLong(), content));
 				} catch (DateTimeException | IllegalArgumentException e) {
 					return new ParsedResult<>();
 				}
@@ -628,7 +746,7 @@ public class Sx4 {
 					return new ParsedResult<>();
 				}
 				
-				PartialEmote partialEmote = SearchUtility.getPartialEmote(content);
+				PartialEmote partialEmote = SearchUtility.getPartialEmote(this.shardManager, content);
 				if (partialEmote != null) {
 					return new ParsedResult<>(partialEmote);
 				}
@@ -767,7 +885,7 @@ public class Sx4 {
 	
 	@SuppressWarnings("unchecked")
 	private IErrorManager createErrorManager() {
-		IErrorManager errorManager = new ErrorManagerImpl()
+		return new ErrorManagerImpl()
 			.registerResponse(Member.class, "I could not find that user " + this.config.getFailureEmote())
 			.registerResponse(User.class, "I could not find that user " + this.config.getFailureEmote())
 			.registerResponse(Role.class, "I could not find that role " + this.config.getFailureEmote())
@@ -823,20 +941,20 @@ public class Sx4 {
 
 				message.getChannel().sendMessage("Invalid argument given, give any of the following `" + joiner.toString() + "` " + this.config.getFailureEmote()).queue();
 			}).setHandleInheritance(Enum.class, true);
-
-		return errorManager;
 	}
 	
 	public static void main(String[] args) throws Exception {
-		Sx4Server.initiateWebserver();
+		Sx4 bot = new Sx4();
+
+		Sx4Server.initiateWebserver(bot);
 		
 		Thread.setDefaultUncaughtExceptionHandler((thread, exception) -> {
 			System.err.println("[Uncaught]");
 			
 			exception.printStackTrace();
 			
-			ExceptionUtility.sendErrorMessage(exception);
+			ExceptionUtility.sendErrorMessage(bot.getShardManager(), exception);
 		});
 	}
-	
+
 }

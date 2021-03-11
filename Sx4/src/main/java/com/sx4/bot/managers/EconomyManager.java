@@ -11,18 +11,12 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 public class EconomyManager {
-
-	private static final EconomyManager INSTANCE = new EconomyManager();
-	
-	public static EconomyManager get() {
-		return EconomyManager.INSTANCE;
-	}
 	
 	private final List<Item> items;
 	
 	private final Map<ItemType, List<Item>> itemTypes;
 	
-	private EconomyManager() {
+	public EconomyManager() {
 		this.items = new ArrayList<>();
 		this.itemTypes = new HashMap<>();
 		

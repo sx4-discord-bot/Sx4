@@ -9,6 +9,7 @@ import club.minnced.discord.webhook.send.WebhookMessageBuilder;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.UpdateOptions;
 import com.mongodb.client.model.Updates;
+import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.entities.logger.LoggerContext;
 import com.sx4.bot.entities.management.logger.LoggerEvent;
@@ -79,27 +80,22 @@ public class LoggerManager implements WebhookManager {
 
     }
 
-    private static final int SHARDS = 2;
-
     private static final int MAX_RETRIES = 3;
 
-    private static final LoggerManager INSTANCE = new LoggerManager();
-
-    public static LoggerManager get() {
-        return LoggerManager.INSTANCE;
-    }
-
     private final Map<Long, WebhookClient> webhooks;
-    private final Map<Long, BlockingDeque<Request>> queues;
+    private final BlockingDeque<Request> queue;
 
     private final OkHttpClient webhookClient = new OkHttpClient();
     private final ScheduledExecutorService webhookExecutor = Executors.newSingleThreadScheduledExecutor();
 
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
 
-    private LoggerManager() {
-        this.queues = new HashMap<>();
+    private final Sx4 bot;
+
+    public LoggerManager(Sx4 bot) {
+        this.queue = new LinkedBlockingDeque<>();
         this.webhooks = new HashMap<>();
+        this.bot = bot;
     }
 
     public WebhookClient getWebhook(long channelId) {
@@ -129,8 +125,8 @@ public class LoggerManager implements WebhookManager {
             );
 
             UpdateOptions options = new UpdateOptions().arrayFilters(List.of(Filters.eq("logger.id", channel.getIdLong())));
-            Database.get().updateGuildById(channel.getGuild().getIdLong(), update, options).whenComplete((result, exception) -> {
-                if (ExceptionUtility.sendErrorMessage(exception)) {
+            this.bot.getDatabase().updateGuildById(channel.getGuild().getIdLong(), update, options).whenComplete((result, exception) -> {
+                if (ExceptionUtility.sendErrorMessage(this.bot.getShardManager(), exception)) {
                     return;
                 }
 
@@ -162,7 +158,7 @@ public class LoggerManager implements WebhookManager {
             TextChannel channel = request.getChannel(guild);
 
             if (channel == null) {
-                Database.get().updateGuildById(request.getGuildId(), Updates.pull("logger.loggers", Filters.eq("id", channelId))).whenComplete(Database.exceptionally());
+                this.bot.getDatabase().updateGuildById(request.getGuildId(), Updates.pull("logger.loggers", Filters.eq("id", channelId))).whenComplete(Database.exceptionally(this.bot.getShardManager()));
 
                 this.webhooks.remove(channelId);
                 this.handleQueue(deque, 0);
@@ -235,7 +231,7 @@ public class LoggerManager implements WebhookManager {
                     return;
                 }
 
-                if (ExceptionUtility.sendErrorMessage(exception)) {
+                if (ExceptionUtility.sendErrorMessage(this.bot.getShardManager(), exception)) {
                     requests.forEach(deque::addFirst);
                     this.handleQueue(deque, retries + 1);
 
@@ -248,12 +244,11 @@ public class LoggerManager implements WebhookManager {
     }
 
     private void queue(Request request) {
-        BlockingDeque<Request> queue = this.queues.computeIfAbsent((request.getChannelId() >> 22) % LoggerManager.SHARDS, (key) -> new LinkedBlockingDeque<>());
-        if (queue.isEmpty()) {
-            queue.add(request);
-            this.handleQueue(queue, 0);
+        if (this.queue.isEmpty()) {
+            this.queue.add(request);
+            this.handleQueue(this.queue, 0);
         } else {
-            queue.add(request);
+            this.queue.add(request);
         }
     }
 
@@ -296,7 +291,7 @@ public class LoggerManager implements WebhookManager {
         }
 
         if (!deletedLoggers.isEmpty()) {
-            Database.get().updateGuildById(guild.getIdLong(), Updates.pull("logger.loggers", Filters.in("id", deletedLoggers))).whenComplete(Database.exceptionally());
+            this.bot.getDatabase().updateGuildById(guild.getIdLong(), Updates.pull("logger.loggers", Filters.in("id", deletedLoggers))).whenComplete(Database.exceptionally(this.bot.getShardManager()));
         }
     }
 
