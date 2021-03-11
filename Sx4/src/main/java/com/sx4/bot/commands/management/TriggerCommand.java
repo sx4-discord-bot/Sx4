@@ -176,7 +176,7 @@ public class TriggerCommand extends Sx4Command {
 		});
 	}
 
-	@Command(value="delete", description="Deletes a trigger in the server")
+	@Command(value="delete", aliases={"remove"}, description="Deletes a trigger in the server")
 	@CommandId(218)
 	@Examples({"trigger delete 6006ff6b94c9ed0f764ada83", "trigger delete all"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})

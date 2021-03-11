@@ -278,7 +278,7 @@ public class ReactionRoleCommand extends Sx4Command {
 		});
 	}
 	
-	@Command(value="delete", description="Deletes a reaction role")
+	@Command(value="delete", aliases={"remove"}, description="Deletes a reaction role")
 	@CommandId(76)
 	@Examples({"reaction role delete 643945552865919002", "reaction role delete all"})
 	@AuthorPermissions(permissions={Permission.MANAGE_ROLES})
@@ -466,7 +466,7 @@ public class ReactionRoleCommand extends Sx4Command {
 			});
 		}
 
-		@Command(value="delete", description="Deletes a whitelist for a reaction or all reactions")
+		@Command(value="delete", aliases={"remove"}, description="Deletes a whitelist for a reaction or all reactions")
 		@CommandId(80)
 		@Examples({"reaction role whitelist delete 643945552865919002 :doggo:", "reaction role whitelist delete 643945552865919002"})
 		@AuthorPermissions(permissions={Permission.MANAGE_ROLES})

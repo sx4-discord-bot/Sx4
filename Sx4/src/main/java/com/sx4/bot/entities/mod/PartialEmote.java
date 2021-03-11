@@ -27,7 +27,7 @@ public class PartialEmote {
 		this.name = name;
 		this.id = id;
 		this.animated = animated;
-		this.url = String.format(Emote.ICON_URL, String.valueOf(id), animated == null || animated ? "gif" : "png");
+		this.url = String.format(Emote.ICON_URL, id, animated == null || animated ? "gif" : "png");
 	}
 	
 	public long getId() {

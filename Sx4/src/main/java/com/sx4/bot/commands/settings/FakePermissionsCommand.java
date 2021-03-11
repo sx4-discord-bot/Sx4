@@ -107,7 +107,7 @@ public class FakePermissionsCommand extends Sx4Command {
 		});
 	}
 	
-	@Command(value="delete", description="Deletes fake permissions for a user or role")
+	@Command(value="delete", aliases={"remove"}, description="Deletes fake permissions for a user or role")
 	@CommandId(172)
 	@Examples({"fake permissions delete @Shea#6653", "fake permissions delete @Mods", "fake permissions delete all"})
 	@AuthorPermissions(permissions={Permission.ADMINISTRATOR})

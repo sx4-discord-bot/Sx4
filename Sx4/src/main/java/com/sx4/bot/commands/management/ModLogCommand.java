@@ -133,9 +133,9 @@ public class ModLogCommand extends Sx4Command {
 		});
 	}
 
-	@Command(value="remove", aliases={"delete"}, description="Deletes a mod log from the  server")
+	@Command(value="delete", aliases={"remove"}, description="Deletes a mod log from the  server")
 	@CommandId(69)
-	@Examples({"modlog remove 5e45ce6d3688b30ee75201ae", "modlog remove all"})
+	@Examples({"modlog delete 5e45ce6d3688b30ee75201ae", "modlog delete all"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void remove(Sx4CommandEvent event, @Argument(value="id | all") @Options("all") Alternative<ObjectId> option) {
 		User author = event.getAuthor();

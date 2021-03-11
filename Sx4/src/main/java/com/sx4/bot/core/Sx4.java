@@ -4,6 +4,7 @@ import com.jockie.bot.core.argument.IArgument;
 import com.jockie.bot.core.argument.factory.impl.ArgumentFactory;
 import com.jockie.bot.core.argument.factory.impl.ArgumentFactoryImpl;
 import com.jockie.bot.core.argument.factory.impl.BuilderConfigureFunction;
+import com.jockie.bot.core.command.ICommand;
 import com.jockie.bot.core.command.exception.parser.ArgumentParseException;
 import com.jockie.bot.core.command.exception.parser.OutOfContentException;
 import com.jockie.bot.core.command.factory.impl.MethodCommandFactory;
@@ -255,6 +256,17 @@ public class Sx4 {
 				List<String> userPrefixes = database.getUserById(message.getAuthor().getIdLong(), Projections.include("prefixes")).getList("prefixes", String.class, Collections.emptyList());
 
 				return userPrefixes.isEmpty() ? guildPrefixes.isEmpty() ? Config.get().getDefaultPrefixes() : guildPrefixes : userPrefixes;
+			}).setCooldownFunction((event, cooldown) -> {
+				ICommand command = event.getCommand();
+				if (command instanceof Sx4Command) {
+					Sx4Command sx4Command = (Sx4Command) command;
+					if (sx4Command.hasCooldownMessage()) {
+						event.reply(sx4Command.getCooldownMessage()).queue();
+						return;
+					}
+				}
+
+				event.reply("Slow down there! You can execute this command again in " + TimeUtility.getTimeString(cooldown.getTimeRemainingMillis(), TimeUnit.MILLISECONDS) + " :stopwatch:").queue();
 			}).addPreParseCheck(message -> !message.getAuthor().isBot());
 	}
 
@@ -325,8 +337,13 @@ public class Sx4 {
 
 			return new ParsedResult<>(content);
 		}).addParserAfter(String.class, (context, argument, content) -> {
-			Integer charLimit = argument.getProperty("charLimit", Integer.class);
-			if (charLimit != null && content.length() > charLimit) {
+			Integer lowerLimit = argument.getProperty("lowerLimit", Integer.class);
+			if (lowerLimit != null && content.length() < lowerLimit) {
+				return new ParsedResult<>();
+			}
+
+			Integer upperLimit = argument.getProperty("upperLimit", Integer.class);
+			if (upperLimit != null && content.length() > upperLimit) {
 				return new ParsedResult<>();
 			}
 
@@ -351,135 +368,140 @@ public class Sx4 {
 	private void setupArgumentFactory() {
 		ArgumentFactoryImpl argumentFactory = (ArgumentFactoryImpl) ArgumentFactory.getDefault();
 		
-		argumentFactory.addBuilderConfigureFunction(String.class, (parameter, builder) -> {
-			builder.setProperty("imageUrl", parameter.isAnnotationPresent(ImageUrl.class));
-			builder.setProperty("url", parameter.isAnnotationPresent(Url.class));
-			builder.setProperty("lowercase", parameter.isAnnotationPresent(Lowercase.class));
-			builder.setProperty("uppercase", parameter.isAnnotationPresent(Uppercase.class));
+		argumentFactory.addBuilderConfigureFunction(Emote.class, (parameter, builder) -> builder.setProperty("global", parameter.isAnnotationPresent(Global.class)))
+			.addBuilderConfigureFunction(Attachment.class, (parameter, builder) -> builder.setAcceptEmpty(true))
+			.addBuilderConfigureFunction(String.class, (parameter, builder) -> {
+				builder.setProperty("imageUrl", parameter.isAnnotationPresent(ImageUrl.class));
+				builder.setProperty("url", parameter.isAnnotationPresent(Url.class));
+				builder.setProperty("lowercase", parameter.isAnnotationPresent(Lowercase.class));
+				builder.setProperty("uppercase", parameter.isAnnotationPresent(Uppercase.class));
 
-			Replace replace = parameter.getAnnotation(Replace.class);
-			if (replace != null) {
-				builder.setProperty("replace", replace.replace());
-				builder.setProperty("replaceWith", replace.with());
-			}
-
-			Limit limit = parameter.getAnnotation(Limit.class);
-			if (limit != null) {
-				builder.setProperty("charLimit", limit.max());
-			}
-			
-			DefaultString defaultString = parameter.getAnnotation(DefaultString.class);
-			if (defaultString != null) {
-				builder.setDefaultValue(defaultString.value());
-			}
-
-			Options options = parameter.getAnnotation(Options.class);
-			if (options != null) {
-				builder.setProperty("options", options.value());
-			}
-			
-			return builder;
-		}).addBuilderConfigureFunction(Integer.class, (parameter, builder) -> {
-			builder.setProperty("colour", parameter.isAnnotationPresent(Colour.class));
-			
-			Limit limit = parameter.getAnnotation(Limit.class);
-			if (limit != null) {
-				builder.setProperty("upperLimit", limit.max());
-				builder.setProperty("lowerLimit", limit.min());
-			}
-			
-			DefaultNumber defaultInt = parameter.getAnnotation(DefaultNumber.class);
-			if (defaultInt != null) {
-				builder.setDefaultValue((int) defaultInt.value());
-			}
-			
-			return builder;
-		}).addBuilderConfigureFunction(Long.class, (parameter, builder) -> {
-			DefaultNumber defaultLong = parameter.getAnnotation(DefaultNumber.class);
-			if (defaultLong != null) {
-				builder.setDefaultValue((long) defaultLong.value());
-			}
-			
-			return builder;
-		}).addBuilderConfigureFunction(Double.class, (parameter, builder) -> {
-			Limit limit = parameter.getAnnotation(Limit.class);
-			if (limit != null) {
-				builder.setProperty("upperLimit", limit.max());
-				builder.setProperty("lowerLimit", limit.min());
-			}
-
-			DefaultNumber defaultLong = parameter.getAnnotation(DefaultNumber.class);
-			if (defaultLong != null) {
-				builder.setDefaultValue(defaultLong.value());
-			}
-
-			return builder;
-		}).addBuilderConfigureFunction(Document.class, (parameter, builder) -> {
-			builder.setProperty("advancedMessage", parameter.isAnnotationPresent(AdvancedMessage.class));
-
-			return builder;
-		}).addBuilderConfigureFunction(TimedArgument.class, (parameter, builder) -> {
-			Class<?> clazz = (Class<?>) ((ParameterizedType) parameter.getParameterizedType()).getActualTypeArguments()[0];
-			
-			builder.setProperty("class", clazz);
-			
-			List<?> builders = argumentFactory.getBuilderConfigureFunctions(clazz);
-			for (Object builderFunction : builders) {
-				builder = ((BuilderConfigureFunction) builderFunction).configure(parameter, builder);
-			}
-			
-			return builder;
-		}).addBuilderConfigureFunction(Range.class, (parameter, builder) -> {
-			Class<?> clazz = (Class<?>) ((ParameterizedType) parameter.getParameterizedType()).getActualTypeArguments()[0];
-
-			builder.setProperty("class", clazz);
-
-			List<?> builders = argumentFactory.getBuilderConfigureFunctions(clazz);
-			for (Object builderFunction : builders) {
-				builder = ((BuilderConfigureFunction) builderFunction).configure(parameter, builder);
-			}
-
-			return builder;
-		}).addBuilderConfigureFunction(Alternative.class, (parameter, builder) -> {
-			Class<?> clazz = (Class<?>) ((ParameterizedType) parameter.getParameterizedType()).getActualTypeArguments()[0];
-
-			builder.setProperty("class", clazz);
-
-			Options options = parameter.getAnnotation(Options.class);
-			builder.setProperty("options", options == null ? new String[0] : options.value());
-			
-			List<?> builders = argumentFactory.getBuilderConfigureFunctions(clazz);
-			for (Object builderFunction : builders) {
-				builder = ((BuilderConfigureFunction) builderFunction).configure(parameter, builder);
-			}
-			
-			return builder;
-		}).addGenericBuilderConfigureFunction(Enum.class, (parameter, builder) -> {
-			Options options = parameter.getAnnotation(Options.class);
-			if (options != null) {
-				List<Enum<?>> enums = new ArrayList<>();
-				for (Object object : parameter.getType().getEnumConstants()) {
-					for (String option : options.value()) {
-						Enum<?> enumConstant = (Enum<?>) object;
-						if (option.equals(enumConstant.name())) {
-							enums.add(enumConstant);
-						}
-					}
+				Replace replace = parameter.getAnnotation(Replace.class);
+				if (replace != null) {
+					builder.setProperty("replace", replace.replace());
+					builder.setProperty("replaceWith", replace.with());
 				}
 
-				builder.setProperty("options", enums);
-			}
+				Limit limit = parameter.getAnnotation(Limit.class);
+				if (limit != null) {
+					builder.setProperty("lowerLimit", limit.min());
+					builder.setProperty("upperLimit", limit.max());
+				}
 
-			return builder;
-		}).addBuilderConfigureFunction(Or.class, (parameter, builder) -> {
-			Type[] classes = ((ParameterizedType) parameter.getParameterizedType()).getActualTypeArguments();
-			Class<?> firstClass = (Class<?>) classes[0], secondClass = (Class<?>) classes[1];
-			
-			builder.setProperty("firstClass", firstClass);
-			builder.setProperty("secondClass", secondClass);
-			
-			return builder;
-		});
+				DefaultString defaultString = parameter.getAnnotation(DefaultString.class);
+				if (defaultString != null) {
+					builder.setDefaultValue(defaultString.value());
+				}
+
+				Options options = parameter.getAnnotation(Options.class);
+				if (options != null) {
+					builder.setProperty("options", options.value());
+				}
+
+				return builder;
+			}).addBuilderConfigureFunction(Integer.class, (parameter, builder) -> {
+				builder.setProperty("colour", parameter.isAnnotationPresent(Colour.class));
+
+				Limit limit = parameter.getAnnotation(Limit.class);
+				if (limit != null) {
+					builder.setProperty("upperLimit", limit.max());
+					builder.setProperty("lowerLimit", limit.min());
+				}
+
+				DefaultNumber defaultInt = parameter.getAnnotation(DefaultNumber.class);
+				if (defaultInt != null) {
+					builder.setDefaultValue((int) defaultInt.value());
+				}
+
+				return builder;
+			}).addBuilderConfigureFunction(Long.class, (parameter, builder) -> {
+				builder.setProperty("userId", parameter.isAnnotationPresent(UserId.class));
+
+				DefaultNumber defaultLong = parameter.getAnnotation(DefaultNumber.class);
+				if (defaultLong != null) {
+					builder.setDefaultValue((long) defaultLong.value());
+				}
+
+				return builder;
+			}).addBuilderConfigureFunction(Double.class, (parameter, builder) -> {
+				Limit limit = parameter.getAnnotation(Limit.class);
+				if (limit != null) {
+					builder.setProperty("upperLimit", limit.max());
+					builder.setProperty("lowerLimit", limit.min());
+				}
+
+				DefaultNumber defaultLong = parameter.getAnnotation(DefaultNumber.class);
+				if (defaultLong != null) {
+					builder.setDefaultValue(defaultLong.value());
+				}
+
+				return builder;
+			}).addBuilderConfigureFunction(Document.class, (parameter, builder) -> {
+				builder.setProperty("advancedMessage", parameter.isAnnotationPresent(AdvancedMessage.class));
+
+				return builder;
+			}).addBuilderConfigureFunction(TimedArgument.class, (parameter, builder) -> {
+				Class<?> clazz = (Class<?>) ((ParameterizedType) parameter.getParameterizedType()).getActualTypeArguments()[0];
+
+				builder.setProperty("class", clazz);
+
+				List<?> builders = argumentFactory.getBuilderConfigureFunctions(clazz);
+				for (Object builderFunction : builders) {
+					builder = ((BuilderConfigureFunction) builderFunction).configure(parameter, builder);
+				}
+
+				return builder;
+			}).addBuilderConfigureFunction(Range.class, (parameter, builder) -> {
+				Class<?> clazz = (Class<?>) ((ParameterizedType) parameter.getParameterizedType()).getActualTypeArguments()[0];
+
+				builder.setProperty("class", clazz);
+
+				List<?> builders = argumentFactory.getBuilderConfigureFunctions(clazz);
+				for (Object builderFunction : builders) {
+					builder = ((BuilderConfigureFunction) builderFunction).configure(parameter, builder);
+				}
+
+				return builder;
+			}).addBuilderConfigureFunction(Alternative.class, (parameter, builder) -> {
+				Class<?> clazz = (Class<?>) ((ParameterizedType) parameter.getParameterizedType()).getActualTypeArguments()[0];
+
+				builder.setProperty("class", clazz);
+
+				Options options = parameter.getAnnotation(Options.class);
+				builder.setProperty("options", options == null ? new String[0] : options.value());
+
+				List<?> builders = argumentFactory.getBuilderConfigureFunctions(clazz);
+				for (Object builderFunction : builders) {
+					builder = ((BuilderConfigureFunction) builderFunction).configure(parameter, builder);
+				}
+
+				return builder;
+			}).addGenericBuilderConfigureFunction(Enum.class, (parameter, builder) -> {
+				Options options = parameter.getAnnotation(Options.class);
+				if (options != null) {
+					List<Enum<?>> enums = new ArrayList<>();
+					for (Object object : parameter.getType().getEnumConstants()) {
+						for (String option : options.value()) {
+							Enum<?> enumConstant = (Enum<?>) object;
+							if (option.equals(enumConstant.name())) {
+								enums.add(enumConstant);
+							}
+						}
+					}
+
+					builder.setProperty("options", enums);
+				}
+
+				return builder;
+			}).addBuilderConfigureFunction(Or.class, (parameter, builder) -> {
+				Type[] classes = ((ParameterizedType) parameter.getParameterizedType()).getActualTypeArguments();
+				Class<?> firstClass = (Class<?>) classes[0], secondClass = (Class<?>) classes[1];
+
+				builder.setProperty("firstClass", firstClass);
+				builder.setProperty("secondClass", secondClass);
+
+				return builder;
+			});
 			
 		argumentFactory.registerParser(Member.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getMember(context.getMessage().getGuild(), content.trim())))
 			.registerParser(TextChannel.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getTextChannel(context.getMessage().getGuild(), content.trim())))
@@ -490,7 +512,7 @@ public class Sx4 {
 			.registerParser(IPermissionHolder.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getPermissionHolder(context.getMessage().getGuild(), content)))
 			.registerParser(Role.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getRole(context.getMessage().getGuild(), content)))
 			.registerParser(Attachment.class, (context, argument, content) -> context.getMessage().getAttachments().isEmpty() ? new ParsedResult<>() : new ParsedResult<>(context.getMessage().getAttachments().get(0)))
-			.registerParser(Emote.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getGuildEmote(context.getMessage().getGuild(), content)))
+			.registerParser(Emote.class, (context, argument, content) -> new ParsedResult<>(argument.getProperty("global") ? SearchUtility.getEmote(content) : SearchUtility.getGuildEmote(context.getMessage().getGuild(), content)))
 			.registerParser(Guild.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getGuild(content)))
 			.registerParser(MessageArgument.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getMessageArgument(context.getMessage().getTextChannel(), content)))
 			.registerParser(ReactionEmote.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getReactionEmote(content)))
@@ -574,6 +596,18 @@ public class Sx4 {
 				}
 
 				return new ParsedResult<>(content);
+			}).registerParser(Long.class, (context, argument, content) -> {
+				if (argument.getProperty("userId", false)) {
+					long userId = SearchUtility.getUserId(content);
+
+					return new ParsedResult<>(userId == -1L ? null : userId);
+				}
+
+				try {
+					return new ParsedResult<>(Long.parseLong(content));
+				} catch (NumberFormatException e) {
+					return new ParsedResult<>();
+				}
 			}).registerParser(Pattern.class, (context, argument, content) -> {
 				try {
 					return new ParsedResult<>(Pattern.compile(content));
@@ -680,8 +714,13 @@ public class Sx4 {
 			});
 		
 		argumentFactory.addParserAfter(String.class, (context, argument, content) -> {
-			Integer charLimit = argument.getProperty("charLimit", Integer.class);
-			if (charLimit != null && content.length() > charLimit) {
+			Integer lowerLimit = argument.getProperty("lowerLimit", Integer.class);
+			if (lowerLimit != null && content.length() < lowerLimit) {
+				return new ParsedResult<>();
+			}
+
+			Integer upperLimit = argument.getProperty("upperLimit", Integer.class);
+			if (upperLimit != null && content.length() > upperLimit) {
 				return new ParsedResult<>();
 			}
 
@@ -765,9 +804,14 @@ public class Sx4 {
 					message.getChannel().sendMessageFormat("Invalid option given, `%s` are valid options %s", String.join("`, `", options), this.config.getFailureEmote()).queue();
 				}
 
-				Integer charLimit = argument.getProperty("charLimit");
-				if (charLimit != null && content.length() > charLimit) {
-					message.getChannel().sendMessageFormat("You cannot use more than **%,d** character%s for `%s` %s", charLimit, charLimit == 1 ? "" : "s", argument.getName(), this.config.getFailureEmote()).queue();
+				Integer lowerLimit = argument.getProperty("lowerLimit");
+				if (lowerLimit != null && content.length() < lowerLimit) {
+					message.getChannel().sendMessageFormat("You cannot use less than **%,d** character%s for `%s` %s", lowerLimit, lowerLimit == 1 ? "" : "s", argument.getName(), this.config.getFailureEmote()).queue();
+				}
+
+				Integer upperLimit = argument.getProperty("upperLimit");
+				if (upperLimit != null && content.length() > upperLimit) {
+					message.getChannel().sendMessageFormat("You cannot use more than **%,d** character%s for `%s` %s", upperLimit, upperLimit == 1 ? "" : "s", argument.getName(), this.config.getFailureEmote()).queue();
 				}
 			}).registerResponse(Enum.class, (argument, message, content) -> {
 				List<Enum<?>> enums = argument.getProperty("options", Arrays.asList(argument.getType().getEnumConstants()));

@@ -48,6 +48,8 @@ public class Database {
 	private final MongoCollection<Document> starboards;
 	private final MongoCollection<Document> stars;
 
+	private final MongoCollection<Document> marriages;
+
 	private final MongoCollection<Document> reminders;
 
 	private final MongoCollection<Document> suggestions;
@@ -114,11 +116,15 @@ public class Database {
 		this.starboards.createIndex(Indexes.descending("originalMessageId"));
 
 		this.stars = this.database.getCollection("stars");
-		this.stars.createIndex(Indexes.compoundIndex(userId, Indexes.descending("messageId")), uniqueIndex);
+		this.stars.createIndex(Indexes.descending("messageId", "userId"), uniqueIndex);
 		this.stars.createIndex(userId);
 
 		this.reminders = this.database.getCollection("reminders");
 		this.reminders.createIndex(Indexes.descending("userId"));
+
+		this.marriages = this.database.getCollection("marriages");
+		this.marriages.createIndex(Indexes.descending("proposerId"));
+		this.marriages.createIndex(Indexes.descending("partnerId"));
 
 		this.suggestions = this.database.getCollection("suggestions");
 		this.suggestions.createIndex(Indexes.descending("guildId"));
@@ -183,6 +189,34 @@ public class Database {
 	
 	public MongoDatabase getDatabase() {
 		return this.database;
+	}
+
+	public MongoCollection<Document> getMarriages() {
+		return this.marriages;
+	}
+
+	public FindIterable<Document> getMarriages(Bson filter, Bson projection) {
+		return this.marriages.find(filter).projection(projection);
+	}
+
+	public Document getMarriage(Bson filter, Bson projection) {
+		return this.getMarriages(filter, projection).first();
+	}
+
+	public long countMarriages(Bson filter) {
+		return this.marriages.countDocuments(filter);
+	}
+
+	public CompletableFuture<UpdateResult> updateMarriage(Bson filter, Bson update) {
+		return CompletableFuture.supplyAsync(() -> this.marriages.updateOne(filter, update, this.updateOptions));
+	}
+
+	public CompletableFuture<DeleteResult> deleteMarriage(Bson filter) {
+		return CompletableFuture.supplyAsync(() -> this.marriages.deleteOne(filter));
+	}
+
+	public CompletableFuture<DeleteResult> deleteManyMarriages(Bson filter) {
+		return CompletableFuture.supplyAsync(() -> this.marriages.deleteMany(filter));
 	}
 
 	public MongoCollection<Document> getTemplates() {

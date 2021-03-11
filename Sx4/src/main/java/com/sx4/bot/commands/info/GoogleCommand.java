@@ -8,6 +8,7 @@ import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.http.HttpCallback;
 import com.sx4.bot.paged.PagedResult;
+import com.sx4.bot.utility.TimeUtility;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.utils.MarkdownSanitizer;
 import okhttp3.Request;
@@ -35,7 +36,7 @@ public class GoogleCommand extends Sx4Command {
 		boolean nsfw = event.getTextChannel().isNSFW();
 
 		Request request = new Request.Builder()
-			.url(this.config.getSearchWebserverUrl("google") + "?q=" + URLEncoder.encode(query, StandardCharsets.UTF_8) + "&nsfw=" + nsfw + "&page=" + page + "&types=0,2,3,4,5,6,7,8")
+			.url(this.config.getSearchWebserverUrl("google") + "?q=" + URLEncoder.encode(query, StandardCharsets.UTF_8) + "&nsfw=" + nsfw + "&page=" + page + "&types=0,2,3,4,5,6,7,8,9,10")
 			.build();
 
 		event.getClient().newCall(request).enqueue((HttpCallback) response -> {
@@ -91,6 +92,23 @@ public class GoogleCommand extends Sx4Command {
 						Document output = data.get("output", Document.class);
 
 						return "**[Translation to " + output.getEmbedded(List.of("language", "name"), String.class) + "](" + googleUrl + ")**\n**" + output.getString("text") + "**\n";
+					} else if (type == 9) {
+						Document route = data.getList("routes", Document.class).get(0);
+
+						String directions;
+						if (data.getString("method").equals("Public transport")) {
+							directions = "Leave " + route.getString("station") + " at " + route.getEmbedded(List.of("depart", "station"), String.class);
+						} else {
+							Document distance = route.get("distance", Document.class);
+							directions = distance.get("value", Number.class).doubleValue() + " " + distance.getString("unit") + " via " + route.getString("via") + " (" + TimeUtility.getTimeString(route.getInteger("duration")) + ")";
+						}
+
+						return "**[" + data.getString("method") + " from " + data.getString("from") + " to " + data.getString("to") + "](" + data.getString("url") + ")**\n**" + directions + "**\n";
+					} else if (type == 10) {
+						Document flight = data.getList("flights", Document.class).get(0);
+
+						String info = flight.getString("type") + " flight with " + flight.getString("airline") + " for " + flight.getEmbedded(List.of("price", "formatted"), String.class) + " (" + TimeUtility.getTimeString(flight.getInteger("duration")) + ")";
+						return "**[Flight from " + data.getString("departing") + " to " + data.getString("destination") + "](" + flight.getString("url") + ")**\n**" + info + "**\n";
 					}
 
 					return "";

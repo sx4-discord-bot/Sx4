@@ -40,6 +40,8 @@ public class Sx4Command extends CommandImpl {
 	
 	protected boolean disabled = false;
 	protected String disabledMessage = null;
+
+	protected String cooldownMessage = null;
 	
 	protected boolean canaryCommand = false;
 	
@@ -64,6 +66,20 @@ public class Sx4Command extends CommandImpl {
 
 	public int getId() {
 		return this.id;
+	}
+
+	public Sx4Command setCooldownMessage(String message) {
+		this.cooldownMessage = message;
+
+		return this;
+	}
+
+	public String getCooldownMessage() {
+		return this.cooldownMessage;
+	}
+
+	public boolean hasCooldownMessage() {
+		return this.cooldownMessage != null;
 	}
 	
 	public Sx4Command setCanaryCommand(boolean canaryCommand) {
@@ -243,6 +259,11 @@ public class Sx4Command extends CommandImpl {
 			Redirects redirects = this.method.getAnnotation(Redirects.class);
 			if (redirects != null) {
 				this.redirects = redirects.value();
+			}
+
+			CooldownMessage cooldownMessage = this.method.getAnnotation(CooldownMessage.class);
+			if (cooldownMessage != null && !cooldownMessage.value().isEmpty()) {
+				this.cooldownMessage = cooldownMessage.value();
 			}
 			
 			AuthorPermissions authorPermissions = this.method.getAnnotation(AuthorPermissions.class);

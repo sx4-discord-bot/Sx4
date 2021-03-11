@@ -129,7 +129,7 @@ public class StarboardCommand extends Sx4Command {
 		});
 	}
 
-	@Command(value="delete", description="Deletes a starboard")
+	@Command(value="delete", aliases={"remove"}, description="Deletes a starboard")
 	@CommandId(204)
 	@Examples({"starboard delete 5ff636647f93247aeb2ac429", "starboard delete all"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})

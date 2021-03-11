@@ -410,7 +410,7 @@ public class GiveawayCommand extends Sx4Command {
 		this.giveawayManager.endGiveaway(data, true);
 	}
 	
-	@Command(value="delete", description="Deletes a giveaway")
+	@Command(value="delete", aliases={"remove"}, description="Deletes a giveaway")
 	@CommandId(51)
 	@Examples({"giveaway delete 727224132202397726", "giveaway delete all"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})

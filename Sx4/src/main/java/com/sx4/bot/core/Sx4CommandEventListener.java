@@ -13,10 +13,6 @@ import java.util.Arrays;
 public class Sx4CommandEventListener extends CommandEventListener {
 
 	public void onCommandExecuted(ICommand command, CommandEvent event) {
-		if (event.isAuthorDeveloper()) {
-			event.removeCooldown();
-		}
-
 		Sx4Command effectiveCommand = command instanceof DummyCommand ? (Sx4Command) ((DummyCommand) command).getActualCommand() : (Sx4Command) command;
 
 		Document commandData = new Document("messageId", event.getMessage().getIdLong())

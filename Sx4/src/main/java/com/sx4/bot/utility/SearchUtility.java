@@ -152,11 +152,6 @@ public class SearchUtility {
 				return null;
 			}
 			
-		} else {
-			Emote emote = SearchUtility.findEmote(Sx4.get().getShardManager().getEmoteCache(), query);
-			if (emote != null) {
-				return new PartialEmote(emote);
-			}
 		}
 		
 		return null;
@@ -183,9 +178,9 @@ public class SearchUtility {
 			} catch (NumberFormatException e) {
 				return null;
 			}
-		} else {
-			return SearchUtility.findEmote(Sx4.get().getShardManager().getEmoteCache(), query);
 		}
+
+		return null;
 	}
 	
 	public static Emote getGuildEmote(Guild guild, String query) {
