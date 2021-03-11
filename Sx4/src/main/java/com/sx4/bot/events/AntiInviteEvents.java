@@ -23,7 +23,7 @@ import java.util.regex.Pattern;
 
 public class AntiInviteEvents extends ListenerAdapter {
 
-	private final Pattern inviteRegex = Pattern.compile(".*discord(?:(?:(?:app)?\\.com|\\.co|\\.media)/invite|\\.gg)/([a-z0-9]{2,32}).*", Pattern.CASE_INSENSITIVE);
+	private final Pattern inviteRegex = Pattern.compile(".*discord(?:(?:(?:app)?\\.com|\\.co|\\.media)/invite|\\.gg)/([a-z0-9]{2,32}).*", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
 	
 	public void onGuildMessageReceived(GuildMessageReceivedEvent event) {		
 		if (event.getJDA().getSelfUser().equals(event.getAuthor()) || event.isWebhookMessage() || event.getMember().hasPermission(Permission.ADMINISTRATOR)) {
