@@ -44,7 +44,7 @@ public class SteamGameCache {
 	public void initiateCache() {
 		this.future = this.executor.scheduleAtFixedRate(() -> {
 			Request request = new Request.Builder()
-				.url(String.format("https://api.steampowered.com/ISteamApps/GetAppList/v0002/?key=%s&format=json", this.bot.getConfig().getSteam()))
+				.url("https://api.steampowered.com/ISteamApps/GetAppList/v0002/?key=" + this.bot.getConfig().getSteam() + "&format=json")
 				.build();
 
 			this.bot.getHttpClient().newCall(request).enqueue((HttpCallback) response -> {

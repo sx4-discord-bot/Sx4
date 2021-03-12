@@ -25,12 +25,18 @@ import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 
+import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.StringJoiner;
 
 public class MarriageCommand extends Sx4Command {
+
+	private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd MMMM uuuu HH:mm");
 
 	public MarriageCommand() {
 		super("marriage", 267);
@@ -203,6 +209,28 @@ public class MarriageCommand extends Sx4Command {
 			.setAuthor(user.getName() + "'s Partners", null, user.getEffectiveAvatarUrl())
 			.setDescription(joiner.toString())
 			.setColor(member.getColorRaw());
+
+		event.reply(embed.build()).queue();
+	}
+
+	@Command(value="info", description="Get info on a marriage with one of your partners")
+	@CommandId(272)
+	@Examples({"marriage info @Shea#6653", "marriage info Shea", "marriage info 402557516728369153"})
+	public void info(Sx4CommandEvent event, @Argument(value="user", endless=true) Member member) {
+		User author = event.getAuthor();
+
+		Bson filter = Filters.or(Filters.and(Filters.eq("proposerId", member.getIdLong()), Filters.eq("partnerId", author.getIdLong())), Filters.and(Filters.eq("proposerId", author.getIdLong()), Filters.eq("partnerId", member.getIdLong())));
+
+		Document marriage = event.getDatabase().getMarriage(filter, Projections.include("proposerId"));
+		if (marriage == null) {
+			event.replyFailure("You are not married to that user").queue();
+			return;
+		}
+
+		EmbedBuilder embed = new EmbedBuilder()
+			.setAuthor(author.getName() + " \u2764\uFE0F " + member.getUser().getName(), null, author.getEffectiveAvatarUrl())
+			.addField("Proposer", author.getIdLong() == marriage.getLong("proposerId") ? author.getAsTag() : member.getUser().getAsTag(), false)
+			.addField("Marriage Time", OffsetDateTime.ofInstant(Instant.ofEpochSecond(marriage.getObjectId("_id").getTimestamp()), ZoneOffset.UTC).format(this.formatter), false);
 
 		event.reply(embed.build()).queue();
 	}
