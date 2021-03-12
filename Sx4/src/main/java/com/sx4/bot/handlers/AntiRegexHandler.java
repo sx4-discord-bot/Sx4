@@ -32,9 +32,9 @@ import java.util.regex.Pattern;
 
 public class AntiRegexHandler extends ListenerAdapter {
 
-    private final Sx4 bot;
-
     private final ExecutorService executor = Executors.newCachedThreadPool();
+
+    private final Sx4 bot;
 
     public AntiRegexHandler(Sx4 bot) {
         this.bot = bot;

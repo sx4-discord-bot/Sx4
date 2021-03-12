@@ -36,7 +36,7 @@ public class GoogleCommand extends Sx4Command {
 		boolean nsfw = event.getTextChannel().isNSFW();
 
 		Request request = new Request.Builder()
-			.url(event.getConfig().getSearchWebserverUrl("google") + "?q=" + URLEncoder.encode(query, StandardCharsets.UTF_8) + "&nsfw=" + nsfw + "&page=" + page + "&types=0,2,3,4,5,6,7,8,9,10")
+			.url(event.getConfig().getSearchWebserverUrl("google") + "?q=" + URLEncoder.encode(query, StandardCharsets.UTF_8) + "&nsfw=" + nsfw + "&page=" + page)
 			.build();
 
 		event.getHttpClient().newCall(request).enqueue((HttpCallback) response -> {
@@ -67,7 +67,7 @@ public class GoogleCommand extends Sx4Command {
 				.setDisplayFunction(data -> {
 					int type = data.getInteger("type");
 					if (type == 0) {
-						return "**[" + data.getString("title") + "](" + data.getString("url") + ")**\n" + (data.containsKey("answer") ? "**" + data.getString("answer") + "**\n" : "") + MarkdownSanitizer.escape(data.getString("description")) + "\n";
+						return "**[" + data.getString("title") + "](" + data.getString("url") + ")**\n" + (data.containsKey("answer") ? "**" + data.getString("answer") + "**\n" : "") + (data.containsKey("description") ? MarkdownSanitizer.escape(data.getString("description")) : "") + "\n";
 					} else if (type == 4) {
 						Document input = data.get("input", Document.class);
 						Document output = data.get("output", Document.class);
@@ -109,6 +109,11 @@ public class GoogleCommand extends Sx4Command {
 
 						String info = flight.getString("type") + " flight with " + flight.getString("airline") + " for " + flight.getEmbedded(List.of("price", "formatted"), String.class) + " (" + TimeUtility.getTimeString(flight.getInteger("duration")) + ")";
 						return "**[Flight from " + data.getString("departing") + " to " + data.getString("destination") + "](" + flight.getString("url") + ")**\n**" + info + "**\n";
+					} else if (type == 1) {
+						Document today = data.getList("daily", Document.class).get(0);
+						Document temperature = today.get("temperature", Document.class);
+
+						return "**[Weather for " + data.getString("location") + " (" + today.getString("day") + ")](" + googleUrl + ")**\n**" + today.getString("state") + " with highs of " + temperature.getInteger("high") + "°C and lows of " + temperature.getInteger("low") + "°C**\n";
 					}
 
 					return "";
