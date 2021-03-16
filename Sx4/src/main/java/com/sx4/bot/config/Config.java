@@ -235,7 +235,7 @@ public class Config {
 	}
 	
 	public String getDomain() {
-		return this.get(this.getState() + ".host.domain", String.format("http://%s:%d", this.getIp(), this.getPort()));
+		return this.get(this.getState() + ".host.domain", this.getIp() + ":" + this.getPort());
 	}
 	
 	public int getPort() {
@@ -251,7 +251,7 @@ public class Config {
 	}
 
 	public String getImageWebserverDomain() {
-		return this.get("webserver.image.domain", "http://" + this.getImageWebserverIp() + ":" + this.getImageWebserverPort() + "/");
+		return this.get("webserver.image.domain", this.getImageWebserverIp() + ":" + this.getImageWebserverPort() + "/");
 	}
 
 	public int getImageWebserverPort() {
@@ -259,7 +259,7 @@ public class Config {
 	}
 
 	public String getImageWebserverUrl(String endpoint) {
-		return this.getImageWebserverDomain() + endpoint;
+		return "http://" + this.getImageWebserverDomain() + this.getImageWebserverPath() + endpoint;
 	}
 
 	public String getSearchWebserverIp() {
@@ -271,7 +271,7 @@ public class Config {
 	}
 
 	public String getSearchWebserverDomain() {
-		return this.get("webserver.search.domain", "http://" + this.getSearchWebserverIp() + ":" + this.getSearchWebserverPort() + "/");
+		return this.get("webserver.search.domain", this.getSearchWebserverIp() + ":" + this.getSearchWebserverPort());
 	}
 
 	public int getSearchWebserverPort() {
@@ -279,7 +279,7 @@ public class Config {
 	}
 
 	public String getSearchWebserverUrl(String endpoint) {
-		return this.getSearchWebserverDomain() + this.getSearchWebserverPath() + endpoint;
+		return "http://" + this.getSearchWebserverDomain() + this.getSearchWebserverPath() + endpoint;
 	}
 	
 	public String getVainGlory() {

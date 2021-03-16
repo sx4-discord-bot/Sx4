@@ -8,6 +8,7 @@ import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.http.HttpCallback;
 import com.sx4.bot.paged.PagedResult;
+import com.sx4.bot.utility.NumberUtility;
 import com.sx4.bot.utility.TimeUtility;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.utils.MarkdownSanitizer;
@@ -16,12 +17,9 @@ import org.bson.Document;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.text.DecimalFormat;
 import java.util.List;
 
 public class GoogleCommand extends Sx4Command {
-
-	private final DecimalFormat decimalFormat = new DecimalFormat("0.##");
 
 	public GoogleCommand() {
 		super("google", 208);
@@ -72,14 +70,14 @@ public class GoogleCommand extends Sx4Command {
 						Document input = data.get("input", Document.class);
 						Document output = data.get("output", Document.class);
 
-						String inputValue = this.decimalFormat.format(input.get("value", Number.class).doubleValue());
-						String outputValue = this.decimalFormat.format(output.get("value", Number.class).doubleValue());
+						String inputValue = NumberUtility.DEFAULT_DECIMAL_FORMAT.format(input.get("value", Number.class).doubleValue());
+						String outputValue = NumberUtility.DEFAULT_DECIMAL_FORMAT.format(output.get("value", Number.class).doubleValue());
 
 						return String.format("**[Conversion](%s)**\n**%s** %s \\➡ **%s** %s\n", googleUrl, inputValue, input.getString("unit"), outputValue, output.getString("unit"));
 					} else if (type == 5) {
 						return "**[Date Time](" + googleUrl + ")**\n" + (data.containsKey("time") ? "**" + data.getString("time") + "**\n" : "") + data.getString("date") + "\n";
 					} else if (type == 6) {
-						return "**[Calculator](" + googleUrl + ")**\nThe answer is: **" + this.decimalFormat.format(data.get("answer", Number.class).doubleValue()) + "**\n";
+						return "**[Calculator](" + googleUrl + ")**\nThe answer is: **" + NumberUtility.DEFAULT_DECIMAL_FORMAT.format(data.get("answer", Number.class).doubleValue()) + "**\n";
 					} else if (type == 8) {
 						return "**[Random Number between " + data.getInteger("min") + " and " + data.getInteger("max") + "](" + googleUrl + ")**\n**" + data.getInteger("value") + "**\n";
 					} else if (type == 3) {

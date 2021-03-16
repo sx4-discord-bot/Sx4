@@ -25,7 +25,7 @@ public class GayCommand extends Sx4Command {
 	}
 
 	public void onCommand(Sx4CommandEvent event, @Argument(value="image url", endless=true, acceptEmpty=true) @ImageUrl String imageUrl) {
-		Request request = new ImageRequest("gay")
+		Request request = new ImageRequest(event.getConfig().getImageWebserverUrl("gay"))
 			.addQuery("image", imageUrl)
 			.build(event.getConfig().getImageWebserver());
 

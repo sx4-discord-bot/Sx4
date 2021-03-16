@@ -7,9 +7,13 @@ import java.text.StringCharacterIterator;
 
 public class NumberUtility {
 
-	private static final DecimalFormat DEFAULT_DECIMAL_FORMAT = new DecimalFormat("0.##");
+	public static final DecimalFormat DEFAULT_DECIMAL_FORMAT = new DecimalFormat("0.##");
 	static {
 		NumberUtility.DEFAULT_DECIMAL_FORMAT.setRoundingMode(RoundingMode.HALF_UP);
+	}
+
+	public static String getZeroPrefixedNumber(int value) {
+		return value < 10 ? "0" + value : String.valueOf(value);
 	}
 
 	public static boolean isNumberUnsigned(String string) {

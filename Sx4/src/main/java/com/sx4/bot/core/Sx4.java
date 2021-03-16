@@ -57,6 +57,10 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.time.DateTimeException;
 import java.time.Duration;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatterBuilder;
+import java.time.format.DateTimeParseException;
+import java.time.temporal.ChronoField;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -396,8 +400,7 @@ public class Sx4 {
 
 			Limit limit = parameter.getAnnotation(Limit.class);
 			if (limit != null) {
-				builder.setProperty("upperLimit", limit.max());
-				builder.setProperty("lowerLimit", limit.min());
+				builder.setProperty("limit", limit);
 			}
 
 			DefaultNumber defaultInt = parameter.getAnnotation(DefaultNumber.class);
@@ -443,39 +446,16 @@ public class Sx4 {
 			});
 
 		optionFactory.addParserAfter(Integer.class, (context, argument, content) -> {
-			Integer lowerLimit = argument.getProperty("lowerLimit", Integer.class);
-			if (lowerLimit != null) {
-				content = Math.max(lowerLimit, content);
-			}
-
-			Integer upperLimit = argument.getProperty("upperLimit", Integer.class);
-			if (upperLimit != null) {
-				content = Math.min(upperLimit, content);
+			Limit limit = argument.getProperty("limit", Limit.class);
+			if (limit != null) {
+				content = Math.min(Math.max(limit.min(), content), limit.max());
 			}
 
 			return new ParsedResult<>(content);
 		}).addParserAfter(String.class, (context, argument, content) -> {
-			Integer lowerLimit = argument.getProperty("lowerLimit", Integer.class);
-			if (lowerLimit != null && content.length() < lowerLimit) {
+			Limit limit = argument.getProperty("limit", Limit.class);
+			if (limit != null && (content.length() < limit.min() || content.length() > limit.max())) {
 				return new ParsedResult<>();
-			}
-
-			Integer upperLimit = argument.getProperty("upperLimit", Integer.class);
-			if (upperLimit != null && content.length() > upperLimit) {
-				return new ParsedResult<>();
-			}
-
-			String replace = argument.getProperty("replace"), with = argument.getProperty("replaceWith");
-			if (replace != null && with != null) {
-				content = content.replace(replace, with);
-			}
-
-			if (argument.getProperty("lowercase", false)) {
-				content = content.toLowerCase();
-			}
-
-			if (argument.getProperty("uppercase", false)) {
-				content = content.toUpperCase();
 			}
 
 			return new ParsedResult<>(content);
@@ -496,14 +476,12 @@ public class Sx4 {
 
 				Replace replace = parameter.getAnnotation(Replace.class);
 				if (replace != null) {
-					builder.setProperty("replace", replace.replace());
-					builder.setProperty("replaceWith", replace.with());
+					builder.setProperty("replace", replace);
 				}
 
 				Limit limit = parameter.getAnnotation(Limit.class);
 				if (limit != null) {
-					builder.setProperty("lowerLimit", limit.min());
-					builder.setProperty("upperLimit", limit.max());
+					builder.setProperty("limit", limit);
 				}
 
 				DefaultString defaultString = parameter.getAnnotation(DefaultString.class);
@@ -522,8 +500,7 @@ public class Sx4 {
 
 				Limit limit = parameter.getAnnotation(Limit.class);
 				if (limit != null) {
-					builder.setProperty("upperLimit", limit.max());
-					builder.setProperty("lowerLimit", limit.min());
+					builder.setProperty("limit", limit);
 				}
 
 				DefaultNumber defaultInt = parameter.getAnnotation(DefaultNumber.class);
@@ -544,8 +521,7 @@ public class Sx4 {
 			}).addBuilderConfigureFunction(Double.class, (parameter, builder) -> {
 				Limit limit = parameter.getAnnotation(Limit.class);
 				if (limit != null) {
-					builder.setProperty("upperLimit", limit.max());
-					builder.setProperty("lowerLimit", limit.min());
+					builder.setProperty("limit", limit);
 				}
 
 				DefaultNumber defaultLong = parameter.getAnnotation(DefaultNumber.class);
@@ -558,39 +534,53 @@ public class Sx4 {
 				builder.setProperty("advancedMessage", parameter.isAnnotationPresent(AdvancedMessage.class));
 
 				return builder;
+			}).addBuilderConfigureFunction(LocalDate.class, (parameter, builder) -> {
+				DateTimePattern pattern = parameter.getAnnotation(DateTimePattern.class);
+				if (pattern != null) {
+					builder.setProperty("dateTimePattern", pattern);
+				}
+
+				DefaultDateTime defaultDateTime = parameter.getAnnotation(DefaultDateTime.class);
+				if (defaultDateTime != null) {
+					builder.setProperty("defaultDateTime", defaultDateTime);
+				}
+
+				return builder;
 			}).addBuilderConfigureFunction(TimedArgument.class, (parameter, builder) -> {
 				Class<?> clazz = (Class<?>) ((ParameterizedType) parameter.getParameterizedType()).getActualTypeArguments()[0];
-
-				builder.setProperty("class", clazz);
 
 				List<?> builders = argumentFactory.getBuilderConfigureFunctions(clazz);
 				for (Object builderFunction : builders) {
 					builder = ((BuilderConfigureFunction) builderFunction).configure(parameter, builder);
 				}
+
+				builder.setProperty("class", clazz);
 
 				return builder;
 			}).addBuilderConfigureFunction(Range.class, (parameter, builder) -> {
 				Class<?> clazz = (Class<?>) ((ParameterizedType) parameter.getParameterizedType()).getActualTypeArguments()[0];
 
+				List<?> builders = argumentFactory.getBuilderConfigureFunctions(clazz);
+				for (Object builderFunction : builders) {
+					builder = ((BuilderConfigureFunction) builderFunction).configure(parameter, builder);
+				}
+
 				builder.setProperty("class", clazz);
+
+				return builder;
+			}).addBuilderConfigureFunction(Alternative.class, (parameter, builder) -> {
+				Class<?> clazz = (Class<?>) ((ParameterizedType) parameter.getParameterizedType()).getActualTypeArguments()[0];
 
 				List<?> builders = argumentFactory.getBuilderConfigureFunctions(clazz);
 				for (Object builderFunction : builders) {
 					builder = ((BuilderConfigureFunction) builderFunction).configure(parameter, builder);
 				}
 
-				return builder;
-			}).addBuilderConfigureFunction(Alternative.class, (parameter, builder) -> {
-				Class<?> clazz = (Class<?>) ((ParameterizedType) parameter.getParameterizedType()).getActualTypeArguments()[0];
-
 				builder.setProperty("class", clazz);
 
 				Options options = parameter.getAnnotation(Options.class);
-				builder.setProperty("options", options == null ? new String[0] : options.value());
-
-				List<?> builders = argumentFactory.getBuilderConfigureFunctions(clazz);
-				for (Object builderFunction : builders) {
-					builder = ((BuilderConfigureFunction) builderFunction).configure(parameter, builder);
+				if (options != null) {
+					builder.setProperty("options", options.value());
 				}
 
 				return builder;
@@ -703,7 +693,7 @@ public class Sx4 {
 				}
 
 				String[] options = argument.getProperty("options");
-				if (options != null && options.length != 0) {
+				if (argument.getProperty("class") == null && options != null && options.length != 0) {
 					for (String option : options) {
 						if (option.equalsIgnoreCase(content)) {
 							return new ParsedResult<>(option);
@@ -761,6 +751,27 @@ public class Sx4 {
 				if (extension != null) {
 					return new ParsedResult<>(new PartialEmote(content, null, extension.equalsIgnoreCase("gif")));
 				} else {
+					return new ParsedResult<>();
+				}
+			}).registerParser(LocalDate.class, (context, argument, content) -> {
+				DefaultDateTime defaultDateTime = argument.getProperty("defaultDateTime", DefaultDateTime.class);
+				DateTimePattern pattern = argument.getProperty("dateTimePattern", DateTimePattern.class);
+
+				DateTimeFormatterBuilder builder = null;
+				if (pattern != null) {
+					builder = new DateTimeFormatterBuilder().appendPattern(pattern.value());
+
+					if (defaultDateTime != null) {
+						String[] types = defaultDateTime.types();
+						for (int i = 0; i < types.length; i++) {
+							builder.parseDefaulting(ChronoField.valueOf(types[i]), defaultDateTime.values()[i]);
+						}
+					}
+				}
+
+				try {
+					return new ParsedResult<>(builder == null ? LocalDate.parse(content) : LocalDate.parse(content, builder.toFormatter()));
+				} catch (DateTimeParseException e) {
 					return new ParsedResult<>();
 				}
 			}).registerParser(TimedArgument.class, (context, argument, content) -> {
@@ -832,19 +843,14 @@ public class Sx4 {
 			});
 		
 		argumentFactory.addParserAfter(String.class, (context, argument, content) -> {
-			Integer lowerLimit = argument.getProperty("lowerLimit", Integer.class);
-			if (lowerLimit != null && content.length() < lowerLimit) {
+			Limit limit = argument.getProperty("limit", Limit.class);
+			if (limit != null && (content.length() < limit.min() || content.length() > limit.max())) {
 				return new ParsedResult<>();
 			}
 
-			Integer upperLimit = argument.getProperty("upperLimit", Integer.class);
-			if (upperLimit != null && content.length() > upperLimit) {
-				return new ParsedResult<>();
-			}
-
-			String replace = argument.getProperty("replace"), with = argument.getProperty("replaceWith");
-			if (replace != null && with != null) {
-				content = content.replace(replace, with);
+			Replace replace = argument.getProperty("replace", Replace.class);
+			if (replace != null) {
+				content = content.replace(replace.replace(), replace.with());
 			}
 
 			if (argument.getProperty("lowercase", false)) {
@@ -857,26 +863,16 @@ public class Sx4 {
 			
 			return new ParsedResult<>(content);
 		}).addParserAfter(Integer.class, (context, argument, content) -> {
-			Integer lowerLimit = argument.getProperty("lowerLimit", Integer.class);
-			if (lowerLimit != null) {
-				content = Math.max(lowerLimit, content);
-			}
-
-			Integer upperLimit = argument.getProperty("upperLimit", Integer.class);
-			if (upperLimit != null) {
-				content = Math.min(upperLimit, content);
+			Limit limit = argument.getProperty("limit", Limit.class);
+			if (limit != null) {
+				content = Math.min(limit.max(), Math.max(limit.min(), content));
 			}
 			
 			return new ParsedResult<>(content);
 		}).addParserAfter(Double.class, (context, argument, content) -> {
-			Integer lowerLimit = argument.getProperty("lowerLimit", Integer.class);
-			if (lowerLimit != null) {
-				content = Math.max(lowerLimit, content);
-			}
-
-			Integer upperLimit = argument.getProperty("upperLimit", Integer.class);
-			if (upperLimit != null) {
-				content = Math.min(upperLimit, content);
+			Limit limit = argument.getProperty("limit", Limit.class);
+			if (limit != null) {
+				content = Math.min(limit.max(), Math.max(limit.min(), content));
 			}
 
 			return new ParsedResult<>(content);
@@ -922,14 +918,13 @@ public class Sx4 {
 					message.getChannel().sendMessageFormat("Invalid option given, `%s` are valid options %s", String.join("`, `", options), this.config.getFailureEmote()).queue();
 				}
 
-				Integer lowerLimit = argument.getProperty("lowerLimit");
-				if (lowerLimit != null && content.length() < lowerLimit) {
-					message.getChannel().sendMessageFormat("You cannot use less than **%,d** character%s for `%s` %s", lowerLimit, lowerLimit == 1 ? "" : "s", argument.getName(), this.config.getFailureEmote()).queue();
+				Limit limit = argument.getProperty("limit", Limit.class);
+				if (limit != null && content.length() < limit.min()) {
+					message.getChannel().sendMessageFormat("You cannot use less than **%,d** character%s for `%s` %s", limit.min(), limit.min() == 1 ? "" : "s", argument.getName(), this.config.getFailureEmote()).queue();
 				}
 
-				Integer upperLimit = argument.getProperty("upperLimit");
-				if (upperLimit != null && content.length() > upperLimit) {
-					message.getChannel().sendMessageFormat("You cannot use more than **%,d** character%s for `%s` %s", upperLimit, upperLimit == 1 ? "" : "s", argument.getName(), this.config.getFailureEmote()).queue();
+				if (limit != null && content.length() > limit.max()) {
+					message.getChannel().sendMessageFormat("You cannot use more than **%,d** character%s for `%s` %s", limit.max(), limit.max() == 1 ? "" : "s", argument.getName(), this.config.getFailureEmote()).queue();
 				}
 			}).registerResponse(Enum.class, (argument, message, content) -> {
 				List<Enum<?>> enums = argument.getProperty("options", Arrays.asList(argument.getType().getEnumConstants()));

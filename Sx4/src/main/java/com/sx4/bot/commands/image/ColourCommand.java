@@ -42,7 +42,7 @@ public class ColourCommand extends Sx4Command {
 			.setImage("attachment://image.png")
 			.build();
 
-		Request request = new ImageRequest("colour")
+		Request request = new ImageRequest(event.getConfig().getImageWebserverUrl("colour"))
 			.addQuery("colour", colour)
 			.build(event.getConfig().getImageWebserver());
 

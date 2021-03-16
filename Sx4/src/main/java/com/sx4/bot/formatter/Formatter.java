@@ -146,37 +146,37 @@ public interface Formatter<Type> {
 			switch (condition) {
 				case EQUAL:
 					try {
-						return Boolean.toString(Integer.parseInt(first) == Integer.parseInt(second));
+						return Boolean.toString(Double.parseDouble(first) == Double.parseDouble(second));
 					} catch (NumberFormatException e) {
 						return Boolean.toString(first.equals(second));
 					}
 				case NOT_EQUAL:
 					try {
-						return Boolean.toString(Integer.parseInt(first) != Integer.parseInt(second));
+						return Boolean.toString(Double.parseDouble(first) != Double.parseDouble(second));
 					} catch (NumberFormatException e) {
 						return Boolean.toString(!first.equals(second));
 					}
 				case MORE_THAN:
 					try {
-						return Boolean.toString(Integer.parseInt(first) > Integer.parseInt(second));
+						return Boolean.toString(Double.parseDouble(first) > Double.parseDouble(second));
 					} catch (NumberFormatException e) {
 						return "false";
 					}
 				case MORE_THAN_EQUAL:
 					try {
-						return Boolean.toString(Integer.parseInt(first) >= Integer.parseInt(second));
+						return Boolean.toString(Double.parseDouble(first) >= Double.parseDouble(second));
 					} catch (NumberFormatException e) {
 						return "false";
 					}
 				case LESS_THAN:
 					try {
-						return Boolean.toString(Integer.parseInt(first) < Integer.parseInt(second));
+						return Boolean.toString(Double.parseDouble(first) < Double.parseDouble(second));
 					} catch (NumberFormatException e) {
 						return "false";
 					}
 				case LESS_THAN_EQUAL:
 					try {
-						return Boolean.toString(Integer.parseInt(first) <= Integer.parseInt(second));
+						return Boolean.toString(Double.parseDouble(first) <= Double.parseDouble(second));
 					} catch (NumberFormatException e) {
 						return "false";
 					}

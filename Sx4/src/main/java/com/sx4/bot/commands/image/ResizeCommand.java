@@ -27,7 +27,7 @@ public class ResizeCommand extends Sx4Command {
 	}
 
 	public void onCommand(Sx4CommandEvent event, @Argument(value="image url") @ImageUrl String imageUrl, @Argument(value="width") @Limit(min=0) double width, @Argument(value="height") @Limit(min=0) @DefaultNumber(1) double height) {
-		Request request = new ImageRequest("resize")
+		Request request = new ImageRequest(event.getConfig().getImageWebserverUrl("resize"))
 			.addQuery("w", width)
 			.addQuery("h", height)
 			.addQuery("image", imageUrl)

@@ -40,7 +40,7 @@ public class ShipCommand extends Sx4Command {
 
 		String message = String.format("Ship Name: **%s**\nLove Percentage: **%d%%**", shipName, percent);
 
-		Request request = new ImageRequest("ship")
+		Request request = new ImageRequest(event.getConfig().getImageWebserverUrl("ship"))
 			.addQuery("first_image", firstUser.getEffectiveAvatarUrl())
 			.addQuery("second_image", secondUser.getEffectiveAvatarUrl())
 			.addQuery("percent", percent)

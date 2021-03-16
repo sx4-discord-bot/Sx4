@@ -43,7 +43,7 @@ public class TweetCommand extends Sx4Command {
 			urls.add(members.get(event.getRandom().nextInt(memberCount)).getUser().getEffectiveAvatarUrl() + "?size=64");
 		}
 
-		Request request = new ImageRequest("tweet")
+		Request request = new ImageRequest(event.getConfig().getImageWebserverUrl("tweet"))
 			.addField("display_name", member.getEffectiveName())
 			.addField("name", user.getName())
 			.addField("avatar", user.getEffectiveAvatarUrl() + "?size=128")

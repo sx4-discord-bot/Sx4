@@ -24,7 +24,7 @@ public class EmbossCommand extends Sx4Command {
 	}
 
 	public void onCommand(Sx4CommandEvent event, @Argument(value="image url", endless=true, acceptEmpty=true) @ImageUrl String imageUrl) {
-		Request request = new ImageRequest("emboss")
+		Request request = new ImageRequest(event.getConfig().getImageWebserverUrl("emboss"))
 			.addQuery("image", imageUrl)
 			.build(event.getConfig().getImageWebserver());
 

@@ -298,6 +298,7 @@ public class TriggerCommand extends Sx4Command {
 		PagedResult<Document> paged = new PagedResult<>(event.getBot(), triggers)
 			.setAuthor("Triggers", null, event.getGuild().getIconUrl())
 			.setIndexed(false)
+			.setSelect()
 			.setDisplayFunction(data -> "`" + data.getObjectId("_id").toHexString() + "` - " + StringUtility.limit(data.getString("trigger"), MessageEmbed.TEXT_MAX_LENGTH / 10 - 29, "..."));
 
 		paged.execute(event);

@@ -23,7 +23,7 @@ public class WhoWouldWinCommand extends Sx4Command {
 	}
 
 	public void onCommand(Sx4CommandEvent event, @Argument(value="first image url") @ImageUrl String firstImageUrl, @Argument(value="second image url", endless=true, acceptEmpty=true) @ImageUrl String secondImageUrl) {
-		Request request = new ImageRequest("www")
+		Request request = new ImageRequest(event.getConfig().getImageWebserverUrl("www"))
 			.addQuery("first_image", firstImageUrl)
 			.addQuery("second_image", secondImageUrl)
 			.build(event.getConfig().getImageWebserver());

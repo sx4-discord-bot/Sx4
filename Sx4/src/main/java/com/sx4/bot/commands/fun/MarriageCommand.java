@@ -198,8 +198,8 @@ public class MarriageCommand extends Sx4Command {
 
 		StringJoiner joiner = new StringJoiner("\n");
 		for (Document marriage : marriages) {
-			long partnerId = marriage.getLong("partnerId"), proposerId = marriage.getLong("proposerId");
-			long otherId = partnerId == user.getIdLong() ? proposerId : partnerId;
+			long partnerId = marriage.getLong("partnerId");
+			long otherId = partnerId == user.getIdLong() ? marriage.getLong("proposerId") : partnerId;
 
 			User other = event.getShardManager().getUserById(otherId);
 			joiner.add((other == null ? "Anonymous#0000" : other.getAsTag()) + " (" + otherId + ")");

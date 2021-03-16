@@ -42,7 +42,7 @@ public class WelcomerUtility {
 		} else {
 			User user = member.getUser();
 
-			ImageRequest request = new ImageRequest("welcomer")
+			ImageRequest request = new ImageRequest(Config.get().getImageWebserverUrl("welcomer"))
 				.addQuery("avatar", user.getEffectiveAvatarUrl())
 				.addQuery("name", user.getAsTag())
 				.addQuery("gif", gif)

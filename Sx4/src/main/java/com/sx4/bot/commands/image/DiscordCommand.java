@@ -76,7 +76,7 @@ public class DiscordCommand extends Sx4Command {
 	public void onCommand(Sx4CommandEvent event, @Argument(value="user") Member member, @Argument(value="text", endless=true) @Limit(max=250) String text, @Option(value="light", description="Sets the discord theme to light") boolean light) {
 		User user = member.getUser();
 
-		Request request = new ImageRequest("discord")
+		Request request = new ImageRequest(event.getConfig().getImageWebserverUrl("discord"))
 			.addField("name", member.getEffectiveName())
 			.addField("avatar", user.getEffectiveAvatarUrl())
 			.addField("bot", user.isBot())

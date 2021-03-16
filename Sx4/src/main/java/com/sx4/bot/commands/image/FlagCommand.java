@@ -25,7 +25,7 @@ public class FlagCommand extends Sx4Command {
 	}
 
 	public void onCommand(Sx4CommandEvent event, @Argument(value="flag code") String flagCode, @Argument(value="image url", endless=true, acceptEmpty=true) @ImageUrl String imageUrl) {
-		Request request = new ImageRequest("flag")
+		Request request = new ImageRequest(event.getConfig().getImageWebserverUrl("flag"))
 			.addQuery("image", imageUrl)
 			.addQuery("flag", flagCode)
 			.build(event.getConfig().getImageWebserver());

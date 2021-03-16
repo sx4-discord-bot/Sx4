@@ -24,7 +24,7 @@ public class HalloweenCommand extends Sx4Command {
 	}
 
 	public void onCommand(Sx4CommandEvent event, @Argument(value="image url", endless=true, acceptEmpty=true) @ImageUrl String imageUrl) {
-		Request request = new ImageRequest("halloween")
+		Request request = new ImageRequest(event.getConfig().getImageWebserverUrl("halloween"))
 			.addQuery("image", imageUrl)
 			.build(event.getConfig().getImageWebserver());
 

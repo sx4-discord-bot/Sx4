@@ -25,7 +25,7 @@ public class VrCommand extends Sx4Command {
 	}
 
 	public void onCommand(Sx4CommandEvent event, @Argument(value="image url", endless=true, acceptEmpty=true) @ImageUrl String imageUrl) {
-		Request request = new ImageRequest("vr")
+		Request request = new ImageRequest(event.getConfig().getImageWebserverUrl("vr"))
 			.addQuery("image", imageUrl)
 			.build(event.getConfig().getImageWebserver());
 

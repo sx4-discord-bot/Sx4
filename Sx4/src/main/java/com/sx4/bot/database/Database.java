@@ -979,6 +979,10 @@ public class Database {
 		return this.getUserById(Filters.eq("_id", userId), projection);
 	}
 
+	public CompletableFuture<AggregateIterable<Document>> aggregateUsers(List<Bson> pipeline) {
+		return CompletableFuture.supplyAsync(() -> this.users.aggregate(pipeline));
+	}
+
 	public CompletableFuture<UpdateResult> updateUser(Bson filter, List<? extends Bson> update, UpdateOptions options) {
 		return CompletableFuture.supplyAsync(() -> this.users.updateOne(filter, update, options));
 	}

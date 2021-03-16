@@ -24,7 +24,7 @@ public class DriftCommand extends Sx4Command {
 	}
 
 	public void onCommand(Sx4CommandEvent event, @Argument(value="user", nullDefault=true) Member member, @Argument(value="left text") @Limit(max=30) String leftText, @Argument(value="right text", endless=true, nullDefault=true) @Limit(max=40) String rightText) {
-		ImageRequest request = new ImageRequest("drift")
+		ImageRequest request = new ImageRequest(event.getConfig().getImageWebserverUrl("drift"))
 			.addQuery("left_text", leftText)
 			.addQuery("image", (member == null ? event.getAuthor() : member.getUser()).getEffectiveAvatarUrl());
 

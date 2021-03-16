@@ -51,7 +51,7 @@ public class ImageRequest {
 	public Request build(String authorization) {
 		boolean first = true;
 		for (Map.Entry<String, String> entry : this.queries.entrySet()) {
-			this.url.append(String.format("%s%s=%s", first ? "?" : "&", entry.getKey(), entry.getValue()));
+			this.url.append(first ? "?" : "&" + entry.getKey() + "=" + entry.getValue());
 
 			first = false;
 		}

@@ -25,7 +25,7 @@ public class TrumpTweetCommand extends Sx4Command {
 	}
 
 	public void onCommand(Sx4CommandEvent event, @Argument(value="text", endless=true) @Limit(max=280) String text) {
-		Request request = new ImageRequest("trump")
+		Request request = new ImageRequest(event.getConfig().getImageWebserverUrl("trump"))
 			.addQuery("text", ImageUtility.escapeMentions(event.getGuild(), text))
 			.build(event.getConfig().getImageWebserver());
 

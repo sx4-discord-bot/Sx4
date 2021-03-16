@@ -38,8 +38,8 @@ import static com.jockie.bot.core.command.Command.Cooldown;
 
 public class SteamCommand extends Sx4Command {
 
-	private final Pattern gamePattern = Pattern.compile("https?://store\\.steampowered\\.com/app/([0-9]+)/?[\\w]*", Pattern.CASE_INSENSITIVE);
-	private final Pattern profilePattern = Pattern.compile("https?://steamcommunity\\.com/(?:profiles|id)/[\\w]+(/?)");
+	private final Pattern gamePattern = Pattern.compile("https?://store\\.steampowered\\.com/app/([0-9]+)/?[\\S]*", Pattern.CASE_INSENSITIVE);
+	private final Pattern profilePattern = Pattern.compile("https?://steamcommunity\\.com/(?:profiles|id)/[\\S]+(/?)");
 
 	private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd LLLL yyyy");
 
