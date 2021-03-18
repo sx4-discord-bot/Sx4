@@ -44,6 +44,8 @@ public class Database {
 
 	private final MongoCollection<Document> loggers;
 
+	private final MongoCollection<Document> games;
+
 	private final MongoCollection<Document> marriages;
 
 	private final MongoCollection<Document> reminders;
@@ -119,6 +121,10 @@ public class Database {
 		this.loggers.createIndex(guildId);
 		this.loggers.createIndex(Indexes.descending("channelId"), uniqueIndex);
 
+		this.games = this.database.getCollection("games");
+		this.games.createIndex(userId);
+		this.games.createIndex(Indexes.descending("type"));
+
 		this.reminders = this.database.getCollection("reminders");
 		this.reminders.createIndex(Indexes.descending("userId"));
 
@@ -189,6 +195,22 @@ public class Database {
 	
 	public MongoDatabase getDatabase() {
 		return this.database;
+	}
+
+	public MongoCollection<Document> getGames() {
+		return this.games;
+	}
+
+	public FindIterable<Document> getGames(Bson filter, Bson projection) {
+		return this.games.find(filter).projection(projection);
+	}
+
+	public Document getGame(Bson filter, Bson projection) {
+		return this.getGames(filter, projection).first();
+	}
+
+	public CompletableFuture<InsertOneResult> insertGame(Document data) {
+		return CompletableFuture.supplyAsync(() -> this.games.insertOne(data));
 	}
 
 	public MongoCollection<Document> getLoggers() {
