@@ -423,6 +423,13 @@ public class Sx4 {
 			}
 
 			return builder;
+		}).addBuilderConfigureFunction(String.class, (parameter, builder) -> {
+			DefaultString defaultString = parameter.getAnnotation(DefaultString.class);
+			if (defaultString != null) {
+				builder.setDefaultValue(defaultString.value());
+			}
+
+			return builder;
 		});
 
 		optionFactory.registerParser(Duration.class, (context, option, content) -> content == null ? new ParsedResult<>(true, null) : new ParsedResult<>(TimeUtility.getDurationFromString(content)))
@@ -468,6 +475,7 @@ public class Sx4 {
 		
 		argumentFactory.addBuilderConfigureFunction(Emote.class, (parameter, builder) -> builder.setProperty("global", parameter.isAnnotationPresent(Global.class)))
 			.addBuilderConfigureFunction(Attachment.class, (parameter, builder) -> builder.setAcceptEmpty(true))
+			.addGenericBuilderConfigureFunction(Object.class, (parameter, builder) -> builder.setProperty("parameter", parameter))
 			.addBuilderConfigureFunction(String.class, (parameter, builder) -> {
 				builder.setProperty("imageUrl", parameter.isAnnotationPresent(ImageUrl.class));
 				builder.setProperty("url", parameter.isAnnotationPresent(Url.class));
@@ -843,11 +851,6 @@ public class Sx4 {
 			});
 		
 		argumentFactory.addParserAfter(String.class, (context, argument, content) -> {
-			Limit limit = argument.getProperty("limit", Limit.class);
-			if (limit != null && (content.length() < limit.min() || content.length() > limit.max())) {
-				return new ParsedResult<>();
-			}
-
 			Replace replace = argument.getProperty("replace", Replace.class);
 			if (replace != null) {
 				content = content.replace(replace.replace(), replace.with());
@@ -856,9 +859,16 @@ public class Sx4 {
 			if (argument.getProperty("lowercase", false)) {
 				content = content.toLowerCase();
 			}
-			
+
 			if (argument.getProperty("uppercase", false)) {
 				content = content.toUpperCase();
+			}
+
+			Limit limit = argument.getProperty("limit", Limit.class);
+			if (limit != null && limit.error() && (content.length() < limit.min() || content.length() > limit.max())) {
+				return new ParsedResult<>();
+			} else if (limit != null && !limit.error()) {
+				content = content.substring(Math.min(Math.max(0, limit.min()), content.length()), Math.min(Math.max(0, limit.max()), content.length()));
 			}
 			
 			return new ParsedResult<>(content);

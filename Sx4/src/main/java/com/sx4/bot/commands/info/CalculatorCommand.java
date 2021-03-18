@@ -24,6 +24,7 @@ public class CalculatorCommand extends Sx4Command {
         super.setAliases("calc");
         super.setDescription("Eval a mathematical equation");
         super.setExamples("calc 1 + 1", "calc a = 5; a + 10");
+        super.setExecuteAsync(true);
         super.setCategoryAll(ModuleCategory.INFORMATION);
     }
 

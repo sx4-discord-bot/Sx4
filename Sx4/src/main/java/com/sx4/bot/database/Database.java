@@ -42,6 +42,8 @@ public class Database {
 	private final MongoCollection<Document> starboards;
 	private final MongoCollection<Document> stars;
 
+	private final MongoCollection<Document> loggers;
+
 	private final MongoCollection<Document> marriages;
 
 	private final MongoCollection<Document> reminders;
@@ -113,6 +115,10 @@ public class Database {
 		this.stars.createIndex(Indexes.descending("messageId", "userId"), uniqueIndex);
 		this.stars.createIndex(userId);
 
+		this.loggers = this.database.getCollection("loggers");
+		this.loggers.createIndex(guildId);
+		this.loggers.createIndex(Indexes.descending("channelId"), uniqueIndex);
+
 		this.reminders = this.database.getCollection("reminders");
 		this.reminders.createIndex(Indexes.descending("userId"));
 
@@ -183,6 +189,26 @@ public class Database {
 	
 	public MongoDatabase getDatabase() {
 		return this.database;
+	}
+
+	public MongoCollection<Document> getLoggers() {
+		return this.loggers;
+	}
+
+	public FindIterable<Document> getLoggers(Bson filter, Bson projection) {
+		return this.loggers.find(filter).projection(projection);
+	}
+
+	public Document getLogger(Bson filter, Bson projection) {
+		return this.getLoggers(filter, projection).first();
+	}
+
+	public CompletableFuture<InsertOneResult> insertLogger(Document data) {
+		return CompletableFuture.supplyAsync(() -> this.loggers.insertOne(data));
+	}
+
+	public CompletableFuture<DeleteResult> deleteLogger(Bson filter) {
+		return CompletableFuture.supplyAsync(() -> this.loggers.deleteOne(filter));
 	}
 
 	public MongoCollection<Document> getMarriages() {

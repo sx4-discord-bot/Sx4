@@ -3,6 +3,8 @@ package com.sx4.bot.commands.management;
 import club.minnced.discord.webhook.WebhookClient;
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
+import com.jockie.bot.core.command.Command.Cooldown;
+import com.jockie.bot.core.cooldown.ICooldown;
 import com.mongodb.client.model.FindOneAndUpdateOptions;
 import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.ReturnDocument;
@@ -281,6 +283,7 @@ public class WelcomerCommand extends Sx4Command {
 
 		@Command(value="banner", description="Set the welcomer banner for image welcomer if the server is premium this can be a gif")
 		@CommandId(102)
+		@Cooldown(value=30, cooldownScope=ICooldown.Scope.GUILD)
 		@Examples({"welcomer banner https://i.imgur.com/i87lyNO.png", "welcomer banner https://example.com/image.png"})
 		@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 		public void banner(Sx4CommandEvent event, @Argument(value="url") @ImageUrl String url) {

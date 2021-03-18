@@ -26,13 +26,13 @@ import okhttp3.Request;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.format.TextStyle;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Locale;
+import java.util.*;
 
 public class ProfileCommand extends Sx4Command {
 
@@ -91,6 +91,8 @@ public class ProfileCommand extends Sx4Command {
 	}
 
 	public static class SetCommand extends Sx4Command {
+
+		private final Set<String> types = Set.of("png", "jpeg", "jpg", "gif");
 
 		public SetCommand() {
 			super("set", 283);
@@ -233,6 +235,54 @@ public class ProfileCommand extends Sx4Command {
 
 				event.replySuccess("Your profile colour has been " + (reset ? "unset" : "set to **#" + ColourUtility.toHexString(colour) + "**")).queue();
 			});
+		}
+
+		@Command(value="banner", aliases={"bg", "background"}, description="Set the banner for your profile on Sx4")
+		@CommandId(289)
+		@Examples({"profile set banner https://i.imgur.com/i87lyNO.png", "profile set banner reset"})
+		public void banner(Sx4CommandEvent event, @Argument(value="url | reset") @ImageUrl @Options("reset") Alternative<String> option) {
+			if (option.isAlternative()) {
+				File file = new File("profile/banners/" + event.getAuthor().getId() + ".png");
+				if (file.delete()) {
+					event.replySuccess("Your profile banner has been unset").queue();
+				} else {
+					event.replyFailure("You do not have a profile banner").queue();
+				}
+			} else {
+				Request request = new Request.Builder()
+					.url(option.getValue())
+					.build();
+
+				event.getHttpClient().newCall(request).enqueue((HttpCallback) response -> {
+					String contentType = response.header("Content-Type");
+					if (contentType == null) {
+						event.replyFailure("That url does not return a content type").queue();
+						return;
+					}
+
+					String[] contentTypeSplit = contentType.split("/");
+
+					String type = contentTypeSplit[0], subType = contentType.contains("/") ? contentTypeSplit[1] : "png";
+					if (!type.equals("image")) {
+						event.replyFailure("That url is not an image").queue();
+						return;
+					}
+
+					if (!this.types.contains(subType)) {
+						event.replyFailure("That image is not a supported image type").queue();
+						return;
+					}
+
+					try (FileOutputStream stream = new FileOutputStream("profile/banners/" + event.getAuthor().getId() + ".png")) {
+						stream.write(response.body().bytes());
+					} catch (IOException e) {
+						ExceptionUtility.sendExceptionally(event, e);
+						return;
+					}
+
+					event.replySuccess("Your profile banner has been updated").queue();
+				});
+			}
 		}
 
 	}

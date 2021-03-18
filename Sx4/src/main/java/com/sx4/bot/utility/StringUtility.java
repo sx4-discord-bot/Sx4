@@ -40,6 +40,10 @@ public class StringUtility {
 	public static String limit(String string, int maxLength, String suffix) {
 		return string.length() <= maxLength ? string : string.substring(0, maxLength - suffix.length()) + suffix;
 	}
+
+	public static String limit(String string, int maxLength) {
+		return StringUtility.limit(string, maxLength, "");
+	}
 	
 	public static String substring(String string, int beginIndex, int endIndex) {
 		int length = string.length();

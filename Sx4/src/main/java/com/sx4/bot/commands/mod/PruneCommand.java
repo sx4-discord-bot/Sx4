@@ -3,6 +3,7 @@ package com.sx4.bot.commands.mod;
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.argument.Endless;
 import com.jockie.bot.core.command.Command;
+import com.jockie.bot.core.command.Command.Async;
 import com.jockie.bot.core.command.Command.Cooldown;
 import com.jockie.bot.core.cooldown.ICooldown;
 import com.jockie.bot.core.option.Option;
@@ -140,6 +141,7 @@ public class PruneCommand extends Sx4Command {
 	@Command(value="regex", description="Prunes a set amount of messages which match a specific regex")
 	@CommandId(147)
 	@Examples({"prune regex [0-9]+", "prune regex .{2,32}#[0-9]{4}"})
+	@Async
 	@Cooldown(value=20, cooldownScope=ICooldown.Scope.GUILD)
 	@AuthorPermissions(permissions={Permission.MESSAGE_MANAGE})
 	@BotPermissions(permissions={Permission.MESSAGE_MANAGE, Permission.MESSAGE_HISTORY}, overwrite=true)

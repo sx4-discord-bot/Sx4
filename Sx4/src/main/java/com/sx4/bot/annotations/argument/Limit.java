@@ -9,8 +9,10 @@ import java.lang.annotation.Target;
 @Target(ElementType.PARAMETER)
 public @interface Limit {
 
-	public int max() default Integer.MAX_VALUE;
+	int max() default Integer.MAX_VALUE;
 	
-	public int min() default Integer.MIN_VALUE;
+	int min() default Integer.MIN_VALUE;
+
+	boolean error() default true;
 	
 }
