@@ -41,6 +41,15 @@ public class GuessTheNumberCommand extends Sx4Command {
 
 	public void onCommand(Sx4CommandEvent event, @Argument(value="user", endless=true) Member member, @Option(value="min") @Limit(min=1) @DefaultNumber(1) int min, @Option(value="max") @Limit(min=2) @DefaultNumber(50) int max) {
 		User opponent = member.getUser();
+		if (opponent.isBot()) {
+			event.replyFailure("You cannot play against bots").queue();
+			return;
+		}
+
+		if (opponent.getIdLong() == event.getAuthor().getIdLong()) {
+			event.replyFailure("You cannot play against yourself").queue();
+			return;
+		}
 
 		event.reply(opponent.getAsMention() + ", do you want to play guess the number with **" + event.getAuthor().getName() + "**? (Yes or No)")
 			.allowedMentions(EnumSet.of(Message.MentionType.USER))
@@ -104,6 +113,7 @@ public class GuessTheNumberCommand extends Sx4Command {
 					Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
 					if (cause instanceof CancelException) {
 						opponentFuture.cancel(true);
+
 						if (((CancelException) cause).getType() == CancelType.USER) {
 							event.getAuthor().openPrivateChannel().flatMap(channel -> channel.sendMessage("Cancelled " + event.getConfig().getSuccessEmote())).queue();
 						}

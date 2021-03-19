@@ -2,13 +2,19 @@ package com.sx4.bot.entities.games;
 
 public enum GameType {
 
-	RPS(0),
-	GTN(1);
+	RPS(0, "Rock Paper Scissors"),
+	GTN(1, "Guess the Number");
 
 	private final int id;
+	private final String name;
 
-	private GameType(int id) {
+	private GameType(int id, String name) {
 		this.id = id;
+		this.name = name;
+	}
+
+	public String getName() {
+		return this.name;
 	}
 
 	public int getId() {
