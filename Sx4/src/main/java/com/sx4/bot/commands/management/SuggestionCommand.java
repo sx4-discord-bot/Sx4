@@ -23,7 +23,7 @@ import com.sx4.bot.waiter.Waiter;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.entities.User;
-import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent;
+import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
@@ -164,33 +164,26 @@ public class SuggestionCommand extends Sx4Command {
 				return;
 			}
 			
-			event.reply(author.getName() + ", are you sure you want to delete **all** the suggestions in this server? (Yes or No)").queue(queryMessage -> {
-				Waiter<GuildMessageReceivedEvent> waiter = new Waiter<>(event.getBot(), GuildMessageReceivedEvent.class)
+			event.reply(author.getName() + ", are you sure you want to delete **all** the suggestions in this server? (Yes or No)").submit().thenCompose($ -> {
+				return new Waiter<>(event.getBot(), MessageReceivedEvent.class)
 					.setPredicate(messageEvent -> messageEvent.getMessage().getContentRaw().equalsIgnoreCase("yes"))
 					.setOppositeCancelPredicate()
 					.setTimeout(30)
-					.setUnique(author.getIdLong(), event.getChannel().getIdLong());
-				
-				waiter.onTimeout(() -> event.reply("Response timed out :stopwatch:").queue());
-				
-				waiter.onCancelled(type -> event.replySuccess("Cancelled").queue());
-				
-				waiter.future()
-					.thenCompose(messageEvent -> event.getDatabase().deleteManySuggestions(Filters.eq("guildId", event.getGuild().getIdLong())))
-					.whenComplete((result, exception) -> {
-						if (ExceptionUtility.sendExceptionally(event, exception)) {
-							return;
-						}
+					.setUnique(author.getIdLong(), event.getChannel().getIdLong())
+					.start();
+			})
+			.thenCompose(messageEvent -> event.getDatabase().deleteManySuggestions(Filters.eq("guildId", event.getGuild().getIdLong())))
+			.whenComplete((result, exception) -> {
+				if (ExceptionUtility.sendExceptionally(event, exception)) {
+					return;
+				}
 
-						if (result.getDeletedCount() == 0) {
-							event.replyFailure("This server has no suggestions").queue();
-							return;
-						}
-						
-						event.replySuccess("All suggestions have been deleted in this server").queue();
-					});
-				
-				waiter.start();
+				if (result.getDeletedCount() == 0) {
+					event.replyFailure("This server has no suggestions").queue();
+					return;
+				}
+
+				event.replySuccess("All suggestions have been deleted in this server").queue();
 			});
 		} else {
 			ObjectId id = option.getValue();

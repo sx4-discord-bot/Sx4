@@ -1,10 +1,13 @@
 package com.sx4.bot.waiter;
 
 import com.sx4.bot.core.Sx4;
+import com.sx4.bot.waiter.exception.CancelException;
+import com.sx4.bot.waiter.exception.TimeoutException;
 import net.dv8tion.jda.api.events.GenericEvent;
-import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent;
+import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
@@ -33,9 +36,7 @@ public class Waiter<Type extends GenericEvent> {
 	private long timeout = 0L;
 	
 	private final Class<Type> event;
-	
-	private Consumer<CancelType> onCancelled = null;
-	private Runnable onTimeout = null;
+
 	private final CompletableFuture<Type> future = new CompletableFuture<>();
 	
 	private Predicate<Type> predicate = $ -> true;
@@ -53,8 +54,8 @@ public class Waiter<Type extends GenericEvent> {
 	}
 	
 	public Waiter<Type> setUnique(long authorId, long channelId) {
-		if (this.event != GuildMessageReceivedEvent.class) {
-			throw new IllegalArgumentException("Unique waiters currently only support GuildMessageReceivedEvent");
+		if (!MessageReceivedEvent.class.isAssignableFrom(this.event)) {
+			throw new IllegalArgumentException("Unique waiters currently only support instances of MessageReceivedEvent");
 		}
 		
 		this.authorId = authorId;
@@ -74,21 +75,23 @@ public class Waiter<Type extends GenericEvent> {
 	public long getAuthorId() {
 		return this.authorId;
 	}
-	
-	public Consumer<CancelType> getCancelRunnable() {
-		return this.onCancelled;
-	}
-	
+
 	public void onCancelled(Consumer<CancelType> onCancelled) {
-		this.onCancelled = onCancelled;
+		this.future.whenComplete((result, exception) -> {
+			Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
+			if (cause instanceof CancelException) {
+				onCancelled.accept(((CancelException) cause).getType());
+			}
+		});
 	}
-	
-	public Runnable getTimeoutRunnable() {
-		return this.onTimeout;
-	}
-	
+
 	public void onTimeout(Runnable onTimeout) {
-		this.onTimeout = onTimeout;
+		this.future.whenComplete((result, exception) -> {
+			Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
+			if (cause instanceof TimeoutException) {
+				onTimeout.run();
+			}
+		});
 	}
 	
 	public long getTimeout() {
@@ -137,10 +140,6 @@ public class Waiter<Type extends GenericEvent> {
 		this.future.thenAccept(onSuccess);
 	}
 	
-	public CompletableFuture<Type> future() {
-		return this.future;
-	}
-	
 	@SuppressWarnings("unchecked")
 	public void execute(GenericEvent event) {
 		this.future.complete((Type) event);
@@ -149,32 +148,31 @@ public class Waiter<Type extends GenericEvent> {
 	}
 	
 	public void cancel(CancelType type) {
-		if (this.onCancelled != null) {
-			this.onCancelled.accept(type);
-		}
-		
-		this.delete();
-	}
-	
-	public void timeout() {
-		if (this.onTimeout != null) {
-			this.onTimeout.run();
-		}
+		this.future.completeExceptionally(new CancelException(type));
 
 		this.delete();
 	}
 	
-	public void start() {
+	public void timeout() {
+		this.future.completeExceptionally(new TimeoutException());
+
+		this.delete();
+	}
+	
+	public CompletableFuture<Type> start() {
 		this.bot.getWaiterManager().addWaiter(this);
 		
 		if (this.timeout != 0) {
 			this.bot.getWaiterManager().setTimeout(this);
 		}
+
+		return this.future;
 	}
 	
 	public void delete() {
 		this.bot.getWaiterManager().removeWaiter(this);
 		this.bot.getWaiterManager().cancelTimeout(this);
+		this.future.cancel(true);
 	}
 	
 }

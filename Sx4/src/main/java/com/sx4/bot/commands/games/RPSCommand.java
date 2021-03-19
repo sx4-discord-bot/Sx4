@@ -20,6 +20,7 @@ import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.User;
 import org.bson.Document;
 import org.bson.conversions.Bson;
+import org.bson.types.ObjectId;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -52,24 +53,39 @@ public class RPSCommand extends Sx4Command {
 	public void onCommand(Sx4CommandEvent event, @Argument(value="choice") @Options({"rock", "paper", "scissors"}) @Lowercase String choice) {
 		int choiceInt = this.responses.get(choice), botChoice = event.getRandom().nextInt(3);
 
-		Document gameData = new Document("userId", event.getAuthor().getIdLong())
+		ObjectId gameId = ObjectId.get();
+
+		Document authorData = new Document("userId", event.getAuthor().getIdLong())
+			.append("choice", choiceInt)
+			.append("gameId", gameId)
+			.append("type", GameType.RPS.getId());
+
+		Document opponentData = new Document("userId", event.getSelfUser().getIdLong())
+			.append("choice", botChoice)
+			.append("gameId", gameId)
 			.append("type", GameType.RPS.getId());
 
 		StringBuilder outcome = new StringBuilder(event.getAuthor().getName() + ": " + this.emotes.get(choiceInt) + "\n" + event.getSelfUser().getName() + ": " + this.emotes.get(botChoice) + "\n\n");
 		if (choiceInt == botChoice) {
 			outcome.append("Draw, let's go again!");
-			gameData.append("state", GameState.DRAW.getId());
+
+			authorData.append("state", GameState.DRAW.getId());
+			opponentData.append("state", GameState.DRAW.getId());
 		} else if ((botChoice == 2 && choiceInt == 0) || choiceInt - 1 == botChoice) {
 			outcome.append("You win, congratulations :trophy:");
-			gameData.append("state", GameState.WIN.getId());
+
+			authorData.append("state", GameState.WIN.getId());
+			opponentData.append("state", GameState.LOSS.getId());
 		} else {
 			outcome.append("You lose, better luck next time.");
-			gameData.append("state", GameState.LOSS.getId());
+
+			authorData.append("state", GameState.LOSS.getId());
+			opponentData.append("state", GameState.WIN.getId());
 		}
 
 		event.reply(outcome).queue();
 
-		event.getDatabase().insertGame(gameData).whenComplete(Database.exceptionally(event.getShardManager()));
+		event.getDatabase().insertManyGames(List.of(authorData, opponentData)).whenComplete(Database.exceptionally(event.getShardManager()));
 	}
 
 	@Command(value="stats", description="View some stats about your personal rps record")
@@ -78,7 +94,7 @@ public class RPSCommand extends Sx4Command {
 	public void stats(Sx4CommandEvent event, @Argument(value="user", endless=true, nullDefault=true) Member member) {
 		User user = member == null ? event.getAuthor() : member.getUser();
 
-		Bson filter = Filters.and(Filters.eq("userId", event.getAuthor().getIdLong()), Filters.eq("type", GameType.RPS.getId()));
+		Bson filter = Filters.and(Filters.eq("userId", user.getIdLong()), Filters.eq("type", GameType.RPS.getId()));
 
 		List<Document> games = event.getDatabase().getGames(filter, Projections.include("state")).into(new ArrayList<>());
 		if (games.isEmpty()) {

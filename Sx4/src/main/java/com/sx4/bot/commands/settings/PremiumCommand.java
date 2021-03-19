@@ -18,10 +18,12 @@ import com.sx4.bot.database.model.Operators;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.NumberUtility;
 import com.sx4.bot.waiter.Waiter;
+import com.sx4.bot.waiter.exception.CancelException;
+import com.sx4.bot.waiter.exception.TimeoutException;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.MessageEmbed;
-import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent;
+import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import org.bson.conversions.Bson;
 
 import java.time.Instant;
@@ -30,6 +32,7 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
 
 public class PremiumCommand extends Sx4Command {
@@ -73,44 +76,44 @@ public class PremiumCommand extends Sx4Command {
 			.setFooter("Say yes to continue and cancel to cancel")
 			.build();
 
-		event.reply(embed).queue($ -> {
-			Waiter<GuildMessageReceivedEvent> waiter = new Waiter<>(event.getBot(), GuildMessageReceivedEvent.class)
+		event.reply(embed).submit().thenCompose($ -> {
+			return new Waiter<>(event.getBot(), MessageReceivedEvent.class)
 				.setTimeout(30)
 				.setUnique(event.getAuthor().getIdLong(), event.getTextChannel().getIdLong())
 				.setPredicate(e -> e.getMessage().getContentRaw().equalsIgnoreCase("yes"))
-				.setOppositeCancelPredicate();
+				.setOppositeCancelPredicate()
+				.start();
+		}).thenCompose(messageEvent -> {
+			List<Bson> update = List.of(Operators.set("premium.credit", Operators.cond(Operators.gt(price, Operators.ifNull("$premium.credit", 0)), "$premium.credit", Operators.subtract("$premium.credit", price))));
+			FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("premium.credit")).upsert(true);
 
-			waiter.onCancelled(type -> event.replyFailure("Cancelled").queue());
+			return event.getDatabase().findAndUpdateUserById(event.getAuthor().getIdLong(), update, options);
+		}).thenCompose(data -> {
+			int credit = data == null ? 0 : data.getEmbedded(List.of("premium", "credit"), 0);
+			if (price > credit) {
+				event.replyFailure("You do not have enough credit to buy premium for that long").queue();
+				return CompletableFuture.completedFuture(Database.EMPTY_DOCUMENT);
+			}
 
-			waiter.onTimeout(() -> event.reply("Timed out :stopwatch:").queue());
+			List<Bson> update = List.of(Operators.set("premium.endAt", Operators.add(TimeUnit.DAYS.toSeconds(days), Operators.ifNull("$premium.endAt", Operators.nowEpochSecond()))));
+			FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("premium.endAt")).upsert(true);
 
-			waiter.future().thenCompose(messageEvent -> {
-				List<Bson> update = List.of(Operators.set("premium.credit", Operators.cond(Operators.gt(price, Operators.ifNull("$premium.credit", 0)), "$premium.credit", Operators.subtract("$premium.credit", price))));
-				FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("premium.credit")).upsert(true);
+			return event.getDatabase().findAndUpdateGuildById(guildId, update, options);
+		}).whenComplete((data, exception) -> {
+			Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
+			if (cause instanceof CancelException) {
+				event.replySuccess("Cancelled").queue();
+				return;
+			} else if (cause instanceof TimeoutException) {
+				event.reply("Timed out :stopwatch:").queue();
+				return;
+			} else if (ExceptionUtility.sendExceptionally(event, cause) || (data != null && data.isEmpty())) {
+				return;
+			}
 
-				return event.getDatabase().findAndUpdateUserById(event.getAuthor().getIdLong(), update, options);
-			}).thenCompose(data -> {
-				int credit = data == null ? 0 : data.getEmbedded(List.of("premium", "credit"), 0);
-				if (price > credit) {
-					event.replyFailure("You do not have enough credit to buy premium for that long").queue();
-					return CompletableFuture.completedFuture(Database.EMPTY_DOCUMENT);
-				}
+			long endAt = data == null ? 0L : data.getEmbedded(List.of("premium", "endAt"), 0L);
 
-				List<Bson> update = List.of(Operators.set("premium.endAt", Operators.add(TimeUnit.DAYS.toSeconds(days), Operators.ifNull("$premium.endAt", Operators.nowEpochSecond()))));
-				FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("premium.endAt")).upsert(true);
-
-				return event.getDatabase().findAndUpdateGuildById(guildId, update, options);
-			}).whenComplete((data, exception) -> {
-				if (ExceptionUtility.sendExceptionally(event, exception) || (data != null && data.isEmpty())) {
-					return;
-				}
-
-				long endAt = data == null ? 0L : data.getEmbedded(List.of("premium", "endAt"), 0L);
-
-				event.replyFormat("**%s** now has premium for %s%d day%s %s", guildName, endAt == 0 ? "" : "another ", days, days == 1 ? "" : "s", event.getConfig().getSuccessEmote()).queue();
-			});
-
-			waiter.start();
+			event.replyFormat("**%s** now has premium for %s%d day%s %s", guildName, endAt == 0 ? "" : "another ", days, days == 1 ? "" : "s", event.getConfig().getSuccessEmote()).queue();
 		});
 	}
 

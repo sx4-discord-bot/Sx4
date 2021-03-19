@@ -20,12 +20,14 @@ import com.sx4.bot.entities.argument.MessageArgument;
 import com.sx4.bot.entities.settings.HolderType;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.waiter.Waiter;
+import com.sx4.bot.waiter.exception.CancelException;
+import com.sx4.bot.waiter.exception.TimeoutException;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.IPermissionHolder;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.MessageReaction.ReactionEmote;
 import net.dv8tion.jda.api.entities.Role;
-import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent;
+import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.exceptions.ErrorHandler;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.requests.ErrorResponse;
@@ -34,6 +36,7 @@ import org.bson.conversions.Bson;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CompletionException;
 import java.util.function.Predicate;
 
 public class ReactionRoleCommand extends Sx4Command {
@@ -287,23 +290,23 @@ public class ReactionRoleCommand extends Sx4Command {
 		if (option.isAlternative()) {
 			event.reply(event.getAuthor().getName() + ", are you sure you want to delete **all** the reaction roles in this server? (Yes or No)").submit()
 				.thenCompose(message -> {
-					Waiter<GuildMessageReceivedEvent> waiter = new Waiter<>(event.getBot(), GuildMessageReceivedEvent.class)
+					return new Waiter<>(event.getBot(), MessageReceivedEvent.class)
 						.setPredicate(messageEvent -> messageEvent.getMessage().getContentRaw().equalsIgnoreCase("yes"))
 						.setOppositeCancelPredicate()
 						.setTimeout(30)
-						.setUnique(event.getAuthor().getIdLong(), event.getChannel().getIdLong());
-					
-					waiter.onTimeout(() -> event.reply("Response timed out :stopwatch:").queue());
-					
-					waiter.onCancelled(type -> event.replySuccess("Cancelled").queue());
-					
-					waiter.start();
-					
-					return waiter.future();
+						.setUnique(event.getAuthor().getIdLong(), event.getChannel().getIdLong())
+						.start();
 				})
 				.thenCompose(messageEvent -> event.getDatabase().deleteManyReactionRoles(Filters.eq("guildId", event.getGuild().getIdLong())))
 				.whenComplete((result, exception) -> {
-					if (ExceptionUtility.sendExceptionally(event, exception)) {
+					Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
+					if (cause instanceof CancelException) {
+						event.replySuccess("Cancelled").queue();
+						return;
+					} else if (cause instanceof TimeoutException) {
+						event.reply("Timed out :stopwatch:").queue();
+						return;
+					} else if (ExceptionUtility.sendExceptionally(event, cause)) {
 						return;
 					}
 

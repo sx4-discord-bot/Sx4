@@ -374,7 +374,7 @@ public class Sx4 {
 					return true;
 				}
 			}).setPrefixesFunction(message -> {
-				List<String> guildPrefixes = this.database.getGuildById(message.getGuild().getIdLong(), Projections.include("prefixes")).getList("prefixes", String.class, Collections.emptyList());
+				List<String> guildPrefixes = message.isFromGuild() ? this.database.getGuildById(message.getGuild().getIdLong(), Projections.include("prefixes")).getList("prefixes", String.class, Collections.emptyList()) : Collections.emptyList();
 				List<String> userPrefixes = this.database.getUserById(message.getAuthor().getIdLong(), Projections.include("prefixes")).getList("prefixes", String.class, Collections.emptyList());
 
 				return userPrefixes.isEmpty() ? guildPrefixes.isEmpty() ? this.config.getDefaultPrefixes() : guildPrefixes : userPrefixes;

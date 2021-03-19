@@ -23,10 +23,12 @@ import com.sx4.bot.entities.mod.action.Action;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.waiter.Waiter;
+import com.sx4.bot.waiter.exception.CancelException;
+import com.sx4.bot.waiter.exception.TimeoutException;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.entities.User;
-import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent;
+import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.internal.utils.tuple.Pair;
 import org.bson.Document;
 import org.bson.conversions.Bson;
@@ -34,6 +36,7 @@ import org.bson.types.ObjectId;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletionException;
 
 public class ModLogCommand extends Sx4Command {
 
@@ -138,33 +141,33 @@ public class ModLogCommand extends Sx4Command {
 		User author = event.getAuthor();
 
 		if (option.isAlternative()) {
-			event.reply(author.getName() + ", are you sure you want to delete **all** the suggestions in this server? (Yes or No)").queue(queryMessage -> {
-				Waiter<GuildMessageReceivedEvent> waiter = new Waiter<>(event.getBot(), GuildMessageReceivedEvent.class)
+			event.reply(author.getName() + ", are you sure you want to delete **all** the suggestions in this server? (Yes or No)").submit().thenCompose($ -> {
+				return new Waiter<>(event.getBot(), MessageReceivedEvent.class)
 					.setPredicate(messageEvent -> messageEvent.getMessage().getContentRaw().equalsIgnoreCase("yes"))
 					.setOppositeCancelPredicate()
 					.setTimeout(30)
-					.setUnique(author.getIdLong(), event.getChannel().getIdLong());
+					.setUnique(author.getIdLong(), event.getChannel().getIdLong())
+					.start();
+			})
+			.thenCompose(messageEvent -> event.getDatabase().deleteManyModLogs(Filters.eq("guildId", event.getGuild().getIdLong())))
+			.whenComplete((result, exception) -> {
+				Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
+				if (cause instanceof CancelException) {
+					event.replySuccess("Cancelled").queue();
+					return;
+				} else if (cause instanceof TimeoutException) {
+					event.reply("Timed out :stopwatch:").queue();
+					return;
+				} else if (ExceptionUtility.sendExceptionally(event, cause)) {
+					return;
+				}
 
-				waiter.onTimeout(() -> event.reply("Response timed out :stopwatch:").queue());
+				if (result.getDeletedCount() == 0) {
+					event.replyFailure("There are no mod logs in this server").queue();
+					return;
+				}
 
-				waiter.onCancelled(type -> event.replySuccess("Cancelled").queue());
-
-				waiter.future()
-					.thenCompose(messageEvent -> event.getDatabase().deleteManyModLogs(Filters.eq("guildId", event.getGuild().getIdLong())))
-					.whenComplete((result, exception) -> {
-						if (ExceptionUtility.sendExceptionally(event, exception)) {
-							return;
-						}
-
-						if (result.getDeletedCount() == 0) {
-							event.replyFailure("There are no mod logs in this server").queue();
-							return;
-						}
-
-						event.replySuccess("All your mod logs have been deleted").queue();
-					});
-
-				waiter.start();
+				event.replySuccess("All your mod logs have been deleted").queue();
 			});
 		} else {
 			ObjectId id = option.getValue();

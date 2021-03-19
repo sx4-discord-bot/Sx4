@@ -17,11 +17,13 @@ import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.entities.argument.Alternative;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.waiter.Waiter;
+import com.sx4.bot.waiter.exception.CancelException;
+import com.sx4.bot.waiter.exception.TimeoutException;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.User;
-import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent;
+import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 
@@ -33,6 +35,7 @@ import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.StringJoiner;
+import java.util.concurrent.CompletionException;
 
 public class MarriageCommand extends Sx4Command {
 
@@ -86,31 +89,26 @@ public class MarriageCommand extends Sx4Command {
 			.allowedMentions(EnumSet.of(Message.MentionType.USER))
 			.submit()
 			.thenCompose(message -> {
-				Waiter<GuildMessageReceivedEvent> waiter = new Waiter<>(event.getBot(), GuildMessageReceivedEvent.class)
+				return new Waiter<>(event.getBot(), MessageReceivedEvent.class)
 					.setPredicate(e -> e.getMessage().getContentRaw().equalsIgnoreCase("yes"))
 					.setOppositeCancelPredicate()
 					.setTimeout(60)
-					.setUnique(member.getIdLong(), event.getChannel().getIdLong());
-
-				waiter.onTimeout(() -> event.reply("Response timed out :stopwatch:").queue());
-
-				waiter.onCancelled((type) -> {
-					event.removeCooldown();
-					if (type == Waiter.CancelType.USER) {
-						event.reply("Better luck next time **" + author.getName() + "**").queue();
-					}
-				});
-
-				waiter.start();
-
-				return waiter.future();
+					.setUnique(member.getIdLong(), event.getChannel().getIdLong())
+					.start();
 			}).thenCompose(e -> {
 				Bson filter = Filters.or(Filters.and(Filters.eq("proposerId", member.getIdLong()), Filters.eq("partnerId", author.getIdLong())), Filters.and(Filters.eq("proposerId", author.getIdLong()), Filters.eq("partnerId", member.getIdLong())));
 
 				return event.getDatabase().updateMarriage(filter, Updates.combine(Updates.setOnInsert("proposerId", author.getIdLong()), Updates.setOnInsert("partnerId", member.getIdLong())));
 			}).whenComplete((result, exception) -> {
 				event.removeCooldown();
-				if (ExceptionUtility.sendExceptionally(event, exception)) {
+				Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
+				if (cause instanceof CancelException) {
+					event.replySuccess("Cancelled").queue();
+					return;
+				} else if (cause instanceof TimeoutException) {
+					event.reply("Timed out :stopwatch:").queue();
+					return;
+				} else if (ExceptionUtility.sendExceptionally(event, cause)) {
 					return;
 				}
 
@@ -132,25 +130,23 @@ public class MarriageCommand extends Sx4Command {
 		if (option.isAlternative()) {
 			event.reply(author.getName() + ", are you sure you want to divorce everyone you are currently married to? (Yes or No)").submit()
 				.thenCompose(message -> {
-					Waiter<GuildMessageReceivedEvent> waiter = new Waiter<>(event.getBot(), GuildMessageReceivedEvent.class)
+					return new Waiter<>(event.getBot(), MessageReceivedEvent.class)
 						.setPredicate(messageEvent -> messageEvent.getMessage().getContentRaw().equalsIgnoreCase("yes"))
 						.setOppositeCancelPredicate()
 						.setTimeout(30)
-						.setUnique(author.getIdLong(), event.getChannel().getIdLong());
-
-					waiter.onTimeout(() -> event.reply("Response timed out :stopwatch:").queue());
-
-					waiter.onCancelled(type -> event.replySuccess("Cancelled").queue());
-
-					waiter.start();
-
-					return waiter.future();
+						.setUnique(author.getIdLong(), event.getChannel().getIdLong())
+						.start();
 				}).thenCompose(e -> {
 					Bson filter = Filters.or(Filters.eq("proposerId", author.getIdLong()), Filters.eq("partnerId", author.getIdLong()));
 
 					return event.getDatabase().deleteManyMarriages(filter);
 				}).whenComplete((result, exception) -> {
-					if (ExceptionUtility.sendExceptionally(event, exception)) {
+					Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
+					if (cause instanceof CancelException) {
+						return;
+					} else if (cause instanceof TimeoutException) {
+						return;
+					} else if (ExceptionUtility.sendExceptionally(event, cause)) {
 						return;
 					}
 

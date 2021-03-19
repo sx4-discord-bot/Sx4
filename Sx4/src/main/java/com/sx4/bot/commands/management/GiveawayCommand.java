@@ -16,20 +16,22 @@ import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.model.Operators;
-import com.sx4.bot.entities.argument.MessageArgument;
 import com.sx4.bot.entities.argument.Alternative;
+import com.sx4.bot.entities.argument.MessageArgument;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.NumberUtility;
 import com.sx4.bot.utility.SearchUtility;
 import com.sx4.bot.utility.TimeUtility;
 import com.sx4.bot.waiter.Waiter;
+import com.sx4.bot.waiter.exception.CancelException;
+import com.sx4.bot.waiter.exception.TimeoutException;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.entities.User;
-import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent;
+import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.sharding.ShardManager;
 import org.bson.Document;
 import org.bson.conversions.Bson;
@@ -42,6 +44,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
@@ -117,7 +120,7 @@ public class GiveawayCommand extends Sx4Command {
 			CompletableFuture<Boolean> future = new CompletableFuture<>();
 			
 			event.reply("What channel would you like to start the giveaway in? Type `cancel` at anytime to cancel the creation.").queue(message -> {
-				Waiter<GuildMessageReceivedEvent> waiter = new Waiter<>(event.getBot(), GuildMessageReceivedEvent.class)
+				Waiter<MessageReceivedEvent> waiter = new Waiter<>(event.getBot(), MessageReceivedEvent.class)
 					.setUnique(event.getAuthor().getIdLong(), event.getChannel().getIdLong())
 					.setCancelPredicate(e -> e.getMessage().getContentRaw().equalsIgnoreCase("cancel"))
 					.setTimeout(30)
@@ -163,7 +166,7 @@ public class GiveawayCommand extends Sx4Command {
 			CompletableFuture<Boolean> future = new CompletableFuture<>();
 			
 			event.reply("How many winners would you like the giveaway to have?").queue(message -> {
-				Waiter<GuildMessageReceivedEvent> waiter = new Waiter<>(event.getBot(), GuildMessageReceivedEvent.class)
+				Waiter<MessageReceivedEvent> waiter = new Waiter<>(event.getBot(), MessageReceivedEvent.class)
 					.setCancelPredicate(e -> e.getMessage().getContentRaw().equalsIgnoreCase("cancel"))
 					.setTimeout(30)
 					.setUnique(event.getAuthor().getIdLong(), event.getChannel().getIdLong())
@@ -216,7 +219,7 @@ public class GiveawayCommand extends Sx4Command {
 			CompletableFuture<Boolean> future = new CompletableFuture<>();
 			
 			event.reply("How long would you like the giveaway to last?").queue(message -> {
-				Waiter<GuildMessageReceivedEvent> waiter = new Waiter<>(event.getBot(), GuildMessageReceivedEvent.class)
+				Waiter<MessageReceivedEvent> waiter = new Waiter<>(event.getBot(), MessageReceivedEvent.class)
 					.setCancelPredicate(e -> e.getMessage().getContentRaw().equalsIgnoreCase("cancel"))
 					.setTimeout(30)
 					.setUnique(event.getAuthor().getIdLong(), event.getChannel().getIdLong())
@@ -262,7 +265,7 @@ public class GiveawayCommand extends Sx4Command {
 			CompletableFuture<Boolean> future = new CompletableFuture<>();
 			
 			event.reply("What would you like to giveaway?").queue(message -> {
-				Waiter<GuildMessageReceivedEvent> waiter = new Waiter<>(event.getBot(), GuildMessageReceivedEvent.class)
+				Waiter<MessageReceivedEvent> waiter = new Waiter<>(event.getBot(), MessageReceivedEvent.class)
 					.setCancelPredicate(e -> e.getMessage().getContentRaw().equalsIgnoreCase("cancel"))
 					.setTimeout(30)
 					.setUnique(event.getAuthor().getIdLong(), event.getChannel().getIdLong())
@@ -418,23 +421,23 @@ public class GiveawayCommand extends Sx4Command {
 		if (option.isAlternative()) {
 			event.reply(event.getAuthor().getName() + ", are you sure you want to delete **all** giveaways in this server? (Yes or No)").submit()
 				.thenCompose(message -> {
-					Waiter<GuildMessageReceivedEvent> waiter = new Waiter<>(event.getBot(), GuildMessageReceivedEvent.class)
+					return new Waiter<>(event.getBot(), MessageReceivedEvent.class)
 						.setPredicate(e -> e.getMessage().getContentRaw().equalsIgnoreCase("yes"))
 						.setOppositeCancelPredicate()
 						.setUnique(event.getAuthor().getIdLong(), event.getChannel().getIdLong())
-						.setTimeout(30);
-					
-					waiter.onTimeout(() -> event.reply("Response timed out :stopwatch:"));
-					
-					waiter.onCancelled(type -> event.replySuccess("Cancelled"));
-					
-					waiter.start();
-					
-					return waiter.future();
+						.setTimeout(30)
+						.start();
 				})
 				.thenCompose(e -> event.getDatabase().deleteManyGiveaways(Filters.eq("guildId", event.getGuild().getIdLong())))
 				.whenComplete((result, exception) -> {
-					if (ExceptionUtility.sendExceptionally(event, exception)) {
+					Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
+					if (cause instanceof CancelException) {
+						event.replySuccess("Cancelled").queue();
+						return;
+					} else if (cause instanceof TimeoutException) {
+						event.reply("Timed out :stopwatch:").queue();
+						return;
+					} else if (ExceptionUtility.sendExceptionally(event, cause)) {
 						return;
 					}
 					

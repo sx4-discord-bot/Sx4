@@ -2,7 +2,7 @@ package com.sx4.bot.waiter;
 
 import com.sx4.bot.waiter.Waiter.CancelType;
 import net.dv8tion.jda.api.events.GenericEvent;
-import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent;
+import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -49,7 +49,7 @@ public class WaiterManager {
 	}
 	
 	public void addWaiter(Waiter<?> waiter) {
-		if (waiter.isUnique() && waiter.getEvent() == GuildMessageReceivedEvent.class) {
+		if (waiter.isUnique() && waiter.getEvent().isAssignableFrom(MessageReceivedEvent.class)) {
 			Map<Long, Waiter<?>> users = this.uniqueWaiters.get(waiter.getChannelId());
 			if (users != null) {
 				Waiter<?> oldWaiter = users.remove(waiter.getAuthorId());
@@ -83,8 +83,8 @@ public class WaiterManager {
 	}
 	
 	public void checkWaiters(GenericEvent event, Class<?> clazz) {
-		if (event instanceof GuildMessageReceivedEvent) {
-			GuildMessageReceivedEvent messageEvent = (GuildMessageReceivedEvent) event;
+		if (event instanceof MessageReceivedEvent) {
+			MessageReceivedEvent messageEvent = (MessageReceivedEvent) event;
 			
 			Map<Long, Waiter<?>> users = this.uniqueWaiters.get(messageEvent.getChannel().getIdLong());
 			if (users != null) {

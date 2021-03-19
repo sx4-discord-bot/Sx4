@@ -6,6 +6,7 @@ import com.mongodb.bulk.BulkWriteResult;
 import com.mongodb.client.*;
 import com.mongodb.client.model.*;
 import com.mongodb.client.result.DeleteResult;
+import com.mongodb.client.result.InsertManyResult;
 import com.mongodb.client.result.InsertOneResult;
 import com.mongodb.client.result.UpdateResult;
 import com.sx4.bot.handlers.DatabaseHandler;
@@ -102,11 +103,9 @@ public class Database {
 
 		this.triggers = this.database.getCollection("triggers");
 		this.triggers.createIndex(Indexes.descending("trigger", "guildId"), uniqueIndex);
-		this.triggers.createIndex(guildId);
 
 		this.templates = this.database.getCollection("templates");
 		this.templates.createIndex(Indexes.descending("template", "guildId"), uniqueIndex);
-		this.templates.createIndex(guildId);
 
 		this.starboards = this.database.getCollection("starboards");
 		this.starboards.createIndex(guildId);
@@ -122,7 +121,7 @@ public class Database {
 		this.loggers.createIndex(Indexes.descending("channelId"), uniqueIndex);
 
 		this.games = this.database.getCollection("games");
-		this.games.createIndex(userId);
+		this.games.createIndex(Indexes.descending("userId", "gameId"), uniqueIndex);
 		this.games.createIndex(Indexes.descending("type"));
 
 		this.reminders = this.database.getCollection("reminders");
@@ -157,7 +156,6 @@ public class Database {
 		this.regexTemplates.createIndex(Indexes.descending("pattern"));
 
 		this.regexes = this.database.getCollection("regexes");
-		this.regexes.createIndex(guildId);
 		this.regexes.createIndex(Indexes.descending("regexId", "guildId"), uniqueIndex);
 		
 		this.modLogs = this.database.getCollection("modLogs");
@@ -178,8 +176,6 @@ public class Database {
 		this.youtubeNotifications = this.database.getCollection("youtubeNotifications");
 
 		this.youtubeNotifications.createIndex(Indexes.descending("channelId", "uploaderId"), uniqueIndex);
-		this.youtubeNotifications.createIndex(Indexes.descending("channelId"));
-		this.youtubeNotifications.createIndex(Indexes.descending("uploaderId"));
 		this.youtubeNotifications.createIndex(Indexes.descending("guildId"));
 
 		this.youtubeSubscriptions = this.database.getCollection("youtubeSubscriptions");
@@ -211,6 +207,10 @@ public class Database {
 
 	public CompletableFuture<InsertOneResult> insertGame(Document data) {
 		return CompletableFuture.supplyAsync(() -> this.games.insertOne(data));
+	}
+
+	public CompletableFuture<InsertManyResult> insertManyGames(List<Document> data) {
+		return CompletableFuture.supplyAsync(() -> this.games.insertMany(data));
 	}
 
 	public MongoCollection<Document> getLoggers() {
