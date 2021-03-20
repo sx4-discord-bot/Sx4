@@ -433,6 +433,11 @@ public class Sx4 {
 				builder.setDefaultValue(defaultString.value());
 			}
 
+			Options options = parameter.getAnnotation(Options.class);
+			if (options != null) {
+				builder.setProperty("options", options.value());
+			}
+
 			return builder;
 		}).addBuilderConfigureFunction(Locale.class, (parameter, builder) -> {
 			DefaultLocale defaultLocale = parameter.getAnnotation(DefaultLocale.class);
@@ -462,6 +467,19 @@ public class Sx4 {
 				} catch (NumberFormatException e) {
 					return new ParsedResult<>();
 				}
+			}).registerParser(String.class, (context, argument, content) -> {
+				String[] options = argument.getProperty("options");
+				if (argument.getProperty("class") == null && options != null && options.length != 0) {
+					for (String option : options) {
+						if (option.equalsIgnoreCase(content)) {
+							return new ParsedResult<>(option);
+						}
+					}
+
+					return new ParsedResult<>();
+				}
+
+				return new ParsedResult<>(content);
 			});
 
 		optionFactory.addParserAfter(Integer.class, (context, argument, content) -> {
@@ -473,8 +491,10 @@ public class Sx4 {
 			return new ParsedResult<>(content);
 		}).addParserAfter(String.class, (context, argument, content) -> {
 			Limit limit = argument.getProperty("limit", Limit.class);
-			if (limit != null && (content.length() < limit.min() || content.length() > limit.max())) {
+			if (limit != null && limit.error() && (content.length() < limit.min() || content.length() > limit.max())) {
 				return new ParsedResult<>();
+			} else if (limit != null && !limit.error()) {
+				content = content.substring(Math.min(Math.max(0, limit.min()), content.length()), Math.min(Math.max(0, limit.max()), content.length()));
 			}
 
 			return new ParsedResult<>(content);
