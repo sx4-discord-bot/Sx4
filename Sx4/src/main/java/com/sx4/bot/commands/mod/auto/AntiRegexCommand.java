@@ -186,7 +186,7 @@ public class AntiRegexCommand extends Sx4Command {
 				EmbedBuilder embed = new EmbedBuilder();
 				embed.setAuthor("Anti Regex", null, event.getGuild().getIconUrl());
 				embed.setTitle("Page " + page.getPage() + "/" + page.getMaxPage());
-				embed.setFooter("next | previous | go to <page_number> | cancel", null);
+				embed.setFooter(PagedResult.DEFAULT_FOOTER_TEXT, null);
 
 				page.forEach((data, index) -> embed.addField(data.getObjectId("regexId").toHexString(), "`" + data.getString("pattern") + "`", true));
 
@@ -638,7 +638,7 @@ public class AntiRegexCommand extends Sx4Command {
 					EmbedBuilder embed = new EmbedBuilder();
 					embed.setAuthor("Regex Template List", null, event.getSelfUser().getEffectiveAvatarUrl());
 					embed.setTitle("Page " + page.getPage() + "/" + page.getMaxPage());
-					embed.setFooter("next | previous | go to <page_number> | cancel", null);
+					embed.setFooter(PagedResult.DEFAULT_FOOTER_TEXT, null);
 
 					page.forEach((data, index) -> {
 						User owner = event.getShardManager().getUserById(data.getLong("ownerId"));
@@ -671,7 +671,7 @@ public class AntiRegexCommand extends Sx4Command {
 					EmbedBuilder embed = new EmbedBuilder();
 					embed.setAuthor("Regex Template Queue", null, event.getSelfUser().getEffectiveAvatarUrl());
 					embed.setTitle("Page " + page.getPage() + "/" + page.getMaxPage());
-					embed.setFooter("next | previous | go to <page_number> | cancel", null);
+					embed.setFooter(PagedResult.DEFAULT_FOOTER_TEXT, null);
 					
 					page.forEach((data, index) -> {
 						User owner = event.getShardManager().getUserById(data.getLong("ownerId"));

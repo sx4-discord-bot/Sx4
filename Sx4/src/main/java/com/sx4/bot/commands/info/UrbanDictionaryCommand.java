@@ -82,7 +82,7 @@ public class UrbanDictionaryCommand extends Sx4Command {
 				.setPerPage(1)
 				.setCustomFunction(page -> {
 					EmbedBuilder embed = new EmbedBuilder();
-					embed.setFooter("next | previous | go to <page_number> | cancel", null);
+					embed.setFooter(PagedResult.DEFAULT_FOOTER_TEXT, null);
 					embed.setTitle("Page " + page.getPage() + "/" + page.getMaxPage());
 
 					page.forEach((data, index) -> {

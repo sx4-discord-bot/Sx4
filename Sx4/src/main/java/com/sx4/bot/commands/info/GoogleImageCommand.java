@@ -67,7 +67,7 @@ public class GoogleImageCommand extends Sx4Command {
 				.setCustomFunction(page -> {
 					EmbedBuilder embed = new EmbedBuilder();
 					embed.setAuthor("Google", url, "http://i.imgur.com/G46fm8J.png");
-					embed.setFooter("next | previous | go to <page_number> | cancel");
+					embed.setFooter(PagedResult.DEFAULT_FOOTER_TEXT);
 					embed.setTitle("Page " + page.getPage() + "/" + page.getMaxPage());
 
 					page.forEach((imageUrl, index) -> {

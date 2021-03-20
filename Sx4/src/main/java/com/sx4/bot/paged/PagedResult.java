@@ -48,6 +48,8 @@ public class PagedResult<Type> {
 		INDEX,
 		OBJECT
 	}
+
+	public static final String DEFAULT_FOOTER_TEXT = "next | previous | go to <page_number> | cancel";
 	
 	private final List<Type> list;
 	
@@ -407,7 +409,7 @@ public class PagedResult<Type> {
 				embed.setColor(this.colour);
 				embed.setAuthor(this.authorName, this.authorUrl, this.authorImage);
 				embed.setTitle("Page " + this.page + "/" + maxPage);
-				embed.setFooter("next | previous | go to <page_number> | cancel", null);
+				embed.setFooter(PagedResult.DEFAULT_FOOTER_TEXT, null);
 				
 				this.forEach((object, index) -> {
 					embed.appendDescription((this.increasedIndex ? this.indexFunction.apply(index + 1) : (this.indexed ? (this.indexFunction.apply(index + 1 - ((this.page - 1) * this.perPage))) : "")) + this.displayFunction.apply(object) + "\n");
@@ -422,7 +424,7 @@ public class PagedResult<Type> {
 					string.append(this.increasedIndex ? this.indexFunction.apply(index + 1) : (this.indexed ? (this.indexFunction.apply(index + 1 - ((this.page - 1) * this.perPage))) : "")).append(this.displayFunction.apply(object)).append("\n");
 				});
 				
-				string.append("\nnext | previous | go to <page_number> | cancel");
+				string.append("\n" + PagedResult.DEFAULT_FOOTER_TEXT);
 				
 				return builder.setContent(string.toString()).build();
 			}

@@ -83,7 +83,7 @@ public class DictionaryCommand extends Sx4Command {
 					EmbedBuilder embed = new EmbedBuilder();
 					embed.setAuthor(StringUtility.title(query) + " (" + document.getString("type") + ")", document.getString("url"), null);
 					embed.setTitle("Page " + page.getPage() + "/" + page.getMaxPage());
-					embed.setFooter("next | previous | go to <page_number> | cancel");
+					embed.setFooter(PagedResult.DEFAULT_FOOTER_TEXT);
 
 					page.forEach((data, index) -> {
 						StringBuilder definition = new StringBuilder();

@@ -60,7 +60,7 @@ public class TeamsCommand extends Sx4Command {
 			.setCustomFunction(page -> {
 				EmbedBuilder embed = new EmbedBuilder()
 					.setTitle("Team " + page.getPage() + "/" + page.getMaxPage())
-					.setFooter("next | previous | go to <page_number> | cancel", null);
+					.setFooter(PagedResult.DEFAULT_FOOTER_TEXT, null);
 
 				page.forEach((list, index) -> {
 					for (String item : list) {

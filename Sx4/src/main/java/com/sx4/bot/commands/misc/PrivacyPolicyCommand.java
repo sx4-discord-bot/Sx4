@@ -26,7 +26,7 @@ public class PrivacyPolicyCommand extends Sx4Command {
                 MessageBuilder builder = new MessageBuilder();
 
                 EmbedBuilder embed = new EmbedBuilder();
-                embed.setFooter("next | previous | go to <page_number> | cancel", null);
+                embed.setFooter(PagedResult.DEFAULT_FOOTER_TEXT, null);
 
                 page.forEach((policy, index) -> {
                     embed.setTitle(String.format("(%d/%d) %s", page.getPage(), page.getMaxPage(), policy.getString("title")));
