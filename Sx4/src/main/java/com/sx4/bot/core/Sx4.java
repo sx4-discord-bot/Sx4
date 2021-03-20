@@ -430,11 +430,19 @@ public class Sx4 {
 			}
 
 			return builder;
+		}).addBuilderConfigureFunction(Locale.class, (parameter, builder) -> {
+			DefaultLocale defaultLocale = parameter.getAnnotation(DefaultLocale.class);
+			if (defaultLocale != null) {
+				builder.setDefaultValue(SearchUtility.getLocaleFromTag(defaultLocale.value()));
+			}
+
+			return builder;
 		});
 
 		optionFactory.registerParser(Duration.class, (context, option, content) -> content == null ? new ParsedResult<>(true, null) : new ParsedResult<>(TimeUtility.getDurationFromString(content)))
 			.registerParser(Guild.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getGuild(this.shardManager, content)))
 			.registerParser(TextChannel.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getTextChannel(context.getMessage().getGuild(), content.trim())))
+			.registerParser(Locale.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getLocale(content.trim())))
 			.registerParser(Integer.class, (context, argument, content) -> {
 				if (argument.getProperty("colour", false)) {
 					int colour = ColourUtility.fromQuery(content);
@@ -538,6 +546,13 @@ public class Sx4 {
 				}
 
 				return builder;
+			}).addBuilderConfigureFunction(Locale.class, (parameter, builder) -> {
+				DefaultLocale defaultLocale = parameter.getAnnotation(DefaultLocale.class);
+				if (defaultLocale != null) {
+					builder.setDefaultValue(SearchUtility.getLocaleFromTag(defaultLocale.value()));
+				}
+
+				return builder;
 			}).addBuilderConfigureFunction(Document.class, (parameter, builder) -> {
 				builder.setProperty("advancedMessage", parameter.isAnnotationPresent(AdvancedMessage.class));
 
@@ -629,6 +644,7 @@ public class Sx4 {
 			.registerParser(Role.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getRole(context.getMessage().getGuild(), content)))
 			.registerParser(Attachment.class, (context, argument, content) -> context.getMessage().getAttachments().isEmpty() ? new ParsedResult<>() : new ParsedResult<>(context.getMessage().getAttachments().get(0)))
 			.registerParser(Emote.class, (context, argument, content) -> new ParsedResult<>(argument.getProperty("global") ? SearchUtility.getEmote(this.shardManager, content) : SearchUtility.getGuildEmote(context.getMessage().getGuild(), content)))
+			.registerParser(Locale.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getLocale(content.trim())))
 			.registerParser(Guild.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getGuild(this.shardManager, content)))
 			.registerParser(MessageArgument.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getMessageArgument(context.getMessage().getTextChannel(), content)))
 			.registerParser(ReactionEmote.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getReactionEmote(this.shardManager, content)))
@@ -905,6 +921,7 @@ public class Sx4 {
 			.registerResponse(Emote.class, "I could not find that emote " + this.config.getFailureEmote())
 			.registerResponse(Duration.class, "Invalid time string given, a good example would be `5d 1h 24m 36s` " + this.config.getFailureEmote())
 			.registerResponse(ObjectId.class, "Invalid id given, an example id would be `5e45ce6d3688b30ee75201ae` " + this.config.getFailureEmote())
+			.registerResponse(Locale.class, "I could not find that language " + this.config.getFailureEmote())
 			.registerResponse(List.class, "I could not find that command/module " + this.config.getFailureEmote())
 			.registerResponse(MessageArgument.class, "I could not find that message " + this.config.getFailureEmote())
 			.registerResponse(ReminderArgument.class, "Invalid reminder format given, view `help reminder add` for more info " + this.config.getFailureEmote())

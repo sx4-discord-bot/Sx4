@@ -76,7 +76,7 @@ public class EvalCommand extends Sx4Command {
 				} else {
 					event.reply(object.toString()).queue();
 				}
-			} catch(Exception e) {
+			} catch (Throwable e) {
 				if (e.getMessage() != null) {
 					event.reply(e.toString()).queue();
 				} else {

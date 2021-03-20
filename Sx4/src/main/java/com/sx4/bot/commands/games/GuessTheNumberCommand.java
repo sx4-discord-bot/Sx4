@@ -30,12 +30,12 @@ import java.util.concurrent.CompletionException;
 public class GuessTheNumberCommand extends Sx4Command {
 
 	public GuessTheNumberCommand() {
-		super("guess the number", 296);
+		super("guess the number", 298);
 
 		super.setDescription("2 players choose a number between a range of numbers whoever is closest to the random number wins");
 		super.setAliases("gtn");
 		super.setCooldownDuration(60);
-		super.setExamples("guess the number @Shea#6653", "guess the number Shea", "guess the number 402557516728369153");
+		super.setExamples("guess the number @Shea#6653", "guess the number Shea --max=1000", "guess the number 402557516728369153 --min=5 --max=100");
 		super.setCategoryAll(ModuleCategory.GAMES);
 	}
 

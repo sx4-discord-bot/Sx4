@@ -15,10 +15,7 @@ import net.dv8tion.jda.api.sharding.ShardManager;
 import net.dv8tion.jda.api.utils.MiscUtil;
 import net.dv8tion.jda.api.utils.cache.CacheView;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.regex.Matcher;
@@ -555,6 +552,32 @@ public class SearchUtility {
 		}
 		
 		return commands;
+	}
+
+	public static Locale getLocale(String query) {
+		for (Locale locale : Locale.getAvailableLocales()) {
+			if (query.length() == 3 && query.equalsIgnoreCase(locale.getISO3Language())) {
+				return locale;
+			} else if (query.equalsIgnoreCase(locale.getLanguage())) {
+				return locale;
+			} else if (query.equalsIgnoreCase(locale.getDisplayLanguage())) {
+				return locale;
+			} else if (query.equalsIgnoreCase(locale.getDisplayLanguage(locale))) {
+				return locale;
+			}
+		}
+
+		return null;
+	}
+
+	public static Locale getLocaleFromTag(String tag) {
+		for (Locale locale : Locale.getAvailableLocales()) {
+			if (tag.equalsIgnoreCase(locale.getLanguage())) {
+				return locale;
+			}
+		}
+
+		return null;
 	}
 	
 }

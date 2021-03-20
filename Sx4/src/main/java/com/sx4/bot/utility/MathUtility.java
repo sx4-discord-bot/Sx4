@@ -30,7 +30,7 @@ public class MathUtility {
 		
 		Set<Type> copy = new HashSet<>(list);
 		if (amount > copy.size()) {
-			throw new IllegalArgumentException("Amounts cannot be more than distinct version of list");
+			throw new IllegalArgumentException("Amount cannot be more than distinct version of list");
 		}
 
 		int size = list.size();

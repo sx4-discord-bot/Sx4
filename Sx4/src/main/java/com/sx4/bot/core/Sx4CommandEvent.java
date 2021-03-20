@@ -65,11 +65,11 @@ public class Sx4CommandEvent extends CommandEvent {
 	}
 
 	public MessageAction replySuccess(String content) {
-		return this.replyFormat("%s %s", content, this.getConfig().getSuccessEmote());
+		return this.reply(content + " " + this.getConfig().getSuccessEmote());
 	}
 
 	public MessageAction replyFailure(String content) {
-		return this.replyFormat("%s %s", content, this.getConfig().getFailureEmote());
+		return this.reply(content + " " + this.getConfig().getFailureEmote());
 	}
 	
 }
