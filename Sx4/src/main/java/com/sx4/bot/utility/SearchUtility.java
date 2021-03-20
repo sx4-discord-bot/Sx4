@@ -6,7 +6,6 @@ import com.jockie.bot.core.command.impl.DummyCommand;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Category;
 import com.sx4.bot.core.Sx4Command;
-import com.sx4.bot.entities.argument.MessageArgument;
 import com.sx4.bot.entities.mod.PartialEmote;
 import com.vdurmont.emoji.EmojiParser;
 import net.dv8tion.jda.api.entities.*;
@@ -213,34 +212,14 @@ public class SearchUtility {
 	
 	public static ReactionEmote getReactionEmote(ShardManager manager, String query) {
 		List<String> emojis = EmojiParser.extractEmojis(query);
+		System.out.println(emojis);
 		if (!emojis.isEmpty()) {
 			return ReactionEmote.fromUnicode(emojis.get(0), manager.getShardById(0));
 		} else {
+			System.out.println(query);
 			Emote emote = SearchUtility.getEmote(manager, query);
+			System.out.println(emote);
 			return emote == null ? null : ReactionEmote.fromCustom(emote);
-		}
-	}
-	
-	public static MessageArgument getMessageArgument(TextChannel channel, String query) {
-		Matcher jumpMatch = Message.JUMP_URL_PATTERN.matcher(query);
-		if (jumpMatch.matches()) {
-			try {
-				long messageId = MiscUtil.parseSnowflake(jumpMatch.group(3));
-				
-				TextChannel linkChannel = channel.getGuild().getTextChannelById(jumpMatch.group(2));
-
-				return new MessageArgument(messageId, linkChannel == null ? channel : linkChannel);
-			} catch (NumberFormatException e) {
-				return null;
-			}
-		} else {
-			try {
-				long messageId = MiscUtil.parseSnowflake(query);
-				
-				return new MessageArgument(messageId, channel);
-			} catch (NumberFormatException e) {
-				return null;
-			}
 		}
 	}
 	

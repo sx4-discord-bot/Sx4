@@ -14,9 +14,11 @@ import com.jockie.bot.core.command.impl.CommandStore;
 import com.jockie.bot.core.command.manager.IErrorManager;
 import com.jockie.bot.core.command.manager.impl.ContextManagerFactory;
 import com.jockie.bot.core.command.manager.impl.ErrorManagerImpl;
+import com.jockie.bot.core.command.parser.ParseContext;
 import com.jockie.bot.core.command.parser.impl.CommandParserImpl;
 import com.jockie.bot.core.option.factory.impl.OptionFactory;
 import com.jockie.bot.core.option.factory.impl.OptionFactoryImpl;
+import com.jockie.bot.core.parser.IParser;
 import com.jockie.bot.core.parser.ParsedResult;
 import com.mongodb.client.model.Projections;
 import com.sx4.api.Sx4Server;
@@ -45,6 +47,7 @@ import net.dv8tion.jda.api.requests.GatewayIntent;
 import net.dv8tion.jda.api.requests.restaction.MessageAction;
 import net.dv8tion.jda.api.sharding.DefaultShardManagerBuilder;
 import net.dv8tion.jda.api.sharding.ShardManager;
+import net.dv8tion.jda.api.utils.MiscUtil;
 import okhttp3.OkHttpClient;
 import org.bson.Document;
 import org.bson.json.JsonParseException;
@@ -66,6 +69,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
@@ -483,6 +487,7 @@ public class Sx4 {
 		
 		argumentFactory.addBuilderConfigureFunction(Emote.class, (parameter, builder) -> builder.setProperty("global", parameter.isAnnotationPresent(Global.class)))
 			.addBuilderConfigureFunction(Attachment.class, (parameter, builder) -> builder.setAcceptEmpty(true))
+			.addBuilderConfigureFunction(MessageArgument.class, (parameter, builder) -> builder.setAcceptEmpty(true))
 			.addGenericBuilderConfigureFunction(Object.class, (parameter, builder) -> builder.setProperty("parameter", parameter))
 			.addBuilderConfigureFunction(String.class, (parameter, builder) -> {
 				builder.setProperty("imageUrl", parameter.isAnnotationPresent(ImageUrl.class));
@@ -628,6 +633,11 @@ public class Sx4 {
 				Type[] classes = ((ParameterizedType) parameter.getParameterizedType()).getActualTypeArguments();
 				Class<?> firstClass = (Class<?>) classes[0], secondClass = (Class<?>) classes[1];
 
+				List<?> builders = argumentFactory.getBuilderConfigureFunctions(firstClass);
+				for (Object builderFunction : builders) {
+					builder = ((BuilderConfigureFunction) builderFunction).configure(parameter, builder);
+				}
+
 				builder.setProperty("firstClass", firstClass);
 				builder.setProperty("secondClass", secondClass);
 
@@ -646,7 +656,6 @@ public class Sx4 {
 			.registerParser(Emote.class, (context, argument, content) -> new ParsedResult<>(argument.getProperty("global") ? SearchUtility.getEmote(this.shardManager, content) : SearchUtility.getGuildEmote(context.getMessage().getGuild(), content)))
 			.registerParser(Locale.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getLocale(content.trim())))
 			.registerParser(Guild.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getGuild(this.shardManager, content)))
-			.registerParser(MessageArgument.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getMessageArgument(context.getMessage().getTextChannel(), content)))
 			.registerParser(ReactionEmote.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getReactionEmote(this.shardManager, content)))
 			.registerParser(Sx4Command.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getCommand(this.commandListener, content)))
 			.registerParser(TimeZone.class, (context, argument, content) -> new ParsedResult<>(TimeZone.getTimeZone(content.toUpperCase().replace("UTC", "GMT"))))
@@ -776,6 +785,46 @@ public class Sx4 {
 					return new ParsedResult<>(new PartialEmote(content, null, extension.equalsIgnoreCase("gif")));
 				} else {
 					return new ParsedResult<>();
+				}
+			}).registerParser(MessageArgument.class, new IParser<>() {
+				public ParsedResult<MessageArgument> parse(ParseContext context, IArgument<MessageArgument> argument, String content) {
+					Message message = context.getMessage();
+					TextChannel channel = message.getTextChannel();
+
+					int nextSpace = content.indexOf(' ');
+					String query = nextSpace == -1 ? content : content.substring(0, nextSpace);
+
+					Matcher jumpMatch = Message.JUMP_URL_PATTERN.matcher(query);
+					if (jumpMatch.matches()) {
+						try {
+							long messageId = MiscUtil.parseSnowflake(jumpMatch.group(3));
+
+							TextChannel linkChannel = channel.getGuild().getTextChannelById(jumpMatch.group(2));
+
+							return new ParsedResult<>(new MessageArgument(messageId, linkChannel == null ? channel : linkChannel), content.substring(query.length()));
+						} catch (NumberFormatException e) {
+							return new ParsedResult<>();
+						}
+					} else if (NumberUtility.isNumber(query)) {
+						try {
+							long messageId = MiscUtil.parseSnowflake(query);
+
+							return new ParsedResult<>(new MessageArgument(messageId, channel), content.substring(query.length()));
+						} catch (NumberFormatException e) {
+							return new ParsedResult<>();
+						}
+					} else {
+						Message reference = message.getReferencedMessage();
+						if (reference != null) {
+							return new ParsedResult<>(new MessageArgument(reference), " " + content);
+						}
+
+						return new ParsedResult<>();
+					}
+				}
+
+				public boolean isHandleAll() {
+					return true;
 				}
 			}).registerParser(LocalDate.class, (context, argument, content) -> {
 				DefaultDateTime defaultDateTime = argument.getProperty("defaultDateTime", DefaultDateTime.class);

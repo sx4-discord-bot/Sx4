@@ -17,6 +17,10 @@ public class NumberUtility {
 	}
 
 	public static boolean isNumberUnsigned(String string) {
+		if (string.isEmpty()) {
+			return false;
+		}
+
 		for (char character : string.toCharArray()) {
 			if (!Character.isDigit(character)) {
 				return false;
@@ -27,6 +31,10 @@ public class NumberUtility {
 	}
 	
 	public static boolean isNumber(String string) {
+		if (string.isEmpty()) {
+			return false;
+		}
+
 		for (int i = 0; i < string.length(); i++) {
 			char character = string.charAt(i);
 			

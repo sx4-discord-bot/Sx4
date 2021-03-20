@@ -39,11 +39,11 @@ public class TranslateCommand extends Sx4Command {
 		super.setCategoryAll(ModuleCategory.INFORMATION);
 	}
 
-	public CompletableFuture<String> getQuery(Or<String, MessageArgument> option) {
+	public CompletableFuture<String> getQuery(Or<MessageArgument, String> option) {
 		if (option.hasFirst()) {
-			return CompletableFuture.completedFuture(option.getFirst());
+			return option.getFirst().retrieveMessage().submit().thenApply(Message::getContentRaw);
 		} else {
-			return option.getSecond().retrieveMessage().submit().thenApply(Message::getContentRaw);
+			return CompletableFuture.completedFuture(option.getSecond());
 		}
 	}
 
@@ -82,7 +82,7 @@ public class TranslateCommand extends Sx4Command {
 		return embed.build();
 	}
 
-	public void onCommand(Sx4CommandEvent event, @Argument(value="to") Locale to, @Argument(value="query | message id", endless=true) Or<String, MessageArgument> option, @Option(value="from", description="Choose what language to translate from") Locale from) {
+	public void onCommand(Sx4CommandEvent event, @Argument(value="to") Locale to, @Argument(value="query | message id", endless=true) Or<MessageArgument, String> option, @Option(value="from", description="Choose what language to translate from") Locale from) {
 		String toTag = to.getLanguage(), fromTag = from == null ? "auto" : from.getLanguage();
 
 		this.getQuery(option).whenComplete((query, exception) -> {
