@@ -2,6 +2,7 @@ package com.sx4.bot.utility;
 
 import com.jockie.bot.core.command.ICommand;
 import com.jockie.bot.core.command.impl.CommandListener;
+import com.jockie.bot.core.command.impl.DummyCommand;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Category;
 import com.sx4.bot.core.Sx4Command;
@@ -511,7 +512,7 @@ public class SearchUtility {
 		
 		List<Sx4Command> commands = new ArrayList<>();
 		Command : for (ICommand commandObject : commandListener.getAllCommands(includeDeveloper, false)) {
-			Sx4Command command = (Sx4Command) commandObject;
+			Sx4Command command = (Sx4Command) (commandObject instanceof DummyCommand ? ((DummyCommand) commandObject).getActualCommand() : commandObject);
 			
 			String commandTrigger = caseSensitive ? command.getCommandTrigger() : command.getCommandTrigger().toLowerCase();
 			if (commandTrigger.equals(query)) {

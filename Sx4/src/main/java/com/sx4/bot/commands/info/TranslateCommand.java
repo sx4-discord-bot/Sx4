@@ -2,15 +2,16 @@ package com.sx4.bot.commands.info;
 
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.option.Option;
-import com.sx4.bot.annotations.argument.Limit;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.entities.argument.MessageArgument;
+import com.sx4.bot.entities.argument.Or;
 import com.sx4.bot.http.HttpCallback;
 import com.sx4.bot.utility.SearchUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import okhttp3.FormBody;
 import okhttp3.Request;
@@ -24,6 +25,7 @@ import org.jsoup.nodes.TextNode;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Locale;
+import java.util.concurrent.CompletableFuture;
 
 public class TranslateCommand extends Sx4Command {
 
@@ -35,6 +37,14 @@ public class TranslateCommand extends Sx4Command {
 		super.setExamples("translate fr hello", "translate bonjour", "translate en hej --from=sv");
 		super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
 		super.setCategoryAll(ModuleCategory.INFORMATION);
+	}
+
+	public CompletableFuture<String> getQuery(Or<String, MessageArgument> option) {
+		if (option.hasFirst()) {
+			return CompletableFuture.completedFuture(option.getFirst());
+		} else {
+			return option.getSecond().retrieveMessage().submit().thenApply(Message::getContentRaw);
+		}
 	}
 
 	public MessageEmbed getEmbed(String body, String query, Locale from, Locale to) {
@@ -72,28 +82,12 @@ public class TranslateCommand extends Sx4Command {
 		return embed.build();
 	}
 
-	public void onCommand(Sx4CommandEvent event, @Argument(value="to") Locale to, @Argument(value="query", endless=true) @Limit(max=1000) String query, @Option(value="from", description="Choose what language to translate from") Locale from) {
+	public void onCommand(Sx4CommandEvent event, @Argument(value="to") Locale to, @Argument(value="query | message id", endless=true) Or<String, MessageArgument> option, @Option(value="from", description="Choose what language to translate from") Locale from) {
 		String toTag = to.getLanguage(), fromTag = from == null ? "auto" : from.getLanguage();
 
-		FormBody requestBody = new FormBody.Builder()
-			.addEncoded("f.req", "%5B%5B%5B%22MkEWBc%22%2C%22%5B%5B%5C%22" + URLEncoder.encode(query, StandardCharsets.UTF_8) + "%5C%22%2C%5C%22" + fromTag + "%5C%22%2C%5C%22" + toTag + "%5C%22%2Ctrue%5D%2C%5Bnull%5D%5D%22%2Cnull%2C%22generic%22%5D%5D%5D")
-			.build();
-
-		Request request = new Request.Builder()
-			.url("https://translate.google.com/_/TranslateWebserverUi/data/batchexecute")
-			.post(requestBody)
-			.build();
-
-		event.getHttpClient().newCall(request).enqueue((HttpCallback) response -> event.reply(this.getEmbed(response.body().string(), query, from, to)).queue());
-	}
-
-	public void onCommand(Sx4CommandEvent event, @Argument(value="to", nullDefault=true) Locale to, @Argument(value="message id") MessageArgument messageArgument, @Option(value="from", description="Choose what language to translate from") Locale from) {
-		String toTag = to.getLanguage(), fromTag = from == null ? "auto" : from.getLanguage();
-
-		messageArgument.retrieveMessage().queue(message -> {
-			String query = message.getContentRaw();
+		this.getQuery(option).whenComplete((query, exception) -> {
 			if (query.length() > 1000) {
-				event.replyFailure("That message has more than 1000 characters").queue();
+				event.replyFailure("Query length cannot be any more than **1000** characters").queue();
 				return;
 			}
 

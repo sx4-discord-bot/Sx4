@@ -59,7 +59,7 @@ public class HelpCommand extends Sx4Command {
 				
 				List<Sx4Command> categoryCommands = category.getCommands(event.isAuthorDeveloper()).stream()
 					.map(Sx4Command.class::cast)
-					.sorted(Comparator.comparing(a -> a.getCommandTrigger()))
+					.sorted(Comparator.comparing(Sx4Command::getCommandTrigger))
 					.collect(Collectors.toList());
 				
 				PagedResult<Sx4Command> categoryPaged = HelpUtility.getCommandsPaged(event.getBot(), categoryCommands)
@@ -78,7 +78,7 @@ public class HelpCommand extends Sx4Command {
 			if (category != null) {
 				List<Sx4Command> categoryCommands = category.getCommands(event.isAuthorDeveloper()).stream()
 					.map(Sx4Command.class::cast)
-					.sorted(Comparator.comparing(a -> a.getCommandTrigger()))
+					.sorted(Comparator.comparing(Sx4Command::getCommandTrigger))
 					.collect(Collectors.toList());
 				
 				PagedResult<Sx4Command> paged = HelpUtility.getCommandsPaged(event.getBot(), categoryCommands)
