@@ -106,7 +106,7 @@ public class ReactionRoleCommand extends Sx4Command {
 		}
 
 		boolean unicode = emote.isEmoji();
-		if (!unicode && !event.getSelfMember().canInteract(emote.getEmote())){
+		if (!unicode && !event.getSelfMember().canInteract(emote.getEmote())) {
 			event.replyFailure("I do not have access to that emote so I can not add it as a reaction").queue();
 			return;
 		}

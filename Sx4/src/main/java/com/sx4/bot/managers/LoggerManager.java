@@ -110,7 +110,7 @@ public class LoggerManager implements WebhookManager {
         this.webhooks.put(channelId, webhook);
     }
 
-    private void createWebhook(TextChannel channel, BlockingDeque<Request> deque, List<Request> requests, int retries) {
+    private void createWebhook(TextChannel channel, List<Request> requests, int retries) {
         channel.createWebhook("Sx4 - Logger").queue(webhook -> {
             WebhookClient webhookClient = new WebhookClientBuilder(webhook.getIdLong(), webhook.getToken())
                 .setExecutorService(this.webhookExecutor)
@@ -130,27 +130,27 @@ public class LoggerManager implements WebhookManager {
                     return;
                 }
 
-                requests.forEach(deque::addFirst);
-                this.handleQueue(deque, retries + 1);
+                requests.forEach(this::addFirst);
+                this.handleQueue(retries + 1);
             });
         });
     }
 
-    private void handleQueue(BlockingDeque<Request> deque, int retries) {
+    private void handleQueue(int retries) {
         this.executor.submit(() -> {
-            Request request = deque.poll();
+            Request request = this.poll();
             if (request == null) {
                 return;
             }
 
             if (retries == LoggerManager.MAX_RETRIES) {
-                this.handleQueue(deque, 0);
+                this.handleQueue(0);
                 return;
             }
 
             Guild guild = request.getGuild();
             if (guild == null) {
-                this.handleQueue(deque, 0);
+                this.handleQueue(0);
                 return;
             }
 
@@ -161,7 +161,7 @@ public class LoggerManager implements WebhookManager {
                 this.bot.getDatabase().updateGuildById(request.getGuildId(), Updates.pull("logger.loggers", Filters.eq("id", channelId))).whenComplete(Database.exceptionally(this.bot.getShardManager()));
 
                 this.webhooks.remove(channelId);
-                this.handleQueue(deque, 0);
+                this.handleQueue(0);
 
                 return;
             }
@@ -173,7 +173,7 @@ public class LoggerManager implements WebhookManager {
             requests.add(request);
 
             Request nextRequest;
-            while ((nextRequest = deque.poll()) != null) {
+            while ((nextRequest = this.poll()) != null) {
                 List<WebhookEmbed> nextEmbeds = nextRequest.getEmbeds();
 
                 int nextLength = MessageUtility.getWebhookEmbedLength(nextEmbeds);
@@ -189,7 +189,7 @@ public class LoggerManager implements WebhookManager {
             }
 
             // Keep order of logs
-            skippedRequests.forEach(deque::addFirst);
+            skippedRequests.forEach(this::addFirst);
 
             Document logger = request.getLogger();
             Document webhookData = logger.get("webhook", Database.EMPTY_DOCUMENT);
@@ -205,11 +205,11 @@ public class LoggerManager implements WebhookManager {
                 webhook = this.webhooks.get(channelId);
             } else if (!webhookData.containsKey("id")) {
                 if (channel.getGuild().getSelfMember().hasPermission(channel, Permission.MANAGE_WEBHOOKS)) {
-                    this.createWebhook(channel, deque, requests, retries);
+                    this.createWebhook(channel, requests, retries);
                     return;
                 }
 
-                this.handleQueue(deque, 0);
+                this.handleQueue(0);
                 return;
             } else {
                 webhook = new WebhookClientBuilder(webhookData.getLong("id"), webhookData.getString("token"))
@@ -223,30 +223,38 @@ public class LoggerManager implements WebhookManager {
             webhook.send(message).whenComplete((result, exception) -> {
                 if (exception instanceof HttpException && ((HttpException) exception).getCode() == 404) {
                     if (channel.getGuild().getSelfMember().hasPermission(channel, Permission.MANAGE_WEBHOOKS)) {
-                        this.createWebhook(channel, deque, requests, retries);
+                        this.createWebhook(channel, requests, retries);
                         return;
                     }
 
-                    this.handleQueue(deque, 0);
+                    this.handleQueue(0);
                     return;
                 }
 
                 if (ExceptionUtility.sendErrorMessage(this.bot.getShardManager(), exception)) {
-                    requests.forEach(deque::addFirst);
-                    this.handleQueue(deque, retries + 1);
+                    requests.forEach(this::addFirst);
+                    this.handleQueue(retries + 1);
 
                     return;
                 }
 
-                this.handleQueue(deque, 0);
+                this.handleQueue(0);
             });
         });
     }
 
-    private void queue(Request request) {
+    private synchronized Request poll() {
+        return this.queue.poll();
+    }
+
+    private synchronized void addFirst(Request request) {
+        this.queue.addFirst(request);
+    }
+
+    private synchronized void queue(Request request) {
         if (this.queue.isEmpty()) {
             this.queue.add(request);
-            this.handleQueue(this.queue, 0);
+            this.handleQueue(0);
         } else {
             this.queue.add(request);
         }
