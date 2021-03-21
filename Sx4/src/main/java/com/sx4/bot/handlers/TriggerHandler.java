@@ -9,16 +9,17 @@ import com.sx4.bot.utility.MessageUtility;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.Message.MentionType;
 import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent;
 import net.dv8tion.jda.api.events.message.guild.GuildMessageUpdateEvent;
-import net.dv8tion.jda.api.hooks.ListenerAdapter;
+import net.dv8tion.jda.api.hooks.EventListener;
 import org.bson.Document;
 
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 
-public class TriggerHandler extends ListenerAdapter {
+public class TriggerHandler implements EventListener {
 
 	private final Sx4 bot;
 
@@ -60,12 +61,13 @@ public class TriggerHandler extends ListenerAdapter {
 		}
 	}
 
-	public void onGuildMessageReceived(GuildMessageReceivedEvent event) {
-		this.handle(event.getMessage());
-	}
-
-	public void onGuildMessageUpdate(GuildMessageUpdateEvent event) {
-		this.handle(event.getMessage());
+	@Override
+	public void onEvent(GenericEvent event) {
+		if (event instanceof GuildMessageReceivedEvent) {
+			this.handle(((GuildMessageReceivedEvent) event).getMessage());
+		} else if (event instanceof GuildMessageUpdateEvent) {
+			this.handle(((GuildMessageUpdateEvent) event).getMessage());
+		}
 	}
 
 }

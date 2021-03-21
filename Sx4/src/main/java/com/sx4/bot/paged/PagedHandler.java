@@ -7,16 +7,17 @@ import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.MessageChannel;
 import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.events.message.MessageUpdateEvent;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
-import net.dv8tion.jda.api.hooks.ListenerAdapter;
+import net.dv8tion.jda.api.hooks.EventListener;
 import net.dv8tion.jda.api.requests.ErrorResponse;
 
 import java.util.EnumSet;
 import java.util.List;
 
-public class PagedHandler extends ListenerAdapter {
+public class PagedHandler implements EventListener {
 
 	private final Sx4 bot;
 
@@ -95,13 +96,14 @@ public class PagedHandler extends ListenerAdapter {
 			}
 		}
 	}
-	
-	public void onMessageReceived(MessageReceivedEvent event) {
-		this.handle(event.getMessage());
+
+	@Override
+	public void onEvent(GenericEvent event) {
+		if (event instanceof MessageReceivedEvent) {
+			this.handle(((MessageReceivedEvent) event).getMessage());
+		} else if (event instanceof MessageUpdateEvent) {
+			this.handle(((MessageUpdateEvent) event).getMessage());
+		}
 	}
-	
-	public void onMessageUpdate(MessageUpdateEvent event) {
-		this.handle(event.getMessage());
-	}
-	
+
 }

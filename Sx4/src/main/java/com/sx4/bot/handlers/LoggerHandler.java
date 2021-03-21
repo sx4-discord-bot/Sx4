@@ -21,6 +21,7 @@ import net.dv8tion.jda.api.audit.AuditLogChange;
 import net.dv8tion.jda.api.audit.AuditLogEntry;
 import net.dv8tion.jda.api.audit.AuditLogKey;
 import net.dv8tion.jda.api.entities.*;
+import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.events.channel.category.CategoryCreateEvent;
 import net.dv8tion.jda.api.events.channel.category.CategoryDeleteEvent;
 import net.dv8tion.jda.api.events.channel.category.update.CategoryUpdateNameEvent;
@@ -56,7 +57,7 @@ import net.dv8tion.jda.api.events.role.RoleDeleteEvent;
 import net.dv8tion.jda.api.events.role.update.RoleUpdateColorEvent;
 import net.dv8tion.jda.api.events.role.update.RoleUpdateNameEvent;
 import net.dv8tion.jda.api.events.role.update.RoleUpdatePermissionsEvent;
-import net.dv8tion.jda.api.hooks.ListenerAdapter;
+import net.dv8tion.jda.api.hooks.EventListener;
 import net.dv8tion.jda.api.sharding.ShardManager;
 import net.dv8tion.jda.internal.utils.tuple.Pair;
 import org.bson.Document;
@@ -71,7 +72,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-public class LoggerHandler extends ListenerAdapter {
+public class LoggerHandler implements EventListener {
 
 	private static final int DELAY = 500;
 
@@ -1584,4 +1585,88 @@ public class LoggerHandler extends ListenerAdapter {
 
 		this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 	}
+
+	@Override
+	public void onEvent(GenericEvent event) {
+		if (event instanceof GuildMessageDeleteEvent) {
+			this.onGuildMessageDelete((GuildMessageDeleteEvent) event);
+		} else if (event instanceof MessageBulkDeleteEvent) {
+			this.onMessageBulkDelete((MessageBulkDeleteEvent) event);
+		} else if (event instanceof GuildMessageUpdateEvent) {
+			this.onGuildMessageUpdate((GuildMessageUpdateEvent) event);
+		} else if (event instanceof GuildMemberJoinEvent) {
+			this.onGuildMemberJoin((GuildMemberJoinEvent) event);
+		} else if (event instanceof GuildMemberRemoveEvent) {
+			this.onGuildMemberRemove((GuildMemberRemoveEvent) event);
+		} else if (event instanceof GuildBanEvent) {
+			this.onGuildBan((GuildBanEvent) event);
+		} else if (event instanceof GuildUnbanEvent) {
+			this.onGuildUnban((GuildUnbanEvent) event);
+		} else if (event instanceof GuildVoiceJoinEvent) {
+			this.onGuildVoiceJoin((GuildVoiceJoinEvent) event);
+		} else if (event instanceof GuildVoiceLeaveEvent) {
+			this.onGuildVoiceLeave((GuildVoiceLeaveEvent) event);
+		} else if (event instanceof GuildVoiceMoveEvent) {
+			this.onGuildVoiceMove((GuildVoiceMoveEvent) event);
+		} else if (event instanceof GuildVoiceGuildMuteEvent) {
+			this.onGuildVoiceGuildMute((GuildVoiceGuildMuteEvent) event);
+		} else if (event instanceof GuildVoiceGuildDeafenEvent) {
+			this.onGuildVoiceGuildDeafen((GuildVoiceGuildDeafenEvent) event);
+		} else if (event instanceof PermissionOverrideCreateEvent) {
+			this.onPermissionOverrideCreate((PermissionOverrideCreateEvent) event);
+		} else if (event instanceof PermissionOverrideUpdateEvent) {
+			this.onPermissionOverrideUpdate((PermissionOverrideUpdateEvent) event);
+		} else if (event instanceof PermissionOverrideDeleteEvent) {
+			this.onPermissionOverrideDelete((PermissionOverrideDeleteEvent) event);
+		} else if (event instanceof TextChannelDeleteEvent) {
+			this.onTextChannelDelete((TextChannelDeleteEvent) event);
+		} else if (event instanceof VoiceChannelDeleteEvent) {
+			this.onVoiceChannelDelete((VoiceChannelDeleteEvent) event);
+		} else if (event instanceof CategoryDeleteEvent) {
+			this.onCategoryDelete((CategoryDeleteEvent) event);
+		} else if (event instanceof StoreChannelDeleteEvent) {
+			this.onStoreChannelDelete((StoreChannelDeleteEvent) event);
+		} else if (event instanceof TextChannelCreateEvent) {
+			this.onTextChannelCreate((TextChannelCreateEvent) event);
+		} else if (event instanceof VoiceChannelCreateEvent) {
+			this.onVoiceChannelCreate((VoiceChannelCreateEvent) event);
+		} else if (event instanceof CategoryCreateEvent) {
+			this.onCategoryCreate((CategoryCreateEvent) event);
+		} else if (event instanceof StoreChannelCreateEvent) {
+			this.onStoreChannelCreate((StoreChannelCreateEvent) event);
+		} else if (event instanceof TextChannelUpdateNameEvent) {
+			this.onTextChannelUpdateName((TextChannelUpdateNameEvent) event);
+		} else if (event instanceof VoiceChannelUpdateNameEvent) {
+			this.onVoiceChannelUpdateName((VoiceChannelUpdateNameEvent) event);
+		} else if (event instanceof CategoryUpdateNameEvent) {
+			this.onCategoryUpdateName((CategoryUpdateNameEvent) event);
+		} else if (event instanceof StoreChannelUpdateNameEvent) {
+			this.onStoreChannelUpdateName((StoreChannelUpdateNameEvent) event);
+		} else if (event instanceof RoleCreateEvent) {
+			this.onRoleCreate((RoleCreateEvent) event);
+		} else if (event instanceof RoleDeleteEvent) {
+			this.onRoleDelete((RoleDeleteEvent) event);
+		} else if (event instanceof RoleUpdateNameEvent) {
+			this.onRoleUpdateName((RoleUpdateNameEvent) event);
+		} else if (event instanceof RoleUpdateColorEvent) {
+			this.onRoleUpdateColor((RoleUpdateColorEvent) event);
+		} else if (event instanceof RoleUpdatePermissionsEvent) {
+			this.onRoleUpdatePermissions((RoleUpdatePermissionsEvent) event);
+		} else if (event instanceof GuildMemberRoleAddEvent) {
+			this.onGuildMemberRoleAdd((GuildMemberRoleAddEvent) event);
+		} else if (event instanceof GuildMemberRoleRemoveEvent) {
+			this.onGuildMemberRoleRemove((GuildMemberRoleRemoveEvent) event);
+		} else if (event instanceof GuildMemberUpdateNicknameEvent) {
+			this.onGuildMemberUpdateNickname((GuildMemberUpdateNicknameEvent) event);
+		} else if (event instanceof EmoteAddedEvent) {
+			this.onEmoteAdded((EmoteAddedEvent) event);
+		} else if (event instanceof EmoteRemovedEvent) {
+			this.onEmoteRemoved((EmoteRemovedEvent) event);
+		} else if (event instanceof EmoteUpdateNameEvent) {
+			this.onEmoteUpdateName((EmoteUpdateNameEvent) event);
+		} else if (event instanceof EmoteUpdateRolesEvent) {
+			this.onEmoteUpdateRoles((EmoteUpdateRolesEvent) event);
+		}
+	}
+
 }

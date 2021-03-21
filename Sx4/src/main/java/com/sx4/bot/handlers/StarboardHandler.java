@@ -18,9 +18,10 @@ import com.sx4.bot.utility.NumberUtility;
 import net.dv8tion.jda.api.entities.*;
 import net.dv8tion.jda.api.entities.Message.Attachment;
 import net.dv8tion.jda.api.entities.MessageReaction.ReactionEmote;
+import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.events.message.guild.react.GuildMessageReactionAddEvent;
 import net.dv8tion.jda.api.events.message.guild.react.GuildMessageReactionRemoveEvent;
-import net.dv8tion.jda.api.hooks.ListenerAdapter;
+import net.dv8tion.jda.api.hooks.EventListener;
 import net.dv8tion.jda.api.requests.RestAction;
 import org.bson.Document;
 import org.bson.conversions.Bson;
@@ -32,7 +33,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.function.Consumer;
 
-public class StarboardHandler extends ListenerAdapter {
+public class StarboardHandler implements EventListener {
 
 	private final Sx4 bot;
 
@@ -281,6 +282,16 @@ public class StarboardHandler extends ListenerAdapter {
 				this.bot.getStarboardManager().editStarboard(starboard.getLong("messageId"), channel.getIdLong(), data.get("webhook", Database.EMPTY_DOCUMENT), webhookMessage);
 			}
 		});
+	}
+
+
+	@Override
+	public void onEvent(GenericEvent event) {
+		if (event instanceof GuildMessageReactionAddEvent) {
+			this.onGuildMessageReactionAdd((GuildMessageReactionAddEvent) event);
+		} else if (event instanceof GuildMessageReactionRemoveEvent) {
+			this.onGuildMessageReactionRemove((GuildMessageReactionRemoveEvent) event);
+		}
 	}
 
 }

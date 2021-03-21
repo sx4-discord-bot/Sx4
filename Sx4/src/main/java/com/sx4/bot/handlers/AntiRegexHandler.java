@@ -13,9 +13,10 @@ import com.sx4.bot.managers.AntiRegexManager;
 import com.sx4.bot.utility.ModUtility;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.*;
+import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent;
 import net.dv8tion.jda.api.events.message.guild.GuildMessageUpdateEvent;
-import net.dv8tion.jda.api.hooks.ListenerAdapter;
+import net.dv8tion.jda.api.hooks.EventListener;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
@@ -30,7 +31,7 @@ import java.util.concurrent.Executors;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class AntiRegexHandler extends ListenerAdapter {
+public class AntiRegexHandler implements EventListener {
 
     private final ExecutorService executor = Executors.newCachedThreadPool();
 
@@ -188,13 +189,15 @@ public class AntiRegexHandler extends ListenerAdapter {
         //});
     }
 
-    public void onGuildMessageReceived(GuildMessageReceivedEvent event) {
-        this.handle(event.getMessage());
+    @Override
+    public void onEvent(GenericEvent event) {
+        if (event instanceof GuildMessageReceivedEvent) {
+            this.handle(((GuildMessageReceivedEvent) event).getMessage());
+        } else if (event instanceof GuildMessageUpdateEvent) {
+            this.handle(((GuildMessageUpdateEvent) event).getMessage());
+        }
     }
 
-    public void onGuildMessageUpdate(GuildMessageUpdateEvent event) {
-        this.handle(event.getMessage());
-    }
 }
 
 

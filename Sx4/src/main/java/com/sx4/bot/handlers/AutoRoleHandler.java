@@ -9,16 +9,17 @@ import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Role;
+import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.events.guild.member.GuildMemberJoinEvent;
 import net.dv8tion.jda.api.events.role.RoleDeleteEvent;
-import net.dv8tion.jda.api.hooks.ListenerAdapter;
+import net.dv8tion.jda.api.hooks.EventListener;
 import org.bson.Document;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-public class AutoRoleHandler extends ListenerAdapter {
+public class AutoRoleHandler implements EventListener {
 
 	private final Sx4 bot;
 
@@ -77,6 +78,15 @@ public class AutoRoleHandler extends ListenerAdapter {
 	public void onRoleDelete(RoleDeleteEvent event) {
 		this.bot.getDatabase().updateGuildById(event.getGuild().getIdLong(), Updates.pull("autoRole.roles", Filters.eq("id", event.getRole().getIdLong())))
 			.whenComplete(Database.exceptionally(this.bot.getShardManager()));
+	}
+
+	@Override
+	public void onEvent(GenericEvent event) {
+		if (event instanceof GuildMemberJoinEvent) {
+			this.onGuildMemberJoin((GuildMemberJoinEvent) event);
+		} else if (event instanceof RoleDeleteEvent) {
+			this.onRoleDelete((RoleDeleteEvent) event);
+		}
 	}
 
 }

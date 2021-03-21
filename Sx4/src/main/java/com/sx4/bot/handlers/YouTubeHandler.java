@@ -31,7 +31,6 @@ import okhttp3.OkHttpClient;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 
-import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
@@ -39,8 +38,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
 public class YouTubeHandler implements YouTubeListener, EventListener {
-	
-	private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd LLLL yyyy HH:mm");
 	
 	private final OkHttpClient client = new OkHttpClient();
 	

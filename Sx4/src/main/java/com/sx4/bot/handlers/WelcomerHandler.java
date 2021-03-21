@@ -10,16 +10,17 @@ import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.MessageUtility;
 import com.sx4.bot.utility.WelcomerUtility;
 import net.dv8tion.jda.api.entities.TextChannel;
+import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.events.guild.member.GuildMemberJoinEvent;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
-import net.dv8tion.jda.api.hooks.ListenerAdapter;
+import net.dv8tion.jda.api.hooks.EventListener;
 import net.dv8tion.jda.api.requests.ErrorResponse;
 import org.bson.Document;
 
 import java.time.Clock;
 import java.util.List;
 
-public class WelcomerHandler extends ListenerAdapter {
+public class WelcomerHandler implements EventListener {
 
 	private final Sx4 bot;
 
@@ -73,6 +74,13 @@ public class WelcomerHandler extends ListenerAdapter {
 				this.bot.getWelcomerManager().sendWelcomer(channel, webhookData, message);
 			}
 		});
+	}
+
+	@Override
+	public void onEvent(GenericEvent event) {
+		if (event instanceof GuildMemberJoinEvent) {
+			this.onGuildMemberJoin((GuildMemberJoinEvent) event);
+		}
 	}
 
 }

@@ -13,19 +13,20 @@ import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.MessageReaction.ReactionEmote;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.events.message.MessageBulkDeleteEvent;
 import net.dv8tion.jda.api.events.message.MessageDeleteEvent;
 import net.dv8tion.jda.api.events.message.guild.react.GenericGuildMessageReactionEvent;
 import net.dv8tion.jda.api.events.role.RoleDeleteEvent;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
-import net.dv8tion.jda.api.hooks.ListenerAdapter;
+import net.dv8tion.jda.api.hooks.EventListener;
 import net.dv8tion.jda.api.requests.ErrorResponse;
 import org.bson.Document;
 
 import java.util.*;
 import java.util.stream.Collectors;
 
-public class ReactionRoleHandler extends ListenerAdapter {
+public class ReactionRoleHandler implements EventListener {
 
 	private final Sx4 bot;
 
@@ -150,14 +151,6 @@ public class ReactionRoleHandler extends ListenerAdapter {
 		this.bot.getDatabase().deleteManyReactionRoles(Filters.in("messageId", messageIds)).whenComplete(Database.exceptionally(this.bot.getShardManager()));
 	}
 	
-	public void onMessageBulkDelete(MessageBulkDeleteEvent event) {
-		this.handle(event.getMessageIds().stream().map(Long::valueOf).collect(Collectors.toList()));
-	}
-	
-	public void onMessageDelete(MessageDeleteEvent event) {
-		this.handle(List.of(event.getMessageIdLong()));
-	}
-	
 	public void onRoleDelete(RoleDeleteEvent event) {
 		this.bot.getDatabase().updateReactionRole(Filters.eq("guildId", event.getGuild().getIdLong()), Updates.pull("reactions.$[].roles", event.getRole().getIdLong())).whenComplete((result, exception) -> {
 			Throwable cause = exception == null ? null : exception.getCause();
@@ -168,5 +161,17 @@ public class ReactionRoleHandler extends ListenerAdapter {
 			ExceptionUtility.sendErrorMessage(event.getJDA().getShardManager(), exception);
 		});
 	}
-	
+
+	@Override
+	public void onEvent(GenericEvent event) {
+		if (event instanceof GenericGuildMessageReactionEvent) {
+			this.onGenericGuildMessageReaction((GenericGuildMessageReactionEvent) event);
+		} else if (event instanceof MessageDeleteEvent) {
+			this.handle(List.of(((MessageDeleteEvent) event).getMessageIdLong()));
+		} else if (event instanceof MessageBulkDeleteEvent) {
+			this.handle(((MessageBulkDeleteEvent) event).getMessageIds().stream().map(Long::parseLong).collect(Collectors.toList()));
+		} else if (event instanceof RoleDeleteEvent) {
+			this.onRoleDelete((RoleDeleteEvent) event);
+		}
+	}
 }

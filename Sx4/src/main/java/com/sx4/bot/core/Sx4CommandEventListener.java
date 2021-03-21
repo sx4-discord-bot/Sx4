@@ -30,6 +30,7 @@ public class Sx4CommandEventListener extends CommandEventListener {
 			.append("channelId", event.getChannel().getIdLong())
 			.append("guildId", event.getGuild().getIdLong())
 			.append("arguments", Arrays.asList(event.getRawArguments()))
+			.append("options", event.getOptions())
 			.append("prefix", event.getPrefix())
 			.append("executionDuration", event.getTimeSinceStarted());
 

@@ -3,14 +3,15 @@ package com.sx4.bot.handlers;
 import com.mongodb.client.model.Filters;
 import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.Database;
+import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.events.message.MessageBulkDeleteEvent;
 import net.dv8tion.jda.api.events.message.MessageDeleteEvent;
-import net.dv8tion.jda.api.hooks.ListenerAdapter;
+import net.dv8tion.jda.api.hooks.EventListener;
 
 import java.util.List;
 import java.util.stream.Collectors;
 
-public class GiveawayHandler extends ListenerAdapter {
+public class GiveawayHandler implements EventListener {
 
 	private final Sx4 bot;
 
@@ -23,13 +24,14 @@ public class GiveawayHandler extends ListenerAdapter {
 		
 		messageIds.forEach(this.bot.getGiveawayManager()::deleteExecutor);
 	}
-	
-	public void onMessageBulkDelete(MessageBulkDeleteEvent event) {
-		this.handle(event.getMessageIds().stream().map(Long::valueOf).collect(Collectors.toList()));
+
+	@Override
+	public void onEvent(GenericEvent event) {
+		if (event instanceof MessageBulkDeleteEvent) {
+			this.handle(((MessageBulkDeleteEvent) event).getMessageIds().stream().map(Long::valueOf).collect(Collectors.toList()));
+		} else if (event instanceof MessageDeleteEvent) {
+			this.handle(List.of(((MessageDeleteEvent) event).getMessageIdLong()));
+		}
 	}
-	
-	public void onMessageDelete(MessageDeleteEvent event) {
-		this.handle(List.of(event.getMessageIdLong()));
-	}
-	
+
 }

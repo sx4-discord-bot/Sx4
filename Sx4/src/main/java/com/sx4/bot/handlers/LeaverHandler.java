@@ -9,11 +9,12 @@ import com.sx4.bot.database.Database;
 import com.sx4.bot.managers.LeaverManager;
 import com.sx4.bot.utility.LeaverUtility;
 import net.dv8tion.jda.api.entities.TextChannel;
+import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.events.guild.member.GuildMemberRemoveEvent;
-import net.dv8tion.jda.api.hooks.ListenerAdapter;
+import net.dv8tion.jda.api.hooks.EventListener;
 import org.bson.Document;
 
-public class LeaverHandler extends ListenerAdapter {
+public class LeaverHandler implements EventListener {
 
 	private final Sx4 bot;
 
@@ -53,6 +54,13 @@ public class LeaverHandler extends ListenerAdapter {
 			.build();
 
 		this.bot.getLeaverManager().sendLeaver(channel, webhookData, message);
+	}
+
+	@Override
+	public void onEvent(GenericEvent event) {
+		if (event instanceof GuildMemberRemoveEvent) {
+			this.onGuildMemberRemove((GuildMemberRemoveEvent) event);
+		}
 	}
 
 }

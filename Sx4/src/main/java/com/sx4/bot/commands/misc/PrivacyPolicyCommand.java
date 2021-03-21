@@ -29,7 +29,7 @@ public class PrivacyPolicyCommand extends Sx4Command {
                 embed.setFooter(PagedResult.DEFAULT_FOOTER_TEXT, null);
 
                 page.forEach((policy, index) -> {
-                    embed.setTitle(String.format("(%d/%d) %s", page.getPage(), page.getMaxPage(), policy.getString("title")));
+                    embed.setTitle("(" + page.getPage() + "/" + page.getMaxPage() + ") " + policy.getString("title"));
                     embed.setDescription(policy.getString("description"));
                 });
 

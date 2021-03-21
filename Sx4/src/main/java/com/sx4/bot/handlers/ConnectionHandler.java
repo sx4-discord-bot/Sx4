@@ -10,17 +10,14 @@ import club.minnced.discord.webhook.send.WebhookEmbedBuilder;
 import com.sx4.bot.core.Sx4;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDA.ShardInfo;
-import net.dv8tion.jda.api.events.DisconnectEvent;
-import net.dv8tion.jda.api.events.ReadyEvent;
-import net.dv8tion.jda.api.events.ReconnectedEvent;
-import net.dv8tion.jda.api.events.ResumedEvent;
-import net.dv8tion.jda.api.hooks.ListenerAdapter;
+import net.dv8tion.jda.api.events.*;
+import net.dv8tion.jda.api.hooks.EventListener;
 import net.dv8tion.jda.api.requests.CloseCode;
 
 import java.time.Instant;
 import java.time.OffsetDateTime;
 
-public class ConnectionHandler extends ListenerAdapter {
+public class ConnectionHandler implements EventListener {
 
 	private final WebhookClient eventsWebhook;
 
@@ -83,5 +80,18 @@ public class ConnectionHandler extends ListenerAdapter {
 	public void onDisconnect(DisconnectEvent event) {
 		this.eventsWebhook.send(this.getEmbed(event.getJDA(), "Disconnect", event.getCloseCode(), event.getTimeDisconnected(), this.bot.getConfig().getRed()));
 	}
-	
+
+	@Override
+	public void onEvent(GenericEvent event) {
+		if (event instanceof ReadyEvent) {
+			this.onReady((ReadyEvent) event);
+		} else if (event instanceof ReconnectedEvent) {
+			this.onReconnected((ReconnectedEvent) event);
+		} else if (event instanceof ResumedEvent) {
+			this.onResumed((ResumedEvent) event);
+		} else if (event instanceof DisconnectEvent) {
+			this.onDisconnect((DisconnectEvent) event);
+		}
+	}
+
 }
