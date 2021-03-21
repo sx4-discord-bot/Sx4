@@ -33,6 +33,7 @@ public class LoggerManager implements WebhookManager {
     public static class Request {
 
         private final JDA jda;
+
         private final long guildId;
         private final long channelId;
         private final List<WebhookEmbed> embeds;
@@ -130,7 +131,7 @@ public class LoggerManager implements WebhookManager {
                     return;
                 }
 
-                requests.forEach(this::addFirst);
+                requests.forEach(this.queue::addFirst);
                 this.handleQueue(retries + 1);
             });
         });
@@ -138,7 +139,7 @@ public class LoggerManager implements WebhookManager {
 
     private void handleQueue(int retries) {
         this.executor.submit(() -> {
-            Request request = this.poll();
+            Request request = this.queue.poll();
             if (request == null) {
                 return;
             }
@@ -173,7 +174,7 @@ public class LoggerManager implements WebhookManager {
             requests.add(request);
 
             Request nextRequest;
-            while ((nextRequest = this.poll()) != null) {
+            while ((nextRequest = this.queue.poll()) != null) {
                 List<WebhookEmbed> nextEmbeds = nextRequest.getEmbeds();
 
                 int nextLength = MessageUtility.getWebhookEmbedLength(nextEmbeds);
@@ -189,7 +190,7 @@ public class LoggerManager implements WebhookManager {
             }
 
             // Keep order of logs
-            skippedRequests.forEach(this::addFirst);
+            skippedRequests.forEach(this.queue::addFirst);
 
             Document logger = request.getLogger();
             Document webhookData = logger.get("webhook", Database.EMPTY_DOCUMENT);
@@ -232,7 +233,7 @@ public class LoggerManager implements WebhookManager {
                 }
 
                 if (ExceptionUtility.sendErrorMessage(this.bot.getShardManager(), exception)) {
-                    requests.forEach(this::addFirst);
+                    requests.forEach(this.queue::addFirst);
                     this.handleQueue(retries + 1);
 
                     return;
@@ -243,16 +244,9 @@ public class LoggerManager implements WebhookManager {
         });
     }
 
-    private synchronized Request poll() {
-        return this.queue.poll();
-    }
-
-    private synchronized void addFirst(Request request) {
-        this.queue.addFirst(request);
-    }
-
-    private synchronized void queue(Request request) {
-        if (this.queue.isEmpty()) {
+    private void queue(Request request) {
+        // use size() as it is thread safe
+        if (this.queue.size() == 0) {
             this.queue.add(request);
             this.handleQueue(0);
         } else {

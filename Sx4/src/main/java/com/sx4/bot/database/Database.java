@@ -54,6 +54,9 @@ public class Database {
 	private final MongoCollection<Document> suggestions;
 
 	private final MongoCollection<Document> reactionRoles;
+
+	private final MongoCollection<Document> selfRoles;
+	private final MongoCollection<Document> autoRoles;
 	
 	private final MongoCollection<Document> giveaways;
 
@@ -137,7 +140,13 @@ public class Database {
 
 		this.reactionRoles = this.database.getCollection("reactionRoles");
 		this.reactionRoles.createIndex(Indexes.descending("guildId"));
-		this.reactionRoles.createIndex(Indexes.descending("messageId"));
+		this.reactionRoles.createIndex(Indexes.descending("messageId", "emote"), uniqueIndex);
+
+		this.selfRoles = this.database.getCollection("selfRoles");
+		this.selfRoles.createIndex(Indexes.descending("roleId", "guildId"), uniqueIndex);
+
+		this.autoRoles = this.database.getCollection("autoRoles");
+		this.autoRoles.createIndex(Indexes.descending("roleId", "guildId"), uniqueIndex);
 		
 		this.giveaways = this.database.getCollection("giveaways");
 		this.giveaways.createIndex(Indexes.descending("guildId"));

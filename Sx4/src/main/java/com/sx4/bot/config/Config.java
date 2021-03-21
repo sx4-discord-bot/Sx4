@@ -66,6 +66,10 @@ public class Config {
 		return defaultValue;
 	}
 
+	public Document getUserFlagEmotes() {
+		return this.get("emote.userFlags");
+	}
+
 	public List<Document> getCredits() {
 		return this.get("credits", Collections.emptyList());
 	}

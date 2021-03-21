@@ -889,22 +889,31 @@ public class Sx4 {
 				}
 
 				return new ParsedResult<>();
-			}).registerParser(Alternative.class, (context, argument, content) -> {
-				String[] options = argument.getProperty("options", new String[0]);
-				for (String option : options) {
-					if (content.equalsIgnoreCase(option)) {
-						return new ParsedResult<>(new Alternative<>(null, option));
+			}).registerParser(Alternative.class, new IParser<>() {
+				public ParsedResult<Alternative> parse(ParseContext context, IArgument<Alternative> argument, String content) {
+					int nextSpace = content.indexOf(' ');
+					String argumentContent = nextSpace == -1 ? content : content.substring(0, nextSpace);
+
+					String[] options = argument.getProperty("options", new String[0]);
+					for (String option : options) {
+						if (argumentContent.equalsIgnoreCase(option)) {
+							return new ParsedResult<>(new Alternative<>(null, option));
+						}
 					}
+
+					Class<?> clazz = argument.getProperty("class", Class.class);
+
+					ParsedResult<?> parsedArgument = CommandUtility.getParsedResult(clazz, argumentFactory, context, argument, " " + content);
+					if (!parsedArgument.isValid()) {
+						return new ParsedResult<>();
+					}
+
+					return new ParsedResult<>(new Alternative<>(parsedArgument.getObject(), null), parsedArgument.getContentLeft());
 				}
 
-				Class<?> clazz = argument.getProperty("class", Class.class);
-
-				ParsedResult<?> parsedArgument = CommandUtility.getParsedResult(clazz, argumentFactory, context, argument, content);
-				if (!parsedArgument.isValid()) {
-					return new ParsedResult<>();
+				public boolean isHandleAll() {
+					return true;
 				}
-					
-				return new ParsedResult<>(new Alternative<>(parsedArgument.getObject(), null));
 			}).registerGenericParser(Enum.class, (context, type, argument, content) -> {
 				List<Enum<?>> options = argument.getProperty("options");
 

@@ -3,7 +3,6 @@ package com.sx4.bot.commands.management;
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
 import com.jockie.bot.core.command.Command.Cooldown;
-import com.mongodb.MongoWriteException;
 import com.mongodb.client.model.*;
 import com.sx4.bot.annotations.argument.Limit;
 import com.sx4.bot.annotations.argument.Options;
@@ -31,6 +30,8 @@ import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.exceptions.ErrorHandler;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.requests.ErrorResponse;
+import net.dv8tion.jda.api.requests.RestAction;
+import net.dv8tion.jda.internal.requests.CompletedRestAction;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 
@@ -118,39 +119,38 @@ public class ReactionRoleCommand extends Sx4Command {
 				return;
 			}
 
-			Document reactionData = new Document("emote", new Document(identifier, unicode ? emote.getEmoji() : emote.getEmote().getIdLong()))
-				.append("roles", List.of(role.getIdLong()));
+			Bson filter = Filters.and(
+				Filters.eq("messageId", message.getIdLong()),
+				Filters.eq("emote." + identifier, unicode ? emote.getEmoji() : emote.getEmote().getIdLong())
+			);
 
-			Object emoteStore = unicode ? emote.getEmoji() : emote.getEmote().getIdLong();
+			Bson update = Updates.combine(
+				Updates.addToSet("roles", role.getIdLong()),
+				Updates.setOnInsert("guildId", event.getGuild().getIdLong())
+			);
 
-			Bson reactionMap = Operators.ifNull("$reactions", Collections.EMPTY_LIST);
-			Bson reactionFilter = Operators.filter(reactionMap, Operators.eq("$$this.emote." + identifier, emoteStore));
-			Bson roleMap = Operators.ifNull(Operators.first(Operators.map(reactionFilter, "$$this.roles")), Collections.EMPTY_LIST);
-
-			Bson reactions = Operators.cond(Operators.isEmpty(reactionFilter), Operators.concatArrays(List.of(reactionData), Operators.filter(reactionMap, Operators.ne("$$this.emote." + identifier, emoteStore))), Operators.concatArrays(List.of(Operators.mergeObjects(Operators.first(reactionFilter), new Document("roles", Operators.concatArrays(Operators.filter(roleMap, Operators.ne("$$this", role.getIdLong())), List.of(role.getIdLong()))))), Operators.filter(reactionMap, Operators.ne("$$this.emote." + identifier, emoteStore))));
-			List<Bson> update = List.of(Operators.set("reactions", reactions), Operators.set("guildId", event.getGuild().getIdLong()));
-
+			RestAction<Void> action;
 			if (unicode && message.getReactionByUnicode(emote.getEmoji()) == null) {
-				message.addReaction(emote.getEmoji()).queue($ -> {
-					event.getDatabase().updateReactionRole(Filters.eq("messageId", message.getIdLong()), update).whenComplete((result, exception) -> {
-						if (ExceptionUtility.sendExceptionally(event, exception)) {
-							return;
-						}
-
-						if (result.getModifiedCount() == 0 && result.getUpsertedId() == null) {
-							event.replyFailure("That role is already given when reacting to this reaction").queue();
-							return;
-						}
-						
-						event.replySuccess("The role " + role.getAsMention() + " will now be given when reacting to " + emote.getEmoji()).queue();
-					});
-				}, new ErrorHandler().handle(this.defaultReactionFailure, exception -> event.replyFailure("I could not find that emote").queue()));
+				action = message.addReaction(emote.getEmoji());
 			} else {
 				if (!unicode && message.getReactionById(emote.getEmote().getIdLong()) == null) {
 					message.addReaction(emote.getEmote()).queue();
 				}
 
-				event.getDatabase().updateReactionRole(Filters.eq("messageId", message.getIdLong()), update).whenComplete((result, exception) -> {
+				action = new CompletedRestAction<>(event.getJDA(), null);
+			}
+
+			action.submit()
+				.thenCompose($ -> event.getDatabase().updateReactionRole(filter, update))
+				.whenComplete((result, exception) -> {
+					if (exception instanceof ErrorResponseException) {
+						ErrorResponseException errorResponse = ((ErrorResponseException) exception);
+						if (errorResponse.getErrorCode() == 400 || errorResponse.getErrorResponse() == ErrorResponse.UNKNOWN_EMOJI) {
+							event.replyFailure("I could not find that emote").queue();
+							return;
+						}
+					}
+
 					if (ExceptionUtility.sendExceptionally(event, exception)) {
 						return;
 					}
@@ -159,10 +159,9 @@ public class ReactionRoleCommand extends Sx4Command {
 						event.replyFailure("That role is already given when reacting to this reaction").queue();
 						return;
 					}
-					
+
 					event.replySuccess("The role " + role.getAsMention() + " will now be given when reacting to " + (unicode ? emote.getEmoji() : emote.getEmote().getAsMention())).queue();
 				});
-			}
 		}, new ErrorHandler().handle(ErrorResponse.UNKNOWN_MESSAGE, exception -> event.replyFailure("I could not find that message").queue()));
 	}
 	
@@ -174,53 +173,30 @@ public class ReactionRoleCommand extends Sx4Command {
 	public void remove(Sx4CommandEvent event, @Argument(value="message id") MessageArgument messageArgument, @Argument(value="emote") ReactionEmote emote, @Argument(value="role", endless=true, nullDefault=true) Role role) {
 		boolean unicode = emote.isEmoji();
 		String identifier = unicode ? "name" : "id";
-		
-		Bson update;
-		List<Bson> arrayFilters = null;
-		if (role == null) {
-			update = Updates.pull("reactions", Filters.eq("emote." + identifier, unicode ? emote.getEmoji() : emote.getEmote().getIdLong()));
-		} else {
-			update = Updates.pull("reactions.$[reaction].roles", role.getIdLong());
-			arrayFilters = List.of(Filters.eq("reaction.emote." + identifier, unicode ? emote.getEmoji() : emote.getEmote().getIdLong()));
-		}
-		
-		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().arrayFilters(arrayFilters).returnDocument(ReturnDocument.BEFORE);
-		event.getDatabase().findAndUpdateReactionRole(Filters.eq("messageId", messageArgument.getMessageId()), update, options).whenComplete((data, exception) -> {
-			Throwable cause = exception == null ? null : exception.getCause();
-			if (cause instanceof MongoWriteException && ((MongoWriteException) cause).getCode() == 2) {
-				event.replyFailure("There was no reaction role on that message").queue();
-				return;
-			}
-				
+
+		Bson filter = Filters.and(
+			Filters.eq("messageId", messageArgument.getMessageId()),
+			Filters.eq("emote." + identifier, unicode ? emote.getEmoji() : emote.getEmote().getIdLong())
+		);
+
+		Bson update = Updates.pull("roles", role.getIdLong());
+
+		event.getDatabase().updateReactionRole(filter, update).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
-			
-			if (data == null) {
-				event.replyFailure("There was no reaction role on that message").queue();
+
+			if (result.getMatchedCount() == 0) {
+				event.replyFailure("You do not have that reaction on that reaction role").queue();
 				return;
 			}
-			
-			Document reaction = data.getList("reactions", Document.class).stream()
-				.filter(ReactionRoleCommand.getReactionFilter(emote))
-				.findFirst()
-				.orElse(null);
-			
-			if (reaction == null) {
-				event.replyFailure("There was no reaction role for that emote").queue();
+
+			if (result.getModifiedCount() == 0 && result.getUpsertedId() == null) {
+				event.replyFailure("That role is not given when reacting to that emote").queue();
 				return;
 			}
-			
-			if (role == null) {
-				event.replySuccess("The reaction " + (unicode ? emote.getEmoji() : emote.getEmote().getAsMention()) + " will no longer give any roles").queue();
-			} else {
-				if (!reaction.getList("roles", Long.class).contains(role.getIdLong())) {
-					event.replyFailure("That role is not given when reacting to that emote").queue();
-					return;
-				}
-			
-				event.replySuccess("The role " + role.getAsMention() + " has been removed from that reaction").queue();
-			}
+
+			event.replySuccess("The role " + role.getAsMention() + " has been removed from that reaction").queue();
 		});
 	}
 	
@@ -236,7 +212,7 @@ public class ReactionRoleCommand extends Sx4Command {
 		Bson filter = alternative ? Filters.eq("guildId", event.getGuild().getIdLong()) : Filters.eq("messageId", messageId);
 		Bson update = enable ? Updates.unset("dm") : Updates.set("dm", false);
 
-		event.getDatabase().updateManyReactionRoles(filter, update).whenComplete((result, exception) -> {
+		event.getDatabase().updateManyReactionRoles(filter, update, new UpdateOptions()).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -247,7 +223,7 @@ public class ReactionRoleCommand extends Sx4Command {
 			}
 			
 			if (result.getModifiedCount() == 0) {
-				event.replyFailure(alternative ? "You do not have any reaction roles setup " + event.getConfig().getFailureEmote() : "There was no reaction role on that message").queue();
+				event.replyFailure(alternative ? "You do not have any reaction roles setup " + event.getConfig().getFailureEmote() : "You do not have that reaction on that reaction role").queue();
 				return;
 			}
 			
@@ -267,7 +243,7 @@ public class ReactionRoleCommand extends Sx4Command {
 		Bson filter = alternative ? Filters.eq("guildId", event.getGuild().getIdLong()) : Filters.eq("messageId", messageId);
 		Bson update = unlimited ? Updates.unset("maxReactions") : Updates.set("maxReactions", maxReactions);
 
-		event.getDatabase().updateManyReactionRoles(filter, update).whenComplete((result, exception) -> {
+		event.getDatabase().updateManyReactionRoles(filter, update, new UpdateOptions()).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -324,7 +300,7 @@ public class ReactionRoleCommand extends Sx4Command {
 				});
 		} else {
 			long messageId = option.getValue().getMessageId();
-			event.getDatabase().deleteReactionRole(Filters.eq("messageId", messageId)).whenComplete((result, exception) -> {
+			event.getDatabase().deleteManyReactionRoles(Filters.eq("messageId", messageId)).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
@@ -362,49 +338,37 @@ public class ReactionRoleCommand extends Sx4Command {
 			Document holderData = new Document("id", holder.getIdLong())
 				.append("type", role ? HolderType.ROLE.getType() : HolderType.USER.getType());
 
-			Bson reactions = Operators.ifNull("$reactions", Collections.EMPTY_LIST);
+			Bson filter = Filters.eq("messageId", messageArgument.getMessageId());
 
 			List<Bson> update;
 			if (emote != null) {
-				boolean emoji = emote.isEmoji();
+				boolean unicode = emote.isEmoji();
 
-				Bson reaction = Operators.filter(reactions, Operators.eq("$$this.emote." + (emoji ? "name" : "id"), emoji ? emote.getEmoji() : emote.getEmote().getIdLong()));
-				Bson permissionsMap = Operators.ifNull(Operators.first(Operators.map(reaction, "$$this.permissions")), Collections.EMPTY_LIST);
+				filter = Filters.and(filter, Filters.eq("emote." + (unicode ? "name" : "id"), unicode ? emote.getEmoji() : emote.getEmote().getIdLong()));
+
+				Bson permissionsMap = Operators.ifNull("$permissions", Collections.EMPTY_LIST);
 				Bson holderFilter = Operators.filter(permissionsMap, Operators.eq("$$this.id", holder.getIdLong()));
 				Bson holderMap = Operators.ifNull(Operators.first(holderFilter), holderData);
 
-				Bson result = Operators.concatArrays(List.of(Operators.mergeObjects(Operators.first(reaction), new Document("permissions", Operators.concatArrays(Operators.filter(permissionsMap, Operators.ne("$$this.id", holder.getIdLong())), List.of(Operators.mergeObjects(holderMap, new Document("granted", true))))))), Operators.filter(reactions, Operators.ne("$$this.emote." + (emoji ? "name" : "id"), emoji ? emote.getEmoji() : emote.getEmote().getIdLong())));
-				update = List.of(Operators.set("reactions", result));
+				Bson result = Operators.concatArrays(Operators.filter(permissionsMap, Operators.ne("$$this.id", holder.getIdLong())), List.of(Operators.mergeObjects(holderMap, new Document("granted", true))));
+				update = List.of(Operators.set("permissions", result));
 			} else {
-				Bson result = Operators.map(reactions, Operators.mergeObjects("$$this", new Document("permissions", Operators.concatArrays(Operators.filter(Operators.ifNull("$$this.permissions", Collections.EMPTY_LIST), Operators.ne("$$this.id", holder.getIdLong())), List.of(Operators.mergeObjects(Operators.ifNull(Operators.first(Operators.filter(Operators.ifNull("$$this.permissions", Collections.EMPTY_LIST), Operators.eq("$$this.id", holder.getIdLong()))), holderData), new Document("granted", true)))))));
-				update = List.of(Operators.set("reactions", result));
+				Bson result = Operators.concatArrays(Operators.filter(Operators.ifNull("$permissions", Collections.EMPTY_LIST), Operators.ne("$$this.id", holder.getIdLong())), List.of(Operators.mergeObjects(Operators.ifNull(Operators.first(Operators.filter(Operators.ifNull("$permissions", Collections.EMPTY_LIST), Operators.eq("$$this.id", holder.getIdLong()))), holderData), new Document("granted", true))));
+				update = List.of(Operators.set("permissions", result));
 			}
 
-			FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().projection(Projections.include("reactions")).returnDocument(ReturnDocument.BEFORE);
-			event.getDatabase().findAndUpdateReactionRole(Filters.eq("messageId", messageArgument.getMessageId()), update, options).whenComplete((data, exception) -> {
+			event.getDatabase().updateManyReactionRoles(filter, update, new UpdateOptions()).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
 
-				if (data == null) {
-					event.replyFailure("There are no reaction roles in this server").queue();
-					return;
-				}
-
 				if (emote != null) {
-					List<Document> reactionsData = data.getList("reactions", Document.class, Collections.emptyList());
-					Document reaction = reactionsData.stream()
-						.filter(ReactionRoleCommand.getReactionFilter(emote))
-						.findFirst()
-						.orElse(null);
-
-					if (reaction == null) {
+					if (result.getMatchedCount() == 0) {
 						event.replyFailure("You do not have that reaction on that reaction role").queue();
 						return;
 					}
 
-					List<Document> permissions = reaction.getList("permissions", Document.class, Collections.emptyList());
-					if (permissions.stream().anyMatch(d -> d.getLong("id") == holder.getIdLong())) {
+					if (result.getModifiedCount() == 0) {
 						event.replyFailure("That " + (role ? "role" : "user") + " is already whitelisted from that reaction").queue();
 						return;
 					}
@@ -421,50 +385,27 @@ public class ReactionRoleCommand extends Sx4Command {
 		public void remove(Sx4CommandEvent event, @Argument(value="message id") MessageArgument messageArgument, @Argument(value="emote", nullDefault=true) ReactionEmote emote, @Argument(value="user | role", endless=true)IPermissionHolder holder) {
 			boolean role = holder instanceof Role;
 
-			Bson reactions = Operators.ifNull("$reactions", Collections.EMPTY_LIST);
+			Bson filter = Filters.eq("messageId", messageArgument.getMessageId());
+			Bson update = Updates.pull("permissions", Filters.eq("id", holder.getIdLong()));
 
-			List<Bson> update;
 			if (emote != null) {
-				boolean emoji = emote.isEmoji();
+				boolean unicode = emote.isEmoji();
 
-				Bson reaction = Operators.filter(reactions, Operators.eq("$$this.emote." + (emoji ? "name" : "id"), emoji ? emote.getEmoji() : emote.getEmote().getIdLong()));
-				Bson permissionsMap = Operators.ifNull(Operators.first(Operators.map(reaction, "$$this.permissions")), Collections.EMPTY_LIST);
-				Bson permissionsFilter = Operators.filter(permissionsMap, Operators.ne("$$this.id", holder.getIdLong()));
-
-				Bson result = Operators.concatArrays(List.of(Operators.cond(Operators.isEmpty(permissionsFilter), Operators.removeObject(Operators.first(reaction), "permissions"), Operators.mergeObjects(Operators.first(reaction), new Document("permissions", permissionsFilter)))), Operators.filter(reactions, Operators.ne("$$this.emote." + (emoji ? "name" : "id"), emoji ? emote.getEmoji() : emote.getEmote().getIdLong())));
-				update = List.of(Operators.set("reactions", result));
-			} else {
-				Bson permissionsFilter = Operators.filter("$$this.permissions", Operators.ne("$$this.id", holder.getIdLong()));
-
-				Bson result = Operators.map(reactions, Operators.cond(Operators.isEmpty(permissionsFilter), Operators.removeObject("$$this", "permissions"), Operators.mergeObjects("$$this", new Document("permissions", permissionsFilter))));
-				update = List.of(Operators.set("reactions", result));
+				filter = Filters.and(filter, Filters.eq("emote." + (unicode ? "name" : "id"), unicode ? emote.getEmoji() : emote.getEmote().getIdLong()));
 			}
 
-			FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().projection(Projections.include("reactions")).returnDocument(ReturnDocument.BEFORE);
-			event.getDatabase().findAndUpdateReactionRole(Filters.eq("messageId", messageArgument.getMessageId()), update, options).whenComplete((data, exception) -> {
+			event.getDatabase().updateManyReactionRoles(filter, update, new UpdateOptions()).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
 
-				if (data == null) {
-					event.replyFailure("There are no reaction roles in this server").queue();
-					return;
-				}
-
 				if (emote != null) {
-					List<Document> reactionsData = data.getList("reactions", Document.class, Collections.emptyList());
-					Document reaction = reactionsData.stream()
-						.filter(ReactionRoleCommand.getReactionFilter(emote))
-						.findFirst()
-						.orElse(null);
-
-					if (reaction == null) {
+					if (result.getMatchedCount() == 0) {
 						event.replyFailure("You do not have that reaction on that reaction role").queue();
 						return;
 					}
 
-					List<Document> permissions = reaction.getList("permissions", Document.class, Collections.emptyList());
-					if (permissions.stream().noneMatch(d -> d.getLong("id") == holder.getIdLong())) {
+					if (result.getModifiedCount() == 0) {
 						event.replyFailure("That " + (role ? "role" : "user") + " is not whitelisted from that reaction").queue();
 						return;
 					}
@@ -481,44 +422,27 @@ public class ReactionRoleCommand extends Sx4Command {
 		public void delete(Sx4CommandEvent event, @Argument(value="message id") MessageArgument messageArgument, @Argument(value="emote", nullDefault=true) ReactionEmote emote) {
 			Bson reactions = Operators.ifNull("$reactions", Collections.EMPTY_LIST);
 
-			List<Bson> update;
+			Bson filter = Filters.eq("messageId", messageArgument.getMessageId());
+			Bson update = Updates.unset("permissions");
+
 			if (emote != null) {
-				boolean emoji = emote.isEmoji();
+				boolean unicode = emote.isEmoji();
 
-				Bson reaction = Operators.filter(reactions, Operators.eq("$$this.emote." + (emoji ? "name" : "id"), emoji ? emote.getEmoji() : emote.getEmote().getIdLong()));
-
-				Bson result = Operators.concatArrays(List.of(Operators.mergeObjects(Operators.first(reaction), new Document("permissions", Collections.EMPTY_LIST))), Operators.filter(reactions, Operators.ne("$$this.emote." + (emoji ? "name" : "id"), emoji ? emote.getEmoji() : emote.getEmote().getIdLong())));
-				update = List.of(Operators.set("reactions", result));
-			} else {
-				Bson result = Operators.map(reactions, Operators.mergeObjects("$$this", new Document("permissions", Collections.EMPTY_LIST)));
-				update = List.of(Operators.set("reactions", result));
+				filter = Filters.and(filter, Filters.eq("emote." + (unicode ? "name" : "id"), unicode ? emote.getEmoji() : emote.getEmote().getIdLong()));
 			}
 
-			FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().projection(Projections.include("reactions")).returnDocument(ReturnDocument.BEFORE);
-			event.getDatabase().findAndUpdateReactionRole(Filters.eq("messageId", messageArgument.getMessageId()), update, options).whenComplete((data, exception) -> {
+			event.getDatabase().updateManyReactionRoles(filter, update, new UpdateOptions()).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
 
-				if (data == null) {
-					event.replyFailure("There are no reaction roles in this server").queue();
-					return;
-				}
-
 				if (emote != null) {
-					List<Document> reactionsData = data.getList("reactions", Document.class, Collections.emptyList());
-					Document reaction = reactionsData.stream()
-						.filter(ReactionRoleCommand.getReactionFilter(emote))
-						.findFirst()
-						.orElse(null);
-
-					if (reaction == null) {
+					if (result.getMatchedCount() == 0) {
 						event.replyFailure("You do not have that reaction on that reaction role").queue();
 						return;
 					}
 
-					List<Document> permissions = reaction.getList("permissions", Document.class, Collections.emptyList());
-					if (permissions.isEmpty()) {
+					if (result.getModifiedCount() == 0) {
 						event.replyFailure("That reaction does not have any whitelists").queue();
 						return;
 					}
