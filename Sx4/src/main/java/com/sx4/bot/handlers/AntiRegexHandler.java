@@ -60,7 +60,7 @@ public class AntiRegexHandler implements EventListener {
 
     public void handle(Message message) {
         Member member = message.getMember();
-        if (member == null) { //|| member.hasPermission(Permission.ADMINISTRATOR)) {
+        if (member == null || member.hasPermission(Permission.ADMINISTRATOR)) {
             return;
         }
 
