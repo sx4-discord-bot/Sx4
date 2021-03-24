@@ -63,7 +63,8 @@ public class Database {
 	private final MongoCollection<Document> redirects;
 	
 	private final MongoCollection<Document> auction;
-	
+
+	private final MongoCollection<Document> regexAttempts;
 	private final MongoCollection<Document> regexTemplates;
 	private final MongoCollection<Document> regexes;
 	
@@ -94,15 +95,11 @@ public class Database {
 
 		this.guilds = this.database.getCollection("guilds");
 
-		Bson guildId = Indexes.descending("guildId"), userId = Indexes.descending("userId");
-
 		this.channels = this.database.getCollection("channels");
 		this.channels.createIndex(Indexes.descending("guildId"));
 
 		this.members = this.database.getCollection("members");
-		this.members.createIndex(Indexes.compoundIndex(guildId, userId), uniqueIndex);
-		this.members.createIndex(guildId);
-		this.members.createIndex(userId);
+		this.members.createIndex(Indexes.descending("userId", "guildId"), uniqueIndex);
 
 		this.triggers = this.database.getCollection("triggers");
 		this.triggers.createIndex(Indexes.descending("trigger", "guildId"), uniqueIndex);
@@ -111,16 +108,15 @@ public class Database {
 		this.templates.createIndex(Indexes.descending("template", "guildId"), uniqueIndex);
 
 		this.starboards = this.database.getCollection("starboards");
-		this.starboards.createIndex(guildId);
+		this.starboards.createIndex(Indexes.descending("guildId"));
 		this.starboards.createIndex(Indexes.descending("messageId"));
 		this.starboards.createIndex(Indexes.descending("originalMessageId"));
 
 		this.stars = this.database.getCollection("stars");
 		this.stars.createIndex(Indexes.descending("messageId", "userId"), uniqueIndex);
-		this.stars.createIndex(userId);
 
 		this.loggers = this.database.getCollection("loggers");
-		this.loggers.createIndex(guildId);
+		this.loggers.createIndex(Indexes.descending("guildId"));
 		this.loggers.createIndex(Indexes.descending("channelId"), uniqueIndex);
 
 		this.games = this.database.getCollection("games");
@@ -166,6 +162,10 @@ public class Database {
 
 		this.regexes = this.database.getCollection("regexes");
 		this.regexes.createIndex(Indexes.descending("regexId", "guildId"), uniqueIndex);
+
+		this.regexAttempts = this.database.getCollection("regexAttempts");
+		this.regexAttempts.createIndex(Indexes.descending("userId", "regexId"), uniqueIndex);
+		this.regexAttempts.createIndex(Indexes.descending("guildId"));
 		
 		this.modLogs = this.database.getCollection("modLogs");
 		this.modLogs.createIndex(Indexes.descending("action.type"));
@@ -200,6 +200,42 @@ public class Database {
 	
 	public MongoDatabase getDatabase() {
 		return this.database;
+	}
+
+	public MongoCollection<Document> getRegexAttempts() {
+		return this.regexAttempts;
+	}
+
+	public FindIterable<Document> getRegexAttempts(Bson filter, Bson projection) {
+		return this.regexAttempts.find(filter).projection(projection);
+	}
+
+	public Document getRegexAttempt(Bson filter, Bson projection) {
+		return this.getRegexAttempts(filter, projection).first();
+	}
+
+	public CompletableFuture<UpdateResult> updateRegexAttempt(Bson filter, List<Bson> update, UpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.regexAttempts.updateOne(filter, update, options));
+	}
+
+	public CompletableFuture<UpdateResult> updateRegexAttempt(Bson filter, List<Bson> update) {
+		return this.updateRegexAttempt(filter, update, this.updateOptions);
+	}
+
+	public CompletableFuture<UpdateResult> updateRegexAttempt(Bson filter, Bson update, UpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.regexAttempts.updateOne(filter, update, options));
+	}
+
+	public CompletableFuture<UpdateResult> updateRegexAttempt(Bson filter, Bson update) {
+		return this.updateRegexAttempt(filter, update, this.updateOptions);
+	}
+
+	public CompletableFuture<UpdateResult> updateRegexAttempt(UpdateOneModel<Document> model) {
+		return CompletableFuture.supplyAsync(() -> this.regexAttempts.updateOne(model.getFilter(), model.getUpdate(), model.getOptions()));
+	}
+
+	public CompletableFuture<DeleteResult> deleteRegexAttempt(Bson filter) {
+		return CompletableFuture.supplyAsync(() -> this.regexAttempts.deleteOne(filter));
 	}
 
 	public MongoCollection<Document> getGames() {

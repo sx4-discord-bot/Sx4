@@ -272,7 +272,7 @@ public interface Formatter<Type> {
 					formatted = this.format((String) formatted, map);
 				}
 
-				string = string.substring(0, index) + formatted.toString() + string.substring(endIndex + 1);
+				string = string.substring(0, index) + (formatted == null ? "null" : formatted.toString()) + string.substring(endIndex + 1);
 
 				continue Open;
 			}

@@ -212,13 +212,10 @@ public class SearchUtility {
 	
 	public static ReactionEmote getReactionEmote(ShardManager manager, String query) {
 		List<String> emojis = EmojiParser.extractEmojis(query);
-		System.out.println(emojis);
 		if (!emojis.isEmpty()) {
 			return ReactionEmote.fromUnicode(emojis.get(0), manager.getShardById(0));
 		} else {
-			System.out.println(query);
 			Emote emote = SearchUtility.getEmote(manager, query);
-			System.out.println(emote);
 			return emote == null ? null : ReactionEmote.fromCustom(emote);
 		}
 	}

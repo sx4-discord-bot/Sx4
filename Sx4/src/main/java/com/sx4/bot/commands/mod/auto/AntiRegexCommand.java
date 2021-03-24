@@ -17,6 +17,7 @@ import com.sx4.bot.database.model.Operators;
 import com.sx4.bot.entities.argument.TimedArgument;
 import com.sx4.bot.entities.mod.action.ModAction;
 import com.sx4.bot.entities.mod.auto.MatchAction;
+import com.sx4.bot.entities.mod.auto.RegexType;
 import com.sx4.bot.entities.settings.HolderType;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
@@ -75,9 +76,11 @@ public class AntiRegexCommand extends Sx4Command {
 		
 		Document pattern = new Document("regexId", id)
 			.append("guildId", event.getGuild().getIdLong())
-			.append("pattern", regex.getString("pattern"));
+			.append("pattern", regex.getString("pattern"))
+			.append("type", RegexType.REGEX.getId());
 
-		event.getDatabase().insertRegex(pattern).thenCompose(result -> event.getDatabase().updateRegexTemplateById(id, Updates.addToSet("uses", event.getGuild().getIdLong())))
+		event.getDatabase().insertRegex(pattern)
+			.thenCompose(result -> event.getDatabase().updateRegexTemplateById(id, Updates.addToSet("uses", event.getGuild().getIdLong())))
 			.whenComplete((result, exception) -> {
 				Throwable cause = exception == null ? null : exception.getCause();
 				if (cause instanceof MongoWriteException && ((MongoWriteException) cause).getError().getCategory() == ErrorCategory.DUPLICATE_KEY) {

@@ -1,15 +1,19 @@
 package com.sx4.bot.handlers;
 
 import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.Updates;
 import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.Database;
-import com.sx4.bot.database.model.Operators;
 import com.sx4.bot.entities.mod.Reason;
 import com.sx4.bot.entities.mod.action.Action;
 import com.sx4.bot.entities.mod.auto.MatchAction;
+import com.sx4.bot.entities.mod.auto.RegexType;
 import com.sx4.bot.entities.settings.HolderType;
+import com.sx4.bot.exceptions.mod.ModException;
 import com.sx4.bot.formatter.StringFormatter;
 import com.sx4.bot.managers.AntiRegexManager;
+import com.sx4.bot.utility.ExceptionUtility;
+import com.sx4.bot.utility.FutureUtility;
 import com.sx4.bot.utility.ModUtility;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.*;
@@ -22,16 +26,17 @@ import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
 
 import java.time.Clock;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.EnumSet;
-import java.util.List;
+import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 public class AntiRegexHandler implements EventListener {
+
+    private final Pattern invitePattern = Pattern.compile("discord(?:(?:(?:app)?\\.com|\\.co|\\.media)/invite|\\.gg)/([a-z\\-0-9]{2,32})", Pattern.CASE_INSENSITIVE);
 
     private final ExecutorService executor = Executors.newCachedThreadPool();
 
@@ -55,7 +60,7 @@ public class AntiRegexHandler implements EventListener {
 
     public void handle(Message message) {
         Member member = message.getMember();
-        if (member == null) {
+        if (member == null) { //|| member.hasPermission(Permission.ADMINISTRATOR)) {
             return;
         }
 
@@ -68,18 +73,16 @@ public class AntiRegexHandler implements EventListener {
             return;
         }
 
-        //this.executor.submit(() -> {
+        this.executor.submit(() -> {
             long guildId = guild.getIdLong(), userId = member.getIdLong(), channelId = textChannel.getIdLong();
             List<Role> roles = member.getRoles();
 
             List<Document> regexes = this.bot.getDatabase().getRegexes(Filters.eq("guildId", guildId), Database.EMPTY_DOCUMENT).into(new ArrayList<>());
 
             String content = message.getContentRaw();
+
+            List<CompletableFuture<Document>> matches = new ArrayList<>();
             Regexes : for (Document regex : regexes) {
-                ObjectId regexId = regex.getObjectId("regexId"), id = regex.getObjectId("_id");
-
-                Pattern pattern = Pattern.compile(regex.getString("pattern"));
-
                 List<Document> channels = regex.getList("whitelist", Document.class, Collections.emptyList());
                 Document channel = channels.stream()
                     .filter(d -> d.getLong("id") == channelId)
@@ -92,31 +95,72 @@ public class AntiRegexHandler implements EventListener {
                     int type = holder.getInteger("type");
                     if (type == HolderType.USER.getType() && userId == holderId) {
                         continue Regexes;
-                    } else if (type == HolderType.ROLE.getType() && roles.stream().anyMatch(role -> role.getIdLong() == holderId)) {
+                    } else if (type == HolderType.ROLE.getType() && (guildId == holderId || roles.stream().anyMatch(role -> role.getIdLong() == holderId))) {
                         continue Regexes;
                     }
                 }
 
-                Matcher matcher = pattern.matcher(content);
+                CompletableFuture<Document> future = null;
 
-                int matchCount = 0, totalCount = 0;
-                while (matcher.find()) {
-                    List<Document> groups = channel.getList("groups", Document.class, Collections.emptyList());
-                    for (Document group : groups) {
-                        List<String> strings = group.getList("strings", String.class);
+                RegexType type = RegexType.fromId(regex.getInteger("type"));
+                if (type == RegexType.REGEX) {
+                    Pattern pattern = Pattern.compile(regex.getString("pattern"));
 
-                        String match = matcher.group(group.getInteger("group"));
-                        if (match != null && strings.contains(match)) {
-                            matchCount++;
+                    Matcher matcher = pattern.matcher(content);
+
+                    int matchCount = 0, totalCount = 0;
+                    while (matcher.find()) {
+                        List<Document> groups = channel.getList("groups", Document.class, Collections.emptyList());
+                        for (Document group : groups) {
+                            List<String> strings = group.getList("strings", String.class, Collections.emptyList());
+
+                            String match = matcher.group(group.getInteger("group"));
+                            if (match != null && strings.contains(match)) {
+                                matchCount++;
+                            }
                         }
+
+                        totalCount++;
                     }
 
-                    totalCount++;
+                    System.out.println(matchCount + " - " + totalCount);
+
+                    if (matchCount == totalCount) {
+                        continue;
+                    }
+
+                    future = CompletableFuture.completedFuture(regex);
+                } else if (type == RegexType.INVITE) {
+                    Matcher matcher = this.invitePattern.matcher(content);
+
+                    Set<String> codes = new HashSet<>();
+                    while (matcher.find()) {
+                        codes.add(matcher.group(1));
+                    }
+
+                    List<CompletableFuture<Invite>> futures = codes.stream()
+                        .map(code -> Invite.resolve(message.getJDA(), code, true).submit())
+                        .collect(Collectors.toList());
+
+                    List<Long> guilds = channel.getList("guilds", Long.class, Collections.emptyList());
+
+                    future = FutureUtility.anyOf(futures, invite -> {
+                        Invite.Guild inviteGuild = invite.getGuild();
+                        return inviteGuild == null || (!guilds.contains(inviteGuild.getIdLong()) && inviteGuild.getIdLong() != guildId);
+                    }).thenApply(invite -> invite == null ? null : regex);
                 }
 
-                if (matchCount == totalCount) {
-                    continue;
+                if (future != null) {
+                    matches.add(future);
                 }
+            }
+
+            FutureUtility.anyOf(matches, Objects::nonNull).thenAccept(regex -> {
+                if (regex == null) {
+                    return;
+                }
+
+                ObjectId id = regex.getObjectId("_id"), regexId = regex.getObjectId("regexId");
 
                 int currentAttempts = this.bot.getAntiRegexManager().getAttempts(id, userId);
 
@@ -146,47 +190,54 @@ public class AntiRegexHandler implements EventListener {
                 if (action != null && currentAttempts + 1 >= maxAttempts) {
                     Reason reason = new Reason(String.format("Sent a message which matched regex `%s` %d time%s", regexId.toHexString(), maxAttempts, maxAttempts == 1 ? "" : "s"));
 
-                    // TODO: have a new collection for user attempts and update after the action has been performed
+                    ModUtility.performAction(this.bot, action, member, selfMember, reason).thenCompose(result -> {
+                        if (send) {
+                            textChannel.sendMessage(modMessage).allowedMentions(EnumSet.allOf(Message.MentionType.class)).queue();
+                        }
 
-                    ModUtility.performAction(this.bot, action, member, selfMember, reason).whenComplete((result, exception) -> {
-                        if (exception != null) {
+                        Bson filter = Filters.and(Filters.eq("userId", userId), Filters.eq("regexId", id));
+                        return this.bot.getDatabase().deleteRegexAttempt(filter);
+                    }).whenComplete((result, exception) -> {
+                        if (exception instanceof ModException) {
                             textChannel.sendMessage(exception.getMessage() + " " + this.bot.getConfig().getFailureEmote()).queue();
                             return;
                         }
 
-                        if (send) {
-                            textChannel.sendMessage(modMessage).allowedMentions(EnumSet.allOf(Message.MentionType.class)).queue();
+                        if (ExceptionUtility.sendErrorMessage(this.bot.getShardManager(), exception)) {
+                            return;
                         }
+
+                        this.bot.getAntiRegexManager().clearAttempts(id, userId);
                     });
 
-                    break;
+                    return;
                 }
 
                 if (send) {
                     textChannel.sendMessage(matchMessage).allowedMentions(EnumSet.allOf(Message.MentionType.class)).queue();
                 }
 
-                this.bot.getAntiRegexManager().incrementAttempts(id, userId);
-
-                Document userData = new Document("id", userId);
                 Document reset = attempts.get("reset", Database.EMPTY_DOCUMENT);
-
                 long duration = reset.get("after", 0L);
+
+                Bson update = Updates.inc("attempts", 1);
                 if (duration != 0L) {
-                    this.bot.getAntiRegexManager().scheduleResetAttempts(id, userId, duration, reset.getInteger("amount"));
-                    userData.append("resetAt", Clock.systemUTC().instant().getEpochSecond() + duration);
+                    update = Updates.combine(update, Updates.set("resetAt", Clock.systemUTC().instant().getEpochSecond() + duration));
                 }
 
-                Bson regexFilter = Operators.filter("$antiRegex.regexes", Operators.eq("$$this.id", regexId));
-                Bson users = Operators.first(Operators.map(regexFilter, "$$this.users"));
-                Bson userFilter = Operators.filter(users, Operators.eq("$$this.id", userId));
-                Bson userAttempts = Operators.ifNull(Operators.first(Operators.map(userFilter, "$$this.attempts")), 0);
-                List<Bson> update = List.of(Operators.set("antiRegex.regexes", Operators.concatArrays(List.of(Operators.mergeObjects(Operators.first(regexFilter), new Document("users", Operators.concatArrays(List.of(Operators.mergeObjects(Operators.first(userFilter), userData.append("attempts", Operators.add(userAttempts, 1)))), Operators.ifNull(Operators.filter(users, Operators.ne("$$this.id", userId)), Collections.EMPTY_LIST))))), Operators.filter("$antiRegex.regexes", Operators.ne("$$this.id", regexId)))));
-                this.bot.getDatabase().updateGuildById(guildId, update).whenComplete(Database.exceptionally(this.bot.getShardManager()));
+                Bson filter = Filters.and(Filters.eq("userId", userId), Filters.eq("regexId", id));
+                this.bot.getDatabase().updateRegexAttempt(filter, update).whenComplete((result, exception) -> {
+                    if (ExceptionUtility.sendErrorMessage(this.bot.getShardManager(), exception)) {
+                        return;
+                    }
 
-                break;
-            }
-        //});
+                    this.bot.getAntiRegexManager().incrementAttempts(id, userId);
+                    if (duration != 0L) {
+                        this.bot.getAntiRegexManager().scheduleResetAttempts(id, userId, duration, reset.getInteger("amount"));
+                    }
+                });
+            });
+        });
     }
 
     @Override
