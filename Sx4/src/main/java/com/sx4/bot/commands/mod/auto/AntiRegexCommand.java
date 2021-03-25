@@ -66,21 +66,23 @@ public class AntiRegexCommand extends Sx4Command {
 			return;
 		}
 
-		long regexCount = event.getDatabase().countRegexes(Filters.eq("guildId", event.getGuild().getIdLong()), new CountOptions().limit(3));
+		long regexCount = event.getDatabase().countRegexes(Filters.and(Filters.eq("guildId", event.getGuild().getIdLong()), Filters.ne("type", RegexType.INVITE.getId())), new CountOptions().limit(3));
 		long endAt = event.getDatabase().getGuildById(event.getGuild().getIdLong(), Projections.include("premium")).getEmbedded(List.of("premium", "endAt"), 0L);
 
 		if (regexCount >= 3 && endAt < Clock.systemUTC().instant().getEpochSecond()) {
 			event.replyFailure("You need to have Sx4 premium to have more than 3 anti regexes, you can get premium at <https://www.patreon.com/Sx4>").queue();
 			return;
 		}
+
+		if (regexCount >= 10) {
+			event.replyFailure("You cannot have any more than 10 anti regexes").queue();
+			return;
+		}
 		
 		Document pattern = new Document("regexId", id)
 			.append("guildId", event.getGuild().getIdLong())
-			.append("type", regex.getInteger("type", RegexType.REGEX.getId()));
-
-		if (regex.containsKey("pattern")) {
-			pattern.append("pattern", regex.getString("pattern"));
-		}
+			.append("type", regex.getInteger("type", RegexType.REGEX.getId()))
+			.append("pattern", regex.getString("pattern"));
 
 		event.getDatabase().insertRegex(pattern)
 			.thenCompose(result -> event.getDatabase().updateRegexTemplateById(id, Updates.addToSet("uses", event.getGuild().getIdLong())))
@@ -131,7 +133,7 @@ public class AntiRegexCommand extends Sx4Command {
 			}
 
 			if (result.getMatchedCount() == 0) {
-				event.replyFailure("I could not find that regex").queue();
+				event.replyFailure("I could not find that anti regex").queue();
 				return;
 			}
 
@@ -161,7 +163,7 @@ public class AntiRegexCommand extends Sx4Command {
 			}
 
 			if (result.getMatchedCount() == 0) {
-				event.replyFailure("I could not find that regex").queue();
+				event.replyFailure("I could not find that anti regex").queue();
 				return;
 			}
 
@@ -226,7 +228,7 @@ public class AntiRegexCommand extends Sx4Command {
 				}
 
 				if (result.getMatchedCount() == 0) {
-					event.replyFailure("I could not find that regex").queue();
+					event.replyFailure("I could not find that anti regex").queue();
 					return;
 				}
 
@@ -268,7 +270,7 @@ public class AntiRegexCommand extends Sx4Command {
 				}
 
 				if (result.getMatchedCount() == 0) {
-					event.replyFailure("I could not find that regex").queue();
+					event.replyFailure("I could not find that anti regex").queue();
 					return;
 				}
 
@@ -307,7 +309,7 @@ public class AntiRegexCommand extends Sx4Command {
 				}
 
 				if (result.getMatchedCount() == 0) {
-					event.replyFailure("I could not find that regex").queue();
+					event.replyFailure("I could not find that anti regex").queue();
 					return;
 				}
 
@@ -331,7 +333,7 @@ public class AntiRegexCommand extends Sx4Command {
 				}
 
 				if (result.getMatchedCount() == 0) {
-					event.replyFailure("I could not find that regex").queue();
+					event.replyFailure("I could not find that anti regex").queue();
 					return;
 				}
 
@@ -369,7 +371,7 @@ public class AntiRegexCommand extends Sx4Command {
 				event.replyFailure("There is not a group " + group + " in that regex").queue();
 				return;
 			}
-			
+
 			List<TextChannel> channels = channelArgument == null ? event.getGuild().getTextChannels() : List.of(channelArgument);
 
 			Bson channelMap = Operators.ifNull("$whitelist", Collections.EMPTY_LIST);
@@ -559,7 +561,7 @@ public class AntiRegexCommand extends Sx4Command {
 		public void list(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="channels") TextChannel channel) {
 		    Document regex = event.getDatabase().getRegexById(event.getGuild().getIdLong(), id, Projections.include("whitelist"));
 			if (regex == null) {
-				event.replyFailure("I could not find that regex").queue();
+				event.replyFailure("I could not find that anti regex").queue();
 				return;
 			}
 
@@ -574,24 +576,24 @@ public class AntiRegexCommand extends Sx4Command {
 				return;
 			}
 
-			
+
 		}
 
 	}
-	
+
 	public class TemplateCommand extends Sx4Command {
-		
+
 		public TemplateCommand() {
 			super("template", 122);
-			
+
 			super.setDescription("Create regex templates for anti regex");
 			super.setExamples("anti regex template add", "anti regex template list");
 		}
-		
+
 		public void onCommand(Sx4CommandEvent event) {
 			event.replyHelp().queue();
 		}
-		
+
 		@Command(value="add", description="Add a regex to the templates for anyone to use")
 		@CommandId(123)
 		@Examples({"anti regex template add Numbers .*[0-9]+.* Will match any message which contains a number"})
@@ -600,28 +602,28 @@ public class AntiRegexCommand extends Sx4Command {
 				event.replyFailure("The title cannot be more than 20 characters").queue();
 				return;
 			}
-			
+
 			if (description.length() > 250) {
 				event.replyFailure("The description cannot be more than 250 characters").queue();
 				return;
 			}
-			
+
 			String patternString = pattern.pattern();
 			if (patternString.length() > 200) {
 				event.replyFailure("The regex cannot be more than 200 characters").queue();
 				return;
 			}
-			
+
 			Document data = new Document("title", title)
 				.append("description", description)
 				.append("pattern", patternString)
 				.append("ownerId", event.getAuthor().getIdLong());
-			
+
 			event.getDatabase().insertRegexTemplate(data).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
-				
+
 				event.replySuccess("Your regex has been added to the queue you will be notified when it has been approved or denied").queue();
 			});
 		}
