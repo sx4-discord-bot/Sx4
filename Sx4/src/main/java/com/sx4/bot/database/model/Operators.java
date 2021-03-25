@@ -12,6 +12,7 @@ public class Operators {
 	
 	public static final String REMOVE = "$$REMOVE";
 	public static final String NOW = "$$NOW";
+	public static final String ROOT = "$$ROOT";
 
 	public static Bson nowEpochMilli() {
 		return Operators.toLong(Operators.NOW);
@@ -156,7 +157,15 @@ public class Operators {
 	public static Bson isEmpty(Object expression) {
 		return Operators.eq(Operators.size(expression), 0);
 	}
-	
+
+	public static Bson max(Object... expressions) {
+		return new Document("$max", Arrays.asList(expressions));
+	}
+
+	public static Bson min(Object... expressions) {
+		return new Document("$min", Arrays.asList(expressions));
+	}
+
 	public static Bson divide(Object expression, Object expression2) {
 		return new Document("$divide", List.of(expression, expression2));
 	}

@@ -60,7 +60,7 @@ public class AntiRegexCommand extends Sx4Command {
 	@Examples({"anti regex add 5f023782ef9eba03390a740c"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void add(Sx4CommandEvent event, @Argument(value="id") ObjectId id) {
-		Document regex = event.getDatabase().getRegexTemplateById(id, Projections.include("approved", "pattern", "title"));
+		Document regex = event.getDatabase().getRegexTemplateById(id, Projections.include("approved", "pattern", "title", "type"));
 		if (regex == null || !regex.getBoolean("approved", false)) {
 			event.replyFailure("I could not find that regex template").queue();
 			return;
@@ -69,15 +69,18 @@ public class AntiRegexCommand extends Sx4Command {
 		long regexCount = event.getDatabase().countRegexes(Filters.eq("guildId", event.getGuild().getIdLong()), new CountOptions().limit(3));
 		long endAt = event.getDatabase().getGuildById(event.getGuild().getIdLong(), Projections.include("premium")).getEmbedded(List.of("premium", "endAt"), 0L);
 
-		if (regexCount == 3 && endAt < Clock.systemUTC().instant().getEpochSecond()) {
+		if (regexCount >= 3 && endAt < Clock.systemUTC().instant().getEpochSecond()) {
 			event.replyFailure("You need to have Sx4 premium to have more than 3 anti regexes, you can get premium at <https://www.patreon.com/Sx4>").queue();
 			return;
 		}
 		
 		Document pattern = new Document("regexId", id)
 			.append("guildId", event.getGuild().getIdLong())
-			.append("pattern", regex.getString("pattern"))
-			.append("type", RegexType.REGEX.getId());
+			.append("type", regex.getInteger("type", RegexType.REGEX.getId()));
+
+		if (regex.containsKey("pattern")) {
+			pattern.append("pattern", regex.getString("pattern"));
+		}
 
 		event.getDatabase().insertRegex(pattern)
 			.thenCompose(result -> event.getDatabase().updateRegexTemplateById(id, Updates.addToSet("uses", event.getGuild().getIdLong())))
@@ -361,7 +364,7 @@ public class AntiRegexCommand extends Sx4Command {
 		@Examples({"anti regex whitelist add 5f023782ef9eba03390a740c #youtube-links 2 youtube.com", "anti regex whitelist add 5f023782ef9eba03390a740c 0 https://youtube.com"})
 		@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 		public void add(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="channel", nullDefault=true) TextChannel channelArgument, @Argument(value="group") @Limit(min=0) int group, @Argument(value="string", endless=true) String string) {
-			Document regex = event.getDatabase().getRegexById(event.getGuild().getIdLong(), id, Projections.include("pattern"));
+			Document regex = event.getDatabase().getRegexById(event.getGuild().getIdLong(), id, Projections.include("pattern", "type"));
 			if (regex != null && Pattern.compile(regex.getString("pattern")).matcher("").groupCount() < group) {
 				event.replyFailure("There is not a group " + group + " in that regex").queue();
 				return;
@@ -662,7 +665,7 @@ public class AntiRegexCommand extends Sx4Command {
 		public void queue(Sx4CommandEvent event) {
 			List<Document> queue = event.getDatabase().getRegexTemplates(Filters.ne("approved", true), Projections.include("title", "description", "pattern", "ownerId")).into(new ArrayList<>());
 			if (queue.isEmpty()) {
-				event.replyFailure("There are now regex templates in the queue").queue();
+				event.replyFailure("There are no regex templates in the queue").queue();
 				return;
 			}
 

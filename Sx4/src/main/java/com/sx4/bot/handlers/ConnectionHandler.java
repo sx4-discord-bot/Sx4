@@ -62,7 +62,6 @@ public class ConnectionHandler implements EventListener {
 			this.bot.getMuteManager().ensureMutes();
 			this.bot.getTemporaryBanManager().ensureBans();
 			this.bot.getGiveawayManager().ensureGiveaways();
-			this.bot.getAntiRegexManager().ensureAttempts();
 			this.bot.getPremiumManager().ensurePremiumExpiry();
 		}
 		

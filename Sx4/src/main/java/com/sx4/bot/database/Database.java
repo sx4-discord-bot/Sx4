@@ -230,6 +230,14 @@ public class Database {
 		return this.updateRegexAttempt(filter, update, this.updateOptions);
 	}
 
+	public CompletableFuture<Document> findAndUpdateRegexAttempt(Bson filter, Bson update, FindOneAndUpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.regexAttempts.findOneAndUpdate(filter, update, options));
+	}
+
+	public CompletableFuture<Document> findAndUpdateRegexAttempt(Bson filter, List<Bson> update, FindOneAndUpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.regexAttempts.findOneAndUpdate(filter, update, options));
+	}
+
 	public CompletableFuture<UpdateResult> updateRegexAttempt(UpdateOneModel<Document> model) {
 		return CompletableFuture.supplyAsync(() -> this.regexAttempts.updateOne(model.getFilter(), model.getUpdate(), model.getOptions()));
 	}
@@ -440,6 +448,10 @@ public class Database {
 
 	public CompletableFuture<UpdateResult> updateRegexById(long guildId, ObjectId regexId, List<Bson> update) {
 		return this.updateRegexById(guildId, regexId, update, this.updateOptions);
+	}
+
+	public CompletableFuture<Document> findAndUpdateRegex(Bson filter, List<Bson> update, FindOneAndUpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.regexes.findOneAndUpdate(filter, update, options));
 	}
 
 	public CompletableFuture<DeleteResult> deleteRegex(Bson filter) {

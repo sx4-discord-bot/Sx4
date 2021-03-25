@@ -291,7 +291,7 @@ public class WarnCommand extends Sx4Command {
 			paged.execute(event);
 		}
 
-		@Command(value="punishments", aliases={"punish"}, description="Enable/disable whether warns should give punishments per action")
+		@Command(value="punishments", aliases={"punish"}, description="Toggle the state of whether warns should give punishments per action")
 		@CommandId(240)
 		@Examples({"warn configuration punishments"})
 		@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
