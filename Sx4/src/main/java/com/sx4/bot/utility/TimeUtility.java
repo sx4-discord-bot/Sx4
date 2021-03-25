@@ -190,7 +190,7 @@ public class TimeUtility {
 	}
 	
 	public static Duration getDurationFromString(String query) {
-		char[] charArray = query.trim().toCharArray();
+		char[] charArray = query.toCharArray();
 		
 		StringBuilder numberReader = new StringBuilder();
 		StringBuilder unitReader = new StringBuilder();
@@ -209,9 +209,7 @@ public class TimeUtility {
 					numberReader = new StringBuilder(String.valueOf(character));
 					unitReader = new StringBuilder();
 				}
-			} else if (Character.isWhitespace(character)) {
-				continue;
-			} else {
+			} else if (!Character.isWhitespace(character)) {
 				if (i == 0) {
 					return null;
 				}
@@ -223,10 +221,6 @@ public class TimeUtility {
 					seconds += TimeUtility.getActualSeconds(time, unitReader.toString());
 				}
 			}
-		}
-		
-		if (seconds == 0) {
-			return null;
 		}
 		
 		return Duration.of(seconds, ChronoUnit.SECONDS);

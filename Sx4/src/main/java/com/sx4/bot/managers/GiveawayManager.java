@@ -5,6 +5,7 @@ import com.mongodb.client.model.UpdateOneModel;
 import com.mongodb.client.model.Updates;
 import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.Database;
+import com.sx4.bot.utility.FutureUtility;
 import com.sx4.bot.utility.MathUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.Guild;
@@ -19,7 +20,6 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.*;
-import java.util.stream.Collectors;
 
 public class GiveawayManager {
 	
@@ -170,16 +170,13 @@ public class GiveawayManager {
 		});
 		
 		if (!futures.isEmpty()) {
-			CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new))
-				.thenApply($ -> futures.stream().map(CompletableFuture::join).filter(Objects::nonNull).collect(Collectors.toList()))
-				.thenCompose(bulkData -> {
-					if (!bulkData.isEmpty()) {
-						return this.bot.getDatabase().bulkWriteGiveaways(bulkData);
-					}
-					
-					return CompletableFuture.completedFuture(null);
-				})
-				.whenComplete(Database.exceptionally(this.bot.getShardManager()));
+			FutureUtility.allOf(futures).thenCompose(bulkData -> {
+				if (!bulkData.isEmpty()) {
+					return this.bot.getDatabase().bulkWriteGiveaways(bulkData);
+				}
+
+				return CompletableFuture.completedFuture(null);
+			}).whenComplete(Database.exceptionally(this.bot.getShardManager()));
 		}
 	}
 	

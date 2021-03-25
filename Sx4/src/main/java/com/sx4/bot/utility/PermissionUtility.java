@@ -1,10 +1,11 @@
 package com.sx4.bot.utility;
 
-import java.util.EnumSet;
-
-import com.sx4.bot.config.Config;
-
 import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.Member;
+import net.dv8tion.jda.api.entities.VoiceChannel;
+import net.dv8tion.jda.internal.utils.PermissionUtil;
+
+import java.util.EnumSet;
 
 public class PermissionUtility {
 
@@ -22,7 +23,25 @@ public class PermissionUtility {
 			i++;
 		}
 		
-		return "You are missing the permission" + (permissions.size() == 1 ? " " : "s ") + permissionsString.toString() + " to execute this command " + Config.get().getFailureEmote();
+		return "You are missing the permission" + (permissions.size() == 1 ? " " : "s ") + permissionsString.toString() + " to execute this command";
+	}
+
+	public static boolean canConnect(Member member, VoiceChannel channel) {
+		EnumSet<Permission> permissions = Permission.getPermissions(PermissionUtil.getEffectivePermission(channel, member));
+		if (permissions.contains(Permission.ADMINISTRATOR)) {
+			return true;
+		}
+
+		if (!permissions.contains(Permission.VOICE_CONNECT) || !permissions.contains(Permission.VOICE_MOVE_OTHERS)) {
+			return false;
+		}
+
+		int userLimit = channel.getUserLimit();
+		if (userLimit > 0) {
+			return userLimit >= channel.getMembers().size();
+		}
+
+		return true;
 	}
 	
 }
