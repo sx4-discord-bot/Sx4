@@ -57,6 +57,7 @@ public class ServerStatsCommand extends Sx4Command {
 			.addField("Messages (Last 7d)", String.format("%,d", messagesWeek), true)
 			.addBlankField(true)
 			.addField("Joins (Last 7d)", String.format("%,d", joinsWeek), true)
+			.setFooter("Updated every hour")
 			.setTimestamp(lastUpdate.toInstant());
 
 		event.reply(embed.build()).queue();

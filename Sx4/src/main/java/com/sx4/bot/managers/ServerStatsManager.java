@@ -3,6 +3,9 @@ package com.sx4.bot.managers;
 import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.entities.info.ServerStatsType;
+import gnu.trove.map.TLongObjectMap;
+import gnu.trove.map.hash.TLongObjectHashMap;
+import gnu.trove.set.TLongSet;
 import org.bson.Document;
 
 import java.time.Duration;
@@ -16,7 +19,7 @@ import java.util.concurrent.TimeUnit;
 
 public class ServerStatsManager {
 
-	private final Map<Long, Map<ServerStatsType, Integer>> counter;
+	private final TLongObjectMap<Map<ServerStatsType, Integer>> counter;
 	private LocalDateTime lastUpdate;
 
 	private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
@@ -24,7 +27,7 @@ public class ServerStatsManager {
 	private final Sx4 bot;
 
 	public ServerStatsManager(Sx4 bot) {
-		this.counter = new HashMap<>();
+		this.counter = new TLongObjectHashMap<>();
 		this.bot = bot;
 		this.initialize();
 	}
@@ -55,18 +58,14 @@ public class ServerStatsManager {
 	}
 
 	public synchronized void addCounter(long guildId, ServerStatsType type, int amount) {
-		this.counter.compute(guildId, (guildKey, guildValue) -> {
-			if (guildValue == null) {
-				Map<ServerStatsType, Integer> guild = new HashMap<>();
-				guild.put(type, amount);
+		Map<ServerStatsType, Integer> guild = this.counter.get(guildId);
+		if (guild == null) {
+			guild = new HashMap<>();
+			this.counter.put(guildId, guild);
+		}
 
-				return guild;
-			}
-
-			guildValue.compute(type, (typeKey, typeValue) -> typeValue == null ? amount : typeValue + amount);
-
-			return guildValue;
-		});
+		int currentAmount = guild.getOrDefault(type, 0);
+		guild.put(type, currentAmount + amount);
 	}
 
 	public void incrementCounter(long guildId, ServerStatsType type) {
@@ -84,8 +83,8 @@ public class ServerStatsManager {
 	public synchronized List<Document> toData(LocalDateTime time) {
 		List<Document> list = new ArrayList<>();
 
-		Set<Long> guildIds = this.counter.keySet();
-		for (long guildId : guildIds) {
+		TLongSet guildIds = this.counter.keySet();
+		guildIds.forEach(guildId -> {
 			Map<ServerStatsType, Integer> guild = this.counter.get(guildId);
 
 			Document data = new Document("guildId", guildId).append("time", time);
@@ -96,7 +95,9 @@ public class ServerStatsManager {
 			}
 
 			list.add(data);
-		}
+
+			return true;
+		});
 
 		return list;
 	}
