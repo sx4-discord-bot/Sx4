@@ -1606,7 +1606,7 @@ public class GeneralModule {
 			
 			JSONObject botData = results.getJSONObject(0);
 			String botAvatarUrl = "https://cdn.discordapp.com/avatars/" + botData.getString("id") + "/" + botData.getString("avatar");
-			String botInviteUrl = botData.getString("invite").contains("https://") ? botData.getString("invite") : "https://discordapp.com/oauth2/authorize?client_id=" + botData.getString("id") + "&scope=bot";
+			String botInviteUrl = botData.getString("invite").contains("https://") ? botData.getString("invite") : "https://discord.com/oauth2/authorize?client_id=" + botData.getString("id") + "&scope=bot";
 			String guildCount = botData.has("server_count") ? String.format("%,d", botData.getInt("server_count")) : "N/A";
 			User owner = event.getShardManager().getUserById(botData.getJSONArray("owners").getString(0));
 			EmbedBuilder embed = new EmbedBuilder()
@@ -1709,7 +1709,7 @@ public class GeneralModule {
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void donate(CommandEvent event) {
 		EmbedBuilder embed = new EmbedBuilder()
-				.setDescription("[Invite](https://discordapp.com/oauth2/authorize?client_id=" + event.getJDA().getSelfUser().getId() + "&permissions=8&scope=bot)\n" +
+				.setDescription("[Invite](https://discord.com/oauth2/authorize?client_id=" + event.getJDA().getSelfUser().getId() + "&permissions=8&scope=bot%20applications.commands)\n" +
 						"[Support Server](https://discord.gg/PqJNcfB)\n[PayPal](https://www.paypal.me/SheaCartwright)\n[Patreon](https://www.patreon.com/Sx4)")
 				.setAuthor("Donate!", null, event.getSelfUser().getEffectiveAvatarUrl())
 				.setColor(Settings.EMBED_COLOUR);
@@ -1722,7 +1722,7 @@ public class GeneralModule {
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void support(CommandEvent event) {
 		EmbedBuilder embed = new EmbedBuilder()
-				.setDescription("[Invite](https://discordapp.com/oauth2/authorize?client_id=" + event.getJDA().getSelfUser().getId() + "&permissions=8&scope=bot)\n" +
+				.setDescription("[Invite](https://discord.com/oauth2/authorize?client_id=" + event.getJDA().getSelfUser().getId() + "&permissions=8&scope=bot%20applications.commands)\n" +
 						"[Support Server](https://discord.gg/PqJNcfB)\n[PayPal](https://www.paypal.me/SheaCartwright)\n[Patreon](https://www.patreon.com/Sx4)")
 				.setAuthor("Support!", null, event.getSelfUser().getEffectiveAvatarUrl())
 				.setColor(Settings.EMBED_COLOUR);
@@ -1735,7 +1735,7 @@ public class GeneralModule {
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void invite(CommandEvent event) {
 		EmbedBuilder embed = new EmbedBuilder()
-				.setDescription("[Invite](https://discordapp.com/oauth2/authorize?client_id=" + event.getJDA().getSelfUser().getId() + "&permissions=8&scope=bot)\n" +
+				.setDescription("[Invite](https://discord.com/oauth2/authorize?client_id=" + event.getJDA().getSelfUser().getId() + "&permissions=8&scope=bot%20applications.commands)\n" +
 						"[Support Server](https://discord.gg/PqJNcfB)\n[PayPal](https://www.paypal.me/SheaCartwright)\n[Patreon](https://www.patreon.com/Sx4)")
 				.setAuthor("Invite!", null, event.getSelfUser().getEffectiveAvatarUrl())
 				.setColor(Settings.EMBED_COLOUR);
@@ -1779,7 +1779,7 @@ public class GeneralModule {
 				.addField("Stats", String.format("Ping: %dms\nServers: %,d\nUsers: %,d\nCommands: %d", event.getJDA().getGatewayPing(), event.getShardManager().getGuilds().size(), event.getShardManager().getUsers().size(), event.getCommandListener().getAllCommands().size()), true)
 				.addField("Credits", "[Taiitoo#7419 (Host)](https://taiitoo.tk)\n[Victor#6359 (Ex Host)](https://vjserver.ddns.net)\n[ETLegacy](https://discord.gg/MqQsmF7)\n[Nexus](https://discord.gg/BEdrSaW)\n[MongoDB]"
 						+ "(https://www.mongodb.com/)\n[JDA](https://github.com/DV8FromTheWorld/JDA)\n[Jockie Utils](https://github.com/21Joakim/Jockie-Utils)", true)
-				.addField("Sx4", "Developers: " + String.join(", ", developers) + "\nInvite: [Click Here](https://discordapp.com/oauth2/authorize?client_id=440996323156819968&permissions=8&scope=bot)\nSupport: "
+				.addField("Sx4", "Developers: " + String.join(", ", developers) + "\nInvite: [Click Here](https://discord.com/oauth2/authorize?client_id=440996323156819968&permissions=8&scope=bot%20applications.commands)\nSupport: "
 						+ "[Click Here](https://discord.gg/PqJNcfB)\nDonate: [PayPal](https://paypal.me/SheaCartwright), [Patreon](https://www.patreon.com/Sx4)", true);
 				
 		event.reply(embed.build()).queue();

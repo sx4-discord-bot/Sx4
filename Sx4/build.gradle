@@ -24,7 +24,7 @@ mainClassName = 'com.sx4.bot.core.Sx4Bot'
 compileJava.options.encoding = 'UTF-8'
 
 dependencies {
-	implementation('com.github.21Joakim:Jockie-Utils:jda-v4-SNAPSHOT') {
+	implementation('com.github.21Joakim:Jockie-Utils:jda-v4') {
 		exclude group: 'net.dv8tion', module: 'JDA'
 	}
 	
