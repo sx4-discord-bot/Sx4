@@ -123,7 +123,7 @@ public class Database {
 
 		this.serverStats = this.database.getCollection("guildStats");
 		this.serverStats.createIndex(Indexes.descending("guildId"));
-		this.serverStats.createIndex(Indexes.descending("time"), new IndexOptions().expireAfter(7L, TimeUnit.DAYS));
+		this.serverStats.createIndex(Indexes.descending("time"), new IndexOptions().expireAfter(608400L, TimeUnit.SECONDS));
 
 		this.games = this.database.getCollection("games");
 		this.games.createIndex(Indexes.descending("userId", "gameId"), uniqueIndex);
