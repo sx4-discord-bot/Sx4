@@ -38,12 +38,12 @@ public class ServerStatsCommand extends Sx4Command {
 		for (int i = 0; i < data.size(); i++) {
 			Document stats = data.get(i);
 			if (i < 25) {
-				joinsDay += stats.getInteger("joins");
-				messagesDay += stats.getInteger("messages");
+				joinsDay += stats.getInteger("joins", 0);
+				messagesDay += stats.getInteger("messages", 0);
 			}
 
-			joinsWeek += stats.getInteger("joins");
-			messagesWeek += stats.getInteger("messages");
+			joinsWeek += stats.getInteger("joins", 0);
+			messagesWeek += stats.getInteger("messages", 0);
 
 			Date time = stats.getDate("time");
 			lastUpdate = lastUpdate == null || lastUpdate.getTime() < time.getTime() ? time : lastUpdate;

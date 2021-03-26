@@ -24,7 +24,6 @@ public class InvitesCommand extends Sx4Command {
 	public InvitesCommand() {
 		super("invites", 265);
 
-		super.setAliases("invite");
 		super.setDescription("View the amount of invites a specific user has");
 		super.setExamples("invites", "invites @Shea#6653", "invites leaderboard");
 		super.setCategoryAll(ModuleCategory.INFORMATION);

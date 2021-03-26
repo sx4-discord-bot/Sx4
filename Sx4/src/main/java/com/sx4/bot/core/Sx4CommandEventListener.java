@@ -28,11 +28,14 @@ public class Sx4CommandEventListener extends CommandEventListener {
 			.append("aliasUsed", event.getCommandTrigger())
 			.append("authorId", event.getAuthor().getIdLong())
 			.append("channelId", event.getChannel().getIdLong())
-			.append("guildId", event.getGuild().getIdLong())
 			.append("arguments", Arrays.asList(event.getRawArguments()))
 			.append("options", event.getOptions())
 			.append("prefix", event.getPrefix())
 			.append("executionDuration", event.getTimeSinceStarted());
+
+		if (event.isFromGuild()) {
+			commandData.append("guildId", event.getGuild().getIdLong());
+		}
 
 		this.bot.getDatabase().insertCommand(commandData).whenComplete(Database.exceptionally(this.bot.getShardManager()));
 	}

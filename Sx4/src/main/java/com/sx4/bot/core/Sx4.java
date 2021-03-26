@@ -354,10 +354,14 @@ public class Sx4 {
 				
 				channel.sendMessage(HelpUtility.getHelpMessage(failures.get(0).getCommand(), embed)).queue();
 			}).addPreExecuteCheck((event, command) -> {
-				Document guildData = this.database.getGuildById(event.getGuild().getIdLong(), Projections.include("prefixes", "fakePermissions.holders"));
+				if (event.isFromGuild()) {
+					Document guildData = this.database.getGuildById(event.getGuild().getIdLong(), Projections.include("prefixes", "fakePermissions.holders"));
 
-				List<Document> holders = guildData.getEmbedded(List.of("fakePermissions", "holders"), Collections.emptyList());
-				event.setProperty("fakePermissions", holders);
+					List<Document> holders = guildData.getEmbedded(List.of("fakePermissions", "holders"), Collections.emptyList());
+					event.setProperty("fakePermissions", holders);
+				} else {
+					event.setProperty("fakePermissions", Collections.emptyList());
+				}
 
 				return true;
 			}).addPreExecuteCheck((event, command) -> {
@@ -374,7 +378,7 @@ public class Sx4 {
 					return false;
 				}
 			}).addPreExecuteCheck((event, command) -> {
-				if (command instanceof Sx4Command) {
+				if (command instanceof Sx4Command && event.isFromGuild()) {
 					boolean canUseCommand = CheckUtility.canUseCommand(this, event.getMember(), event.getTextChannel(), (Sx4Command) command);
 					if (!canUseCommand) {
 						event.reply("You are blacklisted from using that command in this channel " + this.config.getFailureEmote()).queue();

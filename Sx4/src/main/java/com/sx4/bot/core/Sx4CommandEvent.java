@@ -55,6 +55,10 @@ public class Sx4CommandEvent extends CommandEvent {
 	public Database getDatabase() {
 		return this.bot.getDatabase();
 	}
+
+	public boolean hasPermission(Permission... permissions) {
+		return this.getSelfMember().hasPermission(this.getTextChannel(), permissions);
+	}
 	
 	public MessageAction replyHelp() {
 		return this.reply(HelpUtility.getHelpMessage(this.command, !this.isFromGuild() || this.getSelfMember().hasPermission(this.getTextChannel(), Permission.MESSAGE_EMBED_LINKS)));

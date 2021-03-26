@@ -34,7 +34,11 @@ public class Config {
 	}
 	
 	public <Type> Type get(String path) {
-		return this.get(path, null);
+		return this.get(path, (Type) null);
+	}
+
+	public <Type> Type get(String path, Class<Type> clazz) {
+		return this.get(path);
 	}
 	
 	public <Type> Type get(String path, Type defaultValue) {
@@ -64,6 +68,30 @@ public class Config {
 		}
 		
 		return defaultValue;
+	}
+
+	public String getSupportDescription() {
+		return this.get("support.description");
+	}
+
+	public String getPayPalUrl() {
+		return this.get("donate.paypal");
+	}
+
+	public String getPatreonUrl() {
+		return this.get("donate.patreon");
+	}
+
+	public String getDonationDescription() {
+		return this.get("donate.description");
+	}
+
+	public String getInviteUrl(String id) {
+		return String.format(this.get("invite.url", String.class), id);
+	}
+
+	public String getInviteDescription() {
+		return this.get("invite.description");
 	}
 
 	public Document getUserFlagEmotes() {
