@@ -46,7 +46,7 @@ public class AntiRegexCommand extends Sx4Command {
 		super("anti regex", 105);
 		
 		super.setAliases("antiregex");
-		super.setDescription("Setup a regex which if matched with the content of a message it will perform an action");
+		super.setDescription("Setup a regex which if matched will perform an action, use https://regex101.com/ for testing and select Java 8");
 		super.setExamples("anti regex add", "anti regex remove", "anti regex list");
 		super.setCategoryAll(ModuleCategory.AUTO_MODERATION);
 	}

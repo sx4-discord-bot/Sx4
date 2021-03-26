@@ -43,6 +43,8 @@ public class Database {
 	private final MongoCollection<Document> starboards;
 	private final MongoCollection<Document> stars;
 
+	private final MongoCollection<Document> serverStats;
+
 	private final MongoCollection<Document> loggers;
 
 	private final MongoCollection<Document> games;
@@ -118,6 +120,10 @@ public class Database {
 		this.loggers = this.database.getCollection("loggers");
 		this.loggers.createIndex(Indexes.descending("guildId"));
 		this.loggers.createIndex(Indexes.descending("channelId"), uniqueIndex);
+
+		this.serverStats = this.database.getCollection("guildStats");
+		this.serverStats.createIndex(Indexes.descending("guildId"));
+		this.serverStats.createIndex(Indexes.descending("time"), new IndexOptions().expireAfter(7L, TimeUnit.DAYS));
 
 		this.games = this.database.getCollection("games");
 		this.games.createIndex(Indexes.descending("userId", "gameId"), uniqueIndex);
@@ -200,6 +206,18 @@ public class Database {
 	
 	public MongoDatabase getDatabase() {
 		return this.database;
+	}
+
+	public MongoCollection<Document> getServerStats() {
+		return this.serverStats;
+	}
+
+	public FindIterable<Document> getServerStats(Bson filter, Bson projection) {
+		return this.serverStats.find(filter).projection(projection);
+	}
+
+	public CompletableFuture<InsertManyResult> insertManyServerStats(List<Document> data) {
+		return CompletableFuture.supplyAsync(() -> this.serverStats.insertMany(data));
 	}
 
 	public MongoCollection<Document> getRegexAttempts() {

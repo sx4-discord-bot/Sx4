@@ -66,8 +66,8 @@ public class GiveawayManager {
 		this.endGiveaway(data, false);
 	}
 	
-	public void endGiveaway(Document data, boolean offTime) {
-		this.endGiveawayBulk(data, offTime).thenCompose(model -> {
+	public void endGiveaway(Document data, boolean forced) {
+		this.endGiveawayBulk(data, forced).thenCompose(model -> {
 			if (model == null) {
 				return CompletableFuture.completedFuture(null);
 			}
@@ -80,7 +80,7 @@ public class GiveawayManager {
 		return this.endGiveawayBulk(data, false);
 	}
 	
-	public CompletableFuture<UpdateOneModel<Document>> endGiveawayBulk(Document data, boolean offTime) {
+	public CompletableFuture<UpdateOneModel<Document>> endGiveawayBulk(Document data, boolean forced) {
 		long guildId = data.getLong("guildId"), messageId = data.get("_id", 0L);
 		
 		Guild guild = this.bot.getShardManager().getGuildById(guildId);
@@ -121,7 +121,7 @@ public class GiveawayManager {
 				if (members.size() == 0) {
 					update = Updates.set("winners", Collections.EMPTY_LIST);
 					
-					future.complete(new UpdateOneModel<>(Filters.eq("_id", messageId), offTime ? Updates.combine(Updates.set("endAt", Clock.systemUTC().instant().getEpochSecond()), update) : update));
+					future.complete(new UpdateOneModel<>(Filters.eq("_id", messageId), forced ? Updates.combine(Updates.set("endAt", Clock.systemUTC().instant().getEpochSecond()), update) : update));
 					channel.sendMessage("At least " + (oldWinners.isEmpty() ? "1 person needs" : oldWinners.size() == 1 ? "1 extra person needs" : oldWinners.size() + " extra people need") + " to have entered the giveaway to pick a winner " + this.bot.getConfig().getFailureEmote()).queue();
 					
 					return;
@@ -149,7 +149,7 @@ public class GiveawayManager {
 				
 				update = Updates.set("winners", winnerIds);
 				
-				future.complete(new UpdateOneModel<>(Filters.eq("_id", messageId), offTime ? Updates.combine(Updates.set("endAt", Clock.systemUTC().instant().getEpochSecond()), update) : update));
+				future.complete(new UpdateOneModel<>(Filters.eq("_id", messageId), forced ? Updates.combine(Updates.set("endAt", Clock.systemUTC().instant().getEpochSecond()), update) : update));
 			});
 		});
 		

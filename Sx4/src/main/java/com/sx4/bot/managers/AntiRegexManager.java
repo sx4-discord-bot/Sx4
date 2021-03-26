@@ -5,7 +5,6 @@ import org.bson.types.ObjectId;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 public class AntiRegexManager {
 
@@ -27,11 +26,11 @@ public class AntiRegexManager {
     private final Sx4 bot;
 
     public AntiRegexManager(Sx4 bot) {
-        this.attempts = new ConcurrentHashMap<>();
+        this.attempts = new HashMap<>();
         this.bot = bot;
     }
 
-    public int getAttempts(ObjectId id, long userId) {
+    public synchronized int getAttempts(ObjectId id, long userId) {
         Map<Long, Integer> userAttempts = this.attempts.get(id);
         if (userAttempts != null) {
             return userAttempts.getOrDefault(userId, 0);
@@ -40,7 +39,7 @@ public class AntiRegexManager {
         return 0;
     }
 
-    public void setAttempts(ObjectId id, long userId, int amount) {
+    public synchronized void setAttempts(ObjectId id, long userId, int amount) {
         this.attempts.compute(id, (idKey, idValue) -> {
             if (idValue == null) {
                 if (amount < 1) {
@@ -59,7 +58,7 @@ public class AntiRegexManager {
         });
     }
 
-    public void clearAttempts(ObjectId id, long userId) {
+    public synchronized void clearAttempts(ObjectId id, long userId) {
         Map<Long, Integer> userAttempts = this.attempts.get(id);
         if (userAttempts != null) {
             userAttempts.remove(userId);

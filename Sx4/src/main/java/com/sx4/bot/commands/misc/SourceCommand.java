@@ -22,7 +22,7 @@ public class SourceCommand extends Sx4Command {
 		super.setCategoryAll(ModuleCategory.MISC);
 	}
 
-	public void onCommand(Sx4CommandEvent event, @Argument(value="command", endless=true) Sx4Command command, @Option(value="display", description="Sends the full command in discord") boolean display) {
+	public void onCommand(Sx4CommandEvent event, @Argument(value="command", endless=true) Sx4Command command, @Option(value="display", aliases={"raw"}, description="Sends the full command in discord") boolean display) {
 		Method method = command.getCommandMethod();
 		String path = method.getDeclaringClass().getName();
 

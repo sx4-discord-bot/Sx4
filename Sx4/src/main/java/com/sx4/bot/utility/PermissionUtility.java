@@ -15,7 +15,7 @@ public class PermissionUtility {
 		int i = 0;
 		for (Permission permission : permissions) {
 			if (i != permissions.size() - 1) {
-				permissionsString.append(permission.getName() + (i != permissions.size() - 2 ? ", " : " "));
+				permissionsString.append(permission.getName()).append(i != permissions.size() - 2 ? ", " : " ");
 			} else {
 				permissionsString.append((permissions.size() == 1 ? "" : "and ") + permission.getName());
 			}

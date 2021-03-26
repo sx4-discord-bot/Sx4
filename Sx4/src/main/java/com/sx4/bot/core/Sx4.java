@@ -104,6 +104,7 @@ public class Sx4 {
 	private final SuggestionManager suggestionManager;
 	private final PagedManager pagedManager;
 	private final WaiterManager waiterManager;
+	private final ServerStatsManager serverStatsManager;
 	
 	private Sx4() {
 		this.database = new Database(this.config.getDatabase());
@@ -145,6 +146,7 @@ public class Sx4 {
 		this.youTubeManager = new YouTubeManager(this).addListener(youTubeHandler);
 		this.pagedManager = new PagedManager();
 		this.waiterManager = new WaiterManager();
+		this.serverStatsManager = new ServerStatsManager(this);
 
 		this.steamGameCache = new SteamGameCache(this);
 
@@ -169,6 +171,7 @@ public class Sx4 {
 			new LeaverHandler(this),
 			new StarboardHandler(this),
 			new TriggerHandler(this),
+			new ServerStatsHandler(this),
 			youTubeHandler
 		);
 
@@ -269,6 +272,10 @@ public class Sx4 {
 
 	public WaiterManager getWaiterManager() {
 		return this.waiterManager;
+	}
+
+	public ServerStatsManager getServerStatsManager() {
+		return this.serverStatsManager;
 	}
 
 	public SteamGameCache getSteamGameCache() {
