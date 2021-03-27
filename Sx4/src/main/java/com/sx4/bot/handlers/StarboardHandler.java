@@ -15,6 +15,7 @@ import com.sx4.bot.managers.StarboardManager;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.MessageUtility;
 import com.sx4.bot.utility.NumberUtility;
+import com.sx4.bot.utility.StringUtility;
 import net.dv8tion.jda.api.entities.*;
 import net.dv8tion.jda.api.entities.Message.Attachment;
 import net.dv8tion.jda.api.entities.MessageReaction.ReactionEmote;
@@ -44,8 +45,10 @@ public class StarboardHandler implements EventListener {
 	private WebhookMessage getStarboardMessage(Document guildData, Document starboard, Guild guild, Member member, ReactionEmote emote) {
 		List<Document> messages = guildData.getList("messages", Document.class, StarboardManager.DEFAULT_CONFIGURATION);
 
+		int stars = starboard.getInteger("count");
+
 		Document messageData = messages.stream()
-			.dropWhile(d -> starboard.getInteger("count") < d.getInteger("stars"))
+			.filter(d -> starboard.getInteger("count") >= d.getInteger("stars"))
 			.max(Comparator.comparingInt(d -> d.getInteger("stars")))
 			.orElse(null);
 
@@ -53,10 +56,8 @@ public class StarboardHandler implements EventListener {
 			return null;
 		}
 
-		int stars = messageData.getInteger("stars");
-
 		int nextStars = messages.stream()
-			.dropWhile(d -> starboard.getInteger("count") > d.getInteger("stars"))
+			.filter(d -> starboard.getInteger("count") < d.getInteger("stars"))
 			.mapToInt(d -> d.getInteger("stars"))
 			.min()
 			.orElse(0);
@@ -70,16 +71,18 @@ public class StarboardHandler implements EventListener {
 			return null;
 		}
 
+		String messageLink = "https://discord.com/channels/" + guild.getId() + "/" + channelId + "/" + starboard.getLong("originalMessageId");
+
 		// temporary while embed support isn't a thing
 		WebhookEmbedBuilder builder = new WebhookEmbedBuilder()
 			.setAuthor(new WebhookEmbed.EmbedAuthor(author == null ? "Anonymous#0000" : author.getAsTag(), author == null ? null : author.getEffectiveAvatarUrl(), null))
 			.setColor(-21453)
-			.addField(new WebhookEmbed.EmbedField(false, "Message Link", String.format("[Jump!](https://discord.com/channels/%s/%d/%d)", guild.getId(), channelId, starboard.getLong("originalMessageId"))))
+			.addField(new WebhookEmbed.EmbedField(false, "Message Link", "[Jump!](" + messageLink + ")"))
 			.setImageUrl(starboard.getString("image"));
 
 		String content = starboard.getString("content");
 		if (content != null) {
-			builder.addField(new WebhookEmbed.EmbedField(false, "Message", content));
+			builder.addField(new WebhookEmbed.EmbedField(false, "Message", StringUtility.limit(content, MessageEmbed.VALUE_MAX_LENGTH, "[...](" + messageLink + ")")));
 		}
 
 		Document webhookData = guildData.get("webhook", Database.EMPTY_DOCUMENT);
@@ -254,8 +257,8 @@ public class StarboardHandler implements EventListener {
 		}
 
 		Document messageData = data.getList("messages", Document.class, StarboardManager.DEFAULT_CONFIGURATION).stream()
-			.dropWhile(d -> starboard.getInteger("count") - 1 < d.getInteger("stars"))
-			.max(Comparator.comparingInt(d -> d.getInteger("stars")))
+			.filter(d -> starboard.getInteger("count") - 1 >= d.getInteger("stars"))
+			.min(Comparator.comparingInt(d -> d.getInteger("stars")))
 			.orElse(null);
 
 		this.bot.getDatabase().deleteStarById(event.getUserIdLong(), messageId).thenCompose(result -> {

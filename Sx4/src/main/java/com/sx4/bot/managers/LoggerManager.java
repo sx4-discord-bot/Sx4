@@ -121,12 +121,11 @@ public class LoggerManager implements WebhookManager {
             this.webhooks.put(channel.getIdLong(), webhookClient);
 
             Bson update = Updates.combine(
-                Updates.set("logger.loggers.$[logger].webhook.id", webhook.getIdLong()),
-                Updates.set("logger.loggers.$[logger].webhook.token", webhook.getToken())
+                Updates.set("webhook.id", webhook.getIdLong()),
+                Updates.set("webhook.token", webhook.getToken())
             );
 
-            UpdateOptions options = new UpdateOptions().arrayFilters(List.of(Filters.eq("logger.id", channel.getIdLong())));
-            this.bot.getDatabase().updateGuildById(channel.getGuild().getIdLong(), update, options).whenComplete((result, exception) -> {
+            this.bot.getDatabase().updateLogger(Filters.eq("channelId", channel.getIdLong()), update, new UpdateOptions()).whenComplete((result, exception) -> {
                 if (ExceptionUtility.sendErrorMessage(this.bot.getShardManager(), exception)) {
                     return;
                 }
@@ -159,7 +158,7 @@ public class LoggerManager implements WebhookManager {
             TextChannel channel = request.getChannel(guild);
 
             if (channel == null) {
-                this.bot.getDatabase().updateGuildById(request.getGuildId(), Updates.pull("logger.loggers", Filters.eq("id", channelId))).whenComplete(Database.exceptionally(this.bot.getShardManager()));
+                this.bot.getDatabase().deleteLogger(Filters.eq("channelId", channelId)).whenComplete(Database.exceptionally(this.bot.getShardManager()));
 
                 this.webhooks.remove(channelId);
                 this.handleQueue(0);
@@ -293,7 +292,7 @@ public class LoggerManager implements WebhookManager {
         }
 
         if (!deletedLoggers.isEmpty()) {
-            this.bot.getDatabase().updateGuildById(guild.getIdLong(), Updates.pull("logger.loggers", Filters.in("id", deletedLoggers))).whenComplete(Database.exceptionally(this.bot.getShardManager()));
+            this.bot.getDatabase().deleteManyLoggers(Filters.in("channelId", deletedLoggers)).whenComplete(Database.exceptionally(this.bot.getShardManager()));
         }
     }
 

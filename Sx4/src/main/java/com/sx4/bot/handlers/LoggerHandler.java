@@ -156,7 +156,7 @@ public class LoggerHandler implements EventListener {
 		}
 
 		if (!deletedLoggers.isEmpty()) {
-			this.bot.getDatabase().updateGuildById(guild.getIdLong(), Updates.pull("logger.loggers", Filters.in("id", deletedLoggers))).whenComplete(Database.exceptionally(this.bot.getShardManager()));
+			this.bot.getDatabase().deleteManyLoggers(Filters.in("channelId", deletedLoggers)).whenComplete(Database.exceptionally(this.bot.getShardManager()));
 		}
 	}
 

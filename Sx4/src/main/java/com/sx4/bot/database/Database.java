@@ -308,6 +308,10 @@ public class Database {
 		return CompletableFuture.supplyAsync(() -> this.loggers.deleteOne(filter));
 	}
 
+	public CompletableFuture<DeleteResult> deleteManyLoggers(Bson filter) {
+		return CompletableFuture.supplyAsync(() -> this.loggers.deleteMany(filter));
+	}
+
 	public CompletableFuture<UpdateResult> updateLogger(Bson filter, Bson update, UpdateOptions options) {
 		return CompletableFuture.supplyAsync(() -> this.loggers.updateOne(filter, update, options));
 	}

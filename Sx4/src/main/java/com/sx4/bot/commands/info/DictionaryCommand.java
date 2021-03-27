@@ -15,34 +15,9 @@ import org.bson.Document;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.List;
 
 public class DictionaryCommand extends Sx4Command {
-
-	private static class DictionaryResult {
-
-		private final String definition;
-		private final List<String> examples;
-
-		private DictionaryResult(String definition) {
-			this.definition = definition;
-			this.examples = new ArrayList<>();
-		}
-
-		public void addExample(String example) {
-			this.examples.add(example);
-		}
-
-		public String getDefinition() {
-			return this.definition;
-		}
-
-		public List<String> getExamples() {
-			return this.examples;
-		}
-
-	}
 
 	public DictionaryCommand() {
 		super("dictionary", 210);
