@@ -9,6 +9,9 @@ import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
 import org.bson.Document;
 
+import java.time.Duration;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -32,20 +35,22 @@ public class ServerStatsCommand extends Sx4Command {
 			return;
 		}
 
-		Date lastUpdate = null;
+		Date lastUpdate = event.getBot().getServerStatsManager().getLastUpdate();
+		OffsetDateTime currentHour = OffsetDateTime.now(ZoneOffset.UTC).withMinute(0).withSecond(0).withNano(0);
 
 		int joinsDay = 0, messagesDay = 0, joinsWeek = 0, messagesWeek = 0;
-		for (int i = 0; i < data.size(); i++) {
-			Document stats = data.get(i);
-			if (i < 25) {
+		for (Document stats : data) {
+			Date time = stats.getDate("time");
+			Duration difference = Duration.between(time.toInstant(), currentHour);
+
+			if (difference.toHours() <= 24) {
 				joinsDay += stats.getInteger("joins", 0);
 				messagesDay += stats.getInteger("messages", 0);
+			} else if (difference.toDays() <= 7) {
+				joinsWeek += stats.getInteger("joins", 0);
+				messagesWeek += stats.getInteger("messages", 0);
 			}
 
-			joinsWeek += stats.getInteger("joins", 0);
-			messagesWeek += stats.getInteger("messages", 0);
-
-			Date time = stats.getDate("time");
 			lastUpdate = lastUpdate == null || lastUpdate.getTime() < time.getTime() ? time : lastUpdate;
 		}
 

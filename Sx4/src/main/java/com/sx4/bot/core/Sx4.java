@@ -686,6 +686,7 @@ public class Sx4 {
 			.registerParser(VoiceChannel.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getVoiceChannel(context.getMessage().getGuild(), content.trim())))
 			.registerParser(Attachment.class, (context, argument, content) -> context.getMessage().getAttachments().isEmpty() ? new ParsedResult<>() : new ParsedResult<>(context.getMessage().getAttachments().get(0)))
 			.registerParser(Emote.class, (context, argument, content) -> new ParsedResult<>(argument.getProperty("global") ? SearchUtility.getEmote(this.shardManager, content.trim()) : SearchUtility.getGuildEmote(context.getMessage().getGuild(), content.trim())))
+			.registerParser(GuildChannel.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getGuildChannel(context.getMessage().getGuild(), content.trim())))
 			.registerParser(Locale.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getLocale(content.trim())))
 			.registerParser(Guild.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getGuild(this.shardManager, content.trim())))
 			.registerParser(ReactionEmote.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getReactionEmote(this.shardManager, content.trim())))

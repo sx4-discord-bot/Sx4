@@ -19,7 +19,7 @@ import java.util.List;
 
 public class YouTubeCommand extends Sx4Command {
 
-	private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd LLLL yyyy HH:mm");
+	private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd LLLL uuuu HH:mm");
 
 	public YouTubeCommand() {
 		super("youtube", 36);

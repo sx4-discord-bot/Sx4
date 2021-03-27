@@ -1,6 +1,7 @@
 package com.sx4.api.endpoints;
 
 import com.sx4.bot.core.Sx4;
+import com.sx4.bot.events.patreon.PatreonMemberUpdateEvent;
 import com.sx4.bot.events.patreon.PatreonPledgeCreateEvent;
 import com.sx4.bot.events.patreon.PatreonPledgeDeleteEvent;
 import com.sx4.bot.events.patreon.PatreonPledgeUpdateEvent;
@@ -60,6 +61,8 @@ public class PatreonEndpoint {
 				case "members:pledge:create":
 					this.bot.getPatreonManager().onPatreon(new PatreonPledgeCreateEvent(discordId, id, centsDonated));
 					break;
+				case "members:update":
+					this.bot.getPatreonManager().onPatreon(new PatreonMemberUpdateEvent(discordId, id));
 			}
 	    }
 		

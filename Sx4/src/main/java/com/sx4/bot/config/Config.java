@@ -284,7 +284,7 @@ public class Config {
 
 	private String getImageWebserverBaseUrl() {
 		String domain = this.get("webserver.image.domain");
-		return domain == null ? "http://" + this.getSearchWebserverIp() + ":" + this.getSearchWebserverPort() : "https://" + domain;
+		return domain == null ? "http://" + this.getImageWebserverIp() + ":" + this.getImageWebserverPort() : "https://" + domain;
 	}
 
 	public int getImageWebserverPort() {

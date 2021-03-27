@@ -80,7 +80,7 @@ public class ExceptionUtility {
 		return new EmbedBuilder()
 			.setTitle("Error")
 			.setColor(Config.get().getRed())
-			.setDescription(String.format("You have come across an error! [Support Server](%s)\n```%s\n%s```", Config.get().getSupportGuildInvite(), markdown, message))
+			.setDescription(String.format("You have come across an error! [Support Server](%s)\n```%s\n%s```", Config.get().getSupportGuildInvite(), markdown, StringUtility.limit(message, 1750)))
 			.build();
 	}
 	

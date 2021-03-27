@@ -21,7 +21,7 @@ public class ImageRequest {
 		this.url = new StringBuilder(path);
 		this.fields = new Document();
 		this.queries = new HashMap<>();
-		this.image = new byte[0];
+		this.image = null;
 	}
 
 	public ImageRequest setImage(byte[] image) {
@@ -51,7 +51,7 @@ public class ImageRequest {
 	public Request build(String authorization) {
 		boolean first = true;
 		for (Map.Entry<String, String> entry : this.queries.entrySet()) {
-			this.url.append(first ? "?" : "&" + entry.getKey() + "=" + entry.getValue());
+			this.url.append(first ? "?" : "&").append(entry.getKey()).append("=").append(entry.getValue());
 
 			first = false;
 		}
@@ -62,7 +62,7 @@ public class ImageRequest {
 
 		if (!this.fields.isEmpty()) {
 			builder.post(RequestBody.create(MediaType.parse("application/json"), this.fields.toJson()));
-		} else if (this.image.length != 0) {
+		} else if (this.image != null) {
 			builder.post(RequestBody.create(MediaType.parse("image"), this.image));
 		}
 

@@ -80,7 +80,7 @@ public class EmoteCommand extends Sx4Command {
 	@Redirects({"create emote", "ce"})
 	@AuthorPermissions(permissions={Permission.MANAGE_EMOTES})
 	@BotPermissions(permissions={Permission.MANAGE_EMOTES})
-	public void create(Sx4CommandEvent event, @Argument(value="emote", acceptEmpty=true) PartialEmote emote, @Argument(value="name", endless=true, nullDefault=true) String name) {
+	public void create(Sx4CommandEvent event, @Argument(value="emote | image url", acceptEmpty=true) PartialEmote emote, @Argument(value="name", endless=true, nullDefault=true) String name) {
 		long animatedEmotes = event.getGuild().getEmoteCache().applyStream(stream -> stream.filter(Emote::isAnimated).count());
 		long nonAnimatedEmotes = event.getGuild().getEmoteCache().applyStream(stream -> stream.filter(Predicate.not(Emote::isAnimated)).count());
 		int maxEmotes = event.getGuild().getMaxEmotes();
@@ -145,7 +145,7 @@ public class EmoteCommand extends Sx4Command {
 			.queue();
 	}
 
-	public class WhitelistCommand extends Sx4Command {
+	public static class WhitelistCommand extends Sx4Command {
 
 		public WhitelistCommand() {
 			super("whitelist", 132);

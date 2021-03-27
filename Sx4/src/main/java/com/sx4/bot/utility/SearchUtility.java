@@ -261,6 +261,21 @@ public class SearchUtility {
 
 		return null;
 	}
+
+	public static GuildChannel getGuildChannel(Guild guild, String query) {
+		GuildChannel channel = SearchUtility.getTextChannel(guild, query);
+		if (channel == null) {
+			channel = SearchUtility.getCategory(guild, query);
+			if (channel == null) {
+				channel = SearchUtility.getStoreChannel(guild, query);
+				if (channel == null) {
+					channel = SearchUtility.getVoiceChannel(guild, query);
+				}
+			}
+		}
+
+		return channel;
+	}
 	
 	public static TextChannel getTextChannel(Guild guild, String query) {
 		Matcher mentionMatch = SearchUtility.CHANNEL_MENTION.matcher(query);

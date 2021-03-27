@@ -10,11 +10,7 @@ import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
 
-import java.time.format.DateTimeFormatter;
-
 public class ServerInfoCommand extends Sx4Command {
-
-	private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd LLL yyyy HH:mm");
 
 	public ServerInfoCommand() {
 		super("server info", 303);
@@ -38,7 +34,7 @@ public class ServerInfoCommand extends Sx4Command {
 		EmbedBuilder embed = new EmbedBuilder()
 			.setAuthor(guild.getName(), null, guild.getIconUrl())
 			.setThumbnail(guild.getIconUrl())
-			.setDescription(guild.getName() + " was created on " + guild.getTimeCreated().format(this.formatter))
+			.setDescription(guild.getName() + " was created on " + guild.getTimeCreated().format(TimeUtility.DEFAULT_FORMATTER))
 			.addField("Region", guild.getRegion().getName() + " " + guild.getRegion().getEmoji(), true)
 			.addField("Language", guild.getLocale().getDisplayLanguage(), true)
 			.addField("Total Users", totalCount + " user" + (totalCount == 1 ? "" : "s"), true)

@@ -9,7 +9,6 @@ import gnu.trove.set.TLongSet;
 import org.bson.Document;
 
 import java.time.Duration;
-import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.*;
@@ -20,7 +19,7 @@ import java.util.concurrent.TimeUnit;
 public class ServerStatsManager {
 
 	private final TLongObjectMap<Map<ServerStatsType, Integer>> counter;
-	private LocalDateTime lastUpdate;
+	private Date lastUpdate;
 
 	private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
 
@@ -37,14 +36,14 @@ public class ServerStatsManager {
 		OffsetDateTime nextHour = now.plusHours(1).withSecond(0).withMinute(0).withNano(0);
 
 		this.executor.scheduleAtFixedRate(() -> {
-			List<Document> data = this.toData(this.lastUpdate = LocalDateTime.now(ZoneOffset.UTC));
+			List<Document> data = this.toData(this.lastUpdate = new Date());
 			this.clear();
 
 			this.bot.getDatabase().insertManyServerStats(data).whenComplete(Database.exceptionally(this.bot.getShardManager()));
 		}, Duration.between(now, nextHour).toSeconds(), 3600, TimeUnit.SECONDS);
 	}
 
-	public LocalDateTime getLastUpdate() {
+	public Date getLastUpdate() {
 		return this.lastUpdate;
 	}
 
@@ -80,7 +79,7 @@ public class ServerStatsManager {
 		this.counter.clear();
 	}
 
-	public synchronized List<Document> toData(LocalDateTime time) {
+	public synchronized List<Document> toData(Date time) {
 		List<Document> list = new ArrayList<>();
 
 		TLongSet guildIds = this.counter.keySet();
