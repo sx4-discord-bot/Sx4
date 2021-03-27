@@ -9,6 +9,7 @@ import com.mongodb.MongoWriteException;
 import com.mongodb.client.model.*;
 import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.Database;
+import com.sx4.bot.database.model.Operators;
 import com.sx4.bot.formatter.Formatter;
 import com.sx4.bot.formatter.JsonFormatter;
 import com.sx4.bot.managers.StarboardManager;
@@ -256,21 +257,19 @@ public class StarboardHandler implements EventListener {
 			return;
 		}
 
-		Document messageData = data.getList("messages", Document.class, StarboardManager.DEFAULT_CONFIGURATION).stream()
-			.filter(d -> starboard.getInteger("count") - 1 >= d.getInteger("stars"))
-			.min(Comparator.comparingInt(d -> d.getInteger("stars")))
-			.orElse(null);
+		List<Document> config = data.getList("messages", Document.class, StarboardManager.DEFAULT_CONFIGURATION);
 
 		this.bot.getDatabase().deleteStarById(event.getUserIdLong(), messageId).thenCompose(result -> {
 			if (result.getDeletedCount() == 0) {
 				return CompletableFuture.completedFuture(null);
 			}
 
+			List<Bson> update = List.of(
+				Operators.set("count", Operators.subtract("$count", 1)),
+				Operators.set("messageId", Operators.cond(Operators.isEmpty(Operators.filter(config, Operators.gte(Operators.subtract("$count", 1), "$$this.stars"))), Operators.REMOVE, "$messageId"))
+			);
+
 			FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER);
-			Bson update = Updates.inc("count", -1);
-			if (messageData == null) {
-				update = Updates.combine(update, Updates.unset("messageId"));
-			}
 
 			return this.bot.getDatabase().findAndUpdateStarboard(Filters.eq("originalMessageId", messageId), update, options);
 		}).whenComplete((updatedData, exception) -> {
