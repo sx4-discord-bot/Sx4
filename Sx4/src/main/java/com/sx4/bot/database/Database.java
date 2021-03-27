@@ -296,12 +296,40 @@ public class Database {
 		return this.getLoggers(filter, projection).first();
 	}
 
+	public long countLoggers(Bson filter, CountOptions options) {
+		return this.loggers.countDocuments(filter, options);
+	}
+
 	public CompletableFuture<InsertOneResult> insertLogger(Document data) {
 		return CompletableFuture.supplyAsync(() -> this.loggers.insertOne(data));
 	}
 
 	public CompletableFuture<DeleteResult> deleteLogger(Bson filter) {
 		return CompletableFuture.supplyAsync(() -> this.loggers.deleteOne(filter));
+	}
+
+	public CompletableFuture<UpdateResult> updateLogger(Bson filter, Bson update, UpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.loggers.updateOne(filter, update, options));
+	}
+
+	public CompletableFuture<UpdateResult> updateLogger(Bson filter, Bson update) {
+		return this.updateLogger(filter, update, this.updateOptions);
+	}
+
+	public CompletableFuture<UpdateResult> updateLogger(Bson filter, List<Bson> update, UpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.loggers.updateOne(filter, update, options));
+	}
+
+	public CompletableFuture<UpdateResult> updateLogger(Bson filter, List<Bson> update) {
+		return this.updateLogger(filter, update, this.updateOptions);
+	}
+
+	public CompletableFuture<Document> findAndUpdateLogger(Bson filter, Bson update, FindOneAndUpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.loggers.findOneAndUpdate(filter, update, options));
+	}
+
+	public CompletableFuture<Document> findAndUpdateLogger(Bson filter, List<Bson> update, FindOneAndUpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.loggers.findOneAndUpdate(filter, update, options));
 	}
 
 	public MongoCollection<Document> getMarriages() {

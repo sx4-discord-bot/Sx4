@@ -38,6 +38,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.regex.Pattern;
 
 public class AntiRegexCommand extends Sx4Command {
@@ -66,15 +67,21 @@ public class AntiRegexCommand extends Sx4Command {
 			return;
 		}
 
-		long regexCount = event.getDatabase().countRegexes(Filters.and(Filters.eq("guildId", event.getGuild().getIdLong()), Filters.ne("type", RegexType.INVITE.getId())), new CountOptions().limit(3));
+		Bson filter = Filters.and(
+			Filters.eq("guildId", event.getGuild().getIdLong()),
+			Filters.exists("enabled", false),
+			Filters.ne("type", RegexType.INVITE.getId())
+		);
+
+		long regexCount = event.getDatabase().countRegexes(filter, new CountOptions().limit(10));
 		long endAt = event.getDatabase().getGuildById(event.getGuild().getIdLong(), Projections.include("premium")).getEmbedded(List.of("premium", "endAt"), 0L);
 
 		if (regexCount >= 3 && endAt < Clock.systemUTC().instant().getEpochSecond()) {
-			event.replyFailure("You need to have Sx4 premium to have more than 3 anti regexes, you can get premium at <https://www.patreon.com/Sx4>").queue();
+			event.replyFailure("You need to have Sx4 premium to have more than 3 enabled anti regexes, you can get premium at <https://www.patreon.com/Sx4>").queue();
 			return;
 		}
 
-		if (regexCount >= 10) {
+		if (regexCount == 10) {
 			event.replyFailure("You cannot have any more than 10 anti regexes").queue();
 			return;
 		}
@@ -87,7 +94,7 @@ public class AntiRegexCommand extends Sx4Command {
 		event.getDatabase().insertRegex(pattern)
 			.thenCompose(result -> event.getDatabase().updateRegexTemplateById(id, Updates.addToSet("uses", event.getGuild().getIdLong())))
 			.whenComplete((result, exception) -> {
-				Throwable cause = exception == null ? null : exception.getCause();
+				Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
 				if (cause instanceof MongoWriteException && ((MongoWriteException) cause).getError().getCategory() == ErrorCategory.DUPLICATE_KEY) {
 					event.replyFailure("You already have that anti regex setup in this server").queue();
 					return;

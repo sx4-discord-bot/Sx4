@@ -39,7 +39,9 @@ public class ServerStatsManager {
 			List<Document> data = this.toData(this.lastUpdate = new Date());
 			this.clear();
 
-			this.bot.getDatabase().insertManyServerStats(data).whenComplete(Database.exceptionally(this.bot.getShardManager()));
+			if (!data.isEmpty()) {
+				this.bot.getDatabase().insertManyServerStats(data).whenComplete(Database.exceptionally(this.bot.getShardManager()));
+			}
 		}, Duration.between(now, nextHour).toSeconds(), 3600, TimeUnit.SECONDS);
 	}
 

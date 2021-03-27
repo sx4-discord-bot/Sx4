@@ -265,13 +265,16 @@ public class SearchUtility {
 	public static GuildChannel getGuildChannel(Guild guild, String query) {
 		GuildChannel channel = SearchUtility.getTextChannel(guild, query);
 		if (channel == null) {
+			channel = SearchUtility.getVoiceChannel(guild, query);
+		}
+
+		if (channel == null) {
 			channel = SearchUtility.getCategory(guild, query);
-			if (channel == null) {
-				channel = SearchUtility.getStoreChannel(guild, query);
-				if (channel == null) {
-					channel = SearchUtility.getVoiceChannel(guild, query);
-				}
-			}
+
+		}
+
+		if (channel == null) {
+			channel = SearchUtility.getStoreChannel(guild, query);
 		}
 
 		return channel;

@@ -2,9 +2,9 @@ package com.sx4.bot.commands.management;
 
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
-import com.mongodb.client.model.FindOneAndUpdateOptions;
-import com.mongodb.client.model.Projections;
-import com.mongodb.client.model.ReturnDocument;
+import com.mongodb.ErrorCategory;
+import com.mongodb.MongoWriteException;
+import com.mongodb.client.model.*;
 import com.sx4.bot.annotations.command.AuthorPermissions;
 import com.sx4.bot.annotations.command.CommandId;
 import com.sx4.bot.annotations.command.Examples;
@@ -23,7 +23,9 @@ import net.dv8tion.jda.api.entities.TextChannel;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 
+import java.time.Clock;
 import java.util.*;
+import java.util.concurrent.CompletionException;
 
 public class LoggerCommand extends Sx4Command {
 
@@ -45,23 +47,36 @@ public class LoggerCommand extends Sx4Command {
     @AuthorPermissions(permissions={Permission.MANAGE_SERVER})
     @Examples({"logger add #logs", "logger add"})
     public void add(Sx4CommandEvent event, @Argument(value="channel", endless=true, nullDefault=true) TextChannel channel) {
-        channel = channel == null ? event.getTextChannel() : channel;
-        String mention = channel.getAsMention();
+        TextChannel effectiveChannel = channel == null ? event.getTextChannel() : channel;
 
-        Bson loggers = Operators.ifNull("$logger.loggers", Collections.EMPTY_LIST);
-        Bson filter = Operators.filter(loggers, Operators.eq("$$this.id", channel.getIdLong()));
-        List<Bson> update = List.of(Operators.set("logger.loggers", Operators.cond(Operators.isEmpty(filter), Operators.concatArrays(List.of(new Document("id", channel.getIdLong())), Operators.filter(loggers, Operators.ne("$$this.id", channel.getIdLong()))), "$logger.loggers")));
-        event.getDatabase().updateGuildById(event.getGuild().getIdLong(), update).whenComplete((result, exception) -> {
+        Bson filter = Filters.and(
+            Filters.eq("guildId", event.getGuild().getIdLong()),
+            Filters.exists("enabled", false)
+        );
+
+        long loggers = event.getDatabase().countLoggers(filter, new CountOptions().limit(3));
+        long endAt = event.getDatabase().getGuildById(event.getGuild().getIdLong(), Projections.include("premium")).getEmbedded(List.of("premium", "endAt"), 0L);
+
+        if (loggers == 3 && endAt < Clock.systemUTC().instant().getEpochSecond()) {
+            event.replyFailure("You need to have Sx4 premium to have more than 3 enabled loggers, you can get premium at <https://www.patreon.com/Sx4>").queue();
+            return;
+        }
+
+        Document data = new Document("channelId", effectiveChannel.getIdLong())
+            .append("guildId", event.getGuild().getIdLong());
+
+        event.getDatabase().insertLogger(data).whenComplete((result, exception) -> {
+            Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
+            if (cause instanceof MongoWriteException && ((MongoWriteException) cause).getError().getCategory() == ErrorCategory.DUPLICATE_KEY) {
+                event.replyFailure("You already have a logger setup in " + effectiveChannel.getAsMention()).queue();
+                return;
+            }
+
             if (ExceptionUtility.sendExceptionally(event, exception)) {
                 return;
             }
 
-            if (result.getModifiedCount() == 0) {
-                event.replyFailure("You already have a logger setup in " + mention).queue();
-                return;
-            }
-
-            event.replySuccess("You now have a logger setup in " + mention).queue();
+            event.replySuccess("You now have a logger setup in " + effectiveChannel.getAsMention()).queue();
         });
     }
 
@@ -70,59 +85,57 @@ public class LoggerCommand extends Sx4Command {
     @AuthorPermissions(permissions={Permission.MANAGE_SERVER})
     @Examples({"logger remove #logs", "logger remove"})
     public void remove(Sx4CommandEvent event, @Argument(value="channel", endless=true, nullDefault=true) TextChannel channel) {
-        channel = channel == null ? event.getTextChannel() : channel;
-        String mention = channel.getAsMention();
+        TextChannel effectiveChannel = channel == null ? event.getTextChannel() : channel;
 
-        List<Bson> update = List.of(Operators.set("logger.loggers", Operators.filter(Operators.ifNull("$logger.loggers", Collections.EMPTY_LIST), Operators.ne("$$this.id", channel.getIdLong()))));
-        event.getDatabase().updateGuildById(event.getGuild().getIdLong(), update).whenComplete((result, exception) -> {
+        event.getDatabase().deleteLogger(Filters.eq("channelId", effectiveChannel.getIdLong())).whenComplete((result, exception) -> {
             if (ExceptionUtility.sendExceptionally(event, exception)) {
                 return;
             }
 
-            if (result.getModifiedCount() == 0) {
-                event.replyFailure("You don't have a logger in " + mention).queue();
+            if (result.getDeletedCount() == 0) {
+                event.replyFailure("You don't have a logger in " + effectiveChannel.getAsMention()).queue();
                 return;
             }
 
-            event.replySuccess("You no longer have a logger setup in " + mention).queue();
+            event.replySuccess("You no longer have a logger setup in " + effectiveChannel.getAsMention()).queue();
         });
     }
 
-    @Command(value="toggle", aliases={"enable", "disable"}, description="Toggles whether a logger should be enabled or disabled")
+    @Command(value="toggle", aliases={"enable", "disable"}, description="Toggles the state of a logger")
     @CommandId(56)
     @AuthorPermissions(permissions={Permission.MANAGE_SERVER})
     @Examples({"logger toggle #logs", "logger toggle"})
-    public void toggle(Sx4CommandEvent event, @Argument(value="channel", endless=true, nullDefault=true) TextChannel channelArgument) {
-        TextChannel channel = channelArgument == null ? event.getTextChannel() : channelArgument;
+    public void toggle(Sx4CommandEvent event, @Argument(value="channel", endless=true, nullDefault=true) TextChannel channel) {
+        TextChannel effectiveChannel = channel == null ? event.getTextChannel() : channel;
 
-        Bson currentLoggers = Operators.ifNull("$logger.loggers", Collections.EMPTY_LIST);
-        Bson filter = Operators.filter(currentLoggers, Operators.eq("$$this.id", channel.getIdLong()));
-        List<Bson> update = List.of(Operators.set("logger.loggers", Operators.cond(Operators.isEmpty(filter), "$logger.loggers", Operators.concatArrays(Operators.cond(Operators.ifNull(Operators.first(Operators.map(filter, "$$this.enabled")), true), List.of(Operators.mergeObjects(Operators.first(filter), new Document("enabled", false))), List.of(Operators.removeObject(Operators.first(filter), "enabled"))), Operators.filter(filter, Operators.ne("$$this.id", channel.getIdLong()))))));
+        Bson filter = Filters.and(
+            Filters.eq("guildId", event.getGuild().getIdLong()),
+            Filters.exists("enabled", false)
+        );
 
-        FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER).projection(Projections.include("logger.loggers"));
-        event.getDatabase().findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
+        List<Document> loggers = event.getDatabase().getLoggers(filter, Projections.include("channelId")).into(new ArrayList<>());
+        boolean disabled = loggers.stream().noneMatch(logger -> logger.getLong("channelId") == effectiveChannel.getIdLong());
+
+        long endAt = event.getDatabase().getGuildById(event.getGuild().getIdLong(), Projections.include("premium")).getEmbedded(List.of("premium", "endAt"), 0L);
+
+        if (disabled && loggers.size() >= 3 && endAt < Clock.systemUTC().instant().getEpochSecond()) {
+            event.replyFailure("You need to have Sx4 premium to have more than 3 enabled loggers, you can get premium at <https://www.patreon.com/Sx4>").queue();
+            return;
+        }
+
+        List<Bson> update = List.of(Operators.set("enabled", Operators.cond(Operators.exists("$enabled"), Operators.REMOVE, false)));
+        FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER).projection(Projections.include("enabled"));
+
+        event.getDatabase().findAndUpdateLogger(Filters.eq("channelId", effectiveChannel.getIdLong()), update, options).whenComplete((data, exception) -> {
             if (ExceptionUtility.sendExceptionally(event, exception)) {
                 return;
             }
 
-            data = data == null ? Database.EMPTY_DOCUMENT : data;
-
-            List<Document> loggers = data.getEmbedded(List.of("logger", "loggers"), Collections.emptyList());
-            Document logger = loggers.stream()
-                .filter(d -> d.getLong("id") == channel.getIdLong())
-                .findFirst()
-                .orElse(null);
-
-            if (logger == null) {
-                event.replyFailure("You don't have a logger in " + channel.getAsMention()).queue();
-                return;
-            }
-
-            event.replyFormat("The logger in %s is now **%s** %s", channel.getAsMention(), logger.get("enabled", true) ? "enabled" : "disabled", event.getConfig().getSuccessEmote()).queue();
+            event.replySuccess("The logger in " + effectiveChannel.getAsMention() + " is now **" + (data.get("enabled", true) ? "enabled" : "disabled") + "**").queue();
         });
     }
 
-    public class EventsCommand extends Sx4Command {
+    public static class EventsCommand extends Sx4Command {
 
         public EventsCommand() {
             super("events", 57);
@@ -140,36 +153,23 @@ public class LoggerCommand extends Sx4Command {
         @CommandId(58)
         @AuthorPermissions(permissions={Permission.MANAGE_SERVER})
         @Examples({"logger events add #logs MESSAGE_DELETE", "logger events add MESSAGE_DELETE MESSAGE_UPDATE"})
-        public void add(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) TextChannel channelArgument, @Argument(value="events") LoggerEvent... events) {
-            TextChannel channel = channelArgument == null ? event.getTextChannel() : channelArgument;
+        public void add(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) TextChannel channel, @Argument(value="events") LoggerEvent... events) {
+            TextChannel effectiveChannel = channel == null ? event.getTextChannel() : channel;
 
             long raw = LoggerEvent.getRaw(events);
+            List<Bson> update = List.of(Operators.set("events", Operators.bitwiseAnd(Operators.ifNull("$events", LoggerEvent.ALL), raw)));
 
-            Bson currentLoggers = Operators.ifNull("$logger.loggers", Collections.EMPTY_LIST);
-            Bson filter = Operators.filter(currentLoggers, Operators.eq("$$this.id", channel.getIdLong()));
-            Bson currentEvents = Operators.ifNull(Operators.first(Operators.map(filter, "$$this.events")), LoggerEvent.ALL);
-            List<Bson> update = List.of(Operators.set("logger.loggers", Operators.cond(Operators.or(Operators.isEmpty(filter), Operators.eq(Operators.toLong(Operators.bitwiseAnd(currentEvents, raw)), raw)), "$logger.loggers", Operators.concatArrays(List.of(Operators.mergeObjects(Operators.first(filter), new Document("events", Operators.toLong(Operators.bitwiseOr(raw, currentEvents))))), Operators.filter(currentLoggers, Operators.ne("$$this.id", channel.getIdLong()))))));
-
-            FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().projection(Projections.include("logger.loggers")).returnDocument(ReturnDocument.BEFORE);
-            event.getDatabase().findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
+            event.getDatabase().updateLogger(Filters.eq("channelId", effectiveChannel.getIdLong()), update, new UpdateOptions()).whenComplete((result, exception) -> {
                 if (ExceptionUtility.sendExceptionally(event, exception)) {
                     return;
                 }
 
-                data = data == null ? Database.EMPTY_DOCUMENT : data;
-
-                List<Document> loggers = data.getEmbedded(List.of("logger", "loggers"), Collections.emptyList());
-                Document logger = loggers.stream()
-                    .filter(d -> d.getLong("id") == channel.getIdLong())
-                    .findFirst()
-                    .orElse(null);
-
-                if (logger == null) {
-                    event.replyFailure("You don't have a logger in " + channel.getAsMention()).queue();
+                if (result.getMatchedCount() == 0) {
+                    event.replyFailure("You do not have a logger in " + effectiveChannel.getAsMention()).queue();
                     return;
                 }
 
-                if ((logger.get("events", LoggerEvent.ALL) & raw) == raw) {
+                if (result.getModifiedCount() == 0) {
                     event.replyFailure("That logger already has those events").queue();
                     return;
                 }
@@ -182,38 +182,23 @@ public class LoggerCommand extends Sx4Command {
         @CommandId(59)
         @AuthorPermissions(permissions={Permission.MANAGE_SERVER})
         @Examples({"logger events remove #logs MESSAGE_DELETE", "logger events remove MESSAGE_DELETE MESSAGE_UPDATE"})
-        public void remove(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) TextChannel channelArgument, @Argument(value="events") LoggerEvent... events) {
-            TextChannel channel = channelArgument == null ? event.getTextChannel() : channelArgument;
+        public void remove(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) TextChannel channel, @Argument(value="events") LoggerEvent... events) {
+            TextChannel effectiveChannel = channel == null ? event.getTextChannel() : channel;
 
             long raw = LoggerEvent.getRaw(events);
+            List<Bson> update = List.of(Operators.set("events", Operators.bitwiseAnd(Operators.ifNull("$events", LoggerEvent.ALL), ~raw)));
 
-            Bson currentLoggers = Operators.ifNull("$logger.loggers", Collections.EMPTY_LIST);
-            Bson filter = Operators.filter(currentLoggers, Operators.eq("$$this.id", channel.getIdLong()));
-            Bson currentEvents = Operators.ifNull(Operators.first(Operators.map(filter, "$$this.events")), LoggerEvent.ALL);
-            Bson newEvents = Operators.toLong(Operators.bitwiseAnd(currentEvents, ~raw));
-            List<Bson> update = List.of(Operators.set("logger.loggers", Operators.cond(Operators.or(Operators.isEmpty(filter), Operators.eq(newEvents, currentEvents)), "$logger.loggers", Operators.concatArrays(List.of(Operators.mergeObjects(Operators.first(filter), new Document("events", newEvents))), Operators.filter(currentLoggers, Operators.ne("$$this.id", channel.getIdLong()))))));
-
-            FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().projection(Projections.include("logger.loggers")).returnDocument(ReturnDocument.BEFORE);
-            event.getDatabase().findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
+            event.getDatabase().updateLogger(Filters.eq("channelId", effectiveChannel.getIdLong()), update, new UpdateOptions()).whenComplete((result, exception) -> {
                 if (ExceptionUtility.sendExceptionally(event, exception)) {
                     return;
                 }
 
-                data = data == null ? Database.EMPTY_DOCUMENT : data;
-
-                List<Document> loggers = data.getEmbedded(List.of("logger", "loggers"), Collections.emptyList());
-                Document logger = loggers.stream()
-                    .filter(d -> d.getLong("id") == channel.getIdLong())
-                    .findFirst()
-                    .orElse(null);
-
-                if (logger == null) {
-                    event.replyFailure("You don't have a logger in " + channel.getAsMention()).queue();
+                if (result.getMatchedCount() == 0) {
+                    event.replyFailure("You do not have a logger in " + effectiveChannel.getAsMention()).queue();
                     return;
                 }
 
-                long eventsData = logger.get("events", LoggerEvent.ALL);
-                if ((eventsData & ~raw) == eventsData) {
+                if (result.getModifiedCount() == 0) {
                     event.replyFailure("That logger doesn't have any of those events").queue();
                     return;
                 }
@@ -227,19 +212,20 @@ public class LoggerCommand extends Sx4Command {
         @AuthorPermissions(permissions={Permission.MANAGE_SERVER})
         @Examples({"logger events set #logs MESSAGE_DELETE", "logger events set MESSAGE_DELETE MESSAGE_UPDATE"})
         public void set(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) TextChannel channel, @Argument(value="events") LoggerEvent... events) {
-            channel = channel == null ? event.getTextChannel() : channel;
-            String mention = channel.getAsMention();
+            TextChannel effectiveChannel = channel == null ? event.getTextChannel() : channel;
 
-            Bson currentLoggers = Operators.ifNull("$logger.loggers", Collections.EMPTY_LIST);
-            Bson filter = Operators.filter(currentLoggers, Operators.eq("$$this.id", channel.getIdLong()));
-            List<Bson> update = List.of(Operators.set("logger.loggers", Operators.cond(Operators.isEmpty(filter), "$logger.loggers", Operators.concatArrays(List.of(Operators.mergeObjects(Operators.first(filter), new Document("events", LoggerEvent.getRaw(events)))), Operators.filter(currentLoggers, Operators.ne("$$this.id", channel.getIdLong()))))));
-            event.getDatabase().updateGuildById(event.getGuild().getIdLong(), update).whenComplete((result, exception) -> {
+            event.getDatabase().updateLogger(Filters.eq("channelId", effectiveChannel.getIdLong()), Updates.set("events", LoggerEvent.getRaw(events)), new UpdateOptions()).whenComplete((result, exception) -> {
                 if (ExceptionUtility.sendExceptionally(event, exception)) {
                     return;
                 }
 
+                if (result.getMatchedCount() == 0) {
+                    event.replyFailure("You don't have a logger in " + effectiveChannel.getAsMention()).queue();
+                    return;
+                }
+
                 if (result.getModifiedCount() == 0) {
-                    event.replyFailure("You don't have a logger in " + mention).queue();
+                    event.replyFailure("That logger already is already set to those events").queue();
                     return;
                 }
 
@@ -261,7 +247,7 @@ public class LoggerCommand extends Sx4Command {
 
     }
 
-    public class BlacklistCommand extends Sx4Command {
+    public static class BlacklistCommand extends Sx4Command {
 
         public BlacklistCommand() {
             super("blacklist", 62);
@@ -278,8 +264,8 @@ public class LoggerCommand extends Sx4Command {
         @CommandId(63)
         @AuthorPermissions(permissions={Permission.MANAGE_SERVER})
         @Examples({"logger blacklist set #logs @Shea#6653 MESSAGE_DELETE", "logger blacklist set #logs @Members MESSAGE_UPDATE MESSAGE_DELETE", "logger blacklist set #logs #channel TEXT_CHANNEL_OVERRIDE_UPDATE"})
-        public void set(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) TextChannel channelArgument, @Argument(value="user | role | channel") String query, @Argument(value="events") LoggerEvent... events) {
-            TextChannel channel = channelArgument == null ? event.getTextChannel() : channelArgument;
+        public void set(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) TextChannel channel, @Argument(value="user | role | channel") String query, @Argument(value="events") LoggerEvent... events) {
+            TextChannel effectiveChannel = channel == null ? event.getTextChannel() : channel;
 
             Set<LoggerCategory> common = LoggerUtility.getCommonCategories(events);
             if (common.isEmpty()) {
@@ -304,39 +290,22 @@ public class LoggerCommand extends Sx4Command {
 
                 long eventsRaw = LoggerEvent.getRaw(events);
 
-                Bson loggerFilter = Operators.filter(Operators.ifNull("$logger.loggers", Collections.EMPTY_LIST), Operators.eq("$$this.id", channel.getIdLong()));
-                Bson blacklistMap = Operators.first(Operators.map(loggerFilter, "$$this.blacklist"));
-                Bson entitiesMap = Operators.ifNull(Operators.first(Operators.map(loggerFilter, "$$this.blacklist.entities")), Collections.EMPTY_LIST);
+                Bson entitiesMap = Operators.ifNull("$blacklist.entities", Collections.EMPTY_LIST);
                 Bson entityFilter = Operators.filter(entitiesMap, Operators.eq("$$this.id", id));
 
-                List<Bson> update = List.of(Operators.set("logger.loggers", Operators.cond(Operators.isEmpty(loggerFilter), "$logger.loggers", Operators.concatArrays(List.of(Operators.mergeObjects(Operators.first(loggerFilter), new Document("blacklist", Operators.mergeObjects(blacklistMap, new Document("entities", Operators.concatArrays(List.of(Operators.mergeObjects(Operators.ifNull(Operators.first(entityFilter), Database.EMPTY_DOCUMENT), new Document("id", id).append("events", eventsRaw).append("type", category.getType()))), Operators.filter(entitiesMap, Operators.ne("$$this.id", id)))))))), Operators.filter("$logger.loggers", Operators.ne("$$this.id", channel.getIdLong()))))));
+                List<Bson> update = List.of(Operators.set("blacklist.entities", Operators.concatArrays(List.of(Operators.mergeObjects(Operators.ifNull(Operators.first(entityFilter), Database.EMPTY_DOCUMENT), new Document("id", id).append("events", eventsRaw).append("type", category.getType()))), Operators.filter(entitiesMap, Operators.ne("$$this.id", id)))));
 
-                FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("logger.loggers"));
-                event.getDatabase().findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
+                event.getDatabase().updateLogger(Filters.eq("channelId", effectiveChannel.getIdLong()), update, new UpdateOptions()).whenComplete((result, exception) -> {
                    if (ExceptionUtility.sendExceptionally(event, exception)) {
                        return;
                    }
 
-                   data = data == null ? Database.EMPTY_DOCUMENT : data;
+                    if (result.getMatchedCount() == 0) {
+                        event.replyFailure("You don't have a logger in " + effectiveChannel.getAsMention()).queue();
+                        return;
+                    }
 
-                   List<Document> loggers = data.getEmbedded(List.of("logger", "loggers"), Collections.emptyList());
-                   Document logger = loggers.stream()
-                       .filter(d -> d.getLong("id") == channel.getIdLong())
-                       .findFirst()
-                       .orElse(null);
-
-                   if (logger == null) {
-                       event.replyFailure("I could not find that logger").queue();
-                       return;
-                   }
-
-                   List<Document> entities = logger.getEmbedded(List.of("blacklist", "entities"), Collections.emptyList());
-                   Document entity = entities.stream()
-                       .filter(d -> d.getLong("id") == id)
-                       .findFirst()
-                       .orElse(null);
-
-                   if (entity != null && entity.get("events", 0L) == eventsRaw) {
+                   if (result.getModifiedCount() == 0) {
                        event.replyFailure("That " + category.getName().toLowerCase() + " was already blacklisted from those events").queue();
                        return;
                    }
@@ -354,8 +323,8 @@ public class LoggerCommand extends Sx4Command {
         @CommandId(64)
         @AuthorPermissions(permissions={Permission.MANAGE_SERVER})
         @Examples({"logger blacklist add #logs @Shea#6653 MESSAGE_DELETE", "logger blacklist add #logs @Members MESSAGE_UPDATE MESSAGE_DELETE", "logger blacklist add #logs #channel TEXT_CHANNEL_OVERRIDE_UPDATE"})
-        public void add(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) TextChannel channelArgument, @Argument(value="user | role | channel") String query, @Argument(value="events") LoggerEvent... events) {
-            TextChannel channel = channelArgument == null ? event.getTextChannel() : channelArgument;
+        public void add(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) TextChannel channel, @Argument(value="user | role | channel") String query, @Argument(value="events") LoggerEvent... events) {
+            TextChannel effectiveChannel = channel == null ? event.getTextChannel() : channel;
 
             Set<LoggerCategory> common = LoggerUtility.getCommonCategories(events);
             if (common.isEmpty()) {
@@ -380,41 +349,24 @@ public class LoggerCommand extends Sx4Command {
 
                 long eventsRaw = LoggerEvent.getRaw(events);
 
-                Bson loggerFilter = Operators.filter(Operators.ifNull("$logger.loggers", Collections.EMPTY_LIST), Operators.eq("$$this.id", channel.getIdLong()));
-                Bson blacklistMap = Operators.first(Operators.map(loggerFilter, "$$this.blacklist"));
-                Bson entitiesMap = Operators.ifNull(Operators.first(Operators.map(loggerFilter, "$$this.blacklist.entities")), Collections.EMPTY_LIST);
+                Bson entitiesMap = Operators.ifNull("$blacklist.entities", Collections.EMPTY_LIST);
                 Bson entityFilter = Operators.filter(entitiesMap, Operators.eq("$$this.id", id));
                 Bson currentEvents = Operators.ifNull(Operators.first(Operators.map(entityFilter, "$$this.events")), 0L);
 
-                List<Bson> update = List.of(Operators.set("logger.loggers", Operators.cond(Operators.isEmpty(loggerFilter), "$logger.loggers", Operators.concatArrays(List.of(Operators.mergeObjects(Operators.first(loggerFilter), new Document("blacklist", Operators.mergeObjects(blacklistMap, new Document("entities", Operators.concatArrays(List.of(Operators.mergeObjects(Operators.ifNull(Operators.first(entityFilter), new Document("id", id).append("type", category.getType())), new Document("events", Operators.toLong(Operators.bitwiseOr(eventsRaw, currentEvents))))), Operators.filter(entitiesMap, Operators.ne("$$this.id", id)))))))), Operators.filter("$logger.loggers", Operators.ne("$$this.id", channel.getIdLong()))))));
+                List<Bson> update = List.of(Operators.set("blacklist.entities", Operators.concatArrays(List.of(Operators.mergeObjects(Operators.ifNull(Operators.first(entityFilter), new Document("id", id).append("type", category.getType())), new Document("events", Operators.toLong(Operators.bitwiseOr(eventsRaw, currentEvents))))), Operators.filter(entitiesMap, Operators.ne("$$this.id", id)))));
 
-                FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("logger.loggers"));
-                event.getDatabase().findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
+                event.getDatabase().updateLogger(Filters.eq("channelId", effectiveChannel.getIdLong()), update, new UpdateOptions()).whenComplete((result, exception) -> {
                     if (ExceptionUtility.sendExceptionally(event, exception)) {
                         return;
                     }
 
-                    data = data == null ? Database.EMPTY_DOCUMENT : data;
-
-                    List<Document> loggers = data.getEmbedded(List.of("logger", "loggers"), Collections.emptyList());
-                    Document logger = loggers.stream()
-                        .filter(d -> d.getLong("id") == channel.getIdLong())
-                        .findFirst()
-                        .orElse(null);
-
-                    if (logger == null) {
-                        event.replyFailure("I could not find that logger").queue();
+                    if (result.getMatchedCount() == 0) {
+                        event.replyFailure("You don't have a logger in " + effectiveChannel.getAsMention()).queue();
                         return;
                     }
 
-                    List<Document> entities = logger.getEmbedded(List.of("blacklist", "entities"), Collections.emptyList());
-                    Document entity = entities.stream()
-                        .filter(d -> d.getLong("id") == id)
-                        .findFirst()
-                        .orElse(null);
-
-                    if (entity != null && entity.get("events", 0L) == eventsRaw) {
-                        event.replyFailure("That " + category.getName().toLowerCase() + " was already blacklisted from those events").queue();
+                    if (result.getModifiedCount() == 0) {
+                        event.replyFailure("That " + category.getName().toLowerCase() + " already has that blacklist event configuration").queue();
                         return;
                     }
 

@@ -282,7 +282,7 @@ public class LoggerManager implements WebhookManager {
                 continue;
             }
 
-            long channelId = logger.getLong("id");
+            long channelId = logger.getLong("channelId");
             TextChannel channel = guild.getTextChannelById(channelId);
             if (channel == null) {
                 deletedLoggers.add(channelId);

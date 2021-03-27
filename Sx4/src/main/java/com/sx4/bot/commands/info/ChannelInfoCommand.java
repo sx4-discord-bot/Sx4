@@ -50,7 +50,7 @@ public class ChannelInfoCommand extends Sx4Command {
 			embed.addField("Channel Category", voiceChannel.getParent() == null ? "Not in a Category" : voiceChannel.getParent().getName(), true);
 			embed.addBlankField(true);
 			embed.addField("User Limit", voiceChannel.getUserLimit() == 0 ? "Unlimited" : String.valueOf(voiceChannel.getUserLimit()), true);
-			embed.addField("Bitrate", voiceChannel.getBitrate()/1000 + " kbps", true);
+			embed.addField("Bitrate", voiceChannel.getBitrate() / 1000 + " kbps", true);
 		} else if (channel instanceof Category) {
 			Category category = (Category) channel;
 
