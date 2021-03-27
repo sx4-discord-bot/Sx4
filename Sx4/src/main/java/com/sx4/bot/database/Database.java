@@ -145,7 +145,8 @@ public class Database {
 		this.reactionRoles.createIndex(Indexes.descending("messageId", "emote"), uniqueIndex);
 
 		this.selfRoles = this.database.getCollection("selfRoles");
-		this.selfRoles.createIndex(Indexes.descending("roleId", "guildId"), uniqueIndex);
+		this.selfRoles.createIndex(Indexes.descending("roleId"), uniqueIndex);
+		this.selfRoles.createIndex(Indexes.descending("guildId"));
 
 		this.autoRoles = this.database.getCollection("autoRoles");
 		this.autoRoles.createIndex(Indexes.descending("roleId", "guildId"), uniqueIndex);
@@ -206,6 +207,30 @@ public class Database {
 	
 	public MongoDatabase getDatabase() {
 		return this.database;
+	}
+
+	public MongoCollection<Document> getSelfRoles() {
+		return this.selfRoles;
+	}
+
+	public FindIterable<Document> getSelfRoles(Bson filter, Bson projection) {
+		return this.selfRoles.find(filter).projection(projection);
+	}
+
+	public Document getSelfRole(Bson filter, Bson projection) {
+		return this.getSelfRoles(filter, projection).first();
+	}
+
+	public CompletableFuture<InsertOneResult> insertSelfRole(Document data) {
+		return CompletableFuture.supplyAsync(() -> this.selfRoles.insertOne(data));
+	}
+
+	public CompletableFuture<DeleteResult> deleteSelfRole(Bson filter) {
+		return CompletableFuture.supplyAsync(() -> this.selfRoles.deleteOne(filter));
+	}
+
+	public CompletableFuture<DeleteResult> deleteManySelfRoles(Bson filter) {
+		return CompletableFuture.supplyAsync(() -> this.selfRoles.deleteMany(filter));
 	}
 
 	public MongoCollection<Document> getServerStats() {

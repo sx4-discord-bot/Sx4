@@ -172,6 +172,7 @@ public class Sx4 {
 			new StarboardHandler(this),
 			new TriggerHandler(this),
 			new ServerStatsHandler(this),
+			new SelfRoleHandler(this),
 			youTubeHandler
 		);
 
