@@ -83,7 +83,7 @@ public class TemporaryBanCommand extends Sx4Command {
 				if (exception instanceof ErrorResponseException && ((ErrorResponseException) exception).getErrorResponse() == ErrorResponse.UNKNOWN_BAN) {
 					Document data = event.getDatabase().getGuildById(guild.getIdLong(), Projections.include("temporaryBan.defaultTime")).get("temporaryBan", Database.EMPTY_DOCUMENT);
 
-					long duration = time == null ? data.get("defaultTime", 86400L) : time.toSeconds();
+					long duration = time == null ? data.get("defaultTime", ModUtility.DEFAULT_TEMPORARY_BAN_DURATION) : time.toSeconds();
 
 					List<Bson> update = List.of(Operators.set("unbanAt", Operators.add(Operators.nowEpochSecond(), duration)));
 					Bson filter = Filters.and(
@@ -115,13 +115,13 @@ public class TemporaryBanCommand extends Sx4Command {
 	}
 
 	@Command(value="default time", aliases={"default duration"}, description="Sets the default time to be used when a duration argument isn't given")
-	@CommandId(342)
+	@CommandId(344)
 	@Examples({"temporary ban default time 10m", "temporary ban default time 5d", "temporary ban default time 1h 30m"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void defaultTime(Sx4CommandEvent event, @Argument(value="duration", endless=true) Duration duration) {
 		long seconds = duration.toSeconds();
 
-		Bson update = seconds == 86400L ? Updates.unset("temporaryBan.defaultTime") : Updates.set("temporaryBan.defaultTime", seconds);
+		Bson update = seconds == ModUtility.DEFAULT_TEMPORARY_BAN_DURATION ? Updates.unset("temporaryBan.defaultTime") : Updates.set("temporaryBan.defaultTime", seconds);
 		event.getDatabase().updateGuildById(event.getGuild().getIdLong(), update).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
@@ -137,7 +137,7 @@ public class TemporaryBanCommand extends Sx4Command {
 	}
 
 	@Command(value="list", description="Lists all the users who have temporary bans")
-	@CommandId(343)
+	@CommandId(345)
 	@Examples({"temporary ban list"})
 	public void list(Sx4CommandEvent event) {
 		List<Document> bans = event.getDatabase().getTemporaryBans(Filters.eq("guildId", event.getGuild().getIdLong()), Projections.include("unbanAt", "userId")).into(new ArrayList<>());

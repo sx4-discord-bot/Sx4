@@ -27,6 +27,9 @@ import java.util.concurrent.atomic.AtomicReference;
 
 public class ModUtility {
 
+	public static long DEFAULT_TEMPORARY_BAN_DURATION = 86400L;
+	public static long DEFAULT_MUTE_DURATION = 1800L;
+
 	public static String getAuditReason(Reason reason, User moderator) {
 		return (reason == null ? "None Given" : reason.getParsed()) + " [" + moderator.getAsTag() + "]";
 	}
@@ -85,7 +88,7 @@ public class ModUtility {
 		long guildId = guild.getIdLong(), userId = target.getIdLong();
 
 		Document mute = bot.getDatabase().getGuildById(guildId, Projections.include("mute.roleId", "mute.defaultTime", "mute.autoUpdate")).get("mute", Database.EMPTY_DOCUMENT);
-		long duration = time == null ? mute.get("defaultTime", 1800L) : time.toSeconds();
+		long duration = time == null ? mute.get("defaultTime", ModUtility.DEFAULT_MUTE_DURATION) : time.toSeconds();
 
 		AtomicReference<Role> atomicRole = new AtomicReference<>();
 

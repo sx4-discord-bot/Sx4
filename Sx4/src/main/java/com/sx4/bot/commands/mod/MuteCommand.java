@@ -110,7 +110,7 @@ public class MuteCommand extends Sx4Command {
 	public void defaultTime(Sx4CommandEvent event, @Argument(value="duration", endless=true) Duration duration) {
 		long seconds = duration.toSeconds();
 
-		Bson update = seconds == 1800L ? Updates.unset("mute.defaultTime") : Updates.set("mute.defaultTime", seconds);
+		Bson update = seconds == ModUtility.DEFAULT_MUTE_DURATION ? Updates.unset("mute.defaultTime") : Updates.set("mute.defaultTime", seconds);
 		event.getDatabase().updateGuildById(event.getGuild().getIdLong(), update).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
