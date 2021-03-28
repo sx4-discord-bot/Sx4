@@ -80,7 +80,7 @@ public class TemporaryBanManager {
 		this.putExecutor(guildId, userId, executor);
 	}
 
-	public UpdateOneModel<Document> removeBanAndGet(long guildId, long userId) {
+	public DeleteOneModel<Document> removeBanAndGet(long guildId, long userId) {
 		ShardManager shardManager = this.bot.getShardManager();
 
 		Guild guild = shardManager.getGuildById(guildId);
@@ -98,24 +98,24 @@ public class TemporaryBanManager {
 		this.bot.getModActionManager().onModAction(new UnbanEvent(guild.getSelfMember(), user, new Reason("Ban length served")));
 		this.deleteExecutor(guildId, userId);
 
-		return new UpdateOneModel<>(Filters.and(Filters.eq("guildId", guildId), Filters.eq("userId", userId)), Updates.unset("temporaryBan.unbanAt"));
+		return new DeleteOneModel<>(Filters.and(Filters.eq("guildId", guildId), Filters.eq("userId", userId)));
 	}
 	
 	public void removeBan(long guildId, long userId) {
-		UpdateOneModel<Document> model = this.removeBanAndGet(guildId, userId);
+		DeleteOneModel<Document> model = this.removeBanAndGet(guildId, userId);
 		if (model != null) {
-			this.bot.getDatabase().updateMember(model).whenComplete(Database.exceptionally(this.bot.getShardManager()));
+			this.bot.getDatabase().deleteTemporaryBan(model.getFilter()).whenComplete(Database.exceptionally(this.bot.getShardManager()));
 		}
 	}
 
 	public void ensureBans() {
 		List<WriteModel<Document>> bulkData = new ArrayList<>();
-		this.bot.getDatabase().getMembers(Filters.exists("temporaryBan.unbanAt"), Projections.include("guildId", "userId", "temporaryBan.unbanAt")).forEach(data -> {
-			long currentTime = Clock.systemUTC().instant().getEpochSecond(), unbanAt = data.getEmbedded(List.of("temporaryBan", "unbanAt"), Long.class);
+		this.bot.getDatabase().getTemporaryBans(Database.EMPTY_DOCUMENT, Projections.include("guildId", "userId", "unbanAt")).forEach(data -> {
+			long currentTime = Clock.systemUTC().instant().getEpochSecond(), unbanAt = data.getLong("unbanAt");
 			if (unbanAt > currentTime) {
 				this.putBan(data.getLong("guildId"), data.getLong("userId"), unbanAt - currentTime);
 			} else {
-				UpdateOneModel<Document> model = this.removeBanAndGet(data.getLong("guildId"), data.getLong("userId"));
+				DeleteOneModel<Document> model = this.removeBanAndGet(data.getLong("guildId"), data.getLong("userId"));
 				if (model != null) {
 					bulkData.add(model);
 				}
@@ -123,7 +123,7 @@ public class TemporaryBanManager {
 		});
 
 		if (!bulkData.isEmpty()) {
-			this.bot.getDatabase().bulkWriteMembers(bulkData).whenComplete(Database.exceptionally(this.bot.getShardManager()));
+			this.bot.getDatabase().bulkWriteTemporaryBans(bulkData).whenComplete(Database.exceptionally(this.bot.getShardManager()));
 		}
 	}
 	

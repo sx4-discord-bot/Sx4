@@ -3,28 +3,32 @@ package com.sx4.bot.commands.mod;
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
 import com.jockie.bot.core.option.Option;
-import com.mongodb.client.model.FindOneAndUpdateOptions;
-import com.mongodb.client.model.Projections;
-import com.mongodb.client.model.ReturnDocument;
-import com.mongodb.client.model.Updates;
+import com.mongodb.client.model.*;
 import com.sx4.bot.annotations.command.AuthorPermissions;
 import com.sx4.bot.annotations.command.CommandId;
 import com.sx4.bot.annotations.command.Examples;
+import com.sx4.bot.annotations.command.Redirects;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.model.Operators;
 import com.sx4.bot.entities.argument.Alternative;
 import com.sx4.bot.entities.mod.Reason;
+import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.ModUtility;
 import com.sx4.bot.utility.TimeUtility;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Role;
+import net.dv8tion.jda.api.entities.User;
+import org.bson.Document;
 import org.bson.conversions.Bson;
 
+import java.time.Clock;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 public class MuteCommand extends Sx4Command {
@@ -119,6 +123,32 @@ public class MuteCommand extends Sx4Command {
 
 			event.replySuccess("Your mute default time has been set to **" + TimeUtility.getTimeString(seconds) + "**").queue();
 		});
+	}
+
+	@Command(value="list", description="Lists all the currently muted users in the server")
+	@CommandId(343)
+	@Redirects({"muted list"})
+	@Examples({"mute list"})
+	public void list(Sx4CommandEvent event) {
+		List<Document> mutes = event.getDatabase().getMutes(Filters.eq("guildId", event.getGuild().getIdLong()), Projections.include("unmuteAt", "userId")).into(new ArrayList<>());
+		if (mutes.isEmpty()) {
+			event.replyFailure("There is no one muted in this server").queue();
+			return;
+		}
+
+		mutes.sort(Comparator.comparingLong(d -> d.getLong("unmuteAt")));
+
+		PagedResult<Document> paged = new PagedResult<>(event.getBot(), mutes)
+			.setAuthor("Muted Users", null, event.getGuild().getIconUrl())
+			.setIndexed(false)
+			.setSelect()
+			.setDisplayFunction(data -> {
+				User user = event.getShardManager().getUserById(data.getLong("userId"));
+
+				return (user == null ? "Anonymous#0000" : user.getAsTag()) + " - " + TimeUtility.getTimeString(data.getLong("unmuteAt") - Clock.systemUTC().instant().getEpochSecond());
+			});
+
+		paged.execute(event);
 	}
 
 }

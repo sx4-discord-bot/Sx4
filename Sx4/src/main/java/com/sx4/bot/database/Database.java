@@ -33,8 +33,11 @@ public class Database {
 	
 	private final MongoCollection<Document> guilds;
 	private final MongoCollection<Document> users;
-	private final MongoCollection<Document> channels;
-	private final MongoCollection<Document> members;
+	private final MongoCollection<Document> channels; // remove
+
+	private final MongoCollection<Document> warnings;
+	private final MongoCollection<Document> mutes;
+	private final MongoCollection<Document> temporaryBans;
 
 	private final MongoCollection<Document> triggers;
 
@@ -100,8 +103,14 @@ public class Database {
 		this.channels = this.database.getCollection("channels");
 		this.channels.createIndex(Indexes.descending("guildId"));
 
-		this.members = this.database.getCollection("members");
-		this.members.createIndex(Indexes.descending("userId", "guildId"), uniqueIndex);
+		this.mutes = this.database.getCollection("mutes");
+		this.mutes.createIndex(Indexes.descending("userId", "guildId"), uniqueIndex);
+
+		this.temporaryBans = this.database.getCollection("temporaryBans");
+		this.temporaryBans.createIndex(Indexes.descending("userId", "guildId"), uniqueIndex);
+
+		this.warnings = this.database.getCollection("warnings");
+		this.warnings.createIndex(Indexes.descending("userId", "guildId"), uniqueIndex);
 
 		this.triggers = this.database.getCollection("triggers");
 		this.triggers.createIndex(Indexes.descending("trigger", "guildId"), uniqueIndex);
@@ -209,6 +218,107 @@ public class Database {
 	public MongoDatabase getDatabase() {
 		return this.database;
 	}
+
+	public MongoCollection<Document> getMutes() {
+		return this.mutes;
+	}
+
+	public FindIterable<Document> getMutes(Bson filter, Bson projection) {
+		return this.mutes.find(filter).projection(projection);
+	}
+
+	public Document getMute(Bson filter, Bson projection) {
+		return this.getMutes(filter, projection).first();
+	}
+
+	public CompletableFuture<InsertOneResult> insertMute(Document data) {
+		return CompletableFuture.supplyAsync(() -> this.mutes.insertOne(data));
+	}
+
+	public CompletableFuture<UpdateResult> updateMute(Bson filter, Bson update, UpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.mutes.updateOne(filter, update, options));
+	}
+
+	public CompletableFuture<UpdateResult> updateMute(Bson filter, List<Bson> update, UpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.mutes.updateOne(filter, update, options));
+	}
+
+	public CompletableFuture<DeleteResult> deleteMute(Bson filter) {
+		return CompletableFuture.supplyAsync(() -> this.mutes.deleteOne(filter));
+	}
+
+	public CompletableFuture<BulkWriteResult> bulkWriteMutes(List<WriteModel<Document>> bulkData) {
+		return CompletableFuture.supplyAsync(() -> this.mutes.bulkWrite(bulkData));
+	}
+
+	public MongoCollection<Document> getWarnings() {
+		return this.warnings;
+	}
+
+	public FindIterable<Document> getWarnings(Bson filter, Bson projection) {
+		return this.warnings.find(filter).projection(projection);
+	}
+
+	public Document getWarning(Bson filter, Bson projection) {
+		return this.getWarnings(filter, projection).first();
+	}
+
+	public CompletableFuture<InsertOneResult> insertWarning(Document data) {
+		return CompletableFuture.supplyAsync(() -> this.warnings.insertOne(data));
+	}
+
+	public CompletableFuture<UpdateResult> updateWarnings(Bson filter, Bson update, UpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.warnings.updateOne(filter, update, options));
+	}
+
+	public CompletableFuture<UpdateResult> updateWarnings(Bson filter, List<Bson> update, UpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.warnings.updateOne(filter, update, options));
+	}
+
+	public CompletableFuture<Document> findAndUpdateWarnings(Bson filter, List<Bson> update, FindOneAndUpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.warnings.findOneAndUpdate(filter, update, options));
+	}
+
+	public CompletableFuture<DeleteResult> deleteWarning(Bson filter) {
+		return CompletableFuture.supplyAsync(() -> this.warnings.deleteOne(filter));
+	}
+
+	public CompletableFuture<BulkWriteResult> bulkWriteWarnings(List<WriteModel<Document>> bulkData) {
+		return CompletableFuture.supplyAsync(() -> this.warnings.bulkWrite(bulkData));
+	}
+
+	public MongoCollection<Document> getTemporaryBans() {
+		return this.temporaryBans;
+	}
+
+	public FindIterable<Document> getTemporaryBans(Bson filter, Bson projection) {
+		return this.temporaryBans.find(filter).projection(projection);
+	}
+
+	public Document getTemporaryBan(Bson filter, Bson projection) {
+		return this.getTemporaryBans(filter, projection).first();
+	}
+
+	public CompletableFuture<InsertOneResult> insertTemporaryBan(Document data) {
+		return CompletableFuture.supplyAsync(() -> this.temporaryBans.insertOne(data));
+	}
+
+	public CompletableFuture<UpdateResult> updateTemporaryBan(Bson filter, Bson update, UpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.temporaryBans.updateOne(filter, update, options));
+	}
+
+	public CompletableFuture<UpdateResult> updateTemporaryBan(Bson filter, List<Bson> update, UpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.temporaryBans.updateOne(filter, update, options));
+	}
+
+	public CompletableFuture<DeleteResult> deleteTemporaryBan(Bson filter) {
+		return CompletableFuture.supplyAsync(() -> this.temporaryBans.deleteOne(filter));
+	}
+
+	public CompletableFuture<BulkWriteResult> bulkWriteTemporaryBans(List<WriteModel<Document>> bulkData) {
+		return CompletableFuture.supplyAsync(() -> this.temporaryBans.bulkWrite(bulkData));
+	}
+
 
 	public MongoCollection<Document> getAutoRoles() {
 		return this.autoRoles;
@@ -1020,80 +1130,6 @@ public class Database {
 	
 	public CompletableFuture<Document> findAndDeleteRegexTemplateById(ObjectId id, FindOneAndDeleteOptions options) {
 		return CompletableFuture.supplyAsync(() -> this.regexTemplates.findOneAndDelete(Filters.eq("_id", id), options));
-	}
-
-	public MongoCollection<Document> getMembers() {
-		return this.members;
-	}
-
-	public FindIterable<Document> getMembers(Bson filter, Bson projection) {
-		return this.members.find(filter).projection(projection);
-	}
-
-	public Document getMember(Bson filter, Bson projection) {
-		Document data = this.getMembers(filter, projection).first();
-
-		return data == null ? Database.EMPTY_DOCUMENT : data;
-	}
-
-	public Document getMemberById(long userId, long guildId, Bson projection) {
-		return this.getMember(Filters.and(Filters.eq("userId", userId), Filters.eq("guildId", guildId)), projection);
-	}
-
-	public CompletableFuture<UpdateResult> updateMember(Bson filter, List<? extends Bson> update, UpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.members.updateOne(filter, update, options));
-	}
-
-	public CompletableFuture<UpdateResult> updateMemberById(long userId, long guildId, List<? extends Bson> update, UpdateOptions options) {
-		return this.updateMember(Filters.and(Filters.eq("userId", userId), Filters.eq("guildId", guildId)), update, options);
-	}
-
-	public CompletableFuture<UpdateResult> updateMemberById(long userId, long guildId, List<? extends Bson> update) {
-		return this.updateMemberById(userId, guildId, update, this.updateOptions);
-	}
-
-	public CompletableFuture<UpdateResult> updateMember(Bson filter, Bson update, UpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.members.updateOne(filter, update, options));
-	}
-
-	public CompletableFuture<UpdateResult> updateMemberById(long userId, long guildId, Bson update, UpdateOptions options) {
-		return this.updateMember(Filters.and(Filters.eq("userId", userId), Filters.eq("guildId", guildId)), update, options);
-	}
-
-	public CompletableFuture<UpdateResult> updateMemberById(long userId, long guildId, Bson update) {
-		return this.updateMemberById(userId, guildId, update, this.updateOptions);
-	}
-
-	public CompletableFuture<UpdateResult> updateMember(UpdateOneModel<Document> update) {
-		return this.updateMember(update.getFilter(), update.getUpdate(), update.getOptions());
-	}
-
-	public CompletableFuture<Document> findAndUpdateMember(Bson filter, Bson update, FindOneAndUpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.members.findOneAndUpdate(filter, update, options));
-	}
-
-	public CompletableFuture<Document> findAndUpdateMemberById(long userId, long guildId, Bson update, FindOneAndUpdateOptions options) {
-		return this.findAndUpdateMember(Filters.and(Filters.eq("userId", userId), Filters.eq("guildId", guildId)), update, options);
-	}
-
-	public CompletableFuture<Document> findAndUpdateMemberById(long userId, long guildId, Bson update) {
-		return this.findAndUpdateMemberById(userId, guildId, update, this.findOneAndUpdateOptions);
-	}
-
-	public CompletableFuture<Document> findAndUpdateMember(Bson filter, List<Bson> update, FindOneAndUpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.members.findOneAndUpdate(filter, update, options));
-	}
-
-	public CompletableFuture<Document> findAndUpdateMemberById(long userId, long guildId, List<Bson> update, FindOneAndUpdateOptions options) {
-		return this.findAndUpdateMember(Filters.and(Filters.eq("userId", userId), Filters.eq("guildId", guildId)), update, options);
-	}
-
-	public CompletableFuture<Document> findAndUpdateMemberById(long userId, long guildId, List<Bson> update) {
-		return this.findAndUpdateMemberById(userId, guildId, update, this.findOneAndUpdateOptions);
-	}
-
-	public CompletableFuture<BulkWriteResult> bulkWriteMembers(List<? extends WriteModel<? extends Document>> bulkData) {
-		return CompletableFuture.supplyAsync(() -> this.members.bulkWrite(bulkData));
 	}
 
 	public MongoCollection<Document> getChannels() {

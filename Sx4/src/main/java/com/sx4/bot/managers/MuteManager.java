@@ -109,7 +109,7 @@ public class MuteManager {
 		this.putMute(guildId, userId, roleId, seconds, false);
 	}
 	
-	public UpdateOneModel<Document> removeMuteBulk(long guildId, long userId, long roleId) {
+	public DeleteOneModel<Document> removeMuteBulk(long guildId, long userId, long roleId) {
 		Guild guild = this.bot.getShardManager().getGuildById(guildId);
 		if (guild == null) {
 			return null;
@@ -124,13 +124,13 @@ public class MuteManager {
 		this.bot.getModActionManager().onModAction(new UnmuteEvent(guild.getSelfMember(), member == null ? null : member.getUser(), new Reason("Mute length served")));
 		this.deleteExecutor(guildId, userId);
 		
-		return new UpdateOneModel<>(Filters.and(Filters.eq("guildId", guildId), Filters.eq("userId", userId)), Updates.unset("mute.unmuteAt"));
+		return new DeleteOneModel<>(Filters.and(Filters.eq("guildId", guildId), Filters.eq("userId", userId)));
 	}
 	
 	public void removeMute(long guildId, long userId, long roleId) {
-		UpdateOneModel<Document> model = this.removeMuteBulk(guildId, userId, roleId);
+		DeleteOneModel<Document> model = this.removeMuteBulk(guildId, userId, roleId);
 		if (model != null) {
-			this.bot.getDatabase().updateMember(model).whenComplete(Database.exceptionally(this.bot.getShardManager()));
+			this.bot.getDatabase().deleteMute(model.getFilter()).whenComplete(Database.exceptionally(this.bot.getShardManager()));
 		}
 	}
 	
@@ -141,14 +141,14 @@ public class MuteManager {
 		});
 		
 		List<WriteModel<Document>> bulkData = new ArrayList<>();
-		this.bot.getDatabase().getMembers(Filters.exists("mute.unmuteAt"), Projections.include("mute.unmuteAt", "userId", "guildId")).forEach(data -> {
+		this.bot.getDatabase().getMutes(Database.EMPTY_DOCUMENT, Projections.include("unmuteAt", "userId", "guildId")).forEach(data -> {
 			long guildId = data.getLong("guildId");
 
-			long currentTime = Clock.systemUTC().instant().getEpochSecond(), unmuteAt = data.getEmbedded(List.of("mute", "unmuteAt"), Long.class);
+			long currentTime = Clock.systemUTC().instant().getEpochSecond(), unmuteAt = data.getLong("unmuteAt");
 			if (unmuteAt > currentTime) {
 				this.putMute(guildId, data.getLong("userId"), roleIds.get(guildId), unmuteAt - currentTime);
 			} else {
-				UpdateOneModel<Document> model = this.removeMuteBulk(guildId, data.getLong("userId"), roleIds.get(guildId));
+				DeleteOneModel<Document> model = this.removeMuteBulk(guildId, data.getLong("userId"), roleIds.get(guildId));
 				if (model != null) {
 					bulkData.add(model);
 				}
@@ -156,7 +156,7 @@ public class MuteManager {
 		});
 		
 		if (!bulkData.isEmpty()) {
-			this.bot.getDatabase().bulkWriteMembers(bulkData).whenComplete(Database.exceptionally(this.bot.getShardManager()));
+			this.bot.getDatabase().bulkWriteMutes(bulkData).whenComplete(Database.exceptionally(this.bot.getShardManager()));
 		}
 	}
 	

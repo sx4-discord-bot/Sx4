@@ -96,8 +96,13 @@ public class WarnCommand extends Sx4Command {
 			return;
 		}
 
-		Bson update = warnings == 0 ? Updates.unset("warn.warnings") : Updates.set("warn.warnings", warnings);
-		event.getDatabase().updateMemberById(member.getIdLong(), event.getGuild().getIdLong(), update).whenComplete((result, exception) -> {
+		Bson update = warnings == 0 ? Updates.unset("warnings") : Updates.set("warnings", warnings);
+		Bson filter = Filters.and(
+			Filters.eq("userId", member.getIdLong()),
+			Filters.eq("guildId", event.getGuild().getIdLong())
+		);
+
+		event.getDatabase().updateWarnings(filter, update, new UpdateOptions().upsert(true)).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -116,11 +121,11 @@ public class WarnCommand extends Sx4Command {
 	@Examples({"warn list"})
 	@BotPermissions(permissions={Permission.MESSAGE_EMBED_LINKS})
 	public void list(Sx4CommandEvent event) {
-		List<Document> members = event.getDatabase().getMembers(Filters.eq("guildId", event.getGuild().getIdLong()), Projections.include("warn.warnings", "userId")).into(new ArrayList<>());
+		List<Document> members = event.getDatabase().getWarnings(Filters.eq("guildId", event.getGuild().getIdLong()), Projections.include("warnings", "userId")).into(new ArrayList<>());
 
 		List<Document> warnedMembers = members.stream()
-			.filter(d -> d.getEmbedded(List.of("warn", "warnings"), 0) != 0)
-			.sorted(Collections.reverseOrder(Comparator.comparingInt(d -> d.getEmbedded(List.of("warn", "warnings"), Integer.class))))
+			.filter(d -> d.getInteger("warnings", 0) != 0)
+			.sorted(Collections.reverseOrder(Comparator.comparingInt(d -> d.getInteger("warnings"))))
 			.collect(Collectors.toList());
 
 		if (warnedMembers.isEmpty()) {
@@ -135,7 +140,7 @@ public class WarnCommand extends Sx4Command {
 				long userId = d.getLong("userId");
 				Member member = event.getGuild().getMemberById(userId);
 
-				return "`" + (member == null ? userId : MarkdownSanitizer.escape(member.getUser().getAsTag())) + "` - Warning **#" + d.getEmbedded(List.of("warn", "warnings"), Integer.class) + "**";
+				return "`" + (member == null ? userId : MarkdownSanitizer.escape(member.getUser().getAsTag())) + "` - Warning **#" + d.getInteger("warnings") + "**";
 			});
 
 		paged.execute(event);
@@ -146,9 +151,12 @@ public class WarnCommand extends Sx4Command {
 	@Examples({"warn view @Shea#6653", "warn view Shea", "warn view 402557516728369153"})
 	@Redirects({"warnings"})
 	public void view(Sx4CommandEvent event, @Argument(value="user", endless=true) Member member) {
-		Document data = event.getDatabase().getMemberById(member.getIdLong(), event.getGuild().getIdLong(), Projections.include("warn.warnings"));
+		Bson filter = Filters.and(
+			Filters.eq("userId", member.getIdLong()),
+			Filters.eq("guildId", event.getGuild().getIdLong())
+		);
 
-		int warnings = data.getEmbedded(List.of("warn", "warnings"), 0);
+		int warnings = event.getDatabase().getWarning(filter, Projections.include("warnings")).getInteger("warnings", 0);
 
 		event.reply("**" + member.getUser().getAsTag() + "** is currently on **" + warnings + "** warning" + (warnings == 1 ? "" : "s")).queue();
 	}

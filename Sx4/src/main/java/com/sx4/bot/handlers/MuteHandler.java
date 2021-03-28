@@ -1,11 +1,13 @@
 package com.sx4.bot.handlers;
 
+import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Projections;
 import com.sx4.bot.core.Sx4;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.events.guild.member.GuildMemberJoinEvent;
 import net.dv8tion.jda.api.hooks.EventListener;
+import org.bson.conversions.Bson;
 
 import java.time.Clock;
 import java.util.List;
@@ -20,7 +22,12 @@ public class MuteHandler implements EventListener {
 
 	// TODO: Allow users to set an action in the future rather than just giving the role back
 	public void onGuildMemberJoin(GuildMemberJoinEvent event) {
-		long unmuteAt = this.bot.getDatabase().getMemberById(event.getUser().getIdLong(), event.getGuild().getIdLong(), Projections.include("mute.unmuteAt")).getEmbedded(List.of("mute", "unmuteAt"), 0L);
+		Bson filter = Filters.and(
+			Filters.eq("userId", event.getMember().getIdLong()),
+			Filters.eq("guildId", event.getGuild().getIdLong())
+		);
+
+		long unmuteAt = this.bot.getDatabase().getMute(filter, Projections.include("unmuteAt")).get("unmuteAt", 0L);
 		if (unmuteAt > Clock.systemUTC().instant().getEpochSecond()) {
 			long roleId = this.bot.getDatabase().getGuildById(event.getGuild().getIdLong(), Projections.include("mute.roleId")).getEmbedded(List.of("mute", "roleId"), 0L);
 			if (roleId != 0L) {

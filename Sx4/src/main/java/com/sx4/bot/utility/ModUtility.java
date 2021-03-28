@@ -1,9 +1,6 @@
 package com.sx4.bot.utility;
 
-import com.mongodb.client.model.FindOneAndUpdateOptions;
-import com.mongodb.client.model.Projections;
-import com.mongodb.client.model.ReturnDocument;
-import com.mongodb.client.model.Updates;
+import com.mongodb.client.model.*;
 import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.database.model.Operators;
@@ -95,8 +92,13 @@ public class ModUtility {
 		ModUtility.upsertMuteRole(bot.getDatabase(), guild, mute.get("roleId", 0L), mute.get("autoUpdate", true)).thenCompose(role -> {
 			atomicRole.set(role);
 
-			List<Bson> update = List.of(Operators.set("mute.unmuteAt", Operators.add(duration, Operators.cond(Operators.and(extend, Operators.exists("$mute.unmuteAt")), "$mute.unmuteAt", Operators.nowEpochSecond()))));
-			return bot.getDatabase().updateMemberById(userId, guildId, update);
+			List<Bson> update = List.of(Operators.set("unmuteAt", Operators.add(duration, Operators.cond(Operators.and(extend, Operators.exists("$unmuteAt")), "$unmuteAt", Operators.nowEpochSecond()))));
+			Bson filter = Filters.and(
+				Filters.eq("userId", userId),
+				Filters.eq("guildId", guildId)
+			);
+
+			return bot.getDatabase().updateMute(filter, update, new UpdateOptions().upsert(true));
 		}).whenComplete((result, exception) -> {
 			if (exception != null) {
 				future.completeExceptionally(exception);
@@ -165,8 +167,13 @@ public class ModUtility {
 
 				long temporaryBanDuration = ((TimeAction) action).getDuration();
 
-				Bson temporaryBanUpdate = Updates.set("temporaryBan.unbanAt", Clock.systemUTC().instant().getEpochSecond() + temporaryBanDuration);
-				return bot.getDatabase().updateMemberById(target.getIdLong(), guild.getIdLong(), temporaryBanUpdate)
+				List<Bson> temporaryBanUpdate = List.of(Operators.set("unbanAt", Operators.add(Operators.nowEpochSecond(), temporaryBanDuration)));
+				Bson filter = Filters.and(
+					Filters.eq("userId", target.getIdLong()),
+					Filters.eq("guildId", guild.getIdLong())
+				);
+
+				return bot.getDatabase().updateTemporaryBan(filter, temporaryBanUpdate, new UpdateOptions().upsert(true))
 					.thenCompose(temporaryBanResult -> {
 						return target.ban(1).reason(ModUtility.getAuditReason(reason, moderator.getUser())).submit().thenCompose($ -> {
 							bot.getModActionManager().onModAction(new TemporaryBanEvent(moderator, target.getUser(), reason, true, temporaryBanDuration));
@@ -216,16 +223,20 @@ public class ModUtility {
 			.max(Integer::compareTo)
 			.get() : Integer.MAX_VALUE;
 
-		List<Bson> update = List.of(Operators.set("warn.warnings", Operators.add(Operators.mod(Operators.ifNull("$warn.warnings", 0), maxWarning), 1)));
-		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER).projection(Projections.include("warn.warnings")).upsert(true);
+		List<Bson> update = List.of(Operators.set("warnings", Operators.add(Operators.mod(Operators.ifNull("$warnings", 0), maxWarning), 1)));
+		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER).projection(Projections.include("warnings")).upsert(true);
+		Bson filter = Filters.and(
+			Filters.eq("userId", target.getIdLong()),
+			Filters.eq("guildId", guild.getIdLong())
+		);
 
-		bot.getDatabase().findAndUpdateMemberById(target.getIdLong(), guild.getIdLong(), update, options).whenComplete((result, exception) -> {
+		bot.getDatabase().findAndUpdateWarnings(filter, update, options).whenComplete((result, exception) -> {
 			if (exception != null) {
 				future.completeExceptionally(exception);
 				return;
 			}
 
-			int warnings = result.getEmbedded(List.of("warn", "warnings"), Integer.class);
+			int warnings = result.getInteger("warnings");
 
 			Action warnAction = new Action(ModAction.WARN);
 
@@ -259,8 +270,13 @@ public class ModUtility {
 					ModUtility.upsertMuteRole(bot.getDatabase(), guild, mute.get("roleId", 0L), mute.get("autoUpdate", true)).thenCompose(role -> {
 						atomicRole.set(role);
 
-						List<Bson> muteUpdate = List.of(Operators.set("mute.unmuteAt", Operators.add(muteDuration, Operators.cond(Operators.and(extend, Operators.exists("$mute.unmuteAt")), "$mute.unmuteAt", Operators.nowEpochSecond()))));
-						return bot.getDatabase().updateMemberById(target.getIdLong(), guild.getIdLong(), muteUpdate);
+						List<Bson> muteUpdate = List.of(Operators.set("mute.unmuteAt", Operators.add(muteDuration, Operators.cond(Operators.and(extend, Operators.exists("$unmuteAt")), "$unmuteAt", Operators.nowEpochSecond()))));
+						Bson muteFilter = Filters.and(
+							Filters.eq("userId", target.getIdLong()),
+							Filters.eq("guildId", guild.getIdLong())
+						);
+
+						return bot.getDatabase().updateMute(muteFilter, muteUpdate, new UpdateOptions().upsert(true));
 					}).whenComplete((muteResult, muteException) -> {
 						if (muteException != null) {
 							future.completeExceptionally(muteException);
@@ -320,8 +336,13 @@ public class ModUtility {
 
 					long temporaryBanDuration = ((TimeAction) action).getDuration();
 
-					Bson temporaryBanUpdate = Updates.set("temporaryBan.unbanAt", Clock.systemUTC().instant().getEpochSecond() + temporaryBanDuration);
-					bot.getDatabase().updateMemberById(target.getIdLong(), guild.getIdLong(), temporaryBanUpdate).whenComplete((temporaryBanResult, temporaryBanException) -> {
+					Bson temporaryBanUpdate = Updates.set("unbanAt", Clock.systemUTC().instant().getEpochSecond() + temporaryBanDuration);
+					Bson temporaryBanFilter = Filters.and(
+						Filters.eq("userId", target.getIdLong()),
+						Filters.eq("guildId", guild.getIdLong())
+					);
+
+					bot.getDatabase().updateTemporaryBan(temporaryBanFilter, temporaryBanUpdate, new UpdateOptions().upsert(true)).whenComplete((temporaryBanResult, temporaryBanException) -> {
 						if (temporaryBanException != null) {
 							future.completeExceptionally(temporaryBanException);
 							return;
