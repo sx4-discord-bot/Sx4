@@ -79,13 +79,17 @@ public class ReactionRoleHandler implements EventListener {
 			
 			Document emoteData = data.get("emote", Document.class);
 			if ((emote.isEmoji() && emoteData.containsKey("name") && emoteData.getString("name").equals(emote.getEmoji())) || (emote.isEmote() && emoteData.containsKey("id") && emoteData.getLong("id") == emote.getEmote().getIdLong())) {
+				if (rolesData.isEmpty()) {
+					return;
+				}
+
 				roles = rolesData;
 				reactionRole = data;
 				remove = allRoles;
 			}
 		}
 
-		if (roles == null || roles.isEmpty()) {
+		if (roles == null) {
 			return;
 		}
 
