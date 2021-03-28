@@ -43,7 +43,7 @@ public class YouTubeCommand extends Sx4Command {
 
 			List<Document> items = json.getList("items", Document.class);
 			if (items.isEmpty()) {
-				event.reply("I could not find any results :no_entry:").queue();
+				event.replyFailure("I could not find any results").queue();
 				return;
 			}
 

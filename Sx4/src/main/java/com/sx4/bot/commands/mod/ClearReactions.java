@@ -25,7 +25,7 @@ public class ClearReactions extends Sx4Command {
 			.flatMap($ -> event.replySuccess("All reactions have been cleared from that message"))
 			.onErrorFlatMap(e -> {
 				if (e instanceof ErrorResponseException && ((ErrorResponseException) e).getErrorResponse() == ErrorResponse.UNKNOWN_MESSAGE) {
-					return event.reply("I could not find that message :no_entry:");
+					return event.replyFailure("I could not find that message");
 				}
 
 				return null;

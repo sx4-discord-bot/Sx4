@@ -39,13 +39,13 @@ public class DiscordBotCommand extends Sx4Command {
 	public void onCommand(Sx4CommandEvent event, @Argument(value="bot", endless=true, nullDefault=true) String query) {
 		CompletableFuture<String> future = new CompletableFuture<>();
 		if (query == null) {
-			future.complete("https://top.gg/api/bots/440996323156819968");
+			future.complete("440996323156819968");
 		} else {
 			Matcher mentionMatch = SearchUtility.USER_MENTION.matcher(query);
 			if (NumberUtility.isNumber(query)) {
-				future.complete("https://top.gg/api/bots/" + query);
+				future.complete(query);
 			} else if (mentionMatch.matches()) {
-				future.complete("https://top.gg/api/bots/" + mentionMatch.group(1));
+				future.complete(mentionMatch.group(1));
 			} else if (query.length() <= 32) {
 				Request request = new Request.Builder()
 					.url("https://top.gg/api/search?q=" + URLEncoder.encode(query, StandardCharsets.UTF_8) + "&type=bot")
@@ -58,29 +58,29 @@ public class DiscordBotCommand extends Sx4Command {
 						.setAutoSelect(true)
 						.setDisplayFunction(d -> d.getString("name") + " (" + d.getString("id") + ")");
 
-					paged.onSelect(select -> future.complete("https://top.gg/api/bots/" + select.getSelected().getString("id")));
+					paged.onSelect(select -> future.complete(select.getSelected().getString("id")));
 
 					paged.execute(event);
 				});
 			} else {
-				event.reply("I could not find that bot :no_entry:").queue();
+				event.replyFailure("I could not find that bot").queue();
 				return;
 			}
 		}
 
-		future.whenComplete((url, exception) -> {
+		future.whenComplete((id, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
 
 			Request request = new Request.Builder()
-				.url(url)
+				.url("https://top.gg/api/bots/" + id)
 				.addHeader("Authorization", event.getConfig().getTopGG())
 				.build();
 
 			event.getHttpClient().newCall(request).enqueue((HttpCallback) response -> {
 				if (response.code() == 404) {
-					event.reply("I could not find that bot :no_entry:").queue();
+					event.replyFailure("I could not find that bot").queue();
 					return;
 				}
 

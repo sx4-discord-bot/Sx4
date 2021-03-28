@@ -175,7 +175,7 @@ public class GiveawayCommand extends Sx4Command {
 						if (NumberUtility.isNumberUnsigned(content)) {
 							int number = Integer.parseInt(content);
 							if (number < 1) {
-								event.reply("You have to have at least 1 winner :no_entry:").queue();
+								event.replyFailure("You have to have at least 1 winner").queue();
 								
 								return false;
 							}
