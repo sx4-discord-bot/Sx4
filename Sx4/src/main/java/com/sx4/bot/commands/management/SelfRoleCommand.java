@@ -25,7 +25,9 @@ import org.bson.Document;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CompletionException;
+import java.util.stream.Collectors;
 
 public class SelfRoleCommand extends Sx4Command {
 
@@ -68,7 +70,7 @@ public class SelfRoleCommand extends Sx4Command {
 		}
 
 		if (role.isManaged()) {
-			event.replyFailure("You cannot add managed roles as a self role").queue();
+			event.replyFailure("You cannot add a managed role as a self role").queue();
 			return;
 		}
 
@@ -144,17 +146,23 @@ public class SelfRoleCommand extends Sx4Command {
 	@CommandId(334)
 	@Examples({"self role list"})
 	public void list(Sx4CommandEvent event) {
-		List<Document> selfRoles = event.getDatabase().getSelfRoles(Filters.eq("guildId", event.getGuild().getIdLong()), Projections.include("roleId")).into(new ArrayList<>());
-		if (selfRoles.isEmpty()) {
+		List<Document> data = event.getDatabase().getSelfRoles(Filters.eq("guildId", event.getGuild().getIdLong()), Projections.include("roleId")).into(new ArrayList<>());
+		if (data.isEmpty()) {
 			event.replyFailure("There are no self roles in this server").queue();
 			return;
 		}
 
-		PagedResult<Document> paged = new PagedResult<>(event.getBot(), selfRoles)
+		List<Role> roles = data.stream()
+			.map(d -> d.getLong("roleId"))
+			.map(event.getGuild()::getRoleById)
+			.filter(Objects::nonNull)
+			.collect(Collectors.toList());
+
+		PagedResult<Role> paged = new PagedResult<>(event.getBot(), roles)
 			.setAuthor("Self Roles", null, event.getGuild().getIconUrl())
 			.setIndexed(false)
 			.setSelect()
-			.setDisplayFunction(data -> "<@&" + data.getLong("roleId") + ">");
+			.setDisplayFunction(Role::getAsMention);
 
 		paged.execute(event);
 	}

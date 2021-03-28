@@ -60,76 +60,84 @@ public class ReactionRoleHandler implements EventListener {
 
 		int reactedTo = 0;
 
+		List<Role> roles = null;
+		Document reactionRole = null;
+		boolean remove = false;
+
 		Set<Role> memberRoles = new HashSet<>(event.getMember().getRoles());
 		for (Document data : reactionRoles) {
-			List<Role> roles = data.getList("roles", Long.class).stream()
+			List<Role> rolesData = data.getList("roles", Long.class).stream()
 				.map(guild::getRoleById)
 				.filter(Objects::nonNull)
 				.filter(role -> guild.getSelfMember().canInteract(role))
 				.collect(Collectors.toList());
 
-			boolean remove = memberRoles.containsAll(roles);
-			if (remove) {
+			boolean allRoles = memberRoles.containsAll(rolesData);
+			if (allRoles) {
 				reactedTo++;
 			}
 			
 			Document emoteData = data.get("emote", Document.class);
 			if ((emote.isEmoji() && emoteData.containsKey("name") && emoteData.getString("name").equals(emote.getEmoji())) || (emote.isEmote() && emoteData.containsKey("id") && emoteData.getLong("id") == emote.getEmote().getIdLong())) {
-				if (roles.isEmpty()) {
-					return;
-				}
+				roles = rolesData;
+				reactionRole = data;
+				remove = allRoles;
+			}
+		}
 
-				if (!remove) {
-					List<Document> permissions = data.getList("permissions", Document.class, Collections.emptyList());
-					for (int i = 0; i < permissions.size(); i++) {
-						Document permission = permissions.get(i);
+		if (roles == null || roles.isEmpty()) {
+			return;
+		}
 
-						long holderId = permission.getLong("id");
-						int type = permission.getInteger("type");
-						boolean granted = permission.getBoolean("granted");
+		if (!remove) {
+			List<Document> permissions = reactionRole.getList("permissions", Document.class, Collections.emptyList());
+			for (int i = 0; i < permissions.size(); i++) {
+				Document permission = permissions.get(i);
 
-						if (type == HolderType.USER.getType() && holderId == user.getIdLong()) {
-							if (granted) {
-								break;
-							}
-						} else if (type == HolderType.ROLE.getType() && (holderId == guild.getIdLong() || memberRoles.stream().anyMatch(role -> role.getIdLong() == holderId))) {
-							if (granted) {
-								break;
-							}
-						}
+				long holderId = permission.getLong("id");
+				int type = permission.getInteger("type");
+				boolean granted = permission.getBoolean("granted");
 
-						if (i == permissions.size() - 1) {
-							user.openPrivateChannel()
-								.flatMap(channel -> channel.sendMessage("You are not whitelisted to be able to get the roles behind this reaction " + config.getFailureEmote()))
-								.queue(null, ErrorResponseException.ignore(ErrorResponse.CANNOT_SEND_TO_USER));
-
-							return;
-						}
+				if (type == HolderType.USER.getType() && holderId == user.getIdLong()) {
+					if (granted) {
+						break;
+					}
+				} else if (type == HolderType.ROLE.getType() && (holderId == guild.getIdLong() || memberRoles.stream().anyMatch(role -> role.getIdLong() == holderId))) {
+					if (granted) {
+						break;
 					}
 				}
 
-				int maxReactions = data.get("maxReactions", 0);
-				if (reactedTo >= maxReactions && maxReactions != 0) {
+				if (i == permissions.size() - 1) {
 					user.openPrivateChannel()
-						.flatMap(channel -> channel.sendMessage("You can only react to **" + maxReactions + "** reaction" + (maxReactions == 1 ? "" : "s") + " on this message " + config.getFailureEmote()))
+						.flatMap(channel -> channel.sendMessage("You are not whitelisted to be able to get the roles behind this reaction " + config.getFailureEmote()))
 						.queue(null, ErrorResponseException.ignore(ErrorResponse.CANNOT_SEND_TO_USER));
 
 					return;
 				}
-
-				if (remove) {
-					guild.modifyMemberRoles(event.getMember(), null, roles).queue();
-				} else {
-					guild.modifyMemberRoles(event.getMember(), roles, null).queue();
-				}
-
-				String message = "You " + (remove ? "no longer" : "now") + " have the role" + (roles.size() == 1 ? "" : "s") + " `" + roles.stream().map(Role::getName).collect(Collectors.joining("`, `")) + "` " + config.getSuccessEmote();
-				if (data.getBoolean("dm", true)) {
-					user.openPrivateChannel()
-						.flatMap(channel -> channel.sendMessage(message))
-						.queue(null, ErrorResponseException.ignore(ErrorResponse.CANNOT_SEND_TO_USER));
-				}
 			}
+		}
+
+		int maxReactions = reactionRole.get("maxReactions", 0);
+		if (reactedTo >= maxReactions && maxReactions != 0) {
+			user.openPrivateChannel()
+				.flatMap(channel -> channel.sendMessage("You can only react to **" + maxReactions + "** reaction" + (maxReactions == 1 ? "" : "s") + " on this message " + config.getFailureEmote()))
+				.queue(null, ErrorResponseException.ignore(ErrorResponse.CANNOT_SEND_TO_USER));
+
+			return;
+		}
+
+		if (remove) {
+			guild.modifyMemberRoles(event.getMember(), null, roles).queue();
+		} else {
+			guild.modifyMemberRoles(event.getMember(), roles, null).queue();
+		}
+
+		String message = "You " + (remove ? "no longer" : "now") + " have the role" + (roles.size() == 1 ? "" : "s") + " `" + roles.stream().map(Role::getName).collect(Collectors.joining("`, `")) + "` " + config.getSuccessEmote();
+		if (reactionRole.getBoolean("dm", true)) {
+			user.openPrivateChannel()
+				.flatMap(channel -> channel.sendMessage(message))
+				.queue(null, ErrorResponseException.ignore(ErrorResponse.CANNOT_SEND_TO_USER));
 		}
 	}
 	

@@ -2,12 +2,9 @@ package com.sx4.bot.commands.management;
 
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
-import com.jockie.bot.core.command.Context;
+import com.mongodb.ErrorCategory;
 import com.mongodb.MongoWriteException;
-import com.mongodb.client.model.Filters;
-import com.mongodb.client.model.Projections;
-import com.mongodb.client.model.UpdateOptions;
-import com.mongodb.client.model.Updates;
+import com.mongodb.client.model.*;
 import com.sx4.bot.annotations.argument.Options;
 import com.sx4.bot.annotations.command.AuthorPermissions;
 import com.sx4.bot.annotations.command.CommandId;
@@ -22,17 +19,16 @@ import com.sx4.bot.entities.management.AutoRoleFilter;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.TimeUtility;
+import com.sx4.bot.waiter.Waiter;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
-import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Role;
+import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
+import java.util.concurrent.CompletionException;
 import java.util.stream.Collectors;
 
 public class AutoRoleCommand extends Sx4Command {
@@ -50,18 +46,20 @@ public class AutoRoleCommand extends Sx4Command {
 		event.replyHelp().queue();
 	}
 	
-	@Command(value="toggle", description="Enables/disables auto role in this server")
+	@Command(value="toggle", description="Toggles the state of an auto role")
 	@CommandId(38)
-	@Examples({"auto role toggle"})
+	@Examples({"auto role toggle @Role", "auto role toggle Role", "auto role toggle 406240455622262784"})
 	@AuthorPermissions(permissions={Permission.MANAGE_ROLES})
-	public void toggle(Sx4CommandEvent event) {
-		List<Bson> update = List.of(Operators.set("autoRole.enabled", Operators.cond("$autoRole.enabled", Operators.REMOVE, true)));
-		event.getDatabase().findAndUpdateGuildById(event.getGuild().getIdLong(), Projections.include("autoRole.enabled"), update).whenComplete((data, exception) -> {
+	public void toggle(Sx4CommandEvent event, @Argument(value="role", endless=true) Role role) {
+		List<Bson> update = List.of(Operators.set("enabled", Operators.cond(Operators.exists("$enabled"), Operators.REMOVE, false)));
+		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().projection(Projections.include("enabled")).returnDocument(ReturnDocument.AFTER);
+
+		event.getDatabase().findAndUpdateAutoRole(Filters.eq("roleId", role.getIdLong()), update, options).whenComplete((data, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
 			
-			event.replySuccess("Auto role is now **" + (data.getEmbedded(List.of("autoRole", "enabled"), false) ? "enabled" : "disabled") + "**").queue();
+			event.replySuccess("Auto role is now **" + (data.get("enabled", true) ? "enabled" : "disabled") + "**").queue();
 		});
 	}
 	
@@ -71,35 +69,36 @@ public class AutoRoleCommand extends Sx4Command {
 	@AuthorPermissions(permissions={Permission.MANAGE_ROLES})
 	public void add(Sx4CommandEvent event, @Argument(value="role", endless=true) Role role) {
 		if (role.isManaged()) {
-			event.replyFailure("I cannot give a managed role").queue();
+			event.replyFailure("You cannot add a managed role as an auto role").queue();
 			return;
 		}
 		
 		if (role.isPublicRole()) {
-			event.replyFailure("I cannot give the @everyone role").queue();
+			event.replyFailure("You cannot add the @everyone role as an auto role").queue();
 			return;
 		}
 		
 		if (!event.getSelfMember().canInteract(role)) {
-			event.replyFailure("I cannot give a role higher or equal than my top role").queue();
+			event.replyFailure("You cannot add an auto role higher or equal than my top role").queue();
 			return;
 		}
 		
 		if (!event.getMember().canInteract(role)) {
-			event.replyFailure("You cannot give a role higher or equal than your top role").queue();
+			event.replyFailure("You cannot give n auto role higher or equal than your top role").queue();
 			return;
 		}
 		
-		Document data = new Document("id", role.getIdLong());
-		
-		List<Bson> update = List.of(Operators.set("autoRole.roles", Operators.cond(Operators.or(Operators.extinct("$autoRole.roles"), Operators.eq(Operators.filter("$autoRole.roles", Operators.eq("$$this.id", role.getIdLong())), Collections.EMPTY_LIST)), Operators.cond(Operators.exists("$autoRole.roles"), Operators.concatArrays("$autoRole.roles", List.of(data)), List.of(data)), "$autoRole.roles")));
-		event.getDatabase().updateGuildById(event.getGuild().getIdLong(), update).whenComplete((result, exception) -> {
-			if (ExceptionUtility.sendExceptionally(event, exception)) {
+		Document data = new Document("roleId", role.getIdLong())
+			.append("guildId", event.getGuild().getIdLong());
+
+		event.getDatabase().insertAutoRole(data).whenComplete((result, exception) -> {
+			Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
+			if (cause instanceof MongoWriteException && ((MongoWriteException) cause).getError().getCategory() == ErrorCategory.DUPLICATE_KEY) {
+				event.replyFailure("That role is already an auto role").queue();
 				return;
 			}
-			
-			if (result.getModifiedCount() == 0) {
-				event.replyFailure("That role is already an auto role").queue();
+
+			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
 			
@@ -107,37 +106,46 @@ public class AutoRoleCommand extends Sx4Command {
 		});
 	}
 	
-	@Command(value="remove", description="Remove a role from being given when a user joins")
+	@Command(value="remove", aliases={"delete"}, description="Remove a role from being given when a user joins")
 	@CommandId(40)
 	@Examples({"auto role remove @Role", "auto role remove Role", "auto role remove all"})
 	@AuthorPermissions(permissions={Permission.MANAGE_ROLES})
 	public void remove(Sx4CommandEvent event, @Argument(value="role | all", endless=true) @Options("all") Alternative<Role> option) {
 		if (option.isAlternative()) {
-			event.getDatabase().updateGuildById(event.getGuild().getIdLong(), Updates.unset("autoRole.roles")).whenComplete((result, exception) -> {
-				if (ExceptionUtility.sendExceptionally(event, exception)) {
-					return;
-				}
-				
-				if (result.getModifiedCount() == 0) {
-					event.replyFailure("You have no auto roles setup").queue();
-					return;
-				}
-				
-				event.replySuccess("All auto roles have been removed").queue();
-			});
+			event.reply(event.getAuthor().getName() + ", are you sure you want to remove every auto role in the server? (Yes or No)").submit()
+				.thenCompose(message -> {
+					return new Waiter<>(event.getBot(), MessageReceivedEvent.class)
+						.setPredicate(messageEvent -> messageEvent.getMessage().getContentRaw().equalsIgnoreCase("yes"))
+						.setOppositeCancelPredicate()
+						.setTimeout(30)
+						.setUnique(event.getAuthor().getIdLong(), event.getChannel().getIdLong())
+						.start();
+				}).thenCompose(e -> event.getDatabase().deleteManyAutoRoles(Filters.eq("guildId", event.getGuild().getIdLong())))
+				.whenComplete((result, exception) -> {
+					if (ExceptionUtility.sendExceptionally(event, exception)) {
+						return;
+					}
+
+					if (result.getDeletedCount() == 0) {
+						event.replyFailure("There are no auto roles in this server").queue();
+						return;
+					}
+
+					event.replySuccess("All auto roles have been removed").queue();
+				});
 		} else {
 			Role role = option.getValue();
-			event.getDatabase().updateGuildById(event.getGuild().getIdLong(), Updates.pull("autoRole.roles", Filters.eq("id", role.getIdLong()))).whenComplete((result, exception) -> {
+			event.getDatabase().deleteAutoRole(Filters.eq("roleId", role.getIdLong())).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
 				
-				if (result.getModifiedCount() == 0) {
+				if (result.getDeletedCount() == 0) {
 					event.replyFailure("That role is not an auto role").queue();
 					return;
 				}
 				
-				event.replySuccess("The role " + role.getAsMention() + " has been removed from being an auto role").queue();
+				event.replySuccess(role.getAsMention() + " is no longer an auto role").queue();
 			});
 		}
 	}
@@ -145,27 +153,29 @@ public class AutoRoleCommand extends Sx4Command {
 	@Command(value="list", description="Lists all the auto roles setup")
 	@CommandId(41)
 	@Examples({"auto role list"})
-	public void list(Sx4CommandEvent event, @Context Guild guild) {
-		List<Long> roleIds = event.getDatabase().getGuildById(event.getGuild().getIdLong(), Projections.include("autoRole.roles")).getEmbedded(List.of("autoRole", "roles"), Collections.emptyList());
-		if (roleIds.isEmpty()) {
+	public void list(Sx4CommandEvent event) {
+		List<Document> data = event.getDatabase().getAutoRoles(Filters.eq("guildId", event.getGuild().getIdLong()), Projections.include("roleId")).into(new ArrayList<>());
+		if (data.isEmpty()) {
 			event.replyFailure("You have no auto roles setup").queue();
 			return;
 		}
 		
-		List<Role> roles = roleIds.stream()
-			.map(guild::getRoleById)
+		List<Role> roles = data.stream()
+			.map(d -> d.getLong("roleId"))
+			.map(event.getGuild()::getRoleById)
 			.filter(Objects::nonNull)
 			.collect(Collectors.toList());
 		
 		PagedResult<Role> paged = new PagedResult<>(event.getBot(), roles)
-			.setAuthor("Auto Roles", null, guild.getIconUrl())
+			.setAuthor("Auto Roles", null, event.getGuild().getIconUrl())
 			.setIndexed(false)
+			.setSelect()
 			.setDisplayFunction(Role::getAsMention);
 		
 		paged.execute(event);
 	}
 	
-	public class FilterCommand extends Sx4Command {
+	public static class FilterCommand extends Sx4Command {
 		
 		public FilterCommand() {
 			super("filter", 42);
@@ -188,34 +198,27 @@ public class AutoRoleCommand extends Sx4Command {
 				event.replyFailure("That filter requires a time interval to be given with it").queue();
 				return;
 			}
-			
-			List<Document> roles = event.getDatabase().getGuildById(event.getGuild().getIdLong(), Projections.include("autoRole.roles")).getEmbedded(List.of("autoRole", "roles"), Collections.emptyList());
-			Document roleData = roles.stream()
-				.filter(data -> data.getLong("id") == role.getIdLong())
-				.findFirst()
-				.orElse(null);
-			
-			if (roleData == null) {
-				event.replyFailure("That role is not an auto role").queue();
-				return;
-			}
-			
-			List<Document> filters = roleData.getList("filters", Document.class, Collections.emptyList());
-			if (filters.stream().anyMatch(data -> data.getString("key").equals(filter.getKey()))) {
-				event.replyFailure("That auto role already has that filter or has a contradicting filter").queue();
-				return;
-			}
-			
+
 			Document filterData;
 			if (filter.hasDuration() && timedArgument.hasDuration()) {
 				filterData = filter.asDocument().append("duration", timedArgument.getDuration().toSeconds());
 			} else {
 				filterData = filter.asDocument();
 			}
-			
-			UpdateOptions options = new UpdateOptions().arrayFilters(List.of(Filters.eq("role.id", role.getIdLong())));
-			event.getDatabase().updateGuildById(event.getGuild().getIdLong(), Updates.push("autoRole.roles.$[role].filters", filterData), options).whenComplete((result, exception) -> {
+
+			List<Bson> update = List.of(Operators.set("filters", Operators.let(new Document("filters", Operators.ifNull("$filters", Collections.EMPTY_LIST)), Operators.cond(Operators.isEmpty(Operators.filter("$$filters", Operators.eq("$$this.type", filter.getType()))), Operators.concatArrays("$$filters", List.of(filterData)), "$filters"))));
+			event.getDatabase().updateAutoRole(Filters.eq("roleId", role.getIdLong()), update, new UpdateOptions()).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
+					return;
+				}
+
+				if (result.getMatchedCount() == 0) {
+					event.replyFailure("That role is not an auto role").queue();
+					return;
+				}
+
+				if (result.getModifiedCount() == 0) {
+					event.replyFailure("That auto role already has that filter or a contradicting filter").queue();
 					return;
 				}
 				
@@ -227,19 +230,18 @@ public class AutoRoleCommand extends Sx4Command {
 		@CommandId(44)
 		@Examples({"auto role filter remove @Role BOT", "auto role filter remove Role NOT_BOT"})
 		@AuthorPermissions(permissions={Permission.MANAGE_ROLES})
-		public void remove(Sx4CommandEvent event, @Argument(value="role | all") Role role, @Argument(value="filter") @Options("all") Alternative<AutoRoleFilter> option) {
+		public void remove(Sx4CommandEvent event, @Argument(value="role") Role role, @Argument(value="filter | all") @Options("all") Alternative<AutoRoleFilter> option) {
 			boolean alternative = option.isAlternative();
-			
-			UpdateOptions options = new UpdateOptions().arrayFilters(List.of(Filters.eq("role.id", role.getIdLong())));
-			Bson update = alternative ? Updates.unset("autoRole.roles.$[role].filters") : Updates.pull("autoRole.roles.$[role].filters", Filters.eq("key", option.getValue().getKey()));
-			event.getDatabase().updateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((result, exception) -> {
-				Throwable cause = exception == null ? null : exception.getCause();
-				if (cause instanceof MongoWriteException && ((MongoWriteException) cause).getCode() == 2) {
-					event.reply("That auto role does not have " + (alternative ? "any" : "that") + " filter" + (alternative ? "s " : " ") + event.getConfig().getFailureEmote()).queue();
+
+			Bson update = alternative ? Updates.unset("filters") : Updates.pull("filters", Filters.eq("type", option.getValue().getType()));
+
+			event.getDatabase().updateAutoRole(Filters.eq("roleId", role.getIdLong()), update, new UpdateOptions()).whenComplete((result, exception) -> {
+				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
-				
-				if (ExceptionUtility.sendExceptionally(event, exception)) {
+
+				if (result.getMatchedCount() == 0) {
+					event.replyFailure("That role is not an auto role").queue();
 					return;
 				}
 				

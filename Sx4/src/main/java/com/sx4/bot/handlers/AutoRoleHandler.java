@@ -2,7 +2,6 @@ package com.sx4.bot.handlers;
 
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Projections;
-import com.mongodb.client.model.Updates;
 import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.Database;
 import net.dv8tion.jda.api.Permission;
@@ -36,27 +35,25 @@ public class AutoRoleHandler implements EventListener {
 			return;
 		}
 		
-		Document data = this.bot.getDatabase().getGuildById(guild.getIdLong(), Projections.include("autoRole.roles", "autoRole.enabled")).get("autoRole", Database.EMPTY_DOCUMENT);
-		if (!data.getBoolean("enabled", false)) {
+		List<Document> autoRoles = this.bot.getDatabase().getAutoRoles(Filters.eq("guildId", event.getGuild().getIdLong()), Projections.include("enabled", "filters", "roleId")).into(new ArrayList<>());
+		if (autoRoles.isEmpty()) {
 			return;
 		}
-		
-		List<Document> rolesData = data.getList("roles", Document.class, Collections.emptyList());
 
 		List<Role> roles = new ArrayList<>();
-		Roles : for (Document roleData : rolesData) {
-			Role role = guild.getRoleById(roleData.getLong("id"));
+		Roles : for (Document autoRole : autoRoles) {
+			Role role = guild.getRoleById(autoRole.getLong("roleId"));
 			if (role == null || !selfMember.canInteract(role)) {
 				continue;
 			}
 
-			List<Document> filters = roleData.getList("filters", Document.class, Collections.emptyList());
+			List<Document> filters = autoRole.getList("filters", Document.class, Collections.emptyList());
 			for (Document filter : filters) {
-				String key = filter.getString("key");
+				int type = filter.getInteger("type");
 				Object value = filter.get("value");
 				
-				switch (key) {
-					case "BOT":
+				switch (type) {
+					case 0:
 						if (member.getUser().isBot() != (boolean) value) {
 							continue Roles;
 						}
@@ -76,8 +73,7 @@ public class AutoRoleHandler implements EventListener {
 	}
 	
 	public void onRoleDelete(RoleDeleteEvent event) {
-		this.bot.getDatabase().updateGuildById(event.getGuild().getIdLong(), Updates.pull("autoRole.roles", Filters.eq("id", event.getRole().getIdLong())))
-			.whenComplete(Database.exceptionally(this.bot.getShardManager()));
+		this.bot.getDatabase().deleteAutoRole(Filters.eq("roleId", event.getRole().getIdLong())).whenComplete(Database.exceptionally(this.bot.getShardManager()));
 	}
 
 	@Override

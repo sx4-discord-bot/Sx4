@@ -149,7 +149,8 @@ public class Database {
 		this.selfRoles.createIndex(Indexes.descending("guildId"));
 
 		this.autoRoles = this.database.getCollection("autoRoles");
-		this.autoRoles.createIndex(Indexes.descending("roleId", "guildId"), uniqueIndex);
+		this.autoRoles.createIndex(Indexes.descending("roleId"), uniqueIndex);
+		this.autoRoles.createIndex(Indexes.descending("guildId"));
 		
 		this.giveaways = this.database.getCollection("giveaways");
 		this.giveaways.createIndex(Indexes.descending("guildId"));
@@ -207,6 +208,46 @@ public class Database {
 	
 	public MongoDatabase getDatabase() {
 		return this.database;
+	}
+
+	public MongoCollection<Document> getAutoRoles() {
+		return this.autoRoles;
+	}
+
+	public FindIterable<Document> getAutoRoles(Bson filter, Bson projection) {
+		return this.autoRoles.find(filter).projection(projection);
+	}
+
+	public Document getAutoRole(Bson filter, Bson projection) {
+		return this.getAutoRoles(filter, projection).first();
+	}
+
+	public CompletableFuture<InsertOneResult> insertAutoRole(Document data) {
+		return CompletableFuture.supplyAsync(() -> this.autoRoles.insertOne(data));
+	}
+
+	public CompletableFuture<UpdateResult> updateAutoRole(Bson filter, List<Bson> update, UpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.autoRoles.updateOne(filter, update, options));
+	}
+
+	public CompletableFuture<UpdateResult> updateAutoRole(Bson filter, Bson update, UpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.autoRoles.updateOne(filter, update, options));
+	}
+
+	public CompletableFuture<Document> findAndUpdateAutoRole(Bson filter, List<Bson> update, FindOneAndUpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.autoRoles.findOneAndUpdate(filter, update, options));
+	}
+
+	public CompletableFuture<Document> findAndUpdateAutoRole(Bson filter, Bson update, FindOneAndUpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.autoRoles.findOneAndUpdate(filter, update, options));
+	}
+
+	public CompletableFuture<DeleteResult> deleteAutoRole(Bson filter) {
+		return CompletableFuture.supplyAsync(() -> this.autoRoles.deleteOne(filter));
+	}
+
+	public CompletableFuture<DeleteResult> deleteManyAutoRoles(Bson filter) {
+		return CompletableFuture.supplyAsync(() -> this.autoRoles.deleteMany(filter));
 	}
 
 	public MongoCollection<Document> getSelfRoles() {
