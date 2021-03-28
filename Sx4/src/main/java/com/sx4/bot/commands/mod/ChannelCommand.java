@@ -9,8 +9,7 @@ import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.utility.LoggerUtility;
 import com.sx4.bot.utility.SearchUtility;
 import net.dv8tion.jda.api.Permission;
-import net.dv8tion.jda.api.entities.ChannelType;
-import net.dv8tion.jda.api.entities.GuildChannel;
+import net.dv8tion.jda.api.entities.*;
 
 public class ChannelCommand extends Sx4Command {
 
@@ -66,6 +65,46 @@ public class ChannelCommand extends Sx4Command {
 
 		channel.delete()
 			.flatMap($ -> event.replySuccess("The " + LoggerUtility.getChannelTypeReadable(effectiveType) + " **" + channel.getName() + "** has been deleted"))
+			.queue();
+	}
+
+	@Command(value="mute", description="Mute a user or role in a channel")
+	@CommandId(335)
+	@Examples({"channel mute @Shea#6653", "channel mute @Role", "channel mute #channel @Shea#6653"})
+	@AuthorPermissions(permissions={Permission.MANAGE_PERMISSIONS})
+	@BotPermissions(permissions={Permission.MANAGE_PERMISSIONS})
+	public void mute(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) TextChannel channel, @Argument(value="role | user", endless=true) IPermissionHolder holder) {
+		TextChannel effectiveChannel = channel == null ? event.getTextChannel() : channel;
+		boolean role = holder instanceof Role;
+
+		PermissionOverride override = effectiveChannel.getPermissionOverride(holder);
+		if (override != null && override.getDenied().contains(Permission.MESSAGE_WRITE)) {
+			event.replyFailure("That " + (role ? "role" : "user") + " is already muted in " + effectiveChannel.getAsMention()).queue();
+			return;
+		}
+
+		effectiveChannel.upsertPermissionOverride(holder).deny(Permission.MESSAGE_WRITE)
+			.flatMap($ -> event.replySuccess((role ? ((Role) holder).getAsMention() : "**" + ((Member) holder).getUser().getAsTag() + "**") + " is now muted in " + effectiveChannel.getAsMention()))
+			.queue();
+	}
+
+	@Command(value="unmute", description="Unmute a user or role from a channel")
+	@CommandId(336)
+	@Examples({"channel unmute @Shea#6653", "channel unmute @Role", "channel unmute #channel @Shea#6653"})
+	@AuthorPermissions(permissions={Permission.MANAGE_PERMISSIONS})
+	@BotPermissions(permissions={Permission.MANAGE_PERMISSIONS})
+	public void unmute(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) TextChannel channel, @Argument(value="role | user", endless=true) IPermissionHolder holder) {
+		TextChannel effectiveChannel = channel == null ? event.getTextChannel() : channel;
+		boolean role = holder instanceof Role;
+
+		PermissionOverride override = effectiveChannel.getPermissionOverride(holder);
+		if (override == null || !override.getDenied().contains(Permission.MESSAGE_WRITE)) {
+			event.replyFailure("That " + (role ? "role" : "user") + " is not muted in " + effectiveChannel.getAsMention()).queue();
+			return;
+		}
+
+		effectiveChannel.upsertPermissionOverride(holder).clear(Permission.MESSAGE_WRITE)
+			.flatMap($ -> event.replySuccess((role ? ((Role) holder).getAsMention() : "**" + ((Member) holder).getUser().getAsTag() + "**") + " is no longer muted in " + effectiveChannel.getAsMention()))
 			.queue();
 	}
 

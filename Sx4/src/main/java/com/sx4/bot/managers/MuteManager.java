@@ -136,14 +136,13 @@ public class MuteManager {
 	
 	public void ensureMutes() {
 		Map<Long, Long> roleIds = new HashMap<>();
+		this.bot.getDatabase().getGuilds(Filters.exists("mute.roleId"), Projections.include("mute.roleId")).forEach(data -> {
+			roleIds.put(data.getLong("_id"), data.getEmbedded(List.of("mute", "roleId"), Long.class));
+		});
 		
 		List<WriteModel<Document>> bulkData = new ArrayList<>();
 		this.bot.getDatabase().getMembers(Filters.exists("mute.unmuteAt"), Projections.include("mute.unmuteAt", "userId", "guildId")).forEach(data -> {
 			long guildId = data.getLong("guildId");
-			if (!roleIds.containsKey(guildId)) {
-				long roleId = this.bot.getDatabase().getGuildById(guildId, Projections.include("mute.roleId")).getEmbedded(List.of("mute", "roleId"), Long.class);
-				roleIds.put(guildId, roleId);
-			}
 
 			long currentTime = Clock.systemUTC().instant().getEpochSecond(), unmuteAt = data.getEmbedded(List.of("mute", "unmuteAt"), Long.class);
 			if (unmuteAt > currentTime) {

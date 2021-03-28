@@ -6,7 +6,6 @@ import club.minnced.discord.webhook.send.WebhookEmbed.EmbedField;
 import club.minnced.discord.webhook.send.WebhookEmbed.EmbedFooter;
 import club.minnced.discord.webhook.send.WebhookEmbedBuilder;
 import com.mongodb.client.model.Filters;
-import com.mongodb.client.model.Updates;
 import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.entities.logger.LoggerContext;
@@ -708,8 +707,11 @@ public class LoggerHandler implements EventListener {
 					.filter(e -> {
 						AuditLogChange allow = e.getChangeByKey("allow"), deny = e.getChangeByKey("deny");
 
-						int denyNew = deny == null ? (int) permissionOverride.getDeniedRaw() : deny.getNewValue(), denyOld = deny == null ? (int) event.getOldDenyRaw() : deny.getOldValue();
-						int allowNew = allow == null ? (int) permissionOverride.getAllowedRaw() : allow.getNewValue(), allowOld = allow == null ? (int) event.getOldAllowRaw() : allow.getOldValue();
+						Integer denyNewValue = deny == null ? null : deny.getNewValue(), denyOldValue = deny == null ? null : deny.getOldValue();
+						Integer allowNewValue = allow == null ? null : allow.getNewValue(), allowOldValue = allow == null ? null : allow.getOldValue();
+
+						int denyNew = denyNewValue == null ? (int) permissionOverride.getDeniedRaw() : denyNewValue, denyOld = denyOldValue == null ? (int) event.getOldDenyRaw() : denyOldValue;
+						int allowNew = allowNewValue == null ? (int) permissionOverride.getAllowedRaw() : allowNewValue, allowOld = allowOldValue == null ? (int) event.getOldAllowRaw() : allowOldValue;
 
 						return denyNew == permissionOverride.getDeniedRaw() && denyOld == event.getOldDenyRaw() && allowNew == permissionOverride.getAllowedRaw() && allowOld == event.getOldAllowRaw();
 					})
