@@ -173,6 +173,7 @@ public class Sx4 {
 			new TriggerHandler(this),
 			new ServerStatsHandler(this),
 			new SelfRoleHandler(this),
+			new MuteHandler(this),
 			youTubeHandler
 		);
 

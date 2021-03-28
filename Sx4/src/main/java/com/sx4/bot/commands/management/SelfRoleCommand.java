@@ -20,6 +20,7 @@ import com.sx4.bot.waiter.Waiter;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
+import net.dv8tion.jda.api.requests.RestAction;
 import org.bson.Document;
 
 import java.util.ArrayList;
@@ -31,17 +32,32 @@ public class SelfRoleCommand extends Sx4Command {
 	public SelfRoleCommand() {
 		super("self role", 331);
 
-		super.setDescription("Setup roles that users can use a command to get without permissions");
+		super.setDescription("Give or remove a self role from yourself");
 		super.setAliases("self roles", "selfrole", "selfroles");
-		super.setExamples("self role get", "self role add", "self role remove");
+		super.setExamples("self role @Role", "self role Role", "self role 330400064541425664");
 		super.setCategoryAll(ModuleCategory.MANAGEMENT);
 	}
 
-	public void onCommand(Sx4CommandEvent event) {
-		event.replyHelp().queue();
+	public void onCommand(Sx4CommandEvent event, @Argument(value="role", endless=true) Role role) {
+		Document selfRole = event.getDatabase().getSelfRole(Filters.eq("roleId", role.getIdLong()), Projections.include("_id"));
+		if (selfRole == null) {
+			event.replyFailure("That role is not a self role").queue();
+			return;
+		}
+
+		boolean hasRole = event.getMember().getRoles().contains(role);
+
+		RestAction<Void> action;
+		if (hasRole) {
+			action = event.getGuild().removeRoleFromMember(event.getMember(), role);
+		} else {
+			action = event.getGuild().addRoleToMember(event.getMember(), role);
+		}
+
+		action.flatMap($ -> event.replySuccess("You " + (hasRole ? "no longer" : "now") + " have " + role.getAsMention())).queue();
 	}
 
-	@Command(value="add", description="Add a self role to the current server")
+	@Command(value="add", description="Add a self role that other users can give themselves to the current server")
 	@CommandId(332)
 	@Examples({"self role add @Role", "self role add Role", "self role add 330400064541425664"})
 	@AuthorPermissions(permissions={Permission.MANAGE_ROLES})
@@ -141,21 +157,6 @@ public class SelfRoleCommand extends Sx4Command {
 			.setDisplayFunction(data -> "<@&" + data.getLong("roleId") + ">");
 
 		paged.execute(event);
-	}
-
-	@Command(value="get", aliases={"give"}, description="Gives you a self role, from `self role list`")
-	@CommandId(335)
-	@Examples({"self role get @Role", "self role get Role", "self role get 330400064541425664"})
-	public void get(Sx4CommandEvent event, @Argument(value="role", endless=true) Role role) {
-		Document selfRole = event.getDatabase().getSelfRole(Filters.eq("roleId", role.getIdLong()), Projections.include("_id"));
-		if (selfRole == null) {
-			event.replyFailure("That role is not a self role").queue();
-			return;
-		}
-
-		event.getGuild().addRoleToMember(event.getMember(), role)
-			.flatMap($ -> event.replySuccess("You now have " + role.getAsMention()))
-			.queue();
 	}
 
 }

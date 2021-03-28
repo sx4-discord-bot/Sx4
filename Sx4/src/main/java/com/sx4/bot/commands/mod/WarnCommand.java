@@ -150,7 +150,7 @@ public class WarnCommand extends Sx4Command {
 
 		int warnings = data.getEmbedded(List.of("warn", "warnings"), 0);
 
-		event.reply(member.getAsMention() + " is currently on **" + warnings + "** warning" + (warnings == 1 ? "" : "s")).queue();
+		event.reply("**" + member.getUser().getAsTag() + "** is currently on **" + warnings + "** warning" + (warnings == 1 ? "" : "s")).queue();
 	}
 
 	public static class ConfigCommand extends Sx4Command {
