@@ -53,7 +53,7 @@ public class TemplateCommand extends Sx4Command {
 			.append("guildId", event.getGuild().getIdLong());
 
 		event.getDatabase().insertTemplate(data).whenComplete((result, exception) -> {
-			Throwable cause = exception == null ? null : exception.getCause();
+			Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
 			if (cause instanceof MongoWriteException && ((MongoWriteException) cause).getError().getCategory() == ErrorCategory.DUPLICATE_KEY) {
 				event.replyFailure("You already have a template with that name").queue();
 				return;

@@ -37,6 +37,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.concurrent.CompletionException;
 
 public class YouTubeNotificationCommand extends Sx4Command {
 	
@@ -107,7 +108,7 @@ public class YouTubeNotificationCommand extends Sx4Command {
 				});
 			} else {
 				event.getDatabase().insertYouTubeNotification(notificationData).whenComplete((result, exception) -> {
-					Throwable cause = exception == null ? null : exception.getCause();
+					Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
 					if (cause instanceof MongoWriteException && ((MongoWriteException) cause).getError().getCategory() == ErrorCategory.DUPLICATE_KEY) {
 						event.replyFailure("You already have a notification setup for that youtube channel in " + channel.getAsMention()).queue();
 						return;

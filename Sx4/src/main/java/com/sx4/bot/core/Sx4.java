@@ -174,6 +174,7 @@ public class Sx4 {
 			new ServerStatsHandler(this),
 			new SelfRoleHandler(this),
 			new MuteHandler(this),
+			new MediaModeHandler(this),
 			youTubeHandler
 		);
 

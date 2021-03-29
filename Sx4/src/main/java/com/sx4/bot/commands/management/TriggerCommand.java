@@ -92,7 +92,7 @@ public class TriggerCommand extends Sx4Command {
 			.append("guildId", event.getGuild().getIdLong());
 
 		event.getDatabase().insertTrigger(data).whenComplete((result, exception) -> {
-			Throwable cause = exception == null ? null : exception.getCause();
+			Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
 			if (cause instanceof MongoWriteException && ((MongoWriteException) cause).getError().getCategory() == ErrorCategory.DUPLICATE_KEY) {
 				event.replyFailure("You already have a trigger with that content").queue();
 				return;
@@ -116,7 +116,7 @@ public class TriggerCommand extends Sx4Command {
 			.append("guildId", event.getGuild().getIdLong());
 
 		event.getDatabase().insertTrigger(data).whenComplete((result, exception) -> {
-			Throwable cause = exception == null ? null : exception.getCause();
+			Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
 			if (cause instanceof MongoWriteException && ((MongoWriteException) cause).getError().getCategory() == ErrorCategory.DUPLICATE_KEY) {
 				event.replyFailure("You already have a trigger with that content").queue();
 				return;

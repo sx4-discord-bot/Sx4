@@ -47,6 +47,8 @@ public class Database {
 	private final MongoCollection<Document> starboards;
 	private final MongoCollection<Document> stars;
 
+	private final MongoCollection<Document> mediaChannels;
+
 	private final MongoCollection<Document> serverStats;
 
 	private final MongoCollection<Document> loggers;
@@ -103,7 +105,7 @@ public class Database {
 
 		this.blacklists = this.database.getCollection("blacklists");
 		this.blacklists.createIndex(Indexes.descending("guildId"));
-		this.blacklists.createIndex(Indexes.descending("channelId"));
+		this.blacklists.createIndex(Indexes.descending("channelId"), uniqueIndex);
 
 		this.mutes = this.database.getCollection("mutes");
 		this.mutes.createIndex(Indexes.descending("userId", "guildId"), uniqueIndex);
@@ -132,6 +134,10 @@ public class Database {
 		this.loggers = this.database.getCollection("loggers");
 		this.loggers.createIndex(Indexes.descending("guildId"));
 		this.loggers.createIndex(Indexes.descending("channelId"), uniqueIndex);
+
+		this.mediaChannels = this.database.getCollection("mediaChannels");
+		this.mediaChannels.createIndex(Indexes.descending("guildId"));
+		this.mediaChannels.createIndex(Indexes.descending("channelId"), uniqueIndex);
 
 		this.serverStats = this.database.getCollection("guildStats");
 		this.serverStats.createIndex(Indexes.descending("guildId"));
@@ -220,6 +226,34 @@ public class Database {
 	
 	public MongoDatabase getDatabase() {
 		return this.database;
+	}
+
+	public MongoCollection<Document> getMediaChannels() {
+		return this.mediaChannels;
+	}
+
+	public FindIterable<Document> getMediaChannels(Bson filter, Bson projection) {
+		return this.mediaChannels.find(filter).projection(projection);
+	}
+
+	public Document getMediaChannel(Bson filter, Bson projection) {
+		return this.getMediaChannels(filter, projection).first();
+	}
+
+	public CompletableFuture<InsertOneResult> insertMediaChannel(Document data) {
+		return CompletableFuture.supplyAsync(() -> this.mediaChannels.insertOne(data));
+	}
+
+	public CompletableFuture<UpdateResult> updateMediaChannel(Bson filter, Bson update, UpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.mediaChannels.updateOne(filter, update, options));
+	}
+
+	public CompletableFuture<UpdateResult> updateMediaChannel(Bson filter, List<Bson> update, UpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.mediaChannels.updateOne(filter, update, options));
+	}
+
+	public CompletableFuture<DeleteResult> deleteMediaChannel(Bson filter) {
+		return CompletableFuture.supplyAsync(() -> this.mediaChannels.deleteOne(filter));
 	}
 
 	public MongoCollection<Document> getMutes() {

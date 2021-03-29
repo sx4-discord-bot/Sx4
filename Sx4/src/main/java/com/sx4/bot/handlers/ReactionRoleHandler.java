@@ -24,6 +24,7 @@ import net.dv8tion.jda.api.requests.ErrorResponse;
 import org.bson.Document;
 
 import java.util.*;
+import java.util.concurrent.CompletionException;
 import java.util.stream.Collectors;
 
 public class ReactionRoleHandler implements EventListener {
@@ -151,7 +152,7 @@ public class ReactionRoleHandler implements EventListener {
 	
 	public void onRoleDelete(RoleDeleteEvent event) {
 		this.bot.getDatabase().updateReactionRole(Filters.eq("guildId", event.getGuild().getIdLong()), Updates.pull("roles", event.getRole().getIdLong())).whenComplete((result, exception) -> {
-			Throwable cause = exception == null ? null : exception.getCause();
+			Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
 			if (cause instanceof MongoWriteException && ((MongoWriteException) cause).getCode() == 2) {
 				return;
 			}
