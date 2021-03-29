@@ -9,6 +9,8 @@ import com.sx4.bot.utility.ExceptionUtility;
 import org.bson.Document;
 
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 
 public class Sx4CommandEventListener extends CommandEventListener {
 
@@ -21,6 +23,13 @@ public class Sx4CommandEventListener extends CommandEventListener {
 	public void onCommandExecuted(ICommand command, CommandEvent event) {
 		Sx4Command effectiveCommand = command instanceof DummyCommand ? (Sx4Command) ((DummyCommand) command).getActualCommand() : (Sx4Command) command;
 
+		Map<String, Object> options = event.getOptions();
+
+		Map<String, String> rawOptions = new HashMap<>();
+		for (String key : options.keySet()) {
+			rawOptions.put(key, options.get(key).toString());
+		}
+
 		Document commandData = new Document("messageId", event.getMessage().getIdLong())
 			.append("content", event.getMessage().getContentRaw())
 			.append("command", new Document("name", command.getCommandTrigger()).append("id", effectiveCommand.getId()))
@@ -29,7 +38,7 @@ public class Sx4CommandEventListener extends CommandEventListener {
 			.append("authorId", event.getAuthor().getIdLong())
 			.append("channelId", event.getChannel().getIdLong())
 			.append("arguments", Arrays.asList(event.getRawArguments()))
-			.append("options", event.getOptions())
+			.append("options", rawOptions)
 			.append("prefix", event.getPrefix())
 			.append("executionDuration", event.getTimeSinceStarted());
 

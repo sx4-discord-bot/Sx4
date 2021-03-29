@@ -59,13 +59,17 @@ public class TranslateCommand extends Sx4Command {
 		if (correctionObject == JSONObject.NULL) {
 			inputText = query;
 		} else {
-			// TODO: some error here
-			Document document = Jsoup.parse(((JSONArray) correctionObject).getJSONArray(0).getJSONArray(0).getString(1));
-			for (Element element : document.getElementsByTag("i")) {
-				element.replaceWith(new TextNode("**" + element.text() + "**"));
-			}
+			Object object = ((JSONArray) correctionObject).get(0);
+			if (object == JSONObject.NULL) {
+				inputText = query;
+			} else {
+				Document document = Jsoup.parse(((JSONArray) object).getJSONArray(0).getString(1));
+				for (Element element : document.getElementsByTag("i")) {
+					element.replaceWith(new TextNode("**" + element.text() + "**"));
+				}
 
-			inputText = document.text();
+				inputText = document.text();
+			}
 		}
 
 		String outputText = outputArray.getJSONArray(0)
