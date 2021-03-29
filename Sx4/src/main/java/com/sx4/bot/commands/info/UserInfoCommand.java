@@ -13,7 +13,6 @@ import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.requests.ErrorResponse;
 import net.dv8tion.jda.api.requests.RestAction;
 import net.dv8tion.jda.internal.requests.CompletedRestAction;
-import org.bson.Document;
 
 public class UserInfoCommand extends Sx4Command {
 
@@ -31,18 +30,8 @@ public class UserInfoCommand extends Sx4Command {
 		RestAction<User> action = userId == 0L ? new CompletedRestAction<>(event.getJDA(), event.getAuthor()) : event.getJDA().retrieveUserById(userId);
 
 		action.flatMap(user -> {
-			Document emotes = event.getConfig().getUserFlagEmotes();
-
-			StringBuilder builder = new StringBuilder();
-			for (User.UserFlag flag : user.getFlags()) {
-				String emote = emotes.getString(String.valueOf(flag.getOffset()));
-				if (emote != null) {
-					builder.append(emote).append(" ");
-				}
-			}
-
 			EmbedBuilder embed = new EmbedBuilder()
-				.setDescription(builder.toString())
+				.setDescription(event.getConfig().getUserFlagEmotes(user.getFlags()))
 				.setAuthor(user.getAsTag(), user.getEffectiveAvatarUrl(), user.getEffectiveAvatarUrl())
 				.setThumbnail(user.getEffectiveAvatarUrl())
 				.addField("User ID", user.getId(), true)

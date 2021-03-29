@@ -10,7 +10,6 @@ import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.*;
 
 import java.util.List;
-import java.util.StringJoiner;
 import java.util.concurrent.TimeUnit;
 
 public class ChannelInfoCommand extends Sx4Command {
@@ -54,7 +53,7 @@ public class ChannelInfoCommand extends Sx4Command {
 		} else if (channel instanceof Category) {
 			Category category = (Category) channel;
 
-			StringJoiner joiner = new StringJoiner("\n");
+			StringBuilder builder = new StringBuilder();
 
 			List<GuildChannel> guildChannels = category.getChannels();
 			for (int i = 0; i < guildChannels.size(); i++) {
@@ -67,14 +66,21 @@ public class ChannelInfoCommand extends Sx4Command {
 					name = guildChannel.getName();
 				}
 
-				// Add an extra 16 to make sure it can fit with "and **xxx** more"
-				if (joiner.length() + name.length() + 16 > MessageEmbed.VALUE_MAX_LENGTH && i != guildChannels.size() - 1) {
-					joiner.add("and **" + (guildChannels.size() - i - 1) + "** more");
+				// Add an extra 13 to make sure it can fit with "and **x** more"
+				String remaining = String.valueOf(guildChannels.size() - i - 1);
+				if (builder.length() + name.length() + 13 + remaining.length() > MessageEmbed.VALUE_MAX_LENGTH) {
+					builder.append("and **").append(remaining).append("** more");
 					break;
+				} else {
+					if (i != 0) {
+						builder.append("\n");
+					}
+
+					builder.append(name);
 				}
 			}
 
-			embed.addField("Category Channels", joiner.length() == 0 ? "This category is empty" : joiner.toString(), false);
+			embed.addField("Category Channels", builder.length() == 0 ? "This category is empty" : builder.toString(), false);
 		}
 
 		event.reply(embed.build()).queue();

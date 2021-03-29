@@ -1227,7 +1227,6 @@ public class LoggerHandler implements EventListener {
 					builder.append(entry);
 				} else {
 					builder.append(String.format(" and **%s** more", roles.size() - i));
-
 					break;
 				}
 			}

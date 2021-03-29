@@ -28,10 +28,9 @@ public class JoinPositionCommand extends Sx4Command {
 			or = new Or<>(null, event.getMember());
 		}
 		
-		List<Member> members = event.getGuild().getMemberCache().applyStream(stream -> stream
-			.sorted(Comparator.comparing(Member::getTimeJoined))
-			.collect(Collectors.toList())
-		);
+		List<Member> members = event.getGuild().getMemberCache().applyStream(stream -> {
+			return stream.sorted(Comparator.comparing(Member::getTimeJoined)).collect(Collectors.toList());
+		});
 			
 		if (or.hasFirst()) {
 			int joinPosition = or.getFirst();

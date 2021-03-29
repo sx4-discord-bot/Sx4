@@ -59,6 +59,7 @@ public class TranslateCommand extends Sx4Command {
 		if (correctionObject == JSONObject.NULL) {
 			inputText = query;
 		} else {
+			// TODO: some error here
 			Document document = Jsoup.parse(((JSONArray) correctionObject).getJSONArray(0).getJSONArray(0).getString(1));
 			for (Element element : document.getElementsByTag("i")) {
 				element.replaceWith(new TextNode("**" + element.text() + "**"));

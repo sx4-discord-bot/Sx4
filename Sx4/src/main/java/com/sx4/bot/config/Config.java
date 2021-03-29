@@ -3,6 +3,7 @@ package com.sx4.bot.config;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.TextChannel;
+import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.sharding.ShardManager;
 import org.bson.Document;
 import org.json.JSONObject;
@@ -12,6 +13,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
@@ -94,8 +96,18 @@ public class Config {
 		return this.get("invite.description");
 	}
 
-	public Document getUserFlagEmotes() {
-		return this.get("emote.userFlags");
+	public String getUserFlagEmotes(Collection<User.UserFlag> flags) {
+		Document emotes = this.get("emote.userFlags");
+
+		StringBuilder builder = new StringBuilder();
+		for (User.UserFlag flag : flags) {
+			String emote = emotes.getString(String.valueOf(flag.getOffset()));
+			if (emote != null) {
+				builder.append(emote).append(" ");
+			}
+		}
+
+		return builder.toString();
 	}
 
 	public List<Document> getCredits() {
