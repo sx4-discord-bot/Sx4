@@ -1,5 +1,6 @@
 package com.sx4.bot.utility;
 
+import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Projections;
 import com.sx4.bot.core.Sx4;
 import com.sx4.bot.core.Sx4Command;
@@ -23,7 +24,12 @@ public class CheckUtility {
 
 		Guild guild = member.getGuild();
 
-		List<Document> holders = bot.getDatabase().getChannelById(channel.getIdLong(), Projections.include("blacklist.holders")).getEmbedded(List.of("blacklist", "holders"), Collections.emptyList());
+		Document blacklist = bot.getDatabase().getBlacklist(Filters.eq("channelId", channel.getIdLong()), Projections.include("holders"));
+		if (blacklist == null) {
+			return true;
+		}
+
+		List<Document> holders = blacklist.getList("holders", Document.class);
 
 		Set<Long> roleIds = member.getRoles().stream()
 			.map(Role::getIdLong)

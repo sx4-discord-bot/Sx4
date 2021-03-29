@@ -33,7 +33,8 @@ public class Database {
 	
 	private final MongoCollection<Document> guilds;
 	private final MongoCollection<Document> users;
-	private final MongoCollection<Document> channels; // remove
+
+	private final MongoCollection<Document> blacklists;
 
 	private final MongoCollection<Document> warnings;
 	private final MongoCollection<Document> mutes;
@@ -100,8 +101,9 @@ public class Database {
 
 		this.guilds = this.database.getCollection("guilds");
 
-		this.channels = this.database.getCollection("channels");
-		this.channels.createIndex(Indexes.descending("guildId"));
+		this.blacklists = this.database.getCollection("blacklists");
+		this.blacklists.createIndex(Indexes.descending("guildId"));
+		this.blacklists.createIndex(Indexes.descending("channelId"));
 
 		this.mutes = this.database.getCollection("mutes");
 		this.mutes.createIndex(Indexes.descending("userId", "guildId"), uniqueIndex);
@@ -1133,86 +1135,48 @@ public class Database {
 		return CompletableFuture.supplyAsync(() -> this.regexTemplates.findOneAndDelete(Filters.eq("_id", id), options));
 	}
 
-	public MongoCollection<Document> getChannels() {
-		return this.channels;
+	public MongoCollection<Document> getBlacklists() {
+		return this.blacklists;
 	}
 
-	public FindIterable<Document> getChannels(Bson filter, Bson projection) {
-		return this.channels.find(filter).projection(projection);
+	public FindIterable<Document> getBlacklists(Bson filter, Bson projection) {
+		return this.blacklists.find(filter).projection(projection);
 	}
 
-	public Document getChannel(Bson filter, Bson projection) {
-		Document data = this.getChannels(filter, projection).first();
-
-		return data == null ? Database.EMPTY_DOCUMENT : data;
+	public Document getBlacklist(Bson filter, Bson projection) {
+		return this.getBlacklists(filter, projection).first();
 	}
 
-	public Document getChannelById(long channelId, Bson projection) {
-		return this.getChannel(Filters.eq("_id", channelId), projection);
+	public CompletableFuture<UpdateResult> updateBlacklist(Bson filter, List<? extends Bson> update, UpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.blacklists.updateOne(filter, update, options));
 	}
 
-	public CompletableFuture<UpdateResult> updateChannel(Bson filter, List<? extends Bson> update, UpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.channels.updateOne(filter, update, options));
+	public CompletableFuture<UpdateResult> updateBlacklist(Bson filter, Bson update, UpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.blacklists.updateOne(filter, update, options));
 	}
 
-	public CompletableFuture<UpdateResult> updateChannelById(long channelId, List<? extends Bson> update, UpdateOptions options) {
-		return this.updateChannel(Filters.eq("_id", channelId), update, options);
+	public CompletableFuture<UpdateResult> updateBlacklist(UpdateOneModel<Document> update) {
+		return this.updateBlacklist(update.getFilter(), update.getUpdate(), update.getOptions());
 	}
 
-	public CompletableFuture<UpdateResult> updateChannelById(long channelId, List<? extends Bson> update) {
-		return this.updateChannelById(channelId, update, this.updateOptions);
+	public CompletableFuture<Document> findAndUpdateBlacklist(Bson filter, Bson update, FindOneAndUpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.blacklists.findOneAndUpdate(filter, update, options));
 	}
 
-	public CompletableFuture<UpdateResult> updateChannel(Bson filter, Bson update, UpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.channels.updateOne(filter, update, options));
+	public CompletableFuture<Document> findAndUpdateBlacklist(Bson filter, List<Bson> update, FindOneAndUpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.blacklists.findOneAndUpdate(filter, update, options));
 	}
 
-	public CompletableFuture<UpdateResult> updateChannelById(long channelId, Bson update, UpdateOptions options) {
-		return this.updateChannel(Filters.eq("_id", channelId), update, options);
+	public CompletableFuture<UpdateResult> updateManyBlacklists(Bson filter, List<Bson> update, UpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.blacklists.updateMany(filter, update, options));
 	}
 
-	public CompletableFuture<UpdateResult> updateChannelById(long channelId, Bson update) {
-		return this.updateChannelById(channelId, update, this.updateOptions);
+	public CompletableFuture<UpdateResult> updateManyBlacklists(Bson filter, List<Bson> update) {
+		return this.updateManyBlacklists(filter, update, this.updateOptions);
 	}
 
-	public CompletableFuture<UpdateResult> updateChannel(UpdateOneModel<Document> update) {
-		return this.updateChannel(update.getFilter(), update.getUpdate(), update.getOptions());
-	}
-
-	public CompletableFuture<Document> findAndUpdateChannel(Bson filter, Bson update, FindOneAndUpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.channels.findOneAndUpdate(filter, update, options));
-	}
-
-	public CompletableFuture<Document> findAndUpdateChannelById(long channelId, Bson update, FindOneAndUpdateOptions options) {
-		return this.findAndUpdateChannel(Filters.eq("_id", channelId), update, options);
-	}
-
-	public CompletableFuture<Document> findAndUpdateChannelById(long channelId, Bson update) {
-		return this.findAndUpdateChannelById(channelId, update, this.findOneAndUpdateOptions);
-	}
-
-	public CompletableFuture<Document> findAndUpdateChannel(Bson filter, List<Bson> update, FindOneAndUpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.channels.findOneAndUpdate(filter, update, options));
-	}
-
-	public CompletableFuture<Document> findAndUpdateChannelById(long channelId, List<Bson> update, FindOneAndUpdateOptions options) {
-		return this.findAndUpdateChannel(Filters.eq("_id", channelId), update, options);
-	}
-
-	public CompletableFuture<Document> findAndUpdateChannelById(long channelId, List<Bson> update) {
-		return this.findAndUpdateChannelById(channelId, update, this.findOneAndUpdateOptions);
-	}
-
-	public CompletableFuture<UpdateResult> updateManyChannels(Bson filter, List<Bson> update, UpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.channels.updateMany(filter, update, options));
-	}
-
-	public CompletableFuture<UpdateResult> updateManyChannels(Bson filter, List<Bson> update) {
-		return this.updateManyChannels(filter, update, this.updateOptions);
-	}
-
-	public CompletableFuture<BulkWriteResult> bulkWriteChannels(List<? extends WriteModel<? extends Document>> bulkData) {
-		return CompletableFuture.supplyAsync(() -> this.channels.bulkWrite(bulkData));
+	public CompletableFuture<BulkWriteResult> bulkWriteBlacklists(List<? extends WriteModel<? extends Document>> bulkData) {
+		return CompletableFuture.supplyAsync(() -> this.blacklists.bulkWrite(bulkData));
 	}
 	
 	public MongoCollection<Document> getUsers() {
