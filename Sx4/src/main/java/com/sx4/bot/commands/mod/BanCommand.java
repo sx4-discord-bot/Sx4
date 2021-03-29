@@ -13,7 +13,7 @@ import com.sx4.bot.utility.ModUtility;
 import com.sx4.bot.utility.SearchUtility;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Member;
-import net.dv8tion.jda.api.exceptions.ErrorHandler;
+import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.requests.ErrorResponse;
 
 public class BanCommand extends Sx4Command {
@@ -55,17 +55,17 @@ public class BanCommand extends Sx4Command {
 				}
 			}
 			
-			event.getGuild().retrieveBan(user).queue(ban -> {
-				event.replyFailure("That user is already banned").queue();
-			}, new ErrorHandler().handle(ErrorResponse.UNKNOWN_BAN, e -> {
-				event.getGuild().ban(user, days)
-					.reason(ModUtility.getAuditReason(reason, event.getAuthor()))
-					.queue($ -> {
+			event.getGuild().retrieveBan(user).submit().whenComplete((ban, exception) -> {
+				if (exception instanceof ErrorResponseException && ((ErrorResponseException) exception).getErrorResponse() == ErrorResponse.UNKNOWN_BAN) {
+					event.getGuild().ban(user, days).reason(ModUtility.getAuditReason(reason, event.getAuthor())).queue($ -> {
 						event.reply("**" + user.getAsTag() + "** has been banned <:done:403285928233402378>:ok_hand:").queue();
 
 						event.getBot().getModActionManager().onModAction(new BanEvent(event.getMember(), user, reason, member != null));
 					});
-			}));
+				} else {
+					event.replyFailure("That user is already banned").queue();
+				}
+			});
 		});
 	}
 	

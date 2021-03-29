@@ -1624,6 +1624,10 @@ public class Database {
 		return CompletableFuture.supplyAsync(() -> this.offences.find(filter));
 	}
 
+	public CompletableFuture<InsertOneResult> insertOffence(Document data) {
+		return CompletableFuture.supplyAsync(() -> this.offences.insertOne(data));
+	}
+
 	public static <Type> BiConsumer<Type, Throwable> exceptionally(ShardManager manager) {
 		return ($, exception) -> ExceptionUtility.sendErrorMessage(manager, exception);
 	}

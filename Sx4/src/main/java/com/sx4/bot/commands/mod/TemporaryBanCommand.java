@@ -44,7 +44,7 @@ public class TemporaryBanCommand extends Sx4Command {
 	public TemporaryBanCommand() {
 		super("temporary ban", 148);
 		
-		super.setAliases("temp ban", "temporaryBan", "temporaryban");
+		super.setAliases("temp ban", "temporaryban");
 		super.setDescription("Ban a user for a set amount of time");
 		super.setExamples("temporary ban @Shea#6653 5d", "temporary ban Shea 30m Spamming", "temporary ban 402557516728369153 10d t:tos and Spamming");
 		super.setAuthorDiscordPermissions(Permission.BAN_MEMBERS);

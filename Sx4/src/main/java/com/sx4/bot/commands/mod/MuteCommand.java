@@ -82,7 +82,7 @@ public class MuteCommand extends Sx4Command {
 				return;
 			}
 
-			event.replyFailure("Your mute role has been set to " + role.getAsMention()).queue();
+			event.replySuccess("Your mute role has been set to " + role.getAsMention()).queue();
 		});
 	}
 
@@ -99,7 +99,7 @@ public class MuteCommand extends Sx4Command {
 				return;
 			}
 
-			event.replyFailure("The mute role will " + (data.getEmbedded(List.of("mute", "autoUpdate"), true) ? "now" : "no longer") + " automatically update its permissions").queue();
+			event.replySuccess("The mute role will " + (data.getEmbedded(List.of("mute", "autoUpdate"), true) ? "now" : "no longer") + " automatically update its permissions").queue();
 		});
 	}
 

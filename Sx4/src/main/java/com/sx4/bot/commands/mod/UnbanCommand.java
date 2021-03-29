@@ -8,9 +8,8 @@ import com.sx4.bot.entities.mod.Reason;
 import com.sx4.bot.events.mod.UnbanEvent;
 import com.sx4.bot.utility.ModUtility;
 import com.sx4.bot.utility.SearchUtility;
-
 import net.dv8tion.jda.api.Permission;
-import net.dv8tion.jda.api.exceptions.ErrorHandler;
+import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.requests.ErrorResponse;
 
 public class UnbanCommand extends Sx4Command {
@@ -38,13 +37,18 @@ public class UnbanCommand extends Sx4Command {
 				return;
 			}
 			
-			event.getGuild().retrieveBan(user).queue(ban -> {
-				event.getGuild().unban(user).reason(ModUtility.getAuditReason(reason, event.getAuthor())).queue($ -> {
+			event.getGuild().retrieveBan(user).submit()
+				.thenCompose(ban -> event.getGuild().unban(user).reason(ModUtility.getAuditReason(reason, event.getAuthor())).submit())
+				.whenComplete(($, exception) -> {
+					if (exception instanceof ErrorResponseException && ((ErrorResponseException) exception).getErrorResponse() == ErrorResponse.UNKNOWN_BAN) {
+						event.replyFailure("That user is not banned").queue();
+						return;
+					}
+
 					event.reply("**" + user.getAsTag() + "** has been unbanned <:done:403285928233402378>:ok_hand:").queue();
-					
+
 					event.getBot().getModActionManager().onModAction(new UnbanEvent(event.getMember(), user, reason));
 				});
-			}, new ErrorHandler().handle(ErrorResponse.UNKNOWN_BAN, e -> event.replyFailure("That user is not banned").queue()));
 		});
 	}
 	

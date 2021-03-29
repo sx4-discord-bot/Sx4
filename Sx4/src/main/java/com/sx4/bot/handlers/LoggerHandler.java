@@ -72,7 +72,7 @@ import java.util.stream.Collectors;
 
 public class LoggerHandler implements EventListener {
 
-	private static final int DELAY = 500;
+	public static final int DELAY = 500;
 
 	private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
 
