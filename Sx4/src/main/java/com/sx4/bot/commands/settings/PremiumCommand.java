@@ -137,7 +137,7 @@ public class PremiumCommand extends Sx4Command {
 	public void credit(Sx4CommandEvent event) {
 		int credit = event.getDatabase().getUserById(event.getAuthor().getIdLong(), Projections.include("premium.credit")).getEmbedded(List.of("premium", "credit"), 0);
 
-		event.replyFormat("Your current credit is **$%.2f**", credit / 100D).queue();
+		event.replyFormat("Your current credit is **$%,.2f**", credit / 100D).queue();
 	}
 	
 }

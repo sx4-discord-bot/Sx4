@@ -7,6 +7,7 @@ import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.events.guild.member.GuildMemberJoinEvent;
 import net.dv8tion.jda.api.hooks.EventListener;
+import org.bson.Document;
 import org.bson.conversions.Bson;
 
 import java.time.Clock;
@@ -27,7 +28,9 @@ public class MuteHandler implements EventListener {
 			Filters.eq("guildId", event.getGuild().getIdLong())
 		);
 
-		long unmuteAt = this.bot.getDatabase().getMute(filter, Projections.include("unmuteAt")).get("unmuteAt", 0L);
+		Document mute = this.bot.getDatabase().getMute(filter, Projections.include("unmuteAt"));
+
+		long unmuteAt = mute == null ? 0L : mute.get("unmuteAt", 0L);
 		if (unmuteAt > Clock.systemUTC().instant().getEpochSecond()) {
 			long roleId = this.bot.getDatabase().getGuildById(event.getGuild().getIdLong(), Projections.include("mute.roleId")).getEmbedded(List.of("mute", "roleId"), 0L);
 			if (roleId != 0L) {

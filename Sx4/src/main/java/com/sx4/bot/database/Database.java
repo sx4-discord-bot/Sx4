@@ -122,6 +122,7 @@ public class Database {
 		this.starboards.createIndex(Indexes.descending("guildId"));
 		this.starboards.createIndex(Indexes.descending("messageId"));
 		this.starboards.createIndex(Indexes.descending("originalMessageId"));
+		this.starboards.createIndex(Indexes.descending("count"));
 
 		this.stars = this.database.getCollection("stars");
 		this.stars.createIndex(Indexes.descending("messageId", "userId"), uniqueIndex);

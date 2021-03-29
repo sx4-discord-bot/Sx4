@@ -983,14 +983,18 @@ public class Sx4 {
 			return new ParsedResult<>(content);
 		}).addParserAfter(Integer.class, (context, argument, content) -> {
 			Limit limit = argument.getProperty("limit", Limit.class);
-			if (limit != null) {
+			if (limit != null && limit.error() && (content < limit.min() || content > limit.max())) {
+				return new ParsedResult<>();
+			} else if (limit != null && !limit.error()) {
 				content = Math.min(limit.max(), Math.max(limit.min(), content));
 			}
 			
 			return new ParsedResult<>(content);
 		}).addParserAfter(Double.class, (context, argument, content) -> {
 			Limit limit = argument.getProperty("limit", Limit.class);
-			if (limit != null) {
+			if (limit != null && limit.error() && (content < limit.min() || content > limit.max())) {
+				return new ParsedResult<>();
+			} else if (limit != null && !limit.error()) {
 				content = Math.min(limit.max(), Math.max(limit.min(), content));
 			}
 
@@ -1022,25 +1026,63 @@ public class Sx4 {
 			.registerResponse(Guild.class, "I could not find that server " + this.config.getFailureEmote())
 			.registerResponse(AutoRoleFilter.class, "I could not find that filter " + this.config.getFailureEmote())
 			.registerResponse(Pattern.class, "Regex syntax was incorrect " + this.config.getFailureEmote())
-			.registerResponse(Integer.class, (argument, message, content) -> {
+			.registerResponse(int.class, (argument, message, content) -> {
 				if (argument.getProperty("colour", false)) {
 					message.getChannel().sendMessage("I could not find that colour " + this.config.getFailureEmote()).queue();
-				} else {
+					return;
+				}
+
+				int number;
+				try {
+					number = Integer.parseInt(content);
+				} catch (NumberFormatException e) {
 					message.getChannel().sendMessage("The argument `" + argument.getName() + "` needs to be a number " + this.config.getFailureEmote()).queue();
+					return;
+				}
+
+				Limit limit = argument.getProperty("limit", Limit.class);
+				if (limit != null && number > limit.max()) {
+					message.getChannel().sendMessageFormat("The maximum number you can give for `%s` is **%,d** %s", argument.getName(), limit.max(), this.config.getFailureEmote()).queue();
+					return;
+				}
+
+				if (limit != null && number < limit.min()) {
+					message.getChannel().sendMessageFormat("The minimum number you can give for `%s` is **%,d** %s", argument.getName(), limit.min(), this.config.getFailureEmote()).queue();
+				}
+			}).registerResponse(double.class, (argument, message, content) -> {
+				double number;
+				try {
+					number = Double.parseDouble(content);
+				} catch (NumberFormatException e) {
+					message.getChannel().sendMessage("The argument `" + argument.getName() + "` needs to be a number " + this.config.getFailureEmote()).queue();
+					return;
+				}
+
+				Limit limit = argument.getProperty("limit", Limit.class);
+				if (limit != null && number > limit.max()) {
+					message.getChannel().sendMessageFormat("The maximum number you can give for `%s` is **%,d** %s", argument.getName(), limit.max(), this.config.getFailureEmote()).queue();
+					return;
+				}
+
+				if (limit != null && number < limit.min()) {
+					message.getChannel().sendMessageFormat("The minimum number you can give for `%s` is **%,d** %s", argument.getName(), limit.min(), this.config.getFailureEmote()).queue();
 				}
 			}).registerResponse(String.class, (argument, message, content) -> {
 				if (argument.getProperty("imageUrl", false) || argument.getProperty("url", false)) {
 					message.getChannel().sendMessage("Invalid url given " + this.config.getFailureEmote()).queue();
+					return;
 				}
 
 				String[] options = argument.getProperty("options");
 				if (options != null && options.length != 0) {
 					message.getChannel().sendMessageFormat("Invalid option given, `%s` are valid options %s", String.join("`, `", options), this.config.getFailureEmote()).queue();
+					return;
 				}
 
 				Limit limit = argument.getProperty("limit", Limit.class);
 				if (limit != null && content.length() < limit.min()) {
 					message.getChannel().sendMessageFormat("You cannot use less than **%,d** character%s for `%s` %s", limit.min(), limit.min() == 1 ? "" : "s", argument.getName(), this.config.getFailureEmote()).queue();
+					return;
 				}
 
 				if (limit != null && content.length() > limit.max()) {

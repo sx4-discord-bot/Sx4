@@ -7,13 +7,16 @@ import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.FindOneAndUpdateOptions;
 import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.ReturnDocument;
+import com.sx4.bot.annotations.argument.ImageUrl;
 import com.sx4.bot.annotations.argument.Options;
 import com.sx4.bot.annotations.command.AuthorPermissions;
 import com.sx4.bot.annotations.command.CommandId;
 import com.sx4.bot.annotations.command.Examples;
+import com.sx4.bot.annotations.command.Premium;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
+import com.sx4.bot.database.Database;
 import com.sx4.bot.database.model.Operators;
 import com.sx4.bot.entities.argument.Alternative;
 import com.sx4.bot.entities.argument.Range;
@@ -22,6 +25,7 @@ import com.sx4.bot.entities.mod.Reason;
 import com.sx4.bot.entities.mod.action.Action;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
+import com.sx4.bot.utility.OperatorsUtility;
 import com.sx4.bot.waiter.Waiter;
 import com.sx4.bot.waiter.exception.CancelException;
 import com.sx4.bot.waiter.exception.TimeoutException;
@@ -34,6 +38,7 @@ import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
 
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletionException;
@@ -225,6 +230,64 @@ public class ModLogCommand extends Sx4Command {
 			
 			event.reply(ModLog.fromData(data).getEmbed(event.getShardManager())).queue();
 		}
+	}
+
+	@Command(value="name", description="Set the name of the webhook that sends mod log messages")
+	@CommandId(346)
+	@Examples({"modlog name Mod Actions", "modlog name My Servers Mod Logs"})
+	@Premium
+	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
+	public void name(Sx4CommandEvent event, @Argument(value="name", endless=true) String name) {
+		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().projection(Projections.include("modLog.webhook.name", "premium.endAt")).returnDocument(ReturnDocument.BEFORE).upsert(true);
+		event.getDatabase().findAndUpdateGuildById(event.getGuild().getIdLong(), List.of(OperatorsUtility.setIfPremium("modLog.webhook.name", name)), options).whenComplete((data, exception) -> {
+			if (ExceptionUtility.sendExceptionally(event, exception)) {
+				return;
+			}
+
+			data = data == null ? Database.EMPTY_DOCUMENT : data;
+
+			if (data.getEmbedded(List.of("premium", "endAt"), 0L) < Clock.systemUTC().instant().getEpochSecond()) {
+				event.replyFailure("This server needs premium to use this command").queue();
+				return;
+			}
+
+			String oldName = data.getEmbedded(List.of("modLog", "webhook", "name"), String.class);
+			if (oldName != null && oldName.equals(name)) {
+				event.replyFailure("Your mod log webhook name was already set to that").queue();
+				return;
+			}
+
+			event.replySuccess("Your starboard webhook name has been updated").queue();
+		});
+	}
+
+	@Command(value="avatar", description="Set the avatar of the webhook that sends mod log messages")
+	@CommandId(347)
+	@Examples({"modlog avatar Shea#6653", "modlog avatar https://i.imgur.com/i87lyNO.png"})
+	@Premium
+	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
+	public void avatar(Sx4CommandEvent event, @Argument(value="avatar", endless=true, acceptEmpty=true) @ImageUrl String url) {
+		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().projection(Projections.include("modLog.webhook.avatar", "premium.endAt")).returnDocument(ReturnDocument.BEFORE).upsert(true);
+		event.getDatabase().findAndUpdateGuildById(event.getGuild().getIdLong(), List.of(OperatorsUtility.setIfPremium("modLog.webhook.avatar", url)), options).whenComplete((data, exception) -> {
+			if (ExceptionUtility.sendExceptionally(event, exception)) {
+				return;
+			}
+
+			data = data == null ? Database.EMPTY_DOCUMENT : data;
+
+			if (data.getEmbedded(List.of("premium", "endAt"), 0L) < Clock.systemUTC().instant().getEpochSecond()) {
+				event.replyFailure("This server needs premium to use this command").queue();
+				return;
+			}
+
+			String oldUrl = data.getEmbedded(List.of("modLog", "webhook", "avatar"), String.class);
+			if (oldUrl != null && oldUrl.equals(url)) {
+				event.replyFailure("Your mod log webhook avatar was already set to that").queue();
+				return;
+			}
+
+			event.replySuccess("Your mod log webhook avatar has been updated").queue();
+		});
 	}
 	
 }

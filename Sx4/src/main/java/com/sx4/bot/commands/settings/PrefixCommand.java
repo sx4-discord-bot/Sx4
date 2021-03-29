@@ -2,7 +2,9 @@ package com.sx4.bot.commands.settings;
 
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
+import com.mongodb.client.model.FindOneAndUpdateOptions;
 import com.mongodb.client.model.Projections;
+import com.mongodb.client.model.ReturnDocument;
 import com.mongodb.client.model.Updates;
 import com.sx4.bot.annotations.command.AuthorPermissions;
 import com.sx4.bot.annotations.command.CommandId;
@@ -15,6 +17,7 @@ import com.sx4.bot.utility.ExceptionUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.MessageBuilder;
 import net.dv8tion.jda.api.Permission;
+import org.bson.Document;
 import org.bson.conversions.Bson;
 
 import java.util.ArrayList;
@@ -28,7 +31,7 @@ public class PrefixCommand extends Sx4Command {
 		super("prefix", 224);
 
 		super.setDescription("View your current prefixes");
-		super.setExamples("prefix self", "prefix server");
+		super.setExamples("prefix", "prefix self", "prefix server");
 		super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
 		super.setCategoryAll(ModuleCategory.SETTINGS);
 	}
@@ -59,13 +62,18 @@ public class PrefixCommand extends Sx4Command {
 		public void onCommand(Sx4CommandEvent event, @Argument(value="prefixes") String[] prefixes) {
 			List<String> finalPrefixes = new ArrayList<>();
 			for (String prefix : prefixes) {
-				if (!prefix.isBlank()) {
+				if (!prefix.isBlank() && prefix.length() <= 30) {
 					finalPrefixes.add(prefix);
 				}
 			}
 
 			if (finalPrefixes.isEmpty()) {
 				event.replyFailure("You did not provide a valid prefix").queue();
+				return;
+			}
+
+			if (finalPrefixes.size() > 25) {
+				event.replyFailure("You cannot have more than 25 prefixes").queue();
 				return;
 			}
 
@@ -84,7 +92,7 @@ public class PrefixCommand extends Sx4Command {
 		public void add(Sx4CommandEvent event, @Argument(value="prefixes") String[] prefixes) {
 			List<String> finalPrefixes = new ArrayList<>();
 			for (String prefix : prefixes) {
-				if (!prefix.isBlank()) {
+				if (!prefix.isBlank() && prefix.length() <= 30) {
 					finalPrefixes.add(prefix);
 				}
 			}
@@ -94,13 +102,20 @@ public class PrefixCommand extends Sx4Command {
 				return;
 			}
 
-			List<Bson> update = List.of(Operators.set("prefixes", Operators.concatArrays(finalPrefixes, Operators.filter(Operators.ifNull("$prefixes", event.getConfig().getDefaultPrefixes()), Operators.not(Operators.in("$$this", finalPrefixes))))));
-			event.getDatabase().updateUserById(event.getAuthor().getIdLong(), update).whenComplete((result, exception) -> {
+			List<Bson> update = List.of(Operators.set("prefixes", Operators.let(new Document("prefixes", Operators.ifNull("$prefixes", event.getConfig().getDefaultPrefixes())), Operators.cond(Operators.gte(Operators.size("$$prefixes"), 25), "$prefixes", Operators.concatArrays(finalPrefixes, Operators.filter("$$prefixes", Operators.not(Operators.in("$$this", finalPrefixes))))))));
+			FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().upsert(true).returnDocument(ReturnDocument.BEFORE).projection(Projections.include("prefixes"));
+
+			event.getDatabase().findAndUpdateUserById(event.getAuthor().getIdLong(), update, options).whenComplete((data, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
 
-				if (result.getModifiedCount() == 0) {
+				List<String> previousPrefixes = data == null ? Collections.emptyList() : data.getList("prefixes", String.class, Collections.emptyList());
+				if (previousPrefixes.size() >= 25) {
+					event.replyFailure("You cannot have more than 25 prefixes").queue();
+				}
+
+				if (previousPrefixes.equals(finalPrefixes)) {
 					event.replyFailure("You already had all those prefixes").queue();
 					return;
 				}
@@ -146,13 +161,18 @@ public class PrefixCommand extends Sx4Command {
 		public void onCommand(Sx4CommandEvent event, @Argument(value="prefixes") String[] prefixes) {
 			List<String> finalPrefixes = new ArrayList<>();
 			for (String prefix : prefixes) {
-				if (!prefix.isBlank()) {
+				if (!prefix.isBlank() && prefix.length() <= 30) {
 					finalPrefixes.add(prefix);
 				}
 			}
 
 			if (finalPrefixes.isEmpty()) {
 				event.replyFailure("You did not provide a valid prefix").queue();
+				return;
+			}
+
+			if (finalPrefixes.size() > 25) {
+				event.replyFailure("You cannot have more than 25 prefixes").queue();
 				return;
 			}
 
@@ -172,7 +192,7 @@ public class PrefixCommand extends Sx4Command {
 		public void add(Sx4CommandEvent event, @Argument(value="prefixes") String[] prefixes) {
 			List<String> finalPrefixes = new ArrayList<>();
 			for (String prefix : prefixes) {
-				if (!prefix.isBlank()) {
+				if (!prefix.isBlank() && prefix.length() <= 30) {
 					finalPrefixes.add(prefix);
 				}
 			}
@@ -182,14 +202,21 @@ public class PrefixCommand extends Sx4Command {
 				return;
 			}
 
-			List<Bson> update = List.of(Operators.set("prefixes", Operators.concatArrays(finalPrefixes, Operators.filter(Operators.ifNull("$prefixes", event.getConfig().getDefaultPrefixes()), Operators.not(Operators.in("$$this", finalPrefixes))))));
-			event.getDatabase().updateGuildById(event.getGuild().getIdLong(), update).whenComplete((result, exception) -> {
+			List<Bson> update = List.of(Operators.set("prefixes", Operators.let(new Document("prefixes", Operators.ifNull("$prefixes", event.getConfig().getDefaultPrefixes())), Operators.cond(Operators.gte(Operators.size("$$prefixes"), 25), "$prefixes", Operators.concatArrays(finalPrefixes, Operators.filter("$$prefixes", Operators.not(Operators.in("$$this", finalPrefixes))))))));
+			FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().upsert(true).projection(Projections.include("prefixes")).returnDocument(ReturnDocument.BEFORE);
+
+			event.getDatabase().findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
 
-				if (result.getModifiedCount() == 0) {
-					event.replyFailure("The server already had all those prefixes").queue();
+				List<String> previousPrefixes = data == null ? Collections.emptyList() : data.getList("prefixes", String.class, Collections.emptyList());
+				if (previousPrefixes.size() >= 25) {
+					event.replyFailure("You cannot have more than 25 prefixes").queue();
+				}
+
+				if (previousPrefixes.equals(finalPrefixes)) {
+					event.replyFailure("You already had all those prefixes").queue();
 					return;
 				}
 

@@ -264,26 +264,29 @@ public class StarboardCommand extends Sx4Command {
 	public void top(Sx4CommandEvent event) {
 		Guild guild = event.getGuild();
 
-		List<Document> starboards = event.getDatabase().getStarboards(Filters.eq("guildId", guild.getIdLong()), Projections.include("count", "channelId", "messageId")).sort(Sorts.descending("count")).into(new ArrayList<>());
+		List<Document> starboards = event.getDatabase().getStarboards(Filters.and(Filters.eq("guildId", guild.getIdLong()), Filters.ne("count", 0)), Projections.include("count", "channelId", "originalMessageId")).sort(Sorts.descending("count")).into(new ArrayList<>());
 
 		PagedResult<Document> paged = new PagedResult<>(event.getBot(), starboards)
 			.setIncreasedIndex(true)
 			.setAuthor("Top Starboards", null, guild.getIconUrl())
-			.setDisplayFunction(data ->
-				String.format(
-					"[%s](https://discord.com/channels/%d/%d/%d) - **%d**",
+			.setDisplayFunction(data -> {
+				int count = data.getInteger("count");
+
+				return String.format(
+					"[%s](https://discord.com/channels/%d/%d/%d) - **%d** star%s",
 					data.getObjectId("_id").toHexString(),
 					guild.getIdLong(),
 					data.getLong("channelId"),
-					data.getLong("messageId"),
-					data.getInteger("count")
-				)
-			);
+					data.getLong("originalMessageId"),
+					count,
+					count == 1 ? "" : "s"
+				);
+			});
 
 		paged.execute(event);
 	}
 
-	public class MessagesCommand extends Sx4Command {
+	public static class MessagesCommand extends Sx4Command {
 
 		public MessagesCommand() {
 			super("messages", 200);

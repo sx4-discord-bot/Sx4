@@ -167,6 +167,8 @@ public class ModHandler implements ModActionListener, EventListener {
 			.queue(null, ErrorResponseException.ignore(ErrorResponse.CANNOT_SEND_TO_USER));
 	}
 
+
+	// TODO: Make a whole event system which contains the AuditLogEntry so I don't have to make this call for both this and logger
 	@Override
 	public void onEvent(GenericEvent event) {
 		Guild guild;
