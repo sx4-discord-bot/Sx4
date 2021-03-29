@@ -48,6 +48,7 @@ public class UnbanCommand extends Sx4Command {
 					event.reply("**" + user.getAsTag() + "** has been unbanned <:done:403285928233402378>:ok_hand:").queue();
 
 					event.getBot().getModActionManager().onModAction(new UnbanEvent(event.getMember(), user, reason));
+					event.getBot().getTemporaryBanManager().removeBan(event.getGuild().getIdLong(), user.getIdLong(), false);
 				});
 		});
 	}

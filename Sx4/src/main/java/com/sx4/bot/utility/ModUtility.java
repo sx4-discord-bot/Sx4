@@ -243,21 +243,28 @@ public class ModUtility {
 
 			Action warnAction = new Action(ModAction.WARN);
 
-			Action action = punishments ? config.stream()
-				.filter(d -> d.getInteger("number") == warnings)
-				.map(d -> d.get("action", Document.class))
-				.map(Action::fromData)
-				.findFirst()
-				.orElse(warnAction) : warnAction;
+			Action currentAction = warnAction, nextAction = punishments ? warnAction : null;
+			for (Document configData : config) {
+				int number = configData.getInteger("number");
+				if (number == warnings) {
+					currentAction = Action.fromData(configData.get("action", Document.class));
+				} else if (number == warnings + 1) {
+					nextAction = Action.fromData(configData.get("action", Document.class));
+				}
+			}
 
-			Warn warnConfig = new Warn(action, warnings);
+			Action action = currentAction;
+
+			Warn currentWarning = new Warn(action, warnings);
+			Warn nextWarning = new Warn(nextAction, warnings + 1);
 
 			switch (action.getModAction()) {
 				case WARN:
-					bot.getModActionManager().onModAction(new WarnEvent(moderator, target.getUser(), reason, warnConfig));
-					future.complete(new WarnAction(warnConfig));
+					bot.getModActionManager().onModAction(new WarnEvent(moderator, target.getUser(), reason, currentWarning, nextWarning));
+					future.complete(new WarnAction(currentWarning));
 
 					break;
+				case MUTE_EXTEND:
 				case MUTE:
 					if (!guild.getSelfMember().hasPermission(Permission.MANAGE_ROLES)) {
 						future.completeExceptionally(new BotPermissionException(Permission.MANAGE_ROLES));
@@ -273,7 +280,7 @@ public class ModUtility {
 					ModUtility.upsertMuteRole(bot.getDatabase(), guild, mute.get("roleId", 0L), mute.get("autoUpdate", true)).thenCompose(role -> {
 						atomicRole.set(role);
 
-						List<Bson> muteUpdate = List.of(Operators.set("mute.unmuteAt", Operators.add(muteDuration, Operators.cond(Operators.and(extend, Operators.exists("$unmuteAt")), "$unmuteAt", Operators.nowEpochSecond()))));
+						List<Bson> muteUpdate = List.of(Operators.set("unmuteAt", Operators.add(muteDuration, Operators.cond(Operators.and(extend, Operators.exists("$unmuteAt")), "$unmuteAt", Operators.nowEpochSecond()))));
 						Bson muteFilter = Filters.and(
 							Filters.eq("userId", target.getIdLong()),
 							Filters.eq("guildId", guild.getIdLong())
@@ -291,9 +298,9 @@ public class ModUtility {
 						guild.addRoleToMember(target, role).reason(ModUtility.getAuditReason(reason, moderator.getUser())).queue($ -> {
 							bot.getMuteManager().putMute(guild.getIdLong(), target.getIdLong(), role.getIdLong(), muteDuration,extend && muteResult.getUpsertedId() == null);
 
-							bot.getModActionManager().onModAction(new WarnEvent(moderator, target.getUser(), reason, warnConfig));
+							bot.getModActionManager().onModAction(new WarnEvent(moderator, target.getUser(), reason, currentWarning, nextWarning));
 
-							future.complete(new WarnAction(warnConfig));
+							future.complete(new WarnAction(currentWarning));
 						});
 					});
 
@@ -315,9 +322,9 @@ public class ModUtility {
 					}
 
 					target.kick(ModUtility.getAuditReason(reason, moderator.getUser())).queue($ -> {
-						bot.getModActionManager().onModAction(new WarnEvent(moderator, target.getUser(), reason, warnConfig));
+						bot.getModActionManager().onModAction(new WarnEvent(moderator, target.getUser(), reason, currentWarning, nextWarning));
 
-						future.complete(new WarnAction(warnConfig));
+						future.complete(new WarnAction(currentWarning));
 					});
 
 					break;
@@ -352,11 +359,11 @@ public class ModUtility {
 						}
 
 						target.ban(1).reason(ModUtility.getAuditReason(reason, moderator.getUser())).queue($ -> {
-							bot.getModActionManager().onModAction(new WarnEvent(moderator, target.getUser(), reason, warnConfig));
+							bot.getModActionManager().onModAction(new WarnEvent(moderator, target.getUser(), reason, currentWarning, nextWarning));
 
 							bot.getTemporaryBanManager().putBan(guild.getIdLong(), target.getIdLong(), ((TimeAction) action).getDuration());
 
-							future.complete(new WarnAction(warnConfig));
+							future.complete(new WarnAction(currentWarning));
 						});
 					});
 
@@ -378,9 +385,9 @@ public class ModUtility {
 					}
 
 					target.ban(1).reason(ModUtility.getAuditReason(reason, moderator.getUser())).queue($ -> {
-						bot.getModActionManager().onModAction(new WarnEvent(moderator, target.getUser(), reason, warnConfig));
+						bot.getModActionManager().onModAction(new WarnEvent(moderator, target.getUser(), reason, currentWarning, nextWarning));
 
-						future.complete(new WarnAction(warnConfig));
+						future.complete(new WarnAction(currentWarning));
 					});
 
 					break;

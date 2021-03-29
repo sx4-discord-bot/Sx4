@@ -19,7 +19,7 @@ public class Reason {
 	}
 	
 	public Reason(String reason) {
-		this.raw = null;
+		this.raw = reason;
 		this.parsed = reason;
 	}
 	

@@ -8,21 +8,29 @@ import com.sx4.bot.entities.mod.ModLog;
 import com.sx4.bot.entities.mod.Reason;
 import com.sx4.bot.entities.mod.action.Action;
 import com.sx4.bot.entities.mod.action.ModAction;
+import com.sx4.bot.entities.mod.action.Warn;
 import com.sx4.bot.events.mod.*;
 import com.sx4.bot.hooks.ModActionListener;
+import com.sx4.bot.utility.TimeUtility;
+import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.audit.ActionType;
 import net.dv8tion.jda.api.audit.AuditLogEntry;
 import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.events.guild.GuildBanEvent;
+import net.dv8tion.jda.api.events.guild.GuildUnbanEvent;
 import net.dv8tion.jda.api.events.guild.member.GuildMemberRemoveEvent;
+import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.hooks.EventListener;
+import net.dv8tion.jda.api.requests.ErrorResponse;
 import org.bson.Document;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.concurrent.TimeUnit;
@@ -33,6 +41,14 @@ public class ModHandler implements ModActionListener, EventListener {
 
 	public ModHandler(Sx4 bot) {
 		this.bot = bot;
+	}
+
+	public EmbedBuilder getGenericEmbed(Guild guild, User moderator, Action action, Reason reason) {
+		return new EmbedBuilder()
+			.setAuthor(action.toString(), null, guild.getIconUrl())
+			.addField("Moderator", moderator.getAsTag() + " (" + moderator.getIdLong() + ")", false)
+			.addField("Reason", reason == null ? "None Given" : reason.getParsed(), false)
+			.setTimestamp(Instant.now());
 	}
 
 	public void handle(Guild guild, Action action, User moderator, User target, Reason reason) {
@@ -85,35 +101,70 @@ public class ModHandler implements ModActionListener, EventListener {
 	}
 
 	public void onBan(BanEvent event) {
-		
+		if (event.wasMember()) {
+			EmbedBuilder embed = this.getGenericEmbed(event.getGuild(), event.getModerator().getUser(), event.getAction(), event.getReason());
+
+			event.getTarget().openPrivateChannel()
+				.flatMap(channel -> channel.sendMessage(embed.build()))
+				.queue(null, ErrorResponseException.ignore(ErrorResponse.CANNOT_SEND_TO_USER));
+		}
 	}
 	
 	public void onTemporaryBan(TemporaryBanEvent event) {
-		
+		if (event.wasMember()) {
+			EmbedBuilder embed = this.getGenericEmbed(event.getGuild(), event.getModerator().getUser(), event.getAction(), event.getReason());
+
+			event.getTarget().openPrivateChannel()
+				.flatMap(channel -> channel.sendMessage(embed.build()))
+				.queue(null, ErrorResponseException.ignore(ErrorResponse.CANNOT_SEND_TO_USER));
+		}
 	}
 	
 	public void onKick(KickEvent event) {
-		
+		EmbedBuilder embed = this.getGenericEmbed(event.getGuild(), event.getModerator().getUser(), event.getAction(), event.getReason());
+
+		event.getTarget().openPrivateChannel()
+			.flatMap(channel -> channel.sendMessage(embed.build()))
+			.queue(null, ErrorResponseException.ignore(ErrorResponse.CANNOT_SEND_TO_USER));
 	}
 	
 	public void onMute(MuteEvent event) {
-		
-	}
-	
-	public void onMuteExtend(MuteExtendEvent event) {
-		
+		EmbedBuilder embed = this.getGenericEmbed(event.getGuild(), event.getModerator().getUser(), event.getAction(), event.getReason());
+		embed.getFields().add(0, new MessageEmbed.Field("Duration", TimeUtility.getTimeString(event.getDuration()), false));
+
+		event.getTarget().openPrivateChannel()
+			.flatMap(channel -> channel.sendMessage(embed.build()))
+			.queue(null, ErrorResponseException.ignore(ErrorResponse.CANNOT_SEND_TO_USER));
 	}
 	
 	public void onWarn(WarnEvent event) {
-		
-	}
-	
-	public void onUnban(UnbanEvent event) {
-		
+		Reason reason = event.getReason();
+		User moderator = event.getModerator().getUser();
+		Warn nextWarn = event.getNextWarning();
+
+		EmbedBuilder embed = new EmbedBuilder()
+			.setAuthor(event.getAction().toString(), null, event.getGuild().getIconUrl())
+			.addField("Warning", String.valueOf(event.getAction().getWarning().getNumber()), false);
+
+		if (nextWarn != null) {
+			embed.addField("Next Action", nextWarn.getAction().toString(), false);
+		}
+
+		embed.addField("Moderator", moderator.getAsTag() + " (" + moderator.getIdLong() + ")", false);
+		embed.addField("Reason", reason == null ? "None Given" : reason.getParsed(), false);
+		embed.setTimestamp(Instant.now());
+
+		event.getTarget().openPrivateChannel()
+			.flatMap(channel -> channel.sendMessage(embed.build()))
+			.queue(null, ErrorResponseException.ignore(ErrorResponse.CANNOT_SEND_TO_USER));
 	}
 	
 	public void onUnmute(UnmuteEvent event) {
-		
+		EmbedBuilder embed = this.getGenericEmbed(event.getGuild(), event.getModerator().getUser(), event.getAction(), event.getReason());
+
+		event.getTarget().openPrivateChannel()
+			.flatMap(channel -> channel.sendMessage(embed.build()))
+			.queue(null, ErrorResponseException.ignore(ErrorResponse.CANNOT_SEND_TO_USER));
 	}
 
 	@Override
@@ -137,6 +188,13 @@ public class ModHandler implements ModActionListener, EventListener {
 			user = banEvent.getUser();
 			actionType = ActionType.BAN;
 			action = new Action(ModAction.BAN);
+		} else if (event instanceof GuildUnbanEvent) {
+			GuildUnbanEvent unbanEvent = (GuildUnbanEvent) event;
+
+			guild = unbanEvent.getGuild();
+			user = unbanEvent.getUser();
+			actionType = ActionType.UNBAN;
+			action = new Action(ModAction.UNBAN);
 		} else {
 			return;
 		}
@@ -156,7 +214,11 @@ public class ModHandler implements ModActionListener, EventListener {
 				User moderator = entry.getUser();
 				String reason = entry.getReason();
 
-				if (moderator != null) {
+				if (moderator != null && moderator.getIdLong() != guild.getSelfMember().getIdLong()) {
+					if (actionType == ActionType.UNBAN) {
+						this.bot.getTemporaryBanManager().removeBan(guild.getIdLong(), user.getIdLong(), false);
+					}
+
 					this.handle(guild, action, moderator, user, reason == null ? null : new Reason(reason));
 				}
 			});

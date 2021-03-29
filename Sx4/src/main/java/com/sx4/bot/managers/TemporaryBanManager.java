@@ -80,7 +80,7 @@ public class TemporaryBanManager {
 		this.putExecutor(guildId, userId, executor);
 	}
 
-	public DeleteOneModel<Document> removeBanAndGet(long guildId, long userId) {
+	public DeleteOneModel<Document> removeBanAndGet(long guildId, long userId, boolean automatic) {
 		ShardManager shardManager = this.bot.getShardManager();
 
 		Guild guild = shardManager.getGuildById(guildId);
@@ -91,21 +91,32 @@ public class TemporaryBanManager {
 		User user = shardManager.getUserById(userId);
 
 		Member member = user == null ? null : guild.getMember(user);
-		if (member == null) {
+		if (automatic && member == null) {
 			guild.unban(String.valueOf(userId)).reason("Ban length served").queue();
 		}
 
-		this.bot.getModActionManager().onModAction(new UnbanEvent(guild.getSelfMember(), user, new Reason("Ban length served")));
+		if (automatic) {
+			this.bot.getModActionManager().onModAction(new UnbanEvent(guild.getSelfMember(), user, new Reason("Ban length served")));
+		}
+
 		this.deleteExecutor(guildId, userId);
 
 		return new DeleteOneModel<>(Filters.and(Filters.eq("guildId", guildId), Filters.eq("userId", userId)));
 	}
+
+	public DeleteOneModel<Document> removeBanAndGet(long guildId, long userId) {
+		return this.removeBanAndGet(guildId, userId, true);
+	}
 	
-	public void removeBan(long guildId, long userId) {
-		DeleteOneModel<Document> model = this.removeBanAndGet(guildId, userId);
+	public void removeBan(long guildId, long userId, boolean automatic) {
+		DeleteOneModel<Document> model = this.removeBanAndGet(guildId, userId, automatic);
 		if (model != null) {
 			this.bot.getDatabase().deleteTemporaryBan(model.getFilter()).whenComplete(Database.exceptionally(this.bot.getShardManager()));
 		}
+	}
+
+	public void removeBan(long guildId, long userId) {
+		this.removeBan(guildId, userId, true);
 	}
 
 	public void ensureBans() {
