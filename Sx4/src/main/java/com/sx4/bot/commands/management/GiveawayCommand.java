@@ -84,7 +84,7 @@ public class GiveawayCommand extends Sx4Command {
 			channel.sendMessage(this.getEmbed(winners, seconds, item)).queue(message -> {
 				message.addReaction("🎉").queue();
 				
-				Document data = new Document("_id", message.getIdLong())
+				Document data = new Document("messageId", message.getIdLong())
 					.append("channelId", channel.getIdLong())
 					.append("guildId", event.getGuild().getIdLong())
 					.append("winnersAmount", winners)
@@ -309,7 +309,7 @@ public class GiveawayCommand extends Sx4Command {
 			channelFuture.sendMessage(this.getEmbed(winnersFuture, durationFuture, itemFuture)).queue(message -> {
 				message.addReaction("🎉").queue();
 				
-				Document data = new Document("_id", message.getIdLong())
+				Document data = new Document("messageId", message.getIdLong())
 					.append("channelId", channelFuture.getIdLong())
 					.append("guildId", event.getGuild().getIdLong())
 					.append("winnersAmount", winnersFuture)
@@ -367,7 +367,7 @@ public class GiveawayCommand extends Sx4Command {
 				return;
 			}
 			
-			channel.editMessageById(data.getLong("_id"), this.getEmbed(data.getInteger("winnersAmount"), seconds, data.getString("item"))).queue();
+			channel.editMessageById(data.getLong("messageId"), this.getEmbed(data.getInteger("winnersAmount"), seconds, data.getString("item"))).queue();
 			
 			event.getBot().getGiveawayManager().putGiveaway(data, seconds);
 			
@@ -479,7 +479,7 @@ public class GiveawayCommand extends Sx4Command {
 			.setAuthor("Giveaways", null, event.getGuild().getIconUrl())
 			.setDisplayFunction(data -> {
 				long endAt = data.getLong("endAt"), timeNow = Clock.systemUTC().instant().getEpochSecond();
-				return data.getLong("_id") + " - " + (endAt - timeNow < 0 ? "Ended" : TimeUtility.getTimeString(endAt - timeNow));
+				return data.getLong("messageId") + " - " + (endAt - timeNow < 0 ? "Ended" : TimeUtility.getTimeString(endAt - timeNow));
 			});
 		
 		paged.onSelect(select -> {
@@ -494,7 +494,7 @@ public class GiveawayCommand extends Sx4Command {
 				.map(User::getAsMention)
 				.collect(Collectors.joining(", "));
 			
-			event.replyFormat("**Giveaway %d**\nItem: %s\nWinner%s: %s\nDuration: %s", data.getLong("_id"), data.getString("item"), winners.size() == 1 ? "" : "s", winnersString, TimeUtility.getTimeString(data.getLong("duration"))).queue();
+			event.replyFormat("**Giveaway %d**\nItem: %s\nWinner%s: %s\nDuration: %s", data.getLong("messageId"), data.getString("item"), winners.size() == 1 ? "" : "s", winnersString, TimeUtility.getTimeString(data.getLong("duration"))).queue();
 		});
 		
 		paged.execute(event);

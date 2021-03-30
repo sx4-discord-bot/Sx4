@@ -27,7 +27,7 @@ public class MediaModeHandler implements EventListener {
 	}
 
 	public void handle(Message message) {
-		if (message.getAuthor().isBot()) { //|| message.getMember().hasPermission(Permission.ADMINISTRATOR)) {
+		if (message.getAuthor().isBot() || message.getMember().hasPermission(Permission.ADMINISTRATOR)) {
 			return;
 		}
 

@@ -88,7 +88,7 @@ public class MediaModeCommand extends Sx4Command {
 
 	@Command(value="types", description="Sets what types are allowed to be sent in the channel")
 	@CommandId(352)
-	@Examples({"media mode types PNG", "media mode types #media JPG PNG MP4", "media mode types #media all"})
+	@Examples({"media mode types PNG", "media mode types #media JPG PNG", "media mode types GIF MP4"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void types(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) TextChannel channel, @Argument(value="types") MediaType... types) {
 		TextChannel effectiveChannel = channel == null ? event.getTextChannel() : channel;

@@ -102,7 +102,6 @@ public class SuggestionCommand extends Sx4Command {
 	@BotPermissions(permissions={Permission.MESSAGE_ADD_REACTION, Permission.MESSAGE_EMBED_LINKS})
 	public void add(Sx4CommandEvent event, @Argument(value="suggestion", endless=true) String suggestion) {
 		Document data = event.getDatabase().getGuildById(event.getGuild().getIdLong(), Projections.include("suggestion.channelId", "suggestion.enabled", "suggestion.webhook")).get("suggestion", Database.EMPTY_DOCUMENT);
-		
 		if (!data.getBoolean("enabled", false)) {
 			event.replyFailure("Suggestions are not enabled in this server").queue();
 			return;

@@ -174,6 +174,7 @@ public class Database {
 		this.giveaways.createIndex(Indexes.descending("guildId"));
 		this.giveaways.createIndex(Indexes.descending("channelId"));
 		this.giveaways.createIndex(Indexes.descending("winners"));
+		this.giveaways.createIndex(Indexes.descending("messageId"));
 
 		this.redirects = this.database.getCollection("redirects");
 		this.redirects.createIndex(Indexes.descending("url"));
@@ -1424,7 +1425,7 @@ public class Database {
 	}
 	
 	public Document getGiveawayById(long messageId) {
-		return this.giveaways.find(Filters.eq("_id", messageId)).first();
+		return this.giveaways.find(Filters.eq("messageId", messageId)).first();
 	}
 	
 	public CompletableFuture<InsertOneResult> insertGiveaway(Document data) {
@@ -1436,19 +1437,19 @@ public class Database {
 	}
 	
 	public CompletableFuture<UpdateResult> updateGiveawayById(long messageId, Bson update) {
-		return CompletableFuture.supplyAsync(() -> this.giveaways.updateOne(Filters.eq("_id", messageId), update));
+		return CompletableFuture.supplyAsync(() -> this.giveaways.updateOne(Filters.eq("messageId", messageId), update));
 	}
 	
 	public CompletableFuture<UpdateResult> updateGiveawayById(long messageId, List<? extends Bson> update) {
-		return CompletableFuture.supplyAsync(() -> this.giveaways.updateOne(Filters.eq("_id", messageId), update));
+		return CompletableFuture.supplyAsync(() -> this.giveaways.updateOne(Filters.eq("messageId", messageId), update));
 	}
 	
 	public CompletableFuture<Document> findAndUpdateGiveawayById(long messageId, List<? extends Bson> update, FindOneAndUpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.giveaways.findOneAndUpdate(Filters.eq("_id", messageId), update, options));
+		return CompletableFuture.supplyAsync(() -> this.giveaways.findOneAndUpdate(Filters.eq("messageId", messageId), update, options));
 	}
 	
 	public CompletableFuture<DeleteResult> deleteGiveawayById(long messageId) {
-		return CompletableFuture.supplyAsync(() -> this.giveaways.deleteOne(Filters.eq("_id", messageId)));
+		return CompletableFuture.supplyAsync(() -> this.giveaways.deleteOne(Filters.eq("messageId", messageId)));
 	}
 	
 	public CompletableFuture<DeleteResult> deleteManyGiveaways(Bson filter) {
