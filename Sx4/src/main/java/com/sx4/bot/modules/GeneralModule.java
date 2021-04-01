@@ -2314,6 +2314,7 @@ public class GeneralModule {
 	
 	@Command(value="user info", aliases={"userinfo", "ui", "uinfo"}, description="Returns info about a specified user")
 	@Examples({"user info", "user info @Shea#6653", "user info 402557516728369153", "user info Shea"})
+	@Async
 	@BotPermissions({Permission.MESSAGE_EMBED_LINKS})
 	public void userInfo(CommandEvent event, @Argument(value="user", endless=true, nullDefault=true) String argument) {
 		Member member = null;
