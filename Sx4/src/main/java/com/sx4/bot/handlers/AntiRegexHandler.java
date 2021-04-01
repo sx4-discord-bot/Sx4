@@ -63,7 +63,7 @@ public class AntiRegexHandler implements EventListener {
 
     public void handle(Message message) {
         Member member = message.getMember();
-        if (member == null){ //|| member.hasPermission(Permission.ADMINISTRATOR)) {
+        if (member == null) { //|| member.hasPermission(Permission.ADMINISTRATOR)) {
             return;
         }
 
@@ -78,6 +78,8 @@ public class AntiRegexHandler implements EventListener {
 
         this.executor.submit(() -> {
             long guildId = guild.getIdLong(), userId = member.getIdLong(), channelId = textChannel.getIdLong();
+
+            Category parent = textChannel.getParent();
             List<Role> roles = member.getRoles();
 
             List<Document> regexes = this.bot.getDatabase().getRegexes(Filters.eq("guildId", guildId), Database.EMPTY_DOCUMENT).into(new ArrayList<>());
@@ -90,10 +92,12 @@ public class AntiRegexHandler implements EventListener {
                     continue;
                 }
 
+                // TODO: change ints to Enums and remove default value when implemented, type 0 == Channel and type 1 == Category
                 List<Document> channels = regex.getList("whitelist", Document.class, Collections.emptyList());
+
                 Document channel = channels.stream()
-                    .filter(d -> d.getLong("id") == channelId)
-                    .findFirst()
+                    .filter(d -> (d.getInteger("type", 0) == 0 && d.getLong("id") == channelId) || (d.getInteger("type", 0) == 1 && parent != null && d.getLong("id") == parent.getIdLong()))
+                    .min(Comparator.comparingInt(d -> d.getInteger("type", 0)))
                     .orElse(Database.EMPTY_DOCUMENT);
 
                 List<Document> holders = channel.getList("holders", Document.class, Collections.emptyList());
@@ -120,6 +124,7 @@ public class AntiRegexHandler implements EventListener {
                         List<String> strings = group.getList("strings", String.class, Collections.emptyList());
 
                         String match = matcher.group(group.getInteger("group"));
+                        System.out.println(match);
                         if (match != null && strings.contains(match)) {
                             matchCount++;
                         }

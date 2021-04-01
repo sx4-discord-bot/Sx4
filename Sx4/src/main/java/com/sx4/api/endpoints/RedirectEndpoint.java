@@ -1,7 +1,6 @@
 package com.sx4.api.endpoints;
 
 import com.sx4.bot.core.Sx4;
-import com.sx4.bot.database.Database;
 import org.bson.Document;
 
 import javax.ws.rs.*;
@@ -37,7 +36,7 @@ public class RedirectEndpoint {
 	}
 
 	@GET
-	@Path("{id: [a-zA-Z0-9]{6}}")
+	@Path("{id: [a-zA-Z0-9]{2,7}}")
 	public Response getRedirect(@PathParam("id") final String id) {
 		Document redirect = this.bot.getDatabase().getRedirectById(id);
 		if (redirect == null) {

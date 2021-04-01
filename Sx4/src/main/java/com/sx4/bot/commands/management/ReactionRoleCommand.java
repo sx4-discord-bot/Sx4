@@ -121,12 +121,13 @@ public class ReactionRoleCommand extends Sx4Command {
 
 			Bson filter = Filters.and(
 				Filters.eq("messageId", message.getIdLong()),
-				Filters.eq("emote." + identifier, unicode ? emote.getEmoji() : emote.getEmote().getIdLong())
+				Filters.eq("emote", new Document(identifier, unicode ? emote.getEmoji() : emote.getEmote().getIdLong()))
 			);
 
 			Bson update = Updates.combine(
 				Updates.addToSet("roles", role.getIdLong()),
-				Updates.setOnInsert("guildId", event.getGuild().getIdLong())
+				Updates.setOnInsert("guildId", event.getGuild().getIdLong()),
+				Updates.setOnInsert("channelId", message.getChannel().getIdLong())
 			);
 
 			RestAction<Void> action;
@@ -176,7 +177,7 @@ public class ReactionRoleCommand extends Sx4Command {
 
 		Bson filter = Filters.and(
 			Filters.eq("messageId", messageArgument.getMessageId()),
-			Filters.eq("emote." + identifier, unicode ? emote.getEmoji() : emote.getEmote().getIdLong())
+			Filters.eq("emote", new Document(identifier, unicode ? emote.getEmoji() : emote.getEmote().getIdLong()))
 		);
 
 		Bson update = Updates.pull("roles", role.getIdLong());
@@ -344,7 +345,7 @@ public class ReactionRoleCommand extends Sx4Command {
 			if (emote != null) {
 				boolean unicode = emote.isEmoji();
 
-				filter = Filters.and(filter, Filters.eq("emote." + (unicode ? "name" : "id"), unicode ? emote.getEmoji() : emote.getEmote().getIdLong()));
+				filter = Filters.and(filter, Filters.eq("emote", new Document(unicode ? "name" : "id", unicode ? emote.getEmoji() : emote.getEmote().getIdLong())));
 
 				Bson permissionsMap = Operators.ifNull("$permissions", Collections.EMPTY_LIST);
 				Bson holderFilter = Operators.filter(permissionsMap, Operators.eq("$$this.id", holder.getIdLong()));
@@ -391,7 +392,7 @@ public class ReactionRoleCommand extends Sx4Command {
 			if (emote != null) {
 				boolean unicode = emote.isEmoji();
 
-				filter = Filters.and(filter, Filters.eq("emote." + (unicode ? "name" : "id"), unicode ? emote.getEmoji() : emote.getEmote().getIdLong()));
+				filter = Filters.and(filter, Filters.eq("emote", new Document(unicode ? "name" : "id", unicode ? emote.getEmoji() : emote.getEmote().getIdLong())));
 			}
 
 			event.getDatabase().updateManyReactionRoles(filter, update, new UpdateOptions()).whenComplete((result, exception) -> {
@@ -428,7 +429,7 @@ public class ReactionRoleCommand extends Sx4Command {
 			if (emote != null) {
 				boolean unicode = emote.isEmoji();
 
-				filter = Filters.and(filter, Filters.eq("emote." + (unicode ? "name" : "id"), unicode ? emote.getEmoji() : emote.getEmote().getIdLong()));
+				filter = Filters.and(filter, Filters.eq("emote", new Document(unicode ? "name" : "id", unicode ? emote.getEmoji() : emote.getEmote().getIdLong())));
 			}
 
 			event.getDatabase().updateManyReactionRoles(filter, update, new UpdateOptions()).whenComplete((result, exception) -> {

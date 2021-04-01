@@ -23,16 +23,16 @@ public class ShortenCommand extends Sx4Command {
 
 	public void onCommand(Sx4CommandEvent event, @Argument(value="url") String url) {
 		Request request = new Request.Builder()
-			.url(String.format("%s/api/shorten", event.getConfig().getDomain()))
-			.post(RequestBody.create(MediaType.parse("application/json; charset=utf-8"), new Document("url", url).toJson()))
-			//.addHeader("Authorization", "Bearer " + event.getConfig().getBitly())
-			//.addHeader("Content-Type", "application/json")
+			.url("https://api-ssl.bitly.com/v4/shorten")
+			.post(RequestBody.create(MediaType.parse("application/json; charset=utf-8"), new Document("long_url", url).toJson()))
+			.addHeader("Authorization", "Bearer " + event.getConfig().getBitly())
+			.addHeader("Content-Type", "application/json")
 			.build();
 
 		event.getHttpClient().newCall(request).enqueue((HttpCallback) response -> {
 			Document json = Document.parse(response.body().string());
 
-			event.replyFormat("<" + event.getConfig().getDomain() + "/" + json.getString("_id") + ">").queue();
+			event.replyFormat("<" + json.getString("link") + ">").queue();
 		});
 	}
 
