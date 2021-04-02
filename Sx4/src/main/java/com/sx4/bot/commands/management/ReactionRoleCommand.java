@@ -421,8 +421,6 @@ public class ReactionRoleCommand extends Sx4Command {
 		@Examples({"reaction role whitelist delete 643945552865919002 :doggo:", "reaction role whitelist delete 643945552865919002"})
 		@AuthorPermissions(permissions={Permission.MANAGE_ROLES})
 		public void delete(Sx4CommandEvent event, @Argument(value="message id") MessageArgument messageArgument, @Argument(value="emote", nullDefault=true) ReactionEmote emote) {
-			Bson reactions = Operators.ifNull("$reactions", Collections.EMPTY_LIST);
-
 			Bson filter = Filters.eq("messageId", messageArgument.getMessageId());
 			Bson update = Updates.unset("permissions");
 

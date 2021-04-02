@@ -288,7 +288,7 @@ public class WarnCommand extends Sx4Command {
 		@CommandId(239)
 		@Examples({"warn configuration list"})
 		public void list(Sx4CommandEvent event) {
-			List<Document> config = event.getDatabase().getGuildById(event.getGuild().getIdLong(), Projections.include("warn.config")).getEmbedded(List.of("warn", "config"), Warn.DEFAULT_CONFIG);
+			List<Document> config = event.getDatabase().getGuildById(event.getGuild().getIdLong(), Projections.include("warn.config")).getEmbedded(List.of("warn", "config"), new ArrayList<>(Warn.DEFAULT_CONFIG));
 			config.sort(Comparator.comparingInt(a -> a.getInteger("number")));
 
 			PagedResult<Document> paged = new PagedResult<>(event.getBot(), config)

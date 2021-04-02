@@ -2,6 +2,7 @@ package com.sx4.bot.handlers;
 
 import com.mongodb.MongoWriteException;
 import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.UpdateOptions;
 import com.mongodb.client.model.Updates;
 import com.sx4.bot.config.Config;
 import com.sx4.bot.core.Sx4;
@@ -151,7 +152,7 @@ public class ReactionRoleHandler implements EventListener {
 	}
 	
 	public void onRoleDelete(RoleDeleteEvent event) {
-		this.bot.getDatabase().updateReactionRole(Filters.eq("guildId", event.getGuild().getIdLong()), Updates.pull("roles", event.getRole().getIdLong())).whenComplete((result, exception) -> {
+		this.bot.getDatabase().updateReactionRole(Filters.eq("guildId", event.getGuild().getIdLong()), Updates.pull("roles", event.getRole().getIdLong()), new UpdateOptions()).whenComplete((result, exception) -> {
 			Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
 			if (cause instanceof MongoWriteException && ((MongoWriteException) cause).getCode() == 2) {
 				return;
