@@ -5,6 +5,7 @@ import com.sx4.bot.config.Config;
 import com.sx4.bot.entities.image.ImageRequest;
 import com.sx4.bot.formatter.Formatter;
 import com.sx4.bot.formatter.JsonFormatter;
+import com.sx4.bot.formatter.parser.FormatterTimeParser;
 import com.sx4.bot.http.HttpCallback;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
@@ -23,7 +24,7 @@ public class WelcomerUtility {
 		Formatter<Document> formatter = new JsonFormatter(messageData)
 			.member(member)
 			.guild(guild)
-			.append("now", OffsetDateTime.now());
+			.append("now", new FormatterTimeParser(OffsetDateTime.now()));
 
 		if (!image) {
 			WebhookMessageBuilder builder;

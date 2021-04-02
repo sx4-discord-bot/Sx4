@@ -5,6 +5,7 @@ import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.formatter.JsonFormatter;
 import com.sx4.bot.formatter.parser.FormatterRandomParser;
+import com.sx4.bot.formatter.parser.FormatterTimeParser;
 import com.sx4.bot.utility.MessageUtility;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.Message.MentionType;
@@ -15,6 +16,7 @@ import net.dv8tion.jda.api.events.message.guild.GuildMessageUpdateEvent;
 import net.dv8tion.jda.api.hooks.EventListener;
 import org.bson.Document;
 
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
@@ -45,6 +47,7 @@ public class TriggerHandler implements EventListener {
 					.member(message.getMember())
 					.channel(message.getTextChannel())
 					.guild(message.getGuild())
+					.appendFunction("now", new FormatterTimeParser(OffsetDateTime.now()))
 					.appendFunction("random", new FormatterRandomParser())
 					.parse();
 
