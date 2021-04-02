@@ -13,6 +13,7 @@ import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.database.model.Operators;
 import com.sx4.bot.entities.argument.TimedArgument;
+import com.sx4.bot.entities.management.WhitelistType;
 import com.sx4.bot.entities.mod.action.ModAction;
 import com.sx4.bot.entities.mod.auto.MatchAction;
 import com.sx4.bot.entities.mod.auto.RegexType;
@@ -303,7 +304,7 @@ public class AntiInviteCommand extends Sx4Command {
 				long channelId = channel.getIdLong();
 				channelIds.add(channelId);
 
-				Document channelData = new Document("id", channelId).append("holders", List.of(holderData));
+				Document channelData = new Document("id", channelId).append("type", WhitelistType.CHANNEL.getId()).append("holders", List.of(holderData));
 
 				Bson channelFilter = Operators.filter(channelMap, Operators.eq("$$this.id", channelId));
 				concat.add(Operators.cond(Operators.isEmpty(channelFilter), List.of(channelData), List.of(Operators.mergeObjects(Operators.first(channelFilter), new Document("holders", Operators.concatArrays(List.of(holderData), Operators.filter(Operators.ifNull(Operators.first(Operators.map(channelFilter, "$$this.holders")), Collections.EMPTY_LIST), Operators.ne("$$this.id", holderId))))))));
@@ -351,7 +352,7 @@ public class AntiInviteCommand extends Sx4Command {
 				long channelId = channel.getIdLong();
 				channelIds.add(channelId);
 
-				Document channelData = new Document("id", channelId).append("holders", List.of(holderData));
+				Document channelData = new Document("id", channelId).append("type", WhitelistType.CHANNEL.getId()).append("holders", List.of(holderData));
 
 				Bson channelFilter = Operators.filter(channelMap, Operators.eq("$$this.id", channelId));
 				concat.add(Operators.cond(Operators.isEmpty(channelFilter), List.of(channelData), List.of(Operators.mergeObjects(Operators.first(channelFilter), new Document("holders", Operators.filter(Operators.ifNull(Operators.first(Operators.map(channelFilter, "$$this.holders")), Collections.EMPTY_LIST), Operators.ne("$$this.id", holderId)))))));

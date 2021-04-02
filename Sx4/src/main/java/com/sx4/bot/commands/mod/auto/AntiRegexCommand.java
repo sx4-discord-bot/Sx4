@@ -15,6 +15,7 @@ import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.model.Operators;
 import com.sx4.bot.entities.argument.TimedArgument;
+import com.sx4.bot.entities.management.WhitelistType;
 import com.sx4.bot.entities.mod.action.ModAction;
 import com.sx4.bot.entities.mod.auto.MatchAction;
 import com.sx4.bot.entities.mod.auto.RegexType;
@@ -372,7 +373,7 @@ public class AntiRegexCommand extends Sx4Command {
 		@CommandId(117)
 		@Examples({"anti regex whitelist add 5f023782ef9eba03390a740c #youtube-links 2 youtube.com", "anti regex whitelist add 5f023782ef9eba03390a740c 0 https://youtube.com"})
 		@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-		public void add(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="channel", nullDefault=true) TextChannel channelArgument, @Argument(value="group") @Limit(min=0) int group, @Argument(value="string", endless=true) String string) {
+		public void add(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="channel", nullDefault=true) TextChannel channelArgument, @Argument(value="group") @Limit(min=0) int group, @Argument(value="string", endless=true) @Limit(max=250) String string) {
 			Document regex = event.getDatabase().getRegexById(event.getGuild().getIdLong(), id, Projections.include("pattern", "type"));
 			if (regex != null && Pattern.compile(regex.getString("pattern")).matcher("").groupCount() < group) {
 				event.replyFailure("There is not a group " + group + " in that regex").queue();
@@ -391,7 +392,7 @@ public class AntiRegexCommand extends Sx4Command {
 				long channelId = channel.getIdLong();
 				channelIds.add(channelId);
 
-				Document channelData = new Document("id", channelId).append("groups", List.of(groupData));
+				Document channelData = new Document("id", channelId).append("type", WhitelistType.CHANNEL.getId()).append("groups", List.of(groupData));
 
 				Bson channelFilter = Operators.filter(channelMap, Operators.eq("$$this.id", channelId));
 				Bson groupMap = Operators.ifNull(Operators.first(Operators.map(channelFilter, "$$this.groups")), Collections.EMPTY_LIST);
@@ -443,7 +444,7 @@ public class AntiRegexCommand extends Sx4Command {
 				long channelId = channel.getIdLong();
 				channelIds.add(channelId);
 
-				Document channelData = new Document("id", channelId).append("holders", List.of(holderData));
+				Document channelData = new Document("id", channelId).append("type", WhitelistType.CHANNEL.getId()).append("holders", List.of(holderData));
 
 				Bson channelFilter = Operators.filter(channelMap, Operators.eq("$$this.id", channelId));
 				concat.add(Operators.cond(Operators.isEmpty(channelFilter), List.of(channelData), List.of(Operators.mergeObjects(Operators.first(channelFilter), new Document("holders", Operators.concatArrays(List.of(holderData), Operators.filter(Operators.ifNull(Operators.first(Operators.map(channelFilter, "$$this.holders")), Collections.EMPTY_LIST), Operators.ne("$$this.id", holderId))))))));
@@ -533,7 +534,7 @@ public class AntiRegexCommand extends Sx4Command {
 				long channelId = channel.getIdLong();
 				channelIds.add(channelId);
 
-				Document channelData = new Document("id", channelId).append("holders", List.of(holderData));
+				Document channelData = new Document("id", channelId).append("type", WhitelistType.CHANNEL.getId()).append("holders", List.of(holderData));
 
 				Bson channelFilter = Operators.filter(channelMap, Operators.eq("$$this.id", channelId));
 				concat.add(Operators.cond(Operators.isEmpty(channelFilter), List.of(channelData), List.of(Operators.mergeObjects(Operators.first(channelFilter), new Document("holders", Operators.filter(Operators.ifNull(Operators.first(Operators.map(channelFilter, "$$this.holders")), Collections.EMPTY_LIST), Operators.ne("$$this.id", holderId)))))));

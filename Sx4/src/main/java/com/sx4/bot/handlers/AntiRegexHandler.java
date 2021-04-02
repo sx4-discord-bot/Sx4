@@ -7,6 +7,7 @@ import com.mongodb.client.model.ReturnDocument;
 import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.database.model.Operators;
+import com.sx4.bot.entities.management.WhitelistType;
 import com.sx4.bot.entities.mod.Reason;
 import com.sx4.bot.entities.mod.action.Action;
 import com.sx4.bot.entities.mod.auto.MatchAction;
@@ -63,7 +64,7 @@ public class AntiRegexHandler implements EventListener {
 
     public void handle(Message message) {
         Member member = message.getMember();
-        if (member == null) { //|| member.hasPermission(Permission.ADMINISTRATOR)) {
+        if (member == null || member.hasPermission(Permission.ADMINISTRATOR)) {
             return;
         }
 
@@ -92,11 +93,10 @@ public class AntiRegexHandler implements EventListener {
                     continue;
                 }
 
-                // TODO: change ints to Enums and remove default value when implemented, type 0 == Channel and type 1 == Category
                 List<Document> channels = regex.getList("whitelist", Document.class, Collections.emptyList());
 
                 Document channel = channels.stream()
-                    .filter(d -> (d.getInteger("type", 0) == 0 && d.getLong("id") == channelId) || (d.getInteger("type", 0) == 1 && parent != null && d.getLong("id") == parent.getIdLong()))
+                    .filter(d -> (d.getInteger("type") == WhitelistType.CHANNEL.getId() && d.getLong("id") == channelId) || (d.getInteger("type") == WhitelistType.CATEGORY.getId() && parent != null && d.getLong("id") == parent.getIdLong()))
                     .min(Comparator.comparingInt(d -> d.getInteger("type", 0)))
                     .orElse(Database.EMPTY_DOCUMENT);
 

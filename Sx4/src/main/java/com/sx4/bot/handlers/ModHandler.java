@@ -56,7 +56,7 @@ public class ModHandler implements ModActionListener, EventListener {
 		if (modAction.isOffence()) {
 			Document data = new Document("action", action.toData())
 				.append("guildId", guild.getIdLong())
-				.append("userId", target.getIdLong())
+				.append("targetId", target.getIdLong())
 				.append("moderatorId", moderator.getIdLong());
 
 			if (reason != null) {

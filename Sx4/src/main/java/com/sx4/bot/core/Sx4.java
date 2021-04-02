@@ -287,7 +287,7 @@ public class Sx4 {
 
 	public ShardManager createShardManager(List<Object> listeners) {
 		try {
-			return DefaultShardManagerBuilder.create(this.config.getToken(), GatewayIntent.getIntents(6094))
+			return DefaultShardManagerBuilder.create(this.config.getToken(), GatewayIntent.getIntents(5838))
 				.setBulkDeleteSplittingEnabled(false)
 				.addEventListeners(listeners)
 				.build();
@@ -307,6 +307,8 @@ public class Sx4 {
 			.setCommandEventFactory(new Sx4CommandEventFactory(this))
 			.addCommandEventListener(new Sx4CommandEventListener(this))
 			.setDefaultPrefixes(this.config.getDefaultPrefixes().toArray(String[]::new))
+			.setMissingPermissionExceptionFunction((event, permission) -> event.reply(PermissionUtility.formatMissingPermissions(EnumSet.of(permission), "I am") + " " + this.config.getFailureEmote()).queue())
+			.setMissingPermissionFunction((event, permissions) -> event.reply(PermissionUtility.formatMissingPermissions(permissions, "I am") + " " + this.config.getFailureEmote()).queue())
 			.setHelpFunction((message, prefix, commands) -> {
 				MessageChannel channel = message.getChannel();
 				boolean embed = !message.isFromGuild() || message.getGuild().getSelfMember().hasPermission((TextChannel) channel, Permission.MESSAGE_EMBED_LINKS);

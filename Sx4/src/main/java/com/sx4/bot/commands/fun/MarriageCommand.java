@@ -61,6 +61,10 @@ public class MarriageCommand extends Sx4Command {
 	@Examples({"marriage add @Shea#6653", "marriage add Shea", "marriage add 402557516728369153"})
 	public void add(Sx4CommandEvent event, @Argument(value="user", endless=true) Member member) {
 		User author = event.getAuthor();
+		if (member.getUser().isBot()) {
+			event.replyFailure("You cannot marry bots").queue();
+			return;
+		}
 
 		Bson checkFilter = Filters.or(
 			Filters.eq("proposerId", author.getIdLong()),

@@ -20,24 +20,24 @@ public class WelcomerUtility {
 	public static void getWelcomerMessage(OkHttpClient httpClient, Document messageData, Member member, boolean image, boolean gif, BiConsumer<WebhookMessageBuilder, Throwable> consumer) {
 		Guild guild = member.getGuild();
 
-		WebhookMessageBuilder builder;
-		if (messageData == null) {
-			builder = new WebhookMessageBuilder();
-		} else {
-			Formatter<Document> formatter = new JsonFormatter(messageData)
-				.member(member)
-				.guild(guild)
-				.append("now", OffsetDateTime.now());
-
-			try {
-				builder = MessageUtility.fromJson(formatter.parse());
-			} catch (IllegalArgumentException e) {
-				consumer.accept(null, e);
-				return;
-			}
-		}
+		Formatter<Document> formatter = new JsonFormatter(messageData)
+			.member(member)
+			.guild(guild)
+			.append("now", OffsetDateTime.now());
 
 		if (!image) {
+			WebhookMessageBuilder builder;
+			if (messageData != null) {
+				try {
+					builder = MessageUtility.fromJson(formatter.parse());
+				} catch (IllegalArgumentException e) {
+					consumer.accept(null, e);
+					return;
+				}
+			} else {
+				builder = new WebhookMessageBuilder();
+			}
+
 			consumer.accept(builder, null);
 		} else {
 			User user = member.getUser();
@@ -50,7 +50,22 @@ public class WelcomerUtility {
 
 			httpClient.newCall(request.build(Config.get().getImageWebserver())).enqueue((HttpCallback) response -> {
 				if (response.isSuccessful()) {
-					builder.addFile("welcomer." + response.header("Content-Type").split("/")[1], response.body().bytes());
+					String fileName = "welcomer." + response.header("Content-Type").split("/")[1];
+					formatter.append("file.name", fileName).append("file.url", "attachment://" + fileName);
+
+					WebhookMessageBuilder builder;
+					if (messageData == null) {
+						builder = new WebhookMessageBuilder();
+					} else {
+						try {
+							builder = MessageUtility.fromJson(formatter.parse());
+						} catch (IllegalArgumentException e) {
+							consumer.accept(null, e);
+							return;
+						}
+					}
+
+					builder.addFile(fileName, response.body().bytes());
 
 					consumer.accept(builder, null);
 				}

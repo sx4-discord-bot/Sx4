@@ -9,7 +9,7 @@ import java.util.EnumSet;
 
 public class PermissionUtility {
 
-	public static String formatMissingPermissions(EnumSet<Permission> permissions) {
+	public static String formatMissingPermissions(EnumSet<Permission> permissions, String prefix) {
 		StringBuilder permissionsString = new StringBuilder();
 		
 		int i = 0;
@@ -23,7 +23,11 @@ public class PermissionUtility {
 			i++;
 		}
 		
-		return "You are missing the permission" + (permissions.size() == 1 ? " " : "s ") + permissionsString.toString() + " to execute this command";
+		return prefix + " missing the permission" + (permissions.size() == 1 ? " " : "s ") + permissionsString.toString() + " to execute this command";
+	}
+
+	public static String formatMissingPermissions(EnumSet<Permission> permissions) {
+		return PermissionUtility.formatMissingPermissions(permissions, "You are");
 	}
 
 	public static boolean canConnect(Member member, VoiceChannel channel) {

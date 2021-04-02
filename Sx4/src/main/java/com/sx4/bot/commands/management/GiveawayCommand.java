@@ -155,11 +155,11 @@ public class GiveawayCommand extends Sx4Command {
 			return future;
 		}).thenCompose(success -> {
 			if (!success) {
-				atomicWinners.set(winners);
 				return CompletableFuture.completedFuture(false);
 			}
 			
-			if (winners != -1) {
+			if (winners != 0) {
+				atomicWinners.set(winners);
 				return CompletableFuture.completedFuture(true);
 			}
 			
