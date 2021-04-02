@@ -46,7 +46,9 @@ public class ServerStatsCommand extends Sx4Command {
 			if (difference.toHours() <= 24) {
 				joinsDay += stats.getInteger("joins", 0);
 				messagesDay += stats.getInteger("messages", 0);
-			} else if (difference.toDays() <= 7) {
+			}
+
+			if (difference.toDays() <= 7) {
 				joinsWeek += stats.getInteger("joins", 0);
 				messagesWeek += stats.getInteger("messages", 0);
 			}
