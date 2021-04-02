@@ -281,6 +281,11 @@ public class Config {
 	public String getDomain() {
 		return this.get(this.getState() + ".host.domain", this.getIp() + ":" + this.getPort());
 	}
+
+	public String getBaseUrl() {
+		String domain = this.get(this.getState() + ".host.domain");
+		return domain == null ? "http://" + this.getIp() + ":" + this.getPort() : "https://" + domain;
+	}
 	
 	public int getPort() {
 		return this.get(this.getState() + ".host.port", 8080);
