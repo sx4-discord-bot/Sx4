@@ -68,12 +68,12 @@ public class TemporaryBanCommand extends Sx4Command {
 
 			Member member = guild.getMember(user);
 			if (member != null) {
-				if (member.canInteract(event.getMember())) {
+				if (!event.getMember().canInteract(member)) {
 					event.replyFailure("You cannot ban someone higher or equal than your top role").queue();
 					return;
 				}
 
-				if (member.canInteract(event.getSelfMember())) {
+				if (!event.getSelfMember().canInteract(member)) {
 					event.replyFailure("I cannot ban someone higher or equal than my top role").queue();
 					return;
 				}
@@ -97,7 +97,7 @@ public class TemporaryBanCommand extends Sx4Command {
 						}
 
 						event.getGuild().ban(user, days).reason(ModUtility.getAuditReason(reason, event.getAuthor())).queue($ -> {
-							event.reply("**" + user.getAsTag() + "** has been temporarily banned for " + TimeUtility.getTimeString(duration) + " <:done:403285928233402378>:ok_hand:").queue();
+							event.replySuccess("**" + user.getAsTag() + "** has been temporarily banned for " + TimeUtility.getTimeString(duration)).queue();
 
 							event.getBot().getModActionManager().onModAction(new TemporaryBanEvent(event.getMember(), user, reason, member != null, duration));
 							event.getBot().getTemporaryBanManager().putBan(event.getGuild().getIdLong(), user.getIdLong(), duration);

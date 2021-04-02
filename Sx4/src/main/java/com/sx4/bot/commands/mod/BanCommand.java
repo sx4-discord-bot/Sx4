@@ -44,12 +44,12 @@ public class BanCommand extends Sx4Command {
 			
 			Member member = event.getGuild().getMember(user);
 			if (member != null) {
-				if (member.canInteract(event.getMember())) {
+				if (!event.getMember().canInteract(member)) {
 					event.replyFailure("You cannot ban someone higher or equal than your top role").queue();
 					return;
 				}
 				
-				if (member.canInteract(event.getSelfMember())) {
+				if (!event.getSelfMember().canInteract(member)) {
 					event.replyFailure("I cannot ban someone higher or equal than my top role").queue();
 					return;
 				}
@@ -58,7 +58,7 @@ public class BanCommand extends Sx4Command {
 			event.getGuild().retrieveBan(user).submit().whenComplete((ban, exception) -> {
 				if (exception instanceof ErrorResponseException && ((ErrorResponseException) exception).getErrorResponse() == ErrorResponse.UNKNOWN_BAN) {
 					event.getGuild().ban(user, days).reason(ModUtility.getAuditReason(reason, event.getAuthor())).queue($ -> {
-						event.reply("**" + user.getAsTag() + "** has been banned <:done:403285928233402378>:ok_hand:").queue();
+						event.replySuccess("**" + user.getAsTag() + "** has been banned").queue();
 
 						event.getBot().getModActionManager().onModAction(new BanEvent(event.getMember(), user, reason, member != null));
 					});

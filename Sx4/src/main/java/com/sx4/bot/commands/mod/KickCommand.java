@@ -29,14 +29,15 @@ public class KickCommand extends Sx4Command {
 			event.replyFailure("You cannot kick me, that is illegal").queue();
 			return;
 		}
-		
-		if (member.canInteract(event.getMember())) {
+
+		if (!event.getMember().canInteract(member)) {
 			event.replyFailure("You cannot kick someone higher or equal than your top role").queue();
 			return;
 		}
-		
-		if (member.canInteract(event.getSelfMember())) {
+
+		if (!event.getSelfMember().canInteract(member)) {
 			event.replyFailure("I cannot kick someone higher or equal than my top role").queue();
+			return;
 		}
 		
 		member.kick().reason(ModUtility.getAuditReason(reason, event.getAuthor())).queue($ -> {
