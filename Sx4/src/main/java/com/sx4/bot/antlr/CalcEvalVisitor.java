@@ -55,6 +55,11 @@ public class CalcEvalVisitor extends CalcBaseVisitor<Double> {
     }
 
     @Override
+    public Double visitSqrt(CalcParser.SqrtContext ctx) {
+        return Math.sqrt(this.visit(ctx.expr()));
+    }
+
+    @Override
     public Double visitMul(CalcParser.MulContext ctx) {
         return this.visit(ctx.expr(0)) * this.visit(ctx.expr(1));
     }

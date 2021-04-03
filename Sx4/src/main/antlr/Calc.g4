@@ -22,6 +22,7 @@ expr: expr POW expr                         #Pow
     | VAR                                   #Var
     | PI                                    #Pi
     | '(' expr ')'                          #Parens
+    | 'sqrt(' expr ')'                      #Sqrt
     | 'round(' expr ')'                     #Round
     | 'ceil(' expr ')'                      #Ceil
     | 'floor(' expr ')'                     #Floor

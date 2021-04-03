@@ -65,6 +65,10 @@ public class LoggerUtility {
         return 0L;
     }
 
+    public static List<Document> getValidLoggers(List<Document> loggers, LoggerEvent event, LoggerContext context) {
+        return loggers.stream().filter(logger -> LoggerUtility.canSend(logger, event, context)).collect(Collectors.toList());
+    }
+
     public static boolean isWhitelisted(List<Document> entities, LoggerEvent event, LoggerContext context) {
         for (Document entity : entities) {
             if ((entity.getLong("events") & event.getRaw()) != event.getRaw()) {

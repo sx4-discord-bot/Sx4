@@ -67,17 +67,48 @@ public class TimeUtility {
 	
 	public static Duration getDurationFromDateTime(String dateTime, String defaultTimeZone) {
 		int lastSpace = dateTime.lastIndexOf(' ');
+		String timeZoneString = dateTime.substring(lastSpace + 1);
+
+		char[] characters = timeZoneString.toCharArray();
+
+		int unitIndex = -1;
+		for (int i = 0; i < characters.length; i++) {
+			char character = characters[i];
+			if (character == '-') {
+				unitIndex = i;
+			} else if (character == '+') {
+				unitIndex = i;
+			}
+		}
+
+		String offset = unitIndex == -1 ? null : timeZoneString.substring(unitIndex);
+
+		int colonIndex = offset == null ? -1 : offset.indexOf(':');
+		int hourOffset = 0, minuteOffset = 0;
+
+		try {
+			if (colonIndex == -1) {
+				hourOffset = offset == null || offset.length() == 1 ? 0 : Integer.parseInt(offset);
+			} else {
+				String hourOffsetString = offset.substring(0, colonIndex);
+				if (hourOffsetString.length() != 1) {
+					hourOffset = Integer.parseInt(hourOffsetString);
+					minuteOffset = Integer.parseInt(offset.substring(colonIndex + 1));
+					minuteOffset = offset.charAt(0) == '-' ? -minuteOffset : minuteOffset;
+				}
+			}
+		} catch (NumberFormatException ignored) {}
 		
 		ZonedDateTime now;
-		TimeZone timeZone = TimeZone.getTimeZone(dateTime.substring(lastSpace + 1));
+		TimeZone timeZone = TimeZone.getTimeZone(offset == null ? timeZoneString : timeZoneString.substring(0, unitIndex - 1));
 		if (!timeZone.getID().equals("GMT") && !timeZone.getID().equals("GMT+00:00")) {
 			dateTime = dateTime.substring(0, lastSpace);
-			now = ZonedDateTime.now(timeZone.toZoneId());
+			now = ZonedDateTime.now(timeZone.toZoneId()).minusHours(hourOffset).minusMinutes(minuteOffset);
 		} else {
 			timeZone = TimeZone.getTimeZone(defaultTimeZone);
 			now = ZonedDateTime.now(timeZone.toZoneId());
 		}
-		
+
 		String[] dateTimeSplit = dateTime.split(" ");
 		
 		int day = now.getDayOfMonth(), month = now.getMonthValue(), year = now.getYear(), hour = 0, minute = 0; 
@@ -120,7 +151,7 @@ public class TimeUtility {
 			}
 		}
 		
-		return Duration.between(now, ZonedDateTime.of(year, month, day, hour, minute, 0, 0, timeZone.toZoneId()));
+		return Duration.between(now, ZonedDateTime.of(year, month, day, hour, minute, 0, 0, timeZone.toZoneId()).minusHours(hourOffset).minusMinutes(minuteOffset));
 	}
 	
 	public static String getTimeString(long duration, TimeUnit unit) {
