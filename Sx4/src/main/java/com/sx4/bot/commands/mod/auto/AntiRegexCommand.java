@@ -93,7 +93,7 @@ public class AntiRegexCommand extends Sx4Command {
 			.append("pattern", regex.getString("pattern"));
 
 		event.getDatabase().insertRegex(pattern)
-			.thenCompose(result -> event.getDatabase().updateRegexTemplateById(id, Updates.addToSet("uses", event.getGuild().getIdLong())))
+			.thenCompose(result -> event.getDatabase().updateRegexTemplateById(id, Updates.inc("uses", 1L)))
 			.whenComplete((result, exception) -> {
 				Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
 				if (cause instanceof MongoWriteException && ((MongoWriteException) cause).getError().getCategory() == ErrorCategory.DUPLICATE_KEY) {
@@ -120,7 +120,7 @@ public class AntiRegexCommand extends Sx4Command {
 				return CompletableFuture.completedFuture(null);
 			}
 
-			return event.getDatabase().updateRegexTemplateById(id, Updates.pull("uses", event.getGuild().getIdLong()));
+			return event.getDatabase().updateRegexTemplateById(id, Updates.inc("uses", -1L));
 		}).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception) || result == null) {
 				return;
@@ -625,6 +625,7 @@ public class AntiRegexCommand extends Sx4Command {
 			Document data = new Document("title", title)
 				.append("description", description)
 				.append("pattern", patternString)
+				.append("type", RegexType.REGEX.getId())
 				.append("ownerId", event.getAuthor().getIdLong());
 
 			event.getDatabase().insertRegexTemplate(data).whenComplete((result, exception) -> {
@@ -658,9 +659,8 @@ public class AntiRegexCommand extends Sx4Command {
 
 					page.forEach((data, index) -> {
 						User owner = event.getShardManager().getUserById(data.getLong("ownerId"));
-						List<Long> uses = data.getList("uses", Long.class, Collections.emptyList());
 
-						embed.addField(data.getString("title"), String.format("Id: %s\nRegex: `%s`\nUses: %,d\nOwner: %s\nDescription: %s", data.getObjectId("_id").toHexString(), data.getString("pattern"), uses.size(), owner == null ? "Annonymous#0000" : owner.getAsTag(), data.getString("description")), true);
+						embed.addField(data.getString("title"), String.format("Id: %s\nRegex: `%s`\nUses: %,d\nOwner: %s\nDescription: %s", data.getObjectId("_id").toHexString(), data.getString("pattern"), data.getLong("uses"), owner == null ? "Annonymous#0000" : owner.getAsTag(), data.getString("description")), true);
 					});
 
 					return builder.setEmbed(embed.build()).build();

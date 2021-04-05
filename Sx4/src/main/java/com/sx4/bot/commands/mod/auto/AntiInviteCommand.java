@@ -34,6 +34,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 public class AntiInviteCommand extends Sx4Command {
 
@@ -64,12 +65,16 @@ public class AntiInviteCommand extends Sx4Command {
 		);
 
 		Bson filter = Filters.and(Filters.eq("guildId", event.getGuild().getIdLong()), Filters.eq("regexId", AntiInviteCommand.REGEX_ID));
-		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().upsert(true).returnDocument(ReturnDocument.AFTER).projection(Projections.include("enabled"));
+		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().upsert(true).returnDocument(ReturnDocument.BEFORE).projection(Projections.include("enabled"));
 
 		event.getDatabase().findAndUpdateRegex(filter, update, options).thenCompose(data -> {
-			event.replySuccess("Anti-Invite is now " + (data.get("enabled", true) ? "enabled" : "disabled")).queue();
+			event.replySuccess("Anti-Invite is now " + (data == null || data.get("enabled", true) ? "enabled" : "disabled")).queue();
 
-			return event.getDatabase().updateRegexTemplateById(AntiInviteCommand.REGEX_ID, Updates.addToSet("uses", event.getGuild().getIdLong()));
+			if (data == null) {
+				return event.getDatabase().updateRegexTemplateById(AntiInviteCommand.REGEX_ID, Updates.inc("uses", 1L));
+			} else {
+				return CompletableFuture.completedFuture(null);
+			}
 		}).whenComplete(Database.exceptionally(event.getShardManager()));
 	}
 

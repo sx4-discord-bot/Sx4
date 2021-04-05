@@ -101,7 +101,7 @@ public class TimeUtility {
 		
 		ZonedDateTime now;
 		TimeZone timeZone = TimeZone.getTimeZone(offset == null ? timeZoneString : timeZoneString.substring(0, unitIndex - 1));
-		if (!timeZone.getID().equals("GMT") && !timeZone.getID().equals("GMT+00:00")) {
+		if (lastSpace != -1) {
 			dateTime = dateTime.substring(0, lastSpace);
 			now = ZonedDateTime.now(timeZone.toZoneId()).minusHours(hourOffset).minusMinutes(minuteOffset);
 		} else {
