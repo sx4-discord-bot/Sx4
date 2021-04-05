@@ -29,9 +29,7 @@ import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
 
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -114,7 +112,13 @@ public class AntiRegexHandler implements EventListener {
                 RegexType type = RegexType.fromId(regex.getInteger("type"));
 
                 Pattern pattern = type == RegexType.REGEX ? Pattern.compile(regex.getString("pattern")) : this.invitePattern;
-                Matcher matcher = pattern.matcher(content);
+
+                Matcher matcher;
+                try {
+                    matcher = this.executor.submit(() -> pattern.matcher(content)).get(2000, TimeUnit.MILLISECONDS);
+                } catch (TimeoutException | InterruptedException | ExecutionException e) {
+                    continue;
+                }
 
                 Set<String> codes = new HashSet<>();
                 int matchCount = 0, totalCount = 0;
@@ -124,7 +128,6 @@ public class AntiRegexHandler implements EventListener {
                         List<String> strings = group.getList("strings", String.class, Collections.emptyList());
 
                         String match = matcher.group(group.getInteger("group"));
-                        System.out.println(match);
                         if (match != null && strings.contains(match)) {
                             matchCount++;
                         }

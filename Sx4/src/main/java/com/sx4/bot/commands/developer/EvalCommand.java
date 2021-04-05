@@ -1,6 +1,7 @@
 package com.sx4.bot.commands.developer;
 
 import com.jockie.bot.core.argument.Argument;
+import com.jockie.bot.core.option.Option;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
@@ -48,7 +49,7 @@ public class EvalCommand extends Sx4Command {
 		super.setDeveloper(true);
 	}
 	
-	public void onCommand(Sx4CommandEvent event, @Argument(value="code", endless=true) String evaluableString) {
+	public void onCommand(Sx4CommandEvent event, @Argument(value="code", endless=true) String evaluableString, @Option(value="timed", description="Returns the execution time of the eval") boolean timed) {
 		GroovyShell shell = new GroovyShell(this.configuration);
 
 		shell.setProperty("event", event);
@@ -62,6 +63,7 @@ public class EvalCommand extends Sx4Command {
 		shell.setProperty("client", event.getHttpClient());
 		
 		this.executor.submit(() -> {
+			long time = System.currentTimeMillis();
 			try {
 				Object object = shell.evaluate(evaluableString);
 
@@ -82,6 +84,10 @@ public class EvalCommand extends Sx4Command {
 				} else {
 					event.reply(e.getClass().getName() + " [No error message]").queue();
 				}
+			}
+
+			if (timed) {
+				event.replyFormat("**%.2fms**", System.currentTimeMillis() - time).queue();
 			}
 		});
 	}

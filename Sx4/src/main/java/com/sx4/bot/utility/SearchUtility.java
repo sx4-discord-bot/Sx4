@@ -390,40 +390,7 @@ public class SearchUtility {
 		}
 	}
 	
-	public static User getUser(ShardManager manager, String query) {
-		Matcher mentionMatch = SearchUtility.USER_MENTION.matcher(query);
-		Matcher tagMatch = SearchUtility.USER_TAG.matcher(query);
-		if (mentionMatch.matches()) {
-			try {
-				return manager.getUserById(mentionMatch.group(1));
-			} catch (NumberFormatException e) {
-				return null;
-			}
-		} else if (tagMatch.matches()) {
-			String name = tagMatch.group(1);
-			String discriminator = tagMatch.group(2);
-			
-			return manager.getUserCache().applyStream(stream ->
-				stream.filter(user -> user.getName().equalsIgnoreCase(name) && user.getDiscriminator().equals(discriminator))
-					.findFirst()
-					.orElse(null)
-			);
-		} else if (NumberUtility.isNumberUnsigned(query)) {
-			try {
-				return manager.getUserById(query);
-			} catch (NumberFormatException e) {
-				return null;
-			}
-		} else {
-			return manager.getUserCache().applyStream(stream ->
-				stream.filter(user -> user.getName().equalsIgnoreCase(query))
-					.findFirst()
-					.orElse(null)
-			);
-		}
-	}
-	
-	public static CompletableFuture<User> getUserRest(ShardManager manager, String query) {
+	public static CompletableFuture<User> getUser(ShardManager manager, String query) {
 		Matcher mentionMatch = SearchUtility.USER_MENTION.matcher(query);
 		Matcher tagMatch = SearchUtility.USER_TAG.matcher(query);
 		if (mentionMatch.matches()) {

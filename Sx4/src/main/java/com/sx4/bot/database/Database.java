@@ -188,7 +188,7 @@ public class Database {
 		this.regexTemplates.createIndex(Indexes.descending("pattern"));
 
 		this.regexes = this.database.getCollection("regexes");
-		this.regexes.createIndex(Indexes.descending("regexId", "guildId"), uniqueIndex);
+		this.regexes.createIndex(Indexes.descending("guildId", "regexId"));
 
 		this.regexAttempts = this.database.getCollection("regexAttempts");
 		this.regexAttempts.createIndex(Indexes.descending("userId", "regexId"), uniqueIndex);
@@ -674,10 +674,6 @@ public class Database {
 		return this.getRegexes(filter, projection).first();
 	}
 
-	public Document getRegexById(long guildId, ObjectId regexId, Bson projection) {
-		return this.getRegex(Filters.and(Filters.eq("guildId", guildId), Filters.eq("regexId", regexId)), projection);
-	}
-
 	public CompletableFuture<InsertOneResult> insertRegex(Document data) {
 		return CompletableFuture.supplyAsync(() -> this.regexes.insertOne(data));
 	}
@@ -687,15 +683,7 @@ public class Database {
 	}
 
 	public CompletableFuture<UpdateResult> updateRegex(Bson filter, Bson update) {
-		return this.updateRegex(filter, update, this.updateOptions);
-	}
-
-	public CompletableFuture<UpdateResult> updateRegexById(long guildId, ObjectId regexId, Bson update, UpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.regexes.updateOne(Filters.and(Filters.eq("guildId", guildId), Filters.eq("regexId", regexId)), update, options));
-	}
-
-	public CompletableFuture<UpdateResult> updateRegexById(long guildId, ObjectId regexId, Bson update) {
-		return this.updateRegexById(guildId, regexId, update, this.updateOptions);
+		return this.updateRegex(filter, update, new UpdateOptions());
 	}
 
 	public CompletableFuture<UpdateResult> updateRegex(Bson filter, List<Bson> update, UpdateOptions options) {
@@ -706,14 +694,6 @@ public class Database {
 		return this.updateRegex(filter, update, this.updateOptions);
 	}
 
-	public CompletableFuture<UpdateResult> updateRegexById(long guildId, ObjectId regexId, List<Bson> update, UpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.regexes.updateOne(Filters.and(Filters.eq("guildId", guildId), Filters.eq("regexId", regexId)), update, options));
-	}
-
-	public CompletableFuture<UpdateResult> updateRegexById(long guildId, ObjectId regexId, List<Bson> update) {
-		return this.updateRegexById(guildId, regexId, update, this.updateOptions);
-	}
-
 	public CompletableFuture<Document> findAndUpdateRegex(Bson filter, List<Bson> update, FindOneAndUpdateOptions options) {
 		return CompletableFuture.supplyAsync(() -> this.regexes.findOneAndUpdate(filter, update, options));
 	}
@@ -722,8 +702,8 @@ public class Database {
 		return CompletableFuture.supplyAsync(() -> this.regexes.deleteOne(filter));
 	}
 
-	public CompletableFuture<DeleteResult> deleteRegexById(long guildId, ObjectId regexId) {
-		return this.deleteRegex(Filters.and(Filters.eq("guildId", guildId), Filters.eq("regexId", regexId)));
+	public CompletableFuture<Document> findAndDeleteRegex(Bson filter, FindOneAndDeleteOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.regexes.findOneAndDelete(filter, options));
 	}
 
 	public MongoCollection<Document> getTriggers() {
