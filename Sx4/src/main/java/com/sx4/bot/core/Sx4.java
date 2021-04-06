@@ -37,6 +37,7 @@ import com.sx4.bot.managers.*;
 import com.sx4.bot.paged.PagedHandler;
 import com.sx4.bot.paged.PagedManager;
 import com.sx4.bot.utility.*;
+import com.sx4.bot.utility.TimeUtility.OffsetTimeZone;
 import com.sx4.bot.waiter.WaiterHandler;
 import com.sx4.bot.waiter.WaiterManager;
 import net.dv8tion.jda.api.Permission;
@@ -696,11 +697,12 @@ public class Sx4 {
 			.registerParser(Guild.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getGuild(this.shardManager, content.trim())))
 			.registerParser(ReactionEmote.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getReactionEmote(this.shardManager, content.trim())))
 			.registerParser(Sx4Command.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getCommand(this.commandListener, content.trim())))
-			.registerParser(TimeZone.class, (context, argument, content) -> new ParsedResult<>(TimeZone.getTimeZone(content.trim().toUpperCase().replace("UTC", "GMT"))))
+			.registerParser(OffsetTimeZone.class, (context, argument, content) -> new ParsedResult<>(OffsetTimeZone.getTimeZone(content.trim().toUpperCase())))
 			.registerParser(ReminderArgument.class, (context, argument, content) -> {
 				try {
 					return new ParsedResult<>(ReminderArgument.parse(this.database, context.getMessage().getAuthor().getIdLong(), content));
 				} catch (DateTimeException | IllegalArgumentException e) {
+					System.out.println(e.getMessage());
 					return new ParsedResult<>();
 				}
 			}).registerParser(Document.class, (context, argument, content) -> {

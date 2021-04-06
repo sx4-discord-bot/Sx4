@@ -55,7 +55,7 @@ public class ReminderManager {
 	}
 	
 	public void deleteExecutor(ObjectId id) {
-		ScheduledFuture<?> oldExecutor = this.getExecutor(id);
+		ScheduledFuture<?> oldExecutor = this.executors.remove(id);
 		if (oldExecutor != null && !oldExecutor.isDone()) {
 			oldExecutor.cancel(true);
 		}

@@ -16,6 +16,7 @@ import com.sx4.bot.entities.argument.ReminderArgument;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.TimeUtility;
+import com.sx4.bot.utility.TimeUtility.OffsetTimeZone;
 import org.bson.Document;
 import org.bson.types.ObjectId;
 
@@ -23,7 +24,6 @@ import java.time.Clock;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.TimeZone;
 
 public class ReminderCommand extends Sx4Command {
 	
@@ -121,9 +121,9 @@ public class ReminderCommand extends Sx4Command {
 	@Command(value="time zone", aliases={"zone"}, description="Set the default time zone to be used when specifiying a date when adding a reminder")
 	@CommandId(156)
 	@Examples({"reminder time zone UTC", "reminder time zone PST", "reminder time zone UTC+1"})
-	public void timeZone(Sx4CommandEvent event, @Argument(value="time zone") TimeZone timeZone) {
-		String zoneId = timeZone.getID();
-		
+	public void timeZone(Sx4CommandEvent event, @Argument(value="time zone") OffsetTimeZone timeZone) {
+		String zoneId = timeZone.toString();
+
 		event.getDatabase().updateUserById(event.getAuthor().getIdLong(), Updates.set("reminder.timeZone", zoneId)).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;

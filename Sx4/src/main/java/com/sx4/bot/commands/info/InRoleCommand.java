@@ -27,7 +27,7 @@ public class InRoleCommand extends Sx4Command {
 	}
 
 	public void onCommand(Sx4CommandEvent event, @Argument(value="roles") Role[] roles, @Option(value="not", description="Shows who is not in the specified roles instead") boolean not) {
-		List<Member> members = event.getGuild().getMemberCache().applyStream(stream -> stream.filter(member -> !(!not && !member.getRoles().containsAll(Arrays.asList(roles)))).collect(Collectors.toList()));
+		List<Member> members = event.getGuild().getMemberCache().applyStream(stream -> stream.filter(member -> not != member.getRoles().containsAll(Arrays.asList(roles))).collect(Collectors.toList()));
 		if (members.isEmpty()) {
 			event.replyFailure("There is no one " + (not ? "not " : "") + "in those roles").queue();
 			return;

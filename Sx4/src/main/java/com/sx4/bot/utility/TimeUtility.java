@@ -1,8 +1,6 @@
 package com.sx4.bot.utility;
 
-import java.time.Duration;
-import java.time.LocalDate;
-import java.time.ZonedDateTime;
+import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -11,10 +9,80 @@ import java.util.concurrent.TimeUnit;
 
 public class TimeUtility {
 
+	public static class OffsetTimeZone {
+
+		private final TimeZone timeZone;
+		private final long offset;
+
+		private OffsetTimeZone(TimeZone timeZone, long offset) {
+			this.timeZone = timeZone;
+			this.offset = offset;
+		}
+
+		public TimeZone getTimeZone() {
+			return this.timeZone;
+		}
+
+		public long getOffset() {
+			return this.offset;
+		}
+
+		public long getTotalOffset() {
+			return this.timeZone.getRawOffset() + this.offset;
+		}
+
+		public boolean isNegative() {
+			return this.offset < 0;
+		}
+
+		public String toString() {
+			return this.timeZone.getID() + (this.isNegative() ? "-" : "+") + NumberUtility.getZeroPrefixedNumber(Math.abs(this.offset / 3600)) + ":" + NumberUtility.getZeroPrefixedNumber(Math.abs((this.offset % 3600) / 60));
+		}
+
+		public static OffsetTimeZone getTimeZone(String query) {
+			char[] characters = query.toCharArray();
+
+			int unitIndex = -1;
+			for (int i = 0; i < characters.length; i++) {
+				char character = characters[i];
+				if (character == '-') {
+					unitIndex = i;
+				} else if (character == '+') {
+					unitIndex = i;
+				}
+			}
+
+			if (unitIndex == -1) {
+				return new OffsetTimeZone(TimeZone.getTimeZone(query), 0L);
+			}
+
+			String offset = query.substring(unitIndex);
+
+			int colonIndex = offset.indexOf(':');
+
+			long offsetSeconds = 0L;
+			try {
+				if (colonIndex == -1) {
+					offsetSeconds += offset.length() == 1 ? 0 : Integer.parseInt(offset) * 3600L;
+				} else {
+					String hourOffsetString = offset.substring(0, colonIndex);
+					if (hourOffsetString.length() != 1) {
+						offsetSeconds += Integer.parseInt(hourOffsetString) * 3600L;
+						int minuteOffset = Integer.parseInt(offset.substring(colonIndex + 1));
+						offsetSeconds += (offset.charAt(0) == '-' ? -minuteOffset : minuteOffset) * 60L;
+					}
+				}
+			} catch (NumberFormatException ignored) {}
+
+			return new OffsetTimeZone(TimeZone.getTimeZone(query.substring(0, unitIndex - 1)), offsetSeconds);
+		}
+
+	}
+
 	public static final DateTimeFormatter DEFAULT_FORMATTER = DateTimeFormatter.ofPattern("dd LLL uuuu HH:mm");
 	
 	private static final List<String> SECONDS = List.of("s", "sec", "secs", "second", "seconds");
-	private static final List<String> MINUTES = List.of("m", "min", "mins", "minite", "minutes");
+	private static final List<String> MINUTES = List.of("m", "min", "mins", "minute", "minutes");
 	private static final List<String> HOURS = List.of("h", "hour", "hours");
 	private static final List<String> DAYS = List.of("d", "day", "days");
 	
@@ -67,51 +135,20 @@ public class TimeUtility {
 	
 	public static Duration getDurationFromDateTime(String dateTime, String defaultTimeZone) {
 		int lastSpace = dateTime.lastIndexOf(' ');
-		String timeZoneString = dateTime.substring(lastSpace + 1);
 
-		char[] characters = timeZoneString.toCharArray();
-
-		int unitIndex = -1;
-		for (int i = 0; i < characters.length; i++) {
-			char character = characters[i];
-			if (character == '-') {
-				unitIndex = i;
-			} else if (character == '+') {
-				unitIndex = i;
-			}
-		}
-
-		String offset = unitIndex == -1 ? null : timeZoneString.substring(unitIndex);
-
-		int colonIndex = offset == null ? -1 : offset.indexOf(':');
-		int hourOffset = 0, minuteOffset = 0;
-
-		try {
-			if (colonIndex == -1) {
-				hourOffset = offset == null || offset.length() == 1 ? 0 : Integer.parseInt(offset);
-			} else {
-				String hourOffsetString = offset.substring(0, colonIndex);
-				if (hourOffsetString.length() != 1) {
-					hourOffset = Integer.parseInt(hourOffsetString);
-					minuteOffset = Integer.parseInt(offset.substring(colonIndex + 1));
-					minuteOffset = offset.charAt(0) == '-' ? -minuteOffset : minuteOffset;
-				}
-			}
-		} catch (NumberFormatException ignored) {}
-		
-		ZonedDateTime now;
-		TimeZone timeZone = TimeZone.getTimeZone(offset == null ? timeZoneString : timeZoneString.substring(0, unitIndex - 1));
-		if (lastSpace != -1) {
+		OffsetDateTime now;
+		OffsetTimeZone timeZone = OffsetTimeZone.getTimeZone(dateTime.substring(lastSpace + 1));
+		if (timeZone.getTotalOffset() != 0) {
 			dateTime = dateTime.substring(0, lastSpace);
-			now = ZonedDateTime.now(timeZone.toZoneId()).minusHours(hourOffset).minusMinutes(minuteOffset);
 		} else {
-			timeZone = TimeZone.getTimeZone(defaultTimeZone);
-			now = ZonedDateTime.now(timeZone.toZoneId());
+			timeZone = OffsetTimeZone.getTimeZone(defaultTimeZone);
 		}
+
+		now = OffsetDateTime.now(timeZone.getTimeZone().toZoneId()).plusSeconds(timeZone.getOffset());
 
 		String[] dateTimeSplit = dateTime.split(" ");
-		
-		int day = now.getDayOfMonth(), month = now.getMonthValue(), year = now.getYear(), hour = 0, minute = 0; 
+
+		int day = now.getDayOfMonth(), month = now.getMonthValue(), year = now.getYear(), hour = 0, minute = 0;
 		for (String part : dateTimeSplit) {
 			if (part.contains(":")) {
 				String[] partSplit = part.split(":");
@@ -150,8 +187,8 @@ public class TimeUtility {
 				day = date.getDayOfMonth();
 			}
 		}
-		
-		return Duration.between(now, ZonedDateTime.of(year, month, day, hour, minute, 0, 0, timeZone.toZoneId()).minusHours(hourOffset).minusMinutes(minuteOffset));
+
+		return Duration.between(now, OffsetDateTime.of(year, month, day, hour, minute, 0, 0, ZoneOffset.UTC));
 	}
 	
 	public static String getTimeString(long duration, TimeUnit unit) {

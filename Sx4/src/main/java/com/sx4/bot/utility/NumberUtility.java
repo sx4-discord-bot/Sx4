@@ -12,7 +12,7 @@ public class NumberUtility {
 		NumberUtility.DEFAULT_DECIMAL_FORMAT.setRoundingMode(RoundingMode.HALF_UP);
 	}
 
-	public static String getZeroPrefixedNumber(int value) {
+	public static String getZeroPrefixedNumber(long value) {
 		return value < 10 ? "0" + value : String.valueOf(value);
 	}
 

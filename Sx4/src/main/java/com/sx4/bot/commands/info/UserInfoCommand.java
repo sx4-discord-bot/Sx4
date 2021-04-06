@@ -19,7 +19,7 @@ public class UserInfoCommand extends Sx4Command {
 	public UserInfoCommand() {
 		super("user info", 264);
 
-		super.setAliases("user", "ui");
+		super.setAliases("user", "ui", "uinfo");
 		super.setDescription("Get basic info on any user on discord by their mention or id");
 		super.setExamples("user info", "user info @Shea#6653", "user info 402557516728369153");
 		super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);

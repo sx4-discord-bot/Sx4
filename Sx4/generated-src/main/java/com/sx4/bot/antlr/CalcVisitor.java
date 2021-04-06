@@ -115,13 +115,6 @@ public interface CalcVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitSqrt(CalcParser.SqrtContext ctx);
 	/**
-	 * Visit a parse tree produced by the {@code Sigma}
-	 * labeled alternative in {@link CalcParser#expr}.
-	 * @param ctx the parse tree
-	 * @return the visitor result
-	 */
-	T visitSigma(CalcParser.SigmaContext ctx);
-	/**
 	 * Visit a parse tree produced by the {@code Double}
 	 * labeled alternative in {@link CalcParser#expr}.
 	 * @param ctx the parse tree

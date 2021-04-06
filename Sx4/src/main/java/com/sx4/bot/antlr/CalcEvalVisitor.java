@@ -24,17 +24,6 @@ public class CalcEvalVisitor extends CalcBaseVisitor<Double> {
     }
 
     @Override
-    public Double visitSigma(CalcParser.SigmaContext ctx) {
-        double result = 0D;
-        for (int i = this.visit(ctx.expr(0)).intValue(); i <= this.visit(ctx.expr(1)).intValue(); i++) {
-            this.variables.put("n", (double) i);
-            result += this.visit(ctx.expr(2));
-        }
-
-        return result;
-    }
-
-    @Override
     public Double visitAbs(CalcParser.AbsContext ctx) {
         return Math.abs(this.visit(ctx.expr()));
     }

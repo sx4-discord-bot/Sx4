@@ -390,7 +390,7 @@ public class SearchUtility {
 		}
 	}
 	
-	public static CompletableFuture<User> getUser(ShardManager manager, String query) {
+	public static CompletableFuture<User> getUserRest(ShardManager manager, String query) {
 		Matcher mentionMatch = SearchUtility.USER_MENTION.matcher(query);
 		Matcher tagMatch = SearchUtility.USER_TAG.matcher(query);
 		if (mentionMatch.matches()) {

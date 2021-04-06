@@ -320,7 +320,7 @@ public class SuggestionCommand extends Sx4Command {
 		}
 	}
 	
-	public class StateCommand extends Sx4Command {
+	public static class StateCommand extends Sx4Command {
 		
 		public StateCommand() {
 			super("state", 88);

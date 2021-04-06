@@ -18,12 +18,17 @@ import org.bson.types.ObjectId;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 
 public class Database {
 	
 	public static final Document EMPTY_DOCUMENT = new Document();
+
+	private final ExecutorService modLogExecutor = Executors.newSingleThreadExecutor();
+	private final ExecutorService reminderExecutor = Executors.newSingleThreadExecutor();
 
 	private final UpdateOptions updateOptions = new UpdateOptions().upsert(true);
 	private final FindOneAndUpdateOptions findOneAndUpdateOptions = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER).upsert(true);
@@ -210,7 +215,6 @@ public class Database {
 		this.messages.createIndex(Indexes.descending("updated"), new IndexOptions().expireAfter(14L, TimeUnit.DAYS));
 
 		this.youtubeNotifications = this.database.getCollection("youtubeNotifications");
-
 		this.youtubeNotifications.createIndex(Indexes.descending("channelId", "uploaderId"), uniqueIndex);
 		this.youtubeNotifications.createIndex(Indexes.descending("guildId"));
 
@@ -219,6 +223,7 @@ public class Database {
 		
 		this.offences = this.database.getCollection("offences");
 		this.offences.createIndex(Indexes.descending("authorId"));
+		this.offences.createIndex(Indexes.descending("guildId"));
 	}
 	
 	public MongoClient getClient() {

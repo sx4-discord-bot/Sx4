@@ -97,7 +97,7 @@ public class LoggerHandler implements EventListener {
 
 		List<Long> deletedLoggers = new ArrayList<>();
 
-		List<Document> loggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>()); 
+		List<Document> loggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>());
 		for (Document logger : loggers) {
 			if (!logger.get("enabled", true)) {
 				continue;
@@ -202,7 +202,7 @@ public class LoggerHandler implements EventListener {
 			embed.addField(new EmbedField(false, "After", StringUtility.limit(message.getContentRaw(), MessageEmbed.VALUE_MAX_LENGTH, String.format("[...](%s)", message.getJumpUrl()))));
 		}
 
-		List<Document> loggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>()); 
+		List<Document> loggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>());
 		this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 	}
 
@@ -221,7 +221,11 @@ public class LoggerHandler implements EventListener {
 		embed.setAuthor(new EmbedAuthor(user.getAsTag(), user.getEffectiveAvatarUrl(), null));
 		embed.setFooter(new EmbedFooter(String.format("%s ID: %s", user.isBot() ? "Bot" : "User", member.getId()), null));
 
-		List<Document> loggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>()); 
+		List<Document> uncheckedLoggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>());
+		List<Document> loggers = LoggerUtility.getValidLoggers(uncheckedLoggers, loggerEvent, loggerContext);
+		if (loggers.isEmpty()) {
+			return;
+		}
 
 		if (user.isBot()) {
 			StringBuilder description = new StringBuilder(String.format("`%s` was just added to the server", member.getEffectiveName()));
@@ -273,7 +277,10 @@ public class LoggerHandler implements EventListener {
 		embed.setAuthor(new EmbedAuthor(user.getAsTag(), user.getEffectiveAvatarUrl(), null));
 		embed.setFooter(new EmbedFooter(String.format("User ID: %s", user.getId()), null));
 
-		List<Document> loggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>()); 
+		List<Document> loggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>());
+		if (loggers.isEmpty()) {
+			return;
+		}
 
 		if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
 			guild.retrieveAuditLogs().type(ActionType.KICK).queueAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS, logs -> {
@@ -318,7 +325,11 @@ public class LoggerHandler implements EventListener {
 		embed.setAuthor(new EmbedAuthor(user.getAsTag(), user.getEffectiveAvatarUrl(), null));
 		embed.setFooter(new EmbedFooter(String.format("User ID: %s", user.getId()), null));
 
-		List<Document> loggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>()); 
+		List<Document> uncheckedLoggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>());
+		List<Document> loggers = LoggerUtility.getValidLoggers(uncheckedLoggers, loggerEvent, loggerContext);
+		if (loggers.isEmpty()) {
+			return;
+		}
 
 		if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
 			guild.retrieveAuditLogs().type(ActionType.BAN).queueAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS, logs -> {
@@ -357,7 +368,11 @@ public class LoggerHandler implements EventListener {
 		embed.setAuthor(new EmbedAuthor(user.getAsTag(), user.getEffectiveAvatarUrl(), null));
 		embed.setFooter(new EmbedFooter(String.format("User ID: %s", user.getId()), null));
 
-		List<Document> loggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>()); 
+		List<Document> uncheckedLoggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>());
+		List<Document> loggers = LoggerUtility.getValidLoggers(uncheckedLoggers, loggerEvent, loggerContext);
+		if (loggers.isEmpty()) {
+			return;
+		}
 
 		if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
 			guild.retrieveAuditLogs().type(ActionType.UNBAN).queueAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS, logs -> {
@@ -399,7 +414,7 @@ public class LoggerHandler implements EventListener {
 			.setFooter(new EmbedFooter(String.format("User ID: %s", member.getId()), null))
 			.setAuthor(new EmbedAuthor(user.getAsTag(), user.getEffectiveAvatarUrl(), null));
 
-		List<Document> loggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>()); 
+		List<Document> loggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>());
 		this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 	}
 
@@ -420,7 +435,10 @@ public class LoggerHandler implements EventListener {
 		embed.setAuthor(new EmbedAuthor(user.getAsTag(), user.getEffectiveAvatarUrl(), null));
 		embed.setFooter(new EmbedFooter(String.format("User ID: %s", user.getId()), null));
 
-		List<Document> loggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>()); 
+		List<Document> loggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>());
+		if (loggers.isEmpty()) {
+			return;
+		}
 
 		if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
 			event.getGuild().retrieveAuditLogs().type(ActionType.MEMBER_VOICE_KICK).queueAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS, logs -> {
@@ -478,7 +496,11 @@ public class LoggerHandler implements EventListener {
 		embed.addField(new EmbedField(false, "Before", String.format("`%s`", left.getName())));
 		embed.addField(new EmbedField(false, "After", String.format("`%s`", joined.getName())));
 
-		List<Document> loggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>()); 
+		List<Document> uncheckedLoggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>());
+		List<Document> loggers = LoggerUtility.getValidLoggers(uncheckedLoggers, loggerEvent, loggerContext);
+		if (loggers.isEmpty()) {
+			return;
+		}
 
 		if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
 			event.getGuild().retrieveAuditLogs().type(ActionType.MEMBER_VOICE_MOVE).queueAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS, logs -> {
@@ -533,7 +555,11 @@ public class LoggerHandler implements EventListener {
 		embed.setFooter(new EmbedFooter(String.format("User ID: %s", user.getId()), null));
 		embed.setColor(muted ? this.bot.getConfig().getRed() : this.bot.getConfig().getGreen());
 
-		List<Document> loggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>()); 
+		List<Document> uncheckedLoggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>());
+		List<Document> loggers = LoggerUtility.getValidLoggers(uncheckedLoggers, loggerEvent, loggerContext);
+		if (loggers.isEmpty()) {
+			return;
+		}
 
 		if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
 			guild.retrieveAuditLogs().type(ActionType.MEMBER_UPDATE).queueAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS, logs -> {
@@ -579,7 +605,11 @@ public class LoggerHandler implements EventListener {
 		embed.setFooter(new EmbedFooter(String.format("User ID: %s", user.getId()), null));
 		embed.setColor(deafened ? this.bot.getConfig().getRed() : this.bot.getConfig().getGreen());
 
-		List<Document> loggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>()); 
+		List<Document> uncheckedLoggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>());
+		List<Document> loggers = LoggerUtility.getValidLoggers(uncheckedLoggers, loggerEvent, loggerContext);
+		if (loggers.isEmpty()) {
+			return;
+		}
 
 		if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
 			guild.retrieveAuditLogs().type(ActionType.MEMBER_UPDATE).queueAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS, logs -> {
@@ -632,7 +662,11 @@ public class LoggerHandler implements EventListener {
 		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
 		embed.setFooter(new EmbedFooter(String.format("%s ID: %s", event.isRoleOverride() ? "Role" : "User", permissionHolder.getIdLong()), null));
 
-		List<Document> loggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>()); 
+		List<Document> uncheckedLoggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>());
+		List<Document> loggers = LoggerUtility.getValidLoggers(uncheckedLoggers, loggerEvent, loggerContext);
+		if (loggers.isEmpty()) {
+			return;
+		}
 
 		if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
 			guild.retrieveAuditLogs().type(ActionType.CHANNEL_OVERRIDE_CREATE).queueAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS, logs -> {
@@ -697,7 +731,11 @@ public class LoggerHandler implements EventListener {
 		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
 		embed.setFooter(new EmbedFooter(String.format("%s ID: %s", event.isRoleOverride() ? "Role" : "User", permissionHolder.getIdLong()), null));
 
-		List<Document> loggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>()); 
+		List<Document> uncheckedLoggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>());
+		List<Document> loggers = LoggerUtility.getValidLoggers(uncheckedLoggers, loggerEvent, loggerContext);
+		if (loggers.isEmpty()) {
+			return;
+		}
 
 		if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
 			guild.retrieveAuditLogs().type(ActionType.CHANNEL_OVERRIDE_CREATE).queueAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS, logs -> {
@@ -765,7 +803,11 @@ public class LoggerHandler implements EventListener {
 
 		// wait for member leave or role delete event if needed
 		this.delay(() -> {
-			List<Document> loggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>()); 
+			List<Document> uncheckedLoggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>());
+			List<Document> loggers = LoggerUtility.getValidLoggers(uncheckedLoggers, loggerEvent, loggerContext);
+			if (loggers.isEmpty()) {
+				return;
+			}
 
 			boolean deleted = (roleOverride ? event.getRole() : event.getMember()) == null;
 
@@ -816,7 +858,11 @@ public class LoggerHandler implements EventListener {
 		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
 		embed.setFooter(new EmbedFooter(String.format("%s ID: %s", channel.getType() == ChannelType.CATEGORY ? "Category" : "Channel", channel.getId()), null));
 
-		List<Document> loggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>()); 
+		List<Document> uncheckedLoggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>());
+		List<Document> loggers = LoggerUtility.getValidLoggers(uncheckedLoggers, loggerEvent, loggerContext);
+		if (loggers.isEmpty()) {
+			return;
+		}
 
 		if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
 			guild.retrieveAuditLogs().type(ActionType.CHANNEL_DELETE).queueAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS, logs -> {
@@ -871,7 +917,11 @@ public class LoggerHandler implements EventListener {
 		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
 		embed.setFooter(new EmbedFooter(String.format("%s ID: %s", channel.getType() == ChannelType.CATEGORY ? "Category" : "Channel", channel.getId()), null));
 
-		List<Document> loggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>()); 
+		List<Document> uncheckedLoggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>());
+		List<Document> loggers = LoggerUtility.getValidLoggers(uncheckedLoggers, loggerEvent, loggerContext);
+		if (loggers.isEmpty()) {
+			return;
+		}
 
 		if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
 			guild.retrieveAuditLogs().type(ActionType.CHANNEL_CREATE).queueAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS, logs -> {
@@ -929,7 +979,11 @@ public class LoggerHandler implements EventListener {
 		embed.addField(new EmbedField(false, "Before", String.format("`%s`", oldName)));
 		embed.addField(new EmbedField(false, "After", String.format("`%s`", channel.getName())));
 
-		List<Document> loggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>()); 
+		List<Document> uncheckedLoggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>());
+		List<Document> loggers = LoggerUtility.getValidLoggers(uncheckedLoggers, loggerEvent, loggerContext);
+		if (loggers.isEmpty()) {
+			return;
+		}
 
 		if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
 			guild.retrieveAuditLogs().type(ActionType.CHANNEL_UPDATE).queueAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS, logs -> {
@@ -985,7 +1039,11 @@ public class LoggerHandler implements EventListener {
 		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
 		embed.setFooter(new EmbedFooter(String.format("Role ID: %s", role.getId()), null));
 
-		List<Document> loggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>()); 
+		List<Document> uncheckedLoggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>());
+		List<Document> loggers = LoggerUtility.getValidLoggers(uncheckedLoggers, loggerEvent, loggerContext);
+		if (loggers.isEmpty()) {
+			return;
+		}
 
 		if (!role.isManaged() && guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
 			guild.retrieveAuditLogs().type(ActionType.ROLE_CREATE).queueAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS, logs -> {
@@ -1024,7 +1082,11 @@ public class LoggerHandler implements EventListener {
 		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
 		embed.setFooter(new EmbedFooter(String.format("Role ID: %s", role.getId()), null));
 
-		List<Document> loggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>()); 
+		List<Document> uncheckedLoggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>());
+		List<Document> loggers = LoggerUtility.getValidLoggers(uncheckedLoggers, loggerEvent, loggerContext);
+		if (loggers.isEmpty()) {
+			return;
+		}
 
 		if (!role.isManaged() && guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
 			guild.retrieveAuditLogs().type(ActionType.ROLE_DELETE).queueAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS, logs -> {
@@ -1066,7 +1128,11 @@ public class LoggerHandler implements EventListener {
 		embed.addField(new EmbedField(false, "Before", String.format("`%s`", event.getOldName())));
 		embed.addField(new EmbedField(false, "After", String.format("`%s`", event.getNewName())));
 
-		List<Document> loggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>()); 
+		List<Document> uncheckedLoggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>());
+		List<Document> loggers = LoggerUtility.getValidLoggers(uncheckedLoggers, loggerEvent, loggerContext);
+		if (loggers.isEmpty()) {
+			return;
+		}
 
 		if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
 			guild.retrieveAuditLogs().type(ActionType.ROLE_UPDATE).queueAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS, logs -> {
@@ -1111,7 +1177,11 @@ public class LoggerHandler implements EventListener {
 		embed.addField(new EmbedField(false, "Before", String.format("Hex: [#%s](%3$s%1$s)\nRGB: [%2$s](%3$s%1$s)", ColourUtility.toHexString(oldColour), ColourUtility.toRGBString(oldColour), "https://image.sx4bot.co.uk/api/colour?w=1000&h=500&hex=")));
 		embed.addField(new EmbedField(false, "After", String.format("Hex: [#%s](%3$s%1$s)\nRGB: [%2$s](%3$s%1$s)", ColourUtility.toHexString(newColour), ColourUtility.toRGBString(newColour), "https://image.sx4bot.co.uk/api/colour?w=1000&h=500&hex=")));
 
-		List<Document> loggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>()); 
+		List<Document> uncheckedLoggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>());
+		List<Document> loggers = LoggerUtility.getValidLoggers(uncheckedLoggers, loggerEvent, loggerContext);
+		if (loggers.isEmpty()) {
+			return;
+		}
 
 		if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
 			guild.retrieveAuditLogs().type(ActionType.ROLE_UPDATE).queueAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS, logs -> {
@@ -1155,7 +1225,11 @@ public class LoggerHandler implements EventListener {
 		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
 		embed.setFooter(new EmbedFooter(String.format("Role ID: %s", role.getId()), null));
 
-		List<Document> loggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>()); 
+		List<Document> uncheckedLoggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>());
+		List<Document> loggers = LoggerUtility.getValidLoggers(uncheckedLoggers, loggerEvent, loggerContext);
+		if (loggers.isEmpty()) {
+			return;
+		}
 
 		StringBuilder description = new StringBuilder(String.format("The role %s has had permission changes made", role.getAsMention()));
 		if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
@@ -1237,7 +1311,11 @@ public class LoggerHandler implements EventListener {
 			embed.setFooter(new EmbedFooter(String.format("Role ID: %s", firstRole.getId()), null));
 		}
 
-		List<Document> loggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>()); 
+		List<Document> uncheckedLoggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>());
+		List<Document> loggers = LoggerUtility.getValidLoggers(uncheckedLoggers, loggerEvent, loggerContext);
+		if (loggers.isEmpty()) {
+			return;
+		}
 
 		if (!firstRole.isManaged() && guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
 			guild.retrieveAuditLogs().type(ActionType.MEMBER_ROLE_UPDATE).queueAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS, logs -> {
@@ -1343,7 +1421,11 @@ public class LoggerHandler implements EventListener {
 				}
 			}
 
-			List<Document> loggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>()); 
+			List<Document> uncheckedLoggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>());
+			List<Document> loggers = LoggerUtility.getValidLoggers(uncheckedLoggers, loggerEvent, loggerContext);
+			if (loggers.isEmpty()) {
+				return;
+			}
 
 			if (!deleted && !firstRole.isManaged() && guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
 				guild.retrieveAuditLogs().type(ActionType.MEMBER_ROLE_UPDATE).queue(logs -> {
@@ -1408,7 +1490,11 @@ public class LoggerHandler implements EventListener {
 		embed.addField(new EmbedField(false, "Before", String.format("`%s`", event.getOldNickname() != null ? event.getOldNickname() : member.getUser().getName())));
 		embed.addField(new EmbedField(false, "After", String.format("`%s`", event.getNewNickname() != null ? event.getNewNickname() : member.getUser().getName())));
 
-		List<Document> loggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>()); 
+		List<Document> uncheckedLoggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>());
+		List<Document> loggers = LoggerUtility.getValidLoggers(uncheckedLoggers, loggerEvent, loggerContext);
+		if (loggers.isEmpty()) {
+			return;
+		}
 
 		if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
 			guild.retrieveAuditLogs().type(ActionType.MEMBER_UPDATE).queueAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS, logs -> {
@@ -1447,7 +1533,11 @@ public class LoggerHandler implements EventListener {
 		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
 		embed.setFooter(new EmbedFooter(String.format("Emote ID: %s", emote.getId()), null));
 
-		List<Document> loggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>()); 
+		List<Document> uncheckedLoggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>());
+		List<Document> loggers = LoggerUtility.getValidLoggers(uncheckedLoggers, loggerEvent, loggerContext);
+		if (loggers.isEmpty()) {
+			return;
+		}
 
 		if (!emote.isManaged() && guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
 			guild.retrieveAuditLogs().type(ActionType.EMOTE_CREATE).queueAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS, logs -> {
@@ -1486,7 +1576,11 @@ public class LoggerHandler implements EventListener {
 		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
 		embed.setFooter(new EmbedFooter(String.format("Emote ID: %s", emote.getId()), null));
 
-		List<Document> loggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>()); 
+		List<Document> uncheckedLoggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>());
+		List<Document> loggers = LoggerUtility.getValidLoggers(uncheckedLoggers, loggerEvent, loggerContext);
+		if (loggers.isEmpty()) {
+			return;
+		}
 
 		if (!emote.isManaged() && guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
 			guild.retrieveAuditLogs().type(ActionType.EMOTE_DELETE).queueAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS, logs -> {
@@ -1528,7 +1622,11 @@ public class LoggerHandler implements EventListener {
 		embed.addField(new EmbedField(false, "Before", String.format("`%s`", event.getOldName())));
 		embed.addField(new EmbedField(false, "After", String.format("`%s`", event.getNewName())));
 
-		List<Document> loggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>()); 
+		List<Document> uncheckedLoggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>());
+		List<Document> loggers = LoggerUtility.getValidLoggers(uncheckedLoggers, loggerEvent, loggerContext);
+		if (loggers.isEmpty()) {
+			return;
+		}
 
 		if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
 			guild.retrieveAuditLogs().type(ActionType.EMOTE_UPDATE).queueAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS, logs -> {
@@ -1581,8 +1679,7 @@ public class LoggerHandler implements EventListener {
 		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
 		embed.setFooter(new EmbedFooter(String.format("Emote ID: %s", emote.getId()), null));
 
-		List<Document> loggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>()); 
-
+		List<Document> loggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>());
 		this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 	}
 

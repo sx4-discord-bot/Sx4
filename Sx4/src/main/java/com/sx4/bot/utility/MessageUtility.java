@@ -401,15 +401,15 @@ public class MessageUtility {
 	}
 
 	private static boolean isTitleEmpty(WebhookEmbed.EmbedTitle title) {
-		return title == null || isEmpty(title.getText());
+		return title == null || MessageUtility.isEmpty(title.getText());
 	}
 
 	private static boolean isFooterEmpty(WebhookEmbed.EmbedFooter footer) {
-		return footer == null || isEmpty(footer.getText());
+		return footer == null || MessageUtility.isEmpty(footer.getText());
 	}
 
 	private static boolean isAuthorEmpty(WebhookEmbed.EmbedAuthor author) {
-		return author == null || isEmpty(author.getName());
+		return author == null || MessageUtility.isEmpty(author.getName());
 	}
 
 	private static boolean isFieldsEmpty(List<WebhookEmbed.EmbedField> fields) {
@@ -417,7 +417,7 @@ public class MessageUtility {
 			return true;
 		}
 
-		return fields.stream().allMatch(f -> isEmpty(f.getName()) && isEmpty(f.getValue()));
+		return fields.stream().allMatch(f -> MessageUtility.isEmpty(f.getName()) && MessageUtility.isEmpty(f.getValue()));
 	}
 
 	public static int getWebhookEmbedLength(WebhookEmbed embed) {

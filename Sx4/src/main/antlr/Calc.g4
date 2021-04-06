@@ -29,7 +29,6 @@ expr: expr POW expr                         #Pow
     | 'abs(' expr ')'                       #Abs
     | 'min(' expr ',' expr ')'              #Min
     | 'max(' expr ',' expr ')'              #Max
-    | 'sigma(' expr ',' expr ',' expr ')'   #Sigma
     ;
 
 DIV: '/';

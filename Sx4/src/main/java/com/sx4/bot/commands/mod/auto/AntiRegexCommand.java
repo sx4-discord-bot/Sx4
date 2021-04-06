@@ -669,7 +669,7 @@ public class AntiRegexCommand extends Sx4Command {
 
 	}
 
-	public class TemplateCommand extends Sx4Command {
+	public static class TemplateCommand extends Sx4Command {
 
 		public TemplateCommand() {
 			super("template", 122);
