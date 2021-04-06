@@ -31,7 +31,7 @@ public class BanCommand extends Sx4Command {
 	}
 	
 	public void onCommand(Sx4CommandEvent event, @Argument(value="user") String userArgument, @Argument(value="reason", endless=true, nullDefault=true) Reason reason, @Option(value="days", description="Set how many days of messages should be deleted from the user") @DefaultNumber(1) @Limit(min=0, max=7) int days) {
-		SearchUtility.getUserRest(event.getShardManager(), userArgument).thenAccept(user -> {
+		SearchUtility.getUser(event.getShardManager(), userArgument).thenAccept(user -> {
 			if (user == null) {
 				event.replyFailure("I could not find that user").queue();
 				return;

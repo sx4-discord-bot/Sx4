@@ -26,7 +26,7 @@ public class UnbanCommand extends Sx4Command {
 	}
 	
 	public void onCommand(Sx4CommandEvent event, @Argument(value="user") String userArgument, @Argument(value="reason", endless=true, nullDefault=true) Reason reason) {
-		SearchUtility.getUserRest(event.getShardManager(), userArgument).thenAccept(user -> {
+		SearchUtility.getUser(event.getShardManager(), userArgument).thenAccept(user -> {
 			if (user == null) {
 				event.replyFailure("I could not find that user").queue();
 				return;

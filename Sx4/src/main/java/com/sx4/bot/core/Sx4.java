@@ -68,6 +68,7 @@ import java.time.temporal.ChronoField;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.regex.Matcher;
@@ -83,6 +84,7 @@ public class Sx4 {
 	private final ShardManager shardManager;
 	private final OkHttpClient httpClient;
 	private final ExecutorService executor;
+	private final ScheduledExecutorService scheduledExecutor;
 
 	private final SteamGameCache steamGameCache;
 
@@ -106,10 +108,12 @@ public class Sx4 {
 	private final PagedManager pagedManager;
 	private final WaiterManager waiterManager;
 	private final ServerStatsManager serverStatsManager;
+	private final TwitchTokenManager twitchTokenManager;
 	
 	private Sx4() {
 		this.database = new Database(this.config.getDatabase());
 		this.executor = Executors.newSingleThreadExecutor();
+		this.scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
 
 		this.httpClient = new OkHttpClient.Builder()
 			.connectTimeout(15, TimeUnit.SECONDS)
@@ -148,6 +152,7 @@ public class Sx4 {
 		this.pagedManager = new PagedManager();
 		this.waiterManager = new WaiterManager();
 		this.serverStatsManager = new ServerStatsManager(this);
+		this.twitchTokenManager = new TwitchTokenManager(this);
 
 		this.steamGameCache = new SteamGameCache(this);
 
@@ -196,6 +201,10 @@ public class Sx4 {
 
 	public ExecutorService getExecutor() {
 		return this.executor;
+	}
+
+	public ScheduledExecutorService getScheduledExecutor() {
+		return this.scheduledExecutor;
 	}
 	
 	public CommandListener getCommandListener() {
@@ -280,6 +289,10 @@ public class Sx4 {
 
 	public ServerStatsManager getServerStatsManager() {
 		return this.serverStatsManager;
+	}
+
+	public TwitchTokenManager getTwitchTokenManager() {
+		return this.twitchTokenManager;
 	}
 
 	public SteamGameCache getSteamGameCache() {

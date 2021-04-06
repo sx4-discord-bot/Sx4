@@ -8,8 +8,8 @@ import net.dv8tion.jda.api.sharding.ShardManager;
 import org.bson.Document;
 import org.json.JSONObject;
 
-import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
@@ -32,7 +32,7 @@ public class Config {
 	private String emoteFailure;
 	
 	private Config() {
-		this.reloadConfig();
+		this.reload();
 	}
 	
 	public <Type> Type get(String path) {
@@ -70,6 +70,31 @@ public class Config {
 		}
 		
 		return defaultValue;
+	}
+
+	public Config set(String path, Object value) {
+		return this.set(Arrays.asList(path.split("\\.")), value);
+	}
+
+	public Config set(List<String> path, Object value) {
+		Document json = this.json;
+
+		for (int i = 0; i < path.size(); i++) {
+			String key = path.get(i);
+			if (i == path.size() - 1) {
+				json.append(key, value);
+				break;
+			}
+
+			Object oldValue = json.get(key);
+			if (oldValue instanceof Document) {
+				json = (Document) oldValue;
+			} else {
+				json.append(key, json = new Document());
+			}
+		}
+
+		return this;
 	}
 
 	public String getSupportDescription() {
@@ -402,7 +427,7 @@ public class Config {
 	}
 
 	public long getTwitchExpiresAt() {
-		return this.get("token.twitch.expiresAt");
+		return this.get("token.twitch.expiresAt", Number.class).longValue();
 	}
 
 	public String getTwitchClientSecret() {
@@ -456,9 +481,17 @@ public class Config {
 	public List<Document> getPolicies() {
 		return this.get("policy");
 	}
+
+	public void update() {
+		try (FileOutputStream stream = new FileOutputStream("config.json")) {
+			stream.write(this.json.toJson().getBytes(StandardCharsets.UTF_8));
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
 	
-	public void reloadConfig() {
-		try (FileInputStream stream = new FileInputStream(new File("config.json"))) {
+	public void reload() {
+		try (FileInputStream stream = new FileInputStream("config.json")) {
 			this.json = Document.parse(new String(stream.readAllBytes(), StandardCharsets.UTF_8));
 			
 			this.emoteSuccess = this.get("emote.success");
