@@ -1,8 +1,8 @@
 package com.sx4.bot.utility;
 
-import com.sx4.bot.entities.logger.LoggerContext;
-import com.sx4.bot.entities.management.logger.LoggerCategory;
-import com.sx4.bot.entities.management.logger.LoggerEvent;
+import com.sx4.bot.entities.management.LoggerContext;
+import com.sx4.bot.entities.management.LoggerCategory;
+import com.sx4.bot.entities.management.LoggerEvent;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.*;
 import net.dv8tion.jda.internal.utils.tuple.Pair;

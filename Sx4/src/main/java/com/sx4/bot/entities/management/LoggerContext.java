@@ -1,4 +1,4 @@
-package com.sx4.bot.entities.logger;
+package com.sx4.bot.entities.management;
 
 import net.dv8tion.jda.api.entities.Emote;
 import net.dv8tion.jda.api.entities.GuildChannel;

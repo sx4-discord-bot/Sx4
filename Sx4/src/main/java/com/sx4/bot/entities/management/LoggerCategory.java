@@ -1,4 +1,4 @@
-package com.sx4.bot.entities.management.logger;
+package com.sx4.bot.entities.management;
 
 public enum LoggerCategory {
 

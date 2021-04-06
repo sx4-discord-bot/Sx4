@@ -20,7 +20,7 @@ public class GiveawayHandler implements EventListener {
 	}
 
 	public void handle(List<Long> messageIds) {
-		this.bot.getDatabase().deleteManyGiveaways(Filters.in("_id", messageIds)).whenComplete(Database.exceptionally(this.bot.getShardManager()));
+		this.bot.getDatabase().deleteManyGiveaways(Filters.in("messageId", messageIds)).whenComplete(Database.exceptionally(this.bot.getShardManager()));
 		
 		messageIds.forEach(this.bot.getGiveawayManager()::deleteExecutor);
 	}

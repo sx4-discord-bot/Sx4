@@ -7,13 +7,9 @@ import okhttp3.RequestBody;
 import org.bson.Document;
 
 import java.time.Clock;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 public class TwitchTokenManager {
-
-	private final ExecutorService executor = Executors.newSingleThreadExecutor();
 
 	private final Sx4 bot;
 

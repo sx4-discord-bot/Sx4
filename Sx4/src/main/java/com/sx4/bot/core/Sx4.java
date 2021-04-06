@@ -1109,12 +1109,12 @@ public class Sx4 {
 			}).registerResponse(Enum.class, (argument, message, content) -> {
 				List<Enum<?>> enums = argument.getProperty("options", Arrays.asList(argument.getType().getEnumConstants()));
 
-				StringJoiner joiner = new StringJoiner("`, `");
+				StringJoiner joiner = new StringJoiner("`, `", "`", "`");
 				for (Enum<?> enumEntry : enums) {
 					joiner.add(enumEntry.name());
 				}
 
-				message.getChannel().sendMessage("Invalid argument given, give any of the following `" + joiner.toString() + "` " + this.config.getFailureEmote()).queue();
+				message.getChannel().sendMessage("Invalid argument given, give any of the following " + joiner.toString() + " " + this.config.getFailureEmote()).queue();
 			}).setHandleInheritance(Enum.class, true);
 	}
 	

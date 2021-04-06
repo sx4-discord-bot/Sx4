@@ -1,6 +1,7 @@
-package com.sx4.bot.entities.management.logger;
+package com.sx4.bot.entities.management;
 
 import java.util.Collection;
+import java.util.EnumSet;
 
 public enum LoggerEvent {
 
@@ -95,6 +96,21 @@ public enum LoggerEvent {
         }
 
         return false;
+    }
+
+    public static EnumSet<LoggerEvent> getEvents(long raw) {
+        if (raw == 0L) {
+            return EnumSet.noneOf(LoggerEvent.class);
+        }
+
+        EnumSet<LoggerEvent> events = EnumSet.noneOf(LoggerEvent.class);
+        for (LoggerEvent event : LoggerEvent.values()) {
+            if ((raw & event.getRaw()) == event.getRaw()) {
+                events.add(event);
+            }
+        }
+
+        return events;
     }
 
     public static long getRaw(LoggerEvent... events) {
