@@ -321,6 +321,7 @@ public class Sx4 {
 			.setCommandEventFactory(new Sx4CommandEventFactory(this))
 			.addCommandEventListener(new Sx4CommandEventListener(this))
 			.setDefaultPrefixes(this.config.getDefaultPrefixes().toArray(String[]::new))
+			.setNSFWFunction(event -> event.reply("You cannot use this command in a non-nsfw channel " + this.config.getFailureEmote()).queue())
 			.setMissingPermissionExceptionFunction((event, permission) -> event.reply(PermissionUtility.formatMissingPermissions(EnumSet.of(permission), "I am") + " " + this.config.getFailureEmote()).queue())
 			.setMissingPermissionFunction((event, permissions) -> event.reply(PermissionUtility.formatMissingPermissions(permissions, "I am") + " " + this.config.getFailureEmote()).queue())
 			.setHelpFunction((message, prefix, commands) -> {

@@ -43,6 +43,7 @@ public class ServerStatsCommand extends Sx4Command {
 	public void onCommand(Sx4CommandEvent event, @Argument(value="duration", endless=true, nullDefault=true) Duration duration) {
 		if (duration != null && (duration.toHours() < 1 || duration.toHours() > 168)) {
 			event.replyFailure("Time frame cannot be less than 1 hour or more than 7 days").queue();
+			return;
 		}
 
 		List<Document> data = event.getDatabase().getServerStats(Filters.eq("guildId", event.getGuild().getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>());
@@ -100,9 +101,7 @@ public class ServerStatsCommand extends Sx4Command {
 		for (long key : map.keySet()) {
 			Map<ServerStatsType, Integer> stats = map.get(key);
 			for (ServerStatsType type : stats.keySet()) {
-				Integer amount = stats.get(type);
-
-				embed.addField(StringUtility.title(type.getField()) + " (" + TimeUtility.getTimeString(key, TimeUnit.HOURS) + ")", String.format("%,d", amount), true);
+				embed.addField(StringUtility.title(type.getField()) + " (" + TimeUtility.getTimeString(key, TimeUnit.HOURS) + ")", String.format("%,d", stats.get(type)), true);
 
 				if ((i++ & 1) == 0) {
 					embed.addBlankField(true);
