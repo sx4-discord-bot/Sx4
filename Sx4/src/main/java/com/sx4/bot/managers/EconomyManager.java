@@ -20,7 +20,7 @@ public class EconomyManager {
 		this.items = new ArrayList<>();
 		this.itemTypes = new HashMap<>();
 		
-		this.loadConfig();
+		this.loadItems();
 	}
 	
 	public List<Item> getItems() {
@@ -52,14 +52,14 @@ public class EconomyManager {
 			.orElse(defaultValue);
 	}
 	
-	public void reloadConfig() {
+	public void reloadItems() {
 		this.items.clear();
 		this.itemTypes.clear();
 		
-		this.loadConfig();
+		this.loadItems();
 	}
 	
-	public void loadConfig() {
+	public void loadItems() {
 		try (FileInputStream stream = new FileInputStream(new File("economy.json"))) {
 			this.addItems(new JSONObject(new String(stream.readAllBytes())));
 		} catch (IOException e) {

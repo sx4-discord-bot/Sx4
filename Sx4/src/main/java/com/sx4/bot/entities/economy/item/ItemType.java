@@ -26,7 +26,7 @@ public enum ItemType {
 	private final String dataName;
 
 	private final Class<? extends Item> itemClass;
-	
+
 	@SuppressWarnings("rawtypes")
 	private final BiFunction createFunction;
 	
@@ -60,7 +60,7 @@ public enum ItemType {
 	}
 	
 	@SuppressWarnings("unchecked")
-	public <Type> Type create(Document data, Type defaultItem) {
+	public <Type extends Item> Type create(Document data, Type defaultItem) {
 		return (Type) this.createFunction.apply(data, defaultItem);
 	}
 	

@@ -3,11 +3,12 @@ package com.sx4.bot.commands.management;
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
 import com.jockie.bot.core.command.Command.Cooldown;
-import com.mongodb.client.model.*;
+import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.UpdateOptions;
+import com.mongodb.client.model.Updates;
 import com.sx4.bot.annotations.argument.Limit;
 import com.sx4.bot.annotations.argument.Options;
 import com.sx4.bot.annotations.command.AuthorPermissions;
-import com.sx4.bot.annotations.command.BotPermissions;
 import com.sx4.bot.annotations.command.CommandId;
 import com.sx4.bot.annotations.command.Examples;
 import com.sx4.bot.category.ModuleCategory;
@@ -18,6 +19,7 @@ import com.sx4.bot.entities.argument.Alternative;
 import com.sx4.bot.entities.argument.MessageArgument;
 import com.sx4.bot.entities.settings.HolderType;
 import com.sx4.bot.utility.ExceptionUtility;
+import com.sx4.bot.utility.PermissionUtility;
 import com.sx4.bot.waiter.Waiter;
 import com.sx4.bot.waiter.exception.CancelException;
 import com.sx4.bot.waiter.exception.TimeoutException;
@@ -36,35 +38,11 @@ import org.bson.Document;
 import org.bson.conversions.Bson;
 
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.concurrent.CompletionException;
-import java.util.function.Predicate;
 
 public class ReactionRoleCommand extends Sx4Command {
-
-	private final Predicate<Throwable> defaultReactionFailure = exception -> {
-		if (exception instanceof ErrorResponseException) {
-			ErrorResponseException errorResponse = ((ErrorResponseException) exception);
-			return errorResponse.getErrorCode() == 400 || errorResponse.getErrorResponse() == ErrorResponse.UNKNOWN_EMOJI;
-		}
-		
-		return false;
-	};
-
-	private static Predicate<Document> getReactionFilter(ReactionEmote emote) {
-		return data -> {
-			Document emoteData = data.get("emote", Document.class);
-			if (emote.isEmoji()) {
-				if (emoteData.containsKey("name")) {
-					return emoteData.getString("name").equals(emote.getEmoji());
-				}
-
-				return false;
-			} else {
-				return emoteData.getLong("id") == emote.getEmote().getIdLong();
-			}
-		};
-	}
 	
 	public ReactionRoleCommand() {
 		super("reaction role", 71);
@@ -83,7 +61,6 @@ public class ReactionRoleCommand extends Sx4Command {
 	@CommandId(72)
 	@Examples({"reaction role add 643945552865919002 🐝 @Yellow", "reaction role add https://discordapp.com/channels/330399610273136641/678274453158887446/680051429460803622 :doggo: Dog person"})
 	@AuthorPermissions(permissions={Permission.MANAGE_ROLES})
-	@BotPermissions(permissions={Permission.MESSAGE_ADD_REACTION, Permission.MESSAGE_HISTORY})
 	@Cooldown(value=2)
 	public void add(Sx4CommandEvent event, @Argument(value="message id") MessageArgument messageArgument, @Argument(value="emote") ReactionEmote emote, @Argument(value="role", endless=true) Role role) {
 		if (role.isPublicRole()) {
@@ -93,6 +70,11 @@ public class ReactionRoleCommand extends Sx4Command {
 		
 		if (role.isManaged()) {
 			event.replyFailure("I cannot give managed roles").queue();
+			return;
+		}
+
+		if (!event.getSelfMember().hasPermission(messageArgument.getChannel(), Permission.MESSAGE_HISTORY)) {
+			event.replyFailure(PermissionUtility.formatMissingPermissions(EnumSet.of(Permission.MESSAGE_HISTORY), "I am")).queue();
 			return;
 		}
 		
@@ -116,6 +98,11 @@ public class ReactionRoleCommand extends Sx4Command {
 		messageArgument.retrieveMessage().queue(message -> {
 			if (message.getReactions().size() >= 20) {
 				event.replyFailure("That message is at the max amount of reactions (20)").queue();
+				return;
+			}
+
+			if (!event.getSelfMember().hasPermission(message.getTextChannel(), Permission.MESSAGE_ADD_REACTION)) {
+				event.replyFailure(PermissionUtility.formatMissingPermissions(EnumSet.of(Permission.MESSAGE_ADD_REACTION), "I am")).queue();
 				return;
 			}
 

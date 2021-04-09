@@ -55,7 +55,7 @@ public class GiveawayCommand extends Sx4Command {
 		super("giveaway", 46);
 		
 		super.setDescription("Setup giveaways in a certain channel which will be decided randomly through reactions");
-		super.setExamples("giveaway setup", "giveaway reroll", "giveaway reaction");
+		super.setExamples("giveaway setup", "giveaway reroll", "giveaway restart");
 		super.setCategoryAll(ModuleCategory.MANAGEMENT);
 	}
 	
@@ -80,6 +80,10 @@ public class GiveawayCommand extends Sx4Command {
 	public void setup(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) TextChannel channel, @Argument(value="winners") @DefaultNumber(0) @Limit(min=1) int winners, @Argument(value="duration", nullDefault=true) Duration duration, @Argument(value="item", nullDefault=true, endless=true) String item) {
 		if (channel != null && winners != 0 && duration != null && item != null) {
 			long seconds = duration.toSeconds();
+			if (seconds < 1) {
+				event.replyFailure("The duration of a giveaway cannot be less than 1 second").queue();
+				return;
+			}
 			
 			channel.sendMessage(this.getEmbed(winners, seconds, item)).queue(message -> {
 				message.addReaction("🎉").queue();
@@ -225,15 +229,15 @@ public class GiveawayCommand extends Sx4Command {
 					.setUnique(event.getAuthor().getIdLong(), event.getChannel().getIdLong())
 					.setPredicate(e -> {
 						Duration durationReply = TimeUtility.getDurationFromString(e.getMessage().getContentRaw());
-						if (durationReply != null) {
-							atomicDuration.set(durationReply);
-							
-							return true;
+						if (durationReply.toSeconds() < 1) {
+							event.replyFailure("The duration of a giveaway cannot be less than 1 second").queue();
+
+							return false;
 						}
-						
-						event.replyFailure("That is not a valid duration").queue();
-						
-						return false;
+
+						atomicDuration.set(durationReply);
+
+						return true;
 					});
 					
 				waiter.onCancelled((type) -> {
@@ -340,7 +344,7 @@ public class GiveawayCommand extends Sx4Command {
 		List<Bson> update = List.of(
 			Operators.set("endAt", Operators.cond(Operators.exists("$winners"), duration == null ? Operators.add(timeNow, "$duration") : duration.toSeconds() + timeNow, "$endAt")),
 			Operators.set("duration", Operators.cond(Operators.exists("$winners"), duration == null ? "$duration" : duration.toSeconds(), "$duration")),
-			Operators.set("winners", Operators.REMOVE)
+			Operators.unset("winners")
 		);	
 		
 		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.exclude("winners"));

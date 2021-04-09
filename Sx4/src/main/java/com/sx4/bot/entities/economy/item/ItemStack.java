@@ -4,8 +4,7 @@ import org.bson.Document;
 
 import java.util.List;
 import java.util.stream.Collectors;
-
-public class ItemStack<Type extends Item> implements Comparable<ItemStack<?>> {
+public class ItemStack<Type extends Item> implements Comparable<ItemStack<Type>> {
 	
 	private final Type item;
 	private long amount;
@@ -39,9 +38,7 @@ public class ItemStack<Type extends Item> implements Comparable<ItemStack<?>> {
 	}
 	
 	public ItemStack<Type> removeAmount(long amount) {
-		this.amount -= amount;
-		
-		return this;
+		return this.addAmount(-amount);
 	}
 	
 	public long getAmount() {
@@ -78,7 +75,7 @@ public class ItemStack<Type extends Item> implements Comparable<ItemStack<?>> {
 	}
 
 	@Override
-	public int compareTo(ItemStack<?> itemStack) {
+	public int compareTo(ItemStack<Type> itemStack) {
 		return Long.compare(this.amount, itemStack.getAmount());
 	}
 	
