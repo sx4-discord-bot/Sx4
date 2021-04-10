@@ -83,8 +83,6 @@ public class ModUtility {
 	public static CompletableFuture<TimeAction> mute(Sx4 bot, Member target, Member moderator, Duration time, boolean extend, Reason reason) {
 		Guild guild = target.getGuild();
 
-		CompletableFuture<TimeAction> future = new CompletableFuture<>();
-
 		long guildId = guild.getIdLong(), userId = target.getIdLong();
 
 		Document mute = bot.getDatabase().getGuildById(guildId, Projections.include("mute.roleId", "mute.defaultTime", "mute.autoUpdate")).get("mute", Database.EMPTY_DOCUMENT);
@@ -92,7 +90,7 @@ public class ModUtility {
 
 		AtomicReference<Role> atomicRole = new AtomicReference<>();
 
-		ModUtility.upsertMuteRole(bot.getDatabase(), guild, mute.get("roleId", 0L), mute.get("autoUpdate", true)).thenCompose(role -> {
+		return ModUtility.upsertMuteRole(bot.getDatabase(), guild, mute.get("roleId", 0L), mute.get("autoUpdate", true)).thenCompose(role -> {
 			atomicRole.set(role);
 
 			List<Bson> update = List.of(Operators.set("unmuteAt", Operators.add(duration, Operators.cond(Operators.and(extend, Operators.exists("$unmuteAt")), "$unmuteAt", Operators.nowEpochSecond()))));
@@ -102,26 +100,19 @@ public class ModUtility {
 			);
 
 			return bot.getDatabase().updateMute(filter, update, new UpdateOptions().upsert(true));
-		}).whenComplete((result, exception) -> {
-			if (exception != null) {
-				future.completeExceptionally(exception);
-				return;
-			}
-
+		}).thenCompose(result -> {
 			Role role = atomicRole.get();
 			boolean wasExtended = extend && result.getUpsertedId() == null;
 
-			guild.addRoleToMember(target, role).reason(ModUtility.getAuditReason(reason, moderator.getUser())).queue($ -> {
+			return guild.addRoleToMember(target, role).reason(ModUtility.getAuditReason(reason, moderator.getUser())).submit().thenApply($ -> {
 				bot.getMuteManager().putMute(guild.getIdLong(), target.getIdLong(), role.getIdLong(), duration, wasExtended);
 
 				ModActionEvent modEvent = wasExtended ? new MuteExtendEvent(moderator, target.getUser(), reason, duration) : new MuteEvent(moderator, target.getUser(), reason, duration);
 				bot.getModActionManager().onModAction(modEvent);
 
-				future.complete(new TimeAction(wasExtended ? ModAction.MUTE_EXTEND : ModAction.MUTE, duration));
+				return new TimeAction(wasExtended ? ModAction.MUTE_EXTEND : ModAction.MUTE, duration);
 			});
 		});
-
-		return future;
 	}
 
 	public static CompletableFuture<? extends Action> performAction(Sx4 bot, Action action, Member target, Member moderator, Reason reason) {
@@ -150,10 +141,10 @@ public class ModUtility {
 					return CompletableFuture.failedFuture(new AuthorPermissionException(Permission.KICK_MEMBERS));
 				}
 
-				return target.kick(ModUtility.getAuditReason(reason, moderator.getUser())).submit().thenCompose($ -> {
+				return target.kick(ModUtility.getAuditReason(reason, moderator.getUser())).submit().thenApply($ -> {
 					bot.getModActionManager().onModAction(new KickEvent(moderator, target.getUser(), reason));
 
-					return CompletableFuture.completedFuture(action);
+					return action;
 				});
 			case TEMPORARY_BAN:
 				if (!guild.getSelfMember().hasPermission(Permission.BAN_MEMBERS)) {
@@ -177,14 +168,13 @@ public class ModUtility {
 				);
 
 				return bot.getDatabase().updateTemporaryBan(filter, temporaryBanUpdate, new UpdateOptions().upsert(true))
-					.thenCompose(temporaryBanResult -> {
-						return target.ban(1).reason(ModUtility.getAuditReason(reason, moderator.getUser())).submit().thenCompose($ -> {
-							bot.getModActionManager().onModAction(new TemporaryBanEvent(moderator, target.getUser(), reason, true, temporaryBanDuration));
+					.thenCompose(temporaryBanResult -> target.ban(1).reason(ModUtility.getAuditReason(reason, moderator.getUser())).submit())
+					.thenApply($ -> {
+						bot.getModActionManager().onModAction(new TemporaryBanEvent(moderator, target.getUser(), reason, true, temporaryBanDuration));
 
-							bot.getTemporaryBanManager().putBan(guild.getIdLong(), target.getIdLong(), temporaryBanDuration);
+						bot.getTemporaryBanManager().putBan(guild.getIdLong(), target.getIdLong(), temporaryBanDuration);
 
-							return CompletableFuture.completedFuture(action);
-						});
+						return action;
 					});
 			case BAN:
 				if (!guild.getSelfMember().hasPermission(Permission.BAN_MEMBERS)) {
@@ -199,10 +189,10 @@ public class ModUtility {
 					return CompletableFuture.failedFuture(new AuthorPermissionException(Permission.BAN_MEMBERS));
 				}
 
-				return target.ban(1).reason(ModUtility.getAuditReason(reason, moderator.getUser())).submit().thenCompose($ -> {
+				return target.ban(1).reason(ModUtility.getAuditReason(reason, moderator.getUser())).submit().thenApply($ -> {
 					bot.getModActionManager().onModAction(new BanEvent(moderator, target.getUser(), reason, true));
 
-					return CompletableFuture.completedFuture(action);
+					return action;
 				});
 			default:
 				return CompletableFuture.completedFuture(null);

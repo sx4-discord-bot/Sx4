@@ -185,10 +185,10 @@ public class AntiRegexHandler implements EventListener {
                 int maxAttempts = attempts.get("amount", 3);
 
                 String matchMessage = this.format(match.get("message", type.getDefaultMatchMessage()),
-                    user, textChannel, regexId, currentAttempts + 1, maxAttempts, action);
+                    user, textChannel, id, currentAttempts + 1, maxAttempts, action);
 
                 String modMessage = this.format(mod.get("message", type.getDefaultModMessage()),
-                    user, textChannel, regexId, currentAttempts + 1, maxAttempts, action);
+                    user, textChannel, id, currentAttempts + 1, maxAttempts, action);
 
                 if ((matchAction & MatchAction.DELETE_MESSAGE.getRaw()) == MatchAction.DELETE_MESSAGE.getRaw() && selfMember.hasPermission(textChannel, Permission.MESSAGE_MANAGE)) {
                     message.delete().queue();
@@ -197,7 +197,7 @@ public class AntiRegexHandler implements EventListener {
                 boolean canSend = selfMember.hasPermission(textChannel, Permission.MESSAGE_WRITE);
                 boolean send = (matchAction & MatchAction.SEND_MESSAGE.getRaw()) == MatchAction.SEND_MESSAGE.getRaw() && canSend;
                 if (action != null && currentAttempts + 1 >= maxAttempts) {
-                    Reason reason = new Reason(String.format("Sent a message which matched regex `%s` %d time%s", regexId.toHexString(), maxAttempts, maxAttempts == 1 ? "" : "s"));
+                    Reason reason = new Reason(String.format("Sent a message which matched regex `%s` %d time%s", id.toHexString(), maxAttempts, maxAttempts == 1 ? "" : "s"));
 
                     ModUtility.performAction(this.bot, action, member, selfMember, reason).thenCompose(result -> {
                         if (send) {

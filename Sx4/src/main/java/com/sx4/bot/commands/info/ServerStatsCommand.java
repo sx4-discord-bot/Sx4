@@ -95,6 +95,7 @@ public class ServerStatsCommand extends Sx4Command {
 
 		EmbedBuilder embed = new EmbedBuilder()
 			.setAuthor("Server Stats", null, event.getGuild().getIconUrl())
+			.setFooter("Updated every hour")
 			.setTimestamp(lastUpdate.toInstant());
 
 		int i = 0;
