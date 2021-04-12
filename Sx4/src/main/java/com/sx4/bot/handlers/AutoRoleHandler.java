@@ -68,7 +68,7 @@ public class AutoRoleHandler implements EventListener {
 		}
 		
 		if (!roles.isEmpty()) {
-			guild.modifyMemberRoles(member, roles, null).queue();
+			guild.modifyMemberRoles(member, roles, null).reason("Auto Roles").queue();
 		}
 	}
 	

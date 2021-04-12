@@ -168,6 +168,7 @@ public class Sx4 {
 			new PagedHandler(this),
 			new WaiterHandler(this),
 			new GiveawayHandler(this),
+			new AutoRoleHandler(this),
 			modHandler,
 			new ConnectionHandler(this),
 			new ReactionRoleHandler(this),
