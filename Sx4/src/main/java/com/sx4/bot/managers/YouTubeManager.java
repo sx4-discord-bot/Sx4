@@ -107,13 +107,15 @@ public class YouTubeManager {
 	
 	public DeleteOneModel<Document> resubscribeBulk(String channelId) {
 		long amount = this.bot.getDatabase().countYouTubeNotifications(Filters.eq("uploaderId", channelId), new CountOptions().limit(1));
-		
+
+		this.deleteExecutor(channelId);
+
 		DeleteOneModel<Document> model = null;
 		if (amount != 0) {
 			RequestBody body = new MultipartBody.Builder()
 				.addFormDataPart("hub.mode", "subscribe")
 				.addFormDataPart("hub.topic", "https://www.youtube.com/xml/feeds/videos.xml?channel_id=" + channelId)
-				.addFormDataPart("hub.callback", this.bot.getConfig().getDomain() + "/api/youtube")
+				.addFormDataPart("hub.callback", this.bot.getConfig().getBaseUrl() + "/api/youtube")
 				.addFormDataPart("hub.verify", "sync")
 				.addFormDataPart("hub.verify_token", this.bot.getConfig().getYoutube())
 				.setType(MultipartBody.FORM)
@@ -136,8 +138,6 @@ public class YouTubeManager {
 		} else {
 			model = new DeleteOneModel<>(Filters.eq("_id", channelId));
 		}
-		
-		this.deleteExecutor(channelId);
 		
 		return model;
 	}
