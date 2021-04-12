@@ -68,8 +68,8 @@ public class ModHandler implements ModActionListener, EventListener {
 
 		Document data = this.bot.getDatabase().getGuildById(guild.getIdLong(), Projections.include("modLog.channelId", "modLog.enabled", "modLog.webhook")).get("modLog", Database.EMPTY_DOCUMENT);
 
-		long channelId = data.getLong("channelId");
-		if (!data.getBoolean("enabled", false) || channelId == 0) {
+		long channelId = data.get("channelId", 0L);
+		if (!data.getBoolean("enabled", false) || channelId == 0L) {
 			return;
 		}
 

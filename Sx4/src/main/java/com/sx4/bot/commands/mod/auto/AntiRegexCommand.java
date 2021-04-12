@@ -201,7 +201,7 @@ public class AntiRegexCommand extends Sx4Command {
 				return CompletableFuture.completedFuture(null);
 			}
 		}).whenComplete((result, exception) -> {
-			if (ExceptionUtility.sendExceptionally(event, exception) || result == null) {
+			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
 

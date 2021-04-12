@@ -4,6 +4,7 @@ import com.jockie.bot.core.command.impl.CommandEvent;
 import com.sx4.bot.config.Config;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.Message;
+import net.dv8tion.jda.api.entities.MessageChannel;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.requests.RestAction;
@@ -84,16 +85,20 @@ public class ExceptionUtility {
 			.build();
 	}
 	
-	public static boolean sendExceptionally(CommandEvent event, Throwable throwable) {
+	public static boolean sendExceptionally(MessageChannel channel, Throwable throwable) {
 		if (throwable == null) {
 			return false;
 		}
 
-		event.reply(ExceptionUtility.getSimpleErrorMessage(throwable)).queue();
+		channel.sendMessage(ExceptionUtility.getSimpleErrorMessage(throwable)).queue();
 
-		ExceptionUtility.sendErrorMessage(event.getShardManager(), throwable);
+		ExceptionUtility.sendErrorMessage(channel.getJDA().getShardManager(), throwable);
 		
 		return true;
+	}
+
+	public static boolean sendExceptionally(CommandEvent event, Throwable throwable) {
+		return ExceptionUtility.sendExceptionally(event.getChannel(), throwable);
 	}
 	
 }

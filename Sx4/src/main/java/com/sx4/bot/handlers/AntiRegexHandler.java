@@ -194,8 +194,7 @@ public class AntiRegexHandler implements EventListener {
                     message.delete().queue();
                 }
 
-                boolean canSend = selfMember.hasPermission(textChannel, Permission.MESSAGE_WRITE);
-                boolean send = (matchAction & MatchAction.SEND_MESSAGE.getRaw()) == MatchAction.SEND_MESSAGE.getRaw() && canSend;
+                boolean send = (matchAction & MatchAction.SEND_MESSAGE.getRaw()) == MatchAction.SEND_MESSAGE.getRaw() && selfMember.hasPermission(textChannel, Permission.MESSAGE_WRITE);
                 if (action != null && currentAttempts + 1 >= maxAttempts) {
                     Reason reason = new Reason(String.format("Sent a message which matched regex `%s` %d time%s", id.toHexString(), maxAttempts, maxAttempts == 1 ? "" : "s"));
 
@@ -207,12 +206,13 @@ public class AntiRegexHandler implements EventListener {
                         Bson filter = Filters.and(Filters.eq("userId", userId), Filters.eq("regexId", id));
                         return this.bot.getDatabase().deleteRegexAttempt(filter);
                     }).whenComplete((result, exception) -> {
-                        if (exception instanceof ModException) {
+                        Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
+                        if (cause instanceof ModException) {
                             textChannel.sendMessage(exception.getMessage() + " " + this.bot.getConfig().getFailureEmote()).queue();
                             return;
                         }
 
-                        if (ExceptionUtility.sendErrorMessage(this.bot.getShardManager(), exception)) {
+                        if (ExceptionUtility.sendExceptionally(textChannel, cause)) {
                             return;
                         }
 
@@ -231,6 +231,7 @@ public class AntiRegexHandler implements EventListener {
                 List<Bson> update = List.of(
                     Operators.set("attempts", Operators.let(new Document("attempts", Operators.ifNull("$attempts", 0)), Operators.cond(Operators.exists("$reset"), Operators.max(1, Operators.add(1, Operators.subtract("$$attempts", Operators.multiply(Operators.floor(Operators.divide(Operators.subtract(Operators.nowEpochSecond(), "$lastAttempt"), "$reset.after")), "$reset.amount")))), Operators.add("$$attempts", 1)))),
                     Operators.set("lastAttempt", Operators.nowEpochSecond()),
+                    Operators.setOnInsert("guildId", guildId),
                     reset == null ? Operators.unset("reset") : Operators.set("reset", reset)
                 );
 
