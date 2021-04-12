@@ -82,7 +82,7 @@ public class WarnCommand extends Sx4Command {
 			return;
 		}
 
-		Document warnData = event.getDatabase().getGuildById(event.getGuild().getIdLong(), Projections.include("warn")).get("warn", Document.class);
+		Document warnData = event.getDatabase().getGuildById(event.getGuild().getIdLong(), Projections.include("warn")).get("warn", Database.EMPTY_DOCUMENT);
 		boolean punishments = warnData.get("punishments", true);
 
 		int maxWarning = punishments ? warnData.getList("config", Document.class, Warn.DEFAULT_CONFIG)
@@ -239,7 +239,7 @@ public class WarnCommand extends Sx4Command {
 		@Examples({"warn configuration remove 3", "warn configuration remove 1", "warn configuration remove all"})
 		@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 		public void remove(Sx4CommandEvent event, @Argument(value="warnings | all") @Options("all") Alternative<Integer> option) {
-			int warnings = option.getValue();
+			Integer warnings = option.getValue();
 
 			List<Bson> update;
 			if (option.isAlternative()) {
@@ -270,7 +270,7 @@ public class WarnCommand extends Sx4Command {
 				}
 
 				Document oldAction = config.stream()
-					.filter(d -> d.getInteger("number") == warnings)
+					.filter(d -> d.getInteger("number").equals(warnings))
 					.map(d -> d.get("action", Document.class))
 					.findFirst()
 					.orElse(null);
