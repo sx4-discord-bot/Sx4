@@ -63,6 +63,7 @@ public class ConnectionHandler implements EventListener {
 			this.bot.getTemporaryBanManager().ensureBans();
 			this.bot.getGiveawayManager().ensureGiveaways();
 			this.bot.getPremiumManager().ensurePremiumExpiry();
+			this.bot.getYouTubeManager().ensureSubscriptions();
 		}
 		
 		this.eventsWebhook.send(this.getEmbed(jda, "Ready", this.bot.getConfig().getGreen()));

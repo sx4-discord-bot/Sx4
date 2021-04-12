@@ -149,7 +149,7 @@ public class YouTubeManager {
 		}
 	}
 	
-	public void ensureResubscriptions() {
+	public void ensureSubscriptions() {
 		List<WriteModel<Document>> bulkData = new ArrayList<>();
 		
 		this.bot.getDatabase().getYouTubeSubscriptions().find().forEach(data -> {
