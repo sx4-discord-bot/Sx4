@@ -13,6 +13,10 @@ import com.sx4.bot.entities.management.LoggerEvent;
 import com.sx4.bot.utility.ColourUtility;
 import com.sx4.bot.utility.LoggerUtility;
 import com.sx4.bot.utility.StringUtility;
+import gnu.trove.map.TLongIntMap;
+import gnu.trove.map.TLongObjectMap;
+import gnu.trove.map.hash.TLongIntHashMap;
+import gnu.trove.map.hash.TLongObjectHashMap;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.audit.ActionType;
 import net.dv8tion.jda.api.audit.AuditLogChange;
@@ -76,8 +80,8 @@ public class LoggerHandler implements EventListener {
 
 	private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
 
-	private final Map<Long, Map<Long, Integer>> disconnectCache = new HashMap<>();
-	private final Map<Long, Map<Long, Integer>> moveCache = new HashMap<>();
+	private final TLongObjectMap<TLongIntMap> disconnectCache = new TLongObjectHashMap<>();
+	private final TLongObjectMap<TLongIntMap> moveCache = new TLongObjectHashMap<>();
 
 	private final Sx4 bot;
 	
@@ -442,13 +446,14 @@ public class LoggerHandler implements EventListener {
 
 		if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
 			event.getGuild().retrieveAuditLogs().type(ActionType.MEMBER_VOICE_KICK).submitAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS).whenComplete((logs, exception) -> {
-				Map<Long, Integer> guildCache = this.disconnectCache.computeIfAbsent(guild.getIdLong(), key -> new HashMap<>());
+				this.disconnectCache.putIfAbsent(guild.getIdLong(), new TLongIntHashMap());
+				TLongIntMap guildCache = this.disconnectCache.get(guild.getIdLong());
 
 				AuditLogEntry entry = logs == null ? null : logs.stream()
 					.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toMinutes() <= 10)
 					.filter(e -> {
 						int count = Integer.parseInt(e.getOptionByName("count"));
-						int oldCount = guildCache.getOrDefault(e.getIdLong(), 0);
+						int oldCount = guildCache.get(e.getIdLong());
 
 						return (count == 1 && count != oldCount) || count > oldCount;
 					})
@@ -504,14 +509,15 @@ public class LoggerHandler implements EventListener {
 
 		if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
 			event.getGuild().retrieveAuditLogs().type(ActionType.MEMBER_VOICE_MOVE).submitAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS).whenComplete((logs, exception) -> {
-				Map<Long, Integer> channelCache = this.moveCache.computeIfAbsent(joined.getIdLong(), key -> new HashMap<>());
+				this.moveCache.putIfAbsent(joined.getIdLong(), new TLongIntHashMap());
+				TLongIntMap channelCache = this.moveCache.get(joined.getIdLong());
 
 				AuditLogEntry entry = logs == null ? null : logs.stream()
 					.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toMinutes() <= 10)
 					.filter(e -> Long.parseLong(e.getOptionByName("channel_id")) == joined.getIdLong())
 					.filter(e -> {
 						int count = Integer.parseInt(e.getOptionByName("count"));
-						int oldCount = channelCache.getOrDefault(e.getIdLong(), 0);
+						int oldCount = channelCache.get(e.getIdLong());
 
 						return (count == 1 && count != oldCount) || count > oldCount;
 					})
@@ -591,7 +597,7 @@ public class LoggerHandler implements EventListener {
 		GuildVoiceState voiceState = event.getVoiceState();
 		VoiceChannel channel = voiceState.getChannel();
 
-		boolean deafened = voiceState.isGuildMuted();
+		boolean deafened = voiceState.isGuildDeafened();
 
 		LoggerEvent loggerEvent = deafened ? LoggerEvent.MEMBER_SERVER_VOICE_DEAFEN : LoggerEvent.MEMBER_SERVER_VOICE_UNDEAFEN;
 		LoggerContext loggerContext = new LoggerContext()
