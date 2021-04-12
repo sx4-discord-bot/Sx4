@@ -96,7 +96,10 @@ public class TemporaryBanManager {
 		}
 
 		if (automatic) {
-			this.bot.getModActionManager().onModAction(new UnbanEvent(guild.getSelfMember(), user, new Reason("Ban length served")));
+			Reason reason = new Reason("Ban length served");
+			UnbanEvent event = user == null ? new UnbanEvent(guild.getSelfMember(), userId, reason) : new UnbanEvent(guild.getSelfMember(), user, reason);
+
+			this.bot.getModActionManager().onModAction(event);
 		}
 
 		this.deleteExecutor(guildId, userId);

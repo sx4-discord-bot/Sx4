@@ -1,6 +1,9 @@
 package com.sx4.bot.managers;
 
-import com.mongodb.client.model.*;
+import com.mongodb.client.model.DeleteOneModel;
+import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.Projections;
+import com.mongodb.client.model.WriteModel;
 import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.entities.mod.Reason;
@@ -120,8 +123,11 @@ public class MuteManager {
 		if (member != null && role != null && member.getRoles().contains(role)) {
 			guild.removeRoleFromMember(member, role).reason("Mute length served").queue();
 		}
-		
-		this.bot.getModActionManager().onModAction(new UnmuteEvent(guild.getSelfMember(), member == null ? null : member.getUser(), new Reason("Mute length served")));
+
+		Reason reason = new Reason("Ban length served");
+		UnmuteEvent event = member == null ? new UnmuteEvent(guild.getSelfMember(), userId, reason) : new UnmuteEvent(guild.getSelfMember(), member.getUser(), reason);
+
+		this.bot.getModActionManager().onModAction(event);
 		this.deleteExecutor(guildId, userId);
 		
 		return new DeleteOneModel<>(Filters.and(Filters.eq("guildId", guildId), Filters.eq("userId", userId)));
@@ -141,14 +147,19 @@ public class MuteManager {
 		});
 		
 		List<WriteModel<Document>> bulkData = new ArrayList<>();
-		this.bot.getDatabase().getMutes(Database.EMPTY_DOCUMENT, Projections.include("unmuteAt", "userId", "guildId")).forEach(data -> {
+		this.bot.getDatabase().getMutes(Filters.empty(), Projections.include("unmuteAt", "userId", "guildId")).forEach(data -> {
 			long guildId = data.getLong("guildId");
+
+			long roleId = roleIds.getOrDefault(guildId, 0L);
+			if (roleId == 0L) {
+				return;
+			}
 
 			long currentTime = Clock.systemUTC().instant().getEpochSecond(), unmuteAt = data.getLong("unmuteAt");
 			if (unmuteAt > currentTime) {
-				this.putMute(guildId, data.getLong("userId"), roleIds.get(guildId), unmuteAt - currentTime);
+				this.putMute(guildId, data.getLong("userId"), roleId, unmuteAt - currentTime);
 			} else {
-				DeleteOneModel<Document> model = this.removeMuteBulk(guildId, data.getLong("userId"), roleIds.get(guildId));
+				DeleteOneModel<Document> model = this.removeMuteBulk(guildId, data.getLong("userId"), roleId);
 				if (model != null) {
 					bulkData.add(model);
 				}

@@ -100,5 +100,13 @@ public class ExceptionUtility {
 	public static boolean sendExceptionally(CommandEvent event, Throwable throwable) {
 		return ExceptionUtility.sendExceptionally(event.getChannel(), throwable);
 	}
+
+	public static void safeRun(ShardManager manager, Runnable runnable) {
+		try {
+			runnable.run();
+		} catch (Throwable e) {
+			ExceptionUtility.sendErrorMessage(manager, e);
+		}
+	}
 	
 }

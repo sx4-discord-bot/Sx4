@@ -162,7 +162,7 @@ public class ModHandler implements ModActionListener, EventListener {
 	public void onUnmute(UnmuteEvent event) {
 		EmbedBuilder embed = this.getGenericEmbed(event.getGuild(), event.getModerator().getUser(), event.getAction(), event.getReason());
 
-		event.getTarget().openPrivateChannel()
+		event.getGuild().getJDA().openPrivateChannelById(event.getTargetId())
 			.flatMap(channel -> channel.sendMessage(embed.build()))
 			.queue(null, ErrorResponseException.ignore(ErrorResponse.CANNOT_SEND_TO_USER));
 	}

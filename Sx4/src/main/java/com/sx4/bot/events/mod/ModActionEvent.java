@@ -32,6 +32,10 @@ public class ModActionEvent {
 	public Member getModerator() {
 		return this.moderator;
 	}
+
+	public boolean hasTarget() {
+		return this.target != null;
+	}
 	
 	public User getTarget() {
 		return this.target;

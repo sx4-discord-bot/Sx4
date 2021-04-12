@@ -8,11 +8,13 @@ import club.minnced.discord.webhook.send.WebhookEmbed.EmbedField;
 import club.minnced.discord.webhook.send.WebhookEmbed.EmbedFooter;
 import club.minnced.discord.webhook.send.WebhookEmbedBuilder;
 import com.sx4.bot.core.Sx4;
+import com.sx4.bot.utility.ExceptionUtility;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDA.ShardInfo;
 import net.dv8tion.jda.api.events.*;
 import net.dv8tion.jda.api.hooks.EventListener;
 import net.dv8tion.jda.api.requests.CloseCode;
+import net.dv8tion.jda.api.sharding.ShardManager;
 
 import java.time.Instant;
 import java.time.OffsetDateTime;
@@ -58,12 +60,13 @@ public class ConnectionHandler implements EventListener {
 		JDA jda = event.getJDA();
 		
 		if (++this.readyEventsCalled == jda.getShardInfo().getShardTotal()) {
-			this.bot.getReminderManager().ensureReminders();
-			this.bot.getMuteManager().ensureMutes();
-			this.bot.getTemporaryBanManager().ensureBans();
-			this.bot.getGiveawayManager().ensureGiveaways();
-			this.bot.getPremiumManager().ensurePremiumExpiry();
-			this.bot.getYouTubeManager().ensureSubscriptions();
+			ShardManager manager = this.bot.getShardManager();
+			ExceptionUtility.safeRun(manager, this.bot.getReminderManager()::ensureReminders);
+			ExceptionUtility.safeRun(manager, this.bot.getMuteManager()::ensureMutes);
+			ExceptionUtility.safeRun(manager, this.bot.getTemporaryBanManager()::ensureBans);
+			ExceptionUtility.safeRun(manager, this.bot.getGiveawayManager()::ensureGiveaways);
+			ExceptionUtility.safeRun(manager, this.bot.getPremiumManager()::ensurePremiumExpiry);
+			ExceptionUtility.safeRun(manager, this.bot.getYouTubeManager()::ensureSubscriptions);
 		}
 		
 		this.eventsWebhook.send(this.getEmbed(jda, "Ready", this.bot.getConfig().getGreen()));
