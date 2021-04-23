@@ -9,10 +9,12 @@ public class FormatterFunction<Type> {
 	private final Class<Type> type;
 	private final String name;
 	private final Method method;
+	private final boolean usePrevious;
 
-	public FormatterFunction(Class<Type> type, String name) {
+	public FormatterFunction(Class<Type> type, String name, boolean usePrevious) {
 		this.name = name;
 		this.type = type;
+		this.usePrevious = usePrevious;
 
 		Method[] methods = this.getClass().getMethods();
 		for (Method method : methods) {
@@ -29,6 +31,14 @@ public class FormatterFunction<Type> {
 		}
 
 		throw new IllegalStateException("FormatterFunction doesn't have a parse method");
+	}
+
+	public FormatterFunction(Class<Type> type, String name) {
+		this(type, name, false);
+	}
+
+	public boolean isUsePrevious() {
+		return this.usePrevious;
 	}
 
 	public Class<Type> getType() {

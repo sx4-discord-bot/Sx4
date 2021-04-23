@@ -10,8 +10,7 @@ public class AdditionFunction extends FormatterFunction<Number> {
 	}
 
 	public Number parse(FormatterEvent event, Number number) {
-		Number argument = ((Number) event.getObject());
-		return (argument instanceof Double ? argument.doubleValue() : argument instanceof Integer ? argument.intValue() : argument.longValue()) + (number instanceof Double ? number.doubleValue() : number instanceof Integer ? number.intValue() : number.longValue());
+		return ((Number) event.getObject()).doubleValue() + number.doubleValue();
 	}
 
 }

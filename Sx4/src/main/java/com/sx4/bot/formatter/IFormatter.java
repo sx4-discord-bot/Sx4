@@ -178,6 +178,130 @@ public interface IFormatter<Type> {
 		return string;
 	}
 
+	private static Object getArgumentValue(String argument, Class<?> type, Map<String, Object> arguments, FormatterManager manager) {
+		Object value;
+		if (argument.charAt(0) == '{' && argument.charAt(argument.length() - 1) == '}' && argument.charAt(argument.length() - 2) != '\\') {
+			value = IFormatter.getValue(argument.substring(1, argument.length() - 1), arguments, manager);
+			if (value == null || !type.isAssignableFrom(value.getClass())) {
+				return null;
+			}
+		} else {
+			value = IFormatter.toObject(argument, type);
+		}
+
+		if (value instanceof String) {
+			return IFormatter.getArgumentValue(IFormatter.format((String) value, arguments, manager), type, arguments, manager);
+		}
+
+		return value;
+	}
+
+	private static Object getValue(String formatter, Map<String, Object> arguments, FormatterManager manager) {
+		String argument = formatter;
+		int periodIndex = formatter.lastIndexOf('.');
+
+		Object value;
+		do {
+			value = arguments.get(argument);
+			if (value != null || periodIndex == -1) {
+				break;
+			}
+
+			argument = formatter.substring(0, periodIndex);
+		} while ((periodIndex = argument.lastIndexOf('.')) != -1);
+
+		value = value == null ? arguments.get(argument) : value;
+		if (value == null) {
+			return null;
+		}
+
+		periodIndex = argument.length();
+
+		Class<?> returnClass = value.getClass();
+		while (periodIndex != -1 && periodIndex != formatter.length()) {
+			if (value == null) {
+				return null;
+			}
+
+			int nextPeriodIndex = formatter.indexOf('.', periodIndex + 1);
+			String name = formatter.substring(periodIndex + 1, nextPeriodIndex == -1 ? formatter.length() : nextPeriodIndex);
+
+			while (StringUtility.isNotEqual(name, '(', ')') && nextPeriodIndex != -1) {
+				nextPeriodIndex = formatter.indexOf('.', nextPeriodIndex + 1);
+				name = formatter.substring(periodIndex + 1, nextPeriodIndex == -1 ? formatter.length() : nextPeriodIndex);
+			}
+
+			int bracketIndex = 0;
+			while (IFormatter.escape(name, bracketIndex = name.indexOf('(', bracketIndex + 1)) && bracketIndex != -1);
+
+			int endBracketIndex = name.length();
+			while (IFormatter.escape(name, endBracketIndex = name.lastIndexOf(')', endBracketIndex - 1)) && endBracketIndex != -1);
+
+			if (bracketIndex == -1 || endBracketIndex == -1) {
+				FormatterVariable<?> variable = manager.getVariable(returnClass, name);
+				if (variable == null) {
+					return null;
+				}
+
+				value = variable.parse(value);
+				if (nextPeriodIndex != -1) {
+					if (value == null) {
+						continue;
+					}
+
+					returnClass = value.getClass();
+				}
+			} else {
+				String argumentText = name.substring(bracketIndex + 1, endBracketIndex);
+				String functionName = name.substring(0, bracketIndex);
+
+				FormatterFunction<?> function = manager.getFunction(returnClass, functionName);
+				if (function == null) {
+					continue;
+				}
+
+				List<Object> objectArguments = new ArrayList<>();
+				objectArguments.add(new FormatterEvent(value, arguments, manager));
+
+				Class<?>[] parameters = function.getMethod().getParameterTypes();
+				if (parameters.length > 2) {
+					int lastIndex = -1, i = 0;
+					do {
+						int nextIndex = argumentText.indexOf(',', lastIndex + 1);
+						if (IFormatter.escape(argumentText, nextIndex)) {
+							continue;
+						}
+
+						objectArguments.add(IFormatter.getArgumentValue(argumentText.substring(lastIndex + 1, lastIndex = nextIndex == -1 ? argumentText.length() : nextIndex), function.isUsePrevious() ? returnClass : parameters[i++ + 1], arguments, manager));
+					} while (lastIndex != argumentText.length());
+
+					if (objectArguments.size() < parameters.length - 1) {
+						return null;
+					}
+				} else if (parameters.length == 2) {
+					objectArguments.add(IFormatter.getArgumentValue(argumentText, function.isUsePrevious() ? returnClass : parameters[1], arguments, manager));
+				}
+
+				try {
+					value = function.parse(objectArguments);
+				} catch (InvocationTargetException | IllegalAccessException | IllegalArgumentException exception) {
+					exception.printStackTrace();
+					value = null;
+				}
+
+				if (value == null) {
+					continue;
+				}
+
+				returnClass = value.getClass();
+			}
+
+			periodIndex = nextPeriodIndex;
+		}
+
+		return value;
+	}
+
 	public static String format(String string, Map<String, Object> arguments, FormatterManager manager) {
 		int index = -1;
 		Open: while ((index = string.indexOf('{', index + 1)) != -1) {
@@ -196,117 +320,7 @@ public interface IFormatter<Type> {
 					continue;
 				}
 
-				String argument = formatter;
-				int periodIndex = formatter.lastIndexOf('.');
-
-				Object value;
-				do {
-					value = arguments.get(argument);
-					if (value != null) {
-						break;
-					}
-
-					argument = formatter.substring(0, periodIndex);
-				} while ((periodIndex = argument.lastIndexOf('.')) != -1);
-
-				value = value == null ? arguments.get(argument) : value;
-				if (value == null) {
-					continue;
-				}
-
-				periodIndex = argument.length();
-
-				Class<?> returnClass = value.getClass();
-				while (periodIndex != -1 && periodIndex != formatter.length()) {
-					if (value == null) {
-						continue Open;
-					}
-
-					int nextPeriodIndex = formatter.indexOf('.', periodIndex + 1);
-					String name = formatter.substring(periodIndex + 1, nextPeriodIndex == -1 ? formatter.length() : nextPeriodIndex);
-
-					while (StringUtility.isNotEqual(name, '(', ')') && nextPeriodIndex != -1) {
-						nextPeriodIndex = formatter.indexOf('.', nextPeriodIndex + 1);
-						name = formatter.substring(periodIndex + 1, nextPeriodIndex == -1 ? formatter.length() : nextPeriodIndex);
-					}
-
-					int bracketIndex = 0;
-					while (IFormatter.escape(name, bracketIndex = name.indexOf('(', bracketIndex + 1)) && bracketIndex != -1) ;
-
-					int endBracketIndex = name.length();
-					while (IFormatter.escape(name, endBracketIndex = name.lastIndexOf(')', endBracketIndex - 1)) && endBracketIndex != -1) ;
-
-					if (bracketIndex == -1 || endBracketIndex == -1) {
-						FormatterVariable<?> variable = manager.getVariable(returnClass, name);
-						if (variable == null) {
-							continue Open;
-						}
-
-						value = variable.parse(value);
-						if (nextPeriodIndex != -1) {
-							if (value == null) {
-								continue;
-							}
-
-							returnClass = value.getClass();
-						}
-					} else {
-						String argumentText = name.substring(bracketIndex + 1, endBracketIndex);
-						String functionName = name.substring(0, bracketIndex);
-
-						FormatterFunction<?> function = manager.getFunction(returnClass, functionName);
-						if (function == null) {
-							continue Open;
-						}
-
-						List<Object> objectArguments = new ArrayList<>();
-						objectArguments.add(new FormatterEvent(value, arguments, manager));
-
-						Class<?>[] parameters = function.getMethod().getParameterTypes();
-						if (parameters.length > 2) {
-							List<String> functionArguments = new ArrayList<>();
-
-							int lastIndex = -1;
-							do {
-								int nextIndex = argumentText.indexOf(',', lastIndex + 1);
-								if (IFormatter.escape(argumentText, nextIndex)) {
-									continue;
-								}
-
-								functionArguments.add(IFormatter.format(argumentText.substring(lastIndex + 1, lastIndex = nextIndex == -1 ? argumentText.length() : nextIndex), arguments, manager));
-							} while (lastIndex != argumentText.length());
-
-							if (functionArguments.size() < parameters.length - 1) {
-								continue Open;
-							}
-
-							for (int i = 0; i < parameters.length; i++) {
-								Class<?> parameter = parameters[i];
-								if (parameter != FormatterEvent.class) {
-									objectArguments.add(IFormatter.toObject(functionArguments.get(i - 1), parameter));
-								}
-							}
-						} else if (parameters.length == 2) {
-							objectArguments.add(IFormatter.toObject(IFormatter.format(argumentText, arguments, manager), parameters[1]));
-						}
-
-						try {
-							value = function.parse(objectArguments);
-						} catch (InvocationTargetException | IllegalAccessException | IllegalArgumentException exception) {
-							exception.printStackTrace();
-							continue Open;
-						}
-
-						if (value == null) {
-							continue;
-						}
-
-						returnClass = value.getClass();
-					}
-
-					periodIndex = nextPeriodIndex;
-				}
-
+				Object value = IFormatter.getValue(formatter, arguments, manager);
 				if (value instanceof String) {
 					value = IFormatter.format((String) value, arguments, manager);
 				}
