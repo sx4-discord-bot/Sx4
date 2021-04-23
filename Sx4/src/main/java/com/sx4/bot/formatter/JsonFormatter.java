@@ -6,45 +6,47 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
 
-public class JsonFormatter implements Formatter<Document> {
+public class JsonFormatter implements IFormatter<Document> {
 
-	private final Map<String, Function<Variable, Object>> map;
+	private final Map<String, Object> arguments;
+	private final FormatterManager manager;
+
 	private final Document document;
 
 	public JsonFormatter(Document document) {
 		this(document, new HashMap<>());
 	}
 
-	private JsonFormatter(Document document, Map<String, Function<Variable, Object>> map) {
+	private JsonFormatter(Document document, Map<String, Object> arguments) {
 		this.document = document;
-		this.map = map;
+		this.arguments = arguments;
+		this.manager = FormatterManager.getDefaultManager();
 	}
 
-	public JsonFormatter appendFunction(String key, Function<Variable, Object> function) {
-		this.map.put(key, function);
+	public JsonFormatter addArgument(String name, Object argument) {
+		this.arguments.put(name, argument);
 
 		return this;
 	}
 
 	public Document parse() {
-		return this.parse(this.document, this.map);
+		return this.parse(this.document, this.arguments);
 	}
 
-	public Document parse(Document json, Map<String, Function<Variable, Object>> map) {
+	public Document parse(Document json, Map<String, Object> arguments) {
 		Document newJson = new Document();
 		for (Map.Entry<String, Object> entry : json.entrySet()) {
 			Object value = entry.getValue();
 			if (value instanceof Document) {
-				newJson.put(entry.getKey(), this.parse((Document) value, map));
+				newJson.put(entry.getKey(), this.parse((Document) value, arguments));
 			} else if (value instanceof List) {
 				List<Object> newList = new ArrayList<>();
 				for (Object element : (List<?>) value) {
 					if (element instanceof Document) {
-						newList.add(this.parse((Document) element, map));
+						newList.add(this.parse((Document) element, arguments));
 					} else if (element instanceof String) {
-						newList.add(this.parse((String) element, map));
+						newList.add(this.parse((String) element, arguments, this.manager));
 					} else {
 						newList.add(element);
 					}
@@ -52,7 +54,7 @@ public class JsonFormatter implements Formatter<Document> {
 
 				newJson.put(entry.getKey(), newList);
 			} else if (value instanceof String) {
-				newJson.put(entry.getKey(), this.parse((String) value, map));
+				newJson.put(entry.getKey(), this.parse((String) value, arguments, this.manager));
 			} else {
 				newJson.put(entry.getKey(), value);
 			}
@@ -61,8 +63,8 @@ public class JsonFormatter implements Formatter<Document> {
 		return newJson;
 	}
 
-	public static JsonFormatter of(Document document, Map<String, Function<Variable, Object>> map) {
-		return new JsonFormatter(document, map);
+	public static JsonFormatter of(Document document, Map<String, Object> arguments) {
+		return new JsonFormatter(document, arguments);
 	}
 
 }

@@ -32,6 +32,11 @@ import com.sx4.bot.entities.argument.*;
 import com.sx4.bot.entities.management.AutoRoleFilter;
 import com.sx4.bot.entities.mod.PartialEmote;
 import com.sx4.bot.entities.mod.Reason;
+import com.sx4.bot.entities.mod.action.Action;
+import com.sx4.bot.entities.youtube.YouTubeChannel;
+import com.sx4.bot.entities.youtube.YouTubeVideo;
+import com.sx4.bot.formatter.FormatterManager;
+import com.sx4.bot.formatter.parser.*;
 import com.sx4.bot.handlers.*;
 import com.sx4.bot.managers.*;
 import com.sx4.bot.paged.PagedHandler;
@@ -55,16 +60,16 @@ import org.bson.json.JsonParseException;
 import org.bson.types.ObjectId;
 
 import javax.security.auth.login.LoginException;
+import java.awt.*;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.time.DateTimeException;
-import java.time.Duration;
-import java.time.LocalDate;
+import java.time.*;
 import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoField;
+import java.util.List;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -79,7 +84,7 @@ public class Sx4 {
 
 	private final Config config = Config.get();
 	private final Database database;
-	
+
 	private final CommandListener commandListener;
 	private final ShardManager shardManager;
 	private final OkHttpClient httpClient;
@@ -121,6 +126,87 @@ public class Sx4 {
 			.writeTimeout(15, TimeUnit.SECONDS)
 			.build();
 
+		FormatterManager.setDefaultManager(
+			new FormatterManager()
+				.addFunction(new SubstringFunction())
+				.addFunction(new PlusDaysFunction())
+				.addFunction(new PlusHoursFunction())
+				.addFunction(new PlusSecondsFunction())
+				.addFunction(new DateFormatFunction())
+				.addFunction(new MapCollectionFunction())
+				.addFunction(new JoinCollectionFunction())
+				.addFunction(new GetListFunction())
+				.addFunction(new SubListFunction())
+				.addFunction(new FilterCollectionFunction())
+				.addFunction(new RandomIntFunction())
+				.addFunction(new SumListFunction())
+				.addFunction(new AdditionFunction())
+				.addFunction(new MultiplicationFunction())
+				.addFunction(new SubtractFunction())
+				.addFunction(new DivisionFunction())
+				.addVariable("name", Action.class, action -> action == null ? null : action.getName())
+				.addVariable("exists", Action.class, Objects::nonNull)
+				.addVariable("suffix", Integer.class, NumberUtility::getSuffixed)
+				.addVariable("length", Collection.class, Collection::size)
+				.addVariable("empty", Collection.class, Collection::isEmpty)
+				.addVariable("name", Role.class, Role::getName)
+				.addVariable("id", Role.class, Role::getIdLong)
+				.addVariable("created", Role.class, Role::getTimeCreated)
+				.addVariable("colour", Role.class, Role::getColor)
+				.addVariable("color", Role.class, Role::getColor)
+				.addVariable("raw", Color.class, Color::getRGB)
+				.addVariable("hex", Color.class, colour -> "#" + ColourUtility.toHexString(colour.getRGB()))
+				.addVariable("name", ReactionEmote.class, emote -> emote.isEmoji() ? emote.getName() : emote.getEmote().getName())
+				.addVariable("id", ReactionEmote.class, emote -> emote.isEmoji() ? emote.getName() : emote.getEmote().getIdLong())
+				.addVariable("mention", ReactionEmote.class, emote -> emote.isEmoji() ? emote.getName() : emote.getEmote().getAsMention())
+				.addVariable("created", ReactionEmote.class, emote -> emote.isEmoji() ? OffsetDateTime.ofInstant(Instant.EPOCH, ZoneOffset.UTC) : emote.getEmote().getTimeCreated())
+				.addVariable("raw", Permission.class, Permission::getRawValue)
+				.addVariable("name", Permission.class, Permission::getName)
+				.addVariable("permissions", IPermissionHolder.class, IPermissionHolder::getPermissions)
+				.addVariable("mention", IMentionable.class, IMentionable::getAsMention)
+				.addVariable("id", GuildChannel.class, GuildChannel::getIdLong)
+				.addVariable("name", GuildChannel.class, GuildChannel::getName)
+				.addVariable("created", GuildChannel.class, GuildChannel::getTimeCreated)
+				.addVariable("slowmode", TextChannel.class, TextChannel::getSlowmode)
+				.addVariable("bitrate", VoiceChannel.class, VoiceChannel::getBitrate)
+				.addVariable("limit", VoiceChannel.class, VoiceChannel::getUserLimit)
+				.addVariable("name", Guild.class, Guild::getName)
+				.addVariable("id", Guild.class, Guild::getIdLong)
+				.addVariable("owner", Guild.class, Guild::getOwner)
+				.addVariable("boosts", Guild.class, Guild::getBoostCount)
+				.addVariable("boosters", Guild.class, Guild::getBoosters)
+				.addVariable("members", Guild.class, Guild::getMemberCount)
+				.addVariable("avatar", Guild.class, Guild::getIconUrl)
+				.addVariable("created", Guild.class, Guild::getTimeCreated)
+				.addVariable("user", Member.class, Member::getUser)
+				.addVariable("nickname", Member.class, Member::getNickname)
+				.addVariable("roles", Member.class, Member::getRoles)
+				.addVariable("colour", Member.class, Member::getColor)
+				.addVariable("color", Member.class, Member::getColor)
+				.addVariable("joined", Member.class, Member::getTimeJoined)
+				.addVariable("id", User.class, User::getIdLong)
+				.addVariable("name", User.class, User::getName)
+				.addVariable("avatar", User.class, User::getEffectiveAvatarUrl)
+				.addVariable("discriminator", User.class, User::getDiscriminator)
+				.addVariable("badges", User.class, User::getFlags)
+				.addVariable("tag", User.class, User::getAsTag)
+				.addVariable("created", User.class, User::getTimeCreated)
+				.addVariable("name", User.UserFlag.class, User.UserFlag::getName)
+				.addVariable("raw", User.UserFlag.class, User.UserFlag::getRawValue)
+				.addVariable("offset", User.UserFlag.class, User.UserFlag::getOffset)
+				.addVariable("day", OffsetDateTime.class, OffsetDateTime::getDayOfMonth)
+				.addVariable("month", OffsetDateTime.class, OffsetDateTime::getMonthValue)
+				.addVariable("year", OffsetDateTime.class, OffsetDateTime::getYear)
+				.addVariable("id", YouTubeVideo.class, YouTubeVideo::getId)
+				.addVariable("url", YouTubeVideo.class, YouTubeVideo::getUrl)
+				.addVariable("title", YouTubeVideo.class, YouTubeVideo::getTitle)
+				.addVariable("thumbnail", YouTubeVideo.class, YouTubeVideo::getThumbnail)
+				.addVariable("published", YouTubeVideo.class, YouTubeVideo::getPublishedAt)
+				.addVariable("id", YouTubeChannel.class, YouTubeChannel::getId)
+				.addVariable("url", YouTubeChannel.class, YouTubeChannel::getUrl)
+				.addVariable("name", YouTubeChannel.class, YouTubeChannel::getName)
+		);
+
 		ContextManagerFactory.getDefault()
 			.registerContext(Sx4CommandEvent.class, (event, type) -> (Sx4CommandEvent) event)
 			.setEnforcedContext(Sx4CommandEvent.class, true);
@@ -134,7 +220,7 @@ public class Sx4 {
 		ModHandler modHandler = new ModHandler(this);
 		YouTubeHandler youTubeHandler = new YouTubeHandler(this);
 
-		this.antiRegexManager = new AntiRegexManager(this);
+		this.antiRegexManager = new AntiRegexManager();
 		this.economyManager = new EconomyManager();
 		this.giveawayManager = new GiveawayManager(this);
 		this.leaverManager = new LeaverManager(this);
@@ -305,6 +391,7 @@ public class Sx4 {
 			return DefaultShardManagerBuilder.create(this.config.getToken(), GatewayIntent.getIntents(5838))
 				.setBulkDeleteSplittingEnabled(false)
 				.addEventListeners(listeners)
+				.setActivity(Activity.watching("s?help"))
 				.build();
 		} catch (LoginException | IllegalArgumentException e) {
 			e.printStackTrace();
@@ -717,7 +804,6 @@ public class Sx4 {
 				try {
 					return new ParsedResult<>(ReminderArgument.parse(this.database, context.getMessage().getAuthor().getIdLong(), content));
 				} catch (DateTimeException | IllegalArgumentException e) {
-					System.out.println(e.getMessage());
 					return new ParsedResult<>();
 				}
 			}).registerParser(Document.class, (context, argument, content) -> {

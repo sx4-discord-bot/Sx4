@@ -9,14 +9,11 @@ import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Updates;
 import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.Database;
-import com.sx4.bot.entities.youtube.YouTubeChannel;
 import com.sx4.bot.entities.youtube.YouTubeType;
-import com.sx4.bot.entities.youtube.YouTubeVideo;
 import com.sx4.bot.events.youtube.YouTubeDeleteEvent;
 import com.sx4.bot.events.youtube.YouTubeUpdateTitleEvent;
 import com.sx4.bot.events.youtube.YouTubeUploadEvent;
 import com.sx4.bot.formatter.JsonFormatter;
-import com.sx4.bot.formatter.parser.FormatterTimeParser;
 import com.sx4.bot.hooks.YouTubeListener;
 import com.sx4.bot.managers.YouTubeManager;
 import com.sx4.bot.utility.ExceptionUtility;
@@ -55,18 +52,9 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 	}
 	
 	private WebhookMessageBuilder format(YouTubeUploadEvent event, Document document) {
-		YouTubeChannel channel = event.getChannel();
-		YouTubeVideo video = event.getVideo();
-
 		Document formattedDocument = new JsonFormatter(document)
-			.append("channel.name", channel.getName())
-			.append("channel.url", channel.getUrl())
-			.append("channel.id", channel.getId())
-			.append("video.title", video.getTitle())
-			.append("video.url", video.getUrl())
-			.append("video.id", video.getId())
-			.append("video.thumbnail", video.getThumbnail())
-			.appendFunction("video.published", new FormatterTimeParser(video.getPublishedAt()))
+			.addArgument("channel", event.getChannel())
+			.addArgument("video", event.getVideo())
 			.parse();
 
 		return MessageUtility.fromJson(formattedDocument);

@@ -1,17 +1,19 @@
 package com.sx4.bot.entities.economy.item;
 
+import com.sx4.bot.managers.EconomyManager;
 import org.bson.Document;
 
 import java.util.List;
 import java.util.stream.Collectors;
+
 public class ItemStack<Type extends Item> implements Comparable<ItemStack<Type>> {
 	
 	private final Type item;
 	private long amount;
 	
 	@SuppressWarnings("unchecked")
-	public ItemStack(Document data) {
-		Item defaultItem = null; //Item.getFromName(data.getString("name"));
+	public ItemStack(EconomyManager manager, Document data) {
+		Item defaultItem = manager.getItemByName(data.getString("name"));
 		ItemType type = ItemType.fromType(data.getInteger("type"));
 		
 		this.item = (Type) type.create(data, defaultItem);
@@ -46,11 +48,7 @@ public class ItemStack<Type extends Item> implements Comparable<ItemStack<Type>>
 	}
 	
 	public boolean equalsItem(ItemStack<?> itemStack) {
-		if (this.item.getName().equals(itemStack.getItem().getName())) {
-			return true;
-		}
-		
-		return false;
+		return this.item.getName().equals(itemStack.getItem().getName());
 	}
 	
 	public ItemStack<Type> combine(ItemStack<?> itemStack) {
@@ -62,7 +60,7 @@ public class ItemStack<Type extends Item> implements Comparable<ItemStack<Type>>
 	}
 	
 	public String toString() {
-		return this.item.getName() + " x" + this.amount;
+		return this.getName() + " x" + this.amount;
 	}
 	
 	public Document toData() {
@@ -70,8 +68,8 @@ public class ItemStack<Type extends Item> implements Comparable<ItemStack<Type>>
 			.append("amount", this.amount);
 	}
 	
-	public static List<ItemStack<? extends Item>> fromData(List<Document> data) {
-		return data.stream().map(ItemStack::new).collect(Collectors.toList());
+	public static List<ItemStack<? extends Item>> fromData(EconomyManager manager, List<Document> data) {
+		return data.stream().map(d -> new ItemStack<>(manager, d)).collect(Collectors.toList());
 	}
 
 	@Override

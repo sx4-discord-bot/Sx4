@@ -2,34 +2,40 @@ package com.sx4.bot.formatter;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.function.Function;
 
-public class StringFormatter implements Formatter<String> {
+public class StringFormatter implements IFormatter<String> {
 
-    private final Map<String, Function<Variable, Object>> map;
+    private final Map<String, Object> arguments;
+    private final FormatterManager manager;
+
     private final String string;
 
     public StringFormatter(String string) {
         this(string, new HashMap<>());
     }
 
-    private StringFormatter(String string, Map<String, Function<Variable, Object>> map) {
+    private StringFormatter(String string, Map<String, Object> arguments) {
         this.string = string;
-        this.map = map;
+        this.arguments = arguments;
+        this.manager = FormatterManager.getDefaultManager();
     }
 
-    public StringFormatter appendFunction(String key, Function<Variable, Object> function) {
-        this.map.put(key, function);
+    public StringFormatter addArgument(String name, Object argument) {
+        this.arguments.put(name, argument);
 
         return this;
     }
 
-    public String parse() {
-        return this.parse(this.string, this.map);
+    public String getString() {
+        return this.string;
     }
 
-    public static StringFormatter of(String string, Map<String, Function<Variable, Object>> map) {
-        return new StringFormatter(string, map);
+    public String parse() {
+        return this.parse(this.string, this.arguments, this.manager);
+    }
+
+    public static StringFormatter of(String string, Map<String, Object> arguments) {
+        return new StringFormatter(string, arguments);
     }
 
 }

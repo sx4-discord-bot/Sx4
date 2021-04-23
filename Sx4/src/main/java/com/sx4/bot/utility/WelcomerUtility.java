@@ -3,9 +3,8 @@ package com.sx4.bot.utility;
 import club.minnced.discord.webhook.send.WebhookMessageBuilder;
 import com.sx4.bot.config.Config;
 import com.sx4.bot.entities.image.ImageRequest;
-import com.sx4.bot.formatter.Formatter;
+import com.sx4.bot.formatter.IFormatter;
 import com.sx4.bot.formatter.JsonFormatter;
-import com.sx4.bot.formatter.parser.FormatterTimeParser;
 import com.sx4.bot.http.HttpCallback;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
@@ -21,10 +20,11 @@ public class WelcomerUtility {
 	public static void getWelcomerMessage(OkHttpClient httpClient, Document messageData, Member member, boolean image, boolean gif, BiConsumer<WebhookMessageBuilder, Throwable> consumer) {
 		Guild guild = member.getGuild();
 
-		Formatter<Document> formatter = new JsonFormatter(messageData)
+		IFormatter<Document> formatter = new JsonFormatter(messageData)
 			.member(member)
+			.user(member.getUser())
 			.guild(guild)
-			.append("now", new FormatterTimeParser(OffsetDateTime.now()));
+			.addArgument("now", OffsetDateTime.now());
 
 		if (!image) {
 			WebhookMessageBuilder builder;
@@ -52,7 +52,7 @@ public class WelcomerUtility {
 			httpClient.newCall(request.build(Config.get().getImageWebserver())).enqueue((HttpCallback) response -> {
 				if (response.isSuccessful()) {
 					String fileName = "welcomer." + response.header("Content-Type").split("/")[1];
-					formatter.append("file.name", fileName).append("file.url", "attachment://" + fileName);
+					formatter.addArgument("file.name", fileName).addArgument("file.url", "attachment://" + fileName);
 
 					WebhookMessageBuilder builder;
 					if (messageData == null) {

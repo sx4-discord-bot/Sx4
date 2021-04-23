@@ -6,10 +6,10 @@ import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.http.HttpCallback;
-import net.dv8tion.jda.api.entities.Message;
 import okhttp3.Request;
 
 import java.lang.reflect.Method;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
 public class SourceCommand extends Sx4Command {
@@ -78,7 +78,7 @@ public class SourceCommand extends Sx4Command {
 					if (endBracketCount == startBracketCount) {
 						String commandCode = String.join("\n",  Arrays.copyOfRange(lines, startLine, i + 1));
 
-						event.reply("```java\n" + commandCode.substring(0, Math.min(commandCode.length(), Message.MAX_CONTENT_LENGTH - 11)) + "```").queue();
+						event.replyFile(commandCode.getBytes(StandardCharsets.UTF_8), className + ".java").queue();
 						break;
 					}
 				} else {

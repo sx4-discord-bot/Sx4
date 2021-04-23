@@ -52,11 +52,10 @@ public class AntiRegexHandler implements EventListener {
         return new StringFormatter(message)
             .user(user)
             .channel(channel)
-            .append("regex.id", id.toHexString())
-            .append("regex.action.name", action == null ? null : action.getName().toLowerCase())
-            .append("regex.action.exists", action != null)
-            .append("regex.attempts.current", currentAttempts)
-            .append("regex.attempts.max", maxAttempts)
+            .addArgument("regex.id", id.toHexString())
+            .addArgument("regex.action", action)
+            .addArgument("regex.attempts.current", currentAttempts)
+            .addArgument("regex.attempts.max", maxAttempts)
             .parse();
     }
 

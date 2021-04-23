@@ -13,7 +13,7 @@ public class NumberUtility {
 	}
 
 	public static String getZeroPrefixedNumber(long value) {
-		return value < 10 ? "0" + value : String.valueOf(value);
+		return (value < 0 ? "-" : "") + (value < 10 && value > -10 ? "0" + value : String.valueOf(Math.abs(value)));
 	}
 
 	public static boolean isNumberUnsigned(String string) {

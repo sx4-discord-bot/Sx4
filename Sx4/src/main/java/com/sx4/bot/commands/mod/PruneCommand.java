@@ -3,7 +3,6 @@ package com.sx4.bot.commands.mod;
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.argument.Endless;
 import com.jockie.bot.core.command.Command;
-import com.jockie.bot.core.command.Command.Async;
 import com.jockie.bot.core.command.Command.Cooldown;
 import com.jockie.bot.core.cooldown.ICooldown;
 import com.jockie.bot.core.option.Option;
@@ -13,19 +12,18 @@ import com.sx4.bot.annotations.command.*;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
+import com.sx4.bot.utility.ExceptionUtility;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.Message.Attachment;
 import net.dv8tion.jda.api.entities.Message.MentionType;
 import net.dv8tion.jda.api.entities.MessageHistory.MessageRetrieveAction;
-import net.dv8tion.jda.api.exceptions.ErrorHandler;
 
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Predicate;
@@ -44,12 +42,10 @@ public class PruneCommand extends Sx4Command {
 	}
 	
 	private CompletableFuture<Void> prune(Sx4CommandEvent event, int amount, long start, long end, Predicate<Message> predicate) {
-		CompletableFuture<Void> future = new CompletableFuture<>();
-
 		Message originalMessage = event.getMessage();
 		MessageRetrieveAction action = start == 0L ? event.getTextChannel().getHistoryBefore(originalMessage, 100) : event.getTextChannel().getHistoryBefore(start, 100);
 
-		action.queue(history -> {
+		return action.submit().thenCompose(history -> {
 			List<Message> retrievedHistory = history.getRetrievedHistory();
 			List<Message> messages = new ArrayList<>();
 
@@ -68,15 +64,11 @@ public class PruneCommand extends Sx4Command {
 			messages = messages.subList(0, Math.min(messages.size(), amount + 1));
 
 			if (messages.size() == 1) {
-				messages.get(0).delete().queue();
+				return messages.get(0).delete().submit();
 			} else {
-				event.getTextChannel().deleteMessages(messages).queue();
+				return event.getTextChannel().deleteMessages(messages).submit();
 			}
-
-			future.complete(null);
-		}, new ErrorHandler(e -> future.complete(null)));
-
-		return future;
+		});
 	}
 	
 	public void onCommand(Sx4CommandEvent event, @Argument(value="amount") @DefaultNumber(100) @Limit(min=1, max=100) int amount, @Option(value="start", description="The message id to start pruning from") long start, @Option(value="end", description="The message id to end pruning at") long end) {
@@ -141,16 +133,20 @@ public class PruneCommand extends Sx4Command {
 	@Command(value="regex", description="Prunes a set amount of messages which match a specific regex")
 	@CommandId(147)
 	@Examples({"prune regex [0-9]+", "prune regex .{2,32}#[0-9]{4}"})
-	@Async
 	@Cooldown(value=20, cooldownScope=ICooldown.Scope.GUILD)
 	@AuthorPermissions(permissions={Permission.MESSAGE_MANAGE})
 	@BotPermissions(permissions={Permission.MESSAGE_MANAGE, Permission.MESSAGE_HISTORY}, overwrite=true)
 	public void regex(Sx4CommandEvent event, @Argument(value="regex") Pattern pattern, @Argument(value="amount") @DefaultNumber(100) @Limit(min=1, max=100) int amount, @Option(value="start", description="The message id to start pruning from") long start, @Option(value="end", description="The message id to end pruning at") long end) {
-		try {
-			this.prune(event, amount, start, end, message -> pattern.matcher(message.getContentRaw()).matches()).get(500, TimeUnit.MILLISECONDS);
-		} catch (InterruptedException | ExecutionException | TimeoutException e) {
-			event.reply("That regex took longer than 500ms to execute :stopwatch:").queue();
-		}
+		this.prune(event, amount, start, end, message -> pattern.matcher(message.getContentRaw()).matches())
+			.orTimeout(500, TimeUnit.MILLISECONDS)
+			.whenComplete((result, exception) -> {
+				if (exception instanceof TimeoutException) {
+					event.reply("That regex took longer than 500ms to execute :stopwatch:").queue();
+					return;
+				}
+
+				ExceptionUtility.sendExceptionally(event, exception);
+			});
 	}
 	
 }

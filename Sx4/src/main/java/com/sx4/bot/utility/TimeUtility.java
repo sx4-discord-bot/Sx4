@@ -221,8 +221,14 @@ public class TimeUtility {
 	public static String getTimeString(long seconds) {
 		return TimeUtility.getTimeString(seconds, TimeUnit.SECONDS);
 	}
-	
+
 	public static String getMusicTimeString(long seconds) {
+		return TimeUtility.getMusicTimeString(seconds, TimeUnit.SECONDS);
+	}
+
+	public static String getMusicTimeString(long duration, TimeUnit unit) {
+		long seconds = unit.toSeconds(duration);
+
 		StringBuilder string = new StringBuilder();
 		
 		boolean overZero = false;

@@ -4,8 +4,7 @@ import com.mongodb.client.model.*;
 import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.formatter.JsonFormatter;
-import com.sx4.bot.formatter.parser.FormatterRandomParser;
-import com.sx4.bot.formatter.parser.FormatterTimeParser;
+import com.sx4.bot.utility.MathUtility;
 import com.sx4.bot.utility.MessageUtility;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.Message.MentionType;
@@ -45,10 +44,11 @@ public class TriggerHandler implements EventListener {
 			if (equals) {
 				Document response = new JsonFormatter(trigger.get("response", Document.class))
 					.member(message.getMember())
+					.user(message.getAuthor())
 					.channel(message.getTextChannel())
 					.guild(message.getGuild())
-					.appendFunction("now", new FormatterTimeParser(OffsetDateTime.now()))
-					.appendFunction("random", new FormatterRandomParser())
+					.addArgument("now", OffsetDateTime.now())
+					.addArgument("random", MathUtility.RANDOM)
 					.parse();
 
 				try {

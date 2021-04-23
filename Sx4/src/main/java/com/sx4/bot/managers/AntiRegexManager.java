@@ -1,6 +1,5 @@
 package com.sx4.bot.managers;
 
-import com.sx4.bot.core.Sx4;
 import org.bson.types.ObjectId;
 
 import java.util.HashMap;
@@ -23,11 +22,8 @@ public class AntiRegexManager {
     // TODO: Would also be nice for a way to combine attempts across multiple anti regexes
     private final Map<ObjectId, Map<Long, Integer>> attempts;
 
-    private final Sx4 bot;
-
-    public AntiRegexManager(Sx4 bot) {
+    public AntiRegexManager() {
         this.attempts = new HashMap<>();
-        this.bot = bot;
     }
 
     public synchronized int getAttempts(ObjectId id, long userId) {

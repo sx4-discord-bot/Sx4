@@ -2,7 +2,7 @@ package com.sx4.bot.utility;
 
 public class StringUtility {
 
-	public static boolean isEqual(String string, char firstChar, char secondChar) {
+	public static boolean isNotEqual(String string, char firstChar, char secondChar) {
 		int first = 0, second = 0;
 		for (int i = 0; i < string.length(); i++) {
 			char character = string.charAt(i), characterBefore = string.charAt(Math.max(0, i - 1));
@@ -55,7 +55,7 @@ public class StringUtility {
 			beginIndex = length + beginIndex;
 		}
 		
-		return string.substring(beginIndex, Math.min(length, endIndex));
+		return string.substring(Math.max(0, beginIndex), Math.min(length, endIndex));
 	}
 	
 	public static String substring(String string, int beginIndex) {

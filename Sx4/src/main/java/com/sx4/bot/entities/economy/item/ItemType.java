@@ -7,7 +7,6 @@ import java.util.function.BiFunction;
 public enum ItemType {
 
 	// Determines in which order items are loaded from the json file
-	
 	MATERIAL(0, "Material", 500, Material.class, Material::new),
 	WOOD(1, "Wood", 250, Wood.class, Wood::new),
 	ROD(2, "Fishing Rod", 1, Rod.class, Rod::new),
@@ -58,7 +57,7 @@ public enum ItemType {
 	public Class<? extends Item> getItemClass() {
 		return this.itemClass;
 	}
-	
+
 	@SuppressWarnings("unchecked")
 	public <Type extends Item> Type create(Document data, Type defaultItem) {
 		return (Type) this.createFunction.apply(data, defaultItem);

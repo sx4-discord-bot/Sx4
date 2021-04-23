@@ -10,12 +10,11 @@ import com.mongodb.client.model.*;
 import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.database.model.Operators;
-import com.sx4.bot.formatter.Formatter;
+import com.sx4.bot.formatter.IFormatter;
 import com.sx4.bot.formatter.JsonFormatter;
 import com.sx4.bot.managers.StarboardManager;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.MessageUtility;
-import com.sx4.bot.utility.NumberUtility;
 import com.sx4.bot.utility.StringUtility;
 import net.dv8tion.jda.api.entities.*;
 import net.dv8tion.jda.api.entities.Message.Attachment;
@@ -101,17 +100,15 @@ public class StarboardHandler implements EventListener {
 	}
 
 	private WebhookMessageBuilder format(Document message, Member member, TextChannel channel, ReactionEmote emote, int stars, int nextStars, ObjectId id) {
-		Formatter<Document> formatter = new JsonFormatter(message)
+		IFormatter<Document> formatter = new JsonFormatter(message)
 			.member(member)
+			.user(member.getUser())
 			.channel(channel)
 			.emote(emote)
-			.append("stars", stars)
-			.append("stars.suffix", NumberUtility.getSuffixed(stars))
-			.append("stars.next", nextStars)
-			.append("stars.next.suffix", NumberUtility.getSuffixed(nextStars))
-			.append("stars.next.until", nextStars - stars)
-			.append("stars.next.until.suffix", NumberUtility.getSuffixed(nextStars - stars))
-			.append("id", id.toHexString());
+			.addArgument("stars", stars)
+			.addArgument("stars.next", nextStars)
+			.addArgument("stars.next.until", nextStars - stars)
+			.addArgument("id", id.toHexString());
 
 		return MessageUtility.fromJson(formatter.parse());
 	}

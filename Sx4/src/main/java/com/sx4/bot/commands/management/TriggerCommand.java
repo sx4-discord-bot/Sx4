@@ -21,9 +21,9 @@ import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.model.Operators;
 import com.sx4.bot.entities.argument.Alternative;
 import com.sx4.bot.formatter.JsonFormatter;
-import com.sx4.bot.formatter.parser.FormatterRandomParser;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
+import com.sx4.bot.utility.MathUtility;
 import com.sx4.bot.utility.MessageUtility;
 import com.sx4.bot.utility.StringUtility;
 import com.sx4.bot.waiter.Waiter;
@@ -36,6 +36,8 @@ import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
 
+import java.nio.charset.StandardCharsets;
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletionException;
@@ -261,7 +263,7 @@ public class TriggerCommand extends Sx4Command {
 	@Command(value="preview", description="Preview what a trigger will look like")
 	@CommandId(222)
 	@Examples({"trigger preview 600968f92850ef72c9af8756"})
-	public void preview(Sx4CommandEvent event, @Argument(value="id") ObjectId id) {
+	public void preview(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Option(value="raw", description="Returns the raw version of the trigger") boolean raw) {
 		Document trigger = event.getDatabase().getTriggerById(id, Projections.include("enabled", "response"));
 		if (trigger == null) {
 			event.replyFailure("I could not find that trigger").queue();
@@ -273,17 +275,23 @@ public class TriggerCommand extends Sx4Command {
 			return;
 		}
 
-		Document response = new JsonFormatter(trigger.get("response", Document.class))
-			.member(event.getMember())
-			.channel(event.getTextChannel())
-			.guild(event.getGuild())
-			.appendFunction("random", new FormatterRandomParser())
-			.parse();
+		if (raw) {
+			event.replyFile(trigger.get("response", Document.class).toJson().getBytes(StandardCharsets.UTF_8), "trigger.txt").queue();
+		} else {
+			Document response = new JsonFormatter(trigger.get("response", Document.class))
+				.member(event.getMember())
+				.user(event.getAuthor())
+				.channel(event.getTextChannel())
+				.guild(event.getGuild())
+				.addArgument("now", OffsetDateTime.now())
+				.addArgument("random", MathUtility.RANDOM)
+				.parse();
 
-		try {
-			MessageUtility.fromWebhookMessage(event.getChannel(), MessageUtility.fromJson(response).build()).queue();
-		} catch (IllegalArgumentException e) {
-			event.replyFailure(e.getMessage()).queue();
+			try {
+				MessageUtility.fromWebhookMessage(event.getChannel(), MessageUtility.fromJson(response).build()).queue();
+			} catch (IllegalArgumentException e) {
+				event.replyFailure(e.getMessage()).queue();
+			}
 		}
 	}
 

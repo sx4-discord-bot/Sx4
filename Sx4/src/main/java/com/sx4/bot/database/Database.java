@@ -39,6 +39,8 @@ public class Database {
 	private final MongoCollection<Document> guilds;
 	private final MongoCollection<Document> users;
 
+	private final MongoCollection<Document> items;
+
 	private final MongoCollection<Document> blacklists;
 
 	private final MongoCollection<Document> warnings;
@@ -107,6 +109,9 @@ public class Database {
 		this.users = this.database.getCollection("users");
 
 		this.guilds = this.database.getCollection("guilds");
+
+		this.items = this.database.getCollection("items");
+		this.items.createIndex(Indexes.descending("itemId"));
 
 		this.blacklists = this.database.getCollection("blacklists");
 		this.blacklists.createIndex(Indexes.descending("guildId"));
@@ -232,6 +237,26 @@ public class Database {
 	
 	public MongoDatabase getDatabase() {
 		return this.database;
+	}
+
+	public MongoCollection<Document> getItems() {
+		return this.items;
+	}
+
+	public FindIterable<Document> getItems(Bson filter, Bson projection) {
+		return this.items.find(filter).projection(projection);
+	}
+
+	public Document getItem(Bson filter, Bson projection) {
+		return this.getItems(filter, projection).first();
+	}
+
+	public CompletableFuture<UpdateResult> updateItem(Bson filter, Bson update, UpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.items.updateOne(filter, update, options));
+	}
+
+	public CompletableFuture<UpdateResult> updateItem(Bson filter, List<Bson> update, UpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.items.updateOne(filter, update, options));
 	}
 
 	public MongoCollection<Document> getMediaChannels() {
