@@ -83,7 +83,7 @@ public class FunUtils {
 		}
 		
 		for (Guild guild : Sx4Bot.getShardManager().getGuilds()) {
-			if (guild.getOwner().equals(member)) {
+			if (guild.getOwnerIdLong() == member.getIdLong()) {
 				badges.add("server_owner");
 				break;
 			}
