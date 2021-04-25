@@ -203,6 +203,8 @@ public interface IFormatter<Type> {
 				String functionName = name.substring(0, bracketIndex);
 
 				FormatterFunction<?> function = manager.getFunction(returnClass, functionName);
+				System.out.println(function);
+				System.out.println(name);
 				if (function == null) {
 					return null;
 				}
@@ -260,8 +262,8 @@ public interface IFormatter<Type> {
 	}
 
 	public static String format(String string, Map<String, Object> arguments, FormatterManager manager) {
-		int index = string.length();
-		Open: while ((index = string.lastIndexOf('{', index - 1)) != -1) {
+		int index = -1;
+		Open: while ((index = string.indexOf('{', index + 1)) != -1) {
 			if (IFormatter.escape(string, index)) {
 				continue;
 			}
