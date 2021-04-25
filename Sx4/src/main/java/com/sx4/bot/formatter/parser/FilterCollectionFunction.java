@@ -23,7 +23,7 @@ public class FilterCollectionFunction extends FormatterFunction<Collection> {
 		for (Object element : collection) {
 			arguments.put("this", element);
 
-			Object condition = IFormatter.getArgumentValue(lambda, Boolean.class, arguments, event.getManager());
+			Object condition = IFormatter.toObject(IFormatter.format(lambda, arguments, event.getManager()), Boolean.class, event.getManager());
 			if (condition == null) {
 				condition = false;
 			}

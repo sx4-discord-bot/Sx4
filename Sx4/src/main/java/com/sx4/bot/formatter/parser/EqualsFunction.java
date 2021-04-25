@@ -11,7 +11,6 @@ public class EqualsFunction extends FormatterFunction<Object> {
 
 	public boolean parse(FormatterEvent event, Object argument) {
 		Object object = event.getObject();
-		System.out.println(object + " " + object.getClass() + " - " + argument + " " + argument.getClass());
 		if (object instanceof Number) {
 			try {
 				return ((Number) object).doubleValue() == ((Number) argument).doubleValue();

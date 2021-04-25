@@ -9,8 +9,8 @@ public class LessThanFunction extends FormatterFunction<Number> {
 		super(Number.class, "lt");
 	}
 
-	public boolean parse(FormatterEvent event, Number number) {
-		return ((Number) event.getObject()).doubleValue() < number.doubleValue();
+	public boolean parse(FormatterEvent event, Double number) {
+		return ((Number) event.getObject()).doubleValue() < number;
 	}
 
 }

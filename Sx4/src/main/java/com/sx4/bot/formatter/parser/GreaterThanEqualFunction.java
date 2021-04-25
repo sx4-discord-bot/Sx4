@@ -9,8 +9,8 @@ public class GreaterThanEqualFunction extends FormatterFunction<Number> {
 		super(Number.class, "gte");
 	}
 
-	public boolean parse(FormatterEvent event, Number number) {
-		return ((Number) event.getObject()).doubleValue() >= number.doubleValue();
+	public boolean parse(FormatterEvent event, Double number) {
+		return ((Number) event.getObject()).doubleValue() >= number;
 	}
 
 }

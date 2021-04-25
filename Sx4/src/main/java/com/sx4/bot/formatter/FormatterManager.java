@@ -1,6 +1,7 @@
 package com.sx4.bot.formatter;
 
 import com.sx4.bot.formatter.function.FormatterFunction;
+import com.sx4.bot.formatter.function.FormatterParser;
 import com.sx4.bot.formatter.function.FormatterVariable;
 
 import java.util.*;
@@ -13,12 +14,27 @@ public class FormatterManager {
 	private final Map<Class<?>, Map<String, FormatterFunction<?>>> functions;
 	private final Map<Class<?>, Map<String, FormatterVariable<?>>> variables;
 
+	private final Map<Class<?>, FormatterParser<?>> parsers;
+
 	private final Set<Class<?>> handleInheritance;
 
 	public FormatterManager() {
 		this.functions = new HashMap<>();
 		this.variables = new HashMap<>();
+		this.parsers = new HashMap<>();
 		this.handleInheritance = new LinkedHashSet<>();
+	}
+
+	public FormatterManager addParser(FormatterParser<?> parser) {
+		this.parsers.put(parser.getType(), parser);
+
+		this.handleInheritance.add(parser.getType());
+
+		return this;
+	}
+
+	public <Type> FormatterManager addParser(Class<Type> type, Function<String, Type> function) {
+		return this.addParser(new FormatterParser<>(type, function));
 	}
 
 	public FormatterManager addFunction(FormatterFunction<?> function) {
@@ -59,9 +75,23 @@ public class FormatterManager {
 		return this.addVariable(new FormatterVariable<>(name, type, function));
 	}
 
+	public FormatterParser<?> getParser(Class<?> type) {
+		for (Class<?> inheritanceType : this.getInheritanceTypes(type)) {
+			FormatterParser<?> parser = this.parsers.get(inheritanceType);
+			if (parser != null) {
+				return parser;
+			}
+		}
+
+		return null;
+	}
+
+	public FormatterFunction<?> getStaticFunction(String name) {
+		return this.getFunction(Void.class, name);
+	}
+
 	public FormatterFunction<?> getFunction(Class<?> type, String name) {
-		List<Class<?>> types = this.getInheritanceTypes(type);
-		for (Class<?> inheritanceType : types) {
+		for (Class<?> inheritanceType : this.getInheritanceTypes(type)) {
 			FormatterFunction<?> function = this.functions.getOrDefault(inheritanceType, new HashMap<>()).get(name);
 			if (function != null) {
 				return function;
@@ -72,8 +102,7 @@ public class FormatterManager {
 	}
 
 	public FormatterVariable<?> getVariable(Class<?> type, String name) {
-		List<Class<?>> types = this.getInheritanceTypes(type);
-		for (Class<?> inheritanceType : types) {
+		for (Class<?> inheritanceType : this.getInheritanceTypes(type)) {
 			FormatterVariable<?> variable = this.variables.getOrDefault(inheritanceType, new HashMap<>()).get(name);
 			if (variable != null) {
 				return variable;
@@ -91,8 +120,8 @@ public class FormatterManager {
 		return this.variables;
 	}
 
-	private List<Class<?>> getInheritanceTypes(Class<?> type) {
-		List<Class<?>> types = new ArrayList<>();
+	private Set<Class<?>> getInheritanceTypes(Class<?> type) {
+		Set<Class<?>> types = new HashSet<>();
 		types.add(type);
 
 		for (Class<?> inheritanceType : this.handleInheritance) {
