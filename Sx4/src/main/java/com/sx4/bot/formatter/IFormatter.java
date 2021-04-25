@@ -137,7 +137,7 @@ public interface IFormatter<Type> {
 				return null;
 			}
 		} else {
-			value = IFormatter.toObject(argument, type);
+			value = IFormatter.toObject(IFormatter.format(argument, arguments, manager), type);
 		}
 
 		return value;
@@ -219,7 +219,7 @@ public interface IFormatter<Type> {
 							continue;
 						}
 
-						Object argumentValue =IFormatter.getArgumentValue(argumentText.substring(lastIndex + 1, lastIndex = nextIndex == -1 ? argumentText.length() : nextIndex), function.isUsePrevious() ? returnClass : parameters[i++ + 1], arguments, manager);
+						Object argumentValue = IFormatter.getArgumentValue(argumentText.substring(lastIndex + 1, lastIndex = nextIndex == -1 ? argumentText.length() : nextIndex), function.isUsePrevious() ? returnClass : parameters[i++ + 1], arguments, manager);
 						if (argumentValue == null) {
 							continue;
 						}
