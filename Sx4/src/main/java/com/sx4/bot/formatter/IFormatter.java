@@ -77,61 +77,9 @@ public interface IFormatter<Type> {
 		return false;
 	}
 
-	public static boolean condition(String string) {
-		for (Condition condition : Condition.values()) {
-			String operator = condition.getOperator();
-			int index = string.indexOf(operator);
-			if (index == -1) {
-				continue;
-			}
-
-			String first = string.substring(0, index), second = string.substring(index + operator.length());
-			switch (condition) {
-				case EQUAL:
-					try {
-						return Double.parseDouble(first) == Double.parseDouble(second);
-					} catch (NumberFormatException e) {
-						return first.equals(second);
-					}
-				case NOT_EQUAL:
-					try {
-						return Double.parseDouble(first) != Double.parseDouble(second);
-					} catch (NumberFormatException e) {
-						return !first.equals(second);
-					}
-				case MORE_THAN:
-					try {
-						return Double.parseDouble(first) > Double.parseDouble(second);
-					} catch (NumberFormatException e) {
-						return false;
-					}
-				case MORE_THAN_EQUAL:
-					try {
-						return Double.parseDouble(first) >= Double.parseDouble(second);
-					} catch (NumberFormatException e) {
-						return false;
-					}
-				case LESS_THAN:
-					try {
-						return Double.parseDouble(first) < Double.parseDouble(second);
-					} catch (NumberFormatException e) {
-						return false;
-					}
-				case LESS_THAN_EQUAL:
-					try {
-						return Double.parseDouble(first) <= Double.parseDouble(second);
-					} catch (NumberFormatException e) {
-						return false;
-					}
-			}
-		}
-
-		return string.equals("true");
-	}
-
-	public static String ternary(String string) {
-		int index = -1;
-		Brackets: while ((index = string.indexOf('(', index + 1)) != -1) {
+	public static String ternary(String string, Map<String, Object> arguments, FormatterManager manager) {
+		int index = string.length();
+		Brackets: while ((index = string.lastIndexOf('(', index - 1)) != -1) {
 			if (IFormatter.escape(string, index)) {
 				continue;
 			}
@@ -141,7 +89,7 @@ public interface IFormatter<Type> {
 				if (IFormatter.escape(string, endIndex)) {
 					continue;
 				}
-
+				
 				if (StringUtility.isNotEqual(string.substring(index + 1, endIndex), '(', ')')) {
 					continue;
 				}
@@ -165,9 +113,12 @@ public interface IFormatter<Type> {
 
 						String elseFormatter = string.substring(endCondIndex + 1, endIndex);
 
-						boolean condition = IFormatter.condition(string.substring(index + 1, condIndex));
+						Object condition = IFormatter.getArgumentValue(string.substring(index + 1, condIndex), Boolean.class, arguments, manager);
+						if (condition == null) {
+							condition = false;
+						}
 
-						string = string.substring(0, index) + IFormatter.ternary(condition ? ifFormatter : elseFormatter) + string.substring(endIndex + 1);
+						string = string.substring(0, index) + ((boolean) condition ? ifFormatter : elseFormatter) + string.substring(endIndex + 1);
 
 						continue Brackets;
 					}
@@ -178,7 +129,7 @@ public interface IFormatter<Type> {
 		return string;
 	}
 
-	private static Object getArgumentValue(String argument, Class<?> type, Map<String, Object> arguments, FormatterManager manager) {
+	public static Object getArgumentValue(String argument, Class<?> type, Map<String, Object> arguments, FormatterManager manager) {
 		Object value;
 		if (argument.charAt(0) == '{' && argument.charAt(argument.length() - 1) == '}' && argument.charAt(argument.length() - 2) != '\\') {
 			value = IFormatter.getValue(argument.substring(1, argument.length() - 1), arguments, manager);
@@ -187,10 +138,6 @@ public interface IFormatter<Type> {
 			}
 		} else {
 			value = IFormatter.toObject(argument, type);
-		}
-
-		if (value instanceof String) {
-			return IFormatter.getArgumentValue(IFormatter.format((String) value, arguments, manager), type, arguments, manager);
 		}
 
 		return value;
@@ -257,7 +204,7 @@ public interface IFormatter<Type> {
 
 				FormatterFunction<?> function = manager.getFunction(returnClass, functionName);
 				if (function == null) {
-					continue;
+					return null;
 				}
 
 				List<Object> objectArguments = new ArrayList<>();
@@ -272,14 +219,24 @@ public interface IFormatter<Type> {
 							continue;
 						}
 
-						objectArguments.add(IFormatter.getArgumentValue(argumentText.substring(lastIndex + 1, lastIndex = nextIndex == -1 ? argumentText.length() : nextIndex), function.isUsePrevious() ? returnClass : parameters[i++ + 1], arguments, manager));
+						Object argumentValue =IFormatter.getArgumentValue(argumentText.substring(lastIndex + 1, lastIndex = nextIndex == -1 ? argumentText.length() : nextIndex), function.isUsePrevious() ? returnClass : parameters[i++ + 1], arguments, manager);
+						if (argumentValue == null) {
+							continue;
+						}
+
+						objectArguments.add(argumentValue);
 					} while (lastIndex != argumentText.length());
 
 					if (objectArguments.size() < parameters.length - 1) {
 						return null;
 					}
 				} else if (parameters.length == 2) {
-					objectArguments.add(IFormatter.getArgumentValue(argumentText, function.isUsePrevious() ? returnClass : parameters[1], arguments, manager));
+					Object argumentValue = IFormatter.getArgumentValue(argumentText, function.isUsePrevious() ? returnClass : parameters[1], arguments, manager);
+					if (argumentValue == null) {
+						return null;
+					}
+
+					objectArguments.add(argumentValue);
 				}
 
 				try {
@@ -303,8 +260,8 @@ public interface IFormatter<Type> {
 	}
 
 	public static String format(String string, Map<String, Object> arguments, FormatterManager manager) {
-		int index = -1;
-		Open: while ((index = string.indexOf('{', index + 1)) != -1) {
+		int index = string.length();
+		Open: while ((index = string.lastIndexOf('{', index - 1)) != -1) {
 			if (IFormatter.escape(string, index)) {
 				continue;
 			}
@@ -321,8 +278,8 @@ public interface IFormatter<Type> {
 				}
 
 				Object value = IFormatter.getValue(formatter, arguments, manager);
-				if (value instanceof String) {
-					value = IFormatter.format((String) value, arguments, manager);
+				if (value == null) {
+					continue;
 				}
 
 				string = string.substring(0, index) + IFormatter.toString(value) + string.substring(endIndex + 1);
@@ -380,7 +337,7 @@ public interface IFormatter<Type> {
 	}
 
 	default String parse(String string, Map<String, Object> arguments, FormatterManager manager) {
-		return IFormatter.ternary(IFormatter.format(string, arguments, manager));
+		return IFormatter.ternary(IFormatter.format(string, arguments, manager), arguments, manager);
 	}
 
 }

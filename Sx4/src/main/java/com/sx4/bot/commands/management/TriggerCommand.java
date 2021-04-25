@@ -18,6 +18,7 @@ import com.sx4.bot.annotations.command.Examples;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
+import com.sx4.bot.database.Database;
 import com.sx4.bot.database.model.Operators;
 import com.sx4.bot.entities.argument.Alternative;
 import com.sx4.bot.formatter.JsonFormatter;
@@ -276,7 +277,7 @@ public class TriggerCommand extends Sx4Command {
 		}
 
 		if (raw) {
-			event.replyFile(trigger.get("response", Document.class).toJson().getBytes(StandardCharsets.UTF_8), "trigger.txt").queue();
+			event.replyFile(trigger.get("response", Document.class).toJson(Database.PRETTY_JSON).getBytes(StandardCharsets.UTF_8), "trigger.json").queue();
 		} else {
 			Document response = new JsonFormatter(trigger.get("response", Document.class))
 				.member(event.getMember())

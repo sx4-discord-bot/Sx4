@@ -170,7 +170,7 @@ public class GiveawayManager {
 		});
 		
 		if (!futures.isEmpty()) {
-			FutureUtility.allOf(futures).thenCompose(bulkData -> {
+			FutureUtility.allOf(futures, Objects::nonNull).thenCompose(bulkData -> {
 				if (!bulkData.isEmpty()) {
 					return this.bot.getDatabase().bulkWriteGiveaways(bulkData);
 				}

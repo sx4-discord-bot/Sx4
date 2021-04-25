@@ -150,6 +150,8 @@ public class Sx4 {
 				.addFunction(new GreaterThanEqualFunction())
 				.addFunction(new LessThanEqualFunction())
 				.addFunction(new LessThanFunction())
+				.addFunction(new DurationBetweenFunction())
+				.addFunction(new NumberFormatFunction())
 				.addVariable("name", Action.class, action -> action == null ? null : action.getName())
 				.addVariable("exists", Action.class, Objects::nonNull)
 				.addVariable("suffix", Integer.class, NumberUtility::getSuffixed)

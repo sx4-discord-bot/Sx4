@@ -41,10 +41,7 @@ public class PremiumManager {
 	}
 
 	public void endPremium(long guildId) {
-		UpdateOneModel<Document> model = this.endPremiumBulk(guildId);
-		if (model != null) {
-			this.bot.getDatabase().updateGuild(model).whenComplete(Database.exceptionally(this.bot.getShardManager()));
-		}
+		this.bot.getDatabase().updateGuild(this.endPremiumBulk(guildId)).whenComplete(Database.exceptionally(this.bot.getShardManager()));
 	}
 
 	public UpdateOneModel<Document> endPremiumBulk(long guildId) {

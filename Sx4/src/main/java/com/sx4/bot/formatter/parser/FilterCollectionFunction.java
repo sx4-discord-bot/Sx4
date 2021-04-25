@@ -15,7 +15,7 @@ public class FilterCollectionFunction extends FormatterFunction<Collection> {
 		super(Collection.class, "filter");
 	}
 
-	public List<?> parse(FormatterEvent event, String condition) {
+	public List<?> parse(FormatterEvent event, String lambda) {
 		Collection<?> collection = (Collection<?>) event.getObject();
 		Map<String, Object> arguments = event.getArguments();
 
@@ -23,7 +23,12 @@ public class FilterCollectionFunction extends FormatterFunction<Collection> {
 		for (Object element : collection) {
 			arguments.put("this", element);
 
-			if (IFormatter.condition(IFormatter.format(condition, arguments, event.getManager()))) {
+			Object condition = IFormatter.getArgumentValue(lambda, Boolean.class, arguments, event.getManager());
+			if (condition == null) {
+				condition = false;
+			}
+
+			if ((boolean) condition) {
 				newList.add(element);
 			}
 		}

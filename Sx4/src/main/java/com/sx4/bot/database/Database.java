@@ -14,6 +14,8 @@ import com.sx4.bot.utility.ExceptionUtility;
 import net.dv8tion.jda.api.sharding.ShardManager;
 import org.bson.Document;
 import org.bson.conversions.Bson;
+import org.bson.json.JsonMode;
+import org.bson.json.JsonWriterSettings;
 import org.bson.types.ObjectId;
 
 import java.util.List;
@@ -26,6 +28,7 @@ import java.util.function.BiConsumer;
 public class Database {
 	
 	public static final Document EMPTY_DOCUMENT = new Document();
+	public static final JsonWriterSettings PRETTY_JSON = JsonWriterSettings.builder().indent(true).indentCharacters("    ").outputMode(JsonMode.RELAXED).build();
 
 	private final ExecutorService modLogExecutor = Executors.newSingleThreadExecutor();
 	private final ExecutorService reminderExecutor = Executors.newSingleThreadExecutor();
