@@ -203,8 +203,6 @@ public interface IFormatter<Type> {
 				String functionName = name.substring(0, bracketIndex);
 
 				FormatterFunction<?> function = manager.getFunction(returnClass, functionName);
-				System.out.println(function);
-				System.out.println(name);
 				if (function == null) {
 					return null;
 				}
