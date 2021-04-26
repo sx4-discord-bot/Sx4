@@ -36,6 +36,7 @@ import com.sx4.bot.entities.mod.action.Action;
 import com.sx4.bot.entities.youtube.YouTubeChannel;
 import com.sx4.bot.entities.youtube.YouTubeVideo;
 import com.sx4.bot.formatter.FormatterManager;
+import com.sx4.bot.formatter.function.FormatterParser;
 import com.sx4.bot.formatter.parser.*;
 import com.sx4.bot.handlers.*;
 import com.sx4.bot.managers.*;
@@ -127,128 +128,147 @@ public class Sx4 {
 			.writeTimeout(15, TimeUnit.SECONDS)
 			.build();
 
-		FormatterManager.setDefaultManager(
-			new FormatterManager()
-				.addFunction(new NumberStaticFunction())
-				.addFunction(new SubstringFunction())
-				.addFunction(new PlusDaysFunction())
-				.addFunction(new PlusHoursFunction())
-				.addFunction(new PlusSecondsFunction())
-				.addFunction(new DateFormatFunction())
-				.addFunction(new MapCollectionFunction())
-				.addFunction(new JoinCollectionFunction())
-				.addFunction(new GetListFunction())
-				.addFunction(new SubListFunction())
-				.addFunction(new FilterCollectionFunction())
-				.addFunction(new RandomIntFunction())
-				.addFunction(new SumListFunction())
-				.addFunction(new AdditionFunction())
-				.addFunction(new MultiplicationFunction())
-				.addFunction(new SubtractFunction())
-				.addFunction(new DivisionFunction())
-				.addFunction(new EqualsFunction())
-				.addFunction(new NotEqualsFunction())
-				.addFunction(new GreaterThanFunction())
-				.addFunction(new GreaterThanEqualFunction())
-				.addFunction(new LessThanEqualFunction())
-				.addFunction(new LessThanFunction())
-				.addFunction(new DurationBetweenFunction())
-				.addFunction(new NumberFormatFunction())
-				.addVariable("name", Action.class, action -> action == null ? null : action.getName())
-				.addVariable("exists", Action.class, Objects::nonNull)
-				.addVariable("suffix", Integer.class, NumberUtility::getSuffixed)
-				.addVariable("length", Collection.class, Collection::size)
-				.addVariable("empty", Collection.class, Collection::isEmpty)
-				.addVariable("name", Role.class, Role::getName)
-				.addVariable("id", Role.class, Role::getIdLong)
-				.addVariable("created", Role.class, Role::getTimeCreated)
-				.addVariable("colour", Role.class, Role::getColor)
-				.addVariable("color", Role.class, Role::getColor)
-				.addVariable("raw", Color.class, Color::getRGB)
-				.addVariable("hex", Color.class, colour -> "#" + ColourUtility.toHexString(colour.getRGB()))
-				.addVariable("name", ReactionEmote.class, emote -> emote.isEmoji() ? emote.getName() : emote.getEmote().getName())
-				.addVariable("id", ReactionEmote.class, emote -> emote.isEmoji() ? emote.getName() : emote.getEmote().getIdLong())
-				.addVariable("mention", ReactionEmote.class, emote -> emote.isEmoji() ? emote.getName() : emote.getEmote().getAsMention())
-				.addVariable("created", ReactionEmote.class, emote -> emote.isEmoji() ? OffsetDateTime.ofInstant(Instant.EPOCH, ZoneOffset.UTC) : emote.getEmote().getTimeCreated())
-				.addVariable("raw", Permission.class, Permission::getRawValue)
-				.addVariable("name", Permission.class, Permission::getName)
-				.addVariable("permissions", IPermissionHolder.class, IPermissionHolder::getPermissions)
-				.addVariable("mention", IMentionable.class, IMentionable::getAsMention)
-				.addVariable("id", GuildChannel.class, GuildChannel::getIdLong)
-				.addVariable("name", GuildChannel.class, GuildChannel::getName)
-				.addVariable("created", GuildChannel.class, GuildChannel::getTimeCreated)
-				.addVariable("slowmode", TextChannel.class, TextChannel::getSlowmode)
-				.addVariable("bitrate", VoiceChannel.class, VoiceChannel::getBitrate)
-				.addVariable("limit", VoiceChannel.class, VoiceChannel::getUserLimit)
-				.addVariable("name", Guild.class, Guild::getName)
-				.addVariable("id", Guild.class, Guild::getIdLong)
-				.addVariable("owner", Guild.class, Guild::getOwner)
-				.addVariable("boosts", Guild.class, Guild::getBoostCount)
-				.addVariable("boosters", Guild.class, Guild::getBoosters)
-				.addVariable("members", Guild.class, Guild::getMemberCount)
-				.addVariable("avatar", Guild.class, Guild::getIconUrl)
-				.addVariable("created", Guild.class, Guild::getTimeCreated)
-				.addVariable("user", Member.class, Member::getUser)
-				.addVariable("nickname", Member.class, Member::getNickname)
-				.addVariable("roles", Member.class, Member::getRoles)
-				.addVariable("colour", Member.class, Member::getColor)
-				.addVariable("color", Member.class, Member::getColor)
-				.addVariable("joined", Member.class, Member::getTimeJoined)
-				.addVariable("id", User.class, User::getIdLong)
-				.addVariable("name", User.class, User::getName)
-				.addVariable("avatar", User.class, User::getEffectiveAvatarUrl)
-				.addVariable("discriminator", User.class, User::getDiscriminator)
-				.addVariable("badges", User.class, User::getFlags)
-				.addVariable("tag", User.class, User::getAsTag)
-				.addVariable("created", User.class, User::getTimeCreated)
-				.addVariable("name", User.UserFlag.class, User.UserFlag::getName)
-				.addVariable("raw", User.UserFlag.class, User.UserFlag::getRawValue)
-				.addVariable("offset", User.UserFlag.class, User.UserFlag::getOffset)
-				.addVariable("day", OffsetDateTime.class, OffsetDateTime::getDayOfMonth)
-				.addVariable("month", OffsetDateTime.class, OffsetDateTime::getMonthValue)
-				.addVariable("year", OffsetDateTime.class, OffsetDateTime::getYear)
-				.addVariable("id", YouTubeVideo.class, YouTubeVideo::getId)
-				.addVariable("url", YouTubeVideo.class, YouTubeVideo::getUrl)
-				.addVariable("title", YouTubeVideo.class, YouTubeVideo::getTitle)
-				.addVariable("thumbnail", YouTubeVideo.class, YouTubeVideo::getThumbnail)
-				.addVariable("published", YouTubeVideo.class, YouTubeVideo::getPublishedAt)
-				.addVariable("id", YouTubeChannel.class, YouTubeChannel::getId)
-				.addVariable("url", YouTubeChannel.class, YouTubeChannel::getUrl)
-				.addVariable("name", YouTubeChannel.class, YouTubeChannel::getName)
-				.addParser(Boolean.class, text -> text.equals("true"))
-				.addParser(String.class, text -> text)
-				.addParser(Temporal.class, text -> {
-					try {
-						return OffsetDateTime.parse(text);
-					} catch (DateTimeParseException e) {
-						return null;
-					}
+		FormatterManager formatterManager = new FormatterManager()
+			.addFunction(new NumberStaticFunction())
+			.addFunction(new SubstringFunction())
+			.addFunction(new PlusDaysFunction())
+			.addFunction(new PlusHoursFunction())
+			.addFunction(new PlusSecondsFunction())
+			.addFunction(new DateFormatFunction())
+			.addFunction(new MapCollectionFunction())
+			.addFunction(new JoinCollectionFunction())
+			.addFunction(new GetListFunction())
+			.addFunction(new SubListFunction())
+			.addFunction(new FilterCollectionFunction())
+			.addFunction(new RandomIntFunction())
+			.addFunction(new SumListFunction())
+			.addFunction(new AdditionFunction())
+			.addFunction(new MultiplicationFunction())
+			.addFunction(new SubtractFunction())
+			.addFunction(new DivisionFunction())
+			.addFunction(new EqualsFunction())
+			.addFunction(new NotEqualsFunction())
+			.addFunction(new GreaterThanFunction())
+			.addFunction(new GreaterThanEqualFunction())
+			.addFunction(new LessThanEqualFunction())
+			.addFunction(new LessThanFunction())
+			.addFunction(new DurationBetweenFunction())
+			.addFunction(new NumberFormatFunction())
+			.addFunction(new SeedFunction())
+			.addFunction(new RepeatStringFunction())
+			.addFunction(new StringStaticFunction())
+			.addFunction(new SetStaticFunction())
+			.addVariable("name", Action.class, action -> action == null ? null : action.getName())
+			.addVariable("exists", Action.class, Objects::nonNull)
+			.addVariable("suffix", Integer.class, NumberUtility::getSuffixed)
+			.addVariable("round", Double.class, Math::round)
+			.addVariable("length", Collection.class, Collection::size)
+			.addVariable("empty", Collection.class, Collection::isEmpty)
+			.addVariable("name", Role.class, Role::getName)
+			.addVariable("id", Role.class, Role::getIdLong)
+			.addVariable("created", Role.class, Role::getTimeCreated)
+			.addVariable("colour", Role.class, Role::getColor)
+			.addVariable("color", Role.class, Role::getColor)
+			.addVariable("raw", Color.class, Color::getRGB)
+			.addVariable("hex", Color.class, colour -> "#" + ColourUtility.toHexString(colour.getRGB()))
+			.addVariable("name", ReactionEmote.class, emote -> emote.isEmoji() ? emote.getName() : emote.getEmote().getName())
+			.addVariable("id", ReactionEmote.class, emote -> emote.isEmoji() ? emote.getName() : emote.getEmote().getIdLong())
+			.addVariable("mention", ReactionEmote.class, emote -> emote.isEmoji() ? emote.getName() : emote.getEmote().getAsMention())
+			.addVariable("created", ReactionEmote.class, emote -> emote.isEmoji() ? OffsetDateTime.ofInstant(Instant.EPOCH, ZoneOffset.UTC) : emote.getEmote().getTimeCreated())
+			.addVariable("raw", Permission.class, Permission::getRawValue)
+			.addVariable("name", Permission.class, Permission::getName)
+			.addVariable("permissions", IPermissionHolder.class, IPermissionHolder::getPermissions)
+			.addVariable("mention", IMentionable.class, IMentionable::getAsMention)
+			.addVariable("id", GuildChannel.class, GuildChannel::getIdLong)
+			.addVariable("name", GuildChannel.class, GuildChannel::getName)
+			.addVariable("created", GuildChannel.class, GuildChannel::getTimeCreated)
+			.addVariable("slowmode", TextChannel.class, TextChannel::getSlowmode)
+			.addVariable("bitrate", VoiceChannel.class, VoiceChannel::getBitrate)
+			.addVariable("limit", VoiceChannel.class, VoiceChannel::getUserLimit)
+			.addVariable("name", Guild.class, Guild::getName)
+			.addVariable("id", Guild.class, Guild::getIdLong)
+			.addVariable("owner", Guild.class, Guild::getOwner)
+			.addVariable("boosts", Guild.class, Guild::getBoostCount)
+			.addVariable("boosters", Guild.class, Guild::getBoosters)
+			.addVariable("members", Guild.class, Guild::getMemberCount)
+			.addVariable("avatar", Guild.class, Guild::getIconUrl)
+			.addVariable("created", Guild.class, Guild::getTimeCreated)
+			.addVariable("user", Member.class, Member::getUser)
+			.addVariable("nickname", Member.class, Member::getNickname)
+			.addVariable("roles", Member.class, Member::getRoles)
+			.addVariable("colour", Member.class, Member::getColor)
+			.addVariable("color", Member.class, Member::getColor)
+			.addVariable("joined", Member.class, Member::getTimeJoined)
+			.addVariable("id", User.class, User::getIdLong)
+			.addVariable("name", User.class, User::getName)
+			.addVariable("avatar", User.class, User::getEffectiveAvatarUrl)
+			.addVariable("discriminator", User.class, User::getDiscriminator)
+			.addVariable("badges", User.class, User::getFlags)
+			.addVariable("tag", User.class, User::getAsTag)
+			.addVariable("created", User.class, User::getTimeCreated)
+			.addVariable("name", User.UserFlag.class, User.UserFlag::getName)
+			.addVariable("raw", User.UserFlag.class, User.UserFlag::getRawValue)
+			.addVariable("offset", User.UserFlag.class, User.UserFlag::getOffset)
+			.addVariable("day", OffsetDateTime.class, OffsetDateTime::getDayOfMonth)
+			.addVariable("month", OffsetDateTime.class, OffsetDateTime::getMonthValue)
+			.addVariable("year", OffsetDateTime.class, OffsetDateTime::getYear)
+			.addVariable("id", YouTubeVideo.class, YouTubeVideo::getId)
+			.addVariable("url", YouTubeVideo.class, YouTubeVideo::getUrl)
+			.addVariable("title", YouTubeVideo.class, YouTubeVideo::getTitle)
+			.addVariable("thumbnail", YouTubeVideo.class, YouTubeVideo::getThumbnail)
+			.addVariable("published", YouTubeVideo.class, YouTubeVideo::getPublishedAt)
+			.addVariable("id", YouTubeChannel.class, YouTubeChannel::getId)
+			.addVariable("url", YouTubeChannel.class, YouTubeChannel::getUrl)
+			.addVariable("name", YouTubeChannel.class, YouTubeChannel::getName)
+			.addParser(Boolean.class, text -> text.trim().equals("true"))
+			.addParser(String.class, text -> text)
+			.addParser(Temporal.class, text -> {
+				try {
+					return OffsetDateTime.parse(text.trim());
+				} catch (DateTimeParseException e) {
+					return null;
+				}
 				}).addParser(Integer.class, text -> {
-					try {
-						return Integer.parseInt(text);
-					} catch (NumberFormatException e) {
-						return null;
-					}
-				}).addParser(Long.class, text -> {
-					try {
-						return Long.parseLong(text);
-					} catch (NumberFormatException e) {
-						return null;
-					}
-				}).addParser(Double.class, text -> {
-					try {
-						return Double.parseDouble(text);
-					} catch (NumberFormatException e) {
-						return null;
-					}
-				}).addParser(Number.class, text -> {
-					try {
-						return Double.parseDouble(text);
-					} catch (NumberFormatException e) {
-						return null;
-					}
-				})
-		);
+				try {
+					return Integer.parseInt(text.trim());
+				} catch (NumberFormatException e) {
+					return null;
+				}
+			}).addParser(Long.class, text -> {
+				try {
+					return Long.parseLong(text.trim());
+				} catch (NumberFormatException e) {
+					return null;
+				}
+			}).addParser(Double.class, text -> {
+				try {
+					return Double.parseDouble(text.trim());
+				} catch (NumberFormatException e) {
+					return null;
+				}
+			}).addParser(Number.class, text -> {
+				try {
+					return Double.parseDouble(text.trim());
+				} catch (NumberFormatException e) {
+					return null;
+				}
+			});
+
+		formatterManager.addParser(Object.class, text -> {
+			Map<Class<?>, FormatterParser<?>> parsers = formatterManager.getParsers();
+			for (Class<?> key : parsers.keySet()) {
+				FormatterParser<?> parser = parsers.get(key);
+
+				Object value = parser.parse(text);
+				if (value != null) {
+					return value;
+				}
+			}
+
+			return null;
+		});
+
+		FormatterManager.setDefaultManager(formatterManager);
 
 		ContextManagerFactory.getDefault()
 			.registerContext(Sx4CommandEvent.class, (event, type) -> (Sx4CommandEvent) event)

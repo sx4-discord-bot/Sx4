@@ -28,8 +28,6 @@ public class FormatterManager {
 	public FormatterManager addParser(FormatterParser<?> parser) {
 		this.parsers.put(parser.getType(), parser);
 
-		this.handleInheritance.add(parser.getType());
-
 		return this;
 	}
 
@@ -76,14 +74,7 @@ public class FormatterManager {
 	}
 
 	public FormatterParser<?> getParser(Class<?> type) {
-		for (Class<?> inheritanceType : this.getInheritanceTypes(type)) {
-			FormatterParser<?> parser = this.parsers.get(inheritanceType);
-			if (parser != null) {
-				return parser;
-			}
-		}
-
-		return null;
+		return this.parsers.get(type);
 	}
 
 	public FormatterFunction<?> getStaticFunction(String name) {
@@ -118,6 +109,10 @@ public class FormatterManager {
 
 	public Map<Class<?>, Map<String, FormatterVariable<?>>> getVariables() {
 		return this.variables;
+	}
+
+	public Map<Class<?>, FormatterParser<?>> getParsers() {
+		return this.parsers;
 	}
 
 	private Set<Class<?>> getInheritanceTypes(Class<?> type) {

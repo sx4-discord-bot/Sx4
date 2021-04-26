@@ -24,7 +24,6 @@ import com.sx4.bot.entities.argument.Alternative;
 import com.sx4.bot.formatter.JsonFormatter;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
-import com.sx4.bot.utility.MathUtility;
 import com.sx4.bot.utility.MessageUtility;
 import com.sx4.bot.utility.StringUtility;
 import com.sx4.bot.waiter.Waiter;
@@ -41,6 +40,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 import java.util.concurrent.CompletionException;
 
 public class TriggerCommand extends Sx4Command {
@@ -285,7 +285,7 @@ public class TriggerCommand extends Sx4Command {
 				.channel(event.getTextChannel())
 				.guild(event.getGuild())
 				.addArgument("now", OffsetDateTime.now())
-				.addArgument("random", MathUtility.RANDOM)
+				.addArgument("random", new Random())
 				.parse();
 
 			try {

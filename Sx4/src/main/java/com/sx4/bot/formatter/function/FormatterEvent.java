@@ -13,7 +13,7 @@ public class FormatterEvent {
 
 	public FormatterEvent(Object object, Map<String, Object> arguments, FormatterManager manager) {
 		this.object = object;
-		this.arguments = new HashMap<>(arguments);
+		this.arguments = arguments;
 		this.manager = manager;
 	}
 
@@ -22,7 +22,11 @@ public class FormatterEvent {
 	}
 
 	public Map<String, Object> getArguments() {
-		return this.arguments;
+		return new HashMap<>(this.arguments);
+	}
+
+	public void addArgument(String name, Object value) {
+		this.arguments.put(name, value);
 	}
 
 	public FormatterManager getManager() {

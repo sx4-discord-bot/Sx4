@@ -144,6 +144,7 @@ public interface IFormatter<Type> {
 				}
 
 				Object argumentValue = IFormatter.toObject(text.substring(lastIndex + 1, lastIndex = nextIndex == -1 ? text.length() : nextIndex), function.isUsePrevious() ? value.getClass() : parameters[i++ + 1], manager);
+				System.out.println(argumentValue);
 				if (argumentValue == null) {
 					continue;
 				}

@@ -4,7 +4,6 @@ import com.mongodb.client.model.*;
 import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.Database;
 import com.sx4.bot.formatter.JsonFormatter;
-import com.sx4.bot.utility.MathUtility;
 import com.sx4.bot.utility.MessageUtility;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.Message.MentionType;
@@ -19,6 +18,7 @@ import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Random;
 
 public class TriggerHandler implements EventListener {
 
@@ -48,7 +48,7 @@ public class TriggerHandler implements EventListener {
 					.channel(message.getTextChannel())
 					.guild(message.getGuild())
 					.addArgument("now", OffsetDateTime.now())
-					.addArgument("random", MathUtility.RANDOM)
+					.addArgument("random", new Random())
 					.parse();
 
 				try {
