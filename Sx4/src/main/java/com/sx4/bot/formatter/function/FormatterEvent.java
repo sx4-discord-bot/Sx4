@@ -2,18 +2,13 @@ package com.sx4.bot.formatter.function;
 
 import com.sx4.bot.formatter.FormatterManager;
 
-import java.util.HashMap;
-import java.util.Map;
-
 public class FormatterEvent {
 
 	private final Object object;
-	private final Map<String, Object> arguments;
 	private final FormatterManager manager;
 
-	public FormatterEvent(Object object, Map<String, Object> arguments, FormatterManager manager) {
+	public FormatterEvent(Object object, FormatterManager manager) {
 		this.object = object;
-		this.arguments = arguments;
 		this.manager = manager;
 	}
 
@@ -21,12 +16,8 @@ public class FormatterEvent {
 		return this.object;
 	}
 
-	public Map<String, Object> getArguments() {
-		return new HashMap<>(this.arguments);
-	}
-
-	public void addArgument(String name, Object value) {
-		this.arguments.put(name, value);
+	public void addVariable(String name, Object value) {
+		this.manager.addVariable(name, Void.class, $ -> value);
 	}
 
 	public FormatterManager getManager() {

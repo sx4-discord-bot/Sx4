@@ -13,18 +13,17 @@ import java.awt.*;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 public interface IFormatter<Type> {
 
-	IFormatter<Type> addArgument(String key, Object object);
+	IFormatter<Type> addVariable(String key, Object object);
 
 	default IFormatter<Type> user(User user) {
 		if (user == null) {
 			return this;
 		}
 
-		return this.addArgument("user", user);
+		return this.addVariable("user", user);
 	}
 
 	default IFormatter<Type> member(Member member) {
@@ -32,7 +31,7 @@ public interface IFormatter<Type> {
 			return this;
 		}
 
-		return this.addArgument("member", member);
+		return this.addVariable("member", member);
 	}
 
 	default IFormatter<Type> guild(Guild guild) {
@@ -40,7 +39,7 @@ public interface IFormatter<Type> {
 			return this;
 		}
 
-		return this.addArgument("server", guild);
+		return this.addVariable("server", guild);
 	}
 
 	default IFormatter<Type> channel(TextChannel channel) {
@@ -48,7 +47,7 @@ public interface IFormatter<Type> {
 			return this;
 		}
 
-		return this.addArgument("channel", channel);
+		return this.addVariable("channel", channel);
 	}
 
 	default IFormatter<Type> role(Role role) {
@@ -56,7 +55,7 @@ public interface IFormatter<Type> {
 			return this;
 		}
 
-		return this.addArgument("role", role);
+		return this.addVariable("role", role);
 	}
 
 	default IFormatter<Type> emote(ReactionEmote emote) {
@@ -64,7 +63,7 @@ public interface IFormatter<Type> {
 			return this;
 		}
 
-		return this.addArgument("emote", emote);
+		return this.addVariable("emote", emote);
 	}
 
 	Type parse();
@@ -78,7 +77,7 @@ public interface IFormatter<Type> {
 		return false;
 	}
 
-	public static String ternary(String string, Map<String, Object> arguments, FormatterManager manager) {
+	public static String ternary(String string, FormatterManager manager) {
 		int index = string.length();
 		Brackets: while ((index = string.lastIndexOf('(', index - 1)) != -1) {
 			if (IFormatter.escape(string, index)) {
@@ -130,9 +129,9 @@ public interface IFormatter<Type> {
 		return string;
 	}
 
-	private static List<Object> getFunctionArguments(FormatterFunction<?> function, String text, Object value, Map<String, Object> arguments, FormatterManager manager) {
+	private static List<Object> getFunctionArguments(FormatterFunction<?> function, String text, Object value, Class<?> type, FormatterManager manager) {
 		List<Object> functionArguments = new ArrayList<>();
-		functionArguments.add(new FormatterEvent(value, arguments, manager));
+		functionArguments.add(new FormatterEvent(value, manager));
 
 		Class<?>[] parameters = function.getMethod().getParameterTypes();
 		if (parameters.length > 2) {
@@ -143,10 +142,9 @@ public interface IFormatter<Type> {
 					continue;
 				}
 
-				Object argumentValue = IFormatter.toObject(text.substring(lastIndex + 1, lastIndex = nextIndex == -1 ? text.length() : nextIndex), function.isUsePrevious() ? value.getClass() : parameters[i++ + 1], manager);
-				System.out.println(argumentValue);
+				Object argumentValue = IFormatter.toObject(text.substring(lastIndex + 1, lastIndex = nextIndex == -1 ? text.length() : nextIndex), function.isUsePrevious() ? type : parameters[i++ + 1], manager);
 				if (argumentValue == null) {
-					continue;
+					return null;
 				}
 
 				functionArguments.add(argumentValue);
@@ -156,7 +154,7 @@ public interface IFormatter<Type> {
 				return null;
 			}
 		} else if (parameters.length == 2) {
-			Object argumentValue = IFormatter.toObject(text, function.isUsePrevious() ? value.getClass() : parameters[1], manager);
+			Object argumentValue = IFormatter.toObject(text, function.isUsePrevious() ? type : parameters[1], manager);
 			if (argumentValue == null) {
 				return null;
 			}
@@ -167,61 +165,14 @@ public interface IFormatter<Type> {
 		return functionArguments;
 	}
 
-	private static Object getValue(String formatter, Map<String, Object> arguments, FormatterManager manager) {
-		String argument = formatter;
-		int periodIndex = formatter.lastIndexOf('.');
+	private static Object getValue(String formatter, FormatterManager manager) {
+		Class<?> type = Void.class;
+		Object value = null;
 
-		Object value;
-		do {
-			value = arguments.get(argument);
-			if (value != null || periodIndex == -1) {
-				break;
-			}
-
-			argument = formatter.substring(0, periodIndex);
-		} while ((periodIndex = argument.lastIndexOf('.')) != -1);
-
-		if (value == null) {
-			int staticBracketIndex = 0;
-			while (IFormatter.escape(argument, staticBracketIndex = argument.indexOf('(', staticBracketIndex + 1)) && staticBracketIndex != -1);
-
-			int staticEndBracketIndex = argument.length();
-			while (IFormatter.escape(argument, staticEndBracketIndex = argument.lastIndexOf(')', staticEndBracketIndex - 1)) && staticEndBracketIndex != -1);
-
-			if (staticBracketIndex == -1 || staticEndBracketIndex == -1) {
-				value = arguments.get(argument);
-			} else {
-				String argumentText = argument.substring(staticBracketIndex + 1, staticEndBracketIndex);
-				String functionName = argument.substring(0, staticBracketIndex);
-
-				FormatterFunction<?> function = manager.getStaticFunction(functionName);
-				if (function == null) {
-					return null;
-				}
-
-				List<Object> functionArguments = IFormatter.getFunctionArguments(function, argumentText, null, arguments, manager);
-				if (functionArguments == null) {
-					return null;
-				}
-
-				try {
-					value = function.parse(functionArguments);
-				} catch (InvocationTargetException | IllegalAccessException | IllegalArgumentException exception) {
-					exception.printStackTrace();
-					value = null;
-				}
-			}
-		}
-
-		if (value == null) {
-			return null;
-		}
-
-		periodIndex = argument.length();
-
-		while (periodIndex != -1 && periodIndex != formatter.length()) {
-			if (value == null) {
-				return null;
+		int periodIndex = -1;
+		while (type == Void.class || periodIndex != -1) {
+			if (periodIndex != 0 && IFormatter.escape(formatter, periodIndex)) {
+				continue;
 			}
 
 			int nextPeriodIndex = formatter.indexOf('.', periodIndex + 1);
@@ -239,27 +190,22 @@ public interface IFormatter<Type> {
 			while (IFormatter.escape(name, endBracketIndex = name.lastIndexOf(')', endBracketIndex - 1)) && endBracketIndex != -1);
 
 			if (bracketIndex == -1 || endBracketIndex == -1) {
-				FormatterVariable<?> variable = manager.getVariable(value.getClass(), name);
+				FormatterVariable<?> variable = manager.getVariable(type, name);
 				if (variable == null) {
 					return null;
 				}
 
 				value = variable.parse(value);
-				if (nextPeriodIndex != -1) {
-					if (value == null) {
-						continue;
-					}
-				}
 			} else {
 				String argumentText = name.substring(bracketIndex + 1, endBracketIndex);
 				String functionName = name.substring(0, bracketIndex);
 
-				FormatterFunction<?> function = manager.getFunction(value.getClass(), functionName);
+				FormatterFunction<?> function = manager.getFunction(type, functionName);
 				if (function == null) {
 					return null;
 				}
 
-				List<Object> functionArguments = IFormatter.getFunctionArguments(function, argumentText, value, arguments, manager);
+				List<Object> functionArguments = IFormatter.getFunctionArguments(function, argumentText, value, type, manager);
 				if (functionArguments == null) {
 					return null;
 				}
@@ -270,11 +216,13 @@ public interface IFormatter<Type> {
 					exception.printStackTrace();
 					value = null;
 				}
-
-				if (value == null) {
-					continue;
-				}
 			}
+
+			if (value == null) {
+				continue;
+			}
+
+			type = value.getClass();
 
 			periodIndex = nextPeriodIndex;
 		}
@@ -282,9 +230,9 @@ public interface IFormatter<Type> {
 		return value;
 	}
 
-	public static String format(String string, Map<String, Object> arguments, FormatterManager manager) {
-		int index = string.length();
-		Open: while ((index = string.lastIndexOf('{', index - 1)) != -1) {
+	public static String format(String string, FormatterManager manager) {
+		int index = -1;
+		Open: while ((index = string.indexOf('{', index + 1)) != -1) {
 			if (IFormatter.escape(string, index)) {
 				continue;
 			}
@@ -300,7 +248,7 @@ public interface IFormatter<Type> {
 					continue;
 				}
 
-				Object value = IFormatter.getValue(formatter, arguments, manager);
+				Object value = IFormatter.getValue(formatter, manager);
 				if (value == null) {
 					continue;
 				}
@@ -334,12 +282,12 @@ public interface IFormatter<Type> {
 		if (parser == null) {
 			return null;
 		} else {
-			return parser.parse(text);
+			return parser.parse(IFormatter.format(text, manager));
 		}
 	}
 
-	default String parse(String string, Map<String, Object> arguments, FormatterManager manager) {
-		return IFormatter.ternary(IFormatter.format(string, arguments, manager), arguments, manager);
+	default String parse(String string, FormatterManager manager) {
+		return IFormatter.ternary(IFormatter.format(string, manager), manager);
 	}
 
 }

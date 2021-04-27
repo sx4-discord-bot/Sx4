@@ -284,8 +284,8 @@ public class TriggerCommand extends Sx4Command {
 				.user(event.getAuthor())
 				.channel(event.getTextChannel())
 				.guild(event.getGuild())
-				.addArgument("now", OffsetDateTime.now())
-				.addArgument("random", new Random())
+				.addVariable("now", OffsetDateTime.now())
+				.addVariable("random", new Random())
 				.parse();
 
 			try {

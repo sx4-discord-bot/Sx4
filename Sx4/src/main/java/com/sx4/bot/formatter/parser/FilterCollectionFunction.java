@@ -7,7 +7,6 @@ import com.sx4.bot.formatter.function.FormatterFunction;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 
 public class FilterCollectionFunction extends FormatterFunction<Collection> {
 
@@ -17,11 +16,10 @@ public class FilterCollectionFunction extends FormatterFunction<Collection> {
 
 	public List<?> parse(FormatterEvent event, String lambda) {
 		Collection<?> collection = (Collection<?>) event.getObject();
-		Map<String, Object> arguments = event.getArguments();
 
 		List<Object> newList = new ArrayList<>();
 		for (Object element : collection) {
-			arguments.put("this", element);
+			event.getManager().addVariable("this", Void.class, $ -> element);
 
 			Object condition = IFormatter.toObject(lambda, Boolean.class, event.getManager());
 			if (condition == null) {

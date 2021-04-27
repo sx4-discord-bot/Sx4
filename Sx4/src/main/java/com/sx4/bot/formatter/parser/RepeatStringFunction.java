@@ -10,7 +10,6 @@ public class RepeatStringFunction extends FormatterFunction<String> {
 	}
 
 	public String parse(FormatterEvent event, Integer count) {
-		System.out.println((String) event.getObject());
 		return ((String) event.getObject()).repeat(count);
 	}
 

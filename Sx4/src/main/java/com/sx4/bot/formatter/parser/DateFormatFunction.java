@@ -16,7 +16,7 @@ public class DateFormatFunction extends FormatterFunction<OffsetDateTime> {
 	public String parse(FormatterEvent event, String pattern) {
 		OffsetDateTime time = (OffsetDateTime) event.getObject();
 		try {
-			return time.format(DateTimeFormatter.ofPattern(IFormatter.format(pattern, event.getArguments(), event.getManager())));
+			return time.format(DateTimeFormatter.ofPattern(IFormatter.format(pattern, event.getManager())));
 		} catch (IllegalArgumentException e) {
 			e.printStackTrace();
 			return time.format(DateTimeFormatter.ISO_DATE_TIME);

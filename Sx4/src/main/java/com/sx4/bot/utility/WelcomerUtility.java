@@ -24,7 +24,7 @@ public class WelcomerUtility {
 			.member(member)
 			.user(member.getUser())
 			.guild(guild)
-			.addArgument("now", OffsetDateTime.now());
+			.addVariable("now", OffsetDateTime.now());
 
 		if (!image) {
 			WebhookMessageBuilder builder;
@@ -52,7 +52,7 @@ public class WelcomerUtility {
 			httpClient.newCall(request.build(Config.get().getImageWebserver())).enqueue((HttpCallback) response -> {
 				if (response.isSuccessful()) {
 					String fileName = "welcomer." + response.header("Content-Type").split("/")[1];
-					formatter.addArgument("file.name", fileName).addArgument("file.url", "attachment://" + fileName);
+					formatter.addVariable("file.name", fileName).addVariable("file.url", "attachment://" + fileName);
 
 					WebhookMessageBuilder builder;
 					if (messageData == null) {

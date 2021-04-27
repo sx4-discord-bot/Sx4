@@ -105,10 +105,10 @@ public class StarboardHandler implements EventListener {
 			.user(member.getUser())
 			.channel(channel)
 			.emote(emote)
-			.addArgument("stars", stars)
-			.addArgument("stars.next", nextStars)
-			.addArgument("stars.next.until", nextStars - stars)
-			.addArgument("id", id.toHexString());
+			.addVariable("stars", stars)
+			.addVariable("stars.next", nextStars)
+			.addVariable("stars.next.until", nextStars - stars)
+			.addVariable("id", id.toHexString());
 
 		return MessageUtility.fromJson(formatter.parse());
 	}

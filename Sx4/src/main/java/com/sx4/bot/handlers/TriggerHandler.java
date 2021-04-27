@@ -47,8 +47,8 @@ public class TriggerHandler implements EventListener {
 					.user(message.getAuthor())
 					.channel(message.getTextChannel())
 					.guild(message.getGuild())
-					.addArgument("now", OffsetDateTime.now())
-					.addArgument("random", new Random())
+					.addVariable("now", OffsetDateTime.now())
+					.addVariable("random", new Random())
 					.parse();
 
 				try {

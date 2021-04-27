@@ -53,8 +53,8 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 	
 	private WebhookMessageBuilder format(YouTubeUploadEvent event, Document document) {
 		Document formattedDocument = new JsonFormatter(document)
-			.addArgument("channel", event.getChannel())
-			.addArgument("video", event.getVideo())
+			.addVariable("channel", event.getChannel())
+			.addVariable("video", event.getVideo())
 			.parse();
 
 		return MessageUtility.fromJson(formattedDocument);

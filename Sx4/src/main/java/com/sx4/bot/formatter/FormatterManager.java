@@ -18,6 +18,13 @@ public class FormatterManager {
 
 	private final Set<Class<?>> handleInheritance;
 
+	public FormatterManager(FormatterManager manager) {
+		this.functions = new HashMap<>(manager.getFunctions());
+		this.variables = new HashMap<>(manager.getVariables());
+		this.parsers = new HashMap<>(manager.getParsers());
+		this.handleInheritance = new LinkedHashSet<>(manager.getHandleInheritance());
+	}
+
 	public FormatterManager() {
 		this.functions = new HashMap<>();
 		this.variables = new HashMap<>();
@@ -126,6 +133,10 @@ public class FormatterManager {
 		}
 
 		return types;
+	}
+
+	public Set<Class<?>> getHandleInheritance() {
+		return this.handleInheritance;
 	}
 
 	public static FormatterManager getDefaultManager() {

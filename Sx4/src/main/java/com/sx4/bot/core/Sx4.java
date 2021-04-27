@@ -141,7 +141,6 @@ public class Sx4 {
 			.addFunction(new SubListFunction())
 			.addFunction(new FilterCollectionFunction())
 			.addFunction(new RandomIntFunction())
-			.addFunction(new SumListFunction())
 			.addFunction(new AdditionFunction())
 			.addFunction(new MultiplicationFunction())
 			.addFunction(new SubtractFunction())
@@ -220,35 +219,35 @@ public class Sx4 {
 			.addVariable("id", YouTubeChannel.class, YouTubeChannel::getId)
 			.addVariable("url", YouTubeChannel.class, YouTubeChannel::getUrl)
 			.addVariable("name", YouTubeChannel.class, YouTubeChannel::getName)
-			.addParser(Boolean.class, text -> text.trim().equals("true"))
 			.addParser(String.class, text -> text)
+			.addParser(Boolean.class, text -> text.equals("true"))
 			.addParser(Temporal.class, text -> {
 				try {
-					return OffsetDateTime.parse(text.trim());
+					return OffsetDateTime.parse(text);
 				} catch (DateTimeParseException e) {
 					return null;
 				}
 				}).addParser(Integer.class, text -> {
 				try {
-					return Integer.parseInt(text.trim());
+					return Integer.parseInt(text);
 				} catch (NumberFormatException e) {
 					return null;
 				}
 			}).addParser(Long.class, text -> {
 				try {
-					return Long.parseLong(text.trim());
+					return Long.parseLong(text);
 				} catch (NumberFormatException e) {
 					return null;
 				}
 			}).addParser(Double.class, text -> {
 				try {
-					return Double.parseDouble(text.trim());
+					return Double.parseDouble(text);
 				} catch (NumberFormatException e) {
 					return null;
 				}
 			}).addParser(Number.class, text -> {
 				try {
-					return Double.parseDouble(text.trim());
+					return Double.parseDouble(text);
 				} catch (NumberFormatException e) {
 					return null;
 				}
@@ -257,6 +256,10 @@ public class Sx4 {
 		formatterManager.addParser(Object.class, text -> {
 			Map<Class<?>, FormatterParser<?>> parsers = formatterManager.getParsers();
 			for (Class<?> key : parsers.keySet()) {
+				if (key == Object.class) {
+					continue;
+				}
+
 				FormatterParser<?> parser = parsers.get(key);
 
 				Object value = parser.parse(text);

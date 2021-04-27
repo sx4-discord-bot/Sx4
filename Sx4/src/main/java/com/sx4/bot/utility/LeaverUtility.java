@@ -18,7 +18,7 @@ public class LeaverUtility {
 			.member(member)
 			.user(member.getUser())
 			.guild(guild)
-			.addArgument("now", OffsetDateTime.now());
+			.addVariable("now", OffsetDateTime.now());
 
 		return MessageUtility.fromJson(formatter.parse());
 	}
