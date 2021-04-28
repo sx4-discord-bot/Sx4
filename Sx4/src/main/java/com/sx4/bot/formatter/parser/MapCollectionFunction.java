@@ -20,7 +20,7 @@ public class MapCollectionFunction extends FormatterFunction<Collection> {
 		List<Object> newList = new ArrayList<>();
 		for (Object element : collection) {
 			event.getManager().addVariable("this", Void.class, $ -> element);
-			newList.add(IFormatter.format(lambda, event.getManager()));
+			newList.add(IFormatter.toObject(lambda, Object.class, event.getManager()));
 		}
 
 		return newList;

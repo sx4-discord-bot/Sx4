@@ -197,7 +197,7 @@ public interface IFormatter<Type> {
 
 				value = variable.parse(value);
 			} else {
-				String argumentText = name.substring(bracketIndex + 1, endBracketIndex);
+				String argument = name.substring(bracketIndex + 1, endBracketIndex);
 				String functionName = name.substring(0, bracketIndex);
 
 				FormatterFunction<?> function = manager.getFunction(type, functionName);
@@ -205,7 +205,7 @@ public interface IFormatter<Type> {
 					return null;
 				}
 
-				List<Object> functionArguments = IFormatter.getFunctionArguments(function, argumentText, value, type, manager);
+				List<Object> functionArguments = IFormatter.getFunctionArguments(function, argument, value, type, manager);
 				if (functionArguments == null) {
 					return null;
 				}
@@ -278,6 +278,13 @@ public interface IFormatter<Type> {
 	}
 
 	public static Object toObject(String text, Class<?> type, FormatterManager manager) {
+		if (text.charAt(0) == '{' && text.charAt(text.length() - 1) == '}' && text.charAt(text.length() - 2) != '\\') {
+			Object value = IFormatter.getValue(text.substring(1, text.length() - 1), manager);
+			if (value != null && type.isAssignableFrom(value.getClass())) {
+				return value;
+			}
+		}
+
 		FormatterParser<?> parser = manager.getParser(type);
 		if (parser == null) {
 			return null;

@@ -2,9 +2,7 @@ package com.sx4.bot.formatter;
 
 import org.bson.Document;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class JsonFormatter implements IFormatter<Document> {
 
@@ -33,9 +31,9 @@ public class JsonFormatter implements IFormatter<Document> {
 			Object value = entry.getValue();
 			if (value instanceof Document) {
 				newJson.put(entry.getKey(), this.parse((Document) value));
-			} else if (value instanceof List) {
+			} else if (value instanceof Iterable) {
 				List<Object> newList = new ArrayList<>();
-				for (Object element : (List<?>) value) {
+				for (Object element : (Iterable<?>) value) {
 					if (element instanceof Document) {
 						newList.add(this.parse((Document) element));
 					} else if (element instanceof String) {

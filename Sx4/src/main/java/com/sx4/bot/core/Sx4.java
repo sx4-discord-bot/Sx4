@@ -128,6 +128,72 @@ public class Sx4 {
 			.writeTimeout(15, TimeUnit.SECONDS)
 			.build();
 
+		ContextManagerFactory.getDefault()
+			.registerContext(Sx4CommandEvent.class, (event, type) -> (Sx4CommandEvent) event)
+			.setEnforcedContext(Sx4CommandEvent.class, true);
+
+		MessageAction.setDefaultMentions(EnumSet.noneOf(Message.MentionType.class));
+
+		MethodCommandFactory.setDefault(new Sx4CommandFactory());
+
+		this.modLogManager = new ModLogManager(this);
+
+		ModHandler modHandler = new ModHandler(this);
+		YouTubeHandler youTubeHandler = new YouTubeHandler(this);
+
+		this.antiRegexManager = new AntiRegexManager();
+		this.economyManager = new EconomyManager();
+		this.giveawayManager = new GiveawayManager(this);
+		this.leaverManager = new LeaverManager(this);
+		this.loggerManager = new LoggerManager(this);
+		this.modActionManager = new ModActionManager().addListener(modHandler);
+		this.muteManager = new MuteManager(this);
+		this.patreonManager = new PatreonManager().addListener(new PatreonHandler(this));
+		this.premiumManager = new PremiumManager(this);
+		this.reminderManager = new ReminderManager(this);
+		this.starboardManager = new StarboardManager(this);
+		this.suggestionManager = new SuggestionManager(this);
+		this.temporaryBanManager = new TemporaryBanManager(this);
+		this.welcomerManager = new WelcomerManager(this);
+		this.youTubeManager = new YouTubeManager(this).addListener(youTubeHandler);
+		this.pagedManager = new PagedManager();
+		this.waiterManager = new WaiterManager();
+		this.serverStatsManager = new ServerStatsManager(this);
+		this.twitchTokenManager = new TwitchTokenManager(this);
+
+		this.steamGameCache = new SteamGameCache(this);
+
+		this.setupArgumentFactory();
+		this.setupOptionFactory();
+
+		this.commandListener = this.createCommandListener(this.createErrorManager());
+		((CommandParserImpl) this.commandListener.getCommandParser()).addOptionPrefix("");
+
+		List<Object> listeners = List.of(
+			new GuildMessageCache(this),
+			this.commandListener,
+			new PagedHandler(this),
+			new WaiterHandler(this),
+			new GiveawayHandler(this),
+			new AutoRoleHandler(this),
+			modHandler,
+			new ConnectionHandler(this),
+			new ReactionRoleHandler(this),
+			new LoggerHandler(this),
+			new AntiRegexHandler(this),
+			new WelcomerHandler(this),
+			new LeaverHandler(this),
+			new StarboardHandler(this),
+			new TriggerHandler(this),
+			new ServerStatsHandler(this),
+			new SelfRoleHandler(this),
+			new MuteHandler(this),
+			new MediaModeHandler(this),
+			youTubeHandler
+		);
+
+		this.shardManager = this.createShardManager(listeners);
+
 		FormatterManager formatterManager = new FormatterManager()
 			.addFunction(new NumberStaticFunction())
 			.addFunction(new SubstringFunction())
@@ -227,7 +293,7 @@ public class Sx4 {
 				} catch (DateTimeParseException e) {
 					return null;
 				}
-				}).addParser(Integer.class, text -> {
+			}).addParser(Integer.class, text -> {
 				try {
 					return Integer.parseInt(text);
 				} catch (NumberFormatException e) {
@@ -272,72 +338,6 @@ public class Sx4 {
 		});
 
 		FormatterManager.setDefaultManager(formatterManager);
-
-		ContextManagerFactory.getDefault()
-			.registerContext(Sx4CommandEvent.class, (event, type) -> (Sx4CommandEvent) event)
-			.setEnforcedContext(Sx4CommandEvent.class, true);
-
-		MessageAction.setDefaultMentions(EnumSet.noneOf(Message.MentionType.class));
-
-		MethodCommandFactory.setDefault(new Sx4CommandFactory());
-
-		this.modLogManager = new ModLogManager(this);
-
-		ModHandler modHandler = new ModHandler(this);
-		YouTubeHandler youTubeHandler = new YouTubeHandler(this);
-
-		this.antiRegexManager = new AntiRegexManager();
-		this.economyManager = new EconomyManager();
-		this.giveawayManager = new GiveawayManager(this);
-		this.leaverManager = new LeaverManager(this);
-		this.loggerManager = new LoggerManager(this);
-		this.modActionManager = new ModActionManager().addListener(modHandler);
-		this.muteManager = new MuteManager(this);
-		this.patreonManager = new PatreonManager().addListener(new PatreonHandler(this));
-		this.premiumManager = new PremiumManager(this);
-		this.reminderManager = new ReminderManager(this);
-		this.starboardManager = new StarboardManager(this);
-		this.suggestionManager = new SuggestionManager(this);
-		this.temporaryBanManager = new TemporaryBanManager(this);
-		this.welcomerManager = new WelcomerManager(this);
-		this.youTubeManager = new YouTubeManager(this).addListener(youTubeHandler);
-		this.pagedManager = new PagedManager();
-		this.waiterManager = new WaiterManager();
-		this.serverStatsManager = new ServerStatsManager(this);
-		this.twitchTokenManager = new TwitchTokenManager(this);
-
-		this.steamGameCache = new SteamGameCache(this);
-
-		this.setupArgumentFactory();
-		this.setupOptionFactory();
-
-		this.commandListener = this.createCommandListener(this.createErrorManager());
-		((CommandParserImpl) this.commandListener.getCommandParser()).addOptionPrefix("");
-
-		List<Object> listeners = List.of(
-			new GuildMessageCache(this),
-			this.commandListener,
-			new PagedHandler(this),
-			new WaiterHandler(this),
-			new GiveawayHandler(this),
-			new AutoRoleHandler(this),
-			modHandler,
-			new ConnectionHandler(this),
-			new ReactionRoleHandler(this),
-			new LoggerHandler(this),
-			new AntiRegexHandler(this),
-			new WelcomerHandler(this),
-			new LeaverHandler(this),
-			new StarboardHandler(this),
-			new TriggerHandler(this),
-			new ServerStatsHandler(this),
-			new SelfRoleHandler(this),
-			new MuteHandler(this),
-			new MediaModeHandler(this),
-			youTubeHandler
-		);
-
-		this.shardManager = this.createShardManager(listeners);
 	}
 
 	public Database getDatabase() {
