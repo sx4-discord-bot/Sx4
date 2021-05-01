@@ -257,6 +257,10 @@ public class Database {
 		return CompletableFuture.supplyAsync(() -> this.items.updateOne(filter, update, options));
 	}
 
+	public CompletableFuture<DeleteResult> deleteItem(Bson filter) {
+		return CompletableFuture.supplyAsync(() -> this.items.deleteOne(filter));
+	}
+
 	public MongoCollection<Document> getMediaChannels() {
 		return this.mediaChannels;
 	}

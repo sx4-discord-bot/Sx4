@@ -13,10 +13,12 @@ public class ItemStack<Type extends Item> implements Comparable<ItemStack<Type>>
 	
 	@SuppressWarnings("unchecked")
 	public ItemStack(EconomyManager manager, Document data) {
-		Item defaultItem = manager.getItemByName(data.getString("name"));
+		Document item = data.get("item", Document.class);
+
+		Item defaultItem = manager.getItemByName(item.getString("name"));
 		ItemType type = ItemType.fromType(data.getInteger("type"));
 		
-		this.item = (Type) type.create(data, defaultItem);
+		this.item = (Type) type.create(item, defaultItem);
 		this.amount = data.getLong("amount");
 	}
 

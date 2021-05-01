@@ -1,8 +1,9 @@
 package com.sx4.bot.entities.economy.item;
 
-import java.util.List;
-
 import org.bson.Document;
+
+import java.util.List;
+import java.util.Random;
 
 public class Rod extends Tool {
 	
@@ -22,15 +23,19 @@ public class Rod extends Tool {
 		);
 	}
 
-	public Rod(String name, long price, long currentDurability, long maxDurability, List<ItemStack<Material>> craft, Material repairItem, long minYield, long maxYield) {
+	public Rod(String name, long price, int currentDurability, int maxDurability, List<ItemStack<Material>> craft, Material repairItem, long minYield, long maxYield) {
 		super(name, price, ItemType.ROD, currentDurability, maxDurability, craft, repairItem);
 		
 		this.minYield = minYield;
 		this.maxYield = maxYield;
 	}
 	
-	public Rod(String name, long price, long maxDurability, List<ItemStack<Material>> craft, Material repairItem, long minYield, long maxYield) {
+	public Rod(String name, long price, int maxDurability, List<ItemStack<Material>> craft, Material repairItem, long minYield, long maxYield) {
 		this(name, price, maxDurability, maxDurability, craft, repairItem, minYield, maxYield);
+	}
+
+	public long getYield(Random random) {
+		return random.nextInt((int) (this.maxYield - this.minYield) + 1) + this.minYield;
 	}
 	
 	public long getMinYield() {

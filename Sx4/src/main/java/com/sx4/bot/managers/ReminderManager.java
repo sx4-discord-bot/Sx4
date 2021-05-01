@@ -4,6 +4,8 @@ import com.mongodb.client.model.*;
 import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.Database;
 import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.exceptions.ErrorResponseException;
+import net.dv8tion.jda.api.requests.ErrorResponse;
 import org.bson.Document;
 import org.bson.types.ObjectId;
 
@@ -81,7 +83,7 @@ public class ReminderManager {
 		if (user != null) {
 			user.openPrivateChannel()
 				.flatMap(channel -> channel.sendMessageFormat("You wanted me to remind you about **%s**", data.getString("reminder")))
-				.queue();
+				.queue(null, ErrorResponseException.ignore(ErrorResponse.CANNOT_SEND_TO_USER));
 		}
 
 		ObjectId id = data.getObjectId("_id");

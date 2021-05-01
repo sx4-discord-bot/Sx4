@@ -129,7 +129,7 @@ public class EconomyManager {
 						
 						Material rodRepairItem = this.getItemByName(itemData.getString("repairItem"), Material.class);
 						
-						item = new Rod(itemData.getString("name"), itemData.getLong("price"), itemData.getLong("durability"), rodCraft, rodRepairItem, itemData.getLong("minYield"), itemData.getLong("maxYield"));
+						item = new Rod(itemData.getString("name"), itemData.getLong("price"), itemData.getInt("durability"), rodCraft, rodRepairItem, itemData.getLong("minYield"), itemData.getLong("maxYield"));
 						
 						break;
 					case AXE:
@@ -145,7 +145,7 @@ public class EconomyManager {
 						
 						Material axeRepairItem = this.getItemByName(itemData.getString("repairItem"), Material.class);
 						
-						item = new Axe(itemData.getString("name"), itemData.getLong("price"), itemData.getLong("durability"), axeCraft, axeRepairItem, itemData.getLong("maxMaterials"), itemData.getDouble("multiplier"));
+						item = new Axe(itemData.getString("name"), itemData.getLong("price"), itemData.getInt("durability"), axeCraft, axeRepairItem, itemData.getLong("maxMaterials"), itemData.getDouble("multiplier"));
 						
 						break;
 					case PICKAXE:
@@ -161,7 +161,7 @@ public class EconomyManager {
 						
 						Material pickaxeRepairItem = this.getItemByName(itemData.getString("repairItem"), Material.class);
 						
-						item = new Pickaxe(itemData.getString("name"), itemData.getLong("price"), itemData.getLong("durability"), pickaxeCraft, pickaxeRepairItem, itemData.getLong("minYield"), itemData.getLong("maxYield"), itemData.getDouble("multiplier"));
+						item = new Pickaxe(itemData.getString("name"), itemData.getLong("price"), itemData.getInt("durability"), pickaxeCraft, pickaxeRepairItem, itemData.getLong("minYield"), itemData.getLong("maxYield"), itemData.getDouble("multiplier"));
 						
 						break;
 					default:

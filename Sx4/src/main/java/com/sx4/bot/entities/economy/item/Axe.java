@@ -22,14 +22,14 @@ public class Axe extends Tool {
 		);
 	}
 
-	public Axe(String name, long price, long currentDurability, long maxDurability, List<ItemStack<Material>> craft, Material repairItem, long maxMaterials, double multiplier) {
+	public Axe(String name, long price, int currentDurability, int maxDurability, List<ItemStack<Material>> craft, Material repairItem, long maxMaterials, double multiplier) {
 		super(name, price, ItemType.AXE, currentDurability, maxDurability, craft, repairItem);
 		
 		this.maxMaterials = maxMaterials;
 		this.multiplier = multiplier;
 	}
 	
-	public Axe(String name, long price, long maxDurability, List<ItemStack<Material>> craft, Material repairItem, long maxMaterials, double multiplier) {
+	public Axe(String name, long price, int maxDurability, List<ItemStack<Material>> craft, Material repairItem, long maxMaterials, double multiplier) {
 		this(name, price, maxDurability, maxDurability, craft, repairItem, maxMaterials, multiplier);
 	}
 	
