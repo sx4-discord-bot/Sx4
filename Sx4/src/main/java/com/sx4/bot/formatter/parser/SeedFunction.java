@@ -11,8 +11,8 @@ public class SeedFunction extends FormatterFunction<Random> {
 		super(Random.class, "seed");
 	}
 
-	public Random parse(FormatterEvent event, Long seed) {
-		Random random = (Random) event.getObject();
+	public Random parse(FormatterEvent<Random> event, Long seed) {
+		Random random = event.getObject();
 		random.setSeed(seed);
 		return random;
 	}

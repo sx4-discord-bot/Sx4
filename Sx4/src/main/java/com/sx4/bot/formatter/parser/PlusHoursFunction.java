@@ -12,8 +12,8 @@ public class PlusHoursFunction extends FormatterFunction<Temporal> {
 		super(Temporal.class, "plusHours");
 	}
 
-	public Temporal parse(FormatterEvent event, Integer amount) {
-		return ((Temporal) event.getObject()).plus(amount, ChronoUnit.HOURS);
+	public Temporal parse(FormatterEvent<Temporal> event, Integer amount) {
+		return event.getObject().plus(amount, ChronoUnit.HOURS);
 	}
 
 }

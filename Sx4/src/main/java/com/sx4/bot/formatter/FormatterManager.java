@@ -1,9 +1,13 @@
 package com.sx4.bot.formatter;
 
+import com.google.common.collect.ImmutableSet;
+import com.google.common.reflect.ClassPath;
+import com.google.common.reflect.ClassPath.ClassInfo;
 import com.sx4.bot.formatter.function.FormatterFunction;
 import com.sx4.bot.formatter.function.FormatterParser;
 import com.sx4.bot.formatter.function.FormatterVariable;
 
+import java.io.IOException;
 import java.util.*;
 import java.util.function.Function;
 
@@ -40,6 +44,38 @@ public class FormatterManager {
 
 	public <Type> FormatterManager addParser(Class<Type> type, Function<String, Type> function) {
 		return this.addParser(new FormatterParser<>(type, function));
+	}
+
+	public FormatterManager addFunctions(String packagePath) {
+		ClassLoader loader = ClassLoader.getSystemClassLoader();
+
+		ImmutableSet<ClassInfo> classes;
+		try {
+			classes = ClassPath.from(loader).getTopLevelClasses(packagePath);
+		} catch (IOException e) {
+			e.printStackTrace();
+			return this;
+		}
+
+		for (ClassInfo info : classes) {
+			Class<?> loadedClass;
+			try {
+				loadedClass = loader.loadClass(info.getName());
+			} catch (ClassNotFoundException e) {
+				e.printStackTrace();
+				return this;
+			}
+
+			if (FormatterFunction.class.isAssignableFrom(loadedClass)) {
+				try {
+					this.addFunction((FormatterFunction<?>) loadedClass.getConstructor().newInstance());
+				} catch (Throwable e) {
+					e.printStackTrace();
+				}
+			}
+		}
+
+		return this;
 	}
 
 	public FormatterManager addFunction(FormatterFunction<?> function) {
@@ -82,10 +118,6 @@ public class FormatterManager {
 
 	public FormatterParser<?> getParser(Class<?> type) {
 		return this.parsers.get(type);
-	}
-
-	public FormatterFunction<?> getStaticFunction(String name) {
-		return this.getFunction(Void.class, name);
 	}
 
 	public FormatterFunction<?> getFunction(Class<?> type, String name) {

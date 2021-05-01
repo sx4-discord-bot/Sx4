@@ -30,7 +30,7 @@ public class FutureUtility {
 	public static <Type> CompletableFuture<List<Type>> allOf(Collection<? extends CompletableFuture<? extends Type>> futures, Predicate<Type> predicate) {
 		CompletableFuture<List<Type>> future = new CompletableFuture<>();
 
-		CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new)).whenComplete((result, exception) -> future.complete(futures.stream().map(CompletableFuture::join).filter(predicate::test).collect(Collectors.toList())));
+		CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new)).whenComplete((result, exception) -> future.complete(futures.stream().map(CompletableFuture::join).filter(predicate).collect(Collectors.toList())));
 
 		return future;
 	}

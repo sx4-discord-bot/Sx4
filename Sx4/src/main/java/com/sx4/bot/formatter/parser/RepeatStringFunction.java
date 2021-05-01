@@ -9,8 +9,8 @@ public class RepeatStringFunction extends FormatterFunction<String> {
 		super(String.class, "repeat");
 	}
 
-	public String parse(FormatterEvent event, Integer count) {
-		return ((String) event.getObject()).repeat(count);
+	public String parse(FormatterEvent<String> event, Integer count) {
+		return event.getObject().repeat(count);
 	}
 
 }

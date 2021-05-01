@@ -1,15 +1,15 @@
 package com.sx4.bot.formatter.parser;
 
 import com.sx4.bot.formatter.function.FormatterEvent;
-import com.sx4.bot.formatter.function.FormatterFunction;
+import com.sx4.bot.formatter.function.FormatterStaticFunction;
 
-public class NumberStaticFunction extends FormatterFunction<Void> {
+public class NumberStaticFunction extends FormatterStaticFunction {
 
 	public NumberStaticFunction() {
-		super(Void.class, "number");
+		super("number");
 	}
 
-	public Double parse(FormatterEvent event, Double number) {
+	public Double parse(FormatterEvent<Void> event, Double number) {
 		return number;
 	}
 

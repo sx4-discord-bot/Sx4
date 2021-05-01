@@ -11,8 +11,8 @@ public class RandomIntFunction extends FormatterFunction<Random> {
 		super(Random.class, "int");
 	}
 
-	public Integer parse(FormatterEvent event, Integer limit) {
-		return ((Random) event.getObject()).nextInt(limit + 1);
+	public Integer parse(FormatterEvent<Random> event, Integer limit) {
+		return event.getObject().nextInt(limit + 1);
 	}
 
 }

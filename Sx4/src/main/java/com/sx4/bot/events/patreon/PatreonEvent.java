@@ -3,23 +3,19 @@ package com.sx4.bot.events.patreon;
 public class PatreonEvent {
 
 	private final long discordId;
-	private final String id;
+	private final int totalAmount;
 	
-	public PatreonEvent(long discordId, String id) {
+	public PatreonEvent(long discordId, int totalAmount) {
 		this.discordId = discordId;
-		this.id = id;
+		this.totalAmount = totalAmount;
 	}
 	
 	public long getDiscordId() {
 		return this.discordId;
 	}
 	
-	public boolean hasDiscord() {
-		return this.discordId != 0L;
-	}
-	
-	public String getId() {
-		return this.id;
+	public int getTotalAmount() {
+		return this.totalAmount;
 	}
 	
 }

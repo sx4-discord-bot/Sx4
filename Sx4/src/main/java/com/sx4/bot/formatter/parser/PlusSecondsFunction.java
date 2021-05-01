@@ -12,8 +12,8 @@ public class PlusSecondsFunction extends FormatterFunction<Temporal> {
 		super(Temporal.class, "plusSeconds");
 	}
 
-	public Temporal parse(FormatterEvent event, Long amount) {
-		return ((Temporal) event.getObject()).plus(amount, ChronoUnit.SECONDS);
+	public Temporal parse(FormatterEvent<Temporal> event, Long amount) {
+		return event.getObject().plus(amount, ChronoUnit.SECONDS);
 	}
 
 }

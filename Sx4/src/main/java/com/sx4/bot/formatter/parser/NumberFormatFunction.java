@@ -11,9 +11,9 @@ public class NumberFormatFunction extends FormatterFunction<Number> {
 		super(Number.class, "format");
 	}
 
-	public String parse(FormatterEvent event, String format) {
+	public String parse(FormatterEvent<Number> event, String format) {
 		try {
-			return new DecimalFormat(format).format(((Number) event.getObject()).doubleValue());
+			return new DecimalFormat(format).format(event.getObject().doubleValue());
 		} catch (IllegalArgumentException e) {
 			return event.getObject().toString();
 		}

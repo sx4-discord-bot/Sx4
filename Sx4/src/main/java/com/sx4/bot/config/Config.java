@@ -402,10 +402,6 @@ public class Config {
 		return this.get("token.youtube");
 	}
 	
-	public String getMashape() {
-		return this.get("token.mashape");
-	}
-	
 	public String getOpenWeather() {
 		return this.get("token.openWeather");
 	}
@@ -420,6 +416,14 @@ public class Config {
 	
 	public String getPatreonWebhookSecret() {
 		return this.get("token.patreon.webhook");
+	}
+
+	public String getPatreonAccessToken() {
+		return this.get("token.patreon.access_token");
+	}
+
+	public int getPatreonCampaignId() {
+		return this.get("token.patreon.campaign_id");
 	}
 
 	public String getTwitch() {

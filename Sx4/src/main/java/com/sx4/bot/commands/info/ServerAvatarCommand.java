@@ -19,9 +19,11 @@ public class ServerAvatarCommand extends Sx4Command {
 	}
 
 	public void onCommand(Sx4CommandEvent event) {
+		String icon = event.getGuild().getIconUrl() + "?size=1024";
+
 		EmbedBuilder embed = new EmbedBuilder()
-			.setImage(event.getGuild().getIconUrl())
-			.setAuthor(event.getGuild().getName(), event.getGuild().getIconUrl(), event.getGuild().getIconUrl());
+			.setImage(icon)
+			.setAuthor(event.getGuild().getName(), icon, icon);
 
 		event.reply(embed.build()).queue();
 	}

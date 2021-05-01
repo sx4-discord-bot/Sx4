@@ -6,16 +6,30 @@ import com.sx4.bot.core.Sx4;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.entities.settings.HolderType;
 import net.dv8tion.jda.api.Permission;
-import net.dv8tion.jda.api.entities.Guild;
-import net.dv8tion.jda.api.entities.Member;
-import net.dv8tion.jda.api.entities.Role;
-import net.dv8tion.jda.api.entities.TextChannel;
+import net.dv8tion.jda.api.entities.*;
 import org.bson.Document;
 
 import java.util.*;
 import java.util.stream.Collectors;
 
 public class CheckUtility {
+
+	public static boolean canReply(Sx4 bot, Message message, String prefix) {
+		if (bot.getConfig().isMain()) {
+			List<String> guildPrefixes = message.isFromGuild() ? bot.getCanaryDatabase().getGuildById(message.getGuild().getIdLong(), Projections.include("prefixes")).getList("prefixes", String.class, Collections.emptyList()) : Collections.emptyList();
+			List<String> userPrefixes = bot.getCanaryDatabase().getUserById(message.getAuthor().getIdLong(), Projections.include("prefixes")).getList("prefixes", String.class, Collections.emptyList());
+
+			List<String> prefixes = userPrefixes.isEmpty() ? guildPrefixes.isEmpty() ? bot.getConfig().getDefaultPrefixes() : guildPrefixes : userPrefixes;
+			if (!prefixes.contains(prefix)) {
+				return true;
+			}
+
+			Member canary = message.getGuild().getMemberById(bot.getConfig().getCanaryId());
+			return canary == null || !message.getTextChannel().canTalk(canary);
+		}
+
+		return true;
+	}
 
 	public static boolean canUseCommand(Sx4 bot, Member member, TextChannel channel, Sx4Command command) {
 		if (bot.getCommandListener().isDeveloper(member.getIdLong()) || member.hasPermission(Permission.ADMINISTRATOR)) {

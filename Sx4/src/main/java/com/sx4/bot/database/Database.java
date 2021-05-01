@@ -20,8 +20,6 @@ import org.bson.types.ObjectId;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 
@@ -29,9 +27,6 @@ public class Database {
 	
 	public static final Document EMPTY_DOCUMENT = new Document();
 	public static final JsonWriterSettings PRETTY_JSON = JsonWriterSettings.builder().indent(true).indentCharacters("    ").outputMode(JsonMode.RELAXED).build();
-
-	private final ExecutorService modLogExecutor = Executors.newSingleThreadExecutor();
-	private final ExecutorService reminderExecutor = Executors.newSingleThreadExecutor();
 
 	private final UpdateOptions updateOptions = new UpdateOptions().upsert(true);
 	private final FindOneAndUpdateOptions findOneAndUpdateOptions = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER).upsert(true);

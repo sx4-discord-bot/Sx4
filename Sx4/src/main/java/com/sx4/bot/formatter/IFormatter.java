@@ -1,9 +1,6 @@
 package com.sx4.bot.formatter;
 
-import com.sx4.bot.formatter.function.FormatterEvent;
-import com.sx4.bot.formatter.function.FormatterFunction;
-import com.sx4.bot.formatter.function.FormatterParser;
-import com.sx4.bot.formatter.function.FormatterVariable;
+import com.sx4.bot.formatter.function.*;
 import com.sx4.bot.utility.ColourUtility;
 import com.sx4.bot.utility.StringUtility;
 import net.dv8tion.jda.api.entities.*;
@@ -131,7 +128,7 @@ public interface IFormatter<Type> {
 
 	private static List<Object> getFunctionArguments(FormatterFunction<?> function, String text, Object value, Class<?> type, FormatterManager manager) {
 		List<Object> functionArguments = new ArrayList<>();
-		functionArguments.add(new FormatterEvent(value, manager));
+		functionArguments.add(new FormatterEvent<>(value, manager));
 
 		Class<?>[] parameters = function.getMethod().getParameterTypes();
 		if (parameters.length > 2) {
@@ -142,13 +139,21 @@ public interface IFormatter<Type> {
 					continue;
 				}
 
-				Object argumentValue = IFormatter.toObject(text.substring(lastIndex + 1, lastIndex = nextIndex == -1 ? text.length() : nextIndex), function.isUsePrevious() ? type : parameters[i++ + 1], manager);
+				String argument;
+				if (++i == parameters.length - 1) {
+					argument = text.substring(lastIndex + 1);
+					lastIndex = -1;
+				} else {
+					argument = text.substring(lastIndex + 1, (lastIndex = nextIndex) == -1 ? text.length() : nextIndex);
+				}
+
+				Object argumentValue = IFormatter.toObject(argument, function.isUsePrevious() ? type : parameters[i], manager);
 				if (argumentValue == null) {
 					return null;
 				}
 
 				functionArguments.add(argumentValue);
-			} while (lastIndex != text.length());
+			} while (lastIndex != -1);
 
 			if (functionArguments.size() < parameters.length - 1) {
 				return null;
@@ -272,13 +277,15 @@ public interface IFormatter<Type> {
 			if (value % 1 == 0) {
 				return String.valueOf(value.longValue());
 			}
+		} else if (object instanceof FormatterCondition) {
+			return IFormatter.toString(((FormatterCondition) object).orElse(null));
 		}
 
 		return object.toString();
 	}
 
 	public static Object toObject(String text, Class<?> type, FormatterManager manager) {
-		if (text.charAt(0) == '{' && text.charAt(text.length() - 1) == '}' && text.charAt(text.length() - 2) != '\\') {
+		if (text.length() > 0 && text.charAt(0) == '{' && text.charAt(text.length() - 1) == '}' && text.charAt(text.length() - 2) != '\\') {
 			Object value = IFormatter.getValue(text.substring(1, text.length() - 1), manager);
 			if (value != null && type.isAssignableFrom(value.getClass())) {
 				return value;

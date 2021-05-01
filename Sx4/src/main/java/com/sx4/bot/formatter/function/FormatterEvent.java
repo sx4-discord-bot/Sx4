@@ -2,17 +2,17 @@ package com.sx4.bot.formatter.function;
 
 import com.sx4.bot.formatter.FormatterManager;
 
-public class FormatterEvent {
+public class FormatterEvent<Type> {
 
-	private final Object object;
+	private final Type object;
 	private final FormatterManager manager;
 
-	public FormatterEvent(Object object, FormatterManager manager) {
+	public FormatterEvent(Type  object, FormatterManager manager) {
 		this.object = object;
 		this.manager = manager;
 	}
 
-	public Object getObject() {
+	public Type getObject() {
 		return this.object;
 	}
 

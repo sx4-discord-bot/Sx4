@@ -1,15 +1,15 @@
 package com.sx4.bot.formatter.parser;
 
 import com.sx4.bot.formatter.function.FormatterEvent;
-import com.sx4.bot.formatter.function.FormatterFunction;
+import com.sx4.bot.formatter.function.FormatterStaticFunction;
 
-public class SetStaticFunction extends FormatterFunction<Void> {
+public class SetStaticFunction extends FormatterStaticFunction {
 
 	public SetStaticFunction() {
-		super(Void.class, "set");
+		super("set");
 	}
 
-	public Object parse(FormatterEvent event, String name, Object object) {
+	public Object parse(FormatterEvent<Void> event, String name, Object object) {
 		event.addVariable(name, object);
 		return object;
 	}

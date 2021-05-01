@@ -12,8 +12,8 @@ public class DurationBetweenFunction extends FormatterFunction<Temporal> {
 		super(Temporal.class, "difference");
 	}
 
-	public long parse(FormatterEvent event, Temporal time) {
-		return ((Temporal) event.getObject()).until(time, ChronoUnit.SECONDS);
+	public long parse(FormatterEvent<Temporal> event, Temporal time) {
+		return event.getObject().until(time, ChronoUnit.SECONDS);
 	}
 
 }

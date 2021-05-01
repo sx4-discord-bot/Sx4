@@ -72,7 +72,7 @@ public class PremiumCommand extends Sx4Command {
 		MessageEmbed embed = new EmbedBuilder()
 			.setColor(event.getConfig().getOrange())
 			.setAuthor("Premium", null, event.getAuthor().getEffectiveAvatarUrl())
-			.setDescription(String.format("Buying %d day%s of premium will:\n\n• Use **$%.2f** of your credit\n• %s %1$s day%2$s of premium to the server\n\n:warning: **This action cannot be reversed** :warning:", days, days == 1 ? "" : "s", price / 100D, hasPremium ? "Add an extra" : "Give"))
+			.setDescription(String.format("Buying %d day%s of premium will:\n\n• Make you unable to use this credit on the other version of the bot\n• Use **$%.2f** of your credit\n• %s %1$s day%2$s of premium to the server\n\n:warning: **This action cannot be reversed** :warning:", days, days == 1 ? "" : "s", price / 100D, hasPremium ? "Add an extra" : "Give"))
 			.setFooter("Say yes to continue and cancel to cancel")
 			.build();
 
@@ -87,7 +87,7 @@ public class PremiumCommand extends Sx4Command {
 			List<Bson> update = List.of(Operators.set("premium.credit", Operators.cond(Operators.gt(price, Operators.ifNull("$premium.credit", 0)), "$premium.credit", Operators.subtract("$premium.credit", price))));
 			FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("premium.credit")).upsert(true);
 
-			return event.getDatabase().findAndUpdateUserById(event.getAuthor().getIdLong(), update, options);
+			return event.getMainDatabase().findAndUpdateUserById(event.getAuthor().getIdLong(), update, options);
 		}).thenCompose(data -> {
 			int credit = data == null ? 0 : data.getEmbedded(List.of("premium", "credit"), 0);
 			if (price > credit) {
@@ -135,7 +135,7 @@ public class PremiumCommand extends Sx4Command {
 	@CommandId(179)
 	@Examples({"premium credit"})
 	public void credit(Sx4CommandEvent event) {
-		int credit = event.getDatabase().getUserById(event.getAuthor().getIdLong(), Projections.include("premium.credit")).getEmbedded(List.of("premium", "credit"), 0);
+		int credit = event.getMainDatabase().getUserById(event.getAuthor().getIdLong(), Projections.include("premium.credit")).getEmbedded(List.of("premium", "credit"), 0);
 
 		event.replyFormat("Your current credit is **$%,.2f**", credit / 100D).queue();
 	}

@@ -10,8 +10,8 @@ public class SubstringFunction extends FormatterFunction<String> {
 		super(String.class, "substring");
 	}
 
-	public String parse(FormatterEvent event, Integer start, Integer end) {
-		return StringUtility.substring((String) event.getObject(), start, end);
+	public String parse(FormatterEvent<String> event, Integer start, Integer end) {
+		return StringUtility.substring(event.getObject(), start, end);
 	}
 
 }

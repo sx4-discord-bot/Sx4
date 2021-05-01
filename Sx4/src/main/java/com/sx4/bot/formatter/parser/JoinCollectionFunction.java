@@ -12,8 +12,8 @@ public class JoinCollectionFunction extends FormatterFunction<Collection> {
 		super(Collection.class, "join");
 	}
 
-	public String parse(FormatterEvent event, String delimiter) {
-		Collection<?> collection = (Collection<?>) event.getObject();
+	public String parse(FormatterEvent<Collection<?>> event, String delimiter) {
+		Collection<?> collection = event.getObject();
 
 		StringJoiner joiner = new StringJoiner(delimiter);
 		for (Object element : collection) {

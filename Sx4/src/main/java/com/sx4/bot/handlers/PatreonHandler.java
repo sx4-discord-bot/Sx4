@@ -1,11 +1,14 @@
 package com.sx4.bot.handlers;
 
-import com.mongodb.client.model.Updates;
 import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.Database;
-import com.sx4.bot.events.patreon.PatreonPledgeCreateEvent;
-import com.sx4.bot.events.patreon.PatreonPledgeUpdateEvent;
+import com.sx4.bot.database.model.Operators;
+import com.sx4.bot.events.patreon.PatreonEvent;
 import com.sx4.bot.hooks.PatreonListener;
+import org.bson.Document;
+import org.bson.conversions.Bson;
+
+import java.util.List;
 
 public class PatreonHandler implements PatreonListener {
 
@@ -15,20 +18,13 @@ public class PatreonHandler implements PatreonListener {
 		this.bot = bot;
 	}
 
-	private void updateCredit(long discordId, int amount) {
-		if (amount == 0 || discordId == 0L) {
-			return;
-		}
+	public void onPatreonEvent(PatreonEvent event) {
+		List<Bson> update = List.of(
+			Operators.set("premium.credit", Operators.let(new Document("credit", Operators.ifNull("$premium.credit", 0)).append("total", Operators.ifNull("$premium.total", 0)), Operators.add("$$credit", Operators.subtract(event.getTotalAmount(), "$$total")))),
+			Operators.set("premium.total", event.getTotalAmount())
+		);
 
-		this.bot.getDatabase().updateUserById(discordId, Updates.inc("premium.credit", amount)).whenComplete(Database.exceptionally(this.bot.getShardManager()));
-	}
-
-	public void onPatreonPledgeCreate(PatreonPledgeCreateEvent event) {
-		this.updateCredit(event.getDiscordId(), event.getAmount());
-	}
-	
-	public void onPatreonPledgeUpdate(PatreonPledgeUpdateEvent event) {
-		this.updateCredit(event.getDiscordId(), event.getAmount());
+		this.bot.getMainDatabase().updateUserById(event.getDiscordId(), update).whenComplete(Database.exceptionally(this.bot.getShardManager()));
 	}
 	
 }

@@ -9,7 +9,7 @@ public class NotEqualsFunction extends FormatterFunction<Object> {
 		super(Object.class, "notEquals", true);
 	}
 
-	public boolean parse(FormatterEvent event, Object argument) {
+	public boolean parse(FormatterEvent<Object> event, Object argument) {
 		Object object = event.getObject();
 		if (object instanceof Number) {
 			return ((Number) object).doubleValue() != ((Number) argument).doubleValue();

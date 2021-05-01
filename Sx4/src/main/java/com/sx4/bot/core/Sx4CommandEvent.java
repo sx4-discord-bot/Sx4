@@ -56,6 +56,14 @@ public class Sx4CommandEvent extends CommandEvent {
 		return this.bot.getDatabase();
 	}
 
+	public Database getMainDatabase() {
+		return this.bot.getMainDatabase();
+	}
+
+	public Database getCanaryDatabase() {
+		return this.bot.getCanaryDatabase();
+	}
+
 	public boolean hasPermission(Permission... permissions) {
 		return this.getSelfMember().hasPermission(this.getTextChannel(), permissions);
 	}

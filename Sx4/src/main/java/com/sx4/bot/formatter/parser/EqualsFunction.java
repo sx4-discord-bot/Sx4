@@ -9,7 +9,7 @@ public class EqualsFunction extends FormatterFunction<Object> {
 		super(Object.class, "equals", true);
 	}
 
-	public boolean parse(FormatterEvent event, Object argument) {
+	public boolean parse(FormatterEvent<Object> event, Object argument) {
 		Object object = event.getObject();
 		if (object instanceof Number) {
 			try {

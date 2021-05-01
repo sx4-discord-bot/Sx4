@@ -18,6 +18,7 @@ import net.dv8tion.jda.api.sharding.ShardManager;
 
 import java.time.Instant;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
 
 public class ConnectionHandler implements EventListener {
 
@@ -67,6 +68,10 @@ public class ConnectionHandler implements EventListener {
 			ExceptionUtility.safeRun(manager, this.bot.getGiveawayManager()::ensureGiveaways);
 			ExceptionUtility.safeRun(manager, this.bot.getPremiumManager()::ensurePremiumExpiry);
 			ExceptionUtility.safeRun(manager, this.bot.getYouTubeManager()::ensureSubscriptions);
+
+			if (this.bot.getConfig().isMain()) {
+				ExceptionUtility.safeRun(manager, () -> this.bot.getPatreonManager().ensurePatrons(null, new ArrayList<>()));
+			}
 		}
 		
 		this.eventsWebhook.send(this.getEmbed(jda, "Ready", this.bot.getConfig().getGreen()));

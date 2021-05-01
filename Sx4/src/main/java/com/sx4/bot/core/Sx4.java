@@ -37,7 +37,6 @@ import com.sx4.bot.entities.youtube.YouTubeChannel;
 import com.sx4.bot.entities.youtube.YouTubeVideo;
 import com.sx4.bot.formatter.FormatterManager;
 import com.sx4.bot.formatter.function.FormatterParser;
-import com.sx4.bot.formatter.parser.*;
 import com.sx4.bot.handlers.*;
 import com.sx4.bot.managers.*;
 import com.sx4.bot.paged.PagedHandler;
@@ -85,7 +84,10 @@ import java.util.regex.PatternSyntaxException;
 public class Sx4 {
 
 	private final Config config = Config.get();
+
 	private final Database database;
+	private final Database canaryDatabase;
+	private final Database mainDatabase;
 
 	private final CommandListener commandListener;
 	private final ShardManager shardManager;
@@ -118,7 +120,11 @@ public class Sx4 {
 	private final TwitchTokenManager twitchTokenManager;
 	
 	private Sx4() {
-		this.database = new Database(this.config.getDatabase());
+		this.mainDatabase = new Database(this.config.getMainDatabase());
+		this.canaryDatabase = new Database(this.config.getCanaryDatabase());
+
+		this.database = this.config.isMain() ? this.mainDatabase : this.canaryDatabase;
+
 		this.executor = Executors.newSingleThreadExecutor();
 		this.scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
 
@@ -148,7 +154,7 @@ public class Sx4 {
 		this.loggerManager = new LoggerManager(this);
 		this.modActionManager = new ModActionManager().addListener(modHandler);
 		this.muteManager = new MuteManager(this);
-		this.patreonManager = new PatreonManager().addListener(new PatreonHandler(this));
+		this.patreonManager = new PatreonManager(this).addListener(new PatreonHandler(this));
 		this.premiumManager = new PremiumManager(this);
 		this.reminderManager = new ReminderManager(this);
 		this.starboardManager = new StarboardManager(this);
@@ -195,38 +201,13 @@ public class Sx4 {
 		this.shardManager = this.createShardManager(listeners);
 
 		FormatterManager formatterManager = new FormatterManager()
-			.addFunction(new NumberStaticFunction())
-			.addFunction(new SubstringFunction())
-			.addFunction(new PlusDaysFunction())
-			.addFunction(new PlusHoursFunction())
-			.addFunction(new PlusSecondsFunction())
-			.addFunction(new DateFormatFunction())
-			.addFunction(new MapCollectionFunction())
-			.addFunction(new JoinCollectionFunction())
-			.addFunction(new GetListFunction())
-			.addFunction(new SubListFunction())
-			.addFunction(new FilterCollectionFunction())
-			.addFunction(new RandomIntFunction())
-			.addFunction(new AdditionFunction())
-			.addFunction(new MultiplicationFunction())
-			.addFunction(new SubtractFunction())
-			.addFunction(new DivisionFunction())
-			.addFunction(new EqualsFunction())
-			.addFunction(new NotEqualsFunction())
-			.addFunction(new GreaterThanFunction())
-			.addFunction(new GreaterThanEqualFunction())
-			.addFunction(new LessThanEqualFunction())
-			.addFunction(new LessThanFunction())
-			.addFunction(new DurationBetweenFunction())
-			.addFunction(new NumberFormatFunction())
-			.addFunction(new SeedFunction())
-			.addFunction(new RepeatStringFunction())
-			.addFunction(new StringStaticFunction())
-			.addFunction(new SetStaticFunction())
+			.addFunctions("com.sx4.bot.formatter.parser")
 			.addVariable("name", Action.class, action -> action == null ? null : action.getName())
 			.addVariable("exists", Action.class, Objects::nonNull)
 			.addVariable("suffix", Integer.class, NumberUtility::getSuffixed)
 			.addVariable("round", Double.class, Math::round)
+			.addVariable("floor", Double.class, Math::floor)
+			.addVariable("ceil", Double.class, Math::ceil)
 			.addVariable("length", Collection.class, Collection::size)
 			.addVariable("empty", Collection.class, Collection::isEmpty)
 			.addVariable("name", Role.class, Role::getName)
@@ -342,6 +323,14 @@ public class Sx4 {
 
 	public Database getDatabase() {
 		return this.database;
+	}
+
+	public Database getMainDatabase() {
+		return this.mainDatabase;
+	}
+
+	public Database getCanaryDatabase() {
+		return this.canaryDatabase;
 	}
 
 	public Config getConfig() {
@@ -475,15 +464,64 @@ public class Sx4 {
 			.setCommandEventFactory(new Sx4CommandEventFactory(this))
 			.addCommandEventListener(new Sx4CommandEventListener(this))
 			.setDefaultPrefixes(this.config.getDefaultPrefixes().toArray(String[]::new))
-			.setNSFWFunction(event -> event.reply("You cannot use this command in a non-nsfw channel " + this.config.getFailureEmote()).queue())
-			.setMissingPermissionExceptionFunction((event, permission) -> event.reply(PermissionUtility.formatMissingPermissions(EnumSet.of(permission), "I am") + " " + this.config.getFailureEmote()).queue())
-			.setMissingPermissionFunction((event, permissions) -> event.reply(PermissionUtility.formatMissingPermissions(permissions, "I am") + " " + this.config.getFailureEmote()).queue())
-			.setHelpFunction((message, prefix, commands) -> {
+			.addPreParseCheck(message -> !message.getAuthor().isBot())
+			.addPreExecuteCheck((event, command) -> CheckUtility.canReply(this, event.getMessage(), event.getPrefix()))
+			.addPreExecuteCheck((event, command) -> {
+				if (command instanceof Sx4Command && ((Sx4Command) command).isCanaryCommand() && this.config.isMain()) {
+					event.reply("This command can only be used on the canary version of the bot " + this.config.getFailureEmote()).queue();
+					return false;
+				}
+
+				return true;
+			}).addPreExecuteCheck((event, command) -> {
+				if (event.isFromGuild()) {
+					Document guildData = this.database.getGuildById(event.getGuild().getIdLong(), Projections.include("fakePermissions.holders"));
+
+					List<Document> holders = guildData.getEmbedded(List.of("fakePermissions", "holders"), Collections.emptyList());
+					event.setProperty("fakePermissions", holders);
+				} else {
+					event.setProperty("fakePermissions", Collections.emptyList());
+				}
+
+				return true;
+			}).addPreExecuteCheck((event, command) -> {
+				Set<Permission> permissions = command.getAuthorDiscordPermissions();
+				if (permissions.isEmpty()) {
+					return true;
+				}
+
+				EnumSet<Permission> missingPermissions = CheckUtility.missingPermissions(this, event.getMember(), event.getTextChannel(), event.getProperty("fakePermissions"), EnumSet.copyOf(permissions));
+				if (missingPermissions.isEmpty()) {
+					return true;
+				} else {
+					event.reply(PermissionUtility.formatMissingPermissions(missingPermissions) + " " + this.config.getFailureEmote()).queue();
+					return false;
+				}
+			}).addPreExecuteCheck((event, command) -> {
+				if (command instanceof Sx4Command && event.isFromGuild()) {
+					boolean canUseCommand = CheckUtility.canUseCommand(this, event.getMember(), event.getTextChannel(), (Sx4Command) command);
+					if (!canUseCommand) {
+						event.reply("You are blacklisted from using that command in this channel " + this.config.getFailureEmote()).queue();
+					}
+
+					return canUseCommand;
+				} else {
+					return true;
+				}
+			}).setHelpFunction((message, prefix, commands) -> {
+				if (!CheckUtility.canReply(this, message, prefix)) {
+					return;
+				}
+
 				MessageChannel channel = message.getChannel();
 				boolean embed = !message.isFromGuild() || message.getGuild().getSelfMember().hasPermission((TextChannel) channel, Permission.MESSAGE_EMBED_LINKS);
 				
 				channel.sendMessage(HelpUtility.getHelpMessage(commands.get(0), embed)).queue();
-			}).setMessageParseFailureFunction((message, content, failures) -> {
+			}).setMessageParseFailureFunction((message, prefix, failures) -> {
+				if (!CheckUtility.canReply(this, message, prefix)) {
+					return;
+				}
+
 				Failure failure = failures.stream()
 					.filter(f -> {
 						Throwable reason = f.getReason();
@@ -527,47 +565,16 @@ public class Sx4 {
 				boolean embed = !message.isFromGuild() || message.getGuild().getSelfMember().hasPermission((TextChannel) channel, Permission.MESSAGE_EMBED_LINKS);
 				
 				channel.sendMessage(HelpUtility.getHelpMessage(failures.get(0).getCommand(), embed)).queue();
-			}).addPreExecuteCheck((event, command) -> {
-				if (event.isFromGuild()) {
-					Document guildData = this.database.getGuildById(event.getGuild().getIdLong(), Projections.include("prefixes", "fakePermissions.holders"));
-
-					List<Document> holders = guildData.getEmbedded(List.of("fakePermissions", "holders"), Collections.emptyList());
-					event.setProperty("fakePermissions", holders);
-				} else {
-					event.setProperty("fakePermissions", Collections.emptyList());
-				}
-
-				return true;
-			}).addPreExecuteCheck((event, command) -> {
-				Set<Permission> permissions = command.getAuthorDiscordPermissions();
-				if (permissions.isEmpty()) {
-					return true;
-				}
-
-				EnumSet<Permission> missingPermissions = CheckUtility.missingPermissions(this, event.getMember(), event.getTextChannel(), event.getProperty("fakePermissions"), EnumSet.copyOf(permissions));
-				if (missingPermissions.isEmpty()) {
-					return true;
-				} else {
-					event.reply(PermissionUtility.formatMissingPermissions(missingPermissions) + " " + this.config.getFailureEmote()).queue();
-					return false;
-				}
-			}).addPreExecuteCheck((event, command) -> {
-				if (command instanceof Sx4Command && event.isFromGuild()) {
-					boolean canUseCommand = CheckUtility.canUseCommand(this, event.getMember(), event.getTextChannel(), (Sx4Command) command);
-					if (!canUseCommand) {
-						event.reply("You are blacklisted from using that command in this channel " + this.config.getFailureEmote()).queue();
-					}
-
-					return canUseCommand;
-				} else {
-					return true;
-				}
 			}).setPrefixesFunction(message -> {
 				List<String> guildPrefixes = message.isFromGuild() ? this.database.getGuildById(message.getGuild().getIdLong(), Projections.include("prefixes")).getList("prefixes", String.class, Collections.emptyList()) : Collections.emptyList();
 				List<String> userPrefixes = this.database.getUserById(message.getAuthor().getIdLong(), Projections.include("prefixes")).getList("prefixes", String.class, Collections.emptyList());
 
 				return userPrefixes.isEmpty() ? guildPrefixes.isEmpty() ? this.config.getDefaultPrefixes() : guildPrefixes : userPrefixes;
 			}).setCooldownFunction((event, cooldown) -> {
+				if (!CheckUtility.canReply(this, event.getMessage(), event.getPrefix())) {
+					return;
+				}
+
 				ICommand command = event.getCommand();
 				if (command instanceof Sx4Command) {
 					Sx4Command sx4Command = (Sx4Command) command;
@@ -578,7 +585,25 @@ public class Sx4 {
 				}
 
 				event.reply("Slow down there! You can execute this command again in " + TimeUtility.getTimeString(cooldown.getTimeRemainingMillis(), TimeUnit.MILLISECONDS) + " :stopwatch:").queue();
-			}).addPreParseCheck(message -> !message.getAuthor().isBot());
+			}).setNSFWFunction(event -> {
+				if (!CheckUtility.canReply(this, event.getMessage(), event.getPrefix())) {
+					return;
+				}
+
+				event.reply("You cannot use this command in a non-nsfw channel " + this.config.getFailureEmote()).queue();
+			}).setMissingPermissionExceptionFunction((event, permission) -> {
+				if (!CheckUtility.canReply(this, event.getMessage(), event.getPrefix())) {
+					return;
+				}
+
+				event.reply(PermissionUtility.formatMissingPermissions(EnumSet.of(permission), "I am") + " " + this.config.getFailureEmote()).queue();
+			}).setMissingPermissionFunction((event, permissions) -> {
+				if (!CheckUtility.canReply(this, event.getMessage(), event.getPrefix())) {
+					return;
+				}
+
+				event.reply(PermissionUtility.formatMissingPermissions(permissions, "I am") + " " + this.config.getFailureEmote()).queue();
+			});
 	}
 
 	private void setupOptionFactory() {

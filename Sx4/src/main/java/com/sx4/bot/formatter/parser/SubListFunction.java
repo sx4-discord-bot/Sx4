@@ -11,8 +11,8 @@ public class SubListFunction extends FormatterFunction<List> {
 		super(List.class, "subList");
 	}
 
-	public List<?> parse(FormatterEvent event, Integer start, Integer end) {
-		List<?> list = (List<?>) event.getObject();
+	public List<?> parse(FormatterEvent<List<?>> event, Integer start, Integer end) {
+		List<?> list = event.getObject();
 		if (list.isEmpty()) {
 			return list;
 		}

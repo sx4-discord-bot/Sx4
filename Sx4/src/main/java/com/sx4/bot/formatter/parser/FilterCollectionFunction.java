@@ -14,8 +14,8 @@ public class FilterCollectionFunction extends FormatterFunction<Collection> {
 		super(Collection.class, "filter");
 	}
 
-	public List<?> parse(FormatterEvent event, String lambda) {
-		Collection<?> collection = (Collection<?>) event.getObject();
+	public List<?> parse(FormatterEvent<Collection<?>> event, String lambda) {
+		Collection<?> collection = event.getObject();
 
 		List<Object> newList = new ArrayList<>();
 		for (Object element : collection) {

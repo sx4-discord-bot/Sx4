@@ -22,10 +22,12 @@ public class AvatarCommand extends Sx4Command {
 	public void onCommand(Sx4CommandEvent event, @Argument(value="user", endless=true, nullDefault=true) Member member) {
 		User user = member == null ? event.getAuthor() : member.getUser();
 
+		String avatar = user.getEffectiveAvatarUrl() + "?size=1024";
+
 		EmbedBuilder embed = new EmbedBuilder()
-			.setImage(user.getEffectiveAvatarUrl())
+			.setImage(avatar)
 			.setColor(member == null ? event.getMember().getColorRaw() : member.getColorRaw())
-			.setAuthor(user.getAsTag(), user.getEffectiveAvatarUrl(), user.getEffectiveAvatarUrl());
+			.setAuthor(user.getAsTag(), avatar, avatar);
 
 		event.reply(embed.build()).queue();
 	}

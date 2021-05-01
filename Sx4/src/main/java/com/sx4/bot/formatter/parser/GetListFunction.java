@@ -11,8 +11,8 @@ public class GetListFunction extends FormatterFunction<List> {
 		super(List.class, "get");
 	}
 
-	public Object parse(FormatterEvent event, Integer index) {
-		List<?> list = (List<?>) event.getObject();
+	public Object parse(FormatterEvent<List<?>> event, Integer index) {
+		List<?> list = event.getObject();
 
 		int size = list.size();
 		if (index < 0) {

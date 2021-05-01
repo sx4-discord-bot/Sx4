@@ -9,8 +9,8 @@ public class MultiplicationFunction extends FormatterFunction<Number> {
 		super(Number.class, "multiply");
 	}
 
-	public Number parse(FormatterEvent event, Number number) {
-		return ((Number) event.getObject()).doubleValue() * number.doubleValue();
+	public Number parse(FormatterEvent<Number> event, Number number) {
+		return event.getObject().doubleValue() * number.doubleValue();
 	}
 
 }

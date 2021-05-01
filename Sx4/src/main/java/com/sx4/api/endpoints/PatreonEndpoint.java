@@ -1,10 +1,7 @@
 package com.sx4.api.endpoints;
 
 import com.sx4.bot.core.Sx4;
-import com.sx4.bot.events.patreon.PatreonMemberUpdateEvent;
-import com.sx4.bot.events.patreon.PatreonPledgeCreateEvent;
-import com.sx4.bot.events.patreon.PatreonPledgeDeleteEvent;
-import com.sx4.bot.events.patreon.PatreonPledgeUpdateEvent;
+import com.sx4.bot.events.patreon.PatreonEvent;
 import com.sx4.bot.utility.HmacUtility;
 import org.bson.Document;
 
@@ -40,7 +37,11 @@ public class PatreonEndpoint {
 		}
 		
 		Document document = Document.parse(body);
-		int centsDonated = document.getEmbedded(List.of("data", "attributes", "currently_entitled_amount_cents"), int.class);
+
+		int totalAmount = document.getEmbedded(List.of("data", "attributes", "lifetime_support_cents"), 0);
+		if (totalAmount == 0) {
+			return Response.status(204).build();
+		}
 		
 		Document user = document.getList("included", Document.class).stream()
 			.filter(included -> included.getString("type").equals("user"))
@@ -48,21 +49,9 @@ public class PatreonEndpoint {
 			.orElse(null);
 	    
 	    if (user != null) {
-	        String discordIdString = user.getEmbedded(List.of("attributes", "social_connections", "discord", "user_id"), String.class), id = user.getString("id");
-	        long discordId = discordIdString == null ? 0L : Long.parseLong(discordIdString);
-
-			switch (event) {
-				case "members:pledge:delete":
-					this.bot.getPatreonManager().onPatreon(new PatreonPledgeDeleteEvent(discordId, id));
-					break;
-				case "members:pledge:update":
-					this.bot.getPatreonManager().onPatreon(new PatreonPledgeUpdateEvent(discordId, id, centsDonated));
-					break;
-				case "members:pledge:create":
-					this.bot.getPatreonManager().onPatreon(new PatreonPledgeCreateEvent(discordId, id, centsDonated));
-					break;
-				case "members:update":
-					this.bot.getPatreonManager().onPatreon(new PatreonMemberUpdateEvent(discordId, id));
+	        String discordId = user.getEmbedded(List.of("attributes", "social_connections", "discord", "user_id"), String.class);
+	        if (discordId != null) {
+				this.bot.getPatreonManager().onPatreonEvent(new PatreonEvent(Long.parseLong(discordId), totalAmount));
 			}
 	    }
 		
