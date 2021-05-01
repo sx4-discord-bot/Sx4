@@ -12,6 +12,7 @@ import com.sx4.bot.utility.EconomyUtility;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.TimeUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
+import net.dv8tion.jda.api.Permission;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 
@@ -27,6 +28,7 @@ public class FishCommand extends Sx4Command {
 
 		super.setDescription("Fish every 5 minutes and start making some money");
 		super.setExamples("fish");
+		super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
 		super.setCategoryAll(ModuleCategory.ECONOMY);
 	}
 

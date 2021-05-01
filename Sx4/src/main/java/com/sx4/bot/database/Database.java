@@ -249,6 +249,10 @@ public class Database {
 		return this.getItems(filter, projection).first();
 	}
 
+	public CompletableFuture<AggregateIterable<Document>> aggregateItems(List<Bson> pipeline) {
+		return CompletableFuture.supplyAsync(() -> this.items.aggregate(pipeline));
+	}
+
 	public CompletableFuture<UpdateResult> updateItem(Bson filter, Bson update, UpdateOptions options) {
 		return CompletableFuture.supplyAsync(() -> this.items.updateOne(filter, update, options));
 	}

@@ -62,7 +62,12 @@ public class ItemStack<Type extends Item> implements Comparable<ItemStack<Type>>
 	}
 	
 	public String toString() {
-		return this.getName() + " x" + this.amount;
+		String string = this.getName() + " x" + this.amount;
+		if (this.getItem() instanceof Tool) {
+			return string + " (" + ((Tool) this.getItem()).getCurrentDurability() + " Durability)";
+		}
+
+		return string;
 	}
 	
 	public Document toData() {
