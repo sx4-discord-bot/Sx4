@@ -10,12 +10,12 @@ public class Tool extends Item {
 	private final List<ItemStack<Material>> craft;
 	private final Material repairItem;
 
-	public Tool(String name, long price, ItemType type, int maxDurability, List<ItemStack<Material>> craft, Material repairItem) {
-		this(name, price, type, maxDurability, maxDurability, craft, repairItem);
+	public Tool(int id, String name, long price, ItemType type, int maxDurability, List<ItemStack<Material>> craft, Material repairItem) {
+		this(id, name, price, type, maxDurability, maxDurability, craft, repairItem);
 	}
 	
-	public Tool(String name, long price, ItemType type, int currentDurability, int maxDurability, List<ItemStack<Material>> craft, Material repairItem) {
-		super(name, price, type);
+	public Tool(int id, String name, long price, ItemType type, int currentDurability, int maxDurability, List<ItemStack<Material>> craft, Material repairItem) {
+		super(id, name, price, type);
 		
 		this.currentDurability = currentDurability;
 		this.maxDurability = maxDurability;

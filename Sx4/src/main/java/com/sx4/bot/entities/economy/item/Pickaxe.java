@@ -13,6 +13,7 @@ public class Pickaxe extends Tool {
 	
 	public Pickaxe(Document data, Pickaxe defaultPickaxe) {
 		this(
+			defaultPickaxe.getId(),
 			defaultPickaxe.getName(), 
 			data.get("price", defaultPickaxe.getPrice()),
 			data.get("currentDurability", defaultPickaxe.getCurrentDurability()), 
@@ -25,16 +26,16 @@ public class Pickaxe extends Tool {
 		);
 	}
 
-	public Pickaxe(String name, long price, int currentDurability, int maxDurability, List<ItemStack<Material>> craft, Material repairItem, long minYield, long maxYield, double multiplier) {
-		super(name, price, ItemType.PICKAXE, currentDurability, maxDurability, craft, repairItem);
+	public Pickaxe(int id, String name, long price, int currentDurability, int maxDurability, List<ItemStack<Material>> craft, Material repairItem, long minYield, long maxYield, double multiplier) {
+		super(id, name, price, ItemType.PICKAXE, currentDurability, maxDurability, craft, repairItem);
 		
 		this.minYield = minYield;
 		this.maxYield = maxYield;
 		this.multiplier = multiplier;
 	}
 	
-	public Pickaxe(String name, long price, int maxDurability, List<ItemStack<Material>> craft, Material repairItem, long minYield, long maxYield, double multiplier) {
-		this(name, price, maxDurability, maxDurability, craft, repairItem, minYield, maxYield, multiplier);
+	public Pickaxe(int id, String name, long price, int maxDurability, List<ItemStack<Material>> craft, Material repairItem, long minYield, long maxYield, double multiplier) {
+		this(id, name, price, maxDurability, maxDurability, craft, repairItem, minYield, maxYield, multiplier);
 	}
 	
 	public double getMultiplier() {

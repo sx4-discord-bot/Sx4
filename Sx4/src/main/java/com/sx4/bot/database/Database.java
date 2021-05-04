@@ -109,7 +109,8 @@ public class Database {
 		this.guilds = this.database.getCollection("guilds");
 
 		this.items = this.database.getCollection("items");
-		this.items.createIndex(Indexes.descending("itemId"));
+		this.items.createIndex(Indexes.descending("userId", "item.id"));
+		this.items.createIndex(Indexes.descending("userId", "type"));
 
 		this.blacklists = this.database.getCollection("blacklists");
 		this.blacklists.createIndex(Indexes.descending("guildId"));

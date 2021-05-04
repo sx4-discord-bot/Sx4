@@ -66,16 +66,21 @@ public class FishCommand extends Sx4Command {
 			embed.appendDescription("\n\nYour fishing rod broke in the process");
 		}
 
+		Bson nameFilter = Filters.and(
+			Filters.eq("userId", event.getAuthor().getIdLong()),
+			Filters.eq("item.id", rod.getId())
+		);
+
 		CompletableFuture<Void> future;
 		if (rod.getCurrentDurability() == 1) {
-			future = event.getDatabase().deleteItem(filter).thenApply($ -> null);
+			future = event.getDatabase().deleteItem(nameFilter).thenApply($ -> null);
 		} else {
 			List<Bson> update = List.of(
 				EconomyUtility.getResetsUpdate(usableAmount, FishCommand.COOLDOWN),
 				Operators.set("item.currentDurability", Operators.subtract("$item.currentDurability", 1))
 			);
 
-			future = event.getDatabase().updateItem(filter, update, new UpdateOptions()).thenApply($ -> null);
+			future = event.getDatabase().updateItem(nameFilter, update, new UpdateOptions()).thenApply($ -> null);
 		}
 
 		future.thenCompose($ -> {

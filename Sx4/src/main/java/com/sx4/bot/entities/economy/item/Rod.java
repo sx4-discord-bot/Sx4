@@ -12,6 +12,7 @@ public class Rod extends Tool {
 	
 	public Rod(Document data, Rod defaultRod) {
 		this(
+			defaultRod.getId(),
 			defaultRod.getName(), 
 			data.get("price", defaultRod.getPrice()),
 			data.get("currentDurability", defaultRod.getCurrentDurability()), 
@@ -23,15 +24,15 @@ public class Rod extends Tool {
 		);
 	}
 
-	public Rod(String name, long price, int currentDurability, int maxDurability, List<ItemStack<Material>> craft, Material repairItem, long minYield, long maxYield) {
-		super(name, price, ItemType.ROD, currentDurability, maxDurability, craft, repairItem);
+	public Rod(int id, String name, long price, int currentDurability, int maxDurability, List<ItemStack<Material>> craft, Material repairItem, long minYield, long maxYield) {
+		super(id, name, price, ItemType.ROD, currentDurability, maxDurability, craft, repairItem);
 		
 		this.minYield = minYield;
 		this.maxYield = maxYield;
 	}
 	
-	public Rod(String name, long price, int maxDurability, List<ItemStack<Material>> craft, Material repairItem, long minYield, long maxYield) {
-		this(name, price, maxDurability, maxDurability, craft, repairItem, minYield, maxYield);
+	public Rod(int id, String name, long price, int maxDurability, List<ItemStack<Material>> craft, Material repairItem, long minYield, long maxYield) {
+		this(id, name, price, maxDurability, maxDurability, craft, repairItem, minYield, maxYield);
 	}
 
 	public long getYield(Random random) {

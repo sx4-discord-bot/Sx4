@@ -15,8 +15,8 @@ public class ItemStack<Type extends Item> implements Comparable<ItemStack<Type>>
 	public ItemStack(EconomyManager manager, Document data) {
 		Document item = data.get("item", Document.class);
 
-		Item defaultItem = manager.getItemByName(item.getString("name"));
 		ItemType type = ItemType.fromType(data.getInteger("type"));
+		Item defaultItem = manager.getItemById(item.getInteger("id"));
 		
 		this.item = (Type) type.create(item, defaultItem);
 		this.amount = data.getLong("amount");
@@ -63,8 +63,8 @@ public class ItemStack<Type extends Item> implements Comparable<ItemStack<Type>>
 	
 	public String toString() {
 		String string = this.getName() + " x" + this.amount;
-		if (this.getItem() instanceof Tool) {
-			return string + " (" + ((Tool) this.getItem()).getCurrentDurability() + " Durability)";
+		if (this.item instanceof Tool) {
+			return string + " (" + ((Tool) this.item).getCurrentDurability() + " Durability)";
 		}
 
 		return string;

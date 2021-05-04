@@ -8,18 +8,18 @@ public class Material extends Item {
 	private final boolean hidden;
 	
 	public Material(Document data, Material defaultMaterial) {
-		this(defaultMaterial.getName(), defaultMaterial.getPrice(), defaultMaterial.getEmote(), defaultMaterial.isHidden());
+		this(defaultMaterial.getId(), defaultMaterial.getName(), defaultMaterial.getPrice(), defaultMaterial.getEmote(), defaultMaterial.isHidden());
 	}
 
-	public Material(String name, long price, ItemType type, String emote, boolean hidden) {
-		super(name, price, type);
+	public Material(int id, String name, long price, ItemType type, String emote, boolean hidden) {
+		super(id, name, price, type);
 		
 		this.emote = emote;
 		this.hidden = hidden;
 	}
 	
-	public Material(String name, long price, String emote, boolean hidden) {
-		super(name, price, ItemType.MATERIAL);
+	public Material(int id, String name, long price, String emote, boolean hidden) {
+		super(id, name, price, ItemType.MATERIAL);
 		
 		this.emote = emote;
 		this.hidden = hidden;
@@ -32,13 +32,5 @@ public class Material extends Item {
 	public boolean isHidden() {
 		return this.hidden;
 	}
-	
-	/*public static Material getFromName(String name) {
-		return EconomyManager.get().getItems(ItemType.MATERIAL).stream()
-			.filter(item -> item.getName().equalsIgnoreCase(name))
-			.map(Material.class::cast)
-			.findFirst()
-			.orElse(null);
-	}*/
 	
 }

@@ -1,68 +1,1061 @@
 {
-	"material": [
+	"envelope": [
 		{
-			"name": "Copper",
-			"price": 600,
-			"hidden": false,
-			"emote": ""
+			"name": "Shoe Envelope",
+			"price": 1,
+			"id": 0
 		},
 		{
-			"name": "Coal",
+			"name": "Coal Envelope",
 			"price": 50,
-			"hidden": false,
-			"emote": ""
+			"id": 1
+		},
+		{
+			"name": "Copper Envelope",
+			"price": 300,
+			"id": 2
+		},
+		{
+			"name": "Bronze Envelope",
+			"price": 1000,
+			"id": 3
+		},
+		{
+			"name": "Iron Envelope",
+			"price": 5000,
+			"id": 4
+		},
+		{
+			"name": "Aluminium Envelope",
+			"price": 10000,
+			"id": 5
+		},
+		{
+			"name": "Oil Envelope",
+			"price": 17500,
+			"id": 6
+		},
+		{
+			"name": "Gold Envelope",
+			"price": 35000,
+			"id": 7
+		},
+		{
+			"name": "Titanium Envelope",
+			"price": 90000,
+			"id": 8
+		},
+		{
+			"name": "Uranium Envelope",
+			"price": 150000,
+			"id": 9
+		},
+		{
+			"name": "Bitcoin Envelope",
+			"price": 275000,
+			"id": 10
+		},
+		{
+			"name": "Platinum Envelope",
+			"price": 400000,
+			"id": 11
+		},
+		{
+			"name": "Diamond Envelope",
+			"price": 1000000,
+			"id": 12
+		}
+	],
+	"miner": [
+		{
+			"maxMaterials": 1,
+			"multiplier": 10,
+			"name": "Stone Miner",
+			"price": 3000,
+			"id": 13
+		},
+		{
+			"maxMaterials": 2,
+			"multiplier": 8,
+			"name": "Copper Miner",
+			"price": 4500,
+			"id": 14
+		},
+		{
+			"maxMaterials": 3,
+			"multiplier": 6,
+			"name": "Bronze Miner",
+			"price": 5000,
+			"id": 15
+		},
+		{
+			"maxMaterials": 7,
+			"multiplier": 11,
+			"name": "Gold Miner",
+			"price": 7500,
+			"id": 16
+		},
+		{
+			"maxMaterials": 4,
+			"multiplier": 3,
+			"name": "Iron Miner",
+			"price": 15000,
+			"id": 17
+		},
+		{
+			"maxMaterials": 5,
+			"multiplier": 1.8,
+			"name": "Titanium Miner",
+			"price": 30000,
+			"id": 18
+		},
+		{
+			"maxMaterials": 6,
+			"multiplier": 1.2,
+			"name": "Uranium Miner",
+			"price": 100000,
+			"id": 19
+		},
+		{
+			"maxMaterials": 8,
+			"multiplier": 1.2,
+			"name": "Bitcoin Miner",
+			"price": 150000,
+			"id": 20
+		},
+		{
+			"maxMaterials": 10,
+			"multiplier": 1,
+			"name": "Platinum Miner",
+			"price": 275000,
+			"id": 21
+		}
+	],
+	"material": [
+		{
+			"emote": ":athletic_shoe:",
+			"name": "Shoe",
+			"price": 2,
+			"id": 22
+		},
+		{
+			"emote": "<:coal:441006067523256350>",
+			"name": "Coal",
+			"price": 20,
+			"id": 23
+		},
+		{
+			"emote": "<:copper:441006065828757504>",
+			"name": "Copper",
+			"price": 50,
+			"id": 24
+		},
+		{
+			"emote": "<:bronze:441006064381460494>",
+			"name": "Bronze",
+			"price": 80,
+			"id": 25
+		},
+		{
+			"emote": "<:iron:441006065069326357>",
+			"name": "Iron",
+			"price": 125,
+			"id": 26
+		},
+		{
+			"emote": "<:aluminium:441006064545300491>",
+			"name": "Aluminium",
+			"price": 200,
+			"id": 27
+		},
+		{
+			"emote": "<:oil:441006064243179531>",
+			"name": "Oil",
+			"price": 300,
+			"id": 28
+		},
+		{
+			"emote": "<:gold:441006068328300551>",
+			"name": "Gold",
+			"price": 500,
+			"id": 29
+		},
+		{
+			"emote": ":snowflake:",
+			"hidden": true,
+			"name": "Snowflake",
+			"price": 750,
+			"id": 30
+		},
+		{
+			"emote": ":jack_o_lantern:",
+			"hidden": true,
+			"name": "Pumpkin",
+			"price": 750,
+			"id": 31
+		},
+		{
+			"emote": "<:titanium:441006065639751683>",
+			"name": "Titanium",
+			"price": 1000,
+			"id": 32
+		},
+		{
+			"emote": "<:uranium:441006059348295680>",
+			"name": "Uranium",
+			"price": 5500,
+			"id": 33
+		},
+		{
+			"emote": "<:bitcoin:441006066273353750>",
+			"name": "Bitcoin",
+			"price": 17500,
+			"id": 34
+		},
+		{
+			"emote": "<:platinum:441006059008688139>",
+			"name": "Platinum",
+			"price": 75000,
+			"id": 35
+		},
+		{
+			"emote": "<:diamond:441251890186158081>",
+			"name": "Diamond",
+			"price": 500000,
+			"id": 36
+		}
+	],
+	"factory": [
+		{
+			"cost": {
+				"material": 22,
+				"amount": 400
+			},
+			"minYield": 6,
+			"maxYield": 16,
+			"name": "Shoe Factory",
+			"id": 37
+		},
+		{
+			"cost": {
+				"material": 23,
+				"amount": 200
+			},
+			"minYield": 25,
+			"maxYield": 45,
+			"name": "Coal Factory",
+			"id": 38
+		},
+		{
+			"cost": {
+				"material": 24,
+				"amount": 175
+			},
+			"minYield": 25,
+			"maxYield": 50,
+			"name": "Copper Factory",
+			"id": 39
+		},
+		{
+			"cost": {
+				"material": 25,
+				"amount": 125
+			},
+			"minYield": 35,
+			"maxYield": 70,
+			"name": "Bronze Factory",
+			"id": 40
+		},
+		{
+			"cost": {
+				"material": 26,
+				"amount": 100
+			},
+			"minYield": 100,
+			"maxYield": 130,
+			"name": "Iron Factory",
+			"id": 41
+		},
+		{
+			"cost": {
+				"material": 27,
+				"amount": 85
+			},
+			"minYield": 115,
+			"maxYield": 180,
+			"name": "Aluminium Factory",
+			"id": 42
+		},
+		{
+			"cost": {
+				"material": 28,
+				"amount": 75
+			},
+			"minYield": 150,
+			"maxYield": 220,
+			"name": "Oil Factory",
+			"id": 43
+		},
+		{
+			"cost": {
+				"material": 29,
+				"amount": 40
+			},
+			"minYield": 180,
+			"maxYield": 236,
+			"name": "Gold Factory",
+			"id": 44
+		},
+		{
+			"cost": {
+				"material": 30,
+				"amount": 20
+			},
+			"minYield": 120,
+			"maxYield": 300,
+			"name": "Snowflake Factory",
+			"id": 45
+		},
+		{
+			"cost": {
+				"material": 31,
+				"amount": 20
+			},
+			"minYield": 120,
+			"maxYield": 300,
+			"name": "Pumpkin Factory",
+			"id": 46
+		},
+		{
+			"cost": {
+				"material": 32,
+				"amount": 20
+			},
+			"minYield": 170,
+			"maxYield": 236,
+			"name": "Titanium Factory",
+			"id": 47
+		},
+		{
+			"cost": {
+				"material": 33,
+				"amount": 15
+			},
+			"minYield": 400,
+			"maxYield": 500,
+			"name": "Uranium Factory",
+			"id": 48
+		},
+		{
+			"cost": {
+				"material": 34,
+				"amount": 10
+			},
+			"minYield": 1250,
+			"maxYield": 1700,
+			"name": "Bitcoin Factory",
+			"id": 49
+		},
+		{
+			"cost": {
+				"material": 35,
+				"amount": 8
+			},
+			"minYield": 3000,
+			"maxYield": 5250,
+			"name": "Platinum Factory",
+			"id": 50
+		},
+		{
+			"cost": {
+				"material": 36,
+				"amount": 5
+			},
+			"minYield": 5000,
+			"maxYield": 20000,
+			"name": "Diamond Factory",
+			"id": 51
+		}
+	],
+	"crate": [
+		{
+			"openable": false,
+			"name": "Present Crate",
+			"price": 100000,
+			"purchasable": false,
+			"id": 52
+		},
+		{
+			"openable": true,
+			"name": "Shoe Crate",
+			"price": 225,
+			"id": 53
+		},
+		{
+			"openable": true,
+			"name": "Coal Crate",
+			"price": 340,
+			"id": 54
+		},
+		{
+			"openable": true,
+			"name": "Copper Crate",
+			"price": 600,
+			"credits": 10,
+			"id": 55
+		},
+		{
+			"openable": true,
+			"name": "Bronze Crate",
+			"price": 1750,
+			"credits": 28,
+			"id": 56
+		},
+		{
+			"openable": true,
+			"name": "Gold Crate",
+			"price": 2500,
+			"credits": 39,
+			"id": 57
+		},
+		{
+			"openable": true,
+			"name": "Iron Crate",
+			"price": 6700,
+			"credits": 107,
+			"id": 58
+		},
+		{
+			"openable": true,
+			"name": "Oil Crate",
+			"price": 12000,
+			"credits": 192,
+			"id": 59
+		},
+		{
+			"openable": true,
+			"name": "Titanium Crate",
+			"price": 22500,
+			"credits": 356,
+			"id": 60
+		},
+		{
+			"openable": true,
+			"name": "Uranium Crate",
+			"price": 56250,
+			"credits": 881,
+			"id": 61
+		},
+		{
+			"openable": true,
+			"name": "Bitcoin Crate",
+			"price": 185000,
+			"credits": 2867,
+			"id": 62
+		},
+		{
+			"openable": true,
+			"name": "Platinum Crate",
+			"price": 300000,
+			"credits": 4600,
+			"id": 63
+		},
+		{
+			"openable": true,
+			"name": "Diamond Crate",
+			"price": 460000,
+			"credits": 6976,
+			"id": 64
 		}
 	],
 	"wood": [
 		{
-			"name": "Birchwood",
-			"price": 10,
-			"hidden": false,
-			"emote": ""
+			"name": "Oak",
+			"price": 75,
+			"id": 65
 		},
 		{
-			"name": "Oak",
-			"price": 1,
-			"hidden": false,
-			"emote": ""
+			"name": "Cherrywood",
+			"price": 175,
+			"id": 66
+		},
+		{
+			"name": "Birchwood",
+			"price": 300,
+			"id": 67
+		},
+		{
+			"name": "Kingwood",
+			"price": 375,
+			"id": 68
+		},
+		{
+			"name": "Snakewood",
+			"price": 500,
+			"id": 69
 		}
 	],
 	"fishing_rod": [
 		{
-			"name": "Coal Rod",
+			"minYield": 32,
+			"maxYield": 35,
+			"craft": [],
+			"durability": 20,
+			"name": "Stone Rod",
 			"price": 600,
+			"id": 71
+		},
+		{
+			"minYield": 37,
+			"maxYield": 46,
 			"craft": [
 				{
-					"item": "Coal",
-					"amount": 7
+					"material": 67,
+					"amount": 1
 				},
 				{
-					"item": "Oak",
+					"material": 24,
+					"amount": 14
+				}
+			],
+			"durability": 25,
+			"repairItem": 24,
+			"name": "Copper Rod",
+			"price": 1000,
+			"id": 72
+		},
+		{
+			"minYield": 50,
+			"maxYield": 58,
+			"craft": [
+				{
+					"material": 67,
+					"amount": 2
+				},
+				{
+					"material": 25,
+					"amount": 8
+				}
+			],
+			"durability": 25,
+			"repairItem": 25,
+			"name": "Bronze Rod",
+			"price": 1300,
+			"id": 73
+		},
+		{
+			"minYield": 240,
+			"maxYield": 290,
+			"craft": [
+				{
+					"material": 65,
+					"amount": 8
+				},
+				{
+					"material": 29,
 					"amount": 3
 				}
 			],
-			"repairItem": "Coal",
-			"minYield": 32,
-			"maxYield": 35,
-			"durability": 20
+			"durability": 10,
+			"repairItem": 29,
+			"name": "Gold Rod",
+			"price": 2400,
+			"id": 74
 		},
 		{
-			"name": "Copper Rod",
-			"price": 1000,
+			"minYield": 55,
+			"maxYield": 75,
 			"craft": [
 				{
-					"item": "Copper",
+					"material": 69,
+					"amount": 2
+				},
+				{
+					"material": 26,
+					"amount": 15
+				}
+			],
+			"durability": 55,
+			"repairItem": 26,
+			"name": "Iron Rod",
+			"price": 3300,
+			"id": 75
+		},
+		{
+			"minYield": 104,
+			"maxYield": 120,
+			"craft": [
+				{
+					"material": 66,
+					"amount": 8
+				},
+				{
+					"material": 32,
+					"amount": 4
+				}
+			],
+			"durability": 60,
+			"repairItem": 32,
+			"name": "Titanium Rod",
+			"price": 6500,
+			"id": 76
+		},
+		{
+			"minYield": 550,
+			"maxYield": 800,
+			"craft": [
+				{
+					"material": 65,
+					"amount": 20
+				},
+				{
+					"material": 33,
+					"amount": 2
+				}
+			],
+			"durability": 25,
+			"repairItem": 33,
+			"name": "Uranium Rod",
+			"price": 15000,
+			"id": 77
+		},
+		{
+			"minYield": 1350,
+			"maxYield": 2000,
+			"craft": [
+				{
+					"material": 69,
+					"amount": 10
+				},
+				{
+					"material": 34,
+					"amount": 2
+				}
+			],
+			"durability": 30,
+			"repairItem": 34,
+			"name": "Bitcoin Rod",
+			"price": 45000,
+			"id": 78
+		},
+		{
+			"minYield": 1750,
+			"maxYield": 2350,
+			"craft": [
+				{
+					"material": 66,
 					"amount": 14
 				},
 				{
-					"item": "Birchwood",
+					"material": 35,
 					"amount": 1
 				}
 			],
-			"repairItem": "Copper",
-			"minYield": 45,
-			"maxYield": 52,
-			"durability": 25
+			"durability": 50,
+			"repairItem": 35,
+			"name": "Platinum Rod",
+			"price": 90000,
+			"id": 79
+		},
+		{
+			"minYield": 3175,
+			"maxYield": 3900,
+			"craft": [],
+			"durability": 75,
+			"name": "Sx4 Rod",
+			"price": 250000,
+			"id": 80
+		}
+	],
+	"pickaxe": [
+		{
+			"minYield": 15,
+			"maxYield": 25,
+			"multiplier": 0.2,
+			"craft": [
+				{
+					"material": 65,
+					"amount": 3
+				}
+			],
+			"durability": 15,
+			"repairItem": 65,
+			"name": "Wooden Pickaxe",
+			"price": 250,
+			"id": 81
+		},
+		{
+			"minYield": 30,
+			"maxYield": 45,
+			"multiplier": 0.3,
+			"craft": [],
+			"durability": 25,
+			"name": "Stone Pickaxe",
+			"price": 800,
+			"id": 82
+		},
+		{
+			"minYield": 40,
+			"maxYield": 60,
+			"multiplier": 0.42,
+			"craft": [
+				{
+					"material": 66,
+					"amount": 6
+				},
+				{
+					"material": 24,
+					"amount": 23
+				}
+			],
+			"durability": 35,
+			"repairItem": 24,
+			"name": "Copper Pickaxe",
+			"price": 1500,
+			"id": 83
+		},
+		{
+			"minYield": 60,
+			"maxYield": 72,
+			"multiplier": 0.53,
+			"craft": [
+				{
+					"material": 66,
+					"amount": 14
+				},
+				{
+					"material": 25,
+					"amount": 20
+				}
+			],
+			"durability": 35,
+			"repairItem": 25,
+			"name": "Bronze Pickaxe",
+			"price": 2250,
+			"id": 84
+		},
+		{
+			"minYield": 250,
+			"maxYield": 400,
+			"multiplier": 0.6,
+			"craft": [
+				{
+					"material": 67,
+					"amount": 5
+				},
+				{
+					"material": 29,
+					"amount": 7
+				}
+			],
+			"durability": 15,
+			"repairItem": 29,
+			"name": "Gold Pickaxe",
+			"price": 5000,
+			"id": 85
+		},
+		{
+			"minYield": 98,
+			"maxYield": 150,
+			"multiplier": 1.1,
+			"craft": [
+				{
+					"material": 67,
+					"amount": 12
+				},
+				{
+					"material": 26,
+					"amount": 35
+				}
+			],
+			"durability": 60,
+			"repairItem": 26,
+			"name": "Iron Pickaxe",
+			"price": 6000,
+			"id": 86
+		},
+		{
+			"minYield": 100,
+			"maxYield": 175,
+			"multiplier": 1.6,
+			"craft": [
+				{
+					"material": 68,
+					"amount": 8
+				},
+				{
+					"material": 32,
+					"amount": 8
+				}
+			],
+			"durability": 100,
+			"repairItem": 32,
+			"name": "Titanium Pickaxe",
+			"price": 10000,
+			"id": 87
+		},
+		{
+			"minYield": 2600,
+			"maxYield": 3100,
+			"multiplier": 2.0,
+			"craft": [
+				{
+					"material": 68,
+					"amount": 15
+				},
+				{
+					"material": 33,
+					"amount": 8
+				}
+			],
+			"durability": 20,
+			"repairItem": 33,
+			"name": "Uranium Pickaxe",
+			"price": 55000,
+			"id": 88
+		},
+		{
+			"minYield": 2450,
+			"maxYield": 2900,
+			"multiplier": 2.7,
+			"craft": [
+				{
+					"material": 69,
+					"amount": 5
+				},
+				{
+					"material": 34,
+					"amount": 5
+				}
+			],
+			"durability": 50,
+			"repairItem": 34,
+			"name": "Bitcoin Pickaxe",
+			"price": 125000,
+			"id": 89
+		},
+		{
+			"minYield": 4900,
+			"maxYield": 5700,
+			"multiplier": 3.1,
+			"craft": [
+				{
+					"material": 69,
+					"amount": 10
+				},
+				{
+					"material": 35,
+					"amount": 4
+				}
+			],
+			"durability": 80,
+			"repairItem": 35,
+			"name": "Platinum Pickaxe",
+			"price": 425000,
+			"id": 90
+		},
+		{
+			"minYield": 4850,
+			"maxYield": 5600,
+			"multiplier": 4.0,
+			"craft": [],
+			"durability": 200,
+			"name": "Sx4 Pickaxe",
+			"price": 1000000,
+			"id": 91
+		}
+	],
+	"axe": [
+		{
+			"maxMaterials": 1,
+			"multiplier": 0.12,
+			"craft": [
+				{
+					"material": 65,
+					"amount": 2
+				}
+			],
+			"durability": 12,
+			"repairItem": 65,
+			"name": "Wooden Axe",
+			"price": 180,
+			"id": 92
+		},
+		{
+			"maxMaterials": 1,
+			"multiplier": 0.24,
+			"craft": [
+				{
+					"material": 65,
+					"amount": 2
+				},
+				{
+					"material": 23,
+					"amount": 10
+				}
+			],
+			"durability": 10,
+			"repairItem": 23,
+			"name": "Coal Axe",
+			"price": 375,
+			"id": 93
+		},
+		{
+			"maxMaterials": 1,
+			"multiplier": 0.18,
+			"craft": [
+				{
+					"material": 65,
+					"amount": 4
+				},
+				{
+					"material": 24,
+					"amount": 6
+				}
+			],
+			"durability": 25,
+			"repairItem": 24,
+			"name": "Copper Axe",
+			"price": 620,
+			"id": 94
+		},
+		{
+			"maxMaterials": 1,
+			"multiplier": 0.2,
+			"craft": [
+				{
+					"material": 66,
+					"amount": 2
+				},
+				{
+					"material": 25,
+					"amount": 7
+				}
+			],
+			"durability": 28,
+			"repairItem": 25,
+			"name": "Bronze Axe",
+			"price": 780,
+			"id": 95
+		},
+		{
+			"maxMaterials": 5,
+			"multiplier": 0.15,
+			"craft": [
+				{
+					"material": 66,
+					"amount": 1
+				},
+				{
+					"material": 29,
+					"amount": 2
+				}
+			],
+			"durability": 18,
+			"repairItem": 29,
+			"name": "Gold Axe",
+			"price": 1200,
+			"id": 96
+		},
+		{
+			"maxMaterials": 1,
+			"multiplier": 0.28,
+			"craft": [
+				{
+					"material": 67,
+					"amount": 2
+				},
+				{
+					"material": 26,
+					"amount": 6
+				}
+			],
+			"durability": 35,
+			"repairItem": 26,
+			"name": "Iron Axe",
+			"price": 1750,
+			"id": 97
+		},
+		{
+			"maxMaterials": 2,
+			"multiplier": 0.4,
+			"craft": [
+				{
+					"material": 67,
+					"amount": 3
+				},
+				{
+					"material": 32,
+					"amount": 3
+				}
+			],
+			"durability": 42,
+			"repairItem": 32,
+			"name": "Titanium Axe",
+			"price": 4200,
+			"id": 98
+		},
+		{
+			"maxMaterials": 3,
+			"multiplier": 0.6,
+			"craft": [
+				{
+					"material": 68,
+					"amount": 10
+				},
+				{
+					"material": 33,
+					"amount": 1
+				}
+			],
+			"durability": 32,
+			"repairItem": 33,
+			"name": "Uranium Axe",
+			"price": 9750,
+			"id": 99
+		},
+		{
+			"maxMaterials": 4,
+			"multiplier": 0.53,
+			"craft": [
+				{
+					"material": 69,
+					"amount": 1
+				},
+				{
+					"material": 34,
+					"amount": 1
+				}
+			],
+			"durability": 45,
+			"repairItem": 34,
+			"name": "Bitcoin Axe",
+			"price": 18200,
+			"id": 100
+		},
+		{
+			"maxMaterials": 5,
+			"multiplier": 0.65,
+			"craft": [
+				{
+					"material": 35,
+					"amount": 1
+				}
+			],
+			"durability": 55,
+			"repairItem": 35,
+			"name": "Platinum Axe",
+			"price": 32000,
+			"id": 101
+		},
+		{
+			"maxMaterials": 6,
+			"multiplier": 0.85,
+			"craft": [],
+			"durability": 60,
+			"name": "Sx4 Axe",
+			"price": 63000,
+			"id": 102
 		}
 	]
 }

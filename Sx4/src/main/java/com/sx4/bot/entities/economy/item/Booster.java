@@ -5,11 +5,11 @@ import org.bson.Document;
 public class Booster extends Item {
 	
 	public Booster(Document data, Booster defaultBooster) {
-		this(defaultBooster.getName(), defaultBooster.getPrice());
+		this(defaultBooster.getId(), defaultBooster.getName(), defaultBooster.getPrice());
 	}
 
-	public Booster(String name, long price) {
-		super(name, price, ItemType.BOOSTER);
+	public Booster(int id, String name, long price) {
+		super(id, name, price, ItemType.BOOSTER);
 	}
 	
 }

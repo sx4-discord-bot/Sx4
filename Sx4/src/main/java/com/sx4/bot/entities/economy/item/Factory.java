@@ -9,11 +9,11 @@ public class Factory extends Item {
 	private final ItemStack<Material> cost;
 	
 	public Factory(Document data, Factory defaultFactory) {
-		this(defaultFactory.getName(), defaultFactory.getCost(), defaultFactory.getMinYield(), defaultFactory.getMaxYield());
+		this(defaultFactory.getId(), defaultFactory.getName(), defaultFactory.getCost(), defaultFactory.getMinYield(), defaultFactory.getMaxYield());
 	}
 
-	public Factory(String name, ItemStack<Material> cost, long minYield, long maxYield) {
-		super(name, cost.getItem().getPrice() * cost.getAmount(), ItemType.FACTORY);
+	public Factory(int id, String name, ItemStack<Material> cost, long minYield, long maxYield) {
+		super(id, name, cost.getItem().getPrice() * cost.getAmount(), ItemType.FACTORY);
 		
 		this.cost = cost;
 		this.maxYield = maxYield;

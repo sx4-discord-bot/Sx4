@@ -56,13 +56,13 @@ public class ItemsCommand extends Sx4Command {
 				.setAuthor("Items", null, effectiveMember.getUser().getEffectiveAvatarUrl())
 				.setColor(effectiveMember.getColorRaw());
 
-			StringBuilder footer = new StringBuilder("If a category isn't shown it means you have no items in that category | Balance: $");
-
 			List<Document> items = data.into(new ArrayList<>());
 			if (items.size() == 1) {
 				event.replyFailure("That user does not have any items").queue();
 				return;
 			}
+
+			StringBuilder footer = new StringBuilder("If a category isn't shown it means you have no items in that category | Balance: $");
 
 			for (Document item : items) {
 				String name = item.getString("_id");

@@ -31,7 +31,7 @@ public class SearchUtility {
 	public static final Pattern EMOTE_MENTION = Pattern.compile("<(a)?:(\\w+):([0-9]+)>");
 	public static final Pattern EMOTE_URL = Pattern.compile("https?://cdn\\.discordapp\\.com/emojis/([0-9]+)\\.(png|gif|jpeg|jpg)(?:\\?\\S*)?(?:#\\S*)?", Pattern.CASE_INSENSITIVE);
 	
-	private static <Type> Type find(Iterable<Type> iterable, String query, List<Function<Type, String>> nameFunctions) {
+	public static <Type> Type find(Iterable<Type> iterable, String query, List<Function<Type, String>> nameFunctions) {
 		List<Type> startsWith = new ArrayList<>();
 		List<Type> contains = new ArrayList<>();
 

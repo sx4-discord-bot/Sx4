@@ -6,11 +6,15 @@ public class Item {
 
 	private final long price;
 	private final String name;
+	private final int id;
+	//private final boolean purchasable;
 	private final ItemType type;
 	
-	public Item(String name, long price, ItemType type) {
+	public Item(int id, String name, long price, /*boolean purchasable,*/ ItemType type) {
 		this.price = price;
 		this.name = name;
+		this.id = id;
+		//this.purchasable = purchasable;
 		this.type = type;
 	}
 	
@@ -18,12 +22,16 @@ public class Item {
 		return this.price;
 	}
 	
-	public boolean isBuyable() {
-		return this.price != -1;
-	}
+	/*public boolean isPurchasable() {
+		return this.purchasable;
+	}*/
 	
 	public String getName() {
 		return this.name;
+	}
+
+	public int getId() {
+		return this.id;
 	}
 	
 	public ItemType getType() {
