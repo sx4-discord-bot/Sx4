@@ -5,8 +5,8 @@ import com.mongodb.client.model.FindOneAndUpdateOptions;
 import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.ReturnDocument;
 import com.sx4.bot.core.Sx4;
-import com.sx4.bot.database.Database;
-import com.sx4.bot.database.model.Operators;
+import com.sx4.bot.database.mongo.MongoDatabase;
+import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.management.WhitelistType;
 import com.sx4.bot.entities.mod.Reason;
 import com.sx4.bot.entities.mod.action.Action;
@@ -80,7 +80,7 @@ public class AntiRegexHandler implements EventListener {
             Category parent = textChannel.getParent();
             List<Role> roles = member.getRoles();
 
-            List<Document> regexes = this.bot.getDatabase().getRegexes(Filters.eq("guildId", guildId), Database.EMPTY_DOCUMENT).into(new ArrayList<>());
+            List<Document> regexes = this.bot.getMongo().getRegexes(Filters.eq("guildId", guildId), MongoDatabase.EMPTY_DOCUMENT).into(new ArrayList<>());
 
             String content = message.getContentRaw();
 
@@ -95,7 +95,7 @@ public class AntiRegexHandler implements EventListener {
                 Document channel = channels.stream()
                     .filter(d -> (d.getInteger("type") == WhitelistType.CHANNEL.getId() && d.getLong("id") == channelId) || (d.getInteger("type") == WhitelistType.CATEGORY.getId() && parent != null && d.getLong("id") == parent.getIdLong()))
                     .min(Comparator.comparingInt(d -> d.getInteger("type", 0)))
-                    .orElse(Database.EMPTY_DOCUMENT);
+                    .orElse(MongoDatabase.EMPTY_DOCUMENT);
 
                 List<Document> holders = channel.getList("holders", Document.class, Collections.emptyList());
                 for (Document holder : holders) {
@@ -172,15 +172,15 @@ public class AntiRegexHandler implements EventListener {
 
                 int currentAttempts = this.bot.getAntiRegexManager().getAttempts(id, userId);
 
-                Document match = regex.get("match", Database.EMPTY_DOCUMENT);
+                Document match = regex.get("match", MongoDatabase.EMPTY_DOCUMENT);
                 long matchAction = match.get("action", MatchAction.ALL);
 
-                Document mod = regex.get("mod", Database.EMPTY_DOCUMENT);
+                Document mod = regex.get("mod", MongoDatabase.EMPTY_DOCUMENT);
                 Document actionData = mod.get("action", Document.class);
 
                 Action action = actionData == null ? null : Action.fromData(actionData);
 
-                Document attempts = regex.get("attempts", Database.EMPTY_DOCUMENT);
+                Document attempts = regex.get("attempts", MongoDatabase.EMPTY_DOCUMENT);
                 int maxAttempts = attempts.get("amount", 3);
 
                 String matchMessage = this.format(match.get("message", type.getDefaultMatchMessage()),
@@ -203,7 +203,7 @@ public class AntiRegexHandler implements EventListener {
                         }
 
                         Bson filter = Filters.and(Filters.eq("userId", userId), Filters.eq("regexId", id));
-                        return this.bot.getDatabase().deleteRegexAttempt(filter);
+                        return this.bot.getMongo().deleteRegexAttempt(filter);
                     }).whenComplete((result, exception) -> {
                         Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
                         if (cause instanceof ModException) {
@@ -237,7 +237,7 @@ public class AntiRegexHandler implements EventListener {
                 Bson filter = Filters.and(Filters.eq("userId", userId), Filters.eq("regexId", id));
                 FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().upsert(true).projection(Projections.include("attempts")).returnDocument(ReturnDocument.AFTER);
 
-                this.bot.getDatabase().findAndUpdateRegexAttempt(filter, update, options).whenComplete((data, exception) -> {
+                this.bot.getMongo().findAndUpdateRegexAttempt(filter, update, options).whenComplete((data, exception) -> {
                     if (ExceptionUtility.sendErrorMessage(this.bot.getShardManager(), exception)) {
                         return;
                     }

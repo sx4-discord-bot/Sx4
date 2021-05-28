@@ -2,8 +2,8 @@ package com.sx4.bot.utility;
 
 import com.mongodb.client.model.*;
 import com.sx4.bot.core.Sx4;
-import com.sx4.bot.database.Database;
-import com.sx4.bot.database.model.Operators;
+import com.sx4.bot.database.mongo.MongoDatabase;
+import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.mod.Reason;
 import com.sx4.bot.entities.mod.action.*;
 import com.sx4.bot.events.mod.*;
@@ -34,7 +34,7 @@ public class ModUtility {
 		return (reason == null ? "None Given" : reason.getParsed()) + " [" + moderator.getAsTag() + "]";
 	}
 
-	public static CompletableFuture<Role> upsertMuteRole(Database database, Guild guild, long roleId, boolean autoUpdate) {
+	public static CompletableFuture<Role> upsertMuteRole(MongoDatabase database, Guild guild, long roleId, boolean autoUpdate) {
 		if (roleId != 0L) {
 			Role role = guild.getRoleById(roleId);
 			if (role != null) {
@@ -47,7 +47,7 @@ public class ModUtility {
 		}
 	}
 
-	private static CompletableFuture<Role> createMuteRole(Database database, Guild guild, boolean autoUpdate) {
+	private static CompletableFuture<Role> createMuteRole(MongoDatabase database, Guild guild, boolean autoUpdate) {
 		Member selfMember = guild.getSelfMember();
 
 		if (guild.getRoleCache().size() >= 250) {
@@ -85,12 +85,12 @@ public class ModUtility {
 
 		long guildId = guild.getIdLong(), userId = target.getIdLong();
 
-		Document mute = bot.getDatabase().getGuildById(guildId, Projections.include("mute.roleId", "mute.defaultTime", "mute.autoUpdate")).get("mute", Database.EMPTY_DOCUMENT);
+		Document mute = bot.getMongo().getGuildById(guildId, Projections.include("mute.roleId", "mute.defaultTime", "mute.autoUpdate")).get("mute", MongoDatabase.EMPTY_DOCUMENT);
 		long duration = time == null ? mute.get("defaultTime", ModUtility.DEFAULT_MUTE_DURATION) : time.toSeconds();
 
 		AtomicReference<Role> atomicRole = new AtomicReference<>();
 
-		return ModUtility.upsertMuteRole(bot.getDatabase(), guild, mute.get("roleId", 0L), mute.get("autoUpdate", true)).thenCompose(role -> {
+		return ModUtility.upsertMuteRole(bot.getMongo(), guild, mute.get("roleId", 0L), mute.get("autoUpdate", true)).thenCompose(role -> {
 			atomicRole.set(role);
 
 			List<Bson> update = List.of(Operators.set("unmuteAt", Operators.add(duration, Operators.cond(Operators.and(extend, Operators.exists("$unmuteAt")), "$unmuteAt", Operators.nowEpochSecond()))));
@@ -99,7 +99,7 @@ public class ModUtility {
 				Filters.eq("guildId", guildId)
 			);
 
-			return bot.getDatabase().updateMute(filter, update, new UpdateOptions().upsert(true));
+			return bot.getMongo().updateMute(filter, update, new UpdateOptions().upsert(true));
 		}).thenCompose(result -> {
 			Role role = atomicRole.get();
 			boolean wasExtended = extend && result.getUpsertedId() == null;
@@ -167,7 +167,7 @@ public class ModUtility {
 					Filters.eq("guildId", guild.getIdLong())
 				);
 
-				return bot.getDatabase().updateTemporaryBan(filter, temporaryBanUpdate, new UpdateOptions().upsert(true))
+				return bot.getMongo().updateTemporaryBan(filter, temporaryBanUpdate, new UpdateOptions().upsert(true))
 					.thenCompose(temporaryBanResult -> target.ban(1).reason(ModUtility.getAuditReason(reason, moderator.getUser())).submit())
 					.thenApply($ -> {
 						bot.getModActionManager().onModAction(new TemporaryBanEvent(moderator, target.getUser(), reason, true, temporaryBanDuration));
@@ -204,9 +204,9 @@ public class ModUtility {
 
 		Guild guild = target.getGuild();
 
-		Document data = bot.getDatabase().getGuildById(guild.getIdLong(), Projections.include("warn", "mute", "temporaryBan"));
+		Document data = bot.getMongo().getGuildById(guild.getIdLong(), Projections.include("warn", "mute", "temporaryBan"));
 
-		Document warnData = data.get("warn", Database.EMPTY_DOCUMENT);
+		Document warnData = data.get("warn", MongoDatabase.EMPTY_DOCUMENT);
 
 		List<Document> config = warnData.getList("config", Document.class, Warn.DEFAULT_CONFIG);
 		boolean punishments = warnData.getBoolean("punishments", true);
@@ -223,7 +223,7 @@ public class ModUtility {
 			Filters.eq("guildId", guild.getIdLong())
 		);
 
-		bot.getDatabase().findAndUpdateWarnings(filter, update, options).whenComplete((result, exception) -> {
+		bot.getMongo().findAndUpdateWarnings(filter, update, options).whenComplete((result, exception) -> {
 			if (exception != null) {
 				future.completeExceptionally(exception);
 				return;
@@ -263,11 +263,11 @@ public class ModUtility {
 
 					AtomicReference<Role> atomicRole = new AtomicReference<>();
 
-					Document mute = data.get("mute", Database.EMPTY_DOCUMENT);
+					Document mute = data.get("mute", MongoDatabase.EMPTY_DOCUMENT);
 					long muteDuration = ((TimeAction) action).getDuration();
 					boolean extend = action.getModAction().isExtend();
 
-					ModUtility.upsertMuteRole(bot.getDatabase(), guild, mute.get("roleId", 0L), mute.get("autoUpdate", true)).thenCompose(role -> {
+					ModUtility.upsertMuteRole(bot.getMongo(), guild, mute.get("roleId", 0L), mute.get("autoUpdate", true)).thenCompose(role -> {
 						atomicRole.set(role);
 
 						List<Bson> muteUpdate = List.of(Operators.set("unmuteAt", Operators.add(muteDuration, Operators.cond(Operators.and(extend, Operators.exists("$unmuteAt")), "$unmuteAt", Operators.nowEpochSecond()))));
@@ -276,7 +276,7 @@ public class ModUtility {
 							Filters.eq("guildId", guild.getIdLong())
 						);
 
-						return bot.getDatabase().updateMute(muteFilter, muteUpdate, new UpdateOptions().upsert(true));
+						return bot.getMongo().updateMute(muteFilter, muteUpdate, new UpdateOptions().upsert(true));
 					}).whenComplete((muteResult, muteException) -> {
 						if (muteException != null) {
 							future.completeExceptionally(muteException);
@@ -342,7 +342,7 @@ public class ModUtility {
 						Filters.eq("guildId", guild.getIdLong())
 					);
 
-					bot.getDatabase().updateTemporaryBan(temporaryBanFilter, temporaryBanUpdate, new UpdateOptions().upsert(true)).whenComplete((temporaryBanResult, temporaryBanException) -> {
+					bot.getMongo().updateTemporaryBan(temporaryBanFilter, temporaryBanUpdate, new UpdateOptions().upsert(true)).whenComplete((temporaryBanResult, temporaryBanException) -> {
 						if (temporaryBanException != null) {
 							future.completeExceptionally(temporaryBanException);
 							return;

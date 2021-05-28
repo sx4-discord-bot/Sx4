@@ -11,7 +11,7 @@ import com.sx4.bot.annotations.command.Examples;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
-import com.sx4.bot.database.Database;
+import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.entities.argument.Alternative;
 import com.sx4.bot.entities.image.ImageRequest;
 import com.sx4.bot.http.HttpCallback;
@@ -50,7 +50,7 @@ public class ProfileCommand extends Sx4Command {
 		User user = member.getUser();
 
 		Bson filter = Filters.or(Filters.eq("proposerId", member.getIdLong()), Filters.eq("partnerId", member.getIdLong()));
-		List<Document> marriages = event.getDatabase().getMarriages(filter, Projections.include("proposerId", "partnerId")).into(new ArrayList<>());
+		List<Document> marriages = event.getMongo().getMarriages(filter, Projections.include("proposerId", "partnerId")).into(new ArrayList<>());
 
 		List<String> partners = new ArrayList<>();
 		for (Document marriage : marriages) {
@@ -63,8 +63,8 @@ public class ProfileCommand extends Sx4Command {
 			}
 		}
 
-		Document userData = event.getDatabase().getUserById(member.getIdLong(), Projections.include("economy.balance", "profile", "reputation.amount"));
-		Document profileData = userData.get("profile", Database.EMPTY_DOCUMENT);
+		Document userData = event.getMongo().getUserById(member.getIdLong(), Projections.include("economy.balance", "profile", "reputation.amount"));
+		Document profileData = userData.get("profile", MongoDatabase.EMPTY_DOCUMENT);
 		Document birthdayData = profileData.get("birthday", Document.class);
 
 		String birthday = birthdayData == null ? null : NumberUtility.getZeroPrefixedNumber(birthdayData.getInteger("day")) + "/" + NumberUtility.getZeroPrefixedNumber(birthdayData.getInteger("month")) + (birthdayData.containsKey("year") ? "/" + birthdayData.getInteger("year") : "");
@@ -113,7 +113,7 @@ public class ProfileCommand extends Sx4Command {
 			String description = option.getValue();
 
 			Bson update = reset ? Updates.unset("profile.description") : Updates.set("profile.description", description);
-			event.getDatabase().updateUserById(event.getAuthor().getIdLong(), update).whenComplete((result, exception) -> {
+			event.getMongo().updateUserById(event.getAuthor().getIdLong(), update).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
@@ -148,7 +148,7 @@ public class ProfileCommand extends Sx4Command {
 			}
 
 			Bson update = reset ? Updates.unset("profile.birthday") : Updates.set("profile.birthday", data);
-			event.getDatabase().updateUserById(event.getAuthor().getIdLong(), update).whenComplete((result, exception) -> {
+			event.getMongo().updateUserById(event.getAuthor().getIdLong(), update).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
@@ -201,7 +201,7 @@ public class ProfileCommand extends Sx4Command {
 				return;
 			}
 
-			event.getDatabase().updateUserById(event.getAuthor().getIdLong(), reset ? Updates.unset("profile.height") : Updates.set("profile.height", centimeters)).whenComplete((result, exception) -> {
+			event.getMongo().updateUserById(event.getAuthor().getIdLong(), reset ? Updates.unset("profile.height") : Updates.set("profile.height", centimeters)).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
@@ -223,7 +223,7 @@ public class ProfileCommand extends Sx4Command {
 			Integer colour = option.getValue();
 
 			Bson update = reset ? Updates.unset("profile.colour") : Updates.set("profile.colour", colour);
-			event.getDatabase().updateUserById(event.getAuthor().getIdLong(), update).whenComplete((result, exception) -> {
+			event.getMongo().updateUserById(event.getAuthor().getIdLong(), update).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}

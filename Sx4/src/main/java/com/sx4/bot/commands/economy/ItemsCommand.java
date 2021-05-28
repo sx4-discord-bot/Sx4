@@ -17,8 +17,7 @@ import net.dv8tion.jda.api.entities.Member;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 public class ItemsCommand extends Sx4Command {
 
@@ -42,12 +41,12 @@ public class ItemsCommand extends Sx4Command {
 		);
 
 		List<Bson> pipeline = List.of(
-			Aggregates.match(Filters.eq("userId", effectiveMember.getIdLong())),
-			Aggregates.group("$item.name", Accumulators.first("item", "$item"), Accumulators.first("amount", "$amount"), Accumulators.first("type", "$type")),
+			Aggregates.match(Filters.and(Filters.eq("userId", effectiveMember.getIdLong()), Filters.ne("amount", 0))),
+			Aggregates.group("$item.name", Accumulators.first("item", "$item"), Accumulators.first("amount", "$amount"), Accumulators.first("type", "$item.type")),
 			Aggregates.unionWith("users", usersPipeline)
 		);
 
-		event.getDatabase().aggregateItems(pipeline).whenComplete((data, exception) -> {
+		event.getMongo().aggregateItems(pipeline).whenComplete((data, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -64,6 +63,7 @@ public class ItemsCommand extends Sx4Command {
 
 			StringBuilder footer = new StringBuilder("If a category isn't shown it means you have no items in that category | Balance: $");
 
+			Map<ItemType, StringJoiner> types = new HashMap<>();
 			for (Document item : items) {
 				String name = item.getString("_id");
 				if (name.equals("balance")) {
@@ -71,12 +71,13 @@ public class ItemsCommand extends Sx4Command {
 					continue;
 				}
 
-				ItemType type = ItemType.fromType(item.getInteger("type"));
+				ItemType type = ItemType.fromId(item.getInteger("type"));
 				ItemStack<?> stack = new ItemStack<>(event.getBot().getEconomyManager(), item);
 
-				embed.addField(type.getName(), stack.toString(), true);
+				types.compute(type, (key, value) -> (value == null ? new StringJoiner("\n") : value).add(stack.toString()));
 			}
 
+			types.forEach((type, joiner) -> embed.addField(type.getName(), joiner.toString(), true));
 			embed.setFooter(footer.toString());
 
 			event.reply(embed.build()).queue();

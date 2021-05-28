@@ -8,7 +8,7 @@ import club.minnced.discord.webhook.send.WebhookMessageBuilder;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Updates;
 import com.sx4.bot.core.Sx4;
-import com.sx4.bot.database.Database;
+import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.entities.youtube.YouTubeType;
 import com.sx4.bot.events.youtube.YouTubeDeleteEvent;
 import com.sx4.bot.events.youtube.YouTubeUpdateTitleEvent;
@@ -78,7 +78,7 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 				Updates.set("webhook.token", webhook.getToken())
 			);
 
-			this.bot.getDatabase().updateManyYouTubeNotifications(Filters.eq("channelId", channel.getIdLong()), update)
+			this.bot.getMongo().updateManyYouTubeNotifications(Filters.eq("channelId", channel.getIdLong()), update)
 				.thenCompose(result -> webhookClient.send(message))
 				.whenComplete((webhookMessage, exception) -> {
 					if (exception instanceof HttpException && ((HttpException) exception).getCode() == 404) {
@@ -97,12 +97,12 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 			ShardManager shardManager = this.bot.getShardManager();
 
 			String uploaderId = event.getChannel().getId();
-			this.bot.getDatabase().getYouTubeNotifications(Filters.eq("uploaderId", uploaderId), Database.EMPTY_DOCUMENT).forEach(notification -> {
+			this.bot.getMongo().getYouTubeNotifications(Filters.eq("uploaderId", uploaderId), MongoDatabase.EMPTY_DOCUMENT).forEach(notification -> {
 				long channelId = notification.getLong("channelId");
 
 				TextChannel textChannel = shardManager.getTextChannelById(channelId);
 				if (textChannel != null) {
-					Document webhookData = notification.get("webhook", Database.EMPTY_DOCUMENT);
+					Document webhookData = notification.get("webhook", MongoDatabase.EMPTY_DOCUMENT);
 
 					WebhookMessage message;
 					try {
@@ -112,7 +112,7 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 							.build();
 					} catch (IllegalArgumentException e) {
 						// possibly create an error field when this happens so the user can debug what went wrong
-						this.bot.getDatabase().updateYouTubeNotificationById(notification.getObjectId("_id"), Updates.unset("message")).whenComplete(Database.exceptionally(this.bot.getShardManager()));
+						this.bot.getMongo().updateYouTubeNotificationById(notification.getObjectId("_id"), Updates.unset("message")).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
 						return;
 					}
 
@@ -140,7 +140,7 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 						}
 					});
 				} else {
-					this.bot.getDatabase().deleteYouTubeNotificationById(notification.getObjectId("_id")).whenComplete((result, exception) -> {
+					this.bot.getMongo().deleteYouTubeNotificationById(notification.getObjectId("_id")).whenComplete((result, exception) -> {
 						if (ExceptionUtility.sendErrorMessage(this.bot.getShardManager(), exception)) {
 							return;
 						}
@@ -155,12 +155,12 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 				.append("title", event.getVideo().getTitle())
 				.append("uploaderId", event.getChannel().getId());
 
-			this.bot.getDatabase().insertYouTubeNotificationLog(data).whenComplete(Database.exceptionally(this.bot.getShardManager()));
+			this.bot.getMongo().insertYouTubeNotificationLog(data).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
 		});
 	}
 	
 	public void onYouTubeDelete(YouTubeDeleteEvent event) {
-		this.bot.getDatabase().deleteManyYouTubeNotificationLogs(event.getVideoId()).whenComplete(Database.exceptionally(this.bot.getShardManager()));
+		this.bot.getMongo().deleteManyYouTubeNotificationLogs(event.getVideoId()).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
 	}
 	
 	public void onYouTubeUpdateTitle(YouTubeUpdateTitleEvent event) {
@@ -169,14 +169,14 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 			.append("title", event.getVideo().getTitle())
 			.append("uploaderId", event.getChannel().getId());
 
-		this.bot.getDatabase().insertYouTubeNotificationLog(data).whenComplete(Database.exceptionally(this.bot.getShardManager()));
+		this.bot.getMongo().insertYouTubeNotificationLog(data).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
 	}
 
 	public void onEvent(GenericEvent event) {
 		if (event instanceof TextChannelDeleteEvent) {
 			long channelId = ((TextChannelDeleteEvent) event).getChannel().getIdLong();
 
-			this.bot.getDatabase().deleteManyYouTubeNotifications(Filters.eq("channelId", channelId)).whenComplete((result, exception) -> {
+			this.bot.getMongo().deleteManyYouTubeNotifications(Filters.eq("channelId", channelId)).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendErrorMessage(this.bot.getShardManager(), exception)) {
 					return;
 				} 

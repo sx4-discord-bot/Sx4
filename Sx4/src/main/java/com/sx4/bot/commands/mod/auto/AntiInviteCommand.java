@@ -10,8 +10,8 @@ import com.sx4.bot.annotations.command.Examples;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
-import com.sx4.bot.database.Database;
-import com.sx4.bot.database.model.Operators;
+import com.sx4.bot.database.mongo.MongoDatabase;
+import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.argument.TimedArgument;
 import com.sx4.bot.entities.management.WhitelistType;
 import com.sx4.bot.entities.mod.action.ModAction;
@@ -67,15 +67,15 @@ public class AntiInviteCommand extends Sx4Command {
 		Bson filter = Filters.and(Filters.eq("guildId", event.getGuild().getIdLong()), Filters.eq("regexId", AntiInviteCommand.REGEX_ID));
 		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().upsert(true).returnDocument(ReturnDocument.BEFORE).projection(Projections.include("enabled"));
 
-		event.getDatabase().findAndUpdateRegex(filter, update, options).thenCompose(data -> {
+		event.getMongo().findAndUpdateRegex(filter, update, options).thenCompose(data -> {
 			event.replySuccess("Anti-Invite is now " + (data == null || !data.get("enabled", true) ? "enabled" : "disabled")).queue();
 
 			if (data == null) {
-				return event.getDatabase().updateRegexTemplateById(AntiInviteCommand.REGEX_ID, Updates.inc("uses", 1L));
+				return event.getMongo().updateRegexTemplateById(AntiInviteCommand.REGEX_ID, Updates.inc("uses", 1L));
 			} else {
 				return CompletableFuture.completedFuture(null);
 			}
-		}).whenComplete(Database.exceptionally(event.getShardManager()));
+		}).whenComplete(MongoDatabase.exceptionally(event.getShardManager()));
 	}
 
 	@Command(value="attempts", description="Sets the amount of attempts needed for the mod action to execute")
@@ -84,7 +84,7 @@ public class AntiInviteCommand extends Sx4Command {
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void attempts(Sx4CommandEvent event, @Argument(value="attempts") @Limit(min=1) int attempts) {
 		Bson filter = Filters.and(Filters.eq("regexId", AntiInviteCommand.REGEX_ID), Filters.eq("guildId", event.getGuild().getIdLong()));
-		event.getDatabase().updateRegex(filter, Updates.set("attempts.amount", attempts)).whenComplete((result, exception) -> {
+		event.getMongo().updateRegex(filter, Updates.set("attempts.amount", attempts)).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -116,7 +116,7 @@ public class AntiInviteCommand extends Sx4Command {
 		Bson update = amount == 0 ? Updates.unset("attempts.reset") : Updates.set("attempts.reset", new Document("amount", amount).append("after", time.toSeconds()));
 		Bson filter = Filters.and(Filters.eq("regexId", AntiInviteCommand.REGEX_ID), Filters.eq("guildId", event.getGuild().getIdLong()));
 
-		event.getDatabase().updateRegex(filter, update).whenComplete((result, exception) -> {
+		event.getMongo().updateRegex(filter, update).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -154,7 +154,7 @@ public class AntiInviteCommand extends Sx4Command {
 		@Examples({"anti regex mod message A user has been banned for sending links", "anti regex match message {user.name} has received a {regex.action}"})
 		public void message(Sx4CommandEvent event, @Argument(value="message", endless=true) @Limit(max=1500) String message) {
 			Bson filter = Filters.and(Filters.eq("regexId", AntiInviteCommand.REGEX_ID), Filters.eq("guildId", event.getGuild().getIdLong()));
-			event.getDatabase().updateRegex(filter, Updates.set("mod.message", message)).whenComplete((result, exception) -> {
+			event.getMongo().updateRegex(filter, Updates.set("mod.message", message)).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
@@ -197,7 +197,7 @@ public class AntiInviteCommand extends Sx4Command {
 			}
 
 			Bson filter = Filters.and(Filters.eq("regexId", AntiInviteCommand.REGEX_ID), Filters.eq("guildId", event.getGuild().getIdLong()));
-			event.getDatabase().updateRegex(filter, Updates.set("mod.action", modAction)).whenComplete((result, exception) -> {
+			event.getMongo().updateRegex(filter, Updates.set("mod.action", modAction)).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
@@ -237,7 +237,7 @@ public class AntiInviteCommand extends Sx4Command {
 		@Examples({"anti regex match message You cannot have a url in your message :no_entry:", "anti regex match message {user.mention}, don't send that here or else you'll get a {regex.action} :no_entry:"})
 		public void message(Sx4CommandEvent event, @Argument(value="message", endless=true) @Limit(max=1500) String message) {
 			Bson filter = Filters.and(Filters.eq("regexId", AntiInviteCommand.REGEX_ID), Filters.eq("guildId", event.getGuild().getIdLong()));
-			event.getDatabase().updateRegex(filter, Updates.set("match.message", message)).whenComplete((result, exception) -> {
+			event.getMongo().updateRegex(filter, Updates.set("match.message", message)).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
@@ -262,7 +262,7 @@ public class AntiInviteCommand extends Sx4Command {
 		@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 		public void action(Sx4CommandEvent event, @Argument(value="actions") MatchAction... actions) {
 			Bson filter = Filters.and(Filters.eq("regexId", AntiInviteCommand.REGEX_ID), Filters.eq("guildId", event.getGuild().getIdLong()));
-			event.getDatabase().updateRegex(filter, Updates.set("match.action", MatchAction.getRaw(actions))).whenComplete((result, exception) -> {
+			event.getMongo().updateRegex(filter, Updates.set("match.action", MatchAction.getRaw(actions))).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
@@ -326,7 +326,7 @@ public class AntiInviteCommand extends Sx4Command {
 			List<Bson> update = List.of(Operators.set("whitelist", Operators.concatArrays(concat)));
 			Bson filter = Filters.and(Filters.eq("regexId", AntiInviteCommand.REGEX_ID), Filters.eq("guildId", event.getGuild().getIdLong()));
 
-			event.getDatabase().updateRegex(filter, update).whenComplete((result, exception) -> {
+			event.getMongo().updateRegex(filter, update).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
@@ -376,7 +376,7 @@ public class AntiInviteCommand extends Sx4Command {
 			List<Bson> update = List.of(Operators.set("whitelist", Operators.concatArrays(concat)));
 			Bson filter = Filters.and(Filters.eq("regexId", AntiInviteCommand.REGEX_ID), Filters.eq("guildId", event.getGuild().getIdLong()));
 
-			event.getDatabase().updateRegex(filter, update).whenComplete((result, exception) -> {
+			event.getMongo().updateRegex(filter, update).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
@@ -401,7 +401,7 @@ public class AntiInviteCommand extends Sx4Command {
 		@Examples({"anti regex whitelist list 5f023782ef9eba03390a740c"})
 		public void list(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="channels") TextChannel channel) {
 			Bson filter = Filters.and(Filters.eq("regexId", AntiInviteCommand.REGEX_ID), Filters.eq("guildId", event.getGuild().getIdLong()));
-			Document regex = event.getDatabase().getRegex(filter, Projections.include("whitelist"));
+			Document regex = event.getMongo().getRegex(filter, Projections.include("whitelist"));
 			if (regex == null) {
 				event.replyFailure("You do not have anti-invite setup").queue();
 				return;

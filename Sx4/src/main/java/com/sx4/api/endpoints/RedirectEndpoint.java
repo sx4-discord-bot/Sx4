@@ -38,7 +38,7 @@ public class RedirectEndpoint {
 	@GET
 	@Path("{id: [a-zA-Z0-9]{2,7}}")
 	public Response getRedirect(@PathParam("id") final String id) {
-		Document redirect = this.bot.getDatabase().getRedirectById(id);
+		Document redirect = this.bot.getMongo().getRedirectById(id);
 		if (redirect == null) {
 			return Response.status(404).build();
 		}
@@ -69,10 +69,10 @@ public class RedirectEndpoint {
 		String id;
 		do {
 			id = this.getAlphaNumericId(6);
-			result = this.bot.getDatabase().getRedirectById(id);
+			result = this.bot.getMongo().getRedirectById(id);
 		} while (result != null);
 
-		this.bot.getDatabase().insertRedirect(id, url).whenComplete((data, exception) -> {
+		this.bot.getMongo().insertRedirect(id, url).whenComplete((data, exception) -> {
 			if (exception != null) {
 				response.resume(exception);
 				return;

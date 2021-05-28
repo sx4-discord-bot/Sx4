@@ -1,5 +1,6 @@
 package com.sx4.bot.entities.economy.item;
 
+import com.sx4.bot.managers.EconomyManager;
 import org.bson.Document;
 
 public class Factory extends Item {
@@ -9,11 +10,11 @@ public class Factory extends Item {
 	private final ItemStack<Material> cost;
 	
 	public Factory(Document data, Factory defaultFactory) {
-		this(defaultFactory.getId(), defaultFactory.getName(), defaultFactory.getCost(), defaultFactory.getMinYield(), defaultFactory.getMaxYield());
+		this(defaultFactory.getManager(), defaultFactory.getId(), defaultFactory.getName(), defaultFactory.getCost(), defaultFactory.getMinYield(), defaultFactory.getMaxYield());
 	}
 
-	public Factory(int id, String name, ItemStack<Material> cost, long minYield, long maxYield) {
-		super(id, name, cost.getItem().getPrice() * cost.getAmount(), ItemType.FACTORY);
+	public Factory(EconomyManager manager, int id, String name, ItemStack<Material> cost, long minYield, long maxYield) {
+		super(manager, id, name, cost.getItem().getPrice() * cost.getAmount(), ItemType.FACTORY);
 		
 		this.cost = cost;
 		this.maxYield = maxYield;

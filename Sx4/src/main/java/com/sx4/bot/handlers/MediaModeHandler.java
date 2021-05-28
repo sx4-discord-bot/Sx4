@@ -3,7 +3,7 @@ package com.sx4.bot.handlers;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Projections;
 import com.sx4.bot.core.Sx4;
-import com.sx4.bot.database.Database;
+import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.entities.management.MediaType;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Message;
@@ -42,7 +42,7 @@ public class MediaModeHandler implements EventListener {
 
 		TextChannel channel = message.getTextChannel();
 
-		Document media = this.bot.getDatabase().getMediaChannel(Filters.eq("channelId", channel.getIdLong()), Projections.include("types"));
+		Document media = this.bot.getMongo().getMediaChannel(Filters.eq("channelId", channel.getIdLong()), Projections.include("types"));
 		if (media == null) {
 			return;
 		}
@@ -68,7 +68,7 @@ public class MediaModeHandler implements EventListener {
 	}
 
 	public void onTextChannelDelete(TextChannelDeleteEvent event) {
-		this.bot.getDatabase().deleteMediaChannel(Filters.eq("channelId", event.getChannel().getIdLong())).whenComplete(Database.exceptionally(this.bot.getShardManager()));
+		this.bot.getMongo().deleteMediaChannel(Filters.eq("channelId", event.getChannel().getIdLong())).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
 	}
 
 	@Override

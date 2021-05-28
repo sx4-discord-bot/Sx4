@@ -3,7 +3,7 @@ package com.sx4.bot.handlers;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Projections;
 import com.sx4.bot.core.Sx4;
-import com.sx4.bot.database.Database;
+import com.sx4.bot.database.mongo.MongoDatabase;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
@@ -35,7 +35,7 @@ public class AutoRoleHandler implements EventListener {
 			return;
 		}
 		
-		List<Document> autoRoles = this.bot.getDatabase().getAutoRoles(Filters.eq("guildId", event.getGuild().getIdLong()), Projections.include("enabled", "filters", "roleId")).into(new ArrayList<>());
+		List<Document> autoRoles = this.bot.getMongo().getAutoRoles(Filters.eq("guildId", event.getGuild().getIdLong()), Projections.include("enabled", "filters", "roleId")).into(new ArrayList<>());
 		if (autoRoles.isEmpty()) {
 			return;
 		}
@@ -73,7 +73,7 @@ public class AutoRoleHandler implements EventListener {
 	}
 	
 	public void onRoleDelete(RoleDeleteEvent event) {
-		this.bot.getDatabase().deleteAutoRole(Filters.eq("roleId", event.getRole().getIdLong())).whenComplete(Database.exceptionally(this.bot.getShardManager()));
+		this.bot.getMongo().deleteAutoRole(Filters.eq("roleId", event.getRole().getIdLong())).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
 	}
 
 	@Override

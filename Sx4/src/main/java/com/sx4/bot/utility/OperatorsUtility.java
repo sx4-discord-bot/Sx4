@@ -1,6 +1,6 @@
 package com.sx4.bot.utility;
 
-import com.sx4.bot.database.model.Operators;
+import com.sx4.bot.database.mongo.model.Operators;
 import org.bson.conversions.Bson;
 
 public class OperatorsUtility {

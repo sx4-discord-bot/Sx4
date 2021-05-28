@@ -6,7 +6,7 @@ import com.mongodb.client.model.UpdateOptions;
 import com.mongodb.client.model.Updates;
 import com.sx4.bot.config.Config;
 import com.sx4.bot.core.Sx4;
-import com.sx4.bot.database.Database;
+import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.entities.settings.HolderType;
 import com.sx4.bot.utility.ExceptionUtility;
 import net.dv8tion.jda.api.Permission;
@@ -47,7 +47,7 @@ public class ReactionRoleHandler implements EventListener {
 		
 		Config config = this.bot.getConfig();
 
-		List<Document> reactionRoles = this.bot.getDatabase().getReactionRoles(Filters.eq("messageId", event.getMessageIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>());
+		List<Document> reactionRoles = this.bot.getMongo().getReactionRoles(Filters.eq("messageId", event.getMessageIdLong()), MongoDatabase.EMPTY_DOCUMENT).into(new ArrayList<>());
 		if (reactionRoles.isEmpty()) {
 			return;
 		}
@@ -148,11 +148,11 @@ public class ReactionRoleHandler implements EventListener {
 	}
 	
 	public void handle(List<Long> messageIds) {
-		this.bot.getDatabase().deleteManyReactionRoles(Filters.in("messageId", messageIds)).whenComplete(Database.exceptionally(this.bot.getShardManager()));
+		this.bot.getMongo().deleteManyReactionRoles(Filters.in("messageId", messageIds)).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
 	}
 	
 	public void onRoleDelete(RoleDeleteEvent event) {
-		this.bot.getDatabase().updateReactionRole(Filters.eq("guildId", event.getGuild().getIdLong()), Updates.pull("roles", event.getRole().getIdLong()), new UpdateOptions()).whenComplete((result, exception) -> {
+		this.bot.getMongo().updateReactionRole(Filters.eq("guildId", event.getGuild().getIdLong()), Updates.pull("roles", event.getRole().getIdLong()), new UpdateOptions()).whenComplete((result, exception) -> {
 			Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
 			if (cause instanceof MongoWriteException && ((MongoWriteException) cause).getCode() == 2) {
 				return;

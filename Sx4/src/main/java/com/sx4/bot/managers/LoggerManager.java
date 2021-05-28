@@ -1,7 +1,5 @@
 package com.sx4.bot.managers;
 
-import club.minnced.discord.webhook.WebhookClient;
-import club.minnced.discord.webhook.WebhookClientBuilder;
 import club.minnced.discord.webhook.exception.HttpException;
 import club.minnced.discord.webhook.send.WebhookEmbed;
 import club.minnced.discord.webhook.send.WebhookMessage;
@@ -10,9 +8,10 @@ import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.UpdateOptions;
 import com.mongodb.client.model.Updates;
 import com.sx4.bot.core.Sx4;
-import com.sx4.bot.database.Database;
+import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.entities.management.LoggerContext;
 import com.sx4.bot.entities.management.LoggerEvent;
+import com.sx4.bot.entities.webhook.WebhookClient;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.LoggerUtility;
 import com.sx4.bot.utility.MessageUtility;
@@ -113,10 +112,7 @@ public class LoggerManager implements WebhookManager {
 
     private void createWebhook(TextChannel channel, List<Request> requests, int retries) {
         channel.createWebhook("Sx4 - Logger").queue(webhook -> {
-            WebhookClient webhookClient = new WebhookClientBuilder(webhook.getIdLong(), webhook.getToken())
-                .setExecutorService(this.webhookExecutor)
-                .setHttpClient(this.webhookClient)
-                .build();
+            WebhookClient webhookClient = new WebhookClient(webhook.getIdLong(), webhook.getToken(), this.webhookExecutor, this.webhookClient);
 
             this.webhooks.put(channel.getIdLong(), webhookClient);
 
@@ -125,7 +121,7 @@ public class LoggerManager implements WebhookManager {
                 Updates.set("webhook.token", webhook.getToken())
             );
 
-            this.bot.getDatabase().updateLogger(Filters.eq("channelId", channel.getIdLong()), update, new UpdateOptions()).whenComplete((result, exception) -> {
+            this.bot.getMongo().updateLogger(Filters.eq("channelId", channel.getIdLong()), update, new UpdateOptions()).whenComplete((result, exception) -> {
                 if (ExceptionUtility.sendErrorMessage(this.bot.getShardManager(), exception)) {
                     return;
                 }
@@ -158,7 +154,7 @@ public class LoggerManager implements WebhookManager {
             TextChannel channel = request.getChannel(guild);
 
             if (channel == null) {
-                this.bot.getDatabase().deleteLogger(Filters.eq("channelId", channelId)).whenComplete(Database.exceptionally(this.bot.getShardManager()));
+                this.bot.getMongo().deleteLogger(Filters.eq("channelId", channelId)).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
 
                 this.webhooks.remove(channelId);
                 this.handleQueue(0);
@@ -192,7 +188,7 @@ public class LoggerManager implements WebhookManager {
             skippedRequests.forEach(this.queue::addFirst);
 
             Document logger = request.getLogger();
-            Document webhookData = logger.get("webhook", Database.EMPTY_DOCUMENT);
+            Document webhookData = logger.get("webhook", MongoDatabase.EMPTY_DOCUMENT);
 
             WebhookMessage message = new WebhookMessageBuilder()
                 .addEmbeds(embeds)
@@ -212,10 +208,7 @@ public class LoggerManager implements WebhookManager {
                 this.handleQueue(0);
                 return;
             } else {
-                webhook = new WebhookClientBuilder(webhookData.getLong("id"), webhookData.getString("token"))
-                    .setExecutorService(this.webhookExecutor)
-                    .setHttpClient(this.webhookClient)
-                    .build();
+                webhook = new WebhookClient(webhookData.getLong("id"), webhookData.getString("token"), this.webhookExecutor, this.webhookClient);
 
                 this.webhooks.put(channelId, webhook);
             }
@@ -292,7 +285,7 @@ public class LoggerManager implements WebhookManager {
         }
 
         if (!deletedLoggers.isEmpty()) {
-            this.bot.getDatabase().deleteManyLoggers(Filters.in("channelId", deletedLoggers)).whenComplete(Database.exceptionally(this.bot.getShardManager()));
+            this.bot.getMongo().deleteManyLoggers(Filters.in("channelId", deletedLoggers)).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
         }
     }
 

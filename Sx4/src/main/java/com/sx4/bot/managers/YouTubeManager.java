@@ -5,7 +5,7 @@ import com.mongodb.client.model.DeleteOneModel;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.WriteModel;
 import com.sx4.bot.core.Sx4;
-import com.sx4.bot.database.Database;
+import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.events.youtube.*;
 import com.sx4.bot.hooks.YouTubeListener;
 import com.sx4.bot.http.HttpCallback;
@@ -106,7 +106,7 @@ public class YouTubeManager {
 	}
 	
 	public DeleteOneModel<Document> resubscribeBulk(String channelId) {
-		long amount = this.bot.getDatabase().countYouTubeNotifications(Filters.eq("uploaderId", channelId), new CountOptions().limit(1));
+		long amount = this.bot.getMongo().countYouTubeNotifications(Filters.eq("uploaderId", channelId), new CountOptions().limit(1));
 
 		this.deleteExecutor(channelId);
 
@@ -145,14 +145,14 @@ public class YouTubeManager {
 	public void resubscribe(String channelId) {
 		DeleteOneModel<Document> model = this.resubscribeBulk(channelId);
 		if (model != null) {
-			this.bot.getDatabase().deleteYouTubeSubscription(model.getFilter()).whenComplete(Database.exceptionally(this.bot.getShardManager()));
+			this.bot.getMongo().deleteYouTubeSubscription(model.getFilter()).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
 		}
 	}
 	
 	public void ensureSubscriptions() {
 		List<WriteModel<Document>> bulkData = new ArrayList<>();
 		
-		this.bot.getDatabase().getYouTubeSubscriptions().find().forEach(data -> {
+		this.bot.getMongo().getYouTubeSubscriptions().find().forEach(data -> {
 			String channelId = data.getString("_id");
 			
 			long timeTill = data.getLong("resubscribeAt") - Clock.systemUTC().instant().getEpochSecond();
@@ -167,7 +167,7 @@ public class YouTubeManager {
 		});
 		
 		if (!bulkData.isEmpty()) {
-			this.bot.getDatabase().bulkWriteYouTubeSubscriptions(bulkData).whenComplete(Database.exceptionally(this.bot.getShardManager()));
+			this.bot.getMongo().bulkWriteYouTubeSubscriptions(bulkData).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
 		}
 	}
 	

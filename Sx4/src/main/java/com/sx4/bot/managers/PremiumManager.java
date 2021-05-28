@@ -2,7 +2,7 @@ package com.sx4.bot.managers;
 
 import com.mongodb.client.model.*;
 import com.sx4.bot.core.Sx4;
-import com.sx4.bot.database.Database;
+import com.sx4.bot.database.mongo.MongoDatabase;
 import org.bson.Document;
 
 import java.time.Clock;
@@ -41,7 +41,7 @@ public class PremiumManager {
 	}
 
 	public void endPremium(long guildId) {
-		this.bot.getDatabase().updateGuild(this.endPremiumBulk(guildId)).whenComplete(Database.exceptionally(this.bot.getShardManager()));
+		this.bot.getMongo().updateGuild(this.endPremiumBulk(guildId)).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
 	}
 
 	public UpdateOneModel<Document> endPremiumBulk(long guildId) {
@@ -53,7 +53,7 @@ public class PremiumManager {
 	public void ensurePremiumExpiry() {
 		List<WriteModel<Document>> bulkData = new ArrayList<>();
 
-		this.bot.getDatabase().getGuilds(Filters.exists("premium.endAt"), Projections.include("premium.endAt")).forEach(data -> {
+		this.bot.getMongo().getGuilds(Filters.exists("premium.endAt"), Projections.include("premium.endAt")).forEach(data -> {
 			long endAt = data.getEmbedded(List.of("premium", "endAt"), 0L), timeNow = Clock.systemUTC().instant().getEpochSecond();
 			if (endAt != 0) {
 				if (endAt - timeNow > 0) {
@@ -65,7 +65,7 @@ public class PremiumManager {
 		});
 
 		if (!bulkData.isEmpty()) {
-			this.bot.getDatabase().bulkWriteGuilds(bulkData).whenComplete(Database.exceptionally(this.bot.getShardManager()));
+			this.bot.getMongo().bulkWriteGuilds(bulkData).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
 		}
 	}
 

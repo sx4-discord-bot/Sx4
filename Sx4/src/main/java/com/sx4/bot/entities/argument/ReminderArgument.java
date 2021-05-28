@@ -1,7 +1,7 @@
 package com.sx4.bot.entities.argument;
 
 import com.mongodb.client.model.Projections;
-import com.sx4.bot.database.Database;
+import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.utility.TimeUtility;
 
 import java.time.Duration;
@@ -25,7 +25,7 @@ public class ReminderArgument {
 		return this.reminder;
 	}
 
-	public static ReminderArgument parse(Database database, long userId, String query) {
+	public static ReminderArgument parse(MongoDatabase database, long userId, String query) {
 		long seconds;
 		String reminder;
 

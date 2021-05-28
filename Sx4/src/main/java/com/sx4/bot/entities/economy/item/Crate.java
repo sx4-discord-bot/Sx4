@@ -1,5 +1,6 @@
 package com.sx4.bot.entities.economy.item;
 
+import com.sx4.bot.managers.EconomyManager;
 import org.bson.Document;
 
 import java.util.Collections;
@@ -13,11 +14,11 @@ public class Crate extends Item {
 	private final long credits;
 	
 	public Crate(Document data, Crate defaultCrate) {
-		this(defaultCrate.getId(), defaultCrate.getName(), defaultCrate.getPrice(), defaultCrate.getCredits(), defaultCrate.getContents());
+		this(defaultCrate.getManager(), defaultCrate.getId(), defaultCrate.getName(), defaultCrate.getPrice(), defaultCrate.getCredits(), defaultCrate.getContents());
 	}
 
-	public Crate(int id, String name, long price, long credits, Map<ItemType, Long> contents) {
-		super(id, name, price, ItemType.CRATE);
+	public Crate(EconomyManager manager, int id, String name, long price, long credits, Map<ItemType, Long> contents) {
+		super(manager, id, name, price, ItemType.CRATE);
 		
 		this.contents = contents;
 		this.credits = credits;

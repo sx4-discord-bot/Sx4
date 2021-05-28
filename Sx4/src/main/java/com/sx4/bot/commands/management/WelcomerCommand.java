@@ -19,8 +19,8 @@ import com.sx4.bot.annotations.command.Premium;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
-import com.sx4.bot.database.Database;
-import com.sx4.bot.database.model.Operators;
+import com.sx4.bot.database.mongo.MongoDatabase;
+import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.argument.Alternative;
 import com.sx4.bot.http.HttpCallback;
 import com.sx4.bot.managers.WelcomerManager;
@@ -62,7 +62,7 @@ public class WelcomerCommand extends Sx4Command {
 		List<Bson> update = List.of(Operators.set("welcomer.enabled", Operators.cond("$welcomer.enabled", Operators.REMOVE, true)));
 		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER).projection(Projections.include("welcomer.enabled")).upsert(true);
 
-		event.getDatabase().findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
+		event.getMongo().findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -81,7 +81,7 @@ public class WelcomerCommand extends Sx4Command {
 		List<Bson> update = List.of(Operators.set("welcomer.channelId", channel == null ? Operators.REMOVE : channel.getIdLong()), Operators.unset("welcomer.webhook.id"), Operators.unset("welcomer.webhook.token"));
 		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().upsert(true).projection(Projections.include("welcomer.webhook.token", "welcomer.webhook.id", "welcomer.channelId")).returnDocument(ReturnDocument.BEFORE);
 
-		event.getDatabase().findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
+		event.getMongo().findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -110,7 +110,7 @@ public class WelcomerCommand extends Sx4Command {
 	@Examples({"welcomer message A new person has joined", "welcomer message Welcome {user.mention}!"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void message(Sx4CommandEvent event, @Argument(value="message", endless=true) String message) {
-		event.getDatabase().updateGuildById(event.getGuild().getIdLong(), Updates.set("welcomer.message.content", message)).whenComplete((result, exception) -> {
+		event.getMongo().updateGuildById(event.getGuild().getIdLong(), Updates.set("welcomer.message.content", message)).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -129,7 +129,7 @@ public class WelcomerCommand extends Sx4Command {
 	@Examples({"welcomer advanced message {\"embed\": {\"description\": \"A new person has joined\"}}", "welcomer advanced message {\"embed\": {\"description\": \"Welcome {user.mention}!\"}}"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void advancedMessage(Sx4CommandEvent event, @Argument(value="json", endless=true) @AdvancedMessage Document message) {
-		event.getDatabase().updateGuildById(event.getGuild().getIdLong(), Updates.set("welcomer.message", message)).whenComplete((result, exception) -> {
+		event.getMongo().updateGuildById(event.getGuild().getIdLong(), Updates.set("welcomer.message", message)).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -150,12 +150,12 @@ public class WelcomerCommand extends Sx4Command {
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void name(Sx4CommandEvent event, @Argument(value="name", endless=true) String name) {
 		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().projection(Projections.include("welcomer.webhook.name", "premium.endAt")).returnDocument(ReturnDocument.BEFORE).upsert(true);
-		event.getDatabase().findAndUpdateGuildById(event.getGuild().getIdLong(), List.of(OperatorsUtility.setIfPremium("welcomer.webhook.name", name)), options).whenComplete((data, exception) -> {
+		event.getMongo().findAndUpdateGuildById(event.getGuild().getIdLong(), List.of(OperatorsUtility.setIfPremium("welcomer.webhook.name", name)), options).whenComplete((data, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
 
-			data = data == null ? Database.EMPTY_DOCUMENT : data;
+			data = data == null ? MongoDatabase.EMPTY_DOCUMENT : data;
 
 			if (data.getEmbedded(List.of("premium", "endAt"), 0L) < Clock.systemUTC().instant().getEpochSecond()) {
 				event.replyFailure("This server needs premium to use this command").queue();
@@ -179,12 +179,12 @@ public class WelcomerCommand extends Sx4Command {
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void avatar(Sx4CommandEvent event, @Argument(value="avatar", endless=true, acceptEmpty=true) @ImageUrl String url) {
 		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().projection(Projections.include("welcomer.webhook.avatar", "premium.endAt")).returnDocument(ReturnDocument.BEFORE).upsert(true);
-		event.getDatabase().findAndUpdateGuildById(event.getGuild().getIdLong(), List.of(OperatorsUtility.setIfPremium("welcomer.webhook.avatar", url)), options).whenComplete((data, exception) -> {
+		event.getMongo().findAndUpdateGuildById(event.getGuild().getIdLong(), List.of(OperatorsUtility.setIfPremium("welcomer.webhook.avatar", url)), options).whenComplete((data, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
 
-			data = data == null ? Database.EMPTY_DOCUMENT : data;
+			data = data == null ? MongoDatabase.EMPTY_DOCUMENT : data;
 
 			if (data.getEmbedded(List.of("premium", "endAt"), 0L) < Clock.systemUTC().instant().getEpochSecond()) {
 				event.replyFailure("This server needs premium to use this command").queue();
@@ -209,7 +209,7 @@ public class WelcomerCommand extends Sx4Command {
 		List<Bson> update = List.of(Operators.set("welcomer.dm", Operators.cond("$welcomer.dm", Operators.REMOVE, true)));
 		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER).projection(Projections.include("welcomer.dm")).upsert(true);
 
-		event.getDatabase().findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
+		event.getMongo().findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -222,10 +222,10 @@ public class WelcomerCommand extends Sx4Command {
 	@CommandId(99)
 	@Examples({"welcomer preview"})
 	public void preview(Sx4CommandEvent event) {
-		Document data = event.getDatabase().getGuildById(event.getGuild().getIdLong(), Projections.include("welcomer.message", "welcomer.image", "welcomer.enabled", "premium.endAt"));
+		Document data = event.getMongo().getGuildById(event.getGuild().getIdLong(), Projections.include("welcomer.message", "welcomer.image", "welcomer.enabled", "premium.endAt"));
 
-		Document welcomer = data.get("welcomer", Database.EMPTY_DOCUMENT);
-		Document image = welcomer.get("image", Database.EMPTY_DOCUMENT);
+		Document welcomer = data.get("welcomer", MongoDatabase.EMPTY_DOCUMENT);
+		Document image = welcomer.get("image", MongoDatabase.EMPTY_DOCUMENT);
 
 		boolean messageEnabled = welcomer.get("enabled", false), imageEnabled = image.get("enabled", false);
 		if (!messageEnabled && !imageEnabled) {
@@ -272,7 +272,7 @@ public class WelcomerCommand extends Sx4Command {
 			List<Bson> update = List.of(Operators.set("welcomer.image.enabled", Operators.cond("$welcomer.image.enabled", Operators.REMOVE, true)));
 			FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER).projection(Projections.include("welcomer.image.enabled")).upsert(true);
 
-			event.getDatabase().findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
+			event.getMongo().findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}

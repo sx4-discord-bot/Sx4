@@ -10,8 +10,8 @@ import com.sx4.bot.annotations.command.*;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
-import com.sx4.bot.database.Database;
-import com.sx4.bot.database.model.Operators;
+import com.sx4.bot.database.mongo.MongoDatabase;
+import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.argument.Alternative;
 import com.sx4.bot.entities.management.Suggestion;
 import com.sx4.bot.entities.management.SuggestionState;
@@ -52,7 +52,7 @@ public class SuggestionCommand extends Sx4Command {
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void toggle(Sx4CommandEvent event) {
 		List<Bson> update = List.of(Operators.set("suggestion.enabled", Operators.cond("$suggestion.enabled", Operators.REMOVE, true)));
-		event.getDatabase().findAndUpdateGuildById(event.getGuild().getIdLong(), Projections.include("suggestion.enabled"), update).whenComplete((data, exception) -> {
+		event.getMongo().findAndUpdateGuildById(event.getGuild().getIdLong(), Projections.include("suggestion.enabled"), update).whenComplete((data, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -71,7 +71,7 @@ public class SuggestionCommand extends Sx4Command {
 		List<Bson> update = List.of(Operators.set("suggestion.channelId", channel == null ? Operators.REMOVE : channel.getIdLong()), Operators.unset("suggestion.webhook.id"), Operators.unset("suggestion.webhook.token"));
 		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("suggestion.channelId")).upsert(true);
 
-		event.getDatabase().findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
+		event.getMongo().findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -101,7 +101,7 @@ public class SuggestionCommand extends Sx4Command {
 	@Examples({"suggestion add Add the dog emote", "suggestion Add a channel for people looking to play games"})
 	@BotPermissions(permissions={Permission.MESSAGE_ADD_REACTION, Permission.MESSAGE_EMBED_LINKS})
 	public void add(Sx4CommandEvent event, @Argument(value="suggestion", endless=true) String suggestion) {
-		Document data = event.getDatabase().getGuildById(event.getGuild().getIdLong(), Projections.include("suggestion.channelId", "suggestion.enabled", "suggestion.webhook")).get("suggestion", Database.EMPTY_DOCUMENT);
+		Document data = event.getMongo().getGuildById(event.getGuild().getIdLong(), Projections.include("suggestion.channelId", "suggestion.enabled", "suggestion.webhook")).get("suggestion", MongoDatabase.EMPTY_DOCUMENT);
 		if (!data.getBoolean("enabled", false)) {
 			event.replyFailure("Suggestions are not enabled in this server").queue();
 			return;
@@ -129,14 +129,14 @@ public class SuggestionCommand extends Sx4Command {
 			state.getDataName()
 		);
 
-		event.getBot().getSuggestionManager().sendSuggestion(channel, data.get("webhook", Database.EMPTY_DOCUMENT), suggestionData.getWebhookEmbed(null, event.getAuthor(), state)).whenComplete((message, exception) -> {
+		event.getBot().getSuggestionManager().sendSuggestion(channel, data.get("webhook", MongoDatabase.EMPTY_DOCUMENT), suggestionData.getWebhookEmbed(null, event.getAuthor(), state)).whenComplete((message, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
 
 			suggestionData.setMessageId(message.getId());
 
-			event.getDatabase().insertSuggestion(suggestionData.toData()).whenComplete((result, dataException) -> {
+			event.getMongo().insertSuggestion(suggestionData.toData()).whenComplete((result, dataException) -> {
 				if (ExceptionUtility.sendExceptionally(event, dataException)) {
 					return;
 				}
@@ -171,7 +171,7 @@ public class SuggestionCommand extends Sx4Command {
 					.setUnique(author.getIdLong(), event.getChannel().getIdLong())
 					.start();
 			})
-			.thenCompose(messageEvent -> event.getDatabase().deleteManySuggestions(Filters.eq("guildId", event.getGuild().getIdLong())))
+			.thenCompose(messageEvent -> event.getMongo().deleteManySuggestions(Filters.eq("guildId", event.getGuild().getIdLong())))
 			.whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
@@ -193,7 +193,7 @@ public class SuggestionCommand extends Sx4Command {
 				filter = Filters.and(Filters.eq("authorId", author.getIdLong()), filter);
 			}
 
-			event.getDatabase().findAndDeleteSuggestion(filter).whenComplete((data, exception) -> {
+			event.getMongo().findAndDeleteSuggestion(filter).whenComplete((data, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
@@ -223,7 +223,7 @@ public class SuggestionCommand extends Sx4Command {
 	@Examples({"suggestion set 5e45ce6d3688b30ee75201ae pending Need some time to think about this", "suggestion set 5e45ce6d3688b30ee75201ae accepted I think this is a great idea", "suggestion 5e45ce6d3688b30ee75201ae set denied Not possible"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void set(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="state") String stateName, @Argument(value="reason", endless=true, nullDefault=true) String reason) {
-		Document data = event.getDatabase().getGuildById(event.getGuild().getIdLong(), Projections.include("suggestion.states", "suggestion.webhook")).get("suggestion", Database.EMPTY_DOCUMENT);
+		Document data = event.getMongo().getGuildById(event.getGuild().getIdLong(), Projections.include("suggestion.states", "suggestion.webhook")).get("suggestion", MongoDatabase.EMPTY_DOCUMENT);
 		
 		List<Document> states = data.getList("states", Document.class, SuggestionState.DEFAULT_STATES);
 		Document state = states.stream()
@@ -245,7 +245,7 @@ public class SuggestionCommand extends Sx4Command {
 		);
 
 		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("channelId", "authorId", "reason", "state", "suggestion", "messageId"));
-		event.getDatabase().findAndUpdateSuggestionById(id, update, options).whenComplete((suggestionData, exception) -> {
+		event.getMongo().findAndUpdateSuggestionById(id, update, options).whenComplete((suggestionData, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -271,7 +271,7 @@ public class SuggestionCommand extends Sx4Command {
 				return;
 			}
 			
-			event.getBot().getSuggestionManager().editSuggestion(suggestion.getMessageId(), channel.getIdLong(), data.get("webhook", Database.EMPTY_DOCUMENT), suggestion.getWebhookEmbed(event.getShardManager(), new SuggestionState(state)));
+			event.getBot().getSuggestionManager().editSuggestion(suggestion.getMessageId(), channel.getIdLong(), data.get("webhook", MongoDatabase.EMPTY_DOCUMENT), suggestion.getWebhookEmbed(event.getShardManager(), new SuggestionState(state)));
 
 			event.replySuccess("That suggestion has been set to the `" + stateData + "` state").queue();
 		});
@@ -283,7 +283,7 @@ public class SuggestionCommand extends Sx4Command {
 	public void view(Sx4CommandEvent event, @Argument(value="id", nullDefault=true) ObjectId id) {
 		Bson projection = Projections.include("suggestion", "reason", "moderatorId", "authorId", "state");
 		if (id == null) {
-			List<Document> suggestions = event.getDatabase().getSuggestions(Filters.eq("guildId", event.getGuild().getIdLong()), projection).into(new ArrayList<>());
+			List<Document> suggestions = event.getMongo().getSuggestions(Filters.eq("guildId", event.getGuild().getIdLong()), projection).into(new ArrayList<>());
 			if (suggestions.isEmpty()) {
 				event.replyFailure("There are not suggestions in this server").queue();
 				return;
@@ -299,7 +299,7 @@ public class SuggestionCommand extends Sx4Command {
 				.setIncreasedIndex(true);
 
 			paged.onSelect(select -> {
-				List<Document> states = event.getDatabase().getGuildById(event.getGuild().getIdLong(), Projections.include("suggestion.states")).getEmbedded(List.of("suggestion", "states"), SuggestionState.getDefaultStates());
+				List<Document> states = event.getMongo().getGuildById(event.getGuild().getIdLong(), Projections.include("suggestion.states")).getEmbedded(List.of("suggestion", "states"), SuggestionState.getDefaultStates());
 				Suggestion suggestion = Suggestion.fromData(select.getSelected());
 
 				event.reply(suggestion.getEmbed(event.getShardManager(), suggestion.getFullState(states))).queue();
@@ -307,13 +307,13 @@ public class SuggestionCommand extends Sx4Command {
 
 			paged.execute(event);
 		} else {
-			Document suggestionData = event.getDatabase().getSuggestionById(id, projection);
+			Document suggestionData = event.getMongo().getSuggestionById(id, projection);
 			if (suggestionData == null) {
 				event.replyFailure("I could not find that suggestion").queue();
 				return;
 			}
 
-			List<Document> states = event.getDatabase().getGuildById(event.getGuild().getIdLong(), Projections.include("suggestion.states")).getEmbedded(List.of("suggestion", "states"), SuggestionState.getDefaultStates());
+			List<Document> states = event.getMongo().getGuildById(event.getGuild().getIdLong(), Projections.include("suggestion.states")).getEmbedded(List.of("suggestion", "states"), SuggestionState.getDefaultStates());
 			Suggestion suggestion = Suggestion.fromData(suggestionData);
 
 			event.reply(suggestion.getEmbed(event.getShardManager(), suggestion.getFullState(states))).queue();
@@ -347,7 +347,7 @@ public class SuggestionCommand extends Sx4Command {
 			defaultStates.add(stateData);
 			
 			List<Bson> update = List.of(Operators.set("suggestion.states", Operators.cond(Operators.and(Operators.exists("$suggestion.states"), Operators.ne(Operators.filter("$suggestion.states", Operators.eq("$$this.dataName", dataName)), Collections.EMPTY_LIST)), "$suggestion.states", Operators.cond(Operators.extinct("$suggestion.states"), defaultStates, Operators.concatArrays("$suggestion.states", List.of(stateData))))));
-			event.getDatabase().updateGuildById(event.getGuild().getIdLong(), update).whenComplete((result, exception) -> {
+			event.getMongo().updateGuildById(event.getGuild().getIdLong(), update).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
@@ -367,7 +367,7 @@ public class SuggestionCommand extends Sx4Command {
 		@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 		public void remove(Sx4CommandEvent event, @Argument(value="state name | all", endless=true) @Options("all") Alternative<String> option) {
 			if (option.isAlternative()) {
-				event.getDatabase().updateGuildById(event.getGuild().getIdLong(), Updates.unset("suggestion.states")).whenComplete((result, exception) -> {
+				event.getMongo().updateGuildById(event.getGuild().getIdLong(), Updates.unset("suggestion.states")).whenComplete((result, exception) -> {
 					if (ExceptionUtility.sendExceptionally(event, exception)) {
 						return;
 					}
@@ -384,12 +384,12 @@ public class SuggestionCommand extends Sx4Command {
 				
 				FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("suggestion.states"));
 				List<Bson> update = List.of(Operators.set("suggestion.states", Operators.cond(Operators.and(Operators.exists("$suggestion.states"), Operators.ne(Operators.size("$suggestion.states"), 1)), Operators.filter("$suggestion.states", Operators.ne("$$this.dataName", dataName)), "$suggestion.states")));
-				event.getDatabase().findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
+				event.getMongo().findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
 					if (ExceptionUtility.sendExceptionally(event, exception)) {
 						return;
 					}
 					
-					data = data == null ? Database.EMPTY_DOCUMENT : data;
+					data = data == null ? MongoDatabase.EMPTY_DOCUMENT : data;
 					List<Document> states = data.getEmbedded(List.of("suggestion", "states"), Collections.emptyList());
 					if (states.size() == 1) {
 						event.replyFailure("You have to have at least 1 state at all times").queue();

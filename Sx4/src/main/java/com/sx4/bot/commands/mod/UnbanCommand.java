@@ -9,6 +9,7 @@ import com.sx4.bot.events.mod.UnbanEvent;
 import com.sx4.bot.utility.ModUtility;
 import com.sx4.bot.utility.SearchUtility;
 import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.requests.ErrorResponse;
 
@@ -26,26 +27,22 @@ public class UnbanCommand extends Sx4Command {
 	}
 	
 	public void onCommand(Sx4CommandEvent event, @Argument(value="user") String userArgument, @Argument(value="reason", endless=true, nullDefault=true) Reason reason) {
-		SearchUtility.getUser(event.getShardManager(), userArgument).thenAccept(user -> {
-			if (user == null) {
-				event.replyFailure("I could not find that user").queue();
+		SearchUtility.getBan(event.getGuild(), userArgument).thenAccept(ban -> {
+			if (ban == null) {
+				event.replyFailure("I could not find that banned user").queue();
 				return;
 			}
-			
-			if (event.getGuild().isMember(user)) {
-				event.replyFailure("That user is not banned").queue();
-				return;
-			}
-			
-			event.getGuild().retrieveBan(user).submit()
-				.thenCompose(ban -> event.getGuild().unban(user).reason(ModUtility.getAuditReason(reason, event.getAuthor())).submit())
+
+			User user = ban.getUser();
+			event.getGuild().unban(user).reason(ModUtility.getAuditReason(reason, event.getAuthor()))
+				.submit()
 				.whenComplete(($, exception) -> {
 					if (exception instanceof ErrorResponseException && ((ErrorResponseException) exception).getErrorResponse() == ErrorResponse.UNKNOWN_BAN) {
 						event.replyFailure("That user is not banned").queue();
 						return;
 					}
 
-					event.reply("**" + user.getAsTag() + "** has been unbanned <:done:403285928233402378>:ok_hand:").queue();
+					event.replySuccess("**" + user.getAsTag() + "** has been unbanned").queue();
 
 					event.getBot().getModActionManager().onModAction(new UnbanEvent(event.getMember(), user, reason));
 					event.getBot().getTemporaryBanManager().removeBan(event.getGuild().getIdLong(), user.getIdLong(), false);

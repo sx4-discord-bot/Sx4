@@ -11,8 +11,8 @@ import com.sx4.bot.annotations.command.Examples;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
-import com.sx4.bot.database.Database;
-import com.sx4.bot.database.model.Operators;
+import com.sx4.bot.database.mongo.MongoDatabase;
+import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.management.LoggerCategory;
 import com.sx4.bot.entities.management.LoggerEvent;
 import com.sx4.bot.paged.PagedResult;
@@ -54,8 +54,8 @@ public class LoggerCommand extends Sx4Command {
             Filters.exists("enabled", false)
         );
 
-        long loggers = event.getDatabase().countLoggers(filter, new CountOptions().limit(3));
-        long endAt = event.getDatabase().getGuildById(event.getGuild().getIdLong(), Projections.include("premium")).getEmbedded(List.of("premium", "endAt"), 0L);
+        long loggers = event.getMongo().countLoggers(filter, new CountOptions().limit(3));
+        long endAt = event.getMongo().getGuildById(event.getGuild().getIdLong(), Projections.include("premium")).getEmbedded(List.of("premium", "endAt"), 0L);
 
         if (loggers == 3 && endAt < Clock.systemUTC().instant().getEpochSecond()) {
             event.replyFailure("You need to have Sx4 premium to have more than 3 enabled loggers, you can get premium at <https://www.patreon.com/Sx4>").queue();
@@ -65,7 +65,7 @@ public class LoggerCommand extends Sx4Command {
         Document data = new Document("channelId", effectiveChannel.getIdLong())
             .append("guildId", event.getGuild().getIdLong());
 
-        event.getDatabase().insertLogger(data).whenComplete((result, exception) -> {
+        event.getMongo().insertLogger(data).whenComplete((result, exception) -> {
             Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
             if (cause instanceof MongoWriteException && ((MongoWriteException) cause).getError().getCategory() == ErrorCategory.DUPLICATE_KEY) {
                 event.replyFailure("You already have a logger setup in " + effectiveChannel.getAsMention()).queue();
@@ -87,7 +87,7 @@ public class LoggerCommand extends Sx4Command {
     public void remove(Sx4CommandEvent event, @Argument(value="channel", endless=true, nullDefault=true) TextChannel channel) {
         TextChannel effectiveChannel = channel == null ? event.getTextChannel() : channel;
 
-        event.getDatabase().deleteLogger(Filters.eq("channelId", effectiveChannel.getIdLong())).whenComplete((result, exception) -> {
+        event.getMongo().deleteLogger(Filters.eq("channelId", effectiveChannel.getIdLong())).whenComplete((result, exception) -> {
             if (ExceptionUtility.sendExceptionally(event, exception)) {
                 return;
             }
@@ -113,10 +113,10 @@ public class LoggerCommand extends Sx4Command {
             Filters.exists("enabled", false)
         );
 
-        List<Document> loggers = event.getDatabase().getLoggers(filter, Projections.include("channelId")).into(new ArrayList<>());
+        List<Document> loggers = event.getMongo().getLoggers(filter, Projections.include("channelId")).into(new ArrayList<>());
         boolean disabled = loggers.stream().noneMatch(logger -> logger.getLong("channelId") == effectiveChannel.getIdLong());
 
-        long endAt = event.getDatabase().getGuildById(event.getGuild().getIdLong(), Projections.include("premium")).getEmbedded(List.of("premium", "endAt"), 0L);
+        long endAt = event.getMongo().getGuildById(event.getGuild().getIdLong(), Projections.include("premium")).getEmbedded(List.of("premium", "endAt"), 0L);
 
         if (disabled && loggers.size() >= 3 && endAt < Clock.systemUTC().instant().getEpochSecond()) {
             event.replyFailure("You need to have Sx4 premium to have more than 3 enabled loggers, you can get premium at <https://www.patreon.com/Sx4>").queue();
@@ -126,7 +126,7 @@ public class LoggerCommand extends Sx4Command {
         List<Bson> update = List.of(Operators.set("enabled", Operators.cond(Operators.exists("$enabled"), Operators.REMOVE, false)));
         FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER).projection(Projections.include("enabled"));
 
-        event.getDatabase().findAndUpdateLogger(Filters.eq("channelId", effectiveChannel.getIdLong()), update, options).whenComplete((data, exception) -> {
+        event.getMongo().findAndUpdateLogger(Filters.eq("channelId", effectiveChannel.getIdLong()), update, options).whenComplete((data, exception) -> {
             if (ExceptionUtility.sendExceptionally(event, exception)) {
                 return;
             }
@@ -159,7 +159,7 @@ public class LoggerCommand extends Sx4Command {
             long raw = LoggerEvent.getRaw(events);
             List<Bson> update = List.of(Operators.set("events", Operators.bitwiseAnd(Operators.ifNull("$events", LoggerEvent.ALL), raw)));
 
-            event.getDatabase().updateLogger(Filters.eq("channelId", effectiveChannel.getIdLong()), update, new UpdateOptions()).whenComplete((result, exception) -> {
+            event.getMongo().updateLogger(Filters.eq("channelId", effectiveChannel.getIdLong()), update, new UpdateOptions()).whenComplete((result, exception) -> {
                 if (ExceptionUtility.sendExceptionally(event, exception)) {
                     return;
                 }
@@ -188,7 +188,7 @@ public class LoggerCommand extends Sx4Command {
             long raw = LoggerEvent.getRaw(events);
             List<Bson> update = List.of(Operators.set("events", Operators.bitwiseAnd(Operators.ifNull("$events", LoggerEvent.ALL), ~raw)));
 
-            event.getDatabase().updateLogger(Filters.eq("channelId", effectiveChannel.getIdLong()), update, new UpdateOptions()).whenComplete((result, exception) -> {
+            event.getMongo().updateLogger(Filters.eq("channelId", effectiveChannel.getIdLong()), update, new UpdateOptions()).whenComplete((result, exception) -> {
                 if (ExceptionUtility.sendExceptionally(event, exception)) {
                     return;
                 }
@@ -214,7 +214,7 @@ public class LoggerCommand extends Sx4Command {
         public void set(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) TextChannel channel, @Argument(value="events") LoggerEvent... events) {
             TextChannel effectiveChannel = channel == null ? event.getTextChannel() : channel;
 
-            event.getDatabase().updateLogger(Filters.eq("channelId", effectiveChannel.getIdLong()), Updates.set("events", LoggerEvent.getRaw(events)), new UpdateOptions()).whenComplete((result, exception) -> {
+            event.getMongo().updateLogger(Filters.eq("channelId", effectiveChannel.getIdLong()), Updates.set("events", LoggerEvent.getRaw(events)), new UpdateOptions()).whenComplete((result, exception) -> {
                 if (ExceptionUtility.sendExceptionally(event, exception)) {
                     return;
                 }
@@ -293,9 +293,9 @@ public class LoggerCommand extends Sx4Command {
                 Bson entitiesMap = Operators.ifNull("$blacklist.entities", Collections.EMPTY_LIST);
                 Bson entityFilter = Operators.filter(entitiesMap, Operators.eq("$$this.id", id));
 
-                List<Bson> update = List.of(Operators.set("blacklist.entities", Operators.concatArrays(List.of(Operators.mergeObjects(Operators.ifNull(Operators.first(entityFilter), Database.EMPTY_DOCUMENT), new Document("id", id).append("events", eventsRaw).append("type", category.getType()))), Operators.filter(entitiesMap, Operators.ne("$$this.id", id)))));
+                List<Bson> update = List.of(Operators.set("blacklist.entities", Operators.concatArrays(List.of(Operators.mergeObjects(Operators.ifNull(Operators.first(entityFilter), MongoDatabase.EMPTY_DOCUMENT), new Document("id", id).append("events", eventsRaw).append("type", category.getType()))), Operators.filter(entitiesMap, Operators.ne("$$this.id", id)))));
 
-                event.getDatabase().updateLogger(Filters.eq("channelId", effectiveChannel.getIdLong()), update, new UpdateOptions()).whenComplete((result, exception) -> {
+                event.getMongo().updateLogger(Filters.eq("channelId", effectiveChannel.getIdLong()), update, new UpdateOptions()).whenComplete((result, exception) -> {
                    if (ExceptionUtility.sendExceptionally(event, exception)) {
                        return;
                    }
@@ -355,7 +355,7 @@ public class LoggerCommand extends Sx4Command {
 
                 List<Bson> update = List.of(Operators.set("blacklist.entities", Operators.concatArrays(List.of(Operators.mergeObjects(Operators.ifNull(Operators.first(entityFilter), new Document("id", id).append("type", category.getType())), new Document("events", Operators.toLong(Operators.bitwiseOr(eventsRaw, currentEvents))))), Operators.filter(entitiesMap, Operators.ne("$$this.id", id)))));
 
-                event.getDatabase().updateLogger(Filters.eq("channelId", effectiveChannel.getIdLong()), update, new UpdateOptions()).whenComplete((result, exception) -> {
+                event.getMongo().updateLogger(Filters.eq("channelId", effectiveChannel.getIdLong()), update, new UpdateOptions()).whenComplete((result, exception) -> {
                     if (ExceptionUtility.sendExceptionally(event, exception)) {
                         return;
                     }

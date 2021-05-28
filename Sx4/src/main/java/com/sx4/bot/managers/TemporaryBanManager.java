@@ -2,7 +2,7 @@ package com.sx4.bot.managers;
 
 import com.mongodb.client.model.*;
 import com.sx4.bot.core.Sx4;
-import com.sx4.bot.database.Database;
+import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.entities.mod.Reason;
 import com.sx4.bot.events.mod.UnbanEvent;
 import net.dv8tion.jda.api.entities.Guild;
@@ -114,7 +114,7 @@ public class TemporaryBanManager {
 	public void removeBan(long guildId, long userId, boolean automatic) {
 		DeleteOneModel<Document> model = this.removeBanAndGet(guildId, userId, automatic);
 		if (model != null) {
-			this.bot.getDatabase().deleteTemporaryBan(model.getFilter()).whenComplete(Database.exceptionally(this.bot.getShardManager()));
+			this.bot.getMongo().deleteTemporaryBan(model.getFilter()).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
 		}
 	}
 
@@ -124,7 +124,7 @@ public class TemporaryBanManager {
 
 	public void ensureBans() {
 		List<WriteModel<Document>> bulkData = new ArrayList<>();
-		this.bot.getDatabase().getTemporaryBans(Database.EMPTY_DOCUMENT, Projections.include("guildId", "userId", "unbanAt")).forEach(data -> {
+		this.bot.getMongo().getTemporaryBans(MongoDatabase.EMPTY_DOCUMENT, Projections.include("guildId", "userId", "unbanAt")).forEach(data -> {
 			long currentTime = Clock.systemUTC().instant().getEpochSecond(), unbanAt = data.getLong("unbanAt");
 			if (unbanAt > currentTime) {
 				this.putBan(data.getLong("guildId"), data.getLong("userId"), unbanAt - currentTime);
@@ -137,7 +137,7 @@ public class TemporaryBanManager {
 		});
 
 		if (!bulkData.isEmpty()) {
-			this.bot.getDatabase().bulkWriteTemporaryBans(bulkData).whenComplete(Database.exceptionally(this.bot.getShardManager()));
+			this.bot.getMongo().bulkWriteTemporaryBans(bulkData).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
 		}
 	}
 	

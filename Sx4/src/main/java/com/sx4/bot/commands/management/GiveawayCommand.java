@@ -15,7 +15,7 @@ import com.sx4.bot.annotations.command.Examples;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
-import com.sx4.bot.database.model.Operators;
+import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.argument.Alternative;
 import com.sx4.bot.entities.argument.MessageArgument;
 import com.sx4.bot.paged.PagedResult;
@@ -96,7 +96,7 @@ public class GiveawayCommand extends Sx4Command {
 					.append("duration", seconds)
 					.append("item", item);
 				
-				event.getDatabase().insertGiveaway(data).whenComplete((result, exception) -> {
+				event.getMongo().insertGiveaway(data).whenComplete((result, exception) -> {
 					if (ExceptionUtility.sendExceptionally(event, exception)) {
 						return;
 					}
@@ -321,7 +321,7 @@ public class GiveawayCommand extends Sx4Command {
 					.append("duration", durationFuture)
 					.append("item", itemFuture);
 					
-				event.getDatabase().insertGiveaway(data).whenComplete((result, exception) -> {
+				event.getMongo().insertGiveaway(data).whenComplete((result, exception) -> {
 					if (ExceptionUtility.sendExceptionally(event, exception)) {
 						return;
 					}
@@ -348,7 +348,7 @@ public class GiveawayCommand extends Sx4Command {
 		);	
 		
 		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.exclude("winners"));
-		event.getDatabase().findAndUpdateGiveawayById(messageArgument.getMessageId(), update, options).whenComplete((data, exception) -> {
+		event.getMongo().findAndUpdateGiveawayById(messageArgument.getMessageId(), update, options).whenComplete((data, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -384,7 +384,7 @@ public class GiveawayCommand extends Sx4Command {
 	@Examples({"giveaway reroll 727224132202397726"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void reroll(Sx4CommandEvent event, @Argument(value="message id") MessageArgument messageArgument) {
-		Document data = event.getDatabase().getGiveawayById(messageArgument.getMessageId());
+		Document data = event.getMongo().getGiveawayById(messageArgument.getMessageId());
 		if (data == null) {
 			event.replyFailure("There is no giveaway with that id").queue();
 			return;
@@ -403,7 +403,7 @@ public class GiveawayCommand extends Sx4Command {
 	@Examples({"giveaway end 727224132202397726"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void end(Sx4CommandEvent event, @Argument(value="message id") MessageArgument messageArgument) {
-		Document data = event.getDatabase().getGiveawayById(messageArgument.getMessageId());
+		Document data = event.getMongo().getGiveawayById(messageArgument.getMessageId());
 		if (data == null) {
 			event.replyFailure("There is no giveaway with that id").queue();
 			return;
@@ -432,7 +432,7 @@ public class GiveawayCommand extends Sx4Command {
 						.setTimeout(30)
 						.start();
 				})
-				.thenCompose(e -> event.getDatabase().deleteManyGiveaways(Filters.eq("guildId", event.getGuild().getIdLong())))
+				.thenCompose(e -> event.getMongo().deleteManyGiveaways(Filters.eq("guildId", event.getGuild().getIdLong())))
 				.whenComplete((result, exception) -> {
 					Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
 					if (cause instanceof CancelException) {
@@ -454,7 +454,7 @@ public class GiveawayCommand extends Sx4Command {
 				});
 		} else {
 			long messageId = option.getValue().getMessageId();
-			event.getDatabase().deleteGiveawayById(messageId).whenComplete((result, exception) -> {
+			event.getMongo().deleteGiveawayById(messageId).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
@@ -473,7 +473,7 @@ public class GiveawayCommand extends Sx4Command {
 	@CommandId(52)
 	@Examples({"giveaway list"})
 	public void list(Sx4CommandEvent event) {
-		List<Document> giveaways = event.getDatabase().getGiveaways(Filters.eq("guildId", event.getGuild().getIdLong())).into(new ArrayList<>());
+		List<Document> giveaways = event.getMongo().getGiveaways(Filters.eq("guildId", event.getGuild().getIdLong())).into(new ArrayList<>());
 		if (giveaways.isEmpty()) {
 			event.replyFailure("No giveaways have been setup in this server").queue();
 			return;

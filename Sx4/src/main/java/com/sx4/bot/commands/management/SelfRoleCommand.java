@@ -41,7 +41,7 @@ public class SelfRoleCommand extends Sx4Command {
 	}
 
 	public void onCommand(Sx4CommandEvent event, @Argument(value="role", endless=true) Role role) {
-		Document selfRole = event.getDatabase().getSelfRole(Filters.eq("roleId", role.getIdLong()), Projections.include("_id"));
+		Document selfRole = event.getMongo().getSelfRole(Filters.eq("roleId", role.getIdLong()), Projections.include("_id"));
 		if (selfRole == null) {
 			event.replyFailure("That role is not a self role").queue();
 			return;
@@ -87,7 +87,7 @@ public class SelfRoleCommand extends Sx4Command {
 		Document data = new Document("roleId", role.getIdLong())
 			.append("guildId", event.getGuild().getIdLong());
 
-		event.getDatabase().insertSelfRole(data).whenComplete((result, exception) -> {
+		event.getMongo().insertSelfRole(data).whenComplete((result, exception) -> {
 			Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
 			if (cause instanceof MongoWriteException && ((MongoWriteException) cause).getError().getCategory() == ErrorCategory.DUPLICATE_KEY) {
 				event.replyFailure("That role is already a self role").queue();
@@ -116,7 +116,7 @@ public class SelfRoleCommand extends Sx4Command {
 						.setTimeout(30)
 						.setUnique(event.getAuthor().getIdLong(), event.getChannel().getIdLong())
 						.start();
-				}).thenCompose(e -> event.getDatabase().deleteManySelfRoles(Filters.eq("guildId", event.getGuild().getIdLong())))
+				}).thenCompose(e -> event.getMongo().deleteManySelfRoles(Filters.eq("guildId", event.getGuild().getIdLong())))
 				.whenComplete((result, exception) -> {
 					if (ExceptionUtility.sendExceptionally(event, exception)) {
 						return;
@@ -132,7 +132,7 @@ public class SelfRoleCommand extends Sx4Command {
 		} else {
 			Role role =option.getValue();
 
-			event.getDatabase().deleteSelfRole(Filters.eq("roleId", role.getIdLong())).whenComplete((result, exception) -> {
+			event.getMongo().deleteSelfRole(Filters.eq("roleId", role.getIdLong())).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
@@ -146,7 +146,7 @@ public class SelfRoleCommand extends Sx4Command {
 	@CommandId(334)
 	@Examples({"self role list"})
 	public void list(Sx4CommandEvent event) {
-		List<Document> data = event.getDatabase().getSelfRoles(Filters.eq("guildId", event.getGuild().getIdLong()), Projections.include("roleId")).into(new ArrayList<>());
+		List<Document> data = event.getMongo().getSelfRoles(Filters.eq("guildId", event.getGuild().getIdLong()), Projections.include("roleId")).into(new ArrayList<>());
 		if (data.isEmpty()) {
 			event.replyFailure("There are no self roles in this server").queue();
 			return;

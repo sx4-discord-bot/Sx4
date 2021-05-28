@@ -28,7 +28,8 @@ public class EvalCommand extends Sx4Command {
 
 		importCustomizer.addStarImports("net.dv8tion.jda.api");
 		importCustomizer.addStarImports("net.dv8tion.jda.api.entities");
-		importCustomizer.addStarImports("com.sx4.bot.database.model");
+		importCustomizer.addStarImports("com.sx4.bot.database.mongo.model");
+		importCustomizer.addStarImports("com.sx4.bot.database.mongo");
 		importCustomizer.addStarImports("com.mongodb.client");
 		importCustomizer.addStarImports("com.mongodb.client.model");
 		importCustomizer.addStarImports("org.bson");
@@ -59,7 +60,7 @@ public class EvalCommand extends Sx4Command {
 		shell.setProperty("user", event.getAuthor());
 		shell.setProperty("member", event.getMember());
 		shell.setProperty("config", event.getConfig());
-		shell.setProperty("database", event.getDatabase());
+		shell.setProperty("database", event.getMongo());
 		shell.setProperty("client", event.getHttpClient());
 		
 		this.executor.submit(() -> {

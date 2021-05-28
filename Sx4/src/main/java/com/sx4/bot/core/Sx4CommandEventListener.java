@@ -4,7 +4,7 @@ import com.jockie.bot.core.command.ICommand;
 import com.jockie.bot.core.command.impl.CommandEvent;
 import com.jockie.bot.core.command.impl.CommandEventListener;
 import com.jockie.bot.core.command.impl.DummyCommand;
-import com.sx4.bot.database.Database;
+import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.utility.ExceptionUtility;
 import org.bson.Document;
 
@@ -46,7 +46,7 @@ public class Sx4CommandEventListener extends CommandEventListener {
 			commandData.append("guildId", event.getGuild().getIdLong());
 		}
 
-		this.bot.getDatabase().insertCommand(commandData).whenComplete(Database.exceptionally(this.bot.getShardManager()));
+		this.bot.getMongo().insertCommand(commandData).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
 	}
 
 	public void onCommandExecutionException(ICommand command, CommandEvent event, Throwable throwable) {

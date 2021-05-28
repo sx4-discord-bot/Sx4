@@ -50,7 +50,7 @@ public class MediaModeCommand extends Sx4Command {
 		Document data = new Document("channelId", effectiveChannel.getIdLong())
 			.append("guildId", event.getGuild().getIdLong());
 
-		event.getDatabase().insertMediaChannel(data).whenComplete((result, exception) -> {
+		event.getMongo().insertMediaChannel(data).whenComplete((result, exception) -> {
 			Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
 			if (cause instanceof MongoWriteException && ((MongoWriteException) cause).getError().getCategory() == ErrorCategory.DUPLICATE_KEY) {
 				event.replyFailure("That channel is already a media only channel").queue();
@@ -72,7 +72,7 @@ public class MediaModeCommand extends Sx4Command {
 	public void remove(Sx4CommandEvent event, @Argument(value="channel", endless=true, nullDefault=true) TextChannel channel) {
 		TextChannel effectiveChannel = channel == null ? event.getTextChannel() : channel;
 
-		event.getDatabase().deleteMediaChannel(Filters.eq("channelId", effectiveChannel.getIdLong())).whenComplete((result, exception) -> {
+		event.getMongo().deleteMediaChannel(Filters.eq("channelId", effectiveChannel.getIdLong())).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -93,7 +93,7 @@ public class MediaModeCommand extends Sx4Command {
 	public void types(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) TextChannel channel, @Argument(value="types") MediaType... types) {
 		TextChannel effectiveChannel = channel == null ? event.getTextChannel() : channel;
 
-		event.getDatabase().updateMediaChannel(Filters.eq("channelId", effectiveChannel.getIdLong()), Updates.set("types", MediaType.getRaw(types)), new UpdateOptions()).whenComplete((result, exception) -> {
+		event.getMongo().updateMediaChannel(Filters.eq("channelId", effectiveChannel.getIdLong()), Updates.set("types", MediaType.getRaw(types)), new UpdateOptions()).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -112,7 +112,7 @@ public class MediaModeCommand extends Sx4Command {
 	@Examples({"media mode list"})
 	@AuthorPermissions(permissions={Permission.MESSAGE_EMBED_LINKS})
 	public void list(Sx4CommandEvent event) {
-		List<Document> mediaChannels = event.getDatabase().getMediaChannels(Filters.eq("guildId", event.getGuild().getIdLong()), Projections.include("channelId")).into(new ArrayList<>());
+		List<Document> mediaChannels = event.getMongo().getMediaChannels(Filters.eq("guildId", event.getGuild().getIdLong()), Projections.include("channelId")).into(new ArrayList<>());
 		if (mediaChannels.isEmpty()) {
 			event.replyFailure("There are no media channels setup in this server").queue();
 			return;

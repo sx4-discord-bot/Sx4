@@ -5,7 +5,7 @@ import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.WriteModel;
 import com.sx4.bot.core.Sx4;
-import com.sx4.bot.database.Database;
+import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.entities.mod.Reason;
 import com.sx4.bot.events.mod.UnmuteEvent;
 import net.dv8tion.jda.api.entities.Guild;
@@ -136,18 +136,18 @@ public class MuteManager {
 	public void removeMute(long guildId, long userId, long roleId) {
 		DeleteOneModel<Document> model = this.removeMuteBulk(guildId, userId, roleId);
 		if (model != null) {
-			this.bot.getDatabase().deleteMute(model.getFilter()).whenComplete(Database.exceptionally(this.bot.getShardManager()));
+			this.bot.getMongo().deleteMute(model.getFilter()).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
 		}
 	}
 	
 	public void ensureMutes() {
 		Map<Long, Long> roleIds = new HashMap<>();
-		this.bot.getDatabase().getGuilds(Filters.exists("mute.roleId"), Projections.include("mute.roleId")).forEach(data -> {
+		this.bot.getMongo().getGuilds(Filters.exists("mute.roleId"), Projections.include("mute.roleId")).forEach(data -> {
 			roleIds.put(data.getLong("_id"), data.getEmbedded(List.of("mute", "roleId"), Long.class));
 		});
 		
 		List<WriteModel<Document>> bulkData = new ArrayList<>();
-		this.bot.getDatabase().getMutes(Filters.empty(), Projections.include("unmuteAt", "userId", "guildId")).forEach(data -> {
+		this.bot.getMongo().getMutes(Filters.empty(), Projections.include("unmuteAt", "userId", "guildId")).forEach(data -> {
 			long guildId = data.getLong("guildId");
 
 			long roleId = roleIds.getOrDefault(guildId, 0L);
@@ -167,7 +167,7 @@ public class MuteManager {
 		});
 		
 		if (!bulkData.isEmpty()) {
-			this.bot.getDatabase().bulkWriteMutes(bulkData).whenComplete(Database.exceptionally(this.bot.getShardManager()));
+			this.bot.getMongo().bulkWriteMutes(bulkData).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
 		}
 	}
 	

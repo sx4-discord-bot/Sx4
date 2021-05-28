@@ -14,8 +14,8 @@ import com.sx4.bot.annotations.command.Premium;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
-import com.sx4.bot.database.Database;
-import com.sx4.bot.database.model.Operators;
+import com.sx4.bot.database.mongo.MongoDatabase;
+import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.argument.Alternative;
 import com.sx4.bot.managers.StarboardManager;
 import com.sx4.bot.paged.PagedResult;
@@ -61,7 +61,7 @@ public class StarboardCommand extends Sx4Command {
 	public void toggle(Sx4CommandEvent event) {
 		List<Bson> update = List.of(Operators.set("starboard.enabled", Operators.cond("$starboard.enabled", Operators.REMOVE, true)));
 		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().projection(Projections.include("starboard.enabled")).returnDocument(ReturnDocument.AFTER).upsert(true);
-		event.getDatabase().findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
+		event.getMongo().findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -80,7 +80,7 @@ public class StarboardCommand extends Sx4Command {
 		List<Bson> update = List.of(Operators.set("starboard.channelId", channel == null ? Operators.REMOVE : channel.getIdLong()), Operators.unset("starboard.webhook.id"), Operators.unset("starboard.webhook.token"));
 		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("starboard.channelId")).upsert(true);
 
-		event.getDatabase().findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
+		event.getMongo().findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -115,7 +115,7 @@ public class StarboardCommand extends Sx4Command {
 		List<Bson> update = emote == null ? List.of(Operators.unset("starboard.emote")) : List.of(Operators.set("starboard.emote." + (emoji ? "name" : "id"), emoji ? emote.getEmoji() : emote.getIdLong()), Operators.unset("starboard.emote." + (emoji ? "id" : "name")));
 
 		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).upsert(true).projection(Projections.include("starboard.emote"));
-		event.getDatabase().findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
+		event.getMongo().findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -145,8 +145,8 @@ public class StarboardCommand extends Sx4Command {
 						.setUnique(event.getAuthor().getIdLong(), event.getChannel().getIdLong())
 						.start();
 				})
-				.thenCompose(messageEvent -> event.getDatabase().deleteManyStarboards(Filters.eq("guildId", event.getGuild().getIdLong())))
-				.thenCompose(result -> event.getDatabase().deleteManyStars(Filters.eq("guildId", event.getGuild().getIdLong())))
+				.thenCompose(messageEvent -> event.getMongo().deleteManyStarboards(Filters.eq("guildId", event.getGuild().getIdLong())))
+				.thenCompose(result -> event.getMongo().deleteManyStars(Filters.eq("guildId", event.getGuild().getIdLong())))
 				.whenComplete((result, exception) -> {
 					Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
 					if (cause instanceof CancelException) {
@@ -170,14 +170,14 @@ public class StarboardCommand extends Sx4Command {
 			ObjectId id = option.getValue();
 
 			AtomicReference<Document> atomicData = new AtomicReference<>();
-			event.getDatabase().findAndDeleteStarboardById(id).thenCompose(data -> {
+			event.getMongo().findAndDeleteStarboardById(id).thenCompose(data -> {
 				if (data == null) {
 					return CompletableFuture.completedFuture(null);
 				}
 
 				atomicData.set(data);
 
-				return event.getDatabase().deleteManyStars(Filters.eq("messageId", data.getLong("originalMessageId")));
+				return event.getMongo().deleteManyStars(Filters.eq("messageId", data.getLong("originalMessageId")));
 			}).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
@@ -207,12 +207,12 @@ public class StarboardCommand extends Sx4Command {
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void name(Sx4CommandEvent event, @Argument(value="name", endless=true) String name) {
 		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().projection(Projections.include("starboard.webhook.name", "premium.endAt")).returnDocument(ReturnDocument.BEFORE).upsert(true);
-		event.getDatabase().findAndUpdateGuildById(event.getGuild().getIdLong(), List.of(OperatorsUtility.setIfPremium("starboard.webhook.name", name)), options).whenComplete((data, exception) -> {
+		event.getMongo().findAndUpdateGuildById(event.getGuild().getIdLong(), List.of(OperatorsUtility.setIfPremium("starboard.webhook.name", name)), options).whenComplete((data, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
 
-			data = data == null ? Database.EMPTY_DOCUMENT : data;
+			data = data == null ? MongoDatabase.EMPTY_DOCUMENT : data;
 
 			if (data.getEmbedded(List.of("premium", "endAt"), 0L) < Clock.systemUTC().instant().getEpochSecond()) {
 				event.replyFailure("This server needs premium to use this command").queue();
@@ -236,12 +236,12 @@ public class StarboardCommand extends Sx4Command {
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void avatar(Sx4CommandEvent event, @Argument(value="avatar", endless=true, acceptEmpty=true) @ImageUrl String url) {
 		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().projection(Projections.include("starboard.webhook.avatar", "premium.endAt")).returnDocument(ReturnDocument.BEFORE).upsert(true);
-		event.getDatabase().findAndUpdateGuildById(event.getGuild().getIdLong(), List.of(OperatorsUtility.setIfPremium("starboard.webhook.avatar", url)), options).whenComplete((data, exception) -> {
+		event.getMongo().findAndUpdateGuildById(event.getGuild().getIdLong(), List.of(OperatorsUtility.setIfPremium("starboard.webhook.avatar", url)), options).whenComplete((data, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
 
-			data = data == null ? Database.EMPTY_DOCUMENT : data;
+			data = data == null ? MongoDatabase.EMPTY_DOCUMENT : data;
 
 			if (data.getEmbedded(List.of("premium", "endAt"), 0L) < Clock.systemUTC().instant().getEpochSecond()) {
 				event.replyFailure("This server needs premium to use this command").queue();
@@ -264,7 +264,7 @@ public class StarboardCommand extends Sx4Command {
 	public void top(Sx4CommandEvent event) {
 		Guild guild = event.getGuild();
 
-		List<Document> starboards = event.getDatabase().getStarboards(Filters.and(Filters.eq("guildId", guild.getIdLong()), Filters.ne("count", 0)), Projections.include("count", "channelId", "originalMessageId")).sort(Sorts.descending("count")).into(new ArrayList<>());
+		List<Document> starboards = event.getMongo().getStarboards(Filters.and(Filters.eq("guildId", guild.getIdLong()), Filters.ne("count", 0)), Projections.include("count", "channelId", "originalMessageId")).sort(Sorts.descending("count")).into(new ArrayList<>());
 
 		PagedResult<Document> paged = new PagedResult<>(event.getBot(), starboards)
 			.setIncreasedIndex(true)
@@ -308,7 +308,7 @@ public class StarboardCommand extends Sx4Command {
 				.append("message", new Document("content", message));
 
 			List<Bson> update = List.of(Operators.set("starboard.messages", Operators.let(new Document("config", Operators.ifNull("$starboard.messages", StarboardManager.DEFAULT_CONFIGURATION)), Operators.cond(Operators.gte(Operators.size("$$config"), 50), "$$config", Operators.concatArrays(Operators.filter("$$config", Operators.ne("$$this.stars", stars)), List.of(config))))));
-			event.getDatabase().updateGuildById(event.getGuild().getIdLong(), update).whenComplete((result, exception) -> {
+			event.getMongo().updateGuildById(event.getGuild().getIdLong(), update).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
@@ -329,7 +329,7 @@ public class StarboardCommand extends Sx4Command {
 		public void remove(Sx4CommandEvent event, @Argument(value="stars") int stars) {
 			List<Bson> update = List.of(Operators.set("starboard.messages", Operators.let(new Document("config", Operators.ifNull("$starboard.messages", StarboardManager.DEFAULT_CONFIGURATION)), Operators.cond(Operators.eq(Operators.size("$$config"), 1), "$$config", Operators.let(new Document("updatedConfig", Operators.filter("$$config", Operators.ne("$$this.stars", stars))), Operators.cond(Operators.eq(StarboardManager.DEFAULT_CONFIGURATION, "$$updatedConfig"), Operators.REMOVE, "$$updatedConfig"))))));
 			FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().projection(Projections.include("starboard.messages")).returnDocument(ReturnDocument.BEFORE).upsert(true);
-			event.getDatabase().findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
+			event.getMongo().findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
@@ -359,7 +359,7 @@ public class StarboardCommand extends Sx4Command {
 		@Examples({"starboard configuration reset"})
 		@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 		public void reset(Sx4CommandEvent event) {
-			event.getDatabase().updateGuildById(event.getGuild().getIdLong(), Updates.unset("starboard.messages")).whenComplete((result, exception) -> {
+			event.getMongo().updateGuildById(event.getGuild().getIdLong(), Updates.unset("starboard.messages")).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}

@@ -10,16 +10,19 @@ public class ItemStack<Type extends Item> implements Comparable<ItemStack<Type>>
 	
 	private final Type item;
 	private long amount;
-	
-	@SuppressWarnings("unchecked")
-	public ItemStack(EconomyManager manager, Document data) {
-		Document item = data.get("item", Document.class);
 
-		ItemType type = ItemType.fromType(data.getInteger("type"));
-		Item defaultItem = manager.getItemById(item.getInteger("id"));
-		
-		this.item = (Type) type.create(item, defaultItem);
-		this.amount = data.getLong("amount");
+	public ItemStack(EconomyManager manager, Document data) {
+		this(manager.getItemById(data.getEmbedded(List.of("item", "id"), Integer.class)), data.get("item", Document.class), data.getLong("amount"));
+	}
+
+	public ItemStack(Item defaultItem, Document data) {
+		this(defaultItem, data.get("item", Document.class), data.getLong("amount"));
+	}
+
+	@SuppressWarnings("unchecked")
+	public ItemStack(Item defaultItem, Document item, long amount) {
+		this.item = (Type) defaultItem.getType().create(item, defaultItem);
+		this.amount = amount;
 	}
 
 	public ItemStack(Type item, long amount) {
@@ -47,6 +50,10 @@ public class ItemStack<Type extends Item> implements Comparable<ItemStack<Type>>
 	
 	public long getAmount() {
 		return this.amount;
+	}
+
+	public long getTotalPrice() {
+		return this.item.getPrice() * this.amount;
 	}
 	
 	public boolean equalsItem(ItemStack<?> itemStack) {

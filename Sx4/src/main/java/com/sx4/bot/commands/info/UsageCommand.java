@@ -50,7 +50,7 @@ public class UsageCommand extends Sx4Command {
 			filters.add(Filters.lte("_id", new ObjectId(Date.from(Instant.ofEpochSecond(to)))));
 		}
 
-		long amount = event.getDatabase().getCommands().countDocuments(Filters.and(filters));
+		long amount = event.getMongo().getCommands().countDocuments(Filters.and(filters));
 		event.reply("`" + command.getCommandTrigger() + "` has been used **" + amount + "** time" + (amount == 1 ? "" : "s")).queue();
 	}
 

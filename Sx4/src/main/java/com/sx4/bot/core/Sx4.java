@@ -27,8 +27,11 @@ import com.sx4.bot.cache.GuildMessageCache;
 import com.sx4.bot.cache.SteamGameCache;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.config.Config;
-import com.sx4.bot.database.Database;
+import com.sx4.bot.database.mongo.MongoDatabase;
+import com.sx4.bot.database.postgres.PostgresDatabase;
 import com.sx4.bot.entities.argument.*;
+import com.sx4.bot.entities.economy.item.Item;
+import com.sx4.bot.entities.economy.item.ItemStack;
 import com.sx4.bot.entities.management.AutoRoleFilter;
 import com.sx4.bot.entities.mod.PartialEmote;
 import com.sx4.bot.entities.mod.Reason;
@@ -61,8 +64,6 @@ import org.bson.types.ObjectId;
 
 import javax.security.auth.login.LoginException;
 import java.awt.*;
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.time.*;
@@ -85,9 +86,13 @@ public class Sx4 {
 
 	private final Config config = Config.get();
 
-	private final Database database;
-	private final Database canaryDatabase;
-	private final Database mainDatabase;
+	private final PostgresDatabase postgres;
+	private final PostgresDatabase postgresCanary;
+	private final PostgresDatabase postgresMain;
+
+	private final MongoDatabase mongo;
+	private final MongoDatabase mongoCanary;
+	private final MongoDatabase mongoMain;
 
 	private final CommandListener commandListener;
 	private final ShardManager shardManager;
@@ -120,10 +125,15 @@ public class Sx4 {
 	private final TwitchTokenManager twitchTokenManager;
 	
 	private Sx4() {
-		this.mainDatabase = new Database(this.config.getMainDatabase());
-		this.canaryDatabase = new Database(this.config.getCanaryDatabase());
+		this.postgresMain = new PostgresDatabase(this.config.getMainDatabase());
+		this.postgresCanary = new PostgresDatabase(this.config.getCanaryDatabase());
 
-		this.database = this.config.isMain() ? this.mainDatabase : this.canaryDatabase;
+		this.postgres = this.config.isMain() ? this.postgresMain : this.postgresCanary;
+
+		this.mongoMain = new MongoDatabase(this.config.getMainDatabase());
+		this.mongoCanary = new MongoDatabase(this.config.getCanaryDatabase());
+
+		this.mongo = this.config.isMain() ? this.mongoMain : this.mongoCanary;
 
 		this.executor = Executors.newSingleThreadExecutor();
 		this.scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
@@ -321,16 +331,28 @@ public class Sx4 {
 		FormatterManager.setDefaultManager(formatterManager);
 	}
 
-	public Database getDatabase() {
-		return this.database;
+	public PostgresDatabase getPostgres() {
+		return this.postgres;
 	}
 
-	public Database getMainDatabase() {
-		return this.mainDatabase;
+	public PostgresDatabase getPostgresMain() {
+		return this.postgresMain;
 	}
 
-	public Database getCanaryDatabase() {
-		return this.canaryDatabase;
+	public PostgresDatabase getPostgresCanary() {
+		return this.postgresCanary;
+	}
+
+	public MongoDatabase getMongo() {
+		return this.mongo;
+	}
+
+	public MongoDatabase getMongoMain() {
+		return this.mongoMain;
+	}
+
+	public MongoDatabase getMongoCanary() {
+		return this.mongoCanary;
 	}
 
 	public Config getConfig() {
@@ -475,7 +497,7 @@ public class Sx4 {
 				return true;
 			}).addPreExecuteCheck((event, command) -> {
 				if (event.isFromGuild()) {
-					Document guildData = this.database.getGuildById(event.getGuild().getIdLong(), Projections.include("fakePermissions.holders"));
+					Document guildData = this.mongo.getGuildById(event.getGuild().getIdLong(), Projections.include("fakePermissions.holders"));
 
 					List<Document> holders = guildData.getEmbedded(List.of("fakePermissions", "holders"), Collections.emptyList());
 					event.setProperty("fakePermissions", holders);
@@ -566,8 +588,8 @@ public class Sx4 {
 				
 				channel.sendMessage(HelpUtility.getHelpMessage(failures.get(0).getCommand(), embed)).queue();
 			}).setPrefixesFunction(message -> {
-				List<String> guildPrefixes = message.isFromGuild() ? this.database.getGuildById(message.getGuild().getIdLong(), Projections.include("prefixes")).getList("prefixes", String.class, Collections.emptyList()) : Collections.emptyList();
-				List<String> userPrefixes = this.database.getUserById(message.getAuthor().getIdLong(), Projections.include("prefixes")).getList("prefixes", String.class, Collections.emptyList());
+				List<String> guildPrefixes = message.isFromGuild() ? this.mongo.getGuildById(message.getGuild().getIdLong(), Projections.include("prefixes")).getList("prefixes", String.class, Collections.emptyList()) : Collections.emptyList();
+				List<String> userPrefixes = this.mongo.getUserById(message.getAuthor().getIdLong(), Projections.include("prefixes")).getList("prefixes", String.class, Collections.emptyList());
 
 				return userPrefixes.isEmpty() ? guildPrefixes.isEmpty() ? this.config.getDefaultPrefixes() : guildPrefixes : userPrefixes;
 			}).setCooldownFunction((event, cooldown) -> {
@@ -805,7 +827,7 @@ public class Sx4 {
 
 				return builder;
 			}).addBuilderConfigureFunction(TimedArgument.class, (parameter, builder) -> {
-				Class<?> clazz = (Class<?>) ((ParameterizedType) parameter.getParameterizedType()).getActualTypeArguments()[0];
+				Class<?> clazz = ClassUtility.getParameterTypes(parameter, TimedArgument.class)[0];
 
 				List<?> builders = argumentFactory.getBuilderConfigureFunctions(clazz);
 				for (Object builderFunction : builders) {
@@ -815,8 +837,13 @@ public class Sx4 {
 				builder.setProperty("class", clazz);
 
 				return builder;
+			}).addBuilderConfigureFunction(ItemStack.class, (parameter, builder) -> {
+				Class<?> clazz = ClassUtility.getParameterTypes(parameter, ItemStack.class)[0];
+				builder.setProperty("itemClass", clazz);
+
+				return builder;
 			}).addBuilderConfigureFunction(Range.class, (parameter, builder) -> {
-				Class<?> clazz = (Class<?>) ((ParameterizedType) parameter.getParameterizedType()).getActualTypeArguments()[0];
+				Class<?> clazz = ClassUtility.getParameterTypes(parameter, Range.class)[0];
 
 				List<?> builders = argumentFactory.getBuilderConfigureFunctions(clazz);
 				for (Object builderFunction : builders) {
@@ -827,7 +854,7 @@ public class Sx4 {
 
 				return builder;
 			}).addBuilderConfigureFunction(Alternative.class, (parameter, builder) -> {
-				Class<?> clazz = (Class<?>) ((ParameterizedType) parameter.getParameterizedType()).getActualTypeArguments()[0];
+				Class<?> clazz = ClassUtility.getParameterTypes(parameter, Alternative.class)[0];
 
 				List<?> builders = argumentFactory.getBuilderConfigureFunctions(clazz);
 				for (Object builderFunction : builders) {
@@ -860,8 +887,8 @@ public class Sx4 {
 
 				return builder;
 			}).addBuilderConfigureFunction(Or.class, (parameter, builder) -> {
-				Type[] classes = ((ParameterizedType) parameter.getParameterizedType()).getActualTypeArguments();
-				Class<?> firstClass = (Class<?>) classes[0], secondClass = (Class<?>) classes[1];
+				Class<?>[] classes = ClassUtility.getParameterTypes(parameter, Or.class);
+				Class<?> firstClass = classes[0], secondClass = classes[1];
 
 				List<?> builders = argumentFactory.getBuilderConfigureFunctions(firstClass);
 				for (Object builderFunction : builders) {
@@ -878,7 +905,7 @@ public class Sx4 {
 			.registerParser(TextChannel.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getTextChannel(context.getMessage().getGuild(), content.trim())))
 			.registerParser(Duration.class, (context, argument, content) -> new ParsedResult<>(TimeUtility.getDurationFromString(content.trim())))
 			.registerParser(List.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getCommandOrModule(this.commandListener, content.trim())))
-			.registerParser(Reason.class, (context, argument, content) -> new ParsedResult<>(Reason.parse(this.database, context.getMessage().getGuild().getIdLong(), content.trim())))
+			.registerParser(Reason.class, (context, argument, content) -> new ParsedResult<>(Reason.parse(this.mongo, context.getMessage().getGuild().getIdLong(), content.trim())))
 			.registerParser(ObjectId.class, (context, argument, content) -> new ParsedResult<>(ObjectId.isValid(content) ? new ObjectId(content.trim()) : null))
 			.registerParser(IPermissionHolder.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getPermissionHolder(context.getMessage().getGuild(), content.trim())))
 			.registerParser(Role.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getRole(context.getMessage().getGuild(), content.trim())))
@@ -888,12 +915,36 @@ public class Sx4 {
 			.registerParser(GuildChannel.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getGuildChannel(context.getMessage().getGuild(), content.trim())))
 			.registerParser(Locale.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getLocale(content.trim())))
 			.registerParser(Guild.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getGuild(this.shardManager, content.trim())))
+			.registerParser(AmountArgument.class, (context, argument, content) -> new ParsedResult<>(AmountArgument.parse(content)))
 			.registerParser(ReactionEmote.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getReactionEmote(this.shardManager, content.trim())))
 			.registerParser(Sx4Command.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getCommand(this.commandListener, content.trim())))
+			.registerGenericParser(Item.class, (context, type, argument, content) -> new ParsedResult<>(this.economyManager.getItemByQuery(content.trim(), type)))
 			.registerParser(OffsetTimeZone.class, (context, argument, content) -> new ParsedResult<>(OffsetTimeZone.getTimeZone(content.trim().toUpperCase())))
-			.registerParser(ReminderArgument.class, (context, argument, content) -> {
+			.registerParser(ItemStack.class, (context, argument, content) -> {
+				Class type = argument.getProperty("itemClass");
+
+				int index = content.indexOf(' ');
+				String itemContent = index == -1 ? content : content.substring(index + 1), amountContent = index == -1 ? null : content.substring(0, index);
+
+				Item item = this.economyManager.getItemByQuery(itemContent, type);
+				if (item == null && index != -1) {
+					index = content.lastIndexOf(' ');
+					itemContent = content.substring(0, index);
+					amountContent = content.substring(index + 1);
+					item = this.economyManager.getItemByQuery(itemContent, type);
+				}
+
+				long amount;
 				try {
-					return new ParsedResult<>(ReminderArgument.parse(this.database, context.getMessage().getAuthor().getIdLong(), content));
+					amount = amountContent == null ? 1L : Long.parseUnsignedLong(amountContent);
+				} catch (NumberFormatException e) {
+					amount = 1L;
+				}
+
+				return item == null ? new ParsedResult<>() : new ParsedResult<>(new ItemStack<>(item, amount));
+			}).registerParser(ReminderArgument.class, (context, argument, content) -> {
+				try {
+					return new ParsedResult<>(ReminderArgument.parse(this.mongo, context.getMessage().getAuthor().getIdLong(), content));
 				} catch (DateTimeException | IllegalArgumentException e) {
 					return new ParsedResult<>();
 				}
@@ -1024,7 +1075,7 @@ public class Sx4 {
 					TextChannel channel = message.getTextChannel();
 
 					int nextSpace = content.indexOf(' ');
-					String query = nextSpace == -1 ? content : content.substring(0, nextSpace);
+					String query = nextSpace == -1 || argument.isEndless() ? content : content.substring(0, nextSpace);
 
 					Matcher jumpMatch = Message.JUMP_URL_PATTERN.matcher(query);
 					if (jumpMatch.matches()) {
@@ -1104,7 +1155,7 @@ public class Sx4 {
 			}).registerParser(Alternative.class, new IParser<>() {
 				public ParsedResult<Alternative> parse(ParseContext context, IArgument<Alternative> argument, String content) {
 					int nextSpace = content.indexOf(' ');
-					String argumentContent = nextSpace == -1 ? content : content.substring(0, nextSpace);
+					String argumentContent = nextSpace == -1 || argument.isEndless() ? content : content.substring(0, nextSpace);
 
 					String[] options = argument.getProperty("options", new String[0]);
 					for (String option : options) {
@@ -1115,7 +1166,7 @@ public class Sx4 {
 
 					Class<?> clazz = argument.getProperty("class", Class.class);
 
-					ParsedResult<?> parsedArgument = CommandUtility.getParsedResult(clazz, argumentFactory, context, argument, " " + content);
+					ParsedResult<?> parsedArgument = CommandUtility.getParsedResult(clazz, argumentFactory, context, argument, argumentContent);
 					if (!parsedArgument.isValid()) {
 						return new ParsedResult<>();
 					}
@@ -1213,6 +1264,8 @@ public class Sx4 {
 			.registerResponse(GuildChannel.class, "I could not find that channel " + this.config.getFailureEmote())
 			.registerResponse(IPermissionHolder.class, "I could not find that user/role " + this.config.getFailureEmote())
 			.registerResponse(Emote.class, "I could not find that emote " + this.config.getFailureEmote())
+			.registerResponse(ItemStack.class, "I could not find that item " + this.config.getFailureEmote())
+			.registerResponse(Item.class, "I could not find that item " + this.config.getFailureEmote())
 			.registerResponse(Duration.class, "Invalid time string given, a good example would be `5d 1h 24m 36s` " + this.config.getFailureEmote())
 			.registerResponse(ObjectId.class, "Invalid id given, an example id would be `5e45ce6d3688b30ee75201ae` " + this.config.getFailureEmote())
 			.registerResponse(Locale.class, "I could not find that language " + this.config.getFailureEmote())
@@ -1223,6 +1276,7 @@ public class Sx4 {
 			.registerResponse(Guild.class, "I could not find that server " + this.config.getFailureEmote())
 			.registerResponse(AutoRoleFilter.class, "I could not find that filter " + this.config.getFailureEmote())
 			.registerResponse(Pattern.class, "Regex syntax was incorrect " + this.config.getFailureEmote())
+			.registerResponse(AmountArgument.class, "Invalid amount argument, make sure it is either a number or percentage" + this.config.getFailureEmote())
 			.registerResponse(int.class, (argument, message, content) -> {
 				if (argument.getProperty("colour", false)) {
 					message.getChannel().sendMessage("I could not find that colour " + this.config.getFailureEmote()).queue();
@@ -1294,7 +1348,9 @@ public class Sx4 {
 				}
 
 				message.getChannel().sendMessage("Invalid argument given, give any of the following " + joiner.toString() + " " + this.config.getFailureEmote()).queue();
-			}).setHandleInheritance(Enum.class, true);
+			})
+			.setHandleInheritance(Enum.class, true)
+			.setHandleInheritance(Item.class, true);
 	}
 	
 	public static void main(String[] args) throws Exception {

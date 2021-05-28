@@ -16,8 +16,8 @@ public class CheckUtility {
 
 	public static boolean canReply(Sx4 bot, Message message, String prefix) {
 		if (bot.getConfig().isMain()) {
-			List<String> guildPrefixes = message.isFromGuild() ? bot.getCanaryDatabase().getGuildById(message.getGuild().getIdLong(), Projections.include("prefixes")).getList("prefixes", String.class, Collections.emptyList()) : Collections.emptyList();
-			List<String> userPrefixes = bot.getCanaryDatabase().getUserById(message.getAuthor().getIdLong(), Projections.include("prefixes")).getList("prefixes", String.class, Collections.emptyList());
+			List<String> guildPrefixes = message.isFromGuild() ? bot.getMongoCanary().getGuildById(message.getGuild().getIdLong(), Projections.include("prefixes")).getList("prefixes", String.class, Collections.emptyList()) : Collections.emptyList();
+			List<String> userPrefixes = bot.getMongoCanary().getUserById(message.getAuthor().getIdLong(), Projections.include("prefixes")).getList("prefixes", String.class, Collections.emptyList());
 
 			List<String> prefixes = userPrefixes.isEmpty() ? guildPrefixes.isEmpty() ? bot.getConfig().getDefaultPrefixes() : guildPrefixes : userPrefixes;
 			if (!prefixes.contains(prefix)) {
@@ -38,7 +38,7 @@ public class CheckUtility {
 
 		Guild guild = member.getGuild();
 
-		Document blacklist = bot.getDatabase().getBlacklist(Filters.eq("channelId", channel.getIdLong()), Projections.include("holders"));
+		Document blacklist = bot.getMongo().getBlacklist(Filters.eq("channelId", channel.getIdLong()), Projections.include("holders"));
 		if (blacklist == null) {
 			return true;
 		}

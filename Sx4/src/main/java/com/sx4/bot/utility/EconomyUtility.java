@@ -1,6 +1,7 @@
 package com.sx4.bot.utility;
 
-import com.sx4.bot.database.model.Operators;
+import com.sx4.bot.database.mongo.model.Operators;
+import com.sx4.bot.entities.argument.AmountArgument;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 
@@ -14,12 +15,19 @@ public class EconomyUtility {
 	}
 	
 	public static Bson getBalanceUpdate(long amount) {
-		return Operators.set("economy.balance", Operators.cond(Operators.or(Operators.extinct("$economy.balance"), Operators.lt("$economy.balance", amount)), "$economy.balance", Operators.subtract("$economy.balance", amount)));
+		return Operators.set("economy.balance", Operators.let(new Document("balance", Operators.ifNull("$economy.balance", 0)), Operators.cond(Operators.lt("$$balance", amount), "$$balance", Operators.subtract("$$balance", amount))));
 	}
-	
-	// When the user gives a percentage as an argument eg: 50%
+
 	public static Bson getBalanceUpdate(double decimal) {
-		return Operators.set("economy.balance", Operators.subtract("$economy.balance", Operators.toLong(Operators.floor(Operators.multiply(decimal, "$economy.balance")))));
+		return Operators.set("economy.balance", Operators.let(new Document("balance", Operators.ifNull("$economy.balance", 0)), Operators.subtract("$$balance", Operators.toLong(Operators.ceil(Operators.multiply(decimal, "$$balance"))))));
+	}
+
+	public static Bson getBalanceUpdate(AmountArgument amount) {
+		if (amount.hasDecimal()) {
+			return EconomyUtility.getBalanceUpdate(amount.getDecimal());
+		} else {
+			return EconomyUtility.getBalanceUpdate(amount.getAmount());
+		}
 	}
 	
 }

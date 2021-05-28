@@ -39,7 +39,7 @@ public class YouTubeEndpoint {
 		if (authorization != null && authorization.equals(this.bot.getConfig().getYoutube())) {
 			String channelId = topic.substring(topic.lastIndexOf('=') + 1);
 			
-			this.bot.getDatabase().updateYouTubeSubscriptionById(channelId, Updates.set("resubscribeAt", Clock.systemUTC().instant().getEpochSecond() + seconds)).whenComplete((result, exception) -> {
+			this.bot.getMongo().updateYouTubeSubscriptionById(channelId, Updates.set("resubscribeAt", Clock.systemUTC().instant().getEpochSecond() + seconds)).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendErrorMessage(this.bot.getShardManager(), exception)) {
 					return;
 				}
@@ -76,7 +76,7 @@ public class YouTubeEndpoint {
 			YouTubeChannel channel = new YouTubeChannel(channelId, channelName);
 			YouTubeVideo video = new YouTubeVideo(videoId, videoTitle, videoUpdatedAt, videoPublishedAt);
 			
-			Document data = this.bot.getDatabase().getYouTubeNotificationLog(Filters.eq("videoId", videoId), Projections.include("title"));
+			Document data = this.bot.getMongo().getYouTubeNotificationLog(Filters.eq("videoId", videoId), Projections.include("title"));
 			String oldTitle = data == null ? null : data.getString("title");
 			
 			if (data == null && Duration.between(video.getPublishedAt(), OffsetDateTime.now(ZoneOffset.UTC)).toMinutes() <= 60) {

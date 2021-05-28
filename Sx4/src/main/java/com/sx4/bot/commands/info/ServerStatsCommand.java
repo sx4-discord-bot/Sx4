@@ -5,7 +5,7 @@ import com.mongodb.client.model.Filters;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
-import com.sx4.bot.database.Database;
+import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.entities.info.ServerStatsType;
 import com.sx4.bot.utility.StringUtility;
 import com.sx4.bot.utility.TimeUtility;
@@ -46,7 +46,7 @@ public class ServerStatsCommand extends Sx4Command {
 			return;
 		}
 
-		List<Document> data = event.getDatabase().getServerStats(Filters.eq("guildId", event.getGuild().getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>());
+		List<Document> data = event.getMongo().getServerStats(Filters.eq("guildId", event.getGuild().getIdLong()), MongoDatabase.EMPTY_DOCUMENT).into(new ArrayList<>());
 		if (data.isEmpty()) {
 			event.replyFailure("There has been no data recorded for this server yet").queue();
 			return;

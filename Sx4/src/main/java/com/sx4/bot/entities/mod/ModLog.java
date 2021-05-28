@@ -26,13 +26,16 @@ public class ModLog {
 	private final long guildId;
 	private final long targetId;
 	private final long moderatorId;
+
+	private long webhookId;
+	private String webhookToken;
 	
 	private final Action action;
 	
 	private final Reason reason;
 	
 	public ModLog(long channelId, long guildId, long targetId, long moderatorId, Reason reason, Action action) {
-		this(ObjectId.get(), 0L, channelId, guildId, targetId, moderatorId, reason, action);
+		this(ObjectId.get(), 0L, channelId, guildId, targetId, moderatorId, 0L, null, reason, action);
 	}
 	
 	private ModLog(Document data) {
@@ -42,6 +45,10 @@ public class ModLog {
 		this.guildId = data.get("guildId",0L);
 		this.targetId = data.getLong("targetId");
 		this.moderatorId = data.getLong("moderatorId");
+
+		Document webhook = data.get("webhook", Document.class);
+		this.webhookId = webhook.getLong("id");
+		this.webhookToken = webhook.getString("token");
 		
 		String reason = data.getString("reason");
 		this.reason = reason == null ? null : new Reason(reason);
@@ -49,13 +56,15 @@ public class ModLog {
 		this.action = Action.fromData(data.get("action", Document.class));
 	}
 	
-	public ModLog(ObjectId id, long messageId, long channelId, long guildId, long targetId, long moderatorId, Reason reason, Action action) {
+	public ModLog(ObjectId id, long messageId, long channelId, long guildId, long targetId, long moderatorId, long webhookId, String webhookToken,  Reason reason, Action action) {
 		this.id = id;
 		this.messageId = messageId;
 		this.channelId = channelId;
 		this.guildId = guildId;
 		this.targetId = targetId;
 		this.moderatorId = moderatorId;
+		this.webhookId = webhookId;
+		this.webhookToken = webhookToken;
 		this.reason = reason;
 		this.action = action;
 	}
@@ -72,8 +81,24 @@ public class ModLog {
 		return this.id.getTimestamp();
 	}
 
-	public boolean hasMessageId() {
-		return this.messageId != 0L;
+	public long getWebhookId() {
+		return this.webhookId;
+	}
+
+	public ModLog setWebhookId(long webhookId) {
+		this.webhookId = webhookId;
+
+		return this;
+	}
+
+	public String getWebhookToken() {
+		return this.webhookToken;
+	}
+
+	public ModLog setWebhookToken(String webhookToken) {
+		this.webhookToken = webhookToken;
+
+		return this;
 	}
 	
 	public long getMessageId() {
@@ -175,6 +200,7 @@ public class ModLog {
 			.append("targetId", this.targetId)
 			.append("messageId", this.messageId)
 			.append("moderatorId", this.moderatorId)
+			.append("webhook", new Document("id", 0L).append("token", ""))
 			.append("reason", this.reason == null ? null : this.reason.getParsed())
 			.append("action", this.action.toData());
 	}

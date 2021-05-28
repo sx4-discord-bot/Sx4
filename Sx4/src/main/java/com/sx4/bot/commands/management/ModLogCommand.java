@@ -16,8 +16,8 @@ import com.sx4.bot.annotations.command.Premium;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
-import com.sx4.bot.database.Database;
-import com.sx4.bot.database.model.Operators;
+import com.sx4.bot.database.mongo.MongoDatabase;
+import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.argument.Alternative;
 import com.sx4.bot.entities.argument.Range;
 import com.sx4.bot.entities.mod.ModLog;
@@ -64,7 +64,7 @@ public class ModLogCommand extends Sx4Command {
 	@Examples({"modlog toggle"})
 	public void toggle(Sx4CommandEvent event) {
 		List<Bson> update = List.of(Operators.set("modLog.enabled", Operators.cond("$modLog.enabled", Operators.REMOVE, true)));
-		event.getDatabase().findAndUpdateGuildById(event.getGuild().getIdLong(), Projections.include("modLog.enabled"), update).whenComplete((data, exception) -> {
+		event.getMongo().findAndUpdateGuildById(event.getGuild().getIdLong(), Projections.include("modLog.enabled"), update).whenComplete((data, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -83,7 +83,7 @@ public class ModLogCommand extends Sx4Command {
 		List<Bson> update = List.of(Operators.set("modLog.channelId", channel == null ? Operators.REMOVE : channel.getIdLong()), Operators.unset("modLog.webhook.id"), Operators.unset("modLog.webhook.token"));
 		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("modLog.channelId")).upsert(true);
 
-		event.getDatabase().findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
+		event.getMongo().findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -123,7 +123,7 @@ public class ModLogCommand extends Sx4Command {
 		long authorId = event.getAuthor().getIdLong();
 
 		List<Bson> update = List.of(Operators.set("reason", Operators.cond(Operators.and(Operators.or(Operators.eq("$moderatorId", authorId), event.getMember().hasPermission(Permission.ADMINISTRATOR)), Operators.or(or)), reason.getParsed(), "$reason")));
-		event.getDatabase().updateManyModLogs(update).whenComplete((result, exception) -> {
+		event.getMongo().updateManyModLogs(update).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -154,7 +154,7 @@ public class ModLogCommand extends Sx4Command {
 					.setUnique(author.getIdLong(), event.getChannel().getIdLong())
 					.start();
 			})
-			.thenCompose(messageEvent -> event.getDatabase().deleteManyModLogs(Filters.eq("guildId", event.getGuild().getIdLong())))
+			.thenCompose(messageEvent -> event.getMongo().deleteManyModLogs(Filters.eq("guildId", event.getGuild().getIdLong())))
 			.whenComplete((result, exception) -> {
 				Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
 				if (cause instanceof CancelException) {
@@ -177,7 +177,7 @@ public class ModLogCommand extends Sx4Command {
 		} else {
 			ObjectId id = option.getValue();
 
-			event.getDatabase().findAndDeleteModLogById(id).whenComplete((data, exception) -> {
+			event.getMongo().findAndDeleteModLogById(id).whenComplete((data, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
@@ -203,7 +203,7 @@ public class ModLogCommand extends Sx4Command {
 	public void view(Sx4CommandEvent event, @Argument(value="id", nullDefault=true) ObjectId id) {
 		Bson projection = Projections.include("moderatorId", "reason", "targetId", "action");
 		if (id == null) {
-			List<Document> allData = event.getDatabase().getModLogs(Filters.eq("guildId", event.getGuild().getIdLong()), projection).into(new ArrayList<>());
+			List<Document> allData = event.getMongo().getModLogs(Filters.eq("guildId", event.getGuild().getIdLong()), projection).into(new ArrayList<>());
 			if (allData.isEmpty()) {
 				event.replyFailure("There are no mod logs in this server").queue();
 				return;
@@ -222,7 +222,7 @@ public class ModLogCommand extends Sx4Command {
 			
 			paged.execute(event);
 		} else {
-			Document data = event.getDatabase().getModLogById(Filters.and(Filters.eq("_id", id), Filters.eq("guildId", event.getGuild().getIdLong())), projection);
+			Document data = event.getMongo().getModLogById(Filters.and(Filters.eq("_id", id), Filters.eq("guildId", event.getGuild().getIdLong())), projection);
 			if (data == null) {
 				event.replyFailure("I could not find a mod log with that id").queue();
 				return;
@@ -239,12 +239,12 @@ public class ModLogCommand extends Sx4Command {
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void name(Sx4CommandEvent event, @Argument(value="name", endless=true) String name) {
 		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().projection(Projections.include("modLog.webhook.name", "premium.endAt")).returnDocument(ReturnDocument.BEFORE).upsert(true);
-		event.getDatabase().findAndUpdateGuildById(event.getGuild().getIdLong(), List.of(OperatorsUtility.setIfPremium("modLog.webhook.name", name)), options).whenComplete((data, exception) -> {
+		event.getMongo().findAndUpdateGuildById(event.getGuild().getIdLong(), List.of(OperatorsUtility.setIfPremium("modLog.webhook.name", name)), options).whenComplete((data, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
 
-			data = data == null ? Database.EMPTY_DOCUMENT : data;
+			data = data == null ? MongoDatabase.EMPTY_DOCUMENT : data;
 
 			if (data.getEmbedded(List.of("premium", "endAt"), 0L) < Clock.systemUTC().instant().getEpochSecond()) {
 				event.replyFailure("This server needs premium to use this command").queue();
@@ -268,12 +268,12 @@ public class ModLogCommand extends Sx4Command {
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void avatar(Sx4CommandEvent event, @Argument(value="avatar", endless=true, acceptEmpty=true) @ImageUrl String url) {
 		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().projection(Projections.include("modLog.webhook.avatar", "premium.endAt")).returnDocument(ReturnDocument.BEFORE).upsert(true);
-		event.getDatabase().findAndUpdateGuildById(event.getGuild().getIdLong(), List.of(OperatorsUtility.setIfPremium("modLog.webhook.avatar", url)), options).whenComplete((data, exception) -> {
+		event.getMongo().findAndUpdateGuildById(event.getGuild().getIdLong(), List.of(OperatorsUtility.setIfPremium("modLog.webhook.avatar", url)), options).whenComplete((data, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
 
-			data = data == null ? Database.EMPTY_DOCUMENT : data;
+			data = data == null ? MongoDatabase.EMPTY_DOCUMENT : data;
 
 			if (data.getEmbedded(List.of("premium", "endAt"), 0L) < Clock.systemUTC().instant().getEpochSecond()) {
 				event.replyFailure("This server needs premium to use this command").queue();

@@ -28,11 +28,11 @@ public class MuteHandler implements EventListener {
 			Filters.eq("guildId", event.getGuild().getIdLong())
 		);
 
-		Document mute = this.bot.getDatabase().getMute(filter, Projections.include("unmuteAt"));
+		Document mute = this.bot.getMongo().getMute(filter, Projections.include("unmuteAt"));
 
 		long unmuteAt = mute == null ? 0L : mute.get("unmuteAt", 0L);
 		if (unmuteAt > Clock.systemUTC().instant().getEpochSecond()) {
-			long roleId = this.bot.getDatabase().getGuildById(event.getGuild().getIdLong(), Projections.include("mute.roleId")).getEmbedded(List.of("mute", "roleId"), 0L);
+			long roleId = this.bot.getMongo().getGuildById(event.getGuild().getIdLong(), Projections.include("mute.roleId")).getEmbedded(List.of("mute", "roleId"), 0L);
 			if (roleId != 0L) {
 				Role role = event.getGuild().getRoleById(roleId);
 				if (role != null) {

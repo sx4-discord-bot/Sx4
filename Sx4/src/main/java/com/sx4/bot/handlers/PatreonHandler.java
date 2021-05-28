@@ -1,8 +1,8 @@
 package com.sx4.bot.handlers;
 
 import com.sx4.bot.core.Sx4;
-import com.sx4.bot.database.Database;
-import com.sx4.bot.database.model.Operators;
+import com.sx4.bot.database.mongo.MongoDatabase;
+import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.events.patreon.PatreonEvent;
 import com.sx4.bot.hooks.PatreonListener;
 import org.bson.Document;
@@ -24,7 +24,7 @@ public class PatreonHandler implements PatreonListener {
 			Operators.set("premium.total", event.getTotalAmount())
 		);
 
-		this.bot.getMainDatabase().updateUserById(event.getDiscordId(), update).whenComplete(Database.exceptionally(this.bot.getShardManager()));
+		this.bot.getMongoMain().updateUserById(event.getDiscordId(), update).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
 	}
 	
 }

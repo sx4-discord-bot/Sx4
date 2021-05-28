@@ -1,7 +1,7 @@
 package com.sx4.bot.entities.economy.auction;
 
 import com.mongodb.client.result.DeleteResult;
-import com.sx4.bot.database.Database;
+import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.entities.economy.item.Item;
 import com.sx4.bot.entities.economy.item.ItemStack;
 import org.bson.types.ObjectId;
@@ -53,7 +53,7 @@ public class Auction<Type extends Item> {
 		return this.itemStack;
 	}
 	
-	public CompletableFuture<DeleteResult> delete(Database database) {
+	public CompletableFuture<DeleteResult> delete(MongoDatabase database) {
 		return database.deleteAuctionById(this.id);
 	}
 	

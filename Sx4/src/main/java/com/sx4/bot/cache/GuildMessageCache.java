@@ -1,7 +1,7 @@
 package com.sx4.bot.cache;
 
 import com.sx4.bot.core.Sx4;
-import com.sx4.bot.database.Database;
+import com.sx4.bot.database.mongo.MongoDatabase;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.events.message.MessageBulkDeleteEvent;
@@ -44,7 +44,7 @@ public class GuildMessageCache implements EventListener {
 			return;
 		}
 
-		this.bot.getDatabase().insertMessage(this.getData(event.getMessage())).whenComplete(Database.exceptionally(this.bot.getShardManager()));
+		this.bot.getMongo().insertMessage(this.getData(event.getMessage())).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
 	}
 	
 	public void onGuildMessageUpdate(GuildMessageUpdateEvent event) {
@@ -52,11 +52,11 @@ public class GuildMessageCache implements EventListener {
 			return;
 		}
 
-		this.executor.schedule(() -> this.bot.getDatabase().replaceMessage(this.getData(event.getMessage())).whenComplete(Database.exceptionally(this.bot.getShardManager())), 50, TimeUnit.MILLISECONDS);
+		this.executor.schedule(() -> this.bot.getMongo().replaceMessage(this.getData(event.getMessage())).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager())), 50, TimeUnit.MILLISECONDS);
 	}
 
 	public void handle(List<Long> messageIds) {
-		this.executor.schedule(() -> this.bot.getDatabase().deleteMessages(messageIds).whenComplete(Database.exceptionally(this.bot.getShardManager())), 5, TimeUnit.MINUTES);
+		this.executor.schedule(() -> this.bot.getMongo().deleteMessages(messageIds).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager())), 5, TimeUnit.MINUTES);
 	}
 
 	@Override

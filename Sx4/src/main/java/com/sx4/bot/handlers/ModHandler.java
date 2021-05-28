@@ -3,7 +3,7 @@ package com.sx4.bot.handlers;
 import club.minnced.discord.webhook.send.WebhookEmbed;
 import com.mongodb.client.model.Projections;
 import com.sx4.bot.core.Sx4;
-import com.sx4.bot.database.Database;
+import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.entities.mod.ModLog;
 import com.sx4.bot.entities.mod.Reason;
 import com.sx4.bot.entities.mod.action.Action;
@@ -63,10 +63,10 @@ public class ModHandler implements ModActionListener, EventListener {
 				data.append("reason", reason.getParsed());
 			}
 
-			this.bot.getDatabase().insertOffence(data).whenComplete(Database.exceptionally(this.bot.getShardManager()));
+			this.bot.getMongo().insertOffence(data).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
 		}
 
-		Document data = this.bot.getDatabase().getGuildById(guild.getIdLong(), Projections.include("modLog.channelId", "modLog.enabled", "modLog.webhook")).get("modLog", Database.EMPTY_DOCUMENT);
+		Document data = this.bot.getMongo().getGuildById(guild.getIdLong(), Projections.include("modLog.channelId", "modLog.enabled", "modLog.webhook")).get("modLog", MongoDatabase.EMPTY_DOCUMENT);
 
 		long channelId = data.get("channelId", 0L);
 		if (!data.getBoolean("enabled", false) || channelId == 0L) {
@@ -89,10 +89,12 @@ public class ModHandler implements ModActionListener, EventListener {
 
 		WebhookEmbed embed = modLog.getWebhookEmbed(moderator, target);
 
-		this.bot.getModLogManager().sendModLog(channel, data.get("webhook", Database.EMPTY_DOCUMENT), embed).whenComplete((webhookMessage, exception) -> {
-			modLog.setMessageId(webhookMessage.getId());
+		this.bot.getModLogManager().sendModLog(channel, data.get("webhook", MongoDatabase.EMPTY_DOCUMENT), embed).whenComplete((webhookMessage, exception) -> {
+			modLog.setMessageId(webhookMessage.getId())
+				.setWebhookId(webhookMessage.getWebhookId())
+				.setWebhookToken(webhookMessage.getWebhookToken());
 
-			this.bot.getDatabase().insertModLog(modLog.toData()).whenComplete(Database.exceptionally(this.bot.getShardManager()));
+			this.bot.getMongo().insertModLog(modLog.toData()).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
 		});
 	}
 	

@@ -4,7 +4,7 @@ import club.minnced.discord.webhook.send.WebhookMessage;
 import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.Updates;
 import com.sx4.bot.core.Sx4;
-import com.sx4.bot.database.Database;
+import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.managers.WelcomerManager;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.MessageUtility;
@@ -29,10 +29,10 @@ public class WelcomerHandler implements EventListener {
 	}
 
 	public void onGuildMemberJoin(GuildMemberJoinEvent event) {
-		Document data = this.bot.getDatabase().getGuildById(event.getGuild().getIdLong(), Projections.include("welcomer", "premium.endAt"));
+		Document data = this.bot.getMongo().getGuildById(event.getGuild().getIdLong(), Projections.include("welcomer", "premium.endAt"));
 
-		Document welcomer = data.get("welcomer", Database.EMPTY_DOCUMENT);
-		Document image = welcomer.get("image", Database.EMPTY_DOCUMENT);
+		Document welcomer = data.get("welcomer", MongoDatabase.EMPTY_DOCUMENT);
+		Document image = welcomer.get("image", MongoDatabase.EMPTY_DOCUMENT);
 
 		boolean messageEnabled = welcomer.get("enabled", false), imageEnabled = image.get("enabled", false);
 		if (!messageEnabled && !imageEnabled) {
@@ -47,13 +47,13 @@ public class WelcomerHandler implements EventListener {
 			return;
 		}
 
-		Document webhookData = welcomer.get("webhook", Database.EMPTY_DOCUMENT);
+		Document webhookData = welcomer.get("webhook", MongoDatabase.EMPTY_DOCUMENT);
 
 		boolean gif = data.getEmbedded(List.of("premium", "endAt"), 0L) >= Clock.systemUTC().instant().getEpochSecond();
 
 		WelcomerUtility.getWelcomerMessage(this.bot.getHttpClient(), messageEnabled ? welcomer.get("message", WelcomerManager.DEFAULT_MESSAGE) : null, event.getMember(), imageEnabled, gif, (builder, exception) -> {
 			if (exception instanceof IllegalArgumentException) {
-				this.bot.getDatabase().updateGuildById(event.getGuild().getIdLong(), Updates.unset("welcomer.message")).whenComplete(Database.exceptionally(event.getJDA().getShardManager()));
+				this.bot.getMongo().updateGuildById(event.getGuild().getIdLong(), Updates.unset("welcomer.message")).whenComplete(MongoDatabase.exceptionally(event.getJDA().getShardManager()));
 				return;
 			}
 

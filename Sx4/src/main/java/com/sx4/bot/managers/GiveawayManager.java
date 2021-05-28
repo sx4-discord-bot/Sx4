@@ -4,7 +4,7 @@ import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.UpdateOneModel;
 import com.mongodb.client.model.Updates;
 import com.sx4.bot.core.Sx4;
-import com.sx4.bot.database.Database;
+import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.utility.FutureUtility;
 import com.sx4.bot.utility.MathUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
@@ -72,8 +72,8 @@ public class GiveawayManager {
 				return CompletableFuture.completedFuture(null);
 			}
 			
-			return this.bot.getDatabase().updateGiveaway(model);
-		}).whenComplete(Database.exceptionally(this.bot.getShardManager()));
+			return this.bot.getMongo().updateGiveaway(model);
+		}).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
 	}
 	
 	public CompletableFuture<UpdateOneModel<Document>> endGiveawayBulk(Document data) {
@@ -160,7 +160,7 @@ public class GiveawayManager {
 	
 	public void ensureGiveaways() {
 		List<CompletableFuture<UpdateOneModel<Document>>> futures = new ArrayList<>();
-		this.bot.getDatabase().getGiveaways(Filters.not(Filters.exists("winners"))).forEach(data -> {
+		this.bot.getMongo().getGiveaways(Filters.not(Filters.exists("winners"))).forEach(data -> {
 			long endAt = data.getLong("endAt"), timeNow = Clock.systemUTC().instant().getEpochSecond();
 			if (endAt - timeNow > 0) {
 				this.putGiveaway(data, endAt - timeNow);
@@ -172,11 +172,11 @@ public class GiveawayManager {
 		if (!futures.isEmpty()) {
 			FutureUtility.allOf(futures, Objects::nonNull).thenCompose(bulkData -> {
 				if (!bulkData.isEmpty()) {
-					return this.bot.getDatabase().bulkWriteGiveaways(bulkData);
+					return this.bot.getMongo().bulkWriteGiveaways(bulkData);
 				}
 
 				return CompletableFuture.completedFuture(null);
-			}).whenComplete(Database.exceptionally(this.bot.getShardManager()));
+			}).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
 		}
 	}
 	

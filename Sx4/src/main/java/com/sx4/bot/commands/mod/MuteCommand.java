@@ -11,7 +11,7 @@ import com.sx4.bot.annotations.command.Redirects;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
-import com.sx4.bot.database.model.Operators;
+import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.argument.Alternative;
 import com.sx4.bot.entities.mod.Reason;
 import com.sx4.bot.paged.PagedResult;
@@ -72,7 +72,7 @@ public class MuteCommand extends Sx4Command {
 		Role role = option.getValue();
 
 		Bson update = option.isAlternative() ? Updates.unset("mute.roleId") : Updates.set("mute.roleId", role.getIdLong());
-		event.getDatabase().updateGuildById(event.getGuild().getIdLong(), update).whenComplete((result, exception) -> {
+		event.getMongo().updateGuildById(event.getGuild().getIdLong(), update).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -94,7 +94,7 @@ public class MuteCommand extends Sx4Command {
 		List<Bson> update = List.of(Operators.set("mute.autoUpdate", Operators.cond(Operators.exists("$mute.autoUpdate"), Operators.REMOVE, false)));
 		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().upsert(true).projection(Projections.include("mute.autoUpdate")).returnDocument(ReturnDocument.AFTER);
 
-		event.getDatabase().findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
+		event.getMongo().findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -111,7 +111,7 @@ public class MuteCommand extends Sx4Command {
 		long seconds = duration.toSeconds();
 
 		Bson update = seconds == ModUtility.DEFAULT_MUTE_DURATION ? Updates.unset("mute.defaultTime") : Updates.set("mute.defaultTime", seconds);
-		event.getDatabase().updateGuildById(event.getGuild().getIdLong(), update).whenComplete((result, exception) -> {
+		event.getMongo().updateGuildById(event.getGuild().getIdLong(), update).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -130,7 +130,7 @@ public class MuteCommand extends Sx4Command {
 	@Redirects({"muted list"})
 	@Examples({"mute list"})
 	public void list(Sx4CommandEvent event) {
-		List<Document> mutes = event.getDatabase().getMutes(Filters.eq("guildId", event.getGuild().getIdLong()), Projections.include("unmuteAt", "userId")).into(new ArrayList<>());
+		List<Document> mutes = event.getMongo().getMutes(Filters.eq("guildId", event.getGuild().getIdLong()), Projections.include("unmuteAt", "userId")).into(new ArrayList<>());
 		if (mutes.isEmpty()) {
 			event.replyFailure("There is no one muted in this server").queue();
 			return;

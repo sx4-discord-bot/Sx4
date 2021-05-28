@@ -2,7 +2,7 @@ package com.sx4.bot.handlers;
 
 import com.mongodb.client.model.*;
 import com.sx4.bot.core.Sx4;
-import com.sx4.bot.database.Database;
+import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.formatter.JsonFormatter;
 import com.sx4.bot.utility.MessageUtility;
 import net.dv8tion.jda.api.entities.Message;
@@ -35,7 +35,7 @@ public class TriggerHandler implements EventListener {
 		}
 
 		List<WriteModel<Document>> bulkData = new ArrayList<>();
-		this.bot.getDatabase().getTriggers(Filters.eq("guildId", message.getGuild().getIdLong()), Projections.include("trigger", "response", "case", "enabled")).forEach(trigger -> {
+		this.bot.getMongo().getTriggers(Filters.eq("guildId", message.getGuild().getIdLong()), Projections.include("trigger", "response", "case", "enabled")).forEach(trigger -> {
 			if (!trigger.get("enabled", true)) {
 				return;
 			}
@@ -60,7 +60,7 @@ public class TriggerHandler implements EventListener {
 		});
 
 		if (!bulkData.isEmpty()) {
-			this.bot.getDatabase().bulkWriteTriggers(bulkData).whenComplete(Database.exceptionally(this.bot.getShardManager()));
+			this.bot.getMongo().bulkWriteTriggers(bulkData).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
 		}
 	}
 

@@ -63,7 +63,7 @@ public class ReminderCommand extends Sx4Command {
 			.append("reminder", reminder.getReminder())
 			.append("remindAt", Clock.systemUTC().instant().getEpochSecond() + duration);
 
-		event.getDatabase().insertReminder(data).whenComplete((result, exception) -> {
+		event.getMongo().insertReminder(data).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -81,7 +81,7 @@ public class ReminderCommand extends Sx4Command {
 	@CommandId(154)
 	@Examples({"reminder remove 5ec67a3b414d8776950f0eee"})
 	public void remove(Sx4CommandEvent event, @Argument(value="id") ObjectId id) {
-		event.getDatabase().deleteReminderById(id).whenComplete((result, exception) -> {
+		event.getMongo().deleteReminderById(id).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -102,7 +102,7 @@ public class ReminderCommand extends Sx4Command {
 	@Examples({"reminder list"})
 	@Redirects({"reminders"})
 	public void list(Sx4CommandEvent event) {
-		List<Document> reminders = event.getDatabase().getReminders(Filters.eq("userId", event.getAuthor().getIdLong()), Projections.include("remindAt")).into(new ArrayList<>());
+		List<Document> reminders = event.getMongo().getReminders(Filters.eq("userId", event.getAuthor().getIdLong()), Projections.include("remindAt")).into(new ArrayList<>());
 		if (reminders.isEmpty()) {
 			event.replyFailure("You do not have any active reminders").queue();
 			return;
@@ -124,7 +124,7 @@ public class ReminderCommand extends Sx4Command {
 	public void timeZone(Sx4CommandEvent event, @Argument(value="time zone") OffsetTimeZone timeZone) {
 		String zoneId = timeZone.toString();
 
-		event.getDatabase().updateUserById(event.getAuthor().getIdLong(), Updates.set("reminder.timeZone", zoneId)).whenComplete((result, exception) -> {
+		event.getMongo().updateUserById(event.getAuthor().getIdLong(), Updates.set("reminder.timeZone", zoneId)).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}

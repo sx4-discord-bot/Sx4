@@ -1,4 +1,4 @@
-package com.sx4.bot.database;
+package com.sx4.bot.database.mongo;
 
 import com.jockie.bot.core.command.impl.CommandEvent;
 import com.mongodb.MongoClientSettings;
@@ -9,7 +9,7 @@ import com.mongodb.client.result.DeleteResult;
 import com.mongodb.client.result.InsertManyResult;
 import com.mongodb.client.result.InsertOneResult;
 import com.mongodb.client.result.UpdateResult;
-import com.sx4.bot.handlers.DatabaseHandler;
+import com.sx4.bot.handlers.MongoDatabaseHandler;
 import com.sx4.bot.utility.ExceptionUtility;
 import net.dv8tion.jda.api.sharding.ShardManager;
 import org.bson.Document;
@@ -20,19 +20,25 @@ import org.bson.types.ObjectId;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
-public class Database {
+public class MongoDatabase {
 	
 	public static final Document EMPTY_DOCUMENT = new Document();
 	public static final JsonWriterSettings PRETTY_JSON = JsonWriterSettings.builder().indent(true).indentCharacters("    ").outputMode(JsonMode.RELAXED).build();
 
+	private final ExecutorService executor = Executors.newCachedThreadPool();
+	
 	private final UpdateOptions updateOptions = new UpdateOptions().upsert(true);
 	private final FindOneAndUpdateOptions findOneAndUpdateOptions = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER).upsert(true);
 	
 	private final MongoClient client;
-	private final MongoDatabase database;
+	private final com.mongodb.client.MongoDatabase database;
 	
 	private final MongoCollection<Document> guilds;
 	private final MongoCollection<Document> users;
@@ -91,8 +97,8 @@ public class Database {
 	
 	private final MongoCollection<Document> offences;
 	
-	public Database(String databaseName) {
-		DatabaseHandler handler = new DatabaseHandler();
+	public MongoDatabase(String databaseName) {
+		MongoDatabaseHandler handler = new MongoDatabaseHandler();
 
 		MongoClientSettings settings = MongoClientSettings.builder()
 			.addCommandListener(handler)
@@ -110,7 +116,7 @@ public class Database {
 
 		this.items = this.database.getCollection("items");
 		this.items.createIndex(Indexes.descending("userId", "item.id"));
-		this.items.createIndex(Indexes.descending("userId", "type"));
+		this.items.createIndex(Indexes.descending("userId", "item.type"));
 
 		this.blacklists = this.database.getCollection("blacklists");
 		this.blacklists.createIndex(Indexes.descending("guildId"));
@@ -234,8 +240,37 @@ public class Database {
 		return this.client;
 	}
 	
-	public MongoDatabase getDatabase() {
+	public com.mongodb.client.MongoDatabase getDatabase() {
 		return this.database;
+	}
+
+	public CompletableFuture<Boolean> withTransaction(Consumer<ClientSession> consumer) {
+		return CompletableFuture.supplyAsync(() -> {
+			try (ClientSession session = this.client.startSession()) {
+				session.startTransaction();
+				consumer.accept(session);
+				if (session.hasActiveTransaction()) {
+					session.commitTransaction();
+					return true;
+				}
+
+				return false;
+			}
+		}, this.executor);
+	}
+
+	public <Type> CompletableFuture<Type> withTransaction(Function<ClientSession, Type> function) {
+		return CompletableFuture.supplyAsync(() -> {
+			try (ClientSession session = this.client.startSession()) {
+				session.startTransaction();
+				Type value = function.apply(session);
+				if (session.hasActiveTransaction()) {
+					session.commitTransaction();
+				}
+
+				return value;
+			}
+		}, this.executor);
 	}
 
 	public MongoCollection<Document> getItems() {
@@ -251,19 +286,27 @@ public class Database {
 	}
 
 	public CompletableFuture<AggregateIterable<Document>> aggregateItems(List<Bson> pipeline) {
-		return CompletableFuture.supplyAsync(() -> this.items.aggregate(pipeline));
+		return CompletableFuture.supplyAsync(() -> this.items.aggregate(pipeline), this.executor);
+	}
+
+	public CompletableFuture<InsertOneResult> insertItem(Document data) {
+		return CompletableFuture.supplyAsync(() -> this.items.insertOne(data));
 	}
 
 	public CompletableFuture<UpdateResult> updateItem(Bson filter, Bson update, UpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.items.updateOne(filter, update, options));
+		return CompletableFuture.supplyAsync(() -> this.items.updateOne(filter, update, options), this.executor);
 	}
 
 	public CompletableFuture<UpdateResult> updateItem(Bson filter, List<Bson> update, UpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.items.updateOne(filter, update, options));
+		return CompletableFuture.supplyAsync(() -> this.items.updateOne(filter, update, options), this.executor);
 	}
 
 	public CompletableFuture<DeleteResult> deleteItem(Bson filter) {
-		return CompletableFuture.supplyAsync(() -> this.items.deleteOne(filter));
+		return CompletableFuture.supplyAsync(() -> this.items.deleteOne(filter), this.executor);
+	}
+
+	public CompletableFuture<BulkWriteResult> bulkWriteItems(List<WriteModel<Document>> bulkData) {
+		return CompletableFuture.supplyAsync(() -> this.items.bulkWrite(bulkData), this.executor);
 	}
 
 	public MongoCollection<Document> getMediaChannels() {
@@ -279,19 +322,19 @@ public class Database {
 	}
 
 	public CompletableFuture<InsertOneResult> insertMediaChannel(Document data) {
-		return CompletableFuture.supplyAsync(() -> this.mediaChannels.insertOne(data));
+		return CompletableFuture.supplyAsync(() -> this.mediaChannels.insertOne(data), this.executor);
 	}
 
 	public CompletableFuture<UpdateResult> updateMediaChannel(Bson filter, Bson update, UpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.mediaChannels.updateOne(filter, update, options));
+		return CompletableFuture.supplyAsync(() -> this.mediaChannels.updateOne(filter, update, options), this.executor);
 	}
 
 	public CompletableFuture<UpdateResult> updateMediaChannel(Bson filter, List<Bson> update, UpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.mediaChannels.updateOne(filter, update, options));
+		return CompletableFuture.supplyAsync(() -> this.mediaChannels.updateOne(filter, update, options), this.executor);
 	}
 
 	public CompletableFuture<DeleteResult> deleteMediaChannel(Bson filter) {
-		return CompletableFuture.supplyAsync(() -> this.mediaChannels.deleteOne(filter));
+		return CompletableFuture.supplyAsync(() -> this.mediaChannels.deleteOne(filter), this.executor);
 	}
 
 	public MongoCollection<Document> getMutes() {
@@ -307,23 +350,23 @@ public class Database {
 	}
 
 	public CompletableFuture<InsertOneResult> insertMute(Document data) {
-		return CompletableFuture.supplyAsync(() -> this.mutes.insertOne(data));
+		return CompletableFuture.supplyAsync(() -> this.mutes.insertOne(data), this.executor);
 	}
 
 	public CompletableFuture<UpdateResult> updateMute(Bson filter, Bson update, UpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.mutes.updateOne(filter, update, options));
+		return CompletableFuture.supplyAsync(() -> this.mutes.updateOne(filter, update, options), this.executor);
 	}
 
 	public CompletableFuture<UpdateResult> updateMute(Bson filter, List<Bson> update, UpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.mutes.updateOne(filter, update, options));
+		return CompletableFuture.supplyAsync(() -> this.mutes.updateOne(filter, update, options), this.executor);
 	}
 
 	public CompletableFuture<DeleteResult> deleteMute(Bson filter) {
-		return CompletableFuture.supplyAsync(() -> this.mutes.deleteOne(filter));
+		return CompletableFuture.supplyAsync(() -> this.mutes.deleteOne(filter), this.executor);
 	}
 
 	public CompletableFuture<BulkWriteResult> bulkWriteMutes(List<WriteModel<Document>> bulkData) {
-		return CompletableFuture.supplyAsync(() -> this.mutes.bulkWrite(bulkData));
+		return CompletableFuture.supplyAsync(() -> this.mutes.bulkWrite(bulkData), this.executor);
 	}
 
 	public MongoCollection<Document> getWarnings() {
@@ -339,27 +382,27 @@ public class Database {
 	}
 
 	public CompletableFuture<InsertOneResult> insertWarning(Document data) {
-		return CompletableFuture.supplyAsync(() -> this.warnings.insertOne(data));
+		return CompletableFuture.supplyAsync(() -> this.warnings.insertOne(data), this.executor);
 	}
 
 	public CompletableFuture<UpdateResult> updateWarnings(Bson filter, Bson update, UpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.warnings.updateOne(filter, update, options));
+		return CompletableFuture.supplyAsync(() -> this.warnings.updateOne(filter, update, options), this.executor);
 	}
 
 	public CompletableFuture<UpdateResult> updateWarnings(Bson filter, List<Bson> update, UpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.warnings.updateOne(filter, update, options));
+		return CompletableFuture.supplyAsync(() -> this.warnings.updateOne(filter, update, options), this.executor);
 	}
 
 	public CompletableFuture<Document> findAndUpdateWarnings(Bson filter, List<Bson> update, FindOneAndUpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.warnings.findOneAndUpdate(filter, update, options));
+		return CompletableFuture.supplyAsync(() -> this.warnings.findOneAndUpdate(filter, update, options), this.executor);
 	}
 
 	public CompletableFuture<DeleteResult> deleteWarning(Bson filter) {
-		return CompletableFuture.supplyAsync(() -> this.warnings.deleteOne(filter));
+		return CompletableFuture.supplyAsync(() -> this.warnings.deleteOne(filter), this.executor);
 	}
 
 	public CompletableFuture<BulkWriteResult> bulkWriteWarnings(List<WriteModel<Document>> bulkData) {
-		return CompletableFuture.supplyAsync(() -> this.warnings.bulkWrite(bulkData));
+		return CompletableFuture.supplyAsync(() -> this.warnings.bulkWrite(bulkData), this.executor);
 	}
 
 	public MongoCollection<Document> getTemporaryBans() {
@@ -375,23 +418,23 @@ public class Database {
 	}
 
 	public CompletableFuture<InsertOneResult> insertTemporaryBan(Document data) {
-		return CompletableFuture.supplyAsync(() -> this.temporaryBans.insertOne(data));
+		return CompletableFuture.supplyAsync(() -> this.temporaryBans.insertOne(data), this.executor);
 	}
 
 	public CompletableFuture<UpdateResult> updateTemporaryBan(Bson filter, Bson update, UpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.temporaryBans.updateOne(filter, update, options));
+		return CompletableFuture.supplyAsync(() -> this.temporaryBans.updateOne(filter, update, options), this.executor);
 	}
 
 	public CompletableFuture<UpdateResult> updateTemporaryBan(Bson filter, List<Bson> update, UpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.temporaryBans.updateOne(filter, update, options));
+		return CompletableFuture.supplyAsync(() -> this.temporaryBans.updateOne(filter, update, options), this.executor);
 	}
 
 	public CompletableFuture<DeleteResult> deleteTemporaryBan(Bson filter) {
-		return CompletableFuture.supplyAsync(() -> this.temporaryBans.deleteOne(filter));
+		return CompletableFuture.supplyAsync(() -> this.temporaryBans.deleteOne(filter), this.executor);
 	}
 
 	public CompletableFuture<BulkWriteResult> bulkWriteTemporaryBans(List<WriteModel<Document>> bulkData) {
-		return CompletableFuture.supplyAsync(() -> this.temporaryBans.bulkWrite(bulkData));
+		return CompletableFuture.supplyAsync(() -> this.temporaryBans.bulkWrite(bulkData), this.executor);
 	}
 
 
@@ -408,31 +451,31 @@ public class Database {
 	}
 
 	public CompletableFuture<InsertOneResult> insertAutoRole(Document data) {
-		return CompletableFuture.supplyAsync(() -> this.autoRoles.insertOne(data));
+		return CompletableFuture.supplyAsync(() -> this.autoRoles.insertOne(data), this.executor);
 	}
 
 	public CompletableFuture<UpdateResult> updateAutoRole(Bson filter, List<Bson> update, UpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.autoRoles.updateOne(filter, update, options));
+		return CompletableFuture.supplyAsync(() -> this.autoRoles.updateOne(filter, update, options), this.executor);
 	}
 
 	public CompletableFuture<UpdateResult> updateAutoRole(Bson filter, Bson update, UpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.autoRoles.updateOne(filter, update, options));
+		return CompletableFuture.supplyAsync(() -> this.autoRoles.updateOne(filter, update, options), this.executor);
 	}
 
 	public CompletableFuture<Document> findAndUpdateAutoRole(Bson filter, List<Bson> update, FindOneAndUpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.autoRoles.findOneAndUpdate(filter, update, options));
+		return CompletableFuture.supplyAsync(() -> this.autoRoles.findOneAndUpdate(filter, update, options), this.executor);
 	}
 
 	public CompletableFuture<Document> findAndUpdateAutoRole(Bson filter, Bson update, FindOneAndUpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.autoRoles.findOneAndUpdate(filter, update, options));
+		return CompletableFuture.supplyAsync(() -> this.autoRoles.findOneAndUpdate(filter, update, options), this.executor);
 	}
 
 	public CompletableFuture<DeleteResult> deleteAutoRole(Bson filter) {
-		return CompletableFuture.supplyAsync(() -> this.autoRoles.deleteOne(filter));
+		return CompletableFuture.supplyAsync(() -> this.autoRoles.deleteOne(filter), this.executor);
 	}
 
 	public CompletableFuture<DeleteResult> deleteManyAutoRoles(Bson filter) {
-		return CompletableFuture.supplyAsync(() -> this.autoRoles.deleteMany(filter));
+		return CompletableFuture.supplyAsync(() -> this.autoRoles.deleteMany(filter), this.executor);
 	}
 
 	public MongoCollection<Document> getSelfRoles() {
@@ -448,15 +491,15 @@ public class Database {
 	}
 
 	public CompletableFuture<InsertOneResult> insertSelfRole(Document data) {
-		return CompletableFuture.supplyAsync(() -> this.selfRoles.insertOne(data));
+		return CompletableFuture.supplyAsync(() -> this.selfRoles.insertOne(data), this.executor);
 	}
 
 	public CompletableFuture<DeleteResult> deleteSelfRole(Bson filter) {
-		return CompletableFuture.supplyAsync(() -> this.selfRoles.deleteOne(filter));
+		return CompletableFuture.supplyAsync(() -> this.selfRoles.deleteOne(filter), this.executor);
 	}
 
 	public CompletableFuture<DeleteResult> deleteManySelfRoles(Bson filter) {
-		return CompletableFuture.supplyAsync(() -> this.selfRoles.deleteMany(filter));
+		return CompletableFuture.supplyAsync(() -> this.selfRoles.deleteMany(filter), this.executor);
 	}
 
 	public MongoCollection<Document> getServerStats() {
@@ -468,7 +511,7 @@ public class Database {
 	}
 
 	public CompletableFuture<InsertManyResult> insertManyServerStats(List<Document> data) {
-		return CompletableFuture.supplyAsync(() -> this.serverStats.insertMany(data));
+		return CompletableFuture.supplyAsync(() -> this.serverStats.insertMany(data), this.executor);
 	}
 
 	public MongoCollection<Document> getRegexAttempts() {
@@ -484,7 +527,7 @@ public class Database {
 	}
 
 	public CompletableFuture<UpdateResult> updateRegexAttempt(Bson filter, List<Bson> update, UpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.regexAttempts.updateOne(filter, update, options));
+		return CompletableFuture.supplyAsync(() -> this.regexAttempts.updateOne(filter, update, options), this.executor);
 	}
 
 	public CompletableFuture<UpdateResult> updateRegexAttempt(Bson filter, List<Bson> update) {
@@ -492,7 +535,7 @@ public class Database {
 	}
 
 	public CompletableFuture<UpdateResult> updateRegexAttempt(Bson filter, Bson update, UpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.regexAttempts.updateOne(filter, update, options));
+		return CompletableFuture.supplyAsync(() -> this.regexAttempts.updateOne(filter, update, options), this.executor);
 	}
 
 	public CompletableFuture<UpdateResult> updateRegexAttempt(Bson filter, Bson update) {
@@ -500,19 +543,19 @@ public class Database {
 	}
 
 	public CompletableFuture<Document> findAndUpdateRegexAttempt(Bson filter, Bson update, FindOneAndUpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.regexAttempts.findOneAndUpdate(filter, update, options));
+		return CompletableFuture.supplyAsync(() -> this.regexAttempts.findOneAndUpdate(filter, update, options), this.executor);
 	}
 
 	public CompletableFuture<Document> findAndUpdateRegexAttempt(Bson filter, List<Bson> update, FindOneAndUpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.regexAttempts.findOneAndUpdate(filter, update, options));
+		return CompletableFuture.supplyAsync(() -> this.regexAttempts.findOneAndUpdate(filter, update, options), this.executor);
 	}
 
 	public CompletableFuture<UpdateResult> updateRegexAttempt(UpdateOneModel<Document> model) {
-		return CompletableFuture.supplyAsync(() -> this.regexAttempts.updateOne(model.getFilter(), model.getUpdate(), model.getOptions()));
+		return CompletableFuture.supplyAsync(() -> this.regexAttempts.updateOne(model.getFilter(), model.getUpdate(), model.getOptions()), this.executor);
 	}
 
 	public CompletableFuture<DeleteResult> deleteRegexAttempt(Bson filter) {
-		return CompletableFuture.supplyAsync(() -> this.regexAttempts.deleteOne(filter));
+		return CompletableFuture.supplyAsync(() -> this.regexAttempts.deleteOne(filter), this.executor);
 	}
 
 	public MongoCollection<Document> getGames() {
@@ -528,11 +571,11 @@ public class Database {
 	}
 
 	public CompletableFuture<InsertOneResult> insertGame(Document data) {
-		return CompletableFuture.supplyAsync(() -> this.games.insertOne(data));
+		return CompletableFuture.supplyAsync(() -> this.games.insertOne(data), this.executor);
 	}
 
 	public CompletableFuture<InsertManyResult> insertManyGames(List<Document> data) {
-		return CompletableFuture.supplyAsync(() -> this.games.insertMany(data));
+		return CompletableFuture.supplyAsync(() -> this.games.insertMany(data), this.executor);
 	}
 
 	public MongoCollection<Document> getLoggers() {
@@ -552,19 +595,19 @@ public class Database {
 	}
 
 	public CompletableFuture<InsertOneResult> insertLogger(Document data) {
-		return CompletableFuture.supplyAsync(() -> this.loggers.insertOne(data));
+		return CompletableFuture.supplyAsync(() -> this.loggers.insertOne(data), this.executor);
 	}
 
 	public CompletableFuture<DeleteResult> deleteLogger(Bson filter) {
-		return CompletableFuture.supplyAsync(() -> this.loggers.deleteOne(filter));
+		return CompletableFuture.supplyAsync(() -> this.loggers.deleteOne(filter), this.executor);
 	}
 
 	public CompletableFuture<DeleteResult> deleteManyLoggers(Bson filter) {
-		return CompletableFuture.supplyAsync(() -> this.loggers.deleteMany(filter));
+		return CompletableFuture.supplyAsync(() -> this.loggers.deleteMany(filter), this.executor);
 	}
 
 	public CompletableFuture<UpdateResult> updateLogger(Bson filter, Bson update, UpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.loggers.updateOne(filter, update, options));
+		return CompletableFuture.supplyAsync(() -> this.loggers.updateOne(filter, update, options), this.executor);
 	}
 
 	public CompletableFuture<UpdateResult> updateLogger(Bson filter, Bson update) {
@@ -572,7 +615,7 @@ public class Database {
 	}
 
 	public CompletableFuture<UpdateResult> updateLogger(Bson filter, List<Bson> update, UpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.loggers.updateOne(filter, update, options));
+		return CompletableFuture.supplyAsync(() -> this.loggers.updateOne(filter, update, options), this.executor);
 	}
 
 	public CompletableFuture<UpdateResult> updateLogger(Bson filter, List<Bson> update) {
@@ -580,11 +623,11 @@ public class Database {
 	}
 
 	public CompletableFuture<Document> findAndUpdateLogger(Bson filter, Bson update, FindOneAndUpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.loggers.findOneAndUpdate(filter, update, options));
+		return CompletableFuture.supplyAsync(() -> this.loggers.findOneAndUpdate(filter, update, options), this.executor);
 	}
 
 	public CompletableFuture<Document> findAndUpdateLogger(Bson filter, List<Bson> update, FindOneAndUpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.loggers.findOneAndUpdate(filter, update, options));
+		return CompletableFuture.supplyAsync(() -> this.loggers.findOneAndUpdate(filter, update, options), this.executor);
 	}
 
 	public MongoCollection<Document> getMarriages() {
@@ -604,15 +647,15 @@ public class Database {
 	}
 
 	public CompletableFuture<UpdateResult> updateMarriage(Bson filter, Bson update) {
-		return CompletableFuture.supplyAsync(() -> this.marriages.updateOne(filter, update, this.updateOptions));
+		return CompletableFuture.supplyAsync(() -> this.marriages.updateOne(filter, update, this.updateOptions), this.executor);
 	}
 
 	public CompletableFuture<DeleteResult> deleteMarriage(Bson filter) {
-		return CompletableFuture.supplyAsync(() -> this.marriages.deleteOne(filter));
+		return CompletableFuture.supplyAsync(() -> this.marriages.deleteOne(filter), this.executor);
 	}
 
 	public CompletableFuture<DeleteResult> deleteManyMarriages(Bson filter) {
-		return CompletableFuture.supplyAsync(() -> this.marriages.deleteMany(filter));
+		return CompletableFuture.supplyAsync(() -> this.marriages.deleteMany(filter), this.executor);
 	}
 
 	public MongoCollection<Document> getTemplates() {
@@ -628,15 +671,15 @@ public class Database {
 	}
 
 	public CompletableFuture<InsertOneResult> insertTemplate(Document data) {
-		return CompletableFuture.supplyAsync(() -> this.templates.insertOne(data));
+		return CompletableFuture.supplyAsync(() -> this.templates.insertOne(data), this.executor);
 	}
 
 	public CompletableFuture<DeleteResult> deleteTemplateById(ObjectId id) {
-		return CompletableFuture.supplyAsync(() -> this.templates.deleteOne(Filters.eq("_id", id)));
+		return CompletableFuture.supplyAsync(() -> this.templates.deleteOne(Filters.eq("_id", id)), this.executor);
 	}
 
 	public CompletableFuture<DeleteResult> deleteManyTemplates(Bson filter) {
-		return CompletableFuture.supplyAsync(() -> this.templates.deleteMany(filter));
+		return CompletableFuture.supplyAsync(() -> this.templates.deleteMany(filter), this.executor);
 	}
 
 	public MongoCollection<Document> getReactionRoles() {
@@ -652,7 +695,7 @@ public class Database {
 	}
 
 	public CompletableFuture<UpdateResult> updateReactionRole(Bson filter, List<Bson> update, UpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.reactionRoles.updateOne(filter, update, options));
+		return CompletableFuture.supplyAsync(() -> this.reactionRoles.updateOne(filter, update, options), this.executor);
 	}
 
 	public CompletableFuture<UpdateResult> updateReactionRole(Bson filter, List<Bson> update) {
@@ -660,11 +703,11 @@ public class Database {
 	}
 
 	public CompletableFuture<Document> findAndUpdateReactionRole(Bson filter, List<Bson> update, FindOneAndUpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.reactionRoles.findOneAndUpdate(filter, update, options));
+		return CompletableFuture.supplyAsync(() -> this.reactionRoles.findOneAndUpdate(filter, update, options), this.executor);
 	}
 
 	public CompletableFuture<UpdateResult> updateReactionRole(Bson filter, Bson update, UpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.reactionRoles.updateOne(filter, update, options));
+		return CompletableFuture.supplyAsync(() -> this.reactionRoles.updateOne(filter, update, options), this.executor);
 	}
 
 	public CompletableFuture<UpdateResult> updateReactionRole(Bson filter, Bson update) {
@@ -672,15 +715,15 @@ public class Database {
 	}
 
 	public CompletableFuture<UpdateResult> updateManyReactionRoles(Bson filter, List<Bson> update, UpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.reactionRoles.updateMany(filter, update, options));
+		return CompletableFuture.supplyAsync(() -> this.reactionRoles.updateMany(filter, update, options), this.executor);
 	}
 
 	public CompletableFuture<Document> findAndUpdateReactionRole(Bson filter, Bson update, FindOneAndUpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.reactionRoles.findOneAndUpdate(filter, update, options));
+		return CompletableFuture.supplyAsync(() -> this.reactionRoles.findOneAndUpdate(filter, update, options), this.executor);
 	}
 
 	public CompletableFuture<UpdateResult> updateManyReactionRoles(Bson filter, Bson update, UpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.reactionRoles.updateMany(filter, update, options));
+		return CompletableFuture.supplyAsync(() -> this.reactionRoles.updateMany(filter, update, options), this.executor);
 	}
 
 	public CompletableFuture<UpdateResult> updateManyReactionRoles(Bson filter, Bson update) {
@@ -688,11 +731,11 @@ public class Database {
 	}
 
 	public CompletableFuture<DeleteResult> deleteReactionRole(Bson filter) {
-		return CompletableFuture.supplyAsync(() -> this.reactionRoles.deleteOne(filter));
+		return CompletableFuture.supplyAsync(() -> this.reactionRoles.deleteOne(filter), this.executor);
 	}
 
 	public CompletableFuture<DeleteResult> deleteManyReactionRoles(Bson filter) {
-		return CompletableFuture.supplyAsync(() -> this.reactionRoles.deleteMany(filter));
+		return CompletableFuture.supplyAsync(() -> this.reactionRoles.deleteMany(filter), this.executor);
 	}
 
 	public MongoCollection<Document> getRegexes() {
@@ -712,11 +755,11 @@ public class Database {
 	}
 
 	public CompletableFuture<InsertOneResult> insertRegex(Document data) {
-		return CompletableFuture.supplyAsync(() -> this.regexes.insertOne(data));
+		return CompletableFuture.supplyAsync(() -> this.regexes.insertOne(data), this.executor);
 	}
 
 	public CompletableFuture<UpdateResult> updateRegex(Bson filter, Bson update, UpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.regexes.updateOne(filter, update, options));
+		return CompletableFuture.supplyAsync(() -> this.regexes.updateOne(filter, update, options), this.executor);
 	}
 
 	public CompletableFuture<UpdateResult> updateRegex(Bson filter, Bson update) {
@@ -724,7 +767,7 @@ public class Database {
 	}
 
 	public CompletableFuture<UpdateResult> updateRegex(Bson filter, List<Bson> update, UpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.regexes.updateOne(filter, update, options));
+		return CompletableFuture.supplyAsync(() -> this.regexes.updateOne(filter, update, options), this.executor);
 	}
 
 	public CompletableFuture<UpdateResult> updateRegex(Bson filter, List<Bson> update) {
@@ -732,15 +775,15 @@ public class Database {
 	}
 
 	public CompletableFuture<Document> findAndUpdateRegex(Bson filter, List<Bson> update, FindOneAndUpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.regexes.findOneAndUpdate(filter, update, options));
+		return CompletableFuture.supplyAsync(() -> this.regexes.findOneAndUpdate(filter, update, options), this.executor);
 	}
 
 	public CompletableFuture<DeleteResult> deleteRegex(Bson filter) {
-		return CompletableFuture.supplyAsync(() -> this.regexes.deleteOne(filter));
+		return CompletableFuture.supplyAsync(() -> this.regexes.deleteOne(filter), this.executor);
 	}
 
 	public CompletableFuture<Document> findAndDeleteRegex(Bson filter, FindOneAndDeleteOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.regexes.findOneAndDelete(filter, options));
+		return CompletableFuture.supplyAsync(() -> this.regexes.findOneAndDelete(filter, options), this.executor);
 	}
 
 	public MongoCollection<Document> getTriggers() {
@@ -760,11 +803,11 @@ public class Database {
 	}
 
 	public CompletableFuture<InsertOneResult> insertTrigger(Document data) {
-		return CompletableFuture.supplyAsync(() -> this.triggers.insertOne(data));
+		return CompletableFuture.supplyAsync(() -> this.triggers.insertOne(data), this.executor);
 	}
 
 	public CompletableFuture<UpdateResult> updateTrigger(Bson filter, Bson update, UpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.triggers.updateOne(filter, update, options));
+		return CompletableFuture.supplyAsync(() -> this.triggers.updateOne(filter, update, options), this.executor);
 	}
 
 	public CompletableFuture<UpdateResult> updateTrigger(Bson filter, Bson update) {
@@ -780,7 +823,7 @@ public class Database {
 	}
 
 	public CompletableFuture<UpdateResult> updateTrigger(Bson filter, List<Bson> update, UpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.triggers.updateOne(filter, update, options));
+		return CompletableFuture.supplyAsync(() -> this.triggers.updateOne(filter, update, options), this.executor);
 	}
 
 	public CompletableFuture<UpdateResult> updateTrigger(Bson filter, List<Bson> update) {
@@ -796,15 +839,15 @@ public class Database {
 	}
 
 	public CompletableFuture<UpdateResult> updateManyTriggers(Bson filter, List<Bson> update, UpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.triggers.updateMany(filter, update, options));
+		return CompletableFuture.supplyAsync(() -> this.triggers.updateMany(filter, update, options), this.executor);
 	}
 
 	public CompletableFuture<UpdateResult> updateManyTriggers(Bson filter, List<Bson> update) {
-		return CompletableFuture.supplyAsync(() -> this.triggers.updateMany(filter, update, this.updateOptions));
+		return CompletableFuture.supplyAsync(() -> this.triggers.updateMany(filter, update, this.updateOptions), this.executor);
 	}
 
 	public CompletableFuture<Document> findAndUpdateTrigger(Bson filter, List<Bson> update, FindOneAndUpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.triggers.findOneAndUpdate(filter, update, options));
+		return CompletableFuture.supplyAsync(() -> this.triggers.findOneAndUpdate(filter, update, options), this.executor);
 	}
 
 	public CompletableFuture<Document> findAndUpdateTriggerById(ObjectId id, List<Bson> update, FindOneAndUpdateOptions options) {
@@ -812,7 +855,7 @@ public class Database {
 	}
 
 	public CompletableFuture<DeleteResult> deleteTrigger(Bson filter) {
-		return CompletableFuture.supplyAsync(() -> this.triggers.deleteOne(filter));
+		return CompletableFuture.supplyAsync(() -> this.triggers.deleteOne(filter), this.executor);
 	}
 
 	public CompletableFuture<DeleteResult> deleteTriggerById(ObjectId id) {
@@ -820,11 +863,11 @@ public class Database {
 	}
 
 	public CompletableFuture<DeleteResult> deleteManyTriggers(Bson filter) {
-		return CompletableFuture.supplyAsync(() -> this.triggers.deleteMany(filter));
+		return CompletableFuture.supplyAsync(() -> this.triggers.deleteMany(filter), this.executor);
 	}
 
 	public CompletableFuture<BulkWriteResult> bulkWriteTriggers(List<WriteModel<Document>> bulkData) {
-		return CompletableFuture.supplyAsync(() -> this.triggers.bulkWrite(bulkData));
+		return CompletableFuture.supplyAsync(() -> this.triggers.bulkWrite(bulkData), this.executor);
 	}
 
 	public MongoCollection<Document> getStars() {
@@ -844,11 +887,11 @@ public class Database {
 	}
 
 	public CompletableFuture<InsertOneResult> insertStar(Document data) {
-		return CompletableFuture.supplyAsync(() -> this.stars.insertOne(data));
+		return CompletableFuture.supplyAsync(() -> this.stars.insertOne(data), this.executor);
 	}
 
 	public CompletableFuture<DeleteResult> deleteStar(Bson filter) {
-		return CompletableFuture.supplyAsync(() -> this.stars.deleteOne(filter));
+		return CompletableFuture.supplyAsync(() -> this.stars.deleteOne(filter), this.executor);
 	}
 
 	public CompletableFuture<DeleteResult> deleteStarById(long userId, long messageId) {
@@ -856,7 +899,7 @@ public class Database {
 	}
 
 	public CompletableFuture<DeleteResult> deleteManyStars(Bson filter) {
-		return CompletableFuture.supplyAsync(() -> this.stars.deleteMany(filter));
+		return CompletableFuture.supplyAsync(() -> this.stars.deleteMany(filter), this.executor);
 	}
 
 	public MongoCollection<Document> getStarboards() {
@@ -876,11 +919,11 @@ public class Database {
 	}
 
 	public CompletableFuture<InsertOneResult> insertStarboard(Document data) {
-		return CompletableFuture.supplyAsync(() -> this.starboards.insertOne(data));
+		return CompletableFuture.supplyAsync(() -> this.starboards.insertOne(data), this.executor);
 	}
 
 	public CompletableFuture<UpdateResult> updateStarboard(Bson filter, Bson update, UpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.starboards.updateOne(filter, update, options));
+		return CompletableFuture.supplyAsync(() -> this.starboards.updateOne(filter, update, options), this.executor);
 	}
 
 	public CompletableFuture<UpdateResult> updateStarboard(Bson filter, Bson update) {
@@ -900,7 +943,7 @@ public class Database {
 	}
 
 	public CompletableFuture<UpdateResult> updateStarboard(Bson filter, List<Bson> update, UpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.starboards.updateOne(filter, update, options));
+		return CompletableFuture.supplyAsync(() -> this.starboards.updateOne(filter, update, options), this.executor);
 	}
 
 	public CompletableFuture<UpdateResult> updateStarboard(Bson filter, List<Bson> update) {
@@ -912,7 +955,7 @@ public class Database {
 	}
 
 	public CompletableFuture<Document> findAndUpdateStarboard(Bson filter, Bson update, FindOneAndUpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.starboards.findOneAndUpdate(filter, update, options));
+		return CompletableFuture.supplyAsync(() -> this.starboards.findOneAndUpdate(filter, update, options), this.executor);
 	}
 
 	public CompletableFuture<Document> findAndUpdateStarboard(Bson filter, Bson update) {
@@ -932,7 +975,7 @@ public class Database {
 	}
 
 	public CompletableFuture<Document> findAndUpdateStarboard(Bson filter, List<Bson> update, FindOneAndUpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.starboards.findOneAndUpdate(filter, update, options));
+		return CompletableFuture.supplyAsync(() -> this.starboards.findOneAndUpdate(filter, update, options), this.executor);
 	}
 
 	public CompletableFuture<Document> findAndUpdateStarboard(Bson filter, List<Bson> update) {
@@ -944,7 +987,7 @@ public class Database {
 	}
 
 	public CompletableFuture<DeleteResult> deleteStarboard(Bson filter) {
-		return CompletableFuture.supplyAsync(() -> this.starboards.deleteOne(filter));
+		return CompletableFuture.supplyAsync(() -> this.starboards.deleteOne(filter), this.executor);
 	}
 
 	public CompletableFuture<DeleteResult> deleteStarboardById(ObjectId id) {
@@ -952,7 +995,7 @@ public class Database {
 	}
 
 	public CompletableFuture<Document> findAndDeleteStarboard(Bson filter) {
-		return CompletableFuture.supplyAsync(() -> this.starboards.findOneAndDelete(filter));
+		return CompletableFuture.supplyAsync(() -> this.starboards.findOneAndDelete(filter), this.executor);
 	}
 
 	public CompletableFuture<Document> findAndDeleteStarboardById(ObjectId id) {
@@ -960,7 +1003,7 @@ public class Database {
 	}
 
 	public CompletableFuture<DeleteResult> deleteManyStarboards(Bson filter) {
-		return CompletableFuture.supplyAsync(() -> this.starboards.deleteMany(filter));
+		return CompletableFuture.supplyAsync(() -> this.starboards.deleteMany(filter), this.executor);
 	}
 
 	public MongoCollection<Document> getSuggestions() {
@@ -980,11 +1023,11 @@ public class Database {
 	}
 
 	public CompletableFuture<InsertOneResult> insertSuggestion(Document data) {
-		return CompletableFuture.supplyAsync(() -> this.suggestions.insertOne(data));
+		return CompletableFuture.supplyAsync(() -> this.suggestions.insertOne(data), this.executor);
 	}
 
 	public CompletableFuture<UpdateResult> updateSuggestion(Bson filter, Bson update, UpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.suggestions.updateOne(filter, update, options));
+		return CompletableFuture.supplyAsync(() -> this.suggestions.updateOne(filter, update, options), this.executor);
 	}
 
 	public CompletableFuture<UpdateResult> updateSuggestion(Bson filter, Bson update) {
@@ -992,7 +1035,7 @@ public class Database {
 	}
 
 	public CompletableFuture<Document> findAndUpdateSuggestion(Bson filter, Bson update, FindOneAndUpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.suggestions.findOneAndUpdate(filter, update, options));
+		return CompletableFuture.supplyAsync(() -> this.suggestions.findOneAndUpdate(filter, update, options), this.executor);
 	}
 
 	public CompletableFuture<Document> findAndUpdateSuggestion(Bson filter, Bson update) {
@@ -1008,11 +1051,11 @@ public class Database {
 	}
 
 	public CompletableFuture<DeleteResult> deleteSuggestion(Bson filter) {
-		return CompletableFuture.supplyAsync(() -> this.suggestions.deleteOne(filter));
+		return CompletableFuture.supplyAsync(() -> this.suggestions.deleteOne(filter), this.executor);
 	}
 
 	public CompletableFuture<Document> findAndDeleteSuggestion(Bson filter) {
-		return CompletableFuture.supplyAsync(() -> this.suggestions.findOneAndDelete(filter));
+		return CompletableFuture.supplyAsync(() -> this.suggestions.findOneAndDelete(filter), this.executor);
 	}
 
 	public CompletableFuture<Document> findAndDeleteSuggestionById(ObjectId id) {
@@ -1020,7 +1063,7 @@ public class Database {
 	}
 
 	public CompletableFuture<DeleteResult> deleteManySuggestions(Bson filter) {
-		return CompletableFuture.supplyAsync(() -> this.suggestions.deleteMany(filter));
+		return CompletableFuture.supplyAsync(() -> this.suggestions.deleteMany(filter), this.executor);
 	}
 
 	public MongoCollection<Document> getReminders() {
@@ -1036,7 +1079,7 @@ public class Database {
 	}
 
 	public CompletableFuture<UpdateResult> updateReminder(Bson filter, Bson update, UpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.reminders.updateOne(filter, update, options));
+		return CompletableFuture.supplyAsync(() -> this.reminders.updateOne(filter, update, options), this.executor);
 	}
 
 	public CompletableFuture<UpdateResult> updateReminder(Bson filter, Bson update) {
@@ -1044,7 +1087,7 @@ public class Database {
 	}
 
 	public CompletableFuture<UpdateResult> updateReminder(Bson filter, List<Bson> update, UpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.reminders.updateOne(filter, update, options));
+		return CompletableFuture.supplyAsync(() -> this.reminders.updateOne(filter, update, options), this.executor);
 	}
 
 	public CompletableFuture<UpdateResult> updateReminder(Bson filter, List<Bson> update) {
@@ -1056,11 +1099,11 @@ public class Database {
 	}
 
 	public CompletableFuture<InsertOneResult> insertReminder(Document data) {
-		return CompletableFuture.supplyAsync(() -> this.reminders.insertOne(data));
+		return CompletableFuture.supplyAsync(() -> this.reminders.insertOne(data), this.executor);
 	}
 
 	public CompletableFuture<DeleteResult> deleteReminder(Bson filter) {
-		return CompletableFuture.supplyAsync(() -> this.reminders.deleteOne(filter));
+		return CompletableFuture.supplyAsync(() -> this.reminders.deleteOne(filter), this.executor);
 	}
 
 	public CompletableFuture<DeleteResult> deleteReminder(DeleteOneModel<Document> model) {
@@ -1072,7 +1115,7 @@ public class Database {
 	}
 
 	public CompletableFuture<BulkWriteResult> bulkWriteReminders(List<WriteModel<Document>> bulkData) {
-		return CompletableFuture.supplyAsync(() -> this.reminders.bulkWrite(bulkData));
+		return CompletableFuture.supplyAsync(() -> this.reminders.bulkWrite(bulkData), this.executor);
 	}
 
 	public MongoCollection<Document> getYouTubeNotifications() {
@@ -1092,23 +1135,23 @@ public class Database {
 	}
 
 	public CompletableFuture<InsertOneResult> insertYouTubeNotification(Document data) {
-		return CompletableFuture.supplyAsync(() -> this.youtubeNotifications.insertOne(data));
+		return CompletableFuture.supplyAsync(() -> this.youtubeNotifications.insertOne(data), this.executor);
 	}
 
 	public CompletableFuture<Document> findAndDeleteYouTubeNotificationById(ObjectId id, FindOneAndDeleteOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.youtubeNotifications.findOneAndDelete(Filters.eq("_id", id), options));
+		return CompletableFuture.supplyAsync(() -> this.youtubeNotifications.findOneAndDelete(Filters.eq("_id", id), options), this.executor);
 	}
 
 	public CompletableFuture<DeleteResult> deleteYouTubeNotificationById(ObjectId id) {
-		return CompletableFuture.supplyAsync(() -> this.youtubeNotifications.deleteOne(Filters.eq("_id", id)));
+		return CompletableFuture.supplyAsync(() -> this.youtubeNotifications.deleteOne(Filters.eq("_id", id)), this.executor);
 	}
 
 	public CompletableFuture<DeleteResult> deleteManyYouTubeNotifications(Bson filter) {
-		return CompletableFuture.supplyAsync(() -> this.youtubeNotifications.deleteMany(filter));
+		return CompletableFuture.supplyAsync(() -> this.youtubeNotifications.deleteMany(filter), this.executor);
 	}
 
 	public CompletableFuture<Document> findAndUpdateYouTubeNotification(Bson filter, Bson update, FindOneAndUpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.youtubeNotifications.findOneAndUpdate(filter, update, options));
+		return CompletableFuture.supplyAsync(() -> this.youtubeNotifications.findOneAndUpdate(filter, update, options), this.executor);
 	}
 
 	public CompletableFuture<Document> findAndUpdateYouTubeNotificationById(ObjectId id, Bson update, FindOneAndUpdateOptions options) {
@@ -1116,7 +1159,7 @@ public class Database {
 	}
 
 	public CompletableFuture<UpdateResult> updateYouTubeNotification(Bson filter, Bson update, UpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.youtubeNotifications.updateOne(filter, update, options));
+		return CompletableFuture.supplyAsync(() -> this.youtubeNotifications.updateOne(filter, update, options), this.executor);
 	}
 
 	public CompletableFuture<UpdateResult> updateYouTubeNotificationById(ObjectId id, Bson update, UpdateOptions options) {
@@ -1132,7 +1175,7 @@ public class Database {
 	}
 
 	public CompletableFuture<UpdateResult> updateManyYouTubeNotifications(Bson filter, Bson update, UpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.youtubeNotifications.updateMany(filter, update, options));
+		return CompletableFuture.supplyAsync(() -> this.youtubeNotifications.updateMany(filter, update, options), this.executor);
 	}
 
 	public CompletableFuture<UpdateResult> updateManyYouTubeNotifications(Bson filter, Bson update) {
@@ -1148,7 +1191,7 @@ public class Database {
 	}
 
 	public CompletableFuture<Document> insertRedirect(String id, String url) {
-		return CompletableFuture.supplyAsync(() -> this.redirects.findOneAndUpdate(Filters.eq("url", url), Updates.combine(Updates.setOnInsert("_id", id), Updates.setOnInsert("url", url)), this.findOneAndUpdateOptions));
+		return CompletableFuture.supplyAsync(() -> this.redirects.findOneAndUpdate(Filters.eq("url", url), Updates.combine(Updates.setOnInsert("_id", id), Updates.setOnInsert("url", url)), this.findOneAndUpdateOptions), this.executor);
 	}
 	
 	public MongoCollection<Document> getRegexTemplates() {
@@ -1168,23 +1211,23 @@ public class Database {
 	}
 	
 	public CompletableFuture<InsertOneResult> insertRegexTemplate(Document data) {
-		return CompletableFuture.supplyAsync(() -> this.regexTemplates.insertOne(data));
+		return CompletableFuture.supplyAsync(() -> this.regexTemplates.insertOne(data), this.executor);
 	}
 	
 	public CompletableFuture<UpdateResult> updateRegexTemplateById(ObjectId id, Bson update) {
-		return CompletableFuture.supplyAsync(() -> this.regexTemplates.updateOne(Filters.eq("_id", id), update));
+		return CompletableFuture.supplyAsync(() -> this.regexTemplates.updateOne(Filters.eq("_id", id), update), this.executor);
 	}
 	
 	public CompletableFuture<Document> findAndUpdateRegexTemplateById(ObjectId id, Bson update, FindOneAndUpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.regexTemplates.findOneAndUpdate(Filters.eq("_id", id), update, options));
+		return CompletableFuture.supplyAsync(() -> this.regexTemplates.findOneAndUpdate(Filters.eq("_id", id), update, options), this.executor);
 	}
 	
 	public CompletableFuture<DeleteResult> deleteRegexTemplateById(ObjectId id) {
-		return CompletableFuture.supplyAsync(() -> this.regexTemplates.deleteOne(Filters.eq("_id", id)));
+		return CompletableFuture.supplyAsync(() -> this.regexTemplates.deleteOne(Filters.eq("_id", id)), this.executor);
 	}
 	
 	public CompletableFuture<Document> findAndDeleteRegexTemplateById(ObjectId id, FindOneAndDeleteOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.regexTemplates.findOneAndDelete(Filters.eq("_id", id), options));
+		return CompletableFuture.supplyAsync(() -> this.regexTemplates.findOneAndDelete(Filters.eq("_id", id), options), this.executor);
 	}
 
 	public MongoCollection<Document> getBlacklists() {
@@ -1200,11 +1243,11 @@ public class Database {
 	}
 
 	public CompletableFuture<UpdateResult> updateBlacklist(Bson filter, List<? extends Bson> update, UpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.blacklists.updateOne(filter, update, options));
+		return CompletableFuture.supplyAsync(() -> this.blacklists.updateOne(filter, update, options), this.executor);
 	}
 
 	public CompletableFuture<UpdateResult> updateBlacklist(Bson filter, Bson update, UpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.blacklists.updateOne(filter, update, options));
+		return CompletableFuture.supplyAsync(() -> this.blacklists.updateOne(filter, update, options), this.executor);
 	}
 
 	public CompletableFuture<UpdateResult> updateBlacklist(UpdateOneModel<Document> update) {
@@ -1212,15 +1255,15 @@ public class Database {
 	}
 
 	public CompletableFuture<Document> findAndUpdateBlacklist(Bson filter, Bson update, FindOneAndUpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.blacklists.findOneAndUpdate(filter, update, options));
+		return CompletableFuture.supplyAsync(() -> this.blacklists.findOneAndUpdate(filter, update, options), this.executor);
 	}
 
 	public CompletableFuture<Document> findAndUpdateBlacklist(Bson filter, List<Bson> update, FindOneAndUpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.blacklists.findOneAndUpdate(filter, update, options));
+		return CompletableFuture.supplyAsync(() -> this.blacklists.findOneAndUpdate(filter, update, options), this.executor);
 	}
 
 	public CompletableFuture<UpdateResult> updateManyBlacklists(Bson filter, List<Bson> update, UpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.blacklists.updateMany(filter, update, options));
+		return CompletableFuture.supplyAsync(() -> this.blacklists.updateMany(filter, update, options), this.executor);
 	}
 
 	public CompletableFuture<UpdateResult> updateManyBlacklists(Bson filter, List<Bson> update) {
@@ -1228,7 +1271,7 @@ public class Database {
 	}
 
 	public CompletableFuture<BulkWriteResult> bulkWriteBlacklists(List<? extends WriteModel<? extends Document>> bulkData) {
-		return CompletableFuture.supplyAsync(() -> this.blacklists.bulkWrite(bulkData));
+		return CompletableFuture.supplyAsync(() -> this.blacklists.bulkWrite(bulkData), this.executor);
 	}
 	
 	public MongoCollection<Document> getUsers() {
@@ -1246,7 +1289,7 @@ public class Database {
 	public Document getUserById(Bson filter, Bson projection) {
 		Document data = this.getUsers(filter, projection).first();
 
-		return data == null ? Database.EMPTY_DOCUMENT : data;
+		return data == null ? MongoDatabase.EMPTY_DOCUMENT : data;
 	}
 	
 	public Document getUserById(long userId, Bson projection) {
@@ -1254,11 +1297,11 @@ public class Database {
 	}
 
 	public CompletableFuture<AggregateIterable<Document>> aggregateUsers(List<Bson> pipeline) {
-		return CompletableFuture.supplyAsync(() -> this.users.aggregate(pipeline));
+		return CompletableFuture.supplyAsync(() -> this.users.aggregate(pipeline), this.executor);
 	}
 
 	public CompletableFuture<UpdateResult> updateUser(Bson filter, List<? extends Bson> update, UpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.users.updateOne(filter, update, options));
+		return CompletableFuture.supplyAsync(() -> this.users.updateOne(filter, update, options), this.executor);
 	}
 
 	public CompletableFuture<UpdateResult> updateUserById(long userId, List<? extends Bson> update, UpdateOptions options) {
@@ -1270,7 +1313,7 @@ public class Database {
 	}
 
 	public CompletableFuture<UpdateResult> updateUser(Bson filter, Bson update, UpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.users.updateOne(filter, update, options));
+		return CompletableFuture.supplyAsync(() -> this.users.updateOne(filter, update, options), this.executor);
 	}
 	
 	public CompletableFuture<UpdateResult> updateUserById(long userId, Bson update, UpdateOptions options) {
@@ -1286,7 +1329,7 @@ public class Database {
 	}
 	
 	public CompletableFuture<Document> findAndUpdateUser(Bson filter, Bson update, FindOneAndUpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.users.findOneAndUpdate(filter, update, options));
+		return CompletableFuture.supplyAsync(() -> this.users.findOneAndUpdate(filter, update, options), this.executor);
 	}
 
 	public CompletableFuture<Document> findAndUpdateUserById(long userId, Bson update, FindOneAndUpdateOptions options) {
@@ -1298,7 +1341,7 @@ public class Database {
 	}
 
 	public CompletableFuture<Document> findAndUpdateUser(Bson filter, List<Bson> update, FindOneAndUpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.users.findOneAndUpdate(filter, update, options));
+		return CompletableFuture.supplyAsync(() -> this.users.findOneAndUpdate(filter, update, options), this.executor);
 	}
 
 	public CompletableFuture<Document> findAndUpdateUserById(long userId, List<Bson> update, FindOneAndUpdateOptions options) {
@@ -1310,7 +1353,7 @@ public class Database {
 	}
 	
 	public CompletableFuture<BulkWriteResult> bulkWriteUsers(List<? extends WriteModel<? extends Document>> bulkData) {
-		return CompletableFuture.supplyAsync(() -> this.users.bulkWrite(bulkData));
+		return CompletableFuture.supplyAsync(() -> this.users.bulkWrite(bulkData), this.executor);
 	}
 	
 	public MongoCollection<Document> getGuilds() {
@@ -1334,7 +1377,7 @@ public class Database {
 		
 		Document data = this.guilds.find(filter).projection(projection).first();
 		
-		return data == null ? Database.EMPTY_DOCUMENT : data;
+		return data == null ? MongoDatabase.EMPTY_DOCUMENT : data;
 	}
 	
 	public Document getGuildById(long guildId, Bson projection) {
@@ -1349,7 +1392,7 @@ public class Database {
 			dbFilter = Filters.and(Filters.eq("_id", guildId), filter);
 		}
 		
-		return CompletableFuture.supplyAsync(() -> this.guilds.updateOne(dbFilter, update, options));
+		return CompletableFuture.supplyAsync(() -> this.guilds.updateOne(dbFilter, update, options), this.executor);
 	}
 	
 	public CompletableFuture<UpdateResult> updateGuildById(long guildId, List<? extends Bson> update, UpdateOptions options) {
@@ -1368,7 +1411,7 @@ public class Database {
 			dbFilter = Filters.and(Filters.eq("_id", guildId), filter);
 		}
 		
-		return CompletableFuture.supplyAsync(() -> this.guilds.updateOne(dbFilter, update, options));
+		return CompletableFuture.supplyAsync(() -> this.guilds.updateOne(dbFilter, update, options), this.executor);
 	}
 	
 	public CompletableFuture<UpdateResult> updateGuildById(long guildId, Bson update, UpdateOptions options) {
@@ -1380,7 +1423,7 @@ public class Database {
 	}
 	
 	public CompletableFuture<UpdateResult> updateGuild(UpdateOneModel<Document> model) {
-		return CompletableFuture.supplyAsync(() -> this.guilds.updateOne(model.getFilter(), model.getUpdate(), model.getOptions()));
+		return CompletableFuture.supplyAsync(() -> this.guilds.updateOne(model.getFilter(), model.getUpdate(), model.getOptions()), this.executor);
 	}
 	
 	public CompletableFuture<Document> findAndUpdateGuildById(long guildId, Bson filter, Bson update, FindOneAndUpdateOptions options) {
@@ -1391,7 +1434,7 @@ public class Database {
 			dbFilter = Filters.and(Filters.eq("_id", guildId), filter);
 		}
 		
-		return CompletableFuture.supplyAsync(() -> this.guilds.findOneAndUpdate(dbFilter, update, options));
+		return CompletableFuture.supplyAsync(() -> this.guilds.findOneAndUpdate(dbFilter, update, options), this.executor);
 	}
 	
 	public CompletableFuture<Document> findAndUpdateGuildById(long guildId, Bson update, FindOneAndUpdateOptions options) {
@@ -1414,7 +1457,7 @@ public class Database {
 			dbFilter = Filters.and(Filters.eq("_id", guildId), filter);
 		}
 		
-		return CompletableFuture.supplyAsync(() -> this.guilds.findOneAndUpdate(dbFilter, update, options));
+		return CompletableFuture.supplyAsync(() -> this.guilds.findOneAndUpdate(dbFilter, update, options), this.executor);
 	}
 	
 	public CompletableFuture<Document> findAndUpdateGuildById(long guildId, List<? extends Bson> update, FindOneAndUpdateOptions options) {
@@ -1430,7 +1473,7 @@ public class Database {
 	}
 	
 	public CompletableFuture<BulkWriteResult> bulkWriteGuilds(List<? extends WriteModel<? extends Document>> bulkData) {
-		return CompletableFuture.supplyAsync(() -> this.guilds.bulkWrite(bulkData));
+		return CompletableFuture.supplyAsync(() -> this.guilds.bulkWrite(bulkData), this.executor);
 	}
 	
 	public MongoCollection<Document> getGiveaways() {
@@ -1446,35 +1489,35 @@ public class Database {
 	}
 	
 	public CompletableFuture<InsertOneResult> insertGiveaway(Document data) {
-		return CompletableFuture.supplyAsync(() -> this.giveaways.insertOne(data));
+		return CompletableFuture.supplyAsync(() -> this.giveaways.insertOne(data), this.executor);
 	}
 	
 	public CompletableFuture<UpdateResult> updateGiveaway(UpdateOneModel<Document> model) {
-		return CompletableFuture.supplyAsync(() -> this.giveaways.updateOne(model.getFilter(), model.getUpdate(), model.getOptions()));
+		return CompletableFuture.supplyAsync(() -> this.giveaways.updateOne(model.getFilter(), model.getUpdate(), model.getOptions()), this.executor);
 	}
 	
 	public CompletableFuture<UpdateResult> updateGiveawayById(long messageId, Bson update) {
-		return CompletableFuture.supplyAsync(() -> this.giveaways.updateOne(Filters.eq("messageId", messageId), update));
+		return CompletableFuture.supplyAsync(() -> this.giveaways.updateOne(Filters.eq("messageId", messageId), update), this.executor);
 	}
 	
 	public CompletableFuture<UpdateResult> updateGiveawayById(long messageId, List<? extends Bson> update) {
-		return CompletableFuture.supplyAsync(() -> this.giveaways.updateOne(Filters.eq("messageId", messageId), update));
+		return CompletableFuture.supplyAsync(() -> this.giveaways.updateOne(Filters.eq("messageId", messageId), update), this.executor);
 	}
 	
 	public CompletableFuture<Document> findAndUpdateGiveawayById(long messageId, List<? extends Bson> update, FindOneAndUpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.giveaways.findOneAndUpdate(Filters.eq("messageId", messageId), update, options));
+		return CompletableFuture.supplyAsync(() -> this.giveaways.findOneAndUpdate(Filters.eq("messageId", messageId), update, options), this.executor);
 	}
 	
 	public CompletableFuture<DeleteResult> deleteGiveawayById(long messageId) {
-		return CompletableFuture.supplyAsync(() -> this.giveaways.deleteOne(Filters.eq("messageId", messageId)));
+		return CompletableFuture.supplyAsync(() -> this.giveaways.deleteOne(Filters.eq("messageId", messageId)), this.executor);
 	}
 	
 	public CompletableFuture<DeleteResult> deleteManyGiveaways(Bson filter) {
-		return CompletableFuture.supplyAsync(() -> this.giveaways.deleteMany(filter));
+		return CompletableFuture.supplyAsync(() -> this.giveaways.deleteMany(filter), this.executor);
 	}
 	
 	public CompletableFuture<BulkWriteResult> bulkWriteGiveaways(List<? extends WriteModel<? extends Document>> bulkData) {
-		return CompletableFuture.supplyAsync(() -> this.giveaways.bulkWrite(bulkData));
+		return CompletableFuture.supplyAsync(() -> this.giveaways.bulkWrite(bulkData), this.executor);
 	}
 	
 	public MongoCollection<Document> getMessages() {
@@ -1494,23 +1537,23 @@ public class Database {
 	}
 	
 	public CompletableFuture<InsertOneResult> insertMessage(Document data) {
-		return CompletableFuture.supplyAsync(() -> this.messages.insertOne(data));
+		return CompletableFuture.supplyAsync(() -> this.messages.insertOne(data), this.executor);
 	}
 	
 	public CompletableFuture<UpdateResult> replaceMessage(Document data) {
-		return CompletableFuture.supplyAsync(() -> this.messages.replaceOne(Filters.eq("_id", data.get("_id")), data));
+		return CompletableFuture.supplyAsync(() -> this.messages.replaceOne(Filters.eq("_id", data.get("_id")), data), this.executor);
 	}
 	
 	public CompletableFuture<DeleteResult> deleteMessageById(long messageId) {
-		return CompletableFuture.supplyAsync(() -> this.messages.deleteOne(Filters.eq("_id", messageId)));
+		return CompletableFuture.supplyAsync(() -> this.messages.deleteOne(Filters.eq("_id", messageId)), this.executor);
 	}
 
 	public CompletableFuture<DeleteResult> deleteMessages(List<Long> messageIds) {
-		return CompletableFuture.supplyAsync(() -> this.messages.deleteMany(Filters.in("_id", messageIds)));
+		return CompletableFuture.supplyAsync(() -> this.messages.deleteMany(Filters.in("_id", messageIds)), this.executor);
 	}
 	
 	public CompletableFuture<BulkWriteResult> bulkWriteMessages(List<? extends WriteModel<? extends Document>> bulkData) {
-		return CompletableFuture.supplyAsync(() -> this.messages.bulkWrite(bulkData));
+		return CompletableFuture.supplyAsync(() -> this.messages.bulkWrite(bulkData), this.executor);
 	}
 	
 	public MongoCollection<Document> getAuction() {
@@ -1526,7 +1569,7 @@ public class Database {
 	}
 	
 	public CompletableFuture<DeleteResult> deleteAuctionById(ObjectId id) {
-		return CompletableFuture.supplyAsync(() -> this.auction.deleteOne(Filters.eq("_id", id)));
+		return CompletableFuture.supplyAsync(() -> this.auction.deleteOne(Filters.eq("_id", id)), this.executor);
 	}
  	
 	public MongoCollection<Document> getModLogs() {
@@ -1542,23 +1585,23 @@ public class Database {
 	}
 	
 	public CompletableFuture<InsertOneResult> insertModLog(Document data) {
-		return CompletableFuture.supplyAsync(() -> this.modLogs.insertOne(data));
+		return CompletableFuture.supplyAsync(() -> this.modLogs.insertOne(data), this.executor);
 	}
 	
 	public CompletableFuture<UpdateResult> updateModLogById(ObjectId id, Bson update) {
-		return CompletableFuture.supplyAsync(() -> this.modLogs.updateOne(Filters.eq("_id", id), update, this.updateOptions));
+		return CompletableFuture.supplyAsync(() -> this.modLogs.updateOne(Filters.eq("_id", id), update, this.updateOptions), this.executor);
 	}
 
 	public CompletableFuture<Document> findAndUpdateModLogById(ObjectId id, List<Bson> update, FindOneAndUpdateOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.modLogs.findOneAndUpdate(Filters.eq("_id", id), update, options));
+		return CompletableFuture.supplyAsync(() -> this.modLogs.findOneAndUpdate(Filters.eq("_id", id), update, options), this.executor);
 	}
 
 	public CompletableFuture<UpdateResult> updateManyModLogs(List<Bson> update) {
-		return CompletableFuture.supplyAsync(() -> this.modLogs.updateMany(Database.EMPTY_DOCUMENT, update, this.updateOptions));
+		return CompletableFuture.supplyAsync(() -> this.modLogs.updateMany(MongoDatabase.EMPTY_DOCUMENT, update, this.updateOptions), this.executor);
 	}
 
 	public CompletableFuture<Document> findAndDeleteModLog(Bson filter) {
-		return CompletableFuture.supplyAsync(() -> this.modLogs.findOneAndDelete(filter));
+		return CompletableFuture.supplyAsync(() -> this.modLogs.findOneAndDelete(filter), this.executor);
 	}
 
 	public CompletableFuture<Document> findAndDeleteModLogById(ObjectId id) {
@@ -1566,7 +1609,7 @@ public class Database {
 	}
 
 	public CompletableFuture<DeleteResult> deleteModLog(Bson filter) {
-		return CompletableFuture.supplyAsync(() -> this.modLogs.deleteOne(filter));
+		return CompletableFuture.supplyAsync(() -> this.modLogs.deleteOne(filter), this.executor);
 	}
 
 	public CompletableFuture<DeleteResult> deleteModLogById(ObjectId id) {
@@ -1574,7 +1617,7 @@ public class Database {
 	}
 
 	public CompletableFuture<DeleteResult> deleteManyModLogs(Bson filter) {
-		return CompletableFuture.supplyAsync(() -> this.modLogs.deleteMany(filter));
+		return CompletableFuture.supplyAsync(() -> this.modLogs.deleteMany(filter), this.executor);
 	}
 	
 	public MongoCollection<Document> getYouTubeSubscriptions() {
@@ -1586,15 +1629,15 @@ public class Database {
 	}
 	
 	public CompletableFuture<DeleteResult> deleteYouTubeSubscription(Bson filter) {
-		return CompletableFuture.supplyAsync(() -> this.youtubeSubscriptions.deleteOne(filter));
+		return CompletableFuture.supplyAsync(() -> this.youtubeSubscriptions.deleteOne(filter), this.executor);
 	}
 	
 	public CompletableFuture<UpdateResult> updateYouTubeSubscriptionById(String channelId, Bson update) {
-		return CompletableFuture.supplyAsync(() -> this.youtubeSubscriptions.updateOne(Filters.eq("_id", channelId), update, this.updateOptions));
+		return CompletableFuture.supplyAsync(() -> this.youtubeSubscriptions.updateOne(Filters.eq("_id", channelId), update, this.updateOptions), this.executor);
 	}
 	
 	public CompletableFuture<BulkWriteResult> bulkWriteYouTubeSubscriptions(List<? extends WriteModel<? extends Document>> bulkData) {
-		return CompletableFuture.supplyAsync(() -> this.youtubeSubscriptions.bulkWrite(bulkData));
+		return CompletableFuture.supplyAsync(() -> this.youtubeSubscriptions.bulkWrite(bulkData), this.executor);
 	}
 
 	public MongoCollection<Document> getYoutubeNotificationLogs() {
@@ -1610,11 +1653,11 @@ public class Database {
 	}
 	
 	public CompletableFuture<InsertOneResult> insertYouTubeNotificationLog(Document data) {
-		return CompletableFuture.supplyAsync(() -> this.youtubeNotificationLogs.insertOne(data));
+		return CompletableFuture.supplyAsync(() -> this.youtubeNotificationLogs.insertOne(data), this.executor);
 	}
 	
 	public CompletableFuture<DeleteResult> deleteManyYouTubeNotificationLogs(String videoId) {
-		return CompletableFuture.supplyAsync(() -> this.youtubeNotificationLogs.deleteMany(Filters.eq("videoId", videoId)));
+		return CompletableFuture.supplyAsync(() -> this.youtubeNotificationLogs.deleteMany(Filters.eq("videoId", videoId)), this.executor);
 	}
 	
 	public MongoCollection<Document> getCommands() {
@@ -1622,15 +1665,15 @@ public class Database {
 	}
 	
 	public CompletableFuture<FindIterable<Document>> getCommands(Bson filter) {
-		return CompletableFuture.supplyAsync(() -> this.commands.find(filter));
+		return CompletableFuture.supplyAsync(() -> this.commands.find(filter), this.executor);
 	}
 
 	public CompletableFuture<InsertOneResult> insertCommand(Document data) {
-		return CompletableFuture.supplyAsync(() -> this.commands.insertOne(data));
+		return CompletableFuture.supplyAsync(() -> this.commands.insertOne(data), this.executor);
 	}
 	
 	public CompletableFuture<AggregateIterable<Document>> aggregateCommands(List<? extends Bson> pipeline) {
-		return CompletableFuture.supplyAsync(() -> this.commands.aggregate(pipeline));
+		return CompletableFuture.supplyAsync(() -> this.commands.aggregate(pipeline), this.executor);
 	}
 	
 	public MongoCollection<Document> getOffences() {
@@ -1638,11 +1681,11 @@ public class Database {
 	}
 	
 	public CompletableFuture<FindIterable<Document>> getOffences(Bson filter) {
-		return CompletableFuture.supplyAsync(() -> this.offences.find(filter));
+		return CompletableFuture.supplyAsync(() -> this.offences.find(filter), this.executor);
 	}
 
 	public CompletableFuture<InsertOneResult> insertOffence(Document data) {
-		return CompletableFuture.supplyAsync(() -> this.offences.insertOne(data));
+		return CompletableFuture.supplyAsync(() -> this.offences.insertOne(data), this.executor);
 	}
 
 	public static <Type> BiConsumer<Type, Throwable> exceptionally(ShardManager manager) {

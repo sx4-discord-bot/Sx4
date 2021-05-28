@@ -104,6 +104,37 @@ public class SearchUtility {
 	private static Guild findGuild(CacheView<Guild> guilds, String query) {
 		return SearchUtility.find(guilds, query, Guild::getName);
 	}
+
+	public static CompletableFuture<Guild.Ban> getBan(Guild guild, String query) {
+		Matcher matcher;
+		if (NumberUtility.isNumberUnsigned(query)) {
+			try {
+				return guild.retrieveBanById(query).submit();
+			} catch (NumberFormatException e) {
+				return guild.retrieveBanList().submit().thenApply(bans -> SearchUtility.find(bans, query, ban -> ban.getUser().getName()));
+			}
+		} else if ((matcher = SearchUtility.USER_MENTION.matcher(query)).matches()) {
+			try {
+				return guild.retrieveBanById(matcher.group(1)).submit();
+			} catch (NumberFormatException e) {
+				return CompletableFuture.completedFuture(null);
+			}
+		} else if ((matcher = SearchUtility.USER_TAG.matcher(query)).matches()) {
+			String name = matcher.group(1), discriminator = matcher.group(2);
+
+			return guild.retrieveBanList().submit().thenApply(bans -> {
+				return bans.stream()
+					.filter(ban -> {
+						User user = ban.getUser();
+						return user.getName().equalsIgnoreCase(name) && user.getDiscriminator().equalsIgnoreCase(discriminator);
+					})
+					.findFirst()
+					.orElse(null);
+			});
+		} else {
+			return guild.retrieveBanList().submit().thenApply(bans -> SearchUtility.find(bans, query, ban -> ban.getUser().getName()));
+		}
+	}
 	
 	public static Guild getGuild(ShardManager manager, String query) {
 		if (NumberUtility.isNumberUnsigned(query)) {
@@ -360,14 +391,17 @@ public class SearchUtility {
 					.findFirst()
 					.orElse(null)
 			);
-		} else if (NumberUtility.isNumberUnsigned(query)) {
-			try {
-				return guild.getMemberById(query);
-			} catch (NumberFormatException e) {
-				return null;
-			}
 		} else {
-			return SearchUtility.findMember(guild.getMemberCache(), query);
+			try {
+				Member member = guild.getMemberById(query);
+				if (member == null) {
+					return SearchUtility.findMember(guild.getMemberCache(), query);
+				} else {
+					return member;
+				}
+			} catch (NumberFormatException e) {
+				return SearchUtility.findMember(guild.getMemberCache(), query);
+			}
 		}
 	}
 
@@ -410,20 +444,18 @@ public class SearchUtility {
 						.orElse(null)
 				)
 			);
-		} else if (NumberUtility.isNumberUnsigned(query)) {
+		} else {
 			try {
 				return manager.retrieveUserById(query).submit();
 			} catch (NumberFormatException e) {
-				return CompletableFuture.completedFuture(null);
+				return CompletableFuture.completedFuture(
+					manager.getUserCache().applyStream(stream ->
+						stream.filter(user -> user.getName().equalsIgnoreCase(query))
+							.findFirst()
+							.orElse(null)
+					)
+				);
 			}
-		} else {
-			return CompletableFuture.completedFuture(
-				manager.getUserCache().applyStream(stream ->
-					stream.filter(user -> user.getName().equalsIgnoreCase(query))
-						.findFirst()
-						.orElse(null)
-				)
-			);
 		}
 	}
 	

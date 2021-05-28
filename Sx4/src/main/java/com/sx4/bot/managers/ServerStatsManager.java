@@ -1,7 +1,7 @@
 package com.sx4.bot.managers;
 
 import com.sx4.bot.core.Sx4;
-import com.sx4.bot.database.Database;
+import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.entities.info.ServerStatsType;
 import gnu.trove.map.TLongObjectMap;
 import gnu.trove.map.hash.TLongObjectHashMap;
@@ -40,7 +40,7 @@ public class ServerStatsManager {
 			this.clear();
 
 			if (!data.isEmpty()) {
-				this.bot.getDatabase().insertManyServerStats(data).whenComplete(Database.exceptionally(this.bot.getShardManager()));
+				this.bot.getMongo().insertManyServerStats(data).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
 			}
 		}, Duration.between(now, nextHour).toSeconds(), 3600, TimeUnit.SECONDS);
 	}

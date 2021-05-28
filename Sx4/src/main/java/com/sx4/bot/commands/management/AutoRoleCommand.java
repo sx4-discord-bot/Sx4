@@ -12,7 +12,7 @@ import com.sx4.bot.annotations.command.Examples;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
-import com.sx4.bot.database.model.Operators;
+import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.argument.Alternative;
 import com.sx4.bot.entities.argument.TimedArgument;
 import com.sx4.bot.entities.management.AutoRoleFilter;
@@ -54,7 +54,7 @@ public class AutoRoleCommand extends Sx4Command {
 		List<Bson> update = List.of(Operators.set("enabled", Operators.cond(Operators.exists("$enabled"), Operators.REMOVE, false)));
 		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().projection(Projections.include("enabled")).returnDocument(ReturnDocument.AFTER);
 
-		event.getDatabase().findAndUpdateAutoRole(Filters.eq("roleId", role.getIdLong()), update, options).whenComplete((data, exception) -> {
+		event.getMongo().findAndUpdateAutoRole(Filters.eq("roleId", role.getIdLong()), update, options).whenComplete((data, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -91,7 +91,7 @@ public class AutoRoleCommand extends Sx4Command {
 		Document data = new Document("roleId", role.getIdLong())
 			.append("guildId", event.getGuild().getIdLong());
 
-		event.getDatabase().insertAutoRole(data).whenComplete((result, exception) -> {
+		event.getMongo().insertAutoRole(data).whenComplete((result, exception) -> {
 			Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
 			if (cause instanceof MongoWriteException && ((MongoWriteException) cause).getError().getCategory() == ErrorCategory.DUPLICATE_KEY) {
 				event.replyFailure("That role is already an auto role").queue();
@@ -120,7 +120,7 @@ public class AutoRoleCommand extends Sx4Command {
 						.setTimeout(30)
 						.setUnique(event.getAuthor().getIdLong(), event.getChannel().getIdLong())
 						.start();
-				}).thenCompose(e -> event.getDatabase().deleteManyAutoRoles(Filters.eq("guildId", event.getGuild().getIdLong())))
+				}).thenCompose(e -> event.getMongo().deleteManyAutoRoles(Filters.eq("guildId", event.getGuild().getIdLong())))
 				.whenComplete((result, exception) -> {
 					if (ExceptionUtility.sendExceptionally(event, exception)) {
 						return;
@@ -135,7 +135,7 @@ public class AutoRoleCommand extends Sx4Command {
 				});
 		} else {
 			Role role = option.getValue();
-			event.getDatabase().deleteAutoRole(Filters.eq("roleId", role.getIdLong())).whenComplete((result, exception) -> {
+			event.getMongo().deleteAutoRole(Filters.eq("roleId", role.getIdLong())).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
@@ -154,7 +154,7 @@ public class AutoRoleCommand extends Sx4Command {
 	@CommandId(41)
 	@Examples({"auto role list"})
 	public void list(Sx4CommandEvent event) {
-		List<Document> data = event.getDatabase().getAutoRoles(Filters.eq("guildId", event.getGuild().getIdLong()), Projections.include("roleId")).into(new ArrayList<>());
+		List<Document> data = event.getMongo().getAutoRoles(Filters.eq("guildId", event.getGuild().getIdLong()), Projections.include("roleId")).into(new ArrayList<>());
 		if (data.isEmpty()) {
 			event.replyFailure("You have no auto roles setup").queue();
 			return;
@@ -207,7 +207,7 @@ public class AutoRoleCommand extends Sx4Command {
 			}
 
 			List<Bson> update = List.of(Operators.set("filters", Operators.let(new Document("filters", Operators.ifNull("$filters", Collections.EMPTY_LIST)), Operators.cond(Operators.isEmpty(Operators.filter("$$filters", Operators.eq("$$this.type", filter.getType()))), Operators.concatArrays("$$filters", List.of(filterData)), "$filters"))));
-			event.getDatabase().updateAutoRole(Filters.eq("roleId", role.getIdLong()), update, new UpdateOptions()).whenComplete((result, exception) -> {
+			event.getMongo().updateAutoRole(Filters.eq("roleId", role.getIdLong()), update, new UpdateOptions()).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
@@ -235,7 +235,7 @@ public class AutoRoleCommand extends Sx4Command {
 
 			Bson update = alternative ? Updates.unset("filters") : Updates.pull("filters", Filters.eq("type", option.getValue().getType()));
 
-			event.getDatabase().updateAutoRole(Filters.eq("roleId", role.getIdLong()), update, new UpdateOptions()).whenComplete((result, exception) -> {
+			event.getMongo().updateAutoRole(Filters.eq("roleId", role.getIdLong()), update, new UpdateOptions()).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}

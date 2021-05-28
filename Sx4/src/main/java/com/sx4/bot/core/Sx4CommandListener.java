@@ -40,7 +40,7 @@ public class Sx4CommandListener extends CommandListener {
 				this.handle(((MessageReceivedEvent) event).getMessage());
 			} else if (event instanceof MessageUpdateEvent) {
 				Message editedMessage = ((MessageUpdateEvent) event).getMessage();
-				Document oldMessage = this.bot.getDatabase().getMessageById(editedMessage.getIdLong());
+				Document oldMessage = this.bot.getMongo().getMessageById(editedMessage.getIdLong());
 
 				if (oldMessage == null) {
 					return;

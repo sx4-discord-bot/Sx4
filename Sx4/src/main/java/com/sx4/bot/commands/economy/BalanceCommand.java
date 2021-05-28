@@ -29,7 +29,7 @@ public class BalanceCommand extends Sx4Command {
 		Member effectiveMember = self ? event.getMember() : member;
 		User user = effectiveMember.getUser();
 
-		long balance = event.getDatabase().getUserById(user.getIdLong(), Projections.include("economy.balance")).getEmbedded(List.of("economy", "balance"), 0L);
+		long balance = event.getMongo().getUserById(user.getIdLong(), Projections.include("economy.balance")).getEmbedded(List.of("economy", "balance"), 0L);
 
 		EmbedBuilder embed = new EmbedBuilder()
 			.setAuthor(user.getName(), null, user.getEffectiveAvatarUrl())

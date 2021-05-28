@@ -13,8 +13,8 @@ import com.sx4.bot.annotations.command.Premium;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
-import com.sx4.bot.database.Database;
-import com.sx4.bot.database.model.Operators;
+import com.sx4.bot.database.mongo.MongoDatabase;
+import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.NumberUtility;
 import com.sx4.bot.waiter.Waiter;
@@ -66,7 +66,7 @@ public class PremiumCommand extends Sx4Command {
 		int monthPrice = event.getConfig().getPremiumPrice();
 		int price = (int) Math.round((monthPrice / 30D) * days);
 
-		long endAtPrior = event.getDatabase().getGuildById(guildId, Projections.include("premium.endAt")).getEmbedded(List.of("premium", "endAt"), 0L);
+		long endAtPrior = event.getMongo().getGuildById(guildId, Projections.include("premium.endAt")).getEmbedded(List.of("premium", "endAt"), 0L);
 		boolean hasPremium = endAtPrior != 0;
 
 		MessageEmbed embed = new EmbedBuilder()
@@ -87,18 +87,18 @@ public class PremiumCommand extends Sx4Command {
 			List<Bson> update = List.of(Operators.set("premium.credit", Operators.cond(Operators.gt(price, Operators.ifNull("$premium.credit", 0)), "$premium.credit", Operators.subtract("$premium.credit", price))));
 			FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("premium.credit")).upsert(true);
 
-			return event.getMainDatabase().findAndUpdateUserById(event.getAuthor().getIdLong(), update, options);
+			return event.getMongoMain().findAndUpdateUserById(event.getAuthor().getIdLong(), update, options);
 		}).thenCompose(data -> {
 			int credit = data == null ? 0 : data.getEmbedded(List.of("premium", "credit"), 0);
 			if (price > credit) {
 				event.replyFailure("You do not have enough credit to buy premium for that long").queue();
-				return CompletableFuture.completedFuture(Database.EMPTY_DOCUMENT);
+				return CompletableFuture.completedFuture(MongoDatabase.EMPTY_DOCUMENT);
 			}
 
 			List<Bson> update = List.of(Operators.set("premium.endAt", Operators.add(TimeUnit.DAYS.toSeconds(days), Operators.ifNull("$premium.endAt", Operators.nowEpochSecond()))));
 			FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("premium.endAt")).upsert(true);
 
-			return event.getDatabase().findAndUpdateGuildById(guildId, update, options);
+			return event.getMongo().findAndUpdateGuildById(guildId, update, options);
 		}).whenComplete((data, exception) -> {
 			Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
 			if (cause instanceof CancelException) {
@@ -121,7 +121,7 @@ public class PremiumCommand extends Sx4Command {
 	@CommandId(178)
 	@Examples({"premium check"})
 	public void check(Sx4CommandEvent event) {
-		long endAt = event.getDatabase().getGuildById(event.getGuild().getIdLong(), Projections.include("premium.endAt")).getEmbedded(List.of("premium", "endAt"), 0L);
+		long endAt = event.getMongo().getGuildById(event.getGuild().getIdLong(), Projections.include("premium.endAt")).getEmbedded(List.of("premium", "endAt"), 0L);
 		if (endAt == 0) {
 			event.replyFailure("This server currently doesn't have premium").queue();
 			return;
@@ -135,7 +135,7 @@ public class PremiumCommand extends Sx4Command {
 	@CommandId(179)
 	@Examples({"premium credit"})
 	public void credit(Sx4CommandEvent event) {
-		int credit = event.getMainDatabase().getUserById(event.getAuthor().getIdLong(), Projections.include("premium.credit")).getEmbedded(List.of("premium", "credit"), 0);
+		int credit = event.getMongoMain().getUserById(event.getAuthor().getIdLong(), Projections.include("premium.credit")).getEmbedded(List.of("premium", "credit"), 0);
 
 		event.replyFormat("Your current credit is **$%,.2f**", credit / 100D).queue();
 	}

@@ -12,7 +12,7 @@ import com.sx4.bot.annotations.command.Examples;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
-import com.sx4.bot.database.model.Operators;
+import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.argument.Alternative;
 import com.sx4.bot.entities.settings.HolderType;
 import com.sx4.bot.paged.PagedResult;
@@ -66,7 +66,7 @@ public class FakePermissionsCommand extends Sx4Command {
 		
 		Bson filter = Operators.filter("$fakePermissions.holders", Operators.eq("$$this.id", holder.getIdLong()));
 		List<Bson> update = List.of(Operators.set("fakePermissions.holders", Operators.cond(Operators.extinct("$fakePermissions.holders"), List.of(data), Operators.cond(Operators.isEmpty(filter), Operators.concatArrays("$fakePermissions.holders", List.of(data)), Operators.concatArrays(Operators.filter("$fakePermissions.holders", Operators.ne("$$this.id", holder.getIdLong())), List.of(new Document(data).append("permissions", Operators.toLong(Operators.bitwiseOr(Operators.first(Operators.map(filter, "$$this.permissions")), rawPermissions)))))))));
-		event.getDatabase().updateGuildById(event.getGuild().getIdLong(), update).whenComplete((result, exception) -> {
+		event.getMongo().updateGuildById(event.getGuild().getIdLong(), update).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -96,7 +96,7 @@ public class FakePermissionsCommand extends Sx4Command {
 		Bson newPermissions = Operators.toLong(Operators.bitwiseAnd(Operators.first(Operators.map(filter, "$$this.permissions")), ~rawPermissions));
 		
 		List<Bson> update = List.of(Operators.set("fakePermissions.holders", Operators.cond(Operators.or(Operators.extinct("$fakePermissions.holders"), Operators.isEmpty(filter)), "$fakePermissions.holders", Operators.cond(Operators.eq(newPermissions, 0L), withoutHolder, Operators.concatArrays(withoutHolder, List.of(data.append("permissions", newPermissions)))))));
-		event.getDatabase().updateGuildById(event.getGuild().getIdLong(), update).whenComplete((result, exception) -> {
+		event.getMongo().updateGuildById(event.getGuild().getIdLong(), update).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -124,7 +124,7 @@ public class FakePermissionsCommand extends Sx4Command {
 					.setUnique(event.getAuthor().getIdLong(), event.getChannel().getIdLong())
 					.start();
 			})
-			.thenCompose(messageEvent -> event.getDatabase().updateGuildById(event.getGuild().getIdLong(), Updates.unset("fakePermissions.holders")))
+			.thenCompose(messageEvent -> event.getMongo().updateGuildById(event.getGuild().getIdLong(), Updates.unset("fakePermissions.holders")))
 			.whenComplete((result, exception) -> {
 				Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
 				if (cause instanceof CancelException) {
@@ -143,7 +143,7 @@ public class FakePermissionsCommand extends Sx4Command {
 			IPermissionHolder holder = option.getValue();
 			boolean role = holder instanceof Role;
 			
-			event.getDatabase().updateGuildById(event.getGuild().getIdLong(), Updates.pull("fakePermissions.holders", Filters.eq("id", holder.getIdLong()))).whenComplete((result, exception) -> {
+			event.getMongo().updateGuildById(event.getGuild().getIdLong(), Updates.pull("fakePermissions.holders", Filters.eq("id", holder.getIdLong()))).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
@@ -164,7 +164,7 @@ public class FakePermissionsCommand extends Sx4Command {
 	public void stats(Sx4CommandEvent event, @Argument(value="user | role", endless=true) IPermissionHolder holder) {
 		boolean role = holder instanceof Role;
 		
-		List<Document> holders = event.getDatabase().getGuildById(event.getGuild().getIdLong(), Projections.include("fakePermissions.holders")).getEmbedded(List.of("fakePermissions", "holders"), Collections.emptyList());
+		List<Document> holders = event.getMongo().getGuildById(event.getGuild().getIdLong(), Projections.include("fakePermissions.holders")).getEmbedded(List.of("fakePermissions", "holders"), Collections.emptyList());
 		long permissionsRaw = holders.stream()
 			.filter(data -> data.getLong("id") == holder.getIdLong())
 			.map(data -> data.getLong("permissions"))
@@ -189,7 +189,7 @@ public class FakePermissionsCommand extends Sx4Command {
 	public void inPermission(Sx4CommandEvent event, @Argument(value="permissions") Permission... permissions) {
 		long permissionsRaw = Permission.getRaw(permissions);
 		
-		List<Document> allHolders = event.getDatabase().getGuildById(event.getGuild().getIdLong(), Projections.include("fakePermissions.holders")).getEmbedded(List.of("fakePermissions", "holders"), Collections.emptyList());
+		List<Document> allHolders = event.getMongo().getGuildById(event.getGuild().getIdLong(), Projections.include("fakePermissions.holders")).getEmbedded(List.of("fakePermissions", "holders"), Collections.emptyList());
 		
 		List<Document> holders = allHolders.stream()
 			.sorted(Comparator.comparingInt(a -> a.getInteger("type")))

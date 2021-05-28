@@ -8,8 +8,8 @@ import com.mongodb.ErrorCategory;
 import com.mongodb.MongoWriteException;
 import com.mongodb.client.model.*;
 import com.sx4.bot.core.Sx4;
-import com.sx4.bot.database.Database;
-import com.sx4.bot.database.model.Operators;
+import com.sx4.bot.database.mongo.MongoDatabase;
+import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.formatter.IFormatter;
 import com.sx4.bot.formatter.JsonFormatter;
 import com.sx4.bot.managers.StarboardManager;
@@ -85,7 +85,7 @@ public class StarboardHandler implements EventListener {
 			builder.addField(new WebhookEmbed.EmbedField(false, "Message", StringUtility.limit(content, MessageEmbed.VALUE_MAX_LENGTH, "[...](" + messageLink + ")")));
 		}
 
-		Document webhookData = guildData.get("webhook", Database.EMPTY_DOCUMENT);
+		Document webhookData = guildData.get("webhook", MongoDatabase.EMPTY_DOCUMENT);
 
 		try {
 			return this.format(messageData.get("message", Document.class), member, channel, emote, stars, nextStars, starboard.getObjectId("_id"))
@@ -126,7 +126,7 @@ public class StarboardHandler implements EventListener {
 			return;
 		}
 
-		Document data = this.bot.getDatabase().getGuildById(event.getGuild().getIdLong(), Projections.include("starboard")).get("starboard", Database.EMPTY_DOCUMENT);
+		Document data = this.bot.getMongo().getGuildById(event.getGuild().getIdLong(), Projections.include("starboard")).get("starboard", MongoDatabase.EMPTY_DOCUMENT);
 		if (!data.get("enabled", false)) {
 			return;
 		}
@@ -148,7 +148,7 @@ public class StarboardHandler implements EventListener {
 
 		Bson filter = Filters.or(Filters.eq("originalMessageId", event.getMessageIdLong()), Filters.eq("messageId", event.getMessageIdLong()));
 
-		Document starboard = this.bot.getDatabase().getStarboard(filter, Projections.include("originalMessageId"));
+		Document starboard = this.bot.getMongo().getStarboard(filter, Projections.include("originalMessageId"));
 
 		long messageId = starboard == null ? event.getMessageIdLong() : starboard.getLong("originalMessageId");
 
@@ -163,7 +163,7 @@ public class StarboardHandler implements EventListener {
 				.append("messageId", messageId)
 				.append("guildId", event.getGuild().getIdLong());
 
-			this.bot.getDatabase().insertStar(star).thenCompose(result -> {
+			this.bot.getMongo().insertStar(star).thenCompose(result -> {
 				Bson update = Updates.combine(
 					Updates.inc("count", 1),
 					Updates.setOnInsert("originalMessageId", messageId),
@@ -184,7 +184,7 @@ public class StarboardHandler implements EventListener {
 				}
 
 				FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER).upsert(true);
-				return this.bot.getDatabase().findAndUpdateStarboard(Filters.eq("originalMessageId", messageId), update, options);
+				return this.bot.getMongo().findAndUpdateStarboard(Filters.eq("originalMessageId", messageId), update, options);
 			}).thenCompose(updatedData -> {
 				WebhookMessage webhookMessage = this.getStarboardMessage(data, updatedData, event.getGuild(), event.getMember(), emote);
 				if (webhookMessage == null) {
@@ -192,10 +192,10 @@ public class StarboardHandler implements EventListener {
 				}
 
 				if (updatedData.containsKey("messageId")) {
-					this.bot.getStarboardManager().editStarboard(updatedData.getLong("messageId"), channel.getIdLong(), data.get("webhook", Database.EMPTY_DOCUMENT), webhookMessage);
+					this.bot.getStarboardManager().editStarboard(updatedData.getLong("messageId"), channel.getIdLong(), data.get("webhook", MongoDatabase.EMPTY_DOCUMENT), webhookMessage);
 					return CompletableFuture.completedFuture(null); // return null so no update is made in the next stage
 				} else {
-					return this.bot.getStarboardManager().sendStarboard(channel, data.get("webhook", Database.EMPTY_DOCUMENT), webhookMessage);
+					return this.bot.getStarboardManager().sendStarboard(channel, data.get("webhook", MongoDatabase.EMPTY_DOCUMENT), webhookMessage);
 				}
 			}).whenComplete((createdMessage, exception) -> {
 				if (exception instanceof CompletionException) {
@@ -210,7 +210,7 @@ public class StarboardHandler implements EventListener {
 				}
 
 				if (createdMessage != null) {
-					this.bot.getDatabase().updateStarboard(Filters.eq("originalMessageId", messageId), Updates.set("messageId", createdMessage.getId())).whenComplete(Database.exceptionally(event.getJDA().getShardManager()));
+					this.bot.getMongo().updateStarboard(Filters.eq("originalMessageId", messageId), Updates.set("messageId", createdMessage.getId())).whenComplete(MongoDatabase.exceptionally(event.getJDA().getShardManager()));
 				}
 			});
 		});
@@ -222,7 +222,7 @@ public class StarboardHandler implements EventListener {
 			return;
 		}
 
-		Document data = this.bot.getDatabase().getGuildById(event.getGuild().getIdLong(), Projections.include("starboard")).get("starboard", Database.EMPTY_DOCUMENT);
+		Document data = this.bot.getMongo().getGuildById(event.getGuild().getIdLong(), Projections.include("starboard")).get("starboard", MongoDatabase.EMPTY_DOCUMENT);
 		if (!data.get("enabled", false)) {
 			return;
 		}
@@ -244,7 +244,7 @@ public class StarboardHandler implements EventListener {
 
 		Bson filter = Filters.or(Filters.eq("originalMessageId", event.getMessageIdLong()), Filters.eq("messageId", event.getMessageIdLong()));
 
-		Document starboard = this.bot.getDatabase().getStarboard(filter, Projections.include("originalMessageId", "count", "messageId"));
+		Document starboard = this.bot.getMongo().getStarboard(filter, Projections.include("originalMessageId", "count", "messageId"));
 		if (starboard == null) {
 			return;
 		}
@@ -256,7 +256,7 @@ public class StarboardHandler implements EventListener {
 
 		List<Document> config = data.getList("messages", Document.class, StarboardManager.DEFAULT_CONFIGURATION);
 
-		this.bot.getDatabase().deleteStarById(event.getUserIdLong(), messageId).thenCompose(result -> {
+		this.bot.getMongo().deleteStarById(event.getUserIdLong(), messageId).thenCompose(result -> {
 			if (result.getDeletedCount() == 0) {
 				return CompletableFuture.completedFuture(null);
 			}
@@ -268,7 +268,7 @@ public class StarboardHandler implements EventListener {
 
 			FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER);
 
-			return this.bot.getDatabase().findAndUpdateStarboard(Filters.eq("originalMessageId", messageId), update, options);
+			return this.bot.getMongo().findAndUpdateStarboard(Filters.eq("originalMessageId", messageId), update, options);
 		}).whenComplete((updatedData, exception) -> {
 			if (ExceptionUtility.sendErrorMessage(event.getJDA().getShardManager(), exception) || updatedData == null) {
 				return;
@@ -276,9 +276,9 @@ public class StarboardHandler implements EventListener {
 
 			WebhookMessage webhookMessage = this.getStarboardMessage(data, updatedData, event.getGuild(), event.getMember(), emote);
 			if (webhookMessage == null) {
-				this.bot.getStarboardManager().deleteStarboard(starboard.getLong("messageId"), channel.getIdLong(), data.get("webhook", Database.EMPTY_DOCUMENT));
+				this.bot.getStarboardManager().deleteStarboard(starboard.getLong("messageId"), channel.getIdLong(), data.get("webhook", MongoDatabase.EMPTY_DOCUMENT));
 			} else {
-				this.bot.getStarboardManager().editStarboard(starboard.getLong("messageId"), channel.getIdLong(), data.get("webhook", Database.EMPTY_DOCUMENT), webhookMessage);
+				this.bot.getStarboardManager().editStarboard(starboard.getLong("messageId"), channel.getIdLong(), data.get("webhook", MongoDatabase.EMPTY_DOCUMENT), webhookMessage);
 			}
 		});
 	}

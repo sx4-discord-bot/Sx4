@@ -1,6 +1,6 @@
 package com.sx4.bot.managers;
 
-import club.minnced.discord.webhook.WebhookClient;
+import com.sx4.bot.entities.webhook.WebhookClient;
 
 public interface WebhookManager {
 

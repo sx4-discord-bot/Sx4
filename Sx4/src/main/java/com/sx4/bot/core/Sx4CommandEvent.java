@@ -5,7 +5,8 @@ import com.jockie.bot.core.command.ICommand.ArgumentParsingType;
 import com.jockie.bot.core.command.impl.CommandEvent;
 import com.jockie.bot.core.command.impl.CommandListener;
 import com.sx4.bot.config.Config;
-import com.sx4.bot.database.Database;
+import com.sx4.bot.database.mongo.MongoDatabase;
+import com.sx4.bot.database.postgres.PostgresDatabase;
 import com.sx4.bot.utility.HelpUtility;
 import com.sx4.bot.utility.MathUtility;
 import net.dv8tion.jda.api.Permission;
@@ -52,16 +53,28 @@ public class Sx4CommandEvent extends CommandEvent {
 		return (Sx4CommandListener) this.commandListener;
 	}
 	
-	public Database getDatabase() {
-		return this.bot.getDatabase();
+	public MongoDatabase getMongo() {
+		return this.bot.getMongo();
 	}
 
-	public Database getMainDatabase() {
-		return this.bot.getMainDatabase();
+	public MongoDatabase getMongoMain() {
+		return this.bot.getMongoMain();
 	}
 
-	public Database getCanaryDatabase() {
-		return this.bot.getCanaryDatabase();
+	public MongoDatabase getMongoCanary() {
+		return this.bot.getMongoCanary();
+	}
+
+	public PostgresDatabase getPostgres() {
+		return this.bot.getPostgres();
+	}
+
+	public PostgresDatabase getPostgresMain() {
+		return this.bot.getPostgresMain();
+	}
+
+	public PostgresDatabase getPostgresCanary() {
+		return this.bot.getPostgresCanary();
 	}
 
 	public boolean hasPermission(Permission... permissions) {

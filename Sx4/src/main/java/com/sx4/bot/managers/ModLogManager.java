@@ -1,14 +1,13 @@
 package com.sx4.bot.managers;
 
-import club.minnced.discord.webhook.WebhookClient;
-import club.minnced.discord.webhook.WebhookClientBuilder;
 import club.minnced.discord.webhook.exception.HttpException;
-import club.minnced.discord.webhook.receive.ReadonlyMessage;
 import club.minnced.discord.webhook.send.WebhookEmbed;
 import club.minnced.discord.webhook.send.WebhookMessage;
 import club.minnced.discord.webhook.send.WebhookMessageBuilder;
 import com.mongodb.client.model.Updates;
 import com.sx4.bot.core.Sx4;
+import com.sx4.bot.entities.webhook.WebhookClient;
+import com.sx4.bot.entities.webhook.ReadonlyMessage;
 import com.sx4.bot.exceptions.mod.BotPermissionException;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.TextChannel;
@@ -55,10 +54,7 @@ public class ModLogManager implements WebhookManager {
 		}
 
 		return channel.createWebhook("Sx4 - Mod Logs").submit().thenCompose(webhook -> {
-			WebhookClient webhookClient = new WebhookClientBuilder(webhook.getIdLong(), webhook.getToken())
-				.setExecutorService(this.executor)
-				.setHttpClient(this.client)
-				.build();
+			WebhookClient webhookClient = new WebhookClient(webhook.getIdLong(), webhook.getToken(), this.executor, this.client);
 
 			this.webhooks.put(channel.getIdLong(), webhookClient);
 
@@ -67,7 +63,9 @@ public class ModLogManager implements WebhookManager {
 				Updates.set("modLog.webhook.token", webhook.getToken())
 			);
 
-			return this.bot.getDatabase().updateGuildById(channel.getGuild().getIdLong(), update).thenCompose(result -> webhookClient.send(message));
+			return this.bot.getMongo().updateGuildById(channel.getGuild().getIdLong(), update)
+				.thenCompose(result -> webhookClient.send(message))
+				.thenApply(webhookMessage -> new ReadonlyMessage(webhookMessage, webhook.getIdLong(), webhook.getToken()));
 		}).exceptionallyCompose(exception -> {
 			if (exception instanceof HttpException && ((HttpException) exception).getCode() == 404) {
 				this.webhooks.remove(channel.getIdLong());
@@ -94,26 +92,25 @@ public class ModLogManager implements WebhookManager {
 		} else if (!webhookData.containsKey("id")) {
 			return this.createWebhook(channel, message);
 		} else {
-			webhook = new WebhookClientBuilder(webhookData.getLong("id"), webhookData.getString("token"))
-				.setExecutorService(this.executor)
-				.setHttpClient(this.client)
-				.build();
+			webhook = new WebhookClient(webhookData.getLong("id"), webhookData.getString("token"), this.executor, this.client);
 
 			this.webhooks.put(channel.getIdLong(), webhook);
 		}
 
-		return webhook.send(message).exceptionallyCompose(exception -> {
-			if (exception instanceof HttpException && ((HttpException) exception).getCode() == 404) {
-				this.webhooks.remove(channel.getIdLong());
+		return webhook.send(message)
+			.thenApply(webhookMessage -> new ReadonlyMessage(webhookMessage, webhook.getId(), webhook.getToken()))
+			.exceptionallyCompose(exception -> {
+				if (exception instanceof HttpException && ((HttpException) exception).getCode() == 404) {
+					this.webhooks.remove(channel.getIdLong());
 
-				return this.createWebhook(channel, message);
-			}
+					return this.createWebhook(channel, message);
+				}
 
-			return CompletableFuture.failedFuture(exception);
-		});
+				return CompletableFuture.failedFuture(exception);
+			});
 	}
 
-	public CompletableFuture<ReadonlyMessage> editModLog(long messageId, long channelId, Document webhookData, WebhookEmbed embed) {
+	public CompletableFuture<club.minnced.discord.webhook.receive.ReadonlyMessage> editModLog(long messageId, long channelId, Document webhookData, WebhookEmbed embed) {
 		User selfUser = this.bot.getShardManager().getShardById(0).getSelfUser();
 
 		WebhookMessage message = new WebhookMessageBuilder()
@@ -128,10 +125,7 @@ public class ModLogManager implements WebhookManager {
 		} else if (!webhookData.containsKey("id")) {
 			return CompletableFuture.completedFuture(null);
 		} else {
-			webhook = new WebhookClientBuilder(webhookData.getLong("id"), webhookData.getString("token"))
-				.setExecutorService(this.executor)
-				.setHttpClient(this.client)
-				.build();
+			webhook = new WebhookClient(webhookData.getLong("id"), webhookData.getString("token"), this.executor, this.client);
 
 			this.webhooks.put(channelId, webhook);
 		}

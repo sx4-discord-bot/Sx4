@@ -36,7 +36,7 @@ public class BirthdaysCommand extends Sx4Command {
 	}
 
 	public void onCommand(Sx4CommandEvent event, @Option(value="server", aliases={"guild"}, description="Only users in the current server can be shown") boolean server) {
-		List<Document> userData = event.getDatabase().getUsers(Filters.exists("profile.birthday"), Projections.include("profile.birthday")).into(new ArrayList<>());
+		List<Document> userData = event.getMongo().getUsers(Filters.exists("profile.birthday"), Projections.include("profile.birthday")).into(new ArrayList<>());
 
 		LocalDate now = LocalDate.now(ZoneOffset.UTC);
 

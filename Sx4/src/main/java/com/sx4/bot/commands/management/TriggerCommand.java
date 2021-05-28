@@ -18,8 +18,8 @@ import com.sx4.bot.annotations.command.Examples;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
-import com.sx4.bot.database.Database;
-import com.sx4.bot.database.model.Operators;
+import com.sx4.bot.database.mongo.MongoDatabase;
+import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.argument.Alternative;
 import com.sx4.bot.formatter.JsonFormatter;
 import com.sx4.bot.paged.PagedResult;
@@ -65,7 +65,7 @@ public class TriggerCommand extends Sx4Command {
 		Bson filter = option.isAlternative() ? Filters.eq("guildId", event.getGuild().getIdLong()) : Filters.eq("_id", option.getValue());
 		List<Bson> update = List.of(Operators.set("enabled", state.equals("toggle") ? Operators.cond(Operators.exists("$enabled"), false, Operators.REMOVE) : state.equals("enable") ? Operators.REMOVE : false));
 
-		event.getDatabase().updateManyTriggers(filter, update).whenComplete((result, exception) -> {
+		event.getMongo().updateManyTriggers(filter, update).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -94,7 +94,7 @@ public class TriggerCommand extends Sx4Command {
 			.append("response", new Document("content", response))
 			.append("guildId", event.getGuild().getIdLong());
 
-		event.getDatabase().insertTrigger(data).whenComplete((result, exception) -> {
+		event.getMongo().insertTrigger(data).whenComplete((result, exception) -> {
 			Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
 			if (cause instanceof MongoWriteException && ((MongoWriteException) cause).getError().getCategory() == ErrorCategory.DUPLICATE_KEY) {
 				event.replyFailure("You already have a trigger with that content").queue();
@@ -118,7 +118,7 @@ public class TriggerCommand extends Sx4Command {
 			.append("response", response)
 			.append("guildId", event.getGuild().getIdLong());
 
-		event.getDatabase().insertTrigger(data).whenComplete((result, exception) -> {
+		event.getMongo().insertTrigger(data).whenComplete((result, exception) -> {
 			Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
 			if (cause instanceof MongoWriteException && ((MongoWriteException) cause).getError().getCategory() == ErrorCategory.DUPLICATE_KEY) {
 				event.replyFailure("You already have a trigger with that content").queue();
@@ -139,7 +139,7 @@ public class TriggerCommand extends Sx4Command {
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void edit(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="response", endless=true) String response, @Option(value="append", description="Appends the response to the current one") boolean append) {
 		List<Bson> update = List.of(Operators.set("response.content", Operators.cond(Operators.and(Operators.exists("$response.content"), append), Operators.concat("$response.content", response), response)));
-		event.getDatabase().updateTriggerById(id, update).whenComplete((result, exception) -> {
+		event.getMongo().updateTriggerById(id, update).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -163,7 +163,7 @@ public class TriggerCommand extends Sx4Command {
 	@Examples({"trigger advanced edit 6006ff6b94c9ed0f764ada83 {\"embed\": {\"description\": \"Hello!\"}}", "trigger advanced edit 6006ff6b94c9ed0f764ada83 {\"embed\": {\"description\": \"some other words was not enough\"}}"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void advancedEdit(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="response", endless=true) @AdvancedMessage Document response) {
-		event.getDatabase().updateTriggerById(id, Updates.set("response", response)).whenComplete((result, exception) -> {
+		event.getMongo().updateTriggerById(id, Updates.set("response", response)).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -197,7 +197,7 @@ public class TriggerCommand extends Sx4Command {
 						.setUnique(event.getAuthor().getIdLong(), event.getChannel().getIdLong())
 						.start();
 				})
-				.thenCompose(messageEvent -> event.getDatabase().deleteManyTriggers(Filters.eq("guildId", event.getGuild().getIdLong())))
+				.thenCompose(messageEvent -> event.getMongo().deleteManyTriggers(Filters.eq("guildId", event.getGuild().getIdLong())))
 				.whenComplete((result, exception) -> {
 					Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
 					if (cause instanceof CancelException) {
@@ -218,7 +218,7 @@ public class TriggerCommand extends Sx4Command {
 					event.replySuccess("All triggers have been deleted in this server").queue();
 				});
 		} else {
-			event.getDatabase().deleteTriggerById(option.getValue()).whenComplete((result, exception) -> {
+			event.getMongo().deleteTriggerById(option.getValue()).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
@@ -241,7 +241,7 @@ public class TriggerCommand extends Sx4Command {
 		Bson filter = option.isAlternative() ? Filters.eq("guildId", event.getGuild().getIdLong()) : Filters.eq("_id", option.getValue());
 		List<Bson> update = List.of(Operators.set("case", state.equals("toggle") ? Operators.cond("$case", Operators.REMOVE, true) : state.equals("enable") ? true : Operators.REMOVE));
 
-		event.getDatabase().updateManyTriggers(filter, update).whenComplete((result, exception) -> {
+		event.getMongo().updateManyTriggers(filter, update).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -265,7 +265,7 @@ public class TriggerCommand extends Sx4Command {
 	@CommandId(222)
 	@Examples({"trigger preview 600968f92850ef72c9af8756"})
 	public void preview(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Option(value="raw", description="Returns the raw version of the trigger") boolean raw) {
-		Document trigger = event.getDatabase().getTriggerById(id, Projections.include("enabled", "response"));
+		Document trigger = event.getMongo().getTriggerById(id, Projections.include("enabled", "response"));
 		if (trigger == null) {
 			event.replyFailure("I could not find that trigger").queue();
 			return;
@@ -277,7 +277,7 @@ public class TriggerCommand extends Sx4Command {
 		}
 
 		if (raw) {
-			event.replyFile(trigger.get("response", Document.class).toJson(Database.PRETTY_JSON).getBytes(StandardCharsets.UTF_8), "trigger.json").queue();
+			event.replyFile(trigger.get("response", Document.class).toJson(MongoDatabase.PRETTY_JSON).getBytes(StandardCharsets.UTF_8), "trigger.json").queue();
 		} else {
 			Document response = new JsonFormatter(trigger.get("response", Document.class))
 				.member(event.getMember())
@@ -301,7 +301,7 @@ public class TriggerCommand extends Sx4Command {
 	@Examples({"trigger list"})
 	@BotPermissions(permissions={Permission.MESSAGE_EMBED_LINKS})
 	public void list(Sx4CommandEvent event) {
-		List<Document> triggers = event.getDatabase().getTriggers(Filters.eq("guildId", event.getGuild().getIdLong()), Projections.include("trigger")).into(new ArrayList<>());
+		List<Document> triggers = event.getMongo().getTriggers(Filters.eq("guildId", event.getGuild().getIdLong()), Projections.include("trigger")).into(new ArrayList<>());
 		if (triggers.isEmpty()) {
 			event.replyFailure("There are no triggers setup in this server").queue();
 			return;

@@ -1,4 +1,4 @@
-package com.sx4.bot.database.model;
+package com.sx4.bot.database.mongo.model;
 
 import org.bson.BsonUndefined;
 import org.bson.Document;

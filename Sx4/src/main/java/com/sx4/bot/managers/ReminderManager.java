@@ -2,7 +2,7 @@ package com.sx4.bot.managers;
 
 import com.mongodb.client.model.*;
 import com.sx4.bot.core.Sx4;
-import com.sx4.bot.database.Database;
+import com.sx4.bot.database.mongo.MongoDatabase;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.requests.ErrorResponse;
@@ -72,9 +72,9 @@ public class ReminderManager {
 	public void executeReminder(Document data) {
 		WriteModel<Document> model = this.executeReminderBulk(data);
 		if (model instanceof UpdateOneModel) {
-			this.bot.getDatabase().updateReminder((UpdateOneModel<Document>) model).whenComplete(Database.exceptionally(this.bot.getShardManager()));
+			this.bot.getMongo().updateReminder((UpdateOneModel<Document>) model).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
 		} else {
-			this.bot.getDatabase().deleteReminder((DeleteOneModel<Document>) model).whenComplete(Database.exceptionally(this.bot.getShardManager()));
+			this.bot.getMongo().deleteReminder((DeleteOneModel<Document>) model).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
 		}
 	}
 	
@@ -102,7 +102,7 @@ public class ReminderManager {
 	
 	public void ensureReminders() {
 		List<WriteModel<Document>> bulkData = new ArrayList<>();
-		this.bot.getDatabase().getReminders(Database.EMPTY_DOCUMENT, Database.EMPTY_DOCUMENT).forEach(data -> {
+		this.bot.getMongo().getReminders(MongoDatabase.EMPTY_DOCUMENT, MongoDatabase.EMPTY_DOCUMENT).forEach(data -> {
 			ObjectId id = data.getObjectId("_id");
 
 			long remindAt = data.getLong("remindAt"), currentTime = Clock.systemUTC().instant().getEpochSecond();
@@ -116,7 +116,7 @@ public class ReminderManager {
 		});
 		
 		if (!bulkData.isEmpty()) {
-			this.bot.getDatabase().bulkWriteReminders(bulkData).whenComplete(Database.exceptionally(this.bot.getShardManager()));
+			this.bot.getMongo().bulkWriteReminders(bulkData).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
 		}
 	}
 	

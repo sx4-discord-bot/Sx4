@@ -7,7 +7,7 @@ import club.minnced.discord.webhook.send.WebhookEmbed.EmbedFooter;
 import club.minnced.discord.webhook.send.WebhookEmbedBuilder;
 import com.mongodb.client.model.Filters;
 import com.sx4.bot.core.Sx4;
-import com.sx4.bot.database.Database;
+import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.entities.management.LoggerContext;
 import com.sx4.bot.entities.management.LoggerEvent;
 import com.sx4.bot.utility.ColourUtility;
@@ -101,7 +101,7 @@ public class LoggerHandler implements EventListener {
 
 		List<Long> deletedLoggers = new ArrayList<>();
 
-		List<Document> loggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>());
+		List<Document> loggers = this.bot.getMongo().getLoggers(Filters.eq("guildId", guild.getIdLong()), MongoDatabase.EMPTY_DOCUMENT).into(new ArrayList<>());
 		for (Document logger : loggers) {
 			if (!logger.get("enabled", true)) {
 				continue;
@@ -127,7 +127,7 @@ public class LoggerHandler implements EventListener {
 					.setTimestamp(Instant.now())
 					.setFooter(new EmbedFooter(String.format("Message ID: %d", messageId), null));
 
-				Document message = this.bot.getDatabase().getMessageById(messageId);
+				Document message = this.bot.getMongo().getMessageById(messageId);
 				if (message == null) {
 					embed.setDescription(String.format("A message sent in %s was deleted", textChannel.getAsMention()));
 					embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
@@ -159,7 +159,7 @@ public class LoggerHandler implements EventListener {
 		}
 
 		if (!deletedLoggers.isEmpty()) {
-			this.bot.getDatabase().deleteManyLoggers(Filters.in("channelId", deletedLoggers)).whenComplete(Database.exceptionally(this.bot.getShardManager()));
+			this.bot.getMongo().deleteManyLoggers(Filters.in("channelId", deletedLoggers)).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
 		}
 	}
 
@@ -178,7 +178,7 @@ public class LoggerHandler implements EventListener {
 		User user = event.getAuthor();
 		Message message = event.getMessage();
 
-		Document previousMessage = this.bot.getDatabase().getMessageById(message.getIdLong());
+		Document previousMessage = this.bot.getMongo().getMessageById(message.getIdLong());
 		String oldContent = previousMessage == null ? null : previousMessage.getString("content");
 
 		LoggerEvent loggerEvent = LoggerEvent.MESSAGE_UPDATE;
@@ -206,7 +206,7 @@ public class LoggerHandler implements EventListener {
 			embed.addField(new EmbedField(false, "After", StringUtility.limit(message.getContentRaw(), MessageEmbed.VALUE_MAX_LENGTH, String.format("[...](%s)", message.getJumpUrl()))));
 		}
 
-		List<Document> loggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>());
+		List<Document> loggers = this.bot.getMongo().getLoggers(Filters.eq("guildId", guild.getIdLong()), MongoDatabase.EMPTY_DOCUMENT).into(new ArrayList<>());
 		this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 	}
 
@@ -225,7 +225,7 @@ public class LoggerHandler implements EventListener {
 		embed.setAuthor(new EmbedAuthor(user.getAsTag(), user.getEffectiveAvatarUrl(), null));
 		embed.setFooter(new EmbedFooter(String.format("%s ID: %s", user.isBot() ? "Bot" : "User", member.getId()), null));
 
-		List<Document> uncheckedLoggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>());
+		List<Document> uncheckedLoggers = this.bot.getMongo().getLoggers(Filters.eq("guildId", guild.getIdLong()), MongoDatabase.EMPTY_DOCUMENT).into(new ArrayList<>());
 		List<Document> loggers = LoggerUtility.getValidLoggers(uncheckedLoggers, loggerEvent, loggerContext);
 		if (loggers.isEmpty()) {
 			return;
@@ -281,7 +281,7 @@ public class LoggerHandler implements EventListener {
 		embed.setAuthor(new EmbedAuthor(user.getAsTag(), user.getEffectiveAvatarUrl(), null));
 		embed.setFooter(new EmbedFooter(String.format("User ID: %s", user.getId()), null));
 
-		List<Document> loggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>());
+		List<Document> loggers = this.bot.getMongo().getLoggers(Filters.eq("guildId", guild.getIdLong()), MongoDatabase.EMPTY_DOCUMENT).into(new ArrayList<>());
 		if (loggers.isEmpty()) {
 			return;
 		}
@@ -329,7 +329,7 @@ public class LoggerHandler implements EventListener {
 		embed.setAuthor(new EmbedAuthor(user.getAsTag(), user.getEffectiveAvatarUrl(), null));
 		embed.setFooter(new EmbedFooter(String.format("User ID: %s", user.getId()), null));
 
-		List<Document> uncheckedLoggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>());
+		List<Document> uncheckedLoggers = this.bot.getMongo().getLoggers(Filters.eq("guildId", guild.getIdLong()), MongoDatabase.EMPTY_DOCUMENT).into(new ArrayList<>());
 		List<Document> loggers = LoggerUtility.getValidLoggers(uncheckedLoggers, loggerEvent, loggerContext);
 		if (loggers.isEmpty()) {
 			return;
@@ -372,7 +372,7 @@ public class LoggerHandler implements EventListener {
 		embed.setAuthor(new EmbedAuthor(user.getAsTag(), user.getEffectiveAvatarUrl(), null));
 		embed.setFooter(new EmbedFooter(String.format("User ID: %s", user.getId()), null));
 
-		List<Document> uncheckedLoggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>());
+		List<Document> uncheckedLoggers = this.bot.getMongo().getLoggers(Filters.eq("guildId", guild.getIdLong()), MongoDatabase.EMPTY_DOCUMENT).into(new ArrayList<>());
 		List<Document> loggers = LoggerUtility.getValidLoggers(uncheckedLoggers, loggerEvent, loggerContext);
 		if (loggers.isEmpty()) {
 			return;
@@ -418,7 +418,7 @@ public class LoggerHandler implements EventListener {
 			.setFooter(new EmbedFooter(String.format("User ID: %s", member.getId()), null))
 			.setAuthor(new EmbedAuthor(user.getAsTag(), user.getEffectiveAvatarUrl(), null));
 
-		List<Document> loggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>());
+		List<Document> loggers = this.bot.getMongo().getLoggers(Filters.eq("guildId", guild.getIdLong()), MongoDatabase.EMPTY_DOCUMENT).into(new ArrayList<>());
 		this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 	}
 
@@ -439,7 +439,7 @@ public class LoggerHandler implements EventListener {
 		embed.setAuthor(new EmbedAuthor(user.getAsTag(), user.getEffectiveAvatarUrl(), null));
 		embed.setFooter(new EmbedFooter(String.format("User ID: %s", user.getId()), null));
 
-		List<Document> loggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>());
+		List<Document> loggers = this.bot.getMongo().getLoggers(Filters.eq("guildId", guild.getIdLong()), MongoDatabase.EMPTY_DOCUMENT).into(new ArrayList<>());
 		if (loggers.isEmpty()) {
 			return;
 		}
@@ -501,7 +501,7 @@ public class LoggerHandler implements EventListener {
 		embed.addField(new EmbedField(false, "Before", String.format("`%s`", left.getName())));
 		embed.addField(new EmbedField(false, "After", String.format("`%s`", joined.getName())));
 
-		List<Document> uncheckedLoggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>());
+		List<Document> uncheckedLoggers = this.bot.getMongo().getLoggers(Filters.eq("guildId", guild.getIdLong()), MongoDatabase.EMPTY_DOCUMENT).into(new ArrayList<>());
 		List<Document> loggers = LoggerUtility.getValidLoggers(uncheckedLoggers, loggerEvent, loggerContext);
 		if (loggers.isEmpty()) {
 			return;
@@ -561,7 +561,7 @@ public class LoggerHandler implements EventListener {
 		embed.setFooter(new EmbedFooter(String.format("User ID: %s", user.getId()), null));
 		embed.setColor(muted ? this.bot.getConfig().getRed() : this.bot.getConfig().getGreen());
 
-		List<Document> uncheckedLoggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>());
+		List<Document> uncheckedLoggers = this.bot.getMongo().getLoggers(Filters.eq("guildId", guild.getIdLong()), MongoDatabase.EMPTY_DOCUMENT).into(new ArrayList<>());
 		List<Document> loggers = LoggerUtility.getValidLoggers(uncheckedLoggers, loggerEvent, loggerContext);
 		if (loggers.isEmpty()) {
 			return;
@@ -611,7 +611,7 @@ public class LoggerHandler implements EventListener {
 		embed.setFooter(new EmbedFooter(String.format("User ID: %s", user.getId()), null));
 		embed.setColor(deafened ? this.bot.getConfig().getRed() : this.bot.getConfig().getGreen());
 
-		List<Document> uncheckedLoggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>());
+		List<Document> uncheckedLoggers = this.bot.getMongo().getLoggers(Filters.eq("guildId", guild.getIdLong()), MongoDatabase.EMPTY_DOCUMENT).into(new ArrayList<>());
 		List<Document> loggers = LoggerUtility.getValidLoggers(uncheckedLoggers, loggerEvent, loggerContext);
 		if (loggers.isEmpty()) {
 			return;
@@ -668,7 +668,7 @@ public class LoggerHandler implements EventListener {
 		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
 		embed.setFooter(new EmbedFooter(String.format("%s ID: %s", event.isRoleOverride() ? "Role" : "User", permissionHolder.getIdLong()), null));
 
-		List<Document> uncheckedLoggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>());
+		List<Document> uncheckedLoggers = this.bot.getMongo().getLoggers(Filters.eq("guildId", guild.getIdLong()), MongoDatabase.EMPTY_DOCUMENT).into(new ArrayList<>());
 		List<Document> loggers = LoggerUtility.getValidLoggers(uncheckedLoggers, loggerEvent, loggerContext);
 		if (loggers.isEmpty()) {
 			return;
@@ -737,7 +737,7 @@ public class LoggerHandler implements EventListener {
 		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
 		embed.setFooter(new EmbedFooter(String.format("%s ID: %s", event.isRoleOverride() ? "Role" : "User", permissionHolder.getIdLong()), null));
 
-		List<Document> uncheckedLoggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>());
+		List<Document> uncheckedLoggers = this.bot.getMongo().getLoggers(Filters.eq("guildId", guild.getIdLong()), MongoDatabase.EMPTY_DOCUMENT).into(new ArrayList<>());
 		List<Document> loggers = LoggerUtility.getValidLoggers(uncheckedLoggers, loggerEvent, loggerContext);
 		if (loggers.isEmpty()) {
 			return;
@@ -809,7 +809,7 @@ public class LoggerHandler implements EventListener {
 
 		// wait for member leave or role delete event if needed
 		this.delay(() -> {
-			List<Document> uncheckedLoggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>());
+			List<Document> uncheckedLoggers = this.bot.getMongo().getLoggers(Filters.eq("guildId", guild.getIdLong()), MongoDatabase.EMPTY_DOCUMENT).into(new ArrayList<>());
 			List<Document> loggers = LoggerUtility.getValidLoggers(uncheckedLoggers, loggerEvent, loggerContext);
 			if (loggers.isEmpty()) {
 				return;
@@ -864,7 +864,7 @@ public class LoggerHandler implements EventListener {
 		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
 		embed.setFooter(new EmbedFooter(String.format("%s ID: %s", channel.getType() == ChannelType.CATEGORY ? "Category" : "Channel", channel.getId()), null));
 
-		List<Document> uncheckedLoggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>());
+		List<Document> uncheckedLoggers = this.bot.getMongo().getLoggers(Filters.eq("guildId", guild.getIdLong()), MongoDatabase.EMPTY_DOCUMENT).into(new ArrayList<>());
 		List<Document> loggers = LoggerUtility.getValidLoggers(uncheckedLoggers, loggerEvent, loggerContext);
 		if (loggers.isEmpty()) {
 			return;
@@ -923,7 +923,7 @@ public class LoggerHandler implements EventListener {
 		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
 		embed.setFooter(new EmbedFooter(String.format("%s ID: %s", channel.getType() == ChannelType.CATEGORY ? "Category" : "Channel", channel.getId()), null));
 
-		List<Document> uncheckedLoggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>());
+		List<Document> uncheckedLoggers = this.bot.getMongo().getLoggers(Filters.eq("guildId", guild.getIdLong()), MongoDatabase.EMPTY_DOCUMENT).into(new ArrayList<>());
 		List<Document> loggers = LoggerUtility.getValidLoggers(uncheckedLoggers, loggerEvent, loggerContext);
 		if (loggers.isEmpty()) {
 			return;
@@ -985,7 +985,7 @@ public class LoggerHandler implements EventListener {
 		embed.addField(new EmbedField(false, "Before", String.format("`%s`", oldName)));
 		embed.addField(new EmbedField(false, "After", String.format("`%s`", channel.getName())));
 
-		List<Document> uncheckedLoggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>());
+		List<Document> uncheckedLoggers = this.bot.getMongo().getLoggers(Filters.eq("guildId", guild.getIdLong()), MongoDatabase.EMPTY_DOCUMENT).into(new ArrayList<>());
 		List<Document> loggers = LoggerUtility.getValidLoggers(uncheckedLoggers, loggerEvent, loggerContext);
 		if (loggers.isEmpty()) {
 			return;
@@ -1045,7 +1045,7 @@ public class LoggerHandler implements EventListener {
 		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
 		embed.setFooter(new EmbedFooter(String.format("Role ID: %s", role.getId()), null));
 
-		List<Document> uncheckedLoggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>());
+		List<Document> uncheckedLoggers = this.bot.getMongo().getLoggers(Filters.eq("guildId", guild.getIdLong()), MongoDatabase.EMPTY_DOCUMENT).into(new ArrayList<>());
 		List<Document> loggers = LoggerUtility.getValidLoggers(uncheckedLoggers, loggerEvent, loggerContext);
 		if (loggers.isEmpty()) {
 			return;
@@ -1088,7 +1088,7 @@ public class LoggerHandler implements EventListener {
 		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
 		embed.setFooter(new EmbedFooter(String.format("Role ID: %s", role.getId()), null));
 
-		List<Document> uncheckedLoggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>());
+		List<Document> uncheckedLoggers = this.bot.getMongo().getLoggers(Filters.eq("guildId", guild.getIdLong()), MongoDatabase.EMPTY_DOCUMENT).into(new ArrayList<>());
 		List<Document> loggers = LoggerUtility.getValidLoggers(uncheckedLoggers, loggerEvent, loggerContext);
 		if (loggers.isEmpty()) {
 			return;
@@ -1134,7 +1134,7 @@ public class LoggerHandler implements EventListener {
 		embed.addField(new EmbedField(false, "Before", String.format("`%s`", event.getOldName())));
 		embed.addField(new EmbedField(false, "After", String.format("`%s`", event.getNewName())));
 
-		List<Document> uncheckedLoggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>());
+		List<Document> uncheckedLoggers = this.bot.getMongo().getLoggers(Filters.eq("guildId", guild.getIdLong()), MongoDatabase.EMPTY_DOCUMENT).into(new ArrayList<>());
 		List<Document> loggers = LoggerUtility.getValidLoggers(uncheckedLoggers, loggerEvent, loggerContext);
 		if (loggers.isEmpty()) {
 			return;
@@ -1183,7 +1183,7 @@ public class LoggerHandler implements EventListener {
 		embed.addField(new EmbedField(false, "Before", String.format("Hex: [#%s](%3$s%1$s)\nRGB: [%2$s](%3$s%1$s)", ColourUtility.toHexString(oldColour), ColourUtility.toRGBString(oldColour), "https://image.sx4bot.co.uk/api/colour?w=1000&h=500&hex=")));
 		embed.addField(new EmbedField(false, "After", String.format("Hex: [#%s](%3$s%1$s)\nRGB: [%2$s](%3$s%1$s)", ColourUtility.toHexString(newColour), ColourUtility.toRGBString(newColour), "https://image.sx4bot.co.uk/api/colour?w=1000&h=500&hex=")));
 
-		List<Document> uncheckedLoggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>());
+		List<Document> uncheckedLoggers = this.bot.getMongo().getLoggers(Filters.eq("guildId", guild.getIdLong()), MongoDatabase.EMPTY_DOCUMENT).into(new ArrayList<>());
 		List<Document> loggers = LoggerUtility.getValidLoggers(uncheckedLoggers, loggerEvent, loggerContext);
 		if (loggers.isEmpty()) {
 			return;
@@ -1231,7 +1231,7 @@ public class LoggerHandler implements EventListener {
 		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
 		embed.setFooter(new EmbedFooter(String.format("Role ID: %s", role.getId()), null));
 
-		List<Document> uncheckedLoggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>());
+		List<Document> uncheckedLoggers = this.bot.getMongo().getLoggers(Filters.eq("guildId", guild.getIdLong()), MongoDatabase.EMPTY_DOCUMENT).into(new ArrayList<>());
 		List<Document> loggers = LoggerUtility.getValidLoggers(uncheckedLoggers, loggerEvent, loggerContext);
 		if (loggers.isEmpty()) {
 			return;
@@ -1317,7 +1317,7 @@ public class LoggerHandler implements EventListener {
 			embed.setFooter(new EmbedFooter(String.format("Role ID: %s", firstRole.getId()), null));
 		}
 
-		List<Document> uncheckedLoggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>());
+		List<Document> uncheckedLoggers = this.bot.getMongo().getLoggers(Filters.eq("guildId", guild.getIdLong()), MongoDatabase.EMPTY_DOCUMENT).into(new ArrayList<>());
 		List<Document> loggers = LoggerUtility.getValidLoggers(uncheckedLoggers, loggerEvent, loggerContext);
 		if (loggers.isEmpty()) {
 			return;
@@ -1427,7 +1427,7 @@ public class LoggerHandler implements EventListener {
 				}
 			}
 
-			List<Document> uncheckedLoggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>());
+			List<Document> uncheckedLoggers = this.bot.getMongo().getLoggers(Filters.eq("guildId", guild.getIdLong()), MongoDatabase.EMPTY_DOCUMENT).into(new ArrayList<>());
 			List<Document> loggers = LoggerUtility.getValidLoggers(uncheckedLoggers, loggerEvent, loggerContext);
 			if (loggers.isEmpty()) {
 				return;
@@ -1496,7 +1496,7 @@ public class LoggerHandler implements EventListener {
 		embed.addField(new EmbedField(false, "Before", String.format("`%s`", event.getOldNickname() != null ? event.getOldNickname() : member.getUser().getName())));
 		embed.addField(new EmbedField(false, "After", String.format("`%s`", event.getNewNickname() != null ? event.getNewNickname() : member.getUser().getName())));
 
-		List<Document> uncheckedLoggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>());
+		List<Document> uncheckedLoggers = this.bot.getMongo().getLoggers(Filters.eq("guildId", guild.getIdLong()), MongoDatabase.EMPTY_DOCUMENT).into(new ArrayList<>());
 		List<Document> loggers = LoggerUtility.getValidLoggers(uncheckedLoggers, loggerEvent, loggerContext);
 		if (loggers.isEmpty()) {
 			return;
@@ -1539,7 +1539,7 @@ public class LoggerHandler implements EventListener {
 		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
 		embed.setFooter(new EmbedFooter(String.format("Emote ID: %s", emote.getId()), null));
 
-		List<Document> uncheckedLoggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>());
+		List<Document> uncheckedLoggers = this.bot.getMongo().getLoggers(Filters.eq("guildId", guild.getIdLong()), MongoDatabase.EMPTY_DOCUMENT).into(new ArrayList<>());
 		List<Document> loggers = LoggerUtility.getValidLoggers(uncheckedLoggers, loggerEvent, loggerContext);
 		if (loggers.isEmpty()) {
 			return;
@@ -1582,7 +1582,7 @@ public class LoggerHandler implements EventListener {
 		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
 		embed.setFooter(new EmbedFooter(String.format("Emote ID: %s", emote.getId()), null));
 
-		List<Document> uncheckedLoggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>());
+		List<Document> uncheckedLoggers = this.bot.getMongo().getLoggers(Filters.eq("guildId", guild.getIdLong()), MongoDatabase.EMPTY_DOCUMENT).into(new ArrayList<>());
 		List<Document> loggers = LoggerUtility.getValidLoggers(uncheckedLoggers, loggerEvent, loggerContext);
 		if (loggers.isEmpty()) {
 			return;
@@ -1628,7 +1628,7 @@ public class LoggerHandler implements EventListener {
 		embed.addField(new EmbedField(false, "Before", String.format("`%s`", event.getOldName())));
 		embed.addField(new EmbedField(false, "After", String.format("`%s`", event.getNewName())));
 
-		List<Document> uncheckedLoggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>());
+		List<Document> uncheckedLoggers = this.bot.getMongo().getLoggers(Filters.eq("guildId", guild.getIdLong()), MongoDatabase.EMPTY_DOCUMENT).into(new ArrayList<>());
 		List<Document> loggers = LoggerUtility.getValidLoggers(uncheckedLoggers, loggerEvent, loggerContext);
 		if (loggers.isEmpty()) {
 			return;
@@ -1685,7 +1685,7 @@ public class LoggerHandler implements EventListener {
 		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
 		embed.setFooter(new EmbedFooter(String.format("Emote ID: %s", emote.getId()), null));
 
-		List<Document> loggers = this.bot.getDatabase().getLoggers(Filters.eq("guildId", guild.getIdLong()), Database.EMPTY_DOCUMENT).into(new ArrayList<>());
+		List<Document> loggers = this.bot.getMongo().getLoggers(Filters.eq("guildId", guild.getIdLong()), MongoDatabase.EMPTY_DOCUMENT).into(new ArrayList<>());
 		this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 	}
 

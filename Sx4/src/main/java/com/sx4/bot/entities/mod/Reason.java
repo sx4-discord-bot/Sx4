@@ -2,7 +2,7 @@ package com.sx4.bot.entities.mod;
 
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Projections;
-import com.sx4.bot.database.Database;
+import com.sx4.bot.database.mongo.MongoDatabase;
 import org.bson.Document;
 
 import java.util.ArrayList;
@@ -31,7 +31,7 @@ public class Reason {
 		return this.parsed;
 	}
 
-	public static Reason parse(Database database, long guildId, String reason) {
+	public static Reason parse(MongoDatabase database, long guildId, String reason) {
 		String raw = reason;
 
 		List<Document> templates = database.getTemplates(Filters.eq("guildId", guildId), Projections.include("template", "reason")).into(new ArrayList<>());

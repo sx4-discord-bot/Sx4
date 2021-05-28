@@ -5,8 +5,8 @@ import com.mongodb.client.model.UpdateOneModel;
 import com.mongodb.client.model.UpdateOptions;
 import com.mongodb.client.model.WriteModel;
 import com.sx4.bot.core.Sx4;
-import com.sx4.bot.database.Database;
-import com.sx4.bot.database.model.Operators;
+import com.sx4.bot.database.mongo.MongoDatabase;
+import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.events.patreon.PatreonEvent;
 import com.sx4.bot.hooks.PatreonListener;
 import com.sx4.bot.http.HttpCallback;
@@ -103,7 +103,7 @@ public class PatreonManager {
 
 					List<WriteModel<Document>> allBulkData = result.stream().flatMap(List::stream).collect(Collectors.toList());
 					if (!allBulkData.isEmpty()) {
-						this.bot.getMainDatabase().bulkWriteUsers(allBulkData).whenComplete(Database.exceptionally(this.bot.getShardManager()));
+						this.bot.getMongoMain().bulkWriteUsers(allBulkData).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
 					}
 				});
 			} else {

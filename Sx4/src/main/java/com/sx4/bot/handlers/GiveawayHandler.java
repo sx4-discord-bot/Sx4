@@ -2,7 +2,7 @@ package com.sx4.bot.handlers;
 
 import com.mongodb.client.model.Filters;
 import com.sx4.bot.core.Sx4;
-import com.sx4.bot.database.Database;
+import com.sx4.bot.database.mongo.MongoDatabase;
 import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.events.message.MessageBulkDeleteEvent;
 import net.dv8tion.jda.api.events.message.MessageDeleteEvent;
@@ -20,7 +20,7 @@ public class GiveawayHandler implements EventListener {
 	}
 
 	public void handle(List<Long> messageIds) {
-		this.bot.getDatabase().deleteManyGiveaways(Filters.in("messageId", messageIds)).whenComplete(Database.exceptionally(this.bot.getShardManager()));
+		this.bot.getMongo().deleteManyGiveaways(Filters.in("messageId", messageIds)).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
 		
 		messageIds.forEach(this.bot.getGiveawayManager()::deleteExecutor);
 	}

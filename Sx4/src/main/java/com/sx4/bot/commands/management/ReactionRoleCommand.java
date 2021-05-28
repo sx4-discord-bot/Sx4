@@ -14,7 +14,7 @@ import com.sx4.bot.annotations.command.Examples;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
-import com.sx4.bot.database.model.Operators;
+import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.argument.Alternative;
 import com.sx4.bot.entities.argument.MessageArgument;
 import com.sx4.bot.entities.settings.HolderType;
@@ -129,7 +129,7 @@ public class ReactionRoleCommand extends Sx4Command {
 			}
 
 			action.submit()
-				.thenCompose($ -> event.getDatabase().updateReactionRole(filter, update))
+				.thenCompose($ -> event.getMongo().updateReactionRole(filter, update))
 				.whenComplete((result, exception) -> {
 					if (exception instanceof ErrorResponseException) {
 						ErrorResponseException errorResponse = ((ErrorResponseException) exception);
@@ -169,7 +169,7 @@ public class ReactionRoleCommand extends Sx4Command {
 
 		Bson update = Updates.pull("roles", role.getIdLong());
 
-		event.getDatabase().updateReactionRole(filter, update).whenComplete((result, exception) -> {
+		event.getMongo().updateReactionRole(filter, update).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -200,7 +200,7 @@ public class ReactionRoleCommand extends Sx4Command {
 		Bson filter = alternative ? Filters.eq("guildId", event.getGuild().getIdLong()) : Filters.eq("messageId", messageId);
 		Bson update = enable ? Updates.unset("dm") : Updates.set("dm", false);
 
-		event.getDatabase().updateManyReactionRoles(filter, update, new UpdateOptions()).whenComplete((result, exception) -> {
+		event.getMongo().updateManyReactionRoles(filter, update, new UpdateOptions()).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -231,7 +231,7 @@ public class ReactionRoleCommand extends Sx4Command {
 		Bson filter = alternative ? Filters.eq("guildId", event.getGuild().getIdLong()) : Filters.eq("messageId", messageId);
 		Bson update = unlimited ? Updates.unset("maxReactions") : Updates.set("maxReactions", maxReactions);
 
-		event.getDatabase().updateManyReactionRoles(filter, update, new UpdateOptions()).whenComplete((result, exception) -> {
+		event.getMongo().updateManyReactionRoles(filter, update, new UpdateOptions()).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -266,7 +266,7 @@ public class ReactionRoleCommand extends Sx4Command {
 						.setUnique(event.getAuthor().getIdLong(), event.getChannel().getIdLong())
 						.start();
 				})
-				.thenCompose(messageEvent -> event.getDatabase().deleteManyReactionRoles(Filters.eq("guildId", event.getGuild().getIdLong())))
+				.thenCompose(messageEvent -> event.getMongo().deleteManyReactionRoles(Filters.eq("guildId", event.getGuild().getIdLong())))
 				.whenComplete((result, exception) -> {
 					Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
 					if (cause instanceof CancelException) {
@@ -288,7 +288,7 @@ public class ReactionRoleCommand extends Sx4Command {
 				});
 		} else {
 			long messageId = option.getValue().getMessageId();
-			event.getDatabase().deleteManyReactionRoles(Filters.eq("messageId", messageId)).whenComplete((result, exception) -> {
+			event.getMongo().deleteManyReactionRoles(Filters.eq("messageId", messageId)).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
@@ -345,7 +345,7 @@ public class ReactionRoleCommand extends Sx4Command {
 				update = List.of(Operators.set("permissions", result));
 			}
 
-			event.getDatabase().updateManyReactionRoles(filter, update, new UpdateOptions()).whenComplete((result, exception) -> {
+			event.getMongo().updateManyReactionRoles(filter, update, new UpdateOptions()).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
@@ -382,7 +382,7 @@ public class ReactionRoleCommand extends Sx4Command {
 				filter = Filters.and(filter, Filters.eq("emote", new Document(unicode ? "name" : "id", unicode ? emote.getEmoji() : emote.getEmote().getIdLong())));
 			}
 
-			event.getDatabase().updateManyReactionRoles(filter, update, new UpdateOptions()).whenComplete((result, exception) -> {
+			event.getMongo().updateManyReactionRoles(filter, update, new UpdateOptions()).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
@@ -417,7 +417,7 @@ public class ReactionRoleCommand extends Sx4Command {
 				filter = Filters.and(filter, Filters.eq("emote", new Document(unicode ? "name" : "id", unicode ? emote.getEmoji() : emote.getEmote().getIdLong())));
 			}
 
-			event.getDatabase().updateManyReactionRoles(filter, update, new UpdateOptions()).whenComplete((result, exception) -> {
+			event.getMongo().updateManyReactionRoles(filter, update, new UpdateOptions()).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}

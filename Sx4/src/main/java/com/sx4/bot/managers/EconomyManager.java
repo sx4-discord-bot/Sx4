@@ -7,9 +7,12 @@ import org.json.JSONObject;
 
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.security.SecureRandom;
 import java.util.*;
 
 public class EconomyManager {
+
+	private final Random random;
 
 	private final Map<Class<?>, List<Item>> items;
 	private final Map<Integer, Item> itemCache;
@@ -17,8 +20,13 @@ public class EconomyManager {
 	public EconomyManager() {
 		this.items = new HashMap<>();
 		this.itemCache = new HashMap<>();
+		this.random = new SecureRandom();
 		
 		this.loadItems();
+	}
+
+	public Random getRandom() {
+		return this.random;
 	}
 
 	public void addItem(Class<?> type, Item item) {
@@ -44,16 +52,18 @@ public class EconomyManager {
 		return this.itemCache.get(id);
 	}
 
+	@SuppressWarnings("unchecked")
 	public <Type extends Item> Type getItemById(int id, Class<Type> type) {
 		return (Type) this.itemCache.get(id);
 	}
 
-	public List<? extends Item> getItems() {
+	public List<Item> getItems() {
 		return this.getItems(Item.class);
 	}
-	
-	public List<? extends Item> getItems(Class<? extends Item> type) {
-		return this.items.getOrDefault(type, Collections.emptyList());
+
+	@SuppressWarnings("unchecked")
+	public <Type extends Item> List<Type> getItems(Class<Type> type) {
+		return (List<Type>) this.items.getOrDefault(type, Collections.emptyList());
 	}
 	
 	public Item getItemByName(String name) {
@@ -61,27 +71,24 @@ public class EconomyManager {
 	}
 	
 	public <Type extends Item> Type getItemByName(String name, Class<Type> type) {
-		return this.getItems().stream()
+		return this.getItems(type).stream()
 			.filter(item -> item.getName().equalsIgnoreCase(name))
-			.map(type::cast)
 			.findFirst()
 			.orElse(null);
 	}
 	
 	@SuppressWarnings("unchecked")
 	public <Type extends Item> Type getItemByName(String name, Type defaultValue) {
-		return this.getItems().stream()
+		return this.getItems(defaultValue.getClass()).stream()
 			.filter(item -> item.getName().equalsIgnoreCase(name))
 			.map(item -> (Type) item)
 			.findFirst()
 			.orElse(defaultValue);
 	}
 
-	@SuppressWarnings("unchecked")
 	public <Type extends Item> Type getItemByQuery(String query, Class<Type> type) {
-		return (Type) SearchUtility.find(this.getItems(type), query, Collections.singletonList(Item::getName));
+		return SearchUtility.find(this.getItems(type), query, Collections.singletonList(Item::getName));
 	}
-
 	
 	public void reloadItems() {
 		this.itemCache.clear();
@@ -99,116 +106,119 @@ public class EconomyManager {
 	}
 	
 	public void addItems(JSONObject json) {
-		for (ItemType type : ItemType.values()) {
-			JSONArray items = json.optJSONArray(type.getDataName());
-			if (items == null) {
+		JSONArray items = json.optJSONArray("items");
+		if (items == null) {
+			return;
+		}
+
+		for (int i = 0; i < items.length(); i++) {
+			JSONObject itemData = items.getJSONObject(i);
+
+			ItemType type = ItemType.fromId(itemData.getInt("type"));
+			if (type == null) {
 				continue;
 			}
-			
-			for (int i = 0; i < items.length(); i++) {
-				JSONObject itemData = items.getJSONObject(i);
-				
-				Item item;
-				switch (type) {
-					case MATERIAL:
-						item = new Material(itemData.getInt("id"), itemData.getString("name"), itemData.getLong("price"), itemData.getString("emote"), itemData.optBoolean("hidden", false));
-						
-						break;
-					case WOOD:
-						item = new Wood(itemData.getInt("id"), itemData.getString("name"), itemData.getLong("price"));
-						
-						break;
-					case ENVELOPE:
-						item = new Envelope(itemData.getInt("id"), itemData.getString("name"), itemData.getLong("price"));
-						
-						break;
-					case MINER:
-						item = new Miner(itemData.getInt("id"), itemData.getString("name"), itemData.getLong("price"), itemData.getLong("maxMaterials"), itemData.getDouble("multiplier"));
-						
-						break;
-					case FACTORY:
-						JSONObject cost = itemData.getJSONObject("cost");
 
-						Material material = this.getItemById(cost.getInt("material"), Material.class);
-						ItemStack<Material> itemStack = new ItemStack<>(material, cost.getLong("amount"));
-						
-						item = new Factory(itemData.getInt("id"), itemData.getString("name"), itemStack, itemData.getLong("minYield"), itemData.getLong("maxYield"));
-						
-						break;
-					case CRATE:
-						//JSONObject contentsData = itemData.getJSONObject("contents");
-						//Map<ItemType, Long> contents = contentsData.keySet().stream().collect(Collectors.toMap(ItemType::fromDataName, contentsData::getLong));
-						
-						item = new Crate(itemData.getInt("id"), itemData.getString("name"), itemData.getLong("price"), itemData.optLong("credits", -1), new HashMap<>());
-						
-						break;
-					case BOOSTER:
-						item = new Booster(itemData.getInt("id"), itemData.getString("name"), itemData.getLong("price"));
-						
-						break;
-					case ROD:
-						JSONArray rodArray = itemData.getJSONArray("craft");
-						
-						List<ItemStack<Material>> rodCraft = new ArrayList<>();
-						for (int c = 0; c < rodArray.length(); c++) {
-							JSONObject craftData = rodArray.getJSONObject(c);
-							Material craftMaterial = this.getItemById(craftData.getInt("material"), Material.class);
-							
-							rodCraft.add(new ItemStack<>(craftMaterial, craftData.getLong("amount")));
-						}
+			Item item;
+			switch (type) {
+				case MATERIAL:
+					item = new Material(this, itemData.getInt("id"), itemData.getString("name"), itemData.getLong("price"), itemData.getString("emote"), itemData.optBoolean("hidden", false));
 
-						int rodRepairItemId = itemData.optInt("repairItem", -1);
-						Material rodRepairItem = rodRepairItemId == -1 ? null : this.getItemById(rodRepairItemId, Material.class);
-						
-						item = new Rod(itemData.getInt("id"), itemData.getString("name"), itemData.getLong("price"), itemData.getInt("durability"), rodCraft, rodRepairItem, itemData.getLong("minYield"), itemData.getLong("maxYield"));
-						
-						break;
-					case AXE:
-						JSONArray axeArray = itemData.getJSONArray("craft");
-						
-						List<ItemStack<Material>> axeCraft = new ArrayList<>();
-						for (int c = 0; c < axeArray.length(); c++) {
-							JSONObject craftData = axeArray.getJSONObject(c);
-							Material craftMaterial = this.getItemById(craftData.getInt("material"), Material.class);
-							
-							axeCraft.add(new ItemStack<>(craftMaterial, craftData.getLong("amount")));
-						}
+					break;
+				case WOOD:
+					item = new Wood(this, itemData.getInt("id"), itemData.getString("name"), itemData.getLong("price"));
 
-						int axeRepairItemId = itemData.optInt("repairItem", -1);
-						Material axeRepairItem = axeRepairItemId == -1 ? null : this.getItemById(axeRepairItemId, Material.class);
-						
-						item = new Axe(itemData.getInt("id"), itemData.getString("name"), itemData.getLong("price"), itemData.getInt("durability"), axeCraft, axeRepairItem, itemData.getLong("maxMaterials"), itemData.getDouble("multiplier"));
-						
-						break;
-					case PICKAXE:
-						JSONArray pickaxeArray = itemData.getJSONArray("craft");
-						
-						List<ItemStack<Material>> pickaxeCraft = new ArrayList<>();
-						for (int c = 0; c < pickaxeArray.length(); c++) {
-							JSONObject craftData = pickaxeArray.getJSONObject(c);
-							Material craftMaterial = this.getItemById(craftData.getInt("material"), Material.class);
-							
-							pickaxeCraft.add(new ItemStack<>(craftMaterial, craftData.getLong("amount")));
-						}
+					break;
+				case ENVELOPE:
+					item = new Envelope(this, itemData.getInt("id"), itemData.getString("name"), itemData.getLong("price"));
 
-						int pickaxeRepairItemId = itemData.optInt("repairItem", -1);
-						Material pickaxeRepairItem = pickaxeRepairItemId == -1 ? null : this.getItemById(pickaxeRepairItemId, Material.class);
-						
-						item = new Pickaxe(itemData.getInt("id"), itemData.getString("name"), itemData.getLong("price"), itemData.getInt("durability"), pickaxeCraft, pickaxeRepairItem, itemData.getLong("minYield"), itemData.getLong("maxYield"), itemData.getDouble("multiplier"));
-						
-						break;
-					default:
-						item = null;
-				}
+					break;
+				case MINER:
+					item = new Miner(this, itemData.getInt("id"), itemData.getString("name"), itemData.getLong("price"), itemData.getLong("maxMaterials"), itemData.getDouble("multiplier"));
 
-				if (item != null) {
-					Class<?> itemType = item.getClass();
-					do {
-						this.addItem(itemType, item);
-					} while ((itemType = itemType.getSuperclass()) != null && itemType != Object.class);
+					break;
+				case FACTORY:
+					JSONObject cost = itemData.getJSONObject("cost");
 
-					this.itemCache.put(item.getId(), item);
-				}
+					Material material = this.getItemById(cost.getInt("material"), Material.class);
+					ItemStack<Material> itemStack = new ItemStack<>(material, cost.getLong("amount"));
+
+					item = new Factory(this, itemData.getInt("id"), itemData.getString("name"), itemStack, itemData.getLong("minYield"), itemData.getLong("maxYield"));
+
+					break;
+				case CRATE:
+					//JSONObject contentsData = itemData.getJSONObject("contents");
+					//Map<ItemType, Long> contents = contentsData.keySet().stream().collect(Collectors.toMap(ItemType::fromDataName, contentsData::getLong));
+
+					item = new Crate(this, itemData.getInt("id"), itemData.getString("name"), itemData.getLong("price"), itemData.optLong("credits", -1), new HashMap<>());
+
+					break;
+				case BOOSTER:
+					item = new Booster(this, itemData.getInt("id"), itemData.getString("name"), itemData.getLong("price"));
+
+					break;
+				case ROD:
+					JSONArray rodArray = itemData.getJSONArray("craft");
+
+					List<ItemStack<CraftItem>> rodCraft = new ArrayList<>();
+					for (int c = 0; c < rodArray.length(); c++) {
+						JSONObject craftData = rodArray.getJSONObject(c);
+						CraftItem craftItem = this.getItemById(craftData.getInt("item"), CraftItem.class);
+
+						rodCraft.add(new ItemStack<>(craftItem, craftData.getLong("amount")));
+					}
+
+					int rodRepairItemId = itemData.optInt("repairItem", -1);
+					CraftItem rodRepairItem = rodRepairItemId == -1 ? null : this.getItemById(rodRepairItemId, CraftItem.class);
+
+					item = new Rod(this, itemData.getInt("id"), itemData.getString("name"), itemData.getLong("price"), itemData.getInt("durability"), rodCraft, rodRepairItem, itemData.getLong("minYield"), itemData.getLong("maxYield"));
+
+					break;
+				case AXE:
+					JSONArray axeArray = itemData.getJSONArray("craft");
+
+					List<ItemStack<CraftItem>> axeCraft = new ArrayList<>();
+					for (int c = 0; c < axeArray.length(); c++) {
+						JSONObject craftData = axeArray.getJSONObject(c);
+						CraftItem craftItem = this.getItemById(craftData.getInt("item"), CraftItem.class);
+
+						axeCraft.add(new ItemStack<>(craftItem, craftData.getLong("amount")));
+					}
+
+					int axeRepairItemId = itemData.optInt("repairItem", -1);
+					CraftItem axeRepairItem = axeRepairItemId == -1 ? null : this.getItemById(axeRepairItemId, CraftItem.class);
+
+					item = new Axe(this, itemData.getInt("id"), itemData.getString("name"), itemData.getLong("price"), itemData.getInt("durability"), axeCraft, axeRepairItem, itemData.getLong("maxMaterials"), itemData.getDouble("multiplier"));
+
+					break;
+				case PICKAXE:
+					JSONArray pickaxeArray = itemData.getJSONArray("craft");
+
+					List<ItemStack<CraftItem>> pickaxeCraft = new ArrayList<>();
+					for (int c = 0; c < pickaxeArray.length(); c++) {
+						JSONObject craftData = pickaxeArray.getJSONObject(c);
+						CraftItem craftItem = this.getItemById(craftData.getInt("item"), CraftItem.class);
+
+						pickaxeCraft.add(new ItemStack<>(craftItem, craftData.getLong("amount")));
+					}
+
+					int pickaxeRepairItemId = itemData.optInt("repairItem", -1);
+					CraftItem pickaxeRepairItem = pickaxeRepairItemId == -1 ? null : this.getItemById(pickaxeRepairItemId, CraftItem.class);
+
+					item = new Pickaxe(this, itemData.getInt("id"), itemData.getString("name"), itemData.getLong("price"), itemData.getInt("durability"), pickaxeCraft, pickaxeRepairItem, itemData.getLong("minYield"), itemData.getLong("maxYield"), itemData.getDouble("multiplier"));
+
+					break;
+				default:
+					item = null;
+			}
+
+			if (item != null) {
+				Class<?> itemType = item.getClass();
+				do {
+					this.addItem(itemType, item);
+				} while ((itemType = itemType.getSuperclass()) != null && itemType != Object.class);
+
+				this.itemCache.put(item.getId(), item);
 			}
 		}
 	}

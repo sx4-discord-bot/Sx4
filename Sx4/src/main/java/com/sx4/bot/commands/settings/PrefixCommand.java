@@ -12,7 +12,7 @@ import com.sx4.bot.annotations.command.Examples;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
-import com.sx4.bot.database.model.Operators;
+import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.utility.ExceptionUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.MessageBuilder;
@@ -37,8 +37,8 @@ public class PrefixCommand extends Sx4Command {
 	}
 
 	public void onCommand(Sx4CommandEvent event) {
-		List<String> guildPrefixes = event.getDatabase().getGuildById(event.getGuild().getIdLong(), Projections.include("prefixes")).getList("prefixes", String.class, Collections.emptyList());
-		List<String> userPrefixes = event.getDatabase().getUserById(event.getAuthor().getIdLong(), Projections.include("prefixes")).getList("prefixes", String.class, Collections.emptyList());
+		List<String> guildPrefixes = event.getMongo().getGuildById(event.getGuild().getIdLong(), Projections.include("prefixes")).getList("prefixes", String.class, Collections.emptyList());
+		List<String> userPrefixes = event.getMongo().getUserById(event.getAuthor().getIdLong(), Projections.include("prefixes")).getList("prefixes", String.class, Collections.emptyList());
 
 		EmbedBuilder embed = new EmbedBuilder();
 		embed.setAuthor("Prefix Settings", null, event.getAuthor().getEffectiveAvatarUrl());
@@ -77,7 +77,7 @@ public class PrefixCommand extends Sx4Command {
 				return;
 			}
 
-			event.getDatabase().updateUserById(event.getAuthor().getIdLong(), Updates.set("prefixes", finalPrefixes)).whenComplete((result, exception) -> {
+			event.getMongo().updateUserById(event.getAuthor().getIdLong(), Updates.set("prefixes", finalPrefixes)).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
@@ -105,7 +105,7 @@ public class PrefixCommand extends Sx4Command {
 			List<Bson> update = List.of(Operators.set("prefixes", Operators.let(new Document("prefixes", Operators.ifNull("$prefixes", event.getConfig().getDefaultPrefixes())), Operators.cond(Operators.gte(Operators.size("$$prefixes"), 25), "$prefixes", Operators.concatArrays(finalPrefixes, Operators.filter("$$prefixes", Operators.not(Operators.in("$$this", finalPrefixes))))))));
 			FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().upsert(true).returnDocument(ReturnDocument.BEFORE).projection(Projections.include("prefixes"));
 
-			event.getDatabase().findAndUpdateUserById(event.getAuthor().getIdLong(), update, options).whenComplete((data, exception) -> {
+			event.getMongo().findAndUpdateUserById(event.getAuthor().getIdLong(), update, options).whenComplete((data, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
@@ -131,7 +131,7 @@ public class PrefixCommand extends Sx4Command {
 			boolean all = prefixes.length == 1 && prefixes[0].equalsIgnoreCase("all");
 
 			Bson update = all ? Updates.unset("prefixes") : Updates.pullAll("prefixes", Arrays.asList(prefixes));
-			event.getDatabase().updateUserById(event.getAuthor().getIdLong(), update).whenComplete((result, exception) -> {
+			event.getMongo().updateUserById(event.getAuthor().getIdLong(), update).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
@@ -176,7 +176,7 @@ public class PrefixCommand extends Sx4Command {
 				return;
 			}
 
-			event.getDatabase().updateGuildById(event.getGuild().getIdLong(), Updates.set("prefixes", finalPrefixes)).whenComplete((result, exception) -> {
+			event.getMongo().updateGuildById(event.getGuild().getIdLong(), Updates.set("prefixes", finalPrefixes)).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
@@ -205,7 +205,7 @@ public class PrefixCommand extends Sx4Command {
 			List<Bson> update = List.of(Operators.set("prefixes", Operators.let(new Document("prefixes", Operators.ifNull("$prefixes", event.getConfig().getDefaultPrefixes())), Operators.cond(Operators.gte(Operators.size("$$prefixes"), 25), "$prefixes", Operators.concatArrays(finalPrefixes, Operators.filter("$$prefixes", Operators.not(Operators.in("$$this", finalPrefixes))))))));
 			FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().upsert(true).projection(Projections.include("prefixes")).returnDocument(ReturnDocument.BEFORE);
 
-			event.getDatabase().findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
+			event.getMongo().findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
@@ -232,7 +232,7 @@ public class PrefixCommand extends Sx4Command {
 			boolean all = prefixes.length == 1 && prefixes[0].equalsIgnoreCase("all");
 
 			Bson update = all ? Updates.unset("prefixes") : Updates.pullAll("prefixes", Arrays.asList(prefixes));
-			event.getDatabase().updateGuildById(event.getGuild().getIdLong(), update).whenComplete((result, exception) -> {
+			event.getMongo().updateGuildById(event.getGuild().getIdLong(), update).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}

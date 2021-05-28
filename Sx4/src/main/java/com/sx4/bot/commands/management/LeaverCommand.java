@@ -18,8 +18,8 @@ import com.sx4.bot.annotations.command.Premium;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
-import com.sx4.bot.database.Database;
-import com.sx4.bot.database.model.Operators;
+import com.sx4.bot.database.mongo.MongoDatabase;
+import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.argument.Alternative;
 import com.sx4.bot.managers.LeaverManager;
 import com.sx4.bot.utility.ExceptionUtility;
@@ -56,7 +56,7 @@ public class LeaverCommand extends Sx4Command {
 		List<Bson> update = List.of(Operators.set("leaver.enabled", Operators.cond("$leaver.enabled", Operators.REMOVE, true)));
 		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER).projection(Projections.include("leaver.enabled")).upsert(true);
 
-		event.getDatabase().findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
+		event.getMongo().findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -75,7 +75,7 @@ public class LeaverCommand extends Sx4Command {
 		List<Bson> update = List.of(Operators.set("leaver.channelId", channel == null ? Operators.REMOVE : channel.getIdLong()), Operators.unset("leaver.webhook.id"), Operators.unset("leaver.webhook.token"));
 		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().upsert(true).projection(Projections.include("leaver.webhook.token", "leaver.webhook.id", "leaver.channelId")).returnDocument(ReturnDocument.BEFORE);
 
-		event.getDatabase().findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
+		event.getMongo().findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -104,7 +104,7 @@ public class LeaverCommand extends Sx4Command {
 	@Examples({"leaver message Someone has left", "leaver message Goodbye {user.tag}!"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void message(Sx4CommandEvent event, @Argument(value="message", endless=true) String message) {
-		event.getDatabase().updateGuildById(event.getGuild().getIdLong(), Updates.set("leaver.message.content", message)).whenComplete((result, exception) -> {
+		event.getMongo().updateGuildById(event.getGuild().getIdLong(), Updates.set("leaver.message.content", message)).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -123,7 +123,7 @@ public class LeaverCommand extends Sx4Command {
 	@Examples({"leaver advanced message {\"embed\": {\"description\": \"Someone has left\"}}", "leaver advanced message {\"embed\": {\"description\": \"Goodbye {user.tag}!\"}}"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void advancedMessage(Sx4CommandEvent event, @Argument(value="json", endless=true) @AdvancedMessage Document message) {
-		event.getDatabase().updateGuildById(event.getGuild().getIdLong(), Updates.set("leaver.message", message)).whenComplete((result, exception) -> {
+		event.getMongo().updateGuildById(event.getGuild().getIdLong(), Updates.set("leaver.message", message)).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -144,12 +144,12 @@ public class LeaverCommand extends Sx4Command {
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void name(Sx4CommandEvent event, @Argument(value="name", endless=true) String name) {
 		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().projection(Projections.include("leaver.webhook.name", "premium.endAt")).returnDocument(ReturnDocument.BEFORE).upsert(true);
-		event.getDatabase().findAndUpdateGuildById(event.getGuild().getIdLong(), List.of(OperatorsUtility.setIfPremium("leaver.webhook.name", name)), options).whenComplete((data, exception) -> {
+		event.getMongo().findAndUpdateGuildById(event.getGuild().getIdLong(), List.of(OperatorsUtility.setIfPremium("leaver.webhook.name", name)), options).whenComplete((data, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
 
-			data = data == null ? Database.EMPTY_DOCUMENT : data;
+			data = data == null ? MongoDatabase.EMPTY_DOCUMENT : data;
 
 			if (data.getEmbedded(List.of("premium", "endAt"), 0L) < Clock.systemUTC().instant().getEpochSecond()) {
 				event.replyFailure("This server needs premium to use this command").queue();
@@ -173,12 +173,12 @@ public class LeaverCommand extends Sx4Command {
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void avatar(Sx4CommandEvent event, @Argument(value="avatar", endless=true, acceptEmpty=true) @ImageUrl String url) {
 		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().projection(Projections.include("leaver.webhook.avatar", "premium.endAt")).returnDocument(ReturnDocument.BEFORE).upsert(true);
-		event.getDatabase().findAndUpdateGuildById(event.getGuild().getIdLong(), List.of(OperatorsUtility.setIfPremium("leaver.webhook.avatar", url)), options).whenComplete((data, exception) -> {
+		event.getMongo().findAndUpdateGuildById(event.getGuild().getIdLong(), List.of(OperatorsUtility.setIfPremium("leaver.webhook.avatar", url)), options).whenComplete((data, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
 
-			data = data == null ? Database.EMPTY_DOCUMENT : data;
+			data = data == null ? MongoDatabase.EMPTY_DOCUMENT : data;
 
 			if (data.getEmbedded(List.of("premium", "endAt"), 0L) < Clock.systemUTC().instant().getEpochSecond()) {
 				event.replyFailure("This server needs premium to use this command").queue();
@@ -199,9 +199,9 @@ public class LeaverCommand extends Sx4Command {
 	@CommandId(195)
 	@Examples({"leaver preview"})
 	public void preview(Sx4CommandEvent event) {
-		Document data = event.getDatabase().getGuildById(event.getGuild().getIdLong(), Projections.include("leaver.message", "leaver.enabled"));
+		Document data = event.getMongo().getGuildById(event.getGuild().getIdLong(), Projections.include("leaver.message", "leaver.enabled"));
 
-		Document leaver = data.get("leaver", Database.EMPTY_DOCUMENT);
+		Document leaver = data.get("leaver", MongoDatabase.EMPTY_DOCUMENT);
 		if (!leaver.get("enabled", false)) {
 			event.replyFailure("Leaver is not enabled").queue();
 			return;

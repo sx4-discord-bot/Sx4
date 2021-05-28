@@ -32,7 +32,7 @@ public class GameListCommand extends Sx4Command {
 	public void onCommand(Sx4CommandEvent event, @Argument(value="user", endless=true, nullDefault=true) Member member) {
 		User user = member == null ? event.getAuthor() : member.getUser();
 
-		List<Document> games = event.getDatabase().getGames(Filters.eq("userId", user.getIdLong()), Projections.include("type", "state")).into(new ArrayList<>());
+		List<Document> games = event.getMongo().getGames(Filters.eq("userId", user.getIdLong()), Projections.include("type", "state")).into(new ArrayList<>());
 		if (games.isEmpty()) {
 			event.replyFailure("That user has not played any games yet").queue();
 			return;

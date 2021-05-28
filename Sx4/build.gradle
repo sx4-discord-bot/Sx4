@@ -27,8 +27,8 @@ mainClassName = 'com.sx4.bot.core.Sx4'
 
 compileJava.options.encoding = "UTF-8"
 
-sourceCompatibility = JavaVersion.VERSION_12
-targetCompatibility = JavaVersion.VERSION_12
+sourceCompatibility = JavaVersion.VERSION_15
+targetCompatibility = JavaVersion.VERSION_15
 
 project.ext.parserPackage = 'com.sx4.bot.antlr'
 sourceSets.main.java.srcDirs = ['src/main/java', 'generated-src/main/java']
@@ -49,6 +49,9 @@ dependencies {
 	}
 	
 	implementation 'org.mongodb:mongodb-driver-sync:+'
+
+	implementation group: 'org.postgresql', name: 'postgresql', version: '42+'
+	implementation "com.zaxxer:HikariCP:4.0.3"
 
 	implementation 'net.sf.trove4j:trove4j:3.0.3'
 	

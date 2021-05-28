@@ -1,9 +1,9 @@
 package com.sx4.bot.entities.economy.item;
 
+import com.sx4.bot.managers.EconomyManager;
 import org.bson.Document;
 
 import java.util.List;
-import java.util.Random;
 
 public class Rod extends Tool {
 	
@@ -12,11 +12,12 @@ public class Rod extends Tool {
 	
 	public Rod(Document data, Rod defaultRod) {
 		this(
+			defaultRod.getManager(),
 			defaultRod.getId(),
 			defaultRod.getName(), 
-			data.get("price", defaultRod.getPrice()),
-			data.get("currentDurability", defaultRod.getCurrentDurability()), 
-			data.get("maxDurability", defaultRod.getMaxDurability()), 
+			data.get("maxPrice", defaultRod.getPrice()),
+			data.get("currentDurability", defaultRod.getCurrentDurability()),
+			data.get("maxDurability", defaultRod.getMaxDurability()),
 			defaultRod.getCraft(),
 			defaultRod.getRepairItem(),
 			data.get("minYield", defaultRod.getMinYield()),
@@ -24,19 +25,19 @@ public class Rod extends Tool {
 		);
 	}
 
-	public Rod(int id, String name, long price, int currentDurability, int maxDurability, List<ItemStack<Material>> craft, Material repairItem, long minYield, long maxYield) {
-		super(id, name, price, ItemType.ROD, currentDurability, maxDurability, craft, repairItem);
+	public Rod(EconomyManager manager, int id, String name, long price, int currentDurability, int maxDurability, List<ItemStack<CraftItem>> craft, CraftItem repairItem, long minYield, long maxYield) {
+		super(manager, id, name, price, ItemType.ROD, currentDurability, maxDurability, craft, repairItem);
 		
 		this.minYield = minYield;
 		this.maxYield = maxYield;
 	}
 	
-	public Rod(int id, String name, long price, int maxDurability, List<ItemStack<Material>> craft, Material repairItem, long minYield, long maxYield) {
-		this(id, name, price, maxDurability, maxDurability, craft, repairItem, minYield, maxYield);
+	public Rod(EconomyManager manager, int id, String name, long price, int maxDurability, List<ItemStack<CraftItem>> craft, CraftItem repairItem, long minYield, long maxYield) {
+		this(manager, id, name, price, maxDurability, maxDurability, craft, repairItem, minYield, maxYield);
 	}
 
-	public long getYield(Random random) {
-		return random.nextInt((int) (this.maxYield - this.minYield) + 1) + this.minYield;
+	public long getYield(EconomyManager manager) {
+		return manager.getRandom().nextInt((int) (this.maxYield - this.minYield) + 1) + this.minYield;
 	}
 	
 	public long getMinYield() {

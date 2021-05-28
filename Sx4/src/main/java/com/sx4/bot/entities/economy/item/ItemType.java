@@ -6,7 +6,6 @@ import java.util.function.BiFunction;
 
 public enum ItemType {
 
-	// Determines in which order items are loaded from the json file
 	MATERIAL(0, "Material", 500, Material.class, Material::new),
 	WOOD(1, "Wood", 250, Wood.class, Wood::new),
 	ROD(2, "Fishing Rod", 1, Rod.class, Rod::new),
@@ -18,28 +17,26 @@ public enum ItemType {
 	ENVELOPE(8, "Envelope", 50, Envelope.class, Envelope::new),
 	BOOSTER(9, "Booster", 50, Booster.class, Booster::new);
 	
-	private final int type;
+	private final int id;
 	private final long defaultLimit;
 	
 	private final String name;
-	private final String dataName;
 
 	private final Class<? extends Item> itemClass;
 
 	@SuppressWarnings("rawtypes")
 	private final BiFunction createFunction;
 	
-	private <Type extends Item> ItemType(int type, String name, long defaultLimit, Class<Type> itemClass, BiFunction<Document, Type, Type> createFunction) {
-		this.type = type;
+	private <Type extends Item> ItemType(int id, String name, long defaultLimit, Class<Type> itemClass, BiFunction<Document, Type, Type> createFunction) {
+		this.id = id;
 		this.name = name;
 		this.itemClass = itemClass;
-		this.dataName = name.toLowerCase().replace(" ", "_");
 		this.defaultLimit = defaultLimit;
 		this.createFunction = createFunction;
 	}
 	
-	public int getType() {
-		return this.type;
+	public int getId() {
+		return this.id;
 	}
 	
 	public long getDefaultLimit() {
@@ -48,10 +45,6 @@ public enum ItemType {
 	
 	public String getName() {
 		return this.name;
-	}
-	
-	public String getDataName() {
-		return this.dataName;
 	}
 
 	public Class<? extends Item> getItemClass() {
@@ -63,9 +56,9 @@ public enum ItemType {
 		return (Type) this.createFunction.apply(data, defaultItem);
 	}
 	
-	public static ItemType fromType(int type) {
+	public static ItemType fromId(int id) {
 		for (ItemType itemType : ItemType.values()) {
-			if (itemType.getType() == type) {
+			if (itemType.getId() == id) {
 				return itemType;
 			}
 		}
@@ -76,16 +69,6 @@ public enum ItemType {
 	public static ItemType fromName(String name) {
 		for (ItemType itemType : ItemType.values()) {
 			if (itemType.getName().equalsIgnoreCase(name)) {
-				return itemType;
-			}
-		}
-		
-		return null;
-	}
-	
-	public static ItemType fromDataName(String dataName) {
-		for (ItemType itemType : ItemType.values()) {
-			if (itemType.getDataName().equals(dataName)) {
 				return itemType;
 			}
 		}

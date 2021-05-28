@@ -52,7 +52,7 @@ public class TemplateCommand extends Sx4Command {
 			.append("reason", reason)
 			.append("guildId", event.getGuild().getIdLong());
 
-		event.getDatabase().insertTemplate(data).whenComplete((result, exception) -> {
+		event.getMongo().insertTemplate(data).whenComplete((result, exception) -> {
 			Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
 			if (cause instanceof MongoWriteException && ((MongoWriteException) cause).getError().getCategory() == ErrorCategory.DUPLICATE_KEY) {
 				event.replyFailure("You already have a template with that name").queue();
@@ -82,7 +82,7 @@ public class TemplateCommand extends Sx4Command {
 						.setUnique(event.getAuthor().getIdLong(), event.getChannel().getIdLong())
 						.start();
 				})
-				.thenCompose(messageEvent -> event.getDatabase().deleteManyTemplates(Filters.eq("guildId", event.getGuild().getIdLong())))
+				.thenCompose(messageEvent -> event.getMongo().deleteManyTemplates(Filters.eq("guildId", event.getGuild().getIdLong())))
 				.whenComplete((result, exception) -> {
 					Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
 					if (cause instanceof CancelException) {
@@ -103,7 +103,7 @@ public class TemplateCommand extends Sx4Command {
 					event.replySuccess("All templates have been deleted in this server").queue();
 				});
 		} else {
-			event.getDatabase().deleteTemplateById(option.getValue()).whenComplete((result, exception) -> {
+			event.getMongo().deleteTemplateById(option.getValue()).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
@@ -123,7 +123,7 @@ public class TemplateCommand extends Sx4Command {
 	@Examples({"template list"})
 	@BotPermissions(permissions={Permission.MESSAGE_EMBED_LINKS})
 	public void list(Sx4CommandEvent event) {
-		List<Document> triggers = event.getDatabase().getTemplates(Filters.eq("guildId", event.getGuild().getIdLong()), Projections.include("template", "reason")).into(new ArrayList<>());
+		List<Document> triggers = event.getMongo().getTemplates(Filters.eq("guildId", event.getGuild().getIdLong()), Projections.include("template", "reason")).into(new ArrayList<>());
 		if (triggers.isEmpty()) {
 			event.replyFailure("There are no templates setup in this server").queue();
 			return;

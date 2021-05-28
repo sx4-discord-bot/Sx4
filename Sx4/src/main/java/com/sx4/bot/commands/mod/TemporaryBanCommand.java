@@ -15,8 +15,8 @@ import com.sx4.bot.annotations.command.Examples;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
-import com.sx4.bot.database.Database;
-import com.sx4.bot.database.model.Operators;
+import com.sx4.bot.database.mongo.MongoDatabase;
+import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.mod.Reason;
 import com.sx4.bot.events.mod.TemporaryBanEvent;
 import com.sx4.bot.paged.PagedResult;
@@ -81,7 +81,7 @@ public class TemporaryBanCommand extends Sx4Command {
 
 			event.getGuild().retrieveBan(user).submit().whenComplete((ban, exception) -> {
 				if (exception instanceof ErrorResponseException && ((ErrorResponseException) exception).getErrorResponse() == ErrorResponse.UNKNOWN_BAN) {
-					Document data = event.getDatabase().getGuildById(guild.getIdLong(), Projections.include("temporaryBan.defaultTime")).get("temporaryBan", Database.EMPTY_DOCUMENT);
+					Document data = event.getMongo().getGuildById(guild.getIdLong(), Projections.include("temporaryBan.defaultTime")).get("temporaryBan", MongoDatabase.EMPTY_DOCUMENT);
 
 					long duration = time == null ? data.get("defaultTime", ModUtility.DEFAULT_TEMPORARY_BAN_DURATION) : time.toSeconds();
 
@@ -91,7 +91,7 @@ public class TemporaryBanCommand extends Sx4Command {
 						Filters.eq("guildId", event.getGuild().getIdLong())
 					);
 
-					event.getDatabase().updateTemporaryBan(filter, update, new UpdateOptions().upsert(true)).whenComplete((result, resultException) -> {
+					event.getMongo().updateTemporaryBan(filter, update, new UpdateOptions().upsert(true)).whenComplete((result, resultException) -> {
 						if (ExceptionUtility.sendExceptionally(event, resultException)) {
 							return;
 						}
@@ -122,7 +122,7 @@ public class TemporaryBanCommand extends Sx4Command {
 		long seconds = duration.toSeconds();
 
 		Bson update = seconds == ModUtility.DEFAULT_TEMPORARY_BAN_DURATION ? Updates.unset("temporaryBan.defaultTime") : Updates.set("temporaryBan.defaultTime", seconds);
-		event.getDatabase().updateGuildById(event.getGuild().getIdLong(), update).whenComplete((result, exception) -> {
+		event.getMongo().updateGuildById(event.getGuild().getIdLong(), update).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -140,7 +140,7 @@ public class TemporaryBanCommand extends Sx4Command {
 	@CommandId(345)
 	@Examples({"temporary ban list"})
 	public void list(Sx4CommandEvent event) {
-		List<Document> bans = event.getDatabase().getTemporaryBans(Filters.eq("guildId", event.getGuild().getIdLong()), Projections.include("unbanAt", "userId")).into(new ArrayList<>());
+		List<Document> bans = event.getMongo().getTemporaryBans(Filters.eq("guildId", event.getGuild().getIdLong()), Projections.include("unbanAt", "userId")).into(new ArrayList<>());
 		if (bans.isEmpty()) {
 			event.replyFailure("There is no one with a temporary ban in this server").queue();
 			return;

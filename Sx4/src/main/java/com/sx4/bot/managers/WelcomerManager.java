@@ -1,12 +1,11 @@
 package com.sx4.bot.managers;
 
-import club.minnced.discord.webhook.WebhookClient;
-import club.minnced.discord.webhook.WebhookClientBuilder;
 import club.minnced.discord.webhook.exception.HttpException;
-import club.minnced.discord.webhook.receive.ReadonlyMessage;
 import club.minnced.discord.webhook.send.WebhookMessage;
 import com.mongodb.client.model.Updates;
 import com.sx4.bot.core.Sx4;
+import com.sx4.bot.entities.webhook.ReadonlyMessage;
+import com.sx4.bot.entities.webhook.WebhookClient;
 import com.sx4.bot.exceptions.mod.BotPermissionException;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.TextChannel;
@@ -54,10 +53,7 @@ public class WelcomerManager implements WebhookManager {
 		}
 
 		return channel.createWebhook("Sx4 - Welcomer").submit().thenCompose(webhook -> {
-			WebhookClient webhookClient = new WebhookClientBuilder(webhook.getIdLong(), webhook.getToken())
-				.setExecutorService(this.executor)
-				.setHttpClient(this.client)
-				.build();
+			WebhookClient webhookClient = new WebhookClient(webhook.getIdLong(), webhook.getToken(), this.executor, this.client);
 
 			this.webhooks.put(channel.getIdLong(), webhookClient);
 
@@ -66,7 +62,9 @@ public class WelcomerManager implements WebhookManager {
 				Updates.set("welcomer.webhook.token", webhook.getToken())
 			);
 
-			return this.bot.getDatabase().updateGuildById(channel.getGuild().getIdLong(), update).thenCompose(result -> webhookClient.send(message));
+			return this.bot.getMongo().updateGuildById(channel.getGuild().getIdLong(), update)
+				.thenCompose(result -> webhookClient.send(message))
+				.thenApply(webhookMessage -> new ReadonlyMessage(webhookMessage, webhook.getIdLong(), webhook.getToken()));
 		}).exceptionallyCompose(exception -> {
 			if (exception instanceof HttpException && ((HttpException) exception).getCode() == 404) {
 				this.webhooks.remove(channel.getIdLong());
@@ -85,23 +83,22 @@ public class WelcomerManager implements WebhookManager {
 		} else if (!webhookData.containsKey("id")) {
 			return this.createWebhook(channel, message);
 		} else {
-			webhook = new WebhookClientBuilder(webhookData.getLong("id"), webhookData.getString("token"))
-				.setExecutorService(this.executor)
-				.setHttpClient(this.client)
-				.build();
+			webhook = new WebhookClient(webhookData.getLong("id"), webhookData.getString("token"), this.executor, this.client);
 
 			this.webhooks.put(channel.getIdLong(), webhook);
 		}
 
-		return webhook.send(message).exceptionallyCompose(exception -> {
-			if (exception instanceof HttpException && ((HttpException) exception).getCode() == 404) {
-				this.webhooks.remove(channel.getIdLong());
+		return webhook.send(message)
+			.thenApply(WebhookMessage -> new ReadonlyMessage(WebhookMessage, webhook.getId(), webhook.getToken()))
+			.exceptionallyCompose(exception -> {
+				if (exception instanceof HttpException && ((HttpException) exception).getCode() == 404) {
+					this.webhooks.remove(channel.getIdLong());
 
-				return this.createWebhook(channel, message);
-			}
+					return this.createWebhook(channel, message);
+				}
 
-			return CompletableFuture.failedFuture(exception);
-		});
+				return CompletableFuture.failedFuture(exception);
+			});
 	}
 
 }

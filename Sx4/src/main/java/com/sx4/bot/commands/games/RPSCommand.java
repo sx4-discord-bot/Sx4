@@ -11,7 +11,7 @@ import com.sx4.bot.annotations.command.Examples;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
-import com.sx4.bot.database.Database;
+import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.entities.games.GameState;
 import com.sx4.bot.entities.games.GameType;
 import com.sx4.bot.utility.NumberUtility;
@@ -85,7 +85,7 @@ public class RPSCommand extends Sx4Command {
 
 		event.reply(outcome).queue();
 
-		event.getDatabase().insertManyGames(List.of(authorData, opponentData)).whenComplete(Database.exceptionally(event.getShardManager()));
+		event.getMongo().insertManyGames(List.of(authorData, opponentData)).whenComplete(MongoDatabase.exceptionally(event.getShardManager()));
 	}
 
 	@Command(value="stats", description="View some stats about your personal rps record")
@@ -96,7 +96,7 @@ public class RPSCommand extends Sx4Command {
 
 		Bson filter = Filters.and(Filters.eq("userId", user.getIdLong()), Filters.eq("type", GameType.RPS.getId()));
 
-		List<Document> games = event.getDatabase().getGames(filter, Projections.include("state")).into(new ArrayList<>());
+		List<Document> games = event.getMongo().getGames(filter, Projections.include("state")).into(new ArrayList<>());
 		if (games.isEmpty()) {
 			event.replyFailure("That user has not played rock paper scissors yet").queue();
 			return;

@@ -7,7 +7,7 @@ import com.sx4.bot.annotations.argument.Limit;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
-import com.sx4.bot.database.Database;
+import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.entities.games.GameState;
 import com.sx4.bot.entities.games.GameType;
 import com.sx4.bot.waiter.Waiter;
@@ -208,7 +208,7 @@ public class GuessTheNumberCommand extends Sx4Command {
 
 					event.reply(content.toString()).queue();
 
-					event.getDatabase().insertManyGames(List.of(authorData, opponentData)).whenComplete(Database.exceptionally(event.getShardManager()));
+					event.getMongo().insertManyGames(List.of(authorData, opponentData)).whenComplete(MongoDatabase.exceptionally(event.getShardManager()));
 				});
 			});
 	}

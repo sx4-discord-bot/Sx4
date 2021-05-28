@@ -73,7 +73,7 @@ public class MarriageCommand extends Sx4Command {
 			Filters.eq("partnerId", member.getIdLong())
 		);
 
-		List<Document> marriages = event.getDatabase().getMarriages(checkFilter, Projections.include("partnerId", "proposerId")).into(new ArrayList<>());
+		List<Document> marriages = event.getMongo().getMarriages(checkFilter, Projections.include("partnerId", "proposerId")).into(new ArrayList<>());
 
 		long userCount = marriages.stream().filter(d -> d.getLong("proposerId") == author.getIdLong() || d.getLong("partnerId") == author.getIdLong()).count();
 		if (userCount >= 5) {
@@ -102,7 +102,7 @@ public class MarriageCommand extends Sx4Command {
 			}).thenCompose(e -> {
 				Bson filter = Filters.or(Filters.and(Filters.eq("proposerId", member.getIdLong()), Filters.eq("partnerId", author.getIdLong())), Filters.and(Filters.eq("proposerId", author.getIdLong()), Filters.eq("partnerId", member.getIdLong())));
 
-				return event.getDatabase().updateMarriage(filter, Updates.combine(Updates.setOnInsert("proposerId", author.getIdLong()), Updates.setOnInsert("partnerId", member.getIdLong())));
+				return event.getMongo().updateMarriage(filter, Updates.combine(Updates.setOnInsert("proposerId", author.getIdLong()), Updates.setOnInsert("partnerId", member.getIdLong())));
 			}).whenComplete((result, exception) -> {
 				event.removeCooldown();
 				Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
@@ -143,7 +143,7 @@ public class MarriageCommand extends Sx4Command {
 				}).thenCompose(e -> {
 					Bson filter = Filters.or(Filters.eq("proposerId", author.getIdLong()), Filters.eq("partnerId", author.getIdLong()));
 
-					return event.getDatabase().deleteManyMarriages(filter);
+					return event.getMongo().deleteManyMarriages(filter);
 				}).whenComplete((result, exception) -> {
 					Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
 					if (cause instanceof CancelException) {
@@ -165,7 +165,7 @@ public class MarriageCommand extends Sx4Command {
 			Member member = option.getValue();
 
 			Bson filter = Filters.or(Filters.and(Filters.eq("proposerId", member.getIdLong()), Filters.eq("partnerId", author.getIdLong())), Filters.and(Filters.eq("proposerId", author.getIdLong()), Filters.eq("partnerId", member.getIdLong())));
-			event.getDatabase().deleteMarriage(filter).whenComplete((result, exception) -> {
+			event.getMongo().deleteMarriage(filter).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
@@ -190,7 +190,7 @@ public class MarriageCommand extends Sx4Command {
 
 		Bson filter = Filters.or(Filters.eq("proposerId", user.getIdLong()), Filters.eq("partnerId", user.getIdLong()));
 
-		List<Document> marriages = event.getDatabase().getMarriages(filter, Projections.include("proposerId", "partnerId")).into(new ArrayList<>());
+		List<Document> marriages = event.getMongo().getMarriages(filter, Projections.include("proposerId", "partnerId")).into(new ArrayList<>());
 		if (marriages.isEmpty()) {
 			event.replyFailure("That user is not married to anyone").queue();
 			return;
@@ -221,7 +221,7 @@ public class MarriageCommand extends Sx4Command {
 
 		Bson filter = Filters.or(Filters.and(Filters.eq("proposerId", member.getIdLong()), Filters.eq("partnerId", author.getIdLong())), Filters.and(Filters.eq("proposerId", author.getIdLong()), Filters.eq("partnerId", member.getIdLong())));
 
-		Document marriage = event.getDatabase().getMarriage(filter, Projections.include("proposerId"));
+		Document marriage = event.getMongo().getMarriage(filter, Projections.include("proposerId"));
 		if (marriage == null) {
 			event.replyFailure("You are not married to that user").queue();
 			return;
