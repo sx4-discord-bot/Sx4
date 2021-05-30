@@ -105,7 +105,7 @@ public class EnvelopeCommand extends Sx4Command {
 					Filters.eq("item.type", ItemType.ENVELOPE.getId())
 				);
 
-				List<Document> envelopes = event.getMongo().getItems().find(session, Filters.and(Filters.eq("userId", event.getAuthor().getIdLong()), filter)).into(new ArrayList<>());
+				List<Document> envelopes = event.getMongo().getItems().find(session, Filters.and(Filters.eq("userId", event.getAuthor().getIdLong()), filter)).projection(Projections.include("item.price", "amount")).into(new ArrayList<>());
 
 				amount = envelopes.stream().mapToLong(data -> data.getEmbedded(List.of("item", "price"), Long.class) * data.getLong("amount")).sum();
 

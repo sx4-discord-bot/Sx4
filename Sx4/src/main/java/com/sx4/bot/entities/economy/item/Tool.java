@@ -47,7 +47,9 @@ public class Tool extends Item {
 	}
 
 	public Document toData() {
-		return super.toData().append("currentDurability", this.getCurrentDurability());
+		return super.toData()
+			.append("currentDurability", this.getCurrentDurability())
+			.append("maxDurability", this.getMaxDurability());
 	}
 	
 }

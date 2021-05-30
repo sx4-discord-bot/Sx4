@@ -99,8 +99,7 @@ public class MineCommand extends Sx4Command {
 			} else {
 				List<Bson> update = List.of(
 					EconomyUtility.getResetsUpdate(usableAmount, MineCommand.COOLDOWN),
-					Operators.set("item.currentDurability", Operators.subtract("$item.currentDurability", 1)),
-					Operators.set("item.price", Operators.subtract("$item.price", pickaxe.getPrice() / pickaxe.getMaxDurability()))
+					Operators.set("item.currentDurability", Operators.subtract("$item.currentDurability", 1))
 				);
 
 				event.getMongo().getItems().updateOne(session, itemFilter, update);

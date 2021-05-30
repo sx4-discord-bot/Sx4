@@ -13,14 +13,10 @@ import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.argument.Alternative;
-import com.sx4.bot.entities.economy.item.CraftItem;
-import com.sx4.bot.entities.economy.item.ItemStack;
-import com.sx4.bot.entities.economy.item.ItemType;
-import com.sx4.bot.entities.economy.item.Pickaxe;
+import com.sx4.bot.entities.economy.item.*;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.EconomyUtility;
 import com.sx4.bot.utility.ExceptionUtility;
-import com.sx4.bot.utility.NumberUtility;
 import com.sx4.bot.waiter.Waiter;
 import com.sx4.bot.waiter.exception.CancelException;
 import com.sx4.bot.waiter.exception.TimeoutException;
@@ -38,14 +34,14 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.stream.Collectors;
 
-public class PickaxeCommand extends Sx4Command {
+public class FishingRodCommand extends Sx4Command {
 
-	public PickaxeCommand() {
-		super("pickaxe", 359);
+	public FishingRodCommand() {
+		super("fishing rod", 378);
 
-		super.setDescription("View everything about pickaxes");
-		super.setAliases("pick");
-		super.setExamples("pickaxe shop", "pickaxe buy", "pickaxe info");
+		super.setDescription("View everything about fishing rods");
+		super.setAliases("rod");
+		super.setExamples("fishing rod shop", "fishing rod buy", "fishing rod info");
 		super.setCategoryAll(ModuleCategory.ECONOMY);
 	}
 
@@ -53,26 +49,26 @@ public class PickaxeCommand extends Sx4Command {
 		event.replyHelp().queue();
 	}
 
-	@Command(value="shop", description="View all the pickaxes you are able to buy or craft")
-	@CommandId(360)
-	@Examples({"pickaxe shop"})
+	@Command(value="shop", description="View all the fishing rods you are able to buy or craft")
+	@CommandId(379)
+	@Examples({"fishing rod shop"})
 	@BotPermissions(permissions={Permission.MESSAGE_EMBED_LINKS})
 	public void shop(Sx4CommandEvent event) {
-		List<Pickaxe> pickaxes = event.getBot().getEconomyManager().getItems(Pickaxe.class);
+		List<Rod> rods = event.getBot().getEconomyManager().getItems(Rod.class);
 
-		PagedResult<Pickaxe> paged = new PagedResult<>(event.getBot(), pickaxes)
+		PagedResult<Rod> paged = new PagedResult<>(event.getBot(), rods)
 			.setPerPage(12)
 			.setCustomFunction(page -> {
 				EmbedBuilder embed = new EmbedBuilder()
-					.setAuthor("Pickaxe Shop", null, event.getSelfUser().getEffectiveAvatarUrl())
+					.setAuthor("Fishing Rod Shop", null, event.getSelfUser().getEffectiveAvatarUrl())
 					.setTitle("Page " + page.getPage() + "/" + page.getMaxPage())
-					.setDescription("Pickaxes are a good way to gain some extra money aswell as some materials")
+					.setDescription("Fishing rods are a good way to gain some money")
 					.setFooter(PagedResult.DEFAULT_FOOTER_TEXT);
 
-				page.forEach((pickaxe, index) -> {
-					List<ItemStack<CraftItem>> items = pickaxe.getCraft();
+				page.forEach((rod, index) -> {
+					List<ItemStack<CraftItem>> items = rod.getCraft();
 					String craft = items.isEmpty() ? "None" : items.stream().map(ItemStack::toString).collect(Collectors.joining("\n"));
-					embed.addField(pickaxe.getName(), String.format("Price: $%,d\nCraft: %s\nDurability: %,d", pickaxe.getPrice(), craft, pickaxe.getMaxDurability()), true);
+					embed.addField(rod.getName(), String.format("Price: $%,d\nCraft: %s\nDurability: %,d", rod.getPrice(), craft, rod.getMaxDurability()), true);
 				});
 
 				return new MessageBuilder().setEmbed(embed.build()).build();
@@ -81,18 +77,18 @@ public class PickaxeCommand extends Sx4Command {
 		paged.execute(event);
 	}
 
-	@Command(value="buy", description="Buy a pickaxe from the `pickaxe shop`")
-	@CommandId(361)
-	@Examples({"pickaxe buy Wooden Pickaxe", "pickaxe buy Wooden"})
-	public void buy(Sx4CommandEvent event, @Argument(value="pickaxe", endless=true) Pickaxe pickaxe) {
+	@Command(value="buy", description="Buy a fishing rod from the `fishing rod shop`")
+	@CommandId(380)
+	@Examples({"fishing rod buy Copper Rod", "fishing rod buy Copper"})
+	public void buy(Sx4CommandEvent event, @Argument(value="fishing rod", endless=true) Rod rod) {
 		event.getMongo().withTransaction(session -> {
 			Bson filter = Filters.and(
 				Filters.eq("userId", event.getAuthor().getIdLong()),
-				Filters.eq("item.type", ItemType.PICKAXE.getId())
+				Filters.eq("item.type", ItemType.ROD.getId())
 			);
 
-			Document pickaxeData = event.getMongo().getItems().find(session, filter).projection(Projections.include("_id")).first();
-			if (pickaxeData != null) {
+			Document rodData = event.getMongo().getItems().find(session, filter).projection(Projections.include("_id")).first();
+			if (rodData != null) {
 				event.replyFailure("You already own a fishing rod").queue();
 				session.abortTransaction();
 				return;
@@ -100,16 +96,16 @@ public class PickaxeCommand extends Sx4Command {
 
 			FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("economy.balance")).upsert(true);
 
-			Document data = event.getMongo().getUsers().findOneAndUpdate(session, Filters.eq("_id", event.getAuthor().getIdLong()), List.of(EconomyUtility.getBalanceUpdate(pickaxe.getPrice())), options);
-			if (data == null || data.getEmbedded(List.of("economy", "balance"), 0L) < pickaxe.getPrice()) {
-				event.replyFailure("You cannot afford a **" + pickaxe.getName() + "**").queue();
+			Document data = event.getMongo().getUsers().findOneAndUpdate(session, Filters.eq("_id", event.getAuthor().getIdLong()), List.of(EconomyUtility.getBalanceUpdate(rod.getPrice())), options);
+			if (data == null || data.getEmbedded(List.of("economy", "balance"), 0L) < rod.getPrice()) {
+				event.replyFailure("You cannot afford a **" + rod.getName() + "**").queue();
 				session.abortTransaction();
 				return;
 			}
 
 			Document insertData = new Document("userId", event.getAuthor().getIdLong())
 				.append("amount", 1L)
-				.append("item", pickaxe.toData());
+				.append("item", rod.toData());
 
 			event.getMongo().insertItem(insertData);
 		}).whenComplete((updated, exception) -> {
@@ -118,31 +114,31 @@ public class PickaxeCommand extends Sx4Command {
 			}
 
 			if (updated) {
-				event.replySuccess("You just bought a **" + pickaxe.getName() + "**").queue();
+				event.replySuccess("You just bought a **" + rod.getName() + "**").queue();
 			}
 		});
 	}
 
-	@Command(value="craft", description="Craft a pickaxe from the `pickaxe shop`")
-	@CommandId(364)
-	@Examples({"pickaxe craft Wooden Pickaxe", "pickaxe craft Wooden"})
-	public void craft(Sx4CommandEvent event, @Argument(value="pickaxe", endless=true) Pickaxe pickaxe) {
+	@Command(value="craft", description="Craft a fishing rod from the `fishing rod shop`")
+	@CommandId(381)
+	@Examples({"fishing rod craft Copper Rod", "fishing rod craft Copper"})
+	public void craft(Sx4CommandEvent event, @Argument(value="fishing rod", endless=true) Rod rod) {
 		event.getMongo().withTransaction(session -> {
 			Bson filter = Filters.and(
 				Filters.eq("userId", event.getAuthor().getIdLong()),
-				Filters.eq("item.type", ItemType.PICKAXE.getId())
+				Filters.eq("item.type", ItemType.ROD.getId())
 			);
 
-			Document pickaxeData = event.getMongo().getItems().find(session, filter).projection(Projections.include("_id")).first();
-			if (pickaxeData != null) {
-				event.replyFailure("You already own a pickaxe").queue();
+			Document rodData = event.getMongo().getItems().find(session, filter).projection(Projections.include("_id")).first();
+			if (rodData != null) {
+				event.replyFailure("You already own a fishing rod").queue();
 				session.abortTransaction();
 				return;
 			}
 
-			List<ItemStack<CraftItem>> craft = pickaxe.getCraft();
+			List<ItemStack<CraftItem>> craft = rod.getCraft();
 			if (craft.isEmpty()) {
-				event.replyFailure("You cannot craft this pickaxe").queue();
+				event.replyFailure("You cannot craft this fishing rod").queue();
 				session.abortTransaction();
 				return;
 			}
@@ -167,7 +163,7 @@ public class PickaxeCommand extends Sx4Command {
 
 			Document insertData = new Document("userId", event.getAuthor().getIdLong())
 				.append("amount", 1L)
-				.append("item", pickaxe.toData());
+				.append("item", rod.toData());
 
 			event.getMongo().getItems().insertOne(session, insertData);
 		}).whenComplete((updated, exception) -> {
@@ -176,14 +172,14 @@ public class PickaxeCommand extends Sx4Command {
 			}
 
 			if (updated) {
-				event.replySuccess("You just crafted a **" + pickaxe.getName() + "**").queue();
+				event.replySuccess("You just crafted a **" + rod.getName() + "**").queue();
 			}
 		});
 	}
 
-	@Command(value="info", aliases={"information"}, description="View information on a users pickaxe")
-	@CommandId(362)
-	@Examples({"pickaxe info", "pickaxe info @Shea#6653", "pickaxe info Shea"})
+	@Command(value="info", aliases={"information"}, description="View information on a users fishing rod")
+	@CommandId(382)
+	@Examples({"fishing rod info", "fishing rod info @Shea#6653", "fishing rod info Shea"})
 	@BotPermissions(permissions={Permission.MESSAGE_EMBED_LINKS})
 	public void info(Sx4CommandEvent event, @Argument(value="user", endless=true, nullDefault=true) Member member) {
 		Member effectiveMember = member == null ? event.getMember() : member;
@@ -191,56 +187,55 @@ public class PickaxeCommand extends Sx4Command {
 
 		Bson filter = Filters.and(
 			Filters.eq("userId", effectiveMember.getIdLong()),
-			Filters.eq("item.type", ItemType.PICKAXE.getId())
+			Filters.eq("item.type", ItemType.ROD.getId())
 		);
 
 		Document data = event.getMongo().getItem(filter, Projections.include("item"));
 		if (data == null) {
-			event.replyFailure("That user does not have a pickaxe").queue();
+			event.replyFailure("That user does not have a fishing rod").queue();
 			return;
 		}
 
-		Pickaxe pickaxe = Pickaxe.fromData(event.getBot().getEconomyManager(), data.get("item", Document.class));
+		Rod rod = Rod.fromData(event.getBot().getEconomyManager(), data.get("item", Document.class));
 
 		EmbedBuilder embed = new EmbedBuilder()
-			.setAuthor(user.getName() + "'s " + pickaxe.getName(), null, user.getEffectiveAvatarUrl())
+			.setAuthor(user.getName() + "'s " + rod.getName(), null, user.getEffectiveAvatarUrl())
 			.setColor(effectiveMember.getColorRaw())
-			.setThumbnail("https://emojipedia-us.s3.amazonaws.com/thumbs/120/twitter/131/pick_26cf.png")
-			.addField("Durability", pickaxe.getCurrentDurability() + "/" + pickaxe.getMaxDurability(), false)
-			.addField("Current Price", String.format("$%,d", pickaxe.getCurrentPrice()), false)
-			.addField("Price", String.format("$%,d", pickaxe.getPrice()), false)
-			.addField("Yield", String.format("$%,d to $%,d", pickaxe.getMinYield(), pickaxe.getMaxYield()), false)
-			.addField("Multiplier", NumberUtility.DEFAULT_DECIMAL_FORMAT.format(pickaxe.getMultiplier()), false);
+			.setThumbnail("https://emojipedia-us.s3.amazonaws.com/thumbs/120/twitter/147/fishing-pole-and-fish_1f3a3.png")
+			.addField("Durability", rod.getCurrentDurability() + "/" + rod.getMaxDurability(), false)
+			.addField("Current Price", String.format("$%,d", rod.getCurrentPrice()), false)
+			.addField("Price", String.format("$%,d", rod.getPrice()), false)
+			.addField("Yield", String.format("$%,d to $%,d", rod.getMinYield(), rod.getMaxYield()), false);
 
 		event.reply(embed.build()).queue();
 	}
 
-	@Command(value="repair", description="Repair your current pickaxe with the material it is made from")
-	@CommandId(363)
-	@Examples({"pickaxe repair 10", "pickaxe repair all"})
+	@Command(value="repair", description="Repair your current fishing rod with the material it is made from")
+	@CommandId(383)
+	@Examples({"fishing rod repair 10", "fishing rod repair all"})
 	public void repair(Sx4CommandEvent event, @Argument(value="durability") @Options("all") Alternative<Integer> option) {
 		Bson filter = Filters.and(
 			Filters.eq("userId", event.getAuthor().getIdLong()),
-			Filters.eq("item.type", ItemType.PICKAXE.getId())
+			Filters.eq("item.type", ItemType.ROD.getId())
 		);
 
 		Document data = event.getMongo().getItem(filter, Projections.include("item"));
 		if (data == null) {
-			event.replyFailure("You do not have a pickaxe").queue();
+			event.replyFailure("You do not have a fishing rod").queue();
 			return;
 		}
 
-		Pickaxe pickaxe = Pickaxe.fromData(event.getBot().getEconomyManager(), data.get("item", Document.class));
+		Rod rod = Rod.fromData(event.getBot().getEconomyManager(), data.get("item", Document.class));
 
-		CraftItem item = pickaxe.getRepairItem();
+		CraftItem item = rod.getRepairItem();
 		if (item == null) {
-			event.replyFailure("That pickaxe is not repairable").queue();
+			event.replyFailure("That fishing rod is not repairable").queue();
 			return;
 		}
 
-		int maxDurability = pickaxe.getMaxDurability() - pickaxe.getCurrentDurability();
+		int maxDurability = rod.getMaxDurability() - rod.getCurrentDurability();
 		if (maxDurability <= 0) {
-			event.replyFailure("Your pickaxe is already at full durability").queue();
+			event.replyFailure("Your fishing rod is already at full durability").queue();
 			return;
 		}
 
@@ -250,16 +245,16 @@ public class PickaxeCommand extends Sx4Command {
 		} else {
 			int amount = option.getValue();
 			if (amount > maxDurability) {
-				event.reply("You can only repair your pickaxe by **" + maxDurability + "** durability :no_entry:").queue();
+				event.reply("You can only repair your fishing rod by **" + maxDurability + "** durability :no_entry:").queue();
 				return;
 			}
 
 			durability = amount;
 		}
 
-		int itemCount = (int) Math.ceil((((double) pickaxe.getPrice() / item.getPrice()) / pickaxe.getMaxDurability()) * durability);
+		int itemCount = (int) Math.ceil((((double) rod.getPrice() / item.getPrice()) / rod.getMaxDurability()) * durability);
 
-		event.reply("It will cost you `" + itemCount + " " + item.getName() + "` to repair your pickaxe by **" + durability + "** durability, are you sure you want to repair it? (Yes or No)").submit().thenCompose($ -> {
+		event.reply("It will cost you `" + itemCount + " " + item.getName() + "` to repair your fishing rod by **" + durability + "** durability, are you sure you want to repair it? (Yes or No)").submit().thenCompose($ -> {
 			return new Waiter<>(event.getBot(), MessageReceivedEvent.class)
 				.setUnique(event.getAuthor().getIdLong(), event.getChannel().getIdLong())
 				.setPredicate(e -> e.getMessage().getContentRaw().equalsIgnoreCase("yes"))
@@ -275,9 +270,9 @@ public class PickaxeCommand extends Sx4Command {
 				return CompletableFuture.completedFuture(null);
 			}
 
-			List<Bson> update = List.of(Operators.set("item.currentDurability", Operators.cond(Operators.eq("$item.currentDurability", pickaxe.getCurrentDurability()), Operators.add("$item.currentDurability", durability), "$item.currentDurability")));
+			List<Bson> update = List.of(Operators.set("item.currentDurability", Operators.cond(Operators.eq("$item.currentDurability", rod.getCurrentDurability()), Operators.add("$item.currentDurability", durability), "$item.currentDurability")));
 
-			return event.getMongo().updateItem(Filters.and(Filters.eq("item.id", pickaxe.getId()), Filters.eq("userId", event.getAuthor().getIdLong())), update, new UpdateOptions());
+			return event.getMongo().updateItem(Filters.and(Filters.eq("item.id", rod.getId()), Filters.eq("userId", event.getAuthor().getIdLong())), update, new UpdateOptions());
 		}).whenComplete((result, exception) -> {
 			Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
 			if (cause instanceof CancelException) {
@@ -293,17 +288,18 @@ public class PickaxeCommand extends Sx4Command {
 			}
 
 			if (result.getMatchedCount() == 0) {
-				event.replyFailure("You no longer have that pickaxe").queue();
+				event.replyFailure("You no longer have that fishing rod").queue();
 				return;
 			}
 
 			if (result.getMatchedCount() == 0) {
-				event.replyFailure("The durability of your pickaxe has changed").queue();
+				event.replyFailure("The durability of your fishing rod has changed").queue();
 				return;
 			}
 
-			event.replySuccess("You just repaired your pickaxe by **" + durability + "** durability").queue();
+			event.replySuccess("You just repaired your fishing rod by **" + durability + "** durability").queue();
 		});
 	}
 
 }
+

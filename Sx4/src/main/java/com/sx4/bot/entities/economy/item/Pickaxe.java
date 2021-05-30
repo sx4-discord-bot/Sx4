@@ -18,7 +18,7 @@ public class Pickaxe extends Tool {
 			defaultPickaxe.getManager(),
 			defaultPickaxe.getId(),
 			defaultPickaxe.getName(),
-			data.get("maxPrice", defaultPickaxe.getPrice()),
+			data.get("price", defaultPickaxe.getPrice()),
 			data.get("currentDurability", defaultPickaxe.getCurrentDurability()),
 			data.get("maxDurability", defaultPickaxe.getMaxDurability()),
 			defaultPickaxe.getCraft(),

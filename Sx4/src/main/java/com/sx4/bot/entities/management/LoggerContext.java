@@ -13,8 +13,6 @@ public class LoggerContext {
 	private long roleId = 0L;
 	private long emoteId = 0L;
 
-	public LoggerContext() {}
-
 	public LoggerContext setUser(long userId) {
 		this.userId = userId;
 

@@ -15,7 +15,7 @@ public class Axe extends Tool {
 			defaultAxe.getManager(),
 			defaultAxe.getId(),
 			defaultAxe.getName(), 
-			data.get("maxPrice", defaultAxe.getPrice()),
+			data.get("price", defaultAxe.getPrice()),
 			data.get("currentDurability", defaultAxe.getCurrentDurability()),
 			data.get("maxDurability", defaultAxe.getMaxDurability()),
 			defaultAxe.getCraft(),

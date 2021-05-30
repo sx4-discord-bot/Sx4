@@ -313,7 +313,28 @@ public class Config {
 	}
 	
 	public int getPort() {
-		return this.get(this.getState() + ".host.port", 8080);
+		return this.get(this.getState() + ".host.port", 8082);
+	}
+
+	public String getVoteWebserverIp() {
+		return this.get("webserver.vote.ip", "localhost");
+	}
+
+	public String getVoteWebserverPath() {
+		return this.get("webserver.vote.path", "/");
+	}
+
+	public int getVoteWebserverPort() {
+		return this.get("webserver.vote.port", 8080);
+	}
+
+	private String getVoteWebserverBaseUrl() {
+		String domain = this.get("webserver.vote.domain");
+		return domain == null ? "http://" + this.getVoteWebserverIp() + ":" + this.getVoteWebserverPort() : "https://" + domain;
+	}
+
+	public String getVoteWebserverUrl(String endpoint) {
+		return this.getVoteWebserverBaseUrl() + this.getVoteWebserverPath() + endpoint;
 	}
 
 	public String getImageWebserverIp() {
@@ -321,7 +342,7 @@ public class Config {
 	}
 
 	public String getImageWebserverPath() {
-		return this.get("webserver.image.path");
+		return this.get("webserver.image.path", "/");
 	}
 
 	private String getImageWebserverBaseUrl() {
@@ -342,7 +363,7 @@ public class Config {
 	}
 
 	public String getSearchWebserverPath() {
-		return this.get("webserver.search.path");
+		return this.get("webserver.search.path", "/");
 	}
 
 	private String getSearchWebserverBaseUrl() {

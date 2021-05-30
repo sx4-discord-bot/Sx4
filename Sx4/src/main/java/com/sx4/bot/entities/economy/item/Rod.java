@@ -15,7 +15,7 @@ public class Rod extends Tool {
 			defaultRod.getManager(),
 			defaultRod.getId(),
 			defaultRod.getName(), 
-			data.get("maxPrice", defaultRod.getPrice()),
+			data.get("price", defaultRod.getPrice()),
 			data.get("currentDurability", defaultRod.getCurrentDurability()),
 			data.get("maxDurability", defaultRod.getMaxDurability()),
 			defaultRod.getCraft(),
@@ -46,6 +46,10 @@ public class Rod extends Tool {
 	
 	public long getMaxYield() {
 		return this.maxYield;
+	}
+
+	public static Rod fromData(EconomyManager manager, Document data) {
+		return new Rod(data, manager.getItemById(data.getInteger("id"), Rod.class));
 	}
 	
 }
