@@ -176,13 +176,13 @@ public class GuessTheNumberCommand extends Sx4Command {
 
 					Document authorData = new Document("userId", event.getAuthor().getIdLong())
 						.append("gameId", gameId)
-						.append("type", GameType.GTN.getId())
+						.append("type", GameType.GUESS_THE_NUMBER.getId())
 						.append("choice", authorNumber)
 						.append("answer", randomNumber);
 
 					Document opponentData = new Document("userId", opponent.getIdLong())
 						.append("gameId", gameId)
-						.append("type", GameType.GTN.getId())
+						.append("type", GameType.GUESS_THE_NUMBER.getId())
 						.append("choice", authorNumber)
 						.append("answer", randomNumber);
 

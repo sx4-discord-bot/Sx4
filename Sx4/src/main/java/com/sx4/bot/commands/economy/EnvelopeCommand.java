@@ -51,7 +51,7 @@ public class EnvelopeCommand extends Sx4Command {
 				return null;
 			}
 
-			long balance = data.getEmbedded(List.of("economy", "balance"), Long.class);
+			long balance = data.getEmbedded(List.of("economy", "balance"), 0L);
 			if (balance == 0L) {
 				event.replyFailure("You do not have any money").queue();
 				session.abortTransaction();

@@ -1,13 +1,10 @@
 package com.sx4.bot.entities.economy.auction;
 
-import com.mongodb.client.result.DeleteResult;
-import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.entities.economy.item.Item;
 import com.sx4.bot.entities.economy.item.ItemStack;
 import org.bson.types.ObjectId;
 
 import java.time.Clock;
-import java.util.concurrent.CompletableFuture;
 
 public class Auction<Type extends Item> {
 
@@ -51,10 +48,6 @@ public class Auction<Type extends Item> {
 	
 	public ItemStack<Type> getItemStack() {
 		return this.itemStack;
-	}
-	
-	public CompletableFuture<DeleteResult> delete(MongoDatabase database) {
-		return database.deleteAuctionById(this.id);
 	}
 	
 }

@@ -19,7 +19,7 @@ public class EconomyUtility {
 	}
 
 	public static Bson getBalanceUpdate(double decimal) {
-		return Operators.set("economy.balance", Operators.let(new Document("balance", Operators.ifNull("$economy.balance", 0)), Operators.subtract("$$balance", Operators.toLong(Operators.ceil(Operators.multiply(decimal, "$$balance"))))));
+		return Operators.set("economy.balance", Operators.let(new Document("balance", Operators.ifNull("$economy.balance", 0)), Operators.subtract("$$balance", Operators.toLong(Operators.ceil(Operators.multiply(Operators.min(decimal, 1), "$$balance"))))));
 	}
 
 	public static Bson getBalanceUpdate(AmountArgument amount) {

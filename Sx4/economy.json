@@ -1143,5 +1143,56 @@
             "id": 102,
             "type": 4
         }
+    ],
+    "upgrades": [
+        {
+            "id": 0,
+            "type": 4,
+            "name": "Durability",
+            "description": "Durability upgrades increase your max durability by 2",
+            "value": 2
+        },
+        {
+            "id": 1,
+            "type": 4,
+            "name": "Multiplier",
+            "description": "Multiplier upgrades increase your chance to get better wood per chop",
+            "value": 1.02
+        },
+        {
+            "id": 2,
+            "type": 3,
+            "name": "Durability",
+            "description": "Durability upgrades increase your max durability by 2",
+            "value": 2
+        },
+        {
+            "id": 3,
+            "type": 3,
+            "name": "Multiplier",
+            "description": "Multiplier upgrades increase your chance to get better materials per mine",
+            "value": 1.02
+        },
+        {
+            "id": 4,
+            "type": 3,
+            "name": "Yield",
+            "description": "Money upgrades increase your minimum and maximum yield of money from your pickaxe by 5% the worth of the original minimum yield",
+            "value": 0.05
+        },
+        {
+            "id": 5,
+            "type": 2,
+            "name": "Durability",
+            "description": "Durability upgrades increase your max durability by 2",
+            "value": 2
+        },
+        {
+            "id": 6,
+            "type": 2,
+            "name": "Yield",
+            "description": "Money upgrades increase your minimum and maximum yield of money from your pickaxe by 5% the worth of the original minimum yield",
+            "value": 0.05
+        }
     ]
 }

@@ -1,5 +1,6 @@
 package com.sx4.bot.managers;
 
+import com.sx4.bot.entities.economy.Upgrade;
 import com.sx4.bot.entities.economy.item.*;
 import com.sx4.bot.utility.SearchUtility;
 import org.json.JSONArray;
@@ -14,15 +15,18 @@ public class EconomyManager {
 
 	private final Random random;
 
+	private final List<Upgrade> upgrades;
+
 	private final Map<Class<?>, List<Item>> items;
 	private final Map<Integer, Item> itemCache;
 	
 	public EconomyManager() {
+		this.upgrades = new ArrayList<>();
 		this.items = new HashMap<>();
 		this.itemCache = new HashMap<>();
 		this.random = new SecureRandom();
 		
-		this.loadItems();
+		this.load();
 	}
 
 	public Random getRandom() {
@@ -89,19 +93,36 @@ public class EconomyManager {
 	public <Type extends Item> Type getItemByQuery(String query, Class<Type> type) {
 		return SearchUtility.find(this.getItems(type), query, Collections.singletonList(Item::getName));
 	}
-	
-	public void reloadItems() {
+
+	public void reload() {
+		this.upgrades.clear();
 		this.itemCache.clear();
 		this.items.clear();
 
-		this.loadItems();
+		this.load();
 	}
 	
-	public void loadItems() {
+	public void load() {
 		try (FileInputStream stream = new FileInputStream("economy.json")) {
-			this.addItems(new JSONObject(new String(stream.readAllBytes())));
+			JSONObject json = new JSONObject(new String(stream.readAllBytes()));
+			this.addItems(json);
+			this.addUpgrades(json);
 		} catch (IOException e) {
 			e.printStackTrace();
+		}
+	}
+
+	public void addUpgrades(JSONObject json) {
+		JSONArray upgrades = json.optJSONArray("upgrades");
+		if (upgrades == null) {
+			return;
+		}
+
+		for (int i = 0; i < upgrades.length(); i++) {
+			JSONObject upgrade = upgrades.getJSONObject(i);
+
+			ItemType type = ItemType.fromId(upgrade.getInt("type"));
+			this.upgrades.add(new Upgrade(upgrade.getInt("id"), type, upgrade.getString("name"), upgrade.getString("description"), upgrade.getDouble("value")));
 		}
 	}
 	

@@ -2,8 +2,9 @@ package com.sx4.bot.entities.games;
 
 public enum GameType {
 
-	RPS(0, "Rock Paper Scissors"),
-	GTN(1, "Guess the Number");
+	ROCK_PAPER_SCISSORS(0, "Rock Paper Scissors"),
+	GUESS_THE_NUMBER(1, "Guess the Number"),
+	RUSSIAN_ROULETTE(2, "Russian Roulette");
 
 	private final int id;
 	private final String name;

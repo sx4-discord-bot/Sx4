@@ -24,6 +24,7 @@ public class GameListCommand extends Sx4Command {
 		super("game list", 297);
 
 		super.setDescription("Lists basic info on all games a user has played on Sx4");
+		super.setRedirects("games");
 		super.setExamples("game list", "game list @Shea#6653", "game list Shea");
 		super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
 		super.setCategoryAll(ModuleCategory.GAMES);
