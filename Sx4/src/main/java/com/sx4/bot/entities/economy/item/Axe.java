@@ -3,6 +3,7 @@ package com.sx4.bot.entities.economy.item;
 import com.sx4.bot.managers.EconomyManager;
 import org.bson.Document;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class Axe extends Tool {
@@ -42,6 +43,25 @@ public class Axe extends Tool {
 	
 	public long getMaxMaterials() {
 		return this.maxMaterials;
+	}
+
+	public List<ItemStack<Wood>> getWoodYield() {
+		List<ItemStack<Wood>> yield = new ArrayList<>();
+		for (Wood wood : this.getManager().getItems(Wood.class)) {
+			int amount = 0;
+			for (int i = 0; i < this.maxMaterials; i++) {
+				double randomDouble = this.getManager().getRandom().nextDouble();
+				if (randomDouble <= Math.min(1, (1 / (wood.getPrice() / 45D)) * this.multiplier)) {
+					amount++;
+				}
+			}
+
+			if (amount != 0) {
+				yield.add(new ItemStack<>(wood, amount));
+			}
+		}
+
+		return yield;
 	}
 	
 }

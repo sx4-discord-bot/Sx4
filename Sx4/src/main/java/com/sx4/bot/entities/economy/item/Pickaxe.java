@@ -53,7 +53,7 @@ public class Pickaxe extends Tool {
 			}
 
 			double randomDouble = this.getManager().getRandom().nextDouble();
-			if (randomDouble <= Math.min(1, (1 / (this.getPrice() / 10D)) * this.multiplier)) {
+			if (randomDouble <= Math.min(1, (1 / (material.getPrice() / 10D)) * this.multiplier)) {
 				materials.add(new ItemStack<>(material, 1));
 			}
 		}

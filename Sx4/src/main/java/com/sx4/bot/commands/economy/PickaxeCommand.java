@@ -93,7 +93,7 @@ public class PickaxeCommand extends Sx4Command {
 
 			Document pickaxeData = event.getMongo().getItems().find(session, filter).projection(Projections.include("_id")).first();
 			if (pickaxeData != null) {
-				event.replyFailure("You already own a fishing rod").queue();
+				event.replyFailure("You already own a pickaxe").queue();
 				session.abortTransaction();
 				return;
 			}
