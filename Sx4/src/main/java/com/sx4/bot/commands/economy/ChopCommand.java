@@ -2,7 +2,6 @@ package com.sx4.bot.commands.economy;
 
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.UpdateOptions;
-import com.mongodb.client.model.Updates;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
@@ -19,15 +18,15 @@ import org.bson.conversions.Bson;
 import java.util.List;
 import java.util.stream.Collectors;
 
-public class MineCommand extends Sx4Command {
+public class ChopCommand extends Sx4Command {
 
-	public static final long COOLDOWN = 900L;
+	public static final long COOLDOWN = 600L;
 
-	public MineCommand() {
-		super("mine", 358);
+	public ChopCommand() {
+		super("chop", 386);
 
-		super.setDescription("Mine every 15 minutes with your pickaxe to make some money and get some materials");
-		super.setExamples("mine");
+		super.setDescription("Chop some trees down with your axe and collect some wood");
+		super.setExamples("chop");
 		super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
 		super.setCategoryAll(ModuleCategory.ECONOMY);
 	}
@@ -37,52 +36,50 @@ public class MineCommand extends Sx4Command {
 		event.getMongo().withTransaction(session -> {
 			Bson filter = Filters.and(
 				Filters.eq("userId", event.getAuthor().getIdLong()),
-				Filters.eq("item.type", ItemType.PICKAXE.getId())
+				Filters.eq("item.type", ItemType.AXE.getId())
 			);
 
 			Document data = event.getMongo().getItems().find(session, filter).first();
 			if (data == null) {
-				event.replyFailure("You do not have a pickaxe").queue();
+				event.replyFailure("You do not have a axe").queue();
 				session.abortTransaction();
 				return;
 			}
 
-			CooldownItemStack<Pickaxe> pickaxeStack = new CooldownItemStack<>(event.getBot().getEconomyManager(), data);
+			CooldownItemStack<Axe> axeStack = new CooldownItemStack<>(event.getBot().getEconomyManager(), data);
 
-			long usableAmount = pickaxeStack.getUsableAmount();
+			long usableAmount = axeStack.getUsableAmount();
 			if (usableAmount == 0) {
-				event.reply("Slow down! You can go mining again in " + TimeUtility.getTimeString(pickaxeStack.getTimeRemaining()) + " :stopwatch:").queue();
+				event.reply("Slow down! You can chop some trees down again in " + TimeUtility.getTimeString(axeStack.getTimeRemaining()) + " :stopwatch:").queue();
 				session.abortTransaction();
 				return;
 			}
 
-			Pickaxe pickaxe = pickaxeStack.getItem();
+			Axe axe = axeStack.getItem();
 
-			long yield = pickaxe.getYield();
-
-			List<ItemStack<Material>> materialStacks = pickaxe.getMaterialYield();
-			String materials = materialStacks.stream().map(ItemStack::getItem).map(item -> item.getName() + item.getEmote()).collect(Collectors.joining(", "));
+			List<ItemStack<Wood>> materialStacks = axe.getWoodYield();
+			String materials = materialStacks.stream().map(ItemStack::toString).collect(Collectors.joining(", "));
 
 			embed.setAuthor(event.getAuthor().getName(), null, event.getAuthor().getEffectiveAvatarUrl())
 				.setColor(event.getMember().getColorRaw())
-				.setDescription(String.format("You mined resources and made **$%,d** :pick:\nMaterials found: %s", yield, materialStacks.isEmpty() ? "Nothing" : materials));
+				.setDescription(String.format("You chopped down some trees :axe:\nWood found: %s", materialStacks.isEmpty() ? "Nothing" : materials));
 
-			if (pickaxe.getCurrentDurability() == 2) {
-				embed.appendDescription("\n\nYour pickaxe will break the next time you use it :warning:");
-			} else if (pickaxe.getCurrentDurability() == 1) {
-				embed.appendDescription("\n\nYour pickaxe broke in the process");
+			if (axe.getCurrentDurability() == 2) {
+				embed.appendDescription("\n\nYour axe will break the next time you use it :warning:");
+			} else if (axe.getCurrentDurability() == 1) {
+				embed.appendDescription("\n\nYour axe broke in the process");
 			}
 
 			Bson itemFilter = Filters.and(
 				Filters.eq("userId", event.getAuthor().getIdLong()),
-				Filters.eq("item.id", pickaxe.getId())
+				Filters.eq("item.id", axe.getId())
 			);
 
-			if (pickaxe.getCurrentDurability() == 1) {
+			if (axe.getCurrentDurability() == 1) {
 				event.getMongo().getItems().deleteOne(session, itemFilter);
 			} else {
 				List<Bson> update = List.of(
-					EconomyUtility.getResetsUpdate(usableAmount, MineCommand.COOLDOWN),
+					EconomyUtility.getResetsUpdate(usableAmount, ChopCommand.COOLDOWN),
 					Operators.set("item.currentDurability", Operators.subtract("$item.currentDurability", 1))
 				);
 
@@ -104,8 +101,6 @@ public class MineCommand extends Sx4Command {
 
 				event.getMongo().getItems().updateOne(session, materialFilter, update, new UpdateOptions().upsert(true));
 			}
-
-			event.getMongo().getUsers().updateOne(session, Filters.eq("_id", event.getAuthor().getIdLong()), Updates.inc("economy.balance", yield), new UpdateOptions().upsert(true));
 		}).whenComplete((updated, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
