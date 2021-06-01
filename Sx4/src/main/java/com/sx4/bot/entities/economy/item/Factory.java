@@ -20,6 +20,10 @@ public class Factory extends Item {
 		this.maxYield = maxYield;
 		this.minYield = minYield;
 	}
+
+	public long getYield() {
+		return this.getManager().getRandom().nextInt((int) (this.maxYield - this.minYield) + 1) + this.minYield;
+	}
 	
 	public long getMaxYield() {
 		return this.maxYield;

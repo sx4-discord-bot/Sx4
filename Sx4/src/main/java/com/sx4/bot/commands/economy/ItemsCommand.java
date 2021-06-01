@@ -1,10 +1,7 @@
 package com.sx4.bot.commands.economy;
 
 import com.jockie.bot.core.argument.Argument;
-import com.mongodb.client.model.Accumulators;
-import com.mongodb.client.model.Aggregates;
-import com.mongodb.client.model.Filters;
-import com.mongodb.client.model.Projections;
+import com.mongodb.client.model.*;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
@@ -43,6 +40,7 @@ public class ItemsCommand extends Sx4Command {
 		List<Bson> pipeline = List.of(
 			Aggregates.match(Filters.and(Filters.eq("userId", effectiveMember.getIdLong()), Filters.ne("amount", 0))),
 			Aggregates.group("$item.name", Accumulators.first("item", "$item"), Accumulators.first("amount", "$amount"), Accumulators.first("type", "$item.type")),
+			Aggregates.sort(Sorts.descending("amount")),
 			Aggregates.unionWith("users", usersPipeline)
 		);
 
