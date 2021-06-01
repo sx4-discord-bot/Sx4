@@ -59,13 +59,13 @@ public class SearchUtility {
 		}
 
 		if (!startsWith.isEmpty()) {
-		    return startsWith.get(0);
+			return startsWith.get(0);
 		}
 
 		if (!contains.isEmpty()) {
-		    return contains.get(0);
+			return contains.get(0);
 		}
-		
+
 		return null;
 	}
 

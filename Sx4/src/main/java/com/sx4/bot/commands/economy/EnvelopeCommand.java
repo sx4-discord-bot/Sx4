@@ -44,7 +44,7 @@ public class EnvelopeCommand extends Sx4Command {
 	public void create(Sx4CommandEvent event, @Argument(value="amount") AmountArgument amount) {
 		event.getMongo().withTransaction(session -> {
 			FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("economy.balance"));
-			Document data = event.getMongo().getUsers().findOneAndUpdate(session, Filters.eq("_id", event.getAuthor().getIdLong()), List.of(EconomyUtility.getBalanceUpdate(amount)), options);
+			Document data = event.getMongo().getUsers().findOneAndUpdate(session, Filters.eq("_id", event.getAuthor().getIdLong()), List.of(EconomyUtility.decreaseBalanceUpdate(amount)), options);
 			if (data == null) {
 				event.replyFailure("You do not have any money").queue();
 				session.abortTransaction();

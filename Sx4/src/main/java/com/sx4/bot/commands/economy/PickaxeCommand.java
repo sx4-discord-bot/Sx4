@@ -100,7 +100,7 @@ public class PickaxeCommand extends Sx4Command {
 
 			FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("economy.balance")).upsert(true);
 
-			Document data = event.getMongo().getUsers().findOneAndUpdate(session, Filters.eq("_id", event.getAuthor().getIdLong()), List.of(EconomyUtility.getBalanceUpdate(pickaxe.getPrice())), options);
+			Document data = event.getMongo().getUsers().findOneAndUpdate(session, Filters.eq("_id", event.getAuthor().getIdLong()), List.of(EconomyUtility.decreaseBalanceUpdate(pickaxe.getPrice())), options);
 			if (data == null || data.getEmbedded(List.of("economy", "balance"), 0L) < pickaxe.getPrice()) {
 				event.replyFailure("You cannot afford a **" + pickaxe.getName() + "**").queue();
 				session.abortTransaction();

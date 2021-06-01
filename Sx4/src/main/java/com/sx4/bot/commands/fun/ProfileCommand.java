@@ -32,7 +32,10 @@ import java.io.IOException;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.format.TextStyle;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 
 public class ProfileCommand extends Sx4Command {
 
@@ -46,48 +49,54 @@ public class ProfileCommand extends Sx4Command {
 	}
 
 	public void onCommand(Sx4CommandEvent event, @Argument(value="user", endless=true, nullDefault=true) Member member) {
-		member = member == null ? event.getMember() : member;
-		User user = member.getUser();
+		User user = member == null ? event.getAuthor() : member.getUser();
+		event.getMongo().withTransaction(session -> {
+			Bson filter = Filters.or(Filters.eq("proposerId", user.getIdLong()), Filters.eq("partnerId", user.getIdLong()));
 
-		Bson filter = Filters.or(Filters.eq("proposerId", member.getIdLong()), Filters.eq("partnerId", member.getIdLong()));
-		List<Document> marriages = event.getMongo().getMarriages(filter, Projections.include("proposerId", "partnerId")).into(new ArrayList<>());
+			List<Document> marriages = event.getMongo().getMarriages().find(session, filter).projection(Projections.include("proposerId", "partnerId")).into(new ArrayList<>());
 
-		List<String> partners = new ArrayList<>();
-		for (Document marriage : marriages) {
-			long partnerId = marriage.getLong("partnerId");
-			long otherId = partnerId == member.getIdLong() ? marriage.getLong("proposerId") : partnerId;
+			List<String> partners = new ArrayList<>();
+			for (Document marriage : marriages) {
+				long partnerId = marriage.getLong("partnerId");
+				long otherId = partnerId == user.getIdLong() ? marriage.getLong("proposerId") : partnerId;
 
-			User other = event.getShardManager().getUserById(otherId);
-			if (other != null) {
-				partners.add(other.getAsTag());
+				User other = event.getShardManager().getUserById(otherId);
+				if (other != null) {
+					partners.add(other.getName());
+				}
 			}
-		}
 
-		Document userData = event.getMongo().getUserById(member.getIdLong(), Projections.include("economy.balance", "profile", "reputation.amount"));
-		Document profileData = userData.get("profile", MongoDatabase.EMPTY_DOCUMENT);
-		Document birthdayData = profileData.get("birthday", Document.class);
+			Document userData = event.getMongo().getUsers().find(session, Filters.eq("_id", user.getIdLong())).projection(Projections.include("economy.balance", "profile", "reputation.amount")).first();
+			userData = userData == null ? MongoDatabase.EMPTY_DOCUMENT : userData;
 
-		String birthday = birthdayData == null ? null : NumberUtility.getZeroPrefixedNumber(birthdayData.getInteger("day")) + "/" + NumberUtility.getZeroPrefixedNumber(birthdayData.getInteger("month")) + (birthdayData.containsKey("year") ? "/" + birthdayData.getInteger("year") : "");
+			Document profileData = userData.get("profile", MongoDatabase.EMPTY_DOCUMENT);
+			Document birthdayData = profileData.get("birthday", Document.class);
 
-		int centimetres = profileData.get("height", 0);
+			String birthday = birthdayData == null ? null : NumberUtility.getZeroPrefixedNumber(birthdayData.getInteger("day")) + "/" + NumberUtility.getZeroPrefixedNumber(birthdayData.getInteger("month")) + (birthdayData.containsKey("year") ? "/" + birthdayData.getInteger("year") : "");
 
-		int feet = (int) Math.floor(centimetres / 30.48);
-		int inches = (int) Math.round(((centimetres / 30.48) - feet) * 12);
+			int centimetres = profileData.get("height", 0);
 
-		Request request = new ImageRequest(event.getConfig().getImageWebserverUrl("profile"))
-			.addField("birthday", birthday == null ? "Not set" : birthday)
-			.addField("description", profileData.get("description", "Nothing to see here"))
-			.addField("height", centimetres == 0 ? "Not set" : feet + "'" + inches + " (" + centimetres + "cm)") // change to an int and let the webserver handle it
-			.addField("balance", String.format("%,d", userData.getEmbedded(List.of("economy", "balance"), 0L))) // change to an int and let the webserver handle the commas
-			.addField("reputation", userData.getEmbedded(List.of("reputation", "amount"), 0))
-			.addField("married_users", partners)
-			.addField("badges", Collections.emptyList()) // Badges will be deprecated but it errors for now so just send an empty array
-			.addField("name", user.getAsTag())
-			.addField("avatar", user.getEffectiveAvatarUrl())
-			.addField("colour", profileData.getInteger("colour"))
-			.build(event.getConfig().getImageWebserver());
+			int feet = (int) Math.floor(centimetres / 30.48);
+			int inches = (int) Math.round(((centimetres / 30.48) - feet) * 12);
 
-		event.getHttpClient().newCall(request).enqueue((HttpCallback) response -> ImageUtility.getImageMessage(event, response).queue());
+			return new ImageRequest(event.getConfig().getImageWebserverUrl("profile"))
+				.addField("birthday", birthday == null ? "Not set" : birthday)
+				.addField("description", profileData.get("description", "Nothing to see here"))
+				.addField("height", centimetres == 0 ? "Not set" : feet + "'" + inches + " (" + centimetres + "cm)") // change to an int and let the webserver handle it
+				.addField("balance", String.format("%,d", userData.getEmbedded(List.of("economy", "balance"), 0L))) // change to an int and let the webserver handle the commas
+				.addField("reputation", userData.getEmbedded(List.of("reputation", "amount"), 0))
+				.addField("married_users", partners)
+				.addField("name", user.getAsTag())
+				.addField("avatar", user.getEffectiveAvatarUrl())
+				.addField("colour", profileData.getInteger("colour"))
+				.build(event.getConfig().getImageWebserver());
+		}).whenComplete((request, exception) -> {
+			if (ExceptionUtility.sendExceptionally(event, exception)) {
+				return;
+			}
+
+			event.getHttpClient().newCall(request).enqueue((HttpCallback) response -> ImageUtility.getImageMessage(event, response).queue());
+		});
 	}
 
 	public static class SetCommand extends Sx4Command {

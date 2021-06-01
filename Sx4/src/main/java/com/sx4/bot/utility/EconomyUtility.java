@@ -14,19 +14,35 @@ public class EconomyUtility {
 		return Operators.set("resets", Operators.let(new Document("resets", Operators.ifNull("$resets", Collections.EMPTY_LIST)).append("seconds", Operators.nowEpochSecond()), Operators.concatArrays(Operators.filter("$$resets", Operators.gt("$$this.time", "$$seconds")), List.of(new Document("time", Operators.add("$$seconds", cooldown)).append("amount", amount)))));
 	}
 	
-	public static Bson getBalanceUpdate(long amount) {
+	public static Bson decreaseBalanceUpdate(long amount) {
 		return Operators.set("economy.balance", Operators.let(new Document("balance", Operators.ifNull("$economy.balance", 0)), Operators.cond(Operators.lt("$$balance", amount), "$$balance", Operators.subtract("$$balance", amount))));
 	}
 
-	public static Bson getBalanceUpdate(double decimal) {
+	public static Bson decreaseBalanceUpdate(double decimal) {
 		return Operators.set("economy.balance", Operators.let(new Document("balance", Operators.ifNull("$economy.balance", 0)), Operators.subtract("$$balance", Operators.toLong(Operators.ceil(Operators.multiply(Operators.min(decimal, 1), "$$balance"))))));
 	}
 
-	public static Bson getBalanceUpdate(AmountArgument amount) {
+	public static Bson decreaseBalanceUpdate(AmountArgument amount) {
 		if (amount.hasDecimal()) {
-			return EconomyUtility.getBalanceUpdate(amount.getDecimal());
+			return EconomyUtility.decreaseBalanceUpdate(amount.getDecimal());
 		} else {
-			return EconomyUtility.getBalanceUpdate(amount.getAmount());
+			return EconomyUtility.decreaseBalanceUpdate(amount.getAmount());
+		}
+	}
+
+	public static Bson increaseBalanceUpdate(long amount) {
+		return Operators.set("economy.balance", Operators.let(new Document("balance", Operators.ifNull("$economy.balance", 0)), Operators.add("$$balance", amount)));
+	}
+
+	public static Bson increaseBalanceUpdate(double decimal) {
+		return Operators.set("economy.balance", Operators.let(new Document("balance", Operators.ifNull("$economy.balance", 0)), Operators.add("$$balance", Operators.toLong(Operators.ceil(Operators.multiply(Operators.min(decimal, 1), "$$balance"))))));
+	}
+
+	public static Bson increaseBalanceUpdate(AmountArgument amount) {
+		if (amount.hasDecimal()) {
+			return EconomyUtility.increaseBalanceUpdate(amount.getDecimal());
+		} else {
+			return EconomyUtility.increaseBalanceUpdate(amount.getAmount());
 		}
 	}
 	

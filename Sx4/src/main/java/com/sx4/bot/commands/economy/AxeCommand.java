@@ -96,7 +96,7 @@ public class AxeCommand extends Sx4Command {
 
 			FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("economy.balance")).upsert(true);
 
-			Document data = event.getMongo().getUsers().findOneAndUpdate(session, Filters.eq("_id", event.getAuthor().getIdLong()), List.of(EconomyUtility.getBalanceUpdate(axe.getPrice())), options);
+			Document data = event.getMongo().getUsers().findOneAndUpdate(session, Filters.eq("_id", event.getAuthor().getIdLong()), List.of(EconomyUtility.decreaseBalanceUpdate(axe.getPrice())), options);
 			if (data == null || data.getEmbedded(List.of("economy", "balance"), 0L) < axe.getPrice()) {
 				event.replyFailure("You cannot afford a **" + axe.getName() + "**").queue();
 				session.abortTransaction();

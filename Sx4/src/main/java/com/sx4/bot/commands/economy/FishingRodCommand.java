@@ -96,7 +96,7 @@ public class FishingRodCommand extends Sx4Command {
 
 			FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("economy.balance")).upsert(true);
 
-			Document data = event.getMongo().getUsers().findOneAndUpdate(session, Filters.eq("_id", event.getAuthor().getIdLong()), List.of(EconomyUtility.getBalanceUpdate(rod.getPrice())), options);
+			Document data = event.getMongo().getUsers().findOneAndUpdate(session, Filters.eq("_id", event.getAuthor().getIdLong()), List.of(EconomyUtility.decreaseBalanceUpdate(rod.getPrice())), options);
 			if (data == null || data.getEmbedded(List.of("economy", "balance"), 0L) < rod.getPrice()) {
 				event.replyFailure("You cannot afford a **" + rod.getName() + "**").queue();
 				session.abortTransaction();
