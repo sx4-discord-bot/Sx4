@@ -190,22 +190,18 @@ public class FactoryCommand extends Sx4Command {
 
 			event.getMongo().getUsers().updateOne(session, Filters.eq("_id", event.getAuthor().getIdLong()), Updates.inc("economy.balance", money), new UpdateOptions().upsert(true));
 
-			return Map.entry(money, content.toString());
-		}).whenComplete((entry, exception) -> {
-			if (ExceptionUtility.sendExceptionally(event, exception)) {
-				return;
-			}
-
-			if (entry == null) {
-				return;
-			}
-
 			EmbedBuilder embed = new EmbedBuilder()
 				.setAuthor(event.getAuthor().getName(), null, event.getAuthor().getEffectiveAvatarUrl())
 				.setColor(event.getMember().getColor())
-				.setDescription(String.format("Your factories made you **$%,d**\n\n%s", entry.getKey(), entry.getValue()));
+				.setDescription(String.format("Your factories made you **$%,d**\n\n%s", money, content.toString()));
 
-			event.reply(embed.build()).queue();
+			return embed.build();
+		}).whenComplete((embed, exception) -> {
+			if (ExceptionUtility.sendExceptionally(event, exception) || embed == null) {
+				return;
+			}
+
+			event.reply(embed).queue();
 		});
 	}
 
