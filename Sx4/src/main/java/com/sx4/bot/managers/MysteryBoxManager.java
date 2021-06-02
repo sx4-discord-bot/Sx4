@@ -8,6 +8,9 @@ import java.util.Map;
 
 public class MysteryBoxManager {
 
+	public static final int BOMB_COUNT = 8;
+	public static final int MONEY_COUNT = 16;
+
 	private final Map<Long, MysteryBoxGame> games;
 
 	public MysteryBoxManager() {

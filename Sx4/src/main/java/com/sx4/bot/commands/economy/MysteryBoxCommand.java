@@ -7,6 +7,7 @@ import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.database.mongo.model.Operators;
+import com.sx4.bot.entities.argument.AmountArgument;
 import com.sx4.bot.entities.games.GameState;
 import com.sx4.bot.entities.games.GameType;
 import com.sx4.bot.entities.games.MysteryBoxGame;
@@ -17,6 +18,7 @@ import net.dv8tion.jda.api.entities.Emoji;
 import net.dv8tion.jda.api.events.interaction.ButtonClickEvent;
 import net.dv8tion.jda.api.interactions.components.ActionRow;
 import net.dv8tion.jda.api.interactions.components.Button;
+import net.dv8tion.jda.api.interactions.components.ButtonStyle;
 import net.dv8tion.jda.api.interactions.components.Component;
 import net.dv8tion.jda.api.requests.restaction.interactions.UpdateInteractionAction;
 import org.bson.Document;
@@ -27,17 +29,15 @@ import java.util.*;
 
 public class MysteryBoxCommand extends Sx4Command {
 
-	private final String description = "You put down **$%,d**. Click the buttons to reveal what they hold, if you get :moneybag: you will get 0.20x your initial bet and it'll increase with the more successful clicks, if you get a :bomb: you will lose everything. Quit at anytime and leave with your earnings at any time by clicking the quit button.";
-
 	public MysteryBoxCommand() {
 		super("mystery box", 399);
 
-		super.setDescription("Choose a box if it's a bag of money get 0.25x your original bet, you can do this as long as you want but if it's a bomb you lose everything");
-		super.setExamples("mystery box 1000");
+		super.setDescription("Choose a box if it's a bag of money get 0.20x your original bet and that will increase per successful click, you can do this as long as you want but if it's a bomb you lose everything");
+		super.setExamples("mystery box 1000", "mystery box 50%", "mystery box all");
 		super.setCategoryAll(ModuleCategory.ECONOMY);
 	}
 
-	public void onCommand(Sx4CommandEvent event, @Argument(value="bet") long bet) {
+	public void onCommand(Sx4CommandEvent event, @Argument(value="bet") AmountArgument amount) {
 		MysteryBoxManager manager = event.getBot().getMysteryBoxManager();
 		if (manager.hasGame(event.getAuthor())) {
 			event.replyFailure("You already have an active mystery box game").queue();
@@ -45,6 +45,17 @@ public class MysteryBoxCommand extends Sx4Command {
 		}
 
 		long balance = event.getMongo().getUserById(event.getAuthor().getIdLong(), Projections.include("economy.balance")).getEmbedded(List.of("economy", "balance"), 0L);
+		if (balance == 0) {
+			event.replyFailure("You do not have any money").queue();
+			return;
+		}
+
+		long bet = amount.getEffectiveAmount(balance);
+		if (bet < 20) {
+			event.replyFailure("The minimum bet is **$20**").queue();
+			return;
+		}
+
 		if (balance < bet) {
 			event.replyFormat("You do not have **$%,d** %s", bet, event.getConfig().getFailureEmote()).queue();
 			return;
@@ -55,7 +66,7 @@ public class MysteryBoxCommand extends Sx4Command {
 			int x = event.getRandom().nextInt(24);
 
 			boxes.putIfAbsent(x, true);
-		} while (boxes.size() != 10);
+		} while (boxes.size() != MysteryBoxManager.BOMB_COUNT);
 
 		List<ActionRow> rows = new ArrayList<>();
 		for (int x = 0; x < 5; x++) {
@@ -76,7 +87,8 @@ public class MysteryBoxCommand extends Sx4Command {
 			rows.add(ActionRow.of(buttons));
 		}
 
-		event.getTextChannel().sendMessageFormat(this.description, bet).setActionRows(rows).submit().thenCompose(message -> {
+		String description = "You put down **$%,d**. Click the buttons to reveal what they hold, if you get :moneybag: you will get 0.20x your initial bet and it'll increase with the more successful clicks, if you get a :bomb: you will lose everything. Quit at anytime and leave with your earnings at any time by clicking the quit button.";
+		event.getTextChannel().sendMessageFormat(description, bet).setActionRows(rows).submit().thenCompose(message -> {
 			MysteryBoxGame game = new MysteryBoxGame(message, bet, boxes);
 			manager.addGame(event.getAuthor(), game);
 
@@ -115,8 +127,8 @@ public class MysteryBoxCommand extends Sx4Command {
 						Button button = (Button) component;
 						String id = button.getId();
 
-						if (!won && id.equals(buttonEvent.getComponentId())) {
-							it.set(Button.danger(id, Emoji.fromUnicode("\uD83D\uDCA5")).asDisabled());
+						if (!id.equals("24") && id.equals(buttonEvent.getComponentId())) {
+							it.set(Button.of(won ? ButtonStyle.SUCCESS : ButtonStyle.DANGER, id, Emoji.fromUnicode(won ? "\uD83D\uDCB0" : "\uD83D\uDCA5")).asDisabled());
 						} else if (button.getLabel().isBlank()) {
 							it.set(Button.of(button.getStyle(), id, Emoji.fromUnicode(boxes.get(Integer.parseInt(id)) ? "\uD83D\uDCA3" : "\uD83D\uDCB0")).asDisabled());
 						} else {
@@ -127,7 +139,7 @@ public class MysteryBoxCommand extends Sx4Command {
 
 				UpdateInteractionAction action = buttonEvent.editComponents(newRows);
 				if (canAfford) {
-					action.setContent(won ? String.format("Congratulations, you pulled out with **$%,d**", winnings + result.getBet()) : ":boom: You hit a bomb and lost everything!");
+					action.setContent(won ? String.format(result.isJackpot() ? "YOU WON THE JACKPOT :tada: (**$%,d**)" : "Congratulations, you pulled out with **$%,d**", winnings + result.getBet()) : ":boom: You hit a bomb and lost everything!");
 				} else {
 					action.setContent(String.format("You do not have **$%,d** %s", bet, event.getConfig().getFailureEmote())).queue();
 					return;

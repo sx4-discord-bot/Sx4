@@ -25,7 +25,8 @@ import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.IPermissionHolder;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Role;
-import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
+import net.dv8tion.jda.api.events.interaction.ButtonClickEvent;
+import net.dv8tion.jda.api.interactions.components.Button;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 
@@ -116,12 +117,19 @@ public class FakePermissionsCommand extends Sx4Command {
 	@AuthorPermissions(permissions={Permission.ADMINISTRATOR})
 	public void delete(Sx4CommandEvent event, @Argument(value="user | role | all", endless=true) @Options("all") Alternative<IPermissionHolder> option) {
 		if (option.isAlternative()) {
-			event.reply(event.getAuthor().getName() + ", are you sure you want to delete **all** fake permissions data? (Yes or No)").submit().thenCompose($ -> {
-				return new Waiter<>(event.getBot(), MessageReceivedEvent.class)
-					.setPredicate(messageEvent -> messageEvent.getMessage().getContentRaw().equalsIgnoreCase("yes"))
-					.setOppositeCancelPredicate()
-					.setTimeout(30)
-					.setUnique(event.getAuthor().getIdLong(), event.getChannel().getIdLong())
+			List<Button> buttons = List.of(Button.success("yes", "Yes"), Button.danger("no", "No"));
+
+			event.reply(event.getAuthor().getName() + ", are you sure you want to delete **all** fake permissions data?").setActionRow(buttons).submit().thenCompose(message -> {
+				return new Waiter<>(event.getBot(), ButtonClickEvent.class)
+					.setPredicate(e -> {
+						Button button = e.getButton();
+						return button != null && button.getId().equals("yes") && e.getMessageIdLong() == message.getIdLong() && e.getUser().getIdLong() == event.getAuthor().getIdLong();
+					})
+					.setCancelPredicate(e -> {
+						Button button = e.getButton();
+						return button != null && button.getId().equals("no") && e.getMessageIdLong() == message.getIdLong() && e.getUser().getIdLong() == event.getAuthor().getIdLong();
+					})
+					.setTimeout(60)
 					.start();
 			})
 			.thenCompose(messageEvent -> event.getMongo().updateGuildById(event.getGuild().getIdLong(), Updates.unset("fakePermissions.holders")))

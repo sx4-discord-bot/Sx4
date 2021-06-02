@@ -28,9 +28,10 @@ import net.dv8tion.jda.api.entities.IPermissionHolder;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.MessageReaction.ReactionEmote;
 import net.dv8tion.jda.api.entities.Role;
-import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
+import net.dv8tion.jda.api.events.interaction.ButtonClickEvent;
 import net.dv8tion.jda.api.exceptions.ErrorHandler;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
+import net.dv8tion.jda.api.interactions.components.Button;
 import net.dv8tion.jda.api.requests.ErrorResponse;
 import net.dv8tion.jda.api.requests.RestAction;
 import net.dv8tion.jda.internal.requests.CompletedRestAction;
@@ -257,13 +258,20 @@ public class ReactionRoleCommand extends Sx4Command {
 	@Cooldown(value=5)
 	public void delete(Sx4CommandEvent event, @Argument(value="message id | all") @Options("all") Alternative<MessageArgument> option) {
 		if (option.isAlternative()) {
-			event.reply(event.getAuthor().getName() + ", are you sure you want to delete **all** the reaction roles in this server? (Yes or No)").submit()
+			List<Button> buttons = List.of(Button.success("yes", "Yes"), Button.danger("no", "No"));
+
+			event.reply(event.getAuthor().getName() + ", are you sure you want to delete **all** the reaction roles in this server?").setActionRow(buttons).submit()
 				.thenCompose(message -> {
-					return new Waiter<>(event.getBot(), MessageReceivedEvent.class)
-						.setPredicate(messageEvent -> messageEvent.getMessage().getContentRaw().equalsIgnoreCase("yes"))
-						.setOppositeCancelPredicate()
-						.setTimeout(30)
-						.setUnique(event.getAuthor().getIdLong(), event.getChannel().getIdLong())
+					return new Waiter<>(event.getBot(), ButtonClickEvent.class)
+						.setPredicate(e -> {
+							Button button = e.getButton();
+							return button != null && button.getId().equals("yes") && e.getMessageIdLong() == message.getIdLong() && e.getUser().getIdLong() == event.getAuthor().getIdLong();
+						})
+						.setCancelPredicate(e -> {
+							Button button = e.getButton();
+							return button != null && button.getId().equals("no") && e.getMessageIdLong() == message.getIdLong() && e.getUser().getIdLong() == event.getAuthor().getIdLong();
+						})
+						.setTimeout(60)
 						.start();
 				})
 				.thenCompose(messageEvent -> event.getMongo().deleteManyReactionRoles(Filters.eq("guildId", event.getGuild().getIdLong())))

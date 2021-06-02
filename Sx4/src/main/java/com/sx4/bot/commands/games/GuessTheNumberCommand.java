@@ -17,8 +17,10 @@ import com.sx4.bot.waiter.exception.TimeoutException;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.events.interaction.ButtonClickEvent;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
+import net.dv8tion.jda.api.interactions.components.Button;
 import org.bson.Document;
 import org.bson.types.ObjectId;
 
@@ -51,15 +53,23 @@ public class GuessTheNumberCommand extends Sx4Command {
 			return;
 		}
 
-		event.reply(opponent.getAsMention() + ", do you want to play guess the number with **" + event.getAuthor().getName() + "**? (Yes or No)")
+		List<Button> buttons = List.of(Button.success("yes", "Yes"), Button.danger("no", "No"));
+
+		event.reply(opponent.getAsMention() + ", do you want to play guess the number with **" + event.getAuthor().getName() + "**?")
 			.allowedMentions(EnumSet.of(Message.MentionType.USER))
+			.setActionRow(buttons)
 			.submit()
 			.thenCompose(message -> {
-				return new Waiter<>(event.getBot(), MessageReceivedEvent.class)
-					.setUnique(opponent.getIdLong(), event.getChannel().getIdLong())
-					.setTimeout(30)
-					.setPredicate(e -> e.getMessage().getContentRaw().equalsIgnoreCase("yes"))
-					.setOppositeCancelPredicate()
+				return new Waiter<>(event.getBot(), ButtonClickEvent.class)
+					.setPredicate(e -> {
+						Button button = e.getButton();
+						return button != null && button.getId().equals("yes") && e.getMessageIdLong() == message.getIdLong() && e.getUser().getIdLong() == opponent.getIdLong();
+					})
+					.setCancelPredicate(e -> {
+						Button button = e.getButton();
+						return button != null && button.getId().equals("no") && e.getMessageIdLong() == message.getIdLong() && e.getUser().getIdLong() == opponent.getIdLong();
+					})
+					.setTimeout(60)
 					.start();
 			}).whenComplete((confirmEvent, confirmException) -> {
 				Throwable confirmCause = confirmException instanceof CompletionException ? confirmException.getCause() : confirmException;

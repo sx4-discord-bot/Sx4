@@ -40,7 +40,7 @@ public class MysteryBoxGame {
 	}
 
 	public long getWinningsIncrease() {
-		double multiplier = this.multiplier + (this.clicks) * 0.10;
+		double multiplier = this.multiplier + this.clicks * 0.10;
 		return (long) (this.bet * multiplier);
 	}
 

@@ -66,7 +66,7 @@ public class GiveCommand extends Sx4Command {
 			if (tax) {
 				userData = event.getMongo().getUsers().findOneAndUpdate(session, Filters.eq("_id", event.getSelfUser().getIdLong()), Updates.inc("economy.balance", amountGiven), options);
 			} else {
-				userData = event.getMongo().getUsers().findOneAndUpdate(session, Filters.eq("_id", user.getIdLong()), Updates.inc("economy.balance", amountGiven), options);
+				userData = event.getMongo().getUsers().findOneAndUpdate(session, Filters.eq("_id", user.getIdLong()), Updates.inc("economy.balance", amountGiven), options.upsert(true));
 
 				event.getMongo().getUsers().updateOne(session, Filters.eq("_id", event.getSelfUser().getIdLong()), Updates.inc("economy.balance", taxAmount));
 			}

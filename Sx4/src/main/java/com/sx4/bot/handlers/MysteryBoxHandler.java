@@ -81,7 +81,15 @@ public class MysteryBoxHandler implements EventListener {
 
 		long winnings = game.increaseWinnings();
 
-		Button newButton = Button.success(id, Emoji.fromUnicode("\uD83D\uDCB0"));
+		if (clicks == MysteryBoxManager.MONEY_COUNT) {
+			manager.removeGame(event.getUser());
+
+			game.end(new MysteryBoxResult(game, event));
+
+			return;
+		}
+
+		Button newButton = Button.success(id, Emoji.fromUnicode("\uD83D\uDCB0")).asDisabled();
 
 		List<Button> edit = clicks == 1 ? List.of(Button.primary("24", "Quit").asEnabled(), newButton) : List.of(newButton);
 

@@ -1,5 +1,6 @@
 package com.sx4.bot.entities.games;
 
+import com.sx4.bot.managers.MysteryBoxManager;
 import net.dv8tion.jda.api.events.interaction.ButtonClickEvent;
 
 public class MysteryBoxResult {
@@ -30,6 +31,10 @@ public class MysteryBoxResult {
 
 	public int getClicks() {
 		return this.clicks;
+	}
+
+	public boolean isJackpot() {
+		return this.clicks == MysteryBoxManager.MONEY_COUNT;
 	}
 
 	public boolean isWon() {

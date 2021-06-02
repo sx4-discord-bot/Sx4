@@ -23,7 +23,8 @@ import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.User;
-import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
+import net.dv8tion.jda.api.events.interaction.ButtonClickEvent;
+import net.dv8tion.jda.api.interactions.components.Button;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 
@@ -89,15 +90,23 @@ public class MarriageCommand extends Sx4Command {
 			return;
 		}
 
-		event.reply(member.getAsMention() + ", **" + author.getName() + "** would like to marry you! Do you accept? (Yes or No)")
+		List<Button> buttons = List.of(Button.success("yes", "Yes"), Button.danger("no", "No"));
+
+		event.reply(member.getAsMention() + ", **" + author.getName() + "** would like to marry you! Do you accept?")
 			.allowedMentions(EnumSet.of(Message.MentionType.USER))
+			.setActionRow(buttons)
 			.submit()
 			.thenCompose(message -> {
-				return new Waiter<>(event.getBot(), MessageReceivedEvent.class)
-					.setPredicate(e -> e.getMessage().getContentRaw().equalsIgnoreCase("yes"))
-					.setOppositeCancelPredicate()
+				return new Waiter<>(event.getBot(), ButtonClickEvent.class)
+					.setPredicate(e -> {
+						Button button = e.getButton();
+						return button != null && button.getId().equals("yes") && e.getMessageIdLong() == message.getIdLong() && e.getUser().getIdLong() == event.getAuthor().getIdLong();
+					})
+					.setCancelPredicate(e -> {
+						Button button = e.getButton();
+						return button != null && button.getId().equals("no") && e.getMessageIdLong() == message.getIdLong() && e.getUser().getIdLong() == event.getAuthor().getIdLong();
+					})
 					.setTimeout(60)
-					.setUnique(member.getIdLong(), event.getChannel().getIdLong())
 					.start();
 			}).thenCompose(e -> {
 				Bson filter = Filters.or(Filters.and(Filters.eq("proposerId", member.getIdLong()), Filters.eq("partnerId", author.getIdLong())), Filters.and(Filters.eq("proposerId", author.getIdLong()), Filters.eq("partnerId", member.getIdLong())));
@@ -132,13 +141,20 @@ public class MarriageCommand extends Sx4Command {
 	public void remove(Sx4CommandEvent event, @Argument(value="user | all", endless=true) @Options("all") Alternative<Member> option) {
 		User author = event.getAuthor();
 		if (option.isAlternative()) {
-			event.reply(author.getName() + ", are you sure you want to divorce everyone you are currently married to? (Yes or No)").submit()
+			List<Button> buttons = List.of(Button.success("yes", "Yes"), Button.danger("no", "No"));
+
+			event.reply(author.getName() + ", are you sure you want to divorce everyone you are currently married to?").setActionRow(buttons).submit()
 				.thenCompose(message -> {
-					return new Waiter<>(event.getBot(), MessageReceivedEvent.class)
-						.setPredicate(messageEvent -> messageEvent.getMessage().getContentRaw().equalsIgnoreCase("yes"))
-						.setOppositeCancelPredicate()
-						.setTimeout(30)
-						.setUnique(author.getIdLong(), event.getChannel().getIdLong())
+					return new Waiter<>(event.getBot(), ButtonClickEvent.class)
+						.setPredicate(e -> {
+							Button button = e.getButton();
+							return button != null && button.getId().equals("yes") && e.getMessageIdLong() == message.getIdLong() && e.getUser().getIdLong() == event.getAuthor().getIdLong();
+						})
+						.setCancelPredicate(e -> {
+							Button button = e.getButton();
+							return button != null && button.getId().equals("no") && e.getMessageIdLong() == message.getIdLong() && e.getUser().getIdLong() == event.getAuthor().getIdLong();
+						})
+						.setTimeout(60)
 						.start();
 				}).thenCompose(e -> {
 					Bson filter = Filters.or(Filters.eq("proposerId", author.getIdLong()), Filters.eq("partnerId", author.getIdLong()));

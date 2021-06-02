@@ -13,7 +13,10 @@ import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.argument.Alternative;
-import com.sx4.bot.entities.economy.item.*;
+import com.sx4.bot.entities.economy.item.Axe;
+import com.sx4.bot.entities.economy.item.CraftItem;
+import com.sx4.bot.entities.economy.item.ItemStack;
+import com.sx4.bot.entities.economy.item.ItemType;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.EconomyUtility;
 import com.sx4.bot.utility.ExceptionUtility;
@@ -26,7 +29,8 @@ import net.dv8tion.jda.api.MessageBuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.User;
-import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
+import net.dv8tion.jda.api.events.interaction.ButtonClickEvent;
+import net.dv8tion.jda.api.interactions.components.Button;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 
@@ -255,11 +259,18 @@ public class AxeCommand extends Sx4Command {
 
 		int itemCount = (int) Math.ceil((((double) axe.getPrice() / item.getPrice()) / axe.getMaxDurability()) * durability);
 
-		event.reply("It will cost you `" + itemCount + " " + item.getName() + "` to repair your axe by **" + durability + "** durability, are you sure you want to repair it? (Yes or No)").submit().thenCompose($ -> {
-			return new Waiter<>(event.getBot(), MessageReceivedEvent.class)
-				.setUnique(event.getAuthor().getIdLong(), event.getChannel().getIdLong())
-				.setPredicate(e -> e.getMessage().getContentRaw().equalsIgnoreCase("yes"))
-				.setOppositeCancelPredicate()
+		List<Button> buttons = List.of(Button.success("yes", "Yes"), Button.danger("no", "No"));
+
+		event.reply("It will cost you `" + itemCount + " " + item.getName() + "` to repair your axe by **" + durability + "** durability, are you sure you want to repair it?").setActionRow(buttons).submit().thenCompose(message -> {
+			return new Waiter<>(event.getBot(), ButtonClickEvent.class)
+				.setPredicate(e -> {
+					Button button = e.getButton();
+					return button != null && button.getId().equals("yes") && e.getMessageIdLong() == message.getIdLong() && e.getUser().getIdLong() == event.getAuthor().getIdLong();
+				})
+				.setCancelPredicate(e -> {
+					Button button = e.getButton();
+					return button != null && button.getId().equals("no") && e.getMessageIdLong() == message.getIdLong() && e.getUser().getIdLong() == event.getAuthor().getIdLong();
+				})
 				.setTimeout(60)
 				.start();
 		}).thenCompose(e -> {

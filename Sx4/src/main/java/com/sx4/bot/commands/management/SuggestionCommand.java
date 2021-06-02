@@ -23,7 +23,8 @@ import com.sx4.bot.waiter.Waiter;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.entities.User;
-import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
+import net.dv8tion.jda.api.events.interaction.ButtonClickEvent;
+import net.dv8tion.jda.api.interactions.components.Button;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
@@ -162,13 +163,20 @@ public class SuggestionCommand extends Sx4Command {
 				event.replyFailure("You are missing the permission " + Permission.MANAGE_SERVER.getName() + " to execute this, you can remove your own suggestions only").queue();
 				return;
 			}
+
+			List<Button> buttons = List.of(Button.success("yes", "Yes"), Button.danger("no", "No"));
 			
-			event.reply(author.getName() + ", are you sure you want to delete **all** the suggestions in this server? (Yes or No)").submit().thenCompose($ -> {
-				return new Waiter<>(event.getBot(), MessageReceivedEvent.class)
-					.setPredicate(messageEvent -> messageEvent.getMessage().getContentRaw().equalsIgnoreCase("yes"))
-					.setOppositeCancelPredicate()
-					.setTimeout(30)
-					.setUnique(author.getIdLong(), event.getChannel().getIdLong())
+			event.reply(author.getName() + ", are you sure you want to delete **all** the suggestions in this server?").setActionRow(buttons).submit().thenCompose(message -> {
+				return new Waiter<>(event.getBot(), ButtonClickEvent.class)
+					.setPredicate(e -> {
+						Button button = e.getButton();
+						return button != null && button.getId().equals("yes") && e.getMessageIdLong() == message.getIdLong() && e.getUser().getIdLong() == event.getAuthor().getIdLong();
+					})
+					.setCancelPredicate(e -> {
+						Button button = e.getButton();
+						return button != null && button.getId().equals("no") && e.getMessageIdLong() == message.getIdLong() && e.getUser().getIdLong() == event.getAuthor().getIdLong();
+					})
+					.setTimeout(60)
 					.start();
 			})
 			.thenCompose(messageEvent -> event.getMongo().deleteManySuggestions(Filters.eq("guildId", event.getGuild().getIdLong())))

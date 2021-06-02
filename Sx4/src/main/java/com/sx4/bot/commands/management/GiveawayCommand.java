@@ -31,7 +31,9 @@ import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.events.interaction.ButtonClickEvent;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
+import net.dv8tion.jda.api.interactions.components.Button;
 import net.dv8tion.jda.api.sharding.ShardManager;
 import org.bson.Document;
 import org.bson.conversions.Bson;
@@ -423,13 +425,20 @@ public class GiveawayCommand extends Sx4Command {
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void delete(Sx4CommandEvent event, @Argument(value="message id | all") @Options("all") Alternative<MessageArgument> option) {
 		if (option.isAlternative()) {
-			event.reply(event.getAuthor().getName() + ", are you sure you want to delete **all** giveaways in this server? (Yes or No)").submit()
+			List<Button> buttons = List.of(Button.success("yes", "Yes"), Button.danger("no", "No"));
+
+			event.reply(event.getAuthor().getName() + ", are you sure you want to delete **all** giveaways in this server?").setActionRow(buttons).submit()
 				.thenCompose(message -> {
-					return new Waiter<>(event.getBot(), MessageReceivedEvent.class)
-						.setPredicate(e -> e.getMessage().getContentRaw().equalsIgnoreCase("yes"))
-						.setOppositeCancelPredicate()
-						.setUnique(event.getAuthor().getIdLong(), event.getChannel().getIdLong())
-						.setTimeout(30)
+					return new Waiter<>(event.getBot(), ButtonClickEvent.class)
+						.setPredicate(e -> {
+							Button button = e.getButton();
+							return button != null && button.getId().equals("yes") && e.getMessageIdLong() == message.getIdLong() && e.getUser().getIdLong() == event.getAuthor().getIdLong();
+						})
+						.setCancelPredicate(e -> {
+							Button button = e.getButton();
+							return button != null && button.getId().equals("no") && e.getMessageIdLong() == message.getIdLong() && e.getUser().getIdLong() == event.getAuthor().getIdLong();
+						})
+						.setTimeout(60)
 						.start();
 				})
 				.thenCompose(e -> event.getMongo().deleteManyGiveaways(Filters.eq("guildId", event.getGuild().getIdLong())))

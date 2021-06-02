@@ -19,7 +19,8 @@ import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.waiter.Waiter;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Role;
-import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
+import net.dv8tion.jda.api.events.interaction.ButtonClickEvent;
+import net.dv8tion.jda.api.interactions.components.Button;
 import net.dv8tion.jda.api.requests.RestAction;
 import org.bson.Document;
 
@@ -108,13 +109,20 @@ public class SelfRoleCommand extends Sx4Command {
 	@AuthorPermissions(permissions={Permission.MANAGE_ROLES})
 	public void remove(Sx4CommandEvent event, @Argument(value="role | all", endless=true) @Options("all") Alternative<Role> option) {
 		if (option.isAlternative()) {
-			event.reply(event.getAuthor().getName() + ", are you sure you want to delete every self role in the server? (Yes or No)").submit()
+			List<Button> buttons = List.of(Button.success("yes", "Yes"), Button.danger("no", "No"));
+
+			event.reply(event.getAuthor().getName() + ", are you sure you want to delete every self role in the server?").setActionRow(buttons).submit()
 				.thenCompose(message -> {
-					return new Waiter<>(event.getBot(), MessageReceivedEvent.class)
-						.setPredicate(messageEvent -> messageEvent.getMessage().getContentRaw().equalsIgnoreCase("yes"))
-						.setOppositeCancelPredicate()
-						.setTimeout(30)
-						.setUnique(event.getAuthor().getIdLong(), event.getChannel().getIdLong())
+					return new Waiter<>(event.getBot(), ButtonClickEvent.class)
+						.setPredicate(e -> {
+							Button button = e.getButton();
+							return button != null && button.getId().equals("yes") && e.getMessageIdLong() == message.getIdLong() && e.getUser().getIdLong() == event.getAuthor().getIdLong();
+						})
+						.setCancelPredicate(e -> {
+							Button button = e.getButton();
+							return button != null && button.getId().equals("no") && e.getMessageIdLong() == message.getIdLong() && e.getUser().getIdLong() == event.getAuthor().getIdLong();
+						})
+						.setTimeout(60)
 						.start();
 				}).thenCompose(e -> event.getMongo().deleteManySelfRoles(Filters.eq("guildId", event.getGuild().getIdLong())))
 				.whenComplete((result, exception) -> {
