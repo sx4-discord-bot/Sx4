@@ -90,6 +90,7 @@ public class RussianRouletteCommand extends Sx4Command {
 			Document gameData = new Document("userId", event.getAuthor().getIdLong())
 				.append("bullets", bullets)
 				.append("bullet", bulletIndex + 1)
+				.append("bet", bet)
 				.append("winnings", won ? winnings - bet : -bet)
 				.append("state", won ? GameState.WIN.getId() : GameState.LOSS.getId())
 				.append("gameId", ObjectId.get())

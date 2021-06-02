@@ -29,21 +29,5 @@ public class EconomyUtility {
 			return EconomyUtility.decreaseBalanceUpdate(amount.getAmount());
 		}
 	}
-
-	public static Bson increaseBalanceUpdate(long amount) {
-		return Operators.set("economy.balance", Operators.let(new Document("balance", Operators.ifNull("$economy.balance", 0)), Operators.add("$$balance", amount)));
-	}
-
-	public static Bson increaseBalanceUpdate(double decimal) {
-		return Operators.set("economy.balance", Operators.let(new Document("balance", Operators.ifNull("$economy.balance", 0)), Operators.add("$$balance", Operators.toLong(Operators.ceil(Operators.multiply(Operators.min(decimal, 1), "$$balance"))))));
-	}
-
-	public static Bson increaseBalanceUpdate(AmountArgument amount) {
-		if (amount.hasDecimal()) {
-			return EconomyUtility.increaseBalanceUpdate(amount.getDecimal());
-		} else {
-			return EconomyUtility.increaseBalanceUpdate(amount.getAmount());
-		}
-	}
 	
 }

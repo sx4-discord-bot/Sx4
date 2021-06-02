@@ -123,6 +123,7 @@ public class Sx4 {
 	private final WaiterManager waiterManager;
 	private final ServerStatsManager serverStatsManager;
 	private final TwitchTokenManager twitchTokenManager;
+	private final MysteryBoxManager mysteryBoxManager;
 	
 	private Sx4() {
 		this.postgresMain = new PostgresDatabase(this.config.getMainDatabase());
@@ -176,6 +177,7 @@ public class Sx4 {
 		this.waiterManager = new WaiterManager();
 		this.serverStatsManager = new ServerStatsManager(this);
 		this.twitchTokenManager = new TwitchTokenManager(this);
+		this.mysteryBoxManager = new MysteryBoxManager();
 
 		this.steamGameCache = new SteamGameCache(this);
 
@@ -205,6 +207,7 @@ public class Sx4 {
 			new SelfRoleHandler(this),
 			new MuteHandler(this),
 			new MediaModeHandler(this),
+			new MysteryBoxHandler(this),
 			youTubeHandler
 		);
 
@@ -457,6 +460,10 @@ public class Sx4 {
 
 	public TwitchTokenManager getTwitchTokenManager() {
 		return this.twitchTokenManager;
+	}
+
+	public MysteryBoxManager getMysteryBoxManager() {
+		return this.mysteryBoxManager;
 	}
 
 	public SteamGameCache getSteamGameCache() {
