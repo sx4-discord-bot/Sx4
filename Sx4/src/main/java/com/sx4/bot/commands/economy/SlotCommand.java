@@ -28,6 +28,7 @@ public class SlotCommand extends Sx4Command {
 		super("slot", 408);
 
 		super.setDescription("Bet some of your money in the slots and hope you hit the jackpot");
+		super.setAliases("slots");
 		super.setExamples("slot 1000", "slot 10%", "slot all");
 		super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
 		super.setCategoryAll(ModuleCategory.ECONOMY);

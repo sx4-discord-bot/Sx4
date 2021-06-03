@@ -10,6 +10,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.security.SecureRandom;
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class EconomyManager {
 
@@ -31,6 +32,16 @@ public class EconomyManager {
 
 	public Random getRandom() {
 		return this.random;
+	}
+
+	public List<Upgrade> getUpgrades() {
+		return this.upgrades;
+	}
+
+	public List<Upgrade> getUpgrades(ItemType type) {
+		return this.upgrades.stream()
+			.filter(upgrade -> upgrade.getType() == type)
+			.collect(Collectors.toList());
 	}
 
 	public void addItem(Class<?> type, Item item) {

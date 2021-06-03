@@ -42,6 +42,11 @@ public class GiveItemCommand extends Sx4Command {
 			return;
 		}
 
+		if (user.getIdLong() == event.getAuthor().getIdLong()) {
+			event.replyFailure("You can not give items to yourself").queue();
+			return;
+		}
+
 		long amount = stack.getAmount();
 		if (amount < 1) {
 			event.replyFailure("You need to give at least 1 item").queue();
@@ -72,8 +77,7 @@ public class GiveItemCommand extends Sx4Command {
 				Filters.eq("item.id", item.getId())
 			);
 
-
-			List<Bson> authorUpdate = List.of(Operators.set("amount", Operators.let(new Document("amount", Operators.ifNull("$amount", 0L)), Operators.cond(Operators.lt(Operators.subtract("$$amount", Operators.sum(Operators.map(Operators.filter(Operators.ifNull("$resets", Collections.EMPTY_LIST), Operators.gt("$$this.time", Operators.nowEpochSecond())), "$$this.amount"))), amount), "$$amount", Operators.subtract("$$amount", stack.getAmount())))));
+			List<Bson> authorUpdate = List.of(Operators.set("amount", Operators.let(new Document("amount", Operators.ifNull("$amount", 0L)), Operators.cond(Operators.lt(Operators.subtract("$$amount", Operators.sum(Operators.map(Operators.filter(Operators.ifNull("$resets", Collections.EMPTY_LIST), Operators.gt("$$this.time", Operators.nowEpochSecond())), "$$this.amount"))), amount), "$$amount", Operators.subtract("$$amount", amount)))));
 
 			Document authorData = event.getMongo().getItems().findOneAndUpdate(session, authorFilter, authorUpdate, options);
 

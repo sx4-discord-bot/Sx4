@@ -90,5 +90,33 @@ public class ItemStack<Type extends Item> implements Comparable<ItemStack<Type>>
 	public int compareTo(ItemStack<Type> itemStack) {
 		return Long.compare(this.amount, itemStack.getAmount());
 	}
+
+	public static ItemStack<?> parse(EconomyManager manager, String content, Class<? extends Item> type) {
+		int index = content.indexOf(' ');
+		String itemContent = index == -1 ? content : content.substring(index + 1), amountContent = index == -1 ? null : content.substring(0, index);
+
+		Item item = manager.getItemByQuery(itemContent, type);
+		if (item == null && index != -1) {
+			index = content.lastIndexOf(' ');
+			itemContent = content.substring(0, index);
+			amountContent = content.substring(index + 1);
+			item = manager.getItemByQuery(itemContent, type);
+		}
+
+		System.out.println(itemContent + " - " + amountContent);
+
+		if (item == null) {
+			return null;
+		}
+
+		long amount;
+		try {
+			amount = amountContent == null ? 1L : Long.parseUnsignedLong(amountContent);
+		} catch (NumberFormatException e) {
+			amount = 1L;
+		}
+
+		return new ItemStack<>(item, amount);
+	}
 	
 }

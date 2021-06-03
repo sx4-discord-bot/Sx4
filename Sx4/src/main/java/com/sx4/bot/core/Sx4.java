@@ -930,26 +930,7 @@ public class Sx4 {
 			.registerParser(OffsetTimeZone.class, (context, argument, content) -> new ParsedResult<>(OffsetTimeZone.getTimeZone(content.trim().toUpperCase())))
 			.registerParser(ItemStack.class, (context, argument, content) -> {
 				Class type = argument.getProperty("itemClass");
-
-				int index = content.indexOf(' ');
-				String itemContent = index == -1 ? content : content.substring(index + 1), amountContent = index == -1 ? null : content.substring(0, index);
-
-				Item item = this.economyManager.getItemByQuery(itemContent, type);
-				if (item == null && index != -1) {
-					index = content.lastIndexOf(' ');
-					itemContent = content.substring(0, index);
-					amountContent = content.substring(index + 1);
-					item = this.economyManager.getItemByQuery(itemContent, type);
-				}
-
-				long amount;
-				try {
-					amount = amountContent == null ? 1L : Long.parseUnsignedLong(amountContent);
-				} catch (NumberFormatException e) {
-					amount = 1L;
-				}
-
-				return item == null ? new ParsedResult<>() : new ParsedResult<>(new ItemStack<>(item, amount));
+				return new ParsedResult<>(ItemStack.parse(this.economyManager, content, type));
 			}).registerParser(ReminderArgument.class, (context, argument, content) -> {
 				try {
 					return new ParsedResult<>(ReminderArgument.parse(this.mongo, context.getMessage().getAuthor().getIdLong(), content));
