@@ -71,7 +71,7 @@ public class DailyCommand extends Sx4Command {
 					}
 
 					double randomDouble = event.getBot().getEconomyManager().getRandom().nextDouble();
-					if (randomDouble <= Math.min(1 / (int) Math.ceil((crate.getPrice() / 10D / streak) * 4), 1)) {
+					if (randomDouble <= Math.min(1D / Math.ceil((crate.getPrice() / 10D / streak) * 4), 1)) {
 						crates.add(crate);
 					}
 				}
