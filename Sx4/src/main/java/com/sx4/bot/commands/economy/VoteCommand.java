@@ -1,6 +1,11 @@
 package com.sx4.bot.commands.economy;
 
+import com.jockie.bot.core.argument.Argument;
+import com.jockie.bot.core.command.Command;
 import com.mongodb.client.model.*;
+import com.sx4.bot.annotations.command.CommandId;
+import com.sx4.bot.annotations.command.Examples;
+import com.sx4.bot.annotations.command.Redirects;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
@@ -9,6 +14,7 @@ import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.TimeUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.User;
 import okhttp3.Request;
 import org.bson.Document;
@@ -101,7 +107,7 @@ public class VoteCommand extends Sx4Command {
 					continue;
 				}
 
-				if (user == null) {
+				if (user == null || user.getIdLong() == event.getAuthor().getIdLong() || user.isBot()) {
 					continue;
 				}
 
@@ -113,12 +119,11 @@ public class VoteCommand extends Sx4Command {
 			UpdateOptions options = new UpdateOptions().upsert(true);
 
 			StringJoiner content = new StringJoiner(", ");
-			Set<User> keys = referrers.keySet();
-			for (User user : keys) {
-				content.add(String.format("%s (**$%,d**)", user.getAsTag(), referrers.get(user)));
+			referrers.forEach((user, amount) -> {
+				content.add(String.format("%s (**$%,d**)", user.getAsTag(), amount));
 
-				bulkData.add(new UpdateOneModel<>(Filters.eq("_id", user.getIdLong()), Updates.inc("economy.balance", money), options));
-			}
+				bulkData.add(new UpdateOneModel<>(Filters.eq("_id", user.getIdLong()), Updates.inc("economy.balance", amount), options));
+			});
 
 			bulkData.add(new UpdateOneModel<>(Filters.eq("_id", event.getAuthor().getIdLong()), Updates.inc("economy.balance", money), options));
 
@@ -131,6 +136,14 @@ public class VoteCommand extends Sx4Command {
 				event.reply(message).queue();
 			});
 		});
+	}
+
+	@Command(value="referral", description="Get a referral link for a user")
+	@CommandId(406)
+	@Redirects({"referral"})
+	@Examples({"vote referral", "vote referral @Shea#6653", "vote referral Shea"})
+	public void referral(Sx4CommandEvent event, @Argument(value="user", endless=true, nullDefault=true) Member member) {
+		event.reply("https://top.gg/bot/440996323156819968/vote?referral=" + (member == null ? event.getMember() : member).getId()).queue();
 	}
 
 }

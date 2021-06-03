@@ -426,7 +426,7 @@
             "openable": false,
             "name": "Present Crate",
             "price": 100000,
-            "purchasable": false,
+            "hidden": true,
             "id": 52,
             "type": 7
         },

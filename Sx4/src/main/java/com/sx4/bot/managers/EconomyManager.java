@@ -171,7 +171,7 @@ public class EconomyManager {
 					//JSONObject contentsData = itemData.getJSONObject("contents");
 					//Map<ItemType, Long> contents = contentsData.keySet().stream().collect(Collectors.toMap(ItemType::fromDataName, contentsData::getLong));
 
-					item = new Crate(this, itemData.getInt("id"), itemData.getString("name"), itemData.getLong("price"), itemData.optLong("credits", -1), new HashMap<>());
+					item = new Crate(this, itemData.getInt("id"), itemData.getString("name"), itemData.getLong("price"), itemData.optLong("credits", -1), itemData.optBoolean("hidden", false), new HashMap<>());
 
 					break;
 				case BOOSTER:
