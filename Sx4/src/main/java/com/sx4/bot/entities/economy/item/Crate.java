@@ -12,18 +12,23 @@ public class Crate extends Item {
 	
 	private final Map<ItemType, Long> contents;
 	private final long credits;
-	private final boolean hidden;
+	private final boolean hidden, openable;
 	
 	public Crate(Document data, Crate defaultCrate) {
-		this(defaultCrate.getManager(), defaultCrate.getId(), defaultCrate.getName(), defaultCrate.getPrice(), defaultCrate.getCredits(), defaultCrate.isHidden(), defaultCrate.getContents());
+		this(defaultCrate.getManager(), defaultCrate.getId(), defaultCrate.getName(), defaultCrate.getPrice(), defaultCrate.getCredits(), defaultCrate.isHidden(), defaultCrate.isOpenable(), defaultCrate.getContents());
 	}
 
-	public Crate(EconomyManager manager, int id, String name, long price, long credits, boolean hidden, Map<ItemType, Long> contents) {
+	public Crate(EconomyManager manager, int id, String name, long price, long credits, boolean hidden, boolean openable, Map<ItemType, Long> contents) {
 		super(manager, id, name, price, ItemType.CRATE);
 		
 		this.contents = contents;
 		this.hidden = hidden;
+		this.openable = openable;
 		this.credits = credits;
+	}
+
+	public boolean isOpenable() {
+		return this.openable;
 	}
 
 	public boolean isHidden() {

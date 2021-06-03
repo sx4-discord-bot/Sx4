@@ -8,49 +8,49 @@
             "type": 0
         },
         {
-            "emote": "<:coal:441006067523256350>",
+            "emote": "<:coal:850030073750880277>",
             "name": "Coal",
             "price": 20,
             "id": 23,
             "type": 0
         },
         {
-            "emote": "<:copper:441006065828757504>",
+            "emote": "<:copper:850030089051963413>",
             "name": "Copper",
             "price": 50,
             "id": 24,
             "type": 0
         },
         {
-            "emote": "<:bronze:441006064381460494>",
+            "emote": "<:bronze:850030212624285696>",
             "name": "Bronze",
             "price": 80,
             "id": 25,
             "type": 0
         },
         {
-            "emote": "<:iron:441006065069326357>",
+            "emote": "<:iron:850030359524409387>",
             "name": "Iron",
             "price": 125,
             "id": 26,
             "type": 0
         },
         {
-            "emote": "<:aluminium:441006064545300491>",
+            "emote": "<:aluminium:850030104125374505>",
             "name": "Aluminium",
             "price": 200,
             "id": 27,
             "type": 0
         },
         {
-            "emote": "<:oil:441006064243179531>",
+            "emote": "<:oil:850030413681393694>",
             "name": "Oil",
             "price": 300,
             "id": 28,
             "type": 0
         },
         {
-            "emote": "<:gold:441006068328300551>",
+            "emote": "<:gold:850030380890324994>",
             "name": "Gold",
             "price": 500,
             "id": 29,
@@ -73,35 +73,35 @@
             "type": 0
         },
         {
-            "emote": "<:titanium:441006065639751683>",
+            "emote": "<:titanium:850030119561199667>",
             "name": "Titanium",
             "price": 1000,
             "id": 32,
             "type": 0
         },
         {
-            "emote": "<:uranium:441006059348295680>",
+            "emote": "<:uranium:850030718134255667>",
             "name": "Uranium",
             "price": 5500,
             "id": 33,
             "type": 0
         },
         {
-            "emote": "<:bitcoin:441006066273353750>",
+            "emote": "<:bitcoin:850030265144180736>",
             "name": "Bitcoin",
             "price": 17500,
             "id": 34,
             "type": 0
         },
         {
-            "emote": "<:platinum:441006059008688139>",
+            "emote": "<:platinum:850030294631448626>",
             "name": "Platinum",
             "price": 75000,
             "id": 35,
             "type": 0
         },
         {
-            "emote": "<:diamond:441251890186158081>",
+            "emote": "<:diamond:850030056251195432>",
             "name": "Diamond",
             "price": 500000,
             "id": 36,

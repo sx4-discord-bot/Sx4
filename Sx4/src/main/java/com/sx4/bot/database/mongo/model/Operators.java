@@ -181,6 +181,10 @@ public class Operators {
 	public static Bson subtract(Object expression, Object expression2) {
 		return new Document("$subtract", List.of(expression, expression2));
 	}
+
+	public static Bson round(Object expression) {
+		return new Document("$round", expression);
+	}
 	
 	public static Bson floor(Object expression) {
 		return new Document("$floor", expression);

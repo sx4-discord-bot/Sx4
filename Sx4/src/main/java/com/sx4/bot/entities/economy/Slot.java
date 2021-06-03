@@ -5,24 +5,30 @@ import java.util.Random;
 
 public enum Slot {
 
-	DIAMOND(1),
-	PLATINUM(2),
-	BITCOIN(4),
-	TITANIUM(7),
-	OIL(12),
-	GOLD(20),
-	ALUMINIUM(35),
-	IRON(50),
-	COPPER(80),
-	COAL(150),
-	SHOE(250);
+	DIAMOND(1, "<:diamond:850030056251195432>"),
+	PLATINUM(2, "<:platinum:850030294631448626>"),
+	BITCOIN(4, "<:bitcoin:850030265144180736>"),
+	TITANIUM(7, "<:titanium:850030119561199667>"),
+	OIL(12, "<:oil:850030413681393694>"),
+	GOLD(20, "<:gold:850030380890324994>"),
+	ALUMINIUM(35, "<:aluminium:850030104125374505>"),
+	IRON(50, "<:iron:850030359524409387>"),
+	COPPER(80, "<:copper:850030089051963413>"),
+	COAL(150, "<:coal:850030073750880277>"),
+	SHOE(250, ":athletic_shoe:");
 
 	public static final int TOTAL = Arrays.stream(Slot.values()).mapToInt(Slot::getChance).sum();
 
 	private final int chance;
+	private final String emote;
 
-	private Slot(int chance) {
+	private Slot(int chance, String emote) {
 		this.chance = chance;
+		this.emote = emote;
+	}
+
+	public String getEmote() {
+		return this.emote;
 	}
 
 	public int getChance() {

@@ -66,7 +66,7 @@ public class CheckUtility {
 			int type = holder.getInteger("type");
 
 			List<Long> whitelisted = holder.getList("whitelisted", Long.class, Collections.emptyList());
-			List<Long> blacklisted = holder.getList("blacklisted", Long.class, Collections.emptyList());
+			List<Long> blacklisted = holder.getList("blacklisted", Long.class, CheckUtility.DEFAULT_BLACKLIST_LIST);
 
 			BitSet whitelistBitSet = BitSet.valueOf(whitelisted.stream().mapToLong(l -> l).toArray());
 			BitSet blacklistBitSet = BitSet.valueOf(blacklisted.stream().mapToLong(l -> l).toArray());
