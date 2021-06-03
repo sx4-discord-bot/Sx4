@@ -7,6 +7,7 @@ import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.mongo.model.Operators;
+import com.sx4.bot.entities.economy.item.CooldownItemStack;
 import com.sx4.bot.entities.economy.item.Item;
 import com.sx4.bot.entities.economy.item.ItemStack;
 import com.sx4.bot.entities.economy.item.Tool;
@@ -19,6 +20,7 @@ import net.dv8tion.jda.api.entities.User;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 
+import java.util.Collections;
 import java.util.List;
 
 public class GiveItemCommand extends Sx4Command {
@@ -63,20 +65,30 @@ public class GiveItemCommand extends Sx4Command {
 				return null;
 			}
 
-			FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("amount"));
+			FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("amount", "resets"));
 
 			Bson authorFilter = Filters.and(
 				Filters.eq("userId", event.getAuthor().getIdLong()),
 				Filters.eq("item.id", item.getId())
 			);
 
-			List<Bson> authorUpdate = List.of(Operators.set("amount", Operators.let(new Document("amount", Operators.ifNull("$amount", 0L)), Operators.cond(Operators.lt("$$amount", amount), "$$amount", Operators.subtract("$$amount", stack.getAmount())))));
+
+			List<Bson> authorUpdate = List.of(Operators.set("amount", Operators.let(new Document("amount", Operators.ifNull("$amount", 0L)), Operators.cond(Operators.lt(Operators.subtract("$$amount", Operators.sum(Operators.map(Operators.filter(Operators.ifNull("$resets", Collections.EMPTY_LIST), Operators.gt("$$this.time", Operators.nowEpochSecond())), "$$this.amount"))), amount), "$$amount", Operators.subtract("$$amount", stack.getAmount())))));
 
 			Document authorData = event.getMongo().getItems().findOneAndUpdate(session, authorFilter, authorUpdate, options);
 
 			long authorAmount = authorData == null ? 0L : authorData.get("amount", 0L);
 			if (authorAmount < amount) {
 				event.replyFailure("You do not have `" + amount + " " + item.getName() + "`").queue();
+				session.abortTransaction();
+				return null;
+			}
+
+			CooldownItemStack<Item> cooldownStack = new CooldownItemStack<>(item, authorData);
+
+			long cooldownAmount = cooldownStack.getCooldownAmount();
+			if (authorAmount - cooldownAmount < amount) {
+				event.replyFormat("You have `%,d %s` but **%,d** are on cooldown %s", authorAmount, item.getName(), cooldownAmount, event.getConfig().getFailureEmote()).queue();
 				session.abortTransaction();
 				return null;
 			}

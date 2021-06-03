@@ -17,6 +17,12 @@ public class CooldownItemStack<Type extends Item> extends ItemStack<Type> {
 		this.resets = data.getList("resets", Document.class, Collections.emptyList());
 	}
 
+	public CooldownItemStack(Item defaultItem, Document data) {
+		super(defaultItem, data);
+
+		this.resets = data.getList("resets", Document.class, Collections.emptyList());
+	}
+
 	public long getUsableAmount() {
 		return this.getAmount() - this.getCooldownAmount();
 	}

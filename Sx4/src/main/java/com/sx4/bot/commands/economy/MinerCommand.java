@@ -175,8 +175,7 @@ public class MinerCommand extends Sx4Command {
 			List<WriteModel<Document>> bulkData = new ArrayList<>();
 
 			List<Material> materialKeys = materials.keySet().stream().sorted(Comparator.comparingLong(materials::get).reversed()).collect(Collectors.toList());
-			for (int i = 0; i < materialKeys.size(); i++) {
-				Material material = materialKeys.get(i);
+			for (Material material : materialKeys) {
 				long amount = materials.get(material);
 
 				Bson materialFilter = Filters.and(
