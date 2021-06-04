@@ -195,7 +195,8 @@ public class MongoDatabase {
 		this.redirects.createIndex(Indexes.descending("url"));
 		
 		this.auction = this.database.getCollection("auction");
-		this.auction.createIndex(Indexes.descending("item.name"));
+		this.auction.createIndex(Indexes.descending("item.id"));
+		this.auction.createIndex(Indexes.descending("expires"));
 		this.auction.createIndex(Indexes.descending("ownerId"));
 		
 		this.regexTemplates = this.database.getCollection("regexTemplates");
@@ -1558,6 +1559,10 @@ public class MongoDatabase {
 	
 	public MongoCollection<Document> getAuction() {
 		return this.auction;
+	}
+
+	public CompletableFuture<AggregateIterable<Document>> aggregateAuction(List<Bson> pipeline) {
+		return CompletableFuture.supplyAsync(() -> this.auction.aggregate(pipeline), this.executor);
 	}
 	
 	public FindIterable<Document> getAuctions(Bson filter) {

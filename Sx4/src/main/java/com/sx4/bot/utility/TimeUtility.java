@@ -1,9 +1,13 @@
 package com.sx4.bot.utility;
 
-import java.time.*;
+import java.time.Duration;
+import java.time.LocalDate;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Map;
 import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
 
@@ -190,6 +194,49 @@ public class TimeUtility {
 
 		return Duration.between(now, OffsetDateTime.of(year, month, day, hour, minute, 0, 0, ZoneOffset.UTC));
 	}
+
+	public static String getTimeString(long duration, TimeUnit unit, Map<ChronoUnit, String> units, int maxUnits) {
+		long seconds = unit.toSeconds(duration);
+
+		StringBuilder string = new StringBuilder();
+		int unitsUsed = 0;
+		for (int i = 0; i < TimeUtility.CHRONO_UNITS.length; i++) {
+			ChronoUnit chronoUnit = TimeUtility.CHRONO_UNITS[i];
+
+			long secondsInTime = chronoUnit.getDuration().getSeconds();
+			int amount = (int) Math.floor((double) seconds / secondsInTime);
+
+			if (amount != 0) {
+				String suffix = units.get(chronoUnit);
+				if (suffix != null) {
+					string.append(amount).append(suffix);
+
+					if (++unitsUsed == maxUnits) {
+						return string.toString();
+					}
+				}
+
+				seconds -= amount * secondsInTime;
+				if (seconds == 0) {
+					break;
+				}
+
+				if (i != TimeUtility.CHRONO_UNITS.length - 1) {
+					string.append(" ");
+				}
+			}
+		}
+
+		return string.toString();
+	}
+
+	public static String getTimeString(long seconds, Map<ChronoUnit, String> units, int maxUnits) {
+		return TimeUtility.getTimeString(seconds, TimeUnit.SECONDS, units, maxUnits);
+	}
+
+	public static String getTimeString(long seconds, Map<ChronoUnit, String> units) {
+		return TimeUtility.getTimeString(seconds, units, -1);
+	}
 	
 	public static String getTimeString(long duration, TimeUnit unit) {
 		long seconds = unit.toSeconds(duration);
@@ -202,7 +249,7 @@ public class TimeUtility {
 			int amount = (int) Math.floor((double) seconds / secondsInTime);
 			
 			if (amount != 0) {
-				string.append(amount + " " + TimeUtility.getChronoUnitName(chronoUnit, amount != 1));
+				string.append(amount).append(" ").append(TimeUtility.getChronoUnitName(chronoUnit, amount != 1));
 				
 				seconds -= amount * secondsInTime;
 				if (seconds == 0) {

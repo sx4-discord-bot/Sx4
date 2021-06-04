@@ -64,9 +64,9 @@ public class ChopCommand extends Sx4Command {
 				.setColor(event.getMember().getColorRaw())
 				.setDescription(String.format("You chopped down some trees :axe:\nWood found: %s", materialStacks.isEmpty() ? "Nothing" : materials));
 
-			if (axe.getCurrentDurability() == 2) {
+			if (axe.getDurability() == 2) {
 				embed.appendDescription("\n\nYour axe will break the next time you use it :warning:");
-			} else if (axe.getCurrentDurability() == 1) {
+			} else if (axe.getDurability() == 1) {
 				embed.appendDescription("\n\nYour axe broke in the process");
 			}
 
@@ -75,12 +75,12 @@ public class ChopCommand extends Sx4Command {
 				Filters.eq("item.id", axe.getId())
 			);
 
-			if (axe.getCurrentDurability() == 1) {
+			if (axe.getDurability() == 1) {
 				event.getMongo().getItems().deleteOne(session, itemFilter);
 			} else {
 				List<Bson> update = List.of(
 					EconomyUtility.getResetsUpdate(usableAmount, ChopCommand.COOLDOWN),
-					Operators.set("item.currentDurability", Operators.subtract("$item.currentDurability", 1))
+					Operators.set("item.durability", Operators.subtract("$item.durability", 1))
 				);
 
 				event.getMongo().getItems().updateOne(session, itemFilter, update);

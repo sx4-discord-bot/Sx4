@@ -16,7 +16,7 @@ public class Rod extends Tool {
 			defaultRod.getId(),
 			defaultRod.getName(), 
 			data.get("price", defaultRod.getPrice()),
-			data.get("currentDurability", defaultRod.getCurrentDurability()),
+			data.get("durability", defaultRod.getDurability()),
 			data.get("maxDurability", defaultRod.getMaxDurability()),
 			defaultRod.getCraft(),
 			defaultRod.getRepairItem(),
@@ -25,8 +25,8 @@ public class Rod extends Tool {
 		);
 	}
 
-	public Rod(EconomyManager manager, int id, String name, long price, int currentDurability, int maxDurability, List<ItemStack<CraftItem>> craft, CraftItem repairItem, long minYield, long maxYield) {
-		super(manager, id, name, price, ItemType.ROD, currentDurability, maxDurability, craft, repairItem);
+	public Rod(EconomyManager manager, int id, String name, long price, int durability, int maxDurability, List<ItemStack<CraftItem>> craft, CraftItem repairItem, long minYield, long maxYield) {
+		super(manager, id, name, price, ItemType.ROD, durability, maxDurability, craft, repairItem);
 		
 		this.minYield = minYield;
 		this.maxYield = maxYield;

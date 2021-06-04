@@ -207,7 +207,7 @@ public class PickaxeCommand extends Sx4Command {
 			.setAuthor(user.getName() + "'s " + pickaxe.getName(), null, user.getEffectiveAvatarUrl())
 			.setColor(effectiveMember.getColorRaw())
 			.setThumbnail("https://emojipedia-us.s3.amazonaws.com/thumbs/120/twitter/131/pick_26cf.png")
-			.addField("Durability", pickaxe.getCurrentDurability() + "/" + pickaxe.getMaxDurability(), false)
+			.addField("Durability", pickaxe.getDurability() + "/" + pickaxe.getMaxDurability(), false)
 			.addField("Current Price", String.format("$%,d", pickaxe.getCurrentPrice()), false)
 			.addField("Price", String.format("$%,d", pickaxe.getPrice()), false)
 			.addField("Yield", String.format("$%,d to $%,d", pickaxe.getMinYield(), pickaxe.getMaxYield()), false)
@@ -239,7 +239,7 @@ public class PickaxeCommand extends Sx4Command {
 			return;
 		}
 
-		int maxDurability = pickaxe.getMaxDurability() - pickaxe.getCurrentDurability();
+		int maxDurability = pickaxe.getMaxDurability() - pickaxe.getDurability();
 		if (maxDurability <= 0) {
 			event.replyFailure("Your pickaxe is already at full durability").queue();
 			return;
@@ -283,7 +283,7 @@ public class PickaxeCommand extends Sx4Command {
 				return CompletableFuture.completedFuture(null);
 			}
 
-			List<Bson> update = List.of(Operators.set("item.currentDurability", Operators.cond(Operators.eq("$item.currentDurability", pickaxe.getCurrentDurability()), Operators.add("$item.currentDurability", durability), "$item.currentDurability")));
+			List<Bson> update = List.of(Operators.set("item.durability", Operators.cond(Operators.eq("$item.durability", pickaxe.getDurability()), Operators.add("$item.durability", durability), "$item.durability")));
 
 			return event.getMongo().updateItem(Filters.and(Filters.eq("item.id", pickaxe.getId()), Filters.eq("userId", event.getAuthor().getIdLong())), update, new UpdateOptions());
 		}).whenComplete((result, exception) -> {

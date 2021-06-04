@@ -92,7 +92,7 @@ public class GiveItemCommand extends Sx4Command {
 
 			long cooldownAmount = cooldownStack.getCooldownAmount();
 			if (authorAmount - cooldownAmount < amount) {
-				event.replyFormat("You have `%,d %s` but **%,d** are on cooldown %s", authorAmount, item.getName(), cooldownAmount, event.getConfig().getFailureEmote()).queue();
+				event.replyFormat("You have `%,d %s` but **%,d** %s on cooldown %s", authorAmount, item.getName(), cooldownAmount, cooldownAmount == 1 ? "is" : "are", event.getConfig().getFailureEmote()).queue();
 				session.abortTransaction();
 				return null;
 			}

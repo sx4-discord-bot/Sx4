@@ -206,7 +206,7 @@ public class AxeCommand extends Sx4Command {
 			.setAuthor(user.getName() + "'s " + axe.getName(), null, user.getEffectiveAvatarUrl())
 			.setColor(effectiveMember.getColorRaw())
 			.setThumbnail("https://www.shareicon.net/data/2016/09/02/823994_ax_512x512.png")
-			.addField("Durability", axe.getCurrentDurability() + "/" + axe.getMaxDurability(), false)
+			.addField("Durability", axe.getDurability() + "/" + axe.getMaxDurability(), false)
 			.addField("Current Price", String.format("$%,d", axe.getCurrentPrice()), false)
 			.addField("Price", String.format("$%,d", axe.getPrice()), false)
 			.addField("Max Materials", String.valueOf(axe.getMaxMaterials()), false)
@@ -238,7 +238,7 @@ public class AxeCommand extends Sx4Command {
 			return;
 		}
 
-		int maxDurability = axe.getMaxDurability() - axe.getCurrentDurability();
+		int maxDurability = axe.getMaxDurability() - axe.getDurability();
 		if (maxDurability <= 0) {
 			event.replyFailure("Your axe is already at full durability").queue();
 			return;
@@ -282,7 +282,7 @@ public class AxeCommand extends Sx4Command {
 				return CompletableFuture.completedFuture(null);
 			}
 
-			List<Bson> update = List.of(Operators.set("item.currentDurability", Operators.cond(Operators.eq("$item.currentDurability", axe.getCurrentDurability()), Operators.add("$item.currentDurability", durability), "$item.currentDurability")));
+			List<Bson> update = List.of(Operators.set("item.durability", Operators.cond(Operators.eq("$item.durability", axe.getDurability()), Operators.add("$item.durability", durability), "$item.durability")));
 
 			return event.getMongo().updateItem(Filters.and(Filters.eq("item.id", axe.getId()), Filters.eq("userId", event.getAuthor().getIdLong())), update, new UpdateOptions());
 		}).whenComplete((result, exception) -> {

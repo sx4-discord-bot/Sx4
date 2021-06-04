@@ -298,7 +298,7 @@ public class TradeCommand extends Sx4Command {
 
 					long cooldownAmount = cooldownStack.getCooldownAmount();
 					if (userAmount - cooldownAmount < amount) {
-						event.replyFormat("%s has `%,d %s` but **%,d** are on cooldown %s", author ? user.getAsTag() : event.getAuthor().getAsTag(), userAmount, item.getName(), cooldownAmount, event.getConfig().getFailureEmote()).queue();
+						event.replyFormat("%s has `%,d %s` but **%,d** %s on cooldown %s", author ? user.getAsTag() : event.getAuthor().getAsTag(), userAmount, item.getName(), cooldownAmount, cooldownAmount == 1 ? "is" : "are", event.getConfig().getFailureEmote()).queue();
 						session.abortTransaction();
 						return;
 					}

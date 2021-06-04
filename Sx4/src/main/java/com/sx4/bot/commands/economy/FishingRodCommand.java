@@ -206,7 +206,7 @@ public class FishingRodCommand extends Sx4Command {
 			.setAuthor(user.getName() + "'s " + rod.getName(), null, user.getEffectiveAvatarUrl())
 			.setColor(effectiveMember.getColorRaw())
 			.setThumbnail("https://emojipedia-us.s3.amazonaws.com/thumbs/120/twitter/147/fishing-pole-and-fish_1f3a3.png")
-			.addField("Durability", rod.getCurrentDurability() + "/" + rod.getMaxDurability(), false)
+			.addField("Durability", rod.getDurability() + "/" + rod.getMaxDurability(), false)
 			.addField("Current Price", String.format("$%,d", rod.getCurrentPrice()), false)
 			.addField("Price", String.format("$%,d", rod.getPrice()), false)
 			.addField("Yield", String.format("$%,d to $%,d", rod.getMinYield(), rod.getMaxYield()), false);
@@ -237,7 +237,7 @@ public class FishingRodCommand extends Sx4Command {
 			return;
 		}
 
-		int maxDurability = rod.getMaxDurability() - rod.getCurrentDurability();
+		int maxDurability = rod.getMaxDurability() - rod.getDurability();
 		if (maxDurability <= 0) {
 			event.replyFailure("Your fishing rod is already at full durability").queue();
 			return;
@@ -281,7 +281,7 @@ public class FishingRodCommand extends Sx4Command {
 				return CompletableFuture.completedFuture(null);
 			}
 
-			List<Bson> update = List.of(Operators.set("item.currentDurability", Operators.cond(Operators.eq("$item.currentDurability", rod.getCurrentDurability()), Operators.add("$item.currentDurability", durability), "$item.currentDurability")));
+			List<Bson> update = List.of(Operators.set("item.durability", Operators.cond(Operators.eq("$item.durability", rod.getDurability()), Operators.add("$item.durability", durability), "$item.durability")));
 
 			return event.getMongo().updateItem(Filters.and(Filters.eq("item.id", rod.getId()), Filters.eq("userId", event.getAuthor().getIdLong())), update, new UpdateOptions());
 		}).whenComplete((result, exception) -> {

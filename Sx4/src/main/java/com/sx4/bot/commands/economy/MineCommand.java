@@ -67,9 +67,9 @@ public class MineCommand extends Sx4Command {
 				.setColor(event.getMember().getColorRaw())
 				.setDescription(String.format("You mined resources and made **$%,d** :pick:\nMaterials found: %s", yield, materialStacks.isEmpty() ? "Nothing" : materials));
 
-			if (pickaxe.getCurrentDurability() == 2) {
+			if (pickaxe.getDurability() == 2) {
 				embed.appendDescription("\n\nYour pickaxe will break the next time you use it :warning:");
-			} else if (pickaxe.getCurrentDurability() == 1) {
+			} else if (pickaxe.getDurability() == 1) {
 				embed.appendDescription("\n\nYour pickaxe broke in the process");
 			}
 
@@ -78,12 +78,12 @@ public class MineCommand extends Sx4Command {
 				Filters.eq("item.id", pickaxe.getId())
 			);
 
-			if (pickaxe.getCurrentDurability() == 1) {
+			if (pickaxe.getDurability() == 1) {
 				event.getMongo().getItems().deleteOne(session, itemFilter);
 			} else {
 				List<Bson> update = List.of(
 					EconomyUtility.getResetsUpdate(usableAmount, MineCommand.COOLDOWN),
-					Operators.set("item.currentDurability", Operators.subtract("$item.currentDurability", 1))
+					Operators.set("item.durability", Operators.subtract("$item.durability", 1))
 				);
 
 				event.getMongo().getItems().updateOne(session, itemFilter, update);

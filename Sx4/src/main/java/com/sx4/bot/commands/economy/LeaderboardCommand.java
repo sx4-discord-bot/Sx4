@@ -124,7 +124,7 @@ public class LeaderboardCommand extends Sx4Command {
 		);
 
 		List<Bson> pipeline = List.of(
-			Aggregates.project(Projections.fields(Projections.computed("_id", "$userId"), Projections.computed("total", Operators.cond(Operators.exists("$item.currentDurability"), Operators.toLong(Operators.multiply(Operators.divide("$item.price", "$item.maxDurability"), "$item.currentDurability")), Operators.multiply("$item.price", "$amount"))))),
+			Aggregates.project(Projections.fields(Projections.computed("_id", "$userId"), Projections.computed("total", Operators.cond(Operators.exists("$item.durability"), Operators.toLong(Operators.multiply(Operators.divide("$item.price", "$item.maxDurability"), "$item.durability")), Operators.multiply("$item.price", "$amount"))))),
 			Aggregates.match(Filters.ne("amount", 0)),
 			Aggregates.unionWith("users", userPipeline),
 			Aggregates.group("$_id", Accumulators.sum("total", "$total")),

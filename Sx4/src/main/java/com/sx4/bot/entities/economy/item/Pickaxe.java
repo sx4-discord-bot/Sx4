@@ -19,7 +19,7 @@ public class Pickaxe extends Tool {
 			defaultPickaxe.getId(),
 			defaultPickaxe.getName(),
 			data.get("price", defaultPickaxe.getPrice()),
-			data.get("currentDurability", defaultPickaxe.getCurrentDurability()),
+			data.get("durability", defaultPickaxe.getDurability()),
 			data.get("maxDurability", defaultPickaxe.getMaxDurability()),
 			defaultPickaxe.getCraft(),
 			defaultPickaxe.getRepairItem(),
@@ -29,8 +29,8 @@ public class Pickaxe extends Tool {
 		);
 	}
 
-	public Pickaxe(EconomyManager manager, int id, String name, long price, int currentDurability, int maxDurability, List<ItemStack<CraftItem>> craft, CraftItem repairItem, long minYield, long maxYield, double multiplier) {
-		super(manager, id, name, price, ItemType.PICKAXE, currentDurability, maxDurability, craft, repairItem);
+	public Pickaxe(EconomyManager manager, int id, String name, long price, int durability, int maxDurability, List<ItemStack<CraftItem>> craft, CraftItem repairItem, long minYield, long maxYield, double multiplier) {
+		super(manager, id, name, price, ItemType.PICKAXE, durability, maxDurability, craft, repairItem);
 		
 		this.minYield = minYield;
 		this.maxYield = maxYield;

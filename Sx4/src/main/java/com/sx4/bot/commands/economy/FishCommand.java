@@ -65,9 +65,9 @@ public class FishCommand extends Sx4Command {
 				.setColor(event.getMember().getColorRaw())
 				.setDescription(String.format("You fish for 5 minutes and sell your fish! (**$%,d**) :fish:", yield));
 
-			if (rod.getCurrentDurability() == 2) {
+			if (rod.getDurability() == 2) {
 				embed.appendDescription("\n\nYour fishing rod will break the next time you use it :warning:");
-			} else if (rod.getCurrentDurability() == 1) {
+			} else if (rod.getDurability() == 1) {
 				embed.appendDescription("\n\nYour fishing rod broke in the process");
 			}
 
@@ -77,12 +77,12 @@ public class FishCommand extends Sx4Command {
 				Filters.eq("item.id", rod.getId())
 			);
 
-			if (rod.getCurrentDurability() == 1) {
+			if (rod.getDurability() == 1) {
 				event.getMongo().getItems().deleteOne(session, itemFilter);
 			} else {
 				List<Bson> update = List.of(
 					EconomyUtility.getResetsUpdate(usableAmount, FishCommand.COOLDOWN),
-					Operators.set("item.currentDurability", Operators.subtract("$item.currentDurability", 1))
+					Operators.set("item.durability", Operators.subtract("$item.durability", 1))
 				);
 
 				 event.getMongo().getItems().updateOne(session, itemFilter, update);

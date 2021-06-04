@@ -7,7 +7,7 @@ import java.util.List;
 
 public class Tool extends Item {
 	
-	private final int currentDurability;
+	private final int durability;
 	private final int maxDurability;
 	
 	private final List<ItemStack<CraftItem>> craft;
@@ -17,21 +17,21 @@ public class Tool extends Item {
 		this(manager, id, name, price, type, maxDurability, maxDurability, craft, repairItem);
 	}
 	
-	public Tool(EconomyManager manager, int id, String name, long price, ItemType type, int currentDurability, int maxDurability, List<ItemStack<CraftItem>> craft, CraftItem repairItem) {
+	public Tool(EconomyManager manager, int id, String name, long price, ItemType type, int durability, int maxDurability, List<ItemStack<CraftItem>> craft, CraftItem repairItem) {
 		super(manager, id, name, price, type);
 		
-		this.currentDurability = currentDurability;
+		this.durability = durability;
 		this.maxDurability = maxDurability;
 		this.craft = craft;
 		this.repairItem = repairItem;
 	}
 
 	public long getCurrentPrice() {
-		return (this.getPrice() / this.maxDurability) * this.currentDurability;
+		return (this.getPrice() / this.maxDurability) * this.durability;
 	}
 	
-	public int getCurrentDurability() {
-		return this.currentDurability;
+	public int getDurability() {
+		return this.durability;
 	}
 	
 	public int getMaxDurability() {
@@ -48,7 +48,7 @@ public class Tool extends Item {
 
 	public Document toData() {
 		return super.toData()
-			.append("currentDurability", this.getCurrentDurability())
+			.append("durability", this.getDurability())
 			.append("maxDurability", this.getMaxDurability());
 	}
 	

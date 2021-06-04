@@ -12,24 +12,24 @@ public class Auction<Type extends Item> {
 
 	private final ObjectId id;
 	
-	private final long price;
-	private final long timeout;
+	private final long price, expires, ownerId;
 	
-	private final ItemStack<Type> stack;
+	private final ItemStack<Type> itemStack;
 
 	public Auction(EconomyManager manager, Document data) {
-		this(data.getObjectId("_id"), data.getLong("price"), data.getLong("timeout"), new ItemStack<>(manager, data.get("stack", Document.class)));
+		this(data.getObjectId("_id"), data.getLong("price"), data.getLong("expires"), data.get("ownerId", 0L), new ItemStack<>(manager, data));
 	}
 
-	public Auction(long price, long timeout, ItemStack<Type> stack) {
-		this(null, price, timeout, stack);
+	public Auction(long price, long expires, long ownerId, ItemStack<Type> itemStack) {
+		this(null, price, expires, ownerId, itemStack);
 	}
 	
-	public Auction(ObjectId id, long price, long timeout, ItemStack<Type> itemStack) {
+	public Auction(ObjectId id, long price, long expires, long ownerId, ItemStack<Type> itemStack) {
 		this.id = id;
 		this.price = price;
-		this.timeout = timeout;
-		this.stack = itemStack;
+		this.ownerId = ownerId;
+		this.expires = expires;
+		this.itemStack = itemStack;
 	}
 	
 	public ObjectId getId() {
@@ -47,23 +47,33 @@ public class Auction<Type extends Item> {
 	public long getPrice() {
 		return this.price;
 	}
+
+	public double getPricePerItem() {
+		return (double) this.price / this.itemStack.getAmount();
+	}
 	
-	public long getTimeout() {
-		return this.timeout;
+	public long getExpiresAt() {
+		return this.expires;
+	}
+
+	public long getOwnerId() {
+		return this.ownerId;
 	}
 	
 	public long getTimeRemaining() {
-		return Clock.systemUTC().instant().getEpochSecond() - (this.getTimestamp() + this.timeout);
+		return Clock.systemUTC().instant().getEpochSecond() - (this.getTimestamp() + this.expires);
 	}
 	
-	public ItemStack<Type> getStack() {
-		return this.stack;
+	public ItemStack<Type> getItemStack() {
+		return this.itemStack;
 	}
 
 	public Document toData() {
 		Document data = new Document("price", this.price)
-			.append("timeout", this.timeout)
-			.append("stack", this.stack.toData());
+			.append("expires", this.expires)
+			.append("ownerId", this.ownerId)
+			.append("amount", this.itemStack.getAmount())
+			.append("item", this.itemStack.getItem().toData());
 
 		if (this.id != null) {
 			data.append("_id", this.id);
