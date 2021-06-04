@@ -179,14 +179,17 @@ public class EconomyManager {
 
 					break;
 				case CRATE:
-					//JSONObject contentsData = itemData.getJSONObject("contents");
-					//Map<ItemType, Long> contents = contentsData.keySet().stream().collect(Collectors.toMap(ItemType::fromDataName, contentsData::getLong));
+					JSONArray contentsData = itemData.optJSONArray("contents");
 
-					item = new Crate(this, itemData.getInt("id"), itemData.getString("name"), itemData.getLong("price"), itemData.optLong("credits", -1), itemData.optBoolean("hidden", false), itemData.optBoolean("openable", true), new HashMap<>());
+					Map<ItemType, Long> contents = new HashMap<>();
+					if (contentsData != null) {
+						for (int c = 0; c < contentsData.length(); c++) {
+							JSONObject data = contentsData.getJSONObject(c);
+							contents.put(ItemType.fromId(data.getInt("type")), data.getLong("amount"));
+						}
+					}
 
-					break;
-				case BOOSTER:
-					item = new Booster(this, itemData.getInt("id"), itemData.getString("name"), itemData.getLong("price"));
+					item = new Crate(this, itemData.getInt("id"), itemData.getString("name"), itemData.getLong("price"), itemData.optLong("credits", -1), itemData.optBoolean("hidden", false), itemData.optBoolean("openable", true), contents);
 
 					break;
 				case ROD:

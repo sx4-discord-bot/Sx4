@@ -519,6 +519,24 @@
         {
             "openable": true,
             "name": "Diamond Crate",
+            "contents": [
+                {
+                    "type": 6,
+                    "amount": 2
+                },
+                {
+                    "type": 5,
+                    "amount": 2
+                },
+                {
+                    "type": 0,
+                    "amount": 5
+                },
+                {
+                    "type": 8,
+                    "amount": 1
+                }
+            ],
             "price": 460000,
             "credits": 6976,
             "id": 64,

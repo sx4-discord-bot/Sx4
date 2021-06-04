@@ -133,6 +133,8 @@ public class TradeCommand extends Sx4Command {
 				throw new IllegalArgumentException("No valid or tradeable items or money were supplied");
 			}
 
+			authorMoneyAtomic.set(authorMoney);
+
 			long userMoney = userMoneyAtomic.get();
 
 			StringJoiner authorContent = new StringJoiner("\n");

@@ -99,13 +99,11 @@ public class MinerCommand extends Sx4Command {
 
 			event.getMongo().getItems().updateOne(session, filter, update, new UpdateOptions().upsert(true));
 		}).whenComplete((updated, exception) -> {
-			if (ExceptionUtility.sendExceptionally(event, exception)) {
+			if (ExceptionUtility.sendExceptionally(event, exception) || !updated) {
 				return;
 			}
 
-			if (updated) {
-				event.replyFormat("You just bought `%,d %s` for **$%,d** %s", amount, miner.getName(), price, event.getConfig().getSuccessEmote()).queue();
-			}
+			event.replyFormat("You just bought `%,d %s` for **$%,d** %s", amount, miner.getName(), price, event.getConfig().getSuccessEmote()).queue();
 		});
 	}
 

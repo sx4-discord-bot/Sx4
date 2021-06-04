@@ -14,8 +14,7 @@ public enum ItemType {
 	MINER(5, "Miner", 10, Miner.class, Miner::new),
 	FACTORY(6, "Factory", 10, Factory.class, Factory::new),
 	CRATE(7, "Crate", 50, Crate.class, Crate::new),
-	ENVELOPE(8, "Envelope", 50, Envelope.class, Envelope::new),
-	BOOSTER(9, "Booster", 50, Booster.class, Booster::new);
+	ENVELOPE(8, "Envelope", 50, Envelope.class, Envelope::new);
 	
 	private final int id;
 	private final long defaultLimit;
