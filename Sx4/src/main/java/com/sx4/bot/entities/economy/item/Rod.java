@@ -18,6 +18,7 @@ public class Rod extends Tool {
 			data.get("price", defaultRod.getPrice()),
 			data.get("durability", defaultRod.getDurability()),
 			data.get("maxDurability", defaultRod.getMaxDurability()),
+			data.get("upgrades", defaultRod.getUpgrades()),
 			defaultRod.getCraft(),
 			defaultRod.getRepairItem(),
 			data.get("minYield", defaultRod.getMinYield()),
@@ -25,15 +26,19 @@ public class Rod extends Tool {
 		);
 	}
 
-	public Rod(EconomyManager manager, int id, String name, long price, int durability, int maxDurability, List<ItemStack<CraftItem>> craft, CraftItem repairItem, long minYield, long maxYield) {
-		super(manager, id, name, price, ItemType.ROD, durability, maxDurability, craft, repairItem);
+	public Rod(EconomyManager manager, int id, String name, long price, int durability, int maxDurability, int upgrades, List<ItemStack<CraftItem>> craft, CraftItem repairItem, long minYield, long maxYield) {
+		super(manager, id, name, price, ItemType.ROD, durability, maxDurability, upgrades, craft, repairItem);
 		
 		this.minYield = minYield;
 		this.maxYield = maxYield;
 	}
 	
+	public Rod(EconomyManager manager, int id, String name, long price, int maxDurability, int upgrades, List<ItemStack<CraftItem>> craft, CraftItem repairItem, long minYield, long maxYield) {
+		this(manager, id, name, price, maxDurability, maxDurability, upgrades, craft, repairItem, minYield, maxYield);
+	}
+
 	public Rod(EconomyManager manager, int id, String name, long price, int maxDurability, List<ItemStack<CraftItem>> craft, CraftItem repairItem, long minYield, long maxYield) {
-		this(manager, id, name, price, maxDurability, maxDurability, craft, repairItem, minYield, maxYield);
+		this(manager, id, name, price, maxDurability, maxDurability, 0, craft, repairItem, minYield, maxYield);
 	}
 
 	public long getYield(EconomyManager manager) {

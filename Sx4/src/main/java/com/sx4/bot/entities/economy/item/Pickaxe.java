@@ -21,6 +21,7 @@ public class Pickaxe extends Tool {
 			data.get("price", defaultPickaxe.getPrice()),
 			data.get("durability", defaultPickaxe.getDurability()),
 			data.get("maxDurability", defaultPickaxe.getMaxDurability()),
+			data.get("upgrades", defaultPickaxe.getUpgrades()),
 			defaultPickaxe.getCraft(),
 			defaultPickaxe.getRepairItem(),
 			data.get("minYield", defaultPickaxe.getMinYield()),
@@ -29,16 +30,20 @@ public class Pickaxe extends Tool {
 		);
 	}
 
-	public Pickaxe(EconomyManager manager, int id, String name, long price, int durability, int maxDurability, List<ItemStack<CraftItem>> craft, CraftItem repairItem, long minYield, long maxYield, double multiplier) {
-		super(manager, id, name, price, ItemType.PICKAXE, durability, maxDurability, craft, repairItem);
+	public Pickaxe(EconomyManager manager, int id, String name, long price, int durability, int maxDurability, int upgrades, List<ItemStack<CraftItem>> craft, CraftItem repairItem, long minYield, long maxYield, double multiplier) {
+		super(manager, id, name, price, ItemType.PICKAXE, durability, maxDurability, upgrades, craft, repairItem);
 		
 		this.minYield = minYield;
 		this.maxYield = maxYield;
 		this.multiplier = multiplier;
 	}
 	
+	public Pickaxe(EconomyManager manager, int id, String name, long price, int maxDurability, int upgrades, List<ItemStack<CraftItem>> craft, CraftItem repairItem, long minYield, long maxYield, double multiplier) {
+		this(manager, id, name, price, maxDurability, maxDurability, upgrades, craft, repairItem, minYield, maxYield, multiplier);
+	}
+
 	public Pickaxe(EconomyManager manager, int id, String name, long price, int maxDurability, List<ItemStack<CraftItem>> craft, CraftItem repairItem, long minYield, long maxYield, double multiplier) {
-		this(manager, id, name, price, maxDurability, maxDurability, craft, repairItem, minYield, maxYield, multiplier);
+		this(manager, id, name, price, maxDurability, maxDurability, 0, craft, repairItem, minYield, maxYield, multiplier);
 	}
 	
 	public double getMultiplier() {

@@ -19,6 +19,7 @@ public class Axe extends Tool {
 			data.get("price", defaultAxe.getPrice()),
 			data.get("durability", defaultAxe.getDurability()),
 			data.get("maxDurability", defaultAxe.getMaxDurability()),
+			data.get("upgrades", defaultAxe.getUpgrades()),
 			defaultAxe.getCraft(),
 			defaultAxe.getRepairItem(),
 			data.get("maxMaterials", defaultAxe.getMaxMaterials()),
@@ -26,15 +27,19 @@ public class Axe extends Tool {
 		);
 	}
 
-	public Axe(EconomyManager manager, int id, String name, long price, int durability, int maxDurability, List<ItemStack<CraftItem>> craft, CraftItem repairItem, long maxMaterials, double multiplier) {
-		super(manager, id, name, price, ItemType.AXE, durability, maxDurability, craft, repairItem);
+	public Axe(EconomyManager manager, int id, String name, long price, int durability, int maxDurability, int upgrades, List<ItemStack<CraftItem>> craft, CraftItem repairItem, long maxMaterials, double multiplier) {
+		super(manager, id, name, price, ItemType.AXE, durability, maxDurability, upgrades, craft, repairItem);
 		
 		this.maxMaterials = maxMaterials;
 		this.multiplier = multiplier;
 	}
 	
+	public Axe(EconomyManager manager, int id, String name, long price, int maxDurability, int upgrades, List<ItemStack<CraftItem>> craft, CraftItem repairItem, long maxMaterials, double multiplier) {
+		this(manager, id, name, price, maxDurability, maxDurability, upgrades, craft, repairItem, maxMaterials, multiplier);
+	}
+
 	public Axe(EconomyManager manager, int id, String name, long price, int maxDurability, List<ItemStack<CraftItem>> craft, CraftItem repairItem, long maxMaterials, double multiplier) {
-		this(manager, id, name, price, maxDurability, maxDurability, craft, repairItem, maxMaterials, multiplier);
+		this(manager, id, name, price, maxDurability, maxDurability, 0, craft, repairItem, maxMaterials, multiplier);
 	}
 	
 	public double getMultiplier() {

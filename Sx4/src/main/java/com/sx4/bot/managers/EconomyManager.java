@@ -1,6 +1,5 @@
 package com.sx4.bot.managers;
 
-import com.sx4.bot.entities.economy.Upgrade;
 import com.sx4.bot.entities.economy.item.*;
 import com.sx4.bot.utility.SearchUtility;
 import org.json.JSONArray;
@@ -10,38 +9,24 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.security.SecureRandom;
 import java.util.*;
-import java.util.stream.Collectors;
 
 public class EconomyManager {
 
 	private final Random random;
 
-	private final List<Upgrade> upgrades;
-
 	private final Map<Class<?>, List<Item>> items;
 	private final Map<Integer, Item> itemCache;
 	
 	public EconomyManager() {
-		this.upgrades = new ArrayList<>();
 		this.items = new HashMap<>();
 		this.itemCache = new HashMap<>();
 		this.random = new SecureRandom();
 		
-		this.load();
+		this.loadItems();
 	}
 
 	public Random getRandom() {
 		return this.random;
-	}
-
-	public List<Upgrade> getUpgrades() {
-		return this.upgrades;
-	}
-
-	public List<Upgrade> getUpgrades(ItemType type) {
-		return this.upgrades.stream()
-			.filter(upgrade -> upgrade.getType() == type)
-			.collect(Collectors.toList());
 	}
 
 	public void addItem(Class<?> type, Item item) {
@@ -105,35 +90,19 @@ public class EconomyManager {
 		return SearchUtility.find(this.getItems(type), query, Collections.singletonList(Item::getName));
 	}
 
-	public void reload() {
-		this.upgrades.clear();
+	public void reloadItems() {
 		this.itemCache.clear();
 		this.items.clear();
 
-		this.load();
+		this.loadItems();
 	}
 	
-	public void load() {
+	public void loadItems() {
 		try (FileInputStream stream = new FileInputStream("economy.json")) {
 			JSONObject json = new JSONObject(new String(stream.readAllBytes()));
 			this.addItems(json);
-			this.addUpgrades(json);
 		} catch (IOException e) {
 			e.printStackTrace();
-		}
-	}
-
-	public void addUpgrades(JSONObject json) {
-		JSONArray upgrades = json.optJSONArray("upgrades");
-		if (upgrades == null) {
-			return;
-		}
-
-		for (int i = 0; i < upgrades.length(); i++) {
-			JSONObject upgrade = upgrades.getJSONObject(i);
-
-			ItemType type = ItemType.fromId(upgrade.getInt("type"));
-			this.upgrades.add(new Upgrade(upgrade.getInt("id"), type, upgrade.getString("name"), upgrade.getString("description"), upgrade.getDouble("value")));
 		}
 	}
 	
