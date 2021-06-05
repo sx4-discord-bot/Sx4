@@ -118,10 +118,6 @@ public class LoggerUtility {
     }
 
     public static boolean canSend(Document logger, LoggerEvent event, LoggerContext context) {
-        if (!logger.get("enabled", true)) {
-            return false;
-        }
-
         if ((logger.get("events", LoggerEvent.ALL) & event.getRaw()) != event.getRaw()) {
             return false;
         }

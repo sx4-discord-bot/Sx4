@@ -4,6 +4,7 @@ import com.mongodb.client.model.*;
 import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.mongo.MongoDatabase;
 import org.bson.Document;
+import org.bson.conversions.Bson;
 
 import java.time.Clock;
 import java.util.ArrayList;
@@ -45,9 +46,26 @@ public class PremiumManager {
 	}
 
 	public UpdateOneModel<Document> endPremiumBulk(long guildId) {
-		// remove premium features
+		// Disable anti regex until only 3 are active
+		// Disable loggers until only 3 are active
+		// Unset YouTube notifications webhook name and avatar
+		// Unset Loggers webhook name and avatar
 
-		return new UpdateOneModel<>(Filters.eq("_id", guildId), Updates.unset("premium"));
+		Bson guildUpdate = Updates.combine(
+			Updates.unset("premium"),
+			Updates.unset("welcomer.webhook.name"),
+			Updates.unset("welcomer.webhook.avatar"),
+			Updates.unset("leaver.webhook.name"),
+			Updates.unset("leaver.webhook.avatar"),
+			Updates.unset("starboard.webhook.name"),
+			Updates.unset("starboard.webhook.avatar"),
+			Updates.unset("modLog.webhook.name"),
+			Updates.unset("modLog.webhook.avatar"),
+			Updates.unset("suggestion.webhook.name"),
+			Updates.unset("suggestion.webhook.avatar")
+		);
+
+		return new UpdateOneModel<>(Filters.eq("_id", guildId), guildUpdate);
 	}
 
 	public void ensurePremiumExpiry() {

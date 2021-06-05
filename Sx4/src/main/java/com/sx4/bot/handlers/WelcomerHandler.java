@@ -49,9 +49,9 @@ public class WelcomerHandler implements EventListener {
 
 		Document webhookData = welcomer.get("webhook", MongoDatabase.EMPTY_DOCUMENT);
 
-		boolean gif = data.getEmbedded(List.of("premium", "endAt"), 0L) >= Clock.systemUTC().instant().getEpochSecond();
+		boolean premium = Clock.systemUTC().instant().getEpochSecond() < data.getEmbedded(List.of("premium", "endAt"), 0L);
 
-		WelcomerUtility.getWelcomerMessage(this.bot.getHttpClient(), messageEnabled ? welcomer.get("message", WelcomerManager.DEFAULT_MESSAGE) : null, event.getMember(), imageEnabled, gif, (builder, exception) -> {
+		WelcomerUtility.getWelcomerMessage(this.bot.getHttpClient(), messageEnabled ? welcomer.get("message", WelcomerManager.DEFAULT_MESSAGE) : null, event.getMember(), imageEnabled, premium, (builder, exception) -> {
 			if (exception instanceof IllegalArgumentException) {
 				this.bot.getMongo().updateGuildById(event.getGuild().getIdLong(), Updates.unset("welcomer.message")).whenComplete(MongoDatabase.exceptionally(event.getJDA().getShardManager()));
 				return;
@@ -67,8 +67,8 @@ public class WelcomerHandler implements EventListener {
 					.queue(null, ErrorResponseException.ignore(ErrorResponse.CANNOT_SEND_TO_USER));
 			} else {
 				WebhookMessage message = builder
-					.setUsername(webhookData.get("name", "Sx4 - Welcomer"))
-					.setAvatarUrl(webhookData.get("avatar", event.getJDA().getSelfUser().getEffectiveAvatarUrl()))
+					.setUsername(premium ? webhookData.get("name", "Sx4 - Welcomer") : "Sx4 - Welcomer")
+					.setAvatarUrl(premium ? webhookData.get("avatar", event.getJDA().getSelfUser().getEffectiveAvatarUrl()) : event.getJDA().getSelfUser().getEffectiveAvatarUrl())
 					.build();
 
 				this.bot.getWelcomerManager().sendWelcomer(channel, webhookData, message);

@@ -23,8 +23,8 @@ import net.dv8tion.jda.api.entities.TextChannel;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 
-import java.time.Clock;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 
 public class LoggerCommand extends Sx4Command {
@@ -49,30 +49,39 @@ public class LoggerCommand extends Sx4Command {
     public void add(Sx4CommandEvent event, @Argument(value="channel", endless=true, nullDefault=true) TextChannel channel) {
         TextChannel effectiveChannel = channel == null ? event.getTextChannel() : channel;
 
-        Bson filter = Filters.and(
-            Filters.eq("guildId", event.getGuild().getIdLong()),
-            Filters.exists("enabled", false)
+        List<Bson> guildPipeline = List.of(
+            Aggregates.project(Projections.fields(Projections.computed("premium", Operators.lt(Operators.nowEpochSecond(), Operators.ifNull("$premium.endAt", 0L))), Projections.computed("guildId", "$_id"))),
+            Aggregates.match(Filters.eq("guildId", event.getGuild().getIdLong()))
         );
 
-        long loggers = event.getMongo().countLoggers(filter, new CountOptions().limit(3));
-        long endAt = event.getMongo().getGuildById(event.getGuild().getIdLong(), Projections.include("premium")).getEmbedded(List.of("premium", "endAt"), 0L);
+        List<Bson> pipeline = List.of(
+            Aggregates.match(Filters.and(Filters.eq("guildId", event.getGuild().getIdLong()), Filters.exists("enabled", false))),
+            Aggregates.group(null, Accumulators.sum("count", 1)),
+            Aggregates.limit(3),
+            Aggregates.unionWith("guilds", guildPipeline),
+            Aggregates.group(null, Accumulators.max("count", "$count"), Accumulators.max("premium", "$premium")),
+            Aggregates.project(Projections.fields(Projections.include("premium"), Projections.computed("count", Operators.ifNull("$count", 0))))
+        );
 
-        if (loggers == 3 && endAt < Clock.systemUTC().instant().getEpochSecond()) {
-            event.replyFailure("You need to have Sx4 premium to have more than 3 enabled loggers, you can get premium at <https://www.patreon.com/Sx4>").queue();
-            return;
-        }
+        event.getMongo().aggregateLoggers(pipeline).thenCompose(iterable -> {
+            Document counter = iterable.first();
+            if (counter != null && counter.getInteger("count") == 3 && !counter.getBoolean("premium")) {
+                event.replyFailure("You need to have Sx4 premium to have more than 3 enabled loggers, you can get premium at <https://www.patreon.com/Sx4>").queue();
+                return CompletableFuture.completedFuture(null);
+            }
 
-        Document data = new Document("channelId", effectiveChannel.getIdLong())
-            .append("guildId", event.getGuild().getIdLong());
+            Document data = new Document("channelId", effectiveChannel.getIdLong())
+                .append("guildId", event.getGuild().getIdLong());
 
-        event.getMongo().insertLogger(data).whenComplete((result, exception) -> {
+            return event.getMongo().insertLogger(data);
+        }).whenComplete((result, exception) -> {
             Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
             if (cause instanceof MongoWriteException && ((MongoWriteException) cause).getError().getCategory() == ErrorCategory.DUPLICATE_KEY) {
                 event.replyFailure("You already have a logger setup in " + effectiveChannel.getAsMention()).queue();
                 return;
             }
 
-            if (ExceptionUtility.sendExceptionally(event, exception)) {
+            if (ExceptionUtility.sendExceptionally(event, exception) || result == null) {
                 return;
             }
 
@@ -113,21 +122,33 @@ public class LoggerCommand extends Sx4Command {
             Filters.exists("enabled", false)
         );
 
-        List<Document> loggers = event.getMongo().getLoggers(filter, Projections.include("channelId")).into(new ArrayList<>());
-        boolean disabled = loggers.stream().noneMatch(logger -> logger.getLong("channelId") == effectiveChannel.getIdLong());
+        List<Bson> guildPipeline = List.of(
+            Aggregates.project(Projections.fields(Projections.computed("premium", Operators.lt(Operators.nowEpochSecond(), Operators.ifNull("$premium.endAt", 0L))), Projections.computed("guildId", "$_id"))),
+            Aggregates.match(Filters.eq("guildId", event.getGuild().getIdLong()))
+        );
 
-        long endAt = event.getMongo().getGuildById(event.getGuild().getIdLong(), Projections.include("premium")).getEmbedded(List.of("premium", "endAt"), 0L);
+        List<Bson> pipeline = List.of(
+            Aggregates.match(Filters.and(Filters.eq("guildId", event.getGuild().getIdLong()), Filters.exists("enabled", false))),
+            Aggregates.project(Projections.include("channelId")),
+            Aggregates.group(null, Accumulators.push("loggers", Operators.ROOT)),
+            Aggregates.unionWith("guilds", guildPipeline),
+            Aggregates.group(null, Accumulators.max("loggers", "$loggers"), Accumulators.max("premium", "$premium")),
+            Aggregates.project(Projections.fields(Projections.include("premium"), Projections.computed("count", Operators.size(Operators.ifNull("$loggers", Collections.EMPTY_LIST))), Projections.computed("disabled", Operators.isEmpty(Operators.filter(Operators.ifNull("$loggers", Collections.EMPTY_LIST), Operators.eq("$$this.channelId", effectiveChannel.getIdLong()))))))
+        );
 
-        if (disabled && loggers.size() >= 3 && endAt < Clock.systemUTC().instant().getEpochSecond()) {
-            event.replyFailure("You need to have Sx4 premium to have more than 3 enabled loggers, you can get premium at <https://www.patreon.com/Sx4>").queue();
-            return;
-        }
+        event.getMongo().aggregateLoggers(pipeline).thenCompose(iterable -> {
+            Document data = iterable.first();
+            if (data != null && data.getBoolean("disabled") && data.getInteger("count") >= 3 && !data.getBoolean("premium")) {
+                event.replyFailure("You need to have Sx4 premium to have more than 3 enabled loggers, you can get premium at <https://www.patreon.com/Sx4>").queue();
+                return CompletableFuture.completedFuture(null);
+            }
 
-        List<Bson> update = List.of(Operators.set("enabled", Operators.cond(Operators.exists("$enabled"), Operators.REMOVE, false)));
-        FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER).projection(Projections.include("enabled"));
+            List<Bson> update = List.of(Operators.set("enabled", Operators.cond(Operators.exists("$enabled"), Operators.REMOVE, false)));
+            FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER).projection(Projections.include("enabled"));
 
-        event.getMongo().findAndUpdateLogger(Filters.eq("channelId", effectiveChannel.getIdLong()), update, options).whenComplete((data, exception) -> {
-            if (ExceptionUtility.sendExceptionally(event, exception)) {
+            return event.getMongo().findAndUpdateLogger(Filters.eq("channelId", effectiveChannel.getIdLong()), update, options);
+        }).whenComplete((data, exception) -> {
+            if (ExceptionUtility.sendExceptionally(event, exception) || data == null) {
                 return;
             }
 

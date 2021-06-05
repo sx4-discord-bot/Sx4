@@ -595,6 +595,10 @@ public class MongoDatabase {
 		return this.loggers.countDocuments(filter, options);
 	}
 
+	public CompletableFuture<AggregateIterable<Document>> aggregateLoggers(List<Bson> pipeline) {
+		return CompletableFuture.supplyAsync(() -> this.loggers.aggregate(pipeline));
+	}
+
 	public CompletableFuture<InsertOneResult> insertLogger(Document data) {
 		return CompletableFuture.supplyAsync(() -> this.loggers.insertOne(data), this.executor);
 	}

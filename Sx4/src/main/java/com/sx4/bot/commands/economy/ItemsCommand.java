@@ -5,6 +5,7 @@ import com.mongodb.client.model.*;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
+import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.economy.item.ItemStack;
 import com.sx4.bot.entities.economy.item.ItemType;
 import com.sx4.bot.utility.ExceptionUtility;
@@ -32,14 +33,14 @@ public class ItemsCommand extends Sx4Command {
 		Member effectiveMember = member == null ? event.getMember() : member;
 
 		List<Bson> usersPipeline = List.of(
-			Aggregates.project(Projections.include("economy.balance")),
 			Aggregates.match(Filters.eq("_id", effectiveMember.getIdLong())),
-			Aggregates.group("balance", Accumulators.sum("balance", "$economy.balance"))
+			Aggregates.project(Projections.computed("balance", Operators.ifNull("$economy.balance", 0L))),
+			Aggregates.addFields(new Field<>("name", "balance"))
 		);
 
 		List<Bson> pipeline = List.of(
 			Aggregates.match(Filters.and(Filters.eq("userId", effectiveMember.getIdLong()), Filters.ne("amount", 0))),
-			Aggregates.group("$item.name", Accumulators.first("item", "$item"), Accumulators.first("amount", "$amount"), Accumulators.first("type", "$item.type")),
+			Aggregates.project(Projections.fields(Projections.computed("name", "$item.name"), Projections.computed("type", "$item.type"), Projections.include("item.id", "amount"))),
 			Aggregates.sort(Sorts.descending("amount")),
 			Aggregates.unionWith("users", usersPipeline)
 		);
@@ -63,7 +64,7 @@ public class ItemsCommand extends Sx4Command {
 
 			Map<ItemType, StringJoiner> types = new HashMap<>();
 			for (Document item : items) {
-				String name = item.getString("_id");
+				String name = item.getString("name");
 				if (name.equals("balance")) {
 					footer.append(String.format("%,d", item.get("balance", Number.class).longValue()));
 					continue;

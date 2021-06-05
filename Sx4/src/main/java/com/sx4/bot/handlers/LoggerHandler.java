@@ -5,12 +5,17 @@ import club.minnced.discord.webhook.send.WebhookEmbed.EmbedAuthor;
 import club.minnced.discord.webhook.send.WebhookEmbed.EmbedField;
 import club.minnced.discord.webhook.send.WebhookEmbed.EmbedFooter;
 import club.minnced.discord.webhook.send.WebhookEmbedBuilder;
+import com.mongodb.client.model.Accumulators;
+import com.mongodb.client.model.Aggregates;
 import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.Projections;
 import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.mongo.MongoDatabase;
+import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.management.LoggerContext;
 import com.sx4.bot.entities.management.LoggerEvent;
 import com.sx4.bot.utility.ColourUtility;
+import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.LoggerUtility;
 import com.sx4.bot.utility.StringUtility;
 import gnu.trove.map.TLongIntMap;
@@ -63,6 +68,7 @@ import net.dv8tion.jda.api.hooks.EventListener;
 import net.dv8tion.jda.api.sharding.ShardManager;
 import net.dv8tion.jda.internal.utils.tuple.Pair;
 import org.bson.Document;
+import org.bson.conversions.Bson;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -92,6 +98,23 @@ public class LoggerHandler implements EventListener {
 		this.bot = bot;
 	}
 
+	private List<Bson> getPipeline(long guildId) {
+		List<Bson> guildPipeline = List.of(
+			Aggregates.project(Projections.fields(Projections.computed("premium", Operators.lt(Operators.nowEpochSecond(), Operators.ifNull("$premium.endAt", 0L))), Projections.computed("guildId", "$_id"))),
+			Aggregates.match(Filters.eq("guildId", guildId))
+		);
+
+		List<Bson> pipeline = List.of(
+			Aggregates.match(Filters.and(Filters.eq("guildId", guildId), Filters.exists("enabled", false))),
+			Aggregates.group(null, Accumulators.push("loggers", Operators.ROOT)),
+			Aggregates.unionWith("guilds", guildPipeline),
+			Aggregates.group(null, Accumulators.max("premium", "$premium"), Accumulators.max("loggers", "$loggers")),
+			Aggregates.project(Projections.computed("loggers", Operators.let(new Document("loggers", Operators.ifNull("$loggers", Collections.EMPTY_LIST)), Operators.cond("$premium", "$$loggers", Operators.slice("$$loggers", 0, 3)))))
+		);
+
+		return pipeline;
+	}
+
 	private void delay(Runnable runnable) {
 		this.executor.schedule(runnable, LoggerHandler.DELAY, TimeUnit.MILLISECONDS);
 	}
@@ -104,66 +127,72 @@ public class LoggerHandler implements EventListener {
 
 		List<Long> deletedLoggers = new ArrayList<>();
 
-		List<Document> loggers = this.bot.getMongo().getLoggers(Filters.eq("guildId", guild.getIdLong()), MongoDatabase.EMPTY_DOCUMENT).into(new ArrayList<>());
-		for (Document logger : loggers) {
-			if (!logger.get("enabled", true)) {
-				continue;
+		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((iterable, exception) -> {
+			if (ExceptionUtility.sendErrorMessage(shardManager, exception)) {
+				return;
 			}
 
-			if ((logger.get("events", LoggerEvent.ALL) & loggerEvent.getRaw()) != loggerEvent.getRaw()) {
-				continue;
+			Document data = iterable.first();
+			if (data == null) {
+				return;
 			}
 
-			long channelId = logger.getLong("channelId");
-			TextChannel channel = guild.getTextChannelById(channelId);
-			if (channel == null) {
-				deletedLoggers.add(channelId);
-				continue;
-			}
-
-			List<Document> entities = logger.getEmbedded(List.of("blacklist", "entities"), Collections.emptyList());
-
-			List<WebhookEmbed> embeds = new ArrayList<>();
-			for (long messageId : messageIds) {
-				WebhookEmbedBuilder embed = new WebhookEmbedBuilder()
-					.setColor(this.bot.getConfig().getRed())
-					.setTimestamp(Instant.now())
-					.setFooter(new EmbedFooter(String.format("Message ID: %d", messageId), null));
-
-				Document message = this.bot.getMongo().getMessageById(messageId);
-				if (message == null) {
-					embed.setDescription(String.format("A message sent in %s was deleted", textChannel.getAsMention()));
-					embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
-				} else {
-					long userId = message.getLong("authorId");
-					User user = shardManager.getUserById(userId);
-
-					LoggerContext loggerContext = new LoggerContext()
-						.setUser(userId)
-						.setChannel(textChannel);
-
-					if (!LoggerUtility.isWhitelisted(entities, loggerEvent, loggerContext)) {
-						continue;
-					}
-
-					embed.setDescription(String.format("The message sent by `%s` in %s was deleted", user == null ? userId : user.getName(), textChannel.getAsMention()));
-					embed.setAuthor(new EmbedAuthor(user == null ? guild.getName() : user.getAsTag(), user == null ? guild.getIconUrl() : user.getEffectiveAvatarUrl(), null));
-
-					String content = message.getString("content");
-					if (!content.isBlank()) {
-						embed.addField(new EmbedField(false, "Message", StringUtility.limit(content, MessageEmbed.VALUE_MAX_LENGTH, "...")));
-					}
+			for (Document logger : data.getList("loggers", Document.class)) {
+				if ((logger.get("events", LoggerEvent.ALL) & loggerEvent.getRaw()) != loggerEvent.getRaw()) {
+					continue;
 				}
 
-				embeds.add(embed.build());
+				long channelId = logger.getLong("channelId");
+				TextChannel channel = guild.getTextChannelById(channelId);
+				if (channel == null) {
+					deletedLoggers.add(channelId);
+					continue;
+				}
+
+				List<Document> entities = logger.getEmbedded(List.of("blacklist", "entities"), Collections.emptyList());
+
+				List<WebhookEmbed> embeds = new ArrayList<>();
+				for (long messageId : messageIds) {
+					WebhookEmbedBuilder embed = new WebhookEmbedBuilder()
+						.setColor(this.bot.getConfig().getRed())
+						.setTimestamp(Instant.now())
+						.setFooter(new EmbedFooter(String.format("Message ID: %d", messageId), null));
+
+					Document message = this.bot.getMongo().getMessageById(messageId);
+					if (message == null) {
+						embed.setDescription(String.format("A message sent in %s was deleted", textChannel.getAsMention()));
+						embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
+					} else {
+						long userId = message.getLong("authorId");
+						User user = shardManager.getUserById(userId);
+
+						LoggerContext loggerContext = new LoggerContext()
+							.setUser(userId)
+							.setChannel(textChannel);
+
+						if (!LoggerUtility.isWhitelisted(entities, loggerEvent, loggerContext)) {
+							continue;
+						}
+
+						embed.setDescription(String.format("The message sent by `%s` in %s was deleted", user == null ? userId : user.getName(), textChannel.getAsMention()));
+						embed.setAuthor(new EmbedAuthor(user == null ? guild.getName() : user.getAsTag(), user == null ? guild.getIconUrl() : user.getEffectiveAvatarUrl(), null));
+
+						String content = message.getString("content");
+						if (!content.isBlank()) {
+							embed.addField(new EmbedField(false, "Message", StringUtility.limit(content, MessageEmbed.VALUE_MAX_LENGTH, "...")));
+						}
+					}
+
+					embeds.add(embed.build());
+				}
+
+				this.bot.getLoggerManager().queue(channel, logger, embeds);
 			}
 
-			this.bot.getLoggerManager().queue(channel, logger, embeds);
-		}
-
-		if (!deletedLoggers.isEmpty()) {
-			this.bot.getMongo().deleteManyLoggers(Filters.in("channelId", deletedLoggers)).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
-		}
+			if (!deletedLoggers.isEmpty()) {
+				this.bot.getMongo().deleteManyLoggers(Filters.in("channelId", deletedLoggers)).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
+			}
+		});
 	}
 
 	public void onGuildMessageDelete(GuildMessageDeleteEvent event) {
@@ -209,8 +238,18 @@ public class LoggerHandler implements EventListener {
 			embed.addField(new EmbedField(false, "After", StringUtility.limit(message.getContentRaw(), MessageEmbed.VALUE_MAX_LENGTH, String.format("[...](%s)", message.getJumpUrl()))));
 		}
 
-		List<Document> loggers = this.bot.getMongo().getLoggers(Filters.eq("guildId", guild.getIdLong()), MongoDatabase.EMPTY_DOCUMENT).into(new ArrayList<>());
-		this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((iterable, exception) -> {
+			if (ExceptionUtility.sendErrorMessage(this.bot.getShardManager(), exception)) {
+				return;
+			}
+
+			Document data = iterable.first();
+			if (data == null) {
+				return;
+			}
+
+			this.bot.getLoggerManager().queue(guild, data.getList("loggers", Document.class), loggerEvent, loggerContext, embed.build());
+		});
 	}
 
 	public void onGuildMemberJoin(GuildMemberJoinEvent event) {
@@ -228,46 +267,56 @@ public class LoggerHandler implements EventListener {
 		embed.setAuthor(new EmbedAuthor(user.getAsTag(), user.getEffectiveAvatarUrl(), null));
 		embed.setFooter(new EmbedFooter(String.format("%s ID: %s", user.isBot() ? "Bot" : "User", member.getId()), null));
 
-		List<Document> uncheckedLoggers = this.bot.getMongo().getLoggers(Filters.eq("guildId", guild.getIdLong()), MongoDatabase.EMPTY_DOCUMENT).into(new ArrayList<>());
-		List<Document> loggers = LoggerUtility.getValidLoggers(uncheckedLoggers, loggerEvent, loggerContext);
-		if (loggers.isEmpty()) {
-			return;
-		}
-
-		if (user.isBot()) {
-			StringBuilder description = new StringBuilder(String.format("`%s` was just added to the server", member.getEffectiveName()));
-
-			if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-				guild.retrieveAuditLogs().type(ActionType.BOT_ADD).submitAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS).whenComplete((logs, exception) -> {
-					User moderator = logs == null ? null : logs.stream()
-						.filter(e -> e.getTargetIdLong() == member.getIdLong())
-						.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
-						.map(AuditLogEntry::getUser)
-						.findFirst()
-						.orElse(null);
-
-					if (moderator != null) {
-						loggerContext.setModerator(moderator);
-
-						description.append(" by **")
-							.append(moderator.getAsTag())
-							.append("**");
-					}
-
-					embed.setDescription(description.toString());
-
-					this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
-				});
-
+		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((iterable, exception) -> {
+			if (ExceptionUtility.sendErrorMessage(this.bot.getShardManager(), exception)) {
 				return;
 			}
 
-			embed.setDescription(description.toString());
-		} else {
-			embed.setDescription(String.format("`%s` just joined the server", member.getEffectiveName()));
-		}
+			Document data = iterable.first();
+			if (data == null) {
+				return;
+			}
 
-		this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+			List<Document> loggers = LoggerUtility.getValidLoggers(data.getList("loggers", Document.class), loggerEvent, loggerContext);
+			if (loggers.isEmpty()) {
+				return;
+			}
+
+			if (user.isBot()) {
+				StringBuilder description = new StringBuilder(String.format("`%s` was just added to the server", member.getEffectiveName()));
+
+				if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
+					guild.retrieveAuditLogs().type(ActionType.BOT_ADD).submitAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS).whenComplete((logs, auditException) -> {
+						User moderator = logs == null ? null : logs.stream()
+							.filter(e -> e.getTargetIdLong() == member.getIdLong())
+							.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
+							.map(AuditLogEntry::getUser)
+							.findFirst()
+							.orElse(null);
+
+						if (moderator != null) {
+							loggerContext.setModerator(moderator);
+
+							description.append(" by **")
+								.append(moderator.getAsTag())
+								.append("**");
+						}
+
+						embed.setDescription(description.toString());
+
+						this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+					});
+
+					return;
+				}
+
+				embed.setDescription(description.toString());
+			} else {
+				embed.setDescription(String.format("`%s` just joined the server", member.getEffectiveName()));
+			}
+
+			this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+		});
 	}
 
 	public void onGuildMemberRemove(GuildMemberRemoveEvent event) {
@@ -284,37 +333,48 @@ public class LoggerHandler implements EventListener {
 		embed.setAuthor(new EmbedAuthor(user.getAsTag(), user.getEffectiveAvatarUrl(), null));
 		embed.setFooter(new EmbedFooter(String.format("User ID: %s", user.getId()), null));
 
-		List<Document> loggers = this.bot.getMongo().getLoggers(Filters.eq("guildId", guild.getIdLong()), MongoDatabase.EMPTY_DOCUMENT).into(new ArrayList<>());
-		if (loggers.isEmpty()) {
-			return;
-		}
+		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((iterable, exception) -> {
+			if (ExceptionUtility.sendErrorMessage(this.bot.getShardManager(), exception)) {
+				return;
+			}
 
-		if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-			guild.retrieveAuditLogs().type(ActionType.KICK).submitAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS).whenComplete((logs, exception) -> {
-				User moderator = logs == null ? null : logs.stream()
-					.filter(e -> e.getTargetIdLong() == user.getIdLong())
-					.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
-					.map(AuditLogEntry::getUser)
-					.findFirst()
-					.orElse(null);
+			Document data = iterable.first();
+			if (data == null) {
+				return;
+			}
 
-				LoggerEvent loggerEvent = moderator == null ? LoggerEvent.MEMBER_LEAVE : LoggerEvent.MEMBER_KICKED;
+			List<Document> loggers = data.getList("loggers", Document.class);
+			if (loggers.isEmpty()) {
+				return;
+			}
 
-				if (moderator != null) {
-					loggerContext.setModerator(moderator);
+			if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
+				guild.retrieveAuditLogs().type(ActionType.KICK).submitAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS).whenComplete((logs, auditException) -> {
+					User moderator = logs == null ? null : logs.stream()
+						.filter(e -> e.getTargetIdLong() == user.getIdLong())
+						.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
+						.map(AuditLogEntry::getUser)
+						.findFirst()
+						.orElse(null);
 
-					embed.setDescription(String.format("`%s` has been kicked by **%s**", user.getName(), moderator.getAsTag()));
-				}
+					LoggerEvent loggerEvent = moderator == null ? LoggerEvent.MEMBER_LEAVE : LoggerEvent.MEMBER_KICKED;
 
-				this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
-			});
+					if (moderator != null) {
+						loggerContext.setModerator(moderator);
 
-			return;
-		}
+						embed.setDescription(String.format("`%s` has been kicked by **%s**", user.getName(), moderator.getAsTag()));
+					}
 
-		LoggerEvent loggerEvent = LoggerEvent.MEMBER_LEAVE;
+					this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+				});
 
-		this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+				return;
+			}
+
+			LoggerEvent loggerEvent = LoggerEvent.MEMBER_LEAVE;
+
+			this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+		});
 	}
 
 	public void onGuildBan(GuildBanEvent event) {
@@ -332,32 +392,42 @@ public class LoggerHandler implements EventListener {
 		embed.setAuthor(new EmbedAuthor(user.getAsTag(), user.getEffectiveAvatarUrl(), null));
 		embed.setFooter(new EmbedFooter(String.format("User ID: %s", user.getId()), null));
 
-		List<Document> uncheckedLoggers = this.bot.getMongo().getLoggers(Filters.eq("guildId", guild.getIdLong()), MongoDatabase.EMPTY_DOCUMENT).into(new ArrayList<>());
-		List<Document> loggers = LoggerUtility.getValidLoggers(uncheckedLoggers, loggerEvent, loggerContext);
-		if (loggers.isEmpty()) {
-			return;
-		}
+		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((iterable, exception) -> {
+			if (ExceptionUtility.sendErrorMessage(this.bot.getShardManager(), exception)) {
+				return;
+			}
 
-		if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-			guild.retrieveAuditLogs().type(ActionType.BAN).submitAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS).whenComplete((logs, exception) -> {
-				User moderator = logs == null ? null : logs.stream()
-					.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
-					.filter(e -> e.getTargetIdLong() == user.getIdLong())
-					.map(AuditLogEntry::getUser)
-					.findFirst()
-					.orElse(null);
+			Document data = iterable.first();
+			if (data == null) {
+				return;
+			}
 
-				if (moderator != null) {
-					loggerContext.setModerator(moderator);
+			List<Document> loggers = LoggerUtility.getValidLoggers(data.getList("loggers", Document.class), loggerEvent, loggerContext);
+			if (loggers.isEmpty()) {
+				return;
+			}
 
-					embed.setDescription(String.format("`%s` has been banned by **%s**", user.getName(), moderator.getAsTag()));
-				}
+			if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
+				guild.retrieveAuditLogs().type(ActionType.BAN).submitAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS).whenComplete((logs, auditException) -> {
+					User moderator = logs == null ? null : logs.stream()
+						.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
+						.filter(e -> e.getTargetIdLong() == user.getIdLong())
+						.map(AuditLogEntry::getUser)
+						.findFirst()
+						.orElse(null);
 
+					if (moderator != null) {
+						loggerContext.setModerator(moderator);
+
+						embed.setDescription(String.format("`%s` has been banned by **%s**", user.getName(), moderator.getAsTag()));
+					}
+
+					this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+				});
+			} else {
 				this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
-			});
-		} else {
-			this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
-		}
+			}
+		});
 	}
 
 	public void onGuildUnban(GuildUnbanEvent event) {
@@ -375,32 +445,42 @@ public class LoggerHandler implements EventListener {
 		embed.setAuthor(new EmbedAuthor(user.getAsTag(), user.getEffectiveAvatarUrl(), null));
 		embed.setFooter(new EmbedFooter(String.format("User ID: %s", user.getId()), null));
 
-		List<Document> uncheckedLoggers = this.bot.getMongo().getLoggers(Filters.eq("guildId", guild.getIdLong()), MongoDatabase.EMPTY_DOCUMENT).into(new ArrayList<>());
-		List<Document> loggers = LoggerUtility.getValidLoggers(uncheckedLoggers, loggerEvent, loggerContext);
-		if (loggers.isEmpty()) {
-			return;
-		}
+		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((iterable, exception) -> {
+			if (ExceptionUtility.sendErrorMessage(this.bot.getShardManager(), exception)) {
+				return;
+			}
 
-		if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-			guild.retrieveAuditLogs().type(ActionType.UNBAN).submitAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS).whenComplete((logs, exception) -> {
-				User moderator = logs == null ? null : logs.stream()
-					.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
-					.filter(e -> e.getTargetIdLong() == user.getIdLong())
-					.map(AuditLogEntry::getUser)
-					.findFirst()
-					.orElse(null);
+			Document data = iterable.first();
+			if (data == null) {
+				return;
+			}
 
-				if (moderator != null) {
-					loggerContext.setModerator(moderator);
+			List<Document> loggers = LoggerUtility.getValidLoggers(data.getList("loggers", Document.class), loggerEvent, loggerContext);
+			if (loggers.isEmpty()) {
+				return;
+			}
 
-					embed.setDescription(String.format("`%s` has been unbanned by **%s**", user.getName(), moderator.getAsTag()));
-				}
+			if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
+				guild.retrieveAuditLogs().type(ActionType.UNBAN).submitAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS).whenComplete((logs, auditException) -> {
+					User moderator = logs == null ? null : logs.stream()
+						.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
+						.filter(e -> e.getTargetIdLong() == user.getIdLong())
+						.map(AuditLogEntry::getUser)
+						.findFirst()
+						.orElse(null);
 
+					if (moderator != null) {
+						loggerContext.setModerator(moderator);
+
+						embed.setDescription(String.format("`%s` has been unbanned by **%s**", user.getName(), moderator.getAsTag()));
+					}
+
+					this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+				});
+			} else {
 				this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
-			});
-		} else {
-			this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
-		}
+			}
+		});
 	}
 
 	public void onGuildVoiceJoin(GuildVoiceJoinEvent event) {
@@ -421,8 +501,18 @@ public class LoggerHandler implements EventListener {
 			.setFooter(new EmbedFooter(String.format("User ID: %s", member.getId()), null))
 			.setAuthor(new EmbedAuthor(user.getAsTag(), user.getEffectiveAvatarUrl(), null));
 
-		List<Document> loggers = this.bot.getMongo().getLoggers(Filters.eq("guildId", guild.getIdLong()), MongoDatabase.EMPTY_DOCUMENT).into(new ArrayList<>());
-		this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((iterable, exception) -> {
+			if (ExceptionUtility.sendErrorMessage(this.bot.getShardManager(), exception)) {
+				return;
+			}
+
+			Document data = iterable.first();
+			if (data == null) {
+				return;
+			}
+
+			this.bot.getLoggerManager().queue(guild, data.getList("loggers", Document.class), loggerEvent, loggerContext, embed.build());
+		});
 	}
 
 	public void onGuildVoiceLeave(GuildVoiceLeaveEvent event) {
@@ -442,46 +532,57 @@ public class LoggerHandler implements EventListener {
 		embed.setAuthor(new EmbedAuthor(user.getAsTag(), user.getEffectiveAvatarUrl(), null));
 		embed.setFooter(new EmbedFooter(String.format("User ID: %s", user.getId()), null));
 
-		List<Document> loggers = this.bot.getMongo().getLoggers(Filters.eq("guildId", guild.getIdLong()), MongoDatabase.EMPTY_DOCUMENT).into(new ArrayList<>());
-		if (loggers.isEmpty()) {
-			return;
-		}
+		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((iterable, exception) -> {
+			if (ExceptionUtility.sendErrorMessage(this.bot.getShardManager(), exception)) {
+				return;
+			}
 
-		if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-			event.getGuild().retrieveAuditLogs().type(ActionType.MEMBER_VOICE_KICK).submitAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS).whenComplete((logs, exception) -> {
-				this.disconnectCache.putIfAbsent(guild.getIdLong(), new TLongIntHashMap());
-				TLongIntMap guildCache = this.disconnectCache.get(guild.getIdLong());
+			Document data = iterable.first();
+			if (data == null) {
+				return;
+			}
 
-				AuditLogEntry entry = logs == null ? null : logs.stream()
-					.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toMinutes() <= 10)
-					.filter(e -> {
-						int count = Integer.parseInt(e.getOptionByName("count"));
-						int oldCount = guildCache.get(e.getIdLong());
+			List<Document> loggers = data.getList("loggers", Document.class);
+			if (loggers.isEmpty()) {
+				return;
+			}
 
-						return (count == 1 && count != oldCount) || count > oldCount;
-					})
-					.findFirst()
-					.orElse(null);
+			if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
+				event.getGuild().retrieveAuditLogs().type(ActionType.MEMBER_VOICE_KICK).submitAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS).whenComplete((logs, auditException) -> {
+					this.disconnectCache.putIfAbsent(guild.getIdLong(), new TLongIntHashMap());
+					TLongIntMap guildCache = this.disconnectCache.get(guild.getIdLong());
 
-				User moderator = entry == null ? null : entry.getUser();
+					AuditLogEntry entry = logs == null ? null : logs.stream()
+						.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toMinutes() <= 10)
+						.filter(e -> {
+							int count = Integer.parseInt(e.getOptionByName("count"));
+							int oldCount = guildCache.get(e.getIdLong());
 
-				LoggerEvent loggerEvent = moderator == null ? LoggerEvent.MEMBER_VOICE_LEAVE : LoggerEvent.MEMBER_VOICE_DISCONNECT;
+							return (count == 1 && count != oldCount) || count > oldCount;
+						})
+						.findFirst()
+						.orElse(null);
 
-				if (moderator != null) {
-					guildCache.put(entry.getIdLong(), Integer.parseInt(entry.getOptionByName("count")));
+					User moderator = entry == null ? null : entry.getUser();
 
-					loggerContext.setModerator(moderator);
+					LoggerEvent loggerEvent = moderator == null ? LoggerEvent.MEMBER_VOICE_LEAVE : LoggerEvent.MEMBER_VOICE_DISCONNECT;
 
-					embed.setDescription(String.format("`%s` was disconnected from the voice channel `%s` by **%s**", member.getEffectiveName(), channel.getName(), moderator.getAsTag()));
-				}
+					if (moderator != null) {
+						guildCache.put(entry.getIdLong(), Integer.parseInt(entry.getOptionByName("count")));
+
+						loggerContext.setModerator(moderator);
+
+						embed.setDescription(String.format("`%s` was disconnected from the voice channel `%s` by **%s**", member.getEffectiveName(), channel.getName(), moderator.getAsTag()));
+					}
+
+					this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+				});
+			} else {
+				LoggerEvent loggerEvent = LoggerEvent.MEMBER_VOICE_LEAVE;
 
 				this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
-			});
-		} else {
-			LoggerEvent loggerEvent = LoggerEvent.MEMBER_VOICE_LEAVE;
-
-			this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
-		}
+			}
+		});
 	}
 
 	public void onGuildVoiceMove(GuildVoiceMoveEvent event) {
@@ -504,43 +605,53 @@ public class LoggerHandler implements EventListener {
 		embed.addField(new EmbedField(false, "Before", String.format("`%s`", left.getName())));
 		embed.addField(new EmbedField(false, "After", String.format("`%s`", joined.getName())));
 
-		List<Document> uncheckedLoggers = this.bot.getMongo().getLoggers(Filters.eq("guildId", guild.getIdLong()), MongoDatabase.EMPTY_DOCUMENT).into(new ArrayList<>());
-		List<Document> loggers = LoggerUtility.getValidLoggers(uncheckedLoggers, loggerEvent, loggerContext);
-		if (loggers.isEmpty()) {
-			return;
-		}
+		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((iterable, exception) -> {
+			if (ExceptionUtility.sendErrorMessage(this.bot.getShardManager(), exception)) {
+				return;
+			}
 
-		if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-			event.getGuild().retrieveAuditLogs().type(ActionType.MEMBER_VOICE_MOVE).submitAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS).whenComplete((logs, exception) -> {
-				this.moveCache.putIfAbsent(joined.getIdLong(), new TLongIntHashMap());
-				TLongIntMap channelCache = this.moveCache.get(joined.getIdLong());
+			Document data = iterable.first();
+			if (data == null) {
+				return;
+			}
 
-				AuditLogEntry entry = logs == null ? null : logs.stream()
-					.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toMinutes() <= 10)
-					.filter(e -> Long.parseLong(e.getOptionByName("channel_id")) == joined.getIdLong())
-					.filter(e -> {
-						int count = Integer.parseInt(e.getOptionByName("count"));
-						int oldCount = channelCache.get(e.getIdLong());
+			List<Document> loggers = LoggerUtility.getValidLoggers(data.getList("loggers", Document.class), loggerEvent, loggerContext);
+			if (loggers.isEmpty()) {
+				return;
+			}
 
-						return (count == 1 && count != oldCount) || count > oldCount;
-					})
-					.findFirst()
-					.orElse(null);
+			if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
+				event.getGuild().retrieveAuditLogs().type(ActionType.MEMBER_VOICE_MOVE).submitAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS).whenComplete((logs, auditException) -> {
+					this.moveCache.putIfAbsent(joined.getIdLong(), new TLongIntHashMap());
+					TLongIntMap channelCache = this.moveCache.get(joined.getIdLong());
 
-				User moderator = entry == null ? null : entry.getUser();
-				if (moderator != null) {
-					channelCache.put(entry.getIdLong(), Integer.parseInt(entry.getOptionByName("count")));
+					AuditLogEntry entry = logs == null ? null : logs.stream()
+						.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toMinutes() <= 10)
+						.filter(e -> Long.parseLong(e.getOptionByName("channel_id")) == joined.getIdLong())
+						.filter(e -> {
+							int count = Integer.parseInt(e.getOptionByName("count"));
+							int oldCount = channelCache.get(e.getIdLong());
 
-					loggerContext.setModerator(moderator);
+							return (count == 1 && count != oldCount) || count > oldCount;
+						})
+						.findFirst()
+						.orElse(null);
 
-					embed.setDescription(String.format("`%s` was moved voice channel by **%s**", member.getEffectiveName(), moderator.getAsTag()));
-				}
+					User moderator = entry == null ? null : entry.getUser();
+					if (moderator != null) {
+						channelCache.put(entry.getIdLong(), Integer.parseInt(entry.getOptionByName("count")));
 
+						loggerContext.setModerator(moderator);
+
+						embed.setDescription(String.format("`%s` was moved voice channel by **%s**", member.getEffectiveName(), moderator.getAsTag()));
+					}
+
+					this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+				});
+			} else {
 				this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
-			});
-		} else {
-			this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
-		}
+			}
+		});
 	}
 
 	public void onGuildVoiceGuildMute(GuildVoiceGuildMuteEvent event) {
@@ -564,33 +675,43 @@ public class LoggerHandler implements EventListener {
 		embed.setFooter(new EmbedFooter(String.format("User ID: %s", user.getId()), null));
 		embed.setColor(muted ? this.bot.getConfig().getRed() : this.bot.getConfig().getGreen());
 
-		List<Document> uncheckedLoggers = this.bot.getMongo().getLoggers(Filters.eq("guildId", guild.getIdLong()), MongoDatabase.EMPTY_DOCUMENT).into(new ArrayList<>());
-		List<Document> loggers = LoggerUtility.getValidLoggers(uncheckedLoggers, loggerEvent, loggerContext);
-		if (loggers.isEmpty()) {
-			return;
-		}
+		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((iterable, exception) -> {
+			if (ExceptionUtility.sendErrorMessage(this.bot.getShardManager(), exception)) {
+				return;
+			}
 
-		if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-			guild.retrieveAuditLogs().type(ActionType.MEMBER_UPDATE).submitAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS).whenComplete((logs, exception) -> {
-				User moderator = logs == null ? null : logs.stream()
-					.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
-					.filter(e -> e.getTargetIdLong() == member.getUser().getIdLong())
-					.filter(e -> e.getChangeByKey(AuditLogKey.MEMBER_MUTE) != null)
-					.map(AuditLogEntry::getUser)
-					.findFirst()
-					.orElse(null);
+			Document data = iterable.first();
+			if (data == null) {
+				return;
+			}
 
-				if (moderator != null) {
-					loggerContext.setModerator(moderator);
+			List<Document> loggers = LoggerUtility.getValidLoggers(data.getList("loggers", Document.class), loggerEvent, loggerContext);
+			if (loggers.isEmpty()) {
+				return;
+			}
 
-					embed.setDescription(String.format("`%s` has been %s by **%s**", member.getEffectiveName(), muted ? "muted" : "unmuted", moderator.getAsTag()));
-				}
+			if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
+				guild.retrieveAuditLogs().type(ActionType.MEMBER_UPDATE).submitAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS).whenComplete((logs, auditException) -> {
+					User moderator = logs == null ? null : logs.stream()
+						.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
+						.filter(e -> e.getTargetIdLong() == member.getUser().getIdLong())
+						.filter(e -> e.getChangeByKey(AuditLogKey.MEMBER_MUTE) != null)
+						.map(AuditLogEntry::getUser)
+						.findFirst()
+						.orElse(null);
 
+					if (moderator != null) {
+						loggerContext.setModerator(moderator);
+
+						embed.setDescription(String.format("`%s` has been %s by **%s**", member.getEffectiveName(), muted ? "muted" : "unmuted", moderator.getAsTag()));
+					}
+
+					this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+				});
+			} else {
 				this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
-			});
-		} else {
-			this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
-		}
+			}
+		});
 	}
 
 	public void onGuildVoiceGuildDeafen(GuildVoiceGuildDeafenEvent event) {
@@ -614,33 +735,43 @@ public class LoggerHandler implements EventListener {
 		embed.setFooter(new EmbedFooter(String.format("User ID: %s", user.getId()), null));
 		embed.setColor(deafened ? this.bot.getConfig().getRed() : this.bot.getConfig().getGreen());
 
-		List<Document> uncheckedLoggers = this.bot.getMongo().getLoggers(Filters.eq("guildId", guild.getIdLong()), MongoDatabase.EMPTY_DOCUMENT).into(new ArrayList<>());
-		List<Document> loggers = LoggerUtility.getValidLoggers(uncheckedLoggers, loggerEvent, loggerContext);
-		if (loggers.isEmpty()) {
-			return;
-		}
+		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((iterable, exception) -> {
+			if (ExceptionUtility.sendErrorMessage(this.bot.getShardManager(), exception)) {
+				return;
+			}
 
-		if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-			guild.retrieveAuditLogs().type(ActionType.MEMBER_UPDATE).submitAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS).whenComplete((logs, exception) -> {
-				User moderator = logs == null ? null : logs.stream()
-					.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
-					.filter(e -> e.getTargetIdLong() == member.getUser().getIdLong())
-					.filter(e -> e.getChangeByKey(AuditLogKey.MEMBER_DEAF) != null)
-					.map(AuditLogEntry::getUser)
-					.findFirst()
-					.orElse(null);
+			Document data = iterable.first();
+			if (data == null) {
+				return;
+			}
 
-				if (moderator != null) {
-					loggerContext.setModerator(moderator);
+			List<Document> loggers = LoggerUtility.getValidLoggers(data.getList("loggers", Document.class), loggerEvent, loggerContext);
+			if (loggers.isEmpty()) {
+				return;
+			}
 
-					embed.setDescription(String.format("`%s` has been %s by **%s**", member.getEffectiveName(), deafened ? "deafened" : "undeafened", moderator.getAsTag()));
-				}
+			if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
+				guild.retrieveAuditLogs().type(ActionType.MEMBER_UPDATE).submitAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS).whenComplete((logs, auditException) -> {
+					User moderator = logs == null ? null : logs.stream()
+						.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
+						.filter(e -> e.getTargetIdLong() == member.getUser().getIdLong())
+						.filter(e -> e.getChangeByKey(AuditLogKey.MEMBER_DEAF) != null)
+						.map(AuditLogEntry::getUser)
+						.findFirst()
+						.orElse(null);
 
+					if (moderator != null) {
+						loggerContext.setModerator(moderator);
+
+						embed.setDescription(String.format("`%s` has been %s by **%s**", member.getEffectiveName(), deafened ? "deafened" : "undeafened", moderator.getAsTag()));
+					}
+
+					this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+				});
+			} else {
 				this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
-			});
-		} else {
-			this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
-		}
+			}
+		});
 	}
 
 	public void onPermissionOverrideCreate(PermissionOverrideCreateEvent event) {
@@ -671,46 +802,56 @@ public class LoggerHandler implements EventListener {
 		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
 		embed.setFooter(new EmbedFooter(String.format("%s ID: %s", event.isRoleOverride() ? "Role" : "User", permissionHolder.getIdLong()), null));
 
-		List<Document> uncheckedLoggers = this.bot.getMongo().getLoggers(Filters.eq("guildId", guild.getIdLong()), MongoDatabase.EMPTY_DOCUMENT).into(new ArrayList<>());
-		List<Document> loggers = LoggerUtility.getValidLoggers(uncheckedLoggers, loggerEvent, loggerContext);
-		if (loggers.isEmpty()) {
-			return;
-		}
+		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((iterable, exception) -> {
+			if (ExceptionUtility.sendErrorMessage(this.bot.getShardManager(), exception)) {
+				return;
+			}
 
-		if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-			guild.retrieveAuditLogs().type(ActionType.CHANNEL_OVERRIDE_CREATE).submitAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS).whenComplete((logs, exception) -> {
-				User moderator = logs == null ? null : logs.stream()
-					.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
-					.filter(e -> e.getTargetIdLong() == channel.getIdLong())
-					.filter(e -> {
-						AuditLogChange allow = e.getChangeByKey("allow"), deny = e.getChangeByKey("deny");
+			Document data = iterable.first();
+			if (data == null) {
+				return;
+			}
 
-						int denyNew = deny == null ? (int) permissionOverride.getDeniedRaw() : deny.getNewValue();
-						int allowNew = allow == null ? (int) permissionOverride.getAllowedRaw() : allow.getNewValue();
+			List<Document> loggers = LoggerUtility.getValidLoggers(data.getList("loggers", Document.class), loggerEvent, loggerContext);
+			if (loggers.isEmpty()) {
+				return;
+			}
 
-						return denyNew == permissionOverride.getDeniedRaw() && allowNew == permissionOverride.getAllowedRaw();
-					})
-					.map(AuditLogEntry::getUser)
-					.findFirst()
-					.orElse(null);
+			if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
+				guild.retrieveAuditLogs().type(ActionType.CHANNEL_OVERRIDE_CREATE).submitAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS).whenComplete((logs, auditException) -> {
+					User moderator = logs == null ? null : logs.stream()
+						.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
+						.filter(e -> e.getTargetIdLong() == channel.getIdLong())
+						.filter(e -> {
+							AuditLogChange allow = e.getChangeByKey("allow"), deny = e.getChangeByKey("deny");
 
-				if (moderator != null) {
-					loggerContext.setModerator(moderator);
+							int denyNew = deny == null ? (int) permissionOverride.getDeniedRaw() : deny.getNewValue();
+							int allowNew = allow == null ? (int) permissionOverride.getAllowedRaw() : allow.getNewValue();
 
-					description.append(String.format(" by **%s**", moderator.getAsTag()));
-				}
+							return denyNew == permissionOverride.getDeniedRaw() && allowNew == permissionOverride.getAllowedRaw();
+						})
+						.map(AuditLogEntry::getUser)
+						.findFirst()
+						.orElse(null);
 
+					if (moderator != null) {
+						loggerContext.setModerator(moderator);
+
+						description.append(String.format(" by **%s**", moderator.getAsTag()));
+					}
+
+					description.append(message);
+					embed.setDescription(description.toString());
+
+					this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+				});
+			} else {
 				description.append(message);
 				embed.setDescription(description.toString());
 
 				this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
-			});
-		} else {
-			description.append(message);
-			embed.setDescription(description.toString());
-
-			this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
-		}
+			}
+		});
 	}
 
 	public void onPermissionOverrideUpdate(PermissionOverrideUpdateEvent event) {
@@ -740,49 +881,59 @@ public class LoggerHandler implements EventListener {
 		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
 		embed.setFooter(new EmbedFooter(String.format("%s ID: %s", event.isRoleOverride() ? "Role" : "User", permissionHolder.getIdLong()), null));
 
-		List<Document> uncheckedLoggers = this.bot.getMongo().getLoggers(Filters.eq("guildId", guild.getIdLong()), MongoDatabase.EMPTY_DOCUMENT).into(new ArrayList<>());
-		List<Document> loggers = LoggerUtility.getValidLoggers(uncheckedLoggers, loggerEvent, loggerContext);
-		if (loggers.isEmpty()) {
-			return;
-		}
+		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((iterable, exception) -> {
+			if (ExceptionUtility.sendErrorMessage(this.bot.getShardManager(), exception)) {
+				return;
+			}
 
-		if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-			guild.retrieveAuditLogs().type(ActionType.CHANNEL_OVERRIDE_CREATE).submitAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS).whenComplete((logs, exception) -> {
-				User moderator = logs == null ? null : logs.stream()
-					.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
-					.filter(e -> e.getTargetIdLong() == channel.getIdLong())
-					.filter(e -> {
-						AuditLogChange allow = e.getChangeByKey("allow"), deny = e.getChangeByKey("deny");
+			Document data = iterable.first();
+			if (data == null) {
+				return;
+			}
 
-						Integer denyNewValue = deny == null ? null : deny.getNewValue(), denyOldValue = deny == null ? null : deny.getOldValue();
-						Integer allowNewValue = allow == null ? null : allow.getNewValue(), allowOldValue = allow == null ? null : allow.getOldValue();
+			List<Document> loggers = LoggerUtility.getValidLoggers(data.getList("loggers", Document.class), loggerEvent, loggerContext);
+			if (loggers.isEmpty()) {
+				return;
+			}
 
-						int denyNew = denyNewValue == null ? (int) permissionOverride.getDeniedRaw() : denyNewValue, denyOld = denyOldValue == null ? (int) event.getOldDenyRaw() : denyOldValue;
-						int allowNew = allowNewValue == null ? (int) permissionOverride.getAllowedRaw() : allowNewValue, allowOld = allowOldValue == null ? (int) event.getOldAllowRaw() : allowOldValue;
+			if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
+				guild.retrieveAuditLogs().type(ActionType.CHANNEL_OVERRIDE_CREATE).submitAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS).whenComplete((logs, auditException) -> {
+					User moderator = logs == null ? null : logs.stream()
+						.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
+						.filter(e -> e.getTargetIdLong() == channel.getIdLong())
+						.filter(e -> {
+							AuditLogChange allow = e.getChangeByKey("allow"), deny = e.getChangeByKey("deny");
 
-						return denyNew == permissionOverride.getDeniedRaw() && denyOld == event.getOldDenyRaw() && allowNew == permissionOverride.getAllowedRaw() && allowOld == event.getOldAllowRaw();
-					})
-					.map(AuditLogEntry::getUser)
-					.findFirst()
-					.orElse(null);
+							Integer denyNewValue = deny == null ? null : deny.getNewValue(), denyOldValue = deny == null ? null : deny.getOldValue();
+							Integer allowNewValue = allow == null ? null : allow.getNewValue(), allowOldValue = allow == null ? null : allow.getOldValue();
 
-				if (moderator != null) {
-					loggerContext.setModerator(moderator);
+							int denyNew = denyNewValue == null ? (int) permissionOverride.getDeniedRaw() : denyNewValue, denyOld = denyOldValue == null ? (int) event.getOldDenyRaw() : denyOldValue;
+							int allowNew = allowNewValue == null ? (int) permissionOverride.getAllowedRaw() : allowNewValue, allowOld = allowOldValue == null ? (int) event.getOldAllowRaw() : allowOldValue;
 
-					description.append(String.format(" by **%s**", moderator.getAsTag()));
-				}
+							return denyNew == permissionOverride.getDeniedRaw() && denyOld == event.getOldDenyRaw() && allowNew == permissionOverride.getAllowedRaw() && allowOld == event.getOldAllowRaw();
+						})
+						.map(AuditLogEntry::getUser)
+						.findFirst()
+						.orElse(null);
 
+					if (moderator != null) {
+						loggerContext.setModerator(moderator);
+
+						description.append(String.format(" by **%s**", moderator.getAsTag()));
+					}
+
+					description.append(message);
+					embed.setDescription(description.toString());
+
+					this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+				});
+			} else {
 				description.append(message);
 				embed.setDescription(description.toString());
 
 				this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
-			});
-		} else {
-			description.append(message);
-			embed.setDescription(description.toString());
-
-			this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
-		}
+			}
+		});
 	}
 
 	public void onPermissionOverrideDelete(PermissionOverrideDeleteEvent event) {
@@ -812,44 +963,54 @@ public class LoggerHandler implements EventListener {
 
 		// wait for member leave or role delete event if needed
 		this.delay(() -> {
-			List<Document> uncheckedLoggers = this.bot.getMongo().getLoggers(Filters.eq("guildId", guild.getIdLong()), MongoDatabase.EMPTY_DOCUMENT).into(new ArrayList<>());
-			List<Document> loggers = LoggerUtility.getValidLoggers(uncheckedLoggers, loggerEvent, loggerContext);
-			if (loggers.isEmpty()) {
-				return;
-			}
+			this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((iterable, exception) -> {
+				if (ExceptionUtility.sendErrorMessage(this.bot.getShardManager(), exception)) {
+					return;
+				}
 
-			boolean deleted = (roleOverride ? event.getRole() : event.getMember()) == null;
+				Document data = iterable.first();
+				if (data == null) {
+					return;
+				}
 
-			StringBuilder description = new StringBuilder(String.format("The %s %s has had permission overrides deleted for %s", LoggerUtility.getChannelTypeReadable(channelType), channelType == ChannelType.TEXT ? ((TextChannel) channel).getAsMention() : "`" + channel.getName() + "`", roleOverride ? (deleted ? "`" + role.getName() + "`" : role.getAsMention()) : "`" + member.getEffectiveName() + "`"));
+				List<Document> loggers = LoggerUtility.getValidLoggers(data.getList("loggers", Document.class), loggerEvent, loggerContext);
+				if (loggers.isEmpty()) {
+					return;
+				}
 
-			if (deleted) {
-				description.append(String.format(" by **%s**", roleOverride ? "role deletion" : "member leave"));
-			}
+				boolean deleted = (roleOverride ? event.getRole() : event.getMember()) == null;
 
-			if (!deleted && guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-				guild.retrieveAuditLogs().type(ActionType.CHANNEL_OVERRIDE_DELETE).submit().whenComplete((logs, exception) -> {
-					User moderator = logs == null ? null : logs.stream()
-						.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
-						.filter(e -> e.getTargetIdLong() == channel.getIdLong())
-						.map(AuditLogEntry::getUser)
-						.findFirst()
-						.orElse(null);
+				StringBuilder description = new StringBuilder(String.format("The %s %s has had permission overrides deleted for %s", LoggerUtility.getChannelTypeReadable(channelType), channelType == ChannelType.TEXT ? ((TextChannel) channel).getAsMention() : "`" + channel.getName() + "`", roleOverride ? (deleted ? "`" + role.getName() + "`" : role.getAsMention()) : "`" + member.getEffectiveName() + "`"));
 
-					if (moderator != null) {
-						loggerContext.setModerator(moderator);
+				if (deleted) {
+					description.append(String.format(" by **%s**", roleOverride ? "role deletion" : "member leave"));
+				}
 
-						description.append(String.format(" by **%s**", moderator.getAsTag()));
-					}
+				if (!deleted && guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
+					guild.retrieveAuditLogs().type(ActionType.CHANNEL_OVERRIDE_DELETE).submit().whenComplete((logs, auditException) -> {
+						User moderator = logs == null ? null : logs.stream()
+							.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
+							.filter(e -> e.getTargetIdLong() == channel.getIdLong())
+							.map(AuditLogEntry::getUser)
+							.findFirst()
+							.orElse(null);
 
+						if (moderator != null) {
+							loggerContext.setModerator(moderator);
+
+							description.append(String.format(" by **%s**", moderator.getAsTag()));
+						}
+
+						embed.setDescription(description.toString());
+
+						this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+					});
+				} else {
 					embed.setDescription(description.toString());
 
 					this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
-				});
-			} else {
-				embed.setDescription(description.toString());
-
-				this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
-			}
+				}
+			});
 		});
 	}
 
@@ -867,32 +1028,42 @@ public class LoggerHandler implements EventListener {
 		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
 		embed.setFooter(new EmbedFooter(String.format("%s ID: %s", channel.getType() == ChannelType.CATEGORY ? "Category" : "Channel", channel.getId()), null));
 
-		List<Document> uncheckedLoggers = this.bot.getMongo().getLoggers(Filters.eq("guildId", guild.getIdLong()), MongoDatabase.EMPTY_DOCUMENT).into(new ArrayList<>());
-		List<Document> loggers = LoggerUtility.getValidLoggers(uncheckedLoggers, loggerEvent, loggerContext);
-		if (loggers.isEmpty()) {
-			return;
-		}
+		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((iterable, exception) -> {
+			if (ExceptionUtility.sendErrorMessage(this.bot.getShardManager(), exception)) {
+				return;
+			}
 
-		if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-			guild.retrieveAuditLogs().type(ActionType.CHANNEL_DELETE).submitAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS).whenComplete((logs, exception) -> {
-				User moderator = logs == null ? null : logs.stream()
-					.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
-					.filter(e -> e.getTargetIdLong() == channel.getIdLong())
-					.map(AuditLogEntry::getUser)
-					.findFirst()
-					.orElse(null);
+			Document data = iterable.first();
+			if (data == null) {
+				return;
+			}
 
-				if (moderator != null) {
-					loggerContext.setModerator(moderator);
+			List<Document> loggers = LoggerUtility.getValidLoggers(data.getList("loggers", Document.class), loggerEvent, loggerContext);
+			if (loggers.isEmpty()) {
+				return;
+			}
 
-					embed.setDescription(String.format("The %s `%s` has just been deleted by **%s**", typeReadable, channel.getName(),  moderator.getAsTag()));
-				}
+			if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
+				guild.retrieveAuditLogs().type(ActionType.CHANNEL_DELETE).submitAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS).whenComplete((logs, auditException) -> {
+					User moderator = logs == null ? null : logs.stream()
+						.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
+						.filter(e -> e.getTargetIdLong() == channel.getIdLong())
+						.map(AuditLogEntry::getUser)
+						.findFirst()
+						.orElse(null);
 
+					if (moderator != null) {
+						loggerContext.setModerator(moderator);
+
+						embed.setDescription(String.format("The %s `%s` has just been deleted by **%s**", typeReadable, channel.getName(), moderator.getAsTag()));
+					}
+
+					this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+				});
+			} else {
 				this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
-			});
-		} else {
-			this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
-		}
+			}
+		});
 	}
 
 	public void onTextChannelDelete(TextChannelDeleteEvent event) {
@@ -926,32 +1097,42 @@ public class LoggerHandler implements EventListener {
 		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
 		embed.setFooter(new EmbedFooter(String.format("%s ID: %s", channel.getType() == ChannelType.CATEGORY ? "Category" : "Channel", channel.getId()), null));
 
-		List<Document> uncheckedLoggers = this.bot.getMongo().getLoggers(Filters.eq("guildId", guild.getIdLong()), MongoDatabase.EMPTY_DOCUMENT).into(new ArrayList<>());
-		List<Document> loggers = LoggerUtility.getValidLoggers(uncheckedLoggers, loggerEvent, loggerContext);
-		if (loggers.isEmpty()) {
-			return;
-		}
+		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((iterable, exception) -> {
+			if (ExceptionUtility.sendErrorMessage(this.bot.getShardManager(), exception)) {
+				return;
+			}
 
-		if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-			guild.retrieveAuditLogs().type(ActionType.CHANNEL_CREATE).submitAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS).whenComplete((logs, exception) -> {
-				User moderator = logs == null ? null : logs.stream()
-					.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
-					.filter(e -> e.getTargetIdLong() == channel.getIdLong())
-					.map(AuditLogEntry::getUser)
-					.findFirst()
-					.orElse(null);
+			Document data = iterable.first();
+			if (data == null) {
+				return;
+			}
 
-				if (moderator != null) {
-					loggerContext.setModerator(moderator);
+			List<Document> loggers = LoggerUtility.getValidLoggers(data.getList("loggers", Document.class), loggerEvent, loggerContext);
+			if (loggers.isEmpty()) {
+				return;
+			}
 
-					embed.setDescription(String.format("The %s %s has just been created by **%s**", typeReadable, channelType == ChannelType.TEXT ? ((TextChannel) channel).getAsMention() : "`" + channel.getName() + "`",  moderator.getAsTag()));
-				}
+			if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
+				guild.retrieveAuditLogs().type(ActionType.CHANNEL_CREATE).submitAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS).whenComplete((logs, auditException) -> {
+					User moderator = logs == null ? null : logs.stream()
+						.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
+						.filter(e -> e.getTargetIdLong() == channel.getIdLong())
+						.map(AuditLogEntry::getUser)
+						.findFirst()
+						.orElse(null);
 
+					if (moderator != null) {
+						loggerContext.setModerator(moderator);
+
+						embed.setDescription(String.format("The %s %s has just been created by **%s**", typeReadable, channelType == ChannelType.TEXT ? ((TextChannel) channel).getAsMention() : "`" + channel.getName() + "`", moderator.getAsTag()));
+					}
+
+					this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+				});
+			} else {
 				this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
-			});
-		} else {
-			this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
-		}
+			}
+		});
 	}
 
 	public void onTextChannelCreate(TextChannelCreateEvent event) {
@@ -988,33 +1169,43 @@ public class LoggerHandler implements EventListener {
 		embed.addField(new EmbedField(false, "Before", String.format("`%s`", oldName)));
 		embed.addField(new EmbedField(false, "After", String.format("`%s`", channel.getName())));
 
-		List<Document> uncheckedLoggers = this.bot.getMongo().getLoggers(Filters.eq("guildId", guild.getIdLong()), MongoDatabase.EMPTY_DOCUMENT).into(new ArrayList<>());
-		List<Document> loggers = LoggerUtility.getValidLoggers(uncheckedLoggers, loggerEvent, loggerContext);
-		if (loggers.isEmpty()) {
-			return;
-		}
+		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((iterable, exception) -> {
+			if (ExceptionUtility.sendErrorMessage(this.bot.getShardManager(), exception)) {
+				return;
+			}
 
-		if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-			guild.retrieveAuditLogs().type(ActionType.CHANNEL_UPDATE).submitAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS).whenComplete((logs, exception) -> {
-				User moderator = logs == null ? null : logs.stream()
-					.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
-					.filter(e -> e.getTargetIdLong() == channel.getIdLong())
-					.filter(e -> e.getChangeByKey(AuditLogKey.CHANNEL_NAME) != null)
-					.map(AuditLogEntry::getUser)
-					.findFirst()
-					.orElse(null);
+			Document data = iterable.first();
+			if (data == null) {
+				return;
+			}
 
-				if (moderator != null) {
-					loggerContext.setModerator(moderator);
+			List<Document> loggers = LoggerUtility.getValidLoggers(data.getList("loggers", Document.class), loggerEvent, loggerContext);
+			if (loggers.isEmpty()) {
+				return;
+			}
 
-					embed.setDescription(String.format("The %s %s has just been renamed by **%s**", typeReadable, channelType == ChannelType.TEXT ? ((TextChannel) channel).getAsMention() : "`" + channel.getName() + "`", moderator.getAsTag()));
-				}
+			if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
+				guild.retrieveAuditLogs().type(ActionType.CHANNEL_UPDATE).submitAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS).whenComplete((logs, auditException) -> {
+					User moderator = logs == null ? null : logs.stream()
+						.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
+						.filter(e -> e.getTargetIdLong() == channel.getIdLong())
+						.filter(e -> e.getChangeByKey(AuditLogKey.CHANNEL_NAME) != null)
+						.map(AuditLogEntry::getUser)
+						.findFirst()
+						.orElse(null);
 
+					if (moderator != null) {
+						loggerContext.setModerator(moderator);
+
+						embed.setDescription(String.format("The %s %s has just been renamed by **%s**", typeReadable, channelType == ChannelType.TEXT ? ((TextChannel) channel).getAsMention() : "`" + channel.getName() + "`", moderator.getAsTag()));
+					}
+
+					this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+				});
+			} else {
 				this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
-			});
-		} else {
-			this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
-		}
+			}
+		});
 	}
 
 	public void onTextChannelUpdateName(TextChannelUpdateNameEvent event) {
@@ -1048,32 +1239,42 @@ public class LoggerHandler implements EventListener {
 		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
 		embed.setFooter(new EmbedFooter(String.format("Role ID: %s", role.getId()), null));
 
-		List<Document> uncheckedLoggers = this.bot.getMongo().getLoggers(Filters.eq("guildId", guild.getIdLong()), MongoDatabase.EMPTY_DOCUMENT).into(new ArrayList<>());
-		List<Document> loggers = LoggerUtility.getValidLoggers(uncheckedLoggers, loggerEvent, loggerContext);
-		if (loggers.isEmpty()) {
-			return;
-		}
+		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((iterable, exception) -> {
+			if (ExceptionUtility.sendErrorMessage(this.bot.getShardManager(), exception)) {
+				return;
+			}
 
-		if (!role.isManaged() && guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-			guild.retrieveAuditLogs().type(ActionType.ROLE_CREATE).submitAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS).whenComplete((logs, exception) -> {
-				User moderator = logs == null ? null : logs.stream()
-					.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
-					.filter(e -> e.getTargetIdLong() == role.getIdLong())
-					.map(AuditLogEntry::getUser)
-					.findFirst()
-					.orElse(null);
+			Document data = iterable.first();
+			if (data == null) {
+				return;
+			}
 
-				if (moderator != null) {
-					loggerContext.setModerator(moderator);
+			List<Document> loggers = LoggerUtility.getValidLoggers(data.getList("loggers", Document.class), loggerEvent, loggerContext);
+			if (loggers.isEmpty()) {
+				return;
+			}
 
-					embed.setDescription(String.format("The role %s has been created by **%s**", role.getAsMention(), moderator.getAsTag()));
-				}
+			if (!role.isManaged() && guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
+				guild.retrieveAuditLogs().type(ActionType.ROLE_CREATE).submitAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS).whenComplete((logs, auditException) -> {
+					User moderator = logs == null ? null : logs.stream()
+						.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
+						.filter(e -> e.getTargetIdLong() == role.getIdLong())
+						.map(AuditLogEntry::getUser)
+						.findFirst()
+						.orElse(null);
 
+					if (moderator != null) {
+						loggerContext.setModerator(moderator);
+
+						embed.setDescription(String.format("The role %s has been created by **%s**", role.getAsMention(), moderator.getAsTag()));
+					}
+
+					this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+				});
+			} else {
 				this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
-			});
-		} else {
-			this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
-		}
+			}
+		});
 	}
 
 	public void onRoleDelete(RoleDeleteEvent event) {
@@ -1091,32 +1292,42 @@ public class LoggerHandler implements EventListener {
 		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
 		embed.setFooter(new EmbedFooter(String.format("Role ID: %s", role.getId()), null));
 
-		List<Document> uncheckedLoggers = this.bot.getMongo().getLoggers(Filters.eq("guildId", guild.getIdLong()), MongoDatabase.EMPTY_DOCUMENT).into(new ArrayList<>());
-		List<Document> loggers = LoggerUtility.getValidLoggers(uncheckedLoggers, loggerEvent, loggerContext);
-		if (loggers.isEmpty()) {
-			return;
-		}
+		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((iterable, exception) -> {
+			if (ExceptionUtility.sendErrorMessage(this.bot.getShardManager(), exception)) {
+				return;
+			}
 
-		if (!role.isManaged() && guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-			guild.retrieveAuditLogs().type(ActionType.ROLE_DELETE).submitAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS).whenComplete((logs, exception) -> {
-				User moderator = logs == null ? null : logs.stream()
-					.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
-					.filter(e -> e.getTargetIdLong() == role.getIdLong())
-					.map(AuditLogEntry::getUser)
-					.findFirst()
-					.orElse(null);
+			Document data = iterable.first();
+			if (data == null) {
+				return;
+			}
 
-				if (moderator != null) {
-					loggerContext.setModerator(moderator);
+			List<Document> loggers = LoggerUtility.getValidLoggers(data.getList("loggers", Document.class), loggerEvent, loggerContext);
+			if (loggers.isEmpty()) {
+				return;
+			}
 
-					embed.setDescription(String.format("The role `%s` has been deleted by **%s**", role.getName(), moderator.getAsTag()));
-				}
+			if (!role.isManaged() && guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
+				guild.retrieveAuditLogs().type(ActionType.ROLE_DELETE).submitAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS).whenComplete((logs, auditException) -> {
+					User moderator = logs == null ? null : logs.stream()
+						.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
+						.filter(e -> e.getTargetIdLong() == role.getIdLong())
+						.map(AuditLogEntry::getUser)
+						.findFirst()
+						.orElse(null);
 
+					if (moderator != null) {
+						loggerContext.setModerator(moderator);
+
+						embed.setDescription(String.format("The role `%s` has been deleted by **%s**", role.getName(), moderator.getAsTag()));
+					}
+
+					this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+				});
+			} else {
 				this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
-			});
-		} else {
-			this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
-		}
+			}
+		});
 	}
 
 	public void onRoleUpdateName(RoleUpdateNameEvent event) {
@@ -1137,33 +1348,43 @@ public class LoggerHandler implements EventListener {
 		embed.addField(new EmbedField(false, "Before", String.format("`%s`", event.getOldName())));
 		embed.addField(new EmbedField(false, "After", String.format("`%s`", event.getNewName())));
 
-		List<Document> uncheckedLoggers = this.bot.getMongo().getLoggers(Filters.eq("guildId", guild.getIdLong()), MongoDatabase.EMPTY_DOCUMENT).into(new ArrayList<>());
-		List<Document> loggers = LoggerUtility.getValidLoggers(uncheckedLoggers, loggerEvent, loggerContext);
-		if (loggers.isEmpty()) {
-			return;
-		}
+		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((iterable, exception) -> {
+			if (ExceptionUtility.sendErrorMessage(this.bot.getShardManager(), exception)) {
+				return;
+			}
 
-		if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-			guild.retrieveAuditLogs().type(ActionType.ROLE_UPDATE).submitAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS).whenComplete((logs, exception) -> {
-				User moderator = logs == null ? null : logs.stream()
-					.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
-					.filter(e -> e.getTargetIdLong() == role.getIdLong())
-					.filter(e -> e.getChangeByKey(AuditLogKey.ROLE_NAME) != null)
-					.map(AuditLogEntry::getUser)
-					.findFirst()
-					.orElse(null);
+			Document data = iterable.first();
+			if (data == null) {
+				return;
+			}
 
-				if (moderator != null) {
-					loggerContext.setModerator(moderator);
+			List<Document> loggers = LoggerUtility.getValidLoggers(data.getList("loggers", Document.class), loggerEvent, loggerContext);
+			if (loggers.isEmpty()) {
+				return;
+			}
 
-					embed.setDescription(String.format("The role %s has been renamed by **%s**", role.getAsMention(), moderator.getAsTag()));
-				}
+			if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
+				guild.retrieveAuditLogs().type(ActionType.ROLE_UPDATE).submitAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS).whenComplete((logs, auditException) -> {
+					User moderator = logs == null ? null : logs.stream()
+						.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
+						.filter(e -> e.getTargetIdLong() == role.getIdLong())
+						.filter(e -> e.getChangeByKey(AuditLogKey.ROLE_NAME) != null)
+						.map(AuditLogEntry::getUser)
+						.findFirst()
+						.orElse(null);
 
+					if (moderator != null) {
+						loggerContext.setModerator(moderator);
+
+						embed.setDescription(String.format("The role %s has been renamed by **%s**", role.getAsMention(), moderator.getAsTag()));
+					}
+
+					this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+				});
+			} else {
 				this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
-			});
-		} else {
-			this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
-		}
+			}
+		});
 	}
 
 	public void onRoleUpdateColor(RoleUpdateColorEvent event) {
@@ -1186,33 +1407,43 @@ public class LoggerHandler implements EventListener {
 		embed.addField(new EmbedField(false, "Before", String.format("Hex: [#%s](%3$s%1$s)\nRGB: [%2$s](%3$s%1$s)", ColourUtility.toHexString(oldColour), ColourUtility.toRGBString(oldColour), "https://image.sx4bot.co.uk/api/colour?w=1000&h=500&hex=")));
 		embed.addField(new EmbedField(false, "After", String.format("Hex: [#%s](%3$s%1$s)\nRGB: [%2$s](%3$s%1$s)", ColourUtility.toHexString(newColour), ColourUtility.toRGBString(newColour), "https://image.sx4bot.co.uk/api/colour?w=1000&h=500&hex=")));
 
-		List<Document> uncheckedLoggers = this.bot.getMongo().getLoggers(Filters.eq("guildId", guild.getIdLong()), MongoDatabase.EMPTY_DOCUMENT).into(new ArrayList<>());
-		List<Document> loggers = LoggerUtility.getValidLoggers(uncheckedLoggers, loggerEvent, loggerContext);
-		if (loggers.isEmpty()) {
-			return;
-		}
+		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((iterable, exception) -> {
+			if (ExceptionUtility.sendErrorMessage(this.bot.getShardManager(), exception)) {
+				return;
+			}
 
-		if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-			guild.retrieveAuditLogs().type(ActionType.ROLE_UPDATE).submitAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS).whenComplete((logs, exception) -> {
-				User moderator = logs == null ? null : logs.stream()
-					.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
-					.filter(e -> e.getTargetIdLong() == role.getIdLong())
-					.filter(e -> e.getChangeByKey(AuditLogKey.ROLE_COLOR) != null)
-					.map(AuditLogEntry::getUser)
-					.findFirst()
-					.orElse(null);
+			Document data = iterable.first();
+			if (data == null) {
+				return;
+			}
 
-				if (moderator != null) {
-					loggerContext.setModerator(moderator);
+			List<Document> loggers = LoggerUtility.getValidLoggers(data.getList("loggers", Document.class), loggerEvent, loggerContext);
+			if (loggers.isEmpty()) {
+				return;
+			}
 
-					embed.setDescription(String.format("The role %s has been given a new colour by **%s**", role.getAsMention(), moderator.getAsTag()));
-				}
+			if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
+				guild.retrieveAuditLogs().type(ActionType.ROLE_UPDATE).submitAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS).whenComplete((logs, auditException) -> {
+					User moderator = logs == null ? null : logs.stream()
+						.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
+						.filter(e -> e.getTargetIdLong() == role.getIdLong())
+						.filter(e -> e.getChangeByKey(AuditLogKey.ROLE_COLOR) != null)
+						.map(AuditLogEntry::getUser)
+						.findFirst()
+						.orElse(null);
 
+					if (moderator != null) {
+						loggerContext.setModerator(moderator);
+
+						embed.setDescription(String.format("The role %s has been given a new colour by **%s**", role.getAsMention(), moderator.getAsTag()));
+					}
+
+					this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+				});
+			} else {
 				this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
-			});
-		} else {
-			this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
-		}
+			}
+		});
 	}
 
 	public void onRoleUpdatePermissions(RoleUpdatePermissionsEvent event) {
@@ -1234,40 +1465,50 @@ public class LoggerHandler implements EventListener {
 		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
 		embed.setFooter(new EmbedFooter(String.format("Role ID: %s", role.getId()), null));
 
-		List<Document> uncheckedLoggers = this.bot.getMongo().getLoggers(Filters.eq("guildId", guild.getIdLong()), MongoDatabase.EMPTY_DOCUMENT).into(new ArrayList<>());
-		List<Document> loggers = LoggerUtility.getValidLoggers(uncheckedLoggers, loggerEvent, loggerContext);
-		if (loggers.isEmpty()) {
-			return;
-		}
+		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((iterable, exception) -> {
+			if (ExceptionUtility.sendErrorMessage(this.bot.getShardManager(), exception)) {
+				return;
+			}
 
-		StringBuilder description = new StringBuilder(String.format("The role %s has had permission changes made", role.getAsMention()));
-		if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-			guild.retrieveAuditLogs().type(ActionType.ROLE_UPDATE).submitAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS).whenComplete((logs, exception) -> {
-				User moderator = logs == null ? null : logs.stream()
-					.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
-					.filter(e -> e.getTargetIdLong() == role.getIdLong())
-					.filter(e -> e.getChangeByKey(AuditLogKey.ROLE_PERMISSIONS) != null)
-					.map(AuditLogEntry::getUser)
-					.findFirst()
-					.orElse(null);
+			Document data = iterable.first();
+			if (data == null) {
+				return;
+			}
 
-				if (moderator != null) {
-					loggerContext.setModerator(moderator);
+			List<Document> loggers = LoggerUtility.getValidLoggers(data.getList("loggers", Document.class), loggerEvent, loggerContext);
+			if (loggers.isEmpty()) {
+				return;
+			}
 
-					description.append(String.format(" by **%s**", moderator.getAsTag()));
-				}
+			StringBuilder description = new StringBuilder(String.format("The role %s has had permission changes made", role.getAsMention()));
+			if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
+				guild.retrieveAuditLogs().type(ActionType.ROLE_UPDATE).submitAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS).whenComplete((logs, auditException) -> {
+					User moderator = logs == null ? null : logs.stream()
+						.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
+						.filter(e -> e.getTargetIdLong() == role.getIdLong())
+						.filter(e -> e.getChangeByKey(AuditLogKey.ROLE_PERMISSIONS) != null)
+						.map(AuditLogEntry::getUser)
+						.findFirst()
+						.orElse(null);
 
+					if (moderator != null) {
+						loggerContext.setModerator(moderator);
+
+						description.append(String.format(" by **%s**", moderator.getAsTag()));
+					}
+
+					description.append(permissionMessage);
+					embed.setDescription(description.toString());
+
+					this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+				});
+			} else {
 				description.append(permissionMessage);
 				embed.setDescription(description.toString());
 
 				this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
-			});
-		} else {
-			description.append(permissionMessage);
-			embed.setDescription(description.toString());
-
-			this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
-		}
+			}
+		});
 	}
 
 	public void onGuildMemberRoleAdd(GuildMemberRoleAddEvent event) {
@@ -1320,128 +1561,28 @@ public class LoggerHandler implements EventListener {
 			embed.setFooter(new EmbedFooter(String.format("Role ID: %s", firstRole.getId()), null));
 		}
 
-		List<Document> uncheckedLoggers = this.bot.getMongo().getLoggers(Filters.eq("guildId", guild.getIdLong()), MongoDatabase.EMPTY_DOCUMENT).into(new ArrayList<>());
-		List<Document> loggers = LoggerUtility.getValidLoggers(uncheckedLoggers, loggerEvent, loggerContext);
-		if (loggers.isEmpty()) {
-			return;
-		}
-
-		if (!firstRole.isManaged() && guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-			guild.retrieveAuditLogs().type(ActionType.MEMBER_ROLE_UPDATE).submitAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS).whenComplete((logs, exception) -> {
-				User moderator = logs == null ? null : logs.stream()
-					.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
-					.filter(e -> e.getTargetIdLong() == member.getUser().getIdLong())
-					.filter(e -> {
-						AuditLogChange change = e.getChangeByKey(AuditLogKey.MEMBER_ROLES_ADD);
-						if (change == null) {
-							return false;
-						}
-
-						List<Map<String, String>> roleEntries = change.getNewValue();
-						List<String> roleIds = roleEntries.stream().map(roleEntry -> roleEntry.get("id")).collect(Collectors.toList());
-
-						for (Role role : roles) {
-							if (!roleIds.contains(role.getId())) {
-								return false;
-							}
-						}
-
-						return true;
-					})
-					.map(AuditLogEntry::getUser)
-					.findFirst()
-					.orElse(null);
-
-				if (moderator != null) {
-					loggerContext.setModerator(moderator);
-
-					description.append(String.format(" by **%s**", moderator.getAsTag()));
-				}
-
-				embed.setDescription(description.toString());
-
-				this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
-			});
-		} else {
-			embed.setDescription(description.toString());
-
-			this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
-		}
-	}
-
-	public void onGuildMemberRoleRemove(GuildMemberRoleRemoveEvent event) {
-		Guild guild = event.getGuild();
-		Member member = event.getMember();
-		User user = event.getUser();
-
-		List<Role> roles = event.getRoles();
-		Role firstRole = roles.get(0);
-
-		// Ensure role delete event has been sent just in case
-		this.delay(() -> {
-			StringBuilder description = new StringBuilder();
-
-			boolean multiple = roles.size() > 1;
-
-			LoggerEvent loggerEvent = LoggerEvent.MEMBER_ROLE_REMOVE;
-			LoggerContext loggerContext = new LoggerContext()
-				.setRole(multiple ? 0L : firstRole.getIdLong())
-				.setUser(user);
-
-			WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
-			embed.setColor(this.bot.getConfig().getRed());
-			embed.setTimestamp(Instant.now());
-			embed.setAuthor(new EmbedAuthor(user.getAsTag(), user.getEffectiveAvatarUrl(), null));
-
-			boolean deleted = false;
-			if (multiple) {
-				StringBuilder builder = new StringBuilder();
-
-				/* Make sure there is always enough space to write all the components to it */
-				int maxLength = MessageEmbed.TEXT_MAX_LENGTH
-					- 32 /* Max nickname length */
-					- 32 /* Result String overhead */
-					- 16 /* " and x more" overhead */
-					- 3 /* Max length of x */;
-
-				for (int i = 0; i < roles.size(); i++) {
-					Role role = roles.get(i);
-
-					String entry = (i == roles.size() - 1 ? " and " : i != 0 ? ", " : "") + role.getAsMention();
-					if (builder.length() + entry.length() < maxLength) {
-						builder.append(entry);
-					} else {
-						builder.append(String.format(" and **%s** more", roles.size() - i));
-
-						break;
-					}
-				}
-
-				description.append(String.format("The roles %s have been removed from `%s`", builder.toString(), member.getEffectiveName()));
-			} else {
-				deleted = guild.getRoleById(firstRole.getIdLong()) == null;
-
-				description.append(String.format("The role %s has been removed from `%s`", deleted ? "`" + firstRole.getName() + "`" : firstRole.getAsMention(), member.getEffectiveName()));
-				embed.setFooter(new EmbedFooter(String.format("Role ID: %s", firstRole.getId()), null));
-
-				if (deleted) {
-					description.append(" by **role deletion**");
-				}
+		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((iterable, exception) -> {
+			if (ExceptionUtility.sendErrorMessage(this.bot.getShardManager(), exception)) {
+				return;
 			}
 
-			List<Document> uncheckedLoggers = this.bot.getMongo().getLoggers(Filters.eq("guildId", guild.getIdLong()), MongoDatabase.EMPTY_DOCUMENT).into(new ArrayList<>());
-			List<Document> loggers = LoggerUtility.getValidLoggers(uncheckedLoggers, loggerEvent, loggerContext);
+			Document data = iterable.first();
+			if (data == null) {
+				return;
+			}
+
+			List<Document> loggers = LoggerUtility.getValidLoggers(data.getList("loggers", Document.class), loggerEvent, loggerContext);
 			if (loggers.isEmpty()) {
 				return;
 			}
 
-			if (!deleted && !firstRole.isManaged() && guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-				guild.retrieveAuditLogs().type(ActionType.MEMBER_ROLE_UPDATE).submit().whenComplete((logs, exception) -> {
+			if (!firstRole.isManaged() && guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
+				guild.retrieveAuditLogs().type(ActionType.MEMBER_ROLE_UPDATE).submitAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS).whenComplete((logs, auditException) -> {
 					User moderator = logs == null ? null : logs.stream()
 						.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
 						.filter(e -> e.getTargetIdLong() == member.getUser().getIdLong())
 						.filter(e -> {
-							AuditLogChange change = e.getChangeByKey(AuditLogKey.MEMBER_ROLES_REMOVE);
+							AuditLogChange change = e.getChangeByKey(AuditLogKey.MEMBER_ROLES_ADD);
 							if (change == null) {
 								return false;
 							}
@@ -1479,6 +1620,128 @@ public class LoggerHandler implements EventListener {
 		});
 	}
 
+	public void onGuildMemberRoleRemove(GuildMemberRoleRemoveEvent event) {
+		Guild guild = event.getGuild();
+		Member member = event.getMember();
+		User user = event.getUser();
+
+		List<Role> roles = event.getRoles();
+		Role firstRole = roles.get(0);
+
+		// Ensure role delete event has been sent just in case
+		this.delay(() -> {
+			StringBuilder description = new StringBuilder();
+
+			boolean multiple = roles.size() > 1;
+
+			LoggerEvent loggerEvent = LoggerEvent.MEMBER_ROLE_REMOVE;
+			LoggerContext loggerContext = new LoggerContext()
+				.setRole(multiple ? 0L : firstRole.getIdLong())
+				.setUser(user);
+
+			WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
+			embed.setColor(this.bot.getConfig().getRed());
+			embed.setTimestamp(Instant.now());
+			embed.setAuthor(new EmbedAuthor(user.getAsTag(), user.getEffectiveAvatarUrl(), null));
+
+			boolean deleted;
+			if (multiple) {
+				StringBuilder builder = new StringBuilder();
+
+				/* Make sure there is always enough space to write all the components to it */
+				int maxLength = MessageEmbed.TEXT_MAX_LENGTH
+					- 32 /* Max nickname length */
+					- 32 /* Result String overhead */
+					- 16 /* " and x more" overhead */
+					- 3 /* Max length of x */;
+
+				for (int i = 0; i < roles.size(); i++) {
+					Role role = roles.get(i);
+
+					String entry = (i == roles.size() - 1 ? " and " : i != 0 ? ", " : "") + role.getAsMention();
+					if (builder.length() + entry.length() < maxLength) {
+						builder.append(entry);
+					} else {
+						builder.append(String.format(" and **%s** more", roles.size() - i));
+
+						break;
+					}
+				}
+
+				description.append(String.format("The roles %s have been removed from `%s`", builder, member.getEffectiveName()));
+
+				deleted = false;
+			} else {
+				deleted = guild.getRoleById(firstRole.getIdLong()) == null;
+
+				description.append(String.format("The role %s has been removed from `%s`", deleted ? "`" + firstRole.getName() + "`" : firstRole.getAsMention(), member.getEffectiveName()));
+				embed.setFooter(new EmbedFooter(String.format("Role ID: %s", firstRole.getId()), null));
+
+				if (deleted) {
+					description.append(" by **role deletion**");
+				}
+			}
+
+			this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((iterable, exception) -> {
+				if (ExceptionUtility.sendErrorMessage(this.bot.getShardManager(), exception)) {
+					return;
+				}
+
+				Document data = iterable.first();
+				if (data == null) {
+					return;
+				}
+
+				List<Document> loggers = LoggerUtility.getValidLoggers(data.getList("loggers", Document.class), loggerEvent, loggerContext);
+				if (loggers.isEmpty()) {
+					return;
+				}
+
+				if (!deleted && !firstRole.isManaged() && guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
+					guild.retrieveAuditLogs().type(ActionType.MEMBER_ROLE_UPDATE).submit().whenComplete((logs, auditException) -> {
+						User moderator = logs == null ? null : logs.stream()
+							.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
+							.filter(e -> e.getTargetIdLong() == member.getUser().getIdLong())
+							.filter(e -> {
+								AuditLogChange change = e.getChangeByKey(AuditLogKey.MEMBER_ROLES_REMOVE);
+								if (change == null) {
+									return false;
+								}
+
+								List<Map<String, String>> roleEntries = change.getNewValue();
+								List<String> roleIds = roleEntries.stream().map(roleEntry -> roleEntry.get("id")).collect(Collectors.toList());
+
+								for (Role role : roles) {
+									if (!roleIds.contains(role.getId())) {
+										return false;
+									}
+								}
+
+								return true;
+							})
+							.map(AuditLogEntry::getUser)
+							.findFirst()
+							.orElse(null);
+
+						if (moderator != null) {
+							loggerContext.setModerator(moderator);
+
+							description.append(String.format(" by **%s**", moderator.getAsTag()));
+						}
+
+						embed.setDescription(description.toString());
+
+						this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+					});
+				} else {
+					embed.setDescription(description.toString());
+
+					this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+				}
+			});
+		});
+	}
+
 	public void onGuildMemberUpdateNickname(GuildMemberUpdateNicknameEvent event) {
 		Guild guild = event.getGuild();
 		Member member = event.getMember();
@@ -1498,32 +1761,42 @@ public class LoggerHandler implements EventListener {
 		embed.addField(new EmbedField(false, "Before", String.format("`%s`", event.getOldNickname() != null ? event.getOldNickname() : member.getUser().getName())));
 		embed.addField(new EmbedField(false, "After", String.format("`%s`", event.getNewNickname() != null ? event.getNewNickname() : member.getUser().getName())));
 
-		List<Document> uncheckedLoggers = this.bot.getMongo().getLoggers(Filters.eq("guildId", guild.getIdLong()), MongoDatabase.EMPTY_DOCUMENT).into(new ArrayList<>());
-		List<Document> loggers = LoggerUtility.getValidLoggers(uncheckedLoggers, loggerEvent, loggerContext);
-		if (loggers.isEmpty()) {
-			return;
-		}
+		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((iterable, exception) -> {
+			if (ExceptionUtility.sendErrorMessage(this.bot.getShardManager(), exception)) {
+				return;
+			}
 
-		if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-			guild.retrieveAuditLogs().type(ActionType.MEMBER_UPDATE).submitAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS).whenComplete((logs, exception) -> {
-				User moderator = logs == null ? null : logs.stream()
-					.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
-					.filter(e -> e.getTargetIdLong() == user.getIdLong())
-					.filter(e -> e.getChangeByKey(AuditLogKey.MEMBER_NICK) != null)
-					.map(AuditLogEntry::getUser)
-					.findFirst()
-					.orElse(null);
+			Document data = iterable.first();
+			if (data == null) {
+				return;
+			}
 
-				if (moderator != null) {
-					loggerContext.setModerator(moderator);
-					embed.setDescription(String.format("`%s` has had their nickname changed by **%s**", member.getEffectiveName(), moderator.getAsTag()));
-				}
+			List<Document> loggers = LoggerUtility.getValidLoggers(data.getList("loggers", Document.class), loggerEvent, loggerContext);
+			if (loggers.isEmpty()) {
+				return;
+			}
 
+			if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
+				guild.retrieveAuditLogs().type(ActionType.MEMBER_UPDATE).submitAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS).whenComplete((logs, auditException) -> {
+					User moderator = logs == null ? null : logs.stream()
+						.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
+						.filter(e -> e.getTargetIdLong() == user.getIdLong())
+						.filter(e -> e.getChangeByKey(AuditLogKey.MEMBER_NICK) != null)
+						.map(AuditLogEntry::getUser)
+						.findFirst()
+						.orElse(null);
+
+					if (moderator != null) {
+						loggerContext.setModerator(moderator);
+						embed.setDescription(String.format("`%s` has had their nickname changed by **%s**", member.getEffectiveName(), moderator.getAsTag()));
+					}
+
+					this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+				});
+			} else {
 				this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
-			});
-		} else {
-			this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
-		}
+			}
+		});
 	}
 
 	public void onEmoteAdded(EmoteAddedEvent event) {
@@ -1541,32 +1814,42 @@ public class LoggerHandler implements EventListener {
 		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
 		embed.setFooter(new EmbedFooter(String.format("Emote ID: %s", emote.getId()), null));
 
-		List<Document> uncheckedLoggers = this.bot.getMongo().getLoggers(Filters.eq("guildId", guild.getIdLong()), MongoDatabase.EMPTY_DOCUMENT).into(new ArrayList<>());
-		List<Document> loggers = LoggerUtility.getValidLoggers(uncheckedLoggers, loggerEvent, loggerContext);
-		if (loggers.isEmpty()) {
-			return;
-		}
+		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((iterable, exception) -> {
+			if (ExceptionUtility.sendErrorMessage(this.bot.getShardManager(), exception)) {
+				return;
+			}
 
-		if (!emote.isManaged() && guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-			guild.retrieveAuditLogs().type(ActionType.EMOTE_CREATE).submitAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS).whenComplete((logs, exception) -> {
-				User moderator = logs == null ? null : logs.stream()
-					.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
-					.filter(e -> e.getTargetIdLong() == emote.getIdLong())
-					.map(AuditLogEntry::getUser)
-					.findFirst()
-					.orElse(null);
+			Document data = iterable.first();
+			if (data == null) {
+				return;
+			}
 
-				if (moderator != null) {
-					loggerContext.setModerator(moderator);
+			List<Document> loggers = LoggerUtility.getValidLoggers(data.getList("loggers", Document.class), loggerEvent, loggerContext);
+			if (loggers.isEmpty()) {
+				return;
+			}
 
-					embed.setDescription(String.format("The emote %s has been created by **%s**", emote.getAsMention(), moderator.getAsTag()));
-				}
+			if (!emote.isManaged() && guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
+				guild.retrieveAuditLogs().type(ActionType.EMOTE_CREATE).submitAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS).whenComplete((logs, auditException) -> {
+					User moderator = logs == null ? null : logs.stream()
+						.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
+						.filter(e -> e.getTargetIdLong() == emote.getIdLong())
+						.map(AuditLogEntry::getUser)
+						.findFirst()
+						.orElse(null);
 
+					if (moderator != null) {
+						loggerContext.setModerator(moderator);
+
+						embed.setDescription(String.format("The emote %s has been created by **%s**", emote.getAsMention(), moderator.getAsTag()));
+					}
+
+					this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+				});
+			} else {
 				this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
-			});
-		} else {
-			this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
-		}
+			}
+		});
 	}
 
 	public void onEmoteRemoved(EmoteRemovedEvent event) {
@@ -1584,32 +1867,42 @@ public class LoggerHandler implements EventListener {
 		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
 		embed.setFooter(new EmbedFooter(String.format("Emote ID: %s", emote.getId()), null));
 
-		List<Document> uncheckedLoggers = this.bot.getMongo().getLoggers(Filters.eq("guildId", guild.getIdLong()), MongoDatabase.EMPTY_DOCUMENT).into(new ArrayList<>());
-		List<Document> loggers = LoggerUtility.getValidLoggers(uncheckedLoggers, loggerEvent, loggerContext);
-		if (loggers.isEmpty()) {
-			return;
-		}
+		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((iterable, exception) -> {
+			if (ExceptionUtility.sendErrorMessage(this.bot.getShardManager(), exception)) {
+				return;
+			}
 
-		if (!emote.isManaged() && guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-			guild.retrieveAuditLogs().type(ActionType.EMOTE_DELETE).submitAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS).whenComplete((logs, exception) -> {
-				User moderator = logs == null ? null : logs.stream()
-					.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
-					.filter(e -> e.getTargetIdLong() == emote.getIdLong())
-					.map(AuditLogEntry::getUser)
-					.findFirst()
-					.orElse(null);
+			Document data = iterable.first();
+			if (data == null) {
+				return;
+			}
 
-				if (moderator != null) {
-					loggerContext.setModerator(moderator);
+			List<Document> loggers = LoggerUtility.getValidLoggers(data.getList("loggers", Document.class), loggerEvent, loggerContext);
+			if (loggers.isEmpty()) {
+				return;
+			}
 
-					embed.setDescription(String.format("The emote `%s` has been deleted by **%s**", emote.getName(), moderator.getAsTag()));
-				}
+			if (!emote.isManaged() && guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
+				guild.retrieveAuditLogs().type(ActionType.EMOTE_DELETE).submitAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS).whenComplete((logs, auditException) -> {
+					User moderator = logs == null ? null : logs.stream()
+						.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
+						.filter(e -> e.getTargetIdLong() == emote.getIdLong())
+						.map(AuditLogEntry::getUser)
+						.findFirst()
+						.orElse(null);
 
+					if (moderator != null) {
+						loggerContext.setModerator(moderator);
+
+						embed.setDescription(String.format("The emote `%s` has been deleted by **%s**", emote.getName(), moderator.getAsTag()));
+					}
+
+					this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+				});
+			} else {
 				this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
-			});
-		} else {
-			this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
-		}
+			}
+		});
 	}
 
 	public void onEmoteUpdateName(EmoteUpdateNameEvent event) {
@@ -1630,33 +1923,43 @@ public class LoggerHandler implements EventListener {
 		embed.addField(new EmbedField(false, "Before", String.format("`%s`", event.getOldName())));
 		embed.addField(new EmbedField(false, "After", String.format("`%s`", event.getNewName())));
 
-		List<Document> uncheckedLoggers = this.bot.getMongo().getLoggers(Filters.eq("guildId", guild.getIdLong()), MongoDatabase.EMPTY_DOCUMENT).into(new ArrayList<>());
-		List<Document> loggers = LoggerUtility.getValidLoggers(uncheckedLoggers, loggerEvent, loggerContext);
-		if (loggers.isEmpty()) {
-			return;
-		}
+		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((iterable, exception) -> {
+			if (ExceptionUtility.sendErrorMessage(this.bot.getShardManager(), exception)) {
+				return;
+			}
 
-		if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-			guild.retrieveAuditLogs().type(ActionType.EMOTE_UPDATE).submitAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS).whenComplete((logs, exception) -> {
-				User moderator = logs == null ? null : logs.stream()
-					.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
-					.filter(e -> e.getTargetIdLong() == emote.getIdLong())
-					.filter(e -> e.getChangeByKey(AuditLogKey.EMOTE_NAME) != null)
-					.map(AuditLogEntry::getUser)
-					.findFirst()
-					.orElse(null);
+			Document data = iterable.first();
+			if (data == null) {
+				return;
+			}
 
-				if (moderator != null) {
-					loggerContext.setModerator(moderator);
+			List<Document> loggers = LoggerUtility.getValidLoggers(data.getList("loggers", Document.class), loggerEvent, loggerContext);
+			if (loggers.isEmpty()) {
+				return;
+			}
 
-					embed.setDescription(String.format("The emote %s has been renamed by **%s**", emote.getName(), moderator.getAsTag()));
-				}
+			if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
+				guild.retrieveAuditLogs().type(ActionType.EMOTE_UPDATE).submitAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS).whenComplete((logs, auditException) -> {
+					User moderator = logs == null ? null : logs.stream()
+						.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
+						.filter(e -> e.getTargetIdLong() == emote.getIdLong())
+						.filter(e -> e.getChangeByKey(AuditLogKey.EMOTE_NAME) != null)
+						.map(AuditLogEntry::getUser)
+						.findFirst()
+						.orElse(null);
 
+					if (moderator != null) {
+						loggerContext.setModerator(moderator);
+
+						embed.setDescription(String.format("The emote %s has been renamed by **%s**", emote.getName(), moderator.getAsTag()));
+					}
+
+					this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+				});
+			} else {
 				this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
-			});
-		} else {
-			this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
-		}
+			}
+		});
 	}
 
 	public void onEmoteUpdateRoles(EmoteUpdateRolesEvent event) {
@@ -1687,8 +1990,18 @@ public class LoggerHandler implements EventListener {
 		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
 		embed.setFooter(new EmbedFooter(String.format("Emote ID: %s", emote.getId()), null));
 
-		List<Document> loggers = this.bot.getMongo().getLoggers(Filters.eq("guildId", guild.getIdLong()), MongoDatabase.EMPTY_DOCUMENT).into(new ArrayList<>());
-		this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((iterable, exception) -> {
+			if (ExceptionUtility.sendErrorMessage(this.bot.getShardManager(), exception)) {
+				return;
+			}
+
+			Document data = iterable.first();
+			if (data == null) {
+				return;
+			}
+
+			this.bot.getLoggerManager().queue(guild, data.getList("loggers", Document.class), loggerEvent, loggerContext, embed.build());
+		});
 	}
 
 	@Override
