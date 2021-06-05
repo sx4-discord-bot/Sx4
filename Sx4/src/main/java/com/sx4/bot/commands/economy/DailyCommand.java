@@ -37,9 +37,9 @@ public class DailyCommand extends Sx4Command {
 
 	public void onCommand(Sx4CommandEvent event) {
 		List<Bson> update = List.of(
-			Operators.set("economy.balance", Operators.let(new Document("reset", Operators.ifNull("$economy.resets.daily", Long.MAX_VALUE)).append("balance", Operators.ifNull("$economy.balance", 0L)), Operators.let(new Document("streak", Operators.cond(Operators.gt(Operators.add(Operators.nowEpochSecond(), DailyCommand.COOLDOWN * 2), "$$reset"), Operators.add(Operators.ifNull("$economy.streak", 0), 1), 0)), Operators.cond(Operators.gt(Operators.add(Operators.nowEpochSecond(), DailyCommand.COOLDOWN), "$$reset"), "$$balance", Operators.add("$$balance", Operators.add(100L, Operators.multiply(Operators.min(10L, "$$streak"), Operators.add(20L, Operators.multiply(Operators.min(10L, "$$streak"), 5L))))))))),
-			Operators.set("economy.streak", Operators.let(new Document("reset", Operators.ifNull("$economy.resets.daily", Long.MAX_VALUE)).append("streak", Operators.ifNull("$economy.streak", 0)), Operators.cond(Operators.gt(Operators.add(Operators.nowEpochSecond(), DailyCommand.COOLDOWN * 2), "$$reset"), Operators.add("$$streak", 1), Operators.cond(Operators.gt(Operators.add(Operators.nowEpochSecond(), DailyCommand.COOLDOWN), "$$reset"), "$$streak", 0)))),
-			Operators.set("economy.resets.daily", Operators.let(new Document("reset", Operators.ifNull("$economy.resets.daily", Long.MAX_VALUE)).append("nextReset", Operators.add(Operators.nowEpochSecond(), DailyCommand.COOLDOWN)), Operators.cond(Operators.gt("$$nextReset", "$$reset"), "$$reset", "$$nextReset")))
+			Operators.set("economy.balance", Operators.let(new Document("reset", Operators.ifNull("$economy.resets.daily", 0L)).append("balance", Operators.ifNull("$economy.balance", 0L)), Operators.let(new Document("streak", Operators.cond(Operators.lt(Operators.nowEpochSecond(), Operators.add("$$reset", DailyCommand.COOLDOWN)), Operators.add(Operators.ifNull("$economy.streak", 0), 1), 0)), Operators.cond(Operators.lt(Operators.nowEpochSecond(), "$$reset"), "$$balance", Operators.add("$$balance", Operators.add(100L, Operators.multiply(Operators.min(10L, "$$streak"), Operators.add(20L, Operators.multiply(Operators.min(10L, "$$streak"), 5L))))))))),
+			Operators.set("economy.streak", Operators.let(new Document("reset", Operators.ifNull("$economy.resets.daily", 0L)).append("streak", Operators.ifNull("$economy.streak", 0)), Operators.cond(Operators.lt(Operators.nowEpochSecond(), Operators.add("$$reset", DailyCommand.COOLDOWN)), Operators.add("$$streak", 1), Operators.cond(Operators.lt(Operators.nowEpochSecond(), "$$reset"), "$$streak", 0)))),
+			Operators.set("economy.resets.daily", Operators.let(new Document("reset", Operators.ifNull("$economy.resets.daily", 0L)), Operators.cond(Operators.lt(Operators.nowEpochSecond(), "$$reset"), "$$reset", Operators.add(Operators.nowEpochSecond(), DailyCommand.COOLDOWN))))
 		);
 
 		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("economy.resets.daily", "economy.streak")).upsert(true);
@@ -51,14 +51,14 @@ public class DailyCommand extends Sx4Command {
 		event.getMongo().findAndUpdateUserById(event.getAuthor().getIdLong(), update, options).thenCompose(data -> {
 			Document economy = (data == null ? MongoDatabase.EMPTY_DOCUMENT : data).get("economy", MongoDatabase.EMPTY_DOCUMENT);
 
-			long reset = economy.getEmbedded(List.of("resets", "daily"), Long.MAX_VALUE), timestamp = Clock.systemUTC().instant().getEpochSecond();
-			if (timestamp + DailyCommand.COOLDOWN > reset) {
+			long reset = economy.getEmbedded(List.of("resets", "daily"), 0L), timestamp = Clock.systemUTC().instant().getEpochSecond();
+			if (timestamp < reset) {
 				event.reply("Slow down! You can collect your daily in " + TimeUtility.getTimeString(reset - timestamp) + " :stopwatch:").queue();
 				return CompletableFuture.completedFuture(null);
 			}
 
 			int previousStreak = economy.get("streak", 0);
-			int streak = timestamp + DailyCommand.COOLDOWN * 2 > reset ? previousStreak + 1 : 0;
+			int streak = timestamp < reset + DailyCommand.COOLDOWN ? previousStreak + 1 : 0;
 			long money = 100 + Math.min(10, streak) * (20 + Math.min(10, streak) * 5L);
 
 			embed.setDescription("You have collected your daily money (**$" + money + "**)" + (streak == 0 && previousStreak != streak ? "\n\nIt has been over 2 days since you last collected your daily, your streak has been reset" : streak == 0 ? "" : "\nYou had a bonus of $" + (money - 100) + String.format(" for having a %,d day streak", streak)));

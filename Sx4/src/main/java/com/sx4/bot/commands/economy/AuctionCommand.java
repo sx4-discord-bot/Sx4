@@ -259,7 +259,7 @@ public class AuctionCommand extends Sx4Command {
 					return new MessageBuilder().setEmbed(embed.build()).build();
 				});
 
-			paged.onTimeout(() -> event.replyFailure("Timed out :stopwatch:"));
+			paged.onTimeout(() -> event.reply("Timed out :stopwatch:"));
 
 			paged.onSelect(select -> {
 				Auction<?> auction = new Auction<>(event.getBot().getEconomyManager(), select.getSelected());
@@ -386,7 +386,7 @@ public class AuctionCommand extends Sx4Command {
 					return new MessageBuilder().setEmbed(embed.build()).build();
 				});
 
-			paged.onTimeout(() -> event.replyFailure("Timed out :stopwatch:"));
+			paged.onTimeout(() -> event.reply("Timed out :stopwatch:"));
 
 			paged.onSelect(select -> {
 				Auction<?> auction = new Auction<>(event.getBot().getEconomyManager(), select.getSelected());
