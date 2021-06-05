@@ -75,7 +75,7 @@ public class AntiRegexCommand extends Sx4Command {
 			Aggregates.limit(10),
 			Aggregates.unionWith("guilds", guildPipeline),
 			Aggregates.group(null, Accumulators.max("count", "$count"), Accumulators.max("premium", "$premium")),
-			Aggregates.project(Projections.fields(Projections.include("premium"), Projections.computed("count", Operators.ifNull("$count", 0))))
+			Aggregates.project(Projections.fields(Projections.computed("premium", Operators.ifNull("$premium", false)), Projections.computed("count", Operators.ifNull("$count", 0))))
 		);
 
 		event.getMongo().aggregateRegexes(pipeline).thenCompose(iterable -> {
@@ -130,7 +130,7 @@ public class AntiRegexCommand extends Sx4Command {
 			Aggregates.limit(10),
 			Aggregates.unionWith("guilds", guildPipeline),
 			Aggregates.group(null, Accumulators.max("count", "$count"), Accumulators.max("premium", "$premium")),
-			Aggregates.project(Projections.fields(Projections.include("premium"), Projections.computed("count", Operators.ifNull("$count", 0))))
+			Aggregates.project(Projections.fields(Projections.computed("premium", Operators.ifNull("$premium", false)), Projections.computed("count", Operators.ifNull("$count", 0))))
 		);
 
 		event.getMongo().aggregateRegexes(pipeline).thenCompose(iterable -> {
@@ -190,7 +190,7 @@ public class AntiRegexCommand extends Sx4Command {
 			Aggregates.group(null, Accumulators.push("regexes", Operators.ROOT)),
 			Aggregates.unionWith("guilds", guildPipeline),
 			Aggregates.group(null, Accumulators.max("regexes", "$regexes"), Accumulators.max("premium", "$premium")),
-			Aggregates.project(Projections.fields(Projections.include("premium"), Projections.computed("count", Operators.size(Operators.ifNull("$regexes", Collections.EMPTY_LIST))), Projections.computed("disabled", Operators.isEmpty(Operators.filter(Operators.ifNull("$regexes", Collections.EMPTY_LIST), Operators.eq("$$this._id", id))))))
+			Aggregates.project(Projections.fields(Projections.computed("premium", Operators.ifNull("$premium", false)), Projections.computed("count", Operators.size(Operators.ifNull("$regexes", Collections.EMPTY_LIST))), Projections.computed("disabled", Operators.isEmpty(Operators.filter(Operators.ifNull("$regexes", Collections.EMPTY_LIST), Operators.eq("$$this._id", id))))))
 		);
 
 		event.getMongo().aggregateRegexes(pipeline).thenCompose(iterable -> {

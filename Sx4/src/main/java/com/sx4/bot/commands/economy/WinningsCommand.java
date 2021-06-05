@@ -15,7 +15,7 @@ import java.util.List;
 public class WinningsCommand extends Sx4Command {
 
 	public WinningsCommand() {
-		super("winnings", 394);
+		super("winnings", 425);
 
 		super.setDescription("View a users winnings");
 		super.setExamples("winnings", "winnings @Shea#6653", "winnings Shea");

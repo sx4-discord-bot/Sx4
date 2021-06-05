@@ -5,9 +5,11 @@ import com.jockie.bot.core.command.Command;
 import com.mongodb.ErrorCategory;
 import com.mongodb.MongoWriteException;
 import com.mongodb.client.model.*;
+import com.sx4.bot.annotations.argument.ImageUrl;
 import com.sx4.bot.annotations.command.AuthorPermissions;
 import com.sx4.bot.annotations.command.CommandId;
 import com.sx4.bot.annotations.command.Examples;
+import com.sx4.bot.annotations.command.Premium;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
@@ -60,7 +62,7 @@ public class LoggerCommand extends Sx4Command {
             Aggregates.limit(25),
             Aggregates.unionWith("guilds", guildPipeline),
             Aggregates.group(null, Accumulators.max("count", "$count"), Accumulators.max("premium", "$premium")),
-            Aggregates.project(Projections.fields(Projections.include("premium"), Projections.computed("count", Operators.ifNull("$count", 0))))
+            Aggregates.project(Projections.fields(Projections.computed("premium", Operators.ifNull("$premium", false)), Projections.computed("count", Operators.ifNull("$count", 0))))
         );
 
         event.getMongo().aggregateLoggers(pipeline).thenCompose(iterable -> {
@@ -73,7 +75,7 @@ public class LoggerCommand extends Sx4Command {
             }
 
             if (count == 25) {
-                event.replyFailure("You can not have any more than 10 loggers").queue();
+                event.replyFailure("You can not have any more than 25 loggers").queue();
                 return CompletableFuture.completedFuture(null);
             }
 
@@ -135,7 +137,7 @@ public class LoggerCommand extends Sx4Command {
             Aggregates.group(null, Accumulators.push("loggers", Operators.ROOT)),
             Aggregates.unionWith("guilds", guildPipeline),
             Aggregates.group(null, Accumulators.max("loggers", "$loggers"), Accumulators.max("premium", "$premium")),
-            Aggregates.project(Projections.fields(Projections.include("premium"), Projections.computed("count", Operators.size(Operators.ifNull("$loggers", Collections.EMPTY_LIST))), Projections.computed("disabled", Operators.isEmpty(Operators.filter(Operators.ifNull("$loggers", Collections.EMPTY_LIST), Operators.eq("$$this.channelId", effectiveChannel.getIdLong()))))))
+            Aggregates.project(Projections.fields(Projections.computed("premium", Operators.ifNull("$premium", false)), Projections.computed("count", Operators.size(Operators.ifNull("$loggers", Collections.EMPTY_LIST))), Projections.computed("disabled", Operators.isEmpty(Operators.filter(Operators.ifNull("$loggers", Collections.EMPTY_LIST), Operators.eq("$$this.channelId", effectiveChannel.getIdLong()))))))
         );
 
         event.getMongo().aggregateLoggers(pipeline).thenCompose(iterable -> {
@@ -148,7 +150,7 @@ public class LoggerCommand extends Sx4Command {
             }
 
             if (count >= 25) {
-                throw new IllegalArgumentException("You can not have any more than 10 enabled loggers");
+                throw new IllegalArgumentException("You can not have any more than 25 enabled loggers");
             }
 
             List<Bson> update = List.of(Operators.set("enabled", Operators.cond(Operators.exists("$enabled"), Operators.REMOVE, false)));
@@ -172,6 +174,50 @@ public class LoggerCommand extends Sx4Command {
             }
 
             event.replySuccess("The logger in " + effectiveChannel.getAsMention() + " is now **" + (data.get("enabled", true) ? "enabled" : "disabled") + "**").queue();
+        });
+    }
+
+    @Command(value="name", description="Set the name of the webhook that sends logs")
+    @CommandId(423)
+    @Examples({"logger name #logs Logs", "logger name Logger"})
+    @Premium
+    @AuthorPermissions(permissions={Permission.MANAGE_SERVER})
+    public void name(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) TextChannel channel, @Argument(value="name", endless=true) String name) {
+        TextChannel effectiveChannel = channel == null ? event.getTextChannel() : channel;
+
+        event.getMongo().updateLogger(Filters.eq("channelId", effectiveChannel.getIdLong()), Updates.set("webhook.name", name)).whenComplete((result, exception) -> {
+            if (ExceptionUtility.sendExceptionally(event, exception)) {
+                return;
+            }
+
+            if (result.getModifiedCount() == 0) {
+                event.replyFailure("Your webhook name for that logger was already set to that").queue();
+                return;
+            }
+
+            event.replySuccess("Your webhook name has been updated for that logger").queue();
+        });
+    }
+
+    @Command(value="avatar", description="Set the avatar of the webhook that sends logs")
+    @CommandId(424)
+    @Examples({"logger avatar #logs Shea#6653", "logger avatar https://i.imgur.com/i87lyNO.png"})
+    @Premium
+    @AuthorPermissions(permissions={Permission.MANAGE_SERVER})
+    public void avatar(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) TextChannel channel, @Argument(value="avatar", endless=true, acceptEmpty=true) @ImageUrl String url) {
+        TextChannel effectiveChannel = channel == null ? event.getTextChannel() : channel;
+
+        event.getMongo().updateLogger(Filters.eq("channelId", effectiveChannel.getIdLong()), Updates.set("webhook.avatar", url)).whenComplete((result, exception) -> {
+            if (ExceptionUtility.sendExceptionally(event, exception)) {
+                return;
+            }
+
+            if (result.getModifiedCount() == 0) {
+                event.replyFailure("Your webhook avatar for that logger was already set to that").queue();
+                return;
+            }
+
+            event.replySuccess("Your webhook avatar has been updated for that logger").queue();
         });
     }
 

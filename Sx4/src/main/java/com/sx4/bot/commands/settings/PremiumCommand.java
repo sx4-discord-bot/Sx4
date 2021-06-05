@@ -23,7 +23,8 @@ import com.sx4.bot.waiter.exception.TimeoutException;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.MessageEmbed;
-import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
+import net.dv8tion.jda.api.events.interaction.ButtonClickEvent;
+import net.dv8tion.jda.api.interactions.components.Button;
 import org.bson.conversions.Bson;
 
 import java.time.Instant;
@@ -73,15 +74,21 @@ public class PremiumCommand extends Sx4Command {
 			.setColor(event.getConfig().getOrange())
 			.setAuthor("Premium", null, event.getAuthor().getEffectiveAvatarUrl())
 			.setDescription(String.format("Buying %d day%s of premium will:\n\n• Make you unable to use this credit on the other version of the bot\n• Use **$%.2f** of your credit\n• %s %1$s day%2$s of premium to the server\n\n:warning: **This action cannot be reversed** :warning:", days, days == 1 ? "" : "s", price / 100D, hasPremium ? "Add an extra" : "Give"))
-			.setFooter("Say yes to continue and cancel to cancel")
 			.build();
 
-		event.reply(embed).submit().thenCompose($ -> {
-			return new Waiter<>(event.getBot(), MessageReceivedEvent.class)
-				.setTimeout(30)
-				.setUnique(event.getAuthor().getIdLong(), event.getTextChannel().getIdLong())
-				.setPredicate(e -> e.getMessage().getContentRaw().equalsIgnoreCase("yes"))
-				.setOppositeCancelPredicate()
+		List<Button> buttons = List.of(Button.success("confirm", "Confirm"), Button.danger("cancel", "Cancel"));
+
+		event.reply(embed).setActionRow(buttons).submit().thenCompose(message -> {
+			return new Waiter<>(event.getBot(), ButtonClickEvent.class)
+				.setPredicate(e -> {
+					Button button = e.getButton();
+					return button != null && button.getId().equals("confirm") && e.getMessageIdLong() == message.getIdLong() && e.getUser().getIdLong() == event.getAuthor().getIdLong();
+				})
+				.setCancelPredicate(e -> {
+					Button button = e.getButton();
+					return button != null && button.getId().equals("cancel") && e.getMessageIdLong() == message.getIdLong() && e.getUser().getIdLong() == event.getAuthor().getIdLong();
+				})
+				.setTimeout(60)
 				.start();
 		}).thenCompose(messageEvent -> {
 			List<Bson> update = List.of(Operators.set("premium.credit", Operators.cond(Operators.gt(price, Operators.ifNull("$premium.credit", 0)), "$premium.credit", Operators.subtract("$premium.credit", price))));

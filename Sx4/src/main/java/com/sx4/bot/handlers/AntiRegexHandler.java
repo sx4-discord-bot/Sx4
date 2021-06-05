@@ -87,7 +87,7 @@ public class AntiRegexHandler implements EventListener {
             Aggregates.group(null, Accumulators.push("regexes", Operators.ROOT)),
             Aggregates.unionWith("guilds", guildPipeline),
             Aggregates.group(null, Accumulators.max("premium", "$premium"), Accumulators.max("regexes", "$regexes")),
-            Aggregates.project(Projections.computed("regexes", Operators.let(new Document("regexes", Operators.ifNull("$regexes", Collections.EMPTY_LIST)), Operators.cond("$premium", "$$regexes", Operators.concatArrays(Operators.filter("$$regexes", Operators.ne("$$this.type", RegexType.REGEX.getId())), Operators.slice(Operators.filter("$$regexes", Operators.eq("$$this.type", RegexType.REGEX.getId())), 0, 3))))))
+            Aggregates.project(Projections.computed("regexes", Operators.let(new Document("regexes", Operators.ifNull("$regexes", Collections.EMPTY_LIST)), Operators.cond(Operators.ifNull("$premium", false), "$$regexes", Operators.concatArrays(Operators.filter("$$regexes", Operators.ne("$$this.type", RegexType.REGEX.getId())), Operators.slice(Operators.filter("$$regexes", Operators.eq("$$this.type", RegexType.REGEX.getId())), 0, 3))))))
         );
 
         this.bot.getMongo().aggregateRegexes(pipeline).whenComplete((iterable, exception) -> {

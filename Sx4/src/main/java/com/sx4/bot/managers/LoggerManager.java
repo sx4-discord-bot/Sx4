@@ -189,11 +189,12 @@ public class LoggerManager implements WebhookManager {
 
             Document logger = request.getLogger();
             Document webhookData = logger.get("webhook", MongoDatabase.EMPTY_DOCUMENT);
+            boolean premium = logger.getBoolean("premium");
 
             WebhookMessage message = new WebhookMessageBuilder()
                 .addEmbeds(embeds)
-                .setUsername(webhookData.get("name", "Sx4 - Logger"))
-                .setAvatarUrl(webhookData.get("avatar", request.getJDA().getSelfUser().getEffectiveAvatarUrl()))
+                .setUsername(premium ? webhookData.get("name", "Sx4 - Logger") : "Sx4 - Logger")
+                .setAvatarUrl(premium ? webhookData.get("avatar", request.getJDA().getSelfUser().getEffectiveAvatarUrl()) : request.getJDA().getSelfUser().getEffectiveAvatarUrl())
                 .build();
 
             WebhookClient webhook;

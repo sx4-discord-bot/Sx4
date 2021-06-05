@@ -109,7 +109,7 @@ public class LoggerHandler implements EventListener {
 			Aggregates.group(null, Accumulators.push("loggers", Operators.ROOT)),
 			Aggregates.unionWith("guilds", guildPipeline),
 			Aggregates.group(null, Accumulators.max("premium", "$premium"), Accumulators.max("loggers", "$loggers")),
-			Aggregates.project(Projections.computed("loggers", Operators.let(new Document("loggers", Operators.ifNull("$loggers", Collections.EMPTY_LIST)), Operators.cond("$premium", "$$loggers", Operators.slice("$$loggers", 0, 3)))))
+			Aggregates.project(Projections.computed("loggers", Operators.let(new Document("loggers", Operators.map(Operators.ifNull("$loggers", Collections.EMPTY_LIST), Operators.mergeObjects("$$this", new Document("premium", Operators.ifNull("$premium", false))))), Operators.cond(Operators.ifNull("$premium", false), "$$loggers", Operators.slice("$$loggers", 0, 3)))))
 		);
 	}
 
