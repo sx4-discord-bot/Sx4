@@ -755,6 +755,10 @@ public class MongoDatabase {
 		return this.regexes.countDocuments(filter, options);
 	}
 
+	public CompletableFuture<AggregateIterable<Document>> aggregateRegexes(List<Bson> pipeline) {
+		return CompletableFuture.supplyAsync(() -> this.regexes.aggregate(pipeline));
+	}
+
 	public Document getRegex(Bson filter, Bson projection) {
 		return this.getRegexes(filter, projection).first();
 	}

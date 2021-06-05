@@ -30,7 +30,6 @@ import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
 
-import java.time.Clock;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -65,45 +64,54 @@ public class AntiRegexCommand extends Sx4Command {
 			return;
 		}
 
-		Bson filter = Filters.and(
-			Filters.eq("guildId", event.getGuild().getIdLong()),
-			Filters.exists("enabled", false),
-			Filters.ne("type", RegexType.INVITE.getId())
+		List<Bson> guildPipeline = List.of(
+			Aggregates.project(Projections.fields(Projections.computed("premium", Operators.lt(Operators.nowEpochSecond(), Operators.ifNull("$premium.endAt", 0L))), Projections.computed("guildId", "$_id"))),
+			Aggregates.match(Filters.eq("guildId", event.getGuild().getIdLong()))
 		);
 
-		long regexCount = event.getMongo().countRegexes(filter, new CountOptions().limit(10));
-		long endAt = event.getMongo().getGuildById(event.getGuild().getIdLong(), Projections.include("premium")).getEmbedded(List.of("premium", "endAt"), 0L);
+		List<Bson> pipeline = List.of(
+			Aggregates.match(Filters.and(Filters.eq("guildId", event.getGuild().getIdLong()), Filters.exists("enabled", false), Filters.eq("type", RegexType.REGEX.getId()))),
+			Aggregates.group(null, Accumulators.sum("count", 1)),
+			Aggregates.limit(10),
+			Aggregates.unionWith("guilds", guildPipeline),
+			Aggregates.group(null, Accumulators.max("count", "$count"), Accumulators.max("premium", "$premium")),
+			Aggregates.project(Projections.fields(Projections.include("premium"), Projections.computed("count", Operators.ifNull("$count", 0))))
+		);
 
-		if (regexCount >= 3 && endAt < Clock.systemUTC().instant().getEpochSecond()) {
-			event.replyFailure("You need to have Sx4 premium to have more than 3 enabled anti regexes, you can get premium at <https://www.patreon.com/Sx4>").queue();
-			return;
-		}
+		event.getMongo().aggregateRegexes(pipeline).thenCompose(iterable -> {
+			Document counter = iterable.first();
 
-		if (regexCount == 10) {
-			event.replyFailure("You cannot have any more than 10 anti regexes").queue();
-			return;
-		}
-		
-		Document pattern = new Document("regexId", id)
-			.append("guildId", event.getGuild().getIdLong())
-			.append("type", regex.getInteger("type", RegexType.REGEX.getId()))
-			.append("pattern", regex.getString("pattern"));
+			int count = counter == null ? 0 : counter.getInteger("count");
+			if (count >= 3 && !counter.getBoolean("premium")) {
+				throw new IllegalArgumentException("You need to have Sx4 premium to have more than 3 enabled anti regexes, you can get premium at <https://www.patreon.com/Sx4>");
+			}
 
-		event.getMongo().insertRegex(pattern)
-			.thenCompose(result -> {
-				event.replySuccess("The regex `" + result.getInsertedId().asObjectId().getValue().toHexString() + "` is now active").queue();
+			if (count == 10) {
+				throw new IllegalArgumentException("You cannot have any more than 10 anti regexes");
+			}
 
-				return event.getMongo().updateRegexTemplateById(id, Updates.inc("uses", 1L));
-			})
-			.whenComplete((result, exception) -> {
-				Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
-				if (cause instanceof MongoWriteException && ((MongoWriteException) cause).getError().getCategory() == ErrorCategory.DUPLICATE_KEY) {
-					event.replyFailure("You already have that anti regex setup in this server").queue();
-					return;
-				}
+			Document pattern = new Document("regexId", id)
+				.append("guildId", event.getGuild().getIdLong())
+				.append("type", regex.getInteger("type", RegexType.REGEX.getId()))
+				.append("pattern", regex.getString("pattern"));
 
-				ExceptionUtility.sendExceptionally(event, exception);
-			});
+			return event.getMongo().insertRegex(pattern);
+		}).thenCompose(result -> {
+			event.replySuccess("The regex `" + result.getInsertedId().asObjectId().getValue().toHexString() + "` is now active").queue();
+
+			return event.getMongo().updateRegexTemplateById(id, Updates.inc("uses", 1L));
+		}).whenComplete((result, exception) -> {
+			Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
+			if (cause instanceof MongoWriteException && ((MongoWriteException) cause).getError().getCategory() == ErrorCategory.DUPLICATE_KEY) {
+				event.replyFailure("You already have that anti regex setup in this server").queue();
+				return;
+			} else if (cause instanceof IllegalArgumentException) {
+				event.replyFailure(cause.getMessage()).queue();
+				return;
+			}
+
+			ExceptionUtility.sendExceptionally(event, exception);
+		});
 	}
 
 	@Command(value="add", description="Add a regex from `anti regex template list` to be checked on every message")
@@ -111,33 +119,44 @@ public class AntiRegexCommand extends Sx4Command {
 	@Examples({"anti regex add [0-9]+", "anti regex add https://discord\\.com/channels/([0-9]+)/([0-9]+)/?"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void add(Sx4CommandEvent event, @Argument(value="regex", endless=true) Pattern pattern) {
-		Bson filter = Filters.and(
-			Filters.eq("guildId", event.getGuild().getIdLong()),
-			Filters.exists("enabled", false),
-			Filters.ne("type", RegexType.INVITE.getId())
+		List<Bson> guildPipeline = List.of(
+			Aggregates.project(Projections.fields(Projections.computed("premium", Operators.lt(Operators.nowEpochSecond(), Operators.ifNull("$premium.endAt", 0L))), Projections.computed("guildId", "$_id"))),
+			Aggregates.match(Filters.eq("guildId", event.getGuild().getIdLong()))
 		);
 
-		long regexCount = event.getMongo().countRegexes(filter, new CountOptions().limit(10));
-		long endAt = event.getMongo().getGuildById(event.getGuild().getIdLong(), Projections.include("premium")).getEmbedded(List.of("premium", "endAt"), 0L);
+		List<Bson> pipeline = List.of(
+			Aggregates.match(Filters.and(Filters.eq("guildId", event.getGuild().getIdLong()), Filters.exists("enabled", false), Filters.eq("type", RegexType.REGEX.getId()))),
+			Aggregates.group(null, Accumulators.sum("count", 1)),
+			Aggregates.limit(10),
+			Aggregates.unionWith("guilds", guildPipeline),
+			Aggregates.group(null, Accumulators.max("count", "$count"), Accumulators.max("premium", "$premium")),
+			Aggregates.project(Projections.fields(Projections.include("premium"), Projections.computed("count", Operators.ifNull("$count", 0))))
+		);
 
-		if (regexCount >= 3 && endAt < Clock.systemUTC().instant().getEpochSecond()) {
-			event.replyFailure("You need to have Sx4 premium to have more than 3 enabled anti regexes, you can get premium at <https://www.patreon.com/Sx4>").queue();
-			return;
-		}
+		event.getMongo().aggregateRegexes(pipeline).thenCompose(iterable -> {
+			Document counter = iterable.first();
 
-		if (regexCount == 10) {
-			event.replyFailure("You cannot have any more than 10 anti regexes").queue();
-			return;
-		}
+			int count = counter == null ? 0 : counter.getInteger("count");
+			if (count >= 3 && !counter.getBoolean("premium")) {
+				throw new IllegalArgumentException("You need to have Sx4 premium to have more than 3 enabled anti regexes, you can get premium at <https://www.patreon.com/Sx4>");
+			}
 
-		Document patternData = new Document("guildId", event.getGuild().getIdLong())
-			.append("type", RegexType.REGEX.getId())
-			.append("pattern", pattern.pattern());
+			if (count == 10) {
+				throw new IllegalArgumentException("You cannot have any more than 10 anti regexes");
+			}
 
-		event.getMongo().insertRegex(patternData).whenComplete((result, exception) -> {
+			Document patternData = new Document("guildId", event.getGuild().getIdLong())
+				.append("type", RegexType.REGEX.getId())
+				.append("pattern", pattern.pattern());
+
+			return event.getMongo().insertRegex(patternData);
+		}).whenComplete((result, exception) -> {
 			Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
 			if (cause instanceof MongoWriteException && ((MongoWriteException) cause).getError().getCategory() == ErrorCategory.DUPLICATE_KEY) {
 				event.replyFailure("You already have that anti regex setup in this server").queue();
+				return;
+			} else if (cause instanceof IllegalArgumentException) {
+				event.replyFailure(cause.getMessage()).queue();
 				return;
 			}
 
@@ -160,20 +179,44 @@ public class AntiRegexCommand extends Sx4Command {
 			Filters.ne("type", RegexType.INVITE.getId())
 		);
 
-		List<Document> regexes = event.getMongo().getRegexes(filter, Projections.include("_id")).into(new ArrayList<>());
-		boolean disabled = regexes.stream().noneMatch(regex -> regex.getObjectId("_id").equals(id));
+		List<Bson> guildPipeline = List.of(
+			Aggregates.project(Projections.fields(Projections.computed("premium", Operators.lt(Operators.nowEpochSecond(), Operators.ifNull("$premium.endAt", 0L))), Projections.computed("guildId", "$_id"))),
+			Aggregates.match(Filters.eq("guildId", event.getGuild().getIdLong()))
+		);
 
-		long endAt = event.getMongo().getGuildById(event.getGuild().getIdLong(), Projections.include("premium")).getEmbedded(List.of("premium", "endAt"), 0L);
+		List<Bson> pipeline = List.of(
+			Aggregates.match(Filters.and(Filters.eq("guildId", event.getGuild().getIdLong()), Filters.exists("enabled", false), Filters.eq("type", RegexType.REGEX.getId()))),
+			Aggregates.project(Projections.include("_id")),
+			Aggregates.group(null, Accumulators.push("regexes", Operators.ROOT)),
+			Aggregates.unionWith("guilds", guildPipeline),
+			Aggregates.group(null, Accumulators.max("regexes", "$regexes"), Accumulators.max("premium", "$premium")),
+			Aggregates.project(Projections.fields(Projections.include("premium"), Projections.computed("count", Operators.size(Operators.ifNull("$regexes", Collections.EMPTY_LIST))), Projections.computed("disabled", Operators.isEmpty(Operators.filter(Operators.ifNull("$regexes", Collections.EMPTY_LIST), Operators.eq("$$this._id", id))))))
+		);
 
-		if (disabled && regexes.size() >= 3 && endAt < Clock.systemUTC().instant().getEpochSecond()) {
-			event.replyFailure("You need to have Sx4 premium to have more than 3 enabled anti regexes, you can get premium at <https://www.patreon.com/Sx4>").queue();
-			return;
-		}
+		event.getMongo().aggregateRegexes(pipeline).thenCompose(iterable -> {
+			Document data = iterable.first();
 
-		List<Bson> update = List.of(Operators.set("enabled", Operators.cond(Operators.exists("$enabled"), Operators.REMOVE, false)));
-		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER).projection(Projections.include("enabled"));
+			boolean disabled = data == null || data.getBoolean("disabled");
+			int count = data == null ? 0 : data.getInteger("count");
+			if (data != null && disabled && count >= 3 && !data.getBoolean("premium")) {
+				throw new IllegalArgumentException("You need to have Sx4 premium to have more than 3 enabled anti regexes, you can get premium at <https://www.patreon.com/Sx4>");
+			}
 
-		event.getMongo().findAndUpdateRegex(Filters.eq("_id", id), update, options).whenComplete((data, exception) -> {
+			if (count >= 10) {
+				throw new IllegalArgumentException("You can not have any more than 10 enabled anti regexes");
+			}
+
+			List<Bson> update = List.of(Operators.set("enabled", Operators.cond(Operators.exists("$enabled"), Operators.REMOVE, false)));
+			FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER).projection(Projections.include("enabled"));
+
+			return event.getMongo().findAndUpdateRegex(Filters.eq("_id", id), update, options);
+		}).whenComplete((data, exception) -> {
+			Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
+			if (cause instanceof IllegalArgumentException) {
+				event.replyFailure(cause.getMessage()).queue();
+				return;
+			}
+
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}

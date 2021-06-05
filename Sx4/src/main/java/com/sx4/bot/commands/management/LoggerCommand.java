@@ -57,7 +57,7 @@ public class LoggerCommand extends Sx4Command {
         List<Bson> pipeline = List.of(
             Aggregates.match(Filters.and(Filters.eq("guildId", event.getGuild().getIdLong()), Filters.exists("enabled", false))),
             Aggregates.group(null, Accumulators.sum("count", 1)),
-            Aggregates.limit(3),
+            Aggregates.limit(25),
             Aggregates.unionWith("guilds", guildPipeline),
             Aggregates.group(null, Accumulators.max("count", "$count"), Accumulators.max("premium", "$premium")),
             Aggregates.project(Projections.fields(Projections.include("premium"), Projections.computed("count", Operators.ifNull("$count", 0))))
@@ -65,8 +65,15 @@ public class LoggerCommand extends Sx4Command {
 
         event.getMongo().aggregateLoggers(pipeline).thenCompose(iterable -> {
             Document counter = iterable.first();
-            if (counter != null && counter.getInteger("count") == 3 && !counter.getBoolean("premium")) {
+
+            int count = counter == null ? 0 : counter.getInteger("count");
+            if (counter != null && count >= 3 && !counter.getBoolean("premium")) {
                 event.replyFailure("You need to have Sx4 premium to have more than 3 enabled loggers, you can get premium at <https://www.patreon.com/Sx4>").queue();
+                return CompletableFuture.completedFuture(null);
+            }
+
+            if (count == 25) {
+                event.replyFailure("You can not have any more than 10 loggers").queue();
                 return CompletableFuture.completedFuture(null);
             }
 
@@ -117,11 +124,6 @@ public class LoggerCommand extends Sx4Command {
     public void toggle(Sx4CommandEvent event, @Argument(value="channel", endless=true, nullDefault=true) TextChannel channel) {
         TextChannel effectiveChannel = channel == null ? event.getTextChannel() : channel;
 
-        Bson filter = Filters.and(
-            Filters.eq("guildId", event.getGuild().getIdLong()),
-            Filters.exists("enabled", false)
-        );
-
         List<Bson> guildPipeline = List.of(
             Aggregates.project(Projections.fields(Projections.computed("premium", Operators.lt(Operators.nowEpochSecond(), Operators.ifNull("$premium.endAt", 0L))), Projections.computed("guildId", "$_id"))),
             Aggregates.match(Filters.eq("guildId", event.getGuild().getIdLong()))
@@ -138,9 +140,15 @@ public class LoggerCommand extends Sx4Command {
 
         event.getMongo().aggregateLoggers(pipeline).thenCompose(iterable -> {
             Document data = iterable.first();
-            if (data != null && data.getBoolean("disabled") && data.getInteger("count") >= 3 && !data.getBoolean("premium")) {
-                event.replyFailure("You need to have Sx4 premium to have more than 3 enabled loggers, you can get premium at <https://www.patreon.com/Sx4>").queue();
-                return CompletableFuture.completedFuture(null);
+
+            boolean disabled = data == null || data.getBoolean("disabled");
+            int count = data == null ? 0 : data.getInteger("count");
+            if (data != null && disabled && count >= 3 && !data.getBoolean("premium")) {
+                throw new IllegalArgumentException("You need to have Sx4 premium to have more than 3 enabled loggers, you can get premium at <https://www.patreon.com/Sx4>");
+            }
+
+            if (count >= 25) {
+                throw new IllegalArgumentException("You can not have any more than 10 enabled loggers");
             }
 
             List<Bson> update = List.of(Operators.set("enabled", Operators.cond(Operators.exists("$enabled"), Operators.REMOVE, false)));
@@ -148,7 +156,18 @@ public class LoggerCommand extends Sx4Command {
 
             return event.getMongo().findAndUpdateLogger(Filters.eq("channelId", effectiveChannel.getIdLong()), update, options);
         }).whenComplete((data, exception) -> {
-            if (ExceptionUtility.sendExceptionally(event, exception) || data == null) {
+            Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
+            if (cause instanceof IllegalArgumentException) {
+                event.replyFailure(cause.getMessage()).queue();
+                return;
+            }
+
+            if (ExceptionUtility.sendExceptionally(event, exception)) {
+                return;
+            }
+
+            if (data == null) {
+                event.replyFailure("There is not a logger in that channel").queue();
                 return;
             }
 

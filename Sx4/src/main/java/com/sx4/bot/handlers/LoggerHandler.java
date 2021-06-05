@@ -104,15 +104,13 @@ public class LoggerHandler implements EventListener {
 			Aggregates.match(Filters.eq("guildId", guildId))
 		);
 
-		List<Bson> pipeline = List.of(
+		return List.of(
 			Aggregates.match(Filters.and(Filters.eq("guildId", guildId), Filters.exists("enabled", false))),
 			Aggregates.group(null, Accumulators.push("loggers", Operators.ROOT)),
 			Aggregates.unionWith("guilds", guildPipeline),
 			Aggregates.group(null, Accumulators.max("premium", "$premium"), Accumulators.max("loggers", "$loggers")),
 			Aggregates.project(Projections.computed("loggers", Operators.let(new Document("loggers", Operators.ifNull("$loggers", Collections.EMPTY_LIST)), Operators.cond("$premium", "$$loggers", Operators.slice("$$loggers", 0, 3)))))
 		);
-
-		return pipeline;
 	}
 
 	private void delay(Runnable runnable) {
