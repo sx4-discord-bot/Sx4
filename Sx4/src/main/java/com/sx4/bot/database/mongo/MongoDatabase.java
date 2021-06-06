@@ -1139,6 +1139,10 @@ public class MongoDatabase {
 		return this.youtubeNotifications.countDocuments(filter, options);
 	}
 
+	public CompletableFuture<AggregateIterable<Document>> aggregateYouTubeNotifications(List<Bson> pipeline) {
+		return CompletableFuture.supplyAsync(() -> this.youtubeNotifications.aggregate(pipeline));
+	}
+
 	public Document getYouTubeNotification(Bson filter, Bson projection) {
 		return this.getYouTubeNotifications(filter, projection).first();
 	}

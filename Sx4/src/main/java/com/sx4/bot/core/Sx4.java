@@ -117,7 +117,6 @@ public class Sx4 {
 	private final WelcomerManager welcomerManager;
 	private final LeaverManager leaverManager;
 	private final ModActionManager modActionManager;
-	private final PremiumManager premiumManager;
 	private final SuggestionManager suggestionManager;
 	private final PagedManager pagedManager;
 	private final WaiterManager waiterManager;
@@ -166,7 +165,6 @@ public class Sx4 {
 		this.modActionManager = new ModActionManager().addListener(modHandler);
 		this.muteManager = new MuteManager(this);
 		this.patreonManager = new PatreonManager(this).addListener(new PatreonHandler(this));
-		this.premiumManager = new PremiumManager(this);
 		this.reminderManager = new ReminderManager(this);
 		this.starboardManager = new StarboardManager(this);
 		this.suggestionManager = new SuggestionManager(this);
@@ -436,10 +434,6 @@ public class Sx4 {
 
 	public WelcomerManager getWelcomerManager() {
 		return this.welcomerManager;
-	}
-
-	public PremiumManager getPremiumManager() {
-		return this.premiumManager;
 	}
 
 	public SuggestionManager getSuggestionManager() {

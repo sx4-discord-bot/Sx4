@@ -22,6 +22,10 @@ public class Operators {
 		return Operators.toLong(Operators.divide(Operators.nowEpochMilli(), 1000));
 	}
 
+	public static Bson expr(Object expression) {
+		return new Document("$expr", expression);
+	}
+
 	public static Bson function(String code, List<Object> args) {
 		return new Document("$function", new Document("body", code).append("args", args).append("lang", "js"));
 	}

@@ -66,7 +66,6 @@ public class ConnectionHandler implements EventListener {
 			ExceptionUtility.safeRun(manager, this.bot.getMuteManager()::ensureMutes);
 			ExceptionUtility.safeRun(manager, this.bot.getTemporaryBanManager()::ensureBans);
 			ExceptionUtility.safeRun(manager, this.bot.getGiveawayManager()::ensureGiveaways);
-			ExceptionUtility.safeRun(manager, this.bot.getPremiumManager()::ensurePremiumExpiry);
 			ExceptionUtility.safeRun(manager, this.bot.getYouTubeManager()::ensureSubscriptions);
 
 			if (this.bot.getConfig().isMain()) {
