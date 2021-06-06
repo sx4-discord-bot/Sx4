@@ -55,8 +55,8 @@ public class Tool extends Item {
 
 	public Document toData() {
 		return super.toData()
-			.append("durability", this.getDurability())
-			.append("maxDurability", this.getMaxDurability());
+			.append("durability", this.durability)
+			.append("maxDurability", this.maxDurability);
 	}
 	
 }

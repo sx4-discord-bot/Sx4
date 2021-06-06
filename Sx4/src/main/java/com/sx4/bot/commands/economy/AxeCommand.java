@@ -4,6 +4,8 @@ import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
 import com.mongodb.client.model.*;
 import com.mongodb.client.result.UpdateResult;
+import com.sx4.bot.annotations.argument.DefaultNumber;
+import com.sx4.bot.annotations.argument.Limit;
 import com.sx4.bot.annotations.argument.Options;
 import com.sx4.bot.annotations.command.BotPermissions;
 import com.sx4.bot.annotations.command.CommandId;
@@ -13,10 +15,8 @@ import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.argument.Alternative;
-import com.sx4.bot.entities.economy.item.Axe;
-import com.sx4.bot.entities.economy.item.CraftItem;
-import com.sx4.bot.entities.economy.item.ItemStack;
-import com.sx4.bot.entities.economy.item.ItemType;
+import com.sx4.bot.entities.economy.item.*;
+import com.sx4.bot.entities.economy.upgrade.Upgrade;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.EconomyUtility;
 import com.sx4.bot.utility.ExceptionUtility;
@@ -34,6 +34,9 @@ import net.dv8tion.jda.api.interactions.components.Button;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -311,6 +314,87 @@ public class AxeCommand extends Sx4Command {
 
 			event.replySuccess("You just repaired your axe by **" + durability + "** durability").queue();
 		});
+	}
+
+	@Command(value="upgrade", description="Upgrade your axe by a certain attribute")
+	@CommandId(429)
+	@Examples({"axe upgrade multiplier", "axe upgrade durability 5"})
+	public void upgrade(Sx4CommandEvent event, @Argument(value="upgrade") Upgrade upgrade, @Argument(value="upgrades") @DefaultNumber(1) @Limit(min=1, max=100) int upgrades) {
+		if (!upgrade.containsType(ItemType.PICKAXE)) {
+			event.replyFailure("You can not use that upgrade on a axe").queue();
+			return;
+		}
+
+		event.getMongo().withTransaction(session -> {
+			Document data = event.getMongo().getItems().find(session, Filters.and(Filters.eq("userId", event.getAuthor().getIdLong()), Filters.eq("item.type", ItemType.AXE.getId()))).first();
+			if (data == null) {
+				event.replyFailure("You do not have a axe").queue();
+				session.abortTransaction();
+				return null;
+			}
+
+			Document item = data.get("item", Document.class);
+			Axe defaultAxe = event.getBot().getEconomyManager().getItemById(item.getInteger("id"), Axe.class);
+			Axe axe = new Axe(item, defaultAxe);
+
+			int currentUpgrades = axe.getUpgrades();
+			long price = 0;
+			for (int i = 0; i < upgrades; i++) {
+				price += Math.round(0.015D * defaultAxe.getPrice() * currentUpgrades++ + 0.025D * defaultAxe.getPrice());
+			}
+
+			UpdateResult result = event.getMongo().getUsers().updateOne(session, Filters.eq("_id", event.getAuthor().getIdLong()), List.of(EconomyUtility.decreaseBalanceUpdate(price)));
+			if (result.getModifiedCount() == 0) {
+				event.replyFormat("You do not have **$%,d** %s", price, event.getConfig().getFailureEmote()).queue();
+				session.abortTransaction();
+				return null;
+			}
+
+			List<Bson> update = new ArrayList<>();
+			update.add(Operators.set("item.upgrades", Operators.add(Operators.ifNull("$item.upgrades", 0), upgrades)));
+			update.add(Operators.set("item.price", Operators.add("$item.price", Math.round(defaultAxe.getPrice() * 0.015D) * upgrades)));
+
+			if (upgrade == Upgrade.DURABILITY) {
+				int increase = (int) upgrade.getValue() * upgrades;
+
+				update.add(Operators.set("item.durability", Operators.add("$item.durability", increase)));
+				update.add(Operators.set("item.maxDurability", Operators.add("$item.maxDurability", increase)));
+			} else if (upgrade == Upgrade.MULTIPLIER) {
+				double increase = defaultAxe.getMultiplier() * upgrade.getValue() * upgrades;
+
+				update.add(Operators.set("item.multiplier", Operators.add("$item.multiplier", increase)));
+			}
+
+			event.getMongo().getItems().updateOne(session, Filters.and(Filters.eq("userId", event.getAuthor().getIdLong()), Filters.eq("item.id", axe.getId())), update);
+
+			return String.format("You just upgraded %s %d time%s for your `%s` for **$%,d**", upgrade.getName().toLowerCase(), upgrades, (upgrades == 1 ? "" : "s"), axe.getName(), price);
+		}).whenComplete((message, exception) -> {
+			if (ExceptionUtility.sendExceptionally(event, exception) || message == null) {
+				return;
+			}
+
+			event.replySuccess(message).queue();
+		});
+	}
+
+	@Command(value="upgrades", description="View all the upgrades you can use on a axe")
+	@CommandId(430)
+	@Examples({"pickaxe upgrades"})
+	public void upgrades(Sx4CommandEvent event) {
+		EnumSet<Upgrade> upgrades = Upgrade.getUpgrades(ItemType.AXE);
+
+		PagedResult<Upgrade> paged = new PagedResult<>(event.getBot(), Arrays.asList(upgrades.toArray(Upgrade[]::new)))
+			.setPerPage(3)
+			.setCustomFunction(page -> {
+				EmbedBuilder embed = new EmbedBuilder()
+					.setTitle("Axe Upgrades");
+
+				page.forEach((upgrade, index) -> embed.addField(upgrade.getName(), upgrade.getDescription(), false));
+
+				return new MessageBuilder().setEmbed(embed.build()).build();
+			});
+
+		paged.execute(event);
 	}
 
 }

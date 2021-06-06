@@ -72,5 +72,10 @@ public class Axe extends Tool {
 	public static Axe fromData(EconomyManager manager, Document data) {
 		return new Axe(data, manager.getItemById(data.getInteger("id"), Axe.class));
 	}
+
+	public Document toData() {
+		return super.toData()
+			.append("multiplier", this.multiplier);
+	}
 	
 }

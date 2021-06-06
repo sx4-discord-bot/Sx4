@@ -81,5 +81,12 @@ public class Pickaxe extends Tool {
 	public static Pickaxe fromData(EconomyManager manager, Document data) {
 		return new Pickaxe(data, manager.getItemById(data.getInteger("id"), Pickaxe.class));
 	}
+
+	public Document toData() {
+		return super.toData()
+			.append("multiplier", this.multiplier)
+			.append("minYield", this.minYield)
+			.append("maxYield", this.maxYield);
+	}
 	
 }

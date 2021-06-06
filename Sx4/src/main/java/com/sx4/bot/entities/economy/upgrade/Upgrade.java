@@ -8,7 +8,7 @@ public enum Upgrade {
 
 	DURABILITY(0, "Durability", "Upgrades your tools max durability by 2", 2D, ItemType.AXE, ItemType.PICKAXE, ItemType.ROD),
 	MONEY(1, "Money", "Upgrades the yield of money given by a tool by 5% of it's original minimum yield", 0.05D, ItemType.ROD, ItemType.PICKAXE),
-	MULTIPLIER(2, "Multiplier", "Upgrades the multiplier of your tool by 2%", 0.02D, ItemType.PICKAXE, ItemType.AXE);
+	MULTIPLIER(2, "Multiplier", "Upgrades the multiplier of your tool by 2% of it's original value", 0.02D, ItemType.PICKAXE, ItemType.AXE);
 
 	private final int id;
 
@@ -37,6 +37,16 @@ public enum Upgrade {
 		return this.description;
 	}
 
+	public boolean containsType(ItemType type) {
+		for (ItemType itemType : this.types) {
+			if (itemType == type) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
 	public ItemType[] getTypes() {
 		return this.types;
 	}
@@ -58,11 +68,8 @@ public enum Upgrade {
 	public static EnumSet<Upgrade> getUpgrades(ItemType type) {
 		EnumSet<Upgrade> upgrades = EnumSet.noneOf(Upgrade.class);
 		for (Upgrade upgrade : Upgrade.values()) {
-			for (ItemType itemType : upgrade.getTypes()) {
-				if (itemType == type) {
-					upgrades.add(upgrade);
-					break;
-				}
+			if (upgrade.containsType(type)) {
+				upgrades.add(upgrade);
 			}
 		}
 

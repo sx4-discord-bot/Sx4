@@ -56,5 +56,11 @@ public class Rod extends Tool {
 	public static Rod fromData(EconomyManager manager, Document data) {
 		return new Rod(data, manager.getItemById(data.getInteger("id"), Rod.class));
 	}
+
+	public Document toData() {
+		return super.toData()
+			.append("minYield", this.minYield)
+			.append("maxYield", this.maxYield);
+	}
 	
 }

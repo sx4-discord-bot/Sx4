@@ -138,12 +138,12 @@ public class AuctionCommand extends Sx4Command {
 		long totalPrice = stack.getTotalPrice();
 		double pricePercent = (double) totalPrice / price;
 		if (pricePercent < 0.1D) {
-			event.replyFormat("You cannot sell an item for more than 500%% its worth (**$%,d**) %s", totalPrice * 5, event.getConfig().getFailureEmote()).queue();
+			event.replyFormat("You cannot sell an item for more than 500%% its worth (**$%,.0f**) %s", totalPrice * 5, event.getConfig().getFailureEmote()).queue();
 			return;
 		}
 
 		if (pricePercent > 20D) {
-			event.replyFormat("You cannot sell an item for less than 5%% its worth (**$%,d**) %s", totalPrice / 20D, event.getConfig().getFailureEmote()).queue();
+			event.replyFormat("You cannot sell an item for less than 5%% its worth (**$%,.0f**) %s", totalPrice / 20D, event.getConfig().getFailureEmote()).queue();
 			return;
 		}
 

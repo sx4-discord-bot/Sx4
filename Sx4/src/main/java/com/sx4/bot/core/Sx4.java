@@ -32,7 +32,6 @@ import com.sx4.bot.database.postgres.PostgresDatabase;
 import com.sx4.bot.entities.argument.*;
 import com.sx4.bot.entities.economy.item.Item;
 import com.sx4.bot.entities.economy.item.ItemStack;
-import com.sx4.bot.entities.economy.upgrade.Upgrade;
 import com.sx4.bot.entities.management.AutoRoleFilter;
 import com.sx4.bot.entities.mod.PartialEmote;
 import com.sx4.bot.entities.mod.Reason;
@@ -929,7 +928,6 @@ public class Sx4 {
 			.registerGenericParser(Item.class, (context, type, argument, content) -> new ParsedResult<>(this.economyManager.getItemByQuery(content.trim(), type)))
 			.registerParser(Item.class, (context, argument, content) -> new ParsedResult<>(this.economyManager.getItemByQuery(content.trim(), Item.class)))
 			.registerParser(OffsetTimeZone.class, (context, argument, content) -> new ParsedResult<>(OffsetTimeZone.getTimeZone(content.trim().toUpperCase())))
-			.registerParser(Upgrade.class, (context, argument, content) -> new ParsedResult<>(Upgrade.fromName(content.trim())))
 			.registerParser(ItemStack.class, (context, argument, content) -> {
 				Class type = argument.getProperty("itemClass");
 				return new ParsedResult<>(ItemStack.parse(this.economyManager, content, type));

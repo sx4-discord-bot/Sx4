@@ -1,6 +1,7 @@
 package com.sx4.bot.entities.economy.item;
 
 import com.sx4.bot.managers.EconomyManager;
+import com.sx4.bot.utility.NumberUtility;
 import org.bson.Document;
 
 import java.util.List;
@@ -93,18 +94,20 @@ public class ItemStack<Type extends Item> implements Comparable<ItemStack<Type>>
 
 	public static ItemStack<?> parse(EconomyManager manager, String content, Class<? extends Item> type) {
 		int index = content.indexOf(' ');
-		String itemContent = index == -1 ? content : content.substring(index + 1), amountContent = index == -1 ? null : content.substring(0, index);
 
-		Item item = manager.getItemByQuery(itemContent, type);
-		if (item == null && index != -1) {
-			index = content.lastIndexOf(' ');
-			itemContent = content.substring(0, index);
-			amountContent = content.substring(index + 1);
-			item = manager.getItemByQuery(itemContent, type);
+		Item item;
+		String amountContent = index == -1 ? null : content.substring(0, index);
+		if (amountContent == null) {
+			item = manager.getItemByQuery(content, type);
+		} else if (NumberUtility.isNumberUnsigned(amountContent)) {
+			item = manager.getItemByQuery(content.substring(index + 1), type);
+		} else if (NumberUtility.isNumberUnsigned(amountContent = content.substring(index + 1))) {
+			item = manager.getItemByQuery(content.substring(0, index), type);
+		} else {
+			amountContent = null;
+			item = manager.getItemByQuery(content, type);
 		}
-
-		System.out.println(itemContent + " - " + amountContent);
-
+		
 		if (item == null) {
 			return null;
 		}
