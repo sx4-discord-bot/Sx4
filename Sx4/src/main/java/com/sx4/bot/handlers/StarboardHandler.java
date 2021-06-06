@@ -42,7 +42,7 @@ public class StarboardHandler implements EventListener {
 		this.bot = bot;
 	}
 
-	private WebhookMessage getStarboardMessage(Document guildData, Document starboard, Guild guild, Member member, ReactionEmote emote) {
+	private WebhookMessage getStarboardMessage(Document guildData, Document starboard, Guild guild, Member member, ReactionEmote emote, boolean premium) {
 		List<Document> messages = guildData.getList("messages", Document.class, StarboardManager.DEFAULT_CONFIGURATION);
 
 		int stars = starboard.getInteger("count");
@@ -89,8 +89,8 @@ public class StarboardHandler implements EventListener {
 
 		try {
 			return this.format(messageData.get("message", Document.class), member, channel, emote, stars, nextStars, starboard.getObjectId("_id"))
-				.setUsername(webhookData.get("name", "Sx4 - Starboard"))
-				.setAvatarUrl(webhookData.get("avatar", this.bot.getShardManager().getShardById(0).getSelfUser().getEffectiveAvatarUrl()))
+				.setUsername(premium ? webhookData.get("name", "Sx4 - Starboard") : "Sx4 - Starboard")
+				.setAvatarUrl(premium ? webhookData.get("avatar", this.bot.getShardManager().getShardById(0).getSelfUser().getEffectiveAvatarUrl()) : this.bot.getShardManager().getShardById(0).getSelfUser().getEffectiveAvatarUrl())
 				.addEmbeds(builder.build())
 				.build();
 		} catch (IllegalArgumentException e) {
@@ -126,92 +126,112 @@ public class StarboardHandler implements EventListener {
 			return;
 		}
 
-		Document data = this.bot.getMongo().getGuildById(event.getGuild().getIdLong(), Projections.include("starboard")).get("starboard", MongoDatabase.EMPTY_DOCUMENT);
-		if (!data.get("enabled", false)) {
-			return;
-		}
+		List<Bson> starboardPipeline = List.of(
+			Aggregates.match(Filters.or(Filters.eq("originalMessageId", event.getMessageIdLong()), Filters.eq("messageId", event.getMessageIdLong()))),
+			Aggregates.project(Projections.include("originalMessageId"))
+		);
 
-		long channelId = data.get("channelId", 0L);
+		List<Bson> pipeline = List.of(
+			Aggregates.match(Filters.eq("_id", event.getGuild().getIdLong())),
+			Aggregates.project(Projections.fields(Projections.include("starboard"), Projections.computed("premium", Operators.lt(Operators.nowEpochSecond(), Operators.ifNull("$premium.endAt", 0L))))),
+			Aggregates.unionWith("starboards", starboardPipeline),
+			Aggregates.group(null, Accumulators.max("messageId", "$originalMessageId"), Accumulators.max("starboard", "$starboard"), Accumulators.max("premium", "$premium"))
+		);
 
-		TextChannel channel = channelId == 0L ? null : event.getGuild().getTextChannelById(channelId);
-		if (channel == null) {
-			return;
-		}
+		this.bot.getMongo().aggregateGuilds(pipeline).whenComplete((iterable, aggregateException) -> {
+			if (ExceptionUtility.sendErrorMessage(event.getJDA().getShardManager(), aggregateException)) {
+				return;
+			}
 
-		ReactionEmote emote = event.getReactionEmote();
-		boolean emoji = emote.isEmoji();
+			Document data = iterable.first();
+			if (data == null) {
+				return;
+			}
 
-		Document emoteData = data.get("emote", new Document("name", "⭐"));
-		if ((emoji && !emote.getEmoji().equals(emoteData.getString("name"))) || (!emoji && (!emoteData.containsKey("id") || emoteData.getLong("id") != emote.getIdLong()))) {
-			return;
-		}
+			Document starboard = data.get("starboard", MongoDatabase.EMPTY_DOCUMENT);
+			if (!starboard.get("enabled", false)) {
+				return;
+			}
 
-		Bson filter = Filters.or(Filters.eq("originalMessageId", event.getMessageIdLong()), Filters.eq("messageId", event.getMessageIdLong()));
+			long channelId = starboard.get("channelId", 0L);
 
-		Document starboard = this.bot.getMongo().getStarboard(filter, Projections.include("originalMessageId"));
+			TextChannel channel = channelId == 0L ? null : event.getGuild().getTextChannelById(channelId);
+			if (channel == null) {
+				return;
+			}
 
-		long messageId = starboard == null ? event.getMessageIdLong() : starboard.getLong("originalMessageId");
+			ReactionEmote emote = event.getReactionEmote();
+			boolean emoji = emote.isEmoji();
 
-		this.getMessageData(starboard == null ? event.retrieveMessage() : null, message -> {
-			String image = message == null ? null : message.getAttachments().stream()
-				.filter(Attachment::isImage)
-				.map(Attachment::getUrl)
-				.findFirst()
-				.orElse(null);
+			Document emoteData = starboard.get("emote", new Document("name", "⭐"));
+			if ((emoji && !emote.getEmoji().equals(emoteData.getString("name"))) || (!emoji && (!emoteData.containsKey("id") || emoteData.getLong("id") != emote.getIdLong()))) {
+				return;
+			}
 
-			Document star = new Document("userId", event.getUser().getIdLong())
-				.append("messageId", messageId)
-				.append("guildId", event.getGuild().getIdLong());
+			Long originalMessageId = data.getLong("messageId");
+			long messageId = originalMessageId == null ? event.getMessageIdLong() : originalMessageId;
 
-			this.bot.getMongo().insertStar(star).thenCompose(result -> {
-				Bson update = Updates.combine(
-					Updates.inc("count", 1),
-					Updates.setOnInsert("originalMessageId", messageId),
-					Updates.setOnInsert("guildId", event.getGuild().getIdLong()),
-					Updates.setOnInsert("channelId", event.getChannel().getIdLong())
-				);
+			this.getMessageData(originalMessageId == null ? event.retrieveMessage() : null, message -> {
+				String image = message == null ? null : message.getAttachments().stream()
+					.filter(Attachment::isImage)
+					.map(Attachment::getUrl)
+					.findFirst()
+					.orElse(null);
 
-				if (message != null) {
-					update = Updates.combine(
-						update,
-						Updates.set("content", message.getContentRaw()),
-						Updates.set("authorId", message.getAuthor().getIdLong())
+				Document star = new Document("userId", event.getUser().getIdLong())
+					.append("messageId", messageId)
+					.append("guildId", event.getGuild().getIdLong());
+
+				this.bot.getMongo().insertStar(star).thenCompose(result -> {
+					Bson update = Updates.combine(
+						Updates.inc("count", 1),
+						Updates.setOnInsert("originalMessageId", messageId),
+						Updates.setOnInsert("guildId", event.getGuild().getIdLong()),
+						Updates.setOnInsert("channelId", event.getChannel().getIdLong())
 					);
 
-					if (image != null) {
-						update = Updates.combine(update, Updates.set("image", image));
+					if (message != null) {
+						update = Updates.combine(
+							update,
+							Updates.set("content", message.getContentRaw()),
+							Updates.set("authorId", message.getAuthor().getIdLong())
+						);
+
+						if (image != null) {
+							update = Updates.combine(update, Updates.set("image", image));
+						}
 					}
-				}
 
-				FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER).upsert(true);
-				return this.bot.getMongo().findAndUpdateStarboard(Filters.eq("originalMessageId", messageId), update, options);
-			}).thenCompose(updatedData -> {
-				WebhookMessage webhookMessage = this.getStarboardMessage(data, updatedData, event.getGuild(), event.getMember(), emote);
-				if (webhookMessage == null) {
-					return CompletableFuture.completedFuture(null);
-				}
-
-				if (updatedData.containsKey("messageId")) {
-					this.bot.getStarboardManager().editStarboard(updatedData.getLong("messageId"), channel.getIdLong(), data.get("webhook", MongoDatabase.EMPTY_DOCUMENT), webhookMessage);
-					return CompletableFuture.completedFuture(null); // return null so no update is made in the next stage
-				} else {
-					return this.bot.getStarboardManager().sendStarboard(channel, data.get("webhook", MongoDatabase.EMPTY_DOCUMENT), webhookMessage);
-				}
-			}).whenComplete((createdMessage, exception) -> {
-				if (exception instanceof CompletionException) {
-					Throwable cause = exception.getCause();
-					if (cause instanceof MongoWriteException && ((MongoWriteException) cause).getError().getCategory() == ErrorCategory.DUPLICATE_KEY) {
-						return; // duplicate star just ignore
+					FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER).upsert(true);
+					return this.bot.getMongo().findAndUpdateStarboard(Filters.eq("originalMessageId", messageId), update, options);
+				}).thenCompose(updatedData -> {
+					WebhookMessage webhookMessage = this.getStarboardMessage(starboard, updatedData, event.getGuild(), event.getMember(), emote, data.getBoolean("premium"));
+					if (webhookMessage == null) {
+						return CompletableFuture.completedFuture(null);
 					}
-				}
 
-				if (ExceptionUtility.sendErrorMessage(event.getJDA().getShardManager(), exception)) {
-					return;
-				}
+					if (updatedData.containsKey("messageId")) {
+						this.bot.getStarboardManager().editStarboard(updatedData.getLong("messageId"), channel.getIdLong(), starboard.get("webhook", MongoDatabase.EMPTY_DOCUMENT), webhookMessage);
+						return CompletableFuture.completedFuture(null); // return null so no update is made in the next stage
+					} else {
+						return this.bot.getStarboardManager().sendStarboard(channel, starboard.get("webhook", MongoDatabase.EMPTY_DOCUMENT), webhookMessage);
+					}
+				}).whenComplete((createdMessage, exception) -> {
+					if (exception instanceof CompletionException) {
+						Throwable cause = exception.getCause();
+						if (cause instanceof MongoWriteException && ((MongoWriteException) cause).getError().getCategory() == ErrorCategory.DUPLICATE_KEY) {
+							return; // duplicate star just ignore
+						}
+					}
 
-				if (createdMessage != null) {
-					this.bot.getMongo().updateStarboard(Filters.eq("originalMessageId", messageId), Updates.set("messageId", createdMessage.getId())).whenComplete(MongoDatabase.exceptionally(event.getJDA().getShardManager()));
-				}
+					if (ExceptionUtility.sendErrorMessage(event.getJDA().getShardManager(), exception)) {
+						return;
+					}
+
+					if (createdMessage != null) {
+						this.bot.getMongo().updateStarboard(Filters.eq("originalMessageId", messageId), Updates.set("messageId", createdMessage.getId())).whenComplete(MongoDatabase.exceptionally(event.getJDA().getShardManager()));
+					}
+				});
 			});
 		});
 	}
@@ -222,64 +242,85 @@ public class StarboardHandler implements EventListener {
 			return;
 		}
 
-		Document data = this.bot.getMongo().getGuildById(event.getGuild().getIdLong(), Projections.include("starboard")).get("starboard", MongoDatabase.EMPTY_DOCUMENT);
-		if (!data.get("enabled", false)) {
-			return;
-		}
+		List<Bson> starboardPipeline = List.of(
+			Aggregates.match(Filters.or(Filters.eq("originalMessageId", event.getMessageIdLong()), Filters.eq("messageId", event.getMessageIdLong()))),
+			Aggregates.project(Projections.include("originalMessageId", "messageId", "count"))
+		);
 
-		long channelId = data.get("channelId", 0L);
+		List<Bson> pipeline = List.of(
+			Aggregates.match(Filters.eq("_id", event.getGuild().getIdLong())),
+			Aggregates.project(Projections.fields(Projections.include("starboard"), Projections.computed("premium", Operators.lt(Operators.nowEpochSecond(), Operators.ifNull("$premium.endAt", 0L))))),
+			Aggregates.unionWith("starboards", starboardPipeline),
+			Aggregates.group(null, Accumulators.max("count", "$count"), Accumulators.max("messageId", "$messageId"), Accumulators.max("originalMessageId", "$originalMessageId"), Accumulators.max("starboard", "$starboard"), Accumulators.max("premium", "$premium"))
+		);
 
-		TextChannel channel = channelId == 0L ? null : event.getGuild().getTextChannelById(channelId);
-		if (channel == null) {
-			return;
-		}
-
-		ReactionEmote emote = event.getReactionEmote();
-		boolean emoji = emote.isEmoji();
-
-		Document emoteData = data.get("emote", new Document("name", "⭐"));
-		if ((emoji && !emote.getEmoji().equals(emoteData.getString("name"))) || (!emoji && (!emoteData.containsKey("id") || emoteData.getLong("id") != emote.getIdLong()))) {
-			return;
-		}
-
-		Bson filter = Filters.or(Filters.eq("originalMessageId", event.getMessageIdLong()), Filters.eq("messageId", event.getMessageIdLong()));
-
-		Document starboard = this.bot.getMongo().getStarboard(filter, Projections.include("originalMessageId", "count", "messageId"));
-		if (starboard == null) {
-			return;
-		}
-
-		long messageId = starboard.get("originalMessageId", 0L);
-		if (messageId == 0L) {
-			return;
-		}
-
-		List<Document> config = data.getList("messages", Document.class, StarboardManager.DEFAULT_CONFIGURATION);
-
-		this.bot.getMongo().deleteStarById(event.getUserIdLong(), messageId).thenCompose(result -> {
-			if (result.getDeletedCount() == 0) {
-				return CompletableFuture.completedFuture(null);
-			}
-
-			List<Bson> update = List.of(
-				Operators.set("count", Operators.subtract("$count", 1)),
-				Operators.set("messageId", Operators.cond(Operators.isEmpty(Operators.filter(config, Operators.gte(Operators.subtract("$count", 1), "$$this.stars"))), Operators.REMOVE, "$messageId"))
-			);
-
-			FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER);
-
-			return this.bot.getMongo().findAndUpdateStarboard(Filters.eq("originalMessageId", messageId), update, options);
-		}).whenComplete((updatedData, exception) -> {
-			if (ExceptionUtility.sendErrorMessage(event.getJDA().getShardManager(), exception) || updatedData == null) {
+		this.bot.getMongo().aggregateGuilds(pipeline).whenComplete((iterable, aggregateException) -> {
+			if (ExceptionUtility.sendErrorMessage(event.getJDA().getShardManager(), aggregateException)) {
 				return;
 			}
 
-			WebhookMessage webhookMessage = this.getStarboardMessage(data, updatedData, event.getGuild(), event.getMember(), emote);
-			if (webhookMessage == null) {
-				this.bot.getStarboardManager().deleteStarboard(starboard.getLong("messageId"), channel.getIdLong(), data.get("webhook", MongoDatabase.EMPTY_DOCUMENT));
-			} else {
-				this.bot.getStarboardManager().editStarboard(starboard.getLong("messageId"), channel.getIdLong(), data.get("webhook", MongoDatabase.EMPTY_DOCUMENT), webhookMessage);
+			Document data = iterable.first();
+			if (data == null) {
+				return;
 			}
+
+			Document starboard = data.get("starboard", MongoDatabase.EMPTY_DOCUMENT);
+			if (!starboard.get("enabled", false)) {
+				return;
+			}
+
+			long channelId = starboard.get("channelId", 0L);
+
+			TextChannel channel = channelId == 0L ? null : event.getGuild().getTextChannelById(channelId);
+			if (channel == null) {
+				return;
+			}
+
+			ReactionEmote emote = event.getReactionEmote();
+			boolean emoji = emote.isEmoji();
+
+			Document emoteData = starboard.get("emote", new Document("name", "⭐"));
+			if ((emoji && !emote.getEmoji().equals(emoteData.getString("name"))) || (!emoji && (!emoteData.containsKey("id") || emoteData.getLong("id") != emote.getIdLong()))) {
+				return;
+			}
+
+			Long originalMessageId = data.getLong("originalMessageId");
+			if (originalMessageId == null) {
+				return;
+			}
+
+			List<Document> config = starboard.getList("messages", Document.class, StarboardManager.DEFAULT_CONFIGURATION);
+
+			this.bot.getMongo().deleteStarById(event.getUserIdLong(), originalMessageId).thenCompose(result -> {
+				if (result.getDeletedCount() == 0) {
+					return CompletableFuture.completedFuture(null);
+				}
+
+				List<Bson> update = List.of(
+					Operators.set("count", Operators.subtract("$count", 1)),
+					Operators.set("messageId", Operators.cond(Operators.isEmpty(Operators.filter(config, Operators.gte(Operators.subtract("$count", 1), "$$this.stars"))), Operators.REMOVE, "$messageId"))
+				);
+
+				FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER);
+
+				return this.bot.getMongo().findAndUpdateStarboard(Filters.eq("originalMessageId", originalMessageId), update, options);
+			}).whenComplete((updatedData, exception) -> {
+				if (ExceptionUtility.sendErrorMessage(event.getJDA().getShardManager(), exception) || updatedData == null) {
+					return;
+				}
+
+				Long messageId = data.getLong("messageId");
+				if (messageId == null) {
+					return;
+				}
+
+				WebhookMessage webhookMessage = this.getStarboardMessage(starboard, updatedData, event.getGuild(), event.getMember(), emote, data.getBoolean("premium"));
+				if (webhookMessage == null) {
+					this.bot.getStarboardManager().deleteStarboard(messageId, channel.getIdLong(), starboard.get("webhook", MongoDatabase.EMPTY_DOCUMENT));
+				} else {
+					this.bot.getStarboardManager().editStarboard(messageId, channel.getIdLong(), starboard.get("webhook", MongoDatabase.EMPTY_DOCUMENT), webhookMessage);
+				}
+			});
 		});
 	}
 

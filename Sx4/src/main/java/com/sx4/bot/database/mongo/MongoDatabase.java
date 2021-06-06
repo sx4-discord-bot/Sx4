@@ -1380,6 +1380,10 @@ public class MongoDatabase {
 	public long countGuilds(Bson filter) {
 		return this.guilds.countDocuments(filter);
 	}
+
+	public CompletableFuture<AggregateIterable<Document>> aggregateGuilds(List<Bson> pipeline) {
+		return CompletableFuture.supplyAsync(() -> this.guilds.aggregate(pipeline));
+	}
 	
 	public Document getGuildById(long guildId, Bson filter, Bson projection) {
 		if (filter == null) {
