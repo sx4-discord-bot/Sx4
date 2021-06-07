@@ -180,8 +180,8 @@ public class ModLog {
 	public WebhookEmbed getWebhookEmbed(User moderator, User target) {
 		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
 		embed.setTitle(new EmbedTitle(this.action.toString(), null));
-		embed.addField(new EmbedField(false, "Target", (target == null ? "Unknown User" : target.getAsTag()) + " (" + this.getTargetId() + ")"));
-		embed.addField(new EmbedField(false, "Moderator", (moderator == null ? "Unknown User" : moderator.getAsTag()) + " (" + this.getModeratorId() + ")"));
+		embed.addField(new EmbedField(false, "Target", (target == null ? "Anonymous#0000" : target.getAsTag()) + " (" + this.getTargetId() + ")"));
+		embed.addField(new EmbedField(false, "Moderator", (moderator == null ? "Anonymous#0000" : moderator.getAsTag()) + " (" + this.getModeratorId() + ")"));
 		embed.addField(new EmbedField(false, "Reason", this.reason == null ? "None Given" : this.reason.getParsed()));
 		embed.setTimestamp(Instant.ofEpochSecond(this.getTimestamp()));
 		embed.setFooter(new EmbedFooter("ID: " + this.getHex(), null));
@@ -200,7 +200,7 @@ public class ModLog {
 			.append("targetId", this.targetId)
 			.append("messageId", this.messageId)
 			.append("moderatorId", this.moderatorId)
-			.append("webhook", new Document("id", 0L).append("token", ""))
+			.append("webhook", new Document("id", this.webhookId).append("token", this.webhookToken))
 			.append("reason", this.reason == null ? null : this.reason.getParsed())
 			.append("action", this.action.toData());
 	}

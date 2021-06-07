@@ -1,7 +1,12 @@
 package com.sx4.bot.handlers;
 
 import club.minnced.discord.webhook.send.WebhookEmbed;
+import com.mongodb.client.ChangeStreamIterable;
+import com.mongodb.client.model.Aggregates;
+import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Projections;
+import com.mongodb.client.model.changestream.ChangeStreamDocument;
+import com.mongodb.client.model.changestream.FullDocument;
 import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.entities.mod.ModLog;
@@ -28,11 +33,12 @@ import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.hooks.EventListener;
 import net.dv8tion.jda.api.requests.ErrorResponse;
 import org.bson.Document;
+import org.bson.conversions.Bson;
 
-import java.time.Duration;
-import java.time.Instant;
-import java.time.ZoneOffset;
-import java.time.ZonedDateTime;
+import java.time.*;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 public class ModHandler implements ModActionListener, EventListener {
@@ -41,6 +47,12 @@ public class ModHandler implements ModActionListener, EventListener {
 
 	public ModHandler(Sx4 bot) {
 		this.bot = bot;
+
+		List<Bson> pipeline = List.of(Aggregates.match(Filters.eq("operationType", "replace")));
+		ChangeStreamIterable<Document> stream = this.bot.getMongo().getModLogs().watch(pipeline).fullDocument(FullDocument.UPDATE_LOOKUP);
+
+		ExecutorService executor = Executors.newSingleThreadExecutor();
+		executor.submit(() -> stream.forEach(this::onModLogEdit));
 	}
 
 	public EmbedBuilder getGenericEmbed(Guild guild, User moderator, Action action, Reason reason) {
@@ -49,6 +61,23 @@ public class ModHandler implements ModActionListener, EventListener {
 			.addField("Moderator", moderator.getAsTag() + " (" + moderator.getIdLong() + ")", false)
 			.addField("Reason", reason == null ? "None Given" : reason.getParsed(), false)
 			.setTimestamp(Instant.now());
+	}
+
+	public void onModLogEdit(ChangeStreamDocument<Document> stream) {
+		Document data = stream.getFullDocument();
+		if (data == null) {
+			return;
+		}
+
+		String reason = data.getString("reason");
+		if (reason == null) {
+			return;
+		}
+
+		ModLog modLog = ModLog.fromData(data);
+
+		this.bot.getModLogManager().editModLog(modLog.getMessageId(), modLog.getChannelId(), data.get("webhook", MongoDatabase.EMPTY_DOCUMENT), modLog.getWebhookEmbed(this.bot.getShardManager()))
+			.whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
 	}
 
 	public void handle(Guild guild, Action action, User moderator, User target, Reason reason) {
@@ -66,10 +95,13 @@ public class ModHandler implements ModActionListener, EventListener {
 			this.bot.getMongo().insertOffence(data).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
 		}
 
-		Document data = this.bot.getMongo().getGuildById(guild.getIdLong(), Projections.include("modLog.channelId", "modLog.enabled", "modLog.webhook")).get("modLog", MongoDatabase.EMPTY_DOCUMENT);
+		Document data = this.bot.getMongo().getGuildById(guild.getIdLong(), Projections.include("modLog.channelId", "modLog.enabled", "modLog.webhook", "premium.endAt"));
 
-		long channelId = data.get("channelId", 0L);
-		if (!data.getBoolean("enabled", false) || channelId == 0L) {
+		Document modLogData = data.get("modLog", MongoDatabase.EMPTY_DOCUMENT);
+		boolean premium = Clock.systemUTC().instant().getEpochSecond() < data.getEmbedded(List.of("premium", "endAt"), 0L);
+
+		long channelId = modLogData.get("channelId", 0L);
+		if (!modLogData.getBoolean("enabled", false) || channelId == 0L) {
 			return;
 		}
 
@@ -89,7 +121,7 @@ public class ModHandler implements ModActionListener, EventListener {
 
 		WebhookEmbed embed = modLog.getWebhookEmbed(moderator, target);
 
-		this.bot.getModLogManager().sendModLog(channel, data.get("webhook", MongoDatabase.EMPTY_DOCUMENT), embed).whenComplete((webhookMessage, exception) -> {
+		this.bot.getModLogManager().sendModLog(channel, modLogData.get("webhook", MongoDatabase.EMPTY_DOCUMENT), embed, premium).whenComplete((webhookMessage, exception) -> {
 			modLog.setMessageId(webhookMessage.getId())
 				.setWebhookId(webhookMessage.getWebhookId())
 				.setWebhookToken(webhookMessage.getWebhookToken());

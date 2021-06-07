@@ -77,12 +77,12 @@ public class ModLogManager implements WebhookManager {
 		});
 	}
 
-	public CompletableFuture<ReadonlyMessage> sendModLog(TextChannel channel, Document webhookData, WebhookEmbed embed) {
+	public CompletableFuture<ReadonlyMessage> sendModLog(TextChannel channel, Document webhookData, WebhookEmbed embed, boolean premium) {
 		User selfUser = channel.getJDA().getSelfUser();
 
 		WebhookMessage message = new WebhookMessageBuilder()
-			.setAvatarUrl(webhookData.get("avatar", selfUser.getEffectiveAvatarUrl()))
-			.setUsername(webhookData.get("name", "Sx4 - Mod Logs"))
+			.setAvatarUrl(premium ? webhookData.get("avatar", selfUser.getEffectiveAvatarUrl()) : selfUser.getEffectiveAvatarUrl())
+			.setUsername(premium ? webhookData.get("name", "Sx4 - Mod Logs") : "Sx4 - Mod Logs")
 			.addEmbeds(embed)
 			.build();
 
