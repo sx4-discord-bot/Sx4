@@ -199,7 +199,6 @@ public class Sx4Command extends CommandImpl {
 		this.category = category;
 
 		while (old != null) {
-			old.removeCommand(this);
 			this.getAllCommandsRecursive().forEach(old::removeCommand);
 
 			old = old.getParent();
@@ -207,7 +206,6 @@ public class Sx4Command extends CommandImpl {
 
 		ICategory parent = this.category;
 		while (parent != null) {
-			parent.addCommand(this);
 			this.getAllCommandsRecursive().forEach(parent::addCommand);
 
 			parent = parent.getParent();

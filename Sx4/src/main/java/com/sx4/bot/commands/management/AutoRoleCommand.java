@@ -190,6 +190,7 @@ public class AutoRoleCommand extends Sx4Command {
 			
 			super.setDescription("Add or remove filters from auto roles");
 			super.setExamples("auto role filter add", "auto role filter remove", "auto role filter list");
+			super.setCategoryAll(ModuleCategory.MANAGEMENT);
 		}
 		
 		public void onCommand(Sx4CommandEvent event) {

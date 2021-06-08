@@ -183,7 +183,7 @@ public class WhitelistCommand extends Sx4Command {
 		channelPaged.onSelect(channelSelect -> {
 			TextChannel selectedChannel = channelSelect.getSelected();
 
-			Document blacklist = event.getMongo().getBlacklist(Filters.eq("channelId", channel.getIdLong()), Projections.include("holders"));
+			Document blacklist = event.getMongo().getBlacklist(Filters.eq("channelId", selectedChannel.getIdLong()), Projections.include("holders"));
 			if (blacklist == null) {
 				event.replyFailure("Nothing is whitelisted in " + selectedChannel.getAsMention()).queue();
 				return;

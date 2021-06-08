@@ -57,6 +57,7 @@ public class PrefixCommand extends Sx4Command {
 
 			super.setDescription("Set personal prefixes that you can use in any server");
 			super.setExamples("prefix self !", "prefix self add", "prefix self remove");
+			super.setCategoryAll(ModuleCategory.SETTINGS);
 		}
 
 		public void onCommand(Sx4CommandEvent event, @Argument(value="prefixes") String[] prefixes) {
@@ -156,6 +157,7 @@ public class PrefixCommand extends Sx4Command {
 			super.setAliases("guild");
 			super.setExamples("prefix server !", "prefix server add", "prefix server remove");
 			super.setAuthorDiscordPermissions(Permission.MANAGE_SERVER);
+			super.setCategoryAll(ModuleCategory.SETTINGS);
 		}
 
 		public void onCommand(Sx4CommandEvent event, @Argument(value="prefixes") String[] prefixes) {

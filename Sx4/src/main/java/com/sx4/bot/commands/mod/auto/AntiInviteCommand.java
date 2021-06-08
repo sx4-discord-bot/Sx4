@@ -142,6 +142,7 @@ public class AntiInviteCommand extends Sx4Command {
 
 			super.setDescription("Set specific things to happen when someone reaches a certain amount of attempts");
 			super.setExamples("anti regex mod message", "anti regex mod action");
+			super.setCategoryAll(ModuleCategory.AUTO_MODERATION);
 		}
 
 		public void onCommand(Sx4CommandEvent event) {
@@ -225,6 +226,7 @@ public class AntiInviteCommand extends Sx4Command {
 
 			super.setDescription("Set specific things to happen when a message is matched with a specific regex");
 			super.setExamples("anti regex match action", "anti regex match message");
+			super.setCategoryAll(ModuleCategory.AUTO_MODERATION);
 		}
 
 		public void onCommand(Sx4CommandEvent event) {
@@ -290,6 +292,7 @@ public class AntiInviteCommand extends Sx4Command {
 
 			super.setDescription("Whitelist roles and users from certain channels so they can ignore the anti regex");
 			super.setExamples("anti regex whitelist add", "anti regex whitelist remove");
+			super.setCategoryAll(ModuleCategory.AUTO_MODERATION);
 		}
 
 		public void onCommand(Sx4CommandEvent event) {

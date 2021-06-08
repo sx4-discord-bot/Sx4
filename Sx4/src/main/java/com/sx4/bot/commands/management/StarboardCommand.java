@@ -301,6 +301,7 @@ public class StarboardCommand extends Sx4Command {
 
 			super.setDescription("Set the configuration of messages depending on the amount of stars");
 			super.setExamples("starboard messages set", "starboard messages remove", "starboard messages list");
+			super.setCategoryAll(ModuleCategory.MANAGEMENT);
 		}
 
 		public void onCommand(Sx4CommandEvent event) {

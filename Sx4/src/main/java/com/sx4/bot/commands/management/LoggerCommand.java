@@ -229,6 +229,7 @@ public class LoggerCommand extends Sx4Command {
             super.setAliases("event");
             super.setDescription("Set what events you want to be sent with a logger");
             super.setExamples("logger events add", "logger events remove", "logger events set");
+            super.setCategoryAll(ModuleCategory.MANAGEMENT);
         }
 
         public void onCommand(Sx4CommandEvent event) {
@@ -340,6 +341,7 @@ public class LoggerCommand extends Sx4Command {
 
             super.setDescription("Blacklist certain entities from being able to appear in logs");
             super.setExamples("logger blacklist set", "logger blacklist add", "logger blacklist remove");
+            super.setCategoryAll(ModuleCategory.MANAGEMENT);
         }
 
         public void onCommand(Sx4CommandEvent event) {

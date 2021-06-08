@@ -318,6 +318,7 @@ public class ReactionRoleCommand extends Sx4Command {
 
 			super.setDescription("Whitelists a user or role from being able to use the reaction on the reaction role");
 			super.setExamples("reaction role whitelist add", "reaction role whitelist remove", "reaction role whitelist list");
+			super.setCategoryAll(ModuleCategory.MANAGEMENT);
 		}
 
 		public void onCommand(Sx4CommandEvent event) {

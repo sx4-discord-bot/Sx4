@@ -124,7 +124,7 @@ public class MuteManager {
 			guild.removeRoleFromMember(member, role).reason("Mute length served").queue();
 		}
 
-		Reason reason = new Reason("Ban length served");
+		Reason reason = new Reason("Mute length served");
 		UnmuteEvent event = member == null ? new UnmuteEvent(guild.getSelfMember(), userId, reason) : new UnmuteEvent(guild.getSelfMember(), member.getUser(), reason);
 
 		this.bot.getModActionManager().onModAction(event);

@@ -169,6 +169,7 @@ public class WarnCommand extends Sx4Command {
 			super.setDescription("Set the configuration for the warn system in the current server");
 			super.setAliases("config");
 			super.setExamples("warn configuration set", "warn configuration remove", "warn configuration punishments");
+			super.setCategoryAll(ModuleCategory.MODERATION);
 		}
 
 		public void onCommand(Sx4CommandEvent event) {

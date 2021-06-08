@@ -335,6 +335,7 @@ public class SuggestionCommand extends Sx4Command {
 			
 			super.setDescription("Allows you to add custom states for your suggestions");
 			super.setExamples("suggestion state add", "suggestion state remove");
+			super.setCategoryAll(ModuleCategory.MANAGEMENT);
 		}
 		
 		public void onCommand(Sx4CommandEvent event) {

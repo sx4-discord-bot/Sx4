@@ -108,6 +108,7 @@ public class ProfileCommand extends Sx4Command {
 
 			super.setDescription("Set attributes of your Sx4 profile");
 			super.setExamples("profile set height", "profile set description", "profile set colour");
+			super.setCategoryAll(ModuleCategory.FUN);
 		}
 
 		public void onCommand(Sx4CommandEvent event) {
