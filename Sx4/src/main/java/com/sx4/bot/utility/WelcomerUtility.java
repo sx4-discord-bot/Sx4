@@ -12,12 +12,14 @@ import net.dv8tion.jda.api.entities.User;
 import okhttp3.OkHttpClient;
 import org.bson.Document;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
 import java.util.function.BiConsumer;
 
 public class WelcomerUtility {
 
-	public static void getWelcomerMessage(OkHttpClient httpClient, Document messageData, Member member, boolean image, boolean gif, BiConsumer<WebhookMessageBuilder, Throwable> consumer) {
+	public static void getWelcomerMessage(OkHttpClient httpClient, Document messageData, String bannerId, Member member, boolean image, boolean gif, BiConsumer<WebhookMessageBuilder, Throwable> consumer) {
 		Guild guild = member.getGuild();
 
 		IFormatter<Document> formatter = new JsonFormatter(messageData)
@@ -47,7 +49,7 @@ public class WelcomerUtility {
 				.addQuery("avatar", user.getEffectiveAvatarUrl())
 				.addQuery("name", user.getAsTag())
 				.addQuery("gif", gif)
-				.addQuery("bannerId", guild.getId());
+				.addQuery("banner_id", URLEncoder.encode(bannerId, StandardCharsets.UTF_8));
 
 			httpClient.newCall(request.build(Config.get().getImageWebserver())).enqueue((HttpCallback) response -> {
 				if (response.isSuccessful()) {

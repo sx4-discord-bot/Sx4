@@ -2,9 +2,10 @@ package com.sx4.bot.commands.fun;
 
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
-import com.mongodb.client.model.Filters;
-import com.mongodb.client.model.Projections;
-import com.mongodb.client.model.Updates;
+import com.jockie.bot.core.command.Command.Async;
+import com.jockie.bot.core.command.Command.Cooldown;
+import com.jockie.bot.core.cooldown.ICooldown;
+import com.mongodb.client.model.*;
 import com.sx4.bot.annotations.argument.*;
 import com.sx4.bot.annotations.command.CommandId;
 import com.sx4.bot.annotations.command.Examples;
@@ -12,6 +13,7 @@ import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.mongo.MongoDatabase;
+import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.argument.Alternative;
 import com.sx4.bot.entities.image.ImageRequest;
 import com.sx4.bot.http.HttpCallback;
@@ -32,10 +34,7 @@ import java.io.IOException;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.format.TextStyle;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
-import java.util.Set;
+import java.util.*;
 
 public class ProfileCommand extends Sx4Command {
 
@@ -50,10 +49,25 @@ public class ProfileCommand extends Sx4Command {
 
 	public void onCommand(Sx4CommandEvent event, @Argument(value="user", endless=true, nullDefault=true) Member member) {
 		User user = member == null ? event.getAuthor() : member.getUser();
-		event.getMongo().withTransaction(session -> {
-			Bson filter = Filters.or(Filters.eq("proposerId", user.getIdLong()), Filters.eq("partnerId", user.getIdLong()));
 
-			List<Document> marriages = event.getMongo().getMarriages().find(session, filter).projection(Projections.include("proposerId", "partnerId")).into(new ArrayList<>());
+		List<Bson> marriagePipeline = List.of(
+			Aggregates.project(Projections.include("proposerId", "partnerId")),
+			Aggregates.match(Filters.or(Filters.eq("proposerId", user.getIdLong()), Filters.eq("partnerId", user.getIdLong()))),
+			Aggregates.group(null, Accumulators.push("marriages", Operators.ROOT))
+		);
+
+		List<Bson> pipeline = List.of(
+			Aggregates.project(Projections.fields(Projections.computed("balance", "$economy.balance"), Projections.include("profile"), Projections.computed("reputation", "$reputation.amount"))),
+			Aggregates.match(Filters.eq("_id", user.getIdLong())),
+			Aggregates.unionWith("marriages", marriagePipeline),
+			Aggregates.group(null, Accumulators.max("balance", "$balance"), Accumulators.max("reputation", "$reputation"), Accumulators.max("marriages", "$marriages"), Accumulators.max("profile", "$profile"))
+		);
+
+		event.getMongo().aggregateUsers(pipeline).thenApply(iterable -> {
+			Document data = iterable.first();
+			data = data == null ? MongoDatabase.EMPTY_DOCUMENT : data;
+
+			List<Document> marriages = data.getList("marriages", Document.class, Collections.emptyList());
 
 			List<String> partners = new ArrayList<>();
 			for (Document marriage : marriages) {
@@ -66,26 +80,19 @@ public class ProfileCommand extends Sx4Command {
 				}
 			}
 
-			Document userData = event.getMongo().getUsers().find(session, Filters.eq("_id", user.getIdLong())).projection(Projections.include("economy.balance", "profile", "reputation.amount")).first();
-			userData = userData == null ? MongoDatabase.EMPTY_DOCUMENT : userData;
-
-			Document profileData = userData.get("profile", MongoDatabase.EMPTY_DOCUMENT);
+			Document profileData = data.get("profile", MongoDatabase.EMPTY_DOCUMENT);
 			Document birthdayData = profileData.get("birthday", Document.class);
 
 			String birthday = birthdayData == null ? null : NumberUtility.getZeroPrefixedNumber(birthdayData.getInteger("day")) + "/" + NumberUtility.getZeroPrefixedNumber(birthdayData.getInteger("month")) + (birthdayData.containsKey("year") ? "/" + birthdayData.getInteger("year") : "");
 
-			int centimetres = profileData.get("height", 0);
-
-			int feet = (int) Math.floor(centimetres / 30.48);
-			int inches = (int) Math.round(((centimetres / 30.48) - feet) * 12);
-
 			return new ImageRequest(event.getConfig().getImageWebserverUrl("profile"))
 				.addField("birthday", birthday == null ? "Not set" : birthday)
 				.addField("description", profileData.get("description", "Nothing to see here"))
-				.addField("height", centimetres == 0 ? "Not set" : feet + "'" + inches + " (" + centimetres + "cm)") // change to an int and let the webserver handle it
-				.addField("balance", String.format("%,d", userData.getEmbedded(List.of("economy", "balance"), 0L))) // change to an int and let the webserver handle the commas
-				.addField("reputation", userData.getEmbedded(List.of("reputation", "amount"), 0))
+				.addField("height", profileData.get("height", 0)) // change to an int and let the webserver handle it
+				.addField("balance", data.get("balance", 0L)) // change to an int and let the webserver handle the commas
+				.addField("reputation", data.get("reputation", 0))
 				.addField("married_users", partners)
+				.addField("banner_id", profileData.getString("bannerId"))
 				.addField("name", user.getAsTag())
 				.addField("avatar", user.getEffectiveAvatarUrl())
 				.addField("colour", profileData.getInteger("colour"))
@@ -249,6 +256,8 @@ public class ProfileCommand extends Sx4Command {
 
 		@Command(value="banner", aliases={"bg", "background"}, description="Set the banner for your profile on Sx4")
 		@CommandId(289)
+		@Cooldown(value=30, cooldownScope= ICooldown.Scope.USER)
+		@Async
 		@Examples({"profile set banner https://i.imgur.com/i87lyNO.png", "profile set banner reset"})
 		public void banner(Sx4CommandEvent event, @Argument(value="url | reset") @ImageUrl @Options("reset") Alternative<String> option) {
 			if (option.isAlternative()) {
@@ -283,14 +292,27 @@ public class ProfileCommand extends Sx4Command {
 						return;
 					}
 
-					try (FileOutputStream stream = new FileOutputStream("profile/banners/" + event.getAuthor().getId() + ".png")) {
-						stream.write(response.body().bytes());
+					byte[] bytes = response.body().bytes();
+					if (bytes.length > 5_000_000) {
+						event.replyFailure("Your profile banner cannot be more than 5MB").queue();
+						return;
+					}
+
+					String bannerId = event.getAuthor().getId() + ".png";
+					try (FileOutputStream stream = new FileOutputStream("profile/banners/" + bannerId)) {
+						stream.write(bytes);
 					} catch (IOException e) {
 						ExceptionUtility.sendExceptionally(event, e);
 						return;
 					}
 
-					event.replySuccess("Your profile banner has been updated").queue();
+					event.getMongo().updateUserById(event.getAuthor().getIdLong(), Updates.set("profile.bannerId", bannerId), new UpdateOptions().upsert(true)).whenComplete((result, exception) -> {
+						if (ExceptionUtility.sendExceptionally(event, exception)) {
+							return;
+						}
+
+						event.replySuccess("Your profile banner has been updated").queue();
+					});
 				});
 			}
 		}

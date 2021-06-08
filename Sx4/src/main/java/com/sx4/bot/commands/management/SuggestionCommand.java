@@ -29,6 +29,7 @@ import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
 
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -101,14 +102,16 @@ public class SuggestionCommand extends Sx4Command {
 	@Redirects({"suggest"})
 	@Examples({"suggestion add Add the dog emote", "suggestion Add a channel for people looking to play games"})
 	@BotPermissions(permissions={Permission.MESSAGE_ADD_REACTION, Permission.MESSAGE_EMBED_LINKS})
-	public void add(Sx4CommandEvent event, @Argument(value="suggestion", endless=true) String suggestion) {
-		Document data = event.getMongo().getGuildById(event.getGuild().getIdLong(), Projections.include("suggestion.channelId", "suggestion.enabled", "suggestion.webhook")).get("suggestion", MongoDatabase.EMPTY_DOCUMENT);
-		if (!data.getBoolean("enabled", false)) {
+	public void add(Sx4CommandEvent event, @Argument(value="suggestion", endless=true) String description) {
+		Document data = event.getMongo().getGuildById(event.getGuild().getIdLong(), Projections.include("suggestion.channelId", "suggestion.enabled", "suggestion.webhook", "premium.endAt"));
+
+		Document suggestionData = data.get("suggestion", MongoDatabase.EMPTY_DOCUMENT);
+		if (!suggestionData.getBoolean("enabled", false)) {
 			event.replyFailure("Suggestions are not enabled in this server").queue();
 			return;
 		}
 		
-		long channelId = data.get("channelId", 0L);
+		long channelId = suggestionData.get("channelId", 0L);
 		if (channelId == 0L) {
 			event.replyFailure("There is no suggestion channel").queue();
 			return;
@@ -122,22 +125,24 @@ public class SuggestionCommand extends Sx4Command {
 
 		SuggestionState state = SuggestionState.PENDING;
 
-		Suggestion suggestionData = new Suggestion(
+		Suggestion suggestion = new Suggestion(
 			channelId,
 			event.getGuild().getIdLong(),
 			event.getAuthor().getIdLong(),
-			suggestion,
+			description,
 			state.getDataName()
 		);
 
-		event.getBot().getSuggestionManager().sendSuggestion(channel, data.get("webhook", MongoDatabase.EMPTY_DOCUMENT), suggestionData.getWebhookEmbed(null, event.getAuthor(), state)).whenComplete((message, exception) -> {
+		boolean premium = Clock.systemUTC().instant().getEpochSecond() < data.getEmbedded(List.of("premium", "endAt"), 0L);
+
+		event.getBot().getSuggestionManager().sendSuggestion(channel, suggestionData.get("webhook", MongoDatabase.EMPTY_DOCUMENT), premium, suggestion.getWebhookEmbed(null, event.getAuthor(), state)).whenComplete((message, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
 
-			suggestionData.setMessageId(message.getId());
+			suggestion.setMessageId(message.getId());
 
-			event.getMongo().insertSuggestion(suggestionData.toData()).whenComplete((result, dataException) -> {
+			event.getMongo().insertSuggestion(suggestion.toData()).whenComplete((result, dataException) -> {
 				if (ExceptionUtility.sendExceptionally(event, dataException)) {
 					return;
 				}

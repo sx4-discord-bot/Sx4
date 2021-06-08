@@ -3,12 +3,10 @@ package com.sx4.bot.commands.management;
 import club.minnced.discord.webhook.WebhookClient;
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
+import com.jockie.bot.core.command.Command.Async;
 import com.jockie.bot.core.command.Command.Cooldown;
 import com.jockie.bot.core.cooldown.ICooldown;
-import com.mongodb.client.model.FindOneAndUpdateOptions;
-import com.mongodb.client.model.Projections;
-import com.mongodb.client.model.ReturnDocument;
-import com.mongodb.client.model.Updates;
+import com.mongodb.client.model.*;
 import com.sx4.bot.annotations.argument.AdvancedMessage;
 import com.sx4.bot.annotations.argument.ImageUrl;
 import com.sx4.bot.annotations.argument.Options;
@@ -235,7 +233,7 @@ public class WelcomerCommand extends Sx4Command {
 
 		boolean gif = data.getEmbedded(List.of("premium", "endAt"), 0L) >= Clock.systemUTC().instant().getEpochSecond();
 
-		WelcomerUtility.getWelcomerMessage(event.getHttpClient(), messageEnabled ? welcomer.get("message", WelcomerManager.DEFAULT_MESSAGE) : null, event.getMember(), imageEnabled, gif, (builder, exception) -> {
+		WelcomerUtility.getWelcomerMessage(event.getHttpClient(), messageEnabled ? welcomer.get("message", WelcomerManager.DEFAULT_MESSAGE) : null, welcomer.getString("bannerId"), event.getMember(), imageEnabled, gif, (builder, exception) -> {
 			if (exception instanceof IllegalArgumentException) {
 				event.replyFailure(exception.getMessage()).queue();
 				return;
@@ -249,7 +247,7 @@ public class WelcomerCommand extends Sx4Command {
 		});
 	}
 
-	public class ImageCommand extends Sx4Command {
+	public static class ImageCommand extends Sx4Command {
 
 		private final Set<String> types = Set.of("png", "jpeg", "jpg", "gif");
 
@@ -258,6 +256,7 @@ public class WelcomerCommand extends Sx4Command {
 
 			super.setDescription("Setup the image section of the welcomer");
 			super.setExamples("welcomer image toggle", "welcomer image banner");
+			super.setCategoryAll(ModuleCategory.MANAGEMENT);
 		}
 
 		public void onCommand(Sx4CommandEvent event) {
@@ -284,6 +283,7 @@ public class WelcomerCommand extends Sx4Command {
 		@Command(value="banner", description="Set the welcomer banner for image welcomer if the server is premium this can be a gif")
 		@CommandId(102)
 		@Cooldown(value=30, cooldownScope=ICooldown.Scope.GUILD)
+		@Async
 		@Examples({"welcomer banner https://i.imgur.com/i87lyNO.png", "welcomer banner https://example.com/image.png"})
 		@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 		public void banner(Sx4CommandEvent event, @Argument(value="url") @ImageUrl String url) {
@@ -311,14 +311,27 @@ public class WelcomerCommand extends Sx4Command {
 					return;
 				}
 
-				try (FileOutputStream stream = new FileOutputStream(String.format("welcomer/banners/%s.%s", event.getGuild().getId(), subType))) {
-					stream.write(response.body().bytes());
+				byte[] bytes = response.body().bytes();
+				if (bytes.length > 5_000_000) {
+					event.replyFailure("Your welcomer banner cannot be more than 5MB").queue();
+					return;
+				}
+
+				String bannerId = event.getGuild().getId() + "." + subType;
+				try (FileOutputStream stream = new FileOutputStream("welcomer/banners/" + bannerId)) {
+					stream.write(bytes);
 				} catch (IOException e) {
 					ExceptionUtility.sendExceptionally(event, e);
 					return;
 				}
 
-				event.replySuccess("Your welcomer banner has been updated").queue();
+				event.getMongo().updateGuildById(event.getAuthor().getIdLong(), Updates.set("welcomer.bannerId", bannerId), new UpdateOptions().upsert(true)).whenComplete((result, exception) -> {
+					if (ExceptionUtility.sendExceptionally(event, exception)) {
+						return;
+					}
+
+					event.replySuccess("Your welcomer banner has been updated").queue();
+				});
 			});
 		}
 

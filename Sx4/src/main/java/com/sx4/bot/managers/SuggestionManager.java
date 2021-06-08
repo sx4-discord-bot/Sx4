@@ -77,7 +77,7 @@ public class SuggestionManager implements WebhookManager {
 		});
 	}
 
-	public CompletableFuture<ReadonlyMessage> sendSuggestion(TextChannel channel, Document webhookData, WebhookEmbed embed) {
+	public CompletableFuture<ReadonlyMessage> sendSuggestion(TextChannel channel, Document webhookData, boolean premium, WebhookEmbed embed) {
 		User selfUser = channel.getJDA().getSelfUser();
 
 		WebhookMessage message = new WebhookMessageBuilder()
