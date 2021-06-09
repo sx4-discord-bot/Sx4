@@ -206,6 +206,7 @@ public class Sx4 {
 			new MuteHandler(this),
 			new MediaModeHandler(this),
 			new MysteryBoxHandler(this),
+			new GuildLogHandler(this),
 			youTubeHandler
 		);
 

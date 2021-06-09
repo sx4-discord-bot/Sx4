@@ -197,26 +197,6 @@ public class Config {
 		return guild == null ? null : guild.getTextChannelById(this.getErrorsChannelId());
 	}
 	
-	public long getChangesChannelId() {
-		return this.get(this.getState() + ".supportGuild.channel.changesId", 0L);
-	}
-	
-	public TextChannel getChangesChannel(ShardManager manager) {
-		Guild guild = this.getSupportGuild(manager);
-		
-		return guild == null ? null : guild.getTextChannelById(this.getChangesChannelId());
-	}
-	
-	public long getCommandsChannelId() {
-		return this.get(this.getState() + ".supportGuild.channel.commandsId", 0L);
-	}
-	
-	public TextChannel getCommandsChannel(ShardManager manager) {
-		Guild guild = this.getSupportGuild(manager);
-		
-		return guild == null ? null : guild.getTextChannelById(this.getCommandsChannelId());
-	}
-	
 	public long getEventsChannelId() {
 		return this.get(this.getState() + ".supportGuild.channel.eventsId", 0L);
 	}
@@ -227,16 +207,6 @@ public class Config {
 		return guild == null ? null : guild.getTextChannelById(this.getEventsChannelId());
 	}
 	
-	public long getStatsChannelId() {
-		return this.get(this.getState() + ".supportGuild.channel.statsId", 0L);
-	}
-	
-	public TextChannel getStatsChannel(ShardManager manager) {
-		Guild guild = this.getSupportGuild(manager);
-		
-		return guild == null ? null : guild.getTextChannelById(this.getStatsChannelId());
-	}
-	
 	public long getGuildsChannelId() {
 		return this.get(this.getState() + ".supportGuild.channel.guildsId", 0L);
 	}
@@ -245,16 +215,6 @@ public class Config {
 		Guild guild = this.getSupportGuild(manager);
 		
 		return guild == null ? null : guild.getTextChannelById(this.getGuildsChannelId());
-	}
-	
-	public long getMilstonesChannelId() {
-		return this.get(this.getState() + ".supportGuild.channel.milestonesId", 0L);
-	}
-	
-	public TextChannel getMilestonesChannel(ShardManager manager) {
-		Guild guild = this.getSupportGuild(manager);
-		
-		return guild == null ? null : guild.getTextChannelById(this.getMilstonesChannelId());
 	}
 	
 	public long getDonatorRoleId() {
@@ -268,19 +228,19 @@ public class Config {
 	}
 	
 	public long getEventsWebhookId() {
-		return this.get(this.getState() + ".supportGuild.webhook.eventsId", 0L);
+		return this.get(this.getState() + ".supportGuild.webhook.events.id", 0L);
 	}
 	
 	public String getEventsWebhookToken() {
-		return this.get(this.getState() + ".supportGuild.webhook.eventsToken");
+		return this.get(this.getState() + ".supportGuild.webhook.events.token");
 	}
-	
-	public long getCommandsWebhookId() {
-		return this.get(this.getState() + ".supportGuild.webhook.commandsId", 0L);
+
+	public long getGuildsWebhookId() {
+		return this.get(this.getState() + ".supportGuild.webhook.guilds.id", 0L);
 	}
-	
-	public String getCommandsWebhookToken() {
-		return this.get(this.getState() + ".supportGuild.webhook.commandsToken");
+
+	public String getGuildsWebhookToken() {
+		return this.get(this.getState() + ".supportGuild.webhook.guilds.token");
 	}
 	
 	public String getCanaryDatabase() {
