@@ -108,7 +108,7 @@ public class WelcomerCommand extends Sx4Command {
 	@Examples({"welcomer message A new person has joined", "welcomer message Welcome {user.mention}!"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void message(Sx4CommandEvent event, @Argument(value="message", endless=true) String message) {
-		event.getMongo().updateGuildById(event.getGuild().getIdLong(), Updates.set("welcomer.message.content", message)).whenComplete((result, exception) -> {
+		event.getMongo().updateGuildById(event.getGuild().getIdLong(), Updates.set("welcomer.message", new Document("content", message))).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -233,7 +233,7 @@ public class WelcomerCommand extends Sx4Command {
 
 		boolean gif = data.getEmbedded(List.of("premium", "endAt"), 0L) >= Clock.systemUTC().instant().getEpochSecond();
 
-		WelcomerUtility.getWelcomerMessage(event.getHttpClient(), messageEnabled ? welcomer.get("message", WelcomerManager.DEFAULT_MESSAGE) : null, welcomer.getString("bannerId"), event.getMember(), imageEnabled, gif, (builder, exception) -> {
+		WelcomerUtility.getWelcomerMessage(event.getHttpClient(), messageEnabled ? welcomer.get("message", WelcomerManager.DEFAULT_MESSAGE) : null, image.getString("bannerId"), event.getMember(), event.getConfig().isCanary(), imageEnabled, gif, (builder, exception) -> {
 			if (exception instanceof IllegalArgumentException) {
 				event.replyFailure(exception.getMessage()).queue();
 				return;
@@ -325,7 +325,7 @@ public class WelcomerCommand extends Sx4Command {
 					return;
 				}
 
-				event.getMongo().updateGuildById(event.getAuthor().getIdLong(), Updates.set("welcomer.bannerId", bannerId), new UpdateOptions().upsert(true)).whenComplete((result, exception) -> {
+				event.getMongo().updateGuildById(event.getGuild().getIdLong(), Updates.set("welcomer.image.bannerId", bannerId), new UpdateOptions().upsert(true)).whenComplete((result, exception) -> {
 					if (ExceptionUtility.sendExceptionally(event, exception)) {
 						return;
 					}

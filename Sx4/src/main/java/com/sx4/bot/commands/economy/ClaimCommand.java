@@ -23,7 +23,7 @@ public class ClaimCommand extends Sx4Command {
 
 	public void onCommand(Sx4CommandEvent event) {
 		List<Bson> update = List.of(
-			Operators.set("economy.balance", Operators.set("economy.balance", Operators.cond(Operators.ifNull("$economy.claimed", false), "$economy.balance", Operators.add(Operators.ifNull("$economy.balance", 0L), 1_000_000_000L)))),
+			Operators.set("economy.balance", Operators.cond(Operators.ifNull("$economy.claimed", false), "$economy.balance", Operators.add(Operators.ifNull("$economy.balance", 0L), 1_000_000_000L))),
 			Operators.set("economy.claimed", true)
 		);
 

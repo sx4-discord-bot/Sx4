@@ -144,7 +144,7 @@ public class YouTubeNotificationCommand extends Sx4Command {
 	@Examples({"youtube notification message 5e45ce6d3688b30ee75201ae {video.url}", "youtube notification message 5e45ce6d3688b30ee75201ae **{channel.name}** just uploaded, check it out: {video.url}"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void message(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="message", endless=true) String message) {
-		event.getMongo().updateYouTubeNotificationById(id, Updates.set("message.content", message)).whenComplete((result, exception) -> {
+		event.getMongo().updateYouTubeNotificationById(id, Updates.set("message", new Document("content", message))).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}

@@ -1,5 +1,9 @@
 package com.sx4.api.endpoints;
 
+import club.minnced.discord.webhook.WebhookClient;
+import club.minnced.discord.webhook.WebhookClientBuilder;
+import club.minnced.discord.webhook.send.WebhookMessage;
+import club.minnced.discord.webhook.send.WebhookMessageBuilder;
 import com.sx4.bot.core.Sx4;
 import com.sx4.bot.events.patreon.PatreonEvent;
 import com.sx4.bot.utility.HmacUtility;
@@ -9,6 +13,7 @@ import javax.ws.rs.HeaderParam;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.core.Response;
+import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.util.List;
@@ -18,8 +23,14 @@ public class PatreonEndpoint {
 
 	private final Sx4 bot;
 
+	private final WebhookClient webhook;
+
 	public PatreonEndpoint(Sx4 bot) {
 		this.bot = bot;
+
+		this.webhook = new WebhookClientBuilder(this.bot.getConfig().getPatreonWebhookId(), this.bot.getConfig().getPatreonWebhookToken())
+			.setHttpClient(this.bot.getHttpClient())
+			.build();
 	}
 	
 	@POST
@@ -37,6 +48,13 @@ public class PatreonEndpoint {
 		}
 		
 		Document document = Document.parse(body);
+
+		WebhookMessage message = new WebhookMessageBuilder()
+			.setContent("Patreon payload received")
+			.addFile("patreon.json", document.toString().getBytes(StandardCharsets.UTF_8))
+			.build();
+
+		this.webhook.send(message);
 
 		int totalAmount = document.getEmbedded(List.of("data", "attributes", "lifetime_support_cents"), 0);
 		if (totalAmount == 0) {

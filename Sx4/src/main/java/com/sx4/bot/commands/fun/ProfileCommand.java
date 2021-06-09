@@ -14,6 +14,7 @@ import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.database.mongo.model.Operators;
+import com.sx4.bot.entities.CompactNumber;
 import com.sx4.bot.entities.argument.Alternative;
 import com.sx4.bot.entities.image.ImageRequest;
 import com.sx4.bot.http.HttpCallback;
@@ -88,11 +89,12 @@ public class ProfileCommand extends Sx4Command {
 			return new ImageRequest(event.getConfig().getImageWebserverUrl("profile"))
 				.addField("birthday", birthday == null ? "Not set" : birthday)
 				.addField("description", profileData.get("description", "Nothing to see here"))
-				.addField("height", profileData.get("height", 0)) // change to an int and let the webserver handle it
-				.addField("balance", data.get("balance", 0L)) // change to an int and let the webserver handle the commas
+				.addField("height", profileData.get("height", 0))
+				.addField("balance", CompactNumber.getCompactNumber(data.get("balance", 0L)))
 				.addField("reputation", data.get("reputation", 0))
 				.addField("married_users", partners)
 				.addField("banner_id", profileData.getString("bannerId"))
+				.addField("directory", event.getConfig().isCanary() ? "sx4-canary" : "sx4-main")
 				.addField("name", user.getAsTag())
 				.addField("avatar", user.getEffectiveAvatarUrl())
 				.addField("colour", profileData.getInteger("colour"))

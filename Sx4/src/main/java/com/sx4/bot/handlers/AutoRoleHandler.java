@@ -42,6 +42,10 @@ public class AutoRoleHandler implements EventListener {
 
 		List<Role> roles = new ArrayList<>();
 		Roles : for (Document autoRole : autoRoles) {
+			if (!autoRole.get("enabled", true)) {
+				continue;
+			}
+
 			Role role = guild.getRoleById(autoRole.getLong("roleId"));
 			if (role == null || !selfMember.canInteract(role)) {
 				continue;

@@ -12,21 +12,23 @@ import net.dv8tion.jda.api.entities.User;
 import okhttp3.OkHttpClient;
 import org.bson.Document;
 
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.function.BiConsumer;
 
 public class WelcomerUtility {
 
-	public static void getWelcomerMessage(OkHttpClient httpClient, Document messageData, String bannerId, Member member, boolean image, boolean gif, BiConsumer<WebhookMessageBuilder, Throwable> consumer) {
+	public static void getWelcomerMessage(OkHttpClient httpClient, Document messageData, String bannerId, Member member, boolean canary, boolean image, boolean gif, BiConsumer<WebhookMessageBuilder, Throwable> consumer) {
 		Guild guild = member.getGuild();
+		User user = member.getUser();
+		OffsetDateTime now = OffsetDateTime.now();
 
 		IFormatter<Document> formatter = new JsonFormatter(messageData)
 			.member(member)
-			.user(member.getUser())
+			.user(user)
 			.guild(guild)
-			.addVariable("now", OffsetDateTime.now());
+			.addVariable("user.created.length", TimeUtility.getTimeString(Duration.between(user.getTimeCreated(), now).toSeconds()))
+			.addVariable("now", now);
 
 		if (!image) {
 			WebhookMessageBuilder builder;
@@ -43,13 +45,15 @@ public class WelcomerUtility {
 
 			consumer.accept(builder, null);
 		} else {
-			User user = member.getUser();
-
 			ImageRequest request = new ImageRequest(Config.get().getImageWebserverUrl("welcomer"))
 				.addQuery("avatar", user.getEffectiveAvatarUrl())
 				.addQuery("name", user.getAsTag())
 				.addQuery("gif", gif)
-				.addQuery("banner_id", URLEncoder.encode(bannerId, StandardCharsets.UTF_8));
+				.addQuery("directory", canary ? "sx4-canary" : "sx4-main");
+
+			if (bannerId != null) {
+				request.addQuery("banner_id", bannerId);
+			}
 
 			httpClient.newCall(request.build(Config.get().getImageWebserver())).enqueue((HttpCallback) response -> {
 				if (response.isSuccessful()) {

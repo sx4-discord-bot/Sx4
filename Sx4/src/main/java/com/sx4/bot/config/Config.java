@@ -242,6 +242,14 @@ public class Config {
 	public String getGuildsWebhookToken() {
 		return this.get(this.getState() + ".supportGuild.webhook.guilds.token");
 	}
+
+	public long getPatreonWebhookId() {
+		return this.get(this.getState() + ".supportGuild.webhook.patreon.id", 0L);
+	}
+
+	public String getPatreonWebhookToken() {
+		return this.get(this.getState() + ".supportGuild.webhook.patreon.token");
+	}
 	
 	public String getCanaryDatabase() {
 		return this.get("canary.database", "sx4Canary");

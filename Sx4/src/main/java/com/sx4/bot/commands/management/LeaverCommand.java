@@ -104,7 +104,7 @@ public class LeaverCommand extends Sx4Command {
 	@Examples({"leaver message Someone has left", "leaver message Goodbye {user.tag}!"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void message(Sx4CommandEvent event, @Argument(value="message", endless=true) String message) {
-		event.getMongo().updateGuildById(event.getGuild().getIdLong(), Updates.set("leaver.message.content", message)).whenComplete((result, exception) -> {
+		event.getMongo().updateGuildById(event.getGuild().getIdLong(), Updates.set("leaver.message", new Document("content", message))).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}

@@ -139,7 +139,7 @@ public class TriggerCommand extends Sx4Command {
 	@Examples({"trigger edit 6006ff6b94c9ed0f764ada83 Hello!", "trigger edit 6006ff6b94c9ed0f764ada83 some other words was not enough --append"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void edit(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="response", endless=true) String response, @Option(value="append", description="Appends the response to the current one") boolean append) {
-		List<Bson> update = List.of(Operators.set("response.content", Operators.cond(Operators.and(Operators.exists("$response.content"), append), Operators.concat("$response.content", response), response)));
+		List<Bson> update = List.of(Operators.set("response", new Document("content", Operators.cond(Operators.and(Operators.exists("$response.content"), append), Operators.concat("$response.content", response), response))));
 		event.getMongo().updateTriggerById(id, update).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;

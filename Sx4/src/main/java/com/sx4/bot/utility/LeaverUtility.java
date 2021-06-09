@@ -7,18 +7,21 @@ import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
 import org.bson.Document;
 
+import java.time.Duration;
 import java.time.OffsetDateTime;
 
 public class LeaverUtility {
 
 	public static WebhookMessageBuilder getLeaverMessage(Document messageData, Member member) {
 		Guild guild = member.getGuild();
+		OffsetDateTime now = OffsetDateTime.now();
 
 		IFormatter<Document> formatter = new JsonFormatter(messageData)
 			.member(member)
 			.user(member.getUser())
 			.guild(guild)
-			.addVariable("now", OffsetDateTime.now());
+			.addVariable("member.stayed.length", TimeUtility.getTimeString(Duration.between(member.getTimeJoined(), now).toSeconds()))
+			.addVariable("now", now);
 
 		return MessageUtility.fromJson(formatter.parse());
 	}

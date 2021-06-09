@@ -51,7 +51,7 @@ public class WelcomerHandler implements EventListener {
 
 		boolean premium = Clock.systemUTC().instant().getEpochSecond() < data.getEmbedded(List.of("premium", "endAt"), 0L);
 
-		WelcomerUtility.getWelcomerMessage(this.bot.getHttpClient(), messageEnabled ? welcomer.get("message", WelcomerManager.DEFAULT_MESSAGE) : null, welcomer.getString("bannerId"), event.getMember(), imageEnabled, premium, (builder, exception) -> {
+		WelcomerUtility.getWelcomerMessage(this.bot.getHttpClient(), messageEnabled ? welcomer.get("message", WelcomerManager.DEFAULT_MESSAGE) : null, image.getString("bannerId"), event.getMember(), this.bot.getConfig().isCanary(), imageEnabled, premium, (builder, exception) -> {
 			if (exception instanceof IllegalArgumentException) {
 				this.bot.getMongo().updateGuildById(event.getGuild().getIdLong(), Updates.unset("welcomer.message")).whenComplete(MongoDatabase.exceptionally(event.getJDA().getShardManager()));
 				return;
