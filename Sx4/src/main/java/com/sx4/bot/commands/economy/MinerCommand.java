@@ -94,7 +94,7 @@ public class MinerCommand extends Sx4Command {
 
 			List<Bson> update = List.of(
 				Operators.set("item", miner.toData()),
-				Operators.set("amount", Operators.add(Operators.ifNull("$amount", 0), amount))
+				Operators.set("amount", Operators.add(Operators.ifNull("$amount", 0L), amount))
 			);
 
 			event.getMongo().getItems().updateOne(session, filter, update, new UpdateOptions().upsert(true));
@@ -183,7 +183,7 @@ public class MinerCommand extends Sx4Command {
 
 				List<Bson> update = List.of(
 					Operators.set("item", material.toData()),
-					Operators.set("amount", Operators.add(Operators.ifNull("$amount", 0), amount))
+					Operators.set("amount", Operators.add(Operators.ifNull("$amount", 0L), amount))
 				);
 
 				bulkData.add(new UpdateOneModel<>(materialFilter, update, new UpdateOptions().upsert(true)));

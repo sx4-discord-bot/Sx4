@@ -181,11 +181,11 @@ public interface IFormatter<Type> {
 			}
 
 			int nextPeriodIndex = formatter.indexOf('.', periodIndex + 1);
-			String name = formatter.substring(periodIndex + 1, nextPeriodIndex == -1 ? formatter.length() : nextPeriodIndex);
+			String name = formatter.substring(value == null ? 0 : periodIndex + 1, nextPeriodIndex == -1 ? formatter.length() : nextPeriodIndex);
 
 			while (StringUtility.isNotEqual(name, '(', ')') && nextPeriodIndex != -1) {
 				nextPeriodIndex = formatter.indexOf('.', nextPeriodIndex + 1);
-				name = formatter.substring(periodIndex + 1, nextPeriodIndex == -1 ? formatter.length() : nextPeriodIndex);
+				name = formatter.substring(value == null ? 0 : periodIndex + 1, nextPeriodIndex == -1 ? formatter.length() : nextPeriodIndex);
 			}
 
 			int bracketIndex = 0;
@@ -194,10 +194,11 @@ public interface IFormatter<Type> {
 			int endBracketIndex = name.length();
 			while (IFormatter.escape(name, endBracketIndex = name.lastIndexOf(')', endBracketIndex - 1)) && endBracketIndex != -1);
 
+			periodIndex = nextPeriodIndex;
 			if (bracketIndex == -1 || endBracketIndex == -1) {
 				FormatterVariable<?> variable = manager.getVariable(type, name);
 				if (variable == null) {
-					return null;
+					continue;
 				}
 
 				value = variable.parse(value);
@@ -228,8 +229,6 @@ public interface IFormatter<Type> {
 			}
 
 			type = value.getClass();
-
-			periodIndex = nextPeriodIndex;
 		}
 
 		return value;

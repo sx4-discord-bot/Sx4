@@ -6,8 +6,8 @@ import club.minnced.discord.webhook.send.WebhookMessage;
 import club.minnced.discord.webhook.send.WebhookMessageBuilder;
 import com.mongodb.client.model.Updates;
 import com.sx4.bot.core.Sx4;
-import com.sx4.bot.entities.webhook.WebhookClient;
 import com.sx4.bot.entities.webhook.ReadonlyMessage;
+import com.sx4.bot.entities.webhook.WebhookClient;
 import com.sx4.bot.exceptions.mod.BotPermissionException;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.TextChannel;
@@ -19,6 +19,7 @@ import org.bson.conversions.Bson;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -67,7 +68,8 @@ public class ModLogManager implements WebhookManager {
 				.thenCompose(result -> webhookClient.send(message))
 				.thenApply(webhookMessage -> new ReadonlyMessage(webhookMessage, webhook.getIdLong(), webhook.getToken()));
 		}).exceptionallyCompose(exception -> {
-			if (exception instanceof HttpException && ((HttpException) exception).getCode() == 404) {
+			Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
+			if (cause instanceof HttpException && ((HttpException) cause).getCode() == 404) {
 				this.webhooks.remove(channel.getIdLong());
 
 				return this.createWebhook(channel, message);
@@ -100,7 +102,8 @@ public class ModLogManager implements WebhookManager {
 		return webhook.send(message)
 			.thenApply(webhookMessage -> new ReadonlyMessage(webhookMessage, webhook.getId(), webhook.getToken()))
 			.exceptionallyCompose(exception -> {
-				if (exception instanceof HttpException && ((HttpException) exception).getCode() == 404) {
+				Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
+				if (cause instanceof HttpException && ((HttpException) cause).getCode() == 404) {
 					this.webhooks.remove(channel.getIdLong());
 
 					return this.createWebhook(channel, message);

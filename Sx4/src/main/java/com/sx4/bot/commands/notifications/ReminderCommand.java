@@ -15,6 +15,7 @@ import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.entities.argument.ReminderArgument;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
+import com.sx4.bot.utility.StringUtility;
 import com.sx4.bot.utility.TimeUtility;
 import com.sx4.bot.utility.TimeUtility.OffsetTimeZone;
 import org.bson.Document;
@@ -77,24 +78,60 @@ public class ReminderCommand extends Sx4Command {
 		});
 	}
 	
-	@Command(value="remove", description="Remove a reminder from being notified about")
+	@Command(value="remove", aliases={"delete"}, description="Remove a reminder from being notified about")
 	@CommandId(154)
 	@Examples({"reminder remove 5ec67a3b414d8776950f0eee"})
-	public void remove(Sx4CommandEvent event, @Argument(value="id") ObjectId id) {
-		event.getMongo().deleteReminderById(id).whenComplete((result, exception) -> {
-			if (ExceptionUtility.sendExceptionally(event, exception)) {
+	public void remove(Sx4CommandEvent event, @Argument(value="id", nullDefault=true) ObjectId id) {
+		if (id == null) {
+			List<Document> reminders = event.getMongo().getReminders(Filters.eq("userId", event.getAuthor().getIdLong()), Projections.include("reminder", "remindAt")).into(new ArrayList<>());
+			if (reminders.isEmpty()) {
+				event.replyFailure("You do not have any active reminders").queue();
 				return;
 			}
-			
-			if (result.getDeletedCount() == 0) {
-				event.replyFailure("You do not have a reminder with that id").queue();
-				return;
-			}
-			
-			event.getBot().getReminderManager().deleteExecutor(id);
-			
-			event.replySuccess("You will no longer be reminded about that reminder").queue();
-		});
+
+			long now = Clock.systemUTC().instant().getEpochSecond();
+
+			PagedResult<Document> paged = new PagedResult<>(event.getBot(), reminders)
+				.setAuthor("Reminders", null, event.getAuthor().getEffectiveAvatarUrl())
+				.setPerPage(10)
+				.setIndexed(true)
+				.setDisplayFunction(data -> StringUtility.limit(data.getString("reminder"), 150) + " in `" + TimeUtility.getTimeString(data.getLong("remindAt") - now) + "`");
+
+			paged.onSelect(select -> {
+				ObjectId selected = select.getSelected().getObjectId("_id");
+				event.getMongo().deleteReminderById(selected).whenComplete((result, exception) -> {
+					if (ExceptionUtility.sendExceptionally(event, exception)) {
+						return;
+					}
+
+					if (result.getDeletedCount() == 0) {
+						event.replyFailure("You do not have a reminder with that id").queue();
+						return;
+					}
+
+					event.getBot().getReminderManager().deleteExecutor(selected);
+
+					event.replySuccess("You will no longer be reminded about that reminder").queue();
+				});
+			});
+
+			paged.execute(event);
+		} else {
+			event.getMongo().deleteReminderById(id).whenComplete((result, exception) -> {
+				if (ExceptionUtility.sendExceptionally(event, exception)) {
+					return;
+				}
+
+				if (result.getDeletedCount() == 0) {
+					event.replyFailure("You do not have a reminder with that id").queue();
+					return;
+				}
+
+				event.getBot().getReminderManager().deleteExecutor(id);
+
+				event.replySuccess("You will no longer be reminded about that reminder").queue();
+			});
+		}
 	}
 	
 	@Command(value="list", description="Get a list of your current active reminders")

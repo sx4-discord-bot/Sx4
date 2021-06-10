@@ -156,7 +156,8 @@ public class WarnCommand extends Sx4Command {
 			Filters.eq("guildId", event.getGuild().getIdLong())
 		);
 
-		int warnings = event.getMongo().getWarning(filter, Projections.include("warnings")).getInteger("warnings", 0);
+		Document data = event.getMongo().getWarning(filter, Projections.include("warnings"));
+		int warnings = data == null ? 0 : data.getInteger("warnings", 0);
 
 		event.reply("**" + member.getUser().getAsTag() + "** is currently on **" + warnings + "** warning" + (warnings == 1 ? "" : "s")).queue();
 	}

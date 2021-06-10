@@ -23,6 +23,7 @@ import net.dv8tion.jda.api.entities.TextChannel;
 import okhttp3.OkHttpClient;
 import org.bson.Document;
 import org.bson.conversions.Bson;
+import org.glassfish.jersey.internal.guava.ThreadFactoryBuilder;
 
 import java.util.*;
 import java.util.concurrent.*;
@@ -88,7 +89,7 @@ public class LoggerManager implements WebhookManager {
     private final OkHttpClient webhookClient = new OkHttpClient();
     private final ScheduledExecutorService webhookExecutor = Executors.newSingleThreadScheduledExecutor();
 
-    private final ExecutorService executor = Executors.newSingleThreadExecutor();
+    private final ExecutorService executor = Executors.newSingleThreadExecutor(new ThreadFactoryBuilder().setNameFormat("logger-executor-%d").build());
 
     private final Sx4 bot;
 
@@ -179,6 +180,10 @@ public class LoggerManager implements WebhookManager {
                 }
 
                 embeds.addAll(nextEmbeds);
+                if (embeds.size() == 10) {
+                    break;
+                }
+
                 length += nextLength;
 
                 requests.add(nextRequest);
@@ -215,13 +220,15 @@ public class LoggerManager implements WebhookManager {
             }
 
             webhook.send(message).whenComplete((result, exception) -> {
-                if (exception instanceof HttpException && ((HttpException) exception).getCode() == 404) {
+                Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
+                if (cause instanceof HttpException && ((HttpException) cause).getCode() == 404) {
                     if (channel.getGuild().getSelfMember().hasPermission(channel, Permission.MANAGE_WEBHOOKS)) {
                         this.createWebhook(channel, requests, retries);
                         return;
                     }
 
                     this.handleQueue(0);
+
                     return;
                 }
 

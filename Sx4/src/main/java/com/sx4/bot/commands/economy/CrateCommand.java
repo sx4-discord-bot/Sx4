@@ -97,7 +97,7 @@ public class CrateCommand extends Sx4Command {
 
 			List<Bson> update = List.of(
 				Operators.set("item", crate.toData()),
-				Operators.set("amount", Operators.add(Operators.ifNull("$amount", 0), amount))
+				Operators.set("amount", Operators.add(Operators.ifNull("$amount", 0L), amount))
 			);
 
 			event.getMongo().getItems().updateOne(session, filter, update, new UpdateOptions().upsert(true));
@@ -136,7 +136,7 @@ public class CrateCommand extends Sx4Command {
 			} else {
 				List<Bson> addUpdate = List.of(
 					Operators.set("item", item.toData()),
-					Operators.set("amount", Operators.add(Operators.ifNull("$amount", 0), 1))
+					Operators.set("amount", Operators.add(Operators.ifNull("$amount", 0L), 1))
 				);
 
 				event.getMongo().getItems().updateOne(session, Filters.and(Filters.eq("userId", event.getAuthor().getIdLong()), Filters.eq("item.id", item.getId())), addUpdate, new UpdateOptions().upsert(true));

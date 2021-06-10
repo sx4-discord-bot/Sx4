@@ -124,7 +124,7 @@ public class EnvelopeCommand extends Sx4Command {
 					Filters.eq("item.id", option.getValue().getItem().getId())
 				);
 
-				List<Bson> update = List.of(Operators.set("amount", Operators.let(new Document("amount", Operators.ifNull("$amount", 0)), Operators.cond(Operators.lte(stack.getAmount(), "$$amount"), Operators.subtract("$$amount", stack.getAmount()), "$$amount"))));
+				List<Bson> update = List.of(Operators.set("amount", Operators.let(new Document("amount", Operators.ifNull("$amount", 0L)), Operators.cond(Operators.lte(stack.getAmount(), "$$amount"), Operators.subtract("$$amount", stack.getAmount()), "$$amount"))));
 
 				UpdateResult result = event.getMongo().getItems().updateOne(session, filter, update);
 				if (result.getModifiedCount() == 0) {

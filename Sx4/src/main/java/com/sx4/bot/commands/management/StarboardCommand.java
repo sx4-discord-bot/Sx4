@@ -36,6 +36,7 @@ import org.bson.types.ObjectId;
 
 import java.time.Clock;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -365,7 +366,7 @@ public class StarboardCommand extends Sx4Command {
 
 		@Command(value="reset", description="Resets the configuration of your messages to the default")
 		@CommandId(203)
-		@Examples({"starboard configuration reset"})
+		@Examples({"starboard messages reset"})
 		@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 		public void reset(Sx4CommandEvent event) {
 			event.getMongo().updateGuildById(event.getGuild().getIdLong(), Updates.unset("starboard.messages")).whenComplete((result, exception) -> {
@@ -380,6 +381,23 @@ public class StarboardCommand extends Sx4Command {
 
 				event.replySuccess("Your starboard messages are now back to the default").queue();
 			});
+		}
+
+		@Command(value="list", description="Lists your current starboard message configuration")
+		@CommandId(436)
+		@Examples({"starboard messages list"})
+		public void list(Sx4CommandEvent event) {
+			List<Document> messages = event.getMongo().getGuildById(event.getGuild().getIdLong(), Projections.include("starboard.messages")).getEmbedded(List.of("starboard", "messages"), StarboardManager.DEFAULT_CONFIGURATION);
+			messages.sort(Comparator.comparingInt(d -> d.getInteger("stars")));
+
+			PagedResult<Document> paged = new PagedResult<>(event.getBot(), messages)
+				.setAuthor("Starboard Messages", null, event.getSelfUser().getEffectiveAvatarUrl())
+				.setIndexed(false)
+				.setPerPage(10)
+				.setSelect()
+				.setDisplayFunction(data -> "Star #" + data.getInteger("stars") + ": `" + data.getEmbedded(List.of("message", "content"), String.class) + "`");
+
+			paged.execute(event);
 		}
 
 	}

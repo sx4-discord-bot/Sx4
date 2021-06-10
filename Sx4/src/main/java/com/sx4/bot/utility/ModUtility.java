@@ -233,13 +233,15 @@ public class ModUtility {
 
 			Action warnAction = new Action(ModAction.WARN);
 
-			Action currentAction = warnAction, nextAction = punishments ? warnAction : null;
-			for (Document configData : config) {
-				int number = configData.getInteger("number");
-				if (number == warnings) {
-					currentAction = Action.fromData(configData.get("action", Document.class));
-				} else if (number == warnings + 1) {
-					nextAction = Action.fromData(configData.get("action", Document.class));
+			Action currentAction = warnAction, nextAction = warnAction;
+			if (punishments) {
+				for (Document configData : config) {
+					int number = configData.getInteger("number");
+					if (number == warnings) {
+						currentAction = Action.fromData(configData.get("action", Document.class));
+					} else if (number == warnings + 1) {
+						nextAction = Action.fromData(configData.get("action", Document.class));
+					}
 				}
 			}
 

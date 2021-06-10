@@ -40,18 +40,10 @@ public class GuildMessageCache implements EventListener {
 	}
 
 	public void onGuildMessageReceived(GuildMessageReceivedEvent event) {
-		if (event.getAuthor().isBot()) {
-			return;
-		}
-
 		this.bot.getMongo().insertMessage(this.getData(event.getMessage())).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
 	}
 	
 	public void onGuildMessageUpdate(GuildMessageUpdateEvent event) {
-		if (event.getAuthor().isBot()) {
-			return;
-		}
-
 		this.executor.schedule(() -> this.bot.getMongo().replaceMessage(this.getData(event.getMessage())).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager())), 50, TimeUnit.MILLISECONDS);
 	}
 

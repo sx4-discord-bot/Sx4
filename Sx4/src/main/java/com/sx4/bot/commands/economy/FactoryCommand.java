@@ -110,7 +110,7 @@ public class FactoryCommand extends Sx4Command {
 
 						List<Bson> update = List.of(
 							Operators.set("item", factory.toData()),
-							Operators.set("amount", Operators.add(Operators.ifNull("$amount", 0), amount))
+							Operators.set("amount", Operators.add(Operators.ifNull("$amount", 0L), amount))
 						);
 
 						event.getMongo().getItems().updateOne(session, Filters.and(userFilter, Filters.eq("item.id", factory.getId())), update, new UpdateOptions().upsert(true));

@@ -31,6 +31,7 @@ import org.bson.conversions.Bson;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -82,7 +83,8 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 			this.bot.getMongo().updateManyYouTubeNotifications(Filters.eq("channelId", channel.getIdLong()), update)
 				.thenCompose(result -> webhookClient.send(message))
 				.whenComplete((webhookMessage, exception) -> {
-					if (exception instanceof HttpException && ((HttpException) exception).getCode() == 404) {
+					Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
+					if (cause instanceof HttpException && ((HttpException) cause).getCode() == 404) {
 						this.webhooks.remove(channel.getIdLong());
 
 						this.createWebhook(channel, message);
@@ -152,8 +154,9 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 						}
 
 						webhook.send(message).whenComplete((webhookMessage, exception) -> {
-							if (exception instanceof HttpException && ((HttpException) exception).getCode() == 404) {
-								this.webhooks.remove(channelId);
+							Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
+							if (cause instanceof HttpException && ((HttpException) cause).getCode() == 404) {
+								this.webhooks.remove(textChannel.getIdLong());
 
 								this.createWebhook(textChannel, message);
 							}

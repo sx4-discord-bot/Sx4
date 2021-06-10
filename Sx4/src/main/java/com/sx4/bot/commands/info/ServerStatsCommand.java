@@ -1,12 +1,14 @@
 package com.sx4.bot.commands.info;
 
 import com.jockie.bot.core.argument.Argument;
+import com.jockie.bot.core.option.Option;
 import com.mongodb.client.model.Filters;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.entities.info.ServerStatsType;
+import com.sx4.bot.managers.ServerStatsManager;
 import com.sx4.bot.utility.StringUtility;
 import com.sx4.bot.utility.TimeUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
@@ -40,7 +42,7 @@ public class ServerStatsCommand extends Sx4Command {
 		});
 	}
 
-	public void onCommand(Sx4CommandEvent event, @Argument(value="duration", endless=true, nullDefault=true) Duration duration) {
+	public void onCommand(Sx4CommandEvent event, @Argument(value="duration", endless=true, nullDefault=true) Duration duration, @Option(value="live", description="Adds the live counting data to the total") boolean live) {
 		if (duration != null && (duration.toHours() < 1 || duration.toHours() > 168)) {
 			event.replyFailure("Time frame cannot be less than 1 hour or more than 7 days").queue();
 			return;
@@ -98,15 +100,11 @@ public class ServerStatsCommand extends Sx4Command {
 			.setFooter("Updated every hour")
 			.setTimestamp(lastUpdate.toInstant());
 
-		int i = 0;
+		ServerStatsManager manager = event.getBot().getServerStatsManager();
 		for (long key : map.keySet()) {
 			Map<ServerStatsType, Integer> stats = map.get(key);
 			for (ServerStatsType type : stats.keySet()) {
-				embed.addField(StringUtility.title(type.getField()) + " (" + TimeUtility.getTimeString(key, TimeUnit.HOURS) + ")", String.format("%,d", stats.get(type)), true);
-
-				if ((i++ & 1) == 0) {
-					embed.addBlankField(true);
-				}
+				embed.addField(StringUtility.title(type.getField()) + " (" + TimeUtility.getTimeString(key, TimeUnit.HOURS) + ")", String.format("%,d", stats.get(type) + (live ? manager.getCounter(event.getGuild().getIdLong(), type) : 0)), false);
 			}
 		}
 

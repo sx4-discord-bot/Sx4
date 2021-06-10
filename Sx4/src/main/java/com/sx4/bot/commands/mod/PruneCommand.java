@@ -35,10 +35,11 @@ public class PruneCommand extends Sx4Command {
 		super("prune", 140);
 		
 		super.setDescription("Prune a set amount of messages in the current channel");
+		super.setAliases("purge", "clear", "c");
 		super.setAuthorDiscordPermissions(Permission.MESSAGE_MANAGE);
 		super.setBotDiscordPermissions(true, Permission.MESSAGE_MANAGE, Permission.MESSAGE_HISTORY);
 		super.setCategoryAll(ModuleCategory.MODERATION);
-		super.setExamples("prune", "prune 10");
+		super.setExamples("prune", "prune 10", "prune user");
 	}
 	
 	private CompletableFuture<Void> prune(Sx4CommandEvent event, int amount, long start, long end, Predicate<Message> predicate) {
@@ -71,7 +72,7 @@ public class PruneCommand extends Sx4Command {
 		});
 	}
 	
-	public void onCommand(Sx4CommandEvent event, @Argument(value="amount") @DefaultNumber(100) @Limit(min=1, max=100) int amount, @Option(value="start", description="The message id to start pruning from") long start, @Option(value="end", description="The message id to end pruning at") long end) {
+	public void onCommand(Sx4CommandEvent event, @Argument(value="amount") @Limit(min=1, max=100) int amount, @Option(value="start", description="The message id to start pruning from") long start, @Option(value="end", description="The message id to end pruning at") long end) {
 		this.prune(event, amount, start, end, message -> true);
 	}
 	
@@ -114,6 +115,7 @@ public class PruneCommand extends Sx4Command {
 	
 	@Command(value="contains", aliases={"contain"}, description="Prunes a set amount of messages which contain the content given")
 	@CommandId(145)
+	@Redirects({"contains"})
 	@Examples({"prune contains hello", "prune contains hello 10"})
 	@AuthorPermissions(permissions={Permission.MESSAGE_MANAGE})
 	@BotPermissions(permissions={Permission.MESSAGE_MANAGE, Permission.MESSAGE_HISTORY}, overwrite=true)

@@ -158,7 +158,7 @@ public class FishingRodCommand extends Sx4Command {
 					Filters.eq("item.id", item.getId())
 				);
 
-				List<Bson> update = List.of(Operators.set("amount", Operators.let(new Document("amount", Operators.ifNull("$amount", 0)), Operators.cond(Operators.lte(stack.getAmount(), "$$amount"), Operators.subtract("$$amount", stack.getAmount()), "$$amount"))));
+				List<Bson> update = List.of(Operators.set("amount", Operators.let(new Document("amount", Operators.ifNull("$amount", 0L)), Operators.cond(Operators.lte(stack.getAmount(), "$$amount"), Operators.subtract("$$amount", stack.getAmount()), "$$amount"))));
 
 				UpdateResult result = event.getMongo().getItems().updateOne(session, itemFilter, update);
 				if (result.getModifiedCount() == 0) {
@@ -276,7 +276,7 @@ public class FishingRodCommand extends Sx4Command {
 				.setTimeout(60)
 				.start();
 		}).thenCompose(e -> {
-			List<Bson> update = List.of(Operators.set("amount", Operators.let(new Document("amount", Operators.ifNull("$amount", 0)), Operators.cond(Operators.lte(itemCount, "$$amount"), Operators.subtract("$$amount", itemCount), "$$amount"))));
+			List<Bson> update = List.of(Operators.set("amount", Operators.let(new Document("amount", Operators.ifNull("$amount", 0L)), Operators.cond(Operators.lte(itemCount, "$$amount"), Operators.subtract("$$amount", itemCount), "$$amount"))));
 			return event.getMongo().updateItem(Filters.and(Filters.eq("item.id", item.getId()), Filters.eq("userId", event.getAuthor().getIdLong())), update, new UpdateOptions());
 		}).thenCompose(result -> {
 			if (result.getMatchedCount() == 0 || result.getModifiedCount() == 0) {

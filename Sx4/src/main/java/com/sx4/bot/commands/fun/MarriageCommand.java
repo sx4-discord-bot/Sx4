@@ -100,11 +100,11 @@ public class MarriageCommand extends Sx4Command {
 				return new Waiter<>(event.getBot(), ButtonClickEvent.class)
 					.setPredicate(e -> {
 						Button button = e.getButton();
-						return button != null && button.getId().equals("yes") && e.getMessageIdLong() == message.getIdLong() && e.getUser().getIdLong() == event.getAuthor().getIdLong();
+						return button != null && button.getId().equals("yes") && e.getMessageIdLong() == message.getIdLong() && e.getUser().getIdLong() == member.getIdLong();
 					})
 					.setCancelPredicate(e -> {
 						Button button = e.getButton();
-						return button != null && button.getId().equals("no") && e.getMessageIdLong() == message.getIdLong() && e.getUser().getIdLong() == event.getAuthor().getIdLong();
+						return button != null && button.getId().equals("no") && e.getMessageIdLong() == message.getIdLong() && e.getUser().getIdLong() == member.getIdLong();
 					})
 					.setTimeout(60)
 					.start();

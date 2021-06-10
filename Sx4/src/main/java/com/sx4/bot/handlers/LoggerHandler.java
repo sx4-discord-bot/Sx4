@@ -156,17 +156,23 @@ public class LoggerHandler implements EventListener {
 						.setTimestamp(Instant.now())
 						.setFooter(new EmbedFooter(String.format("Message ID: %d", messageId), null));
 
+					LoggerContext loggerContext = new LoggerContext()
+						.setChannel(textChannel);
+
 					Document message = this.bot.getMongo().getMessageById(messageId);
 					if (message == null) {
+						if (!LoggerUtility.isWhitelisted(entities, loggerEvent, loggerContext)) {
+							continue;
+						}
+
 						embed.setDescription(String.format("A message sent in %s was deleted", textChannel.getAsMention()));
 						embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
 					} else {
 						long userId = message.getLong("authorId");
 						User user = shardManager.getUserById(userId);
 
-						LoggerContext loggerContext = new LoggerContext()
-							.setUser(userId)
-							.setChannel(textChannel);
+
+						loggerContext.setUser(userId);
 
 						if (!LoggerUtility.isWhitelisted(entities, loggerEvent, loggerContext)) {
 							continue;

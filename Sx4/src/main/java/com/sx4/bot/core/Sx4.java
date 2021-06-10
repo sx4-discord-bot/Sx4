@@ -206,7 +206,7 @@ public class Sx4 {
 			new MuteHandler(this),
 			new MediaModeHandler(this),
 			new MysteryBoxHandler(this),
-			new GuildLogHandler(this),
+			new ServerLogHandler(this),
 			youTubeHandler
 		);
 
@@ -555,10 +555,18 @@ public class Sx4 {
 					.findFirst()
 					.orElse(null);
 				
-				if (failure != null) {
+				Failure : if (failure != null) {
 					ArgumentParseException parseException = (ArgumentParseException) failure.getReason();
 					
 					IArgument<?> argument = parseException.getArgument();
+					String[] options = argument.getProperty("options");
+					Limit limit = argument.getProperty("limit", Limit.class);
+					String content = message.getContentRaw();
+
+					if (argument.getType() == String.class && !argument.getProperty("imageUrl", false) && !argument.getProperty("url", false) && (options == null || options.length == 0) && (limit == null || (content.length() >= limit.min() && content.length() > limit.max()))) {
+						break Failure;
+					}
+
 					String value = parseException.getValue();
 					
 					if (message.getChannelType().isGuild()) {
@@ -954,56 +962,58 @@ public class Sx4 {
 						return new ParsedResult<>(colour);
 					}
 				}
-				
+
 				try {
 					return new ParsedResult<>(Integer.parseInt(content));
 				} catch (NumberFormatException e) {
 					return new ParsedResult<>();
 				}
-			}).registerParser(String.class, (context, argument, content) -> {
-				boolean imageUrl = argument.getProperty("imageUrl", false);
-				if (imageUrl || argument.getProperty("url", false)) {
+			}).registerParser(String.class, new IParser<>() {
+				public ParsedResult<String> parse(ParseContext context, IArgument<String> argument, String content) {
 					Message message = context.getMessage();
 
-					if (content.isEmpty()) {
-						Attachment attachment = message.getAttachments().stream()
-							.filter(Attachment::isImage)
-							.findFirst()
-							.orElse(null);
+					int nextSpace = content.indexOf(' ');
+					String query = nextSpace == -1 || argument.isEndless() ? content : content.substring(0, nextSpace);
 
-						if (attachment == null) {
-							return imageUrl ? new ParsedResult<>(message.getAuthor().getEffectiveAvatarUrl()) : new ParsedResult<>();
-						} else {
-							return new ParsedResult<>(attachment.getUrl());
+					boolean imageUrl = argument.getProperty("imageUrl", false);
+					if (imageUrl || argument.getProperty("url", false)) {
+						if (query.isEmpty()) {
+							Attachment attachment = message.getAttachments().stream()
+								.filter(Attachment::isImage)
+								.findFirst()
+								.orElse(null);
+
+							if (attachment == null) {
+								return imageUrl ? new ParsedResult<>(message.getAuthor().getEffectiveAvatarUrl()) : new ParsedResult<>();
+							} else {
+								return new ParsedResult<>(attachment.getUrl());
+							}
+						}
+
+						if (imageUrl) {
+							Member member = SearchUtility.getMember(message.getGuild(), content);
+							if (member != null) {
+								return new ParsedResult<>(member.getUser().getEffectiveAvatarUrl());
+							}
+						}
+
+						try {
+							new URL(query);
+						} catch (MalformedURLException e) {
+							return new ParsedResult<>();
 						}
 					}
 
-					if (imageUrl) {
-						Member member = SearchUtility.getMember(message.getGuild(), content);
-						if (member != null) {
-							return new ParsedResult<>(member.getUser().getEffectiveAvatarUrl());
-						}
-					}
-
-					try {
-						new URL(content);
-					} catch (MalformedURLException e) {
+					if (query.isEmpty()) {
 						return new ParsedResult<>();
 					}
+
+					return new ParsedResult<>(query, content.substring(query.length()));
 				}
 
-				String[] options = argument.getProperty("options");
-				if (argument.getProperty("class") == null && options != null && options.length != 0) {
-					for (String option : options) {
-						if (option.equalsIgnoreCase(content)) {
-							return new ParsedResult<>(option);
-						}
-					}
-
-					return new ParsedResult<>();
+				public boolean isHandleAll() {
+					return true;
 				}
-
-				return new ParsedResult<>(content);
 			}).registerParser(Long.class, (context, argument, content) -> {
 				if (argument.getProperty("userId", false)) {
 					long userId = SearchUtility.getUserId(content);

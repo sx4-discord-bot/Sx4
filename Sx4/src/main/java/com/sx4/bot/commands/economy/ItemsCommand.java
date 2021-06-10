@@ -40,7 +40,7 @@ public class ItemsCommand extends Sx4Command {
 
 		List<Bson> pipeline = List.of(
 			Aggregates.match(Filters.and(Filters.eq("userId", effectiveMember.getIdLong()), Filters.ne("amount", 0))),
-			Aggregates.project(Projections.fields(Projections.computed("name", "$item.name"), Projections.computed("type", "$item.type"), Projections.include("item.id", "amount"))),
+			Aggregates.project(Projections.fields(Projections.computed("name", "$item.name"), Projections.computed("type", "$item.type"), Projections.include("item", "amount"))),
 			Aggregates.sort(Sorts.descending("amount")),
 			Aggregates.unionWith("users", usersPipeline)
 		);

@@ -252,22 +252,12 @@ public class Sx4Command extends CommandImpl {
 			
 			AuthorPermissions authorPermissions = this.method.getAnnotation(AuthorPermissions.class);
 			if (authorPermissions != null) {
-				List<Permission> permissions = Arrays.asList(authorPermissions.permissions());
-				if (authorPermissions.overwrite()) {
-					this.authorDiscordPermissions = permissions.isEmpty() ? EnumSet.noneOf(Permission.class) : EnumSet.copyOf(permissions);
-				} else {
-					this.authorDiscordPermissions.addAll(permissions);
-				}
+				this.setAuthorDiscordPermissions(authorPermissions.overwrite(), authorPermissions.permissions());
 			}
 			
 			BotPermissions botPermissions = this.method.getAnnotation(BotPermissions.class);
 			if (botPermissions != null) {
-				List<Permission> permissions = Arrays.asList(botPermissions.permissions());
-				if (botPermissions.overwrite()) {
-					this.authorDiscordPermissions = permissions.isEmpty() ? EnumSet.noneOf(Permission.class) : EnumSet.copyOf(permissions);
-				} else {
-					this.authorDiscordPermissions.addAll(permissions);
-				}
+				this.setBotDiscordPermissions(botPermissions.overwrite(), botPermissions.permissions());
 			}
 		}
 	}

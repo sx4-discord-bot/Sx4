@@ -104,7 +104,7 @@ public class GiveItemCommand extends Sx4Command {
 
 			List<Bson> userUpdate = List.of(
 				Operators.set("item", item.toData()),
-				Operators.set("amount", Operators.add(Operators.ifNull("$amount", 0), stack.getAmount()))
+				Operators.set("amount", Operators.add(Operators.ifNull("$amount", 0L), stack.getAmount()))
 			);
 
 			Document userData = event.getMongo().getItems().findOneAndUpdate(session, userFilter, userUpdate, options.upsert(true));

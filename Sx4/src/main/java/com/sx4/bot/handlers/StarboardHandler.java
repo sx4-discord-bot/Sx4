@@ -23,7 +23,6 @@ import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.events.message.guild.react.GuildMessageReactionAddEvent;
 import net.dv8tion.jda.api.events.message.guild.react.GuildMessageReactionRemoveEvent;
 import net.dv8tion.jda.api.hooks.EventListener;
-import net.dv8tion.jda.api.requests.RestAction;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
@@ -32,7 +31,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.function.Consumer;
 
 public class StarboardHandler implements EventListener {
 
@@ -81,7 +79,7 @@ public class StarboardHandler implements EventListener {
 			.setImageUrl(starboard.getString("image"));
 
 		String content = starboard.getString("content");
-		if (content != null) {
+		if (content != null && !content.isBlank()) {
 			builder.addField(new WebhookEmbed.EmbedField(false, "Message", StringUtility.limit(content, MessageEmbed.VALUE_MAX_LENGTH, "[...](" + messageLink + ")")));
 		}
 
@@ -111,14 +109,6 @@ public class StarboardHandler implements EventListener {
 			.addVariable("id", id.toHexString());
 
 		return MessageUtility.fromJson(formatter.parse());
-	}
-
-	private void getMessageData(RestAction<Message> action, Consumer<Message> consumer) {
-		if (action == null) {
-			consumer.accept(null);
-		} else {
-			action.queue(consumer);
-		}
 	}
 
 	public void onGuildMessageReactionAdd(GuildMessageReactionAddEvent event) {
@@ -171,8 +161,8 @@ public class StarboardHandler implements EventListener {
 			Long originalMessageId = data.getLong("messageId");
 			long messageId = originalMessageId == null ? event.getMessageIdLong() : originalMessageId;
 
-			this.getMessageData(originalMessageId == null ? event.retrieveMessage() : null, message -> {
-				String image = message == null ? null : message.getAttachments().stream()
+			event.retrieveMessage().queue(message -> {
+				String image = message.getAttachments().stream()
 					.filter(Attachment::isImage)
 					.map(Attachment::getUrl)
 					.findFirst()
@@ -187,19 +177,13 @@ public class StarboardHandler implements EventListener {
 						Updates.inc("count", 1),
 						Updates.setOnInsert("originalMessageId", messageId),
 						Updates.setOnInsert("guildId", event.getGuild().getIdLong()),
-						Updates.setOnInsert("channelId", event.getChannel().getIdLong())
+						Updates.setOnInsert("channelId", event.getChannel().getIdLong()),
+						Updates.set("content", message.getContentRaw()),
+						Updates.set("authorId", message.getAuthor().getIdLong())
 					);
 
-					if (message != null) {
-						update = Updates.combine(
-							update,
-							Updates.set("content", message.getContentRaw()),
-							Updates.set("authorId", message.getAuthor().getIdLong())
-						);
-
-						if (image != null) {
-							update = Updates.combine(update, Updates.set("image", image));
-						}
+					if (image != null) {
+						update = Updates.combine(update, Updates.set("image", image));
 					}
 
 					FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER).upsert(true);

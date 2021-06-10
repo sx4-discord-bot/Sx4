@@ -29,13 +29,13 @@ public class ReminderArgument {
 		long seconds;
 		String reminder;
 
-		int atIndex = query.lastIndexOf("at"), inIndex = query.lastIndexOf("in");
+		int atIndex = query.lastIndexOf(" at "), inIndex = query.lastIndexOf(" in ");
 		if (atIndex == inIndex) {
 			throw new IllegalArgumentException("Invalid reminder format given");
 		} else if (atIndex > inIndex) {
 			String defaultTimeZone = database.getUserById(userId, Projections.include("reminder.timeZone")).getEmbedded(List.of("reminder", "timeZone"), "GMT");
 
-			Duration duration = TimeUtility.getDurationFromDateTime(query.substring(atIndex + 2).trim(), defaultTimeZone);
+			Duration duration = TimeUtility.getDurationFromDateTime(query.substring(atIndex + 4).trim(), defaultTimeZone);
 			if (duration.isNegative()) {
 				throw new IllegalArgumentException("The date cannot be in the past");
 			} else {
@@ -44,7 +44,7 @@ public class ReminderArgument {
 
 			reminder = query.substring(0, atIndex).trim();
 		} else {
-			Duration duration = TimeUtility.getDurationFromString(query.substring(inIndex + 2).trim());
+			Duration duration = TimeUtility.getDurationFromString(query.substring(inIndex + 4).trim());
 			if (duration != null) {
 				seconds = duration.toSeconds();
 			} else {

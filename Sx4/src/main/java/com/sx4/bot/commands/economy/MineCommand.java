@@ -94,7 +94,7 @@ public class MineCommand extends Sx4Command {
 
 				List<Bson> update = List.of(
 					Operators.set("item", item.toData()),
-					Operators.set("amount", Operators.add(Operators.ifNull("$amount", 0), stack.getAmount()))
+					Operators.set("amount", Operators.add(Operators.ifNull("$amount", 0L), stack.getAmount()))
 				);
 
 				Bson materialFilter = Filters.and(

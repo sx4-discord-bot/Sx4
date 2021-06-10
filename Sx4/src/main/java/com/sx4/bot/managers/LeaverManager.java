@@ -16,6 +16,7 @@ import org.bson.conversions.Bson;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -66,7 +67,8 @@ public class LeaverManager implements WebhookManager {
 				.thenCompose(result -> webhookClient.send(message))
 				.thenApply(webhookMessage -> new ReadonlyMessage(webhookMessage, webhook.getIdLong(), webhook.getToken()));
 		}).exceptionallyCompose(exception -> {
-			if (exception instanceof HttpException && ((HttpException) exception).getCode() == 404) {
+			Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
+			if (cause instanceof HttpException && ((HttpException) cause).getCode() == 404) {
 				this.webhooks.remove(channel.getIdLong());
 
 				return this.createWebhook(channel, message);
@@ -91,7 +93,8 @@ public class LeaverManager implements WebhookManager {
 		return webhook.send(message)
 			.thenApply(webhookMessage -> new ReadonlyMessage(webhookMessage, webhook.getId(), webhook.getToken()))
 			.exceptionallyCompose(exception -> {
-				if (exception instanceof HttpException && ((HttpException) exception).getCode() == 404) {
+				Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
+				if (cause instanceof HttpException && ((HttpException) cause).getCode() == 404) {
 					this.webhooks.remove(channel.getIdLong());
 
 					return this.createWebhook(channel, message);

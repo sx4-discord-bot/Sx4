@@ -7,7 +7,6 @@ import club.minnced.discord.webhook.send.WebhookEmbedBuilder;
 import com.sx4.bot.core.Sx4;
 import com.sx4.bot.http.HttpCallback;
 import com.sx4.bot.utility.TimeUtility;
-import com.sx4.bot.utils.TokenUtils;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.audit.ActionType;
 import net.dv8tion.jda.api.audit.AuditLogEntry;
@@ -30,14 +29,14 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-public class GuildLogHandler implements EventListener {
+public class ServerLogHandler implements EventListener {
 
 	private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
 	private final WebhookClient webhook;
 
 	private final Sx4 bot;
 
-	public GuildLogHandler(Sx4 bot) {
+	public ServerLogHandler(Sx4 bot) {
 		this.bot = bot;
 
 		this.webhook = new WebhookClientBuilder(this.bot.getConfig().getGuildsWebhookId(), this.bot.getConfig().getGuildsWebhookToken())
@@ -54,6 +53,7 @@ public class GuildLogHandler implements EventListener {
 
 		this.executor.scheduleAtFixedRate(() -> {
 			ShardManager manager = this.bot.getShardManager();
+
 			long guildCount = manager.getGuildCache().size();
 			int shardCount = manager.getShardsTotal();
 
@@ -63,8 +63,8 @@ public class GuildLogHandler implements EventListener {
 
 			Request request = new Request.Builder()
 				.post(RequestBody.create(MediaType.parse("application/json; charset=utf-8"), data.toString()))
-				.url("https://top.gg/api/bots/" + manager.getShardById(0).getSelfUser().getId() + "/stats")
-				.addHeader("Authorization", TokenUtils.TOP_GG)
+				.url("https://top.gg/api/bots/440996323156819968/stats")
+				.addHeader("Authorization", this.bot.getConfig().getTopGG())
 				.addHeader("Content-Type", "application/json")
 				.build();
 

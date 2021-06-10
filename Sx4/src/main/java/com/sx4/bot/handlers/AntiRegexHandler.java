@@ -50,7 +50,8 @@ public class AntiRegexHandler implements EventListener {
             .user(user)
             .channel(channel)
             .addVariable("regex.id", id.toHexString())
-            .addVariable("regex.action", action)
+            .addVariable("regex.action", action == null ? "null" : action)
+            .addVariable("regex.action.exists", action != null)
             .addVariable("regex.attempts.current", currentAttempts)
             .addVariable("regex.attempts.max", maxAttempts)
             .parse();

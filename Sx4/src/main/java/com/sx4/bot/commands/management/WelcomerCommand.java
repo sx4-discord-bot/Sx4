@@ -6,14 +6,13 @@ import com.jockie.bot.core.command.Command;
 import com.jockie.bot.core.command.Command.Async;
 import com.jockie.bot.core.command.Command.Cooldown;
 import com.jockie.bot.core.cooldown.ICooldown;
+import com.jockie.bot.core.option.Option;
 import com.mongodb.client.model.*;
 import com.sx4.bot.annotations.argument.AdvancedMessage;
+import com.sx4.bot.annotations.argument.Colour;
 import com.sx4.bot.annotations.argument.ImageUrl;
 import com.sx4.bot.annotations.argument.Options;
-import com.sx4.bot.annotations.command.AuthorPermissions;
-import com.sx4.bot.annotations.command.CommandId;
-import com.sx4.bot.annotations.command.Examples;
-import com.sx4.bot.annotations.command.Premium;
+import com.sx4.bot.annotations.command.*;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
@@ -26,6 +25,7 @@ import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.MessageUtility;
 import com.sx4.bot.utility.OperatorsUtility;
 import com.sx4.bot.utility.WelcomerUtility;
+import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.TextChannel;
 import okhttp3.Request;
@@ -128,6 +128,34 @@ public class WelcomerCommand extends Sx4Command {
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void advancedMessage(Sx4CommandEvent event, @Argument(value="json", endless=true) @AdvancedMessage Document message) {
 		event.getMongo().updateGuildById(event.getGuild().getIdLong(), Updates.set("welcomer.message", message)).whenComplete((result, exception) -> {
+			if (ExceptionUtility.sendExceptionally(event, exception)) {
+				return;
+			}
+
+			if (result.getModifiedCount() == 0) {
+				event.replyFailure("Your welcomer message is already set to that").queue();
+				return;
+			}
+
+			event.replySuccess("Your welcomer message has been updated").queue();
+		});
+	}
+
+	@Command(value="embed", description="Set your welcomer message to use a basic embed")
+	@CommandId(434)
+	@Examples({"welcomer embed A new person has joined", "welcomer message Welcome {user.mention}! --colour=#ffff00"})
+	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
+	public void embed(Sx4CommandEvent event, @Argument(value="message", endless=true) String message, @Option(value="image", description="Use this option if you want the image welcomer in the embed") boolean image, @Option(value="colour", description="Sets the embed colour for the message") @Colour Integer colour) {
+		Document data = new Document("description", message).append("author", new Document("name", "{user.tag}").append("icon_url", "{user.avatar}"));
+		if (colour != null) {
+			data.append("color", colour);
+		}
+
+		if (image) {
+			data.append("image", new Document("url", "{file.url}"));
+		}
+
+		event.getMongo().updateGuildById(event.getGuild().getIdLong(), Updates.set("welcomer.message", new Document("embed", data))).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -247,6 +275,26 @@ public class WelcomerCommand extends Sx4Command {
 		});
 	}
 
+	@Command(value="stats", aliases={"settings"}, description="View basic information about your welcomer configuration")
+	@CommandId(435)
+	@Examples({"welcomer stats"})
+	@BotPermissions(permissions={Permission.MESSAGE_EMBED_LINKS})
+	public void stats(Sx4CommandEvent event) {
+		Document data = event.getMongo().getGuildById(event.getGuild().getIdLong(), Projections.include("welcomer")).get("welcomer", MongoDatabase.EMPTY_DOCUMENT);
+		Document image = data.get("image", MongoDatabase.EMPTY_DOCUMENT);
+
+		EmbedBuilder embed = new EmbedBuilder()
+			.setAuthor("Welcomer Stats", null, event.getSelfUser().getEffectiveAvatarUrl())
+			.addField("Message Status", data.get("enabled", false) ? "Enabled" : "Disabled", true)
+			.addField("Channel", data.containsKey("channelId") ? "<#" + data.get("channelId") + ">" : "None", true)
+			.addField("Image Status", image.getBoolean("enabled", false) ? "Enabled" : "Disabled", true)
+			.addField("Private Message Status", data.getBoolean("dm", false) ? "Enabled" : "Disabled", true)
+			.addField("Webhook Name", data.getEmbedded(List.of("webhook", "name"), "Sx4 - Welcomer"), true)
+			.addField("Webhook Avatar", data.getEmbedded(List.of("webhook", "avatar"), event.getSelfUser().getEffectiveAvatarUrl()), true);
+
+		event.reply(embed.build()).queue();
+	}
+
 	public static class ImageCommand extends Sx4Command {
 
 		private final Set<String> types = Set.of("png", "jpeg", "jpg", "gif");
@@ -265,6 +313,7 @@ public class WelcomerCommand extends Sx4Command {
 
 		@Command(value="toggle", description="Toggle the status of having an image on the welcomer message")
 		@CommandId(101)
+		@Redirects({"image welcomer toggle", "img welcomer toggle"})
 		@Examples({"welcomer image toggle"})
 		@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 		public void toggle(Sx4CommandEvent event) {
