@@ -9,7 +9,6 @@ import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.events.message.GenericMessageEvent;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.events.message.MessageUpdateEvent;
-import org.bson.Document;
 
 import java.util.function.BiPredicate;
 import java.util.function.Function;
@@ -40,13 +39,7 @@ public class Sx4CommandListener extends CommandListener {
 				this.handle(((MessageReceivedEvent) event).getMessage());
 			} else if (event instanceof MessageUpdateEvent) {
 				Message editedMessage = ((MessageUpdateEvent) event).getMessage();
-				Document oldMessage = this.bot.getMongo().getMessageById(editedMessage.getIdLong());
-
-				if (oldMessage == null) {
-					return;
-				}
-
-				if (oldMessage.getBoolean("pinned") != editedMessage.isPinned()) {
+				if (editedMessage.isPinned()) {
 					return;
 				}
 

@@ -1,66 +1,82 @@
 package com.sx4.bot.cache;
 
-import com.sx4.bot.core.Sx4;
-import com.sx4.bot.database.mongo.MongoDatabase;
+import com.sx4.bot.entities.cache.GuildMessage;
+import gnu.trove.impl.sync.TSynchronizedLongObjectMap;
+import gnu.trove.map.TLongObjectMap;
+import gnu.trove.map.hash.TLongObjectHashMap;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.events.GenericEvent;
-import net.dv8tion.jda.api.events.message.MessageBulkDeleteEvent;
-import net.dv8tion.jda.api.events.message.guild.GuildMessageDeleteEvent;
 import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent;
 import net.dv8tion.jda.api.events.message.guild.GuildMessageUpdateEvent;
 import net.dv8tion.jda.api.hooks.EventListener;
-import org.bson.Document;
 
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
-import java.util.List;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
+import java.util.Objects;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class GuildMessageCache implements EventListener {
-	
-	private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
 
-	private final Sx4 bot;
+	public static final int MAX_CACHED_MESSAGES = 400000;
 
-	public GuildMessageCache(Sx4 bot) {
-		this.bot = bot;
-	}
-	
-	private Document getData(Message message) {
-		return new Document("_id", message.getIdLong())
-			.append("guildId", message.getGuild().getIdLong())
-			.append("channelId", message.getChannel().getIdLong())
-			.append("authorId", message.getAuthor().getIdLong())
-			.append("pinned", message.isPinned())
-			.append("content", message.getContentRaw())
-			.append("updated", LocalDateTime.now(ZoneOffset.UTC));
+	private static final int _MAX_CACHED_MESSAGES = MAX_CACHED_MESSAGES / 2;
+
+	private TLongObjectMap<GuildMessage> createCache() {
+		return new TSynchronizedLongObjectMap<>(new TLongObjectHashMap<>(_MAX_CACHED_MESSAGES), new Object());
 	}
 
-	public void onGuildMessageReceived(GuildMessageReceivedEvent event) {
-		this.bot.getMongo().insertMessage(this.getData(event.getMessage())).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
-	}
-	
-	public void onGuildMessageUpdate(GuildMessageUpdateEvent event) {
-		this.executor.schedule(() -> this.bot.getMongo().replaceMessage(this.getData(event.getMessage())).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager())), 50, TimeUnit.MILLISECONDS);
+	public TLongObjectMap<GuildMessage> messageCache = this.createCache();
+	public TLongObjectMap<GuildMessage> overloadCache = this.createCache();
+
+	private final ReentrantLock lock = new ReentrantLock();
+
+	public synchronized void putMessage(Message message) {
+		Objects.requireNonNull(message);
+
+		if (this.overloadCache.size() + 1 > _MAX_CACHED_MESSAGES) {
+			TLongObjectMap<GuildMessage> temp = this.messageCache;
+
+			this.messageCache = this.overloadCache;
+			this.overloadCache = temp;
+
+			this.overloadCache.clear();
+		}
+
+		GuildMessage newMessage = new GuildMessage(message.getAuthor().getIdLong(), message.isPinned(), message.getContentRaw());
+		if (this.messageCache.containsKey(message.getIdLong())) {
+			this.messageCache.put(message.getIdLong(), newMessage);
+		} else if (this.overloadCache.containsKey(message.getIdLong())) {
+			this.overloadCache.put(message.getIdLong(), newMessage);
+		}
+
+		if (this.messageCache.size() + 1 > _MAX_CACHED_MESSAGES) {
+			this.overloadCache.put(message.getIdLong(), newMessage);
+		} else {
+			this.messageCache.put(message.getIdLong(), newMessage);
+		}
 	}
 
-	public void handle(List<Long> messageIds) {
-		this.executor.schedule(() -> this.bot.getMongo().deleteMessages(messageIds).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager())), 5, TimeUnit.MINUTES);
+	public GuildMessage getMessageById(String id) {
+		return this.getMessageById(Long.parseLong(id));
+	}
+
+	public GuildMessage getMessageById(long id) {
+		GuildMessage message = this.messageCache.get(id);
+		if (message == null) {
+			message = this.overloadCache.get(id);
+		}
+
+		return message;
 	}
 
 	@Override
 	public void onEvent(GenericEvent event) {
-		if (event instanceof GuildMessageDeleteEvent) {
-			this.handle(List.of(((GuildMessageDeleteEvent) event).getMessageIdLong()));
-		} else if (event instanceof MessageBulkDeleteEvent) {
-			this.handle(((MessageBulkDeleteEvent) event).getMessageIds().stream().map(Long::parseLong).collect(Collectors.toList()));
-		} else if (event instanceof GuildMessageReceivedEvent) {
-			this.onGuildMessageReceived((GuildMessageReceivedEvent) event);
+		if (event instanceof GuildMessageReceivedEvent) {
+			Message message = ((GuildMessageReceivedEvent) event).getMessage();
+
+			this.putMessage(message);
 		} else if (event instanceof GuildMessageUpdateEvent) {
-			this.onGuildMessageUpdate((GuildMessageUpdateEvent) event);
+			Message message = ((GuildMessageUpdateEvent) event).getMessage();
+
+			this.putMessage(message);
 		}
 	}
 

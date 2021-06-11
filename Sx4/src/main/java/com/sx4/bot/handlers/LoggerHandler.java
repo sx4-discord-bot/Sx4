@@ -12,6 +12,7 @@ import com.mongodb.client.model.Projections;
 import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.database.mongo.model.Operators;
+import com.sx4.bot.entities.cache.GuildMessage;
 import com.sx4.bot.entities.management.LoggerContext;
 import com.sx4.bot.entities.management.LoggerEvent;
 import com.sx4.bot.utility.ColourUtility;
@@ -159,7 +160,7 @@ public class LoggerHandler implements EventListener {
 					LoggerContext loggerContext = new LoggerContext()
 						.setChannel(textChannel);
 
-					Document message = this.bot.getMongo().getMessageById(messageId);
+					GuildMessage message = this.bot.getMessageCache().getMessageById(messageId);
 					if (message == null) {
 						if (!LoggerUtility.isWhitelisted(entities, loggerEvent, loggerContext)) {
 							continue;
@@ -168,9 +169,8 @@ public class LoggerHandler implements EventListener {
 						embed.setDescription(String.format("A message sent in %s was deleted", textChannel.getAsMention()));
 						embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
 					} else {
-						long userId = message.getLong("authorId");
-						User user = shardManager.getUserById(userId);
-
+						long userId = message.getUserId();
+						User user = this.bot.getShardManager().getUserById(userId);
 
 						loggerContext.setUser(userId);
 
@@ -181,7 +181,7 @@ public class LoggerHandler implements EventListener {
 						embed.setDescription(String.format("The message sent by `%s` in %s was deleted", user == null ? userId : user.getName(), textChannel.getAsMention()));
 						embed.setAuthor(new EmbedAuthor(user == null ? guild.getName() : user.getAsTag(), user == null ? guild.getIconUrl() : user.getEffectiveAvatarUrl(), null));
 
-						String content = message.getString("content");
+						String content = message.getContent();
 						if (!content.isBlank()) {
 							embed.addField(new EmbedField(false, "Message", StringUtility.limit(content, MessageEmbed.VALUE_MAX_LENGTH, "...")));
 						}
@@ -214,8 +214,8 @@ public class LoggerHandler implements EventListener {
 		User user = event.getAuthor();
 		Message message = event.getMessage();
 
-		Document previousMessage = this.bot.getMongo().getMessageById(message.getIdLong());
-		String oldContent = previousMessage == null ? null : previousMessage.getString("content");
+		GuildMessage previousMessage = this.bot.getMessageCache().getMessageById(message.getIdLong());
+		String oldContent = previousMessage == null ? null : previousMessage.getContent();
 
 		LoggerEvent loggerEvent = LoggerEvent.MESSAGE_UPDATE;
 		LoggerContext loggerContext = new LoggerContext()

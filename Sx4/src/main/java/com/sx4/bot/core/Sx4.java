@@ -57,6 +57,7 @@ import net.dv8tion.jda.api.requests.restaction.MessageAction;
 import net.dv8tion.jda.api.sharding.DefaultShardManagerBuilder;
 import net.dv8tion.jda.api.sharding.ShardManager;
 import net.dv8tion.jda.api.utils.MiscUtil;
+import net.dv8tion.jda.internal.utils.tuple.Pair;
 import okhttp3.OkHttpClient;
 import org.bson.Document;
 import org.bson.json.JsonParseException;
@@ -101,6 +102,7 @@ public class Sx4 {
 	private final ScheduledExecutorService scheduledExecutor;
 
 	private final SteamGameCache steamGameCache;
+	private final GuildMessageCache messageCache;
 
 	/* Managers */
 	private final YouTubeManager youTubeManager;
@@ -178,6 +180,7 @@ public class Sx4 {
 		this.mysteryBoxManager = new MysteryBoxManager();
 
 		this.steamGameCache = new SteamGameCache(this);
+		this.messageCache = new GuildMessageCache();
 
 		this.setupArgumentFactory();
 		this.setupOptionFactory();
@@ -186,7 +189,6 @@ public class Sx4 {
 		((CommandParserImpl) this.commandListener.getCommandParser()).addOptionPrefix("");
 
 		List<Object> listeners = List.of(
-			new GuildMessageCache(this),
 			this.commandListener,
 			new PagedHandler(this),
 			new WaiterHandler(this),
@@ -207,7 +209,8 @@ public class Sx4 {
 			new MediaModeHandler(this),
 			new MysteryBoxHandler(this),
 			new ServerLogHandler(this),
-			youTubeHandler
+			youTubeHandler,
+			this.messageCache
 		);
 
 		this.shardManager = this.createShardManager(listeners);
@@ -463,6 +466,10 @@ public class Sx4 {
 
 	public SteamGameCache getSteamGameCache() {
 		return this.steamGameCache;
+	}
+
+	public GuildMessageCache getMessageCache() {
+		return this.messageCache;
 	}
 
 	public ShardManager createShardManager(List<Object> listeners) {
@@ -972,43 +979,63 @@ public class Sx4 {
 				public ParsedResult<String> parse(ParseContext context, IArgument<String> argument, String content) {
 					Message message = context.getMessage();
 
-					int nextSpace = content.indexOf(' ');
-					String query = nextSpace == -1 || argument.isEndless() ? content : content.substring(0, nextSpace);
+					CommandParserImpl parser = (CommandParserImpl) context.getCommandParser();
+
+					String contentToHandle = null;
+					for (Pair<Character, Character> quotes : parser.getQuoteCharacters()) {
+						contentToHandle = com.jockie.bot.core.utility.StringUtility.parseWrapped(content, quotes.getLeft(), quotes.getRight());
+						if (contentToHandle != null) {
+							content = content.substring(contentToHandle.length());
+							contentToHandle = com.jockie.bot.core.utility.StringUtility.unwrap(contentToHandle, quotes.getLeft(), quotes.getRight());
+
+							if (context.getCommand().getArgumentTrimType().equals(ICommand.ArgumentTrimType.STRICT)) {
+								contentToHandle = com.jockie.bot.core.utility.StringUtility.strip(contentToHandle);
+							}
+
+							break;
+						}
+					}
+
+					if (contentToHandle == null) {
+						int nextSpace = content.indexOf(' ');
+						contentToHandle = nextSpace == -1 || argument.isEndless() ? content : content.substring(0, nextSpace);
+						content = content.substring(contentToHandle.length());
+					}
 
 					boolean imageUrl = argument.getProperty("imageUrl", false);
 					if (imageUrl || argument.getProperty("url", false)) {
-						if (query.isEmpty()) {
+						if (contentToHandle.isEmpty()) {
 							Attachment attachment = message.getAttachments().stream()
 								.filter(Attachment::isImage)
 								.findFirst()
 								.orElse(null);
 
 							if (attachment == null) {
-								return imageUrl ? new ParsedResult<>(message.getAuthor().getEffectiveAvatarUrl()) : new ParsedResult<>();
+								return imageUrl ? new ParsedResult<>(message.getAuthor().getEffectiveAvatarUrl(), content) : new ParsedResult<>();
 							} else {
-								return new ParsedResult<>(attachment.getUrl());
+								return new ParsedResult<>(attachment.getUrl(), content);
 							}
 						}
 
 						if (imageUrl) {
-							Member member = SearchUtility.getMember(message.getGuild(), content);
+							Member member = SearchUtility.getMember(message.getGuild(), contentToHandle);
 							if (member != null) {
 								return new ParsedResult<>(member.getUser().getEffectiveAvatarUrl());
 							}
 						}
 
 						try {
-							new URL(query);
+							new URL(contentToHandle);
 						} catch (MalformedURLException e) {
 							return new ParsedResult<>();
 						}
 					}
 
-					if (query.isEmpty()) {
+					if (contentToHandle.isEmpty()) {
 						return new ParsedResult<>();
 					}
 
-					return new ParsedResult<>(query, content.substring(query.length()));
+					return new ParsedResult<>(contentToHandle, content);
 				}
 
 				public boolean isHandleAll() {
@@ -1065,6 +1092,7 @@ public class Sx4 {
 				}
 			}).registerParser(MessageArgument.class, new IParser<>() {
 				public ParsedResult<MessageArgument> parse(ParseContext context, IArgument<MessageArgument> argument, String content) {
+					System.out.println(content);
 					Message message = context.getMessage();
 					TextChannel channel = message.getTextChannel();
 
@@ -1093,7 +1121,7 @@ public class Sx4 {
 					} else {
 						Message reference = message.getReferencedMessage();
 						if (reference != null) {
-							return new ParsedResult<>(new MessageArgument(reference), " " + content);
+							return new ParsedResult<>(new MessageArgument(reference), content.isEmpty() ? "" : " " + content);
 						}
 
 						return new ParsedResult<>();
@@ -1221,7 +1249,7 @@ public class Sx4 {
 			} else if (limit != null && !limit.error()) {
 				content = content.substring(Math.min(Math.max(0, limit.min()), content.length()), Math.min(Math.max(0, limit.max()), content.length()));
 			}
-			
+
 			return new ParsedResult<>(content);
 		}).addParserAfter(Integer.class, (context, argument, content) -> {
 			Limit limit = argument.getProperty("limit", Limit.class);
@@ -1341,7 +1369,7 @@ public class Sx4 {
 					joiner.add(enumEntry.name());
 				}
 
-				message.getChannel().sendMessage("Invalid argument given, give any of the following " + joiner.toString() + " " + this.config.getFailureEmote()).queue();
+				message.getChannel().sendMessage("Invalid argument given, give any of the following " + joiner + " " + this.config.getFailureEmote()).queue();
 			})
 			.setHandleInheritance(Enum.class, true)
 			.setHandleInheritance(Item.class, true);

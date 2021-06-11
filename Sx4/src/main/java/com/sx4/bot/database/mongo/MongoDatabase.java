@@ -124,18 +124,23 @@ public class MongoDatabase {
 
 		this.mutes = this.database.getCollection("mutes");
 		this.mutes.createIndex(Indexes.descending("userId", "guildId"), uniqueIndex);
+		this.mutes.createIndex(Indexes.descending("guildId"));
 
 		this.temporaryBans = this.database.getCollection("temporaryBans");
 		this.temporaryBans.createIndex(Indexes.descending("userId", "guildId"), uniqueIndex);
+		this.temporaryBans.createIndex(Indexes.descending("guildId"));
 
 		this.warnings = this.database.getCollection("warnings");
 		this.warnings.createIndex(Indexes.descending("userId", "guildId"), uniqueIndex);
+		this.warnings.createIndex(Indexes.descending("guildId"));
 
 		this.triggers = this.database.getCollection("triggers");
-		this.triggers.createIndex(Indexes.descending("trigger", "guildId"), uniqueIndex);
+		this.triggers.createIndex(Indexes.descending("guildId", "trigger"), uniqueIndex);
+		this.triggers.createIndex(Indexes.descending("guildId"));
 
 		this.templates = this.database.getCollection("templates");
-		this.templates.createIndex(Indexes.descending("template", "guildId"), uniqueIndex);
+		this.templates.createIndex(Indexes.descending("guildId", "template"), uniqueIndex);
+		this.templates.createIndex(Indexes.descending("guildId"));
 
 		this.starboards = this.database.getCollection("starboards");
 		this.starboards.createIndex(Indexes.descending("guildId"));
@@ -145,6 +150,7 @@ public class MongoDatabase {
 
 		this.stars = this.database.getCollection("stars");
 		this.stars.createIndex(Indexes.descending("messageId", "userId"), uniqueIndex);
+		this.stars.createIndex(Indexes.descending("userId"));
 
 		this.loggers = this.database.getCollection("loggers");
 		this.loggers.createIndex(Indexes.descending("guildId"));

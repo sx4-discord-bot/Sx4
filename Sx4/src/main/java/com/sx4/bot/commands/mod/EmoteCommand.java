@@ -35,6 +35,7 @@ public class EmoteCommand extends Sx4Command {
 		super("emote", 129);
 
 		super.setDescription("Create, delete or modify an emote");
+		super.setAliases("emoji");
 		super.setExamples("emote create", "emote delete", "emote whitelist");
 		super.setCategoryAll(ModuleCategory.MODERATION);
 	}
@@ -77,7 +78,7 @@ public class EmoteCommand extends Sx4Command {
 	@CommandId(130)
 	@Examples({"emote create <:sx4:637715282995183636>", "emote create sx4", "emote create https://cdn.discordapp.com/emojis/637715282995183636.png"})
 	@Cooldown(5)
-	@Redirects({"create emote", "ce"})
+	@Redirects({"create emote", "ce", "create emoji"})
 	@AuthorPermissions(permissions={Permission.MANAGE_EMOTES})
 	@BotPermissions(permissions={Permission.MANAGE_EMOTES})
 	public void create(Sx4CommandEvent event, @Argument(value="emote | image url", acceptEmpty=true) PartialEmote emote, @Argument(value="name", endless=true, nullDefault=true) String name) {

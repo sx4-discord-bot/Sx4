@@ -74,58 +74,6 @@ public interface IFormatter<Type> {
 		return false;
 	}
 
-	public static String ternary(String string, FormatterManager manager) {
-		int index = string.length();
-		Brackets: while ((index = string.lastIndexOf('(', index - 1)) != -1) {
-			if (IFormatter.escape(string, index)) {
-				continue;
-			}
-
-			int endIndex = index;
-			while ((endIndex = string.indexOf(')', endIndex + 1)) != -1) {
-				if (IFormatter.escape(string, endIndex)) {
-					continue;
-				}
-				
-				if (StringUtility.isNotEqual(string.substring(index + 1, endIndex), '(', ')')) {
-					continue;
-				}
-
-				int condIndex = index;
-				while ((condIndex = string.indexOf('?', condIndex + 1)) != -1) {
-					if (IFormatter.escape(string, condIndex)) {
-						continue;
-					}
-
-					int endCondIndex = condIndex;
-					while ((endCondIndex = string.indexOf(':', endCondIndex + 1)) != -1) {
-						if (IFormatter.escape(string, endCondIndex)) {
-							continue;
-						}
-
-						String ifFormatter = string.substring(condIndex + 1, endCondIndex);
-						if (StringUtility.isNotEqual(ifFormatter, '?', ':')) {
-							continue;
-						}
-
-						String elseFormatter = string.substring(endCondIndex + 1, endIndex);
-
-						Object condition = IFormatter.toObject(string.substring(index + 1, condIndex), Boolean.class, manager);
-						if (condition == null) {
-							condition = false;
-						}
-
-						string = string.substring(0, index) + ((boolean) condition ? ifFormatter : elseFormatter) + string.substring(endIndex + 1);
-
-						continue Brackets;
-					}
-				}
-			}
-		}
-
-		return string;
-	}
-
 	private static List<Object> getFunctionArguments(FormatterFunction<?> function, String text, Object value, Class<?> type, FormatterManager manager) {
 		List<Object> functionArguments = new ArrayList<>();
 		functionArguments.add(new FormatterEvent<>(value, manager));
@@ -197,7 +145,9 @@ public interface IFormatter<Type> {
 			periodIndex = nextPeriodIndex;
 			if (bracketIndex == -1 || endBracketIndex == -1) {
 				FormatterVariable<?> variable = manager.getVariable(type, name);
-				if (variable == null) {
+				if (variable == null && periodIndex == -1) {
+					return null;
+				} else if (variable == null) {
 					continue;
 				}
 
@@ -300,7 +250,7 @@ public interface IFormatter<Type> {
 	}
 
 	default String parse(String string, FormatterManager manager) {
-		return IFormatter.ternary(IFormatter.format(string, manager), manager);
+		return IFormatter.format(string, manager);
 	}
 
 }
