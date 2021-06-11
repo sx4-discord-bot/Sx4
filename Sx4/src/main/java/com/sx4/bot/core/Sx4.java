@@ -23,6 +23,7 @@ import com.jockie.bot.core.parser.ParsedResult;
 import com.mongodb.client.model.Projections;
 import com.sx4.api.Sx4Server;
 import com.sx4.bot.annotations.argument.*;
+import com.sx4.bot.cache.GoogleSearchCache;
 import com.sx4.bot.cache.GuildMessageCache;
 import com.sx4.bot.cache.SteamGameCache;
 import com.sx4.bot.category.ModuleCategory;
@@ -103,6 +104,7 @@ public class Sx4 {
 
 	private final SteamGameCache steamGameCache;
 	private final GuildMessageCache messageCache;
+	private final GoogleSearchCache googleCache;
 
 	/* Managers */
 	private final YouTubeManager youTubeManager;
@@ -181,6 +183,7 @@ public class Sx4 {
 
 		this.steamGameCache = new SteamGameCache(this);
 		this.messageCache = new GuildMessageCache();
+		this.googleCache = new GoogleSearchCache(this);
 
 		this.setupArgumentFactory();
 		this.setupOptionFactory();
@@ -470,6 +473,10 @@ public class Sx4 {
 
 	public GuildMessageCache getMessageCache() {
 		return this.messageCache;
+	}
+
+	public GoogleSearchCache getGoogleCache() {
+		return this.googleCache;
 	}
 
 	public ShardManager createShardManager(List<Object> listeners) {
