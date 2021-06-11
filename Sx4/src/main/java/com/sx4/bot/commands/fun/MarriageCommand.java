@@ -116,7 +116,7 @@ public class MarriageCommand extends Sx4Command {
 				event.removeCooldown();
 				Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
 				if (cause instanceof CancelException) {
-					event.replySuccess("Cancelled").queue();
+					event.replySuccess("Better luck next time " + author.getName() + " :broken_heart:").queue();
 					return;
 				} else if (cause instanceof TimeoutException) {
 					event.reply("Timed out :stopwatch:").queue();
