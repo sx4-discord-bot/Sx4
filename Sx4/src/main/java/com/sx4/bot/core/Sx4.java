@@ -220,7 +220,7 @@ public class Sx4 {
 
 		FormatterManager formatterManager = new FormatterManager()
 			.addFunctions("com.sx4.bot.formatter.parser")
-			.addVariable("name", Action.class, action -> action == null ? null : action.getName())
+			.addVariable("name", Action.class, action -> action == null ? null : action.getName().toLowerCase())
 			.addVariable("exists", Action.class, Objects::nonNull)
 			.addVariable("suffix", Integer.class, NumberUtility::getSuffixed)
 			.addVariable("round", Double.class, Math::round)

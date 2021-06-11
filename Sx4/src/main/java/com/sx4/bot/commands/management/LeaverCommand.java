@@ -11,10 +11,7 @@ import com.mongodb.client.model.Updates;
 import com.sx4.bot.annotations.argument.AdvancedMessage;
 import com.sx4.bot.annotations.argument.ImageUrl;
 import com.sx4.bot.annotations.argument.Options;
-import com.sx4.bot.annotations.command.AuthorPermissions;
-import com.sx4.bot.annotations.command.CommandId;
-import com.sx4.bot.annotations.command.Examples;
-import com.sx4.bot.annotations.command.Premium;
+import com.sx4.bot.annotations.command.*;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
@@ -25,6 +22,7 @@ import com.sx4.bot.managers.LeaverManager;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.LeaverUtility;
 import com.sx4.bot.utility.MessageUtility;
+import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.TextChannel;
 import org.bson.Document;
@@ -173,6 +171,24 @@ public class LeaverCommand extends Sx4Command {
 
 			event.replySuccess("Your leaver webhook avatar has been updated, this only works with premium <https://patreon.com/Sx4>").queue();
 		});
+	}
+
+	@Command(value="stats", aliases={"settings"}, description="View basic information about your leaver configuration")
+	@CommandId(440)
+	@Examples({"leaver stats"})
+	@BotPermissions(permissions={Permission.MESSAGE_EMBED_LINKS})
+	public void stats(Sx4CommandEvent event) {
+		Document data = event.getMongo().getGuildById(event.getGuild().getIdLong(), Projections.include("leaver")).get("leaver", MongoDatabase.EMPTY_DOCUMENT);
+
+		EmbedBuilder embed = new EmbedBuilder()
+			.setAuthor("Leaver Stats", null, event.getSelfUser().getEffectiveAvatarUrl())
+			.addField("Message Status", data.get("enabled", false) ? "Enabled" : "Disabled", true)
+			.addField("Channel", data.containsKey("channelId") ? "<#" + data.get("channelId") + ">" : "None", true)
+			.addField("Private Message Status", data.getBoolean("dm", false) ? "Enabled" : "Disabled", true)
+			.addField("Webhook Name", data.getEmbedded(List.of("webhook", "name"), "Sx4 - Leaver"), true)
+			.addField("Webhook Avatar", data.getEmbedded(List.of("webhook", "avatar"), event.getSelfUser().getEffectiveAvatarUrl()), true);
+
+		event.reply(embed.build()).queue();
 	}
 
 	@Command(value="preview", description="Preview your leaver message")
