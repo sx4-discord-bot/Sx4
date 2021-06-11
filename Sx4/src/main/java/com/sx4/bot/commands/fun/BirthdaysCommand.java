@@ -17,10 +17,7 @@ import java.time.Duration;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.format.TextStyle;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
+import java.util.*;
 
 public class BirthdaysCommand extends Sx4Command {
 
@@ -76,6 +73,8 @@ public class BirthdaysCommand extends Sx4Command {
 			event.replyFailure("There are no upcoming birthdays").queue();
 			return;
 		}
+
+		users.sort(Map.Entry.comparingByValue());
 
 		PagedResult<Map.Entry<User, LocalDate>> paged = new PagedResult<>(event.getBot(), users)
 			.setIndexed(false)
