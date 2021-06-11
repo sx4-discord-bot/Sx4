@@ -192,7 +192,7 @@ public class YouTubeNotificationCommand extends Sx4Command {
 				return;
 			}
 			
-			event.replySuccess("Your webhook name has been updated for that notification").queue();
+			event.replySuccess("Your webhook name has been updated for that notification, this only works with premium <https://patreon.com/Sx4>").queue();
 		});
 	}
 	
@@ -211,7 +211,7 @@ public class YouTubeNotificationCommand extends Sx4Command {
 				return;
 			}
 
-			event.replySuccess("Your webhook avatar has been updated for that notification").queue();
+			event.replySuccess("Your webhook avatar has been updated for that notification, this only works with premium <https://patreon.com/Sx4>").queue();
 		});
 	}
 	

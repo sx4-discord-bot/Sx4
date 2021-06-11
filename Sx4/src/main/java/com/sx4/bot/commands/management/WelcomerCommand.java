@@ -7,7 +7,10 @@ import com.jockie.bot.core.command.Command.Async;
 import com.jockie.bot.core.command.Command.Cooldown;
 import com.jockie.bot.core.cooldown.ICooldown;
 import com.jockie.bot.core.option.Option;
-import com.mongodb.client.model.*;
+import com.mongodb.client.model.FindOneAndUpdateOptions;
+import com.mongodb.client.model.Projections;
+import com.mongodb.client.model.ReturnDocument;
+import com.mongodb.client.model.Updates;
 import com.sx4.bot.annotations.argument.AdvancedMessage;
 import com.sx4.bot.annotations.argument.Colour;
 import com.sx4.bot.annotations.argument.ImageUrl;
@@ -23,7 +26,6 @@ import com.sx4.bot.http.HttpCallback;
 import com.sx4.bot.managers.WelcomerManager;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.MessageUtility;
-import com.sx4.bot.utility.OperatorsUtility;
 import com.sx4.bot.utility.WelcomerUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
@@ -32,6 +34,7 @@ import okhttp3.Request;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 
+import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.time.Clock;
@@ -175,26 +178,17 @@ public class WelcomerCommand extends Sx4Command {
 	@Premium
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void name(Sx4CommandEvent event, @Argument(value="name", endless=true) String name) {
-		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().projection(Projections.include("welcomer.webhook.name", "premium.endAt")).returnDocument(ReturnDocument.BEFORE).upsert(true);
-		event.getMongo().findAndUpdateGuildById(event.getGuild().getIdLong(), List.of(OperatorsUtility.setIfPremium("welcomer.webhook.name", name)), options).whenComplete((data, exception) -> {
+		event.getMongo().updateGuildById(event.getGuild().getIdLong(), Updates.set("welcomer.webhook.name", name)).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
 
-			data = data == null ? MongoDatabase.EMPTY_DOCUMENT : data;
-
-			if (data.getEmbedded(List.of("premium", "endAt"), 0L) < Clock.systemUTC().instant().getEpochSecond()) {
-				event.replyFailure("This server needs premium to use this command").queue();
-				return;
-			}
-
-			String oldName = data.getEmbedded(List.of("welcomer", "webhook", "name"), String.class);
-			if (oldName != null && oldName.equals(name)) {
+			if (result.getModifiedCount() == 0 && result.getUpsertedId() == null) {
 				event.replyFailure("Your welcomer webhook name was already set to that").queue();
 				return;
 			}
 
-			event.replySuccess("Your welcomer webhook name has been updated").queue();
+			event.replySuccess("Your welcomer webhook name has been updated, this only works with premium <https://patreon.com/Sx4>").queue();
 		});
 	}
 
@@ -204,26 +198,17 @@ public class WelcomerCommand extends Sx4Command {
 	@Premium
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void avatar(Sx4CommandEvent event, @Argument(value="avatar", endless=true, acceptEmpty=true) @ImageUrl String url) {
-		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().projection(Projections.include("welcomer.webhook.avatar", "premium.endAt")).returnDocument(ReturnDocument.BEFORE).upsert(true);
-		event.getMongo().findAndUpdateGuildById(event.getGuild().getIdLong(), List.of(OperatorsUtility.setIfPremium("welcomer.webhook.avatar", url)), options).whenComplete((data, exception) -> {
+		event.getMongo().updateGuildById(event.getGuild().getIdLong(), Updates.set("welcomer.webhook.avatar", url)).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
 
-			data = data == null ? MongoDatabase.EMPTY_DOCUMENT : data;
-
-			if (data.getEmbedded(List.of("premium", "endAt"), 0L) < Clock.systemUTC().instant().getEpochSecond()) {
-				event.replyFailure("This server needs premium to use this command").queue();
-				return;
-			}
-
-			String oldUrl = data.getEmbedded(List.of("welcomer", "webhook", "avatar"), String.class);
-			if (oldUrl != null && oldUrl.equals(url)) {
+			if (result.getModifiedCount() == 0 && result.getUpsertedId() == null) {
 				event.replyFailure("Your welcomer webhook avatar was already set to that").queue();
 				return;
 			}
 
-			event.replySuccess("Your welcomer webhook avatar has been updated").queue();
+			event.replySuccess("Your welcomer webhook avatar has been updated, this only works with premium <https://patreon.com/Sx4>").queue();
 		});
 	}
 
@@ -333,11 +318,28 @@ public class WelcomerCommand extends Sx4Command {
 		@CommandId(102)
 		@Cooldown(value=30, cooldownScope=ICooldown.Scope.GUILD)
 		@Async
-		@Examples({"welcomer banner https://i.imgur.com/i87lyNO.png", "welcomer banner https://example.com/image.png"})
+		@Examples({"welcomer image banner https://i.imgur.com/i87lyNO.png", "welcomer image banner https://example.com/image.png", "welcomer image banner reset"})
 		@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-		public void banner(Sx4CommandEvent event, @Argument(value="url") @ImageUrl String url) {
+		public void banner(Sx4CommandEvent event, @Argument(value="url") @ImageUrl @Options("reset") Alternative<String> option) {
+			if (option.isAlternative()) {
+				File file = new File("welcomer/banners/" + event.getAuthor().getId() + ".png");
+				if (file.delete()) {
+					event.getMongo().updateGuildById(event.getGuild().getIdLong(), Updates.unset("welcomer.bannerId")).whenComplete((result, exception) -> {
+						if (ExceptionUtility.sendExceptionally(event, exception)) {
+							return;
+						}
+
+						event.replySuccess("Your welcomer banner has been unset").queue();
+					});
+				} else {
+					event.replyFailure("You do not have a welcomer banner").queue();
+				}
+
+				return;
+			}
+
 			Request request = new Request.Builder()
-				.url(url)
+				.url(option.getValue())
 				.build();
 
 			event.getHttpClient().newCall(request).enqueue((HttpCallback) response -> {
@@ -367,15 +369,24 @@ public class WelcomerCommand extends Sx4Command {
 				}
 
 				String bannerId = event.getGuild().getId() + "." + subType;
-				try (FileOutputStream stream = new FileOutputStream("welcomer/banners/" + bannerId)) {
-					stream.write(bytes);
-				} catch (IOException e) {
-					ExceptionUtility.sendExceptionally(event, e);
-					return;
-				}
 
-				event.getMongo().updateGuildById(event.getGuild().getIdLong(), Updates.set("welcomer.image.bannerId", bannerId), new UpdateOptions().upsert(true)).whenComplete((result, exception) -> {
+				FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("welcomer.image.bannerId")).upsert(true);
+				event.getMongo().findAndUpdateGuildById(event.getGuild().getIdLong(), Updates.set("welcomer.image.bannerId", bannerId), options).whenComplete((data, exception) -> {
 					if (ExceptionUtility.sendExceptionally(event, exception)) {
+						return;
+					}
+
+					if (data != null)  {
+						String banner = data.getEmbedded(List.of("welcomer", "image", "bannerId"), String.class);
+						if (banner != null) {
+							new File("welcomer/banners/" + bannerId).delete();
+						}
+					}
+
+					try (FileOutputStream stream = new FileOutputStream("welcomer/banners/" + bannerId)) {
+						stream.write(bytes);
+					} catch (IOException e) {
+						ExceptionUtility.sendExceptionally(event, e);
 						return;
 					}
 

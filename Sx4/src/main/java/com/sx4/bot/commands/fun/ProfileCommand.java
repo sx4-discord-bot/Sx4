@@ -307,15 +307,24 @@ public class ProfileCommand extends Sx4Command {
 					}
 
 					String bannerId = event.getAuthor().getId() + ".png";
-					try (FileOutputStream stream = new FileOutputStream("profile/banners/" + bannerId)) {
-						stream.write(bytes);
-					} catch (IOException e) {
-						ExceptionUtility.sendExceptionally(event, e);
-						return;
-					}
 
-					event.getMongo().updateUserById(event.getAuthor().getIdLong(), Updates.set("profile.bannerId", bannerId), new UpdateOptions().upsert(true)).whenComplete((result, exception) -> {
+					FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("profile.bannerId")).upsert(true);
+					event.getMongo().findAndUpdateUserById(event.getAuthor().getIdLong(), Updates.set("profile.bannerId", bannerId), options).whenComplete((data, exception) -> {
 						if (ExceptionUtility.sendExceptionally(event, exception)) {
+							return;
+						}
+
+						if (data != null)  {
+							String banner = data.getEmbedded(List.of("profile", "bannerId"), String.class);
+							if (banner != null) {
+								new File("profile/banners/" + bannerId).delete();
+							}
+						}
+
+						try (FileOutputStream stream = new FileOutputStream("profile/banners/" + bannerId)) {
+							stream.write(bytes);
+						} catch (IOException e) {
+							ExceptionUtility.sendExceptionally(event, e);
 							return;
 						}
 

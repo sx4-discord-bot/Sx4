@@ -31,6 +31,10 @@ public class ImageRequest {
 	}
 
 	public ImageRequest addQuery(String query, Object value) {
+		if (value == null) {
+			return this;
+		}
+
 		this.queries.put(query, URLEncoder.encode(String.valueOf(value), StandardCharsets.UTF_8));
 
 		return this;

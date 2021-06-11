@@ -3,10 +3,7 @@ package com.sx4.bot.commands.management;
 import club.minnced.discord.webhook.WebhookClient;
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
-import com.mongodb.client.model.Filters;
-import com.mongodb.client.model.FindOneAndUpdateOptions;
-import com.mongodb.client.model.Projections;
-import com.mongodb.client.model.ReturnDocument;
+import com.mongodb.client.model.*;
 import com.sx4.bot.annotations.argument.ImageUrl;
 import com.sx4.bot.annotations.argument.Options;
 import com.sx4.bot.annotations.command.AuthorPermissions;
@@ -16,7 +13,6 @@ import com.sx4.bot.annotations.command.Premium;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
-import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.argument.Alternative;
 import com.sx4.bot.entities.argument.Range;
@@ -25,7 +21,6 @@ import com.sx4.bot.entities.mod.Reason;
 import com.sx4.bot.entities.mod.action.Action;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
-import com.sx4.bot.utility.OperatorsUtility;
 import com.sx4.bot.waiter.Waiter;
 import com.sx4.bot.waiter.exception.CancelException;
 import com.sx4.bot.waiter.exception.TimeoutException;
@@ -39,7 +34,6 @@ import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
 
-import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletionException;
@@ -246,26 +240,17 @@ public class ModLogCommand extends Sx4Command {
 	@Premium
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void name(Sx4CommandEvent event, @Argument(value="name", endless=true) String name) {
-		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().projection(Projections.include("modLog.webhook.name", "premium.endAt")).returnDocument(ReturnDocument.BEFORE).upsert(true);
-		event.getMongo().findAndUpdateGuildById(event.getGuild().getIdLong(), List.of(OperatorsUtility.setIfPremium("modLog.webhook.name", name)), options).whenComplete((data, exception) -> {
+		event.getMongo().updateGuildById(event.getGuild().getIdLong(), Updates.set("modLog.webhook.name", name)).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
 
-			data = data == null ? MongoDatabase.EMPTY_DOCUMENT : data;
-
-			if (data.getEmbedded(List.of("premium", "endAt"), 0L) < Clock.systemUTC().instant().getEpochSecond()) {
-				event.replyFailure("This server needs premium to use this command").queue();
-				return;
-			}
-
-			String oldName = data.getEmbedded(List.of("modLog", "webhook", "name"), String.class);
-			if (oldName != null && oldName.equals(name)) {
+			if (result.getModifiedCount() == 0 && result.getUpsertedId() == null) {
 				event.replyFailure("Your mod log webhook name was already set to that").queue();
 				return;
 			}
 
-			event.replySuccess("Your starboard webhook name has been updated").queue();
+			event.replySuccess("Your mod log webhook name has been updated, this only works with premium <https://patreon.com/Sx4>").queue();
 		});
 	}
 
@@ -275,26 +260,17 @@ public class ModLogCommand extends Sx4Command {
 	@Premium
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void avatar(Sx4CommandEvent event, @Argument(value="avatar", endless=true, acceptEmpty=true) @ImageUrl String url) {
-		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().projection(Projections.include("modLog.webhook.avatar", "premium.endAt")).returnDocument(ReturnDocument.BEFORE).upsert(true);
-		event.getMongo().findAndUpdateGuildById(event.getGuild().getIdLong(), List.of(OperatorsUtility.setIfPremium("modLog.webhook.avatar", url)), options).whenComplete((data, exception) -> {
+		event.getMongo().updateGuildById(event.getGuild().getIdLong(), Updates.set("modLog.webhook.avatar", url)).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
 
-			data = data == null ? MongoDatabase.EMPTY_DOCUMENT : data;
-
-			if (data.getEmbedded(List.of("premium", "endAt"), 0L) < Clock.systemUTC().instant().getEpochSecond()) {
-				event.replyFailure("This server needs premium to use this command").queue();
-				return;
-			}
-
-			String oldUrl = data.getEmbedded(List.of("modLog", "webhook", "avatar"), String.class);
-			if (oldUrl != null && oldUrl.equals(url)) {
+			if (result.getModifiedCount() == 0 && result.getUpsertedId() == null) {
 				event.replyFailure("Your mod log webhook avatar was already set to that").queue();
 				return;
 			}
 
-			event.replySuccess("Your mod log webhook avatar has been updated").queue();
+			event.replySuccess("Your mod log webhook avatar has been updated, this only works with premium <https://patreon.com/Sx4>").queue();
 		});
 	}
 	

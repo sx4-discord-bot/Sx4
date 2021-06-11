@@ -122,7 +122,7 @@ public class BlacklistCommand extends Sx4Command {
 	@Examples({"blacklist reset #channel", "blacklist reset all"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void reset(Sx4CommandEvent event, @Argument(value="channel", endless=true) @Options("all") Alternative<TextChannel> option) {
-		List<Bson> update = List.of(Operators.set("blacklist", Operators.cond(Operators.extinct("$holders"), Operators.REMOVE, new Document("holders", Operators.reduce("$holders", Collections.EMPTY_LIST, Operators.concatArrays("$$value", Operators.cond(Operators.isEmpty(Operators.ifNull(Operators.first(Operators.map(List.of("$$this"), "$$holder.whitelisted", "holder")), Collections.EMPTY_LIST)), Collections.EMPTY_LIST, List.of(Operators.removeObject("$$this", "blacklisted")))))))));
+		List<Bson> update = List.of(Operators.set("holders", Operators.reduce(Operators.ifNull("$holders", Collections.EMPTY_LIST), Collections.EMPTY_LIST, Operators.concatArrays("$$value", Operators.cond(Operators.isEmpty(Operators.ifNull(Operators.first(Operators.map(List.of("$$this"), "$$holder.whitelisted", "holder")), Collections.EMPTY_LIST)), Collections.EMPTY_LIST, List.of(Operators.removeObject("$$this", "blacklisted")))))));
 		if (option.isAlternative()) {
 			event.getMongo().updateManyBlacklists(Filters.eq("guildId", event.getGuild().getIdLong()), update, new UpdateOptions()).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {

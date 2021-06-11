@@ -5,6 +5,7 @@ import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
 import com.mongodb.client.model.*;
 import com.sx4.bot.annotations.argument.Colour;
+import com.sx4.bot.annotations.argument.ImageUrl;
 import com.sx4.bot.annotations.argument.Options;
 import com.sx4.bot.annotations.command.*;
 import com.sx4.bot.category.ModuleCategory;
@@ -331,6 +332,46 @@ public class SuggestionCommand extends Sx4Command {
 
 			event.reply(suggestion.getEmbed(event.getShardManager(), suggestion.getFullState(states))).queue();
 		}
+	}
+
+	@Command(value="name", description="Set the name of the webhook that sends suggestion messages")
+	@CommandId(437)
+	@Examples({"suggestion name Suggestions", "suggestion name Server Suggestions"})
+	@Premium
+	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
+	public void name(Sx4CommandEvent event, @Argument(value="name", endless=true) String name) {
+		event.getMongo().updateGuildById(event.getGuild().getIdLong(), Updates.set("suggestion.webhook.name", name)).whenComplete((result, exception) -> {
+			if (ExceptionUtility.sendExceptionally(event, exception)) {
+				return;
+			}
+
+			if (result.getModifiedCount() == 0 && result.getUpsertedId() == null) {
+				event.replyFailure("Your suggestion webhook name was already set to that").queue();
+				return;
+			}
+
+			event.replySuccess("Your suggestion webhook name has been updated, this only works with premium <https://patreon.com/Sx4>").queue();
+		});
+	}
+
+	@Command(value="avatar", description="Set the avatar of the webhook that sends suggestion messages")
+	@CommandId(438)
+	@Examples({"suggestion avatar Shea#6653", "suggestion avatar https://i.imgur.com/i87lyNO.png"})
+	@Premium
+	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
+	public void avatar(Sx4CommandEvent event, @Argument(value="avatar", endless=true, acceptEmpty=true) @ImageUrl String url) {
+		event.getMongo().updateGuildById(event.getGuild().getIdLong(), Updates.set("suggestion.webhook.avatar", url)).whenComplete((result, exception) -> {
+			if (ExceptionUtility.sendExceptionally(event, exception)) {
+				return;
+			}
+
+			if (result.getModifiedCount() == 0 && result.getUpsertedId() == null) {
+				event.replyFailure("Your suggestion webhook avatar was already set to that").queue();
+				return;
+			}
+
+			event.replySuccess("Your suggestion webhook avatar has been updated, this only works with premium <https://patreon.com/Sx4>").queue();
+		});
 	}
 	
 	public static class StateCommand extends Sx4Command {

@@ -25,13 +25,11 @@ import com.sx4.bot.managers.LeaverManager;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.LeaverUtility;
 import com.sx4.bot.utility.MessageUtility;
-import com.sx4.bot.utility.OperatorsUtility;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.TextChannel;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 
-import java.time.Clock;
 import java.util.List;
 
 public class LeaverCommand extends Sx4Command {
@@ -40,7 +38,7 @@ public class LeaverCommand extends Sx4Command {
 		super("leaver", 188);
 
 		super.setDescription("Set the bot to send welcome messages when a user joins the server");
-		super.setExamples("welcomer toggle", "welcomer message", "welcomer channel");
+		super.setExamples("leaver toggle", "leaver message", "leaver channel");
 		super.setCategoryAll(ModuleCategory.MANAGEMENT);
 	}
 
@@ -143,26 +141,17 @@ public class LeaverCommand extends Sx4Command {
 	@Premium
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void name(Sx4CommandEvent event, @Argument(value="name", endless=true) String name) {
-		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().projection(Projections.include("leaver.webhook.name", "premium.endAt")).returnDocument(ReturnDocument.BEFORE).upsert(true);
-		event.getMongo().findAndUpdateGuildById(event.getGuild().getIdLong(), List.of(OperatorsUtility.setIfPremium("leaver.webhook.name", name)), options).whenComplete((data, exception) -> {
+		event.getMongo().updateGuildById(event.getGuild().getIdLong(), Updates.set("leaver.webhook.name", name)).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
 
-			data = data == null ? MongoDatabase.EMPTY_DOCUMENT : data;
-
-			if (data.getEmbedded(List.of("premium", "endAt"), 0L) < Clock.systemUTC().instant().getEpochSecond()) {
-				event.replyFailure("This server needs premium to use this command").queue();
-				return;
-			}
-
-			String oldName = data.getEmbedded(List.of("leaver", "webhook", "name"), String.class);
-			if (oldName != null && oldName.equals(name)) {
+			if (result.getModifiedCount() == 0 && result.getUpsertedId() == null) {
 				event.replyFailure("Your leaver webhook name was already set to that").queue();
 				return;
 			}
 
-			event.replySuccess("Your leaver webhook name has been updated").queue();
+			event.replySuccess("Your leaver webhook name has been updated, this only works with premium <https://patreon.com/Sx4>").queue();
 		});
 	}
 
@@ -172,26 +161,17 @@ public class LeaverCommand extends Sx4Command {
 	@Premium
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void avatar(Sx4CommandEvent event, @Argument(value="avatar", endless=true, acceptEmpty=true) @ImageUrl String url) {
-		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().projection(Projections.include("leaver.webhook.avatar", "premium.endAt")).returnDocument(ReturnDocument.BEFORE).upsert(true);
-		event.getMongo().findAndUpdateGuildById(event.getGuild().getIdLong(), List.of(OperatorsUtility.setIfPremium("leaver.webhook.avatar", url)), options).whenComplete((data, exception) -> {
+		event.getMongo().updateGuildById(event.getGuild().getIdLong(), Updates.set("leaver.webhook.avatar", url)).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
 
-			data = data == null ? MongoDatabase.EMPTY_DOCUMENT : data;
-
-			if (data.getEmbedded(List.of("premium", "endAt"), 0L) < Clock.systemUTC().instant().getEpochSecond()) {
-				event.replyFailure("This server needs premium to use this command").queue();
-				return;
-			}
-
-			String oldUrl = data.getEmbedded(List.of("leaver", "webhook", "avatar"), String.class);
-			if (oldUrl != null && oldUrl.equals(url)) {
+			if (result.getModifiedCount() == 0 && result.getUpsertedId() == null) {
 				event.replyFailure("Your leaver webhook avatar was already set to that").queue();
 				return;
 			}
 
-			event.replySuccess("Your leaver webhook avatar has been updated").queue();
+			event.replySuccess("Your leaver webhook avatar has been updated, this only works with premium <https://patreon.com/Sx4>").queue();
 		});
 	}
 
