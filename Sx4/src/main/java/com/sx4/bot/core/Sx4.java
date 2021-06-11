@@ -989,17 +989,19 @@ public class Sx4 {
 					CommandParserImpl parser = (CommandParserImpl) context.getCommandParser();
 
 					String contentToHandle = null;
-					for (Pair<Character, Character> quotes : parser.getQuoteCharacters()) {
-						contentToHandle = com.jockie.bot.core.utility.StringUtility.parseWrapped(content, quotes.getLeft(), quotes.getRight());
-						if (contentToHandle != null) {
-							content = content.substring(contentToHandle.length());
-							contentToHandle = com.jockie.bot.core.utility.StringUtility.unwrap(contentToHandle, quotes.getLeft(), quotes.getRight());
+					if (!argument.isEndless()) {
+						for (Pair<Character, Character> quotes : parser.getQuoteCharacters()) {
+							contentToHandle = com.jockie.bot.core.utility.StringUtility.parseWrapped(content, quotes.getLeft(), quotes.getRight());
+							if (contentToHandle != null) {
+								content = content.substring(contentToHandle.length());
+								contentToHandle = com.jockie.bot.core.utility.StringUtility.unwrap(contentToHandle, quotes.getLeft(), quotes.getRight());
 
-							if (context.getCommand().getArgumentTrimType().equals(ICommand.ArgumentTrimType.STRICT)) {
-								contentToHandle = com.jockie.bot.core.utility.StringUtility.strip(contentToHandle);
+								if (context.getCommand().getArgumentTrimType().equals(ICommand.ArgumentTrimType.STRICT)) {
+									contentToHandle = com.jockie.bot.core.utility.StringUtility.strip(contentToHandle);
+								}
+
+								break;
 							}
-
-							break;
 						}
 					}
 

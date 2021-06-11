@@ -62,7 +62,7 @@ public class ServerLogHandler implements EventListener {
 				.append("shard_count", shardCount);
 
 			Request request = new Request.Builder()
-				.post(RequestBody.create(MediaType.parse("application/json; charset=utf-8"), data.toString()))
+				.post(RequestBody.create(MediaType.parse("application/json"), data.toJson()))
 				.url("https://top.gg/api/bots/440996323156819968/stats")
 				.addHeader("Authorization", this.bot.getConfig().getTopGG())
 				.addHeader("Content-Type", "application/json")
