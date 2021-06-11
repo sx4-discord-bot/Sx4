@@ -77,6 +77,8 @@ public class MediaModeHandler implements EventListener {
 			this.onGuildMessageReceived((GuildMessageReceivedEvent) event);
 		} else if (event instanceof GuildMessageUpdateEvent) {
 			this.onGuildMessageUpdate((GuildMessageUpdateEvent) event);
+		} else if (event instanceof TextChannelDeleteEvent) {
+			this.onTextChannelDelete((TextChannelDeleteEvent) event);
 		}
 	}
 

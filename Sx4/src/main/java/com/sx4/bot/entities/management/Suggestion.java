@@ -212,4 +212,23 @@ public class Suggestion {
 		return new Suggestion(data);
 	}
 
+	public static WebhookEmbed getWebhookEmbed(ObjectId id, User moderator, User author, String suggestion, String reason, SuggestionState state) {
+		WebhookEmbedBuilder embed = new WebhookEmbedBuilder()
+			.setAuthor(new EmbedAuthor(author == null ? "Anonymous#0000" : author.getAsTag(), author == null ? null : author.getEffectiveAvatarUrl(), null))
+			.setDescription(suggestion)
+			.setFooter(new EmbedFooter(String.format("%s | ID: %s", state.getName(), id.toHexString()), null))
+			.setColor(state.getColour())
+			.setTimestamp(Instant.ofEpochSecond(id.getTimestamp()));
+
+		if (moderator != null) {
+			embed.addField(new EmbedField(true, "Moderator", moderator.getAsTag()));
+		}
+
+		if (reason != null) {
+			embed.addField(new EmbedField(true, "Reason", reason));
+		}
+
+		return embed.build();
+	}
+
 }
