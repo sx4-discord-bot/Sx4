@@ -75,6 +75,8 @@ public class WelcomerUtility {
 					builder.addFile(fileName, response.body().bytes());
 
 					consumer.accept(builder, null);
+				} else {
+					response.close();
 				}
 			});
 		}

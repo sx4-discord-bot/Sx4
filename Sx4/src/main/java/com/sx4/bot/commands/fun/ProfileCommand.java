@@ -265,7 +265,13 @@ public class ProfileCommand extends Sx4Command {
 			if (option.isAlternative()) {
 				File file = new File("profile/banners/" + event.getAuthor().getId() + ".png");
 				if (file.delete()) {
-					event.replySuccess("Your profile banner has been unset").queue();
+					event.getMongo().updateUserById(event.getAuthor().getIdLong(), Updates.unset("profile.bannerId")).whenComplete((result, exception) -> {
+						if (ExceptionUtility.sendExceptionally(event, exception)) {
+							return;
+						}
+
+						event.replySuccess("Your profile banner has been unset").queue();
+					});
 				} else {
 					event.replyFailure("You do not have a profile banner").queue();
 				}
