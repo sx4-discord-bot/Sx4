@@ -22,6 +22,8 @@ import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.argument.Alternative;
+import com.sx4.bot.formatter.FormatterManager;
+import com.sx4.bot.formatter.function.FormatterVariable;
 import com.sx4.bot.http.HttpCallback;
 import com.sx4.bot.managers.WelcomerManager;
 import com.sx4.bot.utility.ExceptionUtility;
@@ -29,7 +31,10 @@ import com.sx4.bot.utility.MessageUtility;
 import com.sx4.bot.utility.WelcomerUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.TextChannel;
+import net.dv8tion.jda.api.entities.User;
 import okhttp3.Request;
 import org.bson.Document;
 import org.bson.conversions.Bson;
@@ -38,8 +43,10 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.time.Clock;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Set;
+import java.util.StringJoiner;
 
 public class WelcomerCommand extends Sx4Command {
 
@@ -276,6 +283,40 @@ public class WelcomerCommand extends Sx4Command {
 			.addField("Private Message Status", data.getBoolean("dm", false) ? "Enabled" : "Disabled", true)
 			.addField("Webhook Name", data.getEmbedded(List.of("webhook", "name"), "Sx4 - Welcomer"), true)
 			.addField("Webhook Avatar", data.getEmbedded(List.of("webhook", "avatar"), event.getSelfUser().getEffectiveAvatarUrl()), true);
+
+		event.reply(embed.build()).queue();
+	}
+
+	@Command(value="formatters", aliases={"format", "formatting"}, description="Get all the formatters for welcomer you can use")
+	@CommandId(441)
+	@Examples({"welcomer formatters"})
+	@BotPermissions(permissions={Permission.MESSAGE_EMBED_LINKS})
+	public void formatters(Sx4CommandEvent event) {
+		EmbedBuilder embed = new EmbedBuilder()
+			.setAuthor("Welcomer Formatters", null, event.getSelfUser().getEffectiveAvatarUrl());
+
+		FormatterManager manager = FormatterManager.getDefaultManager();
+
+		StringJoiner content = new StringJoiner("\n");
+		for (FormatterVariable<?> variable : manager.getVariables(User.class)) {
+			content.add("`{user." + variable.getName() + "}` - " + variable.getDescription());
+		}
+
+		for (FormatterVariable<?> variable : manager.getVariables(Member.class)) {
+			content.add("`{member." + variable.getName() + "}` - " + variable.getDescription());
+		}
+
+		for (FormatterVariable<?> variable : manager.getVariables(Guild.class)) {
+			content.add("`{server." + variable.getName() + "}` - " + variable.getDescription());
+		}
+
+		for (FormatterVariable<?> variable : manager.getVariables(OffsetDateTime.class)) {
+			content.add("`{now." + variable.getName() + "}` - " + variable.getDescription());
+		}
+
+		content.add("`{user.age}` - Gets the age of a user as a string");
+
+		embed.setDescription(content.toString());
 
 		event.reply(embed.build()).queue();
 	}

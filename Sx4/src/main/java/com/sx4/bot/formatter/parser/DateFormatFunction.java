@@ -10,7 +10,7 @@ import java.time.temporal.Temporal;
 public class DateFormatFunction extends FormatterFunction<Temporal> {
 
 	public DateFormatFunction() {
-		super(Temporal.class, "format");
+		super(Temporal.class, "format", "Formats a date to DateTimeFormatter standard");
 	}
 
 	public String parse(FormatterEvent<Temporal> event, String pattern) {

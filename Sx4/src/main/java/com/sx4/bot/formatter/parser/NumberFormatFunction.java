@@ -8,7 +8,7 @@ import java.text.DecimalFormat;
 public class NumberFormatFunction extends FormatterFunction<Number> {
 
 	public NumberFormatFunction() {
-		super(Number.class, "format");
+		super(Number.class, "format", "Formats a number by the standard of DecimalFormat");
 	}
 
 	public String parse(FormatterEvent<Number> event, String format) {

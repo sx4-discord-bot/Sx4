@@ -17,6 +17,10 @@ import com.sx4.bot.annotations.command.Examples;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
+import com.sx4.bot.entities.youtube.YouTubeChannel;
+import com.sx4.bot.entities.youtube.YouTubeVideo;
+import com.sx4.bot.formatter.FormatterManager;
+import com.sx4.bot.formatter.function.FormatterVariable;
 import com.sx4.bot.http.HttpCallback;
 import com.sx4.bot.managers.YouTubeManager;
 import com.sx4.bot.paged.PagedResult;
@@ -37,6 +41,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.StringJoiner;
 import java.util.concurrent.CompletionException;
 
 public class YouTubeNotificationCommand extends Sx4Command {
@@ -275,6 +280,30 @@ public class YouTubeNotificationCommand extends Sx4Command {
 			.setFooter("Created at")
 			.setTimestamp(Instant.ofEpochSecond(id.getTimestamp()));
 		
+		event.reply(embed.build()).queue();
+	}
+
+	@Command(value="formatters", aliases={"format", "formatting"}, description="Get all the formatters for YouTube notifications you can use")
+	@CommandId(445)
+	@Examples({"youtube notification formatters"})
+	@BotPermissions(permissions={Permission.MESSAGE_EMBED_LINKS})
+	public void formatters(Sx4CommandEvent event) {
+		EmbedBuilder embed = new EmbedBuilder()
+			.setAuthor("YouTube Notification Formatters", null, event.getSelfUser().getEffectiveAvatarUrl());
+
+		FormatterManager manager = FormatterManager.getDefaultManager();
+
+		StringJoiner content = new StringJoiner("\n");
+		for (FormatterVariable<?> variable : manager.getVariables(YouTubeVideo.class)) {
+			content.add("`{video." + variable.getName() + "}` - " + variable.getDescription());
+		}
+
+		for (FormatterVariable<?> variable : manager.getVariables(YouTubeChannel.class)) {
+			content.add("`{channel." + variable.getName() + "}` - " + variable.getDescription());
+		}
+
+		embed.setDescription(content.toString());
+
 		event.reply(embed.build()).queue();
 	}
 	

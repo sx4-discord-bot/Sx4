@@ -6,7 +6,7 @@ import com.sx4.bot.formatter.function.FormatterFunction;
 public class NotEqualsFunction extends FormatterFunction<Object> {
 
 	public NotEqualsFunction() {
-		super(Object.class, "notEquals", true);
+		super(Object.class, "notEquals", "Checks if the two objects are not equal", true);
 	}
 
 	public boolean parse(FormatterEvent<Object> event, Object argument) {

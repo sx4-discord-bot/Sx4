@@ -6,7 +6,7 @@ import com.sx4.bot.formatter.function.FormatterStaticFunction;
 public class SetStaticFunction extends FormatterStaticFunction {
 
 	public SetStaticFunction() {
-		super("set");
+		super("set", "Allows you to define your own variables");
 	}
 
 	public Object parse(FormatterEvent<Void> event, String name, Object object) {

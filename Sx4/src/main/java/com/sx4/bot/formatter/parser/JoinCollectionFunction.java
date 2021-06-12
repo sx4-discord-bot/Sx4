@@ -9,7 +9,7 @@ import java.util.StringJoiner;
 public class JoinCollectionFunction extends FormatterFunction<Collection> {
 
 	public JoinCollectionFunction() {
-		super(Collection.class, "join");
+		super(Collection.class, "join", "Joins a list by a delimiter");
 	}
 
 	public String parse(FormatterEvent<Collection<?>> event, String delimiter) {

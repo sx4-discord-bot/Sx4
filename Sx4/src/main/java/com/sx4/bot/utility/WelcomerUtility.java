@@ -27,7 +27,7 @@ public class WelcomerUtility {
 			.member(member)
 			.user(user)
 			.guild(guild)
-			.addVariable("user.created.length", TimeUtility.getTimeString(Duration.between(user.getTimeCreated(), now).toSeconds()))
+			.addVariable(User.class, "age", TimeUtility.getTimeString(Duration.between(user.getTimeCreated(), now).toSeconds()))
 			.addVariable("now", now);
 
 		if (!image) {

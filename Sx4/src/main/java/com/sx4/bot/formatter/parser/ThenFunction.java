@@ -7,7 +7,7 @@ import com.sx4.bot.formatter.function.FormatterFunction;
 public class ThenFunction extends FormatterFunction<Boolean> {
 
 	public ThenFunction() {
-		super(Boolean.class, "then");
+		super(Boolean.class, "then", "The value to be returned if the condition is true");
 	}
 
 	public FormatterCondition parse(FormatterEvent<Boolean> event, Object object) {

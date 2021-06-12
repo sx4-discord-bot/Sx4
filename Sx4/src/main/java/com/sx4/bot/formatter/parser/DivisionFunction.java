@@ -6,7 +6,7 @@ import com.sx4.bot.formatter.function.FormatterFunction;
 public class DivisionFunction extends FormatterFunction<Number> {
 
 	public DivisionFunction() {
-		super(Number.class, "divide");
+		super(Number.class, "divide", "Divides one number by another");
 	}
 
 	public Number parse(FormatterEvent<Number> event, Number number) {

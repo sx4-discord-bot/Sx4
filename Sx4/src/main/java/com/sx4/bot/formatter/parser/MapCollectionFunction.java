@@ -11,7 +11,7 @@ import java.util.List;
 public class MapCollectionFunction extends FormatterFunction<Collection> {
 
 	public MapCollectionFunction() {
-		super(Collection.class, "map");
+		super(Collection.class, "map", "Maps a list to another object");
 	}
 
 	public List<?> parse(FormatterEvent<Collection<?>> event, String lambda) {

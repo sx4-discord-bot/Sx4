@@ -23,7 +23,7 @@ public class LeaverHandler implements EventListener {
 	}
 
 	public void onGuildMemberRemove(GuildMemberRemoveEvent event) {
-		Document data = this.bot.getMongo().getGuildById(event.getGuild().getIdLong(), Projections.include("welcomer", "premium.endAt"));
+		Document data = this.bot.getMongo().getGuildById(event.getGuild().getIdLong(), Projections.include("leaver", "premium.endAt"));
 
 		Document leaver = data.get("leaver", MongoDatabase.EMPTY_DOCUMENT);
 
@@ -42,7 +42,7 @@ public class LeaverHandler implements EventListener {
 		try {
 			builder = LeaverUtility.getLeaverMessage(leaver.get("message", LeaverManager.DEFAULT_MESSAGE), event.getMember());
 		} catch (IllegalArgumentException e) {
-			this.bot.getMongo().updateGuildById(event.getGuild().getIdLong(), Updates.unset("welcomer.message")).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
+			this.bot.getMongo().updateGuildById(event.getGuild().getIdLong(), Updates.unset("leaver.message")).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
 			return;
 		}
 

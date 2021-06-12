@@ -210,7 +210,8 @@ public class MongoDatabase {
 		this.regexTemplates.createIndex(Indexes.descending("pattern"));
 
 		this.regexes = this.database.getCollection("regexes");
-		this.regexes.createIndex(Indexes.descending("guildId", "regexId"));
+		this.regexes.createIndex(Indexes.descending("guildId", "regexId"), new IndexOptions().unique(true).partialFilterExpression(Filters.exists("regexId")));
+		this.regexes.createIndex(Indexes.descending("guildId"));
 
 		this.regexAttempts = this.database.getCollection("regexAttempts");
 		this.regexAttempts.createIndex(Indexes.descending("userId", "regexId"), uniqueIndex);

@@ -8,7 +8,7 @@ import java.util.Random;
 public class SeedFunction extends FormatterFunction<Random> {
 
 	public SeedFunction() {
-		super(Random.class, "seed");
+		super(Random.class, "seed", "Sets the seed for the random instance");
 	}
 
 	public Random parse(FormatterEvent<Random> event, Long seed) {

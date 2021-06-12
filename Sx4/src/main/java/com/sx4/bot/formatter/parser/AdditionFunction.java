@@ -6,7 +6,7 @@ import com.sx4.bot.formatter.function.FormatterFunction;
 public class AdditionFunction extends FormatterFunction<Number> {
 
 	public AdditionFunction() {
-		super(Number.class, "add");
+		super(Number.class, "add", "Adds two numbers together");
 	}
 
 	public Number parse(FormatterEvent<Number> event, Number number) {

@@ -9,7 +9,7 @@ import java.time.temporal.Temporal;
 public class PlusSecondsFunction extends FormatterFunction<Temporal> {
 
 	public PlusSecondsFunction() {
-		super(Temporal.class, "plusSeconds");
+		super(Temporal.class, "plusSeconds", "Adds a certain amount of seconds to a date");
 	}
 
 	public Temporal parse(FormatterEvent<Temporal> event, Long amount) {

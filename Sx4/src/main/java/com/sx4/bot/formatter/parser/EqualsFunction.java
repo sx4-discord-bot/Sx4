@@ -6,7 +6,7 @@ import com.sx4.bot.formatter.function.FormatterFunction;
 public class EqualsFunction extends FormatterFunction<Object> {
 
 	public EqualsFunction() {
-		super(Object.class, "equals", true);
+		super(Object.class, "equals", "Checks if two objects are equal", true);
 	}
 
 	public boolean parse(FormatterEvent<Object> event, Object argument) {

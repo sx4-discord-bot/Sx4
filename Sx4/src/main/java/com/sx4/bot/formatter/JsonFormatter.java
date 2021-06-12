@@ -15,6 +15,12 @@ public class JsonFormatter implements IFormatter<Document> {
 		this.manager = new FormatterManager(FormatterManager.getDefaultManager());
 	}
 
+	public JsonFormatter addVariable(Class<?> type, String name, Object argument) {
+		this.manager.addVariable(name, type, $ -> argument);
+
+		return this;
+	}
+
 	public JsonFormatter addVariable(String name, Object argument) {
 		this.manager.addVariable(name, Void.class, $ -> argument);
 

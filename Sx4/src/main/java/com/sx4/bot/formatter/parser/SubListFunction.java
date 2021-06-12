@@ -8,7 +8,7 @@ import java.util.List;
 public class SubListFunction extends FormatterFunction<List> {
 
 	public SubListFunction() {
-		super(List.class, "subList");
+		super(List.class, "subList", "Cuts off a list by the indexes provided");
 	}
 
 	public List<?> parse(FormatterEvent<List<?>> event, Integer start, Integer end) {

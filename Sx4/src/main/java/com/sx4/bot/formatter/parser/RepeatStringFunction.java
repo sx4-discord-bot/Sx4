@@ -6,7 +6,7 @@ import com.sx4.bot.formatter.function.FormatterFunction;
 public class RepeatStringFunction extends FormatterFunction<String> {
 
 	public RepeatStringFunction() {
-		super(String.class, "repeat");
+		super(String.class, "repeat", "Repeats a string by the count given");
 	}
 
 	public String parse(FormatterEvent<String> event, Integer count) {

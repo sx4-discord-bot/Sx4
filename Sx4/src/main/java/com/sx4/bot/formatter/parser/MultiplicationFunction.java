@@ -6,7 +6,7 @@ import com.sx4.bot.formatter.function.FormatterFunction;
 public class MultiplicationFunction extends FormatterFunction<Number> {
 
 	public MultiplicationFunction() {
-		super(Number.class, "multiply");
+		super(Number.class, "multiply", "Multiplies both numbers together");
 	}
 
 	public Number parse(FormatterEvent<Number> event, Number number) {

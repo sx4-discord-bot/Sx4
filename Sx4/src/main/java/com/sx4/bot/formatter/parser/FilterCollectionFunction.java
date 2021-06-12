@@ -11,7 +11,7 @@ import java.util.List;
 public class FilterCollectionFunction extends FormatterFunction<Collection> {
 
 	public FilterCollectionFunction() {
-		super(Collection.class, "filter");
+		super(Collection.class, "filter", "Filters a list by a condition");
 	}
 
 	public List<?> parse(FormatterEvent<Collection<?>> event, String lambda) {

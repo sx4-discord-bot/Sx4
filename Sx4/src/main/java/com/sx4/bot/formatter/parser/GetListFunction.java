@@ -8,7 +8,7 @@ import java.util.List;
 public class GetListFunction extends FormatterFunction<List> {
 
 	public GetListFunction() {
-		super(List.class, "get");
+		super(List.class, "get", "Gets an element in a list by a specific index");
 	}
 
 	public Object parse(FormatterEvent<List<?>> event, Integer index) {

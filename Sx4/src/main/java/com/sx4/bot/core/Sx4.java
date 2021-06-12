@@ -220,72 +220,80 @@ public class Sx4 {
 
 		FormatterManager formatterManager = new FormatterManager()
 			.addFunctions("com.sx4.bot.formatter.parser")
-			.addVariable("name", Action.class, action -> action == null ? null : action.getName().toLowerCase())
-			.addVariable("exists", Action.class, Objects::nonNull)
-			.addVariable("suffix", Integer.class, NumberUtility::getSuffixed)
-			.addVariable("round", Double.class, Math::round)
-			.addVariable("floor", Double.class, Math::floor)
-			.addVariable("ceil", Double.class, Math::ceil)
-			.addVariable("length", Collection.class, Collection::size)
-			.addVariable("empty", Collection.class, Collection::isEmpty)
-			.addVariable("name", Role.class, Role::getName)
-			.addVariable("id", Role.class, Role::getIdLong)
-			.addVariable("created", Role.class, Role::getTimeCreated)
-			.addVariable("colour", Role.class, Role::getColor)
-			.addVariable("color", Role.class, Role::getColor)
-			.addVariable("raw", Color.class, Color::getRGB)
-			.addVariable("hex", Color.class, colour -> "#" + ColourUtility.toHexString(colour.getRGB()))
-			.addVariable("name", ReactionEmote.class, emote -> emote.isEmoji() ? emote.getName() : emote.getEmote().getName())
-			.addVariable("id", ReactionEmote.class, emote -> emote.isEmoji() ? emote.getName() : emote.getEmote().getIdLong())
-			.addVariable("mention", ReactionEmote.class, emote -> emote.isEmoji() ? emote.getName() : emote.getEmote().getAsMention())
-			.addVariable("created", ReactionEmote.class, emote -> emote.isEmoji() ? OffsetDateTime.ofInstant(Instant.EPOCH, ZoneOffset.UTC) : emote.getEmote().getTimeCreated())
-			.addVariable("raw", Permission.class, Permission::getRawValue)
-			.addVariable("name", Permission.class, Permission::getName)
-			.addVariable("permissions", IPermissionHolder.class, IPermissionHolder::getPermissions)
-			.addVariable("mention", IMentionable.class, IMentionable::getAsMention)
-			.addVariable("id", GuildChannel.class, GuildChannel::getIdLong)
-			.addVariable("name", GuildChannel.class, GuildChannel::getName)
-			.addVariable("created", GuildChannel.class, GuildChannel::getTimeCreated)
-			.addVariable("slowmode", TextChannel.class, TextChannel::getSlowmode)
-			.addVariable("bitrate", VoiceChannel.class, VoiceChannel::getBitrate)
-			.addVariable("limit", VoiceChannel.class, VoiceChannel::getUserLimit)
-			.addVariable("name", Guild.class, Guild::getName)
-			.addVariable("id", Guild.class, Guild::getIdLong)
-			.addVariable("owner", Guild.class, Guild::getOwner)
-			.addVariable("boosts", Guild.class, Guild::getBoostCount)
-			.addVariable("boosters", Guild.class, Guild::getBoosters)
-			.addVariable("members", Guild.class, Guild::getMemberCount)
-			.addVariable("avatar", Guild.class, Guild::getIconUrl)
-			.addVariable("created", Guild.class, Guild::getTimeCreated)
-			.addVariable("user", Member.class, Member::getUser)
-			.addVariable("nickname", Member.class, Member::getNickname)
-			.addVariable("roles", Member.class, Member::getRoles)
-			.addVariable("colour", Member.class, Member::getColor)
-			.addVariable("color", Member.class, Member::getColor)
-			.addVariable("joined", Member.class, Member::getTimeJoined)
-			.addVariable("id", User.class, User::getIdLong)
-			.addVariable("name", User.class, User::getName)
-			.addVariable("avatar", User.class, User::getEffectiveAvatarUrl)
-			.addVariable("discriminator", User.class, User::getDiscriminator)
-			.addVariable("badges", User.class, User::getFlags)
-			.addVariable("tag", User.class, User::getAsTag)
-			.addVariable("created", User.class, User::getTimeCreated)
-			.addVariable("name", User.UserFlag.class, User.UserFlag::getName)
-			.addVariable("raw", User.UserFlag.class, User.UserFlag::getRawValue)
-			.addVariable("offset", User.UserFlag.class, User.UserFlag::getOffset)
-			.addVariable("day", OffsetDateTime.class, OffsetDateTime::getDayOfMonth)
-			.addVariable("month", OffsetDateTime.class, OffsetDateTime::getMonthValue)
-			.addVariable("year", OffsetDateTime.class, OffsetDateTime::getYear)
-			.addVariable("id", YouTubeVideo.class, YouTubeVideo::getId)
-			.addVariable("url", YouTubeVideo.class, YouTubeVideo::getUrl)
-			.addVariable("title", YouTubeVideo.class, YouTubeVideo::getTitle)
-			.addVariable("thumbnail", YouTubeVideo.class, YouTubeVideo::getThumbnail)
-			.addVariable("published", YouTubeVideo.class, YouTubeVideo::getPublishedAt)
-			.addVariable("id", YouTubeChannel.class, YouTubeChannel::getId)
-			.addVariable("url", YouTubeChannel.class, YouTubeChannel::getUrl)
-			.addVariable("name", YouTubeChannel.class, YouTubeChannel::getName)
+			.addVariable("name", "Gets the name of the action", Action.class, action -> action == null ? null : action.getName().toLowerCase())
+			.addVariable("exists", "Gets whether the action exists or not", Action.class, Objects::nonNull)
+			.addVariable("suffix", "Gets the suffixed version of a number", Integer.class, NumberUtility::getSuffixed)
+			.addVariable("round", "Gets the rounded number", Double.class, Math::round)
+			.addVariable("floor", "Gets the floored number", Double.class, Math::floor)
+			.addVariable("ceil", "Gets the ceiled number", Double.class, Math::ceil)
+			.addVariable("length", "Gets the length of the list", Collection.class, Collection::size)
+			.addVariable("empty", "Gets whether the list is empty or not", Collection.class, Collection::isEmpty)
+			.addVariable("name", "Gets the name of the role", Role.class, Role::getName)
+			.addVariable("id", "Gets the id or the role", Role.class, Role::getIdLong)
+			.addVariable("created", "Gets the date the role was created", Role.class, Role::getTimeCreated)
+			.addVariable("colour", "Gets the colour of the role", Role.class, Role::getColor)
+			.addVariable("color", "Gets the color of the role", Role.class, Role::getColor)
+			.addVariable("raw", "Gets the raw RGB value of the colour", Color.class, Color::getRGB)
+			.addVariable("hex", "Gets the hex code of the colour", Color.class, colour -> "#" + ColourUtility.toHexString(colour.getRGB()))
+			.addVariable("name", "Gets the name of the emote", ReactionEmote.class, emote -> emote.isEmoji() ? emote.getName() : emote.getEmote().getName())
+			.addVariable("id", "Gets the id of the emote", ReactionEmote.class, emote -> emote.isEmoji() ? emote.getName() : emote.getEmote().getIdLong())
+			.addVariable("mention", "Gets the mention of the emote", ReactionEmote.class, emote -> emote.isEmoji() ? emote.getName() : emote.getEmote().getAsMention())
+			.addVariable("created", "Gets the date when the emote was created", ReactionEmote.class, emote -> emote.isEmoji() ? OffsetDateTime.ofInstant(Instant.EPOCH, ZoneOffset.UTC) : emote.getEmote().getTimeCreated())
+			.addVariable("raw", "Gets the raw value of the permission", Permission.class, Permission::getRawValue)
+			.addVariable("name", "Gets the name of the permission", Permission.class, Permission::getName)
+			.addVariable("permissions", "Gets the permissions of the role or user", IPermissionHolder.class, IPermissionHolder::getPermissions)
+			.addVariable("mention", "Gets the mention of the entity", IMentionable.class, IMentionable::getAsMention)
+			.addVariable("id", "Gets the id of the channel", GuildChannel.class, GuildChannel::getIdLong)
+			.addVariable("name", "Gets the name of the channel", GuildChannel.class, GuildChannel::getName)
+			.addVariable("created", "Gets the date the channel was created", GuildChannel.class, GuildChannel::getTimeCreated)
+			.addVariable("slowmode", "Gets the slowmode of the text channel", TextChannel.class, TextChannel::getSlowmode)
+			.addVariable("bitrate", "Gets the bitrate of the voice channel", VoiceChannel.class, VoiceChannel::getBitrate)
+			.addVariable("limit", "Gets the user limit of the voice channel", VoiceChannel.class, VoiceChannel::getUserLimit)
+			.addVariable("name", "Gets the name of the server", Guild.class, Guild::getName)
+			.addVariable("id", "Gets the id of the server", Guild.class, Guild::getIdLong)
+			.addVariable("owner", "Gets the owner of the server", Guild.class, Guild::getOwner)
+			.addVariable("boosts", "Gets the boost count of the server", Guild.class, Guild::getBoostCount)
+			.addVariable("boosters", "Gets the members boosting the server", Guild.class, Guild::getBoosters)
+			.addVariable("members", "Gets the member count of the server", Guild.class, Guild::getMemberCount)
+			.addVariable("avatar", "Gets the icon url of the server", Guild.class, Guild::getIconUrl)
+			.addVariable("created", "Gets the date when the server was created", Guild.class, Guild::getTimeCreated)
+			.addVariable("user", "Gets the user of the member", Member.class, Member::getUser)
+			.addVariable("nickname", "Gets the nickname of the member", Member.class, Member::getNickname)
+			.addVariable("roles", "Gets the roles of the member", Member.class, Member::getRoles)
+			.addVariable("colour", "Gets the colour of the member", Member.class, Member::getColor)
+			.addVariable("color", "Gets the color of the member", Member.class, Member::getColor)
+			.addVariable("joined", "Gets the date when the member joined the server", Member.class, Member::getTimeJoined)
+			.addVariable("id", "Gets the id of the user", User.class, User::getIdLong)
+			.addVariable("name", "Gets the name of the user", User.class, User::getName)
+			.addVariable("avatar", "Gets the avatar url of the user", User.class, User::getEffectiveAvatarUrl)
+			.addVariable("discriminator", "Gets the discriminator of the user", User.class, User::getDiscriminator)
+			.addVariable("badges", "Gets the badges of the user", User.class, User::getFlags)
+			.addVariable("tag", "Gets the tag of the user, name#discriminator", User.class, User::getAsTag)
+			.addVariable("created", "Gets the date when the user was created", User.class, User::getTimeCreated)
+			.addVariable("name", "Gets the name of the badge", User.UserFlag.class, User.UserFlag::getName)
+			.addVariable("raw", "Gets the raw value of the badge", User.UserFlag.class, User.UserFlag::getRawValue)
+			.addVariable("offset", "Gets the offset of the badge", User.UserFlag.class, User.UserFlag::getOffset)
+			.addVariable("day", "Gets the day of the month of the date", OffsetDateTime.class, OffsetDateTime::getDayOfMonth)
+			.addVariable("month", "Gets the month of the year of the date", OffsetDateTime.class, OffsetDateTime::getMonthValue)
+			.addVariable("year", "Gets the year of the date", OffsetDateTime.class, OffsetDateTime::getYear)
+			.addVariable("id", "Gets the id of the YouTube video", YouTubeVideo.class, YouTubeVideo::getId)
+			.addVariable("url", "Gets the url of the YouTube video", YouTubeVideo.class, YouTubeVideo::getUrl)
+			.addVariable("title", "Gets the title of the YouTube video", YouTubeVideo.class, YouTubeVideo::getTitle)
+			.addVariable("thumbnail", "Gets the thumbnail of the YouTube video", YouTubeVideo.class, YouTubeVideo::getThumbnail)
+			.addVariable("published", "Gets the date when the YouTube video was published", YouTubeVideo.class, YouTubeVideo::getPublishedAt)
+			.addVariable("id", "Gets the id of the YouTube channel", YouTubeChannel.class, YouTubeChannel::getId)
+			.addVariable("url", "Gets the url of the YouTube channel", YouTubeChannel.class, YouTubeChannel::getUrl)
+			.addVariable("name", "Gets the name of the YouTube channel", YouTubeChannel.class, YouTubeChannel::getName)
 			.addParser(String.class, text -> text)
-			.addParser(Boolean.class, text -> text.equals("true"))
+			.addParser(Boolean.class, text -> {
+				if (text.equals("true")) {
+					return true;
+				} else if (text.equals("false")) {
+					return false;
+				} else {
+					return null;
+				}
+			})
 			.addParser(Temporal.class, text -> {
 				try {
 					return OffsetDateTime.parse(text);
@@ -1068,40 +1076,48 @@ public class Sx4 {
 				} catch (PatternSyntaxException e) {
 					return new ParsedResult<>();
 				}
-			}).registerParser(PartialEmote.class, (context, argument, content) -> {
-				if (content.isEmpty()) {
-					Attachment attachment = context.getMessage().getAttachments().stream()
-						.filter(Attachment::isImage)
-						.findFirst()
-						.orElse(null);
-					
-					if (attachment != null) {
-						return new ParsedResult<>(new PartialEmote(attachment.getUrl(), attachment.getFileName(), attachment.getFileExtension().equalsIgnoreCase("gif")));
+			}).registerParser(PartialEmote.class, new IParser<>() {
+				public ParsedResult<PartialEmote> parse(ParseContext context, IArgument<PartialEmote> argument, String content) {
+					int nextSpace = content.indexOf(' ');
+					String query = nextSpace == -1 || argument.isEndless() ? content : content.substring(0, nextSpace);
+
+					if (query.isEmpty()) {
+						Attachment attachment = context.getMessage().getAttachments().stream()
+							.filter(Attachment::isImage)
+							.findFirst()
+							.orElse(null);
+
+						if (attachment != null) {
+							return new ParsedResult<>(new PartialEmote(attachment.getUrl(), attachment.getFileName(), attachment.getFileExtension().equalsIgnoreCase("gif")), content.substring(query.length()));
+						}
+
+						return new ParsedResult<>();
 					}
-					
-					return new ParsedResult<>();
+
+					PartialEmote partialEmote = SearchUtility.getPartialEmote(context.getMessage().getJDA().getShardManager(), query);
+					if (partialEmote != null) {
+						return new ParsedResult<>(partialEmote, content.substring(query.length()));
+					}
+
+					try {
+						new URL(query);
+					} catch (MalformedURLException e) {
+						return new ParsedResult<>();
+					}
+
+					String extension = StringUtility.getFileExtension(query);
+					if (extension != null) {
+						return new ParsedResult<>(new PartialEmote(query, null, extension.equalsIgnoreCase("gif")), content.substring(query.length()));
+					} else {
+						return new ParsedResult<>();
+					}
 				}
-				
-				PartialEmote partialEmote = SearchUtility.getPartialEmote(this.shardManager, content);
-				if (partialEmote != null) {
-					return new ParsedResult<>(partialEmote);
-				}
-				
-				try {
-					new URL(content);
-				} catch (MalformedURLException e) {
-					return new ParsedResult<>();
-				}
-				
-				String extension = StringUtility.getFileExtension(content);
-				if (extension != null) {
-					return new ParsedResult<>(new PartialEmote(content, null, extension.equalsIgnoreCase("gif")));
-				} else {
-					return new ParsedResult<>();
+
+				public boolean isHandleAll() {
+					return true;
 				}
 			}).registerParser(MessageArgument.class, new IParser<>() {
 				public ParsedResult<MessageArgument> parse(ParseContext context, IArgument<MessageArgument> argument, String content) {
-					System.out.println(content);
 					Message message = context.getMessage();
 					TextChannel channel = message.getTextChannel();
 

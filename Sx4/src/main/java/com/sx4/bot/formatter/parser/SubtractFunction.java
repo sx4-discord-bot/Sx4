@@ -6,7 +6,7 @@ import com.sx4.bot.formatter.function.FormatterFunction;
 public class SubtractFunction extends FormatterFunction<Number> {
 
 	public SubtractFunction() {
-		super(Number.class, "subtract");
+		super(Number.class, "subtract", "Subtracts one number from another");
 	}
 
 	public Number parse(FormatterEvent<Number> event, Number number) {

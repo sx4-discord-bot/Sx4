@@ -8,7 +8,7 @@ import java.util.Random;
 public class RandomIntFunction extends FormatterFunction<Random> {
 
 	public RandomIntFunction() {
-		super(Random.class, "int");
+		super(Random.class, "int", "Gives a random number between 0 and the limit given");
 	}
 
 	public Integer parse(FormatterEvent<Random> event, Integer limit) {

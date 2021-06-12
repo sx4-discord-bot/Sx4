@@ -9,7 +9,7 @@ import java.time.temporal.Temporal;
 public class DurationBetweenFunction extends FormatterFunction<Temporal> {
 
 	public DurationBetweenFunction() {
-		super(Temporal.class, "difference");
+		super(Temporal.class, "difference", "Find the difference between 2 dates and returns it in seconds");
 	}
 
 	public long parse(FormatterEvent<Temporal> event, Temporal time) {

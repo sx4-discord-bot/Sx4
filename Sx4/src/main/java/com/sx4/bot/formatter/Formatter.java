@@ -11,6 +11,12 @@ public class Formatter implements IFormatter<String> {
         this.manager = new FormatterManager(FormatterManager.getDefaultManager());
     }
 
+    public Formatter addVariable(Class<?> type, String name, Object argument) {
+        this.manager.addVariable(name, type, $ -> argument);
+
+        return this;
+    }
+
     public Formatter addVariable(String name, Object argument) {
         this.manager.addVariable(name, Void.class, $ -> argument);
 

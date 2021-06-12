@@ -8,10 +8,17 @@ public class FormatterVariable<Type> {
 	private final String variable;
 	private final Function<Type, Object> function;
 
-	public FormatterVariable(String variable, Class<Type> type, Function<Type, Object> function) {
+	private final String description;
+
+	public FormatterVariable(String variable, String description, Class<Type> type, Function<Type, Object> function) {
 		this.variable = variable;
 		this.type = type;
 		this.function = function;
+		this.description = description;
+	}
+
+	public String getDescription() {
+		return this.description;
 	}
 
 	public String getName() {

@@ -21,7 +21,9 @@ import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.argument.Alternative;
+import com.sx4.bot.formatter.FormatterManager;
 import com.sx4.bot.formatter.JsonFormatter;
+import com.sx4.bot.formatter.function.FormatterVariable;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.MessageUtility;
@@ -29,8 +31,9 @@ import com.sx4.bot.utility.StringUtility;
 import com.sx4.bot.waiter.Waiter;
 import com.sx4.bot.waiter.exception.CancelException;
 import com.sx4.bot.waiter.exception.TimeoutException;
+import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
-import net.dv8tion.jda.api.entities.MessageEmbed;
+import net.dv8tion.jda.api.entities.*;
 import net.dv8tion.jda.api.events.interaction.ButtonClickEvent;
 import net.dv8tion.jda.api.interactions.components.Button;
 import org.bson.Document;
@@ -42,6 +45,7 @@ import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.StringJoiner;
 import java.util.concurrent.CompletionException;
 
 public class TriggerCommand extends Sx4Command {
@@ -302,6 +306,42 @@ public class TriggerCommand extends Sx4Command {
 				event.replyFailure(e.getMessage()).queue();
 			}
 		}
+	}
+
+	@Command(value="formatters", aliases={"format", "formatting"}, description="Get all the formatters for triggers you can use")
+	@CommandId(443)
+	@Examples({"trigger formatters"})
+	@BotPermissions(permissions={Permission.MESSAGE_EMBED_LINKS})
+	public void formatters(Sx4CommandEvent event) {
+		EmbedBuilder embed = new EmbedBuilder()
+			.setAuthor("Trigger Formatters", null, event.getSelfUser().getEffectiveAvatarUrl());
+
+		FormatterManager manager = FormatterManager.getDefaultManager();
+
+		StringJoiner content = new StringJoiner("\n");
+		for (FormatterVariable<?> variable : manager.getVariables(User.class)) {
+			content.add("`{user." + variable.getName() + "}` - " + variable.getDescription());
+		}
+
+		for (FormatterVariable<?> variable : manager.getVariables(Member.class)) {
+			content.add("`{member." + variable.getName() + "}` - " + variable.getDescription());
+		}
+
+		for (FormatterVariable<?> variable : manager.getVariables(Guild.class)) {
+			content.add("`{server." + variable.getName() + "}` - " + variable.getDescription());
+		}
+
+		for (FormatterVariable<?> variable : manager.getVariables(TextChannel.class)) {
+			content.add("`{channel." + variable.getName() + "}` - " + variable.getDescription());
+		}
+
+		for (FormatterVariable<?> variable : manager.getVariables(OffsetDateTime.class)) {
+			content.add("`{now." + variable.getName() + "}` - " + variable.getDescription());
+		}
+
+		embed.setDescription(content.toString());
+
+		event.reply(embed.build()).queue();
 	}
 
 	@Command(value="list", description="List the triggers in the current server")

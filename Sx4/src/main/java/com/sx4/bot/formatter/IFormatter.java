@@ -15,6 +15,8 @@ public interface IFormatter<Type> {
 
 	IFormatter<Type> addVariable(String key, Object object);
 
+	IFormatter<Type> addVariable(Class<?> type, String key, Object object);
+
 	default IFormatter<Type> user(User user) {
 		if (user == null) {
 			return this;
@@ -145,7 +147,7 @@ public interface IFormatter<Type> {
 			periodIndex = nextPeriodIndex;
 			if (bracketIndex == -1 || endBracketIndex == -1) {
 				FormatterVariable<?> variable = manager.getVariable(type, name);
-				if (variable == null && periodIndex == -1) {
+				if (variable == null && nextPeriodIndex == -1) {
 					return null;
 				} else if (variable == null) {
 					continue;

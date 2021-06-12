@@ -7,13 +7,14 @@ import java.util.List;
 public class FormatterFunction<Type> {
 
 	private final Class<Type> type;
-	private final String name;
+	private final String name, description;
 	private final Method method;
 	private final boolean usePrevious;
 
-	public FormatterFunction(Class<Type> type, String name, boolean usePrevious) {
+	public FormatterFunction(Class<Type> type, String name, String description, boolean usePrevious) {
 		this.name = name;
 		this.type = type;
+		this.description = description;
 		this.usePrevious = usePrevious;
 
 		Method[] methods = this.getClass().getMethods();
@@ -33,8 +34,12 @@ public class FormatterFunction<Type> {
 		throw new IllegalStateException("FormatterFunction doesn't have a parse method");
 	}
 
-	public FormatterFunction(Class<Type> type, String name) {
-		this(type, name, false);
+	public FormatterFunction(Class<Type> type, String name, String description) {
+		this(type, name, description, false);
+	}
+
+	public String getDescription() {
+		return this.description;
 	}
 
 	public boolean isUsePrevious() {

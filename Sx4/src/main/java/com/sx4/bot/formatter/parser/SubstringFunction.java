@@ -7,7 +7,7 @@ import com.sx4.bot.utility.StringUtility;
 public class SubstringFunction extends FormatterFunction<String> {
 
 	public SubstringFunction() {
-		super(String.class, "substring");
+		super(String.class, "substring", "Cuts of a string by the indexes given");
 	}
 
 	public String parse(FormatterEvent<String> event, Integer start, Integer end) {

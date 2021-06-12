@@ -113,7 +113,11 @@ public class FormatterManager {
 	}
 
 	public <Type> FormatterManager addVariable(String name, Class<Type> type, Function<Type, Object> function) {
-		return this.addVariable(new FormatterVariable<>(name, type, function));
+		return this.addVariable(new FormatterVariable<>(name, null, type, function));
+	}
+
+	public <Type> FormatterManager addVariable(String name, String description, Class<Type> type, Function<Type, Object> function) {
+		return this.addVariable(new FormatterVariable<>(name, description, type, function));
 	}
 
 	public FormatterParser<?> getParser(Class<?> type) {
@@ -140,6 +144,38 @@ public class FormatterManager {
 		}
 
 		return null;
+	}
+
+	public List<FormatterFunction<?>> getFunctions(Class<?> type) {
+		List<FormatterFunction<?>> functions = new ArrayList<>();
+		for (Class<?> inheritanceType : this.getInheritanceTypes(type)) {
+			Map<String, FormatterFunction<?>> names = this.functions.get(inheritanceType);
+			if (names == null) {
+				continue;
+			}
+
+			for (String name : names.keySet()) {
+				functions.add(names.get(name));
+			}
+		}
+
+		return functions;
+	}
+
+	public List<FormatterVariable<?>> getVariables(Class<?> type) {
+		List<FormatterVariable<?>> functions = new ArrayList<>();
+		for (Class<?> inheritanceType : this.getInheritanceTypes(type)) {
+			Map<String, FormatterVariable<?>> names = this.variables.get(inheritanceType);
+			if (names == null) {
+				continue;
+			}
+
+			for (String name : names.keySet()) {
+				functions.add(names.get(name));
+			}
+		}
+
+		return functions;
 	}
 
 	public Map<Class<?>, Map<String, FormatterFunction<?>>> getFunctions() {

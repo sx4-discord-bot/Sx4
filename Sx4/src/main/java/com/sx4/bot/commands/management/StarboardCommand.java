@@ -7,25 +7,27 @@ import com.mongodb.client.model.*;
 import com.sx4.bot.annotations.argument.ImageUrl;
 import com.sx4.bot.annotations.argument.Limit;
 import com.sx4.bot.annotations.argument.Options;
-import com.sx4.bot.annotations.command.AuthorPermissions;
-import com.sx4.bot.annotations.command.CommandId;
-import com.sx4.bot.annotations.command.Examples;
-import com.sx4.bot.annotations.command.Premium;
+import com.sx4.bot.annotations.command.*;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.argument.Alternative;
+import com.sx4.bot.formatter.FormatterManager;
+import com.sx4.bot.formatter.function.FormatterVariable;
 import com.sx4.bot.managers.StarboardManager;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.waiter.Waiter;
 import com.sx4.bot.waiter.exception.CancelException;
 import com.sx4.bot.waiter.exception.TimeoutException;
+import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.MessageReaction.ReactionEmote;
 import net.dv8tion.jda.api.entities.TextChannel;
+import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.events.interaction.ButtonClickEvent;
 import net.dv8tion.jda.api.interactions.components.Button;
 import org.bson.Document;
@@ -35,6 +37,7 @@ import org.bson.types.ObjectId;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.StringJoiner;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.atomic.AtomicReference;
@@ -272,6 +275,47 @@ public class StarboardCommand extends Sx4Command {
 			});
 
 		paged.execute(event);
+	}
+
+	@Command(value="formatters", aliases={"format", "formatting"}, description="Get all the formatters for starboard you can use")
+	@CommandId(444)
+	@Examples({"starboard formatters"})
+	@BotPermissions(permissions={Permission.MESSAGE_EMBED_LINKS})
+	public void formatters(Sx4CommandEvent event) {
+		EmbedBuilder embed = new EmbedBuilder()
+			.setAuthor("Starboard Formatters", null, event.getSelfUser().getEffectiveAvatarUrl());
+
+		FormatterManager manager = FormatterManager.getDefaultManager();
+
+		StringJoiner content = new StringJoiner("\n");
+		for (FormatterVariable<?> variable : manager.getVariables(User.class)) {
+			content.add("`{user." + variable.getName() + "}` - " + variable.getDescription());
+		}
+
+		for (FormatterVariable<?> variable : manager.getVariables(Member.class)) {
+			content.add("`{member." + variable.getName() + "}` - " + variable.getDescription());
+		}
+
+		for (FormatterVariable<?> variable : manager.getVariables(Guild.class)) {
+			content.add("`{server." + variable.getName() + "}` - " + variable.getDescription());
+		}
+
+		for (FormatterVariable<?> variable : manager.getVariables(TextChannel.class)) {
+			content.add("`{channel." + variable.getName() + "}` - " + variable.getDescription());
+		}
+
+		for (FormatterVariable<?> variable : manager.getVariables(ReactionEmote.class)) {
+			content.add("`{emote." + variable.getName() + "}` - " + variable.getDescription());
+		}
+
+		content.add("`{stars}` - Gets amount of stars the starboard has");
+		content.add("`{stars.next}` - Gets the amount of stars the next milestone requires");
+		content.add("`{stars.next.until}` - Gets the amount of stars needed to reach the next milestone");
+		content.add("`{id}` - Gets the id for the starboard");
+
+		embed.setDescription(content.toString());
+
+		event.reply(embed.build()).queue();
 	}
 
 	public static class MessagesCommand extends Sx4Command {

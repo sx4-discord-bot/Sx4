@@ -23,7 +23,7 @@ public class ColourCommand extends Sx4Command {
 
 		super.setDescription("Get info and visualize a specific colour");
 		super.setExamples("colour", "colour #ffff00", "colour 255, 255, 0");
-		super.setAliases("color");
+		super.setAliases("color", "hex");
 		super.setCategoryAll(ModuleCategory.IMAGE);
 		super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
 	}
