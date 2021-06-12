@@ -5,6 +5,7 @@ import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.formatter.JsonFormatter;
 import com.sx4.bot.utility.MessageUtility;
+import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.Message.MentionType;
 import net.dv8tion.jda.api.entities.User;
@@ -31,6 +32,10 @@ public class TriggerHandler implements EventListener {
 	public void handle(Message message) {
 		User author = message.getAuthor();
 		if (author.isBot()) {
+			return;
+		}
+
+		if (!message.getGuild().getSelfMember().hasPermission(message.getTextChannel(), Permission.MESSAGE_WRITE)) {
 			return;
 		}
 

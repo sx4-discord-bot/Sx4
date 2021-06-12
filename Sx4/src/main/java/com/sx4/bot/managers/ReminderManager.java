@@ -64,9 +64,7 @@ public class ReminderManager {
 	}
 	
 	public void putReminder(long duration, Document data) {
-		ScheduledFuture<?> executor = this.executor.schedule(() -> this.executeReminder(data), duration, TimeUnit.SECONDS);
-		
-		this.putExecutor(data.getObjectId("id"), executor);
+		this.putExecutor(data.getObjectId("_id"), this.executor.schedule(() -> this.executeReminder(data), duration, TimeUnit.SECONDS));
 	}
 	
 	public void executeReminder(Document data) {

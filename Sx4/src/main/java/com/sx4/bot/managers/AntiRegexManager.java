@@ -8,16 +8,16 @@ import java.util.Map;
 public class AntiRegexManager {
 
     public static final String DEFAULT_MATCH_MESSAGE = "{user.mention}, you cannot send that content here due to the regex `{regex.id}`"
-        + "({regex.action.exists}?, you will receive a {regex.action.name} if you continue **({regex.attempts.current}/{regex.attempts.max})**:) :no_entry:";
+        + "{regex.action.exists.then(, you will receive a {regex.action.name} if you continue **({regex.attempts.current}/{regex.attempts.max})**).else()} :no_entry:";
 
     public static final String DEFAULT_MOD_MESSAGE = "**{user.tag}** has received a {regex.action.name} for sending a message which matched the regex "
-        + "`{regex.id}` {regex.attempts.max} time({regex.attempts.max}!=1?s:) <:done:403285928233402378>";
+        + "`{regex.id}` {regex.attempts.max} time{regex.attempts.max.equals(1).then().else(s)} <:done:852905002829217793>";
 
     public static final String DEFAULT_INVITE_MATCH_MESSAGE = "{user.mention}, you cannot send discord invites here"
-        + "({regex.action.exists}?, you will receive a {regex.action.name} if you continue **({regex.attempts.current}/{regex.attempts.max})**:) :no_entry:";
+        + "{regex.action.exists.then(, you will receive a {regex.action.name} if you continue **({regex.attempts.current}/{regex.attempts.max})**).else()} :no_entry:";
 
     public static final String DEFAULT_INVITE_MOD_MESSAGE = "**{user.tag}** has received a {regex.action.name} for sending a discord invite "
-        + "{regex.attempts.max} time({regex.attempts.max}!=1?s:) <:done:403285928233402378>";
+        + "{regex.attempts.max} time{regex.attempts.max.equals(1).then().else(s)} <:done:852905002829217793>";
 
     // TODO: Would also be nice for a way to combine attempts across multiple anti regexes
     private final Map<ObjectId, Map<Long, Integer>> attempts;
