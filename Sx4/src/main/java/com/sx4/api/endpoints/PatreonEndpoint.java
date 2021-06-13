@@ -51,7 +51,7 @@ public class PatreonEndpoint {
 
 		WebhookMessage message = new WebhookMessageBuilder()
 			.setContent("Patreon payload received")
-			.addFile("patreon.json", document.toString().getBytes(StandardCharsets.UTF_8))
+			.addFile("patreon.json", document.toJson().getBytes(StandardCharsets.UTF_8))
 			.build();
 
 		this.webhook.send(message);

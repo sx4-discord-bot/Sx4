@@ -144,7 +144,7 @@ public class ReputationCommand extends Sx4Command {
 						.setTitle("Reputation Leaderboard")
 						.setFooter(event.getAuthor().getName() + "'s Rank: " + (rank == -1 ? "N/A" : NumberUtility.getSuffixed(rank)) + " | Page " + page.getPage() + "/" + page.getMaxPage(), event.getAuthor().getEffectiveAvatarUrl());
 
-					page.forEach((entry, index) -> embed.appendDescription(String.format("%d. `%s` - %,d reputation\n", index + 1, MarkdownSanitizer.escape(entry.getKey().getAsTag()), entry.getValue())));
+					page.forEach((entry, index) -> embed.appendDescription(String.format("%d. `%s` - %,d reputation\n", index + 1, MarkdownSanitizer.sanitize(entry.getKey().getAsTag()), entry.getValue())));
 
 					return new MessageBuilder().setEmbed(embed.build()).build();
 				});

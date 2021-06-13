@@ -2,43 +2,51 @@ package com.sx4.bot.commands.settings;
 
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
-import com.mongodb.client.model.FindOneAndUpdateOptions;
-import com.mongodb.client.model.Projections;
-import com.mongodb.client.model.ReturnDocument;
+import com.jockie.bot.core.option.Option;
+import com.mongodb.client.model.*;
 import com.sx4.bot.annotations.argument.DefaultNumber;
 import com.sx4.bot.annotations.argument.Limit;
 import com.sx4.bot.annotations.command.CommandId;
 import com.sx4.bot.annotations.command.Examples;
 import com.sx4.bot.annotations.command.Premium;
+import com.sx4.bot.annotations.command.Redirects;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.database.mongo.model.Operators;
+import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.NumberUtility;
 import com.sx4.bot.waiter.Waiter;
 import com.sx4.bot.waiter.exception.CancelException;
 import com.sx4.bot.waiter.exception.TimeoutException;
 import net.dv8tion.jda.api.EmbedBuilder;
+import net.dv8tion.jda.api.MessageBuilder;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.MessageEmbed;
+import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.events.interaction.ButtonClickEvent;
 import net.dv8tion.jda.api.interactions.components.Button;
+import net.dv8tion.jda.api.utils.MarkdownSanitizer;
+import org.bson.Document;
 import org.bson.conversions.Bson;
 
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class PremiumCommand extends Sx4Command {
 
-	private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("d'%s' MMMM u 'at' k:m 'UTC'");
+	private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("d'%s' MMMM u 'at' kk:mm 'UTC'");
 
 	public PremiumCommand() {
 		super("premium", 176);
@@ -130,21 +138,92 @@ public class PremiumCommand extends Sx4Command {
 	public void check(Sx4CommandEvent event) {
 		long endAt = event.getMongo().getGuildById(event.getGuild().getIdLong(), Projections.include("premium.endAt")).getEmbedded(List.of("premium", "endAt"), 0L);
 		if (endAt == 0) {
-			event.replyFailure("This server currently doesn't have premium").queue();
+			event.replyFailure("This server currently doesn't have premium, you can give it premium with credit <https://patreon.com/Sx4>").queue();
 			return;
 		}
 
 		OffsetDateTime expire = OffsetDateTime.ofInstant(Instant.ofEpochSecond(endAt), ZoneOffset.UTC);
-		event.replyFormat("Premium for this server will expire on **%s**", String.format(expire.format(this.formatter), NumberUtility.getSuffix(expire.getDayOfMonth()))).queue();
+		if (expire.isBefore(OffsetDateTime.now(ZoneOffset.UTC))) {
+			event.replyFailure("Premium for this server expired on the **" + String.format(expire.format(this.formatter), NumberUtility.getSuffix(expire.getDayOfMonth())) + "**, you can renew it with more credit <https://patreon.com/Sx4>").queue();
+			return;
+		}
+
+		event.replyFormat("Premium for this server will expire on the **" +  String.format(expire.format(this.formatter), NumberUtility.getSuffix(expire.getDayOfMonth())) + "**").queue();
 	}
 
 	@Command(value="credit", description="Checks your current credit")
 	@CommandId(179)
 	@Examples({"premium credit"})
 	public void credit(Sx4CommandEvent event) {
-		int credit = event.getMongoMain().getUserById(event.getAuthor().getIdLong(), Projections.include("premium.credit")).getEmbedded(List.of("premium", "credit"), 0);
+		Document premium = event.getMongoMain().getUserById(event.getAuthor().getIdLong(), Projections.include("premium.credit", "premium.endAt")).get("premium", MongoDatabase.EMPTY_DOCUMENT);
 
-		event.replyFormat("Your current credit is **$%,.2f**", credit / 100D).queue();
+		int credit = premium.getInteger("credit", 0);
+
+		long endAt = premium.get("endAt", -1L);
+		OffsetDateTime expire = OffsetDateTime.ofInstant(Instant.ofEpochSecond(endAt), ZoneOffset.UTC);
+		String format = String.format(expire.format(this.formatter), NumberUtility.getSuffix(expire.getDayOfMonth()));
+
+		event.replyFormat("Your current credit is **$%,.2f**%s", credit / 100D, endAt == -1 ? "" : "\n\nYour personal premium " + (expire.isBefore(OffsetDateTime.now(ZoneOffset.UTC)) ? "expired on the **" + format + "**, you can renew it here <https://patreon.com/Sx4>" : "will expire on the **" + format + "**")).queue();
+	}
+
+	@Command(value="leaderboard", aliases={"lb"}, description="Leaderboard for Sx4s biggest donors")
+	@CommandId(446)
+	@Redirects({"lb premium", "leaderboard premium"})
+	@Examples({"premium leaderboard"})
+	public void leaderboard(Sx4CommandEvent event, @Option(value="server", aliases={"guild"}, description="Filters the results to only people in the current server") boolean guild) {
+		List<Bson> pipeline = List.of(
+			Aggregates.project(Projections.computed("total", "$premium.total")),
+			Aggregates.match(Filters.and(Filters.exists("total"), Filters.ne("total", 0))),
+			Aggregates.sort(Sorts.descending("total"))
+		);
+
+		event.getMongoMain().aggregateUsers(pipeline).whenCompleteAsync((iterable, exception) -> {
+			if (ExceptionUtility.sendExceptionally(event, exception)) {
+				return;
+			}
+
+			List<Document> documents = iterable.into(new ArrayList<>());
+			List<Map.Entry<String, Integer>> users = new ArrayList<>();
+			AtomicInteger userIndex = new AtomicInteger(-1);
+
+			int i = 0;
+			for (Document data : documents) {
+				long id = data.getLong("_id");
+				User user = event.getShardManager().getUserById(data.getLong("_id"));
+				if ((user == null || !event.getGuild().isMember(user)) && guild) {
+					continue;
+				}
+
+				i++;
+
+				users.add(Map.entry(user == null ? "Anonymous#0000 (" + id + ")" : MarkdownSanitizer.sanitize(user.getAsTag()), data.getInteger("total")));
+
+				if (user != null && user.getIdLong() == event.getAuthor().getIdLong()) {
+					userIndex.set(i);
+				}
+			}
+
+			if (users.isEmpty()) {
+				event.replyFailure("There are no users which fit into this leaderboard").queue();
+				return;
+			}
+
+			PagedResult<Map.Entry<String, Integer>> paged = new PagedResult<>(event.getBot(), users)
+				.setPerPage(10)
+				.setCustomFunction(page -> {
+					int rank = userIndex.get();
+
+					EmbedBuilder embed = new EmbedBuilder()
+						.setTitle("Top Donors Leaderboard")
+						.setFooter(event.getAuthor().getName() + "'s Rank: " + (rank == -1 ? "N/A" : NumberUtility.getSuffixed(rank)) + " | Page " + page.getPage() + "/" + page.getMaxPage(), event.getAuthor().getEffectiveAvatarUrl());
+
+					page.forEach((entry, index) -> embed.appendDescription(String.format("%d. `%s` - $%,.2f\n", index + 1, entry.getKey(), entry.getValue() / 100D)));
+
+					return new MessageBuilder().setEmbed(embed.build()).build();
+				});
+
+			paged.execute(event);
+		});
 	}
 	
 }

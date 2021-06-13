@@ -363,18 +363,30 @@ public class WelcomerCommand extends Sx4Command {
 		@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 		public void banner(Sx4CommandEvent event, @Argument(value="url") @ImageUrl @Options("reset") Alternative<String> option) {
 			if (option.isAlternative()) {
-				File file = new File("welcomer/banners/" + event.getAuthor().getId() + ".png");
-				if (file.delete()) {
-					event.getMongo().updateGuildById(event.getGuild().getIdLong(), Updates.unset("welcomer.bannerId")).whenComplete((result, exception) -> {
-						if (ExceptionUtility.sendExceptionally(event, exception)) {
-							return;
-						}
+				FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("welcomer.image.bannerId"));
+				event.getMongo().findAndUpdateGuildById(event.getGuild().getIdLong(), Updates.unset("welcomer.image.bannerId"), options).whenComplete((data, exception) -> {
+					if (ExceptionUtility.sendExceptionally(event, exception)) {
+						return;
+					}
 
+					if (data == null) {
+						event.replyFailure("You do not have a welcomer banner").queue();
+						return;
+					}
+
+					String bannerId = data.getEmbedded(List.of("welcomer", "image", "bannerId"), String.class);
+					if (bannerId == null) {
+						event.replyFailure("You do not have a welcomer banner").queue();
+						return;
+					}
+
+					File file = new File("welcomer/banners/" + bannerId);
+					if (file.delete()) {
 						event.replySuccess("Your welcomer banner has been unset").queue();
-					});
-				} else {
-					event.replyFailure("You do not have a welcomer banner").queue();
-				}
+					} else {
+						event.replyFailure("You do not have a welcomer banner").queue();
+					}
+				});
 
 				return;
 			}

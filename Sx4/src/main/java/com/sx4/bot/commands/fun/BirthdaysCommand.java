@@ -32,7 +32,7 @@ public class BirthdaysCommand extends Sx4Command {
 		super.setCategoryAll(ModuleCategory.FUN);
 	}
 
-	public void onCommand(Sx4CommandEvent event, @Option(value="server", aliases={"guild"}, description="Only users in the current server can be shown") boolean server) {
+	public void onCommand(Sx4CommandEvent event, @Option(value="server", aliases={"guild"}, description="Only users in the current server can be shown") boolean guild) {
 		List<Document> userData = event.getMongo().getUsers(Filters.exists("profile.birthday"), Projections.include("profile.birthday")).into(new ArrayList<>());
 
 		LocalDate now = LocalDate.now(ZoneOffset.UTC);
@@ -40,7 +40,7 @@ public class BirthdaysCommand extends Sx4Command {
 		List<Map.Entry<User, LocalDate>> users = new ArrayList<>();
 		for (Document data : userData) {
 			User user;
-			if (server) {
+			if (guild) {
 				Member member = event.getGuild().getMemberById(data.getLong("_id"));
 				user = member == null ? null : member.getUser();
 			} else {

@@ -85,7 +85,8 @@ public class PatreonManager {
 				}
 
 				List<Bson> update = List.of(
-					Operators.set("premium.credit", Operators.let(new Document("credit", Operators.ifNull("$premium.credit", 0)).append("total", Operators.ifNull("$premium.total", 0)), Operators.add("$$credit", Operators.subtract(totalAmount, "$$total")))),
+					Operators.set("premium.credit", Operators.add(Operators.ifNull("$premium.credit", 0), Operators.subtract(totalAmount, Operators.ifNull("$premium.total", 0)))),
+					Operators.set("premium.endAt", Operators.add(Operators.cond(Operators.or(Operators.extinct("$premium.endAt"), Operators.lt("$premium.endAt", Operators.nowEpochSecond())), Operators.nowEpochSecond(), "$premium.endAt"), Operators.multiply(Operators.toInt(Operators.round(Operators.multiply(Operators.divide(Operators.subtract(totalAmount, Operators.ifNull("$premium.total", 0)), this.bot.getConfig().getPremiumPrice()), 30))), 86400))),
 					Operators.set("premium.total", totalAmount)
 				);
 

@@ -20,6 +20,7 @@ public class PatreonHandler implements PatreonListener {
 	public void onPatreonEvent(PatreonEvent event) {
 		List<Bson> update = List.of(
 			Operators.set("premium.credit", Operators.add(Operators.ifNull("$premium.credit", 0), Operators.subtract(event.getTotalAmount(), Operators.ifNull("$premium.total", 0)))),
+			Operators.set("premium.endAt", Operators.add(Operators.cond(Operators.or(Operators.extinct("$premium.endAt"), Operators.lt("$premium.endAt", Operators.nowEpochSecond())), Operators.nowEpochSecond(), "$premium.endAt"), Operators.multiply(Operators.toInt(Operators.round(Operators.multiply(Operators.divide(Operators.subtract(event.getTotalAmount(), Operators.ifNull("$premium.total", 0)), this.bot.getConfig().getPremiumPrice()), 30))), 86400))),
 			Operators.set("premium.total", event.getTotalAmount())
 		);
 

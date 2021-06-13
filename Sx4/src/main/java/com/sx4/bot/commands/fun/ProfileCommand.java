@@ -58,10 +58,10 @@ public class ProfileCommand extends Sx4Command {
 		);
 
 		List<Bson> pipeline = List.of(
-			Aggregates.project(Projections.fields(Projections.computed("balance", "$economy.balance"), Projections.include("profile"), Projections.computed("reputation", "$reputation.amount"))),
+			Aggregates.project(Projections.fields(Projections.computed("balance", "$economy.balance"), Projections.include("profile"), Projections.computed("reputation", "$reputation.amount"), Projections.computed("premium", Operators.lt(Operators.nowEpochSecond(), Operators.ifNull("$premium.endAt", 0L))))),
 			Aggregates.match(Filters.eq("_id", user.getIdLong())),
 			Aggregates.unionWith("marriages", marriagePipeline),
-			Aggregates.group(null, Accumulators.max("balance", "$balance"), Accumulators.max("reputation", "$reputation"), Accumulators.max("marriages", "$marriages"), Accumulators.max("profile", "$profile"))
+			Aggregates.group(null, Accumulators.max("balance", "$balance"), Accumulators.max("reputation", "$reputation"), Accumulators.max("marriages", "$marriages"), Accumulators.max("profile", "$profile"), Accumulators.max("premium", Operators.ifNull("$premium", false)))
 		);
 
 		event.getMongo().aggregateUsers(pipeline).thenApply(iterable -> {
@@ -96,6 +96,7 @@ public class ProfileCommand extends Sx4Command {
 				.addField("banner_id", profileData.getString("bannerId"))
 				.addField("directory", event.getConfig().isCanary() ? "sx4-canary" : "sx4-main")
 				.addField("name", user.getAsTag())
+				.addField("gif", data.getBoolean("premium"))
 				.addField("avatar", user.getEffectiveAvatarUrl())
 				.addField("colour", profileData.getInteger("colour"))
 				.build(event.getConfig().getImageWebserver());
@@ -110,7 +111,7 @@ public class ProfileCommand extends Sx4Command {
 
 	public static class SetCommand extends Sx4Command {
 
-		private final Set<String> types = Set.of("png", "jpeg", "jpg");
+		private final Set<String> types = Set.of("png", "jpeg", "jpg", "gif");
 
 		public SetCommand() {
 			super("set", 283);
@@ -263,75 +264,89 @@ public class ProfileCommand extends Sx4Command {
 		@Examples({"profile set banner https://i.imgur.com/i87lyNO.png", "profile set banner reset"})
 		public void banner(Sx4CommandEvent event, @Argument(value="url | reset") @ImageUrl @Options("reset") Alternative<String> option) {
 			if (option.isAlternative()) {
-				File file = new File("profile/banners/" + event.getAuthor().getId() + ".png");
-				if (file.delete()) {
-					event.getMongo().updateUserById(event.getAuthor().getIdLong(), Updates.unset("profile.bannerId")).whenComplete((result, exception) -> {
-						if (ExceptionUtility.sendExceptionally(event, exception)) {
-							return;
-						}
+				FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("profile.bannerId"));
+				event.getMongo().findAndUpdateUserById(event.getAuthor().getIdLong(), Updates.unset("profile.bannerId"), options).whenComplete((data, exception) -> {
+					if (ExceptionUtility.sendExceptionally(event, exception)) {
+						return;
+					}
 
+					if (data == null) {
+						event.replyFailure("You do not have a profile banner").queue();
+						return;
+					}
+
+					String bannerId = data.getEmbedded(List.of("profile", "bannerId"), String.class);
+					if (bannerId == null) {
+						event.replyFailure("You do not have a profile banner").queue();
+						return;
+					}
+
+					File file = new File("profile/banners/" + bannerId);
+					if (file.delete()) {
 						event.replySuccess("Your profile banner has been unset").queue();
-					});
-				} else {
-					event.replyFailure("You do not have a profile banner").queue();
-				}
-			} else {
-				Request request = new Request.Builder()
-					.url(option.getValue())
-					.build();
-
-				event.getHttpClient().newCall(request).enqueue((HttpCallback) response -> {
-					String contentType = response.header("Content-Type");
-					if (contentType == null) {
-						event.replyFailure("That url does not return a content type").queue();
-						return;
+					} else {
+						event.replyFailure("You do not have a profile banner").queue();
 					}
-
-					String[] contentTypeSplit = contentType.split("/");
-
-					String type = contentTypeSplit[0], subType = contentType.contains("/") ? contentTypeSplit[1] : "png";
-					if (!type.equals("image")) {
-						event.replyFailure("That url is not an image").queue();
-						return;
-					}
-
-					if (!this.types.contains(subType)) {
-						event.replyFailure("That image is not a supported image type").queue();
-						return;
-					}
-
-					byte[] bytes = response.body().bytes();
-					if (bytes.length > 5_000_000) {
-						event.replyFailure("Your profile banner cannot be more than 5MB").queue();
-						return;
-					}
-
-					String bannerId = event.getAuthor().getId() + "." + subType;
-
-					FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("profile.bannerId")).upsert(true);
-					event.getMongo().findAndUpdateUserById(event.getAuthor().getIdLong(), Updates.set("profile.bannerId", bannerId), options).whenComplete((data, exception) -> {
-						if (ExceptionUtility.sendExceptionally(event, exception)) {
-							return;
-						}
-
-						if (data != null)  {
-							String banner = data.getEmbedded(List.of("profile", "bannerId"), String.class);
-							if (banner != null) {
-								new File("profile/banners/" + bannerId).delete();
-							}
-						}
-
-						try (FileOutputStream stream = new FileOutputStream("profile/banners/" + bannerId)) {
-							stream.write(bytes);
-						} catch (IOException e) {
-							ExceptionUtility.sendExceptionally(event, e);
-							return;
-						}
-
-						event.replySuccess("Your profile banner has been updated").queue();
-					});
 				});
+
+				return;
 			}
+
+			Request request = new Request.Builder()
+				.url(option.getValue())
+				.build();
+
+			event.getHttpClient().newCall(request).enqueue((HttpCallback) response -> {
+				String contentType = response.header("Content-Type");
+				if (contentType == null) {
+					event.replyFailure("That url does not return a content type").queue();
+					return;
+				}
+
+				String[] contentTypeSplit = contentType.split("/");
+
+				String type = contentTypeSplit[0], subType = contentType.contains("/") ? contentTypeSplit[1] : "png";
+				if (!type.equals("image")) {
+					event.replyFailure("That url is not an image").queue();
+					return;
+				}
+
+				if (!this.types.contains(subType)) {
+					event.replyFailure("That image is not a supported image type").queue();
+					return;
+				}
+
+				byte[] bytes = response.body().bytes();
+				if (bytes.length > 5_000_000) {
+					event.replyFailure("Your profile banner cannot be more than 5MB").queue();
+					return;
+				}
+
+				String bannerId = event.getAuthor().getId() + "." + subType;
+
+				FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("profile.bannerId")).upsert(true);
+				event.getMongo().findAndUpdateUserById(event.getAuthor().getIdLong(), Updates.set("profile.bannerId", bannerId), options).whenComplete((data, exception) -> {
+					if (ExceptionUtility.sendExceptionally(event, exception)) {
+						return;
+					}
+
+					if (data != null)  {
+						String banner = data.getEmbedded(List.of("profile", "bannerId"), String.class);
+						if (banner != null) {
+							new File("profile/banners/" + bannerId).delete();
+						}
+					}
+
+					try (FileOutputStream stream = new FileOutputStream("profile/banners/" + bannerId)) {
+						stream.write(bytes);
+					} catch (IOException e) {
+						ExceptionUtility.sendExceptionally(event, e);
+						return;
+					}
+
+					event.replySuccess("Your profile banner has been updated").queue();
+				});
+			});
 		}
 
 	}

@@ -140,7 +140,7 @@ public class WarnCommand extends Sx4Command {
 				long userId = d.getLong("userId");
 				Member member = event.getGuild().getMemberById(userId);
 
-				return "`" + (member == null ? userId : MarkdownSanitizer.escape(member.getUser().getAsTag())) + "` - Warning **#" + d.getInteger("warnings") + "**";
+				return "`" + (member == null ? userId : MarkdownSanitizer.sanitize(member.getUser().getAsTag())) + "` - Warning **#" + d.getInteger("warnings") + "**";
 			});
 
 		paged.execute(event);
