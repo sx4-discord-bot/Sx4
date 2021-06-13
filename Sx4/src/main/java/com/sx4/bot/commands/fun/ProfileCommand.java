@@ -32,6 +32,7 @@ import org.bson.conversions.Bson;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.format.TextStyle;
@@ -50,6 +51,8 @@ public class ProfileCommand extends Sx4Command {
 
 	public void onCommand(Sx4CommandEvent event, @Argument(value="user", endless=true, nullDefault=true) Member member) {
 		User user = member == null ? event.getAuthor() : member.getUser();
+
+		long expiry = event.getMongoMain().getUserById(Filters.eq("_id", event.getAuthor().getIdLong()), Projections.include("premium.endAt")).getEmbedded(List.of("premium", "endAt"), 0L);
 
 		List<Bson> marriagePipeline = List.of(
 			Aggregates.project(Projections.include("proposerId", "partnerId")),
@@ -96,7 +99,7 @@ public class ProfileCommand extends Sx4Command {
 				.addField("banner_id", profileData.getString("bannerId"))
 				.addField("directory", event.getConfig().isCanary() ? "sx4-canary" : "sx4-main")
 				.addField("name", user.getAsTag())
-				.addField("gif", data.getBoolean("premium"))
+				.addField("gif", Clock.systemUTC().instant().getEpochSecond() < expiry)
 				.addField("avatar", user.getEffectiveAvatarUrl())
 				.addField("colour", profileData.getInteger("colour"))
 				.build(event.getConfig().getImageWebserver());

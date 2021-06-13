@@ -214,7 +214,7 @@ public class PremiumCommand extends Sx4Command {
 					int rank = userIndex.get();
 
 					EmbedBuilder embed = new EmbedBuilder()
-						.setTitle("Top Donors Leaderboard")
+						.setTitle("Donors Leaderboard")
 						.setFooter(event.getAuthor().getName() + "'s Rank: " + (rank == -1 ? "N/A" : NumberUtility.getSuffixed(rank)) + " | Page " + page.getPage() + "/" + page.getMaxPage(), event.getAuthor().getEffectiveAvatarUrl());
 
 					page.forEach((entry, index) -> embed.appendDescription(String.format("%d. `%s` - $%,.2f\n", index + 1, entry.getKey(), entry.getValue() / 100D)));

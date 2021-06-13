@@ -23,7 +23,7 @@ public class PermissionUtility {
 			i++;
 		}
 		
-		return prefix + " missing the permission" + (permissions.size() == 1 ? " " : "s ") + permissionsString.toString() + " to execute this command";
+		return prefix + " missing the permission" + (permissions.size() == 1 ? " " : "s ") + permissionsString + " to execute this command";
 	}
 
 	public static String formatMissingPermissions(EnumSet<Permission> permissions) {
