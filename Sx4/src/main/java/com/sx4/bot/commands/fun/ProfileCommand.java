@@ -110,7 +110,7 @@ public class ProfileCommand extends Sx4Command {
 
 	public static class SetCommand extends Sx4Command {
 
-		private final Set<String> types = Set.of("png", "jpeg", "jpg", "gif");
+		private final Set<String> types = Set.of("png", "jpeg", "jpg");
 
 		public SetCommand() {
 			super("set", 283);
@@ -306,7 +306,7 @@ public class ProfileCommand extends Sx4Command {
 						return;
 					}
 
-					String bannerId = event.getAuthor().getId() + ".png";
+					String bannerId = event.getAuthor().getId() + "." + subType;
 
 					FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("profile.bannerId")).upsert(true);
 					event.getMongo().findAndUpdateUserById(event.getAuthor().getIdLong(), Updates.set("profile.bannerId", bannerId), options).whenComplete((data, exception) -> {
