@@ -90,11 +90,6 @@ public class ReactionRoleCommand extends Sx4Command {
 		}
 
 		boolean unicode = emote.isEmoji();
-		if (!unicode && !event.getSelfMember().canInteract(emote.getEmote())) {
-			event.replyFailure("I do not have access to that emote so I can not add it as a reaction").queue();
-			return;
-		}
-
 		String identifier = unicode ? "name" : "id";
 		messageArgument.retrieveMessage().queue(message -> {
 			if (message.getReactions().size() >= 20) {

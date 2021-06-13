@@ -84,7 +84,7 @@ public class ReputationCommand extends Sx4Command {
 	@Examples({"reputation amount", "reputation amount @Shea#6653", "reputation amount Shea"})
 	public void amount(Sx4CommandEvent event, @Argument(value="user", endless=true, nullDefault=true) Member member) {
 		User user = member == null ? event.getAuthor() : member.getUser();
-		long amount = event.getMongo().getUserById(user.getIdLong(), Projections.include("reputation.amount")).getEmbedded(List.of("reputation", "amount"), 0L);
+		int amount = event.getMongo().getUserById(user.getIdLong(), Projections.include("reputation.amount")).getEmbedded(List.of("reputation", "amount"), 0);
 
 		event.replyFormat("%s has **%,d** reputation", user.getAsTag(), amount).queue();
 	}
