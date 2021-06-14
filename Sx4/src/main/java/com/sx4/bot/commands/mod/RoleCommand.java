@@ -130,7 +130,7 @@ public class RoleCommand extends Sx4Command {
 		Member effectiveMember = member == null ? event.getMember() : member;
 
 		event.getGuild().addRoleToMember(effectiveMember, role)
-			.flatMap($ -> event.replySuccess(role.getAsMention() + " has been added to " + effectiveMember.getAsMention()))
+			.flatMap($ -> event.replySuccess(role.getAsMention() + " has been added to **" + effectiveMember.getUser().getAsTag() + "**"))
 			.queue();
 	}
 
@@ -164,7 +164,7 @@ public class RoleCommand extends Sx4Command {
 		Member effectiveMember = member == null ? event.getMember() : member;
 
 		event.getGuild().removeRoleFromMember(effectiveMember, role)
-			.flatMap($ -> event.replySuccess(role.getAsMention() + " has been removed from " + effectiveMember.getAsMention()))
+			.flatMap($ -> event.replySuccess(role.getAsMention() + " has been removed from **" + effectiveMember.getUser().getAsTag() + "**"))
 			.queue();
 	}
 

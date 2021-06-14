@@ -36,7 +36,6 @@ import com.sx4.bot.entities.economy.item.ItemStack;
 import com.sx4.bot.entities.management.AutoRoleFilter;
 import com.sx4.bot.entities.mod.PartialEmote;
 import com.sx4.bot.entities.mod.Reason;
-import com.sx4.bot.entities.mod.action.Action;
 import com.sx4.bot.entities.youtube.YouTubeChannel;
 import com.sx4.bot.entities.youtube.YouTubeVideo;
 import com.sx4.bot.formatter.FormatterManager;
@@ -220,8 +219,6 @@ public class Sx4 {
 
 		FormatterManager formatterManager = new FormatterManager()
 			.addFunctions("com.sx4.bot.formatter.parser")
-			.addVariable("name", "Gets the name of the action", Action.class, action -> action == null ? null : action.getName().toLowerCase())
-			.addVariable("exists", "Gets whether the action exists or not", Action.class, Objects::nonNull)
 			.addVariable("suffix", "Gets the suffixed version of a number", Integer.class, NumberUtility::getSuffixed)
 			.addVariable("round", "Gets the rounded number", Double.class, Math::round)
 			.addVariable("floor", "Gets the floored number", Double.class, Math::floor)

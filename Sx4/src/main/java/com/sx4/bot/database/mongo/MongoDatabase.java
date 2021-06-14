@@ -240,8 +240,7 @@ public class MongoDatabase {
 		this.youtubeNotificationLogs = this.database.getCollection("youtubeNotificationLogs");
 		
 		this.offences = this.database.getCollection("offences");
-		this.offences.createIndex(Indexes.descending("authorId"));
-		this.offences.createIndex(Indexes.descending("guildId"));
+		this.offences.createIndex(Indexes.descending("guildId", "targetId"));
 	}
 	
 	public MongoClient getClient() {
@@ -1708,8 +1707,8 @@ public class MongoDatabase {
 		return this.offences;
 	}
 	
-	public CompletableFuture<FindIterable<Document>> getOffences(Bson filter) {
-		return CompletableFuture.supplyAsync(() -> this.offences.find(filter), this.executor);
+	public CompletableFuture<FindIterable<Document>> getOffences(Bson filter, Bson sort) {
+		return CompletableFuture.supplyAsync(() -> this.offences.find(filter).sort(sort), this.executor);
 	}
 
 	public CompletableFuture<InsertOneResult> insertOffence(Document data) {

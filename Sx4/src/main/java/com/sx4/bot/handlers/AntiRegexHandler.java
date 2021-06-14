@@ -50,7 +50,7 @@ public class AntiRegexHandler implements EventListener {
             .user(user)
             .channel(channel)
             .addVariable("regex.id", id.toHexString())
-            .addVariable("regex.action", action == null ? "null" : action)
+            .addVariable("regex.action.name", action == null ? "null" : action.getName().toLowerCase())
             .addVariable("regex.action.exists", action != null)
             .addVariable("regex.attempts.current", currentAttempts)
             .addVariable("regex.attempts.max", maxAttempts)
@@ -204,7 +204,7 @@ public class AntiRegexHandler implements EventListener {
                     }
 
                     boolean send = (matchAction & MatchAction.SEND_MESSAGE.getRaw()) == MatchAction.SEND_MESSAGE.getRaw() && selfMember.hasPermission(textChannel, Permission.MESSAGE_WRITE);
-                    if (action != null && currentAttempts + 1 >= maxAttempts) {
+                    if (action != null && currentAttempts + 1 == maxAttempts) {
                         Reason reason = new Reason(String.format("Sent a message which matched regex `%s` %d time%s", id.toHexString(), maxAttempts, maxAttempts == 1 ? "" : "s"));
 
                         ModUtility.performAction(this.bot, action, member, selfMember, reason).thenCompose(result -> {
