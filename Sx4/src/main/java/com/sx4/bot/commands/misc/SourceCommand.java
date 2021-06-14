@@ -82,7 +82,7 @@ public class SourceCommand extends Sx4Command {
 						break;
 					}
 				} else {
-					event.reply("https://github.com/sx4-discord-bot/Sx4/blob/" + fullPath + "#L" + (i + 1)).queue();
+					event.reply("https://sx4.dev/Sx4/blob/" + fullPath + "#L" + (i + 1)).queue();
 					break;
 				}
 			}

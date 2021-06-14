@@ -250,6 +250,15 @@ public class SearchUtility {
 			return emote == null ? null : ReactionEmote.fromCustom(emote);
 		}
 	}
+
+	public static ReactionEmote getUncheckedReactionEmote(ShardManager manager, String query) {
+		Emote emote = SearchUtility.getEmote(manager, query);
+		if (emote == null) {
+			return ReactionEmote.fromUnicode(query, manager.getShardById(0));
+		} else {
+			return ReactionEmote.fromCustom(emote);
+		}
+	}
 	
 	public static IPermissionHolder getPermissionHolder(Guild guild, String query) {
 		Role role = SearchUtility.getRole(guild, query);

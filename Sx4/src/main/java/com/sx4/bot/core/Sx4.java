@@ -576,7 +576,8 @@ public class Sx4 {
 				
 				Failure : if (failure != null) {
 					ArgumentParseException parseException = (ArgumentParseException) failure.getReason();
-					
+
+					// Because error manager doesn't give a command instance this condition is needed
 					IArgument<?> argument = parseException.getArgument();
 					String[] options = argument.getProperty("options");
 					Limit limit = argument.getProperty("limit", Limit.class);
@@ -770,6 +771,7 @@ public class Sx4 {
 			.addBuilderConfigureFunction(Attachment.class, (parameter, builder) -> builder.setAcceptEmpty(true))
 			.addBuilderConfigureFunction(MessageArgument.class, (parameter, builder) -> builder.setAcceptEmpty(true))
 			.addGenericBuilderConfigureFunction(Object.class, (parameter, builder) -> builder.setProperty("parameter", parameter))
+			.addBuilderConfigureFunction(ReactionEmote.class, (parameter, builder) -> builder.setProperty("unchecked", parameter.isAnnotationPresent(Unchecked.class)))
 			.addBuilderConfigureFunction(String.class, (parameter, builder) -> {
 				builder.setProperty("imageUrl", parameter.isAnnotationPresent(ImageUrl.class));
 				builder.setProperty("url", parameter.isAnnotationPresent(Url.class));
@@ -945,7 +947,7 @@ public class Sx4 {
 			.registerParser(Locale.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getLocale(content.trim())))
 			.registerParser(Guild.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getGuild(this.shardManager, content.trim())))
 			.registerParser(AmountArgument.class, (context, argument, content) -> new ParsedResult<>(AmountArgument.parse(content)))
-			.registerParser(ReactionEmote.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getReactionEmote(this.shardManager, content.trim())))
+			.registerParser(ReactionEmote.class, (context, argument, content) -> new ParsedResult<>(argument.getProperty("unchecked") ? SearchUtility.getUncheckedReactionEmote(this.shardManager, content.trim()) : SearchUtility.getReactionEmote(this.shardManager, content.trim())))
 			.registerParser(Sx4Command.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getCommand(this.commandListener, content.trim())))
 			.registerGenericParser(Item.class, (context, type, argument, content) -> new ParsedResult<>(this.economyManager.getItemByQuery(content.trim(), type)))
 			.registerParser(Item.class, (context, argument, content) -> new ParsedResult<>(this.economyManager.getItemByQuery(content.trim(), Item.class)))

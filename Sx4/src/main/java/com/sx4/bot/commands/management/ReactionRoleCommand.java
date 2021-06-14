@@ -8,6 +8,7 @@ import com.mongodb.client.model.UpdateOptions;
 import com.mongodb.client.model.Updates;
 import com.sx4.bot.annotations.argument.Limit;
 import com.sx4.bot.annotations.argument.Options;
+import com.sx4.bot.annotations.argument.Unchecked;
 import com.sx4.bot.annotations.command.AuthorPermissions;
 import com.sx4.bot.annotations.command.CommandId;
 import com.sx4.bot.annotations.command.Examples;
@@ -63,7 +64,7 @@ public class ReactionRoleCommand extends Sx4Command {
 	@Examples({"reaction role add 643945552865919002 🐝 @Yellow", "reaction role add https://discordapp.com/channels/330399610273136641/678274453158887446/680051429460803622 :doggo: Dog person"})
 	@AuthorPermissions(permissions={Permission.MANAGE_ROLES})
 	@Cooldown(value=2)
-	public void add(Sx4CommandEvent event, @Argument(value="message id") MessageArgument messageArgument, @Argument(value="emote") ReactionEmote emote, @Argument(value="role", endless=true) Role role) {
+	public void add(Sx4CommandEvent event, @Argument(value="message id") MessageArgument messageArgument, @Argument(value="emote") @Unchecked ReactionEmote emote, @Argument(value="role", endless=true) Role role) {
 		if (role.isPublicRole()) {
 			event.replyFailure("I cannot give the @everyone role").queue();
 			return;
@@ -154,7 +155,7 @@ public class ReactionRoleCommand extends Sx4Command {
 	@Examples({"reaction role remove 643945552865919002 🐝", "reaction role remove https://discordapp.com/channels/330399610273136641/678274453158887446/680051429460803622 🐝 @Yellow"})
 	@AuthorPermissions(permissions={Permission.MANAGE_ROLES})
 	@Cooldown(value=2)
-	public void remove(Sx4CommandEvent event, @Argument(value="message id") MessageArgument messageArgument, @Argument(value="emote") ReactionEmote emote, @Argument(value="role", endless=true, nullDefault=true) Role role) {
+	public void remove(Sx4CommandEvent event, @Argument(value="message id") MessageArgument messageArgument, @Argument(value="emote") @Unchecked ReactionEmote emote, @Argument(value="role", endless=true, nullDefault=true) Role role) {
 		boolean unicode = emote.isEmoji();
 		String identifier = unicode ? "name" : "id";
 
@@ -324,7 +325,7 @@ public class ReactionRoleCommand extends Sx4Command {
 		@CommandId(78)
 		@Examples({"reaction role whitelist add 643945552865919002 🐝 @Shea#6653", "reaction role whitelist add 643945552865919002 :doggo: @Role", "reaction role whitelist add 643945552865919002 @Role"})
 		@AuthorPermissions(permissions={Permission.MANAGE_ROLES})
-		public void add(Sx4CommandEvent event, @Argument(value="message id") MessageArgument messageArgument, @Argument(value="emote", nullDefault=true) ReactionEmote emote, @Argument(value="user | role", endless=true) IPermissionHolder holder) {
+		public void add(Sx4CommandEvent event, @Argument(value="message id") MessageArgument messageArgument, @Argument(value="emote", nullDefault=true) @Unchecked ReactionEmote emote, @Argument(value="user | role", endless=true) IPermissionHolder holder) {
 			boolean role = holder instanceof Role;
 
 			Document holderData = new Document("id", holder.getIdLong())
@@ -374,7 +375,7 @@ public class ReactionRoleCommand extends Sx4Command {
 		@CommandId(79)
 		@Examples({"reaction role whitelist remove 643945552865919002 🐝 @Shea#6653", "reaction role whitelist remove 643945552865919002 :doggo: @Role", "reaction role whitelist remove 643945552865919002 @Role"})
 		@AuthorPermissions(permissions={Permission.MANAGE_ROLES})
-		public void remove(Sx4CommandEvent event, @Argument(value="message id") MessageArgument messageArgument, @Argument(value="emote", nullDefault=true) ReactionEmote emote, @Argument(value="user | role", endless=true) IPermissionHolder holder) {
+		public void remove(Sx4CommandEvent event, @Argument(value="message id") MessageArgument messageArgument, @Argument(value="emote", nullDefault=true) @Unchecked ReactionEmote emote, @Argument(value="user | role", endless=true) IPermissionHolder holder) {
 			boolean role = holder instanceof Role;
 
 			Bson filter = Filters.eq("messageId", messageArgument.getMessageId());
@@ -411,7 +412,7 @@ public class ReactionRoleCommand extends Sx4Command {
 		@CommandId(80)
 		@Examples({"reaction role whitelist delete 643945552865919002 :doggo:", "reaction role whitelist delete 643945552865919002"})
 		@AuthorPermissions(permissions={Permission.MANAGE_ROLES})
-		public void delete(Sx4CommandEvent event, @Argument(value="message id") MessageArgument messageArgument, @Argument(value="emote", nullDefault=true) ReactionEmote emote) {
+		public void delete(Sx4CommandEvent event, @Argument(value="message id") MessageArgument messageArgument, @Argument(value="emote", nullDefault=true) @Unchecked ReactionEmote emote) {
 			Bson filter = Filters.eq("messageId", messageArgument.getMessageId());
 			Bson update = Updates.unset("permissions");
 
