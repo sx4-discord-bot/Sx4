@@ -14,11 +14,9 @@ import net.dv8tion.jda.api.JDA.ShardInfo;
 import net.dv8tion.jda.api.events.*;
 import net.dv8tion.jda.api.hooks.EventListener;
 import net.dv8tion.jda.api.requests.CloseCode;
-import net.dv8tion.jda.api.sharding.ShardManager;
 
 import java.time.Instant;
 import java.time.OffsetDateTime;
-import java.util.ArrayList;
 
 public class ConnectionHandler implements EventListener {
 
@@ -61,15 +59,14 @@ public class ConnectionHandler implements EventListener {
 		JDA jda = event.getJDA();
 		
 		if (++this.readyEventsCalled == jda.getShardInfo().getShardTotal()) {
-			ShardManager manager = this.bot.getShardManager();
-			ExceptionUtility.safeRun(manager, this.bot.getReminderManager()::ensureReminders);
-			ExceptionUtility.safeRun(manager, this.bot.getMuteManager()::ensureMutes);
-			ExceptionUtility.safeRun(manager, this.bot.getTemporaryBanManager()::ensureBans);
-			ExceptionUtility.safeRun(manager, this.bot.getGiveawayManager()::ensureGiveaways);
-			ExceptionUtility.safeRun(manager, this.bot.getYouTubeManager()::ensureSubscriptions);
+			ExceptionUtility.safeRun(this.bot.getReminderManager()::ensureReminders);
+			ExceptionUtility.safeRun(this.bot.getMuteManager()::ensureMutes);
+			ExceptionUtility.safeRun(this.bot.getTemporaryBanManager()::ensureBans);
+			ExceptionUtility.safeRun(this.bot.getGiveawayManager()::ensureGiveaways);
+			ExceptionUtility.safeRun(this.bot.getYouTubeManager()::ensureSubscriptions);
 
 			if (this.bot.getConfig().isMain()) {
-				ExceptionUtility.safeRun(manager, () -> this.bot.getPatreonManager().ensurePatrons(null, new ArrayList<>()));
+				ExceptionUtility.safeRun(this.bot.getPatreonManager()::ensurePatrons);
 			}
 		}
 		

@@ -64,7 +64,7 @@ public class Crate extends Item {
 			.collect(Collectors.toList());
 
 		for (Item item : items) {
-			if (item instanceof Tool || item == this) {
+			if (item instanceof Tool || item == this || (item instanceof Material && ((Material) item).isHidden())) {
 				continue;
 			}
 
@@ -88,7 +88,7 @@ public class Crate extends Item {
 
 			for (int i = 0; i < this.contents.get(type); i++) {
 				for (Item item : items) {
-					if (item == this) {
+					if (item == this || (item instanceof Material && ((Material) item).isHidden())) {
 						continue;
 					}
 

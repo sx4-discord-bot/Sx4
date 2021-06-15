@@ -129,7 +129,7 @@ public class StarboardHandler implements EventListener {
 		);
 
 		this.bot.getMongo().aggregateGuilds(pipeline).whenComplete((iterable, aggregateException) -> {
-			if (ExceptionUtility.sendErrorMessage(event.getJDA().getShardManager(), aggregateException)) {
+			if (ExceptionUtility.sendErrorMessage(aggregateException)) {
 				return;
 			}
 
@@ -208,7 +208,7 @@ public class StarboardHandler implements EventListener {
 						}
 					}
 
-					if (ExceptionUtility.sendErrorMessage(event.getJDA().getShardManager(), exception)) {
+					if (ExceptionUtility.sendErrorMessage(exception)) {
 						return;
 					}
 
@@ -239,7 +239,7 @@ public class StarboardHandler implements EventListener {
 		);
 
 		this.bot.getMongo().aggregateGuilds(pipeline).whenComplete((iterable, aggregateException) -> {
-			if (ExceptionUtility.sendErrorMessage(event.getJDA().getShardManager(), aggregateException)) {
+			if (ExceptionUtility.sendErrorMessage(aggregateException)) {
 				return;
 			}
 
@@ -289,7 +289,7 @@ public class StarboardHandler implements EventListener {
 
 				return this.bot.getMongo().findAndUpdateStarboard(Filters.eq("originalMessageId", originalMessageId), update, options);
 			}).whenComplete((updatedData, exception) -> {
-				if (ExceptionUtility.sendErrorMessage(event.getJDA().getShardManager(), exception) || updatedData == null) {
+				if (ExceptionUtility.sendErrorMessage(exception) || updatedData == null) {
 					return;
 				}
 

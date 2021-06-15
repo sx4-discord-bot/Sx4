@@ -89,7 +89,7 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 
 						this.createWebhook(channel, message);
 					} else {
-						ExceptionUtility.sendErrorMessage(this.bot.getShardManager(), exception);
+						ExceptionUtility.sendErrorMessage(exception);
 					}
 				});
 		});
@@ -112,7 +112,7 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 		);
 
 		this.bot.getMongo().aggregateYouTubeNotifications(pipeline).whenComplete((notifications, aggregateException) -> {
-			if (ExceptionUtility.sendErrorMessage(shardManager, aggregateException)) {
+			if (ExceptionUtility.sendErrorMessage(aggregateException)) {
 				return;
 			}
 
@@ -163,7 +163,7 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 						});
 					} else {
 						this.bot.getMongo().deleteYouTubeNotificationById(notification.getObjectId("_id")).whenComplete((result, exception) -> {
-							if (ExceptionUtility.sendErrorMessage(this.bot.getShardManager(), exception)) {
+							if (ExceptionUtility.sendErrorMessage(exception)) {
 								return;
 							}
 
@@ -201,7 +201,7 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 			long channelId = ((TextChannelDeleteEvent) event).getChannel().getIdLong();
 
 			this.bot.getMongo().deleteManyYouTubeNotifications(Filters.eq("channelId", channelId)).whenComplete((result, exception) -> {
-				if (ExceptionUtility.sendErrorMessage(this.bot.getShardManager(), exception)) {
+				if (ExceptionUtility.sendErrorMessage(exception)) {
 					return;
 				} 
 				

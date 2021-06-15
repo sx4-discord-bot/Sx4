@@ -158,7 +158,7 @@ public class ReactionRoleHandler implements EventListener {
 				return;
 			}
 
-			ExceptionUtility.sendErrorMessage(event.getJDA().getShardManager(), exception);
+			ExceptionUtility.sendErrorMessage(exception);
 		});
 	}
 

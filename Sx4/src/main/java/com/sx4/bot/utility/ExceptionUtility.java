@@ -6,9 +6,6 @@ import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.MessageChannel;
 import net.dv8tion.jda.api.entities.MessageEmbed;
-import net.dv8tion.jda.api.entities.TextChannel;
-import net.dv8tion.jda.api.requests.RestAction;
-import net.dv8tion.jda.api.sharding.ShardManager;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
@@ -18,7 +15,7 @@ import java.util.List;
 
 public class ExceptionUtility {
 
-	public static boolean sendErrorMessage(ShardManager manager, Throwable throwable) {
+	public static boolean sendErrorMessage(Throwable throwable) {
 		if (throwable == null) {
 			return false;
 		}
@@ -30,7 +27,7 @@ public class ExceptionUtility {
 	        throwable.printStackTrace(stream);
 	    }
 	    
-	    String[] errorLines = new String(outputStream.toByteArray(), StandardCharsets.UTF_8).split("\n");
+	    String[] errorLines = outputStream.toString(StandardCharsets.UTF_8).split("\n");
 		
 		StringBuilder message = new StringBuilder("```diff\n");
 		
@@ -49,11 +46,8 @@ public class ExceptionUtility {
 		if (message.length() > 7) {
 			messages.add(message.append("```").toString());
 		}
-		
-		TextChannel channel = Config.get().getErrorsChannel(manager);
-		if (channel != null) {
-			messages.stream().map(channel::sendMessage).forEach(RestAction::queue);
-		}
+
+		messages.forEach(Config.get().getErrorsWebhook()::send);
 
 		throwable.printStackTrace();
 		
@@ -67,7 +61,7 @@ public class ExceptionUtility {
 		for (int i = 0; i < stackTrace.length; i++) {
 			StackTraceElement element = stackTrace[i];
 			if (element.toString().contains("com.sx4.bot")) {
-				builder.append("\n- " + element.toString());
+				builder.append("\n- " + element);
 				break;
 			}
 		}
@@ -92,7 +86,7 @@ public class ExceptionUtility {
 
 		channel.sendMessage(ExceptionUtility.getSimpleErrorMessage(throwable)).queue();
 
-		ExceptionUtility.sendErrorMessage(channel.getJDA().getShardManager(), throwable);
+		ExceptionUtility.sendErrorMessage(throwable);
 		
 		return true;
 	}
@@ -101,11 +95,11 @@ public class ExceptionUtility {
 		return ExceptionUtility.sendExceptionally(event.getChannel(), throwable);
 	}
 
-	public static void safeRun(ShardManager manager, Runnable runnable) {
+	public static void safeRun(Runnable runnable) {
 		try {
 			runnable.run();
 		} catch (Throwable e) {
-			ExceptionUtility.sendErrorMessage(manager, e);
+			ExceptionUtility.sendErrorMessage(e);
 		}
 	}
 	

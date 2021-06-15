@@ -123,7 +123,7 @@ public class LoggerManager implements WebhookManager {
             );
 
             this.bot.getMongo().updateLogger(Filters.eq("channelId", channel.getIdLong()), update, new UpdateOptions()).whenComplete((result, exception) -> {
-                if (ExceptionUtility.sendErrorMessage(this.bot.getShardManager(), exception)) {
+                if (ExceptionUtility.sendErrorMessage(exception)) {
                     return;
                 }
 
@@ -135,112 +135,116 @@ public class LoggerManager implements WebhookManager {
 
     private void handleQueue(int retries) {
         this.executor.submit(() -> {
-            Request request = this.queue.poll();
-            if (request == null) {
-                return;
-            }
-
-            if (retries == LoggerManager.MAX_RETRIES) {
-                this.handleQueue(0);
-                return;
-            }
-
-            Guild guild = request.getGuild();
-            if (guild == null) {
-                this.handleQueue(0);
-                return;
-            }
-
-            long channelId = request.getChannelId();
-            TextChannel channel = request.getChannel(guild);
-
-            if (channel == null) {
-                this.bot.getMongo().deleteLogger(Filters.eq("channelId", channelId)).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
-
-                this.webhooks.remove(channelId);
-                this.handleQueue(0);
-
-                return;
-            }
-
-            List<WebhookEmbed> embeds = new ArrayList<>(request.getEmbeds());
-            int length = MessageUtility.getWebhookEmbedLength(embeds);
-
-            List<Request> skippedRequests = new ArrayList<>(), requests = new ArrayList<>();
-            requests.add(request);
-
-            Request nextRequest;
-            while ((nextRequest = this.queue.poll()) != null) {
-                List<WebhookEmbed> nextEmbeds = nextRequest.getEmbeds();
-
-                int nextLength = MessageUtility.getWebhookEmbedLength(nextEmbeds);
-                if (request.getChannelId() != nextRequest.getChannelId() || embeds.size() + nextEmbeds.size() > 10 || length + nextLength > MessageEmbed.EMBED_MAX_LENGTH_BOT) {
-                    skippedRequests.add(nextRequest);
-                    continue;
-                }
-
-                embeds.addAll(nextEmbeds);
-                if (embeds.size() == 10) {
-                    break;
-                }
-
-                length += nextLength;
-
-                requests.add(nextRequest);
-            }
-
-            // Keep order of logs
-            skippedRequests.forEach(this.queue::addFirst);
-
-            Document logger = request.getLogger();
-            Document webhookData = logger.get("webhook", MongoDatabase.EMPTY_DOCUMENT);
-            boolean premium = logger.getBoolean("premium");
-
-            WebhookMessage message = new WebhookMessageBuilder()
-                .addEmbeds(embeds)
-                .setUsername(premium ? webhookData.get("name", "Sx4 - Logger") : "Sx4 - Logger")
-                .setAvatarUrl(premium ? webhookData.get("avatar", request.getJDA().getSelfUser().getEffectiveAvatarUrl()) : request.getJDA().getSelfUser().getEffectiveAvatarUrl())
-                .build();
-
-            WebhookClient webhook;
-            if (this.webhooks.containsKey(channelId)) {
-                webhook = this.webhooks.get(channelId);
-            } else if (!webhookData.containsKey("id")) {
-                if (channel.getGuild().getSelfMember().hasPermission(channel, Permission.MANAGE_WEBHOOKS)) {
-                    this.createWebhook(channel, requests, retries);
+            try {
+                Request request = this.queue.poll();
+                if (request == null) {
                     return;
                 }
 
-                this.handleQueue(0);
-                return;
-            } else {
-                webhook = new WebhookClient(webhookData.getLong("id"), webhookData.getString("token"), this.webhookExecutor, this.webhookClient);
+                if (retries == LoggerManager.MAX_RETRIES) {
+                    this.handleQueue(0);
+                    return;
+                }
 
-                this.webhooks.put(channelId, webhook);
-            }
+                Guild guild = request.getGuild();
+                if (guild == null) {
+                    this.handleQueue(0);
+                    return;
+                }
 
-            webhook.send(message).whenComplete((result, exception) -> {
-                Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
-                if (cause instanceof HttpException && ((HttpException) cause).getCode() == 404) {
+                long channelId = request.getChannelId();
+                TextChannel channel = request.getChannel(guild);
+                if (channel == null) {
+                    this.bot.getMongo().deleteLogger(Filters.eq("channelId", channelId)).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
+
+                    this.webhooks.remove(channelId);
+                    this.handleQueue(0);
+
+                    return;
+                }
+
+                List<WebhookEmbed> embeds = new ArrayList<>(request.getEmbeds());
+                int length = MessageUtility.getWebhookEmbedLength(embeds);
+
+                List<Request> skippedRequests = new ArrayList<>(), requests = new ArrayList<>();
+                requests.add(request);
+
+                Request nextRequest;
+                while ((nextRequest = this.queue.poll()) != null) {
+                    List<WebhookEmbed> nextEmbeds = nextRequest.getEmbeds();
+
+                    int nextLength = MessageUtility.getWebhookEmbedLength(nextEmbeds);
+                    if (request.getChannelId() != nextRequest.getChannelId()) {
+                        skippedRequests.add(nextRequest);
+                        continue;
+                    }
+
+                    if (embeds.size() + nextEmbeds.size() > 10 || length + nextLength > MessageEmbed.EMBED_MAX_LENGTH_BOT) {
+                        break;
+                    }
+
+                    embeds.addAll(nextEmbeds);
+                    requests.add(nextRequest);
+                    length += nextLength;
+                }
+
+                // Keep order of logs
+                skippedRequests.forEach(this.queue::addFirst);
+
+                Document logger = request.getLogger();
+                Document webhookData = logger.get("webhook", MongoDatabase.EMPTY_DOCUMENT);
+                boolean premium = logger.getBoolean("premium");
+
+                WebhookMessage message = new WebhookMessageBuilder()
+                    .addEmbeds(embeds)
+                    .setUsername(premium ? webhookData.get("name", "Sx4 - Logger") : "Sx4 - Logger")
+                    .setAvatarUrl(premium ? webhookData.get("avatar", request.getJDA().getSelfUser().getEffectiveAvatarUrl()) : request.getJDA().getSelfUser().getEffectiveAvatarUrl())
+                    .build();
+
+                WebhookClient webhook;
+                if (this.webhooks.containsKey(channelId)) {
+                    webhook = this.webhooks.get(channelId);
+                } else if (!webhookData.containsKey("id")) {
                     if (channel.getGuild().getSelfMember().hasPermission(channel, Permission.MANAGE_WEBHOOKS)) {
                         this.createWebhook(channel, requests, retries);
                         return;
                     }
 
                     this.handleQueue(0);
-
                     return;
+                } else {
+                    webhook = new WebhookClient(webhookData.getLong("id"), webhookData.getString("token"), this.webhookExecutor, this.webhookClient);
+
+                    this.webhooks.put(channelId, webhook);
                 }
 
-                if (ExceptionUtility.sendErrorMessage(this.bot.getShardManager(), exception)) {
-                    requests.forEach(this.queue::addFirst);
-                    this.handleQueue(retries + 1);
+                webhook.send(message).whenComplete((result, exception) -> {
+                    Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
+                    if (cause instanceof HttpException && ((HttpException) cause).getCode() == 404) {
+                        if (channel.getGuild().getSelfMember().hasPermission(channel, Permission.MANAGE_WEBHOOKS)) {
+                            this.createWebhook(channel, requests, retries);
+                            return;
+                        }
 
-                    return;
-                }
+                        this.handleQueue(0);
 
+                        return;
+                    }
+
+                    if (ExceptionUtility.sendErrorMessage(exception)) {
+                        requests.forEach(this.queue::addFirst);
+                        this.handleQueue(retries + 1);
+
+                        return;
+                    }
+
+                    this.handleQueue(0);
+                });
+            } catch (Throwable exception) {
+                // Continue queue even if an exception occurs to avoid the queue getting stuck
+                ExceptionUtility.sendErrorMessage(exception);
                 this.handleQueue(0);
-            });
+            }
         });
     }
 

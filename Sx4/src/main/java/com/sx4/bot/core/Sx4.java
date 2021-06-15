@@ -1087,7 +1087,12 @@ public class Sx4 {
 							.orElse(null);
 
 						if (attachment != null) {
-							return new ParsedResult<>(new PartialEmote(attachment.getUrl(), attachment.getFileName(), attachment.getFileExtension().equalsIgnoreCase("gif")), content.substring(query.length()));
+							String fileName = attachment.getFileName(), extension = attachment.getFileExtension();
+							if (extension != null) {
+								fileName = fileName.substring(0, fileName.length() - (extension.length() + 1));
+							}
+
+							return new ParsedResult<>(new PartialEmote(attachment.getUrl(), fileName, extension != null && extension.equalsIgnoreCase("gif")), content.substring(query.length()));
 						}
 
 						return new ParsedResult<>();
@@ -1409,7 +1414,7 @@ public class Sx4 {
 			
 			exception.printStackTrace();
 			
-			ExceptionUtility.sendErrorMessage(bot.getShardManager(), exception);
+			ExceptionUtility.sendErrorMessage(exception);
 		});
 	}
 

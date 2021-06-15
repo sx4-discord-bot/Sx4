@@ -20,7 +20,7 @@ public class UncaughtExceptionHandler implements ExceptionMapper<Throwable> {
 	}
 	
 	public Response toResponse(Throwable exception) {
-		ExceptionUtility.sendErrorMessage(this.bot.getShardManager(), exception);
+		ExceptionUtility.sendErrorMessage(exception);
 		
 		if (exception instanceof WebApplicationException) {
 			return ((WebApplicationException) exception).getResponse();

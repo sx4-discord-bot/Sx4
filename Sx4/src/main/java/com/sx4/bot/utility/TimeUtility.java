@@ -27,6 +27,10 @@ public class TimeUtility {
 			return this.timeZone;
 		}
 
+		public ZoneOffset asZoneOffset() {
+			return ZoneOffset.ofTotalSeconds((int) this.getTotalOffset());
+		}
+
 		public long getOffset() {
 			return this.offset;
 		}

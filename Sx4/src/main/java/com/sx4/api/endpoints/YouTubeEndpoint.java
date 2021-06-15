@@ -40,7 +40,7 @@ public class YouTubeEndpoint {
 			String channelId = topic.substring(topic.lastIndexOf('=') + 1);
 			
 			this.bot.getMongo().updateYouTubeSubscriptionById(channelId, Updates.set("resubscribeAt", Clock.systemUTC().instant().getEpochSecond() + seconds)).whenComplete((result, exception) -> {
-				if (ExceptionUtility.sendErrorMessage(this.bot.getShardManager(), exception)) {
+				if (ExceptionUtility.sendErrorMessage(exception)) {
 					return;
 				}
 				

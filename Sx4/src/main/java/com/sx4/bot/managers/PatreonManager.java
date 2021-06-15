@@ -50,6 +50,10 @@ public class PatreonManager {
 			listener.onPatreonEvent(event);
 		}
 	}
+	
+	public void ensurePatrons() {
+		this.ensurePatrons(null, new ArrayList<>());
+	}
 
 	public void ensurePatrons(String cursor, List<CompletableFuture<List<WriteModel<Document>>>> futures) {
 		Request request = new Request.Builder()
@@ -98,7 +102,7 @@ public class PatreonManager {
 			String nextCursor = data.getEmbedded(List.of("meta", "pagination", "cursors", "next"), String.class);
 			if (nextCursor == null) {
 				FutureUtility.allOf(futures).whenComplete((result, exception) -> {
-					if (ExceptionUtility.sendErrorMessage(this.bot.getShardManager(), exception)) {
+					if (ExceptionUtility.sendErrorMessage(exception)) {
 						return;
 					}
 

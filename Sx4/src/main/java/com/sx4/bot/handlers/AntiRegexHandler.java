@@ -248,7 +248,7 @@ public class AntiRegexHandler implements EventListener {
                     FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().upsert(true).projection(Projections.include("attempts")).returnDocument(ReturnDocument.AFTER);
 
                     this.bot.getMongo().findAndUpdateRegexAttempt(filter, update, options).whenComplete((attemptsData, attemptsException) -> {
-                        if (ExceptionUtility.sendErrorMessage(this.bot.getShardManager(), attemptsException)) {
+                        if (ExceptionUtility.sendErrorMessage(attemptsException)) {
                             return;
                         }
 

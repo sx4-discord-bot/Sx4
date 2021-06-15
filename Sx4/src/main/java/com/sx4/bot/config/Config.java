@@ -1,5 +1,7 @@
 package com.sx4.bot.config;
 
+import club.minnced.discord.webhook.WebhookClient;
+import club.minnced.discord.webhook.WebhookClientBuilder;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.TextChannel;
@@ -30,6 +32,8 @@ public class Config {
 	// Avoid iterating the json everytime they're used
 	private String emoteSuccess;
 	private String emoteFailure;
+
+	private WebhookClient errorsWebhook;
 	
 	private Config() {
 		this.reload();
@@ -226,9 +230,25 @@ public class Config {
 		
 		return guild == null ? null : guild.getRoleById(this.getDonatorRoleId());
 	}
+
+	public long getErrorsWebhookId() {
+		return this.get(this.getState() + ".supportGuild.webhook.errors.id");
+	}
+
+	public String getErrorsWebhookToken() {
+		return this.get(this.getState() + ".supportGuild.webhook.errors.token");
+	}
+
+	public WebhookClient getErrorsWebhook() {
+		if (this.errorsWebhook == null) {
+			this.errorsWebhook = new WebhookClientBuilder(this.getErrorsWebhookId(), this.getErrorsWebhookToken()).build();
+		}
+
+		return this.errorsWebhook;
+	}
 	
 	public long getEventsWebhookId() {
-		return this.get(this.getState() + ".supportGuild.webhook.events.id", 0L);
+		return this.get(this.getState() + ".supportGuild.webhook.events.id");
 	}
 	
 	public String getEventsWebhookToken() {
@@ -236,7 +256,7 @@ public class Config {
 	}
 
 	public long getGuildsWebhookId() {
-		return this.get(this.getState() + ".supportGuild.webhook.guilds.id", 0L);
+		return this.get(this.getState() + ".supportGuild.webhook.guilds.id");
 	}
 
 	public String getGuildsWebhookToken() {
@@ -244,7 +264,7 @@ public class Config {
 	}
 
 	public long getPatreonWebhookId() {
-		return this.get(this.getState() + ".supportGuild.webhook.patreon.id", 0L);
+		return this.get(this.getState() + ".supportGuild.webhook.patreon.id");
 	}
 
 	public String getPatreonWebhookToken() {
@@ -437,6 +457,10 @@ public class Config {
 
 	public String getGitHubWebhookSecret() {
 		return this.get("token.github.webhook");
+	}
+
+	public String getGitHubBranch() {
+		return this.get(this.getState() + ".github.branch");
 	}
 
 	public String getImageWebserver() {

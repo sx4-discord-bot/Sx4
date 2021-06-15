@@ -17,14 +17,14 @@ public class PartialEmote {
 	}
 	
 	public PartialEmote(String url, String name, Boolean animated) {
-		this.name = name;
+		this.name = name.replaceAll("[^a-zA-Z0-9_]", "_");
 		this.id = 0L;
 		this.animated = animated;
 		this.url = url;
 	}
 	
 	public PartialEmote(long id, String name, Boolean animated) {
-		this.name = name;
+		this.name = name.replaceAll("[^a-zA-Z0-9_]", "_");
 		this.id = id;
 		this.animated = animated;
 		this.url = String.format(Emote.ICON_URL, id, animated == null || animated ? "gif" : "png");
@@ -32,10 +32,6 @@ public class PartialEmote {
 	
 	public long getId() {
 		return this.id;
-	}
-	
-	public boolean isUnknown() {
-		return this.animated == null;
 	}
 	
 	public Boolean isAnimated() {

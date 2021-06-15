@@ -38,12 +38,12 @@ public class RedirectEndpoint {
 	@GET
 	@Path("{id: [a-zA-Z0-9]{2,7}}")
 	public Response getRedirect(@PathParam("id") final String id) {
-		Document redirect = this.bot.getMongo().getRedirectById(id);
+		Document redirect = this.bot.getMongoMain().getRedirectById(id);
 		if (redirect == null) {
 			return Response.status(404).build();
 		}
 
-		return Response.temporaryRedirect(URI.create(redirect.getString("url"))).build();
+		return Response.status(Response.Status.MOVED_PERMANENTLY).location(URI.create(redirect.getString("url"))).build();
 	}
 
 	@POST
@@ -68,11 +68,11 @@ public class RedirectEndpoint {
 		Document result;
 		String id;
 		do {
-			id = this.getAlphaNumericId(6);
-			result = this.bot.getMongo().getRedirectById(id);
+			id = this.getAlphaNumericId(7);
+			result = this.bot.getMongoMain().getRedirectById(id);
 		} while (result != null);
 
-		this.bot.getMongo().insertRedirect(id, url).whenComplete((data, exception) -> {
+		this.bot.getMongoMain().insertRedirect(id, url).whenComplete((data, exception) -> {
 			if (exception != null) {
 				response.resume(exception);
 				return;

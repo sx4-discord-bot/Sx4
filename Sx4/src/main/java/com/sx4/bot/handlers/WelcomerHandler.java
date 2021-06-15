@@ -57,7 +57,7 @@ public class WelcomerHandler implements EventListener {
 				return;
 			}
 
-			if (ExceptionUtility.sendErrorMessage(event.getJDA().getShardManager(), exception)) {
+			if (ExceptionUtility.sendErrorMessage(exception)) {
 				return;
 			}
 

@@ -31,7 +31,7 @@ public class SourceCommand extends Sx4Command {
 		String lastClassName = classes[classes.length - 1];
 
 		String filePath = path.replace(".", "/").substring(0, classes.length == 1 ? path.length() : path.indexOf("$")) + ".java";
-		String fullPath = "rewrite/Sx4/src/main/java/" + filePath;
+		String fullPath = event.getConfig().getGitHubBranch() + "/Sx4/src/main/java/" + filePath;
 
 		Request request = new Request.Builder()
 			.url("https://raw.githubusercontent.com/sx4-discord-bot/Sx4/" + fullPath)

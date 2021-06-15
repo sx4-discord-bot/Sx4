@@ -1716,7 +1716,7 @@ public class MongoDatabase {
 	}
 
 	public static <Type> BiConsumer<Type, Throwable> exceptionally(ShardManager manager) {
-		return ($, exception) -> ExceptionUtility.sendErrorMessage(manager, exception);
+		return ($, exception) -> ExceptionUtility.sendErrorMessage(exception);
 	}
 
 	public static <Type> BiConsumer<Type, Throwable> exceptionally(CommandEvent event) {

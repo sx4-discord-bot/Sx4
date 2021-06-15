@@ -61,7 +61,7 @@ public class ModUtility {
 		CompletableFuture<Role> future = new CompletableFuture<>();
 		guild.createRole().setName("Muted - " + selfMember.getUser().getName()).queue(newRole -> {
 			database.updateGuildById(guild.getIdLong(), Updates.set("mute.roleId", newRole.getIdLong())).whenComplete((result, exception) -> {
-				if (ExceptionUtility.sendErrorMessage(guild.getJDA().getShardManager(), exception)) {
+				if (ExceptionUtility.sendErrorMessage(exception)) {
 					future.completeExceptionally(exception);
 				} else {
 					future.complete(newRole);

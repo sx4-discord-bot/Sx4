@@ -108,7 +108,7 @@ public class EmoteCommand extends Sx4Command {
 				return;
 			}
 
-			event.getGuild().createEmote(name != null ? name : emote.hasName() ? emote.getName() : "Unnamed_Emote", Icon.from(bytes)).submit(false)
+			event.getGuild().createEmote(name == null ? emote.hasName() ? emote.getName() : "Unnamed_Emote" : name, Icon.from(bytes)).submit(false)
 				.thenCompose(createdEmote -> event.replySuccess(createdEmote.getAsMention() + " has been created").submit())
 				.whenComplete((result, exception) -> {
 					if (exception instanceof CompletionException) {
