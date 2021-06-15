@@ -26,6 +26,7 @@ import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.MessageBuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.*;
+import net.dv8tion.jda.api.utils.MarkdownSanitizer;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
@@ -688,31 +689,97 @@ public class AntiRegexCommand extends Sx4Command {
 			});
 		}
 
-		// TODO: Think of a good format
 		@Command(value="list", description="Lists regex groups, roles and users that are whitelisted from specific channels for an anti regex")
 		@CommandId(121)
 		@Examples({"anti regex whitelist list 5f023782ef9eba03390a740c"})
-		public void list(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="channels") TextChannel channel) {
-		    Document regex = event.getMongo().getRegex(Filters.eq("_id", id), Projections.include("whitelist"));
+		public void list(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="channels", nullDefault=true) TextChannel channel) {
+			List<TextChannel> channels = channel == null ? event.getGuild().getTextChannels() : List.of(channel);
+
+			Document regex = event.getMongo().getRegex(Filters.eq("_id", id), Projections.include("whitelist"));
 			if (regex == null) {
 				event.replyFailure("I could not find that anti regex").queue();
 				return;
 			}
 
-			List<Document> whitelists = regex.getList("whitelist", Document.class, Collections.emptyList());
-			Document whitelist = whitelists.stream()
-				.filter(d -> d.getLong("id") == channel.getIdLong())
-				.findFirst()
-				.orElse(null);
+			PagedResult<TextChannel> channelPaged = new PagedResult<>(event.getBot(), channels)
+				.setAutoSelect(true)
+				.setAuthor("Channels", null, event.getGuild().getIconUrl())
+				.setDisplayFunction(TextChannel::getAsMention);
 
-			if (whitelist == null) {
-				event.replyFailure("Nothing is whitelisted in that channel").queue();
-				return;
-			}
+			channelPaged.onSelect(channelSelect -> {
+				TextChannel selectedChannel = channelSelect.getSelected();
 
+				Document whitelist = regex.getList("whitelist", Document.class).stream()
+					.filter(w -> w.getLong("id") == selectedChannel.getIdLong())
+					.findFirst()
+					.orElse(null);
 
+				if (whitelist == null) {
+					event.replyFailure("Nothing is whitelisted for that anti regex in " + selectedChannel.getAsMention()).queue();
+					return;
+				}
+
+				PagedResult<String> typePaged = new PagedResult<>(event.getBot(), List.of("Groups", "Users/Roles"))
+					.setAuthor("Type", null, event.getGuild().getIconUrl())
+					.setDisplayFunction(String::toString);
+
+				typePaged.onSelect(typeSelect -> {
+					String typeSelected = typeSelect.getSelected();
+
+					boolean groups = typeSelected.equals("Groups");
+
+					List<Document> whitelists = whitelist.getList(groups ? "groups" : "holders", Document.class, Collections.emptyList());
+					if (whitelists.isEmpty()) {
+						event.replyFailure("Nothing is whitelisted in " + typeSelected.toLowerCase() + " for that anti regex in " + selectedChannel.getAsMention()).queue();
+						return;
+					}
+
+					PagedResult<Document> whitelistPaged = new PagedResult<>(event.getBot(), whitelists)
+						.setAuthor(typeSelected, null, event.getGuild().getIconUrl())
+						.setDisplayFunction(data -> {
+							if (groups) {
+								return "Group " + data.getInteger("group");
+							} else {
+								long holderId = data.getLong("id");
+								int type = data.getInteger("type");
+								if (type == HolderType.ROLE.getType()) {
+									Role role = event.getGuild().getRoleById(holderId);
+									return role == null ? "Deleted Role (" + holderId + ")" : role.getAsMention();
+								} else {
+									User user = event.getShardManager().getUserById(holderId);
+									return user == null ? "Unknown User (" + holderId + ")" : user.getAsTag();
+								}
+							}
+						});
+
+					if (!groups) {
+						whitelistPaged.setSelect().setIndexed(false);
+					}
+
+					whitelistPaged.onSelect(whitelistSelect -> {
+						List<String> strings = whitelistSelect.getSelected().getList("strings", String.class, Collections.emptyList());
+						if (strings.isEmpty()) {
+							event.replyFailure("No strings are whitelisted in this group").queue();
+							return;
+						}
+
+						PagedResult<String> stringPaged = new PagedResult<>(event.getBot(), strings)
+							.setAuthor("Strings", null, event.getGuild().getIconUrl())
+							.setDisplayFunction(MarkdownSanitizer::sanitize)
+							.setSelect()
+							.setIndexed(false);
+
+						stringPaged.execute(event);
+					});
+
+					whitelistPaged.execute(event);
+				});
+
+				typePaged.execute(event);
+			});
+
+			channelPaged.execute(event);
 		}
-
 	}
 
 	public static class TemplateCommand extends Sx4Command {
@@ -732,17 +799,7 @@ public class AntiRegexCommand extends Sx4Command {
 		@Command(value="add", description="Add a regex to the templates for anyone to use")
 		@CommandId(123)
 		@Examples({"anti regex template add Numbers .*[0-9]+.* Will match any message which contains a number"})
-		public void add(Sx4CommandEvent event, @Argument(value="title") String title, @Argument(value="regex") Pattern pattern, @Argument(value="description", endless=true) String description) {
-			if (title.length() > 20) {
-				event.replyFailure("The title cannot be more than 20 characters").queue();
-				return;
-			}
-
-			if (description.length() > 250) {
-				event.replyFailure("The description cannot be more than 250 characters").queue();
-				return;
-			}
-
+		public void add(Sx4CommandEvent event, @Argument(value="title") @Limit(max=20) String title, @Argument(value="regex") Pattern pattern, @Argument(value="description", endless=true) @Limit(max=250) String description) {
 			String patternString = pattern.pattern();
 			if (patternString.length() > 200) {
 				event.replyFailure("The regex cannot be more than 200 characters").queue();

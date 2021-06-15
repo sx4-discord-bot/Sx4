@@ -19,13 +19,12 @@ import com.sx4.bot.entities.mod.auto.MatchAction;
 import com.sx4.bot.entities.mod.auto.RegexType;
 import com.sx4.bot.entities.settings.HolderType;
 import com.sx4.bot.handlers.AntiRegexHandler;
+import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.TimeUtility;
 import net.dv8tion.jda.api.Permission;
-import net.dv8tion.jda.api.entities.IPermissionHolder;
-import net.dv8tion.jda.api.entities.Member;
-import net.dv8tion.jda.api.entities.Role;
-import net.dv8tion.jda.api.entities.TextChannel;
+import net.dv8tion.jda.api.entities.*;
+import net.dv8tion.jda.api.utils.MarkdownSanitizer;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
@@ -398,32 +397,97 @@ public class AntiInviteCommand extends Sx4Command {
 			});
 		}
 
-		// TODO: Think of a good format
 		@Command(value="list", description="Lists roles and users that are whitelisted from specific channels for anti-invite")
 		@CommandId(318)
-		@Examples({"anti regex whitelist list 5f023782ef9eba03390a740c"})
-		public void list(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="channels") TextChannel channel) {
-			Bson filter = Filters.and(Filters.eq("regexId", AntiInviteCommand.REGEX_ID), Filters.eq("guildId", event.getGuild().getIdLong()));
-			Document regex = event.getMongo().getRegex(filter, Projections.include("whitelist"));
+		@Examples({"antiinvite whitelist list 5f023782ef9eba03390a740c"})
+		public void list(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="channels", nullDefault=true) TextChannel channel) {
+			List<TextChannel> channels = channel == null ? event.getGuild().getTextChannels() : List.of(channel);
+
+			Document regex = event.getMongo().getRegex(Filters.and(Filters.eq("type", RegexType.INVITE), Filters.eq("guildId", event.getGuild().getIdLong())), Projections.include("whitelist"));
 			if (regex == null) {
 				event.replyFailure("You do not have anti-invite setup").queue();
 				return;
 			}
 
-			List<Document> whitelists = regex.getList("whitelist", Document.class, Collections.emptyList());
-			Document whitelist = whitelists.stream()
-				.filter(d -> d.getLong("id") == channel.getIdLong())
-				.findFirst()
-				.orElse(null);
+			PagedResult<TextChannel> channelPaged = new PagedResult<>(event.getBot(), channels)
+				.setAutoSelect(true)
+				.setAuthor("Channels", null, event.getGuild().getIconUrl())
+				.setDisplayFunction(TextChannel::getAsMention);
 
-			if (whitelist == null) {
-				event.replyFailure("Nothing is whitelisted in that channel").queue();
-				return;
-			}
+			channelPaged.onSelect(channelSelect -> {
+				TextChannel selectedChannel = channelSelect.getSelected();
 
+				Document whitelist = regex.getList("whitelist", Document.class).stream()
+					.filter(w -> w.getLong("id") == selectedChannel.getIdLong())
+					.findFirst()
+					.orElse(null);
 
+				if (whitelist == null) {
+					event.replyFailure("Nothing is whitelisted for anti-invite in " + selectedChannel.getAsMention()).queue();
+					return;
+				}
+
+				PagedResult<String> typePaged = new PagedResult<>(event.getBot(), List.of("Groups", "Users/Roles"))
+					.setAuthor("Type", null, event.getGuild().getIconUrl())
+					.setDisplayFunction(String::toString);
+
+				typePaged.onSelect(typeSelect -> {
+					String typeSelected = typeSelect.getSelected();
+
+					boolean groups = typeSelected.equals("Groups");
+
+					List<Document> whitelists = whitelist.getList(groups ? "groups" : "holders", Document.class, Collections.emptyList());
+					if (whitelists.isEmpty()) {
+						event.replyFailure("Nothing is whitelisted in " + typeSelected.toLowerCase() + " for anti-invite in " + selectedChannel.getAsMention()).queue();
+						return;
+					}
+
+					PagedResult<Document> whitelistPaged = new PagedResult<>(event.getBot(), whitelists)
+						.setAuthor(typeSelected, null, event.getGuild().getIconUrl())
+						.setDisplayFunction(data -> {
+							if (groups) {
+								return "Group " + data.getInteger("group");
+							} else {
+								long holderId = data.getLong("id");
+								int type = data.getInteger("type");
+								if (type == HolderType.ROLE.getType()) {
+									Role role = event.getGuild().getRoleById(holderId);
+									return role == null ? "Deleted Role (" + holderId + ")" : role.getAsMention();
+								} else {
+									User user = event.getShardManager().getUserById(holderId);
+									return user == null ? "Unknown User (" + holderId + ")" : user.getAsTag();
+								}
+							}
+						});
+
+					if (!groups) {
+						whitelistPaged.setSelect().setIndexed(false);
+					}
+
+					whitelistPaged.onSelect(whitelistSelect -> {
+						List<String> strings = whitelistSelect.getSelected().getList("strings", String.class, Collections.emptyList());
+						if (strings.isEmpty()) {
+							event.replyFailure("No strings are whitelisted in this group").queue();
+							return;
+						}
+
+						PagedResult<String> stringPaged = new PagedResult<>(event.getBot(), strings)
+							.setAuthor("Strings", null, event.getGuild().getIconUrl())
+							.setDisplayFunction(MarkdownSanitizer::sanitize)
+							.setSelect()
+							.setIndexed(false);
+
+						stringPaged.execute(event);
+					});
+
+					whitelistPaged.execute(event);
+				});
+
+				typePaged.execute(event);
+			});
+
+			channelPaged.execute(event);
 		}
-
 	}
 
 }
