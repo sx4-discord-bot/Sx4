@@ -20,6 +20,7 @@ import com.sx4.bot.entities.mod.ModLog;
 import com.sx4.bot.entities.mod.Reason;
 import com.sx4.bot.entities.mod.action.Action;
 import com.sx4.bot.paged.PagedResult;
+import com.sx4.bot.utility.CheckUtility;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.waiter.Waiter;
 import com.sx4.bot.waiter.exception.CancelException;
@@ -117,7 +118,7 @@ public class ModLogCommand extends Sx4Command {
 
 		long authorId = event.getAuthor().getIdLong();
 
-		List<Bson> update = List.of(Operators.set("reason", Operators.cond(Operators.and(Operators.or(Operators.eq("$moderatorId", authorId), event.getMember().hasPermission(Permission.ADMINISTRATOR)), Operators.or(or)), reason.getParsed(), "$reason")));
+		List<Bson> update = List.of(Operators.set("reason", Operators.cond(Operators.and(Operators.or(Operators.eq("$moderatorId", authorId), CheckUtility.hasPermissions(event.getBot(), event.getMember(), event.getTextChannel(), event.getProperty("fakePermissions"), Permission.ADMINISTRATOR)), Operators.or(or)), reason.getParsed(), "$reason")));
 		event.getMongo().updateManyModLogs(update).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;

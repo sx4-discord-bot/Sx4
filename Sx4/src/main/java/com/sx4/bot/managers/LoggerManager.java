@@ -85,6 +85,8 @@ public class LoggerManager implements WebhookManager {
 
     private static final int MAX_RETRIES = 3;
 
+    private final Set<Long> deletedCache;
+
     private final Map<Long, WebhookClient> webhooks;
     private final BlockingDeque<Request> queue;
 
@@ -99,6 +101,7 @@ public class LoggerManager implements WebhookManager {
     public LoggerManager(Sx4 bot) {
         this.queue = new LinkedBlockingDeque<>();
         this.webhooks = new HashMap<>();
+        this.deletedCache = new HashSet<>();
         this.bot = bot;
     }
 
@@ -133,7 +136,9 @@ public class LoggerManager implements WebhookManager {
             }
 
             if (ExceptionUtility.sendErrorMessage(exception)) {
+                requests.forEach(this.queue::addFirst);
                 this.handleQueue(retries + 1);
+
                 return;
             }
 
@@ -179,7 +184,9 @@ public class LoggerManager implements WebhookManager {
                 long channelId = request.getChannelId();
                 TextChannel channel = request.getChannel(guild);
                 if (channel == null) {
-                    this.bot.getMongo().deleteLogger(Filters.eq("channelId", channelId)).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
+                    if (this.deletedCache.add(channelId)) {
+                        this.bot.getMongo().deleteLogger(Filters.eq("channelId", channelId)).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
+                    }
 
                     this.webhooks.remove(channelId);
                     this.handleQueue(0);
@@ -203,7 +210,7 @@ public class LoggerManager implements WebhookManager {
                     List<WebhookEmbed> nextEmbeds = nextRequest.getEmbeds();
                     int nextLength = MessageUtility.getWebhookEmbedLength(nextEmbeds);
 
-                    if (embeds.size() + nextEmbeds.size() > 10 || length + nextLength > MessageEmbed.EMBED_MAX_LENGTH_BOT) {
+                    if (embeds.size() + nextEmbeds.size() > WebhookMessage.MAX_EMBEDS || length + nextLength > MessageEmbed.EMBED_MAX_LENGTH_BOT) {
                         skippedRequests.add(nextRequest);
                         break;
                     }
@@ -290,7 +297,7 @@ public class LoggerManager implements WebhookManager {
     public void queue(TextChannel channel, Document logger, List<WebhookEmbed> embeds) {
         List<Request> requests = new ArrayList<>();
 
-        double messages = Math.ceil((double) embeds.size() / 10);
+        int messages = (int) Math.ceil((double) embeds.size() / 10);
         for (int i = 0; i < messages; i++) {
             List<WebhookEmbed> splitEmbeds = embeds.subList(i * 10, i == messages - 1 ? embeds.size() : (i + 1) * 10);
 

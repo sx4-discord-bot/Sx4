@@ -22,7 +22,12 @@ import net.dv8tion.jda.api.entities.MessageReaction.ReactionEmote;
 import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.events.message.guild.react.GuildMessageReactionAddEvent;
 import net.dv8tion.jda.api.events.message.guild.react.GuildMessageReactionRemoveEvent;
+import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.hooks.EventListener;
+import net.dv8tion.jda.api.requests.ErrorResponse;
+import net.dv8tion.jda.internal.requests.RestActionImpl;
+import net.dv8tion.jda.internal.requests.Route;
+import net.dv8tion.jda.internal.utils.EncodingUtil;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
@@ -213,6 +218,9 @@ public class StarboardHandler implements EventListener {
 					}
 
 					if (createdMessage != null) {
+						Route.CompiledRoute route = Route.Messages.ADD_REACTION.compile(Long.toString(createdMessage.getChannelId()), Long.toString(createdMessage.getId()), EncodingUtil.encodeReaction(emote.getAsReactionCode()), "@me");
+						new RestActionImpl<>(event.getJDA(), route).queue(null, ErrorResponseException.ignore(ErrorResponse.UNKNOWN_EMOJI, ErrorResponse.MISSING_PERMISSIONS, ErrorResponse.MISSING_ACCESS));
+
 						this.bot.getMongo().updateStarboard(Filters.eq("originalMessageId", messageId), Updates.set("messageId", createdMessage.getId())).whenComplete(MongoDatabase.exceptionally(event.getJDA().getShardManager()));
 					}
 				});
@@ -293,16 +301,15 @@ public class StarboardHandler implements EventListener {
 					return;
 				}
 
-				Long messageId = data.getLong("messageId");
-				if (messageId == null) {
+				if (!data.containsKey("messageId")) {
 					return;
 				}
 
 				WebhookMessage webhookMessage = this.getStarboardMessage(starboard, updatedData, event.getGuild(), event.getMember(), emote, data.getBoolean("premium"));
 				if (webhookMessage == null) {
-					this.bot.getStarboardManager().deleteStarboard(messageId, channel.getIdLong(), starboard.get("webhook", MongoDatabase.EMPTY_DOCUMENT));
+					this.bot.getStarboardManager().deleteStarboard(data.getLong("messageId"), channel.getIdLong(), starboard.get("webhook", MongoDatabase.EMPTY_DOCUMENT));
 				} else {
-					this.bot.getStarboardManager().editStarboard(messageId, channel.getIdLong(), starboard.get("webhook", MongoDatabase.EMPTY_DOCUMENT), webhookMessage);
+					this.bot.getStarboardManager().editStarboard(data.getLong("messageId"), channel.getIdLong(), starboard.get("webhook", MongoDatabase.EMPTY_DOCUMENT), webhookMessage);
 				}
 			});
 		});

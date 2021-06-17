@@ -91,6 +91,14 @@ public class ModUtility {
 		AtomicReference<Role> atomicRole = new AtomicReference<>();
 
 		return ModUtility.upsertMuteRole(bot.getMongo(), guild, mute.get("roleId", 0L), mute.get("autoUpdate", true)).thenCompose(role -> {
+			if (!guild.getSelfMember().hasPermission(Permission.MANAGE_ROLES)) {
+				throw new BotPermissionException(Permission.MANAGE_ROLES);
+			}
+
+			if (!guild.getSelfMember().canInteract(role)) {
+				throw new BotHierarchyException("mute");
+			}
+
 			atomicRole.set(role);
 
 			List<Bson> update = List.of(Operators.set("unmuteAt", Operators.add(duration, Operators.cond(Operators.and(extend, Operators.exists("$unmuteAt")), "$unmuteAt", Operators.nowEpochSecond()))));

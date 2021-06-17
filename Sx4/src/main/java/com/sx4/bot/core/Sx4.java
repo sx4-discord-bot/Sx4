@@ -1047,6 +1047,17 @@ public class Sx4 {
 						}
 					}
 
+					String[] options = argument.getProperty("options");
+					if (argument.getProperty("class") == null && options != null && options.length != 0) {
+						for (String option : options) {
+							if (option.equalsIgnoreCase(contentToHandle)) {
+								return new ParsedResult<>(option, content);
+							}
+						}
+
+						return new ParsedResult<>();
+					}
+
 					if (contentToHandle.isEmpty()) {
 						return new ParsedResult<>();
 					}

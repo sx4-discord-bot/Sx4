@@ -410,7 +410,7 @@ public class StarboardCommand extends Sx4Command {
 		@CommandId(436)
 		@Examples({"starboard messages list"})
 		public void list(Sx4CommandEvent event) {
-			List<Document> messages = event.getMongo().getGuildById(event.getGuild().getIdLong(), Projections.include("starboard.messages")).getEmbedded(List.of("starboard", "messages"), StarboardManager.DEFAULT_CONFIGURATION);
+			List<Document> messages = event.getMongo().getGuildById(event.getGuild().getIdLong(), Projections.include("starboard.messages")).getEmbedded(List.of("starboard", "messages"), new ArrayList<>(StarboardManager.DEFAULT_CONFIGURATION));
 			messages.sort(Comparator.comparingInt(d -> d.getInteger("stars")));
 
 			PagedResult<Document> paged = new PagedResult<>(event.getBot(), messages)

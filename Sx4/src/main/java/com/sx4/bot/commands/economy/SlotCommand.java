@@ -43,7 +43,7 @@ public class SlotCommand extends Sx4Command {
 		Document betData = new Document("bet", amount.hasDecimal() ? Operators.toLong(Operators.ceil(Operators.multiply(amount.getDecimal(), "$$balance"))) : amount.getAmount());
 
 		List<Bson> update = List.of(
-			Operators.set("economy.winnings", Operators.let(new Document("winnings", Operators.ifNull("$economy.winnings", 0L)), Operators.let(betData, Operators.cond(Operators.lt(Operators.ifNull("$economy.balance", 0L), "$$bet"), "$$winnings", Operators.cond(won, Operators.add("$$winnings", Operators.subtract(Operators.toLong(Operators.round(Operators.multiply("$$bet", firstSlot.getMultiplier()))), "$$bet")), Operators.subtract("$$winnings", "$$bet")))))),
+			Operators.set("economy.winnings", Operators.let(new Document("winnings", Operators.ifNull("$economy.winnings", 0L)).append("balance", Operators.ifNull("$economy.balance", 0L)), Operators.let(betData, Operators.cond(Operators.lt("$$balance", "$$bet"), "$$winnings", Operators.cond(won, Operators.add("$$winnings", Operators.subtract(Operators.toLong(Operators.round(Operators.multiply("$$bet", firstSlot.getMultiplier()))), "$$bet")), Operators.subtract("$$winnings", "$$bet")))))),
 			Operators.set("economy.balance", Operators.let(new Document("balance", Operators.ifNull("$economy.balance", 0L)), Operators.let(betData, Operators.cond(Operators.lt("$$balance", "$$bet"), "$$balance", Operators.cond(won, Operators.add("$$balance", Operators.subtract(Operators.toLong(Operators.round(Operators.multiply("$$bet", firstSlot.getMultiplier()))), "$$bet")), Operators.subtract("$$balance", "$$bet"))))))
 		);
 
