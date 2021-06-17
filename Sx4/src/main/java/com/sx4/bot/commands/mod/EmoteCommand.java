@@ -141,9 +141,7 @@ public class EmoteCommand extends Sx4Command {
 			return;
 		}
 
-		emote.delete()
-			.flatMap($ -> event.replySuccess("I have deleted the emote `" + emote.getName() + "`"))
-			.queue();
+		emote.delete().flatMap($ -> event.replySuccess("I have deleted the emote `" + emote.getName() + "`")).queue();
 	}
 
 	public static class WhitelistCommand extends Sx4Command {

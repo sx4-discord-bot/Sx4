@@ -423,28 +423,28 @@ public class MessageUtility {
 	public static int getWebhookEmbedLength(WebhookEmbed embed) {
 		int length = 0;
 
-		String title = embed.getTitle() != null ? embed.getTitle().getText().trim() : null;
+		String title = embed.getTitle() != null ? embed.getTitle().getText() : null;
 		if (title != null) {
 			length += title.length();
 		}
 
-		String description = embed.getDescription() != null ? embed.getDescription().trim() : null;
+		String description = embed.getDescription();
 		if (description != null) {
 			length += description.length();
 		}
 
-		String author = embed.getAuthor() != null ? embed.getAuthor().getName().trim() : null;
+		String author = embed.getAuthor() != null ? embed.getAuthor().getName() : null;
 		if (author != null) {
 			length += author.length();
 		}
 
-		String footer = embed.getFooter() != null ? embed.getFooter().getText().trim() : null;
+		String footer = embed.getFooter() != null ? embed.getFooter().getText() : null;
 		if (footer != null) {
 			length += footer.length();
 		}
 
 		for (WebhookEmbed.EmbedField field : embed.getFields()) {
-			length += field.getName().trim().length() + field.getValue().trim().length();
+			length += field.getName().length() + field.getValue().length();
 		}
 
 		return length;

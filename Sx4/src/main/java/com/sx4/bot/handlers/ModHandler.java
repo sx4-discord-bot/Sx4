@@ -80,12 +80,12 @@ public class ModHandler implements ModActionListener, EventListener {
 			.whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
 	}
 
-	public void handle(Guild guild, Action action, User moderator, User target, Reason reason) {
+	public void handle(Guild guild, Action action, User moderator, long targetId, Reason reason) {
 		ModAction modAction = action.getModAction();
 		if (modAction.isOffence()) {
 			Document data = new Document("action", action.toData())
 				.append("guildId", guild.getIdLong())
-				.append("targetId", target.getIdLong())
+				.append("targetId", targetId)
 				.append("moderatorId", moderator.getIdLong());
 
 			if (reason != null) {
@@ -113,13 +113,13 @@ public class ModHandler implements ModActionListener, EventListener {
 		ModLog modLog = new ModLog(
 			channel.getIdLong(),
 			guild.getIdLong(),
-			target.getIdLong(),
+			targetId,
 			moderator.getIdLong(),
 			reason,
 			action
 		);
 
-		WebhookEmbed embed = modLog.getWebhookEmbed(moderator, target);
+		WebhookEmbed embed = modLog.getWebhookEmbed(moderator, this.bot.getShardManager().getUserById(targetId));
 
 		this.bot.getModLogManager().sendModLog(channel, modLogData.get("webhook", MongoDatabase.EMPTY_DOCUMENT), embed, premium).whenComplete((webhookMessage, exception) -> {
 			modLog.setMessageId(webhookMessage.getId())
@@ -131,7 +131,7 @@ public class ModHandler implements ModActionListener, EventListener {
 	}
 	
 	public void onAction(ModActionEvent event) {
-		this.handle(event.getGuild(), event.getAction(), event.getModerator().getUser(), event.getTarget(), event.getReason());
+		this.handle(event.getGuild(), event.getAction(), event.getModerator().getUser(), event.getTargetId(), event.getReason());
 	}
 
 	public void onBan(BanEvent event) {
@@ -255,7 +255,7 @@ public class ModHandler implements ModActionListener, EventListener {
 						this.bot.getTemporaryBanManager().removeBan(guild.getIdLong(), user.getIdLong(), false);
 					}
 
-					this.handle(guild, action, moderator, user, reason == null ? null : new Reason(reason));
+					this.handle(guild, action, moderator, user.getIdLong(), reason == null ? null : new Reason(reason));
 				}
 			});
 		}

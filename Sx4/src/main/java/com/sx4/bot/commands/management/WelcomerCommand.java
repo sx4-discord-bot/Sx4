@@ -153,7 +153,7 @@ public class WelcomerCommand extends Sx4Command {
 
 	@Command(value="embed", description="Set your welcomer message to use a basic embed")
 	@CommandId(434)
-	@Examples({"welcomer embed A new person has joined", "welcomer message Welcome {user.mention}! --colour=#ffff00"})
+	@Examples({"welcomer embed A new person has joined", "welcomer message Welcome {user.mention}! --colour=#ffff00", "welcomer message Welcome {user.mention}! --colour=#ffff00 --image"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void embed(Sx4CommandEvent event, @Argument(value="message", endless=true) String message, @Option(value="image", description="Use this option if you want the image welcomer in the embed") boolean image, @Option(value="colour", description="Sets the embed colour for the message") @Colour Integer colour) {
 		Document data = new Document("description", message).append("author", new Document("name", "{user.tag}").append("icon_url", "{user.avatar}"));

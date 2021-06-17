@@ -18,6 +18,7 @@ import org.bson.Document;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
@@ -28,7 +29,7 @@ public class ServerStatsCommand extends Sx4Command {
 
 		super.setDescription("View some basic statistics on the current server");
 		super.setAliases("serverstats");
-		super.setExamples("server stats", "server stats 2d", "server stats 1h");
+		super.setExamples("server stats", "server stats 12h", "server stats 2d --live", "server stats --reset", "server stats --reset --live");
 		super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
 		super.setCategoryAll(ModuleCategory.INFORMATION);
 	}
@@ -42,7 +43,7 @@ public class ServerStatsCommand extends Sx4Command {
 		});
 	}
 
-	public void onCommand(Sx4CommandEvent event, @Argument(value="duration", endless=true, nullDefault=true) Duration duration, @Option(value="live", description="Adds the live counting data to the total") boolean live) {
+	public void onCommand(Sx4CommandEvent event, @Argument(value="duration", endless=true, nullDefault=true) Duration duration, @Option(value="live", description="Adds the live counting data to the total") boolean live, @Option(value="reset", description="Gets the stats since 00:00 UTC") boolean reset) {
 		if (duration != null && (duration.toHours() < 1 || duration.toHours() > 168)) {
 			event.replyFailure("Time frame cannot be less than 1 hour or more than 7 days").queue();
 			return;
@@ -56,6 +57,13 @@ public class ServerStatsCommand extends Sx4Command {
 
 		Date lastUpdate = event.getBot().getServerStatsManager().getLastUpdate();
 		OffsetDateTime currentHour = OffsetDateTime.now(ZoneOffset.UTC).withMinute(0).withSecond(0).withNano(0);
+
+		if (reset) {
+			duration = Duration.between(currentHour.withHour(0), currentHour);
+			if (duration.toHours() == 0) {
+				duration = Duration.of(24, ChronoUnit.HOURS);
+			}
+		}
 
 		Map<Long, Map<ServerStatsType, Integer>> map = new HashMap<>();
 		if (duration == null) {

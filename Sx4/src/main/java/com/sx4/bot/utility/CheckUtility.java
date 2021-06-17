@@ -26,6 +26,10 @@ public class CheckUtility {
 	}
 
 	public static boolean canReply(Sx4 bot, Message message, String prefix) {
+		if (message.isFromType(ChannelType.PRIVATE)) {
+			return true;
+		}
+
 		if (bot.getConfig().isMain()) {
 			List<String> guildPrefixes = message.isFromGuild() ? bot.getMongoCanary().getGuildById(message.getGuild().getIdLong(), Projections.include("prefixes")).getList("prefixes", String.class, Collections.emptyList()) : Collections.emptyList();
 			List<String> userPrefixes = bot.getMongoCanary().getUserById(message.getAuthor().getIdLong(), Projections.include("prefixes")).getList("prefixes", String.class, Collections.emptyList());

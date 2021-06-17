@@ -174,12 +174,6 @@ public class AntiRegexCommand extends Sx4Command {
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	@Examples({"anti regex toggle 5f023782ef9eba03390a740c"})
 	public void toggle(Sx4CommandEvent event, @Argument(value="id") ObjectId id) {
-		Bson filter = Filters.and(
-			Filters.eq("guildId", event.getGuild().getIdLong()),
-			Filters.exists("enabled", false),
-			Filters.ne("type", RegexType.INVITE.getId())
-		);
-
 		List<Bson> guildPipeline = List.of(
 			Aggregates.project(Projections.fields(Projections.computed("premium", Operators.lt(Operators.nowEpochSecond(), Operators.ifNull("$premium.endAt", 0L))), Projections.computed("guildId", "$_id"))),
 			Aggregates.match(Filters.eq("guildId", event.getGuild().getIdLong()))

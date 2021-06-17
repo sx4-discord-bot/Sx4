@@ -66,7 +66,6 @@ import net.dv8tion.jda.api.events.role.update.RoleUpdateColorEvent;
 import net.dv8tion.jda.api.events.role.update.RoleUpdateNameEvent;
 import net.dv8tion.jda.api.events.role.update.RoleUpdatePermissionsEvent;
 import net.dv8tion.jda.api.hooks.EventListener;
-import net.dv8tion.jda.api.sharding.ShardManager;
 import net.dv8tion.jda.internal.utils.tuple.Pair;
 import org.bson.Document;
 import org.bson.conversions.Bson;
@@ -120,7 +119,6 @@ public class LoggerHandler implements EventListener {
 
 	private void onMessageDelete(TextChannel textChannel, List<Long> messageIds) {
 		Guild guild = textChannel.getGuild();
-		ShardManager shardManager = this.bot.getShardManager();
 
 		LoggerEvent loggerEvent = LoggerEvent.MESSAGE_DELETE;
 
