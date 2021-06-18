@@ -4,7 +4,6 @@ import com.jockie.bot.core.argument.Argument;
 import com.sx4.bot.annotations.argument.Limit;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
-import com.sx4.bot.utility.CheckUtility;
 import com.sx4.bot.utility.PermissionUtility;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Member;
@@ -25,7 +24,7 @@ public class RenameCommand extends Sx4Command {
 
 	public void onCommand(Sx4CommandEvent event, @Argument(value="user", nullDefault=true) Member member, @Argument(value="nickname", endless=true, nullDefault=true) @Limit(max=32) String nick) {
 		Member effectiveMember = member == null ? event.getMember() : member;
-		if (effectiveMember.getIdLong() != event.getMember().getIdLong() && !CheckUtility.hasPermissions(event.getBot(), event.getMember(), event.getTextChannel(), event.getProperty("fakePermissions"), Permission.NICKNAME_MANAGE)) {
+		if (effectiveMember.getIdLong() != event.getMember().getIdLong() && !event.hasPermission(event.getMember(), Permission.NICKNAME_MANAGE)) {
 			event.replyFailure(PermissionUtility.formatMissingPermissions(EnumSet.of(Permission.NICKNAME_MANAGE))).queue();
 			return;
 		}

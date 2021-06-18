@@ -7,9 +7,11 @@ import com.jockie.bot.core.command.impl.CommandListener;
 import com.sx4.bot.config.Config;
 import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.database.postgres.PostgresDatabase;
+import com.sx4.bot.utility.CheckUtility;
 import com.sx4.bot.utility.HelpUtility;
 import com.sx4.bot.utility.MathUtility;
 import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.requests.restaction.MessageAction;
 import okhttp3.OkHttpClient;
@@ -79,6 +81,10 @@ public class Sx4CommandEvent extends CommandEvent {
 
 	public boolean hasPermission(Permission... permissions) {
 		return this.getSelfMember().hasPermission(this.getTextChannel(), permissions);
+	}
+
+	public boolean hasPermission(Member member, Permission... permissions) {
+		return CheckUtility.hasPermissions(this.bot, member, this.getTextChannel(), this.getProperty("fakePermissions"), permissions);
 	}
 	
 	public MessageAction replyHelp() {

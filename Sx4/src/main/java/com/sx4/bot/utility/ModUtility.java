@@ -21,6 +21,7 @@ import org.bson.conversions.Bson;
 
 import java.time.Clock;
 import java.time.Duration;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
@@ -212,7 +213,9 @@ public class ModUtility {
 
 		Guild guild = target.getGuild();
 
-		Document data = bot.getMongo().getGuildById(guild.getIdLong(), Projections.include("warn", "mute", "temporaryBan"));
+		Document data = bot.getMongo().getGuildById(guild.getIdLong(), Projections.include("warn", "mute", "temporaryBan", "fakePermissions"));
+
+		List<Document> fakePermissions = data.getEmbedded(List.of("fakePermissions", "holders"), Collections.emptyList());
 
 		Document warnData = data.get("warn", MongoDatabase.EMPTY_DOCUMENT);
 
@@ -316,7 +319,7 @@ public class ModUtility {
 						return;
 					}
 
-					if (!moderator.hasPermission(Permission.KICK_MEMBERS)) {
+					if (!CheckUtility.hasPermissions(bot, moderator, fakePermissions, Permission.KICK_MEMBERS)) {
 						future.completeExceptionally(new AuthorPermissionException(Permission.KICK_MEMBERS));
 						return;
 					}
@@ -339,7 +342,7 @@ public class ModUtility {
 						return;
 					}
 
-					if (!moderator.hasPermission(Permission.BAN_MEMBERS)) {
+					if (!CheckUtility.hasPermissions(bot, moderator, fakePermissions, Permission.BAN_MEMBERS)) {
 						future.completeExceptionally(new AuthorPermissionException(Permission.BAN_MEMBERS));
 						return;
 					}
@@ -379,7 +382,7 @@ public class ModUtility {
 						return;
 					}
 
-					if (!moderator.hasPermission(Permission.BAN_MEMBERS)) {
+					if (!CheckUtility.hasPermissions(bot, moderator, fakePermissions, Permission.BAN_MEMBERS)) {
 						future.completeExceptionally(new AuthorPermissionException(Permission.BAN_MEMBERS));
 						return;
 					}

@@ -451,9 +451,7 @@ public class MessageUtility {
 	}
 
 	public static int getWebhookEmbedLength(List<WebhookEmbed> embeds) {
-		return embeds.stream()
-			.mapToInt(MessageUtility::getWebhookEmbedLength)
-			.sum();
+		return embeds.stream().mapToInt(MessageUtility::getWebhookEmbedLength).sum();
 	}
 
 	public static EmbedBuilder fromWebhookEmbed(WebhookEmbed embed) {

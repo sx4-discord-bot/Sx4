@@ -95,23 +95,39 @@ public class CheckUtility {
 	public static boolean hasPermissions(Sx4 bot, Member member, TextChannel channel, List<Document> holders, EnumSet<Permission> permissions) {
 		return CheckUtility.missingPermissions(bot, member, channel, holders, permissions).isEmpty();
 	}
+
+	public static boolean hasPermissions(Sx4 bot, Member member, List<Document> holders, Permission... permissions) {
+		return CheckUtility.missingPermissions(bot, member, holders, permissions.length == 0 ? EnumSet.noneOf(Permission.class) : EnumSet.copyOf(Arrays.asList(permissions))).isEmpty();
+	}
+
+	public static boolean hasPermissions(Sx4 bot, Member member, List<Document> holders, EnumSet<Permission> permissions) {
+		return CheckUtility.missingPermissions(bot, member, null, holders, permissions).isEmpty();
+	}
 	
 	public static EnumSet<Permission> missingPermissions(Sx4 bot, Member member, TextChannel channel, List<Document> holders, Permission... permissions) {
 		return CheckUtility.missingPermissions(bot, member, channel, holders, permissions.length == 0 ? EnumSet.noneOf(Permission.class) : EnumSet.copyOf(Arrays.asList(permissions)));
 	}
 
+	public static EnumSet<Permission> missingPermissions(Sx4 bot, Member member, List<Document> holders, Permission... permissions) {
+		return CheckUtility.missingPermissions(bot, member, holders, permissions.length == 0 ? EnumSet.noneOf(Permission.class) : EnumSet.copyOf(Arrays.asList(permissions)));
+	}
+
+	public static EnumSet<Permission> missingPermissions(Sx4 bot, Member member, List<Document> holders, EnumSet<Permission> permissions) {
+		return CheckUtility.missingPermissions(bot, member, null, holders, permissions);
+	}
+
 	public static EnumSet<Permission> missingPermissions(Sx4 bot, Member member, TextChannel channel, List<Document> holders, EnumSet<Permission> permissions) {
-		if (bot.getCommandListener().isDeveloper(member.getIdLong()) || member.hasPermission(channel, permissions)) {
+		if (bot.getCommandListener().isDeveloper(member.getIdLong()) || (channel == null ? member.hasPermission(permissions) : member.hasPermission(channel, permissions))) {
 			return EnumSet.noneOf(Permission.class);
 		}
 
-		Guild guild = channel.getGuild();
+		Guild guild = member.getGuild();
 
 		Set<Long> roleIds = member.getRoles().stream()
 			.map(Role::getIdLong)
 			.collect(Collectors.toSet());
 		
-		long permissionsRaw = Permission.getRaw(member.getPermissions(channel)), permissionsNeededRaw = Permission.getRaw(permissions);
+		long permissionsRaw = Permission.getRaw(channel == null ? member.getPermissions() : member.getPermissions(channel)), permissionsNeededRaw = Permission.getRaw(permissions);
 		for (Document holder : holders) {
 			long id = holder.getLong("id");
 			int type = holder.getInteger("type");

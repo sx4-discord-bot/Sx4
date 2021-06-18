@@ -18,7 +18,6 @@ import com.sx4.bot.entities.argument.Alternative;
 import com.sx4.bot.entities.management.Suggestion;
 import com.sx4.bot.entities.management.SuggestionState;
 import com.sx4.bot.paged.PagedResult;
-import com.sx4.bot.utility.CheckUtility;
 import com.sx4.bot.utility.ColourUtility;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.waiter.Waiter;
@@ -166,7 +165,7 @@ public class SuggestionCommand extends Sx4Command {
 		TextChannel channel = event.getTextChannel();
 
 		if (option.isAlternative()) {
-			if (CheckUtility.hasPermissions(event.getBot(), event.getMember(), channel, event.getProperty("fakePermissions"), Permission.MANAGE_SERVER)) {
+			if (!event.hasPermission(event.getMember(), Permission.MANAGE_SERVER)) {
 				event.replyFailure("You are missing the permission " + Permission.MANAGE_SERVER.getName() + " to execute this, you can remove your own suggestions only").queue();
 				return;
 			}
@@ -201,7 +200,7 @@ public class SuggestionCommand extends Sx4Command {
 			});
 		} else {
 			ObjectId id = option.getValue();
-			boolean hasPermission = CheckUtility.hasPermissions(event.getBot(), event.getMember(), event.getTextChannel(), event.getProperty("fakePermissions"), Permission.MANAGE_SERVER);
+			boolean hasPermission = event.hasPermission(event.getMember(), Permission.MANAGE_SERVER);
 
 			Bson filter = Filters.eq("_id", id);
 			if (!hasPermission) {
