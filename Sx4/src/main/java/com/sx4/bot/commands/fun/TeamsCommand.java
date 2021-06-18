@@ -6,13 +6,13 @@ import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.paged.PagedResult;
-import com.sx4.bot.utility.StringUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.MessageBuilder;
 import net.dv8tion.jda.api.Permission;
-import net.dv8tion.jda.api.entities.MessageEmbed;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 public class TeamsCommand extends Sx4Command {
 
@@ -55,18 +55,14 @@ public class TeamsCommand extends Sx4Command {
 		}
 
 		PagedResult<List<String>> paged = new PagedResult<>(event.getBot(), teams)
-			.setPerPage(1)
+			.setPerPage(9)
 			.setSelect()
 			.setCustomFunction(page -> {
 				EmbedBuilder embed = new EmbedBuilder()
-					.setTitle("Team " + page.getPage() + "/" + page.getMaxPage())
+					.setTitle("Page " + page.getPage() + "/" + page.getMaxPage())
 					.setFooter(PagedResult.DEFAULT_FOOTER_TEXT, null);
 
-				page.forEach((list, index) -> {
-					for (String item : list) {
-						embed.appendDescription(StringUtility.limit(item, (int) Math.floor(MessageEmbed.TEXT_MAX_LENGTH / (double) perTeam), "...") + "\n");
-					}
-				});
+				page.forEach((list, index) -> embed.addField("Team " + (index + 1), String.join("\n", list), true));
 
 				return new MessageBuilder().setEmbed(embed.build()).build();
 			});
