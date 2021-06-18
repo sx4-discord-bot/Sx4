@@ -62,7 +62,7 @@ public class MysteryBoxGame {
 	}
 
 	public boolean getBox(String index) {
-		return this.boxes.get(Integer.parseInt(index));
+		return this.getBox(Integer.parseInt(index));
 	}
 
 	public int getClicks() {

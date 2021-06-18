@@ -1198,7 +1198,7 @@ public class Sx4 {
 				int index = content.indexOf(' ');
 				Duration duration = index == -1 ? null : TimeUtility.getDurationFromString(content.substring(index));
 
-				ParsedResult<?> parsedArgument = CommandUtility.getParsedResult(clazz, argumentFactory, context, argument, index == -1 ? content : content.substring(0, index));
+				ParsedResult<?> parsedArgument = CommandUtility.getParsedResult(clazz, argumentFactory, context, argument, index == -1 ? content : content.substring(0, index), null);
 				if (!parsedArgument.isValid()) {
 					return new ParsedResult<>();
 				}
@@ -1222,13 +1222,13 @@ public class Sx4 {
 					String[] options = argument.getProperty("options", new String[0]);
 					for (String option : options) {
 						if (argumentContent.equalsIgnoreCase(option)) {
-							return new ParsedResult<>(new Alternative<>(null, option));
+							return new ParsedResult<>(new Alternative<>(null, option), content.substring(argumentContent.length()));
 						}
 					}
 
 					Class<?> clazz = argument.getProperty("class", Class.class);
 
-					ParsedResult<?> parsedArgument = CommandUtility.getParsedResult(clazz, argumentFactory, context, argument, argumentContent);
+					ParsedResult<?> parsedArgument = CommandUtility.getParsedResult(clazz, argumentFactory, context, argument, argumentContent, content);
 					if (!parsedArgument.isValid()) {
 						return new ParsedResult<>();
 					}
@@ -1257,8 +1257,8 @@ public class Sx4 {
 			}).registerParser(Or.class, (context, argument, content) -> {
 				Class<?> firstClass = argument.getProperty("firstClass"), secondClass = argument.getProperty("secondClass");
 
-				ParsedResult<?> firstParsedArgument = CommandUtility.getParsedResult(firstClass, argumentFactory, context, argument, content);
-				ParsedResult<?> secondParsedArgument = CommandUtility.getParsedResult(secondClass, argumentFactory, context, argument, content);
+				ParsedResult<?> firstParsedArgument = CommandUtility.getParsedResult(firstClass, argumentFactory, context, argument, content, null);
+				ParsedResult<?> secondParsedArgument = CommandUtility.getParsedResult(secondClass, argumentFactory, context, argument, content, null);
 				
 				if (firstParsedArgument.isValid()) {
 					return new ParsedResult<>(new Or<>(firstParsedArgument.getObject(), null));
