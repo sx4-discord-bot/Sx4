@@ -146,7 +146,7 @@ public class MuteManager {
 		this.bot.getMongo().getGuilds(Filters.exists("mute.roleId"), Projections.include("mute.roleId")).forEach(data -> {
 			roleIds.put(data.getLong("_id"), data.getEmbedded(List.of("mute", "roleId"), Long.class));
 		});
-		
+
 		List<WriteModel<Document>> bulkData = new ArrayList<>();
 		this.bot.getMongo().getMutes(Filters.empty(), Projections.include("unmuteAt", "userId", "guildId")).forEach(data -> {
 			long guildId = data.getLong("guildId");
@@ -166,7 +166,7 @@ public class MuteManager {
 				}
 			}
 		});
-		
+
 		if (!bulkData.isEmpty()) {
 			this.bot.getMongo().bulkWriteMutes(bulkData).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
 		}

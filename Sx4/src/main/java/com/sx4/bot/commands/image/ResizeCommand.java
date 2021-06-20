@@ -26,7 +26,7 @@ public class ResizeCommand extends Sx4Command {
 		super.setCooldownDuration(5);
 	}
 
-	public void onCommand(Sx4CommandEvent event, @Argument(value="image url") @ImageUrl String imageUrl, @Argument(value="width") @Limit(min=0) double width, @Argument(value="height") @Limit(min=0) @DefaultNumber(1) double height) {
+	public void onCommand(Sx4CommandEvent event, @Argument(value="image url") @ImageUrl String imageUrl, @Argument(value="width") @Limit(min=0, max=5000) double width, @Argument(value="height") @Limit(min=0, max=5000) @DefaultNumber(1) double height) {
 		Request request = new ImageRequest(event.getConfig().getImageWebserverUrl("resize"))
 			.addQuery("w", width)
 			.addQuery("h", height)

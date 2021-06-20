@@ -229,8 +229,7 @@ public class AntiRegexCommand extends Sx4Command {
 
 		event.getMongo().findAndDeleteRegex(Filters.eq("_id", id), options).thenCompose(data -> {
 			if (data == null) {
-				event.replyFailure("You do that have that regex setup in this server").queue();
-				return CompletableFuture.completedFuture(null);
+				throw new IllegalArgumentException("You do that have that regex setup in this server");
 			}
 
 			if (data.containsKey("regexId")) {
@@ -239,6 +238,12 @@ public class AntiRegexCommand extends Sx4Command {
 				return CompletableFuture.completedFuture(null);
 			}
 		}).whenComplete((result, exception) -> {
+			Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
+			if (cause instanceof IllegalArgumentException) {
+				event.replyFailure(cause.getMessage()).queue();
+				return;
+			}
+
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -811,7 +816,30 @@ public class AntiRegexCommand extends Sx4Command {
 					return;
 				}
 
-				event.replySuccess("Your regex has been added to the queue you will be notified when it has been approved or denied").queue();
+				event.replySuccess("Your regex template has been added").queue();
+			});
+		}
+
+		@Command(value="remove", description="Remove your own template from the anti regex templates")
+		@CommandId(448)
+		@Examples({"anti regex template remove 5f023782ef9eba03390a740c"})
+		public void remove(Sx4CommandEvent event, @Argument(value="id") ObjectId id) {
+			Bson filter = Filters.eq("_id", id);
+			if (!event.isAuthorDeveloper()) {
+				filter = Filters.and(filter, Filters.eq("ownerId", event.getAuthor().getIdLong()));
+			}
+
+			event.getMongo().deleteRegexTemplate(filter).whenComplete((result, exception) -> {
+				if (ExceptionUtility.sendExceptionally(event, exception)) {
+					return;
+				}
+
+				if (result.getDeletedCount() == 0) {
+					event.replyFailure("I could not find that regex template owned by you").queue();
+					return;
+				}
+
+				event.replySuccess("That regex template has been removed").queue();
 			});
 		}
 

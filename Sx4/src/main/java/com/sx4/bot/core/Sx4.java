@@ -913,7 +913,7 @@ public class Sx4 {
 						}
 					}
 
-					builder.setProperty("options", enums);
+					builder.setProperty("enumOptions", enums);
 				}
 
 				return builder;
@@ -1240,7 +1240,7 @@ public class Sx4 {
 					return true;
 				}
 			}).registerGenericParser(Enum.class, (context, type, argument, content) -> {
-				List<Enum<?>> options = argument.getProperty("options");
+				List<Enum<?>> options = argument.getProperty("enumOptions");
 
 				for (Enum<?> enumEntry : type.getEnumConstants()) {
 					if (options != null && !options.contains(enumEntry)) {
@@ -1402,7 +1402,7 @@ public class Sx4 {
 					message.getChannel().sendMessageFormat("You cannot use more than **%,d** character%s for `%s` %s", limit.max(), limit.max() == 1 ? "" : "s", argument.getName(), this.config.getFailureEmote()).queue();
 				}
 			}).registerResponse(Enum.class, (argument, message, content) -> {
-				List<Enum<?>> enums = argument.getProperty("options", Arrays.asList(argument.getType().getEnumConstants()));
+				List<Enum<?>> enums = argument.getProperty("enumOptions", Arrays.asList(argument.getType().getEnumConstants()));
 
 				StringJoiner joiner = new StringJoiner("`, `", "`", "`");
 				for (Enum<?> enumEntry : enums) {

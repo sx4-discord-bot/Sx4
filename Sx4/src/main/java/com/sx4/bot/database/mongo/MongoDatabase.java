@@ -1241,12 +1241,12 @@ public class MongoDatabase {
 		return CompletableFuture.supplyAsync(() -> this.regexTemplates.findOneAndUpdate(Filters.eq("_id", id), update, options), this.executor);
 	}
 	
-	public CompletableFuture<DeleteResult> deleteRegexTemplateById(ObjectId id) {
-		return CompletableFuture.supplyAsync(() -> this.regexTemplates.deleteOne(Filters.eq("_id", id)), this.executor);
+	public CompletableFuture<DeleteResult> deleteRegexTemplate(Bson filter) {
+		return CompletableFuture.supplyAsync(() -> this.regexTemplates.deleteOne(filter), this.executor);
 	}
 	
-	public CompletableFuture<Document> findAndDeleteRegexTemplateById(ObjectId id, FindOneAndDeleteOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.regexTemplates.findOneAndDelete(Filters.eq("_id", id), options), this.executor);
+	public CompletableFuture<Document> findAndDeleteRegexTemplate(Bson filter, FindOneAndDeleteOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.regexTemplates.findOneAndDelete(filter, options), this.executor);
 	}
 
 	public MongoCollection<Document> getBlacklists() {

@@ -60,7 +60,7 @@ public class AutoRoleCommand extends Sx4Command {
 				return;
 			}
 			
-			event.replySuccess("Auto role is now **" + (data.get("enabled", true) ? "enabled" : "disabled") + "**").queue();
+			event.replySuccess("That auto role is now **" + (data.get("enabled", true) ? "enabled" : "disabled") + "**").queue();
 		});
 	}
 	

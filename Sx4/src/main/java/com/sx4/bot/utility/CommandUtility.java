@@ -16,7 +16,7 @@ public class CommandUtility {
 			parser = argumentFactory.getGenericParser(clazz);
 		}
 
-		return parser instanceof IGenericParser ? ((IGenericParser) parser).parse(context, clazz, argument, fullContent == null ? content : fullContent) : parser.parse(context, argument, fullContent == null ? content : fullContent);
+		return parser instanceof IGenericParser ? ((IGenericParser) parser).parse(context, clazz, argument, fullContent != null && parser.isHandleAll() ? fullContent : content) : parser.parse(context, argument, fullContent != null && parser.isHandleAll() ? fullContent : content);
 	}
 
 }
