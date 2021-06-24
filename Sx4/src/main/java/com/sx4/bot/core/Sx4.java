@@ -1138,6 +1138,9 @@ public class Sx4 {
 
 					int nextSpace = content.indexOf(' ');
 					String query = nextSpace == -1 || argument.isEndless() ? content : content.substring(0, nextSpace);
+					if (query.isEmpty()) {
+						return new ParsedResult<>();
+					}
 
 					Matcher jumpMatch = Message.JUMP_URL_PATTERN.matcher(query);
 					if (jumpMatch.matches()) {
@@ -1218,6 +1221,9 @@ public class Sx4 {
 				public ParsedResult<Alternative> parse(ParseContext context, IArgument<Alternative> argument, String content) {
 					int nextSpace = content.indexOf(' ');
 					String argumentContent = nextSpace == -1 || argument.isEndless() ? content : content.substring(0, nextSpace);
+					if (argumentContent.isEmpty()) {
+						return new ParsedResult<>();
+					}
 
 					String[] options = argument.getProperty("options", new String[0]);
 					for (String option : options) {

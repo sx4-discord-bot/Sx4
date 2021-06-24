@@ -15,7 +15,7 @@ public class EmoteInfoCommand extends Sx4Command {
 	public EmoteInfoCommand() {
 		super("emote info", 262);
 
-		super.setAliases("emote");
+		super.setAliases("emote", "emoteinfo", "einfo");
 		super.setDescription("Get information about an emote");
 		super.setExamples("emote info <:emote:720020237952483490>", "emote info 720020237952483490", "emote info https://cdn.discordapp.com/emojis/720020237952483490.png");
 		super.setCategoryAll(ModuleCategory.INFORMATION);

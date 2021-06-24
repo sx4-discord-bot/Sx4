@@ -15,16 +15,14 @@ import javax.ws.rs.ForbiddenException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CompletionException;
-import java.util.regex.Pattern;
 
 public class GoogleImageCommand extends Sx4Command {
-
-	private final Pattern pattern = Pattern.compile("]\n,\\[\"(https?://(www\\.)?[-a-zA-Z0-9@:%._+~#=]{1,256}\\.[a-zA-Z0-9()]{1,6}\\b([-a-zA-Z0-9()@:%_+.~#?&/=]*))\\S*\",\\d+,\\d+]");
 
 	public GoogleImageCommand() {
 		super("google image", 209);
 
 		super.setDescription("Search up a query on google images");
+		super.setAliases("googleimage");
 		super.setExamples("google image dog", "google image cat");
 		super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
 		super.setCategoryAll(ModuleCategory.INFORMATION);
@@ -48,7 +46,7 @@ public class GoogleImageCommand extends Sx4Command {
 
 			PagedResult<GoogleSearchResult> paged = new PagedResult<>(event.getBot(), results)
 				.setIndexed(false)
-				.setPerPage(3)
+				.setPerPage(1)
 				.setAuthor("Google Images", googleUrl, "http://i.imgur.com/G46fm8J.png")
 				.setCustomFunction(page -> {
 					EmbedBuilder embed = new EmbedBuilder()

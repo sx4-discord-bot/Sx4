@@ -18,7 +18,7 @@ public class ChannelInfoCommand extends Sx4Command {
 		super("channel info", 330);
 
 		super.setDescription("View basic information on a channel");
-		super.setAliases("channelinfo", "ci");
+		super.setAliases("channelinfo", "ci", "cinfo");
 		super.setExamples("channel info", "channel info voice", "channel info Category", "channel info #channel");
 		super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
 		super.setCategoryAll(ModuleCategory.INFORMATION);

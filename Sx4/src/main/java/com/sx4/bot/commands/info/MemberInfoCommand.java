@@ -25,7 +25,7 @@ public class MemberInfoCommand extends Sx4Command {
 		super("member info", 348);
 
 		super.setDescription("View some basic information of a user in the current server");
-		super.setAliases("memberinfo", "mi");
+		super.setAliases("memberinfo", "mi", "minfo");
 		super.setExamples("member info @Shea#6653", "member info Shea", "member info 402557516728369153");
 		super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
 		super.setCategoryAll(ModuleCategory.INFORMATION);

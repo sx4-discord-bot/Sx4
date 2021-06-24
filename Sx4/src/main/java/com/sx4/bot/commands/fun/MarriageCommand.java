@@ -15,6 +15,7 @@ import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.entities.argument.Alternative;
+import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.waiter.Waiter;
 import com.sx4.bot.waiter.exception.CancelException;
@@ -37,6 +38,7 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.StringJoiner;
 import java.util.concurrent.CompletionException;
+import java.util.stream.Collectors;
 
 public class MarriageCommand extends Sx4Command {
 
@@ -138,9 +140,50 @@ public class MarriageCommand extends Sx4Command {
 	@CommandId(269)
 	@Redirects({"divorce"})
 	@Examples({"marriage remove @Shea#6653", "marriage remove Shea", "marriage remove all"})
-	public void remove(Sx4CommandEvent event, @Argument(value="user | all", endless=true) @Options("all") Alternative<Member> option) {
+	public void remove(Sx4CommandEvent event, @Argument(value="user | all", endless=true, nullDefault=true) @Options("all") Alternative<Member> option) {
 		User author = event.getAuthor();
-		if (option.isAlternative()) {
+		if (option == null) {
+			Bson filter = Filters.or(Filters.eq("proposerId", author.getIdLong()), Filters.eq("partnerId", author.getIdLong()));
+
+			List<Document> marriages = event.getMongo().getMarriages(filter, Projections.include("proposerId", "partnerId")).into(new ArrayList<>());
+			if (marriages.isEmpty()) {
+				event.replyFailure("You are not married to anyone").queue();
+				return;
+			}
+
+			List<Long> userIds = marriages.stream()
+				.map(marriage -> {
+					long partnerId = marriage.getLong("partnerId");
+					return partnerId == author.getIdLong() ? marriage.getLong("proposerId") : partnerId;
+				}).collect(Collectors.toList());
+
+			PagedResult<Long> paged = new PagedResult<>(event.getBot(), userIds)
+				.setAuthor("Divorce", null, author.getEffectiveAvatarUrl())
+				.setTimeout(60)
+				.setDisplayFunction(userId -> {
+					User other = event.getShardManager().getUserById(userId);
+					return (other == null ? "Anonymous#0000" : other.getAsTag()) + " (" + userId + ")";
+				});
+
+			paged.onTimeout(() -> event.reply("Timed out :stopwatch:").queue());
+
+			paged.onSelect(select -> {
+				long userId = select.getSelected();
+
+				Bson deleteFilter = Filters.or(Filters.and(Filters.eq("proposerId", userId), Filters.eq("partnerId", author.getIdLong())), Filters.and(Filters.eq("proposerId", author.getIdLong()), Filters.eq("partnerId", userId)));
+				event.getMongo().deleteMarriage(deleteFilter).whenComplete((result, exception) -> {
+					if (ExceptionUtility.sendExceptionally(event, exception)) {
+						return;
+					}
+
+					User user = event.getShardManager().getUserById(userId);
+
+					event.replySuccess("You are no longer married to **" + (user == null ? "Anonymous#0000" : user.getAsTag()) + "**").queue();
+				});
+			});
+
+			paged.execute(event);
+		} else if (option.isAlternative()) {
 			List<Button> buttons = List.of(Button.success("yes", "Yes"), Button.danger("no", "No"));
 
 			event.reply(author.getName() + ", are you sure you want to divorce everyone you are currently married to?").setActionRow(buttons).submit()

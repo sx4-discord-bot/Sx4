@@ -20,7 +20,7 @@ public class RoleInfoCommand extends Sx4Command {
 		super("role info", 329);
 
 		super.setDescription("Get basic information on a role");
-		super.setAliases("roleinfo", "ri");
+		super.setAliases("roleinfo", "ri", "rinfo");
 		super.setExamples("role info @Role", "role info Role", "role info 330400064541425664");
 		super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
 		super.setCategoryAll(ModuleCategory.INFORMATION);

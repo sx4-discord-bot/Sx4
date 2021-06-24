@@ -25,6 +25,7 @@ import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.IPermissionHolder;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Role;
+import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.events.interaction.ButtonClickEvent;
 import net.dv8tion.jda.api.interactions.components.Button;
 import org.bson.Document;
@@ -115,8 +116,53 @@ public class FakePermissionsCommand extends Sx4Command {
 	@CommandId(172)
 	@Examples({"fake permissions delete @Shea#6653", "fake permissions delete @Mods", "fake permissions delete all"})
 	@AuthorPermissions(permissions={Permission.ADMINISTRATOR})
-	public void delete(Sx4CommandEvent event, @Argument(value="user | role | all", endless=true) @Options("all") Alternative<IPermissionHolder> option) {
-		if (option.isAlternative()) {
+	public void delete(Sx4CommandEvent event, @Argument(value="user | role | all", endless=true, nullDefault=true) @Options("all") Alternative<IPermissionHolder> option) {
+		if (option == null) {
+			List<Document> fakePermissions = event.getProperty("fakePermissions");
+
+			PagedResult<Document> paged = new PagedResult<>(event.getBot(), fakePermissions)
+				.setAuthor("User & Roles", null, event.getGuild().getIconUrl())
+				.setTimeout(60)
+				.setDisplayFunction(data -> {
+					int type = data.getInteger("type");
+					long id = data.getLong("id");
+
+					if (type == HolderType.USER.getType()) {
+						User user = event.getShardManager().getUserById(id);
+						return user == null ? "Anonymous#0000 (" + id + ")" : user.getAsTag();
+					} else {
+						Role role = event.getGuild().getRoleById(id);
+						return role == null ? "Deleted Role (" + id + ")" : role.getAsMention();
+					}
+				});
+
+			paged.onTimeout(() -> event.reply("Timed out :stopwatch:").queue());
+
+			paged.onSelect(select -> {
+				Document data = select.getSelected();
+
+				boolean isRole = data.getInteger("type") == HolderType.ROLE.getType();
+				long id = data.getLong("id");
+
+				User user = isRole ? null : event.getShardManager().getUserById(id);
+				Role role = isRole ? event.getGuild().getRoleById(id) : null;
+
+				event.getMongo().updateGuildById(event.getGuild().getIdLong(), Updates.pull("fakePermissions.holders", Filters.eq("id", id))).whenComplete((result, exception) -> {
+					if (ExceptionUtility.sendExceptionally(event, exception)) {
+						return;
+					}
+
+					if (result.getModifiedCount() == 0) {
+						event.replyFailure("That " + (isRole ? "role" : "user") + " doesn't have any fake permissions").queue();
+						return;
+					}
+
+					event.replySuccess((isRole ? (role == null ? "Deleted Role (" + id + ")" : role.getAsMention()) : "**" + (user == null ? "Anonymous#0000** (" + id + ")" : user.getAsTag() + "**")) + " no longer has any fake permissions").queue();
+				});
+			});
+
+			paged.execute(event);
+		} else if (option.isAlternative()) {
 			List<Button> buttons = List.of(Button.success("yes", "Yes"), Button.danger("no", "No"));
 
 			event.reply(event.getAuthor().getName() + ", are you sure you want to delete **all** fake permissions data?").setActionRow(buttons).submit().thenCompose(message -> {
@@ -197,7 +243,7 @@ public class FakePermissionsCommand extends Sx4Command {
 	public void inPermission(Sx4CommandEvent event, @Argument(value="permissions") Permission... permissions) {
 		long permissionsRaw = Permission.getRaw(permissions);
 		
-		List<Document> allHolders = event.getMongo().getGuildById(event.getGuild().getIdLong(), Projections.include("fakePermissions.holders")).getEmbedded(List.of("fakePermissions", "holders"), Collections.emptyList());
+		List<Document> allHolders = event.getProperty("fakePermissions");
 		
 		List<Document> holders = allHolders.stream()
 			.sorted(Comparator.comparingInt(a -> a.getInteger("type")))
@@ -210,16 +256,15 @@ public class FakePermissionsCommand extends Sx4Command {
 			.setIndexed(false)
 			.setDisplayFunction(data -> {
 				int type = data.getInteger("type");
-				
-				Member member = null;
-				Role role = null;
+				long id = data.getLong("id");
+
 				if (type == HolderType.USER.getType()) {
-					member = event.getGuild().getMemberById(data.getLong("id"));
+					User user = event.getShardManager().getUserById(id);
+					return user == null ? "Anonymous#0000 (" + id + ")" : user.getAsTag();
 				} else {
-					role = event.getGuild().getRoleById(data.getLong("id"));
+					Role role = event.getGuild().getRoleById(id);
+					return role == null ? "Deleted Role (" + id + ")" : role.getAsMention();
 				}
-				
-				return member == null ? role.getAsMention() : member.getUser().getAsTag();
 			});
 		
 		paged.execute(event);

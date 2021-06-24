@@ -290,16 +290,17 @@ public class LoggerManager implements WebhookManager {
         }
     }
 
-    public void queue(TextChannel channel, Document logger, WebhookEmbed... embeds) {
-        this.queue(channel, logger, Arrays.asList(embeds));
-    }
-
     public void queue(TextChannel channel, Document logger, List<WebhookEmbed> embeds) {
         List<Request> requests = new ArrayList<>();
 
-        int messages = (int) Math.ceil((double) embeds.size() / 10);
-        for (int i = 0; i < messages; i++) {
-            List<WebhookEmbed> splitEmbeds = embeds.subList(i * 10, i == messages - 1 ? embeds.size() : (i + 1) * 10);
+        int index = 0;
+        while (index != embeds.size()) {
+            List<WebhookEmbed> splitEmbeds = new ArrayList<>(embeds.subList(index, Math.min(index + 10, embeds.size())));
+            while (MessageUtility.getWebhookEmbedLength(splitEmbeds) > MessageEmbed.EMBED_MAX_LENGTH_BOT) {
+                splitEmbeds.remove(splitEmbeds.size() - 1);
+            }
+
+            index += Math.max(1, splitEmbeds.size()); // Make a min value of 1 to avoid an infinite loop
 
             requests.add(new Request(channel.getJDA(), channel.getGuild().getIdLong(), channel.getIdLong(), splitEmbeds, logger));
         }
