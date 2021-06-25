@@ -191,7 +191,9 @@ public class MinerCommand extends Sx4Command {
 				content.add(String.format("• %,d %s %s", amount, material.getName(), material.getEmote()));
 			}
 
-			event.getMongo().getItems().bulkWrite(session, bulkData);
+			if (!bulkData.isEmpty()) {
+				event.getMongo().getItems().bulkWrite(session, bulkData);
+			}
 
 			EmbedBuilder embed = new EmbedBuilder()
 				.setAuthor(event.getAuthor().getName(), null, event.getAuthor().getEffectiveAvatarUrl())

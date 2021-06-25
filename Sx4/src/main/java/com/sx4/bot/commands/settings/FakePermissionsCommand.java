@@ -119,6 +119,10 @@ public class FakePermissionsCommand extends Sx4Command {
 	public void delete(Sx4CommandEvent event, @Argument(value="user | role | all", endless=true, nullDefault=true) @Options("all") Alternative<IPermissionHolder> option) {
 		if (option == null) {
 			List<Document> fakePermissions = event.getProperty("fakePermissions");
+			if (fakePermissions.isEmpty()) {
+				event.replyFailure("Nothing has fake permissions in this server").queue();
+				return;
+			}
 
 			PagedResult<Document> paged = new PagedResult<>(event.getBot(), fakePermissions)
 				.setAuthor("User & Roles", null, event.getGuild().getIconUrl())
@@ -244,6 +248,10 @@ public class FakePermissionsCommand extends Sx4Command {
 		long permissionsRaw = Permission.getRaw(permissions);
 		
 		List<Document> allHolders = event.getProperty("fakePermissions");
+		if (allHolders.isEmpty()) {
+			event.replyFailure("Nothing has fake permissions in this server").queue();
+			return;
+		}
 		
 		List<Document> holders = allHolders.stream()
 			.sorted(Comparator.comparingInt(a -> a.getInteger("type")))

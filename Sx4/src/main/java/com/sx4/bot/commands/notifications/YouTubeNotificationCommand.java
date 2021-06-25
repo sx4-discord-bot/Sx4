@@ -2,6 +2,7 @@ package com.sx4.bot.commands.notifications;
 
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
+import com.jockie.bot.core.option.Option;
 import com.mongodb.ErrorCategory;
 import com.mongodb.MongoWriteException;
 import com.mongodb.client.model.Filters;
@@ -63,9 +64,9 @@ public class YouTubeNotificationCommand extends Sx4Command {
 	@CommandId(158)
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	@Examples({"youtube notification add videos mrbeast", "youtube notification add #videos pewdiepie"})
-	public void add(Sx4CommandEvent event, @Argument(value="channel") TextChannel channel, @Argument(value="youtube channel", endless=true) String youtubeChannelArgument) {
+	public void add(Sx4CommandEvent event, @Argument(value="channel") TextChannel channel, @Argument(value="youtube channel", endless=true) String youtubeChannel, @Option(value="id", description="Provide the id of the channel to guarantee a correct result") boolean id) {
 		Request channelRequest = new Request.Builder()
-			.url("https://www.googleapis.com/youtube/v3/search?key=" + event.getConfig().getYoutube() + "&q=" + URLEncoder.encode(youtubeChannelArgument, StandardCharsets.UTF_8) + "&part=id&type=channel&maxResults=1")
+			.url("https://www.googleapis.com/youtube/v3/" + (id ? "channels" : "search") + "?key=" + event.getConfig().getYoutube() + "&" + (id ? "id" : "q") + "=" + URLEncoder.encode(youtubeChannel, StandardCharsets.UTF_8) + "&part=id&type=channel&maxResults=1")
 			.build();
 		
 		event.getHttpClient().newCall(channelRequest).enqueue((HttpCallback) channelResponse -> {
@@ -218,29 +219,6 @@ public class YouTubeNotificationCommand extends Sx4Command {
 
 			event.replySuccess("Your webhook avatar has been updated for that notification, this only works with premium <https://patreon.com/Sx4>").queue();
 		});
-	}
-	
-	@Command(value="formatting", aliases={"format", "formats"}, description="View the formats you are able to use to customize your notifications message", contentOverflowPolicy=ContentOverflowPolicy.IGNORE)
-	@CommandId(164)
-	@Examples({"youtube notification formatting"})
-	@BotPermissions(permissions={Permission.MESSAGE_EMBED_LINKS})
-	public void formatting(Sx4CommandEvent event) {
-		String example = String.format("{channel.name} - The youtube channels name\n"
-			+ "{channel.id} - The youtube channels id\n"
-			+ "{channel.url} - The youtube channels url\n"
-			+ "{video.title} - The youtube videos current title\n"
-			+ "{video.id} - The youtube videos id\n"
-			+ "{video.url} - The youtube videos url\n"
-			+ "{video.thumbnail} - The youtube videos thumbnail\n"
-			+ "{video.published} - The youtube date time of when it was uploaded, (10 December 2019 15:30)\n\n"
-			+ "Make sure to keep the **{}** brackets when using the formatting\n"
-			+ "Example: `%syoutube notification message #videos pewdiepie **{channel.name}** just uploaded, check it out: {video.url}`", event.getPrefix());
-		
-		EmbedBuilder embed = new EmbedBuilder()
-			.setAuthor("YouTube Notification Formatting", null, event.getGuild().getIconUrl())
-			.setDescription(example);
-		
-		event.reply(embed.build()).queue();
 	}
 	
 	@Command(value="list", description="View all the notifications you have setup throughout your server")

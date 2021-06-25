@@ -178,7 +178,6 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 					.append("uploaderId", event.getChannel().getId());
 
 				this.bot.getMongo().insertYouTubeNotificationLog(data).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
-
 			});
 		});
 	}
