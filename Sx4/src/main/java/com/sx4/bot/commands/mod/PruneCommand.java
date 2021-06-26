@@ -14,6 +14,7 @@ import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.utility.ExceptionUtility;
 import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.ISnowflake;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.Message.Attachment;
@@ -22,6 +23,7 @@ import net.dv8tion.jda.api.entities.MessageHistory.MessageRetrieveAction;
 
 import java.time.Clock;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -44,10 +46,12 @@ public class PruneCommand extends Sx4Command {
 	
 	private CompletableFuture<Void> prune(Sx4CommandEvent event, int amount, long start, long end, Predicate<Message> predicate) {
 		Message originalMessage = event.getMessage();
-		MessageRetrieveAction action = start == 0L ? event.getTextChannel().getHistoryBefore(originalMessage, 100) : event.getTextChannel().getHistoryBefore(start, 100);
+		MessageRetrieveAction action = start == 0L ? end == 0L ? event.getTextChannel().getHistoryBefore(originalMessage, 100) : event.getTextChannel().getHistoryBefore(end, 100) : event.getTextChannel().getHistoryAfter(start, 100);
 
 		return action.submit().thenCompose(history -> {
-			List<Message> retrievedHistory = history.getRetrievedHistory();
+			List<Message> retrievedHistory = new ArrayList<>(history.getRetrievedHistory());
+			retrievedHistory.sort(Comparator.comparing(ISnowflake::getTimeCreated));
+
 			List<Message> messages = new ArrayList<>();
 
 			long secondsNow = Clock.systemUTC().instant().getEpochSecond();
