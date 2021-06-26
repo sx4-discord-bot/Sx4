@@ -104,7 +104,7 @@ public class LeaderboardCommand extends Sx4Command {
 						.setTitle("Balance Leaderboard")
 						.setFooter(event.getAuthor().getName() + "'s Rank: " + (rank == -1 ? "N/A" : NumberUtility.getSuffixed(rank)) + " | Page " + page.getPage() + "/" + page.getMaxPage(), event.getAuthor().getEffectiveAvatarUrl());
 
-					page.forEach((entry, index) -> embed.appendDescription(String.format("%d. `%s` - $%,d\n", index + 1, MarkdownSanitizer.sanitize(entry.getKey().getAsTag()), entry.getValue())));
+					page.forEach((entry, index) -> embed.appendDescription(String.format("%d. `%s` - $%,d\n", index + 1, MarkdownSanitizer.escape(entry.getKey().getAsTag()), entry.getValue())));
 
 					return new MessageBuilder().setEmbed(embed.build()).build();
 				});
@@ -175,7 +175,7 @@ public class LeaderboardCommand extends Sx4Command {
 							.setTitle("Networth Leaderboard")
 							.setFooter(event.getAuthor().getName() + "'s Rank: " + (rank == -1 ? "N/A" : NumberUtility.getSuffixed(rank)) + " | Page " + page.getPage() + "/" + page.getMaxPage(), event.getAuthor().getEffectiveAvatarUrl());
 
-						page.forEach((entry, index) -> embed.appendDescription(String.format("%d. `%s` - $%,d\n", index + 1, MarkdownSanitizer.sanitize(entry.getKey().getAsTag()), entry.getValue())));
+						page.forEach((entry, index) -> embed.appendDescription(String.format("%d. `%s` - $%,d\n", index + 1, MarkdownSanitizer.escape(entry.getKey().getAsTag()), entry.getValue())));
 
 						return new MessageBuilder().setEmbed(embed.build()).build();
 					});
@@ -241,7 +241,7 @@ public class LeaderboardCommand extends Sx4Command {
 						.setTitle("Winnings Leaderboard")
 						.setFooter(event.getAuthor().getName() + "'s Rank: " + (rank == -1 ? "N/A" : NumberUtility.getSuffixed(rank)) + " | Page " + page.getPage() + "/" + page.getMaxPage(), event.getAuthor().getEffectiveAvatarUrl());
 
-					page.forEach((entry, index) -> embed.appendDescription(String.format("%d. `%s` - $%,d\n", index + 1, MarkdownSanitizer.sanitize(entry.getKey().getAsTag()), entry.getValue())));
+					page.forEach((entry, index) -> embed.appendDescription(String.format("%d. `%s` - $%,d\n", index + 1, MarkdownSanitizer.escape(entry.getKey().getAsTag()), entry.getValue())));
 
 					return new MessageBuilder().setEmbed(embed.build()).build();
 				});
@@ -310,7 +310,7 @@ public class LeaderboardCommand extends Sx4Command {
 						.setTitle((item == null ? "All Items" : item.getName()) + " Leaderboard")
 						.setFooter(event.getAuthor().getName() + "'s Rank: " + (rank == -1 ? "N/A" : NumberUtility.getSuffixed(rank)) + " | Page " + page.getPage() + "/" + page.getMaxPage(), event.getAuthor().getEffectiveAvatarUrl());
 
-					page.forEach((entry, index) -> embed.appendDescription(String.format("%d. `%s` - %,d %s\n", index + 1, MarkdownSanitizer.sanitize(entry.getKey().getAsTag()), entry.getValue(), item == null ? "Item" + (entry.getValue() == 1 ? "" : "s") : item.getName())));
+					page.forEach((entry, index) -> embed.appendDescription(String.format("%d. `%s` - %,d %s\n", index + 1, MarkdownSanitizer.escape(entry.getKey().getAsTag()), entry.getValue(), item == null ? "Item" + (entry.getValue() == 1 ? "" : "s") : item.getName())));
 
 					return new MessageBuilder().setEmbed(embed.build()).build();
 				});
@@ -373,7 +373,7 @@ public class LeaderboardCommand extends Sx4Command {
 						.setTitle("Streak Leaderboard")
 						.setFooter(event.getAuthor().getName() + "'s Rank: " + (rank == -1 ? "N/A" : NumberUtility.getSuffixed(rank)) + " | Page " + page.getPage() + "/" + page.getMaxPage(), event.getAuthor().getEffectiveAvatarUrl());
 
-					page.forEach((entry, index) -> embed.appendDescription(String.format("%d. `%s` - %,d day streak\n", index + 1, MarkdownSanitizer.sanitize(entry.getKey().getAsTag()), entry.getValue())));
+					page.forEach((entry, index) -> embed.appendDescription(String.format("%d. `%s` - %,d day streak\n", index + 1, MarkdownSanitizer.escape(entry.getKey().getAsTag()), entry.getValue())));
 
 					return new MessageBuilder().setEmbed(embed.build()).build();
 				});
@@ -441,7 +441,7 @@ public class LeaderboardCommand extends Sx4Command {
 						.setTitle("Votes Leaderboard" + (month == null ? "" : " for " + month.getDisplayName(TextStyle.FULL, Locale.UK) + " " + year))
 						.setFooter(event.getAuthor().getName() + "'s Rank: " + (rank == -1 ? "N/A" : NumberUtility.getSuffixed(rank)) + " | Page " + page.getPage() + "/" + page.getMaxPage(), event.getAuthor().getEffectiveAvatarUrl());
 
-					page.forEach((entry, index) -> embed.appendDescription(String.format("%d. `%s` - %,d vote%s\n", index + 1, MarkdownSanitizer.sanitize(entry.getKey().getAsTag()), entry.getValue(), entry.getValue() == 1 ? "" : "s")));
+					page.forEach((entry, index) -> embed.appendDescription(String.format("%d. `%s` - %,d vote%s\n", index + 1, MarkdownSanitizer.escape(entry.getKey().getAsTag()), entry.getValue(), entry.getValue() == 1 ? "" : "s")));
 
 					return new MessageBuilder().setEmbed(embed.build()).build();
 				});

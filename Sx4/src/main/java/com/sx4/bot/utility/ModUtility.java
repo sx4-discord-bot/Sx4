@@ -222,12 +222,20 @@ public class ModUtility {
 		List<Document> config = warnData.getList("config", Document.class, Warn.DEFAULT_CONFIG);
 		boolean punishments = warnData.getBoolean("punishments", true);
 
+		Document reset = warnData.get("reset", MongoDatabase.EMPTY_DOCUMENT);
+		int resetAmount = reset.getInteger("amount", 0);
+		Long resetAfter = reset.getLong("after");
+
 		int maxWarning = punishments ? config.stream()
 			.map(d -> d.getInteger("number"))
 			.max(Integer::compareTo)
 			.get() : Integer.MAX_VALUE;
 
-		List<Bson> update = List.of(Operators.set("warnings", Operators.add(Operators.mod(Operators.ifNull("$warnings", 0), maxWarning), 1)));
+		List<Bson> update = List.of(
+			Operators.set("warnings", Operators.add(Operators.mod(Operators.max(0, Operators.subtract(Operators.ifNull("$warnings", 0), resetAmount == 0 ? 0 : Operators.multiply(Operators.floor(Operators.divide(Operators.subtract(Operators.nowEpochSecond(), "$lastWarning"), resetAfter)), resetAmount))), maxWarning), 1)),
+			Operators.set("lastWarning", Operators.nowEpochSecond())
+		);
+
 		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER).projection(Projections.include("warnings")).upsert(true);
 		Bson filter = Filters.and(
 			Filters.eq("userId", target.getIdLong()),

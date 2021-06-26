@@ -1345,7 +1345,7 @@ public class Sx4 {
 			.registerResponse(Guild.class, "I could not find that server " + this.config.getFailureEmote())
 			.registerResponse(AutoRoleFilter.class, "I could not find that filter " + this.config.getFailureEmote())
 			.registerResponse(Pattern.class, "Regex syntax was incorrect " + this.config.getFailureEmote())
-			.registerResponse(AmountArgument.class, "Invalid amount argument, make sure it is either a number or percentage" + this.config.getFailureEmote())
+			.registerResponse(AmountArgument.class, "Invalid amount argument, make sure it is either a number or percentage " + this.config.getFailureEmote())
 			.registerResponse(int.class, (argument, message, content) -> {
 				if (argument.getProperty("colour", false)) {
 					message.getChannel().sendMessage("I could not find that colour " + this.config.getFailureEmote()).queue();

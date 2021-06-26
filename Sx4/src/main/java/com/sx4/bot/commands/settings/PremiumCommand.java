@@ -196,7 +196,7 @@ public class PremiumCommand extends Sx4Command {
 
 				i++;
 
-				users.add(Map.entry(user == null ? "Anonymous#0000 (" + id + ")" : MarkdownSanitizer.sanitize(user.getAsTag()), data.getInteger("total")));
+				users.add(Map.entry(user == null ? "Anonymous#0000 (" + id + ")" : MarkdownSanitizer.escape(user.getAsTag()), data.getInteger("total")));
 
 				if (user != null && user.getIdLong() == event.getAuthor().getIdLong()) {
 					userIndex.set(i);

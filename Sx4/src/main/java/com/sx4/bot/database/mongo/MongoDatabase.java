@@ -388,6 +388,10 @@ public class MongoDatabase {
 		return this.getWarnings(filter, projection).first();
 	}
 
+	public CompletableFuture<AggregateIterable<Document>> aggregateWarnings(List<Bson> pipeline) {
+		return CompletableFuture.supplyAsync(() -> this.warnings.aggregate(pipeline), this.executor);
+	}
+
 	public CompletableFuture<InsertOneResult> insertWarning(Document data) {
 		return CompletableFuture.supplyAsync(() -> this.warnings.insertOne(data), this.executor);
 	}

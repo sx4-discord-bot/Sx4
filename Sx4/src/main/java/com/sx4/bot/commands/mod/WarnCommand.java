@@ -25,16 +25,17 @@ import com.sx4.bot.utility.NumberUtility;
 import com.sx4.bot.utility.TimeUtility;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Member;
+import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.utils.MarkdownSanitizer;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 
+import java.time.Clock;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
-import java.util.stream.Collectors;
 
 public class WarnCommand extends Sx4Command {
 
@@ -96,7 +97,7 @@ public class WarnCommand extends Sx4Command {
 			return;
 		}
 
-		Bson update = warnings == 0 ? Updates.unset("warnings") : Updates.set("warnings", warnings);
+		Bson update = warnings == 0 ? Updates.unset("warnings") : Updates.combine(Updates.set("warnings", warnings), Updates.set("lastWarning", Clock.systemUTC().instant().getEpochSecond()));
 		Bson filter = Filters.and(
 			Filters.eq("userId", member.getIdLong()),
 			Filters.eq("guildId", event.getGuild().getIdLong())
@@ -116,50 +117,107 @@ public class WarnCommand extends Sx4Command {
 		});
 	}
 
+	@Command(value="reset after", description="The time it should take for warns to be taken away")
+	@CommandId(450)
+	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
+	@Examples({"warn reset after 1 1 day", "warn reset after 3 5h 20s", "warn reset after 3 30d"})
+	public void resetAfter(Sx4CommandEvent event, @Argument(value="amount") @Limit(min=0) int amount, @Argument(value="time", endless=true, nullDefault=true) Duration time) {
+		if (time.toMinutes() < 5) {
+			event.replyFailure("The duration has to be 5 minutes or above").queue();
+			return;
+		}
+
+		Bson update = amount == 0 ? Updates.unset("warn.reset") : Updates.set("warn.reset", new Document("amount", amount).append("after", time.toSeconds()));
+		event.getMongo().updateGuildById(event.getGuild().getIdLong(), update).whenComplete((result, exception) -> {
+			if (ExceptionUtility.sendExceptionally(event, exception)) {
+				return;
+			}
+
+			if (result.getModifiedCount() == 0) {
+				event.replyFailure("Your warn reset configuration was already set to that").queue();
+				return;
+			}
+
+			event.reply(amount == 0 ? "Users warns will no longer reset" + event.getConfig().getSuccessEmote() : String.format("Users warns will now reset **%d** time%s after `%s` %s", amount, amount == 1 ? "" : "s", TimeUtility.getTimeString(time.toSeconds()), event.getConfig().getSuccessEmote())).queue();
+		});
+	}
+
 	@Command(value="list", description="Lists all the warned users in the server and how many warnings they have")
 	@CommandId(258)
 	@Examples({"warn list"})
 	@BotPermissions(permissions={Permission.MESSAGE_EMBED_LINKS})
 	public void list(Sx4CommandEvent event) {
-		List<Document> members = event.getMongo().getWarnings(Filters.eq("guildId", event.getGuild().getIdLong()), Projections.include("warnings", "userId")).into(new ArrayList<>());
+		List<Bson> guildPipeline = List.of(
+			Aggregates.match(Filters.eq("_id", event.getGuild().getIdLong())),
+			Aggregates.project(Projections.include("warn"))
+		);
 
-		List<Document> warnedMembers = members.stream()
-			.filter(d -> d.getInteger("warnings", 0) != 0)
-			.sorted(Collections.reverseOrder(Comparator.comparingInt(d -> d.getInteger("warnings"))))
-			.collect(Collectors.toList());
+		List<Bson> pipeline = List.of(
+			Aggregates.match(Filters.eq("guildId", event.getGuild().getIdLong())),
+			Aggregates.project(Projections.include("warnings", "lastWarning", "userId")),
+			Aggregates.group("$userId", Accumulators.push("users", Operators.ROOT)),
+			Aggregates.unionWith("guilds", guildPipeline),
+			Aggregates.group(null, Accumulators.max("reset", "$warn.reset"), Accumulators.max("users", "$users")),
+			Aggregates.project(Projections.computed("users", Operators.map(Operators.ifNull("$users", Collections.EMPTY_LIST), Operators.mergeObjects("$$this", new Document("warnings", Operators.cond(Operators.or(Operators.isNull("$reset"), Operators.isNull("$$this.warnings")), Operators.ifNull("$$this.warnings", 0), Operators.max(0, Operators.subtract("$$this.warnings", Operators.multiply(Operators.toInt(Operators.floor(Operators.divide(Operators.subtract(Operators.nowEpochSecond(), "$$this.lastWarning"), "$reset.after"))), "$reset.amount"))))))))),
+			Aggregates.unwind("$users"),
+			Aggregates.project(Projections.fields(Projections.computed("warnings", "$users.warnings"), Projections.computed("userId", "$users.userId"))),
+			Aggregates.match(Filters.ne("warnings", 0)),
+			Aggregates.sort(Sorts.descending("warnings"))
+		);
 
-		if (warnedMembers.isEmpty()) {
-			event.replyFailure("There are no users with warnings in this server").queue();
-			return;
-		}
+		event.getMongo().aggregateWarnings(pipeline).whenComplete((iterable, exception) -> {
+			if (ExceptionUtility.sendExceptionally(event, exception)) {
+				return;
+			}
 
-		PagedResult<Document> paged = new PagedResult<>(event.getBot(), warnedMembers)
-			.setAuthor("Warned Users", null, event.getGuild().getIconUrl())
-			.setIndexed(false)
-			.setDisplayFunction(d -> {
-				long userId = d.getLong("userId");
-				Member member = event.getGuild().getMemberById(userId);
+			List<Document> users = iterable.into(new ArrayList<>());
+			if (users.isEmpty()) {
+				event.replyFailure("There are no users with warnings in this server").queue();
+				return;
+			}
 
-				return "`" + (member == null ? userId : MarkdownSanitizer.sanitize(member.getUser().getAsTag())) + "` - Warning **#" + d.getInteger("warnings") + "**";
-			});
+			PagedResult<Document> paged = new PagedResult<>(event.getBot(), users)
+				.setAuthor("Warned Users", null, event.getGuild().getIconUrl())
+				.setIndexed(false)
+				.setDisplayFunction(data -> {
+					long userId = data.getLong("userId");
+					User user = event.getShardManager().getUserById(userId);
 
-		paged.execute(event);
+					return "`" + (user == null ? "Anonymous#0000 (" + userId + ")" : MarkdownSanitizer.escape(user.getAsTag())) + "` - Warning **#" + data.getInteger("warnings") + "**";
+				});
+
+			paged.execute(event);
+		});
 	}
 
 	@Command(value="view", description="View the amount of warnings a specific user is on")
 	@CommandId(259)
 	@Examples({"warn view @Shea#6653", "warn view Shea", "warn view 402557516728369153"})
-	@Redirects({"warnings"})
+	@Redirects({"warnings", "warns"})
 	public void view(Sx4CommandEvent event, @Argument(value="user", endless=true) Member member) {
-		Bson filter = Filters.and(
-			Filters.eq("userId", member.getIdLong()),
-			Filters.eq("guildId", event.getGuild().getIdLong())
+		List<Bson> guildPipeline = List.of(
+			Aggregates.match(Filters.eq("_id", event.getGuild().getIdLong())),
+			Aggregates.project(Projections.include("warn"))
 		);
 
-		Document data = event.getMongo().getWarning(filter, Projections.include("warnings"));
-		int warnings = data == null ? 0 : data.getInteger("warnings", 0);
+		List<Bson> pipeline = List.of(
+			Aggregates.match(Filters.and(Filters.eq("userId", member.getIdLong()), Filters.eq("guildId", event.getGuild().getIdLong()))),
+			Aggregates.project(Projections.include("warnings", "lastWarning")),
+			Aggregates.unionWith("guilds", guildPipeline),
+			Aggregates.group(null, Accumulators.max("warnings", "$warnings"), Accumulators.max("lastWarning", "$lastWarning"), Accumulators.max("reset", "$warn.reset")),
+			Aggregates.project(Projections.computed("warnings", Operators.cond(Operators.or(Operators.isNull("$reset"), Operators.isNull("$warnings")), Operators.ifNull("$warnings", 0), Operators.max(0, Operators.subtract("$warnings", Operators.multiply(Operators.toInt(Operators.floor(Operators.divide(Operators.subtract(Operators.nowEpochSecond(), "$lastWarning"), "$reset.after"))), "$reset.amount"))))))
+		);
 
-		event.reply("**" + member.getUser().getAsTag() + "** is currently on **" + warnings + "** warning" + (warnings == 1 ? "" : "s")).queue();
+		event.getMongo().aggregateWarnings(pipeline).whenComplete((iterable, exception) -> {
+			if (ExceptionUtility.sendExceptionally(event, exception)) {
+				return;
+			}
+
+			Document data = iterable.first();
+			int warnings = data.getInteger("warnings");
+
+			event.reply("**" + member.getUser().getAsTag() + "** is currently on **" + warnings + "** warning" + (warnings == 1 ? "" : "s")).queue();
+		});
 	}
 
 	public static class ConfigCommand extends Sx4Command {
