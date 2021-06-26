@@ -153,7 +153,7 @@ public class WelcomerCommand extends Sx4Command {
 
 	@Command(value="embed", description="Set your welcomer message to use a basic embed")
 	@CommandId(434)
-	@Examples({"welcomer embed A new person has joined", "welcomer message Welcome {user.mention}! --colour=#ffff00", "welcomer message Welcome {user.mention}! --colour=#ffff00 --image"})
+	@Examples({"welcomer embed A new person has joined", "welcomer embed Welcome {user.mention}! --colour=#ffff00", "welcomer embed Welcome {user.mention}! --colour=#ffff00 --image"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void embed(Sx4CommandEvent event, @Argument(value="message", endless=true) String message, @Option(value="image", description="Use this option if you want the image welcomer in the embed") boolean image, @Option(value="colour", description="Sets the embed colour for the message") @Colour Integer colour) {
 		Document data = new Document("description", message).append("author", new Document("name", "{user.tag}").append("icon_url", "{user.avatar}"));
@@ -361,7 +361,7 @@ public class WelcomerCommand extends Sx4Command {
 		@Async
 		@Examples({"welcomer image banner https://i.imgur.com/i87lyNO.png", "welcomer image banner https://example.com/image.png", "welcomer image banner reset"})
 		@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-		public void banner(Sx4CommandEvent event, @Argument(value="url") @ImageUrl @Options("reset") Alternative<String> option) {
+		public void banner(Sx4CommandEvent event, @Argument(value="url", acceptEmpty=true) @ImageUrl @Options("reset") Alternative<String> option) {
 			if (option.isAlternative()) {
 				FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("welcomer.image.bannerId"));
 				event.getMongo().findAndUpdateGuildById(event.getGuild().getIdLong(), Updates.unset("welcomer.image.bannerId"), options).whenComplete((data, exception) -> {

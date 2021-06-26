@@ -713,6 +713,7 @@ public class Sx4 {
 		optionFactory.registerParser(Duration.class, (context, option, content) -> content == null ? new ParsedResult<>(true, null) : new ParsedResult<>(TimeUtility.getDurationFromString(content)))
 			.registerParser(Guild.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getGuild(this.shardManager, content)))
 			.registerParser(TextChannel.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getTextChannel(context.getMessage().getGuild(), content.trim())))
+			.registerParser(Sx4Command.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getCommand(this.commandListener, content.trim())))
 			.registerParser(Locale.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getLocale(content.trim())))
 			.registerParser(Integer.class, (context, argument, content) -> {
 				if (argument.getProperty("colour", false)) {
@@ -1221,7 +1222,7 @@ public class Sx4 {
 				public ParsedResult<Alternative> parse(ParseContext context, IArgument<Alternative> argument, String content) {
 					int nextSpace = content.indexOf(' ');
 					String argumentContent = nextSpace == -1 || argument.isEndless() ? content : content.substring(0, nextSpace);
-					if (argumentContent.isEmpty()) {
+					if (!argument.acceptEmpty() && argumentContent.isEmpty()) {
 						return new ParsedResult<>();
 					}
 

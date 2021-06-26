@@ -11,7 +11,6 @@ import net.dv8tion.jda.api.events.message.guild.GuildMessageUpdateEvent;
 import net.dv8tion.jda.api.hooks.EventListener;
 
 import java.util.Objects;
-import java.util.concurrent.locks.ReentrantLock;
 
 public class GuildMessageCache implements EventListener {
 
@@ -25,8 +24,6 @@ public class GuildMessageCache implements EventListener {
 
 	public TLongObjectMap<GuildMessage> messageCache = this.createCache();
 	public TLongObjectMap<GuildMessage> overloadCache = this.createCache();
-
-	private final ReentrantLock lock = new ReentrantLock();
 
 	public synchronized void putMessage(Message message) {
 		Objects.requireNonNull(message);

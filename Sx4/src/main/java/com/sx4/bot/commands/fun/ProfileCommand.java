@@ -265,7 +265,7 @@ public class ProfileCommand extends Sx4Command {
 		@Cooldown(value=30, cooldownScope= ICooldown.Scope.USER)
 		@Async
 		@Examples({"profile set banner https://i.imgur.com/i87lyNO.png", "profile set banner reset"})
-		public void banner(Sx4CommandEvent event, @Argument(value="url | reset") @ImageUrl @Options("reset") Alternative<String> option) {
+		public void banner(Sx4CommandEvent event, @Argument(value="url | reset", acceptEmpty=true) @ImageUrl @Options("reset") Alternative<String> option) {
 			if (option.isAlternative()) {
 				FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("profile.bannerId"));
 				event.getMongo().findAndUpdateUserById(event.getAuthor().getIdLong(), Updates.unset("profile.bannerId"), options).whenComplete((data, exception) -> {

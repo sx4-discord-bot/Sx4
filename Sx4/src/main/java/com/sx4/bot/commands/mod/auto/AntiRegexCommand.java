@@ -115,7 +115,7 @@ public class AntiRegexCommand extends Sx4Command {
 		});
 	}
 
-	@Command(value="add", description="Add a regex from `anti regex template list` to be checked on every message")
+	@Command(value="add", description="Add a custom regex to be checked on every message")
 	@CommandId(125)
 	@Examples({"anti regex add [0-9]+", "anti regex add https://discord\\.com/channels/([0-9]+)/([0-9]+)/?"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})

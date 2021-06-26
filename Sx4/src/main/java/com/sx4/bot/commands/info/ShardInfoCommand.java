@@ -4,7 +4,6 @@ import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.paged.PagedResult;
-import com.sx4.bot.settings.Settings;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.MessageBuilder;
@@ -40,7 +39,6 @@ public class ShardInfoCommand extends Sx4Command {
 				embed.setDescription(String.format("```prolog\nTotal Shards: %d\nTotal Servers: %,d\nTotal Members: %,d\nAverage Ping: %.0fms```", shardInfo.getShardTotal(), totalGuilds, totalUsers, event.getShardManager().getAverageGatewayPing()));
 				embed.setAuthor("Shard Info!", null, event.getSelfUser().getEffectiveAvatarUrl());
 				embed.setFooter("next | previous | go to <page> | cancel");
-				embed.setColor(Settings.EMBED_COLOUR);
 
 				page.forEach((shard, index) -> {
 					String currentShard = shardInfo.getShardId() == index ? "\\> " : "";

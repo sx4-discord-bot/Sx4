@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Predicate;
@@ -146,7 +147,8 @@ public class PruneCommand extends Sx4Command {
 		this.prune(event, amount, start, end, message -> pattern.matcher(message.getContentRaw()).matches())
 			.orTimeout(500, TimeUnit.MILLISECONDS)
 			.whenComplete((result, exception) -> {
-				if (exception instanceof TimeoutException) {
+				Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
+				if (cause instanceof TimeoutException) {
 					event.reply("That regex took longer than 500ms to execute :stopwatch:").queue();
 					return;
 				}
