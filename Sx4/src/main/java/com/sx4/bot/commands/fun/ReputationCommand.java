@@ -101,12 +101,11 @@ public class ReputationCommand extends Sx4Command {
 			Aggregates.sort(Sorts.descending("reputation"))
 		);
 
-		event.getMongo().aggregateUsers(pipeline).whenComplete((iterable, exception) -> {
+		event.getMongo().aggregateUsers(pipeline).whenComplete((documents, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
 
-			List<Document> documents = iterable.into(new ArrayList<>());
 			List<Map.Entry<User, Integer>> users = new ArrayList<>();
 			AtomicInteger userIndex = new AtomicInteger(-1);
 

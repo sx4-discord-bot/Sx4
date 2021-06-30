@@ -6,6 +6,7 @@ import com.jockie.bot.core.option.Option;
 import com.sx4.bot.annotations.command.BotPermissions;
 import com.sx4.bot.annotations.command.CommandId;
 import com.sx4.bot.annotations.command.Examples;
+import com.sx4.bot.cache.SteamGameCache;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
@@ -75,9 +76,15 @@ public class SteamCommand extends Sx4Command {
 	@Examples({"steam game Grand Theft Auto", "steam game 1293830", "steam game https://store.steampowered.com/app/1293830/Forza_Horizon_4/"})
 	@Cooldown(5)
 	@BotPermissions(permissions={Permission.MESSAGE_EMBED_LINKS})
-	public void game(Sx4CommandEvent event, @Argument(value="query", endless=true) String query, @Option(value="random", description="Gets a random game") boolean random) {
+	public void game(Sx4CommandEvent event, @Argument(value="query", endless=true, nullDefault=true) String query, @Option(value="random", description="Gets a random game") boolean random) {
 		if (query == null && !random) {
 			event.replyHelp().queue();
+			return;
+		}
+
+		SteamGameCache cache = event.getBot().getSteamGameCache();
+		if (cache.getGames().isEmpty()) {
+			event.replyFailure("The steam cache is currently empty, try again").queue();
 			return;
 		}
 
@@ -85,14 +92,14 @@ public class SteamCommand extends Sx4Command {
 
 		List<Document> games;
 		if (query == null) {
-			List<Document> cache = event.getBot().getSteamGameCache().getGames();
-			games = List.of(cache.get(event.getRandom().nextInt(cache.size())));
+			List<Document> cacheGames = cache.getGames();
+			games = List.of(cacheGames.get(event.getRandom().nextInt(cacheGames.size())));
 		} else if (NumberUtility.isNumberUnsigned(query)) {
 			games = List.of(new Document("appid", Integer.parseInt(query)));
 		} else if ((urlMatcher = this.gamePattern.matcher(query)).matches()) {
 			games = List.of(new Document("appid", Integer.parseInt(urlMatcher.group(1))));
 		} else {
-			games = event.getBot().getSteamGameCache().getGames(query);
+			games = cache.getGames(query);
 			if (games.isEmpty()) {
 				event.replyFailure("I could not find any games with that query").queue();
 				return;
@@ -148,8 +155,8 @@ public class SteamCommand extends Sx4Command {
 
 				embed.addField("Release Date", String.format("%s%s", date.isBlank() ? "Unknown" : date, releaseDate.getBoolean("coming_soon") ? " (Coming Soon)" : ""), true);
 
-				int age = gameInfo.getInteger("required_age");
-				embed.addField("Required Age", age == 0 ? "No Age Restriction" : String.valueOf(age), true);
+				Object age = gameInfo.get("required_age");
+				embed.addField("Required Age", age instanceof Integer ? ((int) age) == 0 ? "No Age Restriction" : String.valueOf((int) age) : (String) age, true);
 				embed.addField("Recommendations", String.format("%,d", gameInfo.getEmbedded(List.of("recommendations", "total"), 0)), true);
 				embed.addField("Supported Languages", gameInfo.containsKey("supported_languages") ? Jsoup.parse(gameInfo.getString("supported_languages")).text() : "Unknown", true);
 

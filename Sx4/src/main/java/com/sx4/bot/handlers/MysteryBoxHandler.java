@@ -68,7 +68,6 @@ public class MysteryBoxHandler implements EventListener {
 
 		String id = event.getComponentId();
 		if (id.equals("24")) {
-			manager.removeGame(event.getUser());
 			manager.removeGame(event.getMessageIdLong());
 
 			game.end(new MysteryBoxResult(game, event));
@@ -76,9 +75,7 @@ public class MysteryBoxHandler implements EventListener {
 			return;
 		}
 
-		boolean bomb = game.getBox(id);
-		if (bomb) {
-			manager.removeGame(event.getUser());
+		if (game.getBox(id)) {
 			manager.removeGame(event.getMessageIdLong());
 
 			game.setWinnings(0L);
@@ -90,7 +87,6 @@ public class MysteryBoxHandler implements EventListener {
 		long winnings = game.increaseWinnings();
 
 		if (clicks == MysteryBoxManager.MONEY_COUNT) {
-			manager.removeGame(event.getUser());
 			manager.removeGame(event.getMessageIdLong());
 
 			game.end(new MysteryBoxResult(game, event));

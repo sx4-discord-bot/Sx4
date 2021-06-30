@@ -48,12 +48,12 @@ public class NetworthCommand extends Sx4Command {
 			Aggregates.group(null, Accumulators.sum("networth", "$networth"))
 		);
 
-		event.getMongo().aggregateItems(pipeline).whenComplete((iterable, exception) -> {
+		event.getMongo().aggregateItems(pipeline).whenComplete((list, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
 
-			Document data = iterable.first();
+			Document data = list.isEmpty() ? null : list.get(0);
 
 			EmbedBuilder embed = new EmbedBuilder()
 				.setAuthor(user.getName(), null, user.getEffectiveAvatarUrl())

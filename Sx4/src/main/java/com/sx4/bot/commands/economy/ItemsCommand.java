@@ -45,7 +45,7 @@ public class ItemsCommand extends Sx4Command {
 			Aggregates.unionWith("users", usersPipeline)
 		);
 
-		event.getMongo().aggregateItems(pipeline).whenComplete((data, exception) -> {
+		event.getMongo().aggregateItems(pipeline).whenComplete((items, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -54,19 +54,24 @@ public class ItemsCommand extends Sx4Command {
 				.setAuthor("Items", null, effectiveMember.getUser().getEffectiveAvatarUrl())
 				.setColor(effectiveMember.getColorRaw());
 
-			List<Document> items = data.into(new ArrayList<>());
-			if (items.size() == 1) {
+			if (items.isEmpty()) {
 				event.replyFailure("That user does not have any items").queue();
 				return;
 			}
 
-			StringBuilder footer = new StringBuilder("If a category isn't shown it means you have no items in that category | Balance: $");
+			String footerText = "If a category isn't shown it means you have no items in that category | Balance: $";
+			StringBuilder footer = new StringBuilder(footerText);
 
 			Map<ItemType, StringJoiner> types = new HashMap<>();
 			for (Document item : items) {
 				String name = item.getString("name");
 				if (name.equals("balance")) {
-					footer.append(String.format("%,d", item.get("balance", Number.class).longValue()));
+					if (items.size() == 1) {
+						event.replyFailure("That user does not have any items").queue();
+						return;
+					}
+
+					footer.append(String.format("%,d", item.get("balance", 0L)));
 					continue;
 				}
 
@@ -74,6 +79,10 @@ public class ItemsCommand extends Sx4Command {
 				ItemStack<?> stack = new ItemStack<>(event.getBot().getEconomyManager(), item);
 
 				types.compute(type, (key, value) -> (value == null ? new StringJoiner("\n") : value).add(stack.toString()));
+			}
+
+			if (footer.length() == footerText.length()) {
+				footer.append("0");
 			}
 
 			types.forEach((type, joiner) -> embed.addField(type.getName(), joiner.toString(), true));

@@ -17,7 +17,7 @@ public class ServerInfoCommand extends Sx4Command {
 
 		super.setDescription("Provides some basic information about the current server");
 		super.setExamples("server info");
-		super.setAliases("serverinfo", "si");
+		super.setAliases("serverinfo", "si", "sinfo");
 		super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
 		super.setCategoryAll(ModuleCategory.INFORMATION);
 	}

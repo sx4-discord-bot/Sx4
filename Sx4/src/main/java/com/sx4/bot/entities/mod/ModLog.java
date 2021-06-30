@@ -12,6 +12,7 @@ import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.sharding.ShardManager;
+import net.dv8tion.jda.internal.entities.UserById;
 import org.bson.Document;
 import org.bson.types.ObjectId;
 
@@ -180,8 +181,8 @@ public class ModLog {
 	public WebhookEmbed getWebhookEmbed(User moderator, User target) {
 		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
 		embed.setTitle(new EmbedTitle(this.action.toString(), null));
-		embed.addField(new EmbedField(false, "Target", (target == null ? "Anonymous#0000" : target.getAsTag()) + " (" + this.getTargetId() + ")"));
-		embed.addField(new EmbedField(false, "Moderator", (moderator == null ? "Anonymous#0000" : moderator.getAsTag()) + " (" + this.getModeratorId() + ")"));
+		embed.addField(new EmbedField(false, "Target", (target == null || target.getClass() == UserById.class ? "Anonymous#0000" : target.getAsTag()) + " (" + this.getTargetId() + ")"));
+		embed.addField(new EmbedField(false, "Moderator", (moderator == null || moderator.getClass() == UserById.class ? "Anonymous#0000" : moderator.getAsTag()) + " (" + this.getModeratorId() + ")"));
 		embed.addField(new EmbedField(false, "Reason", this.reason == null ? "None Given" : this.reason.getParsed()));
 		embed.setTimestamp(Instant.ofEpochSecond(this.getTimestamp()));
 		embed.setFooter(new EmbedFooter("ID: " + this.getHex(), null));

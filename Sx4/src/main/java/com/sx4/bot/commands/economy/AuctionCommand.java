@@ -29,7 +29,6 @@ import org.bson.conversions.Bson;
 
 import java.time.Clock;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -67,12 +66,11 @@ public class AuctionCommand extends Sx4Command {
 			Aggregates.sort(reverse ? Sorts.ascending(sort) : Sorts.descending(sort))
 		);
 
-		event.getMongo().aggregateAuction(pipeline).whenComplete((iterable, exception) -> {
+		event.getMongo().aggregateAuction(pipeline).whenComplete((items, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
 
-			List<Document> items = iterable.into(new ArrayList<>());
 			if (items.isEmpty()) {
 				event.replyFailure("There are no items on the auction with that filter").queue();
 				return;
@@ -210,12 +208,11 @@ public class AuctionCommand extends Sx4Command {
 			Aggregates.sort(reverse ? Sorts.ascending(sort) : Sorts.descending(sort))
 		);
 
-		event.getMongo().aggregateAuction(pipeline).whenComplete((iterable, exception) -> {
+		event.getMongo().aggregateAuction(pipeline).whenComplete((items, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
 
-			List<Document> items = iterable.into(new ArrayList<>());
 			if (items.isEmpty()) {
 				event.replyFailure("There are no items on the auction to buy with that filter").queue();
 				return;
@@ -337,12 +334,11 @@ public class AuctionCommand extends Sx4Command {
 			Aggregates.sort(reverse ? Sorts.ascending(sort) : Sorts.descending(sort))
 		);
 
-		event.getMongo().aggregateAuction(pipeline).whenComplete((iterable, exception) -> {
+		event.getMongo().aggregateAuction(pipeline).whenComplete((items, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
 
-			List<Document> items = iterable.into(new ArrayList<>());
 			if (items.isEmpty()) {
 				event.replyFailure("You have no items on the auction which have expired with that filter").queue();
 				return;

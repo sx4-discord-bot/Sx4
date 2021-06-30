@@ -11,7 +11,6 @@ public class ModActionEvent {
 	
 	private final Member moderator;
 
-	private final long targetId;
 	private final User target;
 
 	private final Guild guild;
@@ -23,17 +22,7 @@ public class ModActionEvent {
 	public ModActionEvent(Member moderator, User target, Reason reason, Action action) {
 		this.guild = moderator.getGuild();
 		this.moderator = moderator;
-		this.targetId = target.getIdLong();
 		this.target = target;
-		this.reason = reason;
-		this.action = action;
-	}
-
-	public ModActionEvent(Member moderator, long targetId, Reason reason, Action action) {
-		this.guild = moderator.getGuild();
-		this.moderator = moderator;
-		this.targetId = targetId;
-		this.target = null;
 		this.reason = reason;
 		this.action = action;
 	}
@@ -44,10 +33,6 @@ public class ModActionEvent {
 	
 	public Member getModerator() {
 		return this.moderator;
-	}
-
-	public long getTargetId() {
-		return this.targetId;
 	}
 	
 	public User getTarget() {

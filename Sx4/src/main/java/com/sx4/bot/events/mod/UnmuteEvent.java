@@ -12,9 +12,5 @@ public class UnmuteEvent extends ModActionEvent {
 	public UnmuteEvent(Member moderator, User target, Reason reason) {
 		super(moderator, target, reason, new Action(ModAction.UNMUTE));
 	}
-
-	public UnmuteEvent(Member moderator, long targetId, Reason reason) {
-		super(moderator, targetId, reason, new Action(ModAction.UNMUTE));
-	}
 	
 }

@@ -86,52 +86,47 @@ public class CommandStatsCommand extends Sx4Command {
 			Aggregates.sort(Sorts.descending("count"))
 		);
 
-		event.getMongo().aggregateCommands(pipeline).whenComplete((iterable, exception) -> {
+		event.getMongo().aggregateCommands(pipeline).whenComplete((commands, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
 
-			try {
-				List<Document> commands = iterable.into(new ArrayList<>());
-				if (commands.isEmpty()) {
-					event.replyFailure("No data was found with those filters").queue();
-					return;
-				}
-
-				PagedResult<Document> paged = new PagedResult<>(event.getBot(), commands)
-					.setIndexed(false)
-					.setSelect()
-					.setAuthor("Command Stats", null, event.getSelfUser().getEffectiveAvatarUrl())
-					.setDisplayFunction(data -> {
-						String prefix = null;
-						if (group == null || group == GroupType.COMMAND) {
-							prefix = "`" + data.getString("_id") + "`";
-						} else if (group == GroupType.CHANNEL) {
-							long id = data.getLong("_id");
-							TextChannel textChannel = event.getGuild().getTextChannelById(id);
-							prefix = textChannel == null ? "#deleted-channel (" + id + ")" : textChannel.getAsMention();
-						} else if (group == GroupType.USER) {
-							long id = data.getLong("_id");
-							User user = event.getShardManager().getUserById(id);
-							prefix = "`" + (user == null ? "Anonymous#0000 (" + id + ")" : MarkdownSanitizer.escape(user.getAsTag())) + "`";
-						} else if (group == GroupType.SERVER) {
-							Long id = data.getLong("_id");
-							if (id == null) {
-								prefix = "`Private Messages`";
-							} else {
-								Guild guildGroup = event.getShardManager().getGuildById(id);
-								prefix = "`" + (guildGroup == null ? "Unknown Server (" + id + ")" : MarkdownSanitizer.escape(guildGroup.getName())) + "`";
-							}
-						}
-
-						long count = data.getLong("count");
-						return (prefix == null ? "Unknown" : prefix) + " - " + String.format("%,d", count) + " use" + (count == 1 ? "" : "s");
-					});
-
-				paged.execute(event);
-			} catch (Throwable e) {
-				e.printStackTrace();
+			if (commands.isEmpty()) {
+				event.replyFailure("No data was found with those filters").queue();
+				return;
 			}
+
+			PagedResult<Document> paged = new PagedResult<>(event.getBot(), commands)
+				.setIndexed(false)
+				.setSelect()
+				.setAuthor("Command Stats", null, event.getSelfUser().getEffectiveAvatarUrl())
+				.setDisplayFunction(data -> {
+					String prefix = null;
+					if (group == null || group == GroupType.COMMAND) {
+						prefix = "`" + data.getString("_id") + "`";
+					} else if (group == GroupType.CHANNEL) {
+						long id = data.getLong("_id");
+						TextChannel textChannel = event.getGuild().getTextChannelById(id);
+						prefix = textChannel == null ? "#deleted-channel (" + id + ")" : textChannel.getAsMention();
+					} else if (group == GroupType.USER) {
+						long id = data.getLong("_id");
+						User user = event.getShardManager().getUserById(id);
+						prefix = "`" + (user == null ? "Anonymous#0000 (" + id + ")" : MarkdownSanitizer.escape(user.getAsTag())) + "`";
+					} else if (group == GroupType.SERVER) {
+						Long id = data.getLong("_id");
+						if (id == null) {
+							prefix = "`Private Messages`";
+						} else {
+							Guild guildGroup = event.getShardManager().getGuildById(id);
+							prefix = "`" + (guildGroup == null ? "Unknown Server (" + id + ")" : MarkdownSanitizer.escape(guildGroup.getName())) + "`";
+						}
+					}
+
+					long count = data.getLong("count");
+					return (prefix == null ? "Unknown" : prefix) + " - " + String.format("%,d", count) + " use" + (count == 1 ? "" : "s");
+				});
+
+			paged.execute(event);
 		});
 	}
 

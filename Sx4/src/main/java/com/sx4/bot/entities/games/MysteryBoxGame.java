@@ -13,11 +13,12 @@ public class MysteryBoxGame {
 	private double multiplier = 0.2D;
 	private long winnings = 0;
 
-	private final long bet, messageId;
+	private final long bet, messageId, userId;
 	private final Map<Integer, Boolean> boxes;
 
-	public MysteryBoxGame(Message message, long bet, Map<Integer, Boolean> boxes) {
+	public MysteryBoxGame(Message message, long userId, long bet, Map<Integer, Boolean> boxes) {
 		this.future = new CompletableFuture<>();
+		this.userId = userId;
 		this.messageId = message.getIdLong();
 		this.bet = bet;
 		this.boxes = boxes;
@@ -51,6 +52,10 @@ public class MysteryBoxGame {
 
 	public long getBet() {
 		return this.bet;
+	}
+
+	public long getUserId() {
+		return this.userId;
 	}
 
 	public long getMessageId() {

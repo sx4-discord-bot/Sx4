@@ -89,7 +89,7 @@ public class MysteryBoxCommand extends Sx4Command {
 
 		String description = "You put down **$%,d**. Click the buttons to reveal what they hold, if you get :moneybag: you will get 0.20x your initial bet and it'll increase with the more successful clicks, if you get a :bomb: you will lose everything. Quit at anytime and leave with your earnings at any time by clicking the quit button.";
 		event.getTextChannel().sendMessageFormat(description, bet).setActionRows(rows).submit().thenCompose(message -> {
-			MysteryBoxGame game = new MysteryBoxGame(message, bet, boxes);
+			MysteryBoxGame game = new MysteryBoxGame(message, event.getAuthor().getIdLong(), bet, boxes);
 			manager.addGame(event.getAuthor(), game);
 
 			return game.getFuture();

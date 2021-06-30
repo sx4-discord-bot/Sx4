@@ -118,7 +118,7 @@ public class ReactionRoleCommand extends Sx4Command {
 			if (unicode && message.getReactionByUnicode(emote.getEmoji()) == null) {
 				action = message.addReaction(emote.getEmoji());
 			} else {
-				if (!unicode && message.getReactionById(emote.getEmote().getIdLong()) == null) {
+				if (!unicode && message.getReactionById(emote.getEmote().getIdLong()) == null && emote.getEmote().canInteract(event.getSelfUser(), event.getTextChannel())) {
 					message.addReaction(emote.getEmote()).queue();
 				}
 

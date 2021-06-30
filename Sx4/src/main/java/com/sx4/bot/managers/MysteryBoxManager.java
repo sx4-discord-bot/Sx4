@@ -28,7 +28,10 @@ public class MysteryBoxManager {
 	}
 
 	public void removeGame(long messageId) {
-		this.messages.remove(messageId);
+		MysteryBoxGame game = this.messages.remove(messageId);
+		if (game != null) {
+			this.users.remove(game.getUserId());
+		}
 	}
 
 	public MysteryBoxGame getGame(User user) {
@@ -42,10 +45,6 @@ public class MysteryBoxManager {
 	public void addGame(User user, MysteryBoxGame game) {
 		this.users.put(user.getIdLong(), game);
 		this.messages.put(game.getMessageId(), game);
-	}
-
-	public void removeGame(User user) {
-		this.users.remove(user.getIdLong());
 	}
 
 }

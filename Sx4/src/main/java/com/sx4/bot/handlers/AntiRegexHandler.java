@@ -91,11 +91,12 @@ public class AntiRegexHandler implements EventListener {
             Aggregates.project(Projections.computed("regexes", Operators.let(new Document("regexes", Operators.ifNull("$regexes", Collections.EMPTY_LIST)), Operators.cond(Operators.ifNull("$premium", false), "$$regexes", Operators.concatArrays(Operators.filter("$$regexes", Operators.ne("$$this.type", RegexType.REGEX.getId())), Operators.slice(Operators.filter("$$regexes", Operators.eq("$$this.type", RegexType.REGEX.getId())), 0, 3))))))
         );
 
-        this.bot.getMongo().aggregateRegexes(pipeline).whenComplete((iterable, exception) -> {
-            Document data = iterable.first();
-            if (data == null) {
+        this.bot.getMongo().aggregateRegexes(pipeline).whenComplete((documents, exception) -> {
+            if (documents.isEmpty()) {
                 return;
             }
+
+            Document data = documents.get(0);
 
             this.executor.submit(() -> {
                 List<CompletableFuture<Document>> matches = new ArrayList<>();

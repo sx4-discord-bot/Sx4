@@ -124,15 +124,16 @@ public class LoggerHandler implements EventListener {
 
 		List<Long> deletedLoggers = new ArrayList<>();
 
-		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((iterable, exception) -> {
+		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((documents, exception) -> {
 			if (ExceptionUtility.sendErrorMessage(exception)) {
 				return;
 			}
 
-			Document data = iterable.first();
-			if (data == null) {
+			if (documents.isEmpty()) {
 				return;
 			}
+
+			Document data = documents.get(0);
 
 			for (Document logger : data.getList("loggers", Document.class)) {
 				if ((logger.get("events", LoggerEvent.ALL) & loggerEvent.getRaw()) != loggerEvent.getRaw()) {
@@ -240,15 +241,16 @@ public class LoggerHandler implements EventListener {
 			embed.addField(new EmbedField(false, "After", StringUtility.limit(message.getContentRaw(), MessageEmbed.VALUE_MAX_LENGTH, String.format("[...](%s)", message.getJumpUrl()))));
 		}
 
-		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((iterable, exception) -> {
+		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((documents, exception) -> {
 			if (ExceptionUtility.sendErrorMessage(exception)) {
 				return;
 			}
 
-			Document data = iterable.first();
-			if (data == null) {
+			if (documents.isEmpty()) {
 				return;
 			}
+
+			Document data = documents.get(0);
 
 			this.bot.getLoggerManager().queue(guild, data.getList("loggers", Document.class), loggerEvent, loggerContext, embed.build());
 		});
@@ -269,15 +271,16 @@ public class LoggerHandler implements EventListener {
 		embed.setAuthor(new EmbedAuthor(user.getAsTag(), user.getEffectiveAvatarUrl(), null));
 		embed.setFooter(new EmbedFooter(String.format("%s ID: %s", user.isBot() ? "Bot" : "User", member.getId()), null));
 
-		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((iterable, exception) -> {
+		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((documents, exception) -> {
 			if (ExceptionUtility.sendErrorMessage(exception)) {
 				return;
 			}
 
-			Document data = iterable.first();
-			if (data == null) {
+			if (documents.isEmpty()) {
 				return;
 			}
+
+			Document data = documents.get(0);
 
 			List<Document> loggers = LoggerUtility.getValidLoggers(data.getList("loggers", Document.class), loggerEvent, loggerContext);
 			if (loggers.isEmpty()) {
@@ -335,15 +338,16 @@ public class LoggerHandler implements EventListener {
 		embed.setAuthor(new EmbedAuthor(user.getAsTag(), user.getEffectiveAvatarUrl(), null));
 		embed.setFooter(new EmbedFooter(String.format("User ID: %s", user.getId()), null));
 
-		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((iterable, exception) -> {
+		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((documents, exception) -> {
 			if (ExceptionUtility.sendErrorMessage(exception)) {
 				return;
 			}
 
-			Document data = iterable.first();
-			if (data == null) {
+			if (documents.isEmpty()) {
 				return;
 			}
+
+			Document data = documents.get(0);
 
 			List<Document> loggers = data.getList("loggers", Document.class);
 			if (loggers.isEmpty()) {
@@ -394,15 +398,16 @@ public class LoggerHandler implements EventListener {
 		embed.setAuthor(new EmbedAuthor(user.getAsTag(), user.getEffectiveAvatarUrl(), null));
 		embed.setFooter(new EmbedFooter(String.format("User ID: %s", user.getId()), null));
 
-		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((iterable, exception) -> {
+		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((documents, exception) -> {
 			if (ExceptionUtility.sendErrorMessage(exception)) {
 				return;
 			}
 
-			Document data = iterable.first();
-			if (data == null) {
+			if (documents.isEmpty()) {
 				return;
 			}
+
+			Document data = documents.get(0);
 
 			List<Document> loggers = LoggerUtility.getValidLoggers(data.getList("loggers", Document.class), loggerEvent, loggerContext);
 			if (loggers.isEmpty()) {
@@ -447,15 +452,16 @@ public class LoggerHandler implements EventListener {
 		embed.setAuthor(new EmbedAuthor(user.getAsTag(), user.getEffectiveAvatarUrl(), null));
 		embed.setFooter(new EmbedFooter(String.format("User ID: %s", user.getId()), null));
 
-		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((iterable, exception) -> {
+		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((documents, exception) -> {
 			if (ExceptionUtility.sendErrorMessage(exception)) {
 				return;
 			}
 
-			Document data = iterable.first();
-			if (data == null) {
+			if (documents.isEmpty()) {
 				return;
 			}
+
+			Document data = documents.get(0);
 
 			List<Document> loggers = LoggerUtility.getValidLoggers(data.getList("loggers", Document.class), loggerEvent, loggerContext);
 			if (loggers.isEmpty()) {
@@ -497,21 +503,22 @@ public class LoggerHandler implements EventListener {
 			.setChannel(channel);
 
 		WebhookEmbedBuilder embed = new WebhookEmbedBuilder()
-			.setDescription(String.format("`%s` just joined the voice channel `%s`", member.getEffectiveName(), channel.getName()))
+			.setDescription(String.format("`%s` just joined the voice channel `%s`", member.getEffectiveName(), channel.getAsMention()))
 			.setColor(this.bot.getConfig().getGreen())
 			.setTimestamp(Instant.now())
 			.setFooter(new EmbedFooter(String.format("User ID: %s", member.getId()), null))
 			.setAuthor(new EmbedAuthor(user.getAsTag(), user.getEffectiveAvatarUrl(), null));
 
-		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((iterable, exception) -> {
+		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((documents, exception) -> {
 			if (ExceptionUtility.sendErrorMessage(exception)) {
 				return;
 			}
 
-			Document data = iterable.first();
-			if (data == null) {
+			if (documents.isEmpty()) {
 				return;
 			}
+
+			Document data = documents.get(0);
 
 			this.bot.getLoggerManager().queue(guild, data.getList("loggers", Document.class), loggerEvent, loggerContext, embed.build());
 		});
@@ -528,21 +535,22 @@ public class LoggerHandler implements EventListener {
 			.setUser(user);
 
 		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
-		embed.setDescription(String.format("`%s` just left the voice channel `%s`", member.getEffectiveName(), channel.getName()));
+		embed.setDescription(String.format("`%s` just left the voice channel `%s`", member.getEffectiveName(), channel.getAsMention()));
 		embed.setColor(this.bot.getConfig().getRed());
 		embed.setTimestamp(Instant.now());
 		embed.setAuthor(new EmbedAuthor(user.getAsTag(), user.getEffectiveAvatarUrl(), null));
 		embed.setFooter(new EmbedFooter(String.format("User ID: %s", user.getId()), null));
 
-		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((iterable, exception) -> {
+		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((documents, exception) -> {
 			if (ExceptionUtility.sendErrorMessage(exception)) {
 				return;
 			}
 
-			Document data = iterable.first();
-			if (data == null) {
+			if (documents.isEmpty()) {
 				return;
 			}
+
+			Document data = documents.get(0);
 
 			List<Document> loggers = data.getList("loggers", Document.class);
 			if (loggers.isEmpty()) {
@@ -574,7 +582,7 @@ public class LoggerHandler implements EventListener {
 
 						loggerContext.setModerator(moderator);
 
-						embed.setDescription(String.format("`%s` was disconnected from the voice channel `%s` by **%s**", member.getEffectiveName(), channel.getName(), moderator.getAsTag()));
+						embed.setDescription(String.format("`%s` was disconnected from the voice channel `%s` by **%s**", member.getEffectiveName(), channel.getAsMention(), moderator.getAsTag()));
 					}
 
 					this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
@@ -607,15 +615,16 @@ public class LoggerHandler implements EventListener {
 		embed.addField(new EmbedField(false, "Before", String.format("`%s`", left.getName())));
 		embed.addField(new EmbedField(false, "After", String.format("`%s`", joined.getName())));
 
-		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((iterable, exception) -> {
+		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((documents, exception) -> {
 			if (ExceptionUtility.sendErrorMessage(exception)) {
 				return;
 			}
 
-			Document data = iterable.first();
-			if (data == null) {
+			if (documents.isEmpty()) {
 				return;
 			}
+
+			Document data = documents.get(0);
 
 			List<Document> loggers = LoggerUtility.getValidLoggers(data.getList("loggers", Document.class), loggerEvent, loggerContext);
 			if (loggers.isEmpty()) {
@@ -677,15 +686,16 @@ public class LoggerHandler implements EventListener {
 		embed.setFooter(new EmbedFooter(String.format("User ID: %s", user.getId()), null));
 		embed.setColor(muted ? this.bot.getConfig().getRed() : this.bot.getConfig().getGreen());
 
-		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((iterable, exception) -> {
+		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((documents, exception) -> {
 			if (ExceptionUtility.sendErrorMessage(exception)) {
 				return;
 			}
 
-			Document data = iterable.first();
-			if (data == null) {
+			if (documents.isEmpty()) {
 				return;
 			}
+
+			Document data = documents.get(0);
 
 			List<Document> loggers = LoggerUtility.getValidLoggers(data.getList("loggers", Document.class), loggerEvent, loggerContext);
 			if (loggers.isEmpty()) {
@@ -737,15 +747,16 @@ public class LoggerHandler implements EventListener {
 		embed.setFooter(new EmbedFooter(String.format("User ID: %s", user.getId()), null));
 		embed.setColor(deafened ? this.bot.getConfig().getRed() : this.bot.getConfig().getGreen());
 
-		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((iterable, exception) -> {
+		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((documents, exception) -> {
 			if (ExceptionUtility.sendErrorMessage(exception)) {
 				return;
 			}
 
-			Document data = iterable.first();
-			if (data == null) {
+			if (documents.isEmpty()) {
 				return;
 			}
+
+			Document data = documents.get(0);
 
 			List<Document> loggers = LoggerUtility.getValidLoggers(data.getList("loggers", Document.class), loggerEvent, loggerContext);
 			if (loggers.isEmpty()) {
@@ -804,15 +815,16 @@ public class LoggerHandler implements EventListener {
 		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
 		embed.setFooter(new EmbedFooter(String.format("%s ID: %s", event.isRoleOverride() ? "Role" : "User", permissionHolder.getIdLong()), null));
 
-		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((iterable, exception) -> {
+		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((documents, exception) -> {
 			if (ExceptionUtility.sendErrorMessage(exception)) {
 				return;
 			}
 
-			Document data = iterable.first();
-			if (data == null) {
+			if (documents.isEmpty()) {
 				return;
 			}
+
+			Document data = documents.get(0);
 
 			List<Document> loggers = LoggerUtility.getValidLoggers(data.getList("loggers", Document.class), loggerEvent, loggerContext);
 			if (loggers.isEmpty()) {
@@ -883,15 +895,16 @@ public class LoggerHandler implements EventListener {
 		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
 		embed.setFooter(new EmbedFooter(String.format("%s ID: %s", event.isRoleOverride() ? "Role" : "User", permissionHolder.getIdLong()), null));
 
-		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((iterable, exception) -> {
+		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((documents, exception) -> {
 			if (ExceptionUtility.sendErrorMessage(exception)) {
 				return;
 			}
 
-			Document data = iterable.first();
-			if (data == null) {
+			if (documents.isEmpty()) {
 				return;
 			}
+
+			Document data = documents.get(0);
 
 			List<Document> loggers = LoggerUtility.getValidLoggers(data.getList("loggers", Document.class), loggerEvent, loggerContext);
 			if (loggers.isEmpty()) {
@@ -965,15 +978,16 @@ public class LoggerHandler implements EventListener {
 
 		// wait for member leave or role delete event if needed
 		this.delay(() -> {
-			this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((iterable, exception) -> {
+			this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((documents, exception) -> {
 				if (ExceptionUtility.sendErrorMessage(exception)) {
 					return;
 				}
 
-				Document data = iterable.first();
-				if (data == null) {
+				if (documents.isEmpty()) {
 					return;
 				}
+
+				Document data = documents.get(0);
 
 				List<Document> loggers = LoggerUtility.getValidLoggers(data.getList("loggers", Document.class), loggerEvent, loggerContext);
 				if (loggers.isEmpty()) {
@@ -1030,15 +1044,16 @@ public class LoggerHandler implements EventListener {
 		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
 		embed.setFooter(new EmbedFooter(String.format("%s ID: %s", channel.getType() == ChannelType.CATEGORY ? "Category" : "Channel", channel.getId()), null));
 
-		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((iterable, exception) -> {
+		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((documents, exception) -> {
 			if (ExceptionUtility.sendErrorMessage(exception)) {
 				return;
 			}
 
-			Document data = iterable.first();
-			if (data == null) {
+			if (documents.isEmpty()) {
 				return;
 			}
+
+			Document data = documents.get(0);
 
 			List<Document> loggers = LoggerUtility.getValidLoggers(data.getList("loggers", Document.class), loggerEvent, loggerContext);
 			if (loggers.isEmpty()) {
@@ -1099,15 +1114,16 @@ public class LoggerHandler implements EventListener {
 		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
 		embed.setFooter(new EmbedFooter(String.format("%s ID: %s", channel.getType() == ChannelType.CATEGORY ? "Category" : "Channel", channel.getId()), null));
 
-		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((iterable, exception) -> {
+		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((documents, exception) -> {
 			if (ExceptionUtility.sendErrorMessage(exception)) {
 				return;
 			}
 
-			Document data = iterable.first();
-			if (data == null) {
+			if (documents.isEmpty()) {
 				return;
 			}
+
+			Document data = documents.get(0);
 
 			List<Document> loggers = LoggerUtility.getValidLoggers(data.getList("loggers", Document.class), loggerEvent, loggerContext);
 			if (loggers.isEmpty()) {
@@ -1171,15 +1187,16 @@ public class LoggerHandler implements EventListener {
 		embed.addField(new EmbedField(false, "Before", String.format("`%s`", oldName)));
 		embed.addField(new EmbedField(false, "After", String.format("`%s`", channel.getName())));
 
-		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((iterable, exception) -> {
+		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((documents, exception) -> {
 			if (ExceptionUtility.sendErrorMessage(exception)) {
 				return;
 			}
 
-			Document data = iterable.first();
-			if (data == null) {
+			if (documents.isEmpty()) {
 				return;
 			}
+
+			Document data = documents.get(0);
 
 			List<Document> loggers = LoggerUtility.getValidLoggers(data.getList("loggers", Document.class), loggerEvent, loggerContext);
 			if (loggers.isEmpty()) {
@@ -1241,15 +1258,16 @@ public class LoggerHandler implements EventListener {
 		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
 		embed.setFooter(new EmbedFooter(String.format("Role ID: %s", role.getId()), null));
 
-		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((iterable, exception) -> {
+		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((documents, exception) -> {
 			if (ExceptionUtility.sendErrorMessage(exception)) {
 				return;
 			}
 
-			Document data = iterable.first();
-			if (data == null) {
+			if (documents.isEmpty()) {
 				return;
 			}
+
+			Document data = documents.get(0);
 
 			List<Document> loggers = LoggerUtility.getValidLoggers(data.getList("loggers", Document.class), loggerEvent, loggerContext);
 			if (loggers.isEmpty()) {
@@ -1294,15 +1312,16 @@ public class LoggerHandler implements EventListener {
 		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
 		embed.setFooter(new EmbedFooter(String.format("Role ID: %s", role.getId()), null));
 
-		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((iterable, exception) -> {
+		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((documents, exception) -> {
 			if (ExceptionUtility.sendErrorMessage(exception)) {
 				return;
 			}
 
-			Document data = iterable.first();
-			if (data == null) {
+			if (documents.isEmpty()) {
 				return;
 			}
+
+			Document data = documents.get(0);
 
 			List<Document> loggers = LoggerUtility.getValidLoggers(data.getList("loggers", Document.class), loggerEvent, loggerContext);
 			if (loggers.isEmpty()) {
@@ -1350,15 +1369,16 @@ public class LoggerHandler implements EventListener {
 		embed.addField(new EmbedField(false, "Before", String.format("`%s`", event.getOldName())));
 		embed.addField(new EmbedField(false, "After", String.format("`%s`", event.getNewName())));
 
-		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((iterable, exception) -> {
+		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((documents, exception) -> {
 			if (ExceptionUtility.sendErrorMessage(exception)) {
 				return;
 			}
 
-			Document data = iterable.first();
-			if (data == null) {
+			if (documents.isEmpty()) {
 				return;
 			}
+
+			Document data = documents.get(0);
 
 			List<Document> loggers = LoggerUtility.getValidLoggers(data.getList("loggers", Document.class), loggerEvent, loggerContext);
 			if (loggers.isEmpty()) {
@@ -1409,15 +1429,16 @@ public class LoggerHandler implements EventListener {
 		embed.addField(new EmbedField(false, "Before", String.format("Hex: [#%s](%3$s%1$s)\nRGB: [%2$s](%3$s%1$s)", ColourUtility.toHexString(oldColour), ColourUtility.toRGBString(oldColour), "https://image.sx4bot.co.uk/api/colour?w=1000&h=500&hex=")));
 		embed.addField(new EmbedField(false, "After", String.format("Hex: [#%s](%3$s%1$s)\nRGB: [%2$s](%3$s%1$s)", ColourUtility.toHexString(newColour), ColourUtility.toRGBString(newColour), "https://image.sx4bot.co.uk/api/colour?w=1000&h=500&hex=")));
 
-		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((iterable, exception) -> {
+		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((documents, exception) -> {
 			if (ExceptionUtility.sendErrorMessage(exception)) {
 				return;
 			}
 
-			Document data = iterable.first();
-			if (data == null) {
+			if (documents.isEmpty()) {
 				return;
 			}
+
+			Document data = documents.get(0);
 
 			List<Document> loggers = LoggerUtility.getValidLoggers(data.getList("loggers", Document.class), loggerEvent, loggerContext);
 			if (loggers.isEmpty()) {
@@ -1467,15 +1488,16 @@ public class LoggerHandler implements EventListener {
 		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
 		embed.setFooter(new EmbedFooter(String.format("Role ID: %s", role.getId()), null));
 
-		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((iterable, exception) -> {
+		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((documents, exception) -> {
 			if (ExceptionUtility.sendErrorMessage(exception)) {
 				return;
 			}
 
-			Document data = iterable.first();
-			if (data == null) {
+			if (documents.isEmpty()) {
 				return;
 			}
+
+			Document data = documents.get(0);
 
 			List<Document> loggers = LoggerUtility.getValidLoggers(data.getList("loggers", Document.class), loggerEvent, loggerContext);
 			if (loggers.isEmpty()) {
@@ -1563,15 +1585,16 @@ public class LoggerHandler implements EventListener {
 			embed.setFooter(new EmbedFooter(String.format("Role ID: %s", firstRole.getId()), null));
 		}
 
-		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((iterable, exception) -> {
+		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((documents, exception) -> {
 			if (ExceptionUtility.sendErrorMessage(exception)) {
 				return;
 			}
 
-			Document data = iterable.first();
-			if (data == null) {
+			if (documents.isEmpty()) {
 				return;
 			}
+
+			Document data = documents.get(0);
 
 			List<Document> loggers = LoggerUtility.getValidLoggers(data.getList("loggers", Document.class), loggerEvent, loggerContext);
 			if (loggers.isEmpty()) {
@@ -1684,15 +1707,16 @@ public class LoggerHandler implements EventListener {
 				}
 			}
 
-			this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((iterable, exception) -> {
+			this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((documents, exception) -> {
 				if (ExceptionUtility.sendErrorMessage(exception)) {
 					return;
 				}
 
-				Document data = iterable.first();
-				if (data == null) {
+				if (documents.isEmpty()) {
 					return;
 				}
+
+				Document data = documents.get(0);
 
 				List<Document> loggers = LoggerUtility.getValidLoggers(data.getList("loggers", Document.class), loggerEvent, loggerContext);
 				if (loggers.isEmpty()) {
@@ -1763,15 +1787,16 @@ public class LoggerHandler implements EventListener {
 		embed.addField(new EmbedField(false, "Before", String.format("`%s`", event.getOldNickname() != null ? event.getOldNickname() : member.getUser().getName())));
 		embed.addField(new EmbedField(false, "After", String.format("`%s`", event.getNewNickname() != null ? event.getNewNickname() : member.getUser().getName())));
 
-		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((iterable, exception) -> {
+		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((documents, exception) -> {
 			if (ExceptionUtility.sendErrorMessage(exception)) {
 				return;
 			}
 
-			Document data = iterable.first();
-			if (data == null) {
+			if (documents.isEmpty()) {
 				return;
 			}
+
+			Document data = documents.get(0);
 
 			List<Document> loggers = LoggerUtility.getValidLoggers(data.getList("loggers", Document.class), loggerEvent, loggerContext);
 			if (loggers.isEmpty()) {
@@ -1816,15 +1841,16 @@ public class LoggerHandler implements EventListener {
 		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
 		embed.setFooter(new EmbedFooter(String.format("Emote ID: %s", emote.getId()), null));
 
-		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((iterable, exception) -> {
+		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((documents, exception) -> {
 			if (ExceptionUtility.sendErrorMessage(exception)) {
 				return;
 			}
 
-			Document data = iterable.first();
-			if (data == null) {
+			if (documents.isEmpty()) {
 				return;
 			}
+
+			Document data = documents.get(0);
 
 			List<Document> loggers = LoggerUtility.getValidLoggers(data.getList("loggers", Document.class), loggerEvent, loggerContext);
 			if (loggers.isEmpty()) {
@@ -1869,15 +1895,16 @@ public class LoggerHandler implements EventListener {
 		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
 		embed.setFooter(new EmbedFooter(String.format("Emote ID: %s", emote.getId()), null));
 
-		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((iterable, exception) -> {
+		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((documents, exception) -> {
 			if (ExceptionUtility.sendErrorMessage(exception)) {
 				return;
 			}
 
-			Document data = iterable.first();
-			if (data == null) {
+			if (documents.isEmpty()) {
 				return;
 			}
+
+			Document data = documents.get(0);
 
 			List<Document> loggers = LoggerUtility.getValidLoggers(data.getList("loggers", Document.class), loggerEvent, loggerContext);
 			if (loggers.isEmpty()) {
@@ -1925,15 +1952,16 @@ public class LoggerHandler implements EventListener {
 		embed.addField(new EmbedField(false, "Before", String.format("`%s`", event.getOldName())));
 		embed.addField(new EmbedField(false, "After", String.format("`%s`", event.getNewName())));
 
-		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((iterable, exception) -> {
+		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((documents, exception) -> {
 			if (ExceptionUtility.sendErrorMessage(exception)) {
 				return;
 			}
 
-			Document data = iterable.first();
-			if (data == null) {
+			if (documents.isEmpty()) {
 				return;
 			}
+
+			Document data = documents.get(0);
 
 			List<Document> loggers = LoggerUtility.getValidLoggers(data.getList("loggers", Document.class), loggerEvent, loggerContext);
 			if (loggers.isEmpty()) {
@@ -1992,15 +2020,16 @@ public class LoggerHandler implements EventListener {
 		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
 		embed.setFooter(new EmbedFooter(String.format("Emote ID: %s", emote.getId()), null));
 
-		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((iterable, exception) -> {
+		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((documents, exception) -> {
 			if (ExceptionUtility.sendErrorMessage(exception)) {
 				return;
 			}
 
-			Document data = iterable.first();
-			if (data == null) {
+			if (documents.isEmpty()) {
 				return;
 			}
+
+			Document data = documents.get(0);
 
 			this.bot.getLoggerManager().queue(guild, data.getList("loggers", Document.class), loggerEvent, loggerContext, embed.build());
 		});

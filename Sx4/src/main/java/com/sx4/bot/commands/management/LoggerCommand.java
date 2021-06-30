@@ -65,8 +65,8 @@ public class LoggerCommand extends Sx4Command {
             Aggregates.project(Projections.fields(Projections.computed("premium", Operators.ifNull("$premium", false)), Projections.computed("count", Operators.ifNull("$count", 0))))
         );
 
-        event.getMongo().aggregateLoggers(pipeline).thenCompose(iterable -> {
-            Document counter = iterable.first();
+        event.getMongo().aggregateLoggers(pipeline).thenCompose(documents -> {
+            Document counter = documents.isEmpty() ? null : documents.get(0);
 
             int count = counter == null ? 0 : counter.getInteger("count");
             if (counter != null && count >= 3 && !counter.getBoolean("premium")) {
@@ -140,8 +140,8 @@ public class LoggerCommand extends Sx4Command {
             Aggregates.project(Projections.fields(Projections.computed("premium", Operators.ifNull("$premium", false)), Projections.computed("count", Operators.size(Operators.ifNull("$loggers", Collections.EMPTY_LIST))), Projections.computed("disabled", Operators.isEmpty(Operators.filter(Operators.ifNull("$loggers", Collections.EMPTY_LIST), Operators.eq("$$this.channelId", effectiveChannel.getIdLong()))))))
         );
 
-        event.getMongo().aggregateLoggers(pipeline).thenCompose(iterable -> {
-            Document data = iterable.first();
+        event.getMongo().aggregateLoggers(pipeline).thenCompose(documents -> {
+            Document data = documents.isEmpty() ? null : documents.get(0);
 
             boolean disabled = data == null || data.getBoolean("disabled");
             int count = data == null ? 0 : data.getInteger("count");

@@ -16,6 +16,7 @@ import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.CompactNumber;
 import com.sx4.bot.entities.argument.Alternative;
+import com.sx4.bot.entities.games.GameState;
 import com.sx4.bot.entities.image.ImageRequest;
 import com.sx4.bot.http.HttpCallback;
 import com.sx4.bot.utility.ColourUtility;
@@ -54,6 +55,16 @@ public class ProfileCommand extends Sx4Command {
 
 		long expiry = event.getMongoMain().getUserById(Filters.eq("_id", event.getAuthor().getIdLong()), Projections.include("premium.endAt")).getEmbedded(List.of("premium", "endAt"), 0L);
 
+		List<Bson> gamePipeline = List.of(
+			Aggregates.match(Filters.eq("userId", user.getIdLong())),
+			Aggregates.group(null, Accumulators.sum("gamesPlayed", 1L), Accumulators.sum("gamesWon", Operators.cond(Operators.eq("$state", GameState.WIN.getId()), 1L, 0L)))
+		);
+
+		List<Bson> commandPipeline = List.of(
+			Aggregates.match(Filters.eq("authorId", user.getIdLong())),
+			Aggregates.count("commands")
+		);
+
 		List<Bson> marriagePipeline = List.of(
 			Aggregates.project(Projections.include("proposerId", "partnerId")),
 			Aggregates.match(Filters.or(Filters.eq("proposerId", user.getIdLong()), Filters.eq("partnerId", user.getIdLong()))),
@@ -64,12 +75,13 @@ public class ProfileCommand extends Sx4Command {
 			Aggregates.project(Projections.fields(Projections.computed("balance", "$economy.balance"), Projections.include("profile"), Projections.computed("reputation", "$reputation.amount"), Projections.computed("premium", Operators.lt(Operators.nowEpochSecond(), Operators.ifNull("$premium.endAt", 0L))))),
 			Aggregates.match(Filters.eq("_id", user.getIdLong())),
 			Aggregates.unionWith("marriages", marriagePipeline),
-			Aggregates.group(null, Accumulators.max("balance", "$balance"), Accumulators.max("reputation", "$reputation"), Accumulators.max("marriages", "$marriages"), Accumulators.max("profile", "$profile"), Accumulators.max("premium", Operators.ifNull("$premium", false)))
+			Aggregates.unionWith("commands", commandPipeline),
+			Aggregates.unionWith("games", gamePipeline),
+			Aggregates.group(null, Accumulators.max("balance", "$balance"), Accumulators.max("reputation", "$reputation"), Accumulators.max("marriages", "$marriages"), Accumulators.max("profile", "$profile"), Accumulators.max("gamesPlayed", "$gamesPlayed"), Accumulators.max("gamesWon", "$gamesWon"), Accumulators.max("commands", "$commands"), Accumulators.max("premium", Operators.ifNull("$premium", false)))
 		);
 
-		event.getMongo().aggregateUsers(pipeline).thenApply(iterable -> {
-			Document data = iterable.first();
-			data = data == null ? MongoDatabase.EMPTY_DOCUMENT : data;
+		event.getMongo().aggregateUsers(pipeline).thenApply(documents -> {
+			Document data = documents.isEmpty() ? MongoDatabase.EMPTY_DOCUMENT : documents.get(0);
 
 			List<Document> marriages = data.getList("marriages", Document.class, Collections.emptyList());
 
@@ -96,6 +108,9 @@ public class ProfileCommand extends Sx4Command {
 				.addField("balance", CompactNumber.getCompactNumber(data.get("balance", 0L)))
 				.addField("reputation", data.get("reputation", 0))
 				.addField("married_users", partners)
+				.addField("commands", data.get("commands", 0L))
+				.addField("games_played", data.get("gamesPlayed", 0L))
+				.addField("games_won", data.get("gamesWon", 0L))
 				.addField("banner_id", profileData.getString("bannerId"))
 				.addField("directory", event.getConfig().isCanary() ? "sx4-canary" : "sx4-main")
 				.addField("name", user.getAsTag())

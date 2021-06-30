@@ -501,6 +501,7 @@ public class Sx4 {
 	private CommandListener createCommandListener(IErrorManager errorManager) {
 		return new Sx4CommandListener(this)
 			.removePreExecuteCheck(listener -> listener.defaultAuthorPermissionCheck)
+			.removePreExecuteCheck(listener -> listener.defaultBotPermissionCheck)
 			.addCommandStores(CommandStore.of("com.sx4.bot.commands"))
 			.addDevelopers(this.config.getOwnerIds())
 			.setErrorManager(errorManager)
@@ -528,6 +529,10 @@ public class Sx4 {
 
 				return true;
 			}).addPreExecuteCheck((event, command) -> {
+				if (event.isFromType(ChannelType.PRIVATE)) {
+					return true;
+				}
+
 				Set<Permission> permissions = command.getAuthorDiscordPermissions();
 				if (permissions.isEmpty()) {
 					return true;
@@ -538,6 +543,23 @@ public class Sx4 {
 					return true;
 				} else {
 					event.reply(PermissionUtility.formatMissingPermissions(missingPermissions) + " " + this.config.getFailureEmote()).queue();
+					return false;
+				}
+			}).addPreExecuteCheck((event, command) -> {
+				if (event.isFromType(ChannelType.PRIVATE)) {
+					return true;
+				}
+
+				Set<Permission> permissions = command.getBotDiscordPermissions();
+				if (permissions.isEmpty()) {
+					return true;
+				}
+
+				EnumSet<Permission> missingPermissions = Permission.getPermissions(Permission.getRaw(permissions) & ~Permission.getRaw(event.getSelfMember().getPermissions(event.getTextChannel())));
+				if (missingPermissions.isEmpty()) {
+					return true;
+				} else {
+					event.reply(PermissionUtility.formatMissingPermissions(missingPermissions, "I am") + " " + this.config.getFailureEmote()).queue();
 					return false;
 				}
 			}).addPreExecuteCheck((event, command) -> {
@@ -648,13 +670,14 @@ public class Sx4 {
 					return;
 				}
 
-				event.reply(PermissionUtility.formatMissingPermissions(EnumSet.of(permission), "I am") + " " + this.config.getFailureEmote()).queue();
-			}).setMissingPermissionFunction((event, permissions) -> {
-				if (!CheckUtility.canReply(this, event.getMessage(), event.getPrefix())) {
-					return;
+				String message = PermissionUtility.formatMissingPermissions(EnumSet.of(permission), "I am") + " " + this.config.getFailureEmote();
+				if (event.getSelfMember().hasPermission(event.getTextChannel(), Permission.MESSAGE_WRITE)) {
+					event.reply(message).queue();
+				} else {
+					event.getAuthor().openPrivateChannel()
+						.flatMap(channel -> channel.sendMessage(message))
+						.queue();
 				}
-
-				event.reply(PermissionUtility.formatMissingPermissions(permissions, "I am") + " " + this.config.getFailureEmote()).queue();
 			});
 	}
 
@@ -861,12 +884,13 @@ public class Sx4 {
 			}).addBuilderConfigureFunction(TimedArgument.class, (parameter, builder) -> {
 				Class<?> clazz = ClassUtility.getParameterTypes(parameter, TimedArgument.class)[0];
 
-				List<?> builders = argumentFactory.getBuilderConfigureFunctions(clazz);
+				builder.setProperty("timedArgumentClass", clazz);
+				builder.setProperty("finalClass", clazz);
+
+				List<?> builders = CommandUtility.getBuilderConfigureFunctions(argumentFactory, clazz);
 				for (Object builderFunction : builders) {
 					builder = ((BuilderConfigureFunction) builderFunction).configure(parameter, builder);
 				}
-
-				builder.setProperty("class", clazz);
 
 				return builder;
 			}).addBuilderConfigureFunction(ItemStack.class, (parameter, builder) -> {
@@ -877,7 +901,7 @@ public class Sx4 {
 			}).addBuilderConfigureFunction(Range.class, (parameter, builder) -> {
 				Class<?> clazz = ClassUtility.getParameterTypes(parameter, Range.class)[0];
 
-				List<?> builders = argumentFactory.getBuilderConfigureFunctions(clazz);
+				List<?> builders = CommandUtility.getBuilderConfigureFunctions(argumentFactory, clazz);
 				for (Object builderFunction : builders) {
 					builder = ((BuilderConfigureFunction) builderFunction).configure(parameter, builder);
 				}
@@ -888,12 +912,13 @@ public class Sx4 {
 			}).addBuilderConfigureFunction(Alternative.class, (parameter, builder) -> {
 				Class<?> clazz = ClassUtility.getParameterTypes(parameter, Alternative.class)[0];
 
-				List<?> builders = argumentFactory.getBuilderConfigureFunctions(clazz);
+				builder.setProperty("alternativeClass", clazz);
+				builder.setProperty("finalClass", clazz);
+
+				List<?> builders = CommandUtility.getBuilderConfigureFunctions(argumentFactory, clazz);
 				for (Object builderFunction : builders) {
 					builder = ((BuilderConfigureFunction) builderFunction).configure(parameter, builder);
 				}
-
-				builder.setProperty("class", clazz);
 
 				Options options = parameter.getAnnotation(Options.class);
 				if (options != null) {
@@ -902,19 +927,25 @@ public class Sx4 {
 
 				return builder;
 			}).addGenericBuilderConfigureFunction(Enum.class, (parameter, builder) -> {
-				Options options = parameter.getAnnotation(Options.class);
+				EnumOptions options = parameter.getAnnotation(EnumOptions.class);
 				if (options != null) {
-					List<Enum<?>> enums = new ArrayList<>();
-					for (Object object : parameter.getType().getEnumConstants()) {
+					List<Enum<?>> enums = new ArrayList<>(), allEnums = new ArrayList<>();
+					for (Object object : ((Class<?>) builder.getProperties().getOrDefault("finalClass", parameter.getType())).getEnumConstants()) {
+						Enum<?> enumConstant = (Enum<?>) object;
+						allEnums.add(enumConstant);
 						for (String option : options.value()) {
-							Enum<?> enumConstant = (Enum<?>) object;
 							if (option.equals(enumConstant.name())) {
 								enums.add(enumConstant);
+								break;
 							}
 						}
 					}
 
-					builder.setProperty("enumOptions", enums);
+					if (options.exclude()) {
+						allEnums.removeAll(enums);
+					}
+
+					builder.setProperty("enumOptions", options.exclude() ? allEnums : enums);
 				}
 
 				return builder;
@@ -922,7 +953,7 @@ public class Sx4 {
 				Class<?>[] classes = ClassUtility.getParameterTypes(parameter, Or.class);
 				Class<?> firstClass = classes[0], secondClass = classes[1];
 
-				List<?> builders = argumentFactory.getBuilderConfigureFunctions(firstClass);
+				List<?> builders = CommandUtility.getBuilderConfigureFunctions(argumentFactory, firstClass);
 				for (Object builderFunction : builders) {
 					builder = ((BuilderConfigureFunction) builderFunction).configure(parameter, builder);
 				}
@@ -1197,7 +1228,7 @@ public class Sx4 {
 					return new ParsedResult<>();
 				}
 			}).registerParser(TimedArgument.class, (context, argument, content) -> {
-				Class<?> clazz = argument.getProperty("class", Class.class);
+				Class<?> clazz = argument.getProperty("timedArgumentClass", Class.class);
 
 				int index = content.indexOf(' ');
 				Duration duration = index == -1 ? null : TimeUtility.getDurationFromString(content.substring(index));
@@ -1209,7 +1240,7 @@ public class Sx4 {
 				
 				return new ParsedResult<>(new TimedArgument<>(duration, parsedArgument.getObject()));
 			}).registerParser(Range.class, (context, argument, content) -> {
-				Class<?> clazz = argument.getProperty("class", Class.class);
+				Class<?> clazz = argument.getProperty("timedArgumentClass", Class.class);
 
 				if (clazz == ObjectId.class) {
 					return new ParsedResult<>(Range.getRange(content, it -> ObjectId.isValid(it) ? new ObjectId(it) : null));
@@ -1233,7 +1264,7 @@ public class Sx4 {
 						}
 					}
 
-					Class<?> clazz = argument.getProperty("class", Class.class);
+					Class<?> clazz = argument.getProperty("alternativeClass", Class.class);
 
 					ParsedResult<?> parsedArgument = CommandUtility.getParsedResult(clazz, argumentFactory, context, argument, argumentContent, content);
 					if (!parsedArgument.isValid()) {
@@ -1249,7 +1280,11 @@ public class Sx4 {
 			}).registerGenericParser(Enum.class, (context, type, argument, content) -> {
 				List<Enum<?>> options = argument.getProperty("enumOptions");
 
-				for (Enum<?> enumEntry : type.getEnumConstants()) {
+				Class<?> finalClass = argument.getProperty("finalClass", Class.class);
+				finalClass = finalClass == null ? argument.getType() : finalClass;
+
+				for (Object object : finalClass.getEnumConstants()) {
+					Enum<?> enumEntry = (Enum<?>) object;
 					if (options != null && !options.contains(enumEntry)) {
 						continue;
 					}
@@ -1409,11 +1444,14 @@ public class Sx4 {
 					message.getChannel().sendMessageFormat("You cannot use more than **%,d** character%s for `%s` %s", limit.max(), limit.max() == 1 ? "" : "s", argument.getName(), this.config.getFailureEmote()).queue();
 				}
 			}).registerResponse(Enum.class, (argument, message, content) -> {
-				List<Enum<?>> enums = argument.getProperty("enumOptions", Arrays.asList(argument.getType().getEnumConstants()));
+				Class<?> finalClass = argument.getProperty("finalClass", Class.class);
+				finalClass = finalClass == null ? argument.getType() : finalClass;
+
+				List<Object> enums = argument.getProperty("enumOptions", Arrays.asList(finalClass.getEnumConstants()));
 
 				StringJoiner joiner = new StringJoiner("`, `", "`", "`");
-				for (Enum<?> enumEntry : enums) {
-					joiner.add(enumEntry.name());
+				for (Object object : enums) {
+					joiner.add(((Enum<?>) object).name());
 				}
 
 				message.getChannel().sendMessage("Invalid argument given, give any of the following " + joiner + " " + this.config.getFailureEmote()).queue();

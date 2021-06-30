@@ -10,8 +10,6 @@ import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.events.patreon.PatreonEvent;
 import com.sx4.bot.hooks.PatreonListener;
 import com.sx4.bot.http.HttpCallback;
-import com.sx4.bot.utility.ExceptionUtility;
-import com.sx4.bot.utility.FutureUtility;
 import okhttp3.Request;
 import org.bson.Document;
 import org.bson.conversions.Bson;
@@ -20,8 +18,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
 
 public class PatreonManager {
 
@@ -50,19 +46,12 @@ public class PatreonManager {
 			listener.onPatreonEvent(event);
 		}
 	}
-	
-	public void ensurePatrons() {
-		this.ensurePatrons(null, new ArrayList<>());
-	}
 
-	public void ensurePatrons(String cursor, List<CompletableFuture<List<WriteModel<Document>>>> futures) {
+	public void ensurePatrons() {
 		Request request = new Request.Builder()
-			.url("https://www.patreon.com/api/oauth2/v2/campaigns/" + this.bot.getConfig().getPatreonCampaignId() + "/members?fields%5Bmember%5D=lifetime_support_cents&fields%5Buser%5D=social_connections&include=user" + (cursor == null ? "" : "&page%5Bcursor%5D=" + cursor))
+			.url("https://www.patreon.com/api/oauth2/v2/campaigns/" + this.bot.getConfig().getPatreonCampaignId() + "/members?fields%5Bmember%5D=lifetime_support_cents&fields%5Buser%5D=social_connections&include=user&page%5Bsize%5D=100000")
 			.header("Authorization", "Bearer " + this.bot.getConfig().getPatreonAccessToken())
 			.build();
-
-		CompletableFuture<List<WriteModel<Document>>> future = new CompletableFuture<>();
-		futures.add(future);
 
 		this.bot.getHttpClient().newCall(request).enqueue((HttpCallback) response -> {
 			Document data = Document.parse(response.body().string());
@@ -97,22 +86,8 @@ public class PatreonManager {
 				bulkData.add(new UpdateOneModel<>(Filters.eq("_id", Long.parseLong(discordId)), update, new UpdateOptions().upsert(true)));
 			}
 
-			future.complete(bulkData);
-
-			String nextCursor = data.getEmbedded(List.of("meta", "pagination", "cursors", "next"), String.class);
-			if (nextCursor == null) {
-				FutureUtility.allOf(futures).whenComplete((result, exception) -> {
-					if (ExceptionUtility.sendErrorMessage(exception)) {
-						return;
-					}
-
-					List<WriteModel<Document>> allBulkData = result.stream().flatMap(List::stream).collect(Collectors.toList());
-					if (!allBulkData.isEmpty()) {
-						this.bot.getMongoMain().bulkWriteUsers(allBulkData).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
-					}
-				});
-			} else {
-				this.ensurePatrons(nextCursor, futures);
+			if (!bulkData.isEmpty()) {
+				this.bot.getMongo().bulkWriteUsers(bulkData).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
 			}
 		});
 	}

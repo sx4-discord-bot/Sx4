@@ -133,16 +133,16 @@ public class StarboardHandler implements EventListener {
 			Aggregates.group(null, Accumulators.max("messageId", "$originalMessageId"), Accumulators.max("starboard", "$starboard"), Accumulators.max("premium", "$premium"))
 		);
 
-		this.bot.getMongo().aggregateGuilds(pipeline).whenComplete((iterable, aggregateException) -> {
+		this.bot.getMongo().aggregateGuilds(pipeline).whenComplete((documents, aggregateException) -> {
 			if (ExceptionUtility.sendErrorMessage(aggregateException)) {
 				return;
 			}
 
-			Document data = iterable.first();
-			if (data == null) {
+			if (documents.isEmpty()) {
 				return;
 			}
 
+			Document data = documents.get(0);
 			Document starboard = data.get("starboard", MongoDatabase.EMPTY_DOCUMENT);
 			if (!starboard.get("enabled", false)) {
 				return;
@@ -246,16 +246,16 @@ public class StarboardHandler implements EventListener {
 			Aggregates.group(null, Accumulators.max("count", "$count"), Accumulators.max("messageId", "$messageId"), Accumulators.max("originalMessageId", "$originalMessageId"), Accumulators.max("starboard", "$starboard"), Accumulators.max("premium", "$premium"))
 		);
 
-		this.bot.getMongo().aggregateGuilds(pipeline).whenComplete((iterable, aggregateException) -> {
+		this.bot.getMongo().aggregateGuilds(pipeline).whenComplete((documents, aggregateException) -> {
 			if (ExceptionUtility.sendErrorMessage(aggregateException)) {
 				return;
 			}
 
-			Document data = iterable.first();
-			if (data == null) {
+			if (documents.isEmpty()) {
 				return;
 			}
 
+			Document data = documents.get(0);
 			Document starboard = data.get("starboard", MongoDatabase.EMPTY_DOCUMENT);
 			if (!starboard.get("enabled", false)) {
 				return;

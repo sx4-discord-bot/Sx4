@@ -2,7 +2,7 @@ package com.sx4.bot.commands.mod;
 
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
-import com.sx4.bot.annotations.argument.Options;
+import com.sx4.bot.annotations.argument.EnumOptions;
 import com.sx4.bot.annotations.command.*;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
@@ -30,7 +30,7 @@ public class ChannelCommand extends Sx4Command {
 	@Examples({"channel create bots", "channel create voice Music", "channel create category Info"})
 	@AuthorPermissions(permissions={Permission.MANAGE_CHANNEL})
 	@BotPermissions(permissions={Permission.MANAGE_CHANNEL})
-	public void create(Sx4CommandEvent event, @Argument(value="type", nullDefault=true) @Options({"TEXT", "VOICE", "CATEGORY"}) ChannelType type, @Argument(value="name", endless=true) String name) {
+	public void create(Sx4CommandEvent event, @Argument(value="type", nullDefault=true) @EnumOptions(value={"TEXT", "VOICE", "CATEGORY"}) ChannelType type, @Argument(value="name", endless=true) String name) {
 		type = type == null ? ChannelType.TEXT : type;
 
 		if (type == ChannelType.TEXT) {
@@ -43,7 +43,7 @@ public class ChannelCommand extends Sx4Command {
 				.queue();
 		} else if (type == ChannelType.VOICE) {
 			event.getGuild().createVoiceChannel(name)
-				.flatMap(channel -> event.replySuccess("The voice channel **" + channel.getName() + "** has been created"))
+				.flatMap(channel -> event.replySuccess("The voice channel **" + channel.getAsMention() + "** has been created"))
 				.queue();
 		}
 	}
@@ -54,7 +54,7 @@ public class ChannelCommand extends Sx4Command {
 	@Examples({"channel delete #bots", "channel create voice Music", "channel create category Info"})
 	@AuthorPermissions(permissions={Permission.MANAGE_CHANNEL})
 	@BotPermissions(permissions={Permission.MANAGE_CHANNEL})
-	public void delete(Sx4CommandEvent event, @Argument(value="type", nullDefault=true) @Options({"TEXT", "VOICE", "CATEGORY", "STORE"}) ChannelType type, @Argument(value="channel", endless=true) String query) {
+	public void delete(Sx4CommandEvent event, @Argument(value="type", nullDefault=true) @EnumOptions(value={"TEXT", "VOICE", "CATEGORY", "STORE"}) ChannelType type, @Argument(value="channel", endless=true) String query) {
 		ChannelType effectiveType = type == null ? ChannelType.TEXT : type;
 
 		GuildChannel channel = SearchUtility.getGuildChannel(event.getGuild(), effectiveType, query);

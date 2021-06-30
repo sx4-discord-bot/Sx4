@@ -12,6 +12,7 @@ import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Role;
+import net.dv8tion.jda.api.entities.User;
 import org.bson.Document;
 
 import java.time.Clock;
@@ -126,7 +127,7 @@ public class MuteManager {
 		}
 
 		Reason reason = new Reason("Mute length served");
-		UnmuteEvent event = member == null ? new UnmuteEvent(guild.getSelfMember(), userId, reason) : new UnmuteEvent(guild.getSelfMember(), member.getUser(), reason);
+		UnmuteEvent event = new UnmuteEvent(guild.getSelfMember(), member == null ? User.fromId(userId) : member.getUser(), reason);
 
 		this.bot.getModActionManager().onModAction(event);
 		this.deleteExecutor(guildId, userId);

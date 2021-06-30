@@ -11,9 +11,5 @@ public class UnbanEvent extends ModActionEvent {
 	public UnbanEvent(Member moderator, User user, Reason reason) {
 		super(moderator, user, reason, new Action(ModAction.UNBAN));
 	}
-
-	public UnbanEvent(Member moderator, long targetId, Reason reason) {
-		super(moderator, targetId, reason, new Action(ModAction.UNBAN));
-	}
 	
 }

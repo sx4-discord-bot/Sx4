@@ -125,7 +125,7 @@ public class ReactionRoleHandler implements EventListener {
 		}
 
 		int maxReactions = reactionRole.get("maxReactions", 0);
-		if (reactedTo >= maxReactions && maxReactions != 0) {
+		if (!remove && reactedTo >= maxReactions && maxReactions != 0) {
 			user.openPrivateChannel()
 				.flatMap(channel -> channel.sendMessage("You can only react to **" + maxReactions + "** reaction" + (maxReactions == 1 ? "" : "s") + " on this message " + config.getFailureEmote()))
 				.queue(null, ErrorResponseException.ignore(ErrorResponse.CANNOT_SEND_TO_USER));

@@ -345,7 +345,7 @@ public class TimeUtility {
 				unitReader.append(Character.toLowerCase(character));
 				
 				if (i == charArray.length - 1) {
-					long time = Long.parseLong(numberReader.toString());
+					long time = numberReader.length() == 0 ? 0 : Long.parseLong(numberReader.toString());
 					seconds += TimeUtility.getActualSeconds(time, unitReader.toString());
 				}
 			}

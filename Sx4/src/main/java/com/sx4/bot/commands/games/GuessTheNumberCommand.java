@@ -41,7 +41,7 @@ public class GuessTheNumberCommand extends Sx4Command {
 		super.setCategoryAll(ModuleCategory.GAMES);
 	}
 
-	public void onCommand(Sx4CommandEvent event, @Argument(value="user", endless=true) Member member, @Option(value="min") @Limit(min=1) @DefaultNumber(1) int min, @Option(value="max") @Limit(min=2) @DefaultNumber(50) int max) {
+	public void onCommand(Sx4CommandEvent event, @Argument(value="user", endless=true) Member member, @Option(value="min", description="Choose the minimum number of the range") @Limit(min=1) @DefaultNumber(1) int min, @Option(value="max", description="Choose the maximum number of the range") @Limit(min=2) @DefaultNumber(50) int max) {
 		User opponent = member.getUser();
 		if (opponent.isBot()) {
 			event.replyFailure("You cannot play against bots").queue();

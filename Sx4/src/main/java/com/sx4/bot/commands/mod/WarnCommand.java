@@ -165,12 +165,11 @@ public class WarnCommand extends Sx4Command {
 			Aggregates.sort(Sorts.descending("warnings"))
 		);
 
-		event.getMongo().aggregateWarnings(pipeline).whenComplete((iterable, exception) -> {
+		event.getMongo().aggregateWarnings(pipeline).whenComplete((users, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
 
-			List<Document> users = iterable.into(new ArrayList<>());
 			if (users.isEmpty()) {
 				event.replyFailure("There are no users with warnings in this server").queue();
 				return;
@@ -208,13 +207,13 @@ public class WarnCommand extends Sx4Command {
 			Aggregates.project(Projections.computed("warnings", Operators.cond(Operators.or(Operators.isNull("$reset"), Operators.isNull("$warnings")), Operators.ifNull("$warnings", 0), Operators.max(0, Operators.subtract("$warnings", Operators.multiply(Operators.toInt(Operators.floor(Operators.divide(Operators.subtract(Operators.nowEpochSecond(), "$lastWarning"), "$reset.after"))), "$reset.amount"))))))
 		);
 
-		event.getMongo().aggregateWarnings(pipeline).whenComplete((iterable, exception) -> {
+		event.getMongo().aggregateWarnings(pipeline).whenComplete((documents, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
 
-			Document data = iterable.first();
-			int warnings = data.getInteger("warnings");
+			Document data = documents.isEmpty() ? MongoDatabase.EMPTY_DOCUMENT : documents.get(0);
+			int warnings = data.getInteger("warnings", 0);
 
 			event.reply("**" + member.getUser().getAsTag() + "** is currently on **" + warnings + "** warning" + (warnings == 1 ? "" : "s")).queue();
 		});

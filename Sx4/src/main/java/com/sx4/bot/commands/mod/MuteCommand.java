@@ -4,6 +4,8 @@ import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
 import com.jockie.bot.core.option.Option;
 import com.mongodb.client.model.*;
+import com.sx4.bot.annotations.argument.EnumOptions;
+import com.sx4.bot.annotations.argument.Options;
 import com.sx4.bot.annotations.command.AuthorPermissions;
 import com.sx4.bot.annotations.command.CommandId;
 import com.sx4.bot.annotations.command.Examples;
@@ -13,7 +15,9 @@ import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.argument.Alternative;
+import com.sx4.bot.entities.argument.TimedArgument;
 import com.sx4.bot.entities.mod.Reason;
+import com.sx4.bot.entities.mod.action.ModAction;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.ModUtility;
@@ -82,7 +86,7 @@ public class MuteCommand extends Sx4Command {
 				return;
 			}
 
-			event.replySuccess("Your mute role has been set to " + role.getAsMention()).queue();
+			event.replySuccess("Your mute role has been " + (option.isAlternative() ? "unset" : "set to " + role.getAsMention())).queue();
 		});
 	}
 
@@ -122,6 +126,47 @@ public class MuteCommand extends Sx4Command {
 			}
 
 			event.replySuccess("Your mute default time has been set to **" + TimeUtility.getTimeString(seconds) + "**").queue();
+		});
+	}
+
+	@Command(value="leave action", aliases={"leaveaction"}, description="Set an action to occur when a user leaves and rejoins while muted")
+	@CommandId(451)
+	@Examples({"mute leave action BAN", "mute leave action MUTE_EXTEND 24h", "mute leave action reset"})
+	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
+	public void leaveAction(Sx4CommandEvent event, @Argument(value="action | reset", endless=true) @Options({"reset"}) @EnumOptions(value={"KICK", "UNBAN", "UNMUTE"}, exclude=true) Alternative<TimedArgument<ModAction>> option) {
+		Bson update;
+		if (option.isAlternative()) {
+			update = Updates.unset("mute.leaveAction");
+		} else {
+			TimedArgument<ModAction> timedAction = option.getValue();
+			ModAction action = timedAction.getArgument();
+
+			Document modAction = new Document("type", action.getType());
+
+			if (action.isTimed()) {
+				Duration duration = timedAction.getDuration();
+				if (duration == null) {
+					event.replyFailure("You need to provide a duration for this mod action").queue();
+					return;
+				}
+
+				modAction.append("duration", duration.toSeconds());
+			}
+
+			update = Updates.set("mute.leaveAction", modAction);
+		}
+
+		event.getMongo().updateGuildById(event.getGuild().getIdLong(), update).whenComplete((result, exception) -> {
+			if (ExceptionUtility.sendExceptionally(event, exception)) {
+				return;
+			}
+
+			if (result.getModifiedCount() == 0 && result.getUpsertedId() == null) {
+				event.replyFailure("Your leave action was already " + (option.isAlternative() ? "unset" : "set to that")).queue();
+				return;
+			}
+
+			event.replySuccess("Your leave action has been " + (option.isAlternative() ? "unset" : "updated")).queue();
 		});
 	}
 

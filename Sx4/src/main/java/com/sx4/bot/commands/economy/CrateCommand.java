@@ -25,6 +25,7 @@ import org.bson.Document;
 import org.bson.conversions.Bson;
 
 import java.util.List;
+import java.util.StringJoiner;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -61,7 +62,7 @@ public class CrateCommand extends Sx4Command {
 					.setTitle("Page " + page.getPage() + "/" + page.getMaxPage())
 					.setFooter(PagedResult.DEFAULT_FOOTER_TEXT);
 
-				page.forEach((crate, index) -> embed.addField(crate.getName(), String.format("Price: $%,d", crate.getPrice()), true));
+				page.forEach((crate, index) -> embed.addField(crate.getName(), String.format("Price: $%,d\nContents: %s", crate.getPrice(), crate.getContentString()), true));
 
 				return new MessageBuilder().setEmbed(embed.build()).build();
 			});
@@ -125,24 +126,34 @@ public class CrateCommand extends Sx4Command {
 				return null;
 			}
 
-			Item item = crate.open();
-
 			EmbedBuilder embed = new EmbedBuilder()
 				.setAuthor(event.getAuthor().getName(), null, event.getAuthor().getEffectiveAvatarUrl())
 				.setColor(event.getMember().getColorRaw());
 
-			if (item == null) {
+			List<ItemStack<?>> stacks = crate.open();
+			if (stacks.isEmpty()) {
 				embed.setDescription("You opened a `" + crate.getName() + "` and got scammed there was nothing in the crate");
-			} else {
+				return embed;
+			}
+
+			StringJoiner itemContent = new StringJoiner("\n");
+			int totalCount = 0;
+			for (ItemStack<?> stack : stacks) {
+				Item item = stack.getItem();
+				long amount = stack.getAmount();
+
 				List<Bson> addUpdate = List.of(
 					Operators.set("item", item.toData()),
-					Operators.set("amount", Operators.add(Operators.ifNull("$amount", 0L), 1))
+					Operators.set("amount", Operators.add(Operators.ifNull("$amount", 0L), amount))
 				);
 
 				event.getMongo().getItems().updateOne(session, Filters.and(Filters.eq("userId", event.getAuthor().getIdLong()), Filters.eq("item.id", item.getId())), addUpdate, new UpdateOptions().upsert(true));
 
-				embed.setDescription("You opened a `" + crate.getName() + "` and got **1** item\n\n• 1 " + item.getName());
+				itemContent.add("• " + amount + " " + item.getName());
+				totalCount += amount;
 			}
+
+			embed.setDescription("You opened a `" + crate.getName() + "` and got **" + totalCount + "** item" + (totalCount == 1 ? "" : "s") + "\n\n" + itemContent);
 
 			return embed;
 		}).whenComplete((embed, exception) -> {

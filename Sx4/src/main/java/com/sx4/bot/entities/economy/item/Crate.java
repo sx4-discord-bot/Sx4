@@ -58,7 +58,7 @@ public class Crate extends Item {
 			.orElse(null);
 	}
 	
-	public Item open() {
+	public Item oldOpen() {
 		List<Item> items = this.getManager().getItems().stream()
 			.sorted(Comparator.comparingLong(Item::getPrice).reversed())
 			.collect(Collectors.toList());
@@ -77,8 +77,8 @@ public class Crate extends Item {
 		return null;
 	}
 
-	public List<ItemStack<?>> newOpen() {
-		long totalCount = this.getContentTotal();
+	public List<ItemStack<?>> open() {
+		long totalCount = this.getContentTotal(), totalShare = this.getPrice();
 
 		Map<Item, Long> itemMap = new HashMap<>();
 		for (ItemType type : this.contents.keySet()) {
@@ -86,19 +86,25 @@ public class Crate extends Item {
 				.sorted(Comparator.comparingLong(Item::getPrice).reversed())
 				.collect(Collectors.toList());
 
-			for (int i = 0; i < this.contents.get(type); i++) {
+			long count = this.contents.get(type);
+			double share = totalShare / (double) totalCount;
+
+			for (int i = 0; i < count; i++) {
 				for (Item item : items) {
 					if (item == this || (item instanceof Material && ((Material) item).isHidden())) {
 						continue;
 					}
 
 					double randomDouble = this.getManager().getRandom().nextDouble();
-					if (randomDouble <= Math.min(1, 1D / Math.ceil((double) (38 * item.getPrice()) / Math.pow(this.getPrice() / 7D / totalCount, 1.4)))) {
+					if (randomDouble <= Math.min(0.9D, 1D / ((item.getPrice() * 14) / share))) {
 						itemMap.compute(item, (key, value) -> value == null ? 1 : value + 1);
 						break;
 					}
 				}
 			}
+
+			totalShare -= Math.min(items.get(0).getPrice(), share) * count;
+			totalCount -= count;
 		}
 
 		List<ItemStack<?>> stacks = new ArrayList<>();

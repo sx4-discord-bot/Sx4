@@ -61,12 +61,11 @@ public class LeaderboardCommand extends Sx4Command {
 			Aggregates.sort(Sorts.descending("balance"))
 		);
 
-		event.getMongo().aggregateUsers(pipeline).whenCompleteAsync((iterable, exception) -> {
+		event.getMongo().aggregateUsers(pipeline).whenCompleteAsync((documents, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
 
-			List<Document> documents = iterable.into(new ArrayList<>());
 			List<Map.Entry<User, Long>> users = new ArrayList<>();
 			AtomicInteger userIndex = new AtomicInteger(-1);
 
@@ -131,59 +130,54 @@ public class LeaderboardCommand extends Sx4Command {
 			Aggregates.sort(Sorts.descending("total"))
 		);
 
-		event.getMongo().aggregateItems(pipeline).whenCompleteAsync((iterable, exception) -> {
+		event.getMongo().aggregateItems(pipeline).whenCompleteAsync((documents, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
 
-			try {
-				List<Document> documents = iterable.into(new ArrayList<>());
-				List<Map.Entry<User, Long>> users = new ArrayList<>();
-				AtomicInteger userIndex = new AtomicInteger(-1);
+			List<Map.Entry<User, Long>> users = new ArrayList<>();
+			AtomicInteger userIndex = new AtomicInteger(-1);
 
-				int i = 0;
-				for (Document data : documents) {
-					User user = event.getShardManager().getUserById(data.getLong("_id"));
-					if (user == null) {
-						continue;
-					}
-
-					if (!event.getGuild().isMember(user) && guild) {
-						continue;
-					}
-
-					i++;
-
-					users.add(Map.entry(user, data.getLong("total")));
-
-					if (user.getIdLong() == event.getAuthor().getIdLong()) {
-						userIndex.set(i);
-					}
+			int i = 0;
+			for (Document data : documents) {
+				User user = event.getShardManager().getUserById(data.getLong("_id"));
+				if (user == null) {
+					continue;
 				}
 
-				if (users.isEmpty()) {
-					event.replyFailure("There are no users which fit into this leaderboard").queue();
-					return;
+				if (!event.getGuild().isMember(user) && guild) {
+					continue;
 				}
 
-				PagedResult<Map.Entry<User, Long>> paged = new PagedResult<>(event.getBot(), users)
-					.setPerPage(10)
-					.setCustomFunction(page -> {
-						int rank = userIndex.get();
+				i++;
 
-						EmbedBuilder embed = new EmbedBuilder()
-							.setTitle("Networth Leaderboard")
-							.setFooter(event.getAuthor().getName() + "'s Rank: " + (rank == -1 ? "N/A" : NumberUtility.getSuffixed(rank)) + " | Page " + page.getPage() + "/" + page.getMaxPage(), event.getAuthor().getEffectiveAvatarUrl());
+				users.add(Map.entry(user, data.getLong("total")));
 
-						page.forEach((entry, index) -> embed.appendDescription(String.format("%d. `%s` - $%,d\n", index + 1, MarkdownSanitizer.escape(entry.getKey().getAsTag()), entry.getValue())));
-
-						return new MessageBuilder().setEmbed(embed.build()).build();
-					});
-
-				paged.execute(event);
-			} catch (Throwable e) {
-				e.printStackTrace();
+				if (user.getIdLong() == event.getAuthor().getIdLong()) {
+					userIndex.set(i);
+				}
 			}
+
+			if (users.isEmpty()) {
+				event.replyFailure("There are no users which fit into this leaderboard").queue();
+				return;
+			}
+
+			PagedResult<Map.Entry<User, Long>> paged = new PagedResult<>(event.getBot(), users)
+				.setPerPage(10)
+				.setCustomFunction(page -> {
+					int rank = userIndex.get();
+
+					EmbedBuilder embed = new EmbedBuilder()
+						.setTitle("Networth Leaderboard")
+						.setFooter(event.getAuthor().getName() + "'s Rank: " + (rank == -1 ? "N/A" : NumberUtility.getSuffixed(rank)) + " | Page " + page.getPage() + "/" + page.getMaxPage(), event.getAuthor().getEffectiveAvatarUrl());
+
+					page.forEach((entry, index) -> embed.appendDescription(String.format("%d. `%s` - $%,d\n", index + 1, MarkdownSanitizer.escape(entry.getKey().getAsTag()), entry.getValue())));
+
+					return new MessageBuilder().setEmbed(embed.build()).build();
+				});
+
+			paged.execute(event);
 		});
 	}
 
@@ -198,12 +192,11 @@ public class LeaderboardCommand extends Sx4Command {
 			Aggregates.sort(Sorts.descending("winnings"))
 		);
 
-		event.getMongo().aggregateUsers(pipeline).whenCompleteAsync((iterable, exception) -> {
+		event.getMongo().aggregateUsers(pipeline).whenCompleteAsync((documents, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
 
-			List<Document> documents = iterable.into(new ArrayList<>());
 			List<Map.Entry<User, Long>> users = new ArrayList<>();
 			AtomicInteger userIndex = new AtomicInteger(-1);
 
@@ -267,12 +260,11 @@ public class LeaderboardCommand extends Sx4Command {
 			Aggregates.sort(Sorts.descending("amount"))
 		);
 
-		event.getMongo().aggregateItems(pipeline).whenCompleteAsync((iterable, exception) -> {
+		event.getMongo().aggregateItems(pipeline).whenCompleteAsync((documents, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
 
-			List<Document> documents = iterable.into(new ArrayList<>());
 			List<Map.Entry<User, Long>> users = new ArrayList<>();
 			AtomicInteger userIndex = new AtomicInteger(-1);
 
@@ -330,12 +322,11 @@ public class LeaderboardCommand extends Sx4Command {
 			Aggregates.sort(Sorts.descending("streak"))
 		);
 
-		event.getMongo().aggregateUsers(pipeline).whenCompleteAsync((iterable, exception) -> {
+		event.getMongo().aggregateUsers(pipeline).whenCompleteAsync((documents, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
 
-			List<Document> documents = iterable.into(new ArrayList<>());
 			List<Map.Entry<User, Integer>> users = new ArrayList<>();
 			AtomicInteger userIndex = new AtomicInteger(-1);
 

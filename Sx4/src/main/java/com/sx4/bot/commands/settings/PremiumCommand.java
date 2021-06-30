@@ -177,12 +177,11 @@ public class PremiumCommand extends Sx4Command {
 			Aggregates.sort(Sorts.descending("total"))
 		);
 
-		event.getMongoMain().aggregateUsers(pipeline).whenCompleteAsync((iterable, exception) -> {
+		event.getMongoMain().aggregateUsers(pipeline).whenCompleteAsync((documents, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
 
-			List<Document> documents = iterable.into(new ArrayList<>());
 			List<Map.Entry<String, Integer>> users = new ArrayList<>();
 			AtomicInteger userIndex = new AtomicInteger(-1);
 

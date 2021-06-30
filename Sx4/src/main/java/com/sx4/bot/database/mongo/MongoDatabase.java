@@ -18,6 +18,7 @@ import org.bson.json.JsonMode;
 import org.bson.json.JsonWriterSettings;
 import org.bson.types.ObjectId;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -167,6 +168,7 @@ public class MongoDatabase {
 		this.games = this.database.getCollection("games");
 		this.games.createIndex(Indexes.descending("userId", "gameId"), uniqueIndex);
 		this.games.createIndex(Indexes.descending("type"));
+		this.games.createIndex(Indexes.descending("state"));
 
 		this.reminders = this.database.getCollection("reminders");
 		this.reminders.createIndex(Indexes.descending("userId"));
@@ -292,12 +294,12 @@ public class MongoDatabase {
 		return this.getItems(filter, projection).first();
 	}
 
-	public CompletableFuture<AggregateIterable<Document>> aggregateItems(List<Bson> pipeline) {
-		return CompletableFuture.supplyAsync(() -> this.items.aggregate(pipeline), this.executor);
+	public CompletableFuture<List<Document>> aggregateItems(List<Bson> pipeline) {
+		return CompletableFuture.supplyAsync(() -> this.items.aggregate(pipeline).into(new ArrayList<>()), this.executor);
 	}
 
 	public CompletableFuture<InsertOneResult> insertItem(Document data) {
-		return CompletableFuture.supplyAsync(() -> this.items.insertOne(data));
+		return CompletableFuture.supplyAsync(() -> this.items.insertOne(data), this.executor);
 	}
 
 	public CompletableFuture<UpdateResult> updateItem(Bson filter, Bson update, UpdateOptions options) {
@@ -388,8 +390,8 @@ public class MongoDatabase {
 		return this.getWarnings(filter, projection).first();
 	}
 
-	public CompletableFuture<AggregateIterable<Document>> aggregateWarnings(List<Bson> pipeline) {
-		return CompletableFuture.supplyAsync(() -> this.warnings.aggregate(pipeline), this.executor);
+	public CompletableFuture<List<Document>> aggregateWarnings(List<Bson> pipeline) {
+		return CompletableFuture.supplyAsync(() -> this.warnings.aggregate(pipeline).into(new ArrayList<>()), this.executor);
 	}
 
 	public CompletableFuture<InsertOneResult> insertWarning(Document data) {
@@ -577,6 +579,10 @@ public class MongoDatabase {
 		return this.games.find(filter).projection(projection);
 	}
 
+	public CompletableFuture<List<Document>> aggregateGames(List<Bson> pipeline) {
+		return CompletableFuture.supplyAsync(() -> this.games.aggregate(pipeline).into(new ArrayList<>()), this.executor);
+	}
+
 	public Document getGame(Bson filter, Bson projection) {
 		return this.getGames(filter, projection).first();
 	}
@@ -605,8 +611,8 @@ public class MongoDatabase {
 		return this.loggers.countDocuments(filter, options);
 	}
 
-	public CompletableFuture<AggregateIterable<Document>> aggregateLoggers(List<Bson> pipeline) {
-		return CompletableFuture.supplyAsync(() -> this.loggers.aggregate(pipeline));
+	public CompletableFuture<List<Document>> aggregateLoggers(List<Bson> pipeline) {
+		return CompletableFuture.supplyAsync(() -> this.loggers.aggregate(pipeline).into(new ArrayList<>()), this.executor);
 	}
 
 	public CompletableFuture<InsertOneResult> insertLogger(Document data) {
@@ -765,8 +771,8 @@ public class MongoDatabase {
 		return this.regexes.countDocuments(filter, options);
 	}
 
-	public CompletableFuture<AggregateIterable<Document>> aggregateRegexes(List<Bson> pipeline) {
-		return CompletableFuture.supplyAsync(() -> this.regexes.aggregate(pipeline));
+	public CompletableFuture<List<Document>> aggregateRegexes(List<Bson> pipeline) {
+		return CompletableFuture.supplyAsync(() -> this.regexes.aggregate(pipeline).into(new ArrayList<>()), this.executor);
 	}
 
 	public Document getRegex(Bson filter, Bson projection) {
@@ -1149,8 +1155,8 @@ public class MongoDatabase {
 		return this.youtubeNotifications.countDocuments(filter, options);
 	}
 
-	public CompletableFuture<AggregateIterable<Document>> aggregateYouTubeNotifications(List<Bson> pipeline) {
-		return CompletableFuture.supplyAsync(() -> this.youtubeNotifications.aggregate(pipeline));
+	public CompletableFuture<List<Document>> aggregateYouTubeNotifications(List<Bson> pipeline) {
+		return CompletableFuture.supplyAsync(() -> this.youtubeNotifications.aggregate(pipeline).into(new ArrayList<>()), this.executor);
 	}
 
 	public Document getYouTubeNotification(Bson filter, Bson projection) {
@@ -1319,8 +1325,8 @@ public class MongoDatabase {
 		return this.getUserById(Filters.eq("_id", userId), projection);
 	}
 
-	public CompletableFuture<AggregateIterable<Document>> aggregateUsers(List<Bson> pipeline) {
-		return CompletableFuture.supplyAsync(() -> this.users.aggregate(pipeline), this.executor);
+	public CompletableFuture<List<Document>> aggregateUsers(List<Bson> pipeline) {
+		return CompletableFuture.supplyAsync(() -> this.users.aggregate(pipeline).into(new ArrayList<>()), this.executor);
 	}
 
 	public CompletableFuture<UpdateResult> updateUser(Bson filter, List<? extends Bson> update, UpdateOptions options) {
@@ -1391,8 +1397,8 @@ public class MongoDatabase {
 		return this.guilds.countDocuments(filter);
 	}
 
-	public CompletableFuture<AggregateIterable<Document>> aggregateGuilds(List<Bson> pipeline) {
-		return CompletableFuture.supplyAsync(() -> this.guilds.aggregate(pipeline));
+	public CompletableFuture<List<Document>> aggregateGuilds(List<Bson> pipeline) {
+		return CompletableFuture.supplyAsync(() -> this.guilds.aggregate(pipeline).into(new ArrayList<>()), this.executor);
 	}
 	
 	public Document getGuildById(long guildId, Bson filter, Bson projection) {
@@ -1587,8 +1593,8 @@ public class MongoDatabase {
 		return this.auction;
 	}
 
-	public CompletableFuture<AggregateIterable<Document>> aggregateAuction(List<Bson> pipeline) {
-		return CompletableFuture.supplyAsync(() -> this.auction.aggregate(pipeline), this.executor);
+	public CompletableFuture<List<Document>> aggregateAuction(List<Bson> pipeline) {
+		return CompletableFuture.supplyAsync(() -> this.auction.aggregate(pipeline).into(new ArrayList<>()), this.executor);
 	}
 	
 	public FindIterable<Document> getAuctions(Bson filter) {
@@ -1703,8 +1709,8 @@ public class MongoDatabase {
 		return CompletableFuture.supplyAsync(() -> this.commands.insertOne(data), this.executor);
 	}
 	
-	public CompletableFuture<AggregateIterable<Document>> aggregateCommands(List<? extends Bson> pipeline) {
-		return CompletableFuture.supplyAsync(() -> this.commands.aggregate(pipeline), this.executor);
+	public CompletableFuture<List<Document>> aggregateCommands(List<? extends Bson> pipeline) {
+		return CompletableFuture.supplyAsync(() -> this.commands.aggregate(pipeline).into(new ArrayList<>()), this.executor);
 	}
 	
 	public MongoCollection<Document> getOffences() {

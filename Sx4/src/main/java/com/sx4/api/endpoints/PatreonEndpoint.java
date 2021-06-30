@@ -5,6 +5,7 @@ import club.minnced.discord.webhook.WebhookClientBuilder;
 import club.minnced.discord.webhook.send.WebhookMessage;
 import club.minnced.discord.webhook.send.WebhookMessageBuilder;
 import com.sx4.bot.core.Sx4;
+import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.events.patreon.PatreonEvent;
 import com.sx4.bot.utility.HmacUtility;
 import org.bson.Document;
@@ -51,7 +52,7 @@ public class PatreonEndpoint {
 
 		WebhookMessage message = new WebhookMessageBuilder()
 			.setContent("Patreon payload received")
-			.addFile("patreon.json", document.toJson().getBytes(StandardCharsets.UTF_8))
+			.addFile("patreon.json", document.toJson(MongoDatabase.PRETTY_JSON).getBytes(StandardCharsets.UTF_8))
 			.build();
 
 		this.webhook.send(message);

@@ -79,8 +79,8 @@ public class AntiRegexCommand extends Sx4Command {
 			Aggregates.project(Projections.fields(Projections.computed("premium", Operators.ifNull("$premium", false)), Projections.computed("count", Operators.ifNull("$count", 0))))
 		);
 
-		event.getMongo().aggregateRegexes(pipeline).thenCompose(iterable -> {
-			Document counter = iterable.first();
+		event.getMongo().aggregateRegexes(pipeline).thenCompose(documents -> {
+			Document counter = documents.isEmpty() ? null : documents.get(0);
 
 			int count = counter == null ? 0 : counter.getInteger("count");
 			if (count >= 3 && !counter.getBoolean("premium")) {
@@ -134,8 +134,8 @@ public class AntiRegexCommand extends Sx4Command {
 			Aggregates.project(Projections.fields(Projections.computed("premium", Operators.ifNull("$premium", false)), Projections.computed("count", Operators.ifNull("$count", 0))))
 		);
 
-		event.getMongo().aggregateRegexes(pipeline).thenCompose(iterable -> {
-			Document counter = iterable.first();
+		event.getMongo().aggregateRegexes(pipeline).thenCompose(documents -> {
+			Document counter = documents.isEmpty() ? null : documents.get(0);
 
 			int count = counter == null ? 0 : counter.getInteger("count");
 			if (count >= 3 && !counter.getBoolean("premium")) {
@@ -188,8 +188,8 @@ public class AntiRegexCommand extends Sx4Command {
 			Aggregates.project(Projections.fields(Projections.computed("premium", Operators.ifNull("$premium", false)), Projections.computed("count", Operators.size(Operators.ifNull("$regexes", Collections.EMPTY_LIST))), Projections.computed("disabled", Operators.isEmpty(Operators.filter(Operators.ifNull("$regexes", Collections.EMPTY_LIST), Operators.eq("$$this._id", id))))))
 		);
 
-		event.getMongo().aggregateRegexes(pipeline).thenCompose(iterable -> {
-			Document data = iterable.first();
+		event.getMongo().aggregateRegexes(pipeline).thenCompose(documents -> {
+			Document data = documents.isEmpty() ? null : documents.get(0);
 
 			boolean disabled = data == null || data.getBoolean("disabled");
 			int count = data == null ? 0 : data.getInteger("count");
