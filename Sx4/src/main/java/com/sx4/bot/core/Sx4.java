@@ -906,7 +906,7 @@ public class Sx4 {
 					builder = ((BuilderConfigureFunction) builderFunction).configure(parameter, builder);
 				}
 
-				builder.setProperty("class", clazz);
+				builder.setProperty("rangeClass", clazz);
 
 				return builder;
 			}).addBuilderConfigureFunction(Alternative.class, (parameter, builder) -> {
@@ -1240,7 +1240,7 @@ public class Sx4 {
 				
 				return new ParsedResult<>(new TimedArgument<>(duration, parsedArgument.getObject()));
 			}).registerParser(Range.class, (context, argument, content) -> {
-				Class<?> clazz = argument.getProperty("timedArgumentClass", Class.class);
+				Class<?> clazz = argument.getProperty("rangeClass", Class.class);
 
 				if (clazz == ObjectId.class) {
 					return new ParsedResult<>(Range.getRange(content, it -> ObjectId.isValid(it) ? new ObjectId(it) : null));

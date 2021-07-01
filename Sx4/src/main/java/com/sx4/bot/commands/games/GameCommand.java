@@ -4,10 +4,7 @@ import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.argument.Endless;
 import com.jockie.bot.core.command.Command;
 import com.jockie.bot.core.option.Option;
-import com.mongodb.client.model.Accumulators;
-import com.mongodb.client.model.Aggregates;
-import com.mongodb.client.model.Filters;
-import com.mongodb.client.model.Projections;
+import com.mongodb.client.model.*;
 import com.sx4.bot.annotations.command.BotPermissions;
 import com.sx4.bot.annotations.command.CommandId;
 import com.sx4.bot.annotations.command.Redirects;
@@ -68,7 +65,8 @@ public class GameCommand extends Sx4Command {
 		List<Bson> pipeline = List.of(
 			Aggregates.project(Projections.include("state", "type", "userId")),
 			Aggregates.match(filters.isEmpty() ? Filters.empty() : Filters.and(filters)),
-			Aggregates.group("$userId", Accumulators.sum("count", 1L))
+			Aggregates.group("$userId", Accumulators.sum("count", 1L)),
+			Aggregates.sort(Sorts.descending("count"))
 		);
 
 		event.getMongo().aggregateGames(pipeline).whenComplete((games, exception) -> {
@@ -76,53 +74,49 @@ public class GameCommand extends Sx4Command {
 				return;
 			}
 
-			try {
-				List<Map.Entry<User, Long>> users = new ArrayList<>();
-				AtomicInteger userIndex = new AtomicInteger(-1);
+			List<Map.Entry<User, Long>> users = new ArrayList<>();
+			AtomicInteger userIndex = new AtomicInteger(-1);
 
-				int i = 0;
-				for (Document game : games) {
-					User user = event.getShardManager().getUserById(game.getLong("_id"));
-					if (user == null) {
-						continue;
-					}
-
-					if (!event.getGuild().isMember(user) && guild) {
-						continue;
-					}
-
-					i++;
-
-					users.add(Map.entry(user, game.getLong("count")));
-
-					if (user.getIdLong() == event.getAuthor().getIdLong()) {
-						userIndex.set(i);
-					}
+			int i = 0;
+			for (Document game : games) {
+				User user = event.getShardManager().getUserById(game.getLong("_id"));
+				if (user == null) {
+					continue;
 				}
 
-				if (users.isEmpty()) {
-					event.replyFailure("There are no users which fit into this leaderboard").queue();
-					return;
+				if (!event.getGuild().isMember(user) && guild) {
+					continue;
 				}
 
-				PagedResult<Map.Entry<User, Long>> paged = new PagedResult<>(event.getBot(), users)
-					.setPerPage(10)
-					.setCustomFunction(page -> {
-						int rank = userIndex.get();
+				i++;
 
-						EmbedBuilder embed = new EmbedBuilder()
-							.setTitle("Games Leaderboard")
-							.setFooter(event.getAuthor().getName() + "'s Rank: " + (rank == -1 ? "N/A" : NumberUtility.getSuffixed(rank)) + " | Page " + page.getPage() + "/" + page.getMaxPage(), event.getAuthor().getEffectiveAvatarUrl());
+				users.add(Map.entry(user, game.getLong("count")));
 
-						page.forEach((entry, index) -> embed.appendDescription(String.format("%d. `%s` - %,d game%s\n", index + 1, MarkdownSanitizer.escape(entry.getKey().getAsTag()), entry.getValue(), entry.getValue() == 1 ? "" : "s")));
-
-						return new MessageBuilder().setEmbed(embed.build()).build();
-					});
-
-				paged.execute(event);
-			} catch (Throwable e) {
-				e.printStackTrace();
+				if (user.getIdLong() == event.getAuthor().getIdLong()) {
+					userIndex.set(i);
+				}
 			}
+
+			if (users.isEmpty()) {
+				event.replyFailure("There are no users which fit into this leaderboard").queue();
+				return;
+			}
+
+			PagedResult<Map.Entry<User, Long>> paged = new PagedResult<>(event.getBot(), users)
+				.setPerPage(10)
+				.setCustomFunction(page -> {
+					int rank = userIndex.get();
+
+					EmbedBuilder embed = new EmbedBuilder()
+						.setTitle("Games Leaderboard")
+						.setFooter(event.getAuthor().getName() + "'s Rank: " + (rank == -1 ? "N/A" : NumberUtility.getSuffixed(rank)) + " | Page " + page.getPage() + "/" + page.getMaxPage(), event.getAuthor().getEffectiveAvatarUrl());
+
+					page.forEach((entry, index) -> embed.appendDescription(String.format("%d. `%s` - %,d game%s\n", index + 1, MarkdownSanitizer.escape(entry.getKey().getAsTag()), entry.getValue(), entry.getValue() == 1 ? "" : "s")));
+
+					return new MessageBuilder().setEmbed(embed.build()).build();
+				});
+
+			paged.execute(event);
 		});
 	}
 

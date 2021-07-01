@@ -57,25 +57,6 @@ public class Crate extends Item {
 			.findFirst()
 			.orElse(null);
 	}
-	
-	public Item oldOpen() {
-		List<Item> items = this.getManager().getItems().stream()
-			.sorted(Comparator.comparingLong(Item::getPrice).reversed())
-			.collect(Collectors.toList());
-
-		for (Item item : items) {
-			if (item instanceof Tool || item == this || (item instanceof Material && ((Material) item).isHidden())) {
-				continue;
-			}
-
-			double randomDouble = this.getManager().getRandom().nextDouble();
-			if (randomDouble <= Math.min(1, 1D / Math.ceil((double) (38 * item.getPrice()) / Math.pow(this.getPrice() / 10D, 1.4)))) {
-				return item;
-			}
-		}
-
-		return null;
-	}
 
 	public List<ItemStack<?>> open() {
 		long totalCount = this.getContentTotal(), totalShare = this.getPrice();

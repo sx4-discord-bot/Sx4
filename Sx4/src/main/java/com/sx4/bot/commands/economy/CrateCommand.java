@@ -24,6 +24,8 @@ import net.dv8tion.jda.api.Permission;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.StringJoiner;
 import java.util.function.Predicate;
@@ -135,6 +137,8 @@ public class CrateCommand extends Sx4Command {
 				embed.setDescription("You opened a `" + crate.getName() + "` and got scammed there was nothing in the crate");
 				return embed;
 			}
+
+			stacks.sort(Collections.reverseOrder(Comparator.comparingLong(ItemStack::getAmount)));
 
 			StringJoiner itemContent = new StringJoiner("\n");
 			int totalCount = 0;

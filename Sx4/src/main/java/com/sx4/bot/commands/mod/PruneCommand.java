@@ -14,7 +14,6 @@ import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.utility.ExceptionUtility;
 import net.dv8tion.jda.api.Permission;
-import net.dv8tion.jda.api.entities.ISnowflake;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.Message.Attachment;
@@ -23,7 +22,7 @@ import net.dv8tion.jda.api.entities.MessageHistory.MessageRetrieveAction;
 
 import java.time.Clock;
 import java.util.ArrayList;
-import java.util.Comparator;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -51,12 +50,18 @@ public class PruneCommand extends Sx4Command {
 
 		return action.submit().thenCompose(history -> {
 			List<Message> retrievedHistory = new ArrayList<>(history.getRetrievedHistory());
-			retrievedHistory.sort(Comparator.comparing(ISnowflake::getTimeCreated));
+			if (start != 0L) {
+				Collections.reverse(retrievedHistory);
+			}
 
 			List<Message> messages = new ArrayList<>();
 
 			long secondsNow = Clock.systemUTC().instant().getEpochSecond();
 			for (Message message : retrievedHistory) {
+				if (message.getIdLong() == originalMessage.getIdLong()) {
+					continue;
+				}
+
 				if (secondsNow - message.getTimeCreated().toEpochSecond() < 1209600 && predicate.test(message)) {
 					if (end != 0L && end == message.getIdLong()) {
 						break;

@@ -503,7 +503,7 @@ public class LoggerHandler implements EventListener {
 			.setChannel(channel);
 
 		WebhookEmbedBuilder embed = new WebhookEmbedBuilder()
-			.setDescription(String.format("`%s` just joined the voice channel `%s`", member.getEffectiveName(), channel.getAsMention()))
+			.setDescription(String.format("`%s` just joined the voice channel %s", member.getEffectiveName(), channel.getAsMention()))
 			.setColor(this.bot.getConfig().getGreen())
 			.setTimestamp(Instant.now())
 			.setFooter(new EmbedFooter(String.format("User ID: %s", member.getId()), null))
@@ -535,7 +535,7 @@ public class LoggerHandler implements EventListener {
 			.setUser(user);
 
 		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
-		embed.setDescription(String.format("`%s` just left the voice channel `%s`", member.getEffectiveName(), channel.getAsMention()));
+		embed.setDescription(String.format("`%s` just left the voice channel %s", member.getEffectiveName(), channel.getAsMention()));
 		embed.setColor(this.bot.getConfig().getRed());
 		embed.setTimestamp(Instant.now());
 		embed.setAuthor(new EmbedAuthor(user.getAsTag(), user.getEffectiveAvatarUrl(), null));
@@ -582,7 +582,7 @@ public class LoggerHandler implements EventListener {
 
 						loggerContext.setModerator(moderator);
 
-						embed.setDescription(String.format("`%s` was disconnected from the voice channel `%s` by **%s**", member.getEffectiveName(), channel.getAsMention(), moderator.getAsTag()));
+						embed.setDescription(String.format("`%s` was disconnected from the voice channel %s by **%s**", member.getEffectiveName(), channel.getAsMention(), moderator.getAsTag()));
 					}
 
 					this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
@@ -807,7 +807,7 @@ public class LoggerHandler implements EventListener {
 		String message = LoggerUtility.getPermissionOverrideDifference(0L, Permission.ALL_PERMISSIONS, 0L, permissionOverride);
 
 		StringBuilder description = new StringBuilder();
-		description.append(String.format("The %s %s has had permission overrides created for %s", LoggerUtility.getChannelTypeReadable(channelType), channelType == ChannelType.TEXT ? ((TextChannel) channel).getAsMention() : "`" + channel.getName() + "`", event.isRoleOverride() ? event.getRole().getAsMention() : "`" + event.getMember().getEffectiveName() + "`"));
+		description.append(String.format("The %s %s has had permission overrides created for %s", LoggerUtility.getChannelTypeReadable(channelType), channelType == ChannelType.CATEGORY ? "`" + channel.getName() + "`" : channel.getAsMention(), event.isRoleOverride() ? event.getRole().getAsMention() : "`" + event.getMember().getEffectiveName() + "`"));
 
 		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
 		embed.setColor(this.bot.getConfig().getGreen());
@@ -887,7 +887,7 @@ public class LoggerHandler implements EventListener {
 
 		String message = LoggerUtility.getPermissionOverrideDifference(event.getOldAllowRaw(), event.getOldInheritedRaw(), event.getOldDenyRaw(), permissionOverride);
 
-		StringBuilder description = new StringBuilder(String.format("The %s %s has had permission overrides updated for %s", LoggerUtility.getChannelTypeReadable(channelType), channelType == ChannelType.TEXT ? ((TextChannel) channel).getAsMention() : "`" + channel.getName() + "`", event.isRoleOverride() ? event.getRole().getAsMention() : "`" + event.getMember().getEffectiveName() + "`"));
+		StringBuilder description = new StringBuilder(String.format("The %s %s has had permission overrides updated for %s", LoggerUtility.getChannelTypeReadable(channelType), channelType == ChannelType.CATEGORY ? "`" + channel.getName() + "`" : channel.getAsMention(), event.isRoleOverride() ? event.getRole().getAsMention() : "`" + event.getMember().getEffectiveName() + "`"));
 
 		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
 		embed.setColor(this.bot.getConfig().getOrange());
@@ -996,7 +996,7 @@ public class LoggerHandler implements EventListener {
 
 				boolean deleted = (roleOverride ? event.getRole() : event.getMember()) == null;
 
-				StringBuilder description = new StringBuilder(String.format("The %s %s has had permission overrides deleted for %s", LoggerUtility.getChannelTypeReadable(channelType), channelType == ChannelType.TEXT ? ((TextChannel) channel).getAsMention() : "`" + channel.getName() + "`", roleOverride ? (deleted ? "`" + role.getName() + "`" : role.getAsMention()) : "`" + member.getEffectiveName() + "`"));
+				StringBuilder description = new StringBuilder(String.format("The %s %s has had permission overrides deleted for %s", LoggerUtility.getChannelTypeReadable(channelType), channelType == ChannelType.CATEGORY ? "`" + channel.getName() + "`" : channel.getAsMention(), roleOverride ? (deleted ? "`" + role.getName() + "`" : role.getAsMention()) : "`" + member.getEffectiveName() + "`"));
 
 				if (deleted) {
 					description.append(String.format(" by **%s**", roleOverride ? "role deletion" : "member leave"));
@@ -1142,7 +1142,7 @@ public class LoggerHandler implements EventListener {
 					if (moderator != null) {
 						loggerContext.setModerator(moderator);
 
-						embed.setDescription(String.format("The %s %s has just been created by **%s**", typeReadable, channelType == ChannelType.TEXT ? ((TextChannel) channel).getAsMention() : "`" + channel.getName() + "`", moderator.getAsTag()));
+						embed.setDescription(String.format("The %s %s has just been created by **%s**", typeReadable, channelType == ChannelType.CATEGORY ? "`" + channel.getName() + "`" : channel.getAsMention(), moderator.getAsTag()));
 					}
 
 					this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
@@ -1216,7 +1216,7 @@ public class LoggerHandler implements EventListener {
 					if (moderator != null) {
 						loggerContext.setModerator(moderator);
 
-						embed.setDescription(String.format("The %s %s has just been renamed by **%s**", typeReadable, channelType == ChannelType.TEXT ? ((TextChannel) channel).getAsMention() : "`" + channel.getName() + "`", moderator.getAsTag()));
+						embed.setDescription(String.format("The %s %s has just been renamed by **%s**", typeReadable, channelType == ChannelType.CATEGORY ? "`" + channel.getName() + "`" : channel.getAsMention(), moderator.getAsTag()));
 					}
 
 					this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
@@ -1579,7 +1579,7 @@ public class LoggerHandler implements EventListener {
 				}
 			}
 
-			description.append(String.format("The roles %s have been added to `%s`", builder.toString(), member.getEffectiveName()));
+			description.append(String.format("The roles %s have been added to `%s`", builder, member.getEffectiveName()));
 		} else {
 			description.append(String.format("The role %s has been added to `%s`", firstRole.getAsMention(), member.getEffectiveName()));
 			embed.setFooter(new EmbedFooter(String.format("Role ID: %s", firstRole.getId()), null));
