@@ -101,7 +101,7 @@ public class ItemStack<Type extends Item> implements Comparable<ItemStack<Type>>
 			item = manager.getItemByQuery(content, type);
 		} else if (NumberUtility.isNumberUnsigned(amountContent)) {
 			item = manager.getItemByQuery(content.substring(index + 1), type);
-		} else if (NumberUtility.isNumberUnsigned(amountContent = content.substring(index + 1))) {
+		} else if (NumberUtility.isNumberUnsigned(amountContent = content.substring((index = content.lastIndexOf(' ')) + 1))) {
 			item = manager.getItemByQuery(content.substring(0, index), type);
 		} else {
 			amountContent = null;

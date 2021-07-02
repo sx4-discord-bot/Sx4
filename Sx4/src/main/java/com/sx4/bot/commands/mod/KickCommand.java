@@ -41,7 +41,7 @@ public class KickCommand extends Sx4Command {
 		}
 		
 		member.kick().reason(ModUtility.getAuditReason(reason, event.getAuthor())).queue($ -> {
-			event.reply("**" + member.getUser().getAsTag() + "** has been kicked <:done:403285928233402378>:ok_hand:").queue();
+			event.replySuccess("**" + member.getUser().getAsTag() + "** has been kicked").queue();
 			
 			event.getBot().getModActionManager().onModAction(new KickEvent(event.getMember(), member.getUser(), reason));
 		});

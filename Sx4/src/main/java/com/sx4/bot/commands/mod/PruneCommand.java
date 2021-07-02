@@ -72,7 +72,7 @@ public class PruneCommand extends Sx4Command {
 			}
 
 			messages.add(0, originalMessage);
-			messages = messages.subList(0, Math.min(messages.size(), amount + 1));
+			messages = messages.subList(0, Math.min(Math.min(messages.size(), amount + 1), 100));
 
 			if (messages.size() == 1) {
 				return messages.get(0).delete().submit();

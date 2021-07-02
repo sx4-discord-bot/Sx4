@@ -232,7 +232,7 @@ public class ModUtility {
 			.get() : Integer.MAX_VALUE;
 
 		List<Bson> update = List.of(
-			Operators.set("warnings", Operators.add(Operators.mod(Operators.max(0, Operators.subtract(Operators.ifNull("$warnings", 0), resetAmount == 0 ? 0 : Operators.multiply(Operators.floor(Operators.divide(Operators.subtract(Operators.nowEpochSecond(), "$lastWarning"), resetAfter)), resetAmount))), maxWarning), 1)),
+			Operators.set("warnings", Operators.add(Operators.mod(Operators.max(0, Operators.subtract(Operators.ifNull("$warnings", 0), resetAmount == 0 ? 0 : Operators.multiply(Operators.toInt(Operators.floor(Operators.divide(Operators.subtract(Operators.nowEpochSecond(), "$lastWarning"), resetAfter))), resetAmount))), maxWarning), 1)),
 			Operators.set("lastWarning", Operators.nowEpochSecond())
 		);
 
