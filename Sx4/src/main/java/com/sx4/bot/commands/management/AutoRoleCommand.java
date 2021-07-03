@@ -2,11 +2,13 @@ package com.sx4.bot.commands.management;
 
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
+import com.jockie.bot.core.command.Command.Async;
 import com.mongodb.ErrorCategory;
 import com.mongodb.MongoWriteException;
 import com.mongodb.client.model.*;
 import com.sx4.bot.annotations.argument.Options;
 import com.sx4.bot.annotations.command.AuthorPermissions;
+import com.sx4.bot.annotations.command.BotPermissions;
 import com.sx4.bot.annotations.command.CommandId;
 import com.sx4.bot.annotations.command.Examples;
 import com.sx4.bot.category.ModuleCategory;
@@ -17,11 +19,14 @@ import com.sx4.bot.entities.argument.Alternative;
 import com.sx4.bot.entities.argument.TimedArgument;
 import com.sx4.bot.entities.management.AutoRoleFilter;
 import com.sx4.bot.paged.PagedResult;
+import com.sx4.bot.utility.AutoRoleUtility;
 import com.sx4.bot.utility.ExceptionUtility;
+import com.sx4.bot.utility.FutureUtility;
 import com.sx4.bot.utility.TimeUtility;
 import com.sx4.bot.waiter.Waiter;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.events.interaction.ButtonClickEvent;
 import net.dv8tion.jda.api.interactions.components.Button;
@@ -29,6 +34,7 @@ import org.bson.Document;
 import org.bson.conversions.Bson;
 
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.stream.Collectors;
 
@@ -156,6 +162,54 @@ public class AutoRoleCommand extends Sx4Command {
 				event.replySuccess(role.getAsMention() + " is no longer an auto role").queue();
 			});
 		}
+	}
+
+	private final Set<Long> pending = new HashSet<>();
+
+	@Command(value="fix", description="Will give missing members the auto role if needed")
+	@CommandId(458)
+	@Examples({"auto role fix @Role", "auto role fix Role", "auto role fix 406240455622262784"})
+	@Async
+	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
+	@BotPermissions(permissions={Permission.MANAGE_ROLES})
+	public void fix(Sx4CommandEvent event, @Argument(value="role", endless=true) Role role) {
+		Document data = event.getMongo().getAutoRole(Filters.eq("roleId", role.getIdLong()), Projections.include("filters"));
+		if (data == null) {
+			event.replyFailure("That role is not an auto role").queue();
+			return;
+		}
+
+		if (!event.getSelfMember().canInteract(role)) {
+			event.replyFailure("That auto role is above my top role").queue();
+			return;
+		}
+
+		if (!this.pending.add(event.getGuild().getIdLong())) {
+			event.replyFailure("You already have an auto role fix in progress").queue();
+			return;
+		}
+
+		List<Document> filters = data.getList("filters", Document.class, Collections.emptyList());
+
+		List<Member> members = event.getGuild().getMemberCache().applyStream(stream -> stream.filter(member -> AutoRoleUtility.filtersMatch(member, filters) && !member.getRoles().contains(role)).collect(Collectors.toList()));
+		if (members.size() == 0) {
+			event.replyFailure("No users currently need that auto role").queue();
+			return;
+		}
+
+		event.replyFormat("Adding %s to **%,d** user%s, another message will be sent once this is done %s", role.getAsMention(), members.size(), members.size() == 1 ? "" : "s", event.getConfig().getSuccessEmote()).queue();
+
+		List<CompletableFuture<Integer>> futures = new ArrayList<>();
+		for (Member member : members) {
+			futures.add(event.getGuild().addRoleToMember(member, role).submit().handle((result, exception) -> exception == null ? 1 : 0));
+		}
+
+		FutureUtility.allOf(futures).whenComplete((completed, exception) -> {
+			this.pending.remove(event.getGuild().getIdLong());
+
+			int count = completed.stream().reduce(0, Integer::sum);
+			event.replyFormat("Successfully added the role %s to **%,d/%,d** user%s %s", role.getAsMention(), count, count == 1 ? "" : "s", members.size(), event.getConfig().getSuccessEmote()).queue();
+		});
 	}
 	
 	@Command(value="list", description="Lists all the auto roles setup")

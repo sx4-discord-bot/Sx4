@@ -19,7 +19,7 @@ public class EmbedCommand extends Sx4Command {
 		super.setCategoryAll(ModuleCategory.FUN);
 	}
 
-	public void onCommand(Sx4CommandEvent event, @Argument(value="text", endless=true) @Limit(max=2048) String text) {
+	public void onCommand(Sx4CommandEvent event, @Argument(value="text", endless=true) @Limit(max=4096) String text) {
 		EmbedBuilder embed = new EmbedBuilder()
 			.setAuthor(event.getAuthor().getAsTag(), null, event.getAuthor().getEffectiveAvatarUrl())
 			.setColor(event.getMember().getColorRaw())

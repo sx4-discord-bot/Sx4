@@ -44,6 +44,7 @@ import com.sx4.bot.handlers.*;
 import com.sx4.bot.managers.*;
 import com.sx4.bot.paged.PagedHandler;
 import com.sx4.bot.paged.PagedManager;
+import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.*;
 import com.sx4.bot.utility.TimeUtility.OffsetTimeZone;
 import com.sx4.bot.waiter.WaiterHandler;
@@ -82,6 +83,7 @@ import java.util.function.BiConsumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
+import java.util.stream.Collectors;
 
 public class Sx4 {
 
@@ -637,8 +639,23 @@ public class Sx4 {
 				
 				MessageChannel channel = message.getChannel();
 				boolean embed = !message.isFromGuild() || message.getGuild().getSelfMember().hasPermission((TextChannel) channel, Permission.MESSAGE_EMBED_LINKS);
-				
-				channel.sendMessage(HelpUtility.getHelpMessage(failures.get(0).getCommand(), embed)).queue();
+
+				ICommand firstCommand = failures.get(0).getCommand();
+				List<ICommand> commands = failures.stream()
+					.map(Failure::getCommand)
+					.filter(command -> command.getCommandTrigger().equals(firstCommand.getCommandTrigger()))
+					.collect(Collectors.toList());
+
+				PagedResult<ICommand> paged = new PagedResult<>(this, commands)
+					.setAuthor("Commands", null, message.getAuthor().getEffectiveAvatarUrl())
+					.setAutoSelect(true)
+					.setPerPage(15)
+					.setSelectablePredicate((content, command) -> command.getCommandTrigger().equals(content))
+					.setDisplayFunction(command -> command.getUsage());
+
+				paged.onSelect(select -> channel.sendMessage(HelpUtility.getHelpMessage(select.getSelected(), embed)).queue());
+
+				paged.execute(channel, message.getAuthor());
 			}).setPrefixesFunction(message -> {
 				List<String> guildPrefixes = message.isFromGuild() ? this.mongo.getGuildById(message.getGuild().getIdLong(), Projections.include("prefixes")).getList("prefixes", String.class, Collections.emptyList()) : Collections.emptyList();
 				List<String> userPrefixes = this.mongo.getUserById(message.getAuthor().getIdLong(), Projections.include("prefixes")).getList("prefixes", String.class, Collections.emptyList());
@@ -1170,7 +1187,7 @@ public class Sx4 {
 
 					int nextSpace = content.indexOf(' ');
 					String query = nextSpace == -1 || argument.isEndless() ? content : content.substring(0, nextSpace);
-					if (query.isEmpty()) {
+					if (query.isEmpty() && !argument.acceptEmpty()) {
 						return new ParsedResult<>();
 					}
 
@@ -1296,18 +1313,30 @@ public class Sx4 {
 				}
 
 				return new ParsedResult<>();
-			}).registerParser(Or.class, (context, argument, content) -> {
-				Class<?> firstClass = argument.getProperty("firstClass"), secondClass = argument.getProperty("secondClass");
+			}).registerParser(Or.class, new IParser<>() {
+				public ParsedResult parse(ParseContext context, IArgument<Or> argument, String content) {
+					int nextSpace = content.indexOf(' ');
+					String argumentContent = nextSpace == -1 || argument.isEndless() ? content : content.substring(0, nextSpace);
+					if (!argument.acceptEmpty() && argumentContent.isEmpty()) {
+						return new ParsedResult<>();
+					}
 
-				ParsedResult<?> firstParsedArgument = CommandUtility.getParsedResult(firstClass, argumentFactory, context, argument, content, null);
-				ParsedResult<?> secondParsedArgument = CommandUtility.getParsedResult(secondClass, argumentFactory, context, argument, content, null);
-				
-				if (firstParsedArgument.isValid()) {
-					return new ParsedResult<>(new Or<>(firstParsedArgument.getObject(), null));
-				} else if (secondParsedArgument.isValid()) {
-					return new ParsedResult<>(new Or<>(null, secondParsedArgument.getObject()));
-				} else {
-					return new ParsedResult<>();
+					Class<?> firstClass = argument.getProperty("firstClass"), secondClass = argument.getProperty("secondClass");
+
+					ParsedResult<?> firstParsedArgument = CommandUtility.getParsedResult(firstClass, argumentFactory, context, argument, argumentContent, content);
+					ParsedResult<?> secondParsedArgument = CommandUtility.getParsedResult(secondClass, argumentFactory, context, argument, argumentContent, content);
+
+					if (firstParsedArgument.isValid()) {
+						return new ParsedResult<>(new Or<>(firstParsedArgument.getObject(), null), content.substring(argumentContent.length()));
+					} else if (secondParsedArgument.isValid()) {
+						return new ParsedResult<>(new Or<>(null, secondParsedArgument.getObject()), content.substring(argumentContent.length()));
+					} else {
+						return new ParsedResult<>();
+					}
+				}
+
+				public boolean isHandleAll() {
+					return true;
 				}
 			});
 		

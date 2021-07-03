@@ -165,25 +165,40 @@ public class ReactionRoleCommand extends Sx4Command {
 			Filters.eq("emote", new Document(identifier, unicode ? emote.getEmoji() : emote.getEmote().getIdLong()))
 		);
 
-		Bson update = Updates.pull("roles", role.getIdLong());
+		if (role == null) {
+			event.getMongo().deleteReactionRole(filter).whenComplete((result, exception) -> {
+				if (ExceptionUtility.sendExceptionally(event, exception)) {
+					return;
+				}
 
-		event.getMongo().updateReactionRole(filter, update).whenComplete((result, exception) -> {
-			if (ExceptionUtility.sendExceptionally(event, exception)) {
-				return;
-			}
+				if (result.getDeletedCount() == 0) {
+					event.replyFailure("You do not have that reaction on that reaction role").queue();
+					return;
+				}
 
-			if (result.getMatchedCount() == 0) {
-				event.replyFailure("You do not have that reaction on that reaction role").queue();
-				return;
-			}
+				event.replySuccess("The emote " + (emote.isEmote() ? emote.getEmote().getAsMention() : emote.getEmoji()) + " has been removed from that reaction role").queue();
+			});
+		} else {
+			Bson update = Updates.pull("roles", role.getIdLong());
 
-			if (result.getModifiedCount() == 0 && result.getUpsertedId() == null) {
-				event.replyFailure("That role is not given when reacting to that emote").queue();
-				return;
-			}
+			event.getMongo().updateReactionRole(filter, update).whenComplete((result, exception) -> {
+				if (ExceptionUtility.sendExceptionally(event, exception)) {
+					return;
+				}
 
-			event.replySuccess("The role " + role.getAsMention() + " has been removed from that reaction").queue();
-		});
+				if (result.getMatchedCount() == 0) {
+					event.replyFailure("You do not have that reaction on that reaction role").queue();
+					return;
+				}
+
+				if (result.getModifiedCount() == 0 && result.getUpsertedId() == null) {
+					event.replyFailure("That role is not given when reacting to that emote").queue();
+					return;
+				}
+
+				event.replySuccess("The role " + role.getAsMention() + " has been removed from that reaction").queue();
+			});
+		}
 	}
 	
 	@Command(value="dm", description="Enables/disables whether a reaction role should send dms when a user acquires roles")

@@ -87,7 +87,7 @@ public class TranslateCommand extends Sx4Command {
 		return embed.build();
 	}
 
-	public void onCommand(Sx4CommandEvent event, @Argument(value="to") Locale to, @Argument(value="query | message id", endless=true) Or<MessageArgument, String> option, @Option(value="from", description="Choose what language to translate from") Locale from) {
+	public void onCommand(Sx4CommandEvent event, @Argument(value="to") Locale to, @Argument(value="query | message id", endless=true, acceptEmpty=true) Or<MessageArgument, String> option, @Option(value="from", description="Choose what language to translate from") Locale from) {
 		String toTag = to.getLanguage(), fromTag = from == null ? "auto" : from.getLanguage();
 
 		this.getQuery(option).whenComplete((query, exception) -> {

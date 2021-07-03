@@ -4,6 +4,7 @@ import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Projections;
 import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.mongo.MongoDatabase;
+import com.sx4.bot.utility.AutoRoleUtility;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
@@ -41,7 +42,7 @@ public class AutoRoleHandler implements EventListener {
 		}
 
 		List<Role> roles = new ArrayList<>();
-		Roles : for (Document autoRole : autoRoles) {
+		for (Document autoRole : autoRoles) {
 			if (!autoRole.get("enabled", true)) {
 				continue;
 			}
@@ -52,23 +53,9 @@ public class AutoRoleHandler implements EventListener {
 			}
 
 			List<Document> filters = autoRole.getList("filters", Document.class, Collections.emptyList());
-			for (Document filter : filters) {
-				int type = filter.getInteger("type");
-				Object value = filter.get("value");
-				
-				switch (type) {
-					case 0:
-						if (member.getUser().isBot() != (boolean) value) {
-							continue Roles;
-						}
-						
-						break;
-					default:
-						break;
-				}
+			if (AutoRoleUtility.filtersMatch(member, filters)) {
+				roles.add(role);
 			}
-
-			roles.add(role);
 		}
 		
 		if (!roles.isEmpty()) {
