@@ -15,8 +15,6 @@ public class RegionCommand extends Sx4Command {
 
 		super.setDescription("Changes the server region in the current server");
 		super.setExamples("region voice-channel Europe", "region London", "region voice-channel automatic");
-		super.setAuthorDiscordPermissions(Permission.MANAGE_SERVER);
-		super.setBotDiscordPermissions(Permission.MANAGE_SERVER);
 		super.setCategoryAll(ModuleCategory.MODERATION);
 	}
 
@@ -29,6 +27,16 @@ public class RegionCommand extends Sx4Command {
 		VoiceChannel effectiveChannel = channel == null ? event.getMember().getVoiceState().getChannel() : channel;
 		if (effectiveChannel == null) {
 			event.replyFailure("You are not in a voice channel").queue();
+			return;
+		}
+
+		if (!event.getSelfMember().hasPermission(effectiveChannel, Permission.MANAGE_CHANNEL)) {
+			event.replyFailure("I do not have permission to edit the region of " + effectiveChannel.getAsMention()).queue();
+			return;
+		}
+
+		if (!event.getMember().hasPermission(effectiveChannel, Permission.MANAGE_CHANNEL)) {
+			event.replyFailure("You do not have permission to edit the region of " + effectiveChannel.getAsMention()).queue();
 			return;
 		}
 
