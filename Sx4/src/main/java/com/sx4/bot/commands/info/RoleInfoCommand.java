@@ -46,16 +46,12 @@ public class RoleInfoCommand extends Sx4Command {
 			.setThumbnail(event.getGuild().getIconUrl())
 			.setDescription(role.getAsMention() + " was created on " + role.getTimeCreated().format(TimeUtility.DEFAULT_FORMATTER))
 			.addField("Role Colour", String.format("Hex: #%s\nRGB: %s", ColourUtility.toHexString(role.getColorRaw()), ColourUtility.toRGBString(role.getColorRaw())), true)
-			.addBlankField(true)
 			.addField("Role Position", String.format("%s (Bottom to Top)\n%s (Top to Bottom)", NumberUtility.getSuffixed(role.getPosition() + 2), NumberUtility.getSuffixed(event.getGuild().getRoles().size() - 1 - role.getPosition())), true)
 			.addField("Users in Role", String.valueOf(role.isPublicRole() ? event.getGuild().getMemberCount() : event.getGuild().getMembersWithRoles(role).size()), true)
-			.addBlankField(true)
 			.addField("Role Type", type, true)
 			.addField("Hoisted Role", role.isHoisted() ? "Yes" : "No", true)
-			.addBlankField(true)
 			.addField("Mentionable Role", role.isMentionable() ? "Yes" : "No", true)
 			.addField("Managed Role", role.isManaged() ? "Yes" : "No", true)
-			.addBlankField(true)
 			.addField("Role ID", role.getId(), true)
 			.addField("Role Permissions", role.getPermissions().isEmpty() ? "None" : role.getPermissions().stream().map(Permission::getName).collect(Collectors.joining("\n")), false);
 

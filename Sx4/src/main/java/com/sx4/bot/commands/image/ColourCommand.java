@@ -49,7 +49,7 @@ public class ColourCommand extends Sx4Command {
 		event.getHttpClient().newCall(request).enqueue((HttpCallback) response -> {
 			MessageAction action = ImageUtility.getImageMessage(event, response);
 			if (response.isSuccessful()) {
-				action.embed(embed);
+				action.setEmbeds(embed);
 			}
 
 			action.queue();

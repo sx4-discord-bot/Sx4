@@ -64,7 +64,7 @@ public class HelpUtility {
 				embedBuilder.setFooter("Premium Command ⭐");
 			}
 	
-			return builder.setEmbed(embedBuilder.build()).build();
+			return builder.setEmbeds(embedBuilder.build()).build();
 		} else {
 			String placeHolder = "%s:\n%s\n\n";
 			

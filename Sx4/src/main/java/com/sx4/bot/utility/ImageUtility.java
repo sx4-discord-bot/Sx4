@@ -53,12 +53,12 @@ public class ImageUtility {
 
 			MessageAction messageAction = badRequest == null ? null : badRequest.apply(body, error);
 			if (messageAction == null) {
-				return channel.sendMessage(ExceptionUtility.getSimpleErrorMessage(String.format("- Code: %d\n- %s", error.getCode(), body.getString("message")), "diff"));
+				return channel.sendMessageEmbeds(ExceptionUtility.getSimpleErrorMessage(String.format("- Code: %d\n- %s", error.getCode(), body.getString("message")), "diff"));
 			} else {
 				return messageAction;
 			}
 		} else {
-			return channel.sendMessage(ExceptionUtility.getSimpleErrorMessage(String.format("- Status: %d\n- %s", status, fullBody), "diff"));
+			return channel.sendMessageEmbeds(ExceptionUtility.getSimpleErrorMessage(String.format("- Status: %d\n- %s", status, fullBody), "diff"));
 		}
 	}
 

@@ -113,7 +113,7 @@ public class TradeCommand extends Sx4Command {
 				.setDescription((money == 0 ? "" : String.format("$%,d", money)) + (items.isEmpty() ? "" : "\n") + content);
 
 			MessageBuilder message = new MessageBuilder()
-				.setEmbed(embed.build())
+				.setEmbeds(embed.build())
 				.setContent(String.format(prompt, "would you like from"));
 
 			return event.reply(message.build()).submit();
@@ -149,7 +149,7 @@ public class TradeCommand extends Sx4Command {
 				.addField(event.getAuthor().getAsTag() + " Gets", (authorMoney == 0 ? "" : String.format("$%,d", authorMoney)) + (authorItems.isEmpty() ? "" : "\n") + authorContent, false);
 
 			MessageBuilder message = new MessageBuilder()
-				.setEmbed(embed.build())
+				.setEmbeds(embed.build())
 				.setActionRows(ActionRow.of(List.of(Button.success("yes", "Yes"), Button.danger("no", "No"))))
 				.setAllowedMentions(EnumSet.of(Message.MentionType.USER))
 				.setContent(user.getAsMention() + ", do you accept this trade?");

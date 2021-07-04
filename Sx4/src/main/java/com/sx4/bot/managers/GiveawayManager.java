@@ -145,7 +145,7 @@ public class GiveawayManager {
 				embed.setTimestamp(Instant.now());
 				embed.setFooter("Giveaway Ended", null);
 				
-				message.editMessage(embed.build()).queue();
+				message.editMessageEmbeds(embed.build()).queue();
 				
 				update = Updates.set("winners", winnerIds);
 				

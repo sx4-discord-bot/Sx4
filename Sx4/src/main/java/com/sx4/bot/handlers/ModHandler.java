@@ -139,7 +139,7 @@ public class ModHandler implements ModActionListener, EventListener {
 			EmbedBuilder embed = this.getGenericEmbed(event.getGuild(), event.getModerator().getUser(), event.getAction(), event.getReason());
 
 			event.getTarget().openPrivateChannel()
-				.flatMap(channel -> channel.sendMessage(embed.build()))
+				.flatMap(channel -> channel.sendMessageEmbeds(embed.build()))
 				.queue(null, ErrorResponseException.ignore(ErrorResponse.CANNOT_SEND_TO_USER));
 		}
 	}
@@ -149,7 +149,7 @@ public class ModHandler implements ModActionListener, EventListener {
 			EmbedBuilder embed = this.getGenericEmbed(event.getGuild(), event.getModerator().getUser(), event.getAction(), event.getReason());
 
 			event.getTarget().openPrivateChannel()
-				.flatMap(channel -> channel.sendMessage(embed.build()))
+				.flatMap(channel -> channel.sendMessageEmbeds(embed.build()))
 				.queue(null, ErrorResponseException.ignore(ErrorResponse.CANNOT_SEND_TO_USER));
 		}
 	}
@@ -158,7 +158,7 @@ public class ModHandler implements ModActionListener, EventListener {
 		EmbedBuilder embed = this.getGenericEmbed(event.getGuild(), event.getModerator().getUser(), event.getAction(), event.getReason());
 
 		event.getTarget().openPrivateChannel()
-			.flatMap(channel -> channel.sendMessage(embed.build()))
+			.flatMap(channel -> channel.sendMessageEmbeds(embed.build()))
 			.queue(null, ErrorResponseException.ignore(ErrorResponse.CANNOT_SEND_TO_USER));
 	}
 	
@@ -167,7 +167,7 @@ public class ModHandler implements ModActionListener, EventListener {
 		embed.getFields().add(0, new MessageEmbed.Field("Duration", TimeUtility.getTimeString(event.getDuration()), false));
 
 		event.getTarget().openPrivateChannel()
-			.flatMap(channel -> channel.sendMessage(embed.build()))
+			.flatMap(channel -> channel.sendMessageEmbeds(embed.build()))
 			.queue(null, ErrorResponseException.ignore(ErrorResponse.CANNOT_SEND_TO_USER));
 	}
 	
@@ -189,7 +189,7 @@ public class ModHandler implements ModActionListener, EventListener {
 		embed.setTimestamp(Instant.now());
 
 		event.getTarget().openPrivateChannel()
-			.flatMap(channel -> channel.sendMessage(embed.build()))
+			.flatMap(channel -> channel.sendMessageEmbeds(embed.build()))
 			.queue(null, ErrorResponseException.ignore(ErrorResponse.CANNOT_SEND_TO_USER));
 	}
 	
@@ -197,7 +197,7 @@ public class ModHandler implements ModActionListener, EventListener {
 		EmbedBuilder embed = this.getGenericEmbed(event.getGuild(), event.getModerator().getUser(), event.getAction(), event.getReason());
 
 		event.getGuild().getJDA().openPrivateChannelById(event.getTarget().getIdLong())
-			.flatMap(channel -> channel.sendMessage(embed.build()))
+			.flatMap(channel -> channel.sendMessageEmbeds(embed.build()))
 			.queue(null, ErrorResponseException.ignore(ErrorResponse.CANNOT_SEND_TO_USER));
 	}
 

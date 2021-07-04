@@ -78,7 +78,7 @@ public class FishingRodCommand extends Sx4Command {
 					embed.addField(rod.getName(), String.format("Price: $%,d\nCraft: %s\nDurability: %,d", rod.getPrice(), craft, rod.getMaxDurability()), true);
 				});
 
-				return new MessageBuilder().setEmbed(embed.build()).build();
+				return new MessageBuilder().setEmbeds(embed.build()).build();
 			});
 
 		paged.execute(event);
@@ -391,7 +391,7 @@ public class FishingRodCommand extends Sx4Command {
 
 				page.forEach((upgrade, index) -> embed.addField(upgrade.getName(), upgrade.getDescription(), false));
 
-				return new MessageBuilder().setEmbed(embed.build()).build();
+				return new MessageBuilder().setEmbeds(embed.build()).build();
 			});
 
 		paged.execute(event);

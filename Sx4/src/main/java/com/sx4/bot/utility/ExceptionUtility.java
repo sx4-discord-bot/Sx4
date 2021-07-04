@@ -84,7 +84,7 @@ public class ExceptionUtility {
 			return false;
 		}
 
-		channel.sendMessage(ExceptionUtility.getSimpleErrorMessage(throwable)).queue();
+		channel.sendMessageEmbeds(ExceptionUtility.getSimpleErrorMessage(throwable)).queue();
 
 		ExceptionUtility.sendErrorMessage(throwable);
 		

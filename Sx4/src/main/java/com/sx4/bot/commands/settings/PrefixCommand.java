@@ -47,7 +47,7 @@ public class PrefixCommand extends Sx4Command {
 		embed.addField("Server Prefixes", guildPrefixes.isEmpty() ? "None" : String.join(", ", guildPrefixes), false);
 		embed.addField(event.getAuthor().getName() + "'s Prefixes", userPrefixes.isEmpty() ? "None" : String.join(", ", userPrefixes), false);
 
-		event.reply(new MessageBuilder().setEmbed(embed.build()).setContent("For help on setting the prefix use `" + event.getPrefix() + "help prefix`").build()).queue();
+		event.reply(new MessageBuilder().setEmbeds(embed.build()).setContent("For help on setting the prefix use `" + event.getPrefix() + "help prefix`").build()).queue();
 	}
 
 	public static class SelfCommand extends Sx4Command {

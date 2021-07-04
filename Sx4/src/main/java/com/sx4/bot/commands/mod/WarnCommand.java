@@ -33,7 +33,6 @@ import org.bson.conversions.Bson;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
@@ -147,20 +146,9 @@ public class WarnCommand extends Sx4Command {
 	@Examples({"warn list"})
 	@BotPermissions(permissions={Permission.MESSAGE_EMBED_LINKS})
 	public void list(Sx4CommandEvent event) {
-		List<Bson> guildPipeline = List.of(
-			Aggregates.match(Filters.eq("_id", event.getGuild().getIdLong())),
-			Aggregates.project(Projections.include("warn"))
-		);
-
 		List<Bson> pipeline = List.of(
 			Aggregates.match(Filters.eq("guildId", event.getGuild().getIdLong())),
-			Aggregates.project(Projections.include("warnings", "lastWarning", "userId")),
-			Aggregates.group("$userId", Accumulators.push("users", Operators.ROOT)),
-			Aggregates.unionWith("guilds", guildPipeline),
-			Aggregates.group(null, Accumulators.max("reset", "$warn.reset"), Accumulators.max("users", "$users")),
-			Aggregates.project(Projections.computed("users", Operators.map(Operators.ifNull("$users", Collections.EMPTY_LIST), Operators.mergeObjects("$$this", new Document("warnings", Operators.cond(Operators.or(Operators.isNull("$reset"), Operators.isNull("$$this.warnings")), Operators.ifNull("$$this.warnings", 0), Operators.max(0, Operators.subtract("$$this.warnings", Operators.multiply(Operators.toInt(Operators.floor(Operators.divide(Operators.subtract(Operators.nowEpochSecond(), "$$this.lastWarning"), "$reset.after"))), "$reset.amount"))))))))),
-			Aggregates.unwind("$users"),
-			Aggregates.project(Projections.fields(Projections.computed("warnings", "$users.warnings"), Projections.computed("userId", "$users.userId"))),
+			Aggregates.project(Projections.fields(Projections.include("userId"), Projections.computed("warnings", Operators.cond(Operators.or(Operators.isNull("$reset"), Operators.isNull("$warnings")), Operators.ifNull("$warnings", 0), Operators.max(0, Operators.subtract("$warnings", Operators.multiply(Operators.toInt(Operators.floor(Operators.divide(Operators.subtract(Operators.nowEpochSecond(), "$lastWarning"), "$reset.after"))), "$reset.amount"))))))),
 			Aggregates.match(Filters.ne("warnings", 0)),
 			Aggregates.sort(Sorts.descending("warnings"))
 		);
@@ -194,16 +182,8 @@ public class WarnCommand extends Sx4Command {
 	@Examples({"warn view @Shea#6653", "warn view Shea", "warn view 402557516728369153"})
 	@Redirects({"warnings", "warns"})
 	public void view(Sx4CommandEvent event, @Argument(value="user", endless=true) Member member) {
-		List<Bson> guildPipeline = List.of(
-			Aggregates.match(Filters.eq("_id", event.getGuild().getIdLong())),
-			Aggregates.project(Projections.include("warn"))
-		);
-
 		List<Bson> pipeline = List.of(
 			Aggregates.match(Filters.and(Filters.eq("userId", member.getIdLong()), Filters.eq("guildId", event.getGuild().getIdLong()))),
-			Aggregates.project(Projections.include("warnings", "lastWarning")),
-			Aggregates.unionWith("guilds", guildPipeline),
-			Aggregates.group(null, Accumulators.max("warnings", "$warnings"), Accumulators.max("lastWarning", "$lastWarning"), Accumulators.max("reset", "$warn.reset")),
 			Aggregates.project(Projections.computed("warnings", Operators.cond(Operators.or(Operators.isNull("$reset"), Operators.isNull("$warnings")), Operators.ifNull("$warnings", 0), Operators.max(0, Operators.subtract("$warnings", Operators.multiply(Operators.toInt(Operators.floor(Operators.divide(Operators.subtract(Operators.nowEpochSecond(), "$lastWarning"), "$reset.after"))), "$reset.amount"))))))
 		);
 

@@ -5,12 +5,22 @@ import com.jockie.bot.core.command.Command;
 import com.jockie.bot.core.option.Option;
 import com.sx4.bot.annotations.argument.Colour;
 import com.sx4.bot.annotations.argument.Limit;
+import com.sx4.bot.annotations.argument.Options;
 import com.sx4.bot.annotations.command.*;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
+import com.sx4.bot.entities.argument.Alternative;
+import com.sx4.bot.utility.FutureUtility;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Role;
+
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 public class RoleCommand extends Sx4Command {
 
@@ -64,9 +74,7 @@ public class RoleCommand extends Sx4Command {
 			return;
 		}
 
-		role.delete()
-			.flatMap($ -> event.replySuccess("The role **" + role.getName() + "** is now deleted"))
-			.queue();
+		role.delete().flatMap($ -> event.replySuccess("The role **" + role.getName() + "** is now deleted")).queue();
 	}
 
 	@Command(value="edit", description="Edit multiple role attributes")
@@ -100,13 +108,15 @@ public class RoleCommand extends Sx4Command {
 			.queue();
 	}
 
+	private final Set<Long> pending = new HashSet<>();
+
 	@Command(value="add", description="Add a role to a member")
 	@CommandId(250)
 	@Redirects({"addrole", "add role", "ar"})
 	@Examples({"role add @Shea#6653 Role", "role add Shea 345718366373150720", "role add @Role"})
 	@AuthorPermissions(permissions={Permission.MANAGE_ROLES})
 	@BotPermissions(permissions={Permission.MANAGE_ROLES})
-	public void add(Sx4CommandEvent event, @Argument(value="user", nullDefault=true) Member member, @Argument(value="role", endless=true) Role role) {
+	public void add(Sx4CommandEvent event, @Argument(value="user", nullDefault=true) @Options("all") Alternative<Member> option, @Argument(value="role", endless=true) Role role) {
 		if (role.isManaged()) {
 			event.replyFailure("I cannot give managed roles").queue();
 			return;
@@ -127,11 +137,38 @@ public class RoleCommand extends Sx4Command {
 			return;
 		}
 
-		Member effectiveMember = member == null ? event.getMember() : member;
+		if (option != null && option.isAlternative()) {
+			if (!this.pending.add(event.getGuild().getIdLong())) {
+				event.replyFailure("You can only have 1 concurrent role being added to all users").queue();
+				return;
+			}
 
-		event.getGuild().addRoleToMember(effectiveMember, role)
-			.flatMap($ -> event.replySuccess(role.getAsMention() + " has been added to **" + effectiveMember.getUser().getAsTag() + "**"))
-			.queue();
+			List<Member> members = event.getGuild().getMemberCache().applyStream(stream -> stream.filter(member -> !member.getRoles().contains(role)).collect(Collectors.toList()));
+			if (members.size() == 0) {
+				event.replyFailure("All users already have that role").queue();
+				return;
+			}
+
+			event.replyFormat("Adding %s to **%,d** user%s, another message will be sent once this is done %s", role.getAsMention(), members.size(), members.size() == 1 ? "" : "s", event.getConfig().getSuccessEmote()).queue();
+
+			List<CompletableFuture<Integer>> futures = new ArrayList<>();
+			for (Member member : members) {
+				futures.add(event.getGuild().addRoleToMember(member, role).submit().handle((result, exception) -> exception == null ? 1 : 0));
+			}
+
+			FutureUtility.allOf(futures).whenComplete((completed, exception) -> {
+				this.pending.remove(event.getGuild().getIdLong());
+
+				int count = completed.stream().reduce(0, Integer::sum);
+				event.replyFormat("Successfully added the role %s to **%,d/%,d** user%s %s", role.getAsMention(), count, count == 1 ? "" : "s", members.size(), event.getConfig().getSuccessEmote()).queue();
+			});
+		} else {
+			Member effectiveMember = option == null ? event.getMember() : option.getValue();
+
+			event.getGuild().addRoleToMember(effectiveMember, role)
+				.flatMap($ -> event.replySuccess(role.getAsMention() + " has been added to **" + effectiveMember.getUser().getAsTag() + "**"))
+				.queue();
+		}
 	}
 
 	@Command(value="remove", description="Remove a role from a member")

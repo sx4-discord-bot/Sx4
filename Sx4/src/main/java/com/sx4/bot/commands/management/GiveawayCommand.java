@@ -87,7 +87,7 @@ public class GiveawayCommand extends Sx4Command {
 				return;
 			}
 			
-			channel.sendMessage(this.getEmbed(winners, seconds, item)).queue(message -> {
+			channel.sendMessageEmbeds(this.getEmbed(winners, seconds, item)).queue(message -> {
 				message.addReaction("🎉").queue();
 				
 				Document data = new Document("messageId", message.getIdLong())
@@ -312,7 +312,7 @@ public class GiveawayCommand extends Sx4Command {
 			long durationFuture = atomicDuration.get().toSeconds();
 			String itemFuture = atomicItem.get();
 			
-			channelFuture.sendMessage(this.getEmbed(winnersFuture, durationFuture, itemFuture)).queue(message -> {
+			channelFuture.sendMessageEmbeds(this.getEmbed(winnersFuture, durationFuture, itemFuture)).queue(message -> {
 				message.addReaction("🎉").queue();
 				
 				Document data = new Document("messageId", message.getIdLong())
@@ -373,7 +373,7 @@ public class GiveawayCommand extends Sx4Command {
 				return;
 			}
 			
-			channel.editMessageById(data.getLong("messageId"), this.getEmbed(data.getInteger("winnersAmount"), seconds, data.getString("item"))).queue();
+			channel.editMessageEmbedsById(data.getLong("messageId"), this.getEmbed(data.getInteger("winnersAmount"), seconds, data.getString("item"))).queue();
 			
 			event.getBot().getGiveawayManager().putGiveaway(data, seconds);
 			

@@ -120,7 +120,7 @@ public class YouTubeCommand extends Sx4Command {
 							embed.setFooter("Views and Ratings last updated");
 							embed.setTimestamp(Instant.ofEpochSecond(data.get("lastUpdated", Number.class).longValue()));
 
-							message.editMessage(embed.build()).queue();
+							message.editMessageEmbeds(embed.build()).queue();
 						});
 					});
 

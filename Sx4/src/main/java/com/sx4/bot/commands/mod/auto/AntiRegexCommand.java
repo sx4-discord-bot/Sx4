@@ -328,7 +328,7 @@ public class AntiRegexCommand extends Sx4Command {
 
 				page.forEach((data, index) -> embed.addField(data.getObjectId("_id").toHexString(), "`" + data.getString("pattern") + "`", true));
 
-				return builder.setEmbed(embed.build()).build();
+				return builder.setEmbeds(embed.build()).build();
 			});
 
 		paged.execute(event);
@@ -869,7 +869,7 @@ public class AntiRegexCommand extends Sx4Command {
 						embed.addField(data.getString("title"), String.format("Id: %s\nRegex: `%s`\nUses: %,d\nOwner: %s\nDescription: %s", data.getObjectId("_id").toHexString(), data.getString("pattern"), data.getLong("uses"), owner == null ? "Annonymous#0000" : owner.getAsTag(), data.getString("description")), true);
 					});
 
-					return builder.setEmbed(embed.build()).build();
+					return builder.setEmbeds(embed.build()).build();
 				});
 
 			paged.execute(event);

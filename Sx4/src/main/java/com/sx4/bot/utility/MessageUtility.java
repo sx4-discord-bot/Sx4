@@ -510,7 +510,7 @@ public class MessageUtility {
 
 		List<WebhookEmbed> embeds = message.getEmbeds();
 		if (!embeds.isEmpty()) {
-			builder.setEmbed(MessageUtility.fromWebhookEmbed(embeds.get(0)).build());
+			builder.setEmbeds(MessageUtility.fromWebhookEmbed(embeds.get(0)).build());
 		}
 
 		builder.setContent(message.getContent());

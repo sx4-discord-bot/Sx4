@@ -10,10 +10,13 @@ import com.sx4.bot.utility.ExceptionUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.MessageBuilder;
 import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.MessageEmbed;
 
 import javax.ws.rs.ForbiddenException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CompletionException;
 
 public class GoogleImageCommand extends Sx4Command {
@@ -46,17 +49,21 @@ public class GoogleImageCommand extends Sx4Command {
 
 			PagedResult<GoogleSearchResult> paged = new PagedResult<>(event.getBot(), results)
 				.setIndexed(false)
-				.setPerPage(1)
-				.setAuthor("Google Images", googleUrl, "http://i.imgur.com/G46fm8J.png")
+				.setPerPage(4)
 				.setCustomFunction(page -> {
-					EmbedBuilder embed = new EmbedBuilder()
-						.setAuthor("Google", "https://www.google.co.uk/search?q=" + URLEncoder.encode(query, StandardCharsets.UTF_8) + "&tbm=isch", "http://i.imgur.com/G46fm8J.png")
-						.setTitle("Image " + page.getPage() + "/" + page.getMaxPage())
-						.setFooter(PagedResult.DEFAULT_FOOTER_TEXT);
+					List<MessageEmbed> embeds = new ArrayList<>();
+					page.forEach((result, index) -> {
+						EmbedBuilder embed = new EmbedBuilder()
+							.setTitle("Image " + page.getPage() + "/" + page.getMaxPage(), googleUrl)
+							.setAuthor("Google", googleUrl, "http://i.imgur.com/G46fm8J.png")
+							.setTitle("Image " + page.getPage() + "/" + page.getMaxPage(), googleUrl)
+							.setFooter(PagedResult.DEFAULT_FOOTER_TEXT)
+							.setImage(result.getLink());
 
-					page.forEach((result, index) -> embed.setImage(result.getLink()));
+						embeds.add(embed.build());
+					});
 
-					return new MessageBuilder().setEmbed(embed.build()).build();
+					return new MessageBuilder().setEmbeds(embeds).build();
 				});
 
 			paged.execute(event);

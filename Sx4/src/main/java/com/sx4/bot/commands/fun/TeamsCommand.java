@@ -64,7 +64,7 @@ public class TeamsCommand extends Sx4Command {
 
 				page.forEach((list, index) -> embed.addField("Team " + (index + 1), String.join("\n", list), true));
 
-				return new MessageBuilder().setEmbed(embed.build()).build();
+				return new MessageBuilder().setEmbeds(embed.build()).build();
 			});
 
 		paged.execute(event);

@@ -45,10 +45,12 @@ public class ReminderArgument {
 			reminder = query.substring(0, atIndex).trim();
 		} else {
 			Duration duration = TimeUtility.getDurationFromString(query.substring(inIndex + 4).trim());
-			if (duration != null) {
-				seconds = duration.toSeconds();
-			} else {
+			if (duration == null) {
 				throw new IllegalArgumentException("Invalid time string given");
+			} else if (duration.toSeconds() < 1) {
+				throw new IllegalArgumentException("The reminder duration has to be at least 1 second long");
+			} else {
+				seconds = duration.toSeconds();
 			}
 
 			reminder = query.substring(0, inIndex).trim();

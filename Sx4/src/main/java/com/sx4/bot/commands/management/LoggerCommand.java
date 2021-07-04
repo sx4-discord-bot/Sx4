@@ -6,10 +6,7 @@ import com.mongodb.ErrorCategory;
 import com.mongodb.MongoWriteException;
 import com.mongodb.client.model.*;
 import com.sx4.bot.annotations.argument.ImageUrl;
-import com.sx4.bot.annotations.command.AuthorPermissions;
-import com.sx4.bot.annotations.command.CommandId;
-import com.sx4.bot.annotations.command.Examples;
-import com.sx4.bot.annotations.command.Premium;
+import com.sx4.bot.annotations.command.*;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
@@ -20,6 +17,8 @@ import com.sx4.bot.entities.management.LoggerEvent;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.LoggerUtility;
+import net.dv8tion.jda.api.EmbedBuilder;
+import net.dv8tion.jda.api.MessageBuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.TextChannel;
 import org.bson.Document;
@@ -219,6 +218,54 @@ public class LoggerCommand extends Sx4Command {
 
             event.replySuccess("Your webhook avatar has been updated for that logger, this only works with premium <https://patreon.com/Sx4>").queue();
         });
+    }
+
+    @Command(value="list", description="List and get info about loggers in the current server")
+    @CommandId(458)
+    @Examples({"logger list"})
+    @BotPermissions(permissions={Permission.MESSAGE_EMBED_LINKS})
+    public void list(Sx4CommandEvent event, @Argument(value="channel", endless=true, nullDefault=true) TextChannel channel) {
+        Bson filter = channel == null ? Filters.eq("guildId", event.getGuild().getIdLong()) : Filters.eq("channelId", channel.getIdLong());
+
+        List<Document> loggers = event.getMongo().getLoggers(filter, MongoDatabase.EMPTY_DOCUMENT).into(new ArrayList<>());
+        if (loggers.isEmpty()) {
+            event.replyFailure(channel == null ? "There are not any loggers setup" : "There is not a logger setup in " + channel.getAsMention()).queue();
+            return;
+        }
+
+        PagedResult<Document> paged = new PagedResult<>(event.getBot(), loggers)
+            .setAuthor("Loggers", null, event.getGuild().getIconUrl())
+            .setAutoSelect(true)
+            .setDisplayFunction(data -> "<#" + data.getLong("channelId") + ">");
+
+        paged.onSelect(select -> {
+            Document data = select.getSelected();
+
+            EnumSet<LoggerEvent> events = LoggerEvent.getEvents(data.get("events", LoggerEvent.ALL));
+
+            PagedResult<LoggerEvent> loggerPaged = new PagedResult<>(event.getBot(), new ArrayList<>(events))
+                .setSelect()
+                .setPerPage(20)
+                .setCustomFunction(page -> {
+                   EmbedBuilder embed = new EmbedBuilder()
+                       .setAuthor("Logger Settings", null, event.getGuild().getIconUrl())
+                       .setTitle("Page " + page.getPage() + "/" + page.getMaxPage())
+                       .setFooter(PagedResult.DEFAULT_FOOTER_TEXT)
+                       .addField("Status", data.getBoolean("enabled", true) ? "Enabled" : "Disabled", true)
+                       .addField("Channel", "<#" + data.getLong("channelId") + ">", true);
+
+                   StringJoiner content = new StringJoiner("\n");
+                   page.forEach((loggerEvent, index) -> content.add(loggerEvent.name()));
+
+                   embed.addField("Enabled Events", content.toString(), false);
+
+                   return new MessageBuilder().setEmbeds(embed.build()).build();
+                });
+
+            loggerPaged.execute(event);
+        });
+
+        paged.execute(event);
     }
 
     public static class EventsCommand extends Sx4Command {

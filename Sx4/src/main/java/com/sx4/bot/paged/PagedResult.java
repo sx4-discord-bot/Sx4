@@ -415,7 +415,7 @@ public class PagedResult<Type> {
 					embed.appendDescription((this.increasedIndex ? this.indexFunction.apply(index + 1) : (this.indexed ? (this.indexFunction.apply(index + 1 - ((this.page - 1) * this.perPage))) : "")) + this.displayFunction.apply(object) + "\n");
 				});
 				
-				return builder.setEmbed(embed.build()).build();
+				return builder.setEmbeds(embed.build()).build();
 			} else {
 				StringBuilder string = new StringBuilder();
 				string.append("Page **").append(this.page).append("/").append(maxPage).append("**\n\n");

@@ -239,7 +239,7 @@ public class AntiRegexHandler implements EventListener {
                     Document reset = attempts.get("reset", Document.class);
 
                     List<Bson> update = List.of(
-                        Operators.set("attempts", Operators.let(new Document("attempts", Operators.ifNull("$attempts", 0)), Operators.cond(Operators.exists("$reset"), Operators.max(1, Operators.add(1, Operators.subtract("$$attempts", Operators.multiply(Operators.floor(Operators.divide(Operators.subtract(Operators.nowEpochSecond(), "$lastAttempt"), "$reset.after")), "$reset.amount")))), Operators.add("$$attempts", 1)))),
+                        Operators.set("attempts", Operators.let(new Document("attempts", Operators.ifNull("$attempts", 0)), Operators.cond(Operators.exists("$reset"), Operators.max(1, Operators.add(1, Operators.subtract("$$attempts", Operators.multiply(Operators.toInt(Operators.floor(Operators.divide(Operators.subtract(Operators.nowEpochSecond(), "$lastAttempt"), "$reset.after"))), "$reset.amount")))), Operators.add("$$attempts", 1)))),
                         Operators.set("lastAttempt", Operators.nowEpochSecond()),
                         Operators.setOnInsert("guildId", guildId),
                         reset == null ? Operators.unset("reset") : Operators.set("reset", reset)

@@ -34,10 +34,9 @@ public class UserInfoCommand extends Sx4Command {
 				.setDescription(event.getConfig().getUserFlagEmotes(user.getFlags()))
 				.setAuthor(user.getAsTag(), user.getEffectiveAvatarUrl(), user.getEffectiveAvatarUrl())
 				.setThumbnail(user.getEffectiveAvatarUrl())
-				.addField("User ID", user.getId(), true)
-				.addBlankField(true)
 				.addField("Joined Discord", user.getTimeCreated().format(TimeUtility.DEFAULT_FORMATTER), true)
-				.addField("Bot", user.isBot() ? "Yes" : "No", true);
+				.addField("User ID", user.getId(), true)
+				.addField("Bot", user.isBot() ? "Yes" : "No", false);
 
 			return event.reply(embed.build());
 		}).onErrorFlatMap(exception -> {

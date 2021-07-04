@@ -7,6 +7,7 @@ import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.utility.TimeUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.Region;
 import net.dv8tion.jda.api.entities.*;
 
 import java.util.List;
@@ -30,24 +31,22 @@ public class ChannelInfoCommand extends Sx4Command {
 		EmbedBuilder embed = new EmbedBuilder()
 			.setAuthor(channel.getName(), null, event.getGuild().getIconUrl())
 			.addField("Created", channel.getTimeCreated().format(TimeUtility.DEFAULT_FORMATTER), true)
-			.addBlankField(true)
-			.addField("Channel ID", channel.getId(), true)
 			.addField("Channel Position", String.valueOf(channel.getPosition() + 1), true)
-			.addBlankField(true)
+			.addField("Channel ID", channel.getId(), true)
 			.addField("Members", String.valueOf(channel.getMembers().size()), true);
 
 		if (channel instanceof TextChannel) {
 			TextChannel textChannel = (TextChannel) channel;
 			embed.addField("NSFW Channel", textChannel.isNSFW() ? "Yes" : "No", true);
-			embed.addBlankField(true);
 			embed.addField("Slow Mode", textChannel.getSlowmode() != 0 ? TimeUtility.getTimeString(textChannel.getSlowmode(), TimeUnit.SECONDS) : "No Slowmode Set", true);
 			embed.addField("Channel Category", textChannel.getParent() == null ? "Not in a Category" : textChannel.getParent().getName(), true);
-			embed.addBlankField(true);
 			embed.addField("Announcement Channel", textChannel.isNews() ? "Yes" : "No", true);
 		} else if (channel instanceof VoiceChannel) {
 			VoiceChannel voiceChannel = (VoiceChannel) channel;
+			Region region = voiceChannel.getRegion();
+
 			embed.addField("Channel Category", voiceChannel.getParent() == null ? "Not in a Category" : voiceChannel.getParent().getName(), true);
-			embed.addBlankField(true);
+			embed.addField("Voice Region", region.getName() + (region == Region.AUTOMATIC ? "" : " " + region.getEmoji()), true);
 			embed.addField("User Limit", voiceChannel.getUserLimit() == 0 ? "Unlimited" : String.valueOf(voiceChannel.getUserLimit()), true);
 			embed.addField("Bitrate", voiceChannel.getBitrate() / 1000 + " kbps", true);
 		} else if (channel instanceof Category) {

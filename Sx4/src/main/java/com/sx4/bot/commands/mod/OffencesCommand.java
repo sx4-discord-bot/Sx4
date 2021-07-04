@@ -83,7 +83,7 @@ public class OffencesCommand extends Sx4Command {
 							embed.addField(action.toString(), String.format("Target: %s\nModerator: %s\nReason: %s\nTime: %s", targetContent, moderatorContent, offence.get("reason", "None Given"), time.format(this.formatter)), true);
 						});
 
-						return new MessageBuilder().setEmbed(embed.build()).build();
+						return new MessageBuilder().setEmbeds(embed.build()).build();
 					});
 
 				paged.execute(event);

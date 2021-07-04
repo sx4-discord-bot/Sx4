@@ -222,9 +222,7 @@ public class ModUtility {
 		List<Document> config = warnData.getList("config", Document.class, Warn.DEFAULT_CONFIG);
 		boolean punishments = warnData.getBoolean("punishments", true);
 
-		Document reset = warnData.get("reset", MongoDatabase.EMPTY_DOCUMENT);
-		int resetAmount = reset.getInteger("amount", 0);
-		Long resetAfter = reset.getLong("after");
+		Document reset = warnData.get("reset", Document.class);
 
 		int maxWarning = punishments ? config.stream()
 			.map(d -> d.getInteger("number"))
@@ -232,8 +230,9 @@ public class ModUtility {
 			.get() : Integer.MAX_VALUE;
 
 		List<Bson> update = List.of(
-			Operators.set("warnings", Operators.add(Operators.mod(Operators.max(0, Operators.subtract(Operators.ifNull("$warnings", 0), resetAmount == 0 ? 0 : Operators.multiply(Operators.toInt(Operators.floor(Operators.divide(Operators.subtract(Operators.nowEpochSecond(), "$lastWarning"), resetAfter))), resetAmount))), maxWarning), 1)),
-			Operators.set("lastWarning", Operators.nowEpochSecond())
+			Operators.set("warnings", Operators.let(new Document("warnings", Operators.ifNull("$warnings", 0)), Operators.mod(Operators.cond(Operators.exists("$reset"), Operators.max(1, Operators.add(1, Operators.subtract("$$warnings", Operators.multiply(Operators.toInt(Operators.floor(Operators.divide(Operators.subtract(Operators.nowEpochSecond(), "$lastWarning"), "$reset.after"))), "$reset.amount")))), Operators.add("$$warnings", 1)), maxWarning))),
+			Operators.set("lastWarning", Operators.nowEpochSecond()),
+			reset == null ? Operators.unset("reset") : Operators.set("reset", reset)
 		);
 
 		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER).projection(Projections.include("warnings")).upsert(true);
