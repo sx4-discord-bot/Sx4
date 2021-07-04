@@ -571,6 +571,10 @@ public class MongoDatabase {
 		return CompletableFuture.supplyAsync(() -> this.regexAttempts.deleteOne(filter), this.executor);
 	}
 
+	public CompletableFuture<Document> findAndDeleteRegexAttempt(Bson filter) {
+		return CompletableFuture.supplyAsync(() -> this.regexAttempts.findOneAndDelete(filter), this.executor);
+	}
+
 	public MongoCollection<Document> getGames() {
 		return this.games;
 	}

@@ -77,6 +77,46 @@ public class AntiInviteCommand extends Sx4Command {
 		}).whenComplete(MongoDatabase.exceptionally(event.getShardManager()));
 	}
 
+	@Command(value="set", description="Sets the amount of attempts a user has")
+	@CommandId(459)
+	@Examples({"antiinvite set @Shea#6653 0", "antiinvite set Shea 3", "antiinvite set 402557516728369153 2"})
+	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
+	public void set(Sx4CommandEvent event, @Argument(value="user") Member member, @Argument(value="attempts") int attempts) {
+		Bson filter = Filters.and(Filters.eq("regexId", AntiInviteCommand.REGEX_ID), Filters.eq("userId", member.getIdLong()));
+
+		CompletableFuture<Document> future;
+		if (attempts == 0) {
+			future = event.getMongo().findAndDeleteRegexAttempt(filter);
+		} else {
+			FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().projection(Projections.include("attempts")).returnDocument(ReturnDocument.BEFORE).upsert(true);
+			future = event.getMongo().findAndUpdateRegexAttempt(filter, Updates.set("attempts", attempts), options);
+		}
+
+		future.whenComplete((data, exception) -> {
+			if (ExceptionUtility.sendExceptionally(event, exception)) {
+				return;
+			}
+
+			if (data == null) {
+				event.replyFailure("You do not have anti-invite setup").queue();
+				return;
+			}
+
+			if (data.getInteger("attempts") == attempts) {
+				event.replyFailure("That users attempts were already set to that").queue();
+				return;
+			}
+
+			if (attempts == 0) {
+				event.getBot().getAntiRegexManager().clearAttempts(AntiInviteCommand.REGEX_ID, member.getIdLong());
+			} else {
+				event.getBot().getAntiRegexManager().setAttempts(AntiInviteCommand.REGEX_ID, member.getIdLong(), attempts);
+			}
+
+			event.replySuccess("**" + member.getUser().getAsTag() + "** has had their attempts set to **" + attempts + "**").queue();
+		});
+	}
+
 	@Command(value="attempts", description="Sets the amount of attempts needed for the mod action to execute")
 	@CommandId(307)
 	@Examples({"antiinvite attempts 3", "antiinvite attempts 1"})

@@ -252,6 +252,46 @@ public class AntiRegexCommand extends Sx4Command {
 		});
 	}
 
+	@Command(value="set", description="Sets the amount of attempts a user has for an anti regex")
+	@CommandId(460)
+	@Examples({"anti regex set 5f023782ef9eba03390a740c @Shea#6653 0", "anti regex set 5f023782ef9eba03390a740c Shea 3", "anti regex set 5f023782ef9eba03390a740c 402557516728369153 2"})
+	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
+	public void set(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="user") Member member, @Argument(value="attempts") int attempts) {
+		Bson filter = Filters.and(Filters.eq("regexId", id), Filters.eq("userId", member.getIdLong()));
+
+		CompletableFuture<Document> future;
+		if (attempts == 0) {
+			future = event.getMongo().findAndDeleteRegexAttempt(filter);
+		} else {
+			FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().projection(Projections.include("attempts")).returnDocument(ReturnDocument.BEFORE).upsert(true);
+			future = event.getMongo().findAndUpdateRegexAttempt(filter, Updates.set("attempts", attempts), options);
+		}
+
+		future.whenComplete((data, exception) -> {
+			if (ExceptionUtility.sendExceptionally(event, exception)) {
+				return;
+			}
+
+			if (data == null) {
+				event.replyFailure("I could not find that anti regex").queue();
+				return;
+			}
+
+			if (data.getInteger("attempts") == attempts) {
+				event.replyFailure("That users attempts were already set to that").queue();
+				return;
+			}
+
+			if (attempts == 0) {
+				event.getBot().getAntiRegexManager().clearAttempts(id, member.getIdLong());
+			} else {
+				event.getBot().getAntiRegexManager().setAttempts(id, member.getIdLong(), attempts);
+			}
+
+			event.replySuccess("**" + member.getUser().getAsTag() + "** has had their attempts set to **" + attempts + "**").queue();
+		});
+	}
+
 	@Command(value="attempts", description="Sets the amount of attempts needed for the mod action to execute")
 	@CommandId(108)
 	@Examples({"anti regex attempts 5f023782ef9eba03390a740c 3", "anti regex attempts 5f023782ef9eba03390a740c 1"})
