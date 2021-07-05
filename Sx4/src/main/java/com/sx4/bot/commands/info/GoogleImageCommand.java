@@ -54,7 +54,7 @@ public class GoogleImageCommand extends Sx4Command {
 					List<MessageEmbed> embeds = new ArrayList<>();
 					page.forEach((result, index) -> {
 						EmbedBuilder embed = new EmbedBuilder()
-							.setTitle("Image " + page.getPage() + "/" + page.getMaxPage(), googleUrl)
+							.setTitle("Page " + page.getPage() + "/" + page.getMaxPage(), googleUrl)
 							.setAuthor("Google", googleUrl, "http://i.imgur.com/G46fm8J.png")
 							.setTitle("Image " + page.getPage() + "/" + page.getMaxPage(), googleUrl)
 							.setFooter(PagedResult.DEFAULT_FOOTER_TEXT)
