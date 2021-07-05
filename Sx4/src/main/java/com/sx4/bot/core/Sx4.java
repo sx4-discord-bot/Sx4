@@ -1266,35 +1266,37 @@ public class Sx4 {
 				}
 
 				return new ParsedResult<>();
-			}).registerParser(Alternative.class, new IParser<>() {
-				public ParsedResult<Alternative> parse(ParseContext context, IArgument<Alternative> argument, String content) {
-					int nextSpace = content.indexOf(' ');
-					String argumentContent = nextSpace == -1 || argument.isEndless() ? content : content.substring(0, nextSpace);
-					if (!argument.acceptEmpty() && argumentContent.isEmpty()) {
-						return new ParsedResult<>();
-					}
-
-					String[] options = argument.getProperty("options", new String[0]);
-					for (String option : options) {
-						if (argumentContent.equalsIgnoreCase(option)) {
-							return new ParsedResult<>(new Alternative<>(null, option), content.substring(argumentContent.length()));
+				}).registerParser(Alternative.class, new IParser<>() {
+					public ParsedResult<Alternative> parse(ParseContext context, IArgument<Alternative> argument, String content) {
+						int nextSpace = content.indexOf(' ');
+						String argumentContent = nextSpace == -1 || argument.isEndless() ? content : content.substring(0, nextSpace);
+						if (!argument.acceptEmpty() && argumentContent.isEmpty()) {
+							return new ParsedResult<>();
 						}
+
+						String[] options = argument.getProperty("options", new String[0]);
+						for (String option : options) {
+							if (argumentContent.equalsIgnoreCase(option)) {
+								return new ParsedResult<>(new Alternative<>(null, option), content.substring(argumentContent.length()));
+							}
+						}
+
+						Class<?> clazz = argument.getProperty("alternativeClass", Class.class);
+
+						ParsedResult<?> parsedArgument = CommandUtility.getParsedResult(clazz, argumentFactory, context, argument, argumentContent, content);
+						if (!parsedArgument.isValid()) {
+							return new ParsedResult<>();
+						}
+
+						String contentLeft = parsedArgument.getContentLeft();
+
+						return new ParsedResult<>(new Alternative<>(parsedArgument.getObject(), null), contentLeft == null ? content.substring(argumentContent.length()) : contentLeft);
 					}
 
-					Class<?> clazz = argument.getProperty("alternativeClass", Class.class);
-
-					ParsedResult<?> parsedArgument = CommandUtility.getParsedResult(clazz, argumentFactory, context, argument, argumentContent, content);
-					if (!parsedArgument.isValid()) {
-						return new ParsedResult<>();
+					public boolean isHandleAll() {
+						return true;
 					}
-
-					return new ParsedResult<>(new Alternative<>(parsedArgument.getObject(), null), parsedArgument.getContentLeft());
-				}
-
-				public boolean isHandleAll() {
-					return true;
-				}
-			}).registerGenericParser(Enum.class, (context, type, argument, content) -> {
+				}).registerGenericParser(Enum.class, (context, type, argument, content) -> {
 				List<Enum<?>> options = argument.getProperty("enumOptions");
 
 				Class<?> finalClass = argument.getProperty("finalClass", Class.class);

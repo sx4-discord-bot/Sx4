@@ -5,7 +5,7 @@ import java.util.regex.Pattern;
 
 public class ColourUtility {
 	
-	private static final Pattern RGB = Pattern.compile("\\(?(\\d{1,3}),? ?(\\d{1,3}),? ?(\\d{1,3})\\)?");
+	private static final Pattern RGB = Pattern.compile("\\(?(\\d{1,3})[ ,]{1,2}(\\d{1,3})[ ,]{1,2}(\\d{1,3})\\)?");
 	private static final Pattern HEX = Pattern.compile("#?([A-Fa-f0-9]{1,6})");
 
 	public static int fromQuery(String query) {
