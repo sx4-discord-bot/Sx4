@@ -35,8 +35,8 @@ public class YouTubeEndpoint {
 	@GET
 	@Path("youtube")
 	@Produces(MediaType.TEXT_PLAIN)
-	public Response getYoutube(@QueryParam("hub.topic") final String topic, @QueryParam("hub.verify_token") final String authorization, @QueryParam("hub.challenge") final String challenge, @QueryParam("hub.lease_seconds") final long seconds) {
-		if (authorization != null && authorization.equals(this.bot.getConfig().getYoutube())) {
+	public Response getYouTube(@QueryParam("hub.topic") final String topic, @QueryParam("hub.verify_token") final String authorization, @QueryParam("hub.challenge") final String challenge, @QueryParam("hub.lease_seconds") final long seconds) {
+		if (authorization != null && authorization.equals(this.bot.getConfig().getYouTube())) {
 			String channelId = topic.substring(topic.lastIndexOf('=') + 1);
 			
 			this.bot.getMongo().updateYouTubeSubscriptionById(channelId, Updates.set("resubscribeAt", Clock.systemUTC().instant().getEpochSecond() + seconds)).whenComplete((result, exception) -> {
@@ -55,7 +55,7 @@ public class YouTubeEndpoint {
 	
 	@POST
 	@Path("youtube")
-	public Response postYoutube(final String body) {
+	public Response postYouTube(final String body) {
 		JSONObject json = XML.toJSONObject(body);
 		
 		JSONObject feed = json.getJSONObject("feed");

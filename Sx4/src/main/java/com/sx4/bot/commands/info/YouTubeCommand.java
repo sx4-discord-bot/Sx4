@@ -52,7 +52,7 @@ public class YouTubeCommand extends Sx4Command {
 		String type = channel ? "channel" : video ? "video" : playlist ? "playlist" : null;
 
 		Request request = new Request.Builder()
-			.url(String.format("https://www.googleapis.com/youtube/v3/search?key=%s&part=snippet&maxResults=50&safeSearch=none&q=%s%s", event.getConfig().getYoutube(), URLEncoder.encode(query, StandardCharsets.UTF_8), type == null ? "" : "&type=" + type))
+			.url(String.format("https://www.googleapis.com/youtube/v3/search?key=%s&part=snippet&maxResults=50&safeSearch=none&q=%s%s", event.getConfig().getYouTube(), URLEncoder.encode(query, StandardCharsets.UTF_8), type == null ? "" : "&type=" + type))
 			.build();
 
 		event.getHttpClient().newCall(request).enqueue((HttpCallback) response -> {

@@ -99,10 +99,19 @@ public class ProfileCommand extends Sx4Command {
 			Document profileData = data.get("profile", MongoDatabase.EMPTY_DOCUMENT);
 			Document birthdayData = profileData.get("birthday", Document.class);
 
-			String birthday = birthdayData == null ? null : NumberUtility.getZeroPrefixedNumber(birthdayData.getInteger("day")) + "/" + NumberUtility.getZeroPrefixedNumber(birthdayData.getInteger("month")) + (birthdayData.containsKey("year") ? "/" + birthdayData.getInteger("year") : "");
+			String birthday = null;
+			boolean isBirthday = false;
+			if (birthdayData != null) {
+				LocalDate date = LocalDate.now(ZoneOffset.UTC);
+				int day = birthdayData.getInteger("day"), month = birthdayData.getInteger("month");
+
+				isBirthday = date.getDayOfMonth() == day && date.getMonthValue() == month;
+				birthday = NumberUtility.getZeroPrefixedNumber(day) + "/" + NumberUtility.getZeroPrefixedNumber(month) + (birthdayData.containsKey("year") ? "/" + birthdayData.getInteger("year") : "");
+			}
 
 			return new ImageRequest(event.getConfig().getImageWebserverUrl("profile"))
 				.addField("birthday", birthday == null ? "Not set" : birthday)
+				.addField("is_birthday", isBirthday)
 				.addField("description", profileData.get("description", "Nothing to see here"))
 				.addField("height", profileData.get("height", 0))
 				.addField("balance", CompactNumber.getCompactNumber(data.get("balance", 0L)))

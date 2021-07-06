@@ -22,6 +22,7 @@ import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.requests.ErrorResponse;
+import okhttp3.Dispatcher;
 import okhttp3.OkHttpClient;
 import org.bson.Document;
 import org.bson.conversions.Bson;
@@ -41,12 +42,24 @@ public class LoggerManager implements WebhookManager {
         private final List<WebhookEmbed> embeds;
         private final Document logger;
 
+        private int attempts = 0;
+
         public Request(JDA jda, long guildId, long channelId, List<WebhookEmbed> embeds, Document logger) {
             this.jda = jda;
             this.guildId = guildId;
             this.channelId = channelId;
             this.embeds = embeds;
             this.logger = logger;
+        }
+
+        public Request incrementAttempts() {
+            this.attempts++;
+
+            return this;
+        }
+
+        public int getAttempts() {
+            return this.attempts;
         }
 
         public JDA getJDA() {
@@ -90,7 +103,7 @@ public class LoggerManager implements WebhookManager {
     private final Map<Long, WebhookClient> webhooks;
     private final BlockingDeque<Request> queue;
 
-    private final OkHttpClient webhookClient = new OkHttpClient.Builder().callTimeout(3, TimeUnit.SECONDS).build();
+    private final OkHttpClient webhookClient;
 
     private final ScheduledExecutorService webhookExecutor = Executors.newSingleThreadScheduledExecutor();
 
@@ -103,6 +116,15 @@ public class LoggerManager implements WebhookManager {
         this.webhooks = new HashMap<>();
         this.deletedCache = new HashSet<>();
         this.bot = bot;
+
+        Dispatcher dispatcher = new Dispatcher();
+        dispatcher.setMaxRequests(128);
+        dispatcher.setMaxRequestsPerHost(20);
+
+        this.webhookClient = new OkHttpClient.Builder()
+            .callTimeout(3, TimeUnit.SECONDS)
+            .dispatcher(dispatcher)
+            .build();
     }
 
     public WebhookClient getWebhook(long channelId) {
@@ -117,7 +139,7 @@ public class LoggerManager implements WebhookManager {
         this.webhooks.put(channelId, webhook);
     }
 
-    private void createWebhook(TextChannel channel, List<Request> requests, int retries) {
+    private void createWebhook(TextChannel channel, List<Request> requests) {
         channel.createWebhook("Sx4 - Logger").submit().whenComplete((webhook, exception) -> {
             Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
             if (cause instanceof ErrorResponseException && ((ErrorResponseException) cause).getErrorResponse() == ErrorResponse.MAX_WEBHOOKS) {
@@ -130,14 +152,12 @@ public class LoggerManager implements WebhookManager {
                 this.bot.getMongo().updateLogger(Filters.eq("channelId", channel.getIdLong()), update, new UpdateOptions()).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
 
                 this.webhooks.remove(channel.getIdLong());
-                this.handleQueue(0);
 
                 return;
             }
 
             if (ExceptionUtility.sendErrorMessage(exception)) {
-                requests.forEach(this.queue::addFirst);
-                this.handleQueue(retries + 1);
+                requests.forEach(failedRequest -> this.queue.addFirst(failedRequest.incrementAttempts()));
 
                 return;
             }
@@ -156,13 +176,12 @@ public class LoggerManager implements WebhookManager {
                     return;
                 }
 
-                requests.forEach(this.queue::addFirst);
-                this.handleQueue(retries + 1);
+                requests.forEach(failedRequest -> this.queue.addFirst(failedRequest.incrementAttempts()));
             });
         });
     }
 
-    private void handleQueue(int retries) {
+    private void handleQueue() {
         this.executor.submit(() -> {
             try {
                 Request request = this.queue.poll();
@@ -170,14 +189,14 @@ public class LoggerManager implements WebhookManager {
                     return;
                 }
 
-                if (retries == LoggerManager.MAX_RETRIES) {
-                    this.handleQueue(0);
+                if (request.getAttempts() == LoggerManager.MAX_RETRIES) {
+                    this.handleQueue();
                     return;
                 }
 
                 Guild guild = request.getGuild();
                 if (guild == null) {
-                    this.handleQueue(0);
+                    this.handleQueue();
                     return;
                 }
 
@@ -189,7 +208,7 @@ public class LoggerManager implements WebhookManager {
                     }
 
                     this.webhooks.remove(channelId);
-                    this.handleQueue(0);
+                    this.handleQueue();
 
                     return;
                 }
@@ -238,11 +257,11 @@ public class LoggerManager implements WebhookManager {
                     webhook = this.webhooks.get(channelId);
                 } else if (!webhookData.containsKey("id")) {
                     if (guild.getSelfMember().hasPermission(channel, Permission.MANAGE_WEBHOOKS)) {
-                        this.createWebhook(channel, requests, retries);
+                        this.createWebhook(channel, requests);
                         return;
                     }
 
-                    this.handleQueue(0);
+                    this.handleQueue();
                     return;
                 } else {
                     webhook = new WebhookClient(webhookData.getLong("id"), webhookData.getString("token"), this.webhookExecutor, this.webhookClient);
@@ -254,28 +273,23 @@ public class LoggerManager implements WebhookManager {
                     Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
                     if (cause instanceof HttpException && ((HttpException) cause).getCode() == 404) {
                         if (guild.getSelfMember().hasPermission(channel, Permission.MANAGE_WEBHOOKS)) {
-                            this.createWebhook(channel, requests, retries);
+                            this.createWebhook(channel, requests);
                             return;
                         }
-
-                        this.handleQueue(0);
 
                         return;
                     }
 
                     if (ExceptionUtility.sendErrorMessage(exception)) {
-                        requests.forEach(this.queue::addFirst);
-                        this.handleQueue(retries + 1);
-
-                        return;
+                        requests.forEach(failedRequest -> this.queue(failedRequest.incrementAttempts()));
                     }
-
-                    this.handleQueue(0);
                 });
+
+                this.handleQueue();
             } catch (Throwable exception) {
                 // Continue queue even if an exception occurs to avoid the queue getting stuck
                 ExceptionUtility.sendErrorMessage(exception);
-                this.handleQueue(0);
+                this.handleQueue();
             }
         });
     }
@@ -284,7 +298,7 @@ public class LoggerManager implements WebhookManager {
         // use size() as it is thread safe
         if (this.queue.size() == 0) {
             this.queue.add(request);
-            this.handleQueue(0);
+            this.handleQueue();
         } else {
             this.queue.add(request);
         }

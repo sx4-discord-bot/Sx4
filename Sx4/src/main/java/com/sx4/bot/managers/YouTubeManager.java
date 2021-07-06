@@ -117,7 +117,7 @@ public class YouTubeManager {
 				.addFormDataPart("hub.topic", "https://www.youtube.com/xml/feeds/videos.xml?channel_id=" + channelId)
 				.addFormDataPart("hub.callback", this.bot.getConfig().getBaseUrl() + "/api/youtube")
 				.addFormDataPart("hub.verify", "sync")
-				.addFormDataPart("hub.verify_token", this.bot.getConfig().getYoutube())
+				.addFormDataPart("hub.verify_token", this.bot.getConfig().getYouTube())
 				.setType(MultipartBody.FORM)
 				.build();
 			

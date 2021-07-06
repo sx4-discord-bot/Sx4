@@ -66,7 +66,7 @@ public class YouTubeNotificationCommand extends Sx4Command {
 	@Examples({"youtube notification add videos mrbeast", "youtube notification add #videos pewdiepie"})
 	public void add(Sx4CommandEvent event, @Argument(value="channel") TextChannel channel, @Argument(value="youtube channel", endless=true) String youtubeChannel, @Option(value="id", description="Provide the id of the channel to guarantee a correct result") boolean id) {
 		Request channelRequest = new Request.Builder()
-			.url("https://www.googleapis.com/youtube/v3/" + (id ? "channels" : "search") + "?key=" + event.getConfig().getYoutube() + "&" + (id ? "id" : "q") + "=" + URLEncoder.encode(youtubeChannel, StandardCharsets.UTF_8) + "&part=id&type=channel&maxResults=1")
+			.url("https://www.googleapis.com/youtube/v3/" + (id ? "channels" : "search") + "?key=" + event.getConfig().getYouTube() + "&" + (id ? "id" : "q") + "=" + URLEncoder.encode(youtubeChannel, StandardCharsets.UTF_8) + "&part=id&type=channel&maxResults=1")
 			.build();
 		
 		event.getHttpClient().newCall(channelRequest).enqueue((HttpCallback) channelResponse -> {
@@ -90,7 +90,7 @@ public class YouTubeNotificationCommand extends Sx4Command {
 					.addFormDataPart("hub.topic", "https://www.youtube.com/xml/feeds/videos.xml?channel_id=" + channelId)
 					.addFormDataPart("hub.callback", event.getConfig().getBaseUrl() + "/api/youtube")
 					.addFormDataPart("hub.verify", "sync")
-					.addFormDataPart("hub.verify_token", event.getConfig().getYoutube())
+					.addFormDataPart("hub.verify_token", event.getConfig().getYouTube())
 					.setType(MultipartBody.FORM)
 					.build();
 				

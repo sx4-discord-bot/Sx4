@@ -371,8 +371,8 @@ public class Config {
 		return this.get("token.vainGlory");
 	}
 	
-	public String getBotlistSpace() {
-		return this.get("token.botlistSpace");
+	public String getDiscordListSpace() {
+		return this.get("token.discordListSpace");
 	}
 	
 	public String getTopGG() {
@@ -407,7 +407,7 @@ public class Config {
 		return this.get("token.bitly");
 	}
 	
-	public String getYoutube() {
+	public String getYouTube() {
 		return this.get("token.youtube");
 	}
 	
