@@ -9,9 +9,13 @@ import com.sx4.bot.managers.WelcomerManager;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.MessageUtility;
 import com.sx4.bot.utility.WelcomerUtility;
+import net.dv8tion.jda.api.JDA;
+import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.events.guild.member.GuildMemberJoinEvent;
+import net.dv8tion.jda.api.events.guild.member.update.GuildMemberUpdatePendingEvent;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.hooks.EventListener;
 import net.dv8tion.jda.api.requests.ErrorResponse;
@@ -28,21 +32,27 @@ public class WelcomerHandler implements EventListener {
 		this.bot = bot;
 	}
 
-	public void onGuildMemberJoin(GuildMemberJoinEvent event) {
-		Document data = this.bot.getMongo().getGuildById(event.getGuild().getIdLong(), Projections.include("welcomer", "premium.endAt"));
+	public void sendWelcomer(Guild guild, Member member) {
+		JDA jda = guild.getJDA();
+
+		Document data = this.bot.getMongo().getGuildById(guild.getIdLong(), Projections.include("welcomer", "premium.endAt"));
 
 		Document welcomer = data.get("welcomer", MongoDatabase.EMPTY_DOCUMENT);
 		Document image = welcomer.get("image", MongoDatabase.EMPTY_DOCUMENT);
 
-		boolean messageEnabled = welcomer.get("enabled", false), imageEnabled = image.get("enabled", false);
+		if (member.isPending() == welcomer.get("screening", true)) {
+			return;
+		}
+
+		boolean messageEnabled = welcomer.getBoolean("enabled", false), imageEnabled = image.getBoolean("enabled", false);
 		if (!messageEnabled && !imageEnabled) {
 			return;
 		}
 
 		long channelId = welcomer.get("channelId", 0L);
-		TextChannel channel = channelId == 0L ? null : event.getGuild().getTextChannelById(channelId);
+		TextChannel channel = channelId == 0L ? null : guild.getTextChannelById(channelId);
 
-		boolean dm = welcomer.get("dm", false);
+		boolean dm = welcomer.getBoolean("dm", false);
 		if (channel == null && !dm) {
 			return;
 		}
@@ -51,9 +61,9 @@ public class WelcomerHandler implements EventListener {
 
 		boolean premium = Clock.systemUTC().instant().getEpochSecond() < data.getEmbedded(List.of("premium", "endAt"), 0L);
 
-		WelcomerUtility.getWelcomerMessage(this.bot.getHttpClient(), messageEnabled ? welcomer.get("message", WelcomerManager.DEFAULT_MESSAGE) : null, image.getString("bannerId"), event.getMember(), this.bot.getConfig().isCanary(), imageEnabled, premium, (builder, exception) -> {
+		WelcomerUtility.getWelcomerMessage(this.bot.getHttpClient(), messageEnabled ? welcomer.get("message", WelcomerManager.DEFAULT_MESSAGE) : null, image.getString("bannerId"), member, this.bot.getConfig().isCanary(), imageEnabled, premium, (builder, exception) -> {
 			if (exception instanceof IllegalArgumentException) {
-				this.bot.getMongo().updateGuildById(event.getGuild().getIdLong(), Updates.unset("welcomer.message")).whenComplete(MongoDatabase.exceptionally(event.getJDA().getShardManager()));
+				this.bot.getMongo().updateGuildById(guild.getIdLong(), Updates.unset("welcomer.message")).whenComplete(MongoDatabase.exceptionally(jda.getShardManager()));
 				return;
 			}
 
@@ -62,13 +72,13 @@ public class WelcomerHandler implements EventListener {
 			}
 
 			if (dm) {
-				event.getUser().openPrivateChannel()
+				member.getUser().openPrivateChannel()
 					.flatMap(privateChannel -> MessageUtility.fromWebhookMessage(privateChannel, builder.build()))
 					.queue(null, ErrorResponseException.ignore(ErrorResponse.CANNOT_SEND_TO_USER));
 			} else {
 				WebhookMessage message = builder
 					.setUsername(premium ? webhookData.get("name", "Sx4 - Welcomer") : "Sx4 - Welcomer")
-					.setAvatarUrl(premium ? webhookData.get("avatar", event.getJDA().getSelfUser().getEffectiveAvatarUrl()) : event.getJDA().getSelfUser().getEffectiveAvatarUrl())
+					.setAvatarUrl(premium ? webhookData.get("avatar", jda.getSelfUser().getEffectiveAvatarUrl()) : jda.getSelfUser().getEffectiveAvatarUrl())
 					.build();
 
 				this.bot.getWelcomerManager().sendWelcomer(channel, webhookData, message);
@@ -76,10 +86,20 @@ public class WelcomerHandler implements EventListener {
 		});
 	}
 
+	public void onGuildMemberJoin(GuildMemberJoinEvent event) {
+		this.sendWelcomer(event.getGuild(), event.getMember());
+	}
+
+	public void onGuildMemberUpdatePending(GuildMemberUpdatePendingEvent event) {
+		this.sendWelcomer(event.getGuild(), event.getMember());
+	}
+
 	@Override
 	public void onEvent(GenericEvent event) {
 		if (event instanceof GuildMemberJoinEvent) {
 			this.onGuildMemberJoin((GuildMemberJoinEvent) event);
+		} else if (event instanceof GuildMemberUpdatePendingEvent) {
+			this.onGuildMemberUpdatePending((GuildMemberUpdatePendingEvent) event);
 		}
 	}
 

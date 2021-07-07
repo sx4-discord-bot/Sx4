@@ -105,7 +105,7 @@ public class LoggerManager implements WebhookManager {
 
     private final OkHttpClient webhookClient;
 
-    private final ScheduledExecutorService webhookExecutor = Executors.newSingleThreadScheduledExecutor();
+    private final ScheduledExecutorService webhookExecutor = Executors.newScheduledThreadPool(20);
 
     private final ExecutorService executor = Executors.newSingleThreadExecutor(new ThreadFactoryBuilder().setNameFormat("logger-executor-%d").build());
 

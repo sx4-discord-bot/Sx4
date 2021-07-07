@@ -218,7 +218,7 @@ public class EmoteCommand extends Sx4Command {
 		@Examples({"emote whitelist reset <:rain:748240799719882762>", "emote whitelist reset rain"})
 		@AuthorPermissions(permissions={Permission.MANAGE_EMOTES})
 		@BotPermissions(permissions={Permission.MANAGE_EMOTES})
-		public void remove(Sx4CommandEvent event, @Argument(value="emote") Emote emote) {
+		public void reset(Sx4CommandEvent event, @Argument(value="emote") Emote emote) {
 			emote.getManager().setRoles(null)
 				.flatMap($ -> event.replyFormat("The emote %s no longer has any whitelisted roles %s", emote.getAsMention(), event.getConfig().getSuccessEmote()))
 				.queue();

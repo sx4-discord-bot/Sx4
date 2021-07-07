@@ -179,6 +179,23 @@ public class WelcomerCommand extends Sx4Command {
 		});
 	}
 
+	@Command(value="screening", aliases={"member screening"}, description="Toggles whether the bot should send a welcomer message after or before a member has gone through member screening")
+	@CommandId(461)
+	@Examples({"welcomer screening"})
+	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
+	public void screening(Sx4CommandEvent event) {
+		List<Bson> update = List.of(Operators.set("welcomer.screening", Operators.cond(Operators.exists("$welcomer.screening"), Operators.REMOVE, false)));
+		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER).projection(Projections.include("welcomer.screening")).upsert(true);
+
+		event.getMongo().findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
+			if (ExceptionUtility.sendExceptionally(event, exception)) {
+				return;
+			}
+
+			event.replySuccess("Welcomer will now send a message " + (data.getEmbedded(List.of("welcomer", "screening"), true) ? "after" : "before") + " member screening").queue();
+		});
+	}
+
 	@Command(value="name", description="Set the name of the webhook that sends welcomer messages")
 	@CommandId(96)
 	@Examples({"welcomer name Welcomer", "welcomer name Joins"})
