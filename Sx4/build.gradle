@@ -34,7 +34,7 @@ project.ext.parserPackage = 'com.sx4.bot.antlr'
 sourceSets.main.java.srcDirs = ['src/main/java', 'generated-src/main/java']
 
 dependencies {
-	implementation('com.github.21Joakim:Jockie-Utils:8a7d48b7646f677a76ce621ba58ef69868c28afa') {
+	implementation('com.github.21Joakim:Jockie-Utils:96c51b29f3') {
 		exclude group: 'net.dv8tion', module: 'JDA'
 	}
 	

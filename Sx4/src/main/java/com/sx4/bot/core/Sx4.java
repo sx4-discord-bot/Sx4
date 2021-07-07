@@ -4,6 +4,7 @@ import com.jockie.bot.core.argument.IArgument;
 import com.jockie.bot.core.argument.factory.impl.ArgumentFactory;
 import com.jockie.bot.core.argument.factory.impl.ArgumentFactoryImpl;
 import com.jockie.bot.core.argument.factory.impl.BuilderConfigureFunction;
+import com.jockie.bot.core.argument.impl.ArgumentImpl;
 import com.jockie.bot.core.command.ICommand;
 import com.jockie.bot.core.command.exception.parser.ArgumentParseException;
 import com.jockie.bot.core.command.exception.parser.OutOfContentException;
@@ -499,7 +500,8 @@ public class Sx4 {
 			return null;
 		}
 	}
-	
+
+	@SuppressWarnings("unchecked")
 	private CommandListener createCommandListener(IErrorManager errorManager) {
 		return new Sx4CommandListener(this)
 			.removePreExecuteCheck(listener -> listener.defaultAuthorPermissionCheck)
@@ -598,19 +600,10 @@ public class Sx4 {
 					.findFirst()
 					.orElse(null);
 				
-				Failure : if (failure != null) {
+				if (failure != null) {
 					ArgumentParseException parseException = (ArgumentParseException) failure.getReason();
 
-					// Because error manager doesn't give a command instance this condition is needed
 					IArgument<?> argument = parseException.getArgument();
-					String[] options = argument.getProperty("options");
-					Limit limit = argument.getProperty("limit", Limit.class);
-					String content = message.getContentRaw();
-
-					if (argument.getType() == String.class && !argument.getProperty("imageUrl", false) && !argument.getProperty("url", false) && (options == null || options.length == 0) && (limit == null || (content.length() >= limit.min() && content.length() > limit.max()))) {
-						break Failure;
-					}
-
 					String value = parseException.getValue();
 					
 					if (message.getChannelType().isGuild()) {
@@ -632,11 +625,14 @@ public class Sx4 {
 						return;
 					}
 
-					if (errorManager.handle(argument, message, value)) {
+					Class failedClass = (Class<?>) argument.getProperty("failedClass", ThreadLocal.class).get();
+
+					IArgument<?> copy = new ArgumentImpl.Builder(failedClass == null ? argument.getType() : failedClass).setProperties(argument.getProperties()).build();
+					if (errorManager.handle(copy, message, value)) {
 						return;
 					}
 				}
-				
+
 				MessageChannel channel = message.getChannel();
 				boolean embed = !message.isFromGuild() || message.getGuild().getSelfMember().hasPermission((TextChannel) channel, Permission.MESSAGE_EMBED_LINKS);
 
@@ -811,9 +807,14 @@ public class Sx4 {
 		argumentFactory.addBuilderConfigureFunction(Emote.class, (parameter, builder) -> builder.setProperty("global", parameter.isAnnotationPresent(Global.class)))
 			.addBuilderConfigureFunction(Attachment.class, (parameter, builder) -> builder.setAcceptEmpty(true))
 			.addBuilderConfigureFunction(MessageArgument.class, (parameter, builder) -> builder.setAcceptEmpty(true))
-			.addGenericBuilderConfigureFunction(Object.class, (parameter, builder) -> builder.setProperty("parameter", parameter))
 			.addBuilderConfigureFunction(ReactionEmote.class, (parameter, builder) -> builder.setProperty("unchecked", parameter.isAnnotationPresent(Unchecked.class)))
-			.addBuilderConfigureFunction(String.class, (parameter, builder) -> {
+			.addGenericBuilderConfigureFunction(Object.class, (parameter, builder) -> {
+				builder.setProperty("failedClass", new ThreadLocal<>());
+				builder.setProperty("command", new ThreadLocal<>());
+				builder.setProperty("parameter", parameter);
+
+				return builder;
+			}).addBuilderConfigureFunction(String.class, (parameter, builder) -> {
 				builder.setProperty("imageUrl", parameter.isAnnotationPresent(ImageUrl.class));
 				builder.setProperty("url", parameter.isAnnotationPresent(Url.class));
 				builder.setProperty("lowercase", parameter.isAnnotationPresent(Lowercase.class));
@@ -1041,6 +1042,7 @@ public class Sx4 {
 			}).registerParser(String.class, new IParser<>() {
 				public ParsedResult<String> parse(ParseContext context, IArgument<String> argument, String content) {
 					Message message = context.getMessage();
+					argument.getProperty("command", ThreadLocal.class).set(context.getCommand());
 
 					CommandParserImpl parser = (CommandParserImpl) context.getCommandParser();
 
@@ -1252,6 +1254,7 @@ public class Sx4 {
 
 				ParsedResult<?> parsedArgument = CommandUtility.getParsedResult(clazz, argumentFactory, context, argument, index == -1 ? content : content.substring(0, index), null);
 				if (!parsedArgument.isValid()) {
+					argument.getProperty("failedClass", ThreadLocal.class).set(clazz);
 					return new ParsedResult<>();
 				}
 				
@@ -1285,6 +1288,7 @@ public class Sx4 {
 
 					ParsedResult<?> parsedArgument = CommandUtility.getParsedResult(clazz, argumentFactory, context, argument, argumentContent, content);
 					if (!parsedArgument.isValid()) {
+						argument.getProperty("failedClass", ThreadLocal.class).set(clazz);
 						return new ParsedResult<>();
 					}
 
@@ -1333,6 +1337,7 @@ public class Sx4 {
 					} else if (secondParsedArgument.isValid()) {
 						return new ParsedResult<>(new Or<>(null, secondParsedArgument.getObject()), content.substring(argumentContent.length()));
 					} else {
+						argument.getProperty("failedClass", ThreadLocal.class).set(firstClass);
 						return new ParsedResult<>();
 					}
 				}
@@ -1384,8 +1389,7 @@ public class Sx4 {
 			return new ParsedResult<>(content);
 		});
 	}
-	
-	@SuppressWarnings("unchecked")
+
 	private IErrorManager createErrorManager() {
 		return new ErrorManagerImpl()
 			.registerResponse(Member.class, "I could not find that user " + this.config.getFailureEmote())
@@ -1473,7 +1477,10 @@ public class Sx4 {
 
 				if (limit != null && content.length() > limit.max()) {
 					message.getChannel().sendMessageFormat("You cannot use more than **%,d** character%s for `%s` %s", limit.max(), limit.max() == 1 ? "" : "s", argument.getName(), this.config.getFailureEmote()).queue();
+					return;
 				}
+
+				message.getChannel().sendMessage(HelpUtility.getHelpMessage((ICommand) argument.getProperty("command", ThreadLocal.class).get(), !message.isFromGuild() || message.getGuild().getSelfMember().hasPermission(message.getTextChannel(), Permission.MESSAGE_EMBED_LINKS))).queue();
 			}).registerResponse(Enum.class, (argument, message, content) -> {
 				Class<?> finalClass = argument.getProperty("finalClass", Class.class);
 				finalClass = finalClass == null ? argument.getType() : finalClass;

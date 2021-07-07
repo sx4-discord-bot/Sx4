@@ -11,6 +11,7 @@ import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.events.guild.member.GuildMemberJoinEvent;
+import net.dv8tion.jda.api.events.guild.member.update.GuildMemberUpdatePendingEvent;
 import net.dv8tion.jda.api.events.role.RoleDeleteEvent;
 import net.dv8tion.jda.api.hooks.EventListener;
 import org.bson.Document;
@@ -26,17 +27,18 @@ public class AutoRoleHandler implements EventListener {
 	public AutoRoleHandler(Sx4 bot) {
 		this.bot = bot;
 	}
-	
-	public void onGuildMemberJoin(GuildMemberJoinEvent event) {
-		Guild guild = event.getGuild();
-		Member member = event.getMember();
-		
+
+	public void updateAutoRoles(Guild guild, Member member) {
+		if (member.isPending()) {
+			return;
+		}
+
 		Member selfMember = guild.getSelfMember();
 		if (!selfMember.hasPermission(Permission.MANAGE_ROLES)) {
 			return;
 		}
-		
-		List<Document> autoRoles = this.bot.getMongo().getAutoRoles(Filters.eq("guildId", event.getGuild().getIdLong()), Projections.include("enabled", "filters", "roleId")).into(new ArrayList<>());
+
+		List<Document> autoRoles = this.bot.getMongo().getAutoRoles(Filters.eq("guildId", guild.getIdLong()), Projections.include("enabled", "filters", "roleId")).into(new ArrayList<>());
 		if (autoRoles.isEmpty()) {
 			return;
 		}
@@ -57,10 +59,18 @@ public class AutoRoleHandler implements EventListener {
 				roles.add(role);
 			}
 		}
-		
+
 		if (!roles.isEmpty()) {
 			guild.modifyMemberRoles(member, roles, null).reason("Auto Roles").queue();
 		}
+	}
+	
+	public void onGuildMemberJoin(GuildMemberJoinEvent event) {
+		this.updateAutoRoles(event.getGuild(), event.getMember());
+	}
+
+	public void onGuildMemberUpdatePending(GuildMemberUpdatePendingEvent event) {
+		this.updateAutoRoles(event.getGuild(), event.getMember());
 	}
 	
 	public void onRoleDelete(RoleDeleteEvent event) {
@@ -73,6 +83,8 @@ public class AutoRoleHandler implements EventListener {
 			this.onGuildMemberJoin((GuildMemberJoinEvent) event);
 		} else if (event instanceof RoleDeleteEvent) {
 			this.onRoleDelete((RoleDeleteEvent) event);
+		} else if (event instanceof GuildMemberUpdatePendingEvent) {
+			this.onGuildMemberUpdatePending((GuildMemberUpdatePendingEvent) event);
 		}
 	}
 
