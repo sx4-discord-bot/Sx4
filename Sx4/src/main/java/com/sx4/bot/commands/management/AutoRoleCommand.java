@@ -184,16 +184,16 @@ public class AutoRoleCommand extends Sx4Command {
 			return;
 		}
 
-		if (!this.pending.add(event.getGuild().getIdLong())) {
-			event.replyFailure("You already have an auto role fix in progress").queue();
+		List<Document> filters = data.getList("filters", Document.class, Collections.emptyList());
+
+		List<Member> members = event.getGuild().getMemberCache().applyStream(stream -> stream.filter(member -> AutoRoleUtility.filtersMatch(member, filters) && !member.getRoles().contains(role) && !member.isPending()).collect(Collectors.toList()));
+		if (members.size() == 0) {
+			event.replyFailure("No users currently need that auto role").queue();
 			return;
 		}
 
-		List<Document> filters = data.getList("filters", Document.class, Collections.emptyList());
-
-		List<Member> members = event.getGuild().getMemberCache().applyStream(stream -> stream.filter(member -> AutoRoleUtility.filtersMatch(member, filters) && !member.getRoles().contains(role)).collect(Collectors.toList()));
-		if (members.size() == 0) {
-			event.replyFailure("No users currently need that auto role").queue();
+		if (!this.pending.add(event.getGuild().getIdLong())) {
+			event.replyFailure("You already have an auto role fix in progress").queue();
 			return;
 		}
 

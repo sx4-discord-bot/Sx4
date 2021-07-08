@@ -16,6 +16,9 @@ import com.sx4.bot.utility.NumberUtility;
 import com.sx4.bot.utility.StringUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.EmbedType;
+import net.dv8tion.jda.api.entities.MessageEmbed;
+import net.dv8tion.jda.api.entities.Role;
 import okhttp3.Request;
 import org.bson.Document;
 import org.json.JSONArray;
@@ -129,6 +132,8 @@ public class SteamCommand extends Sx4Command {
 					return;
 				}
 
+				List<MessageEmbed> embeds = new ArrayList<>();
+
 				Document gameInfo = json.get("data", Document.class);
 
 				String description = Jsoup.parse(gameInfo.getString("short_description")).text();
@@ -145,7 +150,8 @@ public class SteamCommand extends Sx4Command {
 
 				EmbedBuilder embed = new EmbedBuilder();
 				embed.setDescription(description);
-				embed.setAuthor(gameInfo.getString("name"), "https://store.steampowered.com/app/" + appId, "https://upload.wikimedia.org/wikipedia/commons/thumb/8/83/Steam_icon_logo.svg/2000px-Steam_icon_logo.svg.png");
+				embed.setTitle(gameInfo.getString("name"), "https://store.steampowered.com/app/" + appId);
+				embed.setAuthor("Steam", "https://steamcommunity.com", "https://upload.wikimedia.org/wikipedia/commons/thumb/8/83/Steam_icon_logo.svg/2000px-Steam_icon_logo.svg.png");
 				embed.setImage(gameInfo.getString("header_image"));
 				embed.addField("Price", price, true);
 				embed.setFooter("Developed by " + (gameInfo.containsKey("developers") ? String.join(", ", gameInfo.getList("developers", String.class)) : "Unknown"), null);
@@ -163,7 +169,13 @@ public class SteamCommand extends Sx4Command {
 				List<Document> genres = gameInfo.getList("genres", Document.class);
 				embed.addField("Genres", genres == null ? "None" : genres.stream().map(genre -> genre.getString("description")).collect(Collectors.joining("\n")), true);
 
-				event.reply(embed.build()).queue();
+				embeds.add(embed.build());
+
+				gameInfo.getList("screenshots", Document.class).stream().map(d -> d.getString("path_thumbnail")).limit(3).forEach(thumbnail -> {
+					embeds.add(new MessageEmbed("https://store.steampowered.com/app/" + appId, null, null, EmbedType.RICH, null, Role.DEFAULT_COLOR_RAW, null, null, null, null, null, new MessageEmbed.ImageInfo(thumbnail, null, 0, 0), List.of()));
+				});
+
+				event.getChannel().sendMessageEmbeds(embeds).queue();
 			});
 		});
 

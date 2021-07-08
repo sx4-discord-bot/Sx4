@@ -220,7 +220,7 @@ public class AntiRegexCommand extends Sx4Command {
 		});
 	}
 
-	@Command(value="remove", description="Removes a anti regex that you have setup")
+	@Command(value="remove", description="Removes an anti regex that you have setup")
 	@CommandId(107)
 	@Examples({"anti regex remove 5f023782ef9eba03390a740c"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
