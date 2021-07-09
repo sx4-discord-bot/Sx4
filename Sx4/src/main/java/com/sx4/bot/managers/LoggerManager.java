@@ -157,7 +157,7 @@ public class LoggerManager implements WebhookManager {
             }
 
             if (ExceptionUtility.sendErrorMessage(exception)) {
-                requests.forEach(failedRequest -> this.queue.addFirst(failedRequest.incrementAttempts()));
+                requests.forEach(failedRequest -> this.queue(failedRequest.incrementAttempts()));
 
                 return;
             }
@@ -176,7 +176,7 @@ public class LoggerManager implements WebhookManager {
                     return;
                 }
 
-                requests.forEach(failedRequest -> this.queue.addFirst(failedRequest.incrementAttempts()));
+                requests.forEach(failedRequest -> this.queue(failedRequest.incrementAttempts()));
             });
         });
     }
@@ -273,7 +273,6 @@ public class LoggerManager implements WebhookManager {
                     if (cause instanceof HttpException && ((HttpException) cause).getCode() == 404) {
                         if (guild.getSelfMember().hasPermission(channel, Permission.MANAGE_WEBHOOKS)) {
                             this.createWebhook(channel, requests);
-                            return;
                         }
 
                         return;
