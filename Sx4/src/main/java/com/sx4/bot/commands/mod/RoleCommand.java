@@ -138,14 +138,14 @@ public class RoleCommand extends Sx4Command {
 		}
 
 		if (option != null && option.isAlternative()) {
-			if (!this.pending.add(event.getGuild().getIdLong())) {
-				event.replyFailure("You can only have 1 concurrent role being added to all users").queue();
-				return;
-			}
-
 			List<Member> members = event.getGuild().getMemberCache().applyStream(stream -> stream.filter(member -> !member.getRoles().contains(role)).collect(Collectors.toList()));
 			if (members.size() == 0) {
 				event.replyFailure("All users already have that role").queue();
+				return;
+			}
+
+			if (!this.pending.add(event.getGuild().getIdLong())) {
+				event.replyFailure("You can only have 1 concurrent role being added to all users").queue();
 				return;
 			}
 

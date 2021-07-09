@@ -2,7 +2,6 @@ package com.sx4.bot.commands.management;
 
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
-import com.jockie.bot.core.command.Command.Async;
 import com.mongodb.ErrorCategory;
 import com.mongodb.MongoWriteException;
 import com.mongodb.client.model.*;
@@ -169,7 +168,6 @@ public class AutoRoleCommand extends Sx4Command {
 	@Command(value="fix", description="Will give missing members the auto role if needed")
 	@CommandId(458)
 	@Examples({"auto role fix @Role", "auto role fix Role", "auto role fix 406240455622262784"})
-	@Async
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	@BotPermissions(permissions={Permission.MANAGE_ROLES})
 	public void fix(Sx4CommandEvent event, @Argument(value="role", endless=true) Role role) {
