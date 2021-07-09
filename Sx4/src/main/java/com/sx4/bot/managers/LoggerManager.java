@@ -258,7 +258,6 @@ public class LoggerManager implements WebhookManager {
                 } else if (!webhookData.containsKey("id")) {
                     if (guild.getSelfMember().hasPermission(channel, Permission.MANAGE_WEBHOOKS)) {
                         this.createWebhook(channel, requests);
-                        return;
                     }
 
                     this.handleQueue();
