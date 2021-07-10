@@ -5,7 +5,7 @@ import com.jockie.bot.core.command.Command;
 import com.mongodb.ErrorCategory;
 import com.mongodb.MongoWriteException;
 import com.mongodb.client.model.*;
-import com.sx4.bot.annotations.argument.Options;
+import com.sx4.bot.annotations.argument.AlternativeOptions;
 import com.sx4.bot.annotations.command.AuthorPermissions;
 import com.sx4.bot.annotations.command.BotPermissions;
 import com.sx4.bot.annotations.command.CommandId;
@@ -116,7 +116,7 @@ public class AutoRoleCommand extends Sx4Command {
 	@CommandId(40)
 	@Examples({"auto role remove @Role", "auto role remove Role", "auto role remove all"})
 	@AuthorPermissions(permissions={Permission.MANAGE_ROLES})
-	public void remove(Sx4CommandEvent event, @Argument(value="role | all", endless=true) @Options("all") Alternative<Role> option) {
+	public void remove(Sx4CommandEvent event, @Argument(value="role | all", endless=true) @AlternativeOptions("all") Alternative<Role> option) {
 		if (option.isAlternative()) {
 			List<Button> buttons = List.of(Button.success("yes", "Yes"), Button.danger("no", "No"));
 
@@ -291,7 +291,7 @@ public class AutoRoleCommand extends Sx4Command {
 		@CommandId(44)
 		@Examples({"auto role filter remove @Role BOT", "auto role filter remove Role NOT_BOT"})
 		@AuthorPermissions(permissions={Permission.MANAGE_ROLES})
-		public void remove(Sx4CommandEvent event, @Argument(value="role") Role role, @Argument(value="filter | all") @Options("all") Alternative<AutoRoleFilter> option) {
+		public void remove(Sx4CommandEvent event, @Argument(value="role") Role role, @Argument(value="filter | all") @AlternativeOptions("all") Alternative<AutoRoleFilter> option) {
 			boolean alternative = option.isAlternative();
 
 			Bson update = alternative ? Updates.unset("filters") : Updates.pull("filters", Filters.eq("type", option.getValue().getType()));

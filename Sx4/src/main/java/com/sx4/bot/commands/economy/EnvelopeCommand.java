@@ -4,7 +4,7 @@ import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
 import com.mongodb.client.model.*;
 import com.mongodb.client.result.UpdateResult;
-import com.sx4.bot.annotations.argument.Options;
+import com.sx4.bot.annotations.argument.AlternativeOptions;
 import com.sx4.bot.annotations.command.CommandId;
 import com.sx4.bot.annotations.command.Examples;
 import com.sx4.bot.category.ModuleCategory;
@@ -96,7 +96,7 @@ public class EnvelopeCommand extends Sx4Command {
 	@Command(value="redeem", description="Redeems envelopes to the amount of money they give")
 	@CommandId(367)
 	@Examples({"envelope redeem 5 Coal Envelope", "envelope redeem 2 Shoe Envelope", "envelope redeem all"})
-	public void redeem(Sx4CommandEvent event, @Argument(value="envelopes", endless=true) @Options("all") Alternative<ItemStack<Envelope>> option) {
+	public void redeem(Sx4CommandEvent event, @Argument(value="envelopes", endless=true) @AlternativeOptions("all") Alternative<ItemStack<Envelope>> option) {
 		event.getMongo().withTransaction(session -> {
 			long amount;
 			if (option.isAlternative()) {

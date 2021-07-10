@@ -102,7 +102,6 @@ public class MongoDatabase {
 		MongoDatabaseHandler handler = new MongoDatabaseHandler();
 
 		MongoClientSettings settings = MongoClientSettings.builder()
-			.addCommandListener(handler)
 			.applyToClusterSettings(clusterSettings -> clusterSettings.addClusterListener(handler))
 			.build();
 

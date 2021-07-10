@@ -3,8 +3,8 @@ package com.sx4.bot.commands.mod;
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
 import com.mongodb.client.model.*;
+import com.sx4.bot.annotations.argument.AlternativeOptions;
 import com.sx4.bot.annotations.argument.Limit;
-import com.sx4.bot.annotations.argument.Options;
 import com.sx4.bot.annotations.command.*;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
@@ -282,7 +282,7 @@ public class WarnCommand extends Sx4Command {
 		@CommandId(238)
 		@Examples({"warn configuration remove 3", "warn configuration remove 1", "warn configuration remove all"})
 		@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-		public void remove(Sx4CommandEvent event, @Argument(value="warnings | all") @Options("all") Alternative<Integer> option) {
+		public void remove(Sx4CommandEvent event, @Argument(value="warnings | all") @AlternativeOptions("all") Alternative<Integer> option) {
 			Integer warnings = option.getValue();
 
 			List<Bson> update;

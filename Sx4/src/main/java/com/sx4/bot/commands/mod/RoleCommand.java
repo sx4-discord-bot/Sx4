@@ -3,9 +3,9 @@ package com.sx4.bot.commands.mod;
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
 import com.jockie.bot.core.option.Option;
+import com.sx4.bot.annotations.argument.AlternativeOptions;
 import com.sx4.bot.annotations.argument.Colour;
 import com.sx4.bot.annotations.argument.Limit;
-import com.sx4.bot.annotations.argument.Options;
 import com.sx4.bot.annotations.command.*;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
@@ -116,7 +116,7 @@ public class RoleCommand extends Sx4Command {
 	@Examples({"role add @Shea#6653 Role", "role add Shea 345718366373150720", "role add @Role"})
 	@AuthorPermissions(permissions={Permission.MANAGE_ROLES})
 	@BotPermissions(permissions={Permission.MANAGE_ROLES})
-	public void add(Sx4CommandEvent event, @Argument(value="user", nullDefault=true) @Options("all") Alternative<Member> option, @Argument(value="role", endless=true) Role role) {
+	public void add(Sx4CommandEvent event, @Argument(value="user", nullDefault=true) @AlternativeOptions("all") Alternative<Member> option, @Argument(value="role", endless=true) Role role) {
 		if (role.isManaged()) {
 			event.replyFailure("I cannot give managed roles").queue();
 			return;

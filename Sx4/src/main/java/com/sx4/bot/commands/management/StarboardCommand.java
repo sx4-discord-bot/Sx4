@@ -4,9 +4,9 @@ import club.minnced.discord.webhook.WebhookClient;
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
 import com.mongodb.client.model.*;
+import com.sx4.bot.annotations.argument.AlternativeOptions;
 import com.sx4.bot.annotations.argument.ImageUrl;
 import com.sx4.bot.annotations.argument.Limit;
-import com.sx4.bot.annotations.argument.Options;
 import com.sx4.bot.annotations.command.*;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
@@ -76,7 +76,7 @@ public class StarboardCommand extends Sx4Command {
 	@CommandId(198)
 	@Examples({"starboard channel", "starboard channel #starboard", "starboard channel reset"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-	public void channel(Sx4CommandEvent event, @Argument(value="channel | reset", endless=true, nullDefault=true) @Options("reset") Alternative<TextChannel> option) {
+	public void channel(Sx4CommandEvent event, @Argument(value="channel | reset", endless=true, nullDefault=true) @AlternativeOptions("reset") Alternative<TextChannel> option) {
 		TextChannel channel = option == null ? event.getTextChannel() : option.getValue();
 
 		List<Bson> update = List.of(Operators.set("starboard.channelId", channel == null ? Operators.REMOVE : channel.getIdLong()), Operators.unset("starboard.webhook.id"), Operators.unset("starboard.webhook.token"));
@@ -110,7 +110,7 @@ public class StarboardCommand extends Sx4Command {
 	@CommandId(199)
 	@Examples({"starboard emote ☝️", "starboard emote <:upvote:761345612079693865>", "starboard emote reset"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-	public void emote(Sx4CommandEvent event, @Argument(value="emote | reset", endless=true) @Options("reset") Alternative<ReactionEmote> option) {
+	public void emote(Sx4CommandEvent event, @Argument(value="emote | reset", endless=true) @AlternativeOptions("reset") Alternative<ReactionEmote> option) {
 		ReactionEmote emote = option.getValue();
 		boolean emoji = emote != null && emote.isEmoji();
 
@@ -136,7 +136,7 @@ public class StarboardCommand extends Sx4Command {
 	@CommandId(204)
 	@Examples({"starboard delete 5ff636647f93247aeb2ac429", "starboard delete all"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-	public void delete(Sx4CommandEvent event, @Argument(value="id | all") @Options("all") Alternative<ObjectId> option) {
+	public void delete(Sx4CommandEvent event, @Argument(value="id | all") @AlternativeOptions("all") Alternative<ObjectId> option) {
 		if (option.isAlternative()) {
 			List<Button> buttons = List.of(Button.success("yes", "Yes"), Button.danger("no", "No"));
 

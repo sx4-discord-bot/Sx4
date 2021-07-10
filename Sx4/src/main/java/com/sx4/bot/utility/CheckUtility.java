@@ -26,15 +26,20 @@ public class CheckUtility {
 	}
 
 	public static boolean canReply(Sx4 bot, Message message, String prefix) {
+		List<String> guildPrefixes = message.isFromGuild() ? bot.getMongoCanary().getGuildById(message.getGuild().getIdLong(), Projections.include("prefixes")).getList("prefixes", String.class, Collections.emptyList()) : Collections.emptyList();
+		List<String> userPrefixes = bot.getMongoCanary().getUserById(message.getAuthor().getIdLong(), Projections.include("prefixes")).getList("prefixes", String.class, Collections.emptyList());
+
+		List<String> prefixes = userPrefixes.isEmpty() ? guildPrefixes.isEmpty() ? bot.getConfig().getDefaultPrefixes() : guildPrefixes : userPrefixes;
+
+		return CheckUtility.canReply(bot, message, prefix, prefixes);
+	}
+
+	public static boolean canReply(Sx4 bot, Message message, String prefix, List<String> prefixes) {
 		if (message.isFromType(ChannelType.PRIVATE)) {
 			return true;
 		}
 
 		if (bot.getConfig().isMain()) {
-			List<String> guildPrefixes = message.isFromGuild() ? bot.getMongoCanary().getGuildById(message.getGuild().getIdLong(), Projections.include("prefixes")).getList("prefixes", String.class, Collections.emptyList()) : Collections.emptyList();
-			List<String> userPrefixes = bot.getMongoCanary().getUserById(message.getAuthor().getIdLong(), Projections.include("prefixes")).getList("prefixes", String.class, Collections.emptyList());
-
-			List<String> prefixes = userPrefixes.isEmpty() ? guildPrefixes.isEmpty() ? bot.getConfig().getDefaultPrefixes() : guildPrefixes : userPrefixes;
 			if (!prefixes.contains(prefix)) {
 				return true;
 			}

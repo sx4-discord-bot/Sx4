@@ -514,8 +514,19 @@ public class Sx4 {
 			.addCommandEventListener(new Sx4CommandEventListener(this))
 			.setDefaultPrefixes(this.config.getDefaultPrefixes().toArray(String[]::new))
 			.addPreParseCheck(message -> !message.getAuthor().isBot())
-			.addPreExecuteCheck((event, command) -> CheckUtility.canReply(this, event.getMessage(), event.getPrefix()))
 			.addPreExecuteCheck((event, command) -> {
+				if (this.config.isCanary() || event.isFromType(ChannelType.PRIVATE)) {
+					return true;
+				}
+
+				List<String> guildPrefixes = event.getMessage().isFromGuild() ? this.mongoCanary.getGuildById(event.getGuild().getIdLong(), Projections.include("prefixes")).getList("prefixes", String.class, Collections.emptyList()) : Collections.emptyList();
+				List<String> userPrefixes = this.mongoCanary.getUserById(event.getAuthor().getIdLong(), Projections.include("prefixes")).getList("prefixes", String.class, Collections.emptyList());
+
+				List<String> prefixes = userPrefixes.isEmpty() ? guildPrefixes.isEmpty() ? this.config.getDefaultPrefixes() : guildPrefixes : userPrefixes;
+				event.setProperty("canaryPrefixes", prefixes);
+
+				return CheckUtility.canReply(this, event.getMessage(), event.getPrefix(), prefixes);
+			}).addPreExecuteCheck((event, command) -> {
 				if (command instanceof Sx4Command && ((Sx4Command) command).isCanaryCommand() && this.config.isMain()) {
 					event.reply("This command can only be used on the canary version of the bot " + this.config.getFailureEmote()).queue();
 					return false;
@@ -568,8 +579,9 @@ public class Sx4 {
 					return false;
 				}
 			}).addPreExecuteCheck((event, command) -> {
-				if (command instanceof Sx4Command && event.isFromGuild()) {
-					boolean canUseCommand = CheckUtility.canUseCommand(this, event.getMember(), event.getTextChannel(), (Sx4Command) command);
+				Sx4Command effectiveCommand = (Sx4Command) (command instanceof DummyCommand ? ((DummyCommand) command).getActualCommand() : command);
+				if (event.isFromGuild()) {
+					boolean canUseCommand = CheckUtility.canUseCommand(this, event.getMember(), event.getTextChannel(), effectiveCommand);
 					if (!canUseCommand) {
 						event.reply("You are blacklisted from using that command in this channel " + this.config.getFailureEmote()).queue();
 					}
@@ -628,7 +640,11 @@ public class Sx4 {
 
 					Class failedClass = (Class<?>) argument.getProperty("failedClass", ThreadLocal.class).get();
 
-					IArgument<?> copy = new ArgumentImpl.Builder(failedClass == null ? argument.getType() : failedClass).setProperties(argument.getProperties()).build();
+					IArgument<?> copy = failedClass == null ? argument : new ArgumentImpl.Builder(failedClass)
+						.setProperties(argument.getProperties())
+						.setName(argument.getName())
+						.build();
+
 					if (errorManager.handle(copy, message, value)) {
 						return;
 					}
@@ -662,7 +678,7 @@ public class Sx4 {
 
 				return userPrefixes.isEmpty() ? guildPrefixes.isEmpty() ? this.config.getDefaultPrefixes() : guildPrefixes : userPrefixes;
 			}).setCooldownFunction((event, cooldown) -> {
-				if (!CheckUtility.canReply(this, event.getMessage(), event.getPrefix())) {
+				if (!CheckUtility.canReply(this, event.getMessage(), event.getPrefix(), event.getProperty("canaryPrefixes"))) {
 					return;
 				}
 
@@ -677,13 +693,13 @@ public class Sx4 {
 
 				event.reply("Slow down there! You can execute this command again in " + TimeUtility.getTimeString(cooldown.getTimeRemainingMillis(), TimeUnit.MILLISECONDS) + " :stopwatch:").queue();
 			}).setNSFWFunction(event -> {
-				if (!CheckUtility.canReply(this, event.getMessage(), event.getPrefix())) {
+				if (!CheckUtility.canReply(this, event.getMessage(), event.getPrefix(), event.getProperty("canaryPrefixes"))) {
 					return;
 				}
 
 				event.reply("You cannot use this command in a non-nsfw channel " + this.config.getFailureEmote()).queue();
 			}).setMissingPermissionExceptionFunction((event, permission) -> {
-				if (!CheckUtility.canReply(this, event.getMessage(), event.getPrefix())) {
+				if (!CheckUtility.canReply(this, event.getMessage(), event.getPrefix(), event.getProperty("canaryPrefixes"))) {
 					return;
 				}
 
@@ -949,9 +965,9 @@ public class Sx4 {
 					builder = ((BuilderConfigureFunction) builderFunction).configure(parameter, builder);
 				}
 
-				Options options = parameter.getAnnotation(Options.class);
+				AlternativeOptions options = parameter.getAnnotation(AlternativeOptions.class);
 				if (options != null) {
-					builder.setProperty("options", options.value());
+					builder.setProperty("alternativeOptions", options.value());
 				}
 
 				return builder;
@@ -1292,7 +1308,7 @@ public class Sx4 {
 						return new ParsedResult<>();
 					}
 
-					String[] options = argument.getProperty("options", new String[0]);
+					String[] options = argument.getProperty("alternativeOptions", new String[0]);
 					for (String option : options) {
 						if (argumentContent.equalsIgnoreCase(option)) {
 							return new ParsedResult<>(new Alternative<>(null, option), content.substring(argumentContent.length()));

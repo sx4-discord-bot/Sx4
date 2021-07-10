@@ -9,8 +9,8 @@ import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.ReturnDocument;
 import com.mongodb.client.model.Updates;
 import com.sx4.bot.annotations.argument.AdvancedMessage;
+import com.sx4.bot.annotations.argument.AlternativeOptions;
 import com.sx4.bot.annotations.argument.ImageUrl;
-import com.sx4.bot.annotations.argument.Options;
 import com.sx4.bot.annotations.command.*;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
@@ -72,7 +72,7 @@ public class LeaverCommand extends Sx4Command {
 	@CommandId(190)
 	@Examples({"leaver channel", "leaver channel #leaves", "leaver channel reset"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-	public void channel(Sx4CommandEvent event, @Argument(value="channel | reset", endless=true, nullDefault=true) @Options("reset") Alternative<TextChannel> option) {
+	public void channel(Sx4CommandEvent event, @Argument(value="channel | reset", endless=true, nullDefault=true) @AlternativeOptions("reset") Alternative<TextChannel> option) {
 		TextChannel channel = option == null ? event.getTextChannel() : option.isAlternative() ? null : option.getValue();
 
 		List<Bson> update = List.of(Operators.set("leaver.channelId", channel == null ? Operators.REMOVE : channel.getIdLong()), Operators.unset("leaver.webhook.id"), Operators.unset("leaver.webhook.token"));

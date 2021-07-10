@@ -6,7 +6,7 @@ import com.mongodb.ErrorCategory;
 import com.mongodb.MongoWriteException;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Projections;
-import com.sx4.bot.annotations.argument.Options;
+import com.sx4.bot.annotations.argument.AlternativeOptions;
 import com.sx4.bot.annotations.command.AuthorPermissions;
 import com.sx4.bot.annotations.command.CommandId;
 import com.sx4.bot.annotations.command.Examples;
@@ -107,7 +107,7 @@ public class SelfRoleCommand extends Sx4Command {
 	@CommandId(333)
 	@Examples({"self role delete @Role", "self role delete Role", "self role delete all"})
 	@AuthorPermissions(permissions={Permission.MANAGE_ROLES})
-	public void remove(Sx4CommandEvent event, @Argument(value="role | all", endless=true) @Options("all") Alternative<Role> option) {
+	public void remove(Sx4CommandEvent event, @Argument(value="role | all", endless=true) @AlternativeOptions("all") Alternative<Role> option) {
 		if (option.isAlternative()) {
 			List<Button> buttons = List.of(Button.success("yes", "Yes"), Button.danger("no", "No"));
 

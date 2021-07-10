@@ -4,9 +4,9 @@ import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
 import com.mongodb.client.model.*;
 import com.mongodb.client.result.UpdateResult;
+import com.sx4.bot.annotations.argument.AlternativeOptions;
 import com.sx4.bot.annotations.argument.DefaultNumber;
 import com.sx4.bot.annotations.argument.Limit;
-import com.sx4.bot.annotations.argument.Options;
 import com.sx4.bot.annotations.command.BotPermissions;
 import com.sx4.bot.annotations.command.CommandId;
 import com.sx4.bot.annotations.command.Examples;
@@ -15,7 +15,10 @@ import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.argument.Alternative;
-import com.sx4.bot.entities.economy.item.*;
+import com.sx4.bot.entities.economy.item.Axe;
+import com.sx4.bot.entities.economy.item.CraftItem;
+import com.sx4.bot.entities.economy.item.ItemStack;
+import com.sx4.bot.entities.economy.item.ItemType;
 import com.sx4.bot.entities.economy.upgrade.Upgrade;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.EconomyUtility;
@@ -221,7 +224,7 @@ public class AxeCommand extends Sx4Command {
 	@Command(value="repair", description="Repair your current axe with the material it is made from")
 	@CommandId(392)
 	@Examples({"axe repair 10", "axe repair all"})
-	public void repair(Sx4CommandEvent event, @Argument(value="durability") @Options("all") Alternative<Integer> option) {
+	public void repair(Sx4CommandEvent event, @Argument(value="durability") @AlternativeOptions("all") Alternative<Integer> option) {
 		Bson filter = Filters.and(
 			Filters.eq("userId", event.getAuthor().getIdLong()),
 			Filters.eq("item.type", ItemType.AXE.getId())

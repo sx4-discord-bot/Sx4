@@ -6,9 +6,9 @@ import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.FindOneAndUpdateOptions;
 import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.ReturnDocument;
+import com.sx4.bot.annotations.argument.AlternativeOptions;
 import com.sx4.bot.annotations.argument.DefaultNumber;
 import com.sx4.bot.annotations.argument.Limit;
-import com.sx4.bot.annotations.argument.Options;
 import com.sx4.bot.annotations.command.AuthorPermissions;
 import com.sx4.bot.annotations.command.CommandId;
 import com.sx4.bot.annotations.command.Examples;
@@ -423,7 +423,7 @@ public class GiveawayCommand extends Sx4Command {
 	@CommandId(51)
 	@Examples({"giveaway delete 727224132202397726", "giveaway delete all"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-	public void delete(Sx4CommandEvent event, @Argument(value="message id | all") @Options("all") Alternative<MessageArgument> option) {
+	public void delete(Sx4CommandEvent event, @Argument(value="message id | all") @AlternativeOptions("all") Alternative<MessageArgument> option) {
 		if (option.isAlternative()) {
 			List<Button> buttons = List.of(Button.success("yes", "Yes"), Button.danger("no", "No"));
 

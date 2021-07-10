@@ -12,9 +12,9 @@ import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.ReturnDocument;
 import com.mongodb.client.model.Updates;
 import com.sx4.bot.annotations.argument.AdvancedMessage;
+import com.sx4.bot.annotations.argument.AlternativeOptions;
 import com.sx4.bot.annotations.argument.Colour;
 import com.sx4.bot.annotations.argument.ImageUrl;
-import com.sx4.bot.annotations.argument.Options;
 import com.sx4.bot.annotations.command.*;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
@@ -83,7 +83,7 @@ public class WelcomerCommand extends Sx4Command {
 	@CommandId(93)
 	@Examples({"welcomer channel", "welcomer channel #joins", "welcomer channel reset"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-	public void channel(Sx4CommandEvent event, @Argument(value="channel | reset", endless=true, nullDefault=true) @Options("reset") Alternative<TextChannel> option) {
+	public void channel(Sx4CommandEvent event, @Argument(value="channel | reset", endless=true, nullDefault=true) @AlternativeOptions("reset") Alternative<TextChannel> option) {
 		TextChannel channel = option == null ? event.getTextChannel() : option.isAlternative() ? null : option.getValue();
 
 		List<Bson> update = List.of(Operators.set("welcomer.channelId", channel == null ? Operators.REMOVE : channel.getIdLong()), Operators.unset("welcomer.webhook.id"), Operators.unset("welcomer.webhook.token"));
@@ -378,7 +378,7 @@ public class WelcomerCommand extends Sx4Command {
 		@Async
 		@Examples({"welcomer image banner https://i.imgur.com/i87lyNO.png", "welcomer image banner https://example.com/image.png", "welcomer image banner reset"})
 		@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-		public void banner(Sx4CommandEvent event, @Argument(value="url", acceptEmpty=true) @ImageUrl @Options("reset") Alternative<String> option) {
+		public void banner(Sx4CommandEvent event, @Argument(value="url", acceptEmpty=true) @ImageUrl @AlternativeOptions("reset") Alternative<String> option) {
 			if (option.isAlternative()) {
 				FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("welcomer.image.bannerId"));
 				event.getMongo().findAndUpdateGuildById(event.getGuild().getIdLong(), Updates.unset("welcomer.image.bannerId"), options).whenComplete((data, exception) -> {

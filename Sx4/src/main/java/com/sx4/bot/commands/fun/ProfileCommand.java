@@ -155,7 +155,7 @@ public class ProfileCommand extends Sx4Command {
 		@Command(value="description", description="Sets the description of your profile")
 		@CommandId(284)
 		@Examples({"profile set description A short description about me", "profile set description reset"})
-		public void description(Sx4CommandEvent event, @Argument(value="description | reset", endless=true) @Options("reset") @Limit(max=300) Alternative<String> option) {
+		public void description(Sx4CommandEvent event, @Argument(value="description | reset", endless=true) @AlternativeOptions("reset") @Limit(max=300) Alternative<String> option) {
 			boolean reset = option.isAlternative();
 			String description = option.getValue();
 
@@ -177,7 +177,7 @@ public class ProfileCommand extends Sx4Command {
 		@Command(value="birthday", description="Set the birthday of your profile (EU format)")
 		@CommandId(285)
 		@Examples({"profile set birthday 01/07", "profile set birthday 01/07/2002"})
-		public void birthday(Sx4CommandEvent event, @Argument(value="birthday | reset") @Options("reset") @DateTimePattern("dd/MM[/uuuu][/uu]") @DefaultDateTime(types={"YEAR"}, values={0}) Alternative<LocalDate> option) {
+		public void birthday(Sx4CommandEvent event, @Argument(value="birthday | reset") @AlternativeOptions("reset") @DateTimePattern("dd/MM[/uuuu][/uu]") @DefaultDateTime(types={"YEAR"}, values={0}) Alternative<LocalDate> option) {
 			boolean reset = option.isAlternative();
 			LocalDate date = option.getValue();
 
@@ -265,7 +265,7 @@ public class ProfileCommand extends Sx4Command {
 		@Command(value="colour", aliases={"color"}, description="Sets the border colour of your profile on Sx4")
 		@CommandId(288)
 		@Examples({"profile set colour #ffff00", "profile set colour 255,255,0", "profile set colour reset"})
-		public void colour(Sx4CommandEvent event, @Argument(value="colour | reset", endless=true) @Options("reset") @Colour Alternative<Integer> option) {
+		public void colour(Sx4CommandEvent event, @Argument(value="colour | reset", endless=true) @AlternativeOptions("reset") @Colour Alternative<Integer> option) {
 			boolean reset = option.isAlternative();
 			Integer colour = option.getValue();
 
@@ -289,7 +289,7 @@ public class ProfileCommand extends Sx4Command {
 		@Cooldown(value=30, cooldownScope= ICooldown.Scope.USER)
 		@Async
 		@Examples({"profile set banner https://i.imgur.com/i87lyNO.png", "profile set banner reset"})
-		public void banner(Sx4CommandEvent event, @Argument(value="url | reset", acceptEmpty=true) @ImageUrl @Options("reset") Alternative<String> option) {
+		public void banner(Sx4CommandEvent event, @Argument(value="url | reset", acceptEmpty=true) @ImageUrl @AlternativeOptions("reset") Alternative<String> option) {
 			if (option.isAlternative()) {
 				FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("profile.bannerId"));
 				event.getMongo().findAndUpdateUserById(event.getAuthor().getIdLong(), Updates.unset("profile.bannerId"), options).whenComplete((data, exception) -> {

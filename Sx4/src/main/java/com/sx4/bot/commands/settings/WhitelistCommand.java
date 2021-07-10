@@ -3,7 +3,7 @@ package com.sx4.bot.commands.settings;
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
 import com.mongodb.client.model.*;
-import com.sx4.bot.annotations.argument.Options;
+import com.sx4.bot.annotations.argument.AlternativeOptions;
 import com.sx4.bot.annotations.command.AuthorPermissions;
 import com.sx4.bot.annotations.command.CommandId;
 import com.sx4.bot.annotations.command.Examples;
@@ -120,7 +120,7 @@ public class WhitelistCommand extends Sx4Command {
 	@CommandId(186)
 	@Examples({"whitelist reset #channel", "whitelist reset all"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-	public void reset(Sx4CommandEvent event, @Argument(value="channel | all", endless=true) @Options("all") Alternative<TextChannel> option) {
+	public void reset(Sx4CommandEvent event, @Argument(value="channel | all", endless=true) @AlternativeOptions("all") Alternative<TextChannel> option) {
 		List<Bson> update = List.of(Operators.set("holders", Operators.reduce(Operators.ifNull("$holders", Collections.EMPTY_LIST), Collections.EMPTY_LIST, Operators.concatArrays("$$value", Operators.cond(Operators.isEmpty(Operators.ifNull(Operators.first(Operators.map(List.of("$$this"), "$$holder.blacklisted", "holder")), Collections.EMPTY_LIST)), Collections.EMPTY_LIST, List.of(Operators.removeObject("$$this", "whitelisted")))))));
 		if (option.isAlternative()) {
 			event.getMongo().updateManyBlacklists(Filters.eq("guildId", event.getGuild().getIdLong()), update, new UpdateOptions()).whenComplete((result, exception) -> {

@@ -4,9 +4,9 @@ import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
 import com.mongodb.client.model.*;
 import com.mongodb.client.result.UpdateResult;
+import com.sx4.bot.annotations.argument.AlternativeOptions;
 import com.sx4.bot.annotations.argument.DefaultNumber;
 import com.sx4.bot.annotations.argument.Limit;
-import com.sx4.bot.annotations.argument.Options;
 import com.sx4.bot.annotations.command.BotPermissions;
 import com.sx4.bot.annotations.command.CommandId;
 import com.sx4.bot.annotations.command.Examples;
@@ -225,7 +225,7 @@ public class PickaxeCommand extends Sx4Command {
 	@Command(value="repair", description="Repair your current pickaxe with the material it is made from")
 	@CommandId(363)
 	@Examples({"pickaxe repair 10", "pickaxe repair all"})
-	public void repair(Sx4CommandEvent event, @Argument(value="durability") @Options("all") Alternative<Integer> option) {
+	public void repair(Sx4CommandEvent event, @Argument(value="durability") @AlternativeOptions("all") Alternative<Integer> option) {
 		Bson filter = Filters.and(
 			Filters.eq("userId", event.getAuthor().getIdLong()),
 			Filters.eq("item.type", ItemType.PICKAXE.getId())

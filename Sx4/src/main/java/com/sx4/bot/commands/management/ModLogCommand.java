@@ -4,8 +4,8 @@ import club.minnced.discord.webhook.WebhookClient;
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
 import com.mongodb.client.model.*;
+import com.sx4.bot.annotations.argument.AlternativeOptions;
 import com.sx4.bot.annotations.argument.ImageUrl;
-import com.sx4.bot.annotations.argument.Options;
 import com.sx4.bot.annotations.command.AuthorPermissions;
 import com.sx4.bot.annotations.command.CommandId;
 import com.sx4.bot.annotations.command.Examples;
@@ -20,7 +20,6 @@ import com.sx4.bot.entities.mod.ModLog;
 import com.sx4.bot.entities.mod.Reason;
 import com.sx4.bot.entities.mod.action.Action;
 import com.sx4.bot.paged.PagedResult;
-import com.sx4.bot.utility.CheckUtility;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.waiter.Waiter;
 import com.sx4.bot.waiter.exception.CancelException;
@@ -73,7 +72,7 @@ public class ModLogCommand extends Sx4Command {
 	@CommandId(67)
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	@Examples({"modlog channel", "modlog channel #mod-logs", "modlog channel reset"})
-	public void channel(Sx4CommandEvent event, @Argument(value="channel | reset", endless=true, nullDefault=true) @Options("reset") Alternative<TextChannel> option) {
+	public void channel(Sx4CommandEvent event, @Argument(value="channel | reset", endless=true, nullDefault=true) @AlternativeOptions("reset") Alternative<TextChannel> option) {
 		TextChannel channel = option == null ? event.getTextChannel() : option.isAlternative() ? null : option.getValue();
 
 		List<Bson> update = List.of(Operators.set("modLog.channelId", channel == null ? Operators.REMOVE : channel.getIdLong()), Operators.unset("modLog.webhook.id"), Operators.unset("modLog.webhook.token"));
@@ -138,7 +137,7 @@ public class ModLogCommand extends Sx4Command {
 	@CommandId(69)
 	@Examples({"modlog delete 5e45ce6d3688b30ee75201ae", "modlog delete all"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-	public void remove(Sx4CommandEvent event, @Argument(value="id | all") @Options("all") Alternative<ObjectId> option) {
+	public void remove(Sx4CommandEvent event, @Argument(value="id | all") @AlternativeOptions("all") Alternative<ObjectId> option) {
 		User author = event.getAuthor();
 
 		if (option.isAlternative()) {

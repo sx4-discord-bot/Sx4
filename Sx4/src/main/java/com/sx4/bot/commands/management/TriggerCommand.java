@@ -9,6 +9,7 @@ import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.Updates;
 import com.sx4.bot.annotations.argument.AdvancedMessage;
+import com.sx4.bot.annotations.argument.AlternativeOptions;
 import com.sx4.bot.annotations.argument.DefaultString;
 import com.sx4.bot.annotations.argument.Options;
 import com.sx4.bot.annotations.command.AuthorPermissions;
@@ -191,7 +192,7 @@ public class TriggerCommand extends Sx4Command {
 	@CommandId(218)
 	@Examples({"trigger delete 6006ff6b94c9ed0f764ada83", "trigger delete all"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-	public void delete(Sx4CommandEvent event, @Argument(value="id | all") @Options("all") Alternative<ObjectId> option) {
+	public void delete(Sx4CommandEvent event, @Argument(value="id | all") @AlternativeOptions("all") Alternative<ObjectId> option) {
 		if (option.isAlternative()) {
 			List<Button> buttons = List.of(Button.success("yes", "Yes"), Button.danger("no", "No"));
 
@@ -249,7 +250,7 @@ public class TriggerCommand extends Sx4Command {
 	@CommandId(219)
 	@Examples({"trigger case 6006ff6b94c9ed0f764ada83", "trigger case disable 6006ff6b94c9ed0f764ada83", "trigger case enable all"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-	public void caseSensitive(Sx4CommandEvent event, @Argument(value="state") @DefaultString("toggle") @Options({"enable", "disable", "toggle"}) String state, @Argument(value="id") @Options("all") Alternative<ObjectId> option) {
+	public void caseSensitive(Sx4CommandEvent event, @Argument(value="state") @DefaultString("toggle") @Options({"enable", "disable", "toggle"}) String state, @Argument(value="id") @AlternativeOptions("all") Alternative<ObjectId> option) {
 		Bson filter = option.isAlternative() ? Filters.eq("guildId", event.getGuild().getIdLong()) : Filters.eq("_id", option.getValue());
 		List<Bson> update = List.of(Operators.set("case", state.equals("toggle") ? Operators.cond("$case", Operators.REMOVE, true) : state.equals("enable") ? true : Operators.REMOVE));
 

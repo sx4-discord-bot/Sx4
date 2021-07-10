@@ -5,9 +5,9 @@ import club.minnced.discord.webhook.send.WebhookEmbed;
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
 import com.mongodb.client.model.*;
+import com.sx4.bot.annotations.argument.AlternativeOptions;
 import com.sx4.bot.annotations.argument.Colour;
 import com.sx4.bot.annotations.argument.ImageUrl;
-import com.sx4.bot.annotations.argument.Options;
 import com.sx4.bot.annotations.command.*;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
@@ -68,7 +68,7 @@ public class SuggestionCommand extends Sx4Command {
 	@CommandId(83)
 	@Examples({"suggestion channel", "suggestion channel #suggestions", "suggestion channel reset"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-	public void channel(Sx4CommandEvent event, @Argument(value="channel | reset", endless=true, nullDefault=true) @Options("reset") Alternative<TextChannel> option) {
+	public void channel(Sx4CommandEvent event, @Argument(value="channel | reset", endless=true, nullDefault=true) @AlternativeOptions("reset") Alternative<TextChannel> option) {
 		TextChannel channel = option == null ? event.getTextChannel() : option.isAlternative() ? null : option.getValue();
 
 		List<Bson> update = List.of(Operators.set("suggestion.channelId", channel == null ? Operators.REMOVE : channel.getIdLong()), Operators.unset("suggestion.webhook.id"), Operators.unset("suggestion.webhook.token"));
@@ -160,7 +160,7 @@ public class SuggestionCommand extends Sx4Command {
 	@Command(value="remove", aliases={"delete"}, description="Removes a suggestion, can be your own or anyones if you have the manage server permission")
 	@CommandId(85)
 	@Examples({"suggestion remove 5e45ce6d3688b30ee75201ae", "suggestion remove all"})
-	public void remove(Sx4CommandEvent event, @Argument(value="id | all") @Options("all") Alternative<ObjectId> option) {
+	public void remove(Sx4CommandEvent event, @Argument(value="id | all") @AlternativeOptions("all") Alternative<ObjectId> option) {
 		User author = event.getAuthor();
 		TextChannel channel = event.getTextChannel();
 
@@ -426,7 +426,7 @@ public class SuggestionCommand extends Sx4Command {
 		@CommandId(90)
 		@Examples({"suggestion state remove Bug", "suggestion state remove On Hold", "suggestion state remove all"})
 		@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-		public void remove(Sx4CommandEvent event, @Argument(value="state name | all", endless=true) @Options("all") Alternative<String> option) {
+		public void remove(Sx4CommandEvent event, @Argument(value="state name | all", endless=true) @AlternativeOptions("all") Alternative<String> option) {
 			if (option.isAlternative()) {
 				event.getMongo().updateGuildById(event.getGuild().getIdLong(), Updates.unset("suggestion.states")).whenComplete((result, exception) -> {
 					if (ExceptionUtility.sendExceptionally(event, exception)) {

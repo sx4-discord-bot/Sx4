@@ -4,8 +4,8 @@ import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
 import com.jockie.bot.core.option.Option;
 import com.mongodb.client.model.*;
+import com.sx4.bot.annotations.argument.AlternativeOptions;
 import com.sx4.bot.annotations.argument.EnumOptions;
-import com.sx4.bot.annotations.argument.Options;
 import com.sx4.bot.annotations.command.AuthorPermissions;
 import com.sx4.bot.annotations.command.CommandId;
 import com.sx4.bot.annotations.command.Examples;
@@ -133,7 +133,7 @@ public class MuteCommand extends Sx4Command {
 	@CommandId(451)
 	@Examples({"mute leave action BAN", "mute leave action MUTE_EXTEND 24h", "mute leave action reset"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-	public void leaveAction(Sx4CommandEvent event, @Argument(value="action | reset", endless=true) @Options({"reset"}) @EnumOptions(value={"KICK", "UNBAN", "UNMUTE"}, exclude=true) Alternative<TimedArgument<ModAction>> option) {
+	public void leaveAction(Sx4CommandEvent event, @Argument(value="action | reset", endless=true) @AlternativeOptions({"reset"}) @EnumOptions(value={"KICK", "UNBAN", "UNMUTE"}, exclude=true) Alternative<TimedArgument<ModAction>> option) {
 		Bson update;
 		if (option.isAlternative()) {
 			update = Updates.unset("mute.leaveAction");

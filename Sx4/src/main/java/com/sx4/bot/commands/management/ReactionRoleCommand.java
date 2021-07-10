@@ -6,6 +6,7 @@ import com.jockie.bot.core.command.Command.Cooldown;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.UpdateOptions;
 import com.mongodb.client.model.Updates;
+import com.sx4.bot.annotations.argument.AlternativeOptions;
 import com.sx4.bot.annotations.argument.Limit;
 import com.sx4.bot.annotations.argument.Options;
 import com.sx4.bot.annotations.argument.Unchecked;
@@ -206,7 +207,7 @@ public class ReactionRoleCommand extends Sx4Command {
 	@Examples({"reaction role dm enable all", "reaction role dm disable all", "reaction role dm enable 643945552865919002", "reaction role dm disable 643945552865919002"})
 	@AuthorPermissions(permissions={Permission.MANAGE_ROLES})
 	@Cooldown(value=2)
-	public void dm(Sx4CommandEvent event, @Argument(value="update type") @Options({"enable", "disable"}) String value, @Argument(value="message id | all") @Options("all") Alternative<MessageArgument> option) {
+	public void dm(Sx4CommandEvent event, @Argument(value="update type") @Options({"enable", "disable"}) String value, @Argument(value="message id | all") @AlternativeOptions("all") Alternative<MessageArgument> option) {
 		boolean alternative = option.isAlternative(), enable = value.equals("enable");
 		long messageId = alternative ? 0L : option.getValue().getMessageId();
 
@@ -237,7 +238,7 @@ public class ReactionRoleCommand extends Sx4Command {
 	@Examples({"reaction role max reactions all 2", "reaction role max reactions 643945552865919002 0"})
 	@AuthorPermissions(permissions={Permission.MANAGE_ROLES})
 	@Cooldown(value=2)
-	public void maxReactions(Sx4CommandEvent event, @Argument(value="message id | all") @Options("all") Alternative<MessageArgument> option, @Argument(value="max reactions") @Limit(min=0, max=20) int maxReactions) {
+	public void maxReactions(Sx4CommandEvent event, @Argument(value="message id | all") @AlternativeOptions("all") Alternative<MessageArgument> option, @Argument(value="max reactions") @Limit(min=0, max=20) int maxReactions) {
 		boolean alternative = option.isAlternative(), unlimited = maxReactions == 0;
 		long messageId = alternative ? 0L : option.getValue().getMessageId();
 
@@ -268,7 +269,7 @@ public class ReactionRoleCommand extends Sx4Command {
 	@Examples({"reaction role delete 643945552865919002", "reaction role delete all"})
 	@AuthorPermissions(permissions={Permission.MANAGE_ROLES})
 	@Cooldown(value=5)
-	public void delete(Sx4CommandEvent event, @Argument(value="message id | all") @Options("all") Alternative<MessageArgument> option) {
+	public void delete(Sx4CommandEvent event, @Argument(value="message id | all") @AlternativeOptions("all") Alternative<MessageArgument> option) {
 		if (option.isAlternative()) {
 			List<Button> buttons = List.of(Button.success("yes", "Yes"), Button.danger("no", "No"));
 

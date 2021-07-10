@@ -6,7 +6,7 @@ import com.jockie.bot.core.command.Command.Cooldown;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.Updates;
-import com.sx4.bot.annotations.argument.Options;
+import com.sx4.bot.annotations.argument.AlternativeOptions;
 import com.sx4.bot.annotations.command.CommandId;
 import com.sx4.bot.annotations.command.CooldownMessage;
 import com.sx4.bot.annotations.command.Examples;
@@ -140,7 +140,7 @@ public class MarriageCommand extends Sx4Command {
 	@CommandId(269)
 	@Redirects({"divorce"})
 	@Examples({"marriage remove @Shea#6653", "marriage remove Shea", "marriage remove all"})
-	public void remove(Sx4CommandEvent event, @Argument(value="user | all", endless=true, nullDefault=true) @Options("all") Alternative<Member> option) {
+	public void remove(Sx4CommandEvent event, @Argument(value="user | all", endless=true, nullDefault=true) @AlternativeOptions("all") Alternative<Member> option) {
 		User author = event.getAuthor();
 		if (option == null) {
 			Bson filter = Filters.or(Filters.eq("proposerId", author.getIdLong()), Filters.eq("partnerId", author.getIdLong()));

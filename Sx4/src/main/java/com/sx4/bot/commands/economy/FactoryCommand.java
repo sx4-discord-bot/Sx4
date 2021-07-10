@@ -6,7 +6,7 @@ import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.UpdateOptions;
 import com.mongodb.client.model.Updates;
-import com.sx4.bot.annotations.argument.Options;
+import com.sx4.bot.annotations.argument.AlternativeOptions;
 import com.sx4.bot.annotations.command.BotPermissions;
 import com.sx4.bot.annotations.command.CommandId;
 import com.sx4.bot.annotations.command.Examples;
@@ -76,7 +76,7 @@ public class FactoryCommand extends Sx4Command {
 	@CommandId(396)
 	@Examples({"factory buy 5 Shoe Factory", "factory buy Shoe Factory", "factory buy all"})
 	@BotPermissions(permissions={Permission.MESSAGE_EMBED_LINKS})
-	public void buy(Sx4CommandEvent event, @Argument(value="factories", endless=true) @Options("all") Alternative<ItemStack<Factory>> option) {
+	public void buy(Sx4CommandEvent event, @Argument(value="factories", endless=true) @AlternativeOptions("all") Alternative<ItemStack<Factory>> option) {
 		ItemStack<Factory> stack = option.getValue();
 		event.getMongo().withTransaction(session -> {
 			Bson userFilter = Filters.eq("userId", event.getAuthor().getIdLong()), filter;

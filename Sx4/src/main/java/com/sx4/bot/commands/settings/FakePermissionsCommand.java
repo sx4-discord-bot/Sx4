@@ -5,7 +5,7 @@ import com.jockie.bot.core.command.Command;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.Updates;
-import com.sx4.bot.annotations.argument.Options;
+import com.sx4.bot.annotations.argument.AlternativeOptions;
 import com.sx4.bot.annotations.command.AuthorPermissions;
 import com.sx4.bot.annotations.command.CommandId;
 import com.sx4.bot.annotations.command.Examples;
@@ -116,7 +116,7 @@ public class FakePermissionsCommand extends Sx4Command {
 	@CommandId(172)
 	@Examples({"fake permissions delete @Shea#6653", "fake permissions delete @Mods", "fake permissions delete all"})
 	@AuthorPermissions(permissions={Permission.ADMINISTRATOR})
-	public void delete(Sx4CommandEvent event, @Argument(value="user | role | all", endless=true, nullDefault=true) @Options("all") Alternative<IPermissionHolder> option) {
+	public void delete(Sx4CommandEvent event, @Argument(value="user | role | all", endless=true, nullDefault=true) @AlternativeOptions("all") Alternative<IPermissionHolder> option) {
 		if (option == null) {
 			List<Document> fakePermissions = event.getProperty("fakePermissions");
 			if (fakePermissions.isEmpty()) {
