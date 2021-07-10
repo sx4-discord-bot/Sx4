@@ -1,6 +1,7 @@
 package com.sx4.bot.utility;
 
 import com.jockie.bot.core.command.ICommand;
+import com.jockie.bot.core.command.impl.DummyCommand;
 import com.jockie.bot.core.option.IOption;
 import com.sx4.bot.core.Sx4;
 import com.sx4.bot.core.Sx4Command;
@@ -20,7 +21,7 @@ public class HelpUtility {
 	public static Message getHelpMessage(ICommand initialCommand, boolean embed) {
 		MessageBuilder builder = new MessageBuilder();
 		
-		Sx4Command command = (Sx4Command) initialCommand;
+		Sx4Command command = initialCommand instanceof DummyCommand ? (Sx4Command) ((DummyCommand) initialCommand).getActualCommand() : (Sx4Command) initialCommand;
 		String usage = command.getSubCommands().isEmpty() ? command.getUsage() : command.getUsage().trim().equals(command.getCommandTrigger()) ? command.getUsage() + " <sub command>" : command.getUsage() + " | <sub command>";
 		
 		StringBuilder options = new StringBuilder();

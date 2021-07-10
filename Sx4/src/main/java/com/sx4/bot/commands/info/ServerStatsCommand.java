@@ -18,7 +18,6 @@ import org.bson.Document;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
-import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
@@ -60,9 +59,6 @@ public class ServerStatsCommand extends Sx4Command {
 
 		if (reset) {
 			duration = Duration.between(currentHour.withHour(0), currentHour);
-			if (duration.toHours() == 0) {
-				duration = Duration.of(24, ChronoUnit.HOURS);
-			}
 		}
 
 		Map<Long, Map<ServerStatsType, Integer>> map = new HashMap<>();

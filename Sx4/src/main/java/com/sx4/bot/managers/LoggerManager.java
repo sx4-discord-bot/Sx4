@@ -30,6 +30,7 @@ import org.glassfish.jersey.internal.guava.ThreadFactoryBuilder;
 
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.function.Consumer;
 
 public class LoggerManager implements WebhookManager {
 
@@ -157,7 +158,7 @@ public class LoggerManager implements WebhookManager {
             }
 
             if (ExceptionUtility.sendErrorMessage(exception)) {
-                requests.forEach(failedRequest -> this.queue(failedRequest.incrementAttempts()));
+                requests.forEach(failedRequest -> this.queueFirst(failedRequest.incrementAttempts()));
 
                 return;
             }
@@ -176,7 +177,7 @@ public class LoggerManager implements WebhookManager {
                     return;
                 }
 
-                requests.forEach(failedRequest -> this.queue(failedRequest.incrementAttempts()));
+                requests.forEach(failedRequest -> this.queueFirst(failedRequest.incrementAttempts()));
             });
         });
     }
@@ -279,7 +280,7 @@ public class LoggerManager implements WebhookManager {
                     }
 
                     if (ExceptionUtility.sendErrorMessage(exception)) {
-                        requests.forEach(failedRequest -> this.queue(failedRequest.incrementAttempts()));
+                        requests.forEach(failedRequest -> this.queueFirst(failedRequest.incrementAttempts()));
                     }
                 });
 
@@ -292,14 +293,21 @@ public class LoggerManager implements WebhookManager {
         });
     }
 
-    private void queue(Request request) {
-        // use size() as it is thread safe
-        if (this.queue.size() == 0) {
-            this.queue.add(request);
+    private void queue(Request request, Consumer<Request> consumer) {
+        if (this.queue.isEmpty()) {
+            consumer.accept(request);
             this.handleQueue();
         } else {
-            this.queue.add(request);
+            consumer.accept(request);
         }
+    }
+
+    private void queue(Request request) {
+        this.queue(request, this.queue::add);
+    }
+
+    private void queueFirst(Request request) {
+        this.queue(request, this.queue::addFirst);
     }
 
     public void queue(TextChannel channel, Document logger, List<WebhookEmbed> embeds) {

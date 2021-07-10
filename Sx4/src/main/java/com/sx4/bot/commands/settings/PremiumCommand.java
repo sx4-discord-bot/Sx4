@@ -52,7 +52,7 @@ public class PremiumCommand extends Sx4Command {
 		super("premium", 176);
 		
 		super.setDescription("Make a server premium or remove a server from being premium, you can make a server premium for $5");
-		super.setExamples("premium add", "premium remove", "premium list");
+		super.setExamples("premium add", "premium remove", "premium perks");
 		super.setCategoryAll(ModuleCategory.SETTINGS);
 	}
 	
@@ -164,6 +164,20 @@ public class PremiumCommand extends Sx4Command {
 		String format = String.format(expire.format(this.formatter), NumberUtility.getSuffix(expire.getDayOfMonth()));
 
 		event.replyFormat("Your current credit is **$%,.2f**%s", credit / 100D, endAt == -1 ? "" : "\n\nYour personal premium " + (expire.isBefore(OffsetDateTime.now(ZoneOffset.UTC)) ? "expired on the **" + format + "**, you can renew it here <https://patreon.com/Sx4>" : "will expire on the **" + format + "**")).queue();
+	}
+
+	@Command(value="perks", description="View the perks you get when you or a server has premium")
+	@CommandId(0)
+	@Examples({"premium perks"})
+	public void perks(Sx4CommandEvent event) {
+		List<String> userPerks = event.getConfig().getPremiumUserPerks(), serverPerks = event.getConfig().getPremiumServerPerks();
+
+		EmbedBuilder embed = new EmbedBuilder()
+			.setAuthor("Premium Perks", null, event.getSelfUser().getEffectiveAvatarUrl())
+			.addField("Personal Perks", "• " + String.join("\n• ", userPerks), false)
+			.addField("Server Perks", "• " + String.join("\n• ", serverPerks), false);
+
+		event.reply(embed.build()).queue();
 	}
 
 	@Command(value="leaderboard", aliases={"lb"}, description="Leaderboard for Sx4s biggest donors")

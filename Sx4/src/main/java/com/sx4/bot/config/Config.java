@@ -466,6 +466,14 @@ public class Config {
 	public String getImageWebserver() {
 		return this.get("token.imageWebserver");
 	}
+
+	public List<String> getPremiumUserPerks() {
+		return this.get("premium.perks.user");
+	}
+
+	public List<String> getPremiumServerPerks() {
+		return this.get("premium.perks.server");
+	}
 	
 	public int getPremiumPrice() {
 		return this.get("premium.price", 500);

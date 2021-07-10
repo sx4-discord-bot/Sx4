@@ -12,6 +12,7 @@ import com.jockie.bot.core.command.factory.impl.MethodCommandFactory;
 import com.jockie.bot.core.command.impl.CommandListener;
 import com.jockie.bot.core.command.impl.CommandListener.Failure;
 import com.jockie.bot.core.command.impl.CommandStore;
+import com.jockie.bot.core.command.impl.DummyCommand;
 import com.jockie.bot.core.command.manager.IErrorManager;
 import com.jockie.bot.core.command.manager.impl.ContextManagerFactory;
 import com.jockie.bot.core.command.manager.impl.ErrorManagerImpl;
@@ -637,8 +638,11 @@ public class Sx4 {
 				boolean embed = !message.isFromGuild() || message.getGuild().getSelfMember().hasPermission((TextChannel) channel, Permission.MESSAGE_EMBED_LINKS);
 
 				ICommand firstCommand = failures.get(0).getCommand();
+
 				List<ICommand> commands = failures.stream()
 					.map(Failure::getCommand)
+					.map(command -> command instanceof DummyCommand ? ((DummyCommand) command).getActualCommand() : command)
+					.distinct()
 					.filter(command -> command.getCommandTrigger().equals(firstCommand.getCommandTrigger()))
 					.collect(Collectors.toList());
 
@@ -803,7 +807,14 @@ public class Sx4 {
 	@SuppressWarnings({"unchecked", "rawtypes"})
 	private void setupArgumentFactory() {
 		ArgumentFactoryImpl argumentFactory = (ArgumentFactoryImpl) ArgumentFactory.getDefault();
-		
+
+		argumentFactory.addBuilderFunction(parameter -> {
+			return new ArgumentImpl.Builder<>(parameter.getType())
+				.setProperty("failedClass", new ThreadLocal<>())
+				.setProperty("command", new ThreadLocal<>())
+				.setProperty("parameter", parameter);
+		});
+
 		argumentFactory.addBuilderConfigureFunction(Emote.class, (parameter, builder) -> builder.setProperty("global", parameter.isAnnotationPresent(Global.class)))
 			.addBuilderConfigureFunction(Attachment.class, (parameter, builder) -> builder.setAcceptEmpty(true))
 			.addBuilderConfigureFunction(MessageArgument.class, (parameter, builder) -> builder.setAcceptEmpty(true))
@@ -1042,7 +1053,11 @@ public class Sx4 {
 			}).registerParser(String.class, new IParser<>() {
 				public ParsedResult<String> parse(ParseContext context, IArgument<String> argument, String content) {
 					Message message = context.getMessage();
-					argument.getProperty("command", ThreadLocal.class).set(context.getCommand());
+
+					ThreadLocal<ICommand> local = argument.getProperty("command", ThreadLocal.class);
+					if (local != null) {
+						local.set(context.getCommand());
+					}
 
 					CommandParserImpl parser = (CommandParserImpl) context.getCommandParser();
 
@@ -1480,7 +1495,13 @@ public class Sx4 {
 					return;
 				}
 
-				message.getChannel().sendMessage(HelpUtility.getHelpMessage((ICommand) argument.getProperty("command", ThreadLocal.class).get(), !message.isFromGuild() || message.getGuild().getSelfMember().hasPermission(message.getTextChannel(), Permission.MESSAGE_EMBED_LINKS))).queue();
+				ThreadLocal<ICommand> local = argument.getProperty("command", ThreadLocal.class);
+				ICommand command = local == null ? null : local.get();
+				if (command == null) {
+					return;
+				}
+
+				message.getChannel().sendMessage(HelpUtility.getHelpMessage(command, !message.isFromGuild() || message.getGuild().getSelfMember().hasPermission(message.getTextChannel(), Permission.MESSAGE_EMBED_LINKS))).queue();
 			}).registerResponse(Enum.class, (argument, message, content) -> {
 				Class<?> finalClass = argument.getProperty("finalClass", Class.class);
 				finalClass = finalClass == null ? argument.getType() : finalClass;

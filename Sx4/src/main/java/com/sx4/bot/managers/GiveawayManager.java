@@ -8,6 +8,7 @@ import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.utility.FutureUtility;
 import com.sx4.bot.utility.MathUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
+import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Message.MentionType;
@@ -92,6 +93,10 @@ public class GiveawayManager {
 		if (channel == null) {
 			return CompletableFuture.completedFuture(null);
 		}
+
+		if (!guild.getSelfMember().hasPermission(channel, Permission.MESSAGE_READ, Permission.MESSAGE_HISTORY)) {
+			return CompletableFuture.completedFuture(null);
+		}
 		
 		CompletableFuture<UpdateOneModel<Document>> future = new CompletableFuture<>();
 		
@@ -168,7 +173,7 @@ public class GiveawayManager {
 				futures.add(this.endGiveawayBulk(data));
 			}
 		});
-		
+
 		if (!futures.isEmpty()) {
 			FutureUtility.allOf(futures, Objects::nonNull).thenCompose(bulkData -> {
 				if (!bulkData.isEmpty()) {
