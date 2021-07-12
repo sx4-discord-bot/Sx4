@@ -1711,6 +1711,10 @@ public class MongoDatabase {
 	public CompletableFuture<InsertOneResult> insertCommand(Document data) {
 		return CompletableFuture.supplyAsync(() -> this.commands.insertOne(data), this.executor);
 	}
+
+	public long countCommands(Bson filter) {
+		return this.commands.countDocuments(filter);
+	}
 	
 	public CompletableFuture<List<Document>> aggregateCommands(List<? extends Bson> pipeline) {
 		return CompletableFuture.supplyAsync(() -> this.commands.aggregate(pipeline).into(new ArrayList<>()), this.executor);

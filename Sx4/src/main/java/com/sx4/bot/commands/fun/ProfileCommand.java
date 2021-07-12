@@ -14,7 +14,6 @@ import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.database.mongo.model.Operators;
-import com.sx4.bot.entities.CompactNumber;
 import com.sx4.bot.entities.argument.Alternative;
 import com.sx4.bot.entities.games.GameState;
 import com.sx4.bot.entities.image.ImageRequest;
@@ -114,7 +113,7 @@ public class ProfileCommand extends Sx4Command {
 				.addField("is_birthday", isBirthday)
 				.addField("description", profileData.get("description", "Nothing to see here"))
 				.addField("height", profileData.get("height", 0))
-				.addField("balance", CompactNumber.getCompactNumber(data.get("balance", 0L)))
+				.addField("balance", NumberUtility.getNumberReadable(data.get("balance", 0L)))
 				.addField("reputation", data.get("reputation", 0))
 				.addField("married_users", partners)
 				.addField("commands", data.get("commands", 0L))

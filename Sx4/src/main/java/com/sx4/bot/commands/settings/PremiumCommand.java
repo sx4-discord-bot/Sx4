@@ -167,7 +167,7 @@ public class PremiumCommand extends Sx4Command {
 	}
 
 	@Command(value="perks", description="View the perks you get when you or a server has premium")
-	@CommandId(0)
+	@CommandId(462)
 	@Examples({"premium perks"})
 	public void perks(Sx4CommandEvent event) {
 		List<String> userPerks = event.getConfig().getPremiumUserPerks(), serverPerks = event.getConfig().getPremiumServerPerks();
