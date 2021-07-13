@@ -316,6 +316,28 @@ public class AntiRegexCommand extends Sx4Command {
 		});
 	}
 
+	@Command(value="admin toggle", aliases={"admin"}, description="Toggles whether administrators should be whitelisted from sending a specific regex or not")
+	@CommandId(464)
+	@Examples({"anti regex admin toggle 5f023782ef9eba03390a740c"})
+	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
+	public void adminToggle(Sx4CommandEvent event, @Argument(value="id") ObjectId id) {
+		List<Bson> update = List.of(Operators.set("admin", Operators.cond(Operators.exists("$admin"), Operators.REMOVE, false)));
+		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER).projection(Projections.include("admin"));
+
+		event.getMongo().findAndUpdateRegex(Filters.eq("_id", id), update, options).whenComplete((data, exception) -> {
+			if (ExceptionUtility.sendExceptionally(event, exception)) {
+				return;
+			}
+
+			if (data == null) {
+				event.replyFailure("I could not find that anti regex").queue();
+				return;
+			}
+
+			event.replySuccess("Administrators are " + (data.getBoolean("admin", true) ? "now" : "no longer") + " whitelisted from sending content matching that regex").queue();
+		});
+	}
+
 	@Command(value="reset after", description="The time it should take for attempts to be taken away")
 	@CommandId(109)
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})

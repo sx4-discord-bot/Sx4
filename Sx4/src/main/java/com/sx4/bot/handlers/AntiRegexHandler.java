@@ -59,7 +59,7 @@ public class AntiRegexHandler implements EventListener {
 
     public void handle(Message message) {
         Member member = message.getMember();
-        if (member == null || member.hasPermission(Permission.ADMINISTRATOR)) {
+        if (member == null) {
             return;
         }
 
@@ -101,6 +101,10 @@ public class AntiRegexHandler implements EventListener {
             this.executor.submit(() -> {
                 List<CompletableFuture<Document>> matches = new ArrayList<>();
                 Regexes : for (Document regex : data.getList("regexes", Document.class)) {
+                    if (member.hasPermission(Permission.ADMINISTRATOR) && regex.getBoolean("admin", true)) {
+                        continue;
+                    }
+
                     List<Document> channels = regex.getList("whitelist", Document.class, Collections.emptyList());
 
                     Document channel = channels.stream()
