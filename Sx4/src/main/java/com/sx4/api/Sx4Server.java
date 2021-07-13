@@ -1,5 +1,6 @@
 package com.sx4.api;
 
+import com.sx4.api.endpoints.GitHubEndpoint;
 import com.sx4.api.endpoints.PatreonEndpoint;
 import com.sx4.api.endpoints.RedirectEndpoint;
 import com.sx4.api.endpoints.YouTubeEndpoint;
@@ -30,7 +31,8 @@ public class Sx4Server {
 			new UncaughtExceptionHandler(bot),
 			new YouTubeEndpoint(bot),
 			new PatreonEndpoint(bot),
-			new RedirectEndpoint(bot)
+			new RedirectEndpoint(bot),
+			new GitHubEndpoint(bot)
 		);
 		
 		resourceConfig.property(ServerProperties.PROCESSING_RESPONSE_ERRORS_ENABLED, true);

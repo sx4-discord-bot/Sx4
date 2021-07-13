@@ -37,6 +37,10 @@ dependencies {
 	implementation('com.github.21Joakim:Jockie-Utils:96c51b29f3') {
 		exclude group: 'net.dv8tion', module: 'JDA'
 	}
+
+	implementation('com.github.21Joakim:JDA-Memory-Optimizations:+') {
+		exclude group: 'net.dv8tion', module: 'JDA'
+	}
 	
 	compile 'club.minnced:discord-webhooks:0+'
 

@@ -49,6 +49,7 @@ public class StatsCommand extends Sx4Command {
 		embed.addField("Memory Usage", NumberUtility.getBytesReadable(memoryUsed) + "/" + NumberUtility.getBytesReadable(totalMemory), true);
 		embed.addField("CPU Usage", String.format("%.1f%%", ManagementFactory.getOperatingSystemMXBean().getSystemLoadAverage()), true);
 		embed.addField("Database Queries", String.format("Reads: %,.2f/s\nWrites: %,.2f/s", reads.getLong("ops") / mongoUptime, writes.getLong("ops") / mongoUptime), true);
+		embed.addField("Database Uptime", TimeUtility.getTimeString((long) mongoUptime, TimeUtility.SHORT_SUFFIXES), true);
 		embed.addField("Commands Used", String.format("%,d", commands), true);
 		embed.addField("Threads", String.format("%,d", Thread.activeCount()), true);
 		embed.addField("Text Channels", String.format("%,d", event.getShardManager().getTextChannelCache().size()), true);

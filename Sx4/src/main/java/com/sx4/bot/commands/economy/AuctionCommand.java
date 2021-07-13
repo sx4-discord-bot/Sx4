@@ -28,13 +28,9 @@ import org.bson.Document;
 import org.bson.conversions.Bson;
 
 import java.time.Clock;
-import java.time.temporal.ChronoUnit;
 import java.util.List;
-import java.util.Map;
 
 public class AuctionCommand extends Sx4Command {
-
-	private final Map<ChronoUnit, String> units = Map.of(ChronoUnit.DAYS, "d", ChronoUnit.HOURS, "h", ChronoUnit.MINUTES, "m", ChronoUnit.SECONDS, "s");
 
 	public AuctionCommand() {
 		super("auction", 414);
@@ -90,7 +86,7 @@ public class AuctionCommand extends Sx4Command {
 						ItemStack<?> stack = auction.getItemStack();
 						Item auctionItem = stack.getItem();
 
-						StringBuilder content = new StringBuilder(String.format("Expires In: %s\nPrice: $%,d\nPrice Per Item: $%,.2f\nAmount: %,d", TimeUtility.getTimeString(auction.getExpiresAt() - Clock.systemUTC().instant().getEpochSecond(), this.units, 2), auction.getPrice(), auction.getPricePerItem(), stack.getAmount()));
+						StringBuilder content = new StringBuilder(String.format("Expires In: %s\nPrice: $%,d\nPrice Per Item: $%,.2f\nAmount: %,d", TimeUtility.getTimeString(auction.getExpiresAt() - Clock.systemUTC().instant().getEpochSecond(), TimeUtility.SHORT_SUFFIXES, 2), auction.getPrice(), auction.getPricePerItem(), stack.getAmount()));
 
 						if (auctionItem instanceof Tool) {
 							Tool tool = (Tool) auctionItem;
@@ -232,7 +228,7 @@ public class AuctionCommand extends Sx4Command {
 						ItemStack<?> stack = auction.getItemStack();
 						Item auctionItem = stack.getItem();
 
-						StringBuilder content = new StringBuilder(String.format("Expires In: %s\nPrice: $%,d\nPrice Per Item: $%,.2f\nAmount: %,d", TimeUtility.getTimeString(auction.getExpiresAt() - Clock.systemUTC().instant().getEpochSecond(), this.units, 2), auction.getPrice(), auction.getPricePerItem(), stack.getAmount()));
+						StringBuilder content = new StringBuilder(String.format("Expires In: %s\nPrice: $%,d\nPrice Per Item: $%,.2f\nAmount: %,d", TimeUtility.getTimeString(auction.getExpiresAt() - Clock.systemUTC().instant().getEpochSecond(), TimeUtility.SHORT_SUFFIXES, 2), auction.getPrice(), auction.getPricePerItem(), stack.getAmount()));
 
 						if (auctionItem instanceof Tool) {
 							Tool tool = (Tool) auctionItem;
@@ -358,7 +354,7 @@ public class AuctionCommand extends Sx4Command {
 						ItemStack<?> stack = auction.getItemStack();
 						Item auctionItem = stack.getItem();
 
-						StringBuilder content = new StringBuilder(String.format("Expires In: %s\nPrice: $%,d\nPrice Per Item: $%,.2f\nAmount: %,d", TimeUtility.getTimeString(auction.getExpiresAt() - Clock.systemUTC().instant().getEpochSecond(), this.units, 2), auction.getPrice(), auction.getPricePerItem(), stack.getAmount()));
+						StringBuilder content = new StringBuilder(String.format("Expires In: %s\nPrice: $%,d\nPrice Per Item: $%,.2f\nAmount: %,d", TimeUtility.getTimeString(auction.getExpiresAt() - Clock.systemUTC().instant().getEpochSecond(), TimeUtility.SHORT_SUFFIXES, 2), auction.getPrice(), auction.getPricePerItem(), stack.getAmount()));
 
 						if (auctionItem instanceof Tool) {
 							Tool tool = (Tool) auctionItem;
