@@ -23,6 +23,7 @@ public class UsageCommand extends Sx4Command {
 
 		super.setDescription("View the usage of a specific command");
 		super.setExamples("usage fish", "usage fish --user=Shea#6653", "usage ship --from=1612183011 --to=1612528611");
+		super.setExecuteAsync(true);
 		super.setCategoryAll(ModuleCategory.INFORMATION);
 	}
 
@@ -50,8 +51,8 @@ public class UsageCommand extends Sx4Command {
 			filters.add(Filters.lte("_id", new ObjectId(Date.from(Instant.ofEpochSecond(to)))));
 		}
 
-		long amount = event.getMongo().getCommands().countDocuments(Filters.and(filters));
-		event.reply("`" + command.getCommandTrigger() + "` has been used **" + amount + "** time" + (amount == 1 ? "" : "s")).queue();
+		long amount = event.getMongo().countCommands(Filters.and(filters));
+		event.replyFormat("`%s` has been used **%,d** time%s", command.getCommandTrigger(), amount, (amount == 1 ? "" : "s")).queue();
 	}
 
 }

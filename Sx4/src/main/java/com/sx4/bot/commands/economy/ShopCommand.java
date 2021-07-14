@@ -10,20 +10,14 @@ import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.mongo.model.Operators;
-import com.sx4.bot.entities.economy.item.Item;
-import com.sx4.bot.entities.economy.item.ItemStack;
-import com.sx4.bot.entities.economy.item.ItemType;
-import com.sx4.bot.entities.economy.item.Tool;
+import com.sx4.bot.entities.economy.item.*;
 import com.sx4.bot.utility.EconomyUtility;
 import com.sx4.bot.utility.ExceptionUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.StringJoiner;
+import java.util.*;
 
 public class ShopCommand extends Sx4Command {
 
@@ -89,11 +83,23 @@ public class ShopCommand extends Sx4Command {
 
 		long amount = itemStack.getAmount(), price = (long) Math.floor(itemStack.getTotalPrice() * 0.8D);
 		event.getMongo().withTransaction(session -> {
-			List<Bson> update = List.of(Operators.set("amount", Operators.let(new Document("amount", Operators.ifNull("$amount", 0L)), Operators.cond(Operators.lt("$$amount", amount), "$$amount", Operators.subtract("$$amount", amount)))));
+			List<Bson> update = List.of(Operators.set("amount", Operators.let(new Document("amount", Operators.ifNull("$amount", 0L)), Operators.cond(Operators.lt(Operators.subtract("$$amount", Operators.sum(Operators.map(Operators.filter(Operators.ifNull("$resets", Collections.EMPTY_LIST), Operators.gt("$$this.time", Operators.nowEpochSecond())), "$$this.amount"))), amount), "$$amount", Operators.subtract("$$amount", amount)))));
+			FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("amount", "resets"));
 
-			UpdateResult itemResult = event.getMongo().getItems().updateOne(session, Filters.and(Filters.eq("userId", event.getAuthor().getIdLong()), Filters.eq("item.id", item.getId())), update);
-			if (itemResult.getModifiedCount() == 0) {
-				event.replyFormat("You do not have `%,d %s` %s", amount, item.getName(), event.getConfig().getFailureEmote()).queue();
+			Document data = event.getMongo().getItems().findOneAndUpdate(session, Filters.and(Filters.eq("userId", event.getAuthor().getIdLong()), Filters.eq("item.id", item.getId())), update, options);
+
+			long authorAmount = data == null ? 0L : data.get("amount", 0L);
+			if (authorAmount < amount) {
+				event.replyFailure("You do not have `" + amount + " " + item.getName() + "`").queue();
+				session.abortTransaction();
+				return;
+			}
+
+			CooldownItemStack<Item> cooldownStack = new CooldownItemStack<>(item, data);
+
+			long cooldownAmount = cooldownStack.getCooldownAmount();
+			if (authorAmount - cooldownAmount < amount) {
+				event.replyFormat("You have `%,d %s` but **%,d** %s on cooldown %s", authorAmount, item.getName(), cooldownAmount, cooldownAmount == 1 ? "is" : "are", event.getConfig().getFailureEmote()).queue();
 				session.abortTransaction();
 				return;
 			}

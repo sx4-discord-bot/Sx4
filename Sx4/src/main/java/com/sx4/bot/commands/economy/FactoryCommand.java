@@ -193,7 +193,7 @@ public class FactoryCommand extends Sx4Command {
 			EmbedBuilder embed = new EmbedBuilder()
 				.setAuthor(event.getAuthor().getName(), null, event.getAuthor().getEffectiveAvatarUrl())
 				.setColor(event.getMember().getColor())
-				.setDescription(String.format("Your factories made you **$%,d**\n\n%s", money, content.toString()));
+				.setDescription(String.format("Your factories made you **$%,d**\n\n%s", money, content));
 
 			return embed.build();
 		}).whenComplete((embed, exception) -> {

@@ -67,13 +67,9 @@ public class GuildMessageCache implements EventListener {
 	@Override
 	public void onEvent(GenericEvent event) {
 		if (event instanceof GuildMessageReceivedEvent) {
-			Message message = ((GuildMessageReceivedEvent) event).getMessage();
-
-			this.putMessage(message);
+			this.putMessage(((GuildMessageReceivedEvent) event).getMessage());
 		} else if (event instanceof GuildMessageUpdateEvent) {
-			Message message = ((GuildMessageUpdateEvent) event).getMessage();
-
-			this.putMessage(message);
+			this.putMessage(((GuildMessageUpdateEvent) event).getMessage());
 		}
 	}
 
