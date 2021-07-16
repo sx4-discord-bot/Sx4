@@ -38,12 +38,18 @@ public class Sx4CommandListener extends CommandListener {
 			if (event instanceof MessageReceivedEvent) {
 				this.handle(((MessageReceivedEvent) event).getMessage());
 			} else if (event instanceof MessageUpdateEvent) {
-				Message editedMessage = ((MessageUpdateEvent) event).getMessage();
-				if (editedMessage.isPinned()) {
+				Message message = ((MessageUpdateEvent) event).getMessage();
+
+				Message previousMessage = this.bot.getMessageCache().getMessageById(message.getIdLong());
+				if (previousMessage == null) {
 					return;
 				}
 
-				this.handle(editedMessage);
+				if (previousMessage.isPinned() != message.isPinned()) {
+					return;
+				}
+
+				this.handle(message);
 			}
 		} catch (Sx4ArgumentException e) {
 			((GenericMessageEvent) event).getChannel().sendMessage(e.getMessage() + " " + this.bot.getConfig().getFailureEmote()).queue();

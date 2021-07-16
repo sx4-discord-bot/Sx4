@@ -11,16 +11,9 @@ public class CalcEvalVisitor extends CalcBaseVisitor<Double> {
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
 
     private final Map<String, Double> variables;
-    private long timeout = 0L;
 
     public CalcEvalVisitor() {
         this.variables = new HashMap<>();
-    }
-
-    public CalcEvalVisitor timeout(long duration, TimeUnit unit) {
-        this.timeout = unit.toMillis(duration);
-
-        return this;
     }
 
     @Override
@@ -140,12 +133,8 @@ public class CalcEvalVisitor extends CalcBaseVisitor<Double> {
         return Math.PI;
     }
 
-    public Double parse(ParseTree tree) throws TimeoutException, ExecutionException, InterruptedException {
-        if (this.timeout == 0L) {
-            return super.visit(tree);
-        }
-
-        return this.executor.submit(() -> super.visit(tree)).get(this.timeout, TimeUnit.MILLISECONDS);
+    public CompletableFuture<Double> parse(ParseTree tree) {
+        return CompletableFuture.supplyAsync(() -> super.visit(tree), this.executor);
     }
 
 }

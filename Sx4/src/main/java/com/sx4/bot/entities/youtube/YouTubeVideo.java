@@ -11,14 +11,18 @@ public class YouTubeVideo {
 	
 	private final OffsetDateTime updatedAt;
 	private final OffsetDateTime publishedAt;
-	
-	public YouTubeVideo(String videoId, String videoTitle, String videoUpdatedAt, String videoPublishedAt) {
+
+	public YouTubeVideo(String videoId, String videoTitle, OffsetDateTime videoUpdatedAt, OffsetDateTime videoPublishedAt) {
 		this.id = videoId;
 		this.title = videoTitle;
 		this.url = "https://www.youtube.com/watch?v=" + videoId;
 		this.thumbnail = "https://img.youtube.com/vi/" + videoId + "/0.jpg";
-		this.updatedAt = OffsetDateTime.parse(videoUpdatedAt);
-		this.publishedAt = OffsetDateTime.parse(videoPublishedAt);
+		this.updatedAt = videoUpdatedAt;
+		this.publishedAt = videoPublishedAt;
+	}
+	
+	public YouTubeVideo(String videoId, String videoTitle, String videoUpdatedAt, String videoPublishedAt) {
+		this(videoId, videoTitle, OffsetDateTime.parse(videoUpdatedAt), OffsetDateTime.parse(videoPublishedAt));
 	}
 	
 	public String getId() {

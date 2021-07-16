@@ -12,7 +12,6 @@ import com.mongodb.client.model.Projections;
 import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.database.mongo.model.Operators;
-import com.sx4.bot.entities.cache.GuildMessage;
 import com.sx4.bot.entities.management.LoggerContext;
 import com.sx4.bot.entities.management.LoggerEvent;
 import com.sx4.bot.utility.ColourUtility;
@@ -70,10 +69,7 @@ import net.dv8tion.jda.internal.utils.tuple.Pair;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 
-import java.time.Duration;
-import java.time.Instant;
-import java.time.ZoneOffset;
-import java.time.ZonedDateTime;
+import java.time.*;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -159,7 +155,7 @@ public class LoggerHandler implements EventListener {
 					LoggerContext loggerContext = new LoggerContext()
 						.setChannel(textChannel);
 
-					GuildMessage message = this.bot.getMessageCache().getMessageById(messageId);
+					Message message = this.bot.getMessageCache().getMessageById(messageId);
 					if (message == null) {
 						if (!LoggerUtility.isWhitelisted(entities, loggerEvent, loggerContext)) {
 							continue;
@@ -168,19 +164,18 @@ public class LoggerHandler implements EventListener {
 						embed.setDescription(String.format("A message sent in %s was deleted", textChannel.getAsMention()));
 						embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
 					} else {
-						long userId = message.getUserId();
-						User user = this.bot.getShardManager().getUserById(userId);
+						User author = message.getAuthor();
 
-						loggerContext.setUser(userId);
+						loggerContext.setUser(author.getIdLong());
 
 						if (!LoggerUtility.isWhitelisted(entities, loggerEvent, loggerContext)) {
 							continue;
 						}
 
-						embed.setDescription(String.format("The message sent by `%s` in %s was deleted", user == null ? userId : user.getName(), textChannel.getAsMention()));
-						embed.setAuthor(new EmbedAuthor(user == null ? guild.getName() : user.getAsTag(), user == null ? guild.getIconUrl() : user.getEffectiveAvatarUrl(), null));
+						embed.setDescription(String.format("The message sent by `%s` in %s was deleted", author.getName(), textChannel.getAsMention()));
+						embed.setAuthor(new EmbedAuthor(author.getAsTag(), author.getEffectiveAvatarUrl(), null));
 
-						String content = message.getContent();
+						String content = message.getContentRaw();
 						if (!content.isBlank()) {
 							embed.addField(new EmbedField(false, "Message", StringUtility.limit(content, MessageEmbed.VALUE_MAX_LENGTH, "...")));
 						}
@@ -213,8 +208,14 @@ public class LoggerHandler implements EventListener {
 		User user = event.getAuthor();
 		Message message = event.getMessage();
 
-		GuildMessage previousMessage = this.bot.getMessageCache().getMessageById(message.getIdLong());
-		String oldContent = previousMessage == null ? null : previousMessage.getContent();
+		if (message.getTimeEdited() == null) {
+			return;
+		}
+
+		Message previousMessage = this.bot.getMessageCache().getMessageById(message.getIdLong());
+		if (previousMessage != null && message.isPinned() != previousMessage.isPinned()) {
+			return;
+		}
 
 		LoggerEvent loggerEvent = LoggerEvent.MESSAGE_UPDATE;
 		LoggerContext loggerContext = new LoggerContext()
@@ -233,6 +234,7 @@ public class LoggerHandler implements EventListener {
 		embed.setTimestamp(Instant.now());
 		embed.setFooter(new EmbedFooter(String.format("Message ID: %s", message.getId()), null));
 
+		String oldContent = previousMessage == null ? null : previousMessage.getContentRaw();
 		if (oldContent != null && !oldContent.isBlank()) {
 			embed.addField(new EmbedField(false, "Before", StringUtility.limit(oldContent, MessageEmbed.VALUE_MAX_LENGTH, "...")));
 		}

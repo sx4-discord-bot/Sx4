@@ -264,36 +264,32 @@ public class SuggestionCommand extends Sx4Command {
 				return;
 			}
 
-			try {
-				if (suggestionData == null) {
-					event.replyFailure("There is no suggestion with that id").queue();
-					return;
-				}
-
-				String reasonData = suggestionData.getString("reason");
-
-				boolean reasonMatch = reasonData == null && reason == null || (reasonData != null && reasonData.equals(reason));
-				if (suggestionData.getString("state").equals(stateData) && reasonMatch) {
-					event.replyFailure("That suggestion is already in that state and has the same reason").queue();
-					return;
-				}
-
-				TextChannel channel = event.getGuild().getTextChannelById(suggestionData.getLong("channelId"));
-				if (channel == null) {
-					event.replyFailure("The channel for that suggestion no longer exists").queue();
-					return;
-				}
-
-				User author = event.getShardManager().getUserById(suggestionData.getLong("authorId"));
-
-				WebhookEmbed embed = Suggestion.getWebhookEmbed(suggestionData.getObjectId("_id"), event.getAuthor(), author, suggestionData.getString("suggestion"), reason, new SuggestionState(state));
-
-				event.getBot().getSuggestionManager().editSuggestion(suggestionData.getLong("messageId"), channel.getIdLong(), data.get("webhook", MongoDatabase.EMPTY_DOCUMENT), embed);
-
-				event.replySuccess("That suggestion has been set to the `" + stateData + "` state").queue();
-			} catch (Throwable e) {
-				e.printStackTrace();
+			if (suggestionData == null) {
+				event.replyFailure("There is no suggestion with that id").queue();
+				return;
 			}
+
+			String reasonData = suggestionData.getString("reason");
+
+			boolean reasonMatch = reasonData == null && reason == null || (reasonData != null && reasonData.equals(reason));
+			if (suggestionData.getString("state").equals(stateData) && reasonMatch) {
+				event.replyFailure("That suggestion is already in that state and has the same reason").queue();
+				return;
+			}
+
+			TextChannel channel = event.getGuild().getTextChannelById(suggestionData.getLong("channelId"));
+			if (channel == null) {
+				event.replyFailure("The channel for that suggestion no longer exists").queue();
+				return;
+			}
+
+			User author = event.getShardManager().getUserById(suggestionData.getLong("authorId"));
+
+			WebhookEmbed embed = Suggestion.getWebhookEmbed(suggestionData.getObjectId("_id"), event.getAuthor(), author, suggestionData.getString("suggestion"), reason, new SuggestionState(state));
+
+			event.getBot().getSuggestionManager().editSuggestion(suggestionData.getLong("messageId"), channel.getIdLong(), data.get("webhook", MongoDatabase.EMPTY_DOCUMENT), embed);
+
+			event.replySuccess("That suggestion has been set to the `" + stateData + "` state").queue();
 		});
 	}
 

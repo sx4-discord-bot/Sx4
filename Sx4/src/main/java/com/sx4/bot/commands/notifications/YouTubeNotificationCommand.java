@@ -21,12 +21,14 @@ import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.entities.youtube.YouTubeChannel;
 import com.sx4.bot.entities.youtube.YouTubeVideo;
 import com.sx4.bot.formatter.FormatterManager;
+import com.sx4.bot.formatter.JsonFormatter;
 import com.sx4.bot.formatter.function.FormatterVariable;
 import com.sx4.bot.http.HttpCallback;
 import com.sx4.bot.managers.YouTubeManager;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.paged.PagedResult.SelectType;
 import com.sx4.bot.utility.ExceptionUtility;
+import com.sx4.bot.utility.MessageUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.TextChannel;
@@ -39,10 +41,9 @@ import org.bson.types.ObjectId;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.StringJoiner;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.util.*;
 import java.util.concurrent.CompletionException;
 
 public class YouTubeNotificationCommand extends Sx4Command {
@@ -72,13 +73,13 @@ public class YouTubeNotificationCommand extends Sx4Command {
 		event.getHttpClient().newCall(channelRequest).enqueue((HttpCallback) channelResponse -> {
 			Document json = Document.parse(channelResponse.body().string());
 			
-			List<Document> items = json.getList("items", Document.class);
+			List<Document> items = json.getList("items", Document.class, Collections.emptyList());
 			if (items.isEmpty()) {
 				event.replyFailure("I could not find that youtube channel").queue();
 				return;
 			}
 			
-			String channelId = items.get(0).getEmbedded(List.of("id", "channelId"), String.class);
+			String channelId = id ? youtubeChannel : items.get(0).getEmbedded(List.of("id", "channelId"), String.class);
 			
 			Document notificationData = new Document("uploaderId", channelId)
 				.append("channelId", channel.getIdLong())
@@ -218,6 +219,67 @@ public class YouTubeNotificationCommand extends Sx4Command {
 			}
 
 			event.replySuccess("Your webhook avatar has been updated for that notification, this only works with premium <https://patreon.com/Sx4>").queue();
+		});
+	}
+
+	@Command(value="preview", description="Previews your YouTube notification message")
+	@CommandId(465)
+	@Examples({"youtube notification preview 5e45ce6d3688b30ee75201ae"})
+	public void preview(Sx4CommandEvent event, @Argument(value="id") ObjectId id) {
+		Document data = event.getMongo().getYouTubeNotification(Filters.eq("_id", id), Projections.include("uploaderId", "message"));
+		if (data == null) {
+			event.replyFailure("I could not find that notifcation").queue();
+			return;
+		}
+
+		String channelId = data.getString("uploaderId");
+
+		Request channelRequest = new Request.Builder()
+			.url("https://www.googleapis.com/youtube/v3/channels?key=" + event.getConfig().getYouTube() + "&id=" + channelId + "&part=snippet,contentDetails")
+			.build();
+
+		event.getHttpClient().newCall(channelRequest).enqueue((HttpCallback) channelResponse -> {
+			Document channelData = Document.parse(channelResponse.body().string());
+			Document channel = channelData.getList("items", Document.class).get(0);
+
+			String channelName = channel.getEmbedded(List.of("snippet", "title"), String.class);
+
+			Request playlistRequest = new Request.Builder()
+				.url("https://www.googleapis.com/youtube/v3/playlistItems?key=" + event.getConfig().getYouTube() + "&playlistId=" + channel.getEmbedded(List.of("contentDetails", "relatedPlaylists", "uploads"), String.class) + "&part=snippet&maxResults=1")
+				.build();
+
+			event.getHttpClient().newCall(playlistRequest).enqueue((HttpCallback) playlistResponse -> {
+				Document item = null;
+				if (playlistResponse.code() != 404) {
+					Document playlistData = Document.parse(playlistResponse.body().string());
+
+					item = playlistData.getList("items", Document.class, Collections.emptyList()).stream()
+						.filter(d -> d.getEmbedded(List.of("snippet", "resourceId", "kind"), String.class).equals("youtube#video"))
+						.findFirst()
+						.orElse(null);
+				}
+
+				YouTubeVideo video;
+				if (item == null) {
+					OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+					video = new YouTubeVideo("dQw4w9WgXcQ", "This channel had no uploads", now, now);
+				} else {
+					Document snippet = item.get("snippet", Document.class);
+					String published = snippet.getString("publishedAt");
+					video = new YouTubeVideo(snippet.getEmbedded(List.of("resourceId", "videoId"), String.class), snippet.getString("title"), published, published);
+				}
+
+				Document message =  new JsonFormatter(data.get("message", YouTubeManager.DEFAULT_MESSAGE))
+					.addVariable("video", video)
+					.addVariable("channel", new YouTubeChannel(channelId, channelName))
+					.parse();
+
+				try {
+					MessageUtility.fromWebhookMessage(event.getTextChannel(), MessageUtility.fromJson(message).build()).queue();
+				} catch (IllegalArgumentException e) {
+					event.replyFailure(e.getMessage()).queue();
+				}
+			});
 		});
 	}
 	

@@ -8,11 +8,12 @@ import com.sx4.bot.antlr.CalcParser;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
+import com.sx4.bot.utility.ExceptionUtility;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 
 import java.text.DecimalFormat;
-import java.util.concurrent.ExecutionException;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -32,18 +33,20 @@ public class CalculatorCommand extends Sx4Command {
         CalcLexer lexer = new CalcLexer(CharStreams.fromString(expression));
         CalcParser parser = new CalcParser(new CommonTokenStream(lexer));
 
-        double result;
-        try {
-            result = new CalcEvalVisitor()
-                .timeout(100, TimeUnit.MILLISECONDS)
-                .parse(parser.parse());
-        } catch (TimeoutException | ExecutionException | InterruptedException e) {
-            event.reply("That expression took longer than 100ms to execute :stopwatch:").queue();
-            return;
-        }
+        new CalcEvalVisitor().parse(parser.parse()).orTimeout(100, TimeUnit.MILLISECONDS).whenComplete((result, exception) -> {
+           Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
+           if (cause instanceof TimeoutException) {
+               event.reply("That expression took longer than 100ms to execute :stopwatch:").queue();
+               return;
+           }
 
-        DecimalFormat format = new DecimalFormat((pretty ? ",##" : "") + "0.##########");
-        event.reply(format.format(result)).queue();
+           if (ExceptionUtility.sendExceptionally(event, exception)) {
+               return;
+           }
+
+            DecimalFormat format = new DecimalFormat((pretty ? ",##" : "") + "0.##########");
+            event.reply(format.format(result)).queue();
+        });
     }
 
 }

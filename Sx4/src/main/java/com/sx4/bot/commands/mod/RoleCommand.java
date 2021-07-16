@@ -65,12 +65,12 @@ public class RoleCommand extends Sx4Command {
 		}
 
 		if (!event.getMember().canInteract(role)) {
-			event.replyFailure("You cannot delete a role higher or equal then your top role").queue();
+			event.replyFailure("You cannot delete a role higher or equal than your top role").queue();
 			return;
 		}
 
 		if (!event.getSelfMember().canInteract(role)) {
-			event.replyFailure("I cannot delete a role higher or equal then my top role").queue();
+			event.replyFailure("I cannot delete a role higher or equal than my top role").queue();
 			return;
 		}
 
@@ -84,12 +84,12 @@ public class RoleCommand extends Sx4Command {
 	@BotPermissions(permissions={Permission.MANAGE_ROLES})
 	public void edit(Sx4CommandEvent event, @Argument(value="role") Role role, @Option(value="colour", description="Set the colour of the role") @Colour Integer colour, @Option(value="name", description="Set the name of the role") @Limit(max=32) String name, @Option(value="mentionable", description="Set the mention state of the role") Boolean mentionable, @Option(value="hoisted", description="Set the hoist state of the role") Boolean hosted, @Option(value="permissions", description="Set the permissions of the role") Long permissions) {
 		if (!event.getMember().canInteract(role)) {
-			event.replyFailure("You cannot edit a role higher or equal then your top role").queue();
+			event.replyFailure("You cannot edit a role higher or equal than your top role").queue();
 			return;
 		}
 
 		if (!event.getSelfMember().canInteract(role)) {
-			event.replyFailure("I cannot edit a role higher or equal then my top role").queue();
+			event.replyFailure("I cannot edit a role higher or equal than my top role").queue();
 			return;
 		}
 
@@ -128,12 +128,12 @@ public class RoleCommand extends Sx4Command {
 		}
 
 		if (!event.getMember().canInteract(role)) {
-			event.replyFailure("You cannot give a role higher or equal then your top role").queue();
+			event.replyFailure("You cannot give a role higher or equal than your top role").queue();
 			return;
 		}
 
 		if (!event.getSelfMember().canInteract(role)) {
-			event.replyFailure("I cannot give a role higher or equal then my top role").queue();
+			event.replyFailure("I cannot give a role higher or equal than my top role").queue();
 			return;
 		}
 
@@ -189,12 +189,12 @@ public class RoleCommand extends Sx4Command {
 		}
 
 		if (!event.getMember().canInteract(role)) {
-			event.replyFailure("You cannot remove a role higher or equal then your top role").queue();
+			event.replyFailure("You cannot remove a role higher or equal than your top role").queue();
 			return;
 		}
 
 		if (!event.getSelfMember().canInteract(role)) {
-			event.replyFailure("I cannot remove a role higher or equal then my top role").queue();
+			event.replyFailure("I cannot remove a role higher or equal than my top role").queue();
 			return;
 		}
 

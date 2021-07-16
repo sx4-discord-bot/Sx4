@@ -27,7 +27,7 @@ import com.mongodb.client.model.Projections;
 import com.sx4.api.Sx4Server;
 import com.sx4.bot.annotations.argument.*;
 import com.sx4.bot.cache.GoogleSearchCache;
-import com.sx4.bot.cache.GuildMessageCache;
+import com.sx4.bot.cache.MessageCache;
 import com.sx4.bot.cache.SteamGameCache;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.config.Config;
@@ -56,6 +56,8 @@ import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.*;
 import net.dv8tion.jda.api.entities.Message.Attachment;
 import net.dv8tion.jda.api.entities.MessageReaction.ReactionEmote;
+import net.dv8tion.jda.api.hooks.IEventManager;
+import net.dv8tion.jda.api.hooks.InterfacedEventManager;
 import net.dv8tion.jda.api.requests.GatewayIntent;
 import net.dv8tion.jda.api.requests.restaction.MessageAction;
 import net.dv8tion.jda.api.sharding.DefaultShardManagerBuilder;
@@ -107,7 +109,7 @@ public class Sx4 {
 	private final ScheduledExecutorService scheduledExecutor;
 
 	private final SteamGameCache steamGameCache;
-	private final GuildMessageCache messageCache;
+	private final MessageCache messageCache;
 	private final GoogleSearchCache googleCache;
 
 	/* Managers */
@@ -164,6 +166,7 @@ public class Sx4 {
 
 		ModHandler modHandler = new ModHandler(this);
 		YouTubeHandler youTubeHandler = new YouTubeHandler(this);
+		LoggerHandler loggerHandler = new LoggerHandler(this);
 
 		this.antiRegexManager = new AntiRegexManager();
 		this.economyManager = new EconomyManager();
@@ -186,7 +189,7 @@ public class Sx4 {
 		this.mysteryBoxManager = new MysteryBoxManager();
 
 		this.steamGameCache = new SteamGameCache(this);
-		this.messageCache = new GuildMessageCache();
+		this.messageCache = new MessageCache();
 		this.googleCache = new GoogleSearchCache(this);
 
 		this.setupArgumentFactory();
@@ -195,32 +198,31 @@ public class Sx4 {
 		this.commandListener = this.createCommandListener(this.createErrorManager());
 		((CommandParserImpl) this.commandListener.getCommandParser()).addOptionPrefix("");
 
-		List<Object> listeners = List.of(
-			this.commandListener,
-			new PagedHandler(this),
-			new WaiterHandler(this),
-			new GiveawayHandler(this),
-			new AutoRoleHandler(this),
-			modHandler,
-			new ConnectionHandler(this),
-			new ReactionRoleHandler(this),
-			new LoggerHandler(this),
-			new AntiRegexHandler(this),
-			new WelcomerHandler(this),
-			new LeaverHandler(this),
-			new StarboardHandler(this),
-			new TriggerHandler(this),
-			new ServerStatsHandler(this),
-			new SelfRoleHandler(this),
-			new MuteHandler(this),
-			new MediaModeHandler(this),
-			new MysteryBoxHandler(this),
-			new ServerLogHandler(this),
-			youTubeHandler,
-			this.messageCache
-		);
+		IEventManager manager = new InterfacedEventManager();
+		manager.register(this.commandListener);
+		manager.register(new PagedHandler(this));
+		manager.register(new WaiterHandler(this));
+		manager.register(new GiveawayHandler(this));
+		manager.register(new AutoRoleHandler(this));
+		manager.register(modHandler);
+		manager.register(new ConnectionHandler(this));
+		manager.register(new ReactionRoleHandler(this));
+		manager.register(loggerHandler);
+		manager.register(new AntiRegexHandler(this));
+		manager.register(new WelcomerHandler(this));
+		manager.register(new LeaverHandler(this));
+		manager.register(new StarboardHandler(this));
+		manager.register(new TriggerHandler(this));
+		manager.register(new ServerStatsHandler(this));
+		manager.register(new SelfRoleHandler(this));
+		manager.register(new MuteHandler(this));
+		manager.register(new MediaModeHandler(this));
+		manager.register(new MysteryBoxHandler(this));
+		manager.register(new ServerLogHandler(this));
+		manager.register(youTubeHandler);
+		manager.register(this.messageCache);
 
-		this.shardManager = this.createShardManager(listeners);
+		this.shardManager = this.createShardManager(manager);
 
 		FormatterManager formatterManager = new FormatterManager()
 			.addFunctions("com.sx4.bot.formatter.parser")
@@ -481,7 +483,7 @@ public class Sx4 {
 		return this.steamGameCache;
 	}
 
-	public GuildMessageCache getMessageCache() {
+	public MessageCache getMessageCache() {
 		return this.messageCache;
 	}
 
@@ -489,11 +491,11 @@ public class Sx4 {
 		return this.googleCache;
 	}
 
-	public ShardManager createShardManager(List<Object> listeners) {
+	public ShardManager createShardManager(IEventManager manager) {
 		try {
 			return DefaultShardManagerBuilder.create(this.config.getToken(), GatewayIntent.getIntents(5838))
 				.setBulkDeleteSplittingEnabled(false)
-				.addEventListeners(listeners)
+				.setEventManagerProvider(shardId -> manager)
 				.setActivity(Activity.watching("s?help"))
 				.build();
 		} catch (LoginException | IllegalArgumentException e) {

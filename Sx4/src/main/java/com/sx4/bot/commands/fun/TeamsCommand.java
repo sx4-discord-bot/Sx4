@@ -27,7 +27,7 @@ public class TeamsCommand extends Sx4Command {
 
 	public void onCommand(Sx4CommandEvent event, @Argument(value="amount") @Limit(min=2) int amount, @Argument(value="items") String... itemsArray) {
 		if (itemsArray.length < amount) {
-			event.replyFailure("You cannot have more items then the amount of teams").queue();
+			event.replyFailure("You cannot have more items than the amount of teams").queue();
 			return;
 		}
 
