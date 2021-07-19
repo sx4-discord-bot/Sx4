@@ -37,6 +37,9 @@ import okhttp3.Request;
 import okhttp3.RequestBody;
 import org.bson.Document;
 import org.bson.types.ObjectId;
+import org.json.JSONArray;
+import org.json.JSONObject;
+import org.json.XML;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -228,58 +231,47 @@ public class YouTubeNotificationCommand extends Sx4Command {
 	public void preview(Sx4CommandEvent event, @Argument(value="id") ObjectId id) {
 		Document data = event.getMongo().getYouTubeNotification(Filters.eq("_id", id), Projections.include("uploaderId", "message"));
 		if (data == null) {
-			event.replyFailure("I could not find that notifcation").queue();
+			event.replyFailure("I could not find that notification").queue();
 			return;
 		}
 
 		String channelId = data.getString("uploaderId");
 
-		Request channelRequest = new Request.Builder()
-			.url("https://www.googleapis.com/youtube/v3/channels?key=" + event.getConfig().getYouTube() + "&id=" + channelId + "&part=snippet,contentDetails")
+		Request request = new Request.Builder()
+			.url("https://www.youtube.com/feeds/videos.xml?channel_id=" + channelId)
 			.build();
 
-		event.getHttpClient().newCall(channelRequest).enqueue((HttpCallback) channelResponse -> {
-			Document channelData = Document.parse(channelResponse.body().string());
-			Document channel = channelData.getList("items", Document.class).get(0);
+		event.getHttpClient().newCall(request).enqueue((HttpCallback) response -> {
+			if (response.code() == 404) {
+				event.replyFailure("The YouTube channel for this notification no longer exists").queue();
+				return;
+			}
 
-			String channelName = channel.getEmbedded(List.of("snippet", "title"), String.class);
+			JSONObject channel = XML.toJSONObject(response.body().string());
+			JSONObject feed = channel.getJSONObject("feed");
 
-			Request playlistRequest = new Request.Builder()
-				.url("https://www.googleapis.com/youtube/v3/playlistItems?key=" + event.getConfig().getYouTube() + "&playlistId=" + channel.getEmbedded(List.of("contentDetails", "relatedPlaylists", "uploads"), String.class) + "&part=snippet&maxResults=1")
-				.build();
+			JSONArray entries = feed.getJSONArray("entry");
+			YouTubeVideo video;
+			if (entries.isEmpty()) {
+				OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+				video = new YouTubeVideo("dQw4w9WgXcQ", "This channel had no uploads", now, now);
+			} else {
+				JSONObject entry = entries.getJSONObject(0);
+				video = new YouTubeVideo(entry.getString("yt:videoId"), entry.getString("title"), entry.getString("updated"), entry.getString("published"));
+			}
 
-			event.getHttpClient().newCall(playlistRequest).enqueue((HttpCallback) playlistResponse -> {
-				Document item = null;
-				if (playlistResponse.code() != 404) {
-					Document playlistData = Document.parse(playlistResponse.body().string());
+			String channelName = feed.getString("title");
 
-					item = playlistData.getList("items", Document.class, Collections.emptyList()).stream()
-						.filter(d -> d.getEmbedded(List.of("snippet", "resourceId", "kind"), String.class).equals("youtube#video"))
-						.findFirst()
-						.orElse(null);
-				}
+			Document message =  new JsonFormatter(data.get("message", YouTubeManager.DEFAULT_MESSAGE))
+				.addVariable("video", video)
+				.addVariable("channel", new YouTubeChannel(channelId, channelName))
+				.parse();
 
-				YouTubeVideo video;
-				if (item == null) {
-					OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
-					video = new YouTubeVideo("dQw4w9WgXcQ", "This channel had no uploads", now, now);
-				} else {
-					Document snippet = item.get("snippet", Document.class);
-					String published = snippet.getString("publishedAt");
-					video = new YouTubeVideo(snippet.getEmbedded(List.of("resourceId", "videoId"), String.class), snippet.getString("title"), published, published);
-				}
-
-				Document message =  new JsonFormatter(data.get("message", YouTubeManager.DEFAULT_MESSAGE))
-					.addVariable("video", video)
-					.addVariable("channel", new YouTubeChannel(channelId, channelName))
-					.parse();
-
-				try {
-					MessageUtility.fromWebhookMessage(event.getTextChannel(), MessageUtility.fromJson(message).build()).queue();
-				} catch (IllegalArgumentException e) {
-					event.replyFailure(e.getMessage()).queue();
-				}
-			});
+			try {
+				MessageUtility.fromWebhookMessage(event.getTextChannel(), MessageUtility.fromJson(message).build()).queue();
+			} catch (IllegalArgumentException e) {
+				event.replyFailure(e.getMessage()).queue();
+			}
 		});
 	}
 	

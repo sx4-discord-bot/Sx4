@@ -25,7 +25,9 @@ import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.events.interaction.ButtonClickEvent;
+import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.interactions.components.Button;
+import net.dv8tion.jda.api.requests.ErrorResponse;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
@@ -285,9 +287,16 @@ public class SuggestionCommand extends Sx4Command {
 
 			User author = event.getShardManager().getUserById(suggestionData.getLong("authorId"));
 
+			long messageId = suggestionData.getLong("messageId");
+			if (author != null) {
+				author.openPrivateChannel()
+					.flatMap(privateChannel -> privateChannel.sendMessage("Your suggestion has been updated by a moderator, click the message link to view it\nhttps://discord.com/channels/" + event.getGuild().getIdLong() + "/" + channel.getIdLong() + "/" + messageId))
+					.queue(null, ErrorResponseException.ignore(ErrorResponse.CANNOT_SEND_TO_USER));
+			}
+
 			WebhookEmbed embed = Suggestion.getWebhookEmbed(suggestionData.getObjectId("_id"), event.getAuthor(), author, suggestionData.getString("suggestion"), reason, new SuggestionState(state));
 
-			event.getBot().getSuggestionManager().editSuggestion(suggestionData.getLong("messageId"), channel.getIdLong(), data.get("webhook", MongoDatabase.EMPTY_DOCUMENT), embed);
+			event.getBot().getSuggestionManager().editSuggestion(messageId, channel.getIdLong(), data.get("webhook", MongoDatabase.EMPTY_DOCUMENT), embed);
 
 			event.replySuccess("That suggestion has been set to the `" + stateData + "` state").queue();
 		});

@@ -79,7 +79,7 @@ public class YouTubeEndpoint {
 			Document data = this.bot.getMongo().getYouTubeNotificationLog(Filters.eq("videoId", videoId), Projections.include("title"));
 			String oldTitle = data == null ? null : data.getString("title");
 			
-			if (data == null && Duration.between(video.getPublishedAt(), OffsetDateTime.now(ZoneOffset.UTC)).toMinutes() <= 60) {
+			if (data == null && Duration.between(video.getPublishedAt(), OffsetDateTime.now(ZoneOffset.UTC)).toDays() <= 1) {
 				this.bot.getYouTubeManager().onYouTube(new YouTubeUploadEvent(channel, video));
 			} else if (data != null && oldTitle.equals(videoTitle)) {
 				this.bot.getYouTubeManager().onYouTube(new YouTubeUpdateEvent(channel, video));
