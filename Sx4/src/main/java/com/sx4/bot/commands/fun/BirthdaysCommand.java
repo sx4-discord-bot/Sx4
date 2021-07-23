@@ -11,13 +11,17 @@ import com.sx4.bot.utility.NumberUtility;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.utils.MarkdownSanitizer;
 import org.bson.Document;
 
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.format.TextStyle;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 
 public class BirthdaysCommand extends Sx4Command {
 
@@ -83,7 +87,7 @@ public class BirthdaysCommand extends Sx4Command {
 			.setSelect()
 			.setDisplayFunction(entry -> {
 				LocalDate birthday = entry.getValue();
-				return entry.getKey().getAsTag() + " - " + NumberUtility.getSuffixed(birthday.getDayOfMonth()) + " " + birthday.getMonth().getDisplayName(TextStyle.FULL, Locale.UK) + (birthday.equals(now) ? " :cake:" : "");
+				return MarkdownSanitizer.escape(entry.getKey().getAsTag()) + " - " + NumberUtility.getSuffixed(birthday.getDayOfMonth()) + " " + birthday.getMonth().getDisplayName(TextStyle.FULL, Locale.UK) + (birthday.equals(now) ? " :cake:" : "");
 			});
 
 		paged.execute(event);

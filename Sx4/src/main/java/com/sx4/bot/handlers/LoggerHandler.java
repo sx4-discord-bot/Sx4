@@ -14,6 +14,7 @@ import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.management.LoggerContext;
 import com.sx4.bot.entities.management.LoggerEvent;
+import com.sx4.bot.managers.LoggerManager;
 import com.sx4.bot.utility.ColourUtility;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.LoggerUtility;
@@ -66,14 +67,15 @@ import net.dv8tion.jda.api.events.role.update.RoleUpdateNameEvent;
 import net.dv8tion.jda.api.events.role.update.RoleUpdatePermissionsEvent;
 import net.dv8tion.jda.api.hooks.EventListener;
 import net.dv8tion.jda.internal.utils.tuple.Pair;
+import okhttp3.OkHttpClient;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 
-import java.time.*;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -84,6 +86,12 @@ public class LoggerHandler implements EventListener {
 	public static final int DELAY = 500;
 
 	private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+	
+	private final Map<Long, LoggerManager> managers;
+	private final ScheduledExecutorService managerExecutor = Executors.newScheduledThreadPool(20);
+	private final OkHttpClient managerClient = new OkHttpClient.Builder()
+		.callTimeout(3, TimeUnit.SECONDS)
+		.build();
 
 	private final TLongObjectMap<TLongIntMap> disconnectCache = new TLongObjectHashMap<>();
 	private final TLongObjectMap<TLongIntMap> moveCache = new TLongObjectHashMap<>();
@@ -92,6 +100,44 @@ public class LoggerHandler implements EventListener {
 	
 	public LoggerHandler(Sx4 bot) {
 		this.bot = bot;
+		this.managers = new HashMap<>();
+	}
+
+	private LoggerManager getManager(long channelId) {
+		if (this.managers.containsKey(channelId)) {
+			return this.managers.get(channelId);
+		}
+
+		LoggerManager manager = new LoggerManager(this.bot, this.managerClient, this.managerExecutor);
+		this.managers.put(channelId, manager);
+
+		return manager;
+	}
+
+	public void queue(Guild guild, List<Document> loggers, LoggerEvent event, LoggerContext context, WebhookEmbed... embeds) {
+		this.queue(guild, loggers, event, context, Arrays.asList(embeds));
+	}
+
+	public void queue(Guild guild, List<Document> loggers, LoggerEvent event, LoggerContext context, List<WebhookEmbed> embeds) {
+		List<Long> deletedLoggers = new ArrayList<>();
+		for (Document logger : loggers) {
+			if (!LoggerUtility.canSend(logger, event, context)) {
+				continue;
+			}
+
+			long channelId = logger.getLong("channelId");
+			TextChannel channel = guild.getTextChannelById(channelId);
+			if (channel == null) {
+				deletedLoggers.add(channelId);
+				continue;
+			}
+
+			this.getManager(channelId).queue(channel, logger, embeds);
+		}
+
+		if (!deletedLoggers.isEmpty()) {
+			this.bot.getMongo().deleteManyLoggers(Filters.in("channelId", deletedLoggers)).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
+		}
 	}
 
 	private List<Bson> getPipeline(long guildId) {
@@ -184,7 +230,7 @@ public class LoggerHandler implements EventListener {
 					embeds.add(embed.build());
 				}
 
-				this.bot.getLoggerManager().queue(channel, logger, embeds);
+				this.getManager(channelId).queue(channel, logger, embeds);
 			}
 
 			if (!deletedLoggers.isEmpty()) {
@@ -254,7 +300,7 @@ public class LoggerHandler implements EventListener {
 
 			Document data = documents.get(0);
 
-			this.bot.getLoggerManager().queue(guild, data.getList("loggers", Document.class), loggerEvent, loggerContext, embed.build());
+			this.queue(guild, data.getList("loggers", Document.class), loggerEvent, loggerContext, embed.build());
 		});
 	}
 
@@ -311,7 +357,7 @@ public class LoggerHandler implements EventListener {
 
 						embed.setDescription(description.toString());
 
-						this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+						this.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 					});
 
 					return;
@@ -322,7 +368,7 @@ public class LoggerHandler implements EventListener {
 				embed.setDescription(String.format("`%s` just joined the server", member.getEffectiveName()));
 			}
 
-			this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+			this.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 		});
 	}
 
@@ -373,7 +419,7 @@ public class LoggerHandler implements EventListener {
 						embed.setDescription(String.format("`%s` has been kicked by **%s**", user.getName(), moderator.getAsTag()));
 					}
 
-					this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+					this.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 				});
 
 				return;
@@ -381,7 +427,7 @@ public class LoggerHandler implements EventListener {
 
 			LoggerEvent loggerEvent = LoggerEvent.MEMBER_LEAVE;
 
-			this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+			this.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 		});
 	}
 
@@ -431,10 +477,10 @@ public class LoggerHandler implements EventListener {
 						embed.setDescription(String.format("`%s` has been banned by **%s**", user.getName(), moderator.getAsTag()));
 					}
 
-					this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+					this.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 				});
 			} else {
-				this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+				this.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 			}
 		});
 	}
@@ -485,10 +531,10 @@ public class LoggerHandler implements EventListener {
 						embed.setDescription(String.format("`%s` has been unbanned by **%s**", user.getName(), moderator.getAsTag()));
 					}
 
-					this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+					this.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 				});
 			} else {
-				this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+				this.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 			}
 		});
 	}
@@ -522,7 +568,7 @@ public class LoggerHandler implements EventListener {
 
 			Document data = documents.get(0);
 
-			this.bot.getLoggerManager().queue(guild, data.getList("loggers", Document.class), loggerEvent, loggerContext, embed.build());
+			this.queue(guild, data.getList("loggers", Document.class), loggerEvent, loggerContext, embed.build());
 		});
 	}
 
@@ -587,12 +633,12 @@ public class LoggerHandler implements EventListener {
 						embed.setDescription(String.format("`%s` was disconnected from the voice channel %s by **%s**", member.getEffectiveName(), channel.getAsMention(), moderator.getAsTag()));
 					}
 
-					this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+					this.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 				});
 			} else {
 				LoggerEvent loggerEvent = LoggerEvent.MEMBER_VOICE_LEAVE;
 
-				this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+				this.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 			}
 		});
 	}
@@ -659,10 +705,10 @@ public class LoggerHandler implements EventListener {
 						embed.setDescription(String.format("`%s` was moved voice channel by **%s**", member.getEffectiveName(), moderator.getAsTag()));
 					}
 
-					this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+					this.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 				});
 			} else {
-				this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+				this.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 			}
 		});
 	}
@@ -720,10 +766,10 @@ public class LoggerHandler implements EventListener {
 						embed.setDescription(String.format("`%s` has been %s by **%s**", member.getEffectiveName(), muted ? "muted" : "unmuted", moderator.getAsTag()));
 					}
 
-					this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+					this.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 				});
 			} else {
-				this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+				this.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 			}
 		});
 	}
@@ -781,10 +827,10 @@ public class LoggerHandler implements EventListener {
 						embed.setDescription(String.format("`%s` has been %s by **%s**", member.getEffectiveName(), deafened ? "deafened" : "undeafened", moderator.getAsTag()));
 					}
 
-					this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+					this.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 				});
 			} else {
-				this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+				this.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 			}
 		});
 	}
@@ -859,13 +905,13 @@ public class LoggerHandler implements EventListener {
 					description.append(message);
 					embed.setDescription(description.toString());
 
-					this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+					this.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 				});
 			} else {
 				description.append(message);
 				embed.setDescription(description.toString());
 
-				this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+				this.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 			}
 		});
 	}
@@ -942,13 +988,13 @@ public class LoggerHandler implements EventListener {
 					description.append(message);
 					embed.setDescription(description.toString());
 
-					this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+					this.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 				});
 			} else {
 				description.append(message);
 				embed.setDescription(description.toString());
 
-				this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+				this.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 			}
 		});
 	}
@@ -1021,12 +1067,12 @@ public class LoggerHandler implements EventListener {
 
 						embed.setDescription(description.toString());
 
-						this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+						this.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 					});
 				} else {
 					embed.setDescription(description.toString());
 
-					this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+					this.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 				}
 			});
 		});
@@ -1077,10 +1123,10 @@ public class LoggerHandler implements EventListener {
 						embed.setDescription(String.format("The %s `%s` has just been deleted by **%s**", typeReadable, channel.getName(), moderator.getAsTag()));
 					}
 
-					this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+					this.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 				});
 			} else {
-				this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+				this.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 			}
 		});
 	}
@@ -1147,10 +1193,10 @@ public class LoggerHandler implements EventListener {
 						embed.setDescription(String.format("The %s %s has just been created by **%s**", typeReadable, channelType == ChannelType.CATEGORY ? "`" + channel.getName() + "`" : channel.getAsMention(), moderator.getAsTag()));
 					}
 
-					this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+					this.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 				});
 			} else {
-				this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+				this.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 			}
 		});
 	}
@@ -1221,10 +1267,10 @@ public class LoggerHandler implements EventListener {
 						embed.setDescription(String.format("The %s %s has just been renamed by **%s**", typeReadable, channelType == ChannelType.CATEGORY ? "`" + channel.getName() + "`" : channel.getAsMention(), moderator.getAsTag()));
 					}
 
-					this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+					this.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 				});
 			} else {
-				this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+				this.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 			}
 		});
 	}
@@ -1291,10 +1337,10 @@ public class LoggerHandler implements EventListener {
 						embed.setDescription(String.format("The role %s has been created by **%s**", role.getAsMention(), moderator.getAsTag()));
 					}
 
-					this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+					this.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 				});
 			} else {
-				this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+				this.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 			}
 		});
 	}
@@ -1345,10 +1391,10 @@ public class LoggerHandler implements EventListener {
 						embed.setDescription(String.format("The role `%s` has been deleted by **%s**", role.getName(), moderator.getAsTag()));
 					}
 
-					this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+					this.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 				});
 			} else {
-				this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+				this.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 			}
 		});
 	}
@@ -1403,10 +1449,10 @@ public class LoggerHandler implements EventListener {
 						embed.setDescription(String.format("The role %s has been renamed by **%s**", role.getAsMention(), moderator.getAsTag()));
 					}
 
-					this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+					this.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 				});
 			} else {
-				this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+				this.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 			}
 		});
 	}
@@ -1463,10 +1509,10 @@ public class LoggerHandler implements EventListener {
 						embed.setDescription(String.format("The role %s has been given a new colour by **%s**", role.getAsMention(), moderator.getAsTag()));
 					}
 
-					this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+					this.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 				});
 			} else {
-				this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+				this.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 			}
 		});
 	}
@@ -1526,13 +1572,13 @@ public class LoggerHandler implements EventListener {
 					description.append(permissionMessage);
 					embed.setDescription(description.toString());
 
-					this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+					this.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 				});
 			} else {
 				description.append(permissionMessage);
 				embed.setDescription(description.toString());
 
-				this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+				this.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 			}
 		});
 	}
@@ -1637,12 +1683,12 @@ public class LoggerHandler implements EventListener {
 
 					embed.setDescription(description.toString());
 
-					this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+					this.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 				});
 			} else {
 				embed.setDescription(description.toString());
 
-				this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+				this.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 			}
 		});
 	}
@@ -1759,12 +1805,12 @@ public class LoggerHandler implements EventListener {
 
 						embed.setDescription(description.toString());
 
-						this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+						this.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 					});
 				} else {
 					embed.setDescription(description.toString());
 
-					this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+					this.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 				}
 			});
 		});
@@ -1820,10 +1866,10 @@ public class LoggerHandler implements EventListener {
 						embed.setDescription(String.format("`%s` has had their nickname changed by **%s**", member.getEffectiveName(), moderator.getAsTag()));
 					}
 
-					this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+					this.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 				});
 			} else {
-				this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+				this.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 			}
 		});
 	}
@@ -1874,10 +1920,10 @@ public class LoggerHandler implements EventListener {
 						embed.setDescription(String.format("The emote %s has been created by **%s**", emote.getAsMention(), moderator.getAsTag()));
 					}
 
-					this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+					this.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 				});
 			} else {
-				this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+				this.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 			}
 		});
 	}
@@ -1928,10 +1974,10 @@ public class LoggerHandler implements EventListener {
 						embed.setDescription(String.format("The emote `%s` has been deleted by **%s**", emote.getName(), moderator.getAsTag()));
 					}
 
-					this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+					this.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 				});
 			} else {
-				this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+				this.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 			}
 		});
 	}
@@ -1986,10 +2032,10 @@ public class LoggerHandler implements EventListener {
 						embed.setDescription(String.format("The emote %s has been renamed by **%s**", emote.getName(), moderator.getAsTag()));
 					}
 
-					this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+					this.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 				});
 			} else {
-				this.bot.getLoggerManager().queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+				this.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 			}
 		});
 	}
@@ -2033,7 +2079,7 @@ public class LoggerHandler implements EventListener {
 
 			Document data = documents.get(0);
 
-			this.bot.getLoggerManager().queue(guild, data.getList("loggers", Document.class), loggerEvent, loggerContext, embed.build());
+			this.queue(guild, data.getList("loggers", Document.class), loggerEvent, loggerContext, embed.build());
 		});
 	}
 

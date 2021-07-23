@@ -11,7 +11,8 @@ public enum MediaType {
 	PNG(2, "png"),
 	GIF(3, "gif"),
 	MP4(4, "mp4"),
-	WEBP(5, "webp");
+	WEBP(5, "webp"),
+	MOV(6, "quicktime");
 
 	public static long ALL = MediaType.getRaw(MediaType.values());
 

@@ -26,7 +26,7 @@ public class MediaModeHandler implements EventListener {
 		this.bot = bot;
 	}
 
-	public String getSubContentType(String contentType) {
+	public String getMimeType(String contentType) {
 		if (contentType == null) {
 			return null;
 		}
@@ -50,7 +50,7 @@ public class MediaModeHandler implements EventListener {
 		EnumSet<MediaType> types = MediaType.getMediaTypes(media.get("types", MediaType.ALL));
 
 		Attachment attachment = message.getAttachments().stream()
-			.filter(file -> types.stream().anyMatch(type -> type.getExtension().equalsIgnoreCase(this.getSubContentType(file.getContentType()))))
+			.filter(file -> types.stream().anyMatch(type -> type.getExtension().equalsIgnoreCase(this.getMimeType(file.getContentType()))))
 			.findFirst()
 			.orElse(null);
 

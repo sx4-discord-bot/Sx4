@@ -9,11 +9,8 @@ import com.mongodb.client.model.UpdateOptions;
 import com.mongodb.client.model.Updates;
 import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.mongo.MongoDatabase;
-import com.sx4.bot.entities.management.LoggerContext;
-import com.sx4.bot.entities.management.LoggerEvent;
 import com.sx4.bot.entities.webhook.WebhookClient;
 import com.sx4.bot.utility.ExceptionUtility;
-import com.sx4.bot.utility.LoggerUtility;
 import com.sx4.bot.utility.MessageUtility;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.Permission;
@@ -22,17 +19,16 @@ import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.requests.ErrorResponse;
-import okhttp3.Dispatcher;
 import okhttp3.OkHttpClient;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.glassfish.jersey.internal.guava.ThreadFactoryBuilder;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.*;
-import java.util.function.Consumer;
 
-public class LoggerManager implements WebhookManager {
+public class LoggerManager {
 
     public static class Request {
 
@@ -99,45 +95,21 @@ public class LoggerManager implements WebhookManager {
 
     private static final int MAX_RETRIES = 3;
 
-    private final Set<Long> deletedCache;
-
-    private final Map<Long, WebhookClient> webhooks;
+    private WebhookClient webhook;
     private final BlockingDeque<Request> queue;
 
     private final OkHttpClient webhookClient;
-
-    private final ScheduledExecutorService webhookExecutor = Executors.newScheduledThreadPool(20);
+    private final ScheduledExecutorService webhookExecutor;
 
     private final ExecutorService executor = Executors.newSingleThreadExecutor(new ThreadFactoryBuilder().setNameFormat("logger-executor-%d").build());
 
     private final Sx4 bot;
 
-    public LoggerManager(Sx4 bot) {
+    public LoggerManager(Sx4 bot, OkHttpClient webhookClient, ScheduledExecutorService webhookExecutor) {
         this.queue = new LinkedBlockingDeque<>();
-        this.webhooks = new HashMap<>();
-        this.deletedCache = new HashSet<>();
         this.bot = bot;
-
-        Dispatcher dispatcher = new Dispatcher();
-        dispatcher.setMaxRequests(128);
-        dispatcher.setMaxRequestsPerHost(20);
-
-        this.webhookClient = new OkHttpClient.Builder()
-            .callTimeout(3, TimeUnit.SECONDS)
-            .dispatcher(dispatcher)
-            .build();
-    }
-
-    public WebhookClient getWebhook(long channelId) {
-        return this.webhooks.get(channelId);
-    }
-
-    public WebhookClient removeWebhook(long channelId) {
-        return this.webhooks.remove(channelId);
-    }
-
-    public void putWebhook(long channelId, WebhookClient webhook) {
-        this.webhooks.put(channelId, webhook);
+        this.webhookExecutor = webhookExecutor;
+        this.webhookClient = webhookClient;
     }
 
     private void createWebhook(TextChannel channel, List<Request> requests) {
@@ -150,22 +122,22 @@ public class LoggerManager implements WebhookManager {
                     Updates.unset("webhook.token")
                 );
 
-                this.bot.getMongo().updateLogger(Filters.eq("channelId", channel.getIdLong()), update, new UpdateOptions()).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
-
-                this.webhooks.remove(channel.getIdLong());
+                this.bot.getMongo().updateLogger(Filters.eq("channelId", channel.getIdLong()), update, new UpdateOptions()).whenComplete((result, databaseException) -> {
+                    ExceptionUtility.sendErrorMessage(databaseException);
+                    this.queue.clear();
+                });
 
                 return;
             }
 
             if (ExceptionUtility.sendErrorMessage(exception)) {
-                requests.forEach(failedRequest -> this.queueFirst(failedRequest.incrementAttempts()));
+                requests.forEach(failedRequest -> this.queue.addFirst(failedRequest.incrementAttempts()));
+                this.handleQueue();
 
                 return;
             }
 
-            WebhookClient webhookClient = new WebhookClient(webhook.getIdLong(), webhook.getToken(), this.webhookExecutor, this.webhookClient);
-
-            this.webhooks.put(channel.getIdLong(), webhookClient);
+            this.webhook = new WebhookClient(webhook.getIdLong(), webhook.getToken(), this.webhookExecutor, this.webhookClient);
 
             Bson update = Updates.combine(
                 Updates.set("webhook.id", webhook.getIdLong()),
@@ -173,11 +145,10 @@ public class LoggerManager implements WebhookManager {
             );
 
             this.bot.getMongo().updateLogger(Filters.eq("channelId", channel.getIdLong()), update, new UpdateOptions()).whenComplete((result, databaseException) -> {
-                if (ExceptionUtility.sendErrorMessage(databaseException)) {
-                    return;
-                }
+                ExceptionUtility.sendErrorMessage(databaseException);
 
-                requests.forEach(failedRequest -> this.queueFirst(failedRequest.incrementAttempts()));
+                requests.forEach(failedRequest -> this.queue.addFirst(failedRequest.incrementAttempts()));
+                this.handleQueue();
             });
         });
     }
@@ -204,12 +175,10 @@ public class LoggerManager implements WebhookManager {
                 long channelId = request.getChannelId();
                 TextChannel channel = request.getChannel(guild);
                 if (channel == null) {
-                    if (this.deletedCache.add(channelId)) {
-                        this.bot.getMongo().deleteLogger(Filters.eq("channelId", channelId)).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
-                    }
-
-                    this.webhooks.remove(channelId);
-                    this.handleQueue();
+                    this.bot.getMongo().deleteLogger(Filters.eq("channelId", channelId)).whenComplete((result, exception) -> {
+                        ExceptionUtility.sendErrorMessage(exception);
+                        this.queue.clear();
+                    });
 
                     return;
                 }
@@ -222,11 +191,6 @@ public class LoggerManager implements WebhookManager {
 
                 Request nextRequest;
                 while ((nextRequest = this.queue.poll()) != null) {
-                    if (request.getChannelId() != nextRequest.getChannelId()) {
-                        skippedRequests.add(nextRequest);
-                        continue;
-                    }
-
                     List<WebhookEmbed> nextEmbeds = nextRequest.getEmbeds();
                     int nextLength = MessageUtility.getWebhookEmbedLength(nextEmbeds);
 
@@ -253,38 +217,38 @@ public class LoggerManager implements WebhookManager {
                     .setAvatarUrl(premium ? webhookData.get("avatar", request.getJDA().getSelfUser().getEffectiveAvatarUrl()) : request.getJDA().getSelfUser().getEffectiveAvatarUrl())
                     .build();
 
-                WebhookClient webhook;
-                if (this.webhooks.containsKey(channelId)) {
-                    webhook = this.webhooks.get(channelId);
-                } else if (!webhookData.containsKey("id")) {
-                    if (guild.getSelfMember().hasPermission(channel, Permission.MANAGE_WEBHOOKS)) {
-                        this.createWebhook(channel, requests);
+                if (this.webhook == null) {
+                    if (!webhookData.containsKey("id")) {
+                        if (guild.getSelfMember().hasPermission(channel, Permission.MANAGE_WEBHOOKS)) {
+                            this.createWebhook(channel, requests);
+                            return;
+                        }
+
+                        this.handleQueue();
+                        return;
+                    } else {
+                        this.webhook = new WebhookClient(webhookData.getLong("id"), webhookData.getString("token"), this.webhookExecutor, this.webhookClient);
                     }
-
-                    this.handleQueue();
-                    return;
-                } else {
-                    webhook = new WebhookClient(webhookData.getLong("id"), webhookData.getString("token"), this.webhookExecutor, this.webhookClient);
-
-                    this.webhooks.put(channelId, webhook);
                 }
 
-                webhook.send(message).whenComplete((result, exception) -> {
+                this.webhook.send(message).whenComplete((result, exception) -> {
                     Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
                     if (cause instanceof HttpException && ((HttpException) cause).getCode() == 404) {
                         if (guild.getSelfMember().hasPermission(channel, Permission.MANAGE_WEBHOOKS)) {
                             this.createWebhook(channel, requests);
+                            return;
                         }
 
+                        this.handleQueue();
                         return;
                     }
 
                     if (ExceptionUtility.sendErrorMessage(exception)) {
-                        requests.forEach(failedRequest -> this.queueFirst(failedRequest.incrementAttempts()));
+                        requests.forEach(failedRequest -> this.queue.addFirst(failedRequest.incrementAttempts()));
                     }
-                });
 
-                this.handleQueue();
+                    this.handleQueue();
+                });
             } catch (Throwable exception) {
                 // Continue queue even if an exception occurs to avoid the queue getting stuck
                 ExceptionUtility.sendErrorMessage(exception);
@@ -293,21 +257,13 @@ public class LoggerManager implements WebhookManager {
         });
     }
 
-    private void queue(Request request, Consumer<Request> consumer) {
+    private void queue(Request request) {
         if (this.queue.isEmpty()) {
-            consumer.accept(request);
+            this.queue.add(request);
             this.handleQueue();
         } else {
-            consumer.accept(request);
+            this.queue.add(request);
         }
-    }
-
-    private void queue(Request request) {
-        this.queue(request, this.queue::add);
-    }
-
-    private void queueFirst(Request request) {
-        this.queue(request, this.queue::addFirst);
     }
 
     public void queue(TextChannel channel, Document logger, List<WebhookEmbed> embeds) {
@@ -326,32 +282,6 @@ public class LoggerManager implements WebhookManager {
         }
 
         requests.forEach(this::queue);
-    }
-
-    public void queue(Guild guild, List<Document> loggers, LoggerEvent event, LoggerContext context, WebhookEmbed... embeds) {
-        this.queue(guild, loggers, event, context, Arrays.asList(embeds));
-    }
-
-    public void queue(Guild guild, List<Document> loggers, LoggerEvent event, LoggerContext context, List<WebhookEmbed> embeds) {
-        List<Long> deletedLoggers = new ArrayList<>();
-        for (Document logger : loggers) {
-            if (!LoggerUtility.canSend(logger, event, context)) {
-                continue;
-            }
-
-            long channelId = logger.getLong("channelId");
-            TextChannel channel = guild.getTextChannelById(channelId);
-            if (channel == null) {
-                deletedLoggers.add(channelId);
-                continue;
-            }
-
-            this.queue(channel, logger, embeds);
-        }
-
-        if (!deletedLoggers.isEmpty()) {
-            this.bot.getMongo().deleteManyLoggers(Filters.in("channelId", deletedLoggers)).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
-        }
     }
 
 }

@@ -216,6 +216,7 @@ public class AuctionCommand extends Sx4Command {
 
 			PagedResult<Document> paged = new PagedResult<>(event.getBot(), items)
 				.setPerPage(6)
+				.setIncreasedIndex(true)
 				.setTimeout(30)
 				.setCustomFunction(page -> {
 					EmbedBuilder embed = new EmbedBuilder()

@@ -22,7 +22,6 @@ import com.jockie.bot.core.option.factory.impl.OptionFactory;
 import com.jockie.bot.core.option.factory.impl.OptionFactoryImpl;
 import com.jockie.bot.core.parser.IParser;
 import com.jockie.bot.core.parser.ParsedResult;
-import com.jockie.jda.memory.MemoryOptimizations;
 import com.mongodb.client.model.Projections;
 import com.sx4.api.Sx4Server;
 import com.sx4.bot.annotations.argument.*;
@@ -115,7 +114,6 @@ public class Sx4 {
 	/* Managers */
 	private final YouTubeManager youTubeManager;
 	private final AntiRegexManager antiRegexManager;
-	private final LoggerManager loggerManager;
 	private final EconomyManager economyManager;
 	private final MuteManager muteManager;
 	private final GiveawayManager giveawayManager;
@@ -172,7 +170,6 @@ public class Sx4 {
 		this.economyManager = new EconomyManager();
 		this.giveawayManager = new GiveawayManager(this);
 		this.leaverManager = new LeaverManager(this);
-		this.loggerManager = new LoggerManager(this);
 		this.modActionManager = new ModActionManager().addListener(modHandler);
 		this.muteManager = new MuteManager(this);
 		this.patreonManager = new PatreonManager(this).addListener(new PatreonHandler(this));
@@ -401,10 +398,6 @@ public class Sx4 {
 
 	public AntiRegexManager getAntiRegexManager() {
 		return this.antiRegexManager;
-	}
-
-	public LoggerManager getLoggerManager() {
-		return this.loggerManager;
 	}
 
 	public EconomyManager getEconomyManager() {
@@ -1542,7 +1535,7 @@ public class Sx4 {
 		Sx4 bot = new Sx4();
 		Sx4Server.initiateWebserver(bot);
 
-		MemoryOptimizations.installAll();
+		//MemoryOptimizations.installAll();
 		
 		Thread.setDefaultUncaughtExceptionHandler((thread, exception) -> {
 			System.err.println("[Uncaught]");
