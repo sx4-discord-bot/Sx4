@@ -22,7 +22,6 @@ import net.dv8tion.jda.api.requests.ErrorResponse;
 import okhttp3.OkHttpClient;
 import org.bson.Document;
 import org.bson.conversions.Bson;
-import org.glassfish.jersey.internal.guava.ThreadFactoryBuilder;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -101,13 +100,14 @@ public class LoggerManager {
     private final OkHttpClient webhookClient;
     private final ScheduledExecutorService webhookExecutor;
 
-    private final ExecutorService executor = Executors.newSingleThreadExecutor(new ThreadFactoryBuilder().setNameFormat("logger-executor-%d").build());
+    private final ExecutorService executor;
 
     private final Sx4 bot;
 
-    public LoggerManager(Sx4 bot, OkHttpClient webhookClient, ScheduledExecutorService webhookExecutor) {
+    public LoggerManager(Sx4 bot, ExecutorService executor, OkHttpClient webhookClient, ScheduledExecutorService webhookExecutor) {
         this.queue = new LinkedBlockingDeque<>();
         this.bot = bot;
+        this.executor = executor;
         this.webhookExecutor = webhookExecutor;
         this.webhookClient = webhookClient;
     }

@@ -22,6 +22,7 @@ import com.jockie.bot.core.option.factory.impl.OptionFactory;
 import com.jockie.bot.core.option.factory.impl.OptionFactoryImpl;
 import com.jockie.bot.core.parser.IParser;
 import com.jockie.bot.core.parser.ParsedResult;
+import com.jockie.jda.memory.MemoryOptimizations;
 import com.mongodb.client.model.Projections;
 import com.sx4.api.Sx4Server;
 import com.sx4.bot.annotations.argument.*;
@@ -1535,7 +1536,7 @@ public class Sx4 {
 		Sx4 bot = new Sx4();
 		Sx4Server.initiateWebserver(bot);
 
-		//MemoryOptimizations.installAll();
+		MemoryOptimizations.installOptimizations();
 		
 		Thread.setDefaultUncaughtExceptionHandler((thread, exception) -> {
 			System.err.println("[Uncaught]");

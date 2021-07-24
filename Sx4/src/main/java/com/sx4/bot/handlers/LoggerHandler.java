@@ -76,6 +76,7 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.*;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -88,8 +89,10 @@ public class LoggerHandler implements EventListener {
 	private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
 	
 	private final Map<Long, LoggerManager> managers;
-	private final ScheduledExecutorService managerExecutor = Executors.newScheduledThreadPool(20);
-	private final OkHttpClient managerClient = new OkHttpClient.Builder()
+
+	private final ExecutorService managerExecutor = Executors.newCachedThreadPool();
+	private final ScheduledExecutorService webhookExecutor = Executors.newScheduledThreadPool(20);
+	private final OkHttpClient webhookClient = new OkHttpClient.Builder()
 		.callTimeout(3, TimeUnit.SECONDS)
 		.build();
 
@@ -108,7 +111,7 @@ public class LoggerHandler implements EventListener {
 			return this.managers.get(channelId);
 		}
 
-		LoggerManager manager = new LoggerManager(this.bot, this.managerClient, this.managerExecutor);
+		LoggerManager manager = new LoggerManager(this.bot, this.managerExecutor, this.webhookClient, this.webhookExecutor);
 		this.managers.put(channelId, manager);
 
 		return manager;
