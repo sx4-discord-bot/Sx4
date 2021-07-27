@@ -62,7 +62,7 @@ public class ReminderCommand extends Sx4Command {
 			.append("repeat", repeatOption)
 			.append("duration", duration)
 			.append("reminder", reminder.getReminder())
-			.append("remindAt", Clock.systemUTC().instant().getEpochSecond() + duration);
+			.append("remindAt", Clock.systemUTC().instant().getEpochSecond() + initialDuration);
 
 		event.getMongo().insertReminder(data).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
