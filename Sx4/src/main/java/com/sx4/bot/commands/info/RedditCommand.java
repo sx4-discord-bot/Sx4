@@ -86,7 +86,7 @@ public class RedditCommand extends Sx4Command {
 						}
 
 						if (data.containsKey("selftext")) {
-							embed.setDescription(StringUtility.limit(data.getString("selftext"), MessageEmbed.TEXT_MAX_LENGTH, "... [Read more](" + url + ")"));
+							embed.setDescription(StringUtility.limit(data.getString("selftext"), MessageEmbed.DESCRIPTION_MAX_LENGTH, "... [Read more](" + url + ")"));
 						}
 					});
 

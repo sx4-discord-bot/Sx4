@@ -360,7 +360,7 @@ public class TriggerCommand extends Sx4Command {
 			.setAuthor("Triggers", null, event.getGuild().getIconUrl())
 			.setIndexed(false)
 			.setSelect()
-			.setDisplayFunction(data -> "`" + data.getObjectId("_id").toHexString() + "` - " + StringUtility.limit(data.getString("trigger"), MessageEmbed.TEXT_MAX_LENGTH / 10 - 29, "..."));
+			.setDisplayFunction(data -> "`" + data.getObjectId("_id").toHexString() + "` - " + StringUtility.limit(data.getString("trigger"), MessageEmbed.DESCRIPTION_MAX_LENGTH / 10 - 29, "..."));
 
 		paged.execute(event);
 	}

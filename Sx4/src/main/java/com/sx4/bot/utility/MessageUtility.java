@@ -60,8 +60,8 @@ public class MessageUtility {
 		}
 
 		String description = (String) descriptionJson;
-		if (description.length() > MessageEmbed.TEXT_MAX_LENGTH) {
-			throw new IllegalArgumentException("`embed.description` value cannot be more than " + MessageEmbed.TEXT_MAX_LENGTH + " characters");
+		if (description.length() > MessageEmbed.DESCRIPTION_MAX_LENGTH) {
+			throw new IllegalArgumentException("`embed.description` value cannot be more than " + MessageEmbed.DESCRIPTION_MAX_LENGTH + " characters");
 		}
 
 		return description;
@@ -293,8 +293,8 @@ public class MessageUtility {
 
 				value = (String) valueJson;
 
-				if (value.length() > MessageEmbed.TEXT_MAX_LENGTH) {
-					throw new IllegalArgumentException("`embed.fields." + i + ".value` value cannot be more than " + MessageEmbed.TEXT_MAX_LENGTH + " characters");
+				if (value.length() > MessageEmbed.VALUE_MAX_LENGTH) {
+					throw new IllegalArgumentException("`embed.fields." + i + ".value` value cannot be more than " + MessageEmbed.VALUE_MAX_LENGTH + " characters");
 				}
 			}
 

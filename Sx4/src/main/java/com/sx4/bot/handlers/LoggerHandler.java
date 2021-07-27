@@ -1612,7 +1612,7 @@ public class LoggerHandler implements EventListener {
 			StringBuilder builder = new StringBuilder();
 
 			/* Make sure there is always enough space to write all the components to it */
-			int maxLength = MessageEmbed.TEXT_MAX_LENGTH
+			int maxLength = MessageEmbed.DESCRIPTION_MAX_LENGTH
 				- 32 /* Max nickname length */
 				- 32 /* Result String overhead */
 				- 15 /* " and x more" overhead */
@@ -1725,7 +1725,7 @@ public class LoggerHandler implements EventListener {
 				StringBuilder builder = new StringBuilder();
 
 				/* Make sure there is always enough space to write all the components to it */
-				int maxLength = MessageEmbed.TEXT_MAX_LENGTH
+				int maxLength = MessageEmbed.DESCRIPTION_MAX_LENGTH
 					- 32 /* Max nickname length */
 					- 32 /* Result String overhead */
 					- 16 /* " and x more" overhead */

@@ -203,7 +203,7 @@ public class LoggerUtility {
     }
 
     public static String getRoleDifferenceMessage(List<Role> rolesRemoved, List<Role> rolesAdded, int extraLength) {
-        int maxLength = MessageEmbed.TEXT_MAX_LENGTH
+        int maxLength = MessageEmbed.DESCRIPTION_MAX_LENGTH
             - extraLength
             - 9 /* "\n```diff" */
             - 3 /* "```" */

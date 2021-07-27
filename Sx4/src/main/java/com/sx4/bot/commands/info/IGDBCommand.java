@@ -81,7 +81,7 @@ public class IGDBCommand extends Sx4Command {
 
 				EmbedBuilder embed = new EmbedBuilder();
 				embed.setAuthor(data.getString("name"), data.getString("url"), "http://bit.ly/2NXGwMz");
-				embed.setDescription(StringUtility.limit(data.get("summary", "This game has no description :("), MessageEmbed.TEXT_MAX_LENGTH, "... [Read More](" + data.getString("url") + ")"));
+				embed.setDescription(StringUtility.limit(data.get("summary", "This game has no description :("), MessageEmbed.DESCRIPTION_MAX_LENGTH, "... [Read More](" + data.getString("url") + ")"));
 				embed.setThumbnail(data.containsKey("cover") ? String.format("https://images.igdb.com/igdb/image/upload/t_thumb/%s.jpg", data.getEmbedded(List.of("cover", "image_id"), String.class)) : null);
 
 				int ratings = data.get("total_rating_count", 0);
