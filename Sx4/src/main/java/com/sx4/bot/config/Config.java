@@ -2,7 +2,6 @@ package com.sx4.bot.config;
 
 import club.minnced.discord.webhook.WebhookClient;
 import club.minnced.discord.webhook.WebhookClientBuilder;
-import com.sx4.bot.database.mongo.MongoDatabase;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.TextChannel;
@@ -78,18 +77,10 @@ public class Config {
 	}
 
 	public Config set(String path, Object value) throws IOException {
-		return this.set(path, value, false);
+		return this.set(path, value);
 	}
 
-	public Config set(String path, Object value, boolean updateFile) throws IOException {
-		return this.set(Arrays.asList(path.split("\\.")), value, updateFile);
-	}
-
-	public Config set(List<String> path, Object value) throws IOException {
-		return this.set(path, value, false);
-	}
-
-	public Config set(List<String> path, Object value, boolean updateFile) throws IOException {
+	public Config set(List<String> path, Object value) {
 		Document json = this.json;
 
 		for (int i = 0; i < path.size(); i++) {
@@ -104,12 +95,6 @@ public class Config {
 				json = (Document) oldValue;
 			} else {
 				json.append(key, json = new Document());
-			}
-		}
-
-		if (updateFile) {
-			try (FileOutputStream stream = new FileOutputStream("config.json")) {
-				stream.write(this.json.toJson(MongoDatabase.PRETTY_JSON).getBytes(StandardCharsets.UTF_8));
 			}
 		}
 

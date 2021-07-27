@@ -52,7 +52,7 @@ public class ProfileCommand extends Sx4Command {
 	public void onCommand(Sx4CommandEvent event, @Argument(value="user", endless=true, nullDefault=true) Member member) {
 		User user = member == null ? event.getAuthor() : member.getUser();
 
-		long expiry = event.getMongoMain().getUserById(Filters.eq("_id", event.getAuthor().getIdLong()), Projections.include("premium.endAt")).getEmbedded(List.of("premium", "endAt"), 0L);
+		long expiry = event.getMongoMain().getUserById(Filters.eq("_id", user.getIdLong()), Projections.include("premium.endAt")).getEmbedded(List.of("premium", "endAt"), 0L);
 
 		List<Bson> gamePipeline = List.of(
 			Aggregates.match(Filters.eq("userId", user.getIdLong())),
