@@ -48,7 +48,7 @@ dependencies {
 	
 	compile group: 'org.jsoup', name: 'jsoup', version: '1.11.3'
 
-	implementation('net.dv8tion:JDA:4.3+') {
+	implementation('net.dv8tion:JDA:4.3.0_300') {
 		exclude module: 'opus-java'
 	}
 	

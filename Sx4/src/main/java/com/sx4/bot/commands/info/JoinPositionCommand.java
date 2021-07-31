@@ -1,12 +1,19 @@
 package com.sx4.bot.commands.info;
 
 import com.jockie.bot.core.argument.Argument;
+import com.jockie.bot.core.command.Command;
+import com.jockie.bot.core.option.Option;
+import com.sx4.bot.annotations.command.CommandId;
+import com.sx4.bot.annotations.command.Examples;
+import com.sx4.bot.annotations.command.Redirects;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.entities.argument.Or;
+import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.NumberUtility;
 import net.dv8tion.jda.api.entities.Member;
+import net.dv8tion.jda.api.utils.MarkdownSanitizer;
 
 import java.util.Comparator;
 import java.util.List;
@@ -19,7 +26,7 @@ public class JoinPositionCommand extends Sx4Command {
 		
 		super.setDescription("View the join position at a specific index or for a specific user");
 		super.setExamples("join position 1", "join position Shea#6653");
-		super.setAliases("joinposition");
+		super.setAliases("joinposition", "joinpos", "join pos");
 		super.setCategoryAll(ModuleCategory.INFORMATION);
 	}
 	
@@ -48,6 +55,24 @@ public class JoinPositionCommand extends Sx4Command {
 			
 			event.replyFormat("%s was the **%s** user to join %s", member.getUser().getAsTag(), NumberUtility.getSuffixed(members.indexOf(member) + 1), event.getGuild().getName()).queue();
 		}
+	}
+
+	@Command(value="leaderboard", aliases={"lb"}, description="View a leaderboard of users in order of join date")
+	@CommandId(466)
+	@Redirects({"lb join position", "leaderboard join position"})
+	@Examples({"join position leaderboard", "join position leaderboard --reverse"})
+	public void leaderboard(Sx4CommandEvent event, @Option(value="reverse", description="Reverses the order") boolean reverse) {
+		Comparator<Member> comparator = reverse ? Comparator.comparing(Member::getTimeJoined).reversed() : Comparator.comparing(Member::getTimeJoined);
+		List<Member> members = event.getGuild().getMemberCache().applyStream(stream -> stream.sorted(comparator).collect(Collectors.toList()));
+
+		PagedResult<Member> paged = new PagedResult<>(event.getBot(), members)
+			.setIncreasedIndex(true)
+			.setSelect()
+			.setPerPage(25)
+			.setAuthor("Users", null, event.getGuild().getIconUrl())
+			.setDisplayFunction(member -> MarkdownSanitizer.escape(member.getUser().getAsTag()));
+
+		paged.execute(event);
 	}
 	
 }

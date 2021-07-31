@@ -15,6 +15,8 @@ import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.argument.Alternative;
+import com.sx4.bot.entities.argument.MessageArgument;
+import com.sx4.bot.entities.argument.Or;
 import com.sx4.bot.entities.management.Suggestion;
 import com.sx4.bot.entities.management.SuggestionState;
 import com.sx4.bot.paged.PagedResult;
@@ -238,7 +240,7 @@ public class SuggestionCommand extends Sx4Command {
 	@CommandId(86)
 	@Examples({"suggestion set 5e45ce6d3688b30ee75201ae pending Need some time to think about this", "suggestion set 5e45ce6d3688b30ee75201ae accepted I think this is a great idea", "suggestion 5e45ce6d3688b30ee75201ae set denied Not possible"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-	public void set(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="state") String stateName, @Argument(value="reason", endless=true, nullDefault=true) String reason) {
+	public void set(Sx4CommandEvent event, @Argument(value="id | message", acceptEmpty=true) Or<ObjectId, MessageArgument> argument, @Argument(value="state") String stateName, @Argument(value="reason", endless=true, nullDefault=true) String reason) {
 		Document data = event.getMongo().getGuildById(event.getGuild().getIdLong(), Projections.include("suggestion.states", "suggestion.webhook")).get("suggestion", MongoDatabase.EMPTY_DOCUMENT);
 		
 		List<Document> states = data.getList("states", Document.class, SuggestionState.DEFAULT_STATES);
@@ -260,8 +262,10 @@ public class SuggestionCommand extends Sx4Command {
 			Updates.set("moderatorId", event.getAuthor().getIdLong())
 		);
 
+		Bson filter = argument.hasFirst() ? Filters.eq("_id", argument.getFirst()) : Filters.eq("messageId", argument.getSecond().getMessageId());
+
 		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("channelId", "authorId", "reason", "state", "suggestion", "messageId"));
-		event.getMongo().findAndUpdateSuggestionById(id, update, options).whenComplete((suggestionData, exception) -> {
+		event.getMongo().findAndUpdateSuggestion(filter, update, options).whenComplete((suggestionData, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}

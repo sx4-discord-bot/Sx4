@@ -1226,7 +1226,7 @@ public class Sx4 {
 						try {
 							long messageId = MiscUtil.parseSnowflake(jumpMatch.group(3));
 
-							TextChannel linkChannel = channel.getGuild().getTextChannelById(jumpMatch.group(2));
+							TextChannel linkChannel = message.getGuild().getTextChannelById(jumpMatch.group(2));
 
 							return new ParsedResult<>(new MessageArgument(messageId, linkChannel == null ? channel : linkChannel), content.substring(query.length()));
 						} catch (NumberFormatException e) {
@@ -1241,9 +1241,12 @@ public class Sx4 {
 							return new ParsedResult<>();
 						}
 					} else {
-						Message reference = message.getReferencedMessage();
+						MessageReference reference = message.getMessageReference();
 						if (reference != null) {
-							return new ParsedResult<>(new MessageArgument(reference), content.isEmpty() ? "" : " " + content);
+							Message messageReference = reference.getMessage();
+
+							// When a message is null it can be a webhook message so still handle it
+							return new ParsedResult<>(messageReference == null ? new MessageArgument(reference.getMessageIdLong(), channel) : new MessageArgument(messageReference), content.isEmpty() ? "" : " " + content);
 						}
 
 						return new ParsedResult<>();
@@ -1314,7 +1317,7 @@ public class Sx4 {
 
 					Class<?> clazz = argument.getProperty("alternativeClass", Class.class);
 
-					ParsedResult<?> parsedArgument = CommandUtility.getParsedResult(clazz, argumentFactory, context, argument, argumentContent, content);
+					ParsedResult<?> parsedArgument = CommandUtility.getParsedResult(clazz, argumentFactory, context, argument, argumentContent, " " + content);
 					if (!parsedArgument.isValid()) {
 						argument.getProperty("failedClass", ThreadLocal.class).set(clazz);
 						return new ParsedResult<>();
@@ -1357,13 +1360,13 @@ public class Sx4 {
 
 					Class<?> firstClass = argument.getProperty("firstClass"), secondClass = argument.getProperty("secondClass");
 
-					ParsedResult<?> firstParsedArgument = CommandUtility.getParsedResult(firstClass, argumentFactory, context, argument, argumentContent, content);
-					ParsedResult<?> secondParsedArgument = CommandUtility.getParsedResult(secondClass, argumentFactory, context, argument, argumentContent, content);
+					ParsedResult<?> firstParsedArgument = CommandUtility.getParsedResult(firstClass, argumentFactory, context, argument, argumentContent, " " + content);
+					ParsedResult<?> secondParsedArgument = CommandUtility.getParsedResult(secondClass, argumentFactory, context, argument, argumentContent, " " + content);
 
 					if (firstParsedArgument.isValid()) {
-						return new ParsedResult<>(new Or<>(firstParsedArgument.getObject(), null), content.substring(argumentContent.length()));
+						return new ParsedResult<>(new Or<>(firstParsedArgument.getObject(), null), firstParsedArgument.getContentLeft());
 					} else if (secondParsedArgument.isValid()) {
-						return new ParsedResult<>(new Or<>(null, secondParsedArgument.getObject()), content.substring(argumentContent.length()));
+						return new ParsedResult<>(new Or<>(null, secondParsedArgument.getObject()), secondParsedArgument.getContentLeft());
 					} else {
 						argument.getProperty("failedClass", ThreadLocal.class).set(firstClass);
 						return new ParsedResult<>();

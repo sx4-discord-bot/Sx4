@@ -185,6 +185,7 @@ public class TimeUtility {
 
 		String[] dateTimeSplit = dateTime.split(" ");
 
+		boolean dateGiven = false;
 		int day = now.getDayOfMonth(), month = now.getMonthValue(), year = now.getYear(), hour = 0, minute = 0;
 		for (String part : dateTimeSplit) {
 			if (part.contains(":")) {
@@ -204,6 +205,8 @@ public class TimeUtility {
 				if (minuteInt <= 59 && minuteInt >= 0) {
 					minute = minuteInt;
 				}
+
+				continue;
 			} else if (part.contains("/")) {
 				LocalDate date = TimeUtility.parseDate(part, "/", now.getYear());
 				if (date == null) {
@@ -223,9 +226,16 @@ public class TimeUtility {
 				month = date.getMonthValue();
 				day = date.getDayOfMonth();
 			}
+
+			dateGiven = true;
 		}
 
-		return Duration.between(now, OffsetDateTime.of(year, month, day, hour, minute, 0, 0, ZoneOffset.UTC));
+		OffsetDateTime time = OffsetDateTime.of(year, month, day, hour, minute, 0, 0, ZoneOffset.UTC);
+		if (!dateGiven && time.isBefore(now)) {
+			time = time.plusDays(1);
+		}
+
+		return Duration.between(now, time);
 	}
 
 	public static String getTimeString(long duration, TimeUnit unit, Map<ChronoUnit, Map<Boolean, String>> units, int maxUnits) {
