@@ -1,6 +1,6 @@
 # Sx4
 
-Sx4 is a mutlipurpose bot, this means it can be used for many different purposes making it easier for you to focus your whole server around a few bots. It also has over 300 commands for many different purposes
+Sx4 is a mutlipurpose bot, this means it can be used for many different purposes making it easier for you to focus your whole server around a few bots. It also has over 300 commands for many different purposes. If you want to invite the public version of Sx4 you can follow this link https://sx4.dev/invite/ 
 
 #### Moderation
 
