@@ -7,6 +7,7 @@ import com.mongodb.ErrorCategory;
 import com.mongodb.MongoWriteException;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Projections;
+import com.mongodb.client.model.UpdateOptions;
 import com.mongodb.client.model.Updates;
 import com.sx4.bot.annotations.argument.AdvancedMessage;
 import com.sx4.bot.annotations.argument.AlternativeOptions;
@@ -68,10 +69,11 @@ public class TriggerCommand extends Sx4Command {
 	@Examples({"trigger state 6006ff6b94c9ed0f764ada83", "trigger state disable all", "trigger state enable 6006ff6b94c9ed0f764ada83"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void state(Sx4CommandEvent event, @Argument(value="state") @DefaultString("toggle") @Options({"enable", "toggle", "disable"}) String state, @Argument(value="id") Alternative<ObjectId> option) {
-		Bson filter = option.isAlternative() ? Filters.eq("guildId", event.getGuild().getIdLong()) : Filters.eq("_id", option.getValue());
+		Bson guildFilter = Filters.eq("guildId", event.getGuild().getIdLong());
+		Bson filter = option.isAlternative() ? guildFilter : Filters.and(Filters.eq("_id", option.getValue()), guildFilter);
 		List<Bson> update = List.of(Operators.set("enabled", state.equals("toggle") ? Operators.cond(Operators.exists("$enabled"), false, Operators.REMOVE) : state.equals("enable") ? Operators.REMOVE : false));
 
-		event.getMongo().updateManyTriggers(filter, update).whenComplete((result, exception) -> {
+		event.getMongo().updateManyTriggers(filter, update, new UpdateOptions()).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -145,7 +147,7 @@ public class TriggerCommand extends Sx4Command {
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void edit(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="response", endless=true) String response, @Option(value="append", description="Appends the response to the current one") boolean append) {
 		List<Bson> update = List.of(Operators.set("response", new Document("content", Operators.cond(Operators.and(Operators.exists("$response.content"), append), Operators.concat("$response.content", response), response))));
-		event.getMongo().updateTriggerById(id, update).whenComplete((result, exception) -> {
+		event.getMongo().updateTrigger(Filters.and(Filters.eq("_id", id), Filters.eq("guildId", event.getGuild().getIdLong())), update, new UpdateOptions()).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -169,7 +171,7 @@ public class TriggerCommand extends Sx4Command {
 	@Examples({"trigger advanced edit 6006ff6b94c9ed0f764ada83 {\"embed\": {\"description\": \"Hello!\"}}", "trigger advanced edit 6006ff6b94c9ed0f764ada83 {\"embed\": {\"description\": \"some other words was not enough\"}}"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void advancedEdit(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="response", endless=true) @AdvancedMessage Document response) {
-		event.getMongo().updateTriggerById(id, Updates.set("response", response)).whenComplete((result, exception) -> {
+		event.getMongo().updateTrigger(Filters.and(Filters.eq("_id", id), Filters.eq("guildId", event.getGuild().getIdLong())), Updates.set("response", response), new UpdateOptions()).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -231,7 +233,7 @@ public class TriggerCommand extends Sx4Command {
 					event.replySuccess("All triggers have been deleted in this server").queue();
 				});
 		} else {
-			event.getMongo().deleteTriggerById(option.getValue()).whenComplete((result, exception) -> {
+			event.getMongo().deleteTrigger(Filters.and(Filters.eq("_id", option.getValue()), Filters.eq("guildId", event.getGuild().getIdLong()))).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
@@ -251,10 +253,11 @@ public class TriggerCommand extends Sx4Command {
 	@Examples({"trigger case 6006ff6b94c9ed0f764ada83", "trigger case disable 6006ff6b94c9ed0f764ada83", "trigger case enable all"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void caseSensitive(Sx4CommandEvent event, @Argument(value="state") @DefaultString("toggle") @Options({"enable", "disable", "toggle"}) String state, @Argument(value="id") @AlternativeOptions("all") Alternative<ObjectId> option) {
-		Bson filter = option.isAlternative() ? Filters.eq("guildId", event.getGuild().getIdLong()) : Filters.eq("_id", option.getValue());
+		Bson guildFilter = Filters.eq("guildId", event.getGuild().getIdLong());
+		Bson filter = option.isAlternative() ? guildFilter : Filters.and(Filters.eq("_id", option.getValue()), guildFilter);
 		List<Bson> update = List.of(Operators.set("case", state.equals("toggle") ? Operators.cond("$case", Operators.REMOVE, true) : state.equals("enable") ? true : Operators.REMOVE));
 
-		event.getMongo().updateManyTriggers(filter, update).whenComplete((result, exception) -> {
+		event.getMongo().updateManyTriggers(filter, update, new UpdateOptions()).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -278,7 +281,7 @@ public class TriggerCommand extends Sx4Command {
 	@CommandId(222)
 	@Examples({"trigger preview 600968f92850ef72c9af8756"})
 	public void preview(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Option(value="raw", description="Returns the raw version of the trigger") boolean raw) {
-		Document trigger = event.getMongo().getTriggerById(id, Projections.include("enabled", "response"));
+		Document trigger = event.getMongo().getTrigger(Filters.and(Filters.eq("_id", id), Filters.eq("guildId", event.getGuild().getIdLong())), Projections.include("enabled", "response"));
 		if (trigger == null) {
 			event.replyFailure("I could not find that trigger").queue();
 			return;

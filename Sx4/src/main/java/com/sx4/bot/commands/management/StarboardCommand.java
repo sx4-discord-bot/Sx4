@@ -179,7 +179,7 @@ public class StarboardCommand extends Sx4Command {
 			ObjectId id = option.getValue();
 
 			AtomicReference<Document> atomicData = new AtomicReference<>();
-			event.getMongo().findAndDeleteStarboardById(id).thenCompose(data -> {
+			event.getMongo().findAndDeleteStarboard(Filters.and(Filters.eq("_id", id), Filters.eq("guildId", event.getGuild().getIdLong()))).thenCompose(data -> {
 				if (data == null) {
 					return CompletableFuture.completedFuture(null);
 				}

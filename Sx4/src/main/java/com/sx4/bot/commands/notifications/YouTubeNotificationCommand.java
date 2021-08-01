@@ -5,10 +5,7 @@ import com.jockie.bot.core.command.Command;
 import com.jockie.bot.core.option.Option;
 import com.mongodb.ErrorCategory;
 import com.mongodb.MongoWriteException;
-import com.mongodb.client.model.Filters;
-import com.mongodb.client.model.FindOneAndDeleteOptions;
-import com.mongodb.client.model.Projections;
-import com.mongodb.client.model.Updates;
+import com.mongodb.client.model.*;
 import com.sx4.bot.annotations.argument.AdvancedMessage;
 import com.sx4.bot.annotations.argument.ImageUrl;
 import com.sx4.bot.annotations.command.AuthorPermissions;
@@ -140,8 +137,13 @@ public class YouTubeNotificationCommand extends Sx4Command {
 	@Examples({"youtube notification remove 5e45ce6d3688b30ee75201ae"})
 	public void remove(Sx4CommandEvent event, @Argument(value="id") ObjectId id) {
 		FindOneAndDeleteOptions options = new FindOneAndDeleteOptions().projection(Projections.include("channelId"));
-		event.getMongo().findAndDeleteYouTubeNotificationById(id, options).whenComplete((data, exception) -> {
+		event.getMongo().findAndDeleteYouTubeNotification(Filters.and(Filters.eq("_id", id), Filters.eq("guildId", event.getGuild().getIdLong())), options).whenComplete((data, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
+				return;
+			}
+
+			if (data == null) {
+				event.replyFailure("I could not find that notification").queue();
 				return;
 			}
 			
@@ -154,7 +156,7 @@ public class YouTubeNotificationCommand extends Sx4Command {
 	@Examples({"youtube notification message 5e45ce6d3688b30ee75201ae {video.url}", "youtube notification message 5e45ce6d3688b30ee75201ae **{channel.name}** just uploaded, check it out: {video.url}"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void message(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="message", endless=true) String message) {
-		event.getMongo().updateYouTubeNotificationById(id, Updates.set("message", new Document("content", message))).whenComplete((result, exception) -> {
+		event.getMongo().updateYouTubeNotification(Filters.and(Filters.eq("_id", id), Filters.eq("guildId", event.getGuild().getIdLong())), Updates.set("message", new Document("content", message)), new UpdateOptions()).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -173,7 +175,7 @@ public class YouTubeNotificationCommand extends Sx4Command {
 	@Examples({"youtube notification advanced message 5e45ce6d3688b30ee75201ae {\"content\": \"{video.url}\"}", "youtube notification advanced message 5e45ce6d3688b30ee75201ae {\"embed\": {\"description\": \"{video.url}\"}}"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void advancedMessage(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="json", endless=true) @AdvancedMessage Document json) {
-		event.getMongo().updateYouTubeNotificationById(id, Updates.set("message", json)).whenComplete((result, exception) -> {
+		event.getMongo().updateYouTubeNotification(Filters.and(Filters.eq("_id", id), Filters.eq("guildId", event.getGuild().getIdLong())), Updates.set("message", json), new UpdateOptions()).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -192,7 +194,7 @@ public class YouTubeNotificationCommand extends Sx4Command {
 	@Examples({"youtube notification name 5e45ce6d3688b30ee75201ae YouTube", "youtube notification name 5e45ce6d3688b30ee75201ae Pewdiepie's Minion"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void name(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="name", endless=true) String name) {
-		event.getMongo().updateYouTubeNotificationById(id, Updates.set("webhook.name", name)).whenComplete((result, exception) -> {
+		event.getMongo().updateYouTubeNotification(Filters.and(Filters.eq("_id", id), Filters.eq("guildId", event.getGuild().getIdLong())), Updates.set("webhook.name", name), new UpdateOptions()).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -211,7 +213,7 @@ public class YouTubeNotificationCommand extends Sx4Command {
 	@Examples({"youtube notification avatar 5e45ce6d3688b30ee75201ae Shea#6653", "youtube notification avatar 5e45ce6d3688b30ee75201ae https://i.imgur.com/i87lyNO.png"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void avatar(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="avatar", endless=true, acceptEmpty=true) @ImageUrl String url) {
-		event.getMongo().updateYouTubeNotificationById(id, Updates.set("webhook.avatar", url)).whenComplete((result, exception) -> {
+		event.getMongo().updateYouTubeNotification(Filters.and(Filters.eq("_id", id), Filters.eq("guildId", event.getGuild().getIdLong())), Updates.set("webhook.avatar", url), new UpdateOptions()).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -229,7 +231,7 @@ public class YouTubeNotificationCommand extends Sx4Command {
 	@CommandId(465)
 	@Examples({"youtube notification preview 5e45ce6d3688b30ee75201ae"})
 	public void preview(Sx4CommandEvent event, @Argument(value="id") ObjectId id) {
-		Document data = event.getMongo().getYouTubeNotification(Filters.eq("_id", id), Projections.include("uploaderId", "message"));
+		Document data = event.getMongo().getYouTubeNotification(Filters.and(Filters.eq("_id", id), Filters.eq("guildId", event.getGuild().getIdLong())), Projections.include("uploaderId", "message"));
 		if (data == null) {
 			event.replyFailure("I could not find that notification").queue();
 			return;

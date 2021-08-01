@@ -133,7 +133,7 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 								.build();
 						} catch (IllegalArgumentException e) {
 							// possibly create an error field when this happens so the user can debug what went wrong
-							this.bot.getMongo().updateYouTubeNotificationById(notification.getObjectId("_id"), Updates.unset("message")).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
+							this.bot.getMongo().updateYouTubeNotification(Filters.eq("_id", notification.getObjectId("_id")), Updates.unset("message"), new UpdateOptions()).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
 							return;
 						}
 

@@ -99,7 +99,7 @@ public class ReminderCommand extends Sx4Command {
 
 			paged.onSelect(select -> {
 				ObjectId selected = select.getSelected().getObjectId("_id");
-				event.getMongo().deleteReminderById(selected).whenComplete((result, exception) -> {
+				event.getMongo().deleteReminder(Filters.eq("_id", selected)).whenComplete((result, exception) -> {
 					if (ExceptionUtility.sendExceptionally(event, exception)) {
 						return;
 					}
@@ -117,7 +117,7 @@ public class ReminderCommand extends Sx4Command {
 
 			paged.execute(event);
 		} else {
-			event.getMongo().deleteReminderById(id).whenComplete((result, exception) -> {
+			event.getMongo().deleteReminder(Filters.and(Filters.eq("_id", id), Filters.eq("userId", event.getAuthor().getIdLong()))).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}

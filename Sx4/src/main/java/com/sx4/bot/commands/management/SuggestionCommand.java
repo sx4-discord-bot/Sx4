@@ -166,7 +166,6 @@ public class SuggestionCommand extends Sx4Command {
 	@Examples({"suggestion remove 5e45ce6d3688b30ee75201ae", "suggestion remove all"})
 	public void remove(Sx4CommandEvent event, @Argument(value="id | all") @AlternativeOptions("all") Alternative<ObjectId> option) {
 		User author = event.getAuthor();
-		TextChannel channel = event.getTextChannel();
 
 		if (option.isAlternative()) {
 			if (!event.hasPermission(event.getMember(), Permission.MANAGE_SERVER)) {
@@ -206,7 +205,7 @@ public class SuggestionCommand extends Sx4Command {
 			ObjectId id = option.getValue();
 			boolean hasPermission = event.hasPermission(event.getMember(), Permission.MANAGE_SERVER);
 
-			Bson filter = Filters.eq("_id", id);
+			Bson filter = Filters.and(Filters.eq("_id", id), Filters.eq("guildId", event.getGuild().getIdLong()));
 			if (!hasPermission) {
 				filter = Filters.and(Filters.eq("authorId", author.getIdLong()), filter);
 			}
@@ -262,7 +261,7 @@ public class SuggestionCommand extends Sx4Command {
 			Updates.set("moderatorId", event.getAuthor().getIdLong())
 		);
 
-		Bson filter = argument.hasFirst() ? Filters.eq("_id", argument.getFirst()) : Filters.eq("messageId", argument.getSecond().getMessageId());
+		Bson filter = Filters.and(argument.hasFirst() ? Filters.eq("_id", argument.getFirst()) : Filters.eq("messageId", argument.getSecond().getMessageId()), Filters.eq("guildId", event.getGuild().getIdLong()));
 
 		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("channelId", "authorId", "reason", "state", "suggestion", "messageId"));
 		event.getMongo().findAndUpdateSuggestion(filter, update, options).whenComplete((suggestionData, exception) -> {
@@ -336,7 +335,7 @@ public class SuggestionCommand extends Sx4Command {
 
 			paged.execute(event);
 		} else {
-			Document suggestionData = event.getMongo().getSuggestionById(id, projection);
+			Document suggestionData = event.getMongo().getSuggestion(Filters.and(Filters.eq("_id", id), Filters.eq("guildId", event.getGuild().getIdLong())), projection);
 			if (suggestionData == null) {
 				event.replyFailure("I could not find that suggestion").queue();
 				return;

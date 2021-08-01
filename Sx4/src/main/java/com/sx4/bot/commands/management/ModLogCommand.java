@@ -118,7 +118,7 @@ public class ModLogCommand extends Sx4Command {
 		long authorId = event.getAuthor().getIdLong();
 
 		List<Bson> update = List.of(Operators.set("reason", Operators.cond(Operators.and(Operators.or(Operators.eq("$moderatorId", authorId), event.hasPermission(event.getMember(), Permission.ADMINISTRATOR)), Operators.or(or)), reason.getParsed(), "$reason")));
-		event.getMongo().updateManyModLogs(update).whenComplete((result, exception) -> {
+		event.getMongo().updateManyModLogs(Filters.eq("guildId", event.getGuild().getIdLong()), update).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -179,7 +179,7 @@ public class ModLogCommand extends Sx4Command {
 		} else {
 			ObjectId id = option.getValue();
 
-			event.getMongo().findAndDeleteModLogById(id).whenComplete((data, exception) -> {
+			event.getMongo().findAndDeleteModLog(Filters.and(Filters.eq("_id", id), Filters.eq("guildId", event.getGuild().getIdLong()))).whenComplete((data, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
@@ -216,7 +216,7 @@ public class ModLogCommand extends Sx4Command {
 					long targetId = data.getLong("targetId");
 					User target = event.getShardManager().getUserById(targetId);
 					
-					return Action.fromData(data.get("action", Document.class)).toString() + " to `" + (target == null ? targetId : target.getAsTag() + "`");
+					return Action.fromData(data.get("action", Document.class)) + " to `" + (target == null ? targetId : target.getAsTag() + "`");
 				})
 				.setIncreasedIndex(true);
 			

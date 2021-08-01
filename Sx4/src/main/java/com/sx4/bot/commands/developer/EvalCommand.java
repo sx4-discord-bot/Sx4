@@ -64,7 +64,7 @@ public class EvalCommand extends Sx4Command {
 		shell.setProperty("client", event.getHttpClient());
 		
 		this.executor.submit(() -> {
-			long time = System.currentTimeMillis();
+			long time = System.nanoTime();
 			try {
 				Object object = shell.evaluate(evaluableString);
 
@@ -88,7 +88,7 @@ public class EvalCommand extends Sx4Command {
 			}
 
 			if (timed) {
-				event.replyFormat("**%.2fms**", System.currentTimeMillis() - time).queue();
+				event.replyFormat("**%.2fms**", (System.nanoTime() - time) / 1_000_000D).queue();
 			}
 		});
 	}

@@ -227,7 +227,7 @@ public class AntiRegexCommand extends Sx4Command {
 	public void remove(Sx4CommandEvent event, @Argument(value="id") ObjectId id) {
 		FindOneAndDeleteOptions options = new FindOneAndDeleteOptions().projection(Projections.include("regexId"));
 
-		event.getMongo().findAndDeleteRegex(Filters.eq("_id", id), options).thenCompose(data -> {
+		event.getMongo().findAndDeleteRegex(Filters.and(Filters.eq("_id", id), Filters.eq("guildId", event.getGuild().getIdLong())), options).thenCompose(data -> {
 			if (data == null) {
 				throw new IllegalArgumentException("You do that have that regex setup in this server");
 			}
@@ -257,7 +257,7 @@ public class AntiRegexCommand extends Sx4Command {
 	@Examples({"anti regex set 5f023782ef9eba03390a740c @Shea#6653 0", "anti regex set 5f023782ef9eba03390a740c Shea 3", "anti regex set 5f023782ef9eba03390a740c 402557516728369153 2"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void set(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="user") Member member, @Argument(value="attempts") int attempts) {
-		Bson filter = Filters.and(Filters.eq("regexId", id), Filters.eq("userId", member.getIdLong()));
+		Bson filter = Filters.and(Filters.eq("regexId", id), Filters.eq("userId", member.getIdLong()), Filters.eq("guildId", event.getGuild().getIdLong()));
 
 		CompletableFuture<Document> future;
 		if (attempts == 0) {
@@ -297,7 +297,7 @@ public class AntiRegexCommand extends Sx4Command {
 	@Examples({"anti regex attempts 5f023782ef9eba03390a740c 3", "anti regex attempts 5f023782ef9eba03390a740c 1"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void attempts(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="attempts") @Limit(min=1) int attempts) {
-		event.getMongo().updateRegex(Filters.eq("_id", id), Updates.set("attempts.amount", attempts)).whenComplete((result, exception) -> {
+		event.getMongo().updateRegex(Filters.and(Filters.eq("_id", id), Filters.eq("guildId", event.getGuild().getIdLong())), Updates.set("attempts.amount", attempts)).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -324,7 +324,7 @@ public class AntiRegexCommand extends Sx4Command {
 		List<Bson> update = List.of(Operators.set("admin", Operators.cond(Operators.exists("$admin"), Operators.REMOVE, false)));
 		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER).projection(Projections.include("admin"));
 
-		event.getMongo().findAndUpdateRegex(Filters.eq("_id", id), update, options).whenComplete((data, exception) -> {
+		event.getMongo().findAndUpdateRegex(Filters.and(Filters.eq("_id", id), Filters.eq("guildId", event.getGuild().getIdLong())), update, options).whenComplete((data, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -354,7 +354,7 @@ public class AntiRegexCommand extends Sx4Command {
 		}
 
 		Bson update = amount == 0 ? Updates.unset("attempts.reset") : Updates.set("attempts.reset", new Document("amount", amount).append("after", time.toSeconds()));
-		event.getMongo().updateRegex(Filters.eq("_id", id), update).whenComplete((result, exception) -> {
+		event.getMongo().updateRegex(Filters.and(Filters.eq("_id", id), Filters.eq("guildId", event.getGuild().getIdLong())), update).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -420,7 +420,7 @@ public class AntiRegexCommand extends Sx4Command {
 		@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 		@Examples({"anti regex mod message 5f023782ef9eba03390a740c A user has been banned for sending links", "anti regex match message 5f023782ef9eba03390a740c {user.name} has received a {regex.action}"})
 		public void message(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="message", endless=true) @Limit(max=1500) String message) {
-			event.getMongo().updateRegex(Filters.eq("_id", id), Updates.set("mod.message", message)).whenComplete((result, exception) -> {
+			event.getMongo().updateRegex(Filters.and(Filters.eq("_id", id), Filters.eq("guildId", event.getGuild().getIdLong())), Updates.set("mod.message", message)).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
@@ -462,7 +462,7 @@ public class AntiRegexCommand extends Sx4Command {
 				modAction.append("duration", duration.toSeconds());
 			}
 
-			event.getMongo().updateRegex(Filters.eq("_id", id), Updates.set("mod.action", modAction)).whenComplete((result, exception) -> {
+			event.getMongo().updateRegex(Filters.and(Filters.eq("_id", id), Filters.eq("guildId", event.getGuild().getIdLong())), Updates.set("mod.action", modAction)).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
@@ -502,7 +502,7 @@ public class AntiRegexCommand extends Sx4Command {
 		@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 		@Examples({"anti regex match message 5f023782ef9eba03390a740c You cannot have a url in your message :no_entry:", "anti regex match message 5f023782ef9eba03390a740c {user.mention}, don't send that here or else you'll get a {regex.action} :no_entry:"})
 		public void message(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="message", endless=true) @Limit(max=1500) String message) {
-			event.getMongo().updateRegex(Filters.eq("_id", id), Updates.set("match.message", message)).whenComplete((result, exception) -> {
+			event.getMongo().updateRegex(Filters.and(Filters.eq("_id", id), Filters.eq("guildId", event.getGuild().getIdLong())), Updates.set("match.message", message)).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
@@ -526,7 +526,7 @@ public class AntiRegexCommand extends Sx4Command {
 		@Examples({"anti regex match action 5f023782ef9eba03390a740c SEND_MESSAGE", "anti regex match action 5f023782ef9eba03390a740c SEND_MESSAGE DELETE_MESSAGE"})
 		@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 		public void action(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="actions") MatchAction... actions) {
-			event.getMongo().updateRegex(Filters.eq("_id", id), Updates.set("match.action", MatchAction.getRaw(actions))).whenComplete((result, exception) -> {
+			event.getMongo().updateRegex(Filters.and(Filters.eq("_id", id), Filters.eq("guildId", event.getGuild().getIdLong())), Updates.set("match.action", MatchAction.getRaw(actions))).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
@@ -566,7 +566,7 @@ public class AntiRegexCommand extends Sx4Command {
 		@Examples({"anti regex whitelist add 5f023782ef9eba03390a740c #youtube-links 2 youtube.com", "anti regex whitelist add 5f023782ef9eba03390a740c 0 https://youtube.com"})
 		@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 		public void add(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="channel", nullDefault=true) TextChannel channelArgument, @Argument(value="group") @Limit(min=0) int group, @Argument(value="string", endless=true) @Limit(max=250) String string) {
-			Document regex = event.getMongo().getRegex(Filters.eq("_id", id), Projections.include("pattern", "type"));
+			Document regex = event.getMongo().getRegex(Filters.and(Filters.eq("_id", id), Filters.eq("guildId", event.getGuild().getIdLong())), Projections.include("pattern", "type"));
 			if (regex != null && Pattern.compile(regex.getString("pattern")).matcher("").groupCount() < group) {
 				event.replyFailure("There is not a group " + group + " in that regex").queue();
 				return;
@@ -596,7 +596,7 @@ public class AntiRegexCommand extends Sx4Command {
 			concat.add(Operators.filter(channelMap, Operators.not(Operators.in("$$this.id", channelIds))));
 			List<Bson> update = List.of(Operators.set("whitelist", Operators.concatArrays(concat)));
 
-			event.getMongo().updateRegex(Filters.eq("_id", id), update).whenComplete((result, exception) -> {
+			event.getMongo().updateRegex(Filters.and(Filters.eq("_id", id), Filters.eq("guildId", event.getGuild().getIdLong())), update).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
@@ -644,7 +644,7 @@ public class AntiRegexCommand extends Sx4Command {
 
 			concat.add(Operators.filter(channelMap, Operators.not(Operators.in("$$this.id", channelIds))));
 			List<Bson> update = List.of(Operators.set("whitelist", Operators.concatArrays(concat)));
-			event.getMongo().updateRegex(Filters.eq("_id", id), update).whenComplete((result, exception) -> {
+			event.getMongo().updateRegex(Filters.and(Filters.eq("_id", id), Filters.eq("guildId", event.getGuild().getIdLong())), update).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
@@ -688,7 +688,7 @@ public class AntiRegexCommand extends Sx4Command {
 			concat.add(Operators.filter(channelMap, Operators.not(Operators.in("$$this.id", channelIds))));
 			List<Bson> update = List.of(Operators.set("whitelist", Operators.concatArrays(concat)));
 
-			event.getMongo().updateRegex(Filters.eq("_id", id), update).whenComplete((result, exception) -> {
+			event.getMongo().updateRegex(Filters.and(Filters.eq("_id", id), Filters.eq("guildId", event.getGuild().getIdLong())), update).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
@@ -736,7 +736,7 @@ public class AntiRegexCommand extends Sx4Command {
 			concat.add(Operators.filter(channelMap, Operators.not(Operators.in("$$this.id", channelIds))));
 			List<Bson> update = List.of(Operators.set("whitelist", Operators.concatArrays(concat)));
 
-			event.getMongo().updateRegex(Filters.eq("_id", id), update).whenComplete((result, exception) -> {
+			event.getMongo().updateRegex(Filters.and(Filters.eq("_id", id), Filters.eq("guildId", event.getGuild().getIdLong())), update).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
@@ -761,7 +761,7 @@ public class AntiRegexCommand extends Sx4Command {
 		public void list(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="channels", nullDefault=true) TextChannel channel) {
 			List<TextChannel> channels = channel == null ? event.getGuild().getTextChannels() : List.of(channel);
 
-			Document regex = event.getMongo().getRegex(Filters.eq("_id", id), Projections.include("whitelist"));
+			Document regex = event.getMongo().getRegex(Filters.and(Filters.eq("_id", id), Filters.eq("guildId", event.getGuild().getIdLong())), Projections.include("whitelist"));
 			if (regex == null) {
 				event.replyFailure("I could not find that anti regex").queue();
 				return;

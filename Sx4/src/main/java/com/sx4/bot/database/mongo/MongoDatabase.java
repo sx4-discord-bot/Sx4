@@ -826,28 +826,12 @@ public class MongoDatabase {
 		return this.getTriggers(filter, projection).first();
 	}
 
-	public Document getTriggerById(ObjectId id, Bson projection) {
-		return this.getTrigger(Filters.eq("_id", id), projection);
-	}
-
 	public CompletableFuture<InsertOneResult> insertTrigger(Document data) {
 		return CompletableFuture.supplyAsync(() -> this.triggers.insertOne(data), this.executor);
 	}
 
 	public CompletableFuture<UpdateResult> updateTrigger(Bson filter, Bson update, UpdateOptions options) {
 		return CompletableFuture.supplyAsync(() -> this.triggers.updateOne(filter, update, options), this.executor);
-	}
-
-	public CompletableFuture<UpdateResult> updateTrigger(Bson filter, Bson update) {
-		return this.updateTrigger(filter, update, this.updateOptions);
-	}
-
-	public CompletableFuture<UpdateResult> updateTriggerById(Object id, Bson update, UpdateOptions options) {
-		return this.updateTrigger(Filters.eq("_id", id), update, options);
-	}
-
-	public CompletableFuture<UpdateResult> updateTriggerById(ObjectId id, Bson update) {
-		return this.updateTriggerById(id, update, this.updateOptions);
 	}
 
 	public CompletableFuture<UpdateResult> updateTrigger(Bson filter, List<Bson> update, UpdateOptions options) {
@@ -858,20 +842,8 @@ public class MongoDatabase {
 		return this.updateTrigger(filter, update, this.updateOptions);
 	}
 
-	public CompletableFuture<UpdateResult> updateTriggerById(Object id, List<Bson> update, UpdateOptions options) {
-		return this.updateTrigger(Filters.eq("_id", id), update, options);
-	}
-
-	public CompletableFuture<UpdateResult> updateTriggerById(ObjectId id, List<Bson> update) {
-		return this.updateTriggerById(id, update, this.updateOptions);
-	}
-
 	public CompletableFuture<UpdateResult> updateManyTriggers(Bson filter, List<Bson> update, UpdateOptions options) {
 		return CompletableFuture.supplyAsync(() -> this.triggers.updateMany(filter, update, options), this.executor);
-	}
-
-	public CompletableFuture<UpdateResult> updateManyTriggers(Bson filter, List<Bson> update) {
-		return CompletableFuture.supplyAsync(() -> this.triggers.updateMany(filter, update, this.updateOptions), this.executor);
 	}
 
 	public CompletableFuture<Document> findAndUpdateTrigger(Bson filter, List<Bson> update, FindOneAndUpdateOptions options) {
@@ -884,10 +856,6 @@ public class MongoDatabase {
 
 	public CompletableFuture<DeleteResult> deleteTrigger(Bson filter) {
 		return CompletableFuture.supplyAsync(() -> this.triggers.deleteOne(filter), this.executor);
-	}
-
-	public CompletableFuture<DeleteResult> deleteTriggerById(ObjectId id) {
-		return this.deleteTrigger(Filters.eq("_id", id));
 	}
 
 	public CompletableFuture<DeleteResult> deleteManyTriggers(Bson filter) {
@@ -1026,10 +994,6 @@ public class MongoDatabase {
 		return CompletableFuture.supplyAsync(() -> this.starboards.findOneAndDelete(filter), this.executor);
 	}
 
-	public CompletableFuture<Document> findAndDeleteStarboardById(ObjectId id) {
-		return this.findAndDeleteStarboard(Filters.eq("_id", id));
-	}
-
 	public CompletableFuture<DeleteResult> deleteManyStarboards(Bson filter) {
 		return CompletableFuture.supplyAsync(() -> this.starboards.deleteMany(filter), this.executor);
 	}
@@ -1044,10 +1008,6 @@ public class MongoDatabase {
 
 	public Document getSuggestion(Bson filter, Bson projection) {
 		return this.getSuggestions(filter, projection).first();
-	}
-
-	public Document getSuggestionById(ObjectId id, Bson projection) {
-		return this.getSuggestion(Filters.eq("_id", id), projection);
 	}
 
 	public CompletableFuture<InsertOneResult> insertSuggestion(Document data) {
@@ -1138,10 +1098,6 @@ public class MongoDatabase {
 		return this.deleteReminder(model.getFilter());
 	}
 
-	public CompletableFuture<DeleteResult> deleteReminderById(ObjectId id) {
-		return this.deleteReminder(Filters.eq("_id", id));
-	}
-
 	public CompletableFuture<BulkWriteResult> bulkWriteReminders(List<WriteModel<Document>> bulkData) {
 		return CompletableFuture.supplyAsync(() -> this.reminders.bulkWrite(bulkData), this.executor);
 	}
@@ -1170,8 +1126,8 @@ public class MongoDatabase {
 		return CompletableFuture.supplyAsync(() -> this.youtubeNotifications.insertOne(data), this.executor);
 	}
 
-	public CompletableFuture<Document> findAndDeleteYouTubeNotificationById(ObjectId id, FindOneAndDeleteOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.youtubeNotifications.findOneAndDelete(Filters.eq("_id", id), options), this.executor);
+	public CompletableFuture<Document> findAndDeleteYouTubeNotification(Bson filter, FindOneAndDeleteOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.youtubeNotifications.findOneAndDelete(filter, options), this.executor);
 	}
 
 	public CompletableFuture<DeleteResult> deleteYouTubeNotificationById(ObjectId id) {
@@ -1192,18 +1148,6 @@ public class MongoDatabase {
 
 	public CompletableFuture<UpdateResult> updateYouTubeNotification(Bson filter, Bson update, UpdateOptions options) {
 		return CompletableFuture.supplyAsync(() -> this.youtubeNotifications.updateOne(filter, update, options), this.executor);
-	}
-
-	public CompletableFuture<UpdateResult> updateYouTubeNotificationById(ObjectId id, Bson update, UpdateOptions options) {
-		return this.updateYouTubeNotification(Filters.eq("_id", id), update, options);
-	}
-
-	public CompletableFuture<UpdateResult> updateYouTubeNotificationById(ObjectId id, Bson update) {
-		return this.updateYouTubeNotification(Filters.eq("_id", id), update, this.updateOptions);
-	}
-
-	public CompletableFuture<UpdateResult> updateYouTubeNotification(Bson filter, Bson update) {
-		return this.updateYouTubeNotification(filter, update, this.updateOptions);
 	}
 
 	public CompletableFuture<UpdateResult> updateManyYouTubeNotifications(Bson filter, Bson update, UpdateOptions options) {
@@ -1636,16 +1580,12 @@ public class MongoDatabase {
 		return CompletableFuture.supplyAsync(() -> this.modLogs.findOneAndUpdate(Filters.eq("_id", id), update, options), this.executor);
 	}
 
-	public CompletableFuture<UpdateResult> updateManyModLogs(List<Bson> update) {
+	public CompletableFuture<UpdateResult> updateManyModLogs(Bson filter, List<Bson> update) {
 		return CompletableFuture.supplyAsync(() -> this.modLogs.updateMany(MongoDatabase.EMPTY_DOCUMENT, update, this.updateOptions), this.executor);
 	}
 
 	public CompletableFuture<Document> findAndDeleteModLog(Bson filter) {
 		return CompletableFuture.supplyAsync(() -> this.modLogs.findOneAndDelete(filter), this.executor);
-	}
-
-	public CompletableFuture<Document> findAndDeleteModLogById(ObjectId id) {
-		return this.findAndDeleteModLog(Filters.eq("_id", id));
 	}
 
 	public CompletableFuture<DeleteResult> deleteModLog(Bson filter) {

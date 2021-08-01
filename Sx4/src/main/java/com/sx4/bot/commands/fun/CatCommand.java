@@ -1,5 +1,6 @@
 package com.sx4.bot.commands.fun;
 
+import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.http.HttpCallback;
@@ -16,6 +17,7 @@ public class CatCommand extends Sx4Command {
 		super.setDescription("Gives a random image of a cat");
 		super.setExamples("cat");
 		super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
+		super.setCategoryAll(ModuleCategory.FUN);
 	}
 
 	public void onCommand(Sx4CommandEvent event) {

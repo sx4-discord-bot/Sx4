@@ -77,12 +77,12 @@ public class AntiInviteCommand extends Sx4Command {
 		}).whenComplete(MongoDatabase.exceptionally(event.getShardManager()));
 	}
 
-	@Command(value="set", description="Sets the amount of attempts a user has")
+	/*@Command(value="set", description="Sets the amount of attempts a user has")
 	@CommandId(459)
 	@Examples({"antiinvite set @Shea#6653 0", "antiinvite set Shea 3", "antiinvite set 402557516728369153 2"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void set(Sx4CommandEvent event, @Argument(value="user") Member member, @Argument(value="attempts") int attempts) {
-		Bson filter = Filters.and(Filters.eq("regexId", AntiInviteCommand.REGEX_ID), Filters.eq("userId", member.getIdLong()));
+		Bson filter = Filters.and(Filters.eq("regexId", AntiInviteCommand.REGEX_ID), Filters.eq("userId", member.getIdLong()), Filters.eq("guildId", event.getGuild().getIdLong()));
 
 		CompletableFuture<Document> future;
 		if (attempts == 0) {
@@ -115,7 +115,7 @@ public class AntiInviteCommand extends Sx4Command {
 
 			event.replySuccess("**" + member.getUser().getAsTag() + "** has had their attempts set to **" + attempts + "**").queue();
 		});
-	}
+	}*/
 
 	@Command(value="attempts", description="Sets the amount of attempts needed for the mod action to execute")
 	@CommandId(307)
