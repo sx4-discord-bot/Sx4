@@ -39,7 +39,7 @@ public class PatreonEndpoint {
 	public Response postPatreon(final String body, @HeaderParam("X-Patreon-Signature") final String signature, @HeaderParam("X-Patreon-Event") final String event) {
 		String hash;
 		try {
-			hash = HmacUtility.getSignature(this.bot.getConfig().getPatreonWebhookSecret(), body, HmacUtility.HMAC_MD5);
+			hash = HmacUtility.getSignatureHex(this.bot.getConfig().getPatreonWebhookSecret(), body, HmacUtility.HMAC_MD5);
 		} catch (InvalidKeyException | NoSuchAlgorithmException e) {
 			return Response.status(500).build();
 		}

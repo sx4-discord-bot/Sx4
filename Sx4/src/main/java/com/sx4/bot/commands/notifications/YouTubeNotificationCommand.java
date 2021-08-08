@@ -25,6 +25,7 @@ import com.sx4.bot.managers.YouTubeManager;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.paged.PagedResult.SelectType;
 import com.sx4.bot.utility.ExceptionUtility;
+import com.sx4.bot.utility.FutureUtility;
 import com.sx4.bot.utility.MessageUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
@@ -44,7 +45,9 @@ import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.stream.Collectors;
 
 public class YouTubeNotificationCommand extends Sx4Command {
 	
@@ -282,24 +285,64 @@ public class YouTubeNotificationCommand extends Sx4Command {
 	@Examples({"youtube notification list"})
 	@BotPermissions(permissions={Permission.MESSAGE_EMBED_LINKS})
 	public void list(Sx4CommandEvent event) {
-		List<Document> notifications = event.getMongo().getYouTubeNotifications(Filters.eq("guildId", event.getGuild().getIdLong()), Projections.include("uploaderId", "channelId")).into(new ArrayList<>());
+		List<Document> notifications = event.getMongo().getYouTubeNotifications(Filters.eq("guildId", event.getGuild().getIdLong()), Projections.include("uploaderId")).into(new ArrayList<>());
 		if (notifications.isEmpty()) {
 			event.replyFailure("You have no notifications setup in this server").queue();
 			return;
 		}
 
-		notifications.sort(Comparator.comparingLong(a -> a.getLong("channelId")));
-		
-		PagedResult<Document> paged = new PagedResult<>(event.getBot(), notifications)
-			.setIncreasedIndex(true)
-			.setAutoSelect(false)
-			.setAuthor("YouTube Notifications", null, event.getGuild().getIconUrl())
-			.setDisplayFunction(data -> String.format("<#%d> - [%s](https://youtube.com/channel/%s)", data.getLong("channelId"), data.getObjectId("_id").toHexString(), data.getString("uploaderId")))
-			.setSelect(SelectType.INDEX);
-		
-		paged.onSelect(selected -> this.sendStats(event, selected.getSelected()));
-		
-		paged.execute(event);
+		int size = notifications.size();
+
+		List<CompletableFuture<Map<String, String>>> futures = new ArrayList<>();
+		for (int i = 0; i < Math.ceil(size / 50D); i++) {
+			List<Document> splitNotifications = notifications.subList(i * 50, Math.min((i + 1) * 50, size));
+			String ids = splitNotifications.stream().map(d -> d.getString("uploaderId")).collect(Collectors.joining(","));
+
+			Request request = new Request.Builder()
+				.url("https://www.googleapis.com/youtube/v3/channels?key=" + event.getConfig().getYouTube() + "&id=" + ids + "&part=snippet&maxResults=50")
+				.build();
+
+			CompletableFuture<Map<String, String>> future = new CompletableFuture<>();
+			event.getHttpClient().newCall(request).enqueue((HttpCallback) response -> {
+				Document data = Document.parse(response.body().string());
+
+				List<Document> items = data.getList("items", Document.class);
+
+				Map<String, String> names = new HashMap<>();
+				for (Document item : items) {
+					names.put(item.getString("id"), item.getEmbedded(List.of("snippet", "title"), String.class));
+				}
+
+				future.complete(names);
+			});
+
+			futures.add(future);
+		}
+
+		FutureUtility.allOf(futures).whenComplete((maps, exception) -> {
+			if (ExceptionUtility.sendExceptionally(event, exception)) {
+				return;
+			}
+
+			Map<String, String> names = new HashMap<>();
+			for (Map<String, String> map : maps) {
+				names.putAll(map);
+			}
+
+			PagedResult<Document> paged = new PagedResult<>(event.getBot(), notifications)
+				.setIncreasedIndex(true)
+				.setAutoSelect(false)
+				.setAuthor("YouTube Notifications", null, event.getGuild().getIconUrl())
+				.setDisplayFunction(data -> {
+					String uploaderId = data.getString("uploaderId");
+					return String.format("%s - [%s](https://youtube.com/channel/%s)", data.getObjectId("_id").toHexString(), names.getOrDefault(uploaderId, "Unknown"), uploaderId);
+				})
+				.setSelect(SelectType.INDEX);
+
+			paged.onSelect(selected -> this.sendStats(event, selected.getSelected()));
+
+			paged.execute(event);
+		});
 	}
 	
 	public void sendStats(Sx4CommandEvent event, Document notification) {
@@ -310,7 +353,7 @@ public class YouTubeNotificationCommand extends Sx4Command {
 			.addField("Id", id.toHexString(), true)
 			.addField("YouTube Channel", String.format("[%s](https://youtube.com/channel/%<s)", notification.getString("uploaderId")), true)
 			.addField("Channel", "<#" + notification.getLong("channelId") + ">", true)
-			.addField("Message", "`" + notification.getEmbedded(List.of("message", "content"), YouTubeManager.DEFAULT_MESSAGE) + "`", false)
+			.addField("Message", "`" + notification.getEmbedded(List.of("message", "content"), YouTubeManager.DEFAULT_MESSAGE.getString("content")) + "`", false)
 			.setFooter("Created at")
 			.setTimestamp(Instant.ofEpochSecond(id.getTimestamp()));
 		

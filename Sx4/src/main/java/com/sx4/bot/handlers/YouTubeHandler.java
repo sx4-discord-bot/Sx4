@@ -128,7 +128,7 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 						WebhookMessage message;
 						try {
 							message = this.format(event, notification.get("message", YouTubeManager.DEFAULT_MESSAGE))
-								.setAvatarUrl(premium ? webhookData.get("avatar", shardManager.getShardById(0).getSelfUser().getEffectiveAvatarUrl()) : shardManager.getShardById(0).getSelfUser().getEffectiveAvatarUrl())
+								.setAvatarUrl(premium ? webhookData.get("avatar", this.bot.getConfig().getYouTubeAvatar()) : this.bot.getConfig().getYouTubeAvatar())
 								.setUsername(premium ? webhookData.get("name", "Sx4 - YouTube") : "Sx4 - YouTube")
 								.build();
 						} catch (IllegalArgumentException e) {

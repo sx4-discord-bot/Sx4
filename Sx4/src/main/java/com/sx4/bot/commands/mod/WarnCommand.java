@@ -54,7 +54,7 @@ public class WarnCommand extends Sx4Command {
 			return;
 		}
 		
-		if (member.canInteract(event.getMember())) {
+		if (!event.getMember().canInteract(member)) {
 			event.replyFailure("You cannot warn someone higher or equal than your top role").queue();
 			return;
 		}

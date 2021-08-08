@@ -1,9 +1,6 @@
 package com.sx4.api;
 
-import com.sx4.api.endpoints.GitHubEndpoint;
-import com.sx4.api.endpoints.PatreonEndpoint;
-import com.sx4.api.endpoints.RedirectEndpoint;
-import com.sx4.api.endpoints.YouTubeEndpoint;
+import com.sx4.api.endpoints.*;
 import com.sx4.api.exceptions.UncaughtExceptionHandler;
 import com.sx4.bot.core.Sx4;
 import org.eclipse.jetty.server.Server;
@@ -28,11 +25,12 @@ public class Sx4Server {
 		ResourceConfig resourceConfig = new ResourceConfig();
 		
 		resourceConfig.registerInstances(
-			new UncaughtExceptionHandler(bot),
+			new UncaughtExceptionHandler(),
 			new YouTubeEndpoint(bot),
 			new PatreonEndpoint(bot),
 			new RedirectEndpoint(bot),
-			new GitHubEndpoint(bot)
+			new GitHubEndpoint(bot),
+			new TwitterEndpoint(bot)
 		);
 		
 		resourceConfig.property(ServerProperties.PROCESSING_RESPONSE_ERRORS_ENABLED, true);

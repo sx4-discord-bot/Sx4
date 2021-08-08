@@ -1317,7 +1317,7 @@ public class Sx4 {
 
 					Class<?> clazz = argument.getProperty("alternativeClass", Class.class);
 
-					ParsedResult<?> parsedArgument = CommandUtility.getParsedResult(clazz, argumentFactory, context, argument, argumentContent, " " + content);
+					ParsedResult<?> parsedArgument = CommandUtility.getParsedResult(clazz, argumentFactory, context, argument, argumentContent, content);
 					if (!parsedArgument.isValid()) {
 						argument.getProperty("failedClass", ThreadLocal.class).set(clazz);
 						return new ParsedResult<>();
@@ -1350,33 +1350,35 @@ public class Sx4 {
 				}
 
 				return new ParsedResult<>();
-			}).registerParser(Or.class, new IParser<>() {
-				public ParsedResult parse(ParseContext context, IArgument<Or> argument, String content) {
-					int nextSpace = content.indexOf(' ');
-					String argumentContent = nextSpace == -1 || argument.isEndless() ? content : content.substring(0, nextSpace);
-					if (!argument.acceptEmpty() && argumentContent.isEmpty()) {
-						return new ParsedResult<>();
+				}).registerParser(Or.class, new IParser<>() {
+					public ParsedResult parse(ParseContext context, IArgument<Or> argument, String content) {
+						int nextSpace = content.indexOf(' ');
+						String argumentContent = nextSpace == -1 || argument.isEndless() ? content : content.substring(0, nextSpace);
+						if (!argument.acceptEmpty() && argumentContent.isEmpty()) {
+							return new ParsedResult<>();
+						}
+
+						Class<?> firstClass = argument.getProperty("firstClass"), secondClass = argument.getProperty("secondClass");
+
+						ParsedResult<?> firstParsedArgument = CommandUtility.getParsedResult(firstClass, argumentFactory, context, argument, argumentContent, content);
+						ParsedResult<?> secondParsedArgument = CommandUtility.getParsedResult(secondClass, argumentFactory, context, argument, argumentContent, content);
+
+						if (firstParsedArgument.isValid()) {
+							String contentLeft = firstParsedArgument.getContentLeft();
+							return new ParsedResult<>(new Or<>(firstParsedArgument.getObject(), null), contentLeft == null ? content.substring(argumentContent.length()) : contentLeft);
+						} else if (secondParsedArgument.isValid()) {
+							String contentLeft = secondParsedArgument.getContentLeft();
+							return new ParsedResult<>(new Or<>(null, secondParsedArgument.getObject()), contentLeft == null ? content.substring(argumentContent.length()) : contentLeft);
+						} else {
+							argument.getProperty("failedClass", ThreadLocal.class).set(firstClass);
+							return new ParsedResult<>();
+						}
 					}
 
-					Class<?> firstClass = argument.getProperty("firstClass"), secondClass = argument.getProperty("secondClass");
-
-					ParsedResult<?> firstParsedArgument = CommandUtility.getParsedResult(firstClass, argumentFactory, context, argument, argumentContent, " " + content);
-					ParsedResult<?> secondParsedArgument = CommandUtility.getParsedResult(secondClass, argumentFactory, context, argument, argumentContent, " " + content);
-
-					if (firstParsedArgument.isValid()) {
-						return new ParsedResult<>(new Or<>(firstParsedArgument.getObject(), null), firstParsedArgument.getContentLeft());
-					} else if (secondParsedArgument.isValid()) {
-						return new ParsedResult<>(new Or<>(null, secondParsedArgument.getObject()), secondParsedArgument.getContentLeft());
-					} else {
-						argument.getProperty("failedClass", ThreadLocal.class).set(firstClass);
-						return new ParsedResult<>();
+					public boolean isHandleAll() {
+						return true;
 					}
-				}
-
-				public boolean isHandleAll() {
-					return true;
-				}
-			});
+				});
 		
 		argumentFactory.addParserAfter(String.class, (context, argument, content) -> {
 			Replace replace = argument.getProperty("replace", Replace.class);
@@ -1536,10 +1538,10 @@ public class Sx4 {
 	}
 	
 	public static void main(String[] args) throws Exception {
+		MemoryOptimizations.installOptimizations();
+
 		Sx4 bot = new Sx4();
 		Sx4Server.initiateWebserver(bot);
-
-		MemoryOptimizations.installOptimizations();
 		
 		Thread.setDefaultUncaughtExceptionHandler((thread, exception) -> {
 			System.err.println("[Uncaught]");

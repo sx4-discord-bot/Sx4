@@ -54,7 +54,7 @@ public class MuteCommand extends Sx4Command {
 		}
 
 		if (!event.getSelfMember().canInteract(member)) {
-			event.replyFailure("I cannot mute someone higher or equal than your top role").queue();
+			event.replyFailure("I cannot mute someone higher or equal than my top role").queue();
 			return;
 		}
 

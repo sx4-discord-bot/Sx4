@@ -17,9 +17,9 @@ public class TimeUtility {
 	public static class OffsetTimeZone {
 
 		private final TimeZone timeZone;
-		private final long offset;
+		private final int offset;
 
-		private OffsetTimeZone(TimeZone timeZone, long offset) {
+		private OffsetTimeZone(TimeZone timeZone, int offset) {
 			this.timeZone = timeZone;
 			this.offset = offset;
 		}
@@ -29,14 +29,14 @@ public class TimeUtility {
 		}
 
 		public ZoneOffset asZoneOffset() {
-			return ZoneOffset.ofTotalSeconds((int) this.getTotalOffset());
+			return ZoneOffset.ofTotalSeconds(this.getTotalOffset());
 		}
 
-		public long getOffset() {
+		public int getOffset() {
 			return this.offset;
 		}
 
-		public long getTotalOffset() {
+		public int getTotalOffset() {
 			return this.timeZone.getRawOffset() + this.offset;
 		}
 
@@ -62,23 +62,23 @@ public class TimeUtility {
 			}
 
 			if (unitIndex == -1) {
-				return new OffsetTimeZone(TimeZone.getTimeZone(query), 0L);
+				return new OffsetTimeZone(TimeZone.getTimeZone(query), 0);
 			}
 
 			String offset = query.substring(unitIndex);
 
 			int colonIndex = offset.indexOf(':');
 
-			long offsetSeconds = 0L;
+			int offsetSeconds = 0;
 			try {
 				if (colonIndex == -1) {
-					offsetSeconds += offset.length() == 1 ? 0 : Integer.parseInt(offset) * 3600L;
+					offsetSeconds += offset.length() == 1 ? 0 : Integer.parseInt(offset) * 3600;
 				} else {
 					String hourOffsetString = offset.substring(0, colonIndex);
 					if (hourOffsetString.length() != 1) {
-						offsetSeconds += Integer.parseInt(hourOffsetString) * 3600L;
+						offsetSeconds += Integer.parseInt(hourOffsetString) * 3600;
 						int minuteOffset = Integer.parseInt(offset.substring(colonIndex + 1));
-						offsetSeconds += (offset.charAt(0) == '-' ? -minuteOffset : minuteOffset) * 60L;
+						offsetSeconds += (offset.charAt(0) == '-' ? -minuteOffset : minuteOffset) * 60;
 					}
 				}
 			} catch (NumberFormatException ignored) {}

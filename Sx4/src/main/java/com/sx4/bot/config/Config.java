@@ -2,6 +2,7 @@ package com.sx4.bot.config;
 
 import club.minnced.discord.webhook.WebhookClient;
 import club.minnced.discord.webhook.WebhookClientBuilder;
+import com.sx4.bot.database.mongo.MongoDatabase;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.TextChannel;
@@ -77,7 +78,11 @@ public class Config {
 	}
 
 	public Config set(String path, Object value) throws IOException {
-		return this.set(path, value);
+		return this.set(path.split("\\."), value);
+	}
+
+	public Config set(String[] path, Object value) throws IOException {
+		return this.set(Arrays.asList(path), value);
 	}
 
 	public Config set(List<String> path, Object value) {
@@ -99,6 +104,26 @@ public class Config {
 		}
 
 		return this;
+	}
+
+	public String getYouTubeAvatar() {
+		return this.get("avatar.youtube");
+	}
+
+	public String getTwitterToken() {
+		return this.get("token.twitter.token");
+	}
+
+	public String getTwitterTokenSecret() {
+		return this.get("token.twitter.tokenSecret");
+	}
+
+	public String getTwitterAccessToken() {
+		return this.get("token.twitter.accessToken");
+	}
+
+	public String getTwitterAccessTokenSecret() {
+		return this.get("token.twitter.accessTokenSecret");
 	}
 
 	public String getSupportDescription() {
@@ -474,6 +499,10 @@ public class Config {
 	public List<String> getPremiumServerPerks() {
 		return this.get("premium.perks.server");
 	}
+
+	public int getPremiumDays() {
+		return this.get("premium.days");
+	}
 	
 	public int getPremiumPrice() {
 		return this.get("premium.price", 500);
@@ -509,7 +538,7 @@ public class Config {
 
 	public void update() {
 		try (FileOutputStream stream = new FileOutputStream("config.json")) {
-			stream.write(this.json.toJson().getBytes(StandardCharsets.UTF_8));
+			stream.write(this.json.toJson(MongoDatabase.PRETTY_JSON).getBytes(StandardCharsets.UTF_8));
 		} catch (IOException e) {
 			e.printStackTrace();
 		}

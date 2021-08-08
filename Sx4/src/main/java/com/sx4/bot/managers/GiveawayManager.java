@@ -94,7 +94,7 @@ public class GiveawayManager {
 			return CompletableFuture.completedFuture(null);
 		}
 
-		if (!guild.getSelfMember().hasPermission(channel, Permission.MESSAGE_READ, Permission.MESSAGE_HISTORY)) {
+		if (!guild.getSelfMember().hasPermission(channel, Permission.MESSAGE_READ, Permission.MESSAGE_HISTORY, Permission.MESSAGE_EMBED_LINKS)) {
 			return CompletableFuture.completedFuture(null);
 		}
 		
@@ -141,16 +141,20 @@ public class GiveawayManager {
 					winnerTags.add(winner.getUser().getAsTag());
 					winnerMentions.add(winner.getAsMention());
 				}
-				
-				channel.sendMessage(String.join(", ", winnerMentions) + ", Congratulations you have won the giveaway for **" + data.getString("item") + "**").allowedMentions(EnumSet.of(MentionType.USER)).queue();
+
+				if (guild.getSelfMember().hasPermission(channel, Permission.MESSAGE_WRITE)) {
+					channel.sendMessage(String.join(", ", winnerMentions) + ", Congratulations you have won the giveaway for **" + data.getString("item") + "**").allowedMentions(EnumSet.of(MentionType.USER)).queue();
+				}
 				
 				EmbedBuilder embed = new EmbedBuilder();
 				embed.setTitle("Giveaway");
 				embed.setDescription("**" + String.join(", ", winnerTags) + "** has won **" + data.getString("item") + "**");
 				embed.setTimestamp(Instant.now());
 				embed.setFooter("Giveaway Ended", null);
-				
-				message.editMessageEmbeds(embed.build()).queue();
+
+				if (guild.getSelfMember().hasPermission(channel, Permission.MESSAGE_WRITE, Permission.MESSAGE_EMBED_LINKS)) {
+					message.editMessageEmbeds(embed.build()).queue();
+				}
 				
 				update = Updates.set("winners", winnerIds);
 				

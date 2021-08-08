@@ -62,9 +62,9 @@ public class PremiumCommand extends Sx4Command {
 	
 	@Command(value="add", description="Make a server premium")
 	@CommandId(177)
-	@Examples({"premium add", "premium add 30", "premium add 20 Sx4 | Support Server"})
+	@Examples({"premium add", "premium add 31", "premium add 20 Sx4 | Support Server"})
 	@Premium
-	public void add(Sx4CommandEvent event, @Argument(value="days") @DefaultNumber(30) @Limit(min=1, max=365) int days, @Argument(value="server", endless=true, nullDefault=true) Guild guild) {
+	public void add(Sx4CommandEvent event, @Argument(value="days") @DefaultNumber(31) @Limit(min=1, max=365) int days, @Argument(value="server", endless=true, nullDefault=true) Guild guild) {
 		if (guild == null) {
 			guild = event.getGuild();
 		}
@@ -73,7 +73,7 @@ public class PremiumCommand extends Sx4Command {
 		String guildName = guild.getName();
 
 		int monthPrice = event.getConfig().getPremiumPrice();
-		int price = (int) Math.round((monthPrice / 30D) * days);
+		int price = (int) Math.round((monthPrice / (double) event.getConfig().getPremiumDays()) * days);
 
 		long endAtPrior = event.getMongo().getGuildById(guildId, Projections.include("premium.endAt")).getEmbedded(List.of("premium", "endAt"), 0L);
 		boolean hasPremium = endAtPrior != 0;

@@ -166,13 +166,13 @@ public class FactoryCommand extends Sx4Command {
 				CooldownItemStack<Factory> stack = new CooldownItemStack<>(event.getBot().getEconomyManager(), data);
 				Factory factory = stack.getItem();
 
-				long nextReset = stack.getTimeRemaining();
-				lowestReset = Math.min(nextReset, lowestReset);
-
 				long amount = stack.getUsableAmount();
 				if (amount == 0) {
 					continue;
 				}
+
+				long nextReset = stack.getTimeRemaining();
+				lowestReset = Math.min(nextReset, lowestReset);
 
 				long gained = factory.getYield() * amount;
 
