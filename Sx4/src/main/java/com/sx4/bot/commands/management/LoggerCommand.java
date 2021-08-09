@@ -291,7 +291,7 @@ public class LoggerCommand extends Sx4Command {
             TextChannel effectiveChannel = channel == null ? event.getTextChannel() : channel;
 
             long raw = LoggerEvent.getRaw(events);
-            List<Bson> update = List.of(Operators.set("events", Operators.bitwiseAnd(Operators.ifNull("$events", LoggerEvent.ALL), raw)));
+            List<Bson> update = List.of(Operators.set("events", Operators.bitwiseOr(Operators.ifNull("$events", LoggerEvent.ALL), raw)));
 
             event.getMongo().updateLogger(Filters.eq("channelId", effectiveChannel.getIdLong()), update, new UpdateOptions()).whenComplete((result, exception) -> {
                 if (ExceptionUtility.sendExceptionally(event, exception)) {
