@@ -12,6 +12,7 @@ import net.dv8tion.jda.api.requests.RestAction;
 import org.codehaus.groovy.control.CompilerConfiguration;
 import org.codehaus.groovy.control.customizers.ImportCustomizer;
 
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -50,7 +51,7 @@ public class EvalCommand extends Sx4Command {
 		super.setDeveloper(true);
 	}
 	
-	public void onCommand(Sx4CommandEvent event, @Argument(value="code", endless=true) String evaluableString, @Option(value="timed", description="Returns the execution time of the eval") boolean timed) {
+	public void onCommand(Sx4CommandEvent event, @Argument(value="code", endless=true, nullDefault=true) String evaluableString, @Option(value="timed", description="Returns the execution time of the eval") boolean timed) {
 		GroovyShell shell = new GroovyShell(this.configuration);
 
 		shell.setProperty("event", event);
@@ -66,7 +67,20 @@ public class EvalCommand extends Sx4Command {
 		this.executor.submit(() -> {
 			long time = System.nanoTime();
 			try {
-				Object object = shell.evaluate(evaluableString);
+				String string;
+				if (evaluableString == null) {
+					List<Message.Attachment> attachments = event.getMessage().getAttachments();
+					if (attachments.isEmpty()) {
+						event.replyFailure("Supply a query or a text file at least").queue();
+						return;
+					}
+
+					string = new String(event.getMessage().getAttachments().get(0).retrieveInputStream().get().readAllBytes());
+				} else {
+					string = evaluableString;
+				}
+
+				Object object = shell.evaluate(string);
 
 				if (object == null) {
 					event.reply("null").queue();

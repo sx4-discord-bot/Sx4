@@ -12,6 +12,7 @@ import com.sx4.bot.entities.mod.PartialEmote;
 import com.sx4.bot.http.HttpCallback;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
+import com.sx4.bot.utility.RequestUtility;
 import com.sx4.bot.utility.TimeUtility;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Emote;
@@ -46,7 +47,7 @@ public class EmoteCommand extends Sx4Command {
 
 	private void getBytes(OkHttpClient httpClient, String url, TriConsumer<byte[], Boolean, Integer> bytes) {
 		Request request = new Request.Builder()
-			.url(url)
+			.url(RequestUtility.getWorkerUrl(url))
 			.build();
 
 		httpClient.newCall(request).enqueue((HttpCallback) response -> {

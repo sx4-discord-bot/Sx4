@@ -24,6 +24,7 @@ import com.sx4.bot.utility.ColourUtility;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.waiter.Waiter;
 import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.events.interaction.ButtonClickEvent;
@@ -130,11 +131,18 @@ public class SuggestionCommand extends Sx4Command {
 
 		SuggestionState state = SuggestionState.PENDING;
 
+		String image = event.getMessage().getAttachments().stream()
+			.filter(Message.Attachment::isImage)
+			.map(Message.Attachment::getUrl)
+			.findFirst()
+			.orElse(null);
+
 		Suggestion suggestion = new Suggestion(
 			channelId,
 			event.getGuild().getIdLong(),
 			event.getAuthor().getIdLong(),
 			description,
+			image,
 			state.getDataName()
 		);
 
@@ -241,20 +249,20 @@ public class SuggestionCommand extends Sx4Command {
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void set(Sx4CommandEvent event, @Argument(value="id | message", acceptEmpty=true) Or<ObjectId, MessageArgument> argument, @Argument(value="state") String stateName, @Argument(value="reason", endless=true, nullDefault=true) String reason) {
 		Document data = event.getMongo().getGuildById(event.getGuild().getIdLong(), Projections.include("suggestion.states", "suggestion.webhook")).get("suggestion", MongoDatabase.EMPTY_DOCUMENT);
-		
+
 		List<Document> states = data.getList("states", Document.class, SuggestionState.DEFAULT_STATES);
 		Document state = states.stream()
 			.filter(stateData -> stateData.getString("dataName").equalsIgnoreCase(stateName))
 			.findFirst()
 			.orElse(null);
-		
+
 		if (state == null) {
 			event.replyFailure("You do not have a suggestion state with that name").queue();
 			return;
 		}
-		
+
 		String stateData = state.getString("dataName");
-		
+
 		Bson update = Updates.combine(
 			reason == null ? Updates.unset("reason") : Updates.set("reason", reason),
 			Updates.set("state", stateData),
@@ -263,7 +271,7 @@ public class SuggestionCommand extends Sx4Command {
 
 		Bson filter = Filters.and(argument.hasFirst() ? Filters.eq("_id", argument.getFirst()) : Filters.eq("messageId", argument.getSecond().getMessageId()), Filters.eq("guildId", event.getGuild().getIdLong()));
 
-		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("channelId", "authorId", "reason", "state", "suggestion", "messageId"));
+		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("channelId", "authorId", "reason", "state", "suggestion", "messageId", "image"));
 		event.getMongo().findAndUpdateSuggestion(filter, update, options).whenComplete((suggestionData, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
@@ -297,7 +305,7 @@ public class SuggestionCommand extends Sx4Command {
 					.queue(null, ErrorResponseException.ignore(ErrorResponse.CANNOT_SEND_TO_USER));
 			}
 
-			WebhookEmbed embed = Suggestion.getWebhookEmbed(suggestionData.getObjectId("_id"), event.getAuthor(), author, suggestionData.getString("suggestion"), reason, new SuggestionState(state));
+			WebhookEmbed embed = Suggestion.getWebhookEmbed(suggestionData.getObjectId("_id"), event.getAuthor(), author, suggestionData.getString("suggestion"), suggestionData.getString("image"), reason, new SuggestionState(state));
 
 			event.getBot().getSuggestionManager().editSuggestion(messageId, channel.getIdLong(), data.get("webhook", MongoDatabase.EMPTY_DOCUMENT), embed);
 
@@ -309,7 +317,7 @@ public class SuggestionCommand extends Sx4Command {
 	@CommandId(87)
 	@Examples({"suggestion view 5e45ce6d3688b30ee75201ae", "suggestion view"})
 	public void view(Sx4CommandEvent event, @Argument(value="id", nullDefault=true) ObjectId id) {
-		Bson projection = Projections.include("suggestion", "reason", "moderatorId", "authorId", "state");
+		Bson projection = Projections.include("suggestion", "reason", "moderatorId", "authorId", "state", "image");
 		if (id == null) {
 			List<Document> suggestions = event.getMongo().getSuggestions(Filters.eq("guildId", event.getGuild().getIdLong()), projection).into(new ArrayList<>());
 			if (suggestions.isEmpty()) {

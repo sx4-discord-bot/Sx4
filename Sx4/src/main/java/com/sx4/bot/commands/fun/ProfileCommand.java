@@ -18,10 +18,7 @@ import com.sx4.bot.entities.argument.Alternative;
 import com.sx4.bot.entities.games.GameState;
 import com.sx4.bot.entities.image.ImageRequest;
 import com.sx4.bot.http.HttpCallback;
-import com.sx4.bot.utility.ColourUtility;
-import com.sx4.bot.utility.ExceptionUtility;
-import com.sx4.bot.utility.ImageUtility;
-import com.sx4.bot.utility.NumberUtility;
+import com.sx4.bot.utility.*;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.User;
@@ -319,10 +316,17 @@ public class ProfileCommand extends Sx4Command {
 			}
 
 			Request request = new Request.Builder()
-				.url(option.getValue())
+				.url(RequestUtility.getWorkerUrl(option.getValue()))
 				.build();
 
 			event.getHttpClient().newCall(request).enqueue((HttpCallback) response -> {
+				if (response.code() == 403) {
+					if ("error code: 1003".equals(response.body().string())) {
+						event.replyFailure("That url is either not valid or not accepted").queue();
+						return;
+					}
+				}
+
 				String contentType = response.header("Content-Type");
 				if (contentType == null) {
 					event.replyFailure("That url does not return a content type").queue();

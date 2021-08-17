@@ -166,13 +166,17 @@ public class FactoryCommand extends Sx4Command {
 				CooldownItemStack<Factory> stack = new CooldownItemStack<>(event.getBot().getEconomyManager(), data);
 				Factory factory = stack.getItem();
 
-				long amount = stack.getUsableAmount();
-				if (amount == 0) {
+				if (stack.getAmount() == 0) {
 					continue;
 				}
 
 				long nextReset = stack.getTimeRemaining();
 				lowestReset = Math.min(nextReset, lowestReset);
+
+				long amount = stack.getUsableAmount();
+				if (amount == 0) {
+					continue;
+				}
 
 				long gained = factory.getYield() * amount;
 
@@ -180,6 +184,12 @@ public class FactoryCommand extends Sx4Command {
 				content.add(String.format("• %,d %s: $%,d", amount, factory.getName(), gained));
 
 				event.getMongo().getItems().updateOne(Filters.and(Filters.eq("userId", event.getAuthor().getIdLong()), Filters.eq("item.id", factory.getId())), List.of(EconomyUtility.getResetsUpdate(amount, FactoryCommand.COOLDOWN)));
+			}
+
+			if (lowestReset == Long.MAX_VALUE) {
+				event.replyFailure("You do not have any factories").queue();
+				session.abortTransaction();
+				return null;
 			}
 
 			if (money == 0) {
@@ -192,7 +202,7 @@ public class FactoryCommand extends Sx4Command {
 
 			EmbedBuilder embed = new EmbedBuilder()
 				.setAuthor(event.getAuthor().getName(), null, event.getAuthor().getEffectiveAvatarUrl())
-				.setColor(event.getMember().getColor())
+				.setColor(event.getMember().getColorRaw())
 				.setDescription(String.format("Your factories made you **$%,d**\n\n%s", money, content));
 
 			return embed.build();

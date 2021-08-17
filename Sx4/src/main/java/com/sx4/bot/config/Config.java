@@ -391,6 +391,14 @@ public class Config {
 	public String getSearchWebserverUrl(String endpoint) {
 		return this.getSearchWebserverBaseUrl() + this.getSearchWebserverPath() + endpoint;
 	}
+
+	public String getCloudflareWorkerDomain() {
+		return this.get("webserver.worker.domain");
+	}
+
+	public String getCloudflareWorkerUrl() {
+		return "https://" + this.getCloudflareWorkerDomain();
+	}
 	
 	public String getVainGlory() {
 		return this.get("token.vainGlory");

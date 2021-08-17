@@ -29,10 +29,11 @@ public class Suggestion {
 
 	private final String reason;
 	private final String suggestion;
+	private final String image;
 	private final String state;
 
-	public Suggestion(long channelId, long guildId, long authorId, String suggestion, String state) {
-		this(ObjectId.get(), 0L, channelId, guildId, authorId, suggestion, state);
+	public Suggestion(long channelId, long guildId, long authorId, String suggestion, String image, String state) {
+		this(ObjectId.get(), 0L, channelId, guildId, authorId, suggestion, image, state);
 	}
 
 	private Suggestion(Document data) {
@@ -44,10 +45,11 @@ public class Suggestion {
 		this.moderatorId = data.get("moderatorId", 0L);
 		this.reason = data.getString("reason");
 		this.suggestion = data.getString("suggestion");
+		this.image = data.getString("image");
 		this.state = data.getString("state");
 	}
 
-	public Suggestion(ObjectId id, long messageId, long channelId, long guildId, long authorId, String suggestion, String state) {
+	public Suggestion(ObjectId id, long messageId, long channelId, long guildId, long authorId, String suggestion, String image, String state) {
 		this.id = id;
 		this.messageId = messageId;
 		this.channelId = channelId;
@@ -56,6 +58,7 @@ public class Suggestion {
 		this.moderatorId = 0L;
 		this.reason = null;
 		this.suggestion = suggestion;
+		this.image = image;
 		this.state = state;
 	}
 
@@ -133,6 +136,10 @@ public class Suggestion {
 		return this.suggestion;
 	}
 
+	public String getImage() {
+		return this.image;
+	}
+
 	public String getState() {
 		return this.state;
 	}
@@ -158,6 +165,10 @@ public class Suggestion {
 			.setColor(state.getColour())
 			.setTimestamp(Instant.ofEpochSecond(this.getTimestamp()));
 
+		if (this.image != null) {
+			embed.setImage(this.image);
+		}
+
 		if (moderator != null) {
 			embed.addField("Moderator", moderator.getAsTag(), true);
 		}
@@ -174,22 +185,7 @@ public class Suggestion {
 	}
 
 	public WebhookEmbed getWebhookEmbed(User moderator, User author, SuggestionState state) {
-		WebhookEmbedBuilder embed = new WebhookEmbedBuilder()
-			.setAuthor(new EmbedAuthor(author == null ? "Anonymous#0000" : author.getAsTag(), author == null ? null : author.getEffectiveAvatarUrl(), null))
-			.setDescription(this.suggestion)
-			.setFooter(new EmbedFooter(String.format("%s | ID: %s", state.getName(), this.getHex()), null))
-			.setColor(state.getColour())
-			.setTimestamp(Instant.ofEpochSecond(this.getTimestamp()));
-
-		if (moderator != null) {
-			embed.addField(new EmbedField(true, "Moderator", moderator.getAsTag()));
-		}
-
-		if (this.reason != null) {
-			embed.addField(new EmbedField(true, "Reason", this.reason));
-		}
-
-		return embed.build();
+		return Suggestion.getWebhookEmbed(this.id, moderator, author, this.suggestion, this.image, this.reason, state);
 	}
 
 	public WebhookEmbed getWebhookEmbed(ShardManager manager, SuggestionState state) {
@@ -197,28 +193,47 @@ public class Suggestion {
 	}
 
 	public Document toData() {
-		return new Document("_id", this.id)
+		Document data = new Document("_id", this.id)
 			.append("guildId", this.guildId)
 			.append("channelId", this.channelId)
 			.append("authorId", this.authorId)
-			.append("messageId", this.messageId)
-			.append("moderatorId", this.moderatorId)
-			.append("reason", this.reason)
 			.append("suggestion", this.suggestion)
 			.append("state", this.state);
+
+		if (this.image != null) {
+			data.append("image", this.image);
+		}
+
+		if (this.moderatorId != 0L) {
+			data.append("moderatorId", this.moderatorId);
+		}
+
+		if (this.messageId != 0L) {
+			data.append("messageId", this.messageId);
+		}
+
+		if (this.reason != null) {
+			data.append("reason", this.reason);
+		}
+
+		return data;
 	}
 
 	public static Suggestion fromData(Document data) {
 		return new Suggestion(data);
 	}
 
-	public static WebhookEmbed getWebhookEmbed(ObjectId id, User moderator, User author, String suggestion, String reason, SuggestionState state) {
+	public static WebhookEmbed getWebhookEmbed(ObjectId id, User moderator, User author, String suggestion, String image, String reason, SuggestionState state) {
 		WebhookEmbedBuilder embed = new WebhookEmbedBuilder()
 			.setAuthor(new EmbedAuthor(author == null ? "Anonymous#0000" : author.getAsTag(), author == null ? null : author.getEffectiveAvatarUrl(), null))
 			.setDescription(suggestion)
 			.setFooter(new EmbedFooter(String.format("%s | ID: %s", state.getName(), id.toHexString()), null))
 			.setColor(state.getColour())
 			.setTimestamp(Instant.ofEpochSecond(id.getTimestamp()));
+
+		if (image != null) {
+			embed.setImageUrl(image);
+		}
 
 		if (moderator != null) {
 			embed.addField(new EmbedField(true, "Moderator", moderator.getAsTag()));

@@ -379,6 +379,10 @@ public class LoggerHandler implements EventListener {
 		Guild guild = event.getGuild();
 		User user = event.getUser();
 
+		Member member = event.getMember();
+		List<Role> roles = member == null ? Collections.emptyList() : member.getRoles();
+		String rolesMessage = StringUtility.joinLimited(", ", roles, Role::getAsMention, MessageEmbed.VALUE_MAX_LENGTH);
+
 		LoggerContext loggerContext = new LoggerContext()
 			.setUser(user);
 
@@ -388,6 +392,10 @@ public class LoggerHandler implements EventListener {
 		embed.setTimestamp(Instant.now());
 		embed.setAuthor(new EmbedAuthor(user.getAsTag(), user.getEffectiveAvatarUrl(), null));
 		embed.setFooter(new EmbedFooter(String.format("User ID: %s", user.getId()), null));
+
+		if (rolesMessage.length() != 0) {
+			embed.addField(new EmbedField(true, "Roles", rolesMessage));
+		}
 
 		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((documents, exception) -> {
 			if (ExceptionUtility.sendErrorMessage(exception)) {

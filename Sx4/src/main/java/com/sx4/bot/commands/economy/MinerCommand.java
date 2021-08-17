@@ -134,13 +134,17 @@ public class MinerCommand extends Sx4Command {
 				CooldownItemStack<Miner> stack = new CooldownItemStack<>(event.getBot().getEconomyManager(), data);
 				Miner miner = stack.getItem();
 
-				long amount = stack.getUsableAmount();
-				if (amount == 0) {
+				if (stack.getAmount() == 0) {
 					continue;
 				}
 
 				long nextReset = stack.getTimeRemaining();
 				lowestReset = Math.min(nextReset, lowestReset);
+
+				long amount = stack.getUsableAmount();
+				if (amount == 0) {
+					continue;
+				}
 
 				usableTotal += amount;
 
@@ -161,6 +165,12 @@ public class MinerCommand extends Sx4Command {
 				}
 
 				event.getMongo().getItems().updateOne(Filters.and(Filters.eq("userId", event.getAuthor().getIdLong()), Filters.eq("item.id", miner.getId())), List.of(EconomyUtility.getResetsUpdate(amount, MinerCommand.COOLDOWN)));
+			}
+
+			if (lowestReset == Long.MAX_VALUE) {
+				event.replyFailure("You do not have any miners").queue();
+				session.abortTransaction();
+				return null;
 			}
 
 			if (usableTotal == 0) {

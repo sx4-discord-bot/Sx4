@@ -20,6 +20,7 @@ public class PermissionsCommand extends Sx4Command {
 		super("permissions", 323);
 
 		super.setDescription("Check the permissions of a user or role");
+		super.setAliases("perms");
 		super.setExamples("permissions", "permissions @Role", "permissions @Shea#6653");
 		super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
 		super.setCategoryAll(ModuleCategory.INFORMATION);

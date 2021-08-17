@@ -28,6 +28,7 @@ import com.sx4.bot.http.HttpCallback;
 import com.sx4.bot.managers.WelcomerManager;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.MessageUtility;
+import com.sx4.bot.utility.RequestUtility;
 import com.sx4.bot.utility.WelcomerUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
@@ -409,10 +410,17 @@ public class WelcomerCommand extends Sx4Command {
 			}
 
 			Request request = new Request.Builder()
-				.url(option.getValue())
+				.url(RequestUtility.getWorkerUrl(option.getValue()))
 				.build();
 
 			event.getHttpClient().newCall(request).enqueue((HttpCallback) response -> {
+				if (response.code() == 403) {
+					if ("error code: 1003".equals(response.body().string())) {
+						event.replyFailure("That url is either not valid or not accepted").queue();
+						return;
+					}
+				}
+
 				String contentType = response.header("Content-Type");
 				if (contentType == null) {
 					event.replyFailure("That url does not return a content type").queue();
