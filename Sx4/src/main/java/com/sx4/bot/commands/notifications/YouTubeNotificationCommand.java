@@ -2,7 +2,6 @@ package com.sx4.bot.commands.notifications;
 
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
-import com.jockie.bot.core.option.Option;
 import com.mongodb.ErrorCategory;
 import com.mongodb.MongoWriteException;
 import com.mongodb.client.model.*;
@@ -53,7 +52,8 @@ import java.util.stream.Collectors;
 
 public class YouTubeNotificationCommand extends Sx4Command {
 
-	private final Pattern url = Pattern.compile("^https?://(?:www\\.)?youtube\\.com/(user|channel)/([a-zA-Z0-9\\p{L}]+)/?$");
+	private final Pattern url = Pattern.compile("^https?://(?:www\\.)?youtube\\.com/(?:(user|channel)/)?([\\w-]+)/?$");
+	private final Pattern id = Pattern.compile("^UC[\\w-]{21}[AQgw]$");
 	
 	public YouTubeNotificationCommand() {
 		super("youtube notification", 157);
@@ -71,22 +71,25 @@ public class YouTubeNotificationCommand extends Sx4Command {
 	@Command(value="add", description="Add a youtube notification to be posted to a specific channel when the user uploads")
 	@CommandId(158)
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-	@Examples({"youtube notification add videos mrbeast", "youtube notification add #videos pewdiepie"})
-	public void add(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) TextChannel channel, @Argument(value="youtube channel", endless=true) String youtubeChannel, @Option(value="id", description="Provide the id of the channel to guarantee a correct result") boolean id) {
+	@Examples({"youtube notification add videos mrbeast", "youtube notification add mrbeast", "youtube notification add #videos pewdiepie"})
+	public void add(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) TextChannel channel, @Argument(value="youtube channel", endless=true) String channelQuery) {
 		TextChannel effectiveChannel = channel == null ? event.getTextChannel() : channel;
 
+		boolean id = this.id.matcher(channelQuery).matches();
 		boolean search;
 		String queryName, query;
 
-		Matcher matcher = this.url.matcher(youtubeChannel);
+		Matcher matcher = this.url.matcher(channelQuery);
 		if (matcher.matches()) {
+			String path = matcher.group(1);
+
 			search = false;
-			queryName = matcher.group(1).equals("user") ? "forUsername" : "id";
+			queryName = path == null || path.equals("user") ? "forUsername" : "id";
 			query = matcher.group(2);
 		} else {
 			search = !id;
 			queryName = id ? "id" : "q";
-			query = youtubeChannel;
+			query = channelQuery;
 		}
 
 		Request channelRequest = new Request.Builder()
