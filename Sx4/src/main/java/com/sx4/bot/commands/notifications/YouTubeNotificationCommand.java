@@ -47,9 +47,13 @@ import java.time.ZoneOffset;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public class YouTubeNotificationCommand extends Sx4Command {
+
+	private final Pattern url = Pattern.compile("^https?://(?:www\\.)?youtube\\.com/(user|channel)/([a-zA-Z0-9\\p{L}]+)/?$");
 	
 	public YouTubeNotificationCommand() {
 		super("youtube notification", 157);
@@ -68,9 +72,25 @@ public class YouTubeNotificationCommand extends Sx4Command {
 	@CommandId(158)
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	@Examples({"youtube notification add videos mrbeast", "youtube notification add #videos pewdiepie"})
-	public void add(Sx4CommandEvent event, @Argument(value="channel") TextChannel channel, @Argument(value="youtube channel", endless=true) String youtubeChannel, @Option(value="id", description="Provide the id of the channel to guarantee a correct result") boolean id) {
+	public void add(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) TextChannel channel, @Argument(value="youtube channel", endless=true) String youtubeChannel, @Option(value="id", description="Provide the id of the channel to guarantee a correct result") boolean id) {
+		TextChannel effectiveChannel = channel == null ? event.getTextChannel() : channel;
+
+		boolean search;
+		String queryName, query;
+
+		Matcher matcher = this.url.matcher(youtubeChannel);
+		if (matcher.matches()) {
+			search = false;
+			queryName = matcher.group(1).equals("user") ? "forUsername" : "id";
+			query = matcher.group(2);
+		} else {
+			search = !id;
+			queryName = id ? "id" : "q";
+			query = youtubeChannel;
+		}
+
 		Request channelRequest = new Request.Builder()
-			.url("https://www.googleapis.com/youtube/v3/" + (id ? "channels" : "search") + "?key=" + event.getConfig().getYouTube() + "&" + (id ? "id" : "q") + "=" + URLEncoder.encode(youtubeChannel, StandardCharsets.UTF_8) + "&part=id&type=channel&maxResults=1")
+			.url("https://www.googleapis.com/youtube/v3/" + (search ? "search" : "channels") + "?key=" + event.getConfig().getYouTube() + "&" + queryName + "=" + URLEncoder.encode(query, StandardCharsets.UTF_8) + "&part=snippet&type=channel&maxResults=1")
 			.build();
 		
 		event.getHttpClient().newCall(channelRequest).enqueue((HttpCallback) channelResponse -> {
@@ -81,11 +101,12 @@ public class YouTubeNotificationCommand extends Sx4Command {
 				event.replyFailure("I could not find that youtube channel").queue();
 				return;
 			}
-			
-			String channelId = id ? youtubeChannel : items.get(0).getEmbedded(List.of("id", "channelId"), String.class);
+
+			Document item = items.get(0);
+			String channelId = search ? item.getEmbedded(List.of("id", "channelId"), String.class) : item.getString("id");
 			
 			Document notificationData = new Document("uploaderId", channelId)
-				.append("channelId", channel.getIdLong())
+				.append("channelId", effectiveChannel.getIdLong())
 				.append("guildId", event.getGuild().getIdLong());
 			
 			if (!event.getBot().getYouTubeManager().hasExecutor(channelId)) {
@@ -106,11 +127,17 @@ public class YouTubeNotificationCommand extends Sx4Command {
 				event.getHttpClient().newCall(request).enqueue((HttpCallback) response -> {
 					if (response.isSuccessful()) {
 						event.getMongo().insertYouTubeNotification(notificationData).whenComplete((result, exception) -> {
+							Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
+							if (cause instanceof MongoWriteException && ((MongoWriteException) cause).getError().getCategory() == ErrorCategory.DUPLICATE_KEY) {
+								event.replyFailure("You already have a notification setup for that youtube channel in " + effectiveChannel.getAsMention()).queue();
+								return;
+							}
+
 							if (ExceptionUtility.sendExceptionally(event, exception)) {
 								return;
 							}
 
-							event.replyFormat("Notifications will now be sent in %s when that user uploads with id `%s` %s", channel.getAsMention(), result.getInsertedId().asObjectId().getValue().toHexString(), event.getConfig().getSuccessEmote()).queue();
+							event.replyFormat("Notifications will now be sent in %s when **%s** uploads with id `%s` %s", effectiveChannel.getAsMention(), item.getEmbedded(List.of("snippet", "title"), String.class), result.getInsertedId().asObjectId().getValue().toHexString(), event.getConfig().getSuccessEmote()).queue();
 						});
 					} else {
 						event.replyFailure("Oops something went wrong there, try again. If this repeats report this to my developer (Message: " + response.body().string() + ")").queue();
@@ -120,15 +147,15 @@ public class YouTubeNotificationCommand extends Sx4Command {
 				event.getMongo().insertYouTubeNotification(notificationData).whenComplete((result, exception) -> {
 					Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
 					if (cause instanceof MongoWriteException && ((MongoWriteException) cause).getError().getCategory() == ErrorCategory.DUPLICATE_KEY) {
-						event.replyFailure("You already have a notification setup for that youtube channel in " + channel.getAsMention()).queue();
+						event.replyFailure("You already have a notification setup for that youtube channel in " + effectiveChannel.getAsMention()).queue();
 						return;
 					}
 
 					if (ExceptionUtility.sendExceptionally(event, exception)) {
 						return;
 					}
-					
-					event.replyFormat("Notifications will now be sent in %s when that user uploads with id `%s` %s", channel.getAsMention(), result.getInsertedId().asObjectId().getValue().toHexString(), event.getConfig().getSuccessEmote()).queue();
+
+					event.replyFormat("Notifications will now be sent in %s when **%s** uploads with id `%s` %s", effectiveChannel.getAsMention(), item.getEmbedded(List.of("snippet", "title"), String.class), result.getInsertedId().asObjectId().getValue().toHexString(), event.getConfig().getSuccessEmote()).queue();
 				});
 			}
 		});
