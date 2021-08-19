@@ -5,6 +5,7 @@ import com.jockie.bot.core.command.Command;
 import com.mongodb.ErrorCategory;
 import com.mongodb.MongoWriteException;
 import com.mongodb.client.model.*;
+import com.sx4.bot.annotations.argument.AlternativeOptions;
 import com.sx4.bot.annotations.argument.Limit;
 import com.sx4.bot.annotations.command.AuthorPermissions;
 import com.sx4.bot.annotations.command.CommandId;
@@ -13,6 +14,7 @@ import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.mongo.model.Operators;
+import com.sx4.bot.entities.argument.Alternative;
 import com.sx4.bot.entities.argument.TimedArgument;
 import com.sx4.bot.entities.management.WhitelistType;
 import com.sx4.bot.entities.mod.action.ModAction;
@@ -441,28 +443,36 @@ public class AntiRegexCommand extends Sx4Command {
 
 		@Command(value="action", description="Sets the action to be taken when a user hits the max attempts")
 		@CommandId(112)
-		@Examples({"anti regex mod action 5f023782ef9eba03390a740c WARN", "anti regex mod action 5f023782ef9eba03390a740c MUTE 60m"})
+		@Examples({"anti regex mod action 5f023782ef9eba03390a740c WARN", "anti regex mod action 5f023782ef9eba03390a740c MUTE 60m", "anti regex mod action 5f023782ef9eba03390a740c none"})
 		@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-		public void action(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="action", endless=true) TimedArgument<ModAction> timedAction) {
-			ModAction action = timedAction.getArgument();
-			if (!action.isOffence()) {
-				event.replyFailure("The action has to be an offence").queue();
-				return;
-			}
-
-			Document modAction = new Document("type", action.getType());
-
-			if (action.isTimed()) {
-				Duration duration = timedAction.getDuration();
-				if (duration == null) {
-					event.replyFailure("You need to provide a duration for this mod action").queue();
+		public void action(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="action", endless=true) @AlternativeOptions({"none", "reset", "unset"}) Alternative<TimedArgument<ModAction>> option) {
+			Bson update;
+			if (option.isAlternative()) {
+				update = Updates.unset("mod.action");
+			} else {
+				TimedArgument<ModAction> timedAction = option.getValue();
+				ModAction action = timedAction.getArgument();
+				if (!action.isOffence()) {
+					event.replyFailure("The action has to be an offence").queue();
 					return;
 				}
 
-				modAction.append("duration", duration.toSeconds());
+				Document modAction = new Document("type", action.getType());
+
+				if (action.isTimed()) {
+					Duration duration = timedAction.getDuration();
+					if (duration == null) {
+						event.replyFailure("You need to provide a duration for this mod action").queue();
+						return;
+					}
+
+					modAction.append("duration", duration.toSeconds());
+				}
+
+				update = Updates.set("mod.action", modAction);
 			}
 
-			event.getMongo().updateRegex(Filters.and(Filters.eq("_id", id), Filters.eq("guildId", event.getGuild().getIdLong())), Updates.set("mod.action", modAction)).whenComplete((result, exception) -> {
+			event.getMongo().updateRegex(Filters.and(Filters.eq("_id", id), Filters.eq("guildId", event.getGuild().getIdLong())), update).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}

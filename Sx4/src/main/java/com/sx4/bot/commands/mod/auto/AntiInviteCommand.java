@@ -3,7 +3,9 @@ package com.sx4.bot.commands.mod.auto;
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
 import com.mongodb.client.model.*;
+import com.sx4.bot.annotations.argument.AlternativeOptions;
 import com.sx4.bot.annotations.argument.Limit;
+import com.sx4.bot.annotations.argument.Options;
 import com.sx4.bot.annotations.command.AuthorPermissions;
 import com.sx4.bot.annotations.command.CommandId;
 import com.sx4.bot.annotations.command.Examples;
@@ -12,6 +14,7 @@ import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.database.mongo.model.Operators;
+import com.sx4.bot.entities.argument.Alternative;
 import com.sx4.bot.entities.argument.TimedArgument;
 import com.sx4.bot.entities.management.WhitelistType;
 import com.sx4.bot.entities.mod.action.ModAction;
@@ -191,7 +194,7 @@ public class AntiInviteCommand extends Sx4Command {
 		@Command(value="message", description="Changes the message which is sent when someone hits the max attempts")
 		@CommandId(310)
 		@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-		@Examples({"anti regex mod message A user has been banned for sending links", "anti regex match message {user.name} has received a {regex.action}"})
+		@Examples({"antiinvite mod message A user has been banned for sending links", "antiinvite match message {user.name} has received a {regex.action}"})
 		public void message(Sx4CommandEvent event, @Argument(value="message", endless=true) @Limit(max=1500) String message) {
 			Bson filter = Filters.and(Filters.eq("regexId", AntiInviteCommand.REGEX_ID), Filters.eq("guildId", event.getGuild().getIdLong()));
 			event.getMongo().updateRegex(filter, Updates.set("mod.message", message)).whenComplete((result, exception) -> {
@@ -215,29 +218,37 @@ public class AntiInviteCommand extends Sx4Command {
 
 		@Command(value="action", description="Sets the action to be taken when a user hits the max attempts")
 		@CommandId(311)
-		@Examples({"anti regex mod action WARN", "anti regex mod action MUTE 60m"})
+		@Examples({"antiinvite mod action WARN", "antiinvite mod action MUTE 60m", "antiinvite mod action none"})
 		@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-		public void action(Sx4CommandEvent event, @Argument(value="action", endless=true) TimedArgument<ModAction> timedAction) {
-			ModAction action = timedAction.getArgument();
-			if (!action.isOffence()) {
-				event.replyFailure("The action has to be an offence").queue();
-				return;
-			}
-
-			Document modAction = new Document("type", action.getType());
-
-			if (action.isTimed()) {
-				Duration duration = timedAction.getDuration();
-				if (duration == null) {
-					event.replyFailure("You need to provide a duration for this mod action").queue();
+		public void action(Sx4CommandEvent event, @Argument(value="action", endless=true) @AlternativeOptions({"none", "reset", "unset"}) Alternative<TimedArgument<ModAction>> option) {
+			Bson update;
+			if (option.isAlternative()) {
+				update = Updates.unset("mod.action");
+			} else {
+				TimedArgument<ModAction> timedAction = option.getValue();
+				ModAction action = timedAction.getArgument();
+				if (!action.isOffence()) {
+					event.replyFailure("The action has to be an offence").queue();
 					return;
 				}
 
-				modAction.append("duration", duration.toSeconds());
+				Document modAction = new Document("type", action.getType());
+
+				if (action.isTimed()) {
+					Duration duration = timedAction.getDuration();
+					if (duration == null) {
+						event.replyFailure("You need to provide a duration for this mod action").queue();
+						return;
+					}
+
+					modAction.append("duration", duration.toSeconds());
+				}
+
+				update = Updates.set("mod.action", modAction);
 			}
 
 			Bson filter = Filters.and(Filters.eq("regexId", AntiInviteCommand.REGEX_ID), Filters.eq("guildId", event.getGuild().getIdLong()));
-			event.getMongo().updateRegex(filter, Updates.set("mod.action", modAction)).whenComplete((result, exception) -> {
+			event.getMongo().updateRegex(filter, update).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
@@ -275,7 +286,7 @@ public class AntiInviteCommand extends Sx4Command {
 		@Command(value="message", description="Changes the message which is sent when someone sends an invite")
 		@CommandId(313)
 		@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-		@Examples({"anti regex match message You cannot have a url in your message :no_entry:", "anti regex match message {user.mention}, don't send that here or else you'll get a {regex.action} :no_entry:"})
+		@Examples({"antiinvite match message You cannot have a url in your message :no_entry:", "antiinvite match message {user.mention}, don't send that here or else you'll get a {regex.action} :no_entry:"})
 		public void message(Sx4CommandEvent event, @Argument(value="message", endless=true) @Limit(max=1500) String message) {
 			Bson filter = Filters.and(Filters.eq("regexId", AntiInviteCommand.REGEX_ID), Filters.eq("guildId", event.getGuild().getIdLong()));
 			event.getMongo().updateRegex(filter, Updates.set("match.message", message)).whenComplete((result, exception) -> {
@@ -299,7 +310,7 @@ public class AntiInviteCommand extends Sx4Command {
 
 		@Command(value="action", description="Set what the bot should do when someone sends an invite")
 		@CommandId(314)
-		@Examples({"anti regex match action SEND_MESSAGE", "anti regex match action SEND_MESSAGE DELETE_MESSAGE"})
+		@Examples({"antiinvite match action SEND_MESSAGE", "antiinvite match action SEND_MESSAGE DELETE_MESSAGE"})
 		@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 		public void action(Sx4CommandEvent event, @Argument(value="actions") MatchAction... actions) {
 			Bson filter = Filters.and(Filters.eq("regexId", AntiInviteCommand.REGEX_ID), Filters.eq("guildId", event.getGuild().getIdLong()));
@@ -340,7 +351,7 @@ public class AntiInviteCommand extends Sx4Command {
 
 		@Command(value="add", description="Adds a whitelist for a role or user")
 		@CommandId(316)
-		@Examples({"anti regex whitelist add #channel @everyone", "anti regex whitelist add @Shea#6653"})
+		@Examples({"antiinvite whitelist add #channel @everyone", "antiinvite whitelist add @Shea#6653"})
 		@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 		public void add(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) TextChannel channelArgument, @Argument(value="user | role", endless=true) IPermissionHolder holder) {
 			List<TextChannel> channels = channelArgument == null ? event.getGuild().getTextChannels() : List.of(channelArgument);
