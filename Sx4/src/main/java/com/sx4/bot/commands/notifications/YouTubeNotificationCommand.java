@@ -80,7 +80,7 @@ public class YouTubeNotificationCommand extends Sx4Command {
 		String queryName, query;
 
 		Matcher matcher = this.url.matcher(channelQuery);
-		if (matcher.matches()) {
+		if (!id && matcher.matches()) {
 			String path = matcher.group(1);
 
 			search = false;

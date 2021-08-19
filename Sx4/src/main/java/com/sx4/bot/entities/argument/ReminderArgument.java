@@ -36,7 +36,7 @@ public class ReminderArgument {
 			String defaultTimeZone = database.getUserById(userId, Projections.include("reminder.timeZone")).getEmbedded(List.of("reminder", "timeZone"), "GMT");
 
 			Duration duration = TimeUtility.getDurationFromDateTime(query.substring(atIndex + 4).trim(), defaultTimeZone);
-			if (duration.isNegative()) {
+			if (duration.isNegative() || duration.isZero()) {
 				throw new IllegalArgumentException("The date cannot be in the past");
 			} else {
 				seconds = duration.toSeconds();

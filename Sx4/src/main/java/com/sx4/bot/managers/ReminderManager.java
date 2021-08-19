@@ -87,10 +87,13 @@ public class ReminderManager {
 		ObjectId id = data.getObjectId("_id");
 		long remindAt = data.getLong("remindAt"), duration = data.getLong("duration");
 		if (data.get("repeat", false)) {
-			data.append("remindAt", remindAt + duration);
-			this.extendExecutor(id, () -> this.executeReminder(data), duration);
+			long newRemindAt = remindAt + duration;
+			data.append("remindAt", newRemindAt);
 
-			return new UpdateOneModel<>(Filters.eq("_id", id), Updates.inc("remindAt", duration));
+			// Make sure it's synced by checking the current time
+			this.putReminder(newRemindAt - Clock.systemUTC().instant().getEpochSecond(), data);
+
+			return new UpdateOneModel<>(Filters.eq("_id", id), Updates.set("remindAt", newRemindAt));
 		} else {
 			this.deleteExecutor(id);
 			
