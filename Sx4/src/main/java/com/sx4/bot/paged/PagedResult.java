@@ -7,9 +7,13 @@ import net.dv8tion.jda.api.MessageBuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.*;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
+import net.dv8tion.jda.api.interactions.components.ActionRow;
+import net.dv8tion.jda.api.interactions.components.Button;
 import net.dv8tion.jda.api.requests.ErrorResponse;
 
-import java.util.*;
+import java.util.Arrays;
+import java.util.EnumSet;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.function.BiPredicate;
@@ -49,6 +53,12 @@ public class PagedResult<Type> {
 		OBJECT
 	}
 
+	public static final Button PREVIOUS_BUTTON = Button.secondary("previous", "<");
+	public static final Button PREVIOUS_BUTTON_DISABLED = PagedResult.PREVIOUS_BUTTON.asDisabled();
+
+	public static final Button NEXT_BUTTON = Button.secondary("next", ">");
+	public static final Button NEXT_BUTTON_DISABLED = PagedResult.NEXT_BUTTON.asDisabled();
+
 	public static final String DEFAULT_FOOTER_TEXT = "next | previous | go to <page_number> | cancel";
 	
 	private final List<Type> list;
@@ -76,7 +86,7 @@ public class PagedResult<Type> {
 	
 	private EnumSet<SelectType> select = EnumSet.allOf(SelectType.class);
 	
-	private Function<PagedResult<Type>, Message> customFunction = null;
+	private Function<PagedResult<Type>, MessageBuilder> customFunction = null;
 	private Function<Type, String> displayFunction = Object::toString;
 	private Function<Integer, String> indexFunction = a -> a + ". ";
 	private BiPredicate<String, Type> selectablePredicate = null;
@@ -235,6 +245,10 @@ public class PagedResult<Type> {
 		
 		return this;
 	}
+
+	public boolean isPageOverflow() {
+		return this.pageOverflow;
+	}
 	
 	public boolean isIndexed() {
 		return this.indexed;
@@ -316,11 +330,11 @@ public class PagedResult<Type> {
 		return this;
 	}
 	
-	public Function<PagedResult<Type>, Message> getCustomFunction() {
+	public Function<PagedResult<Type>, MessageBuilder> getCustomFunction() {
 		return this.customFunction;
 	}
 	
-	public PagedResult<Type> setCustomFunction(Function<PagedResult<Type>, Message> customFunction) {
+	public PagedResult<Type> setCustomFunction(Function<PagedResult<Type>, MessageBuilder> customFunction) {
 		this.customFunction = customFunction;
 		
 		return this;
@@ -400,6 +414,7 @@ public class PagedResult<Type> {
 	}
 	
 	public Message getPagedMessage() {
+		MessageBuilder message;
 		if (this.customFunction == null) {
 			MessageBuilder builder = new MessageBuilder();
 			
@@ -415,7 +430,7 @@ public class PagedResult<Type> {
 					embed.appendDescription((this.increasedIndex ? this.indexFunction.apply(index + 1) : (this.indexed ? (this.indexFunction.apply(index + 1 - ((this.page - 1) * this.perPage))) : "")) + this.displayFunction.apply(object) + "\n");
 				});
 				
-				return builder.setEmbeds(embed.build()).build();
+				message = builder.setEmbeds(embed.build());
 			} else {
 				StringBuilder string = new StringBuilder();
 				string.append("Page **").append(this.page).append("/").append(maxPage).append("**\n\n");
@@ -426,10 +441,25 @@ public class PagedResult<Type> {
 				
 				string.append("\n" + PagedResult.DEFAULT_FOOTER_TEXT);
 				
-				return builder.setContent(string.toString()).build();
+				message = builder.setContent(string.toString());
 			}
 		} else {
-			return this.customFunction.apply(this);
+			message = this.customFunction.apply(this);
+		}
+
+		ActionRow actionRow;
+		if (!this.pageOverflow && this.page == this.getMaxPage()) {
+			actionRow = ActionRow.of(PagedResult.PREVIOUS_BUTTON, PagedResult.NEXT_BUTTON_DISABLED);
+		} else if (!this.pageOverflow && this.page == 1) {
+			actionRow = ActionRow.of(PagedResult.PREVIOUS_BUTTON_DISABLED, PagedResult.NEXT_BUTTON);
+		} else {
+			actionRow = ActionRow.of(PagedResult.PREVIOUS_BUTTON, PagedResult.NEXT_BUTTON);
+		}
+
+		if (this.list.size() > this.perPage) {
+			return message.setActionRows(actionRow).build();
+		} else {
+			return message.build();
 		}
 	}
 	
@@ -460,7 +490,7 @@ public class PagedResult<Type> {
 			
 			return;
 		}
-		
+
 		channel.sendMessage(this.getPagedMessage()).queue(message -> {
 			this.messageId = message.getIdLong();
 			

@@ -259,7 +259,7 @@ public class LoggerCommand extends Sx4Command {
 
                    embed.addField("Enabled Events", content.toString(), false);
 
-                   return new MessageBuilder().setEmbeds(embed.build()).build();
+                   return new MessageBuilder().setEmbeds(embed.build());
                 });
 
             loggerPaged.execute(event);

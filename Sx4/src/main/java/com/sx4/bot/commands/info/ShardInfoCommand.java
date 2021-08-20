@@ -45,7 +45,7 @@ public class ShardInfoCommand extends Sx4Command {
 					embed.addField(currentShard + "Shard " + (index + 1), String.format("%,d servers\n%,d members\n%dms\n%s", shard.getGuilds().size(), shard.getUsers().size(), shard.getGatewayPing(), shard.getStatus().toString()), true);
 				});
 
-				return new MessageBuilder().setEmbeds(embed.build()).build();
+				return new MessageBuilder().setEmbeds(embed.build());
 			});
 
 		paged.execute(event);

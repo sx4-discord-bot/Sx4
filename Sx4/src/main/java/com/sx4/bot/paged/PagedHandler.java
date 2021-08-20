@@ -8,10 +8,12 @@ import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.MessageChannel;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.events.GenericEvent;
+import net.dv8tion.jda.api.events.interaction.ButtonClickEvent;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.events.message.MessageUpdateEvent;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.hooks.EventListener;
+import net.dv8tion.jda.api.interactions.components.Button;
 import net.dv8tion.jda.api.requests.ErrorResponse;
 
 import java.util.EnumSet;
@@ -36,7 +38,32 @@ public class PagedHandler implements EventListener {
 		}
 	}
 
-	public void handle(Message message) {
+	public void handleButton(ButtonClickEvent event) {
+		MessageChannel channel = event.getChannel();
+		User author = event.getUser();
+
+		PagedResult<?> pagedResult = this.bot.getPagedManager().getPagedResult(channel.getIdLong(), author.getIdLong());
+		if (pagedResult == null) {
+			return;
+		}
+
+		if (pagedResult.getMessageId() != event.getMessageIdLong()) {
+			return;
+		}
+
+		Button button = event.getButton();
+		if (button.isDisabled()) {
+			return;
+		}
+
+		if (button.getId().equals("next")) {
+			pagedResult.nextPage().ensure(channel);
+		} else if (button.getId().equals("previous")) {
+			pagedResult.previousPage().ensure(channel);
+		}
+	}
+
+	public void handleMessage(Message message) {
 		MessageChannel channel = message.getChannel();
 		User author = message.getAuthor();
 		
@@ -100,9 +127,11 @@ public class PagedHandler implements EventListener {
 	@Override
 	public void onEvent(GenericEvent event) {
 		if (event instanceof MessageReceivedEvent) {
-			this.handle(((MessageReceivedEvent) event).getMessage());
+			this.handleMessage(((MessageReceivedEvent) event).getMessage());
 		} else if (event instanceof MessageUpdateEvent) {
-			this.handle(((MessageUpdateEvent) event).getMessage());
+			this.handleMessage(((MessageUpdateEvent) event).getMessage());
+		} else if (event instanceof ButtonClickEvent) {
+			this.handleButton((ButtonClickEvent) event);
 		}
 	}
 

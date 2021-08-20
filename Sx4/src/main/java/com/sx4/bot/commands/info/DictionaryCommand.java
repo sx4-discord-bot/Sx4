@@ -79,7 +79,7 @@ public class DictionaryCommand extends Sx4Command {
 						embed.addField("Pronunciation", String.format("[Listen Here](%s)", document.getString("pronunciation")), false);
 					}
 
-					return new MessageBuilder().setEmbeds(embed.build()).build();
+					return new MessageBuilder().setEmbeds(embed.build());
 				});
 
 			paged.execute(event);

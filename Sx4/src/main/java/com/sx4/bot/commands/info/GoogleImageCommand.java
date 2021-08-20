@@ -62,7 +62,7 @@ public class GoogleImageCommand extends Sx4Command {
 						embeds.add(embed.build());
 					});
 
-					return new MessageBuilder().setEmbeds(embeds).build();
+					return new MessageBuilder().setEmbeds(embeds);
 				});
 
 			paged.execute(event);

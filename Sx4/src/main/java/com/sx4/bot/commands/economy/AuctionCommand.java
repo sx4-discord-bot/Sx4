@@ -107,7 +107,7 @@ public class AuctionCommand extends Sx4Command {
 						embed.addField(auctionItem.getName(), content.toString(), true);
 					});
 
-					return new MessageBuilder().setEmbeds(embed.build()).build();
+					return new MessageBuilder().setEmbeds(embed.build());
 				});
 
 			paged.execute(event);
@@ -250,7 +250,7 @@ public class AuctionCommand extends Sx4Command {
 						embed.addField((index + 1) + ". " + auctionItem.getName(), content.toString(), true);
 					});
 
-					return new MessageBuilder().setEmbeds(embed.build()).build();
+					return new MessageBuilder().setEmbeds(embed.build());
 				});
 
 			paged.onTimeout(() -> event.reply("Timed out :stopwatch:"));
@@ -376,7 +376,7 @@ public class AuctionCommand extends Sx4Command {
 						embed.addField((index + 1) + ". " + auctionItem.getName(), content.toString(), true);
 					});
 
-					return new MessageBuilder().setEmbeds(embed.build()).build();
+					return new MessageBuilder().setEmbeds(embed.build());
 				});
 
 			paged.onTimeout(() -> event.reply("Timed out :stopwatch:"));

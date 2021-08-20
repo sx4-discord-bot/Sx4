@@ -66,7 +66,7 @@ public class FactoryCommand extends Sx4Command {
 					embed.addField(factory.getName(), "Price: " + cost.getAmount() + " " + cost.getItem().getName(), true);
 				});
 
-				return new MessageBuilder().setEmbeds(embed.build()).build();
+				return new MessageBuilder().setEmbeds(embed.build());
 			});
 
 		paged.execute(event);

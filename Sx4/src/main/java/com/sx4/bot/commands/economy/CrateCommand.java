@@ -66,7 +66,7 @@ public class CrateCommand extends Sx4Command {
 
 				page.forEach((crate, index) -> embed.addField(crate.getName(), String.format("Price: $%,d\nContents: %s", crate.getPrice(), crate.getContentString()), true));
 
-				return new MessageBuilder().setEmbeds(embed.build()).build();
+				return new MessageBuilder().setEmbeds(embed.build());
 			});
 
 		paged.execute(event);

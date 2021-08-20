@@ -60,7 +60,7 @@ public class MinerCommand extends Sx4Command {
 
 				page.forEach((miner, index) -> embed.addField(miner.getName(), String.format("Price: $%,d", miner.getPrice()), true));
 
-				return new MessageBuilder().setEmbeds(embed.build()).build();
+				return new MessageBuilder().setEmbeds(embed.build());
 			});
 
 		paged.execute(event);

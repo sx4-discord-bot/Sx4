@@ -232,7 +232,7 @@ public class PremiumCommand extends Sx4Command {
 
 					page.forEach((entry, index) -> embed.appendDescription(String.format("%d. `%s` - $%,.2f\n", index + 1, entry.getKey(), entry.getValue() / 100D)));
 
-					return new MessageBuilder().setEmbeds(embed.build()).build();
+					return new MessageBuilder().setEmbeds(embed.build());
 				});
 
 			paged.execute(event);

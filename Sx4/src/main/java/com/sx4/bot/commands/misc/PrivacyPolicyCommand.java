@@ -33,7 +33,7 @@ public class PrivacyPolicyCommand extends Sx4Command {
                     embed.setDescription(policy.getString("description"));
                 });
 
-                return builder.setEmbeds(embed.build()).build();
+                return builder.setEmbeds(embed.build());
             });
 
         paged.execute(event);

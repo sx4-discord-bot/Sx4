@@ -145,7 +145,7 @@ public class ReputationCommand extends Sx4Command {
 
 					page.forEach((entry, index) -> embed.appendDescription(String.format("%d. `%s` - %,d reputation\n", index + 1, MarkdownSanitizer.escape(entry.getKey().getAsTag()), entry.getValue())));
 
-					return new MessageBuilder().setEmbeds(embed.build()).build();
+					return new MessageBuilder().setEmbeds(embed.build());
 				});
 
 			paged.execute(event);

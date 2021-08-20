@@ -82,7 +82,7 @@ public class PickaxeCommand extends Sx4Command {
 					embed.addField(pickaxe.getName(), String.format("Price: $%,d\nCraft: %s\nDurability: %,d", pickaxe.getPrice(), craft, pickaxe.getMaxDurability()), true);
 				});
 
-				return new MessageBuilder().setEmbeds(embed.build()).build();
+				return new MessageBuilder().setEmbeds(embed.build());
 			});
 
 		paged.execute(event);
@@ -400,7 +400,7 @@ public class PickaxeCommand extends Sx4Command {
 
 				page.forEach((upgrade, index) -> embed.addField(upgrade.getName(), upgrade.getDescription(), false));
 
-				return new MessageBuilder().setEmbeds(embed.build()).build();
+				return new MessageBuilder().setEmbeds(embed.build());
 			});
 
 		paged.execute(event);

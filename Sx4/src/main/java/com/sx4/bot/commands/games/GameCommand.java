@@ -113,7 +113,7 @@ public class GameCommand extends Sx4Command {
 
 					page.forEach((entry, index) -> embed.appendDescription(String.format("%d. `%s` - %,d game%s\n", index + 1, MarkdownSanitizer.escape(entry.getKey().getAsTag()), entry.getValue(), entry.getValue() == 1 ? "" : "s")));
 
-					return new MessageBuilder().setEmbeds(embed.build()).build();
+					return new MessageBuilder().setEmbeds(embed.build());
 				});
 
 			paged.execute(event);

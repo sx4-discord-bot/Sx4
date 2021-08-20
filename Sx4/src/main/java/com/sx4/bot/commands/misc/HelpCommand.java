@@ -51,7 +51,7 @@ public class HelpCommand extends Sx4Command {
 					+ "list all the commands in that module. If you need further help feel free to join the [support server](https://discord.gg/PqJNcfB).");
 					embedBuilder.addField("Modules", "`" + categories.stream().map(Sx4Category::getName).collect(Collectors.joining("`, `")) + "`", false);
 					
-					return builder.setEmbeds(embedBuilder.build()).build();
+					return builder.setEmbeds(embedBuilder.build());
 				});
 					
 			paged.onSelect(select -> {

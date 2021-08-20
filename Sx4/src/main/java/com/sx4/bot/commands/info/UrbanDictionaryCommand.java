@@ -102,7 +102,7 @@ public class UrbanDictionaryCommand extends Sx4Command {
 						embed.addField("Downvotes", data.getInteger("thumbs_down") + " 👎", true);
 					});
 
-					return new MessageBuilder().setEmbeds(embed.build()).build();
+					return new MessageBuilder().setEmbeds(embed.build());
 				});
 
 			paged.execute(event);

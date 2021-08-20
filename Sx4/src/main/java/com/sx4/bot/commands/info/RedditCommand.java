@@ -90,7 +90,7 @@ public class RedditCommand extends Sx4Command {
 						}
 					});
 
-					return builder.setEmbeds(embed.build()).build();
+					return builder.setEmbeds(embed.build());
 				});
 
 			paged.execute(event);
