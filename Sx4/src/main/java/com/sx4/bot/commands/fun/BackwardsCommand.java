@@ -11,6 +11,7 @@ public class BackwardsCommand extends Sx4Command {
 		super("backwards", 293);
 
 		super.setDescription("Reverses the text given");
+		super.setCooldownDuration(10);
 		super.setAliases("reverse");
 		super.setExamples("backwards hello", "backwards racecar");
 		super.setCategoryAll(ModuleCategory.FUN);

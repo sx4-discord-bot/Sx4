@@ -11,6 +11,7 @@ public class SayCommand extends Sx4Command {
 		super("say", 276);
 
 		super.setDescription("Get the bot to repeat what you say");
+		super.setCooldownDuration(10);
 		super.setAliases("echo");
 		super.setExamples("say hello", "say I'm a bot");
 		super.setCategoryAll(ModuleCategory.FUN);

@@ -15,6 +15,7 @@ public class SpoilerCommand extends Sx4Command {
 		super("spoiler", 291);
 
 		super.setDescription("Puts a spoiler on every character of the text given");
+		super.setCooldownDuration(10);
 		super.setAliases("spoilerfy");
 		super.setExamples("spoiler hello", "spoiler click each character");
 		super.setCategoryAll(ModuleCategory.FUN);

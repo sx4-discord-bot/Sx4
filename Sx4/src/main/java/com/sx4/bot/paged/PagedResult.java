@@ -482,7 +482,7 @@ public class PagedResult<Type> {
 			Guild guild = textChannel.getGuild();
 			
 			this.guildId = guild.getIdLong();
-			this.embed = guild.getSelfMember().hasPermission(textChannel, Permission.MESSAGE_EMBED_LINKS);
+			this.embed = this.embed && guild.getSelfMember().hasPermission(textChannel, Permission.MESSAGE_EMBED_LINKS);
 		}
 		
 		if (this.autoSelect && this.list.size() == 1) {

@@ -14,6 +14,7 @@ public class AscendCommand extends Sx4Command {
 		super("ascend", 292);
 
 		super.setDescription("Puts a space in between each character of the text given");
+		super.setCooldownDuration(10);
 		super.setExamples("ascend hello", "ascend my text is ascended");
 		super.setCategoryAll(ModuleCategory.FUN);
 	}

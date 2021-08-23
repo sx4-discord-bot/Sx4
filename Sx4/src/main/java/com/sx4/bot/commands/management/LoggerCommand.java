@@ -514,6 +514,66 @@ public class LoggerCommand extends Sx4Command {
             paged.execute(event);
         }
 
+        @Command(value="remove", description="Removes events from being blacklisted from a certain entity")
+        @CommandId(467)
+        @AuthorPermissions(permissions={Permission.MANAGE_SERVER})
+        @Examples({"logger blacklist remove #logs @Shea#6653 MESSAGE_DELETE", "logger blacklist remove #logs @Members MESSAGE_UPDATE MESSAGE_DELETE", "logger blacklist remove #logs #channel TEXT_CHANNEL_OVERRIDE_UPDATE"})
+        public void remove(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) TextChannel channel, @Argument(value="user | role | channel") String query, @Argument(value="events") LoggerEvent... events) {
+            TextChannel effectiveChannel = channel == null ? event.getTextChannel() : channel;
+
+            Set<LoggerCategory> common = LoggerUtility.getCommonCategories(events);
+            if (common.isEmpty()) {
+                event.replyFailure("All of those events don't have a blacklist type in common").queue();
+                return;
+            }
+
+            PagedResult<LoggerCategory> paged = new PagedResult<>(event.getBot(), new ArrayList<>(common))
+                .setAuthor("Conflicting Types", null, event.getGuild().getIconUrl())
+                .setDisplayFunction(LoggerCategory::getName)
+                .setTimeout(60)
+                .setAutoSelect(true);
+
+            paged.onSelect(select -> {
+                LoggerCategory category = select.getSelected();
+
+                long id = LoggerUtility.getEntityIdFromType(query, event.getGuild(), category);
+                if (id == 0L) {
+                    event.replyFailure("I could not find that " + category.getName().toLowerCase()).queue();
+                    return;
+                }
+
+                long eventsRaw = LoggerEvent.getRaw(events);
+
+                Bson entitiesMap = Operators.ifNull("$blacklist.entities", Collections.EMPTY_LIST);
+                Bson entityFilter = Operators.filter(entitiesMap, Operators.eq("$$this.id", id));
+                Bson currentEvents = Operators.ifNull(Operators.first(Operators.map(entityFilter, "$$this.events")), 0L);
+
+                List<Bson> update = List.of(Operators.set("blacklist.entities", Operators.let(new Document("newEvents", Operators.toLong(Operators.bitwiseAnd(currentEvents, ~eventsRaw))), Operators.concatArrays(Operators.cond(Operators.eq("$$newEvents", 0L), Collections.EMPTY_LIST, List.of(Operators.mergeObjects(Operators.ifNull(Operators.first(entityFilter), new Document("id", id).append("type", category.getType())), new Document("events", "$$newEvents")))), Operators.filter(entitiesMap, Operators.ne("$$this.id", id))))));
+
+                event.getMongo().updateLogger(Filters.eq("channelId", effectiveChannel.getIdLong()), update, new UpdateOptions()).whenComplete((result, exception) -> {
+                    if (ExceptionUtility.sendExceptionally(event, exception)) {
+                        return;
+                    }
+
+                    if (result.getMatchedCount() == 0) {
+                        event.replyFailure("You don't have a logger in " + effectiveChannel.getAsMention()).queue();
+                        return;
+                    }
+
+                    if (result.getModifiedCount() == 0) {
+                        event.replyFailure("That " + category.getName().toLowerCase() + " doesn't have any of those events blacklisted").queue();
+                        return;
+                    }
+
+                    event.replySuccess("That " + category.getName().toLowerCase() + " is no longer blacklisted from appearing in those events for that logger").queue();
+                });
+            });
+
+            paged.onTimeout(() -> event.reply("Timed out :stopwatch:").queue());
+
+            paged.execute(event);
+        }
+
     }
 
 }

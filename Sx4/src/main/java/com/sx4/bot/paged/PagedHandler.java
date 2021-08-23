@@ -52,7 +52,7 @@ public class PagedHandler implements EventListener {
 		}
 
 		Button button = event.getButton();
-		if (button.isDisabled()) {
+		if (button == null || button.isDisabled()) {
 			return;
 		}
 
