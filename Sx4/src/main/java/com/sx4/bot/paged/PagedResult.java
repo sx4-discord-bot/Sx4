@@ -369,13 +369,13 @@ public class PagedResult<Type> {
 		
 		return this;
 	}
-	
-	@SuppressWarnings("unchecked")
-	public boolean runSelectablePredicate(String content, Object object) {
+
+	public boolean runSelectablePredicate(String content, int index) {
+		Type object = this.list.get(index);
 		if (this.selectablePredicate != null) {
-			return this.selectablePredicate.test(content, (Type) object);
+			return this.selectablePredicate.test(content, object);
 		} else if (this.displayFunction != null) {
-			return this.displayFunction.apply((Type) object).equals(content);
+			return this.displayFunction.apply(object).equals(content);
 		} else {
 			return object.toString().equals(content);
 		}

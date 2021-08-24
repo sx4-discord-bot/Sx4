@@ -42,7 +42,7 @@ public class LeaverCommand extends Sx4Command {
 	public LeaverCommand() {
 		super("leaver", 188);
 
-		super.setDescription("Set the bot to send welcome messages when a user joins the server");
+		super.setDescription("Set the bot to send leaving messages when a user joins the server");
 		super.setExamples("leaver toggle", "leaver message", "leaver channel");
 		super.setCategoryAll(ModuleCategory.MANAGEMENT);
 	}

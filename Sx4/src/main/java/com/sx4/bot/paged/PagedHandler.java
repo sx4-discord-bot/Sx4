@@ -17,7 +17,7 @@ import net.dv8tion.jda.api.interactions.components.Button;
 import net.dv8tion.jda.api.requests.ErrorResponse;
 
 import java.util.EnumSet;
-import java.util.List;
+import java.util.Set;
 
 public class PagedHandler implements EventListener {
 
@@ -27,10 +27,10 @@ public class PagedHandler implements EventListener {
 		this.bot = bot;
 	}
 	
-	private final List<String> next = List.of("n", "next", "next page");
-	private final List<String> previous = List.of("p", "previous", "previous page");
-	private final List<String> skip = List.of("go to", "go to page", "skip to", "skip to page");
-	private final List<String> cancel = List.of("c", "cancel");
+	private final Set<String> next = Set.of("n", "next", "next page");
+	private final Set<String> previous = Set.of("p", "previous", "previous page");
+	private final Set<String> skip = Set.of("go to", "go to page", "skip to", "skip to page");
+	private final Set<String> cancel = Set.of("c", "cancel");
 	
 	public void attemptDelete(Message message) {
 		if (message.isFromGuild() && message.getGuild().getSelfMember().hasPermission(message.getTextChannel(), Permission.MESSAGE_MANAGE)) {
@@ -99,23 +99,22 @@ public class PagedHandler implements EventListener {
 				}
 			} catch (NumberFormatException e) {}
 		} else {
-			for (String skip : this.skip) {
-				if (contentLower.startsWith(skip)) {
-					try {
-						int page = Integer.parseInt(contentLower.substring(skip.length()).trim());
-						if (page > 0 && page <= pagedResult.getMaxPage() && page != pagedResult.getPage()) {
-							pagedResult.setPage(page).ensure(channel);
-							this.attemptDelete(message);
+			int index = contentLower.lastIndexOf(' ');
+			if (this.skip.contains(contentLower.substring(0, index))) {
+				try {
+					int page = Integer.parseInt(contentLower.substring(index + 1));
+					if (page > 0 && page <= pagedResult.getMaxPage() && page != pagedResult.getPage()) {
+						pagedResult.setPage(page).ensure(channel);
+						this.attemptDelete(message);
 
-							return;
-						}
-					} catch (NumberFormatException e) {}
-				}
+						return;
+					}
+				} catch (NumberFormatException e) {}
 			}
 			
 			if (selectTypes.contains(SelectType.OBJECT)) {
 				for (int i = pagedResult.getPage() * pagedResult.getPerPage() - pagedResult.getPerPage(); i < (pagedResult.getPage() == pagedResult.getMaxPage() ? pagedResult.getList().size() : pagedResult.getPage() * pagedResult.getPerPage()); i++) {
-					if (pagedResult.runSelectablePredicate(content, pagedResult.getList().get(i))) {
+					if (pagedResult.runSelectablePredicate(content, i)) {
 						pagedResult.select(i);
 						this.attemptDelete(message);
 					}
