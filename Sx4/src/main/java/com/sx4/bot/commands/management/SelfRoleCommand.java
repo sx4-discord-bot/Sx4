@@ -17,6 +17,8 @@ import com.sx4.bot.entities.argument.Alternative;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.waiter.Waiter;
+import com.sx4.bot.waiter.exception.CancelException;
+import com.sx4.bot.waiter.exception.TimeoutException;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.events.interaction.ButtonClickEvent;
@@ -122,11 +124,19 @@ public class SelfRoleCommand extends Sx4Command {
 							Button button = e.getButton();
 							return button != null && button.getId().equals("no") && e.getMessageIdLong() == message.getIdLong() && e.getUser().getIdLong() == event.getAuthor().getIdLong();
 						})
+						.setRunAfter(e -> e.deferEdit().queue())
 						.setTimeout(60)
 						.start();
 				}).thenCompose(e -> event.getMongo().deleteManySelfRoles(Filters.eq("guildId", event.getGuild().getIdLong())))
 				.whenComplete((result, exception) -> {
-					if (ExceptionUtility.sendExceptionally(event, exception)) {
+					Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
+					if (cause instanceof CancelException) {
+						event.replySuccess("Cancelled").queue();
+						return;
+					} else if (cause instanceof TimeoutException) {
+						event.reply("Timed out :stopwatch:").queue();
+						return;
+					} else if (ExceptionUtility.sendExceptionally(event, exception)) {
 						return;
 					}
 

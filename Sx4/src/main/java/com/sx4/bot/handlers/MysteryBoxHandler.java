@@ -60,9 +60,10 @@ public class MysteryBoxHandler implements EventListener {
 				return;
 			}
 
-			event.deferEdit().queue();
 			return;
 		}
+
+		event.deferEdit().queue();
 
 		int clicks = game.incrementClicks();
 

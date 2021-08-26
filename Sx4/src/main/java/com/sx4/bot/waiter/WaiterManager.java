@@ -54,7 +54,7 @@ public class WaiterManager {
 			if (users != null) {
 				Waiter<?> oldWaiter = users.remove(waiter.getAuthorId());
 				if (oldWaiter != null) {
-					oldWaiter.cancel(CancelType.UNIQUE);
+					oldWaiter.cancel(null, CancelType.UNIQUE);
 				}
 				
 				users.put(waiter.getAuthorId(), waiter);
@@ -95,7 +95,7 @@ public class WaiterManager {
 					}
 					
 					if (waiter.testCancelPredicate(event)) {
-						waiter.cancel(CancelType.USER);
+						waiter.cancel(event, CancelType.USER);
 					}
 				}
 			}
@@ -111,7 +111,7 @@ public class WaiterManager {
 			}
 			
 			if (waiter.testCancelPredicate(event)) {
-				waiter.cancel(CancelType.USER);
+				waiter.cancel(event, CancelType.USER);
 			}
 		}
 	}

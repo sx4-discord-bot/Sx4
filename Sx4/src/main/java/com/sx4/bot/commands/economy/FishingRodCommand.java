@@ -276,6 +276,7 @@ public class FishingRodCommand extends Sx4Command {
 					Button button = e.getButton();
 					return button != null && button.getId().equals("no") && e.getMessageIdLong() == message.getIdLong() && e.getUser().getIdLong() == event.getAuthor().getIdLong();
 				})
+				.setRunAfter(e -> e.deferEdit().queue())
 				.setTimeout(60)
 				.start();
 		}).thenCompose(e -> {

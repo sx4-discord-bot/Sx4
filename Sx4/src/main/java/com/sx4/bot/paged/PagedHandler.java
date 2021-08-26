@@ -56,6 +56,8 @@ public class PagedHandler implements EventListener {
 			return;
 		}
 
+		event.deferEdit().queue();
+
 		if (button.getId().equals("next")) {
 			pagedResult.nextPage().ensure(channel);
 		} else if (button.getId().equals("previous")) {
