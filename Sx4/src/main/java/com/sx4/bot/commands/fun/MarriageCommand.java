@@ -24,6 +24,7 @@ import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.events.interaction.ButtonClickEvent;
 import net.dv8tion.jda.api.interactions.components.Button;
 import org.bson.Document;
@@ -108,32 +109,40 @@ public class MarriageCommand extends Sx4Command {
 						Button button = e.getButton();
 						return button != null && button.getId().equals("no") && e.getMessageIdLong() == message.getIdLong() && e.getUser().getIdLong() == member.getIdLong();
 					})
-					.setRunAfter(e -> e.deferEdit().queue())
+					.onFailure(e -> e.reply("This is not your button to click " + event.getConfig().getFailureEmote()).setEphemeral(true).queue())
 					.setTimeout(60)
 					.start();
-			}).thenCompose(e -> {
-				Bson filter = Filters.or(Filters.and(Filters.eq("proposerId", member.getIdLong()), Filters.eq("partnerId", author.getIdLong())), Filters.and(Filters.eq("proposerId", author.getIdLong()), Filters.eq("partnerId", member.getIdLong())));
-
-				return event.getMongo().updateMarriage(filter, Updates.combine(Updates.setOnInsert("proposerId", author.getIdLong()), Updates.setOnInsert("partnerId", member.getIdLong())));
-			}).whenComplete((result, exception) -> {
+			}).whenComplete((e, exception) -> {
 				event.removeCooldown();
 				Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
 				if (cause instanceof CancelException) {
-					event.reply("Better luck next time " + author.getName() + " :broken_heart:").queue();
+					GenericEvent cancelEvent = ((CancelException) cause).getEvent();
+					if (cancelEvent != null) {
+						((ButtonClickEvent) cancelEvent).reply("Better luck next time " + author.getName() + " :broken_heart:").queue();
+					}
+
 					return;
 				} else if (cause instanceof TimeoutException) {
 					event.reply("Timed out :stopwatch:").queue();
 					return;
-				} else if (ExceptionUtility.sendExceptionally(event, cause)) {
+				} else if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
 
-				if (result.getMatchedCount() != 0) {
-					event.replyFailure("You're already married to that user").queue();
-					return;
-				}
+				Bson filter = Filters.or(Filters.and(Filters.eq("proposerId", member.getIdLong()), Filters.eq("partnerId", author.getIdLong())), Filters.and(Filters.eq("proposerId", author.getIdLong()), Filters.eq("partnerId", member.getIdLong())));
 
-				event.reply("You're now married to " + member.getAsMention() + " :tada: :heart:").queue();
+				event.getMongo().updateMarriage(filter, Updates.combine(Updates.setOnInsert("proposerId", author.getIdLong()), Updates.setOnInsert("partnerId", member.getIdLong()))).whenComplete((result, databaseException) -> {
+					if (ExceptionUtility.sendExceptionally(event, databaseException)) {
+						return;
+					}
+
+					if (result.getMatchedCount() != 0) {
+						e.reply("You're already married to that user " + event.getConfig().getFailureEmote()).queue();
+						return;
+					}
+
+					e.reply("You're now married to " + member.getAsMention() + " :tada: :heart:").queue();
+				});
 			});
 	}
 
@@ -198,29 +207,39 @@ public class MarriageCommand extends Sx4Command {
 							Button button = e.getButton();
 							return button != null && button.getId().equals("no") && e.getMessageIdLong() == message.getIdLong() && e.getUser().getIdLong() == event.getAuthor().getIdLong();
 						})
-						.setRunAfter(e -> e.deferEdit().queue())
+						.onFailure(e -> e.reply("This is not your button to click " + event.getConfig().getFailureEmote()).setEphemeral(true).queue())
 						.setTimeout(60)
 						.start();
-				}).thenCompose(e -> {
-					Bson filter = Filters.or(Filters.eq("proposerId", author.getIdLong()), Filters.eq("partnerId", author.getIdLong()));
-
-					return event.getMongo().deleteManyMarriages(filter);
-				}).whenComplete((result, exception) -> {
+				}).whenComplete((e, exception) -> {
 					Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
 					if (cause instanceof CancelException) {
+						GenericEvent cancelEvent = ((CancelException) cause).getEvent();
+						if (cancelEvent != null) {
+							((ButtonClickEvent) cancelEvent).reply("Cancelled " + event.getConfig().getSuccessEmote()).queue();
+						}
+
 						return;
 					} else if (cause instanceof TimeoutException) {
+						event.reply("Timed out :stopwatch:").queue();
 						return;
-					} else if (ExceptionUtility.sendExceptionally(event, cause)) {
-						return;
-					}
-
-					if (result.getDeletedCount() == 0) {
-						event.replyFailure("You are not married to anyone").queue();
+					} else if (ExceptionUtility.sendExceptionally(event, exception)) {
 						return;
 					}
 
-					event.replySuccess("You are no longer married to anyone").queue();
+					Bson filter = Filters.or(Filters.eq("proposerId", author.getIdLong()), Filters.eq("partnerId", author.getIdLong()));
+
+					event.getMongo().deleteManyMarriages(filter).whenComplete((result, databaseException) -> {
+						if (ExceptionUtility.sendExceptionally(event, databaseException)) {
+							return;
+						}
+
+						if (result.getDeletedCount() == 0) {
+							e.reply("You are not married to anyone " + event.getConfig().getFailureEmote()).queue();
+							return;
+						}
+
+						e.reply("You are no longer married to anyone " + event.getConfig().getSuccessEmote()).queue();
+					});
 				});
 		} else {
 			Member member = option.getValue();

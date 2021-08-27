@@ -19,6 +19,7 @@ import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.events.interaction.ButtonClickEvent;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.interactions.components.ActionRow;
@@ -165,13 +166,17 @@ public class TradeCommand extends Sx4Command {
 					Button button = e.getButton();
 					return button != null && button.getId().equals("no") && e.getMessageIdLong() == message.getIdLong() && e.getUser().getIdLong() == user.getIdLong();
 				})
-				.setRunAfter(e -> e.deferEdit().queue())
+				.onFailure(e -> e.reply("This is not your button to click " + event.getConfig().getFailureEmote()).setEphemeral(true).queue())
 				.setTimeout(60)
 				.start();
 		}).whenCompleteAsync((e, exception) -> {
 			Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
 			if (cause instanceof CancelException) {
-				event.replySuccess("Cancelled").queue();
+				GenericEvent cancelEvent = ((CancelException) cause).getEvent();
+				if (cancelEvent != null) {
+					((ButtonClickEvent) cancelEvent).reply("Cancelled " + event.getConfig().getSuccessEmote()).queue();
+				}
+
 				return;
 			} else if (cause instanceof TimeoutException) {
 				event.reply("Timed out :stopwatch:").queue();
@@ -193,11 +198,11 @@ public class TradeCommand extends Sx4Command {
 				long totalAuthorWorth = authorMoney;
 				for (Item item : authorItems.keySet()) {
 					if (item instanceof Envelope) {
-						event.replyFailure("You can not trade envelopes").queue();
+						e.reply("You can not trade envelopes " + event.getConfig().getFailureEmote()).queue();
 						session.abortTransaction();
 						return;
 					} else if (item instanceof Tool) {
-						event.replyFailure("You can not trade tools").queue();
+						e.reply("You can not trade tools " + event.getConfig().getFailureEmote()).queue();
 						session.abortTransaction();
 						return;
 					}
@@ -213,11 +218,11 @@ public class TradeCommand extends Sx4Command {
 				long totalUserWorth = userMoney;
 				for (Item item : userItems.keySet()) {
 					if (item instanceof Envelope) {
-						event.replyFailure("You can not trade envelopes").queue();
+						e.reply("You can not trade envelopes " + event.getConfig().getFailureEmote()).queue();
 						session.abortTransaction();
 						return;
 					} else if (item instanceof Tool) {
-						event.replyFailure("You can not trade tools").queue();
+						e.reply("You can not trade tools " + event.getConfig().getFailureEmote()).queue();
 						session.abortTransaction();
 						return;
 					}
@@ -237,13 +242,13 @@ public class TradeCommand extends Sx4Command {
 					.get();
 
 				if ((double) max.getValue() / (totalUserWorth + totalAuthorWorth) >= 0.7D) {
-					event.replyFailure(max.getKey() + " cannot make up more than 70% of the trades value").queue();
+					e.reply(max.getKey() + " cannot make up more than 70% of the trades value " + event.getConfig().getFailureEmote()).queue();
 					session.abortTransaction();
 					return;
 				}
 
 				if (totalUserWorth / totalAuthorWorth > 5 || totalAuthorWorth / totalUserWorth > 5) {
-					event.replyFailure("You have to trade at least 20% the worth of the other persons trade").queue();
+					e.reply("You have to trade at least 20% the worth of the other persons trade " + event.getConfig().getFailureEmote()).queue();
 					session.abortTransaction();
 					return;
 				}
@@ -253,7 +258,7 @@ public class TradeCommand extends Sx4Command {
 
 					UpdateResult authorResult = event.getMongo().getUsers().updateOne(session, Filters.eq("_id", event.getAuthor().getIdLong()), authorUpdate);
 					if (authorResult.getModifiedCount() == 0) {
-						event.replyFormat("%s does not have **$%,d** %s", event.getAuthor().getAsTag(), userMoney - authorMoney, event.getConfig().getFailureEmote()).queue();
+						e.replyFormat("%s does not have **$%,d** %s", event.getAuthor().getAsTag(), userMoney - authorMoney, event.getConfig().getFailureEmote()).queue();
 						session.abortTransaction();
 						return;
 					}
@@ -262,7 +267,7 @@ public class TradeCommand extends Sx4Command {
 
 					UpdateResult userResult = event.getMongo().getUsers().updateOne(session, Filters.eq("_id", user.getIdLong()), userUpdate);
 					if (userResult.getModifiedCount() == 0) {
-						event.replyFormat("%s does not have **$%,d** %s", event.getAuthor().getAsTag(), authorMoney - userMoney, event.getConfig().getFailureEmote()).queue();
+						e.replyFormat("%s does not have **$%,d** %s", event.getAuthor().getAsTag(), authorMoney - userMoney, event.getConfig().getFailureEmote()).queue();
 						session.abortTransaction();
 						return;
 					}
@@ -290,7 +295,7 @@ public class TradeCommand extends Sx4Command {
 					Document data = event.getMongo().getItems().findOneAndUpdate(session, Filters.and(Filters.eq("userId", author ? user.getIdLong() : event.getAuthor().getIdLong()), Filters.eq("item.id", item.getId())), removeUpdate, options);
 					long userAmount = data == null ? 0L : data.get("amount", 0L);
 					if (userAmount < amount) {
-						event.replyFailure((author ? user.getAsTag() : event.getAuthor().getAsTag()) + " does not have `" + amount + " " + item.getName() + "`").queue();
+						e.reply((author ? user.getAsTag() : event.getAuthor().getAsTag()) + " does not have `" + amount + " " + item.getName() + "` " + event.getConfig().getFailureEmote()).queue();
 						session.abortTransaction();
 						return;
 					}
@@ -299,7 +304,7 @@ public class TradeCommand extends Sx4Command {
 
 					long cooldownAmount = cooldownStack.getCooldownAmount();
 					if (userAmount - cooldownAmount < amount) {
-						event.replyFormat("%s has `%,d %s` but **%,d** %s on cooldown %s", author ? user.getAsTag() : event.getAuthor().getAsTag(), userAmount, item.getName(), cooldownAmount, cooldownAmount == 1 ? "is" : "are", event.getConfig().getFailureEmote()).queue();
+						e.replyFormat("%s has `%,d %s` but **%,d** %s on cooldown %s", author ? user.getAsTag() : event.getAuthor().getAsTag(), userAmount, item.getName(), cooldownAmount, cooldownAmount == 1 ? "is" : "are", event.getConfig().getFailureEmote()).queue();
 						session.abortTransaction();
 						return;
 					}
@@ -309,7 +314,7 @@ public class TradeCommand extends Sx4Command {
 					return;
 				}
 
-				event.replySuccess("All money and items have been traded").queue();
+				e.reply("All money and items have been traded " + event.getConfig().getSuccessEmote()).queue();
 			});
 		});
 	}

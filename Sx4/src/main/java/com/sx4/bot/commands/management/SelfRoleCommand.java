@@ -21,6 +21,7 @@ import com.sx4.bot.waiter.exception.CancelException;
 import com.sx4.bot.waiter.exception.TimeoutException;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Role;
+import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.events.interaction.ButtonClickEvent;
 import net.dv8tion.jda.api.interactions.components.Button;
 import net.dv8tion.jda.api.requests.RestAction;
@@ -124,14 +125,17 @@ public class SelfRoleCommand extends Sx4Command {
 							Button button = e.getButton();
 							return button != null && button.getId().equals("no") && e.getMessageIdLong() == message.getIdLong() && e.getUser().getIdLong() == event.getAuthor().getIdLong();
 						})
-						.setRunAfter(e -> e.deferEdit().queue())
+						.onFailure(e -> e.reply("This is not your button to click " + event.getConfig().getFailureEmote()).setEphemeral(true).queue())
 						.setTimeout(60)
 						.start();
-				}).thenCompose(e -> event.getMongo().deleteManySelfRoles(Filters.eq("guildId", event.getGuild().getIdLong())))
-				.whenComplete((result, exception) -> {
+				}).whenComplete((e, exception) -> {
 					Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
 					if (cause instanceof CancelException) {
-						event.replySuccess("Cancelled").queue();
+						GenericEvent cancelEvent = ((CancelException) cause).getEvent();
+						if (cancelEvent != null) {
+							((ButtonClickEvent) cancelEvent).reply("Cancelled " + event.getConfig().getSuccessEmote()).queue();
+						}
+
 						return;
 					} else if (cause instanceof TimeoutException) {
 						event.reply("Timed out :stopwatch:").queue();
@@ -140,12 +144,18 @@ public class SelfRoleCommand extends Sx4Command {
 						return;
 					}
 
-					if (result.getDeletedCount() == 0) {
-						event.replyFailure("There are no self roles in this server").queue();
-						return;
-					}
+					event.getMongo().deleteManySelfRoles(Filters.eq("guildId", event.getGuild().getIdLong())).whenComplete((result, databaseException) -> {
+						if (ExceptionUtility.sendExceptionally(event, databaseException)) {
+							return;
+						}
 
-					event.replySuccess("All self roles have been deleted").queue();
+						if (result.getDeletedCount() == 0) {
+							event.replyFailure("There are no self roles in this server").queue();
+							return;
+						}
+
+						e.reply("All self roles have been deleted " + event.getConfig().getSuccessEmote()).queue();
+					});
 				});
 		} else {
 			Role role =option.getValue();

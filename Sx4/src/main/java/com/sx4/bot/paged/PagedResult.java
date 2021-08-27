@@ -100,6 +100,10 @@ public class PagedResult<Type> {
 		this.bot = bot;
 		this.list = list;
 	}
+
+	public Sx4 getBot() {
+		return this.bot;
+	}
 	
 	public long getMessageId() {
 		return this.messageId;
@@ -387,8 +391,8 @@ public class PagedResult<Type> {
 			channel.deleteMessageById(this.messageId).queue(null, ErrorResponseException.ignore(ErrorResponse.UNKNOWN_MESSAGE));
 		}
 
-		this.bot.getPagedManager().cancelTimeout(this.channelId, this.ownerId);
-		this.bot.getPagedManager().removePagedResult(this.channelId, this.ownerId);
+		this.bot.getPagedManager().cancelTimeout(this.messageId);
+		this.bot.getPagedManager().removePagedResult(this.messageId);
 	}
 	
 	public void select(int index) {
@@ -494,7 +498,7 @@ public class PagedResult<Type> {
 		channel.sendMessage(this.getPagedMessage()).queue(message -> {
 			this.messageId = message.getIdLong();
 			
-			this.bot.getPagedManager().addPagedResult(channel, owner, this);
+			this.bot.getPagedManager().addPagedResult(this);
 			this.bot.getPagedManager().setTimeout(this);
 		});
 	}

@@ -32,6 +32,7 @@ import net.dv8tion.jda.api.MessageBuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.events.interaction.ButtonClickEvent;
 import net.dv8tion.jda.api.interactions.components.Button;
 import org.bson.Document;
@@ -277,46 +278,53 @@ public class AxeCommand extends Sx4Command {
 					Button button = e.getButton();
 					return button != null && button.getId().equals("no") && e.getMessageIdLong() == message.getIdLong() && e.getUser().getIdLong() == event.getAuthor().getIdLong();
 				})
-				.setRunAfter(e -> e.deferEdit().queue())
+				.onFailure(e -> e.reply("This is not your button to click " + event.getConfig().getFailureEmote()).setEphemeral(true).queue())
 				.setTimeout(60)
 				.start();
-		}).thenCompose(e -> {
-			List<Bson> update = List.of(Operators.set("amount", Operators.let(new Document("amount", Operators.ifNull("$amount", 0L)), Operators.cond(Operators.lte(itemCount, "$$amount"), Operators.subtract("$$amount", itemCount), "$$amount"))));
-			return event.getMongo().updateItem(Filters.and(Filters.eq("item.id", item.getId()), Filters.eq("userId", event.getAuthor().getIdLong())), update, new UpdateOptions());
-		}).thenCompose(result -> {
-			if (result.getMatchedCount() == 0 || result.getModifiedCount() == 0) {
-				event.replyFailure("You do not have `" + itemCount + " " + item.getName() + "`").queue();
-				return CompletableFuture.completedFuture(null);
-			}
-
-			List<Bson> update = List.of(Operators.set("item.durability", Operators.cond(Operators.eq("$item.durability", axe.getDurability()), Operators.add("$item.durability", durability), "$item.durability")));
-
-			return event.getMongo().updateItem(Filters.and(Filters.eq("item.id", axe.getId()), Filters.eq("userId", event.getAuthor().getIdLong())), update, new UpdateOptions());
-		}).whenComplete((result, exception) -> {
+		}).whenComplete((e, exception) -> {
 			Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
 			if (cause instanceof CancelException) {
-				event.replySuccess("Cancelled").queue();
+				GenericEvent cancelEvent = ((CancelException) cause).getEvent();
+				if (cancelEvent != null) {
+					((ButtonClickEvent) cancelEvent).reply("Cancelled " + event.getConfig().getSuccessEmote()).queue();
+				}
+
 				return;
 			} else if (cause instanceof TimeoutException) {
 				event.reply("Timed out :stopwatch:").queue();
 				return;
-			}
-
-			if (ExceptionUtility.sendExceptionally(event, exception) || result == null) {
+			} else if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
 
-			if (result.getMatchedCount() == 0) {
-				event.replyFailure("You no longer have that axe").queue();
-				return;
-			}
+			List<Bson> update = List.of(Operators.set("amount", Operators.let(new Document("amount", Operators.ifNull("$amount", 0L)), Operators.cond(Operators.lte(itemCount, "$$amount"), Operators.subtract("$$amount", itemCount), "$$amount"))));
 
-			if (result.getMatchedCount() == 0) {
-				event.replyFailure("The durability of your axe has changed").queue();
-				return;
-			}
+			event.getMongo().updateItem(Filters.and(Filters.eq("item.id", item.getId()), Filters.eq("userId", event.getAuthor().getIdLong())), update, new UpdateOptions()).thenCompose(result -> {
+				if (result.getMatchedCount() == 0 || result.getModifiedCount() == 0) {
+					e.reply("You do not have `" + itemCount + " " + item.getName() + "` " + event.getConfig().getFailureEmote()).queue();
+					return CompletableFuture.completedFuture(null);
+				}
 
-			event.replySuccess("You just repaired your axe by **" + durability + "** durability").queue();
+				List<Bson> itemUpdate = List.of(Operators.set("item.durability", Operators.cond(Operators.eq("$item.durability", axe.getDurability()), Operators.add("$item.durability", durability), "$item.durability")));
+
+				return event.getMongo().updateItem(Filters.and(Filters.eq("item.id", axe.getId()), Filters.eq("userId", event.getAuthor().getIdLong())), itemUpdate, new UpdateOptions());
+			}).whenComplete((result, databaseException) -> {
+				if (ExceptionUtility.sendExceptionally(event, databaseException) || result == null) {
+					return;
+				}
+
+				if (result.getMatchedCount() == 0) {
+					e.reply("You no longer have that axe " + event.getConfig().getFailureEmote()).queue();
+					return;
+				}
+
+				if (result.getMatchedCount() == 0) {
+					e.reply("The durability of your axe has changed " + event.getConfig().getFailureEmote()).queue();
+					return;
+				}
+
+				e.reply("You just repaired your axe by **" + durability + "** durability " + event.getConfig().getSuccessEmote()).queue();
+			});
 		});
 	}
 

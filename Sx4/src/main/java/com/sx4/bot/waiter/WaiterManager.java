@@ -81,6 +81,20 @@ public class WaiterManager {
 			this.waiters.remove(waiter);
 		}
 	}
+
+	private void checkWaiter(Waiter<?> waiter, GenericEvent event) {
+		if (waiter.testPredicate(event)) {
+			waiter.execute(event);
+			return;
+		}
+
+		if (waiter.testCancelPredicate(event)) {
+			waiter.cancel(event, CancelType.USER);
+			return;
+		}
+
+		waiter.failure(event);
+	}
 	
 	public void checkWaiters(GenericEvent event, Class<?> clazz) {
 		if (event instanceof MessageReceivedEvent) {
@@ -90,13 +104,7 @@ public class WaiterManager {
 			if (users != null) {
 				Waiter<?> waiter = users.get(messageEvent.getAuthor().getIdLong());
 				if (waiter != null && waiter.getEvent() == clazz) {
-					if (waiter.testPredicate(event)) {
-						waiter.execute(event);
-					}
-					
-					if (waiter.testCancelPredicate(event)) {
-						waiter.cancel(event, CancelType.USER);
-					}
+					this.checkWaiter(waiter, event);
 				}
 			}
 		}
@@ -105,14 +113,8 @@ public class WaiterManager {
 			if (waiter.getEvent() != clazz) {
 				continue;
 			}
-			
-			if (waiter.testPredicate(event)) {
-				waiter.execute(event);
-			}
-			
-			if (waiter.testCancelPredicate(event)) {
-				waiter.cancel(event, CancelType.USER);
-			}
+
+			this.checkWaiter(waiter, event);
 		}
 	}
 	

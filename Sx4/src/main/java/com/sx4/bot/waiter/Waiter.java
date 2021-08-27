@@ -42,7 +42,7 @@ public class Waiter<Type extends GenericEvent> {
 	private Predicate<Type> predicate = $ -> true;
 	private Predicate<Type> cancelPredicate = $ -> false;
 
-	private Consumer<Type> runAfter = null;
+	private Consumer<Type> onFailure = null;
 
 	private final Sx4 bot;
 	
@@ -95,6 +95,19 @@ public class Waiter<Type extends GenericEvent> {
 			}
 		});
 	}
+
+	public Waiter<Type> onFailure(Consumer<Type> onFailure) {
+		this.onFailure = onFailure;
+
+		return this;
+	}
+
+	@SuppressWarnings("unchecked")
+	public void failure(GenericEvent event) {
+		if (this.onFailure != null) {
+			this.onFailure.accept((Type) event);
+		}
+	}
 	
 	public long getTimeout() {
 		return this.timeout;
@@ -126,18 +139,6 @@ public class Waiter<Type extends GenericEvent> {
 		
 		return this;
 	}
-
-	public Waiter<Type> setRunAfter(Consumer<Type> runAfter) {
-		this.runAfter = runAfter;
-
-		return this;
-	}
-
-	public void runAfter(Type event) {
-		if (this.runAfter != null) {
-			this.runAfter.accept(event);
-		}
-	}
 	
 	@SuppressWarnings("unchecked")
 	public boolean testPredicate(GenericEvent event) {
@@ -156,19 +157,13 @@ public class Waiter<Type extends GenericEvent> {
 	
 	@SuppressWarnings("unchecked")
 	public void execute(GenericEvent event) {
-		this.runAfter((Type) event);
 		this.future.complete((Type) event);
 		
 		this.delete();
 	}
 
-	@SuppressWarnings("unchecked")
 	public void cancel(GenericEvent event, CancelType type) {
-		if (event != null) {
-			this.runAfter((Type) event);
-		}
-
-		this.future.completeExceptionally(new CancelException(type));
+		this.future.completeExceptionally(new CancelException(event, type));
 
 		this.delete();
 	}

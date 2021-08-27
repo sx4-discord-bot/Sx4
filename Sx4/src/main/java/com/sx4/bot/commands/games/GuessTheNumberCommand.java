@@ -17,6 +17,7 @@ import com.sx4.bot.waiter.exception.TimeoutException;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.events.interaction.ButtonClickEvent;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
@@ -69,18 +70,24 @@ public class GuessTheNumberCommand extends Sx4Command {
 						Button button = e.getButton();
 						return button != null && button.getId().equals("no") && e.getMessageIdLong() == message.getIdLong() && e.getUser().getIdLong() == opponent.getIdLong();
 					})
-					.setRunAfter(e -> e.deferEdit().queue())
+					.onFailure(e -> e.reply("This is not your button to click " + event.getConfig().getFailureEmote()).setEphemeral(true).queue())
 					.setTimeout(60)
 					.start();
 			}).whenComplete((confirmEvent, confirmException) -> {
 				Throwable confirmCause = confirmException instanceof CompletionException ? confirmException.getCause() : confirmException;
 				if (confirmCause instanceof CancelException) {
-					event.replySuccess("Cancelled").queue();
+					GenericEvent cancelEvent = ((CancelException) confirmCause).getEvent();
+					if (cancelEvent != null) {
+						((ButtonClickEvent) cancelEvent).reply("Cancelled " + event.getConfig().getSuccessEmote()).queue();
+					}
+
 					return;
 				} else if (confirmCause instanceof TimeoutException) {
 					event.reply("Timed out :stopwatch:").queue();
 					return;
 				}
+
+				confirmEvent.deferEdit().queue();
 
 				CompletableFuture<MessageReceivedEvent> authorFuture = event.getAuthor().openPrivateChannel().submit()
 					.thenCompose(channel -> channel.sendMessage("Send a number between **" + min + "** and **" + max + "** or `cancel` to cancel").submit())

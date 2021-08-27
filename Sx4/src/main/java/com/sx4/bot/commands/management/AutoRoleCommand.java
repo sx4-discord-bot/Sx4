@@ -23,10 +23,13 @@ import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.FutureUtility;
 import com.sx4.bot.utility.TimeUtility;
 import com.sx4.bot.waiter.Waiter;
+import com.sx4.bot.waiter.exception.CancelException;
+import com.sx4.bot.waiter.exception.TimeoutException;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Role;
+import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.events.interaction.ButtonClickEvent;
 import net.dv8tion.jda.api.interactions.components.Button;
 import org.bson.Document;
@@ -131,21 +134,37 @@ public class AutoRoleCommand extends Sx4Command {
 							Button button = e.getButton();
 							return button != null && button.getId().equals("no") && e.getMessageIdLong() == message.getIdLong() && e.getUser().getIdLong() == event.getAuthor().getIdLong();
 						})
-						.setRunAfter(e -> e.deferEdit().queue())
+						.onFailure(e -> e.reply("This is not your button to click " + event.getConfig().getFailureEmote()).setEphemeral(true).queue())
 						.setTimeout(60)
 						.start();
-				}).thenCompose(e -> event.getMongo().deleteManyAutoRoles(Filters.eq("guildId", event.getGuild().getIdLong())))
-				.whenComplete((result, exception) -> {
-					if (ExceptionUtility.sendExceptionally(event, exception)) {
+				}).whenComplete((e, exception) -> {
+					Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
+					if (cause instanceof CancelException) {
+						GenericEvent cancelEvent = ((CancelException) cause).getEvent();
+						if (cancelEvent != null) {
+							((ButtonClickEvent) cancelEvent).reply("Cancelled " + event.getConfig().getSuccessEmote()).queue();
+						}
+
+						return;
+					} else if (cause instanceof TimeoutException) {
+						event.reply("Timed out :stopwatch:").queue();
+						return;
+					} else if (ExceptionUtility.sendExceptionally(event, exception)) {
 						return;
 					}
 
-					if (result.getDeletedCount() == 0) {
-						event.replyFailure("There are no auto roles in this server").queue();
-						return;
-					}
+					event.getMongo().deleteManyAutoRoles(Filters.eq("guildId", event.getGuild().getIdLong())).whenComplete((result, databaseException) -> {
+						if (ExceptionUtility.sendExceptionally(event, databaseException)) {
+							return;
+						}
 
-					event.replySuccess("All auto roles have been removed").queue();
+						if (result.getDeletedCount() == 0) {
+							e.reply("There are no auto roles in this server " + event.getConfig().getFailureEmote()).queue();
+							return;
+						}
+
+						e.reply("All auto roles have been removed " + event.getConfig().getSuccessEmote()).queue();
+					});
 				});
 		} else {
 			Role role = option.getValue();

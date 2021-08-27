@@ -26,6 +26,7 @@ import net.dv8tion.jda.api.MessageBuilder;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.events.interaction.ButtonClickEvent;
 import net.dv8tion.jda.api.interactions.components.Button;
 import net.dv8tion.jda.api.utils.MarkdownSanitizer;
@@ -96,40 +97,48 @@ public class PremiumCommand extends Sx4Command {
 					Button button = e.getButton();
 					return button != null && button.getId().equals("cancel") && e.getMessageIdLong() == message.getIdLong() && e.getUser().getIdLong() == event.getAuthor().getIdLong();
 				})
-				.setRunAfter(e -> e.deferEdit().queue())
+				.onFailure(e -> e.reply("This is not your button to click " + event.getConfig().getFailureEmote()).setEphemeral(true).queue())
 				.setTimeout(60)
 				.start();
-		}).thenCompose(messageEvent -> {
-			List<Bson> update = List.of(Operators.set("premium.credit", Operators.cond(Operators.gt(price, Operators.ifNull("$premium.credit", 0)), "$premium.credit", Operators.subtract("$premium.credit", price))));
-			FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("premium.credit")).upsert(true);
-
-			return event.getMongoMain().findAndUpdateUserById(event.getAuthor().getIdLong(), update, options);
-		}).thenCompose(data -> {
-			int credit = data == null ? 0 : data.getEmbedded(List.of("premium", "credit"), 0);
-			if (price > credit) {
-				event.replyFailure("You do not have enough credit to buy premium for that long").queue();
-				return CompletableFuture.completedFuture(MongoDatabase.EMPTY_DOCUMENT);
-			}
-
-			List<Bson> update = List.of(Operators.set("premium.endAt", Operators.add(TimeUnit.DAYS.toSeconds(days), Operators.ifNull("$premium.endAt", Operators.nowEpochSecond()))));
-			FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("premium.endAt")).upsert(true);
-
-			return event.getMongo().findAndUpdateGuildById(guildId, update, options);
-		}).whenComplete((data, exception) -> {
+		}).whenComplete((e, exception) -> {
 			Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
 			if (cause instanceof CancelException) {
-				event.replySuccess("Cancelled").queue();
+				GenericEvent cancelEvent = ((CancelException) cause).getEvent();
+				if (cancelEvent != null) {
+					((ButtonClickEvent) cancelEvent).reply("Cancelled " + event.getConfig().getSuccessEmote()).queue();
+				}
+
 				return;
 			} else if (cause instanceof TimeoutException) {
 				event.reply("Timed out :stopwatch:").queue();
 				return;
-			} else if (ExceptionUtility.sendExceptionally(event, cause) || (data != null && data.isEmpty())) {
+			} else if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
 
-			long endAt = data == null ? 0L : data.getEmbedded(List.of("premium", "endAt"), 0L);
+			List<Bson> update = List.of(Operators.set("premium.credit", Operators.cond(Operators.gt(price, Operators.ifNull("$premium.credit", 0)), "$premium.credit", Operators.subtract("$premium.credit", price))));
+			FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("premium.credit")).upsert(true);
 
-			event.replyFormat("**%s** now has premium for %s%d day%s %s", guildName, endAt == 0 ? "" : "another ", days, days == 1 ? "" : "s", event.getConfig().getSuccessEmote()).queue();
+			event.getMongoMain().findAndUpdateUserById(event.getAuthor().getIdLong(), update, options).thenCompose(data -> {
+				int credit = data == null ? 0 : data.getEmbedded(List.of("premium", "credit"), 0);
+				if (price > credit) {
+					e.reply("You do not have enough credit to buy premium for that long " + event.getConfig().getFailureEmote()).queue();
+					return CompletableFuture.completedFuture(MongoDatabase.EMPTY_DOCUMENT);
+				}
+
+				List<Bson> guildUpdate = List.of(Operators.set("premium.endAt", Operators.add(TimeUnit.DAYS.toSeconds(days), Operators.ifNull("$premium.endAt", Operators.nowEpochSecond()))));
+				FindOneAndUpdateOptions guildOptions = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("premium.endAt")).upsert(true);
+
+				return event.getMongo().findAndUpdateGuildById(guildId, guildUpdate, guildOptions);
+			}).whenComplete((data, databaseException) -> {
+				if (ExceptionUtility.sendExceptionally(event, databaseException) || (data != null && data.isEmpty())) {
+					return;
+				}
+
+				long endAt = data == null ? 0L : data.getEmbedded(List.of("premium", "endAt"), 0L);
+
+				e.replyFormat("**%s** now has premium for %s%d day%s %s", guildName, endAt == 0 ? "" : "another ", days, days == 1 ? "" : "s", event.getConfig().getSuccessEmote()).queue();
+			});
 		});
 	}
 

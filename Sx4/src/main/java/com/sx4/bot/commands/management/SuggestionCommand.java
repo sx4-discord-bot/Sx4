@@ -23,10 +23,13 @@ import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ColourUtility;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.waiter.Waiter;
+import com.sx4.bot.waiter.exception.CancelException;
+import com.sx4.bot.waiter.exception.TimeoutException;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.events.interaction.ButtonClickEvent;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.interactions.components.Button;
@@ -39,6 +42,7 @@ import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CompletionException;
 
 public class SuggestionCommand extends Sx4Command {
 
@@ -193,22 +197,37 @@ public class SuggestionCommand extends Sx4Command {
 						Button button = e.getButton();
 						return button != null && button.getId().equals("no") && e.getMessageIdLong() == message.getIdLong() && e.getUser().getIdLong() == event.getAuthor().getIdLong();
 					})
-					.setRunAfter(e -> e.deferEdit().queue())
+					.onFailure(e -> e.reply("This is not your button to click " + event.getConfig().getFailureEmote()).setEphemeral(true).queue())
 					.setTimeout(60)
 					.start();
-			})
-			.thenCompose(messageEvent -> event.getMongo().deleteManySuggestions(Filters.eq("guildId", event.getGuild().getIdLong())))
-			.whenComplete((result, exception) -> {
-				if (ExceptionUtility.sendExceptionally(event, exception)) {
+			}).whenComplete((e, exception) -> {
+				Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
+				if (cause instanceof CancelException) {
+					GenericEvent cancelEvent = ((CancelException) cause).getEvent();
+					if (cancelEvent != null) {
+						((ButtonClickEvent) cancelEvent).reply("Cancelled " + event.getConfig().getSuccessEmote()).queue();
+					}
+
+					return;
+				} else if (cause instanceof TimeoutException) {
+					event.reply("Timed out :stopwatch:").queue();
+					return;
+				} else if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
 
-				if (result.getDeletedCount() == 0) {
-					event.replyFailure("This server has no suggestions").queue();
-					return;
-				}
+				event.getMongo().deleteManySuggestions(Filters.eq("guildId", event.getGuild().getIdLong())).whenComplete((result, databaseException) -> {
+					if (ExceptionUtility.sendExceptionally(event, databaseException)) {
+						return;
+					}
 
-				event.replySuccess("All suggestions have been deleted in this server").queue();
+					if (result.getDeletedCount() == 0) {
+						e.reply("This server has no suggestions " + event.getConfig().getFailureEmote()).queue();
+						return;
+					}
+
+					e.reply("All suggestions have been deleted in this server " + event.getConfig().getSuccessEmote()).queue();
+				});
 			});
 		} else {
 			ObjectId id = option.getValue();
