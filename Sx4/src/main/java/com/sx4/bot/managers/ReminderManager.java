@@ -5,6 +5,7 @@ import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.utility.FutureUtility;
 import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import org.bson.Document;
 import org.bson.types.ObjectId;
 
@@ -107,13 +108,20 @@ public class ReminderManager {
 				.thenCompose(channel -> channel.sendMessageFormat("You wanted me to remind you about **%s**", data.getString("reminder")).submit())
 				.handle((message, exception) -> {
 					ObjectId id = data.getObjectId("_id");
-
 					int attempts;
-					if (exception == null) {
+
+					Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
+					if (cause instanceof ErrorResponseException) {
+						int code = ((ErrorResponseException) cause).getResponse().code;
+						// Check whether it's on discords end, in that case don't increase the attempts
+						if (code > 499 && code < 600) {
+							attempts = this.attempts.getOrDefault(id, 0);
+						} else {
+							attempts = this.attempts.compute(id, (key, value) -> value == null ? 1 : value + 1);
+						}
+					} else {
 						this.attempts.remove(id);
 						attempts = 0;
-					} else {
-						attempts = this.attempts.compute(id, (key, value) -> value == null ? 1 : value + 1);
 					}
 
 					return this.handleReminder(data, attempts);
