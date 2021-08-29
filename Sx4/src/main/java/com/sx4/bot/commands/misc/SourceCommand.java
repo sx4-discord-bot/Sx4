@@ -55,35 +55,35 @@ public class SourceCommand extends Sx4Command {
 					continue;
 				}
 
-				if (display) {
-					if (startLine == -1) {
-						leading = line.indexOf("public");
-						startLine = i;
+				if (startLine == -1) {
+					leading = line.indexOf("public");
+					startLine = i;
+				}
+
+				if (!line.isBlank()) {
+					lines[i] = line.substring(leading);
+				}
+
+				for (char character : line.toCharArray()) {
+					if (character == '{') {
+						startBracketCount++;
 					}
 
-					if (!line.isBlank()) {
-						lines[i] = line.substring(leading);
+					if (character == '}') {
+						endBracketCount++;
 					}
+				}
 
-					for (char character : line.toCharArray()) {
-						if (character == '{') {
-							startBracketCount++;
-						}
-
-						if (character == '}') {
-							endBracketCount++;
-						}
-					}
-
-					if (endBracketCount == startBracketCount) {
-						String commandCode = String.join("\n",  Arrays.copyOfRange(lines, startLine, i + 1));
+				if (endBracketCount == startBracketCount) {
+					if (display) {
+						String commandCode = String.join("\n", Arrays.copyOfRange(lines, startLine, i + 1));
 
 						event.replyFile(commandCode.getBytes(StandardCharsets.UTF_8), className + ".java").queue();
-						break;
+					} else {
+						event.reply("https://sx4.dev/Sx4/blob/" + fullPath + "#L" + (startLine + 1) + "-L" + (i + 1)).queue();
 					}
-				} else {
-					event.reply("https://sx4.dev/Sx4/blob/" + fullPath + "#L" + (i + 1)).queue();
-					break;
+
+					return;
 				}
 			}
 		});

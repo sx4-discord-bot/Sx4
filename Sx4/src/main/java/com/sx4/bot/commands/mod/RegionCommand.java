@@ -19,8 +19,8 @@ public class RegionCommand extends Sx4Command {
 	}
 
 	public void onCommand(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) VoiceChannel channel, @Argument(value="region", endless=true) Region region) {
-		if (region.isVip() && !event.getGuild().getFeatures().contains("VIP_REGIONS")) {
-			event.replyFailure("You cannot set the region to a VIP region without the VIP server feature").queue();
+		if (!Region.VOICE_CHANNEL_REGIONS.contains(region)) {
+			event.replyFailure("That region is not supported for voice channels").queue();
 			return;
 		}
 

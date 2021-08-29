@@ -3,22 +3,24 @@ package com.sx4.bot.managers;
 import com.mongodb.client.model.*;
 import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.mongo.MongoDatabase;
+import com.sx4.bot.utility.FutureUtility;
 import net.dv8tion.jda.api.entities.User;
-import net.dv8tion.jda.api.exceptions.ErrorResponseException;
-import net.dv8tion.jda.api.requests.ErrorResponse;
 import org.bson.Document;
 import org.bson.types.ObjectId;
 
 import java.time.Clock;
-import java.util.*;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.*;
 
 public class ReminderManager {
+
+	private static final int MAX_ATTEMPTS = 3;
 	
 	private final Map<ObjectId, ScheduledFuture<?>> executors;
+	private final Map<ObjectId, Integer> attempts;
 	
 	private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
 
@@ -26,6 +28,7 @@ public class ReminderManager {
 
 	public ReminderManager(Sx4 bot) {
 		this.executors = new HashMap<>();
+		this.attempts = new HashMap<>();
 		this.bot = bot;
 	}
 	
@@ -38,12 +41,10 @@ public class ReminderManager {
 	}
 	
 	public void putExecutor(ObjectId id, ScheduledFuture<?> executor) {
-		ScheduledFuture<?> oldExecutor = this.getExecutor(id);
+		ScheduledFuture<?> oldExecutor = this.executors.put(id, executor);
 		if (oldExecutor != null && !oldExecutor.isDone()) {
 			oldExecutor.cancel(true);
 		}
-
-		this.executors.put(id, executor);
 	}
 	
 	public void extendExecutor(ObjectId id, Runnable runnable, long seconds) {
@@ -52,7 +53,7 @@ public class ReminderManager {
 			seconds += oldExecutor.getDelay(TimeUnit.SECONDS);
 			oldExecutor.cancel(true);
 		}
-			
+
 		this.executors.put(id, this.executor.schedule(runnable, seconds, TimeUnit.SECONDS));
 	}
 	
@@ -68,25 +69,19 @@ public class ReminderManager {
 	}
 	
 	public void executeReminder(Document data) {
-		WriteModel<Document> model = this.executeReminderBulk(data);
-		if (model instanceof UpdateOneModel) {
-			this.bot.getMongo().updateReminder((UpdateOneModel<Document>) model).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
-		} else {
-			this.bot.getMongo().deleteReminder((DeleteOneModel<Document>) model).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
-		}
+		this.executeReminderBulk(data).whenComplete((model, exception) -> {
+			if (model instanceof UpdateOneModel) {
+				this.bot.getMongo().updateReminder((UpdateOneModel<Document>) model).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
+			} else {
+				this.bot.getMongo().deleteReminder((DeleteOneModel<Document>) model).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
+			}
+		});
 	}
-	
-	public WriteModel<Document> executeReminderBulk(Document data) {
-		User user = this.bot.getShardManager().getUserById(data.getLong("userId"));
-		if (user != null) {
-			user.openPrivateChannel()
-				.flatMap(channel -> channel.sendMessageFormat("You wanted me to remind you about **%s**", data.getString("reminder")))
-				.queue(null, ErrorResponseException.ignore(ErrorResponse.CANNOT_SEND_TO_USER));
-		}
 
+	private WriteModel<Document> handleReminder(Document data, int attempts) {
 		ObjectId id = data.getObjectId("_id");
 		long remindAt = data.getLong("remindAt"), duration = data.getLong("duration");
-		if (data.get("repeat", false)) {
+		if (data.get("repeat", false) && attempts < ReminderManager.MAX_ATTEMPTS) {
 			long newRemindAt = remindAt + duration, now = Clock.systemUTC().instant().getEpochSecond();
 			while (newRemindAt < now) {
 				newRemindAt += duration;
@@ -100,13 +95,27 @@ public class ReminderManager {
 			return new UpdateOneModel<>(Filters.eq("_id", id), Updates.set("remindAt", newRemindAt));
 		} else {
 			this.deleteExecutor(id);
-			
+
 			return new DeleteOneModel<>(Filters.eq("_id", id));
 		}
 	}
 	
+	public CompletableFuture<WriteModel<Document>> executeReminderBulk(Document data) {
+		User user = this.bot.getShardManager().getUserById(data.getLong("userId"));
+		if (user != null) {
+			return user.openPrivateChannel().submit()
+				.thenCompose(channel -> channel.sendMessageFormat("You wanted me to remind you about **%s**", data.getString("reminder")).submit())
+				.handle((message, exception) -> {
+					int attempts = exception == null ? 0 : this.attempts.compute(data.getObjectId("_id"), (key, value) -> value == null ? 1 : value + 1);
+					return this.handleReminder(data, attempts);
+				});
+		} else {
+			return CompletableFuture.completedFuture(this.handleReminder(data, this.attempts.compute(data.getObjectId("_id"), (key, value) -> value == null ? 1 : value + 1)));
+		}
+	}
+	
 	public void ensureReminders() {
-		List<WriteModel<Document>> bulkData = new ArrayList<>();
+		List<CompletableFuture<WriteModel<Document>>> futures = new ArrayList<>();
 		this.bot.getMongo().getReminders(MongoDatabase.EMPTY_DOCUMENT, MongoDatabase.EMPTY_DOCUMENT).forEach(data -> {
 			ObjectId id = data.getObjectId("_id");
 
@@ -116,13 +125,21 @@ public class ReminderManager {
 
 				this.putExecutor(id, executor);
 			} else {
-				bulkData.add(this.executeReminderBulk(data));
+				futures.add(this.executeReminderBulk(data));
 			}
 		});
-		
-		if (!bulkData.isEmpty()) {
-			this.bot.getMongo().bulkWriteReminders(bulkData).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
+
+		if (futures.isEmpty()) {
+			return;
 		}
+
+		FutureUtility.allOf(futures).whenComplete((bulkData, exception) -> {
+			if (bulkData.isEmpty()) {
+				return;
+			}
+
+			this.bot.getMongo().bulkWriteReminders(bulkData).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
+		});
 	}
 	
 }

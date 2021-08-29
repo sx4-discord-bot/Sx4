@@ -451,16 +451,16 @@ public class PagedResult<Type> {
 			message = this.customFunction.apply(this);
 		}
 
-		ActionRow actionRow;
-		if (!this.pageOverflow && this.page == this.getMaxPage()) {
-			actionRow = ActionRow.of(PagedResult.PREVIOUS_BUTTON, PagedResult.NEXT_BUTTON_DISABLED);
-		} else if (!this.pageOverflow && this.page == 1) {
-			actionRow = ActionRow.of(PagedResult.PREVIOUS_BUTTON_DISABLED, PagedResult.NEXT_BUTTON);
-		} else {
-			actionRow = ActionRow.of(PagedResult.PREVIOUS_BUTTON, PagedResult.NEXT_BUTTON);
-		}
-
 		if (this.list.size() > this.perPage) {
+			ActionRow actionRow;
+			if (!this.pageOverflow && this.page == this.getMaxPage()) {
+				actionRow = ActionRow.of(PagedResult.PREVIOUS_BUTTON, PagedResult.NEXT_BUTTON_DISABLED);
+			} else if (!this.pageOverflow && this.page == 1) {
+				actionRow = ActionRow.of(PagedResult.PREVIOUS_BUTTON_DISABLED, PagedResult.NEXT_BUTTON);
+			} else {
+				actionRow = ActionRow.of(PagedResult.PREVIOUS_BUTTON, PagedResult.NEXT_BUTTON);
+			}
+
 			return message.setActionRows(actionRow).build();
 		} else {
 			return message.build();

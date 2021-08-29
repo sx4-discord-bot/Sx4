@@ -24,7 +24,7 @@ public class GitHubEndpoint {
 	public Response postGitHub(final String body, @HeaderParam("X-Hub-Signature-256") final String signature, @HeaderParam("X-GitHub-Event") final String event) {
 		String hash;
 		try {
-			hash = "sha256=" + HmacUtility.getSignature(this.bot.getConfig().getGitHubWebhookSecret(), body, HmacUtility.HMAC_SHA256);
+			hash = "sha256=" + HmacUtility.getSignatureHex(this.bot.getConfig().getGitHubWebhookSecret(), body, HmacUtility.HMAC_SHA256);
 		} catch (InvalidKeyException | NoSuchAlgorithmException e) {
 			return Response.status(500).build();
 		}
