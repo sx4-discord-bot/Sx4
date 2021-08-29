@@ -106,7 +106,16 @@ public class ReminderManager {
 			return user.openPrivateChannel().submit()
 				.thenCompose(channel -> channel.sendMessageFormat("You wanted me to remind you about **%s**", data.getString("reminder")).submit())
 				.handle((message, exception) -> {
-					int attempts = exception == null ? 0 : this.attempts.compute(data.getObjectId("_id"), (key, value) -> value == null ? 1 : value + 1);
+					ObjectId id = data.getObjectId("_id");
+
+					int attempts;
+					if (exception == null) {
+						this.attempts.remove(id);
+						attempts = 0;
+					} else {
+						attempts = this.attempts.compute(id, (key, value) -> value == null ? 1 : value + 1);
+					}
+
 					return this.handleReminder(data, attempts);
 				});
 		} else {
