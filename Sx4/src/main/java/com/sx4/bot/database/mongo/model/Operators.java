@@ -11,6 +11,7 @@ import java.util.List;
 public class Operators {
 	
 	public static final String REMOVE = "$$REMOVE";
+	public static final String CURRENT = "$$CURRENT";
 	public static final String NOW = "$$NOW";
 	public static final String ROOT = "$$ROOT";
 
@@ -120,6 +121,36 @@ public class Operators {
 
 	public static Bson mergeObjects(Object... expressions) {
 		return new Document("$mergeObjects", Arrays.asList(expressions));
+	}
+
+	// Mongo Version 5
+	public static Bson getField(String field) {
+		return new Document("$getField", field);
+	}
+
+	// Mongo Version 5
+	public static Bson getField(String field, Object expression) {
+		return new Document("$getField", new Document("field", field).append("input", expression));
+	}
+
+	// Mongo Version 5
+	public static Bson unsetField(String field) {
+		return Operators.unsetField(field, Operators.ROOT);
+	}
+
+	// Mongo Version 5
+	public static Bson unsetField(String field, Object expression) {
+		return new Document("$unsetField", new Document("field", field).append("input", expression));
+	}
+
+	// Mongo Version 5
+	public static Bson setField(String field, Object value) {
+		return new Document("$setField", new Document("field", field).append("input", Operators.ROOT).append("value", value));
+	}
+
+	// Mongo Version 5
+	public static Bson setField(String field, Object expression, Object value) {
+		return new Document("$setField", new Document("field", field).append("input", expression).append("value", value));
 	}
 
 	public static Bson removeObject(Object expression, Object key) {
