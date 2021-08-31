@@ -28,6 +28,7 @@ public class EvalCommand extends Sx4Command {
 		importCustomizer.addStarImports("java.util.stream");
 
 		importCustomizer.addStarImports("net.dv8tion.jda.api");
+		importCustomizer.addStarImports("net.dv8tion.jda.api.interactions.components");
 		importCustomizer.addStarImports("net.dv8tion.jda.api.entities");
 		importCustomizer.addStarImports("com.sx4.bot.database.mongo.model");
 		importCustomizer.addStarImports("com.sx4.bot.database.mongo");

@@ -10,7 +10,7 @@ public class RequestUtility {
 
 	public static String getWorkerUrl(String url) {
 		URI uri = URI.create(url);
-		if (uri.getHost().endsWith("discordapp.com")) {
+		if (uri.getHost().endsWith("discordapp.com") || uri.getHost().endsWith("discordapp.net")) {
 			return url;
 		}
 

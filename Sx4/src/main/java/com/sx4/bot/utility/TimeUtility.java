@@ -240,6 +240,13 @@ public class TimeUtility {
 
 	public static String getTimeString(long duration, TimeUnit unit, Map<ChronoUnit, Map<Boolean, String>> units, int maxUnits) {
 		long seconds = unit.toSeconds(duration);
+		if (seconds < 0) {
+			throw new IllegalArgumentException("duration cannot be a negative value");
+		}
+
+		if (seconds == 0) {
+			return "0" + units.get(ChronoUnit.SECONDS).get(true);
+		}
 
 		StringBuilder string = new StringBuilder();
 		int unitsUsed = 0;

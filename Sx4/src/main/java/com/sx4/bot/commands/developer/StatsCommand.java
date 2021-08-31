@@ -32,7 +32,9 @@ public class StatsCommand extends Sx4Command {
 		long commands = event.getMongo().getCommands().estimatedDocumentCount();
 
 		Runtime runtime = Runtime.getRuntime();
-		long totalMemory = ((OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean()).getTotalMemorySize();
+		OperatingSystemMXBean bean = ((OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean());
+
+		long totalMemory = bean.getTotalMemorySize();
 		long memoryUsed = runtime.totalMemory() - runtime.freeMemory();
 
 		Document mongoData = event.getMongo().getDatabase().runCommand(new Document("serverStatus", 1));
@@ -47,7 +49,7 @@ public class StatsCommand extends Sx4Command {
 		embed.setFooter("Uptime: " + TimeUtility.getTimeString(ManagementFactory.getRuntimeMXBean().getUptime(), TimeUnit.MILLISECONDS) + " | Java " + System.getProperty("java.version"), null);
 		embed.addField("Library", "JDA " + JDAInfo.VERSION + "\nJockie Utils " + JockieUtils.VERSION, true);
 		embed.addField("Memory Usage", NumberUtility.getBytesReadable(memoryUsed) + "/" + NumberUtility.getBytesReadable(totalMemory), true);
-		embed.addField("CPU Usage", String.format("%.1f%%", ManagementFactory.getOperatingSystemMXBean().getSystemLoadAverage()), true);
+		embed.addField("CPU Usage", String.format("%.1f%%", bean.getProcessCpuLoad() * 100), true);
 		embed.addField("Database Queries", String.format("Reads: %,.2f/s\nWrites: %,.2f/s", reads.getLong("ops") / mongoUptime, writes.getLong("ops") / mongoUptime), true);
 		embed.addField("Database Uptime", TimeUtility.getTimeString((long) mongoUptime, TimeUtility.SHORT_SUFFIXES), true);
 		embed.addField("Commands Used", String.format("%,d", commands), true);
