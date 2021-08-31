@@ -18,6 +18,7 @@ import com.sx4.bot.entities.argument.Alternative;
 import com.sx4.bot.entities.argument.TimedArgument;
 import com.sx4.bot.entities.mod.Reason;
 import com.sx4.bot.entities.mod.action.ModAction;
+import com.sx4.bot.entities.utility.TimeFormatter;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.ModUtility;
@@ -64,7 +65,7 @@ public class MuteCommand extends Sx4Command {
 				return;
 			}
 
-			event.replyFormat("**%s** has %s for %s %s", member.getUser().getAsTag(), action.getModAction().isExtend() ? "had their mute extended" : "been muted", TimeUtility.getTimeString(action.getDuration()), event.getConfig().getSuccessEmote()).queue();
+			event.replyFormat("**%s** has %s for %s %s", member.getUser().getAsTag(), action.getModAction().isExtend() ? "had their mute extended" : "been muted", TimeUtility.LONG_TIME_FORMATTER.parse(action.getDuration()), event.getConfig().getSuccessEmote()).queue();
 		});
 	}
 
@@ -125,7 +126,7 @@ public class MuteCommand extends Sx4Command {
 				return;
 			}
 
-			event.replySuccess("Your mute default time has been set to **" + TimeUtility.getTimeString(seconds) + "**").queue();
+			event.replySuccess("Your mute default time has been set to **" + TimeUtility.LONG_TIME_FORMATTER.parse(seconds) + "**").queue();
 		});
 	}
 
@@ -190,7 +191,7 @@ public class MuteCommand extends Sx4Command {
 			.setDisplayFunction(data -> {
 				User user = event.getShardManager().getUserById(data.getLong("userId"));
 
-				return (user == null ? "Anonymous#0000" : user.getAsTag()) + " - " + TimeUtility.getTimeString(data.getLong("unmuteAt") - Clock.systemUTC().instant().getEpochSecond());
+				return (user == null ? "Anonymous#0000" : user.getAsTag()) + " - " + TimeUtility.LONG_TIME_FORMATTER.parse(data.getLong("unmuteAt") - Clock.systemUTC().instant().getEpochSecond());
 			});
 
 		paged.execute(event);

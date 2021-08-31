@@ -10,8 +10,9 @@ import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.Region;
 import net.dv8tion.jda.api.entities.*;
 
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 public class ChannelInfoCommand extends Sx4Command {
 
@@ -38,7 +39,7 @@ public class ChannelInfoCommand extends Sx4Command {
 		if (channel instanceof TextChannel) {
 			TextChannel textChannel = (TextChannel) channel;
 			embed.addField("NSFW Channel", textChannel.isNSFW() ? "Yes" : "No", true);
-			embed.addField("Slow Mode", textChannel.getSlowmode() != 0 ? TimeUtility.getTimeString(textChannel.getSlowmode(), TimeUnit.SECONDS) : "No Slowmode Set", true);
+			embed.addField("Slow Mode", textChannel.getSlowmode() != 0 ? TimeUtility.LONG_TIME_FORMATTER.parse(Duration.of(textChannel.getSlowmode(), ChronoUnit.SECONDS)) : "No Slowmode Set", true);
 			embed.addField("Channel Category", textChannel.getParent() == null ? "Not in a Category" : textChannel.getParent().getName(), true);
 			embed.addField("Announcement Channel", textChannel.isNews() ? "Yes" : "No", true);
 		} else if (channel instanceof VoiceChannel) {

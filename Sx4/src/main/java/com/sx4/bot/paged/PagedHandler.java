@@ -39,13 +39,13 @@ public class PagedHandler implements EventListener {
 	}
 
 	public void handleButton(ButtonClickEvent event) {
-		PagedResult<?> pagedResult = this.bot.getPagedManager().getPagedResult(event.getMessageIdLong());
+		MessageChannel channel = event.getChannel();
+		User author = event.getUser();
+
+		PagedResult<?> pagedResult = this.bot.getPagedManager().getPagedResult(channel.getIdLong(), author.getIdLong());
 		if (pagedResult == null) {
 			return;
 		}
-
-		MessageChannel channel = event.getChannel();
-		User author = event.getUser();
 
 		if (pagedResult.getOwnerId() != author.getIdLong()) {
 			event.reply("This is not your paged result " + this.bot.getConfig().getFailureEmote()).setEphemeral(true).queue();
@@ -67,13 +67,13 @@ public class PagedHandler implements EventListener {
 	}
 
 	public void handleMessage(Message message) {
-		PagedResult<?> pagedResult = this.bot.getPagedManager().getPagedResult(message.getIdLong());
+		MessageChannel channel = message.getChannel();
+		User author = message.getAuthor();
+
+		PagedResult<?> pagedResult = this.bot.getPagedManager().getPagedResult(channel.getIdLong(), author.getIdLong());
 		if (pagedResult == null) {
 			return;
 		}
-
-		MessageChannel channel = message.getChannel();
-		User author = message.getAuthor();
 
 		if (author.getIdLong() != pagedResult.getOwnerId()) {
 			return;
@@ -83,6 +83,7 @@ public class PagedHandler implements EventListener {
 		String contentLower = content.toLowerCase();
 		
 		EnumSet<SelectType> selectTypes = pagedResult.getSelect();
+		System.out.println(selectTypes);
 		
 		if (this.next.contains(contentLower)) {
 			if (pagedResult.getNextPage() != pagedResult.getPage()) {
@@ -100,6 +101,7 @@ public class PagedHandler implements EventListener {
 		} else if (selectTypes.contains(SelectType.INDEX) && NumberUtility.isNumberUnsigned(content)) {
 			try {
 				int index = Integer.parseInt(content);
+				System.out.println(index);
 				if (index > pagedResult.getLowerPageBound() && index <= pagedResult.getHigherPageBound()) {
 					pagedResult.select(pagedResult.isIncreasedIndex() ? index - 1 : (pagedResult.getPage() * pagedResult.getPerPage() - pagedResult.getPerPage()) + (index - 1));
 					this.attemptDelete(message);

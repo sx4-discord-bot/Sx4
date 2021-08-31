@@ -16,6 +16,7 @@ import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.argument.Alternative;
 import com.sx4.bot.entities.economy.item.*;
+import com.sx4.bot.entities.utility.TimeFormatter;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.EconomyUtility;
 import com.sx4.bot.utility.ExceptionUtility;
@@ -32,6 +33,7 @@ import java.util.stream.Collectors;
 public class FactoryCommand extends Sx4Command {
 
 	public static final long COOLDOWN = 43200L;
+
 
 	public FactoryCommand() {
 		super("factory", 394);
@@ -193,7 +195,7 @@ public class FactoryCommand extends Sx4Command {
 			}
 
 			if (money == 0) {
-				event.reply("Slow down! You can collect from your factory in " + TimeUtility.getTimeString(lowestReset) + " :stopwatch:").queue();
+				event.reply("Slow down! You can collect from your factory in " + TimeUtility.LONG_TIME_FORMATTER.parse(lowestReset) + " :stopwatch:").queue();
 				session.abortTransaction();
 				return null;
 			}

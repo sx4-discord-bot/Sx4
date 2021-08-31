@@ -1,6 +1,7 @@
 package com.sx4.bot.utility;
 
 import club.minnced.discord.webhook.send.WebhookMessageBuilder;
+import com.sx4.bot.entities.utility.TimeFormatter;
 import com.sx4.bot.formatter.IFormatter;
 import com.sx4.bot.formatter.JsonFormatter;
 import net.dv8tion.jda.api.entities.Guild;
@@ -13,6 +14,8 @@ import java.time.OffsetDateTime;
 
 public class LeaverUtility {
 
+	private static final TimeFormatter FORMATTER = TimeUtility.LONG_TIME_FORMATTER_BUILDER.build();
+
 	public static WebhookMessageBuilder getLeaverMessage(Document messageData, Member member) {
 		Guild guild = member.getGuild();
 		User user = member.getUser();
@@ -22,8 +25,8 @@ public class LeaverUtility {
 			.member(member)
 			.user(user)
 			.guild(guild)
-			.addVariable(Member.class, "age", TimeUtility.getTimeString(Duration.between(member.getTimeJoined(), now).toSeconds()))
-			.addVariable(User.class, "age", TimeUtility.getTimeString(Duration.between(user.getTimeCreated(), now).toSeconds()))
+			.addVariable(Member.class, "age", LeaverUtility.FORMATTER.parse(Duration.between(member.getTimeJoined(), now).toSeconds()))
+			.addVariable(User.class, "age", LeaverUtility.FORMATTER.parse(Duration.between(user.getTimeCreated(), now).toSeconds()))
 			.addVariable("now", now);
 
 		return MessageUtility.fromJson(formatter.parse());

@@ -1,6 +1,7 @@
 package com.sx4.bot.paged;
 
 import net.dv8tion.jda.api.entities.MessageChannel;
+import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.requests.ErrorResponse;
 
@@ -15,7 +16,7 @@ public class PagedManager {
 	
 	private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
 	
-	private final Map<Long, PagedResult<?>> pagedResults;
+	private final Map<Long, Map<Long, PagedResult<?>>> pagedResults;
 	private final Map<Long, ScheduledFuture<?>> executors;
 
 	public PagedManager() {
@@ -38,23 +39,33 @@ public class PagedManager {
 			}
 		}
 	}
-	
-	public PagedResult<?> getPagedResult(long messageId) {
-		return this.pagedResults.get(messageId);
+
+	public PagedResult<?> getPagedResult(long channelId, long ownerId) {
+		Map<Long, PagedResult<?>> users = this.pagedResults.get(channelId);
+		return users == null ? null : users.get(ownerId);
 	}
-	
-	public void addPagedResult(PagedResult<?> pagedResult) {
-		PagedResult<?> old = this.pagedResults.put(pagedResult.getMessageId(), pagedResult);
-		if (old != null) {
-			MessageChannel channel = old.getChannel();
-			if (channel != null) {
-				channel.deleteMessageById(old.getMessageId()).queue(null, ErrorResponseException.ignore(ErrorResponse.UNKNOWN_MESSAGE));
+
+	public void addPagedResult(MessageChannel channel, User owner, PagedResult<?> pagedResult) {
+		Map<Long, PagedResult<?>> users = this.pagedResults.get(channel.getIdLong());
+		if (users == null) {
+			users = new HashMap<>();
+			users.put(owner.getIdLong(), pagedResult);
+
+			this.pagedResults.put(channel.getIdLong(), users);
+		} else {
+			if (users.containsKey(owner.getIdLong())) {
+				channel.deleteMessageById(users.get(owner.getIdLong()).getMessageId()).queue(null, ErrorResponseException.ignore(ErrorResponse.UNKNOWN_MESSAGE));
 			}
+
+			users.put(owner.getIdLong(), pagedResult);
 		}
 	}
-	
-	public void removePagedResult(long messageId) {
-		this.pagedResults.remove(messageId);
+
+	public void removePagedResult(long channelId, long ownerId) {
+		Map<Long, PagedResult<?>> users = this.pagedResults.get(channelId);
+		if (users != null) {
+			users.remove(ownerId);
+		}
 	}
 	
 }

@@ -138,7 +138,7 @@ public class ServerLogHandler implements EventListener {
 			.addField(new WebhookEmbed.EmbedField(true, "Server ID", event.getGuild().getId()))
 			.addField(new WebhookEmbed.EmbedField(true, "Server Owner", (owner == null ? "Anonymous#0000" : owner.getUser().getAsTag()) + "\n" + event.getGuild().getOwnerId()))
 			.addField(new WebhookEmbed.EmbedField(true, "Server Members", String.format("%,d member%s", event.getGuild().getMemberCount(), event.getGuild().getMemberCount() == 1 ? "" : "s")))
-			.addField(new WebhookEmbed.EmbedField(false, "Stayed for", TimeUtility.getTimeString(Duration.between(event.getGuild().getSelfMember().getTimeJoined(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds())));
+			.addField(new WebhookEmbed.EmbedField(false, "Stayed for", TimeUtility.LONG_TIME_FORMATTER.parse(Duration.between(event.getGuild().getSelfMember().getTimeJoined(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds())));
 
 		this.webhook.send(embed.build());
 	}

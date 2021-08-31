@@ -8,6 +8,7 @@ import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.economy.item.*;
+import com.sx4.bot.entities.utility.TimeFormatter;
 import com.sx4.bot.utility.EconomyUtility;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.TimeUtility;
@@ -22,6 +23,7 @@ import java.util.stream.Collectors;
 public class MineCommand extends Sx4Command {
 
 	public static final long COOLDOWN = 900L;
+
 
 	public MineCommand() {
 		super("mine", 358);
@@ -51,7 +53,7 @@ public class MineCommand extends Sx4Command {
 
 			long usableAmount = pickaxeStack.getUsableAmount();
 			if (usableAmount == 0) {
-				event.reply("Slow down! You can go mining again in " + TimeUtility.getTimeString(pickaxeStack.getTimeRemaining()) + " :stopwatch:").queue();
+				event.reply("Slow down! You can go mining again in " + TimeUtility.LONG_TIME_FORMATTER.parse(pickaxeStack.getTimeRemaining()) + " :stopwatch:").queue();
 				session.abortTransaction();
 				return;
 			}

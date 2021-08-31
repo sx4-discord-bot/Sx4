@@ -77,6 +77,7 @@ import java.time.*;
 import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoField;
+import java.time.temporal.ChronoUnit;
 import java.time.temporal.Temporal;
 import java.util.List;
 import java.util.*;
@@ -688,7 +689,7 @@ public class Sx4 {
 					}
 				}
 
-				event.reply("Slow down there! You can execute this command again in " + TimeUtility.getTimeString(cooldown.getTimeRemainingMillis(), TimeUnit.MILLISECONDS) + " :stopwatch:").queue();
+				event.reply("Slow down there! You can execute this command again in " + TimeUtility.LONG_TIME_FORMATTER.parse(Duration.of(cooldown.getTimeRemainingMillis(), ChronoUnit.MILLIS)) + " :stopwatch:").queue();
 			}).setNSFWFunction(event -> {
 				if (!CheckUtility.canReply(this, event.getMessage(), event.getPrefix(), event.getProperty("canaryPrefixes"))) {
 					return;

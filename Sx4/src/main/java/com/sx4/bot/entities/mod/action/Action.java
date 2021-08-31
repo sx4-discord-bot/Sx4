@@ -28,7 +28,7 @@ public class Action {
 			action = this;
 		}
 		
-		return action.getModAction().getName() + (action instanceof TimeAction ? " (" + TimeUtility.getTimeString(((TimeAction) action).getDuration()) + ")" : "");
+		return action.getModAction().getName() + (action instanceof TimeAction ? " (" + TimeUtility.LONG_TIME_FORMATTER.parse(((TimeAction) action).getDuration()) + ")" : "");
 	}
 
 	public Document toData() {

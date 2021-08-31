@@ -44,7 +44,7 @@ public class ServerInfoCommand extends Sx4Command {
 			.addField("Voice Channels", String.valueOf(guild.getVoiceChannels().size()), true)
 			.addField("Categories", String.valueOf(guild.getCategories().size()), true)
 			.addField("Verification Level", StringUtility.title(guild.getVerificationLevel().name()), true)
-			.addField("AFK Timeout", TimeUtility.getTimeString(guild.getAfkTimeout().getSeconds()), true)
+			.addField("AFK Timeout", TimeUtility.LONG_TIME_FORMATTER.parse(guild.getAfkTimeout().getSeconds()), true)
 			.addField("AFK Channel", guild.getAfkChannel() == null ? "None" : guild.getAfkChannel().getName(), true)
 			.addField("Explicit Content Filter", guild.getExplicitContentLevel().getDescription(), true)
 			.addField("Roles", String.valueOf(guild.getRoles().size()), true)

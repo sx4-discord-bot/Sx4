@@ -7,6 +7,7 @@ import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.economy.item.*;
+import com.sx4.bot.entities.utility.TimeFormatter;
 import com.sx4.bot.utility.EconomyUtility;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.TimeUtility;
@@ -21,6 +22,7 @@ import java.util.stream.Collectors;
 public class ChopCommand extends Sx4Command {
 
 	public static final long COOLDOWN = 600L;
+
 
 	public ChopCommand() {
 		super("chop", 386);
@@ -50,7 +52,7 @@ public class ChopCommand extends Sx4Command {
 
 			long usableAmount = axeStack.getUsableAmount();
 			if (usableAmount == 0) {
-				event.reply("Slow down! You can chop some trees down again in " + TimeUtility.getTimeString(axeStack.getTimeRemaining()) + " :stopwatch:").queue();
+				event.reply("Slow down! You can chop some trees down again in " + TimeUtility.LONG_TIME_FORMATTER.parse(axeStack.getTimeRemaining()) + " :stopwatch:").queue();
 				session.abortTransaction();
 				return;
 			}

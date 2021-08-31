@@ -9,6 +9,7 @@ import com.sx4.bot.annotations.command.Redirects;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
+import com.sx4.bot.entities.utility.TimeFormatter;
 import com.sx4.bot.http.HttpCallback;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.TimeUtility;
@@ -28,6 +29,7 @@ import java.util.*;
 public class VoteCommand extends Sx4Command {
 
 	public static final long COOLDOWN = 43200L;
+
 
 	public VoteCommand() {
 		super("vote", 405);
@@ -69,7 +71,7 @@ public class VoteCommand extends Sx4Command {
 					}
 
 					if (timeRemaining > 0) {
-						embed.addField("Sx4", "**[You have voted recently you can vote for the bot again in " + TimeUtility.getTimeString(timeRemaining) + "](https://top.gg/bot/440996323156819968/vote)**", false);
+						embed.addField("Sx4", "**[You have voted recently you can vote for the bot again in " + TimeUtility.LONG_TIME_FORMATTER.parse(timeRemaining) + "](https://top.gg/bot/440996323156819968/vote)**", false);
 					} else {
 						embed.addField("Sx4", "**[You can vote for Sx4 for an extra $" + (weekend ? 1600 : 800) + "](https://top.gg/bot/440996323156819968/vote)**", false);
 					}

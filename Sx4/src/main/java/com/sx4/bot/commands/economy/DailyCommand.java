@@ -25,6 +25,7 @@ public class DailyCommand extends Sx4Command {
 
 	public static final long COOLDOWN = 86400L;
 
+
 	public DailyCommand() {
 		super("daily", 407);
 
@@ -53,7 +54,7 @@ public class DailyCommand extends Sx4Command {
 
 			long reset = economy.getEmbedded(List.of("resets", "daily"), 0L), timestamp = Clock.systemUTC().instant().getEpochSecond();
 			if (timestamp < reset) {
-				event.reply("Slow down! You can collect your daily in " + TimeUtility.getTimeString(reset - timestamp) + " :stopwatch:").queue();
+				event.reply("Slow down! You can collect your daily in " + TimeUtility.LONG_TIME_FORMATTER.parse(reset - timestamp) + " :stopwatch:").queue();
 				return CompletableFuture.completedFuture(null);
 			}
 

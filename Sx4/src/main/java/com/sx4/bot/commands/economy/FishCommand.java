@@ -10,6 +10,7 @@ import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.economy.item.CooldownItemStack;
 import com.sx4.bot.entities.economy.item.ItemType;
 import com.sx4.bot.entities.economy.item.Rod;
+import com.sx4.bot.entities.utility.TimeFormatter;
 import com.sx4.bot.utility.EconomyUtility;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.TimeUtility;
@@ -23,6 +24,7 @@ import java.util.List;
 public class FishCommand extends Sx4Command {
 
 	public static final long COOLDOWN = 300L;
+
 
 	public FishCommand() {
 		super("fish", 355);
@@ -53,7 +55,7 @@ public class FishCommand extends Sx4Command {
 
 			long usableAmount = rodStack.getUsableAmount();
 			if (usableAmount == 0) {
-				event.reply("Slow down! You can go fishing again in " + TimeUtility.getTimeString(rodStack.getTimeRemaining()) + " :stopwatch:").queue();
+				event.reply("Slow down! You can go fishing again in " + TimeUtility.LONG_TIME_FORMATTER.parse(rodStack.getTimeRemaining()) + " :stopwatch:").queue();
 				session.abortTransaction();
 				return;
 			}

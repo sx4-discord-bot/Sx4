@@ -9,6 +9,7 @@ import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.entities.mod.PartialEmote;
+import com.sx4.bot.entities.utility.TimeFormatter;
 import com.sx4.bot.http.HttpCallback;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
@@ -122,7 +123,7 @@ public class EmoteCommand extends Sx4Command {
 					}
 
 					if (exception instanceof RateLimitedException) {
-						event.replyFailure("Creating emotes in this server is currently rate-limited by discord, try again in " + TimeUtility.getTimeString(((RateLimitedException) exception).getRetryAfter() / 1000)).queue();
+						event.replyFailure("Creating emotes in this server is currently rate-limited by discord, try again in " + TimeUtility.LONG_TIME_FORMATTER.parse(((RateLimitedException) exception).getRetryAfter() / 1000)).queue();
 						return;
 					}
 

@@ -1,14 +1,14 @@
 package com.sx4.bot.utility;
 
+import com.sx4.bot.entities.utility.TimeFormatter;
+
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
 
@@ -98,43 +98,30 @@ public class TimeUtility {
 	private static final ChronoUnit[] CHRONO_UNITS = {ChronoUnit.CENTURIES, ChronoUnit.DECADES, ChronoUnit.YEARS, ChronoUnit.MONTHS, ChronoUnit.WEEKS, ChronoUnit.DAYS, ChronoUnit.HOURS, ChronoUnit.MINUTES, ChronoUnit.SECONDS};
 	private static final ChronoUnit[] MUSIC_CHRONO_UNITS = {ChronoUnit.HOURS, ChronoUnit.MINUTES, ChronoUnit.SECONDS};
 
-	public static final Map<ChronoUnit, Map<Boolean, String>> LONG_SUFFIXES = new HashMap<>();
-	public static final Map<ChronoUnit, Map<Boolean, String>> SHORT_SUFFIXES = new HashMap<>();
+	public static final TimeFormatter.Builder LONG_TIME_FORMATTER_BUILDER = new TimeFormatter.Builder();
+	public static final TimeFormatter LONG_TIME_FORMATTER;
+
+	public static final TimeFormatter.Builder SHORT_TIME_FORMATTER_BUILDER = new TimeFormatter.Builder();
+	public static final TimeFormatter SHORT_TIME_FORMATTER;
+
 	static {
 		for (ChronoUnit unit : TimeUtility.CHRONO_UNITS) {
 			String unitName = unit.name().toLowerCase();
 			switch (unit) {
-				case CENTURIES -> LONG_SUFFIXES.compute(unit, (key, value) -> {
-					Map<Boolean, String> map = value == null ? new HashMap<>() : value;
-					map.put(true, " centuries");
-					map.put(false, " century");
-					return map;
-				});
-				case MILLENNIA -> LONG_SUFFIXES.compute(unit, (key, value) -> {
-					Map<Boolean, String> map = value == null ? new HashMap<>() : value;
-					map.put(true, " millennia");
-					map.put(false, " millennium");
-					return map;
-				});
+				case CENTURIES -> LONG_TIME_FORMATTER_BUILDER.addNonPluralSuffix(unit, " century").addPluralSuffix(unit, " centuries");
+				case MILLENNIA -> LONG_TIME_FORMATTER_BUILDER.addNonPluralSuffix(unit, " millennium").addPluralSuffix(unit, " millennia");
 				default -> {
 					String name = unitName.substring(0, unitName.length() - 1);
-					LONG_SUFFIXES.compute(unit, (key, value) -> {
-						Map<Boolean, String> map = value == null ? new HashMap<>() : value;
-						map.put(true, " " + name + "s");
-						map.put(false, " " + name);
-						return map;
-					});
+					LONG_TIME_FORMATTER_BUILDER.addNonPluralSuffix(unit, " " + name).addPluralSuffix(unit, " " + name + "s");
 				}
 			}
 
 			String suffix = unit == ChronoUnit.MONTHS ? "M" : unitName.substring(0, 1);
-			SHORT_SUFFIXES.compute(unit, (key, value) -> {
-				Map<Boolean, String> map = value == null ? new HashMap<>() : value;
-				map.put(true, suffix);
-				map.put(false, suffix);
-				return map;
-			});
+			SHORT_TIME_FORMATTER_BUILDER.addUniSuffix(unit, suffix);
 		}
+
+		LONG_TIME_FORMATTER = LONG_TIME_FORMATTER_BUILDER.build();
+		SHORT_TIME_FORMATTER = SHORT_TIME_FORMATTER_BUILDER.build();
 	}
 	
 	private static LocalDate parseDate(String date, String character, int currentYear) {
@@ -236,65 +223,6 @@ public class TimeUtility {
 		}
 
 		return Duration.between(now, time);
-	}
-
-	public static String getTimeString(long duration, TimeUnit unit, Map<ChronoUnit, Map<Boolean, String>> units, int maxUnits) {
-		long seconds = unit.toSeconds(duration);
-		if (seconds < 0) {
-			throw new IllegalArgumentException("duration cannot be a negative value");
-		}
-
-		if (seconds == 0) {
-			return "0" + units.get(ChronoUnit.SECONDS).get(true);
-		}
-
-		StringBuilder string = new StringBuilder();
-		int unitsUsed = 0;
-		for (int i = 0; i < TimeUtility.CHRONO_UNITS.length; i++) {
-			ChronoUnit chronoUnit = TimeUtility.CHRONO_UNITS[i];
-
-			long secondsInTime = chronoUnit.getDuration().getSeconds();
-			int amount = (int) Math.floor((double) seconds / secondsInTime);
-
-			if (amount != 0) {
-				Map<Boolean, String> suffix = units.get(chronoUnit);
-				if (suffix != null) {
-					string.append(amount).append(suffix.get(amount != 1));
-
-					if (++unitsUsed == maxUnits) {
-						return string.toString();
-					}
-
-					seconds -= amount * secondsInTime;
-				}
-
-				if (seconds == 0) {
-					break;
-				}
-
-				if (i != TimeUtility.CHRONO_UNITS.length - 1) {
-					string.append(" ");
-				}
-			}
-		}
-
-		return string.toString();
-	}
-
-	public static String getTimeString(long seconds, Map<ChronoUnit, Map<Boolean, String>> units, int maxUnits) {
-		return TimeUtility.getTimeString(seconds, TimeUnit.SECONDS, units, maxUnits);
-	}
-
-	public static String getTimeString(long seconds, Map<ChronoUnit, Map<Boolean, String>> units) {
-		return TimeUtility.getTimeString(seconds, units, -1);
-	}
-
-	public static String getTimeString(long seconds, TimeUnit unit) {
-		return TimeUtility.getTimeString(seconds, unit, TimeUtility.LONG_SUFFIXES, -1);
-	}
-	
-	public static String getTimeString(long seconds) {
-		return TimeUtility.getTimeString(seconds, TimeUnit.SECONDS);
 	}
 
 	public static String getMusicTimeString(long seconds) {

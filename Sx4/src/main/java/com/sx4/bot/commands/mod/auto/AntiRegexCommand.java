@@ -371,7 +371,7 @@ public class AntiRegexCommand extends Sx4Command {
 				return;
 			}
 
-			event.reply(amount == 0 ? "Users attempts will no longer reset" + event.getConfig().getSuccessEmote() : String.format("Users attempts will now reset **%d** time%s after `%s` %s", amount, amount == 1 ? "" : "s", TimeUtility.getTimeString(time.toSeconds()), event.getConfig().getSuccessEmote())).queue();
+			event.reply(amount == 0 ? "Users attempts will no longer reset" + event.getConfig().getSuccessEmote() : String.format("Users attempts will now reset **%d** time%s after `%s` %s", amount, amount == 1 ? "" : "s", TimeUtility.LONG_TIME_FORMATTER.parse(time.toSeconds()), event.getConfig().getSuccessEmote())).queue();
 		});
 	}
 

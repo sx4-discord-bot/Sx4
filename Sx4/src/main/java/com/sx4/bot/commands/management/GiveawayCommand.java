@@ -18,6 +18,7 @@ import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.argument.Alternative;
 import com.sx4.bot.entities.argument.MessageArgument;
+import com.sx4.bot.entities.utility.TimeFormatter;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.NumberUtility;
@@ -68,7 +69,7 @@ public class GiveawayCommand extends Sx4Command {
 	private MessageEmbed getEmbed(int winners, long seconds, String item) {
 		EmbedBuilder embed = new EmbedBuilder()
 			.setTitle("Giveaway")
-			.setDescription(String.format("Enter by reacting with :tada:\n\nThis giveaway is for **%s**\nDuration: **%s**\nWinners: **%,d**", item, TimeUtility.getTimeString(seconds), winners))
+			.setDescription(String.format("Enter by reacting with :tada:\n\nThis giveaway is for **%s**\nDuration: **%s**\nWinners: **%,d**", item, TimeUtility.LONG_TIME_FORMATTER.parse(seconds), winners))
 			.setTimestamp(Instant.ofEpochSecond(Clock.systemUTC().instant().getEpochSecond() + seconds))
 			.setFooter("Ends", null);
 		
@@ -493,7 +494,7 @@ public class GiveawayCommand extends Sx4Command {
 			.setAuthor("Giveaways", null, event.getGuild().getIconUrl())
 			.setDisplayFunction(data -> {
 				long endAt = data.getLong("endAt"), timeNow = Clock.systemUTC().instant().getEpochSecond();
-				return data.getLong("messageId") + " - " + (endAt - timeNow < 0 ? "Ended" : TimeUtility.getTimeString(endAt - timeNow));
+				return data.getLong("messageId") + " - " + (endAt - timeNow < 0 ? "Ended" : TimeUtility.LONG_TIME_FORMATTER.parse(endAt - timeNow));
 			});
 		
 		paged.onSelect(select -> {
@@ -508,7 +509,7 @@ public class GiveawayCommand extends Sx4Command {
 				.map(User::getAsMention)
 				.collect(Collectors.joining(", "));
 			
-			event.replyFormat("**Giveaway %d**\nItem: %s\nWinner%s: %s\nDuration: %s", data.getLong("messageId"), data.getString("item"), winners.size() == 1 ? "" : "s", winnersString, TimeUtility.getTimeString(data.getLong("duration"))).queue();
+			event.replyFormat("**Giveaway %d**\nItem: %s\nWinner%s: %s\nDuration: %s", data.getLong("messageId"), data.getString("item"), winners.size() == 1 ? "" : "s", winnersString, TimeUtility.LONG_TIME_FORMATTER.parse(data.getLong("duration"))).queue();
 		});
 		
 		paged.execute(event);

@@ -15,6 +15,7 @@ import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.economy.auction.Auction;
 import com.sx4.bot.entities.economy.item.*;
+import com.sx4.bot.entities.utility.TimeFormatter;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.EconomyUtility;
 import com.sx4.bot.utility.ExceptionUtility;
@@ -31,6 +32,8 @@ import java.time.Clock;
 import java.util.List;
 
 public class AuctionCommand extends Sx4Command {
+
+	private final TimeFormatter formatter = TimeUtility.LONG_TIME_FORMATTER_BUILDER.setMaxUnits(1).build();
 
 	public AuctionCommand() {
 		super("auction", 414);
@@ -86,7 +89,7 @@ public class AuctionCommand extends Sx4Command {
 						ItemStack<?> stack = auction.getItemStack();
 						Item auctionItem = stack.getItem();
 
-						StringBuilder content = new StringBuilder(String.format("Expires In: %s\nPrice: $%,d\nPrice Per Item: $%,.2f\nAmount: %,d", TimeUtility.getTimeString(auction.getExpiresAt() - Clock.systemUTC().instant().getEpochSecond(), TimeUtility.SHORT_SUFFIXES, 2), auction.getPrice(), auction.getPricePerItem(), stack.getAmount()));
+						StringBuilder content = new StringBuilder(String.format("Expires In: %s\nPrice: $%,d\nPrice Per Item: $%,.2f\nAmount: %,d", TimeUtility.LONG_TIME_FORMATTER.parse(auction.getExpiresAt() - Clock.systemUTC().instant().getEpochSecond()), auction.getPrice(), auction.getPricePerItem(), stack.getAmount()));
 
 						if (auctionItem instanceof Tool) {
 							Tool tool = (Tool) auctionItem;
@@ -229,7 +232,7 @@ public class AuctionCommand extends Sx4Command {
 						ItemStack<?> stack = auction.getItemStack();
 						Item auctionItem = stack.getItem();
 
-						StringBuilder content = new StringBuilder(String.format("Expires In: %s\nPrice: $%,d\nPrice Per Item: $%,.2f\nAmount: %,d", TimeUtility.getTimeString(auction.getExpiresAt() - Clock.systemUTC().instant().getEpochSecond(), TimeUtility.SHORT_SUFFIXES, 2), auction.getPrice(), auction.getPricePerItem(), stack.getAmount()));
+						StringBuilder content = new StringBuilder(String.format("Expires In: %s\nPrice: $%,d\nPrice Per Item: $%,.2f\nAmount: %,d", TimeUtility.LONG_TIME_FORMATTER.parse(auction.getExpiresAt() - Clock.systemUTC().instant().getEpochSecond()), auction.getPrice(), auction.getPricePerItem(), stack.getAmount()));
 
 						if (auctionItem instanceof Tool) {
 							Tool tool = (Tool) auctionItem;
@@ -355,7 +358,7 @@ public class AuctionCommand extends Sx4Command {
 						ItemStack<?> stack = auction.getItemStack();
 						Item auctionItem = stack.getItem();
 
-						StringBuilder content = new StringBuilder(String.format("Expires In: %s\nPrice: $%,d\nPrice Per Item: $%,.2f\nAmount: %,d", TimeUtility.getTimeString(auction.getExpiresAt() - Clock.systemUTC().instant().getEpochSecond(), TimeUtility.SHORT_SUFFIXES, 2), auction.getPrice(), auction.getPricePerItem(), stack.getAmount()));
+						StringBuilder content = new StringBuilder(String.format("Expires In: %s\nPrice: $%,d\nPrice Per Item: $%,.2f\nAmount: %,d", TimeUtility.LONG_TIME_FORMATTER.parse(auction.getExpiresAt() - Clock.systemUTC().instant().getEpochSecond()), auction.getPrice(), auction.getPricePerItem(), stack.getAmount()));
 
 						if (auctionItem instanceof Tool) {
 							Tool tool = (Tool) auctionItem;

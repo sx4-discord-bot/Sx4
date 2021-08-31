@@ -18,8 +18,8 @@ import org.bson.Document;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
-import java.util.concurrent.TimeUnit;
 
 public class ServerStatsCommand extends Sx4Command {
 
@@ -108,7 +108,7 @@ public class ServerStatsCommand extends Sx4Command {
 		for (long key : map.keySet()) {
 			Map<ServerStatsType, Integer> stats = map.get(key);
 			for (ServerStatsType type : stats.keySet()) {
-				embed.addField(StringUtility.title(type.getField()) + " (" + TimeUtility.getTimeString(key, TimeUnit.HOURS) + ")", String.format("%,d", stats.get(type) + (live ? manager.getCounter(event.getGuild().getIdLong(), type) : 0)), false);
+				embed.addField(StringUtility.title(type.getField()) + " (" + TimeUtility.LONG_TIME_FORMATTER.parse(Duration.of(key, ChronoUnit.HOURS)) + ")", String.format("%,d", stats.get(type) + (live ? manager.getCounter(event.getGuild().getIdLong(), type) : 0)), false);
 			}
 		}
 

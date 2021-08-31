@@ -27,7 +27,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class ReminderCommand extends Sx4Command {
-	
+
 	public ReminderCommand() {
 		super("reminder", 152);
 		
@@ -74,7 +74,7 @@ public class ReminderCommand extends Sx4Command {
 
 			event.getBot().getReminderManager().putReminder(initialDuration, data);
 
-			event.replyFormat("I will remind you about that in **%s**, your reminder id is `%s` %s", TimeUtility.getTimeString(initialDuration), id.toHexString(), event.getConfig().getSuccessEmote()).queue();
+			event.replyFormat("I will remind you about that in **%s**, your reminder id is `%s` %s", TimeUtility.LONG_TIME_FORMATTER.parse(initialDuration), id.toHexString(), event.getConfig().getSuccessEmote()).queue();
 		});
 	}
 	
@@ -95,7 +95,7 @@ public class ReminderCommand extends Sx4Command {
 				.setAuthor("Reminders", null, event.getAuthor().getEffectiveAvatarUrl())
 				.setPerPage(10)
 				.setIndexed(true)
-				.setDisplayFunction(data -> StringUtility.limit(data.getString("reminder"), 150) + " in `" + TimeUtility.getTimeString(data.getLong("remindAt") - now) + "`");
+				.setDisplayFunction(data -> StringUtility.limit(data.getString("reminder"), 150) + " in `" + TimeUtility.LONG_TIME_FORMATTER.parse(data.getLong("remindAt") - now) + "`");
 
 			paged.onSelect(select -> {
 				ObjectId selected = select.getSelected().getObjectId("_id");
@@ -150,7 +150,7 @@ public class ReminderCommand extends Sx4Command {
 		PagedResult<Document> paged = new PagedResult<>(event.getBot(), reminders)
 			.setIndexed(false)
 			.setAuthor(event.getAuthor().getName() + "'s Reminders", null, event.getAuthor().getEffectiveAvatarUrl())
-			.setDisplayFunction(data -> data.getObjectId("_id").toHexString() + " - `" + TimeUtility.getTimeString(data.getLong("remindAt") - timeNow) + "`");
+			.setDisplayFunction(data -> data.getObjectId("_id").toHexString() + " - `" + TimeUtility.LONG_TIME_FORMATTER.parse(data.getLong("remindAt") - timeNow) + "`");
 		
 		paged.execute(event);
 	}

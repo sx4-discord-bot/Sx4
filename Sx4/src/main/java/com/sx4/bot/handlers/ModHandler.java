@@ -164,7 +164,7 @@ public class ModHandler implements ModActionListener, EventListener {
 	
 	public void onMute(MuteEvent event) {
 		EmbedBuilder embed = this.getGenericEmbed(event.getGuild(), event.getModerator().getUser(), event.getAction(), event.getReason());
-		embed.getFields().add(0, new MessageEmbed.Field("Duration", TimeUtility.getTimeString(event.getDuration()), false));
+		embed.getFields().add(0, new MessageEmbed.Field("Duration", TimeUtility.LONG_TIME_FORMATTER.parse(event.getDuration()), false));
 
 		event.getTarget().openPrivateChannel()
 			.flatMap(channel -> channel.sendMessageEmbeds(embed.build()))

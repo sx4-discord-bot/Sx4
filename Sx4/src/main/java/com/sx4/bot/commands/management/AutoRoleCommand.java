@@ -17,6 +17,7 @@ import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.argument.Alternative;
 import com.sx4.bot.entities.argument.TimedArgument;
 import com.sx4.bot.entities.management.AutoRoleFilter;
+import com.sx4.bot.entities.utility.TimeFormatter;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.AutoRoleUtility;
 import com.sx4.bot.utility.ExceptionUtility;
@@ -256,6 +257,7 @@ public class AutoRoleCommand extends Sx4Command {
 	}
 	
 	public static class FilterCommand extends Sx4Command {
+
 		
 		public FilterCommand() {
 			super("filter", 42);
@@ -303,7 +305,7 @@ public class AutoRoleCommand extends Sx4Command {
 					return;
 				}
 				
-				event.reply("That auto role now has the filter `" + filter.name() + "` " + (timedArgument.hasDuration() ? "with a duration of " + TimeUtility.getTimeString(timedArgument.getSeconds()) + " " : "") + event.getConfig().getSuccessEmote()).queue();
+				event.reply("That auto role now has the filter `" + filter.name() + "` " + (timedArgument.hasDuration() ? "with a duration of " + TimeUtility.LONG_TIME_FORMATTER.parse(timedArgument.getSeconds()) + " " : "") + event.getConfig().getSuccessEmote()).queue();
 			});
 		}
 		

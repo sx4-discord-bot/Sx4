@@ -4,6 +4,7 @@ import com.jockie.bot.core.argument.Argument;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
+import com.sx4.bot.entities.utility.TimeFormatter;
 import com.sx4.bot.utility.PermissionUtility;
 import com.sx4.bot.utility.TimeUtility;
 import net.dv8tion.jda.api.Permission;
@@ -49,7 +50,7 @@ public class SlowModeCommand extends Sx4Command {
 		}
 
 		effectiveChannel.getManager().setSlowmode((int) seconds)
-			.flatMap($ -> event.replySuccess(seconds == 0 ? "Turned off the slow mode in " + effectiveChannel.getAsMention() : "Set the slow mode in " + effectiveChannel.getAsMention() + " to " + TimeUtility.getTimeString(seconds)))
+			.flatMap($ -> event.replySuccess(seconds == 0 ? "Turned off the slow mode in " + effectiveChannel.getAsMention() : "Set the slow mode in " + effectiveChannel.getAsMention() + " to " + TimeUtility.LONG_TIME_FORMATTER.parse(seconds)))
 			.queue();
 	}
 

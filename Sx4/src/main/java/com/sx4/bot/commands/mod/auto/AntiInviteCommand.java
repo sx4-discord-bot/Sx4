@@ -5,7 +5,6 @@ import com.jockie.bot.core.command.Command;
 import com.mongodb.client.model.*;
 import com.sx4.bot.annotations.argument.AlternativeOptions;
 import com.sx4.bot.annotations.argument.Limit;
-import com.sx4.bot.annotations.argument.Options;
 import com.sx4.bot.annotations.command.AuthorPermissions;
 import com.sx4.bot.annotations.command.CommandId;
 import com.sx4.bot.annotations.command.Examples;
@@ -21,6 +20,7 @@ import com.sx4.bot.entities.mod.action.ModAction;
 import com.sx4.bot.entities.mod.auto.MatchAction;
 import com.sx4.bot.entities.mod.auto.RegexType;
 import com.sx4.bot.entities.settings.HolderType;
+import com.sx4.bot.entities.utility.TimeFormatter;
 import com.sx4.bot.handlers.AntiRegexHandler;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
@@ -41,6 +41,7 @@ import java.util.concurrent.CompletableFuture;
 public class AntiInviteCommand extends Sx4Command {
 
 	public static final ObjectId REGEX_ID = new ObjectId("605b5255b656f84eb97fca06");
+
 
 	public AntiInviteCommand() {
 		super("antiinvite", 305);
@@ -173,7 +174,7 @@ public class AntiInviteCommand extends Sx4Command {
 				return;
 			}
 
-			event.reply(amount == 0 ? "Users attempts will no longer reset" + event.getConfig().getSuccessEmote() : String.format("Users attempts will now reset **%d** time%s after `%s` %s", amount, amount == 1 ? "" : "s", TimeUtility.getTimeString(time.toSeconds()), event.getConfig().getSuccessEmote())).queue();
+			event.reply(amount == 0 ? "Users attempts will no longer reset" + event.getConfig().getSuccessEmote() : String.format("Users attempts will now reset **%d** time%s after `%s` %s", amount, amount == 1 ? "" : "s", TimeUtility.LONG_TIME_FORMATTER.parse(time.toSeconds()), event.getConfig().getSuccessEmote())).queue();
 		});
 	}
 

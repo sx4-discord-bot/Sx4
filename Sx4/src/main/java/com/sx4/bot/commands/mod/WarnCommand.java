@@ -66,7 +66,7 @@ public class WarnCommand extends Sx4Command {
 				Warn warn = warning.getWarning();
 				Action action = warn.getAction();
 
-				event.replyFormat("**%s** has received a %s%s (%s warning) " + event.getConfig().getSuccessEmote(), member.getUser().getAsTag(), action.getModAction().getName().toLowerCase(), action instanceof TimeAction ? " for " + TimeUtility.getTimeString(((TimeAction) action).getDuration()) : "", NumberUtility.getSuffixed(warn.getNumber())).queue();
+				event.replyFormat("**%s** has received a %s%s (%s warning) " + event.getConfig().getSuccessEmote(), member.getUser().getAsTag(), action.getModAction().getName().toLowerCase(), action instanceof TimeAction ? " for " + TimeUtility.LONG_TIME_FORMATTER.parse(((TimeAction) action).getDuration()) : "", NumberUtility.getSuffixed(warn.getNumber())).queue();
 			}
 		});
 	}
@@ -142,7 +142,7 @@ public class WarnCommand extends Sx4Command {
 				return;
 			}
 
-			event.reply(amount == 0 ? "Users warns will no longer reset" + event.getConfig().getSuccessEmote() : String.format("Users warns will now reset **%d** time%s after `%s` %s", amount, amount == 1 ? "" : "s", TimeUtility.getTimeString(time.toSeconds()), event.getConfig().getSuccessEmote())).queue();
+			event.reply(amount == 0 ? "Users warns will no longer reset" + event.getConfig().getSuccessEmote() : String.format("Users warns will now reset **%d** time%s after `%s` %s", amount, amount == 1 ? "" : "s", TimeUtility.LONG_TIME_FORMATTER.parse(time.toSeconds()), event.getConfig().getSuccessEmote())).queue();
 		});
 	}
 
@@ -205,6 +205,7 @@ public class WarnCommand extends Sx4Command {
 	}
 
 	public static class ConfigCommand extends Sx4Command {
+
 
 		public ConfigCommand() {
 			super("configuration", 236);
@@ -274,7 +275,7 @@ public class WarnCommand extends Sx4Command {
 					return;
 				}
 
-				event.replySuccess("Warning #" + warnings + " will now give the user a " + action.getName().toLowerCase() + (duration == null ? "" : " for " + TimeUtility.getTimeString(duration.toSeconds()))).queue();
+				event.replySuccess("Warning #" + warnings + " will now give the user a " + action.getName().toLowerCase() + (duration == null ? "" : " for " + TimeUtility.LONG_TIME_FORMATTER.parse(duration.toSeconds()))).queue();
 			});
 		}
 

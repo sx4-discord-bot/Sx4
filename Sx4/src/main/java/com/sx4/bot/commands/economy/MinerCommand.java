@@ -12,6 +12,7 @@ import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.economy.item.*;
+import com.sx4.bot.entities.utility.TimeFormatter;
 import com.sx4.bot.managers.EconomyManager;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.EconomyUtility;
@@ -29,6 +30,7 @@ import java.util.stream.Collectors;
 public class MinerCommand extends Sx4Command {
 
 	public static final long COOLDOWN = 7200L;
+
 
 	public MinerCommand() {
 		super("miner", 401);
@@ -174,7 +176,7 @@ public class MinerCommand extends Sx4Command {
 			}
 
 			if (usableTotal == 0) {
-				event.reply("Slow down! You can collect from your miner in " + TimeUtility.getTimeString(lowestReset) + " :stopwatch:").queue();
+				event.reply("Slow down! You can collect from your miner in " + TimeUtility.LONG_TIME_FORMATTER.parse(lowestReset) + " :stopwatch:").queue();
 				session.abortTransaction();
 				return null;
 			}

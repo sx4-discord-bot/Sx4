@@ -18,6 +18,7 @@ import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.mod.Reason;
+import com.sx4.bot.entities.utility.TimeFormatter;
 import com.sx4.bot.events.mod.TemporaryBanEvent;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
@@ -97,7 +98,7 @@ public class TemporaryBanCommand extends Sx4Command {
 						}
 
 						event.getGuild().ban(user, days).reason(ModUtility.getAuditReason(reason, event.getAuthor())).queue($ -> {
-							event.replySuccess("**" + user.getAsTag() + "** has been temporarily banned for " + TimeUtility.getTimeString(duration)).queue();
+							event.replySuccess("**" + user.getAsTag() + "** has been temporarily banned for " + TimeUtility.LONG_TIME_FORMATTER.parse(duration)).queue();
 
 							event.getBot().getModActionManager().onModAction(new TemporaryBanEvent(event.getMember(), user, reason, member != null, duration));
 							event.getBot().getTemporaryBanManager().putBan(event.getGuild().getIdLong(), user.getIdLong(), duration);
@@ -132,7 +133,7 @@ public class TemporaryBanCommand extends Sx4Command {
 				return;
 			}
 
-			event.replySuccess("Your temporary ban default time has been set to **" + TimeUtility.getTimeString(seconds) + "**").queue();
+			event.replySuccess("Your temporary ban default time has been set to **" + TimeUtility.LONG_TIME_FORMATTER.parse(seconds) + "**").queue();
 		});
 	}
 
@@ -155,7 +156,7 @@ public class TemporaryBanCommand extends Sx4Command {
 			.setDisplayFunction(data -> {
 				User user = event.getShardManager().getUserById(data.getLong("userId"));
 
-				return (user == null ? "Anonymous#0000" : user.getAsTag()) + " - " + TimeUtility.getTimeString(data.getLong("unbanAt") - Clock.systemUTC().instant().getEpochSecond());
+				return (user == null ? "Anonymous#0000" : user.getAsTag()) + " - " + TimeUtility.LONG_TIME_FORMATTER.parse(data.getLong("unbanAt") - Clock.systemUTC().instant().getEpochSecond());
 			});
 
 		paged.execute(event);
