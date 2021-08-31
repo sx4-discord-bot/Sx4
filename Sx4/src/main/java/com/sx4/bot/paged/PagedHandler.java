@@ -83,7 +83,6 @@ public class PagedHandler implements EventListener {
 		String contentLower = content.toLowerCase();
 		
 		EnumSet<SelectType> selectTypes = pagedResult.getSelect();
-		System.out.println(selectTypes);
 		
 		if (this.next.contains(contentLower)) {
 			if (pagedResult.getNextPage() != pagedResult.getPage()) {
@@ -101,7 +100,6 @@ public class PagedHandler implements EventListener {
 		} else if (selectTypes.contains(SelectType.INDEX) && NumberUtility.isNumberUnsigned(content)) {
 			try {
 				int index = Integer.parseInt(content);
-				System.out.println(index);
 				if (index > pagedResult.getLowerPageBound() && index <= pagedResult.getHigherPageBound()) {
 					pagedResult.select(pagedResult.isIncreasedIndex() ? index - 1 : (pagedResult.getPage() * pagedResult.getPerPage() - pagedResult.getPerPage()) + (index - 1));
 					this.attemptDelete(message);
