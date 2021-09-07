@@ -234,30 +234,28 @@ public class ModHandler implements ModActionListener, EventListener {
 			return;
 		}
 
-		if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-			guild.retrieveAuditLogs().type(actionType).queueAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS, logs -> {
-				AuditLogEntry entry = logs.stream()
-					.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
-					.filter(e -> e.getTargetIdLong() == user.getIdLong())
-					.findFirst()
-					.orElse(null);
+		guild.retrieveAuditLogs().type(actionType).setCheck(() -> guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)).queueAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS, logs -> {
+			AuditLogEntry entry = logs.stream()
+				.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
+				.filter(e -> e.getTargetIdLong() == user.getIdLong())
+				.findFirst()
+				.orElse(null);
 
-				if (entry == null) {
-					return;
+			if (entry == null) {
+				return;
+			}
+
+			User moderator = entry.getUser();
+			String reason = entry.getReason();
+
+			if (moderator != null && moderator.getIdLong() != guild.getSelfMember().getIdLong()) {
+				if (actionType == ActionType.UNBAN) {
+					this.bot.getTemporaryBanManager().removeBan(guild.getIdLong(), user.getIdLong(), false);
 				}
 
-				User moderator = entry.getUser();
-				String reason = entry.getReason();
-
-				if (moderator != null && moderator.getIdLong() != guild.getSelfMember().getIdLong()) {
-					if (actionType == ActionType.UNBAN) {
-						this.bot.getTemporaryBanManager().removeBan(guild.getIdLong(), user.getIdLong(), false);
-					}
-
-					this.handle(guild, action, moderator, user, reason == null ? null : new Reason(reason));
-				}
-			});
-		}
+				this.handle(guild, action, moderator, user, reason == null ? null : new Reason(reason));
+			}
+		});
 	}
 
 }

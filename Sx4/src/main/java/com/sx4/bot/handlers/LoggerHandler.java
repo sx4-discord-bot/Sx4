@@ -66,7 +66,6 @@ import net.dv8tion.jda.api.events.role.update.RoleUpdateColorEvent;
 import net.dv8tion.jda.api.events.role.update.RoleUpdateNameEvent;
 import net.dv8tion.jda.api.events.role.update.RoleUpdatePermissionsEvent;
 import net.dv8tion.jda.api.hooks.EventListener;
-import net.dv8tion.jda.internal.JDAImpl;
 import net.dv8tion.jda.internal.utils.tuple.Pair;
 import okhttp3.OkHttpClient;
 import org.bson.Document;
@@ -77,10 +76,7 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.*;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.stream.Collectors;
 
 public class LoggerHandler implements EventListener {
@@ -142,6 +138,14 @@ public class LoggerHandler implements EventListener {
 		if (!deletedLoggers.isEmpty()) {
 			this.bot.getMongo().deleteManyLoggers(Filters.in("channelId", deletedLoggers)).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
 		}
+	}
+	
+	private CompletableFuture<List<AuditLogEntry>> retrieveAuditLogsDelayed(Guild guild, ActionType type) {
+		return guild.retrieveAuditLogs().type(type).setCheck(() -> guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)).submitAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS);
+	}
+
+	private CompletableFuture<List<AuditLogEntry>> retrieveAuditLogs(Guild guild, ActionType type) {
+		return guild.retrieveAuditLogs().type(type).setCheck(() -> guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)).submit();
 	}
 
 	private List<Bson> getPipeline(long guildId) {
@@ -343,7 +347,7 @@ public class LoggerHandler implements EventListener {
 				StringBuilder description = new StringBuilder(String.format("`%s` was just added to the server", member.getEffectiveName()));
 
 				if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-					guild.retrieveAuditLogs().type(ActionType.BOT_ADD).submitAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS).whenComplete((logs, auditException) -> {
+					this.retrieveAuditLogsDelayed(guild, ActionType.BOT_ADD).whenComplete((logs, auditException) -> {
 						User moderator = logs == null ? null : logs.stream()
 							.filter(e -> e.getTargetIdLong() == member.getIdLong())
 							.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
@@ -415,7 +419,7 @@ public class LoggerHandler implements EventListener {
 			}
 
 			if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-				guild.retrieveAuditLogs().type(ActionType.KICK).submitAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS).whenComplete((logs, auditException) -> {
+				this.retrieveAuditLogsDelayed(guild, ActionType.KICK).whenComplete((logs, auditException) -> {
 					User moderator = logs == null ? null : logs.stream()
 						.filter(e -> e.getTargetIdLong() == user.getIdLong())
 						.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
@@ -475,7 +479,7 @@ public class LoggerHandler implements EventListener {
 			}
 
 			if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-				guild.retrieveAuditLogs().type(ActionType.BAN).submitAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS).whenComplete((logs, auditException) -> {
+				this.retrieveAuditLogsDelayed(guild, ActionType.BAN).whenComplete((logs, auditException) -> {
 					User moderator = logs == null ? null : logs.stream()
 						.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
 						.filter(e -> e.getTargetIdLong() == user.getIdLong())
@@ -529,7 +533,7 @@ public class LoggerHandler implements EventListener {
 			}
 
 			if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-				guild.retrieveAuditLogs().type(ActionType.UNBAN).submitAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS).whenComplete((logs, auditException) -> {
+				this.retrieveAuditLogsDelayed(guild, ActionType.UNBAN).whenComplete((logs, auditException) -> {
 					User moderator = logs == null ? null : logs.stream()
 						.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
 						.filter(e -> e.getTargetIdLong() == user.getIdLong())
@@ -618,7 +622,7 @@ public class LoggerHandler implements EventListener {
 			}
 
 			if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-				event.getGuild().retrieveAuditLogs().type(ActionType.MEMBER_VOICE_KICK).submitAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS).whenComplete((logs, auditException) -> {
+				this.retrieveAuditLogsDelayed(event.getGuild(), ActionType.MEMBER_VOICE_KICK).whenComplete((logs, auditException) -> {
 					this.disconnectCache.putIfAbsent(guild.getIdLong(), new TLongIntHashMap());
 					TLongIntMap guildCache = this.disconnectCache.get(guild.getIdLong());
 
@@ -692,7 +696,7 @@ public class LoggerHandler implements EventListener {
 			}
 
 			if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-				event.getGuild().retrieveAuditLogs().type(ActionType.MEMBER_VOICE_MOVE).submitAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS).whenComplete((logs, auditException) -> {
+				this.retrieveAuditLogsDelayed(event.getGuild(), ActionType.MEMBER_VOICE_MOVE).whenComplete((logs, auditException) -> {
 					this.moveCache.putIfAbsent(joined.getIdLong(), new TLongIntHashMap());
 					TLongIntMap channelCache = this.moveCache.get(joined.getIdLong());
 
@@ -763,7 +767,7 @@ public class LoggerHandler implements EventListener {
 			}
 
 			if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-				guild.retrieveAuditLogs().type(ActionType.MEMBER_UPDATE).submitAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS).whenComplete((logs, auditException) -> {
+				this.retrieveAuditLogsDelayed(guild, ActionType.MEMBER_UPDATE).whenComplete((logs, auditException) -> {
 					User moderator = logs == null ? null : logs.stream()
 						.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
 						.filter(e -> e.getTargetIdLong() == member.getUser().getIdLong())
@@ -824,7 +828,7 @@ public class LoggerHandler implements EventListener {
 			}
 
 			if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-				guild.retrieveAuditLogs().type(ActionType.MEMBER_UPDATE).submitAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS).whenComplete((logs, auditException) -> {
+				this.retrieveAuditLogsDelayed(guild, ActionType.MEMBER_UPDATE).whenComplete((logs, auditException) -> {
 					User moderator = logs == null ? null : logs.stream()
 						.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
 						.filter(e -> e.getTargetIdLong() == member.getUser().getIdLong())
@@ -892,7 +896,7 @@ public class LoggerHandler implements EventListener {
 			}
 
 			if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-				guild.retrieveAuditLogs().type(ActionType.CHANNEL_OVERRIDE_CREATE).submitAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS).whenComplete((logs, auditException) -> {
+				this.retrieveAuditLogsDelayed(guild, ActionType.CHANNEL_OVERRIDE_CREATE).whenComplete((logs, auditException) -> {
 					User moderator = logs == null ? null : logs.stream()
 						.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
 						.filter(e -> e.getTargetIdLong() == channel.getIdLong())
@@ -972,7 +976,7 @@ public class LoggerHandler implements EventListener {
 			}
 
 			if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-				guild.retrieveAuditLogs().type(ActionType.CHANNEL_OVERRIDE_CREATE).submitAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS).whenComplete((logs, auditException) -> {
+				this.retrieveAuditLogsDelayed(guild, ActionType.CHANNEL_OVERRIDE_CREATE).whenComplete((logs, auditException) -> {
 					User moderator = logs == null ? null : logs.stream()
 						.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
 						.filter(e -> e.getTargetIdLong() == channel.getIdLong())
@@ -1063,7 +1067,7 @@ public class LoggerHandler implements EventListener {
 				}
 
 				if (!deleted && guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-					guild.retrieveAuditLogs().type(ActionType.CHANNEL_OVERRIDE_DELETE).submit().whenComplete((logs, auditException) -> {
+					this.retrieveAuditLogs(guild, ActionType.CHANNEL_OVERRIDE_DELETE).whenComplete((logs, auditException) -> {
 						User moderator = logs == null ? null : logs.stream()
 							.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
 							.filter(e -> e.getTargetIdLong() == channel.getIdLong())
@@ -1121,7 +1125,7 @@ public class LoggerHandler implements EventListener {
 			}
 
 			if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-				guild.retrieveAuditLogs().type(ActionType.CHANNEL_DELETE).submitAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS).whenComplete((logs, auditException) -> {
+				this.retrieveAuditLogsDelayed(guild, ActionType.CHANNEL_DELETE).whenComplete((logs, auditException) -> {
 					User moderator = logs == null ? null : logs.stream()
 						.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
 						.filter(e -> e.getTargetIdLong() == channel.getIdLong())
@@ -1191,7 +1195,7 @@ public class LoggerHandler implements EventListener {
 			}
 
 			if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-				guild.retrieveAuditLogs().type(ActionType.CHANNEL_CREATE).submitAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS).whenComplete((logs, auditException) -> {
+				this.retrieveAuditLogsDelayed(guild, ActionType.CHANNEL_CREATE).whenComplete((logs, auditException) -> {
 					User moderator = logs == null ? null : logs.stream()
 						.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
 						.filter(e -> e.getTargetIdLong() == channel.getIdLong())
@@ -1264,7 +1268,7 @@ public class LoggerHandler implements EventListener {
 			}
 
 			if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-				guild.retrieveAuditLogs().type(ActionType.CHANNEL_UPDATE).submitAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS).whenComplete((logs, auditException) -> {
+				this.retrieveAuditLogsDelayed(guild, ActionType.CHANNEL_UPDATE).whenComplete((logs, auditException) -> {
 					User moderator = logs == null ? null : logs.stream()
 						.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
 						.filter(e -> e.getTargetIdLong() == channel.getIdLong())
@@ -1335,7 +1339,7 @@ public class LoggerHandler implements EventListener {
 			}
 
 			if (!role.isManaged() && guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-				guild.retrieveAuditLogs().type(ActionType.ROLE_CREATE).submitAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS).whenComplete((logs, auditException) -> {
+				this.retrieveAuditLogsDelayed(guild, ActionType.ROLE_CREATE).whenComplete((logs, auditException) -> {
 					User moderator = logs == null ? null : logs.stream()
 						.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
 						.filter(e -> e.getTargetIdLong() == role.getIdLong())
@@ -1389,7 +1393,7 @@ public class LoggerHandler implements EventListener {
 			}
 
 			if (!role.isManaged() && guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-				guild.retrieveAuditLogs().type(ActionType.ROLE_DELETE).submitAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS).whenComplete((logs, auditException) -> {
+				this.retrieveAuditLogsDelayed(guild, ActionType.ROLE_DELETE).whenComplete((logs, auditException) -> {
 					User moderator = logs == null ? null : logs.stream()
 						.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
 						.filter(e -> e.getTargetIdLong() == role.getIdLong())
@@ -1446,7 +1450,7 @@ public class LoggerHandler implements EventListener {
 			}
 
 			if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-				guild.retrieveAuditLogs().type(ActionType.ROLE_UPDATE).submitAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS).whenComplete((logs, auditException) -> {
+				this.retrieveAuditLogsDelayed(guild, ActionType.ROLE_UPDATE).whenComplete((logs, auditException) -> {
 					User moderator = logs == null ? null : logs.stream()
 						.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
 						.filter(e -> e.getTargetIdLong() == role.getIdLong())
@@ -1506,7 +1510,7 @@ public class LoggerHandler implements EventListener {
 			}
 
 			if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-				guild.retrieveAuditLogs().type(ActionType.ROLE_UPDATE).submitAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS).whenComplete((logs, auditException) -> {
+				this.retrieveAuditLogsDelayed(guild, ActionType.ROLE_UPDATE).whenComplete((logs, auditException) -> {
 					User moderator = logs == null ? null : logs.stream()
 						.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
 						.filter(e -> e.getTargetIdLong() == role.getIdLong())
@@ -1566,7 +1570,7 @@ public class LoggerHandler implements EventListener {
 
 			StringBuilder description = new StringBuilder(String.format("The role %s has had permission changes made", role.getAsMention()));
 			if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-				guild.retrieveAuditLogs().type(ActionType.ROLE_UPDATE).submitAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS).whenComplete((logs, auditException) -> {
+				this.retrieveAuditLogsDelayed(guild, ActionType.ROLE_UPDATE).whenComplete((logs, auditException) -> {
 					User moderator = logs == null ? null : logs.stream()
 						.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
 						.filter(e -> e.getTargetIdLong() == role.getIdLong())
@@ -1662,7 +1666,7 @@ public class LoggerHandler implements EventListener {
 			}
 
 			if (!firstRole.isManaged() && guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-				guild.retrieveAuditLogs().type(ActionType.MEMBER_ROLE_UPDATE).submitAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS).whenComplete((logs, auditException) -> {
+				this.retrieveAuditLogsDelayed(guild, ActionType.MEMBER_ROLE_UPDATE).whenComplete((logs, auditException) -> {
 					User moderator = logs == null ? null : logs.stream()
 						.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
 						.filter(e -> e.getTargetIdLong() == member.getUser().getIdLong())
@@ -1784,7 +1788,7 @@ public class LoggerHandler implements EventListener {
 				}
 
 				if (!deleted && !firstRole.isManaged() && guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-					guild.retrieveAuditLogs().type(ActionType.MEMBER_ROLE_UPDATE).submit().whenComplete((logs, auditException) -> {
+					this.retrieveAuditLogs(guild, ActionType.MEMBER_ROLE_UPDATE).whenComplete((logs, auditException) -> {
 						User moderator = logs == null ? null : logs.stream()
 							.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
 							.filter(e -> e.getTargetIdLong() == member.getUser().getIdLong())
@@ -1864,7 +1868,7 @@ public class LoggerHandler implements EventListener {
 			}
 
 			if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-				guild.retrieveAuditLogs().type(ActionType.MEMBER_UPDATE).submitAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS).whenComplete((logs, auditException) -> {
+				this.retrieveAuditLogsDelayed(guild, ActionType.MEMBER_UPDATE).whenComplete((logs, auditException) -> {
 					User moderator = logs == null ? null : logs.stream()
 						.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
 						.filter(e -> e.getTargetIdLong() == user.getIdLong())
@@ -1918,7 +1922,7 @@ public class LoggerHandler implements EventListener {
 			}
 
 			if (!emote.isManaged() && guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-				guild.retrieveAuditLogs().type(ActionType.EMOTE_CREATE).submitAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS).whenComplete((logs, auditException) -> {
+				this.retrieveAuditLogsDelayed(guild, ActionType.EMOTE_CREATE).whenComplete((logs, auditException) -> {
 					User moderator = logs == null ? null : logs.stream()
 						.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
 						.filter(e -> e.getTargetIdLong() == emote.getIdLong())
@@ -1972,7 +1976,7 @@ public class LoggerHandler implements EventListener {
 			}
 
 			if (!emote.isManaged() && guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-				guild.retrieveAuditLogs().type(ActionType.EMOTE_DELETE).submitAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS).whenComplete((logs, auditException) -> {
+				this.retrieveAuditLogsDelayed(guild, ActionType.EMOTE_DELETE).whenComplete((logs, auditException) -> {
 					User moderator = logs == null ? null : logs.stream()
 						.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
 						.filter(e -> e.getTargetIdLong() == emote.getIdLong())
@@ -2029,7 +2033,7 @@ public class LoggerHandler implements EventListener {
 			}
 
 			if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-				guild.retrieveAuditLogs().type(ActionType.EMOTE_UPDATE).submitAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS).whenComplete((logs, auditException) -> {
+				this.retrieveAuditLogsDelayed(guild, ActionType.EMOTE_UPDATE).whenComplete((logs, auditException) -> {
 					User moderator = logs == null ? null : logs.stream()
 						.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
 						.filter(e -> e.getTargetIdLong() == emote.getIdLong())
