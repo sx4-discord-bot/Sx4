@@ -19,7 +19,7 @@ public class InfoCommand extends Sx4Command {
 
 	public void onCommand(Sx4CommandEvent event) {
 		EmbedBuilder embed = new EmbedBuilder();
-		embed.setAuthor("Info!", "https://sx4bot.co.uk", event.getSelfUser().getEffectiveAvatarUrl());
+		embed.setAuthor("Info!", "https://sx4.dev", event.getSelfUser().getEffectiveAvatarUrl());
 		embed.setColor(event.getConfig().getColour());
 		embed.setDescription(event.getConfig().getBackStory());
 
@@ -30,7 +30,7 @@ public class InfoCommand extends Sx4Command {
 				continue;
 			}
 
-			developers.append("[").append(user.getAsTag()).append("](").append(developer.containsKey("link") ? developer.getString("link") : "https://sx4bot.co.uk").append(")").append("\n");
+			developers.append("[").append(user.getAsTag()).append("](").append(developer.containsKey("link") ? developer.getString("link") : "https://sx4.dev").append(")").append("\n");
 		}
 
 		embed.addField("Developers", developers.toString(), true);
@@ -38,7 +38,7 @@ public class InfoCommand extends Sx4Command {
 
 		StringBuilder credits = new StringBuilder();
 		for (Document credit : event.getConfig().getCredits()) {
-			credits.append("[").append(credit.getString("name")).append("](").append(credit.containsKey("link") ? credit.getString("link") : "https://sx4bot.co.uk").append(")").append("\n");
+			credits.append("[").append(credit.getString("name")).append("](").append(credit.containsKey("link") ? credit.getString("link") : "https://sx4.dev").append(")").append("\n");
 		}
 
 		embed.addField("Credits", credits.toString(), true);

@@ -1502,8 +1502,8 @@ public class LoggerHandler implements EventListener {
 
 		int oldColour = event.getOldColorRaw(), newColour = event.getNewColorRaw();
 
-		embed.addField(new EmbedField(false, "Before", String.format("Hex: [#%s](%3$s%1$s)\nRGB: [%2$s](%3$s%1$s)", ColourUtility.toHexString(oldColour), ColourUtility.toRGBString(oldColour), "https://image.sx4bot.co.uk/api/colour?w=1000&h=500&hex=")));
-		embed.addField(new EmbedField(false, "After", String.format("Hex: [#%s](%3$s%1$s)\nRGB: [%2$s](%3$s%1$s)", ColourUtility.toHexString(newColour), ColourUtility.toRGBString(newColour), "https://image.sx4bot.co.uk/api/colour?w=1000&h=500&hex=")));
+		embed.addField(new EmbedField(false, "Before", String.format("Hex: [#%s](%3$s)\nRGB: [%2$s](%3$s)", ColourUtility.toHexString(oldColour), ColourUtility.toRGBString(oldColour), "https://image.sx4.dev/api/colour?w=1000&h=500&colour=" + oldColour)));
+		embed.addField(new EmbedField(false, "After", String.format("Hex: [#%s](%3$s)\nRGB: [%2$s](%3$s)", ColourUtility.toHexString(newColour), ColourUtility.toRGBString(newColour), "https://image.sx4.dev/api/colour?w=1000&h=500&colour=" + newColour)));
 
 		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((documents, exception) -> {
 			if (ExceptionUtility.sendErrorMessage(exception)) {
