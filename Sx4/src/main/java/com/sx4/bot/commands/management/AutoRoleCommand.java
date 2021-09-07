@@ -17,7 +17,6 @@ import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.argument.Alternative;
 import com.sx4.bot.entities.argument.TimedArgument;
 import com.sx4.bot.entities.management.AutoRoleFilter;
-import com.sx4.bot.entities.utility.TimeFormatter;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.AutoRoleUtility;
 import com.sx4.bot.utility.ExceptionUtility;
@@ -135,7 +134,13 @@ public class AutoRoleCommand extends Sx4Command {
 							Button button = e.getButton();
 							return button != null && button.getId().equals("no") && e.getMessageIdLong() == message.getIdLong() && e.getUser().getIdLong() == event.getAuthor().getIdLong();
 						})
-						.onFailure(e -> e.reply("This is not your button to click " + event.getConfig().getFailureEmote()).setEphemeral(true).queue())
+						.onFailure(e -> {
+							if (e.isAcknowledged() || e.getMessageIdLong() != message.getIdLong()) {
+								return;
+							}
+
+							e.reply("This is not your button to click " + event.getConfig().getFailureEmote()).setEphemeral(true).queue();
+						})
 						.setTimeout(60)
 						.start();
 				}).whenComplete((e, exception) -> {

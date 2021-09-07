@@ -18,7 +18,6 @@ import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.argument.Alternative;
 import com.sx4.bot.entities.argument.MessageArgument;
-import com.sx4.bot.entities.utility.TimeFormatter;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.NumberUtility;
@@ -32,6 +31,7 @@ import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.events.interaction.ButtonClickEvent;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.interactions.components.Button;
@@ -439,29 +439,43 @@ public class GiveawayCommand extends Sx4Command {
 							Button button = e.getButton();
 							return button != null && button.getId().equals("no") && e.getMessageIdLong() == message.getIdLong() && e.getUser().getIdLong() == event.getAuthor().getIdLong();
 						})
-						//.setRunAfter(e -> e.deferEdit().queue())
+						.onFailure(e -> {
+							if (e.isAcknowledged() || e.getMessageIdLong() != message.getIdLong()) {
+								return;
+							}
+
+							e.reply("This is not your button to click " + event.getConfig().getFailureEmote()).setEphemeral(true).queue();
+						})
 						.setTimeout(60)
 						.start();
-				})
-				.thenCompose(e -> event.getMongo().deleteManyGiveaways(Filters.eq("guildId", event.getGuild().getIdLong())))
-				.whenComplete((result, exception) -> {
+				}).whenComplete((e, exception) -> {
 					Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
 					if (cause instanceof CancelException) {
-						event.replySuccess("Cancelled").queue();
+						GenericEvent cancelEvent = ((CancelException) cause).getEvent();
+						if (cancelEvent != null) {
+							((ButtonClickEvent) cancelEvent).reply("Cancelled " + event.getConfig().getSuccessEmote()).queue();
+						}
+
 						return;
 					} else if (cause instanceof TimeoutException) {
 						event.reply("Timed out :stopwatch:").queue();
 						return;
-					} else if (ExceptionUtility.sendExceptionally(event, cause)) {
+					} else if (ExceptionUtility.sendExceptionally(event, exception)) {
 						return;
 					}
-					
-					if (result.getDeletedCount() == 0) {
-						event.replyFailure("There are no giveaways in this server").queue();
-						return;
-					}
-					
-					event.replySuccess("All giveaways in this server have been deleted").queue();
+
+					event.getMongo().deleteManyGiveaways(Filters.eq("guildId", event.getGuild().getIdLong())).whenComplete((result, databaseException) -> {
+						if (ExceptionUtility.sendExceptionally(event, databaseException)) {
+							return;
+						}
+
+						if (result.getDeletedCount() == 0) {
+							e.reply("There are no giveaways in this server " + event.getConfig().getFailureEmote()).queue();
+							return;
+						}
+
+						e.reply("All giveaways in this server have been deleted " + event.getConfig().getSuccessEmote()).queue();
+					});
 				});
 		} else {
 			long messageId = option.getValue().getMessageId();

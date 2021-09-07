@@ -6,7 +6,9 @@ import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.requests.ErrorResponse;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -17,10 +19,13 @@ public class PagedManager {
 	private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
 	
 	private final Map<Long, Map<Long, PagedResult<?>>> pagedResults;
+	private final Set<Long> messages;
+
 	private final Map<Long, ScheduledFuture<?>> executors;
 
 	public PagedManager() {
 		this.pagedResults = new HashMap<>();
+		this.messages = new HashSet<>();
 		this.executors = new HashMap<>();
 	}
 	
@@ -38,6 +43,10 @@ public class PagedManager {
 				old.cancel(true);
 			}
 		}
+	}
+
+	public boolean isPagedResult(long messageId) {
+		return this.messages.contains(messageId);
 	}
 
 	public PagedResult<?> getPagedResult(long channelId, long ownerId) {
@@ -59,13 +68,17 @@ public class PagedManager {
 
 			users.put(owner.getIdLong(), pagedResult);
 		}
+
+		this.messages.add(pagedResult.getMessageId());
 	}
 
-	public void removePagedResult(long channelId, long ownerId) {
-		Map<Long, PagedResult<?>> users = this.pagedResults.get(channelId);
+	public void removePagedResult(PagedResult<?> pagedResult) {
+		Map<Long, PagedResult<?>> users = this.pagedResults.get(pagedResult.getChannelId());
 		if (users != null) {
-			users.remove(ownerId);
+			users.remove(pagedResult.getOwnerId());
 		}
+
+		this.messages.remove(pagedResult.getMessageId());
 	}
 	
 }

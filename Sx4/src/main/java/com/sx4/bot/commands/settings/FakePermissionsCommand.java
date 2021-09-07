@@ -26,6 +26,7 @@ import net.dv8tion.jda.api.entities.IPermissionHolder;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.events.interaction.ButtonClickEvent;
 import net.dv8tion.jda.api.interactions.components.Button;
 import org.bson.Document;
@@ -179,24 +180,38 @@ public class FakePermissionsCommand extends Sx4Command {
 						Button button = e.getButton();
 						return button != null && button.getId().equals("no") && e.getMessageIdLong() == message.getIdLong() && e.getUser().getIdLong() == event.getAuthor().getIdLong();
 					})
-					//.setRunAfter(e -> e.deferEdit().queue())
+					.onFailure(e -> {
+						if (e.isAcknowledged() || e.getMessageIdLong() != message.getIdLong()) {
+							return;
+						}
+
+						e.reply("This is not your button to click " + event.getConfig().getFailureEmote()).setEphemeral(true).queue();
+					})
 					.setTimeout(60)
 					.start();
-			})
-			.thenCompose(messageEvent -> event.getMongo().updateGuildById(event.getGuild().getIdLong(), Updates.unset("fakePermissions.holders")))
-			.whenComplete((result, exception) -> {
+			}).whenComplete((e, exception) -> {
 				Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
 				if (cause instanceof CancelException) {
-					event.replySuccess("Cancelled").queue();
+					GenericEvent cancelEvent = ((CancelException) cause).getEvent();
+					if (cancelEvent != null) {
+						((ButtonClickEvent) cancelEvent).reply("Cancelled " + event.getConfig().getSuccessEmote()).queue();
+					}
+
 					return;
 				} else if (cause instanceof TimeoutException) {
 					event.reply("Timed out :stopwatch:").queue();
 					return;
-				} else if (ExceptionUtility.sendExceptionally(event, cause)) {
+				} else if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
 
-				event.replySuccess("All fake permission data has been deleted in this server").queue();
+				event.getMongo().updateGuildById(event.getGuild().getIdLong(), Updates.unset("fakePermissions.holders")).whenComplete((result, databaseException) -> {
+					if (ExceptionUtility.sendExceptionally(event, databaseException)) {
+						return;
+					}
+
+					e.reply("All fake permission data has been deleted in this server " + event.getConfig().getSuccessEmote()).queue();
+				});
 			});
 		} else {
 			IPermissionHolder holder = option.getValue();

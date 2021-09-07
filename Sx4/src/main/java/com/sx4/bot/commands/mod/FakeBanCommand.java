@@ -15,7 +15,7 @@ public class FakeBanCommand extends Sx4Command {
 		super.setDescription("Ban someone without actually banning them");
 		super.setCaseSensitive(true);
 		super.setExamples("Ban @Shea#6653");
-		super.setBotDiscordPermissions(Permission.BAN_MEMBERS);
+		super.setAuthorDiscordPermissions(Permission.BAN_MEMBERS);
 		super.setCategoryAll(ModuleCategory.MODERATION);
 	}
 

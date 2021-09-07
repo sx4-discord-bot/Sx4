@@ -42,7 +42,7 @@ public class TimeFormatter {
 		for (int i = 0; i < CHRONO_UNITS.length; i++) {
 			ChronoUnit chronoUnit = CHRONO_UNITS[i];
 
-			long secondsInTime = chronoUnit.getDuration().getSeconds();
+			long secondsInTime = chronoUnit.getDuration().toSeconds();
 			int amount = (int) Math.floor((double) seconds / secondsInTime);
 
 			if (amount != 0) {

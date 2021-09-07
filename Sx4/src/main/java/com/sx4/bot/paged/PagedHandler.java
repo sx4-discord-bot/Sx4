@@ -39,16 +39,23 @@ public class PagedHandler implements EventListener {
 	}
 
 	public void handleButton(ButtonClickEvent event) {
+		if (event.isAcknowledged()) {
+			return;
+		}
+
 		MessageChannel channel = event.getChannel();
 		User author = event.getUser();
 
 		PagedResult<?> pagedResult = this.bot.getPagedManager().getPagedResult(channel.getIdLong(), author.getIdLong());
 		if (pagedResult == null) {
+			if (this.bot.getPagedManager().isPagedResult(event.getMessageIdLong())) {
+				event.reply("This is not your paged result " + this.bot.getConfig().getFailureEmote()).setEphemeral(true).queue();
+			}
+
 			return;
 		}
 
-		if (pagedResult.getOwnerId() != author.getIdLong()) {
-			event.reply("This is not your paged result " + this.bot.getConfig().getFailureEmote()).setEphemeral(true).queue();
+		if (pagedResult.getMessageId() != event.getMessageIdLong()) {
 			return;
 		}
 
@@ -107,7 +114,7 @@ public class PagedHandler implements EventListener {
 			} catch (NumberFormatException e) {}
 		} else {
 			int index = contentLower.lastIndexOf(' ');
-			if (this.skip.contains(contentLower.substring(0, index))) {
+			if (index != -1 && this.skip.contains(contentLower.substring(0, index))) {
 				try {
 					int page = Integer.parseInt(contentLower.substring(index + 1));
 					if (page > 0 && page <= pagedResult.getMaxPage() && page != pagedResult.getPage()) {

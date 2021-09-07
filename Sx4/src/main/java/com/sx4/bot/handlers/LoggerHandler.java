@@ -66,6 +66,7 @@ import net.dv8tion.jda.api.events.role.update.RoleUpdateColorEvent;
 import net.dv8tion.jda.api.events.role.update.RoleUpdateNameEvent;
 import net.dv8tion.jda.api.events.role.update.RoleUpdatePermissionsEvent;
 import net.dv8tion.jda.api.hooks.EventListener;
+import net.dv8tion.jda.internal.JDAImpl;
 import net.dv8tion.jda.internal.utils.tuple.Pair;
 import okhttp3.OkHttpClient;
 import org.bson.Document;

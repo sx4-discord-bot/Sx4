@@ -392,7 +392,7 @@ public class PagedResult<Type> {
 		}
 
 		this.bot.getPagedManager().cancelTimeout(this.messageId);
-		this.bot.getPagedManager().removePagedResult(this.channelId, this.ownerId);
+		this.bot.getPagedManager().removePagedResult(this);
 	}
 	
 	public void select(int index) {

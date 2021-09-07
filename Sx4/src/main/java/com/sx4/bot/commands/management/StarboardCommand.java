@@ -28,6 +28,7 @@ import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.MessageReaction.ReactionEmote;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.events.interaction.ButtonClickEvent;
 import net.dv8tion.jda.api.interactions.components.Button;
 import org.bson.Document;
@@ -151,30 +152,45 @@ public class StarboardCommand extends Sx4Command {
 							Button button = e.getButton();
 							return button != null && button.getId().equals("no") && e.getMessageIdLong() == message.getIdLong() && e.getUser().getIdLong() == event.getAuthor().getIdLong();
 						})
-						//.setRunAfter(e -> e.deferEdit().queue())
+						.onFailure(e -> {
+							if (e.isAcknowledged() || e.getMessageIdLong() != message.getIdLong()) {
+								return;
+							}
+
+							e.reply("This is not your button to click " + event.getConfig().getFailureEmote()).setEphemeral(true).queue();
+						})
 						.setTimeout(60)
 						.start();
-				})
-				.thenCompose(messageEvent -> event.getMongo().deleteManyStarboards(Filters.eq("guildId", event.getGuild().getIdLong())))
-				.thenCompose(result -> event.getMongo().deleteManyStars(Filters.eq("guildId", event.getGuild().getIdLong())))
-				.whenComplete((result, exception) -> {
+				}).whenComplete((e, exception) -> {
 					Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
 					if (cause instanceof CancelException) {
-						event.replySuccess("Cancelled").queue();
+						GenericEvent cancelEvent = ((CancelException) cause).getEvent();
+						if (cancelEvent != null) {
+							((ButtonClickEvent) cancelEvent).reply("Cancelled " + event.getConfig().getSuccessEmote()).queue();
+						}
+
 						return;
 					} else if (cause instanceof TimeoutException) {
 						event.reply("Timed out :stopwatch:").queue();
 						return;
-					} else if (ExceptionUtility.sendExceptionally(event, cause)) {
+					} else if (ExceptionUtility.sendExceptionally(event, exception)) {
 						return;
 					}
 
-					if (result.getDeletedCount() == 0) {
-						event.replySuccess("There are no starboards in this server").queue();
-						return;
-					}
+				event.getMongo().deleteManyStarboards(Filters.eq("guildId", event.getGuild().getIdLong()))
+					.thenCompose(result -> event.getMongo().deleteManyStars(Filters.eq("guildId", event.getGuild().getIdLong())))
+					.whenComplete((result, databaseException) -> {
+						if (ExceptionUtility.sendExceptionally(event, databaseException)) {
+							return;
+						}
 
-					event.replySuccess("All starboards have been deleted in this server").queue();
+						if (result.getDeletedCount() == 0) {
+							e.reply("There are no starboards in this server " + event.getConfig().getFailureEmote()).queue();
+							return;
+						}
+
+						e.reply("All starboards have been deleted in this server " + event.getConfig().getSuccessEmote()).queue();
+					});
 				});
 		} else {
 			ObjectId id = option.getValue();
