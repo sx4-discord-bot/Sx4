@@ -23,6 +23,7 @@ import gnu.trove.map.TLongIntMap;
 import gnu.trove.map.TLongObjectMap;
 import gnu.trove.map.hash.TLongIntHashMap;
 import gnu.trove.map.hash.TLongObjectHashMap;
+import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.audit.ActionType;
 import net.dv8tion.jda.api.audit.AuditLogChange;
@@ -140,12 +141,23 @@ public class LoggerHandler implements EventListener {
 		}
 	}
 	
+	private CompletableFuture<List<AuditLogEntry>> retrieveAuditLogs(Guild guild, ActionType type, long delay) {
+		JDA jda = guild.getJDA();
+		long guildId = guild.getIdLong();
+
+		return guild.retrieveAuditLogs().type(type).setCheck(() -> {
+			// Get the guild again in the case it has been GCed
+			Guild newGuild = jda.getGuildById(guildId);
+			return newGuild != null && newGuild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS);
+		}).submitAfter(delay, TimeUnit.MILLISECONDS);
+	}
+
 	private CompletableFuture<List<AuditLogEntry>> retrieveAuditLogsDelayed(Guild guild, ActionType type) {
-		return guild.retrieveAuditLogs().type(type).setCheck(() -> guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)).submitAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS);
+		return this.retrieveAuditLogs(guild, type, LoggerHandler.DELAY);
 	}
 
 	private CompletableFuture<List<AuditLogEntry>> retrieveAuditLogs(Guild guild, ActionType type) {
-		return guild.retrieveAuditLogs().type(type).setCheck(() -> guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)).submit();
+		return this.retrieveAuditLogs(guild, type, 0);
 	}
 
 	private List<Bson> getPipeline(long guildId) {

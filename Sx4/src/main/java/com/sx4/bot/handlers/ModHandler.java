@@ -18,6 +18,7 @@ import com.sx4.bot.events.mod.*;
 import com.sx4.bot.hooks.ModActionListener;
 import com.sx4.bot.utility.TimeUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
+import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.audit.ActionType;
 import net.dv8tion.jda.api.audit.AuditLogEntry;
@@ -234,7 +235,17 @@ public class ModHandler implements ModActionListener, EventListener {
 			return;
 		}
 
-		guild.retrieveAuditLogs().type(actionType).setCheck(() -> guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)).queueAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS, logs -> {
+		if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
+			return;
+		}
+
+		JDA jda = event.getJDA();
+		long guildId = guild.getIdLong();
+
+		guild.retrieveAuditLogs().type(actionType).setCheck(() -> {
+			Guild newGuild = jda.getGuildById(guildId);
+			return newGuild != null && newGuild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS);
+		}).queueAfter(LoggerHandler.DELAY, TimeUnit.MILLISECONDS, logs -> {
 			AuditLogEntry entry = logs.stream()
 				.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
 				.filter(e -> e.getTargetIdLong() == user.getIdLong())
