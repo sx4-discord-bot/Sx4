@@ -9,6 +9,7 @@ import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.economy.item.*;
 import com.sx4.bot.managers.EconomyManager;
+import com.sx4.bot.utility.ButtonUtility;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.waiter.Waiter;
 import com.sx4.bot.waiter.exception.CancelException;
@@ -158,21 +159,9 @@ public class TradeCommand extends Sx4Command {
 			return event.reply(message.build()).submit();
 		}).thenCompose(message -> {
 			return new Waiter<>(event.getBot(), ButtonClickEvent.class)
-				.setPredicate(e -> {
-					Button button = e.getButton();
-					return button != null && button.getId().equals("yes") && e.getMessageIdLong() == message.getIdLong() && e.getUser().getIdLong() == user.getIdLong();
-				})
-				.setCancelPredicate(e -> {
-					Button button = e.getButton();
-					return button != null && button.getId().equals("no") && e.getMessageIdLong() == message.getIdLong() && e.getUser().getIdLong() == user.getIdLong();
-				})
-				.onFailure(e -> {
-					if (e.isAcknowledged() || e.getMessageIdLong() != message.getIdLong()) {
-						return;
-					}
-
-					e.reply("This is not your button to click " + event.getConfig().getFailureEmote()).setEphemeral(true).queue();
-				})
+				.setPredicate(e -> ButtonUtility.handleButtonConfirmation(e, message, event.getAuthor()))
+				.setCancelPredicate(e -> ButtonUtility.handleButtonCancellation(e, message, event.getAuthor()))
+				.onFailure(e -> ButtonUtility.handleButtonFailure(e, message))
 				.setTimeout(60)
 				.start();
 		}).whenCompleteAsync((e, exception) -> {

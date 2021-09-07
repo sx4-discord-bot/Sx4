@@ -16,6 +16,7 @@ import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.entities.argument.Alternative;
 import com.sx4.bot.paged.PagedResult;
+import com.sx4.bot.utility.ButtonUtility;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.waiter.Waiter;
 import com.sx4.bot.waiter.exception.CancelException;
@@ -80,21 +81,9 @@ public class TemplateCommand extends Sx4Command {
 			event.reply(event.getAuthor().getName() + ", are you sure you want to delete **all** the templates in this server?").setActionRow(buttons).submit()
 				.thenCompose(message -> {
 					return new Waiter<>(event.getBot(), ButtonClickEvent.class)
-						.setPredicate(e -> {
-							Button button = e.getButton();
-							return button != null && button.getId().equals("yes") && e.getMessageIdLong() == message.getIdLong() && e.getUser().getIdLong() == event.getAuthor().getIdLong();
-						})
-						.setCancelPredicate(e -> {
-							Button button = e.getButton();
-							return button != null && button.getId().equals("no") && e.getMessageIdLong() == message.getIdLong() && e.getUser().getIdLong() == event.getAuthor().getIdLong();
-						})
-						.onFailure(e -> {
-							if (e.isAcknowledged() || e.getMessageIdLong() != message.getIdLong()) {
-								return;
-							}
-
-							e.reply("This is not your button to click " + event.getConfig().getFailureEmote()).setEphemeral(true).queue();
-						})
+						.setPredicate(e -> ButtonUtility.handleButtonConfirmation(e, message, event.getAuthor()))
+						.setCancelPredicate(e -> ButtonUtility.handleButtonCancellation(e, message, event.getAuthor()))
+						.onFailure(e -> ButtonUtility.handleButtonFailure(e, message))
 						.setTimeout(60)
 						.start();
 				}).whenComplete((e, exception) -> {
