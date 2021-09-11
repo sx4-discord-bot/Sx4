@@ -46,6 +46,10 @@ public class MysteryBoxHandler implements EventListener {
 	}
 
 	public void handle(ButtonClickEvent event) {
+		if (event.isAcknowledged()) {
+			return;
+		}
+
 		Button button = event.getButton();
 		if (button == null || button.isDisabled()) {
 			return;
@@ -62,8 +66,6 @@ public class MysteryBoxHandler implements EventListener {
 
 			return;
 		}
-
-		event.deferEdit().queue();
 
 		int clicks = game.incrementClicks();
 

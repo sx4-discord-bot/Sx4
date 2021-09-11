@@ -6,6 +6,7 @@ import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.MessageBuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.*;
+import net.dv8tion.jda.api.events.interaction.ButtonClickEvent;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.interactions.components.ActionRow;
 import net.dv8tion.jda.api.interactions.components.Button;
@@ -470,6 +471,12 @@ public class PagedResult<Type> {
 	public void ensure(MessageChannel channel) {
 		channel.editMessageById(this.messageId, this.getPagedMessage()).queue(null, ErrorResponseException.ignore(ErrorResponse.UNKNOWN_MESSAGE));
 		
+		this.bot.getPagedManager().setTimeout(this);
+	}
+
+	public void ensure(ButtonClickEvent event) {
+		event.editMessage(this.getPagedMessage()).queue(null, ErrorResponseException.ignore(ErrorResponse.UNKNOWN_MESSAGE));
+
 		this.bot.getPagedManager().setTimeout(this);
 	}
 

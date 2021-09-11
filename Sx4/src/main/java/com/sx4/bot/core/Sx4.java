@@ -200,7 +200,6 @@ public class Sx4 {
 		IEventManager manager = new InterfacedEventManager();
 		manager.register(this.commandListener);
 		manager.register(new PagedHandler(this));
-		manager.register(new WaiterHandler(this));
 		manager.register(new GiveawayHandler(this));
 		manager.register(new AutoRoleHandler(this));
 		manager.register(modHandler);
@@ -219,6 +218,7 @@ public class Sx4 {
 		manager.register(new MysteryBoxHandler(this));
 		manager.register(new ServerLogHandler(this));
 		manager.register(youTubeHandler);
+		manager.register(new WaiterHandler(this));
 		manager.register(this.messageCache);
 
 		this.shardManager = this.createShardManager(manager);
