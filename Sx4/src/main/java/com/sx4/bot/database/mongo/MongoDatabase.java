@@ -1158,6 +1158,10 @@ public class MongoDatabase {
 		return this.updateManyYouTubeNotifications(filter, update, this.updateOptions);
 	}
 
+	public CompletableFuture<BulkWriteResult> bulkWriteYouTubeNotifications(List<? extends WriteModel<? extends Document>> bulkData) {
+		return CompletableFuture.supplyAsync(() -> this.youtubeNotifications.bulkWrite(bulkData), this.executor);
+	}
+
 	public MongoCollection<Document> getRedirects() {
 		return this.redirects;
 	}

@@ -28,6 +28,7 @@ import okhttp3.OkHttpClient;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -117,60 +118,59 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 			}
 
 			this.executor.submit(() -> {
+				List<WriteModel<Document>> bulkUpdate = new ArrayList<>();
 				notifications.forEach(notification -> {
 					long channelId = notification.getLong("channelId");
 
 					TextChannel textChannel = shardManager.getTextChannelById(channelId);
-					if (textChannel != null) {
-						Document webhookData = notification.get("webhook", MongoDatabase.EMPTY_DOCUMENT);
-						boolean premium = notification.getBoolean("premium");
-
-						WebhookMessage message;
-						try {
-							message = this.format(event, notification.get("message", YouTubeManager.DEFAULT_MESSAGE))
-								.setAvatarUrl(premium ? webhookData.get("avatar", this.bot.getConfig().getYouTubeAvatar()) : this.bot.getConfig().getYouTubeAvatar())
-								.setUsername(premium ? webhookData.get("name", "Sx4 - YouTube") : "Sx4 - YouTube")
-								.build();
-						} catch (IllegalArgumentException e) {
-							// possibly create an error field when this happens so the user can debug what went wrong
-							this.bot.getMongo().updateYouTubeNotification(Filters.eq("_id", notification.getObjectId("_id")), Updates.unset("message"), new UpdateOptions()).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
-							return;
-						}
-
-						WebhookClient webhook;
-						if (this.webhooks.containsKey(channelId)) {
-							webhook = this.webhooks.get(channelId);
-						} else if (!webhookData.containsKey("id")) {
-							this.createWebhook(textChannel, message);
-
-							return;
-						} else {
-							webhook = new WebhookClientBuilder(webhookData.getLong("id"), webhookData.getString("token"))
-								.setExecutorService(this.scheduledExecutor)
-								.setHttpClient(this.client)
-								.build();
-
-							this.webhooks.put(channelId, webhook);
-						}
-
-						webhook.send(message).whenComplete((webhookMessage, exception) -> {
-							Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
-							if (cause instanceof HttpException && ((HttpException) cause).getCode() == 404) {
-								this.webhooks.remove(textChannel.getIdLong());
-
-								this.createWebhook(textChannel, message);
-							}
-						});
-					} else {
-						this.bot.getMongo().deleteYouTubeNotificationById(notification.getObjectId("_id")).whenComplete((result, exception) -> {
-							if (ExceptionUtility.sendErrorMessage(exception)) {
-								return;
-							}
-
-							this.webhooks.remove(channelId);
-						});
+					if (textChannel == null) {
+						return;
 					}
+
+					Document webhookData = notification.get("webhook", MongoDatabase.EMPTY_DOCUMENT);
+					boolean premium = notification.getBoolean("premium");
+
+					WebhookMessage message;
+					try {
+						message = this.format(event, notification.get("message", YouTubeManager.DEFAULT_MESSAGE))
+							.setAvatarUrl(premium ? webhookData.get("avatar", this.bot.getConfig().getYouTubeAvatar()) : this.bot.getConfig().getYouTubeAvatar())
+							.setUsername(premium ? webhookData.get("name", "Sx4 - YouTube") : "Sx4 - YouTube")
+							.build();
+					} catch (IllegalArgumentException e) {
+						// possibly create an error field when this happens so the user can debug what went wrong
+						bulkUpdate.add(new UpdateOneModel<>(Filters.eq("_id", notification.getObjectId("_id")), Updates.unset("message"), new UpdateOptions()));
+						return;
+					}
+
+					WebhookClient webhook;
+					if (this.webhooks.containsKey(channelId)) {
+						webhook = this.webhooks.get(channelId);
+					} else if (!webhookData.containsKey("id")) {
+						this.createWebhook(textChannel, message);
+
+						return;
+					} else {
+						webhook = new WebhookClientBuilder(webhookData.getLong("id"), webhookData.getString("token"))
+							.setExecutorService(this.scheduledExecutor)
+							.setHttpClient(this.client)
+							.build();
+
+						this.webhooks.put(channelId, webhook);
+					}
+
+					webhook.send(message).whenComplete((webhookMessage, exception) -> {
+						Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
+						if (cause instanceof HttpException && ((HttpException) cause).getCode() == 404) {
+							this.webhooks.remove(textChannel.getIdLong());
+
+							this.createWebhook(textChannel, message);
+						}
+					});
 				});
+
+				if (!bulkUpdate.isEmpty()) {
+					this.bot.getMongo().bulkWriteYouTubeNotifications(bulkUpdate).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
+				}
 
 				Document data = new Document("type", YouTubeType.UPLOAD.getRaw())
 					.append("videoId", event.getVideo().getId())

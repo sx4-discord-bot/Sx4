@@ -31,6 +31,11 @@ public class ConvertCommand extends Sx4Command {
 			.build();
 
 		event.getHttpClient().newCall(request).enqueue((HttpCallback) response -> {
+			if (!response.isSuccessful()) {
+				event.replyFailure("Failed to convert, try again if this repeats it's likely due to the API being down").queue();
+				return;
+			}
+
 			Document json = Document.parse(response.body().string());
 
 			Document result = json.get(from + "_" + to, Document.class);
