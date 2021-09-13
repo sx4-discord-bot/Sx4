@@ -6,7 +6,9 @@ import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class MinesweeperCommand extends Sx4Command {
@@ -56,6 +58,7 @@ public class MinesweeperCommand extends Sx4Command {
 			position.put(y, "\uD83D\uDCA3");
 		}
 
+		List<Integer> zeros = new ArrayList<>();
 		for (int x = 0; x < gridX; x++) {
 			for (int y = 0; y < gridY; y++) {
 				if (positions.getOrDefault(x, new HashMap<>()).containsKey(y)) {
@@ -72,14 +75,25 @@ public class MinesweeperCommand extends Sx4Command {
 					}
 				}
 
+				if (amount == 0) {
+					zeros.add(x * gridX + y);
+				}
+
 				positions.computeIfAbsent(x, key -> new HashMap<>()).put(y, Character.toString('\u0030' + amount) + "\u20E3");
 			}
 		}
+
+		int exposedZero = zeros.size() == 0 ? -1 : zeros.get(event.getRandom().nextInt(zeros.size()));
 
 		StringBuilder result = new StringBuilder();
 		for (int x = 0; x < gridX; x++) {
 			for (int y = 0; y < gridY; y++) {
 				String current = positions.get(x).get(y);
+
+				if (exposedZero == x * gridX + y) {
+					result.append(current);
+					continue;
+				}
 
 				result.append("||").append(current).append("||");
 			}

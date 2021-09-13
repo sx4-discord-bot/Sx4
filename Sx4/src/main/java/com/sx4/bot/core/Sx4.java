@@ -552,6 +552,11 @@ public class Sx4 {
 					return true;
 				}
 
+				if (permissions.contains(Permission.MANAGE_ROLES) && !CheckUtility.hasPermissions(this, event.getMember(), event.getProperty("fakePermissions"), EnumSet.of(Permission.MANAGE_ROLES))) {
+					event.reply(PermissionUtility.formatMissingPermissions(EnumSet.of(Permission.MANAGE_ROLES)) + " " + this.config.getFailureEmote()).queue();
+					return false;
+				}
+
 				EnumSet<Permission> missingPermissions = CheckUtility.missingPermissions(this, event.getMember(), event.getTextChannel(), event.getProperty("fakePermissions"), EnumSet.copyOf(permissions));
 				if (missingPermissions.isEmpty()) {
 					return true;
@@ -567,6 +572,11 @@ public class Sx4 {
 				Set<Permission> permissions = command.getBotDiscordPermissions();
 				if (permissions.isEmpty()) {
 					return true;
+				}
+
+				if (permissions.contains(Permission.MANAGE_ROLES) && !CheckUtility.hasPermissions(this, event.getSelfMember(), event.getProperty("fakePermissions"), EnumSet.of(Permission.MANAGE_ROLES))) {
+					event.reply(PermissionUtility.formatMissingPermissions(EnumSet.of(Permission.MANAGE_ROLES), "I am") + " " + this.config.getFailureEmote()).queue();
+					return false;
 				}
 
 				EnumSet<Permission> missingPermissions = Permission.getPermissions(Permission.getRaw(permissions) & ~Permission.getRaw(event.getSelfMember().getPermissions(event.getTextChannel())));

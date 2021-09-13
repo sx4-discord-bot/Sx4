@@ -72,17 +72,24 @@ public class TranslateCommand extends Sx4Command {
 			}
 		}
 
-		String outputText = outputArray.getJSONArray(0)
+		JSONArray segments = outputArray.getJSONArray(0)
 			.getJSONArray(0)
-			.getJSONArray(5)
-			.getJSONArray(0)
-			.getString(0);
+			.getJSONArray(5);
+
+		StringBuilder output = new StringBuilder();
+		for (int i = 0; i < segments.length(); i++) {
+			output.append(segments.getJSONArray(i).getString(0));
+
+			if (i != segments.length() - 1) {
+				output.append(" ");
+			}
+		}
 
 		EmbedBuilder embed = new EmbedBuilder()
 			.setColor(0x4285f4)
 			.setAuthor("Google Translate", null, "https://upload.wikimedia.org/wikipedia/commons/d/db/Google_Translate_Icon.png")
 			.addField("Input Text (" + (inputLocale == null ? "Unknown" : inputLocale.getDisplayLanguage()) + ")", inputText, false)
-			.addField("Output Text (" + to.getDisplayLanguage() + ")", outputText, false);
+			.addField("Output Text (" + to.getDisplayLanguage() + ")", output.toString(), false);
 
 		return embed.build();
 	}

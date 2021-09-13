@@ -8,6 +8,7 @@ import com.mongodb.client.model.*;
 import com.sx4.bot.annotations.argument.AlternativeOptions;
 import com.sx4.bot.annotations.argument.Limit;
 import com.sx4.bot.annotations.command.AuthorPermissions;
+import com.sx4.bot.annotations.command.BotPermissions;
 import com.sx4.bot.annotations.command.CommandId;
 import com.sx4.bot.annotations.command.Examples;
 import com.sx4.bot.category.ModuleCategory;
@@ -21,6 +22,8 @@ import com.sx4.bot.entities.mod.action.ModAction;
 import com.sx4.bot.entities.mod.auto.MatchAction;
 import com.sx4.bot.entities.mod.auto.RegexType;
 import com.sx4.bot.entities.settings.HolderType;
+import com.sx4.bot.formatter.FormatterManager;
+import com.sx4.bot.formatter.function.FormatterVariable;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.TimeUtility;
@@ -37,6 +40,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.StringJoiner;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.regex.Pattern;
@@ -373,6 +377,36 @@ public class AntiRegexCommand extends Sx4Command {
 
 			event.reply(amount == 0 ? "Users attempts will no longer reset" + event.getConfig().getSuccessEmote() : String.format("Users attempts will now reset **%d** time%s after `%s` %s", amount, amount == 1 ? "" : "s", TimeUtility.LONG_TIME_FORMATTER.parse(time.toSeconds()), event.getConfig().getSuccessEmote())).queue();
 		});
+	}
+
+	@Command(value="formatters", aliases={"format", "formatting"}, description="Get all the formatters for anti regex you can use")
+	@CommandId(468)
+	@Examples({"anti regex formatters"})
+	@BotPermissions(permissions={Permission.MESSAGE_EMBED_LINKS})
+	public void formatters(Sx4CommandEvent event) {
+		EmbedBuilder embed = new EmbedBuilder()
+			.setAuthor("Anti-Regex Formatters", null, event.getSelfUser().getEffectiveAvatarUrl());
+
+		FormatterManager manager = FormatterManager.getDefaultManager();
+
+		StringJoiner content = new StringJoiner("\n");
+		for (FormatterVariable<?> variable : manager.getVariables(User.class)) {
+			content.add("`{user." + variable.getName() + "}` - " + variable.getDescription());
+		}
+
+		for (FormatterVariable<?> variable : manager.getVariables(TextChannel.class)) {
+			content.add("`{channel." + variable.getName() + "}` - " + variable.getDescription());
+		}
+
+		content.add("`{regex.id}` - Gets the id of the regex");
+		content.add("`{regex.action.name}` - Gets the mod action name if one is set");
+		content.add("`{regex.action.exists}` - Returns true or false if an action exists");
+		content.add("`{regex.attempts.current}` - Gets the current attempts for the user");
+		content.add("`{regex.attempts.max}` - Gets the max attempts set for the anti regex");
+
+		embed.setDescription(content.toString());
+
+		event.reply(embed.build()).queue();
 	}
 
 	@Command(value="list", description="Lists the regexes which are active in this server")
