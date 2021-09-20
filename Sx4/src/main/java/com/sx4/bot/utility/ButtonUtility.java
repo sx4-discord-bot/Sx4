@@ -16,14 +16,22 @@ public class ButtonUtility {
 		event.reply("This is not your button to click " + Config.get().getFailureEmote()).setEphemeral(true).queue();
 	}
 
-	public static boolean handleButtonConfirmation(ButtonClickEvent event, Message message, User user) {
+	public static boolean handleButtonConfirmation(ButtonClickEvent event, Message message, User user, String buttonId) {
 		Button button = event.getButton();
-		return button != null && button.getId().equals("yes") && event.getMessageIdLong() == message.getIdLong() && event.getUser().getIdLong() == user.getIdLong();
+		return button != null && button.getId().equals(buttonId) && event.getMessageIdLong() == message.getIdLong() && event.getUser().getIdLong() == user.getIdLong();
+	}
+
+	public static boolean handleButtonConfirmation(ButtonClickEvent event, Message message, User user) {
+		return ButtonUtility.handleButtonConfirmation(event, message, user, "yes");
+	}
+
+	public static boolean handleButtonCancellation(ButtonClickEvent event, Message message, User user, String buttonId) {
+		Button button = event.getButton();
+		return button != null && button.getId().equals(buttonId) && event.getMessageIdLong() == message.getIdLong() && event.getUser().getIdLong() == user.getIdLong();
 	}
 
 	public static boolean handleButtonCancellation(ButtonClickEvent event, Message message, User user) {
-		Button button = event.getButton();
-		return button != null && button.getId().equals("no") && event.getMessageIdLong() == message.getIdLong() && event.getUser().getIdLong() == user.getIdLong();
+		return ButtonUtility.handleButtonConfirmation(event, message, user, "no");
 	}
 
 }

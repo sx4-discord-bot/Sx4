@@ -96,6 +96,7 @@ public class LoggerHandler implements EventListener {
 
 	private final TLongObjectMap<TLongIntMap> disconnectCache = new TLongObjectHashMap<>();
 	private final TLongObjectMap<TLongIntMap> moveCache = new TLongObjectHashMap<>();
+	private final TLongObjectMap<TLongIntMap> messageCache = new TLongObjectHashMap<>();
 
 	private final Sx4 bot;
 	
@@ -179,12 +180,18 @@ public class LoggerHandler implements EventListener {
 		this.executor.schedule(runnable, LoggerHandler.DELAY, TimeUnit.MILLISECONDS);
 	}
 
-	private void onMessageDelete(TextChannel textChannel, List<Long> messageIds) {
-		Guild guild = textChannel.getGuild();
+	public void onGuildMessageDelete(GuildMessageDeleteEvent event) {
+		TextChannel channel = event.getChannel();
+		Guild guild = event.getGuild();
 
 		LoggerEvent loggerEvent = LoggerEvent.MESSAGE_DELETE;
+		LoggerContext loggerContext = new LoggerContext()
+			.setChannel(channel);
 
-		List<Long> deletedLoggers = new ArrayList<>();
+		Message message = this.bot.getMessageCache().getMessageById(event.getMessageIdLong());
+		if (message != null) {
+			loggerContext.setUser(message.getAuthor());
+		}
 
 		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((documents, exception) -> {
 			if (ExceptionUtility.sendErrorMessage(exception)) {
@@ -197,74 +204,181 @@ public class LoggerHandler implements EventListener {
 
 			Document data = documents.get(0);
 
-			for (Document logger : data.getList("loggers", Document.class)) {
-				if ((logger.get("events", LoggerEvent.ALL) & loggerEvent.getRaw()) != loggerEvent.getRaw()) {
-					continue;
+			List<Document> loggers = LoggerUtility.getValidLoggers(data.getList("loggers", Document.class), loggerEvent, loggerContext);
+			if (loggers.isEmpty()) {
+				return;
+			}
+
+			WebhookEmbedBuilder embed = new WebhookEmbedBuilder()
+				.setColor(this.bot.getConfig().getRed())
+				.setTimestamp(Instant.now())
+				.setFooter(new EmbedFooter("Message ID: " + event.getMessageId(), null));
+
+			StringBuilder description = new StringBuilder();
+			if (message == null) {
+				description.append(String.format("A message sent in %s was deleted", channel.getAsMention()));
+				embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
+			} else {
+				User author = message.getAuthor();
+
+				description.append(String.format("The message sent by `%s` in %s was deleted", author.getAsTag(), channel.getAsMention()));
+				embed.setAuthor(new EmbedAuthor(author.getAsTag(), author.getEffectiveAvatarUrl(), null));
+
+				String content = message.getContentRaw();
+				if (!content.isBlank()) {
+					embed.addField(new EmbedField(false, "Message", StringUtility.limit(content, MessageEmbed.VALUE_MAX_LENGTH, "...")));
 				}
+			}
 
-				long channelId = logger.getLong("channelId");
-				TextChannel channel = guild.getTextChannelById(channelId);
-				if (channel == null) {
-					deletedLoggers.add(channelId);
-					continue;
-				}
+			if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
+				this.retrieveAuditLogsDelayed(guild, ActionType.MESSAGE_DELETE).whenComplete((logs, auditException) -> {
+					this.messageCache.putIfAbsent(guild.getIdLong(), new TLongIntHashMap());
+					TLongIntMap guildCache = this.messageCache.get(guild.getIdLong());
 
-				List<Document> entities = logger.getEmbedded(List.of("blacklist", "entities"), Collections.emptyList());
+					AuditLogEntry entry = logs == null ? null : logs.stream()
+						.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toMinutes() <= 5)
+						.filter(e -> {
+							int count = Integer.parseInt(e.getOptionByName("count"));
+							int oldCount = guildCache.get(e.getIdLong());
 
-				List<WebhookEmbed> embeds = new ArrayList<>();
-				for (long messageId : messageIds) {
-					WebhookEmbedBuilder embed = new WebhookEmbedBuilder()
-						.setColor(this.bot.getConfig().getRed())
-						.setTimestamp(Instant.now())
-						.setFooter(new EmbedFooter(String.format("Message ID: %d", messageId), null));
+							guildCache.put(e.getIdLong(), count);
 
-					LoggerContext loggerContext = new LoggerContext()
-						.setChannel(textChannel);
+							return (count == 1 && count != oldCount) || count > oldCount;
+						})
+						.findFirst()
+						.orElse(null);
 
-					Message message = this.bot.getMessageCache().getMessageById(messageId);
-					if (message == null) {
-						if (!LoggerUtility.isWhitelisted(entities, loggerEvent, loggerContext)) {
-							continue;
-						}
+					User moderator = entry == null ? null : entry.getUser();
 
-						embed.setDescription(String.format("A message sent in %s was deleted", textChannel.getAsMention()));
-						embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
-					} else {
-						User author = message.getAuthor();
+					if (moderator != null) {
+						loggerContext.setModerator(moderator);
 
-						loggerContext.setUser(author.getIdLong());
-
-						if (!LoggerUtility.isWhitelisted(entities, loggerEvent, loggerContext)) {
-							continue;
-						}
-
-						embed.setDescription(String.format("The message sent by `%s` in %s was deleted", author.getName(), textChannel.getAsMention()));
-						embed.setAuthor(new EmbedAuthor(author.getAsTag(), author.getEffectiveAvatarUrl(), null));
-
-						String content = message.getContentRaw();
-						if (!content.isBlank()) {
-							embed.addField(new EmbedField(false, "Message", StringUtility.limit(content, MessageEmbed.VALUE_MAX_LENGTH, "...")));
-						}
+						description.append(" by **").append(moderator.getAsTag()).append("**");
 					}
 
-					embeds.add(embed.build());
-				}
+					embed.setDescription(description.toString());
 
-				this.getManager(channelId).queue(channel, logger, embeds);
+					this.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+				});
+
+				return;
 			}
 
-			if (!deletedLoggers.isEmpty()) {
-				this.bot.getMongo().deleteManyLoggers(Filters.in("channelId", deletedLoggers)).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
-			}
+			embed.setDescription(description.toString());
+
+			this.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 		});
 	}
 
-	public void onGuildMessageDelete(GuildMessageDeleteEvent event) {
-		this.onMessageDelete(event.getChannel(), List.of(event.getMessageIdLong()));
+	public void handleBulkMessages(TextChannel textChannel, List<String> messageIds, List<Document> loggers, LoggerEvent loggerEvent, User moderator) {
+		Guild guild = textChannel.getGuild();
+
+		for (Document logger : loggers) {
+			if ((logger.get("events", LoggerEvent.ALL) & loggerEvent.getRaw()) != loggerEvent.getRaw()) {
+				continue;
+			}
+
+			long channelId = logger.getLong("channelId");
+			TextChannel channel = guild.getTextChannelById(channelId);
+			if (channel == null) {
+				continue;
+			}
+
+			List<Document> entities = logger.getEmbedded(List.of("blacklist", "entities"), Collections.emptyList());
+
+			List<WebhookEmbed> embeds = new ArrayList<>();
+			for (String messageId : messageIds) {
+				WebhookEmbedBuilder embed = new WebhookEmbedBuilder()
+					.setColor(this.bot.getConfig().getRed())
+					.setTimestamp(Instant.now())
+					.setFooter(new EmbedFooter("Message ID: " + messageId, null));
+
+				LoggerContext loggerContext = new LoggerContext()
+					.setChannel(textChannel);
+
+				if (moderator != null) {
+					loggerContext.setModerator(moderator);
+				}
+
+				String reason = moderator == null ? "in a bulk delete" : "by **" + moderator.getAsTag() + "**";
+
+				Message message = this.bot.getMessageCache().getMessageById(messageId);
+				if (message == null) {
+					if (!LoggerUtility.isWhitelisted(entities, loggerEvent, loggerContext)) {
+						continue;
+					}
+
+					embed.setDescription(String.format("A message sent in %s was deleted %s", textChannel.getAsMention(), reason));
+					embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
+				} else {
+					User author = message.getAuthor();
+
+					loggerContext.setUser(author);
+
+					if (!LoggerUtility.isWhitelisted(entities, loggerEvent, loggerContext)) {
+						continue;
+					}
+
+					embed.setDescription(String.format("The message sent by `%s` in %s was deleted %s", author.getName(), textChannel.getAsMention(), reason));
+					embed.setAuthor(new EmbedAuthor(author.getAsTag(), author.getEffectiveAvatarUrl(), null));
+
+					String content = message.getContentRaw();
+					if (!content.isBlank()) {
+						embed.addField(new EmbedField(false, "Message", StringUtility.limit(content, MessageEmbed.VALUE_MAX_LENGTH, "...")));
+					}
+				}
+
+				embeds.add(embed.build());
+			}
+
+			this.getManager(channelId).queue(channel, logger, embeds);
+		}
 	}
 
 	public void onMessageBulkDelete(MessageBulkDeleteEvent event) {
-		this.onMessageDelete(event.getChannel(), event.getMessageIds().stream().map(Long::parseLong).collect(Collectors.toList()));
+		List<String> messageIds = event.getMessageIds();
+		TextChannel textChannel = event.getChannel();
+		Guild guild = event.getGuild();
+
+		LoggerEvent loggerEvent = LoggerEvent.MESSAGE_DELETE;
+
+		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((documents, exception) -> {
+			if (ExceptionUtility.sendErrorMessage(exception)) {
+				return;
+			}
+
+			if (documents.isEmpty()) {
+				return;
+			}
+
+			Document data = documents.get(0);
+
+			if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
+				this.retrieveAuditLogsDelayed(guild, ActionType.MESSAGE_BULK_DELETE).whenComplete((logs, auditException) -> {
+					this.messageCache.putIfAbsent(guild.getIdLong(), new TLongIntHashMap());
+					TLongIntMap guildCache = this.messageCache.get(guild.getIdLong());
+
+					AuditLogEntry entry = logs == null ? null : logs.stream()
+						.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toMinutes() <= 5)
+						.filter(e -> {
+							int count = Integer.parseInt(e.getOptionByName("count"));
+							int oldCount = guildCache.get(e.getIdLong());
+
+							guildCache.put(e.getIdLong(), count);
+
+							return (count == messageIds.size() && count != oldCount) || count > oldCount;
+						})
+						.findFirst()
+						.orElse(null);
+
+					this.handleBulkMessages(textChannel, messageIds, data.getList("loggers", Document.class), loggerEvent, entry == null ? null : entry.getUser());
+				});
+
+				return;
+			}
+
+			this.handleBulkMessages(textChannel, messageIds, data.getList("loggers", Document.class), loggerEvent, null);
+		});
 	}
 
 	public void onGuildMessageUpdate(GuildMessageUpdateEvent event) {
@@ -644,6 +758,8 @@ public class LoggerHandler implements EventListener {
 							int count = Integer.parseInt(e.getOptionByName("count"));
 							int oldCount = guildCache.get(e.getIdLong());
 
+							guildCache.put(e.getIdLong(), count);
+
 							return (count == 1 && count != oldCount) || count > oldCount;
 						})
 						.findFirst()
@@ -654,8 +770,6 @@ public class LoggerHandler implements EventListener {
 					LoggerEvent loggerEvent = moderator == null ? LoggerEvent.MEMBER_VOICE_LEAVE : LoggerEvent.MEMBER_VOICE_DISCONNECT;
 
 					if (moderator != null) {
-						guildCache.put(entry.getIdLong(), Integer.parseInt(entry.getOptionByName("count")));
-
 						loggerContext.setModerator(moderator);
 
 						embed.setDescription(String.format("`%s` was disconnected from the voice channel %s by **%s**", member.getEffectiveName(), channel.getAsMention(), moderator.getAsTag()));
@@ -719,6 +833,8 @@ public class LoggerHandler implements EventListener {
 							int count = Integer.parseInt(e.getOptionByName("count"));
 							int oldCount = channelCache.get(e.getIdLong());
 
+							channelCache.put(e.getIdLong(), count);
+
 							return (count == 1 && count != oldCount) || count > oldCount;
 						})
 						.findFirst()
@@ -726,8 +842,6 @@ public class LoggerHandler implements EventListener {
 
 					User moderator = entry == null ? null : entry.getUser();
 					if (moderator != null) {
-						channelCache.put(entry.getIdLong(), Integer.parseInt(entry.getOptionByName("count")));
-
 						loggerContext.setModerator(moderator);
 
 						embed.setDescription(String.format("`%s` was moved voice channel by **%s**", member.getEffectiveName(), moderator.getAsTag()));

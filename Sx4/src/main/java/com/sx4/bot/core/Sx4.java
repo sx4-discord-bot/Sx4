@@ -1060,6 +1060,7 @@ public class Sx4 {
 
 				return new ParsedResult<>(json);
 			}).registerParser(Integer.class, (context, argument, content) -> {
+				System.out.println(content);
 				if (argument.getProperty("colour", false)) {
 					int colour = ColourUtility.fromQuery(content);
 					if (colour == -1) {
@@ -1126,7 +1127,7 @@ public class Sx4 {
 						if (imageUrl) {
 							Member member = SearchUtility.getMember(message.getGuild(), contentToHandle);
 							if (member != null) {
-								return new ParsedResult<>(member.getUser().getEffectiveAvatarUrl());
+								return new ParsedResult<>(member.getUser().getEffectiveAvatarUrl(), content);
 							}
 						}
 

@@ -326,7 +326,7 @@ public class FishingRodCommand extends Sx4Command {
 	@CommandId(431)
 	@Examples({"fishing rod upgrade money", "fishing rod upgrade durability 5"})
 	public void upgrade(Sx4CommandEvent event, @Argument(value="upgrade") Upgrade upgrade, @Argument(value="upgrades") @DefaultNumber(1) @Limit(min=1, max=100) int upgrades) {
-		if (!upgrade.containsType(ItemType.PICKAXE)) {
+		if (!upgrade.containsType(ItemType.ROD)) {
 			event.replyFailure("You can not use that upgrade on a fishing rod").queue();
 			return;
 		}

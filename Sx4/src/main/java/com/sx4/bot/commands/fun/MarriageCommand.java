@@ -102,8 +102,8 @@ public class MarriageCommand extends Sx4Command {
 			.submit()
 			.thenCompose(message -> {
 				return new Waiter<>(event.getBot(), ButtonClickEvent.class)
-					.setPredicate(e -> ButtonUtility.handleButtonConfirmation(e, message, event.getAuthor()))
-					.setCancelPredicate(e -> ButtonUtility.handleButtonCancellation(e, message, event.getAuthor()))
+					.setPredicate(e -> ButtonUtility.handleButtonConfirmation(e, message, member.getUser()))
+					.setCancelPredicate(e -> ButtonUtility.handleButtonCancellation(e, message, member.getUser()))
 					.onFailure(e -> ButtonUtility.handleButtonFailure(e, message))
 					.setTimeout(60)
 					.start();

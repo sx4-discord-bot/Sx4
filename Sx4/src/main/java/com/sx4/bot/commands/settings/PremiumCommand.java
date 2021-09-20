@@ -90,8 +90,8 @@ public class PremiumCommand extends Sx4Command {
 
 		event.reply(embed).setActionRow(buttons).submit().thenCompose(message -> {
 			return new Waiter<>(event.getBot(), ButtonClickEvent.class)
-				.setPredicate(e -> ButtonUtility.handleButtonConfirmation(e, message, event.getAuthor()))
-				.setCancelPredicate(e -> ButtonUtility.handleButtonCancellation(e, message, event.getAuthor()))
+				.setPredicate(e -> ButtonUtility.handleButtonConfirmation(e, message, event.getAuthor(), "confirm"))
+				.setCancelPredicate(e -> ButtonUtility.handleButtonCancellation(e, message, event.getAuthor(), "cancel"))
 				.onFailure(e -> ButtonUtility.handleButtonFailure(e, message))
 				.setTimeout(60)
 				.start();

@@ -327,7 +327,7 @@ public class AxeCommand extends Sx4Command {
 	@CommandId(429)
 	@Examples({"axe upgrade multiplier", "axe upgrade durability 5"})
 	public void upgrade(Sx4CommandEvent event, @Argument(value="upgrade") Upgrade upgrade, @Argument(value="upgrades") @DefaultNumber(1) @Limit(min=1, max=100) int upgrades) {
-		if (!upgrade.containsType(ItemType.PICKAXE)) {
+		if (!upgrade.containsType(ItemType.AXE)) {
 			event.replyFailure("You can not use that upgrade on a axe").queue();
 			return;
 		}

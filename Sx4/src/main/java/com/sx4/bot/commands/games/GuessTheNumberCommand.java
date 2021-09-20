@@ -63,8 +63,8 @@ public class GuessTheNumberCommand extends Sx4Command {
 			.submit()
 			.thenCompose(message -> {
 				return new Waiter<>(event.getBot(), ButtonClickEvent.class)
-					.setPredicate(e -> ButtonUtility.handleButtonConfirmation(e, message, event.getAuthor()))
-					.setCancelPredicate(e -> ButtonUtility.handleButtonCancellation(e, message, event.getAuthor()))
+					.setPredicate(e -> ButtonUtility.handleButtonConfirmation(e, message, opponent))
+					.setCancelPredicate(e -> ButtonUtility.handleButtonCancellation(e, message, opponent))
 					.onFailure(e -> ButtonUtility.handleButtonFailure(e, message))
 					.setTimeout(60)
 					.start();
