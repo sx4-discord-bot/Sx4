@@ -160,7 +160,7 @@ public class RoleCommand extends Sx4Command {
 				this.pending.remove(event.getGuild().getIdLong());
 
 				int count = completed.stream().reduce(0, Integer::sum);
-				event.replyFormat("Successfully added the role %s to **%,d/%,d** user%s %s", role.getAsMention(), count, count == 1 ? "" : "s", members.size(), event.getConfig().getSuccessEmote()).queue();
+				event.replyFormat("Successfully added the role %s to **%,d/%,d** user%s %s", role.getAsMention(), count, members.size(), count == 1 ? "" : "s", event.getConfig().getSuccessEmote()).queue();
 			});
 		} else {
 			Member effectiveMember = option == null ? event.getMember() : option.getValue();

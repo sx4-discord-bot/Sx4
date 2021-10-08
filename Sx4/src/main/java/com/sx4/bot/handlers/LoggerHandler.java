@@ -237,6 +237,7 @@ public class LoggerHandler implements EventListener {
 
 					AuditLogEntry entry = logs == null ? null : logs.stream()
 						.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toMinutes() <= 5)
+						.filter(e -> Long.parseLong(e.getOptionByName("channel_id")) == channel.getIdLong())
 						.filter(e -> {
 							int count = Integer.parseInt(e.getOptionByName("count"));
 							int oldCount = guildCache.get(e.getIdLong());
@@ -360,6 +361,7 @@ public class LoggerHandler implements EventListener {
 
 					AuditLogEntry entry = logs == null ? null : logs.stream()
 						.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toMinutes() <= 5)
+						.filter(e -> Long.parseLong(e.getOptionByName("channel_id")) == textChannel.getIdLong())
 						.filter(e -> {
 							int count = Integer.parseInt(e.getOptionByName("count"));
 							int oldCount = guildCache.get(e.getIdLong());

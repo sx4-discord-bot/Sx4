@@ -235,7 +235,7 @@ public class ModHandler implements ModActionListener, EventListener {
 			return;
 		}
 
-		if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
+		if (!guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
 			return;
 		}
 
