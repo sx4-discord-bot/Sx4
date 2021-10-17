@@ -12,6 +12,7 @@ import com.mongodb.client.model.Projections;
 import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.database.mongo.model.Operators;
+import com.sx4.bot.entities.cache.GuildMessage;
 import com.sx4.bot.entities.management.LoggerContext;
 import com.sx4.bot.entities.management.LoggerEvent;
 import com.sx4.bot.managers.LoggerManager;
@@ -188,7 +189,7 @@ public class LoggerHandler implements EventListener {
 		LoggerContext loggerContext = new LoggerContext()
 			.setChannel(channel);
 
-		Message message = this.bot.getMessageCache().getMessageById(event.getMessageIdLong());
+		GuildMessage message = this.bot.getMessageCache().getMessageById(event.getMessageIdLong());
 		if (message != null) {
 			loggerContext.setUser(message.getAuthor());
 		}
@@ -224,7 +225,7 @@ public class LoggerHandler implements EventListener {
 				description.append(String.format("The message sent by `%s` in %s was deleted", author.getAsTag(), channel.getAsMention()));
 				embed.setAuthor(new EmbedAuthor(author.getAsTag(), author.getEffectiveAvatarUrl(), null));
 
-				String content = message.getContentRaw();
+				String content = message.getContent();
 				if (!content.isBlank()) {
 					embed.addField(new EmbedField(false, "Message", StringUtility.limit(content, MessageEmbed.VALUE_MAX_LENGTH, "...")));
 				}
@@ -303,7 +304,7 @@ public class LoggerHandler implements EventListener {
 
 				String reason = moderator == null ? "in a bulk delete" : "by **" + moderator.getAsTag() + "**";
 
-				Message message = this.bot.getMessageCache().getMessageById(messageId);
+				GuildMessage message = this.bot.getMessageCache().getMessageById(messageId);
 				if (message == null) {
 					if (!LoggerUtility.isWhitelisted(entities, loggerEvent, loggerContext)) {
 						continue;
@@ -323,7 +324,7 @@ public class LoggerHandler implements EventListener {
 					embed.setDescription(String.format("The message sent by `%s` in %s was deleted %s", author.getName(), textChannel.getAsMention(), reason));
 					embed.setAuthor(new EmbedAuthor(author.getAsTag(), author.getEffectiveAvatarUrl(), null));
 
-					String content = message.getContentRaw();
+					String content = message.getContent();
 					if (!content.isBlank()) {
 						embed.addField(new EmbedField(false, "Message", StringUtility.limit(content, MessageEmbed.VALUE_MAX_LENGTH, "...")));
 					}
@@ -394,7 +395,7 @@ public class LoggerHandler implements EventListener {
 			return;
 		}
 
-		Message previousMessage = this.bot.getMessageCache().getMessageById(message.getIdLong());
+		GuildMessage previousMessage = this.bot.getMessageCache().getMessageById(message.getIdLong());
 		if (previousMessage != null && message.isPinned() != previousMessage.isPinned()) {
 			return;
 		}
@@ -416,7 +417,7 @@ public class LoggerHandler implements EventListener {
 		embed.setTimestamp(Instant.now());
 		embed.setFooter(new EmbedFooter(String.format("Message ID: %s", message.getId()), null));
 
-		String oldContent = previousMessage == null ? null : previousMessage.getContentRaw();
+		String oldContent = previousMessage == null ? null : previousMessage.getContent();
 		if (oldContent != null && !oldContent.isBlank()) {
 			embed.addField(new EmbedField(false, "Before", StringUtility.limit(oldContent, MessageEmbed.VALUE_MAX_LENGTH, "...")));
 		}

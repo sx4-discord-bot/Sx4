@@ -3,6 +3,7 @@ package com.sx4.bot.core;
 import com.jockie.bot.core.command.ICommand;
 import com.jockie.bot.core.command.impl.CommandEvent;
 import com.jockie.bot.core.command.impl.CommandListener;
+import com.sx4.bot.entities.cache.GuildMessage;
 import com.sx4.bot.exceptions.argument.Sx4ArgumentException;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.events.GenericEvent;
@@ -40,7 +41,7 @@ public class Sx4CommandListener extends CommandListener {
 			} else if (event instanceof MessageUpdateEvent) {
 				Message message = ((MessageUpdateEvent) event).getMessage();
 
-				Message previousMessage = this.bot.getMessageCache().getMessageById(message.getIdLong());
+				GuildMessage previousMessage = this.bot.getMessageCache().getMessageById(message.getIdLong());
 				if (previousMessage == null) {
 					return;
 				}
