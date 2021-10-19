@@ -55,14 +55,14 @@ public class TimeFormatter {
 					}
 
 					seconds -= amount * secondsInTime;
+
+					if (i != CHRONO_UNITS.length - 1) {
+						string.append(" ");
+					}
 				}
 
 				if (seconds == 0) {
 					break;
-				}
-
-				if (i != CHRONO_UNITS.length - 1) {
-					string.append(" ");
 				}
 			}
 		}

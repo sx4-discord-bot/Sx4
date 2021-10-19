@@ -10,7 +10,7 @@ public class WebhookClient extends club.minnced.discord.webhook.WebhookClient {
 	private final String token;
 
 	public WebhookClient(long id, String token, ScheduledExecutorService pool, OkHttpClient client) {
-		super(id, token, true, client, pool, AllowedMentions.all());
+		super(id, token, true, client, pool, AllowedMentions.all(), 0);
 
 		this.token = token;
 	}
