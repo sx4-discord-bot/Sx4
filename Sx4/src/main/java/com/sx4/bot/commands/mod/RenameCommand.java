@@ -2,6 +2,7 @@ package com.sx4.bot.commands.mod;
 
 import com.jockie.bot.core.argument.Argument;
 import com.sx4.bot.annotations.argument.Limit;
+import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.utility.PermissionUtility;
@@ -18,6 +19,7 @@ public class RenameCommand extends Sx4Command {
 		super.setDescription("Rename a member in the server");
 		super.setAliases("nick", "nickname");
 		super.setExamples("rename @Shea#6653 tjej", "rename lakrits e-girl hunter", "rename tjej");
+		super.setCategoryAll(ModuleCategory.MODERATION);
 		super.setBotDiscordPermissions(Permission.NICKNAME_CHANGE);
 		super.setAuthorDiscordPermissions(Permission.NICKNAME_CHANGE);
 	}

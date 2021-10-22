@@ -3,6 +3,7 @@ package com.sx4.bot.commands.image;
 import com.jockie.bot.core.argument.Argument;
 import com.sx4.bot.annotations.argument.Colour;
 import com.sx4.bot.annotations.argument.ImageUrl;
+import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.entities.image.ImageRequest;
@@ -19,6 +20,7 @@ public class ChangeColourCommand extends Sx4Command {
 		super.setDescription("Change the colour of an image");
 		super.setAliases("changecolour", "manipulate colour", "manipulatecolour");
 		super.setExamples("change colour https://example.com/image.png #ffff00", "change colour @Shea#6653 255, 0, 0");
+		super.setCategoryAll(ModuleCategory.IMAGE);
 		super.setBotDiscordPermissions(Permission.MESSAGE_ATTACH_FILES);
 	}
 

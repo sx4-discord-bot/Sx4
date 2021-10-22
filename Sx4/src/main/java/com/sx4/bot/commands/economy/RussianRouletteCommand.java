@@ -31,7 +31,7 @@ public class RussianRouletteCommand extends Sx4Command {
 		super.setAliases("rusr", "russianroulette", "roulette");
 		super.setExamples("russian roulette 3 100", "russian roulette 1 10%", "russian roulette 5 all");
 		super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
-		super.setCategoryAll(ModuleCategory.ALL);
+		super.setCategoryAll(ModuleCategory.ECONOMY);
 	}
 
 	public void onCommand(Sx4CommandEvent event, @Argument(value="bullets") @Limit(min=1, max=5) int bullets, @Argument(value="money") AmountArgument amount) {

@@ -1,5 +1,6 @@
 package com.sx4.bot.commands.info;
 
+import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import net.dv8tion.jda.api.EmbedBuilder;
@@ -14,6 +15,7 @@ public class InfoCommand extends Sx4Command {
 
 		super.setDescription("Gives a back story of Sx4 aswell as some other info");
 		super.setExamples("info");
+		super.setCategoryAll(ModuleCategory.INFORMATION);
 		super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
 	}
 

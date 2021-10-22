@@ -1,6 +1,7 @@
 package com.sx4.bot.commands.info;
 
 import com.jockie.bot.core.argument.Argument;
+import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.entities.image.ImageRequest;
@@ -21,6 +22,7 @@ public class AvatarCommand extends Sx4Command {
 		super.setDescription("View the avatar of a user");
 		super.setAliases("av");
 		super.setExamples("avatar", "avatar @Shea#6653", "avatar Shea");
+		super.setCategoryAll(ModuleCategory.INFORMATION);
 		super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
 	}
 

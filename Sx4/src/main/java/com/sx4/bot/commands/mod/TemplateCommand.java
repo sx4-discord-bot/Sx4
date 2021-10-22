@@ -12,6 +12,7 @@ import com.sx4.bot.annotations.command.AuthorPermissions;
 import com.sx4.bot.annotations.command.BotPermissions;
 import com.sx4.bot.annotations.command.CommandId;
 import com.sx4.bot.annotations.command.Examples;
+import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.entities.argument.Alternative;
@@ -40,6 +41,7 @@ public class TemplateCommand extends Sx4Command {
 		super.setDescription("Setup templates to be used as shortcuts in moderation reasons");
 		super.setAliases("templates");
 		super.setExamples("template add", "template remove", "template list");
+		super.setCategoryAll(ModuleCategory.MODERATION);
 	}
 
 	public void onCommand(Sx4CommandEvent event) {

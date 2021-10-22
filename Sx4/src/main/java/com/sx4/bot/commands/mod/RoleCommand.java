@@ -7,6 +7,7 @@ import com.sx4.bot.annotations.argument.AlternativeOptions;
 import com.sx4.bot.annotations.argument.Colour;
 import com.sx4.bot.annotations.argument.Limit;
 import com.sx4.bot.annotations.command.*;
+import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.entities.argument.Alternative;
@@ -29,6 +30,7 @@ public class RoleCommand extends Sx4Command {
 
 		super.setDescription("Allows you to do multiple actions with roles");
 		super.setExamples("role create", "role delete", "role edit");
+		super.setCategoryAll(ModuleCategory.MODERATION);
 	}
 
 	public void onCommand(Sx4CommandEvent event) {

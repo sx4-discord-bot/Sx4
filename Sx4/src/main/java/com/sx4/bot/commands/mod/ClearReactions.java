@@ -1,6 +1,7 @@
 package com.sx4.bot.commands.mod;
 
 import com.jockie.bot.core.argument.Argument;
+import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.entities.argument.MessageArgument;
@@ -16,6 +17,7 @@ public class ClearReactions extends Sx4Command {
 		super.setDescription("Clears all the reactions off a specific message");
 		super.setAliases("remove reactions", "removereactions", "clearreactions");
 		super.setExamples("clear reactions 818123437238255660", "clear reactions https://canary.discord.com/channels/330399610273136641/344091594972069888/818123437238255660");
+		super.setCategoryAll(ModuleCategory.MODERATION);
 		super.setAuthorDiscordPermissions(Permission.MESSAGE_MANAGE);
 		super.setBotDiscordPermissions(Permission.MESSAGE_MANAGE);
 	}
