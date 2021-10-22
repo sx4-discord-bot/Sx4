@@ -19,7 +19,7 @@ public class ChannelCommand extends Sx4Command {
 
 		super.setDescription("Allows you to do multiple actions with channels");
 		super.setExamples("channel create", "channel delete");
-		super.setCategoryAll(ModuleCategory.MODERATION);a
+		super.setCategoryAll(ModuleCategory.MODERATION);
 	}
 
 	public void onCommand(Sx4CommandEvent event) {
