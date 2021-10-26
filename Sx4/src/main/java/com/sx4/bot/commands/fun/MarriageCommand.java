@@ -5,6 +5,7 @@ import com.jockie.bot.core.command.Command;
 import com.jockie.bot.core.command.Command.Cooldown;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Projections;
+import com.mongodb.client.model.Sorts;
 import com.mongodb.client.model.Updates;
 import com.sx4.bot.annotations.argument.AlternativeOptions;
 import com.sx4.bot.annotations.command.CommandId;
@@ -259,7 +260,7 @@ public class MarriageCommand extends Sx4Command {
 
 		Bson filter = Filters.or(Filters.eq("proposerId", user.getIdLong()), Filters.eq("partnerId", user.getIdLong()));
 
-		List<Document> marriages = event.getMongo().getMarriages(filter, Projections.include("proposerId", "partnerId")).into(new ArrayList<>());
+		List<Document> marriages = event.getMongo().getMarriages(filter, Projections.include("proposerId", "partnerId")).sort(Sorts.ascending("_id")).into(new ArrayList<>());
 		if (marriages.isEmpty()) {
 			event.replyFailure("That user is not married to anyone").queue();
 			return;
