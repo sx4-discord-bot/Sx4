@@ -14,17 +14,6 @@ import java.util.stream.Collectors;
 
 public class CheckUtility {
 
-	public static BitSet DEFAULT_BLACKLIST = new BitSet();
-	public static List<Long> DEFAULT_BLACKLIST_LIST;
-	static {
-		CheckUtility.DEFAULT_BLACKLIST.set(276); // Say command
-		CheckUtility.DEFAULT_BLACKLIST.set(293); // Reverse command
-		CheckUtility.DEFAULT_BLACKLIST.set(281); // Alternate caps command
-		CheckUtility.DEFAULT_BLACKLIST.set(280); // Random caps command
-
-		CheckUtility.DEFAULT_BLACKLIST_LIST = Arrays.stream(CheckUtility.DEFAULT_BLACKLIST.toLongArray()).boxed().collect(Collectors.toList());
-	}
-
 	public static boolean canReply(Sx4 bot, Message message, String prefix) {
 		List<String> guildPrefixes = message.isFromGuild() ? bot.getMongoCanary().getGuildById(message.getGuild().getIdLong(), Projections.include("prefixes")).getList("prefixes", String.class, Collections.emptyList()) : Collections.emptyList();
 		List<String> userPrefixes = bot.getMongoCanary().getUserById(message.getAuthor().getIdLong(), Projections.include("prefixes")).getList("prefixes", String.class, Collections.emptyList());
