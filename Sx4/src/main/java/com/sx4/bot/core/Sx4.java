@@ -1060,7 +1060,6 @@ public class Sx4 {
 
 				return new ParsedResult<>(json);
 			}).registerParser(Integer.class, (context, argument, content) -> {
-				System.out.println(content);
 				if (argument.getProperty("colour", false)) {
 					int colour = ColourUtility.fromQuery(content);
 					if (colour == -1) {

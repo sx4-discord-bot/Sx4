@@ -53,9 +53,6 @@ public class BlacklistCommand extends Sx4Command {
 		BitSet bitSet = new BitSet();
 		commands.stream().map(Sx4Command::getId).forEach(bitSet::set);
 
-		System.out.println(bitSet);
-		System.out.println(Arrays.toString(bitSet.toLongArray()));
-
 		Document defaultData = new Document("id", holder.getIdLong())
 			.append("type", type)
 			.append("blacklisted", Collections.EMPTY_LIST);

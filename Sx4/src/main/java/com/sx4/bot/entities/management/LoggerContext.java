@@ -20,6 +20,10 @@ public class LoggerContext {
 	}
 
 	public LoggerContext setUser(User user) {
+		if (user == null) {
+			return this;
+		}
+
 		return this.setUser(user.getIdLong());
 	}
 

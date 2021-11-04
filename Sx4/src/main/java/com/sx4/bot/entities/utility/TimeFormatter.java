@@ -2,10 +2,7 @@ package com.sx4.bot.entities.utility;
 
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 public class TimeFormatter {
 
@@ -37,7 +34,7 @@ public class TimeFormatter {
 			}
 		}
 
-		StringBuilder string = new StringBuilder();
+		StringJoiner joiner = new StringJoiner(" ");
 		int unitsUsed = 0;
 		for (int i = 0; i < CHRONO_UNITS.length; i++) {
 			ChronoUnit chronoUnit = CHRONO_UNITS[i];
@@ -48,17 +45,13 @@ public class TimeFormatter {
 			if (amount != 0) {
 				Map<Boolean, String> suffix = this.units.get(chronoUnit);
 				if (suffix != null) {
-					string.append(amount).append(suffix.get(amount != 1));
+					joiner.add(amount + suffix.get(amount != 1));
 
 					if (++unitsUsed == this.maxUnits) {
-						return string.toString();
+						return joiner.toString();
 					}
 
 					seconds -= amount * secondsInTime;
-
-					if (i != CHRONO_UNITS.length - 1) {
-						string.append(" ");
-					}
 				}
 
 				if (seconds == 0) {
@@ -67,7 +60,7 @@ public class TimeFormatter {
 			}
 		}
 
-		return string.toString();
+		return joiner.toString();
 	}
 
 	public String parse(long seconds) {

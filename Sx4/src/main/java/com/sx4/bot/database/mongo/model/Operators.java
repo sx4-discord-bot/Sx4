@@ -282,7 +282,7 @@ public class Operators {
 	}
 
 	private static Bson toLongValue(Object low, Object high) {
-		return Operators.toLong(Operators.let(new Document("low", low).append("high", high), Operators.add(Operators.cond(Operators.eq("$$high", 2147483648L), Long.MIN_VALUE, Operators.toLong(Operators.multiply("$$high", 0x100000000L))), Operators.cond(Operators.eq("$$low", -2147483648), 2147483648L, "$$low"))));
+		return Operators.toLong(Operators.let(new Document("low", low).append("high", high), Operators.add(Operators.cond(Operators.eq("$$high", 2147483648L), Long.MIN_VALUE, Operators.toLong(Operators.multiply("$$high", 0x100000000L))), Operators.cond(Operators.eq("$$low", Integer.MIN_VALUE), 2147483648L, "$$low"))));
 	}
 	
 	public static Bson bitwiseXor(Object x, Object y) {
