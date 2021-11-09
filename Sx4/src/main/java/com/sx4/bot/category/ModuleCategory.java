@@ -20,6 +20,6 @@ public class ModuleCategory {
 	public static final Sx4Category DEVELOPER = new Sx4Category("Developer", "This modules contains commands which are for developers only", ModuleCategory.ALL, "Dev");
 	public static final Sx4Category MISC = new Sx4Category("Miscellaneous", "This module has a mix of commands which are useful in their own way", ModuleCategory.ALL, "Misc");
 	
-	public static final Sx4Category[] ALL_ARRAY = {ALL, MODERATION, AUTO_MODERATION, NOTIFICATIONS, LOGGING, INFORMATION, MANAGEMENT, GAMES, ECONOMY, IMAGE, FUN, DEVELOPER, MISC};
+	public static final Sx4Category[] ALL_ARRAY = {ALL, MODERATION, AUTO_MODERATION, SETTINGS, NOTIFICATIONS, LOGGING, INFORMATION, MANAGEMENT, GAMES, ECONOMY, IMAGE, FUN, DEVELOPER, MISC};
 	
 }
