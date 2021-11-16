@@ -112,21 +112,24 @@ public class LoggerManager {
         this.webhookClient = webhookClient;
     }
 
+    private void disableLogger(long channelId) {
+        Bson update = Updates.combine(
+            Updates.set("enabled", false),
+            Updates.unset("webhook.id"),
+            Updates.unset("webhook.token")
+        );
+
+        this.bot.getMongo().updateLogger(Filters.eq("channelId", channelId), update, new UpdateOptions()).whenComplete((result, databaseException) -> {
+            ExceptionUtility.sendErrorMessage(databaseException);
+            this.queue.clear();
+        });
+    }
+
     private void createWebhook(TextChannel channel, List<Request> requests) {
         channel.createWebhook("Sx4 - Logger").submit().whenComplete((webhook, exception) -> {
             Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
             if (cause instanceof ErrorResponseException && ((ErrorResponseException) cause).getErrorResponse() == ErrorResponse.MAX_WEBHOOKS) {
-                Bson update = Updates.combine(
-                    Updates.set("enabled", false),
-                    Updates.unset("webhook.id"),
-                    Updates.unset("webhook.token")
-                );
-
-                this.bot.getMongo().updateLogger(Filters.eq("channelId", channel.getIdLong()), update, new UpdateOptions()).whenComplete((result, databaseException) -> {
-                    ExceptionUtility.sendErrorMessage(databaseException);
-                    this.queue.clear();
-                });
-
+                this.disableLogger(channel.getIdLong());
                 return;
             }
 
@@ -239,7 +242,7 @@ public class LoggerManager {
                             return;
                         }
 
-                        this.handleQueue();
+                        this.disableLogger(channel.getIdLong());
                         return;
                     }
 
