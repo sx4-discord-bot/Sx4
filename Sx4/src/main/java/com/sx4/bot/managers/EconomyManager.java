@@ -63,7 +63,7 @@ public class EconomyManager {
 
 	@SuppressWarnings("unchecked")
 	public <Type extends Item> List<Type> getItems(Class<Type> type) {
-		return (List<Type>) this.items.getOrDefault(type, Collections.emptyList());
+		return (List<Type>) new ArrayList<>(this.items.getOrDefault(type, Collections.emptyList()));
 	}
 	
 	public Item getItemByName(String name) {
