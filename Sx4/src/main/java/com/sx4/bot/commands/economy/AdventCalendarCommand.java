@@ -58,6 +58,8 @@ public class AdventCalendarCommand extends Sx4Command {
 			if (opened.contains(day)) {
 				long secondsTillTomorrow = now.toLocalDate().atStartOfDay(ZoneOffset.UTC).plusDays(1).toEpochSecond() - now.toEpochSecond();
 				event.replyFormat("You've already opened today's box on your advent calendar%s :no_entry:", day != 24 ? ", you can open tomorrows in **" + TimeUtility.LONG_TIME_FORMATTER.parse(Duration.of(secondsTillTomorrow, ChronoUnit.SECONDS)) + "**" : "").queue();
+
+				session.abortTransaction();
 				return null;
 			}
 
