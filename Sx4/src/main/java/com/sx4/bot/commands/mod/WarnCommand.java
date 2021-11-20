@@ -35,6 +35,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.concurrent.CompletionException;
 
 public class WarnCommand extends Sx4Command {
 
@@ -60,14 +61,16 @@ public class WarnCommand extends Sx4Command {
 		}
 
 		ModUtility.warn(event.getBot(), member, event.getMember(), reason).whenComplete((warning, exception) -> {
-			if (exception != null) {
-				event.replyFailure(exception.getMessage()).queue();
-			} else {
-				Warn warn = warning.getWarning();
-				Action action = warn.getAction();
-
-				event.replyFormat("**%s** has received a %s%s (%s warning) " + event.getConfig().getSuccessEmote(), member.getUser().getAsTag(), action.getModAction().getName().toLowerCase(), action instanceof TimeAction ? " for " + TimeUtility.LONG_TIME_FORMATTER.parse(((TimeAction) action).getDuration()) : "", NumberUtility.getSuffixed(warn.getNumber())).queue();
+			Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
+			if (cause != null) {
+				event.replyFailure(cause.getMessage()).queue();
+				return;
 			}
+
+			Warn warn = warning.getWarning();
+			Action action = warn.getAction();
+
+			event.replyFormat("**%s** has received a %s%s (%s warning) " + event.getConfig().getSuccessEmote(), member.getUser().getAsTag(), action.getModAction().getName().toLowerCase(), action instanceof TimeAction ? " for " + TimeUtility.LONG_TIME_FORMATTER.parse(((TimeAction) action).getDuration()) : "", NumberUtility.getSuffixed(warn.getNumber())).queue();
 		});
 	}
 

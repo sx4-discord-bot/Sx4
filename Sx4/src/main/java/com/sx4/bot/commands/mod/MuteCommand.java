@@ -18,7 +18,6 @@ import com.sx4.bot.entities.argument.Alternative;
 import com.sx4.bot.entities.argument.TimedArgument;
 import com.sx4.bot.entities.mod.Reason;
 import com.sx4.bot.entities.mod.action.ModAction;
-import com.sx4.bot.entities.utility.TimeFormatter;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.ModUtility;
@@ -35,6 +34,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.concurrent.CompletionException;
 
 public class MuteCommand extends Sx4Command {
 
@@ -60,8 +60,9 @@ public class MuteCommand extends Sx4Command {
 		}
 
 		ModUtility.mute(event.getBot(), member, event.getMember(), time, extend, reason).whenComplete((action, exception) -> {
-			if (exception != null) {
-				event.replyFailure(exception.getMessage()).queue();
+			Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
+			if (cause != null) {
+				event.replyFailure(cause.getMessage()).queue();
 				return;
 			}
 
