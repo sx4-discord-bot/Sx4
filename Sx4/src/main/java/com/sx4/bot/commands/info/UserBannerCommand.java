@@ -30,7 +30,20 @@ public class UserBannerCommand extends Sx4Command {
 		user.retrieveProfile().queue(profile -> {
 			String banner = profile.getBannerUrl();
 			if (banner == null) {
-				event.replyFailure("That user does not have a banner").queue();
+				int accent = profile.getAccentColorRaw();
+				if (accent == User.DEFAULT_ACCENT_COLOR_RAW) {
+					event.replyFailure("That user does not have a banner").queue();
+					return;
+				}
+
+				String accentBanner = event.getConfig().getImageWebserverUrl("colour") + "?colour=" + accent + "&w=1024&h=205";
+
+				EmbedBuilder embed = new EmbedBuilder()
+					.setImage(accentBanner)
+					.setColor(accent)
+					.setAuthor(user.getAsTag(), accentBanner, user.getEffectiveAvatarUrl());
+
+				event.reply(embed.build()).queue();
 				return;
 			}
 
