@@ -50,7 +50,7 @@ public class AvatarCommand extends Sx4Command {
 			EmbedBuilder embed = new EmbedBuilder()
 				.setImage(sizedAvatar)
 				.setColor(data.getInteger("colour"))
-				.setAuthor(user.getAsTag(), sizedAvatar, sizedAvatar);
+				.setAuthor(user.getAsTag(), sizedAvatar, user.getEffectiveAvatarUrl());
 
 			event.reply(embed.build()).queue();
 		});
