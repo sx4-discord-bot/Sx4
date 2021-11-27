@@ -176,11 +176,11 @@ public class CSGOSkinCommand extends Sx4Command {
 							page.forEach((d, index) -> {
 								double steamPrice = d.getInteger("suggestedPrice") / 100D;
 								double price = d.getInteger("salePrice") / 100D;
-								double increase = price - steamPrice;
+								double increase = steamPrice - price;
 
 								embed.setTitle(d.getString("marketName"), "https://skinport.com/item/" + d.getString("url") + "/" + d.getInteger("saleId"));
 								embed.setImage("https://community.cloudflare.steamstatic.com/economy/image/" + d.getString("image"));
-								embed.addField("Price", String.format("~~£%,.2f~~ £%,.2f (%.2f%%)", steamPrice, price, (increase / (increase > 0 ? steamPrice : price)) * 100D), true);
+								embed.addField("Price", String.format("~~£%,.2f~~ £%,.2f (%s%.2f%%)", steamPrice, price, increase > 0 ? "-" : "+", Math.abs((increase / steamPrice) * 100D)), true);
 
 								String exterior = d.getString("exterior");
 								if (exterior != null) {
