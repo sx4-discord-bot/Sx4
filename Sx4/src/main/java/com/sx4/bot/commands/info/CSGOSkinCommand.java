@@ -121,7 +121,10 @@ public class CSGOSkinCommand extends Sx4Command {
 
 			PagedResult<Document> suggestions = new PagedResult<>(event.getBot(), variants)
 				.setAuthor("SkinPort", null, "https://skinport.com/static/favicon-32x32.png")
-				.setDisplayFunction(suggestion -> (suggestion.containsKey("type_localized") ? suggestion.getString("type_localized") + " | " : "") + suggestion.getString("item_localized"))
+				.setDisplayFunction(suggestion -> {
+					String type = suggestion.getString("type_localized");
+					return (type == null ? "" : type + " | ") + suggestion.getString("item_localized");
+				})
 				.setIndexed(true)
 				.setAutoSelect(true);
 
