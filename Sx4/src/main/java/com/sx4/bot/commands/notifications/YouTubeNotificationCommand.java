@@ -315,7 +315,7 @@ public class YouTubeNotificationCommand extends Sx4Command {
 	@Examples({"youtube notification list"})
 	@BotPermissions(permissions={Permission.MESSAGE_EMBED_LINKS})
 	public void list(Sx4CommandEvent event) {
-		List<Document> notifications = event.getMongo().getYouTubeNotifications(Filters.eq("guildId", event.getGuild().getIdLong()), Projections.include("uploaderId")).into(new ArrayList<>());
+		List<Document> notifications = event.getMongo().getYouTubeNotifications(Filters.eq("guildId", event.getGuild().getIdLong()), Projections.include("uploaderId", "channelId", "message")).into(new ArrayList<>());
 		if (notifications.isEmpty()) {
 			event.replyFailure("You have no notifications setup in this server").queue();
 			return;

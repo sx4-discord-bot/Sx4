@@ -133,6 +133,7 @@ public class Sx4 {
 	private final ServerStatsManager serverStatsManager;
 	private final TwitchTokenManager twitchTokenManager;
 	private final MysteryBoxManager mysteryBoxManager;
+	private final SkinPortManager skinPortManager;
 	
 	private Sx4() {
 		this.postgresMain = new PostgresDatabase(this.config.getMainDatabase());
@@ -186,6 +187,7 @@ public class Sx4 {
 		this.serverStatsManager = new ServerStatsManager(this);
 		this.twitchTokenManager = new TwitchTokenManager(this);
 		this.mysteryBoxManager = new MysteryBoxManager();
+		this.skinPortManager = new SkinPortManager(this);
 
 		this.steamGameCache = new SteamGameCache(this);
 		this.messageCache = new MessageCache();
@@ -474,6 +476,10 @@ public class Sx4 {
 		return this.mysteryBoxManager;
 	}
 
+	public SkinPortManager getSkinPortManager() {
+		return this.skinPortManager;
+	}
+
 	public SteamGameCache getSteamGameCache() {
 		return this.steamGameCache;
 	}
@@ -754,6 +760,9 @@ public class Sx4 {
 
 			return builder;
 		}).addBuilderConfigureFunction(String.class, (parameter, builder) -> {
+			builder.setProperty("lowercase", parameter.isAnnotationPresent(Lowercase.class));
+			builder.setProperty("uppercase", parameter.isAnnotationPresent(Uppercase.class));
+
 			DefaultString defaultString = parameter.getAnnotation(DefaultString.class);
 			if (defaultString != null) {
 				builder.setDefaultValue(defaultString.value());
@@ -817,6 +826,14 @@ public class Sx4 {
 
 			return new ParsedResult<>(content);
 		}).addParserAfter(String.class, (context, argument, content) -> {
+			if (argument.getProperty("lowercase", false)) {
+				content = content.toLowerCase();
+			}
+
+			if (argument.getProperty("uppercase", false)) {
+				content = content.toUpperCase();
+			}
+
 			Limit limit = argument.getProperty("limit", Limit.class);
 			if (limit != null && limit.error() && (content.length() < limit.min() || content.length() > limit.max())) {
 				return new ParsedResult<>();

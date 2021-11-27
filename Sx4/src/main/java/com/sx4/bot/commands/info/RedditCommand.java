@@ -48,7 +48,7 @@ public class RedditCommand extends Sx4Command {
 			posts =	posts.stream()
 				.filter(post -> {
 					if (!event.getTextChannel().isNSFW()) {
-						return !post.getEmbedded(List.of("data", "over_18"), boolean.class);
+						return !post.getEmbedded(List.of("data", "over_18"), false);
 					}
 
 					return true;

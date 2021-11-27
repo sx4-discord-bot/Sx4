@@ -27,7 +27,7 @@ public class Sx4CommandEventListener extends CommandEventListener {
 
 		Map<String, String> rawOptions = new HashMap<>();
 		for (String key : options.keySet()) {
-			rawOptions.put(key, options.get(key).toString());
+			rawOptions.put(key, String.valueOf(options.get(key)));
 		}
 
 		Document commandData = new Document("messageId", event.getMessage().getIdLong())

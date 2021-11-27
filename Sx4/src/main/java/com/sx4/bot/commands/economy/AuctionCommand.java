@@ -60,7 +60,7 @@ public class AuctionCommand extends Sx4Command {
 		}
 
 		List<Bson> pipeline = List.of(
-			Aggregates.project(Projections.fields(Projections.include("item.name", "amount", "price", "item.id", "expires"), Projections.computed("price-per-item", Operators.divide("$price", "$amount")))),
+			Aggregates.project(Projections.fields(Projections.include("amount", "price", "item", "expires"), Projections.computed("price-per-item", Operators.divide("$price", "$amount")))),
 			Aggregates.match(filter),
 			Aggregates.sort(reverse ? Sorts.ascending(sort) : Sorts.descending(sort))
 		);

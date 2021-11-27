@@ -166,7 +166,7 @@ public class StarboardHandler implements EventListener {
 			Long originalMessageId = data.getLong("messageId");
 			long messageId = originalMessageId == null ? event.getMessageIdLong() : originalMessageId;
 
-			event.retrieveMessage().queue(message -> {
+			channel.retrieveMessageById(messageId).queue(message -> {
 				String image = message.getAttachments().stream()
 					.filter(Attachment::isImage)
 					.map(Attachment::getUrl)
