@@ -36,9 +36,7 @@ public class TimeFormatter {
 
 		StringJoiner joiner = new StringJoiner(" ");
 		int unitsUsed = 0;
-		for (int i = 0; i < CHRONO_UNITS.length; i++) {
-			ChronoUnit chronoUnit = CHRONO_UNITS[i];
-
+		for (ChronoUnit chronoUnit : CHRONO_UNITS) {
 			long secondsInTime = chronoUnit.getDuration().toSeconds();
 			int amount = (int) Math.floor((double) seconds / secondsInTime);
 

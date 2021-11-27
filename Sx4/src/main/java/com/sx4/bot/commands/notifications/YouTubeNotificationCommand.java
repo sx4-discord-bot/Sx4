@@ -285,9 +285,9 @@ public class YouTubeNotificationCommand extends Sx4Command {
 			JSONObject channel = XML.toJSONObject(response.body().string());
 			JSONObject feed = channel.getJSONObject("feed");
 
-			JSONArray entries = feed.getJSONArray("entry");
+			JSONArray entries = feed.optJSONArray("entry");
 			YouTubeVideo video;
-			if (entries.isEmpty()) {
+			if (entries == null || entries.isEmpty()) {
 				OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
 				video = new YouTubeVideo("dQw4w9WgXcQ", "This channel had no uploads", now, now);
 			} else {

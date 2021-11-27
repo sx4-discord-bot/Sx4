@@ -122,8 +122,8 @@ public class CSGOSkinCommand extends Sx4Command {
 			PagedResult<Document> suggestions = new PagedResult<>(event.getBot(), variants)
 				.setAuthor("SkinPort", null, "https://skinport.com/static/favicon-32x32.png")
 				.setDisplayFunction(suggestion -> {
-					String type = suggestion.getString("type_localized");
-					return (type == null ? "" : type + " | ") + suggestion.getString("item_localized");
+					String type = suggestion.getString("type");
+					return (type == null ? "" : type + " | ") + suggestion.getString("item");
 				})
 				.setIndexed(true)
 				.setAutoSelect(true);
@@ -139,8 +139,7 @@ public class CSGOSkinCommand extends Sx4Command {
 				}
 
 				if (sort != null) {
-					url.append("&sort=").append(sort.getIdentifier());
-					url.append("&order=").append(reverse ? "desc" : "asc");
+					url.append("&sort=").append(sort.getIdentifier()).append("&order=").append(reverse ? "desc" : "asc");
 				}
 
 				if (phase != null) {
@@ -192,9 +191,7 @@ public class CSGOSkinCommand extends Sx4Command {
 								if (lock == null) {
 									embed.addField("Trade Locked", "No", true);
 								} else {
-									OffsetDateTime time = OffsetDateTime.parse(lock);
-
-									embed.addField("Trade Locked", this.formatter.parse(Duration.between(OffsetDateTime.now(ZoneOffset.UTC), time)), true);
+									embed.addField("Trade Locked", this.formatter.parse(Duration.between(OffsetDateTime.now(ZoneOffset.UTC), OffsetDateTime.parse(lock))), true);
 								}
 
 								embeds.add(embed.build());

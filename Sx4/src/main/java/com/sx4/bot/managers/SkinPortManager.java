@@ -17,7 +17,7 @@ public class SkinPortManager {
 	public SkinPortManager(Sx4 bot) {
 		this.bot = bot;
 
-		this.retrieveCSRFToken();
+		this.retrieveCSRFData();
 	}
 
 	public String getCSRFToken() {
@@ -28,7 +28,7 @@ public class SkinPortManager {
 		return this.cookie;
 	}
 
-	public void retrieveCSRFToken() {
+	public void retrieveCSRFData() {
 		Request request = new Request.Builder()
 			.url("https://skinport.com/api/data")
 			.build();
