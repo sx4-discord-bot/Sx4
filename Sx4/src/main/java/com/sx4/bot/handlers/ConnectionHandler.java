@@ -57,13 +57,14 @@ public class ConnectionHandler implements EventListener {
 
 	public void onReady(ReadyEvent event) {
 		JDA jda = event.getJDA();
-		
+
 		if (++this.readyEventsCalled == jda.getShardInfo().getShardTotal()) {
 			ExceptionUtility.safeRun(this.bot.getReminderManager()::ensureReminders);
 			ExceptionUtility.safeRun(this.bot.getMuteManager()::ensureMutes);
 			ExceptionUtility.safeRun(this.bot.getTemporaryBanManager()::ensureBans);
 			ExceptionUtility.safeRun(this.bot.getGiveawayManager()::ensureGiveaways);
 			ExceptionUtility.safeRun(this.bot.getYouTubeManager()::ensureSubscriptions);
+			ExceptionUtility.safeRun(this.bot.getFreeGameManager()::ensureFreeGameScheduler);
 
 			if (this.bot.getConfig().isMain()) {
 				ExceptionUtility.safeRun(this.bot.getPatreonManager()::ensurePatrons);

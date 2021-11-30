@@ -36,6 +36,7 @@ import com.sx4.bot.database.postgres.PostgresDatabase;
 import com.sx4.bot.entities.argument.*;
 import com.sx4.bot.entities.economy.item.Item;
 import com.sx4.bot.entities.economy.item.ItemStack;
+import com.sx4.bot.entities.info.FreeGame;
 import com.sx4.bot.entities.management.AutoRoleFilter;
 import com.sx4.bot.entities.mod.PartialEmote;
 import com.sx4.bot.entities.mod.Reason;
@@ -134,6 +135,7 @@ public class Sx4 {
 	private final TwitchTokenManager twitchTokenManager;
 	private final MysteryBoxManager mysteryBoxManager;
 	private final SkinPortManager skinPortManager;
+	private final FreeGameManager freeGameManager;
 	
 	private Sx4() {
 		this.postgresMain = new PostgresDatabase(this.config.getMainDatabase());
@@ -188,6 +190,7 @@ public class Sx4 {
 		this.twitchTokenManager = new TwitchTokenManager(this);
 		this.mysteryBoxManager = new MysteryBoxManager();
 		this.skinPortManager = new SkinPortManager(this);
+		this.freeGameManager = new FreeGameManager(this);
 
 		this.steamGameCache = new SteamGameCache(this);
 		this.messageCache = new MessageCache();
@@ -227,6 +230,15 @@ public class Sx4 {
 
 		FormatterManager formatterManager = new FormatterManager()
 			.addFunctions("com.sx4.bot.formatter.parser")
+			.addVariable("title", "Gets the title of the game", FreeGame.class, FreeGame::getTitle)
+			.addVariable("description", "Gets the description for the game", FreeGame.class, FreeGame::getDescription)
+			.addVariable("publisher", "Gets the publisher of the game", FreeGame.class, FreeGame::getPublisher)
+			.addVariable("image", "Gets the image of the game", FreeGame.class, FreeGame::getImage)
+			.addVariable("url", "Gets the Epic Games url for the game", FreeGame.class, FreeGame::getUrl)
+			.addVariable("promotion_start", "Gets the start date of the promotion", FreeGame.class, FreeGame::getStart)
+			.addVariable("promotion_end", "Gets the end date of the promotion", FreeGame.class, FreeGame::getEnd)
+			.addVariable("price", "Gets the updated price of the game", FreeGame.class, FreeGame::getPrice)
+			.addVariable("original_price", "Gets the original price of the game", FreeGame.class, FreeGame::getOriginalPrice)
 			.addVariable("suffix", "Gets the suffixed version of a number", Integer.class, NumberUtility::getSuffixed)
 			.addVariable("round", "Gets the rounded number", Double.class, Math::round)
 			.addVariable("floor", "Gets the floored number", Double.class, Math::floor)
@@ -478,6 +490,10 @@ public class Sx4 {
 
 	public SkinPortManager getSkinPortManager() {
 		return this.skinPortManager;
+	}
+
+	public FreeGameManager getFreeGameManager() {
+		return this.freeGameManager;
 	}
 
 	public SteamGameCache getSteamGameCache() {

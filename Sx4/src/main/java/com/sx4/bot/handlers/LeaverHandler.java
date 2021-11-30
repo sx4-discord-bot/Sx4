@@ -14,6 +14,9 @@ import net.dv8tion.jda.api.events.guild.member.GuildMemberRemoveEvent;
 import net.dv8tion.jda.api.hooks.EventListener;
 import org.bson.Document;
 
+import java.time.Clock;
+import java.util.List;
+
 public class LeaverHandler implements EventListener {
 
 	private final Sx4 bot;
@@ -46,11 +49,13 @@ public class LeaverHandler implements EventListener {
 			return;
 		}
 
+		boolean premium = data.getEmbedded(List.of("premium", "endAt"), 0L) >= Clock.systemUTC().instant().getEpochSecond();
+
 		Document webhookData = leaver.get("webhook", MongoDatabase.EMPTY_DOCUMENT);
 
 		WebhookMessage message = builder
-			.setUsername(webhookData.get("name", "Sx4 - Leaver"))
-			.setAvatarUrl(webhookData.get("avatar", event.getJDA().getSelfUser().getEffectiveAvatarUrl()))
+			.setUsername(premium ? webhookData.get("name", "Sx4 - Leaver") : "Sx4 - Leaver")
+			.setAvatarUrl(premium ? webhookData.get("avatar", event.getJDA().getSelfUser().getEffectiveAvatarUrl()) : event.getJDA().getSelfUser().getEffectiveAvatarUrl())
 			.build();
 
 		this.bot.getLeaverManager().sendLeaver(channel, webhookData, message);

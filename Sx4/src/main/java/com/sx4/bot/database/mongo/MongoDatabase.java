@@ -61,6 +61,8 @@ public class MongoDatabase {
 
 	private final MongoCollection<Document> mediaChannels;
 
+	private final MongoCollection<Document> freeGameChannels;
+
 	private final MongoCollection<Document> serverStats;
 
 	private final MongoCollection<Document> loggers;
@@ -159,6 +161,10 @@ public class MongoDatabase {
 		this.mediaChannels = this.database.getCollection("mediaChannels");
 		this.mediaChannels.createIndex(Indexes.descending("guildId"));
 		this.mediaChannels.createIndex(Indexes.descending("channelId"), uniqueIndex);
+
+		this.freeGameChannels = this.database.getCollection("freeGameChannels");
+		this.freeGameChannels.createIndex(Indexes.descending("guildId"), uniqueIndex);
+		this.freeGameChannels.createIndex(Indexes.descending("channelId"), uniqueIndex);
 
 		this.serverStats = this.database.getCollection("guildStats");
 		this.serverStats.createIndex(Indexes.descending("guildId"));
@@ -343,6 +349,38 @@ public class MongoDatabase {
 
 	public CompletableFuture<DeleteResult> deleteMediaChannel(Bson filter) {
 		return CompletableFuture.supplyAsync(() -> this.mediaChannels.deleteOne(filter), this.executor);
+	}
+
+	public MongoCollection<Document> getFreeGameChannels() {
+		return this.freeGameChannels;
+	}
+
+	public FindIterable<Document> getFreeGameChannels(Bson filter, Bson projection) {
+		return this.freeGameChannels.find(filter).projection(projection);
+	}
+
+	public CompletableFuture<List<Document>> aggregateFreeGameChannels(List<Bson> pipeline) {
+		return CompletableFuture.supplyAsync(() -> this.freeGameChannels.aggregate(pipeline).into(new ArrayList<>()), this.executor);
+	}
+
+	public Document getFreeGameChannel(Bson filter, Bson projection) {
+		return this.getFreeGameChannels(filter, projection).first();
+	}
+
+	public CompletableFuture<InsertOneResult> insertFreeGameChannel(Document data) {
+		return CompletableFuture.supplyAsync(() -> this.freeGameChannels.insertOne(data), this.executor);
+	}
+
+	public CompletableFuture<UpdateResult> updateFreeGameChannel(Bson filter, Bson update, UpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.freeGameChannels.updateOne(filter, update, options), this.executor);
+	}
+
+	public CompletableFuture<UpdateResult> updateFreeGameChannel(Bson filter, List<Bson> update, UpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.freeGameChannels.updateOne(filter, update, options), this.executor);
+	}
+
+	public CompletableFuture<DeleteResult> deleteFreeGameChannel(Bson filter) {
+		return CompletableFuture.supplyAsync(() -> this.freeGameChannels.deleteOne(filter), this.executor);
 	}
 
 	public MongoCollection<Document> getMutes() {
