@@ -87,7 +87,7 @@ public class PatreonManager {
 			}
 
 			if (!bulkData.isEmpty()) {
-				this.bot.getMongo().bulkWriteUsers(bulkData).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
+				this.bot.getMongo().bulkWriteUsers(bulkData).whenComplete(MongoDatabase.exceptionally());
 			}
 		});
 	}

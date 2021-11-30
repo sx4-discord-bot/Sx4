@@ -1714,7 +1714,7 @@ public class MongoDatabase {
 		return CompletableFuture.supplyAsync(() -> this.offences.insertOne(data), this.executor);
 	}
 
-	public static <Type> BiConsumer<Type, Throwable> exceptionally(ShardManager manager) {
+	public static <Type> BiConsumer<Type, Throwable> exceptionally() {
 		return ($, exception) -> ExceptionUtility.sendErrorMessage(exception);
 	}
 

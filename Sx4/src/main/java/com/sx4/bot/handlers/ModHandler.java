@@ -78,7 +78,7 @@ public class ModHandler implements ModActionListener, EventListener {
 		ModLog modLog = ModLog.fromData(data);
 
 		this.bot.getModLogManager().editModLog(modLog.getMessageId(), modLog.getChannelId(), data.get("webhook", MongoDatabase.EMPTY_DOCUMENT), modLog.getWebhookEmbed(this.bot.getShardManager()))
-			.whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
+			.whenComplete(MongoDatabase.exceptionally());
 	}
 
 	public void handle(Guild guild, Action action, User moderator, User target, Reason reason) {
@@ -93,7 +93,7 @@ public class ModHandler implements ModActionListener, EventListener {
 				data.append("reason", reason.getParsed());
 			}
 
-			this.bot.getMongo().insertOffence(data).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
+			this.bot.getMongo().insertOffence(data).whenComplete(MongoDatabase.exceptionally());
 		}
 
 		Document data = this.bot.getMongo().getGuildById(guild.getIdLong(), Projections.include("modLog.channelId", "modLog.enabled", "modLog.webhook", "premium.endAt"));
@@ -127,7 +127,7 @@ public class ModHandler implements ModActionListener, EventListener {
 				.setWebhookId(webhookMessage.getWebhookId())
 				.setWebhookToken(webhookMessage.getWebhookToken());
 
-			this.bot.getMongo().insertModLog(modLog.toData()).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
+			this.bot.getMongo().insertModLog(modLog.toData()).whenComplete(MongoDatabase.exceptionally());
 		});
 	}
 	

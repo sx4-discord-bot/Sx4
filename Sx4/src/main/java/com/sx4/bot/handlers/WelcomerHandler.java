@@ -63,7 +63,7 @@ public class WelcomerHandler implements EventListener {
 
 		WelcomerUtility.getWelcomerMessage(this.bot.getHttpClient(), messageEnabled ? welcomer.get("message", WelcomerManager.DEFAULT_MESSAGE) : null, image.getString("bannerId"), member, this.bot.getConfig().isCanary(), imageEnabled, premium, (builder, exception) -> {
 			if (exception instanceof IllegalArgumentException) {
-				this.bot.getMongo().updateGuildById(guild.getIdLong(), Updates.unset("welcomer.message")).whenComplete(MongoDatabase.exceptionally(jda.getShardManager()));
+				this.bot.getMongo().updateGuildById(guild.getIdLong(), Updates.unset("welcomer.message")).whenComplete(MongoDatabase.exceptionally());
 				return;
 			}
 

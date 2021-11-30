@@ -46,7 +46,7 @@ public class Sx4CommandEventListener extends CommandEventListener {
 			commandData.append("guildId", event.getGuild().getIdLong());
 		}
 
-		this.bot.getMongo().insertCommand(commandData).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
+		this.bot.getMongo().insertCommand(commandData).whenComplete(MongoDatabase.exceptionally());
 	}
 
 	public void onCommandExecutionException(ICommand command, CommandEvent event, Throwable throwable) {

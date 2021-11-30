@@ -65,7 +65,7 @@ public class TriggerHandler implements EventListener {
 		});
 
 		if (!bulkData.isEmpty()) {
-			this.bot.getMongo().bulkWriteTriggers(bulkData).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
+			this.bot.getMongo().bulkWriteTriggers(bulkData).whenComplete(MongoDatabase.exceptionally());
 		}
 	}
 

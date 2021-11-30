@@ -169,7 +169,7 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 				});
 
 				if (!bulkUpdate.isEmpty()) {
-					this.bot.getMongo().bulkWriteYouTubeNotifications(bulkUpdate).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
+					this.bot.getMongo().bulkWriteYouTubeNotifications(bulkUpdate).whenComplete(MongoDatabase.exceptionally());
 				}
 
 				Document data = new Document("type", YouTubeType.UPLOAD.getRaw())
@@ -177,13 +177,13 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 					.append("title", event.getVideo().getTitle())
 					.append("uploaderId", event.getChannel().getId());
 
-				this.bot.getMongo().insertYouTubeNotificationLog(data).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
+				this.bot.getMongo().insertYouTubeNotificationLog(data).whenComplete(MongoDatabase.exceptionally());
 			});
 		});
 	}
 	
 	public void onYouTubeDelete(YouTubeDeleteEvent event) {
-		this.bot.getMongo().deleteManyYouTubeNotificationLogs(event.getVideoId()).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
+		this.bot.getMongo().deleteManyYouTubeNotificationLogs(event.getVideoId()).whenComplete(MongoDatabase.exceptionally());
 	}
 	
 	public void onYouTubeUpdateTitle(YouTubeUpdateTitleEvent event) {
@@ -192,7 +192,7 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 			.append("title", event.getVideo().getTitle())
 			.append("uploaderId", event.getChannel().getId());
 
-		this.bot.getMongo().insertYouTubeNotificationLog(data).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
+		this.bot.getMongo().insertYouTubeNotificationLog(data).whenComplete(MongoDatabase.exceptionally());
 	}
 
 	public void onEvent(GenericEvent event) {

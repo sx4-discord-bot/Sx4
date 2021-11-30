@@ -72,9 +72,9 @@ public class ReminderManager {
 	public void executeReminder(Document data) {
 		this.executeReminderBulk(data).whenComplete((model, exception) -> {
 			if (model instanceof UpdateOneModel) {
-				this.bot.getMongo().updateReminder((UpdateOneModel<Document>) model).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
+				this.bot.getMongo().updateReminder((UpdateOneModel<Document>) model).whenComplete(MongoDatabase.exceptionally());
 			} else {
-				this.bot.getMongo().deleteReminder((DeleteOneModel<Document>) model).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
+				this.bot.getMongo().deleteReminder((DeleteOneModel<Document>) model).whenComplete(MongoDatabase.exceptionally());
 			}
 		});
 	}
@@ -155,7 +155,7 @@ public class ReminderManager {
 				return;
 			}
 
-			this.bot.getMongo().bulkWriteReminders(bulkData).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
+			this.bot.getMongo().bulkWriteReminders(bulkData).whenComplete(MongoDatabase.exceptionally());
 		});
 	}
 	

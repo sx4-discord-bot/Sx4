@@ -5,6 +5,7 @@ import com.jockie.bot.core.command.Command;
 import com.mongodb.ErrorCategory;
 import com.mongodb.MongoWriteException;
 import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.UpdateOptions;
 import com.mongodb.client.model.Updates;
 import com.sx4.bot.annotations.argument.AdvancedMessage;
@@ -19,11 +20,13 @@ import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.entities.info.FreeGame;
 import com.sx4.bot.formatter.FormatterManager;
+import com.sx4.bot.formatter.JsonFormatter;
 import com.sx4.bot.formatter.function.FormatterVariable;
-import com.sx4.bot.http.HttpCallback;
+import com.sx4.bot.managers.FreeGameManager;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.FreeGameUtility;
+import com.sx4.bot.utility.MessageUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.MessageBuilder;
 import net.dv8tion.jda.api.Permission;
@@ -31,11 +34,8 @@ import net.dv8tion.jda.api.entities.TextChannel;
 import org.bson.Document;
 
 import java.time.format.DateTimeFormatter;
-import java.util.Collections;
-import java.util.List;
 import java.util.StringJoiner;
 import java.util.concurrent.CompletionException;
-import java.util.stream.Collectors;
 
 public class FreeGamesCommand extends Sx4Command {
 
@@ -58,28 +58,15 @@ public class FreeGamesCommand extends Sx4Command {
 	@CommandId(473)
 	@Examples({"free games list"})
 	public void list(Sx4CommandEvent event) {
-		event.getHttpClient().newCall(FreeGameUtility.REQUEST).enqueue((HttpCallback) response -> {
-			Document document = Document.parse(response.body().string());
-
-			List<Document> elements = document.getEmbedded(List.of("data", "Catalog", "searchStore", "elements"), Collections.emptyList());
-
-			List<Document> freeGames = elements.stream()
-				.filter(game -> {
-					Document offer = FreeGameUtility.getPromotionalOffer(game);
-					return offer != null && offer.getEmbedded(List.of("discountSetting", "discountPercentage"), Integer.class) == 0;
-				})
-				.collect(Collectors.toList());
-
-			PagedResult<Document> paged = new PagedResult<>(event.getBot(), freeGames)
+		FreeGameUtility.retrieveFreeGames(event.getHttpClient(), freeGames -> {
+			PagedResult<FreeGame> paged = new PagedResult<>(event.getBot(), freeGames)
 				.setSelect()
 				.setPerPage(1)
 				.setCustomFunction(page -> {
 					EmbedBuilder embed = new EmbedBuilder();
 					embed.setFooter("Game " + page.getPage() + "/" + page.getMaxPage());
 
-					page.forEach((data, index) -> {
-						FreeGame game = FreeGame.fromData(data, true);
-
+					page.forEach((game, index) -> {
 						embed.setTitle(game.getTitle(), game.getUrl());
 						embed.setDescription(game.getDescription());
 						embed.setImage(game.getImage());
@@ -88,7 +75,7 @@ public class FreeGamesCommand extends Sx4Command {
 
 						embed.addField("Price", game.getPrice() == originalPrice ? "Free" : String.format("~~£%.2f~~ Free", originalPrice), true);
 						embed.addField("Publisher", game.getPublisher(), true);
-						embed.addField("Promotion Duration", game.getStart().format(this.formatter) + " - " + game.getEnd().format(this.formatter), false);
+						embed.addField("Promotion Duration", game.getPromotionStart().format(this.formatter) + " - " + game.getPromotionEnd().format(this.formatter), false);
 					});
 
 					return new MessageBuilder().setEmbeds(embed.build());
@@ -253,6 +240,24 @@ public class FreeGamesCommand extends Sx4Command {
 			}
 
 			event.replySuccess("Your webhook avatar has been updated for that free game notifications, this only works with premium <https://patreon.com/Sx4>").queue();
+		});
+	}
+
+	@Command(value="preview", description="Preview your free game notification message")
+	@CommandId(481)
+	@Examples({"free games preview"})
+	public void preview(Sx4CommandEvent event) {
+		Document data = event.getMongo().getFreeGameChannel(Filters.eq("guildId", event.getGuild().getIdLong()), Projections.include("message"));
+		if (data == null) {
+			event.replyFailure("You don't have a free game channel setup").queue();
+			return;
+		}
+
+		FreeGameUtility.retrieveFreeGames(event.getHttpClient(), freeGames -> {
+			JsonFormatter formatter = new JsonFormatter(data.get("message", FreeGameManager.DEFAULT_MESSAGE))
+				.addVariable("game", freeGames.get(0));
+
+			MessageUtility.fromWebhookMessage(event.getChannel(), MessageUtility.fromJson(formatter.parse()).build()).queue();
 		});
 	}
 

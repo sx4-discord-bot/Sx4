@@ -20,7 +20,6 @@ import com.sx4.bot.entities.mod.action.ModAction;
 import com.sx4.bot.entities.mod.auto.MatchAction;
 import com.sx4.bot.entities.mod.auto.RegexType;
 import com.sx4.bot.entities.settings.HolderType;
-import com.sx4.bot.entities.utility.TimeFormatter;
 import com.sx4.bot.handlers.AntiRegexHandler;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
@@ -78,7 +77,7 @@ public class AntiInviteCommand extends Sx4Command {
 			} else {
 				return CompletableFuture.completedFuture(null);
 			}
-		}).whenComplete(MongoDatabase.exceptionally(event.getShardManager()));
+		}).whenComplete(MongoDatabase.exceptionally());
 	}
 
 	/*@Command(value="set", description="Sets the amount of attempts a user has")

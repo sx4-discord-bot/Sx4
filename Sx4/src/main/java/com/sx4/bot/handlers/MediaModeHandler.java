@@ -68,7 +68,7 @@ public class MediaModeHandler implements EventListener {
 	}
 
 	public void onTextChannelDelete(TextChannelDeleteEvent event) {
-		this.bot.getMongo().deleteMediaChannel(Filters.eq("channelId", event.getChannel().getIdLong())).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
+		this.bot.getMongo().deleteMediaChannel(Filters.eq("channelId", event.getChannel().getIdLong())).whenComplete(MongoDatabase.exceptionally());
 	}
 
 	@Override

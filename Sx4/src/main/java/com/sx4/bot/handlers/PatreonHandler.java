@@ -24,7 +24,7 @@ public class PatreonHandler implements PatreonListener {
 			Operators.set("premium.total", event.getTotalAmount())
 		);
 
-		this.bot.getMongoMain().updateUserById(event.getDiscordId(), update).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
+		this.bot.getMongoMain().updateUserById(event.getDiscordId(), update).whenComplete(MongoDatabase.exceptionally());
 	}
 	
 }

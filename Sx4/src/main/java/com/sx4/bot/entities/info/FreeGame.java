@@ -8,7 +8,7 @@ import java.util.List;
 
 public class FreeGame {
 
-	private final String title, description, publisher, image, url;
+	private final String title, description, publisher, image, url, runUrl;
 	private final double originalPrice, price;
 	private final OffsetDateTime start, end;
 
@@ -17,6 +17,7 @@ public class FreeGame {
 		this.description = data.getString("description");
 		this.publisher = data.getEmbedded(List.of("seller", "name"), String.class);
 		this.url = "https://www.epicgames.com/store/en-US/p/" + data.getString("urlSlug");
+		this.runUrl = "<com.epicgames.launcher://store/en-US/p/" + data.getString("urlSlug") + ">";
 		this.image = data.getList("keyImages", Document.class).stream()
 			.filter(d -> d.getString("type").equals("OfferImageWide"))
 			.map(d -> d.getString("url"))
@@ -52,6 +53,10 @@ public class FreeGame {
 		return this.url;
 	}
 
+	public String getRunUrl() {
+		return this.runUrl;
+	}
+
 	public double getOriginalPrice() {
 		return this.originalPrice;
 	}
@@ -60,11 +65,11 @@ public class FreeGame {
 		return this.price;
 	}
 
-	public OffsetDateTime getStart() {
+	public OffsetDateTime getPromotionStart() {
 		return this.start;
 	}
 
-	public OffsetDateTime getEnd() {
+	public OffsetDateTime getPromotionEnd() {
 		return this.end;
 	}
 

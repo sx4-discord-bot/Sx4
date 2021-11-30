@@ -139,7 +139,7 @@ public class LoggerHandler implements EventListener {
 		}
 
 		if (!deletedLoggers.isEmpty()) {
-			this.bot.getMongo().deleteManyLoggers(Filters.in("channelId", deletedLoggers)).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
+			this.bot.getMongo().deleteManyLoggers(Filters.in("channelId", deletedLoggers)).whenComplete(MongoDatabase.exceptionally());
 		}
 	}
 	

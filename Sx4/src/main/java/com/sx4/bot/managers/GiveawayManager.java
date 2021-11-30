@@ -74,7 +74,7 @@ public class GiveawayManager {
 			}
 			
 			return this.bot.getMongo().updateGiveaway(model);
-		}).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
+		}).whenComplete(MongoDatabase.exceptionally());
 	}
 	
 	public CompletableFuture<UpdateOneModel<Document>> endGiveawayBulk(Document data) {
@@ -185,7 +185,7 @@ public class GiveawayManager {
 				}
 
 				return CompletableFuture.completedFuture(null);
-			}).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
+			}).whenComplete(MongoDatabase.exceptionally());
 		}
 	}
 	

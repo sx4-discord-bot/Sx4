@@ -138,7 +138,7 @@ public class MuteManager {
 	public void removeMute(long guildId, long userId, long roleId) {
 		DeleteOneModel<Document> model = this.removeMuteBulk(guildId, userId, roleId);
 		if (model != null) {
-			this.bot.getMongo().deleteMute(model.getFilter()).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
+			this.bot.getMongo().deleteMute(model.getFilter()).whenComplete(MongoDatabase.exceptionally());
 		}
 	}
 	
@@ -169,7 +169,7 @@ public class MuteManager {
 		});
 
 		if (!bulkData.isEmpty()) {
-			this.bot.getMongo().bulkWriteMutes(bulkData).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
+			this.bot.getMongo().bulkWriteMutes(bulkData).whenComplete(MongoDatabase.exceptionally());
 		}
 	}
 	

@@ -148,7 +148,7 @@ public class ReactionRoleHandler implements EventListener {
 	}
 	
 	public void handle(List<Long> messageIds) {
-		this.bot.getMongo().deleteManyReactionRoles(Filters.in("messageId", messageIds)).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
+		this.bot.getMongo().deleteManyReactionRoles(Filters.in("messageId", messageIds)).whenComplete(MongoDatabase.exceptionally());
 	}
 	
 	public void onRoleDelete(RoleDeleteEvent event) {

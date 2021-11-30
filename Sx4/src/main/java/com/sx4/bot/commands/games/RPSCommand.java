@@ -85,7 +85,7 @@ public class RPSCommand extends Sx4Command {
 
 		event.reply(outcome).queue();
 
-		event.getMongo().insertManyGames(List.of(authorData, opponentData)).whenComplete(MongoDatabase.exceptionally(event.getShardManager()));
+		event.getMongo().insertManyGames(List.of(authorData, opponentData)).whenComplete(MongoDatabase.exceptionally());
 	}
 
 	@Command(value="stats", description="View some stats about your personal rps record")

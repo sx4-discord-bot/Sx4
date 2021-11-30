@@ -145,7 +145,7 @@ public class YouTubeManager {
 	public void resubscribe(String channelId) {
 		DeleteOneModel<Document> model = this.resubscribeBulk(channelId);
 		if (model != null) {
-			this.bot.getMongo().deleteYouTubeSubscription(model.getFilter()).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
+			this.bot.getMongo().deleteYouTubeSubscription(model.getFilter()).whenComplete(MongoDatabase.exceptionally());
 		}
 	}
 	
@@ -167,7 +167,7 @@ public class YouTubeManager {
 		});
 		
 		if (!bulkData.isEmpty()) {
-			this.bot.getMongo().bulkWriteYouTubeSubscriptions(bulkData).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
+			this.bot.getMongo().bulkWriteYouTubeSubscriptions(bulkData).whenComplete(MongoDatabase.exceptionally());
 		}
 	}
 	

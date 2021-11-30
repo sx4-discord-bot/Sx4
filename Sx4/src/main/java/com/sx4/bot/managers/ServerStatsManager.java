@@ -40,7 +40,7 @@ public class ServerStatsManager {
 			this.clear();
 
 			if (!data.isEmpty()) {
-				this.bot.getMongo().insertManyServerStats(data).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
+				this.bot.getMongo().insertManyServerStats(data).whenComplete(MongoDatabase.exceptionally());
 			}
 		}, Duration.between(now, nextHour).toSeconds(), 3600, TimeUnit.SECONDS);
 	}

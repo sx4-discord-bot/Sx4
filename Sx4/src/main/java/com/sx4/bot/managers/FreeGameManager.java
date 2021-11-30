@@ -165,7 +165,7 @@ public class FreeGameManager implements WebhookManager {
 							messages.add(message);
 						}
 
-						messages.forEach(message -> this.sendFreeGameNotification(channel, webhookData, message));
+						messages.forEach(message -> this.sendFreeGameNotification(channel, webhookData, message).whenComplete(MongoDatabase.exceptionally()));
 					});
 				});
 			});
@@ -191,7 +191,7 @@ public class FreeGameManager implements WebhookManager {
 			for (Document gameData : upcomingGames) {
 				FreeGame game = FreeGame.fromData(gameData);
 
-				long seconds = Duration.between(now, game.getStart()).toSeconds();
+				long seconds = Duration.between(now, game.getPromotionStart()).toSeconds();
 				intervals.compute(seconds, (key, value) -> {
 					List<FreeGame> games = value == null ? new ArrayList<>() : value;
 					games.add(game);

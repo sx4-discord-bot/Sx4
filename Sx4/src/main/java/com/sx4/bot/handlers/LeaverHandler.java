@@ -45,7 +45,7 @@ public class LeaverHandler implements EventListener {
 		try {
 			builder = LeaverUtility.getLeaverMessage(leaver.get("message", LeaverManager.DEFAULT_MESSAGE), event.getMember());
 		} catch (IllegalArgumentException e) {
-			this.bot.getMongo().updateGuildById(event.getGuild().getIdLong(), Updates.unset("leaver.message")).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
+			this.bot.getMongo().updateGuildById(event.getGuild().getIdLong(), Updates.unset("leaver.message")).whenComplete(MongoDatabase.exceptionally());
 			return;
 		}
 

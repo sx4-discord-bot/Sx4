@@ -221,7 +221,7 @@ public class GuessTheNumberCommand extends Sx4Command {
 
 					event.reply(content.toString()).queue();
 
-					event.getMongo().insertManyGames(List.of(authorData, opponentData)).whenComplete(MongoDatabase.exceptionally(event.getShardManager()));
+					event.getMongo().insertManyGames(List.of(authorData, opponentData)).whenComplete(MongoDatabase.exceptionally());
 				});
 			});
 	}

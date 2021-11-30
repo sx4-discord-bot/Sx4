@@ -74,7 +74,7 @@ public class AutoRoleHandler implements EventListener {
 	}
 	
 	public void onRoleDelete(RoleDeleteEvent event) {
-		this.bot.getMongo().deleteAutoRole(Filters.eq("roleId", event.getRole().getIdLong())).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
+		this.bot.getMongo().deleteAutoRole(Filters.eq("roleId", event.getRole().getIdLong())).whenComplete(MongoDatabase.exceptionally());
 	}
 
 	@Override

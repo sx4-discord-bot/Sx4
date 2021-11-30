@@ -114,7 +114,7 @@ public class TemporaryBanManager {
 	public void removeBan(long guildId, long userId, boolean automatic) {
 		DeleteOneModel<Document> model = this.removeBanAndGet(guildId, userId, automatic);
 		if (model != null) {
-			this.bot.getMongo().deleteTemporaryBan(model.getFilter()).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
+			this.bot.getMongo().deleteTemporaryBan(model.getFilter()).whenComplete(MongoDatabase.exceptionally());
 		}
 	}
 
@@ -137,7 +137,7 @@ public class TemporaryBanManager {
 		});
 
 		if (!bulkData.isEmpty()) {
-			this.bot.getMongo().bulkWriteTemporaryBans(bulkData).whenComplete(MongoDatabase.exceptionally(this.bot.getShardManager()));
+			this.bot.getMongo().bulkWriteTemporaryBans(bulkData).whenComplete(MongoDatabase.exceptionally());
 		}
 	}
 	
