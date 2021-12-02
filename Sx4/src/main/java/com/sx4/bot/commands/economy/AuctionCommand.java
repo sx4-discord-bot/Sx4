@@ -335,96 +335,92 @@ public class AuctionCommand extends Sx4Command {
 		);
 
 		event.getMongo().aggregateAuction(pipeline).whenComplete((items, exception) -> {
-			try {
-				if (ExceptionUtility.sendExceptionally(event, exception)) {
-					return;
-				}
+			if (ExceptionUtility.sendExceptionally(event, exception)) {
+				return;
+			}
 
-				if (items.isEmpty()) {
-					event.replyFailure("You have no items on the auction which have expired with that filter").queue();
-					return;
-				}
+			if (items.isEmpty()) {
+				event.replyFailure("You have no items on the auction which have expired with that filter").queue();
+				return;
+			}
 
-				PagedResult<Document> paged = new PagedResult<>(event.getBot(), items)
-					.setPerPage(6)
-					.setTimeout(30)
-					.setCustomFunction(page -> {
-						EmbedBuilder embed = new EmbedBuilder()
-							.setAuthor("Auction List", null, event.getSelfUser().getEffectiveAvatarUrl())
-							.setTitle("Page " + page.getPage() + "/" + page.getMaxPage())
-							.setFooter(PagedResult.DEFAULT_FOOTER_TEXT);
+			PagedResult<Document> paged = new PagedResult<>(event.getBot(), items)
+				.setPerPage(6)
+				.setTimeout(30)
+				.setCustomFunction(page -> {
+					EmbedBuilder embed = new EmbedBuilder()
+						.setAuthor("Auction List", null, event.getSelfUser().getEffectiveAvatarUrl())
+						.setTitle("Page " + page.getPage() + "/" + page.getMaxPage())
+						.setFooter(PagedResult.DEFAULT_FOOTER_TEXT);
 
-						page.forEach((data, index) -> {
-							Auction<?> auction = new Auction<>(event.getBot().getEconomyManager(), data);
-							ItemStack<?> stack = auction.getItemStack();
-							Item auctionItem = stack.getItem();
+					page.forEach((data, index) -> {
+						Auction<?> auction = new Auction<>(event.getBot().getEconomyManager(), data);
+						ItemStack<?> stack = auction.getItemStack();
+						Item auctionItem = stack.getItem();
 
-							StringBuilder content = new StringBuilder(String.format("Price: $%,d\nPrice Per Item: $%,.2f\nAmount: %,d", auction.getPrice(), auction.getPricePerItem(), stack.getAmount()));
+						StringBuilder content = new StringBuilder(String.format("Price: $%,d\nPrice Per Item: $%,.2f\nAmount: %,d", auction.getPrice(), auction.getPricePerItem(), stack.getAmount()));
 
-							if (auctionItem instanceof Tool) {
-								Tool tool = (Tool) auctionItem;
-								content.append(String.format("\nDurability: %,d\nMax Durability: %,d", tool.getDurability(), tool.getMaxDurability()));
-							}
-
-							if (auctionItem instanceof Pickaxe) {
-								Pickaxe pickaxe = (Pickaxe) auctionItem;
-								content.append(String.format("\nMultiplier: %,.2f\nYield: $%,d to $%,d", pickaxe.getMultiplier(), pickaxe.getMinYield(), pickaxe.getMaxYield()));
-							} else if (auctionItem instanceof Axe) {
-								Axe axe = (Axe) auctionItem;
-								content.append(String.format("\nMultiplier: %,.2f", axe.getMultiplier()));
-							} else if (auctionItem instanceof Rod) {
-								Rod rod = (Rod) auctionItem;
-								content.append(String.format("\nYield: $%,d to $%,d", rod.getMinYield(), rod.getMaxYield()));
-							}
-
-							embed.addField((index + 1) + ". " + auctionItem.getName(), content.toString(), true);
-						});
-
-						return new MessageBuilder().setEmbeds(embed.build());
-					});
-
-				paged.onTimeout(() -> event.reply("Timed out :stopwatch:"));
-
-				paged.onSelect(select -> {
-					Auction<?> auction = new Auction<>(event.getBot().getEconomyManager(), select.getSelected());
-					ItemStack<?> stack = auction.getItemStack();
-
-					long amount = stack.getAmount();
-					Item auctionItem = stack.getItem();
-
-					event.getMongo().withTransaction(session -> {
 						if (auctionItem instanceof Tool) {
-							ItemType type = auctionItem.getType();
-
-							long count = event.getMongo().getItems().countDocuments(session, Filters.and(Filters.eq("userId", event.getAuthor().getIdLong()), Filters.eq("item.type", type.getId())));
-							if (count != 0) {
-								event.replyFailure("You already have a " + type.getName().toLowerCase()).queue();
-								session.abortTransaction();
-								return;
-							}
+							Tool tool = (Tool) auctionItem;
+							content.append(String.format("\nDurability: %,d\nMax Durability: %,d", tool.getDurability(), tool.getMaxDurability()));
 						}
 
-						event.getMongo().getAuction().deleteOne(session, Filters.eq("_id", auction.getId()));
-
-						List<Bson> update = List.of(
-							Operators.set("item", auctionItem.toData()),
-							Operators.set("amount", Operators.add(Operators.ifNull("$amount", 0L), amount))
-						);
-
-						event.getMongo().getItems().updateOne(session, Filters.and(Filters.eq("userId", event.getAuthor().getIdLong()), Filters.eq("item.id", auctionItem.getId())), update, new UpdateOptions().upsert(true));
-					}).whenComplete((updated, databaseException) -> {
-						if (ExceptionUtility.sendExceptionally(event, databaseException) || !updated) {
-							return;
+						if (auctionItem instanceof Pickaxe) {
+							Pickaxe pickaxe = (Pickaxe) auctionItem;
+							content.append(String.format("\nMultiplier: %,.2f\nYield: $%,d to $%,d", pickaxe.getMultiplier(), pickaxe.getMinYield(), pickaxe.getMaxYield()));
+						} else if (auctionItem instanceof Axe) {
+							Axe axe = (Axe) auctionItem;
+							content.append(String.format("\nMultiplier: %,.2f", axe.getMultiplier()));
+						} else if (auctionItem instanceof Rod) {
+							Rod rod = (Rod) auctionItem;
+							content.append(String.format("\nYield: $%,d to $%,d", rod.getMinYield(), rod.getMaxYield()));
 						}
 
-						event.replyFormat("You just refunded your `%,d %s` %s", amount, auctionItem.getName(), event.getConfig().getSuccessEmote()).queue();
+						embed.addField((index + 1) + ". " + auctionItem.getName(), content.toString(), true);
 					});
+
+					return new MessageBuilder().setEmbeds(embed.build());
 				});
 
-				paged.execute(event);
-			} catch (Throwable e) {
-				e.printStackTrace();
-			}
+			paged.onTimeout(() -> event.reply("Timed out :stopwatch:"));
+
+			paged.onSelect(select -> {
+				Auction<?> auction = new Auction<>(event.getBot().getEconomyManager(), select.getSelected());
+				ItemStack<?> stack = auction.getItemStack();
+
+				long amount = stack.getAmount();
+				Item auctionItem = stack.getItem();
+
+				event.getMongo().withTransaction(session -> {
+					if (auctionItem instanceof Tool) {
+						ItemType type = auctionItem.getType();
+
+						long count = event.getMongo().getItems().countDocuments(session, Filters.and(Filters.eq("userId", event.getAuthor().getIdLong()), Filters.eq("item.type", type.getId())));
+						if (count != 0) {
+							event.replyFailure("You already have a " + type.getName().toLowerCase()).queue();
+							session.abortTransaction();
+							return;
+						}
+					}
+
+					event.getMongo().getAuction().deleteOne(session, Filters.eq("_id", auction.getId()));
+
+					List<Bson> update = List.of(
+						Operators.set("item", auctionItem.toData()),
+						Operators.set("amount", Operators.add(Operators.ifNull("$amount", 0L), amount))
+					);
+
+					event.getMongo().getItems().updateOne(session, Filters.and(Filters.eq("userId", event.getAuthor().getIdLong()), Filters.eq("item.id", auctionItem.getId())), update, new UpdateOptions().upsert(true));
+				}).whenComplete((updated, databaseException) -> {
+					if (ExceptionUtility.sendExceptionally(event, databaseException) || !updated) {
+						return;
+					}
+
+					event.replyFormat("You just refunded your `%,d %s` %s", amount, auctionItem.getName(), event.getConfig().getSuccessEmote()).queue();
+				});
+			});
+
+			paged.execute(event);
 		});
 	}
 
