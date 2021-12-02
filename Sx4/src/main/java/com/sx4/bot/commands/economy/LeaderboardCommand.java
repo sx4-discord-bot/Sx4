@@ -57,7 +57,7 @@ public class LeaderboardCommand extends Sx4Command {
 	public void balance(Sx4CommandEvent event, @Option(value="server", aliases={"guild"}, description="View the leaderboard with a server filter") boolean guild) {
 		List<Bson> pipeline = List.of(
 			Aggregates.project(Projections.computed("balance", "$economy.balance")),
-			Aggregates.match(Filters.and(Filters.exists("balance"), Filters.ne("balance", 0))),
+			Aggregates.match(Filters.and(Filters.ne("_id", event.getJDA().getSelfUser().getIdLong()), Filters.exists("balance"), Filters.ne("balance", 0))),
 			Aggregates.sort(Sorts.descending("balance"))
 		);
 
@@ -124,7 +124,7 @@ public class LeaderboardCommand extends Sx4Command {
 
 		List<Bson> pipeline = List.of(
 			Aggregates.project(Projections.fields(Projections.computed("_id", "$userId"), Projections.computed("total", Operators.cond(Operators.exists("$item.durability"), Operators.toLong(Operators.multiply(Operators.divide("$item.price", "$item.maxDurability"), "$item.durability")), Operators.multiply("$item.price", "$amount"))))),
-			Aggregates.match(Filters.ne("amount", 0)),
+			Aggregates.match(Filters.and(Filters.ne("_id", event.getJDA().getSelfUser().getIdLong()), Filters.ne("amount", 0))),
 			Aggregates.unionWith("users", userPipeline),
 			Aggregates.group("$_id", Accumulators.sum("total", "$total")),
 			Aggregates.sort(Sorts.descending("total"))
@@ -188,7 +188,7 @@ public class LeaderboardCommand extends Sx4Command {
 	public void winnings(Sx4CommandEvent event, @Option(value="server", aliases={"guild"}, description="View the leaderboard with a server filter") boolean guild) {
 		List<Bson> pipeline = List.of(
 			Aggregates.project(Projections.computed("winnings", "$economy.winnings")),
-			Aggregates.match(Filters.and(Filters.exists("winnings"), Filters.ne("winnings", 0))),
+			Aggregates.match(Filters.and(Filters.ne("_id", event.getJDA().getSelfUser().getIdLong()), Filters.exists("winnings"), Filters.ne("winnings", 0))),
 			Aggregates.sort(Sorts.descending("winnings"))
 		);
 
@@ -248,7 +248,7 @@ public class LeaderboardCommand extends Sx4Command {
 	@Examples({"leaderboard items", "leaderboard items Shoe", "leaderboard items Diamond --server"})
 	@BotPermissions(permissions={Permission.MESSAGE_EMBED_LINKS})
 	public void items(Sx4CommandEvent event, @Argument(value="item", endless=true, nullDefault=true) Item item, @Option(value="server", aliases={"guild"}, description="View the leaderboard with a server filter") boolean guild) {
-		Bson filter = Filters.ne("amount", 0);
+		Bson filter = Filters.and(Filters.ne("_id", event.getJDA().getSelfUser().getIdLong()), Filters.ne("amount", 0));
 		if (item != null) {
 			filter = Filters.and(filter, Filters.eq("item.id", item.getId()));
 		}
@@ -318,7 +318,7 @@ public class LeaderboardCommand extends Sx4Command {
 	public void streak(Sx4CommandEvent event, @Option(value="server", aliases={"guild"}, description="View the leaderboard with a server filter") boolean guild) {
 		List<Bson> pipeline = List.of(
 			Aggregates.project(Projections.computed("streak", "$economy.streak")),
-			Aggregates.match(Filters.and(Filters.exists("streak"), Filters.ne("streak", 0))),
+			Aggregates.match(Filters.and(Filters.ne("_id", event.getJDA().getSelfUser().getIdLong()), Filters.exists("streak"), Filters.ne("streak", 0))),
 			Aggregates.sort(Sorts.descending("streak"))
 		);
 
