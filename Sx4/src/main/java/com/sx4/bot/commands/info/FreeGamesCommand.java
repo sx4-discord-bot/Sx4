@@ -60,6 +60,47 @@ public class FreeGamesCommand extends Sx4Command {
 	@Examples({"free games list"})
 	public void list(Sx4CommandEvent event) {
 		FreeGameUtility.retrieveFreeGames(event.getHttpClient(), freeGames -> {
+			if (freeGames.isEmpty()) {
+				event.replyFailure("There are currently no free games").queue();
+				return;
+			}
+
+			PagedResult<FreeGame> paged = new PagedResult<>(event.getBot(), freeGames)
+				.setSelect()
+				.setPerPage(1)
+				.setCustomFunction(page -> {
+					EmbedBuilder embed = new EmbedBuilder();
+					embed.setFooter("Game " + page.getPage() + "/" + page.getMaxPage());
+
+					page.forEach((game, index) -> {
+						embed.setTitle(game.getTitle(), game.getUrl());
+						embed.setDescription(game.getDescription());
+						embed.setImage(game.getImage());
+
+						double originalPrice = game.getOriginalPrice();
+
+						embed.addField("Price", game.getPrice() == originalPrice ? "Free" : String.format("~~£%.2f~~ Free", originalPrice), true);
+						embed.addField("Publisher", game.getPublisher(), true);
+						embed.addField("Promotion End", TimeFormat.DATE_TIME_SHORT.format(game.getPromotionEnd()), false);
+					});
+
+					return new MessageBuilder().setEmbeds(embed.build());
+				});
+
+			paged.execute(event);
+		});
+	}
+
+	@Command(value="upcoming", description="Lists the free games on Epic Games coming in the future")
+	@CommandId(482)
+	@Examples({"free games upcoming"})
+	public void upcoming(Sx4CommandEvent event) {
+		FreeGameUtility.retrieveFreeGames(event.getHttpClient(), false, freeGames -> {
+			if (freeGames.isEmpty()) {
+				event.replyFailure("There are currently no upcoming free games").queue();
+				return;
+			}
+
 			PagedResult<FreeGame> paged = new PagedResult<>(event.getBot(), freeGames)
 				.setSelect()
 				.setPerPage(1)

@@ -17,13 +17,13 @@ public class FreeGameUtility {
 		.url("https://store-site-backend-static-ipv4.ak.epicgames.com/freeGamesPromotions?locale=en-US&country=GB&allowCountries=GB")
 		.build();
 
-	public static Document getPromotionalOffer(Document data, String key) {
+	public static Document getPromotionalOffer(Document data, boolean current) {
 		Document promotions = data.get("promotions", Document.class);
 		if (promotions == null) {
 			return null;
 		}
 
-		List<Document> offers = promotions.getList(key, Document.class, Collections.emptyList());
+		List<Document> offers = promotions.getList(current ? "promotionalOffers" : "upcomingPromotionalOffers", Document.class, Collections.emptyList());
 		if (offers.isEmpty()) {
 			return null;
 		}
@@ -37,14 +37,14 @@ public class FreeGameUtility {
 	}
 
 	public static Document getPromotionalOffer(Document data) {
-		return FreeGameUtility.getPromotionalOffer(data, "promotionalOffers");
+		return FreeGameUtility.getPromotionalOffer(data, true);
 	}
 
 	public static Document getUpcomingPromotionalOffer(Document data) {
-		return FreeGameUtility.getPromotionalOffer(data, "upcomingPromotionalOffers");
+		return FreeGameUtility.getPromotionalOffer(data, false);
 	}
 
-	public static void retrieveFreeGames(OkHttpClient client, Consumer<List<FreeGame>> consumer) {
+	public static void retrieveFreeGames(OkHttpClient client, boolean current, Consumer<List<FreeGame>> consumer) {
 		client.newCall(FreeGameUtility.REQUEST).enqueue((HttpCallback) response -> {
 			Document document = Document.parse(response.body().string());
 
@@ -52,14 +52,18 @@ public class FreeGameUtility {
 
 			List<FreeGame> freeGames = elements.stream()
 				.filter(game -> {
-					Document offer = FreeGameUtility.getPromotionalOffer(game);
+					Document offer = FreeGameUtility.getPromotionalOffer(game, current);
 					return offer != null && offer.getEmbedded(List.of("discountSetting", "discountPercentage"), Integer.class) == 0;
 				})
-				.map(game -> FreeGame.fromData(game, true))
+				.map(game -> FreeGame.fromData(game, current))
 				.collect(Collectors.toList());
 
 			consumer.accept(freeGames);
 		});
+	}
+
+	public static void retrieveFreeGames(OkHttpClient client, Consumer<List<FreeGame>> consumer) {
+		FreeGameUtility.retrieveFreeGames(client, true, consumer);
 	}
 
 }
