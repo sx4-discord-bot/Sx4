@@ -388,7 +388,7 @@ public class AuctionCommand extends Sx4Command {
 				Auction<?> auction = new Auction<>(event.getBot().getEconomyManager(), select.getSelected());
 				ItemStack<?> stack = auction.getItemStack();
 
-				long amount = stack.getAmount(), price = auction.getPrice();
+				long amount = stack.getAmount();
 				Item auctionItem = stack.getItem();
 
 				event.getMongo().withTransaction(session -> {
@@ -416,7 +416,7 @@ public class AuctionCommand extends Sx4Command {
 						return;
 					}
 
-					event.replyFormat("You just refunded your `%,d %s` %s", amount, auctionItem.getName(), price, event.getConfig().getSuccessEmote()).queue();
+					event.replyFormat("You just refunded your `%,d %s` %s", amount, auctionItem.getName(), event.getConfig().getSuccessEmote()).queue();
 				});
 			});
 

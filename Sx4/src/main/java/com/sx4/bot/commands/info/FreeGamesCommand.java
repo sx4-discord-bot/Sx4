@@ -31,6 +31,7 @@ import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.MessageBuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.TextChannel;
+import net.dv8tion.jda.api.utils.TimeFormat;
 import org.bson.Document;
 
 import java.time.format.DateTimeFormatter;
@@ -75,7 +76,7 @@ public class FreeGamesCommand extends Sx4Command {
 
 						embed.addField("Price", game.getPrice() == originalPrice ? "Free" : String.format("~~£%.2f~~ Free", originalPrice), true);
 						embed.addField("Publisher", game.getPublisher(), true);
-						embed.addField("Promotion Duration", game.getPromotionStart().format(this.formatter) + " - " + game.getPromotionEnd().format(this.formatter), false);
+						embed.addField("Promotion End", TimeFormat.DATE_TIME_SHORT.format(game.getPromotionEnd()), false);
 					});
 
 					return new MessageBuilder().setEmbeds(embed.build());

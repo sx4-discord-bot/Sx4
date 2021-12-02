@@ -49,7 +49,7 @@ public class TriggerHandler implements EventListener {
 			if (equals) {
 				Document response = new JsonFormatter(trigger.get("response", Document.class))
 					.member(message.getMember())
-					.user(message.getAuthor())
+					.user(author)
 					.channel(message.getTextChannel())
 					.guild(message.getGuild())
 					.addVariable("now", OffsetDateTime.now())

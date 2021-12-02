@@ -145,7 +145,7 @@ public interface IFormatter<Type> {
 			while (IFormatter.escape(name, endBracketIndex = name.lastIndexOf(')', endBracketIndex - 1)) && endBracketIndex != -1);
 
 			periodIndex = nextPeriodIndex;
-			if (bracketIndex == -1 || endBracketIndex == -1) {
+			if (endBracketIndex <= bracketIndex) {
 				FormatterVariable<?> variable = manager.getVariable(type, name);
 				if (variable == null && nextPeriodIndex == -1) {
 					return null;

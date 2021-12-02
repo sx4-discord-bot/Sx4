@@ -38,7 +38,7 @@ public class FreeGameManager implements WebhookManager {
 			.append("fields", List.of(
 				new Document("name", "Price").append("value", "{game.original_price.equals(0).then(Free).else(~~£{game.original_price.format(,##0.00)}~~ Free)}").append("inline", true),
 				new Document("name", "Publisher").append("value", "{game.publisher}").append("inline", true),
-				new Document("name", "Promotion Duration").append("value", "{game.promotion_start.format(dd MMM HH:mm)} - {game.promotion_end.format(dd MMM HH:mm)}").append("inline", false)
+				new Document("name", "Promotion End").append("value", "<t:{game.promotion_end.epoch}:f>").append("inline", false)
 			))
 	);
 
@@ -165,7 +165,12 @@ public class FreeGameManager implements WebhookManager {
 							messages.add(message);
 						}
 
-						messages.forEach(message -> this.sendFreeGameNotification(channel, webhookData, message).whenComplete(MongoDatabase.exceptionally()));
+						CompletableFuture<ReadonlyMessage> future = CompletableFuture.completedFuture(null);
+						for (WebhookMessage message : messages) {
+							future = future.thenCompose($ -> this.sendFreeGameNotification(channel, webhookData, message));
+						}
+
+						future.whenComplete(MongoDatabase.exceptionally());
 					});
 				});
 			});

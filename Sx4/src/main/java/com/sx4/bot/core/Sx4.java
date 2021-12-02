@@ -294,6 +294,7 @@ public class Sx4 {
 			.addVariable("day", "Gets the day of the month of the date", OffsetDateTime.class, OffsetDateTime::getDayOfMonth)
 			.addVariable("month", "Gets the month of the year of the date", OffsetDateTime.class, OffsetDateTime::getMonthValue)
 			.addVariable("year", "Gets the year of the date", OffsetDateTime.class, OffsetDateTime::getYear)
+			.addVariable("epoch", "Gets the epoch seconds of the date", OffsetDateTime.class, OffsetDateTime::toEpochSecond)
 			.addVariable("id", "Gets the id of the YouTube video", YouTubeVideo.class, YouTubeVideo::getId)
 			.addVariable("url", "Gets the url of the YouTube video", YouTubeVideo.class, YouTubeVideo::getUrl)
 			.addVariable("title", "Gets the title of the YouTube video", YouTubeVideo.class, YouTubeVideo::getTitle)
