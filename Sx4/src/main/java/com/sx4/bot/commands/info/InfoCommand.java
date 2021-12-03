@@ -1,6 +1,7 @@
 package com.sx4.bot.commands.info;
 
 import com.sx4.bot.category.ModuleCategory;
+import com.sx4.bot.core.Sx4;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import net.dv8tion.jda.api.EmbedBuilder;
@@ -45,7 +46,7 @@ public class InfoCommand extends Sx4Command {
 
 		embed.addField("Credits", credits.toString(), true);
 
-		embed.addField("Stats", String.format("Average Gateway Ping: %,.0fms\nServers: %,d\nCommands: %,d", event.getShardManager().getAverageGatewayPing(), event.getShardManager().getGuildCache().size(), event.getCommandListener().getAllCommands().size()), true);
+		embed.addField("Stats", String.format("Version: [%s](https://github.com/sx4-discord-bot/Sx4/commit/%<s)\nAverage Gateway Ping: %,.0fms\nServers: %,d\nCommands: %,d", Sx4.GIT_HASH, event.getShardManager().getAverageGatewayPing(), event.getShardManager().getGuildCache().size(), event.getCommandListener().getAllCommands().size()), true);
 		embed.addBlankField(true);
 		embed.addField("Other Info", "Invite: [Click Here](https://discord.com/oauth2/authorize?client_id=" + event.getSelfUser().getId() + "&permissions=8&scope=bot)\nSupport Server: [Click Here](" + event.getConfig().getSupportGuildInvite() + ")\nDonate: [PayPal](https://www.paypal.com/paypalme/SheaCartwright), [Patreon](https://patreon.com/Sx4)", true);
 

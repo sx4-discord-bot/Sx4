@@ -94,6 +94,8 @@ import java.util.stream.Collectors;
 
 public class Sx4 {
 
+	public static final String GIT_HASH = "@GIT_HASH@";
+
 	private final Config config = Config.get();
 
 	private final PostgresDatabase postgres;

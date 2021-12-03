@@ -1,3 +1,5 @@
+import org.apache.tools.ant.filters.ReplaceTokens
+
 plugins {
 	id 'java'
 	id 'application'
@@ -24,8 +26,6 @@ shadowJar {
 }
 
 mainClassName = 'com.sx4.bot.core.Sx4'
-
-compileJava.options.encoding = "UTF-8"
 
 sourceCompatibility = JavaVersion.VERSION_15
 targetCompatibility = JavaVersion.VERSION_15
@@ -78,6 +78,35 @@ dependencies {
 	antlr 'org.antlr:antlr4:4.7.2'
 }
 
+def getGitHash = { ->
+	def stdout = new ByteArrayOutputStream()
+	exec {
+		commandLine 'git', 'rev-parse', '--short', 'HEAD'
+		standardOutput = stdout
+	}
+	return stdout.toString().trim()
+}
+
+def sourcesForRelease = task sourcesForRelease(type: Copy) {
+	from("src/main/java") {
+		include("**/Sx4.java")
+		filter(ReplaceTokens, tokens: ["GIT_HASH": getGitHash()])
+	}
+
+	into("build/filteredSrc")
+	includeEmptyDirs = false
+}
+
+def generateJavaSources = task generateJavaSources(type: SourceTask) {
+	def javaSources = sourceSets["main"].allJava.filter {
+		it.name != "Sx4.java"
+	}.asFileTree
+
+	source = javaSources + fileTree(sourcesForRelease.destinationDir)
+
+	dependsOn(sourcesForRelease)
+}
+
 generateGrammarSource {
 	outputs.cacheIf { true }
 	source = 'src/main/antlr'
@@ -92,4 +121,10 @@ generateGrammarSource {
 		}
 		delete "$buildDir/generated-src/antlr"
 	}
+}
+
+compileJava {
+	source = generateJavaSources.source
+	dependsOn generateJavaSources
+	options.encoding = "UTF-8"
 }
