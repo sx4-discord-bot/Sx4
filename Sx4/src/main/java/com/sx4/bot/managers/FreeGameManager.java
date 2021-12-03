@@ -46,7 +46,7 @@ public class FreeGameManager implements WebhookManager {
 
 	private final Map<Long, WebhookClient> webhooks;
 
-	private final ScheduledExecutorService executor = Executors.newScheduledThreadPool(5);
+	private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
 
 	private final ScheduledExecutorService webhookExecutor = Executors.newSingleThreadScheduledExecutor();
 	private final OkHttpClient client = new OkHttpClient();
@@ -174,6 +174,8 @@ public class FreeGameManager implements WebhookManager {
 					});
 				});
 			});
+
+			this.ensureFreeGameScheduler();
 		}, duration, TimeUnit.SECONDS);
 	}
 
@@ -185,28 +187,30 @@ public class FreeGameManager implements WebhookManager {
 
 			OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
 
-			List<Document> upcomingGames = elements.stream()
+			List<FreeGame> games = elements.stream()
 				.filter(game -> {
 					Document offer = FreeGameUtility.getUpcomingPromotionalOffer(game);
 					return offer != null && offer.getEmbedded(List.of("discountSetting", "discountPercentage"), Integer.class) == 0;
 				})
+				.map(FreeGame::fromData)
+				.sorted(Comparator.comparing(game -> Duration.between(now, game.getPromotionStart())))
 				.collect(Collectors.toList());
 
-			Map<Long, List<FreeGame>> intervals = new HashMap<>();
-			for (Document gameData : upcomingGames) {
-				FreeGame game = FreeGame.fromData(gameData);
+			FreeGame newestGame = games.get(0);
+			OffsetDateTime promotionStart = newestGame.getPromotionStart();
 
-				long seconds = Duration.between(now, game.getPromotionStart()).toSeconds();
-				intervals.compute(seconds, (key, value) -> {
-					List<FreeGame> games = value == null ? new ArrayList<>() : value;
-					games.add(game);
-					return games;
-				});
+			List<FreeGame> finalGames = new ArrayList<>();
+			finalGames.add(newestGame);
+
+			for (FreeGame game : games.subList(1, games.size())) {
+				if (game.getPromotionStart().equals(promotionStart)) {
+					finalGames.add(game);
+				} else {
+					break;
+				}
 			}
 
-			for (long interval : intervals.keySet()) {
-				this.scheduleFreeGameNotification(interval, intervals.get(interval));
-			}
+			this.scheduleFreeGameNotification(Duration.between(now, promotionStart).toSeconds(), finalGames);
 		});
 	}
 
