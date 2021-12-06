@@ -123,14 +123,14 @@ public class StarboardHandler implements EventListener {
 
 		List<Bson> starboardPipeline = List.of(
 			Aggregates.match(Filters.or(Filters.eq("originalMessageId", event.getMessageIdLong()), Filters.eq("messageId", event.getMessageIdLong()))),
-			Aggregates.project(Projections.include("originalMessageId"))
+			Aggregates.project(Projections.include("originalMessageId", "channelId"))
 		);
 
 		List<Bson> pipeline = List.of(
 			Aggregates.match(Filters.eq("_id", event.getGuild().getIdLong())),
 			Aggregates.project(Projections.fields(Projections.include("starboard"), Projections.computed("premium", Operators.lt(Operators.nowEpochSecond(), Operators.ifNull("$premium.endAt", 0L))))),
 			Aggregates.unionWith("starboards", starboardPipeline),
-			Aggregates.group(null, Accumulators.max("messageId", "$originalMessageId"), Accumulators.max("starboard", "$starboard"), Accumulators.max("premium", "$premium"))
+			Aggregates.group(null, Accumulators.max("messageId", "$originalMessageId"), Accumulators.max("channelId", "$channelId"), Accumulators.max("starboard", "$starboard"), Accumulators.max("premium", "$premium"))
 		);
 
 		this.bot.getMongo().aggregateGuilds(pipeline).whenComplete((documents, aggregateException) -> {
@@ -148,10 +148,12 @@ public class StarboardHandler implements EventListener {
 				return;
 			}
 
-			long channelId = starboard.get("channelId", 0L);
+			long channelId = starboard.get("channelId", 0L), messageChannelId = data.get("channelId", 0L);
 
+			TextChannel messageChannel = messageChannelId == 0L ? event.getChannel() : event.getGuild().getTextChannelById(messageChannelId);
 			TextChannel channel = channelId == 0L ? null : event.getGuild().getTextChannelById(channelId);
-			if (channel == null) {
+
+			if (channel == null || messageChannel == null) {
 				return;
 			}
 
@@ -166,7 +168,7 @@ public class StarboardHandler implements EventListener {
 			Long originalMessageId = data.getLong("messageId");
 			long messageId = originalMessageId == null ? event.getMessageIdLong() : originalMessageId;
 
-			channel.retrieveMessageById(messageId).queue(message -> {
+			messageChannel.retrieveMessageById(messageId).queue(message -> {
 				String image = message.getAttachments().stream()
 					.filter(Attachment::isImage)
 					.map(Attachment::getUrl)
