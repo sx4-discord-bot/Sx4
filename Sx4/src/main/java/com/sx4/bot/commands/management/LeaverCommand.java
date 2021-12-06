@@ -1,6 +1,5 @@
 package com.sx4.bot.commands.management;
 
-import club.minnced.discord.webhook.WebhookClient;
 import club.minnced.discord.webhook.send.WebhookMessageBuilder;
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
@@ -30,6 +29,8 @@ import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.exceptions.ErrorResponseException;
+import net.dv8tion.jda.api.requests.ErrorResponse;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 
@@ -84,6 +85,7 @@ public class LeaverCommand extends Sx4Command {
 			}
 
 			long channelId = data == null ? 0L : data.getEmbedded(List.of("leaver", "channelId"), 0L);
+			event.getBot().getLeaverManager().removeWebhook(channelId);
 
 			if ((channel == null ? 0L : channel.getIdLong()) == channelId) {
 				event.replyFailure("The leaver channel is already " + (channel == null ? "unset" : "set to " + channel.getAsMention())).queue();
@@ -91,11 +93,10 @@ public class LeaverCommand extends Sx4Command {
 			}
 
 			TextChannel oldChannel = channelId == 0L ? null : event.getGuild().getTextChannelById(channelId);
-			if (oldChannel != null) {
-				WebhookClient oldWebhook = event.getBot().getLeaverManager().removeWebhook(channelId);
-				if (oldWebhook != null) {
-					oldChannel.deleteWebhookById(String.valueOf(oldWebhook.getId())).queue();
-				}
+			long webhookId = data == null ? 0L : data.getEmbedded(List.of("leaver", "webhook", "id"), 0L);
+
+			if (oldChannel != null && webhookId != 0L) {
+				oldChannel.deleteWebhookById(Long.toString(webhookId)).queue(null, ErrorResponseException.ignore(ErrorResponse.UNKNOWN_WEBHOOK));
 			}
 
 			event.replySuccess("The leaver channel has been " + (channel == null ? "unset" : "set to " + channel.getAsMention())).queue();

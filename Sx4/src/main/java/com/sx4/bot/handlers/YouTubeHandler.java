@@ -1,8 +1,5 @@
 package com.sx4.bot.handlers;
 
-import club.minnced.discord.webhook.WebhookClient;
-import club.minnced.discord.webhook.WebhookClientBuilder;
-import club.minnced.discord.webhook.exception.HttpException;
 import club.minnced.discord.webhook.send.WebhookMessage;
 import club.minnced.discord.webhook.send.WebhookMessageBuilder;
 import com.mongodb.client.model.*;
@@ -18,39 +15,26 @@ import com.sx4.bot.hooks.YouTubeListener;
 import com.sx4.bot.managers.YouTubeManager;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.MessageUtility;
-import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.events.channel.text.TextChannelDeleteEvent;
 import net.dv8tion.jda.api.hooks.EventListener;
 import net.dv8tion.jda.api.sharding.ShardManager;
-import okhttp3.OkHttpClient;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 
 public class YouTubeHandler implements YouTubeListener, EventListener {
 	
-	private final OkHttpClient client = new OkHttpClient();
-	
-	private final ScheduledExecutorService scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
-	
 	private final ExecutorService executor = Executors.newCachedThreadPool();
-	
-	private final Map<Long, WebhookClient> webhooks;
 
 	private final Sx4 bot;
 
 	public YouTubeHandler(Sx4 bot) {
-		this.webhooks = new HashMap<>();
 		this.bot = bot;
 	}
 	
@@ -61,39 +45,6 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 			.parse();
 
 		return MessageUtility.fromJson(formattedDocument);
-	}
-	
-	private void createWebhook(TextChannel channel, WebhookMessage message) {
-		if (!channel.getGuild().getSelfMember().hasPermission(channel, Permission.MANAGE_WEBHOOKS)) {
-			return;
-		}
-
-		channel.createWebhook("Sx4 - YouTube").queue(webhook -> {
-			WebhookClient webhookClient = new WebhookClientBuilder(webhook.getUrl())
-				.setExecutorService(this.scheduledExecutor)
-				.setHttpClient(this.client)
-				.build();
-			
-			this.webhooks.put(channel.getIdLong(), webhookClient);
-			
-			Bson update = Updates.combine(
-				Updates.set("webhook.id", webhook.getIdLong()),
-				Updates.set("webhook.token", webhook.getToken())
-			);
-
-			this.bot.getMongo().updateManyYouTubeNotifications(Filters.eq("channelId", channel.getIdLong()), update)
-				.thenCompose(result -> webhookClient.send(message))
-				.whenComplete((webhookMessage, exception) -> {
-					Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
-					if (cause instanceof HttpException && ((HttpException) cause).getCode() == 404) {
-						this.webhooks.remove(channel.getIdLong());
-
-						this.createWebhook(channel, message);
-					} else {
-						ExceptionUtility.sendErrorMessage(exception);
-					}
-				});
-		});
 	}
 
 	public void onYouTubeUpload(YouTubeUploadEvent event) {
@@ -142,30 +93,7 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 						return;
 					}
 
-					WebhookClient webhook;
-					if (this.webhooks.containsKey(channelId)) {
-						webhook = this.webhooks.get(channelId);
-					} else if (!webhookData.containsKey("id")) {
-						this.createWebhook(textChannel, message);
-
-						return;
-					} else {
-						webhook = new WebhookClientBuilder(webhookData.getLong("id"), webhookData.getString("token"))
-							.setExecutorService(this.scheduledExecutor)
-							.setHttpClient(this.client)
-							.build();
-
-						this.webhooks.put(channelId, webhook);
-					}
-
-					webhook.send(message).whenComplete((webhookMessage, exception) -> {
-						Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
-						if (cause instanceof HttpException && ((HttpException) cause).getCode() == 404) {
-							this.webhooks.remove(textChannel.getIdLong());
-
-							this.createWebhook(textChannel, message);
-						}
-					});
+					this.bot.getYouTubeManager().sendYouTubeNotification(textChannel, webhookData, message).whenComplete(MongoDatabase.exceptionally());
 				});
 
 				if (!bulkUpdate.isEmpty()) {
@@ -204,7 +132,7 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 					return;
 				} 
 				
-				this.webhooks.remove(channelId);
+				this.bot.getYouTubeManager().removeWebhook(channelId);
 			});
 		}
 	}

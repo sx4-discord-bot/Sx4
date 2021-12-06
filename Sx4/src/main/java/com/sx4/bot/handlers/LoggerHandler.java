@@ -117,6 +117,10 @@ public class LoggerHandler implements EventListener {
 		return manager;
 	}
 
+	public LoggerManager removeManager(long channelId) {
+		return this.managers.remove(channelId);
+	}
+
 	public void queue(Guild guild, List<Document> loggers, LoggerEvent event, LoggerContext context, WebhookEmbed... embeds) {
 		this.queue(guild, loggers, event, context, Arrays.asList(embeds));
 	}

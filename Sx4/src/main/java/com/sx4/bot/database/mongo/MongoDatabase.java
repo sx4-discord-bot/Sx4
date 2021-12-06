@@ -383,6 +383,10 @@ public class MongoDatabase {
 		return CompletableFuture.supplyAsync(() -> this.freeGameChannels.deleteOne(filter), this.executor);
 	}
 
+	public CompletableFuture<Document> findAndDeleteFreeGameChannel(Bson filter, FindOneAndDeleteOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.freeGameChannels.findOneAndDelete(filter, options), this.executor);
+	}
+
 	public MongoCollection<Document> getMutes() {
 		return this.mutes;
 	}
@@ -662,6 +666,10 @@ public class MongoDatabase {
 
 	public CompletableFuture<DeleteResult> deleteLogger(Bson filter) {
 		return CompletableFuture.supplyAsync(() -> this.loggers.deleteOne(filter), this.executor);
+	}
+
+	public CompletableFuture<Document> findAndDeleteLogger(Bson filter, FindOneAndDeleteOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.loggers.deleteOne(filter, options), this.executor);
 	}
 
 	public CompletableFuture<DeleteResult> deleteManyLoggers(Bson filter) {

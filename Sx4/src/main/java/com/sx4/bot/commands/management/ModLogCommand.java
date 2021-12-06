@@ -30,7 +30,9 @@ import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.events.interaction.ButtonClickEvent;
+import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.interactions.components.Button;
+import net.dv8tion.jda.api.requests.ErrorResponse;
 import net.dv8tion.jda.internal.utils.tuple.Pair;
 import org.bson.Document;
 import org.bson.conversions.Bson;
@@ -86,6 +88,7 @@ public class ModLogCommand extends Sx4Command {
 			}
 
 			long channelId = data == null ? 0L : data.getEmbedded(List.of("modLog", "channelId"), 0L);
+			event.getBot().getModLogManager().removeWebhook(channelId);
 
 			if ((channel == null ? 0L : channel.getIdLong()) == channelId) {
 				event.replyFailure("The mod log channel is already " + (channel == null ? "unset" : "set to " + channel.getAsMention())).queue();
@@ -93,11 +96,10 @@ public class ModLogCommand extends Sx4Command {
 			}
 
 			TextChannel oldChannel = channelId == 0L ? null : event.getGuild().getTextChannelById(channelId);
-			if (oldChannel != null) {
-				WebhookClient oldWebhook = event.getBot().getModLogManager().removeWebhook(channelId);
-				if (oldWebhook != null) {
-					oldChannel.deleteWebhookById(String.valueOf(oldWebhook.getId())).queue();
-				}
+			long webhookId = data == null ? 0L : data.getEmbedded(List.of("modLog", "webhook", "id"), 0L);
+
+			if (oldChannel != null && webhookId != 0L) {
+				oldChannel.deleteWebhookById(Long.toString(webhookId)).queue(null, ErrorResponseException.ignore(ErrorResponse.UNKNOWN_WEBHOOK));
 			}
 			
 			event.replySuccess("The mod log channel has been " + (channel == null ? "unset" : "set to " + channel.getAsMention())).queue();

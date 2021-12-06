@@ -4,10 +4,7 @@ import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
 import com.mongodb.ErrorCategory;
 import com.mongodb.MongoWriteException;
-import com.mongodb.client.model.Filters;
-import com.mongodb.client.model.Projections;
-import com.mongodb.client.model.UpdateOptions;
-import com.mongodb.client.model.Updates;
+import com.mongodb.client.model.*;
 import com.sx4.bot.annotations.argument.AdvancedMessage;
 import com.sx4.bot.annotations.argument.ImageUrl;
 import com.sx4.bot.annotations.argument.Limit;
@@ -31,6 +28,8 @@ import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.MessageBuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.TextChannel;
+import net.dv8tion.jda.api.exceptions.ErrorResponseException;
+import net.dv8tion.jda.api.requests.ErrorResponse;
 import net.dv8tion.jda.api.utils.TimeFormat;
 import org.bson.Document;
 
@@ -159,9 +158,17 @@ public class FreeGamesCommand extends Sx4Command {
 	public void remove(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true, endless=true) TextChannel channel) {
 		TextChannel effectiveChannel = channel == null ? event.getTextChannel() : channel;
 
-		event.getMongo().deleteFreeGameChannel(Filters.eq("channelId", effectiveChannel.getIdLong())).whenComplete((result, exception) -> {
+		FindOneAndDeleteOptions options = new FindOneAndDeleteOptions().projection(Projections.include("webhook"));
+		event.getMongo().findAndDeleteFreeGameChannel(Filters.eq("channelId", effectiveChannel.getIdLong()), options).whenComplete((data, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
+			}
+
+			event.getBot().getFreeGameManager().removeWebhook(effectiveChannel.getIdLong());
+
+			Document webhook = data.get("webhook", Document.class);
+			if (webhook != null) {
+				effectiveChannel.deleteWebhookById(Long.toString(webhook.getLong("id"))).queue(null, ErrorResponseException.ignore(ErrorResponse.UNKNOWN_WEBHOOK));
 			}
 
 			event.replySuccess("Free game notifications will no longer be sent in " + effectiveChannel.getAsMention()).queue();

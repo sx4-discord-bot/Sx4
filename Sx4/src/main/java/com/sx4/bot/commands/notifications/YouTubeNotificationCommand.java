@@ -29,6 +29,8 @@ import com.sx4.bot.utility.MessageUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.TextChannel;
+import net.dv8tion.jda.api.exceptions.ErrorResponseException;
+import net.dv8tion.jda.api.requests.ErrorResponse;
 import okhttp3.MultipartBody;
 import okhttp3.Request;
 import okhttp3.RequestBody;
@@ -169,7 +171,7 @@ public class YouTubeNotificationCommand extends Sx4Command {
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	@Examples({"youtube notification remove 5e45ce6d3688b30ee75201ae"})
 	public void remove(Sx4CommandEvent event, @Argument(value="id") ObjectId id) {
-		FindOneAndDeleteOptions options = new FindOneAndDeleteOptions().projection(Projections.include("channelId"));
+		FindOneAndDeleteOptions options = new FindOneAndDeleteOptions().projection(Projections.include("channelId", "webhook"));
 		event.getMongo().findAndDeleteYouTubeNotification(Filters.and(Filters.eq("_id", id), Filters.eq("guildId", event.getGuild().getIdLong())), options).whenComplete((data, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
@@ -179,8 +181,18 @@ public class YouTubeNotificationCommand extends Sx4Command {
 				event.replyFailure("I could not find that notification").queue();
 				return;
 			}
+
+			long channelId = data.getLong("channelId");
+			event.getBot().getYouTubeManager().removeWebhook(channelId);
+
+			TextChannel channel = event.getGuild().getTextChannelById(channelId);
+
+			Document webhook = data.get("webhook", Document.class);
+			if (webhook != null && channel != null) {
+				channel.deleteWebhookById(Long.toString(webhook.getLong("id"))).queue(null, ErrorResponseException.ignore(ErrorResponse.UNKNOWN_WEBHOOK));
+			}
 			
-			event.replySuccess("You will no longer receive notifications in <#" + data.getLong("channelId") + "> for that user").queue();
+			event.replySuccess("You will no longer receive notifications in <#" + channelId + "> for that user").queue();
 		});
 	}
 	

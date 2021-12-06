@@ -21,6 +21,8 @@ import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.MessageBuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.TextChannel;
+import net.dv8tion.jda.api.exceptions.ErrorResponseException;
+import net.dv8tion.jda.api.requests.ErrorResponse;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 
@@ -104,14 +106,22 @@ public class LoggerCommand extends Sx4Command {
     public void remove(Sx4CommandEvent event, @Argument(value="channel", endless=true, nullDefault=true) TextChannel channel) {
         TextChannel effectiveChannel = channel == null ? event.getTextChannel() : channel;
 
-        event.getMongo().deleteLogger(Filters.eq("channelId", effectiveChannel.getIdLong())).whenComplete((result, exception) -> {
+        FindOneAndDeleteOptions options = new FindOneAndDeleteOptions().projection(Projections.include("webhook.id"));
+        event.getMongo().findAndDeleteLogger(Filters.eq("channelId", effectiveChannel.getIdLong()), options).whenComplete((data, exception) -> {
             if (ExceptionUtility.sendExceptionally(event, exception)) {
                 return;
             }
 
-            if (result.getDeletedCount() == 0) {
+            if (data == null) {
                 event.replyFailure("You don't have a logger in " + effectiveChannel.getAsMention()).queue();
                 return;
+            }
+
+            event.getBot().getLoggerHandler().removeManager(effectiveChannel.getIdLong());
+
+            Document webhook = data.get("webhook", Document.class);
+            if (webhook != null) {
+                effectiveChannel.deleteWebhookById(Long.toString(webhook.getLong("id"))).queue(null, ErrorResponseException.ignore(ErrorResponse.UNKNOWN_WEBHOOK));
             }
 
             event.replySuccess("You no longer have a logger setup in " + effectiveChannel.getAsMention()).queue();

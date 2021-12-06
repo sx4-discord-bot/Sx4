@@ -82,7 +82,7 @@ public class SuggestionCommand extends Sx4Command {
 		TextChannel channel = option == null ? event.getTextChannel() : option.isAlternative() ? null : option.getValue();
 
 		List<Bson> update = List.of(Operators.set("suggestion.channelId", channel == null ? Operators.REMOVE : channel.getIdLong()), Operators.unset("suggestion.webhook.id"), Operators.unset("suggestion.webhook.token"));
-		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("suggestion.channelId")).upsert(true);
+		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("suggestion.webhook.id", "suggestion.channelId")).upsert(true);
 
 		event.getMongo().findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
@@ -90,6 +90,7 @@ public class SuggestionCommand extends Sx4Command {
 			}
 
 			long channelId = data == null ? 0L : data.getEmbedded(List.of("suggestion", "channelId"), 0L);
+			event.getBot().getSuggestionManager().removeWebhook(channelId);
 
 			if ((channel == null ? 0L : channel.getIdLong()) == channelId) {
 				event.replyFailure("The suggestion channel is already " + (channel == null ? "unset" : "set to " + channel.getAsMention())).queue();
@@ -97,11 +98,10 @@ public class SuggestionCommand extends Sx4Command {
 			}
 
 			TextChannel oldChannel = channelId == 0L ? null : event.getGuild().getTextChannelById(channelId);
-			if (oldChannel != null) {
-				WebhookClient oldWebhook = event.getBot().getSuggestionManager().removeWebhook(channelId);
-				if (oldWebhook != null) {
-					oldChannel.deleteWebhookById(String.valueOf(oldWebhook.getId())).queue();
-				}
+			long webhookId = data == null ? 0L : data.getEmbedded(List.of("suggestion", "webhook", "id"), 0L);
+
+			if (oldChannel != null && webhookId != 0L) {
+				oldChannel.deleteWebhookById(Long.toString(webhookId)).queue(null, ErrorResponseException.ignore(ErrorResponse.UNKNOWN_WEBHOOK));
 			}
 			
 			event.replySuccess("The suggestion channel has been " + (channel == null ? "unset" : "set to " + channel.getAsMention())).queue();

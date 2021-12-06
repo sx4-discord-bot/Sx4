@@ -31,7 +31,9 @@ import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.events.interaction.ButtonClickEvent;
+import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.interactions.components.Button;
+import net.dv8tion.jda.api.requests.ErrorResponse;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
@@ -82,7 +84,7 @@ public class StarboardCommand extends Sx4Command {
 		TextChannel channel = option == null ? event.getTextChannel() : option.getValue();
 
 		List<Bson> update = List.of(Operators.set("starboard.channelId", channel == null ? Operators.REMOVE : channel.getIdLong()), Operators.unset("starboard.webhook.id"), Operators.unset("starboard.webhook.token"));
-		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("starboard.channelId")).upsert(true);
+		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("starboard.webhook.id", "starboard.channelId")).upsert(true);
 
 		event.getMongo().findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
@@ -90,6 +92,7 @@ public class StarboardCommand extends Sx4Command {
 			}
 
 			long channelId = data == null ? 0L : data.getEmbedded(List.of("starboard", "channelId"), 0L);
+			event.getBot().getStarboardManager().removeWebhook(channelId);
 
 			if ((channel == null ? 0L : channel.getIdLong()) == channelId) {
 				event.replyFailure("The starboard channel is already " + (channel == null ? "unset" : "set to " + channel.getAsMention())).queue();
@@ -97,11 +100,10 @@ public class StarboardCommand extends Sx4Command {
 			}
 
 			TextChannel oldChannel = channelId == 0L ? null : event.getGuild().getTextChannelById(channelId);
-			if (oldChannel != null) {
-				WebhookClient oldWebhook = event.getBot().getStarboardManager().removeWebhook(channelId);
-				if (oldWebhook != null) {
-					oldChannel.deleteWebhookById(String.valueOf(oldWebhook.getId())).queue();
-				}
+			long webhookId = data == null ? 0L : data.getEmbedded(List.of("starboard", "webhook", "id"), 0L);
+
+			if (oldChannel != null && webhookId != 0L) {
+				oldChannel.deleteWebhookById(Long.toString(webhookId)).queue(null, ErrorResponseException.ignore(ErrorResponse.UNKNOWN_WEBHOOK));
 			}
 
 			event.replySuccess("The starboard channel has been " + (channel == null ? "unset" : "set to " + channel.getAsMention())).queue();

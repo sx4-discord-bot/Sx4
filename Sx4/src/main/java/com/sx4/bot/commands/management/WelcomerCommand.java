@@ -1,6 +1,5 @@
 package com.sx4.bot.commands.management;
 
-import club.minnced.discord.webhook.WebhookClient;
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
 import com.jockie.bot.core.command.Command.Async;
@@ -36,6 +35,8 @@ import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.exceptions.ErrorResponseException;
+import net.dv8tion.jda.api.requests.ErrorResponse;
 import okhttp3.Request;
 import org.bson.Document;
 import org.bson.conversions.Bson;
@@ -88,7 +89,7 @@ public class WelcomerCommand extends Sx4Command {
 		TextChannel channel = option == null ? event.getTextChannel() : option.isAlternative() ? null : option.getValue();
 
 		List<Bson> update = List.of(Operators.set("welcomer.channelId", channel == null ? Operators.REMOVE : channel.getIdLong()), Operators.unset("welcomer.webhook.id"), Operators.unset("welcomer.webhook.token"));
-		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().upsert(true).projection(Projections.include("welcomer.webhook.token", "welcomer.webhook.id", "welcomer.channelId")).returnDocument(ReturnDocument.BEFORE);
+		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().upsert(true).projection(Projections.include("welcomer.webhook.id", "welcomer.channelId")).returnDocument(ReturnDocument.BEFORE);
 
 		event.getMongo().findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
@@ -96,6 +97,7 @@ public class WelcomerCommand extends Sx4Command {
 			}
 
 			long channelId = data == null ? 0L : data.getEmbedded(List.of("welcomer", "channelId"), 0L);
+			event.getBot().getWelcomerManager().removeWebhook(channelId);
 
 			if ((channel == null ? 0L : channel.getIdLong()) == channelId) {
 				event.replyFailure("The welcomer channel is already " + (channel == null ? "unset" : "set to " + channel.getAsMention())).queue();
@@ -103,11 +105,10 @@ public class WelcomerCommand extends Sx4Command {
 			}
 
 			TextChannel oldChannel = channelId == 0L ? null : event.getGuild().getTextChannelById(channelId);
-			if (oldChannel != null) {
-				WebhookClient oldWebhook = event.getBot().getWelcomerManager().removeWebhook(channelId);
-				if (oldWebhook != null) {
-					oldChannel.deleteWebhookById(String.valueOf(oldWebhook.getId())).queue();
-				}
+			long webhookId = data == null ? 0L : data.getEmbedded(List.of("welcomer", "webhook", "id"), 0L);
+
+			if (oldChannel != null && webhookId != 0L) {
+				oldChannel.deleteWebhookById(Long.toString(webhookId)).queue(null, ErrorResponseException.ignore(ErrorResponse.UNKNOWN_WEBHOOK));
 			}
 
 			event.replySuccess("The welcomer channel has been " + (channel == null ? "unset" : "set to " + channel.getAsMention())).queue();
