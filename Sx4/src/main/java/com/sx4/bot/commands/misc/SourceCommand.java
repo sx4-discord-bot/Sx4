@@ -3,6 +3,7 @@ package com.sx4.bot.commands.misc;
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.option.Option;
 import com.sx4.bot.category.ModuleCategory;
+import com.sx4.bot.core.Sx4;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.http.HttpCallback;
@@ -31,7 +32,7 @@ public class SourceCommand extends Sx4Command {
 		String lastClassName = classes[classes.length - 1];
 
 		String filePath = path.replace(".", "/").substring(0, classes.length == 1 ? path.length() : path.indexOf("$")) + ".java";
-		String fullPath = event.getConfig().getGitHubBranch() + "/Sx4/src/main/java/" + filePath;
+		String fullPath = Sx4.GIT_HASH + "/Sx4/src/main/java/" + filePath;
 
 		Request request = new Request.Builder()
 			.url("https://raw.githubusercontent.com/sx4-discord-bot/Sx4/" + fullPath)
