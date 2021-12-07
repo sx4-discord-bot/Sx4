@@ -11,7 +11,6 @@ import com.mongodb.client.result.InsertOneResult;
 import com.mongodb.client.result.UpdateResult;
 import com.sx4.bot.handlers.MongoDatabaseHandler;
 import com.sx4.bot.utility.ExceptionUtility;
-import net.dv8tion.jda.api.sharding.ShardManager;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.bson.json.JsonMode;
@@ -669,7 +668,7 @@ public class MongoDatabase {
 	}
 
 	public CompletableFuture<Document> findAndDeleteLogger(Bson filter, FindOneAndDeleteOptions options) {
-		return CompletableFuture.supplyAsync(() -> this.loggers.deleteOne(filter, options), this.executor);
+		return CompletableFuture.supplyAsync(() -> this.loggers.findOneAndDelete(filter, options), this.executor);
 	}
 
 	public CompletableFuture<DeleteResult> deleteManyLoggers(Bson filter) {
@@ -845,7 +844,7 @@ public class MongoDatabase {
 	}
 
 	public CompletableFuture<UpdateResult> updateRegex(Bson filter, List<Bson> update) {
-		return this.updateRegex(filter, update, this.updateOptions);
+		return this.updateRegex(filter, update, new UpdateOptions());
 	}
 
 	public CompletableFuture<Document> findAndUpdateRegex(Bson filter, List<Bson> update, FindOneAndUpdateOptions options) {
