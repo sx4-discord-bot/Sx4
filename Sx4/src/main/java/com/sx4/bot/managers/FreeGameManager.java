@@ -11,7 +11,6 @@ import com.sx4.bot.entities.webhook.ReadonlyMessage;
 import com.sx4.bot.entities.webhook.WebhookClient;
 import com.sx4.bot.exceptions.mod.BotPermissionException;
 import com.sx4.bot.formatter.JsonFormatter;
-import com.sx4.bot.http.HttpCallback;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.FreeGameUtility;
 import com.sx4.bot.utility.MessageUtility;
@@ -153,7 +152,13 @@ public class FreeGameManager implements WebhookManager {
 						Document webhookData = data.get("webhook", MongoDatabase.EMPTY_DOCUMENT);
 
 						List<WebhookMessage> messages = new ArrayList<>();
+						Set<String> ids = new HashSet<>();
 						for (FreeGame game : games) {
+							if (game.isMysteryGame()) {
+								ids.add(game.getId());
+								continue;
+							}
+
 							JsonFormatter formatter = new JsonFormatter(data.get("message", FreeGameManager.DEFAULT_MESSAGE))
 								.addVariable("game", game);
 
@@ -171,33 +176,48 @@ public class FreeGameManager implements WebhookManager {
 						}
 
 						future.whenComplete(MongoDatabase.exceptionally());
+
+						this.checkMysteryGames(ids);
 					});
 				});
 			});
-
-			this.ensureFreeGameScheduler();
 		}, duration, TimeUnit.SECONDS);
 	}
 
+	public void checkMysteryGames(Set<String> ids) {
+		if (ids.isEmpty()) {
+			return;
+		}
+
+		FreeGameUtility.retrieveFreeGames(this.bot.getHttpClient(), updatedGames -> {
+			List<FreeGame> mysteryGames = updatedGames.stream()
+				.filter(game -> ids.contains(game.getId()))
+				.collect(Collectors.toList());
+
+			if (mysteryGames.isEmpty()) {
+				this.executor.schedule(() -> this.checkMysteryGames(ids), 1, TimeUnit.MINUTES);
+				return;
+			}
+
+			this.scheduleFreeGameNotification(0, mysteryGames);
+		});
+	}
+
 	public void ensureFreeGameScheduler() {
-		this.bot.getHttpClient().newCall(FreeGameUtility.REQUEST).enqueue((HttpCallback) response -> {
-			Document document = Document.parse(response.body().string());
-
-			List<Document> elements = document.getEmbedded(List.of("data", "Catalog", "searchStore", "elements"), Collections.emptyList());
-
+		FreeGameUtility.retrieveFreeGames(this.bot.getHttpClient(), false, freeGames -> {
 			OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
 
-			List<FreeGame> games = elements.stream()
-				.filter(game -> {
-					Document offer = FreeGameUtility.getUpcomingPromotionalOffer(game);
-					return offer != null && offer.getEmbedded(List.of("discountSetting", "discountPercentage"), Integer.class) == 0;
-				})
-				.map(FreeGame::fromData)
+			List<FreeGame> games = freeGames.stream()
 				.sorted(Comparator.comparing(game -> Duration.between(now, game.getPromotionStart())))
 				.collect(Collectors.toList());
 
 			FreeGame newestGame = games.get(0);
 			OffsetDateTime promotionStart = newestGame.getPromotionStart();
+			if (promotionStart.isBefore(now) || promotionStart.isEqual(now)) {
+				// re-request games as they have not been refreshed on the API
+				this.executor.schedule(this::ensureFreeGameScheduler, 5, TimeUnit.MINUTES);
+				return;
+			}
 
 			List<FreeGame> finalGames = new ArrayList<>();
 			finalGames.add(newestGame);
@@ -210,7 +230,7 @@ public class FreeGameManager implements WebhookManager {
 				}
 			}
 
-			this.scheduleFreeGameNotification(Duration.between(now, promotionStart).toSeconds(), finalGames);
+			this.scheduleFreeGameNotification(Duration.between(now, promotionStart).toSeconds() + 60, finalGames);
 		});
 	}
 

@@ -8,10 +8,7 @@ import com.mongodb.client.model.*;
 import com.sx4.bot.annotations.argument.AdvancedMessage;
 import com.sx4.bot.annotations.argument.ImageUrl;
 import com.sx4.bot.annotations.argument.Limit;
-import com.sx4.bot.annotations.command.AuthorPermissions;
-import com.sx4.bot.annotations.command.CommandId;
-import com.sx4.bot.annotations.command.Examples;
-import com.sx4.bot.annotations.command.Premium;
+import com.sx4.bot.annotations.command.*;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
@@ -130,6 +127,7 @@ public class FreeGamesCommand extends Sx4Command {
 	@CommandId(474)
 	@Examples({"free games add", "free games add #channel"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
+	@Canary
 	public void add(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true, endless=true) TextChannel channel) {
 		TextChannel effectiveChannel = channel == null ? event.getTextChannel() : channel;
 
