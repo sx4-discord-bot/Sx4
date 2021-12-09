@@ -214,7 +214,7 @@ public class Sx4 {
 		manager.register(new GiveawayHandler(this));
 		manager.register(new AutoRoleHandler(this));
 		manager.register(modHandler);
-		manager.register(new ConnectionHandler(this));
+		manager.register(this.connectionHandler);
 		manager.register(new ReactionRoleHandler(this));
 		manager.register(this.loggerHandler);
 		manager.register(new AntiRegexHandler(this));
