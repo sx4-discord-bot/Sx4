@@ -83,7 +83,7 @@ public class FreeGame {
 	}
 
 	public static FreeGame fromData(Document data) {
-		return FreeGame.fromData(data);
+		return new FreeGame(data);
 	}
 
 }
