@@ -83,6 +83,11 @@ public class ReminderCommand extends Sx4Command {
 	@Examples({"reminder remove 5ec67a3b414d8776950f0eee"})
 	public void remove(Sx4CommandEvent event, @Argument(value="id", nullDefault=true) ObjectId id) {
 		if (id == null) {
+			if (!event.getBot().getConnectionHandler().isReady()) {
+				event.replyFailure("You cannot view reminders while the bot is starting up").queue();
+				return;
+			}
+
 			List<Document> reminders = event.getMongo().getReminders(Filters.eq("userId", event.getAuthor().getIdLong()), Projections.include("reminder", "remindAt")).into(new ArrayList<>());
 			if (reminders.isEmpty()) {
 				event.replyFailure("You do not have any active reminders").queue();
@@ -139,6 +144,11 @@ public class ReminderCommand extends Sx4Command {
 	@Examples({"reminder list"})
 	@Redirects({"reminders"})
 	public void list(Sx4CommandEvent event) {
+		if (!event.getBot().getConnectionHandler().isReady()) {
+			event.replyFailure("You cannot view reminders while the bot is starting up").queue();
+			return;
+		}
+
 		List<Document> reminders = event.getMongo().getReminders(Filters.eq("userId", event.getAuthor().getIdLong()), Projections.include("remindAt")).into(new ArrayList<>());
 		if (reminders.isEmpty()) {
 			event.replyFailure("You do not have any active reminders").queue();

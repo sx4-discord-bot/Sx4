@@ -33,6 +33,10 @@ public class ConnectionHandler implements EventListener {
 	}
 	
 	private int readyEventsCalled = 0;
+
+	public boolean isReady() {
+		return this.readyEventsCalled == this.bot.getShardManager().getShardsTotal();
+	}
 	
 	public WebhookEmbed getEmbed(JDA jda, String state, int colour) {
 		return this.getEmbed(jda, state, null, null, colour);

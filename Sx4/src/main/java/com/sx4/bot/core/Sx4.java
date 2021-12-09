@@ -117,6 +117,7 @@ public class Sx4 {
 	private final GoogleSearchCache googleCache;
 
 	private final LoggerHandler loggerHandler;
+	private final ConnectionHandler connectionHandler;
 
 	/* Managers */
 	private final YouTubeManager youTubeManager;
@@ -174,6 +175,7 @@ public class Sx4 {
 		ModHandler modHandler = new ModHandler(this);
 		YouTubeHandler youTubeHandler = new YouTubeHandler(this);
 		this.loggerHandler = new LoggerHandler(this);
+		this.connectionHandler = new ConnectionHandler(this);
 
 		this.antiRegexManager = new AntiRegexManager();
 		this.economyManager = new EconomyManager();
@@ -516,6 +518,10 @@ public class Sx4 {
 
 	public LoggerHandler getLoggerHandler() {
 		return this.loggerHandler;
+	}
+
+	public ConnectionHandler getConnectionHandler() {
+		return this.connectionHandler;
 	}
 
 	public ShardManager createShardManager(IEventManager manager) {
