@@ -12,7 +12,7 @@ public class FreeGame {
 	private final double originalPrice, price;
 	private final OffsetDateTime start, end;
 
-	private FreeGame(Document data, boolean current) {
+	private FreeGame(Document data) {
 		this.id = data.getString("id");
 		this.title = data.getString("title");
 		this.description = data.getString("description");
@@ -25,7 +25,7 @@ public class FreeGame {
 			.findFirst()
 			.orElse(null);
 
-		Document promotion = current ? FreeGameUtility.getPromotionalOffer(data) : FreeGameUtility.getUpcomingPromotionalOffer(data);
+		Document promotion = FreeGameUtility.getPromotionalOffer(data);
 		this.start = OffsetDateTime.parse(promotion.getString("startDate"));
 		this.end = OffsetDateTime.parse(promotion.getString("endDate"));
 
@@ -83,11 +83,7 @@ public class FreeGame {
 	}
 
 	public static FreeGame fromData(Document data) {
-		return FreeGame.fromData(data, false);
-	}
-
-	public static FreeGame fromData(Document data, boolean current) {
-		return new FreeGame(data, current);
+		return FreeGame.fromData(data);
 	}
 
 }

@@ -55,7 +55,7 @@ public class FreeGamesCommand extends Sx4Command {
 	@CommandId(473)
 	@Examples({"free games list"})
 	public void list(Sx4CommandEvent event) {
-		FreeGameUtility.retrieveFreeGames(event.getHttpClient(), freeGames -> {
+		FreeGameUtility.retrieveCurrentFreeGames(event.getHttpClient(), freeGames -> {
 			if (freeGames.isEmpty()) {
 				event.replyFailure("There are currently no free games").queue();
 				return;
@@ -91,7 +91,7 @@ public class FreeGamesCommand extends Sx4Command {
 	@CommandId(482)
 	@Examples({"free games upcoming"})
 	public void upcoming(Sx4CommandEvent event) {
-		FreeGameUtility.retrieveFreeGames(event.getHttpClient(), false, freeGames -> {
+		FreeGameUtility.retrieveUpcomingFreeGames(event.getHttpClient(), freeGames -> {
 			if (freeGames.isEmpty()) {
 				event.replyFailure("There are currently no upcoming free games").queue();
 				return;
@@ -113,7 +113,7 @@ public class FreeGamesCommand extends Sx4Command {
 
 						embed.addField("Price", game.getPrice() == originalPrice ? "Free" : String.format("~~£%.2f~~ Free", originalPrice), true);
 						embed.addField("Publisher", game.getPublisher(), true);
-						embed.addField("Promotion End", TimeFormat.DATE_TIME_SHORT.format(game.getPromotionEnd()), false);
+						embed.addField("Promotion", TimeFormat.DATE_TIME_SHORT.format(game.getPromotionStart()) + " to " + TimeFormat.DATE_TIME_SHORT.format(game.getPromotionEnd()), false);
 					});
 
 					return new MessageBuilder().setEmbeds(embed.build());

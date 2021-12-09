@@ -9,6 +9,8 @@ import org.bson.Document;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 public class FreeGameUtility {
@@ -17,13 +19,13 @@ public class FreeGameUtility {
 		.url("https://store-site-backend-static-ipv4.ak.epicgames.com/freeGamesPromotions?locale=en-US&country=GB&allowCountries=GB")
 		.build();
 
-	public static Document getPromotionalOffer(Document data, boolean current) {
+	public static Document getPromotionalOffer(Document data, Function<Document, List<Document>> function) {
 		Document promotions = data.get("promotions", Document.class);
 		if (promotions == null) {
 			return null;
 		}
 
-		List<Document> offers = promotions.getList(current ? "promotionalOffers" : "upcomingPromotionalOffers", Document.class, Collections.emptyList());
+		List<Document> offers = function.apply(promotions);
 		if (offers.isEmpty()) {
 			return null;
 		}
@@ -37,25 +39,33 @@ public class FreeGameUtility {
 	}
 
 	public static Document getPromotionalOffer(Document data) {
-		return FreeGameUtility.getPromotionalOffer(data, true);
+		return FreeGameUtility.getPromotionalOffer(data, promotions -> {
+			List<Document> offers = promotions.getList("promotionalOffers", Document.class);
+			if (offers.isEmpty()) {
+				offers = promotions.getList("upcomingPromotionalOffers", Document.class);
+			}
+
+			return offers;
+		});
+	}
+
+	public static Document getCurrentPromotionalOffer(Document data) {
+		return FreeGameUtility.getPromotionalOffer(data, promotions -> promotions.getList("promotionalOffers", Document.class));
 	}
 
 	public static Document getUpcomingPromotionalOffer(Document data) {
-		return FreeGameUtility.getPromotionalOffer(data, false);
+		return FreeGameUtility.getPromotionalOffer(data, promotions -> promotions.getList("upcomingPromotionalOffers", Document.class));
 	}
 
-	public static void retrieveFreeGames(OkHttpClient client, boolean current, Consumer<List<FreeGame>> consumer) {
+	public static void retrieveFreeGames(OkHttpClient client, Predicate<Document> predicate, Consumer<List<FreeGame>> consumer) {
 		client.newCall(FreeGameUtility.REQUEST).enqueue((HttpCallback) response -> {
 			Document document = Document.parse(response.body().string());
 
 			List<Document> elements = document.getEmbedded(List.of("data", "Catalog", "searchStore", "elements"), Collections.emptyList());
 
 			List<FreeGame> freeGames = elements.stream()
-				.filter(game -> {
-					Document offer = FreeGameUtility.getPromotionalOffer(game, current);
-					return offer != null && offer.getEmbedded(List.of("discountSetting", "discountPercentage"), Integer.class) == 0;
-				})
-				.map(game -> FreeGame.fromData(game, current))
+				.filter(predicate)
+				.map(FreeGame::fromData)
 				.collect(Collectors.toList());
 
 			consumer.accept(freeGames);
@@ -63,7 +73,24 @@ public class FreeGameUtility {
 	}
 
 	public static void retrieveFreeGames(OkHttpClient client, Consumer<List<FreeGame>> consumer) {
-		FreeGameUtility.retrieveFreeGames(client, true, consumer);
+		FreeGameUtility.retrieveFreeGames(client, game -> {
+			Document offer = FreeGameUtility.getPromotionalOffer(game);
+			return offer != null && offer.getEmbedded(List.of("discountSetting", "discountPercentage"), Integer.class) == 0;
+		}, consumer);
+	}
+
+	public static void retrieveCurrentFreeGames(OkHttpClient client, Consumer<List<FreeGame>> consumer) {
+		FreeGameUtility.retrieveFreeGames(client, game -> {
+			Document offer = FreeGameUtility.getCurrentPromotionalOffer(game);
+			return offer != null && offer.getEmbedded(List.of("discountSetting", "discountPercentage"), Integer.class) == 0;
+		}, consumer);
+	}
+
+	public static void retrieveUpcomingFreeGames(OkHttpClient client, Consumer<List<FreeGame>> consumer) {
+		FreeGameUtility.retrieveFreeGames(client, game -> {
+			Document offer = FreeGameUtility.getUpcomingPromotionalOffer(game);
+			return offer != null && offer.getEmbedded(List.of("discountSetting", "discountPercentage"), Integer.class) == 0;
+		}, consumer);
 	}
 
 }

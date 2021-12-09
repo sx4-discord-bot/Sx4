@@ -32,32 +32,29 @@ public class JsonFormatter implements IFormatter<Document> {
 	}
 
 	public Document parse(Document json) {
-		Document newJson = new Document();
-		for (Map.Entry<String, Object> entry : json.entrySet()) {
-			Object value = entry.getValue();
+		for (String key : json.keySet()) {
+			Object value = json.get(key);
 			if (value instanceof Document) {
-				newJson.put(entry.getKey(), this.parse((Document) value));
+				json.put(key, this.parse((Document) value));
 			} else if (value instanceof Iterable) {
-				List<Object> newList = new ArrayList<>();
+				List<Object> list = new ArrayList<>();
 				for (Object element : (Iterable<?>) value) {
 					if (element instanceof Document) {
-						newList.add(this.parse((Document) element));
+						list.add(this.parse((Document) element));
 					} else if (element instanceof String) {
-						newList.add(this.parse((String) element, this.manager));
+						list.add(this.parse((String) element, this.manager));
 					} else {
-						newList.add(element);
+						list.add(element);
 					}
 				}
 
-				newJson.put(entry.getKey(), newList);
+				json.put(key, list);
 			} else if (value instanceof String) {
-				newJson.put(entry.getKey(), this.parse((String) value, this.manager));
-			} else {
-				newJson.put(entry.getKey(), value);
+				json.put(key, this.parse((String) value, this.manager));
 			}
 		}
 
-		return newJson;
+		return json;
 	}
 
 }

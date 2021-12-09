@@ -25,6 +25,7 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 public class FreeGameManager implements WebhookManager {
@@ -141,6 +142,19 @@ public class FreeGameManager implements WebhookManager {
 				}
 
 				this.bot.getExecutor().submit(() -> {
+					// TODO Currently give the ids which aren't the mystery games to tell the difference,
+					//  but once I know if epic games keep the same id once the game is no longer a mystery potentially change the handling of this
+					Set<String> ids = games.stream()
+						.filter(Predicate.not(FreeGame::isMysteryGame))
+						.map(FreeGame::getId)
+						.collect(Collectors.toSet());
+
+					if (ids.size() == games.size()) {
+						this.ensureFreeGameScheduler();
+					} else {
+						this.ensureMysteryGames(ids);
+					}
+
 					documents.forEach(data -> {
 						TextChannel channel = this.bot.getShardManager().getTextChannelById(data.getLong("channelId"));
 						if (channel == null) {
@@ -152,13 +166,7 @@ public class FreeGameManager implements WebhookManager {
 						Document webhookData = data.get("webhook", MongoDatabase.EMPTY_DOCUMENT);
 
 						List<WebhookMessage> messages = new ArrayList<>();
-						Set<String> ids = new HashSet<>();
 						for (FreeGame game : games) {
-							if (game.isMysteryGame()) {
-								ids.add(game.getId());
-								continue;
-							}
-
 							JsonFormatter formatter = new JsonFormatter(data.get("message", FreeGameManager.DEFAULT_MESSAGE))
 								.addVariable("game", game);
 
@@ -176,35 +184,52 @@ public class FreeGameManager implements WebhookManager {
 						}
 
 						future.whenComplete(MongoDatabase.exceptionally());
-
-						this.checkMysteryGames(ids);
 					});
 				});
 			});
 		}, duration, TimeUnit.SECONDS);
 	}
 
-	public void checkMysteryGames(Set<String> ids) {
-		if (ids.isEmpty()) {
-			return;
-		}
+	public void ensureMysteryGames(Set<String> ids) {
+		FreeGameUtility.retrieveFreeGames(this.bot.getHttpClient(), games -> {
+			OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
 
-		FreeGameUtility.retrieveFreeGames(this.bot.getHttpClient(), updatedGames -> {
-			List<FreeGame> mysteryGames = updatedGames.stream()
-				.filter(game -> ids.contains(game.getId()))
+			List<FreeGame> mysteryGames = games.stream()
+				.filter(game -> !game.getPromotionStart().isAfter(now))
+				.filter(game -> !ids.contains(game.getId()))
 				.collect(Collectors.toList());
 
 			if (mysteryGames.isEmpty()) {
-				this.executor.schedule(() -> this.checkMysteryGames(ids), 1, TimeUnit.MINUTES);
+				this.executor.schedule(() -> this.ensureMysteryGames(ids), 1, TimeUnit.MINUTES);
 				return;
 			}
 
+			List<FreeGame> upcomingGames = games.stream()
+				.filter(game -> game.getPromotionStart().isAfter(now))
+				.sorted(Comparator.comparing(game -> Duration.between(now, game.getPromotionStart())))
+				.collect(Collectors.toList());
+
+			FreeGame newestGame = upcomingGames.get(0);
+			OffsetDateTime promotionStart = newestGame.getPromotionStart();
+
+			List<FreeGame> finalUpcomingGames = new ArrayList<>();
+			finalUpcomingGames.add(newestGame);
+
+			for (FreeGame game : games.subList(1, games.size())) {
+				if (game.getPromotionStart().equals(promotionStart)) {
+					finalUpcomingGames.add(game);
+				} else {
+					break;
+				}
+			}
+
 			this.scheduleFreeGameNotification(0, mysteryGames);
+			this.scheduleFreeGameNotification(Duration.between(now, promotionStart).toSeconds() + 60, finalUpcomingGames);
 		});
 	}
 
 	public void ensureFreeGameScheduler() {
-		FreeGameUtility.retrieveFreeGames(this.bot.getHttpClient(), false, freeGames -> {
+		FreeGameUtility.retrieveUpcomingFreeGames(this.bot.getHttpClient(), freeGames -> {
 			OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
 
 			List<FreeGame> games = freeGames.stream()
@@ -213,7 +238,7 @@ public class FreeGameManager implements WebhookManager {
 
 			FreeGame newestGame = games.get(0);
 			OffsetDateTime promotionStart = newestGame.getPromotionStart();
-			if (promotionStart.isBefore(now) || promotionStart.isEqual(now)) {
+			if (!promotionStart.isAfter(now)) {
 				// re-request games as they have not been refreshed on the API
 				this.executor.schedule(this::ensureFreeGameScheduler, 5, TimeUnit.MINUTES);
 				return;
