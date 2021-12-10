@@ -44,6 +44,8 @@ public class FreeGameManager implements WebhookManager {
 
 	private final Sx4 bot;
 
+	private List<FreeGame> queuedGames;
+
 	private final Map<Long, WebhookClient> webhooks;
 
 	private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
@@ -54,6 +56,7 @@ public class FreeGameManager implements WebhookManager {
 	public FreeGameManager(Sx4 bot) {
 		this.bot = bot;
 		this.webhooks = new HashMap<>();
+		this.queuedGames = new ArrayList<>();
 	}
 
 	public WebhookClient getWebhook(long id) {
@@ -141,20 +144,22 @@ public class FreeGameManager implements WebhookManager {
 					return;
 				}
 
+				this.queuedGames.removeAll(games);
+
+				// TODO Currently give the ids which aren't the mystery games to tell the difference,
+				//  but once I know if epic games keep the same id once the game is no longer a mystery potentially change the handling of this
+				Set<String> ids = games.stream()
+					.filter(Predicate.not(FreeGame::isMysteryGame))
+					.map(FreeGame::getId)
+					.collect(Collectors.toSet());
+
+				if (ids.size() == games.size()) {
+					this.ensureFreeGameScheduler();
+				} else {
+					this.ensureMysteryGames(ids);
+				}
+
 				this.bot.getExecutor().submit(() -> {
-					// TODO Currently give the ids which aren't the mystery games to tell the difference,
-					//  but once I know if epic games keep the same id once the game is no longer a mystery potentially change the handling of this
-					Set<String> ids = games.stream()
-						.filter(Predicate.not(FreeGame::isMysteryGame))
-						.map(FreeGame::getId)
-						.collect(Collectors.toSet());
-
-					if (ids.size() == games.size()) {
-						this.ensureFreeGameScheduler();
-					} else {
-						this.ensureMysteryGames(ids);
-					}
-
 					documents.forEach(data -> {
 						TextChannel channel = this.bot.getShardManager().getTextChannelById(data.getLong("channelId"));
 						if (channel == null) {
@@ -167,6 +172,10 @@ public class FreeGameManager implements WebhookManager {
 
 						List<WebhookMessage> messages = new ArrayList<>();
 						for (FreeGame game : games) {
+							if (game.isMysteryGame()) {
+								continue;
+							}
+
 							JsonFormatter formatter = new JsonFormatter(data.get("message", FreeGameManager.DEFAULT_MESSAGE))
 								.addVariable("game", game);
 
@@ -176,6 +185,10 @@ public class FreeGameManager implements WebhookManager {
 								.build();
 
 							messages.add(message);
+						}
+
+						if (messages.isEmpty()) {
+							return;
 						}
 
 						CompletableFuture<ReadonlyMessage> future = CompletableFuture.completedFuture(null);
@@ -212,19 +225,18 @@ public class FreeGameManager implements WebhookManager {
 			FreeGame newestGame = upcomingGames.get(0);
 			OffsetDateTime promotionStart = newestGame.getPromotionStart();
 
-			List<FreeGame> finalUpcomingGames = new ArrayList<>();
-			finalUpcomingGames.add(newestGame);
+			this.queuedGames.add(newestGame);
 
 			for (FreeGame game : games.subList(1, games.size())) {
 				if (game.getPromotionStart().equals(promotionStart)) {
-					finalUpcomingGames.add(game);
+					this.queuedGames.add(game);
 				} else {
 					break;
 				}
 			}
 
 			this.scheduleFreeGameNotification(0, mysteryGames);
-			this.scheduleFreeGameNotification(Duration.between(now, promotionStart).toSeconds() + 60, finalUpcomingGames);
+			this.scheduleFreeGameNotification(Duration.between(now, promotionStart).toSeconds() + 60, this.queuedGames);
 		});
 	}
 
@@ -244,18 +256,17 @@ public class FreeGameManager implements WebhookManager {
 				return;
 			}
 
-			List<FreeGame> finalGames = new ArrayList<>();
-			finalGames.add(newestGame);
+			this.queuedGames.add(newestGame);
 
 			for (FreeGame game : games.subList(1, games.size())) {
 				if (game.getPromotionStart().equals(promotionStart)) {
-					finalGames.add(game);
+					this.queuedGames.add(game);
 				} else {
 					break;
 				}
 			}
 
-			this.scheduleFreeGameNotification(Duration.between(now, promotionStart).toSeconds() + 60, finalGames);
+			this.scheduleFreeGameNotification(Duration.between(now, promotionStart).toSeconds() + 60, this.queuedGames);
 		});
 	}
 
