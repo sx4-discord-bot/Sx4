@@ -99,7 +99,7 @@ public class BlacklistCommand extends Sx4Command {
 		List<Bson> update = List.of(Operators.set("holders", Operators.let(new Document("holder", Operators.filter("$holders", Operators.eq("$$this.id", holder.getIdLong()))), Operators.cond(Operators.or(Operators.extinct("$holders"), Operators.isEmpty("$$holder")), "$holders", Operators.concatArrays(Operators.filter("$holders", Operators.ne("$$this.id", holder.getIdLong())), Operators.let(new Document("result", Operators.bitSetAndNot(Operators.ifNull(Operators.first(Operators.map("$$holder", "$$this.blacklisted")), Collections.EMPTY_LIST), longArray)), Operators.cond(Operators.and(Operators.isEmpty(Operators.ifNull(Operators.first(Operators.map("$$holder", "$$this.whitelisted")), Collections.EMPTY_LIST)), Operators.bitSetIsEmpty("$$result")), Collections.EMPTY_LIST, List.of(Operators.cond(Operators.bitSetIsEmpty("$$result"), Operators.removeObject(Operators.first("$$holder"), "blacklisted"), Operators.mergeObjects(Operators.first("$$holder"), new Document("blacklisted", "$$result")))))))))));
 
 		List<WriteModel<Document>> bulkData = channels.stream()
-			.map(textChannel -> new UpdateOneModel<Document>(Filters.eq("channelId", textChannel.getIdLong()), update, new UpdateOptions().upsert(true)))
+			.map(textChannel -> new UpdateOneModel<Document>(Filters.eq("channelId", textChannel.getIdLong()), update, new UpdateOptions()))
 			.collect(Collectors.toList());
 
 		event.getMongo().bulkWriteBlacklists(bulkData).whenComplete((result, exception) -> {
