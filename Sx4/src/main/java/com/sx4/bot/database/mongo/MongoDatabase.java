@@ -378,6 +378,10 @@ public class MongoDatabase {
 		return CompletableFuture.supplyAsync(() -> this.freeGameChannels.updateOne(filter, update, options), this.executor);
 	}
 
+	public CompletableFuture<Document> findAndUpdateFreeGameChannel(Bson filter, List<Bson> update, FindOneAndUpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.freeGameChannels.findOneAndUpdate(filter, update, options), this.executor);
+	}
+
 	public CompletableFuture<DeleteResult> deleteFreeGameChannel(Bson filter) {
 		return CompletableFuture.supplyAsync(() -> this.freeGameChannels.deleteOne(filter), this.executor);
 	}
@@ -1189,6 +1193,10 @@ public class MongoDatabase {
 
 	public CompletableFuture<Document> findAndUpdateYouTubeNotificationById(ObjectId id, Bson update, FindOneAndUpdateOptions options) {
 		return this.findAndUpdateYouTubeNotification(Filters.eq("_id", id), update, options);
+	}
+
+	public CompletableFuture<Document> findAndUpdateYouTubeNotification(Bson filter, List<Bson> update, FindOneAndUpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.youtubeNotifications.findOneAndUpdate(filter, update, options), this.executor);
 	}
 
 	public CompletableFuture<UpdateResult> updateYouTubeNotification(Bson filter, Bson update, UpdateOptions options) {

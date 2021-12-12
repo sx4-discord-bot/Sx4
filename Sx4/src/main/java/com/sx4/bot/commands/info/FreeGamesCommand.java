@@ -12,6 +12,7 @@ import com.sx4.bot.annotations.command.*;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
+import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.info.FreeGame;
 import com.sx4.bot.formatter.FormatterManager;
 import com.sx4.bot.formatter.JsonFormatter;
@@ -29,8 +30,10 @@ import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.requests.ErrorResponse;
 import net.dv8tion.jda.api.utils.TimeFormat;
 import org.bson.Document;
+import org.bson.conversions.Bson;
 
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 import java.util.StringJoiner;
 import java.util.concurrent.CompletionException;
 
@@ -170,6 +173,25 @@ public class FreeGamesCommand extends Sx4Command {
 			}
 
 			event.replySuccess("Free game notifications will no longer be sent in " + effectiveChannel.getAsMention()).queue();
+		});
+	}
+
+	@Command(value="toggle", description="Enables/disables a free games channel")
+	@CommandId(484)
+	@Examples({"free games toggle", "free games toggle #channel"})
+	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
+	public void toggle(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true, endless=true) TextChannel channel) {
+		TextChannel effectiveChannel = channel == null ? event.getTextChannel() : channel;
+
+		List<Bson> update = List.of(Operators.set("enabled", Operators.cond(Operators.exists("$enabled"), Operators.REMOVE, false)));
+		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().projection(Projections.include("enabled")).returnDocument(ReturnDocument.AFTER);
+
+		event.getMongo().findAndUpdateFreeGameChannel(Filters.eq("channelId", effectiveChannel.getIdLong()), update, options).whenComplete((data, exception) -> {
+			if (ExceptionUtility.sendExceptionally(event, exception)) {
+				return;
+			}
+
+			event.replySuccess("The free game channel in " + effectiveChannel.getAsMention() + " is now **" + (data.get("enabled", true) ? "enabled" : "disabled") + "**").queue();
 		});
 	}
 

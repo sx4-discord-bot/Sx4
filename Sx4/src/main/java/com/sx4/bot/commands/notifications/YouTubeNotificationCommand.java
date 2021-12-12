@@ -14,6 +14,7 @@ import com.sx4.bot.annotations.command.Examples;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
+import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.youtube.YouTubeChannel;
 import com.sx4.bot.entities.youtube.YouTubeVideo;
 import com.sx4.bot.formatter.FormatterManager;
@@ -35,6 +36,7 @@ import okhttp3.MultipartBody;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import org.bson.Document;
+import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -193,6 +195,23 @@ public class YouTubeNotificationCommand extends Sx4Command {
 			}
 			
 			event.replySuccess("You will no longer receive notifications in <#" + channelId + "> for that user").queue();
+		});
+	}
+
+	@Command(value="toggle", description="Enables/disables a specific youtube notification")
+	@CommandId(483)
+	@Examples({"youtube notification toggle 5e45ce6d3688b30ee75201ae"})
+	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
+	public void toggle(Sx4CommandEvent event, @Argument(value="id") ObjectId id) {
+		List<Bson> update = List.of(Operators.set("enabled", Operators.cond(Operators.exists("$enabled"), Operators.REMOVE, false)));
+		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().projection(Projections.include("enabled")).returnDocument(ReturnDocument.AFTER);
+
+		event.getMongo().findAndUpdateYouTubeNotification(Filters.and(Filters.eq("_id", id), Filters.eq("guildId", event.getGuild().getIdLong())), update, options).whenComplete((data, exception) -> {
+			if (ExceptionUtility.sendExceptionally(event, exception)) {
+				return;
+			}
+
+			event.replySuccess("That YouTube notification is now **" + (data.get("enabled", true) ? "enabled" : "disabled") + "**").queue();
 		});
 	}
 	
