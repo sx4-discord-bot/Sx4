@@ -192,8 +192,19 @@ public class YouTubeManager implements WebhookManager {
 		}
 	}
 
+	private void disableYouTubeNotifications(TextChannel channel) {
+		Bson update = Updates.combine(
+			Updates.unset("webhook.id"),
+			Updates.unset("webhook.token"),
+			Updates.set("enabled", false)
+		);
+
+		this.bot.getMongo().updateManyYouTubeNotifications(Filters.eq("channelId", channel.getIdLong()), update).whenComplete(MongoDatabase.exceptionally());
+	}
+
 	private CompletableFuture<ReadonlyMessage> createWebhook(TextChannel channel, WebhookMessage message) {
 		if (!channel.getGuild().getSelfMember().hasPermission(channel, Permission.MANAGE_WEBHOOKS)) {
+			this.disableYouTubeNotifications(channel);
 			return CompletableFuture.failedFuture(new BotPermissionException(Permission.MANAGE_WEBHOOKS));
 		}
 

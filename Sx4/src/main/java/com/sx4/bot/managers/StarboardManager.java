@@ -4,10 +4,12 @@ import club.minnced.discord.webhook.exception.HttpException;
 import club.minnced.discord.webhook.send.WebhookMessage;
 import com.mongodb.client.model.Updates;
 import com.sx4.bot.core.Sx4;
+import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.entities.webhook.ReadonlyMessage;
 import com.sx4.bot.entities.webhook.WebhookClient;
 import com.sx4.bot.exceptions.mod.BotPermissionException;
 import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.TextChannel;
 import okhttp3.OkHttpClient;
 import org.bson.Document;
@@ -55,8 +57,19 @@ public class StarboardManager implements WebhookManager {
 		this.webhooks.put(id, webhook);
 	}
 
+	private void disableStarboard(Guild guild) {
+		Bson update = Updates.combine(
+			Updates.unset("starboard.webhook.id"),
+			Updates.unset("starboard.webhook.token"),
+			Updates.unset("starboard.enabled")
+		);
+
+		this.bot.getMongo().updateGuildById(guild.getIdLong(), update).whenComplete(MongoDatabase.exceptionally());
+	}
+
 	private CompletableFuture<ReadonlyMessage> createWebhook(TextChannel channel, WebhookMessage message) {
 		if (!channel.getGuild().getSelfMember().hasPermission(channel, Permission.MANAGE_WEBHOOKS)) {
+			this.disableStarboard(channel.getGuild());
 			return CompletableFuture.failedFuture(new BotPermissionException(Permission.MANAGE_WEBHOOKS));
 		}
 

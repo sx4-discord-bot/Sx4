@@ -71,8 +71,19 @@ public class FreeGameManager implements WebhookManager {
 		this.webhooks.put(id, webhook);
 	}
 
+	private void disableFreeGameChannel(TextChannel channel) {
+		Bson update = Updates.combine(
+			Updates.unset("webhook.id"),
+			Updates.unset("webhook.token"),
+			Updates.set("enabled", false)
+		);
+
+		this.bot.getMongo().updateFreeGameChannel(Filters.eq("channelId", channel.getIdLong()), update, new UpdateOptions()).whenComplete(MongoDatabase.exceptionally());
+	}
+
 	private CompletableFuture<ReadonlyMessage> createWebhook(TextChannel channel, WebhookMessage message) {
 		if (!channel.getGuild().getSelfMember().hasPermission(channel, Permission.MANAGE_WEBHOOKS)) {
+			this.disableFreeGameChannel(channel);
 			return CompletableFuture.failedFuture(new BotPermissionException(Permission.MANAGE_WEBHOOKS));
 		}
 
@@ -161,6 +172,10 @@ public class FreeGameManager implements WebhookManager {
 
 				this.bot.getExecutor().submit(() -> {
 					documents.forEach(data -> {
+						if (!data.getBoolean("enabled", true)) {
+							return;
+						}
+
 						TextChannel channel = this.bot.getShardManager().getTextChannelById(data.getLong("channelId"));
 						if (channel == null) {
 							return;

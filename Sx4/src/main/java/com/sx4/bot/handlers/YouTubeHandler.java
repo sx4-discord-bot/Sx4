@@ -71,6 +71,10 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 			this.executor.submit(() -> {
 				List<WriteModel<Document>> bulkUpdate = new ArrayList<>();
 				notifications.forEach(notification -> {
+					if (!notification.getBoolean("enabled", true)) {
+						return;
+					}
+
 					long channelId = notification.getLong("channelId");
 
 					TextChannel textChannel = shardManager.getTextChannelById(channelId);

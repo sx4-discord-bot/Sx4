@@ -24,7 +24,7 @@ public class CommandUtility {
 		return functions;
 	}
 
-	@SuppressWarnings("rawtypes")
+	@SuppressWarnings({"rawtypes", "unchecked"})
 	public static ParsedResult<?> getParsedResult(Class<?> clazz, ArgumentFactoryImpl argumentFactory, ParseContext context, IArgument<?> argument, String content, String fullContent) {
 		IParser parser = argumentFactory.getParser(clazz);
 		if (parser == null) {
