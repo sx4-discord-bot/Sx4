@@ -6,18 +6,26 @@ import okhttp3.Request;
 import org.bson.Document;
 
 import java.util.List;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 public class SkinPortManager {
+
+	private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
 
 	private final Sx4 bot;
 
 	private String csrf;
 	private String cookie;
 
+	private String currency;
+	private Document currencies;
+
 	public SkinPortManager(Sx4 bot) {
 		this.bot = bot;
 
-		this.retrieveCSRFData();
+		this.executor.scheduleAtFixedRate(this::retrieveCSRFData, 0, 3, TimeUnit.HOURS);
 	}
 
 	public String getCSRFToken() {
@@ -26,6 +34,19 @@ public class SkinPortManager {
 
 	public String getCSRFCookie() {
 		return this.cookie;
+	}
+
+	public String getCurrentCurrency() {
+		return this.currency;
+	}
+
+	public double getCurrencyRate(String currency) {
+		Number amount = this.currencies.get(currency, Number.class);
+		if (amount == null) {
+			return -1D;
+		}
+
+		return amount.doubleValue();
 	}
 
 	public void retrieveCSRFData() {
@@ -41,6 +62,9 @@ public class SkinPortManager {
 
 			Document data = Document.parse(response.body().string());
 			this.csrf = data.getString("csrf");
+
+			this.currency = data.getString("currency");
+			this.currencies = data.get("rates", Document.class);
 		});
 	}
 
