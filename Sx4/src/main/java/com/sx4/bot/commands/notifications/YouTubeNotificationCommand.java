@@ -77,6 +77,11 @@ public class YouTubeNotificationCommand extends Sx4Command {
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	@Examples({"youtube notification add videos mrbeast", "youtube notification add mrbeast", "youtube notification add #videos pewdiepie"})
 	public void add(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) TextChannel channel, @Argument(value="youtube channel", endless=true) String channelQuery) {
+		if (!event.getBot().getConnectionHandler().isReady()) {
+			event.replyFailure("The bot has to be fully started to use this command, try again later").queue();
+			return;
+		}
+
 		TextChannel effectiveChannel = channel == null ? event.getTextChannel() : channel;
 
 		boolean id = this.id.matcher(channelQuery).matches();

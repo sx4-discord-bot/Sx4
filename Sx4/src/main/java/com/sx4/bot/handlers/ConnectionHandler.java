@@ -33,9 +33,10 @@ public class ConnectionHandler implements EventListener {
 	}
 	
 	private int readyEventsCalled = 0;
+	private boolean ready = false;
 
 	public boolean isReady() {
-		return this.readyEventsCalled == this.bot.getShardManager().getShardsTotal();
+		return this.ready;
 	}
 	
 	public WebhookEmbed getEmbed(JDA jda, String state, int colour) {
@@ -73,6 +74,8 @@ public class ConnectionHandler implements EventListener {
 			if (this.bot.getConfig().isMain()) {
 				ExceptionUtility.safeRun(this.bot.getPatreonManager()::ensurePatrons);
 			}
+
+			this.ready = true;
 		}
 		
 		this.eventsWebhook.send(this.getEmbed(jda, "Ready", this.bot.getConfig().getGreen()));
