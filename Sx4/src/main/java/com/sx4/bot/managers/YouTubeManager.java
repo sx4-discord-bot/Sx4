@@ -158,6 +158,7 @@ public class YouTubeManager implements WebhookManager {
 			});
 		} else {
 			model = new DeleteOneModel<>(Filters.eq("_id", channelId));
+			this.deleteExecutor(channelId);
 		}
 		
 		return model;

@@ -55,7 +55,7 @@ public class SkinPortManager {
 			.build();
 
 		this.bot.getHttpClient().newCall(request).enqueue((HttpCallback) response -> {
-			List<String> cookies = response.headers().values("Set-Cookie");
+			List<String> cookies = response.headers("Set-Cookie");
 			String cookie = cookies.get(0);
 
 			this.cookie = cookie.substring(0, cookie.indexOf(';'));

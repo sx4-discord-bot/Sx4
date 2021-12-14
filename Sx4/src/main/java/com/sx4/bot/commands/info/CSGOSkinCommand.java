@@ -196,11 +196,7 @@ public class CSGOSkinCommand extends Sx4Command {
 								}
 
 								String lock = d.getString("lock");
-								if (lock == null) {
-									embed.addField("Trade Locked", "No", true);
-								} else {
-									embed.addField("Trade Locked", this.formatter.parse(Duration.between(OffsetDateTime.now(ZoneOffset.UTC), OffsetDateTime.parse(lock))), true);
-								}
+								embed.addField("Trade Locked", lock == null ? "No" : this.formatter.parse(Duration.between(OffsetDateTime.now(ZoneOffset.UTC), OffsetDateTime.parse(lock))), true);
 
 								embeds.add(embed.build());
 
