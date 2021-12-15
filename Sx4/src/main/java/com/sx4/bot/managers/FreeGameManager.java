@@ -44,7 +44,7 @@ public class FreeGameManager implements WebhookManager {
 
 	private final Sx4 bot;
 
-	private List<FreeGame> queuedGames;
+	private final List<FreeGame> queuedGames;
 
 	private final Map<Long, WebhookClient> webhooks;
 

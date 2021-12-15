@@ -58,10 +58,9 @@ public class ExceptionUtility {
 		StringBuilder builder = new StringBuilder("- " + throwable.toString());
 
 		StackTraceElement[] stackTrace = throwable.getStackTrace();
-		for (int i = 0; i < stackTrace.length; i++) {
-			StackTraceElement element = stackTrace[i];
+		for (StackTraceElement element : stackTrace) {
 			if (element.toString().contains("com.sx4.bot")) {
-				builder.append("\n- " + element);
+				builder.append("\n- ").append(element);
 				break;
 			}
 		}

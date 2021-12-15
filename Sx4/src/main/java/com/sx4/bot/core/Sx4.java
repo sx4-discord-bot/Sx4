@@ -36,6 +36,7 @@ import com.sx4.bot.database.postgres.PostgresDatabase;
 import com.sx4.bot.entities.argument.*;
 import com.sx4.bot.entities.economy.item.Item;
 import com.sx4.bot.entities.economy.item.ItemStack;
+import com.sx4.bot.entities.info.Currency;
 import com.sx4.bot.entities.info.FreeGame;
 import com.sx4.bot.entities.management.AutoRoleFilter;
 import com.sx4.bot.entities.mod.PartialEmote;
@@ -162,6 +163,8 @@ public class Sx4 {
 			.writeTimeout(15, TimeUnit.SECONDS)
 			.build();
 
+		Currency.pollCurrencies(this.httpClient);
+
 		ContextManagerFactory.getDefault()
 			.registerContext(Sx4CommandEvent.class, (event, type) -> (Sx4CommandEvent) event)
 			.setEnforcedContext(Sx4CommandEvent.class, true);
@@ -244,8 +247,8 @@ public class Sx4 {
 			.addVariable("run_url", "Gets the Epic Games client url for the game", FreeGame.class, FreeGame::getRunUrl)
 			.addVariable("promotion_start", "Gets the start date of the promotion", FreeGame.class, FreeGame::getPromotionStart)
 			.addVariable("promotion_end", "Gets the end date of the promotion", FreeGame.class, FreeGame::getPromotionEnd)
-			.addVariable("price", "Gets the updated price of the game", FreeGame.class, FreeGame::getPrice)
-			.addVariable("original_price", "Gets the original price of the game", FreeGame.class, FreeGame::getOriginalPrice)
+			.addVariable("price", "Gets the updated price of the game", FreeGame.class, game -> new Currency(game.getPrice(), "GBP"))
+			.addVariable("original_price", "Gets the original price of the game", FreeGame.class, game -> new Currency(game.getOriginalPrice(), "GBP"))
 			.addVariable("suffix", "Gets the suffixed version of a number", Integer.class, NumberUtility::getSuffixed)
 			.addVariable("round", "Gets the rounded number", Double.class, Math::round)
 			.addVariable("floor", "Gets the floored number", Double.class, Math::floor)
@@ -346,6 +349,12 @@ public class Sx4 {
 			}).addParser(Number.class, text -> {
 				try {
 					return Double.parseDouble(text);
+				} catch (NumberFormatException e) {
+					return null;
+				}
+			}).addParser(Currency.class, text -> {
+				try {
+					return new Currency(Double.parseDouble(text));
 				} catch (NumberFormatException e) {
 					return null;
 				}
