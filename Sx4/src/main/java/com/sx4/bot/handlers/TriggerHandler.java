@@ -108,7 +108,7 @@ public class TriggerHandler implements EventListener {
 						}
 
 						ResponseBody responseBody = response.body();
-						if (responseBody.contentLength() <= 100_000_000) {
+						if (responseBody != null && responseBody.contentLength() <= 100_000_000) {
 							manager.addVariable(action.get("variable", "body"), new FormatterResponseBody(responseBody.string()));
 						}
 
