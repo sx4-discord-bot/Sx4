@@ -404,9 +404,9 @@ public class TriggerCommand extends Sx4Command {
 					return;
 				}
 
-				String body = data.getString("body");
-				if (body == null && HttpMethod.requiresRequestBody(method)) {
-					event.replyFailure("The request method used requires a body").queue();
+				String body = data.getString("body"), contentType = data.getString("contentType");
+				if ((body == null || contentType == null) && HttpMethod.requiresRequestBody(method)) {
+					event.replyFailure("The request method used requires a body and content type").queue();
 					return;
 				} else if (body != null && !HttpMethod.permitsRequestBody(method)) {
 					event.replyFailure("The request method used can not have a body").queue();
@@ -418,6 +418,7 @@ public class TriggerCommand extends Sx4Command {
 					.append("method", method);
 
 				if (body != null) {
+					action.append("contentType", contentType);
 					action.append("body", body);
 				}
 
