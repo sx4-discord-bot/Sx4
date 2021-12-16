@@ -25,7 +25,6 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.*;
 import java.util.concurrent.*;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 public class FreeGameManager implements WebhookManager {
@@ -157,14 +156,12 @@ public class FreeGameManager implements WebhookManager {
 
 				this.queuedGames.removeAll(games);
 
-				// TODO Currently give the ids which aren't the mystery games to tell the difference,
-				//  but once I know if epic games keep the same id once the game is no longer a mystery potentially change the handling of this
 				Set<String> ids = games.stream()
-					.filter(Predicate.not(FreeGame::isMysteryGame))
+					.filter(FreeGame::isMysteryGame)
 					.map(FreeGame::getId)
 					.collect(Collectors.toSet());
 
-				if (ids.size() == games.size()) {
+				if (ids.isEmpty()) {
 					this.ensureFreeGameScheduler();
 				} else {
 					this.ensureMysteryGames(ids);
@@ -224,7 +221,7 @@ public class FreeGameManager implements WebhookManager {
 
 			List<FreeGame> mysteryGames = games.stream()
 				.filter(game -> !game.getPromotionStart().isAfter(now))
-				.filter(game -> !ids.contains(game.getId()))
+				.filter(game -> ids.contains(game.getId()))
 				.collect(Collectors.toList());
 
 			if (mysteryGames.isEmpty()) {
