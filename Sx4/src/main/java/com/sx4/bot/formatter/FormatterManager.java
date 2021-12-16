@@ -112,6 +112,10 @@ public class FormatterManager {
 		return this;
 	}
 
+	public FormatterManager addVariable(String name, Object object) {
+		return this.addVariable(new FormatterVariable<>(name, null, Void.class, $ -> object));
+	}
+
 	public <Type> FormatterManager addVariable(String name, Class<Type> type, Function<Type, Object> function) {
 		return this.addVariable(new FormatterVariable<>(name, null, type, function));
 	}
@@ -208,7 +212,7 @@ public class FormatterManager {
 	}
 
 	public static FormatterManager getDefaultManager() {
-		return FormatterManager.defaultManager;
+		return new FormatterManager(FormatterManager.defaultManager);
 	}
 
 	public static void setDefaultManager(FormatterManager manager) {

@@ -2,7 +2,8 @@ package com.sx4.bot.formatter;
 
 import org.bson.Document;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 
 public class JsonFormatter implements IFormatter<Document> {
 
@@ -10,9 +11,13 @@ public class JsonFormatter implements IFormatter<Document> {
 
 	private final Document document;
 
-	public JsonFormatter(Document document) {
+	public JsonFormatter(Document document, FormatterManager manager) {
 		this.document = document;
-		this.manager = new FormatterManager(FormatterManager.getDefaultManager());
+		this.manager = manager;
+	}
+
+	public JsonFormatter(Document document) {
+		this(document, FormatterManager.getDefaultManager());
 	}
 
 	public JsonFormatter addVariable(Class<?> type, String name, Object argument) {

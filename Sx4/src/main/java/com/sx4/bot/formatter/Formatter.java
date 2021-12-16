@@ -6,9 +6,13 @@ public class Formatter implements IFormatter<String> {
 
     private final String string;
 
-    public Formatter(String string) {
+    public Formatter(String string, FormatterManager manager) {
         this.string = string;
-        this.manager = new FormatterManager(FormatterManager.getDefaultManager());
+        this.manager = manager;
+    }
+
+    public Formatter(String string) {
+        this(string, FormatterManager.getDefaultManager());
     }
 
     public Formatter addVariable(Class<?> type, String name, Object argument) {
@@ -21,10 +25,6 @@ public class Formatter implements IFormatter<String> {
         this.manager.addVariable(name, Void.class, $ -> argument);
 
         return this;
-    }
-
-    public String getString() {
-        return this.string;
     }
 
     public String parse() {

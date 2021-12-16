@@ -45,6 +45,7 @@ import com.sx4.bot.entities.youtube.YouTubeChannel;
 import com.sx4.bot.entities.youtube.YouTubeVideo;
 import com.sx4.bot.formatter.FormatterManager;
 import com.sx4.bot.formatter.function.FormatterParser;
+import com.sx4.bot.formatter.function.FormatterResponseBody;
 import com.sx4.bot.handlers.*;
 import com.sx4.bot.managers.*;
 import com.sx4.bot.paged.PagedHandler;
@@ -239,6 +240,7 @@ public class Sx4 {
 
 		FormatterManager formatterManager = new FormatterManager()
 			.addFunctions("com.sx4.bot.formatter.parser")
+			.addVariable("json", "Gets the request body as json", FormatterResponseBody.class, FormatterResponseBody::asJson)
 			.addVariable("title", "Gets the title of the game", FreeGame.class, FreeGame::getTitle)
 			.addVariable("description", "Gets the description for the game", FreeGame.class, FreeGame::getDescription)
 			.addVariable("publisher", "Gets the publisher of the game", FreeGame.class, FreeGame::getPublisher)

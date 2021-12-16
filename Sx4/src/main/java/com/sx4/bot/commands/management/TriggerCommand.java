@@ -23,6 +23,7 @@ import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.argument.Alternative;
+import com.sx4.bot.entities.management.TriggerActionType;
 import com.sx4.bot.formatter.FormatterManager;
 import com.sx4.bot.formatter.JsonFormatter;
 import com.sx4.bot.formatter.function.FormatterVariable;
@@ -40,16 +41,14 @@ import net.dv8tion.jda.api.entities.*;
 import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.events.interaction.ButtonClickEvent;
 import net.dv8tion.jda.api.interactions.components.Button;
+import okhttp3.internal.http.HttpMethod;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
 
 import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Random;
-import java.util.StringJoiner;
+import java.util.*;
 import java.util.concurrent.CompletionException;
 
 public class TriggerCommand extends Sx4Command {
@@ -371,6 +370,121 @@ public class TriggerCommand extends Sx4Command {
 			.setDisplayFunction(data -> "`" + data.getObjectId("_id").toHexString() + "` - " + StringUtility.limit(data.getString("trigger"), MessageEmbed.DESCRIPTION_MAX_LENGTH / 10 - 29, "..."));
 
 		paged.execute(event);
+	}
+
+	public static class ActionCommand extends Sx4Command {
+
+		public ActionCommand() {
+			super("action", 485);
+
+			super.setDescription("Allows you to perform an action when a trigger is triggers");
+			super.setExamples("trigger action add", "trigger action remove");
+			super.setCanaryCommand(true);
+		}
+
+		public void onCommand(Sx4CommandEvent event) {
+			event.replyHelp().queue();
+		}
+
+		@Command(value="add", description="Adds an action to a trigger")
+		@CommandId(486)
+		@Examples({"trigger action add 600968f92850ef72c9af8756 request {\"url\": \"https://api.exchangerate.host/latest?base=EUR\", \"method\": \"GET\"}"})
+		@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
+		public void add(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="type") TriggerActionType type, @Argument(value="json", endless=true) Document data) {
+			if (type == TriggerActionType.REQUEST) {
+				String method = data.getString("method");
+				if (method == null) {
+					event.replyFailure("Request method must be given in the `method` field").queue();
+					return;
+				}
+
+				String url = data.getString("url");
+				if (url == null) {
+					event.replyFailure("Url must be given in the `url` field").queue();
+					return;
+				}
+
+				String body = data.getString("body");
+				if (body == null && HttpMethod.requiresRequestBody(method)) {
+					event.replyFailure("The request method used requires a body").queue();
+					return;
+				} else if (body != null && !HttpMethod.permitsRequestBody(method)) {
+					event.replyFailure("The request method used can not have a body").queue();
+					return;
+				}
+
+				Document action = new Document("url", url)
+					.append("type", type.getId())
+					.append("method", method);
+
+				if (body != null) {
+					action.append("body", body);
+				}
+
+				if (!data.get("wait", true)) {
+					action.append("wait", false);
+				}
+
+				Document headers = data.get("headers", Document.class);
+				if (headers != null) {
+					action.append("headers", headers);
+				}
+
+				String variable = data.getString("variable");
+				if (variable != null && !variable.isBlank()) {
+					action.append("variable", variable);
+				}
+
+				List<Bson> update = List.of(Operators.set("actions", Operators.let(new Document("actions", Operators.ifNull("$actions", Collections.EMPTY_LIST)), Operators.cond(Operators.gte(Operators.size(Operators.filter("$$actions", Operators.eq("$$this.type", type.getId()))), 1), "$$actions", Operators.concatArrays("$$actions", List.of(action))))));
+
+				event.getMongo().updateTrigger(Filters.and(Filters.eq("_id", id), Filters.eq("guildId", event.getGuild().getIdLong())), update, new UpdateOptions()).whenComplete((result, exception) -> {
+					if (ExceptionUtility.sendExceptionally(event, exception)) {
+						return;
+					}
+
+					if (result.getMatchedCount() == 0) {
+						event.replyFailure("I could not find that trigger").queue();
+						return;
+					}
+
+					if (result.getModifiedCount() == 0) {
+						event.replyFailure("You cannot have more than 1 trigger action of the same type").queue();
+						return;
+					}
+
+					event.replySuccess("That action has been added to that trigger").queue();
+				});
+			} else {
+				event.replyFailure("That action type is not supported yet").queue();
+			}
+		}
+
+		@Command(value="remove", description="Removes an action from a trigger")
+		@CommandId(487)
+		@Examples({"trigger action remove 600968f92850ef72c9af8756 request"})
+		@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
+		public void remove(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="type") TriggerActionType type) {
+			List<Bson> update = List.of(Operators.set("actions", Operators.cond(Operators.isNull("$actions"), Operators.REMOVE, Operators.filter("$actions", Operators.ne("$$this.type", type.getId())))));
+
+			event.getMongo().updateTrigger(Filters.and(Filters.eq("_id", id), Filters.eq("guildId", event.getGuild().getIdLong())), update, new UpdateOptions()).whenComplete((result, exception) -> {
+				if (ExceptionUtility.sendExceptionally(event, exception)) {
+					return;
+				}
+
+				if (result.getMatchedCount() == 0) {
+					event.replyFailure("I could not find that trigger").queue();
+					return;
+				}
+
+				if (result.getModifiedCount() == 0) {
+					event.replyFailure("You do not have an action of that type on that trigger").queue();
+					return;
+				}
+
+				event.replySuccess("That action has been removed from that trigger").queue();
+			});
+		}
+
 	}
 
 }
