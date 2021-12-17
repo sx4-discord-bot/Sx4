@@ -4,6 +4,7 @@ import com.sx4.bot.utility.FreeGameUtility;
 import org.bson.Document;
 
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 
 public class FreeGame {
@@ -79,7 +80,7 @@ public class FreeGame {
 	}
 
 	public boolean isMysteryGame() {
-		return this.publisher.equals("Epic Dev Test Account");
+		return this.publisher.equals("Epic Dev Test Account") && this.start.isAfter(OffsetDateTime.now(ZoneOffset.UTC));
 	}
 
 	public static FreeGame fromData(Document data) {

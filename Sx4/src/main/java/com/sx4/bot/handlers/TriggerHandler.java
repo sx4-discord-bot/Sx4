@@ -17,6 +17,7 @@ import com.sx4.bot.utility.RequestUtility;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.Message.MentionType;
+import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent;
@@ -33,7 +34,7 @@ import java.util.concurrent.TimeUnit;
 public class TriggerHandler implements EventListener {
 
 	private final OkHttpClient client = new OkHttpClient.Builder()
-		.callTimeout(3, TimeUnit.SECONDS)
+		.callTimeout(5, TimeUnit.SECONDS)
 		.build();
 
 	private final Sx4 bot;
@@ -48,7 +49,8 @@ public class TriggerHandler implements EventListener {
 			return;
 		}
 
-		if (!message.getGuild().getSelfMember().hasPermission(message.getTextChannel(), Permission.MESSAGE_WRITE)) {
+		TextChannel channel = message.getTextChannel();
+		if (!message.getGuild().getSelfMember().hasPermission(channel, Permission.MESSAGE_WRITE)) {
 			return;
 		}
 
@@ -66,7 +68,7 @@ public class TriggerHandler implements EventListener {
 			FormatterManager manager = FormatterManager.getDefaultManager()
 				.addVariable("member", message.getMember())
 				.addVariable("user", author)
-				.addVariable("channel", message.getTextChannel())
+				.addVariable("channel", channel)
 				.addVariable("server", message.getGuild())
 				.addVariable("now", OffsetDateTime.now())
 				.addVariable("random", new Random());
@@ -118,7 +120,7 @@ public class TriggerHandler implements EventListener {
 			}
 
 			FutureUtility.allOf(futures).whenComplete(($, exception) -> {
-				if (ExceptionUtility.sendErrorMessage(exception)) {
+				if (ExceptionUtility.sendExceptionally(channel, exception)) {
 					return;
 				}
 
@@ -127,6 +129,7 @@ public class TriggerHandler implements EventListener {
 				try {
 					MessageUtility.fromWebhookMessage(message.getChannel(), MessageUtility.fromJson(response).build()).allowedMentions(EnumSet.allOf(MentionType.class)).queue();
 				} catch (IllegalArgumentException e) {
+					ExceptionUtility.sendExceptionally(channel, e);
 					bulkData.add(new UpdateOneModel<>(Filters.eq("_id", trigger.getObjectId("_id")), Updates.set("enabled", false)));
 				}
 			});

@@ -248,7 +248,7 @@ public class FreeGameManager implements WebhookManager {
 			}
 
 			this.scheduleFreeGameNotification(0, mysteryGames);
-			this.scheduleFreeGameNotification(Duration.between(now, promotionStart).toSeconds() + 60, this.queuedGames);
+			this.scheduleFreeGameNotification(Duration.between(now, promotionStart).toSeconds() + 5, this.queuedGames);
 		});
 	}
 
@@ -278,7 +278,7 @@ public class FreeGameManager implements WebhookManager {
 				}
 			}
 
-			this.scheduleFreeGameNotification(Duration.between(now, promotionStart).toSeconds() + 60, this.queuedGames);
+			this.scheduleFreeGameNotification(Duration.between(now, promotionStart).toSeconds() + 5, this.queuedGames);
 		});
 	}
 
