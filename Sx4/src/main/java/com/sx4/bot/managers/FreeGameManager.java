@@ -138,6 +138,10 @@ public class FreeGameManager implements WebhookManager {
 	}
 
 	public void scheduleFreeGameNotification(long duration, List<FreeGame> games) {
+		this.scheduleFreeGameNotification(duration, games, true);
+	}
+
+	public void scheduleFreeGameNotification(long duration, List<FreeGame> games, boolean schedule) {
 		this.executor.schedule(() -> {
 			List<Bson> guildPipeline = List.of(
 				Aggregates.match(Operators.expr(Operators.eq("$_id", "$$guildId"))),
@@ -154,17 +158,19 @@ public class FreeGameManager implements WebhookManager {
 					return;
 				}
 
-				this.queuedGames.removeAll(games);
+				if (schedule) {
+					this.queuedGames.removeAll(games);
 
-				Set<String> ids = games.stream()
-					.filter(FreeGame::isMysteryGame)
-					.map(FreeGame::getId)
-					.collect(Collectors.toSet());
+					Set<String> ids = games.stream()
+						.filter(FreeGame::isMysteryGame)
+						.map(FreeGame::getId)
+						.collect(Collectors.toSet());
 
-				if (ids.isEmpty()) {
-					this.ensureFreeGameScheduler();
-				} else {
-					this.ensureMysteryGames(ids);
+					if (ids.isEmpty()) {
+						this.ensureFreeGameScheduler();
+					} else {
+						this.ensureMysteryGames(ids);
+					}
 				}
 
 				this.bot.getExecutor().submit(() -> {
@@ -247,7 +253,7 @@ public class FreeGameManager implements WebhookManager {
 				}
 			}
 
-			this.scheduleFreeGameNotification(0, mysteryGames);
+			this.scheduleFreeGameNotification(0, mysteryGames, false);
 			this.scheduleFreeGameNotification(Duration.between(now, promotionStart).toSeconds() + 5, this.queuedGames);
 		});
 	}

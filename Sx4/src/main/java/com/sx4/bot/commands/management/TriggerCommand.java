@@ -392,23 +392,43 @@ public class TriggerCommand extends Sx4Command {
 		@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 		public void add(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="type") TriggerActionType type, @Argument(value="json", endless=true) Document data) {
 			if (type == TriggerActionType.REQUEST) {
-				String method = data.getString("method");
+				Object method = data.get("method");
 				if (method == null) {
 					event.replyFailure("Request method must be given in the `method` field").queue();
 					return;
 				}
 
-				String url = data.getString("url");
+				if (!(method instanceof String)) {
+					event.replyFailure("`method` field has to be a string").queue();
+					return;
+				}
+
+				Object url = data.get("url");
 				if (url == null) {
 					event.replyFailure("Url must be given in the `url` field").queue();
 					return;
 				}
 
-				String body = data.getString("body"), contentType = data.getString("contentType");
-				if ((body == null || contentType == null) && HttpMethod.requiresRequestBody(method)) {
+				if (!(url instanceof String)) {
+					event.replyFailure("`url` field has to be a string").queue();
+					return;
+				}
+
+				Object body = data.get("body"), contentType = data.get("contentType");
+				if (body != null && !(body instanceof String)) {
+					event.replyFailure("`body` field has to be a string").queue();
+					return;
+				}
+
+				if (contentType != null && !(contentType instanceof String)) {
+					event.replyFailure("`contentType` field has to be a string").queue();
+					return;
+				}
+
+				if ((body == null || contentType == null) && HttpMethod.requiresRequestBody((String) method)) {
 					event.replyFailure("The request method used requires a body and content type").queue();
 					return;
-				} else if (body != null && !HttpMethod.permitsRequestBody(method)) {
+				} else if (body != null && !HttpMethod.permitsRequestBody((String) method)) {
 					event.replyFailure("The request method used can not have a body").queue();
 					return;
 				}
@@ -422,17 +442,18 @@ public class TriggerCommand extends Sx4Command {
 					action.append("body", body);
 				}
 
-				if (!data.get("wait", true)) {
+				Object wait = data.get("wait");
+				if (wait instanceof Boolean && !(boolean) wait) {
 					action.append("wait", false);
 				}
 
-				Document headers = data.get("headers", Document.class);
-				if (headers != null) {
+				Object headers = data.get("headers");
+				if (headers instanceof Document) {
 					action.append("headers", headers);
 				}
 
-				String variable = data.getString("variable");
-				if (variable != null && !variable.isBlank()) {
+				Object variable = data.get("variable");
+				if (variable instanceof String && !((String) variable).isBlank()) {
 					action.append("variable", variable);
 				}
 

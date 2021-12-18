@@ -4,7 +4,6 @@ import com.sx4.bot.utility.FreeGameUtility;
 import org.bson.Document;
 
 import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.util.List;
 
 public class FreeGame {
@@ -20,15 +19,28 @@ public class FreeGame {
 		this.publisher = data.getEmbedded(List.of("seller", "name"), String.class);
 		this.url = "https://www.epicgames.com/store/en-US/p/" + data.getString("urlSlug");
 		this.runUrl = "<com.epicgames.launcher://store/en-US/p/" + data.getString("urlSlug") + ">";
-		this.image = data.getList("keyImages", Document.class).stream()
+
+		Document promotion = FreeGameUtility.getPromotionalOffer(data);
+		this.start = OffsetDateTime.parse(promotion.getString("startDate"));
+		this.end = OffsetDateTime.parse(promotion.getString("endDate"));
+
+		List<Document> keyImages = data.getList("keyImages", Document.class);
+
+		String image = keyImages.stream()
 			.filter(d -> d.getString("type").equals(this.isMysteryGame() ? "VaultClosed" : "OfferImageWide"))
 			.map(d -> d.getString("url"))
 			.findFirst()
 			.orElse(null);
 
-		Document promotion = FreeGameUtility.getPromotionalOffer(data);
-		this.start = OffsetDateTime.parse(promotion.getString("startDate"));
-		this.end = OffsetDateTime.parse(promotion.getString("endDate"));
+		if (image == null) {
+			this.image = keyImages.stream()
+				.filter(d -> !d.getString("type").equals("VaultClosed"))
+				.map(d -> d.getString("url"))
+				.findFirst()
+				.orElse(null);
+		} else {
+			this.image = image;
+		}
 
 		Document priceInfo = data.getEmbedded(List.of("price", "totalPrice"), Document.class);
 		this.originalPrice = priceInfo.getInteger("originalPrice") / 100D;
@@ -80,7 +92,7 @@ public class FreeGame {
 	}
 
 	public boolean isMysteryGame() {
-		return this.publisher.equals("Epic Dev Test Account") && this.start.isAfter(OffsetDateTime.now(ZoneOffset.UTC));
+		return this.publisher.equals("Epic Dev Test Account") && this.title.equals("Mystery Game");
 	}
 
 	public static FreeGame fromData(Document data) {
