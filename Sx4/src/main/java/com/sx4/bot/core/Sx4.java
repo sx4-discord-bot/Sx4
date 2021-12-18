@@ -76,6 +76,8 @@ import javax.security.auth.login.LoginException;
 import java.awt.*;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.*;
 import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.DateTimeParseException;
@@ -240,6 +242,7 @@ public class Sx4 {
 
 		FormatterManager formatterManager = new FormatterManager()
 			.addFunctions("com.sx4.bot.formatter.parser")
+			.addVariable("urlEncode", "Encodes a string to a URL standard", String.class, string -> URLEncoder.encode(string, StandardCharsets.UTF_8))
 			.addVariable("json", "Gets the request body as json", FormatterResponseBody.class, FormatterResponseBody::asJson)
 			.addVariable("title", "Gets the title of the game", FreeGame.class, FreeGame::getTitle)
 			.addVariable("description", "Gets the description for the game", FreeGame.class, FreeGame::getDescription)

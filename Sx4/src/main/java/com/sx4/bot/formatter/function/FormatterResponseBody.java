@@ -10,6 +10,10 @@ public class FormatterResponseBody {
 		this.body = body;
 	}
 
+	public String getRaw() {
+		return this.body;
+	}
+
 	public Document asJson() {
 		return Document.parse(this.body);
 	}

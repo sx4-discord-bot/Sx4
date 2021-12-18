@@ -391,6 +391,13 @@ public class TriggerCommand extends Sx4Command {
 		@Examples({"trigger action add 600968f92850ef72c9af8756 request {\"url\": \"https://api.exchangerate.host/latest?base=EUR\", \"method\": \"GET\"}"})
 		@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 		public void add(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="type") TriggerActionType type, @Argument(value="json", endless=true) Document data) {
+			Document action = new Document("type", type.getId());
+
+			Object order = data.get("order");
+			if (order instanceof Integer && (int) order >= 0) {
+				action.append("order", order);
+			}
+
 			if (type == TriggerActionType.REQUEST) {
 				Object method = data.get("method");
 				if (method == null) {
@@ -433,9 +440,7 @@ public class TriggerCommand extends Sx4Command {
 					return;
 				}
 
-				Document action = new Document("url", url)
-					.append("type", type.getId())
-					.append("method", method);
+				action.append("url", url).append("method", ((String) method).toUpperCase());
 
 				if (body != null) {
 					action.append("contentType", contentType);

@@ -3,7 +3,6 @@ package com.sx4.bot.handlers;
 import com.mongodb.client.model.*;
 import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.mongo.MongoDatabase;
-import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.management.TriggerActionType;
 import com.sx4.bot.formatter.Formatter;
 import com.sx4.bot.formatter.FormatterManager;
@@ -30,6 +29,7 @@ import java.time.OffsetDateTime;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 public class TriggerHandler implements EventListener {
 
@@ -41,6 +41,37 @@ public class TriggerHandler implements EventListener {
 
 	public TriggerHandler(Sx4 bot) {
 		this.bot = bot;
+	}
+
+	public CompletableFuture<Void> executeRequest(FormatterManager manager, Document action) {
+		String body = action.getString("body");
+
+		Request.Builder request;
+		try {
+			request = new Request.Builder()
+				.url(RequestUtility.getWorkerUrl(new Formatter(action.getString("url"), manager).parse()))
+				.method(action.getString("method"), body == null ? null : RequestBody.create(MediaType.parse(action.getString("contentType")), new Formatter(body, manager).parse()));
+		} catch (IllegalArgumentException e) {
+			e.printStackTrace();
+			return CompletableFuture.failedFuture(e);
+		}
+
+		Document headers = action.get("headers", MongoDatabase.EMPTY_DOCUMENT);
+		for (String header : headers.keySet()) {
+			request.addHeader(new Formatter(header, manager).parse(), new Formatter(headers.getString(header), manager).parse());
+		}
+
+		CompletableFuture<Void> future = new CompletableFuture<>();
+		this.client.newCall(request.build()).enqueue((HttpCallback) response -> {
+			ResponseBody responseBody = response.body();
+			if (responseBody != null && responseBody.contentLength() <= 100_000_000) {
+				manager.addVariable(action.get("variable", "body"), new FormatterResponseBody(responseBody.string()));
+			}
+
+			future.complete(null);
+		});
+
+		return future;
 	}
 
 	public void handle(Message message) {
@@ -73,51 +104,32 @@ public class TriggerHandler implements EventListener {
 				.addVariable("now", OffsetDateTime.now())
 				.addVariable("random", new Random());
 
-			List<Document> actions = trigger.getList("actions", Document.class, Collections.emptyList());
+			List<Document> actions = trigger.getList("actions", Document.class, Collections.emptyList()).stream()
+				.sorted(Comparator.comparingInt(d -> d.getInteger("order", -1)))
+				.collect(Collectors.toList());
 
+			CompletableFuture<Void> orderedFuture = CompletableFuture.completedFuture(null);
 			List<CompletableFuture<Void>> futures = new ArrayList<>();
 			for (Document action : actions) {
 				TriggerActionType type = TriggerActionType.fromId(action.getInteger("type"));
+				if (type == null) {
+					continue;
+				}
+
+				int order = action.getInteger("order", -1);
+
 				if (type == TriggerActionType.REQUEST) {
-					String body = action.getString("body");
-
-					Request.Builder request;
-					try {
-						request = new Request.Builder()
-							.url(RequestUtility.getWorkerUrl(new Formatter(action.getString("url"), manager).parse()))
-							.method(action.getString("method"), body == null ? null : RequestBody.create(MediaType.parse(action.getString("contentType")), new Formatter(body, manager).parse()));
-					} catch (IllegalArgumentException e) {
-						bulkData.add(new UpdateOneModel<>(Filters.eq("_id", trigger.getObjectId("_id")), List.of(Operators.set("actions", Operators.filter("$actions", Operators.ne("$$this.id", type.getId()))))));
-						continue;
-					}
-
-					Document headers = action.get("headers", MongoDatabase.EMPTY_DOCUMENT);
-					for (String header : headers.keySet()) {
-						request.addHeader(new Formatter(header, manager).parse(), new Formatter(headers.getString(header), manager).parse());
-					}
-
-					CompletableFuture<Void> future;
 					if (action.get("wait", true)) {
-						future = new CompletableFuture<>();
-						futures.add(future);
-					} else {
-						future = null;
+						if (order == -1) {
+							futures.add(this.executeRequest(manager, action));
+						} else {
+							orderedFuture = orderedFuture.thenCompose($ -> this.executeRequest(manager, action));
+						}
 					}
-
-					this.client.newCall(request.build()).enqueue((HttpCallback) response -> {
-						if (future == null) {
-							return;
-						}
-
-						ResponseBody responseBody = response.body();
-						if (responseBody != null && responseBody.contentLength() <= 100_000_000) {
-							manager.addVariable(action.get("variable", "body"), new FormatterResponseBody(responseBody.string()));
-						}
-
-						future.complete(null);
-					});
 				}
 			}
+
+			futures.add(orderedFuture);
 
 			FutureUtility.allOf(futures).whenComplete(($, exception) -> {
 				if (ExceptionUtility.sendExceptionally(channel, exception)) {
