@@ -3,6 +3,7 @@ package com.sx4.bot.commands.info;
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
 import com.jockie.bot.core.option.Option;
+import com.mongodb.client.model.Projections;
 import com.sx4.bot.annotations.command.BotPermissions;
 import com.sx4.bot.annotations.command.CommandId;
 import com.sx4.bot.annotations.command.Examples;
@@ -12,6 +13,7 @@ import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.http.HttpCallback;
 import com.sx4.bot.paged.PagedResult;
+import com.sx4.bot.utility.HmacUtility;
 import com.sx4.bot.utility.NumberUtility;
 import com.sx4.bot.utility.StringUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
@@ -28,6 +30,9 @@ import org.jsoup.Jsoup;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -188,8 +193,19 @@ public class SteamCommand extends Sx4Command {
 	@CommandId(212)
 	@Examples({"steam profile dog", "steam profile https://steamcommunity.com/id/dog"})
 	@BotPermissions(permissions={Permission.MESSAGE_EMBED_LINKS})
-	public void game(Sx4CommandEvent event, @Argument(value="query", endless=true) String query) {
-		String url = this.getProfileUrl(query);
+	public void game(Sx4CommandEvent event, @Argument(value="query", endless=true, nullDefault=true) String query) {
+		String url;
+		if (query == null) {
+			long id = event.getMongo().getUserById(event.getAuthor().getIdLong(), Projections.include("connections.steam")).getEmbedded(List.of("connections", "steam"), -1L);
+			if (id == -1) {
+				event.replyFailure("You do not have a steam account linked, use `steam connect` to link an account or provide an argument to search").queue();
+				return;
+			}
+
+			url = "https://steamcommunity.com/profiles/" + id;
+		} else {
+			url = this.getProfileUrl(query);
+		}
 
 		Request request = new Request.Builder()
 			.url(url + "?xml=1")
@@ -300,6 +316,35 @@ public class SteamCommand extends Sx4Command {
 				paged.execute(event);
 			});
 		});
+	}
+
+	@Command(value="connect", description="Connect your steam account with Sx4")
+	@CommandId(488)
+	@Examples({"steam connect"})
+	public void connect(Sx4CommandEvent event) {
+		String id = event.getAuthor().getId();
+		long timestamp = Instant.now().getEpochSecond();
+
+		String signature;
+		try {
+			signature = HmacUtility.getSignatureHex(event.getConfig().getSteam(), id + timestamp, HmacUtility.HMAC_MD5);
+		} catch (NoSuchAlgorithmException | InvalidKeyException e) {
+			event.replyFailure("Something went wrong there, try again").queue();
+			return;
+		}
+
+		String redirectUrl = URLEncoder.encode(event.getConfig().getBaseUrl() + "/redirect/steam?user_id=" + id + "&timestamp=" + timestamp + "&signature=" + signature, StandardCharsets.UTF_8);
+
+		MessageEmbed embed = new EmbedBuilder()
+			.setAuthor("Steam Authorization")
+			.setDescription("The link below will allow you to link your steam account on Sx4\n**:warning: Do not give this link to anyone :warning:**\n\n[Authorize](https://steamcommunity.com/openid/login?openid.mode=checkid_setup&openid.ns=http://specs.openid.net/auth/2.0&openid.ns.sreg=http://openid.net/extensions/sreg/1.1&openid.ns.ax=http://openid.net/srv/ax/1.0&openid.ax.mode=fetch_request&openid.identity=http://specs.openid.net/auth/2.0/identifier_select&openid.claimed_id=http://specs.openid.net/auth/2.0/identifier_select&openid.return_to=" + redirectUrl + ")")
+			.setColor(event.getConfig().getOrange())
+			.setFooter("The authorization link will expire in 5 minutes")
+			.build();
+
+		event.getAuthor().openPrivateChannel()
+			.flatMap(channel -> channel.sendMessageEmbeds(embed))
+			.queue();
 	}
 
 }

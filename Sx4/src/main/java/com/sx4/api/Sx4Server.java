@@ -30,7 +30,8 @@ public class Sx4Server {
 			new PatreonEndpoint(bot),
 			new RedirectEndpoint(bot),
 			new GitHubEndpoint(bot),
-			new TwitterEndpoint(bot)
+			new TwitterEndpoint(bot),
+			new SteamEndpoint(bot)
 		);
 		
 		resourceConfig.property(ServerProperties.PROCESSING_RESPONSE_ERRORS_ENABLED, true);

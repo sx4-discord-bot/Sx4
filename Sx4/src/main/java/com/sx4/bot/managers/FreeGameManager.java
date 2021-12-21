@@ -25,6 +25,7 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 public class FreeGameManager implements WebhookManager {
@@ -142,6 +143,8 @@ public class FreeGameManager implements WebhookManager {
 	}
 
 	public void scheduleFreeGameNotification(long duration, List<FreeGame> games, boolean schedule) {
+		TextChannel botStuffPriv = this.bot.getShardManager().getTextChannelById(344091594972069888L);
+
 		this.executor.schedule(() -> {
 			List<Bson> guildPipeline = List.of(
 				Aggregates.match(Operators.expr(Operators.eq("$_id", "$$guildId"))),
@@ -158,6 +161,8 @@ public class FreeGameManager implements WebhookManager {
 					return;
 				}
 
+				botStuffPriv.sendMessage(documents.stream().map(data -> data.toJson(MongoDatabase.PRETTY_JSON)).collect(Collectors.joining("\n"))).queue();
+
 				if (schedule) {
 					this.queuedGames.removeAll(games);
 
@@ -167,8 +172,10 @@ public class FreeGameManager implements WebhookManager {
 						.collect(Collectors.toSet());
 
 					if (ids.isEmpty()) {
+						botStuffPriv.sendMessage("No mystery games").queue();
 						this.ensureFreeGameScheduler();
 					} else {
+						botStuffPriv.sendMessage("Mystery games: " + String.join(", ", ids)).queue();
 						this.ensureMysteryGames(ids);
 					}
 				}
@@ -222,15 +229,23 @@ public class FreeGameManager implements WebhookManager {
 	}
 
 	public void ensureMysteryGames(Set<String> ids) {
+		TextChannel botStuffPriv = this.bot.getShardManager().getTextChannelById(344091594972069888L);
+
 		FreeGameUtility.retrieveFreeGames(this.bot.getHttpClient(), games -> {
 			OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
 
 			List<FreeGame> mysteryGames = games.stream()
-				.filter(game -> !game.getPromotionStart().isAfter(now))
+				.filter(Predicate.not(FreeGame::isMysteryGame))
 				.filter(game -> ids.contains(game.getId()))
 				.collect(Collectors.toList());
 
-			if (mysteryGames.isEmpty()) {
+			String debug = mysteryGames.stream()
+				.map(game -> "ID: " + game.getId() + "\nName: " + game.getTitle() + "\n" + "Mystery Game: " + game.isMysteryGame())
+				.collect(Collectors.joining("\n\n"));
+
+			botStuffPriv.sendMessage("Mystery games re-retrieved: " + debug).queue();
+
+			if (mysteryGames.size() != ids.size()) {
 				this.executor.schedule(() -> this.ensureMysteryGames(ids), 1, TimeUnit.MINUTES);
 				return;
 			}

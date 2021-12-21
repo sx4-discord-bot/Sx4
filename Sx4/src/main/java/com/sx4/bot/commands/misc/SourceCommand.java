@@ -81,7 +81,7 @@ public class SourceCommand extends Sx4Command {
 
 						event.replyFile(commandCode.getBytes(StandardCharsets.UTF_8), className + ".java").queue();
 					} else {
-						event.reply("https://sx4.dev/Sx4/blob/" + fullPath + "#L" + (startLine + 1) + "-L" + (i + 1)).queue();
+						event.reply("https://sx4.dev/github/Sx4/blob/" + fullPath + "#L" + (startLine + 1) + "-L" + (i + 1)).queue();
 					}
 
 					return;
