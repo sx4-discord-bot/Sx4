@@ -337,13 +337,15 @@ public class SteamCommand extends Sx4Command {
 
 		MessageEmbed embed = new EmbedBuilder()
 			.setAuthor("Steam Authorization")
-			.setDescription("The link below will allow you to link your steam account on Sx4\n**:warning: Do not give this link to anyone :warning:**\n\n[Authorize](https://steamcommunity.com/openid/login?openid.mode=checkid_setup&openid.ns=http://specs.openid.net/auth/2.0&openid.ns.sreg=http://openid.net/extensions/sreg/1.1&openid.ns.ax=http://openid.net/srv/ax/1.0&openid.ax.mode=fetch_request&openid.identity=http://specs.openid.net/auth/2.0/identifier_select&openid.claimed_id=http://specs.openid.net/auth/2.0/identifier_select&openid.return_to=" + redirectUrl + ")")
+			.setDescription("The link below will allow you to link your steam account on Sx4\n**:warning: Do not give this link to anyone :warning:**\n\n[Authorize](https://sx4.dev/connect/steam?redirect_url=" + redirectUrl + ")")
 			.setColor(event.getConfig().getOrange())
 			.setFooter("The authorization link will expire in 5 minutes")
 			.build();
 
 		event.getAuthor().openPrivateChannel()
 			.flatMap(channel -> channel.sendMessageEmbeds(embed))
+			.flatMap($ -> event.replySuccess("I sent you a message containing your authorization link"))
+			.onErrorFlatMap($ -> event.replyFailure("I failed to send you your authorization link, make sure to have your dms open"))
 			.queue();
 	}
 

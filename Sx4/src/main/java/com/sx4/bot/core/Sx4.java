@@ -91,6 +91,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
+import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
@@ -317,7 +318,7 @@ public class Sx4 {
 			.addVariable("id", "Gets the id of the YouTube channel", YouTubeChannel.class, YouTubeChannel::getId)
 			.addVariable("url", "Gets the url of the YouTube channel", YouTubeChannel.class, YouTubeChannel::getUrl)
 			.addVariable("name", "Gets the name of the YouTube channel", YouTubeChannel.class, YouTubeChannel::getName)
-			.addParser(String.class, text -> text)
+			.addParser(String.class, Function.identity())
 			.addParser(Boolean.class, text -> {
 				if (text.equals("true")) {
 					return true;
@@ -381,6 +382,33 @@ public class Sx4 {
 			}
 
 			return null;
+		}).addParser(Collection.class, text -> {
+			if (text.charAt(0) != '[' || text.charAt(text.length() - 1) != ']') {
+				return null;
+			}
+
+			FormatterParser<?> parser = formatterManager.getParser(Object.class);
+
+			String textList = text.substring(1, text.length() - 1);
+			char[] characters = textList.toCharArray();
+			List<Object> collection = new ArrayList<>();
+			int lastIndex = 0;
+
+			for (int i = 0; i < characters.length; i++) {
+				char character = characters[i];
+				if (character == ',') {
+					if (i != 0 && characters[i - 1] == '\\') {
+						continue;
+					}
+
+					collection.add(parser.parse(textList.substring(lastIndex, i)));
+					lastIndex = i + 1;
+				}
+			}
+
+			collection.add(parser.parse(textList.substring(lastIndex)));
+
+			return collection;
 		});
 
 		FormatterManager.setDefaultManager(formatterManager);
