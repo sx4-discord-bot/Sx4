@@ -17,8 +17,8 @@ public class FreeGame {
 		this.title = data.getString("title");
 		this.description = data.getString("description");
 		this.publisher = data.getEmbedded(List.of("seller", "name"), String.class);
-		this.url = "https://www.epicgames.com/store/en-US/p/" + data.getString("urlSlug");
-		this.runUrl = "<com.epicgames.launcher://store/en-US/p/" + data.getString("urlSlug") + ">";
+		this.url = "https://www.epicgames.com/store/en-US/p/" + data.getString("productSlug");
+		this.runUrl = "<com.epicgames.launcher://store/en-US/p/" + data.getString("productSlug") + ">";
 
 		Document promotion = FreeGameUtility.getPromotionalOffer(data);
 		this.start = OffsetDateTime.parse(promotion.getString("startDate"));
