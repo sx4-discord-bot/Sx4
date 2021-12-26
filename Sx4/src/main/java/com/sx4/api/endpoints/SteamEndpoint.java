@@ -1,11 +1,14 @@
 package com.sx4.api.endpoints;
 
-import com.mongodb.client.model.Updates;
 import com.sx4.bot.core.Sx4;
+import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.http.HttpCallback;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.HmacUtility;
 import okhttp3.Request;
+import org.bson.conversions.Bson;
+import org.json.JSONObject;
+import org.json.XML;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 
@@ -23,6 +26,8 @@ import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
+import java.util.Collections;
+import java.util.List;
 
 @Path("redirect")
 public class SteamEndpoint {
@@ -98,15 +103,30 @@ public class SteamEndpoint {
 			}
 
 			long steamId = Long.parseLong(identity.substring(identity.lastIndexOf('/') + 1));
-			this.bot.getMongo().updateUserById(userId, Updates.set("connections.steam", steamId)).whenComplete((result, exception) -> {
-				if (ExceptionUtility.sendErrorMessage(exception)) {
-					response.resume(Response.status(500).entity(this.setText(failureCopy, "Something went wrong while authenticating your account")).build());
-					return;
-				}
 
-				Document successCopy = this.success.clone();
+			Request steamRequest = new Request.Builder()
+				.url("https://steamcommunity.com/profiles/" + steamId + "?xml=1")
+				.build();
 
-				response.resume(Response.ok(this.setText(successCopy, "Connected your steam account to Sx4")).build());
+			this.bot.getHttpClient().newCall(steamRequest).enqueue((HttpCallback) profileResponse -> {
+				JSONObject data = XML.toJSONObject(profileResponse.body().string());
+				JSONObject profile = data.getJSONObject("profile");
+
+				org.bson.Document connection = new org.bson.Document("id", steamId)
+					.append("name", profile.getString("steamID"));
+
+				List<Bson> update = List.of(Operators.set("connections.steam", Operators.concatArrays(List.of(connection), Operators.filter(Operators.ifNull("$connections.steam", Collections.EMPTY_LIST), Operators.ne("$$this.id", steamId)))));
+
+				this.bot.getMongo().updateUserById(userId, update).whenComplete((result, exception) -> {
+					if (ExceptionUtility.sendErrorMessage(exception)) {
+						response.resume(Response.status(500).entity(this.setText(failureCopy, "Something went wrong while authenticating your account")).build());
+						return;
+					}
+
+					Document successCopy = this.success.clone();
+
+					response.resume(Response.ok(this.setText(successCopy, "Connected your steam account to Sx4")).build());
+				});
 			});
 		});
 	}

@@ -35,10 +35,7 @@ import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -194,76 +191,89 @@ public class SteamCommand extends Sx4Command {
 	@Examples({"steam profile dog", "steam profile https://steamcommunity.com/id/dog"})
 	@BotPermissions(permissions={Permission.MESSAGE_EMBED_LINKS})
 	public void game(Sx4CommandEvent event, @Argument(value="query", endless=true, nullDefault=true) String query) {
-		String url;
+		List<Document> profiles;
 		if (query == null) {
-			long id = event.getMongo().getUserById(event.getAuthor().getIdLong(), Projections.include("connections.steam")).getEmbedded(List.of("connections", "steam"), -1L);
-			if (id == -1) {
+			List<Document> connections = event.getMongo().getUserById(event.getAuthor().getIdLong(), Projections.include("connections.steam")).getEmbedded(List.of("connections", "steam"), Collections.emptyList());
+			if (connections.isEmpty()) {
 				event.replyFailure("You do not have a steam account linked, use `steam connect` to link an account or provide an argument to search").queue();
 				return;
 			}
 
-			url = "https://steamcommunity.com/profiles/" + id;
+			profiles = connections.stream()
+				.map(data -> data.append("url", "https://steamcommunity.com/profiles/" + data.getLong("id")))
+				.collect(Collectors.toList());
 		} else {
-			url = this.getProfileUrl(query);
+			profiles = List.of(new Document("url", this.getProfileUrl(query)));
 		}
 
-		Request request = new Request.Builder()
-			.url(url + "?xml=1")
-			.build();
+		PagedResult<Document> paged = new PagedResult<>(event.getBot(), profiles)
+			.setAutoSelect(true)
+			.setAuthor("Steam Profiles", null, "https://upload.wikimedia.org/wikipedia/commons/thumb/8/83/Steam_icon_logo.svg/2000px-Steam_icon_logo.svg.png")
+			.setDisplayFunction(data -> "[" + data.getString("name") + "](" + data.getString("url") + ")");
 
-		event.getHttpClient().newCall(request).enqueue((HttpCallback) response -> {
-			JSONObject json = XML.toJSONObject(response.body().string());
-			if (json.has("response")) {
-				event.replyFailure("I could not find that steam user").queue();
-				return;
-			}
+		paged.onSelect(select -> {
+			String url = select.getSelected().getString("url");
 
-			JSONObject profile = json.getJSONObject("profile");
-			if (profile.getInt("visibilityState") == 1) {
-				event.replyFailure("That profile is private").queue();
-				return;
-			}
+			Request request = new Request.Builder()
+				.url(url + "?xml=1")
+				.build();
 
-			JSONObject mostPlayedGames = profile.optJSONObject("mostPlayedGames");
-			JSONArray gamesArray = mostPlayedGames == null ? new JSONArray() : mostPlayedGames.getJSONArray("mostPlayedGame");
+			event.getHttpClient().newCall(request).enqueue((HttpCallback) response -> {
+				JSONObject json = XML.toJSONObject(response.body().string());
+				if (json.has("response")) {
+					event.replyFailure("I could not find that steam user").queue();
+					return;
+				}
 
-			double hours = 0D;
-			StringBuilder gamesString = new StringBuilder();
-			for (int i = 0; i < gamesArray.length(); i++) {
-				JSONObject game = gamesArray.getJSONObject(i);
+				JSONObject profile = json.getJSONObject("profile");
+				if (profile.getInt("visibilityState") == 1) {
+					event.replyFailure("That profile is private").queue();
+					return;
+				}
 
-				hours += game.getDouble("hoursPlayed");
+				JSONObject mostPlayedGames = profile.optJSONObject("mostPlayedGames");
+				JSONArray gamesArray = mostPlayedGames == null ? new JSONArray() : mostPlayedGames.getJSONArray("mostPlayedGame");
 
-				gamesString.append(String.format("[%s](%s) - **%.1f** hours\n", game.getString("gameName"), game.getString("gameLink"), game.getDouble("hoursPlayed")));
-			}
+				double hours = 0D;
+				StringBuilder gamesString = new StringBuilder();
+				for (int i = 0; i < gamesArray.length(); i++) {
+					JSONObject game = gamesArray.getJSONObject(i);
 
-			String stateMessage = profile.getString("stateMessage");
-			String location = profile.getString("location");
-			String realName = profile.getString("realname");
+					hours += game.getDouble("hoursPlayed");
 
-			EmbedBuilder embed = new EmbedBuilder();
-			embed.setAuthor(profile.getString("steamID"), url, profile.getString("avatarFull"));
-			embed.setDescription(Jsoup.parse(profile.getString("summary")).text());
-			embed.setFooter("ID: " + profile.getLong("steamID64"));
-			embed.setThumbnail(profile.getString("avatarFull"));
-			embed.addField("Real Name", realName.isBlank() ? "None Given" : realName, true);
-			embed.addField("Created At", LocalDate.parse(profile.getString("memberSince"), DateTimeFormatter.ofPattern("LLLL d, yyyy")).format(this.formatter), true);
-			embed.addField("Status", StringUtility.title(profile.getString("onlineState")), true);
-			embed.addField("State Message", Jsoup.parse(stateMessage).text(), true);
+					gamesString.append(String.format("[%s](%s) - **%.1f** hours\n", game.getString("gameName"), game.getString("gameLink"), game.getDouble("hoursPlayed")));
+				}
 
-			embed.addField("Vac Bans", String.valueOf(profile.getInt("vacBanned")), true);
+				String stateMessage = profile.getString("stateMessage");
+				String location = profile.getString("location");
+				String realName = profile.getString("realname");
 
-			if (!location.isBlank()) {
-				embed.addField("Location", location, true);
-			}
+				EmbedBuilder embed = new EmbedBuilder();
+				embed.setAuthor(profile.getString("steamID"), url, profile.getString("avatarFull"));
+				embed.setDescription(Jsoup.parse(profile.getString("summary")).text());
+				embed.setFooter("ID: " + profile.getLong("steamID64"));
+				embed.setThumbnail(profile.getString("avatarFull"));
+				embed.addField("Real Name", realName.isBlank() ? "None Given" : realName, true);
+				embed.addField("Created At", LocalDate.parse(profile.getString("memberSince"), DateTimeFormatter.ofPattern("LLLL d, yyyy")).format(this.formatter), true);
+				embed.addField("Status", StringUtility.title(profile.getString("onlineState")), true);
+				embed.addField("State Message", Jsoup.parse(stateMessage).text(), true);
 
-			if (hours != 0) {
-				gamesString.append(String.format("\nTotal - **%.1f** hours", hours));
-				embed.addField("Games Played (2 Weeks)", gamesString.toString(), false);
-			}
+				embed.addField("Vac Bans", String.valueOf(profile.getInt("vacBanned")), true);
 
-			event.reply(embed.build()).queue();
+				if (!location.isBlank()) {
+					embed.addField("Location", location, true);
+				}
+
+				if (hours != 0) {
+					gamesString.append(String.format("\nTotal - **%.1f** hours", hours));
+					embed.addField("Games Played (2 Weeks)", gamesString.toString(), false);
+				}
+
+				event.reply(embed.build()).queue();
+			});
 		});
+
+		paged.execute(event);
 	}
 
 	@Command(value="compare", description="Compare what games 2 steam accounts have in common")
