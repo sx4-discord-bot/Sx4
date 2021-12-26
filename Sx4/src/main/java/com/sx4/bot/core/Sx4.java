@@ -243,6 +243,9 @@ public class Sx4 {
 
 		FormatterManager formatterManager = new FormatterManager()
 			.addFunctions("com.sx4.bot.formatter.parser")
+			.addVariable("id", "Gets the id of a message", Message.class, Message::getIdLong)
+			.addVariable("content", "Gets the content of a message", Message.class, Message::getContentRaw)
+			.addVariable("channel", "Gets the channel the message is in", Message.class, Message::getTextChannel)
 			.addVariable("urlEncode", "Encodes a string to a URL standard", String.class, string -> URLEncoder.encode(string, StandardCharsets.UTF_8))
 			.addVariable("json", "Gets the request body as json", FormatterResponseBody.class, FormatterResponseBody::asJson)
 			.addVariable("title", "Gets the title of the game", FreeGame.class, FreeGame::getTitle)

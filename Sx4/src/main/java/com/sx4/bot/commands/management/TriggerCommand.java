@@ -5,10 +5,7 @@ import com.jockie.bot.core.command.Command;
 import com.jockie.bot.core.option.Option;
 import com.mongodb.ErrorCategory;
 import com.mongodb.MongoWriteException;
-import com.mongodb.client.model.Filters;
-import com.mongodb.client.model.Projections;
-import com.mongodb.client.model.UpdateOptions;
-import com.mongodb.client.model.Updates;
+import com.mongodb.client.model.*;
 import com.sx4.bot.annotations.argument.AdvancedMessage;
 import com.sx4.bot.annotations.argument.AlternativeOptions;
 import com.sx4.bot.annotations.argument.DefaultString;
@@ -20,18 +17,13 @@ import com.sx4.bot.annotations.command.Examples;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
-import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.argument.Alternative;
 import com.sx4.bot.entities.management.TriggerActionType;
 import com.sx4.bot.formatter.FormatterManager;
-import com.sx4.bot.formatter.JsonFormatter;
 import com.sx4.bot.formatter.function.FormatterVariable;
 import com.sx4.bot.paged.PagedResult;
-import com.sx4.bot.utility.ButtonUtility;
-import com.sx4.bot.utility.ExceptionUtility;
-import com.sx4.bot.utility.MessageUtility;
-import com.sx4.bot.utility.StringUtility;
+import com.sx4.bot.utility.*;
 import com.sx4.bot.waiter.Waiter;
 import com.sx4.bot.waiter.exception.CancelException;
 import com.sx4.bot.waiter.exception.TimeoutException;
@@ -46,12 +38,17 @@ import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
 
-import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.StringJoiner;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.stream.Collectors;
 
 public class TriggerCommand extends Sx4Command {
+
+	public static final int MAX_ACTIONS = 3;
 
 	public TriggerCommand() {
 		super("trigger", 214);
@@ -100,8 +97,8 @@ public class TriggerCommand extends Sx4Command {
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void add(Sx4CommandEvent event, @Argument(value="trigger") String trigger, @Argument(value="response", endless=true) String response) {
 		Document data = new Document("trigger", trigger)
-			.append("response", new Document("content", response))
-			.append("guildId", event.getGuild().getIdLong());
+			.append("guildId", event.getGuild().getIdLong())
+			.append("actions", List.of(new Document("type", TriggerActionType.SEND_MESSAGE.getId()).append("response", new Document("content", response))));
 
 		event.getMongo().insertTrigger(data).whenComplete((result, exception) -> {
 			Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
@@ -124,8 +121,8 @@ public class TriggerCommand extends Sx4Command {
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void advancedAdd(Sx4CommandEvent event, @Argument(value="trigger") String trigger, @Argument(value="response", endless=true) @AdvancedMessage Document response) {
 		Document data = new Document("trigger", trigger)
-			.append("response", response)
-			.append("guildId", event.getGuild().getIdLong());
+			.append("guildId", event.getGuild().getIdLong())
+			.append("actions", List.of(new Document("type", TriggerActionType.SEND_MESSAGE.getId()).append("response", response)));
 
 		event.getMongo().insertTrigger(data).whenComplete((result, exception) -> {
 			Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
@@ -147,18 +144,32 @@ public class TriggerCommand extends Sx4Command {
 	@Examples({"trigger edit 6006ff6b94c9ed0f764ada83 Hello!", "trigger edit 6006ff6b94c9ed0f764ada83 some other words was not enough --append"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void edit(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="response", endless=true) String response, @Option(value="append", description="Appends the response to the current one") boolean append) {
-		List<Bson> update = List.of(Operators.set("response", new Document("content", Operators.cond(Operators.and(Operators.exists("$response.content"), append), Operators.concat("$response.content", response), response))));
-		event.getMongo().updateTrigger(Filters.and(Filters.eq("_id", id), Filters.eq("guildId", event.getGuild().getIdLong())), update, new UpdateOptions()).whenComplete((result, exception) -> {
+		int type = TriggerActionType.SEND_MESSAGE.getId();
+		List<Bson> update = List.of(Operators.set("actions", Operators.let(new Document("action", Operators.first(Operators.filter("$actions", Operators.eq("$$this.type", type)))), Operators.cond(Operators.isNull("$$action"), "$actions", Operators.concatArrays(Operators.filter("$actions", Operators.ne("$$this.type", type)), Operators.let(new Document("content", Operators.get("$$action", "response.content")), List.of(Operators.mergeObjects("$$action", new Document("response", new Document("content", Operators.cond(Operators.and(Operators.nonNull("$$content"), append), Operators.concat("$$content", response), response)))))))))));
+
+		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().projection(Projections.include("actions")).returnDocument(ReturnDocument.BEFORE);
+		event.getMongo().findAndUpdateTrigger(Filters.and(Filters.eq("_id", id), Filters.eq("guildId", event.getGuild().getIdLong())), update, options).whenComplete((data, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
 
-			if (result.getMatchedCount() == 0) {
+			if (data == null) {
 				event.replyFailure("I could not find that trigger").queue();
 				return;
 			}
 
-			if (result.getModifiedCount() == 0) {
+			Document action = data.getList("actions", Document.class).stream()
+				.filter(d -> d.getInteger("type") == type)
+				.findFirst()
+				.orElse(null);
+
+			if (action == null) {
+				event.replyFailure("That trigger does not have a `" + TriggerActionType.SEND_MESSAGE + "` action").queue();
+				return;
+			}
+
+			String content = action.getEmbedded(List.of("response", "content"), String.class);
+			if (content != null && content.equals(response)) {
 				event.replyFailure("That trigger response was already set to that").queue();
 				return;
 			}
@@ -172,17 +183,31 @@ public class TriggerCommand extends Sx4Command {
 	@Examples({"trigger advanced edit 6006ff6b94c9ed0f764ada83 {\"embed\": {\"description\": \"Hello!\"}}", "trigger advanced edit 6006ff6b94c9ed0f764ada83 {\"embed\": {\"description\": \"some other words was not enough\"}}"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void advancedEdit(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="response", endless=true) @AdvancedMessage Document response) {
-		event.getMongo().updateTrigger(Filters.and(Filters.eq("_id", id), Filters.eq("guildId", event.getGuild().getIdLong())), Updates.set("response", response), new UpdateOptions()).whenComplete((result, exception) -> {
+		int type = TriggerActionType.SEND_MESSAGE.getId();
+		List<Bson> update = List.of(Operators.set("actions", Operators.let(new Document("action", Operators.first(Operators.filter("$actions", Operators.eq("$$this.type", type)))), Operators.cond(Operators.isNull("$$action"), "$actions", Operators.concatArrays(Operators.filter("$actions", Operators.ne("$$this.type", type)), Operators.let(new Document("content", Operators.get("$$action", "response.content")), List.of(Operators.mergeObjects("$$action", new Document("response", response)))))))));
+
+		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().projection(Projections.include("actions")).returnDocument(ReturnDocument.BEFORE);
+		event.getMongo().findAndUpdateTrigger(Filters.and(Filters.eq("_id", id), Filters.eq("guildId", event.getGuild().getIdLong())), update, options).whenComplete((data, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
 
-			if (result.getMatchedCount() == 0) {
+			if (data == null) {
 				event.replyFailure("I could not find that trigger").queue();
 				return;
 			}
 
-			if (result.getModifiedCount() == 0) {
+			Document action = data.getList("actions", Document.class).stream()
+				.filter(d -> d.getInteger("type") == type)
+				.findFirst()
+				.orElse(null);
+
+			if (action == null) {
+				event.replyFailure("That trigger does not have a `" + TriggerActionType.SEND_MESSAGE + "` action").queue();
+				return;
+			}
+
+			if (action.get("response", Document.class).equals(response)) {
 				event.replyFailure("That trigger response was already set to that").queue();
 				return;
 			}
@@ -284,8 +309,8 @@ public class TriggerCommand extends Sx4Command {
 	@Command(value="preview", description="Preview what a trigger will look like")
 	@CommandId(222)
 	@Examples({"trigger preview 600968f92850ef72c9af8756"})
-	public void preview(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Option(value="raw", description="Returns the raw version of the trigger") boolean raw) {
-		Document trigger = event.getMongo().getTrigger(Filters.and(Filters.eq("_id", id), Filters.eq("guildId", event.getGuild().getIdLong())), Projections.include("enabled", "response"));
+	public void preview(Sx4CommandEvent event, @Argument(value="id") ObjectId id) {
+		Document trigger = event.getMongo().getTrigger(Filters.and(Filters.eq("_id", id), Filters.eq("guildId", event.getGuild().getIdLong())), Projections.include("enabled", "actions"));
 		if (trigger == null) {
 			event.replyFailure("I could not find that trigger").queue();
 			return;
@@ -296,24 +321,17 @@ public class TriggerCommand extends Sx4Command {
 			return;
 		}
 
-		if (raw) {
-			event.replyFile(trigger.get("response", Document.class).toJson(MongoDatabase.PRETTY_JSON).getBytes(StandardCharsets.UTF_8), "trigger.json").queue();
-		} else {
-			Document response = new JsonFormatter(trigger.get("response", Document.class))
-				.member(event.getMember())
-				.user(event.getAuthor())
-				.channel(event.getTextChannel())
-				.guild(event.getGuild())
-				.addVariable("now", OffsetDateTime.now())
-				.addVariable("random", new Random())
-				.parse();
+		List<CompletableFuture<Void>> futures = TriggerUtility.executeActions(trigger, event.getMessage());
 
-			try {
-				MessageUtility.fromWebhookMessage(event.getChannel(), MessageUtility.fromJson(response).build()).queue();
-			} catch (IllegalArgumentException e) {
-				event.replyFailure(e.getMessage()).queue();
+		FutureUtility.allOf(futures).whenComplete(($, exception) -> {
+			Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
+			if (cause instanceof IllegalArgumentException) {
+				event.replyFailure(cause.getMessage()).queue();
+				return;
 			}
-		}
+
+			ExceptionUtility.sendExceptionally(event.getTextChannel(), exception);
+		});
 	}
 
 	@Command(value="formatters", aliases={"format", "formatting"}, description="Get all the formatters for triggers you can use")
@@ -341,6 +359,10 @@ public class TriggerCommand extends Sx4Command {
 
 		for (FormatterVariable<?> variable : manager.getVariables(TextChannel.class)) {
 			content.add("`{channel." + variable.getName() + "}` - " + variable.getDescription());
+		}
+
+		for (FormatterVariable<?> variable : manager.getVariables(Message.class)) {
+			content.add("`{message." + variable.getName() + "}` - " + variable.getDescription());
 		}
 
 		for (FormatterVariable<?> variable : manager.getVariables(OffsetDateTime.class)) {
@@ -447,11 +469,6 @@ public class TriggerCommand extends Sx4Command {
 					action.append("body", body);
 				}
 
-				Object wait = data.get("wait");
-				if (wait instanceof Boolean && !(boolean) wait) {
-					action.append("wait", false);
-				}
-
 				Object headers = data.get("headers");
 				if (headers instanceof Document) {
 					action.append("headers", headers);
@@ -461,54 +478,161 @@ public class TriggerCommand extends Sx4Command {
 				if (variable instanceof String && !((String) variable).isBlank()) {
 					action.append("variable", variable);
 				}
+			} else if (type == TriggerActionType.SEND_MESSAGE) {
+				Object response = data.get("response");
+				if (!(response instanceof Document)) {
+					event.replyFailure("`response` field has to be json").queue();
+					return;
+				}
 
-				List<Bson> update = List.of(Operators.set("actions", Operators.let(new Document("actions", Operators.ifNull("$actions", Collections.EMPTY_LIST)), Operators.cond(Operators.gte(Operators.size(Operators.filter("$$actions", Operators.eq("$$this.type", type.getId()))), 1), "$$actions", Operators.concatArrays("$$actions", List.of(action))))));
+				MessageUtility.removeFields((Document) response);
 
-				event.getMongo().updateTrigger(Filters.and(Filters.eq("_id", id), Filters.eq("guildId", event.getGuild().getIdLong())), update, new UpdateOptions()).whenComplete((result, exception) -> {
-					if (ExceptionUtility.sendExceptionally(event, exception)) {
+				Object channelId = data.get("channelId");
+				if (channelId instanceof Long) {
+					channelId = Long.toString((long) channelId);
+				}
+
+				if (channelId != null && !(channelId instanceof String)) {
+					event.replyFailure("`channelId` field has to be a string").queue();
+					return;
+				}
+
+				action.append("response", response);
+				if (channelId != null) {
+					action.append("channelId", channelId);
+				}
+			} else if (type == TriggerActionType.ADD_REACTION) {
+				Object emote = data.get("emote");
+				if (emote instanceof String) {
+					MessageReaction.ReactionEmote reactionEmote = SearchUtility.getReactionEmote(event.getShardManager(), (String) emote);
+					if (reactionEmote == null) {
+						event.replyFailure("I could not find that emote").queue();
 						return;
 					}
 
-					if (result.getMatchedCount() == 0) {
-						event.replyFailure("I could not find that trigger").queue();
+					if (reactionEmote.isEmote()) {
+						action.append("emote", new Document("id", reactionEmote.getEmote().getId()));
+					} else {
+						action.append("emote", new Document("name", reactionEmote.getEmoji()));
+					}
+				} else if (emote instanceof Document) {
+					Document emoteData = (Document) emote;
+
+					Object name = emoteData.get("name"), emoteId = emoteData.get("id");
+					if (name instanceof String) {
+						action.append("emote", new Document("name", name));
+					} else if (emoteId instanceof String) {
+						action.append("emote", new Document("id", emoteId));
+					} else if (emoteId instanceof Long) {
+						action.append("emote", new Document("id", Long.toString((long) emoteId)));
+					} else {
+						event.replyFailure("You need to give either `name` or `id` in the `emote` json").queue();
 						return;
 					}
+				} else {
+					event.replyFailure("`emote` field either needs to be json or a string").queue();
+					return;
+				}
 
-					if (result.getModifiedCount() == 0) {
-						event.replyFailure("You cannot have more than 1 trigger action of the same type").queue();
-						return;
-					}
+				Object channelId = data.get("channelId");
+				if (channelId instanceof Long) {
+					channelId = Long.toString((long) channelId);
+				}
 
-					event.replySuccess("That action has been added to that trigger").queue();
-				});
+				if (channelId != null && !(channelId instanceof String)) {
+					event.replyFailure("`channelId` field has to be a string").queue();
+					return;
+				}
+
+				if (channelId != null) {
+					action.append("channelId", channelId);
+				}
+
+				Object messageId = data.get("messageId");
+				if (messageId instanceof Long) {
+					messageId = Long.toString((long) messageId);
+				}
+
+				if (messageId != null && !(messageId instanceof String)) {
+					event.replyFailure("`messageId` field has to be a string").queue();
+					return;
+				}
+
+				if (messageId != null) {
+					action.append("messageId", messageId);
+				}
 			} else {
 				event.replyFailure("That action type is not supported yet").queue();
+				return;
 			}
-		}
 
-		@Command(value="remove", description="Removes an action from a trigger")
-		@CommandId(487)
-		@Examples({"trigger action remove 600968f92850ef72c9af8756 request"})
-		@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-		public void remove(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="type") TriggerActionType type) {
-			List<Bson> update = List.of(Operators.set("actions", Operators.cond(Operators.isNull("$actions"), Operators.REMOVE, Operators.filter("$actions", Operators.ne("$$this.type", type.getId())))));
+			List<Bson> update = List.of(Operators.set("actions", Operators.cond(Operators.or(Operators.gte(Operators.size("$actions"), TriggerCommand.MAX_ACTIONS), Operators.gte(Operators.size(Operators.filter("$actions", Operators.eq("$$this.type", type.getId()))), type.getMaxActions())), "$actions", Operators.concatArrays("$actions", List.of(action)))));
 
-			event.getMongo().updateTrigger(Filters.and(Filters.eq("_id", id), Filters.eq("guildId", event.getGuild().getIdLong())), update, new UpdateOptions()).whenComplete((result, exception) -> {
+			FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().projection(Projections.include("actions")).returnDocument(ReturnDocument.BEFORE);
+			event.getMongo().findAndUpdateTrigger(Filters.and(Filters.eq("_id", id), Filters.eq("guildId", event.getGuild().getIdLong())), update, options).whenComplete((oldData, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
 				}
 
-				if (result.getMatchedCount() == 0) {
+				if (oldData == null) {
 					event.replyFailure("I could not find that trigger").queue();
 					return;
 				}
 
-				if (result.getModifiedCount() == 0) {
+				List<Document> allActions = oldData.getList("actions", Document.class);
+				if (allActions.size() >= TriggerCommand.MAX_ACTIONS) {
+					event.replyFailure("You can only have a max of **" + TriggerCommand.MAX_ACTIONS + "** trigger actions").queue();
+					return;
+				}
+
+				List<Document> actions = allActions.stream()
+					.filter(d -> d.getInteger("type") == type.getId())
+					.collect(Collectors.toList());
+
+				if (actions.size() >= type.getMaxActions()) {
+					event.replyFailure("You cannot have more than " + type.getMaxActions() + " `" + type + "` trigger action" + (type.getMaxActions() == 1 ? "" : "s")).queue();
+					return;
+				}
+
+				event.replySuccess("That action has been added to that trigger").queue();
+			});
+
+		}
+
+		@Command(value="remove", description="Removes all of a specific action type from a trigger")
+		@CommandId(487)
+		@Examples({"trigger action remove 600968f92850ef72c9af8756 request"})
+		@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
+		public void remove(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="type") TriggerActionType type) {
+			List<Bson> update = List.of(Operators.set("actions", Operators.let(new Document("actions", Operators.filter("$actions", Operators.ne("$$this.type", type.getId()))), Operators.cond(Operators.isEmpty("$$actions"), "$actions", "$$actions"))));
+
+			FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().projection(Projections.include("actions")).returnDocument(ReturnDocument.BEFORE);
+			event.getMongo().findAndUpdateTrigger(Filters.and(Filters.eq("_id", id), Filters.eq("guildId", event.getGuild().getIdLong())), update, options).whenComplete((data, exception) -> {
+				if (ExceptionUtility.sendExceptionally(event, exception)) {
+					return;
+				}
+
+				if (data == null) {
+					event.replyFailure("I could not find that trigger").queue();
+					return;
+				}
+
+				List<Document> allActions = data.getList("actions", Document.class);
+				List<Document> actions = allActions.stream()
+					.filter(d -> d.getInteger("type") != type.getId())
+					.collect(Collectors.toList());
+
+				if (allActions.size() == actions.size()) {
 					event.replyFailure("You do not have an action of that type on that trigger").queue();
 					return;
 				}
 
-				event.replySuccess("That action has been removed from that trigger").queue();
+				if (actions.isEmpty()) {
+					event.replyFailure("You have to have at least 1 action on a trigger").queue();
+					return;
+				}
+
+				event.replySuccess("All actions of that type have been removed from that trigger").queue();
 			});
 		}
 
