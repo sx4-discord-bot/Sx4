@@ -232,7 +232,10 @@ public class SteamCommand extends Sx4Command {
 				}
 
 				JSONObject mostPlayedGames = profile.optJSONObject("mostPlayedGames");
-				JSONArray gamesArray = mostPlayedGames == null ? new JSONArray() : mostPlayedGames.getJSONArray("mostPlayedGame");
+				JSONArray gamesArray = mostPlayedGames == null ? new JSONArray() : mostPlayedGames.optJSONArray("mostPlayedGame");
+				if (gamesArray == null) {
+					gamesArray = new JSONArray().put(mostPlayedGames.getJSONObject("mostPlayedGame"));
+				}
 
 				double hours = 0D;
 				StringBuilder gamesString = new StringBuilder();

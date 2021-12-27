@@ -5,7 +5,7 @@ import com.sx4.bot.entities.management.TriggerActionType;
 import com.sx4.bot.formatter.Formatter;
 import com.sx4.bot.formatter.FormatterManager;
 import com.sx4.bot.formatter.JsonFormatter;
-import com.sx4.bot.formatter.function.FormatterResponseBody;
+import com.sx4.bot.formatter.function.FormatterResponse;
 import com.sx4.bot.handlers.TriggerHandler;
 import com.sx4.bot.http.HttpCallback;
 import net.dv8tion.jda.api.entities.Message;
@@ -103,7 +103,7 @@ public class TriggerUtility {
 		TriggerHandler.CLIENT.newCall(request.build()).enqueue((HttpCallback) response -> {
 			ResponseBody responseBody = response.body();
 			if (responseBody != null && responseBody.contentLength() <= 100_000_000) {
-				manager.addVariable(action.get("variable", "body"), new FormatterResponseBody(responseBody.string()));
+				manager.addVariable(action.get("variable", "response"), new FormatterResponse(response));
 			}
 
 			future.complete(null);

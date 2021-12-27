@@ -45,7 +45,7 @@ import com.sx4.bot.entities.youtube.YouTubeChannel;
 import com.sx4.bot.entities.youtube.YouTubeVideo;
 import com.sx4.bot.formatter.FormatterManager;
 import com.sx4.bot.formatter.function.FormatterParser;
-import com.sx4.bot.formatter.function.FormatterResponseBody;
+import com.sx4.bot.formatter.function.FormatterResponse;
 import com.sx4.bot.handlers.*;
 import com.sx4.bot.managers.*;
 import com.sx4.bot.paged.PagedHandler;
@@ -247,7 +247,9 @@ public class Sx4 {
 			.addVariable("content", "Gets the content of a message", Message.class, Message::getContentRaw)
 			.addVariable("channel", "Gets the channel the message is in", Message.class, Message::getTextChannel)
 			.addVariable("urlEncode", "Encodes a string to a URL standard", String.class, string -> URLEncoder.encode(string, StandardCharsets.UTF_8))
-			.addVariable("json", "Gets the request body as json", FormatterResponseBody.class, FormatterResponseBody::asJson)
+			.addVariable("status", "Gets the status code of the response", FormatterResponse.class, FormatterResponse::getStatus)
+			.addVariable("raw", "Gets the raw response body", FormatterResponse.class, FormatterResponse::getRaw)
+			.addVariable("json", "Gets the response body as json", FormatterResponse.class, FormatterResponse::asJson)
 			.addVariable("title", "Gets the title of the game", FreeGame.class, FreeGame::getTitle)
 			.addVariable("description", "Gets the description for the game", FreeGame.class, FreeGame::getDescription)
 			.addVariable("publisher", "Gets the publisher of the game", FreeGame.class, FreeGame::getPublisher)
