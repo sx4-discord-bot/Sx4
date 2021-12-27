@@ -6,10 +6,7 @@ import com.jockie.bot.core.option.Option;
 import com.mongodb.ErrorCategory;
 import com.mongodb.MongoWriteException;
 import com.mongodb.client.model.*;
-import com.sx4.bot.annotations.argument.AdvancedMessage;
-import com.sx4.bot.annotations.argument.AlternativeOptions;
-import com.sx4.bot.annotations.argument.DefaultString;
-import com.sx4.bot.annotations.argument.Options;
+import com.sx4.bot.annotations.argument.*;
 import com.sx4.bot.annotations.command.AuthorPermissions;
 import com.sx4.bot.annotations.command.BotPermissions;
 import com.sx4.bot.annotations.command.CommandId;
@@ -95,10 +92,15 @@ public class TriggerCommand extends Sx4Command {
 	@CommandId(216)
 	@Examples({"trigger add hi Hello", "trigger add \"some word\" some other words"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-	public void add(Sx4CommandEvent event, @Argument(value="trigger") String trigger, @Argument(value="response", endless=true) String response) {
+	public void add(Sx4CommandEvent event, @Argument(value="trigger") String trigger, @Argument(value="response", endless=true) String response, @Option(value="order", description="The order index of when the message is sent") @Limit(min=0) @DefaultNumber(-1) int order) {
+		Document action = new Document("type", TriggerActionType.SEND_MESSAGE.getId()).append("response", new Document("content", response));
+		if (order != -1) {
+			action.append("order", order);
+		}
+
 		Document data = new Document("trigger", trigger)
 			.append("guildId", event.getGuild().getIdLong())
-			.append("actions", List.of(new Document("type", TriggerActionType.SEND_MESSAGE.getId()).append("response", new Document("content", response))));
+			.append("actions", List.of(action));
 
 		event.getMongo().insertTrigger(data).whenComplete((result, exception) -> {
 			Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
@@ -119,10 +121,15 @@ public class TriggerCommand extends Sx4Command {
 	@CommandId(220)
 	@Examples({"trigger advanced add hi {\"embed\": {\"description\": \"Hello\"}}", "trigger advanced add \"some word\" {\"embed\": {\"description\": \"some other words\"}}"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-	public void advancedAdd(Sx4CommandEvent event, @Argument(value="trigger") String trigger, @Argument(value="response", endless=true) @AdvancedMessage Document response) {
+	public void advancedAdd(Sx4CommandEvent event, @Argument(value="trigger") String trigger, @Argument(value="response", endless=true) @AdvancedMessage Document response, @Option(value="order", description="The order index of when the message is sent") @Limit(min=0) @DefaultNumber(-1) int order) {
+		Document action = new Document("type", TriggerActionType.SEND_MESSAGE.getId()).append("response", new Document("content", response));
+		if (order != -1) {
+			action.append("order", order);
+		}
+
 		Document data = new Document("trigger", trigger)
 			.append("guildId", event.getGuild().getIdLong())
-			.append("actions", List.of(new Document("type", TriggerActionType.SEND_MESSAGE.getId()).append("response", response)));
+			.append("actions", List.of(action));
 
 		event.getMongo().insertTrigger(data).whenComplete((result, exception) -> {
 			Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
