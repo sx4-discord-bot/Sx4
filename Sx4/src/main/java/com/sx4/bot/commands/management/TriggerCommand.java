@@ -14,6 +14,7 @@ import com.sx4.bot.annotations.command.Examples;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
+import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.argument.Alternative;
 import com.sx4.bot.entities.management.TriggerActionType;
@@ -35,8 +36,10 @@ import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
 
+import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.StringJoiner;
 import java.util.concurrent.CompletableFuture;
@@ -316,7 +319,7 @@ public class TriggerCommand extends Sx4Command {
 	@Command(value="preview", description="Preview what a trigger will look like")
 	@CommandId(222)
 	@Examples({"trigger preview 600968f92850ef72c9af8756"})
-	public void preview(Sx4CommandEvent event, @Argument(value="id") ObjectId id) {
+	public void preview(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Option(value="raw", description="Returns the raw version of the trigger actions") boolean raw) {
 		Document trigger = event.getMongo().getTrigger(Filters.and(Filters.eq("_id", id), Filters.eq("guildId", event.getGuild().getIdLong())), Projections.include("enabled", "actions"));
 		if (trigger == null) {
 			event.replyFailure("I could not find that trigger").queue();
@@ -328,17 +331,28 @@ public class TriggerCommand extends Sx4Command {
 			return;
 		}
 
-		List<CompletableFuture<Void>> futures = TriggerUtility.executeActions(trigger, event.getMessage());
+		if (raw) {
+			List<Document> actions = trigger.getList("actions", Document.class);
 
-		FutureUtility.allOf(futures).whenComplete(($, exception) -> {
-			Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
-			if (cause instanceof IllegalArgumentException) {
-				event.replyFailure(cause.getMessage()).queue();
-				return;
-			}
+			String actionsContent = actions.stream()
+				.sorted(Comparator.comparingInt(action -> action.getInteger("order", -1)))
+				.map(action -> action.toJson(MongoDatabase.PRETTY_JSON).lines().map(line -> "    " + line).collect(Collectors.joining("\n")))
+				.collect(Collectors.joining(",\n"));
 
-			ExceptionUtility.sendExceptionally(event.getTextChannel(), exception);
-		});
+			event.replyFile(("[\n" + actionsContent + "\n]").getBytes(StandardCharsets.UTF_8), "actions.json").queue();
+		} else {
+			List<CompletableFuture<Void>> futures = TriggerUtility.executeActions(trigger, event.getMessage());
+
+			FutureUtility.allOf(futures).whenComplete(($, exception) -> {
+				Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
+				if (cause instanceof IllegalArgumentException) {
+					event.replyFailure(cause.getMessage()).queue();
+					return;
+				}
+
+				ExceptionUtility.sendExceptionally(event.getTextChannel(), exception);
+			});
+		}
 	}
 
 	@Command(value="formatters", aliases={"format", "formatting"}, description="Get all the formatters for triggers you can use")
