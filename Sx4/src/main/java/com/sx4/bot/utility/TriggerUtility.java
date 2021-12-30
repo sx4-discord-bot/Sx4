@@ -1,8 +1,8 @@
 package com.sx4.bot.utility;
 
 import com.sx4.bot.database.mongo.MongoDatabase;
-import com.sx4.bot.entities.management.TriggerActionType;
-import com.sx4.bot.formatter.Formatter;
+import com.sx4.bot.entities.trigger.*;
+import com.sx4.bot.formatter.StringFormatter;
 import com.sx4.bot.formatter.FormatterManager;
 import com.sx4.bot.formatter.JsonFormatter;
 import com.sx4.bot.formatter.function.FormatterResponse;
@@ -40,37 +40,28 @@ public class TriggerUtility {
 
 		CompletableFuture<Void> orderedFuture = CompletableFuture.completedFuture(null);
 		List<CompletableFuture<Void>> futures = new ArrayList<>();
-		for (Document action : actions) {
-			TriggerActionType type = TriggerActionType.fromId(action.getInteger("type"));
+		for (Document actionData : actions) {
+			TriggerActionType type = TriggerActionType.fromId(actionData.getInteger("type"));
 			if (type == null) {
 				continue;
 			}
 
-			boolean ordered = action.getInteger("order", -1) != -1;
-
-			CompletableFuture<Void> future = null;
+			TriggerAction action;
 			if (type == TriggerActionType.REQUEST) {
-				if (ordered) {
-					orderedFuture = orderedFuture.thenCompose($ -> TriggerUtility.executeRequest(manager, action));
-				} else {
-					future = TriggerUtility.executeRequest(manager, action);
-				}
+				action = new RequestTriggerAction(manager, actionData);
 			} else if (type == TriggerActionType.SEND_MESSAGE) {
-				if (ordered) {
-					orderedFuture = orderedFuture.thenCompose($ -> TriggerUtility.sendMessage(manager, action, channel));
-				} else {
-					future = TriggerUtility.sendMessage(manager, action, channel);
-				}
+				action = new SendMessageTriggerAction(manager, actionData, channel);
 			} else if (type == TriggerActionType.ADD_REACTION) {
-				if (ordered) {
-					orderedFuture = orderedFuture.thenCompose($ -> TriggerUtility.addReaction(manager, action, message));
-				} else {
-					future = TriggerUtility.addReaction(manager, action, message);
-				}
+				action = new AddReactionTriggerAction(manager, actionData, message);
+			} else {
+				continue;
 			}
 
-			if (future != null) {
-				futures.add(future);
+			boolean ordered = actionData.getInteger("order", -1) != -1;
+			if (ordered) {
+				orderedFuture = orderedFuture.thenCompose($ -> action.execute());
+			} else {
+				futures.add(action.execute());
 			}
 		}
 
@@ -88,7 +79,7 @@ public class TriggerUtility {
 		try {
 			request = new Request.Builder()
 				.url(RequestUtility.getWorkerUrl(action.getString("url")))
-				.method(action.getString("method"), body == null ? null : RequestBody.create(MediaType.parse(action.getString("contentType")), new Formatter(body, manager).parse()));
+				.method(action.getString("method"), body == null ? null : RequestBody.create(MediaType.parse(action.getString("contentType")), new StringFormatter(body, manager).parse()));
 		} catch (IllegalArgumentException e) {
 			e.printStackTrace();
 			return CompletableFuture.failedFuture(e);

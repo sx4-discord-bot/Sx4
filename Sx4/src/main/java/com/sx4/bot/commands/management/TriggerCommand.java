@@ -17,7 +17,7 @@ import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.argument.Alternative;
-import com.sx4.bot.entities.management.TriggerActionType;
+import com.sx4.bot.entities.trigger.TriggerActionType;
 import com.sx4.bot.formatter.FormatterManager;
 import com.sx4.bot.formatter.function.FormatterVariable;
 import com.sx4.bot.paged.PagedResult;
@@ -336,6 +336,7 @@ public class TriggerCommand extends Sx4Command {
 
 			String actionsContent = actions.stream()
 				.sorted(Comparator.comparingInt(action -> action.getInteger("order", -1)))
+				.map(action -> action.append("type", TriggerActionType.fromId(action.getInteger("type")).toString()))
 				.map(action -> action.toJson(MongoDatabase.PRETTY_JSON).lines().map(line -> "    " + line).collect(Collectors.joining("\n")))
 				.collect(Collectors.joining(",\n"));
 

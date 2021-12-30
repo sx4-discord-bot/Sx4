@@ -1,4 +1,4 @@
-package com.sx4.bot.entities.management;
+package com.sx4.bot.entities.trigger;
 
 public enum TriggerActionType {
 

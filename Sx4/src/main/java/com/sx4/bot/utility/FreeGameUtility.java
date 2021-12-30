@@ -40,9 +40,9 @@ public class FreeGameUtility {
 
 	public static Document getPromotionalOffer(Document data) {
 		return FreeGameUtility.getPromotionalOffer(data, promotions -> {
-			List<Document> offers = promotions.getList("promotionalOffers", Document.class);
+			List<Document> offers = promotions.getList("upcomingPromotionalOffers", Document.class);
 			if (offers.isEmpty()) {
-				offers = promotions.getList("upcomingPromotionalOffers", Document.class);
+				offers = promotions.getList("promotionalOffers", Document.class);
 			}
 
 			return offers;

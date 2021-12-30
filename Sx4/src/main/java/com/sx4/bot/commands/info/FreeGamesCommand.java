@@ -15,6 +15,7 @@ import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.info.FreeGame;
 import com.sx4.bot.formatter.FormatterManager;
+import com.sx4.bot.formatter.Formatter;
 import com.sx4.bot.formatter.JsonFormatter;
 import com.sx4.bot.formatter.function.FormatterVariable;
 import com.sx4.bot.managers.FreeGameManager;
@@ -323,7 +324,7 @@ public class FreeGamesCommand extends Sx4Command {
 		}
 
 		FreeGameUtility.retrieveFreeGames(event.getHttpClient(), freeGames -> {
-			JsonFormatter formatter = new JsonFormatter(data.get("message", FreeGameManager.DEFAULT_MESSAGE))
+			Formatter<Document> formatter = new JsonFormatter(data.get("message", FreeGameManager.DEFAULT_MESSAGE))
 				.addVariable("game", freeGames.get(0));
 
 			MessageUtility.fromWebhookMessage(event.getChannel(), MessageUtility.fromJson(formatter.parse()).build()).queue();

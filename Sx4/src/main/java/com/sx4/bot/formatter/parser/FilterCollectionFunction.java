@@ -1,6 +1,6 @@
 package com.sx4.bot.formatter.parser;
 
-import com.sx4.bot.formatter.IFormatter;
+import com.sx4.bot.formatter.Formatter;
 import com.sx4.bot.formatter.function.FormatterEvent;
 import com.sx4.bot.formatter.function.FormatterFunction;
 
@@ -21,7 +21,7 @@ public class FilterCollectionFunction extends FormatterFunction<Collection> {
 		for (Object element : collection) {
 			event.getManager().addVariable("this", Void.class, $ -> element);
 
-			Object condition = IFormatter.toObject(lambda, Boolean.class, event.getManager());
+			Object condition = Formatter.toObject(lambda, Boolean.class, event.getManager());
 			if (condition == null) {
 				condition = false;
 			}

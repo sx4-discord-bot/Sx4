@@ -10,6 +10,7 @@ import com.sx4.bot.entities.info.FreeGame;
 import com.sx4.bot.entities.webhook.ReadonlyMessage;
 import com.sx4.bot.entities.webhook.WebhookClient;
 import com.sx4.bot.exceptions.mod.BotPermissionException;
+import com.sx4.bot.formatter.Formatter;
 import com.sx4.bot.formatter.JsonFormatter;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.FreeGameUtility;
@@ -170,6 +171,8 @@ public class FreeGameManager implements WebhookManager {
 					} else {
 						this.ensureMysteryGames(ids);
 					}
+
+					this.queuedGames.removeAll(games);
 				}
 
 				this.bot.getExecutor().submit(() -> {
@@ -193,7 +196,7 @@ public class FreeGameManager implements WebhookManager {
 								continue;
 							}
 
-							JsonFormatter formatter = new JsonFormatter(data.get("message", FreeGameManager.DEFAULT_MESSAGE))
+							Formatter<Document> formatter = new JsonFormatter(data.get("message", FreeGameManager.DEFAULT_MESSAGE))
 								.addVariable("game", game);
 
 							WebhookMessage message = MessageUtility.fromJson(formatter.parse())
@@ -214,8 +217,6 @@ public class FreeGameManager implements WebhookManager {
 						}
 
 						future.whenComplete(MongoDatabase.exceptionally());
-
-						this.queuedGames.removeAll(games);
 					});
 				});
 			});

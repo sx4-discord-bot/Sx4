@@ -1,6 +1,6 @@
 package com.sx4.bot.formatter.parser;
 
-import com.sx4.bot.formatter.IFormatter;
+import com.sx4.bot.formatter.Formatter;
 import com.sx4.bot.formatter.function.FormatterEvent;
 import com.sx4.bot.formatter.function.FormatterFunction;
 
@@ -20,7 +20,7 @@ public class MapCollectionFunction extends FormatterFunction<Collection> {
 		List<Object> newList = new ArrayList<>();
 		for (Object element : collection) {
 			event.getManager().addVariable("this", Void.class, $ -> element);
-			newList.add(IFormatter.toObject(lambda, Object.class, event.getManager()));
+			newList.add(Formatter.toObject(lambda, Object.class, event.getManager()));
 		}
 
 		return newList;

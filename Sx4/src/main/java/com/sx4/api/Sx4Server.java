@@ -5,16 +5,11 @@ import com.sx4.api.exceptions.UncaughtExceptionHandler;
 import com.sx4.bot.core.Sx4;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
-import org.eclipse.jetty.server.handler.ErrorHandler;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.server.ServerProperties;
 import org.glassfish.jersey.servlet.ServletContainer;
-
-import javax.servlet.http.HttpServletRequest;
-import java.io.IOException;
-import java.io.Writer;
 
 public class Sx4Server {
 	
@@ -47,16 +42,6 @@ public class Sx4Server {
 
 		ServerConnector connector = new ServerConnector(server);
 		connector.setPort(bot.getConfig().getPort());
-		
-		server.setErrorHandler(new ErrorHandler() {
-			protected void handleErrorPage(HttpServletRequest request, Writer writer, int code, String message) throws IOException {
-				if (code == 404) {
-					writer.write("You've reached a dead end, I suggest you turn around");
-				} else {
-					super.handleErrorPage(request, writer, code, message);
-				}
-			}
-		});
 		
 		server.setHandler(contextHandler);
 		server.addConnector(connector);

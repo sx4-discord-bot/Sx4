@@ -10,7 +10,7 @@ import com.mongodb.client.model.*;
 import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.database.mongo.model.Operators;
-import com.sx4.bot.formatter.IFormatter;
+import com.sx4.bot.formatter.Formatter;
 import com.sx4.bot.formatter.JsonFormatter;
 import com.sx4.bot.managers.StarboardManager;
 import com.sx4.bot.utility.ExceptionUtility;
@@ -103,7 +103,7 @@ public class StarboardHandler implements EventListener {
 	}
 
 	private WebhookMessageBuilder format(Document message, Member member, TextChannel channel, ReactionEmote emote, int stars, int nextStars, ObjectId id) {
-		IFormatter<Document> formatter = new JsonFormatter(message)
+		Formatter<Document> formatter = new JsonFormatter(message)
 			.member(member)
 			.user(member.getUser())
 			.channel(channel)

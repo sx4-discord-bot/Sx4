@@ -2,6 +2,7 @@ package com.sx4.api.exceptions;
 
 import com.sx4.bot.utility.ExceptionUtility;
 
+import javax.ws.rs.NotFoundException;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.ext.ExceptionMapper;
@@ -13,6 +14,13 @@ import java.util.Optional;
 public class UncaughtExceptionHandler implements ExceptionMapper<Throwable> {
 	
 	public Response toResponse(Throwable exception) {
+		if (exception instanceof NotFoundException) {
+			return Response.status(404)
+				.entity("You've reached a dead end, I suggest you turn around")
+				.type("text/plain")
+				.build();
+		}
+
 		ExceptionUtility.sendErrorMessage(exception);
 		
 		if (exception instanceof WebApplicationException) {
@@ -24,7 +32,7 @@ public class UncaughtExceptionHandler implements ExceptionMapper<Throwable> {
 			.findFirst();
 		
 		return Response.status(500)
-			.entity(exception.toString() + (element.map(stackTraceElement -> "\n" + stackTraceElement.toString()).orElse("")))
+			.entity(exception + (element.map(stackTraceElement -> "\n" + stackTraceElement).orElse("")))
 			.type("text/plain")
 			.build();
 	}

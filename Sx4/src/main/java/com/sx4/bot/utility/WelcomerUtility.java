@@ -3,7 +3,7 @@ package com.sx4.bot.utility;
 import club.minnced.discord.webhook.send.WebhookMessageBuilder;
 import com.sx4.bot.config.Config;
 import com.sx4.bot.entities.image.ImageRequest;
-import com.sx4.bot.formatter.IFormatter;
+import com.sx4.bot.formatter.Formatter;
 import com.sx4.bot.formatter.JsonFormatter;
 import com.sx4.bot.http.HttpCallback;
 import net.dv8tion.jda.api.entities.Guild;
@@ -23,7 +23,7 @@ public class WelcomerUtility {
 		User user = member.getUser();
 		OffsetDateTime now = OffsetDateTime.now();
 
-		IFormatter<Document> formatter = new JsonFormatter(messageData)
+		Formatter<Document> formatter = new JsonFormatter(messageData)
 			.member(member)
 			.user(user)
 			.guild(guild)

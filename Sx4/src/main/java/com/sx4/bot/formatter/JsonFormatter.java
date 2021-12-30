@@ -5,61 +5,47 @@ import org.bson.Document;
 import java.util.ArrayList;
 import java.util.List;
 
-public class JsonFormatter implements IFormatter<Document> {
-
-	private final FormatterManager manager;
-
-	private final Document document;
+public class JsonFormatter extends Formatter<Document> {
 
 	public JsonFormatter(Document document, FormatterManager manager) {
-		this.document = document;
-		this.manager = manager;
+		super(document, manager);
 	}
 
 	public JsonFormatter(Document document) {
-		this(document, FormatterManager.getDefaultManager());
-	}
-
-	public JsonFormatter addVariable(Class<?> type, String name, Object argument) {
-		this.manager.addVariable(name, type, $ -> argument);
-
-		return this;
-	}
-
-	public JsonFormatter addVariable(String name, Object argument) {
-		this.manager.addVariable(name, Void.class, $ -> argument);
-
-		return this;
+		super(document);
 	}
 
 	public Document parse() {
-		return this.parse(this.document);
+		return this.parse(this.object);
 	}
 
 	public Document parse(Document json) {
+		Document document = new Document();
 		for (String key : json.keySet()) {
 			Object value = json.get(key);
 			if (value instanceof Document) {
-				json.put(key, this.parse((Document) value));
+				document.append(key, this.parse((Document) value));
 			} else if (value instanceof Iterable) {
 				List<Object> list = new ArrayList<>();
 				for (Object element : (Iterable<?>) value) {
 					if (element instanceof Document) {
 						list.add(this.parse((Document) element));
 					} else if (element instanceof String) {
-						list.add(this.parse((String) element, this.manager));
+						list.add(Formatter.parse((String) element, this.manager));
 					} else {
 						list.add(element);
 					}
 				}
 
-				json.put(key, list);
+				document.append(key, list);
 			} else if (value instanceof String) {
-				json.put(key, this.parse((String) value, this.manager));
+				document.append(key, Formatter.parse((String) value, this.manager));
+			} else {
+				document.append(key, value);
 			}
 		}
 
-		return json;
+		return document;
 	}
 
 }

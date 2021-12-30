@@ -54,10 +54,15 @@ public class ImageRequest {
 
 	public Request build(String authorization) {
 		boolean first = true;
-		for (Map.Entry<String, String> entry : this.queries.entrySet()) {
-			this.url.append(first ? "?" : "&").append(entry.getKey()).append("=").append(entry.getValue());
+		for (String key : this.queries.keySet()) {
+			if (first) {
+				this.url.append("?");
+				first = false;
+			} else {
+				this.url.append("&");
+			}
 
-			first = false;
+			this.url.append(key).append("=").append(this.queries.get(key));
 		}
 
 		Request.Builder builder = new Request.Builder()
@@ -67,7 +72,7 @@ public class ImageRequest {
 		if (!this.fields.isEmpty()) {
 			builder.post(RequestBody.create(MediaType.parse("application/json"), this.fields.toJson()));
 		} else if (this.image != null) {
-			builder.post(RequestBody.create(MediaType.parse("image"), this.image));
+			builder.post(RequestBody.create(MediaType.parse("image/*"), this.image));
 		}
 
 		return builder.build();
