@@ -46,16 +46,11 @@ public class TriggerUtility {
 				continue;
 			}
 
-			TriggerAction action;
-			if (type == TriggerActionType.REQUEST) {
-				action = new RequestTriggerAction(manager, actionData);
-			} else if (type == TriggerActionType.SEND_MESSAGE) {
-				action = new SendMessageTriggerAction(manager, actionData, channel);
-			} else if (type == TriggerActionType.ADD_REACTION) {
-				action = new AddReactionTriggerAction(manager, actionData, message);
-			} else {
-				continue;
-			}
+			TriggerAction action = switch (type) {
+				case REQUEST -> new RequestTriggerAction(manager, actionData);
+				case SEND_MESSAGE -> new SendMessageTriggerAction(manager, actionData, channel);
+				case ADD_REACTION -> new AddReactionTriggerAction(manager, actionData, message);
+			};
 
 			boolean ordered = actionData.getInteger("order", -1) != -1;
 			if (ordered) {

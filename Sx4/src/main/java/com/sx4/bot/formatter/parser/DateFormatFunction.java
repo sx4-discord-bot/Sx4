@@ -1,6 +1,5 @@
 package com.sx4.bot.formatter.parser;
 
-import com.sx4.bot.formatter.Formatter;
 import com.sx4.bot.formatter.function.FormatterEvent;
 import com.sx4.bot.formatter.function.FormatterFunction;
 
@@ -16,7 +15,7 @@ public class DateFormatFunction extends FormatterFunction<Temporal> {
 	public String parse(FormatterEvent<Temporal> event, String pattern) {
 		Temporal time = event.getObject();
 		try {
-			return DateTimeFormatter.ofPattern(Formatter.format(pattern, event.getManager())).format(time);
+			return DateTimeFormatter.ofPattern(pattern).format(time);
 		} catch (IllegalArgumentException e) {
 			return DateTimeFormatter.ISO_DATE_TIME.format(time);
 		}
