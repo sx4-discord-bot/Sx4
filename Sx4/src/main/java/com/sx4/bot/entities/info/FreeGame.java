@@ -59,8 +59,16 @@ public class FreeGame {
 		return this.originalPrice;
 	}
 
+	public double getOriginalPriceDecimal() {
+		return this.originalPrice / 100D;
+	}
+
 	public int getDiscountPrice() {
 		return this.discountPrice;
+	}
+
+	public double getDiscountPriceDecimal() {
+		return this.discountPrice / 100D;
 	}
 
 	public OffsetDateTime getPromotionStart() {

@@ -14,8 +14,8 @@ import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.info.FreeGame;
-import com.sx4.bot.formatter.FormatterManager;
 import com.sx4.bot.formatter.Formatter;
+import com.sx4.bot.formatter.FormatterManager;
 import com.sx4.bot.formatter.JsonFormatter;
 import com.sx4.bot.formatter.function.FormatterVariable;
 import com.sx4.bot.managers.FreeGameManager;
@@ -34,6 +34,7 @@ import org.bson.Document;
 import org.bson.conversions.Bson;
 
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.StringJoiner;
 import java.util.concurrent.CompletionException;
@@ -49,6 +50,23 @@ public class FreeGamesCommand extends Sx4Command {
 		super.setExamples("free games list");
 		super.setAliases("freegames", "freegame", "free game");
 		super.setCategoryAll(ModuleCategory.INFORMATION);
+	}
+
+	public EmbedBuilder getGameEmbed(FreeGame game) {
+		return this.setGameEmbed(new EmbedBuilder(), game);
+	}
+
+	public EmbedBuilder setGameEmbed(EmbedBuilder embed, FreeGame game) {
+		double originalPrice = game.getOriginalPriceDecimal();
+
+		embed.setTitle(game.getTitle(), game.getUrl());
+		embed.setDescription(game.getDescription());
+		embed.setImage(game.getImage());
+		embed.addField("Price", game.getDiscountPriceDecimal() == originalPrice ? "Free" : String.format("~~£%.2f~~ Free", originalPrice), true);
+		embed.addField("Publisher", game.getPublisher(), true);
+		embed.addField("Promotion End", TimeFormat.DATE_TIME_SHORT.format(game.getPromotionEnd()), false);
+
+		return embed;
 	}
 
 	public void onCommand(Sx4CommandEvent event) {
@@ -72,17 +90,7 @@ public class FreeGamesCommand extends Sx4Command {
 					EmbedBuilder embed = new EmbedBuilder();
 					embed.setFooter("Game " + page.getPage() + "/" + page.getMaxPage());
 
-					page.forEach((game, index) -> {
-						embed.setTitle(game.getTitle(), game.getUrl());
-						embed.setDescription(game.getDescription());
-						embed.setImage(game.getImage());
-
-						double originalPrice = game.getOriginalPrice();
-
-						embed.addField("Price", game.getDiscountPrice() == originalPrice ? "Free" : String.format("~~£%.2f~~ Free", originalPrice), true);
-						embed.addField("Publisher", game.getPublisher(), true);
-						embed.addField("Promotion End", TimeFormat.DATE_TIME_SHORT.format(game.getPromotionEnd()), false);
-					});
+					page.forEach((game, index) -> this.setGameEmbed(embed, game));
 
 					return new MessageBuilder().setEmbeds(embed.build());
 				});
@@ -108,23 +116,37 @@ public class FreeGamesCommand extends Sx4Command {
 					EmbedBuilder embed = new EmbedBuilder();
 					embed.setFooter("Game " + page.getPage() + "/" + page.getMaxPage());
 
-					page.forEach((game, index) -> {
-						embed.setTitle(game.getTitle(), game.getUrl());
-						embed.setDescription(game.getDescription());
-						embed.setImage(game.getImage());
-
-						double originalPrice = game.getOriginalPrice();
-
-						embed.addField("Price", game.getDiscountPrice() == originalPrice ? "Free" : String.format("~~£%.2f~~ Free", originalPrice), true);
-						embed.addField("Publisher", game.getPublisher(), true);
-						embed.addField("Promotion", TimeFormat.DATE_TIME_SHORT.format(game.getPromotionStart()) + " to " + TimeFormat.DATE_TIME_SHORT.format(game.getPromotionEnd()), false);
-					});
+					page.forEach((game, index) -> this.setGameEmbed(embed, game));
 
 					return new MessageBuilder().setEmbeds(embed.build());
 				});
 
 			paged.execute(event);
 		});
+	}
+
+	@Command(value="history", description="View the history of free games announced by Sx4")
+	@CommandId(489)
+	@Examples({"free games history"})
+	public void history(Sx4CommandEvent event) {
+		List<Document> games = event.getMongo().getAnnouncedGames().find().sort(Sorts.descending("promotion.start")).into(new ArrayList<>());
+
+		PagedResult<Document> paged = new PagedResult<>(event.getBot(), games)
+			.setPerPage(15)
+			.setAuthor("Free Games History", null, null)
+			.setDisplayFunction(data -> {
+				FreeGame game = FreeGame.fromDatabase(data);
+
+				return "[" + game.getTitle() + "](" + game.getUrl() + ") - " + TimeFormat.DATE_SHORT.format(game.getPromotionStart()) + " to " + TimeFormat.DATE_SHORT.format(game.getPromotionEnd());
+			});
+
+		paged.onSelect(select -> {
+			FreeGame game = FreeGame.fromDatabase(select.getSelected());
+
+			event.reply(this.getGameEmbed(game).build()).queue();
+		});
+
+		paged.execute(event);
 	}
 
 	@Command(value="add", description="Add a channel to get free game notifications from Epic Games")

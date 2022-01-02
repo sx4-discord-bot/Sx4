@@ -167,6 +167,7 @@ public class MongoDatabase {
 		this.freeGameChannels.createIndex(Indexes.descending("channelId"), uniqueIndex);
 
 		this.announcedGames = this.database.getCollection("announcedGames");
+		this.announcedGames.createIndex(Indexes.descending("promotion.start"));
 
 		this.serverStats = this.database.getCollection("guildStats");
 		this.serverStats.createIndex(Indexes.descending("guildId"));
