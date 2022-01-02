@@ -215,7 +215,6 @@ public class FreeGameManager implements WebhookManager {
 						Document webhookData = data.get("webhook", MongoDatabase.EMPTY_DOCUMENT);
 
 						List<WebhookMessage> messages = new ArrayList<>();
-						List<Document> gameData = new ArrayList<>();
 						for (FreeGame game : games) {
 							if (game.isMysteryGame()) {
 								continue;
@@ -230,9 +229,6 @@ public class FreeGameManager implements WebhookManager {
 								.build();
 
 							messages.add(message);
-
-							gameData.add(game.toData());
-							this.addAnnouncedGame(game);
 						}
 
 						if (messages.isEmpty()) {
@@ -245,10 +241,20 @@ public class FreeGameManager implements WebhookManager {
 						}
 
 						future.whenComplete(MongoDatabase.exceptionally());
-
-						this.bot.getMongo().insertManyAnnouncedGames(gameData).whenComplete(MongoDatabase.exceptionally());
 					});
 				});
+
+				List<Document> gameData = new ArrayList<>();
+				for (FreeGame game : games) {
+					if (game.isMysteryGame()) {
+						continue;
+					}
+
+					gameData.add(game.toData());
+					this.addAnnouncedGame(game);
+				}
+
+				this.bot.getMongo().insertManyAnnouncedGames(gameData);
 			});
 		}, duration, TimeUnit.SECONDS);
 	}
