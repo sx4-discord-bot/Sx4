@@ -79,7 +79,7 @@ public class FreeGamesCommand extends Sx4Command {
 
 						double originalPrice = game.getOriginalPrice();
 
-						embed.addField("Price", game.getPrice() == originalPrice ? "Free" : String.format("~~£%.2f~~ Free", originalPrice), true);
+						embed.addField("Price", game.getDiscountPrice() == originalPrice ? "Free" : String.format("~~£%.2f~~ Free", originalPrice), true);
 						embed.addField("Publisher", game.getPublisher(), true);
 						embed.addField("Promotion End", TimeFormat.DATE_TIME_SHORT.format(game.getPromotionEnd()), false);
 					});
@@ -115,7 +115,7 @@ public class FreeGamesCommand extends Sx4Command {
 
 						double originalPrice = game.getOriginalPrice();
 
-						embed.addField("Price", game.getPrice() == originalPrice ? "Free" : String.format("~~£%.2f~~ Free", originalPrice), true);
+						embed.addField("Price", game.getDiscountPrice() == originalPrice ? "Free" : String.format("~~£%.2f~~ Free", originalPrice), true);
 						embed.addField("Publisher", game.getPublisher(), true);
 						embed.addField("Promotion", TimeFormat.DATE_TIME_SHORT.format(game.getPromotionStart()) + " to " + TimeFormat.DATE_TIME_SHORT.format(game.getPromotionEnd()), false);
 					});

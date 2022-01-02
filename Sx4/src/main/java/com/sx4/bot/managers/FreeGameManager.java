@@ -45,6 +45,7 @@ public class FreeGameManager implements WebhookManager {
 
 	private final Sx4 bot;
 
+	private final Map<String, List<FreeGame>> announcedGames;
 	private final List<FreeGame> queuedGames;
 
 	private final Map<Long, WebhookClient> webhooks;
@@ -58,6 +59,29 @@ public class FreeGameManager implements WebhookManager {
 		this.bot = bot;
 		this.webhooks = new HashMap<>();
 		this.queuedGames = new ArrayList<>();
+		this.announcedGames = new HashMap<>();
+	}
+
+	public boolean isAnnounced(FreeGame game) {
+		List<FreeGame> announcedGames = this.announcedGames.get(game.getId());
+		if (announcedGames == null) {
+			return false;
+		}
+
+		return announcedGames.stream().anyMatch(g -> g.getPromotionStart().equals(game.getPromotionStart()) && g.getPromotionEnd().equals(game.getPromotionEnd()));
+	}
+
+	public void addAnnouncedGame(FreeGame game) {
+		this.announcedGames.compute(game.getId(), (key, value) -> {
+			if (value == null) {
+				List<FreeGame> games = new ArrayList<>();
+				games.add(game);
+				return games;
+			} else {
+				value.add(game);
+				return value;
+			}
+		});
 	}
 
 	public WebhookClient getWebhook(long id) {
@@ -191,6 +215,7 @@ public class FreeGameManager implements WebhookManager {
 						Document webhookData = data.get("webhook", MongoDatabase.EMPTY_DOCUMENT);
 
 						List<WebhookMessage> messages = new ArrayList<>();
+						List<Document> gameData = new ArrayList<>();
 						for (FreeGame game : games) {
 							if (game.isMysteryGame()) {
 								continue;
@@ -205,6 +230,9 @@ public class FreeGameManager implements WebhookManager {
 								.build();
 
 							messages.add(message);
+
+							gameData.add(game.toData());
+							this.addAnnouncedGame(game);
 						}
 
 						if (messages.isEmpty()) {
@@ -217,6 +245,8 @@ public class FreeGameManager implements WebhookManager {
 						}
 
 						future.whenComplete(MongoDatabase.exceptionally());
+
+						this.bot.getMongo().insertManyAnnouncedGames(gameData).whenComplete(MongoDatabase.exceptionally());
 					});
 				});
 			});
@@ -236,6 +266,14 @@ public class FreeGameManager implements WebhookManager {
 				this.executor.schedule(() -> this.ensureMysteryGames(ids), 1, TimeUnit.MINUTES);
 				return;
 			}
+
+			// Add unaccounted for games in the case Epic Games releases more free games than shown
+			List<FreeGame> currentGames = games.stream()
+				.filter(Predicate.not(this::isAnnounced))
+				.filter(game -> !game.getPromotionStart().isAfter(now) && game.getPromotionEnd().isAfter(now))
+				.collect(Collectors.toList());
+
+			mysteryGames.addAll(currentGames);
 
 			List<FreeGame> upcomingGames = games.stream()
 				.filter(game -> game.getPromotionStart().isAfter(now))
@@ -261,24 +299,32 @@ public class FreeGameManager implements WebhookManager {
 	}
 
 	public void ensureFreeGameScheduler() {
-		FreeGameUtility.retrieveUpcomingFreeGames(this.bot.getHttpClient(), freeGames -> {
+		FreeGameUtility.retrieveFreeGames(this.bot.getHttpClient(), games -> {
 			OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
 
-			List<FreeGame> games = freeGames.stream()
+			List<FreeGame> currentGames = games.stream()
+				.filter(Predicate.not(this::isAnnounced))
+				.filter(game -> !game.getPromotionStart().isAfter(now) && game.getPromotionEnd().isAfter(now))
+				.collect(Collectors.toList());
+
+			this.scheduleFreeGameNotification(0, currentGames, false);
+
+			List<FreeGame> upcomingGames = games.stream()
+				.filter(game -> game.getPromotionStart().isAfter(now))
 				.sorted(Comparator.comparing(game -> Duration.between(now, game.getPromotionStart())))
 				.collect(Collectors.toList());
 
-			FreeGame newestGame = games.get(0);
+			FreeGame newestGame = upcomingGames.get(0);
 			OffsetDateTime promotionStart = newestGame.getPromotionStart();
 			if (!promotionStart.isAfter(now)) {
 				// re-request games as they have not been refreshed on the API
-				this.executor.schedule(this::ensureFreeGameScheduler, 5, TimeUnit.MINUTES);
+				this.executor.schedule(this::ensureFreeGameScheduler, 10, TimeUnit.MINUTES);
 				return;
 			}
 
 			this.queuedGames.add(newestGame);
 
-			for (FreeGame game : games.subList(1, games.size())) {
+			for (FreeGame game : upcomingGames.subList(1, upcomingGames.size())) {
 				if (game.getPromotionStart().equals(promotionStart)) {
 					this.queuedGames.add(game);
 				} else {
@@ -288,6 +334,10 @@ public class FreeGameManager implements WebhookManager {
 
 			this.scheduleFreeGameNotification(Duration.between(now, promotionStart).toSeconds() + 5, this.queuedGames);
 		});
+	}
+
+	public void ensureAnnouncedGames() {
+		this.bot.getMongo().getAnnouncedGames().find().forEach(data -> this.addAnnouncedGame(FreeGame.fromDatabase(data)));
 	}
 
 }

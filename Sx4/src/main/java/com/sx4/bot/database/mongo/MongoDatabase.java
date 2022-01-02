@@ -60,6 +60,7 @@ public class MongoDatabase {
 
 	private final MongoCollection<Document> mediaChannels;
 
+	private final MongoCollection<Document> announcedGames;
 	private final MongoCollection<Document> freeGameChannels;
 
 	private final MongoCollection<Document> serverStats;
@@ -164,6 +165,8 @@ public class MongoDatabase {
 		this.freeGameChannels = this.database.getCollection("freeGameChannels");
 		this.freeGameChannels.createIndex(Indexes.descending("guildId"), uniqueIndex);
 		this.freeGameChannels.createIndex(Indexes.descending("channelId"), uniqueIndex);
+
+		this.announcedGames = this.database.getCollection("announcedGames");
 
 		this.serverStats = this.database.getCollection("guildStats");
 		this.serverStats.createIndex(Indexes.descending("guildId"));
@@ -348,6 +351,18 @@ public class MongoDatabase {
 
 	public CompletableFuture<DeleteResult> deleteMediaChannel(Bson filter) {
 		return CompletableFuture.supplyAsync(() -> this.mediaChannels.deleteOne(filter), this.executor);
+	}
+
+	public MongoCollection<Document> getAnnouncedGames() {
+		return this.announcedGames;
+	}
+
+	public FindIterable<Document> getAnnouncedGames(Bson filter, Bson projection) {
+		return this.announcedGames.find(filter).projection(projection);
+	}
+
+	public CompletableFuture<InsertManyResult> insertManyAnnouncedGames(List<Document> games) {
+		return CompletableFuture.supplyAsync(() -> this.announcedGames.insertMany(games), this.executor);
 	}
 
 	public MongoCollection<Document> getFreeGameChannels() {
