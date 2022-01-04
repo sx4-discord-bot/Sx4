@@ -1213,7 +1213,7 @@ public class Sx4 {
 								.orElse(null);
 
 							if (attachment == null) {
-								return imageUrl ? new ParsedResult<>(message.getAuthor().getEffectiveAvatarUrl(), content) : new ParsedResult<>();
+								return imageUrl ? new ParsedResult<>(message.getMember().getEffectiveAvatarUrl(), content) : new ParsedResult<>();
 							} else {
 								return new ParsedResult<>(attachment.getUrl(), content);
 							}
@@ -1222,7 +1222,7 @@ public class Sx4 {
 						if (imageUrl) {
 							Member member = SearchUtility.getMember(message.getGuild(), contentToHandle);
 							if (member != null) {
-								return new ParsedResult<>(member.getUser().getEffectiveAvatarUrl(), content);
+								return new ParsedResult<>(member.getEffectiveAvatarUrl(), content);
 							}
 						}
 

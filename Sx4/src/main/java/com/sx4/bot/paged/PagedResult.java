@@ -407,6 +407,10 @@ public class PagedResult<Type> {
 	public void onSelect(Consumer<PagedSelect<Type>> select) {
 		this.onSelect = select;
 	}
+
+	public List<Type> getPageEntries() {
+		return this.list.subList((this.page - 1) * this.perPage, this.page == this.getMaxPage() ? this.list.size() : this.page * this.perPage);
+	}
 	
 	public void forEach(BiConsumer<Type, Integer> consumer) {
 		if (this.list.isEmpty()) {
