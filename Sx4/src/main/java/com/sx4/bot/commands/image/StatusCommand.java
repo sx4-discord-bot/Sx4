@@ -30,12 +30,12 @@ public class StatusCommand extends Sx4Command {
 	}
 
 	public void onCommand(Sx4CommandEvent event, @Argument(value="status") Status status, @Argument(value="user", endless=true, nullDefault=true) Member member) {
-		Request request = new ImageRequest("status")
+		Request request = new ImageRequest(event.getConfig().getImageWebserverUrl("status"))
 			.addQuery("image", member == null ? event.getMember().getEffectiveAvatarUrl() : member.getEffectiveAvatarUrl())
 			.addQuery("status", status.toString().toLowerCase())
 			.build(event.getConfig().getImageWebserver());
 
-		event.getHttpClient().newCall(request).enqueue((HttpCallback) response -> ImageUtility.getImageMessage(event, response));
+		event.getHttpClient().newCall(request).enqueue((HttpCallback) response -> ImageUtility.getImageMessage(event, response).queue());
 	}
 
 }

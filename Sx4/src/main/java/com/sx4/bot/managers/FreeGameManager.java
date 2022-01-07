@@ -254,7 +254,9 @@ public class FreeGameManager implements WebhookManager {
 					this.addAnnouncedGame(game);
 				}
 
-				this.bot.getMongo().insertManyAnnouncedGames(gameData).whenComplete(MongoDatabase.exceptionally());
+				if (!gameData.isEmpty()) {
+					this.bot.getMongo().insertManyAnnouncedGames(gameData).whenComplete(MongoDatabase.exceptionally());
+				}
 			});
 		}, duration, TimeUnit.SECONDS);
 	}
