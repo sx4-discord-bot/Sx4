@@ -126,7 +126,6 @@ public class Sx4 {
 
 	/* Managers */
 	private final YouTubeManager youTubeManager;
-	private final AntiRegexManager antiRegexManager;
 	private final EconomyManager economyManager;
 	private final MuteManager muteManager;
 	private final GiveawayManager giveawayManager;
@@ -184,7 +183,6 @@ public class Sx4 {
 		this.loggerHandler = new LoggerHandler(this);
 		this.connectionHandler = new ConnectionHandler(this);
 
-		this.antiRegexManager = new AntiRegexManager();
 		this.economyManager = new EconomyManager();
 		this.giveawayManager = new GiveawayManager(this);
 		this.leaverManager = new LeaverManager(this);
@@ -388,7 +386,7 @@ public class Sx4 {
 
 			return null;
 		}).addParser(Collection.class, text -> {
-			if (text.charAt(0) != '[' || text.charAt(text.length() - 1) != ']') {
+			if (text.isEmpty() || text.charAt(0) != '[' || text.charAt(text.length() - 1) != ']') {
 				return null;
 			}
 
@@ -465,10 +463,6 @@ public class Sx4 {
 	
 	public ShardManager getShardManager() {
 		return this.shardManager;
-	}
-
-	public AntiRegexManager getAntiRegexManager() {
-		return this.antiRegexManager;
 	}
 
 	public EconomyManager getEconomyManager() {

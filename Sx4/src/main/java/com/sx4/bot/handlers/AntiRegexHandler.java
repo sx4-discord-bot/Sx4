@@ -33,6 +33,18 @@ import java.util.stream.Collectors;
 
 public class AntiRegexHandler implements EventListener {
 
+    public static final String DEFAULT_MATCH_MESSAGE = "{user.mention}, you cannot send that content here due to the regex `{regex.id}`"
+        + "{regex.action.exists.then(, you will receive a {regex.action.name} if you continue **({regex.attempts.current}/{regex.attempts.max})**).else()} :no_entry:";
+
+    public static final String DEFAULT_MOD_MESSAGE = "**{user.tag}** has received a {regex.action.name} for sending a message which matched the regex "
+        + "`{regex.id}` {regex.attempts.max} time{regex.attempts.max.equals(1).then().else(s)} <:done:852905002829217793>";
+
+    public static final String DEFAULT_INVITE_MATCH_MESSAGE = "{user.mention}, you cannot send discord invites here"
+        + "{regex.action.exists.then(, you will receive a {regex.action.name} if you continue **({regex.attempts.current}/{regex.attempts.max})**).else()} :no_entry:";
+
+    public static final String DEFAULT_INVITE_MOD_MESSAGE = "**{user.tag}** has received a {regex.action.name} for sending a discord invite "
+        + "{regex.attempts.max} time{regex.attempts.max.equals(1).then().else(s)} <:done:852905002829217793>";
+
     public static final String INVITE_REGEX = "discord(?:(?:(?:app)?\\.com|\\.co|\\.media)/invite|\\.gg)/([a-z\\-0-9]{2,32})";
 
     private final Pattern invitePattern = Pattern.compile(AntiRegexHandler.INVITE_REGEX, Pattern.CASE_INSENSITIVE);
@@ -183,9 +195,7 @@ public class AntiRegexHandler implements EventListener {
                     }
 
                     ObjectId id = regex.getObjectId("_id");
-                    RegexType type = RegexType.fromId(regex.getInteger("type"));
-
-                    int currentAttempts = this.bot.getAntiRegexManager().getAttempts(id, userId);
+                    RegexType type = RegexType.fromId(regex.getInteger("type"));;
 
                     Document match = regex.get("match", MongoDatabase.EMPTY_DOCUMENT);
                     long matchAction = match.get("action", MatchAction.ALL);
@@ -198,46 +208,8 @@ public class AntiRegexHandler implements EventListener {
                     Document attempts = regex.get("attempts", MongoDatabase.EMPTY_DOCUMENT);
                     int maxAttempts = attempts.get("amount", 3);
 
-                    String matchMessage = this.format(match.get("message", type.getDefaultMatchMessage()),
-                        user, textChannel, id, currentAttempts + 1, maxAttempts, action);
-
-                    String modMessage = this.format(mod.get("message", type.getDefaultModMessage()),
-                        user, textChannel, id, currentAttempts + 1, maxAttempts, action);
-
                     if ((matchAction & MatchAction.DELETE_MESSAGE.getRaw()) == MatchAction.DELETE_MESSAGE.getRaw() && selfMember.hasPermission(textChannel, Permission.MESSAGE_MANAGE)) {
                         message.delete().queue();
-                    }
-
-                    boolean send = (matchAction & MatchAction.SEND_MESSAGE.getRaw()) == MatchAction.SEND_MESSAGE.getRaw() && selfMember.hasPermission(textChannel, Permission.MESSAGE_WRITE);
-                    if (action != null && currentAttempts + 1 == maxAttempts) {
-                        Reason reason = new Reason(String.format("Sent a message which matched regex `%s` %d time%s", id.toHexString(), maxAttempts, maxAttempts == 1 ? "" : "s"));
-
-                        ModUtility.performAction(this.bot, action, member, selfMember, reason).thenCompose(result -> {
-                            if (send) {
-                                textChannel.sendMessage(modMessage).allowedMentions(EnumSet.allOf(Message.MentionType.class)).queue();
-                            }
-
-                            Bson filter = Filters.and(Filters.eq("userId", userId), Filters.eq("regexId", id));
-                            return this.bot.getMongo().deleteRegexAttempt(filter);
-                        }).whenComplete((result, modException) -> {
-                            Throwable cause = modException instanceof CompletionException ? modException.getCause() : modException;
-                            if (cause instanceof ModException) {
-                                textChannel.sendMessage(modException.getMessage() + " " + this.bot.getConfig().getFailureEmote()).queue();
-                                return;
-                            }
-
-                            if (ExceptionUtility.sendExceptionally(textChannel, cause)) {
-                                return;
-                            }
-
-                            this.bot.getAntiRegexManager().clearAttempts(id, userId);
-                        });
-
-                        return;
-                    }
-
-                    if (send) {
-                        textChannel.sendMessage(matchMessage).allowedMentions(EnumSet.allOf(Message.MentionType.class)).queue();
                     }
 
                     Document reset = attempts.get("reset", Document.class);
@@ -257,7 +229,40 @@ public class AntiRegexHandler implements EventListener {
                             return;
                         }
 
-                        this.bot.getAntiRegexManager().setAttempts(id, userId, attemptsData.getInteger("attempts", 0));
+                        int currentAttempts = attemptsData.getInteger("attempts", 0);
+
+                        String matchMessage = this.format(match.get("message", type.getDefaultMatchMessage()),
+                            user, textChannel, id, currentAttempts, maxAttempts, action);
+
+                        String modMessage = this.format(mod.get("message", type.getDefaultModMessage()),
+                            user, textChannel, id, currentAttempts, maxAttempts, action);
+
+                        boolean send = (matchAction & MatchAction.SEND_MESSAGE.getRaw()) == MatchAction.SEND_MESSAGE.getRaw() && selfMember.hasPermission(textChannel, Permission.MESSAGE_WRITE);
+                        if (action != null && currentAttempts == maxAttempts) {
+                            Reason reason = new Reason(String.format("Sent a message which matched regex `%s` %d time%s", id.toHexString(), maxAttempts, maxAttempts == 1 ? "" : "s"));
+
+                            ModUtility.performAction(this.bot, action, member, selfMember, reason).thenCompose(result -> {
+                                if (send) {
+                                    textChannel.sendMessage(modMessage).allowedMentions(EnumSet.allOf(Message.MentionType.class)).queue();
+                                }
+
+                                return this.bot.getMongo().deleteRegexAttempt(Filters.and(Filters.eq("userId", userId), Filters.eq("regexId", id)));
+                            }).whenComplete((result, modException) -> {
+                                Throwable cause = modException instanceof CompletionException ? modException.getCause() : modException;
+                                if (cause instanceof ModException) {
+                                    textChannel.sendMessage(modException.getMessage() + " " + this.bot.getConfig().getFailureEmote()).queue();
+                                    return;
+                                }
+
+                                ExceptionUtility.sendExceptionally(textChannel, modException);
+                            });
+
+                            return;
+                        }
+
+                        if (send) {
+                            textChannel.sendMessage(matchMessage).allowedMentions(EnumSet.allOf(Message.MentionType.class)).queue();
+                        }
                     });
                 });
             });

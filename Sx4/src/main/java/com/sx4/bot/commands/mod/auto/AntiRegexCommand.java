@@ -288,12 +288,6 @@ public class AntiRegexCommand extends Sx4Command {
 				return;
 			}
 
-			if (attempts == 0) {
-				event.getBot().getAntiRegexManager().clearAttempts(id, member.getIdLong());
-			} else {
-				event.getBot().getAntiRegexManager().setAttempts(id, member.getIdLong(), attempts);
-			}
-
 			event.replySuccess("**" + member.getUser().getAsTag() + "** has had their attempts set to **" + attempts + "**").queue();
 		});
 	}

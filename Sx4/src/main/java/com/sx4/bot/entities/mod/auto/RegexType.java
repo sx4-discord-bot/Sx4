@@ -1,11 +1,11 @@
 package com.sx4.bot.entities.mod.auto;
 
-import com.sx4.bot.managers.AntiRegexManager;
+import com.sx4.bot.handlers.AntiRegexHandler;
 
 public enum RegexType {
 
-	REGEX(0, AntiRegexManager.DEFAULT_MOD_MESSAGE, AntiRegexManager.DEFAULT_MATCH_MESSAGE),
-	INVITE(1, AntiRegexManager.DEFAULT_INVITE_MOD_MESSAGE, AntiRegexManager.DEFAULT_INVITE_MATCH_MESSAGE);
+	REGEX(0, AntiRegexHandler.DEFAULT_MOD_MESSAGE, AntiRegexHandler.DEFAULT_MATCH_MESSAGE),
+	INVITE(1, AntiRegexHandler.DEFAULT_INVITE_MOD_MESSAGE, AntiRegexHandler.DEFAULT_INVITE_MATCH_MESSAGE);
 
 	private final int id;
 
