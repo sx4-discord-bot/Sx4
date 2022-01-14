@@ -1,5 +1,7 @@
 package com.sx4.bot.formatter.function;
 
+import com.sx4.bot.formatter.Formatter;
+
 public class FormatterCondition {
 
 	private final boolean condition;
@@ -12,6 +14,11 @@ public class FormatterCondition {
 
 	public Object orElse(Object object) {
 		return this.condition ? this.then : object;
+	}
+
+	@Override
+	public String toString() {
+		return Formatter.toString(this.orElse(null));
 	}
 
 }

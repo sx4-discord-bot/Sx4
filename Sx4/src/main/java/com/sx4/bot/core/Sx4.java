@@ -157,7 +157,7 @@ public class Sx4 {
 
 		this.mongo = this.config.isMain() ? this.mongoMain : this.mongoCanary;
 
-		this.executor = Executors.newSingleThreadExecutor();
+		this.executor = Executors.newCachedThreadPool();
 		this.scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
 
 		this.httpClient = new OkHttpClient.Builder()
@@ -568,6 +568,7 @@ public class Sx4 {
 	public ShardManager createShardManager(IEventManager manager) {
 		try {
 			return DefaultShardManagerBuilder.create(this.config.getToken(), GatewayIntent.getIntents(5838))
+				.setRawEventsEnabled(true)
 				.setBulkDeleteSplittingEnabled(false)
 				.setEventManagerProvider(shardId -> manager)
 				.setActivity(Activity.watching("s?help"))

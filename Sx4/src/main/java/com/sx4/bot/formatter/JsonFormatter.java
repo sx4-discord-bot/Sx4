@@ -31,7 +31,7 @@ public class JsonFormatter extends Formatter<Document> {
 					if (element instanceof Document) {
 						list.add(this.parse((Document) element));
 					} else if (element instanceof String) {
-						list.add(Formatter.parse((String) element, this.manager));
+						list.add(Formatter.format((String) element, this.manager));
 					} else {
 						list.add(element);
 					}
@@ -39,7 +39,7 @@ public class JsonFormatter extends Formatter<Document> {
 
 				document.append(key, list);
 			} else if (value instanceof String) {
-				document.append(key, Formatter.parse((String) value, this.manager));
+				document.append(key, Formatter.format((String) value, this.manager));
 			} else {
 				document.append(key, value);
 			}

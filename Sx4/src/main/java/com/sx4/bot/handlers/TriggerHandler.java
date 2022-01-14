@@ -46,32 +46,34 @@ public class TriggerHandler implements EventListener {
 			return;
 		}
 
-		List<WriteModel<Document>> bulkData = new ArrayList<>();
-		this.bot.getMongo().getTriggers(Filters.eq("guildId", message.getGuild().getIdLong()), Projections.include("trigger", "response", "case", "enabled", "actions")).forEach(trigger -> {
-			if (!trigger.get("enabled", true)) {
-				return;
-			}
-
-			boolean equals = trigger.get("case", false) ? message.getContentRaw().equals(trigger.getString("trigger")) : message.getContentRaw().equalsIgnoreCase(trigger.getString("trigger"));
-			if (!equals) {
-				return;
-			}
-
-			List<CompletableFuture<Void>> futures = TriggerUtility.executeActions(trigger, message);
-
-			FutureUtility.allOf(futures).whenComplete(($, exception) -> {
-				Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
-				if (cause instanceof IllegalArgumentException) {
-					bulkData.add(new UpdateOneModel<>(Filters.eq("_id", trigger.getObjectId("_id")), Updates.set("enabled", false)));
+		this.bot.getExecutor().submit(() -> {
+			List<WriteModel<Document>> bulkData = new ArrayList<>();
+			this.bot.getMongo().getTriggers(Filters.eq("guildId", message.getGuild().getIdLong()), Projections.include("trigger", "response", "case", "enabled", "actions")).forEach(trigger -> {
+				if (!trigger.get("enabled", true)) {
+					return;
 				}
 
-				ExceptionUtility.sendExceptionally(channel, exception);
-			});
-		});
+				boolean equals = trigger.get("case", false) ? message.getContentRaw().equals(trigger.getString("trigger")) : message.getContentRaw().equalsIgnoreCase(trigger.getString("trigger"));
+				if (!equals) {
+					return;
+				}
 
-		if (!bulkData.isEmpty()) {
-			this.bot.getMongo().bulkWriteTriggers(bulkData).whenComplete(MongoDatabase.exceptionally());
-		}
+				List<CompletableFuture<Void>> futures = TriggerUtility.executeActions(trigger, message);
+
+				FutureUtility.allOf(futures).whenComplete(($, exception) -> {
+					Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
+					if (cause instanceof IllegalArgumentException) {
+						bulkData.add(new UpdateOneModel<>(Filters.eq("_id", trigger.getObjectId("_id")), Updates.set("enabled", false)));
+					}
+
+					ExceptionUtility.sendExceptionally(channel, exception);
+				});
+			});
+
+			if (!bulkData.isEmpty()) {
+				this.bot.getMongo().bulkWriteTriggers(bulkData).whenComplete(MongoDatabase.exceptionally());
+			}
+		});
 	}
 
 	@Override

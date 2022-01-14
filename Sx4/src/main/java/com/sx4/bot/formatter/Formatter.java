@@ -1,6 +1,9 @@
 package com.sx4.bot.formatter;
 
-import com.sx4.bot.formatter.function.*;
+import com.sx4.bot.formatter.function.FormatterEvent;
+import com.sx4.bot.formatter.function.FormatterFunction;
+import com.sx4.bot.formatter.function.FormatterParser;
+import com.sx4.bot.formatter.function.FormatterVariable;
 import com.sx4.bot.utility.ColourUtility;
 import com.sx4.bot.utility.StringUtility;
 import net.dv8tion.jda.api.entities.*;
@@ -238,7 +241,7 @@ public abstract class Formatter<Type> {
 		return string;
 	}
 
-	private static String toString(Object object) {
+	public static String toString(Object object) {
 		if (object == null) {
 			return "null";
 		} else if (object instanceof Color) {
@@ -246,10 +249,8 @@ public abstract class Formatter<Type> {
 		} else if (object instanceof Double) {
 			Double value = ((Double) object);
 			if (value % 1 == 0) {
-				return String.valueOf(value.longValue());
+				return Long.toString(value.longValue());
 			}
-		} else if (object instanceof FormatterCondition) {
-			return Formatter.toString(((FormatterCondition) object).orElse(null));
 		}
 
 		return object.toString();
@@ -269,10 +270,6 @@ public abstract class Formatter<Type> {
 		} else {
 			return parser.parse(Formatter.format(text, manager));
 		}
-	}
-
-	public static String parse(String string, FormatterManager manager) {
-		return Formatter.format(string, manager);
 	}
 
 }

@@ -15,8 +15,6 @@ repositories {
 	}
 
 	maven { url 'https://jitpack.io' }
-	
-	jcenter()
 }
 
 shadowJar {
@@ -27,8 +25,8 @@ shadowJar {
 
 mainClassName = 'com.sx4.bot.core.Sx4'
 
-sourceCompatibility = JavaVersion.VERSION_15
-targetCompatibility = JavaVersion.VERSION_15
+sourceCompatibility = JavaVersion.VERSION_17
+targetCompatibility = JavaVersion.VERSION_17
 
 project.ext.parserPackage = 'com.sx4.bot.antlr'
 sourceSets.main.java.srcDirs = ['src/main/java', 'generated-src/main/java']
@@ -41,12 +39,12 @@ dependencies {
 	implementation('com.github.21Joakim:JDA-Memory-Optimizations:+') {
 		exclude group: 'net.dv8tion', module: 'JDA'
 	}
-	
-	compile 'club.minnced:discord-webhooks:0+'
 
-	compile 'com.vdurmont:emoji-java:5+'
-	
-	compile group: 'org.jsoup', name: 'jsoup', version: '1.11.3'
+	implementation 'club.minnced:discord-webhooks:0+'
+
+	implementation 'com.vdurmont:emoji-java:5+'
+
+	implementation group: 'org.jsoup', name: 'jsoup', version: '1.11.3'
 
 	implementation('net.dv8tion:JDA:4+') {
 		exclude module: 'opus-java'
@@ -58,22 +56,22 @@ dependencies {
 	implementation "com.zaxxer:HikariCP:4.0.3"
 
 	implementation 'net.sf.trove4j:trove4j:3.0.3'
-	
-	compile group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.9.8'
 
-	compile group: 'org.codehaus.groovy', name: 'groovy', version: '3+'
-	
-	compile group: 'org.glassfish.jersey.core', name: 'jersey-server', version: '2.28'
-	compile group: 'org.glassfish.jersey.containers', name: 'jersey-container-servlet', version: '2.28'
-	compile group: 'org.glassfish.jersey.inject', name: 'jersey-hk2', version: '2.28'
-	compile group: 'org.glassfish.jersey.media', name: 'jersey-media-json-jackson', version: '2.28'
-	
-	compile group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.4.14.v20181114'
-	compile group: 'org.eclipse.jetty', name: 'jetty-servlet', version: '9.4.14.v20181114'
-	
-	compile group: 'javax.xml.bind', name: 'jaxb-api', version: '2.4.0-b180830.0359'
-	
-	compile group: 'org.slf4j', name: 'slf4j-simple', version: '1.6.2'
+	implementation group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.9.8'
+
+	implementation group: 'org.codehaus.groovy', name: 'groovy', version: '3+'
+
+	implementation group: 'org.glassfish.jersey.core', name: 'jersey-server', version: '2.28'
+	implementation group: 'org.glassfish.jersey.containers', name: 'jersey-container-servlet', version: '2.28'
+	implementation group: 'org.glassfish.jersey.inject', name: 'jersey-hk2', version: '2.28'
+	implementation group: 'org.glassfish.jersey.media', name: 'jersey-media-json-jackson', version: '2.28'
+
+	implementation group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.4.14.v20181114'
+	implementation group: 'org.eclipse.jetty', name: 'jetty-servlet', version: '9.4.14.v20181114'
+
+	implementation group: 'javax.xml.bind', name: 'jaxb-api', version: '2.4.0-b180830.0359'
+
+	implementation group: 'org.slf4j', name: 'slf4j-simple', version: '1.6.2'
 
 	antlr 'org.antlr:antlr4:4.7.2'
 }

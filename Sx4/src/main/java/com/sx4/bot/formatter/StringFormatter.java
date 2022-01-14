@@ -11,7 +11,7 @@ public class StringFormatter extends Formatter<String> {
     }
 
     public String parse() {
-        return Formatter.parse(this.object, this.manager);
+        return Formatter.format(this.object, this.manager);
     }
 
 }

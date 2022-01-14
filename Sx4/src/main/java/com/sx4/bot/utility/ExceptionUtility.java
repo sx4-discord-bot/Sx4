@@ -12,6 +12,7 @@ import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.StringJoiner;
 
 public class ExceptionUtility {
 
@@ -29,28 +30,28 @@ public class ExceptionUtility {
 	    
 	    String[] errorLines = outputStream.toString(StandardCharsets.UTF_8).split("\n");
 		
-		StringBuilder message = new StringBuilder("```ansi\n");
+		StringJoiner message = new StringJoiner("\n", "```ansi\n", "");
 		
 		for (String errorLine : errorLines) {
 			String toAppend;
 			int bracketIndex = errorLine.lastIndexOf('(');
-			if (bracketIndex != -1) {
-				toAppend = "\u001B[0;31m" + errorLine.substring(0, bracketIndex + 1) + (errorLine.contains("com.sx4.bot") ? "\u001B[0;34m" : "\u001B[0;30m") + errorLine.substring(bracketIndex + 1, errorLine.length() - 2) + "\u001B[0;31m)\u001B[0;0m\n";
-			} else {
+			if (bracketIndex == -1 || !errorLine.stripLeading().startsWith("at")) {
 				toAppend = "\u001B[0;31m" + errorLine + "\u001B[0;0m";
-			}
-			
-			if (message.length() + toAppend.length() > 1997) {
-				messages.add(message.append("```").toString());
-				
-				message = new StringBuilder("```ansi\n");
 			} else {
-				message.append(toAppend);
+				toAppend = "\u001B[0;31m" + errorLine.substring(0, bracketIndex + 1) + (errorLine.contains("com.sx4.bot") ? "\u001B[0;34m" : "\u001B[0;30m") + errorLine.substring(bracketIndex + 1, errorLine.length() - 2) + "\u001B[0;31m)\u001B[0;0m";
 			}
+
+			if (message.length() + toAppend.length() > 1996) {
+				messages.add(message + "```");
+				
+				message = new StringJoiner("\n", "```ansi\n", "");
+			}
+
+			message.add(toAppend);
 		}
 		
 		if (message.length() > 7) {
-			messages.add(message.append("```").toString());
+			messages.add(message + "```");
 		}
 
 		messages.forEach(Config.get().getErrorsWebhook()::send);
