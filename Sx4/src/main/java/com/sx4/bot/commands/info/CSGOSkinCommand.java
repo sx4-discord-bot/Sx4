@@ -96,7 +96,7 @@ public class CSGOSkinCommand extends Sx4Command {
 		super.setCategoryAll(ModuleCategory.INFORMATION);
 	}
 
-	public void onCommand(Sx4CommandEvent event, @Argument(value="skin name", endless=true, nullDefault=true) String query, @Option(value="sort", description="You can sort by `price`, `age`, `deal`, `popularity`, `wear or `discount`") Sort sort, @Option(value="reverse", description="Reverse the order of the sorting") boolean reverse, @Option(value="wear", description="What wear you would like to filter by, options are `fn`, `mw`, `ft`, `ww` and `bs`") Wear wear, @Option(value="phase", description="Filter by phase of a knife") @Lowercase String phase, @Option(value="currency", description="What currency to use for the prices of items") @Uppercase @DefaultString("GBP") String currency) {
+	public void onCommand(Sx4CommandEvent event, @Argument(value="skin name", endless=true) String query, @Option(value="sort", description="You can sort by `price`, `age`, `deal`, `popularity`, `wear or `discount`") Sort sort, @Option(value="reverse", description="Reverse the order of the sorting") boolean reverse, @Option(value="wear", description="What wear you would like to filter by, options are `fn`, `mw`, `ft`, `ww` and `bs`") Wear wear, @Option(value="phase", description="Filter by phase of a knife") @Lowercase String phase, @Option(value="currency", description="What currency to use for the prices of items") @Uppercase @DefaultString("GBP") String currency) {
 		SkinPortManager manager = event.getBot().getSkinPortManager();
 		String cookie = manager.getCSRFCookie();
 
