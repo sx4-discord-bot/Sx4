@@ -150,8 +150,13 @@ public class AntiInviteCommand extends Sx4Command {
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	@Examples({"antiinvite reset after 1 1 day", "antiinvite reset after 3 5h 20s", "antiinvite reset after 3 5h 20s"})
 	public void resetAfter(Sx4CommandEvent event, @Argument(value="amount") @Limit(min=0) int amount, @Argument(value="time", endless=true, nullDefault=true) Duration time) {
-		if (time.toMinutes() < 5) {
+		if (time != null && time.toMinutes() < 5) {
 			event.replyFailure("The duration has to be 5 minutes or above").queue();
+			return;
+		}
+
+		if (amount != 0 && time == null) {
+			event.reply("You need to provide a duration if attempts is more than 0").queue();
 			return;
 		}
 

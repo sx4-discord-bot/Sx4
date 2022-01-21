@@ -568,7 +568,6 @@ public class Sx4 {
 	public ShardManager createShardManager(IEventManager manager) {
 		try {
 			return DefaultShardManagerBuilder.create(this.config.getToken(), GatewayIntent.getIntents(5838))
-				.setRawEventsEnabled(true)
 				.setBulkDeleteSplittingEnabled(false)
 				.setEventManagerProvider(shardId -> manager)
 				.setActivity(Activity.watching("s?help"))

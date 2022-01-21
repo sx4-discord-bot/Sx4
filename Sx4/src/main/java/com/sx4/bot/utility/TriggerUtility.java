@@ -2,7 +2,6 @@ package com.sx4.bot.utility;
 
 import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.entities.trigger.*;
-import com.sx4.bot.formatter.StringFormatter;
 import com.sx4.bot.formatter.FormatterManager;
 import com.sx4.bot.formatter.JsonFormatter;
 import com.sx4.bot.formatter.function.FormatterResponse;
@@ -13,7 +12,10 @@ import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.internal.requests.RestActionImpl;
 import net.dv8tion.jda.internal.requests.Route;
 import net.dv8tion.jda.internal.utils.EncodingUtil;
-import okhttp3.*;
+import okhttp3.MediaType;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.ResponseBody;
 import org.bson.Document;
 
 import java.time.OffsetDateTime;
@@ -52,8 +54,7 @@ public class TriggerUtility {
 				case ADD_REACTION -> new AddReactionTriggerAction(manager, actionData, message);
 			};
 
-			boolean ordered = actionData.getInteger("order", -1) != -1;
-			if (ordered) {
+			if (actionData.containsKey("order")) {
 				orderedFuture = orderedFuture.thenCompose($ -> action.execute());
 			} else {
 				futures.add(action.execute());
@@ -74,7 +75,7 @@ public class TriggerUtility {
 		try {
 			request = new Request.Builder()
 				.url(RequestUtility.getWorkerUrl(action.getString("url")))
-				.method(action.getString("method"), body == null ? null : RequestBody.create(MediaType.parse(action.getString("contentType")), new StringFormatter(body, manager).parse()));
+				.method(action.getString("method"), body == null ? null : RequestBody.create(MediaType.parse(action.getString("contentType")), body));
 		} catch (IllegalArgumentException e) {
 			e.printStackTrace();
 			return CompletableFuture.failedFuture(e);
