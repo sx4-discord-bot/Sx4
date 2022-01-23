@@ -191,9 +191,9 @@ public class FreeGameManager implements WebhookManager {
 						.collect(Collectors.toSet());
 
 					if (ids.isEmpty()) {
-						this.ensureFreeGameScheduler();
+						this.ensureFreeGames();
 					} else {
-						this.ensureMysteryGames(ids);
+						this.ensureFreeGames(ids);
 					}
 
 					this.queuedGames.removeAll(games);
@@ -261,7 +261,7 @@ public class FreeGameManager implements WebhookManager {
 		}, duration, TimeUnit.SECONDS);
 	}
 
-	public void ensureMysteryGames(Set<String> ids) {
+	public void ensureFreeGames(Set<String> ids) {
 		FreeGameUtility.retrieveFreeGames(this.bot.getHttpClient(), games -> {
 			OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
 
@@ -271,7 +271,7 @@ public class FreeGameManager implements WebhookManager {
 				.collect(Collectors.toList());
 
 			if (mysteryGames.size() != ids.size()) {
-				this.executor.schedule(() -> this.ensureMysteryGames(ids), 1, TimeUnit.MINUTES);
+				this.executor.schedule(() -> this.ensureFreeGames(ids), 1, TimeUnit.MINUTES);
 				return;
 			}
 
@@ -283,6 +283,8 @@ public class FreeGameManager implements WebhookManager {
 
 			mysteryGames.addAll(currentGames);
 
+			this.scheduleFreeGameNotification(0, mysteryGames, false);
+
 			List<FreeGame> upcomingGames = games.stream()
 				.filter(game -> game.getPromotionStart().isAfter(now))
 				.sorted(Comparator.comparing(game -> Duration.between(now, game.getPromotionStart())))
@@ -290,6 +292,11 @@ public class FreeGameManager implements WebhookManager {
 
 			FreeGame newestGame = upcomingGames.get(0);
 			OffsetDateTime promotionStart = newestGame.getPromotionStart();
+			if (!promotionStart.isAfter(now)) {
+				// re-request games as they have not been refreshed on the API
+				this.executor.schedule((Runnable) this::ensureFreeGames, 10, TimeUnit.MINUTES);
+				return;
+			}
 
 			this.queuedGames.add(newestGame);
 
@@ -301,47 +308,12 @@ public class FreeGameManager implements WebhookManager {
 				}
 			}
 
-			this.scheduleFreeGameNotification(0, mysteryGames, false);
 			this.scheduleFreeGameNotification(Duration.between(now, promotionStart).toSeconds() + 5, this.queuedGames);
 		});
 	}
 
-	public void ensureFreeGameScheduler() {
-		FreeGameUtility.retrieveFreeGames(this.bot.getHttpClient(), games -> {
-			OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
-
-			List<FreeGame> currentGames = games.stream()
-				.filter(Predicate.not(this::isAnnounced))
-				.filter(game -> !game.getPromotionStart().isAfter(now) && game.getPromotionEnd().isAfter(now))
-				.collect(Collectors.toList());
-
-			this.scheduleFreeGameNotification(0, currentGames, false);
-
-			List<FreeGame> upcomingGames = games.stream()
-				.filter(game -> game.getPromotionStart().isAfter(now))
-				.sorted(Comparator.comparing(game -> Duration.between(now, game.getPromotionStart())))
-				.collect(Collectors.toList());
-
-			FreeGame newestGame = upcomingGames.get(0);
-			OffsetDateTime promotionStart = newestGame.getPromotionStart();
-			if (!promotionStart.isAfter(now)) {
-				// re-request games as they have not been refreshed on the API
-				this.executor.schedule(this::ensureFreeGameScheduler, 10, TimeUnit.MINUTES);
-				return;
-			}
-
-			this.queuedGames.add(newestGame);
-
-			for (FreeGame game : upcomingGames.subList(1, upcomingGames.size())) {
-				if (game.getPromotionStart().equals(promotionStart)) {
-					this.queuedGames.add(game);
-				} else {
-					break;
-				}
-			}
-
-			this.scheduleFreeGameNotification(Duration.between(now, promotionStart).toSeconds() + 5, this.queuedGames);
-		});
+	public void ensureFreeGames() {
+		this.ensureFreeGames(Collections.emptySet());
 	}
 
 	public void ensureAnnouncedGames() {
