@@ -190,12 +190,7 @@ public class FreeGameManager implements WebhookManager {
 						.map(FreeGame::getId)
 						.collect(Collectors.toSet());
 
-					if (ids.isEmpty()) {
-						this.ensureFreeGames();
-					} else {
-						this.ensureFreeGames(ids);
-					}
-
+					this.ensureFreeGames(ids);
 					this.queuedGames.removeAll(games);
 				}
 

@@ -177,7 +177,7 @@ public class SuggestionCommand extends Sx4Command {
 	@Command(value="remove", aliases={"delete"}, description="Removes a suggestion, can be your own or anyones if you have the manage server permission")
 	@CommandId(85)
 	@Examples({"suggestion remove 5e45ce6d3688b30ee75201ae", "suggestion remove all"})
-	public void remove(Sx4CommandEvent event, @Argument(value="id | all") @AlternativeOptions("all") Alternative<ObjectId> option) {
+	public void remove(Sx4CommandEvent event, @Argument(value="id | message | all", acceptEmpty=true) @AlternativeOptions("all") Alternative<Or<MessageArgument, ObjectId>> option) {
 		User author = event.getAuthor();
 
 		if (option.isAlternative()) {
@@ -225,10 +225,10 @@ public class SuggestionCommand extends Sx4Command {
 				});
 			});
 		} else {
-			ObjectId id = option.getValue();
+			Or<MessageArgument, ObjectId> argument = option.getValue();
 			boolean hasPermission = event.hasPermission(event.getMember(), Permission.MANAGE_SERVER);
 
-			Bson filter = Filters.and(Filters.eq("_id", id), Filters.eq("guildId", event.getGuild().getIdLong()));
+			Bson filter = Filters.and(argument.hasFirst() ? Filters.eq("messageId", argument.getFirst().getMessageId()) : Filters.eq("_id", argument.getSecond()), Filters.eq("guildId", event.getGuild().getIdLong()));
 			if (!hasPermission) {
 				filter = Filters.and(Filters.eq("authorId", author.getIdLong()), filter);
 			}
@@ -331,44 +331,36 @@ public class SuggestionCommand extends Sx4Command {
 	@Command(value="view", aliases={"list"}, description="View a suggestion in the current channel")
 	@CommandId(87)
 	@Examples({"suggestion view 5e45ce6d3688b30ee75201ae", "suggestion view"})
-	public void view(Sx4CommandEvent event, @Argument(value="id", nullDefault=true) ObjectId id) {
-		Bson projection = Projections.include("suggestion", "reason", "moderatorId", "authorId", "state", "image");
-		if (id == null) {
-			List<Document> suggestions = event.getMongo().getSuggestions(Filters.eq("guildId", event.getGuild().getIdLong()), projection).into(new ArrayList<>());
-			if (suggestions.isEmpty()) {
-				event.replyFailure("There are not suggestions in this server").queue();
-				return;
-			}
+	public void view(Sx4CommandEvent event, @Argument(value="id | message", nullDefault=true, acceptEmpty=true) Or<MessageArgument, ObjectId> argument) {
+		Bson filter = Filters.eq("guildId", event.getGuild().getIdLong());
+		if (argument != null) {
+			filter = Filters.and(filter, argument.hasFirst() ? Filters.eq("messageId", argument.getFirst().getMessageId()) : Filters.eq("_id", argument.getSecond()));
+		}
 
-			PagedResult<Document> paged = new PagedResult<>(event.getBot(), suggestions)
-				.setDisplayFunction(data -> {
-					long authorId = data.getLong("authorId");
-					User author = event.getShardManager().getUserById(authorId);
+		List<Document> suggestions = event.getMongo().getSuggestions(filter, Projections.include("suggestion", "reason", "moderatorId", "authorId", "state", "image")).into(new ArrayList<>());
+		if (suggestions.isEmpty()) {
+			event.replyFailure("There are no suggestions in this server").queue();
+			return;
+		}
 
-					return String.format("`%s` by %s - **%s**", data.getObjectId("_id").toHexString(), author == null ? authorId : author.getAsTag(), data.getString("state"));
-				})
-				.setIncreasedIndex(true);
+		PagedResult<Document> paged = new PagedResult<>(event.getBot(), suggestions)
+			.setAutoSelect(true)
+			.setIncreasedIndex(true)
+			.setDisplayFunction(data -> {
+				long authorId = data.getLong("authorId");
+				User author = event.getShardManager().getUserById(authorId);
 
-			paged.onSelect(select -> {
-				List<Document> states = event.getMongo().getGuildById(event.getGuild().getIdLong(), Projections.include("suggestion.states")).getEmbedded(List.of("suggestion", "states"), SuggestionState.getDefaultStates());
-				Suggestion suggestion = Suggestion.fromData(select.getSelected());
-
-				event.reply(suggestion.getEmbed(event.getShardManager(), suggestion.getFullState(states))).queue();
+				return String.format("`%s` by %s - **%s**", data.getObjectId("_id").toHexString(), author == null ? authorId : author.getAsTag(), data.getString("state"));
 			});
 
-			paged.execute(event);
-		} else {
-			Document suggestionData = event.getMongo().getSuggestion(Filters.and(Filters.eq("_id", id), Filters.eq("guildId", event.getGuild().getIdLong())), projection);
-			if (suggestionData == null) {
-				event.replyFailure("I could not find that suggestion").queue();
-				return;
-			}
-
+		paged.onSelect(select -> {
 			List<Document> states = event.getMongo().getGuildById(event.getGuild().getIdLong(), Projections.include("suggestion.states")).getEmbedded(List.of("suggestion", "states"), SuggestionState.getDefaultStates());
-			Suggestion suggestion = Suggestion.fromData(suggestionData);
+			Suggestion suggestion = Suggestion.fromData(select.getSelected());
 
 			event.reply(suggestion.getEmbed(event.getShardManager(), suggestion.getFullState(states))).queue();
-		}
+		});
+
+		paged.execute(event);
 	}
 
 	@Command(value="name", description="Set the name of the webhook that sends suggestion messages")
