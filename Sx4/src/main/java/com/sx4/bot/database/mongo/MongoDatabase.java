@@ -1075,6 +1075,10 @@ public class MongoDatabase {
 		return this.getSuggestions(filter, projection).first();
 	}
 
+	public CompletableFuture<List<Document>> aggregateSuggestions(List<Bson> pipeline) {
+		return CompletableFuture.supplyAsync(() -> this.suggestions.aggregate(pipeline).into(new ArrayList<>()), this.executor);
+	}
+
 	public CompletableFuture<InsertOneResult> insertSuggestion(Document data) {
 		return CompletableFuture.supplyAsync(() -> this.suggestions.insertOne(data), this.executor);
 	}

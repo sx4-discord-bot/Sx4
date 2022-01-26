@@ -40,7 +40,6 @@ import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
 
 import java.time.Clock;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletionException;
@@ -337,30 +336,51 @@ public class SuggestionCommand extends Sx4Command {
 			filter = Filters.and(filter, argument.hasFirst() ? Filters.eq("messageId", argument.getFirst().getMessageId()) : Filters.eq("_id", argument.getSecond()));
 		}
 
-		List<Document> suggestions = event.getMongo().getSuggestions(filter, Projections.include("suggestion", "reason", "moderatorId", "authorId", "state", "image")).into(new ArrayList<>());
-		if (suggestions.isEmpty()) {
-			event.replyFailure("There are no suggestions in this server").queue();
-			return;
-		}
+		List<Bson> guildPipeline = List.of(
+			Aggregates.project(Projections.computed("states", Operators.ifNull("$suggestion.states", SuggestionState.getDefaultStates()))),
+			Aggregates.match(Filters.eq("_id", event.getGuild().getIdLong()))
+		);
 
-		PagedResult<Document> paged = new PagedResult<>(event.getBot(), suggestions)
-			.setAutoSelect(true)
-			.setIncreasedIndex(true)
-			.setDisplayFunction(data -> {
-				long authorId = data.getLong("authorId");
-				User author = event.getShardManager().getUserById(authorId);
+		List<Bson> pipeline = List.of(
+			Aggregates.match(filter),
+			Aggregates.group(null, Accumulators.push("suggestions", Operators.ROOT)),
+			Aggregates.unionWith("guilds", guildPipeline),
+			Aggregates.group(null, Accumulators.max("states", "$states"), Accumulators.max("suggestions", Operators.ifNull("$suggestions", Collections.EMPTY_LIST)))
+		);
 
-				return String.format("`%s` by %s - **%s**", data.getObjectId("_id").toHexString(), author == null ? authorId : author.getAsTag(), data.getString("state"));
+		event.getMongo().aggregateSuggestions(pipeline).whenComplete((documents, exception) -> {
+			if (ExceptionUtility.sendExceptionally(event, exception)) {
+				return;
+			}
+
+			Document data = documents.isEmpty() ? MongoDatabase.EMPTY_DOCUMENT : documents.get(0);
+
+			List<Document> suggestions = data.getList("suggestions", Document.class);
+			if (suggestions.isEmpty()) {
+				event.replyFailure("There are no suggestions in this server").queue();
+				return;
+			}
+
+			List<Document> states = data.getList("states", Document.class);
+
+			PagedResult<Document> paged = new PagedResult<>(event.getBot(), suggestions)
+				.setIncreasedIndex(true)
+				.setDisplayFunction(d -> {
+					long authorId = d.getLong("authorId");
+					User author = event.getShardManager().getUserById(authorId);
+
+					return String.format("`%s` by %s - **%s**", d.getObjectId("_id").toHexString(), author == null ? authorId : author.getAsTag(), d.getString("state"));
+				});
+
+			paged.onSelect(select -> {
+				Suggestion suggestion = Suggestion.fromData(select.getSelected());
+
+				event.reply(suggestion.getEmbed(event.getShardManager(), suggestion.getFullState(states))).queue();
 			});
 
-		paged.onSelect(select -> {
-			List<Document> states = event.getMongo().getGuildById(event.getGuild().getIdLong(), Projections.include("suggestion.states")).getEmbedded(List.of("suggestion", "states"), SuggestionState.getDefaultStates());
-			Suggestion suggestion = Suggestion.fromData(select.getSelected());
-
-			event.reply(suggestion.getEmbed(event.getShardManager(), suggestion.getFullState(states))).queue();
+			paged.execute(event);
 		});
 
-		paged.execute(event);
 	}
 
 	@Command(value="name", description="Set the name of the webhook that sends suggestion messages")
