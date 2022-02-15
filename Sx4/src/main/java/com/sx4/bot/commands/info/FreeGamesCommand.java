@@ -14,6 +14,7 @@ import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.info.EpicFreeGame;
+import com.sx4.bot.entities.info.FreeGame;
 import com.sx4.bot.formatter.Formatter;
 import com.sx4.bot.formatter.FormatterManager;
 import com.sx4.bot.formatter.JsonFormatter;
@@ -52,11 +53,11 @@ public class FreeGamesCommand extends Sx4Command {
 		super.setCategoryAll(ModuleCategory.INFORMATION);
 	}
 
-	public EmbedBuilder getGameEmbed(EpicFreeGame game) {
+	public EmbedBuilder getGameEmbed(FreeGame<?> game) {
 		return this.setGameEmbed(new EmbedBuilder(), game);
 	}
 
-	public EmbedBuilder setGameEmbed(EmbedBuilder embed, EpicFreeGame game) {
+	public EmbedBuilder setGameEmbed(EmbedBuilder embed, FreeGame<?> game) {
 		double originalPrice = game.getOriginalPriceDecimal();
 
 		embed.setTitle(game.getTitle(), game.getUrl());
@@ -135,13 +136,13 @@ public class FreeGamesCommand extends Sx4Command {
 			.setPerPage(15)
 			.setAuthor("Free Games History", null, null)
 			.setDisplayFunction(data -> {
-				EpicFreeGame game = EpicFreeGame.fromDatabase(data);
+				FreeGame<?> game = FreeGameUtility.getFreeGame(data);
 
 				return "[" + game.getTitle() + "](" + game.getUrl() + ") - " + TimeFormat.DATE_SHORT.format(game.getPromotionStart()) + " to " + TimeFormat.DATE_SHORT.format(game.getPromotionEnd());
 			});
 
 		paged.onSelect(select -> {
-			EpicFreeGame game = EpicFreeGame.fromDatabase(select.getSelected());
+			FreeGame<?> game = FreeGameUtility.getFreeGame(select.getSelected());
 
 			event.reply(this.getGameEmbed(game).build()).queue();
 		});

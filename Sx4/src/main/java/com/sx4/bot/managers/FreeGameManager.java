@@ -8,7 +8,6 @@ import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.info.EpicFreeGame;
 import com.sx4.bot.entities.info.FreeGame;
-import com.sx4.bot.entities.info.FreeGameType;
 import com.sx4.bot.entities.info.SteamFreeGame;
 import com.sx4.bot.entities.webhook.ReadonlyMessage;
 import com.sx4.bot.entities.webhook.WebhookClient;
@@ -352,15 +351,7 @@ public class FreeGameManager implements WebhookManager {
 	}
 
 	public void ensureAnnouncedGames() {
-		this.bot.getMongo().getAnnouncedGames().find().forEach(data -> {
-			FreeGameType type = FreeGameType.fromId(data.getInteger("type"));
-			this.addAnnouncedGame(
-				switch (type) {
-					case EPIC_GAMES -> EpicFreeGame.fromDatabase(data);
-					case STEAM -> SteamFreeGame.fromDatabase(data);
-				}
-			);
-		});
+		this.bot.getMongo().getAnnouncedGames().find().forEach(data -> this.addAnnouncedGame(FreeGameUtility.getFreeGame(data)));
 	}
 
 }

@@ -55,7 +55,7 @@ public class SteamFreeGame extends FreeGame<Integer> {
 
 		OffsetDateTime end = ZonedDateTime.parse(endText.substring(startIndex, endIndex), SteamFreeGame.FORMATTER).withZoneSameInstant(ZoneOffset.UTC).toOffsetDateTime();
 
-		return new SteamFreeGame(id, title, description, publisher, image, originalPrice, discountPrice, Instant.ofEpochSecond(0).atOffset(ZoneOffset.UTC), end);
+		return new SteamFreeGame(id, title, description, publisher, image, originalPrice, discountPrice, OffsetDateTime.now(), end);
 	}
 
 	public static SteamFreeGame fromDatabase(Document data) {
