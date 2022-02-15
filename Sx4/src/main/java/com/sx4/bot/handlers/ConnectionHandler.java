@@ -70,7 +70,8 @@ public class ConnectionHandler implements EventListener {
 			ExceptionUtility.safeRun(this.bot.getGiveawayManager()::ensureGiveaways);
 			ExceptionUtility.safeRun(this.bot.getYouTubeManager()::ensureSubscriptions);
 			ExceptionUtility.safeRun(this.bot.getFreeGameManager()::ensureAnnouncedGames);
-			ExceptionUtility.safeRun(this.bot.getFreeGameManager()::ensureFreeGames);
+			ExceptionUtility.safeRun(this.bot.getFreeGameManager()::ensureEpicFreeGames);
+			ExceptionUtility.safeRun(this.bot.getFreeGameManager()::ensureSteamFreeGames);
 
 			if (this.bot.getConfig().isMain()) {
 				ExceptionUtility.safeRun(this.bot.getPatreonManager()::ensurePatrons);

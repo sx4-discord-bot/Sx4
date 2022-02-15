@@ -1,6 +1,6 @@
 package com.sx4.bot.utility;
 
-import com.sx4.bot.entities.info.FreeGame;
+import com.sx4.bot.entities.info.EpicFreeGame;
 import com.sx4.bot.http.HttpCallback;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -57,36 +57,36 @@ public class FreeGameUtility {
 		return FreeGameUtility.getPromotionalOffer(data, promotions -> promotions.getList("upcomingPromotionalOffers", Document.class));
 	}
 
-	public static void retrieveFreeGames(OkHttpClient client, Predicate<Document> predicate, Consumer<List<FreeGame>> consumer) {
+	public static void retrieveFreeGames(OkHttpClient client, Predicate<Document> predicate, Consumer<List<EpicFreeGame>> consumer) {
 		client.newCall(FreeGameUtility.REQUEST).enqueue((HttpCallback) response -> {
 			Document document = Document.parse(response.body().string());
 
 			List<Document> elements = document.getEmbedded(List.of("data", "Catalog", "searchStore", "elements"), Collections.emptyList());
 
-			List<FreeGame> freeGames = elements.stream()
+			List<EpicFreeGame> freeGames = elements.stream()
 				.filter(predicate)
-				.map(FreeGame::fromData)
+				.map(EpicFreeGame::fromData)
 				.collect(Collectors.toList());
 
 			consumer.accept(freeGames);
 		});
 	}
 
-	public static void retrieveFreeGames(OkHttpClient client, Consumer<List<FreeGame>> consumer) {
+	public static void retrieveFreeGames(OkHttpClient client, Consumer<List<EpicFreeGame>> consumer) {
 		FreeGameUtility.retrieveFreeGames(client, game -> {
 			Document offer = FreeGameUtility.getPromotionalOffer(game);
 			return offer != null && offer.getEmbedded(List.of("discountSetting", "discountPercentage"), Integer.class) == 0;
 		}, consumer);
 	}
 
-	public static void retrieveCurrentFreeGames(OkHttpClient client, Consumer<List<FreeGame>> consumer) {
+	public static void retrieveCurrentFreeGames(OkHttpClient client, Consumer<List<EpicFreeGame>> consumer) {
 		FreeGameUtility.retrieveFreeGames(client, game -> {
 			Document offer = FreeGameUtility.getCurrentPromotionalOffer(game);
 			return offer != null && offer.getEmbedded(List.of("discountSetting", "discountPercentage"), Integer.class) == 0;
 		}, consumer);
 	}
 
-	public static void retrieveUpcomingFreeGames(OkHttpClient client, Consumer<List<FreeGame>> consumer) {
+	public static void retrieveUpcomingFreeGames(OkHttpClient client, Consumer<List<EpicFreeGame>> consumer) {
 		FreeGameUtility.retrieveFreeGames(client, game -> {
 			Document offer = FreeGameUtility.getUpcomingPromotionalOffer(game);
 			return offer != null && offer.getEmbedded(List.of("discountSetting", "discountPercentage"), Integer.class) == 0;

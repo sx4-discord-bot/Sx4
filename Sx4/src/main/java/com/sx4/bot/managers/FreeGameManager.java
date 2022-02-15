@@ -6,20 +6,27 @@ import com.mongodb.client.model.*;
 import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.database.mongo.model.Operators;
+import com.sx4.bot.entities.info.EpicFreeGame;
 import com.sx4.bot.entities.info.FreeGame;
+import com.sx4.bot.entities.info.FreeGameType;
+import com.sx4.bot.entities.info.SteamFreeGame;
 import com.sx4.bot.entities.webhook.ReadonlyMessage;
 import com.sx4.bot.entities.webhook.WebhookClient;
-import com.sx4.bot.exceptions.mod.BotPermissionException;
 import com.sx4.bot.formatter.Formatter;
 import com.sx4.bot.formatter.JsonFormatter;
+import com.sx4.bot.http.HttpCallback;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.FreeGameUtility;
+import com.sx4.bot.utility.FutureUtility;
 import com.sx4.bot.utility.MessageUtility;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.TextChannel;
 import okhttp3.OkHttpClient;
+import okhttp3.Request;
 import org.bson.Document;
 import org.bson.conversions.Bson;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Element;
 
 import java.time.Duration;
 import java.time.OffsetDateTime;
@@ -45,12 +52,13 @@ public class FreeGameManager implements WebhookManager {
 
 	private final Sx4 bot;
 
-	private final Map<String, List<FreeGame>> announcedGames;
-	private final List<FreeGame> queuedGames;
+	private final Map<Object, List<FreeGame<?>>> announcedGames;
+	private final List<EpicFreeGame> queuedGames;
 
 	private final Map<Long, WebhookClient> webhooks;
 
-	private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+	private final ScheduledExecutorService epicExecutor = Executors.newSingleThreadScheduledExecutor();
+	private final ScheduledExecutorService steamExecutor = Executors.newSingleThreadScheduledExecutor();
 
 	private final ScheduledExecutorService webhookExecutor = Executors.newSingleThreadScheduledExecutor();
 	private final OkHttpClient client = new OkHttpClient();
@@ -62,8 +70,8 @@ public class FreeGameManager implements WebhookManager {
 		this.announcedGames = new HashMap<>();
 	}
 
-	public boolean isAnnounced(FreeGame game) {
-		List<FreeGame> announcedGames = this.announcedGames.get(game.getId());
+	public boolean isAnnounced(FreeGame<?> game) {
+		List<FreeGame<?>> announcedGames = this.announcedGames.get(game.getId());
 		if (announcedGames == null) {
 			return false;
 		}
@@ -71,10 +79,10 @@ public class FreeGameManager implements WebhookManager {
 		return announcedGames.stream().anyMatch(g -> g.getPromotionStart().equals(game.getPromotionStart()) && g.getPromotionEnd().equals(game.getPromotionEnd()));
 	}
 
-	public void addAnnouncedGame(FreeGame game) {
+	public void addAnnouncedGame(FreeGame<?> game) {
 		this.announcedGames.compute(game.getId(), (key, value) -> {
 			if (value == null) {
-				List<FreeGame> games = new ArrayList<>();
+				List<FreeGame<?>> games = new ArrayList<>();
 				games.add(game);
 				return games;
 			} else {
@@ -106,10 +114,10 @@ public class FreeGameManager implements WebhookManager {
 		this.bot.getMongo().updateFreeGameChannel(Filters.eq("channelId", channel.getIdLong()), update, new UpdateOptions()).whenComplete(MongoDatabase.exceptionally());
 	}
 
-	private CompletableFuture<ReadonlyMessage> createWebhook(TextChannel channel, WebhookMessage message) {
+	private CompletableFuture<List<ReadonlyMessage>> createWebhook(TextChannel channel, List<WebhookMessage> messages) {
 		if (!channel.getGuild().getSelfMember().hasPermission(channel, Permission.MANAGE_WEBHOOKS)) {
 			this.disableFreeGameChannel(channel);
-			return CompletableFuture.failedFuture(new BotPermissionException(Permission.MANAGE_WEBHOOKS));
+			return CompletableFuture.completedFuture(Collections.emptyList());
 		}
 
 		return channel.createWebhook("Sx4 - Free Games").submit().thenCompose(webhook -> {
@@ -122,180 +130,157 @@ public class FreeGameManager implements WebhookManager {
 				Updates.set("webhook.token", webhook.getToken())
 			);
 
+			Document webhookData = new Document("webhook", new Document("id", webhook.getIdLong()).append("token", webhook.getToken()));
+
 			return this.bot.getMongo().updateFreeGameChannel(Filters.eq("channelId", channel.getIdLong()), update, new UpdateOptions())
-				.thenCompose(result -> webhookClient.send(message))
-				.thenApply(webhookMessage -> new ReadonlyMessage(webhookMessage, webhook.getIdLong(), webhook.getToken()));
+				.thenCompose(result -> this.sendFreeGameNotificationMessages(channel, webhookData, messages));
 		}).exceptionallyCompose(exception -> {
 			Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
 			if (cause instanceof HttpException && ((HttpException) cause).getCode() == 404) {
 				this.webhooks.remove(channel.getIdLong());
 
-				return this.createWebhook(channel, message);
+				return this.createWebhook(channel, messages);
 			}
 
-			return CompletableFuture.failedFuture(exception);
+			return CompletableFuture.completedFuture(Collections.emptyList());
 		});
 	}
 
-	public CompletableFuture<ReadonlyMessage> sendFreeGameNotification(TextChannel channel, Document webhookData, WebhookMessage message) {
+	public CompletableFuture<List<ReadonlyMessage>> sendFreeGameNotificationMessages(TextChannel channel, Document webhookData, List<WebhookMessage> messages) {
 		WebhookClient webhook;
 		if (this.webhooks.containsKey(channel.getIdLong())) {
 			webhook = this.webhooks.get(channel.getIdLong());
 		} else if (!webhookData.containsKey("id")) {
-			return this.createWebhook(channel, message);
+			return this.createWebhook(channel, messages);
 		} else {
 			webhook = new WebhookClient(webhookData.getLong("id"), webhookData.getString("token"), this.webhookExecutor, this.client);
 
 			this.webhooks.put(channel.getIdLong(), webhook);
 		}
 
-		return webhook.send(message)
-			.thenApply(webhookMessage -> new ReadonlyMessage(webhookMessage, webhook.getId(), webhook.getToken()))
-			.exceptionallyCompose(exception -> {
-				Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
-				if (cause instanceof HttpException && ((HttpException) cause).getCode() == 404) {
-					this.webhooks.remove(channel.getIdLong());
+		List<ReadonlyMessage> completedMessages = new ArrayList<>();
 
-					return this.createWebhook(channel, message);
-				}
+		CompletableFuture<Boolean> future = CompletableFuture.completedFuture(null);
+		for (WebhookMessage message : messages) {
+			future = future.thenCompose($ -> webhook.send(message))
+				.thenApply(webhookMessage -> completedMessages.add(new ReadonlyMessage(webhookMessage, webhook.getId(), webhook.getToken())));
+		}
 
-				return CompletableFuture.failedFuture(exception);
-			});
+		return future.thenApply($ -> completedMessages);
 	}
 
-	public void scheduleFreeGameNotification(long duration, List<FreeGame> games) {
-		this.scheduleFreeGameNotification(duration, games, true);
+	public CompletableFuture<List<ReadonlyMessage>> sendFreeGameNotifications(List<? extends FreeGame<?>> games) {
+		List<Bson> guildPipeline = List.of(
+			Aggregates.match(Operators.expr(Operators.eq("$_id", "$$guildId"))),
+			Aggregates.project(Projections.computed("premium", Operators.lt(Operators.nowEpochSecond(), Operators.ifNull("$premium.endAt", 0L))))
+		);
+
+		List<Bson> pipeline = List.of(
+			Aggregates.lookup("guilds", List.of(new Variable<>("guildId", "$guildId")), guildPipeline, "premium"),
+			Aggregates.addFields(new Field<>("premium", Operators.cond(Operators.isEmpty("$premium"), false, Operators.get(Operators.arrayElemAt("$premium", 0), "premium"))))
+		);
+
+		return this.bot.getMongo().aggregateFreeGameChannels(pipeline).thenComposeAsync(documents -> {
+			List<CompletableFuture<List<ReadonlyMessage>>> futures = new ArrayList<>();
+			for (Document data : documents) {
+				if (!data.getBoolean("enabled", true)) {
+					continue;
+				}
+
+				TextChannel channel = this.bot.getShardManager().getTextChannelById(data.getLong("channelId"));
+				if (channel == null) {
+					continue;
+				}
+
+				String avatar = channel.getJDA().getSelfUser().getEffectiveAvatarUrl();
+				boolean premium = data.getBoolean("premium");
+				Document webhookData = data.get("webhook", MongoDatabase.EMPTY_DOCUMENT);
+
+				List<WebhookMessage> messages = new ArrayList<>();
+				for (FreeGame<?> game : games) {
+					Formatter<Document> formatter = new JsonFormatter(data.get("message", FreeGameManager.DEFAULT_MESSAGE))
+						.addVariable("game", game);
+
+					WebhookMessage message = MessageUtility.fromJson(formatter.parse())
+						.setAvatarUrl(premium ? webhookData.get("avatar", avatar) : avatar)
+						.setUsername(premium ? webhookData.get("name", "Sx4 - Free Games") : "Sx4 - Free Games")
+						.build();
+
+					messages.add(message);
+				}
+
+				futures.add(this.sendFreeGameNotificationMessages(channel, webhookData, messages));
+			}
+
+			List<Document> gameData = games.stream().map(FreeGame::toData).collect(Collectors.toList());
+			if (!gameData.isEmpty()) {
+				this.bot.getMongo().insertManyAnnouncedGames(gameData).whenComplete(MongoDatabase.exceptionally());
+			}
+
+			return FutureUtility.allOf(futures).thenApply(list -> list.stream().flatMap(List::stream).collect(Collectors.toList()));
+		});
 	}
 
-	public void scheduleFreeGameNotification(long duration, List<FreeGame> games, boolean schedule) {
-		this.executor.schedule(() -> {
-			List<Bson> guildPipeline = List.of(
-				Aggregates.match(Operators.expr(Operators.eq("$_id", "$$guildId"))),
-				Aggregates.project(Projections.computed("premium", Operators.lt(Operators.nowEpochSecond(), Operators.ifNull("$premium.endAt", 0L))))
-			);
+	public void scheduleEpicFreeGameNotifications(long duration, List<EpicFreeGame> games) {
+		this.scheduleEpicFreeGameNotifications(duration, games, true);
+	}
 
-			List<Bson> pipeline = List.of(
-				Aggregates.lookup("guilds", List.of(new Variable<>("guildId", "$guildId")), guildPipeline, "premium"),
-				Aggregates.addFields(new Field<>("premium", Operators.cond(Operators.isEmpty("$premium"), false, Operators.get(Operators.arrayElemAt("$premium", 0), "premium"))))
-			);
+	public void scheduleEpicFreeGameNotifications(long duration, List<EpicFreeGame> games, boolean schedule) {
+		this.epicExecutor.schedule(() -> {
+			this.sendFreeGameNotifications(games).whenComplete(MongoDatabase.exceptionally());
 
-			this.bot.getMongo().aggregateFreeGameChannels(pipeline).whenComplete((documents, exception) -> {
-				if (ExceptionUtility.sendErrorMessage(exception)) {
-					return;
-				}
+			if (schedule) {
+				Set<String> ids = games.stream()
+					.filter(EpicFreeGame::isMysteryGame)
+					.map(EpicFreeGame::getId)
+					.collect(Collectors.toSet());
 
-				if (schedule) {
-					Set<String> ids = games.stream()
-						.filter(FreeGame::isMysteryGame)
-						.map(FreeGame::getId)
-						.collect(Collectors.toSet());
-
-					this.ensureFreeGames(ids);
-					this.queuedGames.removeAll(games);
-				}
-
-				this.bot.getExecutor().submit(() -> {
-					documents.forEach(data -> {
-						if (!data.getBoolean("enabled", true)) {
-							return;
-						}
-
-						TextChannel channel = this.bot.getShardManager().getTextChannelById(data.getLong("channelId"));
-						if (channel == null) {
-							return;
-						}
-
-						String avatar = channel.getJDA().getSelfUser().getEffectiveAvatarUrl();
-						boolean premium = data.getBoolean("premium");
-						Document webhookData = data.get("webhook", MongoDatabase.EMPTY_DOCUMENT);
-
-						List<WebhookMessage> messages = new ArrayList<>();
-						for (FreeGame game : games) {
-							if (game.isMysteryGame()) {
-								continue;
-							}
-
-							Formatter<Document> formatter = new JsonFormatter(data.get("message", FreeGameManager.DEFAULT_MESSAGE))
-								.addVariable("game", game);
-
-							WebhookMessage message = MessageUtility.fromJson(formatter.parse())
-								.setAvatarUrl(premium ? webhookData.get("avatar", avatar) : avatar)
-								.setUsername(premium ? webhookData.get("name", "Sx4 - Free Games") : "Sx4 - Free Games")
-								.build();
-
-							messages.add(message);
-						}
-
-						if (messages.isEmpty()) {
-							return;
-						}
-
-						CompletableFuture<ReadonlyMessage> future = CompletableFuture.completedFuture(null);
-						for (WebhookMessage message : messages) {
-							future = future.thenCompose($ -> this.sendFreeGameNotification(channel, webhookData, message));
-						}
-
-						future.whenComplete(MongoDatabase.exceptionally());
-					});
-				});
-
-				List<Document> gameData = new ArrayList<>();
-				for (FreeGame game : games) {
-					if (game.isMysteryGame()) {
-						continue;
-					}
-
-					gameData.add(game.toData());
-					this.addAnnouncedGame(game);
-				}
-
-				if (!gameData.isEmpty()) {
-					this.bot.getMongo().insertManyAnnouncedGames(gameData).whenComplete(MongoDatabase.exceptionally());
-				}
-			});
+				this.ensureEpicFreeGames(ids);
+				this.queuedGames.removeAll(games);
+			}
 		}, duration, TimeUnit.SECONDS);
 	}
 
-	public void ensureFreeGames(Set<String> ids) {
+	public void ensureEpicFreeGames(Set<String> ids) {
 		FreeGameUtility.retrieveFreeGames(this.bot.getHttpClient(), games -> {
 			OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
 
-			List<FreeGame> mysteryGames = games.stream()
-				.filter(Predicate.not(FreeGame::isMysteryGame))
+			List<EpicFreeGame> mysteryGames = games.stream()
+				.filter(Predicate.not(EpicFreeGame::isMysteryGame))
 				.filter(game -> ids.contains(game.getId()))
 				.collect(Collectors.toList());
 
 			if (mysteryGames.size() != ids.size()) {
-				this.executor.schedule(() -> this.ensureFreeGames(ids), 1, TimeUnit.MINUTES);
+				this.epicExecutor.schedule(() -> this.ensureEpicFreeGames(ids), 1, TimeUnit.MINUTES);
 				return;
 			}
 
 			// Add unaccounted for games in the case Epic Games releases more free games than shown
-			List<FreeGame> currentGames = games.stream()
+			List<EpicFreeGame> currentGames = games.stream()
 				.filter(Predicate.not(this::isAnnounced))
 				.filter(game -> !game.getPromotionStart().isAfter(now) && game.getPromotionEnd().isAfter(now))
 				.collect(Collectors.toList());
 
 			mysteryGames.addAll(currentGames);
 
-			this.scheduleFreeGameNotification(0, mysteryGames, false);
+			this.scheduleEpicFreeGameNotifications(0, mysteryGames, false);
 
-			List<FreeGame> upcomingGames = games.stream()
+			List<EpicFreeGame> upcomingGames = games.stream()
 				.filter(game -> game.getPromotionStart().isAfter(now))
 				.sorted(Comparator.comparing(game -> Duration.between(now, game.getPromotionStart())))
 				.collect(Collectors.toList());
 
-			FreeGame newestGame = upcomingGames.get(0);
+			EpicFreeGame newestGame = upcomingGames.get(0);
 			OffsetDateTime promotionStart = newestGame.getPromotionStart();
 			if (!promotionStart.isAfter(now)) {
 				// re-request games as they have not been refreshed on the API
-				this.executor.schedule((Runnable) this::ensureFreeGames, 10, TimeUnit.MINUTES);
+				this.epicExecutor.schedule((Runnable) this::ensureEpicFreeGames, 10, TimeUnit.MINUTES);
 				return;
 			}
 
 			this.queuedGames.add(newestGame);
 
-			for (FreeGame game : games.subList(1, games.size())) {
+			for (EpicFreeGame game : games.subList(1, games.size())) {
 				if (game.getPromotionStart().equals(promotionStart)) {
 					this.queuedGames.add(game);
 				} else {
@@ -303,16 +288,79 @@ public class FreeGameManager implements WebhookManager {
 				}
 			}
 
-			this.scheduleFreeGameNotification(Duration.between(now, promotionStart).toSeconds() + 5, this.queuedGames);
+			this.scheduleEpicFreeGameNotifications(Duration.between(now, promotionStart).toSeconds() + 5, this.queuedGames);
 		});
 	}
 
-	public void ensureFreeGames() {
-		this.ensureFreeGames(Collections.emptySet());
+	public void ensureEpicFreeGames() {
+		this.ensureEpicFreeGames(Collections.emptySet());
+	}
+
+	public void ensureSteamFreeGames() {
+		this.steamExecutor.scheduleAtFixedRate(() -> {
+			Request resultRequest = new Request.Builder()
+				.url("https://store.steampowered.com/search/?maxprice=free&specials=1&cc=gb")
+				.addHeader("Accept-Language", "en")
+				.build();
+
+			this.bot.getHttpClient().newCall(resultRequest).enqueue((HttpCallback) resultResponse -> {
+				org.jsoup.nodes.Document resultsDocument = Jsoup.parse(resultResponse.body().string());
+
+				Element results = resultsDocument.getElementById("search_resultsRows");
+
+				List<CompletableFuture<SteamFreeGame>> futures = new ArrayList<>();
+				for (Element result : results.children()) {
+					Element discount = result.getElementsByClass("col search_discount responsive_secondrow").first();
+					// Just in case steam search is inaccurate
+					if (!discount.text().equals("-100%")) {
+						continue;
+					}
+
+					int id = Integer.parseInt(result.attr("data-ds-appid"));
+
+					Request gameRequest = new Request.Builder()
+						.url("https://store.steampowered.com/app/" + id + "?cc=gb")
+						.addHeader("Accept-Language", "en")
+						.build();
+
+					CompletableFuture<SteamFreeGame> future = new CompletableFuture<>();
+					this.bot.getHttpClient().newCall(gameRequest).enqueue((HttpCallback) gameResponse -> {
+						org.jsoup.nodes.Document document = Jsoup.parse(gameResponse.body().string());
+						Element content = document.getElementsByClass("page_content_ctn").first();
+
+						SteamFreeGame game = SteamFreeGame.fromData(id, content);
+						if (this.isAnnounced(game)) {
+							future.complete(null);
+							return;
+						}
+
+						future.complete(game);
+					});
+
+					futures.add(future);
+				}
+
+				FutureUtility.allOf(futures, Objects::nonNull).whenComplete((games, exception) -> {
+					if (ExceptionUtility.sendErrorMessage(exception)) {
+						return;
+					}
+
+					this.sendFreeGameNotifications(games).whenComplete(MongoDatabase.exceptionally());
+				});
+			});
+		}, 0, 30, TimeUnit.MINUTES);
 	}
 
 	public void ensureAnnouncedGames() {
-		this.bot.getMongo().getAnnouncedGames().find().forEach(data -> this.addAnnouncedGame(FreeGame.fromDatabase(data)));
+		this.bot.getMongo().getAnnouncedGames().find().forEach(data -> {
+			FreeGameType type = FreeGameType.fromId(data.getInteger("type"));
+			this.addAnnouncedGame(
+				switch (type) {
+					case EPIC_GAMES -> EpicFreeGame.fromDatabase(data);
+					case STEAM -> SteamFreeGame.fromDatabase(data);
+				}
+			);
+		});
 	}
 
 }

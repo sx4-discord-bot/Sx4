@@ -16,17 +16,20 @@ public class ClassUtility {
 		Class<?>[] classes = new Class<?>[types.length];
 		for (int i = 0; i < types.length; i++) {
 			Type type = types[i];
-			if (start == null && type instanceof ParameterizedType) {
-				type = ((ParameterizedType) type).getRawType();
-			} else {
-				while (type instanceof ParameterizedType parameterizedType) {
-					if (parameterizedType.getRawType() == start) {
-						return ClassUtility.getParameterTypes(parameterizedType, start);
-					}
+
+			Class<?> clazz;
+			if (type instanceof ParameterizedType parameterizedType) {
+				Class<?> rawType = (Class<?>) parameterizedType.getRawType();
+				if (rawType == start) {
+					return ClassUtility.getParameterTypes(parameterizedType, start);
 				}
+
+				clazz = rawType;
+			} else {
+				clazz = (Class<?>) type;
 			}
 
-			classes[i] = (Class<?>) type;
+			classes[i] = clazz;
 		}
 
 		return classes;
