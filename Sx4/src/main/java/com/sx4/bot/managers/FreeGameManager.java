@@ -75,7 +75,7 @@ public class FreeGameManager implements WebhookManager {
 			return false;
 		}
 
-		return announcedGames.stream().anyMatch(g -> g.getPromotionStart().equals(game.getPromotionStart()) && g.getPromotionEnd().equals(game.getPromotionEnd()));
+		return announcedGames.stream().anyMatch(g -> g.getPromotionEnd().equals(game.getPromotionEnd()));
 	}
 
 	public void addAnnouncedGame(FreeGame<?> game) {
@@ -165,7 +165,16 @@ public class FreeGameManager implements WebhookManager {
 				.thenApply(webhookMessage -> completedMessages.add(new ReadonlyMessage(webhookMessage, webhook.getId(), webhook.getToken())));
 		}
 
-		return future.thenApply($ -> completedMessages);
+		return future.thenApply($ -> completedMessages).exceptionallyCompose(exception -> {
+			Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
+			if (cause instanceof HttpException && ((HttpException) cause).getCode() == 404) {
+				this.webhooks.remove(channel.getIdLong());
+
+				return this.createWebhook(channel, messages);
+			}
+
+			return CompletableFuture.completedFuture(Collections.emptyList());
+		});
 	}
 
 	public CompletableFuture<List<ReadonlyMessage>> sendFreeGameNotifications(List<? extends FreeGame<?>> games) {
@@ -221,22 +230,16 @@ public class FreeGameManager implements WebhookManager {
 	}
 
 	public void scheduleEpicFreeGameNotifications(long duration, List<EpicFreeGame> games) {
-		this.scheduleEpicFreeGameNotifications(duration, games, true);
-	}
-
-	public void scheduleEpicFreeGameNotifications(long duration, List<EpicFreeGame> games, boolean schedule) {
 		this.epicExecutor.schedule(() -> {
 			this.sendFreeGameNotifications(games).whenComplete(MongoDatabase.exceptionally());
 
-			if (schedule) {
-				Set<String> ids = games.stream()
-					.filter(EpicFreeGame::isMysteryGame)
-					.map(EpicFreeGame::getId)
-					.collect(Collectors.toSet());
+			Set<String> ids = games.stream()
+				.filter(EpicFreeGame::isMysteryGame)
+				.map(EpicFreeGame::getId)
+				.collect(Collectors.toSet());
 
-				this.ensureEpicFreeGames(ids);
-				this.queuedGames.removeAll(games);
-			}
+			this.ensureEpicFreeGames(ids);
+			this.queuedGames.removeAll(games);
 		}, duration, TimeUnit.SECONDS);
 	}
 
@@ -262,7 +265,7 @@ public class FreeGameManager implements WebhookManager {
 
 			mysteryGames.addAll(currentGames);
 
-			this.scheduleEpicFreeGameNotifications(0, mysteryGames, false);
+			this.sendFreeGameNotifications(mysteryGames);
 
 			List<EpicFreeGame> upcomingGames = games.stream()
 				.filter(game -> game.getPromotionStart().isAfter(now))
@@ -306,6 +309,9 @@ public class FreeGameManager implements WebhookManager {
 				org.jsoup.nodes.Document resultsDocument = Jsoup.parse(resultResponse.body().string());
 
 				Element results = resultsDocument.getElementById("search_resultsRows");
+				if (results == null) {
+					return;
+				}
 
 				List<CompletableFuture<SteamFreeGame>> futures = new ArrayList<>();
 				for (Element result : results.children()) {
