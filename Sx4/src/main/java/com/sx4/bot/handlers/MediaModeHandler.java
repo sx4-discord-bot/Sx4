@@ -15,6 +15,7 @@ import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent;
 import net.dv8tion.jda.api.events.message.guild.GuildMessageUpdateEvent;
 import net.dv8tion.jda.api.hooks.EventListener;
 import org.bson.Document;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.EnumSet;
 
@@ -74,7 +75,7 @@ public class MediaModeHandler implements EventListener {
 	}
 
 	@Override
-	public void onEvent(GenericEvent event) {
+	public void onEvent(@NotNull GenericEvent event) {
 		if (event instanceof GuildMessageReceivedEvent) {
 			this.onGuildMessageReceived((GuildMessageReceivedEvent) event);
 		} else if (event instanceof GuildMessageUpdateEvent) {

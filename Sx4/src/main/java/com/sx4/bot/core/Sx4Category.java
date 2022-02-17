@@ -7,6 +7,7 @@ import java.util.stream.Collectors;
 import com.jockie.bot.core.category.ICategory;
 import com.jockie.bot.core.category.impl.CategoryImpl;
 import com.jockie.bot.core.command.ICommand;
+import org.jetbrains.annotations.NotNull;
 
 public class Sx4Category extends CategoryImpl {
 	
@@ -28,19 +29,19 @@ public class Sx4Category extends CategoryImpl {
 		return this.aliases;
 	}
 	
-	public ICategory addCommand(ICommand command) {
+	public @NotNull ICategory addCommand(ICommand command) {
 		this.commands.add(command);
 		
 		return this;
 	}
 	
-	public ICategory removeCommand(ICommand command) {
+	public @NotNull ICategory removeCommand(ICommand command) {
 		this.commands.remove(command);
 		
 		return this;
 	}
 	
-	public Set<ICommand> getCommands() {
+	public @NotNull Set<ICommand> getCommands() {
 		return this.getCommands(false);
 	}
 	

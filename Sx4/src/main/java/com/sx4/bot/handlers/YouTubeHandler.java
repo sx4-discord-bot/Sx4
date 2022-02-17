@@ -22,6 +22,7 @@ import net.dv8tion.jda.api.hooks.EventListener;
 import net.dv8tion.jda.api.sharding.ShardManager;
 import org.bson.Document;
 import org.bson.conversions.Bson;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -127,7 +128,7 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 		this.bot.getMongo().insertYouTubeNotificationLog(data).whenComplete(MongoDatabase.exceptionally());
 	}
 
-	public void onEvent(GenericEvent event) {
+	public void onEvent(@NotNull GenericEvent event) {
 		if (event instanceof TextChannelDeleteEvent) {
 			long channelId = ((TextChannelDeleteEvent) event).getChannel().getIdLong();
 

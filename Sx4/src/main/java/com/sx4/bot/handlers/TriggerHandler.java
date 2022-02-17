@@ -16,6 +16,7 @@ import net.dv8tion.jda.api.events.message.guild.GuildMessageUpdateEvent;
 import net.dv8tion.jda.api.hooks.EventListener;
 import okhttp3.OkHttpClient;
 import org.bson.Document;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -77,7 +78,7 @@ public class TriggerHandler implements EventListener {
 	}
 
 	@Override
-	public void onEvent(GenericEvent event) {
+	public void onEvent(@NotNull GenericEvent event) {
 		if (event instanceof GuildMessageReceivedEvent) {
 			this.handle(((GuildMessageReceivedEvent) event).getMessage());
 		} else if (event instanceof GuildMessageUpdateEvent) {

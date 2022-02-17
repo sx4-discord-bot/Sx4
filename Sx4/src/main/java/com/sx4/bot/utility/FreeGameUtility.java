@@ -17,7 +17,7 @@ import java.util.stream.Collectors;
 
 public class FreeGameUtility {
 
-	public static Request REQUEST = new Request.Builder()
+	public static final Request REQUEST = new Request.Builder()
 		.url("https://store-site-backend-static-ipv4.ak.epicgames.com/freeGamesPromotions?locale=en-US&country=GB&allowCountries=GB")
 		.build();
 

@@ -12,7 +12,7 @@ import java.util.List;
 
 public class CommandUtility {
 
-	@SuppressWarnings("rawtypes")
+	@SuppressWarnings({"rawtypes", "unchecked"})
 	public static List<?> getBuilderConfigureFunctions(ArgumentFactoryImpl argumentFactory, Class<?> clazz) {
 		List<?> functions = new ArrayList<>(argumentFactory.getBuilderConfigureFunctions(clazz));
 

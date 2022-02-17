@@ -81,7 +81,7 @@ public class Config {
 		return this.set(path.split("\\."), value);
 	}
 
-	public Config set(String[] path, Object value) throws IOException {
+	public Config set(String[] path, Object value) {
 		return this.set(Arrays.asList(path), value);
 	}
 

@@ -8,6 +8,7 @@ import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.events.message.MessageUpdateEvent;
 import net.dv8tion.jda.api.hooks.EventListener;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.Objects;
 
@@ -63,7 +64,7 @@ public class MessageCache implements EventListener {
 	}
 
 	@Override
-	public void onEvent(GenericEvent event) {
+	public void onEvent(@NotNull GenericEvent event) {
 		if (event instanceof MessageReceivedEvent) {
 			this.putMessage(GuildMessage.fromMessage(((MessageReceivedEvent) event).getMessage()));
 		} else if (event instanceof MessageUpdateEvent) {

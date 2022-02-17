@@ -12,7 +12,6 @@ import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.economy.item.*;
-import com.sx4.bot.entities.utility.TimeFormatter;
 import com.sx4.bot.managers.EconomyManager;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.EconomyUtility;
@@ -210,7 +209,7 @@ public class MinerCommand extends Sx4Command {
 			EmbedBuilder embed = new EmbedBuilder()
 				.setAuthor(event.getAuthor().getName(), null, event.getAuthor().getEffectiveAvatarUrl())
 				.setColor(event.getMember().getColor())
-				.setDescription(String.format("You used your miners and gathered **%,d** material%s%s", total, total == 1 ? "" : "s", total == 0 ? "" : "\n\n" + content.toString()));
+				.setDescription(String.format("You used your miners and gathered **%,d** material%s%s", total, total == 1 ? "" : "s", total == 0 ? "" : "\n\n" + content));
 
 			return embed.build();
 		}).whenComplete((embed, exception) -> {

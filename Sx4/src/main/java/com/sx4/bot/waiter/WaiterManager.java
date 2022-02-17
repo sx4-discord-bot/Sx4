@@ -97,9 +97,8 @@ public class WaiterManager {
 	}
 	
 	public void checkWaiters(GenericEvent event, Class<?> clazz) {
-		if (event instanceof MessageReceivedEvent) {
-			MessageReceivedEvent messageEvent = (MessageReceivedEvent) event;
-			
+		if (event instanceof MessageReceivedEvent messageEvent) {
+
 			Map<Long, Waiter<?>> users = this.uniqueWaiters.get(messageEvent.getChannel().getIdLong());
 			if (users != null) {
 				Waiter<?> waiter = users.get(messageEvent.getAuthor().getIdLong());

@@ -42,7 +42,7 @@ public class ShardInfoCommand extends Sx4Command {
 
 				page.forEach((shard, index) -> {
 					String currentShard = shardInfo.getShardId() == index ? "\\> " : "";
-					embed.addField(currentShard + "Shard " + (index + 1), String.format("%,d servers\n%,d members\n%dms\n%s", shard.getGuilds().size(), shard.getUsers().size(), shard.getGatewayPing(), shard.getStatus().toString()), true);
+					embed.addField(currentShard + "Shard " + (index + 1), String.format("%,d servers\n%,d members\n%dms\n%s", shard.getGuilds().size(), shard.getUsers().size(), shard.getGatewayPing(), shard.getStatus()), true);
 				});
 
 				return new MessageBuilder().setEmbeds(embed.build());

@@ -537,8 +537,7 @@ public class TriggerCommand extends Sx4Command {
 					} else {
 						action.append("emote", new Document("name", reactionEmote.getEmoji()));
 					}
-				} else if (emote instanceof Document) {
-					Document emoteData = (Document) emote;
+				} else if (emote instanceof Document emoteData) {
 
 					Object name = emoteData.get("name"), emoteId = emoteData.get("id");
 					if (name instanceof String) {

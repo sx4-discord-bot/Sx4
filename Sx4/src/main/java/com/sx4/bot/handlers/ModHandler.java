@@ -35,6 +35,7 @@ import net.dv8tion.jda.api.hooks.EventListener;
 import net.dv8tion.jda.api.requests.ErrorResponse;
 import org.bson.Document;
 import org.bson.conversions.Bson;
+import org.jetbrains.annotations.NotNull;
 
 import java.time.*;
 import java.util.List;
@@ -204,28 +205,25 @@ public class ModHandler implements ModActionListener, EventListener {
 
 
 	@Override
-	public void onEvent(GenericEvent event) {
+	public void onEvent(@NotNull GenericEvent event) {
 		Guild guild;
 		User user;
 		ActionType actionType;
 		Action action;
 
-		if (event instanceof GuildMemberRemoveEvent) {
-			GuildMemberRemoveEvent removeEvent = (GuildMemberRemoveEvent) event;
+		if (event instanceof GuildMemberRemoveEvent removeEvent) {
 
 			guild = removeEvent.getGuild();
 			user = removeEvent.getUser();
 			actionType = ActionType.KICK;
 			action = new Action(ModAction.KICK);
-		} else if (event instanceof GuildBanEvent) {
-			GuildBanEvent banEvent = (GuildBanEvent) event;
+		} else if (event instanceof GuildBanEvent banEvent) {
 
 			guild = banEvent.getGuild();
 			user = banEvent.getUser();
 			actionType = ActionType.BAN;
 			action = new Action(ModAction.BAN);
-		} else if (event instanceof GuildUnbanEvent) {
-			GuildUnbanEvent unbanEvent = (GuildUnbanEvent) event;
+		} else if (event instanceof GuildUnbanEvent unbanEvent) {
 
 			guild = unbanEvent.getGuild();
 			user = unbanEvent.getUser();

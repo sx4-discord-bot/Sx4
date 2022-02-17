@@ -18,7 +18,6 @@ import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.mod.Reason;
-import com.sx4.bot.entities.utility.TimeFormatter;
 import com.sx4.bot.events.mod.TemporaryBanEvent;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;

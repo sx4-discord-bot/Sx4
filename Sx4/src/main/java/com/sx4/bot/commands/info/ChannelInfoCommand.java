@@ -36,22 +36,19 @@ public class ChannelInfoCommand extends Sx4Command {
 			.addField("Channel ID", channel.getId(), true)
 			.addField("Members", String.valueOf(channel.getMembers().size()), true);
 
-		if (channel instanceof TextChannel) {
-			TextChannel textChannel = (TextChannel) channel;
+		if (channel instanceof TextChannel textChannel) {
 			embed.addField("NSFW Channel", textChannel.isNSFW() ? "Yes" : "No", true);
 			embed.addField("Slow Mode", textChannel.getSlowmode() != 0 ? TimeUtility.LONG_TIME_FORMATTER.parse(Duration.of(textChannel.getSlowmode(), ChronoUnit.SECONDS)) : "No Slowmode Set", true);
 			embed.addField("Channel Category", textChannel.getParent() == null ? "Not in a Category" : textChannel.getParent().getName(), true);
 			embed.addField("Announcement Channel", textChannel.isNews() ? "Yes" : "No", true);
-		} else if (channel instanceof VoiceChannel) {
-			VoiceChannel voiceChannel = (VoiceChannel) channel;
+		} else if (channel instanceof VoiceChannel voiceChannel) {
 			Region region = voiceChannel.getRegion();
 
 			embed.addField("Channel Category", voiceChannel.getParent() == null ? "Not in a Category" : voiceChannel.getParent().getName(), true);
 			embed.addField("Voice Region", region.getName() + (region == Region.AUTOMATIC ? "" : " " + region.getEmoji()), true);
 			embed.addField("User Limit", voiceChannel.getUserLimit() == 0 ? "Unlimited" : String.valueOf(voiceChannel.getUserLimit()), true);
 			embed.addField("Bitrate", voiceChannel.getBitrate() / 1000 + " kbps", true);
-		} else if (channel instanceof Category) {
-			Category category = (Category) channel;
+		} else if (channel instanceof Category category) {
 
 			StringBuilder builder = new StringBuilder();
 

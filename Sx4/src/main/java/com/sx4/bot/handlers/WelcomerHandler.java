@@ -20,6 +20,7 @@ import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.hooks.EventListener;
 import net.dv8tion.jda.api.requests.ErrorResponse;
 import org.bson.Document;
+import org.jetbrains.annotations.NotNull;
 
 import java.time.Clock;
 import java.util.List;
@@ -95,7 +96,7 @@ public class WelcomerHandler implements EventListener {
 	}
 
 	@Override
-	public void onEvent(GenericEvent event) {
+	public void onEvent(@NotNull GenericEvent event) {
 		if (event instanceof GuildMemberJoinEvent) {
 			this.onGuildMemberJoin((GuildMemberJoinEvent) event);
 		} else if (event instanceof GuildMemberUpdatePendingEvent) {

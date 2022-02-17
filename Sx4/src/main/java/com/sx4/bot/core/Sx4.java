@@ -71,6 +71,7 @@ import okhttp3.OkHttpClient;
 import org.bson.Document;
 import org.bson.json.JsonParseException;
 import org.bson.types.ObjectId;
+import org.jetbrains.annotations.NotNull;
 
 import javax.security.auth.login.LoginException;
 import java.awt.*;
@@ -770,8 +771,7 @@ public class Sx4 {
 				}
 
 				ICommand command = event.getCommand();
-				if (command instanceof Sx4Command) {
-					Sx4Command sx4Command = (Sx4Command) command;
+				if (command instanceof Sx4Command sx4Command) {
 					if (sx4Command.hasCooldownMessage()) {
 						event.reply(sx4Command.getCooldownMessage()).queue();
 						return;
@@ -1165,7 +1165,7 @@ public class Sx4 {
 					return new ParsedResult<>();
 				}
 			}).registerParser(String.class, new IParser<>() {
-				public ParsedResult<String> parse(ParseContext context, IArgument<String> argument, String content) {
+				public @NotNull ParsedResult<String> parse(@NotNull ParseContext context, @NotNull IArgument<String> argument, @NotNull String content) {
 					Message message = context.getMessage();
 
 					ThreadLocal<ICommand> local = argument.getProperty("command", ThreadLocal.class);
@@ -1267,7 +1267,7 @@ public class Sx4 {
 					return new ParsedResult<>();
 				}
 			}).registerParser(PartialEmote.class, new IParser<>() {
-				public ParsedResult<PartialEmote> parse(ParseContext context, IArgument<PartialEmote> argument, String content) {
+				public @NotNull ParsedResult<PartialEmote> parse(@NotNull ParseContext context, @NotNull IArgument<PartialEmote> argument, @NotNull String content) {
 					int nextSpace = content.indexOf(' ');
 					String query = nextSpace == -1 || argument.isEndless() ? content : content.substring(0, nextSpace);
 
@@ -1312,7 +1312,7 @@ public class Sx4 {
 					return true;
 				}
 			}).registerParser(MessageArgument.class, new IParser<>() {
-				public ParsedResult<MessageArgument> parse(ParseContext context, IArgument<MessageArgument> argument, String content) {
+				public @NotNull ParsedResult<MessageArgument> parse(@NotNull ParseContext context, @NotNull IArgument<MessageArgument> argument, @NotNull String content) {
 					Message message = context.getMessage();
 					TextChannel channel = message.getTextChannel();
 
@@ -1402,7 +1402,7 @@ public class Sx4 {
 
 				return new ParsedResult<>();
 			}).registerParser(Alternative.class, new IParser<>() {
-				public ParsedResult<Alternative> parse(ParseContext context, IArgument<Alternative> argument, String content) {
+				public @NotNull ParsedResult<Alternative> parse(@NotNull ParseContext context, @NotNull IArgument<Alternative> argument, @NotNull String content) {
 					int nextSpace = content.indexOf(' ');
 					String argumentContent = nextSpace == -1 || argument.isEndless() ? content : content.substring(0, nextSpace);
 					if (!argument.acceptEmpty() && argumentContent.isEmpty()) {
@@ -1452,7 +1452,7 @@ public class Sx4 {
 
 				return new ParsedResult<>();
 				}).registerParser(Or.class, new IParser<>() {
-					public ParsedResult parse(ParseContext context, IArgument<Or> argument, String content) {
+					public @NotNull ParsedResult parse(@NotNull ParseContext context, @NotNull IArgument<Or> argument, @NotNull String content) {
 						int nextSpace = content.indexOf(' ');
 						String argumentContent = nextSpace == -1 || argument.isEndless() ? content : content.substring(0, nextSpace);
 						if (!argument.acceptEmpty() && argumentContent.isEmpty()) {

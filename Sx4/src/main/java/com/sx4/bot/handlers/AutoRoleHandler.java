@@ -15,6 +15,7 @@ import net.dv8tion.jda.api.events.guild.member.update.GuildMemberUpdatePendingEv
 import net.dv8tion.jda.api.events.role.RoleDeleteEvent;
 import net.dv8tion.jda.api.hooks.EventListener;
 import org.bson.Document;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -78,7 +79,7 @@ public class AutoRoleHandler implements EventListener {
 	}
 
 	@Override
-	public void onEvent(GenericEvent event) {
+	public void onEvent(@NotNull GenericEvent event) {
 		if (event instanceof GuildMemberJoinEvent) {
 			this.onGuildMemberJoin((GuildMemberJoinEvent) event);
 		} else if (event instanceof RoleDeleteEvent) {

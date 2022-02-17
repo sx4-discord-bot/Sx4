@@ -23,6 +23,7 @@ import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.hooks.EventListener;
 import net.dv8tion.jda.api.requests.ErrorResponse;
 import org.bson.Document;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
 import java.util.concurrent.CompletionException;
@@ -163,7 +164,7 @@ public class ReactionRoleHandler implements EventListener {
 	}
 
 	@Override
-	public void onEvent(GenericEvent event) {
+	public void onEvent(@NotNull GenericEvent event) {
 		if (event instanceof GenericGuildMessageReactionEvent) {
 			this.onGenericGuildMessageReaction((GenericGuildMessageReactionEvent) event);
 		} else if (event instanceof MessageDeleteEvent) {

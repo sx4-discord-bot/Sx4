@@ -8,6 +8,7 @@ import com.jockie.bot.core.command.impl.DummyCommand;
 import com.sx4.bot.annotations.command.*;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Message;
+import org.jetbrains.annotations.NotNull;
 
 import java.lang.reflect.Method;
 import java.util.Arrays;
@@ -134,7 +135,7 @@ public class Sx4Command extends CommandImpl {
 		return this;
 	}
 	
-	public Sx4Command setAuthorDiscordPermissions(Permission... permissions) {
+	public @NotNull Sx4Command setAuthorDiscordPermissions(Permission @NotNull ... permissions) {
 		return this.setAuthorDiscordPermissions(false, permissions);
 	}
 	
@@ -148,11 +149,11 @@ public class Sx4Command extends CommandImpl {
 		return this;
 	}
 
-	public EnumSet<Permission> getAuthorDiscordPermissions() {
+	public @NotNull EnumSet<Permission> getAuthorDiscordPermissions() {
 		return this.authorDiscordPermissions;
 	}
 	
-	public Sx4Command setBotDiscordPermissions(Permission... permissions) {
+	public @NotNull Sx4Command setBotDiscordPermissions(Permission @NotNull ... permissions) {
 		return this.setBotDiscordPermissions(false, permissions);
 	}
 	
@@ -166,11 +167,11 @@ public class Sx4Command extends CommandImpl {
 		return this;
 	}
 	
-	public EnumSet<Permission> getBotDiscordPermissions() {
+	public @NotNull EnumSet<Permission> getBotDiscordPermissions() {
 		return this.botDiscordPermissions;
 	}
 	
-	public List<CommandTrigger> getAllCommandsRecursiveWithTriggers(Message message, String prefix) {
+	public @NotNull List<CommandTrigger> getAllCommandsRecursiveWithTriggers(Message message, String prefix) {
 	    List<CommandTrigger> commands = super.getAllCommandsRecursiveWithTriggers(message, prefix);
 	    
 	    if (this.redirects.length != 0) {

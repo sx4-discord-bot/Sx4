@@ -72,7 +72,7 @@ public class DictionaryCommand extends Sx4Command {
 
 						List<String> examples = data.getList("examples", String.class);
 
-						embed.addField("Definition", definition.toString() + (examples.isEmpty() ? "" : "\n\n*" + String.join("*\n*", examples.subList(0, Math.min(3, examples.size()))) + "*"), false);
+						embed.addField("Definition", definition + (examples.isEmpty() ? "" : "\n\n*" + String.join("*\n*", examples.subList(0, Math.min(3, examples.size()))) + "*"), false);
 					});
 
 					if (document.containsKey("pronunciation")) {

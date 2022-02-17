@@ -12,15 +12,10 @@ public class AutoRoleUtility {
 			int type = filter.getInteger("type");
 			Object value = filter.get("value");
 
-			switch (type) {
-				case 0:
-					if (member.getUser().isBot() != (boolean) value) {
-						return false;
-					}
-
-					break;
-				default:
-					break;
+			if (type == 0) {
+				if (member.getUser().isBot() != (boolean) value) {
+					return false;
+				}
 			}
 		}
 

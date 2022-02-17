@@ -14,7 +14,7 @@ public enum MediaType {
 	WEBP(5, "webp"),
 	MOV(6, "quicktime");
 
-	public static long ALL = MediaType.getRaw(MediaType.values());
+	public static final long ALL = MediaType.getRaw(MediaType.values());
 
 	private final long raw;
 

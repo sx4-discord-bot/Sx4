@@ -20,6 +20,7 @@ import okhttp3.MediaType;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import org.bson.Document;
+import org.jetbrains.annotations.NotNull;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -144,7 +145,7 @@ public class ServerLogHandler implements EventListener {
 	}
 
 	@Override
-	public void onEvent(GenericEvent event) {
+	public void onEvent(@NotNull GenericEvent event) {
 		if (event instanceof GuildJoinEvent) {
 			this.onGuildJoin((GuildJoinEvent) event);
 		} else if (event instanceof GuildLeaveEvent) {

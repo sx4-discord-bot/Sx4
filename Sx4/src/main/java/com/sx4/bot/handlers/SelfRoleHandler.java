@@ -6,6 +6,7 @@ import com.sx4.bot.database.mongo.MongoDatabase;
 import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.events.role.RoleDeleteEvent;
 import net.dv8tion.jda.api.hooks.EventListener;
+import org.jetbrains.annotations.NotNull;
 
 public class SelfRoleHandler implements EventListener {
 
@@ -20,7 +21,7 @@ public class SelfRoleHandler implements EventListener {
 	}
 
 	@Override
-	public void onEvent(GenericEvent event) {
+	public void onEvent(@NotNull GenericEvent event) {
 		if (event instanceof RoleDeleteEvent) {
 			this.onRoleDelete((RoleDeleteEvent) event);
 		}

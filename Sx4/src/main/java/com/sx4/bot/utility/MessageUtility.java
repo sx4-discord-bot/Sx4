@@ -22,11 +22,10 @@ public class MessageUtility {
 
 	private static String titleFromJson(Document json) {
 		Object titleJson = json.get("title");
-		if (!(titleJson instanceof String)) {
+		if (!(titleJson instanceof String title)) {
 			throw new IllegalArgumentException("`embed.title` value has to be a string");
 		}
 
-		String title = (String) titleJson;
 		if (title.length() > MessageEmbed.TITLE_MAX_LENGTH) {
 			throw new IllegalArgumentException("`embed.title` value cannot be more than " + MessageEmbed.TITLE_MAX_LENGTH + " characters");
 		}
@@ -55,11 +54,10 @@ public class MessageUtility {
 
 	private static String descriptionFromJson(Document json) {
 		Object descriptionJson = json.get("description");
-		if (!(descriptionJson instanceof String)) {
+		if (!(descriptionJson instanceof String description)) {
 			throw new IllegalArgumentException("`embed.description` value has to be a string");
 		}
 
-		String description = (String) descriptionJson;
 		if (description.length() > MessageEmbed.DESCRIPTION_MAX_LENGTH) {
 			throw new IllegalArgumentException("`embed.description` value cannot be more than " + MessageEmbed.DESCRIPTION_MAX_LENGTH + " characters");
 		}
@@ -90,11 +88,9 @@ public class MessageUtility {
 
 	private static WebhookEmbed.EmbedFooter footerFromJson(Document json) {
 		Object footerJson = json.get("footer");
-		if (!(footerJson instanceof Document)) {
+		if (!(footerJson instanceof Document footerData)) {
 			throw new IllegalArgumentException("`embed.footer` value has to be a json object");
 		}
-
-		Document footerData = (Document) footerJson;
 
 		String text = null, iconUrl = null;
 		if (footerData.containsKey("icon_url")) {
@@ -148,18 +144,16 @@ public class MessageUtility {
 
 	private static String thumbnailFromJson(Document json) {
 		Object thumbnailJson = json.get("thumbnail");
-		if (!(thumbnailJson instanceof Document)) {
+		if (!(thumbnailJson instanceof Document thumbnailData)) {
 			throw new IllegalArgumentException("`embed.thumbnail` value has to be a json object");
 		}
 
-		Document thumbnailData = (Document) thumbnailJson;
 		if (thumbnailData.containsKey("url")) {
 			Object urlJson = thumbnailData.get("url");
-			if (!(urlJson instanceof String)) {
+			if (!(urlJson instanceof String thumbnailUrl)) {
 				throw new IllegalArgumentException("`embed.thumbnail.url` value has to be a string");
 			}
 
-			String thumbnailUrl = (String) urlJson;
 			if (thumbnailUrl.length() > MessageEmbed.URL_MAX_LENGTH) {
 				throw new IllegalArgumentException("`embed.thumbnail.url` value cannot be more than " + MessageEmbed.URL_MAX_LENGTH + " characters");
 			}
@@ -176,11 +170,9 @@ public class MessageUtility {
 
 	private static WebhookEmbed.EmbedAuthor authorFromJson(Document json) {
 		Object authorJson = json.get("author");
-		if (!(authorJson instanceof Document)) {
+		if (!(authorJson instanceof Document authorData)) {
 			throw new IllegalArgumentException("`embed.author` value has to be a json object");
 		}
-
-		Document authorData = (Document) authorJson;
 
 		String name = null, iconUrl = null, authorUrl = null;
 		if (authorData.containsKey("icon_url")) {
@@ -235,18 +227,16 @@ public class MessageUtility {
 
 	private static String imageFromJson(Document json) {
 		Object imageJson = json.get("image");
-		if (!(imageJson instanceof Document)) {
+		if (!(imageJson instanceof Document imageData)) {
 			throw new IllegalArgumentException("`embed.image` value has to be a json object");
 		}
 
-		Document imageData = (Document) imageJson;
 		if (imageData.containsKey("url")) {
 			Object urlJson = imageData.get("url");
-			if (!(urlJson instanceof String)) {
+			if (!(urlJson instanceof String imageUrl)) {
 				throw new IllegalArgumentException("`embed.image.url` value has to be a string");
 			}
 
-			String imageUrl = (String) urlJson;
 			if (imageUrl.length() > MessageEmbed.URL_MAX_LENGTH) {
 				throw new IllegalArgumentException("`embed.image.url` value cannot be more than " + MessageEmbed.URL_MAX_LENGTH + " characters");
 			}
@@ -263,11 +253,9 @@ public class MessageUtility {
 
 	private static List<WebhookEmbed.EmbedField> fieldsFromJson(Document json) {
 		Object fieldsJson = json.get("fields");
-		if (!(fieldsJson instanceof List)) {
+		if (!(fieldsJson instanceof List<?> fieldsData)) {
 			throw new IllegalArgumentException("`embed.fields` value has to be an array");
 		}
-
-		List<?> fieldsData = (List<?>) fieldsJson;
 
 		int length = fieldsData.size();
 		if (length > 25) {
@@ -277,11 +265,9 @@ public class MessageUtility {
 		List<WebhookEmbed.EmbedField> fields = new ArrayList<>();
 		for (int i = 0; i < length; i++) {
 			Object fieldJson = fieldsData.get(i);
-			if (!(fieldJson instanceof Document)) {
+			if (!(fieldJson instanceof Document field)) {
 				throw new IllegalArgumentException("`embed.fields." + i + "` value has to be a json object");
 			}
-
-			Document field = (Document) fieldJson;
 
 			String name = null, value = null;
 			boolean inline = true;
@@ -332,11 +318,9 @@ public class MessageUtility {
 		WebhookMessageBuilder builder = new WebhookMessageBuilder();
 		if (json.containsKey("embed")) {
 			Object embedJson = json.get("embed");
-			if (!(embedJson instanceof Document)) {
+			if (!(embedJson instanceof Document embedData)) {
 				throw new IllegalArgumentException("`embed` value has to be a json object");
 			}
-
-			Document embedData = (Document) embedJson;
 
 			boolean titleExists = embedData.containsKey("title");
 
@@ -365,11 +349,9 @@ public class MessageUtility {
 
 		if (json.containsKey("content")) {
 			Object contentJson = json.get("content");
-			if (!(contentJson instanceof String)) {
+			if (!(contentJson instanceof String content)) {
 				throw new IllegalArgumentException("`content` value has to be a string");
 			}
-
-			String content = (String) contentJson;
 
 			if (content.length() > 2000) {
 				throw new IllegalArgumentException("`content` value cannot be more than 2000 characters");
@@ -542,8 +524,7 @@ public class MessageUtility {
 		MessageUtility.keepFields(json, Set.of("embed", "content"));
 
 		Object embedJson = json.get("embed");
-		if (embedJson instanceof Document) {
-			Document embed = ((Document) embedJson);
+		if (embedJson instanceof Document embed) {
 
 			MessageUtility.keepFields(embed, Set.of("author", "title", "color", "fields", "description", "image", "thumbnail", "footer", "timestamp", "url"));
 

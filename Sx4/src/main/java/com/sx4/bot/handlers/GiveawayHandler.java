@@ -7,6 +7,7 @@ import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.events.message.MessageBulkDeleteEvent;
 import net.dv8tion.jda.api.events.message.MessageDeleteEvent;
 import net.dv8tion.jda.api.hooks.EventListener;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -26,7 +27,7 @@ public class GiveawayHandler implements EventListener {
 	}
 
 	@Override
-	public void onEvent(GenericEvent event) {
+	public void onEvent(@NotNull GenericEvent event) {
 		if (event instanceof MessageBulkDeleteEvent) {
 			this.handle(((MessageBulkDeleteEvent) event).getMessageIds().stream().map(Long::valueOf).collect(Collectors.toList()));
 		} else if (event instanceof MessageDeleteEvent) {

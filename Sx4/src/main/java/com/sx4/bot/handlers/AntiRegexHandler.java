@@ -24,6 +24,7 @@ import net.dv8tion.jda.api.hooks.EventListener;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
 import java.util.concurrent.*;
@@ -195,7 +196,7 @@ public class AntiRegexHandler implements EventListener {
                     }
 
                     ObjectId id = regex.getObjectId("_id");
-                    RegexType type = RegexType.fromId(regex.getInteger("type"));;
+                    RegexType type = RegexType.fromId(regex.getInteger("type"));
 
                     Document match = regex.get("match", MongoDatabase.EMPTY_DOCUMENT);
                     long matchAction = match.get("action", MatchAction.ALL);
@@ -270,7 +271,7 @@ public class AntiRegexHandler implements EventListener {
     }
 
     @Override
-    public void onEvent(GenericEvent event) {
+    public void onEvent(@NotNull GenericEvent event) {
         if (event instanceof GuildMessageReceivedEvent) {
             this.handle(((GuildMessageReceivedEvent) event).getMessage());
         } else if (event instanceof GuildMessageUpdateEvent) {

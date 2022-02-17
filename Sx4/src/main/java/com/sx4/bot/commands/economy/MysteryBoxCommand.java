@@ -120,11 +120,10 @@ public class MysteryBoxCommand extends Sx4Command {
 					List<Component> components = row.getComponents();
 					for (ListIterator<Component> it = components.listIterator(); it.hasNext();) {
 						Component component = it.next();
-						if (!(component instanceof Button)) {
+						if (!(component instanceof Button button)) {
 							continue;
 						}
 
-						Button button = (Button) component;
 						String id = button.getId();
 
 						if (!id.equals("24") && id.equals(buttonEvent.getComponentId())) {

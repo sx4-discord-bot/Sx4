@@ -10,7 +10,6 @@ import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.economy.item.CooldownItemStack;
 import com.sx4.bot.entities.economy.item.ItemType;
 import com.sx4.bot.entities.economy.item.Rod;
-import com.sx4.bot.entities.utility.TimeFormatter;
 import com.sx4.bot.utility.EconomyUtility;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.TimeUtility;

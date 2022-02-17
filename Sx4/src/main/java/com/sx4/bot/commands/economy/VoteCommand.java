@@ -9,7 +9,6 @@ import com.sx4.bot.annotations.command.Redirects;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
-import com.sx4.bot.entities.utility.TimeFormatter;
 import com.sx4.bot.http.HttpCallback;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.TimeUtility;
@@ -129,7 +128,7 @@ public class VoteCommand extends Sx4Command {
 
 			bulkData.add(new UpdateOneModel<>(Filters.eq("_id", event.getAuthor().getIdLong()), Updates.inc("economy.balance", money), options));
 
-			String message = String.format("You have voted for the bot **%,d** time%s since you last used the command gathering you a total of **$%,d**, Vote for the bots again in 12 hours for more money.%s", votes.size(), votes.size() == 1 ? "" : "s", money, content.length() == 0 ? "" : "Referred users: " + content.toString());
+			String message = String.format("You have voted for the bot **%,d** time%s since you last used the command gathering you a total of **$%,d**, Vote for the bots again in 12 hours for more money.%s", votes.size(), votes.size() == 1 ? "" : "s", money, content.length() == 0 ? "" : "Referred users: " + content);
 			event.getMongo().bulkWriteUsers(bulkData).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;

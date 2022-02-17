@@ -75,7 +75,7 @@ public class HelpUtility {
 			formatter.format(placeHolder, "Usage", usage);
 			
 			if (!command.getOptions().isEmpty()) {
-				formatter.format(placeHolder, "Options", options.toString());
+				formatter.format(placeHolder, "Options", options);
 			}
 			
 			if (command.getExamples().length != 0) {

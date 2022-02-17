@@ -16,4 +16,7 @@ public class PermissionException extends ModException {
 		this.permission = permission;
 	}
 
+	public Permission getPermission() {
+		return this.permission;
+	}
 }

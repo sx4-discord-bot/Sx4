@@ -342,7 +342,7 @@ public class WarnCommand extends Sx4Command {
 			PagedResult<Document> paged = new PagedResult<>(event.getBot(), config)
 				.setAuthor("Warn Configuration", null, event.getGuild().getIconUrl())
 				.setIndexed(false)
-				.setDisplayFunction(d -> "Warning #" + d.getInteger("number") + ": " + Action.fromData(d.get("action", Document.class)).toString());
+				.setDisplayFunction(d -> "Warning #" + d.getInteger("number") + ": " + Action.fromData(d.get("action", Document.class)));
 
 			paged.execute(event);
 		}

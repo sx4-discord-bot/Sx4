@@ -9,7 +9,6 @@ import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.entities.mod.PartialEmote;
-import com.sx4.bot.entities.utility.TimeFormatter;
 import com.sx4.bot.http.HttpCallback;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;

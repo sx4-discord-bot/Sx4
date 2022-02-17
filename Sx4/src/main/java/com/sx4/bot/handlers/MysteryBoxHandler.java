@@ -11,6 +11,7 @@ import net.dv8tion.jda.api.hooks.EventListener;
 import net.dv8tion.jda.api.interactions.components.ActionRow;
 import net.dv8tion.jda.api.interactions.components.Button;
 import net.dv8tion.jda.api.interactions.components.Component;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -29,11 +30,10 @@ public class MysteryBoxHandler implements EventListener {
 			List<Component> components = row.getComponents();
 			for (ListIterator<Component> it = components.listIterator(); it.hasNext();) {
 				Component component = it.next();
-				if (!(component instanceof Button)) {
+				if (!(component instanceof Button button)) {
 					continue;
 				}
 
-				Button button = (Button) component;
 				for (Button newButton : buttons) {
 					if (newButton.getId().equals(button.getId())) {
 						it.set(newButton);
@@ -107,7 +107,7 @@ public class MysteryBoxHandler implements EventListener {
 	}
 
 	@Override
-	public void onEvent(GenericEvent event) {
+	public void onEvent(@NotNull GenericEvent event) {
 		if (event instanceof ButtonClickEvent) {
 			this.handle((ButtonClickEvent) event);
 		}

@@ -122,34 +122,18 @@ public class EconomyManager {
 
 			Item item;
 			switch (type) {
-				case MATERIAL:
-					item = new Material(this, itemData.getInt("id"), itemData.getString("name"), itemData.getLong("price"), itemData.getString("emote"), itemData.optBoolean("hidden", false));
-
-					break;
-				case WOOD:
-					item = new Wood(this, itemData.getInt("id"), itemData.getString("name"), itemData.getLong("price"));
-
-					break;
-				case ENVELOPE:
-					item = new Envelope(this, itemData.getInt("id"), itemData.getString("name"), itemData.getLong("price"));
-
-					break;
-				case MINER:
-					item = new Miner(this, itemData.getInt("id"), itemData.getString("name"), itemData.getLong("price"), itemData.getLong("maxMaterials"), itemData.getDouble("multiplier"));
-
-					break;
-				case FACTORY:
+				case MATERIAL -> item = new Material(this, itemData.getInt("id"), itemData.getString("name"), itemData.getLong("price"), itemData.getString("emote"), itemData.optBoolean("hidden", false));
+				case WOOD -> item = new Wood(this, itemData.getInt("id"), itemData.getString("name"), itemData.getLong("price"));
+				case ENVELOPE -> item = new Envelope(this, itemData.getInt("id"), itemData.getString("name"), itemData.getLong("price"));
+				case MINER -> item = new Miner(this, itemData.getInt("id"), itemData.getString("name"), itemData.getLong("price"), itemData.getLong("maxMaterials"), itemData.getDouble("multiplier"));
+				case FACTORY -> {
 					JSONObject cost = itemData.getJSONObject("cost");
-
 					Material material = this.getItemById(cost.getInt("material"), Material.class);
 					ItemStack<Material> itemStack = new ItemStack<>(material, cost.getLong("amount"));
-
 					item = new Factory(this, itemData.getInt("id"), itemData.getString("name"), itemStack, itemData.getLong("minYield"), itemData.getLong("maxYield"));
-
-					break;
-				case CRATE:
+				}
+				case CRATE -> {
 					JSONArray contentsData = itemData.optJSONArray("contents");
-
 					Map<ItemType, Long> contents = new HashMap<>();
 					if (contentsData != null) {
 						for (int c = 0; c < contentsData.length(); c++) {
@@ -157,13 +141,10 @@ public class EconomyManager {
 							contents.put(ItemType.fromId(data.getInt("type")), data.getLong("amount"));
 						}
 					}
-
 					item = new Crate(this, itemData.getInt("id"), itemData.getString("name"), itemData.getLong("price"), itemData.optLong("credits", -1), itemData.optBoolean("hidden", false), itemData.optBoolean("openable", true), contents);
-
-					break;
-				case ROD:
+				}
+				case ROD -> {
 					JSONArray rodArray = itemData.getJSONArray("craft");
-
 					List<ItemStack<CraftItem>> rodCraft = new ArrayList<>();
 					for (int c = 0; c < rodArray.length(); c++) {
 						JSONObject craftData = rodArray.getJSONObject(c);
@@ -171,16 +152,12 @@ public class EconomyManager {
 
 						rodCraft.add(new ItemStack<>(craftItem, craftData.getLong("amount")));
 					}
-
 					int rodRepairItemId = itemData.optInt("repairItem", -1);
 					CraftItem rodRepairItem = rodRepairItemId == -1 ? null : this.getItemById(rodRepairItemId, CraftItem.class);
-
 					item = new Rod(this, itemData.getInt("id"), itemData.getString("name"), itemData.getLong("price"), itemData.getInt("durability"), rodCraft, rodRepairItem, itemData.getLong("minYield"), itemData.getLong("maxYield"));
-
-					break;
-				case AXE:
+				}
+				case AXE -> {
 					JSONArray axeArray = itemData.getJSONArray("craft");
-
 					List<ItemStack<CraftItem>> axeCraft = new ArrayList<>();
 					for (int c = 0; c < axeArray.length(); c++) {
 						JSONObject craftData = axeArray.getJSONObject(c);
@@ -188,16 +165,12 @@ public class EconomyManager {
 
 						axeCraft.add(new ItemStack<>(craftItem, craftData.getLong("amount")));
 					}
-
 					int axeRepairItemId = itemData.optInt("repairItem", -1);
 					CraftItem axeRepairItem = axeRepairItemId == -1 ? null : this.getItemById(axeRepairItemId, CraftItem.class);
-
 					item = new Axe(this, itemData.getInt("id"), itemData.getString("name"), itemData.getLong("price"), itemData.getInt("durability"), axeCraft, axeRepairItem, itemData.getLong("maxMaterials"), itemData.getDouble("multiplier"));
-
-					break;
-				case PICKAXE:
+				}
+				case PICKAXE -> {
 					JSONArray pickaxeArray = itemData.getJSONArray("craft");
-
 					List<ItemStack<CraftItem>> pickaxeCraft = new ArrayList<>();
 					for (int c = 0; c < pickaxeArray.length(); c++) {
 						JSONObject craftData = pickaxeArray.getJSONObject(c);
@@ -205,15 +178,11 @@ public class EconomyManager {
 
 						pickaxeCraft.add(new ItemStack<>(craftItem, craftData.getLong("amount")));
 					}
-
 					int pickaxeRepairItemId = itemData.optInt("repairItem", -1);
 					CraftItem pickaxeRepairItem = pickaxeRepairItemId == -1 ? null : this.getItemById(pickaxeRepairItemId, CraftItem.class);
-
 					item = new Pickaxe(this, itemData.getInt("id"), itemData.getString("name"), itemData.getLong("price"), itemData.getInt("durability"), pickaxeCraft, pickaxeRepairItem, itemData.getLong("minYield"), itemData.getLong("maxYield"), itemData.getDouble("multiplier"));
-
-					break;
-				default:
-					item = null;
+				}
+				default -> item = null;
 			}
 
 			if (item != null) {

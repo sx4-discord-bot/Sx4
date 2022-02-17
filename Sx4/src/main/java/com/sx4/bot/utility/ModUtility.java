@@ -28,8 +28,8 @@ import java.util.concurrent.atomic.AtomicReference;
 
 public class ModUtility {
 
-	public static long DEFAULT_TEMPORARY_BAN_DURATION = 86400L;
-	public static long DEFAULT_MUTE_DURATION = 1800L;
+	public static final long DEFAULT_TEMPORARY_BAN_DURATION = 86400L;
+	public static final long DEFAULT_MUTE_DURATION = 1800L;
 
 	public static String getAuditReason(Reason reason, User moderator) {
 		return (reason == null ? "None Given" : reason.getParsed()) + " [" + moderator.getAsTag() + "]";

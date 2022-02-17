@@ -492,8 +492,7 @@ public class PagedResult<Type> {
 		this.channelId = channel.getIdLong();
 		this.ownerId = owner.getIdLong();
 		
-		if (channel instanceof TextChannel) {
-			TextChannel textChannel = (TextChannel) channel;
+		if (channel instanceof TextChannel textChannel) {
 			Guild guild = textChannel.getGuild();
 			
 			this.guildId = guild.getIdLong();

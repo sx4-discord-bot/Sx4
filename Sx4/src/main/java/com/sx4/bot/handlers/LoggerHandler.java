@@ -72,6 +72,7 @@ import net.dv8tion.jda.internal.utils.tuple.Pair;
 import okhttp3.OkHttpClient;
 import org.bson.Document;
 import org.bson.conversions.Bson;
+import org.jetbrains.annotations.NotNull;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -2232,7 +2233,7 @@ public class LoggerHandler implements EventListener {
 	}
 
 	@Override
-	public void onEvent(GenericEvent event) {
+	public void onEvent(@NotNull GenericEvent event) {
 		if (event instanceof GuildMessageDeleteEvent) {
 			this.onGuildMessageDelete((GuildMessageDeleteEvent) event);
 		} else if (event instanceof MessageBulkDeleteEvent) {

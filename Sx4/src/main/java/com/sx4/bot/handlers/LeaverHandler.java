@@ -13,6 +13,7 @@ import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.events.guild.member.GuildMemberRemoveEvent;
 import net.dv8tion.jda.api.hooks.EventListener;
 import org.bson.Document;
+import org.jetbrains.annotations.NotNull;
 
 import java.time.Clock;
 import java.util.List;
@@ -62,7 +63,7 @@ public class LeaverHandler implements EventListener {
 	}
 
 	@Override
-	public void onEvent(GenericEvent event) {
+	public void onEvent(@NotNull GenericEvent event) {
 		if (event instanceof GuildMemberRemoveEvent) {
 			this.onGuildMemberRemove((GuildMemberRemoveEvent) event);
 		}

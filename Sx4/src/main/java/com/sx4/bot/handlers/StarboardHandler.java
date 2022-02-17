@@ -31,6 +31,7 @@ import net.dv8tion.jda.internal.utils.EncodingUtil;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.Comparator;
 import java.util.List;
@@ -319,7 +320,7 @@ public class StarboardHandler implements EventListener {
 
 
 	@Override
-	public void onEvent(GenericEvent event) {
+	public void onEvent(@NotNull GenericEvent event) {
 		if (event instanceof GuildMessageReactionAddEvent) {
 			this.onGuildMessageReactionAdd((GuildMessageReactionAddEvent) event);
 		} else if (event instanceof GuildMessageReactionRemoveEvent) {

@@ -91,19 +91,15 @@ public class AuctionCommand extends Sx4Command {
 
 						StringBuilder content = new StringBuilder(String.format("Expires In: %s\nPrice: $%,d\nPrice Per Item: $%,.2f\nAmount: %,d", this.formatter.parse(auction.getExpiresAt() - Clock.systemUTC().instant().getEpochSecond()), auction.getPrice(), auction.getPricePerItem(), stack.getAmount()));
 
-						if (auctionItem instanceof Tool) {
-							Tool tool = (Tool) auctionItem;
+						if (auctionItem instanceof Tool tool) {
 							content.append(String.format("\nDurability: %,d\nMax Durability: %,d", tool.getDurability(), tool.getMaxDurability()));
 						}
 
-						if (auctionItem instanceof Pickaxe) {
-							Pickaxe pickaxe = (Pickaxe) auctionItem;
+						if (auctionItem instanceof Pickaxe pickaxe) {
 							content.append(String.format("\nMultiplier: %,.2f\nYield: $%,d to $%,d", pickaxe.getMultiplier(), pickaxe.getMinYield(), pickaxe.getMaxYield()));
-						} else if (auctionItem instanceof Axe) {
-							Axe axe = (Axe) auctionItem;
+						} else if (auctionItem instanceof Axe axe) {
 							content.append(String.format("\nMultiplier: %,.2f", axe.getMultiplier()));
-						} else if (auctionItem instanceof Rod) {
-							Rod rod = (Rod) auctionItem;
+						} else if (auctionItem instanceof Rod rod) {
 							content.append(String.format("\nYield: $%,d to $%,d", rod.getMinYield(), rod.getMaxYield()));
 						}
 
@@ -234,19 +230,15 @@ public class AuctionCommand extends Sx4Command {
 
 						StringBuilder content = new StringBuilder(String.format("Expires In: %s\nPrice: $%,d\nPrice Per Item: $%,.2f\nAmount: %,d", this.formatter.parse(auction.getExpiresAt() - Clock.systemUTC().instant().getEpochSecond()), auction.getPrice(), auction.getPricePerItem(), stack.getAmount()));
 
-						if (auctionItem instanceof Tool) {
-							Tool tool = (Tool) auctionItem;
+						if (auctionItem instanceof Tool tool) {
 							content.append(String.format("\nDurability: %,d\nMax Durability: %,d", tool.getDurability(), tool.getMaxDurability()));
 						}
 
-						if (auctionItem instanceof Pickaxe) {
-							Pickaxe pickaxe = (Pickaxe) auctionItem;
+						if (auctionItem instanceof Pickaxe pickaxe) {
 							content.append(String.format("\nMultiplier: %,.2f\nYield: $%,d to $%,d", pickaxe.getMultiplier(), pickaxe.getMinYield(), pickaxe.getMaxYield()));
-						} else if (auctionItem instanceof Axe) {
-							Axe axe = (Axe) auctionItem;
+						} else if (auctionItem instanceof Axe axe) {
 							content.append(String.format("\nMultiplier: %,.2f", axe.getMultiplier()));
-						} else if (auctionItem instanceof Rod) {
-							Rod rod = (Rod) auctionItem;
+						} else if (auctionItem instanceof Rod rod) {
 							content.append(String.format("\nYield: $%,d to $%,d", rod.getMinYield(), rod.getMaxYield()));
 						}
 
@@ -360,19 +352,15 @@ public class AuctionCommand extends Sx4Command {
 
 						StringBuilder content = new StringBuilder(String.format("Price: $%,d\nPrice Per Item: $%,.2f\nAmount: %,d", auction.getPrice(), auction.getPricePerItem(), stack.getAmount()));
 
-						if (auctionItem instanceof Tool) {
-							Tool tool = (Tool) auctionItem;
+						if (auctionItem instanceof Tool tool) {
 							content.append(String.format("\nDurability: %,d\nMax Durability: %,d", tool.getDurability(), tool.getMaxDurability()));
 						}
 
-						if (auctionItem instanceof Pickaxe) {
-							Pickaxe pickaxe = (Pickaxe) auctionItem;
+						if (auctionItem instanceof Pickaxe pickaxe) {
 							content.append(String.format("\nMultiplier: %,.2f\nYield: $%,d to $%,d", pickaxe.getMultiplier(), pickaxe.getMinYield(), pickaxe.getMaxYield()));
-						} else if (auctionItem instanceof Axe) {
-							Axe axe = (Axe) auctionItem;
+						} else if (auctionItem instanceof Axe axe) {
 							content.append(String.format("\nMultiplier: %,.2f", axe.getMultiplier()));
-						} else if (auctionItem instanceof Rod) {
-							Rod rod = (Rod) auctionItem;
+						} else if (auctionItem instanceof Rod rod) {
 							content.append(String.format("\nYield: $%,d to $%,d", rod.getMinYield(), rod.getMaxYield()));
 						}
 

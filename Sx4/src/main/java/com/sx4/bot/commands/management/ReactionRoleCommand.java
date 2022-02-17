@@ -132,8 +132,7 @@ public class ReactionRoleCommand extends Sx4Command {
 				.thenCompose($ -> event.getMongo().updateReactionRole(filter, update))
 				.whenComplete((result, exception) -> {
 					Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
-					if (cause instanceof ErrorResponseException) {
-						ErrorResponseException errorResponse = ((ErrorResponseException) cause);
+					if (cause instanceof ErrorResponseException errorResponse) {
 						if (errorResponse.getErrorCode() == 400 || errorResponse.getErrorResponse() == ErrorResponse.UNKNOWN_EMOJI || errorResponse.getErrorResponse() == ErrorResponse.INVALID_FORM_BODY) {
 							event.replyFailure("I could not find that emote").queue();
 							return;

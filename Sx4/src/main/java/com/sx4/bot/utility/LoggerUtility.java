@@ -38,28 +38,34 @@ public class LoggerUtility {
 
     public static long getEntityIdFromType(String query, Guild guild, LoggerCategory loggerCategory) {
         switch (loggerCategory) {
-            case AUDIT:
-            case USER:
+            case AUDIT, USER -> {
                 Member member = SearchUtility.getMember(guild, query);
                 return member == null ? 0L : member.getIdLong();
-            case VOICE_CHANNEL:
+            }
+            case VOICE_CHANNEL -> {
                 VoiceChannel voiceChannel = SearchUtility.getVoiceChannel(guild, query);
                 return voiceChannel == null ? 0L : voiceChannel.getIdLong();
-            case CATEGORY:
+            }
+            case CATEGORY -> {
                 Category category = SearchUtility.getCategory(guild, query);
                 return category == null ? 0L : category.getIdLong();
-            case TEXT_CHANNEL:
+            }
+            case TEXT_CHANNEL -> {
                 TextChannel textChannel = SearchUtility.getTextChannel(guild, query);
                 return textChannel == null ? 0L : textChannel.getIdLong();
-            case ROLE:
+            }
+            case ROLE -> {
                 Role role = SearchUtility.getRole(guild, query);
                 return role == null ? 0L : role.getIdLong();
-            case STORE_CHANNEL:
+            }
+            case STORE_CHANNEL -> {
                 StoreChannel storeChannel = SearchUtility.getStoreChannel(guild, query);
                 return storeChannel == null ? 0L : storeChannel.getIdLong();
-            case EMOTE:
+            }
+            case EMOTE -> {
                 Emote emote = SearchUtility.getGuildEmote(guild, query);
                 return emote == null ? 0L : emote.getIdLong();
+            }
         }
 
         return 0L;

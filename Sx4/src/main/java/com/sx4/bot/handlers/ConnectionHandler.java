@@ -14,6 +14,7 @@ import net.dv8tion.jda.api.JDA.ShardInfo;
 import net.dv8tion.jda.api.events.*;
 import net.dv8tion.jda.api.hooks.EventListener;
 import net.dv8tion.jda.api.requests.CloseCode;
+import org.jetbrains.annotations.NotNull;
 
 import java.time.Instant;
 import java.time.OffsetDateTime;
@@ -96,7 +97,7 @@ public class ConnectionHandler implements EventListener {
 	}
 
 	@Override
-	public void onEvent(GenericEvent event) {
+	public void onEvent(@NotNull GenericEvent event) {
 		if (event instanceof ReadyEvent) {
 			this.onReady((ReadyEvent) event);
 		} else if (event instanceof ReconnectedEvent) {

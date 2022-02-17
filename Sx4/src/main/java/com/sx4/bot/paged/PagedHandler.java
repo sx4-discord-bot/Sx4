@@ -15,6 +15,7 @@ import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.hooks.EventListener;
 import net.dv8tion.jda.api.interactions.components.Button;
 import net.dv8tion.jda.api.requests.ErrorResponse;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.EnumSet;
 import java.util.Set;
@@ -109,7 +110,7 @@ public class PagedHandler implements EventListener {
 					pagedResult.select(pagedResult.isIncreasedIndex() ? index - 1 : (pagedResult.getPage() * pagedResult.getPerPage() - pagedResult.getPerPage()) + (index - 1));
 					this.attemptDelete(message);
 				}
-			} catch (NumberFormatException e) {}
+			} catch (NumberFormatException ignored) {}
 		} else {
 			int index = contentLower.lastIndexOf(' ');
 			if (index != -1 && this.skip.contains(contentLower.substring(0, index))) {
@@ -121,7 +122,7 @@ public class PagedHandler implements EventListener {
 
 						return;
 					}
-				} catch (NumberFormatException e) {}
+				} catch (NumberFormatException ignored) {}
 			}
 			
 			if (selectTypes.contains(SelectType.OBJECT)) {
@@ -136,7 +137,7 @@ public class PagedHandler implements EventListener {
 	}
 
 	@Override
-	public void onEvent(GenericEvent event) {
+	public void onEvent(@NotNull GenericEvent event) {
 		if (event instanceof MessageReceivedEvent) {
 			this.handleMessage(((MessageReceivedEvent) event).getMessage());
 		} else if (event instanceof MessageUpdateEvent) {
