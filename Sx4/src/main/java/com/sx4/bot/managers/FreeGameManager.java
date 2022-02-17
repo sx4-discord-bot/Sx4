@@ -178,6 +178,13 @@ public class FreeGameManager implements WebhookManager {
 	}
 
 	public CompletableFuture<List<ReadonlyMessage>> sendFreeGameNotifications(List<? extends FreeGame<?>> games) {
+		games.forEach(this::addAnnouncedGame);
+
+		List<Document> gameData = games.stream().map(FreeGame::toData).collect(Collectors.toList());
+		if (!gameData.isEmpty()) {
+			this.bot.getMongo().insertManyAnnouncedGames(gameData).whenComplete(MongoDatabase.exceptionally());
+		}
+
 		List<Bson> guildPipeline = List.of(
 			Aggregates.match(Operators.expr(Operators.eq("$_id", "$$guildId"))),
 			Aggregates.project(Projections.computed("premium", Operators.lt(Operators.nowEpochSecond(), Operators.ifNull("$premium.endAt", 0L))))
@@ -189,6 +196,7 @@ public class FreeGameManager implements WebhookManager {
 		);
 
 		return this.bot.getMongo().aggregateFreeGameChannels(pipeline).thenComposeAsync(documents -> {
+			List<WriteModel<Document>> bulkData = new ArrayList<>();
 			List<CompletableFuture<List<ReadonlyMessage>>> futures = new ArrayList<>();
 			for (Document data : documents) {
 				if (!data.getBoolean("enabled", true)) {
@@ -209,10 +217,16 @@ public class FreeGameManager implements WebhookManager {
 					Formatter<Document> formatter = new JsonFormatter(data.get("message", FreeGameManager.DEFAULT_MESSAGE))
 						.addVariable("game", game);
 
-					WebhookMessage message = MessageUtility.fromJson(formatter.parse())
-						.setAvatarUrl(premium ? webhookData.get("avatar", avatar) : avatar)
-						.setUsername(premium ? webhookData.get("name", "Sx4 - Free Games") : "Sx4 - Free Games")
-						.build();
+					WebhookMessage message;
+					try {
+						message = MessageUtility.fromJson(formatter.parse())
+							.setAvatarUrl(premium ? webhookData.get("avatar", avatar) : avatar)
+							.setUsername(premium ? webhookData.get("name", "Sx4 - Free Games") : "Sx4 - Free Games")
+							.build();
+					} catch (IllegalArgumentException e) {
+						bulkData.add(new UpdateOneModel<>(Filters.eq("_id", data.getObjectId("_id")), Updates.unset("message")));
+						continue;
+					}
 
 					messages.add(message);
 				}
@@ -220,9 +234,8 @@ public class FreeGameManager implements WebhookManager {
 				futures.add(this.sendFreeGameNotificationMessages(channel, webhookData, messages));
 			}
 
-			List<Document> gameData = games.stream().map(FreeGame::toData).collect(Collectors.toList());
-			if (!gameData.isEmpty()) {
-				this.bot.getMongo().insertManyAnnouncedGames(gameData).whenComplete(MongoDatabase.exceptionally());
+			if (!bulkData.isEmpty()) {
+				this.bot.getMongo().bulkWriteFreeGameChannels(bulkData).whenComplete(MongoDatabase.exceptionally());
 			}
 
 			return FutureUtility.allOf(futures).thenApply(list -> list.stream().flatMap(List::stream).collect(Collectors.toList()));
@@ -346,7 +359,7 @@ public class FreeGameManager implements WebhookManager {
 				}
 
 				FutureUtility.allOf(futures, Objects::nonNull).whenComplete((games, exception) -> {
-					if (ExceptionUtility.sendErrorMessage(exception)) {
+					if (ExceptionUtility.sendErrorMessage(exception) || games.isEmpty()) {
 						return;
 					}
 

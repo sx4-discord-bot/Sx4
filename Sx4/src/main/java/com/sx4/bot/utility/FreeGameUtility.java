@@ -3,7 +3,6 @@ package com.sx4.bot.utility;
 import com.sx4.bot.entities.info.EpicFreeGame;
 import com.sx4.bot.entities.info.FreeGame;
 import com.sx4.bot.entities.info.FreeGameType;
-import com.sx4.bot.entities.info.SteamFreeGame;
 import com.sx4.bot.http.HttpCallback;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -98,11 +97,7 @@ public class FreeGameUtility {
 
 	public static FreeGame<?> getFreeGame(Document data) {
 		FreeGameType type = FreeGameType.fromId(data.getInteger("type"));
-
-		return switch (type) {
-			case EPIC_GAMES -> EpicFreeGame.fromDatabase(data);
-			case STEAM -> SteamFreeGame.fromDatabase(data);
-		};
+		return type.fromDatabase(data);
 	}
 
 }

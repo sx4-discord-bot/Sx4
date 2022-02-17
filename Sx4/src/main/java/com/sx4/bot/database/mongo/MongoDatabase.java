@@ -394,6 +394,10 @@ public class MongoDatabase {
 		return CompletableFuture.supplyAsync(() -> this.freeGameChannels.updateOne(filter, update, options), this.executor);
 	}
 
+	public CompletableFuture<BulkWriteResult> bulkWriteFreeGameChannels(List<? extends WriteModel<Document>> bulkData) {
+		return CompletableFuture.supplyAsync(() -> this.freeGameChannels.bulkWrite(bulkData), this.executor);
+	}
+
 	public CompletableFuture<Document> findAndUpdateFreeGameChannel(Bson filter, List<Bson> update, FindOneAndUpdateOptions options) {
 		return CompletableFuture.supplyAsync(() -> this.freeGameChannels.findOneAndUpdate(filter, update, options), this.executor);
 	}

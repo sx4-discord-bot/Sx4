@@ -12,7 +12,7 @@ public class SteamFreeGame extends FreeGame<Integer> {
 
 	private static final DateTimeFormatter FORMATTER = new DateTimeFormatterBuilder()
 		.appendPattern("dd MMM @ K:mma")
-		.parseDefaulting(ChronoField.YEAR, Year.now(ZoneId.systemDefault()).getValue())
+		.parseDefaulting(ChronoField.YEAR, Year.now(ZoneId.of("America/Los_Angeles")).getValue())
 		.toFormatter()
 		.withZone(ZoneId.of("America/Los_Angeles"));
 
