@@ -278,7 +278,10 @@ public class FreeGameManager implements WebhookManager {
 
 			mysteryGames.addAll(currentGames);
 
-			this.sendFreeGameNotifications(mysteryGames);
+
+			if (!mysteryGames.isEmpty()) {
+				this.sendFreeGameNotifications(mysteryGames).whenComplete(MongoDatabase.exceptionally());
+			}
 
 			List<EpicFreeGame> upcomingGames = games.stream()
 				.filter(game -> game.getPromotionStart().isAfter(now))

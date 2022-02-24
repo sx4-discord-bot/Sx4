@@ -25,6 +25,7 @@ import org.jsoup.nodes.TextNode;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Locale;
+import java.util.StringJoiner;
 import java.util.concurrent.CompletableFuture;
 
 public class TranslateCommand extends Sx4Command {
@@ -76,13 +77,9 @@ public class TranslateCommand extends Sx4Command {
 			.getJSONArray(0)
 			.getJSONArray(5);
 
-		StringBuilder output = new StringBuilder();
+		StringJoiner output = new StringJoiner(" ");
 		for (int i = 0; i < segments.length(); i++) {
-			output.append(segments.getJSONArray(i).getString(0));
-
-			if (i != segments.length() - 1) {
-				output.append(" ");
-			}
+			output.add(segments.getJSONArray(i).getString(0));
 		}
 
 		EmbedBuilder embed = new EmbedBuilder()
@@ -104,7 +101,7 @@ public class TranslateCommand extends Sx4Command {
 			}
 
 			FormBody requestBody = new FormBody.Builder()
-				.addEncoded("f.req", "%5B%5B%5B%22MkEWBc%22%2C%22%5B%5B%5C%22" + URLEncoder.encode(query, StandardCharsets.UTF_8) + "%5C%22%2C%5C%22" + fromTag + "%5C%22%2C%5C%22" + toTag + "%5C%22%2Ctrue%5D%2C%5Bnull%5D%5D%22%2Cnull%2C%22generic%22%5D%5D%5D")
+				.addEncoded("f.req", "%5B%5B%5B%22MkEWBc%22%2C%22%5B%5B%5C%22" + URLEncoder.encode(query, StandardCharsets.UTF_8).replace("%0A", "\n") + "%5C%22%2C%5C%22" + fromTag + "%5C%22%2C%5C%22" + toTag + "%5C%22%2Ctrue%5D%2C%5Bnull%5D%5D%22%2Cnull%2C%22generic%22%5D%5D%5D")
 				.build();
 
 			Request request = new Request.Builder()
