@@ -7,13 +7,14 @@ import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.time.temporal.ChronoField;
+import java.util.Locale;
 
 public class SteamFreeGame extends FreeGame<Integer> {
 
 	private static final DateTimeFormatter FORMATTER = new DateTimeFormatterBuilder()
-		.appendPattern("dd MMM @ K:mma")
+		.appendPattern("dd MMM @ [KK][K]:mma")
 		.parseDefaulting(ChronoField.YEAR, Year.now(ZoneId.of("America/Los_Angeles")).getValue())
-		.toFormatter()
+		.toFormatter(Locale.ROOT)
 		.withZone(ZoneId.of("America/Los_Angeles"));
 
 	private SteamFreeGame(int id, String title, String description, String publisher, String image, int originalPrice, int discountPrice, OffsetDateTime start, OffsetDateTime end) {
@@ -53,7 +54,7 @@ public class SteamFreeGame extends FreeGame<Integer> {
 		String endText = element.getElementsByClass("game_purchase_discount_quantity ").first().text();
 		int startIndex = endText.indexOf("before ") + 7, endIndex = endText.indexOf(".");
 
-		OffsetDateTime end = ZonedDateTime.parse(endText.substring(startIndex, endIndex), SteamFreeGame.FORMATTER).withZoneSameInstant(ZoneOffset.UTC).toOffsetDateTime();
+		OffsetDateTime end = ZonedDateTime.parse(endText.substring(startIndex, endIndex - 2) + endText.substring(endIndex - 2, endIndex).toUpperCase(Locale.ROOT), SteamFreeGame.FORMATTER).withZoneSameInstant(ZoneOffset.UTC).toOffsetDateTime();
 
 		return new SteamFreeGame(id, title, description, publisher, image, originalPrice, discountPrice, OffsetDateTime.now(), end);
 	}
