@@ -11,11 +11,8 @@ import java.util.Locale;
 
 public class SteamFreeGame extends FreeGame<Integer> {
 
-	private static final DateTimeFormatter FORMATTER = new DateTimeFormatterBuilder()
-		.appendPattern("dd MMM @ [KK][K]:mma")
-		.parseDefaulting(ChronoField.YEAR, Year.now(ZoneId.of("America/Los_Angeles")).getValue())
-		.toFormatter(Locale.ROOT)
-		.withZone(ZoneId.of("America/Los_Angeles"));
+	private static final DateTimeFormatterBuilder FORMATTER = new DateTimeFormatterBuilder().appendPattern("dd MMM @ [KK][K]:mma");
+	private static final ZoneId ZONE_ID = ZoneId.of("America/Los_Angeles");
 
 	private SteamFreeGame(int id, String title, String description, String publisher, String image, int originalPrice, int discountPrice, OffsetDateTime start, OffsetDateTime end) {
 		super(id, title, description, publisher, image, originalPrice, discountPrice, start, end, FreeGameType.STEAM);
@@ -54,7 +51,15 @@ public class SteamFreeGame extends FreeGame<Integer> {
 		String endText = element.getElementsByClass("game_purchase_discount_quantity ").first().text();
 		int startIndex = endText.indexOf("before ") + 7, endIndex = endText.indexOf(".");
 
-		OffsetDateTime end = ZonedDateTime.parse(endText.substring(startIndex, endIndex - 2) + endText.substring(endIndex - 2, endIndex).toUpperCase(Locale.ROOT), SteamFreeGame.FORMATTER).withZoneSameInstant(ZoneOffset.UTC).toOffsetDateTime();
+		DateTimeFormatter formatter = SteamFreeGame.FORMATTER
+			.parseDefaulting(ChronoField.YEAR, Year.now(SteamFreeGame.ZONE_ID).getValue())
+			.toFormatter(Locale.ROOT)
+			.withZone(SteamFreeGame.ZONE_ID);
+
+		OffsetDateTime end = ZonedDateTime.parse(endText.substring(startIndex, endIndex - 2) + endText.substring(endIndex - 2, endIndex).toUpperCase(Locale.ROOT), formatter).withZoneSameInstant(ZoneOffset.UTC).toOffsetDateTime();
+		if (end.isBefore(OffsetDateTime.now(ZoneOffset.UTC))) {
+			end = end.plusYears(1);
+		}
 
 		return new SteamFreeGame(id, title, description, publisher, image, originalPrice, discountPrice, OffsetDateTime.now(), end);
 	}

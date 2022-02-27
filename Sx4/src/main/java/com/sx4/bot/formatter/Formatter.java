@@ -244,8 +244,8 @@ public abstract class Formatter<Type> {
 	public static String toString(Object object) {
 		if (object == null) {
 			return "null";
-		} else if (object instanceof Color) {
-			return ColourUtility.toHexString(((Color) object).getRGB());
+		} else if (object instanceof Color colour) {
+			return ColourUtility.toHexString(colour.getRGB());
 		} else if (object instanceof Double value) {
 			if (value % 1 == 0) {
 				return Long.toString(value.longValue());
