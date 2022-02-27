@@ -15,6 +15,7 @@ import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.info.EpicFreeGame;
 import com.sx4.bot.entities.info.FreeGame;
+import com.sx4.bot.entities.info.FreeGameType;
 import com.sx4.bot.formatter.Formatter;
 import com.sx4.bot.formatter.FormatterManager;
 import com.sx4.bot.formatter.JsonFormatter;
@@ -34,11 +35,13 @@ import net.dv8tion.jda.api.utils.TimeFormat;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 
+import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.StringJoiner;
 import java.util.concurrent.CompletionException;
+import java.util.stream.Collectors;
 
 public class FreeGamesCommand extends Sx4Command {
 
@@ -74,30 +77,31 @@ public class FreeGamesCommand extends Sx4Command {
 		event.replyHelp().queue();
 	}
 
-	@Command(value="list", description="Lists the free games on Epic Games for this week")
+	@Command(value="list", description="Lists the current free games")
 	@CommandId(473)
 	@Examples({"free games list"})
 	public void list(Sx4CommandEvent event) {
-		FreeGameUtility.retrieveCurrentFreeGames(event.getHttpClient(), freeGames -> {
-			if (freeGames.isEmpty()) {
-				event.replyFailure("There are currently no free games").queue();
-				return;
-			}
+		List<Document> games = event.getMongo().getAnnouncedGames(Filters.gte("promotion.end", Instant.now().getEpochSecond()), new Document()).into(new ArrayList<>());
+		if (games.isEmpty()) {
+			event.replyFailure("There are currently no free games").queue();
+			return;
+		}
 
-			PagedResult<EpicFreeGame> paged = new PagedResult<>(event.getBot(), freeGames)
-				.setSelect()
-				.setPerPage(1)
-				.setCustomFunction(page -> {
-					EmbedBuilder embed = new EmbedBuilder();
-					embed.setFooter("Game " + page.getPage() + "/" + page.getMaxPage());
+		List<FreeGame<?>> freeGames = games.stream().map(FreeGameUtility::getFreeGame).collect(Collectors.toList());
 
-					page.forEach((game, index) -> this.setGameEmbed(embed, game));
+		PagedResult<FreeGame<?>> paged = new PagedResult<>(event.getBot(), freeGames)
+			.setSelect()
+			.setPerPage(1)
+			.setCustomFunction(page -> {
+				EmbedBuilder embed = new EmbedBuilder();
+				embed.setFooter("Game " + page.getPage() + "/" + page.getMaxPage());
 
-					return new MessageBuilder().setEmbeds(embed.build());
-				});
+				page.forEach((game, index) -> this.setGameEmbed(embed, game));
 
-			paged.execute(event);
-		});
+				return new MessageBuilder().setEmbeds(embed.build());
+			});
+
+		paged.execute(event);
 	}
 
 	@Command(value="upcoming", description="Lists the free games on Epic Games coming in the future")
@@ -200,7 +204,7 @@ public class FreeGamesCommand extends Sx4Command {
 		});
 	}
 
-	@Command(value="toggle", description="Enables/disables a free games channel")
+	@Command(value="toggle", description="Enables/disables a free game channel")
 	@CommandId(484)
 	@Examples({"free games toggle", "free games toggle #channel"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
@@ -216,6 +220,33 @@ public class FreeGamesCommand extends Sx4Command {
 			}
 
 			event.replySuccess("The free game channel in " + effectiveChannel.getAsMention() + " is now **" + (data.get("enabled", true) ? "enabled" : "disabled") + "**").queue();
+		});
+	}
+
+	@Command(value="platforms", description="Select what platforms you want notifications from")
+	@CommandId(491)
+	@Examples({"free games platforms #channel STEAM", "free games platforms STEAM EPIC_GAMES"})
+	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
+	public void platforms(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) TextChannel channel, @Argument(value="platforms") FreeGameType... types) {
+		TextChannel effectiveChannel = channel == null ? event.getTextChannel() : channel;
+
+		long raw = FreeGameType.getRaw(types);
+		event.getMongo().updateFreeGameChannel(Filters.eq("channelId", effectiveChannel.getIdLong()), Updates.set("platforms", raw), new UpdateOptions()).whenComplete((result, exception) -> {
+			if (ExceptionUtility.sendExceptionally(event, exception)) {
+				return;
+			}
+
+			if (result.getMatchedCount() == 0) {
+				event.replyFailure("You do not have a free game channel in " + effectiveChannel.getAsMention()).queue();
+				return;
+			}
+
+			if (result.getModifiedCount() == 0) {
+				event.replyFailure("That free game channel already uses those platforms").queue();
+				return;
+			}
+
+			event.replySuccess("That free game channel will now send notifications from those platforms").queue();
 		});
 	}
 

@@ -8,6 +8,7 @@ import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.info.EpicFreeGame;
 import com.sx4.bot.entities.info.FreeGame;
+import com.sx4.bot.entities.info.FreeGameType;
 import com.sx4.bot.entities.info.SteamFreeGame;
 import com.sx4.bot.entities.webhook.ReadonlyMessage;
 import com.sx4.bot.entities.webhook.WebhookClient;
@@ -212,8 +213,15 @@ public class FreeGameManager implements WebhookManager {
 				boolean premium = data.getBoolean("premium");
 				Document webhookData = data.get("webhook", MongoDatabase.EMPTY_DOCUMENT);
 
+				long platforms = data.get("platforms", FreeGameType.ALL);
+
 				List<WebhookMessage> messages = new ArrayList<>();
 				for (FreeGame<?> game : games) {
+					int raw = game.getType().getId();
+					if ((platforms & raw) != raw) {
+						continue;
+					}
+
 					Formatter<Document> formatter = new JsonFormatter(data.get("message", FreeGameManager.DEFAULT_MESSAGE))
 						.addVariable("game", game);
 
