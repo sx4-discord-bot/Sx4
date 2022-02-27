@@ -217,7 +217,7 @@ public class FreeGameManager implements WebhookManager {
 
 				List<WebhookMessage> messages = new ArrayList<>();
 				for (FreeGame<?> game : games) {
-					int raw = game.getType().getId();
+					long raw = game.getType().getRaw();
 					if ((platforms & raw) != raw) {
 						continue;
 					}

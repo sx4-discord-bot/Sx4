@@ -15,15 +15,21 @@ public enum FreeGameType {
 	public static final long ALL = FreeGameType.getRaw(FreeGameType.values());
 
 	private final int id;
+	private final long raw;
 	private final Function<Document, FreeGame<?>> function;
 
 	private FreeGameType(int id, Function<Document, FreeGame<?>> function) {
 		this.id = id;
+		this.raw = 1L << id;
 		this.function = function;
 	}
 
 	public int getId() {
 		return this.id;
+	}
+
+	public long getRaw() {
+		return this.raw;
 	}
 
 	public FreeGame<?> fromDatabase(Document data) {
@@ -32,7 +38,7 @@ public enum FreeGameType {
 
 	public static FreeGameType fromId(int id) {
 		for (FreeGameType type : FreeGameType.values()) {
-			if (type.getId() == id) {
+			if (type.getRaw() == id) {
 				return type;
 			}
 		}
@@ -47,7 +53,7 @@ public enum FreeGameType {
 		}
 
 		for (FreeGameType type : FreeGameType.values()) {
-			if ((raw & type.getId()) == type.getId()) {
+			if ((raw & type.getRaw()) == type.getRaw()) {
 				types.add(type);
 			}
 		}
@@ -62,7 +68,7 @@ public enum FreeGameType {
 	public static long getRaw(Collection<FreeGameType> types) {
 		long raw = 0L;
 		for (FreeGameType type : types) {
-			raw |= type.getId();
+			raw |= type.getRaw();
 		}
 
 		return raw;
