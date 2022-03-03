@@ -38,7 +38,7 @@ public enum FreeGameType {
 
 	public static FreeGameType fromId(int id) {
 		for (FreeGameType type : FreeGameType.values()) {
-			if (type.getRaw() == id) {
+			if (type.getId() == id) {
 				return type;
 			}
 		}

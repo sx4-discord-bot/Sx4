@@ -168,7 +168,7 @@ public class FreeGamesCommand extends Sx4Command {
 		event.getMongo().insertFreeGameChannel(data).whenComplete((result, exception) -> {
 			Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
 			if (cause instanceof MongoWriteException && ((MongoWriteException) cause).getError().getCategory() == ErrorCategory.DUPLICATE_KEY) {
-				event.replyFailure("You already have a free games channel setup").queue();
+				event.replyFailure("You already have a free games channel in " + effectiveChannel.getAsMention()).queue();
 				return;
 			}
 

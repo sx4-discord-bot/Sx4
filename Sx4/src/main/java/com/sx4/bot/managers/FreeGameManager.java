@@ -53,7 +53,6 @@ public class FreeGameManager implements WebhookManager {
 	private final Sx4 bot;
 
 	private final Map<Object, List<FreeGame<?>>> announcedGames;
-	private final List<EpicFreeGame> queuedGames;
 
 	private final Map<Long, WebhookClient> webhooks;
 
@@ -66,7 +65,6 @@ public class FreeGameManager implements WebhookManager {
 	public FreeGameManager(Sx4 bot) {
 		this.bot = bot;
 		this.webhooks = new HashMap<>();
-		this.queuedGames = new ArrayList<>();
 		this.announcedGames = new HashMap<>();
 	}
 
@@ -250,46 +248,13 @@ public class FreeGameManager implements WebhookManager {
 		});
 	}
 
-	public void scheduleEpicFreeGameNotifications(long duration, List<EpicFreeGame> games) {
-		this.epicExecutor.schedule(() -> {
-			this.sendFreeGameNotifications(games).whenComplete(MongoDatabase.exceptionally());
-
-			Set<String> ids = games.stream()
-				.filter(EpicFreeGame::isMysteryGame)
-				.map(EpicFreeGame::getId)
-				.collect(Collectors.toSet());
-
-			this.ensureEpicFreeGames(ids);
-			this.queuedGames.removeAll(games);
-		}, duration, TimeUnit.SECONDS);
+	public void scheduleEpicFreeGameNotifications(long duration) {
+		this.epicExecutor.schedule(this::ensureEpicFreeGames, duration, TimeUnit.SECONDS);
 	}
 
-	public void ensureEpicFreeGames(Set<String> ids) {
+	public void ensureEpicFreeGames() {
 		FreeGameUtility.retrieveFreeGames(this.bot.getHttpClient(), games -> {
 			OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
-
-			List<EpicFreeGame> mysteryGames = games.stream()
-				.filter(Predicate.not(EpicFreeGame::isMysteryGame))
-				.filter(game -> ids.contains(game.getId()))
-				.collect(Collectors.toList());
-
-			if (mysteryGames.size() != ids.size()) {
-				this.epicExecutor.schedule(() -> this.ensureEpicFreeGames(ids), 1, TimeUnit.MINUTES);
-				return;
-			}
-
-			// Add unaccounted for games in the case Epic Games releases more free games than shown
-			List<EpicFreeGame> currentGames = games.stream()
-				.filter(Predicate.not(this::isAnnounced))
-				.filter(game -> !game.getPromotionStart().isAfter(now) && game.getPromotionEnd().isAfter(now))
-				.collect(Collectors.toList());
-
-			mysteryGames.addAll(currentGames);
-
-
-			if (!mysteryGames.isEmpty()) {
-				this.sendFreeGameNotifications(mysteryGames).whenComplete(MongoDatabase.exceptionally());
-			}
 
 			List<EpicFreeGame> upcomingGames = games.stream()
 				.filter(game -> game.getPromotionStart().isAfter(now))
@@ -300,26 +265,21 @@ public class FreeGameManager implements WebhookManager {
 			OffsetDateTime promotionStart = newestGame.getPromotionStart();
 			if (!promotionStart.isAfter(now)) {
 				// re-request games as they have not been refreshed on the API
-				this.epicExecutor.schedule((Runnable) this::ensureEpicFreeGames, 10, TimeUnit.MINUTES);
+				this.epicExecutor.schedule(this::ensureEpicFreeGames, 10, TimeUnit.MINUTES);
 				return;
 			}
 
-			this.queuedGames.add(newestGame);
+			List<EpicFreeGame> currentGames = games.stream()
+				.filter(Predicate.not(this::isAnnounced))
+				.filter(game -> !game.getPromotionStart().isAfter(now) && game.getPromotionEnd().isAfter(now))
+				.collect(Collectors.toList());
 
-			for (EpicFreeGame game : games.subList(1, games.size())) {
-				if (game.getPromotionStart().equals(promotionStart)) {
-					this.queuedGames.add(game);
-				} else {
-					break;
-				}
+			if (!currentGames.isEmpty()) {
+				this.sendFreeGameNotifications(currentGames).whenComplete(MongoDatabase.exceptionally());
 			}
 
-			this.scheduleEpicFreeGameNotifications(Duration.between(now, promotionStart).toSeconds() + 5, this.queuedGames);
+			this.scheduleEpicFreeGameNotifications( Duration.between(now, promotionStart).toSeconds() + 5);
 		});
-	}
-
-	public void ensureEpicFreeGames() {
-		this.ensureEpicFreeGames(Collections.emptySet());
 	}
 
 	public void ensureSteamFreeGames() {

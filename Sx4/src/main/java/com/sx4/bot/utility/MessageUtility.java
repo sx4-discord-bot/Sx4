@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 public class MessageUtility {
 
@@ -492,7 +493,7 @@ public class MessageUtility {
 
 		List<WebhookEmbed> embeds = message.getEmbeds();
 		if (!embeds.isEmpty()) {
-			builder.setEmbeds(MessageUtility.fromWebhookEmbed(embeds.get(0)).build());
+			builder.setEmbeds(embeds.stream().map(MessageUtility::fromWebhookEmbed).map(EmbedBuilder::build).collect(Collectors.toList()));
 		}
 
 		builder.setContent(message.getContent());
@@ -504,12 +505,12 @@ public class MessageUtility {
 
 		MessageAttachment[] attachments = message.getAttachments();
 		if (attachments != null && attachments.length != 0) {
-			MessageAttachment attachment = attachments[0];
-
-			if (action == null) {
-				action = channel.sendFile(attachment.getData(), attachment.getName());
-			} else {
-				action.addFile(attachment.getData(), attachment.getName());
+			for (MessageAttachment attachment : attachments) {
+				if (action == null) {
+					action = channel.sendFile(attachment.getData(), attachment.getName());
+				} else {
+					action = action.addFile(attachment.getData(), attachment.getName());
+				}
 			}
 		}
 
