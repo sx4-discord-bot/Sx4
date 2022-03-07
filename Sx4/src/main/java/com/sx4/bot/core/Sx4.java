@@ -38,6 +38,7 @@ import com.sx4.bot.entities.economy.item.Item;
 import com.sx4.bot.entities.economy.item.ItemStack;
 import com.sx4.bot.entities.info.Currency;
 import com.sx4.bot.entities.info.FreeGame;
+import com.sx4.bot.entities.info.FreeGameType;
 import com.sx4.bot.entities.management.AutoRoleFilter;
 import com.sx4.bot.entities.mod.PartialEmote;
 import com.sx4.bot.entities.mod.Reason;
@@ -249,6 +250,9 @@ public class Sx4 {
 			.addVariable("status", "Gets the status code of the response", FormatterResponse.class, FormatterResponse::getStatus)
 			.addVariable("raw", "Gets the raw response body", FormatterResponse.class, FormatterResponse::getRaw)
 			.addVariable("json", "Gets the response body as json", FormatterResponse.class, FormatterResponse::asJson)
+			.addVariable("icon", "Get the icon url of the free game platform", FreeGameType.class, FreeGameType::getIconUrl)
+			.addVariable("name", "Get the name of the free game platform", FreeGameType.class, FreeGameType::getName)
+			.addVariable("type", "Get the platform type of the free game", FreeGame.class, FreeGame::getType)
 			.addVariable("title", "Gets the title of the game", FreeGame.class, FreeGame::getTitle)
 			.addVariable("description", "Gets the description for the game", FreeGame.class, FreeGame::getDescription)
 			.addVariable("publisher", "Gets the publisher of the game", FreeGame.class, FreeGame::getPublisher)

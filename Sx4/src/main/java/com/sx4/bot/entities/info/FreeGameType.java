@@ -9,19 +9,30 @@ import java.util.function.Function;
 
 public enum FreeGameType {
 
-	EPIC_GAMES(0, EpicFreeGame::fromDatabase),
-	STEAM(1, SteamFreeGame::fromDatabase);
+	EPIC_GAMES(0, "Epic Games", "https://cdn.discordapp.com/attachments/344091594972069888/950459635800887296/epic_games.png", EpicFreeGame::fromDatabase),
+	STEAM(1, "Steam", "https://cdn.discordapp.com/attachments/344091594972069888/950459636157395024/steam.png", SteamFreeGame::fromDatabase);
 
 	public static final long ALL = FreeGameType.getRaw(FreeGameType.values());
 
 	private final int id;
 	private final long raw;
+	private final String name, iconUrl;
 	private final Function<Document, FreeGame<?>> function;
 
-	private FreeGameType(int id, Function<Document, FreeGame<?>> function) {
+	private FreeGameType(int id, String name, String iconUrl, Function<Document, FreeGame<?>> function) {
 		this.id = id;
 		this.raw = 1L << id;
+		this.name = name;
+		this.iconUrl = iconUrl;
 		this.function = function;
+	}
+
+	public String getName() {
+		return this.name;
+	}
+
+	public String getIconUrl() {
+		return this.iconUrl;
 	}
 
 	public int getId() {

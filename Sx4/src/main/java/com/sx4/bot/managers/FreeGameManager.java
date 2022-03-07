@@ -42,6 +42,7 @@ public class FreeGameManager implements WebhookManager {
 		new Document("title", "{game.title}")
 			.append("url", "{game.url}")
 			.append("description", "{game.description}")
+			.append("thumbnail", new Document("url", "{game.type.icon}"))
 			.append("image", new Document("url", "{game.image}"))
 			.append("fields", List.of(
 				new Document("name", "Price").append("value", "{game.original_price.equals(0).then(Free).else(~~£{game.original_price.format(,##0.00)}~~ Free)}").append("inline", true),
@@ -237,7 +238,9 @@ public class FreeGameManager implements WebhookManager {
 					messages.add(message);
 				}
 
-				futures.add(this.sendFreeGameNotificationMessages(channel, webhookData, messages));
+				if (!messages.isEmpty()) {
+					futures.add(this.sendFreeGameNotificationMessages(channel, webhookData, messages));
+				}
 			}
 
 			if (!bulkData.isEmpty()) {
@@ -246,10 +249,6 @@ public class FreeGameManager implements WebhookManager {
 
 			return FutureUtility.allOf(futures).thenApply(list -> list.stream().flatMap(List::stream).collect(Collectors.toList()));
 		});
-	}
-
-	public void scheduleEpicFreeGameNotifications(long duration) {
-		this.epicExecutor.schedule(this::ensureEpicFreeGames, duration, TimeUnit.SECONDS);
 	}
 
 	public void ensureEpicFreeGames() {
@@ -278,7 +277,7 @@ public class FreeGameManager implements WebhookManager {
 				this.sendFreeGameNotifications(currentGames).whenComplete(MongoDatabase.exceptionally());
 			}
 
-			this.scheduleEpicFreeGameNotifications( Duration.between(now, promotionStart).toSeconds() + 5);
+			this.epicExecutor.schedule(this::ensureEpicFreeGames, Duration.between(now, promotionStart).toSeconds() + 5, TimeUnit.SECONDS);
 		});
 	}
 

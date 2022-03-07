@@ -66,7 +66,7 @@ public class TriggerCommand extends Sx4Command {
 	@CommandId(215)
 	@Examples({"trigger state 6006ff6b94c9ed0f764ada83", "trigger state disable all", "trigger state enable 6006ff6b94c9ed0f764ada83"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-	public void state(Sx4CommandEvent event, @Argument(value="state") @DefaultString("toggle") @Options({"enable", "toggle", "disable"}) String state, @Argument(value="id") Alternative<ObjectId> option) {
+	public void state(Sx4CommandEvent event, @Argument(value="state") @DefaultString("toggle") @Options({"enable", "toggle", "disable"}) String state, @Argument(value="id") @AlternativeOptions("all") Alternative<ObjectId> option) {
 		Bson guildFilter = Filters.eq("guildId", event.getGuild().getIdLong());
 		Bson filter = option.isAlternative() ? guildFilter : Filters.and(Filters.eq("_id", option.getValue()), guildFilter);
 		List<Bson> update = List.of(Operators.set("enabled", state.equals("toggle") ? Operators.cond(Operators.exists("$enabled"), false, Operators.REMOVE) : state.equals("enable") ? Operators.REMOVE : false));
