@@ -42,6 +42,8 @@ dependencies {
 
 	implementation 'club.minnced:discord-webhooks:0+'
 
+	implementation 'net.jodah:typetools:0+'
+
 	implementation 'com.vdurmont:emoji-java:5+'
 
 	implementation group: 'org.jsoup', name: 'jsoup', version: '1.11.3'

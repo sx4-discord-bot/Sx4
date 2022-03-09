@@ -1,10 +1,13 @@
 package com.sx4.bot.formatter.function;
 
+import net.jodah.typetools.TypeResolver;
+
 import java.util.function.Function;
 
 public class FormatterVariable<Type> {
 
 	private final Class<Type> type;
+	private final Class<?> returnType;
 	private final String variable;
 	private final Function<Type, Object> function;
 
@@ -15,6 +18,7 @@ public class FormatterVariable<Type> {
 		this.type = type;
 		this.function = function;
 		this.description = description;
+		this.returnType = TypeResolver.resolveRawArguments(Function.class, function.getClass())[1];
 	}
 
 	public String getDescription() {
@@ -27,6 +31,10 @@ public class FormatterVariable<Type> {
 
 	public Class<Type> getType() {
 		return this.type;
+	}
+
+	public Class<?> getReturnType() {
+		return this.returnType;
 	}
 
 	public Function<Type, Object> getFunction() {

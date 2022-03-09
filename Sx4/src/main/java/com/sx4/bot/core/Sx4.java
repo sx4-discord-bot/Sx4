@@ -252,7 +252,7 @@ public class Sx4 {
 			.addVariable("json", "Gets the response body as json", FormatterResponse.class, FormatterResponse::asJson)
 			.addVariable("icon", "Get the icon url of the free game platform", FreeGameType.class, FreeGameType::getIconUrl)
 			.addVariable("name", "Get the name of the free game platform", FreeGameType.class, FreeGameType::getName)
-			.addVariable("type", "Get the platform type of the free game", FreeGame.class, FreeGame::getType)
+			.addVariable("platform", "Get the platform of the free game", FreeGame.class, FreeGame::getType)
 			.addVariable("title", "Gets the title of the game", FreeGame.class, FreeGame::getTitle)
 			.addVariable("description", "Gets the description for the game", FreeGame.class, FreeGame::getDescription)
 			.addVariable("publisher", "Gets the publisher of the game", FreeGame.class, FreeGame::getPublisher)

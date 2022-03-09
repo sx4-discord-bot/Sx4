@@ -42,7 +42,7 @@ public class FreeGameManager implements WebhookManager {
 		new Document("title", "{game.title}")
 			.append("url", "{game.url}")
 			.append("description", "{game.description}")
-			.append("thumbnail", new Document("url", "{game.type.icon}"))
+			.append("thumbnail", new Document("url", "{game.platform.icon}"))
 			.append("image", new Document("url", "{game.image}"))
 			.append("fields", List.of(
 				new Document("name", "Price").append("value", "{game.original_price.equals(0).then(Free).else(~~£{game.original_price.format(,##0.00)}~~ Free)}").append("inline", true),
