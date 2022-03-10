@@ -18,7 +18,7 @@ public class FormatterCondition {
 
 	@Override
 	public String toString() {
-		return Formatter.toString(this.orElse(null));
+		return Formatter.toString(this.orElse(""));
 	}
 
 }

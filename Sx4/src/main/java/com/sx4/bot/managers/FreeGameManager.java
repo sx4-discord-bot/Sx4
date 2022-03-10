@@ -60,7 +60,6 @@ public class FreeGameManager implements WebhookManager {
 	private final ScheduledExecutorService epicExecutor = Executors.newSingleThreadScheduledExecutor();
 	private final ScheduledExecutorService steamExecutor = Executors.newSingleThreadScheduledExecutor();
 
-	private final ScheduledExecutorService webhookExecutor = Executors.newSingleThreadScheduledExecutor();
 	private final OkHttpClient client = new OkHttpClient();
 
 	public FreeGameManager(Sx4 bot) {
@@ -120,7 +119,7 @@ public class FreeGameManager implements WebhookManager {
 		}
 
 		return channel.createWebhook("Sx4 - Free Games").submit().thenCompose(webhook -> {
-			WebhookClient webhookClient = new WebhookClient(webhook.getIdLong(), webhook.getToken(), this.webhookExecutor, this.client);
+			WebhookClient webhookClient = new WebhookClient(webhook.getIdLong(), webhook.getToken(), this.client);
 
 			this.webhooks.put(channel.getIdLong(), webhookClient);
 
@@ -152,7 +151,7 @@ public class FreeGameManager implements WebhookManager {
 		} else if (!webhookData.containsKey("id")) {
 			return this.createWebhook(channel, messages);
 		} else {
-			webhook = new WebhookClient(webhookData.getLong("id"), webhookData.getString("token"), this.webhookExecutor, this.client);
+			webhook = new WebhookClient(webhookData.getLong("id"), webhookData.getString("token"), this.client);
 
 			this.webhooks.put(channel.getIdLong(), webhook);
 		}

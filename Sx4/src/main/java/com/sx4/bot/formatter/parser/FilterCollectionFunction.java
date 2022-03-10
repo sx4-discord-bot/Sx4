@@ -19,7 +19,7 @@ public class FilterCollectionFunction extends FormatterFunction<Collection> {
 
 		List<Object> newList = new ArrayList<>();
 		for (Object element : collection) {
-			event.getManager().addVariable("this", Void.class, $ -> element);
+			event.getManager().addVariable("this", element);
 
 			Object condition = Formatter.toObject(lambda, Boolean.class, event.getManager());
 			if (condition == null) {

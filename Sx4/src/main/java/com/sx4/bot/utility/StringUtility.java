@@ -52,11 +52,11 @@ public class StringUtility {
 	public static String substring(String string, int beginIndex, int endIndex) {
 		int length = string.length();
 		if (endIndex < 0) {
-			endIndex = length + endIndex;
+			endIndex += length;
 		}
 		
 		if (beginIndex < 0) {
-			beginIndex = length + beginIndex;
+			beginIndex += length;
 		}
 		
 		return string.substring(Math.max(0, beginIndex), Math.min(length, endIndex));

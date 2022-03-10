@@ -243,6 +243,7 @@ public class Sx4 {
 
 		FormatterManager formatterManager = new FormatterManager()
 			.addFunctions("com.sx4.bot.formatter.parser")
+			.addVariable("not", "Inverts a boolean value", Boolean.class, bool -> !bool)
 			.addVariable("id", "Gets the id of a message", Message.class, Message::getIdLong)
 			.addVariable("content", "Gets the content of a message", Message.class, Message::getContentRaw)
 			.addVariable("channel", "Gets the channel the message is in", Message.class, Message::getTextChannel)

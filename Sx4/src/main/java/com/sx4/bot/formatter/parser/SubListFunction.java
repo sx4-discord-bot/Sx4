@@ -19,11 +19,11 @@ public class SubListFunction extends FormatterFunction<List> {
 
 		int size = list.size();
 		if (start < 0) {
-			start = size + start;
+			start += size;
 		}
 
 		if (end < 0) {
-			end = size + end;
+			end += size;
 		}
 
 		return list.subList(Math.max(0, start), Math.min(size, end));
