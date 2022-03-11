@@ -273,8 +273,10 @@ public class FreeGamesCommand extends Sx4Command {
 	@CommandId(477)
 	@Examples({"free games message {game.title} is now free!", "free games message {game.title} {game.original_price.equals(0).then().else(was £{game.original_price.format(,##0.00)} and)} is now free!"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-	public void message(Sx4CommandEvent event, @Argument(value="message", endless=true) @Limit(max=2000) String message) {
-		event.getMongo().updateFreeGameChannel(Filters.eq("guildId", event.getGuild().getIdLong()), Updates.set("message.content", message), new UpdateOptions()).whenComplete((result, exception) -> {
+	public void message(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) TextChannel channel, @Argument(value="message", endless=true) @Limit(max=2000) String message) {
+		TextChannel effectiveChannel = channel == null ? event.getTextChannel() : channel;
+
+		event.getMongo().updateFreeGameChannel(Filters.eq("channelId", effectiveChannel.getIdLong()), Updates.set("message.content", message), new UpdateOptions()).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -297,8 +299,10 @@ public class FreeGamesCommand extends Sx4Command {
 	@CommandId(478)
 	@Examples({"free games advanced message {\"content\": \"{game.title} is now free!\"}", "free games advanced message {\"embed\": {\"title\": \"{game.title}\", \"url\": \"{game.url}\", \"description\": \"{game.description\"}}"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-	public void advancedMessage(Sx4CommandEvent event, @Argument(value="message", endless=true) @AdvancedMessage Document message) {
-		event.getMongo().updateFreeGameChannel(Filters.eq("guildId", event.getGuild().getIdLong()), Updates.set("message", message), new UpdateOptions()).whenComplete((result, exception) -> {
+	public void advancedMessage(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) TextChannel channel, @Argument(value="message", endless=true) @AdvancedMessage Document message) {
+		TextChannel effectiveChannel = channel == null ? event.getTextChannel() : channel;
+
+		event.getMongo().updateFreeGameChannel(Filters.eq("channelId", effectiveChannel.getIdLong()), Updates.set("message", message), new UpdateOptions()).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -322,8 +326,10 @@ public class FreeGamesCommand extends Sx4Command {
 	@Examples({"free games name Epic Games", "free games name Free Games"})
 	@Premium
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-	public void name(Sx4CommandEvent event, @Argument(value="name", endless=true) String name) {
-		event.getMongo().updateFreeGameChannel(Filters.eq("guildId", event.getGuild().getIdLong()), Updates.set("webhook.name", name), new UpdateOptions()).whenComplete((result, exception) -> {
+	public void name(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) TextChannel channel, @Argument(value="name", endless=true) String name) {
+		TextChannel effectiveChannel = channel == null ? event.getTextChannel() : channel;
+
+		event.getMongo().updateFreeGameChannel(Filters.eq("channelId", effectiveChannel.getIdLong()), Updates.set("webhook.name", name), new UpdateOptions()).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -347,8 +353,10 @@ public class FreeGamesCommand extends Sx4Command {
 	@Examples({"free games avatar Shea#6653", "free games avatar https://i.imgur.com/i87lyNO.png"})
 	@Premium
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-	public void avatar(Sx4CommandEvent event, @Argument(value="avatar", endless=true, acceptEmpty=true) @ImageUrl String url) {
-		event.getMongo().updateFreeGameChannel(Filters.eq("guildId", event.getGuild().getIdLong()), Updates.set("webhook.avatar", url), new UpdateOptions()).whenComplete((result, exception) -> {
+	public void avatar(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) TextChannel channel, @Argument(value="avatar", endless=true, acceptEmpty=true) @ImageUrl String url) {
+		TextChannel effectiveChannel = channel == null ? event.getTextChannel() : channel;
+
+		event.getMongo().updateFreeGameChannel(Filters.eq("channelId", effectiveChannel.getIdLong()), Updates.set("webhook.avatar", url), new UpdateOptions()).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -370,8 +378,10 @@ public class FreeGamesCommand extends Sx4Command {
 	@Command(value="preview", description="Preview your free game notification message")
 	@CommandId(481)
 	@Examples({"free games preview"})
-	public void preview(Sx4CommandEvent event) {
-		Document data = event.getMongo().getFreeGameChannel(Filters.eq("guildId", event.getGuild().getIdLong()), Projections.include("message"));
+	public void preview(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) TextChannel channel) {
+		TextChannel effectiveChannel = channel == null ? event.getTextChannel() : channel;
+
+		Document data = event.getMongo().getFreeGameChannel(Filters.eq("channelId", effectiveChannel.getIdLong()), Projections.include("message"));
 		if (data == null) {
 			event.replyFailure("You don't have a free game channel setup").queue();
 			return;

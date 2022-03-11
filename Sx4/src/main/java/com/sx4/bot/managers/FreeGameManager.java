@@ -254,19 +254,6 @@ public class FreeGameManager implements WebhookManager {
 		FreeGameUtility.retrieveFreeGames(this.bot.getHttpClient(), games -> {
 			OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
 
-			List<EpicFreeGame> upcomingGames = games.stream()
-				.filter(game -> game.getPromotionStart().isAfter(now))
-				.sorted(Comparator.comparing(game -> Duration.between(now, game.getPromotionStart())))
-				.collect(Collectors.toList());
-
-			EpicFreeGame newestGame = upcomingGames.get(0);
-			OffsetDateTime promotionStart = newestGame.getPromotionStart();
-			if (!promotionStart.isAfter(now)) {
-				// re-request games as they have not been refreshed on the API
-				this.epicExecutor.schedule(this::ensureEpicFreeGames, 10, TimeUnit.MINUTES);
-				return;
-			}
-
 			List<EpicFreeGame> currentGames = games.stream()
 				.filter(Predicate.not(this::isAnnounced))
 				.filter(game -> !game.getPromotionStart().isAfter(now) && game.getPromotionEnd().isAfter(now))
@@ -275,6 +262,19 @@ public class FreeGameManager implements WebhookManager {
 			if (!currentGames.isEmpty()) {
 				this.sendFreeGameNotifications(currentGames).whenComplete(MongoDatabase.exceptionally());
 			}
+
+			EpicFreeGame newestGame = games.stream()
+				.filter(game -> game.getPromotionStart().isAfter(now))
+				.min(Comparator.comparing(game -> Duration.between(now, game.getPromotionStart())))
+				.orElse(null);
+
+			if (newestGame == null) {
+				// re-request games as they have not been refreshed on the API
+				this.epicExecutor.schedule(this::ensureEpicFreeGames, 10, TimeUnit.MINUTES);
+				return;
+			}
+
+			OffsetDateTime promotionStart = newestGame.getPromotionStart();
 
 			this.epicExecutor.schedule(this::ensureEpicFreeGames, Duration.between(now, promotionStart).toSeconds() + 5, TimeUnit.SECONDS);
 		});
