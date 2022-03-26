@@ -65,9 +65,11 @@ public class FreeGamesCommand extends Sx4Command {
 
 		embed.setTitle(game.getTitle(), game.getUrl());
 		embed.setDescription(game.getDescription());
+		embed.setThumbnail(game.getType().getIconUrl());
 		embed.setImage(game.getImage());
 		embed.addField("Price", game.getDiscountPriceDecimal() == originalPrice ? "Free" : String.format("~~£%.2f~~ Free", originalPrice), true);
 		embed.addField("Publisher", game.getPublisher(), true);
+		embed.addField("Promotion Start", TimeFormat.DATE_TIME_SHORT.format(game.getPromotionStart()), false);
 		embed.addField("Promotion End", TimeFormat.DATE_TIME_SHORT.format(game.getPromotionEnd()), false);
 
 		return embed;

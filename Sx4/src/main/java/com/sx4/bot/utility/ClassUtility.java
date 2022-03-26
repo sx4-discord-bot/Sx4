@@ -6,36 +6,36 @@ import java.lang.reflect.Type;
 
 public class ClassUtility {
 
-	public static Class<?>[] getParameterTypes(ParameterizedType firstType, Class<?> start) {
+	public static Type[] getParameterTypes(ParameterizedType firstType, Class<?> start) {
 		if (firstType.getRawType() == start) {
 			start = null;
 		}
 
-		Type[] types = firstType.getActualTypeArguments();
+		Type[] typeArguments = firstType.getActualTypeArguments();
 
-		Class<?>[] classes = new Class<?>[types.length];
-		for (int i = 0; i < types.length; i++) {
-			Type type = types[i];
+		Type[] types = new Type[typeArguments.length];
+		for (int i = 0; i < typeArguments.length; i++) {
+			Type type = typeArguments[i];
 
-			Class<?> clazz;
+			Type finalType;
 			if (type instanceof ParameterizedType parameterizedType) {
-				Class<?> rawType = (Class<?>) parameterizedType.getRawType();
+				Type rawType = parameterizedType.getRawType();
 				if (rawType == start) {
 					return ClassUtility.getParameterTypes(parameterizedType, start);
 				}
 
-				clazz = rawType;
+				finalType = rawType;
 			} else {
-				clazz = (Class<?>) type;
+				finalType = type;
 			}
 
-			classes[i] = clazz;
+			types[i] = finalType;
 		}
 
-		return classes;
+		return types;
 	}
 
-	public static Class<?>[] getParameterTypes(Parameter parameter, Class<?> start) {
+	public static Type[] getParameterTypes(Parameter parameter, Class<?> start) {
 		return ClassUtility.getParameterTypes((ParameterizedType) parameter.getParameterizedType(), start);
 	}
 

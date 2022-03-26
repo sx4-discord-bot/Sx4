@@ -35,7 +35,7 @@ public abstract class Formatter<Type> {
 	}
 
 	public Formatter<Type> addVariable(String name, Object argument) {
-		this.manager.addVariable(name, Void.class, $ -> argument);
+		this.manager.addVariable(name, argument);
 
 		return this;
 	}
@@ -90,13 +90,8 @@ public abstract class Formatter<Type> {
 
 	public abstract Type parse();
 
-	public static boolean escape(String string, int index) {
-		if (index > 0 && string.charAt(index - 1) == '\\') {
-			string = string.substring(0, index - 1) + string.substring(index);
-			return true;
-		}
-
-		return false;
+	public static boolean isEscaped(String string, int index) {
+		return index > 0 && string.charAt(index - 1) == '\\';
 	}
 
 	private static List<Object> getFunctionArguments(FormatterFunction<?> function, String text, Object value, Class<?> type, FormatterManager manager) {
@@ -108,7 +103,7 @@ public abstract class Formatter<Type> {
 			int lastIndex = -1, i = 0;
 			do {
 				int nextIndex = text.indexOf(',', lastIndex + 1);
-				if (Formatter.escape(text, nextIndex)) {
+				if (Formatter.isEscaped(text, nextIndex)) {
 					continue;
 				}
 
@@ -149,7 +144,7 @@ public abstract class Formatter<Type> {
 
 		int periodIndex = -1;
 		while (type == Void.class || periodIndex != -1) {
-			if (periodIndex != 0 && Formatter.escape(formatter, periodIndex)) {
+			if (periodIndex != 0 && Formatter.isEscaped(formatter, periodIndex)) {
 				continue;
 			}
 
@@ -162,10 +157,10 @@ public abstract class Formatter<Type> {
 			}
 
 			int bracketIndex = 0;
-			while (Formatter.escape(name, bracketIndex = name.indexOf('(', bracketIndex + 1)) && bracketIndex != -1);
+			while (Formatter.isEscaped(name, bracketIndex = name.indexOf('(', bracketIndex + 1)) && bracketIndex != -1);
 
 			int endBracketIndex = name.length();
-			while (Formatter.escape(name, endBracketIndex = name.lastIndexOf(')', endBracketIndex - 1)) && endBracketIndex != -1);
+			while (Formatter.isEscaped(name, endBracketIndex = name.lastIndexOf(')', endBracketIndex - 1)) && endBracketIndex != -1);
 
 			periodIndex = nextPeriodIndex;
 			if (endBracketIndex <= bracketIndex) {
@@ -212,13 +207,13 @@ public abstract class Formatter<Type> {
 	public static String format(String string, FormatterManager manager) {
 		int index = -1;
 		Open: while ((index = string.indexOf('{', index + 1)) != -1) {
-			if (Formatter.escape(string, index)) {
+			if (Formatter.isEscaped(string, index)) {
 				continue;
 			}
 
 			int endIndex = index;
 			while ((endIndex = string.indexOf('}', endIndex + 1)) != -1) {
-				if (Formatter.escape(string, endIndex)) {
+				if (Formatter.isEscaped(string, endIndex)) {
 					continue;
 				}
 

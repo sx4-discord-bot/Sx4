@@ -1,24 +1,23 @@
 package com.sx4.bot.formatter.function;
 
-import net.jodah.typetools.TypeResolver;
-
+import java.lang.reflect.Type;
 import java.util.function.Function;
 
-public class FormatterVariable<Type> {
+public class FormatterVariable<T> {
 
-	private final Class<Type> type;
-	private final Class<?> returnType;
+	private final Class<T> type;
+	private final Type returnType;
 	private final String variable;
-	private final Function<Type, Object> function;
+	private final Function<T, Object> function;
 
 	private final String description;
 
-	public FormatterVariable(String variable, String description, Class<Type> type, Function<Type, Object> function) {
+	public FormatterVariable(String variable, String description, Class<T> type, Type returnType, Function<T, Object> function) {
 		this.variable = variable;
 		this.type = type;
 		this.function = function;
 		this.description = description;
-		this.returnType = TypeResolver.resolveRawArguments(Function.class, function.getClass())[1];
+		this.returnType = returnType;
 	}
 
 	public String getDescription() {
@@ -29,21 +28,21 @@ public class FormatterVariable<Type> {
 		return this.variable;
 	}
 
-	public Class<Type> getType() {
+	public Class<T> getType() {
 		return this.type;
 	}
 
-	public Class<?> getReturnType() {
+	public Type getReturnType() {
 		return this.returnType;
 	}
 
-	public Function<Type, Object> getFunction() {
+	public Function<T, Object> getFunction() {
 		return this.function;
 	}
 
 	@SuppressWarnings("unchecked")
 	public Object parse(Object object) {
-		return this.function.apply((Type) object);
+		return this.function.apply((T) object);
 	}
 
 }

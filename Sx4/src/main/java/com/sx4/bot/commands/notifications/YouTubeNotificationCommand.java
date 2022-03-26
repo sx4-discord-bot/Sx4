@@ -216,6 +216,11 @@ public class YouTubeNotificationCommand extends Sx4Command {
 				return;
 			}
 
+			if (data == null) {
+				event.replyFailure("I could not find that notification").queue();
+				return;
+			}
+
 			event.replySuccess("That YouTube notification is now **" + (data.get("enabled", true) ? "enabled" : "disabled") + "**").queue();
 		});
 	}
@@ -227,6 +232,11 @@ public class YouTubeNotificationCommand extends Sx4Command {
 	public void message(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="message", endless=true) String message) {
 		event.getMongo().updateYouTubeNotification(Filters.and(Filters.eq("_id", id), Filters.eq("guildId", event.getGuild().getIdLong())), Updates.set("message", new Document("content", message)), new UpdateOptions()).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
+				return;
+			}
+
+			if (result.getMatchedCount() == 0) {
+				event.replyFailure("I could not find that notification").queue();
 				return;
 			}
 
@@ -249,6 +259,11 @@ public class YouTubeNotificationCommand extends Sx4Command {
 				return;
 			}
 
+			if (result.getMatchedCount() == 0) {
+				event.replyFailure("I could not find that notification").queue();
+				return;
+			}
+
 			if (result.getModifiedCount() == 0) {
 				event.replyFailure("Your message for that notification was already set to that").queue();
 				return;
@@ -268,6 +283,11 @@ public class YouTubeNotificationCommand extends Sx4Command {
 				return;
 			}
 
+			if (result.getMatchedCount() == 0) {
+				event.replyFailure("I could not find that notification").queue();
+				return;
+			}
+
 			if (result.getModifiedCount() == 0) {
 				event.replyFailure("Your webhook name for that notification was already set to that").queue();
 				return;
@@ -284,6 +304,11 @@ public class YouTubeNotificationCommand extends Sx4Command {
 	public void avatar(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="avatar", endless=true, acceptEmpty=true) @ImageUrl String url) {
 		event.getMongo().updateYouTubeNotification(Filters.and(Filters.eq("_id", id), Filters.eq("guildId", event.getGuild().getIdLong())), Updates.set("webhook.avatar", url), new UpdateOptions()).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
+				return;
+			}
+
+			if (result.getMatchedCount() == 0) {
+				event.replyFailure("I could not find that notification").queue();
 				return;
 			}
 

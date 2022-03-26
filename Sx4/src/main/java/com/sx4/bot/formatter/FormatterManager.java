@@ -113,15 +113,19 @@ public class FormatterManager {
 	}
 
 	public FormatterManager addVariable(String name, Object object) {
-		return this.addVariable(new FormatterVariable<>(name, null, Void.class, $ -> object));
+		return this.addVariable(name, Void.class, object.getClass(), $ -> object);
 	}
 
 	public <Type> FormatterManager addVariable(String name, Class<Type> type, Function<Type, Object> function) {
-		return this.addVariable(new FormatterVariable<>(name, null, type, function));
+		return this.addVariable(name, type, null, function);
 	}
 
-	public <Type> FormatterManager addVariable(String name, String description, Class<Type> type, Function<Type, Object> function) {
-		return this.addVariable(new FormatterVariable<>(name, description, type, function));
+	public <Type> FormatterManager addVariable(String name, Class<Type> type, Class<?> returnType, Function<Type, Object> function) {
+		return this.addVariable(new FormatterVariable<>(name, null, type, returnType, function));
+	}
+
+	public <Type> FormatterManager addVariable(String name, String description, Class<Type> type, Class<?> returnType, Function<Type, Object> function) {
+		return this.addVariable(new FormatterVariable<>(name, description, type, returnType, function));
 	}
 
 	public FormatterParser<?> getParser(Class<?> type) {

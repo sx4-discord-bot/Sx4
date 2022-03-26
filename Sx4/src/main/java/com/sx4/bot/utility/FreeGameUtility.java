@@ -9,6 +9,7 @@ import okhttp3.Request;
 import org.bson.Document;
 
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -28,7 +29,7 @@ public class FreeGameUtility {
 		}
 
 		List<Document> offers = function.apply(promotions);
-		if (offers.isEmpty()) {
+		if (offers == null || offers.isEmpty()) {
 			return null;
 		}
 
@@ -40,14 +41,23 @@ public class FreeGameUtility {
 		return offers.get(0);
 	}
 
-	public static Document getPromotionalOffer(Document data) {
+	public static Document getBestPromotionalOffer(Document data) {
 		return FreeGameUtility.getPromotionalOffer(data, promotions -> {
-			List<Document> offers = promotions.getList("upcomingPromotionalOffers", Document.class);
-			if (offers.isEmpty()) {
-				offers = promotions.getList("promotionalOffers", Document.class);
-			}
+			return promotions.keySet().stream()
+				.map(key -> promotions.getList(key, Document.class))
+				.min(Comparator.comparingInt(offers -> {
+					if (offers.isEmpty()) {
+						return 100;
+					}
 
-			return offers;
+					offers = offers.get(0).getList("promotionalOffers", Document.class, Collections.emptyList());
+					if (offers.isEmpty()) {
+						return 100;
+					}
+
+					return offers.get(0).getEmbedded(List.of("discountSetting", "discountPercentage"), Integer.class);
+				}))
+				.orElse(Collections.emptyList());
 		});
 	}
 
@@ -76,7 +86,7 @@ public class FreeGameUtility {
 
 	public static void retrieveFreeGames(OkHttpClient client, Consumer<List<EpicFreeGame>> consumer) {
 		FreeGameUtility.retrieveFreeGames(client, game -> {
-			Document offer = FreeGameUtility.getPromotionalOffer(game);
+			Document offer = FreeGameUtility.getBestPromotionalOffer(game);
 			return offer != null && offer.getEmbedded(List.of("discountSetting", "discountPercentage"), Integer.class) == 0;
 		}, consumer);
 	}

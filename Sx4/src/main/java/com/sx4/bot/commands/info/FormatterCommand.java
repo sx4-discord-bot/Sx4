@@ -8,11 +8,14 @@ import com.sx4.bot.formatter.FormatterManager;
 import com.sx4.bot.formatter.function.FormatterFunction;
 import com.sx4.bot.formatter.function.FormatterVariable;
 import com.sx4.bot.paged.PagedResult;
+import com.sx4.bot.utility.ClassUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
@@ -27,6 +30,17 @@ public class FormatterCommand extends Sx4Command {
 		super.setDescription("Get information on a formatter type, variable or function");
 		super.setExamples("formatter", "formatter FreeGame", "formatter FreeGame.platform");
 		super.setCategoryAll(ModuleCategory.INFORMATION);
+	}
+
+	private String getReturnTypeString(Type returnType) {
+		if (!(returnType instanceof ParameterizedType type)) {
+			return ((Class<?>) returnType).getSimpleName();
+		}
+
+		Class<?> clazz = (Class<?>) type.getRawType();
+		Type[] types = ClassUtility.getParameterTypes(type, clazz);
+
+		return clazz.getSimpleName() + "<" + Arrays.stream(types).map(this::getReturnTypeString).collect(Collectors.joining(", ")) + ">";
 	}
 
 	private String getFunctionString(FormatterFunction<?> function) {
@@ -93,19 +107,19 @@ public class FormatterCommand extends Sx4Command {
 					embed = new EmbedBuilder()
 						.setDescription(function.getDescription())
 						.setTitle(this.getFunctionString(function))
-						.addField("Return Type", method.getReturnType().getSimpleName(), true)
+						.addField("Return Type", this.getReturnTypeString(method.getGenericReturnType()), true)
 						.build();
 				} else if (variable != null) {
-					Class<?> returnType = variable.getReturnType();
+					Type returnType = variable.getReturnType();
 					if (!last) {
-						clazz = returnType;
+						clazz = (Class<?>) returnType;
 						continue;
 					}
 
 					embed = new EmbedBuilder()
 						.setDescription(variable.getDescription())
 						.setTitle(variable.getName())
-						.addField("Return Type", returnType.getSimpleName(), true)
+						.addField("Return Type", this.getReturnTypeString(returnType), true)
 						.build();
 				} else {
 					event.replyFailure("I could not find a variable or function named `" + name + "` on the type `" + clazz.getSimpleName() + "`").queue();

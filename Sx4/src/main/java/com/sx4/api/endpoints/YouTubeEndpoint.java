@@ -69,12 +69,15 @@ public class YouTubeEndpoint {
 			this.bot.getYouTubeManager().onYouTube(new YouTubeDeleteEvent(new YouTubeChannel(channelId, channelName), videoId, videoDeletedAt));
 		} else {
 			JSONObject entry = feed.getJSONObject("entry");
-			
-			String videoTitle = entry.getString("title"), videoId = entry.getString("yt:videoId"), videoUpdatedAt = entry.getString("updated"), videoPublishedAt = entry.getString("published");
+
+			// If the title is '2' then YouTube will return it as an Integer
+			Object videoTitle = entry.get("title");
+
+			String videoId = entry.getString("yt:videoId"), videoUpdatedAt = entry.getString("updated"), videoPublishedAt = entry.getString("published");
 			String channelId = entry.getString("yt:channelId"), channelName = entry.getJSONObject("author").getString("name");
-			
+
 			YouTubeChannel channel = new YouTubeChannel(channelId, channelName);
-			YouTubeVideo video = new YouTubeVideo(videoId, videoTitle, videoUpdatedAt, videoPublishedAt);
+			YouTubeVideo video = new YouTubeVideo(videoId, String.valueOf(videoTitle), videoUpdatedAt, videoPublishedAt);
 			
 			Document data = this.bot.getMongo().getYouTubeNotificationLog(Filters.eq("videoId", videoId), Projections.include("title"));
 			String oldTitle = data == null ? null : data.getString("title");

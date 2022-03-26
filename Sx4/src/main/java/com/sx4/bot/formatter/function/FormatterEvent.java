@@ -7,7 +7,7 @@ public class FormatterEvent<Type> {
 	private final Type object;
 	private final FormatterManager manager;
 
-	public FormatterEvent(Type  object, FormatterManager manager) {
+	public FormatterEvent(Type object, FormatterManager manager) {
 		this.object = object;
 		this.manager = manager;
 	}

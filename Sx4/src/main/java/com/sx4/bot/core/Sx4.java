@@ -76,6 +76,7 @@ import org.jetbrains.annotations.NotNull;
 
 import javax.security.auth.login.LoginException;
 import java.awt.*;
+import java.lang.reflect.Type;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLEncoder;
@@ -243,90 +244,90 @@ public class Sx4 {
 
 		FormatterManager formatterManager = new FormatterManager()
 			.addFunctions("com.sx4.bot.formatter.parser")
-			.addVariable("not", "Inverts a boolean value", Boolean.class, bool -> !bool)
-			.addVariable("id", "Gets the id of a message", Message.class, Message::getIdLong)
-			.addVariable("content", "Gets the content of a message", Message.class, Message::getContentRaw)
-			.addVariable("channel", "Gets the channel the message is in", Message.class, Message::getTextChannel)
-			.addVariable("urlEncode", "Encodes a string to a URL standard", String.class, string -> URLEncoder.encode(string, StandardCharsets.UTF_8))
-			.addVariable("status", "Gets the status code of the response", FormatterResponse.class, FormatterResponse::getStatus)
-			.addVariable("raw", "Gets the raw response body", FormatterResponse.class, FormatterResponse::getRaw)
-			.addVariable("json", "Gets the response body as json", FormatterResponse.class, FormatterResponse::asJson)
-			.addVariable("icon", "Get the icon url of the free game platform", FreeGameType.class, FreeGameType::getIconUrl)
-			.addVariable("name", "Get the name of the free game platform", FreeGameType.class, FreeGameType::getName)
-			.addVariable("platform", "Get the platform of the free game", FreeGame.class, FreeGame::getType)
-			.addVariable("title", "Gets the title of the game", FreeGame.class, FreeGame::getTitle)
-			.addVariable("description", "Gets the description for the game", FreeGame.class, FreeGame::getDescription)
-			.addVariable("publisher", "Gets the publisher of the game", FreeGame.class, FreeGame::getPublisher)
-			.addVariable("image", "Gets the image of the game", FreeGame.class, FreeGame::getImage)
-			.addVariable("url", "Gets the Epic Games url for the game", FreeGame.class, FreeGame::getUrl)
-			.addVariable("run_url", "Gets the Epic Games client url for the game", FreeGame.class, FreeGame::getRunUrl)
-			.addVariable("promotion_start", "Gets the start date of the promotion", FreeGame.class, FreeGame::getPromotionStart)
-			.addVariable("promotion_end", "Gets the end date of the promotion", FreeGame.class, FreeGame::getPromotionEnd)
-			.addVariable("price", "Gets the updated price of the game", FreeGame.class, game -> new Currency(game.getDiscountPrice() / 100D, "GBP"))
-			.addVariable("original_price", "Gets the original price of the game", FreeGame.class, game -> new Currency(game.getOriginalPrice() / 100D, "GBP"))
-			.addVariable("suffix", "Gets the suffixed version of a number", Integer.class, NumberUtility::getSuffixed)
-			.addVariable("round", "Gets the rounded number", Double.class, Math::round)
-			.addVariable("floor", "Gets the floored number", Double.class, Math::floor)
-			.addVariable("ceil", "Gets the ceiled number", Double.class, Math::ceil)
-			.addVariable("length", "Gets the length of the list", Collection.class, Collection::size)
-			.addVariable("empty", "Gets whether the list is empty or not", Collection.class, Collection::isEmpty)
-			.addVariable("name", "Gets the name of the role", Role.class, Role::getName)
-			.addVariable("id", "Gets the id or the role", Role.class, Role::getIdLong)
-			.addVariable("created", "Gets the date the role was created", Role.class, Role::getTimeCreated)
-			.addVariable("colour", "Gets the colour of the role", Role.class, Role::getColor)
-			.addVariable("color", "Gets the color of the role", Role.class, Role::getColor)
-			.addVariable("raw", "Gets the raw RGB value of the colour", Color.class, Color::getRGB)
-			.addVariable("hex", "Gets the hex code of the colour", Color.class, colour -> "#" + ColourUtility.toHexString(colour.getRGB()))
-			.addVariable("name", "Gets the name of the emote", ReactionEmote.class, emote -> emote.isEmoji() ? emote.getName() : emote.getEmote().getName())
-			.addVariable("id", "Gets the id of the emote", ReactionEmote.class, emote -> emote.isEmoji() ? emote.getName() : emote.getEmote().getIdLong())
-			.addVariable("mention", "Gets the mention of the emote", ReactionEmote.class, emote -> emote.isEmoji() ? emote.getName() : emote.getEmote().getAsMention())
-			.addVariable("created", "Gets the date when the emote was created", ReactionEmote.class, emote -> emote.isEmoji() ? OffsetDateTime.ofInstant(Instant.EPOCH, ZoneOffset.UTC) : emote.getEmote().getTimeCreated())
-			.addVariable("raw", "Gets the raw value of the permission", Permission.class, Permission::getRawValue)
-			.addVariable("name", "Gets the name of the permission", Permission.class, Permission::getName)
-			.addVariable("permissions", "Gets the permissions of the role or user", IPermissionHolder.class, IPermissionHolder::getPermissions)
-			.addVariable("mention", "Gets the mention of the entity", IMentionable.class, IMentionable::getAsMention)
-			.addVariable("id", "Gets the id of the channel", GuildChannel.class, GuildChannel::getIdLong)
-			.addVariable("name", "Gets the name of the channel", GuildChannel.class, GuildChannel::getName)
-			.addVariable("created", "Gets the date the channel was created", GuildChannel.class, GuildChannel::getTimeCreated)
-			.addVariable("slowmode", "Gets the slowmode of the text channel", TextChannel.class, TextChannel::getSlowmode)
-			.addVariable("bitrate", "Gets the bitrate of the voice channel", VoiceChannel.class, VoiceChannel::getBitrate)
-			.addVariable("limit", "Gets the user limit of the voice channel", VoiceChannel.class, VoiceChannel::getUserLimit)
-			.addVariable("name", "Gets the name of the server", Guild.class, Guild::getName)
-			.addVariable("id", "Gets the id of the server", Guild.class, Guild::getIdLong)
-			.addVariable("owner", "Gets the owner of the server", Guild.class, Guild::getOwner)
-			.addVariable("boosts", "Gets the boost count of the server", Guild.class, Guild::getBoostCount)
-			.addVariable("boosters", "Gets the members boosting the server", Guild.class, Guild::getBoosters)
-			.addVariable("members", "Gets the member count of the server", Guild.class, Guild::getMemberCount)
-			.addVariable("avatar", "Gets the icon url of the server", Guild.class, Guild::getIconUrl)
-			.addVariable("created", "Gets the date when the server was created", Guild.class, Guild::getTimeCreated)
-			.addVariable("user", "Gets the user of the member", Member.class, Member::getUser)
-			.addVariable("nickname", "Gets the nickname of the member", Member.class, Member::getNickname)
-			.addVariable("roles", "Gets the roles of the member", Member.class, Member::getRoles)
-			.addVariable("colour", "Gets the colour of the member", Member.class, Member::getColor)
-			.addVariable("color", "Gets the color of the member", Member.class, Member::getColor)
-			.addVariable("joined", "Gets the date when the member joined the server", Member.class, Member::getTimeJoined)
-			.addVariable("id", "Gets the id of the user", User.class, User::getIdLong)
-			.addVariable("name", "Gets the name of the user", User.class, User::getName)
-			.addVariable("avatar", "Gets the avatar url of the user", User.class, User::getEffectiveAvatarUrl)
-			.addVariable("discriminator", "Gets the discriminator of the user", User.class, User::getDiscriminator)
-			.addVariable("badges", "Gets the badges of the user", User.class, User::getFlags)
-			.addVariable("tag", "Gets the tag of the user, name#discriminator", User.class, User::getAsTag)
-			.addVariable("created", "Gets the date when the user was created", User.class, User::getTimeCreated)
-			.addVariable("name", "Gets the name of the badge", User.UserFlag.class, User.UserFlag::getName)
-			.addVariable("raw", "Gets the raw value of the badge", User.UserFlag.class, User.UserFlag::getRawValue)
-			.addVariable("offset", "Gets the offset of the badge", User.UserFlag.class, User.UserFlag::getOffset)
-			.addVariable("day", "Gets the day of the month of the date", OffsetDateTime.class, OffsetDateTime::getDayOfMonth)
-			.addVariable("month", "Gets the month of the year of the date", OffsetDateTime.class, OffsetDateTime::getMonthValue)
-			.addVariable("year", "Gets the year of the date", OffsetDateTime.class, OffsetDateTime::getYear)
-			.addVariable("epoch", "Gets the epoch seconds of the date", OffsetDateTime.class, OffsetDateTime::toEpochSecond)
-			.addVariable("id", "Gets the id of the YouTube video", YouTubeVideo.class, YouTubeVideo::getId)
-			.addVariable("url", "Gets the url of the YouTube video", YouTubeVideo.class, YouTubeVideo::getUrl)
-			.addVariable("title", "Gets the title of the YouTube video", YouTubeVideo.class, YouTubeVideo::getTitle)
-			.addVariable("thumbnail", "Gets the thumbnail of the YouTube video", YouTubeVideo.class, YouTubeVideo::getThumbnail)
-			.addVariable("published", "Gets the date when the YouTube video was published", YouTubeVideo.class, YouTubeVideo::getPublishedAt)
-			.addVariable("id", "Gets the id of the YouTube channel", YouTubeChannel.class, YouTubeChannel::getId)
-			.addVariable("url", "Gets the url of the YouTube channel", YouTubeChannel.class, YouTubeChannel::getUrl)
-			.addVariable("name", "Gets the name of the YouTube channel", YouTubeChannel.class, YouTubeChannel::getName)
+			.addVariable("not", "Inverts a boolean value", Boolean.class, Boolean.class, bool -> !bool)
+			.addVariable("id", "Gets the id of a message", Message.class, Long.class, Message::getIdLong)
+			.addVariable("content", "Gets the content of a message", Message.class, String.class, Message::getContentRaw)
+			.addVariable("channel", "Gets the channel the message is in", Message.class, TextChannel.class, Message::getTextChannel)
+			.addVariable("urlEncode", "Encodes a string to a URL standard", String.class, String.class, string -> URLEncoder.encode(string, StandardCharsets.UTF_8))
+			.addVariable("status", "Gets the status code of the response", FormatterResponse.class, Integer.class, FormatterResponse::getStatus)
+			.addVariable("raw", "Gets the raw response body", FormatterResponse.class, String.class, FormatterResponse::getRaw)
+			.addVariable("json", "Gets the response body as json", FormatterResponse.class, Document.class, FormatterResponse::asJson)
+			.addVariable("icon", "Get the icon url of the free game platform", FreeGameType.class, String.class, FreeGameType::getIconUrl)
+			.addVariable("name", "Get the name of the free game platform", FreeGameType.class, String.class, FreeGameType::getName)
+			.addVariable("platform", "Get the platform of the free game", FreeGame.class, FreeGameType.class, FreeGame::getType)
+			.addVariable("title", "Gets the title of the game", FreeGame.class, String.class, FreeGame::getTitle)
+			.addVariable("description", "Gets the description for the game", FreeGame.class, String.class, FreeGame::getDescription)
+			.addVariable("publisher", "Gets the publisher of the game", FreeGame.class, String.class, FreeGame::getPublisher)
+			.addVariable("image", "Gets the image of the game", FreeGame.class, String.class, FreeGame::getImage)
+			.addVariable("url", "Gets the Epic Games url for the game", FreeGame.class, String.class, FreeGame::getUrl)
+			.addVariable("run_url", "Gets the Epic Games client url for the game", FreeGame.class, String.class, FreeGame::getRunUrl)
+			.addVariable("promotion_start", "Gets the start date of the promotion", FreeGame.class, OffsetDateTime.class, FreeGame::getPromotionStart)
+			.addVariable("promotion_end", "Gets the end date of the promotion", FreeGame.class, OffsetDateTime.class, FreeGame::getPromotionEnd)
+			.addVariable("price", "Gets the updated price of the game", FreeGame.class, Currency.class, game -> new Currency(game.getDiscountPrice() / 100D, "GBP"))
+			.addVariable("original_price", "Gets the original price of the game", FreeGame.class, Currency.class, game -> new Currency(game.getOriginalPrice() / 100D, "GBP"))
+			.addVariable("suffix", "Gets the suffixed version of a number", Integer.class, String.class, NumberUtility::getSuffixed)
+			.addVariable("round", "Gets the rounded number", Double.class, Long.class, Math::round)
+			.addVariable("floor", "Gets the floored number", Double.class, Double.class, Math::floor)
+			.addVariable("ceil", "Gets the ceiled number", Double.class, Double.class, Math::ceil)
+			.addVariable("length", "Gets the length of the list", Collection.class, Integer.class, Collection::size)
+			.addVariable("empty", "Gets whether the list is empty or not", Collection.class, Boolean.class, Collection::isEmpty)
+			.addVariable("name", "Gets the name of the role", Role.class, String.class, Role::getName)
+			.addVariable("id", "Gets the id or the role", Role.class, Long.class, Role::getIdLong)
+			.addVariable("created", "Gets the date the role was created", Role.class, OffsetDateTime.class, Role::getTimeCreated)
+			.addVariable("colour", "Gets the colour of the role", Role.class, Color.class, Role::getColor)
+			.addVariable("color", "Gets the color of the role", Role.class, Color.class, Role::getColor)
+			.addVariable("raw", "Gets the raw RGB value of the colour", Color.class, Integer.class, Color::getRGB)
+			.addVariable("hex", "Gets the hex code of the colour", Color.class, String.class, colour -> "#" + ColourUtility.toHexString(colour.getRGB()))
+			.addVariable("name", "Gets the name of the emote", ReactionEmote.class, String.class, emote -> emote.isEmoji() ? emote.getName() : emote.getEmote().getName())
+			.addVariable("id", "Gets the id of the emote", ReactionEmote.class, Object.class, emote -> emote.isEmoji() ? emote.getName() : emote.getEmote().getIdLong())
+			.addVariable("mention", "Gets the mention of the emote", ReactionEmote.class, String.class, emote -> emote.isEmoji() ? emote.getName() : emote.getEmote().getAsMention())
+			.addVariable("created", "Gets the date when the emote was created", ReactionEmote.class, OffsetDateTime.class, emote -> emote.isEmoji() ? OffsetDateTime.ofInstant(Instant.EPOCH, ZoneOffset.UTC) : emote.getEmote().getTimeCreated())
+			.addVariable("raw", "Gets the raw value of the permission", Permission.class, Long.class, Permission::getRawValue)
+			.addVariable("name", "Gets the name of the permission", Permission.class, String.class, Permission::getName)
+			.addVariable("permissions", "Gets the permissions of the role or user", IPermissionHolder.class, Collection.class, IPermissionHolder::getPermissions)
+			.addVariable("mention", "Gets the mention of the entity", IMentionable.class, String.class, IMentionable::getAsMention)
+			.addVariable("id", "Gets the id of the channel", GuildChannel.class, Long.class, GuildChannel::getIdLong)
+			.addVariable("name", "Gets the name of the channel", GuildChannel.class, String.class, GuildChannel::getName)
+			.addVariable("created", "Gets the date the channel was created", GuildChannel.class, OffsetDateTime.class, GuildChannel::getTimeCreated)
+			.addVariable("slowmode", "Gets the slowmode of the text channel", TextChannel.class, Integer.class, TextChannel::getSlowmode)
+			.addVariable("bitrate", "Gets the bitrate of the voice channel", VoiceChannel.class, Integer.class, VoiceChannel::getBitrate)
+			.addVariable("limit", "Gets the user limit of the voice channel", VoiceChannel.class, Integer.class, VoiceChannel::getUserLimit)
+			.addVariable("name", "Gets the name of the server", Guild.class, String.class, Guild::getName)
+			.addVariable("id", "Gets the id of the server", Guild.class, Long.class, Guild::getIdLong)
+			.addVariable("owner", "Gets the owner of the server", Guild.class, Member.class, Guild::getOwner)
+			.addVariable("boosts", "Gets the boost count of the server", Guild.class, Integer.class, Guild::getBoostCount)
+			.addVariable("boosters", "Gets the members boosting the server", Guild.class, Collection.class, Guild::getBoosters)
+			.addVariable("members", "Gets the member count of the server", Guild.class, Integer.class, Guild::getMemberCount)
+			.addVariable("avatar", "Gets the icon url of the server", Guild.class, String.class, Guild::getIconUrl)
+			.addVariable("created", "Gets the date when the server was created", Guild.class, OffsetDateTime.class, Guild::getTimeCreated)
+			.addVariable("user", "Gets the user of the member", Member.class, User.class, Member::getUser)
+			.addVariable("nickname", "Gets the nickname of the member", Member.class, String.class, Member::getNickname)
+			.addVariable("roles", "Gets the roles of the member", Member.class, Collection.class, Member::getRoles)
+			.addVariable("colour", "Gets the colour of the member", Member.class, Color.class, Member::getColor)
+			.addVariable("color", "Gets the color of the member", Member.class, Color.class, Member::getColor)
+			.addVariable("joined", "Gets the date when the member joined the server", Member.class, OffsetDateTime.class, Member::getTimeJoined)
+			.addVariable("id", "Gets the id of the user", User.class, Long.class, User::getIdLong)
+			.addVariable("name", "Gets the name of the user", User.class, String.class, User::getName)
+			.addVariable("avatar", "Gets the avatar url of the user", User.class, String.class, User::getEffectiveAvatarUrl)
+			.addVariable("discriminator", "Gets the discriminator of the user", User.class, String.class, User::getDiscriminator)
+			.addVariable("badges", "Gets the badges of the user", User.class, Collection.class, User::getFlags)
+			.addVariable("tag", "Gets the tag of the user, name#discriminator", User.class, String.class, User::getAsTag)
+			.addVariable("created", "Gets the date when the user was created", User.class, OffsetDateTime.class, User::getTimeCreated)
+			.addVariable("name", "Gets the name of the badge", User.UserFlag.class, String.class, User.UserFlag::getName)
+			.addVariable("raw", "Gets the raw value of the badge", User.UserFlag.class, Long.class, User.UserFlag::getRawValue)
+			.addVariable("offset", "Gets the offset of the badge", User.UserFlag.class, Integer.class, User.UserFlag::getOffset)
+			.addVariable("day", "Gets the day of the month of the date", OffsetDateTime.class, Integer.class, OffsetDateTime::getDayOfMonth)
+			.addVariable("month", "Gets the month of the year of the date", OffsetDateTime.class, Integer.class, OffsetDateTime::getMonthValue)
+			.addVariable("year", "Gets the year of the date", OffsetDateTime.class, Integer.class, OffsetDateTime::getYear)
+			.addVariable("epoch", "Gets the epoch seconds of the date", OffsetDateTime.class, Long.class, OffsetDateTime::toEpochSecond)
+			.addVariable("id", "Gets the id of the YouTube video", YouTubeVideo.class, String.class, YouTubeVideo::getId)
+			.addVariable("url", "Gets the url of the YouTube video", YouTubeVideo.class, String.class, YouTubeVideo::getUrl)
+			.addVariable("title", "Gets the title of the YouTube video", YouTubeVideo.class, String.class, YouTubeVideo::getTitle)
+			.addVariable("thumbnail", "Gets the thumbnail of the YouTube video", YouTubeVideo.class, String.class, YouTubeVideo::getThumbnail)
+			.addVariable("published", "Gets the date when the YouTube video was published", YouTubeVideo.class, OffsetDateTime.class, YouTubeVideo::getPublishedAt)
+			.addVariable("id", "Gets the id of the YouTube channel", YouTubeChannel.class, String.class, YouTubeChannel::getId)
+			.addVariable("url", "Gets the url of the YouTube channel", YouTubeChannel.class, String.class, YouTubeChannel::getUrl)
+			.addVariable("name", "Gets the name of the YouTube channel", YouTubeChannel.class, String.class, YouTubeChannel::getName)
 			.addParser(String.class, Function.identity())
 			.addParser(Boolean.class, text -> {
 				if (text.equals("true")) {
@@ -1030,7 +1031,7 @@ public class Sx4 {
 
 				return builder;
 			}).addBuilderConfigureFunction(TimedArgument.class, (parameter, builder) -> {
-				Class<?> clazz = ClassUtility.getParameterTypes(parameter, TimedArgument.class)[0];
+				Class<?> clazz = (Class<?>) ClassUtility.getParameterTypes(parameter, TimedArgument.class)[0];
 
 				builder.setProperty("timedArgumentClass", clazz);
 				builder.setProperty("finalClass", clazz);
@@ -1042,12 +1043,12 @@ public class Sx4 {
 
 				return builder;
 			}).addBuilderConfigureFunction(ItemStack.class, (parameter, builder) -> {
-				Class<?> clazz = ClassUtility.getParameterTypes(parameter, ItemStack.class)[0];
+				Class<?> clazz = (Class<?>) ClassUtility.getParameterTypes(parameter, ItemStack.class)[0];
 				builder.setProperty("itemClass", clazz);
 
 				return builder;
 			}).addBuilderConfigureFunction(Range.class, (parameter, builder) -> {
-				Class<?> clazz = ClassUtility.getParameterTypes(parameter, Range.class)[0];
+				Class<?> clazz = (Class<?>) ClassUtility.getParameterTypes(parameter, Range.class)[0];
 
 				List<?> builders = CommandUtility.getBuilderConfigureFunctions(argumentFactory, clazz);
 				for (Object builderFunction : builders) {
@@ -1058,7 +1059,7 @@ public class Sx4 {
 
 				return builder;
 			}).addBuilderConfigureFunction(Alternative.class, (parameter, builder) -> {
-				Class<?> clazz = ClassUtility.getParameterTypes(parameter, Alternative.class)[0];
+				Class<?> clazz = (Class<?>) ClassUtility.getParameterTypes(parameter, Alternative.class)[0];
 
 				builder.setProperty("alternativeClass", clazz);
 				builder.setProperty("finalClass", clazz);
@@ -1098,8 +1099,8 @@ public class Sx4 {
 
 				return builder;
 			}).addBuilderConfigureFunction(Or.class, (parameter, builder) -> {
-				Class<?>[] classes = ClassUtility.getParameterTypes(parameter, Or.class);
-				Class<?> firstClass = classes[0], secondClass = classes[1];
+				Type[] classes = ClassUtility.getParameterTypes(parameter, Or.class);
+				Class<?> firstClass = (Class<?>) classes[0], secondClass = (Class<?>) classes[1];
 
 				List<?> builders = CommandUtility.getBuilderConfigureFunctions(argumentFactory, firstClass);
 				for (Object builderFunction : builders) {

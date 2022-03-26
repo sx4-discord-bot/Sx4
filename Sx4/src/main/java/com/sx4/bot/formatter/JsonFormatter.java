@@ -19,7 +19,7 @@ public class JsonFormatter extends Formatter<Document> {
 		return this.parse(this.object);
 	}
 
-	public Document parse(Document json) {
+	private Document parse(Document json) {
 		Document document = new Document();
 		for (String key : json.keySet()) {
 			Object value = json.get(key);

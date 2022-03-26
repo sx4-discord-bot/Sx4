@@ -20,6 +20,7 @@ import net.dv8tion.jda.api.entities.Icon;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.exceptions.RateLimitedException;
+import net.dv8tion.jda.api.requests.ErrorResponse;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 
@@ -116,8 +117,13 @@ public class EmoteCommand extends Sx4Command {
 						exception = exception.getCause();
 					}
 
-					if (exception instanceof ErrorResponseException && ((ErrorResponseException) exception).getErrorCode() == 400) {
-						event.replyFailure("You cannot create an emote larger than 256KB").queue();
+					if (exception instanceof ErrorResponseException errorResponseException) {
+						if (errorResponseException.getErrorCode() == 400) {
+							event.replyFailure("You cannot create an emote larger than 256KB").queue();
+						} else if (errorResponseException.getErrorResponse() == ErrorResponse.INVALID_FORM_BODY) {
+							event.replyFailure("The url given is not a valid image").queue();
+						}
+
 						return;
 					}
 
