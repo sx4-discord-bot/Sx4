@@ -18,9 +18,7 @@ import com.sx4.bot.utility.NumberUtility;
 import com.sx4.bot.utility.StringUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
-import net.dv8tion.jda.api.entities.EmbedType;
 import net.dv8tion.jda.api.entities.MessageEmbed;
-import net.dv8tion.jda.api.entities.Role;
 import okhttp3.Request;
 import org.bson.Document;
 import org.json.JSONArray;
@@ -173,9 +171,11 @@ public class SteamCommand extends Sx4Command {
 
 				embeds.add(embed.build());
 
-				gameInfo.getList("screenshots", Document.class).stream().map(d -> d.getString("path_thumbnail")).limit(3).forEach(thumbnail -> {
-					embeds.add(new MessageEmbed("https://store.steampowered.com/app/" + appId, null, null, EmbedType.RICH, null, Role.DEFAULT_COLOR_RAW, null, null, null, null, null, new MessageEmbed.ImageInfo(thumbnail, null, 0, 0), List.of()));
-				});
+				gameInfo.getList("screenshots", Document.class).stream()
+					.limit(3)
+					.map(d -> d.getString("path_thumbnail"))
+					.map(url -> embed.setImage(url).build())
+					.forEach(embeds::add);
 
 				event.getChannel().sendMessageEmbeds(embeds).queue();
 			});
