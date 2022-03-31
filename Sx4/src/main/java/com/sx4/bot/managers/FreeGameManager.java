@@ -270,7 +270,8 @@ public class FreeGameManager implements WebhookManager {
 						updatedMessages.add(baseMessage.build());
 						baseMessage.resetEmbeds();
 						embeds.clear();
-						length = 0;
+						embeds.addAll(nextEmbeds);
+						length = nextLength;
 						continue;
 					}
 
