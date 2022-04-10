@@ -100,8 +100,10 @@ public class TranslateCommand extends Sx4Command {
 				return;
 			}
 
+			String value = "%5B%5B%5B%22MkEWBc%22%2C%22%5B%5B%5C%22" + URLEncoder.encode(query.replace("\\", "\\\\\\\\").replace("\"", "\\\\\\\""), StandardCharsets.UTF_8).replace("%0A", "\n") + "%5C%22%2C%5C%22" + fromTag + "%5C%22%2C%5C%22" + toTag + "%5C%22%2Ctrue%5D%2C%5Bnull%5D%5D%22%2Cnull%2C%22generic%22%5D%5D%5D";
+
 			FormBody requestBody = new FormBody.Builder()
-				.addEncoded("f.req", "%5B%5B%5B%22MkEWBc%22%2C%22%5B%5B%5C%22" + URLEncoder.encode(query, StandardCharsets.UTF_8).replace("%0A", "\n") + "%5C%22%2C%5C%22" + fromTag + "%5C%22%2C%5C%22" + toTag + "%5C%22%2Ctrue%5D%2C%5Bnull%5D%5D%22%2Cnull%2C%22generic%22%5D%5D%5D")
+				.addEncoded("f.req", value)
 				.build();
 
 			Request request = new Request.Builder()

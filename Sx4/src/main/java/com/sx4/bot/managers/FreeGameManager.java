@@ -323,61 +323,68 @@ public class FreeGameManager implements WebhookManager {
 		});
 	}
 
-	public void ensureSteamFreeGames() {
-		this.steamExecutor.scheduleAtFixedRate(() -> {
-			Request resultRequest = new Request.Builder()
-				.url("https://store.steampowered.com/search/?maxprice=free&specials=1&cc=gb")
-				.addHeader("Accept-Language", "en")
-				.build();
+	public CompletableFuture<List<SteamFreeGame>> retrieveFreeSteamGames() {
+		Request resultRequest = new Request.Builder()
+			.url("https://store.steampowered.com/search/?maxprice=free&specials=1&cc=gb")
+			.addHeader("Accept-Language", "en")
+			.build();
 
-			this.bot.getHttpClient().newCall(resultRequest).enqueue((HttpCallback) resultResponse -> {
-				org.jsoup.nodes.Document resultsDocument = Jsoup.parse(resultResponse.body().string());
+		CompletableFuture<List<SteamFreeGame>> future = new CompletableFuture<>();
+		this.bot.getHttpClient().newCall(resultRequest).enqueue((HttpCallback) resultResponse -> {
+			org.jsoup.nodes.Document resultsDocument = Jsoup.parse(resultResponse.body().string());
 
-				Element results = resultsDocument.getElementById("search_resultsRows");
-				if (results == null) {
-					return;
+			Element results = resultsDocument.getElementById("search_resultsRows");
+			if (results == null) {
+				return;
+			}
+
+			List<CompletableFuture<SteamFreeGame>> futures = new ArrayList<>();
+			for (Element result : results.children()) {
+				Element discount = result.getElementsByClass("col search_discount responsive_secondrow").first();
+				// Just in case steam search is inaccurate
+				if (!discount.text().equals("-100%")) {
+					continue;
 				}
 
-				List<CompletableFuture<SteamFreeGame>> futures = new ArrayList<>();
-				for (Element result : results.children()) {
-					Element discount = result.getElementsByClass("col search_discount responsive_secondrow").first();
-					// Just in case steam search is inaccurate
-					if (!discount.text().equals("-100%")) {
-						continue;
-					}
+				int id = Integer.parseInt(result.attr("data-ds-appid"));
 
-					int id = Integer.parseInt(result.attr("data-ds-appid"));
+				Request gameRequest = new Request.Builder()
+					.url("https://store.steampowered.com/app/" + id + "?cc=gb")
+					.addHeader("Accept-Language", "en")
+					.build();
 
-					Request gameRequest = new Request.Builder()
-						.url("https://store.steampowered.com/app/" + id + "?cc=gb")
-						.addHeader("Accept-Language", "en")
-						.build();
+				CompletableFuture<SteamFreeGame> gameFuture = new CompletableFuture<>();
+				this.bot.getHttpClient().newCall(gameRequest).enqueue((HttpCallback) gameResponse -> {
+					org.jsoup.nodes.Document document = Jsoup.parse(gameResponse.body().string());
+					Element content = document.getElementsByClass("page_content_ctn").first();
 
-					CompletableFuture<SteamFreeGame> future = new CompletableFuture<>();
-					this.bot.getHttpClient().newCall(gameRequest).enqueue((HttpCallback) gameResponse -> {
-						org.jsoup.nodes.Document document = Jsoup.parse(gameResponse.body().string());
-						Element content = document.getElementsByClass("page_content_ctn").first();
-
-						SteamFreeGame game = SteamFreeGame.fromData(id, content);
-						if (this.isAnnounced(game)) {
-							future.complete(null);
-							return;
-						}
-
-						future.complete(game);
-					});
-
-					futures.add(future);
-				}
-
-				FutureUtility.allOf(futures, Objects::nonNull).whenComplete((games, exception) -> {
-					if (ExceptionUtility.sendErrorMessage(exception) || games.isEmpty()) {
+					SteamFreeGame game = SteamFreeGame.fromData(id, content);
+					if (this.isAnnounced(game)) {
+						gameFuture.complete(null);
 						return;
 					}
 
-					this.sendFreeGameNotifications(games).whenComplete(MongoDatabase.exceptionally());
+					gameFuture.complete(game);
 				});
-			});
+
+				futures.add(gameFuture);
+			}
+
+			FutureUtility.allOf(futures, Objects::nonNull).thenAccept(future::complete);
+		});
+
+		return future;
+	}
+
+	public void ensureSteamFreeGames() {
+		this.steamExecutor.scheduleAtFixedRate(() -> {
+			try {
+				this.retrieveFreeSteamGames()
+					.thenCompose(this::sendFreeGameNotifications)
+					.whenComplete(MongoDatabase.exceptionally());
+			} catch (Throwable e) {
+				ExceptionUtility.sendExceptionally(this.bot.getShardManager().getTextChannelById(344091594972069888L), e);
+			}
 		}, 0, 30, TimeUnit.MINUTES);
 	}
 

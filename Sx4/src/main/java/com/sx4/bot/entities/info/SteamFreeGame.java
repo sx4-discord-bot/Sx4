@@ -11,7 +11,7 @@ import java.util.Locale;
 
 public class SteamFreeGame extends FreeGame<Integer> {
 
-	private static final DateTimeFormatterBuilder FORMATTER = new DateTimeFormatterBuilder().appendPattern("dd MMM @ [KK][K]:mma");
+	private static final DateTimeFormatterBuilder FORMATTER = new DateTimeFormatterBuilder().appendPattern("[dd][d] MMM @ [KK][K]:mma");
 	private static final ZoneId ZONE_ID = ZoneId.of("America/Los_Angeles");
 
 	private SteamFreeGame(int id, String title, String description, String publisher, String image, int originalPrice, int discountPrice, OffsetDateTime start, OffsetDateTime end) {
