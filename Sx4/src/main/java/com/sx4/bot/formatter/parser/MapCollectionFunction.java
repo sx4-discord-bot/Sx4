@@ -23,6 +23,8 @@ public class MapCollectionFunction extends FormatterFunction<Collection> {
 			newList.add(Formatter.toObject(lambda, Object.class, event.getManager()));
 		}
 
+		event.getManager().removeVariable("this");
+
 		return newList;
 	}
 

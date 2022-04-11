@@ -95,6 +95,16 @@ public class FormatterManager {
 		return this;
 	}
 
+	public FormatterManager removeVariable(String name) {
+		Map<String, FormatterVariable<?>> staticVariables = this.variables.get(Void.class);
+		if (staticVariables == null) {
+			return this;
+		}
+
+		staticVariables.remove(name);
+		return this;
+	}
+
 	public FormatterManager addVariable(FormatterVariable<?> variable) {
 		this.variables.compute(variable.getType(), (key, value) -> {
 			if (value == null) {

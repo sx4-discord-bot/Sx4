@@ -31,6 +31,8 @@ public class FilterCollectionFunction extends FormatterFunction<Collection> {
 			}
 		}
 
+		event.getManager().removeVariable("this");
+
 		return newList;
 	}
 
