@@ -12,7 +12,7 @@ public class SortCollectionFunction extends FormatterFunction<List> {
 		super(List.class, "sort", "Sorts a list to another object");
 	}
 
-	public List<?> parse(FormatterEvent<List> event, String lambda) {
+	public List<?> parse(FormatterEvent<List<?>> event, String lambda) {
 		List<?> list = event.getObject();
 
 		list.sort((Comparator<Object>) (firstObject, secondObject) -> {

@@ -9,10 +9,7 @@ import com.mongodb.client.result.UpdateResult;
 import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.database.mongo.model.Operators;
-import com.sx4.bot.entities.info.EpicFreeGame;
-import com.sx4.bot.entities.info.FreeGame;
-import com.sx4.bot.entities.info.FreeGameType;
-import com.sx4.bot.entities.info.SteamFreeGame;
+import com.sx4.bot.entities.info.*;
 import com.sx4.bot.entities.webhook.ReadonlyMessage;
 import com.sx4.bot.entities.webhook.WebhookClient;
 import com.sx4.bot.formatter.Formatter;
@@ -31,8 +28,10 @@ import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.*;
@@ -57,12 +56,13 @@ public class FreeGameManager implements WebhookManager {
 
 	private final Sx4 bot;
 
-	private final Map<Object, List<FreeGame<?>>> announcedGames;
+	private final Map<FreeGameType, Map<Object, List<FreeGame<?>>>> announcedGames;
 
 	private final Map<Long, WebhookClient> webhooks;
 
 	private final ScheduledExecutorService epicExecutor = Executors.newSingleThreadScheduledExecutor();
 	private final ScheduledExecutorService steamExecutor = Executors.newSingleThreadScheduledExecutor();
+	private final ScheduledExecutorService gogExecutor = Executors.newSingleThreadScheduledExecutor();
 
 	private final OkHttpClient client = new OkHttpClient();
 
@@ -73,7 +73,12 @@ public class FreeGameManager implements WebhookManager {
 	}
 
 	public boolean isAnnounced(FreeGame<?> game) {
-		List<FreeGame<?>> announcedGames = this.announcedGames.get(game.getId());
+		Map<Object, List<FreeGame<?>>> gameIds = this.announcedGames.get(game.getType());
+		if (gameIds == null) {
+			return false;
+		}
+
+		List<FreeGame<?>> announcedGames = gameIds.get(game.getId());
 		if (announcedGames == null) {
 			return false;
 		}
@@ -82,15 +87,20 @@ public class FreeGameManager implements WebhookManager {
 	}
 
 	public void addAnnouncedGame(FreeGame<?> game) {
-		this.announcedGames.compute(game.getId(), (key, value) -> {
-			if (value == null) {
-				List<FreeGame<?>> games = new ArrayList<>();
-				games.add(game);
-				return games;
-			} else {
-				value.add(game);
-				return value;
-			}
+		this.announcedGames.compute(game.getType(), (type, ids) -> {
+			Map<Object, List<FreeGame<?>>> gameIds = ids == null ? new HashMap<>() : ids;
+			gameIds.compute(game.getId(), (key, value) -> {
+				if (value == null) {
+					List<FreeGame<?>> games = new ArrayList<>();
+					games.add(game);
+					return games;
+				} else {
+					value.add(game);
+					return value;
+				}
+			});
+
+			return gameIds;
 		});
 	}
 
@@ -323,6 +333,77 @@ public class FreeGameManager implements WebhookManager {
 		});
 	}
 
+	public CompletableFuture<GOGFreeGame> retrieveFreeGOGGames() {
+		Request resultRequest = new Request.Builder()
+			.url("https://gog.com/en")
+			.addHeader("Accept-Language", "en")
+			.build();
+
+		CompletableFuture<GOGFreeGame> future = new CompletableFuture<>();
+		this.bot.getHttpClient().newCall(resultRequest).enqueue((HttpCallback) resultResponse -> {
+			org.jsoup.nodes.Document resultsDocument = Jsoup.parse(resultResponse.body().string());
+
+			Element giveawayElement = resultsDocument.getElementsByAttribute("giveaway-banner").first();
+			if (giveawayElement == null) {
+				return;
+			}
+
+			String url = giveawayElement.attr("ng-href");
+
+			Element countdownElement = giveawayElement.getElementsByClass("giveaway-banner__countdown-timer").first();
+			OffsetDateTime end = OffsetDateTime.ofInstant(Instant.ofEpochMilli(Long.parseLong(countdownElement.attr("end-date"))), ZoneOffset.UTC);
+
+			Element imageElement = giveawayElement.getElementsByAttributeValue("type", "image/png").first();
+			String imageSource = imageElement.attr("srcset");
+
+			int commaIndex = imageSource.indexOf(',');
+			String image = imageSource.substring(0, commaIndex - 3);
+
+			Request gameRequest = new Request.Builder()
+				.url("https://gog.com" + url)
+				.addHeader("Accept-Language", "en")
+				.build();
+
+			this.bot.getHttpClient().newCall(gameRequest).enqueue((HttpCallback) gameResponse -> {
+				org.jsoup.nodes.Document gameDocument = Jsoup.parse(gameResponse.body().string());
+
+				Element element = gameDocument.getElementsByAttributeValue("type", "application/ld+json").first();
+				Document data = Document.parse(element.html());
+
+				int id = Integer.parseInt(data.getString("sku"));
+
+				Document offers = data.get("offers", Document.class);
+				String priceText = offers.getString("price");
+
+				int price = (int) (Double.parseDouble(priceText) * 100);
+
+				Element titleElement = gameDocument.getElementsByClass("productcard-basics__title").first();
+				String title = titleElement.text();
+
+				Element descriptionElement = gameDocument.getElementsByClass("description").first();
+				String description = descriptionElement.textNodes().get(0).text();
+
+				Elements infoElements = gameDocument.getElementsByClass("table__row details__rating details__row ");
+
+				String publisher = infoElements.stream()
+					.filter(infoElement -> {
+						Element labelElement = infoElement.getElementsByClass("details__category table__row-label").first();
+						return labelElement.text().contains("Company:");
+					})
+					.map(infoElement -> infoElement.getElementsByClass("details__content table__row-content").first())
+					.flatMap(publishers -> publishers.children().stream())
+					.filter(publisherElement -> publisherElement.attr("href").contains("publishers"))
+					.map(Element::text)
+					.findFirst()
+					.orElse(null);
+
+				future.complete(GOGFreeGame.fromData(id, title, description, publisher, url, price, end, "https:" + image.trim()));
+			});
+		});
+
+		return future;
+	}
+
 	public CompletableFuture<List<SteamFreeGame>> retrieveFreeSteamGames() {
 		Request resultRequest = new Request.Builder()
 			.url("https://store.steampowered.com/search/?maxprice=free&specials=1&cc=gb")
@@ -374,6 +455,19 @@ public class FreeGameManager implements WebhookManager {
 		});
 
 		return future;
+	}
+
+	public void ensureGOGFreeGames() {
+		this.gogExecutor.scheduleAtFixedRate(() -> {
+			try {
+				this.retrieveFreeGOGGames()
+					.thenApply(List::of)
+					.thenCompose(this::sendFreeGameNotifications)
+					.whenComplete(MongoDatabase.exceptionally());
+			} catch (Throwable e) {
+				ExceptionUtility.sendExceptionally(this.bot.getShardManager().getTextChannelById(344091594972069888L), e);
+			}
+		}, 0, 30, TimeUnit.MINUTES);
 	}
 
 	public void ensureSteamFreeGames() {
