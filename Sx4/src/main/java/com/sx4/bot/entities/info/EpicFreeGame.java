@@ -39,7 +39,11 @@ public class EpicFreeGame extends FreeGame<String> {
 		String title = data.getString("title");
 		String description = data.getString("description");
 		String publisher = data.getEmbedded(List.of("seller", "name"), String.class);
-		String url = data.getString("offerType").equals("DLC") ? data.getString("urlSlug") : data.getString("productSlug");
+		String url = data.get("catalogNs", Document.class).getList("mappings", Document.class).stream()
+			.filter(d -> d.getString("pageType").equals("productHome"))
+			.map(d -> d.getString("pageSlug"))
+			.findFirst()
+			.orElse(null);
 
 		Document promotion = FreeGameUtility.getBestPromotionalOffer(data);
 		OffsetDateTime start = OffsetDateTime.parse(promotion.getString("startDate"));

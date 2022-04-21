@@ -361,7 +361,7 @@ public class FreeGameManager implements WebhookManager {
 
 			Request gameRequest = new Request.Builder()
 				.url("https://gog.com" + url)
-				.addHeader("Accept-Language", "en")
+				.addHeader("Cookie", "gog_lc=GB_GBP_en-US")
 				.build();
 
 			this.bot.getHttpClient().newCall(gameRequest).enqueue((HttpCallback) gameResponse -> {
@@ -397,7 +397,12 @@ public class FreeGameManager implements WebhookManager {
 					.findFirst()
 					.orElse(null);
 
-				future.complete(GOGFreeGame.fromData(id, title, description, publisher, url, price, end, "https:" + image.trim()));
+				GOGFreeGame game = GOGFreeGame.fromData(id, title, description, publisher, url, price, end, "https:" + image.trim());
+				if (this.isAnnounced(game)) {
+					return;
+				}
+
+				future.complete(game);
 			});
 		});
 
