@@ -159,11 +159,14 @@ public class CSGOSkinCommand extends Sx4Command {
 
 				Request request = new Request.Builder()
 					.url(url.toString())
+					.addHeader("Referer", url.toString())
 					.addHeader("Cookie", cookie)
 					.build();
 
 				event.getHttpClient().newCall(request).enqueue((HttpCallback) response -> {
 					Document skinData = Document.parse(response.body().string());
+
+					System.out.println(skinData);
 
 					List<Document> items = skinData.getList("items", Document.class);
 					if (items.isEmpty()) {
@@ -201,10 +204,10 @@ public class CSGOSkinCommand extends Sx4Command {
 								embeds.add(embed.build());
 
 								if (d.getBoolean("canHaveScreenshots")) {
-									embed.setImage("https://cdn.skinport.com/images/screenshots/" + d.getInteger("assetId") + "/backside_512x384.png");
+									embed.setImage("https://cdn.skinport.com/cdn-cgi/image/width=512,height=384,fit=pad,format=png,quality=100,background=transparent/images/screenshots/" + d.getInteger("assetId") + "/backside.png");
 									embeds.add(embed.build());
 
-									embed.setImage("https://cdn.skinport.com/images/screenshots/" + d.getInteger("assetId") + "/playside_512x384.png");
+									embed.setImage("https://cdn.skinport.com/cdn-cgi/image/width=512,height=384,fit=pad,format=png,quality=100,background=transparent/images/screenshots/" + d.getInteger("assetId") + "/playside.png");
 									embeds.add(embed.build());
 								}
 							});
