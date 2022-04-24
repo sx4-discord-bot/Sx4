@@ -166,8 +166,6 @@ public class CSGOSkinCommand extends Sx4Command {
 				event.getHttpClient().newCall(request).enqueue((HttpCallback) response -> {
 					Document skinData = Document.parse(response.body().string());
 
-					System.out.println(skinData);
-
 					List<Document> items = skinData.getList("items", Document.class);
 					if (items.isEmpty()) {
 						event.replyFailure("There are no skins listed with those filters").queue();
