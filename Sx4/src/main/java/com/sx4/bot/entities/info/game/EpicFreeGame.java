@@ -1,4 +1,4 @@
-package com.sx4.bot.entities.info;
+package com.sx4.bot.entities.info.game;
 
 import com.sx4.bot.utility.FreeGameUtility;
 import org.bson.Document;

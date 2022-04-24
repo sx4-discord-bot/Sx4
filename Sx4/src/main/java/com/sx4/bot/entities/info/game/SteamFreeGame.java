@@ -1,4 +1,4 @@
-package com.sx4.bot.entities.info;
+package com.sx4.bot.entities.info.game;
 
 import org.bson.Document;
 import org.jsoup.nodes.Element;

@@ -9,7 +9,7 @@ import com.mongodb.client.result.UpdateResult;
 import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.database.mongo.model.Operators;
-import com.sx4.bot.entities.info.*;
+import com.sx4.bot.entities.info.game.*;
 import com.sx4.bot.entities.webhook.ReadonlyMessage;
 import com.sx4.bot.entities.webhook.WebhookClient;
 import com.sx4.bot.formatter.Formatter;
@@ -70,6 +70,11 @@ public class FreeGameManager implements WebhookManager {
 		this.bot = bot;
 		this.webhooks = new HashMap<>();
 		this.announcedGames = new HashMap<>();
+	}
+
+	public long getInitialDelay() {
+		OffsetDateTime time = OffsetDateTime.now(ZoneOffset.UTC);
+		return Duration.between(time, time.withMinute(30 * (int) Math.floor(time.getMinute() / 30D)).withSecond(3).withNano(0).plusMinutes(30)).toSeconds();
 	}
 
 	public boolean isAnnounced(FreeGame<?> game) {
@@ -191,12 +196,15 @@ public class FreeGameManager implements WebhookManager {
 	}
 
 	public CompletableFuture<List<ReadonlyMessage>> sendFreeGameNotifications(List<? extends FreeGame<?>> games) {
+		if (games.isEmpty()) {
+			return CompletableFuture.completedFuture(Collections.emptyList());
+		}
+
 		games.forEach(this::addAnnouncedGame);
 
 		List<Document> gameData = games.stream().map(FreeGame::toData).collect(Collectors.toList());
-		if (!gameData.isEmpty()) {
-			this.bot.getMongo().insertManyAnnouncedGames(gameData).whenComplete(MongoDatabase.exceptionally());
-		}
+
+		this.bot.getMongo().insertManyAnnouncedGames(gameData).whenComplete(MongoDatabase.exceptionally());
 
 		List<Bson> guildPipeline = List.of(
 			Aggregates.match(Operators.expr(Operators.eq("$_id", "$$guildId"))),
@@ -472,7 +480,7 @@ public class FreeGameManager implements WebhookManager {
 			} catch (Throwable e) {
 				ExceptionUtility.sendExceptionally(this.bot.getShardManager().getTextChannelById(344091594972069888L), e);
 			}
-		}, 0, 30, TimeUnit.MINUTES);
+		}, this.getInitialDelay(), 1800, TimeUnit.SECONDS);
 	}
 
 	public void ensureSteamFreeGames() {
@@ -484,7 +492,7 @@ public class FreeGameManager implements WebhookManager {
 			} catch (Throwable e) {
 				ExceptionUtility.sendExceptionally(this.bot.getShardManager().getTextChannelById(344091594972069888L), e);
 			}
-		}, 0, 30, TimeUnit.MINUTES);
+		}, this.getInitialDelay(), 1800, TimeUnit.SECONDS);
 	}
 
 	public void ensureAnnouncedGames() {

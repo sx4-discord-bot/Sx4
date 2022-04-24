@@ -37,8 +37,8 @@ import com.sx4.bot.entities.argument.*;
 import com.sx4.bot.entities.economy.item.Item;
 import com.sx4.bot.entities.economy.item.ItemStack;
 import com.sx4.bot.entities.info.Currency;
-import com.sx4.bot.entities.info.FreeGame;
-import com.sx4.bot.entities.info.FreeGameType;
+import com.sx4.bot.entities.info.game.FreeGame;
+import com.sx4.bot.entities.info.game.FreeGameType;
 import com.sx4.bot.entities.management.AutoRoleFilter;
 import com.sx4.bot.entities.mod.PartialEmote;
 import com.sx4.bot.entities.mod.Reason;
@@ -263,8 +263,8 @@ public class Sx4 {
 			.addVariable("run_url", "Gets the Epic Games client url for the game", FreeGame.class, String.class, FreeGame::getRunUrl)
 			.addVariable("promotion_start", "Gets the start date of the promotion", FreeGame.class, OffsetDateTime.class, FreeGame::getPromotionStart)
 			.addVariable("promotion_end", "Gets the end date of the promotion", FreeGame.class, OffsetDateTime.class, FreeGame::getPromotionEnd)
-			.addVariable("price", "Gets the updated price of the game", FreeGame.class, Currency.class, game -> new Currency(game.getDiscountPrice() / 100D, "GBP"))
-			.addVariable("original_price", "Gets the original price of the game", FreeGame.class, Currency.class, game -> new Currency(game.getOriginalPrice() / 100D, "GBP"))
+			.addVariable("price", "Gets the updated price of the game", FreeGame.class, Currency.class, game -> new Currency(game.getDiscountPriceDecimal(), "GBP"))
+			.addVariable("original_price", "Gets the original price of the game", FreeGame.class, Currency.class, game -> new Currency(game.getOriginalPriceDecimal(), "GBP"))
 			.addVariable("suffix", "Gets the suffixed version of a number", Integer.class, String.class, NumberUtility::getSuffixed)
 			.addVariable("round", "Gets the rounded number", Double.class, Long.class, Math::round)
 			.addVariable("floor", "Gets the floored number", Double.class, Double.class, Math::floor)
