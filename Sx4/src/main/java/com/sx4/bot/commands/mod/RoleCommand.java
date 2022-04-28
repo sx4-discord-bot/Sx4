@@ -12,9 +12,11 @@ import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.entities.argument.Alternative;
 import com.sx4.bot.utility.FutureUtility;
+import com.sx4.bot.utility.PermissionUtility;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Role;
+import net.dv8tion.jda.internal.utils.PermissionUtil;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -98,6 +100,26 @@ public class RoleCommand extends Sx4Command {
 		if (event.getOptions().isEmpty()) {
 			event.replyFailure("You need to edit at least 1 attribute of the role").queue();
 			return;
+		}
+
+		if (permissions != null) {
+			long missingPermissions = permissions;
+			missingPermissions &= ~PermissionUtil.getEffectivePermission(event.getMember());
+			missingPermissions &= ~role.getPermissionsRaw();
+
+			if (missingPermissions != 0) {
+				event.replyFailure(PermissionUtility.formatMissingPermissions(Permission.getPermissions(missingPermissions))).queue();
+				return;
+			}
+
+			long missingSelfPermissions = permissions;
+			missingSelfPermissions &= ~PermissionUtil.getEffectivePermission(event.getSelfMember());
+			missingSelfPermissions &= ~role.getPermissionsRaw();
+
+			if (missingSelfPermissions != 0) {
+				event.replyFailure(PermissionUtility.formatMissingPermissions(Permission.getPermissions(missingPermissions), "I am")).queue();
+				return;
+			}
 		}
 
 		role.getManager()
