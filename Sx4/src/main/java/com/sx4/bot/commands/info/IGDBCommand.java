@@ -58,7 +58,7 @@ public class IGDBCommand extends Sx4Command {
 			.url("https://api.igdb.com/v4/games/")
 			.post(RequestBody.create(MediaType.parse("application/json; charset=utf-8"), parser.parse()))
 			.addHeader("Client-ID", event.getConfig().getTwitchClientId())
-			.addHeader("Authorization", "Bearer " + event.getConfig().getTwitch())
+			.addHeader("Authorization", "Bearer " + event.getBot().getTwitchConfig().getToken())
 			.build();
 
 		event.getHttpClient().newCall(request).enqueue((HttpCallback) response -> {

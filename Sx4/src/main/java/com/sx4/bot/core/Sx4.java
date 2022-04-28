@@ -31,6 +31,7 @@ import com.sx4.bot.cache.MessageCache;
 import com.sx4.bot.cache.SteamGameCache;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.config.Config;
+import com.sx4.bot.config.TwitchConfig;
 import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.database.postgres.PostgresDatabase;
 import com.sx4.bot.entities.argument.*;
@@ -42,6 +43,9 @@ import com.sx4.bot.entities.info.game.FreeGameType;
 import com.sx4.bot.entities.management.AutoRoleFilter;
 import com.sx4.bot.entities.mod.PartialEmote;
 import com.sx4.bot.entities.mod.Reason;
+import com.sx4.bot.entities.twitch.TwitchStream;
+import com.sx4.bot.entities.twitch.TwitchStreamType;
+import com.sx4.bot.entities.twitch.TwitchStreamer;
 import com.sx4.bot.entities.youtube.YouTubeChannel;
 import com.sx4.bot.entities.youtube.YouTubeVideo;
 import com.sx4.bot.formatter.FormatterManager;
@@ -105,6 +109,7 @@ public class Sx4 {
 	public static final String GIT_HASH = "@GIT_HASH@";
 
 	private final Config config = Config.get();
+	private final TwitchConfig twitchConfig;
 
 	private final PostgresDatabase postgres;
 	private final PostgresDatabase postgresCanary;
@@ -148,6 +153,7 @@ public class Sx4 {
 	private final MysteryBoxManager mysteryBoxManager;
 	private final SkinPortManager skinPortManager;
 	private final FreeGameManager freeGameManager;
+	private final TwitchManager twitchManager;
 	
 	private Sx4() {
 		this.postgresMain = new PostgresDatabase(this.config.getMainDatabase());
@@ -169,6 +175,8 @@ public class Sx4 {
 			.writeTimeout(15, TimeUnit.SECONDS)
 			.build();
 
+		this.twitchConfig = new TwitchConfig();
+
 		Currency.pollCurrencies(this.httpClient);
 
 		ContextManagerFactory.getDefault()
@@ -183,6 +191,7 @@ public class Sx4 {
 
 		ModHandler modHandler = new ModHandler(this);
 		YouTubeHandler youTubeHandler = new YouTubeHandler(this);
+		TwitchHandler twitchHandler = new TwitchHandler(this);
 		this.loggerHandler = new LoggerHandler(this);
 		this.connectionHandler = new ConnectionHandler(this);
 
@@ -198,6 +207,7 @@ public class Sx4 {
 		this.temporaryBanManager = new TemporaryBanManager(this);
 		this.welcomerManager = new WelcomerManager(this);
 		this.youTubeManager = new YouTubeManager(this).addListener(youTubeHandler);
+		this.twitchManager = new TwitchManager(this).addListener(twitchHandler);
 		this.pagedManager = new PagedManager();
 		this.waiterManager = new WaiterManager();
 		this.serverStatsManager = new ServerStatsManager(this);
@@ -244,6 +254,15 @@ public class Sx4 {
 
 		FormatterManager formatterManager = new FormatterManager()
 			.addFunctions("com.sx4.bot.formatter.parser")
+			.addVariable("id", TwitchStream.class, String.class, TwitchStream::getId)
+			.addVariable("type", TwitchStream.class, TwitchStreamType.class, TwitchStream::getType)
+			.addVariable("start", TwitchStream.class, OffsetDateTime.class, TwitchStream::getStartTime)
+			.addVariable("preview", TwitchStream.class, String.class, TwitchStream::getPreviewUrl)
+			.addVariable("title", TwitchStream.class, String.class, TwitchStream::getTitle)
+			.addVariable("game", TwitchStream.class, String.class, TwitchStream::getGame)
+			.addVariable("id", TwitchStreamer.class, String.class, TwitchStreamer::getId)
+			.addVariable("name", TwitchStreamer.class, String.class, TwitchStreamer::getName)
+			.addVariable("url", TwitchStreamer.class, String.class, TwitchStreamer::getUrl)
 			.addVariable("not", "Inverts a boolean value", Boolean.class, Boolean.class, bool -> !bool)
 			.addVariable("id", "Gets the id of a message", Message.class, Long.class, Message::getIdLong)
 			.addVariable("content", "Gets the content of a message", Message.class, String.class, Message::getContentRaw)
@@ -452,6 +471,10 @@ public class Sx4 {
 		return this.config;
 	}
 
+	public TwitchConfig getTwitchConfig() {
+		return this.twitchConfig;
+	}
+
 	public OkHttpClient getHttpClient() {
 		return this.httpClient;
 	}
@@ -550,6 +573,10 @@ public class Sx4 {
 
 	public FreeGameManager getFreeGameManager() {
 		return this.freeGameManager;
+	}
+
+	public TwitchManager getTwitchManager() {
+		return this.twitchManager;
 	}
 
 	public SteamGameCache getSteamGameCache() {

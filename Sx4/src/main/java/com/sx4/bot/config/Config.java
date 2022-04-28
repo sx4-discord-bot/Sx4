@@ -2,7 +2,6 @@ package com.sx4.bot.config;
 
 import club.minnced.discord.webhook.WebhookClient;
 import club.minnced.discord.webhook.WebhookClientBuilder;
-import com.sx4.bot.database.mongo.MongoDatabase;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.TextChannel;
@@ -12,23 +11,19 @@ import org.bson.Document;
 import org.json.JSONObject;
 
 import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
-public class Config {
+public class Config extends GenericConfig {
 
 	private static final Config INSTANCE = new Config();
 
 	public static Config get() {
 		return Config.INSTANCE;
 	}
-	
-	private Document json;
 	
 	// Avoid iterating the json everytime they're used
 	private String emoteSuccess;
@@ -37,77 +32,15 @@ public class Config {
 	private WebhookClient errorsWebhook;
 	
 	private Config() {
-		this.reload();
-	}
-	
-	public <Type> Type get(String path) {
-		return this.get(path, (Type) null);
-	}
-
-	public <Type> Type get(String path, Class<Type> clazz) {
-		return this.get(path);
-	}
-	
-	public <Type> Type get(String path, Type defaultValue) {
-		return this.get(Arrays.asList(path.split("\\.")), defaultValue);
-	}
-	
-	@SuppressWarnings("unchecked")
-	public <Type> Type get(List<String> path, Type defaultValue) {
-		Document json = this.json;
-		
-		for (int i = 0; i < path.size(); i++) {
-			String key = path.get(i);
-			if (!json.containsKey(key)) {
-				return defaultValue;
-			}
-			
-			Object value = json.get(key);
-			if (i == path.size() - 1) {
-				return (Type) value;
-			}
-			
-			if (value instanceof Document) {
-				json = (Document) value;
-			} else {
-				return defaultValue;
-			}
-		}
-		
-		return defaultValue;
-	}
-
-	public Config set(String path, Object value) throws IOException {
-		return this.set(path.split("\\."), value);
-	}
-
-	public Config set(String[] path, Object value) {
-		return this.set(Arrays.asList(path), value);
-	}
-
-	public Config set(List<String> path, Object value) {
-		Document json = this.json;
-
-		for (int i = 0; i < path.size(); i++) {
-			String key = path.get(i);
-			if (i == path.size() - 1) {
-				json.append(key, value);
-				break;
-			}
-
-			Object oldValue = json.get(key);
-			if (oldValue instanceof Document) {
-				json = (Document) oldValue;
-			} else {
-				json.append(key, json = new Document());
-			}
-		}
-
-		return this;
+		super("config.json");
 	}
 
 	public String getYouTubeAvatar() {
 		return this.get("avatar.youtube");
+	}
+
+	public String getTwitchAvatar() {
+		return this.get("avatar.twitch");
 	}
 
 	public String getTwitterToken() {
@@ -468,20 +401,16 @@ public class Config {
 		return this.get("token.patreon.campaign_id");
 	}
 
-	public String getTwitch() {
-		return this.get("token.twitch.token");
-	}
-
-	public long getTwitchExpiresAt() {
-		return this.get("token.twitch.expiresAt", Number.class).longValue();
-	}
-
 	public String getTwitchClientSecret() {
 		return this.get("token.twitch.clientSecret");
 	}
 
 	public String getTwitchClientId() {
 		return this.get("token.twitch.clientId");
+	}
+
+	public String getTwitchEventSecret() {
+		return this.get("token.twitch.eventSecret");
 	}
 	
 	public String getVoteApi(boolean sx4) {
@@ -544,17 +473,10 @@ public class Config {
 		return this.get("policy");
 	}
 
-	public void update() {
-		try (FileOutputStream stream = new FileOutputStream("config.json")) {
-			stream.write(this.json.toJson(MongoDatabase.PRETTY_JSON).getBytes(StandardCharsets.UTF_8));
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-	}
-	
+	@Override
 	public void reload() {
 		try (FileInputStream stream = new FileInputStream("config.json")) {
-			this.json = Document.parse(new String(stream.readAllBytes(), StandardCharsets.UTF_8));
+			this.replace(Document.parse(new String(stream.readAllBytes(), StandardCharsets.UTF_8)));
 			
 			this.emoteSuccess = this.get("emote.success");
 			this.emoteFailure = this.get("emote.failure");

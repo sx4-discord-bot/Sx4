@@ -26,7 +26,8 @@ public class Sx4Server {
 			new RedirectEndpoint(bot),
 			new GitHubEndpoint(bot),
 			new TwitterEndpoint(bot),
-			new SteamEndpoint(bot)
+			new SteamEndpoint(bot),
+			new TwitchEndpoint(bot)
 		);
 		
 		resourceConfig.property(ServerProperties.PROCESSING_RESPONSE_ERRORS_ENABLED, true);

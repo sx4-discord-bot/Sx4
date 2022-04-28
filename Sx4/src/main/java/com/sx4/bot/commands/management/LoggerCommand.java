@@ -59,8 +59,8 @@ public class LoggerCommand extends Sx4Command {
 
         List<Bson> pipeline = List.of(
             Aggregates.match(Filters.and(Filters.eq("guildId", event.getGuild().getIdLong()), Filters.exists("enabled", false))),
-            Aggregates.group(null, Accumulators.sum("count", 1)),
             Aggregates.limit(25),
+            Aggregates.group(null, Accumulators.sum("count", 1)),
             Aggregates.unionWith("guilds", guildPipeline),
             Aggregates.group(null, Accumulators.max("count", "$count"), Accumulators.max("premium", "$premium")),
             Aggregates.project(Projections.fields(Projections.computed("premium", Operators.ifNull("$premium", false)), Projections.computed("count", Operators.ifNull("$count", 0))))

@@ -94,6 +94,9 @@ public class MongoDatabase {
 	private final MongoCollection<Document> commands;
 	private final MongoCollection<Document> messages;
 
+	private final MongoCollection<Document> twitchNotifications;
+	private final MongoCollection<Document> twitchSubscriptions;
+
 	private final MongoCollection<Document> youtubeNotifications;
 	private final MongoCollection<Document> youtubeSubscriptions;
 	private final MongoCollection<Document> youtubeNotificationLogs;
@@ -240,6 +243,14 @@ public class MongoDatabase {
 		
 		this.messages = this.database.getCollection("messages");
 		this.messages.createIndex(Indexes.descending("updated"), new IndexOptions().expireAfter(14L, TimeUnit.DAYS));
+
+		this.twitchNotifications = this.database.getCollection("twitchNotifications");
+		this.twitchNotifications.createIndex(Indexes.descending("channelId", "streamerId"), uniqueIndex);
+		this.twitchNotifications.createIndex(Indexes.descending("guildId"));
+
+		this.twitchSubscriptions = this.database.getCollection("twitchSubscriptions");
+		this.twitchSubscriptions.createIndex(Indexes.descending("streamerId"));
+		this.twitchNotifications.createIndex(Indexes.descending("guildId"));
 
 		this.youtubeNotifications = this.database.getCollection("youtubeNotifications");
 		this.youtubeNotifications.createIndex(Indexes.descending("channelId", "uploaderId"), uniqueIndex);
@@ -1172,6 +1183,78 @@ public class MongoDatabase {
 
 	public CompletableFuture<BulkWriteResult> bulkWriteReminders(List<WriteModel<Document>> bulkData) {
 		return CompletableFuture.supplyAsync(() -> this.reminders.bulkWrite(bulkData), this.executor);
+	}
+
+	public MongoCollection<Document> getTwitchNotifications() {
+		return this.twitchNotifications;
+	}
+
+	public FindIterable<Document> getTwitchNotifications(Bson filter, Bson projection) {
+		return this.twitchNotifications.find(filter).projection(projection);
+	}
+
+	public long countTwitchNotifications(Bson filter, CountOptions options) {
+		return this.twitchNotifications.countDocuments(filter, options);
+	}
+
+	public CompletableFuture<List<Document>> aggregateTwitchNotifications(List<Bson> pipeline) {
+		return CompletableFuture.supplyAsync(() -> this.twitchNotifications.aggregate(pipeline).into(new ArrayList<>()), this.executor);
+	}
+
+	public Document getTwitchNotification(Bson filter, Bson projection) {
+		return this.getTwitchNotifications(filter, projection).first();
+	}
+
+	public CompletableFuture<InsertOneResult> insertTwitchNotification(Document data) {
+		return CompletableFuture.supplyAsync(() -> this.twitchNotifications.insertOne(data), this.executor);
+	}
+
+	public CompletableFuture<Document> findAndDeleteTwitchNotification(Bson filter, FindOneAndDeleteOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.twitchNotifications.findOneAndDelete(filter, options), this.executor);
+	}
+
+	public CompletableFuture<DeleteResult> deleteManyTwitchNotifications(Bson filter) {
+		return CompletableFuture.supplyAsync(() -> this.twitchNotifications.deleteMany(filter), this.executor);
+	}
+
+	public CompletableFuture<Document> findAndUpdateTwitchNotification(Bson filter, Bson update, FindOneAndUpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.twitchNotifications.findOneAndUpdate(filter, update, options), this.executor);
+	}
+
+	public CompletableFuture<Document> findAndUpdateTwitchNotification(Bson filter, List<Bson> update, FindOneAndUpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.twitchNotifications.findOneAndUpdate(filter, update, options), this.executor);
+	}
+
+	public CompletableFuture<UpdateResult> updateTwitchNotification(Bson filter, Bson update, UpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.twitchNotifications.updateOne(filter, update, options), this.executor);
+	}
+
+	public CompletableFuture<UpdateResult> updateManyTwitchNotifications(Bson filter, Bson update, UpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.twitchNotifications.updateMany(filter, update, options), this.executor);
+	}
+
+	public CompletableFuture<UpdateResult> updateManyTwitchNotifications(Bson filter, Bson update) {
+		return this.updateManyTwitchNotifications(filter, update, this.updateOptions);
+	}
+
+	public CompletableFuture<BulkWriteResult> bulkWriteTwitchNotifications(List<? extends WriteModel<? extends Document>> bulkData) {
+		return CompletableFuture.supplyAsync(() -> this.twitchNotifications.bulkWrite(bulkData), this.executor);
+	}
+
+	public MongoCollection<Document> getTwitchSubscriptions() {
+		return this.twitchSubscriptions;
+	}
+
+	public Document getTwitchSubscription(Bson filter) {
+		return this.twitchSubscriptions.find(filter).first();
+	}
+
+	public CompletableFuture<Document> findAndDeleteTwitchSubscription(Bson filter, FindOneAndDeleteOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.twitchSubscriptions.findOneAndDelete(filter, options), this.executor);
+	}
+
+	public CompletableFuture<InsertOneResult> insertTwitchSubscription(Document data) {
+		return CompletableFuture.supplyAsync(() -> this.twitchSubscriptions.insertOne(data), this.executor);
 	}
 
 	public MongoCollection<Document> getYouTubeNotifications() {

@@ -382,12 +382,13 @@ public class YouTubeNotificationCommand extends Sx4Command {
 			return;
 		}
 
-		int size = notifications.size();
+		List<String> channels = notifications.stream().map(d -> d.getString("uploaderId")).distinct().collect(Collectors.toList());
+		int size = channels.size();
 
 		List<CompletableFuture<Map<String, String>>> futures = new ArrayList<>();
 		for (int i = 0; i < Math.ceil(size / 50D); i++) {
-			List<Document> splitNotifications = notifications.subList(i * 50, Math.min((i + 1) * 50, size));
-			String ids = splitNotifications.stream().map(d -> d.getString("uploaderId")).collect(Collectors.joining(","));
+			List<String> splitChannels = channels.subList(i * 50, Math.min((i + 1) * 50, size));
+			String ids = String.join(",", splitChannels);
 
 			Request request = new Request.Builder()
 				.url("https://www.googleapis.com/youtube/v3/channels?key=" + event.getConfig().getYouTube() + "&id=" + ids + "&part=snippet&maxResults=50")

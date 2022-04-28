@@ -16,7 +16,7 @@ public class TwitchTokenManager {
 	public TwitchTokenManager(Sx4 bot) {
 		this.bot = bot;
 
-		long expiresIn = this.bot.getConfig().getTwitchExpiresAt() - Clock.systemUTC().instant().getEpochSecond();
+		long expiresIn = this.bot.getTwitchConfig().getExpiresAt() - Clock.systemUTC().instant().getEpochSecond();
 		if (expiresIn <= 0) {
 			this.retrieveToken();
 		} else {
@@ -37,9 +37,9 @@ public class TwitchTokenManager {
 		this.bot.getHttpClient().newCall(request).enqueue((HttpCallback) response -> {
 			Document json = Document.parse(response.body().string());
 
-			this.bot.getConfig()
-				.set("token.twitch.token", json.getString("access_token"))
-				.set("token.twitch.expiresAt", Clock.systemUTC().instant().getEpochSecond() + json.getInteger("expires_in"))
+			this.bot.getTwitchConfig()
+				.set("token", json.getString("access_token"))
+				.set("expiresAt", Clock.systemUTC().instant().getEpochSecond() + json.getInteger("expires_in"))
 				.update();
 
 			this.schedule(json.getInteger("expires_in"));
