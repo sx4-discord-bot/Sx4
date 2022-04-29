@@ -250,7 +250,6 @@ public class MongoDatabase {
 
 		this.twitchSubscriptions = this.database.getCollection("twitchSubscriptions");
 		this.twitchSubscriptions.createIndex(Indexes.descending("streamerId"));
-		this.twitchNotifications.createIndex(Indexes.descending("guildId"));
 
 		this.youtubeNotifications = this.database.getCollection("youtubeNotifications");
 		this.youtubeNotifications.createIndex(Indexes.descending("channelId", "uploaderId"), uniqueIndex);

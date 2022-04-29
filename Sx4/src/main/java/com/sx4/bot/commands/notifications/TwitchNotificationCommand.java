@@ -17,13 +17,17 @@ import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.twitch.TwitchStream;
+import com.sx4.bot.entities.twitch.TwitchStreamType;
 import com.sx4.bot.entities.twitch.TwitchStreamer;
 import com.sx4.bot.formatter.FormatterManager;
+import com.sx4.bot.formatter.JsonFormatter;
 import com.sx4.bot.formatter.function.FormatterVariable;
 import com.sx4.bot.http.HttpCallback;
+import com.sx4.bot.managers.TwitchManager;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.FutureUtility;
+import com.sx4.bot.utility.MessageUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.TextChannel;
@@ -36,6 +40,7 @@ import org.bson.types.ObjectId;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.time.OffsetDateTime;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -119,13 +124,11 @@ public class TwitchNotificationCommand extends Sx4Command {
 
 				int count = counter == null ? 0 : counter.getInteger("count");
 				if (counter != null && count >= 3 && !counter.getBoolean("premium")) {
-					event.replyFailure("You need to have Sx4 premium to have more than 3 enabled twitch notifications, you can get premium at <https://www.patreon.com/Sx4>").queue();
-					return CompletableFuture.completedFuture(null);
+					throw new IllegalArgumentException("You need to have Sx4 premium to have more than 3 enabled twitch notifications, you can get premium at <https://www.patreon.com/Sx4>");
 				}
 
 				if (count == 10) {
-					event.replyFailure("You can not have any more than 10 enabled twitch notifications").queue();
-					return CompletableFuture.completedFuture(null);
+					throw new IllegalArgumentException("You can not have any more than 10 enabled twitch notifications");
 				}
 
 				subscribe.set(counter == null || counter.getBoolean("subscribe"));
@@ -139,6 +142,11 @@ public class TwitchNotificationCommand extends Sx4Command {
 				Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
 				if (cause instanceof MongoWriteException && ((MongoWriteException) cause).getError().getCategory() == ErrorCategory.DUPLICATE_KEY) {
 					event.replyFailure("You already have a notification setup for that twitch streamer in " + effectiveChannel.getAsMention()).queue();
+					return;
+				}
+
+				if (cause instanceof IllegalArgumentException) {
+					event.replyFailure(cause.getMessage()).queue();
 					return;
 				}
 
@@ -224,10 +232,13 @@ public class TwitchNotificationCommand extends Sx4Command {
 		AtomicReference<String> streamerId = new AtomicReference<>();
 		event.getMongo().aggregateTwitchNotifications(pipeline).thenCompose(documents -> {
 			Document data = documents.isEmpty() ? null : documents.get(0);
+			if (data == null || !data.containsKey("streamerId")) {
+				throw new IllegalArgumentException("There is not a twitch notification with that id");
+			}
 
-			boolean disabled = data == null || data.getBoolean("disabled");
-			int count = data == null ? 0 : data.getInteger("count");
-			if (data != null && disabled && count >= 3 && !data.getBoolean("premium")) {
+			boolean disabled = data.getBoolean("disabled");
+			int count = data.getInteger("count");
+			if (disabled && count >= 3 && !data.getBoolean("premium")) {
 				throw new IllegalArgumentException("You need to have Sx4 premium to have more than 3 enabled twitch notifications, you can get premium at <https://www.patreon.com/Sx4>");
 			}
 
@@ -235,14 +246,14 @@ public class TwitchNotificationCommand extends Sx4Command {
 				throw new IllegalArgumentException("You can not have any more than 10 enabled twitch notifications");
 			}
 
-			int streamerCount = data == null ? -1 : data.getInteger("streamerCount", -1);
+			int streamerCount = data.getInteger("streamerCount", -1);
 			if (disabled && streamerCount == 0) {
 				subscribe.set(1);
 			} else if (!disabled && streamerCount == 1) {
 				subscribe.set(2);
 			}
 
-			streamerId.set(data == null ? null : data.getString("streamerId"));
+			streamerId.set(data.getString("streamerId"));
 
 			List<Bson> update = List.of(Operators.set("enabled", Operators.cond(Operators.exists("$enabled"), Operators.REMOVE, false)));
 			FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER).projection(Projections.include("enabled"));
@@ -430,10 +441,53 @@ public class TwitchNotificationCommand extends Sx4Command {
 				.setDisplayFunction(data -> {
 					TwitchStreamer streamer = names.get(data.getString("streamerId"));
 
-					return String.format("%s - [%s](%s)", data.getObjectId("_id").toHexString(), streamer.getName(), streamer.getUrl());
+					return String.format("%s - [%s](%s)", data.getObjectId("_id").toHexString(), streamer == null ? "Unknown" : streamer.getName(), streamer == null ? "https://twitch.tv" : streamer.getUrl());
 				});
 
 			paged.execute(event);
+		});
+	}
+
+	@Command(value="preview", description="Preview a twitch notification")
+	@CommandId(503)
+	@Examples({"twitch notification preview"})
+	@BotPermissions(permissions={Permission.MESSAGE_EMBED_LINKS})
+	public void preview(Sx4CommandEvent event, @Argument(value="id") ObjectId id) {
+		Document data = event.getMongo().getTwitchNotification(Filters.and(Filters.eq("_id", id), Filters.eq("guildId", event.getGuild().getIdLong())), Projections.include("streamerId", "message"));
+		if (data == null) {
+			event.replyFailure("I could not find that notification").queue();
+			return;
+		}
+
+		String streamerId = data.getString("streamerId");
+
+		Request request = new Request.Builder()
+			.url("https://api.twitch.tv/helix/users?id=" + streamerId)
+			.addHeader("Authorization", "Bearer " + event.getBot().getTwitchConfig().getToken())
+			.addHeader("Client-Id", event.getBot().getConfig().getTwitchClientId())
+			.build();
+
+		event.getHttpClient().newCall(request).enqueue((HttpCallback) response -> {
+			Document json = Document.parse(response.body().string());
+
+			List<Document> entries = json.getList("data", Document.class);
+			if (entries.isEmpty()) {
+				event.replyFailure("The twitch streamer for that notification no longer exists").queue();
+				return;
+			}
+
+			Document entry = entries.get(0);
+
+			Document message =  new JsonFormatter(data.get("message", TwitchManager.DEFAULT_MESSAGE))
+				.addVariable("stream", new TwitchStream("0", TwitchStreamType.STREAM, "https://cdn.discordapp.com/attachments/344091594972069888/969319515714371604/twitch-test-preview.png", "Preview Title", "Preview Game", OffsetDateTime.now()))
+				.addVariable("streamer", new TwitchStreamer(entry.getString("id"), entry.getString("display_name"), entry.getString("login")))
+				.parse();
+
+			try {
+				MessageUtility.fromWebhookMessage(event.getTextChannel(), MessageUtility.fromJson(message).build()).queue();
+			} catch (IllegalArgumentException e) {
+				event.replyFailure(e.getMessage()).queue();
+			}
 		});
 	}
 

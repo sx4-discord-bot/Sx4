@@ -56,17 +56,18 @@ public class TwitchEndpoint {
 		Document data = Document.parse(body);
 		Document subscription = data.get("subscription", Document.class);
 
+		String subscriptionType = subscription.getString("type");
+
 		if (type.equals("webhook_callback_verification")) {
 			Document subscriptionData = new Document("subscriptionId", subscription.getString("id"))
 				.append("streamerId", subscription.getEmbedded(List.of("condition", "broadcaster_user_id"), String.class))
-				.append("type", type);
+				.append("type", subscriptionType);
 
 			this.bot.getMongo().insertTwitchSubscription(subscriptionData).whenComplete(MongoDatabase.exceptionally());
 
 			return Response.ok(data.getString("challenge")).build();
 		}
 
-		String subscriptionType = subscription.getString("type");
 		if (subscriptionType.equals("stream.online")) {
 			Document event = data.get("event", Document.class);
 

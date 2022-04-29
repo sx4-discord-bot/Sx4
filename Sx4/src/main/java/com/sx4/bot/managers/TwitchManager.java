@@ -37,6 +37,7 @@ public class TwitchManager {
 			.append("description", "{stream.title}")
 			.append("color", 0x9146FF)
 			.append("image", new Document("url", "{stream.preview}"))
+			.append("timestamp", "{stream.start}")
 			.append("fields", List.of(
 				new Document("name", "Game").append("value", "{stream.game}").append("inline", true)
 			))
