@@ -34,11 +34,17 @@ You can find YouTube notification commands using `s?help youtube notification` *
 
 Sx4 has the ability to send notifications for a YouTube channel to any channel in your discord server, this can be helpful if you want users to keep up to date with a certain channel or if you and your friends all watch a channel and want to know when they upload a video.
 
+### Twitch Notifications
+
+You can find Twitch notification commands using `s?help twitch notification` *
+
+Sx4 has the ability to send notifications for a Twitch streamer when they go live to any channel in your discord server, this can be helpful if you want users to keep up to date with your streams or if you and your friends all watch a streamer and want to know when they go live.
+
 ### Free Game Notifications
 
 You can find Free Game notification commands using `s?help free games` *
 
-Free game notifications allow you to have message sent to a specific channel when a game become free on either Steam or Epic Games, more support for other platforms are planned to be added but it's only those 2 platforms for now.
+Free game notifications allow you to have message sent to a specific channel when a game become free on either Steam, Epic Games or GOG.
 
 ### Reaction/Self Roles
 
