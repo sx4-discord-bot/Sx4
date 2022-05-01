@@ -74,7 +74,7 @@ public class FreeGameManager implements WebhookManager {
 
 	public long getInitialDelay() {
 		OffsetDateTime time = OffsetDateTime.now(ZoneOffset.UTC);
-		return Duration.between(time, time.withMinute(30 * (int) Math.floor(time.getMinute() / 30D)).withSecond(3).withNano(0).plusMinutes(30)).toSeconds();
+		return Duration.between(time, time.withMinute(30 * (int) Math.floor(time.getMinute() / 30D)).withSecond(30).withNano(0).plusMinutes(30)).toSeconds();
 	}
 
 	public boolean isAnnounced(FreeGame<?> game) {

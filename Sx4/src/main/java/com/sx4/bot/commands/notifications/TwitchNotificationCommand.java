@@ -103,19 +103,17 @@ public class TwitchNotificationCommand extends Sx4Command {
 			);
 
 			List<Bson> countPipeline = List.of(
-				Aggregates.match(Operators.expr(Operators.and(Operators.eq("streamerId", id), Operators.extinct("enabled")))),
+				Aggregates.match(Filters.and(Filters.eq("streamerId", id), Filters.exists("enabled", false))),
 				Aggregates.limit(1),
 				Aggregates.group(null, Accumulators.sum("streamerCount", 1))
 			);
 
 			List<Bson> pipeline = List.of(
-				Aggregates.match(Filters.and(Filters.eq("guildId", event.getGuild().getIdLong()), Filters.exists("enabled", false))),
-				Aggregates.limit(10),
-				Aggregates.group(null, Accumulators.sum("count", 1)),
+				Aggregates.match(Filters.eq("guildId", event.getGuild().getIdLong())),
+				Aggregates.group(null, Accumulators.push("notifications", Operators.ROOT)),
 				Aggregates.unionWith("twitchNotifications", countPipeline),
 				Aggregates.unionWith("guilds", guildPipeline),
-				Aggregates.group(null, Accumulators.max("streamerCount", "$streamerCount"), Accumulators.max("count", "$count"), Accumulators.max("premium", "$premium")),
-				Aggregates.project(Projections.fields(Projections.computed("subscribe", Operators.eq(Operators.ifNull("$streamerCount", 0), 0)), Projections.computed("premium", Operators.ifNull("$premium", false)), Projections.computed("count", Operators.ifNull("$count", 0))))
+				Aggregates.project(Projections.fields(Projections.computed("webhook", Operators.first(Operators.map(Operators.filter(Operators.ifNull("$notifications", Collections.EMPTY_LIST), Operators.and(Operators.exists("$$this.webhook"), Operators.eq("$$this.channelId", effectiveChannel.getIdLong()))), "$$this.webhook"))), Projections.computed("subscribe", Operators.eq(Operators.ifNull("$streamerCount", 0), 0)), Projections.computed("premium", Operators.ifNull("$premium", false)), Projections.computed("count", Operators.size(Operators.filter(Operators.ifNull("$notifications", Collections.EMPTY_LIST), Operators.extinct("$$this.enabled"))))))
 			);
 
 			AtomicBoolean subscribe = new AtomicBoolean();
@@ -127,7 +125,7 @@ public class TwitchNotificationCommand extends Sx4Command {
 					throw new IllegalArgumentException("You need to have Sx4 premium to have more than 3 enabled twitch notifications, you can get premium at <https://www.patreon.com/Sx4>");
 				}
 
-				if (count == 10) {
+				if (count >= 10) {
 					throw new IllegalArgumentException("You can not have any more than 10 enabled twitch notifications");
 				}
 
@@ -136,6 +134,11 @@ public class TwitchNotificationCommand extends Sx4Command {
 				Document notification = new Document("streamerId", id)
 					.append("channelId", effectiveChannel.getIdLong())
 					.append("guildId", event.getGuild().getIdLong());
+
+				Document webhook = counter == null ? null : counter.get("webhook", Document.class);
+				if (webhook != null) {
+					notification.append("webhook", webhook);
+				}
 
 				return event.getMongo().insertTwitchNotification(notification);
 			}).whenComplete((result, exception) -> {
