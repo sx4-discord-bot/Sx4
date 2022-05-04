@@ -6,9 +6,11 @@ import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.entities.twitch.TwitchStream;
 import com.sx4.bot.entities.twitch.TwitchStreamType;
 import com.sx4.bot.entities.twitch.TwitchStreamer;
+import com.sx4.bot.entities.twitch.TwitchSubscriptionType;
 import com.sx4.bot.events.twitch.TwitchStreamStartEvent;
 import com.sx4.bot.http.HttpCallback;
 import com.sx4.bot.utility.HmacUtility;
+import com.sx4.bot.utility.RandomString;
 import okhttp3.Request;
 import org.bson.Document;
 
@@ -28,6 +30,7 @@ public class TwitchEndpoint {
 
 	private final Sx4 bot;
 
+	private final RandomString random = new RandomString();
 	private final Set<String> messageIds;
 
 	public TwitchEndpoint(Sx4 bot) {
@@ -56,19 +59,22 @@ public class TwitchEndpoint {
 		Document data = Document.parse(body);
 		Document subscription = data.get("subscription", Document.class);
 
-		String subscriptionType = subscription.getString("type");
+		TwitchSubscriptionType subscriptionType = TwitchSubscriptionType.fromIdentifier(subscription.getString("type"));
+		if (subscriptionType == null) {
+			return Response.status(204).build();
+		}
 
 		if (type.equals("webhook_callback_verification")) {
 			Document subscriptionData = new Document("subscriptionId", subscription.getString("id"))
 				.append("streamerId", subscription.getEmbedded(List.of("condition", "broadcaster_user_id"), String.class))
-				.append("type", subscriptionType);
+				.append("type", subscriptionType.getId());
 
 			this.bot.getMongo().insertTwitchSubscription(subscriptionData).whenComplete(MongoDatabase.exceptionally());
 
 			return Response.ok(data.getString("challenge")).build();
 		}
 
-		if (subscriptionType.equals("stream.online")) {
+		if (subscriptionType.equals(TwitchSubscriptionType.ONLINE)) {
 			Document event = data.get("event", Document.class);
 
 			String streamId = event.getString("id");
@@ -97,9 +103,11 @@ public class TwitchEndpoint {
 					return;
 				}
 
+				String query = "?" + this.random.nextString(5) + "=" + this.random.nextString(5);
+
 				String title = stream.getString("title");
 				String game = stream.getString("game_name");
-				String preview = "https://static-cdn.jtvnw.net/previews-ttv/live_user_" + streamerLogin + "-1320x744.png";
+				String preview = "https://static-cdn.jtvnw.net/previews-ttv/live_user_" + streamerLogin + "-1320x744.png" + query;
 
 				this.bot.getTwitchManager().onEvent(new TwitchStreamStartEvent(new TwitchStream(streamId, streamType, preview, title, game, streamStart), new TwitchStreamer(streamerId, streamerName, streamerLogin)));
 			});

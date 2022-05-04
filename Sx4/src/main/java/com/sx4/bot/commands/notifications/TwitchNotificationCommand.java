@@ -453,7 +453,7 @@ public class TwitchNotificationCommand extends Sx4Command {
 
 	@Command(value="preview", description="Preview a twitch notification")
 	@CommandId(503)
-	@Examples({"twitch notification preview"})
+	@Examples({"twitch notification preview 5e45ce6d3688b30ee75201ae"})
 	@BotPermissions(permissions={Permission.MESSAGE_EMBED_LINKS})
 	public void preview(Sx4CommandEvent event, @Argument(value="id") ObjectId id) {
 		Document data = event.getMongo().getTwitchNotification(Filters.and(Filters.eq("_id", id), Filters.eq("guildId", event.getGuild().getIdLong())), Projections.include("streamerId", "message"));
@@ -482,7 +482,7 @@ public class TwitchNotificationCommand extends Sx4Command {
 			Document entry = entries.get(0);
 
 			Document message =  new JsonFormatter(data.get("message", TwitchManager.DEFAULT_MESSAGE))
-				.addVariable("stream", new TwitchStream("0", TwitchStreamType.STREAM, "https://cdn.discordapp.com/attachments/344091594972069888/969319515714371604/twitch-test-preview.png", "Preview Title", "Preview Game", OffsetDateTime.now()))
+				.addVariable("stream", new TwitchStream("0", TwitchStreamType.LIVE, "https://cdn.discordapp.com/attachments/344091594972069888/969319515714371604/twitch-test-preview.png", "Preview Title", "Preview Game", OffsetDateTime.now()))
 				.addVariable("streamer", new TwitchStreamer(entry.getString("id"), entry.getString("display_name"), entry.getString("login")))
 				.parse();
 
@@ -491,6 +491,30 @@ public class TwitchNotificationCommand extends Sx4Command {
 			} catch (IllegalArgumentException e) {
 				event.replyFailure(e.getMessage()).queue();
 			}
+		});
+	}
+
+	@Command(value="types", description="Set what kind of twitch streams you want to receive from a specific notification")
+	@CommandId(504)
+	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
+	@Examples({"twitch notification types 5e45ce6d3688b30ee75201ae LIVE", "twitch notification types 5e45ce6d3688b30ee75201ae PLAYLIST RERUN", "twitch notification types 5e45ce6d3688b30ee75201ae LIVE WATCH_PARTY"})
+	public void types(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="types") TwitchStreamType... types) {
+		event.getMongo().updateTwitchNotification(Filters.and(Filters.eq("_id", id), Filters.eq("guildId", event.getGuild().getIdLong())), Updates.set("types", TwitchStreamType.getRaw(types)), new UpdateOptions()).whenComplete((result, exception) -> {
+			if (ExceptionUtility.sendExceptionally(event, exception)) {
+				return;
+			}
+
+			if (result.getMatchedCount() == 0) {
+				event.replyFailure("I could not find that notification").queue();
+				return;
+			}
+
+			if (result.getModifiedCount() == 0) {
+				event.replyFailure("Your twitch stream types were already set to that for that notification").queue();
+				return;
+			}
+
+			event.replySuccess("Your twitch stream types has been updated for that notification").queue();
 		});
 	}
 

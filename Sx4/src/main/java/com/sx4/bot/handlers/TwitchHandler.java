@@ -6,6 +6,7 @@ import com.mongodb.client.model.*;
 import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.database.mongo.model.Operators;
+import com.sx4.bot.entities.twitch.TwitchStreamType;
 import com.sx4.bot.events.twitch.TwitchStreamStartEvent;
 import com.sx4.bot.formatter.JsonFormatter;
 import com.sx4.bot.hooks.TwitchListener;
@@ -63,10 +64,17 @@ public class TwitchHandler implements TwitchListener {
 				return;
 			}
 
+			long type = event.getStream().getType().getRaw();
+
 			this.executor.submit(() -> {
 				List<WriteModel<Document>> bulkUpdate = new ArrayList<>();
 				notifications.forEach(notification -> {
 					if (!notification.getBoolean("enabled", true)) {
+						return;
+					}
+
+					long types = notification.get("types", TwitchStreamType.ALL);
+					if ((types & type) != type) {
 						return;
 					}
 

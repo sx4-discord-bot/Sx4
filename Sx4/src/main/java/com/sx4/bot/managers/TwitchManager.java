@@ -7,6 +7,7 @@ import com.mongodb.client.model.FindOneAndDeleteOptions;
 import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.Updates;
 import com.sx4.bot.core.Sx4;
+import com.sx4.bot.entities.twitch.TwitchSubscriptionType;
 import com.sx4.bot.entities.webhook.ReadonlyMessage;
 import com.sx4.bot.entities.webhook.WebhookClient;
 import com.sx4.bot.events.twitch.TwitchEvent;
@@ -118,12 +119,12 @@ public class TwitchManager {
 		});
 	}
 
-	public void subscribe(String streamerId, String type) {
+	public void subscribe(String streamerId, TwitchSubscriptionType type) {
 		Document transport = new Document("method", "webhook")
 			.append("callback", this.bot.getConfig().getBaseUrl() + "/api/twitch")
 			.append("secret", this.bot.getConfig().getTwitchEventSecret());
 
-		Document body = new Document("type", type)
+		Document body = new Document("type", type.getIdentifier())
 			.append("version", "1")
 			.append("condition", new Document("broadcaster_user_id", streamerId))
 			.append("transport", transport);
@@ -147,7 +148,7 @@ public class TwitchManager {
 	}
 
 	public void subscribe(String streamerId) {
-		this.subscribe(streamerId, "stream.online");
+		this.subscribe(streamerId, TwitchSubscriptionType.ONLINE);
 	}
 
 	private CompletableFuture<ReadonlyMessage> createWebhook(TextChannel channel, WebhookMessage message) {
