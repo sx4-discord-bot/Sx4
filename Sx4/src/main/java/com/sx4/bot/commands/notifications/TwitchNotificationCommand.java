@@ -113,6 +113,7 @@ public class TwitchNotificationCommand extends Sx4Command {
 				Aggregates.group(null, Accumulators.push("notifications", Operators.ROOT)),
 				Aggregates.unionWith("twitchNotifications", countPipeline),
 				Aggregates.unionWith("guilds", guildPipeline),
+				Aggregates.group(null, Accumulators.max("premium", "$premium"), Accumulators.max("notifications", "$notifications")),
 				Aggregates.project(Projections.fields(Projections.computed("webhook", Operators.first(Operators.map(Operators.filter(Operators.ifNull("$notifications", Collections.EMPTY_LIST), Operators.and(Operators.exists("$$this.webhook"), Operators.eq("$$this.channelId", effectiveChannel.getIdLong()))), "$$this.webhook"))), Projections.computed("subscribe", Operators.eq(Operators.ifNull("$streamerCount", 0), 0)), Projections.computed("premium", Operators.ifNull("$premium", false)), Projections.computed("count", Operators.size(Operators.filter(Operators.ifNull("$notifications", Collections.EMPTY_LIST), Operators.extinct("$$this.enabled"))))))
 			);
 
@@ -226,6 +227,7 @@ public class TwitchNotificationCommand extends Sx4Command {
 			Aggregates.project(Projections.include("streamerId", "enabled")),
 			Aggregates.group(null, Accumulators.push("notifications", Operators.ROOT)),
 			Aggregates.unionWith("guilds", guildPipeline),
+			Aggregates.group(null, Accumulators.max("premium", "$premium"), Accumulators.max("notifications", "$notifications")),
 			Aggregates.project(Projections.fields(Projections.include("premium", "notifications"), Projections.computed("notification", Operators.first(Operators.filter(Operators.ifNull("$notifications", Collections.EMPTY_LIST), Operators.eq("$$this._id", id)))))),
 			Aggregates.lookup("twitchNotifications", List.of(new Variable<>("notification", "$notification")), countPipeline, "streamerCount"),
 			Aggregates.project(Projections.fields(Projections.computed("streamerId", "$notification.streamerId"), Projections.computed("streamerCount", Operators.cond(Operators.isEmpty("$streamerCount"), 0, Operators.get(Operators.arrayElemAt("$streamerCount", 0), "streamerCount"))), Projections.computed("premium", Operators.ifNull("$premium", false)), Projections.computed("count", Operators.size(Operators.ifNull(Operators.filter("$notifications", Operators.extinct("$$this.enabled")), Collections.EMPTY_LIST))), Projections.computed("disabled", Operators.not(Operators.ifNull("$notification.enabled", true)))))
