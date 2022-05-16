@@ -16,10 +16,7 @@ import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-import java.util.function.BiConsumer;
-import java.util.function.BiPredicate;
-import java.util.function.Consumer;
-import java.util.function.Function;
+import java.util.function.*;
 
 public class PagedResult<Type> {
 	
@@ -86,6 +83,9 @@ public class PagedResult<Type> {
 	private String authorImage = null;
 	
 	private EnumSet<SelectType> select = EnumSet.allOf(SelectType.class);
+
+	private Consumer<MessageBuilder> asyncConsumer = null;
+	private Consumer<PagedResult<Type>> asyncFunction = null;
 	
 	private Function<PagedResult<Type>, MessageBuilder> customFunction = null;
 	private Function<Type, String> displayFunction = Object::toString;
@@ -338,6 +338,12 @@ public class PagedResult<Type> {
 	public Function<PagedResult<Type>, MessageBuilder> getCustomFunction() {
 		return this.customFunction;
 	}
+
+	public PagedResult<Type> setAsyncFunction(Consumer<PagedResult<Type>> asyncFunction) {
+		this.asyncFunction = asyncFunction;
+
+		return this;
+	}
 	
 	public PagedResult<Type> setCustomFunction(Function<PagedResult<Type>, MessageBuilder> customFunction) {
 		this.customFunction = customFunction;
@@ -403,6 +409,14 @@ public class PagedResult<Type> {
 		
 		this.delete();
 	}
+
+	public void accept(MessageBuilder message) {
+		if (this.asyncFunction == null) {
+			throw new IllegalStateException("You have to use an async function to use accept");
+		}
+
+		this.asyncConsumer.accept(message);
+	}
 	
 	public void onSelect(Consumer<PagedSelect<Type>> select) {
 		this.onSelect = select;
@@ -421,41 +435,8 @@ public class PagedResult<Type> {
 			consumer.accept(this.list.get(i), i);
 		}
 	}
-	
-	public Message getPagedMessage() {
-		MessageBuilder message;
-		if (this.customFunction == null) {
-			MessageBuilder builder = new MessageBuilder();
-			
-			int maxPage = this.getMaxPage();
-			if (this.embed) {
-				EmbedBuilder embed = new EmbedBuilder();
-				embed.setColor(this.colour);
-				embed.setAuthor(this.authorName, this.authorUrl, this.authorImage);
-				embed.setTitle("Page " + this.page + "/" + maxPage);
-				embed.setFooter(PagedResult.DEFAULT_FOOTER_TEXT, null);
-				
-				this.forEach((object, index) -> {
-					embed.appendDescription((this.increasedIndex ? this.indexFunction.apply(index + 1) : (this.indexed ? (this.indexFunction.apply(index + 1 - ((this.page - 1) * this.perPage))) : "")) + this.displayFunction.apply(object) + "\n");
-				});
-				
-				message = builder.setEmbeds(embed.build());
-			} else {
-				StringBuilder string = new StringBuilder();
-				string.append("Page **").append(this.page).append("/").append(maxPage).append("**\n\n");
-				
-				this.forEach((object, index) -> {
-					string.append(this.increasedIndex ? this.indexFunction.apply(index + 1) : (this.indexed ? (this.indexFunction.apply(index + 1 - ((this.page - 1) * this.perPage))) : "")).append(this.displayFunction.apply(object)).append("\n");
-				});
-				
-				string.append("\n" + PagedResult.DEFAULT_FOOTER_TEXT);
-				
-				message = builder.setContent(string.toString());
-			}
-		} else {
-			message = this.customFunction.apply(this);
-		}
 
+	private Message applyButtons(MessageBuilder message) {
 		if (this.list.size() > this.perPage) {
 			ActionRow actionRow;
 			if (!this.pageOverflow && this.page == this.getMaxPage()) {
@@ -472,16 +453,64 @@ public class PagedResult<Type> {
 		}
 	}
 	
+	public void getPagedMessage(Consumer<Message> consumer) {
+		if (this.asyncFunction != null) {
+			this.asyncConsumer = message -> consumer.accept(this.applyButtons(message));
+
+			this.asyncFunction.accept(this);
+			return;
+		}
+
+		MessageBuilder message;
+		if (this.customFunction == null) {
+			MessageBuilder builder = new MessageBuilder();
+
+			int maxPage = this.getMaxPage();
+			if (this.embed) {
+				EmbedBuilder embed = new EmbedBuilder();
+				embed.setColor(this.colour);
+				embed.setAuthor(this.authorName, this.authorUrl, this.authorImage);
+				embed.setTitle("Page " + this.page + "/" + maxPage);
+				embed.setFooter(PagedResult.DEFAULT_FOOTER_TEXT, null);
+
+				this.forEach((object, index) -> {
+					embed.appendDescription((this.increasedIndex ? this.indexFunction.apply(index + 1) : (this.indexed ? (this.indexFunction.apply(index + 1 - ((this.page - 1) * this.perPage))) : "")) + this.displayFunction.apply(object) + "\n");
+				});
+
+				message = builder.setEmbeds(embed.build());
+			} else {
+				StringBuilder string = new StringBuilder();
+				string.append("Page **").append(this.page).append("/").append(maxPage).append("**\n\n");
+
+				this.forEach((object, index) -> {
+					string.append(this.increasedIndex ? this.indexFunction.apply(index + 1) : (this.indexed ? (this.indexFunction.apply(index + 1 - ((this.page - 1) * this.perPage))) : "")).append(this.displayFunction.apply(object)).append("\n");
+				});
+
+				string.append("\n" + PagedResult.DEFAULT_FOOTER_TEXT);
+
+				message = builder.setContent(string.toString());
+			}
+		} else {
+			message = this.customFunction.apply(this);
+		}
+
+		consumer.accept(this.applyButtons(message));
+	}
+	
 	public void ensure(MessageChannel channel) {
-		channel.editMessageById(this.messageId, this.getPagedMessage()).queue(null, ErrorResponseException.ignore(ErrorResponse.UNKNOWN_MESSAGE));
-		
-		this.bot.getPagedManager().setTimeout(this);
+		this.getPagedMessage(message -> {
+			channel.editMessageById(this.messageId, message).queue(null, ErrorResponseException.ignore(ErrorResponse.UNKNOWN_MESSAGE));
+
+			this.bot.getPagedManager().setTimeout(this);
+		});
 	}
 
 	public void ensure(ButtonClickEvent event) {
-		event.editMessage(this.getPagedMessage()).queue(null, ErrorResponseException.ignore(ErrorResponse.UNKNOWN_MESSAGE));
+		this.getPagedMessage(message -> {
+			event.editMessage(message).queue(null, ErrorResponseException.ignore(ErrorResponse.UNKNOWN_MESSAGE));
 
-		this.bot.getPagedManager().setTimeout(this);
+			this.bot.getPagedManager().setTimeout(this);
+		});
 	}
 
 	public void execute(CommandEvent event) {
@@ -505,11 +534,13 @@ public class PagedResult<Type> {
 			return;
 		}
 
-		channel.sendMessage(this.getPagedMessage()).queue(message -> {
-			this.messageId = message.getIdLong();
-			
-			this.bot.getPagedManager().addPagedResult(channel, owner, this);
-			this.bot.getPagedManager().setTimeout(this);
+		this.getPagedMessage(readMessage -> {
+			channel.sendMessage(readMessage).queue(message -> {
+				this.messageId = message.getIdLong();
+
+				this.bot.getPagedManager().addPagedResult(channel, owner, this);
+				this.bot.getPagedManager().setTimeout(this);
+			});
 		});
 	}
 	

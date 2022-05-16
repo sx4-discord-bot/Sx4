@@ -15,7 +15,6 @@ import com.sx4.bot.entities.webhook.WebhookClient;
 import com.sx4.bot.formatter.Formatter;
 import com.sx4.bot.formatter.JsonFormatter;
 import com.sx4.bot.http.HttpCallback;
-import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.FreeGameUtility;
 import com.sx4.bot.utility.FutureUtility;
 import com.sx4.bot.utility.MessageUtility;
@@ -72,9 +71,9 @@ public class FreeGameManager implements WebhookManager {
 		this.announcedGames = new HashMap<>();
 	}
 
-	public long getInitialDelay() {
+	public long getInitialDelay(long offset) {
 		OffsetDateTime time = OffsetDateTime.now(ZoneOffset.UTC);
-		return Duration.between(time, time.withMinute(30 * (int) Math.floor(time.getMinute() / 30D)).withSecond(30).withNano(0).plusMinutes(30)).toSeconds();
+		return Duration.between(time, time.withMinute(30 * (int) Math.floor(time.getMinute() / 30D)).withSecond(0).withNano(0).plusMinutes(30).plusSeconds(offset)).toSeconds();
 	}
 
 	public boolean isAnnounced(FreeGame<?> game) {
@@ -472,27 +471,19 @@ public class FreeGameManager implements WebhookManager {
 
 	public void ensureGOGFreeGames() {
 		this.gogExecutor.scheduleAtFixedRate(() -> {
-			try {
-				this.retrieveFreeGOGGames()
-					.thenApply(List::of)
-					.thenCompose(this::sendFreeGameNotifications)
-					.whenComplete(MongoDatabase.exceptionally());
-			} catch (Throwable e) {
-				ExceptionUtility.sendExceptionally(this.bot.getShardManager().getTextChannelById(344091594972069888L), e);
-			}
-		}, this.getInitialDelay(), 1800, TimeUnit.SECONDS);
+			this.retrieveFreeGOGGames()
+				.thenApply(List::of)
+				.thenCompose(this::sendFreeGameNotifications)
+				.whenComplete(MongoDatabase.exceptionally());
+		}, this.getInitialDelay(5), 1800, TimeUnit.SECONDS);
 	}
 
 	public void ensureSteamFreeGames() {
 		this.steamExecutor.scheduleAtFixedRate(() -> {
-			try {
-				this.retrieveFreeSteamGames()
-					.thenCompose(this::sendFreeGameNotifications)
-					.whenComplete(MongoDatabase.exceptionally());
-			} catch (Throwable e) {
-				ExceptionUtility.sendExceptionally(this.bot.getShardManager().getTextChannelById(344091594972069888L), e);
-			}
-		}, this.getInitialDelay(), 1800, TimeUnit.SECONDS);
+			this.retrieveFreeSteamGames()
+				.thenCompose(this::sendFreeGameNotifications)
+				.whenComplete(MongoDatabase.exceptionally());
+		}, this.getInitialDelay(90), 1800, TimeUnit.SECONDS);
 	}
 
 	public void ensureAnnouncedGames() {
