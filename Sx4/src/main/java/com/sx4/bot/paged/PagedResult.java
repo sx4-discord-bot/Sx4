@@ -12,11 +12,12 @@ import net.dv8tion.jda.api.interactions.components.ActionRow;
 import net.dv8tion.jda.api.interactions.components.Button;
 import net.dv8tion.jda.api.requests.ErrorResponse;
 
-import java.util.Arrays;
-import java.util.EnumSet;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
-import java.util.function.*;
+import java.util.function.BiConsumer;
+import java.util.function.BiPredicate;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
 public class PagedResult<Type> {
 	
@@ -84,8 +85,10 @@ public class PagedResult<Type> {
 	
 	private EnumSet<SelectType> select = EnumSet.allOf(SelectType.class);
 
-	private Consumer<MessageBuilder> asyncConsumer = null;
-	private Consumer<PagedResult<Type>> asyncFunction = null;
+	private final Map<Integer, Message> pageCache = new HashMap<>();
+	private boolean cache = false;
+
+	private BiConsumer<PagedResult<Type>, Consumer<MessageBuilder>> asyncFunction = null;
 	
 	private Function<PagedResult<Type>, MessageBuilder> customFunction = null;
 	private Function<Type, String> displayFunction = Object::toString;
@@ -142,6 +145,12 @@ public class PagedResult<Type> {
 	
 	public List<Type> getList() {
 		return this.list;
+	}
+
+	public PagedResult<Type> cachePages(boolean cache) {
+		this.cache = cache;
+
+		return this;
 	}
 	
 	public long getTimeout() {
@@ -339,7 +348,7 @@ public class PagedResult<Type> {
 		return this.customFunction;
 	}
 
-	public PagedResult<Type> setAsyncFunction(Consumer<PagedResult<Type>> asyncFunction) {
+	public PagedResult<Type> setAsyncFunction(BiConsumer<PagedResult<Type>, Consumer<MessageBuilder>> asyncFunction) {
 		this.asyncFunction = asyncFunction;
 
 		return this;
@@ -409,14 +418,6 @@ public class PagedResult<Type> {
 		
 		this.delete();
 	}
-
-	public void accept(MessageBuilder message) {
-		if (this.asyncFunction == null) {
-			throw new IllegalStateException("You have to use an async function to use accept");
-		}
-
-		this.asyncConsumer.accept(message);
-	}
 	
 	public void onSelect(Consumer<PagedSelect<Type>> select) {
 		this.onSelect = select;
@@ -454,10 +455,14 @@ public class PagedResult<Type> {
 	}
 	
 	public void getPagedMessage(Consumer<Message> consumer) {
-		if (this.asyncFunction != null) {
-			this.asyncConsumer = message -> consumer.accept(this.applyButtons(message));
+		Message cachedMessage = this.pageCache.get(this.page);
+		if (cachedMessage != null) {
+			consumer.accept(cachedMessage);
+			return;
+		}
 
-			this.asyncFunction.accept(this);
+		if (this.asyncFunction != null) {
+			this.asyncFunction.accept(this, message -> consumer.accept(this.applyButtons(message)));
 			return;
 		}
 
@@ -496,9 +501,17 @@ public class PagedResult<Type> {
 
 		consumer.accept(this.applyButtons(message));
 	}
+
+	private void cacheMessage(Message message) {
+		if (this.cache) {
+			this.pageCache.put(this.page, message);
+		}
+	}
 	
 	public void ensure(MessageChannel channel) {
 		this.getPagedMessage(message -> {
+			this.cacheMessage(message);
+
 			channel.editMessageById(this.messageId, message).queue(null, ErrorResponseException.ignore(ErrorResponse.UNKNOWN_MESSAGE));
 
 			this.bot.getPagedManager().setTimeout(this);
@@ -507,6 +520,8 @@ public class PagedResult<Type> {
 
 	public void ensure(ButtonClickEvent event) {
 		this.getPagedMessage(message -> {
+			this.cacheMessage(message);
+
 			event.editMessage(message).queue(null, ErrorResponseException.ignore(ErrorResponse.UNKNOWN_MESSAGE));
 
 			this.bot.getPagedManager().setTimeout(this);
@@ -536,6 +551,7 @@ public class PagedResult<Type> {
 
 		this.getPagedMessage(readMessage -> {
 			channel.sendMessage(readMessage).queue(message -> {
+				this.cacheMessage(message);
 				this.messageId = message.getIdLong();
 
 				this.bot.getPagedManager().addPagedResult(channel, owner, this);

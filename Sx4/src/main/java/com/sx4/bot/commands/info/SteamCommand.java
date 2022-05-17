@@ -365,7 +365,8 @@ public class SteamCommand extends Sx4Command {
 					PagedResult<Document> itemPaged = new PagedResult<>(event.getBot(), items)
 						.setSelect()
 						.setPerPage(1)
-						.setAsyncFunction(page -> {
+						.cachePages(true)
+						.setAsyncFunction((page, message) -> {
 							EmbedBuilder embed = new EmbedBuilder();
 							embed.setFooter("Item " + page.getPage() + "/" + page.getMaxPage());
 
@@ -414,13 +415,19 @@ public class SteamCommand extends Sx4Command {
 									.build();
 
 								event.getHttpClient().newCall(itemRequest).enqueue((HttpCallback) itemResponse -> {
-									Document priceData = Document.parse(itemResponse.body().string());
+									String itemBody = itemResponse.body().string();
+									if (itemBody.equals("null")) {
+										message.accept(new MessageBuilder().setEmbeds(embed.build()));
+										return;
+									}
+
+									Document priceData = Document.parse(itemBody);
 
 									if (priceData.getBoolean("success") && priceData.containsKey("lowest_price")) {
 										embed.addField("Lowest Price", priceData.getString("lowest_price"), false);
 									}
 
-									page.accept(new MessageBuilder().setEmbeds(embed.build()));
+									message.accept(new MessageBuilder().setEmbeds(embed.build()));
 								});
 							});
 						});
