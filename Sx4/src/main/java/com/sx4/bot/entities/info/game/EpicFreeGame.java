@@ -45,6 +45,10 @@ public class EpicFreeGame extends FreeGame<String> {
 			.findFirst()
 			.orElse(null);
 
+		if (url == null) {
+			url = data.getString("offerType").equals("DLC") ? data.getString("urlSlug") : data.getString("productSlug");
+		}
+
 		Document promotion = FreeGameUtility.getBestPromotionalOffer(data);
 		OffsetDateTime start = OffsetDateTime.parse(promotion.getString("startDate"));
 		OffsetDateTime end = OffsetDateTime.parse(promotion.getString("endDate"));
