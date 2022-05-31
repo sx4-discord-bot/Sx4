@@ -16,22 +16,20 @@ import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.argument.Alternative;
 import com.sx4.bot.entities.argument.Range;
+import com.sx4.bot.entities.interaction.ButtonType;
+import com.sx4.bot.entities.interaction.CustomButtonId;
 import com.sx4.bot.entities.mod.ModLog;
 import com.sx4.bot.entities.mod.Reason;
 import com.sx4.bot.entities.mod.action.Action;
 import com.sx4.bot.paged.PagedResult;
-import com.sx4.bot.utility.ButtonUtility;
 import com.sx4.bot.utility.ExceptionUtility;
-import com.sx4.bot.waiter.Waiter;
-import com.sx4.bot.waiter.exception.CancelException;
-import com.sx4.bot.waiter.exception.TimeoutException;
 import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.BaseGuildMessageChannel;
+import net.dv8tion.jda.api.entities.MessageChannel;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.entities.User;
-import net.dv8tion.jda.api.events.GenericEvent;
-import net.dv8tion.jda.api.events.interaction.ButtonClickEvent;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
-import net.dv8tion.jda.api.interactions.components.Button;
+import net.dv8tion.jda.api.interactions.components.buttons.Button;
 import net.dv8tion.jda.api.requests.ErrorResponse;
 import net.dv8tion.jda.internal.utils.tuple.Pair;
 import org.bson.Document;
@@ -40,7 +38,6 @@ import org.bson.types.ObjectId;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CompletionException;
 
 public class ModLogCommand extends Sx4Command {
 
@@ -76,8 +73,14 @@ public class ModLogCommand extends Sx4Command {
 	@CommandId(67)
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	@Examples({"modlog channel", "modlog channel #mod-logs", "modlog channel reset"})
-	public void channel(Sx4CommandEvent event, @Argument(value="channel | reset", endless=true, nullDefault=true) @AlternativeOptions("reset") Alternative<TextChannel> option) {
-		TextChannel channel = option == null ? event.getTextChannel() : option.isAlternative() ? null : option.getValue();
+	public void channel(Sx4CommandEvent event, @Argument(value="channel | reset", endless=true, nullDefault=true) @AlternativeOptions("reset") Alternative<BaseGuildMessageChannel> option) {
+		MessageChannel messageChannel = event.getChannel();
+		if (option == null && !(messageChannel instanceof BaseGuildMessageChannel)) {
+			event.replyFailure("You cannot use this channel type").queue();
+			return;
+		}
+		
+		BaseGuildMessageChannel channel = option == null ? (BaseGuildMessageChannel) messageChannel : option.isAlternative() ? null : option.getValue();
 
 		List<Bson> update = List.of(Operators.set("modLog.channelId", channel == null ? Operators.REMOVE : channel.getIdLong()), Operators.unset("modLog.webhook.id"), Operators.unset("modLog.webhook.token"));
 		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("modLog.channelId")).upsert(true);
@@ -145,44 +148,23 @@ public class ModLogCommand extends Sx4Command {
 		User author = event.getAuthor();
 
 		if (option.isAlternative()) {
-			List<Button> buttons = List.of(Button.success("yes", "Yes"), Button.danger("no", "No"));
+			String acceptId = new CustomButtonId.Builder()
+				.setType(ButtonType.MOD_LOG_DELETE_CONFIRM)
+				.setOwners(event.getAuthor().getIdLong())
+				.setTimeout(60)
+				.getId();
 
-			event.reply(author.getName() + ", are you sure you want to delete **all** the suggestions in this server?").setActionRow(buttons).submit().thenCompose(message -> {
-				return new Waiter<>(event.getBot(), ButtonClickEvent.class)
-					.setPredicate(e -> ButtonUtility.handleButtonConfirmation(e, message, event.getAuthor()))
-					.setCancelPredicate(e -> ButtonUtility.handleButtonCancellation(e, message, event.getAuthor()))
-					.onFailure(e -> ButtonUtility.handleButtonFailure(e, message))
-					.setTimeout(60)
-					.start();
-			}).whenComplete((e, exception) -> {
-				Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
-				if (cause instanceof CancelException) {
-					GenericEvent cancelEvent = ((CancelException) cause).getEvent();
-					if (cancelEvent != null) {
-						((ButtonClickEvent) cancelEvent).reply("Cancelled " + event.getConfig().getSuccessEmote()).queue();
-					}
+			String rejectId = new CustomButtonId.Builder()
+				.setType(ButtonType.GENERIC_REJECT)
+				.setOwners(event.getAuthor().getIdLong())
+				.setTimeout(60)
+				.getId();
 
-					return;
-				} else if (cause instanceof TimeoutException) {
-					event.reply("Timed out :stopwatch:").queue();
-					return;
-				} else if (ExceptionUtility.sendExceptionally(event, cause)) {
-					return;
-				}
+			List<Button> buttons = List.of(Button.success(acceptId, "Yes"), Button.danger(rejectId, "No"));
 
-				event.getMongo().deleteManyModLogs(Filters.eq("guildId", event.getGuild().getIdLong())).whenComplete((result, databaseException) -> {
-					if (ExceptionUtility.sendExceptionally(event, databaseException)) {
-						return;
-					}
-
-					if (result.getDeletedCount() == 0) {
-						e.reply("There are no mod logs in this server " + event.getConfig().getFailureEmote()).queue();
-						return;
-					}
-
-					e.reply("All your mod logs have been deleted " + event.getConfig().getSuccessEmote()).queue();
-				});
-			});
+			event.reply(author.getName() + ", are you sure you want to delete **all** the suggestions in this server?")
+				.setActionRow(buttons)
+				.queue();
 		} else {
 			ObjectId id = option.getValue();
 

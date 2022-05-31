@@ -6,8 +6,8 @@ import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.utility.PermissionUtility;
 import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.AudioChannel;
 import net.dv8tion.jda.api.entities.Member;
-import net.dv8tion.jda.api.entities.VoiceChannel;
 import net.dv8tion.jda.api.requests.RestAction;
 
 import java.util.ArrayList;
@@ -26,7 +26,7 @@ public class MassMoveCommand extends Sx4Command {
 		super.setCategoryAll(ModuleCategory.MODERATION);
 	}
 
-	public void onCommand(Sx4CommandEvent event, @Argument(value="from", nullDefault=true) VoiceChannel from, @Argument(value="to", endless=true) VoiceChannel to) {
+	public void onCommand(Sx4CommandEvent event, @Argument(value="from", nullDefault=true) AudioChannel from, @Argument(value="to", endless=true) AudioChannel to) {
 		if (!PermissionUtility.canConnect(event.getSelfMember(), to)) {
 			event.replyFailure("I cannot move people to that voice channel").queue();
 			return;
@@ -37,13 +37,13 @@ public class MassMoveCommand extends Sx4Command {
 			return;
 		}
 
-		VoiceChannel channel = event.getMember().getVoiceState().getChannel();
+		AudioChannel channel = event.getMember().getVoiceState().getChannel();
 		if (from == null && channel == null) {
 			event.replyFailure("You are not in a voice channel").queue();
 			return;
 		}
 
-		VoiceChannel effectiveFrom = from == null ? channel : from;
+		AudioChannel effectiveFrom = from == null ? channel : from;
 
 		if (effectiveFrom.getIdLong() == to.getIdLong()) {
 			event.replyFailure("You cannot provide the same voice channel twice").queue();

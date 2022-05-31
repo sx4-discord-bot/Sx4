@@ -32,7 +32,7 @@ project.ext.parserPackage = 'com.sx4.bot.antlr'
 sourceSets.main.java.srcDirs = ['src/main/java', 'generated-src/main/java']
 
 dependencies {
-	implementation('com.github.21Joakim:Jockie-Utils:96c51b29f3') {
+	implementation('com.github.21Joakim:Jockie-Utils:54d859a295') {
 		exclude group: 'net.dv8tion', module: 'JDA'
 	}
 
@@ -48,9 +48,11 @@ dependencies {
 
 	implementation group: 'org.jsoup', name: 'jsoup', version: '1.11.3'
 
-	implementation('net.dv8tion:JDA:4+') {
+	implementation('net.dv8tion:JDA:5+') {
 		exclude module: 'opus-java'
 	}
+
+	implementation 'com.google.guava:guava:16+'
 	
 	implementation 'org.mongodb:mongodb-driver-sync:+'
 
@@ -74,6 +76,7 @@ dependencies {
 	implementation group: 'javax.xml.bind', name: 'jaxb-api', version: '2.4.0-b180830.0359'
 
 	implementation group: 'org.slf4j', name: 'slf4j-simple', version: '1.6.2'
+	implementation 'commons-io:commons-io:2.11.0'
 
 	antlr 'org.antlr:antlr4:4.7.2'
 }

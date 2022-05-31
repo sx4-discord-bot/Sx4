@@ -20,7 +20,8 @@ import com.sx4.bot.utility.LoggerUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.MessageBuilder;
 import net.dv8tion.jda.api.Permission;
-import net.dv8tion.jda.api.entities.TextChannel;
+import net.dv8tion.jda.api.entities.BaseGuildMessageChannel;
+import net.dv8tion.jda.api.entities.MessageChannel;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.requests.ErrorResponse;
 import org.bson.Document;
@@ -49,8 +50,14 @@ public class LoggerCommand extends Sx4Command {
     @CommandId(54)
     @AuthorPermissions(permissions={Permission.MANAGE_SERVER})
     @Examples({"logger add #logs", "logger add"})
-    public void add(Sx4CommandEvent event, @Argument(value="channel", endless=true, nullDefault=true) TextChannel channel) {
-        TextChannel effectiveChannel = channel == null ? event.getTextChannel() : channel;
+    public void add(Sx4CommandEvent event, @Argument(value="channel", endless=true, nullDefault=true) BaseGuildMessageChannel channel) {
+        MessageChannel messageChannel = event.getChannel();
+        if (channel == null && !(messageChannel instanceof BaseGuildMessageChannel)) {
+            event.replyFailure("You cannot use this channel type").queue();
+            return;
+        }
+
+        BaseGuildMessageChannel effectiveChannel = channel == null ? (BaseGuildMessageChannel) messageChannel : channel;
 
         List<Bson> guildPipeline = List.of(
             Aggregates.project(Projections.fields(Projections.computed("premium", Operators.lt(Operators.nowEpochSecond(), Operators.ifNull("$premium.endAt", 0L))), Projections.computed("guildId", "$_id"))),
@@ -103,8 +110,14 @@ public class LoggerCommand extends Sx4Command {
     @CommandId(55)
     @AuthorPermissions(permissions={Permission.MANAGE_SERVER})
     @Examples({"logger remove #logs", "logger remove"})
-    public void remove(Sx4CommandEvent event, @Argument(value="channel", endless=true, nullDefault=true) TextChannel channel) {
-        TextChannel effectiveChannel = channel == null ? event.getTextChannel() : channel;
+    public void remove(Sx4CommandEvent event, @Argument(value="channel", endless=true, nullDefault=true) BaseGuildMessageChannel channel) {
+        MessageChannel messageChannel = event.getChannel();
+        if (channel == null && !(messageChannel instanceof BaseGuildMessageChannel)) {
+            event.replyFailure("You cannot use this channel type").queue();
+            return;
+        }
+
+        BaseGuildMessageChannel effectiveChannel = channel == null ? (BaseGuildMessageChannel) messageChannel : channel;
 
         FindOneAndDeleteOptions options = new FindOneAndDeleteOptions().projection(Projections.include("webhook.id"));
         event.getMongo().findAndDeleteLogger(Filters.eq("channelId", effectiveChannel.getIdLong()), options).whenComplete((data, exception) -> {
@@ -132,8 +145,14 @@ public class LoggerCommand extends Sx4Command {
     @CommandId(56)
     @AuthorPermissions(permissions={Permission.MANAGE_SERVER})
     @Examples({"logger toggle #logs", "logger toggle"})
-    public void toggle(Sx4CommandEvent event, @Argument(value="channel", endless=true, nullDefault=true) TextChannel channel) {
-        TextChannel effectiveChannel = channel == null ? event.getTextChannel() : channel;
+    public void toggle(Sx4CommandEvent event, @Argument(value="channel", endless=true, nullDefault=true) BaseGuildMessageChannel channel) {
+        MessageChannel messageChannel = event.getChannel();
+        if (channel == null && !(messageChannel instanceof BaseGuildMessageChannel)) {
+            event.replyFailure("You cannot use this channel type").queue();
+            return;
+        }
+
+        BaseGuildMessageChannel effectiveChannel = channel == null ? (BaseGuildMessageChannel) messageChannel : channel;
 
         List<Bson> guildPipeline = List.of(
             Aggregates.project(Projections.fields(Projections.computed("premium", Operators.lt(Operators.nowEpochSecond(), Operators.ifNull("$premium.endAt", 0L))), Projections.computed("guildId", "$_id"))),
@@ -191,8 +210,14 @@ public class LoggerCommand extends Sx4Command {
     @Examples({"logger name #logs Logs", "logger name Logger"})
     @Premium
     @AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-    public void name(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) TextChannel channel, @Argument(value="name", endless=true) String name) {
-        TextChannel effectiveChannel = channel == null ? event.getTextChannel() : channel;
+    public void name(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) BaseGuildMessageChannel channel, @Argument(value="name", endless=true) String name) {
+        MessageChannel messageChannel = event.getChannel();
+        if (channel == null && !(messageChannel instanceof BaseGuildMessageChannel)) {
+            event.replyFailure("You cannot use this channel type").queue();
+            return;
+        }
+
+        BaseGuildMessageChannel effectiveChannel = channel == null ? (BaseGuildMessageChannel) messageChannel : channel;
 
         event.getMongo().updateLogger(Filters.eq("channelId", effectiveChannel.getIdLong()), Updates.set("webhook.name", name)).whenComplete((result, exception) -> {
             if (ExceptionUtility.sendExceptionally(event, exception)) {
@@ -213,8 +238,14 @@ public class LoggerCommand extends Sx4Command {
     @Examples({"logger avatar #logs Shea#6653", "logger avatar https://i.imgur.com/i87lyNO.png"})
     @Premium
     @AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-    public void avatar(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) TextChannel channel, @Argument(value="avatar", endless=true, acceptEmpty=true) @ImageUrl String url) {
-        TextChannel effectiveChannel = channel == null ? event.getTextChannel() : channel;
+    public void avatar(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) BaseGuildMessageChannel channel, @Argument(value="avatar", endless=true, acceptEmpty=true) @ImageUrl String url) {
+        MessageChannel messageChannel = event.getChannel();
+        if (channel == null && !(messageChannel instanceof BaseGuildMessageChannel)) {
+            event.replyFailure("You cannot use this channel type").queue();
+            return;
+        }
+
+        BaseGuildMessageChannel effectiveChannel = channel == null ? (BaseGuildMessageChannel) messageChannel : channel;
 
         event.getMongo().updateLogger(Filters.eq("channelId", effectiveChannel.getIdLong()), Updates.set("webhook.avatar", url)).whenComplete((result, exception) -> {
             if (ExceptionUtility.sendExceptionally(event, exception)) {
@@ -234,7 +265,7 @@ public class LoggerCommand extends Sx4Command {
     @CommandId(458)
     @Examples({"logger list"})
     @BotPermissions(permissions={Permission.MESSAGE_EMBED_LINKS})
-    public void list(Sx4CommandEvent event, @Argument(value="channel", endless=true, nullDefault=true) TextChannel channel) {
+    public void list(Sx4CommandEvent event, @Argument(value="channel", endless=true, nullDefault=true) BaseGuildMessageChannel channel) {
         Bson filter = channel == null ? Filters.eq("guildId", event.getGuild().getIdLong()) : Filters.eq("channelId", channel.getIdLong());
 
         List<Document> loggers = event.getMongo().getLoggers(filter, MongoDatabase.EMPTY_DOCUMENT).into(new ArrayList<>());
@@ -297,8 +328,14 @@ public class LoggerCommand extends Sx4Command {
         @CommandId(58)
         @AuthorPermissions(permissions={Permission.MANAGE_SERVER})
         @Examples({"logger events add #logs MESSAGE_DELETE", "logger events add MESSAGE_DELETE MESSAGE_UPDATE"})
-        public void add(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) TextChannel channel, @Argument(value="events") LoggerEvent... events) {
-            TextChannel effectiveChannel = channel == null ? event.getTextChannel() : channel;
+        public void add(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) BaseGuildMessageChannel channel, @Argument(value="events") LoggerEvent... events) {
+            MessageChannel messageChannel = event.getChannel();
+            if (channel == null && !(messageChannel instanceof BaseGuildMessageChannel)) {
+                event.replyFailure("You cannot use this channel type").queue();
+                return;
+            }
+
+            BaseGuildMessageChannel effectiveChannel = channel == null ? (BaseGuildMessageChannel) messageChannel : channel;
 
             long raw = LoggerEvent.getRaw(events);
             List<Bson> update = List.of(Operators.set("events", Operators.bitwiseOr(Operators.ifNull("$events", LoggerEvent.ALL), raw)));
@@ -326,11 +363,17 @@ public class LoggerCommand extends Sx4Command {
         @CommandId(59)
         @AuthorPermissions(permissions={Permission.MANAGE_SERVER})
         @Examples({"logger events remove #logs MESSAGE_DELETE", "logger events remove MESSAGE_DELETE MESSAGE_UPDATE"})
-        public void remove(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) TextChannel channel, @Argument(value="events") LoggerEvent... events) {
-            TextChannel effectiveChannel = channel == null ? event.getTextChannel() : channel;
+        public void remove(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) BaseGuildMessageChannel channel, @Argument(value="events") LoggerEvent... events) {
+            MessageChannel messageChannel = event.getChannel();
+            if (channel == null && !(messageChannel instanceof BaseGuildMessageChannel)) {
+                event.replyFailure("You cannot use this channel type").queue();
+                return;
+            }
+
+            BaseGuildMessageChannel effectiveChannel = channel == null ? (BaseGuildMessageChannel) messageChannel : channel;
 
             long raw = LoggerEvent.getRaw(events);
-            List<Bson> update = List.of(Operators.set("events", Operators.bitwiseAnd(Operators.ifNull("$events", LoggerEvent.ALL), ~raw)));
+            List<Bson> update = List.of(Operators.set("events", Operators.bitwiseAndNot(Operators.ifNull("$events", LoggerEvent.ALL), raw)));
 
             event.getMongo().updateLogger(Filters.eq("channelId", effectiveChannel.getIdLong()), update, new UpdateOptions()).whenComplete((result, exception) -> {
                 if (ExceptionUtility.sendExceptionally(event, exception)) {
@@ -355,8 +398,14 @@ public class LoggerCommand extends Sx4Command {
         @CommandId(60)
         @AuthorPermissions(permissions={Permission.MANAGE_SERVER})
         @Examples({"logger events set #logs MESSAGE_DELETE", "logger events set MESSAGE_DELETE MESSAGE_UPDATE"})
-        public void set(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) TextChannel channel, @Argument(value="events") LoggerEvent... events) {
-            TextChannel effectiveChannel = channel == null ? event.getTextChannel() : channel;
+        public void set(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) BaseGuildMessageChannel channel, @Argument(value="events") LoggerEvent... events) {
+            MessageChannel messageChannel = event.getChannel();
+            if (channel == null && !(messageChannel instanceof BaseGuildMessageChannel)) {
+                event.replyFailure("You cannot use this channel type").queue();
+                return;
+            }
+
+            BaseGuildMessageChannel effectiveChannel = channel == null ? (BaseGuildMessageChannel) messageChannel : channel;
 
             event.getMongo().updateLogger(Filters.eq("channelId", effectiveChannel.getIdLong()), Updates.set("events", LoggerEvent.getRaw(events)), new UpdateOptions()).whenComplete((result, exception) -> {
                 if (ExceptionUtility.sendExceptionally(event, exception)) {
@@ -409,8 +458,14 @@ public class LoggerCommand extends Sx4Command {
         @CommandId(63)
         @AuthorPermissions(permissions={Permission.MANAGE_SERVER})
         @Examples({"logger blacklist set #logs @Shea#6653 MESSAGE_DELETE", "logger blacklist set #logs @Members MESSAGE_UPDATE MESSAGE_DELETE", "logger blacklist set #logs #channel TEXT_CHANNEL_OVERRIDE_UPDATE"})
-        public void set(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) TextChannel channel, @Argument(value="user | role | channel") String query, @Argument(value="events") LoggerEvent... events) {
-            TextChannel effectiveChannel = channel == null ? event.getTextChannel() : channel;
+        public void set(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) BaseGuildMessageChannel channel, @Argument(value="user | role | channel") String query, @Argument(value="events") LoggerEvent... events) {
+            MessageChannel messageChannel = event.getChannel();
+            if (channel == null && !(messageChannel instanceof BaseGuildMessageChannel)) {
+                event.replyFailure("You cannot use this channel type").queue();
+                return;
+            }
+
+            BaseGuildMessageChannel effectiveChannel = channel == null ? (BaseGuildMessageChannel) messageChannel : channel;
 
             Set<LoggerCategory> common = LoggerUtility.getCommonCategories(events);
             if (common.isEmpty()) {
@@ -468,8 +523,14 @@ public class LoggerCommand extends Sx4Command {
         @CommandId(64)
         @AuthorPermissions(permissions={Permission.MANAGE_SERVER})
         @Examples({"logger blacklist add #logs @Shea#6653 MESSAGE_DELETE", "logger blacklist add #logs @Members MESSAGE_UPDATE MESSAGE_DELETE", "logger blacklist add #logs #channel TEXT_CHANNEL_OVERRIDE_UPDATE"})
-        public void add(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) TextChannel channel, @Argument(value="user | role | channel") String query, @Argument(value="events") LoggerEvent... events) {
-            TextChannel effectiveChannel = channel == null ? event.getTextChannel() : channel;
+        public void add(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) BaseGuildMessageChannel channel, @Argument(value="user | role | channel") String query, @Argument(value="events") LoggerEvent... events) {
+            MessageChannel messageChannel = event.getChannel();
+            if (channel == null && !(messageChannel instanceof BaseGuildMessageChannel)) {
+                event.replyFailure("You cannot use this channel type").queue();
+                return;
+            }
+
+            BaseGuildMessageChannel effectiveChannel = channel == null ? (BaseGuildMessageChannel) messageChannel : channel;
 
             Set<LoggerCategory> common = LoggerUtility.getCommonCategories(events);
             if (common.isEmpty()) {
@@ -528,8 +589,14 @@ public class LoggerCommand extends Sx4Command {
         @CommandId(467)
         @AuthorPermissions(permissions={Permission.MANAGE_SERVER})
         @Examples({"logger blacklist remove #logs @Shea#6653 MESSAGE_DELETE", "logger blacklist remove #logs @Members MESSAGE_UPDATE MESSAGE_DELETE", "logger blacklist remove #logs #channel TEXT_CHANNEL_OVERRIDE_UPDATE"})
-        public void remove(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) TextChannel channel, @Argument(value="user | role | channel") String query, @Argument(value="events") LoggerEvent... events) {
-            TextChannel effectiveChannel = channel == null ? event.getTextChannel() : channel;
+        public void remove(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) BaseGuildMessageChannel channel, @Argument(value="user | role | channel") String query, @Argument(value="events") LoggerEvent... events) {
+            MessageChannel messageChannel = event.getChannel();
+            if (channel == null && !(messageChannel instanceof BaseGuildMessageChannel)) {
+                event.replyFailure("You cannot use this channel type").queue();
+                return;
+            }
+
+            BaseGuildMessageChannel effectiveChannel = channel == null ? (BaseGuildMessageChannel) messageChannel : channel;
 
             Set<LoggerCategory> common = LoggerUtility.getCommonCategories(events);
             if (common.isEmpty()) {
@@ -558,7 +625,7 @@ public class LoggerCommand extends Sx4Command {
                 Bson entityFilter = Operators.filter(entitiesMap, Operators.eq("$$this.id", id));
                 Bson currentEvents = Operators.ifNull(Operators.first(Operators.map(entityFilter, "$$this.events")), 0L);
 
-                List<Bson> update = List.of(Operators.set("blacklist.entities", Operators.let(new Document("newEvents", Operators.toLong(Operators.bitwiseAnd(currentEvents, ~eventsRaw))), Operators.concatArrays(Operators.cond(Operators.eq("$$newEvents", 0L), Collections.EMPTY_LIST, List.of(Operators.mergeObjects(Operators.ifNull(Operators.first(entityFilter), new Document("id", id).append("type", category.getType())), new Document("events", "$$newEvents")))), Operators.filter(entitiesMap, Operators.ne("$$this.id", id))))));
+                List<Bson> update = List.of(Operators.set("blacklist.entities", Operators.let(new Document("newEvents", Operators.toLong(Operators.bitwiseAndNot(currentEvents, eventsRaw))), Operators.concatArrays(Operators.cond(Operators.eq("$$newEvents", 0L), Collections.EMPTY_LIST, List.of(Operators.mergeObjects(Operators.ifNull(Operators.first(entityFilter), new Document("id", id).append("type", category.getType())), new Document("events", "$$newEvents")))), Operators.filter(entitiesMap, Operators.ne("$$this.id", id))))));
 
                 event.getMongo().updateLogger(Filters.eq("channelId", effectiveChannel.getIdLong()), update, new UpdateOptions()).whenComplete((result, exception) -> {
                     if (ExceptionUtility.sendExceptionally(event, exception)) {

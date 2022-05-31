@@ -16,19 +16,19 @@ import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.argument.Alternative;
 import com.sx4.bot.entities.argument.TimedArgument;
+import com.sx4.bot.entities.interaction.ButtonType;
+import com.sx4.bot.entities.interaction.CustomButtonId;
 import com.sx4.bot.entities.management.AutoRoleFilter;
 import com.sx4.bot.paged.PagedResult;
-import com.sx4.bot.utility.*;
-import com.sx4.bot.waiter.Waiter;
-import com.sx4.bot.waiter.exception.CancelException;
-import com.sx4.bot.waiter.exception.TimeoutException;
+import com.sx4.bot.utility.AutoRoleUtility;
+import com.sx4.bot.utility.ExceptionUtility;
+import com.sx4.bot.utility.FutureUtility;
+import com.sx4.bot.utility.TimeUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Role;
-import net.dv8tion.jda.api.events.GenericEvent;
-import net.dv8tion.jda.api.events.interaction.ButtonClickEvent;
-import net.dv8tion.jda.api.interactions.components.Button;
+import net.dv8tion.jda.api.interactions.components.buttons.Button;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 
@@ -118,45 +118,23 @@ public class AutoRoleCommand extends Sx4Command {
 	@AuthorPermissions(permissions={Permission.MANAGE_ROLES})
 	public void remove(Sx4CommandEvent event, @Argument(value="role | all", endless=true) @AlternativeOptions("all") Alternative<Role> option) {
 		if (option.isAlternative()) {
-			List<Button> buttons = List.of(Button.success("yes", "Yes"), Button.danger("no", "No"));
+			String acceptId = new CustomButtonId.Builder()
+				.setType(ButtonType.AUTO_ROLE_DELETE_CONFIRM)
+				.setOwners(event.getAuthor().getIdLong())
+				.setTimeout(60)
+				.getId();
 
-			event.reply(event.getAuthor().getName() + ", are you sure you want to remove every auto role in the server?").setActionRow(buttons).submit()
-				.thenCompose(message -> {
-					return new Waiter<>(event.getBot(), ButtonClickEvent.class)
-						.setPredicate(e -> ButtonUtility.handleButtonConfirmation(e, message, event.getAuthor()))
-						.setCancelPredicate(e -> ButtonUtility.handleButtonCancellation(e, message, event.getAuthor()))
-						.onFailure(e -> ButtonUtility.handleButtonFailure(e, message))
-						.setTimeout(60)
-						.start();
-				}).whenComplete((e, exception) -> {
-					Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
-					if (cause instanceof CancelException) {
-						GenericEvent cancelEvent = ((CancelException) cause).getEvent();
-						if (cancelEvent != null) {
-							((ButtonClickEvent) cancelEvent).reply("Cancelled " + event.getConfig().getSuccessEmote()).queue();
-						}
+			String rejectId = new CustomButtonId.Builder()
+				.setType(ButtonType.GENERIC_REJECT)
+				.setOwners(event.getAuthor().getIdLong())
+				.setTimeout(60)
+				.getId();
 
-						return;
-					} else if (cause instanceof TimeoutException) {
-						event.reply("Timed out :stopwatch:").queue();
-						return;
-					} else if (ExceptionUtility.sendExceptionally(event, exception)) {
-						return;
-					}
+			List<Button> buttons = List.of(Button.success(acceptId, "Yes"), Button.danger(rejectId, "No"));
 
-					event.getMongo().deleteManyAutoRoles(Filters.eq("guildId", event.getGuild().getIdLong())).whenComplete((result, databaseException) -> {
-						if (ExceptionUtility.sendExceptionally(event, databaseException)) {
-							return;
-						}
-
-						if (result.getDeletedCount() == 0) {
-							e.reply("There are no auto roles in this server " + event.getConfig().getFailureEmote()).queue();
-							return;
-						}
-
-						e.reply("All auto roles have been removed " + event.getConfig().getSuccessEmote()).queue();
-					});
-				});
+			event.reply(event.getAuthor().getName() + ", are you sure you want to remove every auto role in the server?")
+				.setActionRow(buttons)
+				.queue();
 		} else {
 			Role role = option.getValue();
 			event.getMongo().deleteAutoRole(Filters.eq("roleId", role.getIdLong())).whenComplete((result, exception) -> {

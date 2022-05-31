@@ -20,7 +20,7 @@ public class SupportServerCommand extends Sx4Command {
 
 	public void onCommand(Sx4CommandEvent event) {
 		String inviteUrl = event.getConfig().getSupportGuildInvite();
-		if (event.isFromGuild() && !event.getSelfMember().hasPermission(event.getTextChannel(), Permission.MESSAGE_EMBED_LINKS)) {
+		if (event.isFromGuild() && !event.getSelfMember().hasPermission(event.getGuildChannel(), Permission.MESSAGE_EMBED_LINKS)) {
 			event.reply(inviteUrl).queue();
 			return;
 		}

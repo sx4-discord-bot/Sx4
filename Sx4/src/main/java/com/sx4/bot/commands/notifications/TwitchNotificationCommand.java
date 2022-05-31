@@ -31,6 +31,8 @@ import com.sx4.bot.utility.FutureUtility;
 import com.sx4.bot.utility.MessageUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.BaseGuildMessageChannel;
+import net.dv8tion.jda.api.entities.MessageChannel;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.requests.ErrorResponse;
@@ -70,8 +72,14 @@ public class TwitchNotificationCommand extends Sx4Command {
 	@Command.Cooldown(5)
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	@Examples({"twitch notification add #channel esl_csgo", "twitch notification add pgl"})
-	public void add(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) TextChannel channel, @Argument(value="streamer name", endless=true) @Lowercase String streamer) {
-		TextChannel effectiveChannel = channel == null ? event.getTextChannel() : channel;
+	public void add(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) BaseGuildMessageChannel channel, @Argument(value="streamer name", endless=true) @Lowercase String streamer) {
+		MessageChannel messageChannel = event.getChannel();
+		if (channel == null && !(messageChannel instanceof BaseGuildMessageChannel)) {
+			event.replyFailure("You cannot use this channel type").queue();
+			return;
+		}
+
+		BaseGuildMessageChannel effectiveChannel = channel == null ? (BaseGuildMessageChannel) messageChannel : channel;
 
 		Request request = new Request.Builder()
 			.url("https://api.twitch.tv/helix/users?login=" + URLEncoder.encode(streamer, StandardCharsets.UTF_8))
@@ -292,6 +300,30 @@ public class TwitchNotificationCommand extends Sx4Command {
 		});
 	}
 
+	@Command(value="message", description="Set the message you want to be sent for your specific notification, view the formatters for messages in `twitch notification formatting`")
+	@CommandId(506)
+	@Examples({"twitch notification message 5e45ce6d3688b30ee75201ae {streamer.url}", "twitch notification message 5e45ce6d3688b30ee75201ae **{streamer.name}** just went live, check it out: {streamer.url}"})
+	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
+	public void message(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="message", endless=true) String message) {
+		event.getMongo().updateTwitchNotification(Filters.and(Filters.eq("_id", id), Filters.eq("guildId", event.getGuild().getIdLong())), Updates.set("message", new Document("content", message)), new UpdateOptions()).whenComplete((result, exception) -> {
+			if (ExceptionUtility.sendExceptionally(event, exception)) {
+				return;
+			}
+
+			if (result.getMatchedCount() == 0) {
+				event.replyFailure("I could not find that notification").queue();
+				return;
+			}
+
+			if (result.getModifiedCount() == 0) {
+				event.replyFailure("Your message for that notification was already set to that").queue();
+				return;
+			}
+
+			event.replySuccess("Your message has been updated for that notification").queue();
+		});
+	}
+
 	@Command(value="advanced message", description="Same as `twitch notification message` but takes json for more advanced options")
 	@CommandId(498)
 	@Examples({"twitch notification advanced message 5e45ce6d3688b30ee75201ae {\"content\": \"{streamer.url}\"}", "twitch notification advanced message 5e45ce6d3688b30ee75201ae {\"embed\": {\"description\": \"{streamer.url}\"}}"})
@@ -490,7 +522,7 @@ public class TwitchNotificationCommand extends Sx4Command {
 				.parse();
 
 			try {
-				MessageUtility.fromWebhookMessage(event.getTextChannel(), MessageUtility.fromJson(message).build()).queue();
+				MessageUtility.fromWebhookMessage(event.getChannel(), MessageUtility.fromJson(message).build()).queue();
 			} catch (IllegalArgumentException e) {
 				event.replyFailure(e.getMessage()).queue();
 			}

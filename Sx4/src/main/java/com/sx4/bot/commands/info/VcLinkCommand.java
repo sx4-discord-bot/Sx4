@@ -3,7 +3,7 @@ package com.sx4.bot.commands.info;
 import com.jockie.bot.core.argument.Argument;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
-import net.dv8tion.jda.api.entities.VoiceChannel;
+import net.dv8tion.jda.api.entities.AudioChannel;
 
 public class VcLinkCommand extends Sx4Command {
 
@@ -15,8 +15,8 @@ public class VcLinkCommand extends Sx4Command {
 		super.setExamples("vc link", "vc link general");
 	}
 
-	public void onCommand(Sx4CommandEvent event, @Argument(value="voice channel", endless=true, nullDefault=true) VoiceChannel channel) {
-		VoiceChannel effectiveChannel;
+	public void onCommand(Sx4CommandEvent event, @Argument(value="voice channel", endless=true, nullDefault=true) AudioChannel channel) {
+		AudioChannel effectiveChannel;
 		if (channel == null) {
 			effectiveChannel = event.getMember().getVoiceState().getChannel();
 			if (effectiveChannel == null) {

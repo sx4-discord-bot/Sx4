@@ -12,6 +12,8 @@ import com.sx4.bot.utility.StringUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.MessageBuilder;
 import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.BaseGuildMessageChannel;
+import net.dv8tion.jda.api.entities.MessageChannel;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import okhttp3.Request;
 import org.bson.Document;
@@ -47,7 +49,8 @@ public class RedditCommand extends Sx4Command {
 
 			posts =	posts.stream()
 				.filter(post -> {
-					if (!event.getTextChannel().isNSFW()) {
+					MessageChannel channel = event.getChannel();
+					if (!(channel instanceof BaseGuildMessageChannel && ((BaseGuildMessageChannel) channel).isNSFW())) {
 						return !post.getEmbedded(List.of("data", "over_18"), false);
 					}
 

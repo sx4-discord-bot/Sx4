@@ -16,14 +16,14 @@ import java.util.regex.Matcher;
 public class ImageUtility {
 
 	public static MessageAction getImageMessage(CommandEvent event, Response response) throws IOException {
-		return ImageUtility.getImageMessage(event.getTextChannel(), response);
+		return ImageUtility.getImageMessage(event.getChannel(), response);
 	}
 
 	public static MessageAction getImageMessage(CommandEvent event, Response response, BiFunction<Document, ImageError, MessageAction> badRequest) throws IOException {
-		return ImageUtility.getImageMessage(event.getTextChannel(), response, badRequest);
+		return ImageUtility.getImageMessage(event.getChannel(), response, badRequest);
 	}
 
-	public static MessageAction getImageMessage(TextChannel channel, Response response, BiFunction<Document, ImageError, MessageAction> badRequest) throws IOException {
+	public static MessageAction getImageMessage(MessageChannel channel, Response response, BiFunction<Document, ImageError, MessageAction> badRequest) throws IOException {
 		int status = response.code();
 		if (status == 200) {
 			byte[] bytes = response.body().bytes();
@@ -37,11 +37,11 @@ public class ImageUtility {
 		}
 	}
 
-	public static MessageAction getImageMessage(TextChannel channel, Response response) throws IOException {
+	public static MessageAction getImageMessage(MessageChannel channel, Response response) throws IOException {
 		return ImageUtility.getImageMessage(channel, response, null);
 	}
 
-	public static MessageAction getErrorMessage(TextChannel channel, int status, String fullBody, BiFunction<Document, ImageError, MessageAction> badRequest) {
+	public static MessageAction getErrorMessage(MessageChannel channel, int status, String fullBody, BiFunction<Document, ImageError, MessageAction> badRequest) {
 		if (status == 400) {
 			Document body = Document.parse(fullBody);
 			int code = body.getEmbedded(List.of("details", "code"), Integer.class);
@@ -62,7 +62,7 @@ public class ImageUtility {
 		}
 	}
 
-	public static MessageAction getErrorMessage(TextChannel channel, int status, String fullBody) {
+	public static MessageAction getErrorMessage(MessageChannel channel, int status, String fullBody) {
 		return ImageUtility.getErrorMessage(channel, status, fullBody, null);
 	}
 

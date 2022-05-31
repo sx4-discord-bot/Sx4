@@ -3,6 +3,8 @@ package com.sx4.bot.entities.info.game;
 import com.sx4.bot.utility.FreeGameUtility;
 import org.bson.Document;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -11,19 +13,21 @@ import java.util.List;
 public class EpicFreeGame extends FreeGame<String> {
 
 	private final String url;
+	private final String offerType;
 
-	private EpicFreeGame(String id, String title, String description, String publisher, String image, String url, int originalPrice, int discountPrice, OffsetDateTime start, OffsetDateTime end) {
+	private EpicFreeGame(String id, String title, String description, String offerType, String publisher, String image, String url, int originalPrice, int discountPrice, OffsetDateTime start, OffsetDateTime end) {
 		super(id, title, description, publisher, image, originalPrice, discountPrice, start, end, FreeGameType.EPIC_GAMES);
 
 		this.url = url;
+		this.offerType = offerType;
 	}
 
 	public String getUrl() {
-		return "https://www.epicgames.com/store/en-US/p/" + this.url;
+		return "https://www.epicgames.com/store/en-US/" + (this.offerType.equals("BUNDLE") ? "bundles" : "p") + "/" + this.url;
 	}
 
 	public String getRunUrl() {
-		return "<com.epicgames.launcher://store/en-US/p/" + this.url + ">";
+		return "<com.epicgames.launcher://store/en-US/" + (this.offerType.equals("BUNDLE") ? "bundles" : "p") + "/" + this.url + ">";
 	}
 
 	public boolean isMysteryGame() {
@@ -38,6 +42,7 @@ public class EpicFreeGame extends FreeGame<String> {
 		String id = data.getString("id");
 		String title = data.getString("title");
 		String description = data.getString("description");
+		String offerType = data.getString("offerType");
 		String publisher = data.getEmbedded(List.of("seller", "name"), String.class);
 		String url = data.get("catalogNs", Document.class).getList("mappings", Document.class).stream()
 			.filter(d -> d.getString("pageType").equals("productHome"))
@@ -46,7 +51,7 @@ public class EpicFreeGame extends FreeGame<String> {
 			.orElse(null);
 
 		if (url == null) {
-			url = data.getString("offerType").equals("DLC") ? data.getString("urlSlug") : data.getString("productSlug");
+			url = offerType.equals("DLC") ? data.getString("urlSlug") : data.getString("productSlug");
 		}
 
 		Document promotion = FreeGameUtility.getBestPromotionalOffer(data);
@@ -69,17 +74,29 @@ public class EpicFreeGame extends FreeGame<String> {
 				.orElse(null);
 		}
 
+		// Because for some reason the url can sometimes be formatted incorrectly
+		if (image != null) {
+			String[] segments = image.split("/");
+			for (int i = 3; i < segments.length; i++) {
+				String old = segments[i];
+				segments[i] = URLEncoder.encode(old, StandardCharsets.UTF_8);
+			}
+
+			image = String.join("/", segments);
+		}
+
 		Document priceInfo = data.getEmbedded(List.of("price", "totalPrice"), Document.class);
 		int originalPrice = priceInfo.getInteger("originalPrice");
 		int discountPrice = priceInfo.getInteger("discountPrice");
 
-		return new EpicFreeGame(id, title, description, publisher, image, url, originalPrice, discountPrice, start, end);
+		return new EpicFreeGame(id, title, description, offerType, publisher, image, url, originalPrice, discountPrice, start, end);
 	}
 
 	public static EpicFreeGame fromDatabase(Document data) {
 		String id = data.getString("gameId");
 		String title = data.getString("title");
 		String description = data.getString("description");
+		String offerType = data.get("offerType", "OTHERS");
 		String publisher = data.getString("publisher");
 		String url = data.getString("url");
 		String image = data.getString("image");
@@ -92,7 +109,7 @@ public class EpicFreeGame extends FreeGame<String> {
 		int originalPrice = priceInfo.getInteger("original");
 		int discountPrice = priceInfo.getInteger("discount");
 
-		return new EpicFreeGame(id, title, description, publisher, image, url, originalPrice, discountPrice, start, end);
+		return new EpicFreeGame(id, title, description, offerType, publisher, image, url, originalPrice, discountPrice, start, end);
 	}
 
 }

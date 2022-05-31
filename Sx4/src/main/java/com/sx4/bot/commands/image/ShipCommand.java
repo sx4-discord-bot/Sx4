@@ -46,7 +46,7 @@ public class ShipCommand extends Sx4Command {
 			.addQuery("percent", percent)
 			.build(event.getConfig().getImageWebserver());
 
-		if (event.getSelfMember().hasPermission(event.getTextChannel(), Permission.MESSAGE_ATTACH_FILES)) {
+		if (event.getSelfMember().hasPermission(event.getGuildChannel(), Permission.MESSAGE_ATTACH_FILES)) {
 			event.getHttpClient().newCall(request).enqueue((HttpCallback) response -> {
 				MessageAction action = ImageUtility.getImageMessage(event, response);
 				if (response.isSuccessful()) {

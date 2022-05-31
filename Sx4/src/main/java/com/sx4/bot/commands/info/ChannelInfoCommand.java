@@ -27,29 +27,35 @@ public class ChannelInfoCommand extends Sx4Command {
 	}
 
 	public void onCommand(Sx4CommandEvent event, @Argument(value="channel", endless=true, nullDefault=true) GuildChannel channel) {
-		channel = channel == null ? event.getTextChannel() : channel;
+		channel = channel == null ? (GuildMessageChannel) event.getChannel() : channel;
 
-		EmbedBuilder embed = new EmbedBuilder()
-			.setAuthor(channel.getName(), null, event.getGuild().getIconUrl())
-			.addField("Created", channel.getTimeCreated().format(TimeUtility.DEFAULT_FORMATTER), true)
-			.addField("Channel Position", String.valueOf(channel.getPosition() + 1), true)
-			.addField("Channel ID", channel.getId(), true)
-			.addField("Members", String.valueOf(channel.getMembers().size()), true);
+		EmbedBuilder embed = new EmbedBuilder();
+		embed.setAuthor(channel.getName(), null, event.getGuild().getIconUrl());
+		embed.addField("Created", channel.getTimeCreated().format(TimeUtility.DEFAULT_FORMATTER), true);
+
+		if (channel instanceof IPositionableChannel positionableChannel) {
+			embed.addField("Channel Position", String.valueOf(positionableChannel.getPosition() + 1), true);
+		}
+
+		embed.addField("Channel ID", channel.getId(), true);
+
+		if (channel instanceof IMemberContainer container) {
+			embed.addField("Members", String.valueOf(container.getMembers().size()), true);
+		}
 
 		if (channel instanceof TextChannel textChannel) {
 			embed.addField("NSFW Channel", textChannel.isNSFW() ? "Yes" : "No", true);
 			embed.addField("Slow Mode", textChannel.getSlowmode() != 0 ? TimeUtility.LONG_TIME_FORMATTER.parse(Duration.of(textChannel.getSlowmode(), ChronoUnit.SECONDS)) : "No Slowmode Set", true);
-			embed.addField("Channel Category", textChannel.getParent() == null ? "Not in a Category" : textChannel.getParent().getName(), true);
-			embed.addField("Announcement Channel", textChannel.isNews() ? "Yes" : "No", true);
+			embed.addField("Channel Category", textChannel.getParentCategory() == null ? "Not in a Category" : textChannel.getParentCategory().getName(), true);
+			embed.addField("Announcement Channel", textChannel instanceof NewsChannel ? "Yes" : "No", true);
 		} else if (channel instanceof VoiceChannel voiceChannel) {
 			Region region = voiceChannel.getRegion();
 
-			embed.addField("Channel Category", voiceChannel.getParent() == null ? "Not in a Category" : voiceChannel.getParent().getName(), true);
+			embed.addField("Channel Category", voiceChannel.getParentCategory() == null ? "Not in a Category" : voiceChannel.getParentCategory().getName(), true);
 			embed.addField("Voice Region", region.getName() + (region == Region.AUTOMATIC ? "" : " " + region.getEmoji()), true);
 			embed.addField("User Limit", voiceChannel.getUserLimit() == 0 ? "Unlimited" : String.valueOf(voiceChannel.getUserLimit()), true);
 			embed.addField("Bitrate", voiceChannel.getBitrate() / 1000 + " kbps", true);
 		} else if (channel instanceof Category category) {
-
 			StringBuilder builder = new StringBuilder();
 
 			List<GuildChannel> guildChannels = category.getChannels();

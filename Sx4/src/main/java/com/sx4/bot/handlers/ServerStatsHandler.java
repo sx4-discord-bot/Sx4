@@ -5,7 +5,7 @@ import com.sx4.bot.entities.info.ServerStatsType;
 import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.events.guild.member.GuildMemberJoinEvent;
 import net.dv8tion.jda.api.events.guild.member.GuildMemberRemoveEvent;
-import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent;
+import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.hooks.EventListener;
 import org.jetbrains.annotations.NotNull;
 
@@ -17,7 +17,11 @@ public class ServerStatsHandler implements EventListener {
 		this.bot = bot;
 	}
 
-	public void onGuildMessageReceived(GuildMessageReceivedEvent event) {
+	public void onMessageReceived(MessageReceivedEvent event) {
+		if (!event.isFromGuild()) {
+			return;
+		}
+
 		if (event.getAuthor().isBot()) {
 			return;
 		}
@@ -44,8 +48,8 @@ public class ServerStatsHandler implements EventListener {
 
 	@Override
 	public void onEvent(@NotNull GenericEvent event) {
-		if (event instanceof GuildMessageReceivedEvent) {
-			this.onGuildMessageReceived((GuildMessageReceivedEvent) event);
+		if (event instanceof MessageReceivedEvent) {
+			this.onMessageReceived((MessageReceivedEvent) event);
 		} else if (event instanceof GuildMemberJoinEvent) {
 			this.onGuildMemberJoin((GuildMemberJoinEvent) event);
 		} else if (event instanceof GuildMemberRemoveEvent) {

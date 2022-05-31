@@ -2,33 +2,26 @@ package com.sx4.bot.commands.fun;
 
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
-import com.jockie.bot.core.command.Command.Cooldown;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.Sorts;
-import com.mongodb.client.model.Updates;
 import com.sx4.bot.annotations.argument.AlternativeOptions;
 import com.sx4.bot.annotations.command.CommandId;
-import com.sx4.bot.annotations.command.CooldownMessage;
 import com.sx4.bot.annotations.command.Examples;
 import com.sx4.bot.annotations.command.Redirects;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.entities.argument.Alternative;
+import com.sx4.bot.entities.interaction.ButtonType;
+import com.sx4.bot.entities.interaction.CustomButtonId;
 import com.sx4.bot.paged.PagedResult;
-import com.sx4.bot.utility.ButtonUtility;
 import com.sx4.bot.utility.ExceptionUtility;
-import com.sx4.bot.waiter.Waiter;
-import com.sx4.bot.waiter.exception.CancelException;
-import com.sx4.bot.waiter.exception.TimeoutException;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.User;
-import net.dv8tion.jda.api.events.GenericEvent;
-import net.dv8tion.jda.api.events.interaction.ButtonClickEvent;
-import net.dv8tion.jda.api.interactions.components.Button;
+import net.dv8tion.jda.api.interactions.components.buttons.Button;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 
@@ -40,7 +33,6 @@ import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.StringJoiner;
-import java.util.concurrent.CompletionException;
 import java.util.stream.Collectors;
 
 public class MarriageCommand extends Sx4Command {
@@ -62,8 +54,6 @@ public class MarriageCommand extends Sx4Command {
 	@Command(value="add", description="Propose to a user and marry them if they accept")
 	@CommandId(268)
 	@Redirects({"marry"})
-	@Cooldown(60)
-	@CooldownMessage("You already have a pending marriage :no_entry:")
 	@Examples({"marriage add @Shea#6653", "marriage add Shea", "marriage add 402557516728369153"})
 	public void add(Sx4CommandEvent event, @Argument(value="user", endless=true) Member member) {
 		User author = event.getAuthor();
@@ -95,51 +85,26 @@ public class MarriageCommand extends Sx4Command {
 			return;
 		}
 
-		List<Button> buttons = List.of(Button.success("yes", "Yes"), Button.danger("no", "No"));
+		String acceptId = new CustomButtonId.Builder()
+			.setType(ButtonType.MARRIAGE_CONFIRM)
+			.setTimeout(60)
+			.setOwners(member.getIdLong())
+			.setArguments(author.getIdLong())
+			.getId();
+
+		String rejectId = new CustomButtonId.Builder()
+			.setType(ButtonType.MARRIAGE_REJECT)
+			.setTimeout(60)
+			.setOwners(member.getIdLong())
+			.setArguments(author.getIdLong())
+			.getId();
+
+		List<Button> buttons = List.of(Button.success(acceptId, "Yes"), Button.danger(rejectId, "No"));
 
 		event.reply(member.getAsMention() + ", **" + author.getName() + "** would like to marry you! Do you accept?")
 			.allowedMentions(EnumSet.of(Message.MentionType.USER))
 			.setActionRow(buttons)
-			.submit()
-			.thenCompose(message -> {
-				return new Waiter<>(event.getBot(), ButtonClickEvent.class)
-					.setPredicate(e -> ButtonUtility.handleButtonConfirmation(e, message, member.getUser()))
-					.setCancelPredicate(e -> ButtonUtility.handleButtonCancellation(e, message, member.getUser()))
-					.onFailure(e -> ButtonUtility.handleButtonFailure(e, message))
-					.setTimeout(60)
-					.start();
-			}).whenComplete((e, exception) -> {
-				event.removeCooldown();
-				Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
-				if (cause instanceof CancelException) {
-					GenericEvent cancelEvent = ((CancelException) cause).getEvent();
-					if (cancelEvent != null) {
-						((ButtonClickEvent) cancelEvent).reply("Better luck next time " + author.getName() + " :broken_heart:").queue();
-					}
-
-					return;
-				} else if (cause instanceof TimeoutException) {
-					event.reply("Timed out :stopwatch:").queue();
-					return;
-				} else if (ExceptionUtility.sendExceptionally(event, exception)) {
-					return;
-				}
-
-				Bson filter = Filters.or(Filters.and(Filters.eq("proposerId", member.getIdLong()), Filters.eq("partnerId", author.getIdLong())), Filters.and(Filters.eq("proposerId", author.getIdLong()), Filters.eq("partnerId", member.getIdLong())));
-
-				event.getMongo().updateMarriage(filter, Updates.combine(Updates.setOnInsert("proposerId", author.getIdLong()), Updates.setOnInsert("partnerId", member.getIdLong()))).whenComplete((result, databaseException) -> {
-					if (ExceptionUtility.sendExceptionally(event, databaseException)) {
-						return;
-					}
-
-					if (result.getMatchedCount() != 0) {
-						e.reply("You're already married to that user " + event.getConfig().getFailureEmote()).queue();
-						return;
-					}
-
-					e.reply("You're now married to " + member.getAsMention() + " :tada: :heart:").queue();
-				});
-			});
+			.queue();
 	}
 
 	@Command(value="remove", description="Divorce someone you are currently married to")
@@ -190,47 +155,21 @@ public class MarriageCommand extends Sx4Command {
 
 			paged.execute(event);
 		} else if (option.isAlternative()) {
-			List<Button> buttons = List.of(Button.success("yes", "Yes"), Button.danger("no", "No"));
+			String acceptId = new CustomButtonId.Builder()
+				.setType(ButtonType.DIVORCE_ALL_CONFIRM)
+				.setTimeout(60)
+				.setOwners(author.getIdLong())
+				.getId();
 
-			event.reply(author.getName() + ", are you sure you want to divorce everyone you are currently married to?").setActionRow(buttons).submit()
-				.thenCompose(message -> {
-					return new Waiter<>(event.getBot(), ButtonClickEvent.class)
-						.setPredicate(e -> ButtonUtility.handleButtonConfirmation(e, message, event.getAuthor()))
-						.setCancelPredicate(e -> ButtonUtility.handleButtonCancellation(e, message, event.getAuthor()))
-						.onFailure(e -> ButtonUtility.handleButtonFailure(e, message))
-						.setTimeout(60)
-						.start();
-				}).whenComplete((e, exception) -> {
-					Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
-					if (cause instanceof CancelException) {
-						GenericEvent cancelEvent = ((CancelException) cause).getEvent();
-						if (cancelEvent != null) {
-							((ButtonClickEvent) cancelEvent).reply("Cancelled " + event.getConfig().getSuccessEmote()).queue();
-						}
+			String rejectId = new CustomButtonId.Builder()
+				.setType(ButtonType.GENERIC_REJECT)
+				.setTimeout(60)
+				.setOwners(author.getIdLong())
+				.getId();
 
-						return;
-					} else if (cause instanceof TimeoutException) {
-						event.reply("Timed out :stopwatch:").queue();
-						return;
-					} else if (ExceptionUtility.sendExceptionally(event, exception)) {
-						return;
-					}
-
-					Bson filter = Filters.or(Filters.eq("proposerId", author.getIdLong()), Filters.eq("partnerId", author.getIdLong()));
-
-					event.getMongo().deleteManyMarriages(filter).whenComplete((result, databaseException) -> {
-						if (ExceptionUtility.sendExceptionally(event, databaseException)) {
-							return;
-						}
-
-						if (result.getDeletedCount() == 0) {
-							e.reply("You are not married to anyone " + event.getConfig().getFailureEmote()).queue();
-							return;
-						}
-
-						e.reply("You are no longer married to anyone " + event.getConfig().getSuccessEmote()).queue();
-					});
-				});
+			event.reply(author.getName() + ", are you sure you want to divorce everyone you are currently married to?")
+				.setActionRow(List.of(Button.success(acceptId, "Yes"), Button.danger(rejectId, "No")))
+				.queue();
 		} else {
 			Member member = option.getValue();
 

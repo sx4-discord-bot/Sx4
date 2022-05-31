@@ -17,20 +17,17 @@ import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.argument.Alternative;
+import com.sx4.bot.entities.interaction.ButtonType;
+import com.sx4.bot.entities.interaction.CustomButtonId;
 import com.sx4.bot.entities.trigger.TriggerActionType;
 import com.sx4.bot.formatter.FormatterManager;
 import com.sx4.bot.formatter.function.FormatterVariable;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.*;
-import com.sx4.bot.waiter.Waiter;
-import com.sx4.bot.waiter.exception.CancelException;
-import com.sx4.bot.waiter.exception.TimeoutException;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.*;
-import net.dv8tion.jda.api.events.GenericEvent;
-import net.dv8tion.jda.api.events.interaction.ButtonClickEvent;
-import net.dv8tion.jda.api.interactions.components.Button;
+import net.dv8tion.jda.api.interactions.components.buttons.Button;
 import okhttp3.internal.http.HttpMethod;
 import org.bson.Document;
 import org.bson.conversions.Bson;
@@ -232,45 +229,23 @@ public class TriggerCommand extends Sx4Command {
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void delete(Sx4CommandEvent event, @Argument(value="id | all") @AlternativeOptions("all") Alternative<ObjectId> option) {
 		if (option.isAlternative()) {
-			List<Button> buttons = List.of(Button.success("yes", "Yes"), Button.danger("no", "No"));
+			String acceptId = new CustomButtonId.Builder()
+				.setType(ButtonType.TRIGGER_DELETE_CONFIRM)
+				.setOwners(event.getAuthor().getIdLong())
+				.setTimeout(60)
+				.getId();
 
-			event.reply(event.getAuthor().getName() + ", are you sure you want to delete **all** the triggers in this server?").setActionRow(buttons).submit()
-				.thenCompose(message -> {
-					return new Waiter<>(event.getBot(), ButtonClickEvent.class)
-						.setPredicate(e -> ButtonUtility.handleButtonConfirmation(e, message, event.getAuthor()))
-						.setCancelPredicate(e -> ButtonUtility.handleButtonCancellation(e, message, event.getAuthor()))
-						.onFailure(e -> ButtonUtility.handleButtonFailure(e, message))
-						.setTimeout(60)
-						.start();
-				}).whenComplete((e, exception) -> {
-					Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
-					if (cause instanceof CancelException) {
-						GenericEvent cancelEvent = ((CancelException) cause).getEvent();
-						if (cancelEvent != null) {
-							((ButtonClickEvent) cancelEvent).reply("Cancelled " + event.getConfig().getSuccessEmote()).queue();
-						}
+			String rejectId = new CustomButtonId.Builder()
+				.setType(ButtonType.GENERIC_REJECT)
+				.setOwners(event.getAuthor().getIdLong())
+				.setTimeout(60)
+				.getId();
 
-						return;
-					} else if (cause instanceof TimeoutException) {
-						event.reply("Timed out :stopwatch:").queue();
-						return;
-					} else if (ExceptionUtility.sendExceptionally(event, exception)) {
-						return;
-					}
+			List<Button> buttons = List.of(Button.success(acceptId, "Yes"), Button.danger(rejectId, "No"));
 
-					event.getMongo().deleteManyTriggers(Filters.eq("guildId", event.getGuild().getIdLong())).whenComplete((result, databaseException) -> {
-						if (ExceptionUtility.sendExceptionally(event, databaseException)) {
-							return;
-						}
-
-						if (result.getDeletedCount() == 0) {
-							e.reply("There are no triggers in this server " + event.getConfig().getFailureEmote()).queue();
-							return;
-						}
-
-						e.reply("All triggers have been deleted in this server " + event.getConfig().getSuccessEmote()).queue();
-					});
-				});
+			event.reply(event.getAuthor().getName() + ", are you sure you want to delete **all** the triggers in this server?")
+				.setActionRow(buttons)
+				.queue();
 		} else {
 			event.getMongo().deleteTrigger(Filters.and(Filters.eq("_id", option.getValue()), Filters.eq("guildId", event.getGuild().getIdLong()))).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
@@ -351,7 +326,7 @@ public class TriggerCommand extends Sx4Command {
 					return;
 				}
 
-				ExceptionUtility.sendExceptionally(event.getTextChannel(), exception);
+				ExceptionUtility.sendExceptionally(event.getChannel(), exception);
 			});
 		}
 	}

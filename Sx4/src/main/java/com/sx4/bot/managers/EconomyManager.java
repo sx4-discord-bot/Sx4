@@ -120,17 +120,16 @@ public class EconomyManager {
 				continue;
 			}
 
-			Item item;
-			switch (type) {
-				case MATERIAL -> item = new Material(this, itemData.getInt("id"), itemData.getString("name"), itemData.getLong("price"), itemData.getString("emote"), itemData.optBoolean("hidden", false));
-				case WOOD -> item = new Wood(this, itemData.getInt("id"), itemData.getString("name"), itemData.getLong("price"));
-				case ENVELOPE -> item = new Envelope(this, itemData.getInt("id"), itemData.getString("name"), itemData.getLong("price"));
-				case MINER -> item = new Miner(this, itemData.getInt("id"), itemData.getString("name"), itemData.getLong("price"), itemData.getLong("maxMaterials"), itemData.getDouble("multiplier"));
+			Item item = switch (type) {
+				case MATERIAL -> new Material(this, itemData.getInt("id"), itemData.getString("name"), itemData.getLong("price"), itemData.getString("emote"), itemData.optBoolean("hidden", false));
+				case WOOD -> new Wood(this, itemData.getInt("id"), itemData.getString("name"), itemData.getLong("price"));
+				case ENVELOPE -> new Envelope(this, itemData.getInt("id"), itemData.getString("name"), itemData.getLong("price"));
+				case MINER -> new Miner(this, itemData.getInt("id"), itemData.getString("name"), itemData.getLong("price"), itemData.getLong("maxMaterials"), itemData.getDouble("multiplier"));
 				case FACTORY -> {
 					JSONObject cost = itemData.getJSONObject("cost");
 					Material material = this.getItemById(cost.getInt("material"), Material.class);
 					ItemStack<Material> itemStack = new ItemStack<>(material, cost.getLong("amount"));
-					item = new Factory(this, itemData.getInt("id"), itemData.getString("name"), itemStack, itemData.getLong("minYield"), itemData.getLong("maxYield"));
+					yield new Factory(this, itemData.getInt("id"), itemData.getString("name"), itemStack, itemData.getLong("minYield"), itemData.getLong("maxYield"));
 				}
 				case CRATE -> {
 					JSONArray contentsData = itemData.optJSONArray("contents");
@@ -141,7 +140,7 @@ public class EconomyManager {
 							contents.put(ItemType.fromId(data.getInt("type")), data.getLong("amount"));
 						}
 					}
-					item = new Crate(this, itemData.getInt("id"), itemData.getString("name"), itemData.getLong("price"), itemData.optLong("credits", -1), itemData.optBoolean("hidden", false), itemData.optBoolean("openable", true), contents);
+					yield new Crate(this, itemData.getInt("id"), itemData.getString("name"), itemData.getLong("price"), itemData.optLong("credits", -1), itemData.optBoolean("hidden", false), itemData.optBoolean("openable", true), contents);
 				}
 				case ROD -> {
 					JSONArray rodArray = itemData.getJSONArray("craft");
@@ -154,7 +153,7 @@ public class EconomyManager {
 					}
 					int rodRepairItemId = itemData.optInt("repairItem", -1);
 					CraftItem rodRepairItem = rodRepairItemId == -1 ? null : this.getItemById(rodRepairItemId, CraftItem.class);
-					item = new Rod(this, itemData.getInt("id"), itemData.getString("name"), itemData.getLong("price"), itemData.getInt("durability"), rodCraft, rodRepairItem, itemData.getLong("minYield"), itemData.getLong("maxYield"));
+					yield new Rod(this, itemData.getInt("id"), itemData.getString("name"), itemData.getLong("price"), itemData.getInt("durability"), rodCraft, rodRepairItem, itemData.getLong("minYield"), itemData.getLong("maxYield"));
 				}
 				case AXE -> {
 					JSONArray axeArray = itemData.getJSONArray("craft");
@@ -167,7 +166,7 @@ public class EconomyManager {
 					}
 					int axeRepairItemId = itemData.optInt("repairItem", -1);
 					CraftItem axeRepairItem = axeRepairItemId == -1 ? null : this.getItemById(axeRepairItemId, CraftItem.class);
-					item = new Axe(this, itemData.getInt("id"), itemData.getString("name"), itemData.getLong("price"), itemData.getInt("durability"), axeCraft, axeRepairItem, itemData.getLong("maxMaterials"), itemData.getDouble("multiplier"));
+					yield new Axe(this, itemData.getInt("id"), itemData.getString("name"), itemData.getLong("price"), itemData.getInt("durability"), axeCraft, axeRepairItem, itemData.getLong("maxMaterials"), itemData.getDouble("multiplier"));
 				}
 				case PICKAXE -> {
 					JSONArray pickaxeArray = itemData.getJSONArray("craft");
@@ -180,19 +179,16 @@ public class EconomyManager {
 					}
 					int pickaxeRepairItemId = itemData.optInt("repairItem", -1);
 					CraftItem pickaxeRepairItem = pickaxeRepairItemId == -1 ? null : this.getItemById(pickaxeRepairItemId, CraftItem.class);
-					item = new Pickaxe(this, itemData.getInt("id"), itemData.getString("name"), itemData.getLong("price"), itemData.getInt("durability"), pickaxeCraft, pickaxeRepairItem, itemData.getLong("minYield"), itemData.getLong("maxYield"), itemData.getDouble("multiplier"));
+					yield new Pickaxe(this, itemData.getInt("id"), itemData.getString("name"), itemData.getLong("price"), itemData.getInt("durability"), pickaxeCraft, pickaxeRepairItem, itemData.getLong("minYield"), itemData.getLong("maxYield"), itemData.getDouble("multiplier"));
 				}
-				default -> item = null;
-			}
+			};
 
-			if (item != null) {
-				Class<?> itemType = item.getClass();
-				do {
-					this.addItem(itemType, item);
-				} while ((itemType = itemType.getSuperclass()) != null && itemType != Object.class);
+			Class<?> itemType = item.getClass();
+			do {
+				this.addItem(itemType, item);
+			} while ((itemType = itemType.getSuperclass()) != null && itemType != Object.class);
 
-				this.itemCache.put(item.getId(), item);
-			}
+			this.itemCache.put(item.getId(), item);
 		}
 	}
 	

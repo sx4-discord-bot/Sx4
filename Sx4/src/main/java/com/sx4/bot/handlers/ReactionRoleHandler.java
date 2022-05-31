@@ -17,7 +17,7 @@ import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.events.message.MessageBulkDeleteEvent;
 import net.dv8tion.jda.api.events.message.MessageDeleteEvent;
-import net.dv8tion.jda.api.events.message.guild.react.GenericGuildMessageReactionEvent;
+import net.dv8tion.jda.api.events.message.react.GenericMessageReactionEvent;
 import net.dv8tion.jda.api.events.role.RoleDeleteEvent;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.hooks.EventListener;
@@ -37,7 +37,11 @@ public class ReactionRoleHandler implements EventListener {
 		this.bot = bot;
 	}
 
-	public void onGenericGuildMessageReaction(GenericGuildMessageReactionEvent event) {
+	public void onGenericMessageReaction(GenericMessageReactionEvent event) {
+		if (!event.isFromGuild()) {
+			return;
+		}
+
 		User user = event.getUser();
 		Guild guild = event.getGuild();
 		ReactionEmote emote = event.getReactionEmote();
@@ -165,8 +169,8 @@ public class ReactionRoleHandler implements EventListener {
 
 	@Override
 	public void onEvent(@NotNull GenericEvent event) {
-		if (event instanceof GenericGuildMessageReactionEvent) {
-			this.onGenericGuildMessageReaction((GenericGuildMessageReactionEvent) event);
+		if (event instanceof GenericMessageReactionEvent) {
+			this.onGenericMessageReaction((GenericMessageReactionEvent) event);
 		} else if (event instanceof MessageDeleteEvent) {
 			this.handle(List.of(((MessageDeleteEvent) event).getMessageIdLong()));
 		} else if (event instanceof MessageBulkDeleteEvent) {

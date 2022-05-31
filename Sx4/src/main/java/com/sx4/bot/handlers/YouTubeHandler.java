@@ -17,7 +17,7 @@ import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.MessageUtility;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.events.GenericEvent;
-import net.dv8tion.jda.api.events.channel.text.TextChannelDeleteEvent;
+import net.dv8tion.jda.api.events.channel.ChannelDeleteEvent;
 import net.dv8tion.jda.api.hooks.EventListener;
 import net.dv8tion.jda.api.sharding.ShardManager;
 import org.bson.Document;
@@ -129,8 +129,12 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 	}
 
 	public void onEvent(@NotNull GenericEvent event) {
-		if (event instanceof TextChannelDeleteEvent) {
-			long channelId = ((TextChannelDeleteEvent) event).getChannel().getIdLong();
+		if (event instanceof ChannelDeleteEvent channelEvent) {
+			if (!channelEvent.getChannelType().isMessage()) {
+				return;
+			}
+
+			long channelId = channelEvent.getChannel().getIdLong();
 
 			this.bot.getMongo().deleteManyYouTubeNotifications(Filters.eq("channelId", channelId)).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendErrorMessage(exception)) {

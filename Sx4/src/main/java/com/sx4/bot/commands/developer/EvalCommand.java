@@ -58,7 +58,7 @@ public class EvalCommand extends Sx4Command {
 		shell.setProperty("event", event);
 		shell.setProperty("JDA", event.getJDA());
 		shell.setProperty("guild", event.getGuild());
-		shell.setProperty("channel", event.getTextChannel());
+		shell.setProperty("channel", event.getChannel());
 		shell.setProperty("user", event.getAuthor());
 		shell.setProperty("member", event.getMember());
 		shell.setProperty("config", event.getConfig());
@@ -76,7 +76,7 @@ public class EvalCommand extends Sx4Command {
 						return;
 					}
 
-					string = new String(event.getMessage().getAttachments().get(0).retrieveInputStream().get().readAllBytes());
+					string = new String(event.getMessage().getAttachments().get(0).getProxy().download().get().readAllBytes());
 				} else {
 					string = evaluableString;
 				}

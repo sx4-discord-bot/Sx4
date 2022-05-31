@@ -32,18 +32,9 @@ import net.dv8tion.jda.api.audit.AuditLogEntry;
 import net.dv8tion.jda.api.audit.AuditLogKey;
 import net.dv8tion.jda.api.entities.*;
 import net.dv8tion.jda.api.events.GenericEvent;
-import net.dv8tion.jda.api.events.channel.category.CategoryCreateEvent;
-import net.dv8tion.jda.api.events.channel.category.CategoryDeleteEvent;
-import net.dv8tion.jda.api.events.channel.category.update.CategoryUpdateNameEvent;
-import net.dv8tion.jda.api.events.channel.store.StoreChannelCreateEvent;
-import net.dv8tion.jda.api.events.channel.store.StoreChannelDeleteEvent;
-import net.dv8tion.jda.api.events.channel.store.update.StoreChannelUpdateNameEvent;
-import net.dv8tion.jda.api.events.channel.text.TextChannelCreateEvent;
-import net.dv8tion.jda.api.events.channel.text.TextChannelDeleteEvent;
-import net.dv8tion.jda.api.events.channel.text.update.TextChannelUpdateNameEvent;
-import net.dv8tion.jda.api.events.channel.voice.VoiceChannelCreateEvent;
-import net.dv8tion.jda.api.events.channel.voice.VoiceChannelDeleteEvent;
-import net.dv8tion.jda.api.events.channel.voice.update.VoiceChannelUpdateNameEvent;
+import net.dv8tion.jda.api.events.channel.ChannelCreateEvent;
+import net.dv8tion.jda.api.events.channel.ChannelDeleteEvent;
+import net.dv8tion.jda.api.events.channel.update.ChannelUpdateNameEvent;
 import net.dv8tion.jda.api.events.emote.EmoteAddedEvent;
 import net.dv8tion.jda.api.events.emote.EmoteRemovedEvent;
 import net.dv8tion.jda.api.events.emote.update.EmoteUpdateNameEvent;
@@ -60,8 +51,8 @@ import net.dv8tion.jda.api.events.guild.override.PermissionOverrideDeleteEvent;
 import net.dv8tion.jda.api.events.guild.override.PermissionOverrideUpdateEvent;
 import net.dv8tion.jda.api.events.guild.voice.*;
 import net.dv8tion.jda.api.events.message.MessageBulkDeleteEvent;
-import net.dv8tion.jda.api.events.message.guild.GuildMessageDeleteEvent;
-import net.dv8tion.jda.api.events.message.guild.GuildMessageUpdateEvent;
+import net.dv8tion.jda.api.events.message.MessageDeleteEvent;
+import net.dv8tion.jda.api.events.message.MessageUpdateEvent;
 import net.dv8tion.jda.api.events.role.RoleCreateEvent;
 import net.dv8tion.jda.api.events.role.RoleDeleteEvent;
 import net.dv8tion.jda.api.events.role.update.RoleUpdateColorEvent;
@@ -186,8 +177,12 @@ public class LoggerHandler implements EventListener {
 		this.executor.schedule(runnable, LoggerHandler.DELAY, TimeUnit.MILLISECONDS);
 	}
 
-	public void onGuildMessageDelete(GuildMessageDeleteEvent event) {
-		TextChannel channel = event.getChannel();
+	public void onMessageDelete(MessageDeleteEvent event) {
+		if (!event.isFromGuild()) {
+			return;
+		}
+
+		Channel channel = event.getChannel();
 		Guild guild = event.getGuild();
 
 		LoggerEvent loggerEvent = LoggerEvent.MESSAGE_DELETE;
@@ -277,8 +272,8 @@ public class LoggerHandler implements EventListener {
 		});
 	}
 
-	public void handleBulkMessages(TextChannel textChannel, List<String> messageIds, List<Document> loggers, LoggerEvent loggerEvent, User moderator) {
-		Guild guild = textChannel.getGuild();
+	public void handleBulkMessages(GuildMessageChannel messageChannel, List<String> messageIds, List<Document> loggers, LoggerEvent loggerEvent, User moderator) {
+		Guild guild = messageChannel.getGuild();
 
 		for (Document logger : loggers) {
 			if ((logger.get("events", LoggerEvent.ALL) & loggerEvent.getRaw()) != loggerEvent.getRaw()) {
@@ -301,7 +296,7 @@ public class LoggerHandler implements EventListener {
 					.setFooter(new EmbedFooter("Message ID: " + messageId, null));
 
 				LoggerContext loggerContext = new LoggerContext()
-					.setChannel(textChannel);
+					.setChannel(messageChannel);
 
 				if (moderator != null) {
 					loggerContext.setModerator(moderator);
@@ -315,7 +310,7 @@ public class LoggerHandler implements EventListener {
 						continue;
 					}
 
-					embed.setDescription(String.format("A message sent in %s was deleted %s", textChannel.getAsMention(), reason));
+					embed.setDescription(String.format("A message sent in %s was deleted %s", messageChannel.getAsMention(), reason));
 					embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
 				} else {
 					User author = message.getAuthor();
@@ -326,7 +321,7 @@ public class LoggerHandler implements EventListener {
 						continue;
 					}
 
-					embed.setDescription(String.format("The message sent by `%s` in %s was deleted %s", author.getName(), textChannel.getAsMention(), reason));
+					embed.setDescription(String.format("The message sent by `%s` in %s was deleted %s", author.getName(), messageChannel.getAsMention(), reason));
 					embed.setAuthor(new EmbedAuthor(author.getAsTag(), author.getEffectiveAvatarUrl(), null));
 
 					String content = message.getContent();
@@ -344,7 +339,7 @@ public class LoggerHandler implements EventListener {
 
 	public void onMessageBulkDelete(MessageBulkDeleteEvent event) {
 		List<String> messageIds = event.getMessageIds();
-		TextChannel textChannel = event.getChannel();
+		GuildMessageChannel messageChannel = event.getChannel();
 		Guild guild = event.getGuild();
 
 		LoggerEvent loggerEvent = LoggerEvent.MESSAGE_DELETE;
@@ -378,19 +373,23 @@ public class LoggerHandler implements EventListener {
 						.findFirst()
 						.orElse(null);
 
-					this.handleBulkMessages(textChannel, messageIds, data.getList("loggers", Document.class), loggerEvent, entry == null ? null : entry.getUser());
+					this.handleBulkMessages(messageChannel, messageIds, data.getList("loggers", Document.class), loggerEvent, entry == null ? null : entry.getUser());
 				});
 
 				return;
 			}
 
-			this.handleBulkMessages(textChannel, messageIds, data.getList("loggers", Document.class), loggerEvent, null);
+			this.handleBulkMessages(messageChannel, messageIds, data.getList("loggers", Document.class), loggerEvent, null);
 		});
 	}
 
-	public void onGuildMessageUpdate(GuildMessageUpdateEvent event) {
+	public void onMessageUpdate(MessageUpdateEvent event) {
+		if (!event.isFromGuild()) {
+			return;
+		}
+
 		Guild guild = event.getGuild();
-		TextChannel textChannel = event.getChannel();
+		MessageChannel messageChannel = event.getChannel();
 		Member member = event.getMember();
 		User user = event.getAuthor();
 		Message message = event.getMessage();
@@ -407,13 +406,13 @@ public class LoggerHandler implements EventListener {
 		LoggerEvent loggerEvent = LoggerEvent.MESSAGE_UPDATE;
 		LoggerContext loggerContext = new LoggerContext()
 			.setUser(user)
-			.setChannel(textChannel);
+			.setChannel(messageChannel);
 
 		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
 		if (member != null) {
-			embed.setDescription(String.format("`%s` edited their [message](%s) in %s", member.getEffectiveName(), message.getJumpUrl(), textChannel.getAsMention()));
+			embed.setDescription(String.format("`%s` edited their [message](%s) in %s", member.getEffectiveName(), message.getJumpUrl(), messageChannel.getAsMention()));
 		} else {
-			embed.setDescription(String.format("`%s` edited their [message](%s) in %s", user.getName(), message.getJumpUrl(), textChannel.getAsMention()));
+			embed.setDescription(String.format("`%s` edited their [message](%s) in %s", user.getName(), message.getJumpUrl(), messageChannel.getAsMention()));
 		}
 
 		embed.setAuthor(new EmbedAuthor(user.getAsTag(), user.getEffectiveAvatarUrl(), null));
@@ -692,7 +691,7 @@ public class LoggerHandler implements EventListener {
 		Guild guild = event.getGuild();
 		Member member = event.getMember();
 		User user = member.getUser();
-		VoiceChannel channel = event.getChannelJoined();
+		AudioChannel channel = event.getChannelJoined();
 
 		LoggerEvent loggerEvent = LoggerEvent.MEMBER_VOICE_JOIN;
 		LoggerContext loggerContext = new LoggerContext()
@@ -725,7 +724,7 @@ public class LoggerHandler implements EventListener {
 		Guild guild = event.getGuild();
 		Member member = event.getMember();
 		User user = member.getUser();
-		VoiceChannel channel = event.getChannelLeft();
+		AudioChannel channel = event.getChannelLeft();
 
 		LoggerContext loggerContext = new LoggerContext()
 			.setChannel(channel)
@@ -796,7 +795,7 @@ public class LoggerHandler implements EventListener {
 		Guild guild = event.getGuild();
 		Member member = event.getMember();
 		User user = member.getUser();
-		VoiceChannel joined = event.getChannelJoined(), left = event.getChannelLeft();
+		AudioChannel joined = event.getChannelJoined(), left = event.getChannelLeft();
 
 		LoggerEvent loggerEvent = LoggerEvent.MEMBER_VOICE_MOVE;
 		LoggerContext loggerContext = new LoggerContext()
@@ -867,7 +866,7 @@ public class LoggerHandler implements EventListener {
 		Member member = event.getMember();
 		User user = member.getUser();
 		GuildVoiceState voiceState = event.getVoiceState();
-		VoiceChannel channel = voiceState.getChannel();
+		AudioChannel channel = voiceState.getChannel();
 
 		boolean muted = voiceState.isGuildMuted();
 
@@ -928,7 +927,7 @@ public class LoggerHandler implements EventListener {
 		Member member = event.getMember();
 		User user = member.getUser();
 		GuildVoiceState voiceState = event.getVoiceState();
-		VoiceChannel channel = voiceState.getChannel();
+		AudioChannel channel = voiceState.getChannel();
 
 		boolean deafened = voiceState.isGuildDeafened();
 
@@ -992,7 +991,6 @@ public class LoggerHandler implements EventListener {
 		ChannelType channelType = event.getChannelType();
 
 		LoggerEvent loggerEvent = channelType == ChannelType.CATEGORY ? LoggerEvent.CATEGORY_OVERRIDE_CREATE :
-			channelType == ChannelType.STORE ? LoggerEvent.STORE_CHANNEL_OVERRIDE_CREATE :
 			channelType == ChannelType.VOICE ? LoggerEvent.VOICE_CHANNEL_OVERRIDE_CREATE :
 			LoggerEvent.TEXT_CHANNEL_OVERRIDE_CREATE;
 
@@ -1073,7 +1071,6 @@ public class LoggerHandler implements EventListener {
 		ChannelType channelType = event.getChannelType();
 
 		LoggerEvent loggerEvent = channelType == ChannelType.CATEGORY ? LoggerEvent.CATEGORY_OVERRIDE_CREATE :
-			channelType == ChannelType.STORE ? LoggerEvent.STORE_CHANNEL_OVERRIDE_CREATE :
 			channelType == ChannelType.VOICE ? LoggerEvent.VOICE_CHANNEL_OVERRIDE_CREATE :
 			LoggerEvent.TEXT_CHANNEL_OVERRIDE_CREATE;
 
@@ -1158,7 +1155,6 @@ public class LoggerHandler implements EventListener {
 		boolean roleOverride = event.isRoleOverride();
 
 		LoggerEvent loggerEvent = channelType == ChannelType.CATEGORY ? LoggerEvent.CATEGORY_OVERRIDE_DELETE :
-			channelType == ChannelType.STORE ? LoggerEvent.STORE_CHANNEL_OVERRIDE_DELETE :
 			channelType == ChannelType.VOICE ? LoggerEvent.VOICE_CHANNEL_OVERRIDE_DELETE :
 			LoggerEvent.TEXT_CHANNEL_OVERRIDE_DELETE;
 
@@ -1280,20 +1276,18 @@ public class LoggerHandler implements EventListener {
 		});
 	}
 
-	public void onTextChannelDelete(TextChannelDeleteEvent event) {
-		this.onChannelDelete(event.getChannel(), LoggerEvent.TEXT_CHANNEL_DELETE);
-	}
+	public void onChannelDelete(ChannelDeleteEvent event) {
+		if (!event.isFromGuild()) {
+			return;
+		}
 
-	public void onVoiceChannelDelete(VoiceChannelDeleteEvent event) {
-		this.onChannelDelete(event.getChannel(), LoggerEvent.VOICE_CHANNEL_DELETE);
-	}
+		ChannelType channelType = event.getChannelType();
+		LoggerEvent loggerEvent = channelType == ChannelType.CATEGORY ? LoggerEvent.CATEGORY_DELETE :
+			channelType == ChannelType.VOICE ? LoggerEvent.VOICE_CHANNEL_DELETE :
+			channelType.isThread() ? LoggerEvent.THREAD_CHANNEL_DELETE :
+			LoggerEvent.TEXT_CHANNEL_DELETE;
 
-	public void onCategoryDelete(CategoryDeleteEvent event) {
-		this.onChannelDelete(event.getCategory(), LoggerEvent.CATEGORY_DELETE);
-	}
-
-	public void onStoreChannelDelete(StoreChannelDeleteEvent event) {
-		this.onChannelDelete(event.getChannel(), LoggerEvent.STORE_CHANNEL_DELETE);
+		this.onChannelDelete((GuildChannel) event.getChannel(), loggerEvent);
 	}
 
 	public void onChannelCreate(GuildChannel channel, LoggerEvent loggerEvent) {
@@ -1350,20 +1344,18 @@ public class LoggerHandler implements EventListener {
 		});
 	}
 
-	public void onTextChannelCreate(TextChannelCreateEvent event) {
-		this.onChannelCreate(event.getChannel(), LoggerEvent.TEXT_CHANNEL_CREATE);
-	}
+	public void onChannelCreate(ChannelCreateEvent event) {
+		if (!event.isFromGuild()) {
+			return;
+		}
 
-	public void onVoiceChannelCreate(VoiceChannelCreateEvent event) {
-		this.onChannelCreate(event.getChannel(), LoggerEvent.VOICE_CHANNEL_CREATE);
-	}
+		ChannelType channelType = event.getChannelType();
+		LoggerEvent loggerEvent = channelType == ChannelType.CATEGORY ? LoggerEvent.CATEGORY_CREATE :
+			channelType == ChannelType.VOICE ? LoggerEvent.VOICE_CHANNEL_CREATE :
+			channelType.isThread() ? LoggerEvent.THREAD_CHANNEL_CREATE :
+			LoggerEvent.TEXT_CHANNEL_CREATE;
 
-	public void onCategoryCreate(CategoryCreateEvent event) {
-		this.onChannelCreate(event.getCategory(), LoggerEvent.CATEGORY_CREATE);
-	}
-
-	public void onStoreChannelCreate(StoreChannelCreateEvent event) {
-		this.onChannelCreate(event.getChannel(), LoggerEvent.STORE_CHANNEL_CREATE);
+		this.onChannelCreate((GuildChannel) event.getChannel(), loggerEvent);
 	}
 
 	public void onChannelUpdateName(GuildChannel channel, String oldName, LoggerEvent loggerEvent) {
@@ -1424,20 +1416,18 @@ public class LoggerHandler implements EventListener {
 		});
 	}
 
-	public void onTextChannelUpdateName(TextChannelUpdateNameEvent event) {
-		this.onChannelUpdateName(event.getEntity(), event.getOldName(), LoggerEvent.TEXT_CHANNEL_NAME_UPDATE);
-	}
+	public void onChannelUpdateName(ChannelUpdateNameEvent event) {
+		if (!event.isFromGuild()) {
+			return;
+		}
 
-	public void onVoiceChannelUpdateName(VoiceChannelUpdateNameEvent event) {
-		this.onChannelUpdateName(event.getEntity(), event.getOldName(), LoggerEvent.VOICE_CHANNEL_NAME_UPDATE);
-	}
+		ChannelType channelType = event.getChannelType();
+		LoggerEvent loggerEvent = channelType == ChannelType.CATEGORY ? LoggerEvent.CATEGORY_NAME_UPDATE :
+			channelType == ChannelType.VOICE ? LoggerEvent.VOICE_CHANNEL_NAME_UPDATE :
+			channelType.isThread() ? LoggerEvent.THREAD_CHANNEL_NAME_UPDATE :
+			LoggerEvent.TEXT_CHANNEL_NAME_UPDATE;
 
-	public void onCategoryUpdateName(CategoryUpdateNameEvent event) {
-		this.onChannelUpdateName(event.getEntity(), event.getOldName(), LoggerEvent.CATEGORY_NAME_UPDATE);
-	}
-
-	public void onStoreChannelUpdateName(StoreChannelUpdateNameEvent event) {
-		this.onChannelUpdateName(event.getEntity(), event.getOldName(), LoggerEvent.STORE_CHANNEL_NAME_UPDATE);
+		this.onChannelUpdateName((GuildChannel) event.getChannel(), event.getOldValue(), loggerEvent);
 	}
 
 	public void onRoleCreate(RoleCreateEvent event) {
@@ -2234,12 +2224,12 @@ public class LoggerHandler implements EventListener {
 
 	@Override
 	public void onEvent(@NotNull GenericEvent event) {
-		if (event instanceof GuildMessageDeleteEvent) {
-			this.onGuildMessageDelete((GuildMessageDeleteEvent) event);
+		if (event instanceof MessageDeleteEvent) {
+			this.onMessageDelete((MessageDeleteEvent) event);
 		} else if (event instanceof MessageBulkDeleteEvent) {
 			this.onMessageBulkDelete((MessageBulkDeleteEvent) event);
-		} else if (event instanceof GuildMessageUpdateEvent) {
-			this.onGuildMessageUpdate((GuildMessageUpdateEvent) event);
+		} else if (event instanceof MessageUpdateEvent) {
+			this.onMessageUpdate((MessageUpdateEvent) event);
 		} else if (event instanceof GuildMemberJoinEvent) {
 			this.onGuildMemberJoin((GuildMemberJoinEvent) event);
 		} else if (event instanceof GuildMemberRemoveEvent) {
@@ -2264,30 +2254,12 @@ public class LoggerHandler implements EventListener {
 			this.onPermissionOverrideUpdate((PermissionOverrideUpdateEvent) event);
 		} else if (event instanceof PermissionOverrideDeleteEvent) {
 			this.onPermissionOverrideDelete((PermissionOverrideDeleteEvent) event);
-		} else if (event instanceof TextChannelDeleteEvent) {
-			this.onTextChannelDelete((TextChannelDeleteEvent) event);
-		} else if (event instanceof VoiceChannelDeleteEvent) {
-			this.onVoiceChannelDelete((VoiceChannelDeleteEvent) event);
-		} else if (event instanceof CategoryDeleteEvent) {
-			this.onCategoryDelete((CategoryDeleteEvent) event);
-		} else if (event instanceof StoreChannelDeleteEvent) {
-			this.onStoreChannelDelete((StoreChannelDeleteEvent) event);
-		} else if (event instanceof TextChannelCreateEvent) {
-			this.onTextChannelCreate((TextChannelCreateEvent) event);
-		} else if (event instanceof VoiceChannelCreateEvent) {
-			this.onVoiceChannelCreate((VoiceChannelCreateEvent) event);
-		} else if (event instanceof CategoryCreateEvent) {
-			this.onCategoryCreate((CategoryCreateEvent) event);
-		} else if (event instanceof StoreChannelCreateEvent) {
-			this.onStoreChannelCreate((StoreChannelCreateEvent) event);
-		} else if (event instanceof TextChannelUpdateNameEvent) {
-			this.onTextChannelUpdateName((TextChannelUpdateNameEvent) event);
-		} else if (event instanceof VoiceChannelUpdateNameEvent) {
-			this.onVoiceChannelUpdateName((VoiceChannelUpdateNameEvent) event);
-		} else if (event instanceof CategoryUpdateNameEvent) {
-			this.onCategoryUpdateName((CategoryUpdateNameEvent) event);
-		} else if (event instanceof StoreChannelUpdateNameEvent) {
-			this.onStoreChannelUpdateName((StoreChannelUpdateNameEvent) event);
+		} else if (event instanceof ChannelDeleteEvent) {
+			this.onChannelDelete((ChannelDeleteEvent) event);
+		} else if (event instanceof ChannelCreateEvent) {
+			this.onChannelCreate((ChannelCreateEvent) event);
+		} else if (event instanceof ChannelUpdateNameEvent) {
+			this.onChannelUpdateName((ChannelUpdateNameEvent) event);
 		} else if (event instanceof RoleCreateEvent) {
 			this.onRoleCreate((RoleCreateEvent) event);
 		} else if (event instanceof RoleDeleteEvent) {

@@ -5,6 +5,7 @@ import com.jockie.bot.core.command.Command;
 import com.mongodb.ErrorCategory;
 import com.mongodb.MongoWriteException;
 import com.mongodb.client.model.*;
+import com.mongodb.client.result.InsertOneResult;
 import com.sx4.bot.annotations.argument.AdvancedMessage;
 import com.sx4.bot.annotations.argument.ImageUrl;
 import com.sx4.bot.annotations.command.AuthorPermissions;
@@ -29,6 +30,8 @@ import com.sx4.bot.utility.FutureUtility;
 import com.sx4.bot.utility.MessageUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.BaseGuildMessageChannel;
+import net.dv8tion.jda.api.entities.MessageChannel;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.requests.ErrorResponse;
@@ -71,18 +74,43 @@ public class YouTubeNotificationCommand extends Sx4Command {
 	public void onCommand(Sx4CommandEvent event) {
 		event.replyHelp().queue();
 	}
+
+	public CompletableFuture<InsertOneResult> addNotification(Sx4CommandEvent event, long channelId, Document data) {
+		List<Bson> pipeline = List.of(
+			Aggregates.match(Filters.eq("guildId", event.getGuild().getIdLong())),
+			Aggregates.group(null, Accumulators.push("notifications", Operators.ROOT)),
+			Aggregates.project(Projections.computed("webhook", Operators.first(Operators.map(Operators.filter(Operators.ifNull("$notifications", Collections.EMPTY_LIST), Operators.and(Operators.exists("$$this.webhook"), Operators.eq("$$this.channelId", channelId))), "$$this.webhook"))))
+		);
+
+		return event.getMongo().aggregateYouTubeNotifications(pipeline).thenCompose(documents -> {
+			Document aggregate = documents.isEmpty() ? null : documents.get(0);
+
+			Document webhook = aggregate == null ? null : aggregate.get("webhook", Document.class);
+			if (webhook != null) {
+				data.append("webhook", webhook);
+			}
+
+			return event.getMongo().insertYouTubeNotification(data);
+		});
+	}
 	
 	@Command(value="add", description="Add a youtube notification to be posted to a specific channel when the user uploads")
 	@CommandId(158)
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	@Examples({"youtube notification add videos mrbeast", "youtube notification add mrbeast", "youtube notification add #videos pewdiepie"})
-	public void add(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) TextChannel channel, @Argument(value="youtube channel", endless=true) String channelQuery) {
+	public void add(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) BaseGuildMessageChannel channel, @Argument(value="youtube channel", endless=true) String channelQuery) {
 		if (!event.getBot().getConnectionHandler().isReady()) {
 			event.replyFailure("The bot has to be fully started to use this command, try again later").queue();
 			return;
 		}
 
-		TextChannel effectiveChannel = channel == null ? event.getTextChannel() : channel;
+		MessageChannel messageChannel = event.getChannel();
+		if (channel == null && !(messageChannel instanceof BaseGuildMessageChannel)) {
+			event.replyFailure("You cannot use this channel type").queue();
+			return;
+		}
+
+		BaseGuildMessageChannel effectiveChannel = channel == null ? (BaseGuildMessageChannel) messageChannel : channel;
 
 		boolean id = this.id.matcher(channelQuery).matches();
 		boolean search;
@@ -138,7 +166,7 @@ public class YouTubeNotificationCommand extends Sx4Command {
 				
 				event.getHttpClient().newCall(request).enqueue((HttpCallback) response -> {
 					if (response.isSuccessful()) {
-						event.getMongo().insertYouTubeNotification(notificationData).whenComplete((result, exception) -> {
+						this.addNotification(event, effectiveChannel.getIdLong(), notificationData).whenComplete((result, exception) -> {
 							Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
 							if (cause instanceof MongoWriteException && ((MongoWriteException) cause).getError().getCategory() == ErrorCategory.DUPLICATE_KEY) {
 								event.replyFailure("You already have a notification setup for that youtube channel in " + effectiveChannel.getAsMention()).queue();
@@ -156,7 +184,7 @@ public class YouTubeNotificationCommand extends Sx4Command {
 					}
 				});
 			} else {
-				event.getMongo().insertYouTubeNotification(notificationData).whenComplete((result, exception) -> {
+				this.addNotification(event, effectiveChannel.getIdLong(), notificationData).whenComplete((result, exception) -> {
 					Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
 					if (cause instanceof MongoWriteException && ((MongoWriteException) cause).getError().getCategory() == ErrorCategory.DUPLICATE_KEY) {
 						event.replyFailure("You already have a notification setup for that youtube channel in " + effectiveChannel.getAsMention()).queue();
@@ -364,7 +392,7 @@ public class YouTubeNotificationCommand extends Sx4Command {
 				.parse();
 
 			try {
-				MessageUtility.fromWebhookMessage(event.getTextChannel(), MessageUtility.fromJson(message).build()).queue();
+				MessageUtility.fromWebhookMessage(event.getChannel(), MessageUtility.fromJson(message).build()).queue();
 			} catch (IllegalArgumentException e) {
 				event.replyFailure(e.getMessage()).queue();
 			}

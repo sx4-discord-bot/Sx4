@@ -31,10 +31,7 @@ import com.sx4.bot.utility.RequestUtility;
 import com.sx4.bot.utility.WelcomerUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
-import net.dv8tion.jda.api.entities.Guild;
-import net.dv8tion.jda.api.entities.Member;
-import net.dv8tion.jda.api.entities.TextChannel;
-import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.entities.*;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.requests.ErrorResponse;
 import okhttp3.Request;
@@ -85,8 +82,14 @@ public class WelcomerCommand extends Sx4Command {
 	@CommandId(93)
 	@Examples({"welcomer channel", "welcomer channel #joins", "welcomer channel reset"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-	public void channel(Sx4CommandEvent event, @Argument(value="channel | reset", endless=true, nullDefault=true) @AlternativeOptions("reset") Alternative<TextChannel> option) {
-		TextChannel channel = option == null ? event.getTextChannel() : option.isAlternative() ? null : option.getValue();
+	public void channel(Sx4CommandEvent event, @Argument(value="channel | reset", endless=true, nullDefault=true) @AlternativeOptions("reset") Alternative<BaseGuildMessageChannel> option) {
+		MessageChannel messageChannel = event.getChannel();
+		if (option == null && !(messageChannel instanceof BaseGuildMessageChannel)) {
+			event.replyFailure("You cannot use this channel type").queue();
+			return;
+		}
+
+		BaseGuildMessageChannel channel = option == null ? (BaseGuildMessageChannel) messageChannel : option.isAlternative() ? null : option.getValue();
 
 		List<Bson> update = List.of(Operators.set("welcomer.channelId", channel == null ? Operators.REMOVE : channel.getIdLong()), Operators.unset("welcomer.webhook.id"), Operators.unset("welcomer.webhook.token"));
 		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().upsert(true).projection(Projections.include("welcomer.webhook.id", "welcomer.channelId")).returnDocument(ReturnDocument.BEFORE);
@@ -282,7 +285,7 @@ public class WelcomerCommand extends Sx4Command {
 				return;
 			}
 
-			MessageUtility.fromWebhookMessage(event.getTextChannel(), builder.build()).queue();
+			MessageUtility.fromWebhookMessage(event.getChannel(), builder.build()).queue();
 		});
 	}
 

@@ -20,8 +20,8 @@ import net.dv8tion.jda.api.entities.*;
 import net.dv8tion.jda.api.entities.Message.Attachment;
 import net.dv8tion.jda.api.entities.MessageReaction.ReactionEmote;
 import net.dv8tion.jda.api.events.GenericEvent;
-import net.dv8tion.jda.api.events.message.guild.react.GuildMessageReactionAddEvent;
-import net.dv8tion.jda.api.events.message.guild.react.GuildMessageReactionRemoveEvent;
+import net.dv8tion.jda.api.events.message.react.MessageReactionAddEvent;
+import net.dv8tion.jda.api.events.message.react.MessageReactionRemoveEvent;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.hooks.EventListener;
 import net.dv8tion.jda.api.requests.ErrorResponse;
@@ -117,7 +117,11 @@ public class StarboardHandler implements EventListener {
 		return MessageUtility.fromJson(formatter.parse());
 	}
 
-	public void onGuildMessageReactionAdd(GuildMessageReactionAddEvent event) {
+	public void onMessageReactionAdd(MessageReactionAddEvent event) {
+		if (!event.isFromGuild()) {
+			return;
+		}
+
 		if (event.getUser().isBot()) {
 			return;
 		}
@@ -151,8 +155,8 @@ public class StarboardHandler implements EventListener {
 
 			long channelId = starboard.get("channelId", 0L), messageChannelId = data.get("channelId", 0L);
 
-			TextChannel messageChannel = messageChannelId == 0L ? event.getChannel() : event.getGuild().getTextChannelById(messageChannelId);
-			TextChannel channel = channelId == 0L ? null : event.getGuild().getTextChannelById(channelId);
+			GuildMessageChannel messageChannel = messageChannelId == 0L ? (GuildMessageChannel) event.getChannel() : event.getGuild().getChannelById(GuildMessageChannel.class, messageChannelId);
+			BaseGuildMessageChannel channel = channelId == 0L ? null : event.getGuild().getChannelById(BaseGuildMessageChannel.class, channelId);
 
 			if (channel == null || messageChannel == null) {
 				return;
@@ -231,7 +235,11 @@ public class StarboardHandler implements EventListener {
 		});
 	}
 
-	public void onGuildMessageReactionRemove(GuildMessageReactionRemoveEvent event) {
+	public void onMessageReactionRemove(MessageReactionRemoveEvent event) {
+		if (!event.isFromGuild()) {
+			return;
+		}
+
 		User user = event.getUser();
 		if (user == null || user.isBot()) {
 			return;
@@ -321,10 +329,10 @@ public class StarboardHandler implements EventListener {
 
 	@Override
 	public void onEvent(@NotNull GenericEvent event) {
-		if (event instanceof GuildMessageReactionAddEvent) {
-			this.onGuildMessageReactionAdd((GuildMessageReactionAddEvent) event);
-		} else if (event instanceof GuildMessageReactionRemoveEvent) {
-			this.onGuildMessageReactionRemove((GuildMessageReactionRemoveEvent) event);
+		if (event instanceof MessageReactionAddEvent) {
+			this.onMessageReactionAdd((MessageReactionAddEvent) event);
+		} else if (event instanceof MessageReactionRemoveEvent) {
+			this.onMessageReactionRemove((MessageReactionRemoveEvent) event);
 		}
 	}
 

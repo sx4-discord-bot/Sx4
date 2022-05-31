@@ -1,7 +1,8 @@
 package com.sx4.bot.entities.management;
 
+import com.sx4.bot.utility.LoggerUtility;
+import net.dv8tion.jda.api.entities.Channel;
 import net.dv8tion.jda.api.entities.Emote;
-import net.dv8tion.jda.api.entities.GuildChannel;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.User;
 
@@ -63,8 +64,8 @@ public class LoggerContext {
 		return this;
 	}
 
-	public LoggerContext setChannel(GuildChannel channel) {
-		return this.setChannel(channel.getIdLong());
+	public LoggerContext setChannel(Channel channel) {
+		return this.setChannel(LoggerUtility.getChannelId(channel));
 	}
 
 	public long getModeratorId() {

@@ -7,8 +7,8 @@ import com.sx4.bot.formatter.JsonFormatter;
 import com.sx4.bot.formatter.function.FormatterResponse;
 import com.sx4.bot.handlers.TriggerHandler;
 import com.sx4.bot.http.HttpCallback;
+import net.dv8tion.jda.api.entities.GuildMessageChannel;
 import net.dv8tion.jda.api.entities.Message;
-import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.internal.requests.RestActionImpl;
 import net.dv8tion.jda.internal.requests.Route;
 import net.dv8tion.jda.internal.utils.EncodingUtil;
@@ -26,7 +26,7 @@ import java.util.stream.Collectors;
 public class TriggerUtility {
 
 	public static List<CompletableFuture<Void>> executeActions(Document trigger, Message message) {
-		TextChannel channel = message.getTextChannel();
+		GuildMessageChannel channel = message.getGuildChannel();
 
 		FormatterManager manager = FormatterManager.getDefaultManager()
 			.addVariable("member", message.getMember())
@@ -99,13 +99,13 @@ public class TriggerUtility {
 		return future;
 	}
 
-	public static CompletableFuture<Void> sendMessage(FormatterManager manager, Document oldAction, TextChannel channel) {
+	public static CompletableFuture<Void> sendMessage(FormatterManager manager, Document oldAction, GuildMessageChannel channel) {
 		Document action = new JsonFormatter(oldAction, manager).parse();
 
 		String channelId = action.getString("channelId");
-		TextChannel textChannel = channelId == null ? channel : channel.getGuild().getTextChannelById(channelId);
+		GuildMessageChannel messageChannel = channelId == null ? channel : channel.getGuild().getTextChannelById(channelId);
 
-		return MessageUtility.fromWebhookMessage(textChannel, MessageUtility.fromJson(action.get("response", Document.class)).build()).allowedMentions(EnumSet.allOf(Message.MentionType.class)).submit()
+		return MessageUtility.fromWebhookMessage(messageChannel, MessageUtility.fromJson(action.get("response", Document.class)).build()).allowedMentions(EnumSet.allOf(Message.MentionType.class)).submit()
 			.thenApply(message -> {
 				manager.addVariable(action.get("variable", "message"), message);
 				return null;
@@ -115,7 +115,7 @@ public class TriggerUtility {
 	public static CompletableFuture<Void> addReaction(FormatterManager manager, Document oldAction, Message message) {
 		Document action = new JsonFormatter(oldAction, manager).parse();
 
-		String channelId = action.get("channelId", message.getTextChannel().getId());
+		String channelId = action.get("channelId", message.getChannel().getId());
 		String messageId = action.get("messageId", message.getId());
 
 		Document emote = action.get("emote", Document.class);

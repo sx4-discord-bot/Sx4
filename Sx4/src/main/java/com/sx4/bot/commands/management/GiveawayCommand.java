@@ -18,20 +18,22 @@ import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.argument.Alternative;
 import com.sx4.bot.entities.argument.MessageArgument;
+import com.sx4.bot.entities.interaction.ButtonType;
+import com.sx4.bot.entities.interaction.CustomButtonId;
 import com.sx4.bot.paged.PagedResult;
-import com.sx4.bot.utility.*;
+import com.sx4.bot.utility.ExceptionUtility;
+import com.sx4.bot.utility.NumberUtility;
+import com.sx4.bot.utility.SearchUtility;
+import com.sx4.bot.utility.TimeUtility;
 import com.sx4.bot.waiter.Waiter;
-import com.sx4.bot.waiter.exception.CancelException;
-import com.sx4.bot.waiter.exception.TimeoutException;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.BaseGuildMessageChannel;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.entities.User;
-import net.dv8tion.jda.api.events.GenericEvent;
-import net.dv8tion.jda.api.events.interaction.ButtonClickEvent;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
-import net.dv8tion.jda.api.interactions.components.Button;
+import net.dv8tion.jda.api.interactions.components.buttons.Button;
 import net.dv8tion.jda.api.sharding.ShardManager;
 import org.bson.Document;
 import org.bson.conversions.Bson;
@@ -44,7 +46,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
@@ -77,7 +78,7 @@ public class GiveawayCommand extends Sx4Command {
 	@CommandId(47)
 	@Examples({"giveaway setup", "giveaway setup #giveaways 1 7d $10 Nitro"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-	public void setup(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) TextChannel channel, @Argument(value="winners") @DefaultNumber(0) @Limit(min=1) int winners, @Argument(value="duration", nullDefault=true) Duration duration, @Argument(value="item", nullDefault=true, endless=true) String item) {
+	public void setup(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) BaseGuildMessageChannel channel, @Argument(value="winners") @DefaultNumber(0) @Limit(min=1) int winners, @Argument(value="duration", nullDefault=true) Duration duration, @Argument(value="item", nullDefault=true, endless=true) String item) {
 		if (channel != null && winners != 0 && duration != null && item != null) {
 			long seconds = duration.toSeconds();
 			if (seconds < 1) {
@@ -110,7 +111,7 @@ public class GiveawayCommand extends Sx4Command {
 			return;
 		}
 		
-		AtomicReference<TextChannel> atomicChannel = new AtomicReference<>();
+		AtomicReference<BaseGuildMessageChannel> atomicChannel = new AtomicReference<>();
 		AtomicInteger atomicWinners = new AtomicInteger();
 		AtomicReference<Duration> atomicDuration = new AtomicReference<>();
 		AtomicReference<String> atomicItem = new AtomicReference<>();
@@ -129,9 +130,9 @@ public class GiveawayCommand extends Sx4Command {
 					.setCancelPredicate(e -> e.getMessage().getContentRaw().equalsIgnoreCase("cancel"))
 					.setTimeout(30)
 					.setPredicate(e -> {
-						TextChannel textChannel = SearchUtility.getTextChannel(event.getGuild(), e.getMessage().getContentRaw());
-						if (textChannel != null) {
-							atomicChannel.set(textChannel);
+						BaseGuildMessageChannel messageChannel = SearchUtility.getBaseMessageChannel(event.getGuild(), e.getMessage().getContentRaw());
+						if (messageChannel != null) {
+							atomicChannel.set(messageChannel);
 							
 							return true;
 						}
@@ -305,7 +306,7 @@ public class GiveawayCommand extends Sx4Command {
 				return;
 			}
 			
-			TextChannel channelFuture = atomicChannel.get();
+			BaseGuildMessageChannel channelFuture = atomicChannel.get();
 			int winnersFuture = atomicWinners.get();
 			long durationFuture = atomicDuration.get().toSeconds();
 			String itemFuture = atomicItem.get();
@@ -423,45 +424,23 @@ public class GiveawayCommand extends Sx4Command {
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void delete(Sx4CommandEvent event, @Argument(value="message id | all") @AlternativeOptions("all") Alternative<MessageArgument> option) {
 		if (option.isAlternative()) {
-			List<Button> buttons = List.of(Button.success("yes", "Yes"), Button.danger("no", "No"));
+			String acceptId = new CustomButtonId.Builder()
+				.setType(ButtonType.GIVEAWAY_DELETE_CONFIRM)
+				.setTimeout(60)
+				.setOwners(event.getAuthor().getIdLong())
+				.getId();
 
-			event.reply(event.getAuthor().getName() + ", are you sure you want to delete **all** giveaways in this server?").setActionRow(buttons).submit()
-				.thenCompose(message -> {
-					return new Waiter<>(event.getBot(), ButtonClickEvent.class)
-						.setPredicate(e -> ButtonUtility.handleButtonConfirmation(e, message, event.getAuthor()))
-						.setCancelPredicate(e -> ButtonUtility.handleButtonCancellation(e, message, event.getAuthor()))
-						.onFailure(e -> ButtonUtility.handleButtonFailure(e, message))
-						.setTimeout(60)
-						.start();
-				}).whenComplete((e, exception) -> {
-					Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
-					if (cause instanceof CancelException) {
-						GenericEvent cancelEvent = ((CancelException) cause).getEvent();
-						if (cancelEvent != null) {
-							((ButtonClickEvent) cancelEvent).reply("Cancelled " + event.getConfig().getSuccessEmote()).queue();
-						}
+			String rejectId = new CustomButtonId.Builder()
+				.setType(ButtonType.GENERIC_REJECT)
+				.setTimeout(60)
+				.setOwners(event.getAuthor().getIdLong())
+				.getId();
 
-						return;
-					} else if (cause instanceof TimeoutException) {
-						event.reply("Timed out :stopwatch:").queue();
-						return;
-					} else if (ExceptionUtility.sendExceptionally(event, exception)) {
-						return;
-					}
+			List<Button> buttons = List.of(Button.success(acceptId, "Yes"), Button.danger(rejectId, "No"));
 
-					event.getMongo().deleteManyGiveaways(Filters.eq("guildId", event.getGuild().getIdLong())).whenComplete((result, databaseException) -> {
-						if (ExceptionUtility.sendExceptionally(event, databaseException)) {
-							return;
-						}
-
-						if (result.getDeletedCount() == 0) {
-							e.reply("There are no giveaways in this server " + event.getConfig().getFailureEmote()).queue();
-							return;
-						}
-
-						e.reply("All giveaways in this server have been deleted " + event.getConfig().getSuccessEmote()).queue();
-					});
-				});
+			event.reply(event.getAuthor().getName() + ", are you sure you want to delete **all** giveaways in this server?")
+				.setActionRow(buttons)
+				.queue();
 		} else {
 			long messageId = option.getValue().getMessageId();
 			event.getMongo().deleteGiveawayById(messageId).whenComplete((result, exception) -> {

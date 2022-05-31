@@ -14,22 +14,18 @@ import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.argument.Alternative;
+import com.sx4.bot.entities.interaction.ButtonType;
+import com.sx4.bot.entities.interaction.CustomButtonId;
 import com.sx4.bot.entities.settings.HolderType;
 import com.sx4.bot.paged.PagedResult;
-import com.sx4.bot.utility.ButtonUtility;
 import com.sx4.bot.utility.ExceptionUtility;
-import com.sx4.bot.waiter.Waiter;
-import com.sx4.bot.waiter.exception.CancelException;
-import com.sx4.bot.waiter.exception.TimeoutException;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.IPermissionHolder;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.User;
-import net.dv8tion.jda.api.events.GenericEvent;
-import net.dv8tion.jda.api.events.interaction.ButtonClickEvent;
-import net.dv8tion.jda.api.interactions.components.Button;
+import net.dv8tion.jda.api.interactions.components.buttons.Button;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 
@@ -37,7 +33,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
-import java.util.concurrent.CompletionException;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -169,39 +164,23 @@ public class FakePermissionsCommand extends Sx4Command {
 
 			paged.execute(event);
 		} else if (option.isAlternative()) {
-			List<Button> buttons = List.of(Button.success("yes", "Yes"), Button.danger("no", "No"));
+			String acceptId = new CustomButtonId.Builder()
+				.setType(ButtonType.FAKE_PERMISSIONS_DELETE_CONFIRM)
+				.setOwners(event.getAuthor().getIdLong())
+				.setTimeout(60)
+				.getId();
 
-			event.reply(event.getAuthor().getName() + ", are you sure you want to delete **all** fake permissions data?").setActionRow(buttons).submit().thenCompose(message -> {
-				return new Waiter<>(event.getBot(), ButtonClickEvent.class)
-					.setPredicate(e -> ButtonUtility.handleButtonConfirmation(e, message, event.getAuthor()))
-					.setCancelPredicate(e -> ButtonUtility.handleButtonCancellation(e, message, event.getAuthor()))
-					.onFailure(e -> ButtonUtility.handleButtonFailure(e, message))
-					.setTimeout(60)
-					.start();
-			}).whenComplete((e, exception) -> {
-				Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
-				if (cause instanceof CancelException) {
-					GenericEvent cancelEvent = ((CancelException) cause).getEvent();
-					if (cancelEvent != null) {
-						((ButtonClickEvent) cancelEvent).reply("Cancelled " + event.getConfig().getSuccessEmote()).queue();
-					}
+			String rejectId = new CustomButtonId.Builder()
+				.setType(ButtonType.GENERIC_REJECT)
+				.setOwners(event.getAuthor().getIdLong())
+				.setTimeout(60)
+				.getId();
 
-					return;
-				} else if (cause instanceof TimeoutException) {
-					event.reply("Timed out :stopwatch:").queue();
-					return;
-				} else if (ExceptionUtility.sendExceptionally(event, exception)) {
-					return;
-				}
+			List<Button> buttons = List.of(Button.success(acceptId, "Yes"), Button.danger(rejectId, "No"));
 
-				event.getMongo().updateGuildById(event.getGuild().getIdLong(), Updates.unset("fakePermissions.holders")).whenComplete((result, databaseException) -> {
-					if (ExceptionUtility.sendExceptionally(event, databaseException)) {
-						return;
-					}
-
-					e.reply("All fake permission data has been deleted in this server " + event.getConfig().getSuccessEmote()).queue();
-				});
-			});
+			event.reply(event.getAuthor().getName() + ", are you sure you want to delete **all** fake permissions data?")
+				.setActionRow(buttons)
+				.queue();
 		} else {
 			IPermissionHolder holder = option.getValue();
 			boolean role = holder instanceof Role;

@@ -19,7 +19,7 @@ public class DonateCommand extends Sx4Command {
 
 	public void onCommand(Sx4CommandEvent event) {
 		String paypalUrl = event.getConfig().getPayPalUrl(), patreonUrl = event.getConfig().getPatreonUrl();
-		if (event.isFromGuild() && !event.getSelfMember().hasPermission(event.getTextChannel(), Permission.MESSAGE_EMBED_LINKS)) {
+		if (event.isFromGuild() && !event.getSelfMember().hasPermission(event.getGuildChannel(), Permission.MESSAGE_EMBED_LINKS)) {
 			event.reply("PayPal: <" + paypalUrl + ">\nPatreon: <" + patreonUrl + ">").queue();
 			return;
 		}

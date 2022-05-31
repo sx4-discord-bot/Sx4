@@ -5,6 +5,8 @@ import java.util.EnumSet;
 
 public enum LoggerEvent {
 
+    // Usable ids 36, 37, 38
+
     // Member events
     MEMBER_KICKED(0, LoggerCategory.USER, LoggerCategory.AUDIT),
     MEMBER_JOIN(3, LoggerCategory.USER),
@@ -44,9 +46,9 @@ public enum LoggerEvent {
     ROLE_COLOUR_UPDATE(45, LoggerCategory.ROLE, LoggerCategory.AUDIT),
 
     // Channel events
-    STORE_CHANNEL_DELETE(15, LoggerCategory.STORE_CHANNEL, LoggerCategory.AUDIT),
-    STORE_CHANNEL_CREATE(16, LoggerCategory.STORE_CHANNEL, LoggerCategory.AUDIT),
-    STORE_CHANNEL_NAME_UPDATE(17, LoggerCategory.STORE_CHANNEL, LoggerCategory.AUDIT),
+    THREAD_CHANNEL_DELETE(15, LoggerCategory.TEXT_CHANNEL, LoggerCategory.AUDIT),
+    THREAD_CHANNEL_CREATE(16, LoggerCategory.TEXT_CHANNEL, LoggerCategory.AUDIT),
+    THREAD_CHANNEL_NAME_UPDATE(17, LoggerCategory.TEXT_CHANNEL, LoggerCategory.AUDIT),
     VOICE_CHANNEL_DELETE(18, LoggerCategory.VOICE_CHANNEL, LoggerCategory.AUDIT),
     VOICE_CHANNEL_CREATE(19, LoggerCategory.VOICE_CHANNEL, LoggerCategory.AUDIT),
     VOICE_CHANNEL_NAME_UPDATE(20, LoggerCategory.VOICE_CHANNEL, LoggerCategory.AUDIT),
@@ -59,9 +61,6 @@ public enum LoggerEvent {
     TEXT_CHANNEL_OVERRIDE_UPDATE(33, LoggerCategory.TEXT_CHANNEL, LoggerCategory.USER, LoggerCategory.ROLE, LoggerCategory.AUDIT),
     TEXT_CHANNEL_OVERRIDE_DELETE(34, LoggerCategory.TEXT_CHANNEL, LoggerCategory.USER, LoggerCategory.ROLE, LoggerCategory.AUDIT),
     TEXT_CHANNEL_OVERRIDE_CREATE(35, LoggerCategory.TEXT_CHANNEL, LoggerCategory.USER, LoggerCategory.ROLE, LoggerCategory.AUDIT),
-    STORE_CHANNEL_OVERRIDE_UPDATE(36, LoggerCategory.STORE_CHANNEL, LoggerCategory.USER, LoggerCategory.ROLE, LoggerCategory.AUDIT),
-    STORE_CHANNEL_OVERRIDE_DELETE(37, LoggerCategory.STORE_CHANNEL, LoggerCategory.USER, LoggerCategory.ROLE, LoggerCategory.AUDIT),
-    STORE_CHANNEL_OVERRIDE_CREATE(38, LoggerCategory.STORE_CHANNEL, LoggerCategory.USER, LoggerCategory.ROLE, LoggerCategory.AUDIT),
     VOICE_CHANNEL_OVERRIDE_UPDATE(39, LoggerCategory.VOICE_CHANNEL, LoggerCategory.USER, LoggerCategory.ROLE, LoggerCategory.AUDIT),
     VOICE_CHANNEL_OVERRIDE_DELETE(40, LoggerCategory.VOICE_CHANNEL, LoggerCategory.USER, LoggerCategory.ROLE, LoggerCategory.AUDIT),
     VOICE_CHANNEL_OVERRIDE_CREATE(41, LoggerCategory.VOICE_CHANNEL, LoggerCategory.USER, LoggerCategory.ROLE, LoggerCategory.AUDIT),

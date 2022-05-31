@@ -30,7 +30,7 @@ public class TwitchTokenManager {
 
 	public void retrieveToken() {
 		Request request = new Request.Builder()
-			.post(RequestBody.create(null, new byte[0]))
+			.post(RequestBody.create(new byte[0], null))
 			.url("https://id.twitch.tv/oauth2/token?client_id=" + this.bot.getConfig().getTwitchClientId() + "&client_secret=" + this.bot.getConfig().getTwitchClientSecret() + "&grant_type=client_credentials")
 			.build();
 

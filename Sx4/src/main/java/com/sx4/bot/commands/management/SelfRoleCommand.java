@@ -14,17 +14,13 @@ import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.entities.argument.Alternative;
+import com.sx4.bot.entities.interaction.ButtonType;
+import com.sx4.bot.entities.interaction.CustomButtonId;
 import com.sx4.bot.paged.PagedResult;
-import com.sx4.bot.utility.ButtonUtility;
 import com.sx4.bot.utility.ExceptionUtility;
-import com.sx4.bot.waiter.Waiter;
-import com.sx4.bot.waiter.exception.CancelException;
-import com.sx4.bot.waiter.exception.TimeoutException;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Role;
-import net.dv8tion.jda.api.events.GenericEvent;
-import net.dv8tion.jda.api.events.interaction.ButtonClickEvent;
-import net.dv8tion.jda.api.interactions.components.Button;
+import net.dv8tion.jda.api.interactions.components.buttons.Button;
 import net.dv8tion.jda.api.requests.RestAction;
 import org.bson.Document;
 
@@ -113,45 +109,23 @@ public class SelfRoleCommand extends Sx4Command {
 	@AuthorPermissions(permissions={Permission.MANAGE_ROLES})
 	public void remove(Sx4CommandEvent event, @Argument(value="role | all", endless=true) @AlternativeOptions("all") Alternative<Role> option) {
 		if (option.isAlternative()) {
-			List<Button> buttons = List.of(Button.success("yes", "Yes"), Button.danger("no", "No"));
+			String acceptId = new CustomButtonId.Builder()
+				.setType(ButtonType.SELF_ROLE_DELETE_CONFIRM)
+				.setOwners(event.getAuthor().getIdLong())
+				.setTimeout(60)
+				.getId();
 
-			event.reply(event.getAuthor().getName() + ", are you sure you want to delete every self role in the server?").setActionRow(buttons).submit()
-				.thenCompose(message -> {
-					return new Waiter<>(event.getBot(), ButtonClickEvent.class)
-						.setPredicate(e -> ButtonUtility.handleButtonConfirmation(e, message, event.getAuthor()))
-						.setCancelPredicate(e -> ButtonUtility.handleButtonCancellation(e, message, event.getAuthor()))
-						.onFailure(e -> ButtonUtility.handleButtonFailure(e, message))
-						.setTimeout(60)
-						.start();
-				}).whenComplete((e, exception) -> {
-					Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
-					if (cause instanceof CancelException) {
-						GenericEvent cancelEvent = ((CancelException) cause).getEvent();
-						if (cancelEvent != null) {
-							((ButtonClickEvent) cancelEvent).reply("Cancelled " + event.getConfig().getSuccessEmote()).queue();
-						}
+			String rejectId = new CustomButtonId.Builder()
+				.setType(ButtonType.GENERIC_REJECT)
+				.setOwners(event.getAuthor().getIdLong())
+				.setTimeout(60)
+				.getId();
 
-						return;
-					} else if (cause instanceof TimeoutException) {
-						event.reply("Timed out :stopwatch:").queue();
-						return;
-					} else if (ExceptionUtility.sendExceptionally(event, exception)) {
-						return;
-					}
+			List<Button> buttons = List.of(Button.success(acceptId, "Yes"), Button.danger(rejectId, "No"));
 
-					event.getMongo().deleteManySelfRoles(Filters.eq("guildId", event.getGuild().getIdLong())).whenComplete((result, databaseException) -> {
-						if (ExceptionUtility.sendExceptionally(event, databaseException)) {
-							return;
-						}
-
-						if (result.getDeletedCount() == 0) {
-							event.replyFailure("There are no self roles in this server").queue();
-							return;
-						}
-
-						e.reply("All self roles have been deleted " + event.getConfig().getSuccessEmote()).queue();
-					});
-				});
+			event.reply(event.getAuthor().getName() + ", are you sure you want to delete every self role in the server?")
+				.setActionRow(buttons)
+				.queue();
 		} else {
 			Role role =option.getValue();
 

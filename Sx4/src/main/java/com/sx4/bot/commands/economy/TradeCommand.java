@@ -21,10 +21,10 @@ import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.events.GenericEvent;
-import net.dv8tion.jda.api.events.interaction.ButtonClickEvent;
+import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.interactions.components.ActionRow;
-import net.dv8tion.jda.api.interactions.components.Button;
+import net.dv8tion.jda.api.interactions.components.buttons.Button;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 
@@ -158,7 +158,7 @@ public class TradeCommand extends Sx4Command {
 
 			return event.reply(message.build()).submit();
 		}).thenCompose(message -> {
-			return new Waiter<>(event.getBot(), ButtonClickEvent.class)
+			return new Waiter<>(event.getBot(), ButtonInteractionEvent.class)
 				.setPredicate(e -> ButtonUtility.handleButtonConfirmation(e, message, user))
 				.setCancelPredicate(e -> ButtonUtility.handleButtonCancellation(e, message, user))
 				.onFailure(e -> ButtonUtility.handleButtonFailure(e, message))
@@ -169,7 +169,7 @@ public class TradeCommand extends Sx4Command {
 			if (cause instanceof CancelException) {
 				GenericEvent cancelEvent = ((CancelException) cause).getEvent();
 				if (cancelEvent != null) {
-					((ButtonClickEvent) cancelEvent).reply("Cancelled " + event.getConfig().getSuccessEmote()).queue();
+					((ButtonInteractionEvent) cancelEvent).reply("Cancelled " + event.getConfig().getSuccessEmote()).queue();
 				}
 
 				return;

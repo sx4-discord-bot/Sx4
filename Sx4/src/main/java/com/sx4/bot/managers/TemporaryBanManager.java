@@ -4,6 +4,7 @@ import com.mongodb.client.model.*;
 import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.entities.mod.Reason;
+import com.sx4.bot.entities.mod.UserReference;
 import com.sx4.bot.events.mod.UnbanEvent;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
@@ -92,12 +93,12 @@ public class TemporaryBanManager {
 
 		Member member = user == null ? null : guild.getMember(user);
 		if (automatic && member == null) {
-			guild.unban(String.valueOf(userId)).reason("Ban length served").queue();
+			guild.unban(User.fromId(userId)).reason("Ban length served").queue();
 		}
 
 		if (automatic) {
 			Reason reason = new Reason("Ban length served");
-			UnbanEvent event = new UnbanEvent(guild.getSelfMember(), user == null ? User.fromId(userId) : user, reason);
+			UnbanEvent event = new UnbanEvent(guild.getSelfMember(), user == null ? UserReference.fromId(userId) : user, reason);
 
 			this.bot.getModActionManager().onModAction(event);
 		}

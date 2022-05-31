@@ -5,8 +5,8 @@ import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.AudioChannel;
 import net.dv8tion.jda.api.entities.Member;
-import net.dv8tion.jda.api.entities.VoiceChannel;
 
 public class DisconnectCommand extends Sx4Command {
 
@@ -24,7 +24,7 @@ public class DisconnectCommand extends Sx4Command {
 	public void onCommand(Sx4CommandEvent event, @Argument(value="user", endless=true, nullDefault=true) Member memberOptional) {
 		Member member = memberOptional == null ? event.getMember() : memberOptional;
 
-		VoiceChannel channel = member.getVoiceState().getChannel();
+		AudioChannel channel = member.getVoiceState().getChannel();
 		if (channel == null) {
 			event.replyFailure("That user is not in a voice channel").queue();
 			return;

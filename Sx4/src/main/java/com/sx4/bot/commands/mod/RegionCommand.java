@@ -6,7 +6,7 @@ import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.Region;
-import net.dv8tion.jda.api.entities.VoiceChannel;
+import net.dv8tion.jda.api.entities.AudioChannel;
 
 public class RegionCommand extends Sx4Command {
 
@@ -18,13 +18,8 @@ public class RegionCommand extends Sx4Command {
 		super.setCategoryAll(ModuleCategory.MODERATION);
 	}
 
-	public void onCommand(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) VoiceChannel channel, @Argument(value="region", endless=true) Region region) {
-		if (!Region.VOICE_CHANNEL_REGIONS.contains(region)) {
-			event.replyFailure("That region is not supported for voice channels").queue();
-			return;
-		}
-
-		VoiceChannel effectiveChannel = channel == null ? event.getMember().getVoiceState().getChannel() : channel;
+	public void onCommand(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) AudioChannel channel, @Argument(value="region", endless=true) Region region) {
+		AudioChannel effectiveChannel = channel == null ? event.getMember().getVoiceState().getChannel() : channel;
 		if (effectiveChannel == null) {
 			event.replyFailure("You are not in a voice channel").queue();
 			return;

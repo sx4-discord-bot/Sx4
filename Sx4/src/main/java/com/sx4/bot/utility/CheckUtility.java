@@ -34,13 +34,13 @@ public class CheckUtility {
 			}
 
 			Member canary = message.getGuild().getMemberById(bot.getConfig().getCanaryId());
-			return canary == null || !message.getTextChannel().canTalk(canary);
+			return canary == null || !message.getGuildChannel().canTalk(canary);
 		}
 
 		return true;
 	}
 
-	public static boolean canUseCommand(Sx4 bot, Member member, TextChannel channel, Sx4Command command) {
+	public static boolean canUseCommand(Sx4 bot, Member member, Channel channel, Sx4Command command) {
 		if (bot.getCommandListener().isDeveloper(member.getIdLong()) || member.hasPermission(Permission.ADMINISTRATOR)) {
 			return true;
 		}
@@ -98,7 +98,7 @@ public class CheckUtility {
 		return CheckUtility.missingPermissions(bot, member, null, holders, permissions).isEmpty();
 	}
 	
-	public static EnumSet<Permission> missingPermissions(Sx4 bot, Member member, TextChannel channel, List<Document> holders, Permission... permissions) {
+	public static EnumSet<Permission> missingPermissions(Sx4 bot, Member member, GuildMessageChannel channel, List<Document> holders, Permission... permissions) {
 		return CheckUtility.missingPermissions(bot, member, channel, holders, permissions.length == 0 ? EnumSet.noneOf(Permission.class) : EnumSet.copyOf(Arrays.asList(permissions)));
 	}
 
@@ -110,7 +110,7 @@ public class CheckUtility {
 		return CheckUtility.missingPermissions(bot, member, null, holders, permissions);
 	}
 
-	public static EnumSet<Permission> missingPermissions(Sx4 bot, Member member, TextChannel channel, List<Document> holders, EnumSet<Permission> permissions) {
+	public static EnumSet<Permission> missingPermissions(Sx4 bot, Member member, GuildMessageChannel channel, List<Document> holders, EnumSet<Permission> permissions) {
 		if (bot.getCommandListener().isDeveloper(member.getIdLong()) || (channel == null ? member.hasPermission(permissions) : member.hasPermission(channel, permissions))) {
 			return EnumSet.noneOf(Permission.class);
 		}

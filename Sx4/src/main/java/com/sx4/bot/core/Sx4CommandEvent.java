@@ -11,6 +11,7 @@ import com.sx4.bot.utility.CheckUtility;
 import com.sx4.bot.utility.HelpUtility;
 import com.sx4.bot.utility.MathUtility;
 import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.GuildMessageChannel;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.requests.restaction.MessageAction;
@@ -77,6 +78,10 @@ public class Sx4CommandEvent extends CommandEvent {
 
 	public PostgresDatabase getPostgresCanary() {
 		return this.bot.getPostgresCanary();
+	}
+
+	public GuildMessageChannel getGuildChannel() {
+		return (GuildMessageChannel) this.getChannel();
 	}
 
 	public boolean hasPermission(Permission... permissions) {

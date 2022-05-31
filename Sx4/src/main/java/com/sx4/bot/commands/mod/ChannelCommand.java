@@ -75,17 +75,23 @@ public class ChannelCommand extends Sx4Command {
 	@Examples({"channel mute @Shea#6653", "channel mute @Role", "channel mute #channel @Shea#6653"})
 	@AuthorPermissions(permissions={Permission.MANAGE_PERMISSIONS})
 	@BotPermissions(permissions={Permission.MANAGE_PERMISSIONS})
-	public void mute(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) TextChannel channel, @Argument(value="role | user", endless=true) IPermissionHolder holder) {
-		TextChannel effectiveChannel = channel == null ? event.getTextChannel() : channel;
+	public void mute(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) BaseGuildMessageChannel channel, @Argument(value="role | user", endless=true) IPermissionHolder holder) {
+		MessageChannel messageChannel = event.getChannel();
+		if (!(messageChannel instanceof IPermissionContainer)) {
+			event.replyFailure("You cannot use this channel type").queue();
+			return;
+		}
+
+		IPermissionContainer effectiveChannel = channel == null ? (IPermissionContainer) messageChannel : channel;
 		boolean role = holder instanceof Role;
 
 		PermissionOverride override = effectiveChannel.getPermissionOverride(holder);
-		if (override != null && override.getDenied().contains(Permission.MESSAGE_WRITE)) {
+		if (override != null && override.getDenied().contains(Permission.MESSAGE_SEND)) {
 			event.replyFailure("That " + (role ? "role" : "user") + " is already muted in " + effectiveChannel.getAsMention()).queue();
 			return;
 		}
 
-		effectiveChannel.upsertPermissionOverride(holder).deny(Permission.MESSAGE_WRITE)
+		effectiveChannel.upsertPermissionOverride(holder).deny(Permission.MESSAGE_SEND)
 			.flatMap($ -> event.replySuccess((role ? ((Role) holder).getAsMention() : "**" + ((Member) holder).getUser().getAsTag() + "**") + " is now muted in " + effectiveChannel.getAsMention()))
 			.queue();
 	}
@@ -95,17 +101,23 @@ public class ChannelCommand extends Sx4Command {
 	@Examples({"channel unmute @Shea#6653", "channel unmute @Role", "channel unmute #channel @Shea#6653"})
 	@AuthorPermissions(permissions={Permission.MANAGE_PERMISSIONS})
 	@BotPermissions(permissions={Permission.MANAGE_PERMISSIONS})
-	public void unmute(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) TextChannel channel, @Argument(value="role | user", endless=true) IPermissionHolder holder) {
-		TextChannel effectiveChannel = channel == null ? event.getTextChannel() : channel;
+	public void unmute(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) BaseGuildMessageChannel channel, @Argument(value="role | user", endless=true) IPermissionHolder holder) {
+		MessageChannel messageChannel = event.getChannel();
+		if (channel == null && !(messageChannel instanceof IPermissionContainer)) {
+			event.replyFailure("You cannot use this channel type").queue();
+			return;
+		}
+
+		IPermissionContainer effectiveChannel = channel == null ? (IPermissionContainer) messageChannel : channel;
 		boolean role = holder instanceof Role;
 
 		PermissionOverride override = effectiveChannel.getPermissionOverride(holder);
-		if (override == null || !override.getDenied().contains(Permission.MESSAGE_WRITE)) {
+		if (override == null || !override.getDenied().contains(Permission.MESSAGE_SEND)) {
 			event.replyFailure("That " + (role ? "role" : "user") + " is not muted in " + effectiveChannel.getAsMention()).queue();
 			return;
 		}
 
-		effectiveChannel.upsertPermissionOverride(holder).clear(Permission.MESSAGE_WRITE)
+		effectiveChannel.upsertPermissionOverride(holder).clear(Permission.MESSAGE_SEND)
 			.flatMap($ -> event.replySuccess((role ? ((Role) holder).getAsMention() : "**" + ((Member) holder).getUser().getAsTag() + "**") + " is no longer muted in " + effectiveChannel.getAsMention()))
 			.queue();
 	}

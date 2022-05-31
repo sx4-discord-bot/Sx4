@@ -64,7 +64,7 @@ public abstract class Formatter<Type> {
 		return this.addVariable("server", guild);
 	}
 
-	public Formatter<Type> channel(TextChannel channel) {
+	public Formatter<Type> channel(MessageChannel channel) {
 		if (channel == null) {
 			return this;
 		}

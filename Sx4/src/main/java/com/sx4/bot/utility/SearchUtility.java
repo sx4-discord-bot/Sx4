@@ -77,12 +77,12 @@ public class SearchUtility {
 		return SearchUtility.find(channels, query, TextChannel::getName);
 	}
 
-	private static VoiceChannel findVoiceChannel(CacheView<VoiceChannel> channels, String query) {
-		return SearchUtility.find(channels, query, VoiceChannel::getName);
+	private static BaseGuildMessageChannel findBaseMessageChannel(Iterable<BaseGuildMessageChannel> channels, String query) {
+		return SearchUtility.find(channels, query, BaseGuildMessageChannel::getName);
 	}
 
-	private static StoreChannel findStoreChannel(CacheView<StoreChannel> channels, String query) {
-		return SearchUtility.find(channels, query, StoreChannel::getName);
+	private static AudioChannel findAudioChannel(Iterable<AudioChannel> channels, String query) {
+		return SearchUtility.find(channels, query, AudioChannel::getName);
 	}
 
 	private static Category findCategory(CacheView<Category> channels, String query) {
@@ -109,13 +109,13 @@ public class SearchUtility {
 		Matcher matcher;
 		if (NumberUtility.isNumberUnsigned(query)) {
 			try {
-				return guild.retrieveBanById(query).submit();
+				return guild.retrieveBan(User.fromId(query)).submit();
 			} catch (NumberFormatException e) {
 				return guild.retrieveBanList().submit().thenApply(bans -> SearchUtility.find(bans, query, ban -> ban.getUser().getName()));
 			}
 		} else if ((matcher = SearchUtility.USER_MENTION.matcher(query)).matches()) {
 			try {
-				return guild.retrieveBanById(matcher.group(1)).submit();
+				return guild.retrieveBan(User.fromId(matcher.group(1))).submit();
 			} catch (NumberFormatException e) {
 				return CompletableFuture.completedFuture(null);
 			}
@@ -293,10 +293,8 @@ public class SearchUtility {
 			return SearchUtility.getTextChannel(guild, query);
 		} else if (type == ChannelType.CATEGORY) {
 			return SearchUtility.getCategory(guild, query);
-		} else if (type == ChannelType.STORE) {
-			return SearchUtility.getStoreChannel(guild, query);
 		} else if (type == ChannelType.VOICE) {
-			return SearchUtility.getVoiceChannel(guild, query);
+			return SearchUtility.getAudioChannel(guild, query);
 		}
 
 		return null;
@@ -305,7 +303,7 @@ public class SearchUtility {
 	public static GuildChannel getGuildChannel(Guild guild, String query) {
 		GuildChannel channel = SearchUtility.getTextChannel(guild, query);
 		if (channel == null) {
-			channel = SearchUtility.getVoiceChannel(guild, query);
+			channel = SearchUtility.getAudioChannel(guild, query);
 		}
 
 		if (channel == null) {
@@ -313,11 +311,29 @@ public class SearchUtility {
 
 		}
 
-		if (channel == null) {
-			channel = SearchUtility.getStoreChannel(guild, query);
-		}
-
 		return channel;
+	}
+
+	public static BaseGuildMessageChannel getBaseMessageChannel(Guild guild, String query) {
+		Matcher mentionMatch = SearchUtility.CHANNEL_MENTION.matcher(query);
+		if (mentionMatch.matches()) {
+			try {
+				return guild.getChannelById(BaseGuildMessageChannel.class, mentionMatch.group(1));
+			} catch (NumberFormatException e) {
+				return null;
+			}
+		} else if (NumberUtility.isNumberUnsigned(query)) {
+			try {
+				return guild.getChannelById(BaseGuildMessageChannel.class, query);
+			} catch (NumberFormatException e) {
+				return null;
+			}
+		} else {
+			List<CacheView<? extends BaseGuildMessageChannel>> cacheViews = List.of(guild.getTextChannelCache(), guild.getNewsChannelCache());
+			List<BaseGuildMessageChannel> channels = cacheViews.stream().flatMap(CacheView::stream).distinct().collect(Collectors.toList());
+
+			return SearchUtility.findBaseMessageChannel(channels, query);
+		}
 	}
 	
 	public static TextChannel getTextChannel(Guild guild, String query) {
@@ -339,34 +355,18 @@ public class SearchUtility {
 		}
 	}
 
-	public static StoreChannel getStoreChannel(Guild guild, String query) {
-		Matcher mentionMatch = SearchUtility.CHANNEL_MENTION.matcher(query);
-		if (mentionMatch.matches()) {
-			try {
-				return guild.getStoreChannelById(mentionMatch.group(1));
-			} catch (NumberFormatException e) {
-				return null;
-			}
-		} else if (NumberUtility.isNumberUnsigned(query)) {
-			try {
-				return guild.getStoreChannelById(query);
-			} catch (NumberFormatException e) {
-				return null;
-			}
-		} else {
-			return SearchUtility.findStoreChannel(guild.getStoreChannelCache(), query);
-		}
-	}
-
-	public static VoiceChannel getVoiceChannel(Guild guild, String query) {
+	public static AudioChannel getAudioChannel(Guild guild, String query) {
 		if (NumberUtility.isNumberUnsigned(query)) {
 			try {
-				return guild.getVoiceChannelById(query);
+				return guild.getChannelById(AudioChannel.class, query);
 			} catch (NumberFormatException e) {
 				return null;
 			}
 		} else {
-			return SearchUtility.findVoiceChannel(guild.getVoiceChannelCache(), query);
+			List<CacheView<? extends AudioChannel>> cacheViews = List.of(guild.getVoiceChannelCache(), guild.getStageChannelCache());
+			List<AudioChannel> channels = cacheViews.stream().flatMap(CacheView::stream).distinct().collect(Collectors.toList());
+
+			return SearchUtility.findAudioChannel(channels, query);
 		}
 	}
 

@@ -37,7 +37,7 @@ public class Sx4Command extends CommandImpl {
 
 		this.id = id;
 
-		this.setBotDiscordPermissions(Permission.MESSAGE_WRITE);
+		this.setBotDiscordPermissions(Permission.MESSAGE_SEND);
 	
 		this.checkAnnotations();
 	}
@@ -45,7 +45,7 @@ public class Sx4Command extends CommandImpl {
 	public Sx4Command(String name, Method method, Object invoker) {
 		super(name, method, invoker);
 
-		this.setBotDiscordPermissions(Permission.MESSAGE_WRITE);
+		this.setBotDiscordPermissions(Permission.MESSAGE_SEND);
 
 		this.checkIdAnnotation();
 		this.checkAnnotations();

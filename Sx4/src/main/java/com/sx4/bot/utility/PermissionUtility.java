@@ -1,6 +1,7 @@
 package com.sx4.bot.utility;
 
 import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.AudioChannel;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.VoiceChannel;
 import net.dv8tion.jda.internal.utils.PermissionUtil;
@@ -30,8 +31,8 @@ public class PermissionUtility {
 		return PermissionUtility.formatMissingPermissions(permissions, "You are");
 	}
 
-	public static boolean canConnect(Member member, VoiceChannel channel) {
-		EnumSet<Permission> permissions = Permission.getPermissions(PermissionUtil.getEffectivePermission(channel, member));
+	public static boolean canConnect(Member member, AudioChannel channel) {
+		EnumSet<Permission> permissions = Permission.getPermissions(PermissionUtil.getEffectivePermission(channel.getPermissionContainer(), member));
 		if (permissions.contains(Permission.ADMINISTRATOR)) {
 			return true;
 		}
@@ -40,7 +41,7 @@ public class PermissionUtility {
 			return false;
 		}
 
-		int userLimit = channel.getUserLimit();
+		int userLimit = channel instanceof VoiceChannel ? ((VoiceChannel) channel).getUserLimit() : 0;
 		if (userLimit > 0) {
 			return userLimit >= channel.getMembers().size();
 		}

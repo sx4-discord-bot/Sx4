@@ -17,23 +17,17 @@ import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.argument.Alternative;
 import com.sx4.bot.entities.argument.MessageArgument;
 import com.sx4.bot.entities.argument.Or;
+import com.sx4.bot.entities.interaction.ButtonType;
+import com.sx4.bot.entities.interaction.CustomButtonId;
 import com.sx4.bot.entities.management.Suggestion;
 import com.sx4.bot.entities.management.SuggestionState;
 import com.sx4.bot.paged.PagedResult;
-import com.sx4.bot.utility.ButtonUtility;
 import com.sx4.bot.utility.ColourUtility;
 import com.sx4.bot.utility.ExceptionUtility;
-import com.sx4.bot.waiter.Waiter;
-import com.sx4.bot.waiter.exception.CancelException;
-import com.sx4.bot.waiter.exception.TimeoutException;
 import net.dv8tion.jda.api.Permission;
-import net.dv8tion.jda.api.entities.Message;
-import net.dv8tion.jda.api.entities.TextChannel;
-import net.dv8tion.jda.api.entities.User;
-import net.dv8tion.jda.api.events.GenericEvent;
-import net.dv8tion.jda.api.events.interaction.ButtonClickEvent;
+import net.dv8tion.jda.api.entities.*;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
-import net.dv8tion.jda.api.interactions.components.Button;
+import net.dv8tion.jda.api.interactions.components.buttons.Button;
 import net.dv8tion.jda.api.requests.ErrorResponse;
 import org.bson.Document;
 import org.bson.conversions.Bson;
@@ -42,7 +36,6 @@ import org.bson.types.ObjectId;
 import java.time.Clock;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.CompletionException;
 
 public class SuggestionCommand extends Sx4Command {
 
@@ -77,8 +70,14 @@ public class SuggestionCommand extends Sx4Command {
 	@CommandId(83)
 	@Examples({"suggestion channel", "suggestion channel #suggestions", "suggestion channel reset"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-	public void channel(Sx4CommandEvent event, @Argument(value="channel | reset", endless=true, nullDefault=true) @AlternativeOptions("reset") Alternative<TextChannel> option) {
-		TextChannel channel = option == null ? event.getTextChannel() : option.isAlternative() ? null : option.getValue();
+	public void channel(Sx4CommandEvent event, @Argument(value="channel | reset", endless=true, nullDefault=true) @AlternativeOptions("reset") Alternative<BaseGuildMessageChannel> option) {
+		MessageChannel messageChannel = event.getChannel();
+		if (option == null && !(messageChannel instanceof BaseGuildMessageChannel)) {
+			event.replyFailure("You cannot use this channel type").queue();
+			return;
+		}
+
+		BaseGuildMessageChannel channel = option == null ? (BaseGuildMessageChannel) messageChannel : option.isAlternative() ? null : option.getValue();
 
 		List<Bson> update = List.of(Operators.set("suggestion.channelId", channel == null ? Operators.REMOVE : channel.getIdLong()), Operators.unset("suggestion.webhook.id"), Operators.unset("suggestion.webhook.token"));
 		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("suggestion.webhook.id", "suggestion.channelId")).upsert(true);
@@ -185,44 +184,23 @@ public class SuggestionCommand extends Sx4Command {
 				return;
 			}
 
-			List<Button> buttons = List.of(Button.success("yes", "Yes"), Button.danger("no", "No"));
+			String acceptId = new CustomButtonId.Builder()
+				.setType(ButtonType.SUGGESTION_DELETE_CONFIRM)
+				.setOwners(event.getAuthor().getIdLong())
+				.setTimeout(60)
+				.getId();
+
+			String rejectId = new CustomButtonId.Builder()
+				.setType(ButtonType.GENERIC_REJECT)
+				.setOwners(event.getAuthor().getIdLong())
+				.setTimeout(60)
+				.getId();
+
+			List<Button> buttons = List.of(Button.success(acceptId, "Yes"), Button.danger(rejectId, "No"));
 			
-			event.reply(author.getName() + ", are you sure you want to delete **all** the suggestions in this server?").setActionRow(buttons).submit().thenCompose(message -> {
-				return new Waiter<>(event.getBot(), ButtonClickEvent.class)
-					.setPredicate(e -> ButtonUtility.handleButtonConfirmation(e, message, event.getAuthor()))
-					.setCancelPredicate(e -> ButtonUtility.handleButtonCancellation(e, message, event.getAuthor()))
-					.onFailure(e -> ButtonUtility.handleButtonFailure(e, message))
-					.setTimeout(60)
-					.start();
-			}).whenComplete((e, exception) -> {
-				Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
-				if (cause instanceof CancelException) {
-					GenericEvent cancelEvent = ((CancelException) cause).getEvent();
-					if (cancelEvent != null) {
-						((ButtonClickEvent) cancelEvent).reply("Cancelled " + event.getConfig().getSuccessEmote()).queue();
-					}
-
-					return;
-				} else if (cause instanceof TimeoutException) {
-					event.reply("Timed out :stopwatch:").queue();
-					return;
-				} else if (ExceptionUtility.sendExceptionally(event, exception)) {
-					return;
-				}
-
-				event.getMongo().deleteManySuggestions(Filters.eq("guildId", event.getGuild().getIdLong())).whenComplete((result, databaseException) -> {
-					if (ExceptionUtility.sendExceptionally(event, databaseException)) {
-						return;
-					}
-
-					if (result.getDeletedCount() == 0) {
-						e.reply("This server has no suggestions " + event.getConfig().getFailureEmote()).queue();
-						return;
-					}
-
-					e.reply("All suggestions have been deleted in this server " + event.getConfig().getSuccessEmote()).queue();
-				});
-			});
+			event.reply(author.getName() + ", are you sure you want to delete **all** the suggestions in this server?")
+				.setActionRow(buttons)
+				.queue();
 		} else {
 			Or<MessageArgument, ObjectId> argument = option.getValue();
 			boolean hasPermission = event.hasPermission(event.getMember(), Permission.MANAGE_SERVER);

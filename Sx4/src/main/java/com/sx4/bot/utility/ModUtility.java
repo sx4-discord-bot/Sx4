@@ -70,7 +70,7 @@ public class ModUtility {
 					if (autoUpdate) {
 						guild.getTextChannels().forEach(channel -> {
 							if (selfMember.hasPermission(channel, Permission.MANAGE_PERMISSIONS)) {
-								channel.upsertPermissionOverride(newRole).deny(Permission.MESSAGE_WRITE).queue();
+								channel.upsertPermissionOverride(newRole).deny(Permission.MESSAGE_SEND).queue();
 							}
 						});
 					}

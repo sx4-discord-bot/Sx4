@@ -8,12 +8,12 @@ import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.MessageChannel;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.events.GenericEvent;
-import net.dv8tion.jda.api.events.interaction.ButtonClickEvent;
+import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.events.message.MessageUpdateEvent;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.hooks.EventListener;
-import net.dv8tion.jda.api.interactions.components.Button;
+import net.dv8tion.jda.api.interactions.components.buttons.Button;
 import net.dv8tion.jda.api.requests.ErrorResponse;
 import org.jetbrains.annotations.NotNull;
 
@@ -34,12 +34,12 @@ public class PagedHandler implements EventListener {
 	private final Set<String> cancel = Set.of("c", "cancel");
 	
 	public void attemptDelete(Message message) {
-		if (message.isFromGuild() && message.getGuild().getSelfMember().hasPermission(message.getTextChannel(), Permission.MESSAGE_MANAGE)) {
+		if (message.isFromGuild() && message.getGuild().getSelfMember().hasPermission(message.getGuildChannel(), Permission.MESSAGE_MANAGE)) {
 			message.delete().queue(null, ErrorResponseException.ignore(ErrorResponse.UNKNOWN_MESSAGE));
 		}
 	}
 
-	public void handleButton(ButtonClickEvent event) {
+	public void handleButton(ButtonInteractionEvent event) {
 		if (event.isAcknowledged()) {
 			return;
 		}
@@ -61,7 +61,7 @@ public class PagedHandler implements EventListener {
 		}
 
 		Button button = event.getButton();
-		if (button == null || button.isDisabled()) {
+		if (button.isDisabled()) {
 			return;
 		}
 
@@ -142,8 +142,8 @@ public class PagedHandler implements EventListener {
 			this.handleMessage(((MessageReceivedEvent) event).getMessage());
 		} else if (event instanceof MessageUpdateEvent) {
 			this.handleMessage(((MessageUpdateEvent) event).getMessage());
-		} else if (event instanceof ButtonClickEvent) {
-			this.handleButton((ButtonClickEvent) event);
+		} else if (event instanceof ButtonInteractionEvent) {
+			this.handleButton((ButtonInteractionEvent) event);
 		}
 	}
 

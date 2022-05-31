@@ -15,12 +15,13 @@ import com.sx4.bot.managers.MysteryBoxManager;
 import com.sx4.bot.utility.EconomyUtility;
 import com.sx4.bot.utility.ExceptionUtility;
 import net.dv8tion.jda.api.entities.Emoji;
-import net.dv8tion.jda.api.events.interaction.ButtonClickEvent;
+import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import net.dv8tion.jda.api.interactions.components.ActionRow;
-import net.dv8tion.jda.api.interactions.components.Button;
-import net.dv8tion.jda.api.interactions.components.ButtonStyle;
 import net.dv8tion.jda.api.interactions.components.Component;
-import net.dv8tion.jda.api.requests.restaction.interactions.UpdateInteractionAction;
+import net.dv8tion.jda.api.interactions.components.ItemComponent;
+import net.dv8tion.jda.api.interactions.components.buttons.Button;
+import net.dv8tion.jda.api.interactions.components.buttons.ButtonStyle;
+import net.dv8tion.jda.api.requests.restaction.interactions.MessageEditCallbackAction;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
@@ -88,7 +89,7 @@ public class MysteryBoxCommand extends Sx4Command {
 		}
 
 		String description = "You put down **$%,d**. Click the buttons to reveal what they hold, if you get :moneybag: you will get 0.20x your initial bet and it'll increase with the more successful clicks, if you get a :bomb: you will lose everything. Quit at anytime and leave with your earnings at any time by clicking the quit button.";
-		event.getTextChannel().sendMessageFormat(description, bet).setActionRows(rows).submit().thenCompose(message -> {
+		event.getChannel().sendMessageFormat(description, bet).setActionRows(rows).submit().thenCompose(message -> {
 			MysteryBoxGame game = new MysteryBoxGame(message, event.getAuthor().getIdLong(), bet, boxes);
 			manager.addGame(event.getAuthor(), game);
 
@@ -113,12 +114,12 @@ public class MysteryBoxCommand extends Sx4Command {
 
 				boolean canAfford = updateResult.getModifiedCount() != 0;
 
-				ButtonClickEvent buttonEvent = result.getEvent();
+				ButtonInteractionEvent buttonEvent = result.getEvent();
 
 				List<ActionRow> newRows = new ArrayList<>(buttonEvent.getMessage().getActionRows());
 				for (ActionRow row : newRows) {
-					List<Component> components = row.getComponents();
-					for (ListIterator<Component> it = components.listIterator(); it.hasNext();) {
+					List<ItemComponent> components = row.getComponents();
+					for (ListIterator<ItemComponent> it = components.listIterator(); it.hasNext();) {
 						Component component = it.next();
 						if (!(component instanceof Button button)) {
 							continue;
@@ -136,7 +137,7 @@ public class MysteryBoxCommand extends Sx4Command {
 					}
 				}
 
-				UpdateInteractionAction action = buttonEvent.editComponents(newRows);
+				MessageEditCallbackAction action = buttonEvent.editComponents(newRows);
 				if (canAfford) {
 					action.setContent(won ? String.format(result.isJackpot() ? "YOU WON THE JACKPOT :tada: (**$%,d**)" : "Congratulations, you pulled out with **$%,d**", winnings + result.getBet()) : ":boom: You hit a bomb and lost everything!");
 				} else {

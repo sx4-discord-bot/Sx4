@@ -154,6 +154,7 @@ public class Sx4 {
 	private final SkinPortManager skinPortManager;
 	private final FreeGameManager freeGameManager;
 	private final TwitchManager twitchManager;
+	private final GuessTheNumberManager guessTheNumberManager;
 	
 	private Sx4() {
 		this.postgresMain = new PostgresDatabase(this.config.getMainDatabase());
@@ -215,6 +216,7 @@ public class Sx4 {
 		this.mysteryBoxManager = new MysteryBoxManager();
 		this.skinPortManager = new SkinPortManager(this);
 		this.freeGameManager = new FreeGameManager(this);
+		this.guessTheNumberManager = new GuessTheNumberManager();
 
 		this.steamGameCache = new SteamGameCache(this);
 		this.messageCache = new MessageCache();
@@ -248,6 +250,8 @@ public class Sx4 {
 		manager.register(new ServerLogHandler(this));
 		manager.register(youTubeHandler);
 		manager.register(new WaiterHandler(this));
+		manager.register(new ButtonHandler(this));
+		manager.register(new ModalHandler(this));
 		manager.register(this.messageCache);
 
 		this.shardManager = this.createShardManager(manager);
@@ -309,7 +313,7 @@ public class Sx4 {
 			.addVariable("name", "Gets the name of the channel", GuildChannel.class, String.class, GuildChannel::getName)
 			.addVariable("created", "Gets the date the channel was created", GuildChannel.class, OffsetDateTime.class, GuildChannel::getTimeCreated)
 			.addVariable("slowmode", "Gets the slowmode of the text channel", TextChannel.class, Integer.class, TextChannel::getSlowmode)
-			.addVariable("bitrate", "Gets the bitrate of the voice channel", VoiceChannel.class, Integer.class, VoiceChannel::getBitrate)
+			.addVariable("bitrate", "Gets the bitrate of the voice channel", AudioChannel.class, Integer.class, AudioChannel::getBitrate)
 			.addVariable("limit", "Gets the user limit of the voice channel", VoiceChannel.class, Integer.class, VoiceChannel::getUserLimit)
 			.addVariable("name", "Gets the name of the server", Guild.class, String.class, Guild::getName)
 			.addVariable("id", "Gets the id of the server", Guild.class, Long.class, Guild::getIdLong)
@@ -579,6 +583,10 @@ public class Sx4 {
 		return this.twitchManager;
 	}
 
+	public GuessTheNumberManager getGuessTheNumberManager() {
+		return this.guessTheNumberManager;
+	}
+
 	public SteamGameCache getSteamGameCache() {
 		return this.steamGameCache;
 	}
@@ -670,7 +678,7 @@ public class Sx4 {
 					return false;
 				}
 
-				EnumSet<Permission> missingPermissions = CheckUtility.missingPermissions(this, event.getMember(), event.getTextChannel(), event.getProperty("fakePermissions"), EnumSet.copyOf(permissions));
+				EnumSet<Permission> missingPermissions = CheckUtility.missingPermissions(this, event.getMember(), event.isFromGuild() ? (GuildMessageChannel) event.getChannel() : null, event.getProperty("fakePermissions"), EnumSet.copyOf(permissions));
 				if (missingPermissions.isEmpty()) {
 					return true;
 				} else {
@@ -692,7 +700,7 @@ public class Sx4 {
 					return false;
 				}
 
-				EnumSet<Permission> missingPermissions = Permission.getPermissions(Permission.getRaw(permissions) & ~Permission.getRaw(event.getSelfMember().getPermissions(event.getTextChannel())));
+				EnumSet<Permission> missingPermissions = Permission.getPermissions(Permission.getRaw(permissions) & ~Permission.getRaw(event.getSelfMember().getPermissions((GuildMessageChannel) event.getChannel())));
 				if (missingPermissions.isEmpty()) {
 					return true;
 				} else {
@@ -702,7 +710,7 @@ public class Sx4 {
 			}).addPreExecuteCheck((event, command) -> {
 				Sx4Command effectiveCommand = (Sx4Command) (command instanceof DummyCommand ? ((DummyCommand) command).getActualCommand() : command);
 				if (event.isFromGuild()) {
-					boolean canUseCommand = CheckUtility.canUseCommand(this, event.getMember(), event.getTextChannel(), effectiveCommand);
+					boolean canUseCommand = CheckUtility.canUseCommand(this, event.getMember(), event.getChannel(), effectiveCommand);
 					if (!canUseCommand) {
 						event.reply("You are blacklisted from using that command in this channel " + this.config.getFailureEmote()).queue();
 					}
@@ -743,9 +751,9 @@ public class Sx4 {
 					if (message.getChannelType().isGuild()) {
 						Member bot = message.getGuild().getSelfMember();
 						
-						if (!bot.hasPermission(Permission.MESSAGE_WRITE)) {
+						if (!bot.hasPermission(Permission.MESSAGE_SEND)) {
 							message.getAuthor().openPrivateChannel()
-								.flatMap(channel -> channel.sendMessage("I am missing the `" + Permission.MESSAGE_WRITE.getName() + "` permission in " + message.getTextChannel().getAsMention() + " " + this.config.getFailureEmote()))
+								.flatMap(channel -> channel.sendMessage("I am missing the `" + Permission.MESSAGE_SEND.getName() + "` permission in " + message.getChannel().getAsMention() + " " + this.config.getFailureEmote()))
 								.queue();
 							
 							return;
@@ -824,7 +832,7 @@ public class Sx4 {
 				}
 
 				String message = PermissionUtility.formatMissingPermissions(EnumSet.of(permission), "I am") + " " + this.config.getFailureEmote();
-				if (event.getSelfMember().hasPermission(event.getTextChannel(), Permission.MESSAGE_WRITE)) {
+				if (event.getSelfMember().hasPermission((GuildMessageChannel) event.getChannel(), Permission.MESSAGE_SEND)) {
 					event.reply(message).queue();
 				} else {
 					event.getAuthor().openPrivateChannel()
@@ -892,6 +900,7 @@ public class Sx4 {
 		optionFactory.registerParser(Duration.class, (context, option, content) -> content == null ? new ParsedResult<>(true, null) : new ParsedResult<>(TimeUtility.getDurationFromString(content)))
 			.registerParser(Guild.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getGuild(this.shardManager, content)))
 			.registerParser(TextChannel.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getTextChannel(context.getMessage().getGuild(), content.trim())))
+			.registerParser(BaseGuildMessageChannel.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getBaseMessageChannel(context.getMessage().getGuild(), content.trim())))
 			.registerParser(Sx4Command.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getCommand(this.commandListener, content.trim())))
 			.registerParser(Locale.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getLocale(content.trim())))
 			.registerParser(Integer.class, (context, argument, content) -> {
@@ -1142,13 +1151,14 @@ public class Sx4 {
 			
 		argumentFactory.registerParser(Member.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getMember(context.getMessage().getGuild(), content.trim())))
 			.registerParser(TextChannel.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getTextChannel(context.getMessage().getGuild(), content.trim())))
+			.registerParser(BaseGuildMessageChannel.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getBaseMessageChannel(context.getMessage().getGuild(), content.trim())))
 			.registerParser(Duration.class, (context, argument, content) -> new ParsedResult<>(TimeUtility.getDurationFromString(content.trim())))
 			.registerParser(List.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getCommandOrModule(this.commandListener, content.trim())))
 			.registerParser(Reason.class, (context, argument, content) -> new ParsedResult<>(Reason.parse(this.mongo, context.getMessage().getGuild().getIdLong(), content.trim())))
 			.registerParser(ObjectId.class, (context, argument, content) -> new ParsedResult<>(ObjectId.isValid(content) ? new ObjectId(content.trim()) : null))
 			.registerParser(IPermissionHolder.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getPermissionHolder(context.getMessage().getGuild(), content.trim())))
 			.registerParser(Role.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getRole(context.getMessage().getGuild(), content.trim())))
-			.registerParser(VoiceChannel.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getVoiceChannel(context.getMessage().getGuild(), content.trim())))
+			.registerParser(AudioChannel.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getAudioChannel(context.getMessage().getGuild(), content.trim())))
 			.registerParser(Attachment.class, (context, argument, content) -> context.getMessage().getAttachments().isEmpty() ? new ParsedResult<>() : new ParsedResult<>(context.getMessage().getAttachments().get(0)))
 			.registerParser(Emote.class, (context, argument, content) -> new ParsedResult<>(argument.getProperty("global") ? SearchUtility.getEmote(this.shardManager, content.trim()) : SearchUtility.getGuildEmote(context.getMessage().getGuild(), content.trim())))
 			.registerParser(GuildChannel.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getGuildChannel(context.getMessage().getGuild(), content.trim())))
@@ -1347,7 +1357,7 @@ public class Sx4 {
 			}).registerParser(MessageArgument.class, new IParser<>() {
 				public @NotNull ParsedResult<MessageArgument> parse(@NotNull ParseContext context, @NotNull IArgument<MessageArgument> argument, @NotNull String content) {
 					Message message = context.getMessage();
-					TextChannel channel = message.getTextChannel();
+					MessageChannel channel = message.getChannel();
 
 					int nextSpace = content.indexOf(' ');
 					String query = nextSpace == -1 || argument.isEndless() ? content : content.substring(0, nextSpace);
@@ -1565,7 +1575,8 @@ public class Sx4 {
 			.registerResponse(Sx4Command.class, "I could not find that command" + this.config.getFailureEmote())
 			.registerResponse(ReactionEmote.class, "I could not find that emote " + this.config.getFailureEmote())
 			.registerResponse(TextChannel.class, "I could not find that text channel " + this.config.getFailureEmote())
-			.registerResponse(VoiceChannel.class, "I could not find that voice channel " + this.config.getFailureEmote())
+			.registerResponse(BaseGuildMessageChannel.class, "I could not find that text channel " + this.config.getFailureEmote())
+			.registerResponse(AudioChannel.class, "I could not find that voice channel " + this.config.getFailureEmote())
 			.registerResponse(ModuleCategory.class, "I could not find that category " + this.config.getFailureEmote())
 			.registerResponse(GuildChannel.class, "I could not find that channel " + this.config.getFailureEmote())
 			.registerResponse(IPermissionHolder.class, "I could not find that user/role " + this.config.getFailureEmote())
@@ -1653,7 +1664,7 @@ public class Sx4 {
 					return;
 				}
 
-				message.getChannel().sendMessage(HelpUtility.getHelpMessage(command, !message.isFromGuild() || message.getGuild().getSelfMember().hasPermission(message.getTextChannel(), Permission.MESSAGE_EMBED_LINKS))).queue();
+				message.getChannel().sendMessage(HelpUtility.getHelpMessage(command, !message.isFromGuild() || message.getGuild().getSelfMember().hasPermission(message.getGuildChannel(), Permission.MESSAGE_EMBED_LINKS))).queue();
 			}).registerResponse(Enum.class, (argument, message, content) -> {
 				Class<?> finalClass = argument.getProperty("finalClass", Class.class);
 				finalClass = finalClass == null ? argument.getType() : finalClass;

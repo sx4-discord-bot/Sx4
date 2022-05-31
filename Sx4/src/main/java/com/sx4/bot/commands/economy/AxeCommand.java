@@ -2,7 +2,10 @@ package com.sx4.bot.commands.economy;
 
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
-import com.mongodb.client.model.*;
+import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.FindOneAndUpdateOptions;
+import com.mongodb.client.model.Projections;
+import com.mongodb.client.model.ReturnDocument;
 import com.mongodb.client.result.UpdateResult;
 import com.sx4.bot.annotations.argument.AlternativeOptions;
 import com.sx4.bot.annotations.argument.DefaultNumber;
@@ -20,22 +23,18 @@ import com.sx4.bot.entities.economy.item.CraftItem;
 import com.sx4.bot.entities.economy.item.ItemStack;
 import com.sx4.bot.entities.economy.item.ItemType;
 import com.sx4.bot.entities.economy.upgrade.Upgrade;
+import com.sx4.bot.entities.interaction.ButtonType;
+import com.sx4.bot.entities.interaction.CustomButtonId;
 import com.sx4.bot.paged.PagedResult;
-import com.sx4.bot.utility.ButtonUtility;
 import com.sx4.bot.utility.EconomyUtility;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.NumberUtility;
-import com.sx4.bot.waiter.Waiter;
-import com.sx4.bot.waiter.exception.CancelException;
-import com.sx4.bot.waiter.exception.TimeoutException;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.MessageBuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.User;
-import net.dv8tion.jda.api.events.GenericEvent;
-import net.dv8tion.jda.api.events.interaction.ButtonClickEvent;
-import net.dv8tion.jda.api.interactions.components.Button;
+import net.dv8tion.jda.api.interactions.components.buttons.Button;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 
@@ -43,8 +42,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.stream.Collectors;
 
 public class AxeCommand extends Sx4Command {
@@ -265,62 +262,26 @@ public class AxeCommand extends Sx4Command {
 			durability = amount;
 		}
 
+		String acceptId = new CustomButtonId.Builder()
+			.setType(ButtonType.AXE_REPAIR_CONFIRM)
+			.setTimeout(60)
+			.setOwners(event.getAuthor().getIdLong())
+			.setArguments(item.getId(), axe.getId(), axe.getDurability(), durability)
+			.getId();
+
+		String rejectId = new CustomButtonId.Builder()
+			.setType(ButtonType.GENERIC_REJECT)
+			.setTimeout(60)
+			.setOwners(event.getAuthor().getIdLong())
+			.getId();
+
+		List<Button> buttons = List.of(Button.success(acceptId, "Yes"), Button.danger(rejectId, "No"));
+
 		int itemCount = (int) Math.ceil((((double) axe.getPrice() / item.getPrice()) / axe.getMaxDurability()) * durability);
 
-		List<Button> buttons = List.of(Button.success("yes", "Yes"), Button.danger("no", "No"));
-
-		event.reply("It will cost you `" + itemCount + " " + item.getName() + "` to repair your axe by **" + durability + "** durability, are you sure you want to repair it?").setActionRow(buttons).submit().thenCompose(message -> {
-			return new Waiter<>(event.getBot(), ButtonClickEvent.class)
-				.setPredicate(e -> ButtonUtility.handleButtonConfirmation(e, message, event.getAuthor()))
-				.setCancelPredicate(e -> ButtonUtility.handleButtonCancellation(e, message, event.getAuthor()))
-				.onFailure(e -> ButtonUtility.handleButtonFailure(e, message))
-				.setTimeout(60)
-				.start();
-		}).whenComplete((e, exception) -> {
-			Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
-			if (cause instanceof CancelException) {
-				GenericEvent cancelEvent = ((CancelException) cause).getEvent();
-				if (cancelEvent != null) {
-					((ButtonClickEvent) cancelEvent).reply("Cancelled " + event.getConfig().getSuccessEmote()).queue();
-				}
-
-				return;
-			} else if (cause instanceof TimeoutException) {
-				event.reply("Timed out :stopwatch:").queue();
-				return;
-			} else if (ExceptionUtility.sendExceptionally(event, exception)) {
-				return;
-			}
-
-			List<Bson> update = List.of(Operators.set("amount", Operators.let(new Document("amount", Operators.ifNull("$amount", 0L)), Operators.cond(Operators.lte(itemCount, "$$amount"), Operators.subtract("$$amount", itemCount), "$$amount"))));
-
-			event.getMongo().updateItem(Filters.and(Filters.eq("item.id", item.getId()), Filters.eq("userId", event.getAuthor().getIdLong())), update, new UpdateOptions()).thenCompose(result -> {
-				if (result.getMatchedCount() == 0 || result.getModifiedCount() == 0) {
-					e.reply("You do not have `" + itemCount + " " + item.getName() + "` " + event.getConfig().getFailureEmote()).queue();
-					return CompletableFuture.completedFuture(null);
-				}
-
-				List<Bson> itemUpdate = List.of(Operators.set("item.durability", Operators.cond(Operators.eq("$item.durability", axe.getDurability()), Operators.add("$item.durability", durability), "$item.durability")));
-
-				return event.getMongo().updateItem(Filters.and(Filters.eq("item.id", axe.getId()), Filters.eq("userId", event.getAuthor().getIdLong())), itemUpdate, new UpdateOptions());
-			}).whenComplete((result, databaseException) -> {
-				if (ExceptionUtility.sendExceptionally(event, databaseException) || result == null) {
-					return;
-				}
-
-				if (result.getMatchedCount() == 0) {
-					e.reply("You no longer have that axe " + event.getConfig().getFailureEmote()).queue();
-					return;
-				}
-
-				if (result.getMatchedCount() == 0) {
-					e.reply("The durability of your axe has changed " + event.getConfig().getFailureEmote()).queue();
-					return;
-				}
-
-				e.reply("You just repaired your axe by **" + durability + "** durability " + event.getConfig().getSuccessEmote()).queue();
-			});
-		});
+		event.reply("It will cost you `" + itemCount + " " + item.getName() + "` to repair your axe by **" + durability + "** durability, are you sure you want to repair it?")
+			.setActionRow(buttons)
+			.queue();
 	}
 
 	@Command(value="upgrade", description="Upgrade your axe by a certain attribute")

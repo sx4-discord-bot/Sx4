@@ -7,12 +7,12 @@ import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.FutureUtility;
 import com.sx4.bot.utility.TriggerUtility;
 import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.GuildMessageChannel;
 import net.dv8tion.jda.api.entities.Message;
-import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.events.GenericEvent;
-import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent;
-import net.dv8tion.jda.api.events.message.guild.GuildMessageUpdateEvent;
+import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
+import net.dv8tion.jda.api.events.message.MessageUpdateEvent;
 import net.dv8tion.jda.api.hooks.EventListener;
 import okhttp3.OkHttpClient;
 import org.bson.Document;
@@ -37,13 +37,17 @@ public class TriggerHandler implements EventListener {
 	}
 
 	public void handle(Message message) {
+		if (!message.isFromGuild()) {
+			return;
+		}
+
 		User author = message.getAuthor();
 		if (author.isBot()) {
 			return;
 		}
 
-		TextChannel channel = message.getTextChannel();
-		if (!message.getGuild().getSelfMember().hasPermission(channel, Permission.MESSAGE_WRITE)) {
+		GuildMessageChannel channel = message.getGuildChannel();
+		if (!message.getGuild().getSelfMember().hasPermission(channel, Permission.MESSAGE_SEND)) {
 			return;
 		}
 
@@ -79,10 +83,10 @@ public class TriggerHandler implements EventListener {
 
 	@Override
 	public void onEvent(@NotNull GenericEvent event) {
-		if (event instanceof GuildMessageReceivedEvent) {
-			this.handle(((GuildMessageReceivedEvent) event).getMessage());
-		} else if (event instanceof GuildMessageUpdateEvent) {
-			this.handle(((GuildMessageUpdateEvent) event).getMessage());
+		if (event instanceof MessageReceivedEvent) {
+			this.handle(((MessageReceivedEvent) event).getMessage());
+		} else if (event instanceof MessageUpdateEvent) {
+			this.handle(((MessageUpdateEvent) event).getMessage());
 		}
 	}
 

@@ -2,16 +2,16 @@ package com.sx4.bot.entities.trigger;
 
 import com.sx4.bot.formatter.FormatterManager;
 import com.sx4.bot.utility.TriggerUtility;
-import net.dv8tion.jda.api.entities.TextChannel;
+import net.dv8tion.jda.api.entities.GuildMessageChannel;
 import org.bson.Document;
 
 import java.util.concurrent.CompletableFuture;
 
 public class SendMessageTriggerAction extends TriggerAction {
 
-	private final TextChannel channel;
+	private final GuildMessageChannel channel;
 
-	public SendMessageTriggerAction(FormatterManager manager, Document data, TextChannel channel) {
+	public SendMessageTriggerAction(FormatterManager manager, Document data, GuildMessageChannel channel) {
 		super(manager, data);
 
 		this.channel = channel;

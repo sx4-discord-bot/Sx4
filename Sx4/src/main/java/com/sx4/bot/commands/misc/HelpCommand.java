@@ -31,7 +31,7 @@ public class HelpCommand extends Sx4Command {
 	}
 	
 	public void onCommand(Sx4CommandEvent event, @Argument(value="command | module", endless=true, nullDefault=true) String commandName) {
-		boolean embed = !event.isFromGuild() || event.getGuild().getSelfMember().hasPermission(event.getTextChannel(), Permission.MESSAGE_EMBED_LINKS);
+		boolean embed = !event.isFromGuild() || event.getGuild().getSelfMember().hasPermission(event.getGuildChannel(), Permission.MESSAGE_EMBED_LINKS);
 		if (commandName == null) {
 			List<Sx4Category> categories = Arrays.stream(ModuleCategory.ALL_ARRAY)
 				.filter(category -> !category.getCommands(event.isAuthorDeveloper()).isEmpty())

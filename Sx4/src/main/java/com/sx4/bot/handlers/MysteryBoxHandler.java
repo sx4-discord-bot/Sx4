@@ -6,11 +6,12 @@ import com.sx4.bot.entities.games.MysteryBoxResult;
 import com.sx4.bot.managers.MysteryBoxManager;
 import net.dv8tion.jda.api.entities.Emoji;
 import net.dv8tion.jda.api.events.GenericEvent;
-import net.dv8tion.jda.api.events.interaction.ButtonClickEvent;
+import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import net.dv8tion.jda.api.hooks.EventListener;
 import net.dv8tion.jda.api.interactions.components.ActionRow;
-import net.dv8tion.jda.api.interactions.components.Button;
 import net.dv8tion.jda.api.interactions.components.Component;
+import net.dv8tion.jda.api.interactions.components.ItemComponent;
+import net.dv8tion.jda.api.interactions.components.buttons.Button;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
@@ -27,8 +28,8 @@ public class MysteryBoxHandler implements EventListener {
 
 	private List<ActionRow> editRows(List<ActionRow> rows, List<Button> buttons) {
 		for (ActionRow row : rows) {
-			List<Component> components = row.getComponents();
-			for (ListIterator<Component> it = components.listIterator(); it.hasNext();) {
+			List<ItemComponent> components = row.getComponents();
+			for (ListIterator<ItemComponent> it = components.listIterator(); it.hasNext();) {
 				Component component = it.next();
 				if (!(component instanceof Button button)) {
 					continue;
@@ -45,7 +46,7 @@ public class MysteryBoxHandler implements EventListener {
 		return rows;
 	}
 
-	public void handle(ButtonClickEvent event) {
+	public void handle(ButtonInteractionEvent event) {
 		if (event.isAcknowledged()) {
 			return;
 		}
@@ -108,8 +109,8 @@ public class MysteryBoxHandler implements EventListener {
 
 	@Override
 	public void onEvent(@NotNull GenericEvent event) {
-		if (event instanceof ButtonClickEvent) {
-			this.handle((ButtonClickEvent) event);
+		if (event instanceof ButtonInteractionEvent) {
+			this.handle((ButtonInteractionEvent) event);
 		}
 	}
 

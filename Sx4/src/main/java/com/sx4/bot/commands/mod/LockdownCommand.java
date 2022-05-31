@@ -5,9 +5,7 @@ import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import net.dv8tion.jda.api.Permission;
-import net.dv8tion.jda.api.entities.PermissionOverride;
-import net.dv8tion.jda.api.entities.Role;
-import net.dv8tion.jda.api.entities.TextChannel;
+import net.dv8tion.jda.api.entities.*;
 
 public class LockdownCommand extends Sx4Command {
 
@@ -21,19 +19,25 @@ public class LockdownCommand extends Sx4Command {
 		super.setBotDiscordPermissions(Permission.MANAGE_PERMISSIONS);
 	}
 
-	public void onCommand(Sx4CommandEvent event, @Argument(value="channel", endless=true, nullDefault=true) TextChannel textChannel) {
-		TextChannel channel = textChannel == null ? event.getTextChannel() : textChannel;
+	public void onCommand(Sx4CommandEvent event, @Argument(value="channel", endless=true, nullDefault=true) BaseGuildMessageChannel channel) {
+		MessageChannel messageChannel = event.getChannel();
+		if (channel == null && !(messageChannel instanceof IPermissionContainer)) {
+			event.replyFailure("You cannot use this channel type").queue();
+			return;
+		}
+
+		IPermissionContainer effectiveChannel = channel == null ? (IPermissionContainer) messageChannel : channel;
 
 		Role role = event.getGuild().getPublicRole();
-		PermissionOverride override = channel.getPermissionOverride(role);
+		PermissionOverride override = effectiveChannel.getPermissionOverride(role);
 
-		if (override != null && override.getDenied().contains(Permission.MESSAGE_WRITE)) {
-			channel.upsertPermissionOverride(role).clear(Permission.MESSAGE_WRITE)
-				.flatMap($ -> event.replySuccess(channel.getAsMention() + " is no longer locked down"))
+		if (override != null && override.getDenied().contains(Permission.MESSAGE_SEND)) {
+			effectiveChannel.upsertPermissionOverride(role).clear(Permission.MESSAGE_SEND)
+				.flatMap($ -> event.replySuccess(effectiveChannel.getAsMention() + " is no longer locked down"))
 				.queue();
 		} else {
-			channel.upsertPermissionOverride(role).deny(Permission.MESSAGE_WRITE)
-				.flatMap($ -> event.replySuccess(channel.getAsMention() + " is now locked down"))
+			effectiveChannel.upsertPermissionOverride(role).deny(Permission.MESSAGE_SEND)
+				.flatMap($ -> event.replySuccess(effectiveChannel.getAsMention() + " is now locked down"))
 				.queue();
 		}
 	}

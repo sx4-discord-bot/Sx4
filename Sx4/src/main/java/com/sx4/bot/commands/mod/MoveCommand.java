@@ -6,8 +6,8 @@ import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.utility.PermissionUtility;
 import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.AudioChannel;
 import net.dv8tion.jda.api.entities.Member;
-import net.dv8tion.jda.api.entities.VoiceChannel;
 
 public class MoveCommand extends Sx4Command {
 
@@ -21,20 +21,20 @@ public class MoveCommand extends Sx4Command {
 		super.setCategoryAll(ModuleCategory.MODERATION);
 	}
 
-	public void onCommand(Sx4CommandEvent event, @Argument(value="user", nullDefault=true) Member member, @Argument(value="voice channel", nullDefault=true) VoiceChannel channel) {
+	public void onCommand(Sx4CommandEvent event, @Argument(value="user", nullDefault=true) Member member, @Argument(value="voice channel", nullDefault=true) AudioChannel channel) {
 		if (member == null && channel == null) {
 			event.replyFailure("Either a user or voice channel needs to be provided").queue();
 			return;
 		}
 
 		Member effectiveMember = member == null ? event.getMember() : member;
-		VoiceChannel memberChannel = effectiveMember.getVoiceState().getChannel();
+		AudioChannel memberChannel = effectiveMember.getVoiceState().getChannel();
 		if (memberChannel == null) {
 			event.replyFailure("That user is not in a voice channel").queue();
 			return;
 		}
 
-		VoiceChannel effectiveChannel = channel == null ? event.getMember().getVoiceState().getChannel() : channel;
+		AudioChannel effectiveChannel = channel == null ? event.getMember().getVoiceState().getChannel() : channel;
 		if (effectiveChannel == null) {
 			event.replyFailure("You are not in a voice channel").queue();
 			return;

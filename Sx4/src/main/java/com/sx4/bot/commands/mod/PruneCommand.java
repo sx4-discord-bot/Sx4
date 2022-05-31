@@ -46,7 +46,7 @@ public class PruneCommand extends Sx4Command {
 	
 	private CompletableFuture<Void> prune(Sx4CommandEvent event, int amount, long start, long end, Predicate<Message> predicate) {
 		Message originalMessage = event.getMessage();
-		MessageRetrieveAction action = start == 0L ? end == 0L ? event.getTextChannel().getHistoryBefore(originalMessage, 100) : event.getTextChannel().getHistoryBefore(end, 100) : event.getTextChannel().getHistoryAfter(start, 100);
+		MessageRetrieveAction action = start == 0L ? end == 0L ? event.getGuildChannel().getHistoryBefore(originalMessage, 100) : event.getGuildChannel().getHistoryBefore(end, 100) : event.getGuildChannel().getHistoryAfter(start, 100);
 
 		return action.submit().thenCompose(history -> {
 			List<Message> retrievedHistory = new ArrayList<>(history.getRetrievedHistory());
@@ -77,7 +77,7 @@ public class PruneCommand extends Sx4Command {
 			if (messages.size() == 1) {
 				return messages.get(0).delete().submit();
 			} else {
-				return event.getTextChannel().deleteMessages(messages).submit();
+				return event.getGuildChannel().deleteMessages(messages).submit();
 			}
 		});
 	}
@@ -111,7 +111,7 @@ public class PruneCommand extends Sx4Command {
 	@AuthorPermissions(permissions={Permission.MESSAGE_MANAGE})
 	@BotPermissions(permissions={Permission.MESSAGE_MANAGE, Permission.MESSAGE_HISTORY}, overwrite=true)
 	public void mentions(Sx4CommandEvent event, @Argument(value="amount") @DefaultNumber(100) @Limit(min=1, max=100) int amount, @Option(value="start", description="The message id to start pruning from") long start, @Option(value="end", description="The message id to end pruning at") long end, @Argument(value="mentions") @Endless(minArguments=0) MentionType... mentions) {
-		this.prune(event, amount, start, end, message -> !message.getMentions(mentions).isEmpty());
+		this.prune(event, amount, start, end, message -> !message.getMentions().getMentions(mentions).isEmpty());
 	}
 	
 	@Command(value="attachments", aliases={"attachments"}, description="Prunes a set amount of messages sent with attachments")

@@ -6,13 +6,14 @@ import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.entities.management.MediaType;
 import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.ChannelType;
+import net.dv8tion.jda.api.entities.GuildMessageChannel;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.Message.Attachment;
-import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.events.GenericEvent;
-import net.dv8tion.jda.api.events.channel.text.TextChannelDeleteEvent;
-import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent;
-import net.dv8tion.jda.api.events.message.guild.GuildMessageUpdateEvent;
+import net.dv8tion.jda.api.events.channel.ChannelDeleteEvent;
+import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
+import net.dv8tion.jda.api.events.message.MessageUpdateEvent;
 import net.dv8tion.jda.api.hooks.EventListener;
 import org.bson.Document;
 import org.jetbrains.annotations.NotNull;
@@ -37,11 +38,11 @@ public class MediaModeHandler implements EventListener {
 	}
 
 	public void handle(Message message) {
-		if (message.getAuthor().isBot() || message.getMember().hasPermission(Permission.ADMINISTRATOR)) {
+		if (!message.isFromGuild() || message.getAuthor().isBot() || message.getMember().hasPermission(Permission.ADMINISTRATOR)) {
 			return;
 		}
 
-		TextChannel channel = message.getTextChannel();
+		GuildMessageChannel channel = message.getGuildChannel();
 
 		this.bot.getExecutor().submit(() -> {
 			Document media = this.bot.getMongo().getMediaChannel(Filters.eq("channelId", channel.getIdLong()), Projections.include("types"));
@@ -62,26 +63,30 @@ public class MediaModeHandler implements EventListener {
 		});
 	}
 
-	public void onGuildMessageReceived(GuildMessageReceivedEvent event) {
+	public void onMessageReceived(MessageReceivedEvent event) {
 		this.handle(event.getMessage());
 	}
 
-	public void onGuildMessageUpdate(GuildMessageUpdateEvent event) {
+	public void onMessageUpdate(MessageUpdateEvent event) {
 		this.handle(event.getMessage());
 	}
 
-	public void onTextChannelDelete(TextChannelDeleteEvent event) {
+	public void onChannelDelete(ChannelDeleteEvent event) {
+		if (!event.isFromType(ChannelType.TEXT)) {
+			return;
+		}
+
 		this.bot.getMongo().deleteMediaChannel(Filters.eq("channelId", event.getChannel().getIdLong())).whenComplete(MongoDatabase.exceptionally());
 	}
 
 	@Override
 	public void onEvent(@NotNull GenericEvent event) {
-		if (event instanceof GuildMessageReceivedEvent) {
-			this.onGuildMessageReceived((GuildMessageReceivedEvent) event);
-		} else if (event instanceof GuildMessageUpdateEvent) {
-			this.onGuildMessageUpdate((GuildMessageUpdateEvent) event);
-		} else if (event instanceof TextChannelDeleteEvent) {
-			this.onTextChannelDelete((TextChannelDeleteEvent) event);
+		if (event instanceof MessageReceivedEvent) {
+			this.onMessageReceived((MessageReceivedEvent) event);
+		} else if (event instanceof MessageUpdateEvent) {
+			this.onMessageUpdate((MessageUpdateEvent) event);
+		} else if (event instanceof ChannelDeleteEvent) {
+			this.onChannelDelete((ChannelDeleteEvent) event);
 		}
 	}
 

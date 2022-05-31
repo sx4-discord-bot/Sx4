@@ -14,6 +14,10 @@ import java.util.stream.Collectors;
 
 public class LoggerUtility {
 
+    public static long getChannelId(Channel channel) {
+        return (channel instanceof ThreadChannel ? ((ThreadChannel) channel).getParentChannel() : channel).getIdLong();
+    }
+
     public static Set<LoggerCategory> getCommonCategories(LoggerEvent... events) {
         if (events.length == 1) {
             return new HashSet<>(Arrays.asList(events[0].getCategories()));
@@ -43,24 +47,20 @@ public class LoggerUtility {
                 return member == null ? 0L : member.getIdLong();
             }
             case VOICE_CHANNEL -> {
-                VoiceChannel voiceChannel = SearchUtility.getVoiceChannel(guild, query);
-                return voiceChannel == null ? 0L : voiceChannel.getIdLong();
+                AudioChannel audioChannel = SearchUtility.getAudioChannel(guild, query);
+                return audioChannel == null ? 0L : audioChannel.getIdLong();
             }
             case CATEGORY -> {
                 Category category = SearchUtility.getCategory(guild, query);
                 return category == null ? 0L : category.getIdLong();
             }
             case TEXT_CHANNEL -> {
-                TextChannel textChannel = SearchUtility.getTextChannel(guild, query);
-                return textChannel == null ? 0L : textChannel.getIdLong();
+                BaseGuildMessageChannel messageChannel = SearchUtility.getBaseMessageChannel(guild, query);
+                return messageChannel == null ? 0L : messageChannel.getIdLong();
             }
             case ROLE -> {
                 Role role = SearchUtility.getRole(guild, query);
                 return role == null ? 0L : role.getIdLong();
-            }
-            case STORE_CHANNEL -> {
-                StoreChannel storeChannel = SearchUtility.getStoreChannel(guild, query);
-                return storeChannel == null ? 0L : storeChannel.getIdLong();
             }
             case EMOTE -> {
                 Emote emote = SearchUtility.getGuildEmote(guild, query);
@@ -247,10 +247,12 @@ public class LoggerUtility {
 
     public static String getChannelTypeReadable(ChannelType channelType) {
         String type;
-        if (channelType == ChannelType.TEXT || channelType == ChannelType.VOICE || channelType == ChannelType.STORE) {
+        if (channelType == ChannelType.TEXT || channelType == ChannelType.VOICE || channelType == ChannelType.NEWS || channelType == ChannelType.STAGE) {
             type = channelType.toString().toLowerCase() + " channel";
         } else if (channelType == ChannelType.CATEGORY) {
             type = "category";
+        } else if (channelType.isThread()) {
+            type = "thread";
         } else {
             // return unknown so it can easily be reported as a bug user side rather than throwing an NPE
             return "unknown";

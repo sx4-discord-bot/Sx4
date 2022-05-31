@@ -23,7 +23,7 @@ public class ClearReactions extends Sx4Command {
 	}
 
 	public void onCommand(Sx4CommandEvent event, @Argument(value="message id") MessageArgument messageArgument) {
-		messageArgument.getChannel().clearReactionsById(messageArgument.getMessageId())
+		messageArgument.getGuildChannel().clearReactionsById(messageArgument.getMessageId())
 			.flatMap($ -> event.replySuccess("All reactions have been cleared from that message"))
 			.onErrorFlatMap(e -> {
 				if (e instanceof ErrorResponseException && ((ErrorResponseException) e).getErrorResponse() == ErrorResponse.UNKNOWN_MESSAGE) {

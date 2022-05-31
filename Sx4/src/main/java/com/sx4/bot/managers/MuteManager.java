@@ -7,12 +7,12 @@ import com.mongodb.client.model.WriteModel;
 import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.entities.mod.Reason;
+import com.sx4.bot.entities.mod.UserReference;
 import com.sx4.bot.events.mod.UnmuteEvent;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Role;
-import net.dv8tion.jda.api.entities.User;
 import org.bson.Document;
 
 import java.time.Clock;
@@ -127,7 +127,7 @@ public class MuteManager {
 		}
 
 		Reason reason = new Reason("Mute length served");
-		UnmuteEvent event = new UnmuteEvent(guild.getSelfMember(), member == null ? User.fromId(userId) : member.getUser(), reason);
+		UnmuteEvent event = new UnmuteEvent(guild.getSelfMember(), member == null ? UserReference.fromId(userId) : member.getUser(), reason);
 
 		this.bot.getModActionManager().onModAction(event);
 		this.deleteExecutor(guildId, userId);

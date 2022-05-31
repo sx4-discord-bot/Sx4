@@ -36,7 +36,7 @@ public class ServerAvatarCommand extends Sx4Command {
 
 		event.getHttpClient().newCall(request).enqueue((HttpCallback) response -> {
 			if (!response.isSuccessful()) {
-				ImageUtility.getErrorMessage(event.getTextChannel(), response.code(), response.body().string()).queue();
+				ImageUtility.getErrorMessage(event.getChannel(), response.code(), response.body().string()).queue();
 				return;
 			}
 

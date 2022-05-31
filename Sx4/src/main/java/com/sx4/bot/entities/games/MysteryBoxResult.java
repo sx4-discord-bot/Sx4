@@ -1,23 +1,23 @@
 package com.sx4.bot.entities.games;
 
 import com.sx4.bot.managers.MysteryBoxManager;
-import net.dv8tion.jda.api.events.interaction.ButtonClickEvent;
+import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 
 public class MysteryBoxResult {
 
 	private final long winnings, bet;
 	private final int clicks;
 
-	private final ButtonClickEvent event;
+	private final ButtonInteractionEvent event;
 
-	public MysteryBoxResult(MysteryBoxGame game, ButtonClickEvent event) {
+	public MysteryBoxResult(MysteryBoxGame game, ButtonInteractionEvent event) {
 		this.winnings = game.getWinnings();
 		this.bet = game.getBet();
 		this.clicks = game.getClicks();
 		this.event = event;
 	}
 
-	public ButtonClickEvent getEvent() {
+	public ButtonInteractionEvent getEvent() {
 		return this.event;
 	}
 

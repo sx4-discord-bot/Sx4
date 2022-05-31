@@ -6,10 +6,10 @@ import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.MessageBuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.*;
-import net.dv8tion.jda.api.events.interaction.ButtonClickEvent;
+import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.interactions.components.ActionRow;
-import net.dv8tion.jda.api.interactions.components.Button;
+import net.dv8tion.jda.api.interactions.components.buttons.Button;
 import net.dv8tion.jda.api.requests.ErrorResponse;
 
 import java.util.*;
@@ -518,7 +518,7 @@ public class PagedResult<Type> {
 		});
 	}
 
-	public void ensure(ButtonClickEvent event) {
+	public void ensure(ButtonInteractionEvent event) {
 		this.getPagedMessage(message -> {
 			this.cacheMessage(message);
 

@@ -3,7 +3,10 @@ package com.sx4.bot.commands.settings;
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
 import com.jockie.bot.core.option.Option;
-import com.mongodb.client.model.*;
+import com.mongodb.client.model.Aggregates;
+import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.Projections;
+import com.mongodb.client.model.Sorts;
 import com.sx4.bot.annotations.argument.DefaultNumber;
 import com.sx4.bot.annotations.argument.Limit;
 import com.sx4.bot.annotations.command.CommandId;
@@ -14,22 +17,17 @@ import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.mongo.MongoDatabase;
-import com.sx4.bot.database.mongo.model.Operators;
+import com.sx4.bot.entities.interaction.ButtonType;
+import com.sx4.bot.entities.interaction.CustomButtonId;
 import com.sx4.bot.paged.PagedResult;
-import com.sx4.bot.utility.ButtonUtility;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.NumberUtility;
-import com.sx4.bot.waiter.Waiter;
-import com.sx4.bot.waiter.exception.CancelException;
-import com.sx4.bot.waiter.exception.TimeoutException;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.MessageBuilder;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.entities.User;
-import net.dv8tion.jda.api.events.GenericEvent;
-import net.dv8tion.jda.api.events.interaction.ButtonClickEvent;
-import net.dv8tion.jda.api.interactions.components.Button;
+import net.dv8tion.jda.api.interactions.components.buttons.Button;
 import net.dv8tion.jda.api.utils.MarkdownSanitizer;
 import org.bson.Document;
 import org.bson.conversions.Bson;
@@ -41,9 +39,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class PremiumCommand extends Sx4Command {
@@ -70,14 +65,11 @@ public class PremiumCommand extends Sx4Command {
 		if (guild == null) {
 			guild = event.getGuild();
 		}
-		
-		long guildId = guild.getIdLong();
-		String guildName = guild.getName();
 
 		int monthPrice = event.getConfig().getPremiumPrice();
 		int price = (int) Math.round((monthPrice / (double) event.getConfig().getPremiumDays()) * days);
 
-		long endAtPrior = event.getMongo().getGuildById(guildId, Projections.include("premium.endAt")).getEmbedded(List.of("premium", "endAt"), 0L);
+		long endAtPrior = event.getMongo().getGuildById(guild.getIdLong(), Projections.include("premium.endAt")).getEmbedded(List.of("premium", "endAt"), 0L);
 		boolean hasPremium = endAtPrior != 0;
 
 		MessageEmbed embed = new EmbedBuilder()
@@ -86,55 +78,22 @@ public class PremiumCommand extends Sx4Command {
 			.setDescription(String.format("Buying %d day%s of premium will:\n\n• Make you unable to use this credit on the other version of the bot\n• Use **$%.2f** of your credit\n• %s %1$s day%2$s of premium to the server\n\n:warning: **This action cannot be reversed** :warning:", days, days == 1 ? "" : "s", price / 100D, hasPremium ? "Add an extra" : "Give"))
 			.build();
 
-		List<Button> buttons = List.of(Button.success("confirm", "Confirm"), Button.danger("cancel", "Cancel"));
+		String acceptId = new CustomButtonId.Builder()
+			.setType(ButtonType.PREMIUM_CONFIRM)
+			.setTimeout(60)
+			.setOwners(event.getAuthor().getIdLong())
+			.setArguments(guild.getIdLong(), days)
+			.getId();
 
-		event.reply(embed).setActionRow(buttons).submit().thenCompose(message -> {
-			return new Waiter<>(event.getBot(), ButtonClickEvent.class)
-				.setPredicate(e -> ButtonUtility.handleButtonConfirmation(e, message, event.getAuthor(), "confirm"))
-				.setCancelPredicate(e -> ButtonUtility.handleButtonCancellation(e, message, event.getAuthor(), "cancel"))
-				.onFailure(e -> ButtonUtility.handleButtonFailure(e, message))
-				.setTimeout(60)
-				.start();
-		}).whenComplete((e, exception) -> {
-			Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
-			if (cause instanceof CancelException) {
-				GenericEvent cancelEvent = ((CancelException) cause).getEvent();
-				if (cancelEvent != null) {
-					((ButtonClickEvent) cancelEvent).reply("Cancelled " + event.getConfig().getSuccessEmote()).queue();
-				}
+		String rejectId = new CustomButtonId.Builder()
+			.setType(ButtonType.GENERIC_REJECT)
+			.setTimeout(60)
+			.setOwners(event.getAuthor().getIdLong())
+			.getId();
 
-				return;
-			} else if (cause instanceof TimeoutException) {
-				event.reply("Timed out :stopwatch:").queue();
-				return;
-			} else if (ExceptionUtility.sendExceptionally(event, exception)) {
-				return;
-			}
+		List<Button> buttons = List.of(Button.success(acceptId, "Confirm"), Button.danger(rejectId, "Cancel"));
 
-			List<Bson> update = List.of(Operators.set("premium.credit", Operators.cond(Operators.gt(price, Operators.ifNull("$premium.credit", 0)), "$premium.credit", Operators.subtract("$premium.credit", price))));
-			FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("premium.credit")).upsert(true);
-
-			event.getMongoMain().findAndUpdateUserById(event.getAuthor().getIdLong(), update, options).thenCompose(data -> {
-				int credit = data == null ? 0 : data.getEmbedded(List.of("premium", "credit"), 0);
-				if (price > credit) {
-					e.reply("You do not have enough credit to buy premium for that long " + event.getConfig().getFailureEmote()).queue();
-					return CompletableFuture.completedFuture(MongoDatabase.EMPTY_DOCUMENT);
-				}
-
-				List<Bson> guildUpdate = List.of(Operators.set("premium.endAt", Operators.add(TimeUnit.DAYS.toSeconds(days), Operators.ifNull("$premium.endAt", Operators.nowEpochSecond()))));
-				FindOneAndUpdateOptions guildOptions = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("premium.endAt")).upsert(true);
-
-				return event.getMongo().findAndUpdateGuildById(guildId, guildUpdate, guildOptions);
-			}).whenComplete((data, databaseException) -> {
-				if (ExceptionUtility.sendExceptionally(event, databaseException) || (data != null && data.isEmpty())) {
-					return;
-				}
-
-				long endAt = data == null ? 0L : data.getEmbedded(List.of("premium", "endAt"), 0L);
-
-				e.replyFormat("**%s** now has premium for %s%d day%s %s", guildName, endAt == 0 ? "" : "another ", days, days == 1 ? "" : "s", event.getConfig().getSuccessEmote()).queue();
-			});
-		});
+		event.reply(embed).setActionRow(buttons).queue();
 	}
 
 	@Command(value="check", description="Checks when the current premium in the server expires")

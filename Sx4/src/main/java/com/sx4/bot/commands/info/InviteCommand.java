@@ -19,7 +19,7 @@ public class InviteCommand extends Sx4Command {
 
 	public void onCommand(Sx4CommandEvent event) {
 		String url = event.getConfig().getInviteUrl(event.getSelfUser().getId());
-		if (event.isFromGuild() && !event.getSelfMember().hasPermission(event.getTextChannel(), Permission.MESSAGE_EMBED_LINKS)) {
+		if (event.isFromGuild() && !event.getSelfMember().hasPermission(event.getGuildChannel(), Permission.MESSAGE_EMBED_LINKS)) {
 			event.reply("<" + url + ">").queue();
 			return;
 		}

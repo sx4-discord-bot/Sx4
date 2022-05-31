@@ -33,7 +33,7 @@ public class EmoteInfoCommand extends Sx4Command {
 			.addField("ID", emote.getId(), false)
 			.addField("Server", guild.getName() + " (" + guild.getId() + ")", false);
 
-		if (guild.getSelfMember().hasPermission(Permission.MANAGE_EMOTES)) {
+		if (guild.getSelfMember().hasPermission(Permission.MANAGE_EMOTES_AND_STICKERS)) {
 			guild.retrieveEmote(emote).queue(e -> {
 				if (e.hasUser()) {
 					embed.addField("Uploader", e.getUser().getAsTag(), false);

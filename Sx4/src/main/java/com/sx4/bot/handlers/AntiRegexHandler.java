@@ -18,8 +18,8 @@ import com.sx4.bot.utility.ModUtility;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.*;
 import net.dv8tion.jda.api.events.GenericEvent;
-import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent;
-import net.dv8tion.jda.api.events.message.guild.GuildMessageUpdateEvent;
+import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
+import net.dv8tion.jda.api.events.message.MessageUpdateEvent;
 import net.dv8tion.jda.api.hooks.EventListener;
 import org.bson.Document;
 import org.bson.conversions.Bson;
@@ -58,7 +58,7 @@ public class AntiRegexHandler implements EventListener {
         this.bot = bot;
     }
 
-    private String format(String message, User user, TextChannel channel, ObjectId id, int currentAttempts, int maxAttempts, Action action) {
+    private String format(String message, User user, MessageChannel channel, ObjectId id, int currentAttempts, int maxAttempts, Action action) {
         return new StringFormatter(message)
             .user(user)
             .channel(channel)
@@ -71,6 +71,10 @@ public class AntiRegexHandler implements EventListener {
     }
 
     public void handle(Message message) {
+        if (!message.isFromGuild()) {
+            return;
+        }
+
         Member member = message.getMember();
         if (member == null) {
             return;
@@ -83,11 +87,11 @@ public class AntiRegexHandler implements EventListener {
 
         Guild guild = message.getGuild();
         Member selfMember = guild.getSelfMember();
-        TextChannel textChannel = message.getTextChannel();
+        GuildMessageChannel messageChannel = message.getGuildChannel();
 
-        long guildId = guild.getIdLong(), userId = member.getIdLong(), channelId = textChannel.getIdLong();
+        long guildId = guild.getIdLong(), userId = member.getIdLong(), channelId = (messageChannel instanceof ThreadChannel ? ((ThreadChannel) messageChannel).getParentChannel() : messageChannel).getIdLong();
 
-        Category parent = textChannel.getParent();
+        Category parent = messageChannel instanceof ICategorizableChannel ? ((ICategorizableChannel) messageChannel).getParentCategory() : null;
         List<Role> roles = member.getRoles();
         String content = message.getContentRaw();
 
@@ -209,7 +213,7 @@ public class AntiRegexHandler implements EventListener {
                     Document attempts = regex.get("attempts", MongoDatabase.EMPTY_DOCUMENT);
                     int maxAttempts = attempts.get("amount", 3);
 
-                    if ((matchAction & MatchAction.DELETE_MESSAGE.getRaw()) == MatchAction.DELETE_MESSAGE.getRaw() && selfMember.hasPermission(textChannel, Permission.MESSAGE_MANAGE)) {
+                    if ((matchAction & MatchAction.DELETE_MESSAGE.getRaw()) == MatchAction.DELETE_MESSAGE.getRaw() && selfMember.hasPermission(messageChannel, Permission.MESSAGE_MANAGE)) {
                         message.delete().queue();
                     }
 
@@ -233,36 +237,36 @@ public class AntiRegexHandler implements EventListener {
                         int currentAttempts = attemptsData.getInteger("attempts", 0);
 
                         String matchMessage = this.format(match.get("message", type.getDefaultMatchMessage()),
-                            user, textChannel, id, currentAttempts, maxAttempts, action);
+                            user, messageChannel, id, currentAttempts, maxAttempts, action);
 
                         String modMessage = this.format(mod.get("message", type.getDefaultModMessage()),
-                            user, textChannel, id, currentAttempts, maxAttempts, action);
+                            user, messageChannel, id, currentAttempts, maxAttempts, action);
 
-                        boolean send = (matchAction & MatchAction.SEND_MESSAGE.getRaw()) == MatchAction.SEND_MESSAGE.getRaw() && selfMember.hasPermission(textChannel, Permission.MESSAGE_WRITE);
+                        boolean send = (matchAction & MatchAction.SEND_MESSAGE.getRaw()) == MatchAction.SEND_MESSAGE.getRaw() && selfMember.hasPermission(messageChannel, Permission.MESSAGE_SEND);
                         if (action != null && currentAttempts == maxAttempts) {
                             Reason reason = new Reason(String.format("Sent a message which matched regex `%s` %d time%s", id.toHexString(), maxAttempts, maxAttempts == 1 ? "" : "s"));
 
                             ModUtility.performAction(this.bot, action, member, selfMember, reason).thenCompose(result -> {
                                 if (send) {
-                                    textChannel.sendMessage(modMessage).allowedMentions(EnumSet.allOf(Message.MentionType.class)).queue();
+                                    messageChannel.sendMessage(modMessage).allowedMentions(EnumSet.allOf(Message.MentionType.class)).queue();
                                 }
 
                                 return this.bot.getMongo().deleteRegexAttempt(Filters.and(Filters.eq("userId", userId), Filters.eq("regexId", id)));
                             }).whenComplete((result, modException) -> {
                                 Throwable cause = modException instanceof CompletionException ? modException.getCause() : modException;
                                 if (cause instanceof ModException) {
-                                    textChannel.sendMessage(modException.getMessage() + " " + this.bot.getConfig().getFailureEmote()).queue();
+                                    messageChannel.sendMessage(modException.getMessage() + " " + this.bot.getConfig().getFailureEmote()).queue();
                                     return;
                                 }
 
-                                ExceptionUtility.sendExceptionally(textChannel, modException);
+                                ExceptionUtility.sendExceptionally(messageChannel, modException);
                             });
 
                             return;
                         }
 
                         if (send) {
-                            textChannel.sendMessage(matchMessage).allowedMentions(EnumSet.allOf(Message.MentionType.class)).queue();
+                            messageChannel.sendMessage(matchMessage).allowedMentions(EnumSet.allOf(Message.MentionType.class)).queue();
                         }
                     });
                 });
@@ -272,10 +276,10 @@ public class AntiRegexHandler implements EventListener {
 
     @Override
     public void onEvent(@NotNull GenericEvent event) {
-        if (event instanceof GuildMessageReceivedEvent) {
-            this.handle(((GuildMessageReceivedEvent) event).getMessage());
-        } else if (event instanceof GuildMessageUpdateEvent) {
-            this.handle(((GuildMessageUpdateEvent) event).getMessage());
+        if (event instanceof MessageReceivedEvent) {
+            this.handle(((MessageReceivedEvent) event).getMessage());
+        } else if (event instanceof MessageUpdateEvent) {
+            this.handle(((MessageUpdateEvent) event).getMessage());
         }
     }
 

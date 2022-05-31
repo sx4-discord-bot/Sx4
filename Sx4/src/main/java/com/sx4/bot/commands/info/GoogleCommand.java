@@ -9,6 +9,8 @@ import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.StringUtility;
 import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.BaseGuildMessageChannel;
+import net.dv8tion.jda.api.entities.MessageChannel;
 
 import javax.ws.rs.ForbiddenException;
 import java.net.URLEncoder;
@@ -27,7 +29,8 @@ public class GoogleCommand extends Sx4Command {
 	}
 
 	public void onCommand(Sx4CommandEvent event, @Argument(value="query", endless=true) String query) {
-		boolean nsfw = event.getTextChannel().isNSFW();
+		MessageChannel channel = event.getChannel();
+		boolean nsfw = channel instanceof BaseGuildMessageChannel && ((BaseGuildMessageChannel) channel).isNSFW();
 
 		event.getBot().getGoogleCache().retrieveResultsByQuery(query, nsfw).whenComplete((results, exception) -> {
 			Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
