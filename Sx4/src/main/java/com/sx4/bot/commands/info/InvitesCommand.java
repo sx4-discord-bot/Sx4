@@ -26,6 +26,7 @@ public class InvitesCommand extends Sx4Command {
 
 		super.setDescription("View the amount of invites a specific user has");
 		super.setExamples("invites", "invites @Shea#6653", "invites leaderboard");
+		super.setBotDiscordPermissions(Permission.MANAGE_SERVER);
 		super.setCategoryAll(ModuleCategory.INFORMATION);
 	}
 

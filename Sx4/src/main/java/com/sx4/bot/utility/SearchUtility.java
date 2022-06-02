@@ -290,7 +290,7 @@ public class SearchUtility {
 
 	public static GuildChannel getGuildChannel(Guild guild, ChannelType type, String query) {
 		if (type == ChannelType.TEXT) {
-			return SearchUtility.getTextChannel(guild, query);
+			return SearchUtility.getBaseMessageChannel(guild, query);
 		} else if (type == ChannelType.CATEGORY) {
 			return SearchUtility.getCategory(guild, query);
 		} else if (type == ChannelType.VOICE) {

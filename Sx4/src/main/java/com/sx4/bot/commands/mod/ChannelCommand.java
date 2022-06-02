@@ -56,12 +56,12 @@ public class ChannelCommand extends Sx4Command {
 	@Examples({"channel delete #bots", "channel create voice Music", "channel create category Info"})
 	@AuthorPermissions(permissions={Permission.MANAGE_CHANNEL})
 	@BotPermissions(permissions={Permission.MANAGE_CHANNEL})
-	public void delete(Sx4CommandEvent event, @Argument(value="type", nullDefault=true) @EnumOptions(value={"TEXT", "VOICE", "CATEGORY", "STORE"}) ChannelType type, @Argument(value="channel", endless=true) String query) {
+	public void delete(Sx4CommandEvent event, @Argument(value="type", nullDefault=true) @EnumOptions(value={"TEXT", "VOICE", "CATEGORY"}) ChannelType type, @Argument(value="channel", endless=true) String query) {
 		ChannelType effectiveType = type == null ? ChannelType.TEXT : type;
 
 		GuildChannel channel = SearchUtility.getGuildChannel(event.getGuild(), effectiveType, query);
 		if (channel == null) {
-			event.replyFailure("I could not find that " + LoggerUtility.getChannelTypeReadable(type)).queue();
+			event.replyFailure("I could not find that " + LoggerUtility.getChannelTypeReadable(effectiveType)).queue();
 			return;
 		}
 

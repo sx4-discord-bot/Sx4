@@ -444,6 +444,7 @@ public class FreeGameManager implements WebhookManager {
 				Request gameRequest = new Request.Builder()
 					.url("https://store.steampowered.com/app/" + id + "?cc=gb")
 					.addHeader("Accept-Language", "en")
+					.addHeader("Cookie", "birthtime=-1801439999")
 					.build();
 
 				CompletableFuture<SteamFreeGame> gameFuture = new CompletableFuture<>();
