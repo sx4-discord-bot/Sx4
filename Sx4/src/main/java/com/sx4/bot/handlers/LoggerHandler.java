@@ -1254,8 +1254,9 @@ public class LoggerHandler implements EventListener {
 			}
 
 			if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-				this.retrieveAuditLogsDelayed(guild, ActionType.CHANNEL_DELETE).whenComplete((logs, auditException) -> {
+				this.retrieveAuditLogsDelayed(guild, null).whenComplete((logs, auditException) -> {
 					User moderator = logs == null ? null : logs.stream()
+						.filter(e -> e.getType() == ActionType.CHANNEL_DELETE || e.getType() == ActionType.THREAD_DELETE)
 						.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
 						.filter(e -> e.getTargetIdLong() == channel.getIdLong())
 						.map(AuditLogEntry::getUser)
@@ -1322,8 +1323,9 @@ public class LoggerHandler implements EventListener {
 			}
 
 			if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-				this.retrieveAuditLogsDelayed(guild, ActionType.CHANNEL_CREATE).whenComplete((logs, auditException) -> {
+				this.retrieveAuditLogsDelayed(guild, null).whenComplete((logs, auditException) -> {
 					User moderator = logs == null ? null : logs.stream()
+						.filter(e -> e.getType() == ActionType.CHANNEL_CREATE || e.getType() == ActionType.THREAD_CREATE)
 						.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
 						.filter(e -> e.getTargetIdLong() == channel.getIdLong())
 						.map(AuditLogEntry::getUser)
@@ -1393,8 +1395,9 @@ public class LoggerHandler implements EventListener {
 			}
 
 			if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-				this.retrieveAuditLogsDelayed(guild, ActionType.CHANNEL_UPDATE).whenComplete((logs, auditException) -> {
+				this.retrieveAuditLogsDelayed(guild, null).whenComplete((logs, auditException) -> {
 					User moderator = logs == null ? null : logs.stream()
+						.filter(e -> e.getType() == ActionType.CHANNEL_UPDATE || e.getType() == ActionType.THREAD_UPDATE)
 						.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
 						.filter(e -> e.getTargetIdLong() == channel.getIdLong())
 						.filter(e -> e.getChangeByKey(AuditLogKey.CHANNEL_NAME) != null)
