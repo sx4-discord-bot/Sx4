@@ -15,7 +15,9 @@ import com.sx4.bot.entities.interaction.CustomModalId;
 import com.sx4.bot.entities.interaction.ModalType;
 import com.sx4.bot.utility.ButtonUtility;
 import com.sx4.bot.utility.ExceptionUtility;
+import com.sx4.bot.utility.PermissionUtility;
 import net.dv8tion.jda.api.MessageBuilder;
+import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.User;
@@ -33,6 +35,7 @@ import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.EnumSet;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -69,6 +72,20 @@ public class ButtonHandler implements EventListener {
 
 	public RestAction<Message> reply(ButtonInteractionEvent event, Message message, Function<ReplyCallbackAction, ReplyCallbackAction> function) {
 		return function.apply(event.reply(message)).flatMap(hook -> event.getMessage().editMessageComponents(event.getMessage().getActionRows().stream().map(ActionRow::asDisabled).collect(Collectors.toList())));
+	}
+
+	public void handleChannelDeleteConfirm(ButtonInteractionEvent event) {
+		if (!event.getMember().hasPermission(Permission.MANAGE_CHANNEL)) {
+			this.reply(event, PermissionUtility.formatMissingPermissions(EnumSet.of(Permission.MANAGE_CHANNEL)) + " " + this.bot.getConfig().getFailureEmote(), action -> action.setEphemeral(true)).queue();
+			return;
+		}
+
+		if (!event.getGuild().getSelfMember().hasPermission(Permission.MANAGE_CHANNEL)) {
+			this.reply(event, PermissionUtility.formatMissingPermissions(EnumSet.of(Permission.MANAGE_CHANNEL), "I am") + " " + this.bot.getConfig().getFailureEmote(), action -> action.setEphemeral(true)).queue();
+			return;
+		}
+
+		event.getChannel().delete().queue();
 	}
 
 	public void handleModLogDeleteConfirm(ButtonInteractionEvent event) {
@@ -527,6 +544,7 @@ public class ButtonHandler implements EventListener {
 			case SUGGESTION_DELETE_CONFIRM -> this.handleSuggestionDeleteConfirm(event);
 			case REACTION_ROLE_DELETE_CONFIRM -> this.handleReactionRoleDeleteConfirm(event);
 			case MOD_LOG_DELETE_CONFIRM -> this.handleModLogDeleteConfirm(event);
+			case CHANNEL_DELETE_CONFIRM -> this.handleChannelDeleteConfirm(event);
 		}
 	}
 

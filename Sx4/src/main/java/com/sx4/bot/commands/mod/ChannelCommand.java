@@ -7,10 +7,15 @@ import com.sx4.bot.annotations.command.*;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
+import com.sx4.bot.entities.interaction.ButtonType;
+import com.sx4.bot.entities.interaction.CustomButtonId;
 import com.sx4.bot.utility.LoggerUtility;
 import com.sx4.bot.utility.SearchUtility;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.*;
+import net.dv8tion.jda.api.interactions.components.buttons.Button;
+
+import java.util.List;
 
 public class ChannelCommand extends Sx4Command {
 
@@ -32,7 +37,7 @@ public class ChannelCommand extends Sx4Command {
 	@Examples({"channel create bots", "channel create voice Music", "channel create category Info"})
 	@AuthorPermissions(permissions={Permission.MANAGE_CHANNEL})
 	@BotPermissions(permissions={Permission.MANAGE_CHANNEL})
-	public void create(Sx4CommandEvent event, @Argument(value="type", nullDefault=true) @EnumOptions(value={"TEXT", "VOICE", "CATEGORY"}) ChannelType type, @Argument(value="name", endless=true) String name) {
+	public void create(Sx4CommandEvent event, @Argument(value="type", nullDefault=true) @EnumOptions(value={"TEXT", "VOICE", "CATEGORY", "STAGE"}) ChannelType type, @Argument(value="name", endless=true) String name) {
 		type = type == null ? ChannelType.TEXT : type;
 
 		if (type == ChannelType.TEXT) {
@@ -47,6 +52,10 @@ public class ChannelCommand extends Sx4Command {
 			event.getGuild().createVoiceChannel(name)
 				.flatMap(channel -> event.replySuccess("The voice channel **" + channel.getAsMention() + "** has been created"))
 				.queue();
+		} else if (type == ChannelType.STAGE) {
+			event.getGuild().createStageChannel(name)
+				.flatMap(channel -> event.replySuccess("The stage channel **" + channel.getName() + "** has been created"))
+				.queue();
 		}
 	}
 
@@ -56,18 +65,36 @@ public class ChannelCommand extends Sx4Command {
 	@Examples({"channel delete #bots", "channel create voice Music", "channel create category Info"})
 	@AuthorPermissions(permissions={Permission.MANAGE_CHANNEL})
 	@BotPermissions(permissions={Permission.MANAGE_CHANNEL})
-	public void delete(Sx4CommandEvent event, @Argument(value="type", nullDefault=true) @EnumOptions(value={"TEXT", "VOICE", "CATEGORY"}) ChannelType type, @Argument(value="channel", endless=true) String query) {
-		ChannelType effectiveType = type == null ? ChannelType.TEXT : type;
+	public void delete(Sx4CommandEvent event, @Argument(value="type", nullDefault=true) @EnumOptions(value={"TEXT", "VOICE", "CATEGORY"}) ChannelType type, @Argument(value="channel", endless=true, nullDefault=true) String query) {
+		ChannelType effectiveType = type == null && query == null ? event.getChannelType() : type == null ? ChannelType.TEXT : type;
 
-		GuildChannel channel = SearchUtility.getGuildChannel(event.getGuild(), effectiveType, query);
-		if (channel == null) {
-			event.replyFailure("I could not find that " + LoggerUtility.getChannelTypeReadable(effectiveType)).queue();
-			return;
+		if (query == null) {
+			String acceptId = new CustomButtonId.Builder()
+				.setType(ButtonType.CHANNEL_DELETE_CONFIRM)
+				.setTimeout(60)
+				.setOwners(event.getAuthor().getIdLong())
+				.getId();
+
+			String rejectId = new CustomButtonId.Builder()
+				.setType(ButtonType.GENERIC_REJECT)
+				.setTimeout(60)
+				.setOwners(event.getAuthor().getIdLong())
+				.getId();
+
+			event.reply(event.getAuthor().getName() + ", are you sure you want to delete the **current** channel?")
+				.setActionRow(List.of(Button.success(acceptId, "Yes"), Button.danger(rejectId, "No")))
+				.queue();
+		} else {
+			GuildChannel channel = SearchUtility.getGuildChannel(event.getGuild(), effectiveType, query);
+			if (channel == null) {
+				event.replyFailure("I could not find that " + LoggerUtility.getChannelTypeReadable(effectiveType)).queue();
+				return;
+			}
+
+			channel.delete()
+				.flatMap($ -> event.replySuccess("The " + LoggerUtility.getChannelTypeReadable(effectiveType) + " **" + channel.getName() + "** has been deleted"))
+				.queue();
 		}
-
-		channel.delete()
-			.flatMap($ -> event.replySuccess("The " + LoggerUtility.getChannelTypeReadable(effectiveType) + " **" + channel.getName() + "** has been deleted"))
-			.queue();
 	}
 
 	@Command(value="mute", description="Mute a user or role in a channel")
