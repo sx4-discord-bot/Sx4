@@ -131,7 +131,7 @@ public class PagedResult<Type> {
 		} else {
 			Guild guild = this.getGuild();
 			
-			return guild == null || this.channelId == 0 ? null : guild.getTextChannelById(this.channelId);
+			return guild == null || this.channelId == 0 ? null : guild.getChannelById(GuildMessageChannel.class, this.channelId);
 		}
 	}
 	

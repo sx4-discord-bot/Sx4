@@ -16,7 +16,7 @@ import com.sx4.bot.exceptions.mod.BotPermissionException;
 import com.sx4.bot.hooks.TwitchListener;
 import com.sx4.bot.http.HttpCallback;
 import net.dv8tion.jda.api.Permission;
-import net.dv8tion.jda.api.entities.TextChannel;
+import net.dv8tion.jda.api.entities.BaseGuildMessageChannel;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -151,7 +151,7 @@ public class TwitchManager {
 		this.subscribe(streamerId, TwitchSubscriptionType.ONLINE);
 	}
 
-	private CompletableFuture<ReadonlyMessage> createWebhook(TextChannel channel, WebhookMessage message) {
+	private CompletableFuture<ReadonlyMessage> createWebhook(BaseGuildMessageChannel channel, WebhookMessage message) {
 		if (!channel.getGuild().getSelfMember().hasPermission(channel, Permission.MANAGE_WEBHOOKS)) {
 			return CompletableFuture.failedFuture(new BotPermissionException(Permission.MANAGE_WEBHOOKS));
 		}
@@ -181,7 +181,7 @@ public class TwitchManager {
 		});
 	}
 
-	public CompletableFuture<ReadonlyMessage> sendTwitchNotification(TextChannel channel, Document webhookData, WebhookMessage message) {
+	public CompletableFuture<ReadonlyMessage> sendTwitchNotification(BaseGuildMessageChannel channel, Document webhookData, WebhookMessage message) {
 		long channelId = channel.getIdLong();
 
 		WebhookClient webhook;

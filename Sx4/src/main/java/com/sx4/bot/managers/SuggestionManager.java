@@ -11,9 +11,7 @@ import com.sx4.bot.entities.webhook.ReadonlyMessage;
 import com.sx4.bot.entities.webhook.WebhookClient;
 import com.sx4.bot.exceptions.mod.BotPermissionException;
 import net.dv8tion.jda.api.Permission;
-import net.dv8tion.jda.api.entities.Guild;
-import net.dv8tion.jda.api.entities.TextChannel;
-import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.entities.*;
 import okhttp3.OkHttpClient;
 import org.bson.Document;
 import org.bson.conversions.Bson;
@@ -61,7 +59,7 @@ public class SuggestionManager implements WebhookManager {
 		this.bot.getMongo().updateGuildById(guild.getIdLong(), update).whenComplete(MongoDatabase.exceptionally());
 	}
 
-	private CompletableFuture<ReadonlyMessage> createWebhook(TextChannel channel, WebhookMessage message) {
+	private CompletableFuture<ReadonlyMessage> createWebhook(BaseGuildMessageChannel channel, WebhookMessage message) {
 		if (!channel.getGuild().getSelfMember().hasPermission(channel, Permission.MANAGE_WEBHOOKS)) {
 			this.disableSuggestion(channel.getGuild());
 			return CompletableFuture.failedFuture(new BotPermissionException(Permission.MANAGE_WEBHOOKS));
@@ -92,7 +90,7 @@ public class SuggestionManager implements WebhookManager {
 		});
 	}
 
-	public CompletableFuture<ReadonlyMessage> sendSuggestion(TextChannel channel, Document webhookData, boolean premium, WebhookEmbed embed) {
+	public CompletableFuture<ReadonlyMessage> sendSuggestion(BaseGuildMessageChannel channel, Document webhookData, boolean premium, WebhookEmbed embed) {
 		User selfUser = channel.getJDA().getSelfUser();
 
 		WebhookMessage message = new WebhookMessageBuilder()

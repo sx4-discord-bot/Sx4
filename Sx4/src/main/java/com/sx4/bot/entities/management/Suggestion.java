@@ -6,10 +6,7 @@ import club.minnced.discord.webhook.send.WebhookEmbed.EmbedField;
 import club.minnced.discord.webhook.send.WebhookEmbed.EmbedFooter;
 import club.minnced.discord.webhook.send.WebhookEmbedBuilder;
 import net.dv8tion.jda.api.EmbedBuilder;
-import net.dv8tion.jda.api.entities.Guild;
-import net.dv8tion.jda.api.entities.MessageEmbed;
-import net.dv8tion.jda.api.entities.TextChannel;
-import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.entities.*;
 import net.dv8tion.jda.api.sharding.ShardManager;
 import org.bson.Document;
 import org.bson.types.ObjectId;
@@ -100,12 +97,12 @@ public class Suggestion {
 		return this.channelId;
 	}
 
-	public TextChannel getChannel(ShardManager manager) {
+	public BaseGuildMessageChannel getChannel(ShardManager manager) {
 		return this.getChannel(this.getGuild(manager));
 	}
 
-	public TextChannel getChannel(Guild guild) {
-		return guild == null ? null : guild.getTextChannelById(this.channelId);
+	public BaseGuildMessageChannel getChannel(Guild guild) {
+		return guild == null ? null : guild.getChannelById(BaseGuildMessageChannel.class, this.channelId);
 	}
 
 	public long getAuthorId() {

@@ -11,8 +11,8 @@ import com.sx4.bot.entities.webhook.ReadonlyMessage;
 import com.sx4.bot.entities.webhook.WebhookClient;
 import com.sx4.bot.exceptions.mod.BotPermissionException;
 import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.BaseGuildMessageChannel;
 import net.dv8tion.jda.api.entities.Guild;
-import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.entities.User;
 import okhttp3.OkHttpClient;
 import org.bson.Document;
@@ -61,7 +61,7 @@ public class ModLogManager implements WebhookManager {
 		this.bot.getMongo().updateGuildById(guild.getIdLong(), update).whenComplete(MongoDatabase.exceptionally());
 	}
 
-	private CompletableFuture<ReadonlyMessage> createWebhook(TextChannel channel, WebhookMessage message) {
+	private CompletableFuture<ReadonlyMessage> createWebhook(BaseGuildMessageChannel channel, WebhookMessage message) {
 		if (!channel.getGuild().getSelfMember().hasPermission(channel, Permission.MANAGE_WEBHOOKS)) {
 			this.disableModLog(channel.getGuild());
 			return CompletableFuture.failedFuture(new BotPermissionException(Permission.MANAGE_WEBHOOKS));
@@ -92,7 +92,7 @@ public class ModLogManager implements WebhookManager {
 		});
 	}
 
-	public CompletableFuture<ReadonlyMessage> sendModLog(TextChannel channel, Document webhookData, WebhookEmbed embed, boolean premium) {
+	public CompletableFuture<ReadonlyMessage> sendModLog(BaseGuildMessageChannel channel, Document webhookData, WebhookEmbed embed, boolean premium) {
 		User selfUser = channel.getJDA().getSelfUser();
 
 		WebhookMessage message = new WebhookMessageBuilder()

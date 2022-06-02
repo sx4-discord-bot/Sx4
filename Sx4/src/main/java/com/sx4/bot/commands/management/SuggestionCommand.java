@@ -95,7 +95,7 @@ public class SuggestionCommand extends Sx4Command {
 				return;
 			}
 
-			TextChannel oldChannel = channelId == 0L ? null : event.getGuild().getTextChannelById(channelId);
+			BaseGuildMessageChannel oldChannel = channelId == 0L ? null : event.getGuild().getChannelById(BaseGuildMessageChannel.class, channelId);
 			long webhookId = data == null ? 0L : data.getEmbedded(List.of("suggestion", "webhook", "id"), 0L);
 
 			if (oldChannel != null && webhookId != 0L) {
@@ -126,7 +126,7 @@ public class SuggestionCommand extends Sx4Command {
 			return;
 		}
 		
-		TextChannel channel = event.getGuild().getTextChannelById(channelId);
+		BaseGuildMessageChannel channel = event.getGuild().getChannelById(BaseGuildMessageChannel.class, channelId);
 		if (channel == null) {
 			event.replyFailure("The suggestion channel no longer exists").queue();
 			return;
@@ -282,7 +282,7 @@ public class SuggestionCommand extends Sx4Command {
 				return;
 			}
 
-			TextChannel channel = event.getGuild().getTextChannelById(suggestionData.getLong("channelId"));
+			BaseGuildMessageChannel channel = event.getGuild().getChannelById(BaseGuildMessageChannel.class, suggestionData.getLong("channelId"));
 			if (channel == null) {
 				event.replyFailure("The channel for that suggestion no longer exists").queue();
 				return;

@@ -13,6 +13,7 @@ import com.sx4.bot.hooks.TwitchListener;
 import com.sx4.bot.managers.TwitchManager;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.MessageUtility;
+import net.dv8tion.jda.api.entities.BaseGuildMessageChannel;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.sharding.ShardManager;
 import org.bson.Document;
@@ -80,7 +81,7 @@ public class TwitchHandler implements TwitchListener {
 
 					long channelId = notification.getLong("channelId");
 
-					TextChannel textChannel = shardManager.getTextChannelById(channelId);
+					BaseGuildMessageChannel textChannel = shardManager.getChannelById(BaseGuildMessageChannel.class, channelId);
 					if (textChannel == null) {
 						return;
 					}

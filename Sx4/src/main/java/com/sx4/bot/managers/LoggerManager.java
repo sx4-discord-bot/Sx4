@@ -14,9 +14,9 @@ import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.MessageUtility;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.BaseGuildMessageChannel;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.MessageEmbed;
-import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.requests.ErrorResponse;
 import okhttp3.OkHttpClient;
@@ -74,12 +74,12 @@ public class LoggerManager {
             return this.channelId;
         }
 
-        public TextChannel getChannel() {
-            return this.jda.getTextChannelById(this.channelId);
+        public BaseGuildMessageChannel getChannel() {
+            return this.jda.getChannelById(BaseGuildMessageChannel.class, this.channelId);
         }
 
-        public TextChannel getChannel(Guild guild) {
-            return guild.getTextChannelById(this.channelId);
+        public BaseGuildMessageChannel getChannel(Guild guild) {
+            return guild.getChannelById(BaseGuildMessageChannel.class, this.channelId);
         }
 
         public List<WebhookEmbed> getEmbeds() {
@@ -125,7 +125,7 @@ public class LoggerManager {
         });
     }
 
-    private void createWebhook(TextChannel channel, List<Request> requests) {
+    private void createWebhook(BaseGuildMessageChannel channel, List<Request> requests) {
         channel.createWebhook("Sx4 - Logger").submit().whenComplete((webhook, exception) -> {
             Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
             if (cause instanceof ErrorResponseException && ((ErrorResponseException) cause).getErrorResponse() == ErrorResponse.MAX_WEBHOOKS) {
@@ -176,7 +176,7 @@ public class LoggerManager {
                 }
 
                 long channelId = request.getChannelId();
-                TextChannel channel = request.getChannel(guild);
+                BaseGuildMessageChannel channel = request.getChannel(guild);
                 if (channel == null) {
                     this.bot.getMongo().deleteLogger(Filters.eq("channelId", channelId)).whenComplete((result, exception) -> {
                         ExceptionUtility.sendErrorMessage(exception);
@@ -269,7 +269,7 @@ public class LoggerManager {
         }
     }
 
-    public void queue(TextChannel channel, Document logger, List<WebhookEmbed> embeds) {
+    public void queue(BaseGuildMessageChannel channel, Document logger, List<WebhookEmbed> embeds) {
         List<Request> requests = new ArrayList<>();
 
         int index = 0;

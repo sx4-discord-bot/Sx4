@@ -15,6 +15,7 @@ import com.sx4.bot.hooks.YouTubeListener;
 import com.sx4.bot.managers.YouTubeManager;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.MessageUtility;
+import net.dv8tion.jda.api.entities.BaseGuildMessageChannel;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.events.channel.ChannelDeleteEvent;
@@ -78,8 +79,8 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 
 					long channelId = notification.getLong("channelId");
 
-					TextChannel textChannel = shardManager.getTextChannelById(channelId);
-					if (textChannel == null) {
+					BaseGuildMessageChannel messageChannel = shardManager.getChannelById(BaseGuildMessageChannel.class, channelId);
+					if (messageChannel == null) {
 						return;
 					}
 
@@ -98,7 +99,7 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 						return;
 					}
 
-					this.bot.getYouTubeManager().sendYouTubeNotification(textChannel, webhookData, message).whenComplete(MongoDatabase.exceptionally());
+					this.bot.getYouTubeManager().sendYouTubeNotification(messageChannel, webhookData, message).whenComplete(MongoDatabase.exceptionally());
 				});
 
 				if (!bulkUpdate.isEmpty()) {

@@ -12,7 +12,8 @@ import com.sx4.bot.exceptions.mod.BotPermissionException;
 import com.sx4.bot.hooks.YouTubeListener;
 import com.sx4.bot.http.HttpCallback;
 import net.dv8tion.jda.api.Permission;
-import net.dv8tion.jda.api.entities.TextChannel;
+import net.dv8tion.jda.api.entities.BaseGuildMessageChannel;
+import net.dv8tion.jda.api.entities.Channel;
 import okhttp3.MultipartBody;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -193,7 +194,7 @@ public class YouTubeManager implements WebhookManager {
 		}
 	}
 
-	private void disableYouTubeNotifications(TextChannel channel) {
+	private void disableYouTubeNotifications(Channel channel) {
 		Bson update = Updates.combine(
 			Updates.unset("webhook.id"),
 			Updates.unset("webhook.token"),
@@ -203,7 +204,7 @@ public class YouTubeManager implements WebhookManager {
 		this.bot.getMongo().updateManyYouTubeNotifications(Filters.eq("channelId", channel.getIdLong()), update).whenComplete(MongoDatabase.exceptionally());
 	}
 
-	private CompletableFuture<ReadonlyMessage> createWebhook(TextChannel channel, WebhookMessage message) {
+	private CompletableFuture<ReadonlyMessage> createWebhook(BaseGuildMessageChannel channel, WebhookMessage message) {
 		if (!channel.getGuild().getSelfMember().hasPermission(channel, Permission.MANAGE_WEBHOOKS)) {
 			this.disableYouTubeNotifications(channel);
 			return CompletableFuture.failedFuture(new BotPermissionException(Permission.MANAGE_WEBHOOKS));
@@ -234,7 +235,7 @@ public class YouTubeManager implements WebhookManager {
 		});
 	}
 
-	public CompletableFuture<ReadonlyMessage> sendYouTubeNotification(TextChannel channel, Document webhookData, WebhookMessage message) {
+	public CompletableFuture<ReadonlyMessage> sendYouTubeNotification(BaseGuildMessageChannel channel, Document webhookData, WebhookMessage message) {
 		long channelId = channel.getIdLong();
 
 		WebhookClient webhook;

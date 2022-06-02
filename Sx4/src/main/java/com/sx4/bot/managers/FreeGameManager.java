@@ -19,8 +19,9 @@ import com.sx4.bot.utility.FreeGameUtility;
 import com.sx4.bot.utility.FutureUtility;
 import com.sx4.bot.utility.MessageUtility;
 import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.BaseGuildMessageChannel;
+import net.dv8tion.jda.api.entities.Channel;
 import net.dv8tion.jda.api.entities.MessageEmbed;
-import net.dv8tion.jda.api.entities.TextChannel;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import org.bson.Document;
@@ -120,7 +121,7 @@ public class FreeGameManager implements WebhookManager {
 		this.webhooks.put(id, webhook);
 	}
 
-	private CompletableFuture<UpdateResult> disableFreeGameChannel(TextChannel channel) {
+	private CompletableFuture<UpdateResult> disableFreeGameChannel(Channel channel) {
 		Bson update = Updates.combine(
 			Updates.unset("webhook.id"),
 			Updates.unset("webhook.token"),
@@ -130,7 +131,7 @@ public class FreeGameManager implements WebhookManager {
 		return this.bot.getMongo().updateFreeGameChannel(Filters.eq("channelId", channel.getIdLong()), update, new UpdateOptions());
 	}
 
-	private CompletableFuture<List<ReadonlyMessage>> createWebhook(TextChannel channel, List<WebhookMessage> messages) {
+	private CompletableFuture<List<ReadonlyMessage>> createWebhook(BaseGuildMessageChannel channel, List<WebhookMessage> messages) {
 		if (!channel.getGuild().getSelfMember().hasPermission(channel, Permission.MANAGE_WEBHOOKS)) {
 			this.disableFreeGameChannel(channel).whenComplete(MongoDatabase.exceptionally());
 			return CompletableFuture.completedFuture(Collections.emptyList());
@@ -162,7 +163,7 @@ public class FreeGameManager implements WebhookManager {
 		});
 	}
 
-	public CompletableFuture<List<ReadonlyMessage>> sendFreeGameNotificationMessages(TextChannel channel, Document webhookData, List<WebhookMessage> messages) {
+	public CompletableFuture<List<ReadonlyMessage>> sendFreeGameNotificationMessages(BaseGuildMessageChannel channel, Document webhookData, List<WebhookMessage> messages) {
 		WebhookClient webhook;
 		if (this.webhooks.containsKey(channel.getIdLong())) {
 			webhook = this.webhooks.get(channel.getIdLong());
@@ -223,7 +224,7 @@ public class FreeGameManager implements WebhookManager {
 					continue;
 				}
 
-				TextChannel channel = this.bot.getShardManager().getTextChannelById(data.getLong("channelId"));
+				BaseGuildMessageChannel channel = this.bot.getShardManager().getChannelById(BaseGuildMessageChannel.class, data.getLong("channelId"));
 				if (channel == null) {
 					continue;
 				}

@@ -80,7 +80,7 @@ public class ImageUtility {
 
 		Matcher channelMatcher = SearchUtility.CHANNEL_MENTION.matcher(text);
 		while (channelMatcher.find()) {
-			TextChannel channel = guild.getTextChannelById(channelMatcher.group(1));
+			GuildMessageChannel channel = guild.getChannelById(GuildMessageChannel.class, channelMatcher.group(1));
 			if (channel != null) {
 				text = text.replace(channelMatcher.group(0), "#" + channel.getName());
 			}

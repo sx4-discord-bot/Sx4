@@ -32,7 +32,6 @@ import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.BaseGuildMessageChannel;
 import net.dv8tion.jda.api.entities.MessageChannel;
-import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.requests.ErrorResponse;
 import okhttp3.MultipartBody;
@@ -220,7 +219,7 @@ public class YouTubeNotificationCommand extends Sx4Command {
 			long channelId = data.getLong("channelId");
 			event.getBot().getYouTubeManager().removeWebhook(channelId);
 
-			TextChannel channel = event.getGuild().getTextChannelById(channelId);
+			BaseGuildMessageChannel channel = event.getGuild().getChannelById(BaseGuildMessageChannel.class, channelId);
 
 			Document webhook = data.get("webhook", Document.class);
 			if (webhook != null && channel != null) {

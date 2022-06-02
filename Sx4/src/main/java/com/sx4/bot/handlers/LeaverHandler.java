@@ -8,6 +8,7 @@ import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.managers.LeaverManager;
 import com.sx4.bot.utility.LeaverUtility;
+import net.dv8tion.jda.api.entities.BaseGuildMessageChannel;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.events.guild.member.GuildMemberRemoveEvent;
@@ -37,7 +38,7 @@ public class LeaverHandler implements EventListener {
 
 		long channelId = leaver.get("channelId", 0L);
 
-		TextChannel channel = channelId == 0L ? null : event.getGuild().getTextChannelById(channelId);
+		BaseGuildMessageChannel channel = channelId == 0L ? null : event.getGuild().getChannelById(BaseGuildMessageChannel.class, channelId);
 		if (channel == null) {
 			return;
 		}

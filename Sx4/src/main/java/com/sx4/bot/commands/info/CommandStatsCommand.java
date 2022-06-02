@@ -11,6 +11,7 @@ import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.entities.GuildMessageChannel;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.utils.MarkdownSanitizer;
@@ -106,8 +107,8 @@ public class CommandStatsCommand extends Sx4Command {
 						prefix = "`" + data.getString("_id") + "`";
 					} else if (group == GroupType.CHANNEL) {
 						long id = data.getLong("_id");
-						TextChannel textChannel = event.getGuild().getTextChannelById(id);
-						prefix = textChannel == null ? "#deleted-channel (" + id + ")" : textChannel.getAsMention();
+						GuildMessageChannel messageChannel = event.getGuild().getChannelById(GuildMessageChannel.class, id);
+						prefix = messageChannel == null ? "#deleted-channel (" + id + ")" : messageChannel.getAsMention();
 					} else if (group == GroupType.USER) {
 						long id = data.getLong("_id");
 						User user = event.getShardManager().getUserById(id);

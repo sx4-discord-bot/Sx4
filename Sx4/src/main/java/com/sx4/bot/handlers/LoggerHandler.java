@@ -125,7 +125,7 @@ public class LoggerHandler implements EventListener {
 			}
 
 			long channelId = logger.getLong("channelId");
-			TextChannel channel = guild.getTextChannelById(channelId);
+			BaseGuildMessageChannel channel = guild.getChannelById(BaseGuildMessageChannel.class, channelId);
 			if (channel == null) {
 				deletedLoggers.add(channelId);
 				continue;
@@ -281,7 +281,7 @@ public class LoggerHandler implements EventListener {
 			}
 
 			long channelId = logger.getLong("channelId");
-			TextChannel channel = guild.getTextChannelById(channelId);
+			BaseGuildMessageChannel channel = guild.getChannelById(BaseGuildMessageChannel.class, channelId);
 			if (channel == null) {
 				continue;
 			}

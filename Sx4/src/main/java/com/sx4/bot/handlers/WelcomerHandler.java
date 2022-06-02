@@ -10,6 +10,7 @@ import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.MessageUtility;
 import com.sx4.bot.utility.WelcomerUtility;
 import net.dv8tion.jda.api.JDA;
+import net.dv8tion.jda.api.entities.BaseGuildMessageChannel;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.TextChannel;
@@ -51,7 +52,7 @@ public class WelcomerHandler implements EventListener {
 		}
 
 		long channelId = welcomer.get("channelId", 0L);
-		TextChannel channel = channelId == 0L ? null : guild.getTextChannelById(channelId);
+		BaseGuildMessageChannel channel = channelId == 0L ? null : guild.getChannelById(BaseGuildMessageChannel.class, channelId);
 
 		boolean dm = welcomer.getBoolean("dm", false);
 		if (channel == null && !dm) {

@@ -22,10 +22,7 @@ import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.audit.ActionType;
 import net.dv8tion.jda.api.audit.AuditLogEntry;
-import net.dv8tion.jda.api.entities.Guild;
-import net.dv8tion.jda.api.entities.MessageEmbed;
-import net.dv8tion.jda.api.entities.TextChannel;
-import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.entities.*;
 import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.events.guild.GuildBanEvent;
 import net.dv8tion.jda.api.events.guild.GuildUnbanEvent;
@@ -107,7 +104,7 @@ public class ModHandler implements ModActionListener, EventListener {
 			return;
 		}
 
-		TextChannel channel = guild.getTextChannelById(channelId);
+		BaseGuildMessageChannel channel = guild.getChannelById(BaseGuildMessageChannel.class, channelId);
 		if (channel == null) {
 			return;
 		}

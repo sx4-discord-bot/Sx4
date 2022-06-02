@@ -2,10 +2,7 @@ package com.sx4.bot.config;
 
 import club.minnced.discord.webhook.WebhookClient;
 import club.minnced.discord.webhook.WebhookClientBuilder;
-import net.dv8tion.jda.api.entities.Guild;
-import net.dv8tion.jda.api.entities.Role;
-import net.dv8tion.jda.api.entities.TextChannel;
-import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.entities.*;
 import net.dv8tion.jda.api.sharding.ShardManager;
 import org.bson.Document;
 import org.json.JSONObject;
@@ -153,30 +150,30 @@ public class Config extends GenericConfig {
 		return this.get(this.getState() + ".supportGuild.channel.errorsId", 0L);
 	}
 	
-	public TextChannel getErrorsChannel(ShardManager manager) {
+	public GuildMessageChannel getErrorsChannel(ShardManager manager) {
 		Guild guild = this.getSupportGuild(manager);
 		
-		return guild == null ? null : guild.getTextChannelById(this.getErrorsChannelId());
+		return guild == null ? null : guild.getChannelById(GuildMessageChannel.class, this.getErrorsChannelId());
 	}
 	
 	public long getEventsChannelId() {
 		return this.get(this.getState() + ".supportGuild.channel.eventsId", 0L);
 	}
 	
-	public TextChannel getEventsChannel(ShardManager manager) {
+	public GuildMessageChannel getEventsChannel(ShardManager manager) {
 		Guild guild = this.getSupportGuild(manager);
 		
-		return guild == null ? null : guild.getTextChannelById(this.getEventsChannelId());
+		return guild == null ? null : guild.getChannelById(GuildMessageChannel.class, this.getEventsChannelId());
 	}
 	
 	public long getGuildsChannelId() {
 		return this.get(this.getState() + ".supportGuild.channel.guildsId", 0L);
 	}
 	
-	public TextChannel getGuildsChannel(ShardManager manager) {
+	public GuildMessageChannel getGuildsChannel(ShardManager manager) {
 		Guild guild = this.getSupportGuild(manager);
 		
-		return guild == null ? null : guild.getTextChannelById(this.getGuildsChannelId());
+		return guild == null ? null : guild.getChannelById(GuildMessageChannel.class, this.getGuildsChannelId());
 	}
 	
 	public long getDonatorRoleId() {

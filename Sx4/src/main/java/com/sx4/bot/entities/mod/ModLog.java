@@ -124,14 +124,14 @@ public class ModLog {
 		return this.channelId;
 	}
 	
-	public TextChannel getChannel(ShardManager manager) {
+	public BaseGuildMessageChannel getChannel(ShardManager manager) {
 		if (this.channelId == 0L) {
 			return null;
 		}
 
 		Guild guild = this.getGuild(manager);
 		
-		return guild == null ? null : guild.getTextChannelById(this.channelId);
+		return guild == null ? null : guild.getChannelById(BaseGuildMessageChannel.class, this.channelId);
 	}
 	
 	public long getTargetId() {

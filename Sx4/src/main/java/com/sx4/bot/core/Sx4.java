@@ -1370,7 +1370,7 @@ public class Sx4 {
 						try {
 							long messageId = MiscUtil.parseSnowflake(jumpMatch.group(3));
 
-							TextChannel linkChannel = message.getGuild().getTextChannelById(jumpMatch.group(2));
+							GuildMessageChannel linkChannel = message.getGuild().getChannelById(GuildMessageChannel.class, jumpMatch.group(2));
 
 							return new ParsedResult<>(new MessageArgument(messageId, linkChannel == null ? channel : linkChannel), content.substring(query.length()));
 						} catch (NumberFormatException e) {

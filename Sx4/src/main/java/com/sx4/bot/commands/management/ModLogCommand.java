@@ -26,7 +26,6 @@ import com.sx4.bot.utility.ExceptionUtility;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.BaseGuildMessageChannel;
 import net.dv8tion.jda.api.entities.MessageChannel;
-import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.interactions.components.buttons.Button;
@@ -98,7 +97,7 @@ public class ModLogCommand extends Sx4Command {
 				return;
 			}
 
-			TextChannel oldChannel = channelId == 0L ? null : event.getGuild().getTextChannelById(channelId);
+			BaseGuildMessageChannel oldChannel = channelId == 0L ? null : event.getGuild().getChannelById(BaseGuildMessageChannel.class, channelId);
 			long webhookId = data == null ? 0L : data.getEmbedded(List.of("modLog", "webhook", "id"), 0L);
 
 			if (oldChannel != null && webhookId != 0L) {

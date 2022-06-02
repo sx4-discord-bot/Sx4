@@ -9,11 +9,8 @@ import com.sx4.bot.utility.FutureUtility;
 import com.sx4.bot.utility.MathUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
-import net.dv8tion.jda.api.entities.Guild;
-import net.dv8tion.jda.api.entities.Member;
+import net.dv8tion.jda.api.entities.*;
 import net.dv8tion.jda.api.entities.Message.MentionType;
-import net.dv8tion.jda.api.entities.MessageReaction;
-import net.dv8tion.jda.api.entities.TextChannel;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 
@@ -89,7 +86,7 @@ public class GiveawayManager {
 			return CompletableFuture.completedFuture(null);
 		}
 		
-		TextChannel channel = guild.getTextChannelById(data.getLong("channelId"));
+		BaseGuildMessageChannel channel = guild.getChannelById(BaseGuildMessageChannel.class, data.getLong("channelId"));
 		if (channel == null) {
 			return CompletableFuture.completedFuture(null);
 		}

@@ -97,7 +97,7 @@ public class StarboardCommand extends Sx4Command {
 				return;
 			}
 
-			TextChannel oldChannel = channelId == 0L ? null : event.getGuild().getTextChannelById(channelId);
+			BaseGuildMessageChannel oldChannel = channelId == 0L ? null : event.getGuild().getChannelById(BaseGuildMessageChannel.class, channelId);
 			long webhookId = data == null ? 0L : data.getEmbedded(List.of("starboard", "webhook", "id"), 0L);
 
 			if (oldChannel != null && webhookId != 0L) {

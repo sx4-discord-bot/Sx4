@@ -9,8 +9,8 @@ import com.sx4.bot.entities.webhook.ReadonlyMessage;
 import com.sx4.bot.entities.webhook.WebhookClient;
 import com.sx4.bot.exceptions.mod.BotPermissionException;
 import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.BaseGuildMessageChannel;
 import net.dv8tion.jda.api.entities.Guild;
-import net.dv8tion.jda.api.entities.TextChannel;
 import okhttp3.OkHttpClient;
 import org.bson.Document;
 import org.bson.conversions.Bson;
@@ -60,7 +60,7 @@ public class LeaverManager implements WebhookManager {
 		this.bot.getMongo().updateGuildById(guild.getIdLong(), update).whenComplete(MongoDatabase.exceptionally());
 	}
 
-	private CompletableFuture<ReadonlyMessage> createWebhook(TextChannel channel, WebhookMessage message) {
+	private CompletableFuture<ReadonlyMessage> createWebhook(BaseGuildMessageChannel channel, WebhookMessage message) {
 		if (!channel.getGuild().getSelfMember().hasPermission(channel, Permission.MANAGE_WEBHOOKS)) {
 			this.disableLeaver(channel.getGuild());
 			return CompletableFuture.failedFuture(new BotPermissionException(Permission.MANAGE_WEBHOOKS));
@@ -91,7 +91,7 @@ public class LeaverManager implements WebhookManager {
 		});
 	}
 
-	public CompletableFuture<ReadonlyMessage> sendLeaver(TextChannel channel, Document webhookData, WebhookMessage message) {
+	public CompletableFuture<ReadonlyMessage> sendLeaver(BaseGuildMessageChannel channel, Document webhookData, WebhookMessage message) {
 		WebhookClient webhook;
 		if (this.webhooks.containsKey(channel.getIdLong())) {
 			webhook = this.webhooks.get(channel.getIdLong());

@@ -70,7 +70,7 @@ public class StarboardHandler implements EventListener {
 
 		long channelId = starboard.getLong("channelId");
 
-		TextChannel channel = guild.getTextChannelById(channelId);
+		BaseGuildMessageChannel channel = guild.getChannelById(BaseGuildMessageChannel.class, channelId);
 		if (channel == null) {
 			return null;
 		}
@@ -103,7 +103,7 @@ public class StarboardHandler implements EventListener {
 		}
 	}
 
-	private WebhookMessageBuilder format(Document message, Member member, TextChannel channel, ReactionEmote emote, int stars, int nextStars, ObjectId id) {
+	private WebhookMessageBuilder format(Document message, Member member, MessageChannel channel, ReactionEmote emote, int stars, int nextStars, ObjectId id) {
 		Formatter<Document> formatter = new JsonFormatter(message)
 			.member(member)
 			.user(member.getUser())
@@ -274,7 +274,7 @@ public class StarboardHandler implements EventListener {
 
 			long channelId = starboard.get("channelId", 0L);
 
-			TextChannel channel = channelId == 0L ? null : event.getGuild().getTextChannelById(channelId);
+			BaseGuildMessageChannel channel = channelId == 0L ? null : event.getGuild().getChannelById(BaseGuildMessageChannel.class, channelId);
 			if (channel == null) {
 				return;
 			}
