@@ -43,6 +43,7 @@ import com.sx4.bot.entities.info.game.FreeGameType;
 import com.sx4.bot.entities.management.AutoRoleFilter;
 import com.sx4.bot.entities.mod.PartialEmote;
 import com.sx4.bot.entities.mod.Reason;
+import com.sx4.bot.entities.mod.StickerArgument;
 import com.sx4.bot.entities.twitch.TwitchStream;
 import com.sx4.bot.entities.twitch.TwitchStreamType;
 import com.sx4.bot.entities.twitch.TwitchStreamer;
@@ -64,6 +65,9 @@ import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.*;
 import net.dv8tion.jda.api.entities.Message.Attachment;
 import net.dv8tion.jda.api.entities.MessageReaction.ReactionEmote;
+import net.dv8tion.jda.api.entities.sticker.GuildSticker;
+import net.dv8tion.jda.api.entities.sticker.Sticker;
+import net.dv8tion.jda.api.entities.sticker.StickerItem;
 import net.dv8tion.jda.api.hooks.IEventManager;
 import net.dv8tion.jda.api.hooks.InterfacedEventManager;
 import net.dv8tion.jda.api.requests.GatewayIntent;
@@ -1354,6 +1358,67 @@ public class Sx4 {
 				public boolean isHandleAll() {
 					return true;
 				}
+			}).registerParser(StickerArgument.class, new IParser<>() {
+				public @NotNull ParsedResult<StickerArgument> parse(@NotNull ParseContext context, @NotNull IArgument<StickerArgument> argument, @NotNull String content) {
+					int nextSpace = content.indexOf(' ');
+					String query = nextSpace == -1 || argument.isEndless() ? content : content.substring(0, nextSpace);
+
+					if (query.isEmpty()) {
+						List<StickerItem> stickers = context.getMessage().getStickers();
+						if (stickers.isEmpty()) {
+							return new ParsedResult<>();
+						}
+
+						return new ParsedResult<>(StickerArgument.fromSticker(stickers.get(0)), content.substring(query.length()));
+					}
+
+					Sticker sticker = SearchUtility.getSticker(context.getMessage().getJDA().getShardManager(), query);
+					if (sticker != null) {
+						return new ParsedResult<>(StickerArgument.fromSticker(sticker), content.substring(query.length()));
+					}
+
+					try {
+						new URL(query);
+					} catch (MalformedURLException e) {
+						return new ParsedResult<>();
+					}
+
+					return new ParsedResult<>(StickerArgument.fromUrl(query), content.substring(query.length()));
+				}
+
+				public boolean isHandleAll() {
+					return true;
+				}
+			}).registerParser(GuildSticker.class, new IParser<>() {
+				public @NotNull ParsedResult<GuildSticker> parse(@NotNull ParseContext context, @NotNull IArgument<GuildSticker> argument, @NotNull String content) {
+					int nextSpace = content.indexOf(' ');
+					String query = nextSpace == -1 || argument.isEndless() ? content : content.substring(0, nextSpace);
+
+					if (query.isEmpty()) {
+						List<StickerItem> stickers = context.getMessage().getStickers();
+						if (stickers.isEmpty()) {
+							return new ParsedResult<>();
+						}
+
+						GuildSticker sticker = context.getMessage().getGuild().getStickerById(stickers.get(0).getIdLong());
+						if (sticker == null) {
+							return new ParsedResult<>();
+						}
+
+						return new ParsedResult<>(sticker, content.substring(query.length()));
+					}
+
+					GuildSticker sticker = SearchUtility.getSticker(context.getMessage().getGuild(), query);
+					if (sticker != null) {
+						return new ParsedResult<>(sticker, content.substring(query.length()));
+					}
+
+					return new ParsedResult<>();
+				}
+
+				public boolean isHandleAll() {
+					return true;
+				}
 			}).registerParser(MessageArgument.class, new IParser<>() {
 				public @NotNull ParsedResult<MessageArgument> parse(@NotNull ParseContext context, @NotNull IArgument<MessageArgument> argument, @NotNull String content) {
 					Message message = context.getMessage();
@@ -1581,6 +1646,8 @@ public class Sx4 {
 			.registerResponse(GuildChannel.class, "I could not find that channel " + this.config.getFailureEmote())
 			.registerResponse(IPermissionHolder.class, "I could not find that user/role " + this.config.getFailureEmote())
 			.registerResponse(Emote.class, "I could not find that emote " + this.config.getFailureEmote())
+			.registerResponse(GuildSticker.class, "I could not find that sticker " + this.config.getFailureEmote())
+			.registerResponse(StickerArgument.class, "I could not find that sticker " + this.config.getFailureEmote())
 			.registerResponse(ItemStack.class, "I could not find that item " + this.config.getFailureEmote())
 			.registerResponse(Item.class, "I could not find that item " + this.config.getFailureEmote())
 			.registerResponse(Duration.class, "Invalid time string given, a good example would be `5d 1h 24m 36s` " + this.config.getFailureEmote())

@@ -1300,7 +1300,7 @@ public class LoggerHandler implements EventListener {
 			.setChannel(channel);
 
 		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
-		embed.setDescription(String.format("The %s `%s` has just been created", typeReadable, channel.getName()));
+		embed.setDescription(String.format("The %s %s has just been created", typeReadable, channel.getAsMention()));
 		embed.setColor(this.bot.getConfig().getGreen());
 		embed.setTimestamp(Instant.now());
 		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
@@ -1356,6 +1356,17 @@ public class LoggerHandler implements EventListener {
 			channelType == ChannelType.VOICE ? LoggerEvent.VOICE_CHANNEL_CREATE :
 			channelType.isThread() ? LoggerEvent.THREAD_CHANNEL_CREATE :
 			LoggerEvent.TEXT_CHANNEL_CREATE;
+
+		ThreadChannel thread;
+		if (channelType.isThread() && (thread = (ThreadChannel) event.getChannel()).getSelfThreadMember() != null) {
+			thread.retrieveParentMessage().queue(message -> {
+				if (message.getAuthor().getIdLong() == event.getGuild().getSelfMember().getIdLong()) {
+					this.onChannelCreate((GuildChannel) event.getChannel(), loggerEvent);
+				}
+			});
+
+			return;
+		}
 
 		this.onChannelCreate((GuildChannel) event.getChannel(), loggerEvent);
 	}

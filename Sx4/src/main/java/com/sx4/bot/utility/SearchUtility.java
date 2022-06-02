@@ -11,9 +11,11 @@ import com.vdurmont.emoji.EmojiParser;
 import net.dv8tion.jda.api.entities.*;
 import net.dv8tion.jda.api.entities.Message.MentionType;
 import net.dv8tion.jda.api.entities.MessageReaction.ReactionEmote;
+import net.dv8tion.jda.api.entities.sticker.GuildSticker;
 import net.dv8tion.jda.api.sharding.ShardManager;
 import net.dv8tion.jda.api.utils.MiscUtil;
 import net.dv8tion.jda.api.utils.cache.CacheView;
+import net.dv8tion.jda.internal.utils.cache.UnifiedCacheViewImpl;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -145,6 +147,33 @@ public class SearchUtility {
 			}
 		} else {
 			return SearchUtility.findGuild(manager.getGuildCache(), query);
+		}
+	}
+
+	public static GuildSticker getSticker(Guild guild, String query) {
+		if (NumberUtility.isNumberUnsigned(query)) {
+			try {
+				return guild.getStickerById(query);
+			} catch (NumberFormatException e) {
+				return null;
+			}
+		} else {
+			return SearchUtility.find(guild.getStickerCache(), query, GuildSticker::getName);
+		}
+	}
+
+	public static GuildSticker getSticker(ShardManager manager, String query) {
+		if (NumberUtility.isNumberUnsigned(query)) {
+			try {
+				return manager.getGuildCache().applyStream(stream -> stream.map(guild -> guild.getStickerById(query)).filter(Objects::nonNull).findAny().orElse(null));
+			} catch (NumberFormatException e) {
+				return null;
+			}
+		} else {
+			List<CacheView<GuildSticker>> cacheViews = manager.getGuildCache().applyStream(stream -> stream.map(Guild::getStickerCache).collect(Collectors.toList()));
+			CacheView<GuildSticker> stickers = new UnifiedCacheViewImpl<>(cacheViews::stream);
+
+			return SearchUtility.find(stickers, query, GuildSticker::getName);
 		}
 	}
 	

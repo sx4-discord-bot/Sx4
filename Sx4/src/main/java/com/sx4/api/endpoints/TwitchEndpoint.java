@@ -74,7 +74,7 @@ public class TwitchEndpoint {
 			return Response.ok(data.getString("challenge")).build();
 		}
 
-		if (subscriptionType.equals(TwitchSubscriptionType.ONLINE)) {
+		if (subscriptionType == TwitchSubscriptionType.ONLINE) {
 			Document event = data.get("event", Document.class);
 
 			String streamId = event.getString("id");
@@ -111,7 +111,7 @@ public class TwitchEndpoint {
 
 				this.bot.getTwitchManager().onEvent(new TwitchStreamStartEvent(new TwitchStream(streamId, streamType, preview, title, game, streamStart), new TwitchStreamer(streamerId, streamerName, streamerLogin)));
 			});
-		} else if (subscriptionType.equals("revocation")) {
+		} else if (subscriptionType == TwitchSubscriptionType.REVOCATION) {
 			String status = subscription.getString("status");
 			if (status.equals("user_removed")) {
 				this.bot.getMongo().deleteManyTwitchNotifications(Filters.eq("streamerId", subscription.getEmbedded(List.of("condition", "broadcaster_user_id"), String.class))).whenComplete(MongoDatabase.exceptionally());

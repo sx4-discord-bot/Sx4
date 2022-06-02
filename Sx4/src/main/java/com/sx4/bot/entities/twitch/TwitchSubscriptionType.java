@@ -2,7 +2,8 @@ package com.sx4.bot.entities.twitch;
 
 public enum TwitchSubscriptionType {
 
-	ONLINE(0, "stream.online");
+	ONLINE(0, "stream.online"),
+	REVOCATION(1, "revocation");
 
 	private final int id;
 	private final String identifier;

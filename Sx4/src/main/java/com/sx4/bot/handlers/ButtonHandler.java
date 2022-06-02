@@ -75,16 +75,18 @@ public class ButtonHandler implements EventListener {
 	}
 
 	public void handleChannelDeleteConfirm(ButtonInteractionEvent event) {
-		if (!event.getMember().hasPermission(Permission.MANAGE_CHANNEL)) {
-			this.reply(event, PermissionUtility.formatMissingPermissions(EnumSet.of(Permission.MANAGE_CHANNEL)) + " " + this.bot.getConfig().getFailureEmote(), action -> action.setEphemeral(true)).queue();
+		Permission permission = event.getChannelType().isThread() ? Permission.MANAGE_THREADS : Permission.MANAGE_CHANNEL;
+		if (!event.getMember().hasPermission(permission)) {
+			this.reply(event, PermissionUtility.formatMissingPermissions(EnumSet.of(permission)) + " " + this.bot.getConfig().getFailureEmote(), action -> action.setEphemeral(true)).queue();
 			return;
 		}
 
-		if (!event.getGuild().getSelfMember().hasPermission(Permission.MANAGE_CHANNEL)) {
-			this.reply(event, PermissionUtility.formatMissingPermissions(EnumSet.of(Permission.MANAGE_CHANNEL), "I am") + " " + this.bot.getConfig().getFailureEmote(), action -> action.setEphemeral(true)).queue();
+		if (!event.getGuild().getSelfMember().hasPermission(permission)) {
+			this.reply(event, PermissionUtility.formatMissingPermissions(EnumSet.of(permission), "I am") + " " + this.bot.getConfig().getFailureEmote(), action -> action.setEphemeral(true)).queue();
 			return;
 		}
 
+		event.deferEdit().queue();
 		event.getChannel().delete().queue();
 	}
 

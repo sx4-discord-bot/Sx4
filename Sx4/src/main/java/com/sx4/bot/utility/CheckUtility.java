@@ -47,7 +47,7 @@ public class CheckUtility {
 
 		Guild guild = member.getGuild();
 
-		Document blacklist = bot.getMongo().getBlacklist(Filters.eq("channelId", channel.getIdLong()), Projections.include("holders"));
+		Document blacklist = bot.getMongo().getBlacklist(Filters.eq("channelId", LoggerUtility.getChannelId(channel)), Projections.include("holders"));
 		if (blacklist == null) {
 			return true;
 		}

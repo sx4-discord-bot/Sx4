@@ -32,10 +32,35 @@ public class StringUtility {
 		return newString.toString();
 	}
 
+	public static String removeAfter(String string, char... characters) {
+		for (int i = 0, index; i < characters.length; i++) {
+			index = string.lastIndexOf(characters[i]);
+			if (index != -1) {
+				string = string.substring(0, index);
+				break;
+			}
+		}
+
+		return string;
+	}
+
+	public static String getFileName(String string) {
+		string = string.substring(8);
+
+		int index = string.lastIndexOf('/');
+		if (index == -1) {
+			return null;
+		}
+
+		String name = StringUtility.removeAfter(string.substring(index + 1), '.', '?', '#');
+
+		return name.isBlank() ? null : name;
+	}
+
 	public static String getFileExtension(String string) {
-		int periodIndex = string.lastIndexOf('.');
-		if (periodIndex != -1) {
-			return string.substring(periodIndex + 1);
+		int extension = string.lastIndexOf('.');
+		if (extension != -1) {
+			return StringUtility.removeAfter(string.substring(extension + 1), '?', '#');
 		}
 		
 		return null;
