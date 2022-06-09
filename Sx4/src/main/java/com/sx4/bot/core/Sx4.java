@@ -682,7 +682,7 @@ public class Sx4 {
 					return false;
 				}
 
-				EnumSet<Permission> missingPermissions = CheckUtility.missingPermissions(this, event.getMember(), event.isFromGuild() ? (GuildMessageChannel) event.getChannel() : null, event.getProperty("fakePermissions"), EnumSet.copyOf(permissions));
+				EnumSet<Permission> missingPermissions = CheckUtility.missingPermissions(this, event.getMember(), event.getChannel() instanceof IPermissionContainer ? (IPermissionContainer) event.getChannel() : null, event.getProperty("fakePermissions"), EnumSet.copyOf(permissions));
 				if (missingPermissions.isEmpty()) {
 					return true;
 				} else {
@@ -699,7 +699,7 @@ public class Sx4 {
 					return true;
 				}
 
-				if (permissions.contains(Permission.MANAGE_ROLES) && !CheckUtility.hasPermissions(this, event.getSelfMember(), event.getProperty("fakePermissions"), EnumSet.of(Permission.MANAGE_ROLES))) {
+				if (permissions.contains(Permission.MANAGE_ROLES) && !event.getSelfMember().hasPermission(Permission.MANAGE_ROLES)) {
 					event.reply(PermissionUtility.formatMissingPermissions(EnumSet.of(Permission.MANAGE_ROLES), "I am") + " " + this.config.getFailureEmote()).queue();
 					return false;
 				}

@@ -12,6 +12,7 @@ import com.sx4.bot.utility.HelpUtility;
 import com.sx4.bot.utility.MathUtility;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.GuildMessageChannel;
+import net.dv8tion.jda.api.entities.IPermissionContainer;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.requests.restaction.MessageAction;
@@ -84,16 +85,24 @@ public class Sx4CommandEvent extends CommandEvent {
 		return (GuildMessageChannel) this.getChannel();
 	}
 
+	public boolean isPermissionContainer() {
+		return this.getChannel() instanceof IPermissionContainer;
+	}
+
+	public IPermissionContainer getPermissionContainer() {
+		return this.isPermissionContainer() ? (IPermissionContainer) this.getChannel() : null;
+	}
+
 	public boolean hasPermission(Permission... permissions) {
-		return this.getSelfMember().hasPermission(this.getTextChannel(), permissions);
+		return this.isPermissionContainer() ? this.getSelfMember().hasPermission(permissions) : this.getSelfMember().hasPermission(this.getPermissionContainer(), permissions);
 	}
 
 	public boolean hasPermission(Member member, Permission... permissions) {
-		return CheckUtility.hasPermissions(this.bot, member, this.getTextChannel(), this.getProperty("fakePermissions"), permissions);
+		return CheckUtility.hasPermissions(this.bot, member, this.getPermissionContainer(), this.getProperty("fakePermissions"), permissions);
 	}
 	
 	public MessageAction replyHelp() {
-		return this.reply(HelpUtility.getHelpMessage(this.command, !this.isFromGuild() || this.getSelfMember().hasPermission(this.getTextChannel(), Permission.MESSAGE_EMBED_LINKS)));
+		return this.reply(HelpUtility.getHelpMessage(this.command, this.hasPermission(Permission.MESSAGE_EMBED_LINKS)));
 	}
 
 	public MessageAction replyTimed(long start) {
