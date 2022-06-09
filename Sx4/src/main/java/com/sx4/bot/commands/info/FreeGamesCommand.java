@@ -448,7 +448,11 @@ public class FreeGamesCommand extends Sx4Command {
 			Formatter<Document> formatter = new JsonFormatter(data.get("message", FreeGameManager.DEFAULT_MESSAGE))
 				.addVariable("game", freeGames.get(0));
 
-			MessageUtility.fromWebhookMessage(event.getChannel(), MessageUtility.fromJson(formatter.parse()).build()).queue();
+			try {
+				MessageUtility.fromWebhookMessage(event.getChannel(), MessageUtility.fromJson(formatter.parse()).build()).queue();
+			} catch (IllegalArgumentException e) {
+				event.replyFailure(e.getMessage()).queue();
+			}
 		});
 	}
 

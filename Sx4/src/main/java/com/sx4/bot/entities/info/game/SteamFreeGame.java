@@ -41,6 +41,9 @@ public class SteamFreeGame extends FreeGame<Integer> {
 			.orElse(null);
 
 		Element prices = element.getElementsByClass("discount_prices").first();
+		if (prices == null) {
+			return null;
+		}
 
 		String originalPriceFormatted = prices.getElementsByClass("discount_original_price").first().text();
 		String discountPriceFormatted = prices.getElementsByClass("discount_final_price").first().text();

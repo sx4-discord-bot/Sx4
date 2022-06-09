@@ -35,7 +35,7 @@ public class EpicFreeGame extends FreeGame<String> {
 	}
 
 	public Document toData() {
-		return super.toData().append("url", this.url);
+		return super.toData().append("url", this.url).append("offerType", this.offerType);
 	}
 
 	public static EpicFreeGame fromData(Document data) {

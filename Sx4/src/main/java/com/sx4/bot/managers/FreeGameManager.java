@@ -445,7 +445,7 @@ public class FreeGameManager implements WebhookManager {
 				Request gameRequest = new Request.Builder()
 					.url("https://store.steampowered.com/app/" + id + "?cc=gb")
 					.addHeader("Accept-Language", "en")
-					.addHeader("Cookie", "birthtime=-1801439999")
+					.addHeader("Cookie", "birthtime=-1801439999;mature_content=1")
 					.build();
 
 				CompletableFuture<SteamFreeGame> gameFuture = new CompletableFuture<>();
@@ -454,7 +454,7 @@ public class FreeGameManager implements WebhookManager {
 					Element content = document.getElementsByClass("page_content_ctn").first();
 
 					SteamFreeGame game = SteamFreeGame.fromData(id, content);
-					if (this.isAnnounced(game)) {
+					if (game == null || this.isAnnounced(game)) {
 						gameFuture.complete(null);
 						return;
 					}
@@ -477,7 +477,7 @@ public class FreeGameManager implements WebhookManager {
 				.thenApply(List::of)
 				.thenCompose(this::sendFreeGameNotifications)
 				.whenComplete(MongoDatabase.exceptionally());
-		}, this.getInitialDelay(5), 1800, TimeUnit.SECONDS);
+		}, this.getInitialDelay(300), 1800, TimeUnit.SECONDS);
 	}
 
 	public void ensureSteamFreeGames() {
@@ -485,7 +485,7 @@ public class FreeGameManager implements WebhookManager {
 			this.retrieveFreeSteamGames()
 				.thenCompose(this::sendFreeGameNotifications)
 				.whenComplete(MongoDatabase.exceptionally());
-		}, this.getInitialDelay(90), 1800, TimeUnit.SECONDS);
+		}, this.getInitialDelay(300), 1800, TimeUnit.SECONDS);
 	}
 
 	public void ensureAnnouncedGames() {
