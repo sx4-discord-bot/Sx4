@@ -14,6 +14,37 @@ import java.util.stream.Collectors;
 
 public class CheckUtility {
 
+	private static final List<Long> DEFAULT_BLACKLIST;
+	static {
+		BitSet bitSet = new BitSet();
+		bitSet.set(275);
+		bitSet.set(276);
+		bitSet.set(281);
+		bitSet.set(292);
+		bitSet.set(293);
+		bitSet.set(294);
+
+		DEFAULT_BLACKLIST = Arrays.stream(bitSet.toLongArray()).boxed().collect(Collectors.toList());
+	}
+
+	public static List<Document> getCombinedBlacklist(long guildId, List<Document> holders) {
+		List<Document> combined = new ArrayList<>(CheckUtility.getDefaultBlacklist(guildId));
+		for (Document defaultHolder : CheckUtility.getDefaultBlacklist(guildId)) {
+			for (Document holder : holders) {
+				if (defaultHolder.getLong("id").equals(holder.getLong("id"))) {
+					combined.remove(defaultHolder);
+				}
+			}
+		}
+
+		combined.addAll(holders);
+		return combined;
+	}
+
+	public static List<Document> getDefaultBlacklist(long guildId) {
+		return List.of(new Document("id", guildId).append("type", 1).append("blacklisted", CheckUtility.DEFAULT_BLACKLIST));
+	}
+
 	public static boolean canReply(Sx4 bot, Message message, String prefix) {
 		List<String> guildPrefixes = message.isFromGuild() ? bot.getMongoCanary().getGuildById(message.getGuild().getIdLong(), Projections.include("prefixes")).getList("prefixes", String.class, Collections.emptyList()) : Collections.emptyList();
 		List<String> userPrefixes = bot.getMongoCanary().getUserById(message.getAuthor().getIdLong(), Projections.include("prefixes")).getList("prefixes", String.class, Collections.emptyList());
@@ -41,18 +72,15 @@ public class CheckUtility {
 	}
 
 	public static boolean canUseCommand(Sx4 bot, Member member, Channel channel, Sx4Command command) {
-		if (bot.getCommandListener().isDeveloper(member.getIdLong()) || member.hasPermission(Permission.ADMINISTRATOR)) {
+		/*if (bot.getCommandListener().isDeveloper(member.getIdLong()) || member.hasPermission(Permission.ADMINISTRATOR)) {
 			return true;
-		}
+		}*/
 
 		Guild guild = member.getGuild();
 
 		Document blacklist = bot.getMongo().getBlacklist(Filters.eq("channelId", LoggerUtility.getChannelId(channel)), Projections.include("holders"));
-		if (blacklist == null) {
-			return true;
-		}
 
-		List<Document> holders = blacklist.getList("holders", Document.class);
+		List<Document> holders = blacklist == null ? CheckUtility.getDefaultBlacklist(guild.getIdLong()) : CheckUtility.getCombinedBlacklist(guild.getIdLong(), blacklist.getList("holders", Document.class));
 
 		Set<Long> roleIds = member.getRoles().stream()
 			.map(Role::getIdLong)
@@ -82,11 +110,11 @@ public class CheckUtility {
 		return canUseCommand;
 	}
 	
-	public static boolean hasPermissions(Sx4 bot, Member member, TextChannel channel, List<Document> holders, Permission... permissions) {
+	public static boolean hasPermissions(Sx4 bot, Member member, IPermissionContainer channel, List<Document> holders, Permission... permissions) {
 		return CheckUtility.missingPermissions(bot, member, channel, holders, permissions).isEmpty();
 	}
 	
-	public static boolean hasPermissions(Sx4 bot, Member member, TextChannel channel, List<Document> holders, EnumSet<Permission> permissions) {
+	public static boolean hasPermissions(Sx4 bot, Member member, IPermissionContainer channel, List<Document> holders, EnumSet<Permission> permissions) {
 		return CheckUtility.missingPermissions(bot, member, channel, holders, permissions).isEmpty();
 	}
 
@@ -98,7 +126,7 @@ public class CheckUtility {
 		return CheckUtility.missingPermissions(bot, member, null, holders, permissions).isEmpty();
 	}
 	
-	public static EnumSet<Permission> missingPermissions(Sx4 bot, Member member, GuildMessageChannel channel, List<Document> holders, Permission... permissions) {
+	public static EnumSet<Permission> missingPermissions(Sx4 bot, Member member, IPermissionContainer channel, List<Document> holders, Permission... permissions) {
 		return CheckUtility.missingPermissions(bot, member, channel, holders, permissions.length == 0 ? EnumSet.noneOf(Permission.class) : EnumSet.copyOf(Arrays.asList(permissions)));
 	}
 
@@ -110,7 +138,7 @@ public class CheckUtility {
 		return CheckUtility.missingPermissions(bot, member, null, holders, permissions);
 	}
 
-	public static EnumSet<Permission> missingPermissions(Sx4 bot, Member member, GuildMessageChannel channel, List<Document> holders, EnumSet<Permission> permissions) {
+	public static EnumSet<Permission> missingPermissions(Sx4 bot, Member member, IPermissionContainer channel, List<Document> holders, EnumSet<Permission> permissions) {
 		if (bot.getCommandListener().isDeveloper(member.getIdLong()) || (channel == null ? member.hasPermission(permissions) : member.hasPermission(channel, permissions))) {
 			return EnumSet.noneOf(Permission.class);
 		}
