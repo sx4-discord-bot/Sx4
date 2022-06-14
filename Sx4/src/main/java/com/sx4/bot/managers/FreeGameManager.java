@@ -88,7 +88,9 @@ public class FreeGameManager implements WebhookManager {
 			return false;
 		}
 
-		return announcedGames.stream().anyMatch(g -> g.getPromotionEnd().equals(game.getPromotionEnd()));
+		OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+
+		return announcedGames.stream().map(FreeGame::getPromotionEnd).anyMatch(now::isBefore);
 	}
 
 	public void addAnnouncedGame(FreeGame<?> game) {
