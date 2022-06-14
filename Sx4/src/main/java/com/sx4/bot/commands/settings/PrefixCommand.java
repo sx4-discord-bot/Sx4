@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class PrefixCommand extends Sx4Command {
 
@@ -103,7 +104,9 @@ public class PrefixCommand extends Sx4Command {
 				return;
 			}
 
-			List<Bson> update = List.of(Operators.set("prefixes", Operators.let(new Document("prefixes", Operators.ifNull("$prefixes", event.getConfig().getDefaultPrefixes())), Operators.cond(Operators.gte(Operators.size("$$prefixes"), 25), "$prefixes", Operators.concatArrays(finalPrefixes, Operators.filter("$$prefixes", Operators.not(Operators.in("$$this", finalPrefixes))))))));
+			List<Bson> prefixesPipeline = finalPrefixes.stream().map(Operators::literal).collect(Collectors.toList());
+
+			List<Bson> update = List.of(Operators.set("prefixes", Operators.let(new Document("prefixes", Operators.ifNull("$prefixes", event.getConfig().getDefaultPrefixes())), Operators.cond(Operators.gte(Operators.size("$$prefixes"), 25), "$prefixes", Operators.concatArrays(prefixesPipeline, Operators.filter("$$prefixes", Operators.not(Operators.in("$$this", prefixesPipeline))))))));
 			FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().upsert(true).returnDocument(ReturnDocument.BEFORE).projection(Projections.include("prefixes"));
 
 			event.getMongo().findAndUpdateUserById(event.getAuthor().getIdLong(), update, options).whenComplete((data, exception) -> {

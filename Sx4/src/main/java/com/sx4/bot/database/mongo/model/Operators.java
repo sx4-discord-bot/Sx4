@@ -23,6 +23,10 @@ public class Operators {
 		return Operators.toLong(Operators.divide(Operators.nowEpochMilli(), 1000));
 	}
 
+	public static Bson literal(Object expression) {
+		return new Document("$literal", expression);
+	}
+
 	public static Bson expr(Object expression) {
 		return new Document("$expr", expression);
 	}
@@ -85,6 +89,10 @@ public class Operators {
 
 	public static Bson get(Object documentExpression, String key) {
 		return Operators.first(Operators.map(List.of(documentExpression), "$$this." + key));
+	}
+
+	public static Bson replaceWith(Object expression) {
+		return new Document("$replaceWith", expression);
 	}
 	
 	public static Bson set(String key, Object expression) {
