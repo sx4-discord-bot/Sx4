@@ -72,9 +72,9 @@ public class CheckUtility {
 	}
 
 	public static boolean canUseCommand(Sx4 bot, Member member, Channel channel, Sx4Command command) {
-		/*if (bot.getCommandListener().isDeveloper(member.getIdLong()) || member.hasPermission(Permission.ADMINISTRATOR)) {
+		if (bot.getCommandListener().isDeveloper(member.getIdLong()) || member.hasPermission(Permission.ADMINISTRATOR)) {
 			return true;
-		}*/
+		}
 
 		Guild guild = member.getGuild();
 
