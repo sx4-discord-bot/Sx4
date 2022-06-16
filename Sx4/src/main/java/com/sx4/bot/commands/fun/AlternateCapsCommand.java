@@ -12,6 +12,8 @@ public class AlternateCapsCommand extends Sx4Command {
 	public AlternateCapsCommand() {
 		super("alternate caps", 281);
 
+		super.disable();
+
 		super.setDescription("Repeats your text with each character having alternating capitalization");
 		super.setAliases("alternatecaps", "alternative caps", "alternativecaps");
 		super.setExamples("alternate caps hello", "alternate caps this sentence is in alternating caps");

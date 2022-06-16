@@ -14,6 +14,8 @@ public class AdvancedSayCommand extends Sx4Command {
 	public AdvancedSayCommand() {
 		super("advanced say", 275);
 
+		super.disable();
+
 		super.setDescription("Same as `say` but takes json to be more customisable");
 		super.setAliases("advancedsay");
 		super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);

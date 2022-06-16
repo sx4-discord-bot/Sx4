@@ -8,6 +8,7 @@ import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.utility.StringUtility;
 import net.dv8tion.jda.api.entities.Message;
+import net.dv8tion.jda.api.utils.MarkdownSanitizer;
 
 public class SpoilerCommand extends Sx4Command {
 
@@ -22,7 +23,7 @@ public class SpoilerCommand extends Sx4Command {
 	}
 
 	public void onCommand(Sx4CommandEvent event, @Argument(value="text", endless=true) String text, @Option(value="split", description="What to split the text by") @DefaultString("") String split) {
-		event.reply(StringUtility.limit("||" + String.join("||" + split + "||", text.split(split)) + "||", Message.MAX_CONTENT_LENGTH)).queue();
+		event.reply(StringUtility.limit("||" + String.join("||" + split + "||", text.split(MarkdownSanitizer.escape(split))) + "||", Message.MAX_CONTENT_LENGTH)).queue();
 	}
 
 }

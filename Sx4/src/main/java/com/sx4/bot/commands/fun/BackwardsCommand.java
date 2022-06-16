@@ -10,6 +10,8 @@ public class BackwardsCommand extends Sx4Command {
 	public BackwardsCommand() {
 		super("backwards", 293);
 
+		super.disable();
+
 		super.setDescription("Reverses the text given");
 		super.setCooldownDuration(10);
 		super.setAliases("reverse");
