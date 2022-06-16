@@ -25,7 +25,6 @@ public class Sx4Server {
 			new PatreonEndpoint(bot),
 			new RedirectEndpoint(bot),
 			new GitHubEndpoint(bot),
-			new TwitterEndpoint(bot),
 			new SteamEndpoint(bot),
 			new TwitchEndpoint(bot)
 		);

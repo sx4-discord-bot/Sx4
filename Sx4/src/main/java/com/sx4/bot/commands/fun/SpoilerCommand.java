@@ -23,7 +23,7 @@ public class SpoilerCommand extends Sx4Command {
 	}
 
 	public void onCommand(Sx4CommandEvent event, @Argument(value="text", endless=true) String text, @Option(value="split", description="What to split the text by") @DefaultString("") String split) {
-		event.reply(StringUtility.limit("||" + String.join("||" + split + "||", text.split(MarkdownSanitizer.escape(split))) + "||", Message.MAX_CONTENT_LENGTH)).queue();
+		event.reply(StringUtility.limit("||" + String.join("||" + MarkdownSanitizer.escape(split) + "||", MarkdownSanitizer.escape(text).split(split)) + "||", Message.MAX_CONTENT_LENGTH)).queue();
 	}
 
 }
