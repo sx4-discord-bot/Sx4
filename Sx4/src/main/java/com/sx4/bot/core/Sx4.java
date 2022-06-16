@@ -33,7 +33,6 @@ import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.config.Config;
 import com.sx4.bot.config.TwitchConfig;
 import com.sx4.bot.database.mongo.MongoDatabase;
-import com.sx4.bot.database.postgres.PostgresDatabase;
 import com.sx4.bot.entities.argument.*;
 import com.sx4.bot.entities.economy.item.Item;
 import com.sx4.bot.entities.economy.item.ItemStack;
