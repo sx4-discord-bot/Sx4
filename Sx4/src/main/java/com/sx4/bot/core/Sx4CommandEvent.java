@@ -6,7 +6,6 @@ import com.jockie.bot.core.command.impl.CommandEvent;
 import com.jockie.bot.core.command.impl.CommandListener;
 import com.sx4.bot.config.Config;
 import com.sx4.bot.database.mongo.MongoDatabase;
-import com.sx4.bot.database.postgres.PostgresDatabase;
 import com.sx4.bot.utility.CheckUtility;
 import com.sx4.bot.utility.HelpUtility;
 import com.sx4.bot.utility.MathUtility;
@@ -67,18 +66,6 @@ public class Sx4CommandEvent extends CommandEvent {
 
 	public MongoDatabase getMongoCanary() {
 		return this.bot.getMongoCanary();
-	}
-
-	public PostgresDatabase getPostgres() {
-		return this.bot.getPostgres();
-	}
-
-	public PostgresDatabase getPostgresMain() {
-		return this.bot.getPostgresMain();
-	}
-
-	public PostgresDatabase getPostgresCanary() {
-		return this.bot.getPostgresCanary();
 	}
 
 	public GuildMessageChannel getGuildChannel() {

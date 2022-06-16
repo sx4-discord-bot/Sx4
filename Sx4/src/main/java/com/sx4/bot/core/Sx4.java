@@ -115,10 +115,6 @@ public class Sx4 {
 	private final Config config = Config.get();
 	private final TwitchConfig twitchConfig;
 
-	private final PostgresDatabase postgres;
-	private final PostgresDatabase postgresCanary;
-	private final PostgresDatabase postgresMain;
-
 	private final MongoDatabase mongo;
 	private final MongoDatabase mongoCanary;
 	private final MongoDatabase mongoMain;
@@ -161,11 +157,6 @@ public class Sx4 {
 	private final GuessTheNumberManager guessTheNumberManager;
 	
 	private Sx4() {
-		this.postgresMain = new PostgresDatabase(this.config.getMainDatabase());
-		this.postgresCanary = new PostgresDatabase(this.config.getCanaryDatabase());
-
-		this.postgres = this.config.isMain() ? this.postgresMain : this.postgresCanary;
-
 		this.mongoMain = new MongoDatabase(this.config.getMainDatabase());
 		this.mongoCanary = new MongoDatabase(this.config.getCanaryDatabase());
 
@@ -449,18 +440,6 @@ public class Sx4 {
 		});
 
 		FormatterManager.setDefaultManager(formatterManager);
-	}
-
-	public PostgresDatabase getPostgres() {
-		return this.postgres;
-	}
-
-	public PostgresDatabase getPostgresMain() {
-		return this.postgresMain;
-	}
-
-	public PostgresDatabase getPostgresCanary() {
-		return this.postgresCanary;
 	}
 
 	public MongoDatabase getMongo() {
