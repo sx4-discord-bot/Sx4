@@ -615,6 +615,23 @@ public class Sx4 {
 			.addCommandEventListener(new Sx4CommandEventListener(this))
 			.setDefaultPrefixes(this.config.getDefaultPrefixes().toArray(String[]::new))
 			.addPreParseCheck(message -> !message.getAuthor().isBot())
+			.addPreExecuteCheck((event, cmd) -> {
+				if (!(cmd instanceof Sx4Command command)) {
+					return true;
+				}
+
+				if (command.isCanaryCommand() && this.config.isMain()) {
+					event.reply("This command can only be used on the canary version of the bot " + this.config.getFailureEmote()).queue();
+					return false;
+				}
+
+				if (command.isDisabled()) {
+					event.reply(command.getDisabledMessage()).queue();
+					return false;
+				}
+
+				return true;
+			})
 			.addPreExecuteCheck((event, command) -> {
 				if (this.config.isCanary() || event.isFromType(ChannelType.PRIVATE)) {
 					return true;
@@ -627,13 +644,6 @@ public class Sx4 {
 				event.setProperty("canaryPrefixes", prefixes);
 
 				return CheckUtility.canReply(this, event.getMessage(), event.getPrefix(), prefixes);
-			}).addPreExecuteCheck((event, command) -> {
-				if (command instanceof Sx4Command && ((Sx4Command) command).isCanaryCommand() && this.config.isMain()) {
-					event.reply("This command can only be used on the canary version of the bot " + this.config.getFailureEmote()).queue();
-					return false;
-				}
-
-				return true;
 			}).addPreExecuteCheck((event, command) -> {
 				if (event.isFromGuild()) {
 					Document guildData = this.mongo.getGuildById(event.getGuild().getIdLong(), Projections.include("fakePermissions.holders"));

@@ -6,6 +6,7 @@ import com.jockie.bot.core.command.ICommand;
 import com.jockie.bot.core.command.impl.CommandImpl;
 import com.jockie.bot.core.command.impl.DummyCommand;
 import com.sx4.bot.annotations.command.*;
+import com.sx4.bot.config.Config;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Message;
 import org.jetbrains.annotations.NotNull;
@@ -17,6 +18,8 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 public class Sx4Command extends CommandImpl {
+
+	private static final String DEFAULT_DISABLED_MESSAGE = "This command is disabled " + Config.get().getFailureEmote();
 
 	protected int id;
 	
@@ -97,12 +100,8 @@ public class Sx4Command extends CommandImpl {
 		return this.disabled;
 	}
 	
-	public boolean hasDisabledMessage() {
-		return this.disabledMessage != null;
-	}
-	
 	public String getDisabledMessage() {
-		return this.disabledMessage;
+		return this.disabledMessage == null ? Sx4Command.DEFAULT_DISABLED_MESSAGE : this.disabledMessage;
 	}
 	
 	public String[] getRedirects() {
