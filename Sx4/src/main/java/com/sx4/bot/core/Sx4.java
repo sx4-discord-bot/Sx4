@@ -615,7 +615,19 @@ public class Sx4 {
 			.addCommandEventListener(new Sx4CommandEventListener(this))
 			.setDefaultPrefixes(this.config.getDefaultPrefixes().toArray(String[]::new))
 			.addPreParseCheck(message -> !message.getAuthor().isBot())
-			.addPreExecuteCheck((event, cmd) -> {
+			.addPreExecuteCheck((event, command) -> {
+				if (this.config.isCanary() || event.isFromType(ChannelType.PRIVATE)) {
+					return true;
+				}
+
+				List<String> guildPrefixes = event.getMessage().isFromGuild() ? this.mongoCanary.getGuildById(event.getGuild().getIdLong(), Projections.include("prefixes")).getList("prefixes", String.class, Collections.emptyList()) : Collections.emptyList();
+				List<String> userPrefixes = this.mongoCanary.getUserById(event.getAuthor().getIdLong(), Projections.include("prefixes")).getList("prefixes", String.class, Collections.emptyList());
+
+				List<String> prefixes = userPrefixes.isEmpty() ? guildPrefixes.isEmpty() ? this.config.getDefaultPrefixes() : guildPrefixes : userPrefixes;
+				event.setProperty("canaryPrefixes", prefixes);
+
+				return CheckUtility.canReply(this, event.getMessage(), event.getPrefix(), prefixes);
+			}).addPreExecuteCheck((event, cmd) -> {
 				if (!(cmd instanceof Sx4Command command)) {
 					return true;
 				}
@@ -633,18 +645,6 @@ public class Sx4 {
 				return true;
 			})
 			.addPreExecuteCheck((event, command) -> {
-				if (this.config.isCanary() || event.isFromType(ChannelType.PRIVATE)) {
-					return true;
-				}
-
-				List<String> guildPrefixes = event.getMessage().isFromGuild() ? this.mongoCanary.getGuildById(event.getGuild().getIdLong(), Projections.include("prefixes")).getList("prefixes", String.class, Collections.emptyList()) : Collections.emptyList();
-				List<String> userPrefixes = this.mongoCanary.getUserById(event.getAuthor().getIdLong(), Projections.include("prefixes")).getList("prefixes", String.class, Collections.emptyList());
-
-				List<String> prefixes = userPrefixes.isEmpty() ? guildPrefixes.isEmpty() ? this.config.getDefaultPrefixes() : guildPrefixes : userPrefixes;
-				event.setProperty("canaryPrefixes", prefixes);
-
-				return CheckUtility.canReply(this, event.getMessage(), event.getPrefix(), prefixes);
-			}).addPreExecuteCheck((event, command) -> {
 				if (event.isFromGuild()) {
 					Document guildData = this.mongo.getGuildById(event.getGuild().getIdLong(), Projections.include("fakePermissions.holders"));
 
