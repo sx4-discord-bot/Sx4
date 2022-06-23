@@ -300,8 +300,8 @@ public class StarboardHandler implements EventListener {
 				}
 
 				List<Bson> update = List.of(
-					Operators.set("count", Operators.subtract("$count", 1)),
-					Operators.set("messageId", Operators.cond(Operators.isEmpty(Operators.filter(config, Operators.gte(Operators.subtract("$count", 1), "$$this.stars"))), Operators.REMOVE, "$messageId"))
+					Operators.set("messageId", Operators.cond(Operators.isEmpty(Operators.filter(config, Operators.gte(Operators.subtract("$count", 1), "$$this.stars"))), Operators.REMOVE, "$messageId")),
+					Operators.set("count", Operators.subtract("$count", 1))
 				);
 
 				FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER);
