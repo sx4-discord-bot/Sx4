@@ -161,7 +161,6 @@ public class FreeGamesCommand extends Sx4Command {
 	@CommandId(474)
 	@Examples({"free games add", "free games add #channel"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-	@Canary
 	public void add(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true, endless=true) BaseGuildMessageChannel channel) {
 		MessageChannel messageChannel = event.getChannel();
 		if (channel == null && !(messageChannel instanceof BaseGuildMessageChannel)) {
