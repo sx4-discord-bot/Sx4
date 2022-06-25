@@ -239,6 +239,11 @@ public class FreeGamesCommand extends Sx4Command {
 				return;
 			}
 
+			if (data == null) {
+				event.replyFailure("There is not a free game channel setup in " + effectiveChannel.getAsMention()).queue();
+				return;
+			}
+
 			event.replySuccess("The free game channel in " + effectiveChannel.getAsMention() + " is now **" + (data.get("enabled", true) ? "enabled" : "disabled") + "**").queue();
 		});
 	}
