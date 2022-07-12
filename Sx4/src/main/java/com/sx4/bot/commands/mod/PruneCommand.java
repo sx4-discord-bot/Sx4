@@ -92,8 +92,8 @@ public class PruneCommand extends Sx4Command {
 	@Examples({"prune bots", "prune bots 10"})
 	@AuthorPermissions(permissions={Permission.MESSAGE_MANAGE})
 	@BotPermissions(permissions={Permission.MESSAGE_MANAGE, Permission.MESSAGE_HISTORY}, overwrite=true)
-	public void bots(Sx4CommandEvent event, @Argument(value="amount") @DefaultNumber(100) @Limit(min=1, max=100) int amount, @Option(value="start", description="The message id to start pruning from") long start, @Option(value="end", description="The message id to end pruning at") long end) {
-		this.prune(event, amount, start, end, message -> message.getAuthor().isBot());
+	public void bots(Sx4CommandEvent event, @Argument(value="amount") @DefaultNumber(100) @Limit(min=1, max=100) int amount, @Option(value="start", description="The message id to start pruning from") long start, @Option(value="end", description="The message id to end pruning at") long end, @Option(value="inverse", description="Inverses the condition of the prune action") boolean inverse) {
+		this.prune(event, amount, start, end, message -> inverse != message.getAuthor().isBot());
 	}
 	
 	@Command(value="images", aliases={"image"}, description="Prunes a set amount of messages sent with images")
@@ -101,8 +101,8 @@ public class PruneCommand extends Sx4Command {
 	@Examples({"prune images", "prune images 10"})
 	@AuthorPermissions(permissions={Permission.MESSAGE_MANAGE})
 	@BotPermissions(permissions={Permission.MESSAGE_MANAGE, Permission.MESSAGE_HISTORY}, overwrite=true)
-	public void images(Sx4CommandEvent event, @Argument(value="amount") @DefaultNumber(100) @Limit(min=1, max=100) int amount, @Option(value="start", description="The message id to start pruning from") long start, @Option(value="end", description="The message id to end pruning at") long end) {
-		this.prune(event, amount, start, end, message -> message.getAttachments().stream().anyMatch(Attachment::isImage));
+	public void images(Sx4CommandEvent event, @Argument(value="amount") @DefaultNumber(100) @Limit(min=1, max=100) int amount, @Option(value="start", description="The message id to start pruning from") long start, @Option(value="end", description="The message id to end pruning at") long end, @Option(value="inverse", description="Inverses the condition of the prune action") boolean inverse) {
+		this.prune(event, amount, start, end, message -> inverse != message.getAttachments().stream().anyMatch(Attachment::isImage));
 	}
 	
 	@Command(value="mentions", aliases={"mention"}, description="Prunes a set amount of messages which contain mentions")
@@ -110,8 +110,8 @@ public class PruneCommand extends Sx4Command {
 	@Examples({"prune mentions", "prune mentions 10", "prune mentions USER CHANNEL"})
 	@AuthorPermissions(permissions={Permission.MESSAGE_MANAGE})
 	@BotPermissions(permissions={Permission.MESSAGE_MANAGE, Permission.MESSAGE_HISTORY}, overwrite=true)
-	public void mentions(Sx4CommandEvent event, @Argument(value="amount") @DefaultNumber(100) @Limit(min=1, max=100) int amount, @Option(value="start", description="The message id to start pruning from") long start, @Option(value="end", description="The message id to end pruning at") long end, @Argument(value="mentions") @Endless(minArguments=0) MentionType... mentions) {
-		this.prune(event, amount, start, end, message -> !message.getMentions().getMentions(mentions).isEmpty());
+	public void mentions(Sx4CommandEvent event, @Argument(value="amount") @DefaultNumber(100) @Limit(min=1, max=100) int amount, @Option(value="start", description="The message id to start pruning from") long start, @Option(value="end", description="The message id to end pruning at") long end, @Option(value="inverse", description="Inverses the condition of the prune action") boolean inverse, @Argument(value="mentions") @Endless(minArguments=0) MentionType... mentions) {
+		this.prune(event, amount, start, end, message -> inverse == message.getMentions().getMentions(mentions).isEmpty());
 	}
 	
 	@Command(value="attachments", aliases={"attachments"}, description="Prunes a set amount of messages sent with attachments")
@@ -119,8 +119,8 @@ public class PruneCommand extends Sx4Command {
 	@Examples({"prune attachments", "prune attachments 10"})
 	@AuthorPermissions(permissions={Permission.MESSAGE_MANAGE})
 	@BotPermissions(permissions={Permission.MESSAGE_MANAGE, Permission.MESSAGE_HISTORY}, overwrite=true)
-	public void attachments(Sx4CommandEvent event, @Argument(value="amount") @DefaultNumber(100) @Limit(min=1, max=100) int amount, @Option(value="start", description="The message id to start pruning from") long start, @Option(value="end", description="The message id to end pruning at") long end) {
-		this.prune(event, amount, start, end, message -> !message.getAttachments().isEmpty());
+	public void attachments(Sx4CommandEvent event, @Argument(value="amount") @DefaultNumber(100) @Limit(min=1, max=100) int amount, @Option(value="start", description="The message id to start pruning from") long start, @Option(value="end", description="The message id to end pruning at") long end, @Option(value="inverse", description="Inverses the condition of the prune action") boolean inverse) {
+		this.prune(event, amount, start, end, message -> inverse == message.getAttachments().isEmpty());
 	}
 	
 	@Command(value="contains", aliases={"contain"}, description="Prunes a set amount of messages which contain the content given")
@@ -129,8 +129,8 @@ public class PruneCommand extends Sx4Command {
 	@Examples({"prune contains hello", "prune contains hello 10"})
 	@AuthorPermissions(permissions={Permission.MESSAGE_MANAGE})
 	@BotPermissions(permissions={Permission.MESSAGE_MANAGE, Permission.MESSAGE_HISTORY}, overwrite=true)
-	public void contains(Sx4CommandEvent event, @Argument(value="content") String content, @Argument(value="amount") @DefaultNumber(100) @Limit(min=1, max=100) int amount, @Option(value="start", description="The message id to start pruning from") long start, @Option(value="end", description="The message id to end pruning at") long end) {
-		this.prune(event, amount, start, end, message -> message.getContentRaw().contains(content));
+	public void contains(Sx4CommandEvent event, @Argument(value="content") String content, @Argument(value="amount") @DefaultNumber(100) @Limit(min=1, max=100) int amount, @Option(value="start", description="The message id to start pruning from") long start, @Option(value="end", description="The message id to end pruning at") long end, @Option(value="inverse", description="Inverses the condition of the prune action") boolean inverse) {
+		this.prune(event, amount, start, end, message -> inverse != message.getContentRaw().contains(content));
 	}
 	
 	@Command(value="user", description="Prunes a set amount of messages sent by a specific user")
@@ -138,8 +138,8 @@ public class PruneCommand extends Sx4Command {
 	@Examples({"prune user @Shea#6653", "prune user Shea 10"})
 	@AuthorPermissions(permissions={Permission.MESSAGE_MANAGE})
 	@BotPermissions(permissions={Permission.MESSAGE_MANAGE, Permission.MESSAGE_HISTORY}, overwrite=true)
-	public void user(Sx4CommandEvent event, @Argument(value="user") Member member, @Argument(value="amount") @DefaultNumber(100) @Limit(min=1, max=100) int amount, @Option(value="start", description="The message id to start pruning from") long start, @Option(value="end", description="The message id to end pruning at") long end) {
-		this.prune(event, amount, start, end, message -> message.getAuthor().getIdLong() == member.getIdLong());
+	public void user(Sx4CommandEvent event, @Argument(value="user") Member member, @Argument(value="amount") @DefaultNumber(100) @Limit(min=1, max=100) int amount, @Option(value="start", description="The message id to start pruning from") long start, @Option(value="end", description="The message id to end pruning at") long end, @Option(value="inverse", description="Inverses the condition of the prune action") boolean inverse) {
+		this.prune(event, amount, start, end, message -> inverse != (message.getAuthor().getIdLong() == member.getIdLong()));
 	}
 
 	@Command(value="regex", description="Prunes a set amount of messages which match a specific regex")
@@ -148,8 +148,8 @@ public class PruneCommand extends Sx4Command {
 	@Cooldown(value=20, cooldownScope=ICooldown.Scope.GUILD)
 	@AuthorPermissions(permissions={Permission.MESSAGE_MANAGE})
 	@BotPermissions(permissions={Permission.MESSAGE_MANAGE, Permission.MESSAGE_HISTORY}, overwrite=true)
-	public void regex(Sx4CommandEvent event, @Argument(value="regex") Pattern pattern, @Argument(value="amount") @DefaultNumber(100) @Limit(min=1, max=100) int amount, @Option(value="start", description="The message id to start pruning from") long start, @Option(value="end", description="The message id to end pruning at") long end) {
-		this.prune(event, amount, start, end, message -> pattern.matcher(message.getContentRaw()).matches())
+	public void regex(Sx4CommandEvent event, @Argument(value="regex") Pattern pattern, @Argument(value="amount") @DefaultNumber(100) @Limit(min=1, max=100) int amount, @Option(value="start", description="The message id to start pruning from") long start, @Option(value="end", description="The message id to end pruning at") long end, @Option(value="inverse", description="Inverses the condition of the prune action") boolean inverse) {
+		this.prune(event, amount, start, end, message -> inverse != pattern.matcher(message.getContentRaw()).matches())
 			.orTimeout(500, TimeUnit.MILLISECONDS)
 			.whenComplete((result, exception) -> {
 				Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
