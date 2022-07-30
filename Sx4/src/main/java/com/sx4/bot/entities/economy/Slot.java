@@ -72,7 +72,7 @@ public enum Slot {
 	public static Slot[] getSlots(Random random, int amount) {
 		Slot[] slots = new Slot[amount];
 		Amount : for (int i = 0; i < amount; i++) {
-			int total = 0, randomInt = random.nextInt(Slot.TOTAL) + 1;
+			int total = 0, randomInt = random.nextInt(Slot.TOTAL);
 			for (Slot slot : Slot.values()) {
 				int chance = slot.getChance();
 				if (randomInt >= total && randomInt < total + chance) {
