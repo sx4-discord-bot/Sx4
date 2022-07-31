@@ -82,11 +82,6 @@ public class CrateCommand extends Sx4Command {
 			return;
 		}
 
-		if (amount > 100_000) {
-			event.replyFailure("You cannot buy more than 100,000 crates at one time").queue();
-			return;
-		}
-
 		long price = stack.getTotalPrice();
 		Crate crate = stack.getItem();
 

@@ -54,7 +54,16 @@ public class ItemStack<Type extends Item> implements Comparable<ItemStack<Type>>
 	}
 
 	public long getTotalPrice() {
-		return this.item.getPrice() * this.amount;
+		return Math.multiplyExact(this.item.getPrice(), this.amount);
+	}
+
+	public boolean isOverflow() {
+		try {
+			this.getTotalPrice();
+			return false;
+		} catch (ArithmeticException ignored) {
+			return true;
+		}
 	}
 	
 	public boolean equalsItem(ItemStack<?> itemStack) {

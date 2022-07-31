@@ -1164,7 +1164,12 @@ public class Sx4 {
 			.registerParser(OffsetTimeZone.class, (context, argument, content) -> new ParsedResult<>(OffsetTimeZone.getTimeZone(content.trim().toUpperCase())))
 			.registerParser(ItemStack.class, (context, argument, content) -> {
 				Class type = argument.getProperty("itemClass");
-				return new ParsedResult<>(ItemStack.parse(this.economyManager, content, type));
+				ItemStack<?> stack = ItemStack.parse(this.economyManager, content, type);
+				if (stack == null || stack.isOverflow()) {
+					return new ParsedResult<>();
+				}
+
+				return new ParsedResult<>(stack);
 			}).registerParser(ReminderArgument.class, (context, argument, content) -> {
 				try {
 					return new ParsedResult<>(ReminderArgument.parse(this.mongo, context.getMessage().getAuthor().getIdLong(), content));
