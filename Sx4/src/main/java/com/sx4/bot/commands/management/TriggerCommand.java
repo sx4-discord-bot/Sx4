@@ -294,6 +294,7 @@ public class TriggerCommand extends Sx4Command {
 	@Command(value="preview", description="Preview what a trigger will look like")
 	@CommandId(222)
 	@Examples({"trigger preview 600968f92850ef72c9af8756"})
+	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void preview(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Option(value="raw", description="Returns the raw version of the trigger actions") boolean raw) {
 		Document trigger = event.getMongo().getTrigger(Filters.and(Filters.eq("_id", id), Filters.eq("guildId", event.getGuild().getIdLong())), Projections.include("enabled", "actions"));
 		if (trigger == null) {
