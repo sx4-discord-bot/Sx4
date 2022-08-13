@@ -119,14 +119,14 @@ public class LeaderboardCommand extends Sx4Command {
 	public void networth(Sx4CommandEvent event, @Option(value="server", aliases={"guild"}, description="View the leaderboard with a server filter") boolean guild) {
 		List<Bson> userPipeline = List.of(
 			Aggregates.project(Projections.computed("total", "$economy.balance")),
-			Aggregates.match(Filters.and(Filters.exists("total"), Filters.ne("total", 0)))
+			Aggregates.match(Filters.exists("total"))
 		);
 
 		List<Bson> pipeline = List.of(
 			Aggregates.project(Projections.fields(Projections.computed("_id", "$userId"), Projections.computed("total", Operators.cond(Operators.exists("$item.durability"), Operators.toLong(Operators.multiply(Operators.divide("$item.price", "$item.maxDurability"), "$item.durability")), Operators.multiply("$item.price", "$amount"))))),
-			Aggregates.match(Filters.and(Filters.ne("_id", event.getJDA().getSelfUser().getIdLong()), Filters.ne("amount", 0))),
 			Aggregates.unionWith("users", userPipeline),
 			Aggregates.group("$_id", Accumulators.sum("total", "$total")),
+			Aggregates.match(Filters.and(Filters.ne("_id", event.getJDA().getSelfUser().getIdLong()), Filters.ne("total", 0))),
 			Aggregates.sort(Sorts.descending("total"))
 		);
 
