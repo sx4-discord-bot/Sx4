@@ -13,7 +13,6 @@ import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.entities.BaseGuildMessageChannel;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
-import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.events.guild.member.GuildMemberJoinEvent;
 import net.dv8tion.jda.api.events.guild.member.update.GuildMemberUpdatePendingEvent;
@@ -34,7 +33,7 @@ public class WelcomerHandler implements EventListener {
 		this.bot = bot;
 	}
 
-	public void sendWelcomer(Guild guild, Member member) {
+	public void sendWelcomer(Guild guild, Member member, boolean screeningEvent) {
 		JDA jda = guild.getJDA();
 
 		Document data = this.bot.getMongo().getGuildById(guild.getIdLong(), Projections.include("welcomer", "premium.endAt"));
@@ -42,7 +41,8 @@ public class WelcomerHandler implements EventListener {
 		Document welcomer = data.get("welcomer", MongoDatabase.EMPTY_DOCUMENT);
 		Document image = welcomer.get("image", MongoDatabase.EMPTY_DOCUMENT);
 
-		if (member.isPending() == welcomer.get("screening", true)) {
+		boolean screening = welcomer.get("screening", true);
+		if ((screeningEvent && !screening) || member.isPending() == screening) {
 			return;
 		}
 
@@ -89,11 +89,11 @@ public class WelcomerHandler implements EventListener {
 	}
 
 	public void onGuildMemberJoin(GuildMemberJoinEvent event) {
-		this.sendWelcomer(event.getGuild(), event.getMember());
+		this.sendWelcomer(event.getGuild(), event.getMember(), false);
 	}
 
 	public void onGuildMemberUpdatePending(GuildMemberUpdatePendingEvent event) {
-		this.sendWelcomer(event.getGuild(), event.getMember());
+		this.sendWelcomer(event.getGuild(), event.getMember(), true);
 	}
 
 	@Override
