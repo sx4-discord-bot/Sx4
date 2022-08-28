@@ -36,7 +36,7 @@ dependencies {
 		exclude group: 'net.dv8tion', module: 'JDA'
 	}
 
-	implementation('com.github.21Joakim:JDA-Memory-Optimizations:+') {
+	implementation('com.github.21Joakim:JDA-Memory-Optimizations:689a6289f2b068eeaf2c0ac3eedf77373d88ef4c') {
 		exclude group: 'net.dv8tion', module: 'JDA'
 	}
 
