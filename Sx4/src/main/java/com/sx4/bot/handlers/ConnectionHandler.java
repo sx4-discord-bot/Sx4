@@ -80,7 +80,10 @@ public class ConnectionHandler implements EventListener {
 				ExceptionUtility.safeRun(this.bot.getPatreonManager()::ensurePatrons);
 			}
 
-			this.handleStatusWebhook(this.bot.getStatusConfig().getStatusMessageId());
+			String messageId = this.bot.getStatusConfig().getStatusMessageId();
+			if (messageId != null) {
+				this.handleStatusWebhook(messageId);
+			}
 
 			this.ready = true;
 		}
