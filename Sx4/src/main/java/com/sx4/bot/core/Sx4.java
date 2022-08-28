@@ -31,7 +31,6 @@ import com.sx4.bot.cache.MessageCache;
 import com.sx4.bot.cache.SteamGameCache;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.config.Config;
-import com.sx4.bot.config.StatusConfig;
 import com.sx4.bot.config.TwitchConfig;
 import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.entities.argument.*;
@@ -114,7 +113,6 @@ public class Sx4 {
 
 	private final Config config = Config.get();
 	private final TwitchConfig twitchConfig;
-	private final StatusConfig statusConfig;
 
 	private final MongoDatabase mongo;
 	private final MongoDatabase mongoCanary;
@@ -173,7 +171,6 @@ public class Sx4 {
 			.build();
 
 		this.twitchConfig = new TwitchConfig();
-		this.statusConfig = new StatusConfig();
 
 		Currency.pollCurrencies(this.httpClient);
 
@@ -462,10 +459,6 @@ public class Sx4 {
 
 	public TwitchConfig getTwitchConfig() {
 		return this.twitchConfig;
-	}
-
-	public StatusConfig getStatusConfig() {
-		return this.statusConfig;
 	}
 
 	public OkHttpClient getHttpClient() {

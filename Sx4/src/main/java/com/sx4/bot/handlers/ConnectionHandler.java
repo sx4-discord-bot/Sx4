@@ -80,11 +80,6 @@ public class ConnectionHandler implements EventListener {
 				ExceptionUtility.safeRun(this.bot.getPatreonManager()::ensurePatrons);
 			}
 
-			String messageId = this.bot.getStatusConfig().getStatusMessageId();
-			if (messageId != null) {
-				this.handleStatusWebhook(messageId);
-			}
-
 			this.ready = true;
 		}
 		
@@ -101,20 +96,6 @@ public class ConnectionHandler implements EventListener {
 	
 	public void onDisconnect(DisconnectEvent event) {
 		this.eventsWebhook.send(this.getEmbed(event.getJDA(), "Disconnect", event.getCloseCode(), event.getTimeDisconnected(), this.bot.getConfig().getRed()));
-	}
-
-	public void handleStatusWebhook(String messageId) {
-		if (this.status) {
-			return;
-		}
-
-		WebhookClient webhook = new WebhookClientBuilder(this.bot.getStatusConfig().getStatusWebhookId(), this.bot.getStatusConfig().getStatusWebhookToken()).build();
-
-		webhook.get(messageId)
-			.thenCompose(message -> webhook.edit(messageId, message.getContent() + "\n\nUpdate: " + (this.bot.getConfig().isCanary() ? "Sx4 Canary" : "Sx4") + " is back online."))
-			.thenRun(webhook::close);
-
-		this.status = true;
 	}
 
 	@Override
