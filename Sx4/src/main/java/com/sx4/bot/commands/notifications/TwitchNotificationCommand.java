@@ -20,6 +20,7 @@ import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.twitch.TwitchStream;
 import com.sx4.bot.entities.twitch.TwitchStreamType;
 import com.sx4.bot.entities.twitch.TwitchStreamer;
+import com.sx4.bot.entities.webhook.WebhookChannel;
 import com.sx4.bot.formatter.FormatterManager;
 import com.sx4.bot.formatter.JsonFormatter;
 import com.sx4.bot.formatter.function.FormatterVariable;
@@ -31,8 +32,8 @@ import com.sx4.bot.utility.FutureUtility;
 import com.sx4.bot.utility.MessageUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
-import net.dv8tion.jda.api.entities.BaseGuildMessageChannel;
-import net.dv8tion.jda.api.entities.MessageChannel;
+import net.dv8tion.jda.api.entities.channel.attribute.IWebhookContainer;
+import net.dv8tion.jda.api.entities.channel.unions.GuildMessageChannelUnion;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.requests.ErrorResponse;
 import okhttp3.Request;
@@ -71,15 +72,7 @@ public class TwitchNotificationCommand extends Sx4Command {
 	@Command.Cooldown(5)
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	@Examples({"twitch notification add #channel esl_csgo", "twitch notification add pgl"})
-	public void add(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) BaseGuildMessageChannel channel, @Argument(value="streamer name", endless=true) @Lowercase String streamer) {
-		MessageChannel messageChannel = event.getChannel();
-		if (channel == null && !(messageChannel instanceof BaseGuildMessageChannel)) {
-			event.replyFailure("You cannot use this channel type").queue();
-			return;
-		}
-
-		BaseGuildMessageChannel effectiveChannel = channel == null ? (BaseGuildMessageChannel) messageChannel : channel;
-
+	public void add(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) WebhookChannel channel, @Argument(value="streamer name", endless=true) @Lowercase String streamer) {
 		Request request = new Request.Builder()
 			.url("https://api.twitch.tv/helix/users?login=" + URLEncoder.encode(streamer, StandardCharsets.UTF_8))
 			.addHeader("Authorization", "Bearer " + event.getBot().getTwitchConfig().getToken())
@@ -102,6 +95,8 @@ public class TwitchNotificationCommand extends Sx4Command {
 				return;
 			}
 
+			long webhookChannelId = channel.getWebhookChannel().getIdLong();
+
 			Document data = entries.get(0);
 			String id = data.getString("id"), name = data.getString("display_name");
 
@@ -122,7 +117,7 @@ public class TwitchNotificationCommand extends Sx4Command {
 				Aggregates.unionWith("twitchNotifications", countPipeline),
 				Aggregates.unionWith("guilds", guildPipeline),
 				AggregateOperators.mergeFields("premium", "notifications", "streamerCount"),
-				Aggregates.project(Projections.fields(Projections.computed("webhook", Operators.first(Operators.map(Operators.filter(Operators.ifNull("$notifications", Collections.EMPTY_LIST), Operators.and(Operators.exists("$$this.webhook"), Operators.eq("$$this.channelId", effectiveChannel.getIdLong()))), "$$this.webhook"))), Projections.computed("subscribe", Operators.eq(Operators.ifNull("$streamerCount", 0), 0)), Projections.computed("premium", Operators.ifNull("$premium", false)), Projections.computed("count", Operators.size(Operators.filter(Operators.ifNull("$notifications", Collections.EMPTY_LIST), Operators.extinct("$$this.enabled"))))))
+				Aggregates.project(Projections.fields(Projections.computed("webhook", Operators.first(Operators.map(Operators.filter(Operators.ifNull("$notifications", Collections.EMPTY_LIST), Operators.eq(Operators.ifNull("$$this.webhook.channelId", "$$this.channelId"), channel.getWebhookChannel().getIdLong())), "$$this.webhook"))), Projections.computed("subscribe", Operators.eq(Operators.ifNull("$streamerCount", 0), 0)), Projections.computed("premium", Operators.ifNull("$premium", false)), Projections.computed("count", Operators.size(Operators.filter(Operators.ifNull("$notifications", Collections.EMPTY_LIST), Operators.extinct("$$this.enabled"))))))
 			);
 
 			AtomicBoolean subscribe = new AtomicBoolean();
@@ -141,11 +136,15 @@ public class TwitchNotificationCommand extends Sx4Command {
 				subscribe.set(counter == null || counter.getBoolean("subscribe"));
 
 				Document notification = new Document("streamerId", id)
-					.append("channelId", effectiveChannel.getIdLong())
+					.append("channelId", channel.getIdLong())
 					.append("guildId", event.getGuild().getIdLong());
 
-				Document webhook = counter == null ? null : counter.get("webhook", Document.class);
-				if (webhook != null) {
+				Document webhook = counter == null ? new Document() : counter.get("webhook", new Document());
+				if (channel.getIdLong() != webhookChannelId) {
+					webhook.append("channelId", webhookChannelId);
+				}
+
+				if (!webhook.isEmpty()) {
 					notification.append("webhook", webhook);
 				}
 
@@ -153,7 +152,7 @@ public class TwitchNotificationCommand extends Sx4Command {
 			}).whenComplete((result, exception) -> {
 				Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
 				if (cause instanceof MongoWriteException && ((MongoWriteException) cause).getError().getCategory() == ErrorCategory.DUPLICATE_KEY) {
-					event.replyFailure("You already have a notification setup for that twitch streamer in " + effectiveChannel.getAsMention()).queue();
+					event.replyFailure("You already have a notification setup for that twitch streamer in " + channel.getAsMention()).queue();
 					return;
 				}
 
@@ -170,7 +169,7 @@ public class TwitchNotificationCommand extends Sx4Command {
 					event.getBot().getTwitchManager().subscribe(id);
 				}
 
-				event.replyFormat("Notifications will now be sent in %s when **%s** goes live with id `%s` %s", effectiveChannel.getAsMention(), name, result.getInsertedId().asObjectId().getValue().toHexString(), event.getConfig().getSuccessEmote()).queue();
+				event.replyFormat("Notifications will now be sent in %s when **%s** goes live with id `%s` %s", channel.getAsMention(), name, result.getInsertedId().asObjectId().getValue().toHexString(), event.getConfig().getSuccessEmote()).queue();
 			});
 		});
 	}
@@ -197,11 +196,11 @@ public class TwitchNotificationCommand extends Sx4Command {
 
 			event.getBot().getTwitchManager().removeWebhook(channelId);
 
-			BaseGuildMessageChannel channel = event.getGuild().getChannelById(BaseGuildMessageChannel.class, channelId);
+			GuildMessageChannelUnion channel = event.getGuild().getChannelById(GuildMessageChannelUnion.class, channelId);
 
 			Document webhook = data.get("webhook", Document.class);
 			if (webhook != null && channel != null) {
-				channel.deleteWebhookById(Long.toString(webhook.getLong("id"))).queue(null, ErrorResponseException.ignore(ErrorResponse.UNKNOWN_WEBHOOK));
+				((IWebhookContainer) channel).deleteWebhookById(Long.toString(webhook.getLong("id"))).queue(null, ErrorResponseException.ignore(ErrorResponse.UNKNOWN_WEBHOOK));
 			}
 
 			long count = event.getMongo().countTwitchNotifications(Filters.eq("streamerId", streamerId), new CountOptions().limit(1));
@@ -232,13 +231,13 @@ public class TwitchNotificationCommand extends Sx4Command {
 
 		List<Bson> pipeline = List.of(
 			Aggregates.match(Filters.eq("guildId", event.getGuild().getIdLong())),
-			Aggregates.project(Projections.include("streamerId", "enabled")),
+			Aggregates.project(Projections.include("streamerId", "enabled", "webhook", "channelId")),
 			Aggregates.group(null, Accumulators.push("notifications", Operators.ROOT)),
 			Aggregates.unionWith("guilds", guildPipeline),
 			AggregateOperators.mergeFields("premium", "notifications"),
 			Aggregates.project(Projections.fields(Projections.include("premium", "notifications"), Projections.computed("notification", Operators.first(Operators.filter(Operators.ifNull("$notifications", Collections.EMPTY_LIST), Operators.eq("$$this._id", id)))))),
 			Aggregates.lookup("twitchNotifications", List.of(new Variable<>("notification", "$notification")), countPipeline, "streamerCount"),
-			Aggregates.project(Projections.fields(Projections.computed("streamerId", "$notification.streamerId"), Projections.computed("streamerCount", Operators.cond(Operators.isEmpty("$streamerCount"), 0, Operators.get(Operators.arrayElemAt("$streamerCount", 0), "streamerCount"))), Projections.computed("premium", Operators.ifNull("$premium", false)), Projections.computed("count", Operators.size(Operators.ifNull(Operators.filter("$notifications", Operators.extinct("$$this.enabled")), Collections.EMPTY_LIST))), Projections.computed("disabled", Operators.not(Operators.ifNull("$notification.enabled", true)))))
+			Aggregates.project(Projections.fields(Projections.computed("webhook", Operators.first(Operators.map(Operators.filter(Operators.ifNull("$notifications", Collections.EMPTY_LIST), Operators.eq(Operators.ifNull("$$this.webhook.channelId", "$$this.channelId"), Operators.ifNull("$notification.webhook.channelId", "$notification.channelId"))), "$$this.webhook"))), Projections.computed("streamerId", "$notification.streamerId"), Projections.computed("streamerCount", Operators.cond(Operators.isEmpty("$streamerCount"), 0, Operators.get(Operators.arrayElemAt("$streamerCount", 0), "streamerCount"))), Projections.computed("premium", Operators.ifNull("$premium", false)), Projections.computed("count", Operators.size(Operators.ifNull(Operators.filter("$notifications", Operators.extinct("$$this.enabled")), Collections.EMPTY_LIST))), Projections.computed("disabled", Operators.not(Operators.ifNull("$notification.enabled", true)))))
 		);
 
 		AtomicInteger subscribe = new AtomicInteger();
@@ -268,7 +267,14 @@ public class TwitchNotificationCommand extends Sx4Command {
 
 			streamerId.set(data.getString("streamerId"));
 
-			List<Bson> update = List.of(Operators.set("enabled", Operators.cond(Operators.exists("$enabled"), Operators.REMOVE, false)));
+			List<Bson> update = new ArrayList<>();
+			update.add(Operators.set("enabled", Operators.cond(Operators.exists("$enabled"), Operators.REMOVE, false)));
+
+			Document webhook = data.get("webhook", new Document());
+			if (disabled && !webhook.isEmpty()) {
+				update.add(Operators.set("webhook", webhook));
+			}
+
 			FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER).projection(Projections.include("enabled"));
 
 			return event.getMongo().findAndUpdateTwitchNotification(Filters.eq("_id", id), update, options);
@@ -521,7 +527,7 @@ public class TwitchNotificationCommand extends Sx4Command {
 				.parse();
 
 			try {
-				MessageUtility.fromWebhookMessage(event.getChannel(), MessageUtility.fromJson(message).build()).queue();
+				event.reply(MessageUtility.fromWebhookMessage(MessageUtility.fromJson(message).build())).queue();
 			} catch (IllegalArgumentException e) {
 				event.replyFailure(e.getMessage()).queue();
 			}

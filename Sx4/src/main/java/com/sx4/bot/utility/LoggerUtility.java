@@ -1,10 +1,18 @@
 package com.sx4.bot.utility;
 
-import com.sx4.bot.entities.management.LoggerContext;
 import com.sx4.bot.entities.management.LoggerCategory;
+import com.sx4.bot.entities.management.LoggerContext;
 import com.sx4.bot.entities.management.LoggerEvent;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.*;
+import net.dv8tion.jda.api.entities.channel.Channel;
+import net.dv8tion.jda.api.entities.channel.ChannelType;
+import net.dv8tion.jda.api.entities.channel.concrete.Category;
+import net.dv8tion.jda.api.entities.channel.concrete.ThreadChannel;
+import net.dv8tion.jda.api.entities.channel.middleman.AudioChannel;
+import net.dv8tion.jda.api.entities.channel.middleman.GuildChannel;
+import net.dv8tion.jda.api.entities.channel.middleman.GuildMessageChannel;
+import net.dv8tion.jda.api.entities.emoji.CustomEmoji;
 import net.dv8tion.jda.internal.utils.tuple.Pair;
 import org.bson.Document;
 
@@ -13,6 +21,8 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 public class LoggerUtility {
+
+    private static final ChannelType[] CHANNEL_TYPES = {ChannelType.NEWS, ChannelType.TEXT, ChannelType.GUILD_PUBLIC_THREAD, ChannelType.GUILD_NEWS_THREAD, ChannelType.GUILD_PRIVATE_THREAD};
 
     public static long getChannelId(Channel channel) {
         return (channel instanceof ThreadChannel ? ((ThreadChannel) channel).getParentChannel() : channel).getIdLong();
@@ -55,15 +65,15 @@ public class LoggerUtility {
                 return category == null ? 0L : category.getIdLong();
             }
             case TEXT_CHANNEL -> {
-                BaseGuildMessageChannel messageChannel = SearchUtility.getBaseMessageChannel(guild, query);
-                return messageChannel == null ? 0L : messageChannel.getIdLong();
+                GuildChannel messageChannel = SearchUtility.getGuildChannel(guild, CHANNEL_TYPES, query);
+                return messageChannel instanceof GuildMessageChannel ? messageChannel.getIdLong() : 0L;
             }
             case ROLE -> {
                 Role role = SearchUtility.getRole(guild, query);
                 return role == null ? 0L : role.getIdLong();
             }
             case EMOTE -> {
-                Emote emote = SearchUtility.getGuildEmote(guild, query);
+                CustomEmoji emote = SearchUtility.getGuildCustomEmoji(guild, query);
                 return emote == null ? 0L : emote.getIdLong();
             }
         }

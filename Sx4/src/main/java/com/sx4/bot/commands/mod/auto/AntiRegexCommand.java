@@ -28,10 +28,14 @@ import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.TimeUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
-import net.dv8tion.jda.api.MessageBuilder;
 import net.dv8tion.jda.api.Permission;
-import net.dv8tion.jda.api.entities.*;
+import net.dv8tion.jda.api.entities.IPermissionHolder;
+import net.dv8tion.jda.api.entities.Member;
+import net.dv8tion.jda.api.entities.Role;
+import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
 import net.dv8tion.jda.api.utils.MarkdownSanitizer;
+import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
@@ -416,7 +420,7 @@ public class AntiRegexCommand extends Sx4Command {
 		PagedResult<Document> paged = new PagedResult<>(event.getBot(), regexes)
 			.setPerPage(6)
 			.setCustomFunction(page -> {
-				MessageBuilder builder = new MessageBuilder();
+				MessageCreateBuilder builder = new MessageCreateBuilder();
 
 				EmbedBuilder embed = new EmbedBuilder();
 				embed.setAuthor("Anti Regex", null, event.getGuild().getIconUrl());
@@ -961,7 +965,7 @@ public class AntiRegexCommand extends Sx4Command {
 			PagedResult<Document> paged = new PagedResult<>(event.getBot(), list)
 				.setPerPage(6)
 				.setCustomFunction(page -> {
-					MessageBuilder builder = new MessageBuilder();
+					MessageCreateBuilder builder = new MessageCreateBuilder();
 
 					EmbedBuilder embed = new EmbedBuilder();
 					embed.setAuthor("Regex Template List", null, event.getSelfUser().getEffectiveAvatarUrl());

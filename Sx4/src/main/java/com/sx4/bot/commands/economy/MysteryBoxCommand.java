@@ -14,7 +14,7 @@ import com.sx4.bot.entities.games.MysteryBoxGame;
 import com.sx4.bot.managers.MysteryBoxManager;
 import com.sx4.bot.utility.EconomyUtility;
 import com.sx4.bot.utility.ExceptionUtility;
-import net.dv8tion.jda.api.entities.Emoji;
+import net.dv8tion.jda.api.entities.emoji.Emoji;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import net.dv8tion.jda.api.interactions.components.ActionRow;
 import net.dv8tion.jda.api.interactions.components.Component;
@@ -89,7 +89,7 @@ public class MysteryBoxCommand extends Sx4Command {
 		}
 
 		String description = "You put down **$%,d**. Click the buttons to reveal what they hold, if you get :moneybag: you will get 0.20x your initial bet and it'll increase with the more successful clicks, if you get a :bomb: you will lose everything. Quit at anytime and leave with your earnings at any time by clicking the quit button.";
-		event.getChannel().sendMessageFormat(description, bet).setActionRows(rows).submit().thenCompose(message -> {
+		event.getChannel().sendMessageFormat(description, bet).setComponents(rows).submit().thenCompose(message -> {
 			MysteryBoxGame game = new MysteryBoxGame(message, event.getAuthor().getIdLong(), bet, boxes);
 			manager.addGame(event.getAuthor(), game);
 

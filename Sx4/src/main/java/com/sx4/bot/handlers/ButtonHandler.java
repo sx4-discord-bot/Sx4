@@ -16,7 +16,6 @@ import com.sx4.bot.entities.interaction.ModalType;
 import com.sx4.bot.utility.ButtonUtility;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.PermissionUtility;
-import net.dv8tion.jda.api.MessageBuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Message;
@@ -31,6 +30,8 @@ import net.dv8tion.jda.api.interactions.components.text.TextInput;
 import net.dv8tion.jda.api.interactions.components.text.TextInputStyle;
 import net.dv8tion.jda.api.requests.RestAction;
 import net.dv8tion.jda.api.requests.restaction.interactions.ReplyCallbackAction;
+import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
+import net.dv8tion.jda.api.utils.messages.MessageCreateData;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.jetbrains.annotations.NotNull;
@@ -59,18 +60,18 @@ public class ButtonHandler implements EventListener {
 	}
 
 	public RestAction<Message> reply(ButtonInteractionEvent event, String content, Function<ReplyCallbackAction, ReplyCallbackAction> function) {
-		Message message = new MessageBuilder()
+		MessageCreateData message = new MessageCreateBuilder()
 			.setContent(content)
 			.build();
 
 		return this.reply(event, message, function);
 	}
 
-	public RestAction<Message> reply(ButtonInteractionEvent event, Message message) {
+	public RestAction<Message> reply(ButtonInteractionEvent event, MessageCreateData message) {
 		return this.reply(event, message, Function.identity());
 	}
 
-	public RestAction<Message> reply(ButtonInteractionEvent event, Message message, Function<ReplyCallbackAction, ReplyCallbackAction> function) {
+	public RestAction<Message> reply(ButtonInteractionEvent event, MessageCreateData message, Function<ReplyCallbackAction, ReplyCallbackAction> function) {
 		return function.apply(event.reply(message)).flatMap(hook -> event.getMessage().editMessageComponents(event.getMessage().getActionRows().stream().map(ActionRow::asDisabled).collect(Collectors.toList())));
 	}
 
@@ -434,10 +435,10 @@ public class ButtonHandler implements EventListener {
 			.setArguments(min, max)
 			.getId();
 
-		Message message = new MessageBuilder()
+		MessageCreateData message = new MessageCreateBuilder()
 			.setContent("<@" + opponentId + "> and <@" + userId + "> click below to submit your number")
-			.allowMentions(Message.MentionType.USER)
-			.setActionRows(ActionRow.of(Button.primary(id, "Guess the number")))
+			.setAllowedMentions(List.of(Message.MentionType.USER))
+			.setComponents(ActionRow.of(Button.primary(id, "Guess the number")))
 			.build();
 
 		ButtonUtility.disableButtons(event).flatMap(hook -> hook.sendMessage(message)).queue(sentMessage -> {

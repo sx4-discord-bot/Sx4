@@ -21,12 +21,13 @@ import com.sx4.bot.entities.interaction.CustomButtonId;
 import com.sx4.bot.entities.mod.ModLog;
 import com.sx4.bot.entities.mod.Reason;
 import com.sx4.bot.entities.mod.action.Action;
+import com.sx4.bot.entities.webhook.WebhookChannel;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import net.dv8tion.jda.api.Permission;
-import net.dv8tion.jda.api.entities.BaseGuildMessageChannel;
-import net.dv8tion.jda.api.entities.MessageChannel;
 import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.entities.channel.attribute.IWebhookContainer;
+import net.dv8tion.jda.api.entities.channel.unions.GuildMessageChannelUnion;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.interactions.components.buttons.Button;
 import net.dv8tion.jda.api.requests.ErrorResponse;
@@ -72,14 +73,8 @@ public class ModLogCommand extends Sx4Command {
 	@CommandId(67)
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	@Examples({"modlog channel", "modlog channel #mod-logs", "modlog channel reset"})
-	public void channel(Sx4CommandEvent event, @Argument(value="channel | reset", endless=true, nullDefault=true) @AlternativeOptions("reset") Alternative<BaseGuildMessageChannel> option) {
-		MessageChannel messageChannel = event.getChannel();
-		if (option == null && !(messageChannel instanceof BaseGuildMessageChannel)) {
-			event.replyFailure("You cannot use this channel type").queue();
-			return;
-		}
-		
-		BaseGuildMessageChannel channel = option == null ? (BaseGuildMessageChannel) messageChannel : option.isAlternative() ? null : option.getValue();
+	public void channel(Sx4CommandEvent event, @Argument(value="channel | reset", endless=true, nullDefault=true) @AlternativeOptions("reset") Alternative<WebhookChannel> option) {
+		WebhookChannel channel = option.isAlternative() ? null : option.getValue();
 
 		List<Bson> update = List.of(Operators.set("modLog.channelId", channel == null ? Operators.REMOVE : channel.getIdLong()), Operators.unset("modLog.webhook.id"), Operators.unset("modLog.webhook.token"));
 		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("modLog.channelId")).upsert(true);
@@ -97,11 +92,11 @@ public class ModLogCommand extends Sx4Command {
 				return;
 			}
 
-			BaseGuildMessageChannel oldChannel = channelId == 0L ? null : event.getGuild().getChannelById(BaseGuildMessageChannel.class, channelId);
+			GuildMessageChannelUnion oldChannel = channelId == 0L ? null : event.getGuild().getChannelById(GuildMessageChannelUnion.class, channelId);
 			long webhookId = data == null ? 0L : data.getEmbedded(List.of("modLog", "webhook", "id"), 0L);
 
 			if (oldChannel != null && webhookId != 0L) {
-				oldChannel.deleteWebhookById(Long.toString(webhookId)).queue(null, ErrorResponseException.ignore(ErrorResponse.UNKNOWN_WEBHOOK));
+				((IWebhookContainer) oldChannel).deleteWebhookById(Long.toString(webhookId)).queue(null, ErrorResponseException.ignore(ErrorResponse.UNKNOWN_WEBHOOK));
 			}
 			
 			event.replySuccess("The mod log channel has been " + (channel == null ? "unset" : "set to " + channel.getAsMention())).queue();

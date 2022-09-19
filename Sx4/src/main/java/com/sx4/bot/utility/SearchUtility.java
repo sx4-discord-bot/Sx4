@@ -10,7 +10,15 @@ import com.sx4.bot.entities.mod.PartialEmote;
 import com.vdurmont.emoji.EmojiParser;
 import net.dv8tion.jda.api.entities.*;
 import net.dv8tion.jda.api.entities.Message.MentionType;
-import net.dv8tion.jda.api.entities.MessageReaction.ReactionEmote;
+import net.dv8tion.jda.api.entities.channel.ChannelType;
+import net.dv8tion.jda.api.entities.channel.concrete.Category;
+import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
+import net.dv8tion.jda.api.entities.channel.middleman.AudioChannel;
+import net.dv8tion.jda.api.entities.channel.middleman.GuildChannel;
+import net.dv8tion.jda.api.entities.emoji.CustomEmoji;
+import net.dv8tion.jda.api.entities.emoji.Emoji;
+import net.dv8tion.jda.api.entities.emoji.EmojiUnion;
+import net.dv8tion.jda.api.entities.emoji.RichCustomEmoji;
 import net.dv8tion.jda.api.entities.sticker.GuildSticker;
 import net.dv8tion.jda.api.sharding.ShardManager;
 import net.dv8tion.jda.api.utils.MiscUtil;
@@ -20,6 +28,7 @@ import net.dv8tion.jda.internal.utils.cache.UnifiedCacheViewImpl;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -32,8 +41,55 @@ public class SearchUtility {
 	public static final Pattern ROLE_MENTION = MentionType.ROLE.getPattern();
 	public static final Pattern EMOTE_MENTION = Pattern.compile("<(a)?:(\\w+):([0-9]+)>");
 	public static final Pattern EMOTE_URL = Pattern.compile("https?://cdn\\.discordapp\\.com/emojis/([0-9]+)\\.(png|gif|jpeg|jpg)(?:\\?\\S*)?(?:#\\S*)?", Pattern.CASE_INSENSITIVE);
-	
-	public static <Type> Type find(Iterable<Type> iterable, String query, List<Function<Type, String>> nameFunctions) {
+
+	public static <Type> Type findAny(Iterable<Type> iterable, String query, List<Function<Type, String>> nameFunctions, Predicate<Type> predicate) {
+		List<Type> equal = new ArrayList<>();
+		List<Type> startsWith = new ArrayList<>();
+		List<Type> contains = new ArrayList<>();
+
+		query = query.toLowerCase();
+		for (Type object : iterable) {
+			if (predicate != null && !predicate.test(object)) {
+				continue;
+			}
+
+			for (Function<Type, String> nameFunction : nameFunctions) {
+				String modified = nameFunction.apply(object);
+				if (modified == null) {
+					continue;
+				}
+
+				String name = modified.toLowerCase();
+				if (name.equals(query)) {
+					equal.add(object);
+				}
+
+				if (name.startsWith(query)) {
+					startsWith.add(object);
+				}
+
+				if (name.contains(query)) {
+					contains.add(object);
+				}
+			}
+		}
+
+		if (!equal.isEmpty()) {
+			return equal.get(0);
+		}
+
+		if (!startsWith.isEmpty()) {
+			return startsWith.get(0);
+		}
+
+		if (!contains.isEmpty()) {
+			return contains.get(0);
+		}
+
+		return null;
+	}
+
+	public static <Type> Type findFirst(Iterable<Type> iterable, String query, List<Function<Type, String>> nameFunctions) {
 		List<Type> startsWith = new ArrayList<>();
 		List<Type> contains = new ArrayList<>();
 
@@ -71,40 +127,36 @@ public class SearchUtility {
 		return null;
 	}
 
-	private static <Type> Type find(Iterable<Type> iterable, String query, Function<Type, String> nameFunction) {
-		return SearchUtility.find(iterable, query, Collections.singletonList(nameFunction));
+	private static <Type> Type findFirst(Iterable<Type> iterable, String query, Function<Type, String> nameFunction) {
+		return SearchUtility.findFirst(iterable, query, Collections.singletonList(nameFunction));
 	}
 	
 	private static TextChannel findTextChannel(CacheView<TextChannel> channels, String query) {
-		return SearchUtility.find(channels, query, TextChannel::getName);
-	}
-
-	private static BaseGuildMessageChannel findBaseMessageChannel(Iterable<BaseGuildMessageChannel> channels, String query) {
-		return SearchUtility.find(channels, query, BaseGuildMessageChannel::getName);
+		return SearchUtility.findFirst(channels, query, TextChannel::getName);
 	}
 
 	private static AudioChannel findAudioChannel(Iterable<AudioChannel> channels, String query) {
-		return SearchUtility.find(channels, query, AudioChannel::getName);
+		return SearchUtility.findFirst(channels, query, AudioChannel::getName);
 	}
 
 	private static Category findCategory(CacheView<Category> channels, String query) {
-		return SearchUtility.find(channels, query, Category::getName);
+		return SearchUtility.findFirst(channels, query, Category::getName);
 	}
 	
 	private static Member findMember(CacheView<Member> members, String query) {
-		return SearchUtility.find(members, query, List.of(Member::getNickname, member -> member.getUser().getName()));
+		return SearchUtility.findFirst(members, query, List.of(Member::getNickname, member -> member.getUser().getName()));
 	}
 	
 	private static Role findRole(CacheView<Role> roles, String query) {
-		return SearchUtility.find(roles, query, Role::getName);
+		return SearchUtility.findFirst(roles, query, Role::getName);
 	}
 	
-	private static Emote findEmote(CacheView<Emote> emotes, String query) {
-		return SearchUtility.find(emotes, query, Emote::getName);
+	private static RichCustomEmoji findEmoji(CacheView<RichCustomEmoji> emotes, String query) {
+		return SearchUtility.findFirst(emotes, query, Emoji::getName);
 	}
 	
 	private static Guild findGuild(CacheView<Guild> guilds, String query) {
-		return SearchUtility.find(guilds, query, Guild::getName);
+		return SearchUtility.findFirst(guilds, query, Guild::getName);
 	}
 
 	public static CompletableFuture<Guild.Ban> getBan(Guild guild, String query) {
@@ -113,7 +165,7 @@ public class SearchUtility {
 			try {
 				return guild.retrieveBan(User.fromId(query)).submit();
 			} catch (NumberFormatException e) {
-				return guild.retrieveBanList().submit().thenApply(bans -> SearchUtility.find(bans, query, ban -> ban.getUser().getName()));
+				return guild.retrieveBanList().submit().thenApply(bans -> SearchUtility.findFirst(bans, query, ban -> ban.getUser().getName()));
 			}
 		} else if ((matcher = SearchUtility.USER_MENTION.matcher(query)).matches()) {
 			try {
@@ -134,7 +186,7 @@ public class SearchUtility {
 					.orElse(null);
 			});
 		} else {
-			return guild.retrieveBanList().submit().thenApply(bans -> SearchUtility.find(bans, query, ban -> ban.getUser().getName()));
+			return guild.retrieveBanList().submit().thenApply(bans -> SearchUtility.findFirst(bans, query, ban -> ban.getUser().getName()));
 		}
 	}
 	
@@ -158,7 +210,7 @@ public class SearchUtility {
 				return null;
 			}
 		} else {
-			return SearchUtility.find(guild.getStickerCache(), query, GuildSticker::getName);
+			return SearchUtility.findFirst(guild.getStickerCache(), query, GuildSticker::getName);
 		}
 	}
 
@@ -173,7 +225,7 @@ public class SearchUtility {
 			List<CacheView<GuildSticker>> cacheViews = manager.getGuildCache().applyStream(stream -> stream.map(Guild::getStickerCache).collect(Collectors.toList()));
 			CacheView<GuildSticker> stickers = new UnifiedCacheViewImpl<>(cacheViews::stream);
 
-			return SearchUtility.find(stickers, query, GuildSticker::getName);
+			return SearchUtility.findFirst(stickers, query, GuildSticker::getName);
 		}
 	}
 	
@@ -190,7 +242,7 @@ public class SearchUtility {
 			}	
 		} else if (NumberUtility.isNumberUnsigned(query)) {
 			try {
-				Emote emote = manager.getEmoteById(query);
+				CustomEmoji emote = manager.getEmojiById(query);
 				if (emote == null) {
 					return new PartialEmote(Long.parseLong(query), null, null);
 				} else {
@@ -203,7 +255,7 @@ public class SearchUtility {
 			try {
 				long id = Long.parseLong(urlMatch.group(1));
 				
-				Emote emote = manager.getEmoteById(id);
+				CustomEmoji emote = manager.getEmojiById(id);
 				if (emote == null) {
 					return new PartialEmote(id, null, urlMatch.group(2).equals("gif"));
 				} else {
@@ -218,24 +270,24 @@ public class SearchUtility {
 		return null;
 	}
 	
-	public static Emote getEmote(ShardManager manager, String query) {
+	public static RichCustomEmoji getCustomEmoji(ShardManager manager, String query) {
 		Matcher mentionMatch = SearchUtility.EMOTE_MENTION.matcher(query);
 		Matcher urlMatch = SearchUtility.EMOTE_URL.matcher(query);
 		if (mentionMatch.matches()) {
 			try {
-				return manager.getEmoteById(mentionMatch.group(3));
+				return manager.getEmojiById(mentionMatch.group(3));
 			} catch (NumberFormatException e) {
 				return null;
 			}
 		} else if (NumberUtility.isNumberUnsigned(query)) {
 			try {
-				return manager.getEmoteById(query);
+				return manager.getEmojiById(query);
 			} catch (NumberFormatException e) {
 				return null;
 			}
 		} else if (urlMatch.matches()) {
 			try {
-				return manager.getEmoteById(urlMatch.group(1));
+				return manager.getEmojiById(urlMatch.group(1));
 			} catch (NumberFormatException e) {
 				return null;
 			}
@@ -244,48 +296,47 @@ public class SearchUtility {
 		return null;
 	}
 	
-	public static Emote getGuildEmote(Guild guild, String query) {
+	public static RichCustomEmoji getGuildCustomEmoji(Guild guild, String query) {
 		Matcher mentionMatch = SearchUtility.EMOTE_MENTION.matcher(query);
 		Matcher urlMatch = SearchUtility.EMOTE_URL.matcher(query);
 		if (mentionMatch.matches()) {
 			try {
-				return guild.getEmoteById(mentionMatch.group(3));
+				return guild.getEmojiById(mentionMatch.group(3));
 			} catch (NumberFormatException e) {
 				return null;
 			}
 		} else if (NumberUtility.isNumberUnsigned(query)) {
 			try {
-				return guild.getEmoteById(query);
+				return guild.getEmojiById(query);
 			} catch (NumberFormatException e) {
 				return null;
 			}
 		} else if (urlMatch.matches()) {
 			try {
-				return guild.getEmoteById(urlMatch.group(1));
+				return guild.getEmojiById(urlMatch.group(1));
 			} catch (NumberFormatException e) {
 				return null;
 			}
 		} else {
-			return SearchUtility.findEmote(guild.getEmoteCache(), query);
+			return SearchUtility.findEmoji(guild.getEmojiCache(), query);
 		}
 	}
 	
-	public static ReactionEmote getReactionEmote(ShardManager manager, String query) {
+	public static EmojiUnion getEmoji(ShardManager manager, String query) {
 		List<String> emojis = EmojiParser.extractEmojis(query);
 		if (!emojis.isEmpty()) {
-			return ReactionEmote.fromUnicode(emojis.get(0), manager.getShardById(0));
+			return (EmojiUnion) Emoji.fromUnicode(emojis.get(0));
 		} else {
-			Emote emote = SearchUtility.getEmote(manager, query);
-			return emote == null ? null : ReactionEmote.fromCustom(emote);
+			return (EmojiUnion) SearchUtility.getCustomEmoji(manager, query);
 		}
 	}
 
-	public static ReactionEmote getUncheckedReactionEmote(ShardManager manager, String query) {
-		Emote emote = SearchUtility.getEmote(manager, query);
-		if (emote == null) {
-			return ReactionEmote.fromUnicode(query, manager.getShardById(0));
+	public static EmojiUnion getUncheckedEmoji(ShardManager manager, String query) {
+		CustomEmoji emoji = SearchUtility.getCustomEmoji(manager, query);
+		if (emoji == null) {
+			return (EmojiUnion) Emoji.fromUnicode(query);
 		} else {
-			return ReactionEmote.fromCustom(emote);
+			return (EmojiUnion) emoji;
 		}
 	}
 	
@@ -317,16 +368,50 @@ public class SearchUtility {
 		}
 	}
 
-	public static GuildChannel getGuildChannel(Guild guild, ChannelType type, String query) {
-		if (type == ChannelType.TEXT) {
-			return SearchUtility.getBaseMessageChannel(guild, query);
-		} else if (type == ChannelType.CATEGORY) {
-			return SearchUtility.getCategory(guild, query);
-		} else if (type == ChannelType.VOICE) {
-			return SearchUtility.getAudioChannel(guild, query);
+	public static GuildChannel getGuildChannel(Guild guild, Collection<ChannelType> types, String query) {
+		return SearchUtility.getGuildChannel(guild, types.toArray(new ChannelType[0]), query);
+	}
+
+	private static GuildChannel getGuildChannelById(Guild guild, String id, ChannelType... types) {
+		GuildChannel channel = guild.getGuildChannelById(id);
+		if (channel == null) {
+			return null;
+		}
+
+		for (ChannelType type : types) {
+			if (type == channel.getType()) {
+				return channel;
+			}
 		}
 
 		return null;
+	}
+
+	public static GuildChannel getGuildChannel(Guild guild, ChannelType[] types, String query) {
+		Matcher mentionMatch = SearchUtility.CHANNEL_MENTION.matcher(query);
+		if (mentionMatch.matches()) {
+			try {
+				return SearchUtility.getGuildChannelById(guild, query, types);
+			} catch (NumberFormatException e) {
+				return null;
+			}
+		} else if (NumberUtility.isNumberUnsigned(query)) {
+			try {
+				return SearchUtility.getGuildChannelById(guild, query, types);
+			} catch (NumberFormatException e) {
+				return null;
+			}
+		} else {
+			return SearchUtility.findAny(guild.getChannels(), query, List.of(GuildChannel::getName), channel -> {
+				for (ChannelType type : types) {
+					if (channel.getType() == type) {
+						return true;
+					}
+				}
+
+				return false;
+			});
+		}
 	}
 
 	public static GuildChannel getGuildChannel(Guild guild, String query) {
@@ -341,28 +426,6 @@ public class SearchUtility {
 		}
 
 		return channel;
-	}
-
-	public static BaseGuildMessageChannel getBaseMessageChannel(Guild guild, String query) {
-		Matcher mentionMatch = SearchUtility.CHANNEL_MENTION.matcher(query);
-		if (mentionMatch.matches()) {
-			try {
-				return guild.getChannelById(BaseGuildMessageChannel.class, mentionMatch.group(1));
-			} catch (NumberFormatException e) {
-				return null;
-			}
-		} else if (NumberUtility.isNumberUnsigned(query)) {
-			try {
-				return guild.getChannelById(BaseGuildMessageChannel.class, query);
-			} catch (NumberFormatException e) {
-				return null;
-			}
-		} else {
-			List<CacheView<? extends BaseGuildMessageChannel>> cacheViews = List.of(guild.getTextChannelCache(), guild.getNewsChannelCache());
-			List<BaseGuildMessageChannel> channels = cacheViews.stream().flatMap(CacheView::stream).distinct().collect(Collectors.toList());
-
-			return SearchUtility.findBaseMessageChannel(channels, query);
-		}
 	}
 	
 	public static TextChannel getTextChannel(Guild guild, String query) {
@@ -385,7 +448,14 @@ public class SearchUtility {
 	}
 
 	public static AudioChannel getAudioChannel(Guild guild, String query) {
-		if (NumberUtility.isNumberUnsigned(query)) {
+		Matcher mentionMatch = SearchUtility.CHANNEL_MENTION.matcher(query);
+		if (mentionMatch.matches()) {
+			try {
+				return guild.getChannelById(AudioChannel.class, mentionMatch.group(1));
+			} catch (NumberFormatException e) {
+				return null;
+			}
+		} else if (NumberUtility.isNumberUnsigned(query)) {
 			try {
 				return guild.getChannelById(AudioChannel.class, query);
 			} catch (NumberFormatException e) {

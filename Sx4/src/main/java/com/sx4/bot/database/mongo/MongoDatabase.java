@@ -732,6 +732,10 @@ public class MongoDatabase {
 		return CompletableFuture.supplyAsync(() -> this.loggers.findOneAndUpdate(filter, update, options), this.executor);
 	}
 
+	public CompletableFuture<UpdateResult> updateManyLoggers(Bson filter, Bson update, UpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.loggers.updateMany(filter, update, options));
+	}
+
 	public MongoCollection<Document> getMarriages() {
 		return this.marriages;
 	}

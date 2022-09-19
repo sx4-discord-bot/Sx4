@@ -18,8 +18,7 @@ import com.sx4.bot.entities.management.MediaType;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import net.dv8tion.jda.api.Permission;
-import net.dv8tion.jda.api.entities.BaseGuildMessageChannel;
-import net.dv8tion.jda.api.entities.MessageChannel;
+import net.dv8tion.jda.api.entities.channel.middleman.GuildMessageChannel;
 import org.bson.Document;
 
 import java.util.ArrayList;
@@ -45,16 +44,8 @@ public class MediaModeCommand extends Sx4Command {
 	@CommandId(350)
 	@Examples({"media mode add", "media mode add #media"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-	public void add(Sx4CommandEvent event, @Argument(value="channel", endless=true, nullDefault=true) BaseGuildMessageChannel channel) {
-		MessageChannel messageChannel = event.getChannel();
-		if (channel == null && !(messageChannel instanceof BaseGuildMessageChannel)) {
-			event.replyFailure("You cannot use this channel type").queue();
-			return;
-		}
-
-		BaseGuildMessageChannel effectiveChannel = channel == null ? (BaseGuildMessageChannel) messageChannel : channel;
-
-		Document data = new Document("channelId", effectiveChannel.getIdLong())
+	public void add(Sx4CommandEvent event, @Argument(value="channel", endless=true, nullDefault=true) GuildMessageChannel channel) {
+		Document data = new Document("channelId", channel.getIdLong())
 			.append("guildId", event.getGuild().getIdLong());
 
 		event.getMongo().insertMediaChannel(data).whenComplete((result, exception) -> {
@@ -68,7 +59,7 @@ public class MediaModeCommand extends Sx4Command {
 				return;
 			}
 
-			event.replySuccess(effectiveChannel.getAsMention() + " is now a media only channel").queue();
+			event.replySuccess(channel.getAsMention() + " is now a media only channel").queue();
 		});
 	}
 
@@ -76,16 +67,8 @@ public class MediaModeCommand extends Sx4Command {
 	@CommandId(351)
 	@Examples({"media mode remove", "media mode remove #media"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-	public void remove(Sx4CommandEvent event, @Argument(value="channel", endless=true, nullDefault=true) BaseGuildMessageChannel channel) {
-		MessageChannel messageChannel = event.getChannel();
-		if (channel == null && !(messageChannel instanceof BaseGuildMessageChannel)) {
-			event.replyFailure("You cannot use this channel type").queue();
-			return;
-		}
-
-		BaseGuildMessageChannel effectiveChannel = channel == null ? (BaseGuildMessageChannel) messageChannel : channel;
-
-		event.getMongo().deleteMediaChannel(Filters.eq("channelId", effectiveChannel.getIdLong())).whenComplete((result, exception) -> {
+	public void remove(Sx4CommandEvent event, @Argument(value="channel", endless=true, nullDefault=true) GuildMessageChannel channel) {
+		event.getMongo().deleteMediaChannel(Filters.eq("channelId", channel.getIdLong())).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -95,7 +78,7 @@ public class MediaModeCommand extends Sx4Command {
 				return;
 			}
 
-			event.replySuccess(effectiveChannel.getAsMention() + " is no longer a media only channel").queue();
+			event.replySuccess(channel.getAsMention() + " is no longer a media only channel").queue();
 		});
 	}
 
@@ -103,16 +86,8 @@ public class MediaModeCommand extends Sx4Command {
 	@CommandId(352)
 	@Examples({"media mode types PNG", "media mode types #media JPG PNG", "media mode types GIF MP4"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-	public void types(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) BaseGuildMessageChannel channel, @Argument(value="types") MediaType... types) {
-		MessageChannel messageChannel = event.getChannel();
-		if (channel == null && !(messageChannel instanceof BaseGuildMessageChannel)) {
-			event.replyFailure("You cannot use this channel type").queue();
-			return;
-		}
-
-		BaseGuildMessageChannel effectiveChannel = channel == null ? (BaseGuildMessageChannel) messageChannel : channel;
-
-		event.getMongo().updateMediaChannel(Filters.eq("channelId", effectiveChannel.getIdLong()), Updates.set("types", MediaType.getRaw(types)), new UpdateOptions()).whenComplete((result, exception) -> {
+	public void types(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) GuildMessageChannel channel, @Argument(value="types") MediaType... types) {
+		event.getMongo().updateMediaChannel(Filters.eq("channelId", channel.getIdLong()), Updates.set("types", MediaType.getRaw(types)), new UpdateOptions()).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}

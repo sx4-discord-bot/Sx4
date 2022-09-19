@@ -3,8 +3,14 @@ package com.sx4.bot.utility;
 import com.jockie.bot.core.command.impl.CommandEvent;
 import com.sx4.bot.config.Config;
 import com.sx4.bot.entities.image.ImageError;
-import net.dv8tion.jda.api.entities.*;
-import net.dv8tion.jda.api.requests.restaction.MessageAction;
+import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.entities.Member;
+import net.dv8tion.jda.api.entities.Message;
+import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.entities.channel.middleman.GuildMessageChannel;
+import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
+import net.dv8tion.jda.api.requests.restaction.MessageCreateAction;
+import net.dv8tion.jda.api.utils.FileUpload;
 import okhttp3.Response;
 import org.bson.Document;
 
@@ -15,15 +21,15 @@ import java.util.regex.Matcher;
 
 public class ImageUtility {
 
-	public static MessageAction getImageMessage(CommandEvent event, Response response) throws IOException {
+	public static MessageCreateAction getImageMessage(CommandEvent event, Response response) throws IOException {
 		return ImageUtility.getImageMessage(event.getChannel(), response);
 	}
 
-	public static MessageAction getImageMessage(CommandEvent event, Response response, BiFunction<Document, ImageError, MessageAction> badRequest) throws IOException {
+	public static MessageCreateAction getImageMessage(CommandEvent event, Response response, BiFunction<Document, ImageError, MessageCreateAction> badRequest) throws IOException {
 		return ImageUtility.getImageMessage(event.getChannel(), response, badRequest);
 	}
 
-	public static MessageAction getImageMessage(MessageChannel channel, Response response, BiFunction<Document, ImageError, MessageAction> badRequest) throws IOException {
+	public static MessageCreateAction getImageMessage(MessageChannel channel, Response response, BiFunction<Document, ImageError, MessageCreateAction> badRequest) throws IOException {
 		int status = response.code();
 		if (status == 200) {
 			byte[] bytes = response.body().bytes();
@@ -31,17 +37,17 @@ public class ImageUtility {
 				return channel.sendMessageFormat("File size cannot exceed %s (**%s**) %s", NumberUtility.getBytesReadable(Message.MAX_FILE_SIZE), NumberUtility.getBytesReadable(bytes.length), Config.get().getFailureEmote());
 			}
 
-			return channel.sendFile(bytes, String.format("image.%s", response.header("Content-Type").split("/")[1]));
+			return channel.sendFiles(FileUpload.fromData(bytes, String.format("image.%s", response.header("Content-Type").split("/")[1])));
 		} else {
 			return ImageUtility.getErrorMessage(channel, status, response.body().string(), badRequest);
 		}
 	}
 
-	public static MessageAction getImageMessage(MessageChannel channel, Response response) throws IOException {
+	public static MessageCreateAction getImageMessage(MessageChannel channel, Response response) throws IOException {
 		return ImageUtility.getImageMessage(channel, response, null);
 	}
 
-	public static MessageAction getErrorMessage(MessageChannel channel, int status, String fullBody, BiFunction<Document, ImageError, MessageAction> badRequest) {
+	public static MessageCreateAction getErrorMessage(MessageChannel channel, int status, String fullBody, BiFunction<Document, ImageError, MessageCreateAction> badRequest) {
 		if (status == 400) {
 			Document body = Document.parse(fullBody);
 			int code = body.getEmbedded(List.of("details", "code"), Integer.class);
@@ -51,18 +57,18 @@ public class ImageUtility {
 				return channel.sendMessageFormat("That url could not be formed to a valid image %s", Config.get().getFailureEmote());
 			}
 
-			MessageAction messageAction = badRequest == null ? null : badRequest.apply(body, error);
-			if (messageAction == null) {
+			MessageCreateAction MessageCreateAction = badRequest == null ? null : badRequest.apply(body, error);
+			if (MessageCreateAction == null) {
 				return channel.sendMessageEmbeds(ExceptionUtility.getSimpleErrorMessage(String.format("- Code: %d\n- %s", error.getCode(), body.getString("message")), "diff"));
 			} else {
-				return messageAction;
+				return MessageCreateAction;
 			}
 		} else {
 			return channel.sendMessageEmbeds(ExceptionUtility.getSimpleErrorMessage(String.format("- Status: %d\n- %s", status, fullBody), "diff"));
 		}
 	}
 
-	public static MessageAction getErrorMessage(MessageChannel channel, int status, String fullBody) {
+	public static MessageCreateAction getErrorMessage(MessageChannel channel, int status, String fullBody) {
 		return ImageUtility.getErrorMessage(channel, status, fullBody, null);
 	}
 

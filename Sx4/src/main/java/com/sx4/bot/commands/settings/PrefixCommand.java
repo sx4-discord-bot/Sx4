@@ -15,8 +15,8 @@ import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.utility.ExceptionUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
-import net.dv8tion.jda.api.MessageBuilder;
 import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 
@@ -48,7 +48,7 @@ public class PrefixCommand extends Sx4Command {
 		embed.addField("Server Prefixes", guildPrefixes.isEmpty() ? "None" : String.join(", ", guildPrefixes), false);
 		embed.addField(event.getAuthor().getName() + "'s Prefixes", userPrefixes.isEmpty() ? "None" : String.join(", ", userPrefixes), false);
 
-		event.reply(new MessageBuilder().setEmbeds(embed.build()).setContent("For help on setting the prefix use `" + event.getPrefix() + "help prefix`").build()).queue();
+		event.reply(new MessageCreateBuilder().setEmbeds(embed.build()).setContent("For help on setting the prefix use `" + event.getPrefix() + "help prefix`").build()).queue();
 	}
 
 	public static class SelfCommand extends Sx4Command {

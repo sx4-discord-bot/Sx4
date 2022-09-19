@@ -11,6 +11,7 @@ import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.info.game.*;
 import com.sx4.bot.entities.webhook.ReadonlyMessage;
+import com.sx4.bot.entities.webhook.WebhookChannel;
 import com.sx4.bot.entities.webhook.WebhookClient;
 import com.sx4.bot.formatter.Formatter;
 import com.sx4.bot.formatter.JsonFormatter;
@@ -19,9 +20,9 @@ import com.sx4.bot.utility.FreeGameUtility;
 import com.sx4.bot.utility.FutureUtility;
 import com.sx4.bot.utility.MessageUtility;
 import net.dv8tion.jda.api.Permission;
-import net.dv8tion.jda.api.entities.BaseGuildMessageChannel;
-import net.dv8tion.jda.api.entities.Channel;
 import net.dv8tion.jda.api.entities.MessageEmbed;
+import net.dv8tion.jda.api.entities.channel.Channel;
+import net.dv8tion.jda.api.entities.channel.unions.GuildMessageChannelUnion;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import org.bson.Document;
@@ -63,6 +64,7 @@ public class FreeGameManager implements WebhookManager {
 	private final ScheduledExecutorService epicExecutor = Executors.newSingleThreadScheduledExecutor();
 	private final ScheduledExecutorService steamExecutor = Executors.newSingleThreadScheduledExecutor();
 	private final ScheduledExecutorService gogExecutor = Executors.newSingleThreadScheduledExecutor();
+	private final ScheduledExecutorService webhookExecutor = Executors.newSingleThreadScheduledExecutor();
 
 	private final OkHttpClient client = new OkHttpClient();
 
@@ -133,14 +135,14 @@ public class FreeGameManager implements WebhookManager {
 		return this.bot.getMongo().updateFreeGameChannel(Filters.eq("channelId", channel.getIdLong()), update, new UpdateOptions());
 	}
 
-	private CompletableFuture<List<ReadonlyMessage>> createWebhook(BaseGuildMessageChannel channel, List<WebhookMessage> messages) {
+	private CompletableFuture<List<ReadonlyMessage>> createWebhook(WebhookChannel channel, List<WebhookMessage> messages) {
 		if (!channel.getGuild().getSelfMember().hasPermission(channel, Permission.MANAGE_WEBHOOKS)) {
 			this.disableFreeGameChannel(channel).whenComplete(MongoDatabase.exceptionally());
 			return CompletableFuture.completedFuture(Collections.emptyList());
 		}
 
 		return channel.createWebhook("Sx4 - Free Games").submit().thenCompose(webhook -> {
-			WebhookClient webhookClient = new WebhookClient(webhook.getIdLong(), webhook.getToken(), this.client);
+			WebhookClient webhookClient = channel.getWebhookClient(webhook.getIdLong(), webhook.getToken(), this.webhookExecutor, this.client);
 
 			this.webhooks.put(channel.getIdLong(), webhookClient);
 
@@ -165,14 +167,14 @@ public class FreeGameManager implements WebhookManager {
 		});
 	}
 
-	public CompletableFuture<List<ReadonlyMessage>> sendFreeGameNotificationMessages(BaseGuildMessageChannel channel, Document webhookData, List<WebhookMessage> messages) {
+	public CompletableFuture<List<ReadonlyMessage>> sendFreeGameNotificationMessages(WebhookChannel channel, Document webhookData, List<WebhookMessage> messages) {
 		WebhookClient webhook;
 		if (this.webhooks.containsKey(channel.getIdLong())) {
 			webhook = this.webhooks.get(channel.getIdLong());
 		} else if (!webhookData.containsKey("id")) {
 			return this.createWebhook(channel, messages);
 		} else {
-			webhook = new WebhookClient(webhookData.getLong("id"), webhookData.getString("token"), this.client);
+			webhook = channel.getWebhookClient(webhookData.getLong("id"), webhookData.getString("token"), this.webhookExecutor, this.client);
 
 			this.webhooks.put(channel.getIdLong(), webhook);
 		}
@@ -226,7 +228,7 @@ public class FreeGameManager implements WebhookManager {
 					continue;
 				}
 
-				BaseGuildMessageChannel channel = this.bot.getShardManager().getChannelById(BaseGuildMessageChannel.class, data.getLong("channelId"));
+				GuildMessageChannelUnion channel = this.bot.getShardManager().getChannelById(GuildMessageChannelUnion.class, data.getLong("channelId"));
 				if (channel == null) {
 					continue;
 				}
@@ -268,7 +270,7 @@ public class FreeGameManager implements WebhookManager {
 				WebhookMessage firstMessage = messages.get(0);
 				String firstContent = firstMessage.getContent();
 				if (messages.size() == 1 || !messages.stream().skip(1).allMatch(message -> message.getContent().equals(firstContent))) {
-					futures.add(this.sendFreeGameNotificationMessages(channel, webhookData, messages));
+					futures.add(this.sendFreeGameNotificationMessages(new WebhookChannel(channel), webhookData, messages));
 					continue;
 				}
 
@@ -302,7 +304,7 @@ public class FreeGameManager implements WebhookManager {
 				baseMessage.addEmbeds(embeds);
 				updatedMessages.add(baseMessage.build());
 
-				futures.add(this.sendFreeGameNotificationMessages(channel, webhookData, updatedMessages));
+				futures.add(this.sendFreeGameNotificationMessages(new WebhookChannel(channel), webhookData, updatedMessages));
 			}
 
 			if (!bulkData.isEmpty()) {

@@ -9,6 +9,7 @@ import com.mongodb.client.model.Updates;
 import com.sx4.bot.core.Sx4;
 import com.sx4.bot.entities.twitch.TwitchSubscriptionType;
 import com.sx4.bot.entities.webhook.ReadonlyMessage;
+import com.sx4.bot.entities.webhook.WebhookChannel;
 import com.sx4.bot.entities.webhook.WebhookClient;
 import com.sx4.bot.events.twitch.TwitchEvent;
 import com.sx4.bot.events.twitch.TwitchStreamStartEvent;
@@ -16,7 +17,6 @@ import com.sx4.bot.exceptions.mod.BotPermissionException;
 import com.sx4.bot.hooks.TwitchListener;
 import com.sx4.bot.http.HttpCallback;
 import net.dv8tion.jda.api.Permission;
-import net.dv8tion.jda.api.entities.BaseGuildMessageChannel;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -151,13 +151,13 @@ public class TwitchManager {
 		this.subscribe(streamerId, TwitchSubscriptionType.ONLINE);
 	}
 
-	private CompletableFuture<ReadonlyMessage> createWebhook(BaseGuildMessageChannel channel, WebhookMessage message) {
+	private CompletableFuture<ReadonlyMessage> createWebhook(WebhookChannel channel, WebhookMessage message) {
 		if (!channel.getGuild().getSelfMember().hasPermission(channel, Permission.MANAGE_WEBHOOKS)) {
 			return CompletableFuture.failedFuture(new BotPermissionException(Permission.MANAGE_WEBHOOKS));
 		}
 
 		return channel.createWebhook("Sx4 - Twitch").submit().thenCompose(webhook -> {
-			WebhookClient webhookClient = new WebhookClient(webhook.getIdLong(), webhook.getToken(), this.scheduledExecutor, this.client);
+			WebhookClient webhookClient = channel.getWebhookClient(webhook.getIdLong(), webhook.getToken(), this.scheduledExecutor, this.client);
 
 			this.webhooks.put(channel.getIdLong(), webhookClient);
 
@@ -181,7 +181,7 @@ public class TwitchManager {
 		});
 	}
 
-	public CompletableFuture<ReadonlyMessage> sendTwitchNotification(BaseGuildMessageChannel channel, Document webhookData, WebhookMessage message) {
+	public CompletableFuture<ReadonlyMessage> sendTwitchNotification(WebhookChannel channel, Document webhookData, WebhookMessage message) {
 		long channelId = channel.getIdLong();
 
 		WebhookClient webhook;
@@ -190,7 +190,7 @@ public class TwitchManager {
 		} else if (!webhookData.containsKey("id")) {
 			return this.createWebhook(channel, message);
 		} else {
-			webhook = new WebhookClient(webhookData.getLong("id"), webhookData.getString("token"), this.scheduledExecutor, this.client);
+			webhook = channel.getWebhookClient(webhookData.getLong("id"), webhookData.getString("token"), this.scheduledExecutor, this.client);
 
 			this.webhooks.put(channelId, webhook);
 		}

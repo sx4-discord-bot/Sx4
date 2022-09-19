@@ -5,8 +5,8 @@ import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.paged.PagedResult;
 import net.dv8tion.jda.api.EmbedBuilder;
-import net.dv8tion.jda.api.MessageBuilder;
 import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
 import org.bson.Document;
 
 public class PrivacyPolicyCommand extends Sx4Command {
@@ -23,7 +23,7 @@ public class PrivacyPolicyCommand extends Sx4Command {
         PagedResult<Document> paged = new PagedResult<>(event.getBot(), event.getConfig().getPolicies())
             .setPerPage(1)
             .setCustomFunction(page -> {
-                MessageBuilder builder = new MessageBuilder();
+                MessageCreateBuilder builder = new MessageCreateBuilder();
 
                 EmbedBuilder embed = new EmbedBuilder();
                 embed.setFooter(PagedResult.DEFAULT_FOOTER_TEXT, null);

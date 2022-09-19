@@ -7,9 +7,8 @@ import com.sx4.bot.formatter.JsonFormatter;
 import com.sx4.bot.formatter.function.FormatterResponse;
 import com.sx4.bot.handlers.TriggerHandler;
 import com.sx4.bot.http.HttpCallback;
-import net.dv8tion.jda.api.entities.BaseGuildMessageChannel;
-import net.dv8tion.jda.api.entities.GuildMessageChannel;
 import net.dv8tion.jda.api.entities.Message;
+import net.dv8tion.jda.api.entities.channel.middleman.GuildMessageChannel;
 import net.dv8tion.jda.internal.requests.RestActionImpl;
 import net.dv8tion.jda.internal.requests.Route;
 import net.dv8tion.jda.internal.utils.EncodingUtil;
@@ -104,9 +103,9 @@ public class TriggerUtility {
 		Document action = new JsonFormatter(oldAction, manager).parse();
 
 		String channelId = action.getString("channelId");
-		GuildMessageChannel messageChannel = channelId == null ? channel : channel.getGuild().getChannelById(BaseGuildMessageChannel.class, channelId);
+		GuildMessageChannel messageChannel = channelId == null ? channel : channel.getGuild().getChannelById(GuildMessageChannel.class, channelId);
 
-		return MessageUtility.fromWebhookMessage(messageChannel, MessageUtility.fromJson(action.get("response", Document.class)).build()).allowedMentions(EnumSet.allOf(Message.MentionType.class)).submit()
+		return messageChannel.sendMessage(MessageUtility.fromWebhookMessage(MessageUtility.fromJson(action.get("response", Document.class)).build())).setAllowedMentions(EnumSet.allOf(Message.MentionType.class)).submit()
 			.thenApply(message -> {
 				manager.addVariable(action.get("variable", "message"), message);
 				return null;

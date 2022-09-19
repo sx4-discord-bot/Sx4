@@ -10,11 +10,11 @@ import com.sx4.bot.http.HttpCallback;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.StringUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
-import net.dv8tion.jda.api.MessageBuilder;
 import net.dv8tion.jda.api.Permission;
-import net.dv8tion.jda.api.entities.BaseGuildMessageChannel;
-import net.dv8tion.jda.api.entities.MessageChannel;
 import net.dv8tion.jda.api.entities.MessageEmbed;
+import net.dv8tion.jda.api.entities.channel.attribute.IAgeRestrictedChannel;
+import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
+import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
 import okhttp3.Request;
 import org.bson.Document;
 
@@ -50,7 +50,7 @@ public class RedditCommand extends Sx4Command {
 			posts =	posts.stream()
 				.filter(post -> {
 					MessageChannel channel = event.getChannel();
-					if (!(channel instanceof BaseGuildMessageChannel && ((BaseGuildMessageChannel) channel).isNSFW())) {
+					if (!(channel instanceof IAgeRestrictedChannel && ((IAgeRestrictedChannel) channel).isNSFW())) {
 						return !post.getEmbedded(List.of("data", "over_18"), false);
 					}
 
@@ -68,7 +68,7 @@ public class RedditCommand extends Sx4Command {
 				.setPerPage(1)
 				.setSelect()
 				.setCustomFunction(page -> {
-					MessageBuilder builder = new MessageBuilder();
+					MessageCreateBuilder builder = new MessageCreateBuilder();
 					EmbedBuilder embed = new EmbedBuilder().setTitle("Page " + page.getPage() + "/" + page.getMaxPage());
 
 					page.forEach((data, index) -> {

@@ -8,6 +8,7 @@ import com.mongodb.client.model.Updates;
 import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.entities.webhook.ReadonlyMessage;
+import com.sx4.bot.entities.webhook.WebhookChannel;
 import com.sx4.bot.entities.webhook.WebhookClient;
 import com.sx4.bot.exceptions.mod.BotPermissionException;
 import net.dv8tion.jda.api.Permission;
@@ -59,14 +60,14 @@ public class SuggestionManager implements WebhookManager {
 		this.bot.getMongo().updateGuildById(guild.getIdLong(), update).whenComplete(MongoDatabase.exceptionally());
 	}
 
-	private CompletableFuture<ReadonlyMessage> createWebhook(BaseGuildMessageChannel channel, WebhookMessage message) {
+	private CompletableFuture<ReadonlyMessage> createWebhook(WebhookChannel channel, WebhookMessage message) {
 		if (!channel.getGuild().getSelfMember().hasPermission(channel, Permission.MANAGE_WEBHOOKS)) {
 			this.disableSuggestion(channel.getGuild());
 			return CompletableFuture.failedFuture(new BotPermissionException(Permission.MANAGE_WEBHOOKS));
 		}
 
 		return channel.createWebhook("Sx4 - Suggestions").submit().thenCompose(webhook -> {
-			WebhookClient webhookClient = new WebhookClient(webhook.getIdLong(), webhook.getToken(), this.executor, this.client);
+			WebhookClient webhookClient = channel.getWebhookClient(webhook.getIdLong(), webhook.getToken(), this.executor, this.client);
 
 			this.webhooks.put(channel.getIdLong(), webhookClient);
 
@@ -90,7 +91,7 @@ public class SuggestionManager implements WebhookManager {
 		});
 	}
 
-	public CompletableFuture<ReadonlyMessage> sendSuggestion(BaseGuildMessageChannel channel, Document webhookData, boolean premium, WebhookEmbed embed) {
+	public CompletableFuture<ReadonlyMessage> sendSuggestion(WebhookChannel channel, Document webhookData, boolean premium, WebhookEmbed embed) {
 		User selfUser = channel.getJDA().getSelfUser();
 
 		WebhookMessage message = new WebhookMessageBuilder()
@@ -105,7 +106,7 @@ public class SuggestionManager implements WebhookManager {
 		} else if (!webhookData.containsKey("id")) {
 			return this.createWebhook(channel, message);
 		} else {
-			webhook = new WebhookClient(webhookData.getLong("id"), webhookData.getString("token"), this.executor, this.client);
+			webhook = channel.getWebhookClient(webhookData.getLong("id"), webhookData.getString("token"), this.executor, this.client);
 
 			this.webhooks.put(channel.getIdLong(), webhook);
 		}

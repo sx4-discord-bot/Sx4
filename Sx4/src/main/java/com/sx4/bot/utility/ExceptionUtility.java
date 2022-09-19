@@ -4,8 +4,8 @@ import com.jockie.bot.core.command.impl.CommandEvent;
 import com.sx4.bot.config.Config;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.Message;
-import net.dv8tion.jda.api.entities.MessageChannel;
 import net.dv8tion.jda.api.entities.MessageEmbed;
+import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;

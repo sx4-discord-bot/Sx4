@@ -8,6 +8,7 @@ import club.minnced.discord.webhook.send.WebhookEmbedBuilder;
 import com.sx4.bot.entities.mod.action.Action;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.*;
+import net.dv8tion.jda.api.entities.channel.middleman.GuildMessageChannel;
 import net.dv8tion.jda.api.sharding.ShardManager;
 import org.bson.Document;
 import org.bson.types.ObjectId;
@@ -124,14 +125,14 @@ public class ModLog {
 		return this.channelId;
 	}
 	
-	public BaseGuildMessageChannel getChannel(ShardManager manager) {
+	public GuildMessageChannel getChannel(ShardManager manager) {
 		if (this.channelId == 0L) {
 			return null;
 		}
 
 		Guild guild = this.getGuild(manager);
 		
-		return guild == null ? null : guild.getChannelById(BaseGuildMessageChannel.class, this.channelId);
+		return guild == null ? null : guild.getChannelById(GuildMessageChannel.class, this.channelId);
 	}
 	
 	public long getTargetId() {

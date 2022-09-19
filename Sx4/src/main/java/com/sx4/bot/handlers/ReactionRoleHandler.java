@@ -11,9 +11,11 @@ import com.sx4.bot.entities.settings.HolderType;
 import com.sx4.bot.utility.ExceptionUtility;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Guild;
-import net.dv8tion.jda.api.entities.MessageReaction.ReactionEmote;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.entities.emoji.CustomEmoji;
+import net.dv8tion.jda.api.entities.emoji.EmojiUnion;
+import net.dv8tion.jda.api.entities.emoji.UnicodeEmoji;
 import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.events.message.MessageBulkDeleteEvent;
 import net.dv8tion.jda.api.events.message.MessageDeleteEvent;
@@ -44,7 +46,7 @@ public class ReactionRoleHandler implements EventListener {
 
 		User user = event.getUser();
 		Guild guild = event.getGuild();
-		ReactionEmote emote = event.getReactionEmote();
+		EmojiUnion emoji = event.getEmoji();
 		
 		if (user == null || user.isBot()) {
 			return;
@@ -85,7 +87,7 @@ public class ReactionRoleHandler implements EventListener {
 			}
 			
 			Document emoteData = data.get("emote", Document.class);
-			if ((emote.isEmoji() && emoteData.containsKey("name") && emoteData.getString("name").equals(emote.getEmoji())) || (emote.isEmote() && emoteData.containsKey("id") && emoteData.getLong("id") == emote.getEmote().getIdLong())) {
+			if ((emoji instanceof UnicodeEmoji && emoteData.containsKey("name") && emoteData.getString("name").equals(emoji.getName())) || (emoji instanceof CustomEmoji && emoteData.containsKey("id") && emoteData.getLong("id") == emoji.asCustom().getIdLong())) {
 				if (rolesData.isEmpty()) {
 					return;
 				}

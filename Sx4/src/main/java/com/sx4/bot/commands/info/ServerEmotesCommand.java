@@ -5,7 +5,8 @@ import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.paged.PagedResult;
 import net.dv8tion.jda.api.Permission;
-import net.dv8tion.jda.api.entities.Emote;
+import net.dv8tion.jda.api.entities.emoji.CustomEmoji;
+import net.dv8tion.jda.api.entities.emoji.RichCustomEmoji;
 
 import java.util.Comparator;
 import java.util.List;
@@ -24,9 +25,9 @@ public class ServerEmotesCommand extends Sx4Command {
 	}
 
 	public void onCommand(Sx4CommandEvent event) {
-		List<Emote> emotes = event.getGuild().getEmoteCache().applyStream(stream -> stream.sorted(Comparator.comparing(Emote::isAnimated)).collect(Collectors.toList()));
+		List<RichCustomEmoji> emotes = event.getGuild().getEmojiCache().applyStream(stream -> stream.sorted(Comparator.comparing(CustomEmoji::isAnimated)).collect(Collectors.toList()));
 
-		PagedResult<Emote> paged = new PagedResult<>(event.getBot(), emotes)
+		PagedResult<RichCustomEmoji> paged = new PagedResult<>(event.getBot(), emotes)
 			.setIndexed(false)
 			.setPerPage(15)
 			.setAuthor("Emotes", null, event.getGuild().getIconUrl())

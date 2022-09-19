@@ -2,9 +2,9 @@ package com.sx4.bot.entities.mod;
 
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.entities.Guild;
-import net.dv8tion.jda.api.entities.PrivateChannel;
 import net.dv8tion.jda.api.entities.User;
-import net.dv8tion.jda.api.requests.RestAction;
+import net.dv8tion.jda.api.entities.channel.concrete.PrivateChannel;
+import net.dv8tion.jda.api.requests.restaction.CacheRestAction;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -43,9 +43,8 @@ public class UserReference implements User {
 		throw new UnsupportedOperationException();
 	}
 
-	@NotNull
 	@Override
-	public RestAction<Profile> retrieveProfile() {
+	public CacheRestAction<Profile> retrieveProfile() {
 		throw new UnsupportedOperationException();
 	}
 
@@ -60,9 +59,8 @@ public class UserReference implements User {
 		throw new UnsupportedOperationException();
 	}
 
-	@NotNull
 	@Override
-	public RestAction<PrivateChannel> openPrivateChannel() {
+	public CacheRestAction<PrivateChannel> openPrivateChannel() {
 		throw new UnsupportedOperationException();
 	}
 

@@ -48,8 +48,8 @@ public class StickerCommand extends Sx4Command {
 	@CommandId(508)
 	@Redirects({"create sticker"})
 	@Examples({"sticker create", "sticker create dog", "sticker create https://example.com/sticker.png"})
-	@AuthorPermissions(permissions={Permission.MANAGE_EMOTES_AND_STICKERS})
-	@BotPermissions(permissions={Permission.MANAGE_EMOTES_AND_STICKERS})
+	@AuthorPermissions(permissions={Permission.MANAGE_EMOJIS_AND_STICKERS})
+	@BotPermissions(permissions={Permission.MANAGE_EMOJIS_AND_STICKERS})
 	public void create(Sx4CommandEvent event, @Argument(value="sticker | image url", acceptEmpty=true) StickerArgument sticker, @Argument(value="name", endless=true, nullDefault=true) @Limit(min=2, max=30) String name) {
 		int maxStickers = this.maxStickers.get(event.getGuild().getBoostTier());
 		if (event.getGuild().getStickerCache().size() >= maxStickers) {
@@ -101,8 +101,8 @@ public class StickerCommand extends Sx4Command {
 	@CommandId(509)
 	@Redirects({"delete sticker"})
 	@Examples({"sticker delete", "sticker delete dog"})
-	@AuthorPermissions(permissions={Permission.MANAGE_EMOTES_AND_STICKERS})
-	@BotPermissions(permissions={Permission.MANAGE_EMOTES_AND_STICKERS})
+	@AuthorPermissions(permissions={Permission.MANAGE_EMOJIS_AND_STICKERS})
+	@BotPermissions(permissions={Permission.MANAGE_EMOJIS_AND_STICKERS})
 	public void delete(Sx4CommandEvent event, @Argument(value="sticker", endless=true, acceptEmpty=true) GuildSticker sticker) {
 		sticker.delete().flatMap($ -> event.replySuccess("I have deleted the sticker `" + sticker.getName() + "`")).queue();
 	}

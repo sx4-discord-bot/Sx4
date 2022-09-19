@@ -9,14 +9,15 @@ import com.mongodb.client.model.UpdateOptions;
 import com.mongodb.client.model.Updates;
 import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.mongo.MongoDatabase;
+import com.sx4.bot.entities.webhook.WebhookChannel;
 import com.sx4.bot.entities.webhook.WebhookClient;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.MessageUtility;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.Permission;
-import net.dv8tion.jda.api.entities.BaseGuildMessageChannel;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.MessageEmbed;
+import net.dv8tion.jda.api.entities.channel.unions.GuildMessageChannelUnion;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.requests.ErrorResponse;
 import okhttp3.OkHttpClient;
@@ -74,12 +75,12 @@ public class LoggerManager {
             return this.channelId;
         }
 
-        public BaseGuildMessageChannel getChannel() {
-            return this.jda.getChannelById(BaseGuildMessageChannel.class, this.channelId);
+        public GuildMessageChannelUnion getChannel() {
+            return this.jda.getChannelById(GuildMessageChannelUnion.class, this.channelId);
         }
 
-        public BaseGuildMessageChannel getChannel(Guild guild) {
-            return guild.getChannelById(BaseGuildMessageChannel.class, this.channelId);
+        public GuildMessageChannelUnion getChannel(Guild guild) {
+            return guild.getChannelById(GuildMessageChannelUnion.class, this.channelId);
         }
 
         public List<WebhookEmbed> getEmbeds() {
@@ -122,10 +123,11 @@ public class LoggerManager {
         this.bot.getMongo().updateLogger(Filters.eq("channelId", channelId), update, new UpdateOptions()).whenComplete((result, databaseException) -> {
             ExceptionUtility.sendErrorMessage(databaseException);
             this.queue.clear();
+            this.webhook = null;
         });
     }
 
-    private void createWebhook(BaseGuildMessageChannel channel, List<Request> requests) {
+    private void createWebhook(WebhookChannel channel, List<Request> requests) {
         channel.createWebhook("Sx4 - Logger").submit().whenComplete((webhook, exception) -> {
             Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
             if (cause instanceof ErrorResponseException && ((ErrorResponseException) cause).getErrorResponse() == ErrorResponse.MAX_WEBHOOKS) {
@@ -140,14 +142,14 @@ public class LoggerManager {
                 return;
             }
 
-            this.webhook = new WebhookClient(webhook.getIdLong(), webhook.getToken(), this.webhookExecutor, this.webhookClient);
+            this.webhook = channel.getWebhookClient(webhook.getIdLong(), webhook.getToken(), this.webhookExecutor, this.webhookClient);
 
             Bson update = Updates.combine(
                 Updates.set("webhook.id", webhook.getIdLong()),
                 Updates.set("webhook.token", webhook.getToken())
             );
 
-            this.bot.getMongo().updateLogger(Filters.eq("channelId", channel.getIdLong()), update, new UpdateOptions()).whenComplete((result, databaseException) -> {
+            this.bot.getMongo().updateManyLoggers(Filters.eq("webhook.channelId", channel.getWebhookChannel().getIdLong()), update, new UpdateOptions()).whenComplete((result, databaseException) -> {
                 ExceptionUtility.sendErrorMessage(databaseException);
 
                 requests.forEach(failedRequest -> this.queue.addFirst(failedRequest.incrementAttempts()));
@@ -176,7 +178,7 @@ public class LoggerManager {
                 }
 
                 long channelId = request.getChannelId();
-                BaseGuildMessageChannel channel = request.getChannel(guild);
+                GuildMessageChannelUnion channel = request.getChannel(guild);
                 if (channel == null) {
                     this.bot.getMongo().deleteLogger(Filters.eq("channelId", channelId)).whenComplete((result, exception) -> {
                         ExceptionUtility.sendErrorMessage(exception);
@@ -185,6 +187,8 @@ public class LoggerManager {
 
                     return;
                 }
+
+                WebhookChannel webhookChannel = new WebhookChannel(channel);
 
                 List<WebhookEmbed> embeds = new ArrayList<>(request.getEmbeds());
                 int length = MessageUtility.getWebhookEmbedLength(embeds);
@@ -223,14 +227,14 @@ public class LoggerManager {
                 if (this.webhook == null) {
                     if (!webhookData.containsKey("id")) {
                         if (guild.getSelfMember().hasPermission(channel, Permission.MANAGE_WEBHOOKS)) {
-                            this.createWebhook(channel, requests);
+                            this.createWebhook(webhookChannel, requests);
                             return;
                         }
 
                         this.handleQueue();
                         return;
                     } else {
-                        this.webhook = new WebhookClient(webhookData.getLong("id"), webhookData.getString("token"), this.webhookExecutor, this.webhookClient);
+                        this.webhook = webhookChannel.getWebhookClient(webhookData.getLong("id"), webhookData.getString("token"), this.webhookExecutor, this.webhookClient);
                     }
                 }
 
@@ -238,7 +242,7 @@ public class LoggerManager {
                     Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
                     if (cause instanceof HttpException && ((HttpException) cause).getCode() == 404) {
                         if (guild.getSelfMember().hasPermission(channel, Permission.MANAGE_WEBHOOKS)) {
-                            this.createWebhook(channel, requests);
+                            this.createWebhook(webhookChannel, requests);
                             return;
                         }
 
@@ -269,7 +273,7 @@ public class LoggerManager {
         }
     }
 
-    public void queue(BaseGuildMessageChannel channel, Document logger, List<WebhookEmbed> embeds) {
+    public void queue(GuildMessageChannelUnion channel, Document logger, List<WebhookEmbed> embeds) {
         List<Request> requests = new ArrayList<>();
 
         int index = 0;

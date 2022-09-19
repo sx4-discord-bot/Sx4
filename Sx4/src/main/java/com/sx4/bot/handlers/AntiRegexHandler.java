@@ -17,6 +17,11 @@ import com.sx4.bot.utility.FutureUtility;
 import com.sx4.bot.utility.ModUtility;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.*;
+import net.dv8tion.jda.api.entities.channel.attribute.ICategorizableChannel;
+import net.dv8tion.jda.api.entities.channel.concrete.Category;
+import net.dv8tion.jda.api.entities.channel.concrete.ThreadChannel;
+import net.dv8tion.jda.api.entities.channel.middleman.GuildMessageChannel;
+import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
 import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.events.message.MessageUpdateEvent;
@@ -248,7 +253,7 @@ public class AntiRegexHandler implements EventListener {
 
                             ModUtility.performAction(this.bot, action, member, selfMember, reason).thenCompose(result -> {
                                 if (send) {
-                                    messageChannel.sendMessage(modMessage).allowedMentions(EnumSet.allOf(Message.MentionType.class)).queue();
+                                    messageChannel.sendMessage(modMessage).setAllowedMentions(EnumSet.allOf(Message.MentionType.class)).queue();
                                 }
 
                                 return this.bot.getMongo().deleteRegexAttempt(Filters.and(Filters.eq("userId", userId), Filters.eq("regexId", id)));
@@ -266,7 +271,7 @@ public class AntiRegexHandler implements EventListener {
                         }
 
                         if (send) {
-                            messageChannel.sendMessage(matchMessage).allowedMentions(EnumSet.allOf(Message.MentionType.class)).queue();
+                            messageChannel.sendMessage(matchMessage).setAllowedMentions(EnumSet.allOf(Message.MentionType.class)).queue();
                         }
                     });
                 });

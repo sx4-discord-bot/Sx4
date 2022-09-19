@@ -55,7 +55,7 @@ public class GuessTheNumberCommand extends Sx4Command {
 		List<Button> buttons = List.of(Button.success(acceptId, "Yes"), Button.danger(rejectId, "No"));
 
 		event.reply(opponent.getAsMention() + ", do you want to play guess the number with **" + event.getAuthor().getName() + "**?")
-			.allowedMentions(EnumSet.of(Message.MentionType.USER))
+			.setAllowedMentions(EnumSet.of(Message.MentionType.USER))
 			.setActionRow(buttons)
 			.queue();
 	}

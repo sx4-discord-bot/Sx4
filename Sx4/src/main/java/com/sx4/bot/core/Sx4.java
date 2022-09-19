@@ -22,10 +22,11 @@ import com.jockie.bot.core.option.factory.impl.OptionFactory;
 import com.jockie.bot.core.option.factory.impl.OptionFactoryImpl;
 import com.jockie.bot.core.parser.IParser;
 import com.jockie.bot.core.parser.ParsedResult;
-import com.jockie.jda.memory.MemoryOptimizations;
+import com.jockie.bot.core.utility.StringUtility.QuoteCharacter;
 import com.mongodb.client.model.Projections;
 import com.sx4.api.Sx4Server;
 import com.sx4.bot.annotations.argument.*;
+import com.sx4.bot.annotations.command.ChannelTypes;
 import com.sx4.bot.cache.GoogleSearchCache;
 import com.sx4.bot.cache.MessageCache;
 import com.sx4.bot.cache.SteamGameCache;
@@ -46,6 +47,7 @@ import com.sx4.bot.entities.mod.StickerArgument;
 import com.sx4.bot.entities.twitch.TwitchStream;
 import com.sx4.bot.entities.twitch.TwitchStreamType;
 import com.sx4.bot.entities.twitch.TwitchStreamer;
+import com.sx4.bot.entities.webhook.WebhookChannel;
 import com.sx4.bot.entities.youtube.YouTubeChannel;
 import com.sx4.bot.entities.youtube.YouTubeVideo;
 import com.sx4.bot.formatter.FormatterManager;
@@ -63,25 +65,36 @@ import com.sx4.bot.waiter.WaiterManager;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.*;
 import net.dv8tion.jda.api.entities.Message.Attachment;
-import net.dv8tion.jda.api.entities.MessageReaction.ReactionEmote;
+import net.dv8tion.jda.api.entities.channel.Channel;
+import net.dv8tion.jda.api.entities.channel.ChannelType;
+import net.dv8tion.jda.api.entities.channel.attribute.IPermissionContainer;
+import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
+import net.dv8tion.jda.api.entities.channel.concrete.VoiceChannel;
+import net.dv8tion.jda.api.entities.channel.middleman.AudioChannel;
+import net.dv8tion.jda.api.entities.channel.middleman.GuildChannel;
+import net.dv8tion.jda.api.entities.channel.middleman.GuildMessageChannel;
+import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
+import net.dv8tion.jda.api.entities.channel.unions.GuildMessageChannelUnion;
+import net.dv8tion.jda.api.entities.emoji.Emoji;
+import net.dv8tion.jda.api.entities.emoji.EmojiUnion;
+import net.dv8tion.jda.api.entities.emoji.RichCustomEmoji;
+import net.dv8tion.jda.api.entities.emoji.UnicodeEmoji;
 import net.dv8tion.jda.api.entities.sticker.GuildSticker;
 import net.dv8tion.jda.api.entities.sticker.Sticker;
 import net.dv8tion.jda.api.entities.sticker.StickerItem;
 import net.dv8tion.jda.api.hooks.IEventManager;
 import net.dv8tion.jda.api.hooks.InterfacedEventManager;
 import net.dv8tion.jda.api.requests.GatewayIntent;
-import net.dv8tion.jda.api.requests.restaction.MessageAction;
 import net.dv8tion.jda.api.sharding.DefaultShardManagerBuilder;
 import net.dv8tion.jda.api.sharding.ShardManager;
 import net.dv8tion.jda.api.utils.MiscUtil;
-import net.dv8tion.jda.internal.utils.tuple.Pair;
+import net.dv8tion.jda.api.utils.messages.MessageRequest;
 import okhttp3.OkHttpClient;
 import org.bson.Document;
 import org.bson.json.JsonParseException;
 import org.bson.types.ObjectId;
 import org.jetbrains.annotations.NotNull;
 
-import javax.security.auth.login.LoginException;
 import java.awt.*;
 import java.lang.reflect.Type;
 import java.net.MalformedURLException;
@@ -178,7 +191,7 @@ public class Sx4 {
 			.registerContext(Sx4CommandEvent.class, (event, type) -> (Sx4CommandEvent) event)
 			.setEnforcedContext(Sx4CommandEvent.class, true);
 
-		MessageAction.setDefaultMentions(EnumSet.noneOf(Message.MentionType.class));
+		MessageRequest.setDefaultMentions(EnumSet.noneOf(Message.MentionType.class));
 
 		MethodCommandFactory.setDefault(new Sx4CommandFactory());
 
@@ -264,7 +277,7 @@ public class Sx4 {
 			.addVariable("not", "Inverts a boolean value", Boolean.class, Boolean.class, bool -> !bool)
 			.addVariable("id", "Gets the id of a message", Message.class, Long.class, Message::getIdLong)
 			.addVariable("content", "Gets the content of a message", Message.class, String.class, Message::getContentRaw)
-			.addVariable("channel", "Gets the channel the message is in", Message.class, TextChannel.class, Message::getTextChannel)
+			.addVariable("channel", "Gets the channel the message is in", Message.class, MessageChannel.class, Message::getChannel)
 			.addVariable("urlEncode", "Encodes a string to a URL standard", String.class, String.class, string -> URLEncoder.encode(string, StandardCharsets.UTF_8))
 			.addVariable("status", "Gets the status code of the response", FormatterResponse.class, Integer.class, FormatterResponse::getStatus)
 			.addVariable("raw", "Gets the raw response body", FormatterResponse.class, String.class, FormatterResponse::getRaw)
@@ -295,10 +308,10 @@ public class Sx4 {
 			.addVariable("color", "Gets the color of the role", Role.class, Color.class, Role::getColor)
 			.addVariable("raw", "Gets the raw RGB value of the colour", Color.class, Integer.class, Color::getRGB)
 			.addVariable("hex", "Gets the hex code of the colour", Color.class, String.class, colour -> "#" + ColourUtility.toHexString(colour.getRGB()))
-			.addVariable("name", "Gets the name of the emote", ReactionEmote.class, String.class, emote -> emote.isEmoji() ? emote.getName() : emote.getEmote().getName())
-			.addVariable("id", "Gets the id of the emote", ReactionEmote.class, Object.class, emote -> emote.isEmoji() ? emote.getName() : emote.getEmote().getIdLong())
-			.addVariable("mention", "Gets the mention of the emote", ReactionEmote.class, String.class, emote -> emote.isEmoji() ? emote.getName() : emote.getEmote().getAsMention())
-			.addVariable("created", "Gets the date when the emote was created", ReactionEmote.class, OffsetDateTime.class, emote -> emote.isEmoji() ? OffsetDateTime.ofInstant(Instant.EPOCH, ZoneOffset.UTC) : emote.getEmote().getTimeCreated())
+			.addVariable("name", "Gets the name of the emote", EmojiUnion.class, String.class, Emoji::getName)
+			.addVariable("id", "Gets the id of the emote", EmojiUnion.class, Object.class, emoji -> emoji instanceof UnicodeEmoji ? emoji.getName() : emoji.asCustom().getIdLong())
+			.addVariable("mention", "Gets the mention of the emote", EmojiUnion.class, String.class, emoji -> emoji instanceof UnicodeEmoji ? emoji.getName() : emoji.asCustom().getAsMention())
+			.addVariable("created", "Gets the date when the emote was created", EmojiUnion.class, OffsetDateTime.class, emoji -> emoji instanceof UnicodeEmoji ? OffsetDateTime.ofInstant(Instant.EPOCH, ZoneOffset.UTC) : emoji.asCustom().getTimeCreated())
 			.addVariable("raw", "Gets the raw value of the permission", Permission.class, Long.class, Permission::getRawValue)
 			.addVariable("name", "Gets the name of the permission", Permission.class, String.class, Permission::getName)
 			.addVariable("permissions", "Gets the permissions of the role or user", IPermissionHolder.class, Collection.class, IPermissionHolder::getPermissions)
@@ -591,19 +604,18 @@ public class Sx4 {
 
 	public ShardManager createShardManager(IEventManager manager) {
 		try {
-			return DefaultShardManagerBuilder.create(this.config.getToken(), GatewayIntent.getIntents(5838))
+			return DefaultShardManagerBuilder.create(this.config.getToken(), GatewayIntent.getIntents(38606))
 				.setBulkDeleteSplittingEnabled(false)
 				.setEventManagerProvider(shardId -> manager)
 				.setActivity(Activity.watching("s?help"))
 				.build();
-		} catch (LoginException | IllegalArgumentException e) {
+		} catch (IllegalArgumentException e) {
 			e.printStackTrace();
 			System.exit(1);
 			return null;
 		}
 	}
 
-	@SuppressWarnings("unchecked")
 	private CommandListener createCommandListener(IErrorManager errorManager) {
 		return new Sx4CommandListener(this)
 			.removePreExecuteCheck(listener -> listener.defaultAuthorPermissionCheck)
@@ -643,8 +655,7 @@ public class Sx4 {
 				}
 
 				return true;
-			})
-			.addPreExecuteCheck((event, command) -> {
+			}).addPreExecuteCheck((event, command) -> {
 				if (event.isFromGuild()) {
 					Document guildData = this.mongo.getGuildById(event.getGuild().getIdLong(), Projections.include("fakePermissions.holders"));
 
@@ -717,7 +728,7 @@ public class Sx4 {
 				}
 
 				MessageChannel channel = message.getChannel();
-				boolean embed = !message.isFromGuild() || message.getGuild().getSelfMember().hasPermission((TextChannel) channel, Permission.MESSAGE_EMBED_LINKS);
+				boolean embed = !message.isFromGuild() || message.getGuild().getSelfMember().hasPermission((GuildChannel) channel, Permission.MESSAGE_EMBED_LINKS);
 				
 				channel.sendMessage(HelpUtility.getHelpMessage(commands.get(0), embed)).queue();
 			}).setMessageParseFailureFunction((message, prefix, failures) -> {
@@ -759,9 +770,9 @@ public class Sx4 {
 						return;
 					}
 
-					Class failedClass = (Class<?>) argument.getProperty("failedClass", ThreadLocal.class).get();
+					Class<?> failedClass = (Class<?>) argument.getProperty("failedClass", ThreadLocal.class).get();
 
-					IArgument<?> copy = failedClass == null ? argument : new ArgumentImpl.Builder(failedClass)
+					IArgument<?> copy = failedClass == null ? argument : new ArgumentImpl.Builder<>(failedClass)
 						.setProperties(argument.getProperties())
 						.setName(argument.getName())
 						.build();
@@ -772,7 +783,7 @@ public class Sx4 {
 				}
 
 				MessageChannel channel = message.getChannel();
-				boolean embed = !message.isFromGuild() || message.getGuild().getSelfMember().hasPermission((TextChannel) channel, Permission.MESSAGE_EMBED_LINKS);
+				boolean embed = message.isFromGuild() || message.getGuild().getSelfMember().hasPermission((GuildChannel) channel, Permission.MESSAGE_EMBED_LINKS);
 
 				ICommand firstCommand = failures.get(0).getCommand();
 
@@ -892,7 +903,6 @@ public class Sx4 {
 		optionFactory.registerParser(Duration.class, (context, option, content) -> content == null ? new ParsedResult<>(true, null) : new ParsedResult<>(TimeUtility.getDurationFromString(content)))
 			.registerParser(Guild.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getGuild(this.shardManager, content)))
 			.registerParser(TextChannel.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getTextChannel(context.getMessage().getGuild(), content.trim())))
-			.registerParser(BaseGuildMessageChannel.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getBaseMessageChannel(context.getMessage().getGuild(), content.trim())))
 			.registerParser(Sx4Command.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getCommand(this.commandListener, content.trim())))
 			.registerParser(Locale.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getLocale(content.trim())))
 			.registerParser(Integer.class, (context, argument, content) -> {
@@ -963,14 +973,35 @@ public class Sx4 {
 				.setProperty("parameter", parameter);
 		});
 
-		argumentFactory.addBuilderConfigureFunction(Emote.class, (parameter, builder) -> builder.setProperty("global", parameter.isAnnotationPresent(Global.class)))
+		argumentFactory.addBuilderConfigureFunction(RichCustomEmoji.class, (parameter, builder) -> builder.setProperty("global", parameter.isAnnotationPresent(Global.class)))
 			.addBuilderConfigureFunction(Attachment.class, (parameter, builder) -> builder.setAcceptEmpty(true))
 			.addBuilderConfigureFunction(MessageArgument.class, (parameter, builder) -> builder.setAcceptEmpty(true))
-			.addBuilderConfigureFunction(ReactionEmote.class, (parameter, builder) -> builder.setProperty("unchecked", parameter.isAnnotationPresent(Unchecked.class)))
+			.addBuilderConfigureFunction(EmojiUnion.class, (parameter, builder) -> builder.setProperty("unchecked", parameter.isAnnotationPresent(Unchecked.class)))
 			.addGenericBuilderConfigureFunction(Object.class, (parameter, builder) -> {
 				builder.setProperty("failedClass", new ThreadLocal<>());
 				builder.setProperty("command", new ThreadLocal<>());
 				builder.setProperty("parameter", parameter);
+
+				return builder;
+			}).addGenericBuilderConfigureFunction(Channel.class, (parameter, builder) -> {
+				if (builder.build().hasDefault()) {
+					builder.setDefaultValue(event -> {
+						if (parameter.getType().isInstance(event.getChannel())) {
+							return event.getChannel();
+						}
+
+						return null;
+					});
+				}
+
+				ChannelTypes channelTypes = parameter.getAnnotation(ChannelTypes.class);
+				builder.setProperty("channelTypes", channelTypes == null ? ChannelTypes.DEFAULT : channelTypes.value());
+
+				return builder;
+			}).addBuilderConfigureFunction(WebhookChannel.class, (parameter, builder) -> {
+				if (builder.build().hasDefault()) {
+					builder.setDefaultValue(event -> new WebhookChannel((GuildMessageChannelUnion) event.getChannel()));
+				}
 
 				return builder;
 			}).addBuilderConfigureFunction(String.class, (parameter, builder) -> {
@@ -1143,7 +1174,6 @@ public class Sx4 {
 			
 		argumentFactory.registerParser(Member.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getMember(context.getMessage().getGuild(), content.trim())))
 			.registerParser(TextChannel.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getTextChannel(context.getMessage().getGuild(), content.trim())))
-			.registerParser(BaseGuildMessageChannel.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getBaseMessageChannel(context.getMessage().getGuild(), content.trim())))
 			.registerParser(Duration.class, (context, argument, content) -> new ParsedResult<>(TimeUtility.getDurationFromString(content.trim())))
 			.registerParser(List.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getCommandOrModule(this.commandListener, content.trim())))
 			.registerParser(Reason.class, (context, argument, content) -> new ParsedResult<>(Reason.parse(this.mongo, context.getMessage().getGuild().getIdLong(), content.trim())))
@@ -1152,17 +1182,29 @@ public class Sx4 {
 			.registerParser(Role.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getRole(context.getMessage().getGuild(), content.trim())))
 			.registerParser(AudioChannel.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getAudioChannel(context.getMessage().getGuild(), content.trim())))
 			.registerParser(Attachment.class, (context, argument, content) -> context.getMessage().getAttachments().isEmpty() ? new ParsedResult<>() : new ParsedResult<>(context.getMessage().getAttachments().get(0)))
-			.registerParser(Emote.class, (context, argument, content) -> new ParsedResult<>(argument.getProperty("global") ? SearchUtility.getEmote(this.shardManager, content.trim()) : SearchUtility.getGuildEmote(context.getMessage().getGuild(), content.trim())))
-			.registerParser(GuildChannel.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getGuildChannel(context.getMessage().getGuild(), content.trim())))
+			.registerParser(RichCustomEmoji.class, (context, argument, content) -> new ParsedResult<>(argument.getProperty("global") ? SearchUtility.getCustomEmoji(this.shardManager, content.trim()) : SearchUtility.getGuildCustomEmoji(context.getMessage().getGuild(), content.trim())))
 			.registerParser(Locale.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getLocale(content.trim())))
 			.registerParser(Guild.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getGuild(this.shardManager, content.trim())))
 			.registerParser(AmountArgument.class, (context, argument, content) -> new ParsedResult<>(AmountArgument.parse(content)))
-			.registerParser(ReactionEmote.class, (context, argument, content) -> new ParsedResult<>(argument.getProperty("unchecked") ? SearchUtility.getUncheckedReactionEmote(this.shardManager, content.trim()) : SearchUtility.getReactionEmote(this.shardManager, content.trim())))
+			.registerParser(EmojiUnion.class, (context, argument, content) -> new ParsedResult<>(argument.getProperty("unchecked") ? SearchUtility.getUncheckedEmoji(this.shardManager, content.trim()) : SearchUtility.getEmoji(this.shardManager, content.trim())))
 			.registerParser(Sx4Command.class, (context, argument, content) -> new ParsedResult<>(SearchUtility.getCommand(this.commandListener, content.trim())))
 			.registerGenericParser(Item.class, (context, type, argument, content) -> new ParsedResult<>(this.economyManager.getItemByQuery(content.trim(), type)))
 			.registerParser(Item.class, (context, argument, content) -> new ParsedResult<>(this.economyManager.getItemByQuery(content.trim(), Item.class)))
 			.registerParser(OffsetTimeZone.class, (context, argument, content) -> new ParsedResult<>(OffsetTimeZone.getTimeZone(content.trim().toUpperCase())))
-			.registerParser(ItemStack.class, (context, argument, content) -> {
+			.registerParser(WebhookChannel.class, (context, argument, content) -> {
+				GuildChannel channel = SearchUtility.getGuildChannel(context.getMessage().getGuild(), WebhookChannel.CHANNEL_TYPES, content.trim());
+				return new ParsedResult<>(channel == null ? null : new WebhookChannel((GuildMessageChannelUnion) channel));
+			})
+			.registerParser(GuildChannel.class, (context, argument, content) -> {
+				ChannelType[] channelTypes = argument.getProperty("channelTypes", ChannelTypes.DEFAULT);
+				GuildChannel channel = SearchUtility.getGuildChannel(context.getMessage().getGuild(), channelTypes.length == 0 ? ChannelType.values() : channelTypes, content.trim());
+				return new ParsedResult<>(channel);
+			})
+			.registerGenericParser(GuildChannel.class, (context, type, argument, content) -> {
+				ChannelType[] channelTypes = argument.getProperty("channelTypes");
+				GuildChannel channel = SearchUtility.getGuildChannel(context.getMessage().getGuild(), channelTypes.length == 0 ? ChannelType.values() : channelTypes, content.trim());
+				return new ParsedResult<>(channel);
+			}).registerParser(ItemStack.class, (context, argument, content) -> {
 				Class type = argument.getProperty("itemClass");
 				ItemStack<?> stack = ItemStack.parse(this.economyManager, content, type);
 				if (stack == null || stack.isOverflow()) {
@@ -1217,11 +1259,11 @@ public class Sx4 {
 
 					String contentToHandle = null;
 					if (!argument.isEndless()) {
-						for (Pair<Character, Character> quotes : parser.getQuoteCharacters()) {
-							contentToHandle = com.jockie.bot.core.utility.StringUtility.parseWrapped(content, quotes.getLeft(), quotes.getRight());
+						for (QuoteCharacter quotes : parser.getQuoteCharacters()) {
+							contentToHandle = com.jockie.bot.core.utility.StringUtility.parseWrapped(content, quotes.start, quotes.end);
 							if (contentToHandle != null) {
 								content = content.substring(contentToHandle.length());
-								contentToHandle = com.jockie.bot.core.utility.StringUtility.unwrap(contentToHandle, quotes.getLeft(), quotes.getRight());
+								contentToHandle = com.jockie.bot.core.utility.StringUtility.unwrap(contentToHandle, quotes.start, quotes.end);
 
 								if (context.getCommand().getArgumentTrimType().equals(ICommand.ArgumentTrimType.STRICT)) {
 									contentToHandle = com.jockie.bot.core.utility.StringUtility.strip(contentToHandle);
@@ -1552,35 +1594,35 @@ public class Sx4 {
 				}
 
 				return new ParsedResult<>();
-				}).registerParser(Or.class, new IParser<>() {
-					public @NotNull ParsedResult parse(@NotNull ParseContext context, @NotNull IArgument<Or> argument, @NotNull String content) {
-						int nextSpace = content.indexOf(' ');
-						String argumentContent = nextSpace == -1 || argument.isEndless() ? content : content.substring(0, nextSpace);
-						if (!argument.acceptEmpty() && argumentContent.isEmpty()) {
-							return new ParsedResult<>();
-						}
-
-						Class<?> firstClass = argument.getProperty("firstClass"), secondClass = argument.getProperty("secondClass");
-
-						ParsedResult<?> firstParsedArgument = CommandUtility.getParsedResult(firstClass, argumentFactory, context, argument, argumentContent, content);
-						ParsedResult<?> secondParsedArgument = CommandUtility.getParsedResult(secondClass, argumentFactory, context, argument, argumentContent, content);
-
-						if (firstParsedArgument.isValid()) {
-							String contentLeft = firstParsedArgument.getContentLeft();
-							return new ParsedResult<>(new Or<>(firstParsedArgument.getObject(), null), contentLeft == null ? content.substring(argumentContent.length()) : contentLeft);
-						} else if (secondParsedArgument.isValid()) {
-							String contentLeft = secondParsedArgument.getContentLeft();
-							return new ParsedResult<>(new Or<>(null, secondParsedArgument.getObject()), contentLeft == null ? content.substring(argumentContent.length()) : contentLeft);
-						} else {
-							argument.getProperty("failedClass", ThreadLocal.class).set(firstClass);
-							return new ParsedResult<>();
-						}
+			}).registerParser(Or.class, new IParser<>() {
+				public @NotNull ParsedResult parse(@NotNull ParseContext context, @NotNull IArgument<Or> argument, @NotNull String content) {
+					int nextSpace = content.indexOf(' ');
+					String argumentContent = nextSpace == -1 || argument.isEndless() ? content : content.substring(0, nextSpace);
+					if (!argument.acceptEmpty() && argumentContent.isEmpty()) {
+						return new ParsedResult<>();
 					}
 
-					public boolean isHandleAll() {
-						return true;
+					Class<?> firstClass = argument.getProperty("firstClass"), secondClass = argument.getProperty("secondClass");
+
+					ParsedResult<?> firstParsedArgument = CommandUtility.getParsedResult(firstClass, argumentFactory, context, argument, argumentContent, content);
+					ParsedResult<?> secondParsedArgument = CommandUtility.getParsedResult(secondClass, argumentFactory, context, argument, argumentContent, content);
+
+					if (firstParsedArgument.isValid()) {
+						String contentLeft = firstParsedArgument.getContentLeft();
+						return new ParsedResult<>(new Or<>(firstParsedArgument.getObject(), null), contentLeft == null ? content.substring(argumentContent.length()) : contentLeft);
+					} else if (secondParsedArgument.isValid()) {
+						String contentLeft = secondParsedArgument.getContentLeft();
+						return new ParsedResult<>(new Or<>(null, secondParsedArgument.getObject()), contentLeft == null ? content.substring(argumentContent.length()) : contentLeft);
+					} else {
+						argument.getProperty("failedClass", ThreadLocal.class).set(firstClass);
+						return new ParsedResult<>();
 					}
-				});
+				}
+
+				public boolean isHandleAll() {
+					return true;
+				}
+			});
 		
 		argumentFactory.addParserAfter(String.class, (context, argument, content) -> {
 			Replace replace = argument.getProperty("replace", Replace.class);
@@ -1631,14 +1673,14 @@ public class Sx4 {
 			.registerResponse(User.class, "I could not find that user " + this.config.getFailureEmote())
 			.registerResponse(Role.class, "I could not find that role " + this.config.getFailureEmote())
 			.registerResponse(Sx4Command.class, "I could not find that command" + this.config.getFailureEmote())
-			.registerResponse(ReactionEmote.class, "I could not find that emote " + this.config.getFailureEmote())
-			.registerResponse(TextChannel.class, "I could not find that text channel " + this.config.getFailureEmote())
-			.registerResponse(BaseGuildMessageChannel.class, "I could not find that text channel " + this.config.getFailureEmote())
+			.registerResponse(EmojiUnion.class, "I could not find that emote " + this.config.getFailureEmote())
+			.registerResponse(WebhookChannel.class, "I could not find that text channel " + this.config.getFailureEmote())
+			.registerResponse(MessageChannel.class, "I could not find that text channel " + this.config.getFailureEmote())
 			.registerResponse(AudioChannel.class, "I could not find that voice channel " + this.config.getFailureEmote())
 			.registerResponse(ModuleCategory.class, "I could not find that category " + this.config.getFailureEmote())
 			.registerResponse(GuildChannel.class, "I could not find that channel " + this.config.getFailureEmote())
 			.registerResponse(IPermissionHolder.class, "I could not find that user/role " + this.config.getFailureEmote())
-			.registerResponse(Emote.class, "I could not find that emote " + this.config.getFailureEmote())
+			.registerResponse(RichCustomEmoji.class, "I could not find that emote " + this.config.getFailureEmote())
 			.registerResponse(GuildSticker.class, "I could not find that sticker " + this.config.getFailureEmote())
 			.registerResponse(StickerArgument.class, "I could not find that sticker " + this.config.getFailureEmote())
 			.registerResponse(ItemStack.class, "I could not find that item " + this.config.getFailureEmote())
@@ -1739,11 +1781,12 @@ public class Sx4 {
 				message.getChannel().sendMessage("Invalid argument given, give any of the following " + joiner + " " + this.config.getFailureEmote()).queue();
 			})
 			.setHandleInheritance(Enum.class, true)
+			.setHandleInheritance(MessageChannel.class, true)
 			.setHandleInheritance(Item.class, true);
 	}
 	
 	public static void main(String[] args) throws Exception {
-		MemoryOptimizations.installOptimizations();
+		//MemoryOptimizations.installOptimizations();
 
 		Sx4 bot = new Sx4();
 		Sx4Server.initiateWebserver(bot);

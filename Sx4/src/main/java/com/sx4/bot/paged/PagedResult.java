@@ -3,14 +3,21 @@ package com.sx4.bot.paged;
 import com.jockie.bot.core.command.impl.CommandEvent;
 import com.sx4.bot.core.Sx4;
 import net.dv8tion.jda.api.EmbedBuilder;
-import net.dv8tion.jda.api.MessageBuilder;
 import net.dv8tion.jda.api.Permission;
-import net.dv8tion.jda.api.entities.*;
+import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.entities.Role;
+import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
+import net.dv8tion.jda.api.entities.channel.middleman.GuildMessageChannel;
+import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.interactions.components.ActionRow;
 import net.dv8tion.jda.api.interactions.components.buttons.Button;
 import net.dv8tion.jda.api.requests.ErrorResponse;
+import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
+import net.dv8tion.jda.api.utils.messages.MessageCreateData;
+import net.dv8tion.jda.api.utils.messages.MessageEditData;
 
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -85,12 +92,12 @@ public class PagedResult<Type> {
 	
 	private EnumSet<SelectType> select = EnumSet.allOf(SelectType.class);
 
-	private final Map<Integer, Message> pageCache = new HashMap<>();
+	private final Map<Integer, MessageCreateData> pageCache = new HashMap<>();
 	private boolean cache = false;
 
-	private BiConsumer<PagedResult<Type>, Consumer<MessageBuilder>> asyncFunction = null;
+	private BiConsumer<PagedResult<Type>, Consumer<MessageCreateBuilder>> asyncFunction = null;
 	
-	private Function<PagedResult<Type>, MessageBuilder> customFunction = null;
+	private Function<PagedResult<Type>, MessageCreateBuilder> customFunction = null;
 	private Function<Type, String> displayFunction = Object::toString;
 	private Function<Integer, String> indexFunction = a -> a + ". ";
 	private BiPredicate<String, Type> selectablePredicate = null;
@@ -344,17 +351,17 @@ public class PagedResult<Type> {
 		return this;
 	}
 	
-	public Function<PagedResult<Type>, MessageBuilder> getCustomFunction() {
+	public Function<PagedResult<Type>, MessageCreateBuilder> getCustomFunction() {
 		return this.customFunction;
 	}
 
-	public PagedResult<Type> setAsyncFunction(BiConsumer<PagedResult<Type>, Consumer<MessageBuilder>> asyncFunction) {
+	public PagedResult<Type> setAsyncFunction(BiConsumer<PagedResult<Type>, Consumer<MessageCreateBuilder>> asyncFunction) {
 		this.asyncFunction = asyncFunction;
 
 		return this;
 	}
 	
-	public PagedResult<Type> setCustomFunction(Function<PagedResult<Type>, MessageBuilder> customFunction) {
+	public PagedResult<Type> setCustomFunction(Function<PagedResult<Type>, MessageCreateBuilder> customFunction) {
 		this.customFunction = customFunction;
 		
 		return this;
@@ -437,7 +444,7 @@ public class PagedResult<Type> {
 		}
 	}
 
-	private Message applyButtons(MessageBuilder message) {
+	private MessageCreateData applyButtons(MessageCreateBuilder message) {
 		if (this.list.size() > this.perPage) {
 			ActionRow actionRow;
 			if (!this.pageOverflow && this.page == this.getMaxPage()) {
@@ -448,14 +455,14 @@ public class PagedResult<Type> {
 				actionRow = ActionRow.of(PagedResult.PREVIOUS_BUTTON, PagedResult.NEXT_BUTTON);
 			}
 
-			return message.setActionRows(actionRow).build();
+			return message.setComponents(actionRow).build();
 		} else {
 			return message.build();
 		}
 	}
 	
-	public void getPagedMessage(Consumer<Message> consumer) {
-		Message cachedMessage = this.pageCache.get(this.page);
+	public void getPagedMessage(Consumer<MessageCreateData> consumer) {
+		MessageCreateData cachedMessage = this.pageCache.get(this.page);
 		if (cachedMessage != null) {
 			consumer.accept(cachedMessage);
 			return;
@@ -466,9 +473,9 @@ public class PagedResult<Type> {
 			return;
 		}
 
-		MessageBuilder message;
+		MessageCreateBuilder message;
 		if (this.customFunction == null) {
-			MessageBuilder builder = new MessageBuilder();
+			MessageCreateBuilder builder = new MessageCreateBuilder();
 
 			int maxPage = this.getMaxPage();
 			if (this.embed) {
@@ -502,7 +509,7 @@ public class PagedResult<Type> {
 		consumer.accept(this.applyButtons(message));
 	}
 
-	private void cacheMessage(Message message) {
+	private void cacheMessage(MessageCreateData message) {
 		if (this.cache) {
 			this.pageCache.put(this.page, message);
 		}
@@ -512,7 +519,7 @@ public class PagedResult<Type> {
 		this.getPagedMessage(message -> {
 			this.cacheMessage(message);
 
-			channel.editMessageById(this.messageId, message).queue(null, ErrorResponseException.ignore(ErrorResponse.UNKNOWN_MESSAGE));
+			channel.editMessageById(this.messageId, MessageEditData.fromCreateData(message)).queue(null, ErrorResponseException.ignore(ErrorResponse.UNKNOWN_MESSAGE));
 
 			this.bot.getPagedManager().setTimeout(this);
 		});
@@ -522,7 +529,7 @@ public class PagedResult<Type> {
 		this.getPagedMessage(message -> {
 			this.cacheMessage(message);
 
-			event.editMessage(message).queue(null, ErrorResponseException.ignore(ErrorResponse.UNKNOWN_MESSAGE));
+			event.editMessage(MessageEditData.fromCreateData(message)).queue(null, ErrorResponseException.ignore(ErrorResponse.UNKNOWN_MESSAGE));
 
 			this.bot.getPagedManager().setTimeout(this);
 		});
@@ -551,7 +558,7 @@ public class PagedResult<Type> {
 
 		this.getPagedMessage(readMessage -> {
 			channel.sendMessage(readMessage).queue(message -> {
-				this.cacheMessage(message);
+				this.cacheMessage(MessageCreateData.fromMessage(message));
 				this.messageId = message.getIdLong();
 
 				this.bot.getPagedManager().addPagedResult(channel, owner, this);

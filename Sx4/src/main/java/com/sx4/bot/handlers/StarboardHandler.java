@@ -10,15 +10,23 @@ import com.mongodb.client.model.*;
 import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.database.mongo.model.Operators;
+import com.sx4.bot.entities.webhook.WebhookChannel;
 import com.sx4.bot.formatter.Formatter;
 import com.sx4.bot.formatter.JsonFormatter;
 import com.sx4.bot.managers.StarboardManager;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.MessageUtility;
 import com.sx4.bot.utility.StringUtility;
-import net.dv8tion.jda.api.entities.*;
+import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Message.Attachment;
-import net.dv8tion.jda.api.entities.MessageReaction.ReactionEmote;
+import net.dv8tion.jda.api.entities.MessageEmbed;
+import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.entities.channel.middleman.GuildMessageChannel;
+import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
+import net.dv8tion.jda.api.entities.channel.unions.GuildMessageChannelUnion;
+import net.dv8tion.jda.api.entities.emoji.EmojiUnion;
+import net.dv8tion.jda.api.entities.emoji.UnicodeEmoji;
 import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.events.message.react.MessageReactionAddEvent;
 import net.dv8tion.jda.api.events.message.react.MessageReactionRemoveEvent;
@@ -46,7 +54,7 @@ public class StarboardHandler implements EventListener {
 		this.bot = bot;
 	}
 
-	private WebhookMessage getStarboardMessage(Document guildData, Document starboard, Guild guild, Member member, ReactionEmote emote, boolean premium) {
+	private WebhookMessage getStarboardMessage(Document guildData, Document starboard, Guild guild, Member member, EmojiUnion emoji, boolean premium) {
 		List<Document> messages = guildData.getList("messages", Document.class, StarboardManager.DEFAULT_CONFIGURATION);
 
 		int stars = starboard.getInteger("count");
@@ -70,7 +78,7 @@ public class StarboardHandler implements EventListener {
 
 		long channelId = starboard.getLong("channelId");
 
-		BaseGuildMessageChannel channel = guild.getChannelById(BaseGuildMessageChannel.class, channelId);
+		GuildMessageChannel channel = guild.getChannelById(GuildMessageChannel.class, channelId);
 		if (channel == null) {
 			return null;
 		}
@@ -92,7 +100,7 @@ public class StarboardHandler implements EventListener {
 		Document webhookData = guildData.get("webhook", MongoDatabase.EMPTY_DOCUMENT);
 
 		try {
-			return this.format(messageData.get("message", Document.class), member, channel, emote, stars, nextStars, starboard.getObjectId("_id"))
+			return this.format(messageData.get("message", Document.class), member, channel, emoji, stars, nextStars, starboard.getObjectId("_id"))
 				.setUsername(premium ? webhookData.get("name", "Sx4 - Starboard") : "Sx4 - Starboard")
 				.setAvatarUrl(premium ? webhookData.get("avatar", this.bot.getShardManager().getShardById(0).getSelfUser().getEffectiveAvatarUrl()) : this.bot.getShardManager().getShardById(0).getSelfUser().getEffectiveAvatarUrl())
 				.addEmbeds(builder.build())
@@ -103,12 +111,12 @@ public class StarboardHandler implements EventListener {
 		}
 	}
 
-	private WebhookMessageBuilder format(Document message, Member member, MessageChannel channel, ReactionEmote emote, int stars, int nextStars, ObjectId id) {
+	private WebhookMessageBuilder format(Document message, Member member, MessageChannel channel, EmojiUnion emoji, int stars, int nextStars, ObjectId id) {
 		Formatter<Document> formatter = new JsonFormatter(message)
 			.member(member)
 			.user(member.getUser())
 			.channel(channel)
-			.emote(emote)
+			.emoji(emoji)
 			.addVariable("stars", stars)
 			.addVariable("stars.next", nextStars)
 			.addVariable("stars.next.until", nextStars - stars)
@@ -156,17 +164,17 @@ public class StarboardHandler implements EventListener {
 			long channelId = starboard.get("channelId", 0L), messageChannelId = data.get("channelId", 0L);
 
 			GuildMessageChannel messageChannel = messageChannelId == 0L ? (GuildMessageChannel) event.getChannel() : event.getGuild().getChannelById(GuildMessageChannel.class, messageChannelId);
-			BaseGuildMessageChannel channel = channelId == 0L ? null : event.getGuild().getChannelById(BaseGuildMessageChannel.class, channelId);
+			GuildMessageChannelUnion channel = channelId == 0L ? null : event.getGuild().getChannelById(GuildMessageChannelUnion.class, channelId);
 
 			if (channel == null || messageChannel == null) {
 				return;
 			}
 
-			ReactionEmote emote = event.getReactionEmote();
-			boolean emoji = emote.isEmoji();
+			EmojiUnion emoji = event.getEmoji();
+			boolean unicode = emoji instanceof UnicodeEmoji;
 
 			Document emoteData = starboard.get("emote", new Document("name", "⭐"));
-			if ((emoji && !emote.getEmoji().equals(emoteData.getString("name"))) || (!emoji && (!emoteData.containsKey("id") || emoteData.getLong("id") != emote.getIdLong()))) {
+			if ((unicode && !emoji.getName().equals(emoteData.getString("name"))) || (!unicode && (!emoteData.containsKey("id") || emoteData.getLong("id") != emoji.asCustom().getIdLong()))) {
 				return;
 			}
 
@@ -201,7 +209,7 @@ public class StarboardHandler implements EventListener {
 					FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER).upsert(true);
 					return this.bot.getMongo().findAndUpdateStarboard(Filters.eq("originalMessageId", messageId), update, options);
 				}).thenCompose(updatedData -> {
-					WebhookMessage webhookMessage = this.getStarboardMessage(starboard, updatedData, event.getGuild(), event.getMember(), emote, data.getBoolean("premium"));
+					WebhookMessage webhookMessage = this.getStarboardMessage(starboard, updatedData, event.getGuild(), event.getMember(), emoji, data.getBoolean("premium"));
 					if (webhookMessage == null) {
 						return CompletableFuture.completedFuture(null);
 					}
@@ -210,7 +218,7 @@ public class StarboardHandler implements EventListener {
 						this.bot.getStarboardManager().editStarboard(updatedData.getLong("messageId"), channel.getIdLong(), starboard.get("webhook", MongoDatabase.EMPTY_DOCUMENT), webhookMessage);
 						return CompletableFuture.completedFuture(null); // return null so no update is made in the next stage
 					} else {
-						return this.bot.getStarboardManager().sendStarboard(channel, starboard.get("webhook", MongoDatabase.EMPTY_DOCUMENT), webhookMessage);
+						return this.bot.getStarboardManager().sendStarboard(new WebhookChannel(channel), starboard.get("webhook", MongoDatabase.EMPTY_DOCUMENT), webhookMessage);
 					}
 				}).whenComplete((createdMessage, exception) -> {
 					if (exception instanceof CompletionException) {
@@ -225,7 +233,7 @@ public class StarboardHandler implements EventListener {
 					}
 
 					if (createdMessage != null) {
-						Route.CompiledRoute route = Route.Messages.ADD_REACTION.compile(Long.toString(createdMessage.getChannelId()), Long.toString(createdMessage.getId()), EncodingUtil.encodeReaction(emote.getAsReactionCode()), "@me");
+						Route.CompiledRoute route = Route.Messages.ADD_REACTION.compile(Long.toString(createdMessage.getChannelId()), Long.toString(createdMessage.getId()), EncodingUtil.encodeReaction(emoji.getAsReactionCode()), "@me");
 						new RestActionImpl<>(event.getJDA(), route).queue(null, ErrorResponseException.ignore(ErrorResponse.UNKNOWN_EMOJI, ErrorResponse.MISSING_PERMISSIONS, ErrorResponse.MISSING_ACCESS));
 
 						this.bot.getMongo().updateStarboard(Filters.eq("originalMessageId", messageId), Updates.set("messageId", createdMessage.getId())).whenComplete(MongoDatabase.exceptionally());
@@ -274,16 +282,16 @@ public class StarboardHandler implements EventListener {
 
 			long channelId = starboard.get("channelId", 0L);
 
-			BaseGuildMessageChannel channel = channelId == 0L ? null : event.getGuild().getChannelById(BaseGuildMessageChannel.class, channelId);
+			GuildMessageChannel channel = channelId == 0L ? null : event.getGuild().getChannelById(GuildMessageChannel.class, channelId);
 			if (channel == null) {
 				return;
 			}
 
-			ReactionEmote emote = event.getReactionEmote();
-			boolean emoji = emote.isEmoji();
+			EmojiUnion emoji = event.getEmoji();
+			boolean unicode = emoji instanceof UnicodeEmoji;
 
 			Document emoteData = starboard.get("emote", new Document("name", "⭐"));
-			if ((emoji && !emote.getEmoji().equals(emoteData.getString("name"))) || (!emoji && (!emoteData.containsKey("id") || emoteData.getLong("id") != emote.getIdLong()))) {
+			if ((unicode && !emoji.getName().equals(emoteData.getString("name"))) || (!unicode && (!emoteData.containsKey("id") || emoteData.getLong("id") != emoji.asCustom().getIdLong()))) {
 				return;
 			}
 
@@ -316,7 +324,7 @@ public class StarboardHandler implements EventListener {
 					return;
 				}
 
-				WebhookMessage webhookMessage = this.getStarboardMessage(starboard, updatedData, event.getGuild(), event.getMember(), emote, data.getBoolean("premium"));
+				WebhookMessage webhookMessage = this.getStarboardMessage(starboard, updatedData, event.getGuild(), event.getMember(), emoji, data.getBoolean("premium"));
 				if (webhookMessage == null) {
 					this.bot.getStarboardManager().deleteStarboard(data.getLong("messageId"), channel.getIdLong(), starboard.get("webhook", MongoDatabase.EMPTY_DOCUMENT));
 				} else {

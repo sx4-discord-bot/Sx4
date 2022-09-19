@@ -7,6 +7,7 @@ import club.minnced.discord.webhook.send.WebhookEmbed.EmbedFooter;
 import club.minnced.discord.webhook.send.WebhookEmbedBuilder;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.*;
+import net.dv8tion.jda.api.entities.channel.unions.GuildMessageChannelUnion;
 import net.dv8tion.jda.api.sharding.ShardManager;
 import org.bson.Document;
 import org.bson.types.ObjectId;
@@ -97,12 +98,12 @@ public class Suggestion {
 		return this.channelId;
 	}
 
-	public BaseGuildMessageChannel getChannel(ShardManager manager) {
+	public GuildMessageChannelUnion getChannel(ShardManager manager) {
 		return this.getChannel(this.getGuild(manager));
 	}
 
-	public BaseGuildMessageChannel getChannel(Guild guild) {
-		return guild == null ? null : guild.getChannelById(BaseGuildMessageChannel.class, this.channelId);
+	public GuildMessageChannelUnion getChannel(Guild guild) {
+		return guild == null ? null : guild.getChannelById(GuildMessageChannelUnion.class, this.channelId);
 	}
 
 	public long getAuthorId() {

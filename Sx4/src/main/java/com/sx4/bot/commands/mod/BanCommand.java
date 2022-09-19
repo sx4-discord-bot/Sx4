@@ -16,6 +16,8 @@ import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.requests.ErrorResponse;
 
+import java.util.concurrent.TimeUnit;
+
 public class BanCommand extends Sx4Command {
 
 	public BanCommand() {
@@ -57,7 +59,7 @@ public class BanCommand extends Sx4Command {
 			
 			event.getGuild().retrieveBan(user).submit().whenComplete((ban, exception) -> {
 				if (exception instanceof ErrorResponseException && ((ErrorResponseException) exception).getErrorResponse() == ErrorResponse.UNKNOWN_BAN) {
-					event.getGuild().ban(user, days).reason(ModUtility.getAuditReason(reason, event.getAuthor())).queue($ -> {
+					event.getGuild().ban(user, days, TimeUnit.DAYS).reason(ModUtility.getAuditReason(reason, event.getAuthor())).queue($ -> {
 						event.replySuccess("**" + user.getAsTag() + "** has been banned").queue();
 
 						event.getBot().getModActionManager().onModAction(new BanEvent(event.getMember(), user, reason, member != null));

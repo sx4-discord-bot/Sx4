@@ -15,6 +15,7 @@ import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.argument.Alternative;
 import com.sx4.bot.entities.interaction.ButtonType;
 import com.sx4.bot.entities.interaction.CustomButtonId;
+import com.sx4.bot.entities.webhook.WebhookChannel;
 import com.sx4.bot.formatter.FormatterManager;
 import com.sx4.bot.formatter.function.FormatterVariable;
 import com.sx4.bot.managers.StarboardManager;
@@ -22,8 +23,14 @@ import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
-import net.dv8tion.jda.api.entities.*;
-import net.dv8tion.jda.api.entities.MessageReaction.ReactionEmote;
+import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.entities.Member;
+import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.entities.channel.attribute.IWebhookContainer;
+import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
+import net.dv8tion.jda.api.entities.channel.unions.GuildMessageChannelUnion;
+import net.dv8tion.jda.api.entities.emoji.EmojiUnion;
+import net.dv8tion.jda.api.entities.emoji.UnicodeEmoji;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.interactions.components.buttons.Button;
 import net.dv8tion.jda.api.requests.ErrorResponse;
@@ -72,14 +79,8 @@ public class StarboardCommand extends Sx4Command {
 	@CommandId(198)
 	@Examples({"starboard channel", "starboard channel #starboard", "starboard channel reset"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-	public void channel(Sx4CommandEvent event, @Argument(value="channel | reset", endless=true, nullDefault=true) @AlternativeOptions("reset") Alternative<BaseGuildMessageChannel> option) {
-		MessageChannel messageChannel = event.getChannel();
-		if (option == null && !(messageChannel instanceof BaseGuildMessageChannel)) {
-			event.replyFailure("You cannot use this channel type").queue();
-			return;
-		}
-
-		BaseGuildMessageChannel channel = option == null ? (BaseGuildMessageChannel) messageChannel : option.isAlternative() ? null : option.getValue();
+	public void channel(Sx4CommandEvent event, @Argument(value="channel | reset", endless=true, nullDefault=true) @AlternativeOptions("reset") Alternative<WebhookChannel> option) {
+		WebhookChannel channel = option.isAlternative() ? null : option.getValue();
 
 		List<Bson> update = List.of(Operators.set("starboard.channelId", channel == null ? Operators.REMOVE : channel.getIdLong()), Operators.unset("starboard.webhook.id"), Operators.unset("starboard.webhook.token"));
 		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("starboard.webhook.id", "starboard.channelId")).upsert(true);
@@ -97,11 +98,11 @@ public class StarboardCommand extends Sx4Command {
 				return;
 			}
 
-			BaseGuildMessageChannel oldChannel = channelId == 0L ? null : event.getGuild().getChannelById(BaseGuildMessageChannel.class, channelId);
+			GuildMessageChannelUnion oldChannel = channelId == 0L ? null : event.getGuild().getChannelById(GuildMessageChannelUnion.class, channelId);
 			long webhookId = data == null ? 0L : data.getEmbedded(List.of("starboard", "webhook", "id"), 0L);
 
 			if (oldChannel != null && webhookId != 0L) {
-				oldChannel.deleteWebhookById(Long.toString(webhookId)).queue(null, ErrorResponseException.ignore(ErrorResponse.UNKNOWN_WEBHOOK));
+				((IWebhookContainer) oldChannel).deleteWebhookById(Long.toString(webhookId)).queue(null, ErrorResponseException.ignore(ErrorResponse.UNKNOWN_WEBHOOK));
 			}
 
 			event.replySuccess("The starboard channel has been " + (channel == null ? "unset" : "set to " + channel.getAsMention())).queue();
@@ -112,11 +113,11 @@ public class StarboardCommand extends Sx4Command {
 	@CommandId(199)
 	@Examples({"starboard emote ☝️", "starboard emote <:upvote:761345612079693865>", "starboard emote reset"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-	public void emote(Sx4CommandEvent event, @Argument(value="emote | reset", endless=true) @AlternativeOptions("reset") Alternative<ReactionEmote> option) {
-		ReactionEmote emote = option.getValue();
-		boolean emoji = emote != null && emote.isEmoji();
+	public void emote(Sx4CommandEvent event, @Argument(value="emote | reset", endless=true) @AlternativeOptions("reset") Alternative<EmojiUnion> option) {
+		EmojiUnion emoji = option.getValue();
+		boolean unicode = emoji instanceof UnicodeEmoji;
 
-		List<Bson> update = emote == null ? List.of(Operators.unset("starboard.emote")) : List.of(Operators.set("starboard.emote." + (emoji ? "name" : "id"), emoji ? emote.getEmoji() : emote.getIdLong()), Operators.unset("starboard.emote." + (emoji ? "id" : "name")));
+		List<Bson> update = emoji == null ? List.of(Operators.unset("starboard.emote")) : List.of(Operators.set("starboard.emote." + (unicode ? "name" : "id"), unicode ? emoji.getName() : emoji.asCustom().getIdLong()), Operators.unset("starboard.emote." + (unicode ? "id" : "name")));
 
 		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).upsert(true).projection(Projections.include("starboard.emote"));
 		event.getMongo().findAndUpdateGuildById(event.getGuild().getIdLong(), update, options).whenComplete((data, exception) -> {
@@ -125,12 +126,12 @@ public class StarboardCommand extends Sx4Command {
 			}
 
 			Document emoteData = data == null ? null : data.getEmbedded(List.of("starboard", "emote"), Document.class);
-			if ((emote == null && emoteData == null) || (emote != null && emoteData != null && (emoji ? emote.getEmoji().equals(emoteData.getString("name")) : emoteData.getLong("id") == emote.getIdLong()))) {
-				event.replyFailure("Your starboard emote was already " + (emote == null ? "unset" : "set to that")).queue();
+			if ((emoji == null && emoteData == null) || (emoji != null && emoteData != null && (unicode ? emoji.getName().equals(emoteData.getString("name")) : emoteData.getLong("id") == emoji.asCustom().getIdLong()))) {
+				event.replyFailure("Your starboard emote was already " + (emoji == null ? "unset" : "set to that")).queue();
 				return;
 			}
 
-			event.replySuccess("Your starboard emote has been " + (emote == null ? "unset" : "updated")).queue();
+			event.replySuccess("Your starboard emote has been " + (emoji == null ? "unset" : "updated")).queue();
 		});
 	}
 
@@ -286,7 +287,7 @@ public class StarboardCommand extends Sx4Command {
 			content.add("`{channel." + variable.getName() + "}` - " + variable.getDescription());
 		}
 
-		for (FormatterVariable<?> variable : manager.getVariables(ReactionEmote.class)) {
+		for (FormatterVariable<?> variable : manager.getVariables(EmojiUnion.class)) {
 			content.add("`{emote." + variable.getName() + "}` - " + variable.getDescription());
 		}
 

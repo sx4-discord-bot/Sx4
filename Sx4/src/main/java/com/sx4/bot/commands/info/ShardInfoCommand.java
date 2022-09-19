@@ -6,8 +6,8 @@ import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.paged.PagedResult;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.JDA;
-import net.dv8tion.jda.api.MessageBuilder;
 import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -45,7 +45,7 @@ public class ShardInfoCommand extends Sx4Command {
 					embed.addField(currentShard + "Shard " + (index + 1), String.format("%,d servers\n%,d members\n%dms\n%s", shard.getGuilds().size(), shard.getUsers().size(), shard.getGatewayPing(), shard.getStatus()), true);
 				});
 
-				return new MessageBuilder().setEmbeds(embed.build());
+				return new MessageCreateBuilder().setEmbeds(embed.build());
 			});
 
 		paged.execute(event);

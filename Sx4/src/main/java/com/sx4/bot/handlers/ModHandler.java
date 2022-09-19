@@ -14,6 +14,7 @@ import com.sx4.bot.entities.mod.Reason;
 import com.sx4.bot.entities.mod.action.Action;
 import com.sx4.bot.entities.mod.action.ModAction;
 import com.sx4.bot.entities.mod.action.Warn;
+import com.sx4.bot.entities.webhook.WebhookChannel;
 import com.sx4.bot.events.mod.*;
 import com.sx4.bot.hooks.ModActionListener;
 import com.sx4.bot.utility.TimeUtility;
@@ -23,6 +24,7 @@ import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.audit.ActionType;
 import net.dv8tion.jda.api.audit.AuditLogEntry;
 import net.dv8tion.jda.api.entities.*;
+import net.dv8tion.jda.api.entities.channel.unions.GuildMessageChannelUnion;
 import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.events.guild.GuildBanEvent;
 import net.dv8tion.jda.api.events.guild.GuildUnbanEvent;
@@ -104,7 +106,7 @@ public class ModHandler implements ModActionListener, EventListener {
 			return;
 		}
 
-		BaseGuildMessageChannel channel = guild.getChannelById(BaseGuildMessageChannel.class, channelId);
+		GuildMessageChannelUnion channel = guild.getChannelById(GuildMessageChannelUnion.class, channelId);
 		if (channel == null) {
 			return;
 		}
@@ -120,7 +122,7 @@ public class ModHandler implements ModActionListener, EventListener {
 
 		WebhookEmbed embed = modLog.getWebhookEmbed(moderator, target);
 
-		this.bot.getModLogManager().sendModLog(channel, modLogData.get("webhook", MongoDatabase.EMPTY_DOCUMENT), embed, premium).whenComplete((webhookMessage, exception) -> {
+		this.bot.getModLogManager().sendModLog(new WebhookChannel(channel), modLogData.get("webhook", MongoDatabase.EMPTY_DOCUMENT), embed, premium).whenComplete((webhookMessage, exception) -> {
 			modLog.setMessageId(webhookMessage.getId())
 				.setWebhookId(webhookMessage.getWebhookId())
 				.setWebhookToken(webhookMessage.getWebhookToken());

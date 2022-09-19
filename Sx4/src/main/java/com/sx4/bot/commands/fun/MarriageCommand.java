@@ -102,7 +102,7 @@ public class MarriageCommand extends Sx4Command {
 		List<Button> buttons = List.of(Button.success(acceptId, "Yes"), Button.danger(rejectId, "No"));
 
 		event.reply(member.getAsMention() + ", **" + author.getName() + "** would like to marry you! Do you accept?")
-			.allowedMentions(EnumSet.of(Message.MentionType.USER))
+			.setAllowedMentions(EnumSet.of(Message.MentionType.USER))
 			.setActionRow(buttons)
 			.queue();
 	}

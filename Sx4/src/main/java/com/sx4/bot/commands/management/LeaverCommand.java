@@ -17,6 +17,7 @@ import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.argument.Alternative;
+import com.sx4.bot.entities.webhook.WebhookChannel;
 import com.sx4.bot.formatter.FormatterManager;
 import com.sx4.bot.formatter.function.FormatterVariable;
 import com.sx4.bot.managers.LeaverManager;
@@ -25,7 +26,11 @@ import com.sx4.bot.utility.LeaverUtility;
 import com.sx4.bot.utility.MessageUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
-import net.dv8tion.jda.api.entities.*;
+import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.entities.Member;
+import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.entities.channel.attribute.IWebhookContainer;
+import net.dv8tion.jda.api.entities.channel.unions.GuildMessageChannelUnion;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.requests.ErrorResponse;
 import org.bson.Document;
@@ -70,14 +75,8 @@ public class LeaverCommand extends Sx4Command {
 	@CommandId(190)
 	@Examples({"leaver channel", "leaver channel #leaves", "leaver channel reset"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-	public void channel(Sx4CommandEvent event, @Argument(value="channel | reset", endless=true, nullDefault=true) @AlternativeOptions("reset") Alternative<BaseGuildMessageChannel> option) {
-		MessageChannel messageChannel = event.getChannel();
-		if (option == null && !(messageChannel instanceof BaseGuildMessageChannel)) {
-			event.replyFailure("You cannot use this channel type").queue();
-			return;
-		}
-		
-		BaseGuildMessageChannel channel = option == null ? (BaseGuildMessageChannel) messageChannel : option.isAlternative() ? null : option.getValue();
+	public void channel(Sx4CommandEvent event, @Argument(value="channel | reset", endless=true, nullDefault=true) @AlternativeOptions("reset") Alternative<WebhookChannel> option) {
+		WebhookChannel channel = option.isAlternative() ? null : option.getValue();
 
 		List<Bson> update = List.of(Operators.set("leaver.channelId", channel == null ? Operators.REMOVE : channel.getIdLong()), Operators.unset("leaver.webhook.id"), Operators.unset("leaver.webhook.token"));
 		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().upsert(true).projection(Projections.include("leaver.webhook.token", "leaver.webhook.id", "leaver.channelId")).returnDocument(ReturnDocument.BEFORE);
@@ -95,11 +94,11 @@ public class LeaverCommand extends Sx4Command {
 				return;
 			}
 
-			BaseGuildMessageChannel oldChannel = channelId == 0L ? null : event.getGuild().getChannelById(BaseGuildMessageChannel.class, channelId);
+			GuildMessageChannelUnion oldChannel = channelId == 0L ? null : event.getGuild().getChannelById(GuildMessageChannelUnion.class, channelId);
 			long webhookId = data == null ? 0L : data.getEmbedded(List.of("leaver", "webhook", "id"), 0L);
 
 			if (oldChannel != null && webhookId != 0L) {
-				oldChannel.deleteWebhookById(Long.toString(webhookId)).queue(null, ErrorResponseException.ignore(ErrorResponse.UNKNOWN_WEBHOOK));
+				((IWebhookContainer) oldChannel).deleteWebhookById(Long.toString(webhookId)).queue(null, ErrorResponseException.ignore(ErrorResponse.UNKNOWN_WEBHOOK));
 			}
 
 			event.replySuccess("The leaver channel has been " + (channel == null ? "unset" : "set to " + channel.getAsMention())).queue();
@@ -257,7 +256,7 @@ public class LeaverCommand extends Sx4Command {
 			return;
 		}
 
-		MessageUtility.fromWebhookMessage(event.getChannel(), builder.build()).queue();
+		event.reply(MessageUtility.fromWebhookMessage(builder.build())).queue();
 	}
 
 }

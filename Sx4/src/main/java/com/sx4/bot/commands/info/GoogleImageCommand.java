@@ -8,11 +8,11 @@ import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
-import net.dv8tion.jda.api.MessageBuilder;
 import net.dv8tion.jda.api.Permission;
-import net.dv8tion.jda.api.entities.BaseGuildMessageChannel;
-import net.dv8tion.jda.api.entities.MessageChannel;
 import net.dv8tion.jda.api.entities.MessageEmbed;
+import net.dv8tion.jda.api.entities.channel.attribute.IAgeRestrictedChannel;
+import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
+import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
 
 import javax.ws.rs.ForbiddenException;
 import java.net.URLEncoder;
@@ -35,7 +35,7 @@ public class GoogleImageCommand extends Sx4Command {
 
 	public void onCommand(Sx4CommandEvent event, @Argument(value="query", endless=true) String query) {
 		MessageChannel channel = event.getChannel();
-		boolean nsfw = channel instanceof BaseGuildMessageChannel && ((BaseGuildMessageChannel) channel).isNSFW();
+		boolean nsfw = channel instanceof IAgeRestrictedChannel && ((IAgeRestrictedChannel) channel).isNSFW();
 
 		event.getBot().getGoogleCache().retrieveResultsByQuery(query, true, nsfw).whenComplete((results, exception) -> {
 			Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
@@ -65,7 +65,7 @@ public class GoogleImageCommand extends Sx4Command {
 						embeds.add(embed.build());
 					});
 
-					return new MessageBuilder().setEmbeds(embeds);
+					return new MessageCreateBuilder().setEmbeds(embeds);
 				});
 
 			paged.execute(event);

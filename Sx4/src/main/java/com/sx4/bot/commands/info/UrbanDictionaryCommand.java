@@ -7,9 +7,9 @@ import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.http.HttpCallback;
 import com.sx4.bot.paged.PagedResult;
 import net.dv8tion.jda.api.EmbedBuilder;
-import net.dv8tion.jda.api.MessageBuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.MessageEmbed;
+import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
 import okhttp3.Request;
 import org.bson.Document;
 
@@ -102,7 +102,7 @@ public class UrbanDictionaryCommand extends Sx4Command {
 						embed.addField("Downvotes", data.getInteger("thumbs_down") + " 👎", true);
 					});
 
-					return new MessageBuilder().setEmbeds(embed.build());
+					return new MessageCreateBuilder().setEmbeds(embed.build());
 				});
 
 			paged.execute(event);

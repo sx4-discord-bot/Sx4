@@ -8,9 +8,9 @@ import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.paged.PagedResult.SelectType;
 import net.dv8tion.jda.api.EmbedBuilder;
-import net.dv8tion.jda.api.MessageBuilder;
 import net.dv8tion.jda.api.Permission;
-import net.dv8tion.jda.api.entities.Message;
+import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
+import net.dv8tion.jda.api.utils.messages.MessageCreateData;
 
 import java.util.Formatter;
 import java.util.List;
@@ -18,8 +18,8 @@ import java.util.stream.Collectors;
 
 public class HelpUtility {
 
-	public static Message getHelpMessage(ICommand initialCommand, boolean embed) {
-		MessageBuilder builder = new MessageBuilder();
+	public static MessageCreateData getHelpMessage(ICommand initialCommand, boolean embed) {
+		MessageCreateBuilder builder = new MessageCreateBuilder();
 		
 		Sx4Command command = initialCommand instanceof DummyCommand ? (Sx4Command) ((DummyCommand) initialCommand).getActualCommand() : (Sx4Command) initialCommand;
 		String usage = command.getSubCommands().isEmpty() ? command.getUsage() : command.getUsage().trim().equals(command.getCommandTrigger()) ? command.getUsage() + " <sub command>" : command.getUsage() + " | <sub command>";
@@ -98,7 +98,7 @@ public class HelpUtility {
 				formatter.format(placeHolder, "Required Permissions", command.getSubCommands().stream().map(ICommand::getCommand).collect(Collectors.joining(", ")));
 			}
 			
-			Message message = builder.setContent(formatter.toString()).build();
+			MessageCreateData message = builder.setContent(formatter.toString()).build();
 			
 			formatter.close();
 			

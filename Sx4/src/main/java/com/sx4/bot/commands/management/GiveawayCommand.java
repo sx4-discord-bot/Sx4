@@ -10,6 +10,7 @@ import com.sx4.bot.annotations.argument.AlternativeOptions;
 import com.sx4.bot.annotations.argument.DefaultNumber;
 import com.sx4.bot.annotations.argument.Limit;
 import com.sx4.bot.annotations.command.AuthorPermissions;
+import com.sx4.bot.annotations.command.ChannelTypes;
 import com.sx4.bot.annotations.command.CommandId;
 import com.sx4.bot.annotations.command.Examples;
 import com.sx4.bot.category.ModuleCategory;
@@ -28,9 +29,11 @@ import com.sx4.bot.utility.TimeUtility;
 import com.sx4.bot.waiter.Waiter;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
-import net.dv8tion.jda.api.entities.BaseGuildMessageChannel;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.entities.channel.middleman.GuildChannel;
+import net.dv8tion.jda.api.entities.channel.middleman.GuildMessageChannel;
+import net.dv8tion.jda.api.entities.emoji.Emoji;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.interactions.components.buttons.Button;
 import net.dv8tion.jda.api.sharding.ShardManager;
@@ -77,7 +80,7 @@ public class GiveawayCommand extends Sx4Command {
 	@CommandId(47)
 	@Examples({"giveaway setup", "giveaway setup #giveaways 1 7d $10 Nitro"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-	public void setup(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) BaseGuildMessageChannel channel, @Argument(value="winners") @DefaultNumber(0) @Limit(min=1) int winners, @Argument(value="duration", nullDefault=true) Duration duration, @Argument(value="item", nullDefault=true, endless=true) String item) {
+	public void setup(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) GuildMessageChannel channel, @Argument(value="winners") @DefaultNumber(0) @Limit(min=1) int winners, @Argument(value="duration", nullDefault=true) Duration duration, @Argument(value="item", nullDefault=true, endless=true) String item) {
 		if (channel != null && winners != 0 && duration != null && item != null) {
 			long seconds = duration.toSeconds();
 			if (seconds < 1) {
@@ -86,7 +89,7 @@ public class GiveawayCommand extends Sx4Command {
 			}
 			
 			channel.sendMessageEmbeds(this.getEmbed(winners, seconds, item)).queue(message -> {
-				message.addReaction("🎉").queue();
+				message.addReaction(Emoji.fromUnicode("🎉")).queue();
 				
 				Document data = new Document("messageId", message.getIdLong())
 					.append("channelId", channel.getIdLong())
@@ -110,7 +113,7 @@ public class GiveawayCommand extends Sx4Command {
 			return;
 		}
 		
-		AtomicReference<BaseGuildMessageChannel> atomicChannel = new AtomicReference<>();
+		AtomicReference<GuildMessageChannel> atomicChannel = new AtomicReference<>();
 		AtomicInteger atomicWinners = new AtomicInteger();
 		AtomicReference<Duration> atomicDuration = new AtomicReference<>();
 		AtomicReference<String> atomicItem = new AtomicReference<>();
@@ -129,9 +132,9 @@ public class GiveawayCommand extends Sx4Command {
 					.setCancelPredicate(e -> e.getMessage().getContentRaw().equalsIgnoreCase("cancel"))
 					.setTimeout(30)
 					.setPredicate(e -> {
-						BaseGuildMessageChannel messageChannel = SearchUtility.getBaseMessageChannel(event.getGuild(), e.getMessage().getContentRaw());
-						if (messageChannel != null) {
-							atomicChannel.set(messageChannel);
+						GuildChannel messageChannel = SearchUtility.getGuildChannel(event.getGuild(), ChannelTypes.DEFAULT, e.getMessage().getContentRaw());
+						if (messageChannel instanceof GuildMessageChannel) {
+							atomicChannel.set((GuildMessageChannel) messageChannel);
 							
 							return true;
 						}
@@ -305,13 +308,13 @@ public class GiveawayCommand extends Sx4Command {
 				return;
 			}
 			
-			BaseGuildMessageChannel channelFuture = atomicChannel.get();
+			GuildMessageChannel channelFuture = atomicChannel.get();
 			int winnersFuture = atomicWinners.get();
 			long durationFuture = atomicDuration.get().toSeconds();
 			String itemFuture = atomicItem.get();
 			
 			channelFuture.sendMessageEmbeds(this.getEmbed(winnersFuture, durationFuture, itemFuture)).queue(message -> {
-				message.addReaction("🎉").queue();
+				message.addReaction(Emoji.fromUnicode("🎉")).queue();
 				
 				Document data = new Document("messageId", message.getIdLong())
 					.append("channelId", channelFuture.getIdLong())
@@ -365,7 +368,7 @@ public class GiveawayCommand extends Sx4Command {
 			
 			long seconds = duration == null ? data.getLong("duration") : duration.toSeconds();
 			
-			BaseGuildMessageChannel channel = event.getGuild().getChannelById(BaseGuildMessageChannel.class, data.getLong("channelId"));
+			GuildMessageChannel channel = event.getGuild().getChannelById(GuildMessageChannel.class, data.getLong("channelId"));
 			if (channel == null) {
 				event.replyFailure("That giveaway no longer exists").queue();
 				return;

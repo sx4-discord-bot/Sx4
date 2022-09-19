@@ -17,10 +17,10 @@ import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.NumberUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
-import net.dv8tion.jda.api.MessageBuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.utils.MarkdownSanitizer;
+import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
 import okhttp3.Request;
 import org.bson.Document;
 import org.bson.conversions.Bson;
@@ -105,7 +105,7 @@ public class LeaderboardCommand extends Sx4Command {
 
 					page.forEach((entry, index) -> embed.appendDescription(String.format("%d. `%s` - $%,d\n", index + 1, MarkdownSanitizer.escape(entry.getKey().getAsTag()), entry.getValue())));
 
-					return new MessageBuilder().setEmbeds(embed.build());
+					return new MessageCreateBuilder().setEmbeds(embed.build());
 				});
 
 			paged.execute(event);
@@ -174,7 +174,7 @@ public class LeaderboardCommand extends Sx4Command {
 
 					page.forEach((entry, index) -> embed.appendDescription(String.format("%d. `%s` - $%,d\n", index + 1, MarkdownSanitizer.escape(entry.getKey().getAsTag()), entry.getValue())));
 
-					return new MessageBuilder().setEmbeds(embed.build());
+					return new MessageCreateBuilder().setEmbeds(embed.build());
 				});
 
 			paged.execute(event);
@@ -236,7 +236,7 @@ public class LeaderboardCommand extends Sx4Command {
 
 					page.forEach((entry, index) -> embed.appendDescription(String.format("%d. `%s` - $%,d\n", index + 1, MarkdownSanitizer.escape(entry.getKey().getAsTag()), entry.getValue())));
 
-					return new MessageBuilder().setEmbeds(embed.build());
+					return new MessageCreateBuilder().setEmbeds(embed.build());
 				});
 
 			paged.execute(event);
@@ -304,7 +304,7 @@ public class LeaderboardCommand extends Sx4Command {
 
 					page.forEach((entry, index) -> embed.appendDescription(String.format("%d. `%s` - %,d %s\n", index + 1, MarkdownSanitizer.escape(entry.getKey().getAsTag()), entry.getValue(), item == null ? "Item" + (entry.getValue() == 1 ? "" : "s") : item.getName())));
 
-					return new MessageBuilder().setEmbeds(embed.build());
+					return new MessageCreateBuilder().setEmbeds(embed.build());
 				});
 
 			paged.execute(event);
@@ -366,7 +366,7 @@ public class LeaderboardCommand extends Sx4Command {
 
 					page.forEach((entry, index) -> embed.appendDescription(String.format("%d. `%s` - %,d day streak\n", index + 1, MarkdownSanitizer.escape(entry.getKey().getAsTag()), entry.getValue())));
 
-					return new MessageBuilder().setEmbeds(embed.build());
+					return new MessageCreateBuilder().setEmbeds(embed.build());
 				});
 
 			paged.execute(event);
@@ -434,7 +434,7 @@ public class LeaderboardCommand extends Sx4Command {
 
 					page.forEach((entry, index) -> embed.appendDescription(String.format("%d. `%s` - %,d vote%s\n", index + 1, MarkdownSanitizer.escape(entry.getKey().getAsTag()), entry.getValue(), entry.getValue() == 1 ? "" : "s")));
 
-					return new MessageBuilder().setEmbeds(embed.build());
+					return new MessageCreateBuilder().setEmbeds(embed.build());
 				});
 
 			paged.execute(event);

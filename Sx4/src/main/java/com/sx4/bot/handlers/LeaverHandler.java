@@ -6,10 +6,10 @@ import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.Updates;
 import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.mongo.MongoDatabase;
+import com.sx4.bot.entities.webhook.WebhookChannel;
 import com.sx4.bot.managers.LeaverManager;
 import com.sx4.bot.utility.LeaverUtility;
-import net.dv8tion.jda.api.entities.BaseGuildMessageChannel;
-import net.dv8tion.jda.api.entities.TextChannel;
+import net.dv8tion.jda.api.entities.channel.unions.GuildMessageChannelUnion;
 import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.events.guild.member.GuildMemberRemoveEvent;
 import net.dv8tion.jda.api.hooks.EventListener;
@@ -38,7 +38,7 @@ public class LeaverHandler implements EventListener {
 
 		long channelId = leaver.get("channelId", 0L);
 
-		BaseGuildMessageChannel channel = channelId == 0L ? null : event.getGuild().getChannelById(BaseGuildMessageChannel.class, channelId);
+		GuildMessageChannelUnion channel = channelId == 0L ? null : event.getGuild().getChannelById(GuildMessageChannelUnion.class, channelId);
 		if (channel == null) {
 			return;
 		}
@@ -60,7 +60,7 @@ public class LeaverHandler implements EventListener {
 			.setAvatarUrl(premium ? webhookData.get("avatar", event.getJDA().getSelfUser().getEffectiveAvatarUrl()) : event.getJDA().getSelfUser().getEffectiveAvatarUrl())
 			.build();
 
-		this.bot.getLeaverManager().sendLeaver(channel, webhookData, message);
+		this.bot.getLeaverManager().sendLeaver(new WebhookChannel(channel), webhookData, message);
 	}
 
 	@Override

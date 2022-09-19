@@ -16,10 +16,9 @@ import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.HmacUtility;
 import com.sx4.bot.utility.NumberUtility;
 import com.sx4.bot.utility.StringUtility;
-import net.dv8tion.jda.api.EmbedBuilder;
-import net.dv8tion.jda.api.MessageBuilder;
-import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.EmbedBuilder;import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.MessageEmbed;
+import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
 import okhttp3.Request;
 import org.bson.Document;
 import org.json.JSONArray;
@@ -417,7 +416,7 @@ public class SteamCommand extends Sx4Command {
 								event.getHttpClient().newCall(itemRequest).enqueue((HttpCallback) itemResponse -> {
 									String itemBody = itemResponse.body().string();
 									if (itemBody.equals("null")) {
-										message.accept(new MessageBuilder().setEmbeds(embed.build()));
+										message.accept(new MessageCreateBuilder().setEmbeds(embed.build()));
 										return;
 									}
 
@@ -427,7 +426,7 @@ public class SteamCommand extends Sx4Command {
 										embed.addField("Lowest Price", priceData.getString("lowest_price"), false);
 									}
 
-									message.accept(new MessageBuilder().setEmbeds(embed.build()));
+									message.accept(new MessageCreateBuilder().setEmbeds(embed.build()));
 								});
 							});
 						});

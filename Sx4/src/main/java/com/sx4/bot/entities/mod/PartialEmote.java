@@ -1,6 +1,6 @@
 package com.sx4.bot.entities.mod;
 
-import net.dv8tion.jda.api.entities.Emote;
+import net.dv8tion.jda.api.entities.emoji.CustomEmoji;
 
 public class PartialEmote {
 	
@@ -9,11 +9,11 @@ public class PartialEmote {
 	protected final String name;
 	protected final String url;
 	
-	public PartialEmote(Emote emote) {
-		this.name = emote.getName();
-		this.id = emote.getIdLong();
-		this.animated = emote.isAnimated();
-		this.url = emote.getImageUrl();
+	public PartialEmote(CustomEmoji emoji) {
+		this.name = emoji.getName();
+		this.id = emoji.getIdLong();
+		this.animated = emoji.isAnimated();
+		this.url = emoji.getImageUrl();
 	}
 	
 	public PartialEmote(String url, String name, Boolean animated) {
@@ -27,7 +27,7 @@ public class PartialEmote {
 		this.name = this.getEmoteName(name);
 		this.id = id;
 		this.animated = animated;
-		this.url = String.format(Emote.ICON_URL, id, animated == null || animated ? "gif" : "png");
+		this.url = String.format(CustomEmoji.ICON_URL, id, animated == null || animated ? "gif" : "png");
 	}
 	
 	public long getId() {

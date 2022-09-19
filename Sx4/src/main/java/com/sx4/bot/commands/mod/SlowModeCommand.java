@@ -7,7 +7,7 @@ import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.utility.PermissionUtility;
 import com.sx4.bot.utility.TimeUtility;
 import net.dv8tion.jda.api.Permission;
-import net.dv8tion.jda.api.entities.TextChannel;
+import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
 
 import java.time.Duration;
 import java.util.EnumSet;
@@ -26,7 +26,7 @@ public class SlowModeCommand extends Sx4Command {
 	}
 
 	public void onCommand(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) TextChannel channel, @Argument(value="duration", endless=true) Duration duration) {
-		TextChannel effectiveChannel = channel == null ? event.getTextChannel() : channel;
+		TextChannel effectiveChannel = channel == null ? event.getGuildChannel().asTextChannel() : channel;
 		if (!event.getSelfMember().hasPermission(effectiveChannel, Permission.MANAGE_CHANNEL)) {
 			event.replyFailure(PermissionUtility.formatMissingPermissions(EnumSet.of(Permission.MANAGE_CHANNEL))).queue();
 			return;

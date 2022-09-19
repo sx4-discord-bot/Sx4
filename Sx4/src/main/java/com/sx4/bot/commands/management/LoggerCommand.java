@@ -14,16 +14,15 @@ import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.management.LoggerCategory;
 import com.sx4.bot.entities.management.LoggerEvent;
+import com.sx4.bot.entities.webhook.WebhookChannel;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.LoggerUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
-import net.dv8tion.jda.api.MessageBuilder;
 import net.dv8tion.jda.api.Permission;
-import net.dv8tion.jda.api.entities.BaseGuildMessageChannel;
-import net.dv8tion.jda.api.entities.MessageChannel;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.requests.ErrorResponse;
+import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 
@@ -50,14 +49,8 @@ public class LoggerCommand extends Sx4Command {
     @CommandId(54)
     @AuthorPermissions(permissions={Permission.MANAGE_SERVER})
     @Examples({"logger add #logs", "logger add"})
-    public void add(Sx4CommandEvent event, @Argument(value="channel", endless=true, nullDefault=true) BaseGuildMessageChannel channel) {
-        MessageChannel messageChannel = event.getChannel();
-        if (channel == null && !(messageChannel instanceof BaseGuildMessageChannel)) {
-            event.replyFailure("You cannot use this channel type").queue();
-            return;
-        }
-
-        BaseGuildMessageChannel effectiveChannel = channel == null ? (BaseGuildMessageChannel) messageChannel : channel;
+    public void add(Sx4CommandEvent event, @Argument(value="channel", endless=true, nullDefault=true) WebhookChannel channel) {
+        long webhookChannelId = channel.getWebhookChannel().getIdLong();
 
         List<Bson> guildPipeline = List.of(
             Aggregates.project(Projections.fields(Projections.computed("premium", Operators.lt(Operators.nowEpochSecond(), Operators.ifNull("$premium.endAt", 0L))), Projections.computed("guildId", "$_id"))),
@@ -67,17 +60,17 @@ public class LoggerCommand extends Sx4Command {
         List<Bson> pipeline = List.of(
             Aggregates.match(Filters.and(Filters.eq("guildId", event.getGuild().getIdLong()), Filters.exists("enabled", false))),
             Aggregates.limit(25),
-            Aggregates.group(null, Accumulators.sum("count", 1)),
+            Aggregates.group(null, Accumulators.push("loggers", Operators.ROOT)),
             Aggregates.unionWith("guilds", guildPipeline),
-            Aggregates.group(null, Accumulators.max("count", "$count"), Accumulators.max("premium", "$premium")),
-            Aggregates.project(Projections.fields(Projections.computed("premium", Operators.ifNull("$premium", false)), Projections.computed("count", Operators.ifNull("$count", 0))))
+            Aggregates.group(null, Accumulators.max("loggers", "$loggers"), Accumulators.max("premium", "$premium")),
+            Aggregates.project(Projections.fields(Projections.computed("webhook", Operators.first(Operators.map(Operators.filter(Operators.ifNull("$loggers", Collections.EMPTY_LIST), Operators.and(Operators.exists("$$this.webhook"), Operators.eq("$$this.webhook.channelId", webhookChannelId))), "$$this.webhook"))), Projections.computed("premium", Operators.ifNull("$premium", false)), Projections.computed("count", Operators.size(Operators.ifNull("$loggers", Collections.EMPTY_LIST)))))
         );
 
         event.getMongo().aggregateLoggers(pipeline).thenCompose(documents -> {
-            Document counter = documents.isEmpty() ? null : documents.get(0);
+            Document aggregate = documents.isEmpty() ? null : documents.get(0);
 
-            int count = counter == null ? 0 : counter.getInteger("count");
-            if (counter != null && count >= 3 && !counter.getBoolean("premium")) {
+            int count = aggregate == null ? 0 : aggregate.getInteger("count");
+            if (aggregate != null && count >= 3 && !aggregate.getBoolean("premium")) {
                 event.replyFailure("You need to have Sx4 premium to have more than 3 enabled loggers, you can get premium at <https://www.patreon.com/Sx4>").queue();
                 return CompletableFuture.completedFuture(null);
             }
@@ -87,14 +80,23 @@ public class LoggerCommand extends Sx4Command {
                 return CompletableFuture.completedFuture(null);
             }
 
-            Document data = new Document("channelId", effectiveChannel.getIdLong())
+            Document data = new Document("channelId", channel.getIdLong())
                 .append("guildId", event.getGuild().getIdLong());
+
+            Document webhook = aggregate == null ? new Document() : aggregate.get("webhook", new Document());
+            if (channel.getIdLong() != webhookChannelId) {
+                webhook.append("channelId", webhookChannelId);
+            }
+
+            if (!webhook.isEmpty()) {
+                data.append("webhook", webhook);
+            }
 
             return event.getMongo().insertLogger(data);
         }).whenComplete((result, exception) -> {
             Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
             if (cause instanceof MongoWriteException && ((MongoWriteException) cause).getError().getCategory() == ErrorCategory.DUPLICATE_KEY) {
-                event.replyFailure("You already have a logger setup in " + effectiveChannel.getAsMention()).queue();
+                event.replyFailure("You already have a logger setup in " + channel.getAsMention()).queue();
                 return;
             }
 
@@ -102,7 +104,7 @@ public class LoggerCommand extends Sx4Command {
                 return;
             }
 
-            event.replySuccess("You now have a logger setup in " + effectiveChannel.getAsMention()).queue();
+            event.replySuccess("You now have a logger setup in " + channel.getAsMention()).queue();
         });
     }
 
@@ -110,34 +112,26 @@ public class LoggerCommand extends Sx4Command {
     @CommandId(55)
     @AuthorPermissions(permissions={Permission.MANAGE_SERVER})
     @Examples({"logger remove #logs", "logger remove"})
-    public void remove(Sx4CommandEvent event, @Argument(value="channel", endless=true, nullDefault=true) BaseGuildMessageChannel channel) {
-        MessageChannel messageChannel = event.getChannel();
-        if (channel == null && !(messageChannel instanceof BaseGuildMessageChannel)) {
-            event.replyFailure("You cannot use this channel type").queue();
-            return;
-        }
-
-        BaseGuildMessageChannel effectiveChannel = channel == null ? (BaseGuildMessageChannel) messageChannel : channel;
-
+    public void remove(Sx4CommandEvent event, @Argument(value="channel", endless=true, nullDefault=true) WebhookChannel channel) {
         FindOneAndDeleteOptions options = new FindOneAndDeleteOptions().projection(Projections.include("webhook.id"));
-        event.getMongo().findAndDeleteLogger(Filters.eq("channelId", effectiveChannel.getIdLong()), options).whenComplete((data, exception) -> {
+        event.getMongo().findAndDeleteLogger(Filters.eq("channelId", channel.getIdLong()), options).whenComplete((data, exception) -> {
             if (ExceptionUtility.sendExceptionally(event, exception)) {
                 return;
             }
 
             if (data == null) {
-                event.replyFailure("You don't have a logger in " + effectiveChannel.getAsMention()).queue();
+                event.replyFailure("You don't have a logger in " + channel.getAsMention()).queue();
                 return;
             }
 
-            event.getBot().getLoggerHandler().removeManager(effectiveChannel.getIdLong());
+            event.getBot().getLoggerHandler().removeManager(channel.getIdLong());
 
             Document webhook = data.get("webhook", Document.class);
             if (webhook != null) {
-                effectiveChannel.deleteWebhookById(Long.toString(webhook.getLong("id"))).queue(null, ErrorResponseException.ignore(ErrorResponse.UNKNOWN_WEBHOOK));
+                channel.deleteWebhookById(Long.toString(webhook.getLong("id"))).queue(null, ErrorResponseException.ignore(ErrorResponse.UNKNOWN_WEBHOOK));
             }
 
-            event.replySuccess("You no longer have a logger setup in " + effectiveChannel.getAsMention()).queue();
+            event.replySuccess("You no longer have a logger setup in " + channel.getAsMention()).queue();
         });
     }
 
@@ -145,14 +139,8 @@ public class LoggerCommand extends Sx4Command {
     @CommandId(56)
     @AuthorPermissions(permissions={Permission.MANAGE_SERVER})
     @Examples({"logger toggle #logs", "logger toggle"})
-    public void toggle(Sx4CommandEvent event, @Argument(value="channel", endless=true, nullDefault=true) BaseGuildMessageChannel channel) {
-        MessageChannel messageChannel = event.getChannel();
-        if (channel == null && !(messageChannel instanceof BaseGuildMessageChannel)) {
-            event.replyFailure("You cannot use this channel type").queue();
-            return;
-        }
-
-        BaseGuildMessageChannel effectiveChannel = channel == null ? (BaseGuildMessageChannel) messageChannel : channel;
+    public void toggle(Sx4CommandEvent event, @Argument(value="channel", endless=true, nullDefault=true) WebhookChannel channel) {
+        long webhookChannelId = channel.getWebhookChannel().getIdLong();
 
         List<Bson> guildPipeline = List.of(
             Aggregates.project(Projections.fields(Projections.computed("premium", Operators.lt(Operators.nowEpochSecond(), Operators.ifNull("$premium.endAt", 0L))), Projections.computed("guildId", "$_id"))),
@@ -161,11 +149,11 @@ public class LoggerCommand extends Sx4Command {
 
         List<Bson> pipeline = List.of(
             Aggregates.match(Filters.and(Filters.eq("guildId", event.getGuild().getIdLong()), Filters.exists("enabled", false))),
-            Aggregates.project(Projections.include("channelId")),
+            Aggregates.project(Projections.include("channelId", "webhook")),
             Aggregates.group(null, Accumulators.push("loggers", Operators.ROOT)),
             Aggregates.unionWith("guilds", guildPipeline),
             Aggregates.group(null, Accumulators.max("loggers", "$loggers"), Accumulators.max("premium", "$premium")),
-            Aggregates.project(Projections.fields(Projections.computed("premium", Operators.ifNull("$premium", false)), Projections.computed("count", Operators.size(Operators.ifNull("$loggers", Collections.EMPTY_LIST))), Projections.computed("disabled", Operators.isEmpty(Operators.filter(Operators.ifNull("$loggers", Collections.EMPTY_LIST), Operators.eq("$$this.channelId", effectiveChannel.getIdLong()))))))
+            Aggregates.project(Projections.fields(Projections.computed("webhook", Operators.first(Operators.map(Operators.filter(Operators.ifNull("$loggers", Collections.EMPTY_LIST), Operators.eq(Operators.ifNull("$$this.webhook.channelId", "$$this.channelId"), webhookChannelId)), "$$this.webhook"))), Projections.computed("premium", Operators.ifNull("$premium", false)), Projections.computed("count", Operators.size(Operators.ifNull("$loggers", Collections.EMPTY_LIST))), Projections.computed("disabled", Operators.isEmpty(Operators.filter(Operators.ifNull("$loggers", Collections.EMPTY_LIST), Operators.eq("$$this.channelId", channel.getIdLong()))))))
         );
 
         event.getMongo().aggregateLoggers(pipeline).thenCompose(documents -> {
@@ -181,10 +169,17 @@ public class LoggerCommand extends Sx4Command {
                 throw new IllegalArgumentException("You can not have any more than 25 enabled loggers");
             }
 
-            List<Bson> update = List.of(Operators.set("enabled", Operators.cond(Operators.exists("$enabled"), Operators.REMOVE, false)));
+            List<Bson> update = new ArrayList<>();
+            update.add(Operators.set("enabled", Operators.cond(Operators.exists("$enabled"), Operators.REMOVE, false)));
+
+            Document webhook = data == null ? new Document() : data.get("webhook", new Document());
+            if (disabled && !webhook.isEmpty()) {
+                update.add(Operators.set("webhook", webhook));
+            }
+
             FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER).projection(Projections.include("enabled"));
 
-            return event.getMongo().findAndUpdateLogger(Filters.eq("channelId", effectiveChannel.getIdLong()), update, options);
+            return event.getMongo().findAndUpdateLogger(Filters.eq("channelId", channel.getIdLong()), update, options);
         }).whenComplete((data, exception) -> {
             Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
             if (cause instanceof IllegalArgumentException) {
@@ -201,7 +196,7 @@ public class LoggerCommand extends Sx4Command {
                 return;
             }
 
-            event.replySuccess("The logger in " + effectiveChannel.getAsMention() + " is now **" + (data.get("enabled", true) ? "enabled" : "disabled") + "**").queue();
+            event.replySuccess("The logger in " + channel.getAsMention() + " is now **" + (data.get("enabled", true) ? "enabled" : "disabled") + "**").queue();
         });
     }
 
@@ -210,16 +205,8 @@ public class LoggerCommand extends Sx4Command {
     @Examples({"logger name #logs Logs", "logger name Logger"})
     @Premium
     @AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-    public void name(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) BaseGuildMessageChannel channel, @Argument(value="name", endless=true) String name) {
-        MessageChannel messageChannel = event.getChannel();
-        if (channel == null && !(messageChannel instanceof BaseGuildMessageChannel)) {
-            event.replyFailure("You cannot use this channel type").queue();
-            return;
-        }
-
-        BaseGuildMessageChannel effectiveChannel = channel == null ? (BaseGuildMessageChannel) messageChannel : channel;
-
-        event.getMongo().updateLogger(Filters.eq("channelId", effectiveChannel.getIdLong()), Updates.set("webhook.name", name)).whenComplete((result, exception) -> {
+    public void name(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) WebhookChannel channel, @Argument(value="name", endless=true) String name) {
+        event.getMongo().updateLogger(Filters.eq("channelId", channel.getIdLong()), Updates.set("webhook.name", name)).whenComplete((result, exception) -> {
             if (ExceptionUtility.sendExceptionally(event, exception)) {
                 return;
             }
@@ -238,16 +225,8 @@ public class LoggerCommand extends Sx4Command {
     @Examples({"logger avatar #logs Shea#6653", "logger avatar https://i.imgur.com/i87lyNO.png"})
     @Premium
     @AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-    public void avatar(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) BaseGuildMessageChannel channel, @Argument(value="avatar", endless=true, acceptEmpty=true) @ImageUrl String url) {
-        MessageChannel messageChannel = event.getChannel();
-        if (channel == null && !(messageChannel instanceof BaseGuildMessageChannel)) {
-            event.replyFailure("You cannot use this channel type").queue();
-            return;
-        }
-
-        BaseGuildMessageChannel effectiveChannel = channel == null ? (BaseGuildMessageChannel) messageChannel : channel;
-
-        event.getMongo().updateLogger(Filters.eq("channelId", effectiveChannel.getIdLong()), Updates.set("webhook.avatar", url)).whenComplete((result, exception) -> {
+    public void avatar(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) WebhookChannel channel, @Argument(value="avatar", endless=true, acceptEmpty=true) @ImageUrl String url) {
+        event.getMongo().updateLogger(Filters.eq("channelId", channel.getIdLong()), Updates.set("webhook.avatar", url)).whenComplete((result, exception) -> {
             if (ExceptionUtility.sendExceptionally(event, exception)) {
                 return;
             }
@@ -265,7 +244,7 @@ public class LoggerCommand extends Sx4Command {
     @CommandId(458)
     @Examples({"logger list"})
     @BotPermissions(permissions={Permission.MESSAGE_EMBED_LINKS})
-    public void list(Sx4CommandEvent event, @Argument(value="channel", endless=true, nullDefault=true) BaseGuildMessageChannel channel) {
+    public void list(Sx4CommandEvent event, @Argument(value="channel", endless=true, nullDefault=true) WebhookChannel channel) {
         Bson filter = channel == null ? Filters.eq("guildId", event.getGuild().getIdLong()) : Filters.eq("channelId", channel.getIdLong());
 
         List<Document> loggers = event.getMongo().getLoggers(filter, MongoDatabase.EMPTY_DOCUMENT).into(new ArrayList<>());
@@ -300,7 +279,7 @@ public class LoggerCommand extends Sx4Command {
 
                    embed.addField("Enabled Events", content.toString(), false);
 
-                   return new MessageBuilder().setEmbeds(embed.build());
+                   return new MessageCreateBuilder().setEmbeds(embed.build());
                 });
 
             loggerPaged.execute(event);
@@ -328,25 +307,17 @@ public class LoggerCommand extends Sx4Command {
         @CommandId(58)
         @AuthorPermissions(permissions={Permission.MANAGE_SERVER})
         @Examples({"logger events add #logs MESSAGE_DELETE", "logger events add MESSAGE_DELETE MESSAGE_UPDATE"})
-        public void add(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) BaseGuildMessageChannel channel, @Argument(value="events") LoggerEvent... events) {
-            MessageChannel messageChannel = event.getChannel();
-            if (channel == null && !(messageChannel instanceof BaseGuildMessageChannel)) {
-                event.replyFailure("You cannot use this channel type").queue();
-                return;
-            }
-
-            BaseGuildMessageChannel effectiveChannel = channel == null ? (BaseGuildMessageChannel) messageChannel : channel;
-
+        public void add(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) WebhookChannel channel, @Argument(value="events") LoggerEvent... events) {
             long raw = LoggerEvent.getRaw(events);
             List<Bson> update = List.of(Operators.set("events", Operators.bitwiseOr(Operators.ifNull("$events", LoggerEvent.ALL), raw)));
 
-            event.getMongo().updateLogger(Filters.eq("channelId", effectiveChannel.getIdLong()), update, new UpdateOptions()).whenComplete((result, exception) -> {
+            event.getMongo().updateLogger(Filters.eq("channelId", channel.getIdLong()), update, new UpdateOptions()).whenComplete((result, exception) -> {
                 if (ExceptionUtility.sendExceptionally(event, exception)) {
                     return;
                 }
 
                 if (result.getMatchedCount() == 0) {
-                    event.replyFailure("You do not have a logger in " + effectiveChannel.getAsMention()).queue();
+                    event.replyFailure("You do not have a logger in " + channel.getAsMention()).queue();
                     return;
                 }
 
@@ -363,25 +334,17 @@ public class LoggerCommand extends Sx4Command {
         @CommandId(59)
         @AuthorPermissions(permissions={Permission.MANAGE_SERVER})
         @Examples({"logger events remove #logs MESSAGE_DELETE", "logger events remove MESSAGE_DELETE MESSAGE_UPDATE"})
-        public void remove(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) BaseGuildMessageChannel channel, @Argument(value="events") LoggerEvent... events) {
-            MessageChannel messageChannel = event.getChannel();
-            if (channel == null && !(messageChannel instanceof BaseGuildMessageChannel)) {
-                event.replyFailure("You cannot use this channel type").queue();
-                return;
-            }
-
-            BaseGuildMessageChannel effectiveChannel = channel == null ? (BaseGuildMessageChannel) messageChannel : channel;
-
+        public void remove(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) WebhookChannel channel, @Argument(value="events") LoggerEvent... events) {
             long raw = LoggerEvent.getRaw(events);
             List<Bson> update = List.of(Operators.set("events", Operators.bitwiseAndNot(Operators.ifNull("$events", LoggerEvent.ALL), raw)));
 
-            event.getMongo().updateLogger(Filters.eq("channelId", effectiveChannel.getIdLong()), update, new UpdateOptions()).whenComplete((result, exception) -> {
+            event.getMongo().updateLogger(Filters.eq("channelId", channel.getIdLong()), update, new UpdateOptions()).whenComplete((result, exception) -> {
                 if (ExceptionUtility.sendExceptionally(event, exception)) {
                     return;
                 }
 
                 if (result.getMatchedCount() == 0) {
-                    event.replyFailure("You do not have a logger in " + effectiveChannel.getAsMention()).queue();
+                    event.replyFailure("You do not have a logger in " + channel.getAsMention()).queue();
                     return;
                 }
 
@@ -398,22 +361,14 @@ public class LoggerCommand extends Sx4Command {
         @CommandId(60)
         @AuthorPermissions(permissions={Permission.MANAGE_SERVER})
         @Examples({"logger events set #logs MESSAGE_DELETE", "logger events set MESSAGE_DELETE MESSAGE_UPDATE"})
-        public void set(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) BaseGuildMessageChannel channel, @Argument(value="events") LoggerEvent... events) {
-            MessageChannel messageChannel = event.getChannel();
-            if (channel == null && !(messageChannel instanceof BaseGuildMessageChannel)) {
-                event.replyFailure("You cannot use this channel type").queue();
-                return;
-            }
-
-            BaseGuildMessageChannel effectiveChannel = channel == null ? (BaseGuildMessageChannel) messageChannel : channel;
-
-            event.getMongo().updateLogger(Filters.eq("channelId", effectiveChannel.getIdLong()), Updates.set("events", LoggerEvent.getRaw(events)), new UpdateOptions()).whenComplete((result, exception) -> {
+        public void set(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) WebhookChannel channel, @Argument(value="events") LoggerEvent... events) {
+            event.getMongo().updateLogger(Filters.eq("channelId", channel.getIdLong()), Updates.set("events", LoggerEvent.getRaw(events)), new UpdateOptions()).whenComplete((result, exception) -> {
                 if (ExceptionUtility.sendExceptionally(event, exception)) {
                     return;
                 }
 
                 if (result.getMatchedCount() == 0) {
-                    event.replyFailure("You don't have a logger in " + effectiveChannel.getAsMention()).queue();
+                    event.replyFailure("You don't have a logger in " + channel.getAsMention()).queue();
                     return;
                 }
 
@@ -458,15 +413,7 @@ public class LoggerCommand extends Sx4Command {
         @CommandId(63)
         @AuthorPermissions(permissions={Permission.MANAGE_SERVER})
         @Examples({"logger blacklist set #logs @Shea#6653 MESSAGE_DELETE", "logger blacklist set #logs @Members MESSAGE_UPDATE MESSAGE_DELETE", "logger blacklist set #logs #channel TEXT_CHANNEL_OVERRIDE_UPDATE"})
-        public void set(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) BaseGuildMessageChannel channel, @Argument(value="user | role | channel") String query, @Argument(value="events") LoggerEvent... events) {
-            MessageChannel messageChannel = event.getChannel();
-            if (channel == null && !(messageChannel instanceof BaseGuildMessageChannel)) {
-                event.replyFailure("You cannot use this channel type").queue();
-                return;
-            }
-
-            BaseGuildMessageChannel effectiveChannel = channel == null ? (BaseGuildMessageChannel) messageChannel : channel;
-
+        public void set(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) WebhookChannel channel, @Argument(value="user | role | channel") String query, @Argument(value="events") LoggerEvent... events) {
             Set<LoggerCategory> common = LoggerUtility.getCommonCategories(events);
             if (common.isEmpty()) {
                 event.replyFailure("All of those events don't have a blacklist type in common").queue();
@@ -495,13 +442,13 @@ public class LoggerCommand extends Sx4Command {
 
                 List<Bson> update = List.of(Operators.set("blacklist.entities", Operators.concatArrays(List.of(Operators.mergeObjects(Operators.ifNull(Operators.first(entityFilter), MongoDatabase.EMPTY_DOCUMENT), new Document("id", id).append("events", eventsRaw).append("type", category.getType()))), Operators.filter(entitiesMap, Operators.ne("$$this.id", id)))));
 
-                event.getMongo().updateLogger(Filters.eq("channelId", effectiveChannel.getIdLong()), update, new UpdateOptions()).whenComplete((result, exception) -> {
+                event.getMongo().updateLogger(Filters.eq("channelId", channel.getIdLong()), update, new UpdateOptions()).whenComplete((result, exception) -> {
                    if (ExceptionUtility.sendExceptionally(event, exception)) {
                        return;
                    }
 
                     if (result.getMatchedCount() == 0) {
-                        event.replyFailure("You don't have a logger in " + effectiveChannel.getAsMention()).queue();
+                        event.replyFailure("You don't have a logger in " + channel.getAsMention()).queue();
                         return;
                     }
 
@@ -523,15 +470,7 @@ public class LoggerCommand extends Sx4Command {
         @CommandId(64)
         @AuthorPermissions(permissions={Permission.MANAGE_SERVER})
         @Examples({"logger blacklist add #logs @Shea#6653 MESSAGE_DELETE", "logger blacklist add #logs @Members MESSAGE_UPDATE MESSAGE_DELETE", "logger blacklist add #logs #channel TEXT_CHANNEL_OVERRIDE_UPDATE"})
-        public void add(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) BaseGuildMessageChannel channel, @Argument(value="user | role | channel") String query, @Argument(value="events") LoggerEvent... events) {
-            MessageChannel messageChannel = event.getChannel();
-            if (channel == null && !(messageChannel instanceof BaseGuildMessageChannel)) {
-                event.replyFailure("You cannot use this channel type").queue();
-                return;
-            }
-
-            BaseGuildMessageChannel effectiveChannel = channel == null ? (BaseGuildMessageChannel) messageChannel : channel;
-
+        public void add(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) WebhookChannel channel, @Argument(value="user | role | channel") String query, @Argument(value="events") LoggerEvent... events) {
             Set<LoggerCategory> common = LoggerUtility.getCommonCategories(events);
             if (common.isEmpty()) {
                 event.replyFailure("All of those events don't have a blacklist type in common").queue();
@@ -561,13 +500,13 @@ public class LoggerCommand extends Sx4Command {
 
                 List<Bson> update = List.of(Operators.set("blacklist.entities", Operators.concatArrays(List.of(Operators.mergeObjects(Operators.ifNull(Operators.first(entityFilter), new Document("id", id).append("type", category.getType())), new Document("events", Operators.toLong(Operators.bitwiseOr(eventsRaw, currentEvents))))), Operators.filter(entitiesMap, Operators.ne("$$this.id", id)))));
 
-                event.getMongo().updateLogger(Filters.eq("channelId", effectiveChannel.getIdLong()), update, new UpdateOptions()).whenComplete((result, exception) -> {
+                event.getMongo().updateLogger(Filters.eq("channelId", channel.getIdLong()), update, new UpdateOptions()).whenComplete((result, exception) -> {
                     if (ExceptionUtility.sendExceptionally(event, exception)) {
                         return;
                     }
 
                     if (result.getMatchedCount() == 0) {
-                        event.replyFailure("You don't have a logger in " + effectiveChannel.getAsMention()).queue();
+                        event.replyFailure("You don't have a logger in " + channel.getAsMention()).queue();
                         return;
                     }
 
@@ -589,15 +528,7 @@ public class LoggerCommand extends Sx4Command {
         @CommandId(467)
         @AuthorPermissions(permissions={Permission.MANAGE_SERVER})
         @Examples({"logger blacklist remove #logs @Shea#6653 MESSAGE_DELETE", "logger blacklist remove #logs @Members MESSAGE_UPDATE MESSAGE_DELETE", "logger blacklist remove #logs #channel TEXT_CHANNEL_OVERRIDE_UPDATE"})
-        public void remove(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) BaseGuildMessageChannel channel, @Argument(value="user | role | channel") String query, @Argument(value="events") LoggerEvent... events) {
-            MessageChannel messageChannel = event.getChannel();
-            if (channel == null && !(messageChannel instanceof BaseGuildMessageChannel)) {
-                event.replyFailure("You cannot use this channel type").queue();
-                return;
-            }
-
-            BaseGuildMessageChannel effectiveChannel = channel == null ? (BaseGuildMessageChannel) messageChannel : channel;
-
+        public void remove(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) WebhookChannel channel, @Argument(value="user | role | channel") String query, @Argument(value="events") LoggerEvent... events) {
             Set<LoggerCategory> common = LoggerUtility.getCommonCategories(events);
             if (common.isEmpty()) {
                 event.replyFailure("All of those events don't have a blacklist type in common").queue();
@@ -627,13 +558,13 @@ public class LoggerCommand extends Sx4Command {
 
                 List<Bson> update = List.of(Operators.set("blacklist.entities", Operators.let(new Document("newEvents", Operators.toLong(Operators.bitwiseAndNot(currentEvents, eventsRaw))), Operators.concatArrays(Operators.cond(Operators.eq("$$newEvents", 0L), Collections.EMPTY_LIST, List.of(Operators.mergeObjects(Operators.ifNull(Operators.first(entityFilter), new Document("id", id).append("type", category.getType())), new Document("events", "$$newEvents")))), Operators.filter(entitiesMap, Operators.ne("$$this.id", id))))));
 
-                event.getMongo().updateLogger(Filters.eq("channelId", effectiveChannel.getIdLong()), update, new UpdateOptions()).whenComplete((result, exception) -> {
+                event.getMongo().updateLogger(Filters.eq("channelId", channel.getIdLong()), update, new UpdateOptions()).whenComplete((result, exception) -> {
                     if (ExceptionUtility.sendExceptionally(event, exception)) {
                         return;
                     }
 
                     if (result.getMatchedCount() == 0) {
-                        event.replyFailure("You don't have a logger in " + effectiveChannel.getAsMention()).queue();
+                        event.replyFailure("You don't have a logger in " + channel.getAsMention()).queue();
                         return;
                     }
 

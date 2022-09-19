@@ -35,7 +35,7 @@ public class ServerInfoCommand extends Sx4Command {
 			.setAuthor(guild.getName(), null, guild.getIconUrl())
 			.setThumbnail(guild.getIconUrl())
 			.setDescription(guild.getName() + " was created on " + guild.getTimeCreated().format(TimeUtility.DEFAULT_FORMATTER))
-			.addField("Language", guild.getLocale().getDisplayLanguage(), true)
+			.addField("Language", guild.getLocale().getLanguageName(), true)
 			.addField("Total Users", totalCount + " user" + (totalCount == 1 ? "" : "s"), true)
 			.addField("Users", memberCount + " user" + (memberCount == 1 ? "" : "s"), true)
 			.addField("Bots", botCount + " bot" + (botCount == 1 ? "" : "s"), true)

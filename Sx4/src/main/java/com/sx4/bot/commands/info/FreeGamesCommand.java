@@ -8,7 +8,10 @@ import com.mongodb.client.model.*;
 import com.sx4.bot.annotations.argument.AdvancedMessage;
 import com.sx4.bot.annotations.argument.ImageUrl;
 import com.sx4.bot.annotations.argument.Limit;
-import com.sx4.bot.annotations.command.*;
+import com.sx4.bot.annotations.command.AuthorPermissions;
+import com.sx4.bot.annotations.command.CommandId;
+import com.sx4.bot.annotations.command.Examples;
+import com.sx4.bot.annotations.command.Premium;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
@@ -16,6 +19,7 @@ import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.info.game.EpicFreeGame;
 import com.sx4.bot.entities.info.game.FreeGame;
 import com.sx4.bot.entities.info.game.FreeGameType;
+import com.sx4.bot.entities.webhook.WebhookChannel;
 import com.sx4.bot.formatter.Formatter;
 import com.sx4.bot.formatter.FormatterManager;
 import com.sx4.bot.formatter.JsonFormatter;
@@ -26,13 +30,11 @@ import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.FreeGameUtility;
 import com.sx4.bot.utility.MessageUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
-import net.dv8tion.jda.api.MessageBuilder;
 import net.dv8tion.jda.api.Permission;
-import net.dv8tion.jda.api.entities.BaseGuildMessageChannel;
-import net.dv8tion.jda.api.entities.MessageChannel;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.requests.ErrorResponse;
 import net.dv8tion.jda.api.utils.TimeFormat;
+import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 
@@ -101,7 +103,7 @@ public class FreeGamesCommand extends Sx4Command {
 
 				page.forEach((game, index) -> this.setGameEmbed(embed, game));
 
-				return new MessageBuilder().setEmbeds(embed.build());
+				return new MessageCreateBuilder().setEmbeds(embed.build());
 			});
 
 		paged.execute(event);
@@ -126,7 +128,7 @@ public class FreeGamesCommand extends Sx4Command {
 
 					page.forEach((game, index) -> this.setGameEmbed(embed, game));
 
-					return new MessageBuilder().setEmbeds(embed.build());
+					return new MessageCreateBuilder().setEmbeds(embed.build());
 				});
 
 			paged.execute(event);
@@ -161,22 +163,14 @@ public class FreeGamesCommand extends Sx4Command {
 	@CommandId(474)
 	@Examples({"free games add", "free games add #channel"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-	public void add(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true, endless=true) BaseGuildMessageChannel channel) {
-		MessageChannel messageChannel = event.getChannel();
-		if (channel == null && !(messageChannel instanceof BaseGuildMessageChannel)) {
-			event.replyFailure("You cannot use this channel type").queue();
-			return;
-		}
-		
-		BaseGuildMessageChannel effectiveChannel = channel == null ? (BaseGuildMessageChannel) messageChannel : channel;
-
-		Document data = new Document("channelId", effectiveChannel.getIdLong())
+	public void add(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true, endless=true) WebhookChannel channel) {
+		Document data = new Document("channelId", channel.getIdLong())
 			.append("guildId", event.getGuild().getIdLong());
 
 		event.getMongo().insertFreeGameChannel(data).whenComplete((result, exception) -> {
 			Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
 			if (cause instanceof MongoWriteException && ((MongoWriteException) cause).getError().getCategory() == ErrorCategory.DUPLICATE_KEY) {
-				event.replyFailure("You already have a free games channel in " + effectiveChannel.getAsMention()).queue();
+				event.replyFailure("You already have a free games channel in " + channel.getAsMention()).queue();
 				return;
 			}
 
@@ -184,7 +178,7 @@ public class FreeGamesCommand extends Sx4Command {
 				return;
 			}
 
-			event.replySuccess("Free game notifications will now be sent in " + effectiveChannel.getAsMention()).queue();
+			event.replySuccess("Free game notifications will now be sent in " + channel.getAsMention()).queue();
 		});
 	}
 
@@ -192,29 +186,21 @@ public class FreeGamesCommand extends Sx4Command {
 	@CommandId(475)
 	@Examples({"free games remove", "free games remove #channel"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-	public void remove(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true, endless=true) BaseGuildMessageChannel channel) {
-		MessageChannel messageChannel = event.getChannel();
-		if (channel == null && !(messageChannel instanceof BaseGuildMessageChannel)) {
-			event.replyFailure("You cannot use this channel type").queue();
-			return;
-		}
-
-		BaseGuildMessageChannel effectiveChannel = channel == null ? (BaseGuildMessageChannel) messageChannel : channel;
-
+	public void remove(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true, endless=true) WebhookChannel channel) {
 		FindOneAndDeleteOptions options = new FindOneAndDeleteOptions().projection(Projections.include("webhook"));
-		event.getMongo().findAndDeleteFreeGameChannel(Filters.eq("channelId", effectiveChannel.getIdLong()), options).whenComplete((data, exception) -> {
+		event.getMongo().findAndDeleteFreeGameChannel(Filters.eq("channelId", channel.getIdLong()), options).whenComplete((data, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
 
-			event.getBot().getFreeGameManager().removeWebhook(effectiveChannel.getIdLong());
+			event.getBot().getFreeGameManager().removeWebhook(channel.getIdLong());
 
 			Document webhook = data.get("webhook", Document.class);
 			if (webhook != null) {
-				effectiveChannel.deleteWebhookById(Long.toString(webhook.getLong("id"))).queue(null, ErrorResponseException.ignore(ErrorResponse.UNKNOWN_WEBHOOK));
+				channel.deleteWebhookById(Long.toString(webhook.getLong("id"))).queue(null, ErrorResponseException.ignore(ErrorResponse.UNKNOWN_WEBHOOK));
 			}
 
-			event.replySuccess("Free game notifications will no longer be sent in " + effectiveChannel.getAsMention()).queue();
+			event.replySuccess("Free game notifications will no longer be sent in " + channel.getAsMention()).queue();
 		});
 	}
 
@@ -222,29 +208,21 @@ public class FreeGamesCommand extends Sx4Command {
 	@CommandId(484)
 	@Examples({"free games toggle", "free games toggle #channel"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-	public void toggle(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true, endless=true) BaseGuildMessageChannel channel) {
-		MessageChannel messageChannel = event.getChannel();
-		if (channel == null && !(messageChannel instanceof BaseGuildMessageChannel)) {
-			event.replyFailure("You cannot use this channel type").queue();
-			return;
-		}
-
-		BaseGuildMessageChannel effectiveChannel = channel == null ? (BaseGuildMessageChannel) messageChannel : channel;
-
+	public void toggle(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true, endless=true) WebhookChannel channel) {
 		List<Bson> update = List.of(Operators.set("enabled", Operators.cond(Operators.exists("$enabled"), Operators.REMOVE, false)));
 		FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().projection(Projections.include("enabled")).returnDocument(ReturnDocument.AFTER);
 
-		event.getMongo().findAndUpdateFreeGameChannel(Filters.eq("channelId", effectiveChannel.getIdLong()), update, options).whenComplete((data, exception) -> {
+		event.getMongo().findAndUpdateFreeGameChannel(Filters.eq("channelId", channel.getIdLong()), update, options).whenComplete((data, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
 
 			if (data == null) {
-				event.replyFailure("There is not a free game channel setup in " + effectiveChannel.getAsMention()).queue();
+				event.replyFailure("There is not a free game channel setup in " + channel.getAsMention()).queue();
 				return;
 			}
 
-			event.replySuccess("The free game channel in " + effectiveChannel.getAsMention() + " is now **" + (data.get("enabled", true) ? "enabled" : "disabled") + "**").queue();
+			event.replySuccess("The free game channel in " + channel.getAsMention() + " is now **" + (data.get("enabled", true) ? "enabled" : "disabled") + "**").queue();
 		});
 	}
 
@@ -252,23 +230,16 @@ public class FreeGamesCommand extends Sx4Command {
 	@CommandId(491)
 	@Examples({"free games platforms #channel STEAM", "free games platforms STEAM EPIC_GAMES"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-	public void platforms(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) BaseGuildMessageChannel channel, @Argument(value="platforms") FreeGameType... types) {
-		MessageChannel messageChannel = event.getChannel();
-		if (channel == null && !(messageChannel instanceof BaseGuildMessageChannel)) {
-			event.replyFailure("You cannot use this channel type").queue();
-			return;
-		}
-
-		BaseGuildMessageChannel effectiveChannel = channel == null ? (BaseGuildMessageChannel) messageChannel : channel;
+	public void platforms(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) WebhookChannel channel, @Argument(value="platforms") FreeGameType... types) {
 
 		long raw = FreeGameType.getRaw(types);
-		event.getMongo().updateFreeGameChannel(Filters.eq("channelId", effectiveChannel.getIdLong()), Updates.set("platforms", raw), new UpdateOptions()).whenComplete((result, exception) -> {
+		event.getMongo().updateFreeGameChannel(Filters.eq("channelId", channel.getIdLong()), Updates.set("platforms", raw), new UpdateOptions()).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
 
 			if (result.getMatchedCount() == 0) {
-				event.replyFailure("You do not have a free game channel in " + effectiveChannel.getAsMention()).queue();
+				event.replyFailure("You do not have a free game channel in " + channel.getAsMention()).queue();
 				return;
 			}
 
@@ -304,16 +275,8 @@ public class FreeGamesCommand extends Sx4Command {
 	@CommandId(477)
 	@Examples({"free games message {game.title} is now free!", "free games message {game.title} {game.original_price.equals(0).then().else(was £{game.original_price.format(,##0.00)} and)} is now free!"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-	public void message(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) BaseGuildMessageChannel channel, @Argument(value="message", endless=true) @Limit(max=2000) String message) {
-		MessageChannel messageChannel = event.getChannel();
-		if (channel == null && !(messageChannel instanceof BaseGuildMessageChannel)) {
-			event.replyFailure("You cannot use this channel type").queue();
-			return;
-		}
-
-		BaseGuildMessageChannel effectiveChannel = channel == null ? (BaseGuildMessageChannel) messageChannel : channel;
-
-		event.getMongo().updateFreeGameChannel(Filters.eq("channelId", effectiveChannel.getIdLong()), Updates.set("message.content", message), new UpdateOptions()).whenComplete((result, exception) -> {
+	public void message(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) WebhookChannel channel, @Argument(value="message", endless=true) @Limit(max=2000) String message) {
+		event.getMongo().updateFreeGameChannel(Filters.eq("channelId", channel.getIdLong()), Updates.set("message.content", message), new UpdateOptions()).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -336,16 +299,8 @@ public class FreeGamesCommand extends Sx4Command {
 	@CommandId(478)
 	@Examples({"free games advanced message {\"content\": \"{game.title} is now free!\"}", "free games advanced message {\"embed\": {\"title\": \"{game.title}\", \"url\": \"{game.url}\", \"description\": \"{game.description\"}}"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-	public void advancedMessage(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) BaseGuildMessageChannel channel, @Argument(value="message", endless=true) @AdvancedMessage Document message) {
-		MessageChannel messageChannel = event.getChannel();
-		if (channel == null && !(messageChannel instanceof BaseGuildMessageChannel)) {
-			event.replyFailure("You cannot use this channel type").queue();
-			return;
-		}
-
-		BaseGuildMessageChannel effectiveChannel = channel == null ? (BaseGuildMessageChannel) messageChannel : channel;
-
-		event.getMongo().updateFreeGameChannel(Filters.eq("channelId", effectiveChannel.getIdLong()), Updates.set("message", message), new UpdateOptions()).whenComplete((result, exception) -> {
+	public void advancedMessage(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) WebhookChannel channel, @Argument(value="message", endless=true) @AdvancedMessage Document message) {
+		event.getMongo().updateFreeGameChannel(Filters.eq("channelId", channel.getIdLong()), Updates.set("message", message), new UpdateOptions()).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -369,16 +324,8 @@ public class FreeGamesCommand extends Sx4Command {
 	@Examples({"free games name Epic Games", "free games name Free Games"})
 	@Premium
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-	public void name(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) BaseGuildMessageChannel channel, @Argument(value="name", endless=true) String name) {
-		MessageChannel messageChannel = event.getChannel();
-		if (channel == null && !(messageChannel instanceof BaseGuildMessageChannel)) {
-			event.replyFailure("You cannot use this channel type").queue();
-			return;
-		}
-
-		BaseGuildMessageChannel effectiveChannel = channel == null ? (BaseGuildMessageChannel) messageChannel : channel;
-
-		event.getMongo().updateFreeGameChannel(Filters.eq("channelId", effectiveChannel.getIdLong()), Updates.set("webhook.name", name), new UpdateOptions()).whenComplete((result, exception) -> {
+	public void name(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) WebhookChannel channel, @Argument(value="name", endless=true) String name) {
+		event.getMongo().updateFreeGameChannel(Filters.eq("channelId", channel.getIdLong()), Updates.set("webhook.name", name), new UpdateOptions()).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -402,16 +349,8 @@ public class FreeGamesCommand extends Sx4Command {
 	@Examples({"free games avatar Shea#6653", "free games avatar https://i.imgur.com/i87lyNO.png"})
 	@Premium
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-	public void avatar(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) BaseGuildMessageChannel channel, @Argument(value="avatar", endless=true, acceptEmpty=true) @ImageUrl String url) {
-		MessageChannel messageChannel = event.getChannel();
-		if (channel == null && !(messageChannel instanceof BaseGuildMessageChannel)) {
-			event.replyFailure("You cannot use this channel type").queue();
-			return;
-		}
-
-		BaseGuildMessageChannel effectiveChannel = channel == null ? (BaseGuildMessageChannel) messageChannel : channel;
-
-		event.getMongo().updateFreeGameChannel(Filters.eq("channelId", effectiveChannel.getIdLong()), Updates.set("webhook.avatar", url), new UpdateOptions()).whenComplete((result, exception) -> {
+	public void avatar(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) WebhookChannel channel, @Argument(value="avatar", endless=true, acceptEmpty=true) @ImageUrl String url) {
+		event.getMongo().updateFreeGameChannel(Filters.eq("channelId", channel.getIdLong()), Updates.set("webhook.avatar", url), new UpdateOptions()).whenComplete((result, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
@@ -433,16 +372,8 @@ public class FreeGamesCommand extends Sx4Command {
 	@Command(value="preview", description="Preview your free game notification message")
 	@CommandId(481)
 	@Examples({"free games preview"})
-	public void preview(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) BaseGuildMessageChannel channel) {
-		MessageChannel messageChannel = event.getChannel();
-		if (channel == null && !(messageChannel instanceof BaseGuildMessageChannel)) {
-			event.replyFailure("You cannot use this channel type").queue();
-			return;
-		}
-
-		BaseGuildMessageChannel effectiveChannel = channel == null ? (BaseGuildMessageChannel) messageChannel : channel;
-
-		Document data = event.getMongo().getFreeGameChannel(Filters.eq("channelId", effectiveChannel.getIdLong()), Projections.include("message"));
+	public void preview(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) WebhookChannel channel) {
+		Document data = event.getMongo().getFreeGameChannel(Filters.eq("channelId", channel.getIdLong()), Projections.include("message"));
 		if (data == null) {
 			event.replyFailure("You don't have a free game channel setup").queue();
 			return;
@@ -453,7 +384,7 @@ public class FreeGamesCommand extends Sx4Command {
 				.addVariable("game", freeGames.get(0));
 
 			try {
-				MessageUtility.fromWebhookMessage(event.getChannel(), MessageUtility.fromJson(formatter.parse()).build()).queue();
+				event.reply(MessageUtility.fromWebhookMessage(MessageUtility.fromJson(formatter.parse()).build())).queue();
 			} catch (IllegalArgumentException e) {
 				event.replyFailure(e.getMessage()).queue();
 			}

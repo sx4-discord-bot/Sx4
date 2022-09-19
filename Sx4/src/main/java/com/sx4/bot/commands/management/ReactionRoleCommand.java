@@ -27,8 +27,10 @@ import com.sx4.bot.utility.PermissionUtility;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.IPermissionHolder;
 import net.dv8tion.jda.api.entities.Member;
-import net.dv8tion.jda.api.entities.MessageReaction.ReactionEmote;
 import net.dv8tion.jda.api.entities.Role;
+import net.dv8tion.jda.api.entities.emoji.EmojiUnion;
+import net.dv8tion.jda.api.entities.emoji.RichCustomEmoji;
+import net.dv8tion.jda.api.entities.emoji.UnicodeEmoji;
 import net.dv8tion.jda.api.exceptions.ErrorHandler;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.interactions.components.buttons.Button;
@@ -63,7 +65,7 @@ public class ReactionRoleCommand extends Sx4Command {
 	@Examples({"reaction role add 643945552865919002 🐝 @Yellow", "reaction role add https://discordapp.com/channels/330399610273136641/678274453158887446/680051429460803622 :doggo: Dog person"})
 	@AuthorPermissions(permissions={Permission.MANAGE_ROLES})
 	@Cooldown(value=2)
-	public void add(Sx4CommandEvent event, @Argument(value="message id") MessageArgument messageArgument, @Argument(value="emote") @Unchecked ReactionEmote emote, @Argument(value="role", endless=true) Role role) {
+	public void add(Sx4CommandEvent event, @Argument(value="message id") MessageArgument messageArgument, @Argument(value="emote") @Unchecked EmojiUnion emoji, @Argument(value="role", endless=true) Role role) {
 		if (role.isPublicRole()) {
 			event.replyFailure("I cannot give the @everyone role").queue();
 			return;
@@ -89,7 +91,7 @@ public class ReactionRoleCommand extends Sx4Command {
 			return;
 		}
 
-		boolean unicode = emote.isEmoji();
+		boolean unicode = emoji instanceof UnicodeEmoji;
 		String identifier = unicode ? "name" : "id";
 		messageArgument.retrieveMessage().queue(message -> {
 			if (message.getReactions().size() >= 20) {
@@ -104,7 +106,7 @@ public class ReactionRoleCommand extends Sx4Command {
 
 			Bson filter = Filters.and(
 				Filters.eq("messageId", message.getIdLong()),
-				Filters.eq("emote", new Document(identifier, unicode ? emote.getEmoji() : emote.getEmote().getIdLong()))
+				Filters.eq("emote", new Document(identifier, unicode ? emoji.getName() : emoji.asCustom().getIdLong()))
 			);
 
 			Bson update = Updates.combine(
@@ -114,11 +116,11 @@ public class ReactionRoleCommand extends Sx4Command {
 			);
 
 			RestAction<Void> action;
-			if (unicode && message.getReactionByUnicode(emote.getEmoji()) == null) {
-				action = message.addReaction(emote.getEmoji());
+			if (unicode && message.getReaction(emoji) == null) {
+				action = message.addReaction(emoji);
 			} else {
-				if (!unicode && message.getReactionById(emote.getEmote().getIdLong()) == null && emote.getEmote().canInteract(event.getSelfUser(), event.getGuildChannel())) {
-					message.addReaction(emote.getEmote()).queue();
+				if (!unicode && message.getReaction(emoji) == null && ((RichCustomEmoji) emoji.asCustom()).canInteract(event.getSelfUser(), event.getChannel())) {
+					message.addReaction(emoji).queue();
 				}
 
 				action = new CompletedRestAction<>(event.getJDA(), null);
@@ -144,7 +146,7 @@ public class ReactionRoleCommand extends Sx4Command {
 						return;
 					}
 
-					event.replySuccess("The role " + role.getAsMention() + " will now be given when reacting to " + (unicode ? emote.getEmoji() : emote.getEmote().getAsMention())).queue();
+					event.replySuccess("The role " + role.getAsMention() + " will now be given when reacting to " + (unicode ? emoji.getName() : emoji.asCustom().getAsMention())).queue();
 				});
 		}, new ErrorHandler().handle(ErrorResponse.UNKNOWN_MESSAGE, exception -> event.replyFailure("I could not find that message").queue()));
 	}
@@ -154,13 +156,13 @@ public class ReactionRoleCommand extends Sx4Command {
 	@Examples({"reaction role remove 643945552865919002 🐝", "reaction role remove https://discordapp.com/channels/330399610273136641/678274453158887446/680051429460803622 🐝 @Yellow"})
 	@AuthorPermissions(permissions={Permission.MANAGE_ROLES})
 	@Cooldown(value=2)
-	public void remove(Sx4CommandEvent event, @Argument(value="message id") MessageArgument messageArgument, @Argument(value="emote") @Unchecked ReactionEmote emote, @Argument(value="role", endless=true, nullDefault=true) Role role) {
-		boolean unicode = emote.isEmoji();
+	public void remove(Sx4CommandEvent event, @Argument(value="message id") MessageArgument messageArgument, @Argument(value="emote") @Unchecked EmojiUnion emoji, @Argument(value="role", endless=true, nullDefault=true) Role role) {
+		boolean unicode = emoji instanceof UnicodeEmoji;
 		String identifier = unicode ? "name" : "id";
 
 		Bson filter = Filters.and(
 			Filters.eq("messageId", messageArgument.getMessageId()),
-			Filters.eq("emote", new Document(identifier, unicode ? emote.getEmoji() : emote.getEmote().getIdLong()))
+			Filters.eq("emote", new Document(identifier, unicode ? emoji.getName() : emoji.asCustom().getIdLong()))
 		);
 
 		if (role == null) {
@@ -174,7 +176,7 @@ public class ReactionRoleCommand extends Sx4Command {
 					return;
 				}
 
-				event.replySuccess("The emote " + (emote.isEmote() ? emote.getEmote().getAsMention() : emote.getEmoji()) + " has been removed from that reaction role").queue();
+				event.replySuccess("The emote " + (unicode ? emoji.getName() : emoji.asCustom().getAsMention()) + " has been removed from that reaction role").queue();
 			});
 		} else {
 			Bson update = Updates.pull("roles", role.getIdLong());
@@ -320,8 +322,9 @@ public class ReactionRoleCommand extends Sx4Command {
 		@CommandId(78)
 		@Examples({"reaction role whitelist add 643945552865919002 🐝 @Shea#6653", "reaction role whitelist add 643945552865919002 :doggo: @Role", "reaction role whitelist add 643945552865919002 @Role"})
 		@AuthorPermissions(permissions={Permission.MANAGE_ROLES})
-		public void add(Sx4CommandEvent event, @Argument(value="message id") MessageArgument messageArgument, @Argument(value="emote", nullDefault=true) @Unchecked ReactionEmote emote, @Argument(value="user | role", endless=true) IPermissionHolder holder) {
+		public void add(Sx4CommandEvent event, @Argument(value="message id") MessageArgument messageArgument, @Argument(value="emote", nullDefault=true) @Unchecked EmojiUnion emoji, @Argument(value="user | role", endless=true) IPermissionHolder holder) {
 			boolean role = holder instanceof Role;
+			boolean unicode = emoji instanceof UnicodeEmoji;
 
 			Document holderData = new Document("id", holder.getIdLong())
 				.append("type", role ? HolderType.ROLE.getType() : HolderType.USER.getType());
@@ -329,10 +332,8 @@ public class ReactionRoleCommand extends Sx4Command {
 			Bson filter = Filters.eq("messageId", messageArgument.getMessageId());
 
 			List<Bson> update;
-			if (emote != null) {
-				boolean unicode = emote.isEmoji();
-
-				filter = Filters.and(filter, Filters.eq("emote", new Document(unicode ? "name" : "id", unicode ? emote.getEmoji() : emote.getEmote().getIdLong())));
+			if (emoji != null) {
+				filter = Filters.and(filter, Filters.eq("emote", new Document(unicode ? "name" : "id", unicode ? emoji.getName() : emoji.asCustom().getIdLong())));
 
 				Bson permissionsMap = Operators.ifNull("$permissions", Collections.EMPTY_LIST);
 				Bson holderFilter = Operators.filter(permissionsMap, Operators.eq("$$this.id", holder.getIdLong()));
@@ -350,7 +351,7 @@ public class ReactionRoleCommand extends Sx4Command {
 					return;
 				}
 
-				if (emote != null) {
+				if (emoji != null) {
 					if (result.getMatchedCount() == 0) {
 						event.replyFailure("You do not have that reaction on that reaction role").queue();
 						return;
@@ -362,7 +363,7 @@ public class ReactionRoleCommand extends Sx4Command {
 					}
 				}
 
-				event.replySuccess((role ? ((Role) holder).getAsMention() : ((Member) holder).getAsMention()) + " is now whitelisted from " + (emote == null ? "all reactions" : "the " + (emote.isEmoji() ? emote.getEmoji() : emote.getEmote().getAsMention()) + " reaction") + " on that reaction role").queue();
+				event.replySuccess((role ? ((Role) holder).getAsMention() : ((Member) holder).getAsMention()) + " is now whitelisted from " + (emoji == null ? "all reactions" : "the " + (unicode ? emoji.getName() : emoji.asCustom().getAsMention()) + " reaction") + " on that reaction role").queue();
 			});
 		}
 
@@ -370,16 +371,15 @@ public class ReactionRoleCommand extends Sx4Command {
 		@CommandId(79)
 		@Examples({"reaction role whitelist remove 643945552865919002 🐝 @Shea#6653", "reaction role whitelist remove 643945552865919002 :doggo: @Role", "reaction role whitelist remove 643945552865919002 @Role"})
 		@AuthorPermissions(permissions={Permission.MANAGE_ROLES})
-		public void remove(Sx4CommandEvent event, @Argument(value="message id") MessageArgument messageArgument, @Argument(value="emote", nullDefault=true) @Unchecked ReactionEmote emote, @Argument(value="user | role", endless=true) IPermissionHolder holder) {
+		public void remove(Sx4CommandEvent event, @Argument(value="message id") MessageArgument messageArgument, @Argument(value="emote", nullDefault=true) @Unchecked EmojiUnion emoji, @Argument(value="user | role", endless=true) IPermissionHolder holder) {
 			boolean role = holder instanceof Role;
+			boolean unicode = emoji instanceof UnicodeEmoji;
 
 			Bson filter = Filters.eq("messageId", messageArgument.getMessageId());
 			Bson update = Updates.pull("permissions", Filters.eq("id", holder.getIdLong()));
 
-			if (emote != null) {
-				boolean unicode = emote.isEmoji();
-
-				filter = Filters.and(filter, Filters.eq("emote", new Document(unicode ? "name" : "id", unicode ? emote.getEmoji() : emote.getEmote().getIdLong())));
+			if (emoji != null) {
+				filter = Filters.and(filter, Filters.eq("emote", new Document(unicode ? "name" : "id", unicode ? emoji.getName() : emoji.asCustom().getIdLong())));
 			}
 
 			event.getMongo().updateManyReactionRoles(filter, update, new UpdateOptions()).whenComplete((result, exception) -> {
@@ -387,7 +387,7 @@ public class ReactionRoleCommand extends Sx4Command {
 					return;
 				}
 
-				if (emote != null) {
+				if (emoji != null) {
 					if (result.getMatchedCount() == 0) {
 						event.replyFailure("You do not have that reaction on that reaction role").queue();
 						return;
@@ -399,7 +399,7 @@ public class ReactionRoleCommand extends Sx4Command {
 					}
 				}
 
-				event.replySuccess((role ? ((Role) holder).getAsMention() : ((Member) holder).getAsMention()) + " is no longer whitelisted from " + (emote == null ? "any reactions" : "the " + (emote.isEmoji() ? emote.getEmoji() : emote.getEmote().getAsMention()) + " reaction") + " on that reaction role").queue();
+				event.replySuccess((role ? ((Role) holder).getAsMention() : ((Member) holder).getAsMention()) + " is no longer whitelisted from " + (emoji == null ? "any reactions" : "the " + (unicode ? emoji.getName() : emoji.asCustom().getAsMention()) + " reaction") + " on that reaction role").queue();
 			});
 		}
 
@@ -407,14 +407,14 @@ public class ReactionRoleCommand extends Sx4Command {
 		@CommandId(80)
 		@Examples({"reaction role whitelist delete 643945552865919002 :doggo:", "reaction role whitelist delete 643945552865919002"})
 		@AuthorPermissions(permissions={Permission.MANAGE_ROLES})
-		public void delete(Sx4CommandEvent event, @Argument(value="message id") MessageArgument messageArgument, @Argument(value="emote", nullDefault=true) @Unchecked ReactionEmote emote) {
+		public void delete(Sx4CommandEvent event, @Argument(value="message id") MessageArgument messageArgument, @Argument(value="emote", nullDefault=true) @Unchecked EmojiUnion emoji) {
+			boolean unicode = emoji instanceof UnicodeEmoji;
+
 			Bson filter = Filters.eq("messageId", messageArgument.getMessageId());
 			Bson update = Updates.unset("permissions");
 
-			if (emote != null) {
-				boolean unicode = emote.isEmoji();
-
-				filter = Filters.and(filter, Filters.eq("emote", new Document(unicode ? "name" : "id", unicode ? emote.getEmoji() : emote.getEmote().getIdLong())));
+			if (emoji != null) {
+				filter = Filters.and(filter, Filters.eq("emote", new Document(unicode ? "name" : "id", unicode ? emoji.getName() : emoji.asCustom().getIdLong())));
 			}
 
 			event.getMongo().updateManyReactionRoles(filter, update, new UpdateOptions()).whenComplete((result, exception) -> {
@@ -422,7 +422,7 @@ public class ReactionRoleCommand extends Sx4Command {
 					return;
 				}
 
-				if (emote != null) {
+				if (emoji != null) {
 					if (result.getMatchedCount() == 0) {
 						event.replyFailure("You do not have that reaction on that reaction role").queue();
 						return;
@@ -434,7 +434,7 @@ public class ReactionRoleCommand extends Sx4Command {
 					}
 				}
 
-				event.replySuccess("There are no longer any whitelists on " + (emote == null ? "any reactions" : "the " + (emote.isEmoji() ? emote.getEmoji() : emote.getEmote().getAsMention()) + " reaction") + " on that reaction role").queue();
+				event.replySuccess("There are no longer any whitelists on " + (emoji == null ? "any reactions" : "the " + (unicode ? emoji.getName() : emoji.asCustom().getAsMention()) + " reaction") + " on that reaction role").queue();
 			});
 		}
 

@@ -12,9 +12,16 @@ import com.sx4.bot.entities.interaction.CustomButtonId;
 import com.sx4.bot.utility.LoggerUtility;
 import com.sx4.bot.utility.SearchUtility;
 import net.dv8tion.jda.api.Permission;
-import net.dv8tion.jda.api.entities.*;
+import net.dv8tion.jda.api.entities.IPermissionHolder;
+import net.dv8tion.jda.api.entities.Member;
+import net.dv8tion.jda.api.entities.PermissionOverride;
+import net.dv8tion.jda.api.entities.Role;
+import net.dv8tion.jda.api.entities.channel.ChannelType;
+import net.dv8tion.jda.api.entities.channel.attribute.IPermissionContainer;
+import net.dv8tion.jda.api.entities.channel.middleman.GuildChannel;
 import net.dv8tion.jda.api.interactions.components.buttons.Button;
 
+import java.util.Collections;
 import java.util.List;
 
 public class ChannelCommand extends Sx4Command {
@@ -65,7 +72,7 @@ public class ChannelCommand extends Sx4Command {
 	@Examples({"channel delete #bots", "channel create voice Music", "channel create category Info"})
 	@AuthorPermissions(permissions={Permission.MANAGE_CHANNEL})
 	@BotPermissions(permissions={Permission.MANAGE_CHANNEL})
-	public void delete(Sx4CommandEvent event, @Argument(value="type", nullDefault=true) @EnumOptions(value={"TEXT", "VOICE", "CATEGORY"}) ChannelType type, @Argument(value="channel", endless=true, nullDefault=true) String query) {
+	public void delete(Sx4CommandEvent event, @Argument(value="type", nullDefault=true) @EnumOptions(value={"TEXT", "VOICE", "CATEGORY", "STAGE"}) ChannelType type, @Argument(value="channel", endless=true, nullDefault=true) String query) {
 		ChannelType effectiveType = type == null && query == null ? event.getChannelType() : type == null ? ChannelType.TEXT : type;
 
 		if (query == null) {
@@ -85,7 +92,7 @@ public class ChannelCommand extends Sx4Command {
 				.setActionRow(List.of(Button.success(acceptId, "Yes"), Button.danger(rejectId, "No")))
 				.queue();
 		} else {
-			GuildChannel channel = SearchUtility.getGuildChannel(event.getGuild(), effectiveType, query);
+			GuildChannel channel = SearchUtility.getGuildChannel(event.getGuild(), Collections.singleton(effectiveType), query);
 			if (channel == null) {
 				event.replyFailure("I could not find that " + LoggerUtility.getChannelTypeReadable(effectiveType)).queue();
 				return;
@@ -102,24 +109,22 @@ public class ChannelCommand extends Sx4Command {
 	@Examples({"channel mute @Shea#6653", "channel mute @Role", "channel mute #channel @Shea#6653"})
 	@AuthorPermissions(permissions={Permission.MANAGE_PERMISSIONS})
 	@BotPermissions(permissions={Permission.MANAGE_PERMISSIONS})
-	public void mute(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) BaseGuildMessageChannel channel, @Argument(value="role | user", endless=true) IPermissionHolder holder) {
-		MessageChannel messageChannel = event.getChannel();
-		if (!(messageChannel instanceof IPermissionContainer)) {
-			event.replyFailure("You cannot use this channel type").queue();
+	public void mute(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) IPermissionContainer channel, @Argument(value="role | user", endless=true) IPermissionHolder holder) {
+		if (channel == null) {
+			event.replyFailure("This channel doesn't support muting").queue();
 			return;
 		}
 
-		IPermissionContainer effectiveChannel = channel == null ? (IPermissionContainer) messageChannel : channel;
 		boolean role = holder instanceof Role;
 
-		PermissionOverride override = effectiveChannel.getPermissionOverride(holder);
+		PermissionOverride override = channel.getPermissionOverride(holder);
 		if (override != null && override.getDenied().contains(Permission.MESSAGE_SEND)) {
-			event.replyFailure("That " + (role ? "role" : "user") + " is already muted in " + effectiveChannel.getAsMention()).queue();
+			event.replyFailure("That " + (role ? "role" : "user") + " is already muted in " + channel.getAsMention()).queue();
 			return;
 		}
 
-		effectiveChannel.upsertPermissionOverride(holder).deny(Permission.MESSAGE_SEND)
-			.flatMap($ -> event.replySuccess((role ? ((Role) holder).getAsMention() : "**" + ((Member) holder).getUser().getAsTag() + "**") + " is now muted in " + effectiveChannel.getAsMention()))
+		channel.upsertPermissionOverride(holder).deny(Permission.MESSAGE_SEND)
+			.flatMap($ -> event.replySuccess((role ? ((Role) holder).getAsMention() : "**" + ((Member) holder).getUser().getAsTag() + "**") + " is now muted in " + channel.getAsMention()))
 			.queue();
 	}
 
@@ -128,24 +133,22 @@ public class ChannelCommand extends Sx4Command {
 	@Examples({"channel unmute @Shea#6653", "channel unmute @Role", "channel unmute #channel @Shea#6653"})
 	@AuthorPermissions(permissions={Permission.MANAGE_PERMISSIONS})
 	@BotPermissions(permissions={Permission.MANAGE_PERMISSIONS})
-	public void unmute(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) BaseGuildMessageChannel channel, @Argument(value="role | user", endless=true) IPermissionHolder holder) {
-		MessageChannel messageChannel = event.getChannel();
-		if (channel == null && !(messageChannel instanceof IPermissionContainer)) {
-			event.replyFailure("You cannot use this channel type").queue();
+	public void unmute(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) IPermissionContainer channel, @Argument(value="role | user", endless=true) IPermissionHolder holder) {
+		if (channel == null) {
+			event.replyFailure("This channel doesn't support un-muting").queue();
 			return;
 		}
 
-		IPermissionContainer effectiveChannel = channel == null ? (IPermissionContainer) messageChannel : channel;
 		boolean role = holder instanceof Role;
 
-		PermissionOverride override = effectiveChannel.getPermissionOverride(holder);
+		PermissionOverride override = channel.getPermissionOverride(holder);
 		if (override == null || !override.getDenied().contains(Permission.MESSAGE_SEND)) {
-			event.replyFailure("That " + (role ? "role" : "user") + " is not muted in " + effectiveChannel.getAsMention()).queue();
+			event.replyFailure("That " + (role ? "role" : "user") + " is not muted in " + channel.getAsMention()).queue();
 			return;
 		}
 
-		effectiveChannel.upsertPermissionOverride(holder).clear(Permission.MESSAGE_SEND)
-			.flatMap($ -> event.replySuccess((role ? ((Role) holder).getAsMention() : "**" + ((Member) holder).getUser().getAsTag() + "**") + " is no longer muted in " + effectiveChannel.getAsMention()))
+		channel.upsertPermissionOverride(holder).clear(Permission.MESSAGE_SEND)
+			.flatMap($ -> event.replySuccess((role ? ((Role) holder).getAsMention() : "**" + ((Member) holder).getUser().getAsTag() + "**") + " is no longer muted in " + channel.getAsMention()))
 			.queue();
 	}
 

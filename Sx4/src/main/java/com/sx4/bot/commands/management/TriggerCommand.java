@@ -27,6 +27,9 @@ import com.sx4.bot.utility.*;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.*;
+import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
+import net.dv8tion.jda.api.entities.emoji.CustomEmoji;
+import net.dv8tion.jda.api.entities.emoji.EmojiUnion;
 import net.dv8tion.jda.api.interactions.components.buttons.Button;
 import okhttp3.internal.http.HttpMethod;
 import org.bson.Document;
@@ -502,16 +505,16 @@ public class TriggerCommand extends Sx4Command {
 			} else if (type == TriggerActionType.ADD_REACTION) {
 				Object emote = data.get("emote");
 				if (emote instanceof String) {
-					MessageReaction.ReactionEmote reactionEmote = SearchUtility.getReactionEmote(event.getShardManager(), (String) emote);
-					if (reactionEmote == null) {
+					EmojiUnion emoji = SearchUtility.getEmoji(event.getShardManager(), (String) emote);
+					if (emoji == null) {
 						event.replyFailure("I could not find that emote").queue();
 						return;
 					}
 
-					if (reactionEmote.isEmote()) {
-						action.append("emote", new Document("id", reactionEmote.getEmote().getId()));
+					if (emoji instanceof CustomEmoji) {
+						action.append("emote", new Document("id", emoji.asCustom().getId()));
 					} else {
-						action.append("emote", new Document("name", reactionEmote.getEmoji()));
+						action.append("emote", new Document("name", emoji.getName()));
 					}
 				} else if (emote instanceof Document emoteData) {
 

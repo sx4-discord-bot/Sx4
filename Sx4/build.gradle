@@ -32,13 +32,13 @@ project.ext.parserPackage = 'com.sx4.bot.antlr'
 sourceSets.main.java.srcDirs = ['src/main/java', 'generated-src/main/java']
 
 dependencies {
-	implementation('com.github.21Joakim:Jockie-Utils:54d859a295') {
+	implementation('com.github.21Joakim:Jockie-Utils:2d9234f7c0') {
 		exclude group: 'net.dv8tion', module: 'JDA'
 	}
 
-	implementation('com.github.21Joakim:JDA-Memory-Optimizations:689a6289f2b068eeaf2c0ac3eedf77373d88ef4c') {
-		exclude group: 'net.dv8tion', module: 'JDA'
-	}
+	//implementation('com.github.21Joakim:JDA-Memory-Optimizations:+') {
+		//exclude group: 'net.dv8tion', module: 'JDA'
+	//}
 
 	implementation 'club.minnced:discord-webhooks:0+'
 
@@ -48,7 +48,7 @@ dependencies {
 
 	implementation group: 'org.jsoup', name: 'jsoup', version: '1.11.3'
 
-	implementation('com.github.Shea4:JDA:b8f4a9a6b185880c95ec1ca0ea6170aa75408b8c') {
+	implementation('com.github.Shea4:JDA:74302c0ec1a016c0ed9792fa4326b29dbae854b2') {
 		exclude module: 'opus-java'
 	}
 

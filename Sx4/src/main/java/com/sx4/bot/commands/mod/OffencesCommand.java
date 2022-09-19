@@ -10,10 +10,10 @@ import com.sx4.bot.entities.mod.action.Action;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
-import net.dv8tion.jda.api.MessageBuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
@@ -83,7 +83,7 @@ public class OffencesCommand extends Sx4Command {
 							embed.addField(action.toString(), String.format("Target: %s\nModerator: %s\nReason: %s\nTime: %s", targetContent, moderatorContent, offence.get("reason", "None Given"), time.format(this.formatter)), true);
 						});
 
-						return new MessageBuilder().setEmbeds(embed.build());
+						return new MessageCreateBuilder().setEmbeds(embed.build());
 					});
 
 				paged.execute(event);

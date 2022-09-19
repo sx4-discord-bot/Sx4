@@ -8,7 +8,15 @@ import com.sx4.bot.utility.TimeUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.Region;
-import net.dv8tion.jda.api.entities.*;
+import net.dv8tion.jda.api.entities.MessageEmbed;
+import net.dv8tion.jda.api.entities.channel.ChannelType;
+import net.dv8tion.jda.api.entities.channel.attribute.IMemberContainer;
+import net.dv8tion.jda.api.entities.channel.attribute.IPositionableChannel;
+import net.dv8tion.jda.api.entities.channel.concrete.Category;
+import net.dv8tion.jda.api.entities.channel.concrete.NewsChannel;
+import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
+import net.dv8tion.jda.api.entities.channel.concrete.VoiceChannel;
+import net.dv8tion.jda.api.entities.channel.middleman.GuildChannel;
 
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
@@ -27,8 +35,6 @@ public class ChannelInfoCommand extends Sx4Command {
 	}
 
 	public void onCommand(Sx4CommandEvent event, @Argument(value="channel", endless=true, nullDefault=true) GuildChannel channel) {
-		channel = channel == null ? (GuildMessageChannel) event.getChannel() : channel;
-
 		EmbedBuilder embed = new EmbedBuilder();
 		embed.setAuthor(channel.getName(), null, event.getGuild().getIconUrl());
 		embed.addField("Created", channel.getTimeCreated().format(TimeUtility.DEFAULT_FORMATTER), true);

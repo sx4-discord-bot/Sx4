@@ -5,10 +5,11 @@ import club.minnced.discord.webhook.send.WebhookEmbed;
 import club.minnced.discord.webhook.send.WebhookMessage;
 import club.minnced.discord.webhook.send.WebhookMessageBuilder;
 import net.dv8tion.jda.api.EmbedBuilder;
-import net.dv8tion.jda.api.MessageBuilder;
-import net.dv8tion.jda.api.entities.MessageChannel;
 import net.dv8tion.jda.api.entities.MessageEmbed;
-import net.dv8tion.jda.api.requests.restaction.MessageAction;
+import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
+import net.dv8tion.jda.api.utils.FileUpload;
+import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
+import net.dv8tion.jda.api.utils.messages.MessageCreateData;
 import org.bson.Document;
 
 import java.time.OffsetDateTime;
@@ -488,8 +489,8 @@ public class MessageUtility {
 		return builder;
 	}
 
-	public static MessageAction fromWebhookMessage(MessageChannel channel, WebhookMessage message) {
-		MessageBuilder builder = new MessageBuilder();
+	public static MessageCreateData fromWebhookMessage(WebhookMessage message) {
+		MessageCreateBuilder builder = new MessageCreateBuilder();
 
 		List<WebhookEmbed> embeds = message.getEmbeds();
 		if (!embeds.isEmpty()) {
@@ -498,23 +499,14 @@ public class MessageUtility {
 
 		builder.setContent(message.getContent());
 
-		MessageAction action = null;
-		if (!builder.isEmpty()) {
-			action = channel.sendMessage(builder.build());
-		}
-
 		MessageAttachment[] attachments = message.getAttachments();
 		if (attachments != null && attachments.length != 0) {
 			for (MessageAttachment attachment : attachments) {
-				if (action == null) {
-					action = channel.sendFile(attachment.getData(), attachment.getName());
-				} else {
-					action = action.addFile(attachment.getData(), attachment.getName());
-				}
+				builder.addFiles(FileUpload.fromData(attachment.getData(), attachment.getName()));
 			}
 		}
 
-		return action;
+		return builder.build();
 	}
 
 	private static void keepFields(Document json, Set<String> whitelisted) {

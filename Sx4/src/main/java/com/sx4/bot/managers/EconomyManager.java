@@ -87,7 +87,7 @@ public class EconomyManager {
 	}
 
 	public <Type extends Item> Type getItemByQuery(String query, Class<Type> type) {
-		return SearchUtility.find(this.getItems(type), query, Collections.singletonList(Item::getName));
+		return SearchUtility.findFirst(this.getItems(type), query, Collections.singletonList(Item::getName));
 	}
 
 	public void reloadItems() {

@@ -14,8 +14,8 @@ import com.sx4.bot.managers.SkinPortManager;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.TimeUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
-import net.dv8tion.jda.api.MessageBuilder;
 import net.dv8tion.jda.api.entities.MessageEmbed;
+import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
 import okhttp3.FormBody;
 import okhttp3.Request;
 import org.bson.Document;
@@ -210,7 +210,7 @@ public class CSGOSkinCommand extends Sx4Command {
 								}
 							});
 
-							return new MessageBuilder().setEmbeds(embeds);
+							return new MessageCreateBuilder().setEmbeds(embeds);
 						});
 
 					skins.execute(event);
@@ -304,7 +304,7 @@ public class CSGOSkinCommand extends Sx4Command {
 								embed.addField("Trade Locked", tradeLockHours == 0 ? "No" : "Yes (" + this.formatter.parse(Duration.ofHours(tradeLockHours)) + ")", true);
 							});
 
-							return new MessageBuilder().setEmbeds(embed.build());
+							return new MessageCreateBuilder().setEmbeds(embed.build());
 						});
 
 					skins.execute(event);

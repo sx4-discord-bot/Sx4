@@ -7,8 +7,8 @@ import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.paged.PagedResult;
 import net.dv8tion.jda.api.EmbedBuilder;
-import net.dv8tion.jda.api.MessageBuilder;
 import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -64,7 +64,7 @@ public class TeamsCommand extends Sx4Command {
 
 				page.forEach((list, index) -> embed.addField("Team " + (index + 1), String.join("\n", list), true));
 
-				return new MessageBuilder().setEmbeds(embed.build());
+				return new MessageCreateBuilder().setEmbeds(embed.build());
 			});
 
 		paged.execute(event);

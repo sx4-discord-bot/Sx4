@@ -24,6 +24,7 @@ import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class ModUtility {
@@ -177,7 +178,7 @@ public class ModUtility {
 				);
 
 				return bot.getMongo().updateTemporaryBan(filter, temporaryBanUpdate, new UpdateOptions().upsert(true))
-					.thenCompose(temporaryBanResult -> target.ban(1).reason(ModUtility.getAuditReason(reason, moderator.getUser())).submit())
+					.thenCompose(temporaryBanResult -> target.ban(1, TimeUnit.DAYS).reason(ModUtility.getAuditReason(reason, moderator.getUser())).submit())
 					.thenApply($ -> {
 						bot.getModActionManager().onModAction(new TemporaryBanEvent(moderator, target.getUser(), reason, true, temporaryBanDuration));
 
@@ -198,7 +199,7 @@ public class ModUtility {
 					return CompletableFuture.failedFuture(new AuthorPermissionException(Permission.BAN_MEMBERS));
 				}
 
-				return target.ban(1).reason(ModUtility.getAuditReason(reason, moderator.getUser())).submit().thenApply($ -> {
+				return target.ban(1, TimeUnit.DAYS).reason(ModUtility.getAuditReason(reason, moderator.getUser())).submit().thenApply($ -> {
 					bot.getModActionManager().onModAction(new BanEvent(moderator, target.getUser(), reason, true));
 
 					return action;
@@ -368,7 +369,7 @@ public class ModUtility {
 							return;
 						}
 
-						target.ban(1).reason(ModUtility.getAuditReason(reason, moderator.getUser())).queue($ -> {
+						target.ban(1, TimeUnit.DAYS).reason(ModUtility.getAuditReason(reason, moderator.getUser())).queue($ -> {
 							bot.getModActionManager().onModAction(new WarnEvent(moderator, target.getUser(), reason, currentWarning, nextWarning));
 
 							bot.getTemporaryBanManager().putBan(guild.getIdLong(), target.getIdLong(), ((TimeAction) action).getDuration());
@@ -394,7 +395,7 @@ public class ModUtility {
 						return;
 					}
 
-					target.ban(1).reason(ModUtility.getAuditReason(reason, moderator.getUser())).queue($ -> {
+					target.ban(1, TimeUnit.DAYS).reason(ModUtility.getAuditReason(reason, moderator.getUser())).queue($ -> {
 						bot.getModActionManager().onModAction(new WarnEvent(moderator, target.getUser(), reason, currentWarning, nextWarning));
 
 						future.complete(new WarnAction(currentWarning));

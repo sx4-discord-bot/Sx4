@@ -10,8 +10,8 @@ import com.sx4.bot.paged.PagedResult.SelectType;
 import com.sx4.bot.utility.HelpUtility;
 import com.sx4.bot.utility.SearchUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
-import net.dv8tion.jda.api.MessageBuilder;
 import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
 
 import java.util.Arrays;
 import java.util.Comparator;
@@ -42,7 +42,7 @@ public class HelpCommand extends Sx4Command {
 				.setSelect(SelectType.OBJECT)
 				.setSelectablePredicate((content, category) -> category.getName().equalsIgnoreCase(content) || Arrays.stream(category.getAliases()).anyMatch(content::equalsIgnoreCase))
 				.setCustomFunction(page -> {
-					MessageBuilder builder = new MessageBuilder();
+					MessageCreateBuilder builder = new MessageCreateBuilder();
 					
 					EmbedBuilder embedBuilder = new EmbedBuilder();
 					embedBuilder.setAuthor("Help", null, event.getSelfUser().getEffectiveAvatarUrl());

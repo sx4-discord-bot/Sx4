@@ -6,8 +6,12 @@ import com.sx4.bot.formatter.function.FormatterParser;
 import com.sx4.bot.formatter.function.FormatterVariable;
 import com.sx4.bot.utility.ColourUtility;
 import com.sx4.bot.utility.StringUtility;
-import net.dv8tion.jda.api.entities.*;
-import net.dv8tion.jda.api.entities.MessageReaction.ReactionEmote;
+import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.entities.Member;
+import net.dv8tion.jda.api.entities.Role;
+import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
+import net.dv8tion.jda.api.entities.emoji.EmojiUnion;
 
 import java.awt.*;
 import java.lang.reflect.InvocationTargetException;
@@ -80,12 +84,12 @@ public abstract class Formatter<Type> {
 		return this.addVariable("role", role);
 	}
 
-	public Formatter<Type> emote(ReactionEmote emote) {
-		if (emote == null) {
+	public Formatter<Type> emoji(EmojiUnion emoji) {
+		if (emoji == null) {
 			return this;
 		}
 
-		return this.addVariable("emote", emote);
+		return this.addVariable("emote", emoji);
 	}
 
 	public abstract Type parse();

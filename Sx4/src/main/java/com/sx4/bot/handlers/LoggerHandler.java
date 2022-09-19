@@ -31,14 +31,22 @@ import net.dv8tion.jda.api.audit.AuditLogChange;
 import net.dv8tion.jda.api.audit.AuditLogEntry;
 import net.dv8tion.jda.api.audit.AuditLogKey;
 import net.dv8tion.jda.api.entities.*;
+import net.dv8tion.jda.api.entities.channel.Channel;
+import net.dv8tion.jda.api.entities.channel.ChannelType;
+import net.dv8tion.jda.api.entities.channel.middleman.AudioChannel;
+import net.dv8tion.jda.api.entities.channel.middleman.GuildChannel;
+import net.dv8tion.jda.api.entities.channel.middleman.GuildMessageChannel;
+import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
+import net.dv8tion.jda.api.entities.channel.unions.GuildMessageChannelUnion;
+import net.dv8tion.jda.api.entities.emoji.RichCustomEmoji;
 import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.events.channel.ChannelCreateEvent;
 import net.dv8tion.jda.api.events.channel.ChannelDeleteEvent;
 import net.dv8tion.jda.api.events.channel.update.ChannelUpdateNameEvent;
-import net.dv8tion.jda.api.events.emote.EmoteAddedEvent;
-import net.dv8tion.jda.api.events.emote.EmoteRemovedEvent;
-import net.dv8tion.jda.api.events.emote.update.EmoteUpdateNameEvent;
-import net.dv8tion.jda.api.events.emote.update.EmoteUpdateRolesEvent;
+import net.dv8tion.jda.api.events.emoji.EmojiAddedEvent;
+import net.dv8tion.jda.api.events.emoji.EmojiRemovedEvent;
+import net.dv8tion.jda.api.events.emoji.update.EmojiUpdateNameEvent;
+import net.dv8tion.jda.api.events.emoji.update.EmojiUpdateRolesEvent;
 import net.dv8tion.jda.api.events.guild.GuildBanEvent;
 import net.dv8tion.jda.api.events.guild.GuildUnbanEvent;
 import net.dv8tion.jda.api.events.guild.member.GuildMemberJoinEvent;
@@ -125,7 +133,7 @@ public class LoggerHandler implements EventListener {
 			}
 
 			long channelId = logger.getLong("channelId");
-			BaseGuildMessageChannel channel = guild.getChannelById(BaseGuildMessageChannel.class, channelId);
+			GuildMessageChannelUnion channel = guild.getChannelById(GuildMessageChannelUnion.class, channelId);
 			if (channel == null) {
 				deletedLoggers.add(channelId);
 				continue;
@@ -281,7 +289,7 @@ public class LoggerHandler implements EventListener {
 			}
 
 			long channelId = logger.getLong("channelId");
-			BaseGuildMessageChannel channel = guild.getChannelById(BaseGuildMessageChannel.class, channelId);
+			GuildMessageChannelUnion channel = guild.getChannelById(GuildMessageChannelUnion.class, channelId);
 			if (channel == null) {
 				continue;
 			}
@@ -2020,20 +2028,20 @@ public class LoggerHandler implements EventListener {
 		});
 	}
 
-	public void onEmoteAdded(EmoteAddedEvent event) {
+	public void onEmojiAdded(EmojiAddedEvent event) {
 		Guild guild = event.getGuild();
-		Emote emote = event.getEmote();
+		RichCustomEmoji emoji = event.getEmoji();
 
 		LoggerEvent loggerEvent = LoggerEvent.EMOTE_CREATE;
 		LoggerContext loggerContext = new LoggerContext()
-			.setEmote(emote);
+			.setEmoji(emoji);
 
 		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
-		embed.setDescription(String.format("The emote %s has been created", emote.getAsMention()));
+		embed.setDescription(String.format("The emote %s has been created", emoji.getAsMention()));
 		embed.setColor(this.bot.getConfig().getGreen());
 		embed.setTimestamp(Instant.now());
 		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
-		embed.setFooter(new EmbedFooter(String.format("Emote ID: %s", emote.getId()), null));
+		embed.setFooter(new EmbedFooter(String.format("Emote ID: %s", emoji.getId()), null));
 
 		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((documents, exception) -> {
 			if (ExceptionUtility.sendErrorMessage(exception)) {
@@ -2051,11 +2059,11 @@ public class LoggerHandler implements EventListener {
 				return;
 			}
 
-			if (!emote.isManaged() && guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-				this.retrieveAuditLogsDelayed(guild, ActionType.EMOTE_CREATE).whenComplete((logs, auditException) -> {
+			if (!emoji.isManaged() && guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
+				this.retrieveAuditLogsDelayed(guild, ActionType.EMOJI_CREATE).whenComplete((logs, auditException) -> {
 					User moderator = logs == null ? null : logs.stream()
 						.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
-						.filter(e -> e.getTargetIdLong() == emote.getIdLong())
+						.filter(e -> e.getTargetIdLong() == emoji.getIdLong())
 						.map(AuditLogEntry::getUser)
 						.findFirst()
 						.orElse(null);
@@ -2063,7 +2071,7 @@ public class LoggerHandler implements EventListener {
 					if (moderator != null) {
 						loggerContext.setModerator(moderator);
 
-						embed.setDescription(String.format("The emote %s has been created by **%s**", emote.getAsMention(), moderator.getAsTag()));
+						embed.setDescription(String.format("The emote %s has been created by **%s**", emoji.getAsMention(), moderator.getAsTag()));
 					}
 
 					this.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
@@ -2074,20 +2082,20 @@ public class LoggerHandler implements EventListener {
 		});
 	}
 
-	public void onEmoteRemoved(EmoteRemovedEvent event) {
+	public void onEmojiRemoved(EmojiRemovedEvent event) {
 		Guild guild = event.getGuild();
-		Emote emote = event.getEmote();
+		RichCustomEmoji emoji = event.getEmoji();
 
 		LoggerEvent loggerEvent = LoggerEvent.EMOTE_DELETE;
 		LoggerContext loggerContext = new LoggerContext()
-			.setEmote(emote);
+			.setEmoji(emoji);
 
 		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
-		embed.setDescription(String.format("The emote `%s` has been deleted", emote.getName()));
+		embed.setDescription(String.format("The emote `%s` has been deleted", emoji.getName()));
 		embed.setColor(this.bot.getConfig().getRed());
 		embed.setTimestamp(Instant.now());
 		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
-		embed.setFooter(new EmbedFooter(String.format("Emote ID: %s", emote.getId()), null));
+		embed.setFooter(new EmbedFooter(String.format("Emote ID: %s", emoji.getId()), null));
 
 		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((documents, exception) -> {
 			if (ExceptionUtility.sendErrorMessage(exception)) {
@@ -2105,11 +2113,11 @@ public class LoggerHandler implements EventListener {
 				return;
 			}
 
-			if (!emote.isManaged() && guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-				this.retrieveAuditLogsDelayed(guild, ActionType.EMOTE_DELETE).whenComplete((logs, auditException) -> {
+			if (!emoji.isManaged() && guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
+				this.retrieveAuditLogsDelayed(guild, ActionType.EMOJI_DELETE).whenComplete((logs, auditException) -> {
 					User moderator = logs == null ? null : logs.stream()
 						.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
-						.filter(e -> e.getTargetIdLong() == emote.getIdLong())
+						.filter(e -> e.getTargetIdLong() == emoji.getIdLong())
 						.map(AuditLogEntry::getUser)
 						.findFirst()
 						.orElse(null);
@@ -2117,7 +2125,7 @@ public class LoggerHandler implements EventListener {
 					if (moderator != null) {
 						loggerContext.setModerator(moderator);
 
-						embed.setDescription(String.format("The emote `%s` has been deleted by **%s**", emote.getName(), moderator.getAsTag()));
+						embed.setDescription(String.format("The emote `%s` has been deleted by **%s**", emoji.getName(), moderator.getAsTag()));
 					}
 
 					this.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
@@ -2128,20 +2136,20 @@ public class LoggerHandler implements EventListener {
 		});
 	}
 
-	public void onEmoteUpdateName(EmoteUpdateNameEvent event) {
+	public void onEmojiUpdateName(EmojiUpdateNameEvent event) {
 		Guild guild = event.getGuild();
-		Emote emote = event.getEmote();
+		RichCustomEmoji emoji = event.getEmoji();
 
 		LoggerEvent loggerEvent = LoggerEvent.EMOTE_NAME_UPDATE;
 		LoggerContext loggerContext = new LoggerContext()
-			.setEmote(emote);
+			.setEmoji(emoji);
 
 		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
-		embed.setDescription(String.format("The emote %s has been renamed", emote.getAsMention()));
+		embed.setDescription(String.format("The emote %s has been renamed", emoji.getAsMention()));
 		embed.setColor(this.bot.getConfig().getOrange());
 		embed.setTimestamp(Instant.now());
 		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
-		embed.setFooter(new EmbedFooter(String.format("Emote ID: %s", emote.getId()), null));
+		embed.setFooter(new EmbedFooter(String.format("Emote ID: %s", emoji.getId()), null));
 
 		embed.addField(new EmbedField(false, "Before", String.format("`%s`", event.getOldName())));
 		embed.addField(new EmbedField(false, "After", String.format("`%s`", event.getNewName())));
@@ -2163,11 +2171,11 @@ public class LoggerHandler implements EventListener {
 			}
 
 			if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
-				this.retrieveAuditLogsDelayed(guild, ActionType.EMOTE_UPDATE).whenComplete((logs, auditException) -> {
+				this.retrieveAuditLogsDelayed(guild, ActionType.EMOJI_UPDATE).whenComplete((logs, auditException) -> {
 					User moderator = logs == null ? null : logs.stream()
 						.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
-						.filter(e -> e.getTargetIdLong() == emote.getIdLong())
-						.filter(e -> e.getChangeByKey(AuditLogKey.EMOTE_NAME) != null)
+						.filter(e -> e.getTargetIdLong() == emoji.getIdLong())
+						.filter(e -> e.getChangeByKey(AuditLogKey.EMOJI_NAME) != null)
 						.map(AuditLogEntry::getUser)
 						.findFirst()
 						.orElse(null);
@@ -2175,7 +2183,7 @@ public class LoggerHandler implements EventListener {
 					if (moderator != null) {
 						loggerContext.setModerator(moderator);
 
-						embed.setDescription(String.format("The emote %s has been renamed by **%s**", emote.getName(), moderator.getAsTag()));
+						embed.setDescription(String.format("The emote %s has been renamed by **%s**", emoji.getName(), moderator.getAsTag()));
 					}
 
 					this.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
@@ -2186,19 +2194,19 @@ public class LoggerHandler implements EventListener {
 		});
 	}
 
-	public void onEmoteUpdateRoles(EmoteUpdateRolesEvent event) {
+	public void onEmojiUpdateRoles(EmojiUpdateRolesEvent event) {
 		Guild guild = event.getGuild();
-		Emote emote = event.getEmote();
+		RichCustomEmoji emoji = event.getEmoji();
 		List<Role> newRoles = event.getNewRoles(), oldRoles = event.getOldRoles();
 
 		LoggerEvent loggerEvent = LoggerEvent.EMOTE_ROLES_UPDATE;
 		LoggerContext loggerContext = new LoggerContext()
-			.setEmote(emote);
+			.setEmoji(emoji);
 
 		Pair<List<Role>, List<Role>> roles = LoggerUtility.getRoleDifference(newRoles, oldRoles);
 		List<Role> rolesAdded = roles.getLeft(), rolesRemoved = roles.getRight();
 
-		StringBuilder description = new StringBuilder(String.format("The emote %s has had its role whitelist updated", emote.getAsMention()));
+		StringBuilder description = new StringBuilder(String.format("The emote %s has had its role whitelist updated", emoji.getAsMention()));
 
 		/* This event isn't sent when a role is deleted, I'll leave this here in case
 		if (rolesAdded.size() == 0 && rolesRemoved.size() == 1 && guild.getRoleById(rolesRemoved.get(0).getIdLong()) == null) {
@@ -2212,7 +2220,7 @@ public class LoggerHandler implements EventListener {
 		embed.setColor(this.bot.getConfig().getOrange());
 		embed.setTimestamp(Instant.now());
 		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
-		embed.setFooter(new EmbedFooter(String.format("Emote ID: %s", emote.getId()), null));
+		embed.setFooter(new EmbedFooter(String.format("Emote ID: %s", emoji.getId()), null));
 
 		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((documents, exception) -> {
 			if (ExceptionUtility.sendErrorMessage(exception)) {
@@ -2283,14 +2291,14 @@ public class LoggerHandler implements EventListener {
 			this.onGuildMemberRoleRemove((GuildMemberRoleRemoveEvent) event);
 		} else if (event instanceof GuildMemberUpdateNicknameEvent) {
 			this.onGuildMemberUpdateNickname((GuildMemberUpdateNicknameEvent) event);
-		} else if (event instanceof EmoteAddedEvent) {
-			this.onEmoteAdded((EmoteAddedEvent) event);
-		} else if (event instanceof EmoteRemovedEvent) {
-			this.onEmoteRemoved((EmoteRemovedEvent) event);
-		} else if (event instanceof EmoteUpdateNameEvent) {
-			this.onEmoteUpdateName((EmoteUpdateNameEvent) event);
-		} else if (event instanceof EmoteUpdateRolesEvent) {
-			this.onEmoteUpdateRoles((EmoteUpdateRolesEvent) event);
+		} else if (event instanceof EmojiAddedEvent) {
+			this.onEmojiAdded((EmojiAddedEvent) event);
+		} else if (event instanceof EmojiRemovedEvent) {
+			this.onEmojiRemoved((EmojiRemovedEvent) event);
+		} else if (event instanceof EmojiUpdateNameEvent) {
+			this.onEmojiUpdateName((EmojiUpdateNameEvent) event);
+		} else if (event instanceof EmojiUpdateRolesEvent) {
+			this.onEmojiUpdateRoles((EmojiUpdateRolesEvent) event);
 		}
 	}
 

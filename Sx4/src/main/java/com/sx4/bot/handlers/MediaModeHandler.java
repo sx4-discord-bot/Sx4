@@ -6,10 +6,9 @@ import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.entities.management.MediaType;
 import net.dv8tion.jda.api.Permission;
-import net.dv8tion.jda.api.entities.ChannelType;
-import net.dv8tion.jda.api.entities.GuildMessageChannel;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.Message.Attachment;
+import net.dv8tion.jda.api.entities.channel.middleman.GuildMessageChannel;
 import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.events.channel.ChannelDeleteEvent;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
@@ -72,7 +71,7 @@ public class MediaModeHandler implements EventListener {
 	}
 
 	public void onChannelDelete(ChannelDeleteEvent event) {
-		if (!event.isFromType(ChannelType.TEXT)) {
+		if (!event.getChannelType().isMessage()) {
 			return;
 		}
 

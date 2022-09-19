@@ -7,14 +7,14 @@ import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.twitch.TwitchStreamType;
+import com.sx4.bot.entities.webhook.WebhookChannel;
 import com.sx4.bot.events.twitch.TwitchStreamStartEvent;
 import com.sx4.bot.formatter.JsonFormatter;
 import com.sx4.bot.hooks.TwitchListener;
 import com.sx4.bot.managers.TwitchManager;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.MessageUtility;
-import net.dv8tion.jda.api.entities.BaseGuildMessageChannel;
-import net.dv8tion.jda.api.entities.TextChannel;
+import net.dv8tion.jda.api.entities.channel.unions.GuildMessageChannelUnion;
 import net.dv8tion.jda.api.sharding.ShardManager;
 import org.bson.Document;
 import org.bson.conversions.Bson;
@@ -81,8 +81,8 @@ public class TwitchHandler implements TwitchListener {
 
 					long channelId = notification.getLong("channelId");
 
-					BaseGuildMessageChannel textChannel = shardManager.getChannelById(BaseGuildMessageChannel.class, channelId);
-					if (textChannel == null) {
+					GuildMessageChannelUnion channel = shardManager.getChannelById(GuildMessageChannelUnion.class, channelId);
+					if (channel == null) {
 						return;
 					}
 
@@ -100,7 +100,7 @@ public class TwitchHandler implements TwitchListener {
 						return;
 					}
 
-					this.bot.getTwitchManager().sendTwitchNotification(textChannel, webhookData, message).whenComplete(MongoDatabase.exceptionally());
+					this.bot.getTwitchManager().sendTwitchNotification(new WebhookChannel(channel), webhookData, message).whenComplete(MongoDatabase.exceptionally());
 				});
 
 				if (!bulkUpdate.isEmpty()) {

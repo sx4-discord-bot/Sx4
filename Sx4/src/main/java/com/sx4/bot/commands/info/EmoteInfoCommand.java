@@ -7,8 +7,9 @@ import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
-import net.dv8tion.jda.api.entities.Emote;
 import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.entities.emoji.RichCustomEmoji;
 
 public class EmoteInfoCommand extends Sx4Command {
 
@@ -22,21 +23,22 @@ public class EmoteInfoCommand extends Sx4Command {
 		super.setBotDiscordPermissions(Permission.MESSAGE_EMBED_LINKS);
 	}
 
-	public void onCommand(Sx4CommandEvent event, @Argument(value="emote") @Global Emote emote) {
-		Guild guild = emote.getGuild();
+	public void onCommand(Sx4CommandEvent event, @Argument(value="emote") @Global RichCustomEmoji emoji) {
+		Guild guild = emoji.getGuild();
 
 		EmbedBuilder embed = new EmbedBuilder()
-			.setAuthor(emote.getName(), emote.getImageUrl(), emote.getImageUrl())
-			.setThumbnail(emote.getImageUrl())
-			.setTimestamp(emote.getTimeCreated())
+			.setAuthor(emoji.getName(), emoji.getImageUrl(), emoji.getImageUrl())
+			.setThumbnail(emoji.getImageUrl())
+			.setTimestamp(emoji.getTimeCreated())
 			.setFooter("Created", null)
-			.addField("ID", emote.getId(), false)
+			.addField("ID", emoji.getId(), false)
 			.addField("Server", guild.getName() + " (" + guild.getId() + ")", false);
 
-		if (guild.getSelfMember().hasPermission(Permission.MANAGE_EMOTES_AND_STICKERS)) {
-			guild.retrieveEmote(emote).queue(e -> {
-				if (e.hasUser()) {
-					embed.addField("Uploader", e.getUser().getAsTag(), false);
+		if (guild.getSelfMember().hasPermission(Permission.MANAGE_EMOJIS_AND_STICKERS)) {
+			guild.retrieveEmoji(emoji).queue(e -> {
+				User owner = e.getOwner();
+				if (owner != null) {
+					embed.addField("Uploader", owner.getAsTag(), false);
 				}
 
 				event.reply(embed.build()).queue();

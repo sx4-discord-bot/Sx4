@@ -4,7 +4,7 @@ import com.sx4.bot.core.Sx4;
 import com.sx4.bot.entities.games.MysteryBoxGame;
 import com.sx4.bot.entities.games.MysteryBoxResult;
 import com.sx4.bot.managers.MysteryBoxManager;
-import net.dv8tion.jda.api.entities.Emoji;
+import net.dv8tion.jda.api.entities.emoji.Emoji;
 import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import net.dv8tion.jda.api.hooks.EventListener;

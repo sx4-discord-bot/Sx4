@@ -10,10 +10,14 @@ public class WebhookClient extends club.minnced.discord.webhook.WebhookClient {
 
 	private final String token;
 
-	public WebhookClient(long id, String token, ScheduledExecutorService pool, OkHttpClient client) {
-		super(id, token, true, client, pool == null ? ThreadPools.getDefaultPool(id, null, false) : pool, AllowedMentions.all(), 0);
+	public WebhookClient(long id, String token, ScheduledExecutorService pool, OkHttpClient client, long threadId) {
+		super(id, token, true, client, pool == null ? ThreadPools.getDefaultPool(id, null, false) : pool, AllowedMentions.all(), threadId);
 
 		this.token = token;
+	}
+
+	public WebhookClient(long id, String token, ScheduledExecutorService pool, OkHttpClient client) {
+		this(id, token, pool, client, 0L);
 	}
 
 	public WebhookClient(long id, String token, OkHttpClient client) {

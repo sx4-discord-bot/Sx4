@@ -9,8 +9,11 @@ import com.sx4.bot.utility.FutureUtility;
 import com.sx4.bot.utility.MathUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
-import net.dv8tion.jda.api.entities.*;
+import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Message.MentionType;
+import net.dv8tion.jda.api.entities.MessageReaction;
+import net.dv8tion.jda.api.entities.channel.middleman.GuildMessageChannel;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 
@@ -86,7 +89,7 @@ public class GiveawayManager {
 			return CompletableFuture.completedFuture(null);
 		}
 		
-		BaseGuildMessageChannel channel = guild.getChannelById(BaseGuildMessageChannel.class, data.getLong("channelId"));
+		GuildMessageChannel channel = guild.getChannelById(GuildMessageChannel.class, data.getLong("channelId"));
 		if (channel == null) {
 			return CompletableFuture.completedFuture(null);
 		}
@@ -99,7 +102,7 @@ public class GiveawayManager {
 		
 		channel.retrieveMessageById(messageId).queue(message -> {
 			MessageReaction reaction = message.getReactions().stream()
-				.filter(r -> r.getReactionEmote().getName().equals("🎉"))
+				.filter(r -> r.getEmoji().getName().equals("🎉"))
 				.findFirst()
 				.orElse(null);
 			
@@ -140,7 +143,7 @@ public class GiveawayManager {
 				}
 
 				if (guild.getSelfMember().hasPermission(channel, Permission.MESSAGE_SEND)) {
-					channel.sendMessage(String.join(", ", winnerMentions) + ", Congratulations you have won the giveaway for **" + data.getString("item") + "**").allowedMentions(EnumSet.of(MentionType.USER)).queue();
+					channel.sendMessage(String.join(", ", winnerMentions) + ", Congratulations you have won the giveaway for **" + data.getString("item") + "**").setAllowedMentions(EnumSet.of(MentionType.USER)).queue();
 				}
 				
 				EmbedBuilder embed = new EmbedBuilder();

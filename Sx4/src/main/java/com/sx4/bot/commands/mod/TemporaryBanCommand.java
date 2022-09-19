@@ -38,6 +38,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 public class TemporaryBanCommand extends Sx4Command {
 
@@ -96,7 +97,7 @@ public class TemporaryBanCommand extends Sx4Command {
 							return;
 						}
 
-						event.getGuild().ban(user, days).reason(ModUtility.getAuditReason(reason, event.getAuthor())).queue($ -> {
+						event.getGuild().ban(user, days, TimeUnit.DAYS).reason(ModUtility.getAuditReason(reason, event.getAuthor())).queue($ -> {
 							event.replySuccess("**" + user.getAsTag() + "** has been temporarily banned for " + TimeUtility.LONG_TIME_FORMATTER.parse(duration)).queue();
 
 							event.getBot().getModActionManager().onModAction(new TemporaryBanEvent(event.getMember(), user, reason, member != null, duration));

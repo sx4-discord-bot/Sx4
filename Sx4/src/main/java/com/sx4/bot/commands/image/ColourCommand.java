@@ -13,7 +13,7 @@ import com.sx4.bot.utility.ImageUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.MessageEmbed;
-import net.dv8tion.jda.api.requests.restaction.MessageAction;
+import net.dv8tion.jda.api.requests.restaction.MessageCreateAction;
 import okhttp3.Request;
 
 public class ColourCommand extends Sx4Command {
@@ -47,7 +47,7 @@ public class ColourCommand extends Sx4Command {
 			.build(event.getConfig().getImageWebserver());
 
 		event.getHttpClient().newCall(request).enqueue((HttpCallback) response -> {
-			MessageAction action = ImageUtility.getImageMessage(event, response);
+			MessageCreateAction action = ImageUtility.getImageMessage(event, response);
 			if (response.isSuccessful()) {
 				action.setEmbeds(embed);
 			}

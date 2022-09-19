@@ -15,9 +15,10 @@ import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.RequestUtility;
 import com.sx4.bot.utility.TimeUtility;
 import net.dv8tion.jda.api.Permission;
-import net.dv8tion.jda.api.entities.Emote;
 import net.dv8tion.jda.api.entities.Icon;
 import net.dv8tion.jda.api.entities.Role;
+import net.dv8tion.jda.api.entities.emoji.CustomEmoji;
+import net.dv8tion.jda.api.entities.emoji.RichCustomEmoji;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.exceptions.RateLimitedException;
 import net.dv8tion.jda.api.requests.ErrorResponse;
@@ -81,12 +82,12 @@ public class EmoteCommand extends Sx4Command {
 	@Examples({"emote create <:sx4:637715282995183636>", "emote create sx4", "emote create https://cdn.discordapp.com/emojis/637715282995183636.png"})
 	@Cooldown(5)
 	@Redirects({"create emote", "ce", "create emoji"})
-	@AuthorPermissions(permissions={Permission.MANAGE_EMOTES_AND_STICKERS})
-	@BotPermissions(permissions={Permission.MANAGE_EMOTES_AND_STICKERS})
+	@AuthorPermissions(permissions={Permission.MANAGE_EMOJIS_AND_STICKERS})
+	@BotPermissions(permissions={Permission.MANAGE_EMOJIS_AND_STICKERS})
 	public void create(Sx4CommandEvent event, @Argument(value="emote | image url", acceptEmpty=true) PartialEmote emote, @Argument(value="name", endless=true, nullDefault=true) String name) {
-		long animatedEmotes = event.getGuild().getEmoteCache().applyStream(stream -> stream.filter(Emote::isAnimated).count());
-		long nonAnimatedEmotes = event.getGuild().getEmoteCache().applyStream(stream -> stream.filter(Predicate.not(Emote::isAnimated)).count());
-		int maxEmotes = event.getGuild().getMaxEmotes();
+		long animatedEmotes = event.getGuild().getEmojiCache().applyStream(stream -> stream.filter(CustomEmoji::isAnimated).count());
+		long nonAnimatedEmotes = event.getGuild().getEmojiCache().applyStream(stream -> stream.filter(Predicate.not(CustomEmoji::isAnimated)).count());
+		int maxEmotes = event.getGuild().getMaxEmojis();
 
 		Boolean animated = emote.isAnimated();
 		if (animated != null && ((animated && animatedEmotes >= maxEmotes) || (!animated && nonAnimatedEmotes >= maxEmotes))) {
@@ -110,7 +111,7 @@ public class EmoteCommand extends Sx4Command {
 				return;
 			}
 
-			event.getGuild().createEmote(name == null ? emote.hasName() ? emote.getName() : "Unnamed_Emote" : name, Icon.from(bytes)).submit(false)
+			event.getGuild().createEmoji(name == null ? emote.hasName() ? emote.getName() : "Unnamed_Emote" : name, Icon.from(bytes)).submit(false)
 				.thenCompose(createdEmote -> event.replySuccess(createdEmote.getAsMention() + " has been created").submit())
 				.whenComplete((result, exception) -> {
 					if (exception instanceof CompletionException) {
@@ -140,15 +141,15 @@ public class EmoteCommand extends Sx4Command {
 	@Command(value="delete", description="Deletes an emote from the server")
 	@CommandId(131)
 	@Examples({"emote delete <:sx4:637715282995183636>", "emote delete sx4"})
-	@AuthorPermissions(permissions={Permission.MANAGE_EMOTES_AND_STICKERS})
-	@BotPermissions(permissions={Permission.MANAGE_EMOTES_AND_STICKERS})
-	public void delete(Sx4CommandEvent event, @Argument(value="emote") Emote emote) {
-		if (emote.isManaged()) {
+	@AuthorPermissions(permissions={Permission.MANAGE_EMOJIS_AND_STICKERS})
+	@BotPermissions(permissions={Permission.MANAGE_EMOJIS_AND_STICKERS})
+	public void delete(Sx4CommandEvent event, @Argument(value="emote") RichCustomEmoji emoji) {
+		if (emoji.isManaged()) {
 			event.replyFailure("I cannot delete emotes that are managed").queue();
 			return;
 		}
 
-		emote.delete().flatMap($ -> event.replySuccess("I have deleted the emote `" + emote.getName() + "`")).queue();
+		emoji.delete().flatMap($ -> event.replySuccess("I have deleted the emote `" + emoji.getName() + "`")).queue();
 	}
 
 	public static class WhitelistCommand extends Sx4Command {
@@ -168,27 +169,27 @@ public class EmoteCommand extends Sx4Command {
 		@Command(value="set", description="Sets what roles should be whitelisted to use the emote")
 		@CommandId(133)
 		@Examples({"emote whitelist set <:rain:748240799719882762> \"@Emote Role\"", "emote whitelist set rain \"Emote Role\" @Emotes"})
-		@AuthorPermissions(permissions={Permission.MANAGE_EMOTES_AND_STICKERS})
-		@BotPermissions(permissions={Permission.MANAGE_EMOTES_AND_STICKERS})
-		public void set(Sx4CommandEvent event, @Argument(value="emote") Emote emote, @Argument(value="roles") Role... roles) {
-			List<Role> currentRoles = emote.getRoles(), newRoles = Arrays.asList(roles);
+		@AuthorPermissions(permissions={Permission.MANAGE_EMOJIS_AND_STICKERS})
+		@BotPermissions(permissions={Permission.MANAGE_EMOJIS_AND_STICKERS})
+		public void set(Sx4CommandEvent event, @Argument(value="emote") RichCustomEmoji emoji, @Argument(value="roles") Role... roles) {
+			List<Role> currentRoles = emoji.getRoles(), newRoles = Arrays.asList(roles);
 			if (newRoles.containsAll(currentRoles)) {
 				event.replyFailure("That emote already has all those roles whitelisted").queue();
 				return;
 			}
 
-			emote.getManager().setRoles(new HashSet<>(newRoles))
-				.flatMap($ -> event.replyFormat("The emote %s is now only whitelisted from those roles %s", emote.getAsMention(), event.getConfig().getSuccessEmote()))
+			emoji.getManager().setRoles(new HashSet<>(newRoles))
+				.flatMap($ -> event.replyFormat("The emote %s is now only whitelisted from those roles %s", emoji.getAsMention(), event.getConfig().getSuccessEmote()))
 				.queue();
 		}
 
 		@Command(value="add", description="Adds a role to be whitelisted to use the emote")
 		@CommandId(134)
 		@Examples({"emote whitelist add <:rain:748240799719882762> @Emote Role", "emote whitelist add rain Emote Role"})
-		@AuthorPermissions(permissions={Permission.MANAGE_EMOTES_AND_STICKERS})
-		@BotPermissions(permissions={Permission.MANAGE_EMOTES_AND_STICKERS})
-		public void add(Sx4CommandEvent event, @Argument(value="emote") Emote emote, @Argument(value="role", endless=true) Role role) {
-			Set<Role> currentRoles = new HashSet<>(emote.getRoles());
+		@AuthorPermissions(permissions={Permission.MANAGE_EMOJIS_AND_STICKERS})
+		@BotPermissions(permissions={Permission.MANAGE_EMOJIS_AND_STICKERS})
+		public void add(Sx4CommandEvent event, @Argument(value="emote") RichCustomEmoji emoji, @Argument(value="role", endless=true) Role role) {
+			Set<Role> currentRoles = new HashSet<>(emoji.getRoles());
 			if (currentRoles.contains(role)) {
 				event.replyFailure("That emote already has that role whitelisted").queue();
 				return;
@@ -196,18 +197,18 @@ public class EmoteCommand extends Sx4Command {
 
 			currentRoles.add(role);
 
-			emote.getManager().setRoles(currentRoles)
-				.flatMap($ -> event.replyFormat("The emote %s is now whitelisted from that role %s", emote.getAsMention(), event.getConfig().getSuccessEmote()))
+			emoji.getManager().setRoles(currentRoles)
+				.flatMap($ -> event.replyFormat("The emote %s is now whitelisted from that role %s", emoji.getAsMention(), event.getConfig().getSuccessEmote()))
 				.queue();
 		}
 
 		@Command(value="remove", description="Removes a role from being whitelisted to use the emote")
 		@CommandId(135)
 		@Examples({"emote whitelist remove <:rain:748240799719882762> @Emote Role", "emote whitelist remove rain Emote Role"})
-		@AuthorPermissions(permissions={Permission.MANAGE_EMOTES_AND_STICKERS})
-		@BotPermissions(permissions={Permission.MANAGE_EMOTES_AND_STICKERS})
-		public void remove(Sx4CommandEvent event, @Argument(value="emote") Emote emote, @Argument(value="role", endless=true) Role role) {
-			Set<Role> currentRoles = new HashSet<>(emote.getRoles());
+		@AuthorPermissions(permissions={Permission.MANAGE_EMOJIS_AND_STICKERS})
+		@BotPermissions(permissions={Permission.MANAGE_EMOJIS_AND_STICKERS})
+		public void remove(Sx4CommandEvent event, @Argument(value="emote") RichCustomEmoji emoji, @Argument(value="role", endless=true) Role role) {
+			Set<Role> currentRoles = new HashSet<>(emoji.getRoles());
 			if (!currentRoles.contains(role)) {
 				event.replyFailure("That emote does not have that role whitelisted").queue();
 				return;
@@ -215,32 +216,32 @@ public class EmoteCommand extends Sx4Command {
 
 			currentRoles.remove(role);
 
-			emote.getManager().setRoles(currentRoles)
-				.flatMap($ -> event.replyFormat("The emote %s is no longer whitelisted from that role %s", emote.getAsMention(), event.getConfig().getSuccessEmote()))
+			emoji.getManager().setRoles(currentRoles)
+				.flatMap($ -> event.replyFormat("The emote %s is no longer whitelisted from that role %s", emoji.getAsMention(), event.getConfig().getSuccessEmote()))
 				.queue();
 		}
 
 		@Command(value="reset", description="Resets the emote so everyone can use it")
 		@CommandId(136)
 		@Examples({"emote whitelist reset <:rain:748240799719882762>", "emote whitelist reset rain"})
-		@AuthorPermissions(permissions={Permission.MANAGE_EMOTES_AND_STICKERS})
-		@BotPermissions(permissions={Permission.MANAGE_EMOTES_AND_STICKERS})
-		public void reset(Sx4CommandEvent event, @Argument(value="emote") Emote emote) {
-			emote.getManager().setRoles(null)
-				.flatMap($ -> event.replyFormat("The emote %s no longer has any whitelisted roles %s", emote.getAsMention(), event.getConfig().getSuccessEmote()))
+		@AuthorPermissions(permissions={Permission.MANAGE_EMOJIS_AND_STICKERS})
+		@BotPermissions(permissions={Permission.MANAGE_EMOJIS_AND_STICKERS})
+		public void reset(Sx4CommandEvent event, @Argument(value="emote") RichCustomEmoji emoji) {
+			emoji.getManager().setRoles(null)
+				.flatMap($ -> event.replyFormat("The emote %s no longer has any whitelisted roles %s", emoji.getAsMention(), event.getConfig().getSuccessEmote()))
 				.queue();
 		}
 
 		@Command(value="list", description="Lists the roles able to use the emote")
 		@CommandId(137)
 		@Examples({"emote whitelist list <:rain:748240799719882762>", "emote whitelist list rain"})
-		public void list(Sx4CommandEvent event, @Argument(value="emote") Emote emote) {
-			if (emote.getRoles().isEmpty()) {
+		public void list(Sx4CommandEvent event, @Argument(value="emote") RichCustomEmoji emoji) {
+			if (emoji.getRoles().isEmpty()) {
 				event.replyFailure("That role does not have any whitelisted role").queue();
 				return;
 			}
 
-			PagedResult<Role> paged = new PagedResult<>(event.getBot(), emote.getRoles())
+			PagedResult<Role> paged = new PagedResult<>(event.getBot(), emoji.getRoles())
 				.setAuthor("Roles Whitelisted", null, event.getGuild().getIconUrl())
 				.setDisplayFunction(Role::getAsMention)
 				.setIndexed(false);

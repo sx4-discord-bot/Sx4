@@ -30,11 +30,11 @@ import com.sx4.bot.utility.EconomyUtility;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.NumberUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
-import net.dv8tion.jda.api.MessageBuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.interactions.components.buttons.Button;
+import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 
@@ -81,7 +81,7 @@ public class PickaxeCommand extends Sx4Command {
 					embed.addField(pickaxe.getName(), String.format("Price: $%,d\nCraft: %s\nDurability: %,d", pickaxe.getPrice(), craft, pickaxe.getMaxDurability()), true);
 				});
 
-				return new MessageBuilder().setEmbeds(embed.build());
+				return new MessageCreateBuilder().setEmbeds(embed.build());
 			});
 
 		paged.execute(event);
@@ -365,7 +365,7 @@ public class PickaxeCommand extends Sx4Command {
 
 				page.forEach((upgrade, index) -> embed.addField(upgrade.getName(), upgrade.getDescription(), false));
 
-				return new MessageBuilder().setEmbeds(embed.build());
+				return new MessageCreateBuilder().setEmbeds(embed.build());
 			});
 
 		paged.execute(event);

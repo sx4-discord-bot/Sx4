@@ -5,14 +5,15 @@ import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.Updates;
 import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.mongo.MongoDatabase;
+import com.sx4.bot.entities.webhook.WebhookChannel;
 import com.sx4.bot.managers.WelcomerManager;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.MessageUtility;
 import com.sx4.bot.utility.WelcomerUtility;
 import net.dv8tion.jda.api.JDA;
-import net.dv8tion.jda.api.entities.BaseGuildMessageChannel;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
+import net.dv8tion.jda.api.entities.channel.unions.GuildMessageChannelUnion;
 import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.events.guild.member.GuildMemberJoinEvent;
 import net.dv8tion.jda.api.events.guild.member.update.GuildMemberUpdatePendingEvent;
@@ -52,7 +53,7 @@ public class WelcomerHandler implements EventListener {
 		}
 
 		long channelId = welcomer.get("channelId", 0L);
-		BaseGuildMessageChannel channel = channelId == 0L ? null : guild.getChannelById(BaseGuildMessageChannel.class, channelId);
+		GuildMessageChannelUnion channel = channelId == 0L ? null : guild.getChannelById(GuildMessageChannelUnion.class, channelId);
 
 		boolean dm = welcomer.getBoolean("dm", false);
 		if (channel == null && !dm) {
@@ -75,7 +76,7 @@ public class WelcomerHandler implements EventListener {
 
 			if (dm) {
 				member.getUser().openPrivateChannel()
-					.flatMap(privateChannel -> MessageUtility.fromWebhookMessage(privateChannel, builder.build()))
+					.flatMap(privateChannel -> privateChannel.sendMessage(MessageUtility.fromWebhookMessage(builder.build())))
 					.queue(null, ErrorResponseException.ignore(ErrorResponse.CANNOT_SEND_TO_USER));
 			} else {
 				WebhookMessage message = builder
@@ -83,7 +84,7 @@ public class WelcomerHandler implements EventListener {
 					.setAvatarUrl(premium ? webhookData.get("avatar", jda.getSelfUser().getEffectiveAvatarUrl()) : jda.getSelfUser().getEffectiveAvatarUrl())
 					.build();
 
-				this.bot.getWelcomerManager().sendWelcomer(channel, webhookData, message);
+				this.bot.getWelcomerManager().sendWelcomer(new WebhookChannel(channel), webhookData, message);
 			}
 		});
 	}

@@ -10,11 +10,11 @@ import com.sx4.bot.utility.CheckUtility;
 import com.sx4.bot.utility.HelpUtility;
 import com.sx4.bot.utility.MathUtility;
 import net.dv8tion.jda.api.Permission;
-import net.dv8tion.jda.api.entities.GuildMessageChannel;
-import net.dv8tion.jda.api.entities.IPermissionContainer;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Message;
-import net.dv8tion.jda.api.requests.restaction.MessageAction;
+import net.dv8tion.jda.api.entities.channel.attribute.IPermissionContainer;
+import net.dv8tion.jda.api.entities.channel.unions.GuildMessageChannelUnion;
+import net.dv8tion.jda.api.requests.restaction.MessageCreateAction;
 import okhttp3.OkHttpClient;
 
 import java.security.SecureRandom;
@@ -68,8 +68,8 @@ public class Sx4CommandEvent extends CommandEvent {
 		return this.bot.getMongoCanary();
 	}
 
-	public GuildMessageChannel getGuildChannel() {
-		return (GuildMessageChannel) this.getChannel();
+	public GuildMessageChannelUnion getGuildChannel() {
+		return (GuildMessageChannelUnion) this.getChannel();
 	}
 
 	public boolean isPermissionContainer() {
@@ -88,19 +88,19 @@ public class Sx4CommandEvent extends CommandEvent {
 		return CheckUtility.hasPermissions(this.bot, member, this.getPermissionContainer(), this.getProperty("fakePermissions"), permissions);
 	}
 	
-	public MessageAction replyHelp() {
+	public MessageCreateAction replyHelp() {
 		return this.reply(HelpUtility.getHelpMessage(this.command, this.hasPermission(Permission.MESSAGE_EMBED_LINKS)));
 	}
 
-	public MessageAction replyTimed(long start) {
+	public MessageCreateAction replyTimed(long start) {
 		return this.replyFormat("%,.3fms :stopwatch:", (System.nanoTime() - start) / 1_000_000D);
 	}
 
-	public MessageAction replySuccess(String content) {
+	public MessageCreateAction replySuccess(String content) {
 		return this.reply(content + " " + this.getConfig().getSuccessEmote());
 	}
 
-	public MessageAction replyFailure(String content) {
+	public MessageCreateAction replyFailure(String content) {
 		return this.reply(content + " " + this.getConfig().getFailureEmote());
 	}
 	

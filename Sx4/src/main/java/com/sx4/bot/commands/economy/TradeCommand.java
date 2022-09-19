@@ -15,7 +15,6 @@ import com.sx4.bot.waiter.Waiter;
 import com.sx4.bot.waiter.exception.CancelException;
 import com.sx4.bot.waiter.exception.TimeoutException;
 import net.dv8tion.jda.api.EmbedBuilder;
-import net.dv8tion.jda.api.MessageBuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Message;
@@ -25,6 +24,7 @@ import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.interactions.components.ActionRow;
 import net.dv8tion.jda.api.interactions.components.buttons.Button;
+import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 
@@ -114,7 +114,7 @@ public class TradeCommand extends Sx4Command {
 				.setTitle("What you are offering to " + user.getAsTag())
 				.setDescription((money == 0 ? "" : String.format("$%,d", money)) + (items.isEmpty() ? "" : "\n") + content);
 
-			MessageBuilder message = new MessageBuilder()
+			MessageCreateBuilder message = new MessageCreateBuilder()
 				.setEmbeds(embed.build())
 				.setContent(String.format(prompt, "would you like from"));
 
@@ -150,9 +150,9 @@ public class TradeCommand extends Sx4Command {
 				.addField(user.getAsTag() + " Gets", (userMoney == 0 ? "" : String.format("$%,d", userMoney)) + (userItems.isEmpty() ? "" : "\n") + userContent, false)
 				.addField(event.getAuthor().getAsTag() + " Gets", (authorMoney == 0 ? "" : String.format("$%,d", authorMoney)) + (authorItems.isEmpty() ? "" : "\n") + authorContent, false);
 
-			MessageBuilder message = new MessageBuilder()
+			MessageCreateBuilder message = new MessageCreateBuilder()
 				.setEmbeds(embed.build())
-				.setActionRows(ActionRow.of(List.of(Button.success("yes", "Yes"), Button.danger("no", "No"))))
+				.setComponents(ActionRow.of(List.of(Button.success("yes", "Yes"), Button.danger("no", "No"))))
 				.setAllowedMentions(EnumSet.of(Message.MentionType.USER))
 				.setContent(user.getAsMention() + ", do you accept this trade?");
 

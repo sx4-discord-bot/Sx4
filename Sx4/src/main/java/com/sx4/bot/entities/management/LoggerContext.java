@@ -1,10 +1,10 @@
 package com.sx4.bot.entities.management;
 
 import com.sx4.bot.utility.LoggerUtility;
-import net.dv8tion.jda.api.entities.Channel;
-import net.dv8tion.jda.api.entities.Emote;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.entities.channel.Channel;
+import net.dv8tion.jda.api.entities.emoji.CustomEmoji;
 
 public class LoggerContext {
 
@@ -38,14 +38,14 @@ public class LoggerContext {
 		return this.setModerator(moderator.getIdLong());
 	}
 
-	public LoggerContext setEmote(long emoteId) {
+	public LoggerContext setEmoji(long emoteId) {
 		this.emoteId = emoteId;
 
 		return this;
 	}
 
-	public LoggerContext setEmote(Emote emote) {
-		return this.setEmote(emote.getIdLong());
+	public LoggerContext setEmoji(CustomEmoji emoji) {
+		return this.setEmoji(emoji.getIdLong());
 	}
 
 	public LoggerContext setRole(long roleId) {
