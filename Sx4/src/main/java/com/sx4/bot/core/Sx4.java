@@ -9,6 +9,7 @@ import com.jockie.bot.core.command.ICommand;
 import com.jockie.bot.core.command.exception.parser.ArgumentParseException;
 import com.jockie.bot.core.command.exception.parser.OutOfContentException;
 import com.jockie.bot.core.command.factory.impl.MethodCommandFactory;
+import com.jockie.bot.core.command.impl.CommandEvent;
 import com.jockie.bot.core.command.impl.CommandListener;
 import com.jockie.bot.core.command.impl.CommandListener.Failure;
 import com.jockie.bot.core.command.impl.CommandStore;
@@ -1126,6 +1127,11 @@ public class Sx4 {
 				List<?> builders = CommandUtility.getBuilderConfigureFunctions(argumentFactory, clazz);
 				for (Object builderFunction : builders) {
 					builder = ((BuilderConfigureFunction) builderFunction).configure(parameter, builder);
+				}
+
+				Function<CommandEvent, Alternative> function = builder.getDefaultValueFunction();
+				if (function != null) {
+					builder.setDefaultValue(event -> new Alternative<>(clazz.cast(function.apply(event)), null));
 				}
 
 				AlternativeOptions options = parameter.getAnnotation(AlternativeOptions.class);
