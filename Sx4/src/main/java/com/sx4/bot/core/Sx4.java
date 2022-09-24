@@ -1129,9 +1129,12 @@ public class Sx4 {
 					builder = ((BuilderConfigureFunction) builderFunction).configure(parameter, builder);
 				}
 
-				Function<CommandEvent, Alternative> function = builder.getDefaultValueFunction();
+				Function<CommandEvent, ?> function = builder.getDefaultValueFunction();
 				if (function != null) {
-					builder.setDefaultValue(event -> new Alternative<>(clazz.cast(function.apply(event)), null));
+					builder.setDefaultValue(event -> {
+						Object value = function.apply(event);
+						return value == null ? null : new Alternative<>(value, null);
+					});
 				}
 
 				AlternativeOptions options = parameter.getAnnotation(AlternativeOptions.class);
