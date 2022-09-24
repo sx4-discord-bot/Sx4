@@ -2,6 +2,7 @@ package com.sx4.bot.paged;
 
 import com.jockie.bot.core.command.impl.CommandEvent;
 import com.sx4.bot.core.Sx4;
+import com.sx4.bot.utility.StringUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Guild;
@@ -14,6 +15,7 @@ import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.interactions.components.ActionRow;
 import net.dv8tion.jda.api.interactions.components.buttons.Button;
+import net.dv8tion.jda.api.interactions.components.selections.SelectMenu;
 import net.dv8tion.jda.api.requests.ErrorResponse;
 import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
 import net.dv8tion.jda.api.utils.messages.MessageCreateData;
@@ -100,6 +102,7 @@ public class PagedResult<Type> {
 	private Function<PagedResult<Type>, MessageCreateBuilder> customFunction = null;
 	private Function<Type, String> displayFunction = Object::toString;
 	private Function<Integer, String> indexFunction = a -> a + ". ";
+	private Function<Type, String> selectFunction;
 	private BiPredicate<String, Type> selectablePredicate = null;
 	
 	private Consumer<PagedSelect<Type>> onSelect = null;
@@ -366,6 +369,16 @@ public class PagedResult<Type> {
 		
 		return this;
 	}
+
+	public Function<Type, String> getSelectFunction() {
+		return this.selectFunction == null ? this.displayFunction : this.selectFunction;
+	}
+
+	public PagedResult<Type> setSelectFunction(Function<Type, String> selectFunction) {
+		this.selectFunction = selectFunction;
+
+		return this;
+	}
 	
 	public Function<Type, String> getDisplayFunction() {
 		return this.displayFunction;
@@ -401,8 +414,8 @@ public class PagedResult<Type> {
 		Type object = this.list.get(index);
 		if (this.selectablePredicate != null) {
 			return this.selectablePredicate.test(content, object);
-		} else if (this.displayFunction != null) {
-			return this.displayFunction.apply(object).equals(content);
+		} else if (this.selectFunction != null) {
+			return this.selectFunction.apply(object).equals(content);
 		} else {
 			return object.toString().equals(content);
 		}
@@ -444,21 +457,31 @@ public class PagedResult<Type> {
 		}
 	}
 
-	private MessageCreateData applyButtons(MessageCreateBuilder message) {
+	private MessageCreateData applyComponents(MessageCreateBuilder message) {
+		List<ActionRow> rows = new ArrayList<>();
+
 		if (this.list.size() > this.perPage) {
-			ActionRow actionRow;
+			ActionRow row;
 			if (!this.pageOverflow && this.page == this.getMaxPage()) {
-				actionRow = ActionRow.of(PagedResult.PREVIOUS_BUTTON, PagedResult.NEXT_BUTTON_DISABLED);
+				row = ActionRow.of(PagedResult.PREVIOUS_BUTTON, PagedResult.NEXT_BUTTON_DISABLED);
 			} else if (!this.pageOverflow && this.page == 1) {
-				actionRow = ActionRow.of(PagedResult.PREVIOUS_BUTTON_DISABLED, PagedResult.NEXT_BUTTON);
+				row = ActionRow.of(PagedResult.PREVIOUS_BUTTON_DISABLED, PagedResult.NEXT_BUTTON);
 			} else {
-				actionRow = ActionRow.of(PagedResult.PREVIOUS_BUTTON, PagedResult.NEXT_BUTTON);
+				row = ActionRow.of(PagedResult.PREVIOUS_BUTTON, PagedResult.NEXT_BUTTON);
 			}
 
-			return message.setComponents(actionRow).build();
-		} else {
-			return message.build();
+			rows.add(row);
 		}
+
+		if (this.select.contains(SelectType.OBJECT) && this.perPage <= 25) {
+			SelectMenu.Builder menu = SelectMenu.create("select").setMaxValues(1);
+
+			this.forEach((object, index) -> menu.addOption(StringUtility.limit(this.selectFunction.apply(object), 100, "..."), Integer.toString(index)));
+
+			rows.add(ActionRow.of(menu.build()));
+		}
+
+		return message.setComponents(rows).build();
 	}
 	
 	public void getPagedMessage(Consumer<MessageCreateData> consumer) {
@@ -469,7 +492,7 @@ public class PagedResult<Type> {
 		}
 
 		if (this.asyncFunction != null) {
-			this.asyncFunction.accept(this, message -> consumer.accept(this.applyButtons(message)));
+			this.asyncFunction.accept(this, message -> consumer.accept(this.applyComponents(message)));
 			return;
 		}
 
@@ -506,7 +529,7 @@ public class PagedResult<Type> {
 			message = this.customFunction.apply(this);
 		}
 
-		consumer.accept(this.applyButtons(message));
+		consumer.accept(this.applyComponents(message));
 	}
 
 	private void cacheMessage(MessageCreateData message) {

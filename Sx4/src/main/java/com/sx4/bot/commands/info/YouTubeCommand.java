@@ -67,6 +67,7 @@ public class YouTubeCommand extends Sx4Command {
 			PagedResult<Document> paged = new PagedResult<>(event.getBot(), items)
 				.setAuthor("YouTube Results", null, "https://media-thumbs.golden.com/4hBhjfnhOC6J3uJZglZG0quRsPU=/200x200/smart/golden-media.s3.amazonaws.com%2Ftopic_images%2F6c3fdb0966b049eba2b9c2331da224f0.png")
 				.setAutoSelect(true)
+				.setSelectFunction(data -> data.getEmbedded(List.of("snippet", "title"), String.class))
 				.setDisplayFunction(data -> {
 					Document id = data.get("id", Document.class);
 					String kind = id.getString("kind");

@@ -9,6 +9,7 @@ import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
 import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
+import net.dv8tion.jda.api.events.interaction.component.SelectMenuInteractionEvent;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.events.message.MessageUpdateEvent;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
@@ -37,6 +38,35 @@ public class PagedHandler implements EventListener {
 		if (message.isFromGuild() && message.getGuild().getSelfMember().hasPermission(message.getGuildChannel(), Permission.MESSAGE_MANAGE)) {
 			message.delete().queue(null, ErrorResponseException.ignore(ErrorResponse.UNKNOWN_MESSAGE));
 		}
+	}
+
+	public void handleMenu(SelectMenuInteractionEvent event) {
+		if (event.isAcknowledged()) {
+			return;
+		}
+
+		MessageChannel channel = event.getChannel();
+		User author = event.getUser();
+
+		PagedResult<?> pagedResult = this.bot.getPagedManager().getPagedResult(channel.getIdLong(), author.getIdLong());
+		if (pagedResult == null) {
+			if (this.bot.getPagedManager().isPagedResult(event.getMessageIdLong())) {
+				event.reply("This is not your paged result " + this.bot.getConfig().getFailureEmote()).setEphemeral(true).queue();
+			}
+
+			return;
+		}
+
+		if (pagedResult.getMessageId() != event.getMessageIdLong()) {
+			return;
+		}
+
+		if (event.getSelectMenu().isDisabled()) {
+			return;
+		}
+
+		event.deferEdit().queue();
+		pagedResult.select(Integer.parseInt(event.getValues().get(0)));
 	}
 
 	public void handleButton(ButtonInteractionEvent event) {
@@ -144,6 +174,8 @@ public class PagedHandler implements EventListener {
 			this.handleMessage(((MessageUpdateEvent) event).getMessage());
 		} else if (event instanceof ButtonInteractionEvent) {
 			this.handleButton((ButtonInteractionEvent) event);
+		} else if (event instanceof SelectMenuInteractionEvent) {
+			this.handleMenu((SelectMenuInteractionEvent) event);
 		}
 	}
 

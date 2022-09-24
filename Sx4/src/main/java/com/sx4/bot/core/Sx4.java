@@ -1203,13 +1203,7 @@ public class Sx4 {
 			.registerParser(WebhookChannel.class, (context, argument, content) -> {
 				GuildChannel channel = SearchUtility.getGuildChannel(context.getMessage().getGuild(), WebhookChannel.CHANNEL_TYPES, content.trim());
 				return new ParsedResult<>(channel == null ? null : new WebhookChannel((GuildMessageChannelUnion) channel));
-			})
-			.registerParser(GuildChannel.class, (context, argument, content) -> {
-				ChannelType[] channelTypes = argument.getProperty("channelTypes", ChannelTypes.DEFAULT);
-				GuildChannel channel = SearchUtility.getGuildChannel(context.getMessage().getGuild(), channelTypes.length == 0 ? ChannelType.values() : channelTypes, content.trim());
-				return new ParsedResult<>(channel);
-			})
-			.registerGenericParser(GuildChannel.class, (context, type, argument, content) -> {
+			}).registerGenericParser(GuildChannel.class, (context, type, argument, content) -> {
 				ChannelType[] channelTypes = argument.getProperty("channelTypes");
 				GuildChannel channel = SearchUtility.getGuildChannel(context.getMessage().getGuild(), channelTypes.length == 0 ? ChannelType.values() : channelTypes, content.trim());
 				return new ParsedResult<>(channel);
@@ -1236,6 +1230,10 @@ public class Sx4 {
 				}
 
 				if (argument.getProperty("advancedMessage", false)) {
+					if (!MessageUtility.isValid(json)) {
+						return new ParsedResult<>();
+					}
+
 					MessageUtility.removeFields(json);
 				}
 

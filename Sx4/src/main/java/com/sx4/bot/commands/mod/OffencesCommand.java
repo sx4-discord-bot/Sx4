@@ -49,47 +49,44 @@ public class OffencesCommand extends Sx4Command {
 				return;
 			}
 
-			try {
-				List<Document> data = iterable.into(new ArrayList<>());
-				if (data.isEmpty()) {
-					event.replyFailure((member == null ? "This server" : "**" + member.getUser().getAsTag() + "**") + " has no offences").queue();
-					return;
-				}
+			List<Document> data = iterable.into(new ArrayList<>());
+			if (data.isEmpty()) {
+				event.replyFailure((member == null ? "This server" : "**" + member.getUser().getAsTag() + "**") + " has no offences").queue();
+				return;
+			}
 
-				User user = member == null ? null : member.getUser();
+			User user = member == null ? null : member.getUser();
 
-				PagedResult<Document> paged = new PagedResult<>(event.getBot(), data)
-					.setPerPage(6)
-					.setCustomFunction(page -> {
-						EmbedBuilder embed = new EmbedBuilder()
-							.setAuthor("Offences", null, member == null ? event.getGuild().getIconUrl() : user.getEffectiveAvatarUrl())
-							.setTitle("Page " + page.getPage() + "/" + page.getMaxPage())
-							.setFooter(PagedResult.DEFAULT_FOOTER_TEXT);
+			PagedResult<Document> paged = new PagedResult<>(event.getBot(), data)
+				.setPerPage(6)
+				.setSelect()
+				.setCustomFunction(page -> {
+					EmbedBuilder embed = new EmbedBuilder()
+						.setAuthor("Offences", null, member == null ? event.getGuild().getIconUrl() : user.getEffectiveAvatarUrl())
+						.setTitle("Page " + page.getPage() + "/" + page.getMaxPage())
+						.setFooter(PagedResult.DEFAULT_FOOTER_TEXT);
 
-						page.forEach((offence, index) -> {
-							Action action = Action.fromData(offence.get("action", Document.class));
+					page.forEach((offence, index) -> {
+						Action action = Action.fromData(offence.get("action", Document.class));
 
-							ObjectId id = offence.getObjectId("_id");
-							OffsetDateTime time = OffsetDateTime.ofInstant(Instant.ofEpochSecond(id.getTimestamp()), ZoneOffset.UTC);
+						ObjectId id = offence.getObjectId("_id");
+						OffsetDateTime time = OffsetDateTime.ofInstant(Instant.ofEpochSecond(id.getTimestamp()), ZoneOffset.UTC);
 
-							long targetId = offence.getLong("targetId");
-							User target = member == null ? event.getShardManager().getUserById(targetId) : user;
-							String targetContent = target == null ? "Anonymous#0000 (" + targetId + ")" : target.getAsTag();
+						long targetId = offence.getLong("targetId");
+						User target = member == null ? event.getShardManager().getUserById(targetId) : user;
+						String targetContent = target == null ? "Anonymous#0000 (" + targetId + ")" : target.getAsTag();
 
-							long moderatorId = offence.getLong("moderatorId");
-							User moderator = event.getShardManager().getUserById(moderatorId);
-							String moderatorContent = moderator == null ? "Anonymous#0000 (" + moderatorId + ")" : moderator.getAsTag();
+						long moderatorId = offence.getLong("moderatorId");
+						User moderator = event.getShardManager().getUserById(moderatorId);
+						String moderatorContent = moderator == null ? "Anonymous#0000 (" + moderatorId + ")" : moderator.getAsTag();
 
-							embed.addField(action.toString(), String.format("Target: %s\nModerator: %s\nReason: %s\nTime: %s", targetContent, moderatorContent, offence.get("reason", "None Given"), time.format(this.formatter)), true);
-						});
-
-						return new MessageCreateBuilder().setEmbeds(embed.build());
+						embed.addField(action.toString(), String.format("Target: %s\nModerator: %s\nReason: %s\nTime: %s", targetContent, moderatorContent, offence.get("reason", "None Given"), time.format(this.formatter)), true);
 					});
 
-				paged.execute(event);
-			} catch (Throwable e) {
-				e.printStackTrace();
-			}
+					return new MessageCreateBuilder().setEmbeds(embed.build());
+				});
+
+			paged.execute(event);
 		});
 	}
 

@@ -6,7 +6,6 @@ import club.minnced.discord.webhook.send.WebhookMessage;
 import club.minnced.discord.webhook.send.WebhookMessageBuilder;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.MessageEmbed;
-import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
 import net.dv8tion.jda.api.utils.FileUpload;
 import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
 import net.dv8tion.jda.api.utils.messages.MessageCreateData;
@@ -367,6 +366,15 @@ public class MessageUtility {
 		}
 
 		return builder;
+	}
+
+	public static boolean isValid(Document json) {
+		try {
+			MessageUtility.fromJson(json);
+			return true;
+		} catch (IllegalArgumentException e) {
+			return false;
+		}
 	}
 
 	public static boolean isWebhookEmbedEmpty(WebhookEmbed embed) {
