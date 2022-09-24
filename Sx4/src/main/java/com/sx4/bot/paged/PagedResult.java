@@ -412,10 +412,11 @@ public class PagedResult<Type> {
 
 	public boolean runSelectablePredicate(String content, int index) {
 		Type object = this.list.get(index);
+		Function<Type, String> selectFunction;
 		if (this.selectablePredicate != null) {
 			return this.selectablePredicate.test(content, object);
-		} else if (this.selectFunction != null) {
-			return this.selectFunction.apply(object).equals(content);
+		} else if ((selectFunction = this.getSelectFunction()) != null) {
+			return selectFunction.apply(object).equals(content);
 		} else {
 			return object.toString().equals(content);
 		}
@@ -476,7 +477,7 @@ public class PagedResult<Type> {
 		if (this.select.contains(SelectType.OBJECT) && this.perPage <= 25) {
 			SelectMenu.Builder menu = SelectMenu.create("select").setMaxValues(1);
 
-			this.forEach((object, index) -> menu.addOption(StringUtility.limit(this.selectFunction.apply(object), 100, "..."), Integer.toString(index)));
+			this.forEach((object, index) -> menu.addOption(StringUtility.limit(this.getSelectFunction().apply(object), 100, "..."), Integer.toString(index)));
 
 			rows.add(ActionRow.of(menu.build()));
 		}
