@@ -68,7 +68,7 @@ public class StickerCommand extends Sx4Command {
 				return;
 			}
 
-			String effectiveName = name == null ? sticker.hasName() ? sticker.getName() : "Unnamed_Emote" : name;
+			String effectiveName = name == null ? sticker.hasName() ? sticker.getName() : "Unnamed_Sticker" : name;
 
 			event.getGuild().createSticker(effectiveName, "", FileUpload.fromData(bytes, effectiveName + "." + extension), List.of("sticker")).submit(false)
 				.thenCompose(createdSticker -> event.replySuccess("`" + createdSticker.getName() + "` has been created").setStickers(createdSticker).submit())

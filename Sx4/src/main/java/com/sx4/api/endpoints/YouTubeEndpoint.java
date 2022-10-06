@@ -11,13 +11,13 @@ import com.sx4.bot.events.youtube.YouTubeUpdateEvent;
 import com.sx4.bot.events.youtube.YouTubeUpdateTitleEvent;
 import com.sx4.bot.events.youtube.YouTubeUploadEvent;
 import com.sx4.bot.utility.ExceptionUtility;
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 import org.bson.Document;
 import org.json.JSONObject;
 import org.json.XML;
 
-import javax.ws.rs.*;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.OffsetDateTime;

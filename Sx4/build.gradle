@@ -65,20 +65,20 @@ dependencies {
 
 	implementation group: 'org.codehaus.groovy', name: 'groovy', version: '3+'
 
-	implementation group: 'org.glassfish.jersey.core', name: 'jersey-server', version: '2.28'
-	implementation group: 'org.glassfish.jersey.containers', name: 'jersey-container-servlet', version: '2.28'
-	implementation group: 'org.glassfish.jersey.inject', name: 'jersey-hk2', version: '2.28'
-	implementation group: 'org.glassfish.jersey.media', name: 'jersey-media-json-jackson', version: '2.28'
+	implementation group: 'org.glassfish.jersey.core', name: 'jersey-server', version: '3.0.8'
+	implementation group: 'org.glassfish.jersey.containers', name: 'jersey-container-servlet', version: '3.0.8'
+	implementation group: 'org.glassfish.jersey.inject', name: 'jersey-hk2', version: '3.0.8'
+	implementation group: 'org.glassfish.jersey.media', name: 'jersey-media-json-jackson', version: '3.0.8'
 
-	implementation group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.4.14.v20181114'
-	implementation group: 'org.eclipse.jetty', name: 'jetty-servlet', version: '9.4.14.v20181114'
+	implementation group: 'org.eclipse.jetty', name: 'jetty-server', version: '11.0.12'
+	implementation group: 'org.eclipse.jetty', name: 'jetty-servlet', version: '11.0.12'
 
 	implementation group: 'javax.xml.bind', name: 'jaxb-api', version: '2.4.0-b180830.0359'
 
 	implementation group: 'org.slf4j', name: 'slf4j-simple', version: '1.6.2'
 	implementation 'commons-io:commons-io:2.11.0'
 
-	antlr 'org.antlr:antlr4:4.7.2'
+	antlr 'org.antlr:antlr4:4.11.1'
 }
 
 def getGitHash = { ->

@@ -8,7 +8,7 @@ import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.User;
-import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
+import net.dv8tion.jda.api.entities.channel.middleman.GuildChannel;
 import net.dv8tion.jda.api.entities.channel.middleman.GuildMessageChannel;
 import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
@@ -567,11 +567,11 @@ public class PagedResult<Type> {
 		this.channelId = channel.getIdLong();
 		this.ownerId = owner.getIdLong();
 		
-		if (channel instanceof TextChannel textChannel) {
-			Guild guild = textChannel.getGuild();
+		if (channel instanceof GuildChannel guildChannel) {
+			Guild guild = guildChannel.getGuild();
 			
 			this.guildId = guild.getIdLong();
-			this.embed = this.embed && guild.getSelfMember().hasPermission(textChannel, Permission.MESSAGE_EMBED_LINKS);
+			this.embed = this.embed && guild.getSelfMember().hasPermission(guildChannel, Permission.MESSAGE_EMBED_LINKS);
 		}
 		
 		if (this.autoSelect && this.list.size() == 1) {

@@ -1,7 +1,6 @@
 package com.sx4.api;
 
 import com.sx4.api.endpoints.*;
-import com.sx4.api.exceptions.UncaughtExceptionHandler;
 import com.sx4.bot.core.Sx4;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
@@ -20,10 +19,10 @@ public class Sx4Server {
 		ResourceConfig resourceConfig = new ResourceConfig();
 		
 		resourceConfig.registerInstances(
-			new UncaughtExceptionHandler(),
+			//new UncaughtExceptionHandler(),
+			new RedirectEndpoint(bot),
 			new YouTubeEndpoint(bot),
 			new PatreonEndpoint(bot),
-			new RedirectEndpoint(bot),
 			new GitHubEndpoint(bot),
 			new SteamEndpoint(bot),
 			new TwitchEndpoint(bot)

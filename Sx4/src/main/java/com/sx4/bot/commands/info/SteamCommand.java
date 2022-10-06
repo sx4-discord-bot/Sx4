@@ -16,7 +16,8 @@ import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.HmacUtility;
 import com.sx4.bot.utility.NumberUtility;
 import com.sx4.bot.utility.StringUtility;
-import net.dv8tion.jda.api.EmbedBuilder;import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.EmbedBuilder;
+import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
 import okhttp3.Request;
@@ -210,6 +211,7 @@ public class SteamCommand extends Sx4Command {
 
 		PagedResult<Document> paged = new PagedResult<>(event.getBot(), profiles)
 			.setAutoSelect(true)
+			.setSelectFunction(data -> data.getString("name"))
 			.setAuthor("Steam Profiles", null, "https://upload.wikimedia.org/wikipedia/commons/thumb/8/83/Steam_icon_logo.svg/2000px-Steam_icon_logo.svg.png")
 			.setDisplayFunction(data -> "[" + data.getString("name") + "](" + data.getString("url") + ")");
 
@@ -329,6 +331,7 @@ public class SteamCommand extends Sx4Command {
 
 			PagedResult<Document> profilePaged = new PagedResult<>(event.getBot(), profiles)
 				.setAutoSelect(true)
+				.setSelectFunction(data -> data.getString("name"))
 				.setAuthor("Steam Profiles", null, "https://upload.wikimedia.org/wikipedia/commons/thumb/8/83/Steam_icon_logo.svg/2000px-Steam_icon_logo.svg.png")
 				.setDisplayFunction(data -> "[" + data.getString("name") + "](" + data.getString("url") + ")");
 

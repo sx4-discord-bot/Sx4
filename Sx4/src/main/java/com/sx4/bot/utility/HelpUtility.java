@@ -111,6 +111,7 @@ public class HelpUtility {
 			.setAutoSelect(true)
 			.setPerPage(15)
 			.setDisplayFunction(command -> "`" + command.getCommandTrigger() + "` - " + command.getDescription())
+			.setSelectFunction(Sx4Command::getCommandTrigger)
 			.setSelectablePredicate((content, command) -> command.getCommandTrigger().equals(content))
 			.setSelect(SelectType.OBJECT)
 			.setIndexed(false)

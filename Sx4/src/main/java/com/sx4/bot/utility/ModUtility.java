@@ -151,7 +151,7 @@ public class ModUtility {
 					return CompletableFuture.failedFuture(new AuthorPermissionException(Permission.KICK_MEMBERS));
 				}
 
-				return target.kick(ModUtility.getAuditReason(reason, moderator.getUser())).submit().thenApply($ -> {
+				return target.kick().reason(ModUtility.getAuditReason(reason, moderator.getUser())).submit().thenApply($ -> {
 					bot.getModActionManager().onModAction(new KickEvent(moderator, target.getUser(), reason));
 
 					return action;

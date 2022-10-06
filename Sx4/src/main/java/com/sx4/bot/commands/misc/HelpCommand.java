@@ -40,6 +40,7 @@ public class HelpCommand extends Sx4Command {
 			PagedResult<Sx4Category> paged = new PagedResult<>(event.getBot(), categories)
 				.setPerPage(categories.size())
 				.setSelect(SelectType.OBJECT)
+				.setSelectFunction(Sx4Category::getName)
 				.setSelectablePredicate((content, category) -> category.getName().equalsIgnoreCase(content) || Arrays.stream(category.getAliases()).anyMatch(content::equalsIgnoreCase))
 				.setCustomFunction(page -> {
 					MessageCreateBuilder builder = new MessageCreateBuilder();
@@ -91,6 +92,7 @@ public class HelpCommand extends Sx4Command {
 				PagedResult<Sx4Command> paged = new PagedResult<>(event.getBot(), commands)
 					.setAuthor(commandName, null, event.getAuthor().getEffectiveAvatarUrl())
 					.setAutoSelect(true)
+					.setSelect(SelectType.OBJECT)
 					.setPerPage(15)
 					.setSelectablePredicate((content, command) -> command.getCommandTrigger().equals(content))
 					.setDisplayFunction(Sx4Command::getUsage);

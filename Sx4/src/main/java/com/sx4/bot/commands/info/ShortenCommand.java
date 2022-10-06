@@ -24,7 +24,7 @@ public class ShortenCommand extends Sx4Command {
 	public void onCommand(Sx4CommandEvent event, @Argument(value="url") String url) {
 		Request request = new Request.Builder()
 			.url("https://api-ssl.bitly.com/v4/shorten")
-			.post(RequestBody.create(MediaType.parse("application/json; charset=utf-8"), new Document("long_url", url).toJson()))
+			.post(RequestBody.create(new Document("long_url", url).toJson(), MediaType.parse("application/json; charset=utf-8")))
 			.addHeader("Authorization", "Bearer " + event.getConfig().getBitly())
 			.addHeader("Content-Type", "application/json")
 			.build();

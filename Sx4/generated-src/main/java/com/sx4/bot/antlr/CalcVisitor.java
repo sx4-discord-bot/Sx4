@@ -1,4 +1,4 @@
-// Generated from Calc.g4 by ANTLR 4.7.2
+// Generated from java-escape by ANTLR 4.11.1
 package com.sx4.bot.antlr;
 import org.antlr.v4.runtime.tree.ParseTreeVisitor;
 

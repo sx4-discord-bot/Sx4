@@ -8,11 +8,11 @@ import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.StringUtility;
+import jakarta.ws.rs.ForbiddenException;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.channel.attribute.IAgeRestrictedChannel;
 import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
 
-import javax.ws.rs.ForbiddenException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CompletionException;
