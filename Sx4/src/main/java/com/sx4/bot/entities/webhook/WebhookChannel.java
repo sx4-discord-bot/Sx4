@@ -108,6 +108,12 @@ public class WebhookChannel implements IWebhookContainerMixin<WebhookChannel> {
 
 	@NotNull
 	@Override
+	public ForumChannel asForumChannel() {
+		return (ForumChannel) this.channel;
+	}
+
+	@NotNull
+	@Override
 	public IThreadContainer asThreadContainer() {
 		return (IThreadContainer) this.channel;
 	}

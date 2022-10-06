@@ -1365,10 +1365,6 @@ public class LoggerHandler implements EventListener {
 			channelType.isThread() ? LoggerEvent.THREAD_CHANNEL_CREATE :
 			LoggerEvent.TEXT_CHANNEL_CREATE;
 
-		if (channelType.isThread() && !event.isNewlyCreated()) {
-			return;
-		}
-
 		this.onChannelCreate((GuildChannel) event.getChannel(), loggerEvent);
 	}
 

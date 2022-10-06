@@ -68,7 +68,6 @@ import net.dv8tion.jda.api.entities.*;
 import net.dv8tion.jda.api.entities.Message.Attachment;
 import net.dv8tion.jda.api.entities.channel.Channel;
 import net.dv8tion.jda.api.entities.channel.ChannelType;
-import net.dv8tion.jda.api.entities.channel.attribute.IPermissionContainer;
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
 import net.dv8tion.jda.api.entities.channel.concrete.VoiceChannel;
 import net.dv8tion.jda.api.entities.channel.middleman.AudioChannel;
@@ -682,7 +681,7 @@ public class Sx4 {
 					return false;
 				}
 
-				EnumSet<Permission> missingPermissions = CheckUtility.missingPermissions(this, event.getMember(), event.getChannel() instanceof IPermissionContainer ? (IPermissionContainer) event.getChannel() : null, event.getProperty("fakePermissions"), EnumSet.copyOf(permissions));
+				EnumSet<Permission> missingPermissions = CheckUtility.missingPermissions(this, event.getMember(), event.getGuildChannel(), event.getProperty("fakePermissions"), EnumSet.copyOf(permissions));
 				if (missingPermissions.isEmpty()) {
 					return true;
 				} else {

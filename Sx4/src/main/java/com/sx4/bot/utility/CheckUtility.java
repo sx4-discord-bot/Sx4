@@ -12,7 +12,7 @@ import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.channel.Channel;
 import net.dv8tion.jda.api.entities.channel.ChannelType;
-import net.dv8tion.jda.api.entities.channel.attribute.IPermissionContainer;
+import net.dv8tion.jda.api.entities.channel.middleman.GuildChannel;
 import org.bson.Document;
 
 import java.util.*;
@@ -116,11 +116,11 @@ public class CheckUtility {
 		return canUseCommand;
 	}
 	
-	public static boolean hasPermissions(Sx4 bot, Member member, IPermissionContainer channel, List<Document> holders, Permission... permissions) {
+	public static boolean hasPermissions(Sx4 bot, Member member, GuildChannel channel, List<Document> holders, Permission... permissions) {
 		return CheckUtility.missingPermissions(bot, member, channel, holders, permissions).isEmpty();
 	}
 	
-	public static boolean hasPermissions(Sx4 bot, Member member, IPermissionContainer channel, List<Document> holders, EnumSet<Permission> permissions) {
+	public static boolean hasPermissions(Sx4 bot, Member member, GuildChannel channel, List<Document> holders, EnumSet<Permission> permissions) {
 		return CheckUtility.missingPermissions(bot, member, channel, holders, permissions).isEmpty();
 	}
 
@@ -132,7 +132,7 @@ public class CheckUtility {
 		return CheckUtility.missingPermissions(bot, member, null, holders, permissions).isEmpty();
 	}
 	
-	public static EnumSet<Permission> missingPermissions(Sx4 bot, Member member, IPermissionContainer channel, List<Document> holders, Permission... permissions) {
+	public static EnumSet<Permission> missingPermissions(Sx4 bot, Member member, GuildChannel channel, List<Document> holders, Permission... permissions) {
 		return CheckUtility.missingPermissions(bot, member, channel, holders, permissions.length == 0 ? EnumSet.noneOf(Permission.class) : EnumSet.copyOf(Arrays.asList(permissions)));
 	}
 
@@ -144,7 +144,7 @@ public class CheckUtility {
 		return CheckUtility.missingPermissions(bot, member, null, holders, permissions);
 	}
 
-	public static EnumSet<Permission> missingPermissions(Sx4 bot, Member member, IPermissionContainer channel, List<Document> holders, EnumSet<Permission> permissions) {
+	public static EnumSet<Permission> missingPermissions(Sx4 bot, Member member, GuildChannel channel, List<Document> holders, EnumSet<Permission> permissions) {
 		if (bot.getCommandListener().isDeveloper(member.getIdLong()) || (channel == null ? member.hasPermission(permissions) : member.hasPermission(channel, permissions))) {
 			return EnumSet.noneOf(Permission.class);
 		}

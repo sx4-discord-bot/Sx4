@@ -202,7 +202,7 @@ public class ButtonHandler implements EventListener {
 				return CompletableFuture.completedFuture(MongoDatabase.EMPTY_DOCUMENT);
 			}
 
-			List<Bson> guildUpdate = List.of(Operators.set("premium.endAt", Operators.add(TimeUnit.DAYS.toSeconds(days), Operators.ifNull("$premium.endAt", Operators.nowEpochSecond()))));
+			List<Bson> guildUpdate = List.of(Operators.set("premium.endAt", Operators.add(TimeUnit.DAYS.toSeconds(days), Operators.cond(Operators.or(Operators.extinct("$premium.endAt"), Operators.lt("$premium.endAt", Operators.nowEpochSecond())), Operators.nowEpochSecond(), "$premium.endAt"))));
 			FindOneAndUpdateOptions guildOptions = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE).projection(Projections.include("premium.endAt")).upsert(true);
 
 			return this.bot.getMongo().findAndUpdateGuildById(guildId, guildUpdate, guildOptions);

@@ -81,11 +81,11 @@ public class Sx4CommandEvent extends CommandEvent {
 	}
 
 	public boolean hasPermission(Permission... permissions) {
-		return this.isPermissionContainer() ? this.getSelfMember().hasPermission(permissions) : this.getSelfMember().hasPermission(this.getPermissionContainer(), permissions);
+		return !this.isFromGuild() || this.getSelfMember().hasPermission(this.getGuildChannel(), permissions);
 	}
 
 	public boolean hasPermission(Member member, Permission... permissions) {
-		return CheckUtility.hasPermissions(this.bot, member, this.getPermissionContainer(), this.getProperty("fakePermissions"), permissions);
+		return CheckUtility.hasPermissions(this.bot, member, this.getGuildChannel(), this.getProperty("fakePermissions"), permissions);
 	}
 	
 	public MessageCreateAction replyHelp() {
