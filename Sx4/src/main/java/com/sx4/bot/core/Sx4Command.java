@@ -134,7 +134,7 @@ public class Sx4Command extends CommandImpl {
 		return this;
 	}
 	
-	public @NotNull Sx4Command setAuthorDiscordPermissions(Permission @NotNull ... permissions) {
+	public @NotNull Sx4Command setAuthorDiscordPermissions(@NotNull Permission... permissions) {
 		return this.setAuthorDiscordPermissions(false, permissions);
 	}
 	
@@ -152,7 +152,7 @@ public class Sx4Command extends CommandImpl {
 		return this.authorDiscordPermissions;
 	}
 	
-	public @NotNull Sx4Command setBotDiscordPermissions(Permission @NotNull ... permissions) {
+	public @NotNull Sx4Command setBotDiscordPermissions(@NotNull Permission... permissions) {
 		return this.setBotDiscordPermissions(false, permissions);
 	}
 	

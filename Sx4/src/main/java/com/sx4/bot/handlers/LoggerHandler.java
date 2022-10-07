@@ -695,7 +695,7 @@ public class LoggerHandler implements EventListener {
 		});
 	}
 
-	public void onGuildVoiceJoin(GuildVoiceJoinEvent event) {
+	public void onGuildVoiceJoin(GuildVoiceUpdateEvent event) {
 		Guild guild = event.getGuild();
 		Member member = event.getMember();
 		User user = member.getUser();
@@ -728,7 +728,7 @@ public class LoggerHandler implements EventListener {
 		});
 	}
 
-	public void onGuildVoiceLeave(GuildVoiceLeaveEvent event) {
+	public void onGuildVoiceLeave(GuildVoiceUpdateEvent event) {
 		Guild guild = event.getGuild();
 		Member member = event.getMember();
 		User user = member.getUser();
@@ -799,7 +799,7 @@ public class LoggerHandler implements EventListener {
 		});
 	}
 
-	public void onGuildVoiceMove(GuildVoiceMoveEvent event) {
+	public void onGuildVoiceMove(GuildVoiceUpdateEvent event) {
 		Guild guild = event.getGuild();
 		Member member = event.getMember();
 		User user = member.getUser();
@@ -867,6 +867,16 @@ public class LoggerHandler implements EventListener {
 				this.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
 			}
 		});
+	}
+
+	public void onGuildVoiceUpdate(GuildVoiceUpdateEvent event) {
+		if (event.getChannelLeft() == null) {
+			this.onGuildVoiceJoin(event);
+		} else if (event.getChannelJoined() == null) {
+			this.onGuildVoiceLeave(event);
+		} else {
+			this.onGuildVoiceMove(event);
+		}
 	}
 
 	public void onGuildVoiceGuildMute(GuildVoiceGuildMuteEvent event) {
@@ -2249,12 +2259,8 @@ public class LoggerHandler implements EventListener {
 			this.onGuildBan((GuildBanEvent) event);
 		} else if (event instanceof GuildUnbanEvent) {
 			this.onGuildUnban((GuildUnbanEvent) event);
-		} else if (event instanceof GuildVoiceJoinEvent) {
-			this.onGuildVoiceJoin((GuildVoiceJoinEvent) event);
-		} else if (event instanceof GuildVoiceLeaveEvent) {
-			this.onGuildVoiceLeave((GuildVoiceLeaveEvent) event);
-		} else if (event instanceof GuildVoiceMoveEvent) {
-			this.onGuildVoiceMove((GuildVoiceMoveEvent) event);
+		} else if (event instanceof GuildVoiceUpdateEvent) {
+			this.onGuildVoiceUpdate((GuildVoiceUpdateEvent) event);
 		} else if (event instanceof GuildVoiceGuildMuteEvent) {
 			this.onGuildVoiceGuildMute((GuildVoiceGuildMuteEvent) event);
 		} else if (event instanceof GuildVoiceGuildDeafenEvent) {

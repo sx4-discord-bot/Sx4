@@ -11,7 +11,11 @@ import com.sx4.bot.core.Sx4;
 import com.sx4.bot.utility.ExceptionUtility;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDA.ShardInfo;
-import net.dv8tion.jda.api.events.*;
+import net.dv8tion.jda.api.events.GenericEvent;
+import net.dv8tion.jda.api.events.session.ReadyEvent;
+import net.dv8tion.jda.api.events.session.SessionDisconnectEvent;
+import net.dv8tion.jda.api.events.session.SessionRecreateEvent;
+import net.dv8tion.jda.api.events.session.SessionResumeEvent;
 import net.dv8tion.jda.api.hooks.EventListener;
 import net.dv8tion.jda.api.requests.CloseCode;
 import org.jetbrains.annotations.NotNull;
@@ -86,15 +90,15 @@ public class ConnectionHandler implements EventListener {
 		this.eventsWebhook.send(this.getEmbed(jda, "Ready", this.bot.getConfig().getGreen()));
 	}
 	
-	public void onReconnected(ReconnectedEvent event) {
+	public void onReconnected(SessionRecreateEvent event) {
 		this.eventsWebhook.send(this.getEmbed(event.getJDA(), "Reconnect", this.bot.getConfig().getGreen()));
 	}
 	
-	public void onResumed(ResumedEvent event) {
+	public void onResumed(SessionResumeEvent event) {
 		this.eventsWebhook.send(this.getEmbed(event.getJDA(), "Resume", this.bot.getConfig().getGreen()));
 	}
 	
-	public void onDisconnect(DisconnectEvent event) {
+	public void onDisconnect(SessionDisconnectEvent event) {
 		this.eventsWebhook.send(this.getEmbed(event.getJDA(), "Disconnect", event.getCloseCode(), event.getTimeDisconnected(), this.bot.getConfig().getRed()));
 	}
 
@@ -102,12 +106,12 @@ public class ConnectionHandler implements EventListener {
 	public void onEvent(@NotNull GenericEvent event) {
 		if (event instanceof ReadyEvent) {
 			this.onReady((ReadyEvent) event);
-		} else if (event instanceof ReconnectedEvent) {
-			this.onReconnected((ReconnectedEvent) event);
-		} else if (event instanceof ResumedEvent) {
-			this.onResumed((ResumedEvent) event);
-		} else if (event instanceof DisconnectEvent) {
-			this.onDisconnect((DisconnectEvent) event);
+		} else if (event instanceof SessionRecreateEvent) {
+			this.onReconnected((SessionRecreateEvent) event);
+		} else if (event instanceof SessionResumeEvent) {
+			this.onResumed((SessionResumeEvent) event);
+		} else if (event instanceof SessionDisconnectEvent) {
+			this.onDisconnect((SessionDisconnectEvent) event);
 		}
 	}
 
