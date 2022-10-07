@@ -33,6 +33,7 @@ public class ShardInfoCommand extends Sx4Command {
 
 		JDA.ShardInfo shardInfo = event.getJDA().getShardInfo();
 		PagedResult<JDA> paged = new PagedResult<>(event.getBot(), shards)
+			.setSelect()
 			.setPerPage(9)
 			.setCustomFunction(page -> {
 				EmbedBuilder embed = new EmbedBuilder();
