@@ -7,7 +7,8 @@ import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.utility.PermissionUtility;
 import com.sx4.bot.utility.TimeUtility;
 import net.dv8tion.jda.api.Permission;
-import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
+import net.dv8tion.jda.api.entities.channel.attribute.ISlowmodeChannel;
+import net.dv8tion.jda.api.managers.channel.attribute.ISlowmodeChannelManager;
 
 import java.time.Duration;
 import java.util.EnumSet;
@@ -25,9 +26,13 @@ public class SlowModeCommand extends Sx4Command {
 		super.setCategoryAll(ModuleCategory.MODERATION);
 	}
 
-	public void onCommand(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) TextChannel channel, @Argument(value="duration", endless=true) Duration duration) {
-		TextChannel effectiveChannel = channel == null ? event.getGuildChannel().asTextChannel() : channel;
-		if (!event.getSelfMember().hasPermission(effectiveChannel, Permission.MANAGE_CHANNEL)) {
+	public void onCommand(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) ISlowmodeChannel channel, @Argument(value="duration", endless=true) Duration duration) {
+		if (channel == null) {
+			event.replyFailure("You cannot set slowmode in this channel").queue();
+			return;
+		}
+
+		if (!event.getSelfMember().hasPermission(channel, Permission.MANAGE_CHANNEL)) {
 			event.replyFailure(PermissionUtility.formatMissingPermissions(EnumSet.of(Permission.MANAGE_CHANNEL))).queue();
 			return;
 		}
@@ -43,13 +48,13 @@ public class SlowModeCommand extends Sx4Command {
 			return;
 		}
 
-		if (seconds == effectiveChannel.getSlowmode()) {
+		if (seconds == channel.getSlowmode()) {
 			event.replyFailure("The slow mode in that channel is already set to that").queue();
 			return;
 		}
 
-		effectiveChannel.getManager().setSlowmode((int) seconds)
-			.flatMap($ -> event.replySuccess(seconds == 0 ? "Turned off the slow mode in " + effectiveChannel.getAsMention() : "Set the slow mode in " + effectiveChannel.getAsMention() + " to " + TimeUtility.LONG_TIME_FORMATTER.parse(seconds)))
+		((ISlowmodeChannelManager<ISlowmodeChannel, ?>) channel.getManager()).setSlowmode((int) seconds)
+			.flatMap($ -> event.replySuccess(seconds == 0 ? "Turned off the slow mode in " + channel.getAsMention() : "Set the slow mode in " + channel.getAsMention() + " to " + TimeUtility.LONG_TIME_FORMATTER.parse(seconds)))
 			.queue();
 	}
 
