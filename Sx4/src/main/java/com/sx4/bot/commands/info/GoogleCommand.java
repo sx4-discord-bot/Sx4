@@ -47,6 +47,7 @@ public class GoogleCommand extends Sx4Command {
 
 			PagedResult<GoogleSearchResult> paged = new PagedResult<>(event.getBot(), results)
 				.setIndexed(false)
+				.setSelect()
 				.setPerPage(3)
 				.setAuthor("Google", googleUrl, "http://i.imgur.com/G46fm8J.png")
 				.setDisplayFunction(result -> {

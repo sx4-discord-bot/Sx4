@@ -52,6 +52,7 @@ public class GoogleImageCommand extends Sx4Command {
 
 			PagedResult<GoogleSearchResult> paged = new PagedResult<>(event.getBot(), results)
 				.setIndexed(false)
+				.setSelect()
 				.setPerPage(4)
 				.setCustomFunction(page -> {
 					List<MessageEmbed> embeds = new ArrayList<>();
