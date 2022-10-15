@@ -242,6 +242,7 @@ public class EmoteCommand extends Sx4Command {
 			}
 
 			PagedResult<Role> paged = new PagedResult<>(event.getBot(), emoji.getRoles())
+				.setSelect()
 				.setAuthor("Roles Whitelisted", null, event.getGuild().getIconUrl())
 				.setDisplayFunction(Role::getAsMention)
 				.setIndexed(false);

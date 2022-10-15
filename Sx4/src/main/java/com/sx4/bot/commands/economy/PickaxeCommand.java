@@ -68,6 +68,7 @@ public class PickaxeCommand extends Sx4Command {
 
 		PagedResult<Pickaxe> paged = new PagedResult<>(event.getBot(), pickaxes)
 			.setPerPage(12)
+			.setSelect()
 			.setCustomFunction(page -> {
 				EmbedBuilder embed = new EmbedBuilder()
 					.setAuthor("Pickaxe Shop", null, event.getSelfUser().getEffectiveAvatarUrl())
@@ -359,6 +360,7 @@ public class PickaxeCommand extends Sx4Command {
 
 		PagedResult<Upgrade> paged = new PagedResult<>(event.getBot(), Arrays.asList(upgrades.toArray(Upgrade[]::new)))
 			.setPerPage(3)
+			.setSelect()
 			.setCustomFunction(page -> {
 				EmbedBuilder embed = new EmbedBuilder()
 					.setTitle("Pickaxe Upgrades");

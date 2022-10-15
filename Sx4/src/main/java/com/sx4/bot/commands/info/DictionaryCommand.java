@@ -54,6 +54,7 @@ public class DictionaryCommand extends Sx4Command {
 
 			PagedResult<Document> paged = new PagedResult<>(event.getBot(), definitions)
 				.setPerPage(1)
+				.setSelect()
 				.setCustomFunction(page -> {
 					EmbedBuilder embed = new EmbedBuilder();
 					embed.setAuthor(StringUtility.title(query) + " (" + document.getString("type") + ")", document.getString("url"), null);

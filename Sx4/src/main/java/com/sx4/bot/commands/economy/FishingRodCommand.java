@@ -67,6 +67,7 @@ public class FishingRodCommand extends Sx4Command {
 
 		PagedResult<Rod> paged = new PagedResult<>(event.getBot(), rods)
 			.setPerPage(12)
+			.setSelect()
 			.setCustomFunction(page -> {
 				EmbedBuilder embed = new EmbedBuilder()
 					.setAuthor("Fishing Rod Shop", null, event.getSelfUser().getEffectiveAvatarUrl())

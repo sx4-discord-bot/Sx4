@@ -80,6 +80,7 @@ public class UrbanDictionaryCommand extends Sx4Command {
 
 			PagedResult<Document> paged = new PagedResult<>(event.getBot(), list)
 				.setPerPage(1)
+				.setSelect()
 				.setCustomFunction(page -> {
 					EmbedBuilder embed = new EmbedBuilder();
 					embed.setFooter(PagedResult.DEFAULT_FOOTER_TEXT, null);

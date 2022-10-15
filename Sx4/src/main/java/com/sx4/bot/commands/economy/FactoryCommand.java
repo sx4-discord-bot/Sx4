@@ -55,6 +55,7 @@ public class FactoryCommand extends Sx4Command {
 
 		PagedResult<Factory> paged = new PagedResult<>(event.getBot(), factories)
 			.setPerPage(15)
+			.setSelect()
 			.setCustomFunction(page -> {
 				EmbedBuilder embed = new EmbedBuilder()
 					.setAuthor("Factory Shop", null, event.getSelfUser().getEffectiveAvatarUrl())

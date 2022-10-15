@@ -488,6 +488,7 @@ public class SteamCommand extends Sx4Command {
 				PagedResult<Map.Entry<Integer, String>> paged = new PagedResult<>(event.getBot(), new ArrayList<>(commonGames.entrySet()))
 					.setAuthor("Games In Common (" + commonGames.size() + ")", null, "https://upload.wikimedia.org/wikipedia/commons/thumb/8/83/Steam_icon_logo.svg/2000px-Steam_icon_logo.svg.png")
 					.setPerPage(15)
+					.setSelect()
 					.setIncreasedIndex(true)
 					.setDisplayFunction(d -> "[" + d.getValue() + "](https://store.steampowered.com/app/" + d.getKey() + ")");
 

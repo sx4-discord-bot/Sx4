@@ -67,6 +67,7 @@ public class AxeCommand extends Sx4Command {
 
 		PagedResult<Axe> paged = new PagedResult<>(event.getBot(), axes)
 			.setPerPage(12)
+			.setSelect()
 			.setCustomFunction(page -> {
 				EmbedBuilder embed = new EmbedBuilder()
 					.setAuthor("Axe Shop", null, event.getSelfUser().getEffectiveAvatarUrl())

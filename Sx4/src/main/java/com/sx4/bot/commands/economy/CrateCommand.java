@@ -57,6 +57,7 @@ public class CrateCommand extends Sx4Command {
 
 		PagedResult<Crate> paged = new PagedResult<>(event.getBot(), crates)
 			.setPerPage(12)
+			.setSelect()
 			.setCustomFunction(page -> {
 				EmbedBuilder embed = new EmbedBuilder()
 					.setDescription("Crates give you a random item, the better the crate the better the chance of a better item")

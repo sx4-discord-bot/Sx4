@@ -98,6 +98,7 @@ public class InvitesCommand extends Sx4Command {
 
 			PagedResult<Map.Entry<Long, Integer>> paged = new PagedResult<>(event.getBot(), sortedCount)
 				.setIncreasedIndex(true)
+				.setSelect()
 				.setAuthor("Invites Leaderboard", null, event.getGuild().getIconUrl())
 				.setDisplayFunction(data -> {
 					int percentInvited = Math.round(((float) data.getValue() / total.get()) * 100);

@@ -29,6 +29,7 @@ public class ServerEmotesCommand extends Sx4Command {
 
 		PagedResult<RichCustomEmoji> paged = new PagedResult<>(event.getBot(), emotes)
 			.setIndexed(false)
+			.setSelect()
 			.setPerPage(15)
 			.setAuthor("Emotes", null, event.getGuild().getIconUrl())
 			.setDisplayFunction(emote -> (event.getSelfMember().canInteract(emote) ? emote.getAsMention() : "[:" + emote.getName() + ":](" + emote.getImageUrl() + ")") + " - " + emote.getName());

@@ -52,6 +52,7 @@ public class MinerCommand extends Sx4Command {
 
 		PagedResult<Miner> paged = new PagedResult<>(event.getBot(), miners)
 			.setPerPage(12)
+			.setSelect()
 			.setCustomFunction(page -> {
 				EmbedBuilder embed = new EmbedBuilder()
 					.setDescription("Miners are a good way to easily gather materials")

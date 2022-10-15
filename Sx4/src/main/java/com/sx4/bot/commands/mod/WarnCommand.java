@@ -174,6 +174,7 @@ public class WarnCommand extends Sx4Command {
 			PagedResult<Document> paged = new PagedResult<>(event.getBot(), users)
 				.setAuthor("Warned Users", null, event.getGuild().getIconUrl())
 				.setIndexed(false)
+				.setSelect()
 				.setDisplayFunction(data -> {
 					long userId = data.getLong("userId");
 					User user = event.getShardManager().getUserById(userId);
@@ -341,6 +342,7 @@ public class WarnCommand extends Sx4Command {
 
 			PagedResult<Document> paged = new PagedResult<>(event.getBot(), config)
 				.setAuthor("Warn Configuration", null, event.getGuild().getIconUrl())
+				.setSelect()
 				.setIndexed(false)
 				.setDisplayFunction(d -> "Warning #" + d.getInteger("number") + ": " + Action.fromData(d.get("action", Document.class)));
 

@@ -137,6 +137,7 @@ public class ReputationCommand extends Sx4Command {
 
 			PagedResult<Map.Entry<User, Integer>> paged = new PagedResult<>(event.getBot(), users)
 				.setPerPage(10)
+				.setSelect()
 				.setCustomFunction(page -> {
 					int rank = userIndex.get();
 

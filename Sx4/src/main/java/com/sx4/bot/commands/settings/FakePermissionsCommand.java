@@ -245,6 +245,7 @@ public class FakePermissionsCommand extends Sx4Command {
 		PagedResult<Document> paged = new PagedResult<>(event.getBot(), holders)
 			.setAuthor("Roles & Users", null, event.getGuild().getIconUrl())
 			.setPerPage(15)
+			.setSelect()
 			.setIndexed(false)
 			.setDisplayFunction(data -> {
 				int type = data.getInteger("type");
