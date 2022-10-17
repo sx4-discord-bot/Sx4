@@ -2,7 +2,11 @@ package com.sx4.bot.utility;
 
 import com.jockie.bot.core.command.impl.CommandEvent;
 import com.sx4.bot.config.Config;
+import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.entities.image.ImageError;
+import com.sx4.bot.entities.image.ImageRequest;
+import com.sx4.bot.http.HttpCallback;
+import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Message;
@@ -11,6 +15,7 @@ import net.dv8tion.jda.api.entities.channel.middleman.GuildMessageChannel;
 import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
 import net.dv8tion.jda.api.requests.restaction.MessageCreateAction;
 import net.dv8tion.jda.api.utils.FileUpload;
+import okhttp3.Request;
 import okhttp3.Response;
 import org.bson.Document;
 
@@ -20,6 +25,30 @@ import java.util.function.BiFunction;
 import java.util.regex.Matcher;
 
 public class ImageUtility {
+
+	public static void sendImageEmbed(Sx4CommandEvent event, String image, String title) {
+		Request request = new ImageRequest(event.getConfig().getImageWebserverUrl("median-colour"))
+			.addQuery("image", image)
+			.build(event.getConfig().getImageWebserver());
+
+		event.getHttpClient().newCall(request).enqueue((HttpCallback) response -> {
+			if (!response.isSuccessful()) {
+				ImageUtility.getErrorMessage(event.getChannel(), response.code(), response.body().string()).queue();
+				return;
+			}
+
+			Document data = Document.parse(response.body().string());
+
+			String sizedImage = image + "?size=1024";
+
+			EmbedBuilder embed = new EmbedBuilder()
+				.setImage(sizedImage)
+				.setColor(data.getInteger("colour"))
+				.setAuthor(title, sizedImage, sizedImage);
+
+			event.reply(embed.build()).queue();
+		});
+	}
 
 	public static MessageCreateAction getImageMessage(CommandEvent event, Response response) throws IOException {
 		return ImageUtility.getImageMessage(event.getChannel(), response);
