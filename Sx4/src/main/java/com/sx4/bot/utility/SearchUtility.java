@@ -391,7 +391,7 @@ public class SearchUtility {
 		Matcher mentionMatch = SearchUtility.CHANNEL_MENTION.matcher(query);
 		if (mentionMatch.matches()) {
 			try {
-				return SearchUtility.getGuildChannelById(guild, query, types);
+				return SearchUtility.getGuildChannelById(guild, mentionMatch.group(1), types);
 			} catch (NumberFormatException e) {
 				return null;
 			}
