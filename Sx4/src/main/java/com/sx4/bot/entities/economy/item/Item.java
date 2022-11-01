@@ -10,25 +10,19 @@ public class Item {
 	private final long price;
 	private final String name;
 	private final int id;
-	//private final boolean purchasable;
 	private final ItemType type;
 	
-	public Item(EconomyManager manager, int id, String name, long price, /*boolean purchasable,*/ ItemType type) {
+	public Item(EconomyManager manager, int id, String name, long price, ItemType type) {
 		this.manager = manager;
 		this.price = price;
 		this.name = name;
 		this.id = id;
-		//this.purchasable = purchasable;
 		this.type = type;
 	}
 	
 	public long getPrice() {
 		return this.price;
 	}
-	
-	/*public boolean isPurchasable() {
-		return this.purchasable;
-	}*/
 	
 	public String getName() {
 		return this.name;

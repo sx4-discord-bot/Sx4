@@ -53,7 +53,7 @@ public class Pickaxe extends Tool {
 	public List<ItemStack<Material>> getMaterialYield() {
 		List<ItemStack<Material>> materials = new ArrayList<>();
 		for (Material material : this.getManager().getItems(Material.class)) {
-			if (material.isHidden()) {
+			if (!material.isObtainable()) {
 				continue;
 			}
 

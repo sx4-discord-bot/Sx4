@@ -121,7 +121,7 @@ public class EconomyManager {
 			}
 
 			Item item = switch (type) {
-				case MATERIAL -> new Material(this, itemData.getInt("id"), itemData.getString("name"), itemData.getLong("price"), itemData.getString("emote"), itemData.optBoolean("hidden", false));
+				case MATERIAL -> new Material(this, itemData.getInt("id"), itemData.getString("name"), itemData.getLong("price"), itemData.getString("emote"), itemData.optBoolean("hidden", false), itemData.optInt("activeMonth", -1));
 				case WOOD -> new Wood(this, itemData.getInt("id"), itemData.getString("name"), itemData.getLong("price"));
 				case ENVELOPE -> new Envelope(this, itemData.getInt("id"), itemData.getString("name"), itemData.getLong("price"));
 				case MINER -> new Miner(this, itemData.getInt("id"), itemData.getString("name"), itemData.getLong("price"), itemData.getLong("maxMaterials"), itemData.getDouble("multiplier"));

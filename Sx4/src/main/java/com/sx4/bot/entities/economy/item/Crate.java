@@ -72,7 +72,7 @@ public class Crate extends Item {
 
 			for (int i = 0; i < count; i++) {
 				for (Item item : items) {
-					if (item == this || (item instanceof Material && ((Material) item).isHidden())) {
+					if (item == this || (item instanceof Material && !((Material) item).isObtainable())) {
 						continue;
 					}
 

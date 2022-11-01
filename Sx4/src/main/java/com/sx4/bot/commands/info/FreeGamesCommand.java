@@ -144,6 +144,7 @@ public class FreeGamesCommand extends Sx4Command {
 		PagedResult<Document> paged = new PagedResult<>(event.getBot(), games)
 			.setPerPage(15)
 			.setAuthor("Free Games History", null, null)
+			.setSelectFunction(data -> data.getString("title"))
 			.setDisplayFunction(data -> {
 				FreeGame<?> game = FreeGameUtility.getFreeGame(data);
 

@@ -58,7 +58,7 @@
         },
         {
             "emote": ":snowflake:",
-            "hidden": true,
+            "activeMonth": 12,
             "name": "Snowflake",
             "price": 750,
             "id": 30,
@@ -66,7 +66,7 @@
         },
         {
             "emote": ":jack_o_lantern:",
-            "hidden": true,
+            "activeMonth": 10,
             "name": "Pumpkin",
             "price": 750,
             "id": 31,

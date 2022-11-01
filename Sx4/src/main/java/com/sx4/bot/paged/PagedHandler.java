@@ -9,7 +9,7 @@ import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
 import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
-import net.dv8tion.jda.api.events.interaction.component.SelectMenuInteractionEvent;
+import net.dv8tion.jda.api.events.interaction.component.StringSelectInteractionEvent;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.events.message.MessageUpdateEvent;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
@@ -40,7 +40,7 @@ public class PagedHandler implements EventListener {
 		}
 	}
 
-	public void handleMenu(SelectMenuInteractionEvent event) {
+	public void handleMenu(StringSelectInteractionEvent event) {
 		if (event.isAcknowledged()) {
 			return;
 		}
@@ -174,8 +174,8 @@ public class PagedHandler implements EventListener {
 			this.handleMessage(((MessageUpdateEvent) event).getMessage());
 		} else if (event instanceof ButtonInteractionEvent) {
 			this.handleButton((ButtonInteractionEvent) event);
-		} else if (event instanceof SelectMenuInteractionEvent) {
-			this.handleMenu((SelectMenuInteractionEvent) event);
+		} else if (event instanceof StringSelectInteractionEvent) {
+			this.handleMenu((StringSelectInteractionEvent) event);
 		}
 	}
 

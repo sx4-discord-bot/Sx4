@@ -15,7 +15,7 @@ import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.interactions.components.ActionRow;
 import net.dv8tion.jda.api.interactions.components.buttons.Button;
-import net.dv8tion.jda.api.interactions.components.selections.SelectMenu;
+import net.dv8tion.jda.api.interactions.components.selections.StringSelectMenu;
 import net.dv8tion.jda.api.requests.ErrorResponse;
 import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
 import net.dv8tion.jda.api.utils.messages.MessageCreateData;
@@ -475,7 +475,7 @@ public class PagedResult<Type> {
 		}
 
 		if (this.select.contains(SelectType.OBJECT) && this.perPage <= 25) {
-			SelectMenu.Builder menu = SelectMenu.create("select").setMaxValues(1);
+			StringSelectMenu.Builder menu = StringSelectMenu.create("select").setMaxValues(1);
 
 			this.forEach((object, index) -> menu.addOption(StringUtility.limit(this.getSelectFunction().apply(object), 100, "..."), Integer.toString(index)));
 

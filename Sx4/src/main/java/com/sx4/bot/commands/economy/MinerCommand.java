@@ -151,7 +151,7 @@ public class MinerCommand extends Sx4Command {
 				usableTotal += amount;
 
 				for (Material material : manager.getItems(Material.class)) {
-					if (material.isHidden()) {
+					if (!material.isObtainable()) {
 						continue;
 					}
 
