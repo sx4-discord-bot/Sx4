@@ -4,6 +4,7 @@ import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
 import com.mongodb.client.model.*;
 import com.sx4.bot.annotations.argument.AlternativeOptions;
+import com.sx4.bot.annotations.argument.DefaultNull;
 import com.sx4.bot.annotations.command.AuthorPermissions;
 import com.sx4.bot.annotations.command.CommandId;
 import com.sx4.bot.annotations.command.Examples;
@@ -49,7 +50,7 @@ public class BlacklistCommand extends Sx4Command {
 	@CommandId(168)
 	@Examples({"blacklist add #general @Shea#6653 fish", "blacklist add #bots @Members ban"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-	public void add(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) TextChannel channel, @Argument(value="user | role") IPermissionHolder holder, @Argument(value="command | module", endless=true) List<Sx4Command> commands) {
+	public void add(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) @DefaultNull TextChannel channel, @Argument(value="user | role") IPermissionHolder holder, @Argument(value="command | module", endless=true) List<Sx4Command> commands) {
 		List<TextChannel> channels = channel == null ? event.getGuild().getTextChannels() : List.of(channel);
 
 		boolean role = holder instanceof Role;
@@ -92,7 +93,7 @@ public class BlacklistCommand extends Sx4Command {
 	@CommandId(180)
 	@Examples({"blacklist remove #general @Shea#6653 fish", "blacklist remove #bots @Members ban"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-	public void remove(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) TextChannel channel, @Argument(value="user | role") IPermissionHolder holder, @Argument(value="command | module", endless=true) List<Sx4Command> commands) {
+	public void remove(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) @DefaultNull TextChannel channel, @Argument(value="user | role") IPermissionHolder holder, @Argument(value="command | module", endless=true) List<Sx4Command> commands) {
 		List<TextChannel> channels = channel == null ? event.getGuild().getTextChannels() : List.of(channel);
 
 		boolean role = holder instanceof Role;
@@ -165,7 +166,7 @@ public class BlacklistCommand extends Sx4Command {
 	@Command(value="list", description="Lists the commands roles/users blacklisted from using in a specific channel")
 	@CommandId(182)
 	@Examples({"blacklist list", "blacklist list #channel"})
-	public void list(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true, endless=true) TextChannel channel) {
+	public void list(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true, endless=true) @DefaultNull TextChannel channel) {
 		List<TextChannel> channels = channel == null ? event.getGuild().getTextChannels() : List.of(channel);
 
 		PagedResult<TextChannel> channelPaged = new PagedResult<>(event.getBot(), channels)

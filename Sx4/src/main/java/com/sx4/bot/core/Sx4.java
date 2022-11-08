@@ -984,7 +984,7 @@ public class Sx4 {
 
 				return builder;
 			}).addGenericBuilderConfigureFunction(Channel.class, (parameter, builder) -> {
-				if (builder.build().hasDefault()) {
+				if (builder.build().hasDefault() && !parameter.isAnnotationPresent(DefaultNull.class)) {
 					builder.setDefaultValue(event -> {
 						if (parameter.getType().isInstance(event.getChannel())) {
 							return event.getChannel();
