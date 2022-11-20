@@ -7,10 +7,13 @@ import club.minnced.discord.webhook.send.WebhookEmbedBuilder;
 import com.sx4.bot.core.Sx4;
 import com.sx4.bot.http.HttpCallback;
 import com.sx4.bot.utility.TimeUtility;
+import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.audit.ActionType;
 import net.dv8tion.jda.api.audit.AuditLogEntry;
 import net.dv8tion.jda.api.entities.Member;
+import net.dv8tion.jda.api.entities.MessageEmbed;
+import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.events.guild.GuildJoinEvent;
 import net.dv8tion.jda.api.events.guild.GuildLeaveEvent;
@@ -117,8 +120,17 @@ public class ServerLogHandler implements EventListener {
 					.orElse(null);
 
 				if (audit != null) {
+					User bot = event.getJDA().getSelfUser();
+
+					MessageEmbed joinEmbed = new EmbedBuilder()
+						.setAuthor("Thank you for adding Sx4", null, bot.getEffectiveAvatarUrl())
+						.addField("Information", "The default prefix for Sx4 is `s?` however if you have changed it and forgot your prefix use `@" + bot.getAsTag() + " prefix` to check your current prefixes.\n\nAll of Sx4's commands can be found in `s?help`", false)
+						.addField("Need Extra Help?", "Check out and ask your question in the [support server](https://discord.gg/PqJNcfB)", false)
+						.addField("Enjoying Sx4?", "Find yourself using Sx4 a lot, then maybe buying premium might be for you or just simply donating to support the hosting of Sx4, feel free to check out our [patreon](https://patreon.com/Sx4) which lists the perks you get for donating", false)
+						.build();
+
 					audit.getUser().openPrivateChannel()
-						.flatMap(channel -> channel.sendMessage("Thanks for adding me to your server!\nThe default prefix is `s?` however if that doesn't work use `@Sx4#1617 prefix` to check your current prefixes\nAll my info and commands can be found in `s?help`\nIf you need any help feel free to join the support server: https://discord.gg/PqJNcfB"))
+						.flatMap(channel -> channel.sendMessageEmbeds(joinEmbed))
 						.queue();
 				}
 			});
