@@ -24,6 +24,8 @@ public enum LoggerEvent {
     MEMBER_VOICE_LEAVE(13, LoggerCategory.USER, LoggerCategory.VOICE_CHANNEL),
     MEMBER_VOICE_MOVE(14, LoggerCategory.USER, LoggerCategory.AUDIT),
     MEMBER_VOICE_DISCONNECT(32, LoggerCategory.USER, LoggerCategory.VOICE_CHANNEL, LoggerCategory.AUDIT),
+    MEMBER_TIMED_OUT(52, LoggerCategory.USER, LoggerCategory.AUDIT),
+    MEMBER_TIME_OUT_REMOVED(53, LoggerCategory.USER, LoggerCategory.AUDIT),
 
     // Emote events
     EMOTE_CREATE(48, LoggerCategory.AUDIT),

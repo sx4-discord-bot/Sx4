@@ -54,6 +54,7 @@ import net.dv8tion.jda.api.events.guild.member.GuildMemberRemoveEvent;
 import net.dv8tion.jda.api.events.guild.member.GuildMemberRoleAddEvent;
 import net.dv8tion.jda.api.events.guild.member.GuildMemberRoleRemoveEvent;
 import net.dv8tion.jda.api.events.guild.member.update.GuildMemberUpdateNicknameEvent;
+import net.dv8tion.jda.api.events.guild.member.update.GuildMemberUpdateTimeOutEvent;
 import net.dv8tion.jda.api.events.guild.override.PermissionOverrideCreateEvent;
 import net.dv8tion.jda.api.events.guild.override.PermissionOverrideDeleteEvent;
 import net.dv8tion.jda.api.events.guild.override.PermissionOverrideUpdateEvent;
@@ -67,6 +68,7 @@ import net.dv8tion.jda.api.events.role.update.RoleUpdateColorEvent;
 import net.dv8tion.jda.api.events.role.update.RoleUpdateNameEvent;
 import net.dv8tion.jda.api.events.role.update.RoleUpdatePermissionsEvent;
 import net.dv8tion.jda.api.hooks.EventListener;
+import net.dv8tion.jda.api.utils.TimeFormat;
 import net.dv8tion.jda.internal.utils.tuple.Pair;
 import okhttp3.OkHttpClient;
 import org.bson.Document;
@@ -2034,6 +2036,71 @@ public class LoggerHandler implements EventListener {
 		});
 	}
 
+	public void onGuildMemberUpdateTimeOut(GuildMemberUpdateTimeOutEvent event) {
+		Guild guild = event.getGuild();
+		Member member = event.getMember();
+
+		boolean muted = event.getOldTimeOutEnd() == null;
+
+		LoggerEvent loggerEvent = muted ? LoggerEvent.MEMBER_TIMED_OUT : LoggerEvent.MEMBER_TIME_OUT_REMOVED;
+		LoggerContext loggerContext = new LoggerContext()
+			.setUser(member.getIdLong());
+
+		StringBuilder description = new StringBuilder(String.format("`%s` has been %s a time-out", member.getUser().getAsTag(), muted ? "put on" : "removed from"));
+
+		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
+		embed.setColor(muted ? this.bot.getConfig().getRed() : this.bot.getConfig().getGreen());
+		embed.setTimestamp(Instant.now());
+		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
+		embed.setFooter(new EmbedFooter(String.format("User ID: %s", member.getId()), null));
+
+		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((documents, exception) -> {
+			if (ExceptionUtility.sendErrorMessage(exception)) {
+				return;
+			}
+
+			if (documents.isEmpty()) {
+				return;
+			}
+
+			Document data = documents.get(0);
+
+			List<Document> loggers = LoggerUtility.getValidLoggers(data.getList("loggers", Document.class), loggerEvent, loggerContext);
+			if (loggers.isEmpty()) {
+				return;
+			}
+
+			if (guild.getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
+				this.retrieveAuditLogsDelayed(guild, ActionType.MEMBER_UPDATE).whenComplete((logs, auditException) -> {
+					User moderator = logs == null ? null : logs.stream()
+						.filter(e -> Duration.between(e.getTimeCreated(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds() <= 5)
+						.filter(e -> e.getTargetIdLong() == member.getIdLong())
+						.filter(e -> e.getChangeByKey(AuditLogKey.MEMBER_TIME_OUT) != null)
+						.map(AuditLogEntry::getUser)
+						.findFirst()
+						.orElse(null);
+
+					if (moderator != null) {
+						loggerContext.setModerator(moderator);
+						description.append(" by **").append(moderator.getAsTag()).append("**");
+					}
+
+					if (muted) {
+						description.append(" they will be removed from it ").append(TimeFormat.RELATIVE.format(event.getNewTimeOutEnd()));
+					}
+
+					embed.setDescription(description.toString());
+
+					this.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+				});
+			} else {
+				embed.setDescription(description.toString());
+
+				this.queue(guild, loggers, loggerEvent, loggerContext, embed.build());
+			}
+		});
+	}
+
 	public void onEmojiAdded(EmojiAddedEvent event) {
 		Guild guild = event.getGuild();
 		RichCustomEmoji emoji = event.getEmoji();
@@ -2301,6 +2368,8 @@ public class LoggerHandler implements EventListener {
 			this.onEmojiUpdateName((EmojiUpdateNameEvent) event);
 		} else if (event instanceof EmojiUpdateRolesEvent) {
 			this.onEmojiUpdateRoles((EmojiUpdateRolesEvent) event);
+		} else if (event instanceof GuildMemberUpdateTimeOutEvent) {
+			this.onGuildMemberUpdateTimeOut((GuildMemberUpdateTimeOutEvent) event);
 		}
 	}
 
