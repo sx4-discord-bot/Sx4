@@ -153,8 +153,9 @@ public class AuctionCommand extends Sx4Command {
 				data = event.getMongo().getItems().findOneAndUpdate(session, Filters.and(Filters.eq("userId", event.getAuthor().getIdLong()), Filters.eq("item.id", item.getId())), update, options);
 			}
 
+			long itemId = data == null ? -1 : data.getEmbedded(List.of("item", "id"), -1);
 			long actualAmount = data == null ? 0L : data.getLong("amount");
-			if (actualAmount < amount) {
+			if (itemId != item.getId() || actualAmount < amount) {
 				event.replyFormat("You do not have `%,d %s` %s", amount, item.getName(), event.getConfig().getFailureEmote()).queue();
 				session.abortTransaction();
 				return;
