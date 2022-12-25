@@ -1229,7 +1229,7 @@ public class Sx4 {
 				}
 
 				if (argument.getProperty("advancedMessage", false)) {
-					if (!MessageUtility.isValid(json)) {
+					if (!MessageUtility.isValid(json, false)) {
 						return new ParsedResult<>();
 					}
 

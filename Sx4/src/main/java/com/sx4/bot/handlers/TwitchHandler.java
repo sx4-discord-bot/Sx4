@@ -40,7 +40,7 @@ public class TwitchHandler implements TwitchListener {
 			.addVariable("stream", event.getStream())
 			.parse();
 
-		return MessageUtility.fromJson(formattedDocument);
+		return MessageUtility.fromJson(formattedDocument, true);
 	}
 
 	@Override

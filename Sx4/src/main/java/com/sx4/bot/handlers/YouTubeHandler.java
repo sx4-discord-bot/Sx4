@@ -46,7 +46,7 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 			.addVariable("video", event.getVideo())
 			.parse();
 
-		return MessageUtility.fromJson(formattedDocument);
+		return MessageUtility.fromJson(formattedDocument, true);
 	}
 
 	public void onYouTubeUpload(YouTubeUploadEvent event) {

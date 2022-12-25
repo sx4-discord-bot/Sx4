@@ -29,7 +29,7 @@ public class LeaverUtility {
 			.addVariable(User.class, "age", LeaverUtility.FORMATTER.parse(Duration.between(user.getTimeCreated(), now).toSeconds()))
 			.addVariable("now", now);
 
-		return MessageUtility.fromJson(formatter.parse());
+		return MessageUtility.fromJson(formatter.parse(), true);
 	}
 
 }

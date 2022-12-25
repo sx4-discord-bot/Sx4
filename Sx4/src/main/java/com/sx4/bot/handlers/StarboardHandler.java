@@ -122,7 +122,7 @@ public class StarboardHandler implements EventListener {
 			.addVariable("stars.next.until", nextStars - stars)
 			.addVariable("id", id.toHexString());
 
-		return MessageUtility.fromJson(formatter.parse());
+		return MessageUtility.fromJson(formatter.parse(), true);
 	}
 
 	public void onMessageReactionAdd(MessageReactionAddEvent event) {

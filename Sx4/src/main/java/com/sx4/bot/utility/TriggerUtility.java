@@ -105,7 +105,7 @@ public class TriggerUtility {
 		String channelId = action.getString("channelId");
 		GuildMessageChannel messageChannel = channelId == null ? channel : channel.getGuild().getChannelById(GuildMessageChannel.class, channelId);
 
-		return messageChannel.sendMessage(MessageUtility.fromWebhookMessage(MessageUtility.fromJson(action.get("response", Document.class)).build())).setAllowedMentions(EnumSet.allOf(Message.MentionType.class)).submit()
+		return messageChannel.sendMessage(MessageUtility.fromWebhookMessage(MessageUtility.fromJson(action.get("response", Document.class), true).build())).setAllowedMentions(EnumSet.allOf(Message.MentionType.class)).submit()
 			.thenApply(message -> {
 				manager.addVariable(action.get("variable", "message"), message);
 				return null;

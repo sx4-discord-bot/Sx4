@@ -416,7 +416,7 @@ public class YouTubeNotificationCommand extends Sx4Command {
 				.parse();
 
 			try {
-				event.reply(MessageUtility.fromWebhookMessage(MessageUtility.fromJson(message).build())).queue();
+				event.reply(MessageUtility.fromWebhookMessage(MessageUtility.fromJson(message, true).build())).queue();
 			} catch (IllegalArgumentException e) {
 				event.replyFailure(e.getMessage()).queue();
 			}

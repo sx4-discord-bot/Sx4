@@ -251,7 +251,7 @@ public class FreeGameManager implements WebhookManager {
 
 					WebhookMessage message;
 					try {
-						message = MessageUtility.fromJson(formatter.parse())
+						message = MessageUtility.fromJson(formatter.parse(), true)
 							.setAvatarUrl(premium ? webhookData.get("avatar", avatar) : avatar)
 							.setUsername(premium ? webhookData.get("name", "Sx4 - Free Games") : "Sx4 - Free Games")
 							.build();

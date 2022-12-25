@@ -34,7 +34,7 @@ public class MessageUtility {
 		return title;
 	}
 
-	private static String urlFromJson(Document json) {
+	private static String urlFromJson(Document json, boolean checkUrl) {
 		Object urlJson = json.get("url");
 		if (urlJson != null && !(urlJson instanceof String)) {
 			throw new IllegalArgumentException("`embed.url` value has to be a string");
@@ -46,7 +46,7 @@ public class MessageUtility {
 			throw new IllegalArgumentException("`embed.url` value cannot be more than " + MessageEmbed.URL_MAX_LENGTH + " characters");
 		}
 
-		if (urlJson != null && !EmbedBuilder.URL_PATTERN.matcher(url).matches()) {
+		if (checkUrl && urlJson != null && !EmbedBuilder.URL_PATTERN.matcher(url).matches()) {
 			throw new IllegalArgumentException("`embed.url` is not a valid url");
 		}
 
@@ -87,7 +87,7 @@ public class MessageUtility {
 		return colour;
 	}
 
-	private static WebhookEmbed.EmbedFooter footerFromJson(Document json) {
+	private static WebhookEmbed.EmbedFooter footerFromJson(Document json, boolean checkUrl) {
 		Object footerJson = json.get("footer");
 		if (!(footerJson instanceof Document footerData)) {
 			throw new IllegalArgumentException("`embed.footer` value has to be a json object");
@@ -106,7 +106,7 @@ public class MessageUtility {
 				throw new IllegalArgumentException("`embed.footer.icon_url` value cannot be more than " + MessageEmbed.URL_MAX_LENGTH + " characters");
 			}
 
-			if (!EmbedBuilder.URL_PATTERN.matcher(iconUrl).matches()) {
+			if (checkUrl && !EmbedBuilder.URL_PATTERN.matcher(iconUrl).matches()) {
 				throw new IllegalArgumentException("`embed.footer.icon_url` is not a valid url");
 			}
 		}
@@ -143,7 +143,7 @@ public class MessageUtility {
 		return timestamp;
 	}
 
-	private static String thumbnailFromJson(Document json) {
+	private static String thumbnailFromJson(Document json, boolean checkUrl) {
 		Object thumbnailJson = json.get("thumbnail");
 		if (!(thumbnailJson instanceof Document thumbnailData)) {
 			throw new IllegalArgumentException("`embed.thumbnail` value has to be a json object");
@@ -159,7 +159,7 @@ public class MessageUtility {
 				throw new IllegalArgumentException("`embed.thumbnail.url` value cannot be more than " + MessageEmbed.URL_MAX_LENGTH + " characters");
 			}
 
-			if (!EmbedBuilder.URL_PATTERN.matcher(thumbnailUrl).matches()) {
+			if (checkUrl && !EmbedBuilder.URL_PATTERN.matcher(thumbnailUrl).matches()) {
 				throw new IllegalArgumentException("`embed.thumbnail.url` is not a valid url");
 			}
 
@@ -169,7 +169,7 @@ public class MessageUtility {
 		return null;
 	}
 
-	private static WebhookEmbed.EmbedAuthor authorFromJson(Document json) {
+	private static WebhookEmbed.EmbedAuthor authorFromJson(Document json, boolean checkUrl) {
 		Object authorJson = json.get("author");
 		if (!(authorJson instanceof Document authorData)) {
 			throw new IllegalArgumentException("`embed.author` value has to be a json object");
@@ -188,7 +188,7 @@ public class MessageUtility {
 				throw new IllegalArgumentException("`embed.author.icon_url` value cannot be more than " + MessageEmbed.URL_MAX_LENGTH + " characters");
 			}
 
-			if (!EmbedBuilder.URL_PATTERN.matcher(iconUrl).matches()) {
+			if (checkUrl && !EmbedBuilder.URL_PATTERN.matcher(iconUrl).matches()) {
 				throw new IllegalArgumentException("`embed.author.icon_url` is not a valid url");
 			}
 		}
@@ -218,7 +218,7 @@ public class MessageUtility {
 				throw new IllegalArgumentException("`embed.author.url` value cannot be more than " + MessageEmbed.URL_MAX_LENGTH + " characters");
 			}
 
-			if (!EmbedBuilder.URL_PATTERN.matcher(authorUrl).matches()) {
+			if (checkUrl && !EmbedBuilder.URL_PATTERN.matcher(authorUrl).matches()) {
 				throw new IllegalArgumentException("`embed.author.url` is not a valid url");
 			}
 		}
@@ -226,7 +226,7 @@ public class MessageUtility {
 		return name == null ? null : new WebhookEmbed.EmbedAuthor(name, iconUrl, authorUrl);
 	}
 
-	private static String imageFromJson(Document json) {
+	private static String imageFromJson(Document json, boolean checkUrl) {
 		Object imageJson = json.get("image");
 		if (!(imageJson instanceof Document imageData)) {
 			throw new IllegalArgumentException("`embed.image` value has to be a json object");
@@ -242,7 +242,7 @@ public class MessageUtility {
 				throw new IllegalArgumentException("`embed.image.url` value cannot be more than " + MessageEmbed.URL_MAX_LENGTH + " characters");
 			}
 
-			if (!EmbedBuilder.URL_PATTERN.matcher(imageUrl).matches()) {
+			if (checkUrl && !EmbedBuilder.URL_PATTERN.matcher(imageUrl).matches()) {
 				throw new IllegalArgumentException("`embed.image.url` is not a valid url");
 			}
 
@@ -315,7 +315,7 @@ public class MessageUtility {
 		return fields;
 	}
 
-	public static WebhookMessageBuilder fromJson(Document json) {
+	public static WebhookMessageBuilder fromJson(Document json, boolean checkUrl) {
 		WebhookMessageBuilder builder = new WebhookMessageBuilder();
 		if (json.containsKey("embed")) {
 			Object embedJson = json.get("embed");
@@ -326,14 +326,14 @@ public class MessageUtility {
 			boolean titleExists = embedData.containsKey("title");
 
 			String title = titleExists ? MessageUtility.titleFromJson(embedData) : null;
-			String url = titleExists ? MessageUtility.urlFromJson(embedData) : null;
+			String url = titleExists ? MessageUtility.urlFromJson(embedData, checkUrl) : null;
 			String description = embedData.containsKey("description") ? MessageUtility.descriptionFromJson(embedData) : null;
 			Integer colour = embedData.containsKey("color") ? MessageUtility.colourFromJson(embedData) : null;
 			OffsetDateTime timestamp = embedData.containsKey("timestamp") ? MessageUtility.timestampFromJson(embedData) : null;
-			WebhookEmbed.EmbedFooter footer = embedData.containsKey("footer") ? MessageUtility.footerFromJson(embedData) : null;
-			String thumbnail = embedData.containsKey("thumbnail") ? MessageUtility.thumbnailFromJson(embedData) : null;
-			String image = embedData.containsKey("image") ? MessageUtility.imageFromJson(embedData) : null;
-			WebhookEmbed.EmbedAuthor author = embedData.containsKey("author") ? MessageUtility.authorFromJson(embedData) : null;
+			WebhookEmbed.EmbedFooter footer = embedData.containsKey("footer") ? MessageUtility.footerFromJson(embedData, checkUrl) : null;
+			String thumbnail = embedData.containsKey("thumbnail") ? MessageUtility.thumbnailFromJson(embedData, checkUrl) : null;
+			String image = embedData.containsKey("image") ? MessageUtility.imageFromJson(embedData, checkUrl) : null;
+			WebhookEmbed.EmbedAuthor author = embedData.containsKey("author") ? MessageUtility.authorFromJson(embedData, checkUrl) : null;
 			List<WebhookEmbed.EmbedField> fields = embedData.containsKey("fields") ? MessageUtility.fieldsFromJson(embedData) : Collections.emptyList();
 
 			WebhookEmbed embed = new WebhookEmbed(timestamp, colour, description, thumbnail, image, footer, title == null ? null : new WebhookEmbed.EmbedTitle(title, url), author, fields);
@@ -368,9 +368,9 @@ public class MessageUtility {
 		return builder;
 	}
 
-	public static boolean isValid(Document json) {
+	public static boolean isValid(Document json, boolean checkUrl) {
 		try {
-			MessageUtility.fromJson(json);
+			MessageUtility.fromJson(json, checkUrl);
 			return true;
 		} catch (IllegalArgumentException e) {
 			return false;

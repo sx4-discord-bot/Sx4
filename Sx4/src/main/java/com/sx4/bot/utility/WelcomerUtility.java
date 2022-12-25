@@ -34,7 +34,7 @@ public class WelcomerUtility {
 			WebhookMessageBuilder builder;
 			if (messageData != null) {
 				try {
-					builder = MessageUtility.fromJson(formatter.parse());
+					builder = MessageUtility.fromJson(formatter.parse(), true);
 				} catch (IllegalArgumentException e) {
 					consumer.accept(null, e);
 					return;
@@ -65,7 +65,7 @@ public class WelcomerUtility {
 						builder = new WebhookMessageBuilder();
 					} else {
 						try {
-							builder = MessageUtility.fromJson(formatter.parse());
+							builder = MessageUtility.fromJson(formatter.parse(), true);
 						} catch (IllegalArgumentException e) {
 							consumer.accept(null, e);
 							return;
