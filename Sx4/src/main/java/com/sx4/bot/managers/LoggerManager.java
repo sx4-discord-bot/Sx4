@@ -130,9 +130,20 @@ public class LoggerManager {
     private void createWebhook(WebhookChannel channel, List<Request> requests) {
         channel.createWebhook("Sx4 - Logger").submit().whenComplete((webhook, exception) -> {
             Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
-            if (cause instanceof ErrorResponseException && ((ErrorResponseException) cause).getErrorResponse() == ErrorResponse.MAX_WEBHOOKS) {
-                this.disableLogger(channel.getIdLong());
-                return;
+            if (cause instanceof ErrorResponseException) {
+                ErrorResponse errorResponse = ((ErrorResponseException) cause).getErrorResponse();
+                if (errorResponse == ErrorResponse.MAX_WEBHOOKS) {
+                    this.disableLogger(channel.getIdLong());
+                    return;
+                } else if (errorResponse == ErrorResponse.UNKNOWN_CHANNEL) {
+                    this.bot.getMongo().deleteLogger(Filters.eq("channelId", channel.getIdLong())).whenComplete((result, databaseException) -> {
+                        ExceptionUtility.sendErrorMessage(databaseException);
+                        this.queue.clear();
+                        this.webhook = null;
+                    });
+
+                    return;
+                }
             }
 
             if (ExceptionUtility.sendErrorMessage(exception)) {
