@@ -84,7 +84,12 @@ public class CrateCommand extends Sx4Command {
 		}
 
 		long price = stack.getTotalPrice();
+
 		Crate crate = stack.getItem();
+		if (crate.isHidden()) {
+			event.replyFailure("You cannot buy that crate").queue();
+			return;
+		}
 
 		event.getMongo().withTransaction(session -> {
 			UpdateResult result = event.getMongo().getUsers().updateOne(session, Filters.eq("_id", event.getAuthor().getIdLong()), List.of(EconomyUtility.decreaseBalanceUpdate(price)));
