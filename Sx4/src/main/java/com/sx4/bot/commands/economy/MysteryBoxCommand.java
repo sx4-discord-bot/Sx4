@@ -81,7 +81,7 @@ public class MysteryBoxCommand extends Sx4Command {
 				if (x == 4 && y == 4) {
 					buttons.add(Button.primary(id, "Quit").asDisabled());
 				} else {
-					buttons.add(Button.secondary(id, " "));
+					buttons.add(Button.secondary(id, "\u2800"));
 				}
 			}
 
