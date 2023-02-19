@@ -34,6 +34,16 @@ public class MoveCommand extends Sx4Command {
 			return;
 		}
 
+		if (!event.getSelfMember().hasPermission(memberChannel, Permission.VOICE_MOVE_OTHERS)) {
+			event.replyFailure("I cannot move people from that voice channel").queue();
+			return;
+		}
+
+		if (!event.getMember().hasPermission(memberChannel, Permission.VOICE_MOVE_OTHERS)) {
+			event.replyFailure("You cannot move people from that voice channel").queue();
+			return;
+		}
+
 		AudioChannel effectiveChannel = channel == null ? event.getMember().getVoiceState().getChannel() : channel;
 		if (effectiveChannel == null) {
 			event.replyFailure("You are not in a voice channel").queue();

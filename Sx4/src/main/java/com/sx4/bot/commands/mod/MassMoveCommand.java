@@ -44,6 +44,15 @@ public class MassMoveCommand extends Sx4Command {
 		}
 
 		AudioChannel effectiveFrom = from == null ? channel : from;
+		if (!event.getSelfMember().hasPermission(effectiveFrom, Permission.VOICE_MOVE_OTHERS)) {
+			event.replyFailure("I cannot move people from that voice channel").queue();
+			return;
+		}
+
+		if (!event.getMember().hasPermission(effectiveFrom, Permission.VOICE_MOVE_OTHERS)) {
+			event.replyFailure("You cannot move people from that voice channel").queue();
+			return;
+		}
 
 		if (effectiveFrom.getIdLong() == to.getIdLong()) {
 			event.replyFailure("You cannot provide the same voice channel twice").queue();
