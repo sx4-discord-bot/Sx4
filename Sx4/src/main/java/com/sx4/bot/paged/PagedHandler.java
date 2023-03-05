@@ -45,19 +45,13 @@ public class PagedHandler implements EventListener {
 			return;
 		}
 
-		MessageChannel channel = event.getChannel();
-		User author = event.getUser();
-
-		PagedResult<?> pagedResult = this.bot.getPagedManager().getPagedResult(channel.getIdLong(), author.getIdLong());
+		PagedResult<?> pagedResult = this.bot.getPagedManager().getPagedResult(event.getMessageIdLong());
 		if (pagedResult == null) {
-			if (this.bot.getPagedManager().isPagedResult(event.getMessageIdLong())) {
-				event.reply("This is not your paged result " + this.bot.getConfig().getFailureEmote()).setEphemeral(true).queue();
-			}
-
 			return;
 		}
 
-		if (pagedResult.getMessageId() != event.getMessageIdLong()) {
+		if (pagedResult.getOwnerId() != event.getUser().getIdLong()) {
+			event.reply("This is not your paged result " + this.bot.getConfig().getFailureEmote()).setEphemeral(true).queue();
 			return;
 		}
 
@@ -74,19 +68,13 @@ public class PagedHandler implements EventListener {
 			return;
 		}
 
-		MessageChannel channel = event.getChannel();
-		User author = event.getUser();
-
-		PagedResult<?> pagedResult = this.bot.getPagedManager().getPagedResult(channel.getIdLong(), author.getIdLong());
+		PagedResult<?> pagedResult = this.bot.getPagedManager().getPagedResult(event.getMessageIdLong());
 		if (pagedResult == null) {
-			if (this.bot.getPagedManager().isPagedResult(event.getMessageIdLong())) {
-				event.reply("This is not your paged result " + this.bot.getConfig().getFailureEmote()).setEphemeral(true).queue();
-			}
-
 			return;
 		}
 
-		if (pagedResult.getMessageId() != event.getMessageIdLong()) {
+		if (pagedResult.getOwnerId() != event.getUser().getIdLong()) {
+			event.reply("This is not your paged result " + this.bot.getConfig().getFailureEmote()).setEphemeral(true).queue();
 			return;
 		}
 
@@ -108,10 +96,6 @@ public class PagedHandler implements EventListener {
 
 		PagedResult<?> pagedResult = this.bot.getPagedManager().getPagedResult(channel.getIdLong(), author.getIdLong());
 		if (pagedResult == null) {
-			return;
-		}
-
-		if (author.getIdLong() != pagedResult.getOwnerId()) {
 			return;
 		}
 		

@@ -2,13 +2,9 @@ package com.sx4.bot.paged;
 
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
-import net.dv8tion.jda.api.exceptions.ErrorResponseException;
-import net.dv8tion.jda.api.requests.ErrorResponse;
 
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -19,13 +15,13 @@ public class PagedManager {
 	private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
 	
 	private final Map<Long, Map<Long, PagedResult<?>>> pagedResults;
-	private final Set<Long> messages;
+	private final Map<Long, PagedResult<?>> messages;
 
 	private final Map<Long, ScheduledFuture<?>> executors;
 
 	public PagedManager() {
 		this.pagedResults = new HashMap<>();
-		this.messages = new HashSet<>();
+		this.messages = new HashMap<>();
 		this.executors = new HashMap<>();
 	}
 	
@@ -46,7 +42,11 @@ public class PagedManager {
 	}
 
 	public boolean isPagedResult(long messageId) {
-		return this.messages.contains(messageId);
+		return this.messages.containsKey(messageId);
+	}
+
+	public PagedResult<?> getPagedResult(long messageId) {
+		return this.messages.get(messageId);
 	}
 
 	public PagedResult<?> getPagedResult(long channelId, long ownerId) {
@@ -62,14 +62,10 @@ public class PagedManager {
 
 			this.pagedResults.put(channel.getIdLong(), users);
 		} else {
-			if (users.containsKey(owner.getIdLong())) {
-				channel.deleteMessageById(users.get(owner.getIdLong()).getMessageId()).queue(null, ErrorResponseException.ignore(ErrorResponse.UNKNOWN_MESSAGE));
-			}
-
 			users.put(owner.getIdLong(), pagedResult);
 		}
 
-		this.messages.add(pagedResult.getMessageId());
+		this.messages.put(pagedResult.getMessageId(), pagedResult);
 	}
 
 	public void removePagedResult(PagedResult<?> pagedResult) {
