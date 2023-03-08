@@ -15,6 +15,7 @@ import net.dv8tion.jda.api.events.message.MessageUpdateEvent;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.hooks.EventListener;
 import net.dv8tion.jda.api.interactions.components.buttons.Button;
+import net.dv8tion.jda.api.interactions.components.selections.SelectMenu;
 import net.dv8tion.jda.api.requests.ErrorResponse;
 import org.jetbrains.annotations.NotNull;
 
@@ -45,8 +46,14 @@ public class PagedHandler implements EventListener {
 			return;
 		}
 
+		SelectMenu menu = event.getSelectMenu();
+		if (!menu.getId().equals("paged-select")) {
+			return;
+		}
+
 		PagedResult<?> pagedResult = this.bot.getPagedManager().getPagedResult(event.getMessageIdLong());
 		if (pagedResult == null) {
+			event.reply("This paged result timed out").setEphemeral(true).queue();
 			return;
 		}
 
@@ -55,7 +62,7 @@ public class PagedHandler implements EventListener {
 			return;
 		}
 
-		if (event.getSelectMenu().isDisabled()) {
+		if (menu.isDisabled()) {
 			return;
 		}
 
@@ -68,8 +75,15 @@ public class PagedHandler implements EventListener {
 			return;
 		}
 
+		Button button = event.getButton();
+		String id = button.getId();
+		if (!id.equals("next") && !id.equals("previous")) {
+			return;
+		}
+
 		PagedResult<?> pagedResult = this.bot.getPagedManager().getPagedResult(event.getMessageIdLong());
 		if (pagedResult == null) {
+			event.reply("This paged result timed out").setEphemeral(true).queue();
 			return;
 		}
 
@@ -78,14 +92,13 @@ public class PagedHandler implements EventListener {
 			return;
 		}
 
-		Button button = event.getButton();
 		if (button.isDisabled()) {
 			return;
 		}
 
-		if (button.getId().equals("next")) {
+		if (id.equals("next")) {
 			pagedResult.nextPage().ensure(event);
-		} else if (button.getId().equals("previous")) {
+		} else {
 			pagedResult.previousPage().ensure(event);
 		}
 	}
