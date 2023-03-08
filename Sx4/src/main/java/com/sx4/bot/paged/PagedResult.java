@@ -428,8 +428,7 @@ public class PagedResult<Type> {
 			channel.deleteMessageById(this.messageId).queue(null, ErrorResponseException.ignore(ErrorResponse.UNKNOWN_MESSAGE));
 		}
 
-		this.bot.getPagedManager().cancelTimeout(this.messageId);
-		this.bot.getPagedManager().removePagedResult(this);
+		this.bot.getPagedManager().deletePagedResult(this);
 	}
 	
 	public void select(int index) {
@@ -475,7 +474,7 @@ public class PagedResult<Type> {
 		}
 
 		if (this.select.contains(SelectType.OBJECT) && this.perPage <= 25) {
-			StringSelectMenu.Builder menu = StringSelectMenu.create("select").setMaxValues(1);
+			StringSelectMenu.Builder menu = StringSelectMenu.create("paged-select").setMaxValues(1);
 
 			this.forEach((object, index) -> menu.addOption(StringUtility.limit(this.getSelectFunction().apply(object), 100, "..."), Integer.toString(index)));
 
@@ -585,7 +584,7 @@ public class PagedResult<Type> {
 				this.cacheMessage(MessageCreateData.fromMessage(message));
 				this.messageId = message.getIdLong();
 
-				this.bot.getPagedManager().addPagedResult(channel, owner, this);
+				this.bot.getPagedManager().createPagedResult(this);
 				this.bot.getPagedManager().setTimeout(this);
 			});
 		});

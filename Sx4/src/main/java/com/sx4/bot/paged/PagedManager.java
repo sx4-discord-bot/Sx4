@@ -1,8 +1,5 @@
 package com.sx4.bot.paged;
 
-import net.dv8tion.jda.api.entities.User;
-import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
-
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Executors;
@@ -25,24 +22,15 @@ public class PagedManager {
 		this.executors = new HashMap<>();
 	}
 	
-	public void cancelTimeout(long messageId) {
-		ScheduledFuture<?> executor = this.executors.remove(messageId);
-		if (executor != null && !executor.isDone()) {
-			executor.cancel(true);
-		}
-	}
-	
 	public void setTimeout(PagedResult<?> pagedResult) {
-		if (pagedResult.getTimeout() != 0) {
-			ScheduledFuture<?> old = this.executors.put(pagedResult.getMessageId(), this.executor.schedule(pagedResult::timeout, pagedResult.getTimeout(), TimeUnit.SECONDS));
-			if (old != null && !old.isDone()) {
-				old.cancel(true);
-			}
+		if (pagedResult.getTimeout() == 0) {
+			return;
 		}
-	}
 
-	public boolean isPagedResult(long messageId) {
-		return this.messages.containsKey(messageId);
+		ScheduledFuture<?> old = this.executors.put(pagedResult.getMessageId(), this.executor.schedule(pagedResult::timeout, pagedResult.getTimeout(), TimeUnit.SECONDS));
+		if (old != null && !old.isDone()) {
+			old.cancel(true);
+		}
 	}
 
 	public PagedResult<?> getPagedResult(long messageId) {
@@ -54,27 +42,32 @@ public class PagedManager {
 		return users == null ? null : users.get(ownerId);
 	}
 
-	public void addPagedResult(MessageChannel channel, User owner, PagedResult<?> pagedResult) {
-		Map<Long, PagedResult<?>> users = this.pagedResults.get(channel.getIdLong());
+	public void createPagedResult(PagedResult<?> pagedResult) {
+		Map<Long, PagedResult<?>> users = this.pagedResults.get(pagedResult.getChannelId());
 		if (users == null) {
 			users = new HashMap<>();
-			users.put(owner.getIdLong(), pagedResult);
+			users.put(pagedResult.getOwnerId(), pagedResult);
 
-			this.pagedResults.put(channel.getIdLong(), users);
+			this.pagedResults.put(pagedResult.getChannelId(), users);
 		} else {
-			users.put(owner.getIdLong(), pagedResult);
+			users.put(pagedResult.getOwnerId(), pagedResult);
 		}
 
 		this.messages.put(pagedResult.getMessageId(), pagedResult);
 	}
 
-	public void removePagedResult(PagedResult<?> pagedResult) {
+	public void deletePagedResult(PagedResult<?> pagedResult) {
 		Map<Long, PagedResult<?>> users = this.pagedResults.get(pagedResult.getChannelId());
 		if (users != null) {
 			users.remove(pagedResult.getOwnerId());
 		}
 
 		this.messages.remove(pagedResult.getMessageId());
+
+		ScheduledFuture<?> executor = this.executors.remove(pagedResult.getMessageId());
+		if (executor != null && !executor.isDone()) {
+			executor.cancel(true);
+		}
 	}
 	
 }
