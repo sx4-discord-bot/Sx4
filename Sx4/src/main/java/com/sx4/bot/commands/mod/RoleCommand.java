@@ -45,7 +45,7 @@ public class RoleCommand extends Sx4Command {
 	@Examples({"role create Yellow", "role create Dog person", "role create Shea"})
 	@AuthorPermissions(permissions={Permission.MANAGE_ROLES})
 	@BotPermissions(permissions={Permission.MANAGE_ROLES})
-	public void create(Sx4CommandEvent event, @Argument(value="name", endless=true) String name) {
+	public void create(Sx4CommandEvent event, @Argument(value="name", endless=true) @Limit(max=100) String name) {
 		event.getGuild().createRole().setName(name)
 			.flatMap(role -> event.replySuccess(role.getAsMention() + " has been created"))
 			.queue();
