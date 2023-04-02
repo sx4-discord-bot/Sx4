@@ -460,7 +460,8 @@ public class PagedResult<Type> {
 	private MessageCreateData applyComponents(MessageCreateBuilder message) {
 		List<ActionRow> rows = new ArrayList<>();
 
-		if (this.list.size() > this.perPage) {
+		int size = this.list.size();
+		if (size > this.perPage) {
 			ActionRow row;
 			if (!this.pageOverflow && this.page == this.getMaxPage()) {
 				row = ActionRow.of(PagedResult.PREVIOUS_BUTTON, PagedResult.NEXT_BUTTON_DISABLED);
@@ -473,7 +474,7 @@ public class PagedResult<Type> {
 			rows.add(row);
 		}
 
-		if (this.select.contains(SelectType.OBJECT) && this.perPage <= 25) {
+		if (size > 0 && this.select.contains(SelectType.OBJECT) && this.perPage <= 25) {
 			StringSelectMenu.Builder menu = StringSelectMenu.create("paged-select").setMaxValues(1);
 
 			this.forEach((object, index) -> menu.addOption(StringUtility.limit(this.getSelectFunction().apply(object), 100, "..."), Integer.toString(index)));
