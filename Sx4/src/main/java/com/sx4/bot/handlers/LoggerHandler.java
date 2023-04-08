@@ -2040,7 +2040,7 @@ public class LoggerHandler implements EventListener {
 		Guild guild = event.getGuild();
 		Member member = event.getMember();
 
-		boolean muted = event.getOldTimeOutEnd() == null;
+		boolean muted = event.getNewTimeOutEnd() != null;
 
 		LoggerEvent loggerEvent = muted ? LoggerEvent.MEMBER_TIMED_OUT : LoggerEvent.MEMBER_TIME_OUT_REMOVED;
 		LoggerContext loggerContext = new LoggerContext()
@@ -2086,7 +2086,7 @@ public class LoggerHandler implements EventListener {
 					}
 
 					if (muted) {
-						description.append(" they will be removed from it ").append(TimeFormat.RELATIVE.format(event.getNewTimeOutEnd()));
+						description.append(" it will expire at ").append(TimeFormat.DATE_LONG.format(event.getNewTimeOutEnd()));
 					}
 
 					embed.setDescription(description.toString());
