@@ -18,6 +18,7 @@ public enum Slot {
 	SHOE(250, ":athletic_shoe:");
 
 	public static final int TOTAL = Arrays.stream(Slot.values()).mapToInt(Slot::getChance).sum();
+	public static final int SIZE = Slot.values().length;
 
 	private final int chance;
 	private final String emote;
@@ -36,7 +37,7 @@ public enum Slot {
 	}
 
 	public double getMultiplier() {
-		return (1 / Math.pow((double) this.chance / Slot.TOTAL, 3)) * 0.25;
+		return ((1 / Math.pow((double) this.chance / Slot.TOTAL, 3)) / Slot.SIZE) * 0.6;
 	}
 
 	public Slot getAbove() {
