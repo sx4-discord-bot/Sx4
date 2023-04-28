@@ -129,7 +129,7 @@ public class MysteryBoxCommand extends Sx4Command {
 
 						if (!id.equals("24") && id.equals(buttonEvent.getComponentId())) {
 							it.set(Button.of(won ? ButtonStyle.SUCCESS : ButtonStyle.DANGER, id, Emoji.fromUnicode(won ? "\uD83D\uDCB0" : "\uD83D\uDCA5")).asDisabled());
-						} else if (button.getLabel().isBlank()) {
+						} else if (button.getLabel().equals("\u2800")) {
 							it.set(Button.of(button.getStyle(), id, Emoji.fromUnicode(boxes.get(Integer.parseInt(id)) ? "\uD83D\uDCA3" : "\uD83D\uDCB0")).asDisabled());
 						} else {
 							it.set(button.asDisabled());
