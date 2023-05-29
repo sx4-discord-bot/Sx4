@@ -16,10 +16,10 @@ import com.sx4.bot.entities.argument.Alternative;
 import com.sx4.bot.entities.settings.HolderType;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
+import com.sx4.bot.utility.SettingUtility;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.IPermissionHolder;
 import net.dv8tion.jda.api.entities.Role;
-import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
 import org.bson.Document;
 import org.bson.conversions.Bson;
@@ -162,7 +162,8 @@ public class WhitelistCommand extends Sx4Command {
 		PagedResult<TextChannel> channelPaged = new PagedResult<>(event.getBot(), channels)
 			.setAutoSelect(true)
 			.setAuthor("Channels", null, event.getGuild().getIconUrl())
-			.setDisplayFunction(TextChannel::getAsMention);
+			.setDisplayFunction(TextChannel::getAsMention)
+			.setSelectFunction(TextChannel::getName);
 
 		channelPaged.onSelect(channelSelect -> {
 			TextChannel selectedChannel = channelSelect.getSelected();
@@ -185,17 +186,8 @@ public class WhitelistCommand extends Sx4Command {
 
 			PagedResult<Document> holderPaged = new PagedResult<>(event.getBot(), holders)
 				.setAuthor("Users/Roles", null, event.getGuild().getIconUrl())
-				.setDisplayFunction(holder -> {
-					long id = holder.getLong("id");
-					int type = holder.getInteger("type");
-					if (type == HolderType.ROLE.getType()) {
-						Role role = event.getGuild().getRoleById(id);
-						return role == null ? "Deleted Role (" + id + ")" : role.getAsMention();
-					} else {
-						User user = event.getShardManager().getUserById(id);
-						return user == null ? "Unknown User (" + id + ")" : user.getAsTag();
-					}
-				});
+				.setDisplayFunction(SettingUtility.getRoleUserDisplay(event, false))
+				.setSelectFunction(SettingUtility.getRoleUserDisplay(event, true));
 
 			holderPaged.onSelect(holderSelect -> {
 				Document holder = holderSelect.getSelected();
