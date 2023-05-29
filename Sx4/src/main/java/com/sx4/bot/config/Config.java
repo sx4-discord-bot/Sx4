@@ -337,10 +337,6 @@ public class Config extends GenericConfig {
 		return this.get("token.vainGlory");
 	}
 	
-	public String getDiscordListSpace() {
-		return this.get("token.discordListSpace");
-	}
-	
 	public String getTopGG() {
 		return this.get("token.topGG");
 	}

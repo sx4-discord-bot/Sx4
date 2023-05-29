@@ -76,21 +76,6 @@ public class ServerLogHandler implements EventListener {
 				System.out.println("Posted guild count to top.gg");
 				response.close();
 			});
-
-			Document discordListData = new Document()
-				.append("serverCount", guildCount);
-
-			Request discordListRequest = new Request.Builder()
-				.post(RequestBody.create(MediaType.parse("application/json"), discordListData.toJson()))
-				.url("https://api.discordlist.space/v2/bots/440996323156819968")
-				.addHeader("Authorization", "Bot " + this.bot.getConfig().getDiscordListSpace())
-				.addHeader("Content-Type", "application/json")
-				.build();
-
-			this.bot.getHttpClient().newCall(discordListRequest).enqueue((HttpCallback) response -> {
-				System.out.println("Posted guild count to discordlist.space");
-				response.close();
-			});
 		}, 30, 30, TimeUnit.MINUTES);
 	}
 
