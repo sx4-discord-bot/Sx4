@@ -113,7 +113,7 @@ public class LoggerHandler implements EventListener {
 			return this.managers.get(channelId);
 		}
 
-		LoggerManager manager = new LoggerManager(this.bot, this.managerExecutor, this.webhookClient, this.webhookExecutor);
+		LoggerManager manager = new LoggerManager(this.bot, this.webhookClient, this.webhookExecutor);
 		this.managers.put(channelId, manager);
 
 		return manager;
