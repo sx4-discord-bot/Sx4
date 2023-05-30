@@ -295,6 +295,7 @@ public class Sx4 {
 			.addVariable("promotion_end", "Gets the end date of the promotion", FreeGame.class, OffsetDateTime.class, FreeGame::getPromotionEnd)
 			.addVariable("price", "Gets the updated price of the game", FreeGame.class, Currency.class, game -> new Currency(game.getDiscountPriceDecimal(), "GBP"))
 			.addVariable("original_price", "Gets the original price of the game", FreeGame.class, Currency.class, game -> new Currency(game.getOriginalPriceDecimal(), "GBP"))
+			.addVariable("dlc", "Returns true if the game is a DLC", FreeGame.class, Boolean.class, FreeGame::isDLC)
 			.addVariable("suffix", "Gets the suffixed version of a number", Integer.class, String.class, NumberUtility::getSuffixed)
 			.addVariable("round", "Gets the rounded number", Double.class, Long.class, Math::round)
 			.addVariable("floor", "Gets the floored number", Double.class, Double.class, Math::floor)

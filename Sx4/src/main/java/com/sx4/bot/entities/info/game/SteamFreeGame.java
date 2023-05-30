@@ -14,8 +14,8 @@ public class SteamFreeGame extends FreeGame<Integer> {
 	private static final DateTimeFormatterBuilder FORMATTER = new DateTimeFormatterBuilder().appendPattern("[dd][d] MMM @ [hh][h]:mma");
 	private static final ZoneId ZONE_ID = ZoneId.of("America/Los_Angeles");
 
-	private SteamFreeGame(int id, String title, String description, String publisher, String image, int originalPrice, int discountPrice, OffsetDateTime start, OffsetDateTime end) {
-		super(id, title, description, publisher, image, originalPrice, discountPrice, start, end, FreeGameType.STEAM);
+	private SteamFreeGame(int id, String title, String description, String publisher, String image, int originalPrice, int discountPrice, boolean dlc, OffsetDateTime start, OffsetDateTime end) {
+		super(id, title, description, publisher, image, originalPrice, discountPrice, dlc, start, end, FreeGameType.STEAM);
 	}
 
 	public String getUrl() {
@@ -32,6 +32,8 @@ public class SteamFreeGame extends FreeGame<Integer> {
 		Element info = element.getElementsByClass("glance_ctn").first();
 		String description = info.getElementsByClass("game_description_snippet").text();
 		String image = info.getElementsByClass("game_header_image_full").attr("src");
+
+		boolean dlc = element.getElementsByClass("game_area_bubble game_area_dlc_bubble ").first() != null;
 
 		String publisher = info.getElementsByClass("dev_row").stream()
 			.filter(e -> e.getElementsByClass("subtitle column").first().text().equals("Publisher:"))
@@ -64,7 +66,7 @@ public class SteamFreeGame extends FreeGame<Integer> {
 			end = end.plusYears(1);
 		}
 
-		return new SteamFreeGame(id, title, description, publisher, image, originalPrice, discountPrice, OffsetDateTime.now(), end);
+		return new SteamFreeGame(id, title, description, publisher, image, originalPrice, discountPrice, dlc, OffsetDateTime.now(), end);
 	}
 
 	public static SteamFreeGame fromDatabase(Document data) {
@@ -73,6 +75,7 @@ public class SteamFreeGame extends FreeGame<Integer> {
 		String description = data.getString("description");
 		String publisher = data.getString("publisher");
 		String image = data.getString("image");
+		boolean dlc = data.getBoolean("dlc", false);
 
 		Document promotion = data.get("promotion", Document.class);
 		OffsetDateTime start = OffsetDateTime.ofInstant(Instant.ofEpochSecond(promotion.getLong("start")), ZoneOffset.UTC);
@@ -82,7 +85,7 @@ public class SteamFreeGame extends FreeGame<Integer> {
 		int originalPrice = priceInfo.getInteger("original");
 		int discountPrice = priceInfo.getInteger("discount");
 
-		return new SteamFreeGame(id, title, description, publisher, image, originalPrice, discountPrice, start, end);
+		return new SteamFreeGame(id, title, description, publisher, image, originalPrice, discountPrice, dlc, start, end);
 	}
 
 }
