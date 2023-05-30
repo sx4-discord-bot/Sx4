@@ -101,7 +101,9 @@ public class LoggerManager {
     private final OkHttpClient client;
     private final ScheduledExecutorService executor;
 
-    private long reset = 0L;
+    private long reset;
+    private int limit = Integer.MAX_VALUE;
+    private int remainingUses;
 
     private final Sx4 bot;
 
@@ -254,16 +256,12 @@ public class LoggerManager {
 
             Response response = this.client.newCall(httpRequest).execute();
 
-            int code = response.code();
-            if (code == 404) {
-                if (guild.getSelfMember().hasPermission(channel, Permission.MANAGE_WEBHOOKS)) {
-                    this.createWebhook(webhookChannel, requests);
-                    return;
-                }
+            String remainingHeader = response.header("X-RateLimit-Remaining");
+            String limitHeader = response.header("X-RateLimit-Limit");
+            String resetHeader = response.header("X-RateLimit-Reset-After");
 
-                this.disableLogger(channel.getIdLong());
-                return;
-            } else if (code == 429) {
+            int code = response.code();
+            if (code == 429) {
                 String retryAfter = response.header("Retry-After");
                 if (retryAfter == null) {
                     requests.forEach(failedRequest -> this.queue.addFirst(failedRequest.incrementAttempts()));
@@ -274,7 +272,32 @@ public class LoggerManager {
                 requests.forEach(this.queue::addFirst);
 
                 long delay = Long.parseLong(retryAfter) * 1000;
+
                 this.reset = System.currentTimeMillis() + delay;
+                this.limit = limitHeader == null ? 5 : Integer.parseInt(limitHeader);
+                this.remainingUses = 0;
+
+                this.handleQueue();
+                return;
+            }
+
+            if (remainingHeader != null && limitHeader != null && resetHeader != null) {
+                long reset = (long) Math.ceil(Double.parseDouble(resetHeader));
+                long delay = reset * 1000;
+
+                this.remainingUses = Integer.parseInt(remainingHeader);
+                this.limit = Integer.parseInt(limitHeader);
+                this.reset = System.currentTimeMillis() + delay;
+            }
+
+            if (code == 404) {
+                if (guild.getSelfMember().hasPermission(channel, Permission.MANAGE_WEBHOOKS)) {
+                    this.createWebhook(webhookChannel, requests);
+                    return;
+                }
+
+                this.disableLogger(channel.getIdLong());
+                return;
             } else if (code < 200 || code >= 300) {
                 requests.forEach(failedRequest -> this.queue.addFirst(failedRequest.incrementAttempts()));
             }
@@ -288,7 +311,12 @@ public class LoggerManager {
     }
 
     private void handleQueue() {
-        this.executor.schedule(this::drainQueue, this.reset - System.currentTimeMillis(), TimeUnit.MILLISECONDS);
+        long resetAfter = this.reset - System.currentTimeMillis();
+        if (resetAfter <= 0) {
+            this.remainingUses = this.limit;
+        }
+
+        this.executor.schedule(this::drainQueue, this.remainingUses <= 0 ? resetAfter : 0, TimeUnit.MILLISECONDS);
     }
 
     private void queue(Request request) {

@@ -91,7 +91,6 @@ public class LoggerHandler implements EventListener {
 	
 	private final Map<Long, LoggerManager> managers;
 
-	private final ExecutorService managerExecutor = Executors.newCachedThreadPool();
 	private final ScheduledExecutorService webhookExecutor = Executors.newScheduledThreadPool(20);
 	private final OkHttpClient webhookClient = new OkHttpClient.Builder()
 		.callTimeout(3, TimeUnit.SECONDS)
