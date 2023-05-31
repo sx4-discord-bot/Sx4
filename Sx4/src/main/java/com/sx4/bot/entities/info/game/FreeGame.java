@@ -9,11 +9,10 @@ public abstract class FreeGame<Type> {
 	private final Type id;
 	private final String title, description, publisher, image;
 	private final int originalPrice, discountPrice;
-	private final boolean dlc;
 	private final OffsetDateTime start, end;
 	private final FreeGameType type;
 
-	protected FreeGame(Type id, String title, String description, String publisher, String image, int originalPrice, int discountPrice, boolean dlc, OffsetDateTime start, OffsetDateTime end, FreeGameType type) {
+	protected FreeGame(Type id, String title, String description, String publisher, String image, int originalPrice, int discountPrice, OffsetDateTime start, OffsetDateTime end, FreeGameType type) {
 		this.id = id;
 		this.title = title;
 		this.description = description;
@@ -21,7 +20,6 @@ public abstract class FreeGame<Type> {
 		this.image = image;
 		this.originalPrice = originalPrice;
 		this.discountPrice = discountPrice;
-		this.dlc = dlc;
 		this.start = start;
 		this.end = end;
 		this.type = type;
@@ -55,9 +53,7 @@ public abstract class FreeGame<Type> {
 
 	public abstract String getRunUrl();
 
-	public boolean isDLC() {
-		return this.dlc;
-	}
+	public abstract boolean isDLC();
 
 	public int getOriginalPrice() {
 		return this.originalPrice;

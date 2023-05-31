@@ -14,8 +14,16 @@ public class SteamFreeGame extends FreeGame<Integer> {
 	private static final DateTimeFormatterBuilder FORMATTER = new DateTimeFormatterBuilder().appendPattern("[dd][d] MMM @ [hh][h]:mma");
 	private static final ZoneId ZONE_ID = ZoneId.of("America/Los_Angeles");
 
+	private final boolean dlc;
+
 	private SteamFreeGame(int id, String title, String description, String publisher, String image, int originalPrice, int discountPrice, boolean dlc, OffsetDateTime start, OffsetDateTime end) {
-		super(id, title, description, publisher, image, originalPrice, discountPrice, dlc, start, end, FreeGameType.STEAM);
+		super(id, title, description, publisher, image, originalPrice, discountPrice, start, end, FreeGameType.STEAM);
+
+		this.dlc = dlc;
+	}
+
+	public boolean isDLC() {
+		return this.dlc;
 	}
 
 	public String getUrl() {
@@ -86,6 +94,10 @@ public class SteamFreeGame extends FreeGame<Integer> {
 		int discountPrice = priceInfo.getInteger("discount");
 
 		return new SteamFreeGame(id, title, description, publisher, image, originalPrice, discountPrice, dlc, start, end);
+	}
+
+	public Document toData() {
+		return super.toData().append("dlc", this.dlc);
 	}
 
 }

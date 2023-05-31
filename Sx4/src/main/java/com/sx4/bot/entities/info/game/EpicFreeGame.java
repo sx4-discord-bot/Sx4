@@ -16,10 +16,14 @@ public class EpicFreeGame extends FreeGame<String> {
 	private final String offerType;
 
 	private EpicFreeGame(String id, String title, String description, String offerType, String publisher, String image, String url, int originalPrice, int discountPrice, OffsetDateTime start, OffsetDateTime end) {
-		super(id, title, description, publisher, image, originalPrice, discountPrice, offerType.equals("DLC"), start, end, FreeGameType.EPIC_GAMES);
+		super(id, title, description, publisher, image, originalPrice, discountPrice, start, end, FreeGameType.EPIC_GAMES);
 
 		this.url = url;
 		this.offerType = offerType;
+	}
+
+	public boolean isDLC() {
+		return this.offerType.equals("DLC");
 	}
 
 	public String getUrl() {

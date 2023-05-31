@@ -11,9 +11,13 @@ public class GOGFreeGame extends FreeGame<Integer> {
 	private final String url;
 
 	private GOGFreeGame(int id, String title, String description, String publisher, String image, String url, int originalPrice, int discountPrice, OffsetDateTime start, OffsetDateTime end) {
-		super(id, title, description, publisher, image, originalPrice, discountPrice, false, start, end, FreeGameType.GOG);
+		super(id, title, description, publisher, image, originalPrice, discountPrice, start, end, FreeGameType.GOG);
 
 		this.url = url;
+	}
+
+	public boolean isDLC() {
+		return false;
 	}
 
 	public String getUrl() {
