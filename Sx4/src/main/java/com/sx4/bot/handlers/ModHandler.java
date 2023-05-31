@@ -211,19 +211,16 @@ public class ModHandler implements ModActionListener, EventListener {
 		Action action;
 
 		if (event instanceof GuildMemberRemoveEvent removeEvent) {
-
 			guild = removeEvent.getGuild();
 			user = removeEvent.getUser();
 			actionType = ActionType.KICK;
 			action = new Action(ModAction.KICK);
 		} else if (event instanceof GuildBanEvent banEvent) {
-
 			guild = banEvent.getGuild();
 			user = banEvent.getUser();
 			actionType = ActionType.BAN;
 			action = new Action(ModAction.BAN);
 		} else if (event instanceof GuildUnbanEvent unbanEvent) {
-
 			guild = unbanEvent.getGuild();
 			user = unbanEvent.getUser();
 			actionType = ActionType.UNBAN;
