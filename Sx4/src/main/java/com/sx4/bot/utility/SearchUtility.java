@@ -579,7 +579,7 @@ public class SearchUtility {
 			return null;
 		}
 	}
-	
+
 	public static Sx4Category getModule(String query) {
 		return Arrays.stream(ModuleCategory.ALL_ARRAY)
 			.filter(category -> category.getName().equalsIgnoreCase(query) || Arrays.stream(category.getAliases()).anyMatch(query::equalsIgnoreCase))
@@ -587,51 +587,57 @@ public class SearchUtility {
 			.orElse(null);
 	}
 	
+	public static List<Sx4Category> getModules(String query) {
+		List<Map.Entry<Sx4Category, Integer>> matches = new ArrayList<>();
+		for (Sx4Category category : ModuleCategory.ALL_ARRAY) {
+			int score = StringUtility.getScore(category.getName(), query);
+			for (String alias : category.getAliases()) {
+				score = Math.max(score, StringUtility.getScore(alias, query));
+			}
+
+			if (score == 100) {
+				return List.of(category);
+			}
+
+			if (score >= 60) {
+				matches.add(Map.entry(category, score));
+			}
+		}
+
+		return matches.stream().sorted(Collections.reverseOrder(Comparator.comparingInt(Map.Entry::getValue))).map(Map.Entry::getKey).collect(Collectors.toList());
+	}
+	
 	public static Sx4Command getCommand(CommandListener commandListener, String query) {
-		return SearchUtility.getCommand(commandListener, query, false, true);
+		return SearchUtility.getCommand(commandListener, query, true);
 	}
-	
+
 	public static Sx4Command getCommand(CommandListener commandListener, String query, boolean includeDeveloper) {
-		return SearchUtility.getCommand(commandListener, query, false, includeDeveloper);
-	}
-	
-	public static Sx4Command getCommand(CommandListener commandListener, String query, boolean caseSensitive, boolean includeDeveloper) {
-		List<Sx4Command> commands = SearchUtility.getCommands(commandListener, query, caseSensitive, includeDeveloper);
+		List<Sx4Command> commands = SearchUtility.getCommands(commandListener, query, includeDeveloper);
 		return commands.isEmpty() ? null : commands.get(0);
 	}
 	
 	public static List<Sx4Command> getCommands(CommandListener commandListener, String query) {
-		return SearchUtility.getCommands(commandListener, query, false, true);
-	}
-	
-	public static List<Sx4Command> getCommands(CommandListener commandListener, String query, boolean includeDeveloper) {
-		return SearchUtility.getCommands(commandListener, query, false, includeDeveloper);
+		return SearchUtility.getCommands(commandListener, query, true);
 	}
 
-	public static List<Sx4Command> getCommands(CommandListener commandListener, String query, boolean caseSensitive, boolean includeDeveloper) {
-		query = caseSensitive ? query.trim() : query.toLowerCase().trim();
+	public static List<Sx4Command> getCommands(CommandListener commandListener, String query, boolean includeDeveloper) {
+		query = query.trim();
 		
-		List<Sx4Command> commands = new ArrayList<>();
-		Command : for (ICommand commandObject : commandListener.getAllCommands(includeDeveloper, false)) {
+		List<Map.Entry<Sx4Command, Integer>> matches = new ArrayList<>();
+		boolean fullMatch = false;
+		for (ICommand commandObject : commandListener.getAllCommands(includeDeveloper, false)) {
 			Sx4Command command = (Sx4Command) (commandObject instanceof DummyCommand ? ((DummyCommand) commandObject).getActualCommand() : commandObject);
-			
-			String commandTrigger = caseSensitive ? command.getCommandTrigger() : command.getCommandTrigger().toLowerCase();
-			if (commandTrigger.equals(query)) {
-				commands.add(command);
-				continue;
-			}
-			
+
+			int score = StringUtility.getScore(command.getCommandTrigger(), query);
+
 			for (String redirect : command.getRedirects()) {
-				if ((caseSensitive ? redirect : redirect.toLowerCase()).equals(query)) {
-					commands.add(command);
-					continue Command;
-				}
+				score = Math.max(score, StringUtility.getScore(redirect, query));
 			}
 
 			ICommand parent = command;
 			List<String> parentAliases = new ArrayList<>(parent.getAliases());
 			parentAliases.add(parent.getCommand());
-			
+
 			while (parent.hasParent()) {
 				parent = parent.getParent();
 				List<String> continuousParentAliases = new ArrayList<>(parent.getAliases());
@@ -643,17 +649,22 @@ public class SearchUtility {
 					}
 				}
 			}
-			
+
 			for (String commandAlias : parentAliases) {
-				commandAlias = caseSensitive ? commandAlias : commandAlias.toLowerCase();
-				if (query.equals(commandAlias)) {
-					commands.add(command);
-					continue Command;
-				}
+				score = Math.max(score, StringUtility.getScore(commandAlias, query));
+			}
+
+			if (score == 100) {
+				fullMatch = true;
+			}
+
+			if (score >= 60) {
+				matches.add(Map.entry(command, score));
 			}
 		}
-		
-		return commands;
+
+		boolean finalFullMatch = fullMatch;
+		return matches.stream().filter(entry -> !finalFullMatch || entry.getValue() == 100).sorted(Collections.reverseOrder(Comparator.comparingInt(Map.Entry::getValue))).map(Map.Entry::getKey).collect(Collectors.toList());
 	}
 
 	public static Locale getLocale(String query) {

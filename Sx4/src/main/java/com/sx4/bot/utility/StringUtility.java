@@ -6,6 +6,42 @@ import java.util.function.Function;
 
 public class StringUtility {
 
+	public static int getScore(String first, String second) {
+		int secondLength = second.length(), firstLength = first.length();
+		int maxLength = Math.max(firstLength, secondLength);
+		double score = 0, maxScore = 0;
+		Char : for (int s = 0; s < maxLength; s++) {
+			int max = Math.max(firstLength - s - 1, s);
+			maxScore += max;
+
+			if (s >= secondLength || s >= firstLength) {
+				score += max;
+				continue;
+			}
+
+			char secondChar = Character.toLowerCase(second.charAt(s));
+			for (int f = s; f < firstLength; f++) {
+				char firstChar = Character.toLowerCase(first.charAt(f));
+				if (firstChar == secondChar) {
+					score += Math.abs(f - s);
+					continue Char;
+				}
+			}
+
+			for (int f = s - 1; f >= 0; f--) {
+				char firstChar = Character.toLowerCase(first.charAt(f));
+				if (firstChar == secondChar) {
+					score += Math.abs(f - s);
+					continue Char;
+				}
+			}
+
+			score += max;
+		}
+
+		return (int) (((maxScore - score) / maxScore) * 100D);
+	}
+
 	public static boolean isNotEqual(String string, char firstChar, char secondChar) {
 		int first = 0, second = 0;
 		for (int i = 0; i < string.length(); i++) {

@@ -73,22 +73,10 @@ public class HelpCommand extends Sx4Command {
 			
 			paged.execute(event);
 		} else {
-			Sx4Category category = SearchUtility.getModule(commandName);
+			List<Sx4Category> categories = SearchUtility.getModules(commandName);
 			List<Sx4Command> commands = SearchUtility.getCommands(event.getCommandListener(), commandName, event.isAuthorDeveloper());
-			
-			if (category != null) {
-				List<Sx4Command> categoryCommands = category.getCommands(event.isAuthorDeveloper()).stream()
-					.map(Sx4Command.class::cast)
-					.sorted(Comparator.comparing(Sx4Command::getCommandTrigger))
-					.collect(Collectors.toList());
-				
-				PagedResult<Sx4Command> paged = HelpUtility.getCommandsPaged(event.getBot(), categoryCommands)
-					.setAuthor(category.getName(), null, event.getAuthor().getEffectiveAvatarUrl());
-				
-				paged.onSelect(select -> event.reply(HelpUtility.getHelpMessage(select.getSelected(), embed)).queue());
-				
-				paged.execute(event);
-			} else if (!commands.isEmpty()) {
+
+			if (!commands.isEmpty()) {
 				PagedResult<Sx4Command> paged = new PagedResult<>(event.getBot(), commands)
 					.setAuthor(commandName, null, event.getAuthor().getEffectiveAvatarUrl())
 					.setAutoSelect(true)
@@ -96,8 +84,34 @@ public class HelpCommand extends Sx4Command {
 					.setPerPage(15)
 					.setSelectablePredicate((content, command) -> command.getCommandTrigger().equals(content))
 					.setDisplayFunction(Sx4Command::getUsage);
-				
+
 				paged.onSelect(select -> event.reply(HelpUtility.getHelpMessage(select.getSelected(), embed)).queue());
+
+				paged.execute(event);
+			} else if (!categories.isEmpty()) {
+				PagedResult<Sx4Category> paged = new PagedResult<>(event.getBot(), categories)
+					.setAuthor(commandName, null, event.getAuthor().getEffectiveAvatarUrl())
+					.setAutoSelect(true)
+					.setSelect(SelectType.OBJECT)
+					.setPerPage(15)
+					.setSelectablePredicate((content, category) -> category.getName().equals(content))
+					.setDisplayFunction(Sx4Category::getName);
+
+				paged.onSelect(select -> {
+					Sx4Category category = select.getSelected();
+
+					List<Sx4Command> categoryCommands = category.getCommands(event.isAuthorDeveloper()).stream()
+						.map(Sx4Command.class::cast)
+						.sorted(Comparator.comparing(Sx4Command::getCommandTrigger))
+						.collect(Collectors.toList());
+
+					PagedResult<Sx4Command> categoryPaged = HelpUtility.getCommandsPaged(event.getBot(), categoryCommands)
+						.setAuthor(category.getName(), null, event.getAuthor().getEffectiveAvatarUrl());
+
+					categoryPaged.onSelect(categorySelect -> event.reply(HelpUtility.getHelpMessage(categorySelect.getSelected(), embed)).queue());
+
+					categoryPaged.execute(event);
+				});
 				
 				paged.execute(event);
 			} else {
