@@ -14,24 +14,26 @@ public class StringUtility {
 			int max = Math.max(firstLength - s - 1, s);
 			maxScore += max;
 
-			if (s >= secondLength || s >= firstLength) {
+			if (s >= secondLength) {
 				score += max;
 				continue;
 			}
 
 			char secondChar = Character.toLowerCase(second.charAt(s));
-			for (int f = s; f < firstLength; f++) {
-				char firstChar = Character.toLowerCase(first.charAt(f));
-				if (firstChar == secondChar) {
-					score += Math.abs(f - s);
-					continue Char;
+			if (s < firstLength) {
+				for (int f = s; f < firstLength; f++) {
+					char firstChar = Character.toLowerCase(first.charAt(f));
+					if (firstChar == secondChar) {
+						score += f - s;
+						continue Char;
+					}
 				}
 			}
 
-			for (int f = s - 1; f >= 0; f--) {
+			for (int f = Math.min(s, firstLength) - 1; f >= 0; f--) {
 				char firstChar = Character.toLowerCase(first.charAt(f));
 				if (firstChar == secondChar) {
-					score += Math.abs(f - s);
+					score += s - f;
 					continue Char;
 				}
 			}
