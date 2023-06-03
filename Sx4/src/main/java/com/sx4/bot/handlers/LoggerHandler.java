@@ -109,6 +109,7 @@ public class LoggerHandler implements EventListener {
 
 	private final Map<ActionType, List<AuditLogEntryHandler>> eventCache;
 	private final BlockingDeque<GenericEvent> eventQueue;
+	private volatile boolean queued = false;
 
 	private final Sx4 bot;
 	
@@ -2150,6 +2151,8 @@ public class LoggerHandler implements EventListener {
 					ExceptionUtility.sendErrorMessage(exception);
 				}
 			}
+
+			this.queued = false;
 		});
 	}
 
@@ -2219,11 +2222,10 @@ public class LoggerHandler implements EventListener {
 
 	@Override
 	public void onEvent(@NotNull GenericEvent event) {
-		if (this.eventQueue.isEmpty()) {
-			this.eventQueue.add(event);
+		this.eventQueue.add(event);
+		if (!this.queued) {
 			this.drainQueue();
-		} else {
-			this.eventQueue.add(event);
+			this.queued = true;
 		}
 	}
 
