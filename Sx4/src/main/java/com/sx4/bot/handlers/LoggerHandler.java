@@ -1148,8 +1148,8 @@ public class LoggerHandler implements EventListener {
 			LoggerEvent.TEXT_CHANNEL_OVERRIDE_DELETE;
 
 		LoggerContext loggerContext = new LoggerContext()
-			.setUser(roleOverride ? 0L : member.getIdLong())
-			.setRole(roleOverride ? role.getIdLong() : 0L)
+			.setUser(roleOverride || member == null ? 0L : member.getIdLong())
+			.setRole(roleOverride && role != null ? role.getIdLong() : 0L)
 			.setChannel(channel);
 
 		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
@@ -1173,7 +1173,7 @@ public class LoggerHandler implements EventListener {
 		// Wait for cache to update to check for role deletion/member leave
 		Thread.sleep(25);
 
-		boolean deleted = (roleOverride ? event.getRole() : event.getMember()) == null;
+		boolean deleted = (roleOverride ? role : member) == null;
 
 		StringBuilder description = new StringBuilder(String.format("The %s %s has had permission overrides deleted for %s", LoggerUtility.getChannelTypeReadable(channelType), channelType == ChannelType.CATEGORY ? "`" + channel.getName() + "`" : channel.getAsMention(), roleOverride ? (deleted ? "`" + role.getName() + "`" : role.getAsMention()) : "`" + member.getEffectiveName() + "`"));
 
