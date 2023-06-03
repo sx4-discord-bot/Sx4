@@ -2141,7 +2141,7 @@ public class LoggerHandler implements EventListener {
 		});
 	}
 
-	private void drainQueue() {
+	private synchronized void drainQueue() {
 		this.eventExecutor.submit(() -> {
 			GenericEvent event;
 			while ((event = this.eventQueue.poll()) != null) {
@@ -2224,8 +2224,8 @@ public class LoggerHandler implements EventListener {
 	public void onEvent(@NotNull GenericEvent event) {
 		this.eventQueue.add(event);
 		if (!this.queued) {
-			this.drainQueue();
 			this.queued = true;
+			this.drainQueue();
 		}
 	}
 
