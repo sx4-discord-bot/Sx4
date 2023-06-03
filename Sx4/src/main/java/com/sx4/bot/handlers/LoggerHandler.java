@@ -210,8 +210,6 @@ public class LoggerHandler implements EventListener {
 		AuditLogEntry entry = event.getEntry();
 		ActionType type = entry.getType();
 
-		System.out.println("Audit log entry " + type);
-
 		List<AuditLogEntryHandler> events = this.eventCache.get(type);
 		if (events == null) {
 			return;
