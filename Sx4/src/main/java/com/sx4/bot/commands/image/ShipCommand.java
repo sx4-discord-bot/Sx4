@@ -18,6 +18,8 @@ import net.dv8tion.jda.api.interactions.components.buttons.Button;
 import net.dv8tion.jda.api.requests.restaction.MessageCreateAction;
 import okhttp3.Request;
 
+import java.util.Random;
+
 public class ShipCommand extends Sx4Command {
 
 	public ShipCommand() {
@@ -33,8 +35,8 @@ public class ShipCommand extends Sx4Command {
 		User firstUser = firstMember.getUser();
 		User secondUser = secondMember == null ? event.getAuthor() : secondMember.getUser();
 
-		event.getBot().getRandom().setSeed(firstUser.getIdLong() + secondUser.getIdLong());
-		int percent = event.getBot().getRandom().nextInt(100) + 1;
+		Random random = new Random(firstUser.getIdLong() + secondUser.getIdLong());
+		int percent = random.nextInt(100) + 1;
 
 		String firstName = firstUser.getName(), secondName = secondUser.getName();
 		String shipName = firstName.substring(0, (int) Math.ceil((double) firstName.length() / 2)) + secondName.substring((int) Math.ceil((double) secondName.length() / 2));

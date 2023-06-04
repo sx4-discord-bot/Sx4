@@ -45,6 +45,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
@@ -515,11 +516,13 @@ public class ButtonHandler implements EventListener {
 
 		User firstUser = firstMember.getUser();
 
-		List<Member> members = event.getGuild().getMembers();
-		User secondUser = members.get(this.bot.getRandom().nextInt(members.size())).getUser();
+		Random random = new Random();
 
-		this.bot.getRandom().setSeed(firstUser.getIdLong() + secondUser.getIdLong());
-		int percent = this.bot.getRandom().nextInt(100) + 1;
+		List<Member> members = event.getGuild().getMembers();
+		User secondUser = members.get(random.nextInt(members.size())).getUser();
+
+		random.setSeed(firstUser.getIdLong() + secondUser.getIdLong());
+		int percent = random.nextInt(100) + 1;
 
 		String firstName = firstUser.getName(), secondName = secondUser.getName();
 		String shipName = firstName.substring(0, (int) Math.ceil((double) firstName.length() / 2)) + secondName.substring((int) Math.ceil((double) secondName.length() / 2));
