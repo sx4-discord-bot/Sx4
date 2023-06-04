@@ -128,7 +128,7 @@ public class ProfileCommand extends Sx4Command {
 				return;
 			}
 
-			event.getHttpClient().newCall(request).enqueue((HttpCallback) response -> ImageUtility.getImageMessage(event, response).queue());
+			event.getHttpClient().newCall(request).enqueue((HttpCallback) response -> ImageUtility.sendImageMessage(event, response).queue());
 		});
 	}
 

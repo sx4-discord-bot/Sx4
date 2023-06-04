@@ -14,7 +14,6 @@ public enum ImageError {
 	INVALID_IMAGE_BYTES(9),
 	VALUE_MISSING(10);
 
-
 	private final int code;
 
 	private ImageError(int code) {

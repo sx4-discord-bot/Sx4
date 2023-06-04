@@ -10,6 +10,10 @@ public class RepeatStringFunction extends FormatterFunction<String> {
 	}
 
 	public String parse(FormatterEvent<String> event, Integer count) {
+		if (count > 1000) {
+			return event.getObject();
+		}
+
 		return event.getObject().repeat(count);
 	}
 

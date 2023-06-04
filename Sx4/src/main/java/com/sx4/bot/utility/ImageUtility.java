@@ -15,6 +15,7 @@ import net.dv8tion.jda.api.entities.channel.middleman.GuildMessageChannel;
 import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
 import net.dv8tion.jda.api.requests.restaction.MessageCreateAction;
 import net.dv8tion.jda.api.utils.FileUpload;
+import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
 import okhttp3.Request;
 import okhttp3.Response;
 import org.bson.Document;
@@ -33,7 +34,7 @@ public class ImageUtility {
 
 		event.getHttpClient().newCall(request).enqueue((HttpCallback) response -> {
 			if (!response.isSuccessful()) {
-				ImageUtility.getErrorMessage(event.getChannel(), response.code(), response.body().string()).queue();
+				ImageUtility.sendErrorMessage(event.getChannel(), response.code(), response.body().string()).queue();
 				return;
 			}
 
@@ -50,55 +51,71 @@ public class ImageUtility {
 		});
 	}
 
-	public static MessageCreateAction getImageMessage(CommandEvent event, Response response) throws IOException {
-		return ImageUtility.getImageMessage(event.getChannel(), response);
+	public static MessageCreateBuilder getImageMessage(Response response) throws IOException {
+		return ImageUtility.getImageMessage(response, null);
 	}
 
-	public static MessageCreateAction getImageMessage(CommandEvent event, Response response, BiFunction<Document, ImageError, MessageCreateAction> badRequest) throws IOException {
-		return ImageUtility.getImageMessage(event.getChannel(), response, badRequest);
-	}
+	public static MessageCreateBuilder getImageMessage(Response response, BiFunction<Document, ImageError, MessageCreateBuilder> badRequest) throws IOException {
+		MessageCreateBuilder message = new MessageCreateBuilder();
 
-	public static MessageCreateAction getImageMessage(MessageChannel channel, Response response, BiFunction<Document, ImageError, MessageCreateAction> badRequest) throws IOException {
 		int status = response.code();
 		if (status == 200) {
 			byte[] bytes = response.body().bytes();
 			if (bytes.length > Message.MAX_FILE_SIZE) {
-				return channel.sendMessageFormat("File size cannot exceed %s (**%s**) %s", NumberUtility.getBytesReadable(Message.MAX_FILE_SIZE), NumberUtility.getBytesReadable(bytes.length), Config.get().getFailureEmote());
+				return message.setContent(String.format("File size cannot exceed %s (**%s**) %s", NumberUtility.getBytesReadable(Message.MAX_FILE_SIZE), NumberUtility.getBytesReadable(bytes.length), Config.get().getFailureEmote()));
 			}
 
-			return channel.sendFiles(FileUpload.fromData(bytes, String.format("image.%s", response.header("Content-Type").split("/")[1])));
+			return message.setFiles(FileUpload.fromData(bytes, String.format("image.%s", response.header("Content-Type").split("/")[1])));
 		} else {
-			return ImageUtility.getErrorMessage(channel, status, response.body().string(), badRequest);
+			return ImageUtility.getErrorMessage(status, response.body().string(), badRequest);
 		}
 	}
 
-	public static MessageCreateAction getImageMessage(MessageChannel channel, Response response) throws IOException {
-		return ImageUtility.getImageMessage(channel, response, null);
+	public static MessageCreateAction sendImageMessage(MessageChannel channel, Response response, BiFunction<Document, ImageError, MessageCreateBuilder> badRequest) throws IOException {
+		return channel.sendMessage(ImageUtility.getImageMessage(response, badRequest).build());
 	}
 
-	public static MessageCreateAction getErrorMessage(MessageChannel channel, int status, String fullBody, BiFunction<Document, ImageError, MessageCreateAction> badRequest) {
+	public static MessageCreateAction sendImageMessage(MessageChannel channel, Response response) throws IOException {
+		return ImageUtility.sendImageMessage(channel, response, null);
+	}
+
+	public static MessageCreateAction sendImageMessage(CommandEvent event, Response response) throws IOException {
+		return ImageUtility.sendImageMessage(event.getChannel(), response);
+	}
+
+	public static MessageCreateAction sendImageMessage(CommandEvent event, Response response, BiFunction<Document, ImageError, MessageCreateBuilder> badRequest) throws IOException {
+		return ImageUtility.sendImageMessage(event.getChannel(), response, badRequest);
+	}
+
+	public static MessageCreateBuilder getErrorMessage(int status, String fullBody, BiFunction<Document, ImageError, MessageCreateBuilder> badRequest) {
+		MessageCreateBuilder message = new MessageCreateBuilder();
+
 		if (status == 400) {
 			Document body = Document.parse(fullBody);
 			int code = body.getEmbedded(List.of("details", "code"), Integer.class);
 
 			ImageError error = ImageError.fromCode(code);
 			if (error != null && error.isUrlError()) {
-				return channel.sendMessageFormat("That url could not be formed to a valid image %s", Config.get().getFailureEmote());
+				return message.setContent(String.format("That url could not be formed to a valid image %s", Config.get().getFailureEmote()));
 			}
 
-			MessageCreateAction MessageCreateAction = badRequest == null ? null : badRequest.apply(body, error);
-			if (MessageCreateAction == null) {
-				return channel.sendMessageEmbeds(ExceptionUtility.getSimpleErrorMessage(String.format("- Code: %d\n- %s", error.getCode(), body.getString("message")), "diff"));
+			MessageCreateBuilder builder = badRequest == null ? null : badRequest.apply(body, error);
+			if (builder == null) {
+				return message.setEmbeds(ExceptionUtility.getSimpleErrorMessage(String.format("- Code: %d\n- %s", error.getCode(), body.getString("message")), "diff"));
 			} else {
-				return MessageCreateAction;
+				return builder;
 			}
 		} else {
-			return channel.sendMessageEmbeds(ExceptionUtility.getSimpleErrorMessage(String.format("- Status: %d\n- %s", status, fullBody), "diff"));
+			return message.setEmbeds(ExceptionUtility.getSimpleErrorMessage(String.format("- Status: %d\n- %s", status, fullBody), "diff"));
 		}
 	}
 
-	public static MessageCreateAction getErrorMessage(MessageChannel channel, int status, String fullBody) {
-		return ImageUtility.getErrorMessage(channel, status, fullBody, null);
+	public static MessageCreateAction sendErrorMessage(MessageChannel channel, int status, String fullBody, BiFunction<Document, ImageError, MessageCreateBuilder> badRequest) {
+		return channel.sendMessage(ImageUtility.getErrorMessage(status, fullBody, badRequest).build());
+	}
+
+	public static MessageCreateAction sendErrorMessage(MessageChannel channel, int status, String fullBody) {
+		return ImageUtility.sendErrorMessage(channel, status, fullBody, null);
 	}
 
 	public static String escapeMentions(Guild guild, String text) {

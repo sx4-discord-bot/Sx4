@@ -29,7 +29,7 @@ public class GayCommand extends Sx4Command {
 			.addQuery("image", imageUrl)
 			.build(event.getConfig().getImageWebserver());
 
-		event.getHttpClient().newCall(request).enqueue((HttpCallback) response -> ImageUtility.getImageMessage(event, response).queue());
+		event.getHttpClient().newCall(request).enqueue((HttpCallback) response -> ImageUtility.sendImageMessage(event, response).queue());
 	}
 
 }

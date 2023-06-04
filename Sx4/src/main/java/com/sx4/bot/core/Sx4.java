@@ -101,6 +101,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
 import java.time.*;
 import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.DateTimeParseException;
@@ -136,6 +137,7 @@ public class Sx4 {
 	private final OkHttpClient httpClient;
 	private final ExecutorService executor;
 	private final ScheduledExecutorService scheduledExecutor;
+	private final Random random;
 
 	private final SteamGameCache steamGameCache;
 	private final MessageCache messageCache;
@@ -176,6 +178,8 @@ public class Sx4 {
 
 		this.executor = Executors.newCachedThreadPool();
 		this.scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
+
+		this.random = new SecureRandom();
 
 		this.httpClient = new OkHttpClient.Builder()
 			.connectTimeout(15, TimeUnit.SECONDS)
@@ -481,6 +485,10 @@ public class Sx4 {
 
 	public ExecutorService getExecutor() {
 		return this.executor;
+	}
+
+	public Random getRandom() {
+		return this.random;
 	}
 
 	public ScheduledExecutorService getScheduledExecutor() {

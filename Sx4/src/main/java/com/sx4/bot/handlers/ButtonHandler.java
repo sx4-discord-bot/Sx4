@@ -9,17 +9,22 @@ import com.sx4.bot.entities.economy.item.Item;
 import com.sx4.bot.entities.economy.item.Pickaxe;
 import com.sx4.bot.entities.economy.item.Rod;
 import com.sx4.bot.entities.games.GuessTheNumberGame;
+import com.sx4.bot.entities.image.ImageRequest;
 import com.sx4.bot.entities.interaction.ButtonType;
 import com.sx4.bot.entities.interaction.CustomButtonId;
 import com.sx4.bot.entities.interaction.CustomModalId;
 import com.sx4.bot.entities.interaction.ModalType;
+import com.sx4.bot.http.HttpCallback;
 import com.sx4.bot.utility.ButtonUtility;
 import com.sx4.bot.utility.ExceptionUtility;
+import com.sx4.bot.utility.ImageUtility;
 import com.sx4.bot.utility.PermissionUtility;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.entities.emoji.Emoji;
 import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import net.dv8tion.jda.api.hooks.EventListener;
@@ -32,6 +37,8 @@ import net.dv8tion.jda.api.requests.RestAction;
 import net.dv8tion.jda.api.requests.restaction.interactions.ReplyCallbackAction;
 import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
 import net.dv8tion.jda.api.utils.messages.MessageCreateData;
+import net.dv8tion.jda.api.utils.messages.MessageEditData;
+import okhttp3.Request;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.jetbrains.annotations.NotNull;
@@ -499,6 +506,54 @@ public class ButtonHandler implements EventListener {
 		this.reply(event, "Better luck next time " + (user == null ? userId : user.getName()) + " :broken_heart:").queue();
 	}
 
+	public void handleShipSwipeLeft(ButtonInteractionEvent event, CustomButtonId buttonId) {
+		Member firstMember = event.getGuild().getMemberById(buttonId.getArgumentLong(0));
+		if (firstMember == null) {
+			this.reply(event, "Could no longer find the first user").queue();
+			return;
+		}
+
+		User firstUser = firstMember.getUser();
+
+		List<Member> members = event.getGuild().getMembers();
+		User secondUser = members.get(this.bot.getRandom().nextInt(members.size())).getUser();
+
+		this.bot.getRandom().setSeed(firstUser.getIdLong() + secondUser.getIdLong());
+		int percent = this.bot.getRandom().nextInt(100) + 1;
+
+		String firstName = firstUser.getName(), secondName = secondUser.getName();
+		String shipName = firstName.substring(0, (int) Math.ceil((double) firstName.length() / 2)) + secondName.substring((int) Math.ceil((double) secondName.length() / 2));
+
+		String message = String.format("Ship Name: **%s**\nLove Percentage: **%d%%**", shipName, percent);
+
+		Request request = new ImageRequest(this.bot.getConfig().getImageWebserverUrl("ship"))
+			.addQuery("first_image", firstUser.getEffectiveAvatarUrl())
+			.addQuery("second_image", secondUser.getEffectiveAvatarUrl())
+			.addQuery("percent", percent)
+			.build(this.bot.getConfig().getImageWebserver());
+
+		if (event.getGuild().getSelfMember().hasPermission(event.getGuildChannel(), Permission.MESSAGE_ATTACH_FILES)) {
+			this.bot.getHttpClient().newCall(request).enqueue((HttpCallback) response -> {
+				MessageCreateBuilder builder = ImageUtility.getImageMessage(response);
+				if (response.isSuccessful()) {
+					builder.setContent(message);
+
+					String id = new CustomButtonId.Builder()
+						.setType(ButtonType.SHIP_SWIPE_LEFT)
+						.setOwners(event.getUser().getIdLong())
+						.setArguments(firstUser.getId())
+						.getId();
+
+					builder.setComponents(ActionRow.of(Button.primary(id, "Swipe Left").withEmoji(Emoji.fromUnicode("⬅"))));
+				}
+
+				event.editMessage(MessageEditData.fromCreateData(builder.build())).queue();
+			});
+		} else {
+			event.reply(message).queue();
+		}
+	}
+
 	@Override
 	public void onEvent(@NotNull GenericEvent genericEvent) {
 		if (!(genericEvent instanceof ButtonInteractionEvent event)) {
@@ -548,6 +603,7 @@ public class ButtonHandler implements EventListener {
 			case REACTION_ROLE_DELETE_CONFIRM -> this.handleReactionRoleDeleteConfirm(event);
 			case MOD_LOG_DELETE_CONFIRM -> this.handleModLogDeleteConfirm(event);
 			case CHANNEL_DELETE_CONFIRM -> this.handleChannelDeleteConfirm(event);
+			case SHIP_SWIPE_LEFT -> this.handleShipSwipeLeft(event, customId);
 		}
 	}
 

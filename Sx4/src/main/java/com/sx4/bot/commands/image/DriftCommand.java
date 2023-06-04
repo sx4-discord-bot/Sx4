@@ -32,7 +32,7 @@ public class DriftCommand extends Sx4Command {
 			request.addQuery("right_text", rightText);
 		}
 
-		event.getHttpClient().newCall(request.build(event.getConfig().getImageWebserver())).enqueue((HttpCallback) response -> ImageUtility.getImageMessage(event, response).queue());
+		event.getHttpClient().newCall(request.build(event.getConfig().getImageWebserver())).enqueue((HttpCallback) response -> ImageUtility.sendImageMessage(event, response).queue());
 	}
 
 }

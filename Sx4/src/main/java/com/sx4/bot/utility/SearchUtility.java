@@ -599,7 +599,7 @@ public class SearchUtility {
 				return List.of(category);
 			}
 
-			if (score >= 60) {
+			if (score > 25) {
 				matches.add(Map.entry(category, score));
 			}
 		}
@@ -658,7 +658,7 @@ public class SearchUtility {
 				fullMatch = true;
 			}
 
-			if (score >= 60) {
+			if (score > 25) {
 				matches.add(Map.entry(command, score));
 			}
 		}

@@ -53,7 +53,7 @@ public class TweetCommand extends Sx4Command {
 			.addField("urls", urls)
 			.build(event.getConfig().getImageWebserver());
 
-		event.getHttpClient().newCall(request).enqueue((HttpCallback) response -> ImageUtility.getImageMessage(event, response).queue());
+		event.getHttpClient().newCall(request).enqueue((HttpCallback) response -> ImageUtility.sendImageMessage(event, response).queue());
 	}
 
 }

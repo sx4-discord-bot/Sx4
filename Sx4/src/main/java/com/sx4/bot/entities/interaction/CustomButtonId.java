@@ -71,7 +71,7 @@ public class CustomButtonId extends CustomInteractionId {
 		return new CustomButtonId(type, owners, expiry, arguments);
 	}
 
-	public static class Builder extends CustomInteractionId.Builder {
+	public static class Builder extends CustomInteractionId.Builder<CustomButtonId> {
 
 		private long[] owners;
 		private long expiry;

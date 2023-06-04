@@ -21,7 +21,7 @@ public class CustomModalId extends CustomInteractionId {
 		return new CustomModalId(type, arguments);
 	}
 
-	public static class Builder extends CustomInteractionId.Builder {
+	public static class Builder extends CustomInteractionId.Builder<CustomModalId> {
 
 		public CustomModalId.Builder setType(ModalType type) {
 			this.type = type.getId();

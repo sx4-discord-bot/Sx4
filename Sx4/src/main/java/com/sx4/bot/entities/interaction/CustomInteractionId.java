@@ -20,7 +20,7 @@ public abstract class CustomInteractionId {
 		return this.arguments;
 	}
 
-	public <Type> Type getArgument(int index, Function<String, Type> function) {
+	public <T> T getArgument(int index, Function<String, T> function) {
 		return function.apply(this.arguments[index]);
 	}
 
@@ -38,18 +38,18 @@ public abstract class CustomInteractionId {
 
 	public abstract String getId();
 
-	public static abstract class Builder {
+	public static abstract class Builder<Type extends CustomInteractionId> {
 
 		protected int type;
 		protected String[] arguments;
 
-		public CustomInteractionId.Builder setType(int type) {
+		public CustomInteractionId.Builder<Type> setType(int type) {
 			this.type = type;
 
 			return this;
 		}
 
-		public CustomInteractionId.Builder setArguments(Object... arguments) {
+		public CustomInteractionId.Builder<Type> setArguments(Object... arguments) {
 			String[] newArguments = new String[arguments.length];
 			for (int i = 0; i < arguments.length; i++) {
 				newArguments[i] = arguments[i].toString();
@@ -60,7 +60,7 @@ public abstract class CustomInteractionId {
 			return this;
 		}
 
-		public abstract CustomInteractionId build();
+		public abstract Type build();
 
 		public String getId() {
 			return this.build().getId();

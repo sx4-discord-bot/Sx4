@@ -1173,7 +1173,7 @@ public class LoggerHandler implements EventListener {
 		// Wait for cache to update to check for role deletion/member leave
 		Thread.sleep(25);
 
-		boolean deleted = (roleOverride ? role : member) == null;
+		boolean deleted = (roleOverride ? event.getRole() : event.getMember()) == null;
 
 		StringBuilder description = new StringBuilder(String.format("The %s %s has had permission overrides deleted for %s", LoggerUtility.getChannelTypeReadable(channelType), channelType == ChannelType.CATEGORY ? "`" + channel.getName() + "`" : channel.getAsMention(), roleOverride ? (deleted ? "`" + role.getName() + "`" : role.getAsMention()) : "`" + member.getEffectiveName() + "`"));
 

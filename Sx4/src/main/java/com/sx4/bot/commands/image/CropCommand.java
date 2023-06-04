@@ -12,6 +12,7 @@ import com.sx4.bot.entities.image.ImageRequest;
 import com.sx4.bot.http.HttpCallback;
 import com.sx4.bot.utility.ImageUtility;
 import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
 import okhttp3.Request;
 
 public class CropCommand extends Sx4Command {
@@ -34,9 +35,9 @@ public class CropCommand extends Sx4Command {
 			.build(event.getConfig().getImageWebserver());
 
 		event.getHttpClient().newCall(request).enqueue((HttpCallback) response -> {
-			ImageUtility.getImageMessage(event, response, (body, error) -> {
+			ImageUtility.sendImageMessage(event, response, (body, error) -> {
 				if (error == ImageError.INVALID_QUERY_VALUE) {
-					return event.replyFailure(body.getString("message"));
+					return new MessageCreateBuilder().setContent(body.getString("message") + " " + event.getConfig().getFailureEmote());
 				}
 
 				return null;
