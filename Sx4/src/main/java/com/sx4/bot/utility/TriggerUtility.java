@@ -298,6 +298,10 @@ public class TriggerUtility {
 			}
 		} else if (type == TriggerActionType.EXECUTE_COMMAND) {
 			Object name = data.get("command");
+			if (name == null) {
+				throw new IllegalArgumentException("Command name must be given in the `command` field");
+			}
+
 			if (!(name instanceof String)) {
 				throw new IllegalArgumentException("`command` field has to be a string");
 			}
@@ -314,11 +318,13 @@ public class TriggerUtility {
 			action.append("command", command.getCommandTrigger());
 
 			Object arguments = data.get("arguments");
-			if (!(arguments instanceof String)) {
+			if (arguments != null && !(arguments instanceof String)) {
 				throw new IllegalArgumentException("`arguments` field has to be a string");
 			}
 
-			action.append("arguments", arguments);
+			if (arguments != null) {
+				action.append("arguments", arguments);
+			}
 		} else {
 			throw new IllegalArgumentException("That action type is not supported yet");
 		}
