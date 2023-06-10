@@ -23,15 +23,15 @@ import com.sx4.bot.entities.trigger.TriggerActionType;
 import com.sx4.bot.formatter.FormatterManager;
 import com.sx4.bot.formatter.function.FormatterVariable;
 import com.sx4.bot.paged.PagedResult;
-import com.sx4.bot.utility.*;
+import com.sx4.bot.utility.ExceptionUtility;
+import com.sx4.bot.utility.FutureUtility;
+import com.sx4.bot.utility.StringUtility;
+import com.sx4.bot.utility.TriggerUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.*;
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
-import net.dv8tion.jda.api.entities.emoji.CustomEmoji;
-import net.dv8tion.jda.api.entities.emoji.EmojiUnion;
 import net.dv8tion.jda.api.interactions.components.buttons.Button;
-import okhttp3.internal.http.HttpMethod;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
@@ -321,7 +321,7 @@ public class TriggerCommand extends Sx4Command {
 
 			event.replyFile(("[\n" + actionsContent + "\n]").getBytes(StandardCharsets.UTF_8), "actions.json").queue();
 		} else {
-			List<CompletableFuture<Void>> futures = TriggerUtility.executeActions(trigger, event.getMessage());
+			List<CompletableFuture<Void>> futures = TriggerUtility.executeActions(trigger, event.getBot(), event.getMessage());
 
 			FutureUtility.allOf(futures).whenComplete(($, exception) -> {
 				Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
@@ -414,155 +414,11 @@ public class TriggerCommand extends Sx4Command {
 		@Examples({"trigger action add 600968f92850ef72c9af8756 request {\"url\": \"https://api.exchangerate.host/latest?base=EUR\", \"method\": \"GET\"}"})
 		@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 		public void add(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="type") TriggerActionType type, @Argument(value="json", endless=true) Document data) {
-			Document action = new Document("type", type.getId());
-
-			Object order = data.get("order");
-			if (order instanceof Integer && (int) order >= 0) {
-				action.append("order", order);
-			}
-
-			if (type == TriggerActionType.REQUEST) {
-				Object method = data.get("method");
-				if (method == null) {
-					event.replyFailure("Request method must be given in the `method` field").queue();
-					return;
-				}
-
-				if (!(method instanceof String)) {
-					event.replyFailure("`method` field has to be a string").queue();
-					return;
-				}
-
-				Object url = data.get("url");
-				if (url == null) {
-					event.replyFailure("Url must be given in the `url` field").queue();
-					return;
-				}
-
-				if (!(url instanceof String)) {
-					event.replyFailure("`url` field has to be a string").queue();
-					return;
-				}
-
-				Object body = data.get("body"), contentType = data.get("contentType");
-				if (body != null && !(body instanceof String)) {
-					event.replyFailure("`body` field has to be a string").queue();
-					return;
-				}
-
-				if (contentType != null && !(contentType instanceof String)) {
-					event.replyFailure("`contentType` field has to be a string").queue();
-					return;
-				}
-
-				if ((body == null || contentType == null) && HttpMethod.requiresRequestBody((String) method)) {
-					event.replyFailure("The request method used requires a body and content type").queue();
-					return;
-				} else if (body != null && !HttpMethod.permitsRequestBody((String) method)) {
-					event.replyFailure("The request method used can not have a body").queue();
-					return;
-				}
-
-				action.append("url", url).append("method", ((String) method).toUpperCase());
-
-				if (body != null) {
-					action.append("contentType", contentType);
-					action.append("body", body);
-				}
-
-				Object headers = data.get("headers");
-				if (headers instanceof Document) {
-					action.append("headers", headers);
-				}
-
-				Object variable = data.get("variable");
-				if (variable instanceof String && !((String) variable).isBlank()) {
-					action.append("variable", variable);
-				}
-			} else if (type == TriggerActionType.SEND_MESSAGE) {
-				Object response = data.get("response");
-				if (!(response instanceof Document)) {
-					event.replyFailure("`response` field has to be json").queue();
-					return;
-				}
-
-				MessageUtility.removeFields((Document) response);
-
-				Object channelId = data.get("channelId");
-				if (channelId instanceof Long) {
-					channelId = Long.toString((long) channelId);
-				}
-
-				if (channelId != null && !(channelId instanceof String)) {
-					event.replyFailure("`channelId` field has to be a string").queue();
-					return;
-				}
-
-				action.append("response", response);
-				if (channelId != null) {
-					action.append("channelId", channelId);
-				}
-			} else if (type == TriggerActionType.ADD_REACTION) {
-				Object emote = data.get("emote");
-				if (emote instanceof String) {
-					EmojiUnion emoji = SearchUtility.getEmoji(event.getShardManager(), (String) emote);
-					if (emoji == null) {
-						event.replyFailure("I could not find that emote").queue();
-						return;
-					}
-
-					if (emoji instanceof CustomEmoji) {
-						action.append("emote", new Document("id", emoji.asCustom().getId()));
-					} else {
-						action.append("emote", new Document("name", emoji.getName()));
-					}
-				} else if (emote instanceof Document emoteData) {
-
-					Object name = emoteData.get("name"), emoteId = emoteData.get("id");
-					if (name instanceof String) {
-						action.append("emote", new Document("name", name));
-					} else if (emoteId instanceof String) {
-						action.append("emote", new Document("id", emoteId));
-					} else if (emoteId instanceof Long) {
-						action.append("emote", new Document("id", Long.toString((long) emoteId)));
-					} else {
-						event.replyFailure("You need to give either `name` or `id` in the `emote` json").queue();
-						return;
-					}
-				} else {
-					event.replyFailure("`emote` field either needs to be json or a string").queue();
-					return;
-				}
-
-				Object channelId = data.get("channelId");
-				if (channelId instanceof Long) {
-					channelId = Long.toString((long) channelId);
-				}
-
-				if (channelId != null && !(channelId instanceof String)) {
-					event.replyFailure("`channelId` field has to be a string").queue();
-					return;
-				}
-
-				if (channelId != null) {
-					action.append("channelId", channelId);
-				}
-
-				Object messageId = data.get("messageId");
-				if (messageId instanceof Long) {
-					messageId = Long.toString((long) messageId);
-				}
-
-				if (messageId != null && !(messageId instanceof String)) {
-					event.replyFailure("`messageId` field has to be a string").queue();
-					return;
-				}
-
-				if (messageId != null) {
-					action.append("messageId", messageId);
-				}
-			} else {
-				event.replyFailure("That action type is not supported yet").queue();
+			Document action;
+			try {
+				action = TriggerUtility.parseTriggerAction(event, type, data);
+			} catch (IllegalArgumentException e) {
+				event.replyFailure(e.getMessage()).queue();
 				return;
 			}
 
@@ -596,7 +452,36 @@ public class TriggerCommand extends Sx4Command {
 
 				event.replySuccess("That action has been added to that trigger").queue();
 			});
+		}
 
+		@Command(value="set", description="Removes all of the trigger action type specified and adds this one to the trigger")
+		@CommandId(0)
+		@Examples({"trigger action set 600968f92850ef72c9af8756 request {\"url\": \"https://api.exchangerate.host/latest?base=EUR\", \"method\": \"POST\"}"})
+		@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
+		public void set(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="type") TriggerActionType type, @Argument(value="json", endless=true) Document data) {
+			Document action;
+			try {
+				action = TriggerUtility.parseTriggerAction(event, type, data);
+			} catch (IllegalArgumentException e) {
+				event.replyFailure(e.getMessage()).queue();
+				return;
+			}
+
+			List<Bson> update = List.of(Operators.set("actions", Operators.concatArrays(Operators.filter("$actions", Operators.ne("$$this.type", type.getId())), List.of(action))));
+
+			FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().projection(Projections.include("actions")).returnDocument(ReturnDocument.BEFORE);
+			event.getMongo().findAndUpdateTrigger(Filters.and(Filters.eq("_id", id), Filters.eq("guildId", event.getGuild().getIdLong())), update, options).whenComplete((oldData, exception) -> {
+				if (ExceptionUtility.sendExceptionally(event, exception)) {
+					return;
+				}
+
+				if (oldData == null) {
+					event.replyFailure("I could not find that trigger").queue();
+					return;
+				}
+
+				event.replySuccess("That action has replaced all other actions of the same type on that trigger").queue();
+			});
 		}
 
 		@Command(value="remove", description="Removes all of a specific action type from a trigger")

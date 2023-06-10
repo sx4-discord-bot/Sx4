@@ -63,7 +63,7 @@ public class TriggerHandler implements EventListener {
 					return;
 				}
 
-				List<CompletableFuture<Void>> futures = TriggerUtility.executeActions(trigger, message);
+				List<CompletableFuture<Void>> futures = TriggerUtility.executeActions(trigger, this.bot, message);
 
 				FutureUtility.allOf(futures).whenComplete(($, exception) -> {
 					Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;

@@ -4,7 +4,8 @@ public enum TriggerActionType {
 
 	REQUEST(0, 2),
 	SEND_MESSAGE(1, 1),
-	ADD_REACTION(2, 1);
+	ADD_REACTION(2, 1),
+	EXECUTE_COMMAND(3, 1);
 
 	private final int id, maxActions;
 
