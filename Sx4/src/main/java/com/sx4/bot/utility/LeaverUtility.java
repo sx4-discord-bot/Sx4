@@ -2,8 +2,8 @@ package com.sx4.bot.utility;
 
 import club.minnced.discord.webhook.send.WebhookMessageBuilder;
 import com.sx4.bot.entities.utility.TimeFormatter;
-import com.sx4.bot.formatter.Formatter;
-import com.sx4.bot.formatter.JsonFormatter;
+import com.sx4.bot.formatter.output.Formatter;
+import com.sx4.bot.formatter.output.JsonFormatter;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.User;

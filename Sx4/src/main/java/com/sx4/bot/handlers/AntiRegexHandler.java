@@ -11,7 +11,7 @@ import com.sx4.bot.entities.mod.auto.MatchAction;
 import com.sx4.bot.entities.mod.auto.RegexType;
 import com.sx4.bot.entities.settings.HolderType;
 import com.sx4.bot.exceptions.mod.ModException;
-import com.sx4.bot.formatter.StringFormatter;
+import com.sx4.bot.formatter.output.StringFormatter;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.FutureUtility;
 import com.sx4.bot.utility.ModUtility;

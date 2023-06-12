@@ -9,7 +9,7 @@ import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.twitch.TwitchStreamType;
 import com.sx4.bot.entities.webhook.WebhookChannel;
 import com.sx4.bot.events.twitch.TwitchStreamStartEvent;
-import com.sx4.bot.formatter.JsonFormatter;
+import com.sx4.bot.formatter.output.JsonFormatter;
 import com.sx4.bot.hooks.TwitchListener;
 import com.sx4.bot.managers.TwitchManager;
 import com.sx4.bot.utility.ExceptionUtility;

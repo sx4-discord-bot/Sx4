@@ -20,8 +20,10 @@ import com.sx4.bot.entities.argument.Alternative;
 import com.sx4.bot.entities.interaction.ButtonType;
 import com.sx4.bot.entities.interaction.CustomButtonId;
 import com.sx4.bot.entities.trigger.TriggerActionType;
-import com.sx4.bot.formatter.FormatterManager;
-import com.sx4.bot.formatter.function.FormatterVariable;
+import com.sx4.bot.formatter.exception.FormatterException;
+import com.sx4.bot.formatter.input.InputFormatter;
+import com.sx4.bot.formatter.output.FormatterManager;
+import com.sx4.bot.formatter.output.function.FormatterVariable;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.FutureUtility;
@@ -101,6 +103,14 @@ public class TriggerCommand extends Sx4Command {
 			action.append("order", order);
 		}
 
+		InputFormatter formatter = new InputFormatter(trigger);
+		try {
+			formatter.getNodes();
+		} catch (FormatterException exception) {
+			event.replyFailure(exception.getMessage()).queue();
+			return;
+		}
+
 		Document data = new Document("trigger", trigger)
 			.append("guildId", event.getGuild().getIdLong())
 			.append("actions", List.of(action));
@@ -128,6 +138,14 @@ public class TriggerCommand extends Sx4Command {
 		Document action = new Document("type", TriggerActionType.SEND_MESSAGE.getId()).append("response", new Document("content", response));
 		if (order != -1) {
 			action.append("order", order);
+		}
+
+		InputFormatter formatter = new InputFormatter(trigger);
+		try {
+			formatter.getNodes();
+		} catch (FormatterException exception) {
+			event.replyFailure(exception.getMessage()).queue();
+			return;
 		}
 
 		Document data = new Document("trigger", trigger)

@@ -51,9 +51,11 @@ import com.sx4.bot.entities.twitch.TwitchStreamer;
 import com.sx4.bot.entities.webhook.WebhookChannel;
 import com.sx4.bot.entities.youtube.YouTubeChannel;
 import com.sx4.bot.entities.youtube.YouTubeVideo;
-import com.sx4.bot.formatter.FormatterManager;
-import com.sx4.bot.formatter.function.FormatterParser;
-import com.sx4.bot.formatter.function.FormatterResponse;
+import com.sx4.bot.formatter.input.InputFormatter;
+import com.sx4.bot.formatter.input.InputFormatterManager;
+import com.sx4.bot.formatter.output.FormatterManager;
+import com.sx4.bot.formatter.output.function.FormatterParser;
+import com.sx4.bot.formatter.output.function.FormatterResponse;
 import com.sx4.bot.handlers.*;
 import com.sx4.bot.managers.*;
 import com.sx4.bot.paged.PagedHandler;
@@ -263,8 +265,50 @@ public class Sx4 {
 
 		this.shardManager = this.createShardManager(manager);
 
+		InputFormatterManager inputFormatterManager = new InputFormatterManager()
+			.addMapping("text", "min", InputFormatter.parseNumber("min", Integer::parseUnsignedInt))
+			.addMapping("text", "max", InputFormatter.parseNumber("max", Integer::parseUnsignedInt))
+			.addMapping("int", "min", InputFormatter.parseNumber("min", Long::parseLong))
+			.addMapping("int", "max", InputFormatter.parseNumber("max", Long::parseLong))
+			.addParser("text", (text, options) -> {
+				int max = (int) options.getOrDefault("max", Integer.MAX_VALUE), min = (int) options.getOrDefault("min", 0);
+				String name = (String) options.getOrDefault("name", "text");
+
+				if (text.length() > max) {
+					throw new IllegalArgumentException("`" + name + "` field was more than **" + max + "** characters");
+				}
+
+				if (text.length() < min) {
+					throw new IllegalArgumentException("`" + name + "` field was less than **" + min + "** characters");
+				}
+
+				return text;
+			}).addParser("int", (text, options) -> {
+				long max = (long) options.getOrDefault("max", Long.MAX_VALUE), min = (long) options.getOrDefault("min", Long.MIN_VALUE);
+				String name = (String) options.getOrDefault("name", "int");
+
+				long number;
+				try {
+					number = Long.parseLong(text);
+				} catch (NumberFormatException e) {
+					throw new IllegalArgumentException("`" + name + "` field was not a number");
+				}
+
+				if (number > max) {
+					throw new IllegalArgumentException("`" + name + "` field was more than **" + max + "**");
+				}
+
+				if (number < min) {
+					throw new IllegalArgumentException("`" + name + "` field was less than **" + min + "**");
+				}
+
+				return number;
+			});
+
+		InputFormatterManager.setDefaultManager(inputFormatterManager);
+
 		FormatterManager formatterManager = new FormatterManager()
-			.addFunctions("com.sx4.bot.formatter.parser")
+			.addFunctions("com.sx4.bot.formatter.output.parser")
 			.addVariable("id", "Gets the id of a twitch stream", TwitchStream.class, String.class, TwitchStream::getId)
 			.addVariable("type", "Gets the type of a twitch stream", TwitchStream.class, TwitchStreamType.class, TwitchStream::getType)
 			.addVariable("start", "Gets the start time of a twitch stream", TwitchStream.class, OffsetDateTime.class, TwitchStream::getStartTime)
@@ -368,8 +412,7 @@ public class Sx4 {
 				} else {
 					return null;
 				}
-			})
-			.addParser(Temporal.class, text -> {
+			}).addParser(Temporal.class, text -> {
 				try {
 					return OffsetDateTime.parse(text);
 				} catch (DateTimeParseException e) {

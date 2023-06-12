@@ -1,6 +1,6 @@
 package com.sx4.bot.entities.trigger;
 
-import com.sx4.bot.formatter.FormatterManager;
+import com.sx4.bot.formatter.output.FormatterManager;
 import org.bson.Document;
 
 import java.util.concurrent.CompletableFuture;

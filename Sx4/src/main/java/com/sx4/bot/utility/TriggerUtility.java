@@ -5,13 +5,15 @@ import com.jockie.bot.core.command.exception.parser.ParseException;
 import com.jockie.bot.core.command.impl.CommandEvent;
 import com.jockie.bot.core.command.impl.CommandListener;
 import com.sx4.bot.core.Sx4;
+import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
+import com.sx4.bot.core.Sx4CommandListener;
 import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.entities.trigger.*;
-import com.sx4.bot.formatter.FormatterManager;
-import com.sx4.bot.formatter.JsonFormatter;
-import com.sx4.bot.formatter.StringFormatter;
-import com.sx4.bot.formatter.function.FormatterResponse;
+import com.sx4.bot.formatter.output.FormatterManager;
+import com.sx4.bot.formatter.output.JsonFormatter;
+import com.sx4.bot.formatter.output.StringFormatter;
+import com.sx4.bot.formatter.output.function.FormatterResponse;
 import com.sx4.bot.handlers.TriggerHandler;
 import com.sx4.bot.http.HttpCallback;
 import net.dv8tion.jda.api.entities.Message;
@@ -35,16 +37,8 @@ import java.util.stream.Collectors;
 
 public class TriggerUtility {
 
-	public static List<CompletableFuture<Void>> executeActions(Document trigger, Sx4 bot, Message message) {
+	public static List<CompletableFuture<Void>> executeActions(Document trigger, Sx4 bot, FormatterManager manager, Message message) {
 		GuildMessageChannel channel = message.getGuildChannel();
-
-		FormatterManager manager = FormatterManager.getDefaultManager()
-			.addVariable("member", message.getMember())
-			.addVariable("user", message.getAuthor())
-			.addVariable("channel", channel)
-			.addVariable("server", message.getGuild())
-			.addVariable("now", OffsetDateTime.now())
-			.addVariable("random", new Random());
 
 		List<Document> actions = trigger.getList("actions", Document.class, Collections.emptyList()).stream()
 			.sorted(Comparator.comparingInt(d -> d.getInteger("order", -1)))
@@ -62,7 +56,7 @@ public class TriggerUtility {
 				case REQUEST -> new RequestTriggerAction(manager, actionData);
 				case SEND_MESSAGE -> new SendMessageTriggerAction(manager, actionData, channel);
 				case ADD_REACTION -> new AddReactionTriggerAction(manager, actionData, message);
-				case EXECUTE_COMMAND -> new ExecuteCommandTriggerAction(manager, actionData, bot.getCommandListener(), message);
+				case EXECUTE_COMMAND -> new ExecuteCommandTriggerAction(manager, actionData, (Sx4CommandListener) bot.getCommandListener(), message);
 			};
 
 			if (actionData.containsKey("order")) {
@@ -75,6 +69,18 @@ public class TriggerUtility {
 		futures.add(orderedFuture);
 
 		return futures;
+	}
+
+	public static List<CompletableFuture<Void>> executeActions(Document trigger, Sx4 bot, Message message) {
+		FormatterManager manager = FormatterManager.getDefaultManager()
+			.addVariable("member", message.getMember())
+			.addVariable("user", message.getAuthor())
+			.addVariable("channel", message.getGuildChannel())
+			.addVariable("server", message.getGuild())
+			.addVariable("now", OffsetDateTime.now())
+			.addVariable("random", new Random());
+
+		return TriggerUtility.executeActions(trigger, bot, manager, message);
 	}
 
 	public static CompletableFuture<Void> executeRequest(FormatterManager manager, Document oldAction) {
@@ -136,12 +142,13 @@ public class TriggerUtility {
 		return new RestActionImpl<>(message.getJDA(), route).submit().thenApply($ -> null);
 	}
 
-	public static CompletableFuture<Void> executeCommand(FormatterManager manager, Document action, CommandListener listener, Message message) {
+	public static CompletableFuture<Void> executeCommand(FormatterManager manager, Document action, Sx4CommandListener listener, Message message) {
 		String commandName = action.getString("command");
 		String arguments = new StringFormatter(action.getString("arguments"), manager).parse();
 
-		ICommand command = listener.getAllCommands().stream()
+		Sx4Command command = listener.getAllCommands().stream()
 			.filter(c -> c.getCommandTrigger().equals(commandName))
+			.map(Sx4Command.class::cast)
 			.findFirst()
 			.orElse(null);
 
@@ -149,16 +156,32 @@ public class TriggerUtility {
 			return CompletableFuture.failedFuture(new IllegalArgumentException("Command no longer exists?"));
 		}
 
+		List<ICommand> commands = new ArrayList<>();
+		commands.add(command);
+		commands.addAll(command.getDummyCommands());
+
+		List<CommandListener.Failure> possibleCommands = new ArrayList<>();
+
 		long nano = System.nanoTime();
 
-		CommandEvent event;
-		try {
-			event = listener.getCommandParser().parse(listener, command, message, "", commandName, " " + arguments, nano);
-		} catch (ParseException e) {
-			return CompletableFuture.failedFuture(new IllegalStateException("Command failed to parse: " + e.getMessage()));
+		for (ICommand c : commands) {
+			CommandEvent event;
+			try {
+				event = listener.getCommandParser().parse(listener, c, message, "", commandName, " " + arguments, nano);
+			} catch (ParseException e) {
+				possibleCommands.add(new CommandListener.Failure(command, e));
+				continue;
+			}
+
+			if (event != null) {
+				listener.queueCommand(c, event, nano, event.getArguments());
+				return CompletableFuture.completedFuture(null);
+			}
 		}
 
-		listener.queueCommand(command, event, nano, event.getArguments());
+		if (possibleCommands.size() > 0) {
+			listener.getMessageParseFailureFunction().accept(message, "", possibleCommands);
+		}
 
 		return CompletableFuture.completedFuture(null);
 	}

@@ -99,6 +99,10 @@ public class Sx4Command extends CommandImpl {
 	public boolean isDisabled() {
 		return this.disabled;
 	}
+
+	public List<DummyCommand> getDummyCommands() {
+		return this.dummyCommands;
+	}
 	
 	public String getDisabledMessage() {
 		return this.disabledMessage == null ? Sx4Command.DEFAULT_DISABLED_MESSAGE : this.disabledMessage;
