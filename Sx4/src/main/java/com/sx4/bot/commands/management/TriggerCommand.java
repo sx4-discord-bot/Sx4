@@ -473,7 +473,7 @@ public class TriggerCommand extends Sx4Command {
 		}
 
 		@Command(value="set", description="Removes all of the trigger action type specified and adds this one to the trigger")
-		@CommandId(0)
+		@CommandId(511)
 		@Examples({"trigger action set 600968f92850ef72c9af8756 request {\"url\": \"https://api.exchangerate.host/latest?base=EUR\", \"method\": \"POST\"}"})
 		@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 		public void set(Sx4CommandEvent event, @Argument(value="id") ObjectId id, @Argument(value="type") TriggerActionType type, @Argument(value="json", endless=true) Document data) {

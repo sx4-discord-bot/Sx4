@@ -187,11 +187,11 @@ public class InputFormatter {
 			} else {
 				text = nodes.get(i + 1).getText();
 				if (quote) {
-					if (!query.substring(index + 1, index + 1 + text.length()).equals(text)) {
+					index += 1;
+
+					if (!query.startsWith(text, index)) {
 						return null;
 					}
-
-					index += 1;
 				} else {
 					index = newQuery.indexOf(caseSensitive ? text : text.toLowerCase(Locale.ROOT), index);
 					if (index == -1) {
