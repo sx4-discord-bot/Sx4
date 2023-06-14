@@ -222,7 +222,7 @@ public class InputFormatter {
 		return arguments;
 	}
 
-	public static Function<String, ?> parseNumber(String key, Function<String, ?> mapping) {
+	public static Function<String, Number> parseNumber(String key, Function<String, Number> mapping) {
 		return text -> {
 			try {
 				return mapping.apply(text);

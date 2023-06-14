@@ -26,7 +26,6 @@ import net.dv8tion.jda.internal.utils.EncodingUtil;
 import okhttp3.MediaType;
 import okhttp3.Request;
 import okhttp3.RequestBody;
-import okhttp3.ResponseBody;
 import okhttp3.internal.http.HttpMethod;
 import org.bson.Document;
 
@@ -92,7 +91,7 @@ public class TriggerUtility {
 		try {
 			request = new Request.Builder()
 				.url(RequestUtility.getWorkerUrl(action.getString("url")))
-				.method(action.getString("method"), body == null ? null : RequestBody.create(MediaType.parse(action.getString("contentType")), body));
+				.method(action.getString("method"), body == null ? null : RequestBody.create(body, MediaType.parse(action.getString("contentType"))));
 		} catch (IllegalArgumentException e) {
 			e.printStackTrace();
 			return CompletableFuture.failedFuture(e);
@@ -105,10 +104,7 @@ public class TriggerUtility {
 
 		CompletableFuture<Void> future = new CompletableFuture<>();
 		TriggerHandler.CLIENT.newCall(request.build()).enqueue((HttpCallback) response -> {
-			ResponseBody responseBody = response.body();
-			if (responseBody != null && responseBody.contentLength() <= 100_000_000) {
-				manager.addVariable(action.get("variable", "response"), new FormatterResponse(response));
-			}
+			manager.addVariable(action.get("variable", "response"), new FormatterResponse(response));
 
 			future.complete(null);
 		});

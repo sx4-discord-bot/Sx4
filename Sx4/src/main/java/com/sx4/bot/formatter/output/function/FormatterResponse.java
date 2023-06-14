@@ -14,7 +14,7 @@ public class FormatterResponse {
 
 	public FormatterResponse(Response response) throws IOException {
 		this.status = response.code();
-		this.body = response.body().string();
+		this.body = response.peekBody(10_000_000).string();
 	}
 
 	public int getStatus() {
