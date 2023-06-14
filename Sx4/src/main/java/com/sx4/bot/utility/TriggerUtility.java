@@ -144,7 +144,7 @@ public class TriggerUtility {
 
 	public static CompletableFuture<Void> executeCommand(FormatterManager manager, Document action, Sx4CommandListener listener, Message message) {
 		String commandName = action.getString("command");
-		String arguments = new StringFormatter(action.getString("arguments"), manager).parse();
+		String arguments = new StringFormatter(action.get("arguments", ""), manager).parse();
 
 		Sx4Command command = listener.getAllCommands().stream()
 			.filter(c -> c.getCommandTrigger().equals(commandName))
@@ -167,7 +167,7 @@ public class TriggerUtility {
 		for (ICommand c : commands) {
 			CommandEvent event;
 			try {
-				event = listener.getCommandParser().parse(listener, c, message, "", commandName, " " + arguments, nano);
+				event = listener.getCommandParser().parse(listener, c, message, "", commandName, (arguments.isEmpty() ? "" : " ") + arguments, nano);
 			} catch (ParseException e) {
 				possibleCommands.add(new CommandListener.Failure(command, e));
 				continue;

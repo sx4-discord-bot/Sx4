@@ -130,6 +130,46 @@ public class TriggerCommand extends Sx4Command {
 		});
 	}
 
+	@Command(value="add", description="Add a trigger to the server with a pre-defined action")
+	@CommandId(512)
+	@Examples({"trigger add whoami EXECUTE_COMMAND {\"command\": \"member info\"}", "trigger add \"lookup {text}\" REQUEST {\"url\": \"https://my-site.com/api/search?query={0}\"}"})
+	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
+	public void add(Sx4CommandEvent event, @Argument(value="trigger") String trigger, @Argument(value="type") TriggerActionType type, @Argument(value="json", endless=true) Document data) {
+		InputFormatter formatter = new InputFormatter(trigger);
+		try {
+			formatter.getNodes();
+		} catch (FormatterException exception) {
+			event.replyFailure(exception.getMessage()).queue();
+			return;
+		}
+
+		Document action;
+		try {
+			action = TriggerUtility.parseTriggerAction(event, type, data);
+		} catch (IllegalArgumentException e) {
+			event.replyFailure(e.getMessage()).queue();
+			return;
+		}
+
+		Document triggerData = new Document("trigger", trigger)
+			.append("guildId", event.getGuild().getIdLong())
+			.append("actions", List.of(action));
+
+		event.getMongo().insertTrigger(triggerData).whenComplete((result, exception) -> {
+			Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
+			if (cause instanceof MongoWriteException && ((MongoWriteException) cause).getError().getCategory() == ErrorCategory.DUPLICATE_KEY) {
+				event.replyFailure("You already have a trigger with that content").queue();
+				return;
+			}
+
+			if (ExceptionUtility.sendExceptionally(event, exception)) {
+				return;
+			}
+
+			event.replySuccess("That trigger has been added with id `" + result.getInsertedId().asObjectId().getValue().toHexString() + "`").queue();
+		});
+	}
+
 	@Command(value="advanced add", description="Same as `trigger add` but takes a json message")
 	@CommandId(220)
 	@Examples({"trigger advanced add hi {\"embed\": {\"description\": \"Hello\"}}", "trigger advanced add \"some word\" {\"embed\": {\"description\": \"some other words\"}}"})

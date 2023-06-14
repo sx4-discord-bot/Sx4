@@ -1,6 +1,7 @@
 package com.sx4.bot.formatter.input;
 
 import com.sx4.bot.formatter.exception.InvalidFormatterSyntax;
+import com.sx4.bot.formatter.input.InputFormatterNode.TextNode;
 
 import java.util.*;
 import java.util.function.Function;
@@ -85,8 +86,8 @@ public class InputFormatter {
 		return new InputFormatterArgument(name.toString(), options);
 	}
 
-	public List<InputFormatterNode> getNodes() {
-		List<InputFormatterNode> nodes = new ArrayList<>();
+	public List<InputFormatterNode<?>> getNodes() {
+		List<InputFormatterNode<?>> nodes = new ArrayList<>();
 
 		StringBuilder text = new StringBuilder();
 		StringBuilder inputFormatter = new StringBuilder();
@@ -105,7 +106,7 @@ public class InputFormatter {
 				}
 
 				if (text.length() > 0) {
-					nodes.add(new InputFormatterNode(text.toString()));
+					nodes.add(InputFormatterNode.ofText(text.toString()));
 					text.setLength(0);
 				}
 
@@ -115,7 +116,7 @@ public class InputFormatter {
 					throw new InvalidFormatterSyntax("'}' given with no starting brace, use \\\\} if you want to use an escaped version");
 				}
 
-				nodes.add(new InputFormatterNode(this.parseInputFormatter(inputFormatter.toString())));
+				nodes.add(InputFormatterNode.ofArgument(this.parseInputFormatter(inputFormatter.toString())));
 				inputFormatter.setLength(0);
 
 				formatter = false;
@@ -124,7 +125,7 @@ public class InputFormatter {
 			}
 
 			if (i == this.formatter.length() - 1 && text.length() > 0) {
-				nodes.add(new InputFormatterNode(text.toString()));
+				nodes.add(InputFormatterNode.ofText(text.toString()));
 			}
 		}
 
@@ -134,16 +135,15 @@ public class InputFormatter {
 	public List<Object> parse(String query, boolean caseSensitive) {
 		String newQuery = caseSensitive ? query : query.toLowerCase(Locale.ROOT);
 
-		List<InputFormatterNode> nodes = this.getNodes();
+		List<InputFormatterNode<?>> nodes = this.getNodes();
 		List<Object> arguments = new ArrayList<>();
 
 		int index = 0, previousIndex;
 		for (int i = 0; i < nodes.size();) {
-			InputFormatterNode firstNode = nodes.get(i);
+			InputFormatterNode<?> firstNode = nodes.get(i);
 
-			boolean first = firstNode.isText();
-			if (first) {
-				String text = firstNode.getText();
+			if (firstNode instanceof TextNode textNode) {
+				String text = textNode.getValue();
 				if (nodes.size() == 1 && query.length() > text.length()) {
 					return null;
 				}
@@ -185,7 +185,7 @@ public class InputFormatter {
 			if (i + 1 >= nodes.size()) {
 				index = newQuery.length();
 			} else {
-				text = nodes.get(i + 1).getText();
+				text = (String) nodes.get(i + 1).getValue();
 				if (quote) {
 					index += 1;
 
@@ -200,7 +200,7 @@ public class InputFormatter {
 				}
 			}
 
-			InputFormatterArgument argument = firstNode.getArgument();
+			InputFormatterArgument argument = (InputFormatterArgument) firstNode.getValue();
 			InputFormatterParser<?> parser = this.manager.getParser(argument.getName());
 			if (parser == null) {
 				return null;

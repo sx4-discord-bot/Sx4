@@ -1,34 +1,39 @@
 package com.sx4.bot.formatter.input;
 
-public class InputFormatterNode {
+public class InputFormatterNode<Type> {
 
-	private final InputFormatterArgument argument;
-	private final String text;
+	private final Type value;
 
-	public InputFormatterNode(InputFormatterArgument argument) {
-		this.argument = argument;
-		this.text = null;
+	public InputFormatterNode(Type value) {
+		this.value = value;
 	}
 
-	public InputFormatterNode(String text) {
-		this.argument = null;
-		this.text = text;
+	public Type getValue() {
+		return this.value;
 	}
 
-	public String getText() {
-		return this.text;
+	public static TextNode ofText(String text) {
+		return new TextNode(text);
 	}
 
-	public boolean isText() {
-		return this.text != null;
+	public static ArgumentNode ofArgument(InputFormatterArgument argument) {
+		return new ArgumentNode(argument);
 	}
 
-	public InputFormatterArgument getArgument() {
-		return this.argument;
+	public static class TextNode extends InputFormatterNode<String> {
+
+		private TextNode(String text) {
+			super(text);
+		}
+
 	}
 
-	public String toString() {
-		return this.isText() ? this.getText() : "Argument(" + this.getArgument().getName() + ")";
+	public static class ArgumentNode extends InputFormatterNode<InputFormatterArgument> {
+
+		private ArgumentNode(InputFormatterArgument argument) {
+			super(argument);
+		}
+
 	}
 
 }
