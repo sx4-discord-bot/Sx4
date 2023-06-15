@@ -29,7 +29,7 @@ public class InputFormatter {
 			char character = option.charAt(i);
 			if (character == '=' && (i == 0 || option.charAt(i - 1) != '\\')) {
 				if (keyDone) {
-					throw new InvalidFormatterSyntax("Multiple '=' signs given, if you want to use an '=' in the key or value escape it like so \\\\=");
+					throw new InvalidFormatterSyntax("Multiple '=' signs given, if you want to use an `=` in the key or value escape it like so \\\\=");
 				}
 
 				keyDone = true;
@@ -39,7 +39,7 @@ public class InputFormatter {
 		}
 
 		if (!keyDone) {
-			throw new InvalidFormatterSyntax("No 'key=value' format given");
+			throw new InvalidFormatterSyntax("No `key=value` format given");
 		}
 
 		return Map.entry(key.toString(), this.manager.getMapping(name, key.toString()).apply(value.toString()));
@@ -96,36 +96,52 @@ public class InputFormatter {
 		for (int i = 0; i < this.formatter.length(); i++) {
 			char character = this.formatter.charAt(i);
 			if (i == 0 && character == '}') {
-				throw new InvalidFormatterSyntax("'}' given with no starting brace, use \\\\} if you want to use an escaped version");
+				throw new InvalidFormatterSyntax("`}` given with no starting brace, use `\\}` if you want to use an escaped version");
 			}
 
 			char characterBefore = i == 0 ? 0 : this.formatter.charAt(i - 1);
-			if (character == '{' && (i == 0 || characterBefore != '\\')) {
-				if (text.length() == 0 && i != 0) {
-					throw new InvalidFormatterSyntax("There must be text to separate 2 input formatters");
+			if (character == '{') {
+				if (i != 0 && characterBefore == '\\') {
+					text.setLength(text.length() - 1);
+					text.append(character);
+				} else {
+					if (text.length() == 0 && i != 0) {
+						throw new InvalidFormatterSyntax("There must be text to separate 2 input formatters");
+					}
+
+					if (text.length() > 0) {
+						nodes.add(InputFormatterNode.ofText(text.toString()));
+						text.setLength(0);
+					}
+
+					formatter = true;
 				}
+			} else if (character == '}') {
+				if (characterBefore == '\\') {
+					text.setLength(text.length() - 1);
+					text.append(character);
+				} else {
+					if (!formatter) {
+						throw new InvalidFormatterSyntax("`}` given with no starting brace, use `\\}` if you want to use an escaped version");
+					}
 
-				if (text.length() > 0) {
-					nodes.add(InputFormatterNode.ofText(text.toString()));
-					text.setLength(0);
+					nodes.add(InputFormatterNode.ofArgument(this.parseInputFormatter(inputFormatter.toString())));
+					inputFormatter.setLength(0);
+
+					formatter = false;
 				}
-
-				formatter = true;
-			} else if (character == '}' && characterBefore != '\\') {
-				if (!formatter) {
-					throw new InvalidFormatterSyntax("'}' given with no starting brace, use \\\\} if you want to use an escaped version");
-				}
-
-				nodes.add(InputFormatterNode.ofArgument(this.parseInputFormatter(inputFormatter.toString())));
-				inputFormatter.setLength(0);
-
-				formatter = false;
 			} else {
 				(formatter ? inputFormatter : text).append(character);
 			}
 
-			if (i == this.formatter.length() - 1 && text.length() > 0) {
-				nodes.add(InputFormatterNode.ofText(text.toString()));
+			if (i == this.formatter.length() - 1) {
+				if (formatter) {
+					throw new InvalidFormatterSyntax("`{` starting brace used with no ending brace, use `\\{` if you want to use an escaped version");
+				}
+
+				if (text.length() > 0) {
+					nodes.add(InputFormatterNode.ofText(text.toString()));
+				}
 			}
 		}
 
