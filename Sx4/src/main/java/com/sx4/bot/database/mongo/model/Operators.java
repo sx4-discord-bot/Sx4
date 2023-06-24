@@ -74,6 +74,14 @@ public class Operators {
 	public static Bson exists(String key) {
 		return Operators.ne(key, new BsonUndefined());
 	}
+
+	public static Bson allElementsTrue(Object expression) {
+		return new Document("$allElementsTrue", List.of(expression));
+	}
+
+	public static Bson anyElementTrue(Object expression) {
+		return new Document("$anyElementTrue", List.of(expression));
+	}
 	
 	public static Bson filter(Object listExpression, Object expression) {
 		return new Document("$filter", new Document("input", listExpression).append("cond", expression));

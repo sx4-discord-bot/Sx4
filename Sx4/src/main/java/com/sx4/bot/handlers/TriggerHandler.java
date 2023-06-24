@@ -1,14 +1,23 @@
 package com.sx4.bot.handlers;
 
+import com.mongodb.client.ChangeStreamIterable;
 import com.mongodb.client.model.*;
+import com.mongodb.client.model.changestream.ChangeStreamDocument;
+import com.mongodb.client.model.changestream.FullDocument;
+import com.mongodb.client.model.changestream.FullDocumentBeforeChange;
+import com.mongodb.client.model.changestream.OperationType;
 import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.mongo.MongoDatabase;
+import com.sx4.bot.database.mongo.model.AggregateOperators;
+import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.formatter.input.InputFormatter;
+import com.sx4.bot.formatter.input.InputFormatterContext;
 import com.sx4.bot.formatter.output.FormatterManager;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.FutureUtility;
 import com.sx4.bot.utility.TriggerUtility;
 import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.channel.middleman.GuildMessageChannel;
@@ -18,15 +27,15 @@ import net.dv8tion.jda.api.events.message.MessageUpdateEvent;
 import net.dv8tion.jda.api.hooks.EventListener;
 import okhttp3.OkHttpClient;
 import org.bson.Document;
+import org.bson.conversions.Bson;
 import org.jetbrains.annotations.NotNull;
 
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Random;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 public class TriggerHandler implements EventListener {
 
@@ -38,6 +47,34 @@ public class TriggerHandler implements EventListener {
 
 	public TriggerHandler(Sx4 bot) {
 		this.bot = bot;
+
+		List<Bson> pipeline = List.of(
+			Aggregates.match(Filters.or(Filters.eq("operationType", "insert"), Filters.eq("operationType", "delete")))
+		);
+
+		ChangeStreamIterable<Document> stream = this.bot.getMongo().getTriggers()
+			.watch(pipeline)
+			.fullDocument(FullDocument.WHEN_AVAILABLE)
+			.fullDocumentBeforeChange(FullDocumentBeforeChange.WHEN_AVAILABLE);
+
+		ExecutorService executor = Executors.newSingleThreadExecutor();
+		executor.submit(() -> stream.forEach(this::onTriggerChange));
+	}
+
+	public void onTriggerChange(ChangeStreamDocument<Document> stream) {
+		boolean delete = stream.getOperationType() == OperationType.DELETE;
+
+		Document data = delete ? stream.getFullDocumentBeforeChange() : stream.getFullDocument();
+		if (data == null) {
+			return;
+		}
+
+		Document template = data.get("template", Document.class);
+		if (template == null) {
+			return;
+		}
+
+		this.bot.getMongo().updateTriggerTemplate(Filters.eq("_id", template.getObjectId("id")), Updates.inc("uses", delete ? -1 : 1));
 	}
 
 	public void handle(Message message) {
@@ -50,31 +87,80 @@ public class TriggerHandler implements EventListener {
 			return;
 		}
 
+		Guild guild = message.getGuild();
 		GuildMessageChannel channel = message.getGuildChannel();
-		if (!message.getGuild().getSelfMember().hasPermission(channel, Permission.MESSAGE_SEND)) {
+		if (!guild.getSelfMember().hasPermission(channel, Permission.MESSAGE_SEND)) {
 			return;
 		}
 
-		this.bot.getExecutor().submit(() -> {
-			List<WriteModel<Document>> bulkData = new ArrayList<>();
-			this.bot.getMongo().getTriggers(Filters.eq("guildId", message.getGuild().getIdLong()), Projections.include("trigger", "response", "case", "enabled", "actions")).forEach(trigger -> {
+		List<Bson> guildsPipeline = List.of(
+			Aggregates.project(Projections.include("prefixes")),
+			Aggregates.match(Filters.eq("_id", guild.getIdLong())),
+			Aggregates.group(null, Accumulators.first("guildPrefixes", "$prefixes"))
+		);
+
+		List<Bson> usersPipeline = List.of(
+			Aggregates.project(Projections.include("prefixes")),
+			Aggregates.match(Filters.eq("_id", message.getAuthor().getIdLong())),
+			Aggregates.group(null, Accumulators.first("userPrefixes", "$prefixes"))
+		);
+
+		List<Bson> pipeline = List.of(
+			Aggregates.match(Filters.eq("guildId", guild.getIdLong())),
+			Aggregates.group(null, Accumulators.push("triggers", Operators.ROOT)),
+			Aggregates.unionWith("users", usersPipeline),
+			Aggregates.unionWith("guilds", guildsPipeline),
+			AggregateOperators.mergeFields("triggers", "guildPrefixes", "userPrefixes")
+		);
+
+		List<WriteModel<Document>> bulkData = new ArrayList<>();
+		this.bot.getMongo().aggregateTriggers(pipeline).whenComplete((documents, databaseException) -> {
+			if (ExceptionUtility.sendErrorMessage(databaseException)) {
+				return;
+			}
+
+			if (documents.isEmpty()) {
+				return;
+			}
+
+			Document data = documents.get(0);
+
+			List<String> userPrefixes = data.getList("userPrefixes", String.class, Collections.emptyList());
+			List<String> guildPrefixes = data.getList("guildPrefixes", String.class, Collections.emptyList());
+			List<String> prefixes = userPrefixes.isEmpty() && guildPrefixes.isEmpty() ? this.bot.getConfig().getDefaultPrefixes() : userPrefixes.isEmpty() ? guildPrefixes : userPrefixes;
+
+			// Ensure bot mention always works
+			long selfId = message.getJDA().getSelfUser().getIdLong();
+			prefixes.add("<@" + selfId + "> ");
+			prefixes.add("<@!" + selfId + "> ");
+
+			InputFormatterContext context = new InputFormatterContext(message);
+			context.setVariable("prefixes", prefixes);
+
+			List<Document> triggers = data.getList("triggers", Document.class, Collections.emptyList());
+			triggers.forEach(trigger -> {
 				if (!trigger.get("enabled", true)) {
 					return;
 				}
 
-				FormatterManager manager = FormatterManager.getDefaultManager()
-					.addVariable("member", message.getMember())
-					.addVariable("user", message.getAuthor())
-					.addVariable("channel", channel)
-					.addVariable("server", message.getGuild())
-					.addVariable("now", OffsetDateTime.now())
-					.addVariable("random", new Random());
+				FormatterManager manager;
+				if (trigger.get("format", true)) {
+					manager = FormatterManager.getDefaultManager()
+						.addVariable("member", message.getMember())
+						.addVariable("user", message.getAuthor())
+						.addVariable("channel", channel)
+						.addVariable("server", guild)
+						.addVariable("now", OffsetDateTime.now())
+						.addVariable("random", new Random());
+				} else {
+					manager = new FormatterManager();
+				}
 
 				InputFormatter formatter = new InputFormatter(trigger.getString("trigger"));
 
 				List<Object> arguments;
 				try {
-					arguments = formatter.parse(message.getContentRaw(), trigger.get("case", false));
+					arguments = formatter.parse(context, message.getContentRaw(), trigger.get("case", false));
 				} catch (IllegalArgumentException e) {
 					channel.sendMessage(e.getMessage() + " " + this.bot.getConfig().getFailureEmote()).queue();
 					return;
@@ -102,11 +188,11 @@ public class TriggerHandler implements EventListener {
 					ExceptionUtility.sendExceptionally(channel, exception);
 				});
 			});
-
-			if (!bulkData.isEmpty()) {
-				this.bot.getMongo().bulkWriteTriggers(bulkData).whenComplete(MongoDatabase.exceptionally());
-			}
 		});
+
+		if (!bulkData.isEmpty()) {
+			this.bot.getMongo().bulkWriteTriggers(bulkData).whenComplete(MongoDatabase.exceptionally());
+		}
 	}
 
 	@Override

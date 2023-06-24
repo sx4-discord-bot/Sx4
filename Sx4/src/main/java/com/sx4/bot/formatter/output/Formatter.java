@@ -4,6 +4,7 @@ import com.sx4.bot.formatter.output.function.FormatterEvent;
 import com.sx4.bot.formatter.output.function.FormatterFunction;
 import com.sx4.bot.formatter.output.function.FormatterParser;
 import com.sx4.bot.formatter.output.function.FormatterVariable;
+import com.sx4.bot.utility.ClassUtility;
 import com.sx4.bot.utility.ColourUtility;
 import com.sx4.bot.utility.StringUtility;
 import net.dv8tion.jda.api.entities.Guild;
@@ -15,8 +16,10 @@ import net.dv8tion.jda.api.entities.emoji.EmojiUnion;
 
 import java.awt.*;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Parameter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 public abstract class Formatter<Type> {
 
@@ -102,41 +105,45 @@ public abstract class Formatter<Type> {
 		List<Object> functionArguments = new ArrayList<>();
 		functionArguments.add(new FormatterEvent<>(value, manager));
 
-		Class<?>[] parameters = function.getMethod().getParameterTypes();
-		if (parameters.length > 2) {
-			int lastIndex = -1, i = 0;
-			do {
-				int nextIndex = text.indexOf(',', lastIndex + 1);
-				if (Formatter.isEscaped(text, nextIndex)) {
-					continue;
-				}
-
-				String argument;
-				if (++i == parameters.length - 1) {
-					argument = text.substring(lastIndex + 1);
-					lastIndex = -1;
-				} else {
-					argument = text.substring(lastIndex + 1, (lastIndex = nextIndex) == -1 ? text.length() : nextIndex);
-				}
-
-				Object argumentValue = Formatter.toObject(argument, function.isUsePrevious() ? type : parameters[i], manager);
-				if (argumentValue == null) {
-					return null;
-				}
-
-				functionArguments.add(argumentValue);
-			} while (lastIndex != -1);
-
-			if (functionArguments.size() < parameters.length - 1) {
-				return null;
+		Parameter[] parameters = function.getMethod().getParameters();
+		int nextIndex, lastIndex = -1, commaIndex = -1, index = 0;
+		do {
+			nextIndex = text.indexOf(',', commaIndex + 1);
+			if (nextIndex != -1 && (lastIndex >= nextIndex || Formatter.isEscaped(text, nextIndex) || StringUtility.isNotEqual(text.substring(lastIndex + 1, nextIndex), '{', '}'))) {
+				commaIndex = nextIndex;
+				continue;
 			}
-		} else if (parameters.length == 2) {
-			Object argumentValue = Formatter.toObject(text, function.isUsePrevious() ? type : parameters[1], manager);
+
+			String argument;
+			if (++index == parameters.length - 1) {
+				argument = text.substring(lastIndex + 1);
+				lastIndex = -1;
+			} else {
+				argument = text.substring(lastIndex + 1, (lastIndex = nextIndex) == -1 ? text.length() : nextIndex);
+			}
+
+			Parameter parameter = parameters[index];
+			Class<?> clazz = parameter.getType();
+			boolean optional = clazz == Optional.class;
+			if (optional) {
+				clazz = (Class<?>) ClassUtility.getParameterTypes(parameter)[0];
+			}
+
+			Object argumentValue = Formatter.toObject(argument, function.isUsePrevious() ? type : clazz, manager);
 			if (argumentValue == null) {
 				return null;
 			}
 
-			functionArguments.add(argumentValue);
+			functionArguments.add(optional ? Optional.of(argumentValue) : argumentValue);
+		} while (nextIndex != -1);
+
+		for (int i = functionArguments.size(); i < parameters.length; i++) {
+			Parameter parameter = parameters[i];
+			if (parameter.getType() == Optional.class) {
+				functionArguments.add(Optional.empty());
+			} else {
+				return null;
+			}
 		}
 
 		return functionArguments;

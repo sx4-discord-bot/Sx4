@@ -19,6 +19,7 @@ import com.sx4.bot.http.HttpCallback;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.channel.middleman.GuildMessageChannel;
 import net.dv8tion.jda.api.entities.emoji.CustomEmoji;
+import net.dv8tion.jda.api.entities.emoji.Emoji;
 import net.dv8tion.jda.api.entities.emoji.EmojiUnion;
 import net.dv8tion.jda.api.requests.Route;
 import net.dv8tion.jda.internal.requests.RestActionImpl;
@@ -117,12 +118,12 @@ public class TriggerUtility {
 
 		String channelId = action.getString("channelId");
 		GuildMessageChannel messageChannel = channelId == null ? channel : channel.getGuild().getChannelById(GuildMessageChannel.class, channelId);
+		if (messageChannel == null) {
+			return CompletableFuture.failedFuture(new IllegalArgumentException("`channelId` supplied is not a valid channel"));
+		}
 
 		return messageChannel.sendMessage(MessageUtility.fromWebhookMessage(MessageUtility.fromJson(action.get("response", Document.class), true).build())).setAllowedMentions(EnumSet.allOf(Message.MentionType.class)).submit()
-			.thenApply(message -> {
-				manager.addVariable(action.get("variable", "message"), message);
-				return null;
-			});
+			.thenAccept(message -> manager.addVariable(action.get("variable", "message"), message));
 	}
 
 	public static CompletableFuture<Void> addReaction(FormatterManager manager, Document oldAction, Message message) {
@@ -132,9 +133,9 @@ public class TriggerUtility {
 		String messageId = action.get("messageId", message.getId());
 
 		Document emote = action.get("emote", Document.class);
-		String reactionCode = emote.containsKey("name") ? emote.getString("name") : "a:" + emote.getString("id");
+		String reactionCode = emote.containsKey("name") ? Emoji.fromUnicode(emote.getString("name")).getAsReactionCode() : EncodingUtil.encodeReaction("a:" + emote.getString("id"));
 
-		Route.CompiledRoute route = Route.Messages.ADD_REACTION.compile(channelId, messageId, EncodingUtil.encodeReaction(reactionCode), "@me");
+		Route.CompiledRoute route = Route.Messages.ADD_REACTION.compile(channelId, messageId, reactionCode, "@me");
 		return new RestActionImpl<>(message.getJDA(), route).submit().thenApply($ -> null);
 	}
 

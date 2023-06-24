@@ -270,7 +270,10 @@ public class Sx4 {
 			.addMapping("text", "max", InputFormatter.parseNumber("max", Integer::parseUnsignedInt))
 			.addMapping("int", "min", InputFormatter.parseNumber("min", Long::parseLong))
 			.addMapping("int", "max", InputFormatter.parseNumber("max", Long::parseLong))
-			.addParser("text", (text, options) -> {
+			.addParser("member", (context, text, options) -> SearchUtility.getMember(context.getGuild(), text))
+			.addParser("role", (context, text, options) -> SearchUtility.getRole(context.getGuild(), text))
+			.addParser("prefix", (context, text, options) ->  context.getVariable("prefixes", Collections.emptyList()).contains(text) ? text : null)
+			.addParser("text", (context, text, options) -> {
 				int max = (int) options.getOrDefault("max", Integer.MAX_VALUE), min = (int) options.getOrDefault("min", 0);
 				String name = (String) options.getOrDefault("name", "text");
 
@@ -283,7 +286,7 @@ public class Sx4 {
 				}
 
 				return text;
-			}).addParser("int", (text, options) -> {
+			}).addParser("int", (context, text, options) -> {
 				long max = (long) options.getOrDefault("max", Long.MAX_VALUE), min = (long) options.getOrDefault("min", Long.MIN_VALUE);
 				String name = (String) options.getOrDefault("name", "int");
 

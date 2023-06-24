@@ -52,6 +52,7 @@ public class MongoDatabase {
 	private final MongoCollection<Document> temporaryBans;
 
 	private final MongoCollection<Document> triggers;
+	private final MongoCollection<Document> triggerTemplates;
 
 	private final MongoCollection<Document> templates;
 
@@ -142,6 +143,11 @@ public class MongoDatabase {
 		this.triggers = this.database.getCollection("triggers");
 		this.triggers.createIndex(Indexes.descending("guildId", "trigger"), uniqueIndex);
 		this.triggers.createIndex(Indexes.descending("guildId"));
+		this.database.runCommand(new Document("collMod", "triggers").append("changeStreamPreAndPostImages", new Document("enabled", true)));
+
+		this.triggerTemplates = this.database.getCollection("triggerTemplates");
+		this.triggerTemplates.createIndex(Indexes.descending("triggerId"), uniqueIndex);
+		this.triggerTemplates.createIndex(Indexes.descending("name"), uniqueIndex);
 
 		this.templates = this.database.getCollection("templates");
 		this.templates.createIndex(Indexes.descending("guildId", "template"), uniqueIndex);
@@ -900,6 +906,10 @@ public class MongoDatabase {
 		return this.triggers;
 	}
 
+	public CompletableFuture<List<Document>> aggregateTriggers(List<Bson> pipeline) {
+		return CompletableFuture.supplyAsync(() -> this.triggers.aggregate(pipeline).into(new ArrayList<>()), this.executor);
+	}
+
 	public FindIterable<Document> getTriggers(Bson filter, Bson projection) {
 		return this.triggers.find(filter).projection(projection);
 	}
@@ -936,6 +946,10 @@ public class MongoDatabase {
 		return this.findAndUpdateTrigger(Filters.eq("_id", id), update, options);
 	}
 
+	public CompletableFuture<Document> findAndDeleteTrigger(Bson filter) {
+		return CompletableFuture.supplyAsync(() -> this.triggers.findOneAndDelete(filter), this.executor);
+	}
+
 	public CompletableFuture<DeleteResult> deleteTrigger(Bson filter) {
 		return CompletableFuture.supplyAsync(() -> this.triggers.deleteOne(filter), this.executor);
 	}
@@ -946,6 +960,38 @@ public class MongoDatabase {
 
 	public CompletableFuture<BulkWriteResult> bulkWriteTriggers(List<WriteModel<Document>> bulkData) {
 		return CompletableFuture.supplyAsync(() -> this.triggers.bulkWrite(bulkData), this.executor);
+	}
+
+	public MongoCollection<Document> getTriggerTemplates() {
+		return this.triggerTemplates;
+	}
+
+	public FindIterable<Document> getTriggerTemplates(Bson filter, Bson projection) {
+		return this.triggerTemplates.find(filter).projection(projection);
+	}
+
+	public Document getTriggerTemplate(Bson filter, Bson projection) {
+		return this.getTriggerTemplates(filter, projection).first();
+	}
+
+	public CompletableFuture<InsertOneResult> insertTriggerTemplate(Document data) {
+		return CompletableFuture.supplyAsync(() -> this.triggerTemplates.insertOne(data), this.executor);
+	}
+
+	public CompletableFuture<UpdateResult> updateTriggerTemplate(Bson filter, Bson update, UpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.triggerTemplates.updateOne(filter, update, options), this.executor);
+	}
+
+	public CompletableFuture<UpdateResult> updateTriggerTemplate(Bson filter, Bson update) {
+		return this.updateTriggerTemplate(filter, update, new UpdateOptions());
+	}
+
+	public CompletableFuture<UpdateResult> updateTriggerTemplate(Bson filter, List<Bson> update, UpdateOptions options) {
+		return CompletableFuture.supplyAsync(() -> this.triggerTemplates.updateOne(filter, update, options), this.executor);
+	}
+
+	public CompletableFuture<UpdateResult> updateTriggerTemplate(Bson filter, List<Bson> update) {
+		return this.updateTriggerTemplate(filter, update, new UpdateOptions());
 	}
 
 	public MongoCollection<Document> getStars() {

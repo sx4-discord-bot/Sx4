@@ -102,8 +102,7 @@ public class InputFormatter {
 			char characterBefore = i == 0 ? 0 : this.formatter.charAt(i - 1);
 			if (character == '{') {
 				if (i != 0 && characterBefore == '\\') {
-					text.setLength(text.length() - 1);
-					text.append(character);
+					text.setCharAt(text.length() - 1, character);
 				} else {
 					if (text.length() == 0 && i != 0) {
 						throw new InvalidFormatterSyntax("There must be text to separate 2 input formatters");
@@ -118,8 +117,7 @@ public class InputFormatter {
 				}
 			} else if (character == '}') {
 				if (characterBefore == '\\') {
-					text.setLength(text.length() - 1);
-					text.append(character);
+					text.setCharAt(text.length() - 1, character);
 				} else {
 					if (!formatter) {
 						throw new InvalidFormatterSyntax("`}` given with no starting brace, use `\\}` if you want to use an escaped version");
@@ -148,7 +146,7 @@ public class InputFormatter {
 		return nodes;
 	}
 
-	public List<Object> parse(String query, boolean caseSensitive) {
+	public List<Object> parse(InputFormatterContext context, String query, boolean caseSensitive) {
 		String newQuery = caseSensitive ? query : query.toLowerCase(Locale.ROOT);
 
 		List<InputFormatterNode<?>> nodes = this.getNodes();
@@ -176,15 +174,16 @@ public class InputFormatter {
 			}
 
 			previousIndex = index;
-
 			boolean quote = false;
+
+			TextNode nextNode = i + 1 >= nodes.size() ? null : (TextNode) nodes.get(i + 1);
 
 			int quoteIndex = newQuery.indexOf("\"", index);
 			while (quoteIndex != -1 && (quoteIndex == 0 || newQuery.charAt(quoteIndex - 1) == '\\')) {
 				quoteIndex = newQuery.indexOf("\"", quoteIndex + 1);
 			}
 
-			if (quoteIndex != -1) {
+			if (quoteIndex != -1 && nextNode != null && newQuery.indexOf(caseSensitive ? nextNode.getValue() : nextNode.getValue().toLowerCase(Locale.ROOT), index) > quoteIndex) {
 				int endQuoteIndex = newQuery.indexOf("\"", quoteIndex + 1);
 				while (endQuoteIndex != -1 && (endQuoteIndex == 0 || newQuery.charAt(endQuoteIndex - 1) == '\\')) {
 					endQuoteIndex = newQuery.indexOf("\"", endQuoteIndex + 1);
@@ -198,10 +197,10 @@ public class InputFormatter {
 			}
 
 			String text = null;
-			if (i + 1 >= nodes.size()) {
+			if (nextNode == null) {
 				index = newQuery.length();
 			} else {
-				text = (String) nodes.get(i + 1).getValue();
+				text = nextNode.getValue();
 				if (quote) {
 					index += 1;
 
@@ -225,7 +224,7 @@ public class InputFormatter {
 			String argumentNode = query.substring(previousIndex, index - (quote ? 1 : 0));
 			index += text == null ? 0 : text.length();
 
-			Object object = parser.parse(argumentNode, argument.getOptions());
+			Object object = parser.parse(context, argumentNode, argument.getOptions());
 			if (object == null) {
 				return null;
 			}

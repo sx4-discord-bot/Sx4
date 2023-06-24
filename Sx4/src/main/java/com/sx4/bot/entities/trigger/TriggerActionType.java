@@ -7,6 +7,8 @@ public enum TriggerActionType {
 	ADD_REACTION(2, 1),
 	EXECUTE_COMMAND(3, 1);
 
+	public static final int MAX_ACTIONS = 3;
+
 	private final int id, maxActions;
 
 	private TriggerActionType(int id, int maxActions) {

@@ -2,7 +2,6 @@ package com.sx4.bot.formatter.input;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.function.BiFunction;
 import java.util.function.Function;
 
 public class InputFormatterManager {
@@ -52,7 +51,7 @@ public class InputFormatterManager {
 		return this;
 	}
 
-	public <Type> InputFormatterManager addParser(String name, BiFunction<String, Map<String, Object>, Type> function) {
+	public <Type> InputFormatterManager addParser(String name, InputFormatterFunction<Type> function) {
 		return this.addParser(new InputFormatterParser<>(name, function));
 	}
 

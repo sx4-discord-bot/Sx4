@@ -49,7 +49,7 @@ public class ModHandler implements ModActionListener, EventListener {
 	public ModHandler(Sx4 bot) {
 		this.bot = bot;
 
-		List<Bson> pipeline = List.of(Aggregates.match(Filters.eq("operationType", "replace")));
+		List<Bson> pipeline = List.of(Aggregates.match(Filters.eq("operationType", "update")));
 		ChangeStreamIterable<Document> stream = this.bot.getMongo().getModLogs().watch(pipeline).fullDocument(FullDocument.UPDATE_LOOKUP);
 
 		ExecutorService executor = Executors.newSingleThreadExecutor();

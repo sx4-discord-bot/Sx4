@@ -35,8 +35,16 @@ public class ClassUtility {
 		return types;
 	}
 
+	public static Type[] getParameterTypes(ParameterizedType firstType) {
+		return ClassUtility.getParameterTypes(firstType, (Class<?>) firstType.getRawType());
+	}
+
 	public static Type[] getParameterTypes(Parameter parameter, Class<?> start) {
 		return ClassUtility.getParameterTypes((ParameterizedType) parameter.getParameterizedType(), start);
+	}
+
+	public static Type[] getParameterTypes(Parameter parameter) {
+		return ClassUtility.getParameterTypes((ParameterizedType) parameter.getParameterizedType());
 	}
 
 }

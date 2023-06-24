@@ -25,15 +25,14 @@ import com.sx4.bot.formatter.input.InputFormatter;
 import com.sx4.bot.formatter.output.FormatterManager;
 import com.sx4.bot.formatter.output.function.FormatterVariable;
 import com.sx4.bot.paged.PagedResult;
-import com.sx4.bot.utility.ExceptionUtility;
-import com.sx4.bot.utility.FutureUtility;
-import com.sx4.bot.utility.StringUtility;
-import com.sx4.bot.utility.TriggerUtility;
+import com.sx4.bot.utility.*;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.*;
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
 import net.dv8tion.jda.api.interactions.components.buttons.Button;
+import net.dv8tion.jda.api.interactions.components.selections.StringSelectMenu;
+import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
@@ -46,11 +45,10 @@ import java.util.List;
 import java.util.StringJoiner;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 public class TriggerCommand extends Sx4Command {
-
-	public static final int MAX_ACTIONS = 3;
 
 	public TriggerCommand() {
 		super("trigger", 214);
@@ -156,6 +154,37 @@ public class TriggerCommand extends Sx4Command {
 			.append("actions", List.of(action));
 
 		event.getMongo().insertTrigger(triggerData).whenComplete((result, exception) -> {
+			Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
+			if (cause instanceof MongoWriteException && ((MongoWriteException) cause).getError().getCategory() == ErrorCategory.DUPLICATE_KEY) {
+				event.replyFailure("You already have a trigger with that content").queue();
+				return;
+			}
+
+			if (ExceptionUtility.sendExceptionally(event, exception)) {
+				return;
+			}
+
+			event.replySuccess("That trigger has been added with id `" + result.getInsertedId().asObjectId().getValue().toHexString() + "`").queue();
+		});
+	}
+
+	@Command(value="add", description="Adds a trigger to the server from a trigger template")
+	@CommandId(517)
+	@Examples({"trigger add Multiply", "trigger add Role Edit Colour"})
+	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
+	public void add(Sx4CommandEvent event, @Argument(value="template name") String name) {
+		Document template = event.getMongo().getTriggerTemplate(Filters.eq("name", name), Projections.include("data", "version"));
+
+		ObjectId templateId = template.getObjectId("_id");
+		Document templateInfo = new Document("id", templateId)
+			.append("version", template.getInteger("version"));
+
+		Document data = new Document("guildId", event.getGuild().getIdLong())
+			.append("template", templateInfo);
+
+		data.putAll(template.get("data", Document.class));
+
+		event.getMongo().insertTrigger(data).whenComplete((result, exception) -> {
 			Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
 			if (cause instanceof MongoWriteException && ((MongoWriteException) cause).getError().getCategory() == ErrorCategory.DUPLICATE_KEY) {
 				event.replyFailure("You already have a trigger with that content").queue();
@@ -352,6 +381,35 @@ public class TriggerCommand extends Sx4Command {
 		});
 	}
 
+	@Command(value="format",  description="Enables or disables whether a trigger should be formatted using formatters")
+	@CommandId(518)
+	@Examples({"trigger format 6006ff6b94c9ed0f764ada83", "trigger format disable 6006ff6b94c9ed0f764ada83", "trigger format enable all"})
+	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
+	public void format(Sx4CommandEvent event, @Argument(value="state") @DefaultString("toggle") @Options({"enable", "disable", "toggle"}) String state, @Argument(value="id") @AlternativeOptions("all") Alternative<ObjectId> option) {
+		Bson guildFilter = Filters.eq("guildId", event.getGuild().getIdLong());
+		Bson filter = option.isAlternative() ? guildFilter : Filters.and(Filters.eq("_id", option.getValue()), guildFilter);
+		List<Bson> update = List.of(Operators.set("format", state.equals("toggle") ? Operators.cond(Operators.exists("$format"), false, Operators.REMOVE) : state.equals("enable") ? Operators.REMOVE : false));
+
+		event.getMongo().updateManyTriggers(filter, update, new UpdateOptions()).whenComplete((result, exception) -> {
+			if (ExceptionUtility.sendExceptionally(event, exception)) {
+				return;
+			}
+
+			if (result.getMatchedCount() == 0) {
+				event.replyFailure(option.isAlternative() ? "There are no triggers in this server" : "I could not find that trigger").queue();
+				return;
+			}
+
+			long modified = result.getModifiedCount();
+			if (modified == 0) {
+				event.replyFailure((option.isAlternative() ? "All triggers were" : "That trigger was") +  " already in that state for formatting").queue();
+				return;
+			}
+
+			event.replySuccess((option.isAlternative() ? String.format("**%,d** trigger%s ", modified, modified == 1 ? " has had its" : "s have had their") : "That trigger has had its ") + "format setting updated").queue();
+		});
+	}
+
 	@Command(value="preview", description="Preview what a trigger will look like")
 	@CommandId(222)
 	@Examples({"trigger preview 600968f92850ef72c9af8756"})
@@ -393,7 +451,7 @@ public class TriggerCommand extends Sx4Command {
 		}
 	}
 
-	@Command(value="formatters", aliases={"format", "formatting"}, description="Get all the formatters for triggers you can use")
+	@Command(value="formatters", aliases={"formatting"}, description="Get all the formatters for triggers you can use")
 	@CommandId(443)
 	@Examples({"trigger formatters"})
 	@BotPermissions(permissions={Permission.MESSAGE_EMBED_LINKS})
@@ -438,7 +496,7 @@ public class TriggerCommand extends Sx4Command {
 	@Examples({"trigger list"})
 	@BotPermissions(permissions={Permission.MESSAGE_EMBED_LINKS})
 	public void list(Sx4CommandEvent event) {
-		List<Document> triggers = event.getMongo().getTriggers(Filters.eq("guildId", event.getGuild().getIdLong()), Projections.include("trigger")).into(new ArrayList<>());
+		List<Document> triggers = event.getMongo().getTriggers(Filters.eq("guildId", event.getGuild().getIdLong()), MongoDatabase.EMPTY_DOCUMENT).into(new ArrayList<>());
 		if (triggers.isEmpty()) {
 			event.replyFailure("There are no triggers setup in this server").queue();
 			return;
@@ -447,8 +505,41 @@ public class TriggerCommand extends Sx4Command {
 		PagedResult<Document> paged = new PagedResult<>(event.getBot(), triggers)
 			.setAuthor("Triggers", null, event.getGuild().getIconUrl())
 			.setIndexed(false)
-			.setSelect()
+			.setSelect(PagedResult.SelectType.OBJECT)
+			.setSelectFunction(data -> StringUtility.limit(data.getString("trigger"), StringSelectMenu.PLACEHOLDER_MAX_LENGTH, "..."))
 			.setDisplayFunction(data -> "`" + data.getObjectId("_id").toHexString() + "` - " + StringUtility.limit(data.getString("trigger"), MessageEmbed.DESCRIPTION_MAX_LENGTH / 10 - 29, "..."));
+
+		paged.onSelect(select -> {
+			Document trigger = select.getSelected();
+
+			List<Document> actions = trigger.getList("actions", Document.class);
+			actions.sort(Comparator.comparingInt(action -> action.getInteger("order", -1)));
+
+			PagedResult<Document> pagedActions = new PagedResult<>(event.getBot(), actions)
+				.setSelect()
+				.setPerPage(3)
+				.setCustomFunction(page -> {
+					EmbedBuilder embed = new EmbedBuilder();
+					embed.setTitle("Trigger Info");
+					embed.setDescription("This trigger will be executed when someone sends a message matching `" + trigger.getString("trigger") + "`");
+					embed.setFooter(String.format("Case Sensitive: %s | Formatting Enabled: %s", trigger.get("case", false) ? "Yes" : "No", trigger.get("format", true) ? "Yes" : "No"));
+
+					AtomicInteger actionIndex = new AtomicInteger(1);
+					page.forEach((action, index) -> {
+						String type = TriggerActionType.fromId(action.getInteger("type")).toString();
+						action.append("type", type);
+
+						int order = action.getInteger("order", -1);
+						String orderText = (order == -1 ? "Unordered" : NumberUtility.getSuffixed(actionIndex.getAndIncrement())) + " Action";
+
+						embed.addField(type + " (" + orderText + ")", "```json\n" + action.toJson(MongoDatabase.PRETTY_JSON) + "```", false);
+					});
+
+					return new MessageCreateBuilder().setEmbeds(embed.build());
+				});
+
+			pagedActions.execute(event);
+		});
 
 		paged.execute(event);
 	}
@@ -460,7 +551,6 @@ public class TriggerCommand extends Sx4Command {
 
 			super.setDescription("Allows you to perform an action when a trigger is triggers");
 			super.setExamples("trigger action add", "trigger action remove");
-			super.setCanaryCommand(true);
 		}
 
 		public void onCommand(Sx4CommandEvent event) {
@@ -480,7 +570,7 @@ public class TriggerCommand extends Sx4Command {
 				return;
 			}
 
-			List<Bson> update = List.of(Operators.set("actions", Operators.cond(Operators.or(Operators.gte(Operators.size("$actions"), TriggerCommand.MAX_ACTIONS), Operators.gte(Operators.size(Operators.filter("$actions", Operators.eq("$$this.type", type.getId()))), type.getMaxActions())), "$actions", Operators.concatArrays("$actions", List.of(action)))));
+			List<Bson> update = List.of(Operators.set("actions", Operators.cond(Operators.or(Operators.gte(Operators.size("$actions"), TriggerActionType.MAX_ACTIONS), Operators.gte(Operators.size(Operators.filter("$actions", Operators.eq("$$this.type", type.getId()))), type.getMaxActions())), "$actions", Operators.concatArrays("$actions", List.of(action)))));
 
 			FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().projection(Projections.include("actions")).returnDocument(ReturnDocument.BEFORE);
 			event.getMongo().findAndUpdateTrigger(Filters.and(Filters.eq("_id", id), Filters.eq("guildId", event.getGuild().getIdLong())), update, options).whenComplete((oldData, exception) -> {
@@ -494,8 +584,8 @@ public class TriggerCommand extends Sx4Command {
 				}
 
 				List<Document> allActions = oldData.getList("actions", Document.class);
-				if (allActions.size() >= TriggerCommand.MAX_ACTIONS) {
-					event.replyFailure("You can only have a max of **" + TriggerCommand.MAX_ACTIONS + "** trigger actions").queue();
+				if (allActions.size() >= TriggerActionType.MAX_ACTIONS) {
+					event.replyFailure("You can only have a max of **" + TriggerActionType.MAX_ACTIONS + "** trigger actions").queue();
 					return;
 				}
 
@@ -577,6 +667,169 @@ public class TriggerCommand extends Sx4Command {
 
 				event.replySuccess("All actions of that type have been removed from that trigger").queue();
 			});
+		}
+
+	}
+
+	public static class TemplateCommand extends Sx4Command {
+
+		public TemplateCommand() {
+			super("template", 513);
+
+			super.setDescription("Create trigger templates for servers to use globally");
+			super.setExamples("trigger template upload", "trigger template update", "trigger template delete");
+		}
+
+		public void onCommand(Sx4CommandEvent event) {
+			event.replyHelp().queue();
+		}
+
+		@Command(value="upload", description="Upload a trigger from your server as a template")
+		@CommandId(514)
+		@Examples({"trigger template upload 600968f92850ef72c9af8756 Multiply Multiplies 2 numbers together"})
+		@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
+		public void upload(Sx4CommandEvent event, @Argument(value="trigger id") ObjectId id, @Argument(value="name") @Limit(max=25) String name, @Argument(value="description", endless=true) @Limit(max=500) String description) {
+			Document trigger = event.getMongo().getTrigger(Filters.and(Filters.eq("_id", id), Filters.eq("guildId", event.getGuild().getIdLong())), Projections.include("_id", "trigger", "actions", "template"));
+			if (trigger == null) {
+				event.replyFailure("I could not find that trigger").queue();
+				return;
+			}
+
+			if (trigger.containsKey("template")) {
+				event.replyFailure("That trigger uses a trigger template").queue();
+				return;
+			}
+
+			trigger.remove("template");
+			ObjectId triggerId = (ObjectId) trigger.remove("_id");
+
+			Document template = new Document("version", 1)
+				.append("data", trigger)
+				.append("uses", 0)
+				.append("name", name)
+				.append("description", description)
+				.append("guildId", event.getGuild().getIdLong())
+				.append("triggerId", triggerId);
+
+			event.getMongo().insertTriggerTemplate(template).whenComplete((result, exception) -> {
+				Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
+				if (cause instanceof MongoWriteException mongoException && mongoException.getError().getCategory() == ErrorCategory.DUPLICATE_KEY) {
+					String message = mongoException.getError().getMessage();
+					int index = message.indexOf('{');
+					String key = message.substring(index + 2, message.indexOf(':', index));
+
+					if (key.equals("triggerId")) {
+						event.replyFailure("There is already a trigger template created with that trigger, use `trigger template update` if it needs updating").queue();
+					} else if (key.equals("name")) {
+						event.replyFailure("There is already a trigger template with that name").queue();
+					}
+
+					return;
+				}
+
+				if (ExceptionUtility.sendExceptionally(event, exception)) {
+					return;
+				}
+
+				event.replySuccess("Trigger template created with id `" + result.getInsertedId().asObjectId().getValue().toHexString() + "`").queue();
+			});
+		}
+
+		@Command(value="update", description="Updates your trigger template from the original trigger")
+		@CommandId(516)
+		@Examples({"trigger template update 600968f92850ef72c9af8756"})
+		@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
+		public void update(Sx4CommandEvent event, @Argument(value="trigger id") ObjectId id) {
+			Document trigger = event.getMongo().getTrigger(Filters.and(Filters.eq("_id", id), Filters.eq("guildId", event.getGuild().getIdLong())), Projections.fields(Projections.excludeId(), Projections.include("trigger", "actions")));
+			if (trigger == null) {
+				event.replyFailure("I could not find that trigger").queue();
+				return;
+			}
+
+			event.getMongo().updateTriggerTemplate(Filters.eq("triggerId", id), Updates.set("data", trigger)).thenCompose(result -> {
+				if (result.getMatchedCount() == 0) {
+					throw new IllegalArgumentException("That trigger is not uploaded as a trigger template");
+				}
+
+				if (result.getModifiedCount() == 0) {
+					throw new IllegalArgumentException("That trigger has not changed since being uploaded as a template");
+				}
+
+				return event.getMongo().updateTriggerTemplate(Filters.eq("triggerId", id), Updates.inc("version", 1));
+			}).whenComplete((result, exception) -> {
+				Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
+				if (cause instanceof IllegalArgumentException) {
+					event.replyFailure(cause.getMessage()).queue();
+					return;
+				}
+
+				if (ExceptionUtility.sendExceptionally(event, exception)) {
+					return;
+				}
+
+				event.replySuccess("That trigger template has been updated").queue();
+			});
+		}
+
+		@Command(value="list", description="Lists all available trigger templates in order of uses")
+		@CommandId(515)
+		@Examples({"trigger template list"})
+		public void list(Sx4CommandEvent event) {
+			List<Document> templates = event.getMongo().getTriggerTemplates(Filters.empty(), MongoDatabase.EMPTY_DOCUMENT).sort(Sorts.descending("uses")).into(new ArrayList<>());
+			if (templates.isEmpty()) {
+				event.replyFailure("There are no trigger templates").queue();
+			}
+
+			PagedResult<Document> paged = new PagedResult<>(event.getBot(), templates)
+				.setSelect(PagedResult.SelectType.OBJECT)
+				.setPerPage(9)
+				.setSelectFunction(template -> template.getString("name"))
+				.setCustomFunction(page -> {
+					EmbedBuilder embed = new EmbedBuilder();
+					embed.setTitle("Trigger Templates");
+					embed.setDescription("Select a template with the select menu to view more details");
+
+					page.forEach((template, index) -> embed.addField(template.getString("name"), template.getString("description"), true));
+
+					return new MessageCreateBuilder().setEmbeds(embed.build());
+				});
+
+			paged.onSelect(select -> {
+				Document template = select.getSelected();
+				Document trigger = template.get("data", Document.class);
+
+				List<Document> actions = trigger.getList("actions", Document.class);
+				actions.sort(Comparator.comparingInt(action -> action.getInteger("order", -1)));
+
+				PagedResult<Document> pagedActions = new PagedResult<>(event.getBot(), actions)
+					.setSelect()
+					.setPerPage(3)
+					.setCustomFunction(page -> {
+						EmbedBuilder embed = new EmbedBuilder();
+						embed.setTitle(template.getString("name") + " (" + template.getObjectId("_id").toHexString() + ")");
+						embed.setDescription("This trigger will be executed when someone sends a message matching `" + trigger.getString("trigger") + "`");
+
+						int uses = template.getInteger("uses");
+						embed.setFooter("Used " + uses + " time" + (uses == 1 ? "" : "s") + " | Version " + template.getInteger("version"));
+
+						AtomicInteger actionIndex = new AtomicInteger(1);
+						page.forEach((action, index) -> {
+							String type = TriggerActionType.fromId(action.getInteger("type")).toString();
+							action.append("type", type);
+
+							int order = action.getInteger("order", -1);
+							String orderText = (order == -1 ? "Unordered" : NumberUtility.getSuffixed(actionIndex.getAndIncrement())) + " Action";
+
+							embed.addField(type + " (" + orderText + ")", "```json\n" + action.toJson(MongoDatabase.PRETTY_JSON) + "```", false);
+						});
+
+						return new MessageCreateBuilder().setEmbeds(embed.build());
+					});
+
+				pagedActions.execute(event);
+			});
+
+			paged.execute(event);
 		}
 
 	}

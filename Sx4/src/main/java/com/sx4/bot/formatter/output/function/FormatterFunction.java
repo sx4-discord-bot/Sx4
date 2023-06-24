@@ -3,6 +3,7 @@ package com.sx4.bot.formatter.output.function;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.List;
+import java.util.Optional;
 
 public class FormatterFunction<Type> {
 
@@ -18,16 +19,32 @@ public class FormatterFunction<Type> {
 		this.usePrevious = usePrevious;
 
 		Method[] methods = this.getClass().getMethods();
+
 		for (Method method : methods) {
 			if (method.getName().equalsIgnoreCase("parse")) {
-				for (Class<?> parameter : method.getParameterTypes()) {
-					if (parameter == FormatterEvent.class) {
-						this.method = method;
-						return;
+				boolean optional = false, event = false;
+				Class<?>[] parameters = method.getParameterTypes();
+				for (int i = 0; i < parameters.length; i++) {
+					Class<?> clazz = parameters[i];
+					if (clazz == FormatterEvent.class) {
+						if (i != 0) {
+							throw new IllegalArgumentException("FormatterEvent must be the first parameter in the method");
+						}
+
+						event = true;
+					} else if (clazz == Optional.class) {
+						optional = true;
+					} else if (optional) {
+						throw new IllegalArgumentException("Cannot have a required parameter after an optional parameter");
 					}
 				}
 
-				throw new IllegalArgumentException("parse method should have a FormatterEvent parameter");
+				if (event) {
+					this.method = method;
+					return;
+				} else {
+					throw new IllegalArgumentException("parse method should have a FormatterEvent parameter");
+				}
 			}
 		}
 
