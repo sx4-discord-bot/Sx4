@@ -177,6 +177,11 @@ public class TriggerHandler implements EventListener {
 					manager.addVariable(String.valueOf(i), arguments.get(i));
 				}
 
+				List<Document> variables = trigger.getList("variables", Document.class, Collections.emptyList());
+				for (Document variable : variables) {
+					manager.addVariable(variable.getString("key"), variable.getString("value"));
+				}
+
 				List<CompletableFuture<Void>> futures = TriggerUtility.executeActions(trigger, this.bot, manager, message);
 
 				FutureUtility.allOf(futures).whenComplete(($, exception) -> {

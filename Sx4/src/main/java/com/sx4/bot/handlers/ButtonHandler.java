@@ -41,6 +41,7 @@ import net.dv8tion.jda.api.utils.messages.MessageEditData;
 import okhttp3.Request;
 import org.bson.Document;
 import org.bson.conversions.Bson;
+import org.bson.types.ObjectId;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.EnumSet;
@@ -557,6 +558,29 @@ public class ButtonHandler implements EventListener {
 		}
 	}
 
+	public void handleTriggerVariablePurgeConfirm(ButtonInteractionEvent event, CustomButtonId buttonId) {
+		ObjectId id = buttonId.getArgument(0, ObjectId::new);
+		long guildId = buttonId.getArgumentLong(1);
+
+		this.bot.getMongo().updateTrigger(Filters.and(Filters.eq("_id", id), Filters.eq("guildId", guildId)), Updates.unset("variables"), new UpdateOptions()).whenComplete((result, exception) -> {
+			if (ExceptionUtility.sendExceptionally(event.getMessageChannel(), exception)) {
+				return;
+			}
+
+			if (result.getMatchedCount() == 0) {
+				this.reply(event, "I could not find that trigger " + this.bot.getConfig().getFailureEmote()).queue();
+				return;
+			}
+
+			if (result.getModifiedCount() == 0) {
+				this.reply(event, "There were no variables saved on that trigger " + this.bot.getConfig().getFailureEmote()).queue();
+				return;
+			}
+
+			this.reply(event, "All variables have been removed from that trigger " + this.bot.getConfig().getSuccessEmote()).queue();
+		});
+	}
+
 	@Override
 	public void onEvent(@NotNull GenericEvent genericEvent) {
 		if (!(genericEvent instanceof ButtonInteractionEvent event)) {
@@ -607,6 +631,7 @@ public class ButtonHandler implements EventListener {
 			case MOD_LOG_DELETE_CONFIRM -> this.handleModLogDeleteConfirm(event);
 			case CHANNEL_DELETE_CONFIRM -> this.handleChannelDeleteConfirm(event);
 			case SHIP_SWIPE_LEFT -> this.handleShipSwipeLeft(event, customId);
+			case TRIGGER_VARIABLE_PURGE_CONFIRM -> this.handleTriggerVariablePurgeConfirm(event, customId);
 		}
 	}
 

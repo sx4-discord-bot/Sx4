@@ -1,5 +1,8 @@
 package com.sx4.bot.entities.interaction;
 
+import net.dv8tion.jda.api.interactions.components.buttons.Button;
+import net.dv8tion.jda.api.interactions.components.buttons.ButtonStyle;
+
 import java.time.Clock;
 import java.util.StringJoiner;
 
@@ -48,6 +51,10 @@ public class CustomButtonId extends CustomInteractionId {
 		}
 
 		return this.getType() + ":" + joiner + ":" + this.getExpiry() + (this.getArguments().length == 0 ? "" : ":" + String.join(":", this.getArguments()));
+	}
+
+	public Button asButton(ButtonStyle style, String label) {
+		return Button.of(style, this.getId(), label);
 	}
 
 	public static CustomButtonId fromId(String id) {

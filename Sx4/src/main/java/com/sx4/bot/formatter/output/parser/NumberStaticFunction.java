@@ -19,7 +19,6 @@ public class NumberStaticFunction extends FormatterStaticFunction {
 				return (double) Long.parseLong(number, radix.orElse(10));
 			}
 		} catch (NumberFormatException e) {
-			e.printStackTrace();
 			return null;
 		}
 	}

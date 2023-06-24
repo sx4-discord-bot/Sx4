@@ -30,7 +30,9 @@ import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.*;
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
+import net.dv8tion.jda.api.interactions.components.ActionRow;
 import net.dv8tion.jda.api.interactions.components.buttons.Button;
+import net.dv8tion.jda.api.interactions.components.buttons.ButtonStyle;
 import net.dv8tion.jda.api.interactions.components.selections.StringSelectMenu;
 import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
 import org.bson.Document;
@@ -39,10 +41,7 @@ import org.bson.types.ObjectId;
 
 import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.StringJoiner;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -54,7 +53,7 @@ public class TriggerCommand extends Sx4Command {
 		super("trigger", 214);
 
 		super.setDescription("Set up triggers to respond to certain words or phrases");
-		super.setExamples("trigger toggle", "trigger add", "trigger remove");
+		super.setExamples("trigger state", "trigger add", "trigger remove");
 		super.setCategoryAll(ModuleCategory.MANAGEMENT);
 	}
 
@@ -671,13 +670,79 @@ public class TriggerCommand extends Sx4Command {
 
 	}
 
+	public static class VariableCommand extends Sx4Command {
+
+		public VariableCommand() {
+			super("variable", 519);
+
+			super.setDescription("Adds a permanent variable to a specific trigger, the variable is non-viewable so good for private information such as tokens");
+			super.setExamples("variable add", "variable purge");
+		}
+
+		public void onCommand(Sx4CommandEvent event) {
+			event.replyHelp().queue();
+		}
+
+		@Command(value="add", description="Adds a permanent variable to a trigger")
+		@CommandId(520)
+		@Examples({"trigger variable add 600968f92850ef72c9af8756 token MY_SECRET_TOKEN", "trigger variable add 600968f92850ef72c9af8756 bot_token Bot DISCORD_BOT_TOKEN"})
+		@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
+		public void add(Sx4CommandEvent event, @Argument(value="trigger id") ObjectId id, @Argument(value="key") @Limit(max=20) String key, @Argument(value="value") String value) {
+			Document variable = new Document("key", key).append("value", value);
+
+			List<Bson> update = List.of(Operators.set("variables", Operators.cond(Operators.and(Operators.exists("$variables"), Operators.gte(Operators.size("$variables"), 5)), "$variables", Operators.concatArrays(Operators.ifNull("$variables", Collections.EMPTY_LIST), List.of(variable)))));
+
+			event.getMongo().updateTrigger(Filters.and(Filters.eq("_id", id), Filters.eq("guildId", event.getGuild().getIdLong())), update).whenComplete((result, exception) -> {
+				if (ExceptionUtility.sendExceptionally(event, exception)) {
+					return;
+				}
+
+				if (result.getMatchedCount() == 0) {
+					event.replyFailure("I could not find that trigger").queue();
+					return;
+				}
+
+				if (result.getModifiedCount() == 0) {
+					event.replyFailure("You already have **5** variables for that trigger").queue();
+					return;
+				}
+
+				event.replySuccess("Added a permanent variable to that trigger").queue();
+			});
+		}
+
+		@Command(value="purge", description="Deletes all permanent variables from a trigger")
+		@CommandId(521)
+		@Examples({"trigger variable purge 600968f92850ef72c9af8756"})
+		@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
+		public void purge(Sx4CommandEvent event, @Argument(value="trigger id") ObjectId id) {
+			CustomButtonId acceptId = new CustomButtonId.Builder()
+				.setType(ButtonType.TRIGGER_VARIABLE_PURGE_CONFIRM)
+				.setOwners(event.getAuthor().getIdLong())
+				.setTimeout(60)
+				.setArguments(id.toHexString(), event.getGuild().getId())
+				.build();
+
+			CustomButtonId rejectId = new CustomButtonId.Builder()
+				.setType(ButtonType.GENERIC_REJECT)
+				.setOwners(event.getAuthor().getIdLong())
+				.setTimeout(60)
+				.build();
+
+			event.reply(event.getAuthor().getName() + ", are you sure your want to delete all variables for that trigger")
+				.setComponents(ActionRow.of(acceptId.asButton(ButtonStyle.SUCCESS, "Yes"), rejectId.asButton(ButtonStyle.DANGER, "No")))
+				.queue();
+		}
+
+	}
+
 	public static class TemplateCommand extends Sx4Command {
 
 		public TemplateCommand() {
 			super("template", 513);
 
 			super.setDescription("Create trigger templates for servers to use globally");
-			super.setExamples("trigger template upload", "trigger template update", "trigger template delete");
+			super.setExamples("trigger template upload", "trigger template update");
 		}
 
 		public void onCommand(Sx4CommandEvent event) {
@@ -778,6 +843,7 @@ public class TriggerCommand extends Sx4Command {
 			List<Document> templates = event.getMongo().getTriggerTemplates(Filters.empty(), MongoDatabase.EMPTY_DOCUMENT).sort(Sorts.descending("uses")).into(new ArrayList<>());
 			if (templates.isEmpty()) {
 				event.replyFailure("There are no trigger templates").queue();
+				return;
 			}
 
 			PagedResult<Document> paged = new PagedResult<>(event.getBot(), templates)
