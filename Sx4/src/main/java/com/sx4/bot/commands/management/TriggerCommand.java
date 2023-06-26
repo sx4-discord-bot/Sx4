@@ -733,7 +733,6 @@ public class TriggerCommand extends Sx4Command {
 				.setComponents(ActionRow.of(acceptId.asButton(ButtonStyle.SUCCESS, "Yes"), rejectId.asButton(ButtonStyle.DANGER, "No")))
 				.queue();
 		}
-
 	}
 
 	public static class TemplateCommand extends Sx4Command {

@@ -117,7 +117,7 @@ public abstract class Formatter<Type> {
 			String argument;
 			if (++index == parameters.length - 1) {
 				argument = text.substring(lastIndex + 1);
-				lastIndex = -1;
+				nextIndex = -1;
 			} else {
 				argument = text.substring(lastIndex + 1, (lastIndex = nextIndex) == -1 ? text.length() : nextIndex);
 			}
