@@ -372,9 +372,8 @@ public class FreeGameManager implements WebhookManager {
 				OffsetDateTime end = OffsetDateTime.parse(countdown.attr("end-date"));
 
 				Element imageElement = spot.getElementsByAttributeValue("type", "image/png").first();
-				imageElement = imageElement == null ? spot.getElementsByAttributeValue("type", "image/jpeg").first() : imageElement;
-
-				String image = "https://" + imageElement.attr("lazy-srcset").trim();
+				String imageSource = imageElement.attr("lazy-srcset");
+				String image = "https:" + imageSource.substring(0, imageSource.indexOf(',')).trim();
 
 				Request gameRequest = new Request.Builder()
 					.url("https://gog.com" + url)
