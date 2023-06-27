@@ -31,7 +31,6 @@ import org.bson.conversions.Bson;
 import org.jetbrains.annotations.NotNull;
 
 import java.time.OffsetDateTime;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
@@ -113,91 +112,89 @@ public class TriggerHandler implements EventListener {
 			AggregateOperators.mergeFields("triggers", "guildPrefixes", "userPrefixes")
 		);
 
-		List<WriteModel<Document>> bulkData = new ArrayList<>();
+		CompletableFuture<List<WriteModel<Document>>> updateFuture = new CompletableFuture<>();
 		this.bot.getMongo().aggregateTriggers(pipeline).whenComplete((documents, databaseException) -> {
-			if (ExceptionUtility.sendErrorMessage(databaseException)) {
-				return;
-			}
-
-			if (documents.isEmpty()) {
-				return;
-			}
-
-			Document data = documents.get(0);
-
-			List<String> userPrefixes = data.getList("userPrefixes", String.class, Collections.emptyList());
-			List<String> guildPrefixes = data.getList("guildPrefixes", String.class, Collections.emptyList());
-			List<String> prefixes = userPrefixes.isEmpty() && guildPrefixes.isEmpty() ? this.bot.getConfig().getDefaultPrefixes() : userPrefixes.isEmpty() ? guildPrefixes : userPrefixes;
-
-			// Ensure bot mention always works
-			long selfId = message.getJDA().getSelfUser().getIdLong();
-			prefixes.add("<@" + selfId + "> ");
-			prefixes.add("<@!" + selfId + "> ");
-
-			InputFormatterContext context = new InputFormatterContext(message);
-			context.setVariable("prefixes", prefixes);
-
-			List<Document> triggers = data.getList("triggers", Document.class, Collections.emptyList());
-			triggers.forEach(trigger -> {
-				if (!trigger.get("enabled", true)) {
+			this.bot.getExecutor().submit(() -> {
+				if (ExceptionUtility.sendErrorMessage(databaseException)) {
 					return;
 				}
 
-				FormatterManager manager;
-				if (trigger.get("format", true)) {
-					manager = FormatterManager.getDefaultManager()
-						.addVariable("member", message.getMember())
-						.addVariable("user", message.getAuthor())
-						.addVariable("channel", channel)
-						.addVariable("server", guild)
-						.addVariable("now", OffsetDateTime.now())
-						.addVariable("random", new Random());
-				} else {
-					manager = new FormatterManager();
-				}
-
-				InputFormatter formatter = new InputFormatter(trigger.getString("trigger"));
-
-				List<Object> arguments;
-				try {
-					arguments = formatter.parse(context, message.getContentRaw(), trigger.get("case", false));
-				} catch (IllegalArgumentException e) {
-					channel.sendMessage(e.getMessage() + " " + this.bot.getConfig().getFailureEmote()).queue();
-					return;
-				} catch (Throwable exception) {
-					ExceptionUtility.sendExceptionally(channel, exception);
+				if (documents.isEmpty()) {
 					return;
 				}
 
-				if (arguments == null) {
-					return;
-				}
+				Document data = documents.get(0);
 
-				for (int i = 0; i < arguments.size(); i++) {
-					manager.addVariable(String.valueOf(i), arguments.get(i));
-				}
+				List<String> userPrefixes = data.getList("userPrefixes", String.class, Collections.emptyList());
+				List<String> guildPrefixes = data.getList("guildPrefixes", String.class, Collections.emptyList());
+				List<String> prefixes = userPrefixes.isEmpty() && guildPrefixes.isEmpty() ? this.bot.getConfig().getDefaultPrefixes() : userPrefixes.isEmpty() ? guildPrefixes : userPrefixes;
 
-				List<Document> variables = trigger.getList("variables", Document.class, Collections.emptyList());
-				for (Document variable : variables) {
-					manager.addVariable(variable.getString("key"), variable.getString("value"));
-				}
+				// Ensure bot mention always works
+				long selfId = message.getJDA().getSelfUser().getIdLong();
+				prefixes.add("<@" + selfId + "> ");
+				prefixes.add("<@!" + selfId + "> ");
 
-				List<CompletableFuture<Void>> futures = TriggerUtility.executeActions(trigger, this.bot, manager, message);
+				InputFormatterContext context = new InputFormatterContext(message);
+				context.setVariable("prefixes", prefixes);
 
-				FutureUtility.allOf(futures).whenComplete(($, exception) -> {
-					Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
-					if (cause instanceof IllegalArgumentException) {
-						bulkData.add(new UpdateOneModel<>(Filters.eq("_id", trigger.getObjectId("_id")), Updates.set("enabled", false)));
+				List<Document> triggers = data.getList("triggers", Document.class, Collections.emptyList());
+				triggers.forEach(trigger -> {
+					if (!trigger.get("enabled", true)) {
+						return;
 					}
 
-					ExceptionUtility.sendExceptionally(channel, exception);
+					FormatterManager manager;
+					if (trigger.get("format", true)) {
+						manager = FormatterManager.getDefaultManager()
+							.addVariable("member", message.getMember())
+							.addVariable("user", message.getAuthor())
+							.addVariable("channel", channel)
+							.addVariable("server", guild)
+							.addVariable("now", OffsetDateTime.now())
+							.addVariable("random", new Random());
+					} else {
+						manager = new FormatterManager();
+					}
+
+					InputFormatter formatter = new InputFormatter(trigger.getString("trigger"));
+
+					List<Object> arguments;
+					try {
+						arguments = formatter.parse(context, message.getContentRaw(), trigger.get("case", false));
+					} catch (IllegalArgumentException e) {
+						channel.sendMessage(e.getMessage() + " " + this.bot.getConfig().getFailureEmote()).queue();
+						return;
+					} catch (Throwable exception) {
+						ExceptionUtility.sendExceptionally(channel, exception);
+						return;
+					}
+
+					if (arguments == null) {
+						return;
+					}
+
+					for (int i = 0; i < arguments.size(); i++) {
+						manager.addVariable(String.valueOf(i), arguments.get(i));
+					}
+
+					List<Document> variables = trigger.getList("variables", Document.class, Collections.emptyList());
+					for (Document variable : variables) {
+						manager.addVariable(variable.getString("key"), variable.getString("value"));
+					}
+
+					List<CompletableFuture<Void>> futures = TriggerUtility.executeActions(trigger, this.bot, manager, message);
+
+					FutureUtility.allOf(futures).whenComplete(($, exception) -> {
+						Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
+						if (cause instanceof IllegalArgumentException) {
+							this.bot.getMongo().updateTrigger(Filters.eq("_id", trigger.getObjectId("_id")), Updates.set("enabled", false), new UpdateOptions()).whenComplete(MongoDatabase.exceptionally());
+						}
+
+						ExceptionUtility.sendExceptionally(channel, exception);
+					});
 				});
 			});
 		});
-
-		if (!bulkData.isEmpty()) {
-			this.bot.getMongo().bulkWriteTriggers(bulkData).whenComplete(MongoDatabase.exceptionally());
-		}
 	}
 
 	@Override
