@@ -753,7 +753,7 @@ public class TriggerCommand extends Sx4Command {
 		@Examples({"trigger template upload 600968f92850ef72c9af8756 Multiply Multiplies 2 numbers together"})
 		@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 		public void upload(Sx4CommandEvent event, @Argument(value="trigger id") ObjectId id, @Argument(value="name") @Limit(max=25) String name, @Argument(value="description", endless=true) @Limit(max=500) String description) {
-			Document trigger = event.getMongo().getTrigger(Filters.and(Filters.eq("_id", id), Filters.eq("guildId", event.getGuild().getIdLong())), Projections.include("_id", "trigger", "actions", "template"));
+			Document trigger = event.getMongo().getTrigger(Filters.and(Filters.eq("_id", id), Filters.eq("guildId", event.getGuild().getIdLong())), Projections.include("_id", "trigger", "actions", "template", "case", "format"));
 			if (trigger == null) {
 				event.replyFailure("I could not find that trigger").queue();
 				return;
