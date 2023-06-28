@@ -15,9 +15,12 @@ import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.emoji.Emoji;
 import net.dv8tion.jda.api.interactions.components.ActionRow;
 import net.dv8tion.jda.api.interactions.components.buttons.Button;
+import net.dv8tion.jda.api.interactions.components.buttons.ButtonStyle;
 import net.dv8tion.jda.api.requests.restaction.MessageCreateAction;
 import okhttp3.Request;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 
 public class ShipCommand extends Sx4Command {
@@ -53,15 +56,7 @@ public class ShipCommand extends Sx4Command {
 			event.getHttpClient().newCall(request).enqueue((HttpCallback) response -> {
 				MessageCreateAction action = ImageUtility.sendImageMessage(event, response);
 				if (response.isSuccessful()) {
-					action.setContent(message);
-
-					String id = new CustomButtonId.Builder()
-						.setType(ButtonType.SHIP_SWIPE_LEFT)
-						.setOwners(event.getAuthor().getIdLong())
-						.setArguments(firstMember.getId())
-						.getId();
-
-					action.setComponents(ActionRow.of(Button.primary(id, "Swipe Left").withEmoji(Emoji.fromUnicode("⬅"))));
+					action.setContent(message).setComponents(ActionRow.of(ShipCommand.getShipButtons(event.getAuthor().getIdLong(), firstUser, secondUser)));
 				}
 
 				action.queue();
@@ -69,6 +64,29 @@ public class ShipCommand extends Sx4Command {
 		} else {
 			event.reply(message).queue();
 		}
+	}
+
+	public static List<Button> getShipButtons(long authorId, User firstUser, User secondUser) {
+		CustomButtonId leftButton = new CustomButtonId.Builder()
+			.setType(ButtonType.SHIP_SWIPE_LEFT)
+			.setOwners(authorId)
+			.setArguments(firstUser.getId())
+			.build();
+
+		List<Button> buttons = new ArrayList<>();
+		buttons.add(leftButton.asButton(ButtonStyle.PRIMARY, "Swipe Left").withEmoji(Emoji.fromUnicode("⬅")));
+
+		if (!firstUser.isBot() && !secondUser.isBot() && (firstUser.getIdLong() == authorId || secondUser.getIdLong() == authorId)) {
+			CustomButtonId rightButton = new CustomButtonId.Builder()
+				.setType(ButtonType.SHIP_SWIPE_RIGHT)
+				.setOwners(authorId)
+				.setArguments(firstUser.getIdLong() == authorId ? secondUser.getIdLong() : firstUser.getIdLong())
+				.build();
+
+			buttons.add(rightButton.asButton(ButtonStyle.PRIMARY, "Swipe Right").withEmoji(Emoji.fromUnicode("➡")));
+		}
+
+		return buttons;
 	}
 
 }

@@ -1,6 +1,7 @@
 package com.sx4.bot.handlers;
 
 import com.mongodb.client.model.*;
+import com.sx4.bot.commands.image.ShipCommand;
 import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.database.mongo.model.Operators;
@@ -24,7 +25,6 @@ import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.User;
-import net.dv8tion.jda.api.entities.emoji.Emoji;
 import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import net.dv8tion.jda.api.hooks.EventListener;
@@ -44,6 +44,7 @@ import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Random;
@@ -540,15 +541,7 @@ public class ButtonHandler implements EventListener {
 			this.bot.getHttpClient().newCall(request).enqueue((HttpCallback) response -> {
 				MessageCreateBuilder builder = ImageUtility.getImageMessage(response);
 				if (response.isSuccessful()) {
-					builder.setContent(message);
-
-					String id = new CustomButtonId.Builder()
-						.setType(ButtonType.SHIP_SWIPE_LEFT)
-						.setOwners(event.getUser().getIdLong())
-						.setArguments(firstUser.getId())
-						.getId();
-
-					builder.setComponents(ActionRow.of(Button.primary(id, "Swipe Left").withEmoji(Emoji.fromUnicode("⬅"))));
+					builder.setContent(message).setComponents(ActionRow.of(ShipCommand.getShipButtons(event.getUser().getIdLong(), firstUser, secondUser)));
 				}
 
 				event.editMessage(MessageEditData.fromCreateData(builder.build())).queue();
@@ -556,6 +549,62 @@ public class ButtonHandler implements EventListener {
 		} else {
 			event.reply(message).queue();
 		}
+	}
+
+	public void handleShipSwipeRight(ButtonInteractionEvent event, CustomButtonId buttonId) {
+		long proposerId = buttonId.getFirstOwnerId();
+		long partnerId = buttonId.getArgumentLong(0);
+
+		Member member = event.getGuild().getMemberById(partnerId);
+		if (member == null) {
+			event.reply("That user is no longer in the server " + this.bot.getConfig().getFailureEmote()).setEphemeral(true)
+				.flatMap(hook -> event.getMessage().editMessageComponents(ButtonUtility.disableButtons(event.getMessage().getActionRows(), buttonId.getId())))
+				.queue();
+
+			return;
+		}
+
+		Bson checkFilter = Filters.or(
+			Filters.eq("proposerId", proposerId),
+			Filters.eq("partnerId", proposerId),
+			Filters.eq("proposerId", partnerId),
+			Filters.eq("partnerId", partnerId)
+		);
+
+		List<Document> marriages = this.bot.getMongo().getMarriages(checkFilter, Projections.include("partnerId", "proposerId")).into(new ArrayList<>());
+
+		long proposerCount = marriages.stream().filter(d -> d.getLong("proposerId") == proposerId || d.getLong("partnerId") == proposerId).count();
+		if (proposerCount >= 5) {
+			event.reply("You are already married to 5 users " + this.bot.getConfig().getFailureEmote()).setEphemeral(true).queue();
+			return;
+		}
+
+		long partnerCount = marriages.stream().filter(d -> d.getLong("proposerId") == partnerId || d.getLong("partnerId") == partnerId).count();
+		if (partnerCount >= 5) {
+			event.reply("That user is already married to 5 users " + this.bot.getConfig().getFailureEmote()).setEphemeral(true).queue();
+			return;
+		}
+
+		String acceptId = new CustomButtonId.Builder()
+			.setType(ButtonType.MARRIAGE_CONFIRM)
+			.setTimeout(60)
+			.setOwners(partnerId)
+			.setArguments(proposerId)
+			.getId();
+
+		String rejectId = new CustomButtonId.Builder()
+			.setType(ButtonType.MARRIAGE_REJECT)
+			.setTimeout(60)
+			.setOwners(partnerId)
+			.setArguments(proposerId)
+			.getId();
+
+		List<Button> buttons = List.of(Button.success(acceptId, "Yes"), Button.danger(rejectId, "No"));
+
+		event.reply(member.getAsMention() + ", **" + event.getUser().getName() + "** would like to marry you! Do you accept?")
+			.setAllowedMentions(EnumSet.of(Message.MentionType.USER))
+			.setActionRow(buttons)
+			.queue();
 	}
 
 	public void handleTriggerVariablePurgeConfirm(ButtonInteractionEvent event, CustomButtonId buttonId) {
@@ -632,6 +681,7 @@ public class ButtonHandler implements EventListener {
 			case CHANNEL_DELETE_CONFIRM -> this.handleChannelDeleteConfirm(event);
 			case SHIP_SWIPE_LEFT -> this.handleShipSwipeLeft(event, customId);
 			case TRIGGER_VARIABLE_PURGE_CONFIRM -> this.handleTriggerVariablePurgeConfirm(event, customId);
+			case SHIP_SWIPE_RIGHT -> this.handleShipSwipeRight(event, customId);
 		}
 	}
 
