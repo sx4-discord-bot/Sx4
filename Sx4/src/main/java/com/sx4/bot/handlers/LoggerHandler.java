@@ -991,9 +991,13 @@ public class LoggerHandler implements EventListener {
 	public void onPermissionOverrideCreate(PermissionOverrideCreateEvent event) throws ExecutionException, InterruptedException {
 		Guild guild = event.getGuild();
 		GuildChannel channel = event.getChannel();
-		IPermissionHolder permissionHolder = event.getPermissionHolder();
 		PermissionOverride permissionOverride = event.getPermissionOverride();
 		ChannelType channelType = event.getChannelType();
+
+		IPermissionHolder permissionHolder = event.getPermissionHolder();
+		if (permissionHolder == null) {
+			return;
+		}
 
 		LoggerEvent loggerEvent = channelType == ChannelType.CATEGORY ? LoggerEvent.CATEGORY_OVERRIDE_CREATE :
 			channelType == ChannelType.VOICE ? LoggerEvent.VOICE_CHANNEL_OVERRIDE_CREATE :
@@ -1063,9 +1067,13 @@ public class LoggerHandler implements EventListener {
 	public void onPermissionOverrideUpdate(PermissionOverrideUpdateEvent event) throws ExecutionException, InterruptedException {
 		Guild guild = event.getGuild();
 		GuildChannel channel = event.getChannel();
-		IPermissionHolder permissionHolder = event.getPermissionHolder();
 		PermissionOverride permissionOverride = event.getPermissionOverride();
 		ChannelType channelType = event.getChannelType();
+
+		IPermissionHolder permissionHolder = event.getPermissionHolder();
+		if (permissionHolder == null) {
+			return;
+		}
 
 		LoggerEvent loggerEvent = channelType == ChannelType.CATEGORY ? LoggerEvent.CATEGORY_OVERRIDE_CREATE :
 			channelType == ChannelType.VOICE ? LoggerEvent.VOICE_CHANNEL_OVERRIDE_CREATE :
@@ -1141,6 +1149,11 @@ public class LoggerHandler implements EventListener {
 		Member member = event.getMember();
 		Role role = event.getRole();
 
+		IPermissionHolder permissionHolder = event.getPermissionHolder();
+		if (permissionHolder == null) {
+			return;
+		}
+
 		boolean roleOverride = event.isRoleOverride();
 
 		LoggerEvent loggerEvent = channelType == ChannelType.CATEGORY ? LoggerEvent.CATEGORY_OVERRIDE_DELETE :
@@ -1156,7 +1169,7 @@ public class LoggerHandler implements EventListener {
 		embed.setColor(this.bot.getConfig().getRed());
 		embed.setTimestamp(Instant.now());
 		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
-		embed.setFooter(new EmbedFooter(String.format("%s ID: %s", roleOverride ? "Role" : "User", event.getPermissionHolder().getIdLong()), null));
+		embed.setFooter(new EmbedFooter(String.format("%s ID: %s", roleOverride ? "Role" : "User", permissionHolder.getIdLong()), null));
 
 		List<Document> documents =	this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).get();
 		if (documents.isEmpty()) {
