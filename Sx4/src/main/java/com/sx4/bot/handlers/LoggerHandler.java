@@ -988,6 +988,11 @@ public class LoggerHandler implements EventListener {
 		}
 	}
 
+	// Permission overrides in raw form in audit logs can be both ints and strings
+	private long getOverridePermissionRaw(Object value) {
+		return value instanceof Integer ? ((Integer) value).longValue() : Long.parseLong((String) value);
+	}
+
 	public void onPermissionOverrideCreate(PermissionOverrideCreateEvent event) throws ExecutionException, InterruptedException {
 		Guild guild = event.getGuild();
 		GuildChannel channel = event.getChannel();
@@ -1035,8 +1040,8 @@ public class LoggerHandler implements EventListener {
 			Predicate<AuditLogEntry> predicate = entry -> {
 				AuditLogChange allow = entry.getChangeByKey("allow"), deny = entry.getChangeByKey("deny");
 
-				long denyNew = deny == null ? permissionOverride.getDeniedRaw() : Long.parseLong(deny.getNewValue());
-				long allowNew = allow == null ? permissionOverride.getAllowedRaw() : Long.parseLong(allow.getNewValue());
+				long denyNew = deny == null ? permissionOverride.getDeniedRaw() : this.getOverridePermissionRaw(deny.getNewValue());
+				long allowNew = allow == null ? permissionOverride.getAllowedRaw() : this.getOverridePermissionRaw(allow.getNewValue());
 
 				return denyNew == permissionOverride.getDeniedRaw() && allowNew == permissionOverride.getAllowedRaw();
 			};
@@ -1110,8 +1115,8 @@ public class LoggerHandler implements EventListener {
 			Predicate<AuditLogEntry> predicate = entry -> {
 				AuditLogChange allow = entry.getChangeByKey("allow"), deny = entry.getChangeByKey("deny");
 
-				Long denyNewValue = deny == null ? null : Long.parseLong(deny.getNewValue()), denyOldValue = deny == null ? null : Long.parseLong(deny.getOldValue());
-				Long allowNewValue = allow == null ? null : Long.parseLong(allow.getNewValue()), allowOldValue = allow == null ? null : Long.parseLong(allow.getOldValue());
+				Long denyNewValue = deny == null ? null : this.getOverridePermissionRaw(deny.getNewValue()), denyOldValue = deny == null ? null : this.getOverridePermissionRaw(deny.getOldValue());
+				Long allowNewValue = allow == null ? null : this.getOverridePermissionRaw(allow.getNewValue()), allowOldValue = allow == null ? null : this.getOverridePermissionRaw(allow.getOldValue());
 
 				long denyNew = denyNewValue == null ? permissionOverride.getDeniedRaw() : denyNewValue, denyOld = denyOldValue == null ? event.getOldDenyRaw() : denyOldValue;
 				long allowNew = allowNewValue == null ? permissionOverride.getAllowedRaw() : allowNewValue, allowOld = allowOldValue == null ? event.getOldAllowRaw() : allowOldValue;
