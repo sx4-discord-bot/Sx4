@@ -14,6 +14,7 @@ import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.utility.ExceptionUtility;
+import com.sx4.bot.utility.StringUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
@@ -45,8 +46,8 @@ public class PrefixCommand extends Sx4Command {
 		embed.setAuthor("Prefix Settings", null, event.getAuthor().getEffectiveAvatarUrl());
 		embed.setColor(event.getMember().getColor());
 		embed.addField("Default Prefixes", String.join(", ", event.getConfig().getDefaultPrefixes()), false);
-		embed.addField("Server Prefixes", guildPrefixes.isEmpty() ? "None" : String.join(", ", guildPrefixes), false);
-		embed.addField(event.getAuthor().getName() + "'s Prefixes", userPrefixes.isEmpty() ? "None" : String.join(", ", userPrefixes), false);
+		embed.addField("Server Prefixes", guildPrefixes.isEmpty() ? "None" : StringUtility.joinLimited(", ", guildPrefixes, 1024), false);
+		embed.addField(event.getAuthor().getName() + "'s Prefixes", userPrefixes.isEmpty() ? "None" : StringUtility.joinLimited(", ", userPrefixes, 1024), false);
 
 		event.reply(new MessageCreateBuilder().setEmbeds(embed.build()).setContent("For help on setting the prefix use `" + event.getPrefix() + "help prefix`").build()).queue();
 	}
