@@ -105,6 +105,8 @@ public class LoggerManager {
     private int limit = Integer.MAX_VALUE;
     private int remainingUses;
 
+    private volatile boolean queued = false;
+
     private final Sx4 bot;
 
     public LoggerManager(Sx4 bot, OkHttpClient client, ScheduledExecutorService executor) {
@@ -128,6 +130,7 @@ public class LoggerManager {
         this.bot.getMongo().updateLogger(Filters.eq("channelId", channelId), update, new UpdateOptions()).whenComplete((result, databaseException) -> {
             ExceptionUtility.sendErrorMessage(databaseException);
             this.queue.clear();
+            this.queued = false;
             this.webhook = null;
         });
     }
@@ -144,6 +147,7 @@ public class LoggerManager {
                     this.bot.getMongo().deleteLogger(Filters.eq("channelId", channel.getIdLong())).whenComplete((result, databaseException) -> {
                         ExceptionUtility.sendErrorMessage(databaseException);
                         this.queue.clear();
+                        this.queued = false;
                         this.webhook = null;
                     });
 
@@ -178,6 +182,7 @@ public class LoggerManager {
         try {
             Request request = this.queue.poll();
             if (request == null) {
+                this.queued = false;
                 return;
             }
 
@@ -198,6 +203,7 @@ public class LoggerManager {
                 this.bot.getMongo().deleteLogger(Filters.eq("channelId", channelId)).whenComplete((result, exception) -> {
                     ExceptionUtility.sendErrorMessage(exception);
                     this.queue.clear();
+                    this.queued = false;
                 });
 
                 return;
@@ -320,11 +326,10 @@ public class LoggerManager {
     }
 
     private void queue(Request request) {
-        if (this.queue.isEmpty()) {
-            this.queue.add(request);
+        this.queue.add(request);
+        if (!this.queued) {
+            this.queued = true;
             this.handleQueue();
-        } else {
-            this.queue.add(request);
         }
     }
 
