@@ -112,7 +112,6 @@ public class TriggerHandler implements EventListener {
 			AggregateOperators.mergeFields("triggers", "guildPrefixes", "userPrefixes")
 		);
 
-		CompletableFuture<List<WriteModel<Document>>> updateFuture = new CompletableFuture<>();
 		this.bot.getMongo().aggregateTriggers(pipeline).whenComplete((documents, databaseException) -> {
 			this.bot.getExecutor().submit(() -> {
 				if (ExceptionUtility.sendErrorMessage(databaseException)) {

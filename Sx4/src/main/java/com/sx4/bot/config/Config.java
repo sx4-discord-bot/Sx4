@@ -13,6 +13,7 @@ import org.json.JSONObject;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -114,7 +115,7 @@ public class Config extends GenericConfig {
 	}
 
 	public List<String> getDefaultPrefixes() {
-		return this.get("defaultPrefixes");
+		return new ArrayList<>(this.get("defaultPrefixes"));
 	}
 	
 	public boolean isCanary() {
